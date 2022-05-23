@@ -12,4 +12,6 @@ trait Connector {
   ): CancelableListener
 
   def endPoint[T](topic: CanonicalTopic[T]): EndPoint[T]
+
+  def shutdown(): Unit
 }

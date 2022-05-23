@@ -66,14 +66,21 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
   def stop(): Unit = {
     partitions.writers.foreach(_.stop())
     partitions.readers.foreach(_.stop())
+    partitions = null
     queryManager.worker.stop()
+    queryManager = null
 
     spoutworker match {
-      case Some(w) => w.worker.stop()
+      case Some(w) =>
+        w.worker.stop()
+        spoutworker = null
       case None    =>
     }
     graphBuilderworker match {
-      case Some(worker) => worker.foreach(builder => builder.worker.stop())
+      case Some(worker) =>
+        worker.foreach(builder => builder.worker.stop())
+        graphBuilderworker = null
+
       case None         =>
     }
 

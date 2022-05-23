@@ -12,6 +12,6 @@ object AkkaTopicRepository {
 
   def apply(config: Config): TopicRepository = {
     val akkaConnector = new AkkaConnector(actorSystem)
-    new TopicRepository(akkaConnector, config)
+    new TopicRepository(akkaConnector, config, Array(akkaConnector))
   }
 }

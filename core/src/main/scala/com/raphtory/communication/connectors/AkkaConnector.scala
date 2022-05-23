@@ -143,4 +143,6 @@ class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Con
 
   private def deserialise[T](bytes: Array[Byte]): T = kryo.deserialise[T](bytes)
   private def serialise(value: Any): Array[Byte]    = kryo.serialise(value)
+
+  override def shutdown(): Unit = actorSystem.terminate()
 }

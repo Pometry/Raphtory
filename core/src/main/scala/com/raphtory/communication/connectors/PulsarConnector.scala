@@ -272,4 +272,7 @@ class PulsarConnector(config: Config) extends Connector {
     pulsarAdmin.namespaces.setRetention(namespace, policies)
     pulsarAdmin.namespaces().setDeduplicationStatus(namespace, false)
   }
+
+  override def shutdown(): Unit =
+    client.shutdown()
 }

@@ -212,6 +212,7 @@ private[raphtory] class ComponentFactory(
   def stop(): Unit = {
     partitionIDManager.stop()
     builderIDManager.stop()
+    topicRepo.shutdown()
   }
 }
 

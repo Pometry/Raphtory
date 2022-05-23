@@ -7,6 +7,8 @@ import com.typesafe.config.Config
 /** @DoNotDocument */
 object PulsarTopicRepository {
 
-  def apply(config: Config): TopicRepository =
-    new TopicRepository(new PulsarConnector(config), config)
+  def apply(config: Config): TopicRepository = {
+    val pulsarConnector = new PulsarConnector(config)
+    new TopicRepository(pulsarConnector, config, Array(pulsarConnector))
+  }
 }

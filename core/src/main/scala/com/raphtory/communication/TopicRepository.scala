@@ -23,7 +23,7 @@ import com.typesafe.config.Config
 import scala.reflect.ClassTag
 
 /** @DoNotDocument */
-class TopicRepository(defaultConnector: Connector, conf: Config) {
+class TopicRepository(defaultConnector: Connector, conf: Config, allConnectors: Array[Connector]) {
 
   // Methods to override:
   protected def spoutConnector: Connector            = defaultConnector
@@ -132,4 +132,6 @@ class TopicRepository(defaultConnector: Connector, conf: Config) {
 
     CancelableListener(listeners)
   }
+
+  def shutdown(): Unit = allConnectors.foreach(_.shutdown())
 }
