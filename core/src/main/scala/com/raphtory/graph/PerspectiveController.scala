@@ -52,7 +52,7 @@ object PerspectiveController {
   val DEFAULT_PERSPECTIVE_TIME: Long             = -1L
   val DEFAULT_PERSPECTIVE_WINDOW: Some[Interval] = Some(DiscreteInterval(-1L))
 
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   def apply(
       firstAvailableTimestamp: Long,

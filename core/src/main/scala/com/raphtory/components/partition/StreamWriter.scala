@@ -5,8 +5,10 @@ import com.raphtory.components.Component
 import com.raphtory.components.graphbuilder._
 import com.raphtory.graph._
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.Logger
 import io.prometheus.client.Counter
 import org.apache.pulsar.client.api.Consumer
+import org.slf4j.LoggerFactory
 
 import java.util.Calendar
 import scala.collection.mutable
@@ -19,7 +21,9 @@ class StreamWriter(
     conf: Config,
     topics: TopicRepository
 ) extends Component[GraphAlteration](conf) {
-  private val neighbours = topics.graphSync.endPoint
+
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val neighbours     = topics.graphSync.endPoint
 
   private val listener          =
     topics.registerListener(

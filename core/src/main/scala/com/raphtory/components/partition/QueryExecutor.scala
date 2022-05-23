@@ -41,8 +41,10 @@ import com.raphtory.storage.pojograph.PojoGraphLens
 import com.raphtory.storage.pojograph.messaging.VertexMessageHandler
 import com.raphtory.time.Interval
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.Logger
 import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api._
+import org.slf4j.LoggerFactory
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -56,6 +58,7 @@ class QueryExecutor(
     scheduler: MonixScheduler
 ) extends Component[QueryManagement](conf) {
 
+  private val logger: Logger              = Logger(LoggerFactory.getLogger(this.getClass))
   var currentTimestamp: Long              = _
   var currentWindow: Option[Interval]     = _
   var graphLens: LensInterface            = _

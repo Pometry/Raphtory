@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
-/**`RaphtoryService` is used for distributed deployment of Raphtory as a service.
+/** `RaphtoryService` is used for distributed deployment of Raphtory as a service.
   * This is done by deploying each of it's core components - spout, graphbuilder, partitions and query manager
   *
   * Usage:
@@ -29,14 +29,14 @@ import scala.reflect.runtime.universe.TypeTag
   *  @see [[com.raphtory.components.graphbuilder.GraphBuilder]] [[com.raphtory.components.spout.Spout]]
   */
 abstract class RaphtoryService[T: ClassTag] {
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   /** Defines type of Spout to be created including `FileSpout`, `ResourceSpout` and
     * `StaticGraphSpout` for ingesting data
     */
   def defineSpout(): Spout[T]
 
-  /** Initialise `GraphBuilder` for building graphs  */
+  /** Initialise `GraphBuilder` for building graphs */
   def defineBuilder: GraphBuilder[T]
 
   def batchIngestion(): Boolean
@@ -50,17 +50,20 @@ abstract class RaphtoryService[T: ClassTag] {
     }
 
   /** Deploy spouts by using `SpoutExecutor` to ingest data from files and resources,
-    * sending messages per row to builder producers */
+    * sending messages per row to builder producers
+    */
   def spoutDeploy(): Unit =
     Raphtory.createSpout[T](defineSpout())
 
   /** Deploys `GraphBuilder` to build graphs by adding vertices and edges using data
-    * processed and ingested by the spout as tuples of rows */
+    * processed and ingested by the spout as tuples of rows
+    */
   def builderDeploy(): Unit =
     Raphtory.createGraphBuilder(defineBuilder)
 
   /** Deploy partitions using Partition Manager for creating partitions as distributed
-    * storage units with readers and writers. Uses Zookeeper to create partition IDs */
+    * storage units with readers and writers. Uses Zookeeper to create partition IDs
+    */
   def partitionDeploy(): Unit =
     Raphtory.createPartitionManager[T](
             batchLoading = batchIngestion(),

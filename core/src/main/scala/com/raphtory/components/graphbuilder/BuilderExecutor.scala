@@ -5,11 +5,13 @@ import com.raphtory.components.Component
 import com.raphtory.config.telemetry.BuilderTelemetry
 import com.raphtory.serialisers.Marshal
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.Logger
 import io.prometheus.client.Counter
 import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema
+import org.slf4j.LoggerFactory
 
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe
@@ -31,6 +33,7 @@ class BuilderExecutor[T: ClassTag](
     )
   private val failOnError: Boolean = conf.getBoolean("raphtory.builders.failOnError")
   private val writers              = topics.graphUpdates.endPoint
+  private val logger: Logger       = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val spoutOutputListener =
     topics.registerListener(s"$deploymentID-builder-$name", handleMessage, topics.spout[T])

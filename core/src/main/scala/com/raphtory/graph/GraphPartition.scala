@@ -16,7 +16,7 @@ import scala.collection.mutable
   * @note DoNotDocument
   */
 abstract class GraphPartition(partitionID: Int, conf: Config) {
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   protected val failOnError: Boolean = conf.getBoolean("raphtory.partitions.failOnError")
   private var batchIngesting         = false

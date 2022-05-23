@@ -34,12 +34,12 @@ import scala.concurrent.duration.DurationInt
 case object StopActor
 
 class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Connector {
-  val logger: Logger                              = Logger(LoggerFactory.getLogger(this.getClass))
-  val akkaReceptionistRegisteringTimeout: Timeout = 1.seconds
-  val akkaSpawnerTimeout: Timeout                 = 1.seconds
-  val akkaReceptionistFindingTimeout: Timeout     = 1.seconds
+  private val logger: Logger                              = Logger(LoggerFactory.getLogger(this.getClass))
+  private val akkaReceptionistRegisteringTimeout: Timeout = 1.seconds
+  private val akkaSpawnerTimeout: Timeout                 = 1.seconds
+  private val akkaReceptionistFindingTimeout: Timeout     = 1.seconds
 
-  val kryo: KryoSerialiser = KryoSerialiser()
+  private val kryo: KryoSerialiser = KryoSerialiser()
 
   case class AkkaEndPoint[T](actorRefs: Future[Set[ActorRef[Array[Byte]]]]) extends EndPoint[T] {
     private val endPointResolutionTimeout: Duration = 10.seconds

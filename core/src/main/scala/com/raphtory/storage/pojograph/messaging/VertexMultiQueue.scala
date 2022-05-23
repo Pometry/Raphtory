@@ -7,7 +7,7 @@ import scala.collection.mutable.ArrayBuffer
 
 /** @note DoNotDocument */
 final class VertexMultiQueue {
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val evenMessageQueue: ArrayBuffer[Any] = ArrayBuffer.empty
   private val oddMessageQueue: ArrayBuffer[Any]  = ArrayBuffer.empty

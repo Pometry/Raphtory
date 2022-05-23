@@ -12,6 +12,8 @@ import java.util.concurrent.TimeUnit
 import scala.reflect.runtime.universe.TypeTag
 import com.raphtory.config.telemetry.ComponentTelemetryHandler
 import com.raphtory.config.telemetry.SpoutTelemetry
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.DurationInt
 
@@ -22,11 +24,15 @@ class SpoutExecutor[T](
     topics: TopicRepository,
     scheduler: MonixScheduler
 ) extends Component[T](conf) {
+
   protected val failOnError: Boolean           = conf.getBoolean("raphtory.spout.failOnError")
   private var linesProcessed: Int              = 0
   private var scheduledRun: Option[Cancelable] = None
-  val spoutReschedulesCount               = telemetry.spoutReschedules.labels(deploymentID)
-  val fileLinesSent = telemetry.fileLinesSent.labels(deploymentID)
+  private val logger: Logger                   = Logger(LoggerFactory.getLogger(this.getClass))
+
+  val spoutReschedulesCount   = telemetry.spoutReschedules.labels(deploymentID)
+  val fileLinesSent           = telemetry.fileLinesSent.labels(deploymentID)
+
   val rescheduler: () => Unit = () =>
     {
       spout.executeReschedule()

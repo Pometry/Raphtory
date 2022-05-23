@@ -8,7 +8,9 @@ import com.raphtory.config.telemetry.BuilderTelemetry
 import com.raphtory.config.telemetry.PartitionTelemetry
 import com.raphtory.serialisers.Marshal
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.Logger
 import io.prometheus.client.Counter
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
@@ -23,6 +25,8 @@ class LocalBatchHandler[T: ClassTag](
     conf: Config,
     scheduler: MonixScheduler
 ) extends Component[GraphAlteration](conf) {
+
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   graphBuilder.setupBatchIngestion(partitionIDs, batchWriters, totalPartitions)
 

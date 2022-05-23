@@ -44,18 +44,18 @@ class LiveTwitterSpout() extends Spout[Tweet] {
 }
 
 class LiveTwitterAddSpout(tweetQueue: ConcurrentLinkedQueue[Tweet]) {
-  val logger: Logger         = Logger(LoggerFactory.getLogger(this.getClass))
-  val raphtoryConfig: Config = Raphtory.getDefaultConfig()
-  val hashtag: String        = raphtoryConfig.getString("raphtory.spout.twitter.local.hashtag")
-  val tag: String            = raphtoryConfig.getString("raphtory.spout.twitter.local.tag")
+  private val logger: Logger         = Logger(LoggerFactory.getLogger(this.getClass))
+  private val raphtoryConfig: Config = Raphtory.getDefaultConfig()
+  private val hashtag: String        = raphtoryConfig.getString("raphtory.spout.twitter.local.hashtag")
+  private val tag: String            = raphtoryConfig.getString("raphtory.spout.twitter.local.tag")
 
-  val enableRetweetGraphBuilder: Boolean =
+  private val enableRetweetGraphBuilder: Boolean =
     raphtoryConfig.getBoolean("raphtory.spout.twitter.local.enableRetweetFilter")
 
-  val getTweetLanguage: String =
+  private val getTweetLanguage: String =
     raphtoryConfig.getString("raphtory.spout.twitter.local.setLanguage")
 
-  val twitterClient =
+  private val twitterClient =
     try new TwitterClient(
       TwitterCredentials
         .builder()

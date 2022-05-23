@@ -19,7 +19,7 @@ class BatchWriter[T: ClassTag](
   def getStorage() = storage
 
   private var processedMessages = 0
-  val logger: Logger            = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger    = Logger(LoggerFactory.getLogger(this.getClass))
 
   def handleMessage(msg: GraphAlteration): Unit = {
     msg match {

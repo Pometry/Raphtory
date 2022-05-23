@@ -32,7 +32,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 class AwsS3Spout(awsS3SpoutBucketName: String, awsS3SpoutBucketPath: String)
   extends Spout[String] {
 
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   val raphtoryConfig: Config = ConfigFactory.load()
 

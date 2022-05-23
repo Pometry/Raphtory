@@ -31,7 +31,7 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
 ) {
 
   allowIllegalReflection()
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val deploymentID: String = conf.getString("raphtory.deploy.id")
   private val spoutTopic: String   = conf.getString("raphtory.spout.topic")

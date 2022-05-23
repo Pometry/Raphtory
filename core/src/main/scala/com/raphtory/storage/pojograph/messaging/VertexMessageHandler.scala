@@ -27,7 +27,7 @@ class VertexMessageHandler(
     receivedMessages: AtomicInteger
 ) {
 
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   val msgBatchPath: String  = "raphtory.partitions.batchMessages"
   val messageBatch: Boolean = config.getBoolean(msgBatchPath)

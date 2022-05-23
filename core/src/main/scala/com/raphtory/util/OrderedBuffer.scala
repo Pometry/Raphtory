@@ -10,7 +10,7 @@ import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
 
 object OrderedBuffer {
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   implicit object TupleByFirstOrdering extends Ordering[(Long, Any)] {
     def compare(a: (Long, Any), b: (Long, Any)): Int = a._1 compare b._1

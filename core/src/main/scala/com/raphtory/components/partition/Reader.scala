@@ -10,7 +10,10 @@ import com.raphtory.config.Cancelable
 import com.raphtory.config.MonixScheduler
 import com.raphtory.graph.GraphPartition
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.Logger
+import io.prometheus.client.Gauge
 import org.apache.pulsar.client.api.Consumer
+import org.slf4j.LoggerFactory
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
@@ -24,6 +27,8 @@ class Reader(
     conf: Config,
     topics: TopicRepository
 ) extends Component[QueryManagement](conf) {
+
+  private val logger: Logger   = Logger(LoggerFactory.getLogger(this.getClass))
   private val executorMap      = mutable.Map[String, QueryExecutor]()
   private val watermarkPublish = topics.watermark.endPoint
 

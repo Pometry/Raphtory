@@ -16,7 +16,7 @@ import scala.language.postfixOps
 import sys.process._
 
 object FileUtils {
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   def createOrCleanDirectory(path: String, clean: Boolean = true): File = {
     logger.debug(s"Creating temp folder '$path'.")

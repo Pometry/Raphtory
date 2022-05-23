@@ -34,7 +34,7 @@ import scala.math.Ordering.Implicits.infixOrderingOps
 
 /** @DoNotDocument */
 class PulsarConnector(config: Config) extends Connector {
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   case class PulsarEndPoint[T](producer: Producer[Array[Byte]]) extends EndPoint[T] {
 
@@ -54,10 +54,10 @@ class PulsarConnector(config: Config) extends Connector {
         )
   }
 
-  val pulsarAddress: String         = config.getString("raphtory.pulsar.broker.address")
-  val pulsarAdminAddress: String    = config.getString("raphtory.pulsar.admin.address")
-  private val numIoThreads          = config.getInt("raphtory.pulsar.broker.ioThreads")
-  private val useAllListenerThreads = "raphtory.pulsar.broker.useAvailableThreadsInSystem"
+  private val pulsarAddress: String      = config.getString("raphtory.pulsar.broker.address")
+  private val pulsarAdminAddress: String = config.getString("raphtory.pulsar.admin.address")
+  private val numIoThreads               = config.getInt("raphtory.pulsar.broker.ioThreads")
+  private val useAllListenerThreads      = "raphtory.pulsar.broker.useAvailableThreadsInSystem"
 
   private val listenerThreads =
     if (config.hasPath(useAllListenerThreads) && config.getBoolean(useAllListenerThreads))
@@ -65,7 +65,7 @@ class PulsarConnector(config: Config) extends Connector {
     else
       config.getInt("raphtory.pulsar.broker.listenerThreads")
 
-  val kryo: KryoSerialiser = KryoSerialiser()
+  private val kryo: KryoSerialiser = KryoSerialiser()
 
   private val client: PulsarClient =
     PulsarClient

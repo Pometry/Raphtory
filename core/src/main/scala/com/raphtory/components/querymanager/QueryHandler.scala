@@ -35,10 +35,12 @@ import com.raphtory.graph.Perspective
 import com.raphtory.graph.PerspectiveController
 import com.raphtory.serialisers.KryoSerialiser
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.Logger
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Producer
 import org.apache.pulsar.client.api.Schema
 import org.apache.pulsar.client.api.SubscriptionInitialPosition
+import org.slf4j.LoggerFactory
 
 import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
@@ -55,10 +57,12 @@ class QueryHandler(
     conf: Config,
     topics: TopicRepository
 ) extends Component[QueryManagement](conf) {
-  private val self       = topics.rechecks(jobID).endPoint
-  private val readers    = topics.queryPrep.endPoint
-  private val tracker    = topics.queryTrack(jobID).endPoint
-  private val workerList = topics.jobOperations(jobID).endPoint
+
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val self           = topics.rechecks(jobID).endPoint
+  private val readers        = topics.queryPrep.endPoint
+  private val tracker        = topics.queryTrack(jobID).endPoint
+  private val workerList     = topics.jobOperations(jobID).endPoint
 
   private val listener =
     topics.registerListener(
