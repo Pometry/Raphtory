@@ -14,12 +14,14 @@ class RaphtoryGraphTest extends AnyFunSuite {
       .until(500)
       .walk(100)
       .window(50)
-      .filter(_.getState[String]("name") == "some name")
+      .vertexFilter(_.getState[String]("name") == "some name")
       .step(_.setState("new", 1))
       .transform(ConnectedComponents())
       .select(vertex => Row(vertex.getState("new")))
       .filter(_.getInt(0) == 1)
     val query = table.asInstanceOf[GenericTable].query
+
+    graph.disconnect()
 
     assert(query.timelineStart === 100)
     assert(query.timelineEnd === 499)
@@ -39,48 +41,58 @@ class RaphtoryGraphTest extends AnyFunSuite {
   }
 
   test("Test timestamp format without milliseconds") {
-    val query = Raphtory
-      .deployedGraph()
+    val graph = Raphtory.deployedGraph()
+    val query = graph
       .from("2020-02-25 23:12:08")
       .query
+
+    graph.disconnect()
 
     assert(query.timelineStart != Long.MinValue)
   }
 
   test("Test timestamp format with milliseconds") {
-    val query = Raphtory
-      .deployedGraph()
+    val graph = Raphtory.deployedGraph()
+    val query = graph
       .from("2020-02-25 23:12:08.567")
       .query
+
+    graph.disconnect()
 
     assert(query.timelineStart != Long.MinValue)
   }
 
   test("Test timestamp format with date") {
-    val query = Raphtory
-      .deployedGraph()
+    val graph = Raphtory.deployedGraph()
+    val query = graph
       .from("2020-02-25")
       .query
+
+    graph.disconnect()
 
     assert(query.timelineStart != Long.MinValue)
   }
 
   test("Test timestamp format with custom configuration for 2 digit milliseconds") {
     val conf  = Map("raphtory.query.timeFormat" -> "yyyy-MM-dd HH:mm:ss[.SS]")
-    val query = Raphtory
-      .deployedGraph(conf)
+    val graph = Raphtory.deployedGraph(conf)
+    val query = graph
       .from("2020-02-25 23:12:08.56")
       .query
+
+    graph.disconnect()
 
     assert(query.timelineStart != Long.MinValue)
   }
 
   test("Test timestamp format with custom configuration for hours and minutes") {
     val conf  = Map("raphtory.query.timeFormat" -> "yyyy-MM-dd HH:mm")
-    val query = Raphtory
-      .deployedGraph(conf)
+    val graph = Raphtory.deployedGraph(conf)
+    val query = graph
       .from("2020-02-25 12:23")
       .query
+
+    graph.disconnect()
 
     assert(query.timelineStart != Long.MinValue)
   }

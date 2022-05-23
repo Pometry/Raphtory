@@ -52,14 +52,11 @@ class EnronGraphBuilder() extends GraphBuilder[String] {
     val receiver = sParse.split("To:")(1).split("Subject:")(0).trim
     val subject  = Option(sParse.split("Subject:")(1).split("Mime-Version:")(0).trim)
 
-//    println("Parsed record:  msgId: " + msgId + " date: " + date + " sender: " + sender + " receiver: " + receiver)
-
     //Extract timestamp from second column
     var dateEpochUTC: Long = 0
     val parseFormatter     = DateTimeFormatter.ofPattern(dateFormat)
     val dateTime           = LocalDateTime.parse(date, parseFormatter)
     dateEpochUTC = dateTime.atOffset(ZoneOffset.UTC).toInstant.toEpochMilli
-    println("Epoch is : " + dateEpochUTC)
 
     val srcID = assignID(sender)
     val tarID = assignID(receiver)

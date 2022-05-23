@@ -1,0 +1,36 @@
+package com.raphtory.algorithms.generic.filters
+
+import com.raphtory.algorithms.api.GraphPerspective
+import com.raphtory.algorithms.api.Identity
+import com.raphtory.graph.visitor.Edge
+
+/**
+  * {s} `EdgeFilter(f: (Vertex, State) => Boolean)`
+  *   : Filtered view of the graph achieved by retaining edges according to a predicate function {s}`f`
+  *
+  *   This transforms the graph by keeping only edges for which {s}`f` returns true.
+  *   This fits well within a chain of algorithms as a way of pruning the graph: for example, one could first filter out edges
+  *   below a certain weight before running a chosen algorithm.
+  *
+  * ## Parameters
+  *
+  * {s} `pruneNodes: Boolean=true`
+  *   : if this is {s}`true` then vertices which become isolated (have no incoming or outgoing edges)
+  *        after this filtering are also removed.
+  *
+  * ```{seealso}
+  * [](com.raphtory.algorithms.generic.filters.VertexFilter)
+  * [](com.raphtory.algorithms.generic.filters.EdgeQuantileFilter)
+  * ```
+  */
+
+class EdgeFilter(f: Edge => Boolean, pruneNodes: Boolean = true) extends Identity() {
+
+  override def apply(graph: GraphPerspective): GraphPerspective =
+    graph.edgeFilter(f, pruneNodes)
+
+}
+
+object EdgeFilter {
+  def apply(f: Edge => Boolean, pruneNodes: Boolean = true) = new EdgeFilter(f, pruneNodes)
+}

@@ -27,18 +27,33 @@ abstract class GraphState {
       op: (T, T) => T
   ): Unit
 
+  /** Create a new constant that stores an immutable value */
+  def newConstant[T](
+      name: String,
+      value: T
+  ): Unit
+
   /** Create a new accumulator that sums values */
   def newAdder[T: Numeric](name: String): Unit
+
+  /** Create a new accumulator that sums values */
   def newAdder[T: Numeric](name: String, initialValue: T): Unit
+
+  /** Create a new accumulator that sums values */
   def newAdder[T: Numeric](name: String, retainState: Boolean): Unit
+
+  /** Create a new accumulator that sums values */
   def newAdder[T: Numeric](name: String, initialValue: T, retainState: Boolean): Unit
 
   /** Create a new accumulator that multiplies values */
   def newMultiplier[T: Numeric](name: String): Unit
+
   /** Create a new accumulator that multiplies values */
   def newMultiplier[T: Numeric](name: String, initialValue: T): Unit
+
   /** Create a new accumulator that multiplies values */
   def newMultiplier[T: Numeric](name: String, retainState: Boolean): Unit
+
   /** Create a new accumulator that multiplies values */
   def newMultiplier[T: Numeric](name: String, initialValue: T, retainState: Boolean): Unit
 
@@ -84,15 +99,24 @@ abstract class GraphState {
       bounded: Bounded[T]
   ): Unit
 
+  /** Create a new histogram that tracks the distribution of a graph quantity */
+  def newHistogram[T: Numeric](
+      name: String,
+      noBins: Int,
+      minValue: T,
+      maxValue: T,
+      retainState: Boolean = true
+  ): Unit
+
   def newAll(name: String, retainState: Boolean = false): Unit
 
   def newAny(name: String, retainState: Boolean = false): Unit
 
   /** Return the accumulator stored under name `name` */
-  def apply[T](name: String): Accumulator[T]
+  def apply[S, T](name: String): Accumulator[S, T]
 
-  /** Return the accumulator stored under name name if it exists, else return None */
-  def get[T](name: String): Option[Accumulator[T]]
+  /** Return the accumulator stored under `name` name if it exists, else return None */
+  def get[S, T](name: String): Option[Accumulator[S, T]]
 
   /** Check if graph state with `name` exists */
   def contains(name: String): Boolean

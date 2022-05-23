@@ -3,7 +3,7 @@
 To run your implemented algorithm or any of the algorithms included in Raphtory (both [Generic](com.raphtory.algorithms.generic) and [Temporal](com.raphtory.algorithms.temporal)), you must submit them to the graph. We can again use the [Lord of the Rings
 graph](../Ingestion/sprouter.md) and the [degrees of separation algorithm](LOTR_six_degrees.md) to illustrate the query API.
 
-When running queries, our starting point is always the {scaladoc}`com.raphtory.algorithms.api.TemporalGraph` created from a call to `Raphtory.stream()` or `Raphtory.batchLoad()`. This contains the full history of your data over its lifetime. From this point, the overall process to get things done is as follows: 
+When running queries, our starting point is always the {scaladoc}`com.raphtory.algorithms.api.TemporalGraph` created from a call to `Raphtory.batchLoad()` or `Raphtory.stream()`. This contains the full history of your data over its lifetime. From this point, the overall process to get things done is as follows: 
 
 * First, you can filter the timeline to the segment you are interested in. 
 * Secondly, you can create a collection of perspectives over the selected timeline.
@@ -26,7 +26,7 @@ graph
   .writeTo(output)
 ```
 
-In this case, Raphtory runs the algorithm using all the information it has about the graph, from the earliest to the latest updates. If we are working with a streaming graph, this means that we run the algorithm over the most recent version of our data.
+In this case, Raphtory runs the algorithm using all the information it has about the graph, from the earliest to the latest updates. If we are working with a streaming graph, this means that we run the algorithm over the most recently ingested version of our data.
 
 ## Timeline filtering
 
@@ -53,7 +53,7 @@ The table below provides a quick summary:
 If you are working with real times, then you can also provide strings expressing timestamps. The default format is `"yyyy-MM-dd[ HH:mm:ss[.SSS]]"`. 
 This means that you can provide just dates (`"2020-01-01"`), or timestamps with up to seconds (`"2020-01-01 00:00:00"`) or up to milliseconds (`"2020-01-01 00:00:00.000"`). **Note:** These examples are interpreted as having all trailing units as zeros.
 
-For instance, let's say that you are only interested in the activity of your graph within the year 2020. In order to apply an algorithm over onlyb that interval, we can do the following:
+For instance, let's say that you are only interested in the activity of your graph within the year 2020. In order to apply an algorithm over only that interval, we can do the following:
 
 ```scala
 graph
@@ -96,7 +96,7 @@ The second step is to specify which direction we are looking in at each time poi
 * The `Middle` of the window - including data from half the time in both the past and future, providing a smoothing effect.
 
 
-**Note:** You can refer to the {scaladoc}`com.raphtory.algorithms.api.DottedGraph`} documentation for further details.
+**Note:** You can refer to the {scaladoc}`com.raphtory.algorithms.api.DottedGraph` documentation for further details.
 
 Coming back to our first example, we can execute a `walk` along a year of data with increments of one day, and a window of one week into the future as follows:
 
@@ -176,24 +176,6 @@ As we can now understand, what we are doing here is creating a perspective at se
 ```
 
 This data tells us that at a given time, person X and Gandalf are N number of hops away. In this instance, at time 32670, Samwise was at minimum 1 hop away from Gandalf, whereas Odo was 2 hops away.
-
-## Using Raphtory as a client
-
-Finally, if you have a graph deployed somewhere else and want to submit new queries to it you can do this via the `deployedGraph(customConfig)` method in the `Raphtory` object. The `customConfig` here is to provide the appropriate configuration to locate the graph (i.e. the akka/pulsar address). If the graph is deployed in the same machine using the default Raphtory configuration you can omit this configuration parameter:
-
-```scala
-val graph = Raphtory.deployedGraph()
-```
-
-From this point, you can keep working with your graph as we have done so far.
-
-Additionally, you still have access to the `RaphtoryClient` class provided in previous releases of Raphtory. This is, however, deprecated and will be removed in later versions:
-
-```scala
-val client = Raphtory.createClient()
-client.pointQuery(ConnectedComponents(), output, 10000)
-```
-
 
 ## What now?
 To summarise, Raphtory's analytical engine provides a way of expressing a large variety of graph algorithms, implemented by vertex computations and, unlike other graph tools, has functionalities for expressing temporal queries in an intuitive manner.

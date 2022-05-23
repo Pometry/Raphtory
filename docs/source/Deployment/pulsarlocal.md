@@ -3,7 +3,11 @@
 ## Installing Apache Pulsar
 As of 0.5.0 Raphtory has moved away from Akka and now uses [Apache Pulsar](https://pulsar.apache.org) as its message broker to support communication between its distributed components. Using Pulsar means that all data sent within Raphtory is fully backed up and communication can easily scale to millions of messages a second. Pulsar also provides connectors to every conceivable source of data which can be used to pull data into Raphtory when building graphs.
 
+<<<<<<< HEAD
 For any running instance of Raphtory, even local, we need to be able to connect to a Pulsar cluster. Fortunately, Pulsar comes with a standalone mode which packages everything together to be run once installed.  Pulsar can be installed in a variety of ways, which can be seen below. We have, however, created a [install script](../Deployment/pulsarlocal.md) that will automatically manage this for you, if you prefer.
+=======
+For any running instance of Raphtory, even local, we need to be able to connect to a Pulsar cluster. Fortunately, Pulsar comes with a standalone mode which packages everything together to be run once installed.  Pulsar can be installed in a variety of ways, which can be seen below. We have, however, create a [install script](../Deployment/pulsarlocal.md) which will automatically manage this for you, if you prefer.
+>>>>>>> fix/documentation-passover
 
 ### Downloading Natively
 The simplest way of getting Pulsar is to download it from the Apache archive and unzip the tar. 

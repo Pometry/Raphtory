@@ -7,11 +7,11 @@ Two classes help with this:
 - `Spouts` connect to the outside world, reading the data files and outputting individual tuples.
 - `Graph builders`, as the name suggests, convert these tuples into updates, building the graph.
 
-Once these classes are defined, they can be passed to the `stream()` or `batchLoad()` methods on the `Raphtory` object, which will use both components to build the temporal graph. The difference here is that `stream()` will launch the full pipeline and assume new data can continuously arrive, whilst `batchLoad()` will compress the Spout and Graph Builder functions together, running as fast as possible, but only on a static dataset which does not change. For all examples discussed, both will work fine!
+Once these classes are defined, they can be passed to the `stream()` or `batchLoad()` methods on the {scaladoc}`com.raphtory.deployment.Raphtory` object, which will use both components to build the {scaladoc}`com.raphtory.algorithms.TemporalGraph`. The difference here is that `stream()` will launch the full pipeline on top of [Apache Pulsar](https://pulsar.apache.org) (which you will see later in the tutorial) and assume new data can continuously arrive. `batchLoad()` on the other hand will compress the Spout and Graph Builder functions together, running as fast as possible, but only on a static dataset which does not change. For these initial examples we will only run `batchLoad()` as the data is static and we can set it going out of the box!
 
 If you have the LOTR example already set up from the installation guide previously ([raphtory-example-lotr](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-lotr)) then please continue. If not, please return there and complete this step first.  
 
-For this tutorial section we will continue to use the `raphtory-example-lotr` project and the dataset of interactions between characters in the Lord of the Rings trilogy. The `csv` file (comma-separated values) in the examples folder can be found [here](https://github.com/Raphtory/Examples/blob/0.5.0/raphtory-example-lotr/resources/lotr.csv). Each line contains two characters that appear in the same sentence, along with which sentence they appeared in, indicated by a number (sentence count). In the example, the first line of the file is `Gandalf,Elrond,33` which tells us that Gandalf and Elrond appear together in sentence 33.  
+For this tutorial section we will continue to use the `raphtory-example-lotr` project and the dataset of interactions between characters in the Lord of the Rings trilogy. The `csv` file (comma-separated values) in the examples folder can be found [here](https://github.com/Raphtory/Data/blob/main/lotr.csv). Each line contains two characters that appear in the same sentence, along with which sentence they appeared in, indicated by a number (sentence count). In the example, the first line of the file is `Gandalf,Elrond,33` which tells us that Gandalf and Elrond appear together in sentence 33.  
 
 ```
 Gandalf,Elrond,33
@@ -29,7 +29,7 @@ Gollum,Bilbo,308
 Also, in the examples folder you will find `LOTRGraphBuilder.scala`, `DegreesSeparation.scala` and `FileOutputRunner.scala` which we will go through in detail. 
 
 ## Local Deployment
-First lets open `FileOutputRunner.scala`, which is our `main` class i.e. the file which we actually run. To do this we have made our class a scala app via `extends App`. This is a short hand for creating your runnable main class (if you come from a Java background) or can be viewed as a script if you are more comfortable with Python. Inside of this we can create spout and graphbuilder objects and combine them into a `TemporalGraph` (via `stream()` or `batchLoad()`), which can be used to make queries:
+First lets open `FileOutputRunner.scala`, which is our `main` class i.e. the file which we actually run. To do this we have made our class a scala app via `extends App`. This is a short hand for creating your runnable main class (if you come from a Java background) or can be viewed as a script if you are more comfortable with Python. Inside of this we can create spout and graphbuilder objects and combine them into a {scaladoc}`com.raphtory.algorithms.TemporalGraph` (via `batchLoad()`), which can be used to make queries:
 
 ````scala
 object FileOutputRunner extends App {
@@ -40,7 +40,7 @@ object FileOutputRunner extends App {
 
   val source  = FileSpout(path)
   val builder = new LOTRGraphBuilder()
-  val graph   = Raphtory.stream(spout = source, graphBuilder = builder)
+  val graph   = Raphtory.batchLoad(spout = source, graphBuilder = builder)
   val output  = FileOutputFormat("/tmp/raphtory")
 
   val queryHandler = graph
@@ -53,9 +53,7 @@ object FileOutputRunner extends App {
 }
 ````
 
-**Note:** Once `Raphtory.stream` is called,
-we can start submitting queries to it - which can be seen in the snippet above.
-Don't worry about this yet as we will dive into it in the next section.
+**Note:** Once `Raphtory.batchLoad` is called, we can start submitting queries to it - which can be seen in the snippet above. Don't worry about this yet as we will dive into it in the next section.
 
 ## Spout
 
@@ -83,7 +81,7 @@ class LOTRGraphBuilder extends GraphBuilder[String]{
 
     addVertex(timeStamp, srcID, Properties(ImmutableProperty("name",sourceNode)), Type("Character"))
     addVertex(timeStamp, tarID, Properties(ImmutableProperty("name",targetNode)), Type("Character"))
-    addEdge(timeStamp, srcID, tarID, Type("Character Co-occurence"))
+    addEdge(timeStamp, srcID, tarID, Type("Character Co-occurrence"))
   }
 }
 ```

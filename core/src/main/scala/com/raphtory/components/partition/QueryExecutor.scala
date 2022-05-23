@@ -33,6 +33,7 @@ import com.raphtory.components.querymanager.TableBuilt
 import com.raphtory.components.querymanager.TableFunctionComplete
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.components.querymanager.VertexMessageBatch
+import com.raphtory.config.MonixScheduler
 import com.raphtory.graph.GraphPartition
 import com.raphtory.graph.LensInterface
 import com.raphtory.output.PulsarOutputFormat
@@ -51,7 +52,8 @@ class QueryExecutor(
     storage: GraphPartition,
     jobID: String,
     conf: Config,
-    topics: TopicRepository
+    topics: TopicRepository,
+    scheduler: MonixScheduler
 ) extends Component[QueryManagement](conf) {
 
   var currentTimestamp: Long              = _
@@ -128,7 +130,8 @@ class QueryExecutor(
                   neighbours,
                   sentMessageCount,
                   receivedMessageCount,
-                  errorHandler
+                  errorHandler,
+                  scheduler
           )
           currentTimestamp = timestamp
           currentWindow = window

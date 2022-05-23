@@ -3,7 +3,7 @@ package com.raphtory.components.spout
 import com.raphtory.communication.TopicRepository
 import com.raphtory.components.Component
 import com.raphtory.config.Cancelable
-import com.raphtory.config.Scheduler
+import com.raphtory.config.MonixScheduler
 import com.typesafe.config.Config
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
@@ -13,7 +13,6 @@ import scala.reflect.runtime.universe.TypeTag
 import com.raphtory.config.telemetry.ComponentTelemetryHandler
 import com.raphtory.config.telemetry.SpoutTelemetry
 
-
 import scala.concurrent.duration.DurationInt
 
 /** @note DoNotDocument */
@@ -21,7 +20,7 @@ class SpoutExecutor[T](
     spout: Spout[T],
     conf: Config,
     topics: TopicRepository,
-    scheduler: Scheduler
+    scheduler: MonixScheduler
 ) extends Component[T](conf) {
   protected val failOnError: Boolean           = conf.getBoolean("raphtory.spout.failOnError")
   private var linesProcessed: Int              = 0
@@ -60,7 +59,7 @@ class SpoutExecutor[T](
   private def reschedule(): Unit = {
     // TODO: Parameterise the delay
     logger.debug("Spout: Scheduling spout to poll again in 10 seconds.")
-    scheduledRun = Some(scheduler.scheduleOnce(10.seconds, rescheduler))
+    scheduledRun = scheduler.scheduleOnce(10.seconds, rescheduler)
   }
 
 }

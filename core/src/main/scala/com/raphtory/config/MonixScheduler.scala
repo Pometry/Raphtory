@@ -1,39 +1,64 @@
 package com.raphtory.config
 
 import com.raphtory.components.Component
+import com.typesafe.scalalogging.Logger
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.{Scheduler => MScheduler}
 import monix.execution.UncaughtExceptionReporter
+import org.slf4j.LoggerFactory
 
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import scala.concurrent.duration.FiniteDuration
 
 /** @note DoNotDocument */
-private[raphtory] class MonixScheduler extends Scheduler {
-  val threads: Int = 8
+private[raphtory] class MonixScheduler {
+  private val threads: Int     = 8
+  private var schedulerStarted = false
+  private val logger: Logger   = Logger(LoggerFactory.getLogger(this.getClass))
 
   // Will schedule things with delays
-  val scheduledExecutor = Executors.newSingleThreadScheduledExecutor()
+  private val scheduledExecutor = Executors.newSingleThreadScheduledExecutor()
 
   // For actual execution of tasks
-  val executorService =
+  private val executorService =
     MScheduler.computation(parallelism = threads, executionModel = AlwaysAsyncExecution)
 
   // Logs errors to stderr or something
-  val uncaughtExceptionReporter =
+  private val uncaughtExceptionReporter =
     UncaughtExceptionReporter(executorService.reportFailure)
 
-  val scheduler = MScheduler(
+  implicit val scheduler: MScheduler = MScheduler(
           scheduledExecutor,
           executorService,
           uncaughtExceptionReporter,
           AlwaysAsyncExecution
   )
 
-  override def execute[T](component: Component[T]): Unit = scheduler.execute(() => component.run())
+  def execute[T](component: Component[T]): Unit =
+    if (schedulerStarted)
+      try scheduler.execute(() => component.run())
+      catch {
+        case e: RejectedExecutionException =>
+          logger.error(s"Scheduler rejected scheduling of Component $component")
+      }
 
-  override def scheduleOnce(delay: FiniteDuration, task: => Unit): Cancelable = {
-    val cancelable = scheduler.scheduleOnce(delay)(task)
-    () => cancelable.cancel()
+  def scheduleOnce(delay: FiniteDuration, task: => Unit): Option[Cancelable] =
+    if (schedulerStarted)
+      try {
+        val cancelable = scheduler.scheduleOnce(delay)(task)
+        Some(() => cancelable.cancel())
+      }
+      catch {
+        case e: RejectedExecutionException =>
+          logger.error(s"Scheduler rejected scheduling of tast $task")
+          None
+      }
+    else None
+
+  def shutdown(): Unit = {
+    schedulerStarted = false
+    scheduledExecutor.shutdown()
+    executorService.shutdown()
   }
 }
