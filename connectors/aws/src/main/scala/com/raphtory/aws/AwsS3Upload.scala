@@ -1,33 +1,28 @@
 package com.raphtory.aws
 
-
-
 import com.amazonaws.services.s3.model.GetObjectRequest
 import com.amazonaws.services.s3.model.S3Object
-
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import com.raphtory.deployment.Raphtory
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-
 import java.io.File
 
-object AWSUpload extends App {
+object AWSS3Upload extends App {
 
     val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
     val raphtoryConfig: Config = ConfigFactory.load()
 
-    val spoutBucketName: String = raphtoryConfig.getString("aws.local.spoutBucketName")
-    val spoutBucketPath: String = raphtoryConfig.getString("aws.local.spoutBucketPath")
-    val uploadBucketName: String     = raphtoryConfig.getString("aws.local.uploadBucketName")
-    val filePath: String       = raphtoryConfig.getString("aws.local.inputFilePath")
-    val uploadFileName: String = raphtoryConfig.getString("aws.local.uploadFileName")
+    val spoutBucketName: String = raphtoryConfig.getString("raphtory.spout.aws.local.spoutBucketName")
+    val spoutBucketPath: String = raphtoryConfig.getString("raphtory.spout.aws.local.spoutBucketPath")
+    val uploadBucketName: String     = raphtoryConfig.getString("raphtory.spout.aws.local.uploadBucketName")
+    val inputFilePath: String       = raphtoryConfig.getString("raphtory.spout.aws.local.inputFilePath")
+    val uploadFileName: String = raphtoryConfig.getString("raphtory.spout.aws.local.uploadFileName")
 
     //file to upload
-    val fileToUpload           = new File(filePath)
+    val fileToUpload           = new File(inputFilePath)
 
     val AwsS3Client = AwsS3Spout(spoutBucketName, spoutBucketPath).s3Client
 

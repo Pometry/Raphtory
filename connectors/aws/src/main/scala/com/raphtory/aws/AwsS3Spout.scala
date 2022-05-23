@@ -14,8 +14,20 @@ import com.amazonaws.services.securitytoken.AWSSecurityTokenService
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import com.raphtory.components.spout.Spout
-import com.raphtory.deployment.Raphtory
 import com.typesafe.config.{Config, ConfigFactory}
+
+/**
+ *
+ * @param awsS3SpoutBucketName
+ * @param awsS3SpoutBucketPath
+ *
+ * The AwsS3Spout takes in the name and path of the AWS S3 bucket that you would like
+ * to ingest into Raphtory, usually this is set in your tests.
+ * It requires the `arnToken`, `durationSeconds` and `tokenCode` to be set in `application.conf`.
+ *
+ * It builds an S3 client using credentials obtained through multi-factor authentication.
+ * The data is streamed from AWS S3 until null is reached.
+ */
 
 class AwsS3Spout(awsS3SpoutBucketName: String, awsS3SpoutBucketPath: String)
   extends Spout[String] {
@@ -24,9 +36,9 @@ class AwsS3Spout(awsS3SpoutBucketName: String, awsS3SpoutBucketPath: String)
 
   val raphtoryConfig: Config = ConfigFactory.load()
 
-  private val arnToken = raphtoryConfig.getString("aws.local.amazonResourceName")
-  private val durationSeconds = raphtoryConfig.getInt("aws.local.durationSeconds")
-  private val tokenCode       = raphtoryConfig.getString("aws.local.mfaTokenCode")
+  private val arnToken = raphtoryConfig.getString("raphtory.spout.aws.local.amazonResourceName")
+  private val durationSeconds = raphtoryConfig.getInt("raphtory.spout.aws.local.durationSeconds")
+  private val tokenCode       = raphtoryConfig.getString("raphtory.spout.aws.local.mfaTokenCode")
   private val region = Regions.US_EAST_1
 
   val stsClient: AWSSecurityTokenService = AWSStsClient(region).stsClient
