@@ -9,6 +9,8 @@ import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
 
+// TODO: Currently only uploading one line of data, will be implemented properly with AWS multi-part uploading.
+
 object AWSS3Upload extends App {
 
     val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
