@@ -223,11 +223,10 @@ final case class PerspectiveDone()                extends GraphFunction
   * [](com.raphtory.algorithms.api.GraphState), [](com.raphtory.graph.visitor.Vertex)
   * ```
   */
-trait GraphOperations {
-  type G <: GraphOperations
-  type RG <: GraphOperations
-  type MG <: GraphOperations
-  type V <: Vertex
+trait GraphOperations[+V] {
+  type G <: GraphOperations[V]
+  type RG <: G
+  type MG <: G
 
   def setGlobalState(f: (GraphState) => Unit): G
   def vertexFilter(f: (V) => Boolean): G

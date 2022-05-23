@@ -10,17 +10,19 @@ import com.raphtory.graph.visitor.Edge
 /**
   * @note DoNotDocument
   */
-abstract class DefaultGraphOperations(
+abstract class DefaultGraphOperations[+V <: visitor.Vertex](
     private[api] val query: Query,
     private val querySender: QuerySender
-) extends GraphOperations {
+) extends GraphOperations[V] {
+  override type G <: DefaultGraphOperations[V]
+
   override def setGlobalState(f: GraphState => Unit): G = addFunction(SetGlobalState(f))
 
   override def vertexFilter(f: (V) => Boolean): G =
     step(vertex => if (!f(vertex)) vertex.remove())
 
   override def vertexFilter(f: (V, GraphState) => Boolean): G =
-    step((vertex, graphState) => if (!f(vertex, graphState)) vertex.remove())
+    step((vertex: V, graphState) => if (!f(vertex, graphState)) vertex.remove())
 
   override def multilayerView: MG =
     addMFunction(MultilayerView(None))
@@ -60,7 +62,7 @@ abstract class DefaultGraphOperations(
         .foreach(edge => if (!f(edge)) edge.remove())
     }
     if (pruneNodes)
-      filtered.vertexFilter(vertex => vertex.degree > 0)
+      filtered.vertexFilter((vertex: V) => vertex.degree > 0)
     else filtered
   }
 
@@ -74,8 +76,6 @@ abstract class DefaultGraphOperations(
       filtered.vertexFilter(vertex => vertex.degree > 0)
     else filtered
   }
-
-  override def step(f: (V) => Unit): G = addFunction(Step(f))
 
   override def step(f: (V) => Unit): G = addFunction(Step(f))
 
