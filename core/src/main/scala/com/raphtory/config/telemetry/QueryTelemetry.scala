@@ -3,17 +3,16 @@ package com.raphtory.config.telemetry
 import com.raphtory.deployment.Raphtory
 import com.typesafe.config.Config
 import io.prometheus.client.Counter
-import io.prometheus.client.Gauge
 
 /** Adds metrics for `QueryHandler`, `QueryManager` and `QueryExecutor`  using Prometheus Client
-  * Exposes Counter and Gauge stats for tracking number of vertices, messages received and sent by `Query` handler, manager and executor
+  * Exposes Counter stats for tracking number of vertices, messages received and sent by `Query` handler, manager and executor
   * Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
   */
 object QueryTelemetry {
 
   val raphtoryConfig: Config = Raphtory.getDefaultConfig()
 
-  def receivedMessageCount() =
+  def receivedMessageCount(): Counter =
     Counter.build
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.query"))
       .name("handler_received_messages")
@@ -29,16 +28,16 @@ object QueryTelemetry {
       .labelNames("raphtory_jobID", "raphtory_deploymentID")
       .register
 
-  def globalWatermarkMin(): Gauge =
-    Gauge.build
+  def globalWatermarkMin(): Counter =
+    Counter.build
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.query"))
       .name("manager_min_watermark_timestamp")
       .help("Minimum watermark for Query Manager")
       .labelNames("raphtory_deploymentID")
       .register
 
-  def globalWatermarkMax(): Gauge =
-    Gauge.build
+  def globalWatermarkMax(): Counter =
+    Counter.build
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.query"))
       .name("manager_max_watermark_timestamp")
       .help("Maximum watermark for Query Manager")

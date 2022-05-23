@@ -10,7 +10,6 @@ import com.raphtory.config.Cancelable
 import com.raphtory.config.Scheduler
 import com.raphtory.graph.GraphPartition
 import com.typesafe.config.Config
-import io.prometheus.client.Gauge
 import org.apache.pulsar.client.api.Consumer
 
 import java.util.concurrent.atomic.AtomicInteger
