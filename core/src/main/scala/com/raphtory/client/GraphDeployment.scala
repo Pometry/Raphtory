@@ -3,8 +3,8 @@ package com.raphtory.client
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.Spout
 import com.raphtory.config.ComponentFactory
+import com.raphtory.config.MonixScheduler
 import com.raphtory.config.Partitions
-import com.raphtory.config.Scheduler
 import com.raphtory.config.ThreadedWorker
 import com.raphtory.config.ZookeeperIDManager
 import com.typesafe.config.Config
@@ -27,7 +27,7 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
     graphBuilder: GraphBuilder[T],
     private val conf: Config,
     private val componentFactory: ComponentFactory,
-    private val scheduler: Scheduler
+    private val scheduler: MonixScheduler
 ) {
 
   allowIllegalReflection()
@@ -37,15 +37,15 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
   private val spoutTopic: String   = conf.getString("raphtory.spout.topic")
   private val prometheusPort: Int  = conf.getInt("raphtory.prometheus.metrics.port")
 
-  private val partitions: Partitions =
+  private var partitions: Partitions =
     componentFactory.partition(scheduler, batchLoading, Some(spout), Some(graphBuilder))
 
-  private val queryManager = componentFactory.query(scheduler)
+  private var queryManager = componentFactory.query(scheduler)
 
-  private val spoutworker: Option[ThreadedWorker[T]] =
+  private var spoutworker: Option[ThreadedWorker[T]] =
     componentFactory.spout(spout, batchLoading, scheduler)
 
-  private val graphBuilderworker: Option[List[ThreadedWorker[T]]] =
+  private var graphBuilderworker: Option[List[ThreadedWorker[T]]] =
     componentFactory.builder[T](graphBuilder, batchLoading, scheduler)
 
   private var prometheusServer: Option[HTTPServer] = None

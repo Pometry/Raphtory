@@ -3,7 +3,7 @@ package com.raphtory.components.partition
 import com.raphtory.components.Component
 import com.raphtory.components.graphbuilder._
 import com.raphtory.components.spout.Spout
-import com.raphtory.config.Scheduler
+import com.raphtory.config.MonixScheduler
 import com.raphtory.config.telemetry.BuilderTelemetry
 import com.raphtory.config.telemetry.PartitionTelemetry
 import com.raphtory.serialisers.Marshal
@@ -21,7 +21,7 @@ class LocalBatchHandler[T: ClassTag](
     spout: Spout[T],
     graphBuilder: GraphBuilder[T],
     conf: Config,
-    scheduler: Scheduler
+    scheduler: MonixScheduler
 ) extends Component[GraphAlteration](conf) {
 
   graphBuilder.setupBatchIngestion(partitionIDs, batchWriters, totalPartitions)

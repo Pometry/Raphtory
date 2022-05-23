@@ -7,7 +7,7 @@ import com.raphtory.components.querymanager.EstablishExecutor
 import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.components.querymanager.WatermarkTime
 import com.raphtory.config.Cancelable
-import com.raphtory.config.Scheduler
+import com.raphtory.config.MonixScheduler
 import com.raphtory.graph.GraphPartition
 import com.typesafe.config.Config
 import org.apache.pulsar.client.api.Consumer
@@ -20,7 +20,7 @@ import scala.concurrent.duration.DurationInt
 class Reader(
     partitionID: Int,
     storage: GraphPartition,
-    scheduler: Scheduler,
+    scheduler: MonixScheduler,
     conf: Config,
     topics: TopicRepository
 ) extends Component[QueryManagement](conf) {
@@ -52,7 +52,7 @@ class Reader(
     msg match {
       case req: EstablishExecutor =>
         val jobID         = req.jobID
-        val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, topics)
+        val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, topics, scheduler)
         scheduler.execute(queryExecutor)
         telemetry.queryExecutorCollector.labels(partitionID.toString, deploymentID).inc()
         executorMap += ((jobID, queryExecutor))

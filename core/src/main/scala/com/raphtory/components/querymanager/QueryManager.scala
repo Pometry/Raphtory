@@ -2,7 +2,7 @@ package com.raphtory.components.querymanager
 
 import com.raphtory.communication.TopicRepository
 import com.raphtory.components.Component
-import com.raphtory.config.Scheduler
+import com.raphtory.config.MonixScheduler
 import com.raphtory.config.telemetry.QueryTelemetry
 import com.typesafe.config.Config
 import io.prometheus.client.Counter
@@ -14,7 +14,7 @@ import org.apache.pulsar.client.api.Schema
 import scala.collection.mutable
 
 /** @note DoNotDocument */
-class QueryManager(scheduler: Scheduler, conf: Config, topics: TopicRepository)
+class QueryManager(scheduler: MonixScheduler, conf: Config, topics: TopicRepository)
         extends Component[QueryManagement](conf) {
   private val currentQueries = mutable.Map[String, QueryHandler]()
   //private val watermarkGlobal                           = pulsarController.globalwatermarkPublisher() TODO: turn back on when needed
