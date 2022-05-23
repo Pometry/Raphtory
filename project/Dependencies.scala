@@ -16,7 +16,6 @@ object Dependencies {
   private lazy val slf4jVersion          = "1.7.36"
   private lazy val sprayJsonVersion      = "1.3.6"
   private lazy val timeSeriesVersion     = "1.7.0"
-  private lazy val twitteredVersion      = "2.16"
   private lazy val typesafeConfigVersion = "1.4.2"
   private lazy val zookeeperVersion      = "3.7.0"
   private lazy val akkaTypedVersion      = "2.6.19"
@@ -57,9 +56,8 @@ object Dependencies {
 
   lazy val timeSeries =
     "io.sqooba.oss" %% "scala-timeseries-lib" % timeSeriesVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val twitterChill   = "com.twitter"                 %% "chill"            % chillVersion
-  lazy val twittered      = "io.github.redouane59.twitter" % "twittered"        % twitteredVersion
-  lazy val typesafeConfig = "com.typesafe"                 % "config"           % typesafeConfigVersion
-  lazy val zookeeper      = "org.apache.zookeeper"         % "zookeeper"        % zookeeperVersion
-  lazy val akkaTyped      = "com.typesafe.akka"           %% "akka-actor-typed" % akkaTypedVersion
+  lazy val twitterChill   = "com.twitter"         %% "chill"            % chillVersion
+  lazy val typesafeConfig = "com.typesafe"         % "config"           % typesafeConfigVersion
+  lazy val zookeeper      = "org.apache.zookeeper" % "zookeeper"        % zookeeperVersion
+  lazy val akkaTyped      = "com.typesafe.akka"   %% "akka-actor-typed" % akkaTypedVersion
 }

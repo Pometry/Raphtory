@@ -1,8 +1,7 @@
-package com.raphtory.liveTwitterTest
+package com.raphtory.twitter
 
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.graphbuilder.Properties._
-import com.raphtory.spouts.LiveTwitterSpout
 import io.github.redouane59.twitter.dto.tweet.Tweet
 
 import java.time.ZoneOffset
@@ -31,16 +30,16 @@ class LiveTwitterRetweetGraphBuilder() extends GraphBuilder[Tweet] {
     val targetNode      = retweetedUserId.getOrElse(sourceNode)
     val tarID           = targetNode.toLong
     addVertex(
-            timeStamp,
-            srcID,
-            Properties(ImmutableProperty("user id", sourceNode)),
-            Type("User ID")
+      timeStamp,
+      srcID,
+      Properties(ImmutableProperty("user id", sourceNode)),
+      Type("User ID")
     )
     addVertex(
-            timeStamp,
-            tarID,
-            Properties(ImmutableProperty("user id", targetNode)),
-            Type("Retweeted User ID")
+      timeStamp,
+      tarID,
+      Properties(ImmutableProperty("user id", targetNode)),
+      Type("Retweeted User ID")
     )
     addEdge(timeStamp, srcID, tarID, Type("Retweet Relationship"))
   }
@@ -55,16 +54,16 @@ class LiveTwitterUserGraphBuilder() extends GraphBuilder[Tweet] {
     val tarID      = targetNode.toLong
     val timeStamp  = tweet.getCreatedAt.toEpochSecond(ZoneOffset.UTC)
     addVertex(
-            timeStamp,
-            srcID,
-            Properties(ImmutableProperty("user id", sourceNode)),
-            Type("User ID")
+      timeStamp,
+      srcID,
+      Properties(ImmutableProperty("user id", sourceNode)),
+      Type("User ID")
     )
     addVertex(
-            timeStamp,
-            tarID,
-            Properties(ImmutableProperty("tweet id", targetNode)),
-            Type("Tweet ID")
+      timeStamp,
+      tarID,
+      Properties(ImmutableProperty("tweet id", targetNode)),
+      Type("Tweet ID")
     )
     addEdge(timeStamp, srcID, tarID, Type("User to Tweet Relationship"))
   }

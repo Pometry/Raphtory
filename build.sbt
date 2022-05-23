@@ -93,7 +93,6 @@ lazy val core = (project in file("core"))
                   sprayJson,
                   timeSeries,
                   twitterChill,
-                  twittered,
                   typesafeConfig,
                   zookeeper,
                   akkaTyped
