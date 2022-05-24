@@ -1,4 +1,4 @@
-# Running Java/Scala algorithms in Python
+# Running Java/Scala algorithms from Python
 
 ## Pre-requisites
 
@@ -25,10 +25,12 @@ The code will try to connect to a local raphtory instance with the matching depl
 
 Note: Prior to this you should have the LOTR example running.
 
+Replace this value below `raphtory_deployment_id=<YOUR_DEPLOYMENT__ID>`
+e.g. `raphtoryclient.client(raphtory_deployment_id="raphtory_12783638")`
 
 ```python
 import raphtoryclient
-raphtory = raphtoryclient.client(raphtory_deployment_id="raphtory_12783638")
+raphtory = raphtoryclient.client(raphtory_deployment_id="<YOUR_DEPLOYMENT__ID>")
 ```
 
     Connecting to RaphtoryClient...
@@ -72,4 +74,3 @@ queryHandler = raphtory.graph\
     .execute(connectedComponentsAlgorithm())\
     .writeTo(fileOutputFormat.apply("/tmp/pythonCC"))
 ```
-
