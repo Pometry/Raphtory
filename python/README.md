@@ -10,7 +10,7 @@ Install via pip
 * Github [https://github.com/Raphtory/Raphtory/](https://github.com/Raphtory/Raphtory/)
 * Website [https://raphtory.github.io/](https://raphtory.github.io/)
 * Slack [https://raphtory.slack.com](https://raphtory.slack.com)
-* Tutorial [https://raphtory.readthedocs.io/en/development/PythonClient/tutorial.html#](https://raphtory.readthedocs.io/en/development/PythonClient/tutorial_pulsar.html#run-example-lab-raphtory-python-client-lotr-demo)
+* Tutorial [https://raphtory.readthedocs.io/en/development/PythonClient/tutorial.html#](https://raphtory.readthedocs.io/en/master/PythonClient/tutorial_py_raphtory.html)
 * Documentation [https://raphtory.readthedocs.io/en/development/PythonClient/RaphtoryClient.html](https://raphtory.readthedocs.io/en/master/PythonClient/RaphtoryClient.html)
 * Bug reports/Feature request [https://github.com/raphtory/raphtory/issues](https://github.com/raphtory/raphtory/issues)
 
@@ -26,7 +26,7 @@ article from the Alan Turing Institute first!
 The documentation for this specific library can 
 be found [here](https://raphtory.readthedocs.io/en/development/PythonClient/RaphtoryClient.html) 
 
-An example jupyter notebook for this client can be found [here](https://raphtory.readthedocs.io/en/development/PythonClient/tutorial_pulsar.html#run-example-lab-raphtory-python-client-lotr-demo)
+An example jupyter notebook for this client can be found [here](https://raphtory.readthedocs.io/en/master/PythonClient/tutorial_py_raphtory.html)
 
 A tutorial demonstration how to use this with an example LOTR dataset raphtory/examples/raphtory-example-lotr can be found [here](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-lotr)
 
