@@ -46,7 +46,7 @@ Replace this value below `raphtory_deployment_id=<YOUR_DEPLOYMENT__ID>`
 e.g. `raphtoryclient.client(raphtory_deployment_id="raphtory_12783638")`
 
 ```python
-import raphtoryclient
+from raphtoryclient import raphtoryclient as client
 raphtory = client(raphtory_deployment_id="<YOUR_DEPLOYMENT__ID>")
 ```
 
