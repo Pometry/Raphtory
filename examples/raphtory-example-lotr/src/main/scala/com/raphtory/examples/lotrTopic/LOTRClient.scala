@@ -6,14 +6,10 @@ import com.raphtory.output.FileOutputFormat
 
 object LOTRClient extends App {
 
-  val client = Raphtory.createClient()
+  val client = Raphtory.deployedGraph()
 
 val output  = FileOutputFormat("/tmp/raphtory")
 
-  client.pointQuery(
-          ConnectedComponents(),
-          output,
-          32674
-  )
+  client.execute(ConnectedComponents()).writeTo(output)
   
 }

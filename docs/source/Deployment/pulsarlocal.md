@@ -32,7 +32,7 @@ The simplest way to install Docker is to use the [Desktop client](https://www.do
 Lets now run a container for Pulsar:
 
 ```
-docker run -it \ 
+docker run -it \
 -p 6650:6650 \
 -p 8080:8080 \
 -p 2181:2181 \
