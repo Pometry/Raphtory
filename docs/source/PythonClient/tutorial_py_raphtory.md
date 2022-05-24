@@ -25,7 +25,7 @@ In this demo we will:
 First we setup the various libraries we will need
 
 ```python
-import raphtoryclient
+from raphtoryclient import raphtoryclient as client
 from pymotif import Motif
 ```
 
@@ -47,7 +47,7 @@ e.g. `raphtoryclient.client(raphtory_deployment_id="raphtory_12783638")`
 
 ```python
 import raphtoryclient
-raphtory = raphtoryclient.client(raphtory_deployment_id="<YOUR_DEPLOYMENT__ID>")
+raphtory = client(raphtory_deployment_id="<YOUR_DEPLOYMENT__ID>")
 ```
 
     Connecting to RaphtoryClient...
