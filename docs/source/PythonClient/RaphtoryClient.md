@@ -1,4 +1,4 @@
-# Raphtory Client
+# Documentation (raphtory-client)
 
 <p style="margin-left: 1.5em;"> This is the class to create a raphtory client which interacts with pulsar. 
 The main purpose is to pull data to allow for analysis in python.  </p>

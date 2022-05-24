@@ -1,7 +1,7 @@
 # Running Queries
 
 To run your implemented algorithm or any of the algorithms included in the most recent Raphtory Release
-([See here](com.raphtory.algorithms)), you must submit them to the graph. We use the [Lord of the Rings
+({scaladoc}`com.raphtory.algorithms`), you must submit them to the graph. We use the [Lord of the Rings
 graph](../Ingestion/sprouter.md) and the [degrees of separation algorithm](LOTR_six_degrees.md) examples to illustrate the query API.
 
 When running queries, the start point is a {scaladoc}`com.raphtory.algorithms.api.TemporalGraph`,
