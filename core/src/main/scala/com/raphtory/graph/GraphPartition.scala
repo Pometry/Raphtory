@@ -2,8 +2,6 @@ package com.raphtory.graph
 
 import com.raphtory.components.graphbuilder.GraphUpdateEffect
 import com.raphtory.components.graphbuilder.Properties._
-import com.raphtory.graph.visitor.Vertex
-import com.raphtory.time.Interval
 import com.raphtory.storage.pojograph.entities.external.PojoExVertex
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -16,7 +14,6 @@ import scala.collection.mutable
   * @note DoNotDocument
   */
 abstract class GraphPartition(partitionID: Int, conf: Config) {
-  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   protected val failOnError: Boolean = conf.getBoolean("raphtory.partitions.failOnError")
   private var batchIngesting         = false
@@ -86,9 +83,9 @@ abstract class GraphPartition(partitionID: Int, conf: Config) {
   ): mutable.Map[Long, PojoExVertex]
 
   // Partition Neighbours
-  val totalPartitions                = conf.getInt("raphtory.partitions.countPerServer") * conf.getInt(
-          "raphtory.partitions.serverCount"
-  )
+  private val totalPartitions = conf.getInt("raphtory.partitions.countPerServer") *
+    conf.getInt("raphtory.partitions.serverCount")
+
   def getPartitionID                 = partitionID
   def checkDst(dstID: Long): Boolean = (dstID.abs % totalPartitions).toInt == partitionID
 
