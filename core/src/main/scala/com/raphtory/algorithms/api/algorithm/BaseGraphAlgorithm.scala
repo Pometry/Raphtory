@@ -29,5 +29,5 @@ trait GenericallyApplicableAlgorithm extends BaseGraphAlgorithm {
 
 abstract class ChainedAlgorithm(first: BaseGraphAlgorithm, second: BaseGraphAlgorithm)
         extends BaseGraphAlgorithm {
-  override def name: String = first.name + "->" + second.name
+  override def name: String = first.name + ":" + second.name
 }

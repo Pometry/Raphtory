@@ -96,12 +96,11 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
       windows: List[Long] = List[Long](),
       outputFormat: OutputFormat = defaultOutputFormat
   ): String = {
-    val jobName              = algorithm.getClass.getCanonicalName.split("\\.").last
     val queryProgressTracker = graph
       .range(start, end, increment)
       .window(windows, Alignment.END)
       .execute(algorithm)
-      .writeTo(outputFormat, jobName)
+      .writeTo(outputFormat)
 
     jobId = queryProgressTracker.getJobId
 
@@ -116,12 +115,11 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
       windows: List[Long] = List[Long](),
       outputFormat: OutputFormat = defaultOutputFormat
   ): String = {
-    val jobName              = algorithm.getClass.getCanonicalName.split("\\.").last
     val queryProgressTracker = graph
       .at(timestamp)
       .window(windows, Alignment.END)
       .execute(algorithm)
-      .writeTo(outputFormat, jobName)
+      .writeTo(outputFormat)
 
     jobId = queryProgressTracker.getJobId
 
