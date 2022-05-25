@@ -1,7 +1,5 @@
 package com.raphtory.communication
 
-import com.raphtory.components.Component
-
 /** @DoNotDocument */
 trait Connector {
 

@@ -6,13 +6,11 @@ import com.raphtory.config.ComponentFactory
 import com.raphtory.config.MonixScheduler
 import com.raphtory.config.Partitions
 import com.raphtory.config.ThreadedWorker
-import com.raphtory.config.ZookeeperIDManager
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import io.prometheus.client.exporter.HTTPServer
 import org.slf4j.LoggerFactory
 
-import java.io.IOException
 import scala.language.postfixOps
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
@@ -31,7 +29,7 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
 ) {
 
   allowIllegalReflection()
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val deploymentID: String = conf.getString("raphtory.deploy.id")
   private val spoutTopic: String   = conf.getString("raphtory.spout.topic")
@@ -73,12 +71,6 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
 
       case None         =>
     }
-//
-//    prometheusServer match {
-//      case Some(w) => w.stop()
-//      case None    =>
-//    }
-
     componentFactory.stop()
     scheduler.shutdown()
   }

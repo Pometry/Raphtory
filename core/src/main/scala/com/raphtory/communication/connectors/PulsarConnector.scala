@@ -1,28 +1,13 @@
 package com.raphtory.communication.connectors
 
-import com.raphtory.communication.CancelableListener
-import com.raphtory.communication.CanonicalTopic
-import com.raphtory.communication.Connector
-import com.raphtory.communication.EndPoint
-import com.raphtory.communication.Topic
-import com.raphtory.communication.WorkPullTopic
-import com.raphtory.components.Component
+import com.raphtory.communication._
 import com.raphtory.serialisers.KryoSerialiser
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.apache.pulsar.client.admin.PulsarAdmin
 import org.apache.pulsar.client.admin.PulsarAdminException
-import org.apache.pulsar.client.api.Consumer
-import org.apache.pulsar.client.api.ConsumerBuilder
-import org.apache.pulsar.client.api.Message
-import org.apache.pulsar.client.api.MessageId
-import org.apache.pulsar.client.api.MessageListener
-import org.apache.pulsar.client.api.Producer
-import org.apache.pulsar.client.api.PulsarClient
 import org.apache.pulsar.client.api.PulsarClientException.BrokerMetadataException
-import org.apache.pulsar.client.api.Schema
-import org.apache.pulsar.client.api.SubscriptionInitialPosition
-import org.apache.pulsar.client.api.SubscriptionType
+import org.apache.pulsar.client.api._
 import org.apache.pulsar.common.policies.data.RetentionPolicies
 import org.slf4j.LoggerFactory
 
@@ -78,7 +63,7 @@ class PulsarConnector(config: Config) extends Connector {
       .serviceUrl(pulsarAdminAddress)
       .build()
 
-  val pulsarAdmin: PulsarAdmin = PulsarAdmin.builder
+  private val pulsarAdmin: PulsarAdmin = PulsarAdmin.builder
     .serviceHttpUrl(pulsarAdminAddress)
     .tlsTrustCertsFilePath(null)
     .allowTlsInsecureConnection(false)
