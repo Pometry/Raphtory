@@ -15,7 +15,11 @@ import com.raphtory.communication.topicRepositories.PulsarTopicRepository
 import com.raphtory.components.querymanager.Query
 import com.raphtory.spouts.IdentitySpout
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.Logger
+import io.prometheus.client.exporter.HTTPServer
+import org.slf4j.LoggerFactory
 
+import java.io.IOException
 import scala.reflect.ClassTag
 import scala.reflect.classTag
 import scala.reflect.runtime.universe._
@@ -47,6 +51,31 @@ import scala.reflect.runtime.universe._
   */
 object Raphtory {
   private lazy val javaPy4jGatewayServer = new Py4JServer(this)
+  private val logger: Logger             = Logger(LoggerFactory.getLogger(this.getClass))
+
+  private var prometheusServer: Option[HTTPServer] = None
+
+  private def newPrometheusServer(prometheusPort: Int): Unit =
+    try prometheusServer = Some(new HTTPServer(prometheusPort))
+    catch {
+      case e: IOException =>
+        logger.error(
+                s"Cannot create prometheus server as port $prometheusPort is already bound, " +
+                  s"this could be you have multiple raphtory instances running on the same machine. "
+        )
+    }
+
+  private[raphtory] def startPrometheus(prometheusPort: Int): Unit =
+    synchronized {
+      prometheusServer match {
+        case Some(server) =>
+          if (server.getPort != prometheusPort)
+            logger.warn(
+                    s"This Raphtory Instance is already running a Prometheus Server on port ${server.getPort}."
+            )
+        case None         => newPrometheusServer(prometheusPort)
+      }
+    }
 
   /** Creates a streaming version of a `DeployedTemporalGraph` object that can be used to express queries from and to access the deployment
     * using the given `spout`, `graphBuilder` and `customConfig`.
@@ -88,6 +117,7 @@ object Raphtory {
     val scheduler        = new MonixScheduler()
     val conf             = confBuilder(customConfig)
     javaPy4jGatewayServer.start(conf)
+    startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
     val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
     val querySender      = new QuerySender(componentFactory, scheduler, topics)
@@ -101,6 +131,7 @@ object Raphtory {
   def createSpout[T](spout: Spout[T]): Unit = {
     val scheduler        = new MonixScheduler()
     val conf             = confBuilder()
+    startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
     val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
     componentFactory.spout(spout, false, scheduler)
@@ -114,6 +145,7 @@ object Raphtory {
   ): Unit = {
     val scheduler        = new MonixScheduler()
     val conf             = confBuilder()
+    startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
     val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
     componentFactory.builder(builder, false, scheduler)
@@ -129,6 +161,7 @@ object Raphtory {
   ): Unit = {
     val scheduler        = new MonixScheduler()
     val conf             = confBuilder()
+    startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
     val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
     componentFactory.partition(scheduler, batchLoading, spout, graphBuilder)
@@ -140,6 +173,7 @@ object Raphtory {
   def createQueryManager(): Unit = {
     val scheduler        = new MonixScheduler()
     val conf             = confBuilder()
+    startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
     val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
     componentFactory.query(scheduler)
@@ -166,6 +200,7 @@ object Raphtory {
     val scheduler        = new MonixScheduler()
     val conf             = confBuilder(customConfig)
     javaPy4jGatewayServer.start(conf)
+    startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
     val topics           = PulsarAkkaTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics, true)
     val querySender      = new QuerySender(componentFactory, scheduler, topics)

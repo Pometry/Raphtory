@@ -35,7 +35,6 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
 
   private val deploymentID: String = conf.getString("raphtory.deploy.id")
   private val spoutTopic: String   = conf.getString("raphtory.spout.topic")
-  private val prometheusPort: Int  = conf.getInt("raphtory.prometheus.metrics.port")
 
   private var partitions: Partitions =
     componentFactory.partition(scheduler, batchLoading, Some(spout), Some(graphBuilder))
@@ -52,15 +51,6 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
 
   logger.info(s"Created Graph object with deployment ID '$deploymentID'.")
   logger.info(s"Created Graph Spout topic with name '$spoutTopic'.")
-
-  try prometheusServer = Option(new HTTPServer(prometheusPort))
-  catch {
-    case e: IOException =>
-      logger.warn(
-              s"Cannot create new prometheus server as port $prometheusPort is already bound, " +
-                s"this could be you have multiple raphtory instances running on the same machine. "
-      )
-  }
 
   /** Stops components - partitions, query manager, graph builders, spout worker */
   def stop(): Unit = {
@@ -83,11 +73,11 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
 
       case None         =>
     }
-
-    prometheusServer match {
-      case Some(w) => w.stop()
-      case None    =>
-    }
+//
+//    prometheusServer match {
+//      case Some(w) => w.stop()
+//      case None    =>
+//    }
 
     componentFactory.stop()
     scheduler.shutdown()
