@@ -6,12 +6,11 @@ import com.raphtory.components.querymanager.EndQuery
 import com.raphtory.components.querymanager.EstablishExecutor
 import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.components.querymanager.WatermarkTime
-import com.raphtory.config.Cancelable
 import com.raphtory.config.MonixScheduler
 import com.raphtory.graph.GraphPartition
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import io.prometheus.client.Gauge
+import monix.execution.Cancelable
 import org.apache.pulsar.client.api.Consumer
 import org.slf4j.LoggerFactory
 
@@ -32,11 +31,11 @@ class Reader(
   private val executorMap      = mutable.Map[String, QueryExecutor]()
   private val watermarkPublish = topics.watermark.endPoint
 
-  private val queryPrepListener                         =
+  private val queryPrepListener                                 =
     topics.registerListener(s"$deploymentID-reader-$partitionID", handleMessage, topics.queryPrep)
-  var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
-  var scheduledWatermark: Option[Cancelable]            = None
-  private var lastWatermark                             = WatermarkTime(partitionID, Long.MaxValue, Long.MinValue, false)
+  private var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
+  private var scheduledWatermark: Option[Cancelable]            = None
+  private var lastWatermark                                     = WatermarkTime(partitionID, Long.MaxValue, Long.MinValue, false)
 
   override def run(): Unit = {
     logger.debug(s"Partition $partitionID: Starting Reader Consumer.")

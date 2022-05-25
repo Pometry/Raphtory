@@ -10,7 +10,7 @@ import io.prometheus.client.{Counter, Gauge}
   */
 object QueryTelemetry {
 
-  val raphtoryConfig: Config = Raphtory.getDefaultConfig()
+  private val raphtoryConfig: Config = Raphtory.getDefaultConfig()
 
   def receivedMessageCount(): Counter =
     Counter.build

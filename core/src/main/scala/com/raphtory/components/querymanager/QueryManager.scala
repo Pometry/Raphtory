@@ -3,14 +3,8 @@ package com.raphtory.components.querymanager
 import com.raphtory.communication.TopicRepository
 import com.raphtory.components.Component
 import com.raphtory.config.MonixScheduler
-import com.raphtory.config.telemetry.QueryTelemetry
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import io.prometheus.client.Counter
-import org.apache.pulsar.client.admin.PulsarAdminException
-import org.apache.pulsar.client.api.Consumer
-import org.apache.pulsar.client.api.Message
-import org.apache.pulsar.client.api.Schema
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable

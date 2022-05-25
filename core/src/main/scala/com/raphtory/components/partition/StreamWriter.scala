@@ -6,12 +6,8 @@ import com.raphtory.components.graphbuilder._
 import com.raphtory.graph._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import io.prometheus.client.Counter
-import org.apache.pulsar.client.api.Consumer
 import org.slf4j.LoggerFactory
 
-import java.util.Calendar
-import scala.collection.mutable
 import scala.language.postfixOps
 
 /** @note DoNotDocument */

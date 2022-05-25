@@ -3,8 +3,9 @@ package com.raphtory.config
 import com.raphtory.components.Component
 import com.typesafe.scalalogging.Logger
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
-import monix.execution.{Scheduler => MScheduler}
+import monix.execution.Cancelable
 import monix.execution.UncaughtExceptionReporter
+import monix.execution.{Scheduler => MScheduler}
 import org.slf4j.LoggerFactory
 
 import java.util.concurrent.Executors

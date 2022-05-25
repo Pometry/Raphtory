@@ -4,12 +4,8 @@ import com.raphtory.components.Component
 import com.raphtory.components.graphbuilder._
 import com.raphtory.components.spout.Spout
 import com.raphtory.config.MonixScheduler
-import com.raphtory.config.telemetry.BuilderTelemetry
-import com.raphtory.config.telemetry.PartitionTelemetry
-import com.raphtory.serialisers.Marshal
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import io.prometheus.client.Counter
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable

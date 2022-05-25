@@ -4,15 +4,13 @@ import com.raphtory.deployment.Raphtory
 import com.typesafe.config.Config
 import io.prometheus.client.{Counter, Gauge}
 
-import scala.collection.mutable
-
 /** Adds metrics for partitions, i.e. `Reader`, `BatchWriter` and `StreamWriter` using Prometheus Client
   * Exposes Counter and Summary stats for tracking number of graph updates, watermarks created by reader, vertices and edges added and deleted by writers in Raphtory
   * Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
   */
 object PartitionTelemetry {
 
-  val raphtoryConfig: Config = Raphtory.getDefaultConfig()
+  private val raphtoryConfig: Config = Raphtory.getDefaultConfig()
 
   def lastWatermarkProcessed() =
     Gauge.build

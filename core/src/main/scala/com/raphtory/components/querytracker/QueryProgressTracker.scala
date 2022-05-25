@@ -9,7 +9,6 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
-import org.apache.pulsar.client.api.Consumer
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ListBuffer
@@ -58,8 +57,8 @@ class QueryProgressTracker(
   private val perspectivesList: ListBuffer[Perspective] = new ListBuffer[Perspective]()
   private val perspectivesDurations: ListBuffer[Long]   = new ListBuffer[Long]()
 
-  val startTime: Long       = System.currentTimeMillis
-  var perspectiveTime: Long = startTime
+  private val startTime: Long       = System.currentTimeMillis
+  private var perspectiveTime: Long = startTime
 
   private val isJobDoneFuture = Task
     .never[Unit]

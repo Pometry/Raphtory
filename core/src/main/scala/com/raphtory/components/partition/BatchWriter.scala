@@ -14,7 +14,7 @@ class BatchWriter[T: ClassTag](
     partitionID: Int,
     storage: GraphPartition
 ) {
-  val telemetry = ComponentTelemetryHandler
+  private val telemetry: ComponentTelemetryHandler.type = ComponentTelemetryHandler
 
   def getStorage() = storage
 

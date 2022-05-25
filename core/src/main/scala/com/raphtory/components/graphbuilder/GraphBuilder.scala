@@ -1,12 +1,11 @@
 package com.raphtory.components.graphbuilder
 
+import com.raphtory.components.graphbuilder.Properties._
 import com.raphtory.components.partition.BatchWriter
+import com.raphtory.config.telemetry.ComponentTelemetryHandler
 import com.typesafe.scalalogging.Logger
 import net.openhft.hashing.LongHashFunction
 import org.slf4j.LoggerFactory
-import Properties._
-import com.raphtory.config.telemetry.ComponentTelemetryHandler
-import io.prometheus.client.Counter
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
