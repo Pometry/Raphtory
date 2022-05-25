@@ -73,8 +73,6 @@ abstract class GraphPartition(partitionID: Int, conf: Config) {
 
   def syncExistingRemovals(msgTime: Long, srcId: Long, dstId: Long, dstRemovals: List[Long]): Unit
 
-  def deduplicate()
-
   // Analysis Functions
   def getVertices(
       graphPerspective: GraphLens,

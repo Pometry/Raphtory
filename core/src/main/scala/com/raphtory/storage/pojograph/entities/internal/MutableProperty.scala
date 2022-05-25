@@ -1,22 +1,22 @@
 package com.raphtory.storage.pojograph.entities.internal
 
-import scala.collection.mutable
 import com.raphtory.util.OrderedBuffer._
 
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
+import scala.collection.mutable
 
 /**
   * @param creationTime
   * @param value         Property value
   */
 class MutableProperty(creationTime: Long, value: Any) extends Property {
-  var previousState: mutable.ArrayBuffer[(Long, Any)] = mutable.ArrayBuffer()
+  private var previousState: mutable.ArrayBuffer[(Long, Any)] = mutable.ArrayBuffer()
   // add in the initial information
   update(creationTime, value)
 
-  var earliest: Long            = creationTime
-  var earliestval: Any          = value
+  private var earliest: Long    = creationTime
+  private var earliestval: Any  = value
   override def creation(): Long = earliest
 
   def update(msgTime: Long, newValue: Any): Unit = {
@@ -48,7 +48,5 @@ class MutableProperty(creationTime: Long, value: Any) extends Property {
   def currentTime(): Long = previousState.head._1
 
   override def values(): Array[(Long, Any)] = previousState.toArray
-
-  //def serialise(key:String):ParquetProperty = ParquetProperty(key,false,previousState.map(x=>(x._1,x._2.toString)).toList)
 
 }

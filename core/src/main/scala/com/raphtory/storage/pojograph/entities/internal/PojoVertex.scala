@@ -11,8 +11,9 @@ import scala.collection.mutable
 class PojoVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
         extends PojoEntity(msgTime, initialValue) {
 
-  var incomingEdges = mutable.Map[Long, PojoEdge]() //Map of all edges associated with the vertex
-  var outgoingEdges = mutable.Map[Long, PojoEdge]()
+  var incomingEdges: mutable.Map[Long, PojoEdge] =
+    mutable.Map[Long, PojoEdge]() //Map of all edges associated with the vertex
+  var outgoingEdges: mutable.Map[Long, PojoEdge] = mutable.Map[Long, PojoEdge]()
 
   private var edgesRequiringSync = 0
 
@@ -22,7 +23,7 @@ class PojoVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
   def addIncomingEdge(edge: PojoEdge): Unit = incomingEdges.put(edge.getSrcId, edge)
   def addOutgoingEdge(edge: PojoEdge): Unit = outgoingEdges.put(edge.getDstId, edge)
 
-  def addAssociatedEdge(edge: PojoEdge): Unit =
+  def addAssociatedEdge(edge: PojoEdge): Unit     =
     if (edge.getSrcId == vertexId) addOutgoingEdge(edge) else addIncomingEdge(edge)
   def getOutgoingEdge(id: Long): Option[PojoEdge] = outgoingEdges.get(id)
   def getIncomingEdge(id: Long): Option[PojoEdge] = incomingEdges.get(id)
@@ -40,13 +41,4 @@ class PojoVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
             },
             lens
     )
-
-  override def dedupe() = {
-    super.dedupe()
-    incomingEdges.foreach(_._2.dedupe())
-    outgoingEdges.foreach(_._2.dedupe())
-  }
-
-  //def serialise(): ParquetVertex = ParquetVertex(vertexId,history.toList,properties.map(x=> x._2.serialise(x._1)).toList,incomingEdges.map(x=>x._2.serialise()).toList,outgoingEdges.map(x=>x._2.serialise()).toList)
-
 }

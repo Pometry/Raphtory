@@ -259,8 +259,6 @@ class StreamWriter(
     telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
 
-  private def dedupe(): Unit = storage.deduplicate()
-
   def handleUpdateCount() = {
     processedMessages += 1
     telemetry.streamWriterGraphUpdatesCollector.labels(partitionID.toString, deploymentID).inc()

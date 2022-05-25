@@ -39,20 +39,20 @@ final case class PojoGraphLens(
     private val scheduler: MonixScheduler
 ) extends GraphLens(jobId, start, end)
         with LensInterface {
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val voteCount         = new AtomicInteger(0)
   private val vertexCount       = new AtomicInteger(0)
   private var t1                = System.currentTimeMillis()
   private var fullGraphSize     = 0
   private var exploded: Boolean = false
-  var needsFiltering            = false
-  import scheduler.scheduler
 
-  val messageHandler: VertexMessageHandler =
+  var needsFiltering = false //used in PojoExEdge
+
+  private val messageHandler: VertexMessageHandler =
     VertexMessageHandler(conf, neighbours, this, sentMessages, receivedMessages)
 
-  val partitionID = storage.getPartitionID
+  val partitionID: Int = storage.getPartitionID
 
   private lazy val vertexMap: mutable.Map[Long, PojoExVertex] =
     storage.getVertices(this, start, end)

@@ -1,17 +1,11 @@
 package com.raphtory.storage.pojograph.entities.external
 
-import com.raphtory.components.querymanager.FilteredEdgeMessage
-import com.raphtory.components.querymanager.FilteredInEdgeMessage
-import com.raphtory.components.querymanager.FilteredOutEdgeMessage
-import com.raphtory.components.querymanager.GenericVertexMessage
-import com.raphtory.components.querymanager.VertexMessage
-import com.raphtory.graph.visitor.Edge
+import com.raphtory.components.querymanager._
 import com.raphtory.graph.visitor.Vertex
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.raphtory.storage.pojograph.messaging.VertexMultiQueue
 
 import scala.collection.mutable
-import scala.reflect.ClassTag
 
 trait PojoVertexBase extends Vertex {
   // abstract state
