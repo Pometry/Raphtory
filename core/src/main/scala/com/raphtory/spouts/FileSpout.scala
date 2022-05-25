@@ -1,24 +1,28 @@
 package com.raphtory.spouts
 
 import com.raphtory.components.spout.Spout
+import com.raphtory.config.telemetry.ComponentTelemetryHandler
+import com.raphtory.config.telemetry.SpoutTelemetry
+import com.raphtory.deployment.Raphtory
 import com.raphtory.deployment.Raphtory
 import com.typesafe.config.Config
-import com.raphtory.config.telemetry.{ComponentTelemetryHandler, SpoutTelemetry}
+import com.raphtory.config.telemetry.ComponentTelemetryHandler
+import com.raphtory.config.telemetry.SpoutTelemetry
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 import com.raphtory.util.FileUtils
+import com.typesafe.config.Config
 
 import java.io.File
 import java.io.FileInputStream
 import java.nio.file.Files
-import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.zip.GZIPInputStream
 import java.util.zip.ZipInputStream
 import scala.collection.mutable
 import scala.io.Source
-import scala.util.matching.Regex
 import scala.reflect.runtime.universe._
+import scala.util.matching.Regex
 
 class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String => T), conf: Config)
         extends Spout[T] {
@@ -41,13 +45,14 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
   // Validate that the path exists and is readable
   // Throws exception or logs error in case of failure
   FileUtils.validatePath(inputPath) // TODO Change this to cats.Validated
-  private val processingErrorCount = ComponentTelemetryHandler.fileProcessingErrors.labels(deploymentID)
-  private val processedFiles = ComponentTelemetryHandler.filesProcessed.labels(deploymentID)
-  var files             = getMatchingFiles()
-  var filesToProcess    = extractFilesToIngest()
-  var currentfile: File = _
+  private val processingErrorCount =
+    ComponentTelemetryHandler.fileProcessingErrors.labels(deploymentID)
+  private val processedFiles       = ComponentTelemetryHandler.filesProcessed.labels(deploymentID)
+  private var files                = getMatchingFiles()
+  private var filesToProcess       = extractFilesToIngest()
+  private var currentfile: File    = _
 
-  var lines = files.headOption match {
+  private var lines = files.headOption match {
     case Some(file) =>
       files = files.tail
       processFile(file)

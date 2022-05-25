@@ -1,5 +1,8 @@
 package com.raphtory.serialisers
 
+import java.io._
+import scala.reflect.ClassTag
+
 /** Support serialisation (`dump`) and deserialisation (`load`) for `ByteArray` input and output streams
   *
   * Usage:
@@ -12,14 +15,13 @@ package com.raphtory.serialisers
   * val safegraphBuilder = Marshal.deepCopy(graphBuilder)
   * }}}
   *
-  * @see [[com.raphtory.serialisers.PulsarKryoSerialiser]]
+  * @see [[com.raphtory.serialisers.KryoSerialiser]]
   */
 object Marshal {
-  import java.io._
-  import scala.reflect.ClassTag
 
   /** Serialise to byte array
-    * @param o object to serialise */
+    * @param o object to serialise
+    */
   def dump[A](o: A)(implicit t: ClassTag[A]): Array[Byte] = {
     val ba  = new ByteArrayOutputStream(512)
     val out = new ObjectOutputStream(ba)
@@ -30,7 +32,8 @@ object Marshal {
   }
 
   /** Deserialise object from Array[Byte]
-    * @param buffer input buffer */
+    * @param buffer input buffer
+    */
   @throws(classOf[IOException])
   @throws(classOf[ClassCastException])
   @throws(classOf[ClassNotFoundException])
@@ -54,7 +57,8 @@ object Marshal {
   }
 
   /** Deep copy
-    * @param a deserialise and persist as deep copy by serialising */
+    * @param a deserialise and persist as deep copy by serialising
+    */
   def deepCopy[A](a: A)(implicit m: reflect.ClassTag[A]): A =
     Marshal.load[A](Marshal.dump(a))
 }
