@@ -1,13 +1,11 @@
 package com.raphtory.algorithms.generic.community
 
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 import com.raphtory.graph.visitor.Vertex
 import com.raphtory.algorithms.generic.community.LPA.lpa
-
 import scala.util.Random
 
 /**
@@ -56,8 +54,10 @@ import scala.util.Random
 class LPA[T: Numeric](weight: String = "", maxIter: Int = 50, seed: Long = -1)
         extends NodeList(Seq("community")) {
 
-  val rnd: Random                                               = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)
-  val SP                                                        = 0.2f // Stickiness probability
+  private val rnd: Random = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)
+
+  private val SP = 0.2f // Stickiness probability
+
   override def apply(graph: GraphPerspective): GraphPerspective =
     graph
       .step { vertex =>

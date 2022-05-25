@@ -50,32 +50,10 @@ import scala.reflect.runtime.universe._
   *  [[com.raphtory.algorithms.api.TemporalGraph]]
   */
 object Raphtory {
-  private lazy val javaPy4jGatewayServer = new Py4JServer(this)
-  private val logger: Logger             = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
+  private lazy val javaPy4jGatewayServer           = new Py4JServer(this)
   private var prometheusServer: Option[HTTPServer] = None
-
-  private def newPrometheusServer(prometheusPort: Int): Unit =
-    try prometheusServer = Some(new HTTPServer(prometheusPort))
-    catch {
-      case e: IOException =>
-        logger.error(
-                s"Cannot create prometheus server as port $prometheusPort is already bound, " +
-                  s"this could be you have multiple raphtory instances running on the same machine. "
-        )
-    }
-
-  private[raphtory] def startPrometheus(prometheusPort: Int): Unit =
-    synchronized {
-      prometheusServer match {
-        case Some(server) =>
-          if (server.getPort != prometheusPort)
-            logger.warn(
-                    s"This Raphtory Instance is already running a Prometheus Server on port ${server.getPort}."
-            )
-        case None         => newPrometheusServer(prometheusPort)
-      }
-    }
 
   /** Creates a streaming version of a `DeployedTemporalGraph` object that can be used to express queries from and to access the deployment
     * using the given `spout`, `graphBuilder` and `customConfig`.
@@ -190,6 +168,28 @@ object Raphtory {
     customConfig.foreach { case (key, value) => confHandler.addCustomConfig(key, value) }
     confHandler.getConfig
   }
+
+  private def newPrometheusServer(prometheusPort: Int): Unit           =
+    try prometheusServer = Some(new HTTPServer(prometheusPort))
+    catch {
+      case e: IOException =>
+        logger.error(
+                s"Cannot create prometheus server as port $prometheusPort is already bound, " +
+                  s"this could be you have multiple raphtory instances running on the same machine. "
+        )
+    }
+
+  private[raphtory] def startPrometheus(prometheusPort: Int): Unit =
+    synchronized {
+      prometheusServer match {
+        case Some(server) =>
+          if (server.getPort != prometheusPort)
+            logger.warn(
+                    s"This Raphtory Instance is already running a Prometheus Server on port ${server.getPort}."
+            )
+        case None         => newPrometheusServer(prometheusPort)
+      }
+    }
 
   private def deployLocalGraph[T: ClassTag: TypeTag](
       spout: Spout[T] = new IdentitySpout[T](),

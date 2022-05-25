@@ -1,7 +1,6 @@
 package com.raphtory.algorithms.temporal
 
 import com.raphtory.algorithms.generic.NeighbourNames
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table

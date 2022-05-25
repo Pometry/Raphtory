@@ -5,7 +5,6 @@ import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
-
 import scala.collection.mutable
 import scala.util.Random
 

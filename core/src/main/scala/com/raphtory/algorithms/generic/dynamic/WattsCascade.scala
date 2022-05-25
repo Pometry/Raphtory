@@ -2,7 +2,6 @@ package com.raphtory.algorithms.generic.dynamic
 
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.algorithms.generic.dynamic.WattsCascade.Threshold
-import com.raphtory.algorithms.api._
 import com.raphtory.algorithms.api.GraphPerspective
 
 import scala.util.Random
