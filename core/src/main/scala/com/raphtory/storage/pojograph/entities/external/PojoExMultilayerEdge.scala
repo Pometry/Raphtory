@@ -5,7 +5,6 @@ import com.raphtory.components.querymanager.FilteredOutEdgeMessage
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.graph.visitor.ConcreteExplodedEdge
 import com.raphtory.graph.visitor.EntityVisitor
-import com.raphtory.graph.visitor.ExplodedEdge
 import com.raphtory.graph.visitor.HistoricEvent
 import com.raphtory.storage.pojograph.PojoGraphLens
 

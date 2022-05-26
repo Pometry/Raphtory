@@ -5,6 +5,7 @@ import com.raphtory.algorithms.api.Row
 import com.raphtory.communication.EndPoint
 import com.raphtory.components.querymanager.GenericVertexMessage
 import com.raphtory.components.querymanager.QueryManagement
+import com.raphtory.config.MonixScheduler
 import com.raphtory.graph.visitor.InterlayerEdge
 import com.raphtory.graph.visitor.Vertex
 import com.raphtory.graph.GraphLens
@@ -14,13 +15,14 @@ import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.storage.pojograph.entities.external.PojoExVertex
 import com.raphtory.storage.pojograph.messaging.VertexMessageHandler
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.Logger
 import org.apache.pulsar.client.api.Producer
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
-import monix.execution.Scheduler.Implicits.global
 import monix.eval.Task
 import monix.execution.Callback
+import org.slf4j.LoggerFactory
 
 /** @note DoNotDocument */
 final case class PojoGraphLens(
@@ -33,20 +35,23 @@ final case class PojoGraphLens(
     private val neighbours: Option[Map[Int, EndPoint[QueryManagement]]],
     private val sentMessages: AtomicInteger,
     private val receivedMessages: AtomicInteger,
-    private val errorHandler: (Throwable) => Unit
+    private val errorHandler: (Throwable) => Unit,
+    private val scheduler: MonixScheduler
 ) extends GraphLens(jobId, start, end)
         with LensInterface {
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+
   private val voteCount         = new AtomicInteger(0)
   private val vertexCount       = new AtomicInteger(0)
-  var t1                        = System.currentTimeMillis()
   private var fullGraphSize     = 0
   private var exploded: Boolean = false
-  var needsFiltering            = false
 
-  val messageHandler: VertexMessageHandler =
+  var needsFiltering = false //used in PojoExEdge
+
+  private val messageHandler: VertexMessageHandler =
     VertexMessageHandler(conf, neighbours, this, sentMessages, receivedMessages)
 
-  val partitionID = storage.getPartitionID
+  val partitionID: Int = storage.getPartitionID
 
   private lazy val vertexMap: mutable.Map[Long, PojoExVertex] =
     storage.getVertices(this, start, end)
@@ -134,7 +139,7 @@ final case class PojoGraphLens(
         }
       }
     }
-    executeInParallel(tasks, onComplete)
+    scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
   override def reduceView(
@@ -146,7 +151,7 @@ final case class PojoGraphLens(
     val tasks = vertexMap.values.map { vertex =>
       Task(vertex.reduce(defaultMergeStrategy, mergeStrategyMap, aggregate))
     }
-    executeInParallel(tasks, onComplete)
+    scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
   def runGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit = {
@@ -156,7 +161,7 @@ final case class PojoGraphLens(
       Task(f(vertex))
     }.toIterable
     vertexCount.set(count)
-    executeInParallel(tasks, onComplete)
+    scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
   override def runGraphFunction(
@@ -169,7 +174,7 @@ final case class PojoGraphLens(
       Task(f(vertex, graphState))
     }.toIterable
     vertexCount.set(count)
-    executeInParallel(tasks, onComplete)
+    scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
   override def runMessagedGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit = {
@@ -180,7 +185,7 @@ final case class PojoGraphLens(
         Task(f(vertex))
     }.toIterable
     vertexCount.set(count)
-    executeInParallel(tasks, onComplete)
+    scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
   override def runMessagedGraphFunction(
@@ -194,7 +199,7 @@ final case class PojoGraphLens(
         Task(f(vertex, graphState))
     }.toIterable
     vertexCount.set(count)
-    executeInParallel(tasks, onComplete)
+    scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
   def getMessageHandler(): VertexMessageHandler =
@@ -207,7 +212,6 @@ final case class PojoGraphLens(
   def vertexVoted(): Unit = voteCount.incrementAndGet()
 
   def nextStep(): Unit = {
-    t1 = System.currentTimeMillis()
     voteCount.set(0)
     vertexCount.set(0)
     superStep += 1
@@ -249,9 +253,4 @@ final case class PojoGraphLens(
       case (key, vertex) => vertex.clearMessageQueue()
     }
 
-  private def executeInParallel(tasks: Iterable[Task[Unit]], onSuccess: => Unit): Unit =
-    Task.parSequenceUnordered(tasks).runAsync {
-      case Right(_)                   => onSuccess
-      case Left(exception: Exception) => errorHandler(exception)
-    }
 }

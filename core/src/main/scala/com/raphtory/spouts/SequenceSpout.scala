@@ -6,7 +6,7 @@ import com.raphtory.components.spout.Spout
   * This spout is mainly useful for testing functionality
   */
 class SequenceSpout[T](seq: Seq[T]) extends Spout[T] {
-  val seqIterator                          = seq.iterator
+  private val seqIterator                  = seq.iterator
   override def spoutReschedules(): Boolean = false
 
   override def hasNext: Boolean = seqIterator.hasNext

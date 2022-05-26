@@ -1,10 +1,13 @@
 package com.raphtory.components.spout
 
-import com.raphtory.components.graphbuilder.GraphBuilder
-
-import scala.reflect.runtime.universe._
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
 
 trait Spout[T] extends Iterator[T] {
+
+  /** Logger instance for writing out log messages */
+  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+
   def hasNextIterator(): Boolean  = hasNext
   def nextIterator(): Iterator[T] = this
 

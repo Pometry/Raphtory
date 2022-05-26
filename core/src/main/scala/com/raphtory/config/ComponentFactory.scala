@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
-import scala.reflect.runtime.universe.TypeTag
 
 /** @note DoNotDocument */
 private[raphtory] class ComponentFactory(
@@ -30,11 +29,11 @@ private[raphtory] class ComponentFactory(
     topicRepo: TopicRepository,
     localDeployment: Boolean = false
 ) {
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val deploymentID = conf.getString("raphtory.deploy.id")
+  private lazy val deploymentID = conf.getString("raphtory.deploy.id")
 
-  private val (builderIDManager, partitionIDManager) =
+  private lazy val (builderIDManager, partitionIDManager) =
     if (localDeployment)
       (new LocalIDManager, new LocalIDManager)
     else {
@@ -49,7 +48,7 @@ private[raphtory] class ComponentFactory(
   def builder[T: ClassTag](
       graphBuilder: GraphBuilder[T],
       batchLoading: Boolean = false,
-      scheduler: Scheduler
+      scheduler: MonixScheduler
   ): Option[List[ThreadedWorker[T]]] =
     if (!batchLoading) {
       val totalBuilders = conf.getInt("raphtory.builders.countPerServer")
@@ -85,7 +84,7 @@ private[raphtory] class ComponentFactory(
     else None
 
   def partition[T: ClassTag](
-      scheduler: Scheduler,
+      scheduler: MonixScheduler,
       batchLoading: Boolean = false,
       spout: Option[Spout[T]] = None,
       graphBuilder: Option[GraphBuilder[T]] = None
@@ -176,7 +175,7 @@ private[raphtory] class ComponentFactory(
   def spout[T](
       spout: Spout[T],
       batchLoading: Boolean = false,
-      scheduler: Scheduler
+      scheduler: MonixScheduler
   ): Option[ThreadedWorker[T]] =
     if (!batchLoading) {
       val spoutExecutor = new SpoutExecutor[T](spout, conf, topicRepo, scheduler)
@@ -187,7 +186,7 @@ private[raphtory] class ComponentFactory(
     }
     else None
 
-  def query(scheduler: Scheduler): ThreadedWorker[QueryManagement] = {
+  def query(scheduler: MonixScheduler): ThreadedWorker[QueryManagement] = {
     logger.info(s"Creating new Query Manager.")
 
     val queryManager = new QueryManager(scheduler, conf, topicRepo)
@@ -197,7 +196,7 @@ private[raphtory] class ComponentFactory(
 
   def queryProgressTracker(
       jobID: String,
-      scheduler: Scheduler
+      scheduler: MonixScheduler
   ): QueryProgressTracker = {
     logger.info(
             s"Creating new Query Progress Tracker for '$jobID'."
@@ -212,6 +211,7 @@ private[raphtory] class ComponentFactory(
   def stop(): Unit = {
     partitionIDManager.stop()
     builderIDManager.stop()
+    topicRepo.shutdown()
   }
 }
 

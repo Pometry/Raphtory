@@ -4,14 +4,14 @@ import com.raphtory.communication.TopicRepository
 import com.raphtory.components.querymanager.Query
 import com.raphtory.components.querytracker.QueryProgressTracker
 import com.raphtory.config.ComponentFactory
-import com.raphtory.config.Scheduler
+import com.raphtory.config.MonixScheduler
 
 import scala.util.Random
 
 /** @note DoNotDocument */
 class QuerySender(
     private val componentFactory: ComponentFactory,
-    private val scheduler: Scheduler,
+    private val scheduler: MonixScheduler,
     private val topics: TopicRepository
 ) {
 

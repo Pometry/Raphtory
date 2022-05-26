@@ -3,11 +3,8 @@ package com.raphtory.algorithms.generic.motif
 import com.raphtory.algorithms.api.Chain
 import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Row
-import com.raphtory.algorithms.api.Table
 import com.raphtory.algorithms.generic.AdjPlus
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.graph.visitor.Vertex
 
 import scala.collection.mutable
 

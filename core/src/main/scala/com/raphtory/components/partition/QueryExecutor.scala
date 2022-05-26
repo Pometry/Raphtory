@@ -1,47 +1,20 @@
 package com.raphtory.components.partition
 
-import com.raphtory.components.querymanager._
-import com.raphtory.algorithms._
-import com.raphtory.algorithms.api.ClearChain
-import com.raphtory.algorithms.api.Explode
-import com.raphtory.algorithms.api.ExplodeSelect
-import com.raphtory.algorithms.api.GlobalSelect
-import com.raphtory.algorithms.api.GraphStateImplementation
-import com.raphtory.algorithms.api.Iterate
-import com.raphtory.algorithms.api.IterateWithGraph
-import com.raphtory.algorithms.api.MultilayerView
-import com.raphtory.algorithms.api.ReduceView
-import com.raphtory.algorithms.api.Select
-import com.raphtory.algorithms.api.SelectWithGraph
-import com.raphtory.algorithms.api.Step
-import com.raphtory.algorithms.api.StepWithGraph
-import com.raphtory.algorithms.api.TableFilter
-import com.raphtory.algorithms.api.WriteTo
+import com.raphtory.algorithms.api._
 import com.raphtory.communication.TopicRepository
 import com.raphtory.communication.connectors.PulsarConnector
 import com.raphtory.components.Component
-import com.raphtory.components.querymanager.CheckMessages
-import com.raphtory.components.querymanager.CreatePerspective
-import com.raphtory.components.querymanager.EndQuery
-import com.raphtory.components.querymanager.ExecutorEstablished
-import com.raphtory.components.querymanager.GraphFunctionComplete
-import com.raphtory.components.querymanager.MetaDataSet
-import com.raphtory.components.querymanager.PerspectiveEstablished
-import com.raphtory.components.querymanager.QueryManagement
-import com.raphtory.components.querymanager.SetMetaData
-import com.raphtory.components.querymanager.TableBuilt
-import com.raphtory.components.querymanager.TableFunctionComplete
-import com.raphtory.components.querymanager.VertexMessage
-import com.raphtory.components.querymanager.VertexMessageBatch
+import com.raphtory.components.querymanager._
+import com.raphtory.config.MonixScheduler
 import com.raphtory.graph.GraphPartition
 import com.raphtory.graph.LensInterface
 import com.raphtory.output.PulsarOutputFormat
 import com.raphtory.storage.pojograph.PojoGraphLens
-import com.raphtory.storage.pojograph.messaging.VertexMessageHandler
 import com.raphtory.time.Interval
 import com.typesafe.config.Config
-import org.apache.pulsar.client.admin.PulsarAdminException
+import com.typesafe.scalalogging.Logger
 import org.apache.pulsar.client.api._
+import org.slf4j.LoggerFactory
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -51,16 +24,17 @@ class QueryExecutor(
     storage: GraphPartition,
     jobID: String,
     conf: Config,
-    topics: TopicRepository
+    topics: TopicRepository,
+    scheduler: MonixScheduler
 ) extends Component[QueryManagement](conf) {
 
-  var currentTimestamp: Long              = _
-  var currentWindow: Option[Interval]     = _
-  var graphLens: LensInterface            = _
-  var sentMessageCount: AtomicInteger     = new AtomicInteger(0)
-  var receivedMessageCount: AtomicInteger = new AtomicInteger(0)
-  var votedToHalt: Boolean                = false
-  var filtered: Boolean                   = false
+  private val logger: Logger                      = Logger(LoggerFactory.getLogger(this.getClass))
+  private var currentTimestamp: Long              = _
+  private var currentWindow: Option[Interval]     = _
+  private var graphLens: LensInterface            = _
+  private val sentMessageCount: AtomicInteger     = new AtomicInteger(0)
+  private val receivedMessageCount: AtomicInteger = new AtomicInteger(0)
+  private var votedToHalt: Boolean                = false
 
   private val listeningTopics =
     if (totalPartitions > 1) Seq(topics.jobOperations(jobID), topics.vertexMessages(jobID))
@@ -128,7 +102,8 @@ class QueryExecutor(
                   neighbours,
                   sentMessageCount,
                   receivedMessageCount,
-                  errorHandler
+                  errorHandler,
+                  scheduler
           )
           currentTimestamp = timestamp
           currentWindow = window

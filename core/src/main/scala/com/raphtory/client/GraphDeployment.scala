@@ -3,14 +3,14 @@ package com.raphtory.client
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.Spout
 import com.raphtory.config.ComponentFactory
+import com.raphtory.config.MonixScheduler
 import com.raphtory.config.Partitions
-import com.raphtory.config.Scheduler
 import com.raphtory.config.ThreadedWorker
-import com.raphtory.config.ZookeeperIDManager
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.Logger
 import io.prometheus.client.exporter.HTTPServer
+import org.slf4j.LoggerFactory
 
-import java.io.IOException
 import scala.language.postfixOps
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
@@ -18,37 +18,31 @@ import scala.reflect.runtime.universe._
 /** Graph Deployment extends Raphtory Client to initialise Query Manager, Partitions, Spout Worker and GraphBuilder Worker for a deployment ID
   *  `GraphDeployment` should not be created directly. To create a `GraphDeployment` use
   *  `Raphtory.createClient(deploymentID: String = "", customConfig: Map[String, Any] = Map())`.
-  *  The query methods for `GraphDeployment` are similar to `RaphtoryClient`
-  * @see [[com.raphtory.client.RaphtoryClient]], [[com.raphtory.deployment.Raphtory]]
   */
 private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
     batchLoading: Boolean,
     spout: Spout[T],
     graphBuilder: GraphBuilder[T],
-    private val querySender: QuerySender,
     private val conf: Config,
     private val componentFactory: ComponentFactory,
-    private val scheduler: Scheduler
-) extends RaphtoryClient(
-                querySender,
-                conf
-        ) {
+    private val scheduler: MonixScheduler
+) {
 
   allowIllegalReflection()
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val deploymentID: String = conf.getString("raphtory.deploy.id")
   private val spoutTopic: String   = conf.getString("raphtory.spout.topic")
-  private val prometheusPort: Int  = conf.getInt("raphtory.prometheus.metrics.port")
 
-  private val partitions: Partitions =
+  private var partitions: Partitions =
     componentFactory.partition(scheduler, batchLoading, Some(spout), Some(graphBuilder))
 
-  private val queryManager = componentFactory.query(scheduler)
+  private var queryManager = componentFactory.query(scheduler)
 
-  private val spoutworker: Option[ThreadedWorker[T]] =
+  private var spoutworker: Option[ThreadedWorker[T]] =
     componentFactory.spout(spout, batchLoading, scheduler)
 
-  private val graphBuilderworker: Option[List[ThreadedWorker[T]]] =
+  private var graphBuilderworker: Option[List[ThreadedWorker[T]]] =
     componentFactory.builder[T](graphBuilder, batchLoading, scheduler)
 
   private var prometheusServer: Option[HTTPServer] = None
@@ -56,32 +50,29 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
   logger.info(s"Created Graph object with deployment ID '$deploymentID'.")
   logger.info(s"Created Graph Spout topic with name '$spoutTopic'.")
 
-  try prometheusServer = Option(new HTTPServer(prometheusPort))
-  catch {
-    case e: IOException => e.printStackTrace()
-  }
-
   /** Stops components - partitions, query manager, graph builders, spout worker */
   def stop(): Unit = {
     partitions.writers.foreach(_.stop())
     partitions.readers.foreach(_.stop())
+    partitions = null
     queryManager.worker.stop()
+    queryManager = null
 
     spoutworker match {
-      case Some(w) => w.worker.stop()
+      case Some(w) =>
+        w.worker.stop()
+        spoutworker = null
       case None    =>
     }
     graphBuilderworker match {
-      case Some(worker) => worker.foreach(builder => builder.worker.stop())
+      case Some(worker) =>
+        worker.foreach(builder => builder.worker.stop())
+        graphBuilderworker = null
+
       case None         =>
     }
-
-    prometheusServer match {
-      case Some(w) => w.stop()
-      case None    =>
-    }
-
     componentFactory.stop()
+    scheduler.shutdown()
   }
 
   private def allowIllegalReflection() = {

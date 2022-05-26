@@ -6,8 +6,8 @@ import scala.io.Source
 
 case class ResourceSpout(resource: String) extends Spout[String] {
 
-  val source = Source.fromResource(resource)
-  val lines  = source.getLines()
+  private val source = Source.fromResource(resource)
+  private val lines  = source.getLines()
 
   override def hasNext: Boolean = lines.hasNext
 

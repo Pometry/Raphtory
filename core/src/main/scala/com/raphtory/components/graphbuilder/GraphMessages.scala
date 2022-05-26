@@ -1,6 +1,5 @@
 package com.raphtory.components.graphbuilder
 
-import org.apache.pulsar.client.api.Schema
 import Properties._
 
 /** Properties are characteristic attributes like name, etc. assigned to Vertices and Edges by the [Graph Builder](com.raphtory.components.graphbuilder.GraphBuilder).
@@ -10,8 +9,10 @@ object Properties {
 
   /** Sealed trait defining different types of properties */
   sealed trait Property {
+
     /** property name */
     def key: String
+
     /** value property value */
     def value: Any
   }
@@ -28,7 +29,7 @@ object Properties {
   /** `Property` with a `Long` value */
   case class LongProperty(key: String, value: Long) extends Property
 
-  /**  `Property` with a `Double` value */
+  /** `Property` with a `Double` value */
   case class DoubleProperty(key: String, value: Double) extends Property
 
   /** `Property` with a `Float` value */

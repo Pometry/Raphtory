@@ -20,11 +20,14 @@ object PulsarOutputRunner extends App {
   // Create Graph
   val source  = FileSpout(path)
   val builder = new LOTRGraphBuilder()
-  val graph   = Raphtory.stream(spout = source, graphBuilder = builder)
-  Thread.sleep(20000)
+  val graph   = Raphtory.batchLoad(spout = source, graphBuilder = builder)
 
   // Run algorithms
-  graph.at(30000).past().execute(EdgeList()).writeTo(PulsarOutputFormat("EdgeList"))
+  graph
+    .at(30000)
+    .past()
+    .execute(EdgeList())
+    .writeTo(PulsarOutputFormat("EdgeList"))
   graph
     .range(20000, 30000, 10000)
     .window(List(500, 1000, 10000), Alignment.END)

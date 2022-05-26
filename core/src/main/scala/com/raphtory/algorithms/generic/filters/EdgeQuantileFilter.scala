@@ -4,9 +4,6 @@ import com.raphtory.algorithms.api.Bounded
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Histogram
 import com.raphtory.algorithms.api.Identity
-
-import scala.collection.Searching.Found
-import scala.collection.Searching.InsertionPoint
 import scala.language.implicitConversions
 import scala.math.Numeric.Implicits.infixNumericOps
 import scala.reflect.ClassTag

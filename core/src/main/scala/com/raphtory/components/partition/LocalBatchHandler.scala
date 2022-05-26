@@ -3,12 +3,10 @@ package com.raphtory.components.partition
 import com.raphtory.components.Component
 import com.raphtory.components.graphbuilder._
 import com.raphtory.components.spout.Spout
-import com.raphtory.config.Scheduler
-import com.raphtory.config.telemetry.BuilderTelemetry
-import com.raphtory.config.telemetry.PartitionTelemetry
-import com.raphtory.serialisers.Marshal
+import com.raphtory.config.MonixScheduler
 import com.typesafe.config.Config
-import io.prometheus.client.Counter
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
@@ -21,8 +19,10 @@ class LocalBatchHandler[T: ClassTag](
     spout: Spout[T],
     graphBuilder: GraphBuilder[T],
     conf: Config,
-    scheduler: Scheduler
+    scheduler: MonixScheduler
 ) extends Component[GraphAlteration](conf) {
+
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   graphBuilder.setupBatchIngestion(partitionIDs, batchWriters, totalPartitions)
 

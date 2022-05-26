@@ -4,9 +4,6 @@ import com.raphtory.components.querymanager.FilteredInEdgeMessage
 import com.raphtory.components.querymanager.FilteredOutEdgeMessage
 import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.graph.visitor.ConcreteEdge
-import com.raphtory.graph.visitor.ConcreteExplodedEdge
-import com.raphtory.graph.visitor.Edge
-import com.raphtory.graph.visitor.ExplodedEdge
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.raphtory.storage.pojograph.entities.internal.PojoEdge
 import com.raphtory.storage.pojograph.entities.internal.SplitEdge

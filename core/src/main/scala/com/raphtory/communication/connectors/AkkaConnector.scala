@@ -1,24 +1,12 @@
 package com.raphtory.communication.connectors
 
+import akka.actor.typed._
 import akka.actor.typed.receptionist.Receptionist
 import akka.actor.typed.receptionist.ServiceKey
 import akka.actor.typed.scaladsl.AskPattern.Askable
 import akka.actor.typed.scaladsl.Behaviors
-import akka.actor.typed.ActorRef
-import akka.actor.typed.ActorSystem
-import akka.actor.typed.Props
-import akka.actor.typed.Scheduler
-import akka.actor.typed.SpawnProtocol
 import akka.util.Timeout
-import com.raphtory.communication.BroadcastTopic
-import com.raphtory.communication.CancelableListener
-import com.raphtory.communication.CanonicalTopic
-import com.raphtory.communication.Connector
-import com.raphtory.communication.EndPoint
-import com.raphtory.communication.ExclusiveTopic
-import com.raphtory.communication.Topic
-import com.raphtory.communication.WorkPullTopic
-import com.raphtory.components.Component
+import com.raphtory.communication._
 import com.raphtory.serialisers.KryoSerialiser
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -34,12 +22,12 @@ import scala.concurrent.duration.DurationInt
 case object StopActor
 
 class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Connector {
-  val logger: Logger                              = Logger(LoggerFactory.getLogger(this.getClass))
-  val akkaReceptionistRegisteringTimeout: Timeout = 1.seconds
-  val akkaSpawnerTimeout: Timeout                 = 1.seconds
-  val akkaReceptionistFindingTimeout: Timeout     = 1.seconds
+  private val logger: Logger                              = Logger(LoggerFactory.getLogger(this.getClass))
+  private val akkaReceptionistRegisteringTimeout: Timeout = 1.seconds
+  private val akkaSpawnerTimeout: Timeout                 = 1.seconds
+  private val akkaReceptionistFindingTimeout: Timeout     = 1.seconds
 
-  val kryo: KryoSerialiser = KryoSerialiser()
+  private val kryo: KryoSerialiser = KryoSerialiser()
 
   case class AkkaEndPoint[T](actorRefs: Future[Set[ActorRef[Array[Byte]]]]) extends EndPoint[T] {
     private val endPointResolutionTimeout: Duration = 10.seconds
@@ -143,4 +131,6 @@ class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Con
 
   private def deserialise[T](bytes: Array[Byte]): T = kryo.deserialise[T](bytes)
   private def serialise(value: Any): Array[Byte]    = kryo.serialise(value)
+
+  override def shutdown(): Unit = actorSystem.terminate()
 }

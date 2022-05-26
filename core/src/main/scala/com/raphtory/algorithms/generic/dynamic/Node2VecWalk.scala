@@ -7,11 +7,7 @@ import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
-
 import scala.reflect.ClassTag
-
-// extend Random to include weighted sampling method
-
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 import com.raphtory.util.Sampling._
@@ -66,7 +62,7 @@ import com.raphtory.util.Sampling._
   * [^node2vec]: [node2vec: Scalable Feature Learning for Networks](https://arxiv.org/abs/1607.00653)
   */
 class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) extends GraphAlgorithm {
-  private val rng = new Random()
+  private val rng = new Random() //TODO does this need a seed?
 
   override def apply(graph: GraphPerspective): GraphPerspective =
     graph

@@ -11,7 +11,7 @@ import io.prometheus.client.Counter
   */
 object StorageTelemetry {
 
-  val raphtoryConfig: Config = Raphtory.getDefaultConfig()
+  private val raphtoryConfig: Config = Raphtory.getDefaultConfig()
 
   def pojoLensGraphSize(): Counter =
     Counter.build

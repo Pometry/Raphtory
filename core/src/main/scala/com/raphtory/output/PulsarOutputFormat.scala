@@ -25,7 +25,6 @@ import org.apache.pulsar.client.api.Schema
   * }}}
   *
   *  @see [[com.raphtory.algorithms.api.OutputFormat]]
-  *       [[com.raphtory.client.RaphtoryClient]]
   *       [[com.raphtory.client.GraphDeployment]]
   *       [[com.raphtory.deployment.Raphtory]]
   */
@@ -58,6 +57,7 @@ class PulsarOutputFormat(val pulsarTopic: String) extends OutputFormat {
 
 /** Writes output output to a Raphtory Pulsar topic */
 object PulsarOutputFormat {
+
   /** @param pulsarTopic Topic name for writing to Pulsar. */
   def apply(pulsarTopic: String) = new PulsarOutputFormat(pulsarTopic)
 }

@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 /** @note DoNotDocument */
 private[raphtory] class ZookeeperIDManager(zookeeperAddress: String, atomicPath: String)
         extends IDManager {
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val client: CuratorFramework = CuratorFrameworkFactory
     .builder()

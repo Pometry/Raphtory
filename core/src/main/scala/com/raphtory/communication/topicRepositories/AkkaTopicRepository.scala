@@ -8,10 +8,10 @@ import com.typesafe.config.Config
 
 /** @DoNotDocument This object only exists for testing purposes -- no more deployments are fully akka */
 object AkkaTopicRepository {
-  private lazy val actorSystem = ActorSystem(SpawnProtocol(), "spawner")
 
   def apply(config: Config): TopicRepository = {
+    val actorSystem   = ActorSystem(SpawnProtocol(), "spawner")
     val akkaConnector = new AkkaConnector(actorSystem)
-    new TopicRepository(akkaConnector, config)
+    new TopicRepository(akkaConnector, config, Array(akkaConnector))
   }
 }

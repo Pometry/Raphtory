@@ -14,12 +14,12 @@ class BatchWriter[T: ClassTag](
     partitionID: Int,
     storage: GraphPartition
 ) {
-  val telemetry = ComponentTelemetryHandler
+  private val telemetry: ComponentTelemetryHandler.type = ComponentTelemetryHandler
 
   def getStorage() = storage
 
   private var processedMessages = 0
-  val logger: Logger            = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger    = Logger(LoggerFactory.getLogger(this.getClass))
 
   def handleMessage(msg: GraphAlteration): Unit = {
     msg match {
@@ -40,9 +40,6 @@ class BatchWriter[T: ClassTag](
     printUpdateCount()
   }
 
-  /**
-    * Graph Updates from the builders
-    */
   def processVertexAdd(update: VertexAdd): Unit = {
     logger.trace(s"Partition $partitionID: Received VertexAdd message '$update'.")
     storage.addVertex(update.updateTime, update.srcId, update.properties, update.vType)

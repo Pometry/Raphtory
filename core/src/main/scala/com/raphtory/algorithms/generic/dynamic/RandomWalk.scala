@@ -8,7 +8,6 @@ import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Table
 import com.raphtory.graph.visitor.Vertex
-
 import collection.mutable.ArrayBuffer
 import scala.util.Random
 

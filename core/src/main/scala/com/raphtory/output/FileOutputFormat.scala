@@ -28,7 +28,6 @@ import java.io.File
   * }}}
   *
   * @see [[com.raphtory.algorithms.api.OutputFormat]]
-  *       [[com.raphtory.client.RaphtoryClient]]
   *       [[com.raphtory.client.GraphDeployment]]
   *       [[com.raphtory.deployment.Raphtory]]
   */
@@ -66,6 +65,7 @@ class FileOutputFormat(filePath: String) extends OutputFormat {
 
 /** Writes output for Raphtory Job and Partition for a pre-defined window and timestamp to File */
 object FileOutputFormat {
+
   /** @param filePath Filepath for writing Raphtory output. */
   def apply(filePath: String) = new FileOutputFormat(filePath)
 }

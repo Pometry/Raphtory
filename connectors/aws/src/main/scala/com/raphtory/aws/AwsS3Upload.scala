@@ -13,7 +13,7 @@ import java.io.File
 
 object AWSS3Upload extends App {
 
-    val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+    private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
     val raphtoryConfig: Config = ConfigFactory.load()
 

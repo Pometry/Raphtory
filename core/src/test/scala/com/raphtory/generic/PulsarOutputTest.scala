@@ -9,11 +9,13 @@ import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.output.PulsarOutputFormat
 import com.raphtory.spouts.FileSpout
 import org.apache.pulsar.client.api.Schema
+import org.scalatest.Ignore
 
 import java.io.File
 import scala.language.postfixOps
 import scala.sys.process._
 
+@Ignore
 class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFinish = false) {
   test("Outputting to Pulsar") {
     val outputFormat: PulsarOutputFormat = PulsarOutputFormat("EdgeList" + deploymentID)

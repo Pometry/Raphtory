@@ -1,11 +1,10 @@
 package com.raphtory.algorithms.generic.centrality
 
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Row
-import com.raphtory.algorithms.api.Table
 import com.raphtory.graph.visitor.Vertex
+import scala.math.log10
+import scala.math.pow
 
 /**
   * {s}`Distinctiveness(alpha: Double=1.0, weightProperty="weight")`
@@ -39,9 +38,6 @@ import com.raphtory.graph.visitor.Vertex
   *  | ----------------- | --------------- | --- | --------------- |
   *  | {s}`name: String` | {s}`D1: Double` | ... | {s}`D5: Double` |
   */
-import scala.math.log10
-import scala.math.pow
-
 class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")(implicit
     numeric: Numeric[T]
 ) extends NodeList(Seq("D1", "D2", "D3", "D4", "D5")) {

@@ -1,6 +1,6 @@
-# Analysis in Raphtory
+# A deeper dive into Raphtory analysis
 
-Raphtory's analysis engine works by *vertex centric computation*. Each vertex has access to local information about the graph (just its immediate vicinity). To complement this, vertices can communicate with their neighbours (other vertices that are directly connected to it). Many graph algorithms which operate on per-vertex level can be expressed in this way. The benefit of this is that graphs can be distributed over multiple cores/machines, each containing a proportion of the vertices, and these vertex computations can be executed in a parallel manner.
+Raphtory's analysis engine works by *vertex centric computation*. Each vertex has access to local information about the graph (just its immediate vicinity). To complement this, vertices can communicate with their neighbours (other vertices that are directly connected to it). Many graph algorithms which operate on a per-vertex level can be expressed in this way. The benefit of this is that graphs can be distributed over multiple cores/machines, each containing a proportion of the vertices, and these vertex computations can be executed in a parallel manner.
 
 Each vertex (or node) knows:
 
@@ -10,7 +10,7 @@ Each vertex (or node) knows:
 
 <p align="center">
   <img src="../_static/vertex_time2.png" style="width: 20vw;" alt="vertex time view"/>
-<figcaption>The information available to vertex V1 which includes the time it was created, the IDs of its neighbours and the times at which its edges are established.</figcaption>
+<figcaption>The information available to vertex V1 - this includes the time it was created, the IDs of its neighbours and the times at which its edges are established.</figcaption>
 </p>
 
 The next sections will explore how algorithms can be written using these vertex communications.
@@ -54,7 +54,7 @@ The {s}`apply()` method takes a {scaladoc}`com.raphtory.algorithms.api.GraphPers
 manipulates the state of vertices, and then returns the
 {scaladoc}`com.raphtory.algorithms.api.GraphPerspective`, either for further processing by
 other algorithms or for collecting and writing out results.
-A {scaladoc}`com.raphtory.algorithms.api.GraphPerspective`) has two key methods which are used during
+A {scaladoc}`com.raphtory.algorithms.api.GraphPerspective` has two key methods which are used during
 graph processing, {s}`step()` and {s}`iterate()`.
 
 #### step()
@@ -209,35 +209,29 @@ table
 ### Writing out results
 
 Finally, once you are happy with the format of your data you can output it to disk.
-This is implemented by using an {scaladoc}`com.raphtory.algorithms.api.OutputFormat` which is given to the
-query when it is executed.
+This is done by using an {scaladoc}`com.raphtory.algorithms.api.OutputFormat` which is given to the
+query when it is executed. Several inbuilt output formats are available within Raphtory, but it is also very simple to implement your own if you have a specific destination in mind.
 
-Raphtory supports two formats at present: {scaladoc}`com.raphtory.output.FileOutputFormat` and
-{scaladoc}`com.raphtory.output.PulsarOutputFormat`.
-
-{scaladoc}`com.raphtory.output.FileOutputFormat` saves the results of each partition as separate
-files to a directory.
-Simply pass the directory as the primary argument when creating the
-{scaladoc}`com.raphtory.output.FileOutputFormat` object and pass this to the query.
-
-For example:
+As an example from our prior code snippets the {scaladoc}`com.raphtory.output.FileOutputFormat` saves the results of each partition as separate
+files to a directory. This directory is the only argument required when creating the
+{scaladoc}`com.raphtory.output.FileOutputFormat` object and passing it to the query:
 
 ```scala
 val outputFormat = FileOutputFormat("/tmp")
-
-graph.rangeQuery(ConnectedComponents(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
+graph
+  .execute(ConnectedComponents())
+  .writeTo(outputFormat)
 ```
 
-Similarly, {scaladoc}`com.raphtory.output.PulsarOutputFormat` can used to write results directly to
-Pulsar topics. Set the Topic as the primary argument when creating the
-{scaladoc}`com.raphtory.output.PulsarOutputFormat` object.
-
-For example:
+Similarly the {scaladoc}`com.raphtory.output.PulsarOutputFormat` can used to write results directly to
+[Pulsar](https://pulsar.apache.org) topics. Where the user gives the Topic as an argument when creating the
+{scaladoc}`com.raphtory.output.PulsarOutputFormat` object:
 
 ```scala
 val outputFormat = PulsarOutputFormat("components")
-
-graph.rangeQuery(ConnectedComponents(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
+graph
+  .execute(ConnectedComponents())
+  .writeTo(outputFormat)
 ```
 
 ## Types of Algorithms
@@ -245,7 +239,7 @@ graph.rangeQuery(ConnectedComponents(), outputFormat, 1, 32674, 10000, List(500,
 ### Zero-step algorithms
 Zero-step algorithms refer to all algorithms which require no vertex messaging step, and can be expressed just using a
 {s}`select()` operation. This means that the algorithm only requires knowledge of each vertex and the edges
-connected to it, and might be known as local measures in the network science literature. Some algorithms that fit
+connected to it. This might be familiar as `local measures` in the network science literature. Some algorithms that fit
 into this category are:
 * Vertex degree
 * Vertex/edge property extraction
