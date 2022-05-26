@@ -48,8 +48,7 @@ private[raphtory] class MonixScheduler {
         case e: RejectedExecutionException =>
           logger.error(s"Scheduler rejected scheduling of Component $component")
       }
-      finally lock.unlock()
-    else lock.unlock()
+    lock.unlock()
   }
 
   def scheduleOnce(delay: FiniteDuration, task: => Unit): Option[Cancelable] = {
@@ -77,17 +76,14 @@ private[raphtory] class MonixScheduler {
       errorHandler: (Throwable) => Unit
   ): Unit = {
     lock.lock()
-    if (schedulerRunning) {
+    if (schedulerRunning)
       Task
         .parSequenceUnordered(tasks)
         .runAsync {
           case Right(_)                   => onSuccess
           case Left(exception: Exception) => errorHandler(exception)
         }
-      lock.unlock()
-    }
-    else
-      lock.unlock()
+    lock.unlock()
   }
 
   def shutdown(): Unit = {

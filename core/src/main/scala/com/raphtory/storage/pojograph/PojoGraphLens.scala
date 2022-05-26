@@ -43,7 +43,6 @@ final case class PojoGraphLens(
 
   private val voteCount         = new AtomicInteger(0)
   private val vertexCount       = new AtomicInteger(0)
-  private var t1                = System.currentTimeMillis()
   private var fullGraphSize     = 0
   private var exploded: Boolean = false
 
@@ -213,7 +212,6 @@ final case class PojoGraphLens(
   def vertexVoted(): Unit = voteCount.incrementAndGet()
 
   def nextStep(): Unit = {
-    t1 = System.currentTimeMillis()
     voteCount.set(0)
     vertexCount.set(0)
     superStep += 1

@@ -1,18 +1,17 @@
 package com.raphtory.deployment
 
 import com.raphtory.algorithms.api.DeployedTemporalGraph
-import com.raphtory.algorithms.api.TemporalGraph
 import com.raphtory.algorithms.api.TemporalGraphConnection
-import com.raphtory.components.graphbuilder.GraphBuilder
-import com.raphtory.components.spout.Spout
-import com.raphtory.config.ComponentFactory
-import com.raphtory.config.ConfigHandler
-import com.raphtory.config.MonixScheduler
 import com.raphtory.client.GraphDeployment
 import com.raphtory.client.QuerySender
 import com.raphtory.communication.topicRepositories.PulsarAkkaTopicRepository
 import com.raphtory.communication.topicRepositories.PulsarTopicRepository
+import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.querymanager.Query
+import com.raphtory.components.spout.Spout
+import com.raphtory.config.ComponentFactory
+import com.raphtory.config.ConfigHandler
+import com.raphtory.config.MonixScheduler
 import com.raphtory.spouts.IdentitySpout
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -21,7 +20,6 @@ import org.slf4j.LoggerFactory
 
 import java.io.IOException
 import scala.reflect.ClassTag
-import scala.reflect.classTag
 import scala.reflect.runtime.universe._
 
 /**  `Raphtory` object for creating Raphtory Components
@@ -169,7 +167,7 @@ object Raphtory {
     confHandler.getConfig
   }
 
-  private def newPrometheusServer(prometheusPort: Int): Unit           =
+  private def newPrometheusServer(prometheusPort: Int): Unit =
     try prometheusServer = Some(new HTTPServer(prometheusPort))
     catch {
       case e: IOException =>
