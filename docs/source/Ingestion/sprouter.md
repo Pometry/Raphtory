@@ -58,7 +58,7 @@ object FileOutputRunner extends App {
 ## Spout
 
 ### File Spout
-There are many data sources that may be used to feed graphs in Raphtory, for this example we will make use of the `FileSpout`. This takes a file on your machine and pushes it into Pulsar for our graph builders to parse. We automatically download the lotr.csv file from the [Raphtory data repository](https://github.com/Raphtory/Data) (hence why it run in the last tutorial), so you shouldn't have to set anything if using it. If you are want to swap this file out for your own data, simply remove this download and change the `FileSpout` path to point to where your files are.
+There are many data sources that may be used to feed graphs in Raphtory, for this example we will make use of the `FileSpout`. This takes a file on your machine and pushes it into Pulsar for our graph builders to parse. We automatically download the lotr.csv file from the [Raphtory data repository](https://github.com/Raphtory/Data) (hence why it run in the last tutorial), so you shouldn't have to set anything if using it. If you want to swap this file out for your own data, simply remove this download and change the `FileSpout` path to point to where your files are.
 
 ```scala 
 val source  = FileSpout("YOUR_FILE_HERE")
