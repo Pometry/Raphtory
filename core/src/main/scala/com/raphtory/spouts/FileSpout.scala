@@ -2,14 +2,7 @@ package com.raphtory.spouts
 
 import com.raphtory.components.spout.Spout
 import com.raphtory.config.telemetry.ComponentTelemetryHandler
-import com.raphtory.config.telemetry.SpoutTelemetry
 import com.raphtory.deployment.Raphtory
-import com.raphtory.deployment.Raphtory
-import com.typesafe.config.Config
-import com.raphtory.config.telemetry.ComponentTelemetryHandler
-import com.raphtory.config.telemetry.SpoutTelemetry
-import com.typesafe.scalalogging.Logger
-import org.slf4j.LoggerFactory
 import com.raphtory.util.FileUtils
 import com.typesafe.config.Config
 

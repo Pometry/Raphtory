@@ -1,10 +1,12 @@
 package com.raphtory.config.telemetry
 
+import io.prometheus.client.Counter
+import io.prometheus.client.Gauge
 
 private[raphtory] object ComponentTelemetryHandler {
   val filesProcessed: Counter       = SpoutTelemetry.totalFilesProcessed
   val spoutReschedules: Counter     = SpoutTelemetry.totalSpoutReschedules
-  val fileLinesSent: Gauge          = SpoutTelemetry.totalLinesSent
+  val fileLinesSent: Counter        = SpoutTelemetry.totalLinesSent
   val fileProcessingErrors: Counter = SpoutTelemetry.totalFileProcessingErrors
 
   val vertexAddCounter: Counter           = BuilderTelemetry.totalVertexAdds()
@@ -44,5 +46,5 @@ private[raphtory] object ComponentTelemetryHandler {
   val globalWatermarkMin: Gauge              = QueryTelemetry.globalWatermarkMin()
   val globalWatermarkMax: Gauge              = QueryTelemetry.globalWatermarkMax()
   val totalQueriesSpawned: Counter           = QueryTelemetry.totalQueriesSpawned()
-  val graphSizeCollector: Gauge              = StorageTelemetry.pojoLensGraphSize()
+  val graphSizeCollector: Counter            = StorageTelemetry.pojoLensGraphSize()
 }
