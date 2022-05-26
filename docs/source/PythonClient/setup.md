@@ -1,5 +1,4 @@
-# Python Client Setup 
-
+# Setup the Python Client 
 
 In order to run the example notebook you must first:
 
@@ -18,7 +17,7 @@ Then will run the `EdgeList` and `PageRank` algorithms. The `EdgeList` algorithm
 
 ## Setup Python Environment
 
-- Install Python3 and Pip
+- Install `python3.8` and `pip`
 - Either
     - Install the requirements file via
         - `pip install -r requirements.txt`

@@ -2,16 +2,11 @@ package com.raphtory.components.spout
 
 import com.raphtory.communication.TopicRepository
 import com.raphtory.components.Component
-import com.raphtory.config.Cancelable
 import com.raphtory.config.MonixScheduler
 import com.typesafe.config.Config
-import org.apache.pulsar.client.api.Consumer
-import org.apache.pulsar.client.api.Message
-
-import java.util.concurrent.TimeUnit
-import scala.reflect.runtime.universe.TypeTag
-import com.raphtory.config.telemetry.ComponentTelemetryHandler
-import com.raphtory.config.telemetry.SpoutTelemetry
+import com.typesafe.scalalogging.Logger
+import monix.execution.Cancelable
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.DurationInt
 
@@ -22,16 +17,21 @@ class SpoutExecutor[T](
     topics: TopicRepository,
     scheduler: MonixScheduler
 ) extends Component[T](conf) {
+
   protected val failOnError: Boolean           = conf.getBoolean("raphtory.spout.failOnError")
   private var linesProcessed: Int              = 0
   private var scheduledRun: Option[Cancelable] = None
+  private val logger: Logger                   = Logger(LoggerFactory.getLogger(this.getClass))
 
-  val rescheduler: () => Unit = () =>
+  private val spoutReschedulesCount = telemetry.spoutReschedules.labels(deploymentID)
+  private val fileLinesSent         = telemetry.fileLinesSent.labels(deploymentID)
+
+  private val rescheduler: () => Unit = () =>
     {
       spout.executeReschedule()
       executeSpout()
     }: Unit
-  private val builders        = topics.spout[T].endPoint
+  private val builders                = topics.spout[T].endPoint
 
   override def stop(): Unit = {
     scheduledRun.foreach(_.cancel())
@@ -44,9 +44,9 @@ class SpoutExecutor[T](
   override def handleMessage(msg: T): Unit = {} //No messages received by this component
 
   private def executeSpout() = {
-    telemetry.spoutReschedules.labels(deploymentID).inc()
+    spoutReschedulesCount.inc()
     while (spout.hasNext) {
-      telemetry.fileLinesSent.labels(deploymentID).inc()
+      fileLinesSent.inc()
       linesProcessed = linesProcessed + 1
       if (linesProcessed % 100_000 == 0)
         logger.debug(s"Spout: sent $linesProcessed messages.")

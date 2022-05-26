@@ -4,35 +4,47 @@ import io.prometheus.client.Counter
 import io.prometheus.client.Gauge
 
 private[raphtory] object ComponentTelemetryHandler {
-  val filesProcessed                          = SpoutTelemetry.totalFilesProcessed
-  val spoutReschedules                        = SpoutTelemetry.totalSpoutReschedules
-  val fileLinesSent                           = SpoutTelemetry.totalLinesSent
-  val fileProcessingErrors                    = SpoutTelemetry.totalFileProcessingErrors
-  val vertexAddCounter                        = BuilderTelemetry.totalVertexAdds()
-  val vertexDeleteCounter                     = BuilderTelemetry.totalVertexDeletes()
-  val edgeAddCounter                          = BuilderTelemetry.totalEdgeAdds()
-  val edgeDeleteCounter                       = BuilderTelemetry.totalEdgeDeletes()
-  val graphBuilderUpdatesCounter              = BuilderTelemetry.totalGraphBuilderUpdates()
-  val lastWatermarkProcessedCollector         = PartitionTelemetry.lastWatermarkProcessed()
-  val queryExecutorCollector                  = PartitionTelemetry.queryExecutorCounter()
-  val batchWriterVertexAdditionsCollector     = PartitionTelemetry.batchWriterVertexAdditions()
-  val batchWriterEdgeAdditionsCollector       = PartitionTelemetry.batchWriterEdgeAdditions()
-  val batchWriterRemoteEdgeAdditionsCollector = PartitionTelemetry.batchWriterRemoteEdgeAdditions()
-  val batchWriterRemoteEdgeDeletionsCollector = PartitionTelemetry.batchWriterRemoteEdgeDeletions()
-  val batchWriterEdgeDeletionsCollector       = PartitionTelemetry.batchWriterEdgeDeletions()
-  val vertexAddCollector                      = PartitionTelemetry.streamWriterVertexAdditions()
-  val streamWriterGraphUpdatesCollector       = PartitionTelemetry.streamWriterGraphUpdates()
-  val streamWriterVertexDeletionsCollector    = PartitionTelemetry.streamWriterVertexDeletions()
-  val streamWriterEdgeAdditionsCollector      = PartitionTelemetry.streamWriterEdgeAdditions()
-  val streamWriterEdgeDeletionsCollector      = PartitionTelemetry.streamWriterEdgeDeletions()
-  val totalSyncedStreamWriterUpdatesCollector = PartitionTelemetry.totalSyncedStreamWriterUpdates()
-  val receivedMessageCountCollector           = QueryTelemetry.receivedMessageCount()
-  val totalSentMessageCount                   = QueryTelemetry.sentMessageCount()
-  val totalPerspectivesProcessed              = QueryTelemetry.totalPerspectivesProcessed()
-  val totalGraphOperations                    = QueryTelemetry.totalGraphOperations()
-  val totalTableOperations                    = QueryTelemetry.totalTableOperations()
-  val globalWatermarkMin                      = QueryTelemetry.globalWatermarkMin()
-  val globalWatermarkMax                      = QueryTelemetry.globalWatermarkMax()
-  val totalQueriesSpawned                     = QueryTelemetry.totalQueriesSpawned()
-  val graphSizeCollector                      = StorageTelemetry.pojoLensGraphSize()
+  val filesProcessed: Counter       = SpoutTelemetry.totalFilesProcessed
+  val spoutReschedules: Counter     = SpoutTelemetry.totalSpoutReschedules
+  val fileLinesSent: Counter        = SpoutTelemetry.totalLinesSent
+  val fileProcessingErrors: Counter = SpoutTelemetry.totalFileProcessingErrors
+
+  val vertexAddCounter: Counter           = BuilderTelemetry.totalVertexAdds()
+  val vertexDeleteCounter: Counter        = BuilderTelemetry.totalVertexDeletes()
+  val edgeAddCounter: Counter             = BuilderTelemetry.totalEdgeAdds()
+  val edgeDeleteCounter: Counter          = BuilderTelemetry.totalEdgeDeletes()
+  val graphBuilderUpdatesCounter: Counter = BuilderTelemetry.totalGraphBuilderUpdates()
+
+  val lastWatermarkProcessedCollector: Gauge       = PartitionTelemetry.lastWatermarkProcessed()
+  val queryExecutorCollector: Gauge                = PartitionTelemetry.queryExecutorCounter()
+  val batchWriterVertexAdditionsCollector: Counter = PartitionTelemetry.batchWriterVertexAdditions()
+  val batchWriterEdgeAdditionsCollector: Counter   = PartitionTelemetry.batchWriterEdgeAdditions()
+  val batchWriterEdgeDeletionsCollector: Counter   = PartitionTelemetry.batchWriterEdgeDeletions()
+
+  val batchWriterRemoteEdgeAdditionsCollector: Counter =
+    PartitionTelemetry.batchWriterRemoteEdgeAdditions()
+
+  val batchWriterRemoteEdgeDeletionsCollector: Counter =
+    PartitionTelemetry.batchWriterRemoteEdgeDeletions()
+
+  val vertexAddCollector: Counter                 = PartitionTelemetry.streamWriterVertexAdditions()
+  val streamWriterGraphUpdatesCollector: Counter  = PartitionTelemetry.streamWriterGraphUpdates()
+  val streamWriterEdgeAdditionsCollector: Counter = PartitionTelemetry.streamWriterEdgeAdditions()
+  val streamWriterEdgeDeletionsCollector: Counter = PartitionTelemetry.streamWriterEdgeDeletions()
+
+  val streamWriterVertexDeletionsCollector: Counter =
+    PartitionTelemetry.streamWriterVertexDeletions()
+
+  val totalSyncedStreamWriterUpdatesCollector: Counter =
+    PartitionTelemetry.totalSyncedStreamWriterUpdates()
+
+  val receivedMessageCountCollector: Counter = QueryTelemetry.receivedMessageCount()
+  val totalSentMessageCount: Counter         = QueryTelemetry.sentMessageCount()
+  val totalPerspectivesProcessed: Counter    = QueryTelemetry.totalPerspectivesProcessed()
+  val totalGraphOperations: Counter          = QueryTelemetry.totalGraphOperations()
+  val totalTableOperations: Counter          = QueryTelemetry.totalTableOperations()
+  val globalWatermarkMin: Gauge              = QueryTelemetry.globalWatermarkMin()
+  val globalWatermarkMax: Gauge              = QueryTelemetry.globalWatermarkMax()
+  val totalQueriesSpawned: Counter           = QueryTelemetry.totalQueriesSpawned()
+  val graphSizeCollector: Counter            = StorageTelemetry.pojoLensGraphSize()
 }

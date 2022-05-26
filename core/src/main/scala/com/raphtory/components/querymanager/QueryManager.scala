@@ -3,19 +3,17 @@ package com.raphtory.components.querymanager
 import com.raphtory.communication.TopicRepository
 import com.raphtory.components.Component
 import com.raphtory.config.MonixScheduler
-import com.raphtory.config.telemetry.QueryTelemetry
 import com.typesafe.config.Config
-import io.prometheus.client.Counter
-import org.apache.pulsar.client.admin.PulsarAdminException
-import org.apache.pulsar.client.api.Consumer
-import org.apache.pulsar.client.api.Message
-import org.apache.pulsar.client.api.Schema
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 
 /** @note DoNotDocument */
 class QueryManager(scheduler: MonixScheduler, conf: Config, topics: TopicRepository)
         extends Component[QueryManagement](conf) {
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+
   private val currentQueries = mutable.Map[String, QueryHandler]()
   //private val watermarkGlobal                           = pulsarController.globalwatermarkPublisher() TODO: turn back on when needed
   private val watermarks     = mutable.Map[Int, WatermarkTime]()

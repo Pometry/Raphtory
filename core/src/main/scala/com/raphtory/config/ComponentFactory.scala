@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
-import scala.reflect.runtime.universe.TypeTag
 
 /** @note DoNotDocument */
 private[raphtory] class ComponentFactory(
@@ -212,6 +211,7 @@ private[raphtory] class ComponentFactory(
   def stop(): Unit = {
     partitionIDManager.stop()
     builderIDManager.stop()
+    topicRepo.shutdown()
   }
 }
 

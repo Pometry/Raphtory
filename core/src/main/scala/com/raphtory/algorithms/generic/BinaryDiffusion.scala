@@ -2,16 +2,15 @@ package com.raphtory.algorithms.generic
 
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.graph.visitor.Vertex
-
 import scala.util.Random
 
 class BinaryDiffusion(
     infectedNodes: Set[String] = Set[String](),
-    seed: Long = -1,
+    seed: Long = -1
 ) extends NodeList(Seq("infected")) {
 
-  val infectedStatus     = "infected"
-  val randomiser: Random = if (seed != -1) new Random(seed) else new Random()
+  private val infectedStatus     = "infected"
+  private val randomiser: Random = if (seed != -1) new Random(seed) else new Random()
 
   def randomlyInfect(vertex: Vertex): Unit =
     vertex.getOutEdges().foreach(edge => if (randomiser.nextBoolean()) edge.send(infectedStatus))

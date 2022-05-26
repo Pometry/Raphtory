@@ -6,7 +6,6 @@ import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 import com.raphtory.graph.visitor.Vertex
 
-import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
 /**
@@ -69,8 +68,8 @@ class MultilayerLPA(
     seed: Long = -1
 ) extends GraphAlgorithm {
 
-  val rnd: Random = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)
-  val SP          = 0.2f // Stickiness probability
+  private val rnd: Random = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)
+  private val SP          = 0.2f // Stickiness probability
 
   override def apply(graph: GraphPerspective): GraphPerspective = {
     def interLayerWeights(omega: Double, v: Vertex, ts: Long): Float =

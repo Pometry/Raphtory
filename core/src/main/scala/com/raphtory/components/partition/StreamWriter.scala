@@ -5,11 +5,9 @@ import com.raphtory.components.Component
 import com.raphtory.components.graphbuilder._
 import com.raphtory.graph._
 import com.typesafe.config.Config
-import io.prometheus.client.Counter
-import org.apache.pulsar.client.api.Consumer
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
 
-import java.util.Calendar
-import scala.collection.mutable
 import scala.language.postfixOps
 
 /** @note DoNotDocument */
@@ -19,7 +17,9 @@ class StreamWriter(
     conf: Config,
     topics: TopicRepository
 ) extends Component[GraphAlteration](conf) {
-  private val neighbours = topics.graphSync.endPoint
+
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val neighbours     = topics.graphSync.endPoint
 
   private val listener          =
     topics.registerListener(
@@ -258,8 +258,6 @@ class StreamWriter(
     storage.untrackVertexDeletion(req.msgTime, req.updateId)
     telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
-
-  private def dedupe(): Unit = storage.deduplicate()
 
   def handleUpdateCount() = {
     processedMessages += 1

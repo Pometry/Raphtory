@@ -1,7 +1,5 @@
 package com.raphtory.communication
 
-import com.raphtory.components.Component
-
 /** @DoNotDocument */
 trait Connector {
 
@@ -12,4 +10,6 @@ trait Connector {
   ): CancelableListener
 
   def endPoint[T](topic: CanonicalTopic[T]): EndPoint[T]
+
+  def shutdown(): Unit
 }

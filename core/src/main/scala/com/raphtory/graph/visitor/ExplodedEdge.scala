@@ -1,7 +1,5 @@
 package com.raphtory.graph.visitor
 
-import scala.runtime.RichLong
-
 /** A trait representing a view of an edge at a given point in time
   *
   * An exploded edge represents an Edge [[com.raphtory.graph.visitor.Edge]] at a particular time point

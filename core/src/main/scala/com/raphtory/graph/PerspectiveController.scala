@@ -1,13 +1,7 @@
 package com.raphtory.graph
 
 import com.raphtory.algorithms.api.Alignment
-import com.raphtory.components.querymanager.NullPointSet
-import com.raphtory.components.querymanager.PointPath
-import com.raphtory.components.querymanager.PointSet
-import com.raphtory.components.querymanager.Query
-import com.raphtory.components.querymanager.QueryManagement
-import com.raphtory.components.querymanager.SinglePoint
-import com.raphtory.graph.PerspectiveController.logger
+import com.raphtory.components.querymanager._
 import com.raphtory.time.DiscreteInterval
 import com.raphtory.time.Interval
 import com.raphtory.time.NullInterval
@@ -49,10 +43,10 @@ class PerspectiveController(
 
 object PerspectiveController {
 
-  val DEFAULT_PERSPECTIVE_TIME: Long             = -1L
-  val DEFAULT_PERSPECTIVE_WINDOW: Some[Interval] = Some(DiscreteInterval(-1L))
+  final val DEFAULT_PERSPECTIVE_TIME: Long             = -1L
+  final val DEFAULT_PERSPECTIVE_WINDOW: Some[Interval] = Some(DiscreteInterval(-1L))
 
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   def apply(
       firstAvailableTimestamp: Long,

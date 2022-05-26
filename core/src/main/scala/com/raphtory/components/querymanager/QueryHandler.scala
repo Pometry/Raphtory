@@ -1,44 +1,21 @@
 package com.raphtory.components.querymanager
 
-import com.raphtory.graph.PerspectiveController.DEFAULT_PERSPECTIVE_TIME
-import com.raphtory.graph.PerspectiveController.DEFAULT_PERSPECTIVE_WINDOW
-import Stages.SpawnExecutors
-import Stages.Stage
-import com.raphtory.algorithms.api.ClearChain
-import com.raphtory.algorithms.api.ExplodeSelect
-import com.raphtory.algorithms.api.GenericGraphPerspective
-import com.raphtory.algorithms.api.GenericTable
-import com.raphtory.algorithms.api.GlobalSelect
-import com.raphtory.algorithms.api.GraphAlgorithm
-import com.raphtory.algorithms.api.GraphFunction
-import com.raphtory.algorithms.api.GraphStateImplementation
-import com.raphtory.algorithms.api.Iterate
-import com.raphtory.algorithms.api.IterateWithGraph
-import com.raphtory.algorithms.api.MultilayerView
-import com.raphtory.algorithms.api.OutputFormat
-import com.raphtory.algorithms.api.PerspectiveDone
-import com.raphtory.algorithms.api.ReduceView
-import com.raphtory.algorithms.api.Select
-import com.raphtory.algorithms.api.SelectWithGraph
-import com.raphtory.algorithms.api.SetGlobalState
-import com.raphtory.algorithms.api.Step
-import com.raphtory.algorithms.api.StepWithGraph
-import com.raphtory.algorithms.api.TableFunction
+import com.raphtory.algorithms.api._
 import com.raphtory.communication.TopicRepository
 import com.raphtory.communication.connectors.PulsarConnector
 import com.raphtory.components.Component
+import com.raphtory.components.querymanager.Stages.SpawnExecutors
+import com.raphtory.components.querymanager.Stages.Stage
 import com.raphtory.config.MonixScheduler
-import com.raphtory.config.telemetry.PartitionTelemetry
-import com.raphtory.config.telemetry.QueryTelemetry
-import com.raphtory.config.telemetry.StorageTelemetry
 import com.raphtory.graph.Perspective
 import com.raphtory.graph.PerspectiveController
+import com.raphtory.graph.PerspectiveController.DEFAULT_PERSPECTIVE_TIME
+import com.raphtory.graph.PerspectiveController.DEFAULT_PERSPECTIVE_WINDOW
 import com.raphtory.serialisers.KryoSerialiser
 import com.typesafe.config.Config
-import org.apache.pulsar.client.api.Consumer
-import org.apache.pulsar.client.api.Producer
+import com.typesafe.scalalogging.Logger
 import org.apache.pulsar.client.api.Schema
-import org.apache.pulsar.client.api.SubscriptionInitialPosition
+import org.slf4j.LoggerFactory
 
 import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
@@ -55,10 +32,12 @@ class QueryHandler(
     conf: Config,
     topics: TopicRepository
 ) extends Component[QueryManagement](conf) {
-  private val self       = topics.rechecks(jobID).endPoint
-  private val readers    = topics.queryPrep.endPoint
-  private val tracker    = topics.queryTrack(jobID).endPoint
-  private val workerList = topics.jobOperations(jobID).endPoint
+
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val self           = topics.rechecks(jobID).endPoint
+  private val readers        = topics.queryPrep.endPoint
+  private val tracker        = topics.queryTrack(jobID).endPoint
+  private val workerList     = topics.jobOperations(jobID).endPoint
 
   private val listener =
     topics.registerListener(
@@ -157,7 +136,7 @@ class QueryHandler(
         readyCount += 1
         if (readyCount == totalPartitions) {
           readyCount = 0
-          telemetry.graphSizeCollector.labels(jobID).set(vertexCount)
+          telemetry.graphSizeCollector.labels(jobID).inc(vertexCount)
           messagetoAllJobWorkers(SetMetaData(vertexCount))
           val establishingPerspectiveTimeTaken = System.currentTimeMillis() - timeTaken
           logger.debug(

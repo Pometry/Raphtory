@@ -1,22 +1,17 @@
 package com.raphtory.storage.pojograph.messaging
 
 import com.raphtory.communication.EndPoint
-
-import java.util.concurrent.atomic.AtomicInteger
 import com.raphtory.components.querymanager.GenericVertexMessage
 import com.raphtory.components.querymanager.QueryManagement
-import com.raphtory.components.querymanager.VertexMessage
 import com.raphtory.components.querymanager.VertexMessageBatch
-import com.raphtory.config.telemetry.StorageTelemetry
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import org.apache.pulsar.client.api.Producer
 import org.slf4j.LoggerFactory
 
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
-import scala.concurrent.Future
 
 /** @note DoNotDocument */
 class VertexMessageHandler(
@@ -27,20 +22,21 @@ class VertexMessageHandler(
     receivedMessages: AtomicInteger
 ) {
 
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  val msgBatchPath: String  = "raphtory.partitions.batchMessages"
-  val messageBatch: Boolean = config.getBoolean(msgBatchPath)
-  val maxBatchSize: Int     = config.getInt("raphtory.partitions.maxMessageBatchSize")
+  private val msgBatchPath: String  = "raphtory.partitions.batchMessages"
+  private val messageBatch: Boolean = config.getBoolean(msgBatchPath)
+  private val maxBatchSize: Int     = config.getInt("raphtory.partitions.maxMessageBatchSize")
 
   if (messageBatch)
     logger.debug(
             s"Message batching is set to on. To change this modify '$msgBatchPath' in the application conf."
     )
 
-  val totalPartitions: Int = config.getInt("raphtory.partitions.countPerServer") * config.getInt(
-          "raphtory.partitions.serverCount"
-  )
+  private val totalPartitions: Int =
+    config.getInt("raphtory.partitions.countPerServer") *
+      config.getInt("raphtory.partitions.serverCount")
+
   logger.debug(s"Setting total partitions to '$totalPartitions'.")
 
   private val messageCache =

@@ -10,12 +10,12 @@ import com.typesafe.config.Config
 
 /** @DoNotDocument */
 object PulsarAkkaTopicRepository {
-  private lazy val actorSystem = ActorSystem(SpawnProtocol(), "spawner")
 
   def apply(config: Config): TopicRepository = {
+    val actorSystem     = ActorSystem(SpawnProtocol(), "spawner")
     val akkaConnector   = new AkkaConnector(actorSystem)
     val pulsarConnector = new PulsarConnector(config)
-    new TopicRepository(pulsarConnector, config) {
+    new TopicRepository(pulsarConnector, config, Array(akkaConnector, pulsarConnector)) {
       override def jobOperationsConnector: Connector    = akkaConnector
       override def jobStatusConnector: Connector        = akkaConnector
       override def queryPrepConnector: Connector        = akkaConnector

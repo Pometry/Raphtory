@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory
 object LocalRunner extends App {
 
   // Import logger
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   // Building the graph
   logger.info("Starting Ethereum application")

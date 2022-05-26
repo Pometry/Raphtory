@@ -15,6 +15,27 @@ To run Raphtory locally on a macbook/laptop there are several ways this can be a
 - Minikube - See [ kubernetes deployment ](kubernetes.md)
 
 
+<<<<<<< HEAD
+=======
+
+## Using Raphtory as a client
+
+Finally, if you have a graph deployed somewhere else and want to submit new queries to it you can do this via the `deployedGraph(customConfig)` method in the `Raphtory` object. The `customConfig` here is to provide the appropriate configuration to locate the graph (i.e. the akka/pulsar address). If the graph is deployed in the same machine using the default Raphtory configuration you can omit this configuration parameter:
+
+```scala
+val graph = Raphtory.deployedGraph()
+```
+
+From this point, you can keep working with your graph as we have done so far.
+
+Additionally, you still have access to the `RaphtoryClient` class provided in previous releases of Raphtory. This is, however, deprecated and will be removed in later versions:
+
+```scala
+val client = Raphtory.createClient()
+client.pointQuery(ConnectedComponents(), output, 10000)
+```
+
+>>>>>>> development
 ## Bare metal distributed -- Raphtory services
 
 In our previous examples, we have been running Raphtory via the `RaphtoryGraph`
@@ -31,6 +52,10 @@ With the service, the user is also able to send analysis queries on-demand.
 For example, you can run the service, ingest the entire graph, and then run multiple
 queries or leave the machine running for other users. 
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> development
 Similar to the `RaphtoryGraph`, the user only has to specify the spout and builder classes required to read and parse the data. For instance, the code below will create and run the LOTR example as a distributed service. 
 
 ```scala
@@ -50,8 +75,9 @@ object LOTRDistributed extends RaphtoryService[String]{
 }
 ```
 
-To run the code above, one must start up the following services individually. 
+To run the code above, one must start up the following components individually. 
 
+* Leader - Manages new members joining and maintaining the global watermark. 
 * Spout - Ingests the data
 * GraphBuilders - Build the graph
 * PartitionManager - Stores the live graph and all the history 
@@ -59,7 +85,7 @@ To run the code above, one must start up the following services individually.
 
 ## Environment Variables 
 
-Each of the above services also expects a set of environment variables that must be present on all of the machines; 
+Each of the above components also expects a set of environment variables which must be present on all of the machines; 
 
 ```yaml
     RAPHTORY_BUILD_SERVERS = 2
@@ -93,15 +119,3 @@ Environment='HADOOP_HOME=/usr/local/bin/hadoop-3.3.1'
 Environment="HADOOP_OPTS=-Djava.library.path=/usr/local/bin/hadoop-3.3.1/lib/native"
 Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/usr/local/bin/hadoop-3.3.1/bin/:/usr/local/bin/hadoop-3.3.1/sbin/
 ```
-
-
-## Using Raphtory as a client
-
-When Raphtory is deployed as a set of services you need to start an additional class to act as a client that submits analysis queries to the graph. From Scala you can access this via the `deployedGraph(customConfig)` method in the `Raphtory` object. The `customConfig` here is to provide the appropriate configuration to locate the graph (i.e. the akka/pulsar address). If the graph is deployed in the same machine using the default Raphtory configuration you can omit this configuration parameter:
-
-```scala
-val graph = Raphtory.deployedGraph()
-```
-From this object, you can define queries and work with your graph [the same way we have done so far.](../Analysis/queries.md)
-
-

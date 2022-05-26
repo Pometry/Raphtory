@@ -1,7 +1,7 @@
 package com.raphtory.storage.pojograph.entities.internal
 
 class ImmutableProperty(creationTime: Long, value: Any) extends Property {
-  var earliestTime: Long                        = creationTime
+  private var earliestTime: Long                = creationTime
   override def valueAt(time: Long): Option[Any] = if (time >= earliestTime) Some(value) else None
 
   override def valueHistory(

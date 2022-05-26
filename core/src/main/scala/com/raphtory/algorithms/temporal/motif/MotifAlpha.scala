@@ -32,7 +32,7 @@ import com.raphtory.algorithms.generic.NodeList
   *  | ----------------- | ----------------------- |
   *  | {s}`name: String` | {s}`motifAlpha: Int`    |
   */
-class MotifAlpha(fileOutput: String = "/tmp/motif_alpha") extends NodeList(Seq("motifAlpha")) {
+class MotifAlpha extends NodeList(Seq("motifAlpha")) {
 
   override def apply(graph: GraphPerspective): GraphPerspective =
     graph.step { vertex =>
@@ -44,11 +44,10 @@ class MotifAlpha(fileOutput: String = "/tmp/motif_alpha") extends NodeList(Seq("
                   .map(inEdge =>
                     vertex
                       .explodeOutEdges()
-                      .filter(e =>
+                      .count(e =>
                         e.timestamp > inEdge.timestamp & e.dst() != inEdge.src() & e
                           .dst() != inEdge.dst()
                       )
-                      .size
                   )
                   .sum
         )
@@ -58,5 +57,5 @@ class MotifAlpha(fileOutput: String = "/tmp/motif_alpha") extends NodeList(Seq("
 }
 
 object MotifAlpha {
-  def apply(path: String) = new MotifAlpha(path)
+  def apply() = new MotifAlpha()
 }

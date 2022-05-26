@@ -9,7 +9,11 @@ Two classes help with this:
 
 Once these classes are defined, they can be passed to the `stream()` or `batchLoad()` methods on the {scaladoc}`com.raphtory.deployment.Raphtory` object, which will use both components to build the {scaladoc}`com.raphtory.algorithms.TemporalGraph`. The difference here is that `stream()` will launch the full pipeline on top of [Apache Pulsar](https://pulsar.apache.org) (which you will see later in the tutorial) and assume new data can continuously arrive. `batchLoad()` on the other hand will compress the Spout and Graph Builder functions together, running as fast as possible, but only on a static dataset which does not change. For these initial examples we will only run `batchLoad()` as the data is static and we can set it going out of the box!
 
+<<<<<<< HEAD
 If you have the LOTR example already set up from the installation guide previously ([raphtory-example-lotr](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-lotr)) then please continue. If not, please return there and complete this step first.  
+=======
+If you have the LOTR example already set up from the installation guide previously ([raphtory-example-lotr](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-lotr)) then please continue. If not, YOU SHALL NOT PASS! Please return there and complete this step first.  
+>>>>>>> development
 
 For this tutorial section we will continue to use the `raphtory-example-lotr` project and the dataset of interactions between characters in the Lord of the Rings trilogy. The `csv` file (comma-separated values) in the examples folder can be found [here](https://github.com/Raphtory/Data/blob/main/lotr.csv). Each line contains two characters that appear in the same sentence, along with which sentence they appeared in, indicated by a number (sentence count). In the example, the first line of the file is `Gandalf,Elrond,33` which tells us that Gandalf and Elrond appear together in sentence 33.  
 
@@ -58,7 +62,7 @@ object FileOutputRunner extends App {
 ## Spout
 
 ### File Spout
-There are many data sources that may be used to feed graphs in Raphtory, for this example we will make use of the `FileSpout`. This takes a file on your machine and pushes it into Pulsar for our graph builders to parse. We automatically download the lotr.csv file from the [Raphtory data repository](https://github.com/Raphtory/Data) (hence why it run in the last tutorial), so you shouldn't have to set anything if using it. If you are want to swap this file out for your own data, simply remove this download and change the `FileSpout` path to point to where your files are.
+There are many data sources that may be used to feed graphs in Raphtory, for this example we will make use of the `FileSpout`. This takes a file on your machine and pushes it into Pulsar for our graph builders to parse. We automatically download the lotr.csv file from the [Raphtory data repository](https://github.com/Raphtory/Data) (hence why it run in the last tutorial), so you shouldn't have to set anything if using it. If you want to swap this file out for your own data, simply remove this download and change the `FileSpout` path to point to where your files are.
 
 ```scala 
 val source  = FileSpout("YOUR_FILE_HERE")

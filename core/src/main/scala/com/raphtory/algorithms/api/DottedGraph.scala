@@ -8,7 +8,6 @@ import com.raphtory.time.IntervalParser.{parse => parseInterval}
 import com.typesafe.config.Config
 
 import scala.reflect.ClassTag
-import scala.reflect.runtime.universe._
 
 object Alignment extends Enumeration {
   type Alignment = Value
@@ -61,7 +60,7 @@ private[raphtory] class DottedGraph(
     *  @param size the exact size of the window
     *  @param alignment the alignment of the window
     *  @return A modified Raphtory graph with the window size and alignment
-    * */
+    */
   def window(size: Long, alignment: Alignment.Value): RaphtoryGraph =
     addWindows(List(DiscreteInterval(size)), alignment)
 
@@ -78,7 +77,7 @@ private[raphtory] class DottedGraph(
     *  @param size the exact size of the window
     *  @param alignment the alignment of the window
     *  @return A modified Raphtory graph with the window size and alignment
-    * */
+    */
   def window(size: String, alignment: Alignment.Value): RaphtoryGraph =
     addWindows(List(parseInterval(size)), alignment)
 
@@ -87,7 +86,7 @@ private[raphtory] class DottedGraph(
     *
     * @param sizes the exact sizes of the windows
     * @return A modified Raphtory graph with the window sizes
-    * */
+    */
   def window(sizes: List[Int]): RaphtoryGraph =
     window(sizes, Alignment.START)
 
@@ -96,7 +95,7 @@ private[raphtory] class DottedGraph(
     * @param sizes the exact sizes of the windows
     * @param alignment the alignment of the windows
     * @return A modified Raphtory graph with the window sizes and given alignment
-    * */
+    */
   def window(sizes: List[Int], alignment: Alignment.Value): RaphtoryGraph =
     addWindows(sizes map (DiscreteInterval(_)), alignment)
 
@@ -105,7 +104,7 @@ private[raphtory] class DottedGraph(
     *
     * @param sizes the exact sizes of the windows
     * @return A modified Raphtory graph with the window sizes
-    * */
+    */
   def window(sizes: List[Long])(implicit ignore: DummyImplicit): RaphtoryGraph =
     window(sizes, Alignment.START)
 
@@ -114,7 +113,7 @@ private[raphtory] class DottedGraph(
     * @param sizes the exact sizes of the windows
     * @param alignment the alignment of the windows
     * @return A modified Raphtory graph with the window sizes and given alignment
-    * */
+    */
   def window(sizes: List[Long], alignment: Alignment.Value)(implicit
       ignore: DummyImplicit
   ): RaphtoryGraph =
@@ -125,7 +124,7 @@ private[raphtory] class DottedGraph(
     *
     * @param sizes the exact sizes of the windows
     * @return A modified Raphtory graph with the window sizes
-    * */
+    */
   def window(sizes: List[String])(implicit ignore: ClassTag[String]): RaphtoryGraph =
     window(sizes, Alignment.START)
 
@@ -134,27 +133,22 @@ private[raphtory] class DottedGraph(
     * @param sizes the exact sizes of the windows
     * @param alignment the alignment of the windows
     * @return A modified Raphtory graph with the window sizes and given alignment
-    * */
+    */
   def window(sizes: List[String], alignment: Alignment.Value)(implicit
       ignore: ClassTag[String]
   ): RaphtoryGraph =
     addWindows(sizes map parseInterval, alignment)
 
   /**
-    *
-    *  */
+    */
   def past(): RaphtoryGraph = addWindows(List(), Alignment.END)
 
   /**
-    *
-    *
-    * */
+    */
   def future(): RaphtoryGraph = addWindows(List(), Alignment.START)
 
   /**
-    *
-    *
-    * */
+    */
   private def addWindows(sizes: List[Interval], alignment: Alignment.Value = Alignment.START) =
     new RaphtoryGraph(
             query.copy(windows = sizes, windowAlignment = alignment),

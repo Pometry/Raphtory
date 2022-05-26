@@ -1,7 +1,5 @@
 package com.raphtory.graph.visitor
 
-import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
-
 /** Base trait for [[com.raphtory.graph.visitor.ExplodedEdge]] and [[com.raphtory.graph.visitor.ExplodedVertex]]
   *  Extends [`EntityVisitor`](com.raphtory.graph.visitor.EntityVisitor) adding a `timestamp` property.
   *  Further, all the history access methods take this `timestamp` as their default value for `before`.

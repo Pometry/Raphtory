@@ -22,9 +22,6 @@ object IntervalParser {
   case object SECONDS       extends DurationUnit
   case object MILLIS        extends DurationUnit
 
-  private val periodOnlyUnits   = List(YEARS, MONTHS, WEEKS)
-  private val durationOnlyUnits = List(HOURS, MINUTES, SECONDS, MILLIS)
-
   def parse(interval: String): TimeInterval = {
     val cleaned     = interval
       .trim()

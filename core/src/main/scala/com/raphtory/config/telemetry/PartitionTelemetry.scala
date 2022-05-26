@@ -2,10 +2,7 @@ package com.raphtory.config.telemetry
 
 import com.raphtory.deployment.Raphtory
 import com.typesafe.config.Config
-import io.prometheus.client.Counter
-import io.prometheus.client.Gauge
-
-import scala.collection.mutable
+import io.prometheus.client.{Counter, Gauge}
 
 /** Adds metrics for partitions, i.e. `Reader`, `BatchWriter` and `StreamWriter` using Prometheus Client
   * Exposes Counter and Summary stats for tracking number of graph updates, watermarks created by reader, vertices and edges added and deleted by writers in Raphtory
@@ -13,7 +10,7 @@ import scala.collection.mutable
   */
 object PartitionTelemetry {
 
-  val raphtoryConfig: Config = Raphtory.getDefaultConfig()
+  private val raphtoryConfig: Config = Raphtory.getDefaultConfig()
 
   def lastWatermarkProcessed() =
     Gauge.build
@@ -121,7 +118,7 @@ object PartitionTelemetry {
 
   //TODO: implement
   def timeForIngestion() =
-    Gauge
+    Counter
       .build()
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.writer"))
       .name("ingestion_time")

@@ -1,29 +1,15 @@
 package com.raphtory.communication
 
-import com.raphtory.components.Component
-import com.raphtory.components.graphbuilder.BuilderExecutor
-import com.raphtory.components.graphbuilder.GraphAlteration
 import com.raphtory.components.graphbuilder.GraphUpdate
 import com.raphtory.components.graphbuilder.GraphUpdateEffect
-import com.raphtory.components.partition.BatchWriter
-import com.raphtory.components.partition.QueryExecutor
-import com.raphtory.components.partition.Reader
-import com.raphtory.components.partition.StreamWriter
 import com.raphtory.components.querymanager.EndQuery
-import com.raphtory.components.querymanager.GenericVertexMessage
 import com.raphtory.components.querymanager.Query
-import com.raphtory.components.querymanager.QueryHandler
 import com.raphtory.components.querymanager.QueryManagement
-import com.raphtory.components.querymanager.QueryManager
 import com.raphtory.components.querymanager.WatermarkTime
-import com.raphtory.components.querytracker.QueryProgressTracker
-import com.raphtory.graph.Perspective
 import com.typesafe.config.Config
 
-import scala.reflect.ClassTag
-
 /** @DoNotDocument */
-class TopicRepository(defaultConnector: Connector, conf: Config) {
+class TopicRepository(defaultConnector: Connector, conf: Config, allConnectors: Array[Connector]) {
 
   // Methods to override:
   protected def spoutConnector: Connector            = defaultConnector
@@ -132,4 +118,6 @@ class TopicRepository(defaultConnector: Connector, conf: Config) {
 
     CancelableListener(listeners)
   }
+
+  def shutdown(): Unit = allConnectors.foreach(_.shutdown())
 }

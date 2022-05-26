@@ -6,13 +6,11 @@ import com.raphtory.config.ComponentFactory
 import com.raphtory.config.MonixScheduler
 import com.raphtory.config.Partitions
 import com.raphtory.config.ThreadedWorker
-import com.raphtory.config.ZookeeperIDManager
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import io.prometheus.client.exporter.HTTPServer
 import org.slf4j.LoggerFactory
 
-import java.io.IOException
 import scala.language.postfixOps
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
@@ -31,11 +29,10 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
 ) {
 
   allowIllegalReflection()
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val deploymentID: String = conf.getString("raphtory.deploy.id")
   private val spoutTopic: String   = conf.getString("raphtory.spout.topic")
-  private val prometheusPort: Int  = conf.getInt("raphtory.prometheus.metrics.port")
 
   private var partitions: Partitions =
     componentFactory.partition(scheduler, batchLoading, Some(spout), Some(graphBuilder))
@@ -53,35 +50,27 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
   logger.info(s"Created Graph object with deployment ID '$deploymentID'.")
   logger.info(s"Created Graph Spout topic with name '$spoutTopic'.")
 
-  try prometheusServer = Option(new HTTPServer(prometheusPort))
-  catch {
-    case e: IOException =>
-      logger.warn(
-              s"Cannot create new prometheus server as port $prometheusPort is already bound, " +
-                s"this could be you have multiple raphtory instances running on the same machine. "
-      )
-  }
-
   /** Stops components - partitions, query manager, graph builders, spout worker */
   def stop(): Unit = {
     partitions.writers.foreach(_.stop())
     partitions.readers.foreach(_.stop())
+    partitions = null
     queryManager.worker.stop()
+    queryManager = null
 
     spoutworker match {
-      case Some(w) => w.worker.stop()
+      case Some(w) =>
+        w.worker.stop()
+        spoutworker = null
       case None    =>
     }
     graphBuilderworker match {
-      case Some(worker) => worker.foreach(builder => builder.worker.stop())
+      case Some(worker) =>
+        worker.foreach(builder => builder.worker.stop())
+        graphBuilderworker = null
+
       case None         =>
     }
-
-    prometheusServer match {
-      case Some(w) => w.stop()
-      case None    =>
-    }
-
     componentFactory.stop()
     scheduler.shutdown()
   }

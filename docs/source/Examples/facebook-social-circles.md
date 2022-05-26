@@ -31,7 +31,7 @@ As of February 2022, this is a guide to run this within IntelliJ.
 
 1. This example project is up on Github: [raphtory-example-facebook](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-facebook). If you have downloaded the Examples folder from the installation guide previously, then the Facebook example will already be set up. If not, please return [there](../Install/installdependencies.md) and complete this step first. 
 2. In the Examples folder, open up the directory `raphtory-example-facebook` to get this example running.
-3. Install all the python libraries necessary for visualising your data via the [Jupyter Notebook Tutorial](../PythonClient/tutorial_pulsar.md). Once you have Jupyter Notebook up and running on your local machine, you can open up the Jupyter Notebook specific for this project, with all the commands needed to output your graph. This can be found by following the path `src/main/python/FacebookJupyterNotebook.ipynb`.
+3. Install all the python libraries necessary for visualising your data via the [Jupyter Notebook Tutorial](../PythonClient/tutorial_py_raphtory.md). Once you have Jupyter Notebook up and running on your local machine, you can open up the Jupyter Notebook specific for this project, with all the commands needed to output your graph. This can be found by following the path `src/main/python/FacebookJupyterNotebook.ipynb`.
 4. You are now ready to run this example. You can either run this example via Intellij by running the class `Runner.scala` or [via sbt](../Install/installdependencies.md#running-raphtory-via-sbt).
 5. Once your job has finished, you are ready to go onto Jupyter Notebook and run your analyses/output.
 

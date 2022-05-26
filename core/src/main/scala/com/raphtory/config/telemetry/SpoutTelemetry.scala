@@ -1,20 +1,18 @@
 package com.raphtory.config.telemetry
 
 import io.prometheus.client.Counter
-import io.prometheus.client.Gauge
-import com.raphtory.config.ConfigHandler
 import com.raphtory.deployment.Raphtory
 import com.typesafe.config.Config
 
 /** Adds metrics for `Spout` using Prometheus Client
-  * Exposes Counter and Gauge stats for tracking number of files processed, lines parsed, spout reschedules and processing errors
+  * Exposes Counter stats for tracking number of files processed, lines parsed, spout reschedules and processing errors
   * Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
   */
 object SpoutTelemetry {
 
-  val raphtoryConfig: Config = Raphtory.getDefaultConfig()
+  private val raphtoryConfig: Config = Raphtory.getDefaultConfig()
 
-  val totalFilesProcessed: Counter =
+  def totalFilesProcessed: Counter =
     Counter.build
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.spout"))
       .name("file_processed_total")
@@ -22,7 +20,7 @@ object SpoutTelemetry {
       .labelNames("raphtory_deploymentID")
       .register
 
-  val totalSpoutReschedules: Counter =
+  def totalSpoutReschedules: Counter =
     Counter.build
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.spout"))
       .name("reschedule_total")
@@ -30,15 +28,15 @@ object SpoutTelemetry {
       .labelNames("raphtory_deploymentID")
       .register
 
-  val totalLinesSent: Gauge =
-    Gauge.build
+  def totalLinesSent: Counter =
+    Counter.build
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.spout"))
       .name("file_line_sent_total")
       .help("Total lines of file sent")
       .labelNames("raphtory_deploymentID")
       .register
 
-  val totalFileProcessingErrors: Counter =
+  def totalFileProcessingErrors: Counter =
     Counter.build
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.spout"))
       .name("file_processing_error_total")
