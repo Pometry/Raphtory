@@ -140,7 +140,7 @@ final case class PojoGraphLens(
         }
       }
     }
-    executeInParallel(tasks, onComplete)
+    scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
   override def reduceView(
@@ -152,7 +152,7 @@ final case class PojoGraphLens(
     val tasks = vertexMap.values.map { vertex =>
       Task(vertex.reduce(defaultMergeStrategy, mergeStrategyMap, aggregate))
     }
-    executeInParallel(tasks, onComplete)
+    scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
   def runGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit = {
@@ -162,7 +162,7 @@ final case class PojoGraphLens(
       Task(f(vertex))
     }.toIterable
     vertexCount.set(count)
-    executeInParallel(tasks, onComplete)
+    scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
   override def runGraphFunction(
@@ -175,7 +175,7 @@ final case class PojoGraphLens(
       Task(f(vertex, graphState))
     }.toIterable
     vertexCount.set(count)
-    executeInParallel(tasks, onComplete)
+    scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
   override def runMessagedGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit = {
@@ -186,7 +186,7 @@ final case class PojoGraphLens(
         Task(f(vertex))
     }.toIterable
     vertexCount.set(count)
-    executeInParallel(tasks, onComplete)
+    scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
   override def runMessagedGraphFunction(
@@ -200,7 +200,7 @@ final case class PojoGraphLens(
         Task(f(vertex, graphState))
     }.toIterable
     vertexCount.set(count)
-    executeInParallel(tasks, onComplete)
+    scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
   def getMessageHandler(): VertexMessageHandler =
@@ -255,11 +255,4 @@ final case class PojoGraphLens(
       case (key, vertex) => vertex.clearMessageQueue()
     }
 
-  private def executeInParallel(tasks: Iterable[Task[Unit]], onSuccess: => Unit): Unit =
-    Task
-      .parSequenceUnordered(tasks)
-      .runAsync {
-        case Right(_)                   => onSuccess
-        case Left(exception: Exception) => errorHandler(exception)
-      }(scheduler.scheduler)
 }
