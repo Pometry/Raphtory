@@ -1,9 +1,6 @@
 package com.raphtory.serialisers
 
-import com.twitter.chill.KryoPool
 import com.twitter.chill.ScalaKryoInstantiator
-
-import scala.reflect.runtime.universe._
 
 /** Support serialisation and deserialisation using ScalaKryoInstantiator from twitter.chill package
   *
@@ -23,18 +20,18 @@ import scala.reflect.runtime.universe._
   * val producer       = client.newProducer(Schema.BYTES).topic(producer_topic).create()
   * producer.sendAsync(kryo.serialise("Gandalf,Benjamin,400"))
   * }}}
-  *
-  * @see [[com.raphtory.client.RaphtoryClient]]
   */
 class KryoSerialiser {
   private val kryo = ScalaKryoInstantiator.defaultPool
 
   /** serialise value to byte array
-    * @param value value to serialise */
+    * @param value value to serialise
+    */
   def serialise[T](value: T): Array[Byte] = kryo.toBytesWithClass(value)
 
   /** deserialise byte array to object
-    * @param bytes byte array to de-serialise */
+    * @param bytes byte array to de-serialise
+    */
   def deserialise[T](bytes: Array[Byte]): T =
     kryo.fromBytes(bytes).asInstanceOf[T]
 }

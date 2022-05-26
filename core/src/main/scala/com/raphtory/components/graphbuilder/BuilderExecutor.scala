@@ -2,18 +2,12 @@ package com.raphtory.components.graphbuilder
 
 import com.raphtory.communication.TopicRepository
 import com.raphtory.components.Component
-import com.raphtory.config.telemetry.BuilderTelemetry
 import com.raphtory.serialisers.Marshal
 import com.typesafe.config.Config
-import io.prometheus.client.Counter
-import org.apache.pulsar.client.admin.PulsarAdminException
-import org.apache.pulsar.client.api.Consumer
-import org.apache.pulsar.client.api.Message
-import org.apache.pulsar.client.api.Schema
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
 
 import scala.reflect.ClassTag
-import scala.reflect.runtime.universe
-import scala.reflect.runtime.universe._
 
 /** @note DoNotDocument */
 class BuilderExecutor[T: ClassTag](
@@ -31,6 +25,7 @@ class BuilderExecutor[T: ClassTag](
     )
   private val failOnError: Boolean = conf.getBoolean("raphtory.builders.failOnError")
   private val writers              = topics.graphUpdates.endPoint
+  private val logger: Logger       = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val spoutOutputListener =
     topics.registerListener(s"$deploymentID-builder-$name", handleMessage, topics.spout[T])
@@ -62,7 +57,6 @@ class BuilderExecutor[T: ClassTag](
     logger.trace(s"Sending graph update: $graphUpdate")
 
     writers(getWriter(graphUpdate.srcId)).sendAsync(graphUpdate)
-    //.thenApply(msgId => msgId -> null) TODO: remove I guess ?
 
     messagesProcessed = messagesProcessed + 1
 

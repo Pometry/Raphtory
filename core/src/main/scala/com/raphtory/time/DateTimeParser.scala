@@ -9,7 +9,7 @@ import scala.util.Try
 
 /** @note DoNotDocument */
 class DateTimeParser(format: String) {
-  val formatter = DateTimeFormatter.ofPattern(format)
+  private val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern(format)
 
   def parse(datetime: String): Long =
     Try(LocalDateTime.parse(datetime, formatter))

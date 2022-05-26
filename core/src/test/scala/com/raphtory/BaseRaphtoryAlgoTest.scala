@@ -35,7 +35,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
         with BeforeAndAfterAll
         with Matchers {
 
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   var jobId: String                     = ""
   val outputDirectory: String           = "/tmp/raphtoryTest"

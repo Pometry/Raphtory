@@ -33,7 +33,7 @@ As of February 2022, this is a guide to run this within IntelliJ.
 
 ## Running this example
 
-1. This example project is up on Github: [raphtory-example-lotr](https://github.com/Raphtory/Examples/tree/0.5.0/raphtory-example-lotr). If you have downloaded the Examples folder from the installation guide previously, then the Lotr example will already be set up. If not, please return [there](../Install/installdependencies.md) and complete this step first. 
+1. This example project is up on Github: [raphtory-example-lotr](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-lotr). If you have downloaded the Examples folder from the installation guide previously, then the Lotr example will already be set up. If not, please return [there](../Install/installdependencies.md) and complete this step first. 
 2. In the Examples folder, open up the directory `raphtory-example-lotr` to get this example running.
 3. Install all the python libraries necessary for visualising your data via the [Jupyter Notebook Tutorial](../PythonClient/tutorial_py_raphtory.md). Once you have Jupyter Notebook up and running on your local machine, you can open up the Jupyter Notebook specific for this project, with all the commands needed to output your graph. This can be found by following the path `python/LOTR_demo.ipynb`.
 4. You are now ready to run this example. You can either run this example via Intellij by running the class `com.raphtory.examples.lotr.FileOutputRunner` or `com.raphtory.examples.lotr.PulsarOutputRunner` or [via sbt](../Install/installdependencies.md#running-raphtory-via-sbt).

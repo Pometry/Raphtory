@@ -1,8 +1,11 @@
 # Kubernetes Cluster Deployment
 
+Before getting started with the Kubernetes deployment of Raphtory we recommend to get yourself aquatinted with Kube first - if you are already comfortable with this please continue! If you are just getting to grips with Kubernetes and containerisation you can learn the basics [here](https://kubernetes.io/docs/tutorials/kubernetes-basics/) and read about the framework we are using inside the Raphtory codebase (fabric8io) [here](https://github.com/fabric8io/kubernetes-client).
+ 
+
 ## Architecture
 <p>
- <img src="../_static/RaphtoryKubernetesDeployment.png" width="400px" style="padding: 15px;" alt="Kubernetes deployment"/>
+ <img src="../_static/RaphtoryKubernetesDeployment.png" width="100%" style="padding: 15px;" alt="Kubernetes deployment"/>
 </p>
 
 Raphtory is deployed into Kubernetes using deployments. Each component gets a deployment which specifies a number of replicas which are deployed into a namespace. What is deployed and how many of each is determined by the configuration as defined in application conf.

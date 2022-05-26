@@ -16,9 +16,9 @@ process large dynamic datasets across time. Raphtory is funded in part by
 and built by `Pometry <http://pometry.com>`_, The `QMUL Networks Group  <http://networks.eecs.qmul.ac.uk>`_ and a host of wonderful independent contributors.
 
 If you would like a brief summary of what its used for before fully diving into the getting start guide please check
-out our latest talk on Raphtory at `NetSciX <https://www.youtube.com/watch?v=QxhrONca4FE>`_ !
+out our latest talks on Raphtory at `AIUK 20222 <https://www.youtube.com/watch?v=7S9Ymnih-YM&list=PLuD_SqLtxSdVEUsCYlb5XjWm9D6WuNKEz&index=8>`_ , `KGC 2022 <https://www.youtube.com/watch?v=37S4bSN5EaU>`_ and `NetSciX <https://www.youtube.com/watch?v=QxhrONca4FE>`_ !
 
-Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/installdependencies>`.
+Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/installdependencies>`. Alternatively, if you want to dive headfirst into the internals you visit the :doc:`ScalaDocs <Scaladoc/index.md>`.
 
 .. toctree::
    :maxdepth: 3
@@ -33,44 +33,15 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
    Analysis/queries.md
    Analysis/analysis-explained.md
 
-   Querying/presto.md
-
-.. toctree:: 
-   :maxdepth: 2
-   :hidden:
-   :caption: Python Library
-
-   PythonClient/setup.md
-   PythonClient/tutorial_py_raphtory.md
-   PythonClient/tutorial_algorithms.md
-   PythonClient/RaphtoryClient.md
-   PythonClient/conf.md
-
-
 .. toctree:: 
    :maxdepth: 2
    :hidden:
    :caption: Deployment
 
-   Deployment/baremetalsingle.md
-   Deployment/graphvsservice.md  
    Deployment/pulsarlocal.md
+   Deployment/baremetalsingle.md
    Deployment/kubernetes.md
   
-
-.. toctree::
-   :maxdepth: 2
-   :hidden:
-   :caption: Examples Projects
-
-   Examples/community-of-cheese.md
-   Examples/gab.md
-   Examples/higgs-twitter.md
-   Examples/twitter-social-circles.md
-   Examples/facebook-social-circles.md
-   Examples/enron.md
-   Examples/lotr.md
-
 
 .. toctree::
    :hidden:
@@ -84,4 +55,31 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
    :hidden:
    :caption: API (Scaladoc)
 
-   Scaladoc/index.md
+   Scaladoc/index.md   
+
+
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+   :caption: Python Library (Alpha)
+
+   PythonClient/setup.md
+   PythonClient/tutorial_py_raphtory.md
+   PythonClient/tutorial_algorithms.md
+   PythonClient/RaphtoryClient.md
+   PythonClient/conf.md
+
+
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+   :caption: Examples Projects
+
+   Examples/lotr.md
+   Examples/community-of-cheese.md
+   Examples/gab.md
+   Examples/higgs-twitter.md
+   Examples/twitter-social-circles.md
+   Examples/facebook-social-circles.md
+   Examples/enron.md
+

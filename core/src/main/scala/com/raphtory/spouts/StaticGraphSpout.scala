@@ -1,18 +1,14 @@
 package com.raphtory.spouts
 
 import com.raphtory.components.spout.Spout
-import com.typesafe.scalalogging.Logger
-import org.slf4j.LoggerFactory
-
 import scala.io.Source
 
 case class StaticGraphSpout(fileDataPath: String) extends Spout[String] {
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  val source = Source.fromFile(fileDataPath)
-  val lines  = source.getLines()
-  var lineNo = 1
-  var count  = 0
+  private val source = Source.fromFile(fileDataPath)
+  private val lines  = source.getLines()
+  private var lineNo = 1
+  private var count  = 0
 
   override def hasNext: Boolean = lines.hasNext
 

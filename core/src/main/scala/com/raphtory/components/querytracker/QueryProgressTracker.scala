@@ -6,9 +6,10 @@ import com.raphtory.components.querymanager.JobDone
 import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.graph.Perspective
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.Logger
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
-import org.apache.pulsar.client.api.Consumer
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
@@ -44,6 +45,7 @@ class QueryProgressTracker(
 ) extends Component[QueryManagement](conf) {
   private var perspectivesProcessed: Long = 0
   private var jobDone: Boolean            = false
+  private val logger: Logger              = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val queryTrackListener                        =
     topics.registerListener(
@@ -55,8 +57,8 @@ class QueryProgressTracker(
   private val perspectivesList: ListBuffer[Perspective] = new ListBuffer[Perspective]()
   private val perspectivesDurations: ListBuffer[Long]   = new ListBuffer[Long]()
 
-  val startTime: Long       = System.currentTimeMillis
-  var perspectiveTime: Long = startTime
+  private val startTime: Long       = System.currentTimeMillis
+  private var perspectiveTime: Long = startTime
 
   private val isJobDoneFuture = Task
     .never[Unit]
@@ -117,17 +119,20 @@ class QueryProgressTracker(
   }
 
   /** Returns job identifier for the query
-    * @return job identifier */
+    * @return job identifier
+    */
   def getJobId: String =
     jobID
 
   /** Returns the latest `Perspective` processed by the query
-    * @return latest perspective */
+    * @return latest perspective
+    */
   def getLatestPerspectiveProcessed: Option[Perspective] =
     latestPerspective
 
   /** Returns list of perspectives processed for the query so far
-    * @return a list of perspectives */
+    * @return a list of perspectives
+    */
   def getPerspectivesProcessed: List[Perspective] =
     perspectivesList.toList
 
@@ -136,11 +141,12 @@ class QueryProgressTracker(
     perspectivesDurations.toList
 
   /** Checks if job is complete
-    * @return job status */
+    * @return job status
+    */
   def isJobDone: Boolean =
     jobDone
 
-  /**  Block until job is complete, repeats check every second */
+  /** Block until job is complete, repeats check every second */
   def waitForJob(timeout: Duration = Duration.Inf): Unit =
     try Await.result[Unit](isJobDoneFuture, timeout)
     catch {

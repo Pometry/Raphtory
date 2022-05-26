@@ -10,9 +10,9 @@ import com.typesafe.config.Config
   */
 object SpoutTelemetry {
 
-  val raphtoryConfig: Config = Raphtory.getDefaultConfig()
+  private val raphtoryConfig: Config = Raphtory.getDefaultConfig()
 
-  val totalFilesProcessed: Counter =
+  def totalFilesProcessed: Counter =
     Counter.build
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.spout"))
       .name("file_processed_total")
@@ -20,7 +20,7 @@ object SpoutTelemetry {
       .labelNames("raphtory_deploymentID")
       .register
 
-  val totalSpoutReschedules: Counter =
+  def totalSpoutReschedules: Counter =
     Counter.build
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.spout"))
       .name("reschedule_total")
@@ -28,7 +28,7 @@ object SpoutTelemetry {
       .labelNames("raphtory_deploymentID")
       .register
 
-  val totalLinesSent: Counter =
+  def totalLinesSent: Counter =
     Counter.build
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.spout"))
       .name("file_line_sent_total")
@@ -36,7 +36,7 @@ object SpoutTelemetry {
       .labelNames("raphtory_deploymentID")
       .register
 
-  val totalFileProcessingErrors: Counter =
+  def totalFileProcessingErrors: Counter =
     Counter.build
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.spout"))
       .name("file_processing_error_total")

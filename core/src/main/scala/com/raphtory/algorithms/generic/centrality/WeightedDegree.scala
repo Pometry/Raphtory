@@ -1,11 +1,7 @@
 package com.raphtory.algorithms.generic.centrality
 
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Row
-import com.raphtory.algorithms.api.Table
-
 import math.Numeric.Implicits._
 
 /**

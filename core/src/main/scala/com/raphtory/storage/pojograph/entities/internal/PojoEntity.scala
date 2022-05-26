@@ -21,19 +21,9 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
   var properties: mutable.Map[String, Property] = mutable.Map[String, Property]()
 
   // History of that entity
-
-//  var history: mutable.TreeMap[Long, Boolean]       =
-//    mutable.TreeMap(creationTime -> isInitialValue)(HistoryOrdering)
   var history: mutable.ArrayBuffer[(Long, Boolean)] = mutable.ArrayBuffer()
   var deletions: mutable.ListBuffer[Long]           = mutable.ListBuffer.empty
   history sortedAppend ((creationTime, isInitialValue))
-  var toClean                                       = false
-
-  def dedupe() =
-    if (toClean) {
-      history = history.distinct
-      toClean = false
-    }
 
   def oldestPoint(): Long = history(0)._1
   def latestPoint(): Long = history(history.length - 1)._1
@@ -49,15 +39,12 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
 
   def getType: String = entityType
 
-  def revive(msgTime: Long): Unit = {
+  def revive(msgTime: Long): Unit =
     history sortedAppend ((msgTime, true))
-    toClean = true
-  }
 
   def kill(msgTime: Long): Unit = {
     history sortedAppend ((msgTime, false))
     deletions sortedAppend msgTime
-    toClean = true
   }
 
   // override the apply method so that we can do edge/vertex("key") to easily retrieve properties

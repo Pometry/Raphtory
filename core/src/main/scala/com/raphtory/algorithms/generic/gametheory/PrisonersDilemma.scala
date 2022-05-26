@@ -69,13 +69,13 @@ class PrisonersDilemma(
     seed: Int = -1
 ) extends NodeList(Seq("cooperationHistory")) {
 
-  val rnd = if (seed == -1) new Random() else new Random(seed)
+  private val rnd = if (seed == -1) new Random() else new Random(seed)
 
-  final val COOPERATOR = 0
-  final val DEFECTOR   = 1
+  final private val COOPERATOR = 0
+  final private val DEFECTOR   = 1
 
-  final val PLAYSTEP   = 0
-  final val UPDATESTEP = 1
+  final private val PLAYSTEP   = 0
+  final private val UPDATESTEP = 1
 
   // Payoff Matrix [(b-c, b-c) , (-c,b), (b,-c), (0,0)]
   override def apply(graph: GraphPerspective): GraphPerspective = {

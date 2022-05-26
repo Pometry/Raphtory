@@ -19,22 +19,24 @@ import com.raphtory.storage.pojograph.entities.internal.PojoEntity
 import com.raphtory.storage.pojograph.entities.internal.PojoVertex
 import com.raphtory.storage.pojograph.entities.internal.SplitEdge
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 
 /** @note DoNotDocument */
 class PojoBasedPartition(partition: Int, conf: Config)
         extends GraphPartition(partition: Int, conf: Config) {
-
-  val hasDeletionsPath      = "raphtory.data.containsDeletions"
-  val hasDeletions: Boolean = conf.getBoolean(hasDeletionsPath)
+  private val logger: Logger        = Logger(LoggerFactory.getLogger(this.getClass))
+  private val hasDeletionsPath      = "raphtory.data.containsDeletions"
+  private val hasDeletions: Boolean = conf.getBoolean(hasDeletionsPath)
   logger.debug(
           s"Config indicates that the data contains 'delete' events. " +
             s"To change this modify '$hasDeletionsPath' in the application conf."
   )
 
   // Map of vertices contained in the partition
-  val vertices: mutable.Map[Long, PojoVertex] = mutable.Map[Long, PojoVertex]()
+  private val vertices: mutable.Map[Long, PojoVertex] = mutable.Map[Long, PojoVertex]()
 
   def addProperties(msgTime: Long, entity: PojoEntity, properties: Properties): Unit =
     properties.property.foreach {
@@ -456,13 +458,6 @@ class PojoBasedPartition(partition: Int, conf: Config)
           logger.trace("Synced Existing Removals")
         case None       =>
       }
-
-  override def deduplicate(): Unit =
-    vertices.foreach {
-      case (id, vertex) =>
-        vertex.dedupe()
-        logger.trace(s"deduplicating ${vertex.vertexId}")
-    }
 
   // Analysis Functions
   override def getVertices(

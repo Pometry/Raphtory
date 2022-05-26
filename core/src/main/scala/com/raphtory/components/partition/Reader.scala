@@ -6,11 +6,13 @@ import com.raphtory.components.querymanager.EndQuery
 import com.raphtory.components.querymanager.EstablishExecutor
 import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.components.querymanager.WatermarkTime
-import com.raphtory.config.Cancelable
-import com.raphtory.config.Scheduler
+import com.raphtory.config.MonixScheduler
 import com.raphtory.graph.GraphPartition
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.Logger
+import monix.execution.Cancelable
 import org.apache.pulsar.client.api.Consumer
+import org.slf4j.LoggerFactory
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
@@ -20,18 +22,20 @@ import scala.concurrent.duration.DurationInt
 class Reader(
     partitionID: Int,
     storage: GraphPartition,
-    scheduler: Scheduler,
+    scheduler: MonixScheduler,
     conf: Config,
     topics: TopicRepository
 ) extends Component[QueryManagement](conf) {
+
+  private val logger: Logger   = Logger(LoggerFactory.getLogger(this.getClass))
   private val executorMap      = mutable.Map[String, QueryExecutor]()
   private val watermarkPublish = topics.watermark.endPoint
 
-  private val queryPrepListener                         =
+  private val queryPrepListener                                 =
     topics.registerListener(s"$deploymentID-reader-$partitionID", handleMessage, topics.queryPrep)
-  var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
-  var scheduledWatermark: Option[Cancelable]            = None
-  private var lastWatermark                             = WatermarkTime(partitionID, Long.MaxValue, Long.MinValue, false)
+  private var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
+  private var scheduledWatermark: Option[Cancelable]            = None
+  private var lastWatermark                                     = WatermarkTime(partitionID, Long.MaxValue, Long.MinValue, false)
 
   override def run(): Unit = {
     logger.debug(s"Partition $partitionID: Starting Reader Consumer.")
@@ -52,7 +56,7 @@ class Reader(
     msg match {
       case req: EstablishExecutor =>
         val jobID         = req.jobID
-        val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, topics)
+        val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, topics, scheduler)
         scheduler.execute(queryExecutor)
         telemetry.queryExecutorCollector.labels(partitionID.toString, deploymentID).inc()
         executorMap += ((jobID, queryExecutor))
@@ -127,10 +131,9 @@ class Reader(
 
   private def scheduleWaterMarker(): Unit = {
     logger.trace("Scheduled watermarker to recheck time in 1 second.")
-    scheduledWatermark = Some(
-            scheduler
-              .scheduleOnce(1.seconds, createWatermark)
-    )
+    scheduledWatermark = scheduler
+      .scheduleOnce(1.seconds, createWatermark)
+
   }
 
 }

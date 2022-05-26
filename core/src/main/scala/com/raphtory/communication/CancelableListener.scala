@@ -12,6 +12,9 @@ object CancelableListener {
     new CancelableListener {
       override def start(): Unit = listeners foreach (_.start())
 
-      override def close(): Unit = listeners foreach (_.close())
+      override def close(): Unit =
+        listeners foreach (listener => {
+          listener.close()
+        })
     }
 }
