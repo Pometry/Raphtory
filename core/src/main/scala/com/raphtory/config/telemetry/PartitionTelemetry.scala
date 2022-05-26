@@ -2,8 +2,7 @@ package com.raphtory.config.telemetry
 
 import com.raphtory.deployment.Raphtory
 import com.typesafe.config.Config
-import io.prometheus.client.Counter
-import io.prometheus.client.Gauge
+import io.prometheus.client.{Counter, Gauge}
 
 import scala.collection.mutable
 
@@ -121,7 +120,7 @@ object PartitionTelemetry {
 
   //TODO: implement
   def timeForIngestion() =
-    Gauge
+    Counter
       .build()
       .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.writer"))
       .name("ingestion_time")

@@ -3,8 +3,7 @@ package com.raphtory.spouts
 import com.raphtory.components.spout.Spout
 import com.raphtory.deployment.Raphtory
 import com.typesafe.config.Config
-import com.raphtory.config.telemetry.ComponentTelemetryHandler
-import com.raphtory.config.telemetry.SpoutTelemetry
+import com.raphtory.config.telemetry.{ComponentTelemetryHandler, SpoutTelemetry}
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 import com.raphtory.util.FileUtils
@@ -43,7 +42,8 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
   // Validate that the path exists and is readable
   // Throws exception or logs error in case of failure
   FileUtils.validatePath(inputPath) // TODO Change this to cats.Validated
-
+  private val processingErrorCount = ComponentTelemetryHandler.fileProcessingErrors.labels(deploymentID)
+  private val processedFiles = ComponentTelemetryHandler.filesProcessed.labels(deploymentID)
   var files             = getMatchingFiles()
   var filesToProcess    = extractFilesToIngest()
   var currentfile: File = _
@@ -83,7 +83,7 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
     catch {
       case ex: Exception =>
         logger.error(s"Spout: Failed to process file, error: ${ex.getMessage}.")
-        ComponentTelemetryHandler.fileProcessingErrors.labels(deploymentID).inc()
+        processingErrorCount.inc()
         throw ex
     }
 
@@ -100,12 +100,12 @@ class FileSpout[T: TypeTag](val path: String = "", val lineConverter: (String =>
       case _                             => Source.fromFile(file)
     }
 
-    ComponentTelemetryHandler.filesProcessed.labels(deploymentID).inc()
+    processedFiles.inc()
     try source.getLines()
     catch {
       case ex: Exception =>
         logger.error(s"Spout: Failed to process file, error: ${ex.getMessage}.")
-        SpoutTelemetry.totalFileProcessingErrors.inc()
+        processingErrorCount.inc()
         source.close()
 
         // Remove hard-link
