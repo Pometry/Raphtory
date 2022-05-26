@@ -1,4 +1,4 @@
-package com.raphtory.examples.twitter.analysis
+package com.raphtory.examples.twitter.higgsdataset.analysis
 
 import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
