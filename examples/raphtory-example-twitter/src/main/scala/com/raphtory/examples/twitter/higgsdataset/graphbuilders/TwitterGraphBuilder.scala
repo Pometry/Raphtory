@@ -1,4 +1,4 @@
-package com.raphtory.examples.twitter.graphbuilders
+package com.raphtory.examples.twitter.higgsdataset.graphbuilders
 
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.graphbuilder.Properties.ImmutableProperty

@@ -1,4 +1,4 @@
-package com.raphtory.examples.twittercircles.graphbuilders
+package com.raphtory.examples.twitter.followernetwork.graphbuilders
 
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.graphbuilder.Properties.ImmutableProperty

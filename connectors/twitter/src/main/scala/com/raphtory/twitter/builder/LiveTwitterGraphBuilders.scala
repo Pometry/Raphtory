@@ -53,6 +53,7 @@ class LiveTwitterUserGraphBuilder() extends GraphBuilder[Tweet] {
     val targetNode = tweet.getId
     val tarID      = targetNode.toLong
     val timeStamp  = tweet.getCreatedAt.toEpochSecond(ZoneOffset.UTC)
+  
     addVertex(
       timeStamp,
       srcID,
