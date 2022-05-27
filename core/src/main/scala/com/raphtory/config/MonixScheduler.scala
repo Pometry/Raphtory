@@ -18,14 +18,9 @@ import scala.concurrent.duration.FiniteDuration
 /** @note DoNotDocument */
 private[raphtory] class MonixScheduler {
   private val threads: Int     = 8
-<<<<<<< HEAD
-  private var schedulerStarted = true
-  private val logger: Logger   = Logger(LoggerFactory.getLogger(this.getClass))
-=======
   private var schedulerRunning = true
   private val logger: Logger   = Logger(LoggerFactory.getLogger(this.getClass))
   private val lock: Lock       = new ReentrantLock()
->>>>>>> development
 
   // Will schedule things with delays
   private val scheduledExecutor = Executors.newSingleThreadScheduledExecutor()
