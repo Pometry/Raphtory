@@ -115,8 +115,8 @@ final case class PojoGraphLens(
     onComplete
   }
 
-  def writeDataTable(writer: (Row, String) => Unit)(onComplete: => Unit): Unit = {
-    dataTable.foreach(row => writer(row, partitionID.toString))
+  def writeDataTable(writer: Row => Unit)(onComplete: => Unit): Unit = {
+    dataTable.foreach(row => writer(row))
     onComplete
   }
 

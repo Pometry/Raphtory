@@ -7,7 +7,7 @@ sealed trait TableFunction extends QueryManagement
 
 final case class TableFilter(f: (Row) => Boolean)     extends TableFunction
 final case class Explode(f: Row => IterableOnce[Row]) extends TableFunction
-final case class WriteTo(outputFormat: OutputFormat)  extends TableFunction
+case object WriteToOutput                             extends TableFunction
 
 /**  Interface for table operations
   *

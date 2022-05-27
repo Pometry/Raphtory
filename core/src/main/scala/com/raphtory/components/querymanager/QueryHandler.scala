@@ -51,6 +51,7 @@ class QueryHandler(
   private var tableFunctions: mutable.Queue[TableFunction] = _
   private var currentOperation: GraphFunction              = _
   private var graphState: GraphStateImplementation         = _
+  private var currentPerspectiveID: Int                    = 0
 
   private var currentPerspective: Perspective =
     Perspective(DEFAULT_PERSPECTIVE_TIME, DEFAULT_PERSPECTIVE_WINDOW, 0, 0)
@@ -70,7 +71,7 @@ class QueryHandler(
   private def recheckEarliestTimer(): Unit = self sendAsync RecheckEarliestTime
 
   override def run(): Unit = {
-    messageReader(EstablishExecutor(jobID))
+    messageReader(EstablishExecutor(jobID, query.outputFormat.get))
     timeTaken = System.currentTimeMillis() //Set time from the point we ask the executors to set up
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
     listener.start()
@@ -85,18 +86,17 @@ class QueryHandler(
   }
 
   override def handleMessage(msg: QueryManagement): Unit =
-    try {
-      msg match {
-        case AlgorithmFailure(exception) => throw exception
-        case _                           =>
-      }
-      currentState match {
-        case Stages.SpawnExecutors       => currentState = spawnExecutors(msg)
-        case Stages.EstablishPerspective => currentState = establishPerspective(msg)
-        case Stages.ExecuteGraph         => currentState = executeGraph(msg)
-        case Stages.ExecuteTable         => currentState = executeTable(msg)
-        case Stages.EndTask              => //TODO?
-      }
+    try msg match {
+      case msg: PerspectiveStatus if msg.perspectiveID != currentPerspectiveID =>
+      case AlgorithmFailure(_, exception)                                      => throw exception
+      case _                                                                   =>
+        currentState match {
+          case Stages.SpawnExecutors       => currentState = spawnExecutors(msg)
+          case Stages.EstablishPerspective => currentState = establishPerspective(msg)
+          case Stages.ExecuteGraph         => currentState = executeGraph(msg)
+          case Stages.ExecuteTable         => currentState = executeTable(msg)
+          case Stages.EndTask              => currentState = endTask(msg)
+        }
     }
     catch {
       case e: Throwable =>
@@ -104,7 +104,7 @@ class QueryHandler(
         logger.error(
                 s"Deployment $deploymentID: Failed to handle message. ${e.getMessage}. Skipping perspective."
         )
-        executeNextPerspective()
+        currentState = executeNextPerspective()
     }
 
   ////OPERATION STATES
@@ -146,7 +146,7 @@ class QueryHandler(
         }
         Stages.EstablishPerspective
 
-      case MetaDataSet               =>
+      case MetaDataSet(_)            =>
         if (readyCount + 1 == totalPartitions) {
           self sendAsync StartGraph
           readyCount = 0
@@ -171,7 +171,7 @@ class QueryHandler(
   //execute the steps of the graph algorithm until a select is run
   private def executeGraph(msg: QueryManagement): Stage =
     msg match {
-      case StartGraph                                                                      =>
+      case StartGraph                                                                         =>
         graphFunctions = mutable.Queue.from(query.graphFunctions)
         tableFunctions = mutable.Queue.from(query.tableFunctions)
         graphState = GraphStateImplementation()
@@ -184,6 +184,7 @@ class QueryHandler(
         nextGraphOperation(vertexCount)
 
       case GraphFunctionCompleteWithState(
+                  _,
                   partitionID,
                   receivedMessages,
                   sentMessages,
@@ -195,7 +196,7 @@ class QueryHandler(
           graphState.rotate()
         processGraphFunctionComplete(partitionID, receivedMessages, sentMessages, votedToHalt)
 
-      case GraphFunctionComplete(partitionID, receivedMessages, sentMessages, votedToHalt) =>
+      case GraphFunctionComplete(_, partitionID, receivedMessages, sentMessages, votedToHalt) =>
         processGraphFunctionComplete(partitionID, receivedMessages, sentMessages, votedToHalt)
 
     }
@@ -269,7 +270,7 @@ class QueryHandler(
   //once the select has been run, execute all of the table functions until we hit a writeTo
   private def executeTable(msg: QueryManagement): Stage =
     msg match {
-      case TableBuilt            =>
+      case TableBuilt(_)            =>
         readyCount += 1
         if (readyCount == totalPartitions) {
           readyCount = 0
@@ -284,7 +285,7 @@ class QueryHandler(
         else
           Stages.ExecuteTable
 
-      case TableFunctionComplete =>
+      case TableFunctionComplete(_) =>
         readyCount += 1
         if (readyCount == totalPartitions) {
           val tableFuncTimeTaken = System.currentTimeMillis() - timeTaken
@@ -301,6 +302,24 @@ class QueryHandler(
           )
           Stages.ExecuteTable
         }
+    }
+
+  private def endTask(msg: QueryManagement): Stage =
+    msg match {
+      case WriteCompleted =>
+        readyCount += 1
+        if (readyCount == totalPartitions) {
+          readyCount = 0
+          val writeCompletedTimeTaken = System.currentTimeMillis() - timeTaken
+          logger.debug(
+                  s"Job '$jobID': Write completed in ${writeCompletedTimeTaken}ms."
+          )
+          timeTaken = System.currentTimeMillis()
+          killJob()
+          Stages.EndTask
+        }
+        else
+          Stages.EndTask
     }
   ////END OPERATION STATES
 
@@ -331,12 +350,13 @@ class QueryHandler(
     telemetry.totalPerspectivesProcessed.labels(jobID, deploymentID).inc()
     if (currentPerspective.timestamp != -1) //ignore initial placeholder
       tracker sendAsync currentPerspective
+    currentPerspectiveID += 1
     perspectiveController.nextPerspective() match {
       case Some(perspective)
           if perspective.actualEnd <= latestTime && oldestTime
             .exists(perspective.actualStart >= _) =>
         logTotalTimeTaken(perspective)
-        messagetoAllJobWorkers(CreatePerspective(perspective))
+        messagetoAllJobWorkers(CreatePerspective(currentPerspectiveID, perspective))
         currentPerspective = perspective
         graphState = GraphStateImplementation()
         graphFunctions = null
@@ -360,7 +380,7 @@ class QueryHandler(
         Stages.EstablishPerspective
       case None              =>
         logger.debug(s"Job '$jobID': No more perspectives to run.")
-        killJob()
+        messagetoAllJobWorkers(CompleteWrite)
         Stages.EndTask
     }
   }
@@ -388,7 +408,7 @@ class QueryHandler(
     if (perspective.actualEnd <= time) {
       logger.debug(s"Job '$jobID': Created perspective at time $time.")
 
-      messagetoAllJobWorkers(CreatePerspective(perspective))
+      messagetoAllJobWorkers(CreatePerspective(currentPerspectiveID, perspective))
       Stages.EstablishPerspective
     }
     else {

@@ -1,10 +1,15 @@
 package com.raphtory.output
 
 import com.raphtory.algorithms.api.OutputFormat
-import com.raphtory.algorithms.api.Row
-import com.raphtory.time.Interval
-import org.apache.pulsar.client.api.Producer
-import org.apache.pulsar.client.api.Schema
+import com.raphtory.algorithms.api.OutputWriter
+import com.raphtory.output.sinks.PulsarSink
+import com.typesafe.config.Config
+
+case class PulsarOutputFormat(pulsarTopic: String) extends OutputFormat {
+
+  override def outputWriter(jobId: String, partitionId: Int, conf: Config): OutputWriter =
+    new PulsarOutputWriter(pulsarTopic, jobId, partitionId, conf)
+}
 
 /** Writes output output to a Raphtory Pulsar topic
   * @param pulsarTopic Topic name for writing to Pulsar.
@@ -28,31 +33,9 @@ import org.apache.pulsar.client.api.Schema
   *       [[com.raphtory.client.GraphDeployment]]
   *       [[com.raphtory.deployment.Raphtory]]
   */
-class PulsarOutputFormat(val pulsarTopic: String) extends OutputFormat {
-
-  override def write(
-      timestamp: Long,
-      window: Option[Interval],
-      jobID: String,
-      row: Row,
-      partitionID: String
-  ): Unit = {}
-
-  def writeToPulsar(
-      timestamp: Long,
-      window: Option[Interval],
-      jobID: String,
-      row: Row,
-      partitionID: String,
-      producer: Producer[String]
-  ): Unit = {
-    val value = window match {
-      case Some(w) => s"$timestamp,$w,${row.getValues().mkString(",")}"
-      case None    => s"$timestamp,${row.getValues().mkString(",")}"
-    }
-    producer.sendAsync(value)
-  }
-
+class PulsarOutputWriter(val pulsarTopic: String, jobId: String, partitionId: Int, config: Config)
+        extends AbstractCsvOutputWriter {
+  override protected def createSink() = new PulsarSink(pulsarTopic, config)
 }
 
 /** Writes output output to a Raphtory Pulsar topic */

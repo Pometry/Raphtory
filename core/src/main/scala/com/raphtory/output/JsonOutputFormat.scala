@@ -5,19 +5,19 @@ import com.raphtory.algorithms.api.OutputWriter
 import com.raphtory.output.sinks.FileSink
 import com.typesafe.config.Config
 
-case class GsonOutputFormat(filePath: String) extends OutputFormat {
+case class JsonOutputFormat(filePath: String) extends OutputFormat {
 
   override def outputWriter(jobID: String, partitionId: Int, config: Config): OutputWriter =
-    new GsonOutputWriter(filePath, jobID, partitionId)
+    new JsonOutputWriter(filePath, jobID, partitionId)
 }
 
-/** Writes output for Raphtory Job to Gson Format */
-class GsonOutputWriter(filePath: String, jobID: String, partitionID: Int)
-        extends AbstractGsonOutputWriter {
+/** Writes output for Raphtory Job to GJson Format */
+class JsonOutputWriter(filePath: String, jobID: String, partitionID: Int)
+        extends AbstractJsonOutputWriter(jobID, partitionID) {
   override protected def createSink() = new FileSink(filePath, jobID, partitionID)
 }
 
 /** Writes output for Raphtory Job to Gson Format */
-object GsonOutputFormat {
+object JsonOutputFormat {
   def apply(filePath: String) = new GsonOutputFormat(filePath)
 }

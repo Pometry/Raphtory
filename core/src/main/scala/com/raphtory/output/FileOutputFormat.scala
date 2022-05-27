@@ -1,12 +1,15 @@
 package com.raphtory.output
 
 import com.raphtory.algorithms.api.OutputFormat
-import com.raphtory.algorithms.api.Row
-import com.raphtory.time.Interval
-import com.typesafe.scalalogging.Logger
-import org.slf4j.LoggerFactory
+import com.raphtory.algorithms.api.OutputWriter
+import com.raphtory.output.sinks.FileSink
+import com.typesafe.config.Config
 
-import java.io.File
+case class FileOutputFormat(filePath: String) extends OutputFormat {
+
+  override def outputWriter(jobId: String, partitionId: Int, config: Config): OutputWriter =
+    new FileOutputWriter(filePath, jobId, partitionId)
+}
 
 /** Writes output for Raphtory Job and Partition for a pre-defined window and timestamp to File
   * @param filePath Filepath for writing Raphtory output.
@@ -31,36 +34,9 @@ import java.io.File
   *       [[com.raphtory.client.GraphDeployment]]
   *       [[com.raphtory.deployment.Raphtory]]
   */
-class FileOutputFormat(filePath: String) extends OutputFormat {
-
-  override def write(
-      timestamp: Long,
-      window: Option[Interval],
-      jobID: String,
-      row: Row,
-      partitionID: String
-  ): Unit = {
-    val dir = new File(s"$filePath/$jobID")
-
-    if (!dir.exists())
-      // TODO: Re-enable. Currently throws a NullPointerException
-      //logger.debug(s"Output directory '$dir' does not exist. Creating directory...")
-      dir.mkdirs()
-    else {
-      // TODO: Re-enable. Currently throws a NullPointerException
-      //logger.warn(s"Output directory '$dir' already exists. Is the Job ID unique?")
-    }
-
-    val value = window match {
-      case Some(w) => s"$timestamp,$w,${row.getValues().mkString(",")}\n"
-      case None    => s"$timestamp,${row.getValues().mkString(",")}\n"
-    }
-
-    reflect.io.File(s"$filePath/$jobID/partition-$partitionID").appendAll(value)
-
-    // TODO: Re-enable. Currently throws a NullPointerException
-    //logger.info(s"Results successfully written out to directory '$dir'.")
-  }
+class FileOutputWriter(filePath: String, jobID: String, partitionID: Int)
+        extends AbstractCsvOutputWriter {
+  override protected def createSink() = new FileSink(filePath, jobID, partitionID)
 }
 
 /** Writes output for Raphtory Job and Partition for a pre-defined window and timestamp to File */

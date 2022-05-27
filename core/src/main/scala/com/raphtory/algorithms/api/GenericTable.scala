@@ -18,8 +18,9 @@ class GenericTable(val query: Query, private val querySender: QuerySender) exten
   }
 
   override def writeTo(outputFormat: OutputFormat, jobName: String): QueryProgressTracker = {
-    val query = addFunction(WriteTo(outputFormat)).query
-    querySender.submit(query, jobName)
+    val closedQuery     = addFunction(WriteToOutput).query
+    val queryWithFormat = closedQuery.copy(outputFormat = Some(outputFormat))
+    querySender.submit(queryWithFormat, jobName)
   }
 
   override def writeTo(outputFormat: OutputFormat): QueryProgressTracker =

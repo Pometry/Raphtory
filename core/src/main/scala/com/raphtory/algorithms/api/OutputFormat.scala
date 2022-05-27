@@ -1,8 +1,14 @@
 package com.raphtory.algorithms.api
 
-import com.raphtory.time.Interval
+import com.raphtory.graph.Perspective
+import com.raphtory.output.Sink
+import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
+
+trait OutputFormat {
+  def outputWriter(jobId: String, partitionId: Int, config: Config): OutputWriter
+}
 
 /** Interface for output formats.
   * Concrete implementations need to override the `write` method to output the data.
@@ -10,24 +16,16 @@ import org.slf4j.LoggerFactory
   *  @see [[com.raphtory.output.FileOutputFormat]], [[com.raphtory.output.PulsarOutputFormat]],
   *  [[com.raphtory.algorithms.api.Row]]
   */
-abstract class OutputFormat extends Serializable {
+trait OutputWriter {
+  type OutputType
+  protected val sink: Sink[OutputType] = createSink()
 
   /** Logger instance for writing debug messages */
-  lazy val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  protected lazy val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  /** Write out tabular data
-    *
-    * @param timestamp timestamp for current graph perspective
-    * @param window  window of current perspective (if set)
-    * @param jobID ID of job that generated the data
-    * @param row row of data to write out
-    * @param partitionID ID of partition trying to write the data
-    * */
-  def write(
-      timestamp: Long,
-      window: Option[Interval],
-      jobID: String,
-      row: Row,
-      partitionID: String
-  ): Unit
+  def setupPerspective(perspective: Perspective): Unit
+  def closePerspective(): Unit
+  def writeRow(row: Row): Unit
+  def close(): Unit
+  protected def createSink(): Sink[OutputType]
 }
