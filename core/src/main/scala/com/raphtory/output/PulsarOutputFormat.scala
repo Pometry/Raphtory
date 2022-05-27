@@ -5,41 +5,36 @@ import com.raphtory.algorithms.api.OutputWriter
 import com.raphtory.output.sinks.PulsarSink
 import com.typesafe.config.Config
 
-case class PulsarOutputFormat(pulsarTopic: String) extends OutputFormat {
-
-  override def outputWriter(jobID: String, partitionID: Int, conf: Config): OutputWriter =
-    new PulsarOutputWriter(pulsarTopic, conf)
-}
-
-/** Writes output output to a Raphtory Pulsar topic
-  * @param pulsarTopic Topic name for writing to Pulsar.
+/** Writes the rows of a `Table` to the Pulsar topic specified by `pulsarTopic` in CSV format.
+  * @param pulsarTopic name of the pulsar topic
   *
   * Usage:
   * (while querying or running algorithmic tests)
   * {{{
   * import com.raphtory.algorithms.generic.EdgeList
-  * import com.raphtory.output.PulsarOutputFormat
+  * import com.raphtory.output.FileOutputFormat
   * import com.raphtory.algorithms.api.OutputFormat
-  * import com.raphtory.components.graphbuilder.GraphBuilder
-  * import com.raphtory.components.spout.Spout
+  * import com.raphtory.components.spout.instance.ResourceSpout
   *
-  * val graph = Raphtory.createGraph[T](Spout[T], GraphBuilder[T])
-  * val outputFormat: OutputFormat = PulsarOutputFormat("EdgeList")
+  * val graphBuilder = new YourGraphBuilder()
+  * val graph = Raphtory.stream(ResourceSpout("resource"), graphBuilder)
+  * val testDir = "/tmp/raphtoryTest"
+  * val outputFormat: OutputFormat = PulsarOutputFormat("edge-list-topic")
   *
-  * graph.pointQuery(EdgeList(), outputFormat, 1595303181, List())
+  * graph.execute(EdgeList()).writeTo(outputFormat)
   * }}}
   *
   *  @see [[com.raphtory.algorithms.api.OutputFormat]]
   *       [[com.raphtory.client.GraphDeployment]]
   *       [[com.raphtory.deployment.Raphtory]]
   */
-class PulsarOutputWriter(val pulsarTopic: String, config: Config) extends AbstractCsvOutputWriter {
-  override protected def createSink() = new PulsarSink(pulsarTopic, config)
-}
+case class PulsarOutputFormat(pulsarTopic: String) extends OutputFormat {
 
-/** Writes output output to a Raphtory Pulsar topic */
-object PulsarOutputFormat {
+  class PulsarOutputWriter(val pulsarTopic: String, config: Config)
+          extends AbstractCsvOutputWriter {
+    override protected def createSink() = new PulsarSink(pulsarTopic, config)
+  }
 
-  /** @param pulsarTopic Topic name for writing to Pulsar. */
-  def apply(pulsarTopic: String) = new PulsarOutputFormat(pulsarTopic)
+  override def outputWriter(jobID: String, partitionID: Int, conf: Config): OutputWriter =
+    new PulsarOutputWriter(pulsarTopic, conf)
 }
