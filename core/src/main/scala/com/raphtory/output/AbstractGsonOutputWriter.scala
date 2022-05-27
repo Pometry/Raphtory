@@ -14,7 +14,7 @@ abstract class AbstractGsonOutputWriter extends OutputWriter {
 
   final override def closePerspective(): Unit = {}
 
-  final override def writeRow(row: Row): Unit = {
+  final override def threadSafeWriteRow(row: Row): Unit = {
     val value = s"${gsonBuilder.toJson(row.getValues())}"
     sink.writeEntity(value)
   }

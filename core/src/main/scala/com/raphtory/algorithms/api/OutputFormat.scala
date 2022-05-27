@@ -23,9 +23,11 @@ trait OutputWriter {
   /** Logger instance for writing debug messages */
   protected lazy val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
+  final def writeRow(row: Row): Unit = synchronized(threadSafeWriteRow(row))
+
   def setupPerspective(perspective: Perspective): Unit
   def closePerspective(): Unit
-  def writeRow(row: Row): Unit
   def close(): Unit
   protected def createSink(): Sink[OutputType]
+  protected def threadSafeWriteRow(row: Row): Unit
 }
