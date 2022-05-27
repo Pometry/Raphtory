@@ -31,20 +31,8 @@ trait OutputFormat {
   */
 trait OutputWriter {
 
-  /** Output type of the sink; e.g. `String`. */
-  type OutputType
-
-  /** `Sink` to be accessed by this `OutputWriter`
-    */
-  protected val sink: Sink[OutputType] = createSink()
-
   /** Logger instance for writing debug messages */
   protected lazy val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-
-  /** Returns the `Sink` to be used by this `OutputWriter` to write out the results.
-    * @return The `sink` to be used
-    */
-  protected def createSink(): Sink[OutputType]
 
   /** Write out one row.
     * The implementation of this method doesn't need to be thread-safe as it is wrapped by `threadSafeWriteRow` to

@@ -5,7 +5,7 @@ import com.raphtory.algorithms.api.Row
 import com.raphtory.graph.Perspective
 import com.typesafe.config.Config
 
-abstract class AbstractCsvOutputWriter extends OutputWriter {
+abstract class AbstractCsvOutputWriter extends SinkOutputWriter {
   override type OutputType = String
   var currentPerspective: Perspective = _
 

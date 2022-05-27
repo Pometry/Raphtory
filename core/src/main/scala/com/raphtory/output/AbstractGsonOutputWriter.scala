@@ -5,7 +5,7 @@ import com.raphtory.algorithms.api.OutputWriter
 import com.raphtory.algorithms.api.Row
 import com.raphtory.graph.Perspective
 
-abstract class AbstractGsonOutputWriter extends OutputWriter {
+abstract class AbstractGsonOutputWriter extends SinkOutputWriter {
   override type OutputType = String
 
   private val gsonBuilder = new GsonBuilder().setPrettyPrinting().create()

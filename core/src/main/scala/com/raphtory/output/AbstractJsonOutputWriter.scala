@@ -11,7 +11,7 @@ import com.raphtory.time.TimeInterval
 
 import java.io.StringWriter
 
-abstract class AbstractJsonOutputWriter(jobID: String, partitionID: Int) extends OutputWriter {
+abstract class AbstractJsonOutputWriter(jobID: String, partitionID: Int) extends SinkOutputWriter {
   override type OutputType = String
 
   val stringWriter      = new StringWriter()
