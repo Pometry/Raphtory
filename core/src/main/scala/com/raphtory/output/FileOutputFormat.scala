@@ -7,8 +7,8 @@ import com.typesafe.config.Config
 
 case class FileOutputFormat(filePath: String) extends OutputFormat {
 
-  override def outputWriter(jobId: String, partitionId: Int, config: Config): OutputWriter =
-    new FileOutputWriter(filePath, jobId, partitionId)
+  override def outputWriter(jobId: String, partitionID: Int, config: Config): OutputWriter =
+    new FileOutputWriter(filePath, jobId, partitionID)
 }
 
 /** Writes output for Raphtory Job and Partition for a pre-defined window and timestamp to File

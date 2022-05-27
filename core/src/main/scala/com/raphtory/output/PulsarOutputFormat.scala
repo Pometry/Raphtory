@@ -7,8 +7,8 @@ import com.typesafe.config.Config
 
 case class PulsarOutputFormat(pulsarTopic: String) extends OutputFormat {
 
-  override def outputWriter(jobId: String, partitionId: Int, conf: Config): OutputWriter =
-    new PulsarOutputWriter(pulsarTopic, jobId, partitionId, conf)
+  override def outputWriter(jobID: String, partitionID: Int, conf: Config): OutputWriter =
+    new PulsarOutputWriter(pulsarTopic, conf)
 }
 
 /** Writes output output to a Raphtory Pulsar topic
@@ -33,8 +33,7 @@ case class PulsarOutputFormat(pulsarTopic: String) extends OutputFormat {
   *       [[com.raphtory.client.GraphDeployment]]
   *       [[com.raphtory.deployment.Raphtory]]
   */
-class PulsarOutputWriter(val pulsarTopic: String, jobId: String, partitionId: Int, config: Config)
-        extends AbstractCsvOutputWriter {
+class PulsarOutputWriter(val pulsarTopic: String, config: Config) extends AbstractCsvOutputWriter {
   override protected def createSink() = new PulsarSink(pulsarTopic, config)
 }
 

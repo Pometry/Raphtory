@@ -360,7 +360,7 @@ class QueryExecutor(
           val time = System.currentTimeMillis()
 
           outputWriter.setupPerspective(currentPerspective)
-          val writer = row => outputWriter.writeRow(row)
+          val writer = row => outputWriter.threadSafeWriteRow(row)
           graphLens.writeDataTable(writer) {
             outputWriter.closePerspective()
             taskManager sendAsync TableFunctionComplete(currentPerspectiveID)

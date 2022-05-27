@@ -14,7 +14,7 @@ abstract class AbstractCsvOutputWriter extends OutputWriter {
 
   final override def closePerspective(): Unit = {}
 
-  final override def threadSafeWriteRow(row: Row): Unit               =
+  final override def writeRow(row: Row): Unit                         =
     currentPerspective.window match {
       case Some(w) =>
         sink.writeEntity(s"${currentPerspective.timestamp},$w,${row.getValues().mkString(",")}")

@@ -44,7 +44,7 @@ abstract class AbstractJsonOutputWriter(jobID: String, partitionID: Int) extends
     jsonWriter.endObject()
   }
 
-  final override def threadSafeWriteRow(row: Row): Unit =
+  final override def writeRow(row: Row): Unit =
     gsonBuilder.toJson(row.getValues(), classOf[Array[Any]], jsonWriter)
 
   final override def close(): Unit = {

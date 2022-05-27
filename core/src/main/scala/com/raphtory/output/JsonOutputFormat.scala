@@ -7,8 +7,8 @@ import com.typesafe.config.Config
 
 case class JsonOutputFormat(filePath: String) extends OutputFormat {
 
-  override def outputWriter(jobID: String, partitionId: Int, config: Config): OutputWriter =
-    new JsonOutputWriter(filePath, jobID, partitionId)
+  override def outputWriter(jobID: String, partitionID: Int, config: Config): OutputWriter =
+    new JsonOutputWriter(filePath, jobID, partitionID)
 }
 
 /** Writes output for Raphtory Job to GJson Format */

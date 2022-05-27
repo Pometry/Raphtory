@@ -6,28 +6,72 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
+/** Interface for output formats
+  * Concrete implementations need to override the `outputWriter` method to create their own `OutputWriter`.
+  *
+  * @see [[com.raphtory.output.FileOutputFormat]], [[com.raphtory.output.PulsarOutputFormat]],
+  *      [[com.raphtory.algorithms.api.Table]]
+  */
 trait OutputFormat {
-  def outputWriter(jobId: String, partitionId: Int, config: Config): OutputWriter
+
+  /**
+    * @param jobId ID of the job that generated the data
+    * @param partitionID ID of partition trying to write the data
+    * @param config
+    * @return `OutputWriter` to be used for writing out results
+    */
+  def outputWriter(jobId: String, partitionID: Int, config: Config): OutputWriter
 }
 
-/** Interface for output formats.
-  * Concrete implementations need to override the `write` method to output the data.
+/** Interface for output writers.
+  * Concrete implementations need to override the `writeRow`, `setupPerspective`, `closePerspective`, and `close`
+  * methods.
   *
-  *  @see [[com.raphtory.output.FileOutputFormat]], [[com.raphtory.output.PulsarOutputFormat]],
-  *  [[com.raphtory.algorithms.api.Row]]
+  *  @see [[com.raphtory.algorithms.api.Row]]
   */
 trait OutputWriter {
+
+  /** Output type of the sink; e.g. `String`. */
   type OutputType
+
+  /** `Sink` to be accessed by this `OutputWriter`
+    */
   protected val sink: Sink[OutputType] = createSink()
 
   /** Logger instance for writing debug messages */
   protected lazy val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  final def writeRow(row: Row): Unit = synchronized(threadSafeWriteRow(row))
-
-  def setupPerspective(perspective: Perspective): Unit
-  def closePerspective(): Unit
-  def close(): Unit
+  /** Returns the `Sink` to be used by this `OutputWriter` to write out the results.
+    * @return The `sink` to be used
+    */
   protected def createSink(): Sink[OutputType]
-  protected def threadSafeWriteRow(row: Row): Unit
+
+  /** Write out one row.
+    * The implementation of this method doesn't need to be thread-safe as it is wrapped by `threadSafeWriteRow` to
+    * handle synchronization.
+    * @param row row of data to write out
+    */
+  protected def writeRow(row: Row): Unit
+
+  /** Setup the perspective to be write out.
+    * This method gets called every time a new graph perspective is going to be write out so this `OutputWriter` can
+    * handle it if needed.
+    * @param perspective perspective to be write out
+    */
+  def setupPerspective(perspective: Perspective): Unit
+
+  /** Close the writing of the current graph perspective
+    * This method gets called every time all the rows from one graph perspective have been successfully written out so
+    * this `OutputWriter` can handle it if needed.
+    */
+  def closePerspective(): Unit
+
+  /** Close this `OutputWriter` after writing the complete table
+    */
+  def close(): Unit
+
+  /** Thread safe version of `writeRow` used internally by Raphtory.
+    * @param row row of data to write out
+    */
+  final def threadSafeWriteRow(row: Row): Unit = synchronized(writeRow(row))
 }
