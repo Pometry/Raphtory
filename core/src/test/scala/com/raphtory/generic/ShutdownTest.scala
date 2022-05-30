@@ -7,8 +7,6 @@ import com.raphtory.spouts.SequenceSpout
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.util.concurrent.Semaphore
-import java.util.concurrent.locks.Lock
-import java.util.concurrent.locks.ReentrantLock
 import scala.concurrent._
 import ExecutionContext.Implicits.global
 import scala.sys.process._
@@ -18,6 +16,7 @@ object GraphStopTestRunner extends App {
   graph1.deployment.stop()
   val graph2 = Raphtory.load(SequenceSpout("2,2,2"), BasicGraphBuilder())
   graph2.deployment.stop()
+  Raphtory.shutdown()
   println(ShutdownTest.signal)
 }
 
