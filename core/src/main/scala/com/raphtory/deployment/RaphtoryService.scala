@@ -41,11 +41,11 @@ abstract class RaphtoryService[T: ClassTag] {
 
   def main(args: Array[String]): Unit =
     args(0) match {
-      case "spout"                   => spoutDeploy()
-      case "builder"                 => builderDeploy()
-      case "partitionmanager"        => partitionDeploy(false)
-      case "batchedPartitionmanager" => partitionDeploy(true)
-      case "querymanager"            => queryManagerDeploy()
+      case "spout"                 => spoutDeploy()
+      case "builder"               => builderDeploy()
+      case "partitionmanager"      => partitionDeploy(false)
+      case "batchpartitionmanager" => partitionDeploy(true)
+      case "querymanager"          => queryManagerDeploy()
     }
 
   /** Deploy spouts by using `SpoutExecutor` to ingest data from files and resources,
