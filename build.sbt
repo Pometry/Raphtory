@@ -48,6 +48,8 @@ lazy val root = (project in file("."))
   )
   .aggregate(
           core,
+          connectorsAWS,
+          connectorsTwitter,
           examplesEnron,
           examplesFacebook,
           examplesGab,
@@ -116,6 +118,14 @@ lazy val core = (project in file("core"))
 //          libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
 //  )
 
+// CONNECTORS
+
+lazy val connectorsAWS =
+  (project in file("connectors/aws")).dependsOn(core).settings(assemblySettings)
+
+lazy val connectorsTwitter =
+  (project in file("connectors/twitter")).dependsOn(core).settings(assemblySettings)
+
 // EXAMPLE PROJECTS
 
 lazy val examplesEnron =
@@ -137,7 +147,9 @@ lazy val examplesPresto =
   (project in file("examples/raphtory-example-presto")).dependsOn(core).settings(assemblySettings)
 
 lazy val examplesTwitter =
-  (project in file("examples/raphtory-example-twitter")).dependsOn(core).settings(assemblySettings)
+  (project in file("examples/raphtory-example-twitter"))
+    .dependsOn(core, connectorsTwitter)
+    .settings(assemblySettings)
 
 lazy val examplesTwitterCircles =
   (project in file("examples/raphtory-example-twittercircles"))
