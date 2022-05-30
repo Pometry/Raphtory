@@ -16,8 +16,8 @@ import com.typesafe.config.Config
   *  [[com.raphtory.algorithms.api.TemporalGraph]]
   */
 class TemporalGraphConnection(
-    query: Query,
-    private val querySender: QuerySender,
+    override private[api] val query: Query,
+    override private[api] val querySender: QuerySender,
     private val conf: Config,
     private val scheduler: MonixScheduler,
     private val topics: TopicRepository
