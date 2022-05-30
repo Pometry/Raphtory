@@ -5,6 +5,7 @@ import com.raphtory.graph.visitor.Edge
 import com.raphtory.graph.visitor.InterlayerEdge
 import com.raphtory.graph.visitor.PropertyMergeStrategy
 import com.raphtory.graph.visitor.Vertex
+import com.raphtory.graph.visitor
 import PropertyMergeStrategy.PropertyMerge
 
 sealed trait GraphFunction                             extends QueryManagement
@@ -20,37 +21,37 @@ final case class ReduceView(
     aggregate: Boolean = false
 ) extends GraphFunction
 
-final case class Step(f: (Vertex) => Unit) extends GraphFunction
+final case class Step(f: (_) => Unit) extends GraphFunction
 
 final case class StepWithGraph(
-    f: (Vertex, GraphState) => Unit,
+    f: (_, GraphState) => Unit,
     graphState: GraphStateImplementation = GraphStateImplementation.empty
 ) extends GraphFunction
 
-final case class Iterate(f: (Vertex) => Unit, iterations: Int, executeMessagedOnly: Boolean)
+final case class Iterate(f: (_) => Unit, iterations: Int, executeMessagedOnly: Boolean)
         extends GraphFunction
 
 final case class IterateWithGraph(
-    f: (Vertex, GraphState) => Unit,
+    f: (_, GraphState) => Unit,
     iterations: Int,
     executeMessagedOnly: Boolean,
     graphState: GraphStateImplementation = GraphStateImplementation.empty
 ) extends GraphFunction
 
-final case class Select(f: Vertex => Row) extends GraphFunction
+final case class Select(f: _ => Row) extends GraphFunction
 
 final case class SelectWithGraph(
-    f: (Vertex, GraphState) => Row,
+    f: (_, GraphState) => Row,
     graphState: GraphStateImplementation = GraphStateImplementation.empty
 ) extends GraphFunction
 
 final case class GlobalSelect(
     f: GraphState => Row,
     graphState: GraphStateImplementation = GraphStateImplementation.empty
-)                                                      extends GraphFunction
-final case class ExplodeSelect(f: Vertex => List[Row]) extends GraphFunction
-final case class ClearChain()                          extends GraphFunction
-final case class PerspectiveDone()                     extends GraphFunction
+)                                                 extends GraphFunction
+final case class ExplodeSelect(f: _ => List[Row]) extends GraphFunction
+final case class ClearChain()                     extends GraphFunction
+final case class PerspectiveDone()                extends GraphFunction
 
 /**
   * `GraphOperations[G <: GraphOperations[G]]`
@@ -222,47 +223,54 @@ final case class PerspectiveDone()                     extends GraphFunction
   * [](com.raphtory.algorithms.api.GraphState), [](com.raphtory.graph.visitor.Vertex)
   * ```
   */
-trait GraphOperations[G <: GraphOperations[G]] {
+trait GraphOperations {
+  type G <: GraphOperations
+  type RG <: GraphOperations
+  type MG <: GraphOperations
+  type V <: Vertex
+
   def setGlobalState(f: (GraphState) => Unit): G
-  def vertexFilter(f: (Vertex) => Boolean): G
-  def vertexFilter(f: (Vertex, GraphState) => Boolean): G
+  def vertexFilter(f: (V) => Boolean): G
+  def vertexFilter(f: (V, GraphState) => Boolean): G
   def edgeFilter(f: (Edge) => Boolean, pruneNodes: Boolean): G
   def edgeFilter(f: (Edge, GraphState) => Boolean, pruneNodes: Boolean): G
 
-  def multilayerView: G
+  def multilayerView: MG
 
   def multilayerView(
       interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge] = _ => Seq()
-  ): G
+  ): MG
 
-  def reducedView: G
+  def reducedView: RG
 
-  def reducedView(mergeStrategy: PropertyMerge[_, _]): G
+  def reducedView(mergeStrategy: PropertyMerge[_, _]): RG
 
-  def reducedView(mergeStrategyMap: Map[String, PropertyMerge[_, _]]): G
+  def reducedView(
+      mergeStrategyMap: Map[String, PropertyMerge[_, _]]
+  ): RG
 
   def reducedView(
       defaultMergeStrategy: PropertyMerge[_, _],
       mergeStrategyMap: Map[String, PropertyMerge[_, _]]
-  ): G
+  ): RG
 
   def aggregate(
       defaultMergeStrategy: PropertyMerge[_, _] = PropertyMergeStrategy.sequence[Any],
       mergeStrategyMap: Map[String, PropertyMerge[_, _]] = Map.empty[String, PropertyMerge[_, _]]
-  ): G
+  ): RG
 
-  def step(f: (Vertex) => Unit): G
-  def step(f: (Vertex, GraphState) => Unit): G
-  def iterate(f: (Vertex) => Unit, iterations: Int, executeMessagedOnly: Boolean): G
+  def step(f: (V) => Unit): G
+  def step(f: (V, GraphState) => Unit): G
+  def iterate(f: (V) => Unit, iterations: Int, executeMessagedOnly: Boolean): G
 
   def iterate(
-      f: (Vertex, GraphState) => Unit,
+      f: (V, GraphState) => Unit,
       iterations: Int,
       executeMessagedOnly: Boolean
   ): G
-  def select(f: Vertex => Row): Table
-  def select(f: (Vertex, GraphState) => Row): Table
+  def select(f: V => Row): Table
+  def select(f: (V, GraphState) => Row): Table
   def globalSelect(f: GraphState => Row): Table
-  def explodeSelect(f: Vertex => List[Row]): Table
+  def explodeSelect(f: V => List[Row]): Table
   def clearMessages(): G
 }

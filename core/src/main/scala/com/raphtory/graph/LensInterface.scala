@@ -16,14 +16,14 @@ trait LensInterface {
   def getFullGraphSize: Int
   def setFullGraphSize(size: Int): Unit
 
-  def executeSelect(f: Vertex => Row)(onComplete: => Unit): Unit
+  def executeSelect(f: _ => Row)(onComplete: => Unit): Unit
 
   def executeSelect(
-      f: (Vertex, GraphState) => Row,
+      f: (_, GraphState) => Row,
       graphState: GraphState
   )(onComplete: => Unit): Unit
   def executeSelect(f: GraphState => Row, graphState: GraphState)(onComplete: => Unit): Unit
-  def explodeSelect(f: Vertex => List[Row])(onComplete: => Unit): Unit
+  def explodeSelect(f: _ => List[Row])(onComplete: => Unit): Unit
   def filteredTable(f: Row => Boolean)(onComplete: => Unit): Unit
   def explodeTable(f: Row => List[Row])(onComplete: => Unit): Unit
   def getDataTable(): List[Row]
@@ -38,16 +38,16 @@ trait LensInterface {
       aggregate: Boolean
   )(onComplete: => Unit): Unit
 
-  def runGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit
+  def runGraphFunction(f: _ => Unit)(onComplete: => Unit): Unit
 
   def runGraphFunction(
-      f: (Vertex, GraphState) => Unit,
+      f: (_, GraphState) => Unit,
       graphState: GraphState
   )(onComplete: => Unit): Unit
-  def runMessagedGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit
+  def runMessagedGraphFunction(f: _ => Unit)(onComplete: => Unit): Unit
 
   def runMessagedGraphFunction(
-      f: (Vertex, GraphState) => Unit,
+      f: (_, GraphState) => Unit,
       graphState: GraphState
   )(onComplete: => Unit): Unit
   def getMessageHandler(): VertexMessageHandler

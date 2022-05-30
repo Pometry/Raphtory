@@ -41,13 +41,12 @@ class TemporalEdgeList(
     NeighbourNames()(graph.reducedView)
       .multilayerView()
       .explodeSelect { vertex =>
-        val explodedVertex = vertex.asInstanceOf[ExplodedVertex]
-        val neighbourMap   = explodedVertex.getState[Map[Long, String]]("neighbourNames")
-        explodedVertex
+        val neighbourMap = vertex.getState[Map[Long, String]]("neighbourNames")
+        vertex
           .getOutEdges()
           .map { edge =>
             Row(
-                    explodedVertex.baseName +:
+                    vertex.baseName +:
                       neighbourMap(edge.dst._1) +:
                       edge.timestamp +:
                       properties.map { name =>

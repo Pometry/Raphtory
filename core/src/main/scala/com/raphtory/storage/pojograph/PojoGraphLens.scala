@@ -13,6 +13,8 @@ import com.raphtory.graph.GraphPartition
 import com.raphtory.graph.LensInterface
 import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.storage.pojograph.entities.external.PojoExVertex
+import com.raphtory.storage.pojograph.entities.external.PojoExplodedVertex
+import com.raphtory.storage.pojograph.entities.external.PojoVertexBase
 import com.raphtory.storage.pojograph.messaging.VertexMessageHandler
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -78,16 +80,17 @@ final case class PojoGraphLens(
 
   private var dataTable: List[Row] = List()
 
-  def executeSelect(f: Vertex => Row)(onComplete: => Unit): Unit = {
-    dataTable = vertexIterator.map(f).toList
+  def executeSelect(f: _ => Row)(onComplete: => Unit): Unit = {
+    dataTable = vertexIterator.map(f.asInstanceOf[PojoVertexBase => Row]).toList
     onComplete
   }
 
   def executeSelect(
-      f: (Vertex, GraphState) => Row,
+      f: (_, GraphState) => Row,
       graphState: GraphState
   )(onComplete: => Unit): Unit = {
-    dataTable = vertexIterator.map(f(_, graphState)).toList
+    dataTable =
+      vertexIterator.map(f.asInstanceOf[(PojoVertexBase, GraphState) => Row](_, graphState)).toList
     onComplete
   }
 
@@ -99,8 +102,8 @@ final case class PojoGraphLens(
     onComplete
   }
 
-  def explodeSelect(f: Vertex => List[Row])(onComplete: => Unit): Unit = {
-    dataTable = vertexIterator.flatMap(f).toList
+  def explodeSelect(f: _ => List[Row])(onComplete: => Unit): Unit = {
+    dataTable = vertexIterator.flatMap(f.asInstanceOf[PojoVertexBase => List[Row]]).toList
     onComplete
   }
 
@@ -154,49 +157,49 @@ final case class PojoGraphLens(
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
-  def runGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit = {
+  def runGraphFunction(f: _ => Unit)(onComplete: => Unit): Unit = {
     var count: Int = 0
     val tasks      = vertexIterator.map { vertex =>
       count += 1
-      Task(f(vertex))
+      Task(f.asInstanceOf[PojoVertexBase => Unit](vertex))
     }.toIterable
     vertexCount.set(count)
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
   override def runGraphFunction(
-      f: (Vertex, GraphState) => Unit,
+      f: (_, GraphState) => Unit,
       graphState: GraphState
   )(onComplete: => Unit): Unit = {
     var count: Int = 0
     val tasks      = vertexIterator.map { vertex =>
       count += 1
-      Task(f(vertex, graphState))
+      Task(f.asInstanceOf[(PojoVertexBase, GraphState) => Unit](vertex, graphState))
     }.toIterable
     vertexCount.set(count)
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
-  override def runMessagedGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit = {
+  override def runMessagedGraphFunction(f: _ => Unit)(onComplete: => Unit): Unit = {
     var count: Int = 0
     val tasks      = vertexIterator.collect {
       case vertex if vertex.hasMessage() =>
         count += 1
-        Task(f(vertex))
+        Task(f.asInstanceOf[PojoVertexBase => Unit](vertex))
     }.toIterable
     vertexCount.set(count)
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
   override def runMessagedGraphFunction(
-      f: (Vertex, GraphState) => Unit,
+      f: (_, GraphState) => Unit,
       graphState: GraphState
   )(onComplete: => Unit): Unit = {
     var count: Int = 0
     val tasks      = vertexIterator.collect {
       case vertex if vertex.hasMessage() =>
         count += 1
-        Task(f(vertex, graphState))
+        Task(f.asInstanceOf[(PojoVertexBase, GraphState) => Unit](vertex, graphState))
     }.toIterable
     vertexCount.set(count)
     scheduler.executeInParallel(tasks, onComplete, errorHandler)

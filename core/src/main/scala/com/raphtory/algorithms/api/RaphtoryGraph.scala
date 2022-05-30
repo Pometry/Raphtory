@@ -2,6 +2,7 @@ package com.raphtory.algorithms.api
 
 import com.raphtory.client.QuerySender
 import com.raphtory.components.querymanager.Query
+import com.raphtory.graph.visitor.Vertex
 
 /** Core class for the analysis API.
   *
@@ -14,8 +15,13 @@ import com.raphtory.components.querymanager.Query
   *
   * @see [[com.raphtory.algorithms.api.GraphOperations]]
   */
-private[raphtory] class RaphtoryGraph(query: Query, private val querySender: QuerySender)
-        extends DefaultGraphOperations[RaphtoryGraph](query, querySender) {
+private[raphtory] class RaphtoryGraph(
+    query: Query,
+    private val querySender: QuerySender
+) extends DefaultGraphOperations(query, querySender) {
+  override type G  = RaphtoryGraph
+  override type MG = RaphtoryGraph
+  override type RG = RaphtoryGraph
 
   /** Apply f over itself and return the result. `graph.transform(f)` is equivalent to `f(graph)`
     * @param f function to apply
@@ -47,6 +53,15 @@ private[raphtory] class RaphtoryGraph(query: Query, private val querySender: Que
     */
   def execute(f: RaphtoryGraph => Table): Table = f(this)
 
-  override protected def newGraph(query: Query, querySender: QuerySender): RaphtoryGraph =
+  override protected def newGraph(
+      query: Query,
+      querySender: QuerySender
+  ): RaphtoryGraph =
     new RaphtoryGraph(query, querySender)
+
+  override protected def newRGraph(query: Query, querySender: QuerySender): RaphtoryGraph =
+    newGraph(query, querySender)
+
+  override protected def newMGraph(query: Query, querySender: QuerySender): RaphtoryGraph =
+    newGraph(query, querySender)
 }

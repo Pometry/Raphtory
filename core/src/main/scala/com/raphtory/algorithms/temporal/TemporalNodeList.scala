@@ -46,10 +46,9 @@ class TemporalNodeList(
     graph
       .multilayerView()
       .select { vertex =>
-        val explodedVertex = vertex.asInstanceOf[ExplodedVertex]
         Row(
-                explodedVertex.baseName +: explodedVertex.timestamp +: properties.map(key =>
-                  explodedVertex
+                vertex.baseName +: vertex.timestamp +: properties.map(key =>
+                  vertex
                     .getStateOrElse(key, defaults.getOrElse(key, None), includeProperties = true)
                 ): _*
         )

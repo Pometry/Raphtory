@@ -4,52 +4,54 @@ import com.raphtory.client.QuerySender
 import com.raphtory.components.querymanager.Query
 import com.raphtory.graph.visitor.InterlayerEdge
 import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
+import com.raphtory.graph.visitor
 import com.raphtory.graph.visitor.Edge
-import com.raphtory.graph.visitor.Vertex
 
 /**
   * @note DoNotDocument
   */
-abstract class DefaultGraphOperations[G <: GraphOperations[G]](
+abstract class DefaultGraphOperations(
     private[api] val query: Query,
     private val querySender: QuerySender
-) extends GraphOperations[G] {
+) extends GraphOperations {
   override def setGlobalState(f: GraphState => Unit): G = addFunction(SetGlobalState(f))
 
-  override def vertexFilter(f: (Vertex) => Boolean): G =
+  override def vertexFilter(f: (V) => Boolean): G =
     step(vertex => if (!f(vertex)) vertex.remove())
 
-  override def vertexFilter(f: (Vertex, GraphState) => Boolean): G =
+  override def vertexFilter(f: (V, GraphState) => Boolean): G =
     step((vertex, graphState) => if (!f(vertex, graphState)) vertex.remove())
 
-  override def multilayerView: G =
-    addFunction(MultilayerView(None))
+  override def multilayerView: MG =
+    addMFunction(MultilayerView(None))
 
   override def multilayerView(
-      interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge]
-  ): G =
-    addFunction(MultilayerView(Some(interlayerEdgeBuilder)))
+      interlayerEdgeBuilder: visitor.Vertex => Seq[InterlayerEdge]
+  ): MG =
+    addMFunction(MultilayerView(Some(interlayerEdgeBuilder)))
 
-  override def reducedView: G =
-    addFunction(ReduceView(None, None))
+  override def reducedView: RG =
+    addRFunction(ReduceView(None, None))
 
-  override def reducedView(mergeStrategyMap: Map[String, PropertyMerge[_, _]]): G =
-    addFunction(ReduceView(None, Some(mergeStrategyMap)))
+  override def reducedView(
+      mergeStrategyMap: Map[String, PropertyMerge[_, _]]
+  ): RG =
+    addRFunction(ReduceView(None, Some(mergeStrategyMap)))
 
-  override def reducedView(mergeStrategy: PropertyMerge[_, _]): G =
-    addFunction(ReduceView(Some(mergeStrategy), None))
+  override def reducedView(mergeStrategy: PropertyMerge[_, _]): RG =
+    addRFunction(ReduceView(Some(mergeStrategy), None))
 
   override def reducedView(
       defaultMergeStrategy: PropertyMerge[_, _],
       mergeStrategyMap: Map[String, PropertyMerge[_, _]]
-  ): G =
-    addFunction(ReduceView(Some(defaultMergeStrategy), Some(mergeStrategyMap)))
+  ): RG =
+    addRFunction(ReduceView(Some(defaultMergeStrategy), Some(mergeStrategyMap)))
 
   override def aggregate(
       defaultMergeStrategy: PropertyMerge[_, _],
       mergeStrategyMap: Map[String, PropertyMerge[_, _]]
-  ): G =
-    addFunction(ReduceView(Some(defaultMergeStrategy), Some(mergeStrategyMap), aggregate = true))
+  ): RG =
+    addRFunction(ReduceView(Some(defaultMergeStrategy), Some(mergeStrategyMap), aggregate = true))
 
   override def edgeFilter(f: Edge => Boolean, pruneNodes: Boolean): G = {
     val filtered = step { vertex =>
@@ -73,33 +75,35 @@ abstract class DefaultGraphOperations[G <: GraphOperations[G]](
     else filtered
   }
 
-  override def step(f: (Vertex) => Unit): G = addFunction(Step(f))
+  override def step(f: (V) => Unit): G = addFunction(Step(f))
 
-  override def step(f: (Vertex, GraphState) => Unit): G =
+  override def step(f: (V) => Unit): G = addFunction(Step(f))
+
+  override def step(f: (V, GraphState) => Unit): G =
     addFunction(StepWithGraph(f))
 
   override def iterate(
-      f: (Vertex) => Unit,
+      f: (V) => Unit,
       iterations: Int,
       executeMessagedOnly: Boolean
   ): G = addFunction(Iterate(f, iterations, executeMessagedOnly))
 
   override def iterate(
-      f: (Vertex, GraphState) => Unit,
+      f: (V, GraphState) => Unit,
       iterations: Int,
       executeMessagedOnly: Boolean
   ): G = addFunction(IterateWithGraph(f, iterations, executeMessagedOnly))
 
-  override def select(f: Vertex => Row): Table =
+  override def select(f: V => Row): Table =
     addSelect(Select(f))
 
-  override def select(f: (Vertex, GraphState) => Row): Table =
+  override def select(f: (V, GraphState) => Row): Table =
     addSelect(SelectWithGraph(f))
 
   override def globalSelect(f: GraphState => Row): Table =
     addSelect(GlobalSelect(f))
 
-  override def explodeSelect(f: Vertex => List[Row]): Table =
+  override def explodeSelect(f: V => List[Row]): Table =
     addSelect(ExplodeSelect(f))
 
   override def clearMessages(): G =
@@ -108,6 +112,12 @@ abstract class DefaultGraphOperations[G <: GraphOperations[G]](
   private def addFunction(function: GraphFunction) =
     newGraph(query.copy(graphFunctions = query.graphFunctions.enqueue(function)), querySender)
 
+  private def addRFunction(function: GraphFunction) =
+    newRGraph(query.copy(graphFunctions = query.graphFunctions.enqueue(function)), querySender)
+
+  private def addMFunction(function: GraphFunction) =
+    newMGraph(query.copy(graphFunctions = query.graphFunctions.enqueue(function)), querySender)
+
   private def addSelect(function: GraphFunction) =
     new GenericTable(
             query.copy(graphFunctions = query.graphFunctions.enqueue(function)),
@@ -115,4 +125,6 @@ abstract class DefaultGraphOperations[G <: GraphOperations[G]](
     )
 
   protected def newGraph(query: Query, querySender: QuerySender): G
+  protected def newRGraph(query: Query, querySender: QuerySender): RG
+  protected def newMGraph(query: Query, querySender: QuerySender): MG
 }
