@@ -7,6 +7,7 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
+import scala.collection.concurrent._
 import scala.collection.mutable
 
 /** @note DoNotDocument */
@@ -15,8 +16,9 @@ class QueryManager(scheduler: MonixScheduler, conf: Config, topics: TopicReposit
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val currentQueries = mutable.Map[String, QueryHandler]()
+
   //private val watermarkGlobal                           = pulsarController.globalwatermarkPublisher() TODO: turn back on when needed
-  private val watermarks     = mutable.Map[Int, WatermarkTime]()
+  private val watermarks: Map[Int, WatermarkTime] = new TrieMap[Int, WatermarkTime]()
 
   private val listener = topics
     .registerListener(
@@ -87,6 +89,7 @@ class QueryManager(scheduler: MonixScheduler, conf: Config, topics: TopicReposit
       var safe    = true
       var minTime = Long.MaxValue
       var maxTime = Long.MinValue
+
       watermarks.foreach {
         case (key, watermark) =>
           safe = watermark.safe && safe
