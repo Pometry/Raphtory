@@ -1,8 +1,7 @@
 package com.raphtory.algorithms.generic.motif
 
-import com.raphtory.algorithms.api.Chain
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
+import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
 import com.raphtory.algorithms.generic.AdjPlus
 import com.raphtory.algorithms.generic.NodeList
 
@@ -13,9 +12,9 @@ case class SecondStep[VertexID](p: VertexID, q: VertexID, adj: Array[VertexID])
 case class CountMessage(count: Long)
 case class WedgeMessage[VertexID](p: VertexID, s: Array[VertexID])
 
-class AccumulateCounts() extends GraphAlgorithm {
+object AccumulateCounts extends GenericAlgorithm {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     graph
       .step { vertex =>
         //        count pr and qr squares and forward counts for accumulating
@@ -42,14 +41,11 @@ class AccumulateCounts() extends GraphAlgorithm {
       }
 }
 
-object AccumulateCounts {
-  def apply() = new AccumulateCounts()
-}
+object CountPR extends GenericAlgorithm {
 
-class CountPR() extends GraphAlgorithm {
-
-  override def apply(graph: GraphPerspective): GraphPerspective =
-    AccumulateCounts()(
+  override def apply[G <: GraphPerspective[G]](graph: G): G = {
+    val counts = AccumulateCounts
+    AccumulateCounts(
             graph
               .step { vertex =>
                 val adj = vertex.getState[Array[vertex.IDType]]("adjPlus")
@@ -70,16 +66,13 @@ class CountPR() extends GraphAlgorithm {
                 }
               }
     )
+  }
 }
 
-object CountPR {
-  def apply() = new CountPR()
-}
+object CountQR extends GenericAlgorithm {
 
-class CountQR() extends GraphAlgorithm {
-
-  override def apply(graph: GraphPerspective): GraphPerspective =
-    AccumulateCounts()(
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
+    AccumulateCounts(
             graph
               .step { vertex =>
                 val adj = vertex.getState[Array[vertex.IDType]]("adjPlus")
@@ -101,13 +94,9 @@ class CountQR() extends GraphAlgorithm {
     )
 }
 
-object CountQR {
-  def apply() = new CountQR()
-}
+object CountPQ extends GenericAlgorithm {
 
-class CountPQ() extends GraphAlgorithm {
-
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     graph
       .step { vertex =>
         //        pq wedge count messages (wedges are counted on lower-degree wedge vertex)
@@ -143,10 +132,6 @@ class CountPQ() extends GraphAlgorithm {
       }
 }
 
-object CountPQ {
-  def apply() = new CountPQ()
-}
-
 /**
   * {s}`SquareCount()`
   *   : Count undirected squares that a vertex is part of
@@ -170,8 +155,11 @@ object CountPQ {
   *  | ----------------- | ---------------------- |
   *  | {s}`name: String` | {s}`squareCount: Long` |
   */
-class SquareCount()
-        extends Chain(Seq(AdjPlus(), CountPR(), CountQR(), CountPQ(), NodeList("squareCount")))
+class SquareCount() extends NodeList(Seq("squareCount")) {
+
+  override def apply[G <: GraphPerspective[G]](graph: G): graph.Graph =
+    CountPQ(CountQR(CountPR(AdjPlus(graph))))
+}
 
 object SquareCount {
   def apply() = new SquareCount()

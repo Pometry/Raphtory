@@ -1,9 +1,10 @@
 package com.raphtory.algorithms.generic
 
 import com.raphtory.algorithms.api._
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Table
+import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Identity
 
 /**
   *  {s}`CBOD(label: String = "community", cutoff: Double = 0.0, labeler:GraphAlgorithm = Identity())`
@@ -43,11 +44,14 @@ import com.raphtory.algorithms.api.Table
   * [](com.raphtory.algorithms.generic.community.LPA)
   * ```
   */
-class CBOD(label: String = "community", cutoff: Double = 0.0, labeler: GraphAlgorithm = Identity())
-        extends GraphAlgorithm {
+class CBOD(
+    label: String = "community",
+    cutoff: Double = 0.0,
+    labeler: GenericAlgorithm = Identity()
+) extends GenericAlgorithm {
 
   // Run CBOD algorithm and sets "outlierscore" state
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     labeler(graph)
       .step { vertex => //Get neighbors' labels
         val vlabel = vertex.getState[Long](key = label, includeProperties = true)
@@ -61,7 +65,7 @@ class CBOD(label: String = "community", cutoff: Double = 0.0, labeler: GraphAlgo
       }
 
   // extract vertex ID and outlier score for vertices with outlierscore >= threshold
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
     graph
       .select { vertex =>
         Row(
@@ -77,7 +81,7 @@ object CBOD {
   def apply(
       label: String = "community",
       cutoff: Double = 0.0,
-      labeler: GraphAlgorithm = Identity()
+      labeler: GenericAlgorithm = Identity()
   ) =
     new CBOD(label, cutoff, labeler)
 }

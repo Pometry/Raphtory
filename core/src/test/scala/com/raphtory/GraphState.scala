@@ -1,13 +1,13 @@
 package com.raphtory
 
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
+import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
 
-class GraphState() extends GraphAlgorithm {
+class GraphState() extends GenericAlgorithm {
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
     graph.select { vertex =>
       val inDeg            = vertex.inDegree
       val outDeg           = vertex.outDegree

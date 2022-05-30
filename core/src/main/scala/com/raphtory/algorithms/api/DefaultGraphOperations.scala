@@ -10,11 +10,14 @@ import com.raphtory.graph.visitor.Edge
 /**
   * @note DoNotDocument
   */
-abstract class DefaultGraphOperations[+V <: visitor.Vertex](
-    private[api] val query: Query,
-    private val querySender: QuerySender
-) extends GraphOperations[V] {
-  override type G <: DefaultGraphOperations[V]
+trait DefaultGraphOperations[
+    V <: visitor.Vertex,
+    G <: DefaultGraphOperations[V, G, RG, MG],
+    RG <: DefaultGraphOperations[visitor.Vertex, RG, RG, MG],
+    MG <: DefaultMultilayerGraphOperations[MG, RG]
+] extends ConcreteGraphPerspective[V, G, RG, MG] { this: G =>
+  private[api] val query: Query
+  private[api] val querySender: QuerySender
 
   override def setGlobalState(f: GraphState => Unit): G = addFunction(SetGlobalState(f))
 
@@ -128,3 +131,9 @@ abstract class DefaultGraphOperations[+V <: visitor.Vertex](
   protected def newRGraph(query: Query, querySender: QuerySender): RG
   protected def newMGraph(query: Query, querySender: QuerySender): MG
 }
+
+trait DefaultMultilayerGraphOperations[
+    G <: DefaultMultilayerGraphOperations[G, RG],
+    RG <: DefaultGraphOperations[visitor.Vertex, RG, RG, G]
+] extends DefaultGraphOperations[visitor.ExplodedVertex, G, RG, G]
+        with ConcreteMultilayerGraphPerspective[G, RG] { this: G => }

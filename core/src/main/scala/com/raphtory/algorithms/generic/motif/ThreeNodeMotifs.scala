@@ -1,9 +1,9 @@
 package com.raphtory.algorithms.generic.motif
 
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
+import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
 import com.raphtory.graph.visitor.Vertex
 
 import scala.collection.mutable.ArrayBuffer
@@ -54,7 +54,7 @@ import scala.collection.mutable.ArrayBuffer
   *  | ----------------- | ------------------------- | --- | -------------------------- |
   *  | {s}`name: String` | {s}`motifCounts(0): Long` | ... | {s}`motifCounts(12): Long` |
   */
-class ThreeNodeMotifs() extends GraphAlgorithm {
+class ThreeNodeMotifs() extends GenericAlgorithm {
   //  edge direction constants
   val inoutEdge = 0
   val outEdge   = 1
@@ -116,7 +116,7 @@ class ThreeNodeMotifs() extends GraphAlgorithm {
       noEdge
   }
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     graph
       .step { vertex =>
         import vertex._
@@ -157,7 +157,7 @@ class ThreeNodeMotifs() extends GraphAlgorithm {
         vertex.setState("motifCounts", motifCounts)
       }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
     graph.select { vertex =>
       val motifCounts = vertex.getState[ArrayBuffer[Long]]("motifCounts")
       val row         = vertex.name() +: motifCounts

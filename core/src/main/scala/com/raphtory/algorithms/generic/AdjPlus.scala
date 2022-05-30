@@ -1,9 +1,10 @@
 package com.raphtory.algorithms.generic
 
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
+import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+
 import scala.math.Ordering.Implicits._
 
 /**
@@ -34,9 +35,9 @@ import scala.math.Ordering.Implicits._
   * [](com.raphtory.algorithms.generic.motif.SquareCount)
   * ```
   */
-class AdjPlus extends GraphAlgorithm {
+object AdjPlus extends GenericAlgorithm {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     graph.step(vertex => vertex.messageAllNeighbours((vertex.ID(), vertex.degree))).step { vertex =>
       import vertex._ // make ClassTag and Ordering for IDType available
       val degree = vertex.degree
@@ -52,7 +53,7 @@ class AdjPlus extends GraphAlgorithm {
       vertex.setState("adjPlus", adj)
     }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
 //    return adjPlus as edge list
     graph
       .step { vertex =>
@@ -64,8 +65,4 @@ class AdjPlus extends GraphAlgorithm {
       )
       .select(vertex => Row(vertex.name(), vertex.messageQueue[String]))
       .explode(row => row.getAs[List[String]](1).map(v => Row(row.get(0), v)))
-}
-
-object AdjPlus {
-  def apply() = new AdjPlus()
 }

@@ -1,8 +1,9 @@
 package com.raphtory.algorithms
 
 import com.raphtory.BaseCorrectnessTest
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
+import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.GenericReductionAlgorithm
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.algorithms.temporal.TemporalEdgeList
@@ -10,9 +11,9 @@ import com.raphtory.algorithms.temporal.TemporalNodeList
 import com.raphtory.algorithms.temporal.views.MultilayerView
 import com.raphtory.graph.visitor.PropertyMergeStrategy
 
-class WriteValue extends GraphAlgorithm {
+class WriteValue extends GenericReductionAlgorithm {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): graph.ReducedGraph =
     graph.multilayerView
       .step(vertex => vertex.setState("testing", 1))
       .reducedView(PropertyMergeStrategy.sum[Int])
@@ -25,6 +26,7 @@ object WriteValue {
 
 class MultilayerViewTest extends BaseCorrectnessTest {
   val edges = Seq("1,2,1", "2,1,2")
+
   test("test multilayer view") {
     assert(
             correctnessTest(

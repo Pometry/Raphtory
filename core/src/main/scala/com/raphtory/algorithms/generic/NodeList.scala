@@ -1,9 +1,9 @@
 package com.raphtory.algorithms.generic
 
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
+import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
 
 /**
   * {s}`NodeList(properties: Seq[String] = Seq.empty[String], defaults: Map[String, Any] = Map.empty[String, Any])`
@@ -50,9 +50,9 @@ import com.raphtory.algorithms.api.Table
 class NodeList(
     properties: Seq[String] = Seq.empty[String],
     defaults: Map[String, Any] = Map.empty[String, Any]
-) extends GraphAlgorithm {
+) extends GenericAlgorithm {
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
     graph.select { vertex =>
       val row = vertex.name() +: properties.map(name =>
         vertex.getStateOrElse(name, defaults.getOrElse(name, None), includeProperties = true)

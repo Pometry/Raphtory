@@ -2,8 +2,8 @@ package com.raphtory.algorithms
 
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.algorithms.generic.EdgeList
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
+import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
 import com.raphtory.algorithms.generic.filters.VertexFilter
 import com.raphtory.graph.visitor.Vertex
 

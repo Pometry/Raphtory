@@ -58,7 +58,7 @@ class LPA[T: Numeric](weight: String = "", maxIter: Int = 50, seed: Long = -1)
 
   private val SP = 0.2f // Stickiness probability
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     graph
       .step { vertex =>
         val lab = rnd.nextLong()
@@ -67,7 +67,7 @@ class LPA[T: Numeric](weight: String = "", maxIter: Int = 50, seed: Long = -1)
       }
       .iterate(vertex => lpa(vertex, weight, SP, rnd), maxIter, false)
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
     graph.select { vertex =>
       Row(
               vertex.name(),

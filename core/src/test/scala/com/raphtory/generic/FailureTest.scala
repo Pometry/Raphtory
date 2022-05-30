@@ -3,16 +3,16 @@ package com.raphtory.generic
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.BasicGraphBuilder
 import com.raphtory.algorithms.api.Alignment
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
+import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
 import com.raphtory.deployment.Raphtory
 import com.raphtory.output.FileOutputFormat
 import com.raphtory.spouts.SequenceSpout
 import org.scalatest.funsuite.AnyFunSuite
 
-class FailingAlgo extends GraphAlgorithm {
+class FailingAlgo extends GenericAlgorithm {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     graph.step(_ => throw new Exception("Algorithm failed"))
 }
 

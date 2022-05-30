@@ -4,9 +4,9 @@ import com.raphtory.algorithms.generic.dynamic.RandomWalk.Message
 import com.raphtory.algorithms.generic.dynamic.RandomWalk.WalkMessage
 import com.raphtory.algorithms.generic.dynamic.RandomWalk.StoreMessage
 import com.raphtory.algorithms.api._
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Table
+import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
 import com.raphtory.graph.visitor.Vertex
 import collection.mutable.ArrayBuffer
 import scala.util.Random
@@ -46,7 +46,7 @@ import scala.util.Random
   *
   *  Each row of the table corresponds to a single random walk and columns correspond to the vertex at a given step
   */
-class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends GraphAlgorithm {
+class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends GenericAlgorithm {
   protected val rnd: Random = if (seed != -1) new Random(seed) else new Random()
 
   protected def selectNeighbour(vertex: Vertex) = {
@@ -57,7 +57,7 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends GraphA
       neighbours(rnd.nextInt(neighbours.length))
   }
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     graph
       .step { vertex =>
         val walks = Array.fill(numWalks)(ArrayBuffer.empty[String])
@@ -94,7 +94,7 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends GraphA
         }
       }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
     graph
       .select(vertex => Row(vertex.getState[Array[ArrayBuffer[String]]]("walks")))
       .explode(row => row.getAs[Array[ArrayBuffer[String]]](0).map(r => Row(r.toSeq: _*)).toList)

@@ -53,7 +53,7 @@ class VertexQuantileFilter[T: Numeric: Bounded: ClassTag](
     noBins: Int = 1000
 ) extends NodeList() {
 
-  override def apply(graph: GraphPerspective): GraphPerspective = {
+  override def apply[G <: GraphPerspective[G]](graph: G): G = {
     // Check inputs are sound
     if (lower < 0.0f || upper > 1.0f || lower > upper) {
       logger.error("Lower and upper quantiles must be a floats with 0 <= lower < upper <= 1.0")

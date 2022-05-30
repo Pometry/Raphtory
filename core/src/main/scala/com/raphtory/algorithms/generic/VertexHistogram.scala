@@ -1,17 +1,17 @@
 package com.raphtory.algorithms.generic
 
 import com.raphtory.algorithms.api.Bounded
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Histogram
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
+import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
 import scala.reflect.ClassTag
 
 class VertexHistogram[T: Numeric: Bounded: ClassTag](propertyString: String, noBins: Int = 1000)
-        extends GraphAlgorithm {
+        extends GenericAlgorithm {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     graph
       .setGlobalState { state =>
         state.newMin[T]("propertyMin", retainState = true)
@@ -32,7 +32,7 @@ class VertexHistogram[T: Numeric: Bounded: ClassTag](propertyString: String, noB
         histogram += vertex.getState[T](propertyString)
       }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
     graph.globalSelect { state =>
       val rowSeq = Seq(state[T, T]("propertyMin").value, state[T, T]("propertyMax").value) ++ state[
               T,

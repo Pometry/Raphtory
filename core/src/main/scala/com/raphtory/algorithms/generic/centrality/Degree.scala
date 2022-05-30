@@ -34,7 +34,7 @@ import com.raphtory.algorithms.generic.NodeList
   */
 class Degree extends NodeList(Seq("inDegree", "outDegree", "degree")) {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     graph.step { vertex =>
       vertex.setState("inDegree", vertex.inDegree)
       vertex.setState("outDegree", vertex.outDegree)

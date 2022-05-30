@@ -35,7 +35,7 @@ class EdgeList(
     defaults: Map[String, Any] = Map.empty[String, Any]
 ) extends NeighbourNames {
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
     graph
       .explodeSelect { vertex =>
         val neighbourMap = vertex.getState[Map[vertex.IDType, String]]("neighbourNames")

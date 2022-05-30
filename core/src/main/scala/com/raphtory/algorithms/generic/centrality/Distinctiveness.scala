@@ -42,7 +42,7 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
     numeric: Numeric[T]
 ) extends NodeList(Seq("D1", "D2", "D3", "D4", "D5")) {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     graph
       .step { vertex =>
         val edges  = vertex.getEdges()

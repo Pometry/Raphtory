@@ -1,9 +1,9 @@
 package com.raphtory.algorithms.temporal.dynamic
 
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
+import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
 
 /**
   * {s}`GenericTaint((startTime: Int, infectedNodes: Iterable[Long], stopNodes: Set[Long] = Set())`
@@ -45,9 +45,9 @@ import com.raphtory.algorithms.api.Table
   *  | {s}`name: String` | {s}`edge.ID: Long` | {s}`event.time: Long` | {s}`name: String` |
   */
 class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set())
-        extends GraphAlgorithm {
+        extends GenericAlgorithm {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     graph
       // the step functions run on every single vertex ONCE at the beginning of the algorithm
       .step {
@@ -138,7 +138,7 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
       )
   // get all vertexes and their status
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
     graph
       .select(vertex =>
         Row(

@@ -1,6 +1,8 @@
 package com.raphtory.algorithms.generic.filters
 
-import com.raphtory.algorithms.api.{GraphPerspective, GraphState, Identity}
+import com.raphtory.algorithms.api.GraphPerspective
+import com.raphtory.algorithms.api.GraphState
+import com.raphtory.algorithms.api.algorithm.Identity
 import com.raphtory.graph.visitor.Edge
 
 /**
@@ -23,11 +25,14 @@ import com.raphtory.graph.visitor.Edge
   * ```
   */
 
-class EdgeFilterGraphState(f: (Edge, GraphState) => Boolean, pruneNodes: Boolean = true) extends Identity() {
+class EdgeFilterGraphState(f: (Edge, GraphState) => Boolean, pruneNodes: Boolean = true)
+        extends Identity() {
 
-  override def apply(graph: GraphPerspective): GraphPerspective = graph.edgeFilter(f, pruneNodes)
+  override def apply[G <: GraphPerspective[G]](graph: G): G = graph.edgeFilter(f, pruneNodes)
 }
 
 object EdgeFilterGraphState {
-  def apply(f: (Edge, GraphState) => Boolean, pruneNodes: Boolean = true) = new EdgeFilterGraphState(f, pruneNodes)
+
+  def apply(f: (Edge, GraphState) => Boolean, pruneNodes: Boolean = true) =
+    new EdgeFilterGraphState(f, pruneNodes)
 }

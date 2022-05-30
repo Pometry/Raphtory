@@ -47,7 +47,7 @@ class DiscreteSI(
     seed: Long = -1
 ) extends NodeList(Seq("infected")) {
 
-  override def apply(graph: GraphPerspective): GraphPerspective = {
+  override def apply[G <: GraphPerspective[G]](graph: G): G = {
     val randomiser = if (seed != -1) new Random(seed) else new Random()
 
     graph

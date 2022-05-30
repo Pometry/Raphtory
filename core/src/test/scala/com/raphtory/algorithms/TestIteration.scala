@@ -1,15 +1,15 @@
 package com.raphtory.algorithms
 
 import com.raphtory.BaseCorrectnessTest
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
+import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
 import com.raphtory.graph.visitor.Vertex
 
-class CountIterations(num_iters_before_vote: Int, num_iters: Int) extends GraphAlgorithm {
+class CountIterations(num_iters_before_vote: Int, num_iters: Int) extends GenericAlgorithm {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     graph
       .setGlobalState { graphState =>
         graphState.newMax[Int]("maxIterations")
@@ -28,7 +28,7 @@ class CountIterations(num_iters_before_vote: Int, num_iters: Int) extends GraphA
         graphState("maxIterations") += vertex.getState("iterations")
       }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
     graph.globalSelect(graphState => Row(graphState("maxIterations").value))
 }
 

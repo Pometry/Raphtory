@@ -42,7 +42,7 @@ import math.Ordering.Implicits._
   */
 class ConnectedComponents() extends NodeList(Seq("cclabel")) {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     graph
       .step { vertex =>
         vertex.setState("cclabel", vertex.ID)

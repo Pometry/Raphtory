@@ -43,7 +43,7 @@ import com.raphtory.algorithms.api.GraphPerspective
   */
 class TriangleCount() extends NodeList(Seq("triangleCount")) {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     graph
       .step { vertex =>
         vertex.setState("triangleCount", 0)

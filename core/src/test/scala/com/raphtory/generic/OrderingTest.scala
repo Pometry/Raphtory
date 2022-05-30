@@ -2,10 +2,10 @@ package com.raphtory.generic
 
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.BasicGraphBuilder
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
+import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.deployment.Raphtory
 import com.raphtory.generic.CheckHistory.isSortedIncreasing
@@ -20,9 +20,9 @@ import scala.util.Random
 import scala.math.Ordering.Implicits._
 import scala.reflect.ClassTag
 
-class CheckHistory extends GraphAlgorithm {
+class CheckHistory extends GenericAlgorithm {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     graph
       .setGlobalState { graphState =>
         graphState.newAll("vertexHistoryOrdered")
@@ -39,7 +39,7 @@ class CheckHistory extends GraphAlgorithm {
         graphState("vertexHistoryOrdered") += sorted
       }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
     graph.globalSelect(graphState =>
       Row(graphState("vertexHistoryOrdered").value, graphState("edgeHistoryOrdered").value)
     )

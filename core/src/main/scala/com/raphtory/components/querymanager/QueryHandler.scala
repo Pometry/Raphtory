@@ -1,6 +1,33 @@
 package com.raphtory.components.querymanager
 
+<<<<<<< ours
 import com.raphtory.algorithms.api._
+=======
+import com.raphtory.graph.PerspectiveController.DEFAULT_PERSPECTIVE_TIME
+import com.raphtory.graph.PerspectiveController.DEFAULT_PERSPECTIVE_WINDOW
+import Stages.SpawnExecutors
+import Stages.Stage
+import com.raphtory.algorithms.api.ClearChain
+import com.raphtory.algorithms.api.ExplodeSelect
+//import com.raphtory.algorithms.api.GenericGraphPerspective
+import com.raphtory.algorithms.api.GenericTable
+import com.raphtory.algorithms.api.GlobalSelect
+import com.raphtory.algorithms.api.GraphFunction
+import com.raphtory.algorithms.api.GraphStateImplementation
+import com.raphtory.algorithms.api.Iterate
+import com.raphtory.algorithms.api.IterateWithGraph
+import com.raphtory.algorithms.api.MultilayerView
+import com.raphtory.algorithms.api.OutputFormat
+import com.raphtory.algorithms.api.PerspectiveDone
+import com.raphtory.algorithms.api.ReduceView
+import com.raphtory.algorithms.api.Select
+import com.raphtory.algorithms.api.SelectWithGraph
+import com.raphtory.algorithms.api.SetGlobalState
+import com.raphtory.algorithms.api.Step
+import com.raphtory.algorithms.api.StepWithGraph
+import com.raphtory.algorithms.api.TableFunction
+import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+>>>>>>> theirs
 import com.raphtory.communication.TopicRepository
 import com.raphtory.communication.connectors.PulsarConnector
 import com.raphtory.components.Component

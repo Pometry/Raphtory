@@ -12,10 +12,10 @@ import com.typesafe.config.Config
   * @see [[com.raphtory.algorithms.api.TemporalGraph]]
   */
 private[raphtory] class DeployedTemporalGraph(
-    query: Query,
-    private val querySender: QuerySender,
-    private val stopCallBack: () => Unit,
-    private val conf: Config
+    override private[api] val query: Query,
+    override private[api] val querySender: QuerySender,
+    val stopCallBack: () => Unit,
+    val conf: Config
 ) extends TemporalGraph(query, querySender, conf) {
 
   class Deployment {
@@ -26,7 +26,7 @@ private[raphtory] class DeployedTemporalGraph(
   /** Access to the deployment to call functions upon it, e.g. graph.deployment.stop()
     *
     * @return Deployment reference
-    * */
+    */
   def deployment: Deployment = deploymentRef
 
   private[raphtory] def getConfig() = conf

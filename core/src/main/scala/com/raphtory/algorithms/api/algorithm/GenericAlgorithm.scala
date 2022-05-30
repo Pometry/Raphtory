@@ -1,0 +1,93 @@
+package com.raphtory.algorithms.api.algorithm
+
+import com.raphtory.algorithms.api.AbstractGraph
+import com.raphtory.algorithms.api.GraphPerspective
+import com.raphtory.algorithms.api.MultilayerGraphPerspective
+import com.raphtory.algorithms.api.Row
+import com.raphtory.algorithms.api.Table
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
+
+/** Base class for writing graph algorithms
+  *
+  *  `apply(graph: GraphPerspective): GraphPerspective`
+  *    :
+  *
+  *   `tabularise(graph: GraphPerspective): Table`
+  *    :
+  *
+  *   `run(graph: GraphPerspective): Unit`
+  *      :
+  *
+  *   `->(graphAlgorithm: GraphAlgorithm): Chain`
+  *      :
+  *
+  *        `graphAlgorithm: GraphAlgorithm)`
+  *          :
+  */
+trait GenericAlgorithm extends GenericallyApplicableAlgorithm {
+
+  case class ChainedGenericAlgorithm(first: GenericAlgorithm, second: GenericAlgorithm)
+          extends ChainedAlgorithm(first, second)
+          with GenericAlgorithm {
+
+    override def apply[G <: GraphPerspective[G]](graph: G): graph.Graph =
+      second(first(graph))
+
+    override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+      second.tabularise(graph)
+  }
+
+  case class ChainedMultilayerProjectionAlgorithm(
+      first: GenericAlgorithm,
+      second: MultilayerProjectionAlgorithm
+  ) extends ChainedAlgorithm(first, second)
+          with MultilayerProjectionAlgorithm {
+
+    override def apply[G <: GraphPerspective[G]](graph: G): graph.MultilayerGraph = {
+      val f = first(graph)
+      second(first(graph)).asInstanceOf[graph.MultilayerGraph]
+    }
+
+    override def tabularise[G <: MultilayerGraphPerspective[G]](graph: G): Table =
+      second.tabularise(graph)
+  }
+
+  case class ChainedGenericReductionAlgorithm(
+      first: GenericAlgorithm,
+      second: GenericReductionAlgorithm
+  ) extends ChainedAlgorithm(first, second)
+          with GenericReductionAlgorithm {
+
+    override def apply[G <: GraphPerspective[G]](graph: G): graph.ReducedGraph =
+      second(first(graph)).asInstanceOf[graph.ReducedGraph]
+
+    override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+      second.tabularise(graph)
+  }
+
+  /** Logger instance for writing out log messages */
+  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+
+  /** Default implementation returns the graph unchanged
+    *
+    * @param graph graph to run function upon
+    */
+  def apply[G <: GraphPerspective[G]](graph: G): graph.Graph =
+    graph
+
+  def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+    graph.globalSelect(_ => Row())
+
+  def run[G <: GraphPerspective[G]](graph: G): Table = tabularise(apply(graph))
+
+  override def ->(graphAlgorithm: GenericAlgorithm): GenericAlgorithm =
+    ChainedGenericAlgorithm(this, graphAlgorithm)
+
+  def ->(graphAlgorithm: MultilayerProjectionAlgorithm): MultilayerProjectionAlgorithm =
+    ChainedMultilayerProjectionAlgorithm(this, graphAlgorithm)
+
+  def ->(graphAlgorithm: GenericReductionAlgorithm): GenericReductionAlgorithm =
+    ChainedGenericReductionAlgorithm(this, graphAlgorithm)
+
+}

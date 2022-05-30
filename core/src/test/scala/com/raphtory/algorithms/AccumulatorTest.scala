@@ -1,17 +1,17 @@
 package com.raphtory.algorithms
 
 import com.raphtory.BaseCorrectnessTest
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.GraphState
 import com.raphtory.algorithms.api.GraphStateImplementation
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
+import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
 import com.raphtory.graph.visitor.Vertex
 
-class CountNodes extends GraphAlgorithm {
+class CountNodes extends GenericAlgorithm {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     graph
       .setGlobalState { globalState: GraphState =>
         globalState.newAdder[Int]("nodeCount")
@@ -20,7 +20,7 @@ class CountNodes extends GraphAlgorithm {
         globalState("nodeCount") += 1
       }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
     graph
       .globalSelect(graphState => Row(graphState("nodeCount").value))
 
@@ -30,9 +30,9 @@ object CountNodes {
   def apply() = new CountNodes
 }
 
-class CountNodesTwice extends GraphAlgorithm {
+class CountNodesTwice extends GenericAlgorithm {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     graph
       .setGlobalState { globalState: GraphState =>
         globalState.newAdder[Int]("nodeCount")
@@ -47,7 +47,7 @@ class CountNodesTwice extends GraphAlgorithm {
         globalState("nodeCountDoubled") += 1
       }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
     graph
       .globalSelect { graphState: GraphState =>
         Row(graphState("nodeCount").value, graphState("nodeCountDoubled").value)

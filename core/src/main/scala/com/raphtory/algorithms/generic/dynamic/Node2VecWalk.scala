@@ -3,10 +3,10 @@ package com.raphtory.algorithms.generic.dynamic
 import com.raphtory.algorithms.generic.dynamic.Node2VecWalk.Messages
 import com.raphtory.algorithms.generic.dynamic.Node2VecWalk.StoreMessage
 import com.raphtory.algorithms.generic.dynamic.Node2VecWalk.WalkMessage
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
+import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
 import scala.reflect.ClassTag
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
@@ -61,10 +61,11 @@ import com.raphtory.util.Sampling._
   *
   * [^node2vec]: [node2vec: Scalable Feature Learning for Networks](https://arxiv.org/abs/1607.00653)
   */
-class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) extends GraphAlgorithm {
+class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0)
+        extends GenericAlgorithm {
   private val rng = new Random() //TODO does this need a seed?
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     graph
       .step { vertex =>
         import vertex._
@@ -119,7 +120,7 @@ class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) exten
         }
       }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
     graph.select(vertex => Row(vertex.getState[ArrayBuffer[String]]("walk").toSeq: _*))
 }
 
