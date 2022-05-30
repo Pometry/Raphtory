@@ -103,7 +103,10 @@ object Raphtory {
   /** Returns default config using `ConfigFactory` for initialising parameters for
     * running Raphtory components. This uses the default application parameters
     */
-  def getDefaultConfig(customConfig: Map[String, Any] = Map(), distributed: Boolean): Config =
+  def getDefaultConfig(
+      customConfig: Map[String, Any] = Map(),
+      distributed: Boolean = false
+  ): Config =
     confBuilder(customConfig, distributed)
 
   private def confBuilder(customConfig: Map[String, Any] = Map(), distributed: Boolean): Config = {
