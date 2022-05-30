@@ -25,7 +25,8 @@ object Runner {
       }
     val graph        = Raphtory.stream(spout = source, graphBuilder = builder)
    graph
-     .from(0)
+     .walk("10 milliseconds")
+     .window("10 milliseconds")
      .execute(EdgeList())
      .writeTo(output)
   }
