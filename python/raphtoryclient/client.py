@@ -116,7 +116,7 @@ class client:
             graph: raphtory client graph object
         '''
         print("Creating Raphtory java object...")
-        customConfig = {"raphtory.deploy.id": self._raphtory_deployment_id, "raphtory.deploy.distributed": True}
+        customConfig = {"raphtory.deploy.id": self._raphtory_deployment_id}
         mc_run_map_dict = MapConverter().convert(customConfig, self.gateway._gateway_client)
         jmap = self.gateway.jvm.PythonUtil.toScalaMap(mc_run_map_dict)
         graph = self.gateway.jvm.Raphtory.connect(jmap)

@@ -186,5 +186,9 @@ object FileSpout {
     new FileSpout[T](source, lineConverter, config)
 
   def apply(source: String = "") =
-    new FileSpout[String](source, lineConverter = s => s, Raphtory.getDefaultConfig())
+    new FileSpout[String](
+            source,
+            lineConverter = s => s,
+            Raphtory.getDefaultConfig(distributed = false)
+    )
 }

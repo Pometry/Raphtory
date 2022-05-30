@@ -1,8 +1,5 @@
 package com.raphtory.config.telemetry
 
-import com.raphtory.config.ConfigHandler
-import com.raphtory.deployment.Raphtory
-import com.typesafe.config.Config
 import io.prometheus.client.Counter
 
 /** Adds metrics for Raphtory storage components including `GraphLens`, Vertex messaging and queue using Prometheus Client
@@ -11,11 +8,9 @@ import io.prometheus.client.Counter
   */
 object StorageTelemetry {
 
-  private val raphtoryConfig: Config = Raphtory.getDefaultConfig()
-
-  def pojoLensGraphSize(): Counter =
+  def pojoLensGraphSize: Counter =
     Counter.build
-      .namespace(raphtoryConfig.getString("raphtory.prometheus.namespaces.storage"))
+      .namespace("storage")
       .name("pojo_lens_graph_size")
       .help("Total graph size for Graph Lens")
       .labelNames("raphtory_jobID")
