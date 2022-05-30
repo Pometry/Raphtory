@@ -119,7 +119,7 @@ class client:
         customConfig = {"raphtory.deploy.id": self._raphtory_deployment_id, "raphtory.deploy.distributed": True}
         mc_run_map_dict = MapConverter().convert(customConfig, self.gateway._gateway_client)
         jmap = self.gateway.jvm.PythonUtil.toScalaMap(mc_run_map_dict)
-        graph = self.gateway.jvm.Raphtory.deployedGraph(jmap)
+        graph = self.gateway.jvm.Raphtory.connect(jmap)
         print("Created Raphtory java object.")
         return graph
 

@@ -25,7 +25,7 @@ object FileOutputRunner extends App {
 
   val source  = FileSpout(path)
   val builder = new LOTRGraphBuilder()
-  val graph   = Raphtory.batchLoad(spout = source, graphBuilder = builder)
+  val graph   = Raphtory.load(spout = source, graphBuilder = builder)
   val output  = FileOutputFormat("/tmp/raphtory")
 
   val queryHandler = graph

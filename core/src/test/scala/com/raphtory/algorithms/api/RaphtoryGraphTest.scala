@@ -8,7 +8,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class RaphtoryGraphTest extends AnyFunSuite {
   test("Test overall pipeline syntax for RaphtoryGraph class and related hierarchy") {
-    val graph = Raphtory.deployedGraph()
+    val graph = Raphtory.connect()
     val table = graph
       .from(100)
       .until(500)
@@ -41,7 +41,7 @@ class RaphtoryGraphTest extends AnyFunSuite {
   }
 
   test("Test timestamp format without milliseconds") {
-    val graph = Raphtory.deployedGraph()
+    val graph = Raphtory.connect()
     val query = graph
       .from("2020-02-25 23:12:08")
       .query
@@ -52,7 +52,7 @@ class RaphtoryGraphTest extends AnyFunSuite {
   }
 
   test("Test timestamp format with milliseconds") {
-    val graph = Raphtory.deployedGraph()
+    val graph = Raphtory.connect()
     val query = graph
       .from("2020-02-25 23:12:08.567")
       .query
@@ -63,7 +63,7 @@ class RaphtoryGraphTest extends AnyFunSuite {
   }
 
   test("Test timestamp format with date") {
-    val graph = Raphtory.deployedGraph()
+    val graph = Raphtory.connect()
     val query = graph
       .from("2020-02-25")
       .query
@@ -75,7 +75,7 @@ class RaphtoryGraphTest extends AnyFunSuite {
 
   test("Test timestamp format with custom configuration for 2 digit milliseconds") {
     val conf  = Map("raphtory.query.timeFormat" -> "yyyy-MM-dd HH:mm:ss[.SS]")
-    val graph = Raphtory.deployedGraph(conf)
+    val graph = Raphtory.connect(conf)
     val query = graph
       .from("2020-02-25 23:12:08.56")
       .query
@@ -87,7 +87,7 @@ class RaphtoryGraphTest extends AnyFunSuite {
 
   test("Test timestamp format with custom configuration for hours and minutes") {
     val conf  = Map("raphtory.query.timeFormat" -> "yyyy-MM-dd HH:mm")
-    val graph = Raphtory.deployedGraph(conf)
+    val graph = Raphtory.connect(conf)
     val query = graph
       .from("2020-02-25 12:23")
       .query
