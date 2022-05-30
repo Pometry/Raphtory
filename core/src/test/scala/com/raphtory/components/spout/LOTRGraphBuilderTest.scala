@@ -30,11 +30,10 @@ class LOTRGraphBuilderTest extends AnyFunSuite with BeforeAndAfter {
   val config: Config = Raphtory.getDefaultConfig(
           Map[String, Any](
                   ("raphtory.spout.topic", test_producer_topic),
-                  ("raphtory.partitions.serverCount", 1),
-                  ("raphtory.partitions.countPerServer", 1),
                   ("raphtory.deploy.id", test_graph_builder_topic),
                   ("raphtory.deploy.id", test_graph_builder_topic)
-          )
+          ),
+          distributed = false
   )
 
   val admin: PulsarAdmin                           =
