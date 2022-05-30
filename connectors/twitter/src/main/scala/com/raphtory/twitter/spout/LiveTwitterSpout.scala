@@ -33,7 +33,7 @@ class LiveTwitterSpout() extends Spout[Tweet] {
   val tweetQueue = new ConcurrentLinkedQueue[Tweet]()
   val spout      = new LiveTwitterAddSpout(tweetQueue)
 
-  override def close(): Unit = ???
+  override def close(): Unit = tweetQueue.stream().close()
 
   override def spoutReschedules(): Boolean = true
 
