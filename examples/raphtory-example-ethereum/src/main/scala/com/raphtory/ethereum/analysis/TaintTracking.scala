@@ -1,14 +1,14 @@
 package com.raphtory.ethereum.analysis
 
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
+import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
 
 class TaintAlgorithm(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set())
-        extends GraphAlgorithm {
+        extends GenericAlgorithm {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     graph
       // the step functions run on every single vertex ONCE at the beginning of the algorithm
       .step {
@@ -137,7 +137,7 @@ class TaintAlgorithm(startTime: Long, infectedNodes: Set[String], stopNodes: Set
               true
       )
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
     graph
       .select(vertex =>
         Row(

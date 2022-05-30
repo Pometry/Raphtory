@@ -1,9 +1,9 @@
 package com.raphtory.examples.twitter.higgsdataset.analysis
 
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
+import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
 import com.raphtory.graph.visitor.Edge
 
 /**
@@ -14,7 +14,7 @@ import com.raphtory.graph.visitor.Edge
   * the effects of bots further.
   */
 
-class MemberRank() extends GraphAlgorithm {
+class MemberRank() extends GenericAlgorithm {
 
   case class Score(negativeScore: Double = 0.0, positiveScore: Double = 0.0) {
 
@@ -26,7 +26,7 @@ class MemberRank() extends GraphAlgorithm {
     }
   }
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     graph
       .step { vertex =>
         //For this vertex get our Page Rank value
@@ -93,7 +93,7 @@ class MemberRank() extends GraphAlgorithm {
     *   5) New Negative Score
     *   6) New Positive Score
     */
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
     graph.select { vertex =>
       Row(
               vertex.getPropertyOrElse("name", vertex.ID()),

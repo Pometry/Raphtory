@@ -1,15 +1,15 @@
 package com.raphtory.examples.lotrTopic.analysis
 
-import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
+import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
 
-class DegreesSeparation(name: String = "Gandalf") extends GraphAlgorithm {
+class DegreesSeparation(name: String = "Gandalf") extends GenericAlgorithm {
 
   final val SEPARATION = "SEPARATION"
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply[G <: GraphPerspective[G]](graph: G): G =
     graph
       .step { vertex =>
         if (vertex.getPropertyOrElse("name", "") == name) {
@@ -32,7 +32,7 @@ class DegreesSeparation(name: String = "Gandalf") extends GraphAlgorithm {
               executeMessagedOnly = true
       )
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
     graph
       .select(vertex =>
         Row(vertex.getPropertyOrElse("name", "unknown"), vertex.getStateOrElse[Int](SEPARATION, -1))
