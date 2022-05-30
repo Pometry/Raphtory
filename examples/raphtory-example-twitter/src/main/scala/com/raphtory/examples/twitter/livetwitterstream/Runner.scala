@@ -16,7 +16,7 @@ object Runner {
 
   def main(args: Array[String]): Unit = {
     val source        = new LiveTwitterSpout()
-    val output  = FileOutputFormat("EdgeList")
+    val output  = PulsarOutputFormat("EdgeList")
     val builder =
       if (enableRetweetGraphBuilder)
         new LiveTwitterRetweetGraphBuilder()
