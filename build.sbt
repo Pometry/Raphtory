@@ -55,8 +55,7 @@ lazy val root = (project in file("."))
           examplesGab,
           examplesLotr,
           examplesPresto,
-          examplesTwitter,
-          examplesTwitterCircles
+          examplesTwitter
   )
 
 lazy val core = (project in file("core"))
@@ -149,11 +148,6 @@ lazy val examplesPresto =
 lazy val examplesTwitter =
   (project in file("examples/raphtory-example-twitter"))
     .dependsOn(core, connectorsTwitter)
-    .settings(assemblySettings)
-
-lazy val examplesTwitterCircles =
-  (project in file("examples/raphtory-example-twittercircles"))
-    .dependsOn(core)
     .settings(assemblySettings)
 
 // SETTINGS
