@@ -26,11 +26,11 @@ class SpoutExecutor[T](
   private val spoutReschedulesCount = telemetry.spoutReschedules.labels(deploymentID)
   private val fileLinesSent         = telemetry.fileLinesSent.labels(deploymentID)
 
-  private val rescheduler: () => Unit = () =>
-    {
-      spout.executeReschedule()
-      executeSpout()
-    }: Unit
+  private def rescheduler(): Unit = {
+    spout.executeReschedule()
+    executeSpout()
+  }: Unit
+
   private val builders                = topics.spout[T].endPoint
 
   override def stop(): Unit = {
@@ -59,7 +59,7 @@ class SpoutExecutor[T](
   private def reschedule(): Unit = {
     // TODO: Parameterise the delay
     logger.debug("Spout: Scheduling spout to poll again in 10 seconds.")
-    scheduledRun = scheduler.scheduleOnce(10.seconds, rescheduler)
+    scheduledRun = scheduler.scheduleOnce(1.seconds, rescheduler())
   }
 
 }

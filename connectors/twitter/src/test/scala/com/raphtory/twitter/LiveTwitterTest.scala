@@ -27,8 +27,8 @@ object LiveTwitterTest {
       }
     val graph        = Raphtory.stream[Tweet](spout, graphBuilder)
     graph
-      .walk(1000)
-      .past()
+      .walk("5 milliseconds")
+      .window("5 milliseconds")
       .execute(EdgeList())
       .writeTo(PulsarOutputFormat("EdgeList1"))
   }
