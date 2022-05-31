@@ -9,7 +9,7 @@ class DegreesSeparation(name: String = "Gandalf") extends GenericAlgorithm {
 
   final val SEPARATION = "SEPARATION"
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
         if (vertex.getPropertyOrElse("name", "") == name) {
@@ -32,7 +32,7 @@ class DegreesSeparation(name: String = "Gandalf") extends GenericAlgorithm {
               executeMessagedOnly = true
       )
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph
       .select(vertex =>
         Row(vertex.getPropertyOrElse("name", "unknown"), vertex.getStateOrElse[Int](SEPARATION, -1))

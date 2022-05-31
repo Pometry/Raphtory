@@ -26,7 +26,7 @@ class MemberRank() extends GenericAlgorithm {
     }
   }
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
         //For this vertex get our Page Rank value
@@ -93,7 +93,7 @@ class MemberRank() extends GenericAlgorithm {
     *   5) New Negative Score
     *   6) New Positive Score
     */
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph.select { vertex =>
       Row(
               vertex.getPropertyOrElse("name", vertex.ID()),

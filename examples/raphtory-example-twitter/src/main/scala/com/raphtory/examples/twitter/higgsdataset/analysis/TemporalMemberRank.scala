@@ -14,7 +14,7 @@ class TemporalMemberRank() extends GenericAlgorithm {
 
   case class NeighbourAndTime[T](id: T, time: Long)
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph.step { vertex =>
       // The original scores that someone received by their peers
 
@@ -45,7 +45,7 @@ class TemporalMemberRank() extends GenericAlgorithm {
       vertex.setState("times", times)
     }
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph
       .select { vertex =>
         Row(
