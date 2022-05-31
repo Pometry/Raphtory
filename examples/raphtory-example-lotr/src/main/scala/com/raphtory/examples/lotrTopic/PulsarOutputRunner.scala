@@ -20,7 +20,7 @@ object PulsarOutputRunner extends App {
   // Create Graph
   val source  = FileSpout(path)
   val builder = new LOTRGraphBuilder()
-  val graph   = Raphtory.batchLoad(spout = source, graphBuilder = builder)
+  val graph   = Raphtory.load(spout = source, graphBuilder = builder)
 
   // Run algorithms
   graph

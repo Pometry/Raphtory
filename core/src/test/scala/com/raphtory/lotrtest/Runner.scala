@@ -11,7 +11,7 @@ object Runner extends App {
 
   val spout        = FileSpout("/tmp")
   val graphBuilder = new LOTRGraphBuilder()
-  val graph        = Raphtory.batchLoad(spout, graphBuilder)
+  val graph        = Raphtory.load(spout, graphBuilder)
 
   graph.deployment.stop()
   println("should finish here but these threads are still alive")

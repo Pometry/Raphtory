@@ -53,7 +53,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
     val graphBuilder: GraphBuilder[T] = setGraphBuilder()
 
     graph = Option
-      .when(batchLoading())(Raphtory.batchLoad[T](spout, graphBuilder))
+      .when(batchLoading())(Raphtory.load[T](spout, graphBuilder))
       .fold(Raphtory.stream[T](spout, graphBuilder))(identity)
   }
 

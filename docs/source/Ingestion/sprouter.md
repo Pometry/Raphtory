@@ -7,7 +7,7 @@ Two classes help with this:
 - `Spouts` connect to the outside world, reading the data files and outputting individual tuples.
 - `Graph builders`, as the name suggests, convert these tuples into updates, building the graph.
 
-Once these classes are defined, they can be passed to the `stream()` or `batchLoad()` methods on the {scaladoc}`com.raphtory.deployment.Raphtory` object, which will use both components to build the {scaladoc}`com.raphtory.algorithms.TemporalGraph`. The difference here is that `stream()` will launch the full pipeline on top of [Apache Pulsar](https://pulsar.apache.org) (which you will see later in the tutorial) and assume new data can continuously arrive. `batchLoad()` on the other hand will compress the Spout and Graph Builder functions together, running as fast as possible, but only on a static dataset which does not change. For these initial examples we will only run `batchLoad()` as the data is static and we can set it going out of the box!
+Once these classes are defined, they can be passed to the `stream()` or `load()` methods on the {scaladoc}`com.raphtory.deployment.Raphtory` object, which will use both components to build the {scaladoc}`com.raphtory.algorithms.TemporalGraph`. The difference here is that `stream()` will launch the full pipeline on top of [Apache Pulsar](https://pulsar.apache.org) (which you will see later in the tutorial) and assume new data can continuously arrive. `load()` on the other hand will compress the Spout and Graph Builder functions together, running as fast as possible, but only on a static dataset which does not change. For these initial examples we will only run `load()` as the data is static and we can set it going out of the box!
 
 If you have the LOTR example already set up from the installation guide previously ([raphtory-example-lotr](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-lotr)) then please continue. If not, YOU SHALL NOT PASS! Please return there and complete this step first.  
 
@@ -29,7 +29,7 @@ Gollum,Bilbo,308
 Also, in the examples folder you will find `LOTRGraphBuilder.scala`, `DegreesSeparation.scala` and `FileOutputRunner.scala` which we will go through in detail. 
 
 ## Local Deployment
-First lets open `FileOutputRunner.scala`, which is our `main` class i.e. the file which we actually run. To do this we have made our class a scala app via `extends App`. This is a short hand for creating your runnable main class (if you come from a Java background) or can be viewed as a script if you are more comfortable with Python. Inside of this we can create spout and graphbuilder objects and combine them into a {scaladoc}`com.raphtory.algorithms.TemporalGraph` (via `batchLoad()`), which can be used to make queries:
+First lets open `FileOutputRunner.scala`, which is our `main` class i.e. the file which we actually run. To do this we have made our class a scala app via `extends App`. This is a short hand for creating your runnable main class (if you come from a Java background) or can be viewed as a script if you are more comfortable with Python. Inside of this we can create spout and graphbuilder objects and combine them into a {scaladoc}`com.raphtory.algorithms.TemporalGraph` (via `load()`), which can be used to make queries:
 
 ````scala
 object FileOutputRunner extends App {
@@ -40,7 +40,7 @@ object FileOutputRunner extends App {
 
   val source  = FileSpout(path)
   val builder = new LOTRGraphBuilder()
-  val graph   = Raphtory.batchLoad(spout = source, graphBuilder = builder)
+  val graph   = Raphtory.load(spout = source, graphBuilder = builder)
   val output  = FileOutputFormat("/tmp/raphtory")
 
   val queryHandler = graph
@@ -53,7 +53,7 @@ object FileOutputRunner extends App {
 }
 ````
 
-**Note:** Once `Raphtory.batchLoad` is called, we can start submitting queries to it - which can be seen in the snippet above. Don't worry about this yet as we will dive into it in the next section.
+**Note:** Once `Raphtory.load` is called, we can start submitting queries to it - which can be seen in the snippet above. Don't worry about this yet as we will dive into it in the next section.
 
 ## Spout
 

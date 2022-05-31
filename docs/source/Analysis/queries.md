@@ -3,7 +3,7 @@
 To run your implemented algorithm or any of the algorithms included in Raphtory (both [Generic](com.raphtory.algorithms.generic) and [Temporal](com.raphtory.algorithms.temporal)), you must submit them to the graph. We can again use the [Lord of the Rings
 graph](../Ingestion/sprouter.md) and the [degrees of separation algorithm](LOTR_six_degrees.md) to illustrate the query API.
 
-When running queries, our starting point is always the {scaladoc}`com.raphtory.algorithms.api.TemporalGraph` created from a call to `Raphtory.batchLoad()` or `Raphtory.stream()`. This contains the full history of your data over its lifetime. From this point, the overall process to get things done is as follows: 
+When running queries, our starting point is always the {scaladoc}`com.raphtory.algorithms.api.TemporalGraph` created from a call to `Raphtory.load()` or `Raphtory.stream()`. This contains the full history of your data over its lifetime. From this point, the overall process to get things done is as follows: 
 
 * First, you can filter the timeline to the segment you are interested in. 
 * Secondly, you can create a collection of perspectives over the selected timeline.
