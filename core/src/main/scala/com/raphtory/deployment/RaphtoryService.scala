@@ -39,14 +39,13 @@ abstract class RaphtoryService[T: ClassTag] {
   /** Initialise `GraphBuilder` for building graphs */
   def defineBuilder: GraphBuilder[T]
 
-  def batchIngestion(): Boolean
-
   def main(args: Array[String]): Unit =
     args(0) match {
-      case "spout"            => spoutDeploy()
-      case "builder"          => builderDeploy()
-      case "partitionmanager" => partitionDeploy()
-      case "querymanager"     => queryManagerDeploy()
+      case "spout"                 => spoutDeploy()
+      case "builder"               => builderDeploy()
+      case "partitionmanager"      => partitionDeploy(false)
+      case "batchpartitionmanager" => partitionDeploy(true)
+      case "querymanager"          => queryManagerDeploy()
     }
 
   /** Deploy spouts by using `SpoutExecutor` to ingest data from files and resources,
@@ -64,9 +63,9 @@ abstract class RaphtoryService[T: ClassTag] {
   /** Deploy partitions using Partition Manager for creating partitions as distributed
     * storage units with readers and writers. Uses Zookeeper to create partition IDs
     */
-  def partitionDeploy(): Unit =
+  def partitionDeploy(batched: Boolean): Unit =
     Raphtory.createPartitionManager[T](
-            batchLoading = batchIngestion(),
+            batchLoading = batched,
             spout = Some(defineSpout()),
             graphBuilder = Some(defineBuilder)
     )
