@@ -11,17 +11,41 @@ import scala.concurrent._
 import ExecutionContext.Implicits.global
 import scala.sys.process._
 
-object GraphStopTestRunner extends App {
-  val graph1 = Raphtory.stream(graphBuilder = BasicGraphBuilder(), spout = SequenceSpout("1,1,1"))
-  graph1.deployment.stop()
-  val graph2 = Raphtory.load(SequenceSpout("2,2,2"), BasicGraphBuilder())
-  graph2.deployment.stop()
+object StreamGraphStopTestRunner extends App {
+  val graph = Raphtory.stream(graphBuilder = BasicGraphBuilder(), spout = SequenceSpout("1,1,1"))
+  graph.deployment.stop()
+  Raphtory.shutdown()
+  println(ShutdownTest.signal)
+}
+
+object BatchGraphStopTestRunner extends App {
+  val graph = Raphtory.load(SequenceSpout("2,2,2"), BasicGraphBuilder())
+  graph.deployment.stop()
+  Raphtory.shutdown()
+  println(ShutdownTest.signal)
+}
+
+object ConnectGraphStopTestRunner extends App {
+  val graph = Raphtory.connect()
+  graph.disconnect()
   Raphtory.shutdown()
   println(ShutdownTest.signal)
 }
 
 class ShutdownTest extends AnyFunSuite {
-  test("Test that Raphtory deployment cleans up and exits") {
+  test("Test that Raphtory stream deployment cleans up and exits")(
+          shutdownTest("com.raphtory.generic.StreamGraphStopTestRunner")
+  )
+
+  test("Test that Raphtory batch deployment cleans up and exits")(
+          shutdownTest("com.raphtory.generic.BatchGraphStopTestRunner")
+  )
+
+  test("Test that Raphtory connection cleans up and exits")(
+          shutdownTest("com.raphtory.generic.ConnectGraphStopTestRunner")
+  )
+
+  def shutdownTest(runner: String): Unit = {
     val lock    = new Semaphore(1)
     var done    = false
     val timeout = 5
@@ -38,11 +62,11 @@ class ShutdownTest extends AnyFunSuite {
             },
             line => println(line)
     )
-//    Run test as separate process to check shutdown behaviour
-    val p       = Seq("sbt", "core/Test/runMain com.raphtory.generic.GraphStopTestRunner").run(plogger)
+    //    Run test as separate process to check shutdown behaviour
+    val p       = Seq("sbt", s"core/Test/runMain $runner").run(plogger)
     val f       =
       Future(blocking {
-// make sure to stop the wait if the process completes without printing "shutdown complete" due to errors
+        // make sure to stop the wait if the process completes without printing "shutdown complete" due to errors
         val e = p.exitValue()
         done = true
         lock.release()
@@ -65,4 +89,5 @@ class ShutdownTest extends AnyFunSuite {
 
 object ShutdownTest {
   val signal = "shutdown complete"
+
 }
