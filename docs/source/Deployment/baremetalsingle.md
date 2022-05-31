@@ -1,6 +1,6 @@
 # Bare metal
 
-The difference between the two from an analysis perspective is that `batchLoad` will block any submitted queries until the data has finished ingesting - allowing it to handle completely out of order data. On the other hand when using `stream` it is assumed new data is continuously arriving (in roughly chronological order) which Raphtory handles with a watermarking heuristic to decide what time is safe to analyse across all the partitions. Therefore, queries where the perspective time   fully ingested and synchronised allowed to progress and which should be blocked until the time they are set to run at has arrived and has been synchronised.
+The difference between the two from an analysis perspective is that `load` will block any submitted queries until the data has finished ingesting - allowing it to handle completely out of order data. On the other hand when using `stream` it is assumed new data is continuously arriving (in roughly chronological order) which Raphtory handles with a watermarking heuristic to decide what time is safe to analyse across all the partitions. Therefore, queries where the perspective time   fully ingested and synchronised allowed to progress and which should be blocked until the time they are set to run at has arrived and has been synchronised.
 
 
 ## Bare metal single node
@@ -18,20 +18,13 @@ To run Raphtory locally on a macbook/laptop there are several ways this can be a
 
 ## Using Raphtory as a client
 
-Finally, if you have a graph deployed somewhere else and want to submit new queries to it you can do this via the `deployedGraph(customConfig)` method in the `Raphtory` object. The `customConfig` here is to provide the appropriate configuration to locate the graph (i.e. the akka/pulsar address). If the graph is deployed in the same machine using the default Raphtory configuration you can omit this configuration parameter:
+Finally, if you have a graph deployed somewhere else and want to submit new queries to it you can do this via the `connect(customConfig)` method in the `Raphtory` object. The `customConfig` here is to provide the appropriate configuration to locate the graph (i.e. the akka/pulsar address). If the graph is deployed in the same machine using the default Raphtory configuration you can omit this configuration parameter:
 
 ```scala
-val graph = Raphtory.deployedGraph()
+val graph = Raphtory.connect()
 ```
 
 From this point, you can keep working with your graph as we have done so far.
-
-Additionally, you still have access to the `RaphtoryClient` class provided in previous releases of Raphtory. This is, however, deprecated and will be removed in later versions:
-
-```scala
-val client = Raphtory.createClient()
-client.pointQuery(ConnectedComponents(), output, 10000)
-```
 
 ## Bare metal distributed -- Raphtory services
 
