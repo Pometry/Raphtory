@@ -60,7 +60,7 @@ import scala.util.Random
   */
 class SLPA(iterNumber: Int = 50, speakerRule: Rule, listenerRule: Rule) extends GenericAlgorithm {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step {
         // Initialise vertex memory
@@ -85,7 +85,7 @@ class SLPA(iterNumber: Int = 50, speakerRule: Rule, listenerRule: Rule) extends 
               iterations = iterNumber
       )
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph.select { vertex =>
       val memory = vertex.getState[mutable.Queue[Long]]("memory")
       Row(vertex.name(), "[" + memory.mkString(" ") + "]")

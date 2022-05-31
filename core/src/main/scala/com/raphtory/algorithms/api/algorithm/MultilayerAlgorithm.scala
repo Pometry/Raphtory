@@ -1,6 +1,5 @@
 package com.raphtory.algorithms.api.algorithm
 
-import com.raphtory.algorithms.api.AbstractGraph
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.MultilayerGraphPerspective
 import com.raphtory.algorithms.api.Row
@@ -14,10 +13,12 @@ trait MultilayerAlgorithm extends BaseGraphAlgorithm {
   ) extends ChainedAlgorithm(first, second)
           with MultilayerAlgorithm {
 
-    override def apply[G <: MultilayerGraphPerspective[G]](graph: G): graph.MultilayerGraph =
+    override def apply(graph: MultilayerGraphPerspective): graph.MultilayerGraph = {
+      val t = first(graph)
       second(first(graph))
+    }
 
-    override def tabularise[G <: MultilayerGraphPerspective[G]](graph: G): Table =
+    override def tabularise(graph: MultilayerGraphPerspective): Table =
       second.tabularise(graph)
   }
 
@@ -27,10 +28,10 @@ trait MultilayerAlgorithm extends BaseGraphAlgorithm {
   ) extends ChainedAlgorithm(first, second)
           with MultilayerAlgorithm {
 
-    override def apply[G <: MultilayerGraphPerspective[G]](graph: G): graph.MultilayerGraph =
+    override def apply(graph: MultilayerGraphPerspective): graph.MultilayerGraph =
       second(first(graph))
 
-    override def tabularise[G <: MultilayerGraphPerspective[G]](graph: G): Table =
+    override def tabularise(graph: MultilayerGraphPerspective): Table =
       second.tabularise(graph)
   }
 
@@ -40,26 +41,26 @@ trait MultilayerAlgorithm extends BaseGraphAlgorithm {
   ) extends ChainedAlgorithm(first, second)
           with MultilayerReductionAlgorithm {
 
-    override def apply[G <: MultilayerGraphPerspective[G]](graph: G): graph.ReducedGraph =
+    override def apply(graph: MultilayerGraphPerspective): graph.ReducedGraph =
       second(first(graph))
 
-    override def tabularise[G <: GraphPerspective[G]](graph: G): Table = second.tabularise(graph)
+    override def tabularise(graph: GraphPerspective): Table = second.tabularise(graph)
   }
 
   /** Default implementation returns the graph unchanged
     *
     * @param graph graph to run function upon
     */
-  def apply[G <: MultilayerGraphPerspective[G]](graph: G): graph.MultilayerGraph
+  def apply(graph: MultilayerGraphPerspective): graph.MultilayerGraph
 
   /** Return tabularised results (default implementation returns empty table)
     *
     * @param graph graph to run function upon
     */
-  def tabularise[G <: MultilayerGraphPerspective[G]](graph: G): Table =
+  def tabularise(graph: MultilayerGraphPerspective): Table =
     graph.globalSelect(_ => Row())
 
-  def run[G <: MultilayerGraphPerspective[G]](graph: G): Table = tabularise(apply(graph))
+  def run(graph: MultilayerGraphPerspective): Table = tabularise(apply(graph))
 
   /** Create a new algorithm [](com.raphtory.algorithms.api.Chain) which runs this algorithm first before
     * running the other algorithm.

@@ -44,7 +44,7 @@ import math.Numeric.Implicits._
 class WeightedDegree[T: Numeric](weightProperty: String = "weight")
         extends NodeList(Seq("inStrength", "outStrength", "totStrength")) {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph.step { vertex =>
       val inWeight: T  = vertex.weightedInDegree(weightProperty = weightProperty)
       vertex.setState("inStrength", inWeight)

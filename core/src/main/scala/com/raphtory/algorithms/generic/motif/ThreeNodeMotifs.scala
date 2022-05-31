@@ -116,7 +116,7 @@ class ThreeNodeMotifs() extends GenericAlgorithm {
       noEdge
   }
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
         import vertex._
@@ -157,7 +157,7 @@ class ThreeNodeMotifs() extends GenericAlgorithm {
         vertex.setState("motifCounts", motifCounts)
       }
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph.select { vertex =>
       val motifCounts = vertex.getState[ArrayBuffer[Long]]("motifCounts")
       val row         = vertex.name() +: motifCounts

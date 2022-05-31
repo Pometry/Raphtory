@@ -61,7 +61,7 @@ class NodeInformation(initialID: Long, hopsAway: Int = 1) extends GenericAlgorit
   case class EdgeInfo(source: String, target: String, metadata: EdgeData)
   case class EdgeData(value: Int)
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
         if (vertex.ID() == initialID) {
@@ -79,7 +79,7 @@ class NodeInformation(initialID: Long, hopsAway: Int = 1) extends GenericAlgorit
               true
       )
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph
       .select { vertex =>
         val vertexID                         = vertex.ID()

@@ -78,7 +78,7 @@ class PrisonersDilemma(
   final private val UPDATESTEP = 1
 
   // Payoff Matrix [(b-c, b-c) , (-c,b), (b,-c), (0,0)]
-  override def apply[G <: GraphPerspective[G]](graph: G): G = {
+  override def apply(graph: GraphPerspective): graph.Graph = {
 
     graph.step { vertex =>
       vertex.getOrSetState[Int]("cooperator", if (rnd.nextFloat() < proportionCoop) 0 else 1)
@@ -133,7 +133,7 @@ class PrisonersDilemma(
     vertex.setState("step", PLAYSTEP)
   }
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph.select { vertex =>
       val history = vertex.getState[mutable.Queue[Int]]("cooperationHistory")
       Row(vertex.name(), "[" + history.mkString(" ") + "]")

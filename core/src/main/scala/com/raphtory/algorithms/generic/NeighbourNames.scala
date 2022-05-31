@@ -25,7 +25,7 @@ import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
   */
 class NeighbourNames extends GenericAlgorithm {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step(vertex => vertex.messageAllNeighbours((vertex.ID(), vertex.name())))
       .step { vertex =>

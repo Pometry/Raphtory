@@ -47,7 +47,7 @@ import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
 class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set())
         extends GenericAlgorithm {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       // the step functions run on every single vertex ONCE at the beginning of the algorithm
       .step {
@@ -138,7 +138,7 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
       )
   // get all vertexes and their status
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph
       .select(vertex =>
         Row(

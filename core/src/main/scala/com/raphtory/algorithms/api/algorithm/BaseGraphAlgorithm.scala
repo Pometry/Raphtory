@@ -1,6 +1,5 @@
 package com.raphtory.algorithms.api.algorithm
 
-import com.raphtory.algorithms.api.AbstractGraph
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.MultilayerGraphPerspective
 import com.raphtory.algorithms.api.Row
@@ -20,11 +19,9 @@ trait BaseGraphAlgorithm extends Serializable {
 }
 
 trait GenericallyApplicableAlgorithm extends BaseGraphAlgorithm {
-  def apply[G <: GraphPerspective[G]](graph: G): AbstractGraph
+  def apply(graph: GraphPerspective): GraphPerspective
 
-  def tabularise[G <: MultilayerGraphPerspective[G]](graph: G): Table
-
-  def run[G <: GraphPerspective[G]](graph: G): Table
+  def run(graph: GraphPerspective): Table
 }
 
 abstract class ChainedAlgorithm(first: BaseGraphAlgorithm, second: BaseGraphAlgorithm)

@@ -5,9 +5,7 @@ import com.raphtory.algorithms.api.MultilayerGraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
-trait GenericReductionAlgorithm
-        extends MultilayerReductionAlgorithm
-        with GenericallyApplicableAlgorithm {
+trait GenericReductionAlgorithm extends GenericallyApplicableAlgorithm {
 
   case class ChainedGenericReductionAlgorithm(
       first: GenericReductionAlgorithm,
@@ -15,10 +13,10 @@ trait GenericReductionAlgorithm
   ) extends ChainedAlgorithm(first, second)
           with GenericReductionAlgorithm {
 
-    override def apply[G <: GraphPerspective[G]](graph: G): graph.ReducedGraph =
+    override def apply(graph: GraphPerspective): graph.ReducedGraph =
       second(first(graph))
 
-    override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+    override def tabularise(graph: GraphPerspective): Table =
       second.tabularise(graph)
   }
 
@@ -28,10 +26,10 @@ trait GenericReductionAlgorithm
   ) extends ChainedAlgorithm(first, second)
           with GenericReductionAlgorithm {
 
-    override def apply[G <: GraphPerspective[G]](graph: G): graph.ReducedGraph =
+    override def apply(graph: GraphPerspective): graph.ReducedGraph =
       second(first(graph))
 
-    override def tabularise[G <: GraphPerspective[G]](graph: G): Table = second.tabularise(graph)
+    override def tabularise(graph: GraphPerspective): Table = second.tabularise(graph)
   }
 
   case class ChainedMultilayerProjectionAlgorithm(
@@ -40,10 +38,10 @@ trait GenericReductionAlgorithm
   ) extends ChainedAlgorithm(first, second)
           with MultilayerProjectionAlgorithm {
 
-    override def apply[G <: GraphPerspective[G]](graph: G): graph.MultilayerGraph =
+    override def apply(graph: GraphPerspective): graph.MultilayerGraph =
       second(first(graph))
 
-    override def tabularise[G <: MultilayerGraphPerspective[G]](graph: G): Table =
+    override def tabularise(graph: MultilayerGraphPerspective): Table =
       second.tabularise(graph)
   }
 
@@ -51,16 +49,16 @@ trait GenericReductionAlgorithm
     *
     * @param graph graph to run function upon
     */
-  def apply[G <: GraphPerspective[G]](graph: G): graph.ReducedGraph
+  def apply(graph: GraphPerspective): graph.ReducedGraph
 
   /** Return tabularised results (default implementation returns empty table)
     *
     * @param graph graph to run function upon
     */
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  def tabularise(graph: GraphPerspective): Table =
     graph.globalSelect(_ => Row())
 
-  override def run[G <: GraphPerspective[G]](graph: G): Table = tabularise(apply(graph))
+  override def run(graph: GraphPerspective): Table = tabularise(apply(graph))
 
   /** Create a new algorithm [](com.raphtory.algorithms.api.Chain) which runs this algorithm first before
     * running the other algorithm.
@@ -70,10 +68,10 @@ trait GenericReductionAlgorithm
   override def ->(graphAlgorithm: GenericAlgorithm): GenericReductionAlgorithm =
     ChainedGenericReductionAlgorithm(this, graphAlgorithm)
 
-  override def ->(graphAlgorithm: GenericReductionAlgorithm): GenericReductionAlgorithm =
+  def ->(graphAlgorithm: GenericReductionAlgorithm): GenericReductionAlgorithm =
     Chained2GenericReductionAlgorithm(this, graphAlgorithm)
 
-  override def ->(graphAlgorithm: MultilayerProjectionAlgorithm): MultilayerProjectionAlgorithm =
+  def ->(graphAlgorithm: MultilayerProjectionAlgorithm): MultilayerProjectionAlgorithm =
     ChainedMultilayerProjectionAlgorithm(this, graphAlgorithm)
 
 }

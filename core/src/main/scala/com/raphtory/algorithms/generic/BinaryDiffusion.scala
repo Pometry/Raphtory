@@ -15,7 +15,7 @@ class BinaryDiffusion(
   def randomlyInfect(vertex: Vertex): Unit =
     vertex.getOutEdges().foreach(edge => if (randomiser.nextBoolean()) edge.send(infectedStatus))
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
         // if no infected nodes are given then randomly infect all nodes

@@ -7,7 +7,7 @@ import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
 
 class TimeSeriesGraphState() extends GenericAlgorithm {
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph.select { vertex =>
       val propertyhistory =
         vertex.getPropertySet().toArray.map(x => vertex.getTimeSeriesPropertyHistory(x).size).sum

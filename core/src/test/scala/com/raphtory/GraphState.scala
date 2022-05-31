@@ -7,7 +7,7 @@ import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
 
 class GraphState() extends GenericAlgorithm {
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph.select { vertex =>
       val inDeg            = vertex.inDegree
       val outDeg           = vertex.outDegree

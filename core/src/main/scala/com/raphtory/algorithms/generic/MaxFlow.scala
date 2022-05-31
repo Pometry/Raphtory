@@ -69,7 +69,7 @@ class MaxFlow[T](
 )(implicit numeric: Numeric[T])
         extends GenericAlgorithm {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G = {
+  override def apply(graph: GraphPerspective): graph.Graph = {
     val n =
       1 // graph.nodeCount().toDouble TODO: nodeCount() is not available anymore, needs a solution
     graph
@@ -168,7 +168,7 @@ class MaxFlow[T](
       )
   }
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph.explodeSelect(vertex =>
       if (vertex.name() == source)
         List(Row(vertex.getState[mutable.Map[Long, T]]("flow").values.sum))

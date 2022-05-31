@@ -50,7 +50,7 @@ class Descendants(
     strict: Boolean = true
 ) extends GenericAlgorithm {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
         if (vertex.name() == seed) {
@@ -83,7 +83,7 @@ class Descendants(
               iterations = 100
       )
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph.select(vertex => Row(vertex.name(), vertex.getStateOrElse[Boolean]("descendant", false)))
 }
 

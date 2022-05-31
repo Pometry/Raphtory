@@ -54,7 +54,7 @@ class WeightedPageRank[T](
 )(implicit numeric: Numeric[T])
         extends NodeList(Seq("prlabel")) {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
         val initLabel         = 1.0f

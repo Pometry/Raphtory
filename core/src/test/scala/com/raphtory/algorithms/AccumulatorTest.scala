@@ -11,7 +11,7 @@ import com.raphtory.graph.visitor.Vertex
 
 class CountNodes extends GenericAlgorithm {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .setGlobalState { globalState: GraphState =>
         globalState.newAdder[Int]("nodeCount")
@@ -20,7 +20,7 @@ class CountNodes extends GenericAlgorithm {
         globalState("nodeCount") += 1
       }
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph
       .globalSelect(graphState => Row(graphState("nodeCount").value))
 
@@ -32,7 +32,7 @@ object CountNodes {
 
 class CountNodesTwice extends GenericAlgorithm {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .setGlobalState { globalState: GraphState =>
         globalState.newAdder[Int]("nodeCount")
@@ -47,7 +47,7 @@ class CountNodesTwice extends GenericAlgorithm {
         globalState("nodeCountDoubled") += 1
       }
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph
       .globalSelect { graphState: GraphState =>
         Row(graphState("nodeCount").value, graphState("nodeCountDoubled").value)

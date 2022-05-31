@@ -71,7 +71,7 @@ class MultilayerLPA(
   private val rnd: Random = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)
   private val SP          = 0.2f // Stickiness probability
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G = {
+  override def apply(graph: GraphPerspective): graph.Graph = {
     def interLayerWeights(omega: Double, v: Vertex, ts: Long): Float =
       omega match {
         case -1 =>
@@ -171,7 +171,7 @@ class MultilayerLPA(
       )
   }
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph
       .select { vertex =>
         Row(

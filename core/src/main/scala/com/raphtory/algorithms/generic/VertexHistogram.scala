@@ -11,7 +11,7 @@ import scala.reflect.ClassTag
 class VertexHistogram[T: Numeric: Bounded: ClassTag](propertyString: String, noBins: Int = 1000)
         extends GenericAlgorithm {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .setGlobalState { state =>
         state.newMin[T]("propertyMin", retainState = true)
@@ -32,7 +32,7 @@ class VertexHistogram[T: Numeric: Bounded: ClassTag](propertyString: String, noB
         histogram += vertex.getState[T](propertyString)
       }
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph.globalSelect { state =>
       val rowSeq = Seq(state[T, T]("propertyMin").value, state[T, T]("propertyMax").value) ++ state[
               T,

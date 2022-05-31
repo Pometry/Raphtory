@@ -52,7 +52,7 @@ class NodeList(
     defaults: Map[String, Any] = Map.empty[String, Any]
 ) extends GenericAlgorithm {
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph.select { vertex =>
       val row = vertex.name() +: properties.map(name =>
         vertex.getStateOrElse(name, defaults.getOrElse(name, None), includeProperties = true)

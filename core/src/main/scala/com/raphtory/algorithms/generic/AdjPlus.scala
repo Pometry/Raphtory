@@ -37,7 +37,7 @@ import scala.math.Ordering.Implicits._
   */
 object AdjPlus extends GenericAlgorithm {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph.step(vertex => vertex.messageAllNeighbours((vertex.ID(), vertex.degree))).step { vertex =>
       import vertex._ // make ClassTag and Ordering for IDType available
       val degree = vertex.degree
@@ -53,7 +53,7 @@ object AdjPlus extends GenericAlgorithm {
       vertex.setState("adjPlus", adj)
     }
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
 //    return adjPlus as edge list
     graph
       .step { vertex =>

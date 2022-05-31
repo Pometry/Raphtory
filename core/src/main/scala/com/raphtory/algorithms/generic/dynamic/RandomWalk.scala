@@ -57,7 +57,7 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends Generi
       neighbours(rnd.nextInt(neighbours.length))
   }
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
         val walks = Array.fill(numWalks)(ArrayBuffer.empty[String])
@@ -94,7 +94,7 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends Generi
         }
       }
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph
       .select(vertex => Row(vertex.getState[Array[ArrayBuffer[String]]]("walks")))
       .explode(row => row.getAs[Array[ArrayBuffer[String]]](0).map(r => Row(r.toSeq: _*)).toList)

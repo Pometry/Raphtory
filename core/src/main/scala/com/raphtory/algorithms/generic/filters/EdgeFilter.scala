@@ -26,7 +26,7 @@ import com.raphtory.graph.visitor.Edge
 
 class EdgeFilter(f: Edge => Boolean, pruneNodes: Boolean = true) extends Identity() {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph.edgeFilter(f, pruneNodes)
 
 }

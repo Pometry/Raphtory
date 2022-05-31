@@ -14,7 +14,7 @@ case class WedgeMessage[VertexID](p: VertexID, s: Array[VertexID])
 
 object AccumulateCounts extends GenericAlgorithm {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
         //        count pr and qr squares and forward counts for accumulating
@@ -43,7 +43,7 @@ object AccumulateCounts extends GenericAlgorithm {
 
 object CountPR extends GenericAlgorithm {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G = {
+  override def apply(graph: GraphPerspective): graph.Graph = {
     val counts = AccumulateCounts
     AccumulateCounts(
             graph
@@ -71,7 +71,7 @@ object CountPR extends GenericAlgorithm {
 
 object CountQR extends GenericAlgorithm {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     AccumulateCounts(
             graph
               .step { vertex =>
@@ -96,7 +96,7 @@ object CountQR extends GenericAlgorithm {
 
 object CountPQ extends GenericAlgorithm {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
         //        pq wedge count messages (wedges are counted on lower-degree wedge vertex)
@@ -157,7 +157,7 @@ object CountPQ extends GenericAlgorithm {
   */
 class SquareCount() extends NodeList(Seq("squareCount")) {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): graph.Graph =
+  override def apply(graph: GraphPerspective): graph.Graph =
     CountPQ(CountQR(CountPR(AdjPlus(graph))))
 }
 

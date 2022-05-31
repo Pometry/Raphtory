@@ -75,7 +75,7 @@ class WattsCascade[T: Threshold](
     }
   }
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
         if (infectedSeed.contains(vertex.name())) {

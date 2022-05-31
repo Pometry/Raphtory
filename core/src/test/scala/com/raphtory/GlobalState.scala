@@ -16,7 +16,7 @@ import com.raphtory.graph.visitor.Vertex
 
 class GlobalState extends GenericAlgorithm {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .setGlobalState { graphState =>
         graphState.newMax[Int]("name length max")
@@ -38,7 +38,7 @@ class GlobalState extends GenericAlgorithm {
           graphState("name length multiplier") += totalNameLength.toLong
       }
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph.globalSelect(graphState =>
       Row(
               graphState("name length max").value,

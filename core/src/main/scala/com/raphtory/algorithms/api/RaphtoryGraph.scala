@@ -19,10 +19,7 @@ import com.raphtory.graph.visitor.Vertex
 private[raphtory] class RaphtoryGraph(
     override private[api] val query: Query,
     override private[api] val querySender: QuerySender
-) extends GraphExecutor[Vertex, RaphtoryGraph, RaphtoryGraph, MultilayerRaphtoryGraph](
-                query,
-                querySender
-        ) {
+) extends DefaultReducedGraphOperations[RaphtoryGraph, MultilayerRaphtoryGraph] {
 
   /** Apply f over itself and return the result. `graph.transform(f)` is equivalent to `f(graph)`
     * @param f function to apply
@@ -34,9 +31,6 @@ private[raphtory] class RaphtoryGraph(
   ): RaphtoryGraph =
     new RaphtoryGraph(query, querySender)
 
-  override protected def newRGraph(query: Query, querySender: QuerySender): RaphtoryGraph =
-    newGraph(query, querySender)
-
   override protected def newMGraph(
       query: Query,
       querySender: QuerySender
@@ -47,10 +41,7 @@ private[raphtory] class RaphtoryGraph(
 class MultilayerRaphtoryGraph(
     override private[api] val query: Query,
     override private[api] val querySender: QuerySender
-) extends MultilayerGraphExecutor[
-                MultilayerRaphtoryGraph,
-                RaphtoryGraph
-        ](query, querySender) {
+) extends DefaultMultilayerGraphOperations[MultilayerRaphtoryGraph, RaphtoryGraph] {
 
   override protected def newGraph(
       query: Query,
@@ -60,10 +51,4 @@ class MultilayerRaphtoryGraph(
 
   override protected def newRGraph(query: Query, querySender: QuerySender): RaphtoryGraph =
     new RaphtoryGraph(query, querySender)
-
-  override protected def newMGraph(
-      query: Query,
-      querySender: QuerySender
-  ): MultilayerRaphtoryGraph =
-    newGraph(query, querySender)
 }

@@ -51,7 +51,7 @@ class CBOD(
 ) extends GenericAlgorithm {
 
   // Run CBOD algorithm and sets "outlierscore" state
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     labeler(graph)
       .step { vertex => //Get neighbors' labels
         val vlabel = vertex.getState[Long](key = label, includeProperties = true)
@@ -65,7 +65,7 @@ class CBOD(
       }
 
   // extract vertex ID and outlier score for vertices with outlierscore >= threshold
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph
       .select { vertex =>
         Row(

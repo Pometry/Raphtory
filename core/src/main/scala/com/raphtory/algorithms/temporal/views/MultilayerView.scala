@@ -10,7 +10,7 @@ class MultilayerView(
     interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge]
 ) extends MultilayerProjectionAlgorithm {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): graph.MultilayerGraph =
+  override def apply(graph: GraphPerspective): graph.MultilayerGraph =
     graph.multilayerView(interlayerEdgeBuilder)
 
 }

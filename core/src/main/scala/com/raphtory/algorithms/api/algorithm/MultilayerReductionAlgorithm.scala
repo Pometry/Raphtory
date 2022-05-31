@@ -13,10 +13,10 @@ trait MultilayerReductionAlgorithm extends BaseGraphAlgorithm {
   ) extends ChainedAlgorithm(first, second)
           with MultilayerReductionAlgorithm {
 
-    override def apply[G <: MultilayerGraphPerspective[G]](graph: G): graph.ReducedGraph =
+    override def apply(graph: MultilayerGraphPerspective): graph.ReducedGraph =
       second(first(graph))
 
-    override def tabularise[G <: GraphPerspective[G]](graph: G): Table = second.tabularise(graph)
+    override def tabularise(graph: GraphPerspective): Table = second.tabularise(graph)
   }
 
   case class ChainedMultilayer2ReductionAlgorithm(
@@ -25,10 +25,10 @@ trait MultilayerReductionAlgorithm extends BaseGraphAlgorithm {
   ) extends ChainedAlgorithm(first, second)
           with MultilayerReductionAlgorithm {
 
-    override def apply[G <: MultilayerGraphPerspective[G]](graph: G): graph.ReducedGraph =
+    override def apply(graph: MultilayerGraphPerspective): graph.ReducedGraph =
       second(first(graph))
 
-    override def tabularise[G <: GraphPerspective[G]](graph: G): Table = second.tabularise(graph)
+    override def tabularise(graph: GraphPerspective): Table = second.tabularise(graph)
   }
 
   case class ChainedMultilayerAlgorithm(
@@ -37,19 +37,19 @@ trait MultilayerReductionAlgorithm extends BaseGraphAlgorithm {
   ) extends ChainedAlgorithm(first, second)
           with MultilayerAlgorithm {
 
-    override def apply[G <: MultilayerGraphPerspective[G]](graph: G): graph.MultilayerGraph =
+    override def apply(graph: MultilayerGraphPerspective): graph.MultilayerGraph =
       second(first(graph))
 
-    override def tabularise[G <: MultilayerGraphPerspective[G]](graph: G): Table =
+    override def tabularise(graph: MultilayerGraphPerspective): Table =
       second.tabularise(graph)
   }
 
-  def apply[G <: MultilayerGraphPerspective[G]](graph: G): graph.ReducedGraph
+  def apply(graph: MultilayerGraphPerspective): graph.ReducedGraph
 
-  def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  def tabularise(graph: GraphPerspective): Table =
     graph.globalSelect(_ => Row())
 
-  def run[G <: MultilayerGraphPerspective[G]](graph: G): Table =
+  def run(graph: MultilayerGraphPerspective): Table =
     tabularise(apply(graph))
 
   override def ->(graphAlgorithm: GenericAlgorithm): MultilayerReductionAlgorithm =

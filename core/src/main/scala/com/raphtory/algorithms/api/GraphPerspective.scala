@@ -8,6 +8,11 @@ import com.raphtory.graph.visitor.PropertyMergeStrategy
 import com.raphtory.graph.visitor.Vertex
 import com.raphtory.graph.visitor
 import PropertyMergeStrategy.PropertyMerge
+import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.GenericReductionAlgorithm
+import com.raphtory.algorithms.api.algorithm.GenericallyApplicableAlgorithm
+import com.raphtory.algorithms.api.algorithm.MultilayerAlgorithm
+import com.raphtory.algorithms.api.algorithm.MultilayerProjectionAlgorithm
 
 sealed trait GraphFunction                             extends QueryManagement
 final case class SetGlobalState(f: GraphState => Unit) extends GraphFunction
@@ -225,13 +230,11 @@ final case class PerspectiveDone()                extends GraphFunction
   * ```
   */
 
-trait GraphPerspective[G <: GraphPerspective[G]] extends AbstractGraph { this: G =>
+trait GraphPerspective {
   type Vertex <: visitor.Vertex
-  type Graph = G
+  type Graph <: ConcreteGraphPerspective[Vertex, Graph, ReducedGraph, MultilayerGraph]
 
-  type ReducedGraph <: ConcreteGraphPerspective[
-          visitor.Vertex,
-          ReducedGraph,
+  type ReducedGraph <: ConcreteReducedGraphPerspective[
           ReducedGraph,
           MultilayerGraph
   ]
@@ -241,6 +244,7 @@ trait GraphPerspective[G <: GraphPerspective[G]] extends AbstractGraph { this: G
           ReducedGraph
   ]
 
+  def identity: Graph
   def setGlobalState(f: (GraphState) => Unit): Graph
   def vertexFilter(f: (Vertex) => Boolean): Graph
   def vertexFilter(f: (Vertex, GraphState) => Boolean): Graph
@@ -285,28 +289,53 @@ trait GraphPerspective[G <: GraphPerspective[G]] extends AbstractGraph { this: G
   def globalSelect(f: GraphState => Row): Table
   def explodeSelect(f: Vertex => List[Row]): Table
   def clearMessages(): Graph
+  def transform(algorithm: GenericAlgorithm): Graph
+  def transform(algorithm: MultilayerProjectionAlgorithm): MultilayerGraph
+
+  def transform(algorithm: GenericReductionAlgorithm): ReducedGraph
+
+  /** Execute the algorithm on every perspective and returns a new `RaphtoryGraph` with the result.
+    * @param algorithm to apply
+    */
+  def execute(algorithm: GenericallyApplicableAlgorithm): Table
 }
 
-trait MultilayerGraphPerspective[G <: MultilayerGraphPerspective[G]] extends GraphPerspective[G] {
-  this: G =>
-  override type Vertex <: visitor.ExplodedVertex
+trait MultilayerGraphPerspective extends GraphPerspective {
+  override type Vertex          = visitor.ExplodedVertex
+  override type Graph <: ConcreteMultilayerGraphPerspective[Graph, ReducedGraph]
+  override type MultilayerGraph = Graph
+
+  def transform(algorithm: MultilayerAlgorithm): Graph
+
+  def execute(algorithm: MultilayerAlgorithm): Table
 }
 
-trait ConcreteGraphPerspective[
-    V <: visitor.Vertex,
-    G <: ConcreteGraphPerspective[V, G, RG, MG],
-    RG <: ConcreteGraphPerspective[visitor.Vertex, RG, RG, MG],
-    MG <: ConcreteMultilayerGraphPerspective[MG, RG]
-] extends GraphPerspective[G] { this: G =>
-  override type Vertex          = V
+trait ReducedGraphPerspective extends GraphPerspective {
+//  override type Graph = ReducedGraph
+}
+
+trait ConcreteGraphPerspective[V <: visitor.Vertex, G <: ConcreteGraphPerspective[
+        V,
+        G,
+        RG,
+        MG
+], RG <: ConcreteReducedGraphPerspective[RG, MG], MG <: ConcreteMultilayerGraphPerspective[MG, RG]]
+        extends GraphPerspective { this: G =>
+  override type Graph           = G
   override type ReducedGraph    = RG
   override type MultilayerGraph = MG
+  override type Vertex          = V
+  override def identity: Graph = this
 }
+
+trait ConcreteReducedGraphPerspective[
+    G <: ConcreteReducedGraphPerspective[G, MG],
+    MG <: ConcreteMultilayerGraphPerspective[MG, G]
+] extends ReducedGraphPerspective
+        with ConcreteGraphPerspective[visitor.Vertex, G, G, MG] { this: G => }
 
 trait ConcreteMultilayerGraphPerspective[
     G <: ConcreteMultilayerGraphPerspective[G, RG],
-    RG <: ConcreteGraphPerspective[visitor.Vertex, RG, RG, G]
-] extends ConcreteGraphPerspective[visitor.ExplodedVertex, G, RG, G]
-        with MultilayerGraphPerspective[G] { this: G => }
-
-trait AbstractGraph {}
+    RG <: ConcreteReducedGraphPerspective[RG, G]
+] extends MultilayerGraphPerspective
+        with ConcreteGraphPerspective[visitor.ExplodedVertex, G, RG, G] { this: G => }

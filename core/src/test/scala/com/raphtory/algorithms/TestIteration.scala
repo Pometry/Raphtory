@@ -9,7 +9,7 @@ import com.raphtory.graph.visitor.Vertex
 
 class CountIterations(num_iters_before_vote: Int, num_iters: Int) extends GenericAlgorithm {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .setGlobalState { graphState =>
         graphState.newMax[Int]("maxIterations")
@@ -28,7 +28,7 @@ class CountIterations(num_iters_before_vote: Int, num_iters: Int) extends Generi
         graphState("maxIterations") += vertex.getState("iterations")
       }
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph.globalSelect(graphState => Row(graphState("maxIterations").value))
 }
 

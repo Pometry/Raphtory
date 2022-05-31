@@ -43,7 +43,7 @@ import com.raphtory.algorithms.api.GraphPerspective
 class PageRank(dampingFactor: Double = 0.85, iterateSteps: Int = 100)
         extends NodeList(Seq("prlabel")) {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
         val initLabel = 1.0

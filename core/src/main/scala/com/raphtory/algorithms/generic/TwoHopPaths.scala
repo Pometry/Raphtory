@@ -53,7 +53,7 @@ import scala.collection.mutable.ArrayBuffer
   */
 class TwoHopPaths(seeds: Set[String] = Set[String]()) extends GenericAlgorithm {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step(vertex =>
         if (seeds.isEmpty || seeds.contains(vertex.name()))
@@ -87,7 +87,7 @@ class TwoHopPaths(seeds: Set[String] = Set[String]()) extends GenericAlgorithm {
               true
       )
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph
       .select(vertex =>
         Row(

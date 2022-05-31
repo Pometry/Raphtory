@@ -42,7 +42,7 @@ class TemporalNodeList(
     defaults: Map[String, Any] = Map.empty[String, Any]
 ) extends GenericAlgorithm {
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph
       .multilayerView()
       .select { vertex =>

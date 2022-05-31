@@ -65,7 +65,7 @@ class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0)
         extends GenericAlgorithm {
   private val rng = new Random() //TODO does this need a seed?
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
         import vertex._
@@ -120,7 +120,7 @@ class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0)
         }
       }
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph.select(vertex => Row(vertex.getState[ArrayBuffer[String]]("walk").toSeq: _*))
 }
 

@@ -20,7 +20,7 @@ import com.raphtory.graph.visitor.Vertex
   */
 class VertexFilter(f: Vertex => Boolean) extends NodeList() {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph.vertexFilter(f)
 
 }

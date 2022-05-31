@@ -12,7 +12,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class FailingAlgo extends GenericAlgorithm {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph.step(_ => throw new Exception("Algorithm failed"))
 }
 

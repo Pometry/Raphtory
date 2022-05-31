@@ -34,7 +34,7 @@ import com.raphtory.algorithms.generic.NodeList
   */
 class MotifAlpha extends NodeList(Seq("motifAlpha")) {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph.step { vertex =>
       if (vertex.explodeInEdges().nonEmpty & vertex.explodeOutEdges().nonEmpty)
         vertex.setState(

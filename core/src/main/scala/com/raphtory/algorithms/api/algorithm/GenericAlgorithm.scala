@@ -1,6 +1,5 @@
 package com.raphtory.algorithms.api.algorithm
 
-import com.raphtory.algorithms.api.AbstractGraph
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.MultilayerGraphPerspective
 import com.raphtory.algorithms.api.Row
@@ -31,10 +30,10 @@ trait GenericAlgorithm extends GenericallyApplicableAlgorithm {
           extends ChainedAlgorithm(first, second)
           with GenericAlgorithm {
 
-    override def apply[G <: GraphPerspective[G]](graph: G): graph.Graph =
+    override def apply(graph: GraphPerspective): graph.Graph =
       second(first(graph))
 
-    override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+    override def tabularise(graph: GraphPerspective): Table =
       second.tabularise(graph)
   }
 
@@ -44,12 +43,12 @@ trait GenericAlgorithm extends GenericallyApplicableAlgorithm {
   ) extends ChainedAlgorithm(first, second)
           with MultilayerProjectionAlgorithm {
 
-    override def apply[G <: GraphPerspective[G]](graph: G): graph.MultilayerGraph = {
+    override def apply(graph: GraphPerspective): graph.MultilayerGraph = {
       val f = first(graph)
       second(first(graph)).asInstanceOf[graph.MultilayerGraph]
     }
 
-    override def tabularise[G <: MultilayerGraphPerspective[G]](graph: G): Table =
+    override def tabularise(graph: MultilayerGraphPerspective): Table =
       second.tabularise(graph)
   }
 
@@ -59,10 +58,10 @@ trait GenericAlgorithm extends GenericallyApplicableAlgorithm {
   ) extends ChainedAlgorithm(first, second)
           with GenericReductionAlgorithm {
 
-    override def apply[G <: GraphPerspective[G]](graph: G): graph.ReducedGraph =
-      second(first(graph)).asInstanceOf[graph.ReducedGraph]
+    override def apply(graph: GraphPerspective): graph.ReducedGraph =
+      second(first(graph))
 
-    override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+    override def tabularise(graph: GraphPerspective): Table =
       second.tabularise(graph)
   }
 
@@ -73,13 +72,13 @@ trait GenericAlgorithm extends GenericallyApplicableAlgorithm {
     *
     * @param graph graph to run function upon
     */
-  def apply[G <: GraphPerspective[G]](graph: G): graph.Graph =
-    graph
+  def apply(graph: GraphPerspective): graph.Graph =
+    graph.identity
 
-  def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  def tabularise(graph: GraphPerspective): Table =
     graph.globalSelect(_ => Row())
 
-  def run[G <: GraphPerspective[G]](graph: G): Table = tabularise(apply(graph))
+  def run(graph: GraphPerspective): Table = tabularise(apply(graph))
 
   override def ->(graphAlgorithm: GenericAlgorithm): GenericAlgorithm =
     ChainedGenericAlgorithm(this, graphAlgorithm)

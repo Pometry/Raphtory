@@ -13,7 +13,7 @@ import com.raphtory.graph.visitor.PropertyMergeStrategy
 
 class WriteValue extends GenericReductionAlgorithm {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): graph.ReducedGraph =
+  override def apply(graph: GraphPerspective): graph.ReducedGraph =
     graph.multilayerView
       .step(vertex => vertex.setState("testing", 1))
       .reducedView(PropertyMergeStrategy.sum[Int])

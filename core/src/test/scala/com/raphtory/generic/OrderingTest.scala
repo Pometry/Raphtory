@@ -22,7 +22,7 @@ import scala.reflect.ClassTag
 
 class CheckHistory extends GenericAlgorithm {
 
-  override def apply[G <: GraphPerspective[G]](graph: G): G =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .setGlobalState { graphState =>
         graphState.newAll("vertexHistoryOrdered")
@@ -39,7 +39,7 @@ class CheckHistory extends GenericAlgorithm {
         graphState("vertexHistoryOrdered") += sorted
       }
 
-  override def tabularise[G <: GraphPerspective[G]](graph: G): Table =
+  override def tabularise(graph: GraphPerspective): Table =
     graph.globalSelect(graphState =>
       Row(graphState("vertexHistoryOrdered").value, graphState("edgeHistoryOrdered").value)
     )
