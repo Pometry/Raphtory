@@ -55,7 +55,9 @@ jobs:
       - name: Get sbt package
         run: apt-get update && apt-get install unzip && curl -L "https://github.com/sbt/sbt/releases/download/v${{ matrix.sbt }}/sbt-${{ matrix.sbt }}.zip" -o sbt-${{ matrix.sbt }}.zip && unzip sbt-${{ matrix.sbt }}.zip
       - name: Run SBT tests
-        run: sbt/bin/sbt core/test
+        run: |
+          export PATH=$(pwd)/sbt/bin:$PATH
+          sbt core/test
         timeout-minutes: 10
     if: needs.configure.outputs.type == 'regular'
 
@@ -75,7 +77,9 @@ jobs:
       - name: Get sbt package
         run: apt-get update && apt-get install unzip && curl -L "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.zip" -o sbt-1.5.5.zip && unzip sbt-1.5.5.zip
       - name: Run sbt assembly
-        run: sbt/bin/sbt core/assembly
+        run: |
+          export PATH=$(pwd)/sbt/bin:$PATH
+          sbt core/assembly
       # Tag when push to master branch
       - name: Bump tag version and push
         uses: anothrNick/github-tag-action@master
@@ -90,11 +94,11 @@ jobs:
         if: needs.configure.outputs.type == 'master'
       # Tag when scheduled nightly run
       - name: Push nightly build tag
-        id: nightly-build-tag
-        uses: actions-ecosystem/action-push-tag@v1
-        with:
-          tag: "${{ needs.configure.outputs.branch }}-nightly-build-${{ needs.configure.outputs.date }}"
-          message: "${{ needs.configure.outputs.branch }} nightly build - ${{ needs.configure.outputs.date }}"
+        run: |
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+          git tag -a "${{ needs.configure.outputs.branch }}-nightly-build-${{ needs.configure.outputs.date }}" -m "${{ needs.configure.outputs.branch }} nightly build - ${{ needs.configure.outputs.date }}"
+          git push origin "${{ env.software_version }}"
         if: needs.configure.outputs.type == 'nightly'
       # Get artifacts
       - name: Get artifact path
