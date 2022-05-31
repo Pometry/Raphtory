@@ -19,7 +19,7 @@ import com.raphtory.graph.visitor.Vertex
 private[raphtory] class RaphtoryGraph(
     override private[api] val query: Query,
     override private[api] val querySender: QuerySender
-) extends DefaultReducedGraphOperations[RaphtoryGraph, MultilayerRaphtoryGraph] {
+) extends ReducedGraphPerspectiveImplementation[RaphtoryGraph, MultilayerRaphtoryGraph] {
 
   /** Apply f over itself and return the result. `graph.transform(f)` is equivalent to `f(graph)`
     * @param f function to apply
@@ -41,7 +41,7 @@ private[raphtory] class RaphtoryGraph(
 class MultilayerRaphtoryGraph(
     override private[api] val query: Query,
     override private[api] val querySender: QuerySender
-) extends DefaultMultilayerGraphOperations[MultilayerRaphtoryGraph, RaphtoryGraph] {
+) extends MultilayerGraphPerspectiveImplementation[MultilayerRaphtoryGraph, RaphtoryGraph] {
 
   override protected def newGraph(
       query: Query,

@@ -16,11 +16,11 @@ import com.raphtory.graph.visitor.Edge
 /**
   * @note DoNotDocument
   */
-trait DefaultGraphOperations[
+trait GraphPerspectiveImplementation[
     V <: visitor.Vertex,
-    G <: DefaultGraphOperations[V, G, RG, MG],
-    RG <: DefaultReducedGraphOperations[RG, MG],
-    MG <: DefaultMultilayerGraphOperations[MG, RG]
+    G <: GraphPerspectiveImplementation[V, G, RG, MG],
+    RG <: ReducedGraphPerspectiveImplementation[RG, MG],
+    MG <: MultilayerGraphPerspectiveImplementation[MG, RG]
 ] extends ConcreteGraphPerspective[V, G, RG, MG] { this: G =>
 
   private[api] val query: Query
@@ -166,10 +166,10 @@ trait DefaultGraphOperations[
     }
 }
 
-trait DefaultMultilayerGraphOperations[
-    G <: DefaultMultilayerGraphOperations[G, RG],
-    RG <: DefaultReducedGraphOperations[RG, G]
-] extends DefaultGraphOperations[visitor.ExplodedVertex, G, RG, G]
+trait MultilayerGraphPerspectiveImplementation[
+    G <: MultilayerGraphPerspectiveImplementation[G, RG],
+    RG <: ReducedGraphPerspectiveImplementation[RG, G]
+] extends GraphPerspectiveImplementation[visitor.ExplodedVertex, G, RG, G]
         with ConcreteMultilayerGraphPerspective[G, RG] { this: G =>
 
   def transform(algorithm: MultilayerAlgorithm): G =
@@ -181,11 +181,11 @@ trait DefaultMultilayerGraphOperations[
   override def newMGraph(query: Query, querySender: QuerySender): G = newGraph(query, querySender)
 }
 
-trait DefaultReducedGraphOperations[G <: DefaultReducedGraphOperations[
+trait ReducedGraphPerspectiveImplementation[G <: ReducedGraphPerspectiveImplementation[
         G,
         MG
-], MG <: DefaultMultilayerGraphOperations[MG, G]]
+], MG <: MultilayerGraphPerspectiveImplementation[MG, G]]
         extends ConcreteReducedGraphPerspective[G, MG]
-        with DefaultGraphOperations[visitor.Vertex, G, G, MG] { this: G =>
+        with GraphPerspectiveImplementation[visitor.Vertex, G, G, MG] { this: G =>
   override def newRGraph(query: Query, querySender: QuerySender): G = newGraph(query, querySender)
 }
