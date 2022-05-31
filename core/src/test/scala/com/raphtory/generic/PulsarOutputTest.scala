@@ -6,7 +6,7 @@ import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.Spout
 import com.raphtory.lotrtest.LOTRGraphBuilder
-import com.raphtory.output.PulsarOutputFormat
+import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.FileSpout
 import org.apache.pulsar.client.api.Schema
 import org.scalatest.Ignore
@@ -18,7 +18,7 @@ import scala.sys.process._
 @Ignore
 class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFinish = false) {
   test("Outputting to Pulsar") {
-    val outputFormat: PulsarOutputFormat = PulsarOutputFormat("EdgeList" + deploymentID)
+    val sink: PulsarSink = PulsarSink("EdgeList" + deploymentID)
 
     val consumer =
       pulsarConnector
@@ -33,7 +33,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFin
         .range(1, 32674, 10000)
         .window(List(500, 1000, 10000), Alignment.END)
         .execute(EdgeList())
-        .writeTo(outputFormat, "EdgeList")
+        .writeTo(sink, "EdgeList")
     jobId = queryProgressTracker.getJobId
     queryProgressTracker.waitForJob()
     val firstResult          = new String(receiveMessage(consumer).getValue)

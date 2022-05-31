@@ -1,4 +1,4 @@
-package com.raphtory.output
+package com.raphtory.sinks
 
 /** An abstract sink of entities to be written out
   *
@@ -15,13 +15,13 @@ package com.raphtory.output
   *
   * @tparam OutputType The type of output: e.g. `String`
   */
-trait Sink[OutputType] {
+trait SinkConnector[T] {
 
   /** Outputs an `entity`.
     * Several calls to writeEntity in a row must output the entities properly separated between them.
     * @param entity The entity to be output.
     */
-  def writeEntity(entity: OutputType): Unit
+  def write(item: T): Unit
 
   /** Append the `partialEntity` to the current entity being output.
     * When the Sink is created, and append is called for the first time the partial entity is assumed to be appended to
@@ -29,12 +29,12 @@ trait Sink[OutputType] {
     * @note Intended to be used in combination with `closeEntity`.
     * @param partialEntity
     */
-  def append(partialEntity: OutputType): Unit
+  def append(partialItem: T): Unit
 
   /** Closes the current entity
     * @note Intended to be used in combination with append.
     */
-  def closeEntity(): Unit
+  def closeItem(): Unit
 
   /** Ensures that the output of this sink completed and free up all the resources used by it. */
   def close(): Unit

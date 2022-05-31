@@ -1,7 +1,8 @@
 package com.raphtory.algorithms.api
 
 import com.raphtory.graph.Perspective
-import com.raphtory.output.Sink
+import com.raphtory.sinks.FileSink
+import com.raphtory.sinks.SinkConnector
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -9,10 +10,10 @@ import org.slf4j.LoggerFactory
 /** Interface for output formats
   * Concrete implementations need to override the `outputWriter` method to create their own `OutputWriter`.
   *
-  * @see [[com.raphtory.output.FileOutputFormat]], [[com.raphtory.output.PulsarOutputFormat]],
+  * @see [[FileSink]], [[com.raphtory.output.PulsarSink]],
   *      [[com.raphtory.algorithms.api.Table]]
   */
-trait OutputFormat {
+trait Sink {
 
   /**
     * @param jobId ID of the job that generated the data
@@ -20,7 +21,7 @@ trait OutputFormat {
     * @param config
     * @return `OutputWriter` to be used for writing out results
     */
-  def outputWriter(jobId: String, partitionID: Int, config: Config): OutputWriter
+  def executor(jobId: String, partitionID: Int, config: Config): SinkExecutor
 }
 
 /** Interface for output writers.
@@ -29,7 +30,7 @@ trait OutputFormat {
   *
   *  @see [[com.raphtory.algorithms.api.Row]]
   */
-trait OutputWriter {
+trait SinkExecutor {
 
   /** Logger instance for writing debug messages */
   protected lazy val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))

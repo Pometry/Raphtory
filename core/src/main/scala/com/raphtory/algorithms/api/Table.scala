@@ -11,7 +11,7 @@ case object WriteToOutput                             extends TableFunction
 
 /**  Interface for table operations
   *
-  * @see [[com.raphtory.algorithms.api.Row]], [[com.raphtory.algorithms.api.OutputFormat]], [[com.raphtory.components.querytracker.QueryProgressTracker]]
+  * @see [[com.raphtory.algorithms.api.Row]], [[com.raphtory.algorithms.api.Sink]], [[com.raphtory.components.querytracker.QueryProgressTracker]]
   */
 abstract class Table {
 
@@ -26,13 +26,13 @@ abstract class Table {
     */
   def explode(f: Row => IterableOnce[Row]): Table
 
-  /** write out data based on [[com.raphtory.algorithms.api.OutputFormat]] and
+  /** write out data based on [[com.raphtory.algorithms.api.Sink]] and
     *    returns [[com.raphtory.components.querytracker.QueryProgressTracker]]
     */
-  def writeTo(outputFormat: OutputFormat, jobName: String): QueryProgressTracker
+  def writeTo(sink: Sink, jobName: String): QueryProgressTracker
 
   /** Blank write to allows usage from python api
     * @see [[com.raphtory.algorithms.api.Table.writeTo(outputFormat,jobName]]
     */
-  def writeTo(outputFormat: OutputFormat): QueryProgressTracker
+  def writeTo(sink: Sink): QueryProgressTracker
 }

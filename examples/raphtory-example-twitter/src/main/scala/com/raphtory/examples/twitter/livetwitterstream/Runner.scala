@@ -3,8 +3,10 @@ package com.raphtory.examples.twitter.livetwitterstream
 import com.raphtory.algorithms.api.Alignment
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.deployment.Raphtory
-import com.raphtory.output.{FileOutputFormat, PulsarOutputFormat}
-import com.raphtory.twitter.{LiveTwitterRetweetGraphBuilder, LiveTwitterSpout, LiveTwitterUserGraphBuilder}
+import com.raphtory.sinks.PulsarSink
+import com.raphtory.twitter.LiveTwitterRetweetGraphBuilder
+import com.raphtory.twitter.LiveTwitterSpout
+import com.raphtory.twitter.LiveTwitterUserGraphBuilder
 import com.typesafe.config.Config
 import io.github.redouane59.twitter.dto.tweet.Tweet
 
@@ -15,18 +17,17 @@ object Runner {
     raphtoryConfig.getBoolean("raphtory.spout.twitter.local.enableRetweetFilter")
 
   def main(args: Array[String]): Unit = {
-    val source        = new LiveTwitterSpout()
-    val output  = PulsarOutputFormat("EdgeList")
+    val source  = new LiveTwitterSpout()
+    val output  = PulsarSink("EdgeList")
     val builder =
       if (enableRetweetGraphBuilder)
         new LiveTwitterRetweetGraphBuilder()
-      else {
+      else
         new LiveTwitterUserGraphBuilder()
-      }
-    val graph        = Raphtory.stream(spout = source, graphBuilder = builder)
-   graph
-     .from(0)
-     .execute(EdgeList())
-     .writeTo(output)
+    val graph   = Raphtory.stream(spout = source, graphBuilder = builder)
+    graph
+      .from(0)
+      .execute(EdgeList())
+      .writeTo(output)
   }
 }

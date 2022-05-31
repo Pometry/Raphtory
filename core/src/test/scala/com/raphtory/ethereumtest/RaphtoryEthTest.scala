@@ -2,11 +2,10 @@ package com.raphtory.ethereumtest
 
 import com.raphtory.components.spout.Spout
 import com.raphtory.deployment.Raphtory
+
 import scala.language.postfixOps
 import sys.process._
 import java.io.File
-import com.raphtory.output.FileOutputFormat
-import com.raphtory.output.PulsarOutputFormat
 import com.raphtory.spouts.FileSpout
 
 object RaphtoryEthTest {

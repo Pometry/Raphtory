@@ -7,7 +7,7 @@ import com.raphtory.components.spout.Spout
 import com.raphtory.components.spout.SpoutExecutor
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.deployment.Raphtory
-import com.raphtory.output.FileOutputFormat
+import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import org.apache.pulsar.client.api.Schema
 import org.scalatest.DoNotDiscover
@@ -20,7 +20,7 @@ import java.io.File
 class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Graph State Test") {
-    val outputFormat: FileOutputFormat = FileOutputFormat(outputDirectory)
+    val outputFormat: FileSink = FileSink(outputDirectory)
 
     graph
       .walk(10000)
@@ -35,7 +35,7 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
   }
 
   test("Connected Components Test") {
-    val outputFormat: FileOutputFormat = FileOutputFormat(outputDirectory)
+    val outputFormat: FileSink = FileSink(outputDirectory)
 
     val result = algorithmTest(
             algorithm = ConnectedComponents(),

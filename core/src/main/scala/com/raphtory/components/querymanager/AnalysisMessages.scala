@@ -3,7 +3,7 @@ package com.raphtory.components.querymanager
 import com.raphtory.algorithms.api.Alignment
 import com.raphtory.algorithms.api.GraphFunction
 import com.raphtory.algorithms.api.GraphStateImplementation
-import com.raphtory.algorithms.api.OutputFormat
+import com.raphtory.algorithms.api.Sink
 import com.raphtory.algorithms.api.TableFunction
 import com.raphtory.graph.Perspective
 import com.raphtory.time.Interval
@@ -17,8 +17,8 @@ trait QueryManagement extends Serializable
 case class WatermarkTime(partitionID: Int, startTime: Long, endTime: Long, safe: Boolean)
         extends QueryManagement
 
-case object StartAnalysis                                               extends QueryManagement
-case class EstablishExecutor(jobID: String, outputFormat: OutputFormat) extends QueryManagement
+case object StartAnalysis                                       extends QueryManagement
+case class EstablishExecutor(jobID: String, outputFormat: Sink) extends QueryManagement
 
 case class SetMetaData(vertices: Int) extends QueryManagement
 
@@ -62,7 +62,7 @@ case class Query(
     windowAlignment: Alignment.Value = Alignment.START,
     graphFunctions: Queue[GraphFunction] = Queue(),
     tableFunctions: Queue[TableFunction] = Queue(),
-    outputFormat: Option[OutputFormat] = None
+    sink: Option[Sink] = None
 ) extends QueryManagement
 
 sealed trait PointSet

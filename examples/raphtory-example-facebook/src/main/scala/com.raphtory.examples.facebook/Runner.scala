@@ -4,9 +4,8 @@ import com.raphtory.algorithms.api.Alignment
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.deployment.Raphtory
-import com.raphtory.output.FileOutputFormat
-import com.raphtory.output.PulsarOutputFormat
 import com.raphtory.examples.facebook.graphbuilders.FacebookGraphBuilder
+import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.StaticGraphSpout
 import com.typesafe.config
 
@@ -35,10 +34,10 @@ object Runner extends App {
   val builder                  = new FacebookGraphBuilder()
   val graph                    = Raphtory.batchLoad(spout = source, graphBuilder = builder)
   Thread.sleep(20000)
-  graph.at(88234).past().execute(EdgeList()).writeTo(PulsarOutputFormat("EdgeList"))
+  graph.at(88234).past().execute(EdgeList()).writeTo(PulsarSink("EdgeList"))
   graph
     .range(10000, 88234, 10000)
     .window(List(500, 1000, 10000), Alignment.END)
     .execute(ConnectedComponents())
-    .writeTo(PulsarOutputFormat("ConnectedComponents"))
+    .writeTo(PulsarSink("ConnectedComponents"))
 }

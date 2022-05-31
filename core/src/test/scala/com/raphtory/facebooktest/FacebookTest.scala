@@ -5,8 +5,7 @@ import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.SpoutExecutor
 import org.apache.pulsar.client.api.Schema
-import com.raphtory.output.FileOutputFormat
-import com.raphtory.output.PulsarOutputFormat
+import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.StaticGraphSpout
 
 import java.io.File
@@ -18,7 +17,7 @@ import org.scalatest._
 class FacebookTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Connected Components Test") {
-    val outputFormat = FileOutputFormat(outputDirectory)
+    val outputFormat = FileSink(outputDirectory)
 
     val result = algorithmPointTest(
             algorithm = ConnectedComponents(),

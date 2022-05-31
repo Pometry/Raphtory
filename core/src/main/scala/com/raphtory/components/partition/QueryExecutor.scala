@@ -9,7 +9,6 @@ import com.raphtory.config.MonixScheduler
 import com.raphtory.graph.GraphPartition
 import com.raphtory.graph.LensInterface
 import com.raphtory.graph.Perspective
-import com.raphtory.output.PulsarOutputFormat
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.raphtory.time.Interval
 import com.typesafe.config.Config
@@ -22,7 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger
 /** @note DoNotDocument */
 class QueryExecutor(
     partitionID: Int,
-    outputFormat: OutputFormat,
+    sink: Sink,
     storage: GraphPartition,
     jobID: String,
     conf: Config,
@@ -51,7 +50,7 @@ class QueryExecutor(
 
   private val taskManager = topics.jobStatus(jobID).endPoint
 
-  private val outputWriter: OutputWriter = outputFormat.outputWriter(jobID, partitionID, conf)
+  private val sinkExecutor: SinkExecutor = sink.executor(jobID, partitionID, conf)
 
   private val neighbours =
     if (totalPartitions > 1)
@@ -359,19 +358,19 @@ class QueryExecutor(
         case WriteToOutput                                                    =>
           val time = System.currentTimeMillis()
 
-          outputWriter.setupPerspective(currentPerspective)
-          val writer = row => outputWriter.threadSafeWriteRow(row)
+          sinkExecutor.setupPerspective(currentPerspective)
+          val writer = row => sinkExecutor.threadSafeWriteRow(row)
           graphLens.writeDataTable(writer) {
-            outputWriter.closePerspective()
+            sinkExecutor.closePerspective()
             taskManager sendAsync TableFunctionComplete(currentPerspectiveID)
             logger.debug(
                     s"Job '$jobID' at Partition '$partitionID': Writing Results executed on table in ${System
-                      .currentTimeMillis() - time}ms. Results written to '${outputFormat.getClass.getSimpleName}'."
+                      .currentTimeMillis() - time}ms. Results written to '${sink.getClass.getSimpleName}'."
             )
           }
 
         case CompleteWrite                                                    =>
-          outputWriter.close()
+          sinkExecutor.close()
           logger.debug(
                   s"Job '$jobID' at Partition '$partitionID': Received 'CompleteWrite' message. " +
                     s"Output writer was successfully closed"
