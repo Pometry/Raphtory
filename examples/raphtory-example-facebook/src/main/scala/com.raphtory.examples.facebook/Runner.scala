@@ -29,7 +29,6 @@ object Runner extends App {
         throw ex
     }
   }
-  val conf: config.Config = Raphtory.getDefaultConfig()
 
   val source: StaticGraphSpout = StaticGraphSpout("/tmp/facebook.csv")
   val builder                  = new FacebookGraphBuilder()

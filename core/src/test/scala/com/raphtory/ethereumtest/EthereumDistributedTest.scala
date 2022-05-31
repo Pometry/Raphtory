@@ -7,9 +7,6 @@ import com.raphtory.spouts.FileSpout
 import org.apache.pulsar.client.api.Schema
 
 object EthereumDistributedTest extends RaphtoryService[String] {
-  override def defineSpout(): Spout[String] = FileSpout()
-
+  override def defineSpout(): Spout[String]        = FileSpout()
   override def defineBuilder: EthereumGraphBuilder = new EthereumGraphBuilder()
-
-  override def batchIngestion(): Boolean = true
 }

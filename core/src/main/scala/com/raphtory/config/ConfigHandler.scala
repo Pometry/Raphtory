@@ -15,17 +15,15 @@ private[raphtory] class ConfigHandler {
   private lazy val defaults       = createConf()
   private lazy val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private lazy val deployedDistributed =
-    defaults.resolve().getBoolean("raphtory.deploy.distributed")
-  private val customConfigValues       = ArrayBuffer[(String, ConfigValue)]()
+  private val customConfigValues = ArrayBuffer[(String, ConfigValue)]()
 
   private var salt = Random.nextInt().abs
 
   def addCustomConfig(path: String, value: Any) =
     customConfigValues += ((path, ConfigValueFactory.fromAnyRef(value)))
 
-  def getConfig: Config =
-    if (deployedDistributed)
+  def getConfig(runningDistributed: Boolean): Config =
+    if (runningDistributed)
       distributed()
     else
       local()
