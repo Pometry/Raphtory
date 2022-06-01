@@ -1,12 +1,15 @@
 package com.raphtory.sinks
 
-import java.io.PrintStream
+import java.io.PrintWriter
+import java.io.Writer
 
-class PrintSink extends StreamSinkConnector("\n") {
+class PrintSink extends SinkConnector {
 
-  private val out: PrintStream = System.out
+  private val out = new PrintWriter(System.out)
 
-  override def writeValue(value: String): Unit = out.print(value)
+  override def writer: Writer = new PrintWriter(System.out)
 
-  override def close(): Unit = {}
+  override def closeItem(): Unit = out.write(itemDelimiter)
+
+  override def close(): Unit = out.close()
 }

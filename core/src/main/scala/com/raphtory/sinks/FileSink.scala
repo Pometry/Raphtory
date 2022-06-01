@@ -7,6 +7,7 @@ import com.typesafe.config.Config
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
+import java.io.Writer
 
 /** Writes the rows of a `Table` to the file specified by `filePath` in CSV format.
   *
@@ -32,21 +33,20 @@ import java.io.FileWriter
   *      [[com.raphtory.client.GraphDeployment]]
   *      [[com.raphtory.deployment.Raphtory]]
   */
-case class FileSink(filePath: String, format: Format[String] = CsvFormat())
+case class FileSink(filePath: String, format: Format = CsvFormat())
         extends FormatAgnosticSink(format) {
 
-  class FileSinkConnector(filePath: String, jobID: String, partitionID: Int)
-          extends StreamSinkConnector("\n") {
-    private val workDirectory      = s"$filePath/$jobID"
+  class FileSinkConnector(filePath: String, jobID: String, partitionID: Int) extends SinkConnector {
+    private val workDirectory = s"$filePath/$jobID"
     new File(workDirectory).mkdirs()
-    private val fileWriter         = new FileWriter(s"$workDirectory/partition-$partitionID")
-    private val bufferedFileWriter = new BufferedWriter(fileWriter)
+    private val fileWriter    = new FileWriter(s"$workDirectory/partition-$partitionID")
 
-    override def writeValue(value: String): Unit =
-      bufferedFileWriter.write(value)
+    override val writer = new BufferedWriter(fileWriter)
+
+    override def closeItem(): Unit = writer.write(itemDelimiter)
 
     override def close(): Unit = {
-      bufferedFileWriter.close()
+      writer.close()
       fileWriter.close()
     }
   }
@@ -55,6 +55,5 @@ case class FileSink(filePath: String, format: Format[String] = CsvFormat())
       jobID: String,
       partitionID: Int,
       config: Config
-  ): SinkConnector[String] =
-    new FileSinkConnector(filePath, jobID, partitionID)
+  ): SinkConnector = new FileSinkConnector(filePath, jobID, partitionID)
 }

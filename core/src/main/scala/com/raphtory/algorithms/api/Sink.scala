@@ -35,19 +35,19 @@ trait SinkExecutor {
   /** Logger instance for writing debug messages */
   protected lazy val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  /** Write out one row.
-    * The implementation of this method doesn't need to be thread-safe as it is wrapped by `threadSafeWriteRow` to
-    * handle synchronization.
-    * @param row row of data to write out
-    */
-  protected def writeRow(row: Row): Unit
-
   /** Setup the perspective to be write out.
     * This method gets called every time a new graph perspective is going to be write out so this `OutputWriter` can
     * handle it if needed.
     * @param perspective perspective to be write out
     */
   def setupPerspective(perspective: Perspective): Unit
+
+  /** Write out one row.
+    * The implementation of this method doesn't need to be thread-safe as it is wrapped by `threadSafeWriteRow` to
+    * handle synchronization.
+    * @param row row of data to write out
+    */
+  protected def writeRow(row: Row): Unit
 
   /** Close the writing of the current graph perspective
     * This method gets called every time all the rows from one graph perspective have been successfully written out so

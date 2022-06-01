@@ -1,16 +1,15 @@
 package com.raphtory.sinks
 
-abstract class MessageSinkConnector extends SinkConnector[String] {
+import java.io.StringWriter
+
+/** Helper class to implement SinkConnector trait based on message systems */
+abstract class MessageSinkConnector extends SinkConnector {
   def sendAsync(message: String): Unit
 
-  private var currentPartialItem = ""
-
-  final override def write(item: String): Unit = sendAsync(item)
-
-  final override def append(partialItem: String): Unit = currentPartialItem += partialItem
+  override val writer = new StringWriter()
 
   final override def closeItem(): Unit = {
-    sendAsync(currentPartialItem)
-    currentPartialItem = ""
+    sendAsync(writer.toString)
+    writer.getBuffer.setLength(0)
   }
 }
