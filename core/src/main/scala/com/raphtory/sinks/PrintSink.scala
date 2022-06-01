@@ -10,11 +10,11 @@ class PrintSink(format: Format = CsvFormat()) extends FormatAgnosticSink(format)
       jobID: String,
       partitionID: Int,
       config: Config,
-      itemDelimiter: Array[Byte]
+      itemDelimiter: String
   ): SinkConnector =
     new SinkConnector {
-      override def write(value: Array[Byte]): Unit = System.out.write(value)
-      override def closeItem(): Unit               = System.out.write(itemDelimiter)
+      override def write(value: String): Unit = System.out.print(value)
+      override def closeItem(): Unit          = System.out.print(itemDelimiter)
       override def close(): Unit = {}
     }
 }

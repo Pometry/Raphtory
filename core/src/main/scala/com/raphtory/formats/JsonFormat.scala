@@ -13,7 +13,7 @@ import java.io.StringWriter
 
 case class JsonFormat(jobID: String, partitionID: Int) extends Format {
 
-  override def defaultItemDelimiter: Array[Byte] = "\n".getBytes
+  override def defaultDelimiter: String = "\n"
 
   override def executor(connector: SinkConnector): SinkExecutor =
     new SinkExecutor {

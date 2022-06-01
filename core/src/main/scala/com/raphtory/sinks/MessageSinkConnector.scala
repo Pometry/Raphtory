@@ -5,16 +5,14 @@ import java.io.ByteArrayOutputStream
 /** Helper class to implement SinkConnector trait based on message systems */
 abstract class MessageSinkConnector extends SinkConnector {
 
-  private val arrayStream = new ByteArrayOutputStream()
+  private val stringBuilder = new StringBuilder()
 
-  def sendAsync(message: Array[Byte]): Unit
   def sendAsync(message: String): Unit
 
-  final override def write(value: Array[Byte]): Unit = arrayStream.write(value)
-  final override def write(value: String): Unit      = sendAsync(value)
+  final override def write(value: String): Unit = stringBuilder.append(value)
 
   final override def closeItem(): Unit = {
-    sendAsync(arrayStream.toByteArray)
-    arrayStream.reset()
+    sendAsync(stringBuilder.toString())
+    stringBuilder.clear()
   }
 }

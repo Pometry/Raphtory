@@ -1,8 +1,5 @@
 package com.raphtory.sinks
 
-import java.io.OutputStream
-import java.nio.charset.Charset
-
 /** An abstract sink of entities to be written out
   *
   * An item is a piece of information meaningful by itself and isolated from the rest of entities.
@@ -18,9 +15,7 @@ import java.nio.charset.Charset
   */
 trait SinkConnector {
 
-  def write(value: String): Unit = write(value.getBytes())
-
-  def write(value: Array[Byte]): Unit
+  def write(value: String): Unit
 
   /** Closes the current item
     * @note Intended to be used in combination with append.

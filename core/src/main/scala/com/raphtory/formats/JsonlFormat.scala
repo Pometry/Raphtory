@@ -8,7 +8,7 @@ import com.raphtory.sinks.SinkConnector
 
 case class JsonlFormat() extends Format {
 
-  override def defaultItemDelimiter: Array[Byte] = "\n".getBytes
+  override def defaultDelimiter: String = "\n"
 
   override def executor(connector: SinkConnector): SinkExecutor =
     new SinkExecutor {
