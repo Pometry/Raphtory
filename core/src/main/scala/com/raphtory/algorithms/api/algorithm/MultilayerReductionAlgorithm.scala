@@ -14,7 +14,7 @@ trait MultilayerReductionAlgorithm extends BaseGraphAlgorithm {
           with MultilayerReductionAlgorithm {
 
     override def apply(graph: MultilayerGraphPerspective): graph.ReducedGraph =
-      second(first(graph))
+      second(first(graph).clearMessages())
 
     override def tabularise(graph: GraphPerspective): Table = second.tabularise(graph)
   }
@@ -26,7 +26,7 @@ trait MultilayerReductionAlgorithm extends BaseGraphAlgorithm {
           with MultilayerReductionAlgorithm {
 
     override def apply(graph: MultilayerGraphPerspective): graph.ReducedGraph =
-      second(first(graph))
+      second(first(graph).clearMessages())
 
     override def tabularise(graph: GraphPerspective): Table = second.tabularise(graph)
   }
@@ -38,13 +38,13 @@ trait MultilayerReductionAlgorithm extends BaseGraphAlgorithm {
           with MultilayerAlgorithm {
 
     override def apply(graph: MultilayerGraphPerspective): graph.MultilayerGraph =
-      second(first(graph))
+      second(first(graph).clearMessages())
 
     override def tabularise(graph: MultilayerGraphPerspective): Table =
       second.tabularise(graph)
   }
 
-  def apply(graph: MultilayerGraphPerspective): graph.ReducedGraph
+  def apply(graph: MultilayerGraphPerspective): graph.ReducedGraph = graph.reducedView
 
   def tabularise(graph: GraphPerspective): Table =
     graph.globalSelect(_ => Row())

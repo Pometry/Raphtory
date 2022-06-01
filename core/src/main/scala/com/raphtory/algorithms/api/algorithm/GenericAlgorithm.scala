@@ -31,7 +31,7 @@ trait GenericAlgorithm extends GenericallyApplicableAlgorithm {
           with GenericAlgorithm {
 
     override def apply(graph: GraphPerspective): graph.Graph =
-      second(first(graph))
+      second(first(graph).clearMessages())
 
     override def tabularise(graph: GraphPerspective): Table =
       second.tabularise(graph)
@@ -43,10 +43,8 @@ trait GenericAlgorithm extends GenericallyApplicableAlgorithm {
   ) extends ChainedAlgorithm(first, second)
           with MultilayerProjectionAlgorithm {
 
-    override def apply(graph: GraphPerspective): graph.MultilayerGraph = {
-      val f = first(graph)
-      second(first(graph)).asInstanceOf[graph.MultilayerGraph]
-    }
+    override def apply(graph: GraphPerspective): graph.MultilayerGraph =
+      second(first(graph).clearMessages())
 
     override def tabularise(graph: MultilayerGraphPerspective): Table =
       second.tabularise(graph)
@@ -59,7 +57,7 @@ trait GenericAlgorithm extends GenericallyApplicableAlgorithm {
           with GenericReductionAlgorithm {
 
     override def apply(graph: GraphPerspective): graph.ReducedGraph =
-      second(first(graph))
+      second(first(graph).clearMessages())
 
     override def tabularise(graph: GraphPerspective): Table =
       second.tabularise(graph)

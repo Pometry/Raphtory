@@ -184,10 +184,10 @@ trait TemporalGraphBase[G <: TemporalGraphBase[G]]
   private def parseDateTime(dateTime: String) =
     DateTimeParser(conf.getString("raphtory.query.timeFormat")).parse(dateTime)
 
-  override protected def newRGraph(query: Query, querySender: QuerySender): TemporalGraph =
+  override private[api] def newRGraph(query: Query, querySender: QuerySender): TemporalGraph =
     new TemporalGraph(query, querySender, conf)
 
-  override protected def newMGraph(
+  override private[api] def newMGraph(
       query: Query,
       querySender: QuerySender
   ): MultilayerTemporalGraph =

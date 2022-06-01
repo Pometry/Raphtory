@@ -13,6 +13,7 @@ import com.raphtory.algorithms.api.algorithm.GenericReductionAlgorithm
 import com.raphtory.algorithms.api.algorithm.GenericallyApplicableAlgorithm
 import com.raphtory.algorithms.api.algorithm.MultilayerAlgorithm
 import com.raphtory.algorithms.api.algorithm.MultilayerProjectionAlgorithm
+import com.raphtory.algorithms.api.algorithm.MultilayerReductionAlgorithm
 
 sealed trait GraphFunction                             extends QueryManagement
 final case class SetGlobalState(f: GraphState => Unit) extends GraphFunction
@@ -289,25 +290,12 @@ trait GraphPerspective {
   def globalSelect(f: GraphState => Row): Table
   def explodeSelect(f: Vertex => List[Row]): Table
   def clearMessages(): Graph
-  def transform(algorithm: GenericAlgorithm): Graph
-  def transform(algorithm: MultilayerProjectionAlgorithm): MultilayerGraph
-
-  def transform(algorithm: GenericReductionAlgorithm): ReducedGraph
-
-  /** Execute the algorithm on every perspective and returns a new `RaphtoryGraph` with the result.
-    * @param algorithm to apply
-    */
-  def execute(algorithm: GenericallyApplicableAlgorithm): Table
 }
 
 trait MultilayerGraphPerspective extends GraphPerspective {
   override type Vertex          = visitor.ExplodedVertex
   override type Graph <: ConcreteMultilayerGraphPerspective[Graph, ReducedGraph]
   override type MultilayerGraph = Graph
-
-  def transform(algorithm: MultilayerAlgorithm): Graph
-
-  def execute(algorithm: MultilayerAlgorithm): Table
 }
 
 trait ReducedGraphPerspective extends GraphPerspective {

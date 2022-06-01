@@ -13,10 +13,8 @@ trait MultilayerAlgorithm extends BaseGraphAlgorithm {
   ) extends ChainedAlgorithm(first, second)
           with MultilayerAlgorithm {
 
-    override def apply(graph: MultilayerGraphPerspective): graph.MultilayerGraph = {
-      val t = first(graph)
-      second(first(graph))
-    }
+    override def apply(graph: MultilayerGraphPerspective): graph.MultilayerGraph =
+      second(first(graph).clearMessages())
 
     override def tabularise(graph: MultilayerGraphPerspective): Table =
       second.tabularise(graph)
@@ -29,7 +27,7 @@ trait MultilayerAlgorithm extends BaseGraphAlgorithm {
           with MultilayerAlgorithm {
 
     override def apply(graph: MultilayerGraphPerspective): graph.MultilayerGraph =
-      second(first(graph))
+      second(first(graph).clearMessages())
 
     override def tabularise(graph: MultilayerGraphPerspective): Table =
       second.tabularise(graph)
@@ -42,7 +40,7 @@ trait MultilayerAlgorithm extends BaseGraphAlgorithm {
           with MultilayerReductionAlgorithm {
 
     override def apply(graph: MultilayerGraphPerspective): graph.ReducedGraph =
-      second(first(graph))
+      second(first(graph).clearMessages())
 
     override def tabularise(graph: GraphPerspective): Table = second.tabularise(graph)
   }
@@ -51,7 +49,7 @@ trait MultilayerAlgorithm extends BaseGraphAlgorithm {
     *
     * @param graph graph to run function upon
     */
-  def apply(graph: MultilayerGraphPerspective): graph.MultilayerGraph
+  def apply(graph: MultilayerGraphPerspective): graph.MultilayerGraph = graph.identity
 
   /** Return tabularised results (default implementation returns empty table)
     *

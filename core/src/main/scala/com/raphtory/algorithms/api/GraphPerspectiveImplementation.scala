@@ -6,6 +6,7 @@ import com.raphtory.algorithms.api.algorithm.GenericReductionAlgorithm
 import com.raphtory.algorithms.api.algorithm.GenericallyApplicableAlgorithm
 import com.raphtory.algorithms.api.algorithm.MultilayerAlgorithm
 import com.raphtory.algorithms.api.algorithm.MultilayerProjectionAlgorithm
+import com.raphtory.algorithms.api.algorithm.MultilayerReductionAlgorithm
 import com.raphtory.client.QuerySender
 import com.raphtory.components.querymanager.Query
 import com.raphtory.graph.visitor.InterlayerEdge
@@ -126,20 +127,20 @@ trait GraphPerspectiveImplementation[
     */
   def transform(algorithm: GenericAlgorithm): G =
     algorithm
-      .apply(newGraph(query.copy(name = transformedName(algorithm)), querySender))
+      .apply(withTransformedName(algorithm))
       .clearMessages()
 
   def transform(algorithm: MultilayerProjectionAlgorithm): MG =
-    algorithm(newGraph(query.copy(name = transformedName(algorithm)), querySender)).clearMessages()
+    algorithm(withTransformedName(algorithm)).clearMessages()
 
   def transform(algorithm: GenericReductionAlgorithm): RG =
-    algorithm(newGraph(query.copy(name = transformedName(algorithm)), querySender)).clearMessages()
+    algorithm(withTransformedName(algorithm)).clearMessages()
 
   /** Execute the algorithm on every perspective and returns a new `RaphtoryGraph` with the result.
     * @param algorithm to apply
     */
   def execute(algorithm: GenericallyApplicableAlgorithm): Table =
-    algorithm.run(newGraph(query.copy(name = transformedName(algorithm)), querySender))
+    algorithm.run(withTransformedName(algorithm))
 
   private def addFunction(function: GraphFunction) =
     newGraph(query.copy(graphFunctions = query.graphFunctions.enqueue(function)), querySender)
@@ -156,11 +157,13 @@ trait GraphPerspectiveImplementation[
             querySender
     )
 
-  private[api] def transformedName(algorithm: BaseGraphAlgorithm) =
-    query.name match {
+  private[api] def withTransformedName(algorithm: BaseGraphAlgorithm) = {
+    val newName = query.name match {
       case "" => algorithm.name
-      case _  => query.name + "->" + algorithm.name
+      case _  => query.name + ":" + algorithm.name
     }
+    newGraph(query.copy(name = newName), querySender)
+  }
 }
 
 trait MultilayerGraphPerspectiveImplementation[
@@ -170,12 +173,19 @@ trait MultilayerGraphPerspectiveImplementation[
         with ConcreteMultilayerGraphPerspective[G, RG] { this: G =>
 
   def transform(algorithm: MultilayerAlgorithm): G =
-    algorithm(newGraph(query.copy(name = transformedName(algorithm)), querySender)).clearMessages()
+    algorithm(withTransformedName(algorithm)).clearMessages()
+
+  def transform(algorithm: MultilayerReductionAlgorithm): RG =
+    algorithm(withTransformedName(algorithm)).clearMessages()
 
   def execute(algorithm: MultilayerAlgorithm): Table =
-    algorithm.run(newGraph(query.copy(name = transformedName(algorithm)), querySender))
+    algorithm.run(withTransformedName(algorithm))
 
-  override def newGraph(query: Query, querySender: QuerySender): G = newMGraph(query, querySender)
+  def execute(algorithm: MultilayerReductionAlgorithm): Table =
+    algorithm.run(withTransformedName(algorithm))
+
+  private[api] def newGraph(query: Query, querySender: QuerySender): G =
+    newMGraph(query, querySender)
 }
 
 trait ReducedGraphPerspectiveImplementation[G <: ReducedGraphPerspectiveImplementation[
@@ -184,11 +194,13 @@ trait ReducedGraphPerspectiveImplementation[G <: ReducedGraphPerspectiveImplemen
 ], MG <: MultilayerGraphPerspectiveImplementation[MG, G]]
         extends ConcreteReducedGraphPerspective[G, MG]
         with GraphPerspectiveImplementation[visitor.Vertex, G, G, MG] { this: G =>
-  override def newGraph(query: Query, querySender: QuerySender): G = newRGraph(query, querySender)
+
+  private[api] def newGraph(query: Query, querySender: QuerySender): G =
+    newRGraph(query, querySender)
 }
 
 trait GraphBase[G, RG, MG] {
-  protected def newGraph(query: Query, querySender: QuerySender): G
-  protected def newRGraph(query: Query, querySender: QuerySender): RG
-  protected def newMGraph(query: Query, querySender: QuerySender): MG
+  private[api] def newGraph(query: Query, querySender: QuerySender): G
+  private[api] def newRGraph(query: Query, querySender: QuerySender): RG
+  private[api] def newMGraph(query: Query, querySender: QuerySender): MG
 }

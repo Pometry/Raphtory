@@ -14,7 +14,7 @@ trait MultilayerProjectionAlgorithm extends GenericallyApplicableAlgorithm {
           with MultilayerProjectionAlgorithm {
 
     override def apply(graph: GraphPerspective): graph.MultilayerGraph =
-      second(first(graph))
+      second(first(graph).clearMessages())
 
     override def tabularise(graph: MultilayerGraphPerspective): Table =
       second.tabularise(graph)
@@ -27,7 +27,7 @@ trait MultilayerProjectionAlgorithm extends GenericallyApplicableAlgorithm {
           with MultilayerProjectionAlgorithm {
 
     override def apply(graph: GraphPerspective): graph.MultilayerGraph =
-      second(first(graph))
+      second(first(graph).clearMessages())
 
     override def tabularise(graph: MultilayerGraphPerspective): Table =
       second.tabularise(graph)
@@ -40,7 +40,7 @@ trait MultilayerProjectionAlgorithm extends GenericallyApplicableAlgorithm {
           with GenericReductionAlgorithm {
 
     override def apply(graph: GraphPerspective): graph.ReducedGraph =
-      second(first(graph))
+      second(first(graph).clearMessages())
 
     override def tabularise(graph: GraphPerspective): Table = second.tabularise(graph)
   }
@@ -49,7 +49,8 @@ trait MultilayerProjectionAlgorithm extends GenericallyApplicableAlgorithm {
     *
     * @param graph graph to run function upon
     */
-  override def apply(graph: GraphPerspective): graph.MultilayerGraph
+  override def apply(graph: GraphPerspective): graph.MultilayerGraph =
+    graph.multilayerView
 
   /** Return tabularised results (default implementation returns empty table)
     *
