@@ -1,29 +1,27 @@
 package com.raphtory.formats
 
-import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.raphtory.algorithms.api.Row
+import com.raphtory.algorithms.api.SinkExecutor
 import com.raphtory.graph.Perspective
 import com.raphtory.sinks.SinkConnector
 
-case class JsonlFormat() extends Format[String] {
+case class JsonlFormat() extends Format {
 
-  private var gsonBuilder: Gson = _
+  override def defaultItemDelimiter: Array[Byte] = "\n".getBytes
 
-  override def open(connector: SinkConnector[String]): Unit =
-    gsonBuilder = new GsonBuilder().create()
+  override def executor(connector: SinkConnector): SinkExecutor =
+    new SinkExecutor {
+      private val gson           = new GsonBuilder().create()
+      override def setupPerspective(perspective: Perspective): Unit = {}
 
-  override def setupPerspective(
-      connector: SinkConnector[String],
-      perspective: Perspective
-  ): Unit = {}
+      override protected def writeRow(row: Row): Unit = {
+        val value = s"${gson.toJson(row.getValues())}"
+        connector.write(value)
+      }
 
-  override def closePerspective(connector: SinkConnector[String]): Unit = {}
+      override def closePerspective(): Unit = {}
 
-  override def writeRow(connector: SinkConnector[String], row: Row): Unit = {
-    val value = s"${gsonBuilder.toJson(row.getValues())}"
-    connector.write(value)
-  }
-
-  override def close(connector: SinkConnector[String]): Unit = {}
+      override def close(): Unit = connector.close()
+    }
 }

@@ -9,12 +9,17 @@ import com.raphtory.sinks.SinkConnector
 import com.raphtory.time.DiscreteInterval
 import com.raphtory.time.TimeInterval
 
+import java.io.StringWriter
+
 case class JsonFormat(jobID: String, partitionID: Int) extends Format {
+
+  override def defaultItemDelimiter: Array[Byte] = "\n".getBytes
 
   override def executor(connector: SinkConnector): SinkExecutor =
     new SinkExecutor {
       private val gson                   = new GsonBuilder().setPrettyPrinting().create()
-      private val jsonWriter: JsonWriter = new JsonWriter(connector.writer)
+      private val stringWriter           = new StringWriter()
+      private val jsonWriter: JsonWriter = new JsonWriter(stringWriter)
 
       jsonWriter.setIndent("  ")
       jsonWriter.beginObject()
@@ -22,6 +27,7 @@ case class JsonFormat(jobID: String, partitionID: Int) extends Format {
       jsonWriter.name("partitionID").value(partitionID)
       jsonWriter.name("perspectives")
       jsonWriter.beginArray()
+      connector.write(stringWriter.toString)
 
       override def setupPerspective(perspective: Perspective): Unit = {
         jsonWriter.beginObject()
@@ -33,19 +39,24 @@ case class JsonFormat(jobID: String, partitionID: Int) extends Format {
         }
         jsonWriter.name("rows")
         jsonWriter.beginArray()
+        connector.write(stringWriter.toString)
       }
 
-      override protected def writeRow(row: Row): Unit =
+      override protected def writeRow(row: Row): Unit = {
         gson.toJson(row.getValues(), classOf[Array[Any]], jsonWriter)
+        connector.write(stringWriter.toString)
+      }
 
       override def closePerspective(): Unit = {
         jsonWriter.endArray()
         jsonWriter.endObject()
+        connector.write(stringWriter.toString)
       }
 
       override def close(): Unit = {
         jsonWriter.endArray()
         jsonWriter.endObject()
+        connector.write(stringWriter.toString)
         connector.close()
       }
     }

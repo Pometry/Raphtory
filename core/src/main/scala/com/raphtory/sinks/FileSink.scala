@@ -4,8 +4,10 @@ import com.raphtory.formats.CsvFormat
 import com.raphtory.formats.Format
 import com.typesafe.config.Config
 
+import java.io.BufferedOutputStream
 import java.io.BufferedWriter
 import java.io.File
+import java.io.FileOutputStream
 import java.io.FileWriter
 import java.io.Writer
 
@@ -36,24 +38,21 @@ import java.io.Writer
 case class FileSink(filePath: String, format: Format = CsvFormat())
         extends FormatAgnosticSink(format) {
 
-  class FileSinkConnector(filePath: String, jobID: String, partitionID: Int) extends SinkConnector {
-    private val workDirectory = s"$filePath/$jobID"
-    new File(workDirectory).mkdirs()
-    private val fileWriter    = new FileWriter(s"$workDirectory/partition-$partitionID")
-
-    override val writer = new BufferedWriter(fileWriter)
-
-    override def closeItem(): Unit = writer.write(itemDelimiter)
-
-    override def close(): Unit = {
-      writer.close()
-      fileWriter.close()
-    }
-  }
-
-  override protected def createConnector(
+  override protected def buildConnector(
       jobID: String,
       partitionID: Int,
-      config: Config
-  ): SinkConnector = new FileSinkConnector(filePath, jobID, partitionID)
+      config: Config,
+      itemDelimiter: Array[Byte]
+  ): SinkConnector =
+    new SinkConnector {
+      private val workDirectory        = s"$filePath/$jobID"
+      new File(workDirectory).mkdirs()
+      private val filename             = s"$workDirectory/partition-$partitionID"
+      private val fileOutputStream     = new FileOutputStream(filename)
+      private val bufferedOutputStream = new BufferedOutputStream(fileOutputStream)
+
+      override def write(value: Array[Byte]): Unit = bufferedOutputStream.write(value)
+      override def closeItem(): Unit               = bufferedOutputStream.write(itemDelimiter)
+      override def close(): Unit                   = bufferedOutputStream.close()
+    }
 }

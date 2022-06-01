@@ -29,25 +29,24 @@ import org.apache.pulsar.client.api.Schema
   *       [[com.raphtory.client.GraphDeployment]]
   *       [[com.raphtory.deployment.Raphtory]]
   */
-case class PulsarSink(pulsarTopic: String, format: Format[String] = CsvFormat())
+case class PulsarSink(topic: String, format: Format = CsvFormat())
         extends FormatAgnosticSink(format) {
 
-  class PulsarSinkConnector(pulsarTopic: String, config: Config) extends MessageSinkConnector {
-
-    private val producer = new PulsarConnector(config).accessClient
-      .newProducer(Schema.STRING)
-      .topic(pulsarTopic) // TODO change here : Topic name with deployment
-      .create()
-
-    override def sendAsync(message: String): Unit = producer.sendAsync(message)
-
-    override def close(): Unit = producer.close()
-  }
-
-  override protected def createConnector(
+  override protected def buildConnector(
       jobID: String,
       partitionID: Int,
-      config: Config
-  ): SinkConnector[String] =
-    new PulsarSinkConnector(pulsarTopic, config)
+      config: Config,
+      itemDelimiter: Array[Byte]
+  ): SinkConnector =
+    new MessageSinkConnector {
+      private val client = new PulsarConnector(config).accessClient
+
+      private lazy val stringProducer = client.newProducer(Schema.STRING).topic(topic).create()
+      private lazy val byteProducer   = client.newProducer(Schema.BYTES).topic(topic).create()
+      // TODO change here : Topic name with deployment
+
+      override def sendAsync(message: Array[Byte]): Unit = byteProducer.sendAsync(message)
+      override def sendAsync(message: String): Unit      = stringProducer.sendAsync(message)
+      override def close(): Unit                         = client.close()
+    }
 }

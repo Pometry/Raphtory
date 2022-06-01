@@ -6,8 +6,16 @@ import com.raphtory.formats.Format
 import com.typesafe.config.Config
 
 abstract class FormatAgnosticSink[T](format: Format) extends Sink {
-  protected def createConnector(jobID: String, partitionID: Int, config: Config): SinkConnector
 
-  override def executor(jobID: String, partitionID: Int, config: Config): SinkExecutor =
-    format.executor(createConnector(jobID, partitionID, config))
+  protected def buildConnector(
+      jobID: String,
+      partitionID: Int,
+      config: Config,
+      itemDelimiter: Array[Byte]
+  ): SinkConnector
+
+  final override def executor(jobID: String, partitionID: Int, config: Config): SinkExecutor = {
+    val connector = buildConnector(jobID, partitionID, config, format.defaultItemDelimiter)
+    format.executor(connector)
+  }
 }

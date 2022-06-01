@@ -7,6 +7,8 @@ import com.raphtory.sinks.SinkConnector
 
 case class CsvFormat() extends Format {
 
+  override def defaultItemDelimiter: Array[Byte] = "\n".getBytes
+
   override def executor(connector: SinkConnector): SinkExecutor =
     new SinkExecutor {
       var currentPerspective: Perspective = _
@@ -17,13 +19,9 @@ case class CsvFormat() extends Format {
       override protected def writeRow(row: Row): Unit = {
         currentPerspective.window match {
           case Some(w) =>
-            connector.writer.write(
-                    s"${currentPerspective.timestamp},$w,${row.getValues().mkString(",")}"
-            )
+            connector.write(s"${currentPerspective.timestamp},$w,${row.getValues().mkString(",")}")
           case None    =>
-            connector.writer.write(
-                    s"${currentPerspective.timestamp},${row.getValues().mkString(",")}"
-            )
+            connector.write(s"${currentPerspective.timestamp},${row.getValues().mkString(",")}")
         }
         connector.closeItem()
       }

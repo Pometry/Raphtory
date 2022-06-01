@@ -1,6 +1,7 @@
 package com.raphtory.sinks
 
-import java.io.Writer
+import java.io.OutputStream
+import java.nio.charset.Charset
 
 /** An abstract sink of entities to be written out
   *
@@ -17,7 +18,9 @@ import java.io.Writer
   */
 trait SinkConnector {
 
-  def writer: Writer
+  def write(value: String): Unit = write(value.getBytes())
+
+  def write(value: Array[Byte]): Unit
 
   /** Closes the current item
     * @note Intended to be used in combination with append.
