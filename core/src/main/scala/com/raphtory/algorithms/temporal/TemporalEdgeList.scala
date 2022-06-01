@@ -39,7 +39,7 @@ class TemporalEdgeList(
 ) extends GenericAlgorithm {
 
   override def tabularise(graph: GraphPerspective): Table =
-    NeighbourNames()(graph.reducedView)
+    NeighbourNames(graph.reducedView)
       .multilayerView()
       .explodeSelect { vertex =>
         val neighbourMap = vertex.getState[Map[Long, String]]("neighbourNames")

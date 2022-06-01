@@ -47,7 +47,7 @@ import com.raphtory.algorithms.api.algorithm.Identity
 class CBOD(
     label: String = "community",
     cutoff: Double = 0.0,
-    labeler: GenericAlgorithm = Identity()
+    labeler: GenericAlgorithm = Identity
 ) extends GenericAlgorithm {
 
   // Run CBOD algorithm and sets "outlierscore" state
@@ -81,7 +81,7 @@ object CBOD {
   def apply(
       label: String = "community",
       cutoff: Double = 0.0,
-      labeler: GenericAlgorithm = Identity()
+      labeler: GenericAlgorithm = Identity
   ) =
     new CBOD(label, cutoff, labeler)
 }

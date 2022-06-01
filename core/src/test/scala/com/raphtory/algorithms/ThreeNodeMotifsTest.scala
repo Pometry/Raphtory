@@ -7,7 +7,7 @@ class ThreeNodeMotifsTest extends BaseCorrectnessTest {
   test("test motif counting") {
     assert(
             correctnessTest(
-                    ThreeNodeMotifs(),
+                    ThreeNodeMotifs,
                     "MotifCount/motiftest.csv",
                     "MotifCount/motiftestCorrectResults.csv",
                     23

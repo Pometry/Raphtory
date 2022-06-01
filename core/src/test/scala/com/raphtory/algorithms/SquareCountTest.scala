@@ -7,7 +7,7 @@ class SquareCountTest extends BaseCorrectnessTest {
   test("test PQ square") {
     assert(
             correctnessTest(
-                    SquareCount(),
+                    SquareCount,
                     "SquareCount/squarePQ.csv",
                     "SquareCount/singleSquareResult.csv",
                     4
@@ -18,7 +18,7 @@ class SquareCountTest extends BaseCorrectnessTest {
   test("test PR square") {
     assert(
             correctnessTest(
-                    SquareCount(),
+                    SquareCount,
                     "SquareCount/squarePR.csv",
                     "SquareCount/singleSquareResult.csv",
                     4
@@ -29,7 +29,7 @@ class SquareCountTest extends BaseCorrectnessTest {
   test("test QR square") {
     assert(
             correctnessTest(
-                    SquareCount(),
+                    SquareCount,
                     "SquareCount/squareQR.csv",
                     "SquareCount/singleSquareResult.csv",
                     4
@@ -40,7 +40,7 @@ class SquareCountTest extends BaseCorrectnessTest {
   test("test combined example") {
     assert(
             correctnessTest(
-                    SquareCount(),
+                    SquareCount,
                     "SquareCount/squareTest.csv",
                     "SquareCount/squareTestCorrectResult.csv",
                     19

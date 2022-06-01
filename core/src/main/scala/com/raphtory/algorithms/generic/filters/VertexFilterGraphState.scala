@@ -20,7 +20,7 @@ import com.raphtory.graph.visitor.Vertex
   * ```
   */
 
-class VertexFilterWithGraphState(f: (Vertex, GraphState) => Boolean) extends NodeList() {
+class VertexFilterGraphState(f: (Vertex, GraphState) => Boolean) extends NodeList() {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph.vertexFilter(f)
@@ -28,5 +28,5 @@ class VertexFilterWithGraphState(f: (Vertex, GraphState) => Boolean) extends Nod
 }
 
 object VertexFilterGraphState {
-  def apply(f: (Vertex, GraphState) => Boolean) = new VertexFilterWithGraphState(f)
+  def apply(f: (Vertex, GraphState) => Boolean) = new VertexFilterGraphState(f)
 }

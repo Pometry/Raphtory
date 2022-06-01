@@ -155,12 +155,8 @@ object CountPQ extends GenericAlgorithm {
   *  | ----------------- | ---------------------- |
   *  | {s}`name: String` | {s}`squareCount: Long` |
   */
-class SquareCount() extends NodeList(Seq("squareCount")) {
+object SquareCount extends NodeList(Seq("squareCount")) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     CountPQ(CountQR(CountPR(AdjPlus(graph))))
-}
-
-object SquareCount {
-  def apply() = new SquareCount()
 }

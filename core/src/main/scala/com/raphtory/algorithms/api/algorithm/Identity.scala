@@ -5,8 +5,4 @@ package com.raphtory.algorithms.api.algorithm
   *
   * @see [[GenericAlgorithm]], [[com.raphtory.algorithms.generic.CBOD]]
   */
-class Identity extends GenericAlgorithm {}
-
-object Identity {
-  def apply() = new Identity()
-}
+object Identity extends GenericAlgorithm {}

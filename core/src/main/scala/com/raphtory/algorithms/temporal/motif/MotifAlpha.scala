@@ -32,7 +32,7 @@ import com.raphtory.algorithms.generic.NodeList
   *  | ----------------- | ----------------------- |
   *  | {s}`name: String` | {s}`motifAlpha: Int`    |
   */
-class MotifAlpha extends NodeList(Seq("motifAlpha")) {
+object MotifAlpha extends NodeList(Seq("motifAlpha")) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph.step { vertex =>
@@ -54,8 +54,4 @@ class MotifAlpha extends NodeList(Seq("motifAlpha")) {
       else
         vertex.setState("motifAlpha", 0)
     }
-}
-
-object MotifAlpha {
-  def apply() = new MotifAlpha()
 }

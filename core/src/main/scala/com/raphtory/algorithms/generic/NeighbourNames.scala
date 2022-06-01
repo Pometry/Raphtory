@@ -23,7 +23,7 @@ import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
   *  [](com.raphtory.algorithms.temporal.TemporalEdgeList)
   *  ```
   */
-class NeighbourNames extends GenericAlgorithm {
+object NeighbourNames extends GenericAlgorithm {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -31,8 +31,4 @@ class NeighbourNames extends GenericAlgorithm {
       .step { vertex =>
         vertex.setState("neighbourNames", vertex.messageQueue[(vertex.IDType, String)].toMap)
       }
-}
-
-object NeighbourNames {
-  def apply() = new NeighbourNames
 }

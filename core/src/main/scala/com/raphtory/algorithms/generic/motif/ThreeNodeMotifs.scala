@@ -54,7 +54,7 @@ import scala.collection.mutable.ArrayBuffer
   *  | ----------------- | ------------------------- | --- | -------------------------- |
   *  | {s}`name: String` | {s}`motifCounts(0): Long` | ... | {s}`motifCounts(12): Long` |
   */
-class ThreeNodeMotifs() extends GenericAlgorithm {
+object ThreeNodeMotifs extends GenericAlgorithm {
   //  edge direction constants
   val inoutEdge = 0
   val outEdge   = 1
@@ -164,8 +164,4 @@ class ThreeNodeMotifs() extends GenericAlgorithm {
       Row(row.toSeq: _*)
     }
 
-}
-
-object ThreeNodeMotifs {
-  def apply() = new ThreeNodeMotifs()
 }
