@@ -11,11 +11,11 @@ import com.raphtory.time.TimeInterval
 
 import java.io.StringWriter
 
-case class JsonFormat(jobID: String, partitionID: Int) extends Format {
+case class JsonFormat(jobID: String, partitionID: Int) extends TextFormat {
 
-  override def defaultItemDelimiter: Array[Byte] = "\n".getBytes
+  override def defaultDelimiter: String = "\n"
 
-  override def executor(connector: SinkConnector): SinkExecutor =
+  override def executor(connector: SinkConnector[String]): SinkExecutor =
     new SinkExecutor {
       private val gson                   = new GsonBuilder().setPrettyPrinting().create()
       private val stringWriter           = new StringWriter()

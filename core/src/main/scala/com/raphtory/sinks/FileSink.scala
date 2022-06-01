@@ -5,11 +5,9 @@ import com.raphtory.formats.Format
 import com.typesafe.config.Config
 
 import java.io.BufferedOutputStream
-import java.io.BufferedWriter
 import java.io.File
 import java.io.FileOutputStream
 import java.io.FileWriter
-import java.io.Writer
 
 /** Writes the rows of a `Table` to the file specified by `filePath` in CSV format.
   *
@@ -38,21 +36,39 @@ import java.io.Writer
 case class FileSink(filePath: String, format: Format = CsvFormat())
         extends FormatAgnosticSink(format) {
 
-  override protected def buildConnector(
+  abstract class FileSinkConnector[OutputType](filePath: String, jobID: String, partitionID: Int)
+          extends SinkConnector[OutputType] {
+    private val workDirectory = s"$filePath/$jobID"
+    new File(workDirectory).mkdirs()
+    protected val filename    = s"$workDirectory/partition-$partitionID"
+  }
+
+  override protected def binaryConnector(
       jobID: String,
       partitionID: Int,
       config: Config,
       itemDelimiter: Array[Byte]
-  ): SinkConnector =
-    new SinkConnector {
-      private val workDirectory        = s"$filePath/$jobID"
-      new File(workDirectory).mkdirs()
-      private val filename             = s"$workDirectory/partition-$partitionID"
+  ): SinkConnector[Array[Byte]] =
+    new FileSinkConnector[Array[Byte]](filePath, jobID, partitionID) {
       private val fileOutputStream     = new FileOutputStream(filename)
       private val bufferedOutputStream = new BufferedOutputStream(fileOutputStream)
 
       override def write(value: Array[Byte]): Unit = bufferedOutputStream.write(value)
       override def closeItem(): Unit               = bufferedOutputStream.write(itemDelimiter)
       override def close(): Unit                   = bufferedOutputStream.close()
+    }
+
+  override protected def textConnector(
+      jobID: String,
+      partitionID: Int,
+      config: Config,
+      itemDelimiter: String
+  ): SinkConnector[String] =
+    new FileSinkConnector[String](filePath, jobID, partitionID) {
+      private val fileWriter = new FileWriter(filename)
+
+      override def write(value: String): Unit = fileWriter.write(value)
+      override def closeItem(): Unit          = fileWriter.write(itemDelimiter)
+      override def close(): Unit              = fileWriter.close()
     }
 }

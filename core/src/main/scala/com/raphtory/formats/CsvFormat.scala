@@ -5,11 +5,10 @@ import com.raphtory.algorithms.api.SinkExecutor
 import com.raphtory.graph.Perspective
 import com.raphtory.sinks.SinkConnector
 
-case class CsvFormat() extends Format {
+case class CsvFormat() extends TextFormat {
+  override def defaultDelimiter: String = "\n"
 
-  override def defaultItemDelimiter: Array[Byte] = "\n".getBytes
-
-  override def executor(connector: SinkConnector): SinkExecutor =
+  override def executor(connector: SinkConnector[String]): SinkExecutor =
     new SinkExecutor {
       var currentPerspective: Perspective = _
 

@@ -32,21 +32,30 @@ import org.apache.pulsar.client.api.Schema
 case class PulsarSink(topic: String, format: Format = CsvFormat())
         extends FormatAgnosticSink(format) {
 
-  override protected def buildConnector(
+  override protected def binaryConnector(
       jobID: String,
       partitionID: Int,
       config: Config,
       itemDelimiter: Array[Byte]
-  ): SinkConnector =
-    new MessageSinkConnector {
-      private val client = new PulsarConnector(config).accessClient
-
-      private lazy val stringProducer = client.newProducer(Schema.STRING).topic(topic).create()
-      private lazy val byteProducer   = client.newProducer(Schema.BYTES).topic(topic).create()
-      // TODO change here : Topic name with deployment
-
+  ): SinkConnector[Array[Byte]] =
+    new MessageBinarySinkConnector {
+      private val client                                 = new PulsarConnector(config).accessClient
+      private lazy val byteProducer                      = client.newProducer(Schema.BYTES).topic(topic).create()
       override def sendAsync(message: Array[Byte]): Unit = byteProducer.sendAsync(message)
-      override def sendAsync(message: String): Unit      = stringProducer.sendAsync(message)
       override def close(): Unit                         = client.close()
+    }
+
+  override protected def textConnector(
+      jobID: String,
+      partitionID: Int,
+      config: Config,
+      itemDelimiter: String
+  ): SinkConnector[String] =
+    new MessageTextSinkConnector {
+      private val client                            = new PulsarConnector(config).accessClient
+      private lazy val stringProducer               = client.newProducer(Schema.STRING).topic(topic).create()
+      override def sendAsync(message: String): Unit = stringProducer.sendAsync(message)
+
+      override def close(): Unit = client.close()
     }
 }

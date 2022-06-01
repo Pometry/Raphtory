@@ -6,11 +6,11 @@ import com.raphtory.algorithms.api.SinkExecutor
 import com.raphtory.graph.Perspective
 import com.raphtory.sinks.SinkConnector
 
-case class JsonlFormat() extends Format {
+case class JsonlFormat() extends TextFormat {
 
-  override def defaultItemDelimiter: Array[Byte] = "\n".getBytes
+  override def defaultDelimiter: String = "\n"
 
-  override def executor(connector: SinkConnector): SinkExecutor =
+  override def executor(connector: SinkConnector[String]): SinkExecutor =
     new SinkExecutor {
       private val gson           = new GsonBuilder().create()
       override def setupPerspective(perspective: Perspective): Unit = {}

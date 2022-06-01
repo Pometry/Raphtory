@@ -6,15 +6,17 @@ import com.typesafe.config.Config
 
 class PrintSink(format: Format = CsvFormat()) extends FormatAgnosticSink(format) {
 
-  override protected def buildConnector(
+  override protected def textConnector(
       jobID: String,
       partitionID: Int,
       config: Config,
-      itemDelimiter: Array[Byte]
-  ): SinkConnector =
-    new SinkConnector {
-      override def write(value: Array[Byte]): Unit = System.out.write(value)
-      override def closeItem(): Unit               = System.out.write(itemDelimiter)
+      itemDelimiter: String
+  ): SinkConnector[String] =
+    new SinkConnector[String] {
+      override def write(value: String): Unit = System.out.print(value)
+
+      override def closeItem(): Unit = System.out.print(itemDelimiter)
+
       override def close(): Unit = {}
     }
 }
