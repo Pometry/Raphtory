@@ -19,16 +19,19 @@ import com.raphtory.graph.visitor.Vertex
 private[raphtory] class RaphtoryGraph(
     override private[api] val query: Query,
     override private[api] val querySender: QuerySender
-) extends ReducedGraphPerspectiveImplementation[RaphtoryGraph, MultilayerRaphtoryGraph] {
+) extends RaphtoryGraphBase[RaphtoryGraph]
+        with ReducedGraphPerspectiveImplementation[RaphtoryGraph, MultilayerRaphtoryGraph] {}
 
-  /** Apply f over itself and return the result. `graph.transform(f)` is equivalent to `f(graph)`
-    * @param f function to apply
-    */
+class MultilayerRaphtoryGraph(
+    override private[api] val query: Query,
+    override private[api] val querySender: QuerySender
+) extends RaphtoryGraphBase[MultilayerRaphtoryGraph]
+        with MultilayerGraphPerspectiveImplementation[MultilayerRaphtoryGraph, RaphtoryGraph] {}
 
-  override protected def newGraph(
-      query: Query,
-      querySender: QuerySender
-  ): RaphtoryGraph =
+trait RaphtoryGraphBase[G <: RaphtoryGraphBase[G]]
+        extends GraphBase[G, RaphtoryGraph, MultilayerRaphtoryGraph] {
+
+  override protected def newRGraph(query: Query, querySender: QuerySender): RaphtoryGraph =
     new RaphtoryGraph(query, querySender)
 
   override protected def newMGraph(
@@ -36,19 +39,4 @@ private[raphtory] class RaphtoryGraph(
       querySender: QuerySender
   ): MultilayerRaphtoryGraph =
     new MultilayerRaphtoryGraph(query, querySender)
-}
-
-class MultilayerRaphtoryGraph(
-    override private[api] val query: Query,
-    override private[api] val querySender: QuerySender
-) extends MultilayerGraphPerspectiveImplementation[MultilayerRaphtoryGraph, RaphtoryGraph] {
-
-  override protected def newGraph(
-      query: Query,
-      querySender: QuerySender
-  ): MultilayerRaphtoryGraph =
-    new MultilayerRaphtoryGraph(query, querySender)
-
-  override protected def newRGraph(query: Query, querySender: QuerySender): RaphtoryGraph =
-    new RaphtoryGraph(query, querySender)
 }

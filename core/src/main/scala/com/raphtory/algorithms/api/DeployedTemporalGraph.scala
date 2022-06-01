@@ -15,7 +15,7 @@ private[raphtory] class DeployedTemporalGraph(
     override private[api] val query: Query,
     override private[api] val querySender: QuerySender,
     val stopCallBack: () => Unit,
-    val conf: Config
+    override val conf: Config
 ) extends TemporalGraph(query, querySender, conf) {
 
   class Deployment {

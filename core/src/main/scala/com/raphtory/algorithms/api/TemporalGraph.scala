@@ -33,51 +33,51 @@ import com.typesafe.config.Config
   *
   * @see [[com.raphtory.algorithms.api.DottedGraph]], [[com.raphtory.algorithms.api.GraphPerspective]]
   */
-class TemporalGraph(
-    override private[api] val query: Query,
-    override private[api] val querySender: QuerySender,
-    private val conf: Config
-) extends RaphtoryGraph(query, querySender) {
+trait TemporalGraphBase[G <: TemporalGraphBase[G]]
+        extends GraphBase[G, TemporalGraph, MultilayerTemporalGraph] {
+  private[api] val query: Query
+  private[api] val querySender: QuerySender
+  private[api] val conf: Config
 
   /** Creates a new `TemporalGraph` which includes all activity after startTime (inclusive).
     * @param startTime time interpreted in milliseconds by default
     */
-  def from(startTime: Long): TemporalGraph = {
+  def from(startTime: Long): G = {
     val updatedStart = query.timelineStart max startTime
-    new TemporalGraph(query.copy(timelineStart = updatedStart), querySender, conf)
+    newGraph(query.copy(timelineStart = updatedStart), querySender)
   }
 
   /** Creates a new `TemporalGraph` which includes all activity after startTime (inclusive). */
-  def from(startTime: String): TemporalGraph = from(parseDateTime(startTime))
+  def from(startTime: String): G = from(parseDateTime(startTime))
 
   /** Creates a new `TemporalGraph` which includes all activity before endTime (inclusive).
     * @param endTime time interpreted in milliseconds by default
     */
-  def to(endTime: Long): TemporalGraph = {
+  def to(endTime: Long): G = {
     val updatedEnd = query.timelineEnd min endTime
-    new TemporalGraph(query.copy(timelineEnd = updatedEnd), querySender, conf)
+    newGraph(query.copy(timelineEnd = updatedEnd), querySender)
   }
 
   /** Creates a new `TemporalGraph` which includes all activity before endTime (inclusive). */
-  def to(endTime: String): TemporalGraph = to(parseDateTime(endTime))
+  def to(endTime: String): G = to(parseDateTime(endTime))
 
   /** Creates a new `TemporalGraph` which includes all activity before endTime (exclusive).
     * @param endTime time interpreted in milliseconds by default
     */
-  def until(endTime: Long): TemporalGraph = to(endTime - 1)
+  def until(endTime: Long): G = to(endTime - 1)
 
   /** Creates a new `TemporalGraph` which includes all activity before endTime (exclusive). */
-  def until(endTime: String): TemporalGraph = until(parseDateTime(endTime))
+  def until(endTime: String): G = until(parseDateTime(endTime))
 
   /** Creates a new `TemporalGraph` which includes all activity between `startTime` (inclusive) and `endTime` (exclusive)
     *  `graph.slice(startTime, endTime)` is equivalent to `graph.from(startTime).until(endTime)`
     */
-  def slice(startTime: Long, endTime: Long): TemporalGraph = this from startTime until endTime
+  def slice(startTime: Long, endTime: Long): G = this from startTime until endTime
 
   /** Creates a new `TemporalGraph` which includes all activity between `startTime` (inclusive) and `endTime` (exclusive)
     * `graph.slice(startTime, endTime)` is equivalent to `graph.from(startTime).until(endTime)`.
     */
-  def slice(startTime: String, endTime: String): TemporalGraph =
+  def slice(startTime: String, endTime: String): G =
     slice(parseDateTime(startTime), parseDateTime(endTime))
 
   /** Create a `DottedGraph` with a temporal mark at `time`.
@@ -183,4 +183,27 @@ class TemporalGraph(
 
   private def parseDateTime(dateTime: String) =
     DateTimeParser(conf.getString("raphtory.query.timeFormat")).parse(dateTime)
+
+  override protected def newRGraph(query: Query, querySender: QuerySender): TemporalGraph =
+    new TemporalGraph(query, querySender, conf)
+
+  override protected def newMGraph(
+      query: Query,
+      querySender: QuerySender
+  ): MultilayerTemporalGraph =
+    new MultilayerTemporalGraph(query, querySender, conf)
 }
+
+class TemporalGraph(
+    override private[api] val query: Query,
+    override private[api] val querySender: QuerySender,
+    override private[api] val conf: Config
+) extends TemporalGraphBase[TemporalGraph]
+        with ReducedGraphPerspectiveImplementation[TemporalGraph, MultilayerTemporalGraph] {}
+
+class MultilayerTemporalGraph(
+    override private[api] val query: Query,
+    override private[api] val querySender: QuerySender,
+    override private[api] val conf: Config
+) extends TemporalGraphBase[MultilayerTemporalGraph]
+        with MultilayerGraphPerspectiveImplementation[MultilayerTemporalGraph, TemporalGraph] {}

@@ -18,7 +18,7 @@ import com.typesafe.config.Config
 class TemporalGraphConnection(
     override private[api] val query: Query,
     override private[api] val querySender: QuerySender,
-    private val conf: Config,
+    override private[api] val conf: Config,
     private val scheduler: MonixScheduler,
     private val topics: TopicRepository
 ) extends TemporalGraph(query, querySender, conf) {
