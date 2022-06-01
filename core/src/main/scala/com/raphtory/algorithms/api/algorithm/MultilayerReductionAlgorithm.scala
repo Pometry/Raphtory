@@ -2,10 +2,13 @@ package com.raphtory.algorithms.api.algorithm
 
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.MultilayerGraphPerspective
+import com.raphtory.algorithms.api.ReducedGraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
 trait MultilayerReductionAlgorithm extends BaseGraphAlgorithm {
+  override type In  = MultilayerGraphPerspective
+  override type Out = ReducedGraphPerspective
 
   case class ChainedMultilayerReductionAlgorithm(
       first: MultilayerReductionAlgorithm,
@@ -16,7 +19,7 @@ trait MultilayerReductionAlgorithm extends BaseGraphAlgorithm {
     override def apply(graph: MultilayerGraphPerspective): graph.ReducedGraph =
       second(first(graph).clearMessages())
 
-    override def tabularise(graph: GraphPerspective): Table = second.tabularise(graph)
+    override def tabularise(graph: ReducedGraphPerspective): Table = second.tabularise(graph)
   }
 
   case class ChainedMultilayer2ReductionAlgorithm(
@@ -28,7 +31,7 @@ trait MultilayerReductionAlgorithm extends BaseGraphAlgorithm {
     override def apply(graph: MultilayerGraphPerspective): graph.ReducedGraph =
       second(first(graph).clearMessages())
 
-    override def tabularise(graph: GraphPerspective): Table = second.tabularise(graph)
+    override def tabularise(graph: ReducedGraphPerspective): Table = second.tabularise(graph)
   }
 
   case class ChainedMultilayerAlgorithm(
@@ -46,7 +49,7 @@ trait MultilayerReductionAlgorithm extends BaseGraphAlgorithm {
 
   def apply(graph: MultilayerGraphPerspective): graph.ReducedGraph = graph.reducedView
 
-  def tabularise(graph: GraphPerspective): Table =
+  def tabularise(graph: ReducedGraphPerspective): Table =
     graph.globalSelect(_ => Row())
 
   def run(graph: MultilayerGraphPerspective): Table =

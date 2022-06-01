@@ -8,6 +8,12 @@ import com.raphtory.algorithms.api.Table
 import scala.language.existentials
 
 trait BaseGraphAlgorithm extends Serializable {
+  type In <: GraphPerspective
+  type Out <: GraphPerspective
+
+  def apply(graph: In): Out
+  def tabularise(graph: Out): Table
+  def run(graph: In): Table
 
   def name: String = getClass.getSimpleName
 
@@ -19,7 +25,8 @@ trait BaseGraphAlgorithm extends Serializable {
 }
 
 trait GenericallyApplicableAlgorithm extends BaseGraphAlgorithm {
-  def apply(graph: GraphPerspective): GraphPerspective
+  override type In = GraphPerspective
+  def apply(graph: GraphPerspective): Out
 
   def run(graph: GraphPerspective): Table
 }

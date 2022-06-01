@@ -2,10 +2,12 @@ package com.raphtory.algorithms.api.algorithm
 
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.MultilayerGraphPerspective
+import com.raphtory.algorithms.api.ReducedGraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
 trait MultilayerProjectionAlgorithm extends GenericallyApplicableAlgorithm {
+  override type Out = MultilayerGraphPerspective
 
   case class ChainedMultilayerProjectionAlgorithm(
       first: MultilayerProjectionAlgorithm,
@@ -42,7 +44,7 @@ trait MultilayerProjectionAlgorithm extends GenericallyApplicableAlgorithm {
     override def apply(graph: GraphPerspective): graph.ReducedGraph =
       second(first(graph).clearMessages())
 
-    override def tabularise(graph: GraphPerspective): Table = second.tabularise(graph)
+    override def tabularise(graph: ReducedGraphPerspective): Table = second.tabularise(graph)
   }
 
   /** Default implementation returns the graph unchanged

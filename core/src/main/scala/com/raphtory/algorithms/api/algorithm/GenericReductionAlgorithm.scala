@@ -2,10 +2,12 @@ package com.raphtory.algorithms.api.algorithm
 
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.MultilayerGraphPerspective
+import com.raphtory.algorithms.api.ReducedGraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
 trait GenericReductionAlgorithm extends GenericallyApplicableAlgorithm {
+  override type Out = ReducedGraphPerspective
 
   case class ChainedGenericReductionAlgorithm(
       first: GenericReductionAlgorithm,
@@ -16,7 +18,7 @@ trait GenericReductionAlgorithm extends GenericallyApplicableAlgorithm {
     override def apply(graph: GraphPerspective): graph.ReducedGraph =
       second(first(graph).clearMessages())
 
-    override def tabularise(graph: GraphPerspective): Table =
+    override def tabularise(graph: ReducedGraphPerspective): Table =
       second.tabularise(graph)
   }
 
@@ -29,7 +31,7 @@ trait GenericReductionAlgorithm extends GenericallyApplicableAlgorithm {
     override def apply(graph: GraphPerspective): graph.ReducedGraph =
       second(first(graph).clearMessages())
 
-    override def tabularise(graph: GraphPerspective): Table = second.tabularise(graph)
+    override def tabularise(graph: ReducedGraphPerspective): Table = second.tabularise(graph)
   }
 
   case class ChainedMultilayerProjectionAlgorithm(
@@ -55,7 +57,7 @@ trait GenericReductionAlgorithm extends GenericallyApplicableAlgorithm {
     *
     * @param graph graph to run function upon
     */
-  def tabularise(graph: GraphPerspective): Table =
+  def tabularise(graph: ReducedGraphPerspective): Table =
     graph.globalSelect(_ => Row())
 
   override def run(graph: GraphPerspective): Table = tabularise(apply(graph))

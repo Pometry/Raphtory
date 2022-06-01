@@ -2,10 +2,13 @@ package com.raphtory.algorithms.api.algorithm
 
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.MultilayerGraphPerspective
+import com.raphtory.algorithms.api.ReducedGraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
 trait MultilayerAlgorithm extends BaseGraphAlgorithm {
+  override type In  = MultilayerGraphPerspective
+  override type Out = MultilayerGraphPerspective
 
   case class ChainedMultilayerAlgorithm(
       first: MultilayerAlgorithm,
@@ -42,7 +45,7 @@ trait MultilayerAlgorithm extends BaseGraphAlgorithm {
     override def apply(graph: MultilayerGraphPerspective): graph.ReducedGraph =
       second(first(graph).clearMessages())
 
-    override def tabularise(graph: GraphPerspective): Table = second.tabularise(graph)
+    override def tabularise(graph: ReducedGraphPerspective): Table = second.tabularise(graph)
   }
 
   /** Default implementation returns the graph unchanged

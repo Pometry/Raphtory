@@ -2,6 +2,7 @@ package com.raphtory.algorithms.api.algorithm
 
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.MultilayerGraphPerspective
+import com.raphtory.algorithms.api.ReducedGraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 import com.typesafe.scalalogging.Logger
@@ -25,6 +26,7 @@ import org.slf4j.LoggerFactory
   *          :
   */
 trait GenericAlgorithm extends GenericallyApplicableAlgorithm {
+  override type Out = GraphPerspective
 
   case class ChainedGenericAlgorithm(first: GenericAlgorithm, second: GenericAlgorithm)
           extends ChainedAlgorithm(first, second)
@@ -59,7 +61,7 @@ trait GenericAlgorithm extends GenericallyApplicableAlgorithm {
     override def apply(graph: GraphPerspective): graph.ReducedGraph =
       second(first(graph).clearMessages())
 
-    override def tabularise(graph: GraphPerspective): Table =
+    override def tabularise(graph: ReducedGraphPerspective): Table =
       second.tabularise(graph)
   }
 
