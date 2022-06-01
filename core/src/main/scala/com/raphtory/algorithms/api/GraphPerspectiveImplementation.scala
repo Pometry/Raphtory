@@ -17,7 +17,7 @@ import com.raphtory.graph.visitor.Edge
 /**
   * @note DoNotDocument
   */
-trait GraphPerspectiveImplementation[
+private[api] trait GraphPerspectiveImplementation[
     V <: visitor.Vertex,
     G <: GraphPerspectiveImplementation[V, G, RG, MG],
     RG <: ReducedGraphPerspectiveImplementation[RG, MG],
@@ -152,7 +152,7 @@ trait GraphPerspectiveImplementation[
     newMGraph(query.copy(graphFunctions = query.graphFunctions.enqueue(function)), querySender)
 
   private def addSelect(function: GraphFunction) =
-    new GenericTable(
+    new TableImplementation(
             query.copy(graphFunctions = query.graphFunctions.enqueue(function)),
             querySender
     )
@@ -166,7 +166,7 @@ trait GraphPerspectiveImplementation[
   }
 }
 
-trait MultilayerGraphPerspectiveImplementation[
+private[api] trait MultilayerGraphPerspectiveImplementation[
     G <: MultilayerGraphPerspectiveImplementation[G, RG],
     RG <: ReducedGraphPerspectiveImplementation[RG, G]
 ] extends GraphPerspectiveImplementation[visitor.ExplodedVertex, G, RG, G]
@@ -188,7 +188,7 @@ trait MultilayerGraphPerspectiveImplementation[
     newMGraph(query, querySender)
 }
 
-trait ReducedGraphPerspectiveImplementation[G <: ReducedGraphPerspectiveImplementation[
+private[api] trait ReducedGraphPerspectiveImplementation[G <: ReducedGraphPerspectiveImplementation[
         G,
         MG
 ], MG <: MultilayerGraphPerspectiveImplementation[MG, G]]
@@ -199,7 +199,7 @@ trait ReducedGraphPerspectiveImplementation[G <: ReducedGraphPerspectiveImplemen
     newRGraph(query, querySender)
 }
 
-trait GraphBase[G, RG, MG] {
+private[api] trait GraphBase[G, RG, MG] {
   private[api] def newGraph(query: Query, querySender: QuerySender): G
   private[api] def newRGraph(query: Query, querySender: QuerySender): RG
   private[api] def newMGraph(query: Query, querySender: QuerySender): MG

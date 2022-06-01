@@ -5,7 +5,8 @@ import com.raphtory.components.querymanager.Query
 import com.raphtory.components.querytracker.QueryProgressTracker
 
 /** @note DoNotDocument */
-class GenericTable(val query: Query, private val querySender: QuerySender) extends Table {
+private class TableImplementation(val query: Query, private val querySender: QuerySender)
+        extends Table {
 
   override def filter(f: Row => Boolean): Table = {
     def closurefunc(v: Row): Boolean = f(v)
@@ -22,12 +23,11 @@ class GenericTable(val query: Query, private val querySender: QuerySender) exten
     querySender.submit(query, jobName)
   }
 
-   override def writeTo(outputFormat: OutputFormat): QueryProgressTracker = {
+  override def writeTo(outputFormat: OutputFormat): QueryProgressTracker =
     writeTo(outputFormat, "")
-  }
 
   private def addFunction(function: TableFunction) =
-    new GenericTable(
+    new TableImplementation(
             query.copy(tableFunctions = query.tableFunctions.enqueue(function)),
             querySender
     )

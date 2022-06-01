@@ -4,7 +4,7 @@ import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
 import scala.collection.mutable
 
-trait AccumulatorImplementation[-S, T] extends Accumulator[S, T] {
+private trait AccumulatorImplementation[-S, T] extends Accumulator[S, T] {
   def currentValue: T
   def merge(other: T): Unit
   def reset(): Unit
@@ -150,7 +150,7 @@ object Bounded {
 /**
   * @note DoNotDocument
   */
-class GraphStateImplementation extends GraphState {
+private[raphtory] class GraphStateImplementation extends GraphState {
   private val accumulatorState = mutable.Map.empty[String, AccumulatorImplementation[Any, Any]]
   private val histogramState   = mutable.Map.empty[String, HistogramImplementation[Any]]
 
@@ -326,7 +326,7 @@ class GraphStateImplementation extends GraphState {
     accumulatorState.contains(name)
 }
 
-object GraphStateImplementation {
+private[raphtory] object GraphStateImplementation {
   def apply() = new GraphStateImplementation
   val empty   = new GraphStateImplementation
 }

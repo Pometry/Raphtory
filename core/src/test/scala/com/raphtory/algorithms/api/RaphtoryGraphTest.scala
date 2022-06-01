@@ -19,7 +19,7 @@ class RaphtoryGraphTest extends AnyFunSuite {
       .transform(ConnectedComponents)
       .select(vertex => Row(vertex.getState("new")))
       .filter(_.getInt(0) == 1)
-    val query = table.asInstanceOf[GenericTable].query
+    val query = table.asInstanceOf[TableImplementation].query
 
     graph.disconnect()
 
