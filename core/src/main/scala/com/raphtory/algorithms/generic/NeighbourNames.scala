@@ -1,7 +1,7 @@
 package com.raphtory.algorithms.generic
 
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.algorithm.Generic
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.graphview.GraphPerspective
 
 /**
   * {s}`NeighbourNames()`

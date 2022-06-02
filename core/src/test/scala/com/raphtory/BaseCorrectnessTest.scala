@@ -1,8 +1,8 @@
 package com.raphtory
 
 import com.google.common.hash.Hashing
-import com.raphtory.algorithms.api.algorithm.GenericallyApplicable
-import com.raphtory.algorithms.api.algorithm.Generic
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.algorithm.GenericallyApplicable
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.Spout
 import com.raphtory.deployment.Raphtory

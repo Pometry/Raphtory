@@ -1,7 +1,8 @@
 package com.raphtory.algorithms.generic
 
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.graph.visitor.Vertex
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.visitor.Vertex
+
 import scala.util.Random
 
 class BinaryDiffusion(

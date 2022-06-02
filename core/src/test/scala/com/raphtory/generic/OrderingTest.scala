@@ -2,14 +2,14 @@ package com.raphtory.generic
 
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.BasicGraphBuilder
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Row
-import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.Generic
 import com.raphtory.algorithms.generic.NodeList
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.table.Row
+import com.raphtory.api.table.Table
+import com.raphtory.api.visitor.HistoricEvent
 import com.raphtory.deployment.Raphtory
 import com.raphtory.generic.CheckHistory.isSortedIncreasing
-import com.raphtory.graph.visitor.HistoricEvent
 import com.raphtory.spouts.SequenceSpout
 import com.raphtory.util.OrderedBuffer
 import com.raphtory.util.OrderedBuffer.HistoricEventOrdering

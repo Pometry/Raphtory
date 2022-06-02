@@ -1,15 +1,15 @@
 package com.raphtory.algorithms
 
 import com.raphtory.BaseCorrectnessTest
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.algorithm.Generic
-import com.raphtory.algorithms.api.algorithm.GenericReduction
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.algorithms.temporal.TemporalEdgeList
 import com.raphtory.algorithms.temporal.TemporalNodeList
 import com.raphtory.algorithms.temporal.views.MultilayerView
-import com.raphtory.graph.visitor.PropertyMergeStrategy
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.algorithm.GenericReduction
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.visitor.PropertyMergeStrategy
 
 class WriteValue extends GenericReduction {
 

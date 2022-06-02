@@ -1,7 +1,8 @@
 package com.raphtory.algorithms.generic.centrality
 
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.algorithms.api.GraphPerspective
+import com.raphtory.api.graphview.GraphPerspective
+
 import math.Numeric.Implicits._
 
 /**

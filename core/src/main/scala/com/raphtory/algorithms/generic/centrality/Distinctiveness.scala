@@ -1,8 +1,9 @@
 package com.raphtory.algorithms.generic.centrality
 
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.graph.visitor.Vertex
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.visitor.Vertex
+
 import scala.math.log10
 import scala.math.pow
 

@@ -1,11 +1,11 @@
 package com.raphtory.graph
 
-import com.raphtory.algorithms.api.GraphState
-import com.raphtory.algorithms.api.Row
+import com.raphtory.api.graphstate.GraphState
+import com.raphtory.api.table.Row
 import com.raphtory.components.querymanager.GenericVertexMessage
-import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
-import com.raphtory.graph.visitor.InterlayerEdge
-import com.raphtory.graph.visitor.Vertex
+import com.raphtory.api.visitor.PropertyMergeStrategy.PropertyMerge
+import com.raphtory.api.visitor.InterlayerEdge
+import com.raphtory.api.visitor.Vertex
 import com.raphtory.storage.pojograph.messaging.VertexMessageHandler
 
 /** Abstract interface for the GraphLens, responsible for executing algorithms

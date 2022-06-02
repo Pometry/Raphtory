@@ -1,9 +1,10 @@
 package com.raphtory.algorithms.generic.filters
 
 import com.raphtory.util.Bounded
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Histogram
 import com.raphtory.algorithms.generic.NodeList
+import com.raphtory.api.graphstate.Histogram
+import com.raphtory.api.graphview.GraphPerspective
+
 import scala.language.implicitConversions
 import scala.math.Numeric.Implicits.infixNumericOps
 import scala.reflect.ClassTag

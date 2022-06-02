@@ -1,17 +1,17 @@
 package com.raphtory.storage.pojograph
 
-import com.raphtory.algorithms.api.GraphState
-import com.raphtory.algorithms.api.Row
+import com.raphtory.api.graphstate.GraphState
+import com.raphtory.api.table.Row
 import com.raphtory.communication.EndPoint
 import com.raphtory.components.querymanager.GenericVertexMessage
 import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.config.MonixScheduler
-import com.raphtory.graph.visitor.InterlayerEdge
-import com.raphtory.graph.visitor.Vertex
 import com.raphtory.graph.GraphLens
 import com.raphtory.graph.GraphPartition
 import com.raphtory.graph.LensInterface
-import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
+import com.raphtory.api.visitor.PropertyMergeStrategy.PropertyMerge
+import com.raphtory.api.visitor.InterlayerEdge
+import com.raphtory.api.visitor.Vertex
 import com.raphtory.storage.pojograph.entities.external.PojoExVertex
 import com.raphtory.storage.pojograph.entities.external.PojoExplodedVertex
 import com.raphtory.storage.pojograph.entities.external.PojoVertexBase

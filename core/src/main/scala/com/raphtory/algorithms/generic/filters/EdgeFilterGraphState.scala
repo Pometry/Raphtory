@@ -1,10 +1,10 @@
 package com.raphtory.algorithms.generic.filters
 
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.GraphState
-import com.raphtory.algorithms.api.algorithm.Generic
-import com.raphtory.algorithms.api.algorithm.Identity
-import com.raphtory.graph.visitor.Edge
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.algorithm.Identity
+import com.raphtory.api.graphstate.GraphState
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.visitor.Edge
 
 /**
   * {s} `EdgeFilter(f: (Vertex, State) => Boolean)`

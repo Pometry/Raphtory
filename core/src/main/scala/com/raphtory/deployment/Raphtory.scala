@@ -1,7 +1,8 @@
 package com.raphtory.deployment
 
-import com.raphtory.algorithms.api.DeployedTemporalGraph
-import com.raphtory.algorithms.api.TemporalGraphConnection
+import com.raphtory.api.graphview.DeployedTemporalGraph
+import com.raphtory.api.graphview.TemporalGraph
+import com.raphtory.api.graphview.TemporalGraphConnection
 import com.raphtory.client.GraphDeployment
 import com.raphtory.client.QuerySender
 import com.raphtory.communication.topicRepositories.PulsarAkkaTopicRepository
@@ -42,10 +43,11 @@ import scala.reflect.runtime.universe._
   *
   * graph.deployment.stop()
   * }}}
+  *
   * @see [[com.raphtory.components.graphbuilder.GraphBuilder]]
-  *  [[com.raphtory.components.spout.Spout]]
-  *  [[com.raphtory.algorithms.api.DeployedTemporalGraph]]
-  *  [[com.raphtory.algorithms.api.TemporalGraph]]
+  *      [[com.raphtory.components.spout.Spout]]
+  *      [[DeployedTemporalGraph]]
+  *      [[TemporalGraph]]
   */
 object Raphtory {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))

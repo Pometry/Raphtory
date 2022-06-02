@@ -1,9 +1,9 @@
 package com.raphtory.ethereum.analysis
 
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Row
-import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.Generic
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.table.Row
+import com.raphtory.api.table.Table
 
 class Taint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set())
         extends Generic {

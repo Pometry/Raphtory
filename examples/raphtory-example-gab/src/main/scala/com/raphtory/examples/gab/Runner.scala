@@ -1,9 +1,9 @@
 package com.raphtory.examples.gab;
 
-import com.raphtory.algorithms.api.Alignment
 import com.raphtory.examples.gab.graphbuilders.GabUserGraphBuilder
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.EdgeList
+import com.raphtory.api.graphview.Alignment
 import com.raphtory.components.spout.Spout
 import com.raphtory.deployment.Raphtory
 import com.raphtory.output.PulsarOutputFormat

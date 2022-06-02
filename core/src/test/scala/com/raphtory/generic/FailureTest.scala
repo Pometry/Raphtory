@@ -2,9 +2,9 @@ package com.raphtory.generic
 
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.BasicGraphBuilder
-import com.raphtory.algorithms.api.Alignment
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.algorithm.Generic
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.graphview.Alignment
+import com.raphtory.api.graphview.GraphPerspective
 import com.raphtory.deployment.Raphtory
 import com.raphtory.output.FileOutputFormat
 import com.raphtory.spouts.SequenceSpout

@@ -1,8 +1,8 @@
 package com.raphtory.algorithms.generic.filters
 
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Histogram
-import com.raphtory.algorithms.api.algorithm.Generic
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.graphstate.Histogram
+import com.raphtory.api.graphview.GraphPerspective
 import com.raphtory.util.Bounded
 
 import scala.language.implicitConversions

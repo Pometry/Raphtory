@@ -3,11 +3,12 @@ package com.raphtory.algorithms.generic.dynamic
 import com.raphtory.algorithms.generic.dynamic.RandomWalk.Message
 import com.raphtory.algorithms.generic.dynamic.RandomWalk.WalkMessage
 import com.raphtory.algorithms.generic.dynamic.RandomWalk.StoreMessage
-import com.raphtory.algorithms.api._
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.Generic
-import com.raphtory.graph.visitor.Vertex
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.table.Row
+import com.raphtory.api.table.Table
+import com.raphtory.api.visitor.Vertex
+
 import collection.mutable.ArrayBuffer
 import scala.util.Random
 

@@ -1,8 +1,8 @@
 package com.raphtory.examples.lotrTopic
 
-import com.raphtory.algorithms.api.Alignment
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.centrality.PageRank
+import com.raphtory.api.graphview.Alignment
 import com.raphtory.deployment.Raphtory
 import com.raphtory.output.PulsarOutputFormat
 import com.raphtory.examples.lotrTopic.graphbuilders.LOTRGraphBuilder

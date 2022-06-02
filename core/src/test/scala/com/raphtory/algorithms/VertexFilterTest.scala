@@ -2,10 +2,10 @@ package com.raphtory.algorithms
 
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.algorithms.generic.EdgeList
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.algorithm.Generic
 import com.raphtory.algorithms.generic.filters.VertexFilter
-import com.raphtory.graph.visitor.Vertex
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.visitor.Vertex
 
 class VertexFilterTest extends BaseCorrectnessTest {
 

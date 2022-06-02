@@ -1,7 +1,7 @@
 package com.raphtory.algorithms.temporal.motif
 
-import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.generic.NodeList
+import com.raphtory.api.graphview.GraphPerspective
 
 /**
   * {s}`MotifAlpha()`
