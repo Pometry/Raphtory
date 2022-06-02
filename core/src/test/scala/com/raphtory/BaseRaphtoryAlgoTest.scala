@@ -4,8 +4,8 @@ import com.google.common.hash.Hashing
 import com.raphtory.algorithms.api.Alignment
 import com.raphtory.algorithms.api.DeployedTemporalGraph
 import com.raphtory.algorithms.api.OutputFormat
-import com.raphtory.algorithms.api.algorithm.GenericallyApplicableAlgorithm
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.GenericallyApplicable
+import com.raphtory.algorithms.api.algorithm.Generic
 import com.raphtory.client.GraphDeployment
 import com.raphtory.communication.connectors.PulsarConnector
 import com.raphtory.components.graphbuilder.GraphBuilder
@@ -89,7 +89,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
     consumer.receive
 
   def algorithmTest(
-      algorithm: GenericallyApplicableAlgorithm,
+      algorithm: GenericallyApplicable,
       start: Long,
       end: Long,
       increment: Long,
@@ -110,7 +110,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   }
 
   def algorithmPointTest(
-      algorithm: GenericallyApplicableAlgorithm,
+      algorithm: GenericallyApplicable,
       timestamp: Long,
       windows: List[Long] = List[Long](),
       outputFormat: OutputFormat = defaultOutputFormat

@@ -3,7 +3,7 @@ package com.raphtory.algorithms.generic
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 
 /**
   * {s}`NodeInformation(initialID: Long, hopsAway: Int = 1)`
@@ -54,7 +54,7 @@ import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
   *   ```
   */
 
-class NodeInformation(initialID: Long, hopsAway: Int = 1) extends GenericAlgorithm {
+class NodeInformation(initialID: Long, hopsAway: Int = 1) extends Generic {
 
   case class Node(label: String, metadata: NodeData, edges: Array[EdgeInfo])
   case class NodeData(id: String)

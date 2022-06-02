@@ -3,10 +3,10 @@ package com.raphtory.ethereum.analysis
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 
-class TaintAlgorithm(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set())
-        extends GenericAlgorithm {
+class Taint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set())
+        extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -156,8 +156,8 @@ class TaintAlgorithm(startTime: Long, infectedNodes: Set[String], stopNodes: Set
       )
 }
 
-object TaintAlgorithm {
+object Taint {
 
   def apply(startTime: Int, infectedNodes: Set[String], stopNodes: Set[String]) =
-    new TaintAlgorithm(startTime, infectedNodes, stopNodes)
+    new Taint(startTime, infectedNodes, stopNodes)
 }

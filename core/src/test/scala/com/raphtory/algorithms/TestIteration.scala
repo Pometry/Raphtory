@@ -4,10 +4,10 @@ import com.raphtory.BaseCorrectnessTest
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 import com.raphtory.graph.visitor.Vertex
 
-class CountIterations(num_iters_before_vote: Int, num_iters: Int) extends GenericAlgorithm {
+class CountIterations(num_iters_before_vote: Int, num_iters: Int) extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph

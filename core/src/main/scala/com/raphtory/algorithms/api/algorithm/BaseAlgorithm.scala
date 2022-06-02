@@ -7,7 +7,7 @@ import com.raphtory.algorithms.api.Table
 
 import scala.language.existentials
 
-trait BaseGraphAlgorithm extends Serializable {
+trait BaseAlgorithm extends Serializable {
   type In <: GraphPerspective
   type Out <: GraphPerspective
 
@@ -21,17 +21,13 @@ trait BaseGraphAlgorithm extends Serializable {
     *  running the other algorithm.
     *  @param graphAlgorithm next algorithm to run in the chain
     */
-  def ->(graphAlgorithm: GenericAlgorithm): BaseGraphAlgorithm
+  def ->(graphAlgorithm: Generic): BaseAlgorithm
 }
 
-trait GenericallyApplicableAlgorithm extends BaseGraphAlgorithm {
+trait GenericallyApplicable extends BaseAlgorithm {
   override type In = GraphPerspective
-  def apply(graph: GraphPerspective): Out
-
-  def run(graph: GraphPerspective): Table
 }
 
-abstract class ChainedAlgorithm(first: BaseGraphAlgorithm, second: BaseGraphAlgorithm)
-        extends BaseGraphAlgorithm {
+abstract class ChainedAlgorithm(first: BaseAlgorithm, second: BaseAlgorithm) extends BaseAlgorithm {
   override def name: String = first.name + ":" + second.name
 }

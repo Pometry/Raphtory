@@ -4,13 +4,13 @@ import com.raphtory.BaseCorrectnessTest
 import com.raphtory.BasicGraphBuilder
 import com.raphtory.algorithms.api.Alignment
 import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 import com.raphtory.deployment.Raphtory
 import com.raphtory.output.FileOutputFormat
 import com.raphtory.spouts.SequenceSpout
 import org.scalatest.funsuite.AnyFunSuite
 
-class FailingAlgo extends GenericAlgorithm {
+class FailingAlgo extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph.step(_ => throw new Exception("Algorithm failed"))

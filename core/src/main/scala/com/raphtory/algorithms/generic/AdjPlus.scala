@@ -3,7 +3,7 @@ package com.raphtory.algorithms.generic
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 
 import scala.math.Ordering.Implicits._
 
@@ -35,7 +35,7 @@ import scala.math.Ordering.Implicits._
   * [](com.raphtory.algorithms.generic.motif.SquareCount)
   * ```
   */
-object AdjPlus extends GenericAlgorithm {
+object AdjPlus extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph.step(vertex => vertex.messageAllNeighbours((vertex.ID(), vertex.degree))).step { vertex =>

@@ -2,8 +2,8 @@ package com.raphtory.algorithms
 
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
-import com.raphtory.algorithms.api.algorithm.GenericReductionAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
+import com.raphtory.algorithms.api.algorithm.GenericReduction
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.algorithms.temporal.TemporalEdgeList
@@ -11,7 +11,7 @@ import com.raphtory.algorithms.temporal.TemporalNodeList
 import com.raphtory.algorithms.temporal.views.MultilayerView
 import com.raphtory.graph.visitor.PropertyMergeStrategy
 
-class WriteValue extends GenericReductionAlgorithm {
+class WriteValue extends GenericReduction {
 
   override def apply(graph: GraphPerspective): graph.ReducedGraph =
     graph.multilayerView

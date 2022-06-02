@@ -6,14 +6,14 @@ import com.raphtory.algorithms.api.ReducedGraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
-trait GenericReductionAlgorithm extends GenericallyApplicableAlgorithm {
+trait GenericReduction extends GenericallyApplicable {
   override type Out = ReducedGraphPerspective
 
-  case class ChainedGenericReductionAlgorithm(
-      first: GenericReductionAlgorithm,
-      second: GenericAlgorithm
+  case class ChainedGenericReduction(
+      first: GenericReduction,
+      second: Generic
   ) extends ChainedAlgorithm(first, second)
-          with GenericReductionAlgorithm {
+          with GenericReduction {
 
     override def apply(graph: GraphPerspective): graph.ReducedGraph =
       second(first(graph).clearMessages())
@@ -22,11 +22,11 @@ trait GenericReductionAlgorithm extends GenericallyApplicableAlgorithm {
       second.tabularise(graph)
   }
 
-  case class Chained2GenericReductionAlgorithm(
-      first: GenericReductionAlgorithm,
-      second: GenericReductionAlgorithm
+  case class Chained2GenericReduction(
+      first: GenericReduction,
+      second: GenericReduction
   ) extends ChainedAlgorithm(first, second)
-          with GenericReductionAlgorithm {
+          with GenericReduction {
 
     override def apply(graph: GraphPerspective): graph.ReducedGraph =
       second(first(graph).clearMessages())
@@ -34,11 +34,11 @@ trait GenericReductionAlgorithm extends GenericallyApplicableAlgorithm {
     override def tabularise(graph: ReducedGraphPerspective): Table = second.tabularise(graph)
   }
 
-  case class ChainedMultilayerProjectionAlgorithm(
-      first: GenericReductionAlgorithm,
-      second: MultilayerProjectionAlgorithm
+  case class ChainedMultilayerProjection(
+      first: GenericReduction,
+      second: MultilayerProjection
   ) extends ChainedAlgorithm(first, second)
-          with MultilayerProjectionAlgorithm {
+          with MultilayerProjection {
 
     override def apply(graph: GraphPerspective): graph.MultilayerGraph =
       second(first(graph).clearMessages())
@@ -67,13 +67,13 @@ trait GenericReductionAlgorithm extends GenericallyApplicableAlgorithm {
     *
     * @param graphAlgorithm next algorithm to run in the chain
     */
-  override def ->(graphAlgorithm: GenericAlgorithm): GenericReductionAlgorithm =
-    ChainedGenericReductionAlgorithm(this, graphAlgorithm)
+  override def ->(graphAlgorithm: Generic): GenericReduction =
+    ChainedGenericReduction(this, graphAlgorithm)
 
-  def ->(graphAlgorithm: GenericReductionAlgorithm): GenericReductionAlgorithm =
-    Chained2GenericReductionAlgorithm(this, graphAlgorithm)
+  def ->(graphAlgorithm: GenericReduction): GenericReduction =
+    Chained2GenericReduction(this, graphAlgorithm)
 
-  def ->(graphAlgorithm: MultilayerProjectionAlgorithm): MultilayerProjectionAlgorithm =
-    ChainedMultilayerProjectionAlgorithm(this, graphAlgorithm)
+  def ->(graphAlgorithm: MultilayerProjection): MultilayerProjection =
+    ChainedMultilayerProjection(this, graphAlgorithm)
 
 }

@@ -5,7 +5,7 @@ import com.raphtory.BasicGraphBuilder
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.deployment.Raphtory
 import com.raphtory.generic.CheckHistory.isSortedIncreasing
@@ -20,7 +20,7 @@ import scala.util.Random
 import scala.math.Ordering.Implicits._
 import scala.reflect.ClassTag
 
-class CheckHistory extends GenericAlgorithm {
+class CheckHistory extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph

@@ -4,7 +4,7 @@ import com.raphtory.algorithms.generic.NeighbourNames
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 import com.raphtory.graph.visitor.ExplodedVertex
 
 /**
@@ -36,11 +36,10 @@ import com.raphtory.graph.visitor.ExplodedVertex
 class TemporalEdgeList(
     properties: Seq[String] = Seq.empty[String],
     defaults: Map[String, Any] = Map.empty[String, Any]
-) extends GenericAlgorithm {
+) extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
-    NeighbourNames(graph.reducedView)
-      .multilayerView()
+    NeighbourNames(graph.reducedView).multilayerView
       .explodeSelect { vertex =>
         val neighbourMap = vertex.getState[Map[Long, String]]("neighbourNames")
         vertex

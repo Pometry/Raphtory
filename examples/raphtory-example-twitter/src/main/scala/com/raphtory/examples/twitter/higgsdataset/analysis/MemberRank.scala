@@ -3,7 +3,7 @@ package com.raphtory.examples.twitter.higgsdataset.analysis
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 import com.raphtory.graph.visitor.Edge
 
 /**
@@ -14,7 +14,7 @@ import com.raphtory.graph.visitor.Edge
   * the effects of bots further.
   */
 
-class MemberRank() extends GenericAlgorithm {
+class MemberRank() extends Generic {
 
   case class Score(negativeScore: Double = 0.0, positiveScore: Double = 0.0) {
 

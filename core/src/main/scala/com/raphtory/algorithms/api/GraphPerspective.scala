@@ -8,12 +8,12 @@ import com.raphtory.graph.visitor.PropertyMergeStrategy
 import com.raphtory.graph.visitor.Vertex
 import com.raphtory.graph.visitor
 import PropertyMergeStrategy.PropertyMerge
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
-import com.raphtory.algorithms.api.algorithm.GenericReductionAlgorithm
-import com.raphtory.algorithms.api.algorithm.GenericallyApplicableAlgorithm
-import com.raphtory.algorithms.api.algorithm.MultilayerAlgorithm
-import com.raphtory.algorithms.api.algorithm.MultilayerProjectionAlgorithm
-import com.raphtory.algorithms.api.algorithm.MultilayerReductionAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
+import com.raphtory.algorithms.api.algorithm.GenericReduction
+import com.raphtory.algorithms.api.algorithm.GenericallyApplicable
+import com.raphtory.algorithms.api.algorithm.Multilayer
+import com.raphtory.algorithms.api.algorithm.MultilayerProjection
+import com.raphtory.algorithms.api.algorithm.MultilayerReduction
 
 sealed trait GraphFunction                             extends QueryManagement
 final case class SetGlobalState(f: GraphState => Unit) extends GraphFunction
@@ -299,6 +299,7 @@ trait MultilayerGraphPerspective extends GraphPerspective {
 }
 
 trait ReducedGraphPerspective extends GraphPerspective {
+//  override type ReducedGraph = Graph
 //  override type Graph = ReducedGraph
 }
 

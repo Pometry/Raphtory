@@ -25,12 +25,12 @@ import org.slf4j.LoggerFactory
   *        `graphAlgorithm: GraphAlgorithm)`
   *          :
   */
-trait GenericAlgorithm extends GenericallyApplicableAlgorithm {
+trait Generic extends GenericallyApplicable {
   override type Out = GraphPerspective
 
-  case class ChainedGenericAlgorithm(first: GenericAlgorithm, second: GenericAlgorithm)
+  case class ChainedGeneric(first: Generic, second: Generic)
           extends ChainedAlgorithm(first, second)
-          with GenericAlgorithm {
+          with Generic {
 
     override def apply(graph: GraphPerspective): graph.Graph =
       second(first(graph).clearMessages())
@@ -39,11 +39,11 @@ trait GenericAlgorithm extends GenericallyApplicableAlgorithm {
       second.tabularise(graph)
   }
 
-  case class ChainedMultilayerProjectionAlgorithm(
-      first: GenericAlgorithm,
-      second: MultilayerProjectionAlgorithm
+  case class ChainedMultilayerProjection(
+      first: Generic,
+      second: MultilayerProjection
   ) extends ChainedAlgorithm(first, second)
-          with MultilayerProjectionAlgorithm {
+          with MultilayerProjection {
 
     override def apply(graph: GraphPerspective): graph.MultilayerGraph =
       second(first(graph).clearMessages())
@@ -52,11 +52,11 @@ trait GenericAlgorithm extends GenericallyApplicableAlgorithm {
       second.tabularise(graph)
   }
 
-  case class ChainedGenericReductionAlgorithm(
-      first: GenericAlgorithm,
-      second: GenericReductionAlgorithm
+  case class ChainedGenericReduction(
+      first: Generic,
+      second: GenericReduction
   ) extends ChainedAlgorithm(first, second)
-          with GenericReductionAlgorithm {
+          with GenericReduction {
 
     override def apply(graph: GraphPerspective): graph.ReducedGraph =
       second(first(graph).clearMessages())
@@ -80,13 +80,13 @@ trait GenericAlgorithm extends GenericallyApplicableAlgorithm {
 
   def run(graph: GraphPerspective): Table = tabularise(apply(graph))
 
-  override def ->(graphAlgorithm: GenericAlgorithm): GenericAlgorithm =
-    ChainedGenericAlgorithm(this, graphAlgorithm)
+  override def ->(graphAlgorithm: Generic): Generic =
+    ChainedGeneric(this, graphAlgorithm)
 
-  def ->(graphAlgorithm: MultilayerProjectionAlgorithm): MultilayerProjectionAlgorithm =
-    ChainedMultilayerProjectionAlgorithm(this, graphAlgorithm)
+  def ->(graphAlgorithm: MultilayerProjection): MultilayerProjection =
+    ChainedMultilayerProjection(this, graphAlgorithm)
 
-  def ->(graphAlgorithm: GenericReductionAlgorithm): GenericReductionAlgorithm =
-    ChainedGenericReductionAlgorithm(this, graphAlgorithm)
+  def ->(graphAlgorithm: GenericReduction): GenericReduction =
+    ChainedGenericReduction(this, graphAlgorithm)
 
 }

@@ -3,7 +3,7 @@ package com.raphtory.algorithms.generic
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 
 /**
   *  {s}`EdgeList(properties: String*)`
@@ -34,7 +34,7 @@ import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
 class EdgeList(
     properties: Seq[String] = Seq.empty[String],
     defaults: Map[String, Any] = Map.empty[String, Any]
-) extends GenericAlgorithm {
+) extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph = NeighbourNames(graph)
 

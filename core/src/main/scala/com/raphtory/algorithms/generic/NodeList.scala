@@ -3,7 +3,7 @@ package com.raphtory.algorithms.generic
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 
 /**
   * {s}`NodeList(properties: Seq[String] = Seq.empty[String], defaults: Map[String, Any] = Map.empty[String, Any])`
@@ -50,7 +50,7 @@ import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
 class NodeList(
     properties: Seq[String] = Seq.empty[String],
     defaults: Map[String, Any] = Map.empty[String, Any]
-) extends GenericAlgorithm {
+) extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
     graph.select { vertex =>

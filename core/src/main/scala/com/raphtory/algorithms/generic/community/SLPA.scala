@@ -4,7 +4,7 @@ import com.raphtory.algorithms.generic.community.SLPA.Rule
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 import scala.collection.mutable
 import scala.util.Random
 
@@ -58,7 +58,7 @@ import scala.util.Random
   *  Speaker-listener Interaction Dynamic Process by Jierui Xie, Boleslaw K. Szymanski and Xiaoming Liu (2011)
   *  ```
   */
-class SLPA(iterNumber: Int = 50, speakerRule: Rule, listenerRule: Rule) extends GenericAlgorithm {
+class SLPA(iterNumber: Int = 50, speakerRule: Rule, listenerRule: Rule) extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph

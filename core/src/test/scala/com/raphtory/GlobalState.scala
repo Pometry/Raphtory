@@ -3,7 +3,7 @@ package com.raphtory
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 import com.raphtory.graph.visitor.Vertex
 
 /**
@@ -14,7 +14,7 @@ import com.raphtory.graph.visitor.Vertex
   *  TODO add in tests for accumulators of different types - test default values and not refreshing the value on a new superstep
   */
 
-class GlobalState extends GenericAlgorithm {
+class GlobalState extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph

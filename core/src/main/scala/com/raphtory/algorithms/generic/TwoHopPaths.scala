@@ -7,7 +7,7 @@ import com.raphtory.algorithms.generic.TwoHopPaths.Response
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -51,7 +51,7 @@ import scala.collection.mutable.ArrayBuffer
   *
   *  4. The source node compiles all response messages
   */
-class TwoHopPaths(seeds: Set[String] = Set[String]()) extends GenericAlgorithm {
+class TwoHopPaths(seeds: Set[String] = Set[String]()) extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph

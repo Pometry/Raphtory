@@ -2,7 +2,7 @@ package com.raphtory.algorithms.generic.filters
 
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Histogram
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 import com.raphtory.util.Bounded
 
 import scala.language.implicitConversions
@@ -56,7 +56,7 @@ class EdgeQuantileFilter[T: Numeric: Bounded: ClassTag](
     upperExclusive: Boolean = false,
     noBins: Int = 1000,
     pruneNodes: Boolean = true
-) extends GenericAlgorithm {
+) extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph = {
     // Check inputs are sound

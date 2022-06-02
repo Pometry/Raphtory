@@ -3,9 +3,9 @@ package com.raphtory.examples.lotrTopic.analysis
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 
-class DegreesSeparation(name: String = "Gandalf") extends GenericAlgorithm {
+class DegreesSeparation(name: String = "Gandalf") extends Generic {
 
   final val SEPARATION = "SEPARATION"
 

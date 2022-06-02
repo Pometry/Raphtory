@@ -3,7 +3,7 @@ package com.raphtory.algorithms.generic
 import com.raphtory.algorithms.api._
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 import com.raphtory.algorithms.api.algorithm.Identity
 
 /**
@@ -47,8 +47,8 @@ import com.raphtory.algorithms.api.algorithm.Identity
 class CBOD(
     label: String = "community",
     cutoff: Double = 0.0,
-    labeler: GenericAlgorithm = Identity
-) extends GenericAlgorithm {
+    labeler: Generic = Identity
+) extends Generic {
 
   // Run CBOD algorithm and sets "outlierscore" state
   override def apply(graph: GraphPerspective): graph.Graph =
@@ -81,7 +81,7 @@ object CBOD {
   def apply(
       label: String = "community",
       cutoff: Double = 0.0,
-      labeler: GenericAlgorithm = Identity
+      labeler: Generic = Identity
   ) =
     new CBOD(label, cutoff, labeler)
 }

@@ -3,7 +3,7 @@ package com.raphtory.algorithms.temporal.dynamic
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 
 /**
   * {s}`GenericTaint((startTime: Int, infectedNodes: Iterable[Long], stopNodes: Set[Long] = Set())`
@@ -45,7 +45,7 @@ import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
   *  | {s}`name: String` | {s}`edge.ID: Long` | {s}`event.time: Long` | {s}`name: String` |
   */
 class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set())
-        extends GenericAlgorithm {
+        extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph

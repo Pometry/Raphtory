@@ -6,15 +6,15 @@ import com.raphtory.algorithms.api.ReducedGraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 
-trait MultilayerAlgorithm extends BaseGraphAlgorithm {
+trait Multilayer extends BaseAlgorithm {
   override type In  = MultilayerGraphPerspective
   override type Out = MultilayerGraphPerspective
 
-  case class ChainedMultilayerAlgorithm(
-      first: MultilayerAlgorithm,
-      second: GenericAlgorithm
+  case class ChainedMultilayer(
+      first: Multilayer,
+      second: Generic
   ) extends ChainedAlgorithm(first, second)
-          with MultilayerAlgorithm {
+          with Multilayer {
 
     override def apply(graph: MultilayerGraphPerspective): graph.MultilayerGraph =
       second(first(graph).clearMessages())
@@ -23,11 +23,11 @@ trait MultilayerAlgorithm extends BaseGraphAlgorithm {
       second.tabularise(graph)
   }
 
-  case class ChainedMultilayer2Algorithm(
-      first: MultilayerAlgorithm,
-      second: MultilayerProjectionAlgorithm
+  case class ChainedMultilayer2(
+      first: Multilayer,
+      second: MultilayerProjection
   ) extends ChainedAlgorithm(first, second)
-          with MultilayerAlgorithm {
+          with Multilayer {
 
     override def apply(graph: MultilayerGraphPerspective): graph.MultilayerGraph =
       second(first(graph).clearMessages())
@@ -36,11 +36,11 @@ trait MultilayerAlgorithm extends BaseGraphAlgorithm {
       second.tabularise(graph)
   }
 
-  case class ChainedMultilayerReductionAlgorithm(
-      first: MultilayerAlgorithm,
-      second: GenericReductionAlgorithm
+  case class ChainedMultilayerReduction(
+      first: Multilayer,
+      second: GenericReduction
   ) extends ChainedAlgorithm(first, second)
-          with MultilayerReductionAlgorithm {
+          with MultilayerReduction {
 
     override def apply(graph: MultilayerGraphPerspective): graph.ReducedGraph =
       second(first(graph).clearMessages())
@@ -68,12 +68,12 @@ trait MultilayerAlgorithm extends BaseGraphAlgorithm {
     *
     * @param graphAlgorithm next algorithm to run in the chain
     */
-  override def ->(graphAlgorithm: GenericAlgorithm): MultilayerAlgorithm =
-    ChainedMultilayerAlgorithm(this, graphAlgorithm)
+  override def ->(graphAlgorithm: Generic): Multilayer =
+    ChainedMultilayer(this, graphAlgorithm)
 
-  def ->(graphAlgorithm: GenericReductionAlgorithm): MultilayerReductionAlgorithm =
-    ChainedMultilayerReductionAlgorithm(this, graphAlgorithm)
+  def ->(graphAlgorithm: GenericReduction): MultilayerReduction =
+    ChainedMultilayerReduction(this, graphAlgorithm)
 
-  def ->(graphAlgorithm: MultilayerProjectionAlgorithm): MultilayerAlgorithm =
-    ChainedMultilayer2Algorithm(this, graphAlgorithm)
+  def ->(graphAlgorithm: MultilayerProjection): Multilayer =
+    ChainedMultilayer2(this, graphAlgorithm)
 }

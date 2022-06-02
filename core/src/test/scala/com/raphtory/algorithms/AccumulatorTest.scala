@@ -6,10 +6,10 @@ import com.raphtory.algorithms.api.GraphState
 import com.raphtory.algorithms.api.GraphStateImplementation
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 import com.raphtory.graph.visitor.Vertex
 
-class CountNodes extends GenericAlgorithm {
+class CountNodes extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -30,7 +30,7 @@ object CountNodes {
   def apply() = new CountNodes
 }
 
-class CountNodesTwice extends GenericAlgorithm {
+class CountNodesTwice extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph

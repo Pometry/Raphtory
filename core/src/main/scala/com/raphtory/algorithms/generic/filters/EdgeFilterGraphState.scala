@@ -2,7 +2,7 @@ package com.raphtory.algorithms.generic.filters
 
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.GraphState
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 import com.raphtory.algorithms.api.algorithm.Identity
 import com.raphtory.graph.visitor.Edge
 
@@ -27,7 +27,7 @@ import com.raphtory.graph.visitor.Edge
   */
 
 class EdgeFilterGraphState(f: (Edge, GraphState) => Boolean, pruneNodes: Boolean = true)
-        extends GenericAlgorithm {
+        extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph = graph.edgeFilter(f, pruneNodes)
 }

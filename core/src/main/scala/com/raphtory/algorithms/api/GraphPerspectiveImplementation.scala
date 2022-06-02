@@ -1,12 +1,12 @@
 package com.raphtory.algorithms.api
 
-import com.raphtory.algorithms.api.algorithm.BaseGraphAlgorithm
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
-import com.raphtory.algorithms.api.algorithm.GenericReductionAlgorithm
-import com.raphtory.algorithms.api.algorithm.GenericallyApplicableAlgorithm
-import com.raphtory.algorithms.api.algorithm.MultilayerAlgorithm
-import com.raphtory.algorithms.api.algorithm.MultilayerProjectionAlgorithm
-import com.raphtory.algorithms.api.algorithm.MultilayerReductionAlgorithm
+import com.raphtory.algorithms.api.algorithm.BaseAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
+import com.raphtory.algorithms.api.algorithm.GenericReduction
+import com.raphtory.algorithms.api.algorithm.GenericallyApplicable
+import com.raphtory.algorithms.api.algorithm.Multilayer
+import com.raphtory.algorithms.api.algorithm.MultilayerProjection
+import com.raphtory.algorithms.api.algorithm.MultilayerReduction
 import com.raphtory.client.QuerySender
 import com.raphtory.components.querymanager.Query
 import com.raphtory.graph.visitor.InterlayerEdge
@@ -125,21 +125,21 @@ private[api] trait GraphPerspectiveImplementation[
   /**  Execute only the apply step of the algorithm on every perspective and returns a new RaphtoryGraph with the result.
     *  @param algorithm algorithm to apply
     */
-  def transform(algorithm: GenericAlgorithm): G =
+  def transform(algorithm: Generic): G =
     algorithm
       .apply(withTransformedName(algorithm))
       .clearMessages()
 
-  def transform(algorithm: MultilayerProjectionAlgorithm): MG =
+  def transform(algorithm: MultilayerProjection): MG =
     algorithm(withTransformedName(algorithm)).clearMessages()
 
-  def transform(algorithm: GenericReductionAlgorithm): RG =
+  def transform(algorithm: GenericReduction): RG =
     algorithm(withTransformedName(algorithm)).clearMessages()
 
   /** Execute the algorithm on every perspective and returns a new `RaphtoryGraph` with the result.
     * @param algorithm to apply
     */
-  def execute(algorithm: GenericallyApplicableAlgorithm): Table =
+  def execute(algorithm: GenericallyApplicable): Table =
     algorithm.run(withTransformedName(algorithm))
 
   private def addFunction(function: GraphFunction) =
@@ -157,7 +157,7 @@ private[api] trait GraphPerspectiveImplementation[
             querySender
     )
 
-  private[api] def withTransformedName(algorithm: BaseGraphAlgorithm) = {
+  private[api] def withTransformedName(algorithm: BaseAlgorithm) = {
     val newName = query.name match {
       case "" => algorithm.name
       case _  => query.name + ":" + algorithm.name
@@ -172,16 +172,16 @@ private[api] trait MultilayerGraphPerspectiveImplementation[
 ] extends GraphPerspectiveImplementation[visitor.ExplodedVertex, G, RG, G]
         with ConcreteMultilayerGraphPerspective[G, RG] { this: G =>
 
-  def transform(algorithm: MultilayerAlgorithm): G =
+  def transform(algorithm: Multilayer): G =
     algorithm(withTransformedName(algorithm)).clearMessages()
 
-  def transform(algorithm: MultilayerReductionAlgorithm): RG =
+  def transform(algorithm: MultilayerReduction): RG =
     algorithm(withTransformedName(algorithm)).clearMessages()
 
-  def execute(algorithm: MultilayerAlgorithm): Table =
+  def execute(algorithm: Multilayer): Table =
     algorithm.run(withTransformedName(algorithm))
 
-  def execute(algorithm: MultilayerReductionAlgorithm): Table =
+  def execute(algorithm: MultilayerReduction): Table =
     algorithm.run(withTransformedName(algorithm))
 
   private[api] def newGraph(query: Query, querySender: QuerySender): G =

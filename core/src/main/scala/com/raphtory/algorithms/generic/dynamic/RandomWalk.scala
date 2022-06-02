@@ -6,7 +6,7 @@ import com.raphtory.algorithms.generic.dynamic.RandomWalk.StoreMessage
 import com.raphtory.algorithms.api._
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 import com.raphtory.graph.visitor.Vertex
 import collection.mutable.ArrayBuffer
 import scala.util.Random
@@ -46,7 +46,7 @@ import scala.util.Random
   *
   *  Each row of the table corresponds to a single random walk and columns correspond to the vertex at a given step
   */
-class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends GenericAlgorithm {
+class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends Generic {
   protected val rnd: Random = if (seed != -1) new Random(seed) else new Random()
 
   protected def selectNeighbour(vertex: Vertex) = {

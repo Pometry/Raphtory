@@ -1,7 +1,7 @@
 package com.raphtory.algorithms.generic.motif
 
 import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 import com.raphtory.algorithms.generic.AdjPlus
 import com.raphtory.algorithms.generic.NodeList
 
@@ -12,7 +12,7 @@ case class SecondStep[VertexID](p: VertexID, q: VertexID, adj: Array[VertexID])
 case class CountMessage(count: Long)
 case class WedgeMessage[VertexID](p: VertexID, s: Array[VertexID])
 
-object AccumulateCounts extends GenericAlgorithm {
+object AccumulateCounts extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -41,7 +41,7 @@ object AccumulateCounts extends GenericAlgorithm {
       }
 }
 
-object CountPR extends GenericAlgorithm {
+object CountPR extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph = {
     val counts = AccumulateCounts
@@ -69,7 +69,7 @@ object CountPR extends GenericAlgorithm {
   }
 }
 
-object CountQR extends GenericAlgorithm {
+object CountQR extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     AccumulateCounts(
@@ -94,7 +94,7 @@ object CountQR extends GenericAlgorithm {
     )
 }
 
-object CountPQ extends GenericAlgorithm {
+object CountPQ extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph

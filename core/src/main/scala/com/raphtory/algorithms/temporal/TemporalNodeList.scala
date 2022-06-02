@@ -3,7 +3,7 @@ package com.raphtory.algorithms.temporal
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 import com.raphtory.graph.visitor.ExplodedVertex
 
 /**
@@ -40,11 +40,10 @@ import com.raphtory.graph.visitor.ExplodedVertex
 class TemporalNodeList(
     properties: Seq[String] = Seq.empty[String],
     defaults: Map[String, Any] = Map.empty[String, Any]
-) extends GenericAlgorithm {
+) extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph
-      .multilayerView()
+    graph.multilayerView
       .select { vertex =>
         Row(
                 vertex.baseName +: vertex.timestamp +: properties.map(key =>

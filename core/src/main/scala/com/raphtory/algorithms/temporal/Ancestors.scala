@@ -3,7 +3,7 @@ package com.raphtory.algorithms.temporal
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 
 /**
   * {s}`Ancestors(seed:String, time:Long, delta:Long=Long.MaxValue, directed:Boolean=true)`
@@ -48,7 +48,7 @@ class Ancestors(
     delta: Long = Long.MaxValue,
     directed: Boolean = true,
     strict: Boolean = true
-) extends GenericAlgorithm {
+) extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph

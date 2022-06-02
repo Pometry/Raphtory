@@ -3,7 +3,7 @@ package com.raphtory.algorithms.generic.motif
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 import com.raphtory.graph.visitor.Vertex
 
 import scala.collection.mutable.ArrayBuffer
@@ -54,7 +54,7 @@ import scala.collection.mutable.ArrayBuffer
   *  | ----------------- | ------------------------- | --- | -------------------------- |
   *  | {s}`name: String` | {s}`motifCounts(0): Long` | ... | {s}`motifCounts(12): Long` |
   */
-object ThreeNodeMotifs extends GenericAlgorithm {
+object ThreeNodeMotifs extends Generic {
   //  edge direction constants
   val inoutEdge = 0
   val outEdge   = 1

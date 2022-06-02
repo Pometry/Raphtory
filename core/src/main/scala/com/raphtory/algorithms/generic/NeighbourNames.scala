@@ -1,7 +1,7 @@
 package com.raphtory.algorithms.generic
 
 import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.algorithms.api.algorithm.Generic
 
 /**
   * {s}`NeighbourNames()`
@@ -23,7 +23,7 @@ import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
   *  [](com.raphtory.algorithms.temporal.TemporalEdgeList)
   *  ```
   */
-object NeighbourNames extends GenericAlgorithm {
+object NeighbourNames extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
