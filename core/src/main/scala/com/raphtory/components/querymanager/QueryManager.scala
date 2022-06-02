@@ -57,8 +57,8 @@ class QueryManager(scheduler: MonixScheduler, conf: Config, topics: TopicReposit
         }
       case watermark: WatermarkTime =>
         logger.debug(
-                s"Setting watermark to earliest time '${watermark.startTime}'" +
-                  s" and latest time '${watermark.endTime}'" +
+                s"Setting watermark to earliest time '${watermark.oldestTime}'" +
+                  s" and latest time '${watermark.latestTime}'" +
                   s" for partition '${watermark.partitionID}'."
         )
         watermarks.put(watermark.partitionID, watermark)
@@ -93,8 +93,8 @@ class QueryManager(scheduler: MonixScheduler, conf: Config, topics: TopicReposit
       watermarks.foreach {
         case (key, watermark) =>
           safe = watermark.safe && safe
-          minTime = Math.min(minTime, watermark.endTime)
-          maxTime = Math.max(maxTime, watermark.endTime)
+          minTime = Math.min(minTime, watermark.latestTime)
+          maxTime = Math.max(maxTime, watermark.latestTime)
           telemetry.globalWatermarkMin.labels(deploymentID).set(minTime)
           telemetry.globalWatermarkMax.labels(deploymentID).set(maxTime)
       }
@@ -108,7 +108,7 @@ class QueryManager(scheduler: MonixScheduler, conf: Config, topics: TopicReposit
   def earliestTime(): Option[Long] =
     if (watermarks.size == totalPartitions) {
       val startTimes = watermarks map {
-        case (_, watermark) => watermark.startTime
+        case (_, watermark) => watermark.oldestTime
       }
       Some(startTimes.min)
     }
