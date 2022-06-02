@@ -1,14 +1,7 @@
 # Running Raphtory distributed
 
-Raphtory can be deployed as a set of multiple services in order to better take advantage of distributed resources, and flexibly scale horizontally its functionality.
+Raphtory can be deployed as a set of multiple services in order to better take advantage of distributed resources, and flexibly scale horizontally its functionality. In order to show how this setup works, we will go over a base distributed scenario.
 
-Finally, if you have a graph deployed somewhere else and want to submit new queries to it you can do this via the `connect(customConfig)` method in the `Raphtory` object. The `customConfig` here is to provide the appropriate configuration to locate the graph (i.e. the akka/pulsar address). If the graph is deployed in the same machine using the default Raphtory configuration you can omit this configuration parameter:
-
-```scala
-val graph = Raphtory.connect()
-```
-
-From this point, you can keep working with your graph as we have done so far.
 
 ## Bare metal distributed -- Raphtory services
 
@@ -81,11 +74,9 @@ Environment="HADOOP_OPTS=-Djava.library.path=/usr/local/bin/hadoop-3.3.1/lib/nat
 Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/usr/local/bin/hadoop-3.3.1/bin/:/usr/local/bin/hadoop-3.3.1/sbin/
 ```
 
-
 # Bare metal
 
-The difference between the two from an analysis perspective is that `batchLoad` will block any submitted queries until the data has finished ingesting - allowing it to handle completely out of order data. On the other hand when using `stream` it is assumed new data is continuously arriving (in roughly chronological order) which Raphtory handles with a watermarking heuristic to decide what time is safe to analyse across all the partitions. Therefore, queries where the perspective time fully ingested and synchronised allowed to progress and which should be blocked until the time they are set to run at has arrived and has been synchronised.
-
+The difference between the two from an analysis perspective is that `load` will block any submitted queries until the data has finished ingesting - allowing it to handle completely out of order data. On the other hand when using `stream` it is assumed new data is continuously arriving (in roughly chronological order) which Raphtory handles with a watermarking heuristic to decide what time is safe to analyse across all the partitions. Therefore, queries where the perspective time fully ingested and synchronised allowed to progress and which should be blocked until the time they are set to run at has arrived and has been synchronised.
 
 ## Bare metal single node
 
@@ -100,10 +91,11 @@ To run Raphtory locally on a macbook/laptop there are several ways this can be a
 
 ## Sending analysis queries to Raphtory with a client
 
-Finally, if you have a graph deployed somewhere else and want to submit new queries to it you can do this via the `deployedGraph(customConfig)` method in the `Raphtory` object. The `customConfig` here is to provide the appropriate configuration to locate the graph (i.e. the akka/pulsar address). If the graph is deployed in the same machine using the default Raphtory configuration you can omit this configuration parameter:
+
+Finally, if you have a graph deployed somewhere else and want to submit new queries to it you can do this via the `connect(customConfig)` method in the `Raphtory` object. The `customConfig` here is to provide the appropriate configuration to locate the graph (i.e. the akka/pulsar address). If the graph is deployed in the same machine using the default Raphtory configuration you can omit this configuration parameter:
 
 ```scala
-val graph = Raphtory.deployedGraph()
+val graph = Raphtory.connect()
 ```
 
 From this point, you can keep working with your graph as we have done so far.
