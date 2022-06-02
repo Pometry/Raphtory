@@ -13,7 +13,7 @@ import scala.collection.immutable.Queue
 /** @note DoNotDocument */
 trait QueryManagement extends Serializable
 
-case class WatermarkTime(partitionID: Int, startTime: Long, endTime: Long, safe: Boolean)
+case class WatermarkTime(partitionID: Int, oldestTime: Long, latestTime: Long, safe: Boolean)
         extends QueryManagement
 
 case object StartAnalysis                   extends QueryManagement

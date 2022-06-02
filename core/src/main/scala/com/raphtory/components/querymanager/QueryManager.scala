@@ -7,6 +7,7 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
+import scala.collection.concurrent._
 import scala.collection.mutable
 
 /** @note DoNotDocument */
@@ -15,8 +16,9 @@ class QueryManager(scheduler: MonixScheduler, conf: Config, topics: TopicReposit
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val currentQueries = mutable.Map[String, QueryHandler]()
+
   //private val watermarkGlobal                           = pulsarController.globalwatermarkPublisher() TODO: turn back on when needed
-  private val watermarks     = mutable.Map[Int, WatermarkTime]()
+  private val watermarks: Map[Int, WatermarkTime] = new TrieMap[Int, WatermarkTime]()
 
   private val listener = topics
     .registerListener(
@@ -55,8 +57,8 @@ class QueryManager(scheduler: MonixScheduler, conf: Config, topics: TopicReposit
         }
       case watermark: WatermarkTime =>
         logger.debug(
-                s"Setting watermark to earliest time '${watermark.startTime}'" +
-                  s" and latest time '${watermark.endTime}'" +
+                s"Setting watermark to earliest time '${watermark.oldestTime}'" +
+                  s" and latest time '${watermark.latestTime}'" +
                   s" for partition '${watermark.partitionID}'."
         )
         watermarks.put(watermark.partitionID, watermark)
@@ -87,11 +89,12 @@ class QueryManager(scheduler: MonixScheduler, conf: Config, topics: TopicReposit
       var safe    = true
       var minTime = Long.MaxValue
       var maxTime = Long.MinValue
+
       watermarks.foreach {
         case (key, watermark) =>
           safe = watermark.safe && safe
-          minTime = Math.min(minTime, watermark.endTime)
-          maxTime = Math.max(maxTime, watermark.endTime)
+          minTime = Math.min(minTime, watermark.latestTime)
+          maxTime = Math.max(maxTime, watermark.latestTime)
           telemetry.globalWatermarkMin.labels(deploymentID).set(minTime)
           telemetry.globalWatermarkMax.labels(deploymentID).set(maxTime)
       }
@@ -105,7 +108,7 @@ class QueryManager(scheduler: MonixScheduler, conf: Config, topics: TopicReposit
   def earliestTime(): Option[Long] =
     if (watermarks.size == totalPartitions) {
       val startTimes = watermarks map {
-        case (_, watermark) => watermark.startTime
+        case (_, watermark) => watermark.oldestTime
       }
       Some(startTimes.min)
     }
