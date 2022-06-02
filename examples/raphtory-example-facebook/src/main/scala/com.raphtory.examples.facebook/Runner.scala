@@ -29,11 +29,10 @@ object Runner extends App {
         throw ex
     }
   }
-  val conf: config.Config = Raphtory.getDefaultConfig()
 
   val source: StaticGraphSpout = StaticGraphSpout("/tmp/facebook.csv")
   val builder                  = new FacebookGraphBuilder()
-  val graph                    = Raphtory.batchLoad(spout = source, graphBuilder = builder)
+  val graph                    = Raphtory.load(spout = source, graphBuilder = builder)
   Thread.sleep(20000)
   graph.at(88234).past().execute(EdgeList()).writeTo(PulsarOutputFormat("EdgeList"))
   graph

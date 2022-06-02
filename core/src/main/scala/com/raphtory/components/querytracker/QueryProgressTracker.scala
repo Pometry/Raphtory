@@ -28,7 +28,7 @@ import scala.concurrent.duration.Duration
   * import com.raphtory.GraphState
   * import com.raphtory.output.FileOutputFormat
   *
-  * val graph = Raphtory.batchLoadGraph(ResourceSpout("resource"), LOTRGraphBuilder())
+  * val graph = Raphtory.load(ResourceSpout("resource"), LOTRGraphBuilder())
   * val queryProgressTracker = graph.rangeQuery(GraphState(),FileOutputFormat("/test_dir"),1, 32674, 10000, List(500, 1000, 10000))
   * val jobId                = queryProgressTracker.getJobId()
   * queryProgressTracker.waitForJob()

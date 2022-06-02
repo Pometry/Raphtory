@@ -76,22 +76,22 @@ object Raphtory {
     * @param customConfig Custom configuration for the deployment
     * @return the graph object created by this batch loader
     */
-  def batchLoad[T: TypeTag: ClassTag](
+  def load[T: TypeTag: ClassTag](
       spout: Spout[T] = new IdentitySpout[T](),
       graphBuilder: GraphBuilder[T],
       customConfig: Map[String, Any] = Map()
   ): DeployedTemporalGraph =
     deployLocalGraph(spout, graphBuilder, customConfig, true)
 
-  /** Creates `TemporalGraph` object referencing an already deployed graph that
+  /** Creates a `TemporalGraphConnection` object referencing an already deployed graph that
     * can be used to express queries from using the given `customConfig`.
     *
     * @param customConfig Custom configuration for the deployment being referenced
     * @return a temporal graph object
     */
-  def deployedGraph(customConfig: Map[String, Any] = Map()): TemporalGraphConnection = {
+  def connect(customConfig: Map[String, Any] = Map()): TemporalGraphConnection = {
     val scheduler        = new MonixScheduler()
-    val conf             = confBuilder(customConfig)
+    val conf             = confBuilder(customConfig, true)
     javaPy4jGatewayServer.start(conf)
     startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
     val topics           = PulsarTopicRepository(conf)
@@ -100,13 +100,28 @@ object Raphtory {
     new TemporalGraphConnection(Query(), querySender, conf, scheduler, topics)
   }
 
+  /** Returns default config using `ConfigFactory` for initialising parameters for
+    * running Raphtory components. This uses the default application parameters
+    */
+  def getDefaultConfig(
+      customConfig: Map[String, Any] = Map(),
+      distributed: Boolean = false
+  ): Config =
+    confBuilder(customConfig, distributed)
+
+  private def confBuilder(customConfig: Map[String, Any] = Map(), distributed: Boolean): Config = {
+    val confHandler = new ConfigHandler()
+    customConfig.foreach { case (key, value) => confHandler.addCustomConfig(key, value) }
+    confHandler.getConfig(distributed)
+  }
+
   /** Creates `Spout` to read or ingest data from resources or files, sending messages to builder
     * producers for each row. Supported spout types are FileSpout`, `ResourceSpout`,
     * `StaticGraphSpout`.
     */
-  def createSpout[T](spout: Spout[T]): Unit = {
+  private[raphtory] def createSpout[T](spout: Spout[T]): Unit = {
     val scheduler        = new MonixScheduler()
-    val conf             = confBuilder()
+    val conf             = confBuilder(distributed = true)
     startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
     val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
@@ -116,11 +131,11 @@ object Raphtory {
   /** Creates `GraphBuilder` for creating a Graph by adding and deleting vertices and edges.
     * `GraphBuilder` processes the data ingested by the spout as tuples of rows to build the graph
     */
-  def createGraphBuilder[T: ClassTag](
+  private[raphtory] def createGraphBuilder[T: ClassTag](
       builder: GraphBuilder[T]
   ): Unit = {
     val scheduler        = new MonixScheduler()
-    val conf             = confBuilder()
+    val conf             = confBuilder(distributed = true)
     startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
     val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
@@ -130,13 +145,13 @@ object Raphtory {
   /** Creates `PartitionManager` for creating partitions as distributed storage units with readers and
     * writers. Uses Zookeeper to create partition IDs
     */
-  def createPartitionManager[T: ClassTag](
+  private[raphtory] def createPartitionManager[T: ClassTag](
       batchLoading: Boolean = false,
       spout: Option[Spout[T]] = None,
       graphBuilder: Option[GraphBuilder[T]] = None
   ): Unit = {
     val scheduler        = new MonixScheduler()
-    val conf             = confBuilder()
+    val conf             = confBuilder(distributed = true)
     startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
     val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
@@ -146,25 +161,13 @@ object Raphtory {
   /** Creates `QueryManager` for spawning, handling and tracking queries. Query types
     * supported include `PointQuery`, `RangeQuery` and `LiveQuery`
     */
-  def createQueryManager(): Unit = {
+  private[raphtory] def createQueryManager(): Unit = {
     val scheduler        = new MonixScheduler()
-    val conf             = confBuilder()
+    val conf             = confBuilder(distributed = true)
     startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
     val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
     componentFactory.query(scheduler)
-  }
-
-  /** Returns default config using `ConfigFactory` for initialising parameters for
-    * running Raphtory components. This uses the default application parameters
-    */
-  def getDefaultConfig(customConfig: Map[String, Any] = Map()): Config =
-    confBuilder(customConfig)
-
-  private def confBuilder(customConfig: Map[String, Any] = Map()): Config = {
-    val confHandler = new ConfigHandler()
-    customConfig.foreach { case (key, value) => confHandler.addCustomConfig(key, value) }
-    confHandler.getConfig
   }
 
   private def newPrometheusServer(prometheusPort: Int): Unit =
@@ -196,7 +199,7 @@ object Raphtory {
       batchLoading: Boolean
   ) = {
     val scheduler        = new MonixScheduler()
-    val conf             = confBuilder(customConfig)
+    val conf             = confBuilder(customConfig, distributed = false)
     javaPy4jGatewayServer.start(conf)
     startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
     val topics           = PulsarAkkaTopicRepository(conf)
@@ -211,5 +214,10 @@ object Raphtory {
             scheduler
     )
     new DeployedTemporalGraph(Query(), querySender, deployment.stop, conf)
+  }
+
+  def shutdown(): Unit = {
+    prometheusServer.foreach(_.close())
+    javaPy4jGatewayServer.shutdown()
   }
 }

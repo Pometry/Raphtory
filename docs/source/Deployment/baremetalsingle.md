@@ -2,6 +2,13 @@
 
 Raphtory can be deployed as a set of multiple services in order to better take advantage of distributed resources, and flexibly scale horizontally its functionality.
 
+Finally, if you have a graph deployed somewhere else and want to submit new queries to it you can do this via the `connect(customConfig)` method in the `Raphtory` object. The `customConfig` here is to provide the appropriate configuration to locate the graph (i.e. the akka/pulsar address). If the graph is deployed in the same machine using the default Raphtory configuration you can omit this configuration parameter:
+
+```scala
+val graph = Raphtory.connect()
+```
+
+From this point, you can keep working with your graph as we have done so far.
 
 ## Bare metal distributed -- Raphtory services
 
