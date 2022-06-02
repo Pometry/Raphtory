@@ -215,4 +215,9 @@ object Raphtory {
     )
     new DeployedTemporalGraph(Query(), querySender, deployment.stop, conf)
   }
+
+  def shutdown(): Unit = {
+    prometheusServer.foreach(_.close())
+    javaPy4jGatewayServer.shutdown()
+  }
 }
