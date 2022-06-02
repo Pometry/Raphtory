@@ -2,6 +2,8 @@ package com.raphtory.api.graphstate
 
 import com.raphtory.api.graphview.GraphPerspective
 import com.raphtory.util.Bounded
+import com.raphtory.util.Bounded._
+import com.raphtory.util.ExtendedNumeric._
 
 /**
   * Public interface for global accumulators
@@ -37,70 +39,69 @@ abstract class GraphState {
   ): Unit
 
   /** Create a new accumulator that sums values */
-  def newAdder[T: Numeric](name: String): Unit
+  def newAdder[T: Numeric](name: String): Unit =
+    newAdder[T](name, 0, retainState = false)
 
   /** Create a new accumulator that sums values */
-  def newAdder[T: Numeric](name: String, initialValue: T): Unit
+  def newAdder[T: Numeric](name: String, initialValue: T): Unit =
+    newAdder[T](name, initialValue, retainState = false)
 
   /** Create a new accumulator that sums values */
-  def newAdder[T: Numeric](name: String, retainState: Boolean): Unit
+  def newAdder[T: Numeric](name: String, retainState: Boolean): Unit =
+    newAdder[T](name, 0, retainState)
 
   /** Create a new accumulator that sums values */
   def newAdder[T: Numeric](name: String, initialValue: T, retainState: Boolean): Unit
 
   /** Create a new accumulator that multiplies values */
-  def newMultiplier[T: Numeric](name: String): Unit
+  def newMultiplier[T: Numeric](name: String): Unit =
+    newMultiplier[T](name, 1, retainState = false)
 
   /** Create a new accumulator that multiplies values */
-  def newMultiplier[T: Numeric](name: String, initialValue: T): Unit
+  def newMultiplier[T: Numeric](name: String, initialValue: T): Unit =
+    newMultiplier[T](name, initialValue, retainState = false)
 
   /** Create a new accumulator that multiplies values */
-  def newMultiplier[T: Numeric](name: String, retainState: Boolean): Unit
+  def newMultiplier[T: Numeric](name: String, retainState: Boolean): Unit =
+    newMultiplier[T](name, 1, retainState)
 
   /** Create a new accumulator that multiplies values */
   def newMultiplier[T: Numeric](name: String, initialValue: T, retainState: Boolean): Unit
 
   /** Create a new accumulator that tracks the maximum value */
-  def newMax[T](name: String)(implicit numeric: Numeric[T], bounded: Bounded[T]): Unit
+  def newMax[T: Numeric: Bounded](
+      name: String
+  ): Unit = newMax[T](name, MIN[T], retainState = false)
 
   /** Create a new accumulator that tracks the maximum value */
-  def newMax[T](name: String, initialValue: T)(implicit
-      numeric: Numeric[T],
-      bounded: Bounded[T]
-  ): Unit
+  def newMax[T: Numeric: Bounded](name: String, initialValue: T): Unit =
+    newMax[T](name, initialValue, retainState = false)
 
   /** Create a new accumulator that tracks the maximum value */
-  def newMax[T](name: String, retainState: Boolean)(implicit
-      numeric: Numeric[T],
-      bounded: Bounded[T]
-  ): Unit
+  def newMax[T: Numeric: Bounded](name: String, retainState: Boolean): Unit =
+    newMax[T](name, MIN[T], retainState)
 
   /** Create a new accumulator that tracks the maximum value */
-  def newMax[T](name: String, initialValue: T, retainState: Boolean)(implicit
-      numeric: Numeric[T],
-      bounded: Bounded[T]
+  def newMax[T: Numeric: Bounded](
+      name: String,
+      initialValue: T,
+      retainState: Boolean
   ): Unit
 
   /** Create a new accumulator that tracks the minimum value */
-  def newMin[T](name: String)(implicit numeric: Numeric[T], bounded: Bounded[T]): Unit
+  def newMin[T: Numeric: Bounded](name: String): Unit =
+    newMin(name, MAX[T], retainState = false)
 
   /** Create a new accumulator that tracks the minimum value */
-  def newMin[T](name: String, initialValue: T)(implicit
-      numeric: Numeric[T],
-      bounded: Bounded[T]
-  ): Unit
+  def newMin[T: Numeric: Bounded](name: String, initialValue: T): Unit =
+    newMin(name, initialValue, retainState = false)
 
   /** Create a new accumulator that tracks the minimum value */
-  def newMin[T](name: String, retainState: Boolean)(implicit
-      numeric: Numeric[T],
-      bounded: Bounded[T]
-  ): Unit
+  def newMin[T: Numeric: Bounded](name: String, retainState: Boolean): Unit =
+    newMin(name, MAX[T], retainState)
 
   /** Create a new accumulator that tracks the minimum value */
-  def newMin[T](name: String, initialValue: T, retainState: Boolean)(implicit
-      numeric: Numeric[T],
-      bounded: Bounded[T]
-  ): Unit
+  def newMin[T: Numeric: Bounded](name: String, initialValue: T, retainState: Boolean): Unit
 
   /** Create a new histogram that tracks the distribution of a graph quantity */
   def newHistogram[T: Numeric](

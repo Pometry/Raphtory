@@ -152,76 +152,18 @@ private[raphtory] class GraphStateImplementation extends GraphState {
     accumulatorState(name) = AccumulatorImplementation[T](value, retainState = false, (x, _) => x)
       .asInstanceOf[AccumulatorImplementation[Any, Any]]
 
-  def newAdder[T](name: String)(implicit numeric: Numeric[T]): Unit =
-    accumulatorState(name) =
-      AccumulatorImplementation[T](initialValue = numeric.zero, retainState = false, numeric.plus)
-        .asInstanceOf[AccumulatorImplementation[Any, Any]]
-
-  def newAdder[T](name: String, retainState: Boolean)(implicit numeric: Numeric[T]): Unit =
-    accumulatorState(name) =
-      AccumulatorImplementation[T](initialValue = numeric.zero, retainState, numeric.plus)
-        .asInstanceOf[AccumulatorImplementation[Any, Any]]
-
-  def newAdder[T](name: String, initialValue: T)(implicit numeric: Numeric[T]): Unit =
-    accumulatorState(name) =
-      AccumulatorImplementation[T](initialValue, retainState = false, numeric.plus)
-        .asInstanceOf[AccumulatorImplementation[Any, Any]]
-
   def newAdder[T](name: String, initialValue: T, retainState: Boolean)(implicit
       numeric: Numeric[T]
   ): Unit =
     accumulatorState(name) = AccumulatorImplementation[T](initialValue, retainState, numeric.plus)
       .asInstanceOf[AccumulatorImplementation[Any, Any]]
 
-  /** @inheritdoc */
-  override def newMultiplier[T](name: String)(implicit numeric: Numeric[T]): Unit =
-    accumulatorState(name) =
-      AccumulatorImplementation[T](numeric.one, retainState = false, op = numeric.times)
-        .asInstanceOf[AccumulatorImplementation[Any, Any]]
-
-  /** @inheritdoc */
-  override def newMultiplier[T](name: String, initialValue: T)(implicit numeric: Numeric[T]): Unit =
-    accumulatorState(name) =
-      AccumulatorImplementation[T](initialValue, retainState = false, op = numeric.times)
-        .asInstanceOf[AccumulatorImplementation[Any, Any]]
-
-  /** @inheritdoc */
-  override def newMultiplier[T](name: String, retainState: Boolean)(implicit
-      numeric: Numeric[T]
-  ): Unit =
-    accumulatorState(name) = AccumulatorImplementation[T](numeric.one, retainState, numeric.times)
-      .asInstanceOf[AccumulatorImplementation[Any, Any]]
-
   /** Create a new accumulator that multiplies values */
-  override def newMultiplier[T](name: String, initialValue: T, retainState: Boolean)(implicit
+  def newMultiplier[T](name: String, initialValue: T, retainState: Boolean)(implicit
       numeric: Numeric[T]
   ): Unit =
     accumulatorState(name) = AccumulatorImplementation[T](initialValue, retainState, numeric.times)
       .asInstanceOf[AccumulatorImplementation[Any, Any]]
-
-  /** @inheritdoc */
-  override def newMax[T](name: String)(implicit numeric: Numeric[T], bounded: Bounded[T]): Unit =
-    accumulatorState(name) =
-      AccumulatorImplementation[T](bounded.MIN, retainState = false, numeric.max)
-        .asInstanceOf[AccumulatorImplementation[Any, Any]]
-
-  /** @inheritdoc */
-  override def newMax[T](name: String, retainState: Boolean)(implicit
-      numeric: Numeric[T],
-      bounded: Bounded[T]
-  ): Unit =
-    accumulatorState(name) =
-      AccumulatorImplementation[T](bounded.MIN, retainState = retainState, numeric.max)
-        .asInstanceOf[AccumulatorImplementation[Any, Any]]
-
-  /** @inheritdoc */
-  override def newMax[T](name: String, initialValue: T)(implicit
-      numeric: Numeric[T],
-      bounded: Bounded[T]
-  ): Unit =
-    accumulatorState(name) =
-      AccumulatorImplementation[T](initialValue, retainState = false, numeric.max)
-        .asInstanceOf[AccumulatorImplementation[Any, Any]]
 
   /** @inheritdoc */
   override def newMax[T](name: String, initialValue: T, retainState: Boolean)(implicit
@@ -230,30 +172,6 @@ private[raphtory] class GraphStateImplementation extends GraphState {
   ): Unit =
     accumulatorState(name) =
       AccumulatorImplementation[T](initialValue, retainState = retainState, numeric.max)
-        .asInstanceOf[AccumulatorImplementation[Any, Any]]
-
-  /** @inheritdoc */
-  override def newMin[T](name: String)(implicit numeric: Numeric[T], bounded: Bounded[T]): Unit =
-    accumulatorState(name) =
-      AccumulatorImplementation[T](bounded.MAX, retainState = false, numeric.min)
-        .asInstanceOf[AccumulatorImplementation[Any, Any]]
-
-  /** @inheritdoc */
-  override def newMin[T](name: String, retainState: Boolean)(implicit
-      numeric: Numeric[T],
-      bounded: Bounded[T]
-  ): Unit =
-    accumulatorState(name) =
-      AccumulatorImplementation[T](bounded.MAX, retainState = retainState, numeric.min)
-        .asInstanceOf[AccumulatorImplementation[Any, Any]]
-
-  /** @inheritdoc */
-  override def newMin[T](name: String, initialValue: T)(implicit
-      numeric: Numeric[T],
-      bounded: Bounded[T]
-  ): Unit =
-    accumulatorState(name) =
-      AccumulatorImplementation[T](initialValue, retainState = false, numeric.min)
         .asInstanceOf[AccumulatorImplementation[Any, Any]]
 
   /** @inheritdoc */
