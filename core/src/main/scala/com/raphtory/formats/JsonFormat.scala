@@ -8,14 +8,19 @@ import com.raphtory.graph.Perspective
 import com.raphtory.sinks.SinkConnector
 import com.raphtory.time.DiscreteInterval
 import com.raphtory.time.TimeInterval
+import com.typesafe.config.Config
 
 import java.io.StringWriter
 
-case class JsonFormat(jobID: String, partitionID: Int) extends Format {
-
+case class JsonFormat() extends Format {
   override def defaultDelimiter: String = "\n"
 
-  override def executor(connector: SinkConnector): SinkExecutor =
+  override def executor(
+      connector: SinkConnector,
+      jobID: String,
+      partitionID: Int,
+      config: Config
+  ): SinkExecutor =
     new SinkExecutor {
       private val gson                   = new GsonBuilder().setPrettyPrinting().create()
       private val stringWriter           = new StringWriter()
@@ -27,7 +32,7 @@ case class JsonFormat(jobID: String, partitionID: Int) extends Format {
       jsonWriter.name("partitionID").value(partitionID)
       jsonWriter.name("perspectives")
       jsonWriter.beginArray()
-      connector.write(stringWriter.toString)
+      flush(stringWriter, connector)
 
       override def setupPerspective(perspective: Perspective): Unit = {
         jsonWriter.beginObject()
@@ -39,25 +44,31 @@ case class JsonFormat(jobID: String, partitionID: Int) extends Format {
         }
         jsonWriter.name("rows")
         jsonWriter.beginArray()
-        connector.write(stringWriter.toString)
+        flush(stringWriter, connector)
       }
 
       override protected def writeRow(row: Row): Unit = {
         gson.toJson(row.getValues(), classOf[Array[Any]], jsonWriter)
-        connector.write(stringWriter.toString)
+        flush(stringWriter, connector)
       }
 
       override def closePerspective(): Unit = {
         jsonWriter.endArray()
         jsonWriter.endObject()
-        connector.write(stringWriter.toString)
+        flush(stringWriter, connector)
       }
 
       override def close(): Unit = {
         jsonWriter.endArray()
         jsonWriter.endObject()
-        connector.write(stringWriter.toString)
+        flush(stringWriter, connector)
+        connector.closeItem()
         connector.close()
+      }
+
+      private def flush(stringWriter: StringWriter, connector: SinkConnector): Unit = {
+        connector.write(stringWriter.toString)
+        stringWriter.getBuffer.setLength(0)
       }
     }
 }

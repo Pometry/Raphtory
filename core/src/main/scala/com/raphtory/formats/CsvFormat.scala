@@ -4,11 +4,17 @@ import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.SinkExecutor
 import com.raphtory.graph.Perspective
 import com.raphtory.sinks.SinkConnector
+import com.typesafe.config.Config
 
 case class CsvFormat() extends Format {
   override def defaultDelimiter: String = "\n"
 
-  override def executor(connector: SinkConnector): SinkExecutor =
+  override def executor(
+      connector: SinkConnector,
+      jobID: String,
+      partitionID: Int,
+      config: Config
+  ): SinkExecutor =
     new SinkExecutor {
       var currentPerspective: Perspective = _
 

@@ -14,6 +14,9 @@ abstract class FormatAgnosticSink(format: Format) extends Sink {
       itemDelimiter: String
   ): SinkConnector
 
-  final override def executor(jobID: String, partitionID: Int, config: Config): SinkExecutor =
-    format.executor(buildConnector(jobID, partitionID, config, format.defaultDelimiter))
+  final override def executor(jobID: String, partitionID: Int, config: Config): SinkExecutor = {
+    val connector =
+      buildConnector(jobID, partitionID, config, format.defaultDelimiter)
+    format.executor(connector, jobID, partitionID, config)
+  }
 }

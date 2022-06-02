@@ -4,7 +4,10 @@ import com.raphtory.formats.CsvFormat
 import com.raphtory.formats.Format
 import com.typesafe.config.Config
 
-class PrintSink(format: Format = CsvFormat()) extends FormatAgnosticSink(format) {
+import java.io.OutputStreamWriter
+import java.io.Writer
+
+case class PrintSink(format: Format = CsvFormat()) extends FormatAgnosticSink(format) {
 
   override protected def buildConnector(
       jobID: String,
@@ -12,9 +15,8 @@ class PrintSink(format: Format = CsvFormat()) extends FormatAgnosticSink(format)
       config: Config,
       itemDelimiter: String
   ): SinkConnector =
-    new SinkConnector {
-      override def write(value: String): Unit = System.out.print(value)
-      override def closeItem(): Unit          = System.out.print(itemDelimiter)
-      override def close(): Unit = {}
+    new StreamSinkConnector(itemDelimiter) {
+      override def output(value: String): Unit = System.out.print(value)
+      override def close(): Unit               = System.out.println()
     }
 }

@@ -8,6 +8,7 @@ import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.FileWriter
+import java.io.Writer
 
 /** Writes the rows of a `Table` to the file specified by `filePath` in CSV format.
   *
@@ -42,14 +43,12 @@ case class FileSink(filePath: String, format: Format = CsvFormat())
       config: Config,
       itemDelimiter: String
   ): SinkConnector =
-    new SinkConnector {
+    new StreamSinkConnector(itemDelimiter) {
       private val workDirectory = s"$filePath/$jobID"
       new File(workDirectory).mkdirs()
-      protected val filename    = s"$workDirectory/partition-$partitionID"
-      private val fileWriter    = new FileWriter(filename)
+      private val fileWriter    = new FileWriter(s"$workDirectory/partition-$partitionID")
 
-      override def write(value: String): Unit = fileWriter.write(value)
-      override def closeItem(): Unit          = fileWriter.write(itemDelimiter)
-      override def close(): Unit              = fileWriter.close()
+      override def output(value: String): Unit = fileWriter.write(value)
+      override def close(): Unit               = fileWriter.close()
     }
 }
