@@ -18,7 +18,7 @@ and built by `Pometry <http://pometry.com>`_, The `QMUL Networks Group  <http://
 If you would like a brief summary of what its used for before fully diving into the getting start guide please check
 out our latest talks on Raphtory at `AIUK 20222 <https://www.youtube.com/watch?v=7S9Ymnih-YM&list=PLuD_SqLtxSdVEUsCYlb5XjWm9D6WuNKEz&index=8>`_ , `KGC 2022 <https://www.youtube.com/watch?v=37S4bSN5EaU>`_ and `NetSciX <https://www.youtube.com/watch?v=QxhrONca4FE>`_ !
 
-Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/installdependencies>`. Alternatively, if you want to dive headfirst into the internals you visit the :doc:`ScalaDocs <Scaladoc/index.md>`.
+Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/installdependencies>`. Alternatively, if you want to dive headfirst into the internals you visit the :doc:`ScalaDocs <Scaladoc/index>`.
 
 .. toctree::
    :maxdepth: 3
