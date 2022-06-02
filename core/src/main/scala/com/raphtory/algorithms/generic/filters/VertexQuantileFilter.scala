@@ -1,6 +1,6 @@
 package com.raphtory.algorithms.generic.filters
 
-import com.raphtory.algorithms.api.Bounded
+import com.raphtory.util.Bounded
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Histogram
 import com.raphtory.algorithms.generic.NodeList

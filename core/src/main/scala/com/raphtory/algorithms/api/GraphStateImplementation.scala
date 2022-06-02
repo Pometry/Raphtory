@@ -1,5 +1,7 @@
 package com.raphtory.algorithms.api
 
+import com.raphtory.util.Bounded
+
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
 import scala.collection.mutable
@@ -124,27 +126,6 @@ private object HistogramAccumulatorImplementation {
 
   def apply[T: Numeric](noBins: Int, minValue: T, maxValue: T, retainState: Boolean) =
     new HistogramAccumulatorImplementation[T](noBins, minValue, maxValue, retainState)
-}
-
-class Bounded[T](min: T, max: T) {
-  def MIN: T = min
-  def MAX: T = max
-}
-
-/**
-  * @note DoNotDocument
-  */
-object Bounded {
-  def apply[T](min: T, max: T) = new Bounded[T](min, max)
-
-  implicit val intBounds: Bounded[Int]   = Bounded(Int.MinValue, Int.MaxValue)
-  implicit val longBounds: Bounded[Long] = Bounded(Long.MinValue, Long.MaxValue)
-
-  implicit val doubleBounds: Bounded[Double] =
-    Bounded(Double.NegativeInfinity, Double.PositiveInfinity)
-
-  implicit val floatBounds: Bounded[Float] =
-    Bounded(Float.NegativeInfinity, Float.PositiveInfinity)
 }
 
 /**

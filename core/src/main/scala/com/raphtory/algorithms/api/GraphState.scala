@@ -1,5 +1,7 @@
 package com.raphtory.algorithms.api
 
+import com.raphtory.util.Bounded
+
 /**
   * Public interface for global accumulators
   *

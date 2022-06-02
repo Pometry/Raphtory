@@ -1,11 +1,12 @@
 package com.raphtory.algorithms.generic
 
-import com.raphtory.algorithms.api.Bounded
 import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.api.Histogram
 import com.raphtory.algorithms.api.Row
 import com.raphtory.algorithms.api.Table
 import com.raphtory.algorithms.api.algorithm.GenericAlgorithm
+import com.raphtory.util.Bounded
+
 import scala.reflect.ClassTag
 
 class VertexHistogram[T: Numeric: Bounded: ClassTag](propertyString: String, noBins: Int = 1000)
