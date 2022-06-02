@@ -26,7 +26,7 @@ object Runner extends App {
     .writeTo(PulsarOutputFormat("EdgeList"))
   rg.range(1470797917000L, 1476113868000L, 86400000L)
     .window(List(3600000L, 86400000L, 604800000L, 2592000000L, 31536000000L), Alignment.END)
-    .execute(ConnectedComponents())
+    .execute(ConnectedComponents)
     .writeTo(outputFormat)
   //rg.rangeQuery(ConnectedComponents(),start = 1,end = 32674,increment = 100,window=100,arguments)
   //rg.rangeQuery(ConnectedComponents(),start = 1,end = 32674,increment = 100,windowBatch=Array(3600,36000,360000),arguments)
