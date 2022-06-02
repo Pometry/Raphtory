@@ -14,7 +14,6 @@ import monix.execution.Cancelable
 import org.apache.pulsar.client.api.Consumer
 import org.slf4j.LoggerFactory
 
-import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
 
@@ -31,16 +30,14 @@ class Reader(
   private val executorMap      = mutable.Map[String, QueryExecutor]()
   private val watermarkPublish = topics.watermark.endPoint
 
-  private val queryPrepListener                                 =
+  private val queryPrepListener                      =
     topics.registerListener(s"$deploymentID-reader-$partitionID", handleMessage, topics.queryPrep)
-  private var cancelableConsumer: Option[Consumer[Array[Byte]]] = None
-  private var scheduledWatermark: Option[Cancelable]            = None
-  private var lastWatermark                                     = WatermarkTime(partitionID, Long.MaxValue, Long.MinValue, false)
+  private var scheduledWatermark: Option[Cancelable] = None
 
   override def run(): Unit = {
     logger.debug(s"Partition $partitionID: Starting Reader Consumer.")
     queryPrepListener.start()
-    scheduleWaterMarker()
+    scheduleWatermarker()
   }
 
   override def stop(): Unit = {
@@ -76,63 +73,20 @@ class Reader(
         }
     }
 
-  def createWatermark(): Unit = {
-    if (!storage.currentyBatchIngesting()) {
-      val newestTime              = storage.newestTime
-      val oldestTime              = storage.oldestTime
-      val blockingEdgeAdditions   = storage.blockingEdgeAdditions.nonEmpty
-      val blockingEdgeDeletions   = storage.blockingEdgeDeletions.nonEmpty
-      val blockingVertexDeletions = storage.blockingVertexDeletions.nonEmpty
-
-      //this is quite ugly but will be fully written with the new semaphore implementation
-      val BEAtime = storage.blockingEdgeAdditions.reduceOption[(Long, (Long, Long))]({
-        case (update1, update2) =>
-          if (update1._1 < update2._1) update1 else update2
-      }) match {
-        case Some(value) => value._1 //get out the timestamp
-        case None        => newestTime
-      }
-
-      val BEDtime = storage.blockingEdgeDeletions.reduceOption[(Long, (Long, Long))]({
-        case (update1, update2) =>
-          if (update1._1 < update2._1) update1 else update2
-      }) match {
-        case Some(value) => value._1 //get out the timestamp
-        case None        => newestTime
-      }
-
-      val BVDtime = storage.blockingVertexDeletions.reduceOption[((Long, Long), AtomicInteger)]({
-        case (update1, update2) =>
-          if (update1._1._1 < update2._1._1) update1 else update2
-      }) match {
-        case Some(value) => value._1._1 //get out the timestamp
-        case None        => newestTime
-      }
-
-      val finalTime = Array(newestTime, BEAtime, BEDtime, BVDtime).min
-
-      val noBlockingOperations =
-        !blockingEdgeAdditions && !blockingEdgeDeletions && !blockingVertexDeletions
-      val watermark            = WatermarkTime(partitionID, oldestTime, finalTime, noBlockingOperations)
-      if (watermark != lastWatermark) {
-        logger.debug(
-                s"Partition $partitionID: Creating watermark with " +
-                  s"earliest time '$oldestTime' and latest time '$finalTime'."
-        )
-        watermarkPublish sendAsync watermark
-      }
-      lastWatermark = watermark
-      telemetry.lastWatermarkProcessedCollector
-        .labels(partitionID.toString, deploymentID)
-        .set(finalTime)
-    }
-    scheduleWaterMarker()
+  private def checkWatermark(): Unit = {
+    storage.watermarker.updateWatermark()
+    val latestWatermark = storage.watermarker.getLatestWatermark
+    watermarkPublish sendAsync latestWatermark
+    telemetry.lastWatermarkProcessedCollector
+      .labels(partitionID.toString, deploymentID)
+      .set(latestWatermark.oldestTime)
+    scheduleWatermarker()
   }
 
-  private def scheduleWaterMarker(): Unit = {
+  private def scheduleWatermarker(): Unit = {
     logger.trace("Scheduled watermarker to recheck time in 1 second.")
     scheduledWatermark = scheduler
-      .scheduleOnce(1.seconds, createWatermark)
+      .scheduleOnce(1.seconds, checkWatermark())
 
   }
 

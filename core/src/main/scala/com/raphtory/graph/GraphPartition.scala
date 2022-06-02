@@ -2,12 +2,16 @@ package com.raphtory.graph
 
 import com.raphtory.components.graphbuilder.GraphUpdateEffect
 import com.raphtory.components.graphbuilder.Properties._
+import com.raphtory.components.querymanager.WatermarkTime
 import com.raphtory.storage.pojograph.entities.external.PojoExVertex
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
+import monix.execution.atomic.AtomicLong
 import org.slf4j.LoggerFactory
 
 import java.util.concurrent.atomic.AtomicInteger
+import scala.collection.concurrent.Map
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
 /** Singleton representing the Storage for the entities
@@ -17,6 +21,7 @@ abstract class GraphPartition(partitionID: Int, conf: Config) {
 
   protected val failOnError: Boolean = conf.getBoolean("raphtory.partitions.failOnError")
   private var batchIngesting         = false
+  val watermarker                    = new Watermarker(this)
   def startBatchIngesting()          = batchIngesting = true
   def stopBatchIngesting()           = batchIngesting = false
   def currentyBatchIngesting()       = batchIngesting
@@ -87,43 +92,11 @@ abstract class GraphPartition(partitionID: Int, conf: Config) {
   def getPartitionID                 = partitionID
   def checkDst(dstID: Long): Boolean = (dstID.abs % totalPartitions).toInt == partitionID
 
-  // Watermarking
-  var oldestTime: Long = Long.MaxValue
-  var newestTime: Long = 0
-
   def timings(updateTime: Long) = {
-    if (updateTime < oldestTime && updateTime > 0) oldestTime = updateTime
-    if (updateTime > newestTime)
-      newestTime = updateTime
+    if (updateTime < watermarker.oldestTime.get() && updateTime > 0)
+      watermarker.oldestTime.set(updateTime)
+    if (updateTime > watermarker.latestTime.get())
+      watermarker.latestTime.set(updateTime)
   }
-
-  val blockingEdgeAdditions: mutable.TreeSet[(Long, (Long, Long))]          = mutable.TreeSet()
-  val blockingEdgeDeletions: mutable.TreeSet[(Long, (Long, Long))]          = mutable.TreeSet()
-  val blockingVertexDeletions: mutable.TreeMap[(Long, Long), AtomicInteger] = mutable.TreeMap()
-
-  def trackEdgeAddition(timestamp: Long, src: Long, dst: Long): Unit =
-    blockingEdgeAdditions += ((timestamp, (src, dst)))
-
-  def trackEdgeDeletion(timestamp: Long, src: Long, dst: Long): Unit =
-    blockingEdgeDeletions += ((timestamp, (src, dst)))
-
-  def trackVertexDeletion(timestamp: Long, src: Long, size: Int): Unit =
-    blockingVertexDeletions put ((timestamp, src), new AtomicInteger(size))
-
-  def untrackEdgeAddition(timestamp: Long, src: Long, dst: Long): Unit =
-    blockingEdgeAdditions -= ((timestamp, (src, dst)))
-
-  def untrackEdgeDeletion(timestamp: Long, src: Long, dst: Long): Unit =
-    blockingEdgeDeletions -= ((timestamp, (src, dst)))
-
-  def untrackVertexDeletion(timestamp: Long, src: Long): Unit =
-    blockingVertexDeletions get (timestamp, src) match {
-      case Some(counter) =>
-        if (
-                counter.decrementAndGet() == 0
-        ) //if after we remove this value its now zero we can remove from the tree
-          blockingVertexDeletions -= ((timestamp, src))
-      case None          => //??? // this should never happen
-    }
 
 }
