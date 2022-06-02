@@ -112,14 +112,19 @@ abstract class GraphState {
       retainState: Boolean = true
   ): Unit
 
+  /** Create new Boolean accumulator that returns `true` if all accumulated values are `true` and `false` otherwise
+    * @param name Name for the accumulator
+    * @param retainState if `true` do not reset the accumulated value after each iteration
+    */
   def newAll(name: String, retainState: Boolean = false): Unit
 
+  /** Create new Boolean accumulator that returns `true` if any accumulated value is `true` and `false` otherwise */
   def newAny(name: String, retainState: Boolean = false): Unit
 
   /** Return the accumulator stored under name `name` */
   def apply[S, T](name: String): Accumulator[S, T]
 
-  /** Return the accumulator stored under `name` name if it exists, else return None */
+  /** Return the accumulator stored under `name` name if it exists, else return `None` */
   def get[S, T](name: String): Option[Accumulator[S, T]]
 
   /** Check if graph state with `name` exists */
