@@ -1,7 +1,8 @@
 package com.raphtory
 
 import com.google.common.hash.Hashing
-import com.raphtory.algorithms.api.GraphAlgorithm
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.algorithm.GenericallyApplicable
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.Spout
 import com.raphtory.deployment.Raphtory
@@ -31,7 +32,7 @@ abstract class BaseCorrectnessTest extends BaseRaphtoryAlgoTest[String] {
     resultsHash(rows)
 
   def correctnessTest(
-      algorithm: GraphAlgorithm,
+      algorithm: GenericallyApplicable,
       graphResource: String,
       resultsResource: String,
       lastTimestamp: Int
@@ -49,7 +50,7 @@ abstract class BaseCorrectnessTest extends BaseRaphtoryAlgoTest[String] {
   }
 
   def correctnessTest(
-      algorithm: GraphAlgorithm,
+      algorithm: GenericallyApplicable,
       graphEdges: Seq[String],
       results: Seq[String],
       lastTimestamp: Int

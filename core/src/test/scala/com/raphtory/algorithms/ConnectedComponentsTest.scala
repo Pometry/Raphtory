@@ -7,7 +7,7 @@ class ConnectedComponentsTest extends BaseCorrectnessTest {
   test("Test two components") {
     assert(
             correctnessTest(
-                    ConnectedComponents(),
+                    ConnectedComponents,
                     "ConnectedComponents/twoComponents.csv",
                     "ConnectedComponents/twoComponentsResults.csv",
                     7

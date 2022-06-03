@@ -1,10 +1,10 @@
 package com.raphtory.examples.twitter.higgsdataset.analysis
 
-import com.raphtory.algorithms.api.GraphAlgorithm
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Row
-import com.raphtory.algorithms.api.Table
-import com.raphtory.graph.visitor.Edge
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.table.Row
+import com.raphtory.api.table.Table
+import com.raphtory.api.visitor.Edge
 
 /**
   * Description
@@ -14,7 +14,7 @@ import com.raphtory.graph.visitor.Edge
   * the effects of bots further.
   */
 
-class MemberRank() extends GraphAlgorithm {
+class MemberRank() extends Generic {
 
   case class Score(negativeScore: Double = 0.0, positiveScore: Double = 0.0) {
 
@@ -26,7 +26,7 @@ class MemberRank() extends GraphAlgorithm {
     }
   }
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
         //For this vertex get our Page Rank value

@@ -1,6 +1,7 @@
 package com.raphtory.algorithms.generic
 
-import com.raphtory.algorithms.api.GraphPerspective
+import com.raphtory.api.graphview.GraphPerspective
+
 import math.Ordering.Implicits._
 
 /**
@@ -40,9 +41,9 @@ import math.Ordering.Implicits._
   *
   *  4. The algorithm iterates over steps 2 and 3 until no nodes change their label within an iteration.
   */
-class ConnectedComponents() extends NodeList(Seq("cclabel")) {
+object ConnectedComponents extends NodeList(Seq("cclabel")) {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
         vertex.setState("cclabel", vertex.ID)
@@ -62,8 +63,4 @@ class ConnectedComponents() extends NodeList(Seq("cclabel")) {
               iterations = 100,
               executeMessagedOnly = true
       )
-}
-
-object ConnectedComponents {
-  def apply() = new ConnectedComponents()
 }

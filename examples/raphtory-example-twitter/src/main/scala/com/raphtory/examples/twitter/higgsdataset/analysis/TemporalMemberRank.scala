@@ -1,20 +1,20 @@
 package com.raphtory.examples.twitter.higgsdataset.analysis
 
-import com.raphtory.algorithms.api.GraphAlgorithm
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Row
-import com.raphtory.algorithms.api.Table
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.table.Row
+import com.raphtory.api.table.Table
 
 /**
   * Description
   * This algorithm takes vertices with big differences in their raw scores and MemberRank scores
   * and checks the in edge creations over time.
   */
-class TemporalMemberRank() extends GraphAlgorithm {
+class TemporalMemberRank() extends Generic {
 
   case class NeighbourAndTime[T](id: T, time: Long)
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph.step { vertex =>
       // The original scores that someone received by their peers
 

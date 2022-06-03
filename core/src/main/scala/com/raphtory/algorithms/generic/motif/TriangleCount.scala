@@ -1,7 +1,7 @@
 package com.raphtory.algorithms.generic.motif
 
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.algorithms.api.GraphPerspective
+import com.raphtory.api.graphview.GraphPerspective
 
 /**
   * {s}`TriangleCount()`
@@ -41,9 +41,9 @@ import com.raphtory.algorithms.api.GraphPerspective
   * 'neighbours' refers to the union of in-neighbours and out-neighbours.
   * ``
   */
-class TriangleCount() extends NodeList(Seq("triangleCount")) {
+object TriangleCount extends NodeList(Seq("triangleCount")) {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
         vertex.setState("triangleCount", 0)
@@ -57,8 +57,4 @@ class TriangleCount() extends NodeList(Seq("triangleCount")) {
         queue.foreach(nbs => tri += nbs.intersect(neighbours).size)
         vertex.setState("triangleCount", tri / 2)
       }
-}
-
-object TriangleCount {
-  def apply() = new TriangleCount()
 }

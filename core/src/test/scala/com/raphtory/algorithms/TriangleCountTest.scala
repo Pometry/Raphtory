@@ -7,7 +7,7 @@ class TriangleCountTest extends BaseCorrectnessTest {
   test("test triangle counting") {
     assert(
             correctnessTest(
-                    TriangleCount(),
+                    TriangleCount,
                     "MotifCount/motiftest.csv",
                     "TriangleCount/triangleCorrectResult.csv",
                     23

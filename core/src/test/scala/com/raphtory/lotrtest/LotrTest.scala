@@ -67,7 +67,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Degree Test") {
     val result = algorithmTest(
-            algorithm = Degree(),
+            algorithm = Degree,
             start = 1,
             end = 32674,
             increment = 10000,
@@ -88,7 +88,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
   test("AverageNeighbourDegree Test") {
     val result =
       algorithmTest(
-              algorithm = AverageNeighbourDegree(),
+              algorithm = AverageNeighbourDegree,
               start = 1,
               end = 32674,
               increment = 10000,
@@ -144,7 +144,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
   test("Connected Components Test") {
     val result =
       algorithmTest(
-              algorithm = ConnectedComponents(),
+              algorithm = ConnectedComponents,
               start = 1,
               end = 32674,
               increment = 10000,
@@ -185,7 +185,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Chain Test") {
     val result = algorithmTest(
-            algorithm = TriangleCount() -> ConnectedComponents(),
+            algorithm = TriangleCount -> ConnectedComponents,
             start = 1,
             end = 32674,
             increment = 10000,
@@ -199,7 +199,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Square counting test") {
     val result = algorithmTest(
-            algorithm = SquareCount(),
+            algorithm = SquareCount,
             start = 1,
             end = 32674,
             increment = 10000,
@@ -213,7 +213,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Temporal Triangle Count") {
     val result = algorithmTest(
-            algorithm = TriangleCount(),
+            algorithm = TriangleCount,
             start = 1,
             end = 32674,
             increment = 10000,

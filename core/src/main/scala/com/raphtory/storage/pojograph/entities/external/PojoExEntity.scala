@@ -1,7 +1,7 @@
 package com.raphtory.storage.pojograph.entities.external
 
-import com.raphtory.graph.visitor.EntityVisitor
-import com.raphtory.graph.visitor.HistoricEvent
+import com.raphtory.api.visitor.EntityVisitor
+import com.raphtory.api.visitor.HistoricEvent
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.raphtory.storage.pojograph.entities.internal.PojoEntity
 import com.raphtory.util.OrderedBuffer.TupleByFirstOrdering

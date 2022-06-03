@@ -1,9 +1,9 @@
 package com.raphtory.algorithms.generic
 
-import com.raphtory.algorithms.api.GraphAlgorithm
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Row
-import com.raphtory.algorithms.api.Table
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.table.Row
+import com.raphtory.api.table.Table
 
 /**
   * {s}`NodeInformation(initialID: Long, hopsAway: Int = 1)`
@@ -54,14 +54,14 @@ import com.raphtory.algorithms.api.Table
   *   ```
   */
 
-class NodeInformation(initialID: Long, hopsAway: Int = 1) extends GraphAlgorithm {
+class NodeInformation(initialID: Long, hopsAway: Int = 1) extends Generic {
 
   case class Node(label: String, metadata: NodeData, edges: Array[EdgeInfo])
   case class NodeData(id: String)
   case class EdgeInfo(source: String, target: String, metadata: EdgeData)
   case class EdgeData(value: Int)
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
         if (vertex.ID() == initialID) {

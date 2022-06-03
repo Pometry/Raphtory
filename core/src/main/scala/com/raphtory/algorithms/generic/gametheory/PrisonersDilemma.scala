@@ -1,10 +1,10 @@
 package com.raphtory.algorithms.generic.gametheory
 
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Row
-import com.raphtory.algorithms.api.Table
-import com.raphtory.graph.visitor.Vertex
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.table.Row
+import com.raphtory.api.table.Table
+import com.raphtory.api.visitor.Vertex
 
 import scala.util.Random
 import scala.collection.mutable
@@ -78,7 +78,7 @@ class PrisonersDilemma(
   final private val UPDATESTEP = 1
 
   // Payoff Matrix [(b-c, b-c) , (-c,b), (b,-c), (0,0)]
-  override def apply(graph: GraphPerspective): GraphPerspective = {
+  override def apply(graph: GraphPerspective): graph.Graph = {
 
     graph.step { vertex =>
       vertex.getOrSetState[Int]("cooperator", if (rnd.nextFloat() < proportionCoop) 0 else 1)

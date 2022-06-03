@@ -1,9 +1,10 @@
 package com.raphtory.algorithms.generic
 
-import com.raphtory.algorithms.api._
-import com.raphtory.algorithms.api.GraphAlgorithm
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Table
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.algorithm.Identity
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.table.Row
+import com.raphtory.api.table.Table
 
 /**
   *  {s}`CBOD(label: String = "community", cutoff: Double = 0.0, labeler:GraphAlgorithm = Identity())`
@@ -43,11 +44,14 @@ import com.raphtory.algorithms.api.Table
   * [](com.raphtory.algorithms.generic.community.LPA)
   * ```
   */
-class CBOD(label: String = "community", cutoff: Double = 0.0, labeler: GraphAlgorithm = Identity())
-        extends GraphAlgorithm {
+class CBOD(
+    label: String = "community",
+    cutoff: Double = 0.0,
+    labeler: Generic = Identity
+) extends Generic {
 
   // Run CBOD algorithm and sets "outlierscore" state
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply(graph: GraphPerspective): graph.Graph =
     labeler(graph)
       .step { vertex => //Get neighbors' labels
         val vlabel = vertex.getState[Long](key = label, includeProperties = true)
@@ -77,7 +81,7 @@ object CBOD {
   def apply(
       label: String = "community",
       cutoff: Double = 0.0,
-      labeler: GraphAlgorithm = Identity()
+      labeler: Generic = Identity
   ) =
     new CBOD(label, cutoff, labeler)
 }

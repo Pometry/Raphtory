@@ -1,7 +1,7 @@
 package com.raphtory.algorithms.generic.centrality
 
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.algorithms.api.GraphPerspective
+import com.raphtory.api.graphview.GraphPerspective
 
 /**
   * {s}`AverageNeighbourDegree()`
@@ -22,9 +22,9 @@ import com.raphtory.algorithms.api.GraphPerspective
   *  | ----------------- | ---------------------------- |
   *  | {s}`name: String` | `avgNeighbourDegree: Double` |
   */
-class AverageNeighbourDegree extends NodeList(Seq("avgNeighbourDegree")) {
+object AverageNeighbourDegree extends NodeList(Seq("avgNeighbourDegree")) {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph.step(vertex => vertex.messageAllNeighbours(vertex.degree)).step { vertex =>
       val degrees = vertex.messageQueue[Int]
       vertex.setState(
@@ -32,8 +32,4 @@ class AverageNeighbourDegree extends NodeList(Seq("avgNeighbourDegree")) {
               if (vertex.degree > 0) degrees.sum.toFloat / vertex.degree else 0.0
       )
     }
-}
-
-object AverageNeighbourDegree {
-  def apply() = new AverageNeighbourDegree
 }

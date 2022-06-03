@@ -1,7 +1,8 @@
 package com.raphtory.algorithms.generic.dynamic
 
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.algorithms.api.GraphPerspective
+import com.raphtory.api.graphview.GraphPerspective
+
 import scala.util.Random
 
 /**
@@ -47,7 +48,7 @@ class DiscreteSI(
     seed: Long = -1
 ) extends NodeList(Seq("infected")) {
 
-  override def apply(graph: GraphPerspective): GraphPerspective = {
+  override def apply(graph: GraphPerspective): graph.Graph = {
     val randomiser = if (seed != -1) new Random(seed) else new Random()
 
     graph

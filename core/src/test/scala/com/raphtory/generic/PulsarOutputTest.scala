@@ -1,8 +1,8 @@
 package com.raphtory.generic
 
 import com.raphtory.BaseRaphtoryAlgoTest
-import com.raphtory.algorithms.api.Alignment
 import com.raphtory.algorithms.generic.EdgeList
+import com.raphtory.api.graphview.Alignment
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.Spout
 import com.raphtory.lotrtest.LOTRGraphBuilder

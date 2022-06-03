@@ -1,7 +1,8 @@
 package com.raphtory.algorithms.generic
 
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.graph.visitor.Vertex
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.visitor.Vertex
+
 import scala.util.Random
 
 class BinaryDiffusion(
@@ -15,7 +16,7 @@ class BinaryDiffusion(
   def randomlyInfect(vertex: Vertex): Unit =
     vertex.getOutEdges().foreach(edge => if (randomiser.nextBoolean()) edge.send(infectedStatus))
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
         // if no infected nodes are given then randomly infect all nodes

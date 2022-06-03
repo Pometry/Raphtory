@@ -1,6 +1,6 @@
 package com.raphtory.graph
 
-import com.raphtory.algorithms.api.Alignment
+import com.raphtory.api.graphview.Alignment
 import com.raphtory.components.querymanager._
 import com.raphtory.time.DiscreteInterval
 import com.raphtory.time.Interval

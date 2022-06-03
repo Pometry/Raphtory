@@ -1,7 +1,7 @@
 package com.raphtory.storage.pojograph.entities.external
 
-import com.raphtory.graph.visitor.ExplodedVertex
-import com.raphtory.graph.visitor.HistoricEvent
+import com.raphtory.api.visitor.ExplodedVertex
+import com.raphtory.api.visitor.HistoricEvent
 import com.raphtory.storage.pojograph.PojoGraphLens
 
 import scala.collection.mutable

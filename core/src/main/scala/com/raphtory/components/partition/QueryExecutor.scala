@@ -1,6 +1,19 @@
 package com.raphtory.components.partition
 
-import com.raphtory.algorithms.api._
+import com.raphtory.api.graphview.ClearChain
+import com.raphtory.api.graphview.ExplodeSelect
+import com.raphtory.api.graphview.GlobalSelect
+import com.raphtory.api.graphview.Iterate
+import com.raphtory.api.graphview.IterateWithGraph
+import com.raphtory.api.graphview.MultilayerView
+import com.raphtory.api.graphview.ReduceView
+import com.raphtory.api.graphview.Select
+import com.raphtory.api.graphview.SelectWithGraph
+import com.raphtory.api.graphview.Step
+import com.raphtory.api.graphview.StepWithGraph
+import com.raphtory.api.table.Explode
+import com.raphtory.api.table.TableFilter
+import com.raphtory.api.table.WriteTo
 import com.raphtory.communication.TopicRepository
 import com.raphtory.communication.connectors.PulsarConnector
 import com.raphtory.components.Component

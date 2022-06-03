@@ -1,7 +1,7 @@
 package com.raphtory.storage.pojograph.entities.external
 
+import com.raphtory.api.visitor.Vertex
 import com.raphtory.components.querymanager._
-import com.raphtory.graph.visitor.Vertex
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.raphtory.storage.pojograph.messaging.VertexMultiQueue
 
