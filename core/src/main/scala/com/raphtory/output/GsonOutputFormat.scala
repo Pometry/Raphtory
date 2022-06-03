@@ -1,8 +1,8 @@
 package com.raphtory.output
 
 import com.google.gson.GsonBuilder
-import com.raphtory.algorithms.api.OutputFormat
-import com.raphtory.algorithms.api.Row
+import com.raphtory.api.OutputFormat
+import com.raphtory.api.table.Row
 import com.raphtory.time.Interval
 
 import java.io.File
@@ -31,6 +31,7 @@ class GsonOutputFormat(filePath: String) extends OutputFormat {
 
 /** Writes output for Raphtory Job to Gson Format */
 object GsonOutputFormat {
+
   def apply(filePath: String) =
     new GsonOutputFormat(filePath)
 }

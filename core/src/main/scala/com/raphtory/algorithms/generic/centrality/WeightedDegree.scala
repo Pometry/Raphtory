@@ -1,7 +1,8 @@
 package com.raphtory.algorithms.generic.centrality
 
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.algorithms.api.GraphPerspective
+import com.raphtory.api.graphview.GraphPerspective
+
 import math.Numeric.Implicits._
 
 /**
@@ -44,7 +45,7 @@ import math.Numeric.Implicits._
 class WeightedDegree[T: Numeric](weightProperty: String = "weight")
         extends NodeList(Seq("inStrength", "outStrength", "totStrength")) {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph.step { vertex =>
       val inWeight: T  = vertex.weightedInDegree(weightProperty = weightProperty)
       vertex.setState("inStrength", inWeight)

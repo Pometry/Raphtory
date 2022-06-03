@@ -31,6 +31,6 @@ class DegreeTest extends BaseCorrectnessTest {
   }
 
   test("unweighted Degree") {
-    assert(correctnessTest(Degree(), "Degree/degreeTest.csv", "Degree/unweightedResult.csv", 6))
+    assert(correctnessTest(Degree, "Degree/degreeTest.csv", "Degree/unweightedResult.csv", 6))
   }
 }

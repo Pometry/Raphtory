@@ -1,5 +1,6 @@
 package com.raphtory.client
 
+import com.raphtory.api.graphview.Deployment
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.Spout
 import com.raphtory.config.ComponentFactory
@@ -23,10 +24,10 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
     batchLoading: Boolean,
     spout: Spout[T],
     graphBuilder: GraphBuilder[T],
-    private val conf: Config,
+    val conf: Config,
     private val componentFactory: ComponentFactory,
     private val scheduler: MonixScheduler
-) {
+) extends Deployment {
 
   allowIllegalReflection()
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))

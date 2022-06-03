@@ -3,11 +3,12 @@ package com.raphtory.algorithms.generic.dynamic
 import com.raphtory.algorithms.generic.dynamic.RandomWalk.Message
 import com.raphtory.algorithms.generic.dynamic.RandomWalk.WalkMessage
 import com.raphtory.algorithms.generic.dynamic.RandomWalk.StoreMessage
-import com.raphtory.algorithms.api._
-import com.raphtory.algorithms.api.GraphAlgorithm
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Table
-import com.raphtory.graph.visitor.Vertex
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.table.Row
+import com.raphtory.api.table.Table
+import com.raphtory.api.visitor.Vertex
+
 import collection.mutable.ArrayBuffer
 import scala.util.Random
 
@@ -46,7 +47,7 @@ import scala.util.Random
   *
   *  Each row of the table corresponds to a single random walk and columns correspond to the vertex at a given step
   */
-class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends GraphAlgorithm {
+class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends Generic {
   protected val rnd: Random = if (seed != -1) new Random(seed) else new Random()
 
   protected def selectNeighbour(vertex: Vertex) = {
@@ -57,7 +58,7 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends GraphA
       neighbours(rnd.nextInt(neighbours.length))
   }
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
         val walks = Array.fill(numWalks)(ArrayBuffer.empty[String])

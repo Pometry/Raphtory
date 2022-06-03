@@ -1,10 +1,10 @@
 package com.raphtory.algorithms.temporal.community
 
-import com.raphtory.algorithms.api.GraphAlgorithm
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Row
-import com.raphtory.algorithms.api.Table
-import com.raphtory.graph.visitor.Vertex
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.table.Row
+import com.raphtory.api.table.Table
+import com.raphtory.api.visitor.Vertex
 
 import scala.util.Random
 
@@ -66,12 +66,12 @@ class MultilayerLPA(
     layerSize: Long,
     omega: Double = 1.0,
     seed: Long = -1
-) extends GraphAlgorithm {
+) extends Generic {
 
   private val rnd: Random = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)
   private val SP          = 0.2f // Stickiness probability
 
-  override def apply(graph: GraphPerspective): GraphPerspective = {
+  override def apply(graph: GraphPerspective): graph.Graph = {
     def interLayerWeights(omega: Double, v: Vertex, ts: Long): Float =
       omega match {
         case -1 =>

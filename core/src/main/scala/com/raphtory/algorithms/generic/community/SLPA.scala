@@ -1,10 +1,11 @@
 package com.raphtory.algorithms.generic.community
 
 import com.raphtory.algorithms.generic.community.SLPA.Rule
-import com.raphtory.algorithms.api.GraphAlgorithm
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Row
-import com.raphtory.algorithms.api.Table
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.table.Row
+import com.raphtory.api.table.Table
+
 import scala.collection.mutable
 import scala.util.Random
 
@@ -58,9 +59,9 @@ import scala.util.Random
   *  Speaker-listener Interaction Dynamic Process by Jierui Xie, Boleslaw K. Szymanski and Xiaoming Liu (2011)
   *  ```
   */
-class SLPA(iterNumber: Int = 50, speakerRule: Rule, listenerRule: Rule) extends GraphAlgorithm {
+class SLPA(iterNumber: Int = 50, speakerRule: Rule, listenerRule: Rule) extends Generic {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step {
         // Initialise vertex memory

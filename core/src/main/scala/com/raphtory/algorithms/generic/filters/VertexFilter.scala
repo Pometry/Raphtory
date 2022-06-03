@@ -1,8 +1,8 @@
 package com.raphtory.algorithms.generic.filters
 
-import com.raphtory.algorithms.api.GraphPerspective
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.graph.visitor.Vertex
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.visitor.Vertex
 
 /**
   * {s} `VertexFilter(f: Vertex => Boolean)`
@@ -20,7 +20,7 @@ import com.raphtory.graph.visitor.Vertex
   */
 class VertexFilter(f: Vertex => Boolean) extends NodeList() {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph.vertexFilter(f)
 
 }

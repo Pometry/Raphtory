@@ -1,9 +1,10 @@
 package com.raphtory.algorithms.temporal
 
-import com.raphtory.algorithms.api.GraphAlgorithm
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Row
-import com.raphtory.algorithms.api.Table
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.table.Row
+import com.raphtory.api.table.Table
+import com.raphtory.api.visitor.ExplodedVertex
 
 /**
   * {s}`TemporalNodeList(properties: String*) = new TemporalNodeList(properties)`
@@ -39,47 +40,17 @@ import com.raphtory.algorithms.api.Table
 class TemporalNodeList(
     properties: Seq[String] = Seq.empty[String],
     defaults: Map[String, Any] = Map.empty[String, Any]
-) extends GraphAlgorithm {
+) extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph
+    graph.multilayerView
       .select { vertex =>
-        val timestamps =
-          vertex.history().filter(event => event.event).map(event => event.time).distinct.sorted
-        val row        = (vertex.name()
-          +: timestamps
-          +: properties.map { name =>
-            vertex.getStateOrElse(
-                    name,
-                    timestamps.map(time =>
-                      vertex.getPropertyAt[Any](name, time) match {
-                        case Some(value) => value
-                        case None        => defaults.getOrElse(name, None)
-                      }
-                    )
-            )
-          })
-        Row(row: _*)
-      }
-      .explode { row =>
-        val timestamps = row.getAs[List[Long]](1)
-
-        (for ((time, index) <- row.getAs[List[Long]](1).view.zipWithIndex) yield {
-          val expandedFields = for (fieldIndex <- properties.indices) yield {
-            val fieldData = row(fieldIndex + 2)
-            try {
-              val fieldDataSeq = fieldData.asInstanceOf[Seq[Any]]
-              if (fieldDataSeq.size == timestamps.size)
-                fieldDataSeq(index)
-              else
-                fieldData
-            }
-            catch {
-              case _: Throwable => fieldData
-            }
-          }
-          Row(row(0) +: time +: expandedFields: _*)
-        }).toList
+        Row(
+                vertex.baseName +: vertex.timestamp +: properties.map(key =>
+                  vertex
+                    .getStateOrElse(key, defaults.getOrElse(key, None), includeProperties = true)
+                ): _*
+        )
       }
 }
 

@@ -1,7 +1,7 @@
 package com.raphtory.output
 
-import com.raphtory.algorithms.api.OutputFormat
-import com.raphtory.algorithms.api.Row
+import com.raphtory.api.OutputFormat
+import com.raphtory.api.table.Row
 import com.raphtory.time.Interval
 import org.apache.pulsar.client.api.Producer
 import org.apache.pulsar.client.api.Schema
@@ -24,7 +24,7 @@ import org.apache.pulsar.client.api.Schema
   * graph.pointQuery(EdgeList(), outputFormat, 1595303181, List())
   * }}}
   *
-  *  @see [[com.raphtory.algorithms.api.OutputFormat]]
+  *  @see [[OutputFormat]]
   *       [[com.raphtory.client.GraphDeployment]]
   *       [[com.raphtory.deployment.Raphtory]]
   */

@@ -4,10 +4,10 @@ import com.raphtory.algorithms.generic.TwoHopPaths.Message
 import com.raphtory.algorithms.generic.TwoHopPaths.RequestFirstHop
 import com.raphtory.algorithms.generic.TwoHopPaths.RequestSecondHop
 import com.raphtory.algorithms.generic.TwoHopPaths.Response
-import com.raphtory.algorithms.api.GraphAlgorithm
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Row
-import com.raphtory.algorithms.api.Table
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.table.Row
+import com.raphtory.api.table.Table
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -51,9 +51,9 @@ import scala.collection.mutable.ArrayBuffer
   *
   *  4. The source node compiles all response messages
   */
-class TwoHopPaths(seeds: Set[String] = Set[String]()) extends GraphAlgorithm {
+class TwoHopPaths(seeds: Set[String] = Set[String]()) extends Generic {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step(vertex =>
         if (seeds.isEmpty || seeds.contains(vertex.name()))

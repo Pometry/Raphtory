@@ -1,14 +1,14 @@
 package com.raphtory.ethereum.analysis
 
-import com.raphtory.algorithms.api.GraphAlgorithm
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Row
-import com.raphtory.algorithms.api.Table
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.table.Row
+import com.raphtory.api.table.Table
 
-class TaintAlgorithm(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set())
-        extends GraphAlgorithm {
+class Taint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set())
+        extends Generic {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       // the step functions run on every single vertex ONCE at the beginning of the algorithm
       .step {
@@ -156,8 +156,8 @@ class TaintAlgorithm(startTime: Long, infectedNodes: Set[String], stopNodes: Set
       )
 }
 
-object TaintAlgorithm {
+object Taint {
 
   def apply(startTime: Int, infectedNodes: Set[String], stopNodes: Set[String]) =
-    new TaintAlgorithm(startTime, infectedNodes, stopNodes)
+    new Taint(startTime, infectedNodes, stopNodes)
 }

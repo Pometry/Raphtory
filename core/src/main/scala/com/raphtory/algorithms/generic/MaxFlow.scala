@@ -1,9 +1,9 @@
 package com.raphtory.algorithms.generic
 
-import com.raphtory.algorithms.api.GraphAlgorithm
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Row
-import com.raphtory.algorithms.api.Table
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.table.Row
+import com.raphtory.api.table.Table
 import com.raphtory.util.ExtendedNumeric.numericFromInt
 
 import collection.mutable
@@ -67,9 +67,9 @@ class MaxFlow[T](
     capacityLabel: String = "weight",
     maxIterations: Int = Int.MaxValue
 )(implicit numeric: Numeric[T])
-        extends GraphAlgorithm {
+        extends Generic {
 
-  override def apply(graph: GraphPerspective): GraphPerspective = {
+  override def apply(graph: GraphPerspective): graph.Graph = {
     val n =
       1 // graph.nodeCount().toDouble TODO: nodeCount() is not available anymore, needs a solution
     graph

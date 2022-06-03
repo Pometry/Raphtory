@@ -1,7 +1,10 @@
 package com.raphtory.algorithms.generic.filters
 
-import com.raphtory.algorithms.api.{GraphPerspective, GraphState, Identity}
-import com.raphtory.graph.visitor.Edge
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.algorithm.Identity
+import com.raphtory.api.graphstate.GraphState
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.visitor.Edge
 
 /**
   * {s} `EdgeFilter(f: (Vertex, State) => Boolean)`
@@ -23,11 +26,14 @@ import com.raphtory.graph.visitor.Edge
   * ```
   */
 
-class EdgeFilterGraphState(f: (Edge, GraphState) => Boolean, pruneNodes: Boolean = true) extends Identity() {
+class EdgeFilterGraphState(f: (Edge, GraphState) => Boolean, pruneNodes: Boolean = true)
+        extends Generic {
 
-  override def apply(graph: GraphPerspective): GraphPerspective = graph.edgeFilter(f, pruneNodes)
+  override def apply(graph: GraphPerspective): graph.Graph = graph.edgeFilter(f, pruneNodes)
 }
 
 object EdgeFilterGraphState {
-  def apply(f: (Edge, GraphState) => Boolean, pruneNodes: Boolean = true) = new EdgeFilterGraphState(f, pruneNodes)
+
+  def apply(f: (Edge, GraphState) => Boolean, pruneNodes: Boolean = true) =
+    new EdgeFilterGraphState(f, pruneNodes)
 }
