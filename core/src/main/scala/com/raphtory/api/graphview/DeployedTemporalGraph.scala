@@ -6,28 +6,16 @@ import com.typesafe.config.Config
 
 /** Root class for local deployments of the analysis API
   *
-  * A DeployedTemporalGraph is a TemporalGraph
-  * with a deployment object attached to it that allows to stop it.
+  * A DeployedTemporalGraph is a [[TemporalGraph]]
+  * with a [[Deployment]] object attached to it that allows to stop it.
   *
-  * @see [[TemporalGraph]]
+  * @param deployment The deployment object used to control Raphtory
+  *
+  * @see [[TemporalGraph]], [[Deployment]], [[com.raphtory.deployment.Raphtory]]
   */
-private[raphtory] class DeployedTemporalGraph(
+class DeployedTemporalGraph private[raphtory] (
     override private[api] val query: Query,
     override private[api] val querySender: QuerySender,
-    val stopCallBack: () => Unit,
-    override val conf: Config
-) extends TemporalGraph(query, querySender, conf) {
-
-  class Deployment {
-    def stop(): Unit = stopCallBack()
-  }
-  private val deploymentRef = new Deployment()
-
-  /** Access to the deployment to call functions upon it, e.g. graph.deployment.stop()
-    *
-    * @return Deployment reference
-    */
-  def deployment: Deployment = deploymentRef
-
-  private[raphtory] def getConfig() = conf
-}
+    val deployment: Deployment,
+    override private[api] val conf: Config
+) extends TemporalGraph(query, querySender, conf) {}

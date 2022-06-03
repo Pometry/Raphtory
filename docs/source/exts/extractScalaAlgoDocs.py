@@ -66,7 +66,7 @@ def handle_config_init(app: Sphinx, config: Config):
             rel_path = Path(*package.split('.'))
             src_root = scala_src_root / rel_path
 
-            write_index(doc_root / rel_path, package, package)
+            write_index(doc_root / rel_path, package)
             discover_files(doc_root / rel_path, src_root, scala_src_root)
         # build scala doc
         compile_move_scaladoc(config, source_root)

@@ -3,30 +3,26 @@ package com.raphtory.api.graphview
 import com.raphtory.client.QuerySender
 import com.raphtory.components.querymanager.Query
 
-/** Core class for the analysis API.
+/** Reduced GraphView with fixed timeline
   *
-  * A RaphtoryGraph is an immutable collection of perspectives over a graph generated for Raphtory that support
-  * all graph operations.
-  * It implements the operations exposed by GraphOperations returning a new RaphtoryGraph for
-  * those operations that have a graph as a result.
-  * All the operations executed over a RaphtoryGraph get executed individually over every perspective of the graph in the
-  * collection. Graph states refer to the state of ever single perspective in the collection separately.
+  * This [[GraphView]] is returned by the [[DottedGraph]] operations and does not support further timeline manipulation.
   *
-  * @see [[GraphPerspective]]
+  * @see [[GraphView]], [[MultilayerRaphtoryGraph]], [[DottedGraph]]
   */
-private[raphtory] class RaphtoryGraph(
+class RaphtoryGraph private[api] (
     override private[api] val query: Query,
     override private[api] val querySender: QuerySender
 ) extends RaphtoryGraphBase[RaphtoryGraph]
         with ReducedGraphViewImplementation[RaphtoryGraph, MultilayerRaphtoryGraph] {}
 
-class MultilayerRaphtoryGraph(
+/** Multilayer GraphView with fixed timeline */
+class MultilayerRaphtoryGraph private[api] (
     override private[api] val query: Query,
     override private[api] val querySender: QuerySender
 ) extends RaphtoryGraphBase[MultilayerRaphtoryGraph]
         with MultilayerGraphViewImplementation[MultilayerRaphtoryGraph, RaphtoryGraph] {}
 
-trait RaphtoryGraphBase[G <: RaphtoryGraphBase[G]]
+private[api] trait RaphtoryGraphBase[G <: RaphtoryGraphBase[G]]
         extends GraphBase[G, RaphtoryGraph, MultilayerRaphtoryGraph] {
 
   override private[api] def newRGraph(query: Query, querySender: QuerySender): RaphtoryGraph =

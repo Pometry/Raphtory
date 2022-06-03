@@ -11,30 +11,9 @@ import com.raphtory.time.Interval
 import com.raphtory.time.NullInterval
 import com.typesafe.config.Config
 
-/**  Public interface for the Temporal Graph analysis API
-  *
-  * A `TemporalGraph` is a graph with an underlying
-  * timeline with a start time and, optionally, an end time. It offers methods to modify this timeline.
-  * There are also methods to create a one or a sequence of temporal marks over the timeline,
-  * therefore producing a so-called DottedGraph,
-  * that can be further used to create a set of perspectives over the timeline of the graph to work with.
-  * This class supports all the graph operations defined in `GraphOperations`.
-  * If any graph operation is invoked from this instance, it is applied only over the elements of the graph within
-  * the timeline.
-  *
-  * @note All the timestamps must follow the format set in the configuration path `"raphtory.query.timeFormat"`.
-  *  By default is `"yyyy-MM-dd[ HH:mm:ss[.SSS]]"`
-  *  All the strings expressing intervals need to be in the format `"<number> <unit> [<number> <unit> [...]]"`,
-  *  where numbers must be integers and units must be one of
-  *  {'year', 'month', 'week', 'day', 'hour', 'min'/'minute', 'sec'/'second', 'milli'/'millisecond'}
-  *  using the plural when the number is different than 1.
-  *  Commas and the construction 'and' are omitted to allow natural text.
-  *  For instance, the interval "1 month 1 week 3 days" can be rewritten as "1 month, 1 week, and 3 days"
-  *
-  * @see [[DottedGraph]], [[GraphPerspective]]
-  */
-trait TemporalGraphBase[G <: TemporalGraphBase[G]]
-        extends GraphBase[G, TemporalGraph, MultilayerTemporalGraph] {
+private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <: FixedGraph[
+        FixedG
+]] extends GraphBase[G, TemporalGraph, MultilayerTemporalGraph] {
   private[api] val query: Query
   private[api] val querySender: QuerySender
   private[api] val conf: Config
@@ -83,40 +62,40 @@ trait TemporalGraphBase[G <: TemporalGraphBase[G]]
   /** Create a `DottedGraph` with a temporal mark at `time`.
     * @param time the temporal mark to be added to the timeline
     */
-  def at(time: Long): DottedGraph =
-    new DottedGraph(query.copy(points = SinglePoint(time)), querySender, conf)
+  def at(time: Long): DottedGraph[FixedG] =
+    new DottedGraph(newFixedGraph(query.copy(points = SinglePoint(time)), querySender))
 
   /** Create a `DottedGraph` with a temporal mark at `time`.
     * @param time the temporal mark to be added to the timeline
     */
-  def at(time: String): DottedGraph = at(parseDateTime(time))
+  def at(time: String): DottedGraph[FixedG] = at(parseDateTime(time))
 
   /** Create a `DottedGraph` with a sequence of temporal marks with a separation of `increment` covering all the
     * timeline aligned with 0.
     * @param increment the step size
     */
-  def walk(increment: Long): DottedGraph = setPointPath(DiscreteInterval(increment))
+  def walk(increment: Long): DottedGraph[FixedG] = setPointPath(DiscreteInterval(increment))
 
   /** Create a `DottedGraph` with a sequence of temporal marks with a separation of `increment`
     * covering all the timeline aligned with `offset`.
     * @param increment the step size
     * @param offset the offset to align with
     */
-  def walk(increment: Long, offset: Long): DottedGraph =
+  def walk(increment: Long, offset: Long): DottedGraph[FixedG] =
     setPointPath(DiscreteInterval(increment), offset = DiscreteInterval(offset))
 
   /** Create a `DottedGraph` with a sequence of temporal marks with a separation of `increment` covering all the
     * timeline aligned with 0.
     * @param increment the step size
     */
-  def walk(increment: String): DottedGraph = setPointPath(parseInterval(increment))
+  def walk(increment: String): DottedGraph[FixedG] = setPointPath(parseInterval(increment))
 
   /** Create a `DottedGraph` with a sequence of temporal marks with a separation of `increment` covering all the timeline aligned with `offset`.
     * These temporal marks get generated as the timeline keeps growing.
     * @param increment the interval to use as the step size
     * @param offset the interval to expressing the offset from the epoch to align with
     */
-  def walk(increment: String, offset: String): DottedGraph =
+  def walk(increment: String, offset: String): DottedGraph[FixedG] =
     setPointPath(parseInterval(increment), offset = parseInterval(offset))
 
   /** Create a DottedGraph with a sequence of temporal marks with a separation of `increment` starting at `start`.
@@ -124,7 +103,7 @@ trait TemporalGraphBase[G <: TemporalGraphBase[G]]
     * @param start the point to create the first temporal mark
     * @param increment the step size
     */
-  def depart(start: Long, increment: Long): DottedGraph =
+  def depart(start: Long, increment: Long): DottedGraph[FixedG] =
     setPointPath(DiscreteInterval(increment), start = Some(start))
 
   /** Create a DottedGraph with a sequence of temporal marks with a separation of `increment` starting at `start`.
@@ -132,21 +111,21 @@ trait TemporalGraphBase[G <: TemporalGraphBase[G]]
     * @param start the timestamp to create the first temporal mark
     * @param increment the interval expressing the step size
     */
-  def depart(start: String, increment: String): DottedGraph =
+  def depart(start: String, increment: String): DottedGraph[FixedG] =
     setPointPath(parseInterval(increment), start = Some(parseDateTime(start)))
 
   /** Create a DottedGraph with a sequence of temporal marks with a separation of `increment` from the start of the timeline ending at `end`.
     * @param end the point to create the last temporal mark
     * @param increment the step size
     */
-  def climb(end: Long, increment: Long): DottedGraph =
+  def climb(end: Long, increment: Long): DottedGraph[FixedG] =
     setPointPath(DiscreteInterval(increment), end = Some(end))
 
   /** Create a DottedGraph with a sequence of temporal marks with a separation of `increment` starting at `start`.
     * @param start the timestamp to create the first temporal mark
     * @param increment the interval expressing the step size
     */
-  def climb(end: String, increment: String): DottedGraph =
+  def climb(end: String, increment: String): DottedGraph[FixedG] =
     setPointPath(parseInterval(increment), end = Some(parseDateTime(end)))
 
   /** Create a DottedGraph with a sequence of temporal marks with a separation of `increment` starting at `start` and ending at `end` (with a smaller step at the end if necessary).
@@ -154,7 +133,7 @@ trait TemporalGraphBase[G <: TemporalGraphBase[G]]
     * @param end the point to create the last temporal mark
     * @param increment the step size
     */
-  def range(start: Long, end: Long, increment: Long): DottedGraph =
+  def range(start: Long, end: Long, increment: Long): DottedGraph[FixedG] =
     setPointPath(DiscreteInterval(increment), start = Some(start), end = Some(end))
 
   /** Create a DottedGraph with a sequence of temporal marks with a separation of `increment` starting at `start` and ending at `end` (with a smaller step at the end if necessary).
@@ -162,7 +141,7 @@ trait TemporalGraphBase[G <: TemporalGraphBase[G]]
     * @param end the timestamp to create the first temporal mark
     * @param increment the interval expressing the step size
     */
-  def range(start: String, end: String, increment: String): DottedGraph =
+  def range(start: String, end: String, increment: String): DottedGraph[FixedG] =
     setPointPath(
             parseInterval(increment),
             start = Some(parseDateTime(start)),
@@ -176,9 +155,10 @@ trait TemporalGraphBase[G <: TemporalGraphBase[G]]
       offset: Interval = NullInterval
   ) =
     new DottedGraph(
-            query.copy(points = PointPath(increment, start, end, offset)),
-            querySender,
-            conf
+            newFixedGraph(
+                    query.copy(points = PointPath(increment, start, end, offset)),
+                    querySender
+            )
     )
 
   private def parseDateTime(dateTime: String) =
@@ -192,18 +172,56 @@ trait TemporalGraphBase[G <: TemporalGraphBase[G]]
       querySender: QuerySender
   ): MultilayerTemporalGraph =
     new MultilayerTemporalGraph(query, querySender, conf)
+
+  private[api] def newFixedGraph(query: Query, querySender: QuerySender): FixedG
 }
 
-class TemporalGraph(
+/** A graph with an underlying timeline with a start time and, optionally, an end time.
+  *
+  * It offers methods to modify this timeline.
+  * There are also methods to create a one or a sequence of temporal marks over the timeline,
+  * therefore producing a so-called DottedGraph,
+  * that can be further used to create a set of perspectives over the timeline of the graph to work with.
+  * This class supports all the graph operations defined in `GraphOperations`.
+  * If any graph operation is invoked from this instance, it is applied only over the elements of the graph within
+  * the timeline.
+  *
+  * @note All the timestamps must follow the format set in the configuration path `"raphtory.query.timeFormat"`.
+  *  By default is `"yyyy-MM-dd[ HH:mm:ss[.SSS]]"`
+  *  All the strings expressing intervals need to be in the format `"<number> <unit> [<number> <unit> [...]]"`,
+  *  where numbers must be integers and units must be one of
+  *  {'year', 'month', 'week', 'day', 'hour', 'min'/'minute', 'sec'/'second', 'milli'/'millisecond'}
+  *  using the plural when the number is different than 1.
+  *  Commas and the construction 'and' are omitted to allow natural text.
+  *  For instance, the interval "1 month 1 week 3 days" can be rewritten as "1 month, 1 week, and 3 days"
+  *
+  * @see [[DottedGraph]], [[GraphPerspective]]
+  */
+class TemporalGraph private[api] (
     override private[api] val query: Query,
     override private[api] val querySender: QuerySender,
     override private[api] val conf: Config
-) extends TemporalGraphBase[TemporalGraph]
-        with ReducedGraphViewImplementation[TemporalGraph, MultilayerTemporalGraph] {}
+) extends TemporalGraphBase[TemporalGraph, RaphtoryGraph]
+        with ReducedGraphViewImplementation[TemporalGraph, MultilayerTemporalGraph] {
 
-class MultilayerTemporalGraph(
+  override def newFixedGraph(query: Query, querySender: QuerySender): RaphtoryGraph =
+    new RaphtoryGraph(query, querySender)
+}
+
+/** The multilayer view corresponding to [[TemporalGraph]]
+  *
+  * This exposes the same timeline operations as [[TemporalGraph]] but extends
+  * [[MultilayerGraphView]] which means that all algorithm operations act on [[com.raphtory.api.visitor.ExplodedVertex]]s.
+  *
+  * @see [[TemporalGraph]], [[MultilayerGraphView]], [[DottedGraph]]
+  */
+class MultilayerTemporalGraph private[api] (
     override private[api] val query: Query,
     override private[api] val querySender: QuerySender,
     override private[api] val conf: Config
-) extends TemporalGraphBase[MultilayerTemporalGraph]
-        with MultilayerGraphViewImplementation[MultilayerTemporalGraph, TemporalGraph] {}
+) extends TemporalGraphBase[MultilayerTemporalGraph, MultilayerRaphtoryGraph]
+        with MultilayerGraphViewImplementation[MultilayerTemporalGraph, TemporalGraph] {
+
+  override def newFixedGraph(query: Query, querySender: QuerySender): MultilayerRaphtoryGraph =
+    new MultilayerRaphtoryGraph(query, querySender)
+}

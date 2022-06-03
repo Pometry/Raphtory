@@ -44,7 +44,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
   var graph: DeployedTemporalGraph     = _
   def pulsarConnector: PulsarConnector = new PulsarConnector(conf)
-  def conf: Config                     = graph.getConfig()
+  def conf: Config                     = graph.deployment.conf
   def deploymentID: String             = conf.getString("raphtory.deploy.id")
 
   override def beforeAll(): Unit = {

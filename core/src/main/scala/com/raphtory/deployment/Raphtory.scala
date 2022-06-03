@@ -215,7 +215,7 @@ object Raphtory {
             componentFactory,
             scheduler
     )
-    new DeployedTemporalGraph(Query(), querySender, deployment.stop, conf)
+    new DeployedTemporalGraph(Query(), querySender, deployment, conf)
   }
 
   def shutdown(): Unit = {

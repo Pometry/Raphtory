@@ -13,12 +13,18 @@ import com.raphtory.api.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.api.visitor.Vertex
 import com.raphtory.components.querymanager.QueryManagement
 
-/**
-  * `GraphOperations[G <: GraphOperations[G]]`
-  *  : Public interface for graph operations
+/** Public interface for graph operations
   *
-  * The `GraphOperations` interface exposes all the available operations to be executed on a graph. It returns a
-  * generic type `G` for those operations that have a graph as a result.
+  * The `GraphPerspective` is the interface for defining algorithms in Raphtory and records all operations to be
+  * applied to a graph as a sequence of steps to execute.
+  *
+  * Most operations on a `GraphPerspective` return a graph or multilayer
+  * graph as a result. To support returning the
+  * correct graph type, the `GraphPerspective` has abstract type members
+  *
+  *  - `Graph`: Current graph type (can be multilayer or reduced)
+  *  - `MultilayerGraph`: The type of the [[MultilayerGraphPerspective]] corresponding to the current graph
+  *  - `ReducedGraph`: The type of the [[ReducedGraphPerspective]] corresponding to the current graph
   *
   * ## Methods
   *
@@ -158,28 +164,6 @@ import com.raphtory.components.querymanager.QueryManagement
   *       `executeMessagedOnly: Boolean`
   *         : If `true`, only run step for vertices which received new messages
   *
-  *  `select(f: Vertex => Row): Table`
-  *     : Write output to table
-  *
-  *       `f: Vertex => Row`
-  *         : function to extract data from vertex (run once for each vertex)
-  *
-  *  `select(f: (Vertex, GraphState) => Row): Table`
-  *     : Write output to table with access to global graph state
-  *
-  *       `f: (Vertex, GraphState) => Row`
-  *         : function to extract data from vertex and graph state (run once for each vertex)
-  *
-  *  `globalSelect(f: GraphState => Row): Table`
-  *     : Write global graph state to table (this creates a table with a single row)
-  *
-  *       `f: GraphState => Row`
-  *         : function to extract data from graph state (run only once)
-  *
-  *  `clearMessages(): G`
-  *     : Clear messages from previous operations
-  *
-  * ```{seealso}
   * [](com.raphtory.algorithms.api.GraphState), [](com.raphtory.graph.visitor.Vertex)
   * ```
   */
@@ -238,10 +222,27 @@ trait GraphPerspective {
       iterations: Int,
       executeMessagedOnly: Boolean
   ): Graph
+
+  /** Write output to table with one row per vertex
+    *
+    * @parm f function to extract data from vertex (run once for each vertex)
+    */
   def select(f: Vertex => Row): Table
+
+  /** Write output to table with access to global graph state
+    *
+    * @param f function to extract data from vertex and graph state (run once for each vertex)
+    */
   def select(f: (Vertex, GraphState) => Row): Table
+
+  /** Write global graph state to table (this creates a table with a single row)
+    *
+    * @param f function to extract data from graph state (runs only once)
+    */
   def globalSelect(f: GraphState => Row): Table
   def explodeSelect(f: Vertex => List[Row]): Table
+
+  /** Clear messages from previous operations */
   def clearMessages(): Graph
 }
 

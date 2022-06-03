@@ -12,9 +12,6 @@ private trait AccumulatorImplementation[-S, T] extends Accumulator[S, T] {
   def reset(): Unit
 }
 
-/**
-  * @note DoNotDocument
-  */
 private class SimpleAccumulatorImplementation[T](
     initialValue: T,
     retainState: Boolean = false,
@@ -37,9 +34,6 @@ private class SimpleAccumulatorImplementation[T](
   override def merge(other: T): Unit = this += other
 }
 
-/**
-  * @note DoNotDocument
-  */
 private object AccumulatorImplementation {
 
   def apply[T](initialValue: T, retainState: Boolean = false, op: (T, T) => T) =
@@ -53,7 +47,7 @@ private class HistogramImplementation[T: Numeric](
     val noBins: Int,
     override val minValue: T,
     override val maxValue: T
-) extends Histogram[T](minValue, maxValue) {
+) extends Histogram[T] {
   val bins: Array[Int] = Array.fill(noBins)(0)
   var totalCount: Int  = 0
 
@@ -61,8 +55,8 @@ private class HistogramImplementation[T: Numeric](
 
   override def cumSum(): Array[Int] = bins.scanLeft(0)(_ + _)
 
-  override def quantile(percentile: Float): Float = {
-    val index = cumSum().search((totalCount * percentile).floor.toInt) match {
+  override def quantile(quantile: Float): Float = {
+    val index = cumSum().search((totalCount * quantile).floor.toInt) match {
       case InsertionPoint(insertionPoint) => insertionPoint - 1
       case Found(foundIndex)              => foundIndex
     }
@@ -82,9 +76,6 @@ private class HistogramImplementation[T: Numeric](
     }
 }
 
-/**
-  * @DoNotDocument
-  */
 private object HistogramImplementation {
 
   def apply[T: Numeric](noBins: Int, minValue: T, maxValue: T) =
@@ -128,14 +119,10 @@ private object HistogramAccumulatorImplementation {
     new HistogramAccumulatorImplementation[T](noBins, minValue, maxValue, retainState)
 }
 
-/**
-  * @note DoNotDocument
-  */
 private[raphtory] class GraphStateImplementation extends GraphState {
   private val accumulatorState = mutable.Map.empty[String, AccumulatorImplementation[Any, Any]]
   private val histogramState   = mutable.Map.empty[String, HistogramImplementation[Any]]
 
-  /** @inheritdoc */
   def newAccumulator[T](
       name: String,
       initialValue: T,
@@ -158,14 +145,12 @@ private[raphtory] class GraphStateImplementation extends GraphState {
     accumulatorState(name) = AccumulatorImplementation[T](initialValue, retainState, numeric.plus)
       .asInstanceOf[AccumulatorImplementation[Any, Any]]
 
-  /** Create a new accumulator that multiplies values */
   def newMultiplier[T](name: String, initialValue: T, retainState: Boolean)(implicit
       numeric: Numeric[T]
   ): Unit =
     accumulatorState(name) = AccumulatorImplementation[T](initialValue, retainState, numeric.times)
       .asInstanceOf[AccumulatorImplementation[Any, Any]]
 
-  /** @inheritdoc */
   override def newMax[T](name: String, initialValue: T, retainState: Boolean)(implicit
       numeric: Numeric[T],
       bounded: Bounded[T]
@@ -174,7 +159,6 @@ private[raphtory] class GraphStateImplementation extends GraphState {
       AccumulatorImplementation[T](initialValue, retainState = retainState, numeric.max)
         .asInstanceOf[AccumulatorImplementation[Any, Any]]
 
-  /** @inheritdoc */
   override def newMin[T](name: String, initialValue: T, retainState: Boolean)(implicit
       numeric: Numeric[T],
       bounded: Bounded[T]
@@ -198,7 +182,6 @@ private[raphtory] class GraphStateImplementation extends GraphState {
     accumulatorState(name) = AccumulatorImplementation[Boolean](true, retainState, _ && _)
       .asInstanceOf[AccumulatorImplementation[Any, Any]]
 
-  /** @inheritdoc */
   override def newAny(name: String, retainState: Boolean): Unit =
     accumulatorState(name) =
       AccumulatorImplementation[Boolean](initialValue = false, retainState, _ || _)
@@ -216,11 +199,9 @@ private[raphtory] class GraphStateImplementation extends GraphState {
   def apply[S, T](name: String): Accumulator[S, T] =
     accumulatorState(name).asInstanceOf[Accumulator[S, T]]
 
-  /** @inheritdoc */
   override def get[S, T](name: String): Option[Accumulator[S, T]] =
     accumulatorState.get(name).asInstanceOf[Option[Accumulator[S, T]]]
 
-  /** @inheritdoc */
   override def contains(name: String): Boolean =
     accumulatorState.contains(name)
 }

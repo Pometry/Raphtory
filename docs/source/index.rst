@@ -67,7 +67,6 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
    PythonClient/tutorial_py_raphtory.md
    PythonClient/tutorial_algorithms.md
    PythonClient/RaphtoryClient.md
-   PythonClient/conf.md
 
 
 .. toctree::
