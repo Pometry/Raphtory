@@ -13,9 +13,6 @@ object Distributed extends RaphtoryService[String] {
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/etherscan_tags.csv"
   FileUtils.curlFile(path, url)
 
-  override def defineSpout(): Spout[String] = FileSpout("/tmp/etherscan_tags.csv")
-
+  override def defineSpout(): Spout[String]        = FileSpout("/tmp/etherscan_tags.csv")
   override def defineBuilder: EthereumGraphBuilder = new EthereumGraphBuilder()
-
-  override def batchIngestion(): Boolean = true
 }

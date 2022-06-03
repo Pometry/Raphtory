@@ -9,7 +9,7 @@ import com.typesafe.config
 /** Reads kubernetes configuration values from application.conf.
   */
 class Config {
-  val conf: config.Config          = Raphtory.getDefaultConfig()
+  val conf: config.Config          = Raphtory.getDefaultConfig(distributed = true)
   val raphtoryDeploymentId: String = conf.getString("raphtory.deploy.id")
 
   val raphtoryKubernetesNamespaceName: String =

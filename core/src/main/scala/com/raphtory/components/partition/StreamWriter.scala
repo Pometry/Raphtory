@@ -120,7 +120,7 @@ class StreamWriter(
     ) match {
       case Some(value) =>
         neighbours(getWriter(value.updateId)) sendAsync value
-        storage.trackEdgeAddition(update.updateTime, update.srcId, update.dstId)
+        storage.watermarker.trackEdgeAddition(update.updateTime, update.srcId, update.dstId)
       case None        => //Edge is local
     }
     telemetry.streamWriterEdgeAdditionsCollector.labels(partitionID.toString, deploymentID).inc()
@@ -133,7 +133,7 @@ class StreamWriter(
     storage.removeEdge(update.updateTime, update.srcId, update.dstId) match {
       case Some(value) =>
         neighbours(getWriter(value.updateId)) sendAsync value
-        storage.trackEdgeDeletion(update.updateTime, update.srcId, update.dstId)
+        storage.watermarker.trackEdgeDeletion(update.updateTime, update.srcId, update.dstId)
       case None        => //Edge is local
     }
     telemetry.streamWriterEdgeDeletionsCollector.labels(partitionID.toString, deploymentID).inc()
@@ -145,7 +145,7 @@ class StreamWriter(
     val edgeRemovals = storage.removeVertex(update.updateTime, update.srcId)
     if (edgeRemovals.nonEmpty) {
       edgeRemovals.foreach(effect => neighbours(getWriter(effect.updateId)) sendAsync effect)
-      storage.trackVertexDeletion(update.updateTime, update.srcId, edgeRemovals.size)
+      storage.watermarker.trackVertexDeletion(update.updateTime, update.srcId, edgeRemovals.size)
     }
     telemetry.streamWriterVertexDeletionsCollector
       .labels(partitionID.toString, deploymentID)
@@ -246,16 +246,16 @@ class StreamWriter(
 
   private def untrackEdgeUpdate(msgTime: Long, srcId: Long, dstId: Long, fromAddition: Boolean) =
     if (fromAddition)
-      storage.untrackEdgeAddition(msgTime, srcId, dstId)
+      storage.watermarker.untrackEdgeAddition(msgTime, srcId, dstId)
     else
-      storage.untrackEdgeDeletion(msgTime, srcId, dstId)
+      storage.watermarker.untrackEdgeDeletion(msgTime, srcId, dstId)
 
   def processVertexRemoveSyncAck(req: VertexRemoveSyncAck): Unit = {
     logger.trace(
             s"Partition '$partitionID': The remote worker acknowledges the completion of vertex removal."
     )
 
-    storage.untrackVertexDeletion(req.msgTime, req.updateId)
+    storage.watermarker.untrackVertexDeletion(req.msgTime, req.updateId)
     telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
 

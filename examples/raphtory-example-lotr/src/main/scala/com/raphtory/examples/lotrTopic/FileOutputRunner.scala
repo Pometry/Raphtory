@@ -4,12 +4,6 @@ import com.raphtory.deployment.Raphtory
 import com.raphtory.examples.lotrTopic.analysis.DegreesSeparation
 import com.raphtory.examples.lotrTopic.graphbuilders.LOTRGraphBuilder
 import com.raphtory.spouts.FileSpout
-import com.raphtory.algorithms.api.Chain
-import com.raphtory.algorithms.generic.ConnectedComponents
-import com.raphtory.algorithms.generic.centrality.Degree
-import com.raphtory.algorithms.generic.centrality.WeightedDegree
-import com.raphtory.algorithms.generic.filters.EdgeQuantileFilter
-import com.raphtory.algorithms.generic.filters.VertexQuantileFilter
 import com.raphtory.sinks.FileSink
 import com.raphtory.util.FileUtils
 
@@ -25,7 +19,7 @@ object FileOutputRunner extends App {
 
   val source  = FileSpout(path)
   val builder = new LOTRGraphBuilder()
-  val graph   = Raphtory.batchLoad(spout = source, graphBuilder = builder)
+  val graph   = Raphtory.load(spout = source, graphBuilder = builder)
   val output  = FileSink("/tmp/raphtory")
 
   val queryHandler = graph
