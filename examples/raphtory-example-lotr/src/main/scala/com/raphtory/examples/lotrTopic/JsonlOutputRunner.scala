@@ -3,11 +3,12 @@ package com.raphtory.examples.lotrTopic
 import com.raphtory.algorithms.generic.NodeInformation
 import com.raphtory.deployment.Raphtory
 import com.raphtory.examples.lotrTopic.graphbuilders.LOTRGraphBuilder
-import com.raphtory.output.GsonOutputFormat
+import com.raphtory.formats.JsonlFormat
+import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.util.FileUtils
 
-object GsonOutputRunner extends App {
+object JsonlOutputRunner extends App {
   val path     = "/tmp/lotr.csv"
   val url      = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
   FileUtils.curlFile(path, url)
@@ -15,7 +16,7 @@ object GsonOutputRunner extends App {
   val builder  = new LOTRGraphBuilder()
   val graph    = Raphtory.stream(spout = source, graphBuilder = builder)
   val filepath = "/tmp/gsonLotrOutput"
-  val output   = GsonOutputFormat(filepath)
+  val output   = FileSink(filepath, format = JsonlFormat())
 
   val queryHandler =
     graph

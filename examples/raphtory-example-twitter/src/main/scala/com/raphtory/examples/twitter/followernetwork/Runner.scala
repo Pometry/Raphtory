@@ -1,11 +1,14 @@
 package com.raphtory.examples.twitter.followernetwork
 
+import com.raphtory.algorithms.api.Alignment
+import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.graphview.Alignment
 import com.raphtory.deployment.Raphtory
 import com.raphtory.examples.twitter.followernetwork.graphbuilders.TwitterCirclesGraphBuilder
-import com.raphtory.output.PulsarOutputFormat
+import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.StaticGraphSpout
 import com.raphtory.util.FileUtils
 
@@ -23,10 +26,10 @@ object Runner extends App {
     .at(88234)
     .past()
     .execute(EdgeList())
-    .writeTo(PulsarOutputFormat("TwitterEdgeList"))
+    .writeTo(PulsarSink("TwitterEdgeList"))
   graph
     .range(10000, 88234, 10000)
     .window(List(500, 1000, 10000), Alignment.END)
     .execute(ConnectedComponents)
-    .writeTo(PulsarOutputFormat("ConnectedComponents"))
+    .writeTo(PulsarSink("ConnectedComponents"))
 }

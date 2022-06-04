@@ -3,6 +3,7 @@ package com.raphtory.components.querymanager
 import com.raphtory.api.graphstate.GraphStateImplementation
 import com.raphtory.api.graphview.Alignment
 import com.raphtory.api.graphview.GraphFunction
+import com.raphtory.algorithms.api.Sink
 import com.raphtory.api.table.TableFunction
 import com.raphtory.graph.Perspective
 import com.raphtory.time.Interval
@@ -16,54 +17,18 @@ trait QueryManagement extends Serializable
 case class WatermarkTime(partitionID: Int, oldestTime: Long, latestTime: Long, safe: Boolean)
         extends QueryManagement
 
-case object StartAnalysis                   extends QueryManagement
-case class EstablishExecutor(jobID: String) extends QueryManagement
-case class ExecutorEstablished(worker: Int) extends QueryManagement
+case object StartAnalysis                                       extends QueryManagement
+case class EstablishExecutor(jobID: String, outputFormat: Sink) extends QueryManagement
 
-case class PerspectiveEstablished(vertices: Int) extends QueryManagement
-case class SetMetaData(vertices: Int)            extends QueryManagement
-case object MetaDataSet                          extends QueryManagement
-case object JobDone                              extends QueryManagement
+case class SetMetaData(vertices: Int) extends QueryManagement
 
-case class CreatePerspective(
-    timestamp: Long,
-    window: Option[Interval],
-    actualStart: Long,
-    actualEnd: Long
-) extends QueryManagement
+case object JobDone extends QueryManagement
 
-object CreatePerspective {
-
-  def apply(perspective: Perspective): CreatePerspective =
-    CreatePerspective(
-            perspective.timestamp,
-            perspective.window,
-            perspective.actualStart,
-            perspective.actualEnd
-    )
-}
+case class CreatePerspective(id: Int, perspective: Perspective) extends QueryManagement
 
 case object StartGraph extends QueryManagement
 
-case class AlgorithmFailure(exception: Throwable) extends QueryManagement
-
-case class GraphFunctionComplete(
-    partitionID: Int,
-    receivedMessages: Int,
-    sentMessages: Int,
-    votedToHalt: Boolean = false
-) extends QueryManagement
-
-case class GraphFunctionCompleteWithState(
-    partitionID: Int,
-    receivedMessages: Int,
-    sentMessages: Int,
-    votedToHalt: Boolean = false,
-    graphState: GraphStateImplementation
-) extends QueryManagement
-
-case object TableBuilt            extends QueryManagement
-case object TableFunctionComplete extends QueryManagement
+case object CompleteWrite extends QueryManagement
 
 case object RecheckTime                 extends QueryManagement
 case object RecheckEarliestTime         extends QueryManagement
@@ -96,7 +61,8 @@ case class Query(
     windows: List[Interval] = List(),
     windowAlignment: Alignment.Value = Alignment.START,
     graphFunctions: Queue[GraphFunction] = Queue(),
-    tableFunctions: Queue[TableFunction] = Queue()
+    tableFunctions: Queue[TableFunction] = Queue(),
+    sink: Option[Sink] = None
 ) extends QueryManagement
 
 sealed trait PointSet
@@ -113,5 +79,36 @@ case class PointPath(
 case class EndQuery(jobID: String)        extends QueryManagement
 case class QueryNotPresent(jobID: String) extends QueryManagement
 
-case class TaskFinished(result: Boolean) extends QueryManagement
-case object AreYouFinished               extends QueryManagement
+// Messages for jobStatus topic
+sealed trait JobStatus extends QueryManagement
+
+case class ExecutorEstablished(worker: Int) extends JobStatus
+case object WriteCompleted                  extends JobStatus
+
+sealed trait PerspectiveStatus                                       extends JobStatus {
+  def perspectiveID: Int
+}
+case class PerspectiveEstablished(perspectiveID: Int, vertices: Int) extends PerspectiveStatus
+case class MetaDataSet(perspectiveID: Int)                           extends PerspectiveStatus
+
+case class GraphFunctionComplete(
+    perspectiveID: Int,
+    partitionID: Int,
+    receivedMessages: Int,
+    sentMessages: Int,
+    votedToHalt: Boolean = false
+) extends PerspectiveStatus
+
+case class GraphFunctionCompleteWithState(
+    perspectiveID: Int,
+    partitionID: Int,
+    receivedMessages: Int,
+    sentMessages: Int,
+    votedToHalt: Boolean = false,
+    graphState: GraphStateImplementation
+) extends PerspectiveStatus
+
+case class TableFunctionComplete(perspectiveID: Int) extends PerspectiveStatus
+case class TableBuilt(perspectiveID: Int)            extends PerspectiveStatus
+
+case class AlgorithmFailure(perspectiveID: Int, exception: Throwable) extends PerspectiveStatus

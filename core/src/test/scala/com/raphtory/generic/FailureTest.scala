@@ -6,7 +6,7 @@ import com.raphtory.api.algorithm.Generic
 import com.raphtory.api.graphview.Alignment
 import com.raphtory.api.graphview.GraphPerspective
 import com.raphtory.deployment.Raphtory
-import com.raphtory.output.FileOutputFormat
+import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.SequenceSpout
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -28,7 +28,7 @@ class FailureTest extends AnyFunSuite {
       .at(1)
       .past()
       .execute(new FailingAlgo)
-      .writeTo(FileOutputFormat("/tmp/raphtoryTest"), "FailingAlgo")
+      .writeTo(FileSink("/tmp/raphtoryTest"), "FailingAlgo")
 
     for (i <- 1 to 20 if !query.isJobDone)
       Thread.sleep(1000)

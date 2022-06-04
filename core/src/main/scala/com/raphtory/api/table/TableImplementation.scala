@@ -1,6 +1,6 @@
 package com.raphtory.api.table
 
-import com.raphtory.api.OutputFormat
+import com.raphtory.algorithms.api.Sink
 import com.raphtory.client.QuerySender
 import com.raphtory.components.querymanager.Query
 import com.raphtory.components.querytracker.QueryProgressTracker
@@ -14,18 +14,19 @@ private[api] class TableImplementation(val query: Query, private val querySender
     addFunction(TableFilter(closurefunc))
   }
 
-  override def explode(f: Row => List[Row]): Table = {
-    def closurefunc(v: Row): List[Row] = f(v)
+  override def explode(f: Row => IterableOnce[Row]): Table = {
+    def closurefunc(v: Row): IterableOnce[Row] = f(v)
     addFunction(Explode(closurefunc))
   }
 
-  override def writeTo(outputFormat: OutputFormat, jobName: String): QueryProgressTracker = {
-    val query = addFunction(WriteTo(outputFormat)).query
-    querySender.submit(query, jobName)
+  override def writeTo(sink: Sink, jobName: String): QueryProgressTracker = {
+    val closedQuery     = addFunction(WriteToOutput).query
+    val queryWithFormat = closedQuery.copy(sink = Some(sink))
+    querySender.submit(queryWithFormat, jobName)
   }
 
-  override def writeTo(outputFormat: OutputFormat): QueryProgressTracker =
-    writeTo(outputFormat, "")
+  override def writeTo(sink: Sink): QueryProgressTracker =
+    writeTo(sink, "")
 
   private def addFunction(function: TableFunction) =
     new TableImplementation(

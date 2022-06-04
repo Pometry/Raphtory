@@ -51,14 +51,14 @@ class Reader(
 
   override def handleMessage(msg: QueryManagement): Unit =
     msg match {
-      case req: EstablishExecutor =>
-        val jobID         = req.jobID
-        val queryExecutor = new QueryExecutor(partitionID, storage, jobID, conf, topics, scheduler)
+      case EstablishExecutor(jobID, outputFormat) =>
+        val queryExecutor =
+          new QueryExecutor(partitionID, outputFormat, storage, jobID, conf, topics, scheduler)
         scheduler.execute(queryExecutor)
         telemetry.queryExecutorCollector.labels(partitionID.toString, deploymentID).inc()
         executorMap += ((jobID, queryExecutor))
 
-      case req: EndQuery          =>
+      case req: EndQuery                          =>
         logger.debug(s"Reader on partition $partitionID received $req")
         executorMap.synchronized {
           try {

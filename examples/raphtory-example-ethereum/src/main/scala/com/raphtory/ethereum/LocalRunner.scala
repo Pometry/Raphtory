@@ -4,8 +4,8 @@ import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.deployment.Raphtory
 import com.raphtory.ethereum.graphbuilder.EthereumGraphBuilder
 import com.raphtory.ethereum.analysis.Taint
-import com.raphtory.output.FileOutputFormat
-import com.raphtory.output.PulsarOutputFormat
+import com.raphtory.sinks.FileSink
+import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.util.FileUtils
 import com.typesafe.config.ConfigFactory
@@ -234,8 +234,8 @@ object LocalRunner extends App {
 
   // execute queries
   // val graphQuery = new TaintAlgorithm(startTime, infectedNodes, stopNodes)
-  val fileOutput   = FileOutputFormat("/tmp/ethereum/Taint")
-  val pulsarOutput = PulsarOutputFormat("TaintTracking")
+  val fileOutput   = FileSink("/tmp/ethereum/Taint")
+  val pulsarOutput = PulsarSink("TaintTracking")
   graph
     .at(1575013446)
     .past()

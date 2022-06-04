@@ -4,7 +4,7 @@ import com.raphtory.BaseRaphtoryAlgoTest
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.SpoutExecutor
-import com.raphtory.output.FileOutputFormat
+import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.StaticGraphSpout
 import org.apache.pulsar.client.api.Schema
 import org.scalatest.DoNotDiscover
