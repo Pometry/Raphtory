@@ -5,7 +5,7 @@ import com.raphtory.GraphState
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.Spout
-import com.raphtory.output.FileOutputFormat
+import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import org.scalatest.DoNotDiscover
 
@@ -17,7 +17,7 @@ import scala.language.postfixOps
 @DoNotDiscover
 class AllCommandsTest extends BaseRaphtoryAlgoTest[String] {
   test("Graph State Test") {
-    val outputFormat = FileOutputFormat(outputDirectory)
+    val outputFormat = FileSink(outputDirectory)
 
     val results = algorithmTest(
             algorithm = GraphState(),
@@ -36,7 +36,7 @@ class AllCommandsTest extends BaseRaphtoryAlgoTest[String] {
   }
 
   test("Connected Components Test") {
-    val outputFormat = FileOutputFormat(outputDirectory)
+    val outputFormat = FileSink(outputDirectory)
 
     val results = algorithmTest(
             algorithm = ConnectedComponents,

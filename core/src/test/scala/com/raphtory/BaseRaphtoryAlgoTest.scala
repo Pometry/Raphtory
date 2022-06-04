@@ -1,17 +1,15 @@
 package com.raphtory
 
 import com.google.common.hash.Hashing
-import com.raphtory.api.OutputFormat
-import com.raphtory.api.algorithm.Generic
+import com.raphtory.algorithms.api.Sink
 import com.raphtory.api.algorithm.GenericallyApplicable
 import com.raphtory.api.graphview.Alignment
 import com.raphtory.api.graphview.DeployedTemporalGraph
-import com.raphtory.client.GraphDeployment
 import com.raphtory.communication.connectors.PulsarConnector
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.Spout
 import com.raphtory.deployment.Raphtory
-import com.raphtory.output.FileOutputFormat
+import com.raphtory.sinks.FileSink
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.apache.commons.io.FileUtils
@@ -38,9 +36,9 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  var jobId: String                     = ""
-  val outputDirectory: String           = "/tmp/raphtoryTest"
-  def defaultOutputFormat: OutputFormat = FileOutputFormat(outputDirectory)
+  var jobId: String             = ""
+  val outputDirectory: String   = "/tmp/raphtoryTest"
+  def defaultOutputFormat: Sink = FileSink(outputDirectory)
 
   var graph: DeployedTemporalGraph     = _
   def pulsarConnector: PulsarConnector = new PulsarConnector(conf)
@@ -94,7 +92,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
       end: Long,
       increment: Long,
       windows: List[Long] = List[Long](),
-      outputFormat: OutputFormat = defaultOutputFormat
+      outputFormat: Sink = defaultOutputFormat
   ): String = {
     val queryProgressTracker = graph
       .range(start, end, increment)
@@ -113,7 +111,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
       algorithm: GenericallyApplicable,
       timestamp: Long,
       windows: List[Long] = List[Long](),
-      outputFormat: OutputFormat = defaultOutputFormat
+      outputFormat: Sink = defaultOutputFormat
   ): String = {
     val queryProgressTracker = graph
       .at(timestamp)

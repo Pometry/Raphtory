@@ -4,8 +4,8 @@ import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.api.graphview.Alignment
 import com.raphtory.deployment.Raphtory
-import com.raphtory.output.PulsarOutputFormat
 import com.raphtory.examples.lotrTopic.graphbuilders.LOTRGraphBuilder
+import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.ResourceSpout
 import com.raphtory.util.FileUtils
@@ -27,10 +27,10 @@ object PulsarOutputRunner extends App {
     .at(30000)
     .past()
     .execute(EdgeList())
-    .writeTo(PulsarOutputFormat("EdgeList"))
+    .writeTo(PulsarSink("EdgeList"))
   graph
     .range(20000, 30000, 10000)
     .window(List(500, 1000, 10000), Alignment.END)
     .execute(PageRank())
-    .writeTo(PulsarOutputFormat("PageRank"))
+    .writeTo(PulsarSink("PageRank"))
 }

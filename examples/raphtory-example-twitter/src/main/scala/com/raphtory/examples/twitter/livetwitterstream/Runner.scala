@@ -3,6 +3,10 @@ package com.raphtory.examples.twitter.livetwitterstream
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.graphview.Alignment
 import com.raphtory.deployment.Raphtory
+import com.raphtory.sinks.PulsarSink
+import com.raphtory.twitter.LiveTwitterRetweetGraphBuilder
+import com.raphtory.twitter.LiveTwitterSpout
+import com.raphtory.twitter.LiveTwitterUserGraphBuilder
 import com.raphtory.output.FileOutputFormat
 import com.raphtory.output.PulsarOutputFormat
 import com.raphtory.twitter.LiveTwitterRetweetGraphBuilder
@@ -19,7 +23,7 @@ object Runner {
 
   def main(args: Array[String]): Unit = {
     val source  = new LiveTwitterSpout()
-    val output  = PulsarOutputFormat("EdgeList")
+    val output  = PulsarSink("EdgeList")
     val builder =
       if (enableRetweetGraphBuilder)
         new LiveTwitterRetweetGraphBuilder()

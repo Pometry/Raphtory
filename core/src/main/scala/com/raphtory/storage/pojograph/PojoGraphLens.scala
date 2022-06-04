@@ -16,6 +16,7 @@ import com.raphtory.storage.pojograph.entities.external.PojoExVertex
 import com.raphtory.storage.pojograph.entities.external.PojoExplodedVertex
 import com.raphtory.storage.pojograph.entities.external.PojoVertexBase
 import com.raphtory.storage.pojograph.messaging.VertexMessageHandler
+
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.apache.pulsar.client.api.Producer
@@ -23,7 +24,6 @@ import org.apache.pulsar.client.api.Producer
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 import monix.eval.Task
-import monix.execution.Callback
 import org.slf4j.LoggerFactory
 
 /** @note DoNotDocument */
@@ -58,7 +58,8 @@ final case class PojoGraphLens(
   private lazy val vertexMap: mutable.Map[Long, PojoExVertex] =
     storage.getVertices(this, start, end)
 
-  private var vertices: Array[PojoExVertex] = vertexMap.values.toArray
+  private var vertices: Array[PojoExVertex] =
+    vertexMap.values.toArray
 
   private def vertexIterator =
     if (exploded)
@@ -76,7 +77,7 @@ final case class PojoGraphLens(
     logger.trace(s"Set Graph Size to '$fullGraphSize'.")
   }
 
-  def getSize(): Int = vertices.size
+  def getSize: Int = vertices.length
 
   private var dataTable: List[Row] = List()
 
@@ -102,7 +103,7 @@ final case class PojoGraphLens(
     onComplete
   }
 
-  def explodeSelect(f: _ => List[Row])(onComplete: => Unit): Unit = {
+  def explodeSelect(f: _ => IterableOnce[Row])(onComplete: => Unit): Unit = {
     dataTable = vertexIterator.flatMap(f.asInstanceOf[PojoVertexBase => List[Row]]).toList
     onComplete
   }
@@ -112,13 +113,15 @@ final case class PojoGraphLens(
     onComplete
   }
 
-  def explodeTable(f: Row => List[Row])(onComplete: => Unit): Unit = {
+  def explodeTable(f: Row => IterableOnce[Row])(onComplete: => Unit): Unit = {
     dataTable = dataTable.flatMap(f)
     onComplete
   }
 
-  def getDataTable(): List[Row] =
-    dataTable
+  def writeDataTable(writer: Row => Unit)(onComplete: => Unit): Unit = {
+    dataTable.foreach(row => writer(row))
+    onComplete
+  }
 
   override def explodeView(
       interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]]
@@ -205,8 +208,7 @@ final case class PojoGraphLens(
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
-  def getMessageHandler(): VertexMessageHandler =
-    messageHandler
+  def getMessageHandler(): VertexMessageHandler = messageHandler
 
   def checkVotes(): Boolean = vertexCount.get() == voteCount.get()
 
