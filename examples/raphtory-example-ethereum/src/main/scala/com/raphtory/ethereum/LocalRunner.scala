@@ -3,7 +3,7 @@ package com.raphtory.ethereum
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.deployment.Raphtory
 import com.raphtory.ethereum.graphbuilder.EthereumGraphBuilder
-import com.raphtory.ethereum.analysis.TaintAlgorithm
+import com.raphtory.ethereum.analysis.Taint
 import com.raphtory.sinks.FileSink
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.FileSpout
@@ -239,7 +239,7 @@ object LocalRunner extends App {
   graph
     .at(1575013446)
     .past()
-    .execute(TaintAlgorithm(startTime, infectedNodes, stopNodes))
+    .execute(Taint(startTime, infectedNodes, stopNodes))
     .writeTo(pulsarOutput)
   // graph.pointQuery(ConnectedComponents(), FileOutputFormat("/tmp/ethereum/connected_components"), 1591951621)
 

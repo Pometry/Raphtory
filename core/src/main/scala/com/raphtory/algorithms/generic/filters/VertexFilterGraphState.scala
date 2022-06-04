@@ -1,9 +1,9 @@
 package com.raphtory.algorithms.generic.filters
 
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.GraphState
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.graph.visitor.Vertex
+import com.raphtory.api.graphstate.GraphState
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.visitor.Vertex
 
 /**
   * {s} `VertexFilter(f: (Vertex, State) => Boolean)`
@@ -20,13 +20,13 @@ import com.raphtory.graph.visitor.Vertex
   * ```
   */
 
-class VertexFilterWithGraphState(f: (Vertex, GraphState) => Boolean) extends NodeList() {
+class VertexFilterGraphState(f: (Vertex, GraphState) => Boolean) extends NodeList() {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph.vertexFilter(f)
 
 }
 
 object VertexFilterGraphState {
-  def apply(f: (Vertex, GraphState) => Boolean) = new VertexFilterWithGraphState(f)
+  def apply(f: (Vertex, GraphState) => Boolean) = new VertexFilterGraphState(f)
 }

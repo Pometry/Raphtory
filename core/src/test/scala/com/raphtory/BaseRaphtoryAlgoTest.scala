@@ -5,6 +5,11 @@ import com.raphtory.algorithms.api.Alignment
 import com.raphtory.algorithms.api.DeployedTemporalGraph
 import com.raphtory.algorithms.api.GraphAlgorithm
 import com.raphtory.algorithms.api.Sink
+import com.raphtory.api.OutputFormat
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.algorithm.GenericallyApplicable
+import com.raphtory.api.graphview.Alignment
+import com.raphtory.api.graphview.DeployedTemporalGraph
 import com.raphtory.client.GraphDeployment
 import com.raphtory.communication.connectors.PulsarConnector
 import com.raphtory.components.graphbuilder.GraphBuilder
@@ -43,7 +48,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
   var graph: DeployedTemporalGraph     = _
   def pulsarConnector: PulsarConnector = new PulsarConnector(conf)
-  def conf: Config                     = graph.getConfig()
+  def conf: Config                     = graph.deployment.conf
   def deploymentID: String             = conf.getString("raphtory.deploy.id")
 
   override def beforeAll(): Unit = {
@@ -88,19 +93,18 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
     consumer.receive
 
   def algorithmTest(
-      algorithm: GraphAlgorithm,
+      algorithm: GenericallyApplicable,
       start: Long,
       end: Long,
       increment: Long,
       windows: List[Long] = List[Long](),
       outputFormat: Sink = defaultOutputFormat
   ): String = {
-    val jobName              = algorithm.getClass.getCanonicalName.split("\\.").last
     val queryProgressTracker = graph
       .range(start, end, increment)
       .window(windows, Alignment.END)
       .execute(algorithm)
-      .writeTo(outputFormat, jobName)
+      .writeTo(outputFormat)
 
     jobId = queryProgressTracker.getJobId
 
@@ -110,17 +114,16 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   }
 
   def algorithmPointTest(
-      algorithm: GraphAlgorithm,
+      algorithm: GenericallyApplicable,
       timestamp: Long,
       windows: List[Long] = List[Long](),
       outputFormat: Sink = defaultOutputFormat
   ): String = {
-    val jobName              = algorithm.getClass.getCanonicalName.split("\\.").last
     val queryProgressTracker = graph
       .at(timestamp)
       .window(windows, Alignment.END)
       .execute(algorithm)
-      .writeTo(outputFormat, jobName)
+      .writeTo(outputFormat)
 
     jobId = queryProgressTracker.getJobId
 

@@ -1,9 +1,14 @@
 package com.raphtory.examples.twitter.livetwitterstream
 
-import com.raphtory.algorithms.api.Alignment
 import com.raphtory.algorithms.generic.EdgeList
+import com.raphtory.api.graphview.Alignment
 import com.raphtory.deployment.Raphtory
 import com.raphtory.sinks.PulsarSink
+import com.raphtory.twitter.LiveTwitterRetweetGraphBuilder
+import com.raphtory.twitter.LiveTwitterSpout
+import com.raphtory.twitter.LiveTwitterUserGraphBuilder
+import com.raphtory.output.FileOutputFormat
+import com.raphtory.output.PulsarOutputFormat
 import com.raphtory.twitter.LiveTwitterRetweetGraphBuilder
 import com.raphtory.twitter.LiveTwitterSpout
 import com.raphtory.twitter.LiveTwitterUserGraphBuilder
@@ -24,12 +29,11 @@ object Runner {
         new LiveTwitterRetweetGraphBuilder()
       else
         new LiveTwitterUserGraphBuilder()
-      }
-    val graph        = Raphtory.stream(spout = source, graphBuilder = builder)
-   graph
-     .walk("10 milliseconds")
-     .window("10 milliseconds")
-     .execute(EdgeList())
-     .writeTo(output)
+    val graph   = Raphtory.stream(spout = source, graphBuilder = builder)
+    graph
+      .walk("10 milliseconds")
+      .window("10 milliseconds")
+      .execute(EdgeList())
+      .writeTo(output)
   }
 }

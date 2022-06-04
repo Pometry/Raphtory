@@ -1,7 +1,7 @@
 package com.raphtory.algorithms.generic
 
-import com.raphtory.algorithms.api.GraphAlgorithm
-import com.raphtory.algorithms.api.GraphPerspective
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.graphview.GraphPerspective
 
 /**
   * {s}`NeighbourNames()`
@@ -23,16 +23,12 @@ import com.raphtory.algorithms.api.GraphPerspective
   *  [](com.raphtory.algorithms.temporal.TemporalEdgeList)
   *  ```
   */
-class NeighbourNames extends GraphAlgorithm {
+object NeighbourNames extends Generic {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step(vertex => vertex.messageAllNeighbours((vertex.ID(), vertex.name())))
       .step { vertex =>
         vertex.setState("neighbourNames", vertex.messageQueue[(vertex.IDType, String)].toMap)
       }
-}
-
-object NeighbourNames {
-  def apply() = new NeighbourNames
 }

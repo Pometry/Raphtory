@@ -1,9 +1,10 @@
 package com.raphtory.algorithms.generic.filters
 
-import com.raphtory.algorithms.api.Bounded
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Histogram
+import com.raphtory.util.Bounded
 import com.raphtory.algorithms.generic.NodeList
+import com.raphtory.api.graphstate.Histogram
+import com.raphtory.api.graphview.GraphPerspective
+
 import scala.language.implicitConversions
 import scala.math.Numeric.Implicits.infixNumericOps
 import scala.reflect.ClassTag
@@ -53,11 +54,11 @@ class VertexQuantileFilter[T: Numeric: Bounded: ClassTag](
     noBins: Int = 1000
 ) extends NodeList() {
 
-  override def apply(graph: GraphPerspective): GraphPerspective = {
+  override def apply(graph: GraphPerspective): graph.Graph = {
     // Check inputs are sound
     if (lower < 0.0f || upper > 1.0f || lower > upper) {
       logger.error("Lower and upper quantiles must be a floats with 0 <= lower < upper <= 1.0")
-      return graph
+      return graph.identity
     }
 
     // Get minimum and maximum edge weights for histogram creation

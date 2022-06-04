@@ -20,7 +20,7 @@ class FacebookTest extends BaseRaphtoryAlgoTest[String] {
     val outputFormat = FileSink(outputDirectory)
 
     val result = algorithmPointTest(
-            algorithm = ConnectedComponents(),
+            algorithm = ConnectedComponents,
             outputFormat = outputFormat,
             timestamp = 88234
     )

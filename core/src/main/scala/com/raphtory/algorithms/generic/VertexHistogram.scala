@@ -1,17 +1,18 @@
 package com.raphtory.algorithms.generic
 
-import com.raphtory.algorithms.api.Bounded
-import com.raphtory.algorithms.api.GraphAlgorithm
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Histogram
-import com.raphtory.algorithms.api.Row
-import com.raphtory.algorithms.api.Table
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.graphstate.Histogram
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.table.Row
+import com.raphtory.api.table.Table
+import com.raphtory.util.Bounded
+
 import scala.reflect.ClassTag
 
 class VertexHistogram[T: Numeric: Bounded: ClassTag](propertyString: String, noBins: Int = 1000)
-        extends GraphAlgorithm {
+        extends Generic {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .setGlobalState { state =>
         state.newMin[T]("propertyMin", retainState = true)

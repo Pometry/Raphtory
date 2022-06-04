@@ -1,11 +1,11 @@
 package com.raphtory.graph
 
-import com.raphtory.algorithms.api.GraphState
-import com.raphtory.algorithms.api.Row
+import com.raphtory.api.graphstate.GraphState
+import com.raphtory.api.table.Row
 import com.raphtory.components.querymanager.GenericVertexMessage
-import com.raphtory.graph.visitor.PropertyMergeStrategy.PropertyMerge
-import com.raphtory.graph.visitor.InterlayerEdge
-import com.raphtory.graph.visitor.Vertex
+import com.raphtory.api.visitor.PropertyMergeStrategy.PropertyMerge
+import com.raphtory.api.visitor.InterlayerEdge
+import com.raphtory.api.visitor.Vertex
 import com.raphtory.storage.pojograph.messaging.VertexMessageHandler
 
 /** Abstract interface for the GraphLens, responsible for executing algorithms
@@ -18,14 +18,14 @@ trait LensInterface {
   def getFullGraphSize: Int
   def setFullGraphSize(size: Int): Unit
 
-  def executeSelect(f: Vertex => Row)(onComplete: => Unit): Unit
+  def executeSelect(f: _ => Row)(onComplete: => Unit): Unit
 
   def executeSelect(
-      f: (Vertex, GraphState) => Row,
+      f: (_, GraphState) => Row,
       graphState: GraphState
   )(onComplete: => Unit): Unit
   def executeSelect(f: GraphState => Row, graphState: GraphState)(onComplete: => Unit): Unit
-  def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: => Unit): Unit
+  def explodeSelect(f: _ => IterableOnce[Row])(onComplete: => Unit): Unit
   def filteredTable(f: Row => Boolean)(onComplete: => Unit): Unit
   def explodeTable(f: Row => IterableOnce[Row])(onComplete: => Unit): Unit
   def writeDataTable(f: Row => Unit)(onComplete: => Unit): Unit
@@ -40,16 +40,16 @@ trait LensInterface {
       aggregate: Boolean
   )(onComplete: => Unit): Unit
 
-  def runGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit
+  def runGraphFunction(f: _ => Unit)(onComplete: => Unit): Unit
 
   def runGraphFunction(
-      f: (Vertex, GraphState) => Unit,
+      f: (_, GraphState) => Unit,
       graphState: GraphState
   )(onComplete: => Unit): Unit
-  def runMessagedGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit
+  def runMessagedGraphFunction(f: _ => Unit)(onComplete: => Unit): Unit
 
   def runMessagedGraphFunction(
-      f: (Vertex, GraphState) => Unit,
+      f: (_, GraphState) => Unit,
       graphState: GraphState
   )(onComplete: => Unit): Unit
   def getMessageHandler(): VertexMessageHandler

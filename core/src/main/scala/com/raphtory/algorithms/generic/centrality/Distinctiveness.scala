@@ -1,8 +1,9 @@
 package com.raphtory.algorithms.generic.centrality
 
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.graph.visitor.Vertex
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.visitor.Vertex
+
 import scala.math.log10
 import scala.math.pow
 
@@ -42,7 +43,7 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
     numeric: Numeric[T]
 ) extends NodeList(Seq("D1", "D2", "D3", "D4", "D5")) {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
         val edges  = vertex.getEdges()

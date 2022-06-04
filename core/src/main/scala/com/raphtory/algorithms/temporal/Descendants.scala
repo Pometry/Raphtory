@@ -1,9 +1,9 @@
 package com.raphtory.algorithms.temporal
 
-import com.raphtory.algorithms.api.GraphAlgorithm
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Row
-import com.raphtory.algorithms.api.Table
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.table.Row
+import com.raphtory.api.table.Table
 
 /**
   * {s}`Descendants(seed:String, time:Long, delta:Long=Long.MaxValue, directed:Boolean=true)`
@@ -48,9 +48,9 @@ class Descendants(
     delta: Long = Long.MaxValue,
     directed: Boolean = true,
     strict: Boolean = true
-) extends GraphAlgorithm {
+) extends Generic {
 
-  override def apply(graph: GraphPerspective): GraphPerspective =
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
         if (vertex.name() == seed) {

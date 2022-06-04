@@ -1,11 +1,11 @@
 package com.raphtory
 
-import com.raphtory.algorithms.api.GraphAlgorithm
-import com.raphtory.algorithms.api.GraphPerspective
-import com.raphtory.algorithms.api.Row
-import com.raphtory.algorithms.api.Table
+import com.raphtory.api.algorithm.Generic
+import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.table.Row
+import com.raphtory.api.table.Table
 
-class GraphState() extends GraphAlgorithm {
+class GraphState() extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
     graph.select { vertex =>

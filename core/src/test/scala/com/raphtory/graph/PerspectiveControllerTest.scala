@@ -1,6 +1,6 @@
 package com.raphtory.graph
 
-import com.raphtory.algorithms.api.Alignment
+import com.raphtory.api.graphview.Alignment
 import com.raphtory.components.querymanager.PointPath
 import com.raphtory.components.querymanager.Query
 import com.raphtory.time.DateTimeParser.{defaultParse => parseDateTime}
