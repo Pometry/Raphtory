@@ -2,16 +2,16 @@ package com.raphtory.algorithms.api
 
 import com.raphtory.graph.Perspective
 import com.raphtory.sinks.FileSink
-import com.raphtory.sinks.SinkConnector
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
+import com.raphtory.api.table.Row
 
 /** Interface for output formats
   * Concrete implementations need to override the `outputWriter` method to create their own `OutputWriter`.
   *
-  * @see [[FileSink]], [[com.raphtory.output.PulsarSink]],
-  *      [[com.raphtory.algorithms.api.Table]]
+  * @see [[FileSink]], [[com.raphtory.sinks.PulsarSink]],
+  *      [[com.raphtory.api.table]]
   */
 trait Sink {
 
@@ -28,7 +28,7 @@ trait Sink {
   * Concrete implementations need to override the `writeRow`, `setupPerspective`, `closePerspective`, and `close`
   * methods.
   *
-  *  @see [[com.raphtory.algorithms.api.Row]]
+  *  @see [[com.raphtory.api.table.Row]]
   */
 trait SinkExecutor {
 

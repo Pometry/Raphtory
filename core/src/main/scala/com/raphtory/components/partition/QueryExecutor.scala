@@ -13,9 +13,8 @@ import com.raphtory.api.graphview.Step
 import com.raphtory.api.graphview.StepWithGraph
 import com.raphtory.api.table.Explode
 import com.raphtory.api.table.TableFilter
-import com.raphtory.api.table.WriteTo
+import com.raphtory.api.table.WriteToOutput
 import com.raphtory.communication.TopicRepository
-import com.raphtory.communication.connectors.PulsarConnector
 import com.raphtory.components.Component
 import com.raphtory.components.querymanager._
 import com.raphtory.config.MonixScheduler
@@ -28,6 +27,7 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.apache.pulsar.client.api._
 import org.slf4j.LoggerFactory
+import com.raphtory.algorithms.api._
 
 import java.util.concurrent.atomic.AtomicInteger
 

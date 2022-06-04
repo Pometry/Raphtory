@@ -1,9 +1,8 @@
 package com.raphtory.api.table
 
-import com.raphtory.api.OutputFormat
 import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.components.querytracker.QueryProgressTracker
-
+import com.raphtory.algorithms.api.Sink
 sealed trait TableFunction extends QueryManagement
 
 final case class TableFilter(f: (Row) => Boolean)     extends TableFunction
@@ -12,7 +11,7 @@ case object WriteToOutput                             extends TableFunction
 
 /**  Interface for table operations
   *
-  * @see [[com.raphtory.algorithms.api.Row]], [[com.raphtory.algorithms.api.Sink]], [[com.raphtory.components.querytracker.QueryProgressTracker]]
+  * @see [[com.raphtory.api.table.Row]], [[com.raphtory.algorithms.api.Sink]], [[com.raphtory.components.querytracker.QueryProgressTracker]]
   */
 abstract class Table {
 

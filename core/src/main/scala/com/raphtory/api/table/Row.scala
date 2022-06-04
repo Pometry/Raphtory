@@ -39,7 +39,7 @@ trait Row {
   def getDouble(index: Int): Double = getAs[Double](index)
 
   /** Return Array of values */
-  def getValues(): Array[Any] = values
+  def getValues(): Array[Any] = values.toArray
 }
 
 class RowImplementation extends Row {

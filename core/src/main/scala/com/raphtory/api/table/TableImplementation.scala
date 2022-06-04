@@ -1,6 +1,6 @@
 package com.raphtory.api.table
 
-import com.raphtory.api.OutputFormat
+import com.raphtory.algorithms.api.Sink
 import com.raphtory.client.QuerySender
 import com.raphtory.components.querymanager.Query
 import com.raphtory.components.querytracker.QueryProgressTracker
