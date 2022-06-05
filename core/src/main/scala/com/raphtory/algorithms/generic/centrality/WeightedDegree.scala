@@ -3,7 +3,7 @@ package com.raphtory.algorithms.generic.centrality
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.graphview.GraphPerspective
 
-import math.Numeric.Implicits._
+import scala.math.Numeric.Implicits._
 
 /**
   * {s}`WeightedDegree(weightProperty: String = "weight")`

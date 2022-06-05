@@ -1,8 +1,9 @@
 package com.raphtory.api.graphview
 
-import com.raphtory.time.IntervalParser.{parse => parseInterval}
 import com.raphtory.time.DiscreteInterval
 import com.raphtory.time.Interval
+import com.raphtory.time.IntervalParser.{parse => parseInterval}
+
 import scala.reflect.ClassTag
 
 /** Alignment types for windows */

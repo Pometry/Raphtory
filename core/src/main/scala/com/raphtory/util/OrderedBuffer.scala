@@ -4,10 +4,10 @@ import com.raphtory.api.visitor.HistoricEvent
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
-import scala.collection.mutable
 import scala.Ordering.Implicits._
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
+import scala.collection.mutable
 
 object OrderedBuffer {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))

@@ -130,7 +130,7 @@ object ThreeNodeMotifs extends Generic {
             val second = neighbours(j)
             val mType  = starMotifIndex((getEdgeType(first), getEdgeType(second)))
             motifCounts(mType.abs) += 1
-            vertex.messageVertex(first, (vertex.ID(), second, mType))
+            vertex.messageVertex(first, (vertex.ID, second, mType))
           }
         }
         vertex.setState("motifCounts", motifCounts)

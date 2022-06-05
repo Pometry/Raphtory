@@ -59,7 +59,7 @@ class Ancestors(
               e.lastActivityBefore(time, strict) match {
                 case Some(event) =>
                   if (event.time > time - delta)
-                    vertex.messageVertex(e.ID(), event.time)
+                    vertex.messageVertex(e.ID, event.time)
                 case None        =>
               }
             )
@@ -75,7 +75,7 @@ class Ancestors(
                     e.lastActivityBefore(time, strict) match {
                       case Some(event) =>
                         if (event.time > time - delta)
-                          vertex.messageVertex(e.ID(), event.time)
+                          vertex.messageVertex(e.ID, event.time)
                       case None        =>
                     }
                   )

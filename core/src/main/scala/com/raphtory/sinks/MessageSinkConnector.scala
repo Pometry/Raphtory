@@ -1,7 +1,5 @@
 package com.raphtory.sinks
 
-import java.io.ByteArrayOutputStream
-
 /** Helper class to implement SinkConnector trait based on message systems */
 abstract class MessageSinkConnector extends SinkConnector {
 

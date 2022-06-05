@@ -84,8 +84,9 @@ class MultilayerLPA(
       (v.getInEdges(after = ts - layerSize, before = ts) ++ v.getOutEdges(
               after = ts - layerSize,
               before = ts
-      )).map(e => (e.ID(), e.weight(default = 1.0f)))
+      )).map(e => (e.ID, e.weight(default = 1.0f)))
         .groupBy(_._1)
+        .view
         .mapValues(x => x.map(_._2).sum / x.size)
         .toMap // (ID -> Freq)
 
@@ -95,7 +96,7 @@ class MultilayerLPA(
         val tlabels =
           layers.filter(ts => vertex.aliveAt(ts, layerSize)).map(ts => (ts, rnd.nextLong()))
         vertex.setState("mlpalabel", tlabels)
-        val message = (vertex.ID(), tlabels.map(x => (x._1, x._2)))
+        val message = (vertex.ID, tlabels.map(x => (x._1, x._2)))
         vertex.messageAllNeighbours(message)
       }
       .iterate(
@@ -139,6 +140,7 @@ class MultilayerLPA(
                       // Get label most prominent in neighborhood of vertex
                       val max_freq = nei_labs
                         .groupBy[Long](_._1)
+                        .view
                         .mapValues(_.map(_._2).sum)
                       max_freq.filter(_._2 == max_freq.values.max).keySet.max
                     }
@@ -153,7 +155,7 @@ class MultilayerLPA(
 
                 // Update node label and broadcast
                 vertex.setState("mlpalabel", newLabel)
-                val message = (vertex.ID(), newLabel)
+                val message = (vertex.ID, newLabel)
                 vertex.messageAllNeighbours(message)
 
                 // Update vote status
@@ -183,7 +185,7 @@ class MultilayerLPA(
         row
           .get(1)
           .asInstanceOf[List[(Long, Long)]]
-          .map(lts => Row(lts._2, row.get(0) + "_" + lts._1.toString))
+          .map(lts => Row(lts._2, s"${row.get(0)}_${lts._1}"))
       }
 
 }

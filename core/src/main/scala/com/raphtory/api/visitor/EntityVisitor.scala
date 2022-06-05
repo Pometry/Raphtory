@@ -1,6 +1,6 @@
 package com.raphtory.api.visitor
 
-import PropertyMergeStrategy.PropertyMerge
+import com.raphtory.api.visitor.PropertyMergeStrategy.PropertyMerge
 import io.sqooba.oss.timeseries.TimeSeries
 import io.sqooba.oss.timeseries.immutable.EmptyTimeSeries
 import io.sqooba.oss.timeseries.immutable.TSEntry

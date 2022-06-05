@@ -36,7 +36,7 @@ class GraphState() extends Generic {
         .sum
 
       Row(
-              vertex.ID(),
+              vertex.ID,
               inDeg,
               outDeg,
               degSum,

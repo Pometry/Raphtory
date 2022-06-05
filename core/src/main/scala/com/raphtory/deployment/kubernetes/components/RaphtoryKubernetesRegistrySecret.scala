@@ -1,8 +1,8 @@
-package com.raphtory.deployment.kubernetes
+package com.raphtory.deployment.kubernetes.components
+
+import com.raphtory.deployment.kubernetes.utils.KubernetesSecret
 
 import java.util.Base64
-
-import com.raphtory.deployment.kubernetes.components.KubernetesClient
 
 /** Extends KubernetesClient which extends Config.
   * KubernetesClient is used to establish kubernetes connection.
@@ -10,7 +10,6 @@ import com.raphtory.deployment.kubernetes.components.KubernetesClient
   *
   * @see [[com.raphtory.deployment.kubernetes.components.Config]]
   * [[com.raphtory.deployment.kubernetes.components.KubernetesClient]]
-  * [[com.raphtory.deployment.kubernetes.utils.KubernetesSecret]]
   */
 object RaphtoryKubernetesRegistrySecret extends KubernetesClient {
 

@@ -1,16 +1,7 @@
 package com.raphtory.components.partition
 
-import com.raphtory.api.graphview.ClearChain
-import com.raphtory.api.graphview.ExplodeSelect
-import com.raphtory.api.graphview.GlobalSelect
-import com.raphtory.api.graphview.Iterate
-import com.raphtory.api.graphview.IterateWithGraph
-import com.raphtory.api.graphview.MultilayerView
-import com.raphtory.api.graphview.ReduceView
-import com.raphtory.api.graphview.Select
-import com.raphtory.api.graphview.SelectWithGraph
-import com.raphtory.api.graphview.Step
-import com.raphtory.api.graphview.StepWithGraph
+import com.raphtory.algorithms.api._
+import com.raphtory.api.graphview._
 import com.raphtory.api.table.Explode
 import com.raphtory.api.table.TableFilter
 import com.raphtory.api.table.WriteToOutput
@@ -22,12 +13,9 @@ import com.raphtory.graph.GraphPartition
 import com.raphtory.graph.LensInterface
 import com.raphtory.graph.Perspective
 import com.raphtory.storage.pojograph.PojoGraphLens
-import com.raphtory.time.Interval
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import org.apache.pulsar.client.api._
 import org.slf4j.LoggerFactory
-import com.raphtory.algorithms.api._
 
 import java.util.concurrent.atomic.AtomicInteger
 

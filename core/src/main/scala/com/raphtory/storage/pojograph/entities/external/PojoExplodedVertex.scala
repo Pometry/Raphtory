@@ -24,7 +24,7 @@ class PojoExplodedVertex(
   var computationValues: Map[String, Any] =
     Map.empty //Partial results kept between supersteps in calculation
 
-  override def ID(): IDType = (vertex.ID(), timestamp)
+  override def ID: IDType = (vertex.ID, timestamp)
 
   override def Type(): String = vertex.Type()
 

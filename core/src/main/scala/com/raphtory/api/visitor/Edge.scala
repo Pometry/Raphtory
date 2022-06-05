@@ -1,6 +1,6 @@
 package com.raphtory.api.visitor
 
-import PropertyMergeStrategy.PropertyMerge
+import com.raphtory.api.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.util.ExtendedNumeric.numericFromInt // implicit conversion from int to abstract numeric type
 
 /** Extends [[EntityVisitor]] with edge-specific functionality
@@ -26,13 +26,13 @@ trait Edge extends EntityVisitor {
 
   //information about the edge meta data
   /** Edge ID */
-  def ID(): IDType
+  def ID: IDType
 
   /** ID of the source vertex of the edge */
-  def src(): IDType
+  def src: IDType
 
   /** ID of the destination vertex of the edge */
-  def dst(): IDType
+  def dst: IDType
 
   /** Return an [`ExplodedEdge`](com.raphtory.graph.visitor.ExplodedEdge) instance for each time the edge is
     * active in the current view.

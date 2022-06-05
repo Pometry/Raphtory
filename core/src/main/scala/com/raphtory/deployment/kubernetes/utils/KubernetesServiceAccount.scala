@@ -22,7 +22,7 @@ object KubernetesServiceAccount {
   ): ServiceAccount =
     new ServiceAccountBuilder().withNewMetadata().withName(name).endMetadata().build();
 
-  /**  Create Kubernetes service account */
+  /** Create Kubernetes service account */
   def create(
       client: KubernetesClient,
       namespace: String,

@@ -32,7 +32,7 @@ class MemberRank() extends Generic {
         //For this vertex get our Page Rank value
         val prValue = vertex.getState[Double]("prlabel")
         //Message all of our outgoing neighbours with our ID + Page Rank value
-        vertex.messageOutNeighbours((vertex.ID(), prValue))
+        vertex.messageOutNeighbours((vertex.ID, prValue))
       }
       .step { vertex =>
         //Get the Vertex ID and Page Rank (Long,Double) messages from our neighbours
@@ -96,7 +96,7 @@ class MemberRank() extends Generic {
   override def tabularise(graph: GraphPerspective): Table =
     graph.select { vertex =>
       Row(
-              vertex.getPropertyOrElse("name", vertex.ID()),
+              vertex.getPropertyOrElse("name", vertex.ID),
               //a vertices page rank score
               vertex.getStateOrElse("prlabel", -1),
               //gets vertex states and tabularises

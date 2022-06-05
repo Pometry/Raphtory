@@ -145,10 +145,11 @@ class PulsarConnector(config: Config) extends Connector {
         }
         finally msg.release()
     }
-
-    val subscriptionName = subscriptionType match {
-      case SubscriptionType.Exclusive => listenerId
-      case SubscriptionType.Shared    => "shared"
+    val subscriptionName                              = subscriptionType match {
+      case SubscriptionType.Exclusive  => listenerId
+      case SubscriptionType.Shared     => "shared"
+      case SubscriptionType.Failover   => listenerId // not used
+      case SubscriptionType.Key_Shared => listenerId // not used
     }
     configuredConsumerBuilder(subscriptionName, Schema.BYTES, addresses)
       .subscriptionType(subscriptionType)

@@ -5,7 +5,6 @@ import com.raphtory.api.algorithm.Generic
 import com.raphtory.api.graphview.GraphPerspective
 import com.raphtory.api.table.Row
 import com.raphtory.api.table.Table
-import com.raphtory.api.visitor.ExplodedVertex
 
 /**
   *  {s}`TemporalEdgeList(properties: String*)`

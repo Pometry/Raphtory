@@ -27,7 +27,7 @@ object NeighbourNames extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
-      .step(vertex => vertex.messageAllNeighbours((vertex.ID(), vertex.name())))
+      .step(vertex => vertex.messageAllNeighbours((vertex.ID, vertex.name())))
       .step { vertex =>
         vertex.setState("neighbourNames", vertex.messageQueue[(vertex.IDType, String)].toMap)
       }

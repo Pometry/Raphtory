@@ -47,7 +47,7 @@ class EdgeList(
           .getOutEdges()
           .map { edge =>
             val row = name +:
-              neighbourMap(edge.dst()) +: // get name of neighbour
+              neighbourMap(edge.dst) +: // get name of neighbour
               properties // get property values
                 .map(key =>
                   edge

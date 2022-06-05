@@ -15,10 +15,10 @@ abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends Ent
 
   def firstActivityAfter(time: Long, strict: Boolean = true): Option[HistoricEvent] =
     if (
-            strict && time >= entity.latestPoint()
+            strict && time >= entity.latestPoint
     ) // >= because if it equals the latest point there is nothing that happens after it
       None
-    else if (!strict && time > entity.latestPoint())
+    else if (!strict && time > entity.latestPoint)
       None
     else
       entity.history.search((time, None)) match {

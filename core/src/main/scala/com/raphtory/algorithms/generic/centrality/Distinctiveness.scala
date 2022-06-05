@@ -55,7 +55,7 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
         // sum of edge weights, purely for D3
         val nodeWeight = numeric.toDouble(vertex.weightedTotalDegree[T]())
 
-        vertex.messageAllNeighbours(vertex.ID(), degree, weight, nodeWeight)
+        vertex.messageAllNeighbours(vertex.ID, degree, weight, nodeWeight)
       }
       .step { vertex =>
         val messages = vertex.messageQueue[(vertex.IDType, Int, Double, Double)]

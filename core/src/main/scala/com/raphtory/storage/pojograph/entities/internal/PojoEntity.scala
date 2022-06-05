@@ -1,10 +1,10 @@
 package com.raphtory.storage.pojograph.entities.internal
 
-import scala.collection.mutable
 import com.raphtory.util.OrderedBuffer._
 
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
+import scala.collection.mutable
 
 /** @note DoNotDocument
   * Represents Graph Entities (Edges and Vertices)
@@ -25,8 +25,8 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
   var deletions: mutable.ListBuffer[Long]           = mutable.ListBuffer.empty
   history sortedAppend ((creationTime, isInitialValue))
 
-  def oldestPoint(): Long = history(0)._1
-  def latestPoint(): Long = history(history.length - 1)._1
+  def oldestPoint: Long = history(0)._1
+  def latestPoint: Long = history(history.length - 1)._1
 
   // History of that entity
   def removeList: List[Long] = deletions.toList

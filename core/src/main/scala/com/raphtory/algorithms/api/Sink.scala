@@ -1,11 +1,11 @@
 package com.raphtory.algorithms.api
 
+import com.raphtory.api.table.Row
 import com.raphtory.graph.Perspective
 import com.raphtory.sinks.FileSink
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-import com.raphtory.api.table.Row
 
 /** Interface for output formats
   * Concrete implementations need to override the `outputWriter` method to create their own `OutputWriter`.

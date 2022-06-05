@@ -12,7 +12,7 @@ class VertexFilterTest extends BaseCorrectnessTest {
   test("Vertex is being filtered") {
     assert(
             correctnessTest(
-                    VertexFilter(_.ID() != 1) -> EdgeList(),
+                    VertexFilter(_.ID != 1) -> EdgeList(),
                     "MotifCount/motiftest.csv",
                     "VertexFilter/motifFilterTest.csv",
                     23

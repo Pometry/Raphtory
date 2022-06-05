@@ -1,15 +1,15 @@
 package com.raphtory.algorithms.generic.dynamic
 
 import com.raphtory.algorithms.generic.dynamic.RandomWalk.Message
-import com.raphtory.algorithms.generic.dynamic.RandomWalk.WalkMessage
 import com.raphtory.algorithms.generic.dynamic.RandomWalk.StoreMessage
+import com.raphtory.algorithms.generic.dynamic.RandomWalk.WalkMessage
 import com.raphtory.api.algorithm.Generic
 import com.raphtory.api.graphview.GraphPerspective
 import com.raphtory.api.table.Row
 import com.raphtory.api.table.Table
 import com.raphtory.api.visitor.Vertex
 
-import collection.mutable.ArrayBuffer
+import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
 /**
@@ -53,7 +53,7 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends Generi
   protected def selectNeighbour(vertex: Vertex) = {
     val neighbours = vertex.getOutNeighbours()
     if (neighbours.isEmpty)
-      vertex.ID()
+      vertex.ID
     else
       neighbours(rnd.nextInt(neighbours.length))
   }
@@ -65,7 +65,7 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends Generi
         vertex.setState("walks", walks)
         for (walkID <- 0 until numWalks)
 //          initialise walks
-          vertex.messageSelf(WalkMessage(vertex.ID(), walkID))
+          vertex.messageSelf(WalkMessage(vertex.ID, walkID))
       }
       .iterate(
               vertex =>

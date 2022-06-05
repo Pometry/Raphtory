@@ -14,13 +14,14 @@ import com.raphtory.deployment.kubernetes.components._
   * [[com.raphtory.deployment.kubernetes.components.RaphtoryKubernetesIngresses]]
   */
 object Delete {
+
   /** Delete Kubernetes resources */
   def main(args: Array[String]): Unit = {
-    RaphtoryKubernetesIngresses.delete
-    RaphtoryKubernetesServices.delete
-    RaphtoryKubernetesDeployments.delete
-    RaphtoryKubernetesServiceAccounts.delete
-    RaphtoryKubernetesNamespaces.delete
-    RaphtoryKubernetesRegistrySecret.delete
+    RaphtoryKubernetesIngresses.delete()
+    RaphtoryKubernetesServices.delete()
+    RaphtoryKubernetesDeployments.delete()
+    RaphtoryKubernetesServiceAccounts.delete()
+    RaphtoryKubernetesNamespaces.delete()
+    RaphtoryKubernetesRegistrySecret.delete()
   }
 }

@@ -1,8 +1,6 @@
 package com.raphtory.api.algorithm
 
 import com.raphtory.api.graphview.GraphPerspective
-import com.raphtory.api.graphview.MultilayerGraphPerspective
-import com.raphtory.api.table.Row
 import com.raphtory.api.table.Table
 
 import scala.language.existentials

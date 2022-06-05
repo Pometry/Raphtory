@@ -6,9 +6,9 @@ import com.raphtory.api.table.Row
 import com.raphtory.api.table.Table
 import com.raphtory.api.visitor.Vertex
 
-import scala.util.Random
 import scala.collection.mutable
 import scala.collection.mutable.Queue
+import scala.util.Random
 
 /**
   * {s}`PrisonersDilemma(proportionCoop: Float = 0.5f, benefit: Float, cost: Float = 1.0f, noGames: Int = 100)`

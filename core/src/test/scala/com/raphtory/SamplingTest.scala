@@ -6,6 +6,8 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 import com.raphtory.util.Sampling._
 
+import scala.collection.compat.immutable.ArraySeq
+
 class SamplingTest extends AnyFunSuite {
 
   def testDistribution(
@@ -15,7 +17,9 @@ class SamplingTest extends AnyFunSuite {
   ): Boolean = {
     val rng    = new Random(1234)
     val result = ArrayBuffer.fill[Double](weights.length)(0.0)
-    (0 until numSamples).foreach(_ => result(rng.sample(weights)) += 1.0 / numSamples)
+    (0 until numSamples).foreach(_ =>
+      result(rng.sample(ArraySeq.unsafeWrapArray(weights))) += 1.0 / numSamples
+    )
     val probs  = weights.map(v => v / weights.sum)
     probs.zip(result).forall(p => (p._1 - p._2).abs < tol)
   }

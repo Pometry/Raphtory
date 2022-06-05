@@ -4,11 +4,8 @@ import com.raphtory.formats.CsvFormat
 import com.raphtory.formats.Format
 import com.typesafe.config.Config
 
-import java.io.BufferedOutputStream
 import java.io.File
-import java.io.FileOutputStream
 import java.io.FileWriter
-import java.io.Writer
 
 /** Writes the rows of a `Table` to the file specified by `filePath` in CSV format.
   *
@@ -30,7 +27,7 @@ import java.io.Writer
   * graph.execute(EdgeList()).writeTo(outputFormat)
   * }}}
   * @see [[com.raphtory.algorithms.api.Sink]]
-  *      [[com.raphtory.algorithms.api.Table]]
+  *      [[com.raphtory.api.table.Table]]
   *      [[com.raphtory.client.GraphDeployment]]
   *      [[com.raphtory.deployment.Raphtory]]
   */
