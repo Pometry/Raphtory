@@ -1,4 +1,4 @@
-package com.raphtory.twitter
+package com.raphtory.twitter.spout
 
 import com.raphtory.components.spout.Spout
 import com.raphtory.deployment.Raphtory
@@ -37,7 +37,7 @@ class LiveTwitterSpout() extends Spout[Tweet] {
 
   override def spoutReschedules(): Boolean = true
 
-  override def hasNext(): Boolean =
+  override def hasNext: Boolean =
     !tweetQueue.isEmpty //always true as we are waiting for new tweets
 
   override def next(): Tweet = tweetQueue.poll()

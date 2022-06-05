@@ -3,9 +3,9 @@ package com.raphtory.examples.twitter.livetwitterstream
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.deployment.Raphtory
 import com.raphtory.sinks.PulsarSink
-import com.raphtory.twitter.LiveTwitterRetweetGraphBuilder
-import com.raphtory.twitter.LiveTwitterSpout
-import com.raphtory.twitter.LiveTwitterUserGraphBuilder
+import com.raphtory.twitter.builder.LiveTwitterRetweetGraphBuilder
+import com.raphtory.twitter.builder.LiveTwitterUserGraphBuilder
+import com.raphtory.twitter.spout.LiveTwitterSpout
 import com.typesafe.config.Config
 
 object Runner {

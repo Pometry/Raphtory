@@ -3,6 +3,9 @@ package com.raphtory.twitter
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.deployment.Raphtory
 import com.raphtory.sinks.PulsarSink
+import com.raphtory.twitter.builder.LiveTwitterRetweetGraphBuilder
+import com.raphtory.twitter.builder.LiveTwitterUserGraphBuilder
+import com.raphtory.twitter.spout.LiveTwitterSpout
 import com.typesafe.config.Config
 import io.github.redouane59.twitter.dto.tweet.Tweet
 

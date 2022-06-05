@@ -45,8 +45,7 @@ object MotifAlpha extends NodeList(Seq("motifAlpha")) {
                     vertex
                       .explodeOutEdges()
                       .count(e =>
-                        e.timestamp > inEdge.timestamp & e.dst() != inEdge.src() & e
-                          .dst() != inEdge.dst()
+                        e.timestamp > inEdge.timestamp & e.dst != inEdge.src & e.dst != inEdge.dst
                       )
                   )
                   .sum

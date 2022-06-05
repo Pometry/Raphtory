@@ -66,7 +66,7 @@ class SLPA(iterNumber: Int = 50, speakerRule: Rule, listenerRule: Rule) extends 
       .step {
         // Initialise vertex memory
         vertex =>
-          val memory = mutable.Queue(vertex.ID())
+          val memory = mutable.Queue(vertex.ID)
           vertex.setState("memory", memory)
 
           val message = speakerRule.chooseLabel(memory)
@@ -115,7 +115,7 @@ object SLPA {
   case class MostCommon() extends Rule {
 
     override def chooseLabel[VertexID](labels: mutable.Queue[VertexID]): VertexID =
-      labels.groupBy(identity).mapValues(_.size).maxBy(_._2)._1
+      labels.groupBy(identity).view.mapValues(_.size).maxBy(_._2)._1
   }
 
   case class ChooseRandom(seed: Long = -1) extends Rule {

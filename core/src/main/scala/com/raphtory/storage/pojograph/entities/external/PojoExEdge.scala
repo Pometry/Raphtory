@@ -14,11 +14,11 @@ class PojoExEdge(val edge: PojoEdge, id: Long, val view: PojoGraphLens)
         with ConcreteEdge[Long] {
 
   override type ExplodedEdge = PojoExplodedEdge
-  def ID() = id
+  def ID: Long = id
 
-  def src() = edge.getSrcId
+  def src: Long = edge.getSrcId
 
-  def dst() = edge.getDstId
+  def dst: Long = edge.getDstId
 
   def send(data: Any): Unit =
     view.sendMessage(VertexMessage(view.superStep + 1, id, data))
@@ -30,7 +30,7 @@ class PojoExEdge(val edge: PojoEdge, id: Long, val view: PojoGraphLens)
 
   override def remove(): Unit = {
     view.needsFiltering = true
-    view.sendMessage(FilteredOutEdgeMessage(view.superStep + 1, src(), dst()))
-    view.sendMessage(FilteredInEdgeMessage(view.superStep + 1, dst(), src()))
+    view.sendMessage(FilteredOutEdgeMessage(view.superStep + 1, src, dst))
+    view.sendMessage(FilteredInEdgeMessage(view.superStep + 1, dst, src))
   }
 }

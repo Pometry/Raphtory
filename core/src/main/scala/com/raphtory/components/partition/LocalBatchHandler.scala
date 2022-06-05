@@ -42,7 +42,7 @@ class LocalBatchHandler[T: ClassTag](
   ): Unit = {} //No messages received by this component
 
   override def run(): Unit =
-    runIngestion
+    runIngestion()
 
   private def runIngestion(): Unit = {
     while (spout.hasNextIterator()) {
@@ -61,7 +61,7 @@ class LocalBatchHandler[T: ClassTag](
   private def reschedule(): Unit = {
     // TODO: Parameterise the delay
     logger.debug("Spout: Scheduling spout to poll again in 10 seconds.")
-    scheduler.scheduleOnce(10.seconds, rescheduler)
+    scheduler.scheduleOnce(10.seconds, rescheduler())
   }
 
   private def startIngesting(): Unit =

@@ -51,7 +51,7 @@ object CountPR extends Generic {
                 val adj = vertex.getState[Array[vertex.IDType]]("adjPlus")
                 //        message neighbour set for pr and qr counting
                 adj.foreach(neighbour_id =>
-                  vertex.messageVertex(neighbour_id, FirstStep(vertex.ID(), adj))
+                  vertex.messageVertex(neighbour_id, FirstStep(vertex.ID, adj))
                 )
               }
               .step { vertex =>
@@ -61,7 +61,7 @@ object CountPR extends Generic {
                   val adj_p = message.adj
                   //          forward neighbour set for pr square counting
                   adj.foreach(neighbour_id =>
-                    vertex.messageVertex(neighbour_id, SecondStep(p, vertex.ID(), adj_p))
+                    vertex.messageVertex(neighbour_id, SecondStep(p, vertex.ID, adj_p))
                   )
                 }
               }
@@ -78,7 +78,7 @@ object CountQR extends Generic {
                 val adj = vertex.getState[Array[vertex.IDType]]("adjPlus")
                 //        message neighbour set for pr and qr counting
                 for (i <- adj.indices.dropRight(1))
-                  vertex.messageVertex(adj(i), FirstStep(vertex.ID(), adj.slice(i + 1, adj.length)))
+                  vertex.messageVertex(adj(i), FirstStep(vertex.ID, adj.slice(i + 1, adj.length)))
               }
               .step { vertex =>
                 val adj = vertex.getState[Array[vertex.IDType]]("adjPlus")
@@ -87,7 +87,7 @@ object CountQR extends Generic {
                   val adj_p = message.adj
                   //          forward neighbour set for pr square counting
                   adj_p.foreach(neighbour_id =>
-                    vertex.messageVertex(neighbour_id, SecondStep(p, vertex.ID(), adj))
+                    vertex.messageVertex(neighbour_id, SecondStep(p, vertex.ID, adj))
                   )
                 }
               }
@@ -103,7 +103,7 @@ object CountPQ extends Generic {
         val adj = vertex.getState[Array[vertex.IDType]]("adjPlus")
         for (i <- adj.indices.dropRight(1)) {
           val r = adj(i)
-          vertex.messageVertex(r, WedgeMessage(vertex.ID(), adj.slice(i + 1, adj.length)))
+          vertex.messageVertex(r, WedgeMessage(vertex.ID, adj.slice(i + 1, adj.length)))
         }
       }
       .step { vertex =>

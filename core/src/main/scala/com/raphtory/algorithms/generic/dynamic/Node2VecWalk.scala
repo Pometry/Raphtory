@@ -13,6 +13,8 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 import com.raphtory.util.Sampling._
 
+import scala.collection.compat.immutable.ArraySeq
+
 /**
   * {s}`Node2VecWalk(walkLength:Int = 10, p: Double = 1.0, q: Double = 1.0)`
   *  : Node2Vec biased random walk on directed, unweighted graph
@@ -72,11 +74,11 @@ class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) exten
         vertex.setState("walk", ArrayBuffer[String](vertex.name()))
         val neighbours = vertex.getOutNeighbours().toArray
         if (neighbours.isEmpty)
-          vertex.messageSelf(WalkMessage(vertex.ID(), vertex.ID(), neighbours))
+          vertex.messageSelf(WalkMessage(vertex.ID, vertex.ID, neighbours))
         else
           vertex.messageVertex(
                   neighbours(rng.nextInt(neighbours.length)),
-                  WalkMessage(vertex.ID(), vertex.ID(), neighbours)
+                  WalkMessage(vertex.ID, vertex.ID, neighbours)
           )
       }
       .iterate(
@@ -100,8 +102,8 @@ class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) exten
                           1.0 / q
                       }
                       vertex.messageVertex(
-                              neighbours(rng.sample(weights)),
-                              WalkMessage(source, vertex.ID(), neighbours)
+                              neighbours(rng.sample(ArraySeq.unsafeWrapArray(weights))),
+                              WalkMessage(source, vertex.ID, neighbours)
                       )
                     }
                   case StoreMessage(name)                        =>

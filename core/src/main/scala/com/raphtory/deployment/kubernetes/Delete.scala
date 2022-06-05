@@ -17,11 +17,11 @@ object Delete {
 
   /** Delete Kubernetes resources */
   def main(args: Array[String]): Unit = {
-    RaphtoryKubernetesIngresses.delete
-    RaphtoryKubernetesServices.delete
-    RaphtoryKubernetesDeployments.delete
-    RaphtoryKubernetesServiceAccounts.delete
-    RaphtoryKubernetesNamespaces.delete
-    RaphtoryKubernetesRegistrySecret.delete
+    RaphtoryKubernetesIngresses.delete()
+    RaphtoryKubernetesServices.delete()
+    RaphtoryKubernetesDeployments.delete()
+    RaphtoryKubernetesServiceAccounts.delete()
+    RaphtoryKubernetesNamespaces.delete()
+    RaphtoryKubernetesRegistrySecret.delete()
   }
 }

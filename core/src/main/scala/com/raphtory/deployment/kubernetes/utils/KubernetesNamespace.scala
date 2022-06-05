@@ -4,7 +4,7 @@ import io.fabric8.kubernetes.api.model.Namespace
 import io.fabric8.kubernetes.api.model.NamespaceBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 

@@ -15,7 +15,7 @@ class WeightedRandomWalk[T: Numeric](
   override protected def selectNeighbour(vertex: Vertex): vertex.IDType = {
     val neighbours = vertex.getOutNeighbours()
     if (neighbours.isEmpty)
-      vertex.ID()
+      vertex.ID
     else {
       val weights = vertex.getOutEdges().map(e => e.weight[T](weight).toDouble)
       neighbours(rnd.sample(weights))

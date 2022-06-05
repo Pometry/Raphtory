@@ -64,7 +64,7 @@ class NodeInformation(initialID: Long, hopsAway: Int = 1) extends Generic {
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
-        if (vertex.ID() == initialID) {
+        if (vertex.ID == initialID) {
           vertex.setState("vertexInvolved", true)
           vertex.messageAllNeighbours(true)
         }
@@ -82,15 +82,15 @@ class NodeInformation(initialID: Long, hopsAway: Int = 1) extends Generic {
   override def tabularise(graph: GraphPerspective): Table =
     graph
       .select { vertex =>
-        val vertexID                         = vertex.ID()
+        val vertexID                         = vertex.ID
         val name                             = vertex.name()
         val involved: Boolean                = vertex.getStateOrElse("vertexInvolved", false)
         val edgeInformation: Array[EdgeInfo] = vertex
           .getEdges()
           .map { edge =>
             EdgeInfo(
-                    edge.src().toString,
-                    edge.dst().toString,
+                    edge.src.toString,
+                    edge.dst.toString,
                     EdgeData(edge.weight(weightProperty = "Character Co-occurence", 0))
             )
           }

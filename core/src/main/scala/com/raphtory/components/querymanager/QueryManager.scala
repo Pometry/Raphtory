@@ -95,8 +95,8 @@ class QueryManager(scheduler: MonixScheduler, conf: Config, topics: TopicReposit
           safe = watermark.safe && safe
           minTime = Math.min(minTime, watermark.latestTime)
           maxTime = Math.max(maxTime, watermark.latestTime)
-          telemetry.globalWatermarkMin.labels(deploymentID).set(minTime)
-          telemetry.globalWatermarkMax.labels(deploymentID).set(maxTime)
+          telemetry.globalWatermarkMin.labels(deploymentID).set(minTime.toDouble)
+          telemetry.globalWatermarkMax.labels(deploymentID).set(maxTime.toDouble)
       }
       if (safe) maxTime else minTime
     }

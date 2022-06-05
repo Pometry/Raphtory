@@ -4,8 +4,7 @@ import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
 import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
-
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /** Kubernetes Ingress */
 object KubernetesIngress {

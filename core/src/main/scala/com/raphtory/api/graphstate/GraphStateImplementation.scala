@@ -53,10 +53,10 @@ private class HistogramImplementation[T: Numeric](
 
   override def getBins: Array[Int] = bins
 
-  override def cumSum(): Array[Int] = bins.scanLeft(0)(_ + _)
+  override def cumSum: Array[Int] = bins.scanLeft(0)(_ + _)
 
   override def quantile(quantile: Float): Float = {
-    val index = cumSum().search((totalCount * quantile).floor.toInt) match {
+    val index = cumSum.search((totalCount * quantile).floor.toInt) match {
       case InsertionPoint(insertionPoint) => insertionPoint - 1
       case Found(foundIndex)              => foundIndex
     }

@@ -5,8 +5,7 @@ import io.fabric8.kubernetes.api.model._
 import io.fabric8.kubernetes.api.model.apps.Deployment
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
-
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /** Kubernetes deployment */
 object KubernetesDeployment {

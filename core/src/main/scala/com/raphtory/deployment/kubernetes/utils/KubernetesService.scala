@@ -5,7 +5,7 @@ import io.fabric8.kubernetes.api.model.Service
 import io.fabric8.kubernetes.api.model.ServiceBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /** Kubernetes Service */
 object KubernetesService {

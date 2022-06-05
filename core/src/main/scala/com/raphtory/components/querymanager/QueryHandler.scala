@@ -327,17 +327,17 @@ class QueryHandler(
 
   ///HELPER FUNCTIONS
   private def safelyStartPerspectives(): Stage =
-    getOptionalEarliestTime() match {
+    getOptionalEarliestTime match {
       case None               =>
-        scheduler.scheduleOnce(1.seconds, recheckEarliestTimer)
+        scheduler.scheduleOnce(1.seconds, recheckEarliestTimer())
         Stages.SpawnExecutors
       case Some(earliestTime) =>
-        if (earliestTime > getLatestTime()) {
-          scheduler.scheduleOnce(1.seconds, recheckEarliestTimer)
+        if (earliestTime > getLatestTime) {
+          scheduler.scheduleOnce(1.seconds, recheckEarliestTimer())
           Stages.SpawnExecutors
         }
         else {
-          perspectiveController = PerspectiveController(earliestTime, getLatestTime(), query)
+          perspectiveController = PerspectiveController(earliestTime, getLatestTime, query)
           val schedulingTimeTaken = System.currentTimeMillis() - timeTaken
           logger.debug(s"Job '$jobID': Spawned all executors in ${schedulingTimeTaken}ms.")
           timeTaken = System.currentTimeMillis()
@@ -347,8 +347,8 @@ class QueryHandler(
     }
 
   private def executeNextPerspective(): Stage = {
-    val latestTime = getLatestTime()
-    val oldestTime = getOptionalEarliestTime()
+    val latestTime = getLatestTime
+    val oldestTime = getOptionalEarliestTime
     telemetry.totalPerspectivesProcessed.labels(jobID, deploymentID).inc()
     if (currentPerspective.timestamp != -1) //ignore initial placeholder
       tracker sendAsync currentPerspective
@@ -377,7 +377,7 @@ class QueryHandler(
         currentPerspective = perspective
         graphFunctions = null
         tableFunctions = null
-        scheduler.scheduleOnce(1.seconds, recheckTimer)
+        scheduler.scheduleOnce(1.seconds, recheckTimer())
 
         Stages.EstablishPerspective
       case None              =>
@@ -405,7 +405,7 @@ class QueryHandler(
   }
 
   private def recheckTime(perspective: Perspective): Stage = {
-    val time = getLatestTime()
+    val time = getLatestTime
     timeTaken = System.currentTimeMillis()
     if (perspective.actualEnd <= time) {
       logger.debug(s"Job '$jobID': Created perspective at time $time.")
@@ -415,7 +415,7 @@ class QueryHandler(
     }
     else {
       logger.debug(s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$time'.")
-      scheduler.scheduleOnce(1.seconds, recheckTimer)
+      scheduler.scheduleOnce(1.seconds, recheckTimer())
       Stages.EstablishPerspective
     }
   }
@@ -547,14 +547,14 @@ class QueryHandler(
   }
 
   private def getNextGraphOperation(queue: mutable.Queue[GraphFunction]) =
-    Try(queue.dequeue).toOption
+    Try(queue.dequeue()).toOption
 
   private def getNextTableOperation(queue: mutable.Queue[TableFunction]) =
-    Try(queue.dequeue).toOption
+    Try(queue.dequeue()).toOption
 
-  private def getLatestTime(): Long = queryManager.latestTime()
+  private def getLatestTime: Long = queryManager.latestTime()
 
-  private def getOptionalEarliestTime(): Option[Long] = queryManager.earliestTime()
+  private def getOptionalEarliestTime: Option[Long] = queryManager.earliestTime()
 }
 
 object Stages extends Enumeration {

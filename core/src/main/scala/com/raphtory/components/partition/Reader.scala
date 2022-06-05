@@ -77,7 +77,7 @@ class Reader(
     watermarkPublish sendAsync latestWatermark
     telemetry.lastWatermarkProcessedCollector
       .labels(partitionID.toString, deploymentID)
-      .set(latestWatermark.oldestTime)
+      .set(latestWatermark.oldestTime.toDouble)
     scheduleWatermarker()
   }
 

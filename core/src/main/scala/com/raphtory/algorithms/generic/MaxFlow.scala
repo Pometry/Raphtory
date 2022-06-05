@@ -79,11 +79,11 @@ class MaxFlow[T](
           vertex.setState("distanceLabel", n)
           vertex.getOutEdges().foreach { edge =>
             val c: T = edge.weight[T](capacityLabel)
-            flow(edge.dst()) = c
-            vertex.messageVertex(edge.dst(), FlowAdded(vertex.ID(), c))
+            flow(edge.dst) = c
+            vertex.messageVertex(edge.dst, FlowAdded(vertex.ID, c))
           }
           vertex.setState("flow", flow)
-          vertex.messageAllNeighbours(NewLabel(vertex.ID(), n))
+          vertex.messageAllNeighbours(NewLabel(vertex.ID, n))
         }
         else
           vertex.setState("distanceLabel", 0)
@@ -111,13 +111,13 @@ class MaxFlow[T](
                   val label: Int = vertex.getState("distanceLabel")
                   // push operation
                   for (edge <- vertex.getOutEdges()) {
-                    val dst = edge.dst()
+                    val dst = edge.dst
                     if (label == labels.getOrElse(dst, 0) + 1) {
                       val c: T     = edge.weight(capacityLabel)
                       val res      = c - flow.getOrElse(dst, 0)
                       val delta: T = numeric.min(excess, res)
                       if (delta > 0) {
-                        vertex.messageVertex(dst, FlowAdded(vertex.ID(), delta))
+                        vertex.messageVertex(dst, FlowAdded(vertex.ID, delta))
                         flow(dst) = flow.getOrElse[T](dst, 0) + delta
                         excess -= delta
                       }
@@ -129,7 +129,7 @@ class MaxFlow[T](
                       if ((value < 0) && (label == (labels.getOrElse(dst, 0) + 1))) {
                         val delta: T = numeric.min(excess, -value)
                         if (delta > 0) {
-                          vertex.messageVertex(dst, FlowAdded(vertex.ID(), delta))
+                          vertex.messageVertex(dst, FlowAdded(vertex.ID, delta))
                           flow(dst) += delta
                           excess -= delta
                         }
@@ -140,7 +140,7 @@ class MaxFlow[T](
                     var newLabel = Int.MaxValue
                     for (edge <- vertex.getOutEdges()) {
                       val c: T = edge.weight(capacityLabel)
-                      val dst  = edge.dst()
+                      val dst  = edge.dst
                       if (c - flow.getOrElse(dst, 0) > 0)
                         if ((labels.getOrElse(dst, 0) + 1) < newLabel)
                           newLabel = labels.getOrElse(dst, 0) + 1
@@ -153,7 +153,7 @@ class MaxFlow[T](
                     }
                     if (newLabel > label) {
                       vertex.setState("distanceLabel", newLabel)
-                      vertex.messageAllNeighbours(NewLabel(vertex.ID(), newLabel))
+                      vertex.messageAllNeighbours(NewLabel(vertex.ID, newLabel))
                       vertex.messageSelf(Recheck())
                     }
                   }

@@ -17,11 +17,11 @@ object Deploy {
 
   /** Deploy Kubernetes resources */
   def main(args: Array[String]): Unit = {
-    RaphtoryKubernetesNamespaces.create
-    RaphtoryKubernetesRegistrySecret.create
-    RaphtoryKubernetesServiceAccounts.create
-    RaphtoryKubernetesDeployments.create
-    RaphtoryKubernetesServices.create
-    RaphtoryKubernetesIngresses.create
+    RaphtoryKubernetesNamespaces.create()
+    RaphtoryKubernetesRegistrySecret.create()
+    RaphtoryKubernetesServiceAccounts.create()
+    RaphtoryKubernetesDeployments.create()
+    RaphtoryKubernetesServices.create()
+    RaphtoryKubernetesIngresses.create()
   }
 }

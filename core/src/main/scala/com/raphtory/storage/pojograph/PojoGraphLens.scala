@@ -159,10 +159,13 @@ final case class PojoGraphLens(
 
   def runGraphFunction(f: _ => Unit)(onComplete: => Unit): Unit = {
     var count: Int = 0
-    val tasks      = vertexIterator.map { vertex =>
-      count += 1
-      Task(f.asInstanceOf[PojoVertexBase => Unit](vertex))
-    }.toIterable
+    val tasks      = vertexIterator
+      .map { vertex =>
+        count += 1
+        Task(f.asInstanceOf[PojoVertexBase => Unit](vertex))
+      }
+      .iterator
+      .to(Iterable)
     vertexCount.set(count)
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
@@ -172,21 +175,27 @@ final case class PojoGraphLens(
       graphState: GraphState
   )(onComplete: => Unit): Unit = {
     var count: Int = 0
-    val tasks      = vertexIterator.map { vertex =>
-      count += 1
-      Task(f.asInstanceOf[(PojoVertexBase, GraphState) => Unit](vertex, graphState))
-    }.toIterable
+    val tasks      = vertexIterator
+      .map { vertex =>
+        count += 1
+        Task(f.asInstanceOf[(PojoVertexBase, GraphState) => Unit](vertex, graphState))
+      }
+      .iterator
+      .to(Iterable)
     vertexCount.set(count)
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
   override def runMessagedGraphFunction(f: _ => Unit)(onComplete: => Unit): Unit = {
     var count: Int = 0
-    val tasks      = vertexIterator.collect {
-      case vertex if vertex.hasMessage() =>
-        count += 1
-        Task(f.asInstanceOf[PojoVertexBase => Unit](vertex))
-    }.toIterable
+    val tasks      = vertexIterator
+      .collect {
+        case vertex if vertex.hasMessage =>
+          count += 1
+          Task(f.asInstanceOf[PojoVertexBase => Unit](vertex))
+      }
+      .iterator
+      .to(Iterable)
     vertexCount.set(count)
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
@@ -196,11 +205,14 @@ final case class PojoGraphLens(
       graphState: GraphState
   )(onComplete: => Unit): Unit = {
     var count: Int = 0
-    val tasks      = vertexIterator.collect {
-      case vertex if vertex.hasMessage() =>
-        count += 1
-        Task(f.asInstanceOf[(PojoVertexBase, GraphState) => Unit](vertex, graphState))
-    }.toIterable
+    val tasks      = vertexIterator
+      .collect {
+        case vertex if vertex.hasMessage =>
+          count += 1
+          Task(f.asInstanceOf[(PojoVertexBase, GraphState) => Unit](vertex, graphState))
+      }
+      .iterator
+      .to(Iterable)
     vertexCount.set(count)
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }

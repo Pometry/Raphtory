@@ -25,8 +25,8 @@ abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
   var deletions: mutable.ListBuffer[Long]           = mutable.ListBuffer.empty
   history sortedAppend ((creationTime, isInitialValue))
 
-  def oldestPoint(): Long = history(0)._1
-  def latestPoint(): Long = history(history.length - 1)._1
+  def oldestPoint: Long = history(0)._1
+  def latestPoint: Long = history(history.length - 1)._1
 
   // History of that entity
   def removeList: List[Long] = deletions.toList

@@ -20,7 +20,7 @@ trait PojoVertexBase extends Vertex {
   protected val outgoingEdgeDeleteMultiQueue: VertexMultiQueue = new VertexMultiQueue()
 
   // messaging
-  def hasMessage(): Boolean =
+  def hasMessage: Boolean =
     multiQueue.getMessageQueue(lens.superStep).nonEmpty
 
   def messageQueue[T]
@@ -37,7 +37,7 @@ trait PojoVertexBase extends Vertex {
 
   //Send message
   override def messageSelf(data: Any): Unit =
-    lens.sendMessage(VertexMessage(lens.superStep + 1, ID(), data))
+    lens.sendMessage(VertexMessage(lens.superStep + 1, ID, data))
 
   def messageVertex(vertexId: IDType, data: Any): Unit = {
     val message = VertexMessage(lens.superStep + 1, vertexId, data)
@@ -91,10 +91,10 @@ trait PojoVertexBase extends Vertex {
     filtered = true
     lens.needsFiltering = true
     internalIncomingEdges.keys.foreach(k =>
-      lens.sendMessage(FilteredOutEdgeMessage(lens.superStep + 1, k, ID()))
+      lens.sendMessage(FilteredOutEdgeMessage(lens.superStep + 1, k, ID))
     )
     internalOutgoingEdges.keys.foreach(k =>
-      lens.sendMessage(FilteredInEdgeMessage(lens.superStep + 1, k, ID()))
+      lens.sendMessage(FilteredInEdgeMessage(lens.superStep + 1, k, ID))
     )
   }
 

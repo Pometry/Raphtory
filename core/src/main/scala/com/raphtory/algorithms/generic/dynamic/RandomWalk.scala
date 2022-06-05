@@ -53,7 +53,7 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends Generi
   protected def selectNeighbour(vertex: Vertex) = {
     val neighbours = vertex.getOutNeighbours()
     if (neighbours.isEmpty)
-      vertex.ID()
+      vertex.ID
     else
       neighbours(rnd.nextInt(neighbours.length))
   }
@@ -65,7 +65,7 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends Generi
         vertex.setState("walks", walks)
         for (walkID <- 0 until numWalks)
 //          initialise walks
-          vertex.messageSelf(WalkMessage(vertex.ID(), walkID))
+          vertex.messageSelf(WalkMessage(vertex.ID, walkID))
       }
       .iterate(
               vertex =>

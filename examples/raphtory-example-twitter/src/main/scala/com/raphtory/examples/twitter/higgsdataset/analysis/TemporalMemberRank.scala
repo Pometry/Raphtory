@@ -39,7 +39,7 @@ class TemporalMemberRank() extends Generic {
         */
 
       val times: Seq[NeighbourAndTime[vertex.IDType]] = vertex.explodeInEdges().collect {
-        case edge if difference => NeighbourAndTime(edge.src(), edge.timestamp)
+        case edge if difference => NeighbourAndTime(edge.src, edge.timestamp)
       }
 
       vertex.setState("times", times)
@@ -49,7 +49,7 @@ class TemporalMemberRank() extends Generic {
     graph
       .select { vertex =>
         Row(
-                vertex.ID(),
+                vertex.ID,
                 vertex.getState("times")
         )
       }
