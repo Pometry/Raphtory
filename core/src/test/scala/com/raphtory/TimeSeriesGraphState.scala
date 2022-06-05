@@ -22,7 +22,7 @@ class TimeSeriesGraphState() extends Generic {
         outEdges.map(e => e.timeSeriesHistory().size).sum
 
       Row(
-              vertex.ID(),
+              vertex.ID,
               propertyhistory,
               inEdgesHistory,
               outEdgesHistory

@@ -58,7 +58,7 @@ class Descendants(
             .foreach(e =>
               e.firstActivityAfter(time, strict) match {
                 case Some(event) =>
-                  if (event.time < time + delta) vertex.messageVertex(e.ID(), event.time)
+                  if (event.time < time + delta) vertex.messageVertex(e.ID, event.time)
                 case None        =>
               }
             )
@@ -74,7 +74,7 @@ class Descendants(
                     e.firstActivityAfter(time, strict) match {
                       case Some(event) =>
                         if (event.time < time + delta)
-                          vertex.messageVertex(e.ID(), event.time)
+                          vertex.messageVertex(e.ID, event.time)
                       case None        =>
                     }
                   )

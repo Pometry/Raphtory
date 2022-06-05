@@ -1,8 +1,8 @@
 package com.raphtory.api.table
 
+import com.raphtory.algorithms.api.Sink
 import com.raphtory.components.querymanager.QueryManagement
 import com.raphtory.components.querytracker.QueryProgressTracker
-import com.raphtory.algorithms.api.Sink
 sealed trait TableFunction extends QueryManagement
 
 final case class TableFilter(f: (Row) => Boolean)     extends TableFunction

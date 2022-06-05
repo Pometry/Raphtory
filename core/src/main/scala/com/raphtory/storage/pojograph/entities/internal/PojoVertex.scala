@@ -1,6 +1,5 @@
 package com.raphtory.storage.pojograph.entities.internal
 
-import com.raphtory.api.visitor.Vertex
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.raphtory.storage.pojograph.entities.external.PojoExEdge
 import com.raphtory.storage.pojograph.entities.external.PojoExVertex

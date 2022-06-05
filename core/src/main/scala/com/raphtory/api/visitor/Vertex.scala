@@ -1,8 +1,8 @@
 package com.raphtory.api.visitor
 
-import PropertyMergeStrategy.PropertyMerge
 import com.raphtory.api.visitor
-import EdgeDirection.Direction
+import com.raphtory.api.visitor.EdgeDirection.Direction
+import com.raphtory.api.visitor.PropertyMergeStrategy.PropertyMerge
 
 import scala.reflect.ClassTag
 
@@ -28,10 +28,10 @@ trait Vertex extends EntityVisitor {
   implicit val IDOrdering: Ordering[IDType]
 
   /** implicit ClassTag object for vertex IDType */
-  implicit val IDClassTag: ClassTag[IDType] = ClassTag[IDType](ID().getClass)
+  implicit val IDClassTag: ClassTag[IDType] = ClassTag[IDType](ID.getClass)
 
   /** Get the ID type of this vertex */
-  def ID(): IDType
+  def ID: IDType
 
   /** Get the name of the vertex.
     * If `nameProperty` does not exist, this function returns the string representation of the vertex ID
@@ -42,7 +42,7 @@ trait Vertex extends EntityVisitor {
 
   //functionality for checking messages
   /** check if vertex has received messages */
-  def hasMessage(): Boolean
+  def hasMessage: Boolean
 
   /** queue of received messages
     * @tparam `T`  message data type
@@ -56,7 +56,7 @@ trait Vertex extends EntityVisitor {
   /** Send data to this vertex at the next Step/Iteration
     * @param data message data to send
     */
-  def messageSelf(data: Any): Unit = messageVertex(ID(), data)
+  def messageSelf(data: Any): Unit = messageVertex(ID, data)
 
   /** Send data to another vertex at next Step/Iteration
     * @param vertexId Vertex Id of target vertex for the message
@@ -86,14 +86,14 @@ trait Vertex extends EntityVisitor {
     * @param before only return neighbours that are active before time `before`
     */
   def getOutNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IDType] =
-    getOutEdges(after, before).map(_.dst())
+    getOutEdges(after, before).map(_.dst)
 
   /** Get IDs fo all in-neighbours of the vertex
     * @param after only return neighbours that are active after time `after`
     * @param before only return neighbours that are active before time `before`
     */
   def getInNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IDType] =
-    getInEdges(after, before).map(_.src())
+    getInEdges(after, before).map(_.src)
 
   /** Get IDs of all in- and out-neighbours of the vertex
     * @param after  only return neighbours that are active after time `after`

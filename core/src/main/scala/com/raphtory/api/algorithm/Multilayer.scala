@@ -1,6 +1,5 @@
 package com.raphtory.api.algorithm
 
-import com.raphtory.api.graphview.GraphPerspective
 import com.raphtory.api.graphview.MultilayerGraphPerspective
 import com.raphtory.api.graphview.ReducedGraphPerspective
 import com.raphtory.api.table.Row

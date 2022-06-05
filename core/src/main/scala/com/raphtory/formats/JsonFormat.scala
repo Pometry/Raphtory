@@ -2,8 +2,8 @@ package com.raphtory.formats
 
 import com.google.gson.GsonBuilder
 import com.google.gson.stream.JsonWriter
-import com.raphtory.api.table.Row
 import com.raphtory.algorithms.api.SinkExecutor
+import com.raphtory.api.table.Row
 import com.raphtory.graph.Perspective
 import com.raphtory.sinks.SinkConnector
 import com.raphtory.time.DiscreteInterval

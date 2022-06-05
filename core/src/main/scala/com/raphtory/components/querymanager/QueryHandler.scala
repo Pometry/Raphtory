@@ -1,24 +1,7 @@
 package com.raphtory.components.querymanager
 
-import com.raphtory.graph.PerspectiveController.DEFAULT_PERSPECTIVE_TIME
-import com.raphtory.graph.PerspectiveController.DEFAULT_PERSPECTIVE_WINDOW
-import Stages.SpawnExecutors
-import Stages.Stage
 import com.raphtory.api.graphstate.GraphStateImplementation
-import com.raphtory.api.graphview.ClearChain
-import com.raphtory.api.graphview.ExplodeSelect
-import com.raphtory.api.graphview.GlobalSelect
-import com.raphtory.api.graphview.GraphFunction
-import com.raphtory.api.graphview.Iterate
-import com.raphtory.api.graphview.IterateWithGraph
-import com.raphtory.api.graphview.MultilayerView
-import com.raphtory.api.graphview.PerspectiveDone
-import com.raphtory.api.graphview.ReduceView
-import com.raphtory.api.graphview.Select
-import com.raphtory.api.graphview.SelectWithGraph
-import com.raphtory.api.graphview.SetGlobalState
-import com.raphtory.api.graphview.Step
-import com.raphtory.api.graphview.StepWithGraph
+import com.raphtory.api.graphview._
 import com.raphtory.api.table.TableFunction
 import com.raphtory.communication.TopicRepository
 import com.raphtory.communication.connectors.PulsarConnector
@@ -344,17 +327,17 @@ class QueryHandler(
 
   ///HELPER FUNCTIONS
   private def safelyStartPerspectives(): Stage =
-    getOptionalEarliestTime() match {
+    getOptionalEarliestTime match {
       case None               =>
-        scheduler.scheduleOnce(1.seconds, recheckEarliestTimer)
+        scheduler.scheduleOnce(1.seconds, recheckEarliestTimer())
         Stages.SpawnExecutors
       case Some(earliestTime) =>
-        if (earliestTime > getLatestTime()) {
-          scheduler.scheduleOnce(1.seconds, recheckEarliestTimer)
+        if (earliestTime > getLatestTime) {
+          scheduler.scheduleOnce(1.seconds, recheckEarliestTimer())
           Stages.SpawnExecutors
         }
         else {
-          perspectiveController = PerspectiveController(earliestTime, getLatestTime(), query)
+          perspectiveController = PerspectiveController(earliestTime, getLatestTime, query)
           val schedulingTimeTaken = System.currentTimeMillis() - timeTaken
           logger.debug(s"Job '$jobID': Spawned all executors in ${schedulingTimeTaken}ms.")
           timeTaken = System.currentTimeMillis()
@@ -364,8 +347,8 @@ class QueryHandler(
     }
 
   private def executeNextPerspective(): Stage = {
-    val latestTime = getLatestTime()
-    val oldestTime = getOptionalEarliestTime()
+    val latestTime = getLatestTime
+    val oldestTime = getOptionalEarliestTime
     telemetry.totalPerspectivesProcessed.labels(jobID, deploymentID).inc()
     if (currentPerspective.timestamp != -1) //ignore initial placeholder
       tracker sendAsync currentPerspective
@@ -394,7 +377,7 @@ class QueryHandler(
         currentPerspective = perspective
         graphFunctions = null
         tableFunctions = null
-        scheduler.scheduleOnce(1.seconds, recheckTimer)
+        scheduler.scheduleOnce(1.seconds, recheckTimer())
 
         Stages.EstablishPerspective
       case None              =>
@@ -422,7 +405,7 @@ class QueryHandler(
   }
 
   private def recheckTime(perspective: Perspective): Stage = {
-    val time = getLatestTime()
+    val time = getLatestTime
     timeTaken = System.currentTimeMillis()
     if (perspective.actualEnd <= time) {
       logger.debug(s"Job '$jobID': Created perspective at time $time.")
@@ -432,7 +415,7 @@ class QueryHandler(
     }
     else {
       logger.debug(s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$time'.")
-      scheduler.scheduleOnce(1.seconds, recheckTimer)
+      scheduler.scheduleOnce(1.seconds, recheckTimer())
       Stages.EstablishPerspective
     }
   }
@@ -564,14 +547,14 @@ class QueryHandler(
   }
 
   private def getNextGraphOperation(queue: mutable.Queue[GraphFunction]) =
-    Try(queue.dequeue).toOption
+    Try(queue.dequeue()).toOption
 
   private def getNextTableOperation(queue: mutable.Queue[TableFunction]) =
-    Try(queue.dequeue).toOption
+    Try(queue.dequeue()).toOption
 
-  private def getLatestTime(): Long = queryManager.latestTime()
+  private def getLatestTime: Long = queryManager.latestTime()
 
-  private def getOptionalEarliestTime(): Option[Long] = queryManager.earliestTime()
+  private def getOptionalEarliestTime: Option[Long] = queryManager.earliestTime()
 }
 
 object Stages extends Enumeration {

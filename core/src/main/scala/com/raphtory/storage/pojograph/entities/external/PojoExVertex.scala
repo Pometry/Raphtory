@@ -1,15 +1,14 @@
 package com.raphtory.storage.pojograph.entities.external
 
+import com.raphtory.api.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.api.visitor.HistoricEvent
 import com.raphtory.api.visitor.InterlayerEdge
-import com.raphtory.api.visitor.PropertyMergeStrategy
 import com.raphtory.api.visitor.ReducedVertex
 import com.raphtory.api.visitor.Vertex
 import com.raphtory.components.querymanager.GenericVertexMessage
-import com.raphtory.api.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.raphtory.storage.pojograph.entities.internal.PojoVertex
-
+import scala.language.existentials
 import scala.collection.mutable
 import scala.math.Ordering
 import scala.reflect.ClassTag
@@ -27,7 +26,7 @@ class PojoExVertex(
   override type Edge = PojoExEdge
   implicit override val IDOrdering: Ordering[Long] = Ordering.Long
 
-  override def ID(): Long = v.vertexId
+  override def ID: Long = v.vertexId
 
   val exploded               = mutable.Map.empty[Long, PojoExplodedVertex]
   var explodedVertices       = Array.empty[PojoExplodedVertex]
@@ -48,26 +47,26 @@ class PojoExVertex(
 
       explodeInEdges().foreach { edge =>
         exploded(edge.timestamp).internalIncomingEdges += (
-                edge.src(),
+                edge.src,
                 edge.timestamp
         ) -> new PojoExMultilayerEdge(
                 timestamp = edge.timestamp,
-                ID = (edge.src(), edge.timestamp),
-                src = (edge.src(), edge.timestamp),
-                dst = (edge.dst(), edge.timestamp),
+                ID = (edge.src, edge.timestamp),
+                src = (edge.src, edge.timestamp),
+                dst = (edge.dst, edge.timestamp),
                 edge = edge,
                 view = lens
         )
       }
       explodeOutEdges().foreach { edge =>
         exploded(edge.timestamp).internalOutgoingEdges += (
-                edge.dst(),
+                edge.dst,
                 edge.timestamp
         ) -> new PojoExMultilayerEdge(
                 timestamp = edge.timestamp,
-                ID = (edge.dst(), edge.timestamp),
-                src = (edge.src(), edge.timestamp),
-                dst = (edge.dst(), edge.timestamp),
+                ID = (edge.dst, edge.timestamp),
+                src = (edge.src, edge.timestamp),
+                dst = (edge.dst, edge.timestamp),
                 edge = edge,
                 view = lens
         )
@@ -77,13 +76,13 @@ class PojoExVertex(
     interlayerEdgeBuilder.foreach { builder =>
       if (interlayerEdges.nonEmpty)
         interlayerEdges.foreach { edge =>
-          exploded(edge.srcTime).internalOutgoingEdges -= ((ID(), edge.dstTime))
-          exploded(edge.dstTime).internalIncomingEdges -= ((ID(), edge.srcTime))
+          exploded(edge.srcTime).internalOutgoingEdges -= ((ID, edge.dstTime))
+          exploded(edge.dstTime).internalIncomingEdges -= ((ID, edge.srcTime))
         }
       interlayerEdges = builder(this)
       interlayerEdges.foreach { edge =>
-        val srcID = (ID(), edge.srcTime)
-        val dstID = (ID(), edge.dstTime)
+        val srcID = (ID, edge.srcTime)
+        val dstID = (ID, edge.dstTime)
         exploded(edge.srcTime).internalOutgoingEdges += dstID -> new PojoExMultilayerEdge(
                 edge.dstTime,
                 dstID,

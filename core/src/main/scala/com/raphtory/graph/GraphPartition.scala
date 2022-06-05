@@ -2,16 +2,9 @@ package com.raphtory.graph
 
 import com.raphtory.components.graphbuilder.GraphUpdateEffect
 import com.raphtory.components.graphbuilder.Properties._
-import com.raphtory.components.querymanager.WatermarkTime
 import com.raphtory.storage.pojograph.entities.external.PojoExVertex
 import com.typesafe.config.Config
-import com.typesafe.scalalogging.Logger
-import monix.execution.atomic.AtomicLong
-import org.slf4j.LoggerFactory
 
-import java.util.concurrent.atomic.AtomicInteger
-import scala.collection.concurrent.Map
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
 /** Singleton representing the Storage for the entities

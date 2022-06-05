@@ -64,7 +64,7 @@ class LPA[T: Numeric](weight: String = "", maxIter: Int = 50, seed: Long = -1)
       .step { vertex =>
         val lab = rnd.nextLong()
         vertex.setState("community", lab)
-        vertex.messageAllNeighbours((vertex.ID(), lab))
+        vertex.messageAllNeighbours((vertex.ID, lab))
       }
       .iterate(vertex => lpa(vertex, weight, SP, rnd), maxIter, false)
 
@@ -89,21 +89,22 @@ object LPA {
     val vlabel     = vertex.getState[Long]("community")
     val vneigh     = vertex.getEdges()
     val neigh_freq = vneigh
-      .map(e => (e.ID(), e.weight(weightProperty = weight)))
+      .map(e => (e.ID, e.weight(weightProperty = weight)))
       .groupBy(_._1)
+      .view
       .mapValues(x => numeric.toFloat(x.map(_._2).sum))
     // Process neighbour labels into (label, frequency)
     val gp         = vertex
       .messageQueue[(vertex.IDType, Long)]
       .map(v => (v._2, neigh_freq.getOrElse(v._1, 1.0f)))
     // Get label most prominent in neighborhood of vertex
-    val maxlab     = gp.groupBy(_._1).mapValues(_.map(_._2).sum)
+    val maxlab     = gp.groupBy(_._1).view.mapValues(_.map(_._2).sum)
     var newLabel   = maxlab.filter(_._2 == maxlab.values.max).keySet.max
     // Update node label and broadcast
     if (newLabel == vlabel)
       vertex.voteToHalt()
     newLabel = if (rnd.nextFloat() < SP) vlabel else newLabel
     vertex.setState("community", newLabel)
-    vertex.messageAllNeighbours((vertex.ID(), newLabel))
+    vertex.messageAllNeighbours((vertex.ID, newLabel))
   }
 }

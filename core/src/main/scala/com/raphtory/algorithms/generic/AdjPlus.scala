@@ -38,15 +38,13 @@ import scala.math.Ordering.Implicits._
 object AdjPlus extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
-    graph.step(vertex => vertex.messageAllNeighbours((vertex.ID(), vertex.degree))).step { vertex =>
+    graph.step(vertex => vertex.messageAllNeighbours((vertex.ID, vertex.degree))).step { vertex =>
       import vertex._ // make ClassTag and Ordering for IDType available
       val degree = vertex.degree
       //        Find set of neighbours with higher degree
       val adj    = vertex
         .messageQueue[(vertex.IDType, Int)]
-        .filter(message =>
-          degree < message._2 || (message._2 == degree && vertex.ID() < message._1)
-        )
+        .filter(message => degree < message._2 || (message._2 == degree && vertex.ID < message._1))
         .sortBy(m => (m._2, m._1))
         .map(message => message._1)
         .toArray[vertex.IDType]
@@ -58,7 +56,7 @@ object AdjPlus extends Generic {
     graph
       .step { vertex =>
         val adj = vertex.getState[Array[vertex.IDType]]("adjPlus")
-        adj.foreach(a => vertex.messageVertex(a, vertex.ID()))
+        adj.foreach(a => vertex.messageVertex(a, vertex.ID))
       }
       .step(vertex =>
         vertex.messageQueue[vertex.IDType].foreach(v => vertex.messageVertex(v, vertex.name()))

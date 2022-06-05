@@ -8,7 +8,6 @@ import com.raphtory.deployment.kubernetes.utils._
   *
   * @see [[com.raphtory.deployment.kubernetes.components.Config]]
   * [[com.raphtory.deployment.kubernetes.components.KubernetesClient]]
-  * [[com.raphtory.deployment.kubernetes.utils.KubernetesServices]]
   */
 object RaphtoryKubernetesServices extends KubernetesClient {
 

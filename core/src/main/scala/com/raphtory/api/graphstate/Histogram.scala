@@ -38,7 +38,7 @@ abstract class Histogram[T: Numeric] {
   def cdf: Array[Float] = pdf.scanLeft(0.0f)(_ + _)
 
   /** Probability density function */
-  def pdf: Array[Float] = getBins.map(_ / totalCount)
+  def pdf: Array[Float] = getBins.map(_.toFloat / totalCount)
 
   /** Compute the value associated with a given quantile
     *  @param quantile  quantile to find. For example, 0.5 would correspond to the median value.

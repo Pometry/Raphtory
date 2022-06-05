@@ -1,9 +1,10 @@
-package com.raphtory.deployment.kubernetes
+package com.raphtory.deployment.kubernetes.utils
 
 import io.fabric8.kubernetes.api.model.Secret
 import io.fabric8.kubernetes.api.model.SecretBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
-import scala.collection.JavaConverters._
+
+import scala.jdk.CollectionConverters._
 
 /** Kubernetes Secret */
 object KubernetesSecret {

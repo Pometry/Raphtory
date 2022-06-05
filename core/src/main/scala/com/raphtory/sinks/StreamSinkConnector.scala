@@ -1,7 +1,5 @@
 package com.raphtory.sinks
 
-import java.io.Writer
-
 abstract class StreamSinkConnector(itemDelimiter: String) extends SinkConnector {
 
   private var justClosedItem = false

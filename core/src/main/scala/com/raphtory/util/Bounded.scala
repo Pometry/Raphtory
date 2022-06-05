@@ -1,7 +1,5 @@
 package com.raphtory.util
 
-import scala.math.Numeric.Implicits.infixNumericOps
-
 class Bounded[T](min: T, max: T) {
   def MIN: T = min
   def MAX: T = max

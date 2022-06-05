@@ -1,9 +1,9 @@
 package com.raphtory.util
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object PythonUtil {
-  def toScalaMap[K, V](jm: java.util.Map[K, V]): Map[K, V] = {
+
+  def toScalaMap[K, V](jm: java.util.Map[K, V]): Map[K, V] =
     jm.asScala.toMap
-  }
 }

@@ -82,6 +82,7 @@ private[raphtory] class MonixScheduler {
         .runAsync {
           case Right(_)                   => onSuccess
           case Left(exception: Exception) => errorHandler(exception)
+          case Left(exception: Throwable) => errorHandler(exception)
         }
     lock.unlock()
   }

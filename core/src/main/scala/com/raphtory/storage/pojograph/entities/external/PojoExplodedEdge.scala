@@ -18,7 +18,7 @@ class PojoExplodedEdge(
 ) extends PojoExEntity(objectEdge, view)
         with ConcreteExplodedEdge[Long] {
   override type ExplodedEdge = PojoExplodedEdge
-  override def ID(): Long = id
+  override def ID: Long = id
 
   override def explode(): List[ExplodedEdge] = List(this)
 
@@ -43,9 +43,9 @@ object PojoExplodedEdge {
     new PojoExplodedEdge(
             pojoExEdge.edge,
             pojoExEdge.view,
-            pojoExEdge.ID(),
-            pojoExEdge.src(),
-            pojoExEdge.dst(),
+            pojoExEdge.ID,
+            pojoExEdge.src,
+            pojoExEdge.dst,
             timestamp
     )
 }

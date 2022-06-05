@@ -1,6 +1,6 @@
 package com.raphtory.components.graphbuilder
 
-import Properties._
+import com.raphtory.components.graphbuilder.Properties._
 
 /** Properties are characteristic attributes like name, etc. assigned to Vertices and Edges by the [Graph Builder](com.raphtory.components.graphbuilder.GraphBuilder).
   * @see [[com.raphtory.components.graphbuilder.GraphBuilder]]

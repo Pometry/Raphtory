@@ -1,19 +1,12 @@
 package com.raphtory.examples.twitter.livetwitterstream
 
 import com.raphtory.algorithms.generic.EdgeList
-import com.raphtory.api.graphview.Alignment
 import com.raphtory.deployment.Raphtory
 import com.raphtory.sinks.PulsarSink
-import com.raphtory.twitter.LiveTwitterRetweetGraphBuilder
-import com.raphtory.twitter.LiveTwitterSpout
-import com.raphtory.twitter.LiveTwitterUserGraphBuilder
-import com.raphtory.output.FileOutputFormat
-import com.raphtory.output.PulsarOutputFormat
-import com.raphtory.twitter.LiveTwitterRetweetGraphBuilder
-import com.raphtory.twitter.LiveTwitterSpout
-import com.raphtory.twitter.LiveTwitterUserGraphBuilder
+import com.raphtory.twitter.builder.LiveTwitterRetweetGraphBuilder
+import com.raphtory.twitter.builder.LiveTwitterUserGraphBuilder
+import com.raphtory.twitter.spout.LiveTwitterSpout
 import com.typesafe.config.Config
-import io.github.redouane59.twitter.dto.tweet.Tweet
 
 object Runner {
   val raphtoryConfig: Config = Raphtory.getDefaultConfig()

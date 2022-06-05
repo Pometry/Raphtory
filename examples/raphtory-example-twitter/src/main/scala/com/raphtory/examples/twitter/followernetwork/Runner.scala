@@ -1,8 +1,5 @@
 package com.raphtory.examples.twitter.followernetwork
 
-import com.raphtory.algorithms.api.Alignment
-import com.raphtory.algorithms.generic.ConnectedComponents
-import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.graphview.Alignment
