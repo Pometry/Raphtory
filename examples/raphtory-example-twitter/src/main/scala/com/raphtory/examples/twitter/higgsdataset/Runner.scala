@@ -1,7 +1,7 @@
 package com.raphtory.examples.twitter.higgsdataset
 
+import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.centrality.PageRank
-import com.raphtory.deployment.Raphtory
 import com.raphtory.examples.twitter.higgsdataset.analysis.MemberRank
 import com.raphtory.examples.twitter.higgsdataset.analysis.TemporalMemberRank
 import com.raphtory.examples.twitter.higgsdataset.graphbuilders.TwitterGraphBuilder

@@ -1,7 +1,7 @@
 package com.raphtory.ethereumtest
 
-import com.raphtory.components.spout.Spout
-import com.raphtory.deployment.Raphtory
+import com.raphtory.Raphtory
+import com.raphtory.api.input.Spout
 
 import scala.language.postfixOps
 import sys.process._

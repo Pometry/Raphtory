@@ -1,9 +1,9 @@
 package com.raphtory.examples.twitter.followernetwork
 
+import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.EdgeList
-import com.raphtory.api.graphview.Alignment
-import com.raphtory.deployment.Raphtory
+import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.examples.twitter.followernetwork.graphbuilders.TwitterCirclesGraphBuilder
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.StaticGraphSpout

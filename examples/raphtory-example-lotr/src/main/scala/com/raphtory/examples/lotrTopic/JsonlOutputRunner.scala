@@ -1,7 +1,7 @@
 package com.raphtory.examples.lotrTopic
 
+import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.NodeInformation
-import com.raphtory.deployment.Raphtory
 import com.raphtory.examples.lotrTopic.graphbuilders.LOTRGraphBuilder
 import com.raphtory.formats.JsonlFormat
 import com.raphtory.sinks.FileSink

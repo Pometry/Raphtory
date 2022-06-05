@@ -1,11 +1,11 @@
 package com.raphtory.examples.gab;
 
+import com.raphtory.Raphtory
 import com.raphtory.examples.gab.graphbuilders.GabUserGraphBuilder
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.EdgeList
-import com.raphtory.api.graphview.Alignment
-import com.raphtory.components.spout.Spout
-import com.raphtory.deployment.Raphtory
+import com.raphtory.api.analysis.graphview.Alignment
+import com.raphtory.api.input.Spout
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.ResourceSpout

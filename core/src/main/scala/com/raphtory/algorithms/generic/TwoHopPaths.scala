@@ -4,10 +4,10 @@ import com.raphtory.algorithms.generic.TwoHopPaths.Message
 import com.raphtory.algorithms.generic.TwoHopPaths.RequestFirstHop
 import com.raphtory.algorithms.generic.TwoHopPaths.RequestSecondHop
 import com.raphtory.algorithms.generic.TwoHopPaths.Response
-import com.raphtory.api.algorithm.Generic
-import com.raphtory.api.graphview.GraphPerspective
-import com.raphtory.api.table.Row
-import com.raphtory.api.table.Table
+import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 
 import scala.collection.mutable.ArrayBuffer
 

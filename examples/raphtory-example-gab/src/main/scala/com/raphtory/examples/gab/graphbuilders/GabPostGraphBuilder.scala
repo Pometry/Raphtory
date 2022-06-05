@@ -1,6 +1,6 @@
 package com.raphtory.examples.gab.graphbuilders
 
-import com.raphtory.components.graphbuilder.GraphBuilder
+import com.raphtory.api.input.GraphBuilder
 
 import java.text.SimpleDateFormat
 

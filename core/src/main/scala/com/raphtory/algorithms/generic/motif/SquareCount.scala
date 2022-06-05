@@ -2,8 +2,8 @@ package com.raphtory.algorithms.generic.motif
 
 import com.raphtory.algorithms.generic.AdjPlus
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.api.algorithm.Generic
-import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.graphview.GraphPerspective
 
 import scala.collection.mutable
 

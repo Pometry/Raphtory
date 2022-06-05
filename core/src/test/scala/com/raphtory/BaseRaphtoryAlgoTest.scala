@@ -1,14 +1,13 @@
 package com.raphtory
 
 import com.google.common.hash.Hashing
-import com.raphtory.algorithms.api.Sink
-import com.raphtory.api.algorithm.GenericallyApplicable
-import com.raphtory.api.graphview.Alignment
-import com.raphtory.api.graphview.DeployedTemporalGraph
-import com.raphtory.communication.connectors.PulsarConnector
-import com.raphtory.components.graphbuilder.GraphBuilder
-import com.raphtory.components.spout.Spout
-import com.raphtory.deployment.Raphtory
+import com.raphtory.api.analysis.algorithm.GenericallyApplicable
+import com.raphtory.api.analysis.graphview.Alignment
+import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
+import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Spout
+import com.raphtory.api.output.sink.Sink
+import com.raphtory.internal.communication.connectors.PulsarConnector
 import com.raphtory.sinks.FileSink
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger

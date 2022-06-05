@@ -1,7 +1,7 @@
 package com.raphtory.examples.twitter.livetwitterstream
 
+import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
-import com.raphtory.deployment.Raphtory
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.twitter.builder.LiveTwitterRetweetGraphBuilder
 import com.raphtory.twitter.builder.LiveTwitterUserGraphBuilder

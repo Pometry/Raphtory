@@ -1,6 +1,6 @@
 package com.raphtory.algorithms.generic
 
-import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.analysis.graphview.GraphPerspective
 
 import scala.math.Ordering.Implicits._
 

@@ -1,10 +1,10 @@
 package com.raphtory.algorithms.generic.community
 
 import com.raphtory.algorithms.generic.community.SLPA.Rule
-import com.raphtory.api.algorithm.Generic
-import com.raphtory.api.graphview.GraphPerspective
-import com.raphtory.api.table.Row
-import com.raphtory.api.table.Table
+import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 
 import scala.collection.mutable
 import scala.util.Random

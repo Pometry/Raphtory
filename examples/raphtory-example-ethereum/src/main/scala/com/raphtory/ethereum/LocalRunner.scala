@@ -1,7 +1,7 @@
 package com.raphtory.ethereum
 
+import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.ConnectedComponents
-import com.raphtory.deployment.Raphtory
 import com.raphtory.ethereum.graphbuilder.EthereumGraphBuilder
 import com.raphtory.ethereum.analysis.Taint
 import com.raphtory.sinks.FileSink

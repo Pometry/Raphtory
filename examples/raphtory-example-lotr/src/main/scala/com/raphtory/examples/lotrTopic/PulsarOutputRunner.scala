@@ -1,9 +1,9 @@
 package com.raphtory.examples.lotrTopic
 
+import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.centrality.PageRank
-import com.raphtory.api.graphview.Alignment
-import com.raphtory.deployment.Raphtory
+import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.examples.lotrTopic.graphbuilders.LOTRGraphBuilder
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.FileSpout

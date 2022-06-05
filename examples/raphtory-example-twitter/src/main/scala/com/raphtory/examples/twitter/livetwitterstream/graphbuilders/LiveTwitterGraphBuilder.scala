@@ -1,9 +1,12 @@
 package com.raphtory.examples.twitter.livetwitterstream.graphbuilders
 
-import com.raphtory.components.graphbuilder.GraphBuilder
-import com.raphtory.components.graphbuilder.Properties.{ImmutableProperty, Properties, Type}
+import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.Properties
+import com.raphtory.api.input.Type
 
 class LiveTwitterGraphBuilder extends GraphBuilder[String] {
+
   override def parseTuple(tuple: String): Unit = {
     val fileLine   = tuple.split(" ").map(_.trim)
     val sourceNode = fileLine(0)

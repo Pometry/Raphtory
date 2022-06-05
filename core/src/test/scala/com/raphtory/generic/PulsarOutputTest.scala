@@ -2,9 +2,9 @@ package com.raphtory.generic
 
 import com.raphtory.BaseRaphtoryAlgoTest
 import com.raphtory.algorithms.generic.EdgeList
-import com.raphtory.api.graphview.Alignment
-import com.raphtory.components.graphbuilder.GraphBuilder
-import com.raphtory.components.spout.Spout
+import com.raphtory.api.analysis.graphview.Alignment
+import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Spout
 import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.FileSpout

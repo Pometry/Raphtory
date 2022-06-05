@@ -1,5 +1,7 @@
 package com.raphtory.time
 
+import com.raphtory.internal.time.IntervalParser
+import com.raphtory.internal.time.InvalidIntervalException
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Duration

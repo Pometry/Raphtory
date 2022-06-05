@@ -1,11 +1,12 @@
 package com.raphtory.graph
 
-import com.raphtory.api.graphview.Alignment
-import com.raphtory.components.querymanager.PointPath
-import com.raphtory.components.querymanager.Query
-import com.raphtory.time.DateTimeParser.{defaultParse => parseDateTime}
-import com.raphtory.time.IntervalParser.{parse => parseInterval}
+import com.raphtory.api.analysis.graphview.Alignment
+import com.raphtory.internal.components.querymanager.PointPath
+import com.raphtory.internal.components.querymanager.Query
+import com.raphtory.internal.graph.PerspectiveController
 import org.scalatest.funsuite.AnyFunSuite
+import com.raphtory.internal.time.IntervalParser.{parse => parseInterval}
+import com.raphtory.internal.time.DateTimeParser.{defaultParse => parseDateTime}
 
 class PerspectiveControllerTest extends AnyFunSuite {
   test("A range of perspectives is correctly generated") {

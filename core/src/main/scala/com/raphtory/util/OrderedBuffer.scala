@@ -1,6 +1,6 @@
 package com.raphtory.util
 
-import com.raphtory.api.visitor.HistoricEvent
+import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 

@@ -1,7 +1,7 @@
 package com.raphtory.ethereum
 
-import com.raphtory.components.spout.Spout
-import com.raphtory.deployment.RaphtoryService
+import com.raphtory.RaphtoryService
+import com.raphtory.api.input.Spout
 import com.raphtory.ethereum.graphbuilder.EthereumGraphBuilder
 import com.raphtory.spouts.FileSpout
 import com.raphtory.util.FileUtils
