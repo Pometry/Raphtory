@@ -5,13 +5,11 @@ import com.raphtory.components.Component
 import com.raphtory.components.querymanager.EndQuery
 import com.raphtory.components.querymanager.EstablishExecutor
 import com.raphtory.components.querymanager.QueryManagement
-import com.raphtory.components.querymanager.WatermarkTime
 import com.raphtory.config.MonixScheduler
 import com.raphtory.graph.GraphPartition
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import monix.execution.Cancelable
-import org.apache.pulsar.client.api.Consumer
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable

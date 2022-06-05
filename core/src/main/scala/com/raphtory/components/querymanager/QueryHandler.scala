@@ -1,24 +1,7 @@
 package com.raphtory.components.querymanager
 
-import com.raphtory.graph.PerspectiveController.DEFAULT_PERSPECTIVE_TIME
-import com.raphtory.graph.PerspectiveController.DEFAULT_PERSPECTIVE_WINDOW
-import Stages.SpawnExecutors
-import Stages.Stage
 import com.raphtory.api.graphstate.GraphStateImplementation
-import com.raphtory.api.graphview.ClearChain
-import com.raphtory.api.graphview.ExplodeSelect
-import com.raphtory.api.graphview.GlobalSelect
-import com.raphtory.api.graphview.GraphFunction
-import com.raphtory.api.graphview.Iterate
-import com.raphtory.api.graphview.IterateWithGraph
-import com.raphtory.api.graphview.MultilayerView
-import com.raphtory.api.graphview.PerspectiveDone
-import com.raphtory.api.graphview.ReduceView
-import com.raphtory.api.graphview.Select
-import com.raphtory.api.graphview.SelectWithGraph
-import com.raphtory.api.graphview.SetGlobalState
-import com.raphtory.api.graphview.Step
-import com.raphtory.api.graphview.StepWithGraph
+import com.raphtory.api.graphview._
 import com.raphtory.api.table.TableFunction
 import com.raphtory.communication.TopicRepository
 import com.raphtory.communication.connectors.PulsarConnector

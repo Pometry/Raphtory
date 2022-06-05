@@ -6,9 +6,9 @@ import com.raphtory.api.table.Row
 import com.raphtory.api.table.Table
 import com.raphtory.util.ExtendedNumeric.numericFromInt
 
-import collection.mutable
-import math.Numeric.Implicits._
+import scala.collection.mutable
 import scala.language.existentials
+import scala.math.Numeric.Implicits._
 import scala.math.Ordering.Implicits.infixOrderingOps
 
 /** {s}`MaxFlow[T](source: String, target: String, capacityLabel: String = "weight", maxIterations: Int = Int.MaxValue)`

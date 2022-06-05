@@ -3,7 +3,7 @@ package com.raphtory.algorithms.generic.dynamic
 import com.raphtory.api.visitor.Vertex
 import com.raphtory.util.Sampling._
 
-import math.Numeric.Implicits._
+import scala.math.Numeric.Implicits._
 
 class WeightedRandomWalk[T: Numeric](
     walkLength: Int,

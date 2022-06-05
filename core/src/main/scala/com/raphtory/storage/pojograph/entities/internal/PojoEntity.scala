@@ -1,10 +1,10 @@
 package com.raphtory.storage.pojograph.entities.internal
 
-import scala.collection.mutable
 import com.raphtory.util.OrderedBuffer._
 
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
+import scala.collection.mutable
 
 /** @note DoNotDocument
   * Represents Graph Entities (Edges and Vertices)

@@ -1,6 +1,7 @@
 package com.raphtory.spouts
 
 import com.raphtory.components.spout.Spout
+
 import scala.io.Source
 
 case class StaticGraphSpout(fileDataPath: String) extends Spout[String] {

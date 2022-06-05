@@ -1,10 +1,10 @@
 package com.raphtory.deployment.kubernetes.components
 
 import com.raphtory.deployment.Raphtory
-
-import java.util
 import com.raphtory.deployment.kubernetes.utils.KubernetesLogger
 import com.typesafe.config
+
+import java.util
 
 /** Reads kubernetes configuration values from application.conf.
   */

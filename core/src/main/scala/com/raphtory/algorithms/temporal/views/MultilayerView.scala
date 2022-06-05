@@ -1,6 +1,5 @@
 package com.raphtory.algorithms.temporal.views
 
-import com.raphtory.api.algorithm.Generic
 import com.raphtory.api.algorithm.MultilayerProjection
 import com.raphtory.api.graphview.GraphPerspective
 import com.raphtory.api.visitor.InterlayerEdge

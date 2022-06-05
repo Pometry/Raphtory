@@ -14,6 +14,7 @@ import com.raphtory.deployment.kubernetes.components._
   * [[com.raphtory.deployment.kubernetes.components.RaphtoryKubernetesIngresses]]
   */
 object Deploy {
+
   /** Deploy Kubernetes resources */
   def main(args: Array[String]): Unit = {
     RaphtoryKubernetesNamespaces.create

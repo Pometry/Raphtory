@@ -1,8 +1,8 @@
 package com.raphtory.api.visitor
 
-import PropertyMergeStrategy.PropertyMerge
 import com.raphtory.api.visitor
-import EdgeDirection.Direction
+import com.raphtory.api.visitor.EdgeDirection.Direction
+import com.raphtory.api.visitor.PropertyMergeStrategy.PropertyMerge
 
 import scala.reflect.ClassTag
 

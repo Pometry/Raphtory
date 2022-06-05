@@ -1,9 +1,9 @@
 package com.raphtory.api.graphview
 
 import com.raphtory.api.graphstate.GraphState
-import com.raphtory.api.visitor
 import com.raphtory.api.table.Row
 import com.raphtory.api.table.Table
+import com.raphtory.api.visitor
 import com.raphtory.api.visitor.Edge
 import com.raphtory.api.visitor.ExplodedVertex
 import com.raphtory.api.visitor.InterlayerEdge

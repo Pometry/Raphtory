@@ -1,7 +1,6 @@
 package com.raphtory.algorithms.generic.filters
 
 import com.raphtory.api.algorithm.Generic
-import com.raphtory.api.algorithm.Identity
 import com.raphtory.api.graphstate.GraphState
 import com.raphtory.api.graphview.GraphPerspective
 import com.raphtory.api.visitor.Edge

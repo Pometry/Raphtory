@@ -1,15 +1,15 @@
 package com.raphtory.algorithms.generic.dynamic
 
 import com.raphtory.algorithms.generic.dynamic.RandomWalk.Message
-import com.raphtory.algorithms.generic.dynamic.RandomWalk.WalkMessage
 import com.raphtory.algorithms.generic.dynamic.RandomWalk.StoreMessage
+import com.raphtory.algorithms.generic.dynamic.RandomWalk.WalkMessage
 import com.raphtory.api.algorithm.Generic
 import com.raphtory.api.graphview.GraphPerspective
 import com.raphtory.api.table.Row
 import com.raphtory.api.table.Table
 import com.raphtory.api.visitor.Vertex
 
-import collection.mutable.ArrayBuffer
+import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
 /**

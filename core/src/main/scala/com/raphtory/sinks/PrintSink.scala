@@ -4,9 +4,6 @@ import com.raphtory.formats.CsvFormat
 import com.raphtory.formats.Format
 import com.typesafe.config.Config
 
-import java.io.OutputStreamWriter
-import java.io.Writer
-
 case class PrintSink(format: Format = CsvFormat()) extends FormatAgnosticSink(format) {
 
   override protected def buildConnector(

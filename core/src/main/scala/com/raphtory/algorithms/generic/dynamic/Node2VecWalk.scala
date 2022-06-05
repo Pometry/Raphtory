@@ -112,7 +112,7 @@ class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) exten
               false
       ) // make iterate act on all vertices
       .step { vertex =>
-//        store last step of random walk
+        //        store last step of random walk
         import vertex._
         vertex.messageQueue[Messages[vertex.IDType]].foreach {
           case StoreMessage(node)   => vertex.getState[ArrayBuffer[String]]("walk").append(node)

@@ -3,9 +3,10 @@ package com.raphtory.deployment.kubernetes.utils
 import io.fabric8.kubernetes.api.model.Namespace
 import io.fabric8.kubernetes.api.model.NamespaceBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
+
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.collection.JavaConverters._
 
 /** Kubernetes Namespace */
 object KubernetesNamespace {
@@ -26,7 +27,7 @@ object KubernetesNamespace {
     namespaces
   }
 
-  /**  Create Kubernetes namespace */
+  /** Create Kubernetes namespace */
   def create(
       client: KubernetesClient,
       name: String,

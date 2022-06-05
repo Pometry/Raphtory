@@ -1,9 +1,9 @@
 package com.raphtory.components.querymanager
 
+import com.raphtory.algorithms.api.Sink
 import com.raphtory.api.graphstate.GraphStateImplementation
 import com.raphtory.api.graphview.Alignment
 import com.raphtory.api.graphview.GraphFunction
-import com.raphtory.algorithms.api.Sink
 import com.raphtory.api.table.TableFunction
 import com.raphtory.graph.Perspective
 import com.raphtory.time.Interval

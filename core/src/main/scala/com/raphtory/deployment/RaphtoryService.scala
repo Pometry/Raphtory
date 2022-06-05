@@ -3,11 +3,9 @@ package com.raphtory.deployment
 import com.raphtory.components.graphbuilder.GraphBuilder
 import com.raphtory.components.spout.Spout
 import com.typesafe.scalalogging.Logger
-import org.apache.pulsar.client.api.Schema
 import org.slf4j.LoggerFactory
 
 import scala.reflect.ClassTag
-import scala.reflect.runtime.universe.TypeTag
 
 /** `RaphtoryService` is used for distributed deployment of Raphtory as a service.
   * This is done by deploying each of it's core components - spout, graphbuilder, partitions and query manager

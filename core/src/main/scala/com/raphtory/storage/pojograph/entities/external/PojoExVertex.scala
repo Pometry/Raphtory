@@ -1,12 +1,11 @@
 package com.raphtory.storage.pojograph.entities.external
 
+import com.raphtory.api.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.api.visitor.HistoricEvent
 import com.raphtory.api.visitor.InterlayerEdge
-import com.raphtory.api.visitor.PropertyMergeStrategy
 import com.raphtory.api.visitor.ReducedVertex
 import com.raphtory.api.visitor.Vertex
 import com.raphtory.components.querymanager.GenericVertexMessage
-import com.raphtory.api.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.storage.pojograph.PojoGraphLens
 import com.raphtory.storage.pojograph.entities.internal.PojoVertex
 
