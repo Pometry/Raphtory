@@ -1,4 +1,4 @@
-package com.raphtory.kubernetes.components
+package components
 
 import io.fabric8.kubernetes.client.ConfigBuilder
 import io.fabric8.kubernetes.client.DefaultKubernetesClient

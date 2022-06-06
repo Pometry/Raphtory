@@ -1,4 +1,4 @@
-package com.raphtory.kubernetes.utils
+package utils
 
 import io.fabric8.kubernetes.api.model.ServiceAccount
 import io.fabric8.kubernetes.api.model.ServiceAccountBuilder

@@ -1,4 +1,4 @@
-package com.raphtory.kubernetes.utils
+package utils
 
 import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress

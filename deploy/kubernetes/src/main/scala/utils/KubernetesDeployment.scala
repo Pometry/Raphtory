@@ -1,4 +1,4 @@
-package com.raphtory.kubernetes.utils
+package utils
 
 import com.typesafe.config.Config
 import io.fabric8.kubernetes.api.model._

@@ -1,6 +1,6 @@
-package com.raphtory.kubernetes.components
+package components
 
-import com.raphtory.kubernetes.utils.KubernetesNamespace
+import utils._
 
 /** Extends KubernetesClient which extends Config.
   * KubernetesClient is used to establish kubernetes connection.

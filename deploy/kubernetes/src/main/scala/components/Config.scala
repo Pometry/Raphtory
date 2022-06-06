@@ -1,16 +1,18 @@
-package com.raphtory.kubernetes.components
+package components
 
-import com.raphtory.Raphtory
-import com.raphtory.kubernetes.utils
-import com.raphtory.kubernetes.utils.KubernetesLogger
-import com.typesafe.config
-
+import com.typesafe.config._
+import utils.KubernetesLogger
 import java.util
 
 /** Reads kubernetes configuration values from application.conf.
   */
 class Config {
-  val conf: config.Config          = Raphtory.getDefaultConfig(distributed = true)
+  var conf = ConfigFactory
+    .defaultOverrides()
+    .withFallback(
+      ConfigFactory.defaultApplication()
+    ).resolve()
+
   val raphtoryDeploymentId: String = conf.getString("raphtory.deploy.id")
 
   val raphtoryKubernetesNamespaceName: String =
