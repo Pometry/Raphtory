@@ -11,7 +11,7 @@ import com.raphtory.api.analysis.table.Table
 import scala.reflect.ClassTag
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
-import com.raphtory.util.Sampling._
+import com.raphtory.utils.Sampling._
 
 import scala.collection.compat.immutable.ArraySeq
 

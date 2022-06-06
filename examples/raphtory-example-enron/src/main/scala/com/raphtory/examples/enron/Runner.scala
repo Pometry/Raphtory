@@ -7,7 +7,7 @@ import com.raphtory.examples.enron.graphbuilders.EnronGraphBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.FileSpout
-import com.raphtory.util.FileUtils
+import com.raphtory.utils.FileUtils
 
 object Runner extends App {
 

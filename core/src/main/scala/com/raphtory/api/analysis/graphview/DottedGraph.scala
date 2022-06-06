@@ -1,8 +1,8 @@
 package com.raphtory.api.analysis.graphview
 
-import com.raphtory.internal.time.DiscreteInterval
-import com.raphtory.internal.time.Interval
-import com.raphtory.internal.time.IntervalParser.{parse => parseInterval}
+import com.raphtory.internals.time.DiscreteInterval
+import com.raphtory.internals.time.Interval
+import com.raphtory.internals.time.IntervalParser.{parse => parseInterval}
 
 import scala.reflect.ClassTag
 

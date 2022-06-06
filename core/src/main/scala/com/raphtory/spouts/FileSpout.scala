@@ -2,8 +2,8 @@ package com.raphtory.spouts
 
 import com.raphtory.Raphtory
 import com.raphtory.api.input.Spout
-import com.raphtory.internal.management.telemetry.ComponentTelemetryHandler
-import com.raphtory.util.FileUtils
+import com.raphtory.internals.management.telemetry.ComponentTelemetryHandler
+import com.raphtory.utils.FileUtils
 import com.typesafe.config.Config
 
 import java.io.File

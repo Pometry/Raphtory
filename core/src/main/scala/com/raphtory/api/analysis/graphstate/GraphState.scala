@@ -1,9 +1,9 @@
 package com.raphtory.api.analysis.graphstate
 
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.util.Bounded
-import com.raphtory.util.Bounded._
-import com.raphtory.util.ExtendedNumeric._
+import com.raphtory.utils.Bounded
+import com.raphtory.utils.Bounded._
+import com.raphtory.utils.ExtendedNumeric._
 
 /**
   * Public interface for global accumulators

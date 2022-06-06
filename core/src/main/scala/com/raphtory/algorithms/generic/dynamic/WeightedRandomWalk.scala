@@ -1,7 +1,7 @@
 package com.raphtory.algorithms.generic.dynamic
 
 import com.raphtory.api.analysis.visitor.Vertex
-import com.raphtory.util.Sampling._
+import com.raphtory.utils.Sampling._
 
 import scala.math.Numeric.Implicits._
 

@@ -11,8 +11,8 @@ import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.generic.CheckHistory.isSortedIncreasing
 import com.raphtory.spouts.SequenceSpout
-import com.raphtory.util.OrderedBuffer
-import com.raphtory.util.OrderedBuffer.HistoricEventOrdering
+import com.raphtory.utils.OrderedBuffer
+import com.raphtory.utils.OrderedBuffer.HistoricEventOrdering
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.io.Source

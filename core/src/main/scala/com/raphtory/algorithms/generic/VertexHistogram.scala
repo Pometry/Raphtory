@@ -5,7 +5,7 @@ import com.raphtory.api.analysis.graphstate.Histogram
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
-import com.raphtory.util.Bounded
+import com.raphtory.utils.Bounded
 
 import scala.reflect.ClassTag
 

@@ -1,6 +1,6 @@
 package com.raphtory.api.analysis.graphstate
 
-import com.raphtory.util.Bounded
+import com.raphtory.utils.Bounded
 
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint

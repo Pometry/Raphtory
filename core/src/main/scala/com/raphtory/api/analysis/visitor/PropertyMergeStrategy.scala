@@ -1,6 +1,6 @@
 package com.raphtory.api.analysis.visitor
 
-import com.raphtory.util.Reduction._
+import com.raphtory.utils.Reduction._
 
 /** Collection of pre-defined merge strategies.
   *

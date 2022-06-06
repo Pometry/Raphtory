@@ -6,9 +6,9 @@ import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.output.format.Format
 import com.raphtory.api.output.sink.SinkConnector
 import com.raphtory.api.output.sink.SinkExecutor
-import com.raphtory.internal.graph.Perspective
-import com.raphtory.internal.time.DiscreteInterval
-import com.raphtory.internal.time.TimeInterval
+import com.raphtory.internals.graph.Perspective
+import com.raphtory.internals.time.DiscreteInterval
+import com.raphtory.internals.time.TimeInterval
 import com.typesafe.config.Config
 
 import java.io.StringWriter

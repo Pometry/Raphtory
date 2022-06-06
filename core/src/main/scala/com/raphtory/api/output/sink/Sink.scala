@@ -1,7 +1,7 @@
 package com.raphtory.api.output.sink
 
 import com.raphtory.api.analysis.table.Row
-import com.raphtory.internal.graph.Perspective
+import com.raphtory.internals.graph.Perspective
 import com.raphtory.sinks.FileSink
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger

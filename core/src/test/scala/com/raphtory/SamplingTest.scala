@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
-import com.raphtory.util.Sampling._
+import com.raphtory.utils.Sampling._
 
 import scala.collection.compat.immutable.ArraySeq
 

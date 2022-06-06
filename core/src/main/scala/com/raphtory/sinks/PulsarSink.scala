@@ -6,8 +6,8 @@ import com.raphtory.api.output.sink.MessageSinkConnector
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.output.sink.SinkConnector
 import com.raphtory.formats.CsvFormat
-import com.raphtory.internal.communication.connectors.PulsarConnector
-import com.raphtory.internal.management.client.GraphDeployment
+import com.raphtory.internals.communication.connectors.PulsarConnector
+import com.raphtory.internals.management.client.GraphDeployment
 import com.typesafe.config.Config
 import org.apache.pulsar.client.api.Schema
 

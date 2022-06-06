@@ -3,7 +3,7 @@ package com.raphtory.algorithms.generic.filters
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphstate.Histogram
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.util.Bounded
+import com.raphtory.utils.Bounded
 
 import scala.language.implicitConversions
 import scala.math.Numeric.Implicits.infixNumericOps

@@ -7,7 +7,7 @@ import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.output.sink.SinkConnector
 import com.raphtory.api.output.sink.StreamSinkConnector
 import com.raphtory.formats.CsvFormat
-import com.raphtory.internal.management.client.GraphDeployment
+import com.raphtory.internals.management.client.GraphDeployment
 import com.typesafe.config.Config
 
 import java.io.File

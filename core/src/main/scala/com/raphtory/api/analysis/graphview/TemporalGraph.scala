@@ -1,16 +1,16 @@
 package com.raphtory.api.analysis.graphview
 
 import com.raphtory.api.analysis.visitor.ExplodedVertex
-import com.raphtory.internal.components.querymanager.PointPath
-import com.raphtory.internal.components.querymanager.Query
-import com.raphtory.internal.components.querymanager.SinglePoint
-import com.raphtory.internal.management.client.QuerySender
-import com.raphtory.internal.time.DateTimeParser
-import com.raphtory.internal.time.DiscreteInterval
-import com.raphtory.internal.time.Interval
-import com.raphtory.internal.time.NullInterval
+import com.raphtory.internals.components.querymanager.PointPath
+import com.raphtory.internals.components.querymanager.Query
+import com.raphtory.internals.components.querymanager.SinglePoint
+import com.raphtory.internals.management.client.QuerySender
+import com.raphtory.internals.time.DateTimeParser
+import com.raphtory.internals.time.DiscreteInterval
+import com.raphtory.internals.time.Interval
+import com.raphtory.internals.time.NullInterval
 import com.typesafe.config.Config
-import com.raphtory.internal.time.IntervalParser.{parse => parseInterval}
+import com.raphtory.internals.time.IntervalParser.{parse => parseInterval}
 
 private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <: FixedGraph[
         FixedG

@@ -1,7 +1,7 @@
 package com.raphtory.api.input
 
-import com.raphtory.internal.components.partition.BatchWriter
-import com.raphtory.internal.management.telemetry.ComponentTelemetryHandler
+import com.raphtory.internals.components.partition.BatchWriter
+import com.raphtory.internals.management.telemetry.ComponentTelemetryHandler
 import com.typesafe.scalalogging.Logger
 import net.openhft.hashing.LongHashFunction
 import org.slf4j.LoggerFactory

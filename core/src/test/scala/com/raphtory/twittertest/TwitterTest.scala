@@ -3,7 +3,7 @@ package com.raphtory.twittertest
 import com.raphtory.BaseRaphtoryAlgoTest
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.input.GraphBuilder
-import com.raphtory.internal.components.spout.SpoutExecutor
+import com.raphtory.internals.components.spout.SpoutExecutor
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.StaticGraphSpout
 import org.apache.pulsar.client.api.Schema

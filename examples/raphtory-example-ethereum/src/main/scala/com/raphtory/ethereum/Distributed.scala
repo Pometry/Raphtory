@@ -4,7 +4,7 @@ import com.raphtory.RaphtoryService
 import com.raphtory.api.input.Spout
 import com.raphtory.ethereum.graphbuilder.EthereumGraphBuilder
 import com.raphtory.spouts.FileSpout
-import com.raphtory.util.FileUtils
+import com.raphtory.utils.FileUtils
 import com.typesafe.config.ConfigFactory
 
 object Distributed extends RaphtoryService[String] {

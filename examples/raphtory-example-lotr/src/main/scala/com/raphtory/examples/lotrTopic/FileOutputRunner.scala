@@ -10,7 +10,7 @@ import com.raphtory.algorithms.generic.centrality.Degree
 import com.raphtory.algorithms.generic.centrality.WeightedDegree
 import com.raphtory.algorithms.generic.filters.EdgeQuantileFilter
 import com.raphtory.algorithms.generic.filters.VertexQuantileFilter
-import com.raphtory.util.FileUtils
+import com.raphtory.utils.FileUtils
 
 import scala.language.postfixOps
 import sys.process._

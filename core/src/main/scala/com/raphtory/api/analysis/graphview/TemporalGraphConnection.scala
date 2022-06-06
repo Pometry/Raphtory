@@ -1,9 +1,9 @@
 package com.raphtory.api.analysis.graphview
 
-import com.raphtory.internal.communication.TopicRepository
-import com.raphtory.internal.components.querymanager.Query
-import com.raphtory.internal.management.MonixScheduler
-import com.raphtory.internal.management.client.QuerySender
+import com.raphtory.internals.communication.TopicRepository
+import com.raphtory.internals.components.querymanager.Query
+import com.raphtory.internals.management.MonixScheduler
+import com.raphtory.internals.management.client.QuerySender
 import com.typesafe.config.Config
 
 /**  `TemporalGraphConnection` is a wrapper for the `TemporalGraph` class normally used to interact with Raphtory graphs.

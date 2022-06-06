@@ -1,9 +1,9 @@
 package com.raphtory.api.analysis.table
 
 import com.raphtory.api.output.sink.Sink
-import com.raphtory.internal.components.querymanager.Query
-import com.raphtory.internal.components.querytracker.QueryProgressTracker
-import com.raphtory.internal.management.client.QuerySender
+import com.raphtory.internals.components.querymanager.Query
+import com.raphtory.internals.components.querytracker.QueryProgressTracker
+import com.raphtory.internals.management.client.QuerySender
 
 /** @note DoNotDocument */
 private[api] class TableImplementation(val query: Query, private val querySender: QuerySender)

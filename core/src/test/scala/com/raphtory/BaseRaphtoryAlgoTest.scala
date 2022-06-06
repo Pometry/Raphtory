@@ -7,7 +7,7 @@ import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
 import com.raphtory.api.output.sink.Sink
-import com.raphtory.internal.communication.connectors.PulsarConnector
+import com.raphtory.internals.communication.connectors.PulsarConnector
 import com.raphtory.sinks.FileSink
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger

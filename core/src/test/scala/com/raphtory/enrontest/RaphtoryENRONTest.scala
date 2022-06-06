@@ -6,7 +6,7 @@ import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
-import com.raphtory.internal.components.spout.SpoutExecutor
+import com.raphtory.internals.components.spout.SpoutExecutor
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import org.apache.pulsar.client.api.Schema

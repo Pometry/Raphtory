@@ -8,10 +8,10 @@ import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
 import com.raphtory.api.input.VertexAdd
 import com.raphtory.api.input.GraphBuilder.assignID
-import com.raphtory.internal.communication.connectors.PulsarConnector
+import com.raphtory.internals.communication.connectors.PulsarConnector
 import com.raphtory.api.input.Properties._
-import com.raphtory.internal.components.graphbuilder.BuilderExecutor
-import com.raphtory.internal.serialisers.KryoSerialiser
+import com.raphtory.internals.components.graphbuilder.BuilderExecutor
+import com.raphtory.internals.serialisers.KryoSerialiser
 import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.typesafe.config.Config
 import org.apache.pulsar.client.admin.PulsarAdmin
