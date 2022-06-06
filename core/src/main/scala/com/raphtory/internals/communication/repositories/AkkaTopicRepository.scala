@@ -1,4 +1,4 @@
-package com.raphtory.internals.communication.topicRepositories
+package com.raphtory.internals.communication.repositories
 
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.SpawnProtocol

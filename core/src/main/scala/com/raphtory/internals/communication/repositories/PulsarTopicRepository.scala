@@ -1,4 +1,4 @@
-package com.raphtory.internals.communication.topicRepositories
+package com.raphtory.internals.communication.repositories
 
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.connectors.PulsarConnector

@@ -1,12 +1,8 @@
-package com.raphtory.internals.management.client
+package com.raphtory.internals.management
 
 import com.raphtory.api.analysis.graphview.Deployment
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
-import com.raphtory.internals.management.ComponentFactory
-import com.raphtory.internals.management.MonixScheduler
-import com.raphtory.internals.management.Partitions
-import com.raphtory.internals.management.ThreadedWorker
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import io.prometheus.client.exporter.HTTPServer

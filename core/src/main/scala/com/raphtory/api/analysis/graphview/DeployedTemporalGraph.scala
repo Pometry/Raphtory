@@ -1,7 +1,7 @@
 package com.raphtory.api.analysis.graphview
 
 import com.raphtory.internals.components.querymanager.Query
-import com.raphtory.internals.management.client.QuerySender
+import com.raphtory.internals.management.QuerySender
 import com.typesafe.config.Config
 
 /** Root class for local deployments of the analysis API
