@@ -31,9 +31,7 @@ object KubernetesDeployment {
       matchLabels: Map[String, String],
       environmentVariables: Map[String, String],
       imagePullSecretsName: String,
-      resources: Config,
-      affinity: Config,
-      antiAffinity: Config
+      resources: Config
   ): Deployment = {
 
     // Build environment variables to use in deployment
@@ -88,44 +86,6 @@ object KubernetesDeployment {
         )
     }
 
-    // Build Anti Affinity Term
-    val podAffinity = new AffinityBuilder().build()
-
-    if (affinity.getBoolean("enabled"))
-      println("Affinity enabled")
-    if (antiAffinity.getBoolean("enabled"))
-      println("Anti affinity enabled")
-    //  val podAntiAffinityTerm = new PodAffinityTermBuilder()
-    //    .withTopologyKey(podAntiAffinityTermTopologyKey)
-    //    .withNewLabelSelector()
-    //    .withMatchLabels(podAntiAffinityTermMatchLabels.asJava)
-    //    .endLabelSelector()
-    //    .build();
-//
-    //  podAntiAffinityTerm.setNamespaceSelector(new LabelSelector())
-    //  podAffinity.setPodAntiAffinity(
-    //    new PodAntiAffinityBuilder()
-    //      .withRequiredDuringSchedulingIgnoredDuringExecution(podAntiAffinityTerm)
-    //      .build())
-    //}
-
-    // Build Affinity Term
-    //if (!podAffinityTermMatchLabels.isEmpty) {
-    //  val podAffinityTerm = new PodAffinityTermBuilder()
-    //    .withTopologyKey(podAffinityTermTopologyKey)
-    //    .withNewLabelSelector()
-    //    .withMatchLabels(podAffinityTermMatchLabels.asJava)
-    //    .endLabelSelector()
-    //    .build();
-//
-    //  podAffinityTerm.setNamespaceSelector(new LabelSelector())
-    //  podAffinity.setPodAffinity(
-    //    new PodAffinityBuilder()
-    //      .withRequiredDuringSchedulingIgnoredDuringExecution(podAffinityTerm)
-    //      .build())
-    //}
-
-    // Build Affinity rules for use in deployment
     new DeploymentBuilder()
       .withNewMetadata()
       .withName(name)
@@ -138,7 +98,6 @@ object KubernetesDeployment {
       .addToLabels(labels.asJava)
       .endMetadata()
       .withNewSpec()
-      .withAffinity(podAffinity)
       .addNewContainer()
       .withName(containerName)
       .withImage(containerImage)
