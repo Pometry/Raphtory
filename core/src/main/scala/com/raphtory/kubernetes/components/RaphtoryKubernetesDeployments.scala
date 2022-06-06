@@ -101,12 +101,6 @@ object RaphtoryKubernetesDeployments extends KubernetesClient {
                           environmentVariables = componentEnvVars,
                           resources = conf.getConfig(
                                   s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.resources"
-                          ),
-                          affinity = conf.getConfig(
-                                  s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.affinity"
-                          ),
-                          antiAffinity = conf.getConfig(
-                                  s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.antiAffinity"
                           )
                   )
           )
