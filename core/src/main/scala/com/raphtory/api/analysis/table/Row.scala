@@ -82,7 +82,7 @@ class RowImplementation extends Row {
     exploded = false
   }
 
-  def release: Unit = {
+  def release(): Unit = {
     if (acquired) {
       Row.pool.get().append(this)
       acquired = false
@@ -110,9 +110,9 @@ class RowImplementation extends Row {
 }
 
 object Row {
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  val pool = ThreadLocal.withInitial[ArrayBuffer[RowImplementation]](() =>
+  private[table] val pool = ThreadLocal.withInitial[ArrayBuffer[RowImplementation]](() =>
     ArrayBuffer.empty[RowImplementation]
   )
 
