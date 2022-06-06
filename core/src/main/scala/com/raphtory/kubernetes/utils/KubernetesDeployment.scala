@@ -31,9 +31,7 @@ object KubernetesDeployment {
       matchLabels: Map[String, String],
       environmentVariables: Map[String, String],
       imagePullSecretsName: String,
-      resources: Config,
-      affinity: Config,
-      antiAffinity: Config
+      resources: Config
   ): Deployment = {
 
     // Build environment variables to use in deployment

@@ -77,6 +77,83 @@ object RaphtoryKubernetesDeployments extends KubernetesClient {
           )
 
           KubernetesDeployment.create(
+            deploymentConfig = KubernetesDeployment.build(
+              name = deploymentName,
+              labels = deploymentLabels,
+              matchLabels = deploymentLabels,
+              containerName =
+                s"raphtory-$raphtoryDeploymentId-$raphtoryComponent".toLowerCase(),
+              containerImagePullPolicy = conf.getString(
+                s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.imagePullPolicy"
+              ),
+              imagePullSecretsName = raphtoryKubernetesDockerRegistrySecretName,
+              replicas = conf.getInt(
+                s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.replicas"
+              ),
+              containerImage = conf.getString(
+                s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.image"
+              ),
+              containerPort = conf.getInt(
+                s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.port"
+              ),
+              environmentVariables = componentEnvVars,
+              resources = conf.getConfig(
+                s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.pods.resources"
+              )
+            )
+          )
+        }
+        catch {
+          case e: Throwable =>
+            raphtoryKubernetesLogger.error(
+              s"Error found when deploying $deploymentName deployment for $raphtoryComponent component",
+              e
+            )
+        }
+      }
+      else
+        raphtoryKubernetesLogger.info(
+          s"Setting raphtory.deploy.kubernetes.deployments.$raphtoryComponent.create is set to false"
+        )
+    }
+
+  /** Delete kubernetes deployments needed for Raphtory (if toggled in application.conf) */
+  def delete(): Unit =
+    raphtoryKubernetesDeployments.forEach { raphtoryComponent =>
+      if (conf.hasPath(s"raphtory.deploy.kubernetes.deployments.$raphtoryComponent.create")) {
+        val deploymentName: String =
+          s"raphtory-$raphtoryDeploymentId-$raphtoryComponent".toLowerCase()
+        val deployment             =
+          try Option(
+            KubernetesDeployment.get(
+              client = kubernetesClient,
+              namespace = raphtoryKubernetesNamespaceName,
+              name = deploymentName
+            )
+          )
+          catch {
+            case e: Throwable =>
+              raphtoryKubernetesLogger.error(
+                s"Error found when getting $deploymentName deployment for $raphtoryComponent component",
+                e
+              )
+          }
+
+        deployment match {
+          case None        =>
+            raphtoryKubernetesLogger.debug(
+              s"Deployment $deploymentName not found for $raphtoryComponent. Deployment delete aborted"
+            )
+          case Some(value) =>
+            raphtoryKubernetesLogger.info(
+              s"Deployment $deploymentName found for $raphtoryComponent. Deleting deployment"
+            )
+
+            try KubernetesDeployment.delete(
+              client = kubernetesClient,
+              namespace = raphtoryKubernetesNamespaceName,
+              name = deploymentName
+            )
                   client = kubernetesClient,
                   namespace = raphtoryKubernetesNamespaceName,
                   deploymentConfig = KubernetesDeployment.build(
