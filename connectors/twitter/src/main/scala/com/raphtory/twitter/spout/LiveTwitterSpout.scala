@@ -1,7 +1,7 @@
 package com.raphtory.twitter.spout
 
-import com.raphtory.components.spout.Spout
-import com.raphtory.deployment.Raphtory
+import com.raphtory.Raphtory
+import com.raphtory.api.input.Spout
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import io.github.redouane59.twitter.IAPIEventListener
@@ -11,6 +11,7 @@ import io.github.redouane59.twitter.dto.tweet.Tweet
 import io.github.redouane59.twitter.dto.tweet.TweetType
 import io.github.redouane59.twitter.signature.TwitterCredentials
 import org.slf4j.LoggerFactory
+
 import java.util.concurrent.ConcurrentLinkedQueue
 
 /** Reads in data from the Twitter API

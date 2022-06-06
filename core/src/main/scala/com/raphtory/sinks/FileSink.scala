@@ -1,7 +1,13 @@
 package com.raphtory.sinks
 
+import com.raphtory.api.analysis.table.Table
+import com.raphtory.api.output.format.Format
+import com.raphtory.api.output.sink.FormatAgnosticSink
+import com.raphtory.api.output.sink.Sink
+import com.raphtory.api.output.sink.SinkConnector
+import com.raphtory.api.output.sink.StreamSinkConnector
 import com.raphtory.formats.CsvFormat
-import com.raphtory.formats.Format
+import com.raphtory.internals.management.client.GraphDeployment
 import com.typesafe.config.Config
 
 import java.io.File
@@ -26,9 +32,9 @@ import java.io.FileWriter
   *
   * graph.execute(EdgeList()).writeTo(outputFormat)
   * }}}
-  * @see [[com.raphtory.algorithms.api.Sink]]
-  *      [[com.raphtory.api.table.Table]]
-  *      [[com.raphtory.client.GraphDeployment]]
+  * @see [[Sink]]
+  *      [[Table]]
+  *      [[GraphDeployment]]
   *      [[com.raphtory.deployment.Raphtory]]
   */
 case class FileSink(filePath: String, format: Format = CsvFormat())

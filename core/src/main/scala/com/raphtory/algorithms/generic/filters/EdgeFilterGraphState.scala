@@ -1,9 +1,9 @@
 package com.raphtory.algorithms.generic.filters
 
-import com.raphtory.api.algorithm.Generic
-import com.raphtory.api.graphstate.GraphState
-import com.raphtory.api.graphview.GraphPerspective
-import com.raphtory.api.visitor.Edge
+import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.graphstate.GraphState
+import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.visitor.Edge
 
 /**
   * {s} `EdgeFilter(f: (Vertex, State) => Boolean)`

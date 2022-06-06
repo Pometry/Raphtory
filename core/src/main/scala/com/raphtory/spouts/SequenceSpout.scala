@@ -1,6 +1,6 @@
 package com.raphtory.spouts
 
-import com.raphtory.components.spout.Spout
+import com.raphtory.api.input.Spout
 
 /** Output input messages to Raphtory.
   * This spout is mainly useful for testing functionality

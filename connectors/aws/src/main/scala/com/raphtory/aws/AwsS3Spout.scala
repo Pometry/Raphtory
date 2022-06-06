@@ -9,10 +9,10 @@ import org.slf4j.LoggerFactory
 import com.amazonaws.services.s3.model.GetObjectRequest
 import com.amazonaws.services.s3.model.S3Object
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService
+import com.raphtory.api.input.Spout
 
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import com.raphtory.components.spout.Spout
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 

@@ -1,13 +1,13 @@
 package com.raphtory.examples.twitter.higgsdataset
 
+import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.centrality.PageRank
-import com.raphtory.deployment.Raphtory
 import com.raphtory.examples.twitter.higgsdataset.analysis.MemberRank
 import com.raphtory.examples.twitter.higgsdataset.analysis.TemporalMemberRank
 import com.raphtory.examples.twitter.higgsdataset.graphbuilders.TwitterGraphBuilder
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.FileSpout
-import com.raphtory.util.FileUtils
+import com.raphtory.utils.FileUtils
 
 object Runner extends App {
 

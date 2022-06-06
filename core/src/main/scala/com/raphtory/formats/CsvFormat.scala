@@ -1,9 +1,10 @@
 package com.raphtory.formats
 
-import com.raphtory.algorithms.api.SinkExecutor
-import com.raphtory.api.table.Row
-import com.raphtory.graph.Perspective
-import com.raphtory.sinks.SinkConnector
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.output.format.Format
+import com.raphtory.api.output.sink.SinkConnector
+import com.raphtory.api.output.sink.SinkExecutor
+import com.raphtory.internals.graph.Perspective
 import com.typesafe.config.Config
 
 case class CsvFormat() extends Format {

@@ -1,10 +1,10 @@
 package com.raphtory.algorithms.generic.gametheory
 
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.api.graphview.GraphPerspective
-import com.raphtory.api.table.Row
-import com.raphtory.api.table.Table
-import com.raphtory.api.visitor.Vertex
+import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
+import com.raphtory.api.analysis.visitor.Vertex
 
 import scala.collection.mutable
 import scala.collection.mutable.Queue

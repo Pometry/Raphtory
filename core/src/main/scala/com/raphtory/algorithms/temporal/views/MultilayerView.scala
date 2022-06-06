@@ -1,9 +1,9 @@
 package com.raphtory.algorithms.temporal.views
 
-import com.raphtory.api.algorithm.MultilayerProjection
-import com.raphtory.api.graphview.GraphPerspective
-import com.raphtory.api.visitor.InterlayerEdge
-import com.raphtory.api.visitor.Vertex
+import com.raphtory.api.analysis.algorithm.MultilayerProjection
+import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.visitor.InterlayerEdge
+import com.raphtory.api.analysis.visitor.Vertex
 
 class MultilayerView(
     interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge]

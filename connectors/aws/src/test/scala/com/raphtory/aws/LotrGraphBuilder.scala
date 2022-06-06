@@ -1,7 +1,9 @@
 package com.raphtory.aws
 
-import com.raphtory.components.graphbuilder.GraphBuilder
-import com.raphtory.components.graphbuilder.Properties._
+import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.Properties
+import com.raphtory.api.input.Type
 
 class LOTRGraphBuilder() extends GraphBuilder[String] {
 
@@ -14,18 +16,17 @@ class LOTRGraphBuilder() extends GraphBuilder[String] {
     val timeStamp  = fileLine(2).toLong
 
     addVertex(
-      timeStamp,
-      srcID,
-      Properties(ImmutableProperty("name", sourceNode)),
-      Type("Character")
+            timeStamp,
+            srcID,
+            Properties(ImmutableProperty("name", sourceNode)),
+            Type("Character")
     )
     addVertex(
-      timeStamp,
-      tarID,
-      Properties(ImmutableProperty("name", targetNode)),
-      Type("Character")
+            timeStamp,
+            tarID,
+            Properties(ImmutableProperty("name", targetNode)),
+            Type("Character")
     )
     addEdge(timeStamp, srcID, tarID, Type("Character Co-occurence"))
   }
 }
-

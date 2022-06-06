@@ -1,8 +1,13 @@
 package com.raphtory.sinks
 
-import com.raphtory.communication.connectors.PulsarConnector
+import com.raphtory.api.output.format.Format
+import com.raphtory.api.output.sink.FormatAgnosticSink
+import com.raphtory.api.output.sink.MessageSinkConnector
+import com.raphtory.api.output.sink.Sink
+import com.raphtory.api.output.sink.SinkConnector
 import com.raphtory.formats.CsvFormat
-import com.raphtory.formats.Format
+import com.raphtory.internals.communication.connectors.PulsarConnector
+import com.raphtory.internals.management.client.GraphDeployment
 import com.typesafe.config.Config
 import org.apache.pulsar.client.api.Schema
 
@@ -25,8 +30,8 @@ import org.apache.pulsar.client.api.Schema
   *
   * graph.execute(EdgeList()).writeTo(outputFormat)
   * }}}
-  *  @see [[com.raphtory.algorithms.api.Sink]]
-  *       [[com.raphtory.client.GraphDeployment]]
+  *  @see [[Sink]]
+  *       [[GraphDeployment]]
   *       [[com.raphtory.deployment.Raphtory]]
   */
 case class PulsarSink(topic: String, format: Format = CsvFormat())

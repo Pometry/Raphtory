@@ -1,13 +1,13 @@
 package com.raphtory.examples.enron
 
+import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.EdgeList
-import com.raphtory.deployment.Raphtory
 import com.raphtory.examples.enron.graphbuilders.EnronGraphBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.FileSpout
-import com.raphtory.util.FileUtils
+import com.raphtory.utils.FileUtils
 
 object Runner extends App {
 

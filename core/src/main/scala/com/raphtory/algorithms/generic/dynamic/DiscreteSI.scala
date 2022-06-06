@@ -1,7 +1,7 @@
 package com.raphtory.algorithms.generic.dynamic
 
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.api.graphview.GraphPerspective
+import com.raphtory.api.analysis.graphview.GraphPerspective
 
 import scala.util.Random
 

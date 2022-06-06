@@ -2,10 +2,10 @@ package com.raphtory.generic
 
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.BasicGraphBuilder
-import com.raphtory.api.algorithm.Generic
-import com.raphtory.api.graphview.Alignment
-import com.raphtory.api.graphview.GraphPerspective
-import com.raphtory.deployment.Raphtory
+import com.raphtory.Raphtory
+import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.graphview.Alignment
+import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.SequenceSpout
 import org.scalatest.funsuite.AnyFunSuite

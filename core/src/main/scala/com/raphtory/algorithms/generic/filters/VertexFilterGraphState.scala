@@ -1,9 +1,9 @@
 package com.raphtory.algorithms.generic.filters
 
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.api.graphstate.GraphState
-import com.raphtory.api.graphview.GraphPerspective
-import com.raphtory.api.visitor.Vertex
+import com.raphtory.api.analysis.graphstate.GraphState
+import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.visitor.Vertex
 
 /**
   * {s} `VertexFilter(f: (Vertex, State) => Boolean)`
