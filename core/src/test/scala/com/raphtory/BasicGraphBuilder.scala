@@ -1,7 +1,9 @@
 package com.raphtory
 
-import com.raphtory.components.graphbuilder.GraphBuilder
-import com.raphtory.components.graphbuilder.Properties._
+import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.Properties
+import com.raphtory.api.input.Properties._
 
 /**
   * Basic graph builder object

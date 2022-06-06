@@ -1,7 +1,9 @@
 package com.raphtory.stateTest
 
-import com.raphtory.components.graphbuilder.GraphBuilder
-import com.raphtory.components.graphbuilder.Properties._
+import com.raphtory.api.input.FloatProperty
+import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Properties
+import com.raphtory.api.input.Properties._
 import spray.json._
 
 class AllCommandsBuilder extends GraphBuilder[String] {

@@ -1,7 +1,7 @@
 package com.raphtory.generic
 
 import com.raphtory.BasicGraphBuilder
-import com.raphtory.deployment.Raphtory
+import com.raphtory.Raphtory
 import com.raphtory.generic.ShutdownTest.signal
 import com.raphtory.spouts.SequenceSpout
 import org.scalatest.funsuite.AnyFunSuite

@@ -1,8 +1,8 @@
 package com.raphtory.examples.gab.graphbuilders
 
-import com.raphtory.components.graphbuilder.GraphBuilder
-import com.raphtory.components.graphbuilder.Properties.Properties
-import com.raphtory.components.graphbuilder.Properties.StringProperty
+import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Properties
+import com.raphtory.api.input.StringProperty
 
 import java.time.OffsetDateTime
 import com.raphtory.examples.gab.rawgraphmodel.GabPost

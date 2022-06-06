@@ -1,7 +1,10 @@
 package com.raphtory.sinks
 
+import com.raphtory.api.output.format.Format
+import com.raphtory.api.output.sink.FormatAgnosticSink
+import com.raphtory.api.output.sink.SinkConnector
+import com.raphtory.api.output.sink.StreamSinkConnector
 import com.raphtory.formats.CsvFormat
-import com.raphtory.formats.Format
 import com.typesafe.config.Config
 
 case class PrintSink(format: Format = CsvFormat()) extends FormatAgnosticSink(format) {

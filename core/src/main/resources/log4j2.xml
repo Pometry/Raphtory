@@ -28,7 +28,7 @@
         </Logger>
         <Logger name="com.raphtory.communication" level="${env:RAPHTORY_COMMUNICATION_LOG:-INFO}">
         </Logger>
-        <Logger name="com.raphtory.config" level="${env:RAPHTORY_CONFIG_LOG:-INFO}">
+        <Logger name="com.raphtory.management" level="${env:RAPHTORY_CONFIG_LOG:-INFO}">
         </Logger>
         <Logger name="com.raphtory.deployment" level="${env:RAPHTORY_DEPLOYMENT_LOG:-INFO}">
         </Logger>
@@ -44,7 +44,7 @@
         </Logger>
         <Logger name="com.raphtory.time" level="${env:RAPHTORY_TIME_LOG:-INFO}">
         </Logger>
-        <Logger name="com.raphtory.util" level="${env:RAPHTORY_UTIL_LOG:-INFO}">
+        <Logger name="com.raphtory.utils" level="${env:RAPHTORY_UTIL_LOG:-INFO}">
         </Logger>
 
         <!-- LOGGERS FOR RAPHTORY COMPONENTS -->

@@ -3,7 +3,7 @@ package com.raphtory.algorithms
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.algorithms.generic.centrality.Degree
 import com.raphtory.algorithms.generic.centrality.WeightedDegree
-import com.raphtory.components.graphbuilder.GraphBuilder
+import com.raphtory.api.input.GraphBuilder
 
 class DegreeTest extends BaseCorrectnessTest {
   override def setGraphBuilder(): GraphBuilder[String] = WeightedGraphBuilder()

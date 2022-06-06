@@ -1,7 +1,9 @@
 package com.raphtory.twitter.builder
 
-import com.raphtory.components.graphbuilder.GraphBuilder
-import com.raphtory.components.graphbuilder.Properties._
+import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.Properties
+import com.raphtory.api.input.Type
 import com.raphtory.twitter.spout.LiveTwitterSpout
 import io.github.redouane59.twitter.dto.tweet.Tweet
 

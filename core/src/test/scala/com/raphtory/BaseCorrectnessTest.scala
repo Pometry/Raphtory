@@ -1,11 +1,10 @@
 package com.raphtory
 
 import com.google.common.hash.Hashing
-import com.raphtory.api.algorithm.Generic
-import com.raphtory.api.algorithm.GenericallyApplicable
-import com.raphtory.components.graphbuilder.GraphBuilder
-import com.raphtory.components.spout.Spout
-import com.raphtory.deployment.Raphtory
+import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.algorithm.GenericallyApplicable
+import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Spout
 import com.raphtory.spouts.IdentitySpout
 import com.raphtory.spouts.ResourceSpout
 import com.raphtory.spouts.SequenceSpout

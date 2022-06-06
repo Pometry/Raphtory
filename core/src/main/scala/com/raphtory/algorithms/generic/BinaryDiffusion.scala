@@ -1,7 +1,7 @@
 package com.raphtory.algorithms.generic
 
-import com.raphtory.api.graphview.GraphPerspective
-import com.raphtory.api.visitor.Vertex
+import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.visitor.Vertex
 
 import scala.util.Random
 

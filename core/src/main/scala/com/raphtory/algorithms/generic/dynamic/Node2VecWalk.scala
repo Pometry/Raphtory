@@ -3,15 +3,15 @@ package com.raphtory.algorithms.generic.dynamic
 import com.raphtory.algorithms.generic.dynamic.Node2VecWalk.Messages
 import com.raphtory.algorithms.generic.dynamic.Node2VecWalk.StoreMessage
 import com.raphtory.algorithms.generic.dynamic.Node2VecWalk.WalkMessage
-import com.raphtory.api.algorithm.Generic
-import com.raphtory.api.graphview.GraphPerspective
-import com.raphtory.api.table.Row
-import com.raphtory.api.table.Table
+import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 
 import scala.reflect.ClassTag
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
-import com.raphtory.util.Sampling._
+import com.raphtory.utils.Sampling._
 
 import scala.collection.compat.immutable.ArraySeq
 

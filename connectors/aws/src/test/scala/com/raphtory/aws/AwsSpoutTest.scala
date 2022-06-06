@@ -1,7 +1,7 @@
 package com.raphtory.aws
 
+import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
-import com.raphtory.deployment.Raphtory
 import com.raphtory.sinks.FileSink
 import com.typesafe.config.ConfigFactory
 

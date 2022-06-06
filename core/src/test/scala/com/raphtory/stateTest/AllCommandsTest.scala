@@ -3,8 +3,8 @@ package com.raphtory.stateTest
 import com.raphtory.BaseRaphtoryAlgoTest
 import com.raphtory.GraphState
 import com.raphtory.algorithms.generic.ConnectedComponents
-import com.raphtory.components.graphbuilder.GraphBuilder
-import com.raphtory.components.spout.Spout
+import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Spout
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import org.scalatest.DoNotDiscover

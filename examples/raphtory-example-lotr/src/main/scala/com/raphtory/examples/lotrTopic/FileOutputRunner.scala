@@ -1,6 +1,6 @@
 package com.raphtory.examples.lotrTopic
 
-import com.raphtory.deployment.Raphtory
+import com.raphtory.Raphtory
 import com.raphtory.examples.lotrTopic.analysis.DegreesSeparation
 import com.raphtory.examples.lotrTopic.graphbuilders.LOTRGraphBuilder
 import com.raphtory.spouts.FileSpout
@@ -10,7 +10,7 @@ import com.raphtory.algorithms.generic.centrality.Degree
 import com.raphtory.algorithms.generic.centrality.WeightedDegree
 import com.raphtory.algorithms.generic.filters.EdgeQuantileFilter
 import com.raphtory.algorithms.generic.filters.VertexQuantileFilter
-import com.raphtory.util.FileUtils
+import com.raphtory.utils.FileUtils
 
 import scala.language.postfixOps
 import sys.process._

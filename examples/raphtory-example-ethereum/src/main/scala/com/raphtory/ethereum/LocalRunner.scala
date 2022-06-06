@@ -1,13 +1,13 @@
 package com.raphtory.ethereum
 
+import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.ConnectedComponents
-import com.raphtory.deployment.Raphtory
 import com.raphtory.ethereum.graphbuilder.EthereumGraphBuilder
 import com.raphtory.ethereum.analysis.Taint
 import com.raphtory.sinks.FileSink
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.FileSpout
-import com.raphtory.util.FileUtils
+import com.raphtory.utils.FileUtils
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
