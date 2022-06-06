@@ -20,7 +20,7 @@ import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManagement
-import com.raphtory.internals.management.client.QuerySender
+import com.raphtory.internals.management.QuerySender
 
 sealed private[raphtory] trait GraphFunction                             extends QueryManagement
 final private[raphtory] case class SetGlobalState(f: GraphState => Unit) extends GraphFunction

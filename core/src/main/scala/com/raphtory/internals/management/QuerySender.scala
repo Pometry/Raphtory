@@ -1,10 +1,8 @@
-package com.raphtory.internals.management.client
+package com.raphtory.internals.management
 
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querytracker.QueryProgressTracker
-import com.raphtory.internals.management.ComponentFactory
-import com.raphtory.internals.management.MonixScheduler
 
 import scala.util.Random
 
