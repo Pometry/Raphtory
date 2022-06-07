@@ -1,9 +1,8 @@
-package utils
+package com.raphtory.deploy.kubernetes.utils
 
 import com.typesafe.config.Config
 import io.fabric8.kubernetes.api.model._
-import io.fabric8.kubernetes.api.model.apps.Deployment
-import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder
+import io.fabric8.kubernetes.api.model.apps.{Deployment, DeploymentBuilder}
 import io.fabric8.kubernetes.client.KubernetesClient
 import scala.jdk.CollectionConverters._
 

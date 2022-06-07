@@ -1,3 +1,4 @@
+package com.raphtory.deploy.kubernetes
 import components._
 
 /** Calls `delete` method on RaphtoryKubernetes classes to delete kubernetes objects.

@@ -1,4 +1,4 @@
-package utils
+package com.raphtory.deploy.kubernetes.utils
 
 import io.fabric8.kubernetes.api.model.ServiceAccount
 import io.fabric8.kubernetes.api.model.ServiceAccountBuilder

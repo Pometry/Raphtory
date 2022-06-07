@@ -1,4 +1,4 @@
-package utils
+package com.raphtory.deploy.kubernetes.utils
 
 import com.typesafe.scalalogging.LazyLogging
 
