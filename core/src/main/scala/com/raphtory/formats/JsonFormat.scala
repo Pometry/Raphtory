@@ -14,11 +14,7 @@ import com.typesafe.config.Config
 
 import java.io.StringWriter
 
-//sealed trait Level
-//case object ROW    extends Level
-//case object GLOBAL extends Level
-
-case class JsonFormat(level: JsonFormat.Level) extends Format {
+case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
   override def defaultDelimiter: String = "\n"
 
   override def executor(
@@ -123,12 +119,7 @@ case class JsonFormat(level: JsonFormat.Level) extends Format {
 }
 
 object JsonFormat {
-
-//  sealed trait Level
-//  case object ROW    extends Level
-//  case object GLOBAL extends Level
-  object Level extends Enumeration {
-    type Level = Value
-    val ROW, GLOBAL = Value
-  }
+  sealed trait Level
+  case object ROW    extends Level
+  case object GLOBAL extends Level
 }
