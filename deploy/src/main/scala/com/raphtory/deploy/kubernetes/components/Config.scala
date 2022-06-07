@@ -8,10 +8,6 @@ import java.util
   */
 class Config {
   var conf = ConfigFactory.load()
-  // ConfigFactory
-  //   .defaultOverrides()
-  //   .withFallback(ConfigFactory.defaultApplication())
-  //   .resolve()
 
   val raphtoryDeploymentId: String = 
     conf.getString("raphtory.deploy.kubernetes.id")
