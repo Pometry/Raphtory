@@ -102,7 +102,8 @@ final case class PojoGraphLens(
       graphState: GraphState
   )(onComplete: => Unit): Unit = {
     if (partitionID == 0)
-      dataTable = f(graphState).asInstanceOf[RowImplementation].yieldAndRelease
+      dataTable =
+        Iterator.fill(1)(f(graphState).asInstanceOf[RowImplementation]).flatMap(_.yieldAndRelease)
     onComplete
   }
 

@@ -87,11 +87,14 @@ class RowImplementation extends Row {
       Row.pool.get().append(this)
       acquired = false
       values.clear()
+      logger.trace(s"Row object released on thread ${Thread.currentThread().getName}")
     }
     else
       logger.warn("Row object released multiple times")
     if (Thread.currentThread().getName != constructedOn)
-      logger.error("Row object moved thread, this should never happen!")
+      logger.error(
+              s"Row object moved thread, this should never happen!, orignal: $constructedOn, new ${Thread.currentThread().getName}"
+      )
   }
 
 //  This returns an iterator that returns the Row and then releases the Row on the second invocation of hasNext.
