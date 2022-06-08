@@ -3,7 +3,6 @@ import sbt._
 object Dependencies {
   private lazy val chillVersion          = "0.10.0"
   private lazy val curatorVersion        = "5.2.1"
-  private lazy val kubernetesClient      = "5.11.1"
   private lazy val gsonVersion           = "2.9.0"
   private lazy val log4jVersion          = "2.17.1"
   private lazy val monixVersion          = "3.4.0"
@@ -25,7 +24,6 @@ object Dependencies {
   lazy val excludeLog4j         = ExclusionRule(organization = "log4j")
 
   lazy val curatorRecipes = "org.apache.curator" % "curator-recipes"   % curatorVersion
-  lazy val k8Client       = "io.fabric8"         % "kubernetes-client" % kubernetesClient
 
   lazy val gson =
     "com.google.code.gson" % "gson" % gsonVersion excludeAll (excludeLog4j, excludeSlf4j)

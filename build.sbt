@@ -55,7 +55,8 @@ lazy val root = (project in file("."))
           examplesGab,
           examplesLotr,
           examplesPresto,
-          examplesTwitter
+          examplesTwitter,
+          deploy
   )
 
 lazy val core = (project in file("core"))
@@ -71,7 +72,6 @@ lazy val core = (project in file("core"))
           defaultSettings,
           libraryDependencies ++= Seq(
                   curatorRecipes,
-                  k8Client,
                   gson,
                   log4jSlft4,
                   log4jApi,
@@ -149,6 +149,10 @@ lazy val examplesTwitter =
   (project in file("examples/raphtory-example-twitter"))
     .dependsOn(core, connectorsTwitter)
     .settings(assemblySettings)
+
+lazy val deploy =
+  (project in file("deploy"))
+  .settings(assemblySettings)
 
 // SETTINGS
 

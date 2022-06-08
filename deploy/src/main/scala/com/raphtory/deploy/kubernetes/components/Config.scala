@@ -1,17 +1,16 @@
-package com.raphtory.kubernetes.components
+package com.raphtory.deploy.kubernetes.components
 
-import com.raphtory.Raphtory
-import com.raphtory.kubernetes.utils
-import com.raphtory.kubernetes.utils.KubernetesLogger
-import com.typesafe.config
-
+import com.typesafe.config._
+import com.raphtory.deploy.kubernetes.utils.KubernetesLogger
 import java.util
 
 /** Reads kubernetes configuration values from application.conf.
   */
 class Config {
-  val conf: config.Config          = Raphtory.getDefaultConfig(distributed = true)
-  val raphtoryDeploymentId: String = conf.getString("raphtory.deploy.id")
+  var conf = ConfigFactory.load()
+
+  val raphtoryDeploymentId: String = 
+    conf.getString("raphtory.deploy.kubernetes.id")
 
   val raphtoryKubernetesNamespaceName: String =
     conf.getString("raphtory.deploy.kubernetes.namespace.name")
@@ -21,10 +20,12 @@ class Config {
 
   val raphtoryKubernetesDeployments: util.Set[String] =
     conf.getConfig("raphtory.deploy.kubernetes.deployments").root().keySet()
-  val raphtoryKubernetesMasterUrl: String             = conf.getString("raphtory.deploy.kubernetes.master.url")
+
+  val raphtoryKubernetesMasterUrl: String = 
+    conf.getString("raphtory.deploy.kubernetes.master.url")
 
   val raphtoryKubernetesLogger: KubernetesLogger =
-    utils.KubernetesLogger()
+    KubernetesLogger()
 
   val raphtoryKubernetesDockerRegistrySecretName: String =
     conf.getString("raphtory.deploy.kubernetes.secrets.registry.name")

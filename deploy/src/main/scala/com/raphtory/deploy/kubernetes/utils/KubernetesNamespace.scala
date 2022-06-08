@@ -1,4 +1,4 @@
-package com.raphtory.kubernetes.utils
+package com.raphtory.deploy.kubernetes.utils
 
 import io.fabric8.kubernetes.api.model.Namespace
 import io.fabric8.kubernetes.api.model.NamespaceBuilder
