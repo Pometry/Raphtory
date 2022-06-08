@@ -9,7 +9,7 @@ import scala.reflect.ClassTag
 import scala.language.implicitConversions
 import scala.math.Numeric.Implicits.infixNumericOps
 
-class DisparityFilter[T: Numeric : Bounded: ClassTag](alpha: Float=0.05f, weightProperty:String) extends Generic {
+class DisparityFilter[T: Numeric : Bounded: ClassTag](alpha: Double=0.05, weightProperty:String) extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph = {
     graph.step{
@@ -24,11 +24,11 @@ class DisparityFilter[T: Numeric : Bounded: ClassTag](alpha: Float=0.05f, weight
           val weightMap = messages.groupBy(_._1).mapValues(_.head._3)
 
           val k1 = vertex.degree
-          val s1 = vertex.weightedTotalDegree[T](weightProperty = weightProperty)
+          val s1 = vertex.weightedTotalDegree[T](weightProperty = weightProperty).toDouble
           vertex.getInEdges().foreach{
             edge =>
               val k2 = degreeMap(edge.src)
-              val s2 = weightMap(edge.src)
+              val s2 = weightMap(edge.src).toDouble
               val wgt = edge.weight[T](weightProperty = weightProperty)
 
               val (pij, pji) = (wgt.toDouble/s1, wgt.toDouble/s2)
@@ -42,5 +42,5 @@ class DisparityFilter[T: Numeric : Bounded: ClassTag](alpha: Float=0.05f, weight
 }
 
 object DisparityFilter {
-  def apply[T: Numeric: Bounded: ClassTag](alpha: Float=0.05f, weightProperty:String) = new DisparityFilter[T](alpha,weightProperty)
+  def apply[T: Numeric: Bounded: ClassTag](alpha: Double=0.05, weightProperty:String) = new DisparityFilter[T](alpha,weightProperty)
 }
