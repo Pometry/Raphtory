@@ -47,9 +47,8 @@ case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
 
   private def rowLevelExecutor(connector: SinkConnector): SinkExecutor =
     new SinkExecutor {
-      private val gson                   = new GsonBuilder().setPrettyPrinting().create()
-      private val stringWriter           = new StringWriter()
-      private val jsonWriter: JsonWriter = new JsonWriter(stringWriter)
+      private val gson         = new GsonBuilder().setPrettyPrinting().create()
+      private val stringWriter = new StringWriter()
 
       private var currentPerspective: Perspective = _
 
@@ -57,6 +56,7 @@ case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
         currentPerspective = perspective
 
       override protected def writeRow(row: Row): Unit = {
+        val jsonWriter = new JsonWriter(stringWriter)
         jsonWriter.beginObject()
         printPerspectiveProperties(jsonWriter, currentPerspective)
         jsonWriter.name("row")
