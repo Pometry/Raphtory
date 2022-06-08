@@ -83,7 +83,6 @@ private[api] trait GraphViewImplementation[
   private[api] val query: Query
   private[api] val querySender: QuerySender
 
-  override def identity: G                              = this
   override def setGlobalState(f: GraphState => Unit): G = addFunction(SetGlobalState(f))
 
   override def vertexFilter(f: (V) => Boolean): G =
