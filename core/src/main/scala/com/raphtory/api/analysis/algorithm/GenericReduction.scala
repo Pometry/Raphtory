@@ -33,8 +33,8 @@ trait GenericReduction
     * $chainBody
     * @param other Algorithm to apply after this one
     */
-  def ->(graphAlgorithm: Generic): GenericReduction =
-    new ChainedAlgorithm(this, graphAlgorithm) with GenericReduction {
+  def ->(other: Generic): GenericReduction =
+    new ChainedAlgorithm(this, other) with GenericReduction {
 
       override def apply(graph: GraphPerspective): graph.ReducedGraph =
         second(first(graph).clearMessages())
@@ -46,8 +46,8 @@ trait GenericReduction
     * $chainBody
     * @param other Algorithm to apply after this one
     */
-  def ->(graphAlgorithm: GenericReduction): GenericReduction =
-    new ChainedAlgorithm(this, graphAlgorithm) with GenericReduction {
+  def ->(other: GenericReduction): GenericReduction =
+    new ChainedAlgorithm(this, other) with GenericReduction {
 
       override def apply(graph: GraphPerspective): graph.ReducedGraph =
         second(first(graph).clearMessages())
@@ -59,8 +59,8 @@ trait GenericReduction
     * $chainBody
     * @param other Algorithm to apply after this one
     */
-  def ->(graphAlgorithm: MultilayerProjection): MultilayerProjection =
-    new ChainedAlgorithm(this, graphAlgorithm) with MultilayerProjection {
+  def ->(other: MultilayerProjection): MultilayerProjection =
+    new ChainedAlgorithm(this, other) with MultilayerProjection {
 
       override def apply(graph: GraphPerspective): graph.MultilayerGraph =
         second(first(graph).clearMessages())
