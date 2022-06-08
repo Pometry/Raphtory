@@ -1,10 +1,16 @@
 package com.raphtory.api.output.sink
 
-/** Helper class to implement SinkConnector trait based on message systems */
+/** Base class for sink connectors based on message systems.
+  *
+  * Implementations of this trait just need to override the `sendAsync` method.
+  */
 abstract class MessageSinkConnector extends SinkConnector {
 
   private val stringBuilder = new StringBuilder()
 
+  /** Sends the `message` asynchronously
+    * @param message the message to be sent
+    */
   def sendAsync(message: String): Unit
 
   final override def write(value: String): Unit = stringBuilder.append(value)
