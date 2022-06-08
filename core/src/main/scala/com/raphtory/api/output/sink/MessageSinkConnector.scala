@@ -11,7 +11,7 @@ abstract class MessageSinkConnector extends SinkConnector {
   /** Sends the `message` asynchronously
     * @param message the message to be sent
     */
-  def sendAsync(message: String): Unit
+  protected def sendAsync(message: String): Unit
 
   final override def write(value: String): Unit = stringBuilder.append(value)
 

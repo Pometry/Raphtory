@@ -5,7 +5,7 @@ import com.raphtory.api.output.sink.SinkConnector
 import com.raphtory.api.output.sink.SinkExecutor
 import com.typesafe.config.Config
 
-/** Base trait to define formats.
+/** Base trait for formats
   *
   * A format is a way to translate a `Table` into one or more text items.
   *

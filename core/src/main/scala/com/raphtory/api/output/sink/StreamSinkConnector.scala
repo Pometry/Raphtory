@@ -1,6 +1,6 @@
 package com.raphtory.api.output.sink
 
-/** Base class for sink connectors that write the items to an output text stream.
+/** Base class for sink connectors that write the items to an text output stream.
   *
   * Implementations of this trait just need to override the `output` method.
   *

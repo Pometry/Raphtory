@@ -16,68 +16,45 @@ import java.io.StringWriter
 
 /** A `Format` that writes a `Table` in JSON format
   *
-  * This format outputs one CSV line per row.
-  * The first two values are the timestamp used to create the perspective corresponding to that row
-  * and the size of the window applied over the perspective.
-  * If no window was applied over the perspective, the window size is omitted.
-  * The following values are the values composing the row.
+  * This format can be configured to work in two different ways, depending on the value for `level`:
+  * - `JsonFormat.ROW` (the default option): creates one JSON object per row, following the format defined [here](https://jsonlines.org).
+  * - `JsonFormat.GLOBAL`: creates a global JSON object for every partition of the table
   *
   * For a table with just one perspective created from timestamp 10 with no window and 3 rows
   * the output might look as follows if `level` is set to `JsonFormat.GLOBAL`:
-  *
-  * `{
-  *
-  * "jobID": "EdgeCount",
-  *
-  * "partitionID": 0,
-  *
-  * "perspectives":
-  *
-  *   {
-  *
-  *     "timestamp": 10,
-  *
-  *     "window": null,
-  *
-  *     "rows": [
-  *
-  *       [
-  *
-  *         "id1",
-  *
-  *         12
-  *
-  *       ],
-  *
-  *       [
-  *
-  *         "id2",
-  *
-  *         13
-  *
-  *       ],
-  *
-  *       [
-  *
-  *         "id3",
-  *
-  *         24
-  *
+  * {{{
+  * {
+  *   "jobID": "EdgeCount",
+  *   "partitionID": 0,
+  *   "perspectives":
+  *     {
+  *       "timestamp": 10,
+  *       "window": null,
+  *       "rows": [
+  *         [
+  *           "id1",
+  *           12
+  *         ],
+  *         [
+  *           "id2",
+  *           13
+  *         ],
+  *         [
+  *           "id3",
+  *           24
+  *         ]
   *       ]
+  *     }
+  * }
+  * }}}
   *
-  *     ]
+  * On the other hand, if `level` is not set or is set to `JsonFormat.ROW`, the output might look as follows:
   *
-  *   }
-  *
-  * }``
-  *
-  * On the other hand, if `level` is not set or si set to `JsonFormat.ROW`, the output might look as follows:
-  *
-  * `{"timestamp":10,"window":null,"row":["id1",12]}
-  *
+  * {{{
+  * {"timestamp":10,"window":null,"row":["id1",12]}
   * {"timestamp":10,"window":null,"row":["id2",13]}
-  *
-  * {"timestamp":10,"window":null,"row":["id3",24]}`
+  * {"timestamp":10,"window":null,"row":["id3",24]}
+  * }}}
   *
   * @param level the table level to create json objects
   */
@@ -186,7 +163,13 @@ case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
 }
 
 object JsonFormat {
+
+  /** The level to use for creating JSON objects */
   sealed trait Level
-  case object ROW    extends Level
+
+  /** JsonFormat level that creates one JSON object per row */
+  case object ROW extends Level
+
+  /** JsonFormat level that creates one global JSON object per partition */
   case object GLOBAL extends Level
 }

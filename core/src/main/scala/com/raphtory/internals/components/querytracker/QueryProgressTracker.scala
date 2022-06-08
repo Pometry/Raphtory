@@ -29,7 +29,7 @@ import scala.concurrent.duration.Duration
   *
   * val graph = Raphtory.load(ResourceSpout("resource"), YourGraphBuilder())
   * val queryProgressTracker = graph.range(1, 32674, 10000)
-  *   .windows(List(500, 1000, 10000))
+  *   .window(List(500, 1000, 10000))
   *   .execute(GraphState())
   *   .writeTo(FileSink("/test_dir"))
   * val jobId                = queryProgressTracker.getJobId()

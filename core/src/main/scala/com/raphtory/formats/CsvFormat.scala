@@ -18,11 +18,11 @@ import com.typesafe.config.Config
   * For a table with just one perspective created from timestamp 10 with a window size 5 and 3 rows
   * the output might look as follows:
   *
-  * `10,5,id1,12`
-  *
-  * `10,5,id2,13`
-  *
-  * `10,5,id3,24`
+  * {{{
+  * 10,5,id1,12
+  * 10,5,id2,13
+  * 10,5,id3,24
+  * }}}
   */
 case class CsvFormat() extends Format {
   override def defaultDelimiter: String = "\n"
