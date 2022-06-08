@@ -82,16 +82,19 @@ class RowImplementation extends Row {
     exploded = false
   }
 
-  def release: Unit = {
+  def release(): Unit = {
     if (acquired) {
       Row.pool.get().append(this)
       acquired = false
       values.clear()
+      logger.trace(s"Row object released on thread ${Thread.currentThread().getName}")
     }
     else
       logger.warn("Row object released multiple times")
     if (Thread.currentThread().getName != constructedOn)
-      logger.error("Row object moved thread, this should never happen!")
+      logger.error(
+              s"Row object moved thread, this should never happen!, orignal: $constructedOn, new ${Thread.currentThread().getName}"
+      )
   }
 
 //  This returns an iterator that returns the Row and then releases the Row on the second invocation of hasNext.
@@ -110,9 +113,9 @@ class RowImplementation extends Row {
 }
 
 object Row {
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  val pool = ThreadLocal.withInitial[ArrayBuffer[RowImplementation]](() =>
+  private[table] val pool = ThreadLocal.withInitial[ArrayBuffer[RowImplementation]](() =>
     ArrayBuffer.empty[RowImplementation]
   )
 
