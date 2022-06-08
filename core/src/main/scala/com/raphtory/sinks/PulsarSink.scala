@@ -1,5 +1,6 @@
 package com.raphtory.sinks
 
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.output.format.Format
 import com.raphtory.api.output.sink.FormatAgnosticSink
 import com.raphtory.api.output.sink.MessageSinkConnector
@@ -11,28 +12,29 @@ import com.raphtory.internals.management.client.GraphDeployment
 import com.typesafe.config.Config
 import org.apache.pulsar.client.api.Schema
 
-/** Writes the rows of a `Table` to the Pulsar topic specified by `pulsarTopic` in CSV format.
+/** A `Sink` that sends a `Table` to the specified Pulsar `topic` using the given `format`.
   *
-  * @param pulsarTopic name of the pulsar topic
+  * @param topic the name of the Pulsar topic to send the table to
+  * @param format the format to be used by this sink (`CsvFormat` by default)
   *
-  * Usage:
-  * (while querying or running algorithmic tests)
+  * @example
   * {{{
   * import com.raphtory.algorithms.generic.EdgeList
-  * import com.raphtory.output.FileOutputFormat
-  * import com.raphtory.algorithms.api.OutputFormat
+  * import com.raphtory.sinks.PulsarSink
   * import com.raphtory.components.spout.instance.ResourceSpout
   *
   * val graphBuilder = new YourGraphBuilder()
   * val graph = Raphtory.stream(ResourceSpout("resource"), graphBuilder)
-  * val testDir = "/tmp/raphtoryTest"
-  * val outputFormat: OutputFormat = PulsarOutputFormat("edge-list-topic")
+  * val topic = "test"
+  * val sink = PulsarSink(topic)
   *
-  * graph.execute(EdgeList()).writeTo(outputFormat)
+  * graph.execute(EdgeList()).writeTo(sink)
   * }}}
-  *  @see [[Sink]]
-  *       [[GraphDeployment]]
-  *       [[com.raphtory.deployment.Raphtory]]
+  * @see [[Sink]]
+  *      [[Format]]
+  *      [[CsvFormat]]
+  *      [[Table]]
+  *      [[com.raphtory.Raphtory]]
   */
 case class PulsarSink(topic: String, format: Format = CsvFormat())
         extends FormatAgnosticSink(format) {

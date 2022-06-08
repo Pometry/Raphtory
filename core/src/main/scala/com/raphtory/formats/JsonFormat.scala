@@ -14,6 +14,73 @@ import com.typesafe.config.Config
 
 import java.io.StringWriter
 
+/** A `Format` that writes a `Table` in JSON format
+  *
+  * This format outputs one CSV line per row.
+  * The first two values are the timestamp used to create the perspective corresponding to that row
+  * and the size of the window applied over the perspective.
+  * If no window was applied over the perspective, the window size is omitted.
+  * The following values are the values composing the row.
+  *
+  * For a table with just one perspective created from timestamp 10 with no window and 3 rows
+  * the output might look as follows if `level` is set to `JsonFormat.GLOBAL`:
+  *
+  * `{
+  *
+  * "jobID": "EdgeCount",
+  *
+  * "partitionID": 0,
+  *
+  * "perspectives":
+  *
+  *   {
+  *
+  *     "timestamp": 10,
+  *
+  *     "window": null,
+  *
+  *     "rows": [
+  *
+  *       [
+  *
+  *         "id1",
+  *
+  *         12
+  *
+  *       ],
+  *
+  *       [
+  *
+  *         "id2",
+  *
+  *         13
+  *
+  *       ],
+  *
+  *       [
+  *
+  *         "id3",
+  *
+  *         24
+  *
+  *       ]
+  *
+  *     ]
+  *
+  *   }
+  *
+  * }``
+  *
+  * On the other hand, if `level` is not set or si set to `JsonFormat.ROW`, the output might look as follows:
+  *
+  * `{"timestamp":10,"window":null,"row":["id1",12]}
+  *
+  * {"timestamp":10,"window":null,"row":["id2",13]}
+  *
+  * {"timestamp":10,"window":null,"row":["id3",24]}`
+  *
+  * @param level the table level to create json objects
+  */
 case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
   override def defaultDelimiter: String = "\n"
 
