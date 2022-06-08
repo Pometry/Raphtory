@@ -14,10 +14,8 @@ import org.slf4j.LoggerFactory
   *                   clearing all messages inbetween. The `tabularise` method of the chained algorithm calls only
   *                   the `tabularise` method of `other`.
   */
-trait Generic
-        extends GenericallyApplicable
-        with ConcreteAlgorithm[GraphPerspective, GraphPerspective] {
-//  override type Out = GraphPerspective
+trait Generic extends GenericallyApplicable {
+  override type Out = GraphPerspective
 
   /** Logger instance for writing out log messages */
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))

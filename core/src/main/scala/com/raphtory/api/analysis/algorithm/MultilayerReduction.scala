@@ -6,8 +6,8 @@ import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 
-trait MultilayerReduction
-        extends ConcreteAlgorithm[MultilayerGraphPerspective, ReducedGraphPerspective] {
+trait MultilayerReduction extends BaseAlgorithm {
+  override type In  = MultilayerGraphPerspective
   override type Out = ReducedGraphPerspective
 
   def apply(graph: MultilayerGraphPerspective): graph.ReducedGraph = graph.reducedView

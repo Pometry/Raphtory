@@ -15,9 +15,8 @@ import com.raphtory.api.analysis.table.Table
   *                   clearing all messages inbetween. The `tabularise` method of the chained algorithm calls only
   *                   the `tabularise` method of `other`.
   */
-trait GenericReduction
-        extends GenericallyApplicable
-        with ConcreteAlgorithm[GraphPerspective, ReducedGraphPerspective] {
+trait GenericReduction extends GenericallyApplicable {
+  override type Out = ReducedGraphPerspective
 
   /** Main algorithm
     *

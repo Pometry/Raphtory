@@ -1,11 +1,8 @@
 package com.raphtory.api.analysis.algorithm
 
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
-
-import scala.language.existentials
 
 private[api] trait BaseAlgorithm extends Serializable {
 
@@ -19,7 +16,7 @@ private[api] trait BaseAlgorithm extends Serializable {
     *
     * This method should be overidden by concrete algorithm implementations.
     */
-  def apply(graph: In): T forSome { type T <: Out }
+  def apply(graph: In): Out
 
   /** Write out results to a table (this method is only called after `apply`)
     *
@@ -40,11 +37,6 @@ private[api] trait BaseAlgorithm extends Serializable {
     *  @param other next algorithm to run
     */
   def ->(other: Generic): BaseAlgorithm
-}
-
-trait ConcreteAlgorithm[I <: GraphPerspective, O <: GraphPerspective] extends BaseAlgorithm {
-  override type In  = I
-  override type Out = O
 }
 
 /** Trait that is extended by all algorithms that can be applied to any graph view */

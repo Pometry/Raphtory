@@ -6,9 +6,8 @@ import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 
-trait MultilayerProjection
-        extends GenericallyApplicable
-        with ConcreteAlgorithm[GraphPerspective, MultilayerGraphPerspective] {
+trait MultilayerProjection extends GenericallyApplicable {
+  override type Out = MultilayerGraphPerspective
 
   /** Default implementation returns the graph unchanged
     *
