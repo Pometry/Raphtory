@@ -14,45 +14,10 @@ import org.slf4j.LoggerFactory
   *                   clearing all messages inbetween. The `tabularise` method of the chained algorithm calls only
   *                   the `tabularise` method of `other`.
   */
-trait Generic extends GenericallyApplicable {
-  override type Out = GraphPerspective
-
-  case class ChainedGeneric(first: Generic, second: Generic)
-          extends ChainedAlgorithm(first, second)
-          with Generic {
-
-    override def apply(graph: GraphPerspective): graph.Graph =
-      second(first(graph).clearMessages())
-
-    override def tabularise(graph: GraphPerspective): Table =
-      second.tabularise(graph)
-  }
-
-  case class ChainedMultilayerProjection(
-      first: Generic,
-      second: MultilayerProjection
-  ) extends ChainedAlgorithm(first, second)
-          with MultilayerProjection {
-
-    override def apply(graph: GraphPerspective): graph.MultilayerGraph =
-      second(first(graph).clearMessages())
-
-    override def tabularise(graph: MultilayerGraphPerspective): Table =
-      second.tabularise(graph)
-  }
-
-  case class ChainedGenericReduction(
-      first: Generic,
-      second: GenericReduction
-  ) extends ChainedAlgorithm(first, second)
-          with GenericReduction {
-
-    override def apply(graph: GraphPerspective): graph.ReducedGraph =
-      second(first(graph).clearMessages())
-
-    override def tabularise(graph: ReducedGraphPerspective): Table =
-      second.tabularise(graph)
-  }
+trait Generic
+        extends GenericallyApplicable
+        with ConcreteAlgorithm[GraphPerspective, GraphPerspective] {
+//  override type Out = GraphPerspective
 
   /** Logger instance for writing out log messages */
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
@@ -68,33 +33,42 @@ trait Generic extends GenericallyApplicable {
   def apply(graph: GraphPerspective): graph.Graph =
     graph.identity
 
-  def tabularise(graph: GraphPerspective): Table =
-    graph.globalSelect(_ => Row())
-
-  def run(graph: GraphPerspective): Table = tabularise(apply(graph))
-
   /** Chain this algorithm with another generic algorithm
     *
     * $chainBody
     * @param other Algorithm to apply after this one
     */
-  override def ->(graphAlgorithm: Generic): Generic =
-    ChainedGeneric(this, graphAlgorithm)
+  override def ->(other: Generic): Generic =
+    new ChainedAlgorithm(this, other) with Generic {
+
+      override def apply(graph: GraphPerspective): graph.Graph =
+        second(first(graph).clearMessages())
+      override def tabularise(graph: GraphPerspective): Table  = second.tabularise(graph)
+    }
 
   /** Chain this algorithm with a [[MultilayerProjection]] to create a new [[MultilayerProjection]]
     *
     * $chainBody
     * @param other Algorithm to apply after this one
     */
-  def ->(graphAlgorithm: MultilayerProjection): MultilayerProjection =
-    ChainedMultilayerProjection(this, graphAlgorithm)
+  def ->(other: MultilayerProjection): MultilayerProjection =
+    new ChainedAlgorithm(this, other) with MultilayerProjection {
+
+      override def apply(graph: GraphPerspective): graph.MultilayerGraph =
+        second(first(graph).clearMessages())
+      override def tabularise(graph: MultilayerGraphPerspective): Table  = second.tabularise(graph)
+    }
 
   /** Chain this algorithm with a [[GenericReduction]] to create a new [[GenericReduction]]
     *
     * $chainBody
     * @param other Algorithm to apply after this one
     */
-  def ->(graphAlgorithm: GenericReduction): GenericReduction =
-    ChainedGenericReduction(this, graphAlgorithm)
+  def ->(other: GenericReduction): GenericReduction =
+    new ChainedAlgorithm(this, other) with GenericReduction {
 
+      override def apply(graph: GraphPerspective): graph.ReducedGraph =
+        second(first(graph).clearMessages())
+      override def tabularise(graph: ReducedGraphPerspective): Table  = second.tabularise(graph)
+    }
 }
