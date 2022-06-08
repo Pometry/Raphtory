@@ -54,27 +54,33 @@ trait MultilayerProjection extends GenericallyApplicable {
   override def apply(graph: GraphPerspective): graph.MultilayerGraph =
     graph.multilayerView
 
-  /** Return tabularised results (default implementation returns empty table)
-    *
-    * @param graph graph to run function upon
-    */
   def tabularise(graph: MultilayerGraphPerspective): Table =
     graph.globalSelect(_ => Row())
 
   override def run(graph: GraphPerspective): Table =
     tabularise(apply(graph))
 
-  /** Create a new algorithm [](com.raphtory.algorithms.api.Chain) which runs this algorithm first before
-    * running the other algorithm.
+  /** Chain this algorithm with a [[Generic]] algorithm
     *
-    * @param graphAlgorithm next algorithm to run in the chain
+    * $chainBody
+    * @param other Algorithm to apply after this one
     */
   override def ->(graphAlgorithm: Generic): MultilayerProjection =
     ChainedMultilayerProjection(this, graphAlgorithm)
 
+  /** Chain this algorithm with a [[MultilayerProjection]] algorithm
+    *
+    * $chainBody
+    * @param other Algorithm to apply after this one
+    */
   def ->(graphAlgorithm: MultilayerProjection): MultilayerProjection =
     ChainedMultilayerProjection2(this, graphAlgorithm)
 
+  /** Chain this algorithm with a [[GenericReduction]] algorithm
+    *
+    * $chainBody
+    * @param other Algorithm to apply after this one
+    */
   def ->(graphAlgorithm: GenericReduction): GenericReduction =
     ChainedReduction(this, graphAlgorithm)
 }

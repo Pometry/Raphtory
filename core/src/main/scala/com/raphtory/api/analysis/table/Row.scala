@@ -17,7 +17,7 @@ trait Row {
     */
   def apply(index: Int): Any = values(index)
 
-  /** Return value at index */
+  /** Return value at `index` */
   def get(index: Int): Any = values(index)
 
   /** Return value at `index` and cast it to type `T` */
@@ -51,7 +51,7 @@ class RowImplementation extends Row {
       if (alive) alive
       else {
         if (RowImplementation.this.acquired)
-          RowImplementation.this.release
+          RowImplementation.this.release()
         false
       }
 
@@ -63,7 +63,7 @@ class RowImplementation extends Row {
       else
         throw new NoSuchElementException
 
-    def reset: Unit =
+    def reset(): Unit =
       alive = true
   }
 
@@ -77,7 +77,7 @@ class RowImplementation extends Row {
   def init(values: Seq[Any]): Unit = {
     this.values.clear()
     this.values.addAll(values)
-    selfIterator.reset
+    selfIterator.reset()
     acquired = true
     exploded = false
   }

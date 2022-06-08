@@ -54,12 +54,27 @@ trait MultilayerReduction extends BaseAlgorithm {
   def run(graph: MultilayerGraphPerspective): Table =
     tabularise(apply(graph))
 
+  /** Chain this algorithm with a [[Generic]] algorithm
+    *
+    * $chainBody
+    * @param other Algorithm to apply after this one
+    */
   override def ->(graphAlgorithm: Generic): MultilayerReduction =
     ChainedMultilayerReduction(this, graphAlgorithm)
 
+  /** Chain this algorithm with a [[MultilayerProjection]] algorithm
+    *
+    * $chainBody
+    * @param other Algorithm to apply after this one
+    */
   def ->(graphAlgorithm: MultilayerProjection): Multilayer =
     ChainedMultilayer(this, graphAlgorithm)
 
+  /** Chain this algorithm with a [[GenericReduction]] algorithm
+    *
+    * $chainBody
+    * @param other Algorithm to apply after this one
+    */
   def ->(graphAlgorithm: GenericReduction): MultilayerReduction =
     ChainedMultilayer2Reduction(this, graphAlgorithm)
 

@@ -53,26 +53,32 @@ trait Multilayer extends BaseAlgorithm {
     */
   def apply(graph: MultilayerGraphPerspective): graph.MultilayerGraph = graph.identity
 
-  /** Return tabularised results (default implementation returns empty table)
-    *
-    * @param graph graph to run function upon
-    */
   def tabularise(graph: MultilayerGraphPerspective): Table =
     graph.globalSelect(_ => Row())
 
   def run(graph: MultilayerGraphPerspective): Table = tabularise(apply(graph))
 
-  /** Create a new algorithm [](com.raphtory.algorithms.api.Chain) which runs this algorithm first before
-    * running the other algorithm.
+  /** Chain this algorithm with a [[Generic]] algorithm
     *
-    * @param graphAlgorithm next algorithm to run in the chain
+    * $chainBody
+    * @param other Algorithm to apply after this one
     */
   override def ->(graphAlgorithm: Generic): Multilayer =
     ChainedMultilayer(this, graphAlgorithm)
 
+  /** Chain this algorithm with a [[GenericReduction]] algorithm
+    *
+    * $chainBody
+    * @param other Algorithm to apply after this one
+    */
   def ->(graphAlgorithm: GenericReduction): MultilayerReduction =
     ChainedMultilayerReduction(this, graphAlgorithm)
 
+  /** Chain this algorithm with a [[MultilayerProjection]] algorithm
+    *
+    * $chainBody
+    * @param other Algorithm to apply after this one
+    */
   def ->(graphAlgorithm: MultilayerProjection): Multilayer =
     ChainedMultilayer2(this, graphAlgorithm)
 }

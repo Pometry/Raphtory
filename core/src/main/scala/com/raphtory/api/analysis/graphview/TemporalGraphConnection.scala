@@ -7,11 +7,11 @@ import com.raphtory.internals.management.QuerySender
 import com.typesafe.config.Config
 
 /**  `TemporalGraphConnection` is a wrapper for the `TemporalGraph` class normally used to interact with Raphtory graphs.
-  *  This is returned from the `connect` function on the Raphtory Object and has an additional `disconnect()`
+  *  This is returned from the `connect` function on the [[com.raphtory.Raphtory]] Object and has an additional `disconnect()`
   *  function which allows the user to clean up the resources (scheduler/topic repo/connections etc.) used to connect to a deployment.
   *
   * @see
-  *  [[com.raphtory.deployment.Raphtory]]
+  *  [[com.raphtory.Raphtory]]
   *  [[DeployedTemporalGraph]]
   *  [[TemporalGraph]]
   */

@@ -5,7 +5,8 @@ import com.raphtory.internals.management.QuerySender
 
 /** Reduced GraphView with fixed timeline
   *
-  * This [[GraphView]] is returned by the [[DottedGraph]] operations and does not support further timeline manipulation.
+  * This [[GraphView]] is returned by the [[DottedGraph]] operations for non-mutlilayer views
+  * and does not support further timeline manipulation.
   *
   * @see [[GraphView]], [[MultilayerRaphtoryGraph]], [[DottedGraph]]
   */
@@ -15,7 +16,13 @@ class RaphtoryGraph private[api] (
 ) extends RaphtoryGraphBase[RaphtoryGraph]
         with ReducedGraphViewImplementation[RaphtoryGraph, MultilayerRaphtoryGraph] {}
 
-/** Multilayer GraphView with fixed timeline */
+/** Multilayer GraphView with fixed timeline
+  *
+  * This [[GraphView]] is returned by the [[DottedGraph]] operations for multilayer views
+  * and does not support further timeline manipulation.
+  *
+  * @see [[GraphView]], [[RaphtoryGraph]], [[DottedGraph]]
+  */
 class MultilayerRaphtoryGraph private[api] (
     override private[api] val query: Query,
     override private[api] val querySender: QuerySender

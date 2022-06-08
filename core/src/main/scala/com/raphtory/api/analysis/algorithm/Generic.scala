@@ -8,22 +8,11 @@ import com.raphtory.api.analysis.table.Table
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
-/** Base class for writing graph algorithms
+/** Base class for writing graph algorithms that preserve views
   *
-  *  `apply(graph: GraphPerspective): GraphPerspective`
-  *    :
-  *
-  *   `tabularise(graph: GraphPerspective): Table`
-  *    :
-  *
-  *   `run(graph: GraphPerspective): Unit`
-  *      :
-  *
-  *   `->(graphAlgorithm: GraphAlgorithm): Chain`
-  *      :
-  *
-  *        `graphAlgorithm: GraphAlgorithm)`
-  *          :
+  * @define chainBody The new algorithm's `apply` method first applies this algorithm and then other,
+  *                   clearing all messages inbetween. The `tabularise` method of the chained algorithm calls only
+  *                   the `tabularise` method of `other`.
   */
 trait Generic extends GenericallyApplicable {
   override type Out = GraphPerspective
@@ -68,7 +57,11 @@ trait Generic extends GenericallyApplicable {
   /** Logger instance for writing out log messages */
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  /** Default implementation returns the graph unchanged
+  /** Main algorithm
+    *
+    * Default implementation returns the graph unchanged.
+    * This should be overriden by subclasses to define the actual
+    * algorithm steps unless the algorithm only outputs existing state or properties.
     *
     * @param graph graph to run function upon
     */
@@ -80,12 +73,27 @@ trait Generic extends GenericallyApplicable {
 
   def run(graph: GraphPerspective): Table = tabularise(apply(graph))
 
+  /** Chain this algorithm with another generic algorithm
+    *
+    * $chainBody
+    * @param other Algorithm to apply after this one
+    */
   override def ->(graphAlgorithm: Generic): Generic =
     ChainedGeneric(this, graphAlgorithm)
 
+  /** Chain this algorithm with a [[MultilayerProjection]] to create a new [[MultilayerProjection]]
+    *
+    * $chainBody
+    * @param other Algorithm to apply after this one
+    */
   def ->(graphAlgorithm: MultilayerProjection): MultilayerProjection =
     ChainedMultilayerProjection(this, graphAlgorithm)
 
+  /** Chain this algorithm with a [[GenericReduction]] to create a new [[GenericReduction]]
+    *
+    * $chainBody
+    * @param other Algorithm to apply after this one
+    */
   def ->(graphAlgorithm: GenericReduction): GenericReduction =
     ChainedGenericReduction(this, graphAlgorithm)
 
