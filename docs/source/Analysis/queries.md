@@ -8,7 +8,7 @@ When running queries, our starting point is always the {scaladoc}`com.raphtory.a
 * First, you can filter the timeline to the segment you are interested in. 
 * Secondly, you can create a collection of perspectives over the selected timeline.
 * Thirdly, you can apply a sequence of graph operations (such as `step` and `iterate`) that end with a `select()` (returning a {scaladoc}`com.raphtory.algorithms.api.Table`) and a sequence of table operations to get a writable result for your query.
-* Finally, you can write out your result using an {scaladoc}`com.raphtory.algorithms.api.OutputFormat`. This last step kicks off the computation inside Raphtory.
+* Finally, you can write out your result using a {scaladoc}`com.raphtory.algorithms.api.output.sink.Sink`. This last step kicks off the computation inside Raphtory.
 
 A conceptual example of the stages for creating perspectives from a temporal graph is depicted below.
 
@@ -126,7 +126,7 @@ graph
   .filter(vertex => vertex.outDegree > 10)
   .step(vertex => vertex.messageOutNeighbours(vertex.name()))
   .select(vertex => Row(vertex.messageQueue))
-  .writeTo(FileOutputFormat("path/to/your/file"))
+  .writeTo(FileSink("path/to/your/file"))
 ```
 
 Or a combination of both:
@@ -138,7 +138,7 @@ graph
   .window("1 day")
   .filter(vertex => vertex.outDegree > 10)
   .execute(ConnectedComponents())
-  .writeTo(FileOutputFormat("path/to/your/file"))
+  .writeTo(FileSink("path/to/your/file"))
 ```
 
 This is especially useful when you want to preprocess the graph before applying an already defined algorithm. For instance, above we only keep nodes with an out degree greater than 10.

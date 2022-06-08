@@ -23,13 +23,15 @@ import scala.concurrent.duration.Duration
   *
   * {{{
   * import com.raphtory.deployment.Raphtory
-  * import com.raphtory.lotrtest.LOTRGraphBuilder
   * import com.raphtory.components.spout.instance.ResourceSpout
   * import com.raphtory.GraphState
-  * import com.raphtory.output.FileOutputFormat
+  * import com.raphtory.sinks.FileSink
   *
-  * val graph = Raphtory.load(ResourceSpout("resource"), LOTRGraphBuilder())
-  * val queryProgressTracker = graph.rangeQuery(GraphState(),FileOutputFormat("/test_dir"),1, 32674, 10000, List(500, 1000, 10000))
+  * val graph = Raphtory.load(ResourceSpout("resource"), YourGraphBuilder())
+  * val queryProgressTracker = graph.range(1, 32674, 10000)
+  *   .windows(List(500, 1000, 10000))
+  *   .execute(GraphState())
+  *   .writeTo(FileSink("/test_dir"))
   * val jobId                = queryProgressTracker.getJobId()
   * queryProgressTracker.waitForJob()
   * val perspectivesProcessed = queryProgressTracker.getPerspectivesProcessed()
