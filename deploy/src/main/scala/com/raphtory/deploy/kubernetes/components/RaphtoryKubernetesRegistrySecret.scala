@@ -1,7 +1,6 @@
-package com.raphtory.kubernetes.components
+package com.raphtory.deploy.kubernetes.components
 
-import com.raphtory.kubernetes.utils.KubernetesSecret
-
+import com.raphtory.deploy.kubernetes.utils._
 import java.util.Base64
 
 /** Extends KubernetesClient which extends Config.
