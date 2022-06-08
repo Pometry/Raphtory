@@ -1,0 +1,50 @@
+version: "3.9"
+services:
+  pulsar:
+    hostname: pulsar
+    image: apachepulsar/pulsar:2.9.0
+    command: bin/pulsar standalone
+    ports:
+      - "8080:8080"
+      - "6650:6650"
+      - "2181:2181"
+  partition:
+    image: europe-southwest1-docker.pkg.dev/apsv-cris-2021-22/gcrepo/raphtory:fix
+    depends_on:
+      - "pulsar"
+    environment:
+      RAPHTORY_JAVA_COMPONENT_NAME: batchpartitionmanager
+      RAPHTORY_JAVA_RUN_CLASS: com.raphtory.examples.lotrTopic.LOTRService
+      RAPHTORY_JAVA_RUN_ARGS: "-XX:+UseShenandoahGC -XX:+UseStringDeduplication -Xms1G -Xmx1G -Xss128M"
+      RAPHTORY_AKKA_HOSTNAME: partition
+      RAPHTORY_PULSAR_BROKER_ADDRESS: "pulsar://pulsar:6650"
+      RAPHTORY_PULSAR_ADMIN_ADDRESS: "http://pulsar:8080"
+      RAPHTORY_ZOOKEEPER_ADDRESS: "pulsar:2181"
+      #RAPHTORY_QUERY_ADDRESS: query
+  query:
+    image: europe-southwest1-docker.pkg.dev/apsv-cris-2021-22/gcrepo/raphtory:fix
+    depends_on:
+      - "pulsar"
+    hostname: query
+    environment:
+      RAPHTORY_JAVA_COMPONENT_NAME: querymanager
+      RAPHTORY_JAVA_RUN_CLASS: com.raphtory.examples.lotrTopic.LOTRService
+      RAPHTORY_JAVA_RUN_ARGS: "-XX:+UseShenandoahGC -XX:+UseStringDeduplication -Xms1G -Xmx1G -Xss128M"
+      RAPHTORY_AKKA_HOSTNAME: query
+      RAPHTORY_PULSAR_BROKER_ADDRESS: "pulsar://pulsar:6650"
+      RAPHTORY_PULSAR_ADMIN_ADDRESS: "http://pulsar:8080"
+      RAPHTORY_ZOOKEEPER_ADDRESS: "pulsar:2181"
+      #RAPHTORY_QUERY_ADDRESS: query
+  client:
+    image: europe-southwest1-docker.pkg.dev/apsv-cris-2021-22/gcrepo/raphtory:fix
+    depends_on:
+      - "query"
+    hostname: client
+    environment:
+      RAPHTORY_JAVA_COMPONENT_NAME: querymanager
+      RAPHTORY_JAVA_RUN_CLASS: com.raphtory.examples.lotrTopic.LOTRClient
+      RAPHTORY_JAVA_RUN_ARGS: "-XX:+UseShenandoahGC -XX:+UseStringDeduplication -Xms1G -Xmx1G -Xss128M"
+      RAPHTORY_AKKA_HOSTNAME: query
+      RAPHTORY_PULSAR_BROKER_ADDRESS: "pulsar://pulsar:6650"
+      RAPHTORY_PULSAR_ADMIN_ADDRESS: "http://pulsar:8080"
+      #RAPHTORY_QUERY_ADDRESS: query

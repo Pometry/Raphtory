@@ -88,3 +88,7 @@ core/src/main/scala/com/raphtory/lotr
 /core/src/main/scala/com/raphtory/dev/lotr/lotr2.csv
 /core/src/main/scala/com/raphtory/dev/networkx/networkxGraphBuilder.scala
 /core/src/main/scala/com/raphtory/dev/networkx/networkxSpout.scala
+bin/sa.json
+bin/sa copy.json
+
+/tmp

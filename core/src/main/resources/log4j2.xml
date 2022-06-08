@@ -48,17 +48,17 @@
         </Logger>
 
         <!-- LOGGERS FOR RAPHTORY COMPONENTS -->
-        <Logger name="com.raphtory.components" level="${env:RAPHTORY_COMPONENTS_LOG:-INFO}">
+        <Logger name="com.raphtory.components" level="${env:RAPHTORY_COMPONENTS_LOG:-DEBUG}">
         </Logger>
-        <Logger name="com.raphtory.components.graphbuilder" level="${env:RAPHTORY_COMPONENTS_GRAPHBUILDER_LOG:-INFO}">
+        <Logger name="com.raphtory.components.graphbuilder" level="${env:RAPHTORY_COMPONENTS_GRAPHBUILDER_LOG:-DEBUG}">
         </Logger>
-        <Logger name="com.raphtory.components.partition" level="${env:RAPHTORY_COMPONENTS_PARTITION_LOG:-INFO}">
+        <Logger name="com.raphtory.components.partition" level="${env:RAPHTORY_COMPONENTS_PARTITION_LOG:-DEBUG}">
         </Logger>
-        <Logger name="com.raphtory.components.querymanager" level="${env:RAPHTORY_COMPONENTS_QUERYMANAGER_LOG:-INFO}">
+        <Logger name="com.raphtory.components.querymanager" level="${env:RAPHTORY_COMPONENTS_QUERYMANAGER_LOG:-DEBUG}">
         </Logger>
-        <Logger name="com.raphtory.components.querytracker" level="${env:RAPHTORY_COMPONENTS_QUERYTRACKER_LOG:-INFO}">
+        <Logger name="com.raphtory.components.querytracker" level="${env:RAPHTORY_COMPONENTS_QUERYTRACKER_LOG:-DEBUG}">
         </Logger>
-        <Logger name="com.raphtory.components.spout" level="${env:RAPHTORY_COMPONENTS_SPOUT_LOG:-INFO}">
+        <Logger name="com.raphtory.components.spout" level="${env:RAPHTORY_COMPONENTS_SPOUT_LOG:-DEBUG}">
         </Logger>
 
         <!-- LOGGER FOR RAPHTORY DEVELOPMENT WHEN IT IS IN USE -->

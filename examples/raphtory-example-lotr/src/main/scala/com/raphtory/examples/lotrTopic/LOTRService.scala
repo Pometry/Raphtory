@@ -19,5 +19,4 @@ object LOTRService extends RaphtoryService[String] {
 
   override def defineBuilder: LOTRGraphBuilder = new LOTRGraphBuilder()
 
-  override def batchIngestion(): Boolean = true
 }

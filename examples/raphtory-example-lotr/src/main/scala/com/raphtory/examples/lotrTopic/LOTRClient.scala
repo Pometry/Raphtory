@@ -6,7 +6,7 @@ import com.raphtory.output.FileOutputFormat
 
 object LOTRClient extends App {
 
-  val client = Raphtory.deployedGraph()
+  val client = Raphtory.connect()
 
 val output  = FileOutputFormat("/tmp/raphtory")
 

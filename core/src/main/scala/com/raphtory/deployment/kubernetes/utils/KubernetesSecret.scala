@@ -1,4 +1,4 @@
-package com.raphtory.deployment.kubernetes
+package com.raphtory.deployment.kubernetes.utils
 
 import io.fabric8.kubernetes.api.model.Secret
 import io.fabric8.kubernetes.api.model.SecretBuilder
