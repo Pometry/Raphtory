@@ -7,7 +7,7 @@ import scala.collection.AbstractIterator
 import scala.collection.mutable.ArrayBuffer
 
 /** Create a row of a data table
-  * * @see [[Table]]
+  * @see [[Table]]
   */
 trait Row {
   protected val values = ArrayBuffer.empty[Any]
@@ -17,7 +17,7 @@ trait Row {
     */
   def apply(index: Int): Any = values(index)
 
-  /** Return value at index */
+  /** Return value at `index` */
   def get(index: Int): Any = values(index)
 
   /** Return value at `index` and cast it to type `T` */
@@ -42,7 +42,7 @@ trait Row {
   def getValues(): Array[Any] = values.toArray
 }
 
-class RowImplementation extends Row {
+private[raphtory] class RowImplementation extends Row {
 
   class SelfIterator extends AbstractIterator[RowImplementation] {
     private var alive = true
@@ -51,7 +51,7 @@ class RowImplementation extends Row {
       if (alive) alive
       else {
         if (RowImplementation.this.acquired)
-          RowImplementation.this.release
+          RowImplementation.this.release()
         false
       }
 
@@ -63,7 +63,7 @@ class RowImplementation extends Row {
       else
         throw new NoSuchElementException
 
-    def reset: Unit =
+    def reset(): Unit =
       alive = true
   }
 
@@ -77,7 +77,7 @@ class RowImplementation extends Row {
   def init(values: Seq[Any]): Unit = {
     this.values.clear()
     this.values.addAll(values)
-    selfIterator.reset
+    selfIterator.reset()
     acquired = true
     exploded = false
   }
@@ -112,6 +112,7 @@ class RowImplementation extends Row {
   }
 }
 
+/** Factory object for Rows */
 object Row {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
@@ -119,7 +120,7 @@ object Row {
     ArrayBuffer.empty[RowImplementation]
   )
 
-  //def apply(values: Array[Any]): Row = new Row(values)
+  /** Create a new Row object */
   def apply(values: Any*): Row = {
     val localPool = pool.get()
     val row       =
