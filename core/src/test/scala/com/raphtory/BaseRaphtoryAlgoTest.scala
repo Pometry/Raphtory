@@ -63,6 +63,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
     super.withFixture(test) match {
       case failed: Failed =>
         info(s"The test '${test.name}' failed. Keeping test results for inspection.")
+        info(getResults(jobId).take(100).mkString("\n"))
         failed
       case other          =>
         if (deleteResultAfterFinish)
