@@ -103,7 +103,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
     queryProgressTracker.waitForJob()
 
-    generateTestHash(outputDirectory + s"/$jobId")
+    generateTestHash(jobId)
   }
 
   def algorithmPointTest(
@@ -122,7 +122,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
     queryProgressTracker.waitForJob()
 
-    generateTestHash(outputDirectory + s"/$jobId")
+    generateTestHash(jobId)
   }
 
   def resultsHash(results: IterableOnce[String]): String =
@@ -131,12 +131,12 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
       .hashString(results.iterator.toSeq.sorted.mkString, StandardCharsets.UTF_8)
       .toString
 
-  private def generateTestHash(outputPath: String): String = {
-    val files = new File(outputPath)
+  def getResults(jobID: String = jobId): Iterator[String] = {
+    val files = new File(outputDirectory + "/" + jobID)
       .listFiles()
       .filter(_.isFile)
 
-    val results = files.iterator.flatMap { file =>
+    files.iterator.flatMap { file =>
       val source = scala.io.Source.fromFile(file)
       try source.getLines().toList
       catch {
@@ -144,8 +144,11 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
       }
       finally source.close()
     }
+  }
 
-    val hash = resultsHash(results)
+  private def generateTestHash(jobId: String = jobId): String = {
+    val results = getResults(jobId)
+    val hash    = resultsHash(results)
     logger.info(s"Generated hash code: '$hash'.")
 
     hash
