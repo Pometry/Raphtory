@@ -15,6 +15,7 @@ import com.raphtory.utils.FileUtils
 import scala.language.postfixOps
 import sys.process._
 import java.io.File
+import com.raphtory.algorithms.generic.ConnectedComponents
 
 object FileOutputRunner extends App {
   val path = "/tmp/lotr.csv"
@@ -25,12 +26,12 @@ object FileOutputRunner extends App {
   val source  = FileSpout(path)
   val builder = new LOTRGraphBuilder()
   val graph   = Raphtory.load(spout = source, graphBuilder = builder)
-  val output  = FileSink("/tmp/raphtory")
+  val output  = FileSink("/tmp/9JuneCC")
 
   val queryHandler = graph
     .at(32674)
     .past()
-    .execute(DegreesSeparation())
+    .execute(ConnectedComponents())
     .writeTo(output)
 
   queryHandler.waitForJob()

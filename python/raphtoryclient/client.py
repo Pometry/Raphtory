@@ -88,11 +88,9 @@ class client:
         '''
         This function imports a some default classes used by Raphtory
         '''
-        self.java_import("com.raphtory.deployment.Raphtory")
+        self.java_import("com.raphtory.Raphtory")
         self.java_import("scala.collection.JavaConverters")
-        self.java_import("com.raphtory.output.FileOutputFormat")
-        self.java_import("com.raphtory.output.PulsarOutputFormat")
-        self.java_import("com.raphtory.util.PythonUtil")
+        self.java_import("com.raphtory.utils.PythonUtil")
 
     def java_import(self, import_class):
         '''
@@ -144,7 +142,7 @@ class client:
             sys.exit(1)
 
         print("Setting up Java gateway...")
-        gateway = JavaGateway(gateway_parameters=GatewayParameters(port=gateway_port, auth_token=gateway_secret))
+        gateway = JavaGateway(gateway_parameters=GatewayParameters(port=gateway_port, auth_token=gateway_secret, auto_field=True, auto_convert=True))
         print("Java gateway connected.")
         return gateway
 
