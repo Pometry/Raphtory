@@ -6,6 +6,7 @@ import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.input.Spout
+import com.raphtory.sinks.PrintSink
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.ResourceSpout
@@ -20,17 +21,13 @@ object Runner extends App {
   val builder               = new GabUserGraphBuilder()
   val rg                    = Raphtory.stream(spout = source, graphBuilder = builder)
   val sink                  = PulsarSink("Gab")
-  rg.at(1476113868000L)
+  rg.at(1476113856000L)
     .past()
     .execute(EdgeList())
     .writeTo(PulsarSink("EdgeList"))
-  rg.range(1470797917000L, 1476113868000L, 86400000L)
+  rg.range(1470797917000L, 1476113856000L, 86400000L)
     .window(List(3600000L, 86400000L, 604800000L, 2592000000L, 31536000000L), Alignment.END)
     .execute(ConnectedComponents)
     .writeTo(sink)
-  //rg.rangeQuery(ConnectedComponents(),start = 1,end = 32674,increment = 100,window=100,arguments)
-  //rg.rangeQuery(ConnectedComponents(),start = 1,end = 32674,increment = 100,windowBatch=Array(3600,36000,360000),arguments)
-  //rg.viewQuery(DegreeBasic(),timestamp = 10000,arguments)
-  //rg.viewQuery(DegreeBasic(),timestamp = 10000,window=100,arguments)
-  //rg.viewQuery(DegreeBasic(),timestamp = 10000,windowBatch=Array(100,50,10),arguments)
+
 }

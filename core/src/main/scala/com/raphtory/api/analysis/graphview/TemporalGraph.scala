@@ -4,7 +4,7 @@ import com.raphtory.api.analysis.visitor.ExplodedVertex
 import com.raphtory.internals.components.querymanager.PointPath
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.SinglePoint
-import com.raphtory.internals.management.client.QuerySender
+import com.raphtory.internals.management.QuerySender
 import com.raphtory.internals.time.DateTimeParser
 import com.raphtory.internals.time.DiscreteInterval
 import com.raphtory.internals.time.Interval
