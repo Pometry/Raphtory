@@ -225,6 +225,9 @@ abstract class GraphState {
     */
   def newAny(name: String, retainState: Boolean = false): Unit
 
+  /** Get the number of nodes in the graph */
+  def nodeCount: Int
+
   /** Retrieve accumulator
     * $iType
     * $vType
