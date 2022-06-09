@@ -20,26 +20,24 @@ import java.io.File
 class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Graph State Test") {
-    val outputFormat: FileSink = FileSink(outputDirectory)
+    val sink: FileSink = FileSink(outputDirectory)
 
     graph
       .walk(10000)
       .past()
       .execute(GraphState())
-      .writeTo(outputFormat)
+      .writeTo(sink)
       .waitForJob()
-
-//    algorithmTest(GraphState(), outputFormat, 1, 32674, 10000, List(500, 1000, 10000))
 
     assert(true)
   }
 
   test("Connected Components Test") {
-    val outputFormat: FileSink = FileSink(outputDirectory)
+    val sink: FileSink = FileSink(outputDirectory)
 
     val result = algorithmTest(
             algorithm = ConnectedComponents,
-            outputFormat = outputFormat,
+            sink = sink,
             start = 1,
             end = 32674,
             increment = 10000,

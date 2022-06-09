@@ -32,7 +32,7 @@ abstract class Table {
   def writeTo(sink: Sink, jobName: String): QueryProgressTracker
 
   /** Blank write to allows usage from python api
-    * @see [[Table.writeTo(outputFormat,jobName]]
+    * @see [[Table.writeTo(sink,jobName]]
     */
   def writeTo(sink: Sink): QueryProgressTracker
 }

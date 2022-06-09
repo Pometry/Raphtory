@@ -17,8 +17,8 @@ trait QueryManagement extends Serializable
 case class WatermarkTime(partitionID: Int, oldestTime: Long, latestTime: Long, safe: Boolean)
         extends QueryManagement
 
-case object StartAnalysis                                       extends QueryManagement
-case class EstablishExecutor(jobID: String, outputFormat: Sink) extends QueryManagement
+case object StartAnalysis                               extends QueryManagement
+case class EstablishExecutor(jobID: String, sink: Sink) extends QueryManagement
 
 case class SetMetaData(vertices: Int) extends QueryManagement
 
