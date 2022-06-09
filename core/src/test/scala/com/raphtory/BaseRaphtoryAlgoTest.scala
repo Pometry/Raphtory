@@ -63,7 +63,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
     super.withFixture(test) match {
       case failed: Failed =>
         info(s"The test '${test.name}' failed. Keeping test results for inspection.")
-        info(getResults(jobId).take(100).mkString("\n"))
+        info("Results (first 100 rows):\n" + getResults(jobId).take(100).mkString("\n"))
         failed
       case other          =>
         if (deleteResultAfterFinish)
@@ -80,7 +80,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
   def setSpout(): Spout[T]
   def setGraphBuilder(): GraphBuilder[T]
-  def batchLoading(): Boolean                                               = false
+  def batchLoading(): Boolean                                               = true
   def setup(): Unit = {}
 
   def receiveMessage(consumer: Consumer[Array[Byte]]): Message[Array[Byte]] =
