@@ -256,6 +256,11 @@ private[api] trait ConcreteGraphPerspective[V <: visitor.Vertex, G <: ConcreteGr
   override type Vertex          = V
   override def identity: Graph = this
 
+  // TODO: Duplicate method definitions below are a work around for IntelliJ analyser bug:
+  // https://youtrack.jetbrains.com/issue/SCL-20292/Combining-dependent-types-and-self-type-annotations-causes-spurious-Type-Mismatch-highlights
+  //
+  // Once this bug is fixed, these definitions should be removed again.
+
   /** Add a function to manipulate global graph state, mainly used to initialise accumulators before the next algorithm step
     *
     * @param f function to set graph state (runs exactly once)
