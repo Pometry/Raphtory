@@ -6,10 +6,10 @@ import PropertyMergeStrategy.PropertyMerge
 
 import scala.reflect.ClassTag
 
-/** Extends [`EntityVisitor`](com.raphtory.graph.visitor.EntityVisitor) with vertex-specific functionality
+/** Extends [[EntityVisitor]] with vertex-specific functionality
   *
   * The `Vertex` is the main entry point for exploring the graph using a
-  * [`GraphAlgorithm`](com.raphtory.algorithms.api.GraphAlgorithm) given the node-centric nature of Raphtory.
+  * [[com.raphtory.api.analysis.algorithm Algorithm]] given the node-centric nature of Raphtory.
   * It provides access to the edges of the graph and can send messages to and receive messages from other vertices.
   * A `Vertex` can also store computational state.
   */
@@ -35,21 +35,21 @@ trait Vertex extends EntityVisitor {
 
   /** Get the name of the vertex.
     * If `nameProperty` does not exist, this function returns the string representation of the vertex ID
-    * @param nameProperty vertex property to use as name (should uniquely identify the vertex)
+    * @param nameProperty Vertex property to use as name (should uniquely identify the vertex)
     */
   def name(nameProperty: String = "name"): String =
     getPropertyOrElse[String](nameProperty, ID.toString)
 
   //functionality for checking messages
-  /** check if vertex has received messages */
+  /** Check if vertex has received messages */
   def hasMessage: Boolean
 
-  /** queue of received messages
+  /** Queue of received messages
     * @tparam `T`  message data type
     */
   def messageQueue[T]: List[T]
 
-  /** vote to stop iterating (iteration stops if all vertices voted to halt) */
+  /** Vote to stop iterating (iteration stops if all vertices voted to halt) */
   def voteToHalt(): Unit
   //Send message
 
@@ -106,25 +106,25 @@ trait Vertex extends EntityVisitor {
   private lazy val inNeighbourSet  = getInNeighbours().toSet
   private lazy val outNeighbourSet = getOutNeighbours().toSet
 
-  /** check if the vertex with ID `id` is an in- or out-neighbour of this vertex */
+  /** Check if the vertex with ID `id` is an in- or out-neighbour of this vertex */
   def isNeighbour(id: IDType): Boolean =
     inNeighbourSet.contains(id) || outNeighbourSet.contains(id)
 
-  /** check if the vertex with ID `id` is an in-neighbour of this vertex */
+  /** Check if the vertex with ID `id` is an in-neighbour of this vertex */
   def isInNeighbour(id: IDType): Boolean = inNeighbourSet.contains(id)
 
-  /** check if the vertex with ID `id` is an out-neighbour of this vertex */
+  /** Check if the vertex with ID `id` is an out-neighbour of this vertex */
   def isOutNeighbour(id: IDType): Boolean = outNeighbourSet.contains(id)
 
   //Degree
-  /** total number of neighbours (including in-neighbours and out-neighbours) of the vertex */
-  lazy val degree: Int = getAllNeighbours().size
+  /** Total number of neighbours (including in-neighbours and out-neighbours) of the vertex */
+  def degree: Int = getAllNeighbours().size
 
-  /** number of out-neighbours of the vertex */
-  lazy val outDegree: Int = getOutNeighbours().size
+  /** Number of out-neighbours of the vertex */
+  def outDegree: Int = getOutNeighbours().size
 
-  /** number of in-neighbours of the vertex */
-  lazy val inDegree: Int = getInNeighbours().size
+  /** Number of in-neighbours of the vertex */
+  def inDegree: Int = getInNeighbours().size
 
   /** Return all edges starting or ending at this vertex
     * @param after only return edges that are active after time `after`
@@ -289,7 +289,7 @@ trait Vertex extends EntityVisitor {
   // if includeProperties = true and value is pulled in from properties, the new value is set as state
   def getOrSetState[T](key: String, value: T, includeProperties: Boolean = false): T
 
-  /** append new value to existing array or initialise new array if state does not exist
+  /** Append new value to existing array or initialise new array if state does not exist
     * The value type of the state is assumed to be `Array[T]` if the state already exists.
     * @tparam `T` value type for state (needs to have a `ClassTag` available due to Scala `Array` implementation)
     * @param key key to use for retrieving state
@@ -527,6 +527,7 @@ trait Vertex extends EntityVisitor {
             DefaultValues.defaultVal[A]
     )
 
+  /** Filter this vertex and remove it and all its edges from the GraphPerspective */
   def remove(): Unit
 }
 

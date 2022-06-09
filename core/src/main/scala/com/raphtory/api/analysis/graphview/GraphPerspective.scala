@@ -238,7 +238,7 @@ trait MultilayerGraphPerspective extends GraphPerspective {
 
 /** GraphPerspective over `Vertex` instances */
 trait ReducedGraphPerspective extends GraphPerspective {
-  override type Vertex       = visitor.Vertex
+  override type Vertex       = visitor.ReducedVertex
   override type Graph <: ConcreteReducedGraphPerspective[Graph, MultilayerGraph]
   override type ReducedGraph = Graph
 }
@@ -261,7 +261,7 @@ private[api] trait ConcreteReducedGraphPerspective[
     G <: ConcreteReducedGraphPerspective[G, MG],
     MG <: ConcreteMultilayerGraphPerspective[MG, G]
 ] extends ReducedGraphPerspective
-        with ConcreteGraphPerspective[visitor.Vertex, G, G, MG] { this: G => }
+        with ConcreteGraphPerspective[visitor.ReducedVertex, G, G, MG] { this: G => }
 
 private[api] trait ConcreteMultilayerGraphPerspective[
     G <: ConcreteMultilayerGraphPerspective[G, RG],

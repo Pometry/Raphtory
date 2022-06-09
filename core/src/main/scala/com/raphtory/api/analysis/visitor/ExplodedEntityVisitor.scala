@@ -1,10 +1,12 @@
 package com.raphtory.api.analysis.visitor
 
 /** Base trait for [[ExplodedEdge]] and [[ExplodedVertex]]
-  *  Extends [`EntityVisitor`](com.raphtory.graph.visitor.EntityVisitor) adding a `timestamp` property.
+  *  Extends [[EntityVisitor]] adding a `timestamp` property.
   *  Further, all the history access methods take this `timestamp` as their default value for `before`.
   */
 trait ExplodedEntityVisitor extends EntityVisitor {
+
+  /** Timestamp for exploded entity */
   def timestamp: Long
 
   def firstActivityAfter(time: Long = timestamp, strict: Boolean = true): Option[HistoricEvent]

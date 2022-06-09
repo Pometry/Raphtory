@@ -60,24 +60,29 @@ case class InterlayerEdge(
     time < latestActivity().time && time > earliestActivity().time
 }
 
-/** # InterlayerEdgeBuilders
+/** Default builders for constructing interlayer edges
   *
-  *  `InterlayerEdgeBuilders`
-  *   : Default builders for constructing interlayer edges
-  *
-  *  ## Builders
-  *
-  *  `linkNext`
-  *
-  *  `linkPrevious`
-  *
-  *  `linkPreviousAndNext`
+  * @define properties @param properties Map of property values for the interlayer edges
+  * @define propertyBuilder @param propertyBuilder Builder function for interlayer edge properties.
+  *                         The input parameters for the builder are the timestamps for the two endpoints of the edge.
   */
 object InterlayerEdgeBuilders {
 
+  /**
+    * Add an interlayer edge to the [[ExplodedVertex]] representing the next activity of the vertex unless it is
+    * a deletion event.
+    *
+    * $properties
+    */
   def linkNext(properties: Map[String, Any]): Vertex => Seq[InterlayerEdge] =
     linkNext((_, _) => properties)
 
+  /**
+    * Add an interlayer edge to the [[ExplodedVertex]] representing the next activity of the vertex unless it is a
+    * deletion event.
+    *
+    * $propertyBuilder
+    */
   def linkNext(
       propertyBuilder: (Long, Long) => Map[String, Any] = (_, _) => Map.empty[String, Any]
   ): Vertex => Seq[InterlayerEdge] = { vertex =>
@@ -91,9 +96,21 @@ object InterlayerEdgeBuilders {
       .toSeq
   }
 
+  /**
+    * Add an interlayer edge to the [[ExplodedVertex]] representing the last activity of the vertex unless it is
+    * a deletion event.
+    *
+    * $properties
+    */
   def linkPrevious(properties: Map[String, Any]): Vertex => Seq[InterlayerEdge] =
     linkPrevious((_, _) => properties)
 
+  /**
+    * Add an interlayer edge to the [[ExplodedVertex]] representing the last activity of the vertex unless it is
+    * a deletion event.
+    *
+    * $propertyBuilder
+    */
   def linkPrevious(
       propertyBuilder: (Long, Long) => Map[String, Any] = (_, _) => Map.empty[String, Any]
   ): Vertex => Seq[InterlayerEdge] = { vertex =>
@@ -107,9 +124,21 @@ object InterlayerEdgeBuilders {
       .toSeq
   }
 
+  /**
+    * Add an interlayer edge to the [[ExplodedVertex]] representing the next and last activity of the vertex unless it is
+    * a deletion event.
+    *
+    * $properties
+    */
   def linkPreviousAndNext(properties: Map[String, Any]): Vertex => Seq[InterlayerEdge] =
     linkPreviousAndNext((_, _) => properties)
 
+  /**
+    * Add an interlayer edge to the [[ExplodedVertex]] representing the next and last activity of the vertex unless it is
+    * a deletion event.
+    *
+    * $propertyBuilder
+    */
   def linkPreviousAndNext(
       propertyBuilder: (Long, Long) => Map[String, Any] = (_, _) => Map.empty[String, Any]
   ): Vertex => Seq[InterlayerEdge] = { vertex =>

@@ -3,77 +3,66 @@ package com.raphtory.api.analysis.algorithm
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.graphview.MultilayerGraphPerspective
 import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
-import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 
+/** Base class for writing graph algorithms that return reduced views.
+  *
+  * A `GenericReduction` maps any graph view to a reduced graph view. For reduction algorithms that require the
+  * input graph to be multilayer use [[MultilayerReduction]] instead.
+  *
+  * @define chainBody The new algorithm's `apply` method first applies this algorithm and then other,
+  *                   clearing all messages inbetween. The `tabularise` method of the chained algorithm calls only
+  *                   the `tabularise` method of `other`.
+  */
 trait GenericReduction extends GenericallyApplicable {
   override type Out = ReducedGraphPerspective
 
-  case class ChainedGenericReduction(
-      first: GenericReduction,
-      second: Generic
-  ) extends ChainedAlgorithm(first, second)
-          with GenericReduction {
-
-    override def apply(graph: GraphPerspective): graph.ReducedGraph =
-      second(first(graph).clearMessages())
-
-    override def tabularise(graph: ReducedGraphPerspective): Table =
-      second.tabularise(graph)
-  }
-
-  case class Chained2GenericReduction(
-      first: GenericReduction,
-      second: GenericReduction
-  ) extends ChainedAlgorithm(first, second)
-          with GenericReduction {
-
-    override def apply(graph: GraphPerspective): graph.ReducedGraph =
-      second(first(graph).clearMessages())
-
-    override def tabularise(graph: ReducedGraphPerspective): Table = second.tabularise(graph)
-  }
-
-  case class ChainedMultilayerProjection(
-      first: GenericReduction,
-      second: MultilayerProjection
-  ) extends ChainedAlgorithm(first, second)
-          with MultilayerProjection {
-
-    override def apply(graph: GraphPerspective): graph.MultilayerGraph =
-      second(first(graph).clearMessages())
-
-    override def tabularise(graph: MultilayerGraphPerspective): Table =
-      second.tabularise(graph)
-  }
-
-  /** Default implementation returns the graph unchanged
+  /** Main algorithm
+    *
+    * Default implementation calls `graph.reducedView`. This should be overriden by subclasses to define the actual
+    * algorithm steps.
     *
     * @param graph graph to run function upon
     */
   def apply(graph: GraphPerspective): graph.ReducedGraph = graph.reducedView
 
-  /** Return tabularised results (default implementation returns empty table)
+  /** Chain this algorithm with a [[Generic]] algorithm
     *
-    * @param graph graph to run function upon
+    * $chainBody
+    * @param other Algorithm to apply after this one
     */
-  def tabularise(graph: ReducedGraphPerspective): Table =
-    graph.globalSelect(_ => Row())
+  def ->(other: Generic): GenericReduction =
+    new ChainedAlgorithm(this, other) with GenericReduction {
 
-  override def run(graph: GraphPerspective): Table = tabularise(apply(graph))
+      override def apply(graph: GraphPerspective): graph.ReducedGraph =
+        second(first(graph).clearMessages())
+      override def tabularise(graph: ReducedGraphPerspective): Table  = second.tabularise(graph)
+    }
 
-  /** Create a new algorithm [](com.raphtory.algorithms.api.Chain) which runs this algorithm first before
-    * running the other algorithm.
+  /** Chain this algorithm with a [[GenericReduction]] algorithm
     *
-    * @param graphAlgorithm next algorithm to run in the chain
+    * $chainBody
+    * @param other Algorithm to apply after this one
     */
-  override def ->(graphAlgorithm: Generic): GenericReduction =
-    ChainedGenericReduction(this, graphAlgorithm)
+  def ->(other: GenericReduction): GenericReduction =
+    new ChainedAlgorithm(this, other) with GenericReduction {
 
-  def ->(graphAlgorithm: GenericReduction): GenericReduction =
-    Chained2GenericReduction(this, graphAlgorithm)
+      override def apply(graph: GraphPerspective): graph.ReducedGraph =
+        second(first(graph).clearMessages())
+      override def tabularise(graph: ReducedGraphPerspective): Table  = second.tabularise(graph)
+    }
 
-  def ->(graphAlgorithm: MultilayerProjection): MultilayerProjection =
-    ChainedMultilayerProjection(this, graphAlgorithm)
+  /** Chain this algorithm with a [[MultilayerProjection]] algorithm
+    *
+    * $chainBody
+    * @param other Algorithm to apply after this one
+    */
+  def ->(other: MultilayerProjection): MultilayerProjection =
+    new ChainedAlgorithm(this, other) with MultilayerProjection {
+
+      override def apply(graph: GraphPerspective): graph.MultilayerGraph =
+        second(first(graph).clearMessages())
+      override def tabularise(graph: MultilayerGraphPerspective): Table  = second.tabularise(graph)
+    }
 
 }
