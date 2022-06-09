@@ -19,8 +19,8 @@ object Runner extends App {
   FileUtils.curlFile(path, url)
   val source: Spout[String] = FileSpout(path)
   val builder               = new GabUserGraphBuilder()
-  val rg                    = Raphtory.load(spout = source, graphBuilder = builder)
-  val outputFormat          = PulsarSink("Gab")
+  val rg                    = Raphtory.stream(spout = source, graphBuilder = builder)
+  val sink                  = PulsarSink("Gab")
   rg.at(1476113856000L)
     .past()
     .execute(EdgeList())
@@ -28,5 +28,6 @@ object Runner extends App {
   rg.range(1470797917000L, 1476113856000L, 86400000L)
     .window(List(3600000L, 86400000L, 604800000L, 2592000000L, 31536000000L), Alignment.END)
     .execute(ConnectedComponents)
-    .writeTo(outputFormat)
+    .writeTo(sink)
+
 }

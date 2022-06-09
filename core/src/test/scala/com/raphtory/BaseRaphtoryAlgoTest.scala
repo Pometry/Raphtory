@@ -35,9 +35,9 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  var jobId: String             = ""
-  val outputDirectory: String   = "/tmp/raphtoryTest"
-  def defaultOutputFormat: Sink = FileSink(outputDirectory)
+  var jobId: String           = ""
+  val outputDirectory: String = "/tmp/raphtoryTest"
+  def defaultSink: Sink       = FileSink(outputDirectory)
 
   var graph: DeployedTemporalGraph     = _
   def pulsarConnector: PulsarConnector = new PulsarConnector(conf)
@@ -91,13 +91,13 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
       end: Long,
       increment: Long,
       windows: List[Long] = List[Long](),
-      outputFormat: Sink = defaultOutputFormat
+      sink: Sink = defaultSink
   ): String = {
     val queryProgressTracker = graph
       .range(start, end, increment)
       .window(windows, Alignment.END)
       .execute(algorithm)
-      .writeTo(outputFormat)
+      .writeTo(sink)
 
     jobId = queryProgressTracker.getJobId
 
@@ -110,13 +110,13 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
       algorithm: GenericallyApplicable,
       timestamp: Long,
       windows: List[Long] = List[Long](),
-      outputFormat: Sink = defaultOutputFormat
+      sink: Sink = defaultSink
   ): String = {
     val queryProgressTracker = graph
       .at(timestamp)
       .window(windows, Alignment.END)
       .execute(algorithm)
-      .writeTo(outputFormat)
+      .writeTo(sink)
 
     jobId = queryProgressTracker.getJobId
 

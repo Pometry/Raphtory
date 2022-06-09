@@ -13,29 +13,32 @@ import com.typesafe.config.Config
 import java.io.File
 import java.io.FileWriter
 
-/** Writes the rows of a `Table` to the file specified by `filePath` in CSV format.
+/** A `Sink` that writes a `Table` into files using the given `format`.
   *
-  * @param filePath Filepath for writing Raphtory output.
+  * The sink creates one directory with the job id as name inside `filepath`
+  * and one file for every partition on the server inside that directory.
   *
-  * Usage:
-  * (while querying or running algorithmic tests)
+  * @param filePath the filepath to write the table into
+  * @param format the format to be used by this sink (`CsvFormat` by default)
+  *
+  * @example
   * {{{
   * import com.raphtory.algorithms.generic.EdgeList
-  * import com.raphtory.output.FileOutputFormat
-  * import com.raphtory.algorithms.api.OutputFormat
+  * import com.raphtory.sinks.FileSink
   * import com.raphtory.components.spout.instance.ResourceSpout
   *
   * val graphBuilder = new YourGraphBuilder()
   * val graph = Raphtory.stream(ResourceSpout("resource"), graphBuilder)
   * val testDir = "/tmp/raphtoryTest"
-  * val outputFormat: OutputFormat = FileOutputFormat(testDir)
+  * val sink = FileSink(testDir)
   *
-  * graph.execute(EdgeList()).writeTo(outputFormat)
+  * graph.execute(EdgeList()).writeTo(sink)
   * }}}
   * @see [[Sink]]
+  *      [[Format]]
+  *      [[CsvFormat]]
   *      [[Table]]
-  *      [[GraphDeployment]]
-  *      [[com.raphtory.deployment.Raphtory]]
+  *      [[com.raphtory.Raphtory]]
   */
 case class FileSink(filePath: String, format: Format = CsvFormat())
         extends FormatAgnosticSink(format) {

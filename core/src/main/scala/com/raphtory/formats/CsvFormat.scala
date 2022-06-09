@@ -7,6 +7,23 @@ import com.raphtory.api.output.sink.SinkExecutor
 import com.raphtory.internals.graph.Perspective
 import com.typesafe.config.Config
 
+/** A `Format` that writes a `Table` in comma-separated values (CSV) format
+  *
+  * This format outputs one CSV line per row.
+  * The first two values are the timestamp used to create the perspective corresponding to that row
+  * and the size of the window applied over the perspective.
+  * If no window was applied over the perspective, the window size is omitted.
+  * The following values are the values composing the row.
+  *
+  * For a table with just one perspective created from timestamp 10 with a window size 5 and 3 rows
+  * the output might look as follows:
+  *
+  * {{{
+  * 10,5,id1,12
+  * 10,5,id2,13
+  * 10,5,id3,24
+  * }}}
+  */
 case class CsvFormat() extends Format {
   override def defaultDelimiter: String = "\n"
 

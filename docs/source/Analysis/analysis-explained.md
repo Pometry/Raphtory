@@ -209,29 +209,29 @@ table
 ### Writing out results
 
 Finally, once you are happy with the format of your data you can output it to disk.
-This is done by using an {scaladoc}`com.raphtory.algorithms.api.OutputFormat` which is given to the
+This is done by using a {scaladoc}`com.raphtory.algorithms.api.output.sink.Sink` which is given to the
 query when it is executed. Several inbuilt output formats are available within Raphtory, but it is also very simple to implement your own if you have a specific destination in mind.
 
-As an example from our prior code snippets the {scaladoc}`com.raphtory.output.FileOutputFormat` saves the results of each partition as separate
+As an example from our prior code snippets the {scaladoc}`com.raphtory.sinks.FileSink` saves the results of each partition as separate
 files to a directory. This directory is the only argument required when creating the
-{scaladoc}`com.raphtory.output.FileOutputFormat` object and passing it to the query:
+{scaladoc}`com.raphtory.api.output.sink.Sink` object and passing it to the query:
 
 ```scala
-val outputFormat = FileOutputFormat("/tmp")
+val sink = FileSink("/tmp")
 graph
   .execute(ConnectedComponents())
-  .writeTo(outputFormat)
+  .writeTo(sink)
 ```
 
-Similarly the {scaladoc}`com.raphtory.output.PulsarOutputFormat` can used to write results directly to
+Similarly the {scaladoc}`com.raphtory.sinks.PulsarSink` can used to write results directly to
 [Pulsar](https://pulsar.apache.org) topics. Where the user gives the Topic as an argument when creating the
-{scaladoc}`com.raphtory.output.PulsarOutputFormat` object:
+{scaladoc}`com.raphtory.sinks.PulsarSink` object:
 
 ```scala
-val outputFormat = PulsarOutputFormat("components")
+val sink = PulsarSink("components")
 graph
   .execute(ConnectedComponents())
-  .writeTo(outputFormat)
+  .writeTo(sink)
 ```
 
 ## Types of Algorithms
