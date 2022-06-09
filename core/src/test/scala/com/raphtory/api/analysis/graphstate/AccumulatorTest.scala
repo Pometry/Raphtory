@@ -99,10 +99,10 @@ class AccumulatorTest extends BaseCorrectnessTest {
       .execute(CheckNodeCount)
       .writeTo(defaultSink)
 
-    job
-      .waitForJob()
+    jobId = job.getJobId
+    job.waitForJob()
 
-    getResults(job.getJobId).foreach { res =>
+    getResults().foreach { res =>
       val t = res.split(",")
       t(t.size - 1).shouldEqual("true")
     }
