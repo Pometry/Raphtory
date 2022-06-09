@@ -3,9 +3,16 @@ package com.raphtory.api.analysis.algorithm
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.graphview.MultilayerGraphPerspective
 import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
-import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 
+/** Base class for writing graph algorithms that return multialyer views.
+  *
+  * A `MultilayerProjection` maps any graph view to a multilayer graph view.
+  *
+  * @define chainBody The new algorithm's `apply` method first applies this algorithm and then other,
+  *                   clearing all messages inbetween. The `tabularise` method of the chained algorithm calls only
+  *                   the `tabularise` method of `other`.
+  */
 trait MultilayerProjection extends GenericallyApplicable {
   override type Out = MultilayerGraphPerspective
 

@@ -3,7 +3,6 @@ package com.raphtory.api.analysis.algorithm
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.graphview.MultilayerGraphPerspective
 import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
-import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory

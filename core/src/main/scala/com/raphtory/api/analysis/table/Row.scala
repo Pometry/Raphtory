@@ -7,7 +7,7 @@ import scala.collection.AbstractIterator
 import scala.collection.mutable.ArrayBuffer
 
 /** Create a row of a data table
-  * * @see [[Table]]
+  * @see [[Table]]
   */
 trait Row {
   protected val values = ArrayBuffer.empty[Any]
@@ -42,7 +42,7 @@ trait Row {
   def getValues(): Array[Any] = values.toArray
 }
 
-class RowImplementation extends Row {
+private[raphtory] class RowImplementation extends Row {
 
   class SelfIterator extends AbstractIterator[RowImplementation] {
     private var alive = true
@@ -112,6 +112,7 @@ class RowImplementation extends Row {
   }
 }
 
+/** Factory object for Rows */
 object Row {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
@@ -119,7 +120,7 @@ object Row {
     ArrayBuffer.empty[RowImplementation]
   )
 
-  //def apply(values: Array[Any]): Row = new Row(values)
+  /** Create a new Row object */
   def apply(values: Any*): Row = {
     val localPool = pool.get()
     val row       =
