@@ -74,6 +74,10 @@ logs
 .scala_dependencies
 .worksheet
 .idea
+.bloop
+.metals
+.vscode
+/project/.bloop
 
 **/logs/**
 /core/src/main/scala/com/raphtory/dev/algorithms/test.scala
