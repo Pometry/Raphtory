@@ -48,56 +48,56 @@ object GabJsonProtocol extends DefaultJsonProtocol {
       implicit val jsObj = value.asJsObject
 
       new GabPost(
-        getLong("id"),
-        getField("created_at") match {
-          case Some(s) => Some(s.replaceAll("\"", ""))
-          case None    => None
-        },
-        getField("revised_at") match {
-          case Some(s) => Some(s.replaceAll("\"", ""))
-          case None    => None
-        },
-        getBoolean("edited"),
-        /*getField("body"),
+              getLong("id"),
+              getField("created_at") match {
+                case Some(s) => Some(s.replaceAll("\"", ""))
+                case None    => None
+              },
+              getField("revised_at") match {
+                case Some(s) => Some(s.replaceAll("\"", ""))
+                case None    => None
+              },
+              getBoolean("edited"),
+              /*getField("body"),
         getField("body_html"),
         getField("body_html_summary"),
         getField("body_html_summary_truncated").toBoolean,*/
-        getBoolean("only_emoji"),
-        getBoolean("liked"),
-        getBoolean("disliked"),
-        getBoolean("bookmarked"),
-        getBoolean("repost"),
-        getInt("score"),
-        getInt("like_count"),
-        getInt("dislike_count"),
-        getInt("reply_count"),
-        getInt("repost_count"),
-        getBoolean("is_quote"),
-        getBoolean("is_reply"),
-        getBoolean("is_replies_disabled"),
-        //getRawField("embed").convertTo[GabEmbed],
-        //getRawField("attachment").convertTo[GabAttachment],
-        //getInt("category"),
-        /*tRawField("category_details") match {
+              getBoolean("only_emoji"),
+              getBoolean("liked"),
+              getBoolean("disliked"),
+              getBoolean("bookmarked"),
+              getBoolean("repost"),
+              getInt("score"),
+              getInt("like_count"),
+              getInt("dislike_count"),
+              getInt("reply_count"),
+              getInt("repost_count"),
+              getBoolean("is_quote"),
+              getBoolean("is_reply"),
+              getBoolean("is_replies_disabled"),
+              //getRawField("embed").convertTo[GabEmbed],
+              //getRawField("attachment").convertTo[GabAttachment],
+              //getInt("category"),
+              /*tRawField("category_details") match {
           case Some(c) => Some(c.convertTo[GabCategoryDetails])
           case None    => None
         },*/
-        getField("language"),
-        getBoolean("nsfw"),
-        getBoolean("is_premium"),
-        getBoolean("is_locked"),
-        getRawField("user") match {
-          case Some(u) => Some(u.convertTo[GabUser])
-          case None    => None
-        },
-        getRawField("topic") match {
-          case Some(t) => Some(t.convertTo[GabTopic])
-          case None    => None
-        },
-        getRawField("parent") match {
-          case Some(p) => Some(p.convertTo[GabPost])
-          case None    => None
-        }
+              getField("language"),
+              getBoolean("nsfw"),
+              getBoolean("is_premium"),
+              getBoolean("is_locked"),
+              getRawField("user") match {
+                case Some(u) => Some(u.convertTo[GabUser])
+                case None    => None
+              },
+              getRawField("topic") match {
+                case Some(t) => Some(t.convertTo[GabTopic])
+                case None    => None
+              },
+              getRawField("parent") match {
+                case Some(p) => Some(p.convertTo[GabPost])
+                case None    => None
+              }
       )
     }
   }
