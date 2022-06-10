@@ -69,11 +69,10 @@ class MaxFlow[T](
 )(implicit numeric: Numeric[T])
         extends Generic {
 
-  override def apply(graph: GraphPerspective): graph.Graph = {
-    val n =
-      1 // graph.nodeCount().toDouble TODO: nodeCount() is not available anymore, needs a solution
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph
-      .step { vertex =>
+      .step { (vertex, graphState) =>
+        val n = graphState.nodeCount
         if (vertex.name() == source) {
           val flow = mutable.Map[vertex.IDType, T]()
           vertex.setState("distanceLabel", n)
@@ -166,7 +165,6 @@ class MaxFlow[T](
               maxIterations,
               executeMessagedOnly = true
       )
-  }
 
   override def tabularise(graph: GraphPerspective): Table =
     graph.explodeSelect(vertex =>
