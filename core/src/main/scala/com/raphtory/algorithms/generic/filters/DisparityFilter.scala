@@ -9,7 +9,29 @@ import scala.reflect.ClassTag
 import scala.language.implicitConversions
 import scala.math.Numeric.Implicits.infixNumericOps
 
-class DisparityFilter[T: Numeric : Bounded: ClassTag](alpha: Double=0.05, weightProperty:String) extends Generic {
+/**
+  * {s}`DisparityFilter(alpha: Double=0.05, weightProperty:String="weight")`
+  * : Filtered view of a weighted graph based on Edge Disparity.
+  *
+  *  This creates a filtered view of a weighted graph where only "statistically significant" edges remain. For a description of this method,
+  *  please refer to: Serrano, M. Ángeles, Marián Boguná, and Alessandro Vespignani. "Extracting the multiscale backbone of complex weighted networks."
+  *  Proceedings of the National Academy of Sciences 106.16 (2009): 6483-6488. Note that this implementation is aimed at undirected networks.
+  *
+  * ## Parameters
+  *
+  *  {s}`alpha: Double = 0.05`
+  *  : Significance level to use. A smaller {s}`alpha` value means more edges will be removed
+  *
+  *  {s}`weightString: String = "weight"`
+  *  : String name of the property/state, defaulting to "weight". As with other weighted algorithms in Raphtory, if no weight property
+  *  is there but multi-edges are present, the number of occurrences of each edge is treated as the weight.
+  *
+  * ```{seealso}
+  * [](com.raphtory.algorithms.generic.filters.EdgeQuantileFilter)
+  * ```
+  */
+
+class DisparityFilter[T: Numeric : Bounded: ClassTag](alpha: Double=0.05, weightProperty:String="weight") extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph = {
     graph.step{
@@ -42,5 +64,5 @@ class DisparityFilter[T: Numeric : Bounded: ClassTag](alpha: Double=0.05, weight
 }
 
 object DisparityFilter {
-  def apply[T: Numeric: Bounded: ClassTag](alpha: Double=0.05, weightProperty:String) = new DisparityFilter[T](alpha,weightProperty)
+  def apply[T: Numeric: Bounded: ClassTag](alpha: Double=0.05, weightProperty:String="weight") = new DisparityFilter[T](alpha,weightProperty)
 }
