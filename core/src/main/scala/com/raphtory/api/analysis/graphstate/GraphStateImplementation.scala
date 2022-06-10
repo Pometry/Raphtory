@@ -119,7 +119,7 @@ private object HistogramAccumulatorImplementation {
     new HistogramAccumulatorImplementation[T](noBins, minValue, maxValue, retainState)
 }
 
-private[raphtory] class GraphStateImplementation extends GraphState {
+private[raphtory] class GraphStateImplementation(override val nodeCount: Int) extends GraphState {
   private val accumulatorState = mutable.Map.empty[String, AccumulatorImplementation[Any, Any]]
   private val histogramState   = mutable.Map.empty[String, HistogramImplementation[Any]]
 
@@ -207,6 +207,6 @@ private[raphtory] class GraphStateImplementation extends GraphState {
 }
 
 private[raphtory] object GraphStateImplementation {
-  def apply() = new GraphStateImplementation
-  val empty   = new GraphStateImplementation
+  def apply(nodeCount: Int) = new GraphStateImplementation(nodeCount)
+  val empty                 = new GraphStateImplementation(0)
 }

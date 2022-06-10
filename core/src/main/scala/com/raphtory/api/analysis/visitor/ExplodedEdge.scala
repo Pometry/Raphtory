@@ -8,4 +8,8 @@ package com.raphtory.api.analysis.visitor
   *
   * @see [[Edge]] [[ExplodedEntityVisitor]]
   */
-trait ExplodedEdge extends Edge with ExplodedEntityVisitor
+trait ExplodedEdge extends Edge with ExplodedEntityVisitor {
+
+  override def weight[A: Numeric](weightProperty: String, default: A): A =
+    weight(weightProperty, PropertyMergeStrategy.latest[A], default)
+}

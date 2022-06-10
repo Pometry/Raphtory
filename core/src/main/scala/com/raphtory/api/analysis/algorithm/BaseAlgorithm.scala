@@ -29,7 +29,10 @@ private[api] trait BaseAlgorithm extends Serializable {
   private[raphtory] def run(graph: In): Table = tabularise(apply(graph))
 
   /** The name of the algorithm (returns the simple class name by default) */
-  def name: String = getClass.getSimpleName
+  def name: String = {
+    val name = getClass.getSimpleName
+    name.stripSuffix("$")
+  }
 
   /** Create a new algorithm which runs this algorithm first before
     *  running the other algorithm.

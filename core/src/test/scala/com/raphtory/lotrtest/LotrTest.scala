@@ -34,8 +34,6 @@ import sys.process._
 
 class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
-  override def batchLoading(): Boolean = false
-
   test("Graph State Test") {
     val result = algorithmTest(
             algorithm = GraphState(),

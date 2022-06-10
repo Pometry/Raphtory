@@ -118,7 +118,7 @@ trait Edge extends EntityVisitor {
     *                 property is not found.
     */
   def weight[A: Numeric](default: A): A =
-    weight("weight", PropertyMergeStrategy.sum[A], default)
+    weight("weight", default)
 
   /** Compute the weight of the edge by sum
     *
@@ -126,14 +126,14 @@ trait Edge extends EntityVisitor {
     * @param weightProperty  edge property to use for computing edge weight
     */
   def weight[A: Numeric](weightProperty: String): A =
-    weight(weightProperty, PropertyMergeStrategy.sum[A], 1: A)
+    weight(weightProperty, 1: A)
 
   /** Compute the weight of the edge by sum
     *
     * @tparam A value type for the edge weight property (if `mergeStrategy` is not given, this needs to be a numeric type)
     */
   def weight[A: Numeric](): A =
-    weight("weight", PropertyMergeStrategy.sum[A], 1: A)
+    weight("weight", 1: A)
 
   //send a message to the vertex on the other end of the edge
   /** Send a message to the destination vertex of the edge

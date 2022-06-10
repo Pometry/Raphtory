@@ -1,11 +1,7 @@
-package com.raphtory.api
+package com.raphtory.api.analysis.graphview
 
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.ConnectedComponents
-import com.raphtory.api.analysis.graphview.ClearChain
-import com.raphtory.api.analysis.graphview.Iterate
-import com.raphtory.api.analysis.graphview.Select
-import com.raphtory.api.analysis.graphview.Step
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.TableFilter
 import com.raphtory.api.analysis.table.TableImplementation

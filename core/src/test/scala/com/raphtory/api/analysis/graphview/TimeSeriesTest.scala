@@ -1,4 +1,4 @@
-package com.raphtory.api
+package com.raphtory.api.analysis.graphview
 
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.TimeSeriesGraphState

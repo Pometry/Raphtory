@@ -189,7 +189,7 @@ class QueryHandler(
       case StartGraph                                                                         =>
         graphFunctions = mutable.Queue.from(query.graphFunctions)
         tableFunctions = mutable.Queue.from(query.tableFunctions)
-        graphState = GraphStateImplementation()
+        graphState = GraphStateImplementation(vertexCount)
         val startingGraphTime = System.currentTimeMillis() - timeTaken
         logger.debug(
                 s"Job '$jobID': Sending self GraphStart took ${startingGraphTime}ms. Executing next graph operation."
@@ -373,7 +373,8 @@ class QueryHandler(
         logTotalTimeTaken(perspective)
         messagetoAllJobWorkers(CreatePerspective(currentPerspectiveID, perspective))
         currentPerspective = perspective
-        graphState = GraphStateImplementation()
+        graphState = GraphStateImplementation.empty
+        vertexCount = 0
         graphFunctions = null
         tableFunctions = null
         val localPerspectiveSetupTime = System.currentTimeMillis() - timeTaken
