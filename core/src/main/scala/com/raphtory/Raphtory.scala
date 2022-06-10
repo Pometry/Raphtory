@@ -197,7 +197,7 @@ object Raphtory {
       customConfig: Map[String, Any] = Map(),
       batchLoading: Boolean
   ) = {
-    val scheduler          = new Scheduler()
+    val scheduler        = new Scheduler()
     val conf               = confBuilder(customConfig, distributed = false)
     val activePythonServer = conf.getBoolean("raphtory.python.active")
     if (activePythonServer)
