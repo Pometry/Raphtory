@@ -4,7 +4,7 @@ import com.raphtory.api.input.GraphAlteration
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
 import com.raphtory.internals.components.Component
-import com.raphtory.internals.management.MonixScheduler
+import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -19,7 +19,7 @@ private[raphtory] class LocalBatchHandler[T: ClassTag](
     spout: Spout[T],
     graphBuilder: GraphBuilder[T],
     conf: Config,
-    scheduler: MonixScheduler
+    scheduler: Scheduler
 ) extends Component[GraphAlteration](conf) {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))

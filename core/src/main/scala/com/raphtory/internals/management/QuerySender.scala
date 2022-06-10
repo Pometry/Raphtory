@@ -8,7 +8,7 @@ import scala.util.Random
 
 private[raphtory] class QuerySender(
     private val componentFactory: ComponentFactory,
-    private val scheduler: MonixScheduler,
+    private val scheduler: Scheduler,
     private val topics: TopicRepository
 ) {
 

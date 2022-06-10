@@ -2,7 +2,7 @@ package com.raphtory.api.analysis.graphview
 
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.querymanager.Query
-import com.raphtory.internals.management.MonixScheduler
+import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.management.QuerySender
 import com.typesafe.config.Config
 
@@ -19,7 +19,7 @@ class TemporalGraphConnection private[raphtory] (
     override private[api] val query: Query,
     override private[api] val querySender: QuerySender,
     override private[api] val conf: Config,
-    private val scheduler: MonixScheduler,
+    private val scheduler: Scheduler,
     private val topics: TopicRepository
 ) extends TemporalGraph(query, querySender, conf) {
 

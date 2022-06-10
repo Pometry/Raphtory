@@ -25,7 +25,7 @@ import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.graph.PerspectiveController
 import com.raphtory.internals.graph.PerspectiveController.DEFAULT_PERSPECTIVE_TIME
 import com.raphtory.internals.graph.PerspectiveController.DEFAULT_PERSPECTIVE_WINDOW
-import com.raphtory.internals.management.MonixScheduler
+import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.serialisers.KryoSerialiser
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -40,7 +40,7 @@ import scala.util.Try
 
 private[raphtory] class QueryHandler(
     queryManager: QueryManager,
-    scheduler: MonixScheduler,
+    scheduler: Scheduler,
     jobID: String,
     query: Query,
     conf: Config,

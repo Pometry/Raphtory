@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
-private[raphtory] class MonixScheduler {
+private[raphtory] class Scheduler {
   //FIXME: wipe this class out as we move to cats-effect
   private val threads: Int   = 8
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))

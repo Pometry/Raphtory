@@ -2,7 +2,7 @@ package com.raphtory.internals.components.querymanager
 
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
-import com.raphtory.internals.management.MonixScheduler
+import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -11,7 +11,7 @@ import scala.collection.concurrent._
 import scala.collection.mutable
 
 private[raphtory] class QueryManager(
-    scheduler: MonixScheduler,
+    scheduler: Scheduler,
     conf: Config,
     topics: TopicRepository
 ) extends Component[QueryManagement](conf) {
