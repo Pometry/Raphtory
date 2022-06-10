@@ -16,6 +16,7 @@ import com.raphtory.api.analysis.visitor
 import com.raphtory.api.analysis.visitor.Edge
 import com.raphtory.api.analysis.visitor.ExplodedVertex
 import com.raphtory.api.analysis.visitor.InterlayerEdge
+import com.raphtory.api.analysis.visitor.ReducedVertex
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.internals.components.querymanager.Query
@@ -70,9 +71,6 @@ final private[raphtory] case class ExplodeSelect(f: _ => List[Row]) extends Grap
 final private[raphtory] case class ClearChain()                     extends GraphFunction
 final private[raphtory] case class PerspectiveDone()                extends GraphFunction
 
-/**
-  * @note DoNotDocument
-  */
 private[api] trait GraphViewImplementation[
     V <: Vertex,
     G <: GraphViewImplementation[V, G, RG, MG],
@@ -85,7 +83,6 @@ private[api] trait GraphViewImplementation[
   private[api] val query: Query
   private[api] val querySender: QuerySender
 
-  override def identity: G                              = this
   override def setGlobalState(f: GraphState => Unit): G = addFunction(SetGlobalState(f))
 
   override def vertexFilter(f: (V) => Boolean): G =
@@ -251,7 +248,7 @@ private[api] trait ReducedGraphViewImplementation[G <: ReducedGraphViewImplement
         MG
 ], MG <: MultilayerGraphViewImplementation[MG, G]]
         extends ConcreteReducedGraphPerspective[G, MG]
-        with GraphViewImplementation[Vertex, G, G, MG] { this: G =>
+        with GraphViewImplementation[ReducedVertex, G, G, MG] { this: G =>
 
   private[api] def newGraph(query: Query, querySender: QuerySender): G =
     newRGraph(query, querySender)

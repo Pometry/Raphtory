@@ -89,9 +89,9 @@ trait GraphPerspective {
   /** Switch to multilayer view
     *
     * After calling `multilayerView`, subsequent methods that manipulate vertices act on
-    * [[ExplodedVertex]] instead. If [[ExplodedVertex]]
+    * [[visitor.ExplodedVertex ExplodedVertex]] instead. If [[visitor.ExplodedVertex ExplodedVertex]]
     * instances were already created by a previous call to `multilayerView`, they are preserved. Otherwise, this
-    * method creates an [[ExplodedVertex]] instance for each
+    * method creates an [[visitor.ExplodedVertex ExplodedVertex]] instance for each
     * timepoint that a vertex is active.
     */
   def multilayerView: MultilayerGraph
@@ -99,21 +99,21 @@ trait GraphPerspective {
   /** Switch to multilayer view and add interlayer edges.
     *
     * @param interlayerEdgeBuilder Interlayer edge builder to create interlayer edges for each vertex. See
-    *                              [[visitor.InterlayerEdgeBuilders]] for predefined options.
+    *                              [[visitor.InterlayerEdgeBuilders InterlayerEdgeBuilders]] for predefined options.
     *
-    * Existing `ExplodedVertex` instances are preserved but all interlayer edges are recreated using the supplied
+    * Existing [[visitor.ExplodedVertex ExplodedVertex]] instances are preserved but all interlayer edges are recreated using the supplied
     * `interlayerEdgeBuilder`.
     */
   def multilayerView(
       interlayerEdgeBuilder: visitor.Vertex => Seq[InterlayerEdge] = _ => Seq()
   ): MultilayerGraph
 
-  /** Switch computation to act on [[visitor.Vertex]], inverse of `multilayerView`
+  /** Switch computation to act on [[visitor.Vertex Vertex]], inverse of `multilayerView`
     *
     * This operation does nothing if the view is already reduced. Otherwise it switches back to running computations
-    * on vertices but preserves any existing [[ExplodedVertex]] instances
+    * on vertices but preserves any existing [[visitor.ExplodedVertex ExplodedVertex]] instances
     * created by previous calls to `multilayerView` to allow switching back-and-forth between views while
-    * preserving computational state. Computational state on [[ExplodedVertex]]
+    * preserving computational state. Computational state on [[visitor.ExplodedVertex ExplodedVertex]]
     * instances is not accessible from the `Vertex` unless a merge strategy is supplied (see below).
     */
   def reducedView: ReducedGraph
@@ -201,7 +201,7 @@ trait GraphPerspective {
 
   /** Write output to table with one row per vertex
     *
-    * @parm f function to extract data from vertex (run once for each vertex)
+    * @param f function to extract data from vertex (run once for each vertex)
     */
   def select(f: Vertex => Row): Table
 
@@ -238,7 +238,7 @@ trait MultilayerGraphPerspective extends GraphPerspective {
 
 /** GraphPerspective over `Vertex` instances */
 trait ReducedGraphPerspective extends GraphPerspective {
-  override type Vertex       = visitor.Vertex
+  override type Vertex       = visitor.ReducedVertex
   override type Graph <: ConcreteReducedGraphPerspective[Graph, MultilayerGraph]
   override type ReducedGraph = Graph
 }
@@ -255,13 +255,59 @@ private[api] trait ConcreteGraphPerspective[V <: visitor.Vertex, G <: ConcreteGr
   override type MultilayerGraph = MG
   override type Vertex          = V
   override def identity: Graph = this
+
+  // TODO: Duplicate method definitions below are a work around for IntelliJ analyser bug:
+  // https://youtrack.jetbrains.com/issue/SCL-20292/Combining-dependent-types-and-self-type-annotations-causes-spurious-Type-Mismatch-highlights
+  //
+  // Once this bug is fixed, these definitions should be removed again.
+
+  def setGlobalState(f: (GraphState) => Unit): Graph
+  def vertexFilter(f: (Vertex) => Boolean): Graph
+  def vertexFilter(f: (Vertex, GraphState) => Boolean): Graph
+  def edgeFilter(f: (Edge) => Boolean, pruneNodes: Boolean): Graph
+  def edgeFilter(f: (Edge, GraphState) => Boolean, pruneNodes: Boolean): Graph
+  def multilayerView: MultilayerGraph
+
+  def multilayerView(
+      interlayerEdgeBuilder: visitor.Vertex => Seq[InterlayerEdge] = _ => Seq()
+  ): MultilayerGraph
+  def reducedView: ReducedGraph
+  def reducedView(mergeStrategy: PropertyMerge[_, _]): ReducedGraph
+
+  def reducedView(
+      mergeStrategyMap: Map[String, PropertyMerge[_, _]]
+  ): ReducedGraph
+
+  def reducedView(
+      defaultMergeStrategy: PropertyMerge[_, _],
+      mergeStrategyMap: Map[String, PropertyMerge[_, _]]
+  ): ReducedGraph
+
+  def aggregate(
+      defaultMergeStrategy: PropertyMerge[_, _] = PropertyMergeStrategy.sequence[Any],
+      mergeStrategyMap: Map[String, PropertyMerge[_, _]] = Map.empty[String, PropertyMerge[_, _]]
+  ): ReducedGraph
+  def step(f: (Vertex) => Unit): Graph
+  def step(f: (Vertex, GraphState) => Unit): Graph
+  def iterate(f: (Vertex) => Unit, iterations: Int, executeMessagedOnly: Boolean): Graph
+
+  def iterate(
+      f: (Vertex, GraphState) => Unit,
+      iterations: Int,
+      executeMessagedOnly: Boolean
+  ): Graph
+  def select(f: Vertex => Row): Table
+  def select(f: (Vertex, GraphState) => Row): Table
+  def globalSelect(f: GraphState => Row): Table
+  def explodeSelect(f: Vertex => List[Row]): Table
+  def clearMessages(): Graph
 }
 
 private[api] trait ConcreteReducedGraphPerspective[
     G <: ConcreteReducedGraphPerspective[G, MG],
     MG <: ConcreteMultilayerGraphPerspective[MG, G]
 ] extends ReducedGraphPerspective
-        with ConcreteGraphPerspective[visitor.Vertex, G, G, MG] { this: G => }
+        with ConcreteGraphPerspective[visitor.ReducedVertex, G, G, MG] { this: G => }
 
 private[api] trait ConcreteMultilayerGraphPerspective[
     G <: ConcreteMultilayerGraphPerspective[G, RG],

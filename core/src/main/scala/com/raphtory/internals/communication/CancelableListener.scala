@@ -1,12 +1,11 @@
 package com.raphtory.internals.communication
 
-/** @DoNotDocument */
-trait CancelableListener {
+private[raphtory] trait CancelableListener {
   def start(): Unit
   def close(): Unit
 }
 
-object CancelableListener {
+private[raphtory] object CancelableListener {
 
   def apply(listeners: Seq[CancelableListener]): CancelableListener =
     new CancelableListener {

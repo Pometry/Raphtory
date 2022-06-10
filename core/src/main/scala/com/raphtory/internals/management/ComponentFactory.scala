@@ -3,6 +3,7 @@ package com.raphtory.internals.management
 import com.raphtory.api.input.GraphAlteration
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
+import com.raphtory.api.querytracker.QueryProgressTracker
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.graphbuilder.BuilderExecutor
@@ -12,7 +13,6 @@ import com.raphtory.internals.components.partition.Reader
 import com.raphtory.internals.components.partition.StreamWriter
 import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.components.querymanager.QueryManager
-import com.raphtory.internals.components.querytracker.QueryProgressTracker
 import com.raphtory.internals.components.spout.SpoutExecutor
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.id.LocalIDManager
@@ -25,7 +25,6 @@ import org.slf4j.LoggerFactory
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-/** @note DoNotDocument */
 private[raphtory] class ComponentFactory(
     conf: Config,
     topicRepo: TopicRepository,
@@ -217,9 +216,9 @@ private[raphtory] class ComponentFactory(
   }
 }
 
-case class ThreadedWorker[T](worker: Component[T])
+private[raphtory] case class ThreadedWorker[T](worker: Component[T])
 
-case class Partitions(
+private[raphtory] case class Partitions(
     storages: List[GraphPartition],
     readers: List[Reader],
     writers: List[Component[GraphAlteration]]

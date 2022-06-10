@@ -38,8 +38,7 @@ import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
 import scala.util.Try
 
-/** @note DoNotDocument */
-class QueryHandler(
+private[raphtory] class QueryHandler(
     queryManager: QueryManager,
     scheduler: MonixScheduler,
     jobID: String,
@@ -189,7 +188,7 @@ class QueryHandler(
       case StartGraph                                                                         =>
         graphFunctions = mutable.Queue.from(query.graphFunctions)
         tableFunctions = mutable.Queue.from(query.tableFunctions)
-        graphState = GraphStateImplementation()
+        graphState = GraphStateImplementation(vertexCount)
         val startingGraphTime = System.currentTimeMillis() - timeTaken
         logger.debug(
                 s"Job '$jobID': Sending self GraphStart took ${startingGraphTime}ms. Executing next graph operation."
@@ -373,7 +372,8 @@ class QueryHandler(
         logTotalTimeTaken(perspective)
         messagetoAllJobWorkers(CreatePerspective(currentPerspectiveID, perspective))
         currentPerspective = perspective
-        graphState = GraphStateImplementation()
+        graphState = GraphStateImplementation.empty
+        vertexCount = 0
         graphFunctions = null
         tableFunctions = null
         val localPerspectiveSetupTime = System.currentTimeMillis() - timeTaken
@@ -570,7 +570,7 @@ class QueryHandler(
   private def getOptionalEarliestTime: Option[Long] = queryManager.earliestTime()
 }
 
-object Stages extends Enumeration {
+private[raphtory] object Stages extends Enumeration {
   type Stage = Value
   val SpawnExecutors, EstablishPerspective, ExecuteGraph, ExecuteTable, EndTask = Value
 }

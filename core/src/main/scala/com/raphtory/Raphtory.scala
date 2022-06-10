@@ -28,10 +28,10 @@ import scala.reflect.runtime.universe.TypeTag
   *
   * Usage:
   * {{{
-  * import com.raphtory.deployment.Raphtory
-  * import com.raphtory.components.spout.instance.ResourceSpout
-  * import com.raphtory.GraphState
-  * import com.raphtory.output.FileOutputFormat
+  * import com.raphtory.Raphtory
+  * import com.raphtory.spouts.ResourceSpout
+  * import com.raphtory.api.analysis.graphstate.GraphState
+  * import com.raphtory.sinks.FileSink
   *
   * val builder = new YourGraphBuilder()
   * val customConfig = Map(("raphtory.pulsar.endpoint", "localhost:1234"))
@@ -40,15 +40,15 @@ import scala.reflect.runtime.universe.TypeTag
   *   .range(1, 32674, 10000)
   *   .windows(List(500, 1000, 10000))
   *   .execute(GraphState())
-  *   .writeTo(FileOutputFormat("/test_dir"))
+  *   .writeTo(FileSink("/test_dir"))
   *
   * graph.deployment.stop()
   * }}}
   *
-  * @see [[GraphBuilder]]
-  *      [[Spout]]
-  *      [[DeployedTemporalGraph]]
-  *      [[TemporalGraph]]
+  * @see [[api.input.GraphBuilder]]
+  *      [[api.input.Spout]]
+  *      [[api.analysis.graphview.DeployedTemporalGraph]]
+  *      [[api.analysis.graphview.TemporalGraph]]
   */
 object Raphtory {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))

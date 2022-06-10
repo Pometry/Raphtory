@@ -7,7 +7,7 @@ import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-class PojoExplodedVertex(
+private[raphtory] class PojoExplodedVertex(
     val vertex: PojoExVertex,
     override val timestamp: Long,
     override val lens: PojoGraphLens

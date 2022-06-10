@@ -13,8 +13,7 @@ import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
 import scala.reflect.ClassTag
 
-/** @note DoNotDocument */
-class LocalBatchHandler[T: ClassTag](
+private[raphtory] class LocalBatchHandler[T: ClassTag](
     partitionIDs: mutable.Set[Int],
     batchWriters: mutable.Map[Int, BatchWriter[T]],
     spout: Spout[T],

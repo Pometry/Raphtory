@@ -11,8 +11,7 @@ import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.DurationInt
 
-/** @note DoNotDocument */
-class SpoutExecutor[T](
+private[raphtory] class SpoutExecutor[T](
     spout: Spout[T],
     conf: Config,
     topics: TopicRepository,

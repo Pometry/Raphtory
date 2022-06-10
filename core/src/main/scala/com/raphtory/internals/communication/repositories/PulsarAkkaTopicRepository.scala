@@ -8,8 +8,7 @@ import com.raphtory.internals.communication.Connector
 import com.raphtory.internals.communication.TopicRepository
 import com.typesafe.config.Config
 
-/** @DoNotDocument */
-object PulsarAkkaTopicRepository {
+private[raphtory] object PulsarAkkaTopicRepository {
 
   def apply(config: Config): TopicRepository = {
     val actorSystem     = ActorSystem(SpawnProtocol(), "spawner")

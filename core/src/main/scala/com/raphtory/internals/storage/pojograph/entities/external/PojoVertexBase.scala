@@ -11,7 +11,7 @@ import com.raphtory.internals.storage.pojograph.messaging.VertexMultiQueue
 
 import scala.collection.mutable
 
-trait PojoVertexBase extends Vertex {
+private[raphtory] trait PojoVertexBase extends Vertex {
   // abstract state
   protected def lens: PojoGraphLens
   protected val internalIncomingEdges: mutable.Map[IDType, Edge]

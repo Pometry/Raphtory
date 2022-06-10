@@ -15,8 +15,7 @@ import org.slf4j.LoggerFactory
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
 
-/** @note DoNotDocument */
-class Reader(
+private[raphtory] class Reader(
     partitionID: Int,
     storage: GraphPartition,
     scheduler: MonixScheduler,
@@ -49,14 +48,14 @@ class Reader(
 
   override def handleMessage(msg: QueryManagement): Unit =
     msg match {
-      case EstablishExecutor(jobID, outputFormat) =>
+      case EstablishExecutor(jobID, sink) =>
         val queryExecutor =
-          new QueryExecutor(partitionID, outputFormat, storage, jobID, conf, topics, scheduler)
+          new QueryExecutor(partitionID, sink, storage, jobID, conf, topics, scheduler)
         scheduler.execute(queryExecutor)
         telemetry.queryExecutorCollector.labels(partitionID.toString, deploymentID).inc()
         executorMap += ((jobID, queryExecutor))
 
-      case req: EndQuery                          =>
+      case req: EndQuery                  =>
         logger.debug(s"Reader on partition $partitionID received $req")
         executorMap.synchronized {
           try {

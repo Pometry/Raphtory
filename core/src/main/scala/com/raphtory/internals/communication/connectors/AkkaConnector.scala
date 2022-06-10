@@ -25,10 +25,10 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 
-/** @DoNotDocument */
-case object StopActor
+private case object StopActor
 
-class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Connector {
+private[raphtory] class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command])
+        extends Connector {
   private val logger: Logger                              = Logger(LoggerFactory.getLogger(this.getClass))
   private val akkaReceptionistRegisteringTimeout: Timeout = 1.seconds
   private val akkaSpawnerTimeout: Timeout                 = 1.seconds
@@ -36,11 +36,20 @@ class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Con
 
   private val kryo: KryoSerialiser = KryoSerialiser()
 
-  case class AkkaEndPoint[T](actorRefs: Future[Set[ActorRef[Array[Byte]]]]) extends EndPoint[T] {
+  case class AkkaEndPoint[T](actorRefs: Future[Set[ActorRef[Array[Byte]]]], topic: String)
+          extends EndPoint[T] {
     private val endPointResolutionTimeout: Duration = 10.seconds
 
     override def sendAsync(message: T): Unit           =
-      Await.result(actorRefs, endPointResolutionTimeout) foreach (_ ! serialise(message))
+      try Await.result(actorRefs, endPointResolutionTimeout) foreach (_ ! serialise(message))
+      catch {
+        case e: concurrent.TimeoutException =>
+          val msg =
+            s"Impossible to connect to topic '$topic' through Akka. Maybe some components weren't successfully deployed"
+          logger.error(msg)
+          throw new Exception(msg, e)
+      }
+
     override def close(): Unit = {}
 
     override def flushAsync(): CompletableFuture[Void] = CompletableFuture.completedFuture(null)
@@ -54,8 +63,9 @@ class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Con
       case _: WorkPullTopic[T]      =>
         throw new Exception("work pull topics are not supported by Akka connector")
     }
+    val topicName               = s"${topic.id}/${topic.subTopic}"
     implicit val ec             = actorSystem.executionContext
-    AkkaEndPoint(Future(queryServiceKeyActors(serviceKey, numActors)))
+    AkkaEndPoint(Future(queryServiceKeyActors(serviceKey, numActors)), topicName)
   }
 
   override def register[T](

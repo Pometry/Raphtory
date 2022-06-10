@@ -17,11 +17,11 @@ import scala.language.postfixOps
 @DoNotDiscover
 class AllCommandsTest extends BaseRaphtoryAlgoTest[String] {
   test("Graph State Test") {
-    val outputFormat = FileSink(outputDirectory)
+    val sink = FileSink(outputDirectory)
 
     val results = algorithmTest(
             algorithm = GraphState(),
-            outputFormat = outputFormat,
+            sink = sink,
             start = 1,
             end = 290001,
             increment = 10000,
@@ -36,11 +36,11 @@ class AllCommandsTest extends BaseRaphtoryAlgoTest[String] {
   }
 
   test("Connected Components Test") {
-    val outputFormat = FileSink(outputDirectory)
+    val sink = FileSink(outputDirectory)
 
     val results = algorithmTest(
             algorithm = ConnectedComponents(),
-            outputFormat = outputFormat,
+            sink = sink,
             start = 1,
             end = 290001,
             increment = 10000,
@@ -53,8 +53,6 @@ class AllCommandsTest extends BaseRaphtoryAlgoTest[String] {
 
     assert(results equals "ba662e8fe795c263566b1898c0f1fc6816c3f6ef5e6bbbce9db6cd06330f47a8")
   }
-
-  override def batchLoading(): Boolean = false
 
   override def setSpout(): Spout[String] = FileSpout()
 

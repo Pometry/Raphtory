@@ -14,8 +14,7 @@ import scala.collection.mutable
 import scala.math.Ordering
 import scala.reflect.ClassTag
 
-/** @note DoNotDocument */
-class PojoExVertex(
+private[raphtory] class PojoExVertex(
     private val v: PojoVertex,
     override protected val internalIncomingEdges: mutable.Map[Long, PojoExEdge],
     override protected val internalOutgoingEdges: mutable.Map[Long, PojoExEdge],

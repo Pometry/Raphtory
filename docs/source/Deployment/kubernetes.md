@@ -55,13 +55,13 @@ The outcome wil be a docker image that can run Raphtory including the required j
 
 ## Configuration Parameters
 
-When running the `com.raphtory.deployment.kubernetes.Deploy` class to deploy, you can pass in parameters using java arguments at runtime or by setting environment variables pre run.
+When running the `com.raphtory.deploy.kubernetes.Deploy` class to deploy, you can pass in parameters using java arguments at runtime or by setting environment variables pre run.
 
 To deploy Raphtory, you must set the following parameters
 
 | Java                                                                  | Environment Variable                                                  | Type    | Description                                                                        |
 |-----------------------------------------------------------------------|-----------------------------------------------------------------------|---------|------------------------------------------------------------------------------------|
-| raphtory.deploy.id                                                    | RAPHTORY_DEPLOY_ID                                                    | String  | Deploy ID for this deployment (string)                                             |
+| raphtory.deploy.id                                                    | RAPHTORY_DEPLOY_KUBERNETES_ID                                         | String  | Deploy ID for this deployment (string)                                             |
 | raphtory.deploy.kubernetes.master.url                                 | RAPHTORY_DEPLOY_KUBERNETES_MASTER_URL                                 | String  | Master URL for connection to Kubernetes cluster                                    |
 | raphtory.deploy.kubernetes.secrets.registry.server                    | RAPHTORY_DEPLOY_KUBERNETES_SECRETS_REGISTRY_SERVER                    | String  | Docker image registry server                                                       |
 | raphtory.deploy.kubernetes.secrets.registry.username                  | RAPHTORY_DEPLOY_KUBERNETES_SECRETS_REGISTRY_USERNAME                  | String  | Docker image registry username                                                     |
@@ -132,11 +132,11 @@ The text that follows the prefix in the key is used as the key for the environme
 Example of how to add run time environment variables to all pods or to specific component pods:
 
 ```
-export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_ALL_PODS_ENV_ENVIRONMENT_VARABLE="environment variable added to all component pods"
-export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_SPOUT_PODS_ENV_ENVIRONMENT_VARABLE="environment variable added to spout component pods"
-export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_PARTITIONMANAGER_PODS_ENV_ENVIRONMENT_VARABLE="environment variable added to partition manager component pods"
-export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_QUERYMANAGER_PODS_ENV_ENVIRONMENT_VARABLE="environment variable added to query manager component pods"
-export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_BUILDER_PODS_ENV_ENVIRONMENT_VARABLE="environment variable added to builder component pods"
+export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_ALL_PODS_ENV_ENVIRONMENT_VARIABLE="environment variable named "ENVIRONMENT_VARIABLE" added to all component pods"
+export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_SPOUT_PODS_ENV_ENVIRONMENT_VARIABLE="environment variable named "ENVIRONMENT_VARIABLE" added to spout component pods"
+export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_PARTITIONMANAGER_PODS_ENV_ENVIRONMENT_VARIABLE="environment variable named "ENVIRONMENT_VARIABLE" added to partition manager component pods"
+export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_QUERYMANAGER_PODS_ENV_ENVIRONMENT_VARIABLE="environment variable named "ENVIRONMENT_VARIABLE" added to query manager component pods"
+export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_BUILDER_PODS_ENV_ENVIRONMENT_VARIABLE="environment variable named "ENVIRONMENT_VARIABLE" added to builder component pods"
 ```
 
 Required run time settings
@@ -155,7 +155,7 @@ Required run time settings
 Example of required settings being set using environment variables:
 
 ```
-export RAPHTORY_DEPLOY_ID="id"
+export RAPHTORY_DEPLOY_KUBERNETES_ID="id"
 export RAPHTORY_DEPLOY_KUBERNETES_MASTER_URL="https://kubernetes.master.url"
 export RAPHTORY_DEPLOY_KUBERNETES_SECRETS_REGISTRY_SERVER=registry.docker.com
 export RAPHTORY_DEPLOY_KUBERNETES_SECRETS_REGISTRY_USERNAME=xxxxxxxxx
@@ -191,20 +191,20 @@ export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_PARTITIONMANAGER_PODS_ENV_RAPHTORY
 
 ## Deploy Raphtory to Kubernetes
 
-To deploy Raphtory into Kubernetes, run the `com.raphtory.deployment.kubernetes.Deploy` class using a fat jar on the classpath of the java command.
+To deploy Raphtory into Kubernetes, run the `com.raphtory.deploy.kubernetes.Deploy` class using a fat jar on the classpath of the java command.
 
 Configuring the deployment can be done using environment variables or by passing config arguments to the java command.
 
 Example command if environment variables are already set
 
 ```
-java -cp /path/to/raphtory/jar/raphtory-fat-jar-0.1.jar com.raphtory.deployment.kubernetes.Deploy
+java -cp /path/to/raphtory/jar/raphtory-fat-jar-0.1.jar com.raphtory.deploy.kubernetes.Deploy
 ```
 
 Example command if setting config arguments when running java
 
 ```
-java -cp /path/to/raphtory/jar/raphtory-fat-jar-0.1.jar -D<java_configuration_key>="value" com.raphtory.deployment.kubernetes.Deploy
+java -cp /path/to/raphtory/jar/raphtory-fat-jar-0.1.jar -D<java_configuration_key>="value" com.raphtory.deploy.kubernetes.Deploy
 ```
 
 ## Remove Raphtory from Kubernetes

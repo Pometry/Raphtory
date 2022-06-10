@@ -31,8 +31,7 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 
-/** @note DoNotDocument */
-class PojoBasedPartition(partition: Int, conf: Config)
+private[raphtory] class PojoBasedPartition(partition: Int, conf: Config)
         extends GraphPartition(partition: Int, conf: Config) {
   private val logger: Logger        = Logger(LoggerFactory.getLogger(this.getClass))
   private val hasDeletionsPath      = "raphtory.data.containsDeletions"
@@ -333,6 +332,7 @@ class PojoBasedPartition(partition: Int, conf: Config)
         logger.trace(s"Added properties: $properties to edge")
       case None       =>
         val edge = new SplitEdge(msgTime, srcId, dstId, initialValue = true)
+        addProperties(msgTime, edge, properties)
         dstVertex addIncomingEdge edge //add the edge to the associated edges of the destination node
     }
   }

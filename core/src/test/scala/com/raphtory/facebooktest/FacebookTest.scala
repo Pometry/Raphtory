@@ -17,11 +17,11 @@ import org.scalatest._
 class FacebookTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Connected Components Test") {
-    val outputFormat = FileSink(outputDirectory)
+    val sink = FileSink(outputDirectory)
 
     val result = algorithmPointTest(
             algorithm = ConnectedComponents(),
-            outputFormat = outputFormat,
+            sink = sink,
             timestamp = 88234
     )
 

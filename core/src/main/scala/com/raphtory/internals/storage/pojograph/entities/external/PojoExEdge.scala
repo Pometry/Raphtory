@@ -8,8 +8,7 @@ import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoEdge
 import com.raphtory.internals.storage.pojograph.entities.internal.SplitEdge
 
-/** @note DoNotDocument */
-class PojoExEdge(val edge: PojoEdge, id: Long, val view: PojoGraphLens)
+private[raphtory] class PojoExEdge(val edge: PojoEdge, id: Long, val view: PojoGraphLens)
         extends PojoExEntity(edge, view)
         with ConcreteEdge[Long] {
 

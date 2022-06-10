@@ -1,14 +1,14 @@
 package com.raphtory.api.analysis.graphview
 
 import com.raphtory.api.analysis.visitor.ExplodedVertex
+import com.raphtory.api.time.DiscreteInterval
+import com.raphtory.api.time.Interval
+import com.raphtory.api.time.NullInterval
 import com.raphtory.internals.components.querymanager.PointPath
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.SinglePoint
 import com.raphtory.internals.management.QuerySender
 import com.raphtory.internals.time.DateTimeParser
-import com.raphtory.internals.time.DiscreteInterval
-import com.raphtory.internals.time.Interval
-import com.raphtory.internals.time.NullInterval
 import com.typesafe.config.Config
 import com.raphtory.internals.time.IntervalParser.{parse => parseInterval}
 
@@ -212,7 +212,7 @@ class TemporalGraph private[api] (
 /** The multilayer view corresponding to [[TemporalGraph]]
   *
   * This exposes the same timeline operations as [[TemporalGraph]] but extends
-  * [[MultilayerGraphView]] which means that all algorithm operations act on [[ExplodedVertex]]s.
+  * [[MultilayerGraphView]] which means that all algorithm operations act on [[visitor.ExplodedVertex]]s.
   *
   * @see [[TemporalGraph]], [[MultilayerGraphView]], [[DottedGraph]]
   */

@@ -9,8 +9,8 @@ import com.raphtory.utils.OrderedBuffer.TupleByFirstOrdering
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
 
-/** @note DoNotDocument */
-abstract class PojoExEntity(entity: PojoEntity, view: PojoGraphLens) extends EntityVisitor {
+abstract private[raphtory] class PojoExEntity(entity: PojoEntity, view: PojoGraphLens)
+        extends EntityVisitor {
   def Type(): String = entity.getType
 
   def firstActivityAfter(time: Long, strict: Boolean = true): Option[HistoricEvent] =

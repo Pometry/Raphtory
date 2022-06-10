@@ -1,5 +1,7 @@
 package com.raphtory.internals.time
 
+import com.raphtory.api.time.TimeInterval
+
 import java.time.Duration
 import java.time.Period
 import scala.language.postfixOps
@@ -7,8 +9,7 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-/** @note DoNotDocument */
-object IntervalParser {
+private[raphtory] object IntervalParser {
 
   sealed trait Unit
   sealed trait PeriodUnit   extends Unit // Can only be handled by java.time.Period

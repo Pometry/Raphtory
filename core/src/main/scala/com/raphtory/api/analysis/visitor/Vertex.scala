@@ -6,10 +6,10 @@ import PropertyMergeStrategy.PropertyMerge
 
 import scala.reflect.ClassTag
 
-/** Extends [`EntityVisitor`](com.raphtory.graph.visitor.EntityVisitor) with vertex-specific functionality
+/** Extends [[EntityVisitor]] with vertex-specific functionality
   *
   * The `Vertex` is the main entry point for exploring the graph using a
-  * [`GraphAlgorithm`](com.raphtory.algorithms.api.GraphAlgorithm) given the node-centric nature of Raphtory.
+  * [[com.raphtory.api.analysis.algorithm Algorithm]] given the node-centric nature of Raphtory.
   * It provides access to the edges of the graph and can send messages to and receive messages from other vertices.
   * A `Vertex` can also store computational state.
   */
@@ -18,10 +18,12 @@ trait Vertex extends EntityVisitor {
   /** ID type of this vertex */
   type IDType
 
-  /** Concrete edge type for this vertex which implements [[visitor.Edge]] */
+  /** Concrete edge type for this vertex which implements [[com.raphtory.api.analysis.visitor.Edge Edge]] */
   type Edge <: visitor.ConcreteEdge[IDType]
 
-  /** Concrete type for this vertex's exploded edges which implements [[visitor.ExplodedEdge]] */
+  /** Concrete type for this vertex's exploded edges which implements
+    * [[com.raphtory.api.analysis.visitor.ExplodedEdge ExplodedEdge]]
+    */
   type ExplodedEdge = visitor.ConcreteExplodedEdge[IDType]
 
   /** implicit ordering object for use when comparing vertex IDs */
@@ -35,21 +37,21 @@ trait Vertex extends EntityVisitor {
 
   /** Get the name of the vertex.
     * If `nameProperty` does not exist, this function returns the string representation of the vertex ID
-    * @param nameProperty vertex property to use as name (should uniquely identify the vertex)
+    * @param nameProperty Vertex property to use as name (should uniquely identify the vertex)
     */
   def name(nameProperty: String = "name"): String =
     getPropertyOrElse[String](nameProperty, ID.toString)
 
   //functionality for checking messages
-  /** check if vertex has received messages */
+  /** Check if vertex has received messages */
   def hasMessage: Boolean
 
-  /** queue of received messages
+  /** Queue of received messages
     * @tparam `T`  message data type
     */
   def messageQueue[T]: List[T]
 
-  /** vote to stop iterating (iteration stops if all vertices voted to halt) */
+  /** Vote to stop iterating (iteration stops if all vertices voted to halt) */
   def voteToHalt(): Unit
   //Send message
 
@@ -106,25 +108,25 @@ trait Vertex extends EntityVisitor {
   private lazy val inNeighbourSet  = getInNeighbours().toSet
   private lazy val outNeighbourSet = getOutNeighbours().toSet
 
-  /** check if the vertex with ID `id` is an in- or out-neighbour of this vertex */
+  /** Check if the vertex with ID `id` is an in- or out-neighbour of this vertex */
   def isNeighbour(id: IDType): Boolean =
     inNeighbourSet.contains(id) || outNeighbourSet.contains(id)
 
-  /** check if the vertex with ID `id` is an in-neighbour of this vertex */
+  /** Check if the vertex with ID `id` is an in-neighbour of this vertex */
   def isInNeighbour(id: IDType): Boolean = inNeighbourSet.contains(id)
 
-  /** check if the vertex with ID `id` is an out-neighbour of this vertex */
+  /** Check if the vertex with ID `id` is an out-neighbour of this vertex */
   def isOutNeighbour(id: IDType): Boolean = outNeighbourSet.contains(id)
 
   //Degree
-  /** total number of neighbours (including in-neighbours and out-neighbours) of the vertex */
-  lazy val degree: Int = getAllNeighbours().size
+  /** Total number of neighbours (including in-neighbours and out-neighbours) of the vertex */
+  def degree: Int = getAllNeighbours().size
 
-  /** number of out-neighbours of the vertex */
-  lazy val outDegree: Int = getOutNeighbours().size
+  /** Number of out-neighbours of the vertex */
+  def outDegree: Int = getOutNeighbours().size
 
-  /** number of in-neighbours of the vertex */
-  lazy val inDegree: Int = getInNeighbours().size
+  /** Number of in-neighbours of the vertex */
+  def inDegree: Int = getInNeighbours().size
 
   /** Return all edges starting or ending at this vertex
     * @param after only return edges that are active after time `after`
@@ -177,7 +179,7 @@ trait Vertex extends EntityVisitor {
       before: Long = Long.MaxValue
   ): Option[Edge]
 
-  /** Return all exploded [[visitor.ExplodedEdge]] views for each time point
+  /** Return all exploded [[com.raphtory.api.analysis.visitor.ExplodedEdge ExplodedEdge]] views for each time point
     * that an in- or out-edge of this vertex is active
     *
     * @param after  only return views for activity after time `after`
@@ -189,7 +191,7 @@ trait Vertex extends EntityVisitor {
   ): List[ExplodedEdge] =
     getEdges(after, before).flatMap(_.explode())
 
-  /** Return all exploded [[visitor.ExplodedEdge]] views for each time point
+  /** Return all exploded [[com.raphtory.api.analysis.visitor.ExplodedEdge ExplodedEdge]] views for each time point
     * that an out-edge of this vertex is active
     *
     * @param after  only return views for activity after time `after`
@@ -201,7 +203,7 @@ trait Vertex extends EntityVisitor {
   ): List[ExplodedEdge] =
     getOutEdges(after, before).flatMap(_.explode())
 
-  /** Return all exploded [[visitor.ExplodedEdge]] views for each time point
+  /** Return all exploded [[com.raphtory.api.analysis.visitor.ExplodedEdge ExplodedEdge]] views for each time point
     * that an in-edge of this vertex is active
     *
     * @param after  only return views for activity after time `after`
@@ -213,7 +215,7 @@ trait Vertex extends EntityVisitor {
   ): List[ExplodedEdge] =
     getInEdges(after, before).flatMap(_.explode())
 
-  /** Return an individual exploded [[visitor.ExplodedEdge]] views for an individual edge
+  /** Return an individual exploded [[com.raphtory.api.analysis.visitor.ExplodedEdge ExplodedEdge]] views for an individual edge
     * if it is an out-edge of this vertex
     *
     * @param id ID of edge to explode
@@ -227,7 +229,7 @@ trait Vertex extends EntityVisitor {
   ): Option[List[ExplodedEdge]] =
     getOutEdge(id, after, before).map(_.explode())
 
-  /** Return exploded [[visitor.ExplodedEdge]] views for an individual edge
+  /** Return exploded [[com.raphtory.api.analysis.visitor.ExplodedEdge ExplodedEdge]] views for an individual edge
     * if it is an in-edge of this vertex
     *
     * @param id ID of edge to explode
@@ -241,7 +243,7 @@ trait Vertex extends EntityVisitor {
   ): Option[List[ExplodedEdge]] =
     getInEdge(id, after, before).map(_.explode())
 
-  /** Return an individual exploded [[visitor.ExplodedEdge]] views for an individual edge
+  /** Return an individual exploded [[com.raphtory.api.analysis.visitor.ExplodedEdge ExplodedEdge]] views for an individual edge
     * if it is an in- or out-edge of this vertex
     *
     * @param id ID of edge to explode
@@ -289,7 +291,7 @@ trait Vertex extends EntityVisitor {
   // if includeProperties = true and value is pulled in from properties, the new value is set as state
   def getOrSetState[T](key: String, value: T, includeProperties: Boolean = false): T
 
-  /** append new value to existing array or initialise new array if state does not exist
+  /** Append new value to existing array or initialise new array if state does not exist
     * The value type of the state is assumed to be `Array[T]` if the state already exists.
     * @tparam `T` value type for state (needs to have a `ClassTag` available due to Scala `Array` implementation)
     * @param key key to use for retrieving state
@@ -316,7 +318,7 @@ trait Vertex extends EntityVisitor {
       .sum
 
   /** Sum of incoming edge weights.
-    * For the meaning of the input arguments see [[visitor.Edge]]
+    * For the meaning of the input arguments see [[com.raphtory.api.analysis.visitor.Edge Edge]]
     */
   def weightedInDegree[A, B: Numeric](
       weightProperty: String = "weight",
@@ -331,7 +333,7 @@ trait Vertex extends EntityVisitor {
     )
 
   /** Sum of incoming edge weights.
-    * For the meaning of the input arguments see [[visitor.Edge]]
+    * For the meaning of the input arguments see [[com.raphtory.api.analysis.visitor.Edge Edge]]
     */
   def weightedInDegree[A: Numeric, B: Numeric](
       weightProperty: String,
@@ -340,7 +342,7 @@ trait Vertex extends EntityVisitor {
     weightedInDegree(weightProperty, edgeMergeStrategy, DefaultValues.defaultVal[A])
 
   /** Sum of incoming edge weights.
-    * For the meaning of the input arguments see [[visitor.Edge]]
+    * For the meaning of the input arguments see [[com.raphtory.api.analysis.visitor.Edge Edge]]
     */
   def weightedInDegree[A: Numeric, B: Numeric](
       edgeMergeStrategy: PropertyMerge[A, B]
@@ -348,7 +350,7 @@ trait Vertex extends EntityVisitor {
     weightedInDegree(DefaultValues.weightProperty, edgeMergeStrategy, DefaultValues.defaultVal[A])
 
   /** Sum of incoming edge weights.
-    * For the meaning of the input arguments see [[visitor.Edge]]
+    * For the meaning of the input arguments see [[com.raphtory.api.analysis.visitor.Edge Edge]]
     */
   def weightedInDegree[A: Numeric](
       weightProperty: String,
@@ -357,7 +359,7 @@ trait Vertex extends EntityVisitor {
     weightedInDegree(weightProperty, DefaultValues.mergeStrategy[A], defaultWeight)
 
   /** Sum of incoming edge weights.
-    * For the meaning of the input arguments see [[visitor.Edge]]
+    * For the meaning of the input arguments see [[com.raphtory.api.analysis.visitor.Edge Edge]]
     */
   def weightedInDegree[A: Numeric](
       defaultWeight: A
@@ -365,7 +367,7 @@ trait Vertex extends EntityVisitor {
     weightedInDegree(DefaultValues.weightProperty, DefaultValues.mergeStrategy[A], defaultWeight)
 
   /** Sum of incoming edge weights.
-    * For the meaning of the input arguments see [[visitor.Edge]]
+    * For the meaning of the input arguments see [[com.raphtory.api.analysis.visitor.Edge Edge]]
     */
   def weightedInDegree[A: Numeric](
       weightProperty: String
@@ -373,7 +375,7 @@ trait Vertex extends EntityVisitor {
     weightedInDegree(weightProperty, DefaultValues.mergeStrategy[A], DefaultValues.defaultVal[A])
 
   /** Sum of incoming edge weights.
-    * For the meaning of the input arguments see [[visitor.Edge]]
+    * For the meaning of the input arguments see [[com.raphtory.api.analysis.visitor.Edge Edge]]
     */
   def weightedInDegree[A: Numeric](
   ): A =
@@ -384,7 +386,7 @@ trait Vertex extends EntityVisitor {
     )
 
   /** Sum of outgoing edge weights
-    * For the meaning of the input arguments see [[visitor.Edge]]
+    * For the meaning of the input arguments see [[com.raphtory.api.analysis.visitor.Edge Edge]]
     */
   def weightedOutDegree[A, B: Numeric](
       weightProperty: String = "weight",
@@ -399,7 +401,7 @@ trait Vertex extends EntityVisitor {
     )
 
   /** Sum of outgoing edge weights
-    * For the meaning of the input arguments see [[visitor.Edge]]
+    * For the meaning of the input arguments see [[com.raphtory.api.analysis.visitor.Edge Edge]]
     */
   def weightedOutDegree[A: Numeric, B: Numeric](
       weightProperty: String,
@@ -408,7 +410,7 @@ trait Vertex extends EntityVisitor {
     weightedOutDegree(weightProperty, edgeMergeStrategy, DefaultValues.defaultVal[A])
 
   /** Sum of outgoing edge weights
-    * For the meaning of the input arguments see [[visitor.Edge]]
+    * For the meaning of the input arguments see [[com.raphtory.api.analysis.visitor.Edge Edge]]
     */
   def weightedOutDegree[A: Numeric, B: Numeric](
       edgeMergeStrategy: PropertyMerge[A, B]
@@ -416,7 +418,7 @@ trait Vertex extends EntityVisitor {
     weightedOutDegree(DefaultValues.weightProperty, edgeMergeStrategy, DefaultValues.defaultVal[A])
 
   /** Sum of outgoing edge weights
-    * For the meaning of the input arguments see [[visitor.Edge]]
+    * For the meaning of the input arguments see [[com.raphtory.api.analysis.visitor.Edge Edge]]
     */
   def weightedOutDegree[A: Numeric](
       weightProperty: String,
@@ -425,7 +427,7 @@ trait Vertex extends EntityVisitor {
     weightedOutDegree(weightProperty, DefaultValues.mergeStrategy[A], defaultWeight)
 
   /** Sum of outgoing edge weights
-    * For the meaning of the input arguments see [[visitor.Edge]]
+    * For the meaning of the input arguments see [[com.raphtory.api.analysis.visitor.Edge Edge]]
     */
   def weightedOutDegree[A: Numeric](
       defaultWeight: A
@@ -437,7 +439,7 @@ trait Vertex extends EntityVisitor {
     )
 
   /** Sum of outgoing edge weights
-    * For the meaning of the input arguments see [[visitor.Edge]]
+    * For the meaning of the input arguments see [[com.raphtory.api.analysis.visitor.Edge Edge]]
     */
   def weightedOutDegree[A: Numeric](
       weightProperty: String
@@ -445,7 +447,7 @@ trait Vertex extends EntityVisitor {
     weightedOutDegree(weightProperty, DefaultValues.mergeStrategy[A], DefaultValues.defaultVal[A])
 
   /** Sum of outgoing edge weights
-    * For the meaning of the input arguments see [[visitor.Edge]]
+    * For the meaning of the input arguments see [[com.raphtory.api.analysis.visitor.Edge Edge]]
     */
   def weightedOutDegree[A: Numeric](
   ): A =
@@ -456,7 +458,7 @@ trait Vertex extends EntityVisitor {
     )
 
   /** Sum of incoming and outgoing edge weights
-    *  For the meaning of the input arguments see [[visitor.Edge]]
+    *  For the meaning of the input arguments see [[com.raphtory.api.analysis.visitor.Edge Edge]]
     */
   def weightedTotalDegree[A, B: Numeric](
       weightProperty: String = "weight",
@@ -471,7 +473,7 @@ trait Vertex extends EntityVisitor {
     )
 
   /** Sum of incoming and outgoing edge weights
-    *  For the meaning of the input arguments see [[visitor.Edge]]
+    *  For the meaning of the input arguments see [[com.raphtory.api.analysis.visitor.Edge Edge]]
     */
   def weightedTotalDegree[A: Numeric, B: Numeric](
       weightProperty: String,
@@ -480,7 +482,7 @@ trait Vertex extends EntityVisitor {
     weightedTotalDegree(weightProperty, edgeMergeStrategy, DefaultValues.defaultVal[A])
 
   /** Sum of incoming and outgoing edge weights
-    *  For the meaning of the input arguments see [[visitor.Edge]]
+    *  For the meaning of the input arguments see [[com.raphtory.api.analysis.visitor.Edge Edge]]
     */
   def weightedTotalDegree[A: Numeric, B: Numeric](
       edgeMergeStrategy: PropertyMerge[A, B]
@@ -492,7 +494,7 @@ trait Vertex extends EntityVisitor {
     )
 
   /** Sum of incoming and outgoing edge weights
-    *  For the meaning of the input arguments see [[visitor.Edge]]
+    *  For the meaning of the input arguments see [[com.raphtory.api.analysis.visitor.Edge Edge]]
     */
   def weightedTotalDegree[A: Numeric](
       weightProperty: String,
@@ -501,7 +503,7 @@ trait Vertex extends EntityVisitor {
     weightedTotalDegree(weightProperty, DefaultValues.mergeStrategy[A], defaultWeight)
 
   /** Sum of incoming and outgoing edge weights
-    *  For the meaning of the input arguments see [[visitor.Edge]]
+    *  For the meaning of the input arguments see [[com.raphtory.api.analysis.visitor.Edge Edge]]
     */
   def weightedTotalDegree[A: Numeric](
       defaultWeight: A
@@ -509,7 +511,7 @@ trait Vertex extends EntityVisitor {
     weightedTotalDegree(DefaultValues.weightProperty, DefaultValues.mergeStrategy[A], defaultWeight)
 
   /** Sum of incoming and outgoing edge weights
-    *  For the meaning of the input arguments see [[visitor.Edge]]
+    *  For the meaning of the input arguments see [[com.raphtory.api.analysis.visitor.Edge Edge]]
     */
   def weightedTotalDegree[A: Numeric](
       weightProperty: String
@@ -517,7 +519,7 @@ trait Vertex extends EntityVisitor {
     weightedTotalDegree(weightProperty, DefaultValues.mergeStrategy[A], DefaultValues.defaultVal[A])
 
   /** Sum of incoming and outgoing edge weights
-    *  For the meaning of the input arguments see [[visitor.Edge]]
+    *  For the meaning of the input arguments see [[com.raphtory.api.analysis.visitor.Edge Edge]]
     */
   def weightedTotalDegree[A: Numeric](
   ): A =
@@ -527,6 +529,7 @@ trait Vertex extends EntityVisitor {
             DefaultValues.defaultVal[A]
     )
 
+  /** Filter this vertex and remove it and all its edges from the GraphPerspective */
   def remove(): Unit
 }
 

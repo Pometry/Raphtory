@@ -7,8 +7,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import scala.util.Try
 
-/** @note DoNotDocument */
-class DateTimeParser(format: String) {
+private[raphtory] class DateTimeParser(format: String) {
   private val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern(format)
 
   def parse(datetime: String): Long =
@@ -18,7 +17,7 @@ class DateTimeParser(format: String) {
       .get
 }
 
-object DateTimeParser {
+private[raphtory] object DateTimeParser {
   def apply(format: String) = new DateTimeParser(format)
 
   def defaultParse(datetime: String): Long =

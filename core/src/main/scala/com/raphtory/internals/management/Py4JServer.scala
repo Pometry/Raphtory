@@ -17,7 +17,7 @@ import java.security.SecureRandom
 
 /** Setups the Py4J Java server which allows Python to interact with Raphtory
   */
-class Py4JServer(entryPoint: Object) {
+private[raphtory] class Py4JServer(entryPoint: Object) {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
@@ -110,7 +110,7 @@ class Py4JServer(entryPoint: Object) {
       }
 }
 
-object Py4JServer {
+private[raphtory] object Py4JServer {
 
   def apply(entryPoint: Object) =
     new Py4JServer(entryPoint: Object)

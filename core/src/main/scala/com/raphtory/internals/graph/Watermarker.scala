@@ -12,7 +12,7 @@ import scala.collection.concurrent.Map
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
-class Watermarker(storage: GraphPartition) {
+private[raphtory] class Watermarker(storage: GraphPartition) {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val lock: Lock     = new ReentrantLock()
