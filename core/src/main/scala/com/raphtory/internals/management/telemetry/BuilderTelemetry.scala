@@ -7,7 +7,7 @@ import io.prometheus.client.Counter
   * by the graph builder
   * Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
   */
-object BuilderTelemetry {
+private[raphtory] object BuilderTelemetry {
 
   def totalVertexAdds =
     Counter.build

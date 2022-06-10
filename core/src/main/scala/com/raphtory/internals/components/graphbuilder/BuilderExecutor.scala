@@ -11,8 +11,7 @@ import org.slf4j.LoggerFactory
 
 import scala.reflect.ClassTag
 
-/** @note DoNotDocument */
-class BuilderExecutor[T: ClassTag](
+private[raphtory] class BuilderExecutor[T: ClassTag](
     name: Int,
     deploymentID: String,
     graphBuilder: GraphBuilder[T],

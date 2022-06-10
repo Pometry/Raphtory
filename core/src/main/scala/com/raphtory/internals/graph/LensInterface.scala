@@ -9,9 +9,8 @@ import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import com.raphtory.internals.storage.pojograph.messaging.VertexMessageHandler
 
 /** Abstract interface for the GraphLens, responsible for executing algorithms
-  * @note DoNotDocument
   */
-trait LensInterface {
+private[raphtory] trait LensInterface {
 
   def partitionID(): Int
 

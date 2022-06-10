@@ -10,9 +10,11 @@ import org.slf4j.LoggerFactory
 import scala.collection.concurrent._
 import scala.collection.mutable
 
-/** @note DoNotDocument */
-class QueryManager(scheduler: MonixScheduler, conf: Config, topics: TopicRepository)
-        extends Component[QueryManagement](conf) {
+private[raphtory] class QueryManager(
+    scheduler: MonixScheduler,
+    conf: Config,
+    topics: TopicRepository
+) extends Component[QueryManagement](conf) {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val currentQueries = mutable.Map[String, QueryHandler]()

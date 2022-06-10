@@ -7,8 +7,7 @@ import com.raphtory.internals.components.querymanager.VertexMessage
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoEdge
 
-/** @note DoNotDocument */
-class PojoExplodedEdge(
+private[raphtory] class PojoExplodedEdge(
     objectEdge: PojoEdge,
     view: PojoGraphLens,
     id: Long,
@@ -37,7 +36,7 @@ class PojoExplodedEdge(
   }
 }
 
-object PojoExplodedEdge {
+private[raphtory] object PojoExplodedEdge {
 
   def fromEdge(pojoExEdge: PojoExEdge, timestamp: Long): PojoExplodedEdge =
     new PojoExplodedEdge(

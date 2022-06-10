@@ -8,8 +8,11 @@ import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.components.querymanager.WatermarkTime
 import com.typesafe.config.Config
 
-/** @DoNotDocument */
-class TopicRepository(defaultConnector: Connector, conf: Config, allConnectors: Array[Connector]) {
+private[raphtory] class TopicRepository(
+    defaultConnector: Connector,
+    conf: Config,
+    allConnectors: Array[Connector]
+) {
 
   // Methods to override:
   protected def spoutConnector: Connector            = defaultConnector

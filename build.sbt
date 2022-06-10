@@ -152,7 +152,7 @@ lazy val examplesTwitter =
 
 lazy val deploy =
   (project in file("deploy"))
-  .settings(assemblySettings)
+    .settings(assemblySettings)
 
 // SETTINGS
 

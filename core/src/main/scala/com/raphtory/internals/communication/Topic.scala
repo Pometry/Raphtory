@@ -1,32 +1,31 @@
 package com.raphtory.internals.communication
 
-/** @DoNotDocument */
-sealed trait Topic[+T] {
+sealed private[raphtory] trait Topic[+T] {
   def id: String
   def subTopic: String
   def customAddress: String
   def connector: Connector
 }
 
-sealed trait CanonicalTopic[+T] extends Topic[T] {
+sealed private[raphtory] trait CanonicalTopic[+T] extends Topic[T] {
   def endPoint[E >: T]: EndPoint[E] = connector.endPoint(this)
 }
 
-case class ExclusiveTopic[T](
+private[raphtory] case class ExclusiveTopic[T](
     connector: Connector,
     id: String,
     subTopic: String = "",
     customAddress: String = ""
 ) extends CanonicalTopic[T]
 
-case class WorkPullTopic[T](
+private[raphtory] case class WorkPullTopic[T](
     connector: Connector,
     id: String,
     subTopic: String = "",
     customAddress: String = ""
 ) extends CanonicalTopic[T]
 
-case class BroadcastTopic[T](
+private[raphtory] case class BroadcastTopic[T](
     numListeners: Int,
     connector: Connector,
     id: String,
@@ -34,7 +33,7 @@ case class BroadcastTopic[T](
     customAddress: String = ""
 ) extends CanonicalTopic[T]
 
-case class ShardingTopic[T](
+private[raphtory] case class ShardingTopic[T](
     numPartitions: Int,
     connector: Connector,
     id: String,

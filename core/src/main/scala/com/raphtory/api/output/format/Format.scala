@@ -1,6 +1,5 @@
 package com.raphtory.api.output.format
 
-import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.output.sink.SinkConnector
 import com.raphtory.api.output.sink.SinkExecutor
 import com.typesafe.config.Config
@@ -18,12 +17,12 @@ import com.typesafe.config.Config
   * They shouldn't write out any data by themselves.
   * Instead, they should rely on the provided `SinkConnector` to output the items.
   *
-  * @see [[Table]]
-  *      [[com.raphtory.api.output.sink.Sink]]
-  *      [[SinkExecutor]]
-  *      [[SinkConnector]]
-  *      [[com.raphtory.formats.CsvFormat]]
-  *      [[com.raphtory.formats.JsonFormat]]
+  * @see [[com.raphtory.api.analysis.table.Table Table]]
+  *      [[com.raphtory.api.output.sink.Sink Sink]]
+  *      [[com.raphtory.api.output.sink.SinkExecutor SinkExecutor]]
+  *      [[com.raphtory.api.output.sink.SinkConnector SinkConnector]]
+  *      [[com.raphtory.formats.CsvFormat CsvFormat]]
+  *      [[com.raphtory.formats.JsonFormat JsonFormat]]
   */
 trait Format {
 

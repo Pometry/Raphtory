@@ -7,7 +7,7 @@ import io.prometheus.client.Gauge
   * Exposes Counter and Summary stats for tracking number of graph updates, watermarks created by reader, vertices and edges added and deleted by writers in Raphtory
   * Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
   */
-object PartitionTelemetry {
+private[raphtory] object PartitionTelemetry {
 
   def lastWatermarkProcessed =
     Gauge.build

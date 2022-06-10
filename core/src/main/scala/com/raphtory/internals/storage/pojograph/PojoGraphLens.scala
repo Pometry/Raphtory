@@ -24,8 +24,7 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 
-/** @note DoNotDocument */
-final case class PojoGraphLens(
+final private[raphtory] case class PojoGraphLens(
     jobId: String,
     start: Long,
     end: Long,
