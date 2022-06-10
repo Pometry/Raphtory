@@ -1,0 +1,16 @@
+version: "3.9"
+services:
+  nginx:
+#    image: nginx:1.22.0
+    build:
+      context: .
+      args:
+        INPUT_PORT: "${INPUT_PORT}"
+        OUTPUT_PORT: "${OUTPUT_PORT}"
+#    container_name: nginx
+    cap_add: [NET_ADMIN]
+    # network_mode: host
+    ports: ["${INPUT_PORT}:${INPUT_PORT}"]
+#    environment:
+#      INPUT_PORT: "${INPUT_PORT-3001}"
+#      OUTPUT_PORT: "${OUTPUT_PORT-3000}"

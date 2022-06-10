@@ -6,7 +6,7 @@ import cats.effect.IOApp
 import cats.effect.Resource
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
-import com.raphtory.internals.communication.repositories.PulsarTopicRepository
+import com.raphtory.internals.communication.repositories.PulsarAkkaClusterTopicRepository
 import com.raphtory.internals.components.graphbuilder.BuildExecutorGroup
 import com.raphtory.internals.components.querymanager.QueryManager
 import com.raphtory.internals.components.spout.SpoutExecutor
@@ -75,7 +75,7 @@ abstract class RaphtoryService[T: ClassTag] extends IOApp {
     val metricsPort = config.getInt("raphtory.prometheus.metrics.port")
     for {
       _         <- Prometheus[IO](metricsPort)
-      topicRepo <- PulsarTopicRepository[IO](config)
+      topicRepo <- PulsarAkkaClusterTopicRepository[IO](config)
       s         <- SpoutExecutor[IO, T](defineSpout(), config, topicRepo)
     } yield s
   }
@@ -85,7 +85,7 @@ abstract class RaphtoryService[T: ClassTag] extends IOApp {
     val metricsPort  = config.getInt("raphtory.prometheus.metrics.port")
     for {
       _                <- Prometheus[IO](metricsPort)
-      topicRepo        <- PulsarTopicRepository[IO](config)
+      topicRepo        <- PulsarAkkaClusterTopicRepository[IO](config)
       builderIDManager <- Raphtory.makeBuilderIdManager[IO](config, localDeployment, deploymentID)
       beg              <- BuildExecutorGroup[IO, T](config, builderIDManager, topicRepo, defineBuilder)
     } yield beg
@@ -97,7 +97,7 @@ abstract class RaphtoryService[T: ClassTag] extends IOApp {
     val metricsPort  = config.getInt("raphtory.prometheus.metrics.port")
     for {
       _                  <- Prometheus[IO](metricsPort)
-      topicRepo          <- PulsarTopicRepository[IO](config)
+      topicRepo          <- PulsarAkkaClusterTopicRepository[IO](config)
       partitionIDManager <- Raphtory.makePartitionIdManager[IO](config, localDeployment = false, deploymentID)
       pm                 <- PartitionsManager
                               .batchLoading[IO, T](config, partitionIDManager, topicRepo, new Scheduler(), defineSpout(), defineBuilder)
@@ -109,7 +109,7 @@ abstract class RaphtoryService[T: ClassTag] extends IOApp {
     val metricsPort  = config.getInt("raphtory.prometheus.metrics.port")
     for {
       _                  <- Prometheus[IO](metricsPort)
-      topicRepo          <- PulsarTopicRepository[IO](config)
+      topicRepo          <- PulsarAkkaClusterTopicRepository[IO](config)
       partitionIDManager <- Raphtory.makePartitionIdManager[IO](config, localDeployment = false, deploymentID)
       pm                 <- PartitionsManager
                               .streaming[IO](config, partitionIDManager, topicRepo, new Scheduler())
@@ -120,7 +120,7 @@ abstract class RaphtoryService[T: ClassTag] extends IOApp {
     val metricsPort = config.getInt("raphtory.prometheus.metrics.port")
     for {
       _         <- Prometheus[IO](metricsPort)
-      topicRepo <- PulsarTopicRepository[IO](config)
+      topicRepo <- PulsarAkkaClusterTopicRepository[IO](config, seed = true)
       qm        <- QueryManager[IO](config, topicRepo)
     } yield qm
   }

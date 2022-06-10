@@ -7,6 +7,7 @@ import com.raphtory.api.analysis.graphview.TemporalGraphConnection
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
 import com.raphtory.internals.communication.TopicRepository
+import com.raphtory.internals.communication.repositories.PulsarAkkaClusterTopicRepository
 import com.raphtory.internals.communication.repositories.PulsarAkkaTopicRepository
 import com.raphtory.internals.communication.repositories.PulsarTopicRepository
 import com.raphtory.internals.components.graphbuilder.BuildExecutorGroup
@@ -132,7 +133,7 @@ object Raphtory {
     for {
       _         <- Py4JServer.fromEntryPoint[IO](this, config)
       _         <- Prometheus[IO](prometheusPort)
-      topicRepo <- PulsarTopicRepository[IO](config)
+      topicRepo <- PulsarAkkaClusterTopicRepository[IO](config)
     } yield (topicRepo, config)
   }
 

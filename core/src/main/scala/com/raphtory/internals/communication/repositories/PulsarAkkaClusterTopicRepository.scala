@@ -2,17 +2,18 @@ package com.raphtory.internals.communication.repositories
 
 import cats.effect.Async
 import cats.effect.Resource
-import com.raphtory.internals.communication.connectors.AkkaConnector
-import com.raphtory.internals.communication.connectors.PulsarConnector
 import com.raphtory.internals.communication.Connector
 import com.raphtory.internals.communication.TopicRepository
+import com.raphtory.internals.communication.connectors.AkkaConnector
+import com.raphtory.internals.communication.connectors.PulsarConnector
 import com.typesafe.config.Config
 
-private[raphtory] object PulsarAkkaTopicRepository {
+object PulsarAkkaClusterTopicRepository {
 
-  def apply[IO[_]: Async](config: Config): Resource[IO, TopicRepository] =
+  def apply[IO[_]: Async](config: Config, seed: Boolean = false): Resource[IO, TopicRepository] = {
+    val akkaMode = if (seed) AkkaConnector.SeedMode else AkkaConnector.ClientMode
     for {
-      akkaConnector   <- AkkaConnector[IO](AkkaConnector.StandaloneMode, config)
+      akkaConnector   <- AkkaConnector[IO](akkaMode, config)
       pulsarConnector <- PulsarConnector[IO](config)
     } yield new TopicRepository(pulsarConnector, config, Array(akkaConnector, pulsarConnector)) {
       override def jobOperationsConnector: Connector      = akkaConnector
@@ -25,4 +26,5 @@ private[raphtory] object PulsarAkkaTopicRepository {
       override def submissionsConnector: Connector        = akkaConnector
       override def vertexMessagesSyncConnector: Connector = akkaConnector
     }
+  }
 }
