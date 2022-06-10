@@ -1,17 +1,18 @@
 package com.raphtory.deploy.kubernetes
+
 import components._
 
 /** Calls `delete` method on RaphtoryKubernetes classes to delete kubernetes objects.
- * Kubernetes objects that are iterated over are read from application.conf values.
- *
- * @see
- * [[RaphtoryKubernetesNamespaces]]
- * [[RaphtoryKubernetesRegistrySecret]]
- * [[RaphtoryKubernetesServiceAccounts]]
- * [[RaphtoryKubernetesDeployments]]
- * [[RaphtoryKubernetesServices]]
- * [[RaphtoryKubernetesIngresses]]
- */
+  * Kubernetes objects that are iterated over are read from application.conf values.
+  *
+  * @see
+  * [[RaphtoryKubernetesNamespaces]]
+  * [[RaphtoryKubernetesRegistrySecret]]
+  * [[RaphtoryKubernetesServiceAccounts]]
+  * [[RaphtoryKubernetesDeployments]]
+  * [[RaphtoryKubernetesServices]]
+  * [[RaphtoryKubernetesIngresses]]
+  */
 object Delete {
 
   /** Delete Kubernetes resources */
