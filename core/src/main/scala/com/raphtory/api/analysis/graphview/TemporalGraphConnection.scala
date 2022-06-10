@@ -24,9 +24,7 @@ class TemporalGraphConnection private[raphtory] (
 ) extends TemporalGraph(query, querySender, conf) {
 
   /** Disconnects the client from the deployed graph - cleans up all resources (scheduler/topic repo/connections etc.) used for the connection. */
-  def disconnect(): Unit = {
-    scheduler.shutdown()
+  def disconnect(): Unit =
     topics.shutdown()
-  }
 
 }

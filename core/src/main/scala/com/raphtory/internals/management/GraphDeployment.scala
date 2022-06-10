@@ -69,7 +69,6 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
       case None         =>
     }
     componentFactory.stop()
-    scheduler.shutdown()
   }
 
   private def allowIllegalReflection() = {
