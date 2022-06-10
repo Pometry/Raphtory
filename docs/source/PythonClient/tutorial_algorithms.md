@@ -29,8 +29,8 @@ Replace this value below `raphtory_deployment_id=<YOUR_DEPLOYMENT__ID>`
 e.g. `raphtoryclient.client(raphtory_deployment_id="raphtory_12783638")`
 
 ```python
-from raphtoryclient import raphtoryclient as client
-raphtory = client(raphtory_deployment_id="<YOUR_DEPLOYMENT__ID>")
+import raphtoryclient
+raphtory = raphtoryclient.client(raphtory_deployment_id="<YOUR_DEPLOYMENT__ID>")
 ```
 
     Connecting to RaphtoryClient...
@@ -45,17 +45,19 @@ raphtory = client(raphtory_deployment_id="<YOUR_DEPLOYMENT__ID>")
 
 To run an algorithm we must first import the class that this algorithm belongs to. 
 
-For example to run the ConnectedComponents algorithm that exports to the FileOutputFormat
+For example to run the ConnectedComponents algorithm that exports to a CSV file (using the `FileSink`)
 we must do the following
 
 ```python 
-from py4j.java_gateway import java_import
-
 raphtory.java_import("com.raphtory.algorithms.generic.ConnectedComponents")
 connectedComponentsAlgorithm = raphtory.java().ConnectedComponents
 
-raphtory.java_import("com.raphtory.output.FileOutputFormat")
-fileOutputFormat = raphtory.java().FileOutputFormat
+raphtory.java_import("com.raphtory.sinks.FileSink")
+raphtory.java_import("com.raphtory.formats.CsvFormat")
+fileSink = raphtory.java().FileSink
+CsvFormat = raphtory.java().CsvFormat
+output = raphtory.java().FileSink.apply("/tmp/pythonCC", CsvFormat())
+
 ```
 
 ### Running an algorithm 
@@ -72,5 +74,13 @@ queryHandler = raphtory.graph\
     .at(32674)\
     .past()\
     .execute(connectedComponentsAlgorithm())\
-    .writeTo(fileOutputFormat.apply("/tmp/pythonCC"))
+    .writeTo(output)
 ```
+
+#### Warning: Give exact arguments when calling algorithms 
+
+In order for a scala algorithm to run via python, you must call the algorithm
+with its exact arguments, otherwise java will not be able to find it.
+
+For example, the Connected Components algorithm has an object, with an empty `apply` function.
+This is used to call the algorithm from python. This is a side effect of using py4j.

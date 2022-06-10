@@ -7,6 +7,9 @@ This library can be installed via `pip install raphtory-client`
 
 The source code can be found `https://github.com/raphtory/raphtory/python` 
 
+**You must set the raphtory environment variable `RAPHTORY_PYTHON_ACTIVE` to `true` to ensure Raphtory launches
+the python gateway server, it is set to `false` by default. Without this, the python client will not work.**
+
 ## RaphtoryClient Objects
 
 ```python
@@ -21,7 +24,7 @@ This is the class to create a raphtory client which interacts with pulsar.
 - `admin_url` _str_: the url for the pulsar admin client
 - `pulsar_client_args`: Dict of arguments to be used in the pulsar client, keys must match pulsar.Client parameters
 - `raphtory_deployment_id` _string_ : deployment id of the running raphtory instance
-- `conn_file_info` _string_: absolute file path of java gateway connection file, usually '/tmp/raphtory_python_gateway_'+deployment_id
+- `conn_file_info` _string_: absolute file path of java gateway connection file, usually `/tmp/deployment_id+'_python_gateway_connection_file`
 
 - <a id="RaphtoryClient.RaphtoryClient.make_name"></a>
 
@@ -289,7 +292,7 @@ The gateway allows the user to run/read java/scala methods and objects from pyth
 
 
 **Arguments**:
-- conn_info_file: full absolute file path to the connection info, usually '/tmp/raphtory_python_gateway_'+deployment_id
+- conn_info_file: full absolute file path to the connection info, usually `/tmp/deployment_id+'_python_gateway_connection_file`
 
 **Returns**:
 - `py4j.java_gateway`: py4j java gateway object

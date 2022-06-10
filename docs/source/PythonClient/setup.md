@@ -14,6 +14,8 @@ Once you have Pulsar running and Raphtory setup, we can now run the [raphtory-ex
 This will run a `spout` and `graphbuilder` that ingests and creates a LOTR graph.
 Then will run the `EdgeList` and `PageRank` algorithms. The `EdgeList` algorithm will produce an edge list that can be ingested into the graph. `PageRank` will run as a range query over specific times in the data. More information can be found in the projects readme.
 
+**You must set the environment variable `RAPHTORY_PYTHON_ACTIVE` to `true` to ensure Raphtory launches 
+the python gateway server, it is set to `false` by default.** 
 
 ## Setup Python Environment
 

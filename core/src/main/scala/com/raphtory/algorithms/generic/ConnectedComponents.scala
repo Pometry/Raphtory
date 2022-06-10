@@ -66,7 +66,7 @@ class ConnectedComponents extends NodeList(Seq("cclabel")) {
 
 }
 
-// THIS IS USED FOR
+// THIS IS USED FOR PYTHON
 object ConnectedComponents {
   def apply() = new ConnectedComponents()
 }

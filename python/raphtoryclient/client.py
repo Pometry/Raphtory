@@ -59,7 +59,7 @@ class client:
         admin_url: the url for the pulsar admin client
         pulsar_client_args: Dict of arguments to be used in the pulsar client, keys must match pulsar.Client parameters
         raphtory_deployment_id: deployment id of the running raphtory instance
-        conn_file_info _string_: absolute file path of java gateway connection file, usually '/tmp/raphtory_python_gateway_'+deployment_id
+        conn_file_info _string_: absolute file path of java gateway connection file, usually '/tmp/deployment_id+'_python_gateway_connection_file'
         '''
         if _pulsar_client_args is None:
             _pulsar_client_args = {'service_url': 'pulsar://127.0.0.1:6650'}
@@ -127,7 +127,7 @@ class client:
         The gateway allows the user to run/read java/scala methods and objects from python.
 
         Parameters:
-            conn_info_file: full absolute file path to the connection info, usually '/tmp/raphtory_python_gateway_'+deployment_id
+            conn_info_file: full absolute file path to the connection info, usually '/tmp/deployment_id+'_python_gateway_connection_file'
 
         Returns:
             py4j.java_gateway: py4j java gateway object
