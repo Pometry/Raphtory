@@ -72,6 +72,8 @@ sealed abstract private[raphtory] class GraphUpdateEffect(val updateId: Long)
   val msgTime: Long
 }
 
+sealed abstract private[raphtory] class RemoteEdgeSync(updateId: Long) extends GraphUpdateEffect(updateId)
+
 private[raphtory] case class SyncNewEdgeAdd(
     msgTime: Long,
     srcId: Long,
@@ -79,7 +81,7 @@ private[raphtory] case class SyncNewEdgeAdd(
     properties: Properties,
     removals: List[Long],
     vType: Option[Type]
-) extends GraphUpdateEffect(dstId)
+) extends RemoteEdgeSync(dstId)
 
 private[raphtory] case class BatchAddRemoteEdge(
     msgTime: Long,
@@ -94,7 +96,7 @@ private[raphtory] case class SyncExistingEdgeAdd(
     srcId: Long,
     dstId: Long,
     properties: Properties
-) extends GraphUpdateEffect(dstId)
+) extends RemoteEdgeSync(dstId)
 
 private[raphtory] case class SyncExistingEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long)
         extends GraphUpdateEffect(dstId)

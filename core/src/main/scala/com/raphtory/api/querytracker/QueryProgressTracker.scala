@@ -7,13 +7,14 @@ import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.graph.Perspective
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import monix.eval.Task
-import monix.execution.Scheduler.Implicits.global
 import org.slf4j.LoggerFactory
 
+import java.util.concurrent.SynchronousQueue
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
+import scala.concurrent.Promise
 import scala.concurrent.duration.Duration
+import scala.util.Success
 
 private class DoneException extends Exception
 
@@ -60,17 +61,7 @@ class QueryProgressTracker private[raphtory] (
   private val startTime: Long       = System.currentTimeMillis
   private var perspectiveTime: Long = startTime
 
-  private val isJobDoneFuture = Task
-    .never[Unit]
-    .doOnCancel(
-            Task.eval[Unit] {
-              stop()
-            }
-    )
-    .onCancelRaiseError(
-            new DoneException
-    ) // see this for why this is necessary https://github.com/monix/monix/issues/860
-    .runToFuture
+  private val isJobDonePromise = Promise[Unit]()
 
   // Handles message to process the `Perspective` received in case
   // the query is in progress, or `JobDone` if the query is complete
@@ -105,7 +96,7 @@ class QueryProgressTracker private[raphtory] (
         )
 
         jobDone = true
-        isJobDoneFuture.cancel()
+        isJobDonePromise.complete(Success(()))
     }
 
   override private[raphtory] def run(): Unit = {
@@ -148,7 +139,7 @@ class QueryProgressTracker private[raphtory] (
 
   /** Block until job is complete */
   def waitForJob(timeout: Duration = Duration.Inf): Unit =
-    try Await.result[Unit](isJobDoneFuture, timeout)
+    try Await.result[Unit](isJobDonePromise.future, timeout)
     catch {
       case e: DoneException =>
     }

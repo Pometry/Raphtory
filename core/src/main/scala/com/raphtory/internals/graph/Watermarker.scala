@@ -2,10 +2,10 @@ package com.raphtory.internals.graph
 
 import com.raphtory.internals.components.querymanager.WatermarkTime
 import com.typesafe.scalalogging.Logger
-import monix.execution.atomic.AtomicLong
 import org.slf4j.LoggerFactory
 
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
 import scala.collection.concurrent.Map
@@ -17,8 +17,8 @@ private[raphtory] class Watermarker(storage: GraphPartition) {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val lock: Lock     = new ReentrantLock()
 
-  val oldestTime: AtomicLong = AtomicLong(Long.MaxValue)
-  val latestTime: AtomicLong = AtomicLong(0)
+  val oldestTime: AtomicLong = new AtomicLong(Long.MaxValue)
+  val latestTime: AtomicLong = new AtomicLong(0)
 
   private var latestWatermark =
     WatermarkTime(storage.getPartitionID, Long.MaxValue, 0, safe = false)

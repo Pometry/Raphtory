@@ -63,6 +63,7 @@ lazy val core = (project in file("core"))
   .settings(
           name := "core",
           assembly / test := {},
+          scalafmtOnCompile := true,
           Compile / doc / scalacOptions := Seq(
                   "-skip-packages",
                   "com.raphtory.algorithms.generic:com.raphtory.algorithms.temporal:com.raphtory.algorithms.filters",
@@ -76,7 +77,6 @@ lazy val core = (project in file("core"))
                   log4jSlft4,
                   log4jApi,
                   log4jCore,
-                  monix,
                   openhft,
                   prometheusClient,
                   prometheusHotspot,
@@ -94,6 +94,7 @@ lazy val core = (project in file("core"))
                   sprayJson,
                   timeSeries,
                   twitterChill,
+                  catsEffect,
                   typesafeConfig,
                   zookeeper,
                   akkaTyped

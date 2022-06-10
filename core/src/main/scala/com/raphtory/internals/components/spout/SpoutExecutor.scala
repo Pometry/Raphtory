@@ -6,9 +6,9 @@ import com.raphtory.internals.components.Component
 import com.raphtory.internals.management.MonixScheduler
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import monix.execution.Cancelable
 import org.slf4j.LoggerFactory
 
+import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 private[raphtory] class SpoutExecutor[T](
@@ -18,10 +18,10 @@ private[raphtory] class SpoutExecutor[T](
     scheduler: MonixScheduler
 ) extends Component[T](conf) {
 
-  protected val failOnError: Boolean           = conf.getBoolean("raphtory.spout.failOnError")
-  private var linesProcessed: Int              = 0
-  private var scheduledRun: Option[Cancelable] = None
-  private val logger: Logger                   = Logger(LoggerFactory.getLogger(this.getClass))
+  protected val failOnError: Boolean                   = conf.getBoolean("raphtory.spout.failOnError")
+  private var linesProcessed: Int                      = 0
+  private var scheduledRun: Option[() => Future[Unit]] = None
+  private val logger: Logger                           = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val spoutReschedulesCount = telemetry.spoutReschedules.labels(deploymentID)
   private val fileLinesSent         = telemetry.fileLinesSent.labels(deploymentID)
@@ -34,7 +34,7 @@ private[raphtory] class SpoutExecutor[T](
   private val builders = topics.spout[T].endPoint
 
   override def stop(): Unit = {
-    scheduledRun.foreach(_.cancel())
+    scheduledRun.foreach(cancelable => cancelable())
     builders.close()
   }
 
@@ -59,7 +59,7 @@ private[raphtory] class SpoutExecutor[T](
   private def reschedule(): Unit = {
     // TODO: Parameterise the delay
     logger.debug("Spout: Scheduling spout to poll again in 10 seconds.")
-    scheduledRun = scheduler.scheduleOnce(1.seconds, rescheduler())
+    scheduledRun = Option(scheduler.scheduleOnce(1.seconds, rescheduler()))
   }
 
 }

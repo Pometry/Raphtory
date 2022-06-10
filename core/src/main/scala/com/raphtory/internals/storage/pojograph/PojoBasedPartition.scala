@@ -9,6 +9,7 @@ import com.raphtory.api.input.InboundEdgeRemovalViaVertex
 import com.raphtory.api.input.LongProperty
 import com.raphtory.api.input.OutboundEdgeRemovalViaVertex
 import com.raphtory.api.input.Properties
+import com.raphtory.api.input.RemoteEdgeSync
 import com.raphtory.api.input.StringProperty
 import com.raphtory.api.input.SyncExistingEdgeAdd
 import com.raphtory.api.input.SyncExistingEdgeRemoval
@@ -160,7 +161,7 @@ private[raphtory] class PojoBasedPartition(partition: Int, conf: Config)
       dstId: Long,
       properties: Properties,
       edgeType: Option[Type]
-  ): Option[GraphUpdateEffect] = {
+  ): Option[RemoteEdgeSync] = {
     val local     = checkDst(dstId) //is the dst on this machine
     logger.trace(s"Dst is on the machine: $local")
     val srcVertex =
@@ -190,7 +191,7 @@ private[raphtory] class PojoBasedPartition(partition: Int, conf: Config)
         (false, newEdge)
     }
 
-    val maybeEffect: Option[GraphUpdateEffect] =
+    val maybeEffect =
       if (present) {
         edge revive msgTime //if the edge was previously created we need to revive it
         logger.trace(s"Edge ${edge.getSrcId} - ${edge.getDstId} revived")
