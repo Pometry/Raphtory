@@ -9,10 +9,10 @@ import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.MonixScheduler
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import monix.execution.Cancelable
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
+import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 private[raphtory] class Reader(
@@ -27,9 +27,9 @@ private[raphtory] class Reader(
   private val executorMap      = mutable.Map[String, QueryExecutor]()
   private val watermarkPublish = topics.watermark.endPoint
 
-  private val queryPrepListener                      =
+  private val queryPrepListener                              =
     topics.registerListener(s"$deploymentID-reader-$partitionID", handleMessage, topics.queryPrep)
-  private var scheduledWatermark: Option[Cancelable] = None
+  private var scheduledWatermark: Option[() => Future[Unit]] = None
 
   override def run(): Unit = {
     logger.debug(s"Partition $partitionID: Starting Reader Consumer.")
@@ -39,7 +39,7 @@ private[raphtory] class Reader(
 
   override def stop(): Unit = {
     queryPrepListener.close()
-    scheduledWatermark.foreach(_.cancel())
+    scheduledWatermark.foreach(cancelable => cancelable())
     watermarkPublish.close()
     executorMap.synchronized {
       executorMap.foreach(_._2.stop())
@@ -82,8 +82,10 @@ private[raphtory] class Reader(
 
   private def scheduleWatermarker(): Unit = {
     logger.trace("Scheduled watermarker to recheck time in 1 second.")
-    scheduledWatermark = scheduler
-      .scheduleOnce(1.seconds, checkWatermark())
+    scheduledWatermark = Option(
+            scheduler
+              .scheduleOnce(1.seconds, checkWatermark())
+    )
 
   }
 
