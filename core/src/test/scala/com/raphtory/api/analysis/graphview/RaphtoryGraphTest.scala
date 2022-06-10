@@ -5,8 +5,8 @@ import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.TableFilter
 import com.raphtory.api.analysis.table.TableImplementation
+import com.raphtory.api.time.DiscreteInterval
 import com.raphtory.internals.components.querymanager.PointPath
-import com.raphtory.internals.time.DiscreteInterval
 import org.scalatest.funsuite.AnyFunSuite
 
 class RaphtoryGraphTest extends AnyFunSuite {

@@ -1,31 +1,33 @@
 package com.raphtory.internals.graph
 
 import com.raphtory.api.analysis.graphview.Alignment
+import com.raphtory.api.time
+import com.raphtory.api.time.DiscreteInterval
+import com.raphtory.api.time.Interval
+import com.raphtory.api.time.NullInterval
 import com.raphtory.internals.components.querymanager.NullPointSet
 import com.raphtory.internals.components.querymanager.PointPath
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.components.querymanager.SinglePoint
-import com.raphtory.internals.time.DiscreteInterval
-import com.raphtory.internals.time.Interval
-import com.raphtory.internals.time.NullInterval
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 import com.raphtory.internals.time.TimeConverters._
+
 import scala.annotation.tailrec
 import scala.util.Try
 
 /** The PerspectiveController is responsible for constructing graph views
-  * @note DoNotDocument
   */
-case class Perspective(
+private[raphtory] case class Perspective(
     timestamp: Long,
     window: Option[Interval],
     actualStart: Long,
     actualEnd: Long
 ) extends QueryManagement
+        with time.Perspective
 
-class PerspectiveController(
+private[raphtory] class PerspectiveController(
     private var perspectiveStreams: Array[LazyList[Perspective]]
 ) {
 
@@ -44,7 +46,7 @@ class PerspectiveController(
   }
 }
 
-object PerspectiveController {
+private[raphtory] object PerspectiveController {
 
   final val DEFAULT_PERSPECTIVE_TIME: Long             = -1L
   final val DEFAULT_PERSPECTIVE_WINDOW: Some[Interval] = Some(DiscreteInterval(-1L))

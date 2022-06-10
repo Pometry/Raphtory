@@ -12,7 +12,7 @@ import com.raphtory.internals.management.GraphDeployment
 import com.typesafe.config.Config
 import org.apache.pulsar.client.api.Schema
 
-/** A `Sink` that sends a `Table` to the specified Pulsar `topic` using the given `format`.
+/** A [[com.raphtory.api.output.sink.Sink Sink]] that sends a `Table` to the specified Pulsar `topic` using the given `format`.
   *
   * @param topic the name of the Pulsar topic to send the table to
   * @param format the format to be used by this sink (`CsvFormat` by default)
@@ -30,16 +30,16 @@ import org.apache.pulsar.client.api.Schema
   *
   * graph.execute(EdgeList()).writeTo(sink)
   * }}}
-  * @see [[Sink]]
-  *      [[Format]]
-  *      [[CsvFormat]]
-  *      [[Table]]
-  *      [[com.raphtory.Raphtory]]
+  * @see [[com.raphtory.api.output.sink.Sink Sink]]
+  *      [[com.raphtory.api.output.format.Format Format]]
+  *      [[com.raphtory.formats.CsvFormat CsvFormat]]
+  *      [[com.raphtory.api.analysis.table.Table Table]]
+  *      [[com.raphtory.Raphtory Raphtory]]
   */
 case class PulsarSink(topic: String, format: Format = CsvFormat())
         extends FormatAgnosticSink(format) {
 
-  override protected def buildConnector(
+  override def buildConnector(
       jobID: String,
       partitionID: Int,
       config: Config,

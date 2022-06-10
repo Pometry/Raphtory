@@ -17,7 +17,7 @@ import scala.reflect.ClassTag
   *
   * @see [[KryoSerialiser]]
   */
-object Marshal {
+private[raphtory] object Marshal {
 
   /** Serialise to byte array
     * @param o object to serialise

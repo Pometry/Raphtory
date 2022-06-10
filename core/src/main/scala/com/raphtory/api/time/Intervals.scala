@@ -1,12 +1,11 @@
-package com.raphtory.internals.time
+package com.raphtory.api.time
 
+import java.time.temporal.TemporalAmount
 import java.time.Duration
 import java.time.Instant
 import java.time.Period
-import java.time.temporal.TemporalAmount
 import scala.language.postfixOps
 
-/** @note DoNotDocument */
 sealed trait Interval extends Ordered[Interval] {
   def toString: String
   def *(number: Long): Interval

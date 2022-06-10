@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
-/** @note DoNotDocument */
 private[raphtory] class ConfigHandler {
   private lazy val defaults       = createConf()
   private lazy val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))

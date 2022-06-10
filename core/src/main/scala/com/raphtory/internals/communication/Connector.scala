@@ -1,7 +1,6 @@
 package com.raphtory.internals.communication
 
-/** @DoNotDocument */
-trait Connector {
+private[raphtory] trait Connector {
 
   def register[T](
       id: String,

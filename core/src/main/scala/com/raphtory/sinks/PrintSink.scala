@@ -9,7 +9,7 @@ import com.raphtory.api.output.sink.StreamSinkConnector
 import com.raphtory.formats.CsvFormat
 import com.typesafe.config.Config
 
-/** A `Sink` that prints a `Table` to the standard output.
+/** A [[com.raphtory.api.output.sink.Sink Sink]] that prints a `Table` to the standard output.
   *
   * @param format the format to be used by this sink (`CsvFormat` by default)
   *
@@ -27,15 +27,15 @@ import com.typesafe.config.Config
   *
   * graph.execute(EdgeList()).writeTo(sink)
   * }}}
-  * @see [[Sink]]
-  *      [[Format]]
-  *      [[CsvFormat]]
-  *      [[Table]]
-  *      [[com.raphtory.Raphtory]]
+  * @see [[com.raphtory.api.output.sink.Sink Sink]]
+  *      [[com.raphtory.api.output.format.Format Format]]
+  *      [[com.raphtory.formats.CsvFormat CsvFormat]]
+  *      [[com.raphtory.api.analysis.table.Table Table]]
+  *      [[com.raphtory.Raphtory Raphtory]]
   */
 case class PrintSink(format: Format = CsvFormat()) extends FormatAgnosticSink(format) {
 
-  override protected def buildConnector(
+  override def buildConnector(
       jobID: String,
       partitionID: Int,
       config: Config,

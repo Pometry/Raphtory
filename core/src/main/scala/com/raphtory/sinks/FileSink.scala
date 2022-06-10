@@ -3,17 +3,15 @@ package com.raphtory.sinks
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.output.format.Format
 import com.raphtory.api.output.sink.FormatAgnosticSink
-import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.output.sink.SinkConnector
 import com.raphtory.api.output.sink.StreamSinkConnector
 import com.raphtory.formats.CsvFormat
-import com.raphtory.internals.management.GraphDeployment
 import com.typesafe.config.Config
 
 import java.io.File
 import java.io.FileWriter
 
-/** A `Sink` that writes a `Table` into files using the given `format`.
+/** A [[com.raphtory.api.output.sink.Sink Sink]] that writes a `Table` into files using the given `format`.
   *
   * The sink creates one directory with the job id as name inside `filepath`
   * and one file for every partition on the server inside that directory.
@@ -34,16 +32,16 @@ import java.io.FileWriter
   *
   * graph.execute(EdgeList()).writeTo(sink)
   * }}}
-  * @see [[Sink]]
-  *      [[Format]]
-  *      [[CsvFormat]]
-  *      [[Table]]
-  *      [[com.raphtory.Raphtory]]
+  * @see [[com.raphtory.api.output.sink.Sink Sink]]
+  *      [[com.raphtory.api.output.format.Format Format]]
+  *      [[com.raphtory.formats.CsvFormat CsvFormat]]
+  *      [[com.raphtory.api.analysis.table.Table Table]]
+  *      [[com.raphtory.Raphtory Raphtory]]
   */
 case class FileSink(filePath: String, format: Format = CsvFormat())
         extends FormatAgnosticSink(format) {
 
-  override protected def buildConnector(
+  override def buildConnector(
       jobID: String,
       partitionID: Int,
       config: Config,

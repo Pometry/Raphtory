@@ -10,7 +10,7 @@ import scala.collection.mutable
   * @param creationTime
   * @param value         Property value
   */
-class MutableProperty(creationTime: Long, value: Any) extends Property {
+private[raphtory] class MutableProperty(creationTime: Long, value: Any) extends Property {
   private var previousState: mutable.ArrayBuffer[(Long, Any)] = mutable.ArrayBuffer()
   // add in the initial information
   update(creationTime, value)

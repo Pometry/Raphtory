@@ -15,7 +15,6 @@ import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
 import scala.concurrent.duration.FiniteDuration
 
-/** @note DoNotDocument */
 private[raphtory] class MonixScheduler {
   private val threads: Int     = 8
   private var schedulerRunning = true

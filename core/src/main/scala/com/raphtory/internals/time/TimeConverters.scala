@@ -1,10 +1,14 @@
 package com.raphtory.internals.time
 
+import com.raphtory.api.time.DiscreteInterval
+import com.raphtory.api.time.Interval
+import com.raphtory.api.time.NullInterval
+import com.raphtory.api.time.TimeInterval
+
 import java.time.Instant
 import java.time.ZoneOffset
 
-/** @note DoNotDocument */
-object TimeConverters {
+private[raphtory] object TimeConverters {
 
   implicit class TimeHolder(val time: Long) {
 
