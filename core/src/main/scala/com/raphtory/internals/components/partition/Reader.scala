@@ -6,7 +6,7 @@ import com.raphtory.internals.components.querymanager.EndQuery
 import com.raphtory.internals.components.querymanager.EstablishExecutor
 import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.graph.GraphPartition
-import com.raphtory.internals.management.MonixScheduler
+import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -18,7 +18,7 @@ import scala.concurrent.duration.DurationInt
 private[raphtory] class Reader(
     partitionID: Int,
     storage: GraphPartition,
-    scheduler: MonixScheduler,
+    scheduler: Scheduler,
     conf: Config,
     topics: TopicRepository
 ) extends Component[QueryManagement](conf) {

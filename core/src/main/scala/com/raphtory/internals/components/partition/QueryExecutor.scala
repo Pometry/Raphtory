@@ -38,7 +38,7 @@ import com.raphtory.internals.components.querymanager.WriteCompleted
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.graph.Perspective
-import com.raphtory.internals.management.MonixScheduler
+import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -53,7 +53,7 @@ private[raphtory] class QueryExecutor(
     jobID: String,
     conf: Config,
     topics: TopicRepository,
-    scheduler: MonixScheduler
+    scheduler: Scheduler
 ) extends Component[QueryManagement](conf) {
 
   private val logger: Logger                      = Logger(LoggerFactory.getLogger(this.getClass))

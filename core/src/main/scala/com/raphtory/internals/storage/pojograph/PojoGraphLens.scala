@@ -13,7 +13,7 @@ import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.graph.GraphLens
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
-import com.raphtory.internals.management.MonixScheduler
+import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.storage.pojograph.entities.external.PojoExVertex
 import com.raphtory.internals.storage.pojograph.entities.external.PojoVertexBase
 import com.raphtory.internals.storage.pojograph.messaging.VertexMessageHandler
@@ -35,7 +35,7 @@ final private[raphtory] case class PojoGraphLens(
     private val sentMessages: AtomicInteger,
     private val receivedMessages: AtomicInteger,
     private val errorHandler: (Throwable) => Unit,
-    private val scheduler: MonixScheduler
+    private val scheduler: Scheduler
 ) extends GraphLens(jobId, start, end)
         with LensInterface {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))

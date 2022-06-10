@@ -3,7 +3,7 @@ package com.raphtory.internals.components.spout
 import com.raphtory.api.input.Spout
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
-import com.raphtory.internals.management.MonixScheduler
+import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -15,7 +15,7 @@ private[raphtory] class SpoutExecutor[T](
     spout: Spout[T],
     conf: Config,
     topics: TopicRepository,
-    scheduler: MonixScheduler
+    scheduler: Scheduler
 ) extends Component[T](conf) {
 
   protected val failOnError: Boolean                   = conf.getBoolean("raphtory.spout.failOnError")
