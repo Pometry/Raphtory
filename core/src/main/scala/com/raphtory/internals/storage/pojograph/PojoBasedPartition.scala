@@ -293,7 +293,7 @@ private[raphtory] class PojoBasedPartition(partition: Int, conf: Config)
       srcId: Long,
       dstId: Long,
       properties: Properties
-  ): GraphUpdateEffect = {
+  ): RemoteEdgeSync = {
     val dstVertex =
       addVertexInternal(msgTime, dstId, Properties(), None) // revive the destination node
     logger.trace(s"Revived destination node: ${dstVertex.vertexId}")
@@ -403,7 +403,7 @@ private[raphtory] class PojoBasedPartition(partition: Int, conf: Config)
     VertexRemoveSyncAck(msgTime, dstId)
   }
 
-  def syncExistingEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long): GraphUpdateEffect = {
+  def syncExistingEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long): RemoteEdgeSync = {
     val dstVertex = getVertexOrPlaceholder(msgTime, dstId)
     dstVertex.getIncomingEdge(srcId) match {
       case Some(e) => e kill msgTime

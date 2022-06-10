@@ -11,8 +11,7 @@ import scala.concurrent.duration.FiniteDuration
 
 private[raphtory] class Scheduler {
   //FIXME: wipe this class out as we move to cats-effect
-  private val threads: Int   = 8
-  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val threads: Int = 8
 
   implicit val runtime = IORuntime.global
 
@@ -39,5 +38,4 @@ private[raphtory] class Scheduler {
     cancelable
   }
 
-  def shutdown(): Unit = {}
 }

@@ -57,7 +57,7 @@ private[raphtory] case class BatchAddRemoteEdge(
     dstId: Long,
     properties: Properties,
     vType: Option[Type]
-) extends GraphUpdateEffect(dstId)
+) extends RemoteEdgeSync(dstId)
 
 private[raphtory] case class SyncExistingEdgeAdd(
     msgTime: Long,
@@ -67,14 +67,14 @@ private[raphtory] case class SyncExistingEdgeAdd(
 ) extends RemoteEdgeSync(dstId)
 
 private[raphtory] case class SyncExistingEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long)
-        extends GraphUpdateEffect(dstId)
+        extends RemoteEdgeSync(dstId)
 
 private[raphtory] case class SyncNewEdgeRemoval(
     msgTime: Long,
     srcId: Long,
     dstId: Long,
     removals: List[Long]
-) extends GraphUpdateEffect(dstId)
+) extends RemoteEdgeSync(dstId)
 
 /** Edge removals generated via vertex removals */
 private[raphtory] case class OutboundEdgeRemovalViaVertex(msgTime: Long, srcId: Long, dstId: Long)
@@ -97,7 +97,7 @@ private[raphtory] case class EdgeSyncAck(
     srcId: Long,
     dstId: Long,
     fromAddition: Boolean
-) extends GraphUpdateEffect(srcId)
+) extends RemoteEdgeSync(srcId)
 
 private[raphtory] case class VertexRemoveSyncAck(msgTime: Long, override val updateId: Long)
         extends GraphUpdateEffect(updateId)
