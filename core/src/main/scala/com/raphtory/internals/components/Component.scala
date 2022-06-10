@@ -3,7 +3,6 @@ package com.raphtory.internals.components
 import com.raphtory.internals.management.telemetry.ComponentTelemetryHandler
 import com.typesafe.config.Config
 
-/** @note DoNotDocument */
 abstract private[raphtory] class Component[T](conf: Config) {
 
   protected val telemetry: ComponentTelemetryHandler.type = ComponentTelemetryHandler
