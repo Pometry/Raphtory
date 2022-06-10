@@ -5,6 +5,7 @@ import com.raphtory.api.input.FloatProperty
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.LongProperty
 import com.raphtory.api.input.Properties
+import com.raphtory.api.input.RemoteEdgeSync
 import com.raphtory.api.input.StringProperty
 import com.raphtory.api.input.Type
 import com.raphtory.api.input.Properties._
@@ -160,7 +161,7 @@ private[raphtory] class PojoBasedPartition(partition: Int, conf: Config)
       dstId: Long,
       properties: Properties,
       edgeType: Option[Type]
-  ): Option[GraphUpdateEffect] = {
+  ): Option[RemoteEdgeSync] = {
     val local     = checkDst(dstId) //is the dst on this machine
     logger.trace(s"Dst is on the machine: $local")
     val srcVertex =
