@@ -201,14 +201,17 @@ object Raphtory {
       customConfig: Map[String, Any] = Map(),
       batchLoading: Boolean
   ) = {
-    val scheduler        = new MonixScheduler()
-    val conf             = confBuilder(customConfig, distributed = false)
-    javaPy4jGatewayServer.start(conf)
+    val scheduler          = new MonixScheduler()
+    val conf               = confBuilder(customConfig, distributed = false)
+    val activePythonServer = conf.getBoolean("raphtory.python.active")
+    if (activePythonServer)
+      javaPy4jGatewayServer.start(conf)
     startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
-    val topics           = PulsarAkkaTopicRepository(conf)
-    val componentFactory = new ComponentFactory(conf, topics, true)
-    val querySender      = new QuerySender(componentFactory, scheduler, topics)
-    val deployment       = new GraphDeployment[T](
+    val topics             =
+      if (activePythonServer) PulsarTopicRepository(conf) else PulsarAkkaTopicRepository(conf)
+    val componentFactory   = new ComponentFactory(conf, topics, true)
+    val querySender        = new QuerySender(componentFactory, scheduler, topics)
+    val deployment         = new GraphDeployment[T](
             batchLoading,
             spout,
             graphBuilder,
