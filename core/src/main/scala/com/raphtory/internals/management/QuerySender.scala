@@ -1,13 +1,12 @@
 package com.raphtory.internals.management
 
+import com.raphtory.api.querytracker.QueryProgressTracker
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.querymanager.Query
-import com.raphtory.internals.components.querytracker.QueryProgressTracker
 
 import scala.util.Random
 
-/** @note DoNotDocument */
-class QuerySender(
+private[raphtory] class QuerySender(
     private val componentFactory: ComponentFactory,
     private val scheduler: MonixScheduler,
     private val topics: TopicRepository

@@ -1,8 +1,8 @@
 package com.raphtory.api.analysis.table
 
 import com.raphtory.api.output.sink.Sink
+import com.raphtory.api.querytracker.QueryProgressTracker
 import com.raphtory.internals.components.querymanager.QueryManagement
-import com.raphtory.internals.components.querytracker.QueryProgressTracker
 sealed private[raphtory] trait TableFunction extends QueryManagement
 
 final private[raphtory] case class TableFilter(f: (Row) => Boolean)     extends TableFunction
@@ -11,7 +11,7 @@ private[raphtory] case object WriteToOutput                             extends 
 
 /**  Interface for table operations
   *
-  * @see [[Row]], [[Sink]], [[QueryProgressTracker]]
+  * @see [[Row]], [[com.raphtory.api.output.sink.Sink Sink]], [[com.raphtory.api.querytracker.QueryProgressTracker QueryProgressTracker]]
   */
 trait Table {
 
@@ -20,19 +20,29 @@ trait Table {
     */
   def filter(f: Row => Boolean): Table
 
-  /** Add an explode operation to table. This creates a new table where each row in the old table
-    *      is mapped to multiple rows in the new table.
-    * @param f function that runs once for each row and returns a list of new rows
+  /** Explode table rows
+    *
+    * This creates a new table where each row in the old table
+    * is mapped to multiple rows in the new table.
+    *
+    * @param f function that runs once for each row of the table and maps it to new rows
     */
   def explode(f: Row => IterableOnce[Row]): Table
 
-  /** Write out data based on [[Sink]] and
-    *    returns [[QueryProgressTracker]]
+  /** Write out data and
+    * return [[com.raphtory.api.querytracker.QueryProgressTracker QueryProgressTracker]]
+    * with custom job name
+    *
+    * @param sink [[com.raphtory.api.output.sink.Sink Sink]] for writing results
+    * @param jobName Name for job
     */
   def writeTo(sink: Sink, jobName: String): QueryProgressTracker
 
-  /** Blank write to allow usage from python api
-    * @see [[Table.writeTo(sink,jobName]]
+  /** Write out data and
+    * return [[com.raphtory.api.querytracker.QueryProgressTracker QueryProgressTracker]]
+    * with default job name
+    *
+    * @param sink [[com.raphtory.api.output.sink.Sink Sink]] for writing results
     */
   def writeTo(sink: Sink): QueryProgressTracker
 }

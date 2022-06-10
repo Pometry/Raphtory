@@ -8,7 +8,7 @@ import com.raphtory.internals.components.querymanager.FilteredOutEdgeMessage
 import com.raphtory.internals.components.querymanager.VertexMessage
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 
-class PojoExMultilayerEdge(
+private[raphtory] class PojoExMultilayerEdge(
     override val timestamp: Long,
     override val ID: (Long, Long),
     override val src: (Long, Long),

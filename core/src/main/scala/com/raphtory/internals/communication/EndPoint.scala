@@ -2,8 +2,7 @@ package com.raphtory.internals.communication
 
 import java.util.concurrent.CompletableFuture
 
-/** @DoNotDocument */
-trait EndPoint[T] {
+private[raphtory] trait EndPoint[T] {
   def sendAsync(message: T): Unit
   def flushAsync(): CompletableFuture[Void]
   def close(): Unit

@@ -46,8 +46,7 @@ import org.slf4j.LoggerFactory
 
 import java.util.concurrent.atomic.AtomicInteger
 
-/** @note DoNotDocument */
-class QueryExecutor(
+private[raphtory] class QueryExecutor(
     partitionID: Int,
     sink: Sink,
     storage: GraphPartition,

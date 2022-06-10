@@ -7,9 +7,6 @@ import subprocess
 
 """
 Minimal Sphinx extension to extract Algorithm documentation from Raphtory.
-
-For this extension to discover Raphtory, the environment variable "RAPHTORY_PATH" needs to be set and should point to 
-the root of the Raphtory project.
 """
 
 

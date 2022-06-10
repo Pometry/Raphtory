@@ -31,8 +31,7 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 
-/** @note DoNotDocument */
-class PojoBasedPartition(partition: Int, conf: Config)
+private[raphtory] class PojoBasedPartition(partition: Int, conf: Config)
         extends GraphPartition(partition: Int, conf: Config) {
   private val logger: Logger        = Logger(LoggerFactory.getLogger(this.getClass))
   private val hasDeletionsPath      = "raphtory.data.containsDeletions"

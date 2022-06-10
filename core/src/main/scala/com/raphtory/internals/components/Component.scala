@@ -3,8 +3,7 @@ package com.raphtory.internals.components
 import com.raphtory.internals.management.telemetry.ComponentTelemetryHandler
 import com.typesafe.config.Config
 
-/** @note DoNotDocument */
-abstract class Component[T](conf: Config) {
+abstract private[raphtory] class Component[T](conf: Config) {
 
   protected val telemetry: ComponentTelemetryHandler.type = ComponentTelemetryHandler
   private val partitionServers: Int                       = conf.getInt("raphtory.partitions.serverCount")
@@ -14,6 +13,6 @@ abstract class Component[T](conf: Config) {
 
   def getWriter(srcId: Long): Int = (srcId.abs % totalPartitions).toInt
   def handleMessage(msg: T): Unit
-  def run(): Unit
-  def stop(): Unit = {}
+  private[raphtory] def run(): Unit
+  private[raphtory] def stop(): Unit = {}
 }

@@ -9,9 +9,8 @@ import com.typesafe.config.Config
 import scala.collection.mutable
 
 /** Singleton representing the Storage for the entities
-  * @note DoNotDocument
   */
-abstract class GraphPartition(partitionID: Int, conf: Config) {
+abstract private[raphtory] class GraphPartition(partitionID: Int, conf: Config) {
 
   protected val failOnError: Boolean = conf.getBoolean("raphtory.partitions.failOnError")
   private var batchIngesting         = false

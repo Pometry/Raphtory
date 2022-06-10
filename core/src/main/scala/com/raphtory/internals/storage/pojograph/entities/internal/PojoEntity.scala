@@ -6,15 +6,15 @@ import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
 import scala.collection.mutable
 
-/** @note DoNotDocument
-  * Represents Graph Entities (Edges and Vertices)
+/** Represents Graph Entities (Edges and Vertices)
+  *
   * Contains a Map of properties (currently String to string)
   * longs representing unique vertex ID's stored in subclasses
   *
   * @param creationTime ID of the message that created the entity
   * @param isInitialValue  Is the first moment this entity is referenced
   */
-abstract class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
+abstract private[raphtory] class PojoEntity(val creationTime: Long, isInitialValue: Boolean) {
 
   // Properties from that entity
   private var entityType: String                = ""

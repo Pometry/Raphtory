@@ -18,26 +18,26 @@ abstract class EntityVisitor {
   def Type(): String
 
   /** Return next event (addition or deletion) after timestamp `time` as an
-    * [[HistoricEvent]]. This is wrapped in an option as
+    * [[com.raphtory.api.analysis.visitor.HistoricEvent HistoricEvent]]. This is wrapped in an option as
     * it is possible that no activity occurred after the given time. An optional `strict` Boolean argument is also
     * available which allows events exactly at the given time to be returned if set to `false`.
     */
   def firstActivityAfter(time: Long, strict: Boolean = true): Option[HistoricEvent]
 
   /** Return the last event (addition or deletion) before timestamp `time` as an
-    * [[HistoricEvent]].  The result is wrapped in an option as it is
+    * [[com.raphtory.api.analysis.visitor.HistoricEvent HistoricEvent]].  The result is wrapped in an option as it is
     * possible that no activity occurred before the given time. An optional `strict` Boolean argument is also
     * available which allows events exactly at the given time to be returned if set to `false`.
     */
   def lastActivityBefore(time: Long, strict: Boolean = true): Option[HistoricEvent]
 
   /** Return the most recent event (addition or deletion) in the current view as an
-    * [[HistoricEvent]]
+    * [[com.raphtory.api.analysis.visitor.HistoricEvent HistoricEvent]]
     */
   def latestActivity(): HistoricEvent
 
   /** Return the first event (addition or deltion) in the current view as an
-    * [[HistoricEvent]]
+    * [[com.raphtory.api.analysis.visitor.HistoricEvent HistoricEvent]]
     */
   def earliestActivity(): HistoricEvent
 
@@ -57,7 +57,7 @@ abstract class EntityVisitor {
     * @param mergeStrategy function to apply to the property history to compute the property value
     *                      The `mergeStrategy` can be an arbitrary function to apply to the property history. However, predefined
     *                      merge strategies for common use cases are provided in
-    *                      [[PropertyMergeStrategy]]. To e.g., compute the
+    *                      [[com.raphtory.api.analysis.visitor.PropertyMergeStrategy PropertyMergeStrategy]]. To e.g., compute the
     *                      average value of a property use
     *                      {{{
     *                      import com.raphtory.graph.visitor.PropertyMergeStrategy
@@ -215,7 +215,7 @@ abstract class EntityVisitor {
 
   //functionality to access the history of the edge or vertex + helpers
   /** Return list of all events (additions or deletions) in the current view. Each event is
-    * returned as an [[HistoricEvent]] which
+    * returned as an [[com.raphtory.api.analysis.visitor.HistoricEvent HistoricEvent]] which
     * encodes whether the event is an addition or deletion and the time of the event.
     */
   def history(): List[HistoricEvent]

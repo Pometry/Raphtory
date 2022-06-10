@@ -12,7 +12,7 @@ import com.raphtory.utils.ExtendedNumeric._
   *  Graph-level state takes the form of accumulators which expose the value computed during the last step/iteration
   *  and allow accumulation of new state based on a reduction function.
   *
-  * @see [[GraphPerspective]], [[Accumulator]]
+  * @see [[analysis.graphview.GraphPerspective GraphPerspective]], [[Accumulator]]
   *
   * @define retainState @param retainState If `true`, accumulation for the next step/iteration of an algorithm continues with the
   *                                        previously computed value, otherwise, the value is reset to `initialValue`` before each step.

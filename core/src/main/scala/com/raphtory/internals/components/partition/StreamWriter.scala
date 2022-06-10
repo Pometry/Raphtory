@@ -23,8 +23,7 @@ import org.slf4j.LoggerFactory
 
 import scala.language.postfixOps
 
-/** @note DoNotDocument */
-class StreamWriter(
+private[raphtory] class StreamWriter(
     partitionID: Int,
     storage: GraphPartition,
     conf: Config,

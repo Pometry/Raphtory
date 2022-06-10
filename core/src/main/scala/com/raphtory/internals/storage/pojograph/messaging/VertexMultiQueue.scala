@@ -5,8 +5,7 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ArrayBuffer
 
-/** @note DoNotDocument */
-final class VertexMultiQueue {
+final private[raphtory] class VertexMultiQueue {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val evenMessageQueue: ArrayBuffer[Any] = ArrayBuffer.empty

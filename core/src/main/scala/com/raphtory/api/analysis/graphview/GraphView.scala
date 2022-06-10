@@ -30,25 +30,25 @@ import com.raphtory.api.analysis.table.Table
   */
 trait GraphView extends GraphPerspective {
 
-  /** Apply a [[Generic]] algorithm to the graph
+  /** Apply a [[com.raphtory.api.analysis.algorithm.Generic Generic]] algorithm to the graph
     *
     * $transformBody
     */
   def transform(algorithm: Generic): Graph
 
-  /** Apply a [[MultilayerProjection]] algorithm to the graph
+  /** Apply a [[com.raphtory.api.analysis.algorithm.MultilayerProjection MultilayerProjection]] algorithm to the graph
     *
     * $transformBody
     */
   def transform(algorithm: MultilayerProjection): MultilayerGraph
 
-  /** Apply a [[GenericReduction]] algorithm to the graph
+  /** Apply a [[com.raphtory.api.analysis.algorithm.GenericReduction GenericReduction]] algorithm to the graph
     *
     * $transformBody
     */
   def transform(algorithm: GenericReduction): ReducedGraph
 
-  /** Run a [[GenericallyApplicable]] algorithm on the graph and return results
+  /** Run a [[com.raphtory.api.analysis.algorithm.GenericallyApplicable GenericallyApplicable]] algorithm on the graph and return results
     *
     * $executeBody
     */

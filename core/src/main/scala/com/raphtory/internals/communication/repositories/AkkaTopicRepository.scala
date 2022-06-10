@@ -6,8 +6,8 @@ import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.typesafe.config.Config
 
-/** @DoNotDocument This object only exists for testing purposes -- no more deployments are fully akka */
-object AkkaTopicRepository {
+/** This object only exists for testing purposes -- no more deployments are fully akka */
+private[raphtory] object AkkaTopicRepository {
 
   def apply(config: Config): TopicRepository = {
     val actorSystem   = ActorSystem(SpawnProtocol(), "spawner")

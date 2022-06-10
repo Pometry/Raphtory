@@ -6,8 +6,7 @@ import com.raphtory.internals.storage.pojograph.entities.external.PojoExVertex
 
 import scala.collection.mutable
 
-/** @note DoNotDocument */
-class PojoVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
+private[raphtory] class PojoVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
         extends PojoEntity(msgTime, initialValue) {
 
   var incomingEdges: mutable.Map[Long, PojoEdge] =

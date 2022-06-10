@@ -15,8 +15,7 @@ import org.slf4j.LoggerFactory
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
 
-/** @note DoNotDocument */
-class Reader(
+private[raphtory] class Reader(
     partitionID: Int,
     storage: GraphPartition,
     scheduler: MonixScheduler,

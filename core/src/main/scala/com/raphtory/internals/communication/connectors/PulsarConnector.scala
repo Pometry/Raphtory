@@ -22,8 +22,7 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.math.Ordering.Implicits.infixOrderingOps
 
-/** @DoNotDocument */
-class PulsarConnector(config: Config) extends Connector {
+private[raphtory] class PulsarConnector(config: Config) extends Connector {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   case class PulsarEndPoint[T](producer: Producer[Array[Byte]]) extends EndPoint[T] {

@@ -1,4 +1,4 @@
-package com.raphtory.internals.components.querytracker
+package com.raphtory.api.querytracker
 
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
@@ -15,6 +15,8 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
+private class DoneException extends Exception
+
 /** Tracks the progress of Raphtory queries in terms of number of perspectives processed and duration taken to process each perspective.
   * Queries in Raphtory run as a series of `Perspectives` which are graph views at specific timestamps and windows as the query progresses.
   * The progress tracker thus helps track query progress until the job is completed. Query types supported include `PointQuery`, `RangeQuery` and `LiveQuery`
@@ -22,25 +24,22 @@ import scala.concurrent.duration.Duration
   * Usage:
   *
   * {{{
-  * import com.raphtory.deployment.Raphtory
-  * import com.raphtory.components.spout.instance.ResourceSpout
-  * import com.raphtory.GraphState
+  * import com.raphtory.Raphtory
+  * import com.raphtory.spoutsResourceSpout
+  * import com.raphtory.algorithms.generic.ConnectedComponents
   * import com.raphtory.sinks.FileSink
   *
   * val graph = Raphtory.load(ResourceSpout("resource"), YourGraphBuilder())
   * val queryProgressTracker = graph.range(1, 32674, 10000)
   *   .window(List(500, 1000, 10000))
-  *   .execute(GraphState())
+  *   .execute(ConnectedComponents)
   *   .writeTo(FileSink("/test_dir"))
   * val jobId                = queryProgressTracker.getJobId()
   * queryProgressTracker.waitForJob()
   * val perspectivesProcessed = queryProgressTracker.getPerspectivesProcessed()
   * }}}
   */
-
-class DoneException extends Exception
-
-class QueryProgressTracker(
+class QueryProgressTracker private[raphtory] (
     jobID: String,
     conf: Config,
     topics: TopicRepository
@@ -110,12 +109,12 @@ class QueryProgressTracker(
         isJobDoneFuture.cancel()
     }
 
-  override def run(): Unit = {
+  override private[raphtory] def run(): Unit = {
     logger.info(s"Job $jobID: Starting query progress tracker.")
     queryTrackListener.start()
   }
 
-  override def stop(): Unit = {
+  override private[raphtory] def stop(): Unit = {
     logger.debug(s"Stopping QueryProgressTracker for $jobID")
     queryTrackListener.close()
   }
@@ -148,7 +147,7 @@ class QueryProgressTracker(
   def isJobDone: Boolean =
     jobDone
 
-  /** Block until job is complete, repeats check every second */
+  /** Block until job is complete */
   def waitForJob(timeout: Duration = Duration.Inf): Unit =
     try Await.result[Unit](isJobDoneFuture, timeout)
     catch {

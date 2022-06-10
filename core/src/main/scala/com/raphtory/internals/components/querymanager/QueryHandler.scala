@@ -38,8 +38,7 @@ import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
 import scala.util.Try
 
-/** @note DoNotDocument */
-class QueryHandler(
+private[raphtory] class QueryHandler(
     queryManager: QueryManager,
     scheduler: MonixScheduler,
     jobID: String,
@@ -571,7 +570,7 @@ class QueryHandler(
   private def getOptionalEarliestTime: Option[Long] = queryManager.earliestTime()
 }
 
-object Stages extends Enumeration {
+private[raphtory] object Stages extends Enumeration {
   type Stage = Value
   val SpawnExecutors, EstablishPerspective, ExecuteGraph, ExecuteTable, EndTask = Value
 }

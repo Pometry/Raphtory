@@ -7,7 +7,7 @@ import io.prometheus.client.Gauge
   * Exposes Counter stats for tracking number of vertices, messages received and sent by `Query` handler, manager and executor
   * Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
   */
-object QueryTelemetry {
+private[raphtory] object QueryTelemetry {
 
   def receivedMessageCount: Counter =
     Counter.build

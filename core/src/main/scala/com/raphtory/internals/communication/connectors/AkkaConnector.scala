@@ -25,10 +25,10 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 
-/** @DoNotDocument */
-case object StopActor
+private case object StopActor
 
-class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Connector {
+private[raphtory] class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command])
+        extends Connector {
   private val logger: Logger                              = Logger(LoggerFactory.getLogger(this.getClass))
   private val akkaReceptionistRegisteringTimeout: Timeout = 1.seconds
   private val akkaSpawnerTimeout: Timeout                 = 1.seconds

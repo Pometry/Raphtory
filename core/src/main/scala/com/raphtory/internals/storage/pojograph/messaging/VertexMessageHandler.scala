@@ -13,8 +13,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 
-/** @note DoNotDocument */
-class VertexMessageHandler(
+private[raphtory] class VertexMessageHandler(
     config: Config,
     endPoints: Option[Map[Int, EndPoint[QueryManagement]]],
     pojoGraphLens: PojoGraphLens,
@@ -99,7 +98,7 @@ class VertexMessageHandler(
 
 }
 
-object VertexMessageHandler {
+private[raphtory] object VertexMessageHandler {
 
   def apply(
       config: Config,

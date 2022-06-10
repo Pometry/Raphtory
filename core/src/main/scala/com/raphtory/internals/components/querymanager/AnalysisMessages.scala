@@ -5,55 +5,72 @@ import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.GraphFunction
 import com.raphtory.api.analysis.table.TableFunction
 import com.raphtory.api.output.sink.Sink
+import com.raphtory.api.time.Interval
+import com.raphtory.api.time.NullInterval
 import com.raphtory.internals.graph.Perspective
-import com.raphtory.internals.time.Interval
-import com.raphtory.internals.time.NullInterval
 
 import scala.collection.immutable.Queue
 
-/** @note DoNotDocument */
-trait QueryManagement extends Serializable
+private[raphtory] trait QueryManagement extends Serializable
 
-case class WatermarkTime(partitionID: Int, oldestTime: Long, latestTime: Long, safe: Boolean)
+private[raphtory] case class WatermarkTime(
+    partitionID: Int,
+    oldestTime: Long,
+    latestTime: Long,
+    safe: Boolean
+) extends QueryManagement
+
+private[raphtory] case object StartAnalysis                               extends QueryManagement
+private[raphtory] case class EstablishExecutor(jobID: String, sink: Sink) extends QueryManagement
+
+private[raphtory] case class SetMetaData(vertices: Int) extends QueryManagement
+
+private[raphtory] case object JobDone extends QueryManagement
+
+private[raphtory] case class CreatePerspective(id: Int, perspective: Perspective)
         extends QueryManagement
 
-case object StartAnalysis                               extends QueryManagement
-case class EstablishExecutor(jobID: String, sink: Sink) extends QueryManagement
+private[raphtory] case object StartGraph extends QueryManagement
 
-case class SetMetaData(vertices: Int) extends QueryManagement
+private[raphtory] case object CompleteWrite extends QueryManagement
 
-case object JobDone extends QueryManagement
+private[raphtory] case object RecheckTime                 extends QueryManagement
+private[raphtory] case object RecheckEarliestTime         extends QueryManagement
+private[raphtory] case class CheckMessages(jobId: String) extends QueryManagement
 
-case class CreatePerspective(id: Int, perspective: Perspective) extends QueryManagement
-
-case object StartGraph extends QueryManagement
-
-case object CompleteWrite extends QueryManagement
-
-case object RecheckTime                 extends QueryManagement
-case object RecheckEarliestTime         extends QueryManagement
-case class CheckMessages(jobId: String) extends QueryManagement
-
-sealed trait GenericVertexMessage[VertexID] extends QueryManagement {
+sealed private[raphtory] trait GenericVertexMessage[VertexID] extends QueryManagement {
   def superstep: Int
   def vertexId: VertexID
 }
 
-case class VertexMessage[+T, VertexID](superstep: Int, vertexId: VertexID, data: T)
-        extends GenericVertexMessage[VertexID]
+private[raphtory] case class VertexMessage[+T, VertexID](
+    superstep: Int,
+    vertexId: VertexID,
+    data: T
+) extends GenericVertexMessage[VertexID]
 
-case class VertexMessageBatch(data: Array[GenericVertexMessage[_]]) extends QueryManagement
+private[raphtory] case class VertexMessageBatch(data: Array[GenericVertexMessage[_]])
+        extends QueryManagement
 
-case class FilteredEdgeMessage[VertexID](superstep: Int, vertexId: VertexID, sourceId: VertexID)
-        extends GenericVertexMessage[VertexID]
+private[raphtory] case class FilteredEdgeMessage[VertexID](
+    superstep: Int,
+    vertexId: VertexID,
+    sourceId: VertexID
+) extends GenericVertexMessage[VertexID]
 
-case class FilteredInEdgeMessage[VertexID](superstep: Int, vertexId: VertexID, sourceId: VertexID)
-        extends GenericVertexMessage[VertexID]
+private[raphtory] case class FilteredInEdgeMessage[VertexID](
+    superstep: Int,
+    vertexId: VertexID,
+    sourceId: VertexID
+) extends GenericVertexMessage[VertexID]
 
-case class FilteredOutEdgeMessage[VertexID](superstep: Int, vertexId: VertexID, sourceId: VertexID)
-        extends GenericVertexMessage[VertexID]
+private[raphtory] case class FilteredOutEdgeMessage[VertexID](
+    superstep: Int,
+    vertexId: VertexID,
+    sourceId: VertexID
+) extends GenericVertexMessage[VertexID]
 
-case class Query(
+private[raphtory] case class Query(
     name: String = "",
     points: PointSet = NullPointSet,
     timelineStart: Long = Long.MinValue, // inclusive
@@ -65,33 +82,35 @@ case class Query(
     sink: Option[Sink] = None
 ) extends QueryManagement
 
-sealed trait PointSet
-case object NullPointSet           extends PointSet
-case class SinglePoint(time: Long) extends PointSet
+sealed private[raphtory] trait PointSet
+private[raphtory] case object NullPointSet           extends PointSet
+private[raphtory] case class SinglePoint(time: Long) extends PointSet
 
-case class PointPath(
+private[raphtory] case class PointPath(
     increment: Interval,
     start: Option[Long] = None,
     end: Option[Long] = None,
     offset: Interval = NullInterval
 ) extends PointSet
 
-case class EndQuery(jobID: String)        extends QueryManagement
-case class QueryNotPresent(jobID: String) extends QueryManagement
+private[raphtory] case class EndQuery(jobID: String)        extends QueryManagement
+private[raphtory] case class QueryNotPresent(jobID: String) extends QueryManagement
 
 // Messages for jobStatus topic
-sealed trait JobStatus extends QueryManagement
+sealed private[raphtory] trait JobStatus extends QueryManagement
 
-case class ExecutorEstablished(worker: Int) extends JobStatus
-case object WriteCompleted                  extends JobStatus
+private[raphtory] case class ExecutorEstablished(worker: Int) extends JobStatus
+private[raphtory] case object WriteCompleted                  extends JobStatus
 
-sealed trait PerspectiveStatus                                       extends JobStatus {
+sealed private[raphtory] trait PerspectiveStatus             extends JobStatus {
   def perspectiveID: Int
 }
-case class PerspectiveEstablished(perspectiveID: Int, vertices: Int) extends PerspectiveStatus
-case class MetaDataSet(perspectiveID: Int)                           extends PerspectiveStatus
 
-case class GraphFunctionComplete(
+private[raphtory] case class PerspectiveEstablished(perspectiveID: Int, vertices: Int)
+        extends PerspectiveStatus
+private[raphtory] case class MetaDataSet(perspectiveID: Int) extends PerspectiveStatus
+
+private[raphtory] case class GraphFunctionComplete(
     perspectiveID: Int,
     partitionID: Int,
     receivedMessages: Int,
@@ -99,7 +118,7 @@ case class GraphFunctionComplete(
     votedToHalt: Boolean = false
 ) extends PerspectiveStatus
 
-case class GraphFunctionCompleteWithState(
+private[raphtory] case class GraphFunctionCompleteWithState(
     perspectiveID: Int,
     partitionID: Int,
     receivedMessages: Int,
@@ -108,7 +127,8 @@ case class GraphFunctionCompleteWithState(
     graphState: GraphStateImplementation
 ) extends PerspectiveStatus
 
-case class TableFunctionComplete(perspectiveID: Int) extends PerspectiveStatus
-case class TableBuilt(perspectiveID: Int)            extends PerspectiveStatus
+private[raphtory] case class TableFunctionComplete(perspectiveID: Int) extends PerspectiveStatus
+private[raphtory] case class TableBuilt(perspectiveID: Int)            extends PerspectiveStatus
 
-case class AlgorithmFailure(perspectiveID: Int, exception: Throwable) extends PerspectiveStatus
+private[raphtory] case class AlgorithmFailure(perspectiveID: Int, exception: Throwable)
+        extends PerspectiveStatus

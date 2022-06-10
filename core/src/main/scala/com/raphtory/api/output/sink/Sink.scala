@@ -1,7 +1,7 @@
 package com.raphtory.api.output.sink
 
 import com.raphtory.api.analysis.table.Row
-import com.raphtory.internals.graph.Perspective
+import com.raphtory.api.time.Perspective
 import com.raphtory.sinks.FileSink
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -13,8 +13,8 @@ import org.slf4j.LoggerFactory
   * In order to do this, concrete implementations need to override `executor` method creating their own `SinkExecutor`,
   * which is the class holding the actual implementation of the execution of the sink.
   *
-  * @see [[FileSink]], [[com.raphtory.sinks.PulsarSink]],
-  *      [[com.raphtory.api.analysis.table.Table]]
+  * @see [[com.raphtory.sinks.FileSink FileSink]], [[com.raphtory.sinks.PulsarSink PulsarSink]],
+  *      [[com.raphtory.api.analysis.table.Table Table]]
   */
 trait Sink {
 
@@ -32,7 +32,7 @@ trait Sink {
   * Concrete implementations need to override the `setupPerspective`, `writeRow`, `closePerspective`, and `close`
   * methods.
   *
-  *  @see [[Row]], [[Perspective]]
+  *  @see [[com.raphtory.api.analysis.table.Row Row]], [[com.raphtory.api.time.Perspective Perspective]]
   */
 trait SinkExecutor {
 
