@@ -142,7 +142,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
   test("Connected Components Test") {
     val result =
       algorithmTest(
-              algorithm = ConnectedComponents,
+              algorithm = ConnectedComponents(),
               start = 1,
               end = 32674,
               increment = 10000,
@@ -183,7 +183,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Chain Test") {
     val result = algorithmTest(
-            algorithm = TriangleCount -> ConnectedComponents,
+            algorithm = TriangleCount -> ConnectedComponents(),
             start = 1,
             end = 32674,
             increment = 10000,

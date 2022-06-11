@@ -36,7 +36,7 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
     val sink: FileSink = FileSink(outputDirectory)
 
     val result = algorithmTest(
-            algorithm = ConnectedComponents,
+            algorithm = ConnectedComponents(),
             sink = sink,
             start = 1,
             end = 32674,

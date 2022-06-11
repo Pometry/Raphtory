@@ -15,6 +15,7 @@ import com.raphtory.utils.FileUtils
 import scala.language.postfixOps
 import sys.process._
 import java.io.File
+import com.raphtory.algorithms.generic.ConnectedComponents
 
 object FileOutputRunner extends App {
   val path = "/tmp/lotr.csv"
@@ -34,4 +35,13 @@ object FileOutputRunner extends App {
     .writeTo(output)
 
   queryHandler.waitForJob()
+
+  val queryHandlerCC = graph
+    .at(32674)
+    .past()
+    .execute(ConnectedComponents())
+    .writeTo(output)
+
+  queryHandlerCC.waitForJob()
+  
 }
