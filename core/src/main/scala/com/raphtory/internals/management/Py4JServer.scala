@@ -102,10 +102,12 @@ private[raphtory] class Py4JServer(entryPoint: Object) {
 
   /** Safely shutsdown the gateway server */
   def shutdown(): Unit =
-    gatewayServer match {
-      case gatewayServer: GatewayServer => gatewayServer.shutdown(); startedServer = false
-      case other                        => logger.error(s"shutdown given unexpected Py4J gatewayServer ${other.getClass}")
-    }
+    if (startedServer)
+      gatewayServer match {
+        case gatewayServer: GatewayServer => gatewayServer.shutdown(); startedServer = false
+        case other                        =>
+          logger.error(s"shutdown given unexpected Py4J gatewayServer ${other.getClass}")
+      }
 }
 
 private[raphtory] object Py4JServer {

@@ -39,7 +39,7 @@ class AllCommandsTest extends BaseRaphtoryAlgoTest[String] {
     val sink = FileSink(outputDirectory)
 
     val results = algorithmTest(
-            algorithm = ConnectedComponents,
+            algorithm = ConnectedComponents(),
             sink = sink,
             start = 1,
             end = 290001,
