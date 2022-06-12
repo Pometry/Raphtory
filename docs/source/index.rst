@@ -49,6 +49,7 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
 
    _autodoc/com/raphtory/algorithms/generic/index.rst
    _autodoc/com/raphtory/algorithms/temporal/index.rst
+   _autodoc/com/raphtory/algorithms/filters/index.rst
 
 
 .. toctree::
