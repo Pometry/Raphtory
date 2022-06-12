@@ -48,8 +48,8 @@ class DisparityFilter[T: Numeric: Bounded: ClassTag](
       }
       .step { vertex =>
         val messages  = vertex.messageQueue[(vertex.IDType, Int, T)]
-        val degreeMap = messages.groupBy(_._1).mapValues(_.head._2)
-        val weightMap = messages.groupBy(_._1).mapValues(_.head._3)
+        val degreeMap = messages.groupBy(_._1).view.mapValues(_.head._2)
+        val weightMap = messages.groupBy(_._1).view.mapValues(_.head._3)
 
         val k1 = vertex.degree
         val s1 = vertex.weightedTotalDegree[T](weightProperty = weightProperty).toDouble

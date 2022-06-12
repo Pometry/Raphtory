@@ -4,6 +4,15 @@ import com.raphtory.api.input.Spout
 
 import scala.io.Source
 
+/**
+  * A [[com.raphtory.api.input.Spout Spout]] that adds logical timestamps to a dataset.
+  *
+  * This spout is utilised when the file the user wishes to read has no timestamps within the data.
+  * As such it appends a logical timestamp (linenumber) to each tuples it outputs.
+  *
+  *  @see [[com.raphtory.api.input.Spout Spout]]
+  *       [[com.raphtory.Raphtory Raphtory]]
+  */
 case class StaticGraphSpout(fileDataPath: String) extends Spout[String] {
 
   private val source = Source.fromFile(fileDataPath)
