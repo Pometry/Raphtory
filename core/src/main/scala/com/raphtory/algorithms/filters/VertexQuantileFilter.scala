@@ -41,7 +41,7 @@ import scala.reflect.ClassTag
   *  distribution of the node property data) but the bigger the array being broadcast.
   *
   * ```{seealso}
-  * [](com.raphtory.filters.EdgeQuantileFilter)
+  * [](com.raphtory.algorithms.filters.EdgeQuantileFilter)
   * ```
   */
 

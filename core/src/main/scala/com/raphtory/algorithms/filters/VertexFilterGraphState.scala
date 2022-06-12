@@ -6,7 +6,7 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.visitor.Vertex
 
 /**
-  * {s} `VertexFilter(f: (Vertex, State) => Boolean)`
+  * {s}`VertexFilter(f: (Vertex, State) => Boolean)`
   *   : Filtered view of the graph achieved by retaining vertices according to a predicate function {s}`f`
   *
   *   This transforms the graph by keeping only vertices for which {s}`f` returns true, where {s}`f` may depend on graph state.
@@ -14,9 +14,9 @@ import com.raphtory.api.analysis.visitor.Vertex
   *   below a certain degree before running a chosen algorithm.
   *
   * ```{seealso}
-  * [](com.raphtory.filters.VertexFilter)
-  * [](com.raphtory.filters.VertexQuantileFilter)
-  * [](com.raphtory.filters.EdgeFilter)
+  * [](com.raphtory.algorithms.filters.VertexFilter)
+  * [](com.raphtory.algorithms.filters.VertexQuantileFilter)
+  * [](com.raphtory.algorithms.filters.EdgeFilter)
   * ```
   */
 

@@ -27,7 +27,7 @@ import scala.math.Numeric.Implicits.infixNumericOps
   *  is there but multi-edges are present, the number of occurrences of each edge is treated as the weight.
   *
   * ```{seealso}
-  * [](com.raphtory.filters.EdgeQuantileFilter)
+  * [](com.raphtory.algorithms.filters.EdgeQuantileFilter)
   * ```
   */
 

@@ -6,15 +6,15 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 import scala.util.Random
 
 /**
-  * {s} `UniformVertexSample(p:Float)`
+  * {s}`UniformVertexSample(p:Float)`
   *   : Filtered view of the graph achieved by taking a uniform random sample of the vertices
   *
   *   This retains each vertex of the graph with probability p, and edges between those retained vertices.
   *   Also known as induced subgraph sampling.
   *
   * ```{seealso}
-  * [](com.raphtory.filters.VertexFilter)
-  * [](com.raphtory.filters.UniformEdgeSample)
+  * [](com.raphtory.algorithms.filters.VertexFilter)
+  * [](com.raphtory.algorithms.filters.UniformEdgeSample)
   * ```
   */
 

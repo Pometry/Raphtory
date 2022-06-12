@@ -44,7 +44,7 @@ import scala.reflect.ClassTag
   *  : if set to true, nodes which are left without any incoming or outgoing edges by the end of this filtering are also pruned from the graph.
   *
   * ```{seealso}
-  * [](com.raphtory.filters.EdgeFilter)
+  * [](com.raphtory.algorithms.filters.EdgeFilter)
   * ```
   */
 

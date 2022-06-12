@@ -6,15 +6,15 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 import scala.util.Random
 
 /**
-  * {s} `UniformEdgeSample(p:Float, pruneNodes:Boolean=true)`
+  * {s}`UniformEdgeSample(p:Float, pruneNodes:Boolean=true)`
   *   : Filtered view of the graph achieved by taking a uniform random sample of the edges
   *
   *   This retains each edge of the graph with probability p. Additionally, if pruneNodes is set to true,
   *   nodes which become isolated by this edge removal are also removed.
   *
   * ```{seealso}
-  * [](com.raphtory.filters.EdgeFilter)
-  * [](com.raphtory.filters.UniformVertexSample)
+  * [](com.raphtory.algorithms.filters.EdgeFilter)
+  * [](com.raphtory.algorithms.filters.UniformVertexSample)
   * ```
   */
 
