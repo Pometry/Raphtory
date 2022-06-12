@@ -1,6 +1,7 @@
-package com.raphtory.algorithms.generic.filters
+package com.raphtory.filters
 
 import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.visitor.Edge
 
@@ -8,7 +9,7 @@ import com.raphtory.api.analysis.visitor.Edge
   * {s} `EdgeFilter(f: (Vertex, State) => Boolean)`
   *   : Filtered view of the graph achieved by retaining edges according to a predicate function {s}`f`
   *
-  *   This transforms the graph by keeping only edges for which {s}`f` returns true.
+  *   This transforms the graph by keeping only edges for which {s}`f` returns true, where {s}`f` may depend on graph state.
   *   This fits well within a chain of algorithms as a way of pruning the graph: for example, one could first filter out edges
   *   below a certain weight before running a chosen algorithm.
   *
@@ -19,18 +20,19 @@ import com.raphtory.api.analysis.visitor.Edge
   *        after this filtering are also removed.
   *
   * ```{seealso}
-  * [](com.raphtory.algorithms.generic.filters.VertexFilter)
-  * [](com.raphtory.algorithms.generic.filters.EdgeQuantileFilter)
+  * [](com.raphtory.filters.VertexFilter)
+  * [](com.raphtory.filters.EdgeQuantileFilter)
   * ```
   */
 
-class EdgeFilter(f: Edge => Boolean, pruneNodes: Boolean = true) extends Generic {
+class EdgeFilterGraphState(f: (Edge, GraphState) => Boolean, pruneNodes: Boolean = true)
+        extends Generic {
 
-  override def apply(graph: GraphPerspective): graph.Graph =
-    graph.edgeFilter(f, pruneNodes)
-
+  override def apply(graph: GraphPerspective): graph.Graph = graph.edgeFilter(f, pruneNodes)
 }
 
-object EdgeFilter {
-  def apply(f: Edge => Boolean, pruneNodes: Boolean = true) = new EdgeFilter(f, pruneNodes)
+object EdgeFilterGraphState {
+
+  def apply(f: (Edge, GraphState) => Boolean, pruneNodes: Boolean = true) =
+    new EdgeFilterGraphState(f, pruneNodes)
 }

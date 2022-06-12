@@ -1,4 +1,4 @@
-package com.raphtory.algorithms.generic.filters
+package com.raphtory.filters
 
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.analysis.graphview.GraphPerspective
@@ -13,9 +13,9 @@ import com.raphtory.api.analysis.visitor.Vertex
   *   before running a chosen algorithm.
   *
   * ```{seealso}
-  * [](com.raphtory.algorithms.generic.filters.VertexFilterGraphState)
-  * [](com.raphtory.algorithms.generic.filters.VertexQuantileFilter)
-  * [](com.raphtory.algorithms.generic.filters.EdgeFilter)
+  * [](com.raphtory.filters.VertexFilterGraphState)
+  * [](com.raphtory.filters.VertexQuantileFilter)
+  * [](com.raphtory.filters.EdgeFilter)
   * ```
   */
 class VertexFilter(f: Vertex => Boolean) extends NodeList() {

@@ -1,4 +1,4 @@
-package com.raphtory.algorithms.generic.filters
+package com.raphtory.filters
 
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.analysis.graphstate.Histogram
@@ -41,7 +41,7 @@ import scala.reflect.ClassTag
   *  distribution of the node property data) but the bigger the array being broadcast.
   *
   * ```{seealso}
-  * [](com.raphtory.algorithms.generic.filters.EdgeQuantileFilter)
+  * [](com.raphtory.filters.EdgeQuantileFilter)
   * ```
   */
 

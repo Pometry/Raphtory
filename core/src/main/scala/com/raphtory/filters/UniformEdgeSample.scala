@@ -1,4 +1,4 @@
-package com.raphtory.algorithms.generic.filters
+package com.raphtory.filters
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
@@ -13,17 +13,17 @@ import scala.util.Random
   *   nodes which become isolated by this edge removal are also removed.
   *
   * ```{seealso}
-  * [](com.raphtory.algorithms.generic.filters.EdgeFilter)
-  * [](com.raphtory.algorithms.generic.filters.UniformVertexSample)
+  * [](com.raphtory.filters.EdgeFilter)
+  * [](com.raphtory.filters.UniformVertexSample)
   * ```
   */
 
-class UniformEdgeSample(p:Float, pruneNodes:Boolean=true) extends Generic{
-  override def apply(graph: GraphPerspective): graph.Graph = {
-    graph.edgeFilter(_=> Random.nextFloat()<p, pruneNodes = pruneNodes)
-  }
+class UniformEdgeSample(p: Float, pruneNodes: Boolean = true) extends Generic {
+
+  override def apply(graph: GraphPerspective): graph.Graph =
+    graph.edgeFilter(_ => Random.nextFloat() < p, pruneNodes = pruneNodes)
 }
 
 object UniformEdgeSample {
-  def apply(p:Float,pruneNodes:Boolean=true) = new UniformEdgeSample(p,pruneNodes)
+  def apply(p: Float, pruneNodes: Boolean = true) = new UniformEdgeSample(p, pruneNodes)
 }

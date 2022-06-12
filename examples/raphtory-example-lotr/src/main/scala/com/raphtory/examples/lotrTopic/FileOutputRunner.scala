@@ -8,14 +8,14 @@ import com.raphtory.sinks.FileSink
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.centrality.Degree
 import com.raphtory.algorithms.generic.centrality.WeightedDegree
-import com.raphtory.algorithms.generic.filters.EdgeQuantileFilter
-import com.raphtory.algorithms.generic.filters.VertexQuantileFilter
 import com.raphtory.utils.FileUtils
 
 import scala.language.postfixOps
 import sys.process._
 import java.io.File
 import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.filters.EdgeQuantileFilter
+import com.raphtory.filters.VertexQuantileFilter
 
 object FileOutputRunner extends App {
   val path = "/tmp/lotr.csv"
@@ -43,5 +43,5 @@ object FileOutputRunner extends App {
     .writeTo(output)
 
   queryHandlerCC.waitForJob()
-  
+
 }

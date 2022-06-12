@@ -1,4 +1,4 @@
-package com.raphtory.algorithms.generic.filters
+package com.raphtory.filters
 
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.analysis.graphview.GraphPerspective
@@ -13,19 +13,18 @@ import scala.util.Random
   *   Also known as induced subgraph sampling.
   *
   * ```{seealso}
-  * [](com.raphtory.algorithms.generic.filters.VertexFilter)
-  * [](com.raphtory.algorithms.generic.filters.UniformEdgeSample)
+  * [](com.raphtory.filters.VertexFilter)
+  * [](com.raphtory.filters.UniformEdgeSample)
   * ```
   */
 
-class UniformVertexSample(p:Float) extends NodeList(){
+class UniformVertexSample(p: Float) extends NodeList() {
 
-  override def apply(graph: GraphPerspective): graph.Graph = {
+  override def apply(graph: GraphPerspective): graph.Graph =
     graph.vertexFilter(_ => Random.nextFloat() < p)
-  }
 
 }
 
 object UniformVertexSample {
-  def apply(p:Float) = new UniformVertexSample(p)
+  def apply(p: Float) = new UniformVertexSample(p)
 }

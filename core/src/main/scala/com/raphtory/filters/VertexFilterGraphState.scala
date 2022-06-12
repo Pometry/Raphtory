@@ -1,4 +1,4 @@
-package com.raphtory.algorithms.generic.filters
+package com.raphtory.filters
 
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.analysis.graphstate.GraphState
@@ -14,9 +14,9 @@ import com.raphtory.api.analysis.visitor.Vertex
   *   below a certain degree before running a chosen algorithm.
   *
   * ```{seealso}
-  * [](com.raphtory.algorithms.generic.filters.VertexFilter)
-  * [](com.raphtory.algorithms.generic.filters.VertexQuantileFilter)
-  * [](com.raphtory.algorithms.generic.filters.EdgeFilter)
+  * [](com.raphtory.filters.VertexFilter)
+  * [](com.raphtory.filters.VertexQuantileFilter)
+  * [](com.raphtory.filters.EdgeFilter)
   * ```
   */
 
