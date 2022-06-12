@@ -12,14 +12,15 @@ import scala.reflect.ClassTag
   *
   * @example
   * {{{
-  * import com.raphtory.components.graphbuilder.GraphBuilder
-  * import com.raphtory.components.spout.Spout
-  * import com.raphtory.components.spout.instance.FileSpout
   * import com.raphtory.RaphtoryService
+  * import com.raphtory.api.input.GraphBuilder
+  * import com.raphtory.api.input.Spout
+  * import com.raphtory.spouts.FileSpout
   *
   * object LOTRDistributedTest extends RaphtoryService[String] {
-  *   override def defineSpout(): Spout[String] = FileSpout()
-  *   override def defineBuilder: GraphBuilder[String] = new LOTRGraphBuilder()
+  *  override def defineSpout(): Spout[String]        = FileSpout()
+  *  override def defineBuilder: GraphBuilder[String] = new LOTRGraphBuilder()
+  * }
   * }}}
   *
   *  @see [[api.input.GraphBuilder]] [[api.input.Spout]]
