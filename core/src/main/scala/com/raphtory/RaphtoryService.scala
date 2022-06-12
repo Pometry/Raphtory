@@ -23,7 +23,8 @@ import scala.reflect.ClassTag
   * }
   * }}}
   *
-  *  @see [[api.input.GraphBuilder]] [[api.input.Spout]]
+  *  @see [[api.input.GraphBuilder GraphBuilder]]
+  *        [[api.input.Spout Spout]]
   */
 abstract class RaphtoryService[T: ClassTag] {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))

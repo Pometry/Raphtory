@@ -44,10 +44,10 @@ import scala.reflect.runtime.universe.TypeTag
   * graph.deployment.stop()
   * }}}
   *
-  * @see [[api.input.GraphBuilder]]
-  *      [[api.input.Spout]]
-  *      [[api.analysis.graphview.DeployedTemporalGraph]]
-  *      [[api.analysis.graphview.TemporalGraph]]
+  * @see [[api.input.GraphBuilder GraphBuilder]]
+  *      [[api.input.Spout Spout]]
+  *      [[api.analysis.graphview.DeployedTemporalGraph DeployedTemporalGraph]]
+  *      [[api.analysis.graphview.TemporalGraph TemporalGraph]]
   */
 object Raphtory {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))

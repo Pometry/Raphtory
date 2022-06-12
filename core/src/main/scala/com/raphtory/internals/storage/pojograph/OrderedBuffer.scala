@@ -9,7 +9,7 @@ import scala.collection.Searching.InsertionPoint
 import scala.collection.mutable
 import scala.math.Ordering.Implicits.infixOrderingOps
 
-object OrderedBuffer {
+private[raphtory] object OrderedBuffer {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   implicit object TupleByFirstOrdering extends Ordering[(Long, Any)] {
