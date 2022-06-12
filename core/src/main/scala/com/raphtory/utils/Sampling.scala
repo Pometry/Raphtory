@@ -1,7 +1,5 @@
 package com.raphtory.utils
 
-import scala.collection.immutable.ArraySeq
-import scala.collection.mutable
 import scala.util.Random
 
 /** Extended sampling methods for `scala.util.Random`.

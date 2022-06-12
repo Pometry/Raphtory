@@ -4,7 +4,7 @@ import com.raphtory.api.analysis.visitor.EntityVisitor
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoEntity
-import com.raphtory.utils.OrderedBuffer.TupleByFirstOrdering
+import com.raphtory.internals.storage.pojograph.OrderedBuffer.TupleByFirstOrdering
 
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint

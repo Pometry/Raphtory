@@ -1,6 +1,6 @@
-package com.raphtory.utils
+package com.raphtory.internals.python
 
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.MapHasAsScala
 
 object PythonUtil {
 
