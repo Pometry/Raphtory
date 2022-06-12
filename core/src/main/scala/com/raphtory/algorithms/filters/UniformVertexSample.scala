@@ -1,4 +1,4 @@
-package com.raphtory.filters
+package com.raphtory.algorithms.filters
 
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.analysis.graphview.GraphPerspective

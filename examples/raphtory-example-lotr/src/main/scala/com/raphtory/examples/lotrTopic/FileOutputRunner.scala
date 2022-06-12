@@ -1,6 +1,8 @@
 package com.raphtory.examples.lotrTopic
 
 import com.raphtory.Raphtory
+import com.raphtory.algorithms.filters.EdgeQuantileFilter
+import com.raphtory.algorithms.filters.VertexQuantileFilter
 import com.raphtory.examples.lotrTopic.analysis.DegreesSeparation
 import com.raphtory.examples.lotrTopic.graphbuilders.LOTRGraphBuilder
 import com.raphtory.spouts.FileSpout
@@ -14,8 +16,6 @@ import scala.language.postfixOps
 import sys.process._
 import java.io.File
 import com.raphtory.algorithms.generic.ConnectedComponents
-import com.raphtory.filters.EdgeQuantileFilter
-import com.raphtory.filters.VertexQuantileFilter
 
 object FileOutputRunner extends App {
   val path = "/tmp/lotr.csv"

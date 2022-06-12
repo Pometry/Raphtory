@@ -1,4 +1,4 @@
-package com.raphtory.filters
+package com.raphtory.algorithms.filters
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphstate.Histogram
