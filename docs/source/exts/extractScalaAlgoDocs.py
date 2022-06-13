@@ -1,4 +1,7 @@
+import sphinx.domains.std
 from sphinx.application import Sphinx, Config
+import sphinx.transforms.post_transforms
+from sphinx.util import logging
 from pathlib import Path
 import shutil
 from docutils import nodes
@@ -9,6 +12,7 @@ import subprocess
 Minimal Sphinx extension to extract Algorithm documentation from Raphtory.
 """
 
+logger = logging.getLogger(__name__)
 
 class SkipFile(Exception):
     pass
@@ -240,13 +244,23 @@ def scaladoc_link(role, rawtext, text: str, lineno, inliner, options={}, content
     rel_path = current_source.relative_to(source_dir)
     num_levels = len(rel_path.parents) - 1
 
-    if (source_dir / "_scaladoc" / (package+".html")).exists():
+    if (source_dir / "_scaladoc" / (package+".html")).is_file():
         link = "../"*num_levels + "_static/" + package + ".html"
-    else:
+    elif (source_dir / "_scaladoc" / (package+"$.html")).is_file():
+        link = "../"*num_levels + "_static/" + package + "$.html"
+    elif (source_dir / "_scaladoc" / package).is_dir():
         link = "../"*num_levels + "_static/" + package + "/index.html"
+    else:
+        link = None
 
     children, _ = scala_inline_code("s", target, target, lineno, inliner, options, content)
-    node = nodes.reference(rawtext, refuri=link)
+
+    if link is None:
+        node = nodes.inline(rawtext)
+        logger.warning(f"Cannot find docs for `{text}`", location=node, type='ref')
+    else:
+        node = nodes.reference(rawtext, refuri=link)
+    node.line = lineno
     for child in children:
         node += child
     return [node], []
