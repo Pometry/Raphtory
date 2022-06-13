@@ -6,10 +6,25 @@ import java.time.Instant
 import java.time.Period
 import scala.language.postfixOps
 
+/** Base trait for classes representing an interval.
+  *
+  * An interval is the space between two points in time.
+  * The dimension of this time space might be expressed in terms of the the actual one or using an alternative scale,
+  * but `toString` must return a representation in accordance.
+  *
+  * Implementations of this trait must override `toString`, `*`, and `/` methods.
+  */
 sealed trait Interval extends Ordered[Interval] {
+
+  /** Returns a `String` representation of this `Interval`. */
   def toString: String
+
+  /** Returns the `Interval` resulting from multiplying this `Interval` by `number`. */
   def *(number: Long): Interval
+
+  /** Returns the `Interval` resulting from dividing this `Interval` by `number` (might be an approximation). */
   def /(number: Long): Interval
+
   protected def toLong: Long
 
   override def compare(that: Interval): Int =
