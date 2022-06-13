@@ -26,16 +26,15 @@ import scala.reflect.runtime.universe.TypeTag
 
 /**  `Raphtory` object for creating Raphtory Components
   *
-  * Usage:
+  * @example
   * {{{
   * import com.raphtory.Raphtory
-  * import com.raphtory.spouts.ResourceSpout
+  * import com.raphtory.spouts.FileSpout
   * import com.raphtory.api.analysis.graphstate.GraphState
   * import com.raphtory.sinks.FileSink
   *
   * val builder = new YourGraphBuilder()
-  * val customConfig = Map(("raphtory.pulsar.endpoint", "localhost:1234"))
-  * val graph = Raphtory.stream(ResourceSpout("resource"), builder, customConfig)
+  * val graph = Raphtory.stream(FileSpout("/path/to/your/file"), builder)
   * graph
   *   .range(1, 32674, 10000)
   *   .windows(List(500, 1000, 10000))
@@ -45,10 +44,10 @@ import scala.reflect.runtime.universe.TypeTag
   * graph.deployment.stop()
   * }}}
   *
-  * @see [[api.input.GraphBuilder]]
-  *      [[api.input.Spout]]
-  *      [[api.analysis.graphview.DeployedTemporalGraph]]
-  *      [[api.analysis.graphview.TemporalGraph]]
+  * @see [[api.input.GraphBuilder GraphBuilder]]
+  *      [[api.input.Spout Spout]]
+  *      [[api.analysis.graphview.DeployedTemporalGraph DeployedTemporalGraph]]
+  *      [[api.analysis.graphview.TemporalGraph TemporalGraph]]
   */
 object Raphtory {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
@@ -56,13 +55,12 @@ object Raphtory {
   private lazy val javaPy4jGatewayServer           = new Py4JServer(this)
   private var prometheusServer: Option[HTTPServer] = None
 
-  /** Creates a streaming version of a `DeployedTemporalGraph` object that can be used to express queries from and to access the deployment
-    * using the given `spout`, `graphBuilder` and `customConfig`.
+  /** Creates a streaming version of a `DeployedTemporalGraph` object that can be used to express queries from.
     *
-    * @param spout Spout to use to ingest objects of type `T` into the deployment
-    * @param graphBuilder Graph builder to use to parse the input objects
+    * @param spout Spout to ingest objects of type `T` into the deployment
+    * @param graphBuilder Graph builder to parse the input objects
     * @param customConfig Custom configuration for the deployment
-    * @return the graph object for this stream
+    * @return The graph object for this stream
     */
   def stream[T: TypeTag: ClassTag](
       spout: Spout[T] = new IdentitySpout[T](),
@@ -72,12 +70,12 @@ object Raphtory {
     deployLocalGraph(spout, graphBuilder, customConfig, false)
 
   /** Creates a batch loading version of a `DeployedTemporalGraph` object that can be used to express
-    * queries from and to access the deployment using the given `spout`, `graphBuilder` and `customConfig`.
+    * queries from.
     *
-    * @param spout Spout to use to ingest objects of type `T` into the deployment
-    * @param graphBuilder Graph builder to use to parse the input objects
+    * @param spout Spout to ingest objects of type `T` into the deployment
+    * @param graphBuilder Graph builder to parse the input objects
     * @param customConfig Custom configuration for the deployment
-    * @return the graph object created by this batch loader
+    * @return The graph object created by this batch loader
     */
   def load[T: TypeTag: ClassTag](
       spout: Spout[T] = new IdentitySpout[T](),
@@ -87,10 +85,10 @@ object Raphtory {
     deployLocalGraph(spout, graphBuilder, customConfig, true)
 
   /** Creates a `TemporalGraphConnection` object referencing an already deployed graph that
-    * can be used to express queries from using the given `customConfig`.
+    * can be used to submit queries.
     *
     * @param customConfig Custom configuration for the deployment being referenced
-    * @return a temporal graph object
+    * @return A temporal graph object
     */
   def connect(customConfig: Map[String, Any] = Map()): TemporalGraphConnection = {
     val scheduler        = new MonixScheduler()
@@ -103,8 +101,12 @@ object Raphtory {
     new TemporalGraphConnection(Query(), querySender, conf, scheduler, topics)
   }
 
-  /** Returns default config using `ConfigFactory` for initialising parameters for
+  /** Returns a default config using `ConfigFactory` for initialising parameters for
     * running Raphtory components. This uses the default application parameters
+    *
+    * @param customConfig Custom configuration for the deployment
+    * @param distributed Whether the deployment is distributed or not
+    * @return An immutable config object
     */
   def getDefaultConfig(
       customConfig: Map[String, Any] = Map(),
@@ -118,10 +120,6 @@ object Raphtory {
     confHandler.getConfig(distributed)
   }
 
-  /** Creates `Spout` to read or ingest data from resources or files, sending messages to builder
-    * producers for each row. Supported spout types are FileSpout`, `ResourceSpout`,
-    * `StaticGraphSpout`.
-    */
   private[raphtory] def createSpout[T](spout: Spout[T]): Unit = {
     val scheduler        = new MonixScheduler()
     val conf             = confBuilder(distributed = true)
@@ -131,9 +129,6 @@ object Raphtory {
     componentFactory.spout(spout, false, scheduler)
   }
 
-  /** Creates `GraphBuilder` for creating a Graph by adding and deleting vertices and edges.
-    * `GraphBuilder` processes the data ingested by the spout as tuples of rows to build the graph
-    */
   private[raphtory] def createGraphBuilder[T: ClassTag](
       builder: GraphBuilder[T]
   ): Unit = {
@@ -145,9 +140,6 @@ object Raphtory {
     componentFactory.builder(builder, false, scheduler)
   }
 
-  /** Creates `PartitionManager` for creating partitions as distributed storage units with readers and
-    * writers. Uses Zookeeper to create partition IDs
-    */
   private[raphtory] def createPartitionManager[T: ClassTag](
       batchLoading: Boolean = false,
       spout: Option[Spout[T]] = None,
@@ -161,9 +153,6 @@ object Raphtory {
     componentFactory.partition(scheduler, batchLoading, spout, graphBuilder)
   }
 
-  /** Creates `QueryManager` for spawning, handling and tracking queries. Query types
-    * supported include `PointQuery`, `RangeQuery` and `LiveQuery`
-    */
   private[raphtory] def createQueryManager(): Unit = {
     val scheduler        = new MonixScheduler()
     val conf             = confBuilder(distributed = true)

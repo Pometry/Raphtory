@@ -7,7 +7,7 @@ import com.typesafe.config.Config
 /** Root class for local deployments of the analysis API
   *
   * A DeployedTemporalGraph is a [[TemporalGraph]]
-  * with a [[Deployment]] object attached to it that allows to stop it.
+  * with a [[Deployment]] object attached to it that allows it to stop.
   * To create a `DeployedTemporalGraph` use the `stream` or `load` method
   * of the [[com.raphtory.Raphtory Raphtory]] object.
   *

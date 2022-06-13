@@ -7,10 +7,10 @@ import com.raphtory.api.analysis.table.Table
 /** Base class for writing graph algorithms that map multilayer views to reduced views.
   *
   * A `MultilayerReduction` maps a multilayer view to a reduced graph view and requires the
-  * input graph to be multilaye.
+  * input graph to be multilayer.
   *
-  * @define chainBody The new algorithm's `apply` method first applies this algorithm and then other,
-  *                   clearing all messages inbetween. The `tabularise` method of the chained algorithm calls only
+  * @define chainBody The new algorithm's `apply` method first applies this algorithm and then the `other`,
+  *                   clearing all messages in-between. The `tabularise` method of the chained algorithm calls only
   *                   the `tabularise` method of `other`.
   */
 trait MultilayerReduction extends BaseAlgorithm {

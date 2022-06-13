@@ -4,13 +4,13 @@ import com.raphtory.api.analysis.graphview.MultilayerGraphPerspective
 import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
 import com.raphtory.api.analysis.table.Table
 
-/** Base class for writing graph algorithms that act on multilayer views and return mutlilayer views.
+/** Base class for writing graph algorithms that act on multilayer views and return multilayer views.
   *
-  * A `Multilayer` algorithm maps multilayer views to multilatyer views and requires the
-  * input graph to be multilaye.
+  * A `Multilayer` algorithm maps multilayer views to multilayer views and requires the
+  * input graph to be multilayer.
   *
-  * @define chainBody The new algorithm's `apply` method first applies this algorithm and then other,
-  *                   clearing all messages inbetween. The `tabularise` method of the chained algorithm calls only
+  * @define chainBody The new algorithm's `apply` method first applies this algorithm and then the `other`,
+  *                   clearing all messages in-between. The `tabularise` method of the chained algorithm calls only
   *                   the `tabularise` method of `other`.
   */
 trait Multilayer extends BaseAlgorithm {

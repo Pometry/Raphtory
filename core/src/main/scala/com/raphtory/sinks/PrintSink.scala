@@ -19,10 +19,10 @@ import com.typesafe.config.Config
   * {{{
   * import com.raphtory.algorithms.generic.EdgeList
   * import com.raphtory.sinks.PrintSink
-  * import com.raphtory.components.spout.instance.ResourceSpout
+  * import com.raphtory.spouts.FileSpout
   *
   * val graphBuilder = new YourGraphBuilder()
-  * val graph = Raphtory.stream(ResourceSpout("resource"), graphBuilder)
+  * val graph = Raphtory.stream(FileSpout("/path/to/your/file"), graphBuilder)
   * val sink = PrintSink()
   *
   * graph.execute(EdgeList()).writeTo(sink)

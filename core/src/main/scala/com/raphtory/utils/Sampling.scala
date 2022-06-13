@@ -1,12 +1,10 @@
 package com.raphtory.utils
 
-import scala.collection.immutable.ArraySeq
-import scala.collection.mutable
 import scala.util.Random
 
 /** Extended sampling methods for `scala.util.Random`.
   * To make these methods available to instances of `scala.util.Random`,
-  * Usage:
+  * @example
   * {{{
   * import com.raphtory.algorithms.utils.Sampling._
   * }}}

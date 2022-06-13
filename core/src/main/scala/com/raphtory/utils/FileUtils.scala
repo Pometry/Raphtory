@@ -12,6 +12,9 @@ import scala.language.postfixOps
 import scala.sys.process._
 import scala.util.matching.Regex
 
+/** This is a helper class predominantly used by the FileSpout, file based Sinks and example Runners to simplify file handling and downloading of remote datasets.
+  * It is included for users creating their own examples or alternative file handling spouts/sinks.
+  */
 object FileUtils {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 

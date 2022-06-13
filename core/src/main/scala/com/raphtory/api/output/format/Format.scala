@@ -8,14 +8,13 @@ import com.typesafe.config.Config
   *
   * A format is a way to translate a `Table` into one or more text items.
   *
-  * An item is a piece of information meaningful by itself and isolated from the rest of entities
-  * from the format point of view.
+  * An item is a piece of information meaningful by itself and isolated from all other other entities from the perspective of the format.
   * For instance, in CSV format, an item might be just a row of the CSV table,
   * whereas if the entire table is written out within just one JSON object, the entire JSON object would be an item.
   *
-  * Implementations of this trait need to override `defaultDelimiter` and `executor` method.
-  * They shouldn't write out any data by themselves.
-  * Instead, they should rely on the provided `SinkConnector` to output the items.
+  * Implementations of this trait need to override the `defaultDelimiter` and `executor` methods.
+  * These shouldn't write out any data by themselves, instead they should rely on the provided `SinkConnector` to output the items.
+  * This allows the format to be used in combination with any implemented sink.
   *
   * @see [[com.raphtory.api.analysis.table.Table Table]]
   *      [[com.raphtory.api.output.sink.Sink Sink]]

@@ -1,6 +1,5 @@
 package com.raphtory.sinks
 
-import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.output.format.Format
 import com.raphtory.api.output.sink.FormatAgnosticSink
 import com.raphtory.api.output.sink.SinkConnector
@@ -13,8 +12,7 @@ import java.io.FileWriter
 
 /** A [[com.raphtory.api.output.sink.Sink Sink]] that writes a `Table` into files using the given `format`.
   *
-  * The sink creates one directory with the job id as name inside `filepath`
-  * and one file for every partition on the server inside that directory.
+  * This sink creates a directory named after the jobID inside the provided `filepath`. Each partition on the server then writes into its own file within this directory.
   *
   * @param filePath the filepath to write the table into
   * @param format the format to be used by this sink (`CsvFormat` by default)
@@ -23,10 +21,10 @@ import java.io.FileWriter
   * {{{
   * import com.raphtory.algorithms.generic.EdgeList
   * import com.raphtory.sinks.FileSink
-  * import com.raphtory.components.spout.instance.ResourceSpout
+  * import com.raphtory.spouts.FileSpout
   *
   * val graphBuilder = new YourGraphBuilder()
-  * val graph = Raphtory.stream(ResourceSpout("resource"), graphBuilder)
+  * val graph = Raphtory.stream(FileSpout("/path/to/your/file"), graphBuilder)
   * val testDir = "/tmp/raphtoryTest"
   * val sink = FileSink(testDir)
   *

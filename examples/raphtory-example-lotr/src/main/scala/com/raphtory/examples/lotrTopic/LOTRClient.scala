@@ -8,8 +8,8 @@ object LOTRClient extends App {
 
   val client = Raphtory.connect()
 
-val output  = FileSink("/tmp/raphtory")
+  val output = FileSink("/tmp/raphtory")
 
-  client.execute(ConnectedComponents).writeTo(output)
+  client.execute(ConnectedComponents()).writeTo(output)
 
 }

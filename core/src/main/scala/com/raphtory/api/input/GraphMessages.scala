@@ -1,11 +1,11 @@
 package com.raphtory.api.input
 
-/** Properties are characteristic attributes like name, etc. assigned to Vertices and Edges by the
-  * [[Graph Builder]].
+/** Properties are characteristic attributes like name etc. assigned to Vertices and Edges by the
+  * Graph Builder.
   * @see [[GraphBuilder]]
   */
 
-/** Sealed trait defining different types of properties */
+/** Sealed trait defining the different types of properties */
 sealed trait Property {
 
   /** property name */
@@ -14,9 +14,6 @@ sealed trait Property {
   /** value property value */
   def value: Any
 }
-
-/** Vertex/Edge type (this is not a `Property`) */
-case class Type(name: String)
 
 /** `Property` with a fixed value (the value should be the same for each update to the entity) */
 case class ImmutableProperty(key: String, value: String) extends Property
@@ -33,8 +30,11 @@ case class DoubleProperty(key: String, value: Double) extends Property
 /** `Property` with a `Float` value */
 case class FloatProperty(key: String, value: Float) extends Property
 
-/** Wrapper class for properties */
+/** Wrapper class for vertices and edges with multiple properties */
 case class Properties(property: Property*)
+
+/** Vertex/Edge type (this is not a `Property`) */
+case class Type(name: String)
 
 private[raphtory]sealed trait GraphAlteration
 
@@ -52,6 +52,7 @@ private[raphtory] case class VertexAdd(
     properties: Properties,
     vType: Option[Type]
 )                                                                        extends GraphUpdate //add a vertex (or add/update a property to an existing vertex)
+
 private[raphtory] case class VertexDelete(updateTime: Long, srcId: Long) extends GraphUpdate
 
 private[raphtory] case class EdgeAdd(

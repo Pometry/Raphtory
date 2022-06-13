@@ -7,7 +7,6 @@ import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.examples.lotrTopic.graphbuilders.LOTRGraphBuilder
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.FileSpout
-import com.raphtory.spouts.ResourceSpout
 import com.raphtory.utils.FileUtils
 
 object PulsarOutputRunner extends App {

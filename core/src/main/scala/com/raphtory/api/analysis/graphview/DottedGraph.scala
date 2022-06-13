@@ -14,14 +14,14 @@ object Alignment extends Enumeration {
 
 /** Marked timeline view of a [[TemporalGraph]]
   *
-  * A DottedGraph is a [[TemporalGraph]] with one or a sequence of temporal marks over the timeline
+  * A DottedGraph is a [[TemporalGraph]] with one or a sequence of temporal epochs across the timeline
   * that can be used as references to create perspectives of the graph.
-  * To do so, this class offers methods to look to the past or to the future from every temporal mark
+  * To do so, this class offers methods to look to the past or to the future from every temporal epoch
   * or to create windows that end ([[Alignment.END]]),
   * have its center ([[Alignment.MIDDLE]]),
-  * or start ([[Alignment.START]]) at every temporal mark.
+  * or start ([[Alignment.START]]) at every temporal epoch.
   *
-  * When creating a window from a temporal mark, the mark is always included within the window.
+  * When creating a window from a temporal epoch, they are always included within the window.
   * Particularly, for the three alignment options we have, the bounds of the windows are as follows:
   *  - Alignment.START: The start of the window is inclusive and the end exclusive
   *  - Alignment.MIDDLE: The start of the window is inclusive and the end exclusive
@@ -42,7 +42,7 @@ class DottedGraph[G <: FixedGraph[G]] private[api] (
   implicit val ignoreInt: Int       = 1
   implicit val ignoreString: String = ""
 
-  /**  Creates a window from the given size starting via every temporal mark
+  /**  Creates a window from the given size starting via every temporal epoch
     *  The start of the window is inclusive and the end exclusive
     *
     *  @param size the exact size of the window
@@ -51,7 +51,7 @@ class DottedGraph[G <: FixedGraph[G]] private[api] (
   def window(size: Long): G =
     window(size, Alignment.START)
 
-  /** Creates a window from the given size and alignment starting from every temporal mark
+  /** Creates a window from the given size and alignment from every temporal epoch
     *
     *  @param size the exact size of the window
     *  @param alignment the alignment of the window
@@ -60,7 +60,7 @@ class DottedGraph[G <: FixedGraph[G]] private[api] (
   def window(size: Long, alignment: Alignment.Value): G =
     addWindows(List(DiscreteInterval(size)), alignment)
 
-  /**  Creates a window from the given size starting via every temporal mark.
+  /**  Creates a window from the given size at every temporal epoch.
     *  The start of the window is inclusive and the end exclusive.
     *
     *  @param size the exact size of the window
@@ -68,7 +68,7 @@ class DottedGraph[G <: FixedGraph[G]] private[api] (
     */
   def window(size: String): G = window(size, Alignment.START)
 
-  /** Creates a window from the given size and alignment starting from every temporal mark.
+  /** Creates a window from the given size and alignment at every temporal epoch.
     *
     *  @param size the exact size of the window
     *  @param alignment the alignment of the window
@@ -77,7 +77,7 @@ class DottedGraph[G <: FixedGraph[G]] private[api] (
   def window(size: String, alignment: Alignment.Value): G =
     addWindows(List(parseInterval(size)), alignment)
 
-  /** Create a number of windows with the given sizes starting from every temporal mark.
+  /** Create a number of windows with the given sizes at every temporal epoch.
     * The start of the window is inclusive and the end exclusive.
     *
     * @param sizes the exact sizes of the windows
@@ -86,7 +86,7 @@ class DottedGraph[G <: FixedGraph[G]] private[api] (
   def window(sizes: List[Int]): G =
     window(sizes, Alignment.START)
 
-  /** Create a number of windows with the given sizes and given alignment starting from every temporal mark.
+  /** Create a number of windows with the given sizes and given alignment at every temporal epoch.
     *
     * @param sizes the exact sizes of the windows
     * @param alignment the alignment of the windows
@@ -95,7 +95,7 @@ class DottedGraph[G <: FixedGraph[G]] private[api] (
   def window(sizes: List[Int], alignment: Alignment.Value): G =
     addWindows(sizes map (DiscreteInterval(_)), alignment)
 
-  /** Create a number of windows with the given sizes starting from every temporal mark.
+  /** Create a number of windows with the given sizes at every temporal epoch.
     * The start of the window is inclusive and the end exclusive.
     *
     * @param sizes the exact sizes of the windows
@@ -104,7 +104,7 @@ class DottedGraph[G <: FixedGraph[G]] private[api] (
   def window(sizes: List[Long])(implicit ignore: DummyImplicit): G =
     window(sizes, Alignment.START)
 
-  /** Create a number of windows with the given sizes and given alignment starting from every temporal mark.
+  /** Create a number of windows with the given sizes and given alignment at every temporal epoch.
     *
     * @param sizes the exact sizes of the windows
     * @param alignment the alignment of the windows
@@ -115,7 +115,7 @@ class DottedGraph[G <: FixedGraph[G]] private[api] (
   ): G =
     addWindows(sizes map DiscreteInterval, alignment)
 
-  /** Create a number of windows with the given sizes starting from every temporal mark.
+  /** Create a number of windows with the given sizes at every temporal epoch.
     * The start of the window is inclusive and the end exclusive.
     *
     * @param sizes the exact sizes of the windows
@@ -124,7 +124,7 @@ class DottedGraph[G <: FixedGraph[G]] private[api] (
   def window(sizes: List[String])(implicit ignore: ClassTag[String]): G =
     window(sizes, Alignment.START)
 
-  /** Create a number of windows with the given sizes and given alignment starting from every temporal mark.
+  /** Create a number of windows with the given sizes and given alignment at every temporal epoch.
     *
     * @param sizes the exact sizes of the windows
     * @param alignment the alignment of the windows
@@ -135,11 +135,11 @@ class DottedGraph[G <: FixedGraph[G]] private[api] (
   ): G =
     addWindows(sizes map parseInterval, alignment)
 
-  /** For each temporal mark create a window starting from the current point and including all older edges
+  /** For each temporal epoch create a window starting from the current point and include all older events
     */
   def past(): G = addWindows(List(), Alignment.END)
 
-  /** For each temporal mark create a window starting from the current mark and including all newer edges
+  /** For each temporal epoch create a window starting from the current point and include all newer events
     */
   def future(): G = addWindows(List(), Alignment.START)
 

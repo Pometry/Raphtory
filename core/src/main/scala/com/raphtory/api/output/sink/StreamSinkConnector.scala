@@ -1,10 +1,10 @@
 package com.raphtory.api.output.sink
 
-/** Base class for sink connectors that write the items to an text output stream.
+/** Base class for sink connectors which write items as an output stream.
   *
   * Implementations of this trait just need to override the `output` method.
   *
-  * @param itemDelimiter the string to use as delimiter between items
+  * @param itemDelimiter the string to use as a delimiter between items
   */
 abstract class StreamSinkConnector(itemDelimiter: String) extends SinkConnector {
 

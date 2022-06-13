@@ -1,15 +1,15 @@
-package com.raphtory.utils
+package com.raphtory.internals.storage.pojograph
 
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
-import scala.Ordering.Implicits._
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
 import scala.collection.mutable
+import scala.math.Ordering.Implicits.infixOrderingOps
 
-object OrderedBuffer {
+private[raphtory] object OrderedBuffer {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   implicit object TupleByFirstOrdering extends Ordering[(Long, Any)] {

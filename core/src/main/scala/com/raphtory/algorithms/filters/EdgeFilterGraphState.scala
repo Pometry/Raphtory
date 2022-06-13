@@ -1,4 +1,4 @@
-package com.raphtory.algorithms.generic.filters
+package com.raphtory.algorithms.filters
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphstate.GraphState
@@ -6,7 +6,7 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.visitor.Edge
 
 /**
-  * {s} `EdgeFilter(f: (Vertex, State) => Boolean)`
+  * {s}`EdgeFilter(f: (Vertex, State) => Boolean)`
   *   : Filtered view of the graph achieved by retaining edges according to a predicate function {s}`f`
   *
   *   This transforms the graph by keeping only edges for which {s}`f` returns true, where {s}`f` may depend on graph state.
@@ -15,13 +15,13 @@ import com.raphtory.api.analysis.visitor.Edge
   *
   * ## Parameters
   *
-  * {s} `pruneNodes: Boolean=true`
+  * {s}`pruneNodes: Boolean=true`
   *   : if this is {s}`true` then vertices which become isolated (have no incoming or outgoing edges)
   *        after this filtering are also removed.
   *
   * ```{seealso}
-  * [](com.raphtory.algorithms.generic.filters.VertexFilter)
-  * [](com.raphtory.algorithms.generic.filters.EdgeQuantileFilter)
+  * [](com.raphtory.algorithms.filters.VertexFilter)
+  * [](com.raphtory.algorithms.filters.EdgeQuantileFilter)
   * ```
   */
 

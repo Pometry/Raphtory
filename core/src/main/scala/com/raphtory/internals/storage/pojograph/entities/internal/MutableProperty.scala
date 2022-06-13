@@ -1,6 +1,6 @@
 package com.raphtory.internals.storage.pojograph.entities.internal
 
-import com.raphtory.utils.OrderedBuffer._
+import com.raphtory.internals.storage.pojograph.OrderedBuffer._
 
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint

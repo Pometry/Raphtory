@@ -10,8 +10,8 @@ import com.raphtory.api.analysis.table.Table
   * A `GenericReduction` maps any graph view to a reduced graph view. For reduction algorithms that require the
   * input graph to be multilayer use [[MultilayerReduction]] instead.
   *
-  * @define chainBody The new algorithm's `apply` method first applies this algorithm and then other,
-  *                   clearing all messages inbetween. The `tabularise` method of the chained algorithm calls only
+  * @define chainBody The new algorithm's `apply` method first applies this algorithm and then the `other`,
+  *                   clearing all messages in-between. The `tabularise` method of the chained algorithm calls only
   *                   the `tabularise` method of `other`.
   */
 trait GenericReduction extends GenericallyApplicable {
@@ -19,7 +19,7 @@ trait GenericReduction extends GenericallyApplicable {
 
   /** Main algorithm
     *
-    * Default implementation calls `graph.reducedView`. This should be overriden by subclasses to define the actual
+    * Default implementation calls `graph.reducedView`. This should be overridden by subclasses to define the actual
     * algorithm steps.
     *
     * @param graph graph to run function upon
