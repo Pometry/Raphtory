@@ -9,9 +9,9 @@ import scala.collection.mutable
 private[raphtory] class PojoVertex(msgTime: Long, val vertexId: Long, initialValue: Boolean)
         extends PojoEntity(msgTime, initialValue) {
 
-  private val intoE: mutable.Map[Long, PojoEdge] =
+  private val intoEdges: mutable.Map[Long, PojoEdge] =
     mutable.Map[Long, PojoEdge]() //Map of all edges associated with the vertex
-  private val outE: mutable.Map[Long, PojoEdge] = mutable.Map[Long, PojoEdge]()
+  private val outEdges: mutable.Map[Long, PojoEdge] = mutable.Map[Long, PojoEdge]()
 
   private var edgesRequiringSync = 0
 
@@ -20,22 +20,22 @@ private[raphtory] class PojoVertex(msgTime: Long, val vertexId: Long, initialVal
 
   def getEdgesRequringSync() = edgesRequiringSync
 
-  def addIncomingEdge(edge: PojoEdge): Unit = intoE.put(edge.getSrcId, edge)
+  def addIncomingEdge(edge: PojoEdge): Unit = intoEdges.put(edge.getSrcId, edge)
 
-  def addOutgoingEdge(edge: PojoEdge): Unit = outE.put(edge.getDstId, edge)
+  def addOutgoingEdge(edge: PojoEdge): Unit = outEdges.put(edge.getDstId, edge)
 
   def addAssociatedEdge(edge: PojoEdge): Unit =
     if (edge.getSrcId == vertexId) addOutgoingEdge(edge) else addIncomingEdge(edge)
 
-  def getOutgoingEdge(id: Long): Option[PojoEdge] = outE.get(id)
+  def getOutgoingEdge(id: Long): Option[PojoEdge] = outEdges.get(id)
 
-  def getIncomingEdge(id: Long): Option[PojoEdge] = intoE.get(id)
+  def getIncomingEdge(id: Long): Option[PojoEdge] = intoEdges.get(id)
 
   def viewBetween(startTime: Long, endTime: Long, lens: PojoGraphLens): PojoExVertex =
     new PojoExVertex(
             this,
-            intoE.collect(edgeView(startTime, endTime, lens)),
-            outE.collect(edgeView(startTime, endTime, lens)),
+            intoEdges.collect(edgeView(startTime, endTime, lens)),
+            outEdges.collect(edgeView(startTime, endTime, lens)),
             lens
     )
 
@@ -49,7 +49,7 @@ private[raphtory] class PojoVertex(msgTime: Long, val vertexId: Long, initialVal
       k -> new PojoExEdge(edge, k, lens)
   }
 
-  def outgoingEdges: Iterator[(Long, PojoEdge)] = outE.iterator
+  def outgoingEdges: Iterator[(Long, PojoEdge)] = outEdges.iterator
 
-  def incomingEdges: Iterator[(Long, PojoEdge)] = intoE.iterator
+  def incomingEdges: Iterator[(Long, PojoEdge)] = intoEdges.iterator
 }
