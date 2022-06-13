@@ -1,5 +1,7 @@
 package com.raphtory.internals.communication.connectors
 
+import cats.effect.Sync
+import cats.effect.kernel.Resource
 import com.raphtory.internals.communication.CancelableListener
 import com.raphtory.internals.communication.CanonicalTopic
 import com.raphtory.internals.communication.Connector
@@ -22,7 +24,8 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.math.Ordering.Implicits.infixOrderingOps
 
-private[raphtory] class PulsarConnector(config: Config) extends Connector {
+private[raphtory] class PulsarConnector(client: PulsarClient, pulsarAdmin: PulsarAdmin, config: Config)
+        extends Connector {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   case class PulsarEndPoint[T](producer: Producer[Array[Byte]]) extends EndPoint[T] {
@@ -43,35 +46,7 @@ private[raphtory] class PulsarConnector(config: Config) extends Connector {
         )
   }
 
-  private val pulsarAddress: String      = config.getString("raphtory.pulsar.broker.address")
-  private val pulsarAdminAddress: String = config.getString("raphtory.pulsar.admin.address")
-  private val numIoThreads               = config.getInt("raphtory.pulsar.broker.ioThreads")
-  private val useAllListenerThreads      = "raphtory.pulsar.broker.useAvailableThreadsInSystem"
-
-  private val listenerThreads =
-    if (config.hasPath(useAllListenerThreads) && config.getBoolean(useAllListenerThreads))
-      Runtime.getRuntime.availableProcessors()
-    else
-      config.getInt("raphtory.pulsar.broker.listenerThreads")
-
   private val kryo: KryoSerialiser = KryoSerialiser()
-
-  private val client: PulsarClient =
-    PulsarClient
-      .builder()
-      .ioThreads(numIoThreads)
-      .listenerThreads(listenerThreads)
-      .maxConcurrentLookupRequests(50_000)
-      .maxLookupRequests(100_000)
-      .serviceUrl(pulsarAddress)
-      .serviceUrl(pulsarAdminAddress)
-      .build()
-
-  private val pulsarAdmin: PulsarAdmin = PulsarAdmin.builder
-    .serviceHttpUrl(pulsarAdminAddress)
-    .tlsTrustCertsFilePath(null)
-    .allowTlsInsecureConnection(false)
-    .build
 
   def accessClient: PulsarClient = client
 
@@ -263,8 +238,50 @@ private[raphtory] class PulsarConnector(config: Config) extends Connector {
     pulsarAdmin.namespaces().setDeduplicationStatus(namespace, false)
   }
 
-  override def shutdown(): Unit = {
-    client.shutdown()
-    pulsarAdmin.close()
+  override def shutdown(): Unit = {}
+}
+
+object PulsarConnector {
+
+  def apply[IO[_]](config: Config)(implicit IO: Sync[IO]): Resource[IO, PulsarConnector] =
+    for {
+      pulsarClient      <- Resource.fromAutoCloseable(IO.blocking(makePulsarClient(config)))
+      pulsarAdminClient <- Resource.fromAutoCloseable(IO.blocking(makeAdminClient(config)))
+    } yield new PulsarConnector(pulsarClient, pulsarAdminClient)
+
+  private def makePulsarClient(config: Config): PulsarClient = {
+
+    val numIoThreads          = config.getInt("raphtory.pulsar.broker.ioThreads")
+    val pulsarAddress: String = config.getString("raphtory.pulsar.broker.address")
+
+    val useAllListenerThreads = "raphtory.pulsar.broker.useAvailableThreadsInSystem"
+
+    val pulsarAdminAddress: String = config.getString("raphtory.pulsar.admin.address")
+    val listenerThreads            =
+      if (config.hasPath(useAllListenerThreads) && config.getBoolean(useAllListenerThreads))
+        Runtime.getRuntime.availableProcessors()
+      else
+        config.getInt("raphtory.pulsar.broker.listenerThreads")
+
+    val client: PulsarClient =
+      PulsarClient
+        .builder()
+        .ioThreads(numIoThreads)
+        .listenerThreads(listenerThreads)
+        .maxConcurrentLookupRequests(50_000)
+        .maxLookupRequests(100_000)
+        .serviceUrl(pulsarAddress)
+        .serviceUrl(pulsarAdminAddress)
+        .build()
+    client
+  }
+
+  private def makeAdminClient(config: Config): PulsarAdmin = {
+    val pulsarAdminAddress: String = config.getString("raphtory.pulsar.admin.address")
+    PulsarAdmin.builder
+      .serviceHttpUrl(pulsarAdminAddress)
+      .tlsTrustCertsFilePath(null)
+      .allowTlsInsecureConnection(false)
+      .build
   }
 }

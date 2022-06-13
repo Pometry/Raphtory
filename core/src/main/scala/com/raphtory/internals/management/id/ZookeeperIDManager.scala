@@ -1,5 +1,7 @@
 package com.raphtory.internals.management.id
 
+import cats.effect.Resource
+import cats.effect.Sync
 import com.typesafe.scalalogging.Logger
 import org.apache.curator.framework.CuratorFramework
 import org.apache.curator.framework.CuratorFrameworkFactory
@@ -69,4 +71,19 @@ private[raphtory] object ZookeeperIDManager {
       poolID: String,
       poolSize: Int
   ) = new ZookeeperIDManager(zookeeperAddress, deploymentID, poolID, poolSize)
+
+  def apply[IO[_]: Sync](
+                          zookeeperAddress: String,
+                          atomicPath: String
+                        ): Resource[IO, ZookeeperIDManager] =
+    Resource
+      .fromAutoCloseable(Sync[IO].delay {
+        CuratorFrameworkFactory
+          .builder()
+          .connectString(zookeeperAddress)
+          .retryPolicy(new ExponentialBackoffRetry(1000, 3))
+          .build();
+      })
+      .map(new ZookeeperIDManager(zookeeperAddress, atomicPath, _))
+
 }

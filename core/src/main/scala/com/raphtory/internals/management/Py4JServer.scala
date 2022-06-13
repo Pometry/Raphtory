@@ -1,8 +1,10 @@
 package com.raphtory.internals.management
 
-import cats.effect.{Resource, Sync}
+import cats.effect.Resource
+import cats.effect.Sync
 import cats.syntax.all._
-import com.google.common.io.{ByteArrayDataOutput, ByteStreams}
+import com.google.common.io.ByteArrayDataOutput
+import com.google.common.io.ByteStreams
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.apache.commons.codec.binary.Hex
@@ -14,36 +16,39 @@ import java.net.InetAddress
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.charset.StandardCharsets.UTF_8
-import java.nio.file.{Files, Path, Paths, StandardOpenOption}
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.nio.file.StandardOpenOption
 import java.security.SecureRandom
 
 /** Setups the Py4J Java server which allows Python to interact with Raphtory
- */
-private[raphtory] class Py4JServer[F[_]](gatewayServer: GatewayServer)(implicit F: Sync[F]) {
+  */
+private[raphtory] class Py4JServer[IO[_]](gatewayServer: GatewayServer)(implicit IO: Sync[IO]) {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   /** Similar to the PySpark implementation. This writes the port details of the
-   * java gatway to a local file. When the python interface starts it reads this
-   * local file to identity the port required to connect.
-   */
-  private def writePortToFile(port: Int, conf: Config): F[Unit] = {
+    * java gatway to a local file. When the python interface starts it reads this
+    * local file to identity the port required to connect.
+    */
+  private def writePortToFile(port: Int, conf: Config): IO[Unit] = {
     val filename = Paths.get(conf.getString("raphtory.python.gatewayFilePath"))
 
     // setup resources that need closing
-    val channelR = for {
+    val channelR: Resource[IO, FileChannel] = for {
       tmpPath <- Py4JServer.createTmpFile(filename.getParent, filename)
       channel <-
         Resource.fromAutoCloseable(
-          F.blocking(
-            FileChannel.open(tmpPath, StandardOpenOption.WRITE, StandardOpenOption.READ)
-          )
+                IO.blocking(
+                        FileChannel.open(tmpPath, StandardOpenOption.WRITE, StandardOpenOption.READ)
+                )
         )
     } yield channel
 
     // write content
-    val writeContents = channelR.use { c =>
-      F.blocking {
+    val writeContents = channelR.use { c: FileChannel =>
+      IO.blocking {
         logger.info("Writing PythonGatewayServer details to file...")
         val dos: ByteArrayDataOutput = ByteStreams.newDataOutput() //this doesn't need closing
         dos.writeInt(port)
@@ -56,29 +61,29 @@ private[raphtory] class Py4JServer[F[_]](gatewayServer: GatewayServer)(implicit 
 
     writeContents
       .onError { t =>
-        F.blocking(logger.error(s"Unable to write connection information to $filename.")) *> F
+        IO.blocking(logger.error(s"Unable to write connection information to $filename.")) *> IO
           .raiseError(t)
       }
       .flatMap { _ =>
-        F.blocking(logger.info("Written PythonGatewayServer details to file."))
+        IO.blocking(logger.info("Written PythonGatewayServer details to file."))
       }
   }
 
   private val secret = Py4JServer.secret
 
   /** This starts a java gateway server, and writes the port it binds to into a
-   * local file.
-   */
-  def start(conf: Config): F[Unit] =
-    F.blocking {
+    * local file.
+    */
+  def start(conf: Config): IO[Unit] =
+    IO.blocking {
       logger.info("Starting PythonGatewayServer...")
       gatewayServer.start()
       gatewayServer.getListeningPort
     }.flatMap { boundPort =>
-      F.blocking {
+      IO.blocking {
         if (boundPort == -1) {
           logger.error("Failed to bind; Not running python gateway")
-          F.raiseError(new IllegalStateException("Unable to start Py4J Server"))
+          IO.raiseError(new IllegalStateException("Unable to start Py4J Server"))
         }
         else {
           logger.info(s"Started PythonGatewayServer on port $boundPort")
@@ -88,21 +93,26 @@ private[raphtory] class Py4JServer[F[_]](gatewayServer: GatewayServer)(implicit 
     }
 
   /** Getter to obtain the gateways listening port */
-  def getListeningPort: F[Int] = F.blocking(gatewayServer.getListeningPort)
+  def getListeningPort: IO[Int] = IO.blocking(gatewayServer.getListeningPort)
 
 }
 
 private[raphtory] object Py4JServer {
 
-  def fromEntryPoint[F[_]: Sync](entryPoint: Object, config: Config): Resource[F, Py4JServer[F]] =
+  def fromEntryPoint[IO[_]: Sync](
+      entryPoint: Object,
+      config: Config
+  ): Resource[IO, Py4JServer[IO]] =
     for {
       py4jGateway <- makeGatewayServer(entryPoint)
       server      <-
-        Resource.eval(Sync[F].delay(new Py4JServer[F](py4jGateway)).flatTap(_.start(config)))
+        Resource.eval(Sync[IO].delay(new Py4JServer[IO](py4jGateway)).flatTap(_.start(config)))
     } yield server
 
-  private def makeGatewayServer[F[_]](entryPoint: Object)(implicit F: Sync[F]) =
-    Resource.make(F.blocking {
+  private def makeGatewayServer[IO[_]](
+      entryPoint: Object
+  )(implicit IO: Sync[IO]): Resource[IO, GatewayServer] =
+    Resource.make(IO.blocking {
       new GatewayServer.GatewayServerBuilder()
         .entryPoint(entryPoint)
         .authToken(secret)
@@ -110,7 +120,7 @@ private[raphtory] object Py4JServer {
         .javaAddress(localhost)
         .callbackClient(GatewayServer.DEFAULT_PYTHON_PORT, localhost, secret)
         .build()
-    })(gateway => F.blocking(gateway.shutdown()))
+    })(gateway => IO.blocking(gateway.shutdown()))
 
   private def localhost = InetAddress.getLoopbackAddress
 
@@ -121,11 +131,11 @@ private[raphtory] object Py4JServer {
     Hex.encodeHexString(secretBytes)
   }
 
-  def createTmpFile[F[_]](dir: Path, renameTo: Path)(implicit F: Sync[F]): Resource[F, Path] =
+  def createTmpFile[IO[_]](dir: Path, renameTo: Path)(implicit IO: Sync[IO]): Resource[IO, Path] =
     Resource.make(
-      F.blocking(
-        Files
-          .createTempFile(dir, "connection", ".info")
-      )
-    )(tmpFile => F.blocking(Files.move(tmpFile, renameTo)))
+            IO.blocking(
+                    Files
+                      .createTempFile(dir, "connection", ".info")
+            )
+    )(tmpFile => IO.blocking(Files.move(tmpFile, renameTo)))
 }

@@ -1,20 +1,17 @@
 package com.raphtory.internals.communication.repositories
 
-import akka.actor.typed.ActorSystem
-import akka.actor.typed.SpawnProtocol
-import com.raphtory.internals.communication.connectors.AkkaConnector
+import cats.effect.kernel.{Resource, Sync}
+import com.raphtory.internals.communication.{Connector, TopicRepository}
 import com.raphtory.internals.communication.connectors.PulsarConnector
-import com.raphtory.internals.communication.Connector
-import com.raphtory.internals.communication.TopicRepository
 import com.typesafe.config.Config
 
 private[raphtory] object PulsarAkkaTopicRepository {
 
-  def apply(config: Config): TopicRepository = {
-    val actorSystem     = ActorSystem(SpawnProtocol(), "spawner")
-    val akkaConnector   = new AkkaConnector(actorSystem)
-    val pulsarConnector = new PulsarConnector(config)
-    new TopicRepository(pulsarConnector, config, Array(akkaConnector, pulsarConnector)) {
+  def apply[IO[_]: Sync](config: Config): Resource[IO, TopicRepository] =
+    for {
+      akkaConnector   <- AkkaTopicRepository.makeConnector[IO]
+      pulsarConnector <- PulsarConnector[IO](config)
+    } yield new TopicRepository(pulsarConnector, config, Array(akkaConnector, pulsarConnector)) {
       override def jobOperationsConnector: Connector    = akkaConnector
       override def jobStatusConnector: Connector        = akkaConnector
       override def queryPrepConnector: Connector        = akkaConnector
@@ -24,5 +21,5 @@ private[raphtory] object PulsarAkkaTopicRepository {
       override def queryTrackConnector: Connector       = akkaConnector
       override def submissionsConnector: Connector      = akkaConnector
     }
-  }
+
 }
