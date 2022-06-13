@@ -6,7 +6,7 @@ This example is a dataset that tells us when two characters have some type of in
 ## Project Overview
 
 This example has two outputs:
-* FileOutputRunner builds a graph and uses the algorithm `DegreesSeparation.scala` which is explained [here](../Analysis/LOTR_six_degrees.md#six-degrees-of-gandalf). 
+* FileOutputRunner builds a graph and uses the algorithm `DegreesSeparation.scala` which is explained [here](../Analysis/LOTR_six_degrees.md). 
 * PulsarOutputRunner builds a graph and runs two queries. The first is an edge list (`EdgeList.scala`) listing out all the edges that join source nodes and destination nodes of this dataset, this will be needed for graph visualisation in python. The second is a query to show us the various ranks of the characters across time (`PageRank.scala`). 
 
 The data is a `csv` file (comma-separated values) is located in the `resources` folder. 

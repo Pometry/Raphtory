@@ -3,12 +3,19 @@
 To run your implemented algorithm or any of the algorithms included in Raphtory (both [Generic](com.raphtory.algorithms.generic) and [Temporal](com.raphtory.algorithms.temporal)), you must submit them to the graph. We can again use the [Lord of the Rings
 graph](../Ingestion/sprouter.md) and the [degrees of separation algorithm](LOTR_six_degrees.md) to illustrate the query API.
 
-When running queries, our starting point is always the {scaladoc}`com.raphtory.algorithms.api.TemporalGraph` created from a call to `Raphtory.load()` or `Raphtory.stream()`. This contains the full history of your data over its lifetime. From this point, the overall process to get things done is as follows: 
+When running queries, our starting point is always the {scaladoc}`com.raphtory.api.analysis.graphview.TemporalGraph` 
+created from a call to `Raphtory.load()` or `Raphtory.stream()`. This contains the full history of your data over its lifetime. 
+From this point, the overall process to get things done is as follows: 
 
 * First, you can filter the timeline to the segment you are interested in. 
+
 * Secondly, you can create a collection of perspectives over the selected timeline.
-* Thirdly, you can apply a sequence of graph operations (such as `step` and `iterate`) that end with a `select()` (returning a {scaladoc}`com.raphtory.algorithms.api.Table`) and a sequence of table operations to get a writable result for your query.
-* Finally, you can write out your result using a {scaladoc}`com.raphtory.algorithms.api.output.sink.Sink`. This last step kicks off the computation inside Raphtory.
+
+* Thirdly, you can apply a sequence of graph operations (such as `step` and `iterate`) that end with a `select()` 
+  (returning a {scaladoc}`com.raphtory.api.analysis.table.Table`) and a sequence of table operations to get a writable 
+  result for your query.
+
+* Finally, you can write out your result using a {scaladoc}`com.raphtory.api.output.sink.Sink`. This last step kicks off the computation inside Raphtory.
 
 A conceptual example of the stages for creating perspectives from a temporal graph is depicted below.
 
@@ -26,11 +33,15 @@ graph
   .writeTo(output)
 ```
 
-In this case, Raphtory runs the algorithm using all the information it has about the graph, from the earliest to the latest updates. If we are working with a streaming graph, this means that we run the algorithm over the most recently ingested version of our data.
+In this case, Raphtory runs the algorithm using all the information it has about the graph, from the earliest to the 
+latest updates. If we are working with a streaming graph, this means that we run the algorithm over the most recently 
+ingested version of our data.
 
 ## Timeline filtering
 
-However, maybe we are just interested in a portion of the data. Let's say that you want to see the relationships between characters before sentence 1000 or between sentences 4000 and 5000. We need different versions ({scaladoc}`com.raphtory.algorithms.api.GraphPerspective`) of the graph for both cases:
+However, maybe we are just interested in a portion of the data. Let's say that you want to see the relationships 
+between characters before sentence 1000 or between sentences 4000 and 5000. We need different versions 
+({scaladoc}`com.raphtory.api.analysis.graphview.GraphPerspective`) of the graph for both cases:
 
 ```scala
 val first1000sentences = graph.until(1000)
@@ -96,7 +107,7 @@ The second step is to specify which direction we are looking in at each time poi
 * The `Middle` of the window - including data from half the time in both the past and future, providing a smoothing effect.
 
 
-**Note:** You can refer to the {scaladoc}`com.raphtory.algorithms.api.DottedGraph` documentation for further details.
+**Note:** You can refer to the {scaladoc}`com.raphtory.api.analysis.graphview.DottedGraph` documentation for further details.
 
 Coming back to our first example, we can execute a `walk` along a year of data with increments of one day, and a window of one week into the future as follows:
 
@@ -116,7 +127,10 @@ The `walk` function doesn't take a start or end time as it explores all availabl
 
 ## Operating over the graph
 
-Once we have defined the set of perspectives we want to work with, we can define a sequence of operations to apply to them all. The operations available are described in the documentation for the {scaladoc}`com.raphtory.algorithms.api.GraphOperations` trait. In addition to using already defined graph algorithms (as we have done so far), you can also apply operations directly to the graph object, for instance:
+Once we have defined the set of perspectives we want to work with, we can define a sequence of operations to apply 
+to them all. The operations available are described in the documentation for the 
+{scaladoc}`com.raphtory.api.analysis.graphview.GraphPerspective` trait. In addition to using already defined graph algorithms 
+(as we have done so far), you can also apply operations directly to the graph object, for instance:
 
 ```scala
 graph
