@@ -9,8 +9,8 @@ import org.slf4j.LoggerFactory
 
 /** Base class for writing graph algorithms that preserve views
   *
-  * @define chainBody The new algorithm's `apply` method first applies this algorithm and then other,
-  *                   clearing all messages inbetween. The `tabularise` method of the chained algorithm calls only
+  * @define chainBody The new algorithm's `apply` method first applies this algorithm and then the `other`,
+  *                   clearing all messages in-between. The `tabularise` method of the chained algorithm calls only
   *                   the `tabularise` method of `other`.
   */
 trait Generic extends GenericallyApplicable {
@@ -22,7 +22,7 @@ trait Generic extends GenericallyApplicable {
   /** Main algorithm
     *
     * Default implementation returns the graph unchanged.
-    * This should be overriden by subclasses to define the actual
+    * This should be overridden by subclasses to define the actual
     * algorithm steps unless the algorithm only outputs existing state or properties.
     *
     * @param graph graph to run function upon

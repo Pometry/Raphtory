@@ -97,7 +97,7 @@ object InterlayerEdgeBuilders {
   }
 
   /**
-    * Add an interlayer edge to the [[ExplodedVertex]] representing the last activity of the vertex unless it is
+    * Add an interlayer edge to the [[ExplodedVertex]] representing the prior activity of the vertex unless it is
     * a deletion event.
     *
     * $properties
@@ -106,7 +106,7 @@ object InterlayerEdgeBuilders {
     linkPrevious((_, _) => properties)
 
   /**
-    * Add an interlayer edge to the [[ExplodedVertex]] representing the last activity of the vertex unless it is
+    * Add an interlayer edge to the [[ExplodedVertex]] representing the prior activity of the vertex unless it is
     * a deletion event.
     *
     * $propertyBuilder
@@ -125,7 +125,7 @@ object InterlayerEdgeBuilders {
   }
 
   /**
-    * Add an interlayer edge to the [[ExplodedVertex]] representing the next and last activity of the vertex unless it is
+    * Add an interlayer edge to the [[ExplodedVertex]] representing the next and prior activity of the vertex unless it is
     * a deletion event.
     *
     * $properties
@@ -134,7 +134,7 @@ object InterlayerEdgeBuilders {
     linkPreviousAndNext((_, _) => properties)
 
   /**
-    * Add an interlayer edge to the [[ExplodedVertex]] representing the next and last activity of the vertex unless it is
+    * Add an interlayer edge to the [[ExplodedVertex]] representing the next and prior activity of the vertex unless it is
     * a deletion event.
     *
     * $propertyBuilder

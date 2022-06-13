@@ -1,6 +1,5 @@
 package com.raphtory.api.analysis.graphstate
 
-import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.utils.Bounded
 import com.raphtory.utils.Bounded._
 import com.raphtory.utils.ExtendedNumeric._
@@ -12,10 +11,10 @@ import com.raphtory.utils.ExtendedNumeric._
   *  Graph-level state takes the form of accumulators which expose the value computed during the last step/iteration
   *  and allow accumulation of new state based on a reduction function.
   *
-  * @see [[analysis.graphview.GraphPerspective GraphPerspective]], [[Accumulator]]
+  * @see [[com.raphtory.api.analysis.graphview.GraphPerspective GraphPerspective]], [[Accumulator]]
   *
   * @define retainState @param retainState If `true`, accumulation for the next step/iteration of an algorithm continues with the
-  *                                        previously computed value, otherwise, the value is reset to `initialValue`` before each step.
+  *                                        previously computed value, otherwise, the value is reset to `initialValue` before each step.
   *
   * @define name @param name Name for the accumulator
   *
