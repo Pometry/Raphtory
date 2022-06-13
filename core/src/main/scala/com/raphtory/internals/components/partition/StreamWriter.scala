@@ -21,21 +21,21 @@ private[raphtory] class StreamWriter(
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val neighbours     = topics.graphSync.endPoint
 
-  private val listener          =
-    topics.registerListener(
-            s"$deploymentID-writer-$partitionID",
-            handleMessage,
-            Seq(topics.graphUpdates, topics.graphSync),
-            partitionID
-    )
+//  private val listener          =
+//    topics.registerListener(
+//            s"$deploymentID-writer-$partitionID",
+//            handleMessage,
+//            Seq(topics.graphUpdates, topics.graphSync),
+//            partitionID
+//    )
   private var processedMessages = 0
 
-  override def run(): Unit =
-    listener.start()
+  override def run(): Unit = {}
+//    listener.start()
 
   override def stop(): Unit = {
     neighbours.values.foreach(_.close())
-    listener.close()
+//    listener.close()
   }
 
   override def handleMessage(msg: GraphAlteration): Unit = {
@@ -270,5 +270,28 @@ private[raphtory] class StreamWriter(
               s"Partition '$partitionID': Processed '$processedMessages' messages."
       )
   }
+
+}
+
+object StreamWriter {
+
+  def apply[IO[_]: Async: Spawn](
+      partitionId: Int,
+      storage: GraphPartition,
+      config: Config,
+      topics: TopicRepository
+  ): Resource[IO, StreamWriter] =
+    Component.makeAndStartPart(
+            partitionId,
+            topics,
+            s"writer-$partitionId",
+            List(topics.graphUpdates, topics.graphSync),
+            new StreamWriter(
+                    partitionID = partitionId,
+                    storage = storage,
+                    conf = config,
+                    topics = topics
+            )
+    )
 
 }

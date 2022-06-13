@@ -24,8 +24,11 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.math.Ordering.Implicits.infixOrderingOps
 
-private[raphtory] class PulsarConnector(client: PulsarClient, pulsarAdmin: PulsarAdmin, config: Config)
-        extends Connector {
+private[raphtory] class PulsarConnector(
+    client: PulsarClient,
+    pulsarAdmin: PulsarAdmin,
+    config: Config
+) extends Connector {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   case class PulsarEndPoint[T](producer: Producer[Array[Byte]]) extends EndPoint[T] {
@@ -247,7 +250,7 @@ object PulsarConnector {
     for {
       pulsarClient      <- Resource.fromAutoCloseable(IO.blocking(makePulsarClient(config)))
       pulsarAdminClient <- Resource.fromAutoCloseable(IO.blocking(makeAdminClient(config)))
-    } yield new PulsarConnector(pulsarClient, pulsarAdminClient)
+    } yield new PulsarConnector(pulsarClient, pulsarAdminClient, config)
 
   private def makePulsarClient(config: Config): PulsarClient = {
 

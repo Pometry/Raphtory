@@ -53,6 +53,14 @@ private[raphtory] class QueryHandler(
   private val tracker        = topics.queryTrack(jobID).endPoint
   private val workerList     = topics.jobOperations(jobID).endPoint
 
+  override def stop(): Unit = {
+    listener.close()
+    self.close()
+    readers.close()
+    tracker.close()
+    workerList.close()
+  }
+
   private val listener =
     topics.registerListener(
             s"$deploymentID-$jobID-query-handler",
@@ -89,14 +97,6 @@ private[raphtory] class QueryHandler(
     timeTaken = System.currentTimeMillis() //Set time from the point we ask the executors to set up
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
     listener.start()
-  }
-
-  override def stop(): Unit = {
-    listener.close()
-    self.close()
-    readers.close()
-    tracker.close()
-    workerList.close()
   }
 
   override def handleMessage(msg: QueryManagement): Unit =

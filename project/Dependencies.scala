@@ -20,6 +20,8 @@ object Dependencies {
   private lazy val timeSeriesVersion     = "1.7.0"
   private lazy val typesafeConfigVersion = "1.4.2"
   private lazy val zookeeperVersion      = "3.7.0"
+  private lazy val catsVersion           = "2.7.0"
+
 
   lazy val excludePulsarBinding = ExclusionRule(organization = "org.apache.pulsar")
   lazy val excludeSlf4j         = ExclusionRule(organization = "org.slf4j")
@@ -63,5 +65,6 @@ object Dependencies {
   lazy val twitterChill   = "com.twitter"         %% "chill"     % chillVersion
   lazy val typesafeConfig = "com.typesafe"         % "config"    % typesafeConfigVersion
   lazy val zookeeper      = "org.apache.zookeeper" % "zookeeper" % zookeeperVersion
+  lazy val alleyCats = "org.typelevel" %% "alleycats-core" % catsVersion
 
 }

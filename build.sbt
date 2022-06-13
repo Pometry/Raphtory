@@ -76,7 +76,6 @@ lazy val core = (project in file("core"))
           libraryDependencies ++= Seq(
                   //please keep in alphabetical order
                   akkaTyped,
-                  catsEffect,
                   curatorRecipes,
                   gson,
                   javaxScript,
@@ -100,6 +99,8 @@ lazy val core = (project in file("core"))
                   sprayJson,
                   timeSeries,
                   twitterChill,
+                  catsEffect,
+                  alleyCats,
                   typesafeConfig,
                   zookeeper
           ),

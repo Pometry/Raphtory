@@ -33,15 +33,13 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
   private var partitions: Partitions =
     componentFactory.partition(scheduler, batchLoading, Some(spout), Some(graphBuilder))
 
-  private var queryManager = componentFactory.query(scheduler)
+//  private var queryManager = componentFactory.query(scheduler)
 
-  private var spoutworker: Option[ThreadedWorker[T]] =
-    componentFactory.spout(spout, batchLoading, scheduler)
+//  private var spoutworker: Option[ThreadedWorker[T]] =
+//    componentFactory.spout(spout, batchLoading, scheduler)
 
-  private var graphBuilderworker: Option[List[ThreadedWorker[T]]] =
-    componentFactory.builder[T](graphBuilder, batchLoading, scheduler)
-
-  private var prometheusServer: Option[HTTPServer] = None
+//  private var graphBuilderworker: Option[List[ThreadedWorker[T]]] =
+//    componentFactory.builder[T](graphBuilder, batchLoading, scheduler)
 
   logger.info(s"Created Graph object with deployment ID '$deploymentID'.")
   logger.info(s"Created Graph Spout topic with name '$spoutTopic'.")
@@ -51,22 +49,22 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
     partitions.writers.foreach(_.stop())
     partitions.readers.foreach(_.stop())
     partitions = null
-    queryManager.worker.stop()
-    queryManager = null
+//    queryManager.worker.stop()
+//    queryManager = null
 
-    spoutworker match {
-      case Some(w) =>
-        w.worker.stop()
-        spoutworker = null
-      case None    =>
-    }
-    graphBuilderworker match {
-      case Some(worker) =>
-        worker.foreach(builder => builder.worker.stop())
-        graphBuilderworker = null
-
-      case None         =>
-    }
+//    spoutworker match {
+//      case Some(w) =>
+//        w.worker.stop()
+//        spoutworker = null
+//      case None    =>
+//    }
+//    graphBuilderworker match {
+//      case Some(worker) =>
+//        worker.foreach(builder => builder.worker.stop())
+//        graphBuilderworker = null
+//
+//      case None         =>
+//    }
     componentFactory.stop()
   }
 }

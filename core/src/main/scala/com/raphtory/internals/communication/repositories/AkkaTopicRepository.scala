@@ -13,13 +13,12 @@ private[raphtory] object AkkaTopicRepository {
 
   def apply[IO[_]: Sync](config: Config): Resource[IO, TopicRepository] =
     makeConnector
-      .map(akkaConnector => new TopicRepository(akkaConnector, config))
+      .map(akkaConnector => new TopicRepository(akkaConnector, config, Array()))
 
-  def makeConnector[IO[_] : Sync]: Resource[IO, AkkaConnector] = {
+  def makeConnector[IO[_]: Sync]: Resource[IO, AkkaConnector] =
     Resource
       .make(Sync[IO].delay(ActorSystem(SpawnProtocol(), "spawner")))(system =>
         Sync[IO].delay(system.terminate())
       )
       .map(new AkkaConnector(_))
-  }
 }
