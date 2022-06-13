@@ -7,7 +7,11 @@ Two classes help with this:
 - `Spouts` connect to the outside world, reading the data files and outputting individual tuples.
 - `Graph builders`, as the name suggests, convert these tuples into updates, building the graph.
 
-Once these classes are defined, they can be passed to the `stream()` or `load()` methods on the {scaladoc}`com.raphtory.deployment.Raphtory` object, which will use both components to build the {scaladoc}`com.raphtory.algorithms.TemporalGraph`. The difference here is that `stream()` will launch the full pipeline on top of [Apache Pulsar](https://pulsar.apache.org) (which you will see later in the tutorial) and assume new data can continuously arrive. `load()` on the other hand will compress the Spout and Graph Builder functions together, running as fast as possible, but only on a static dataset which does not change. For these initial examples we will only run `load()` as the data is static and we can set it going out of the box!
+Once these classes are defined, they can be passed to the `stream()` or `load()` methods on 
+the {scaladoc}`com.raphtory.Raphtory` object, which will use both components to build the 
+{scaladoc}`com.raphtory.api.analysis.graphview.TemporalGraph`. The difference here is that `stream()` will 
+launch the full pipeline on top of [Apache Pulsar](https://pulsar.apache.org) (which you will see later in the tutorial) 
+and assume new data can continuously arrive. `load()` on the other hand will compress the Spout and Graph Builder functions together, running as fast as possible, but only on a static dataset which does not change. For these initial examples we will only run `load()` as the data is static and we can set it going out of the box!
 
 If you have the LOTR example already set up from the installation guide previously ([raphtory-example-lotr](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-lotr)) then please continue. If not, YOU SHALL NOT PASS! Please return there and complete this step first.  
 
@@ -29,7 +33,11 @@ Gollum,Bilbo,308
 Also, in the examples folder you will find `LOTRGraphBuilder.scala`, `DegreesSeparation.scala` and `FileOutputRunner.scala` which we will go through in detail. 
 
 ## Local Deployment
-First lets open `FileOutputRunner.scala`, which is our `main` class i.e. the file which we actually run. To do this we have made our class a scala app via `extends App`. This is a short hand for creating your runnable main class (if you come from a Java background) or can be viewed as a script if you are more comfortable with Python. Inside of this we can create spout and graphbuilder objects and combine them into a {scaladoc}`com.raphtory.algorithms.TemporalGraph` (via `load()`), which can be used to make queries:
+First lets open `FileOutputRunner.scala`, which is our `main` class i.e. the file which we actually run. 
+To do this we have made our class a scala app via `extends App`. 
+This is a short hand for creating your runnable main class (if you come from a Java background) or can be viewed as a script if you are more comfortable with Python. 
+Inside of this we can create spout and graphbuilder objects and combine them into a 
+{scaladoc}`com.raphtory.api.analysis.graphview.TemporalGraph` (via `load()`), which can be used to make queries:
 
 ````scala
 object FileOutputRunner extends App {
@@ -90,7 +98,10 @@ First, we take the String output from the Spout. We then break up the line into 
 
 There are a few things worth pointing out here:
 
-* We added a `name` property to each of the nodes. If we had reason to, we could have added any other property that might be appropriate. We set this as an `ImmutableProperty` in this case, as character names are treated as fixed, but this could be a mutable property if it were required to change later. The different types of properties that can be added into a Raphtory graph can be found here: {scaladoc}`com.raphtory.components.graphbuilder.Properties`.
+* We added a `name` property to each of the nodes. If we had reason to, we could have added any other property that might be appropriate. 
+  We set this as an `ImmutableProperty` in this case, as character names are treated as fixed, but this could be a mutable
+  property if it were required to change later. The different types of properties that can be added into a Raphtory
+  graph can be found here: {scaladoc}`com.raphtory.api.input.Property`.
 
 * We didn't check whether either vertices exist before sending an `addVertex` update. Another class deals with this so we don't have to worry about that.
 
