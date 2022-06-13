@@ -1,6 +1,5 @@
 package com.raphtory.api.analysis.graphview
 
-import com.raphtory.api.analysis.visitor.ExplodedVertex
 import com.raphtory.api.time.DiscreteInterval
 import com.raphtory.api.time.Interval
 import com.raphtory.api.time.NullInterval
@@ -60,24 +59,24 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   def slice(startTime: String, endTime: String): G =
     slice(parseDateTime(startTime), parseDateTime(endTime))
 
-  /** Create a `DottedGraph` with a temporal mark at `time`.
-    * @param time the temporal mark to be added to the timeline
+  /** Create a `DottedGraph` with a temporal epoch at `time`.
+    * @param time the temporal epoch to be added to the timeline
     */
   def at(time: Long): DottedGraph[FixedG] =
     new DottedGraph(newFixedGraph(query.copy(points = SinglePoint(time)), querySender))
 
-  /** Create a `DottedGraph` with a temporal mark at `time`.
-    * @param time the temporal mark to be added to the timeline
+  /** Create a `DottedGraph` with a temporal epoch at `time`.
+    * @param time the temporal epoch to be added to the timeline
     */
   def at(time: String): DottedGraph[FixedG] = at(parseDateTime(time))
 
-  /** Create a `DottedGraph` with a sequence of temporal marks with a separation of `increment` covering all the
+  /** Create a `DottedGraph` with a sequence of temporal epochs with a separation of `increment` covering all the
     * timeline aligned with 0.
     * @param increment the step size
     */
   def walk(increment: Long): DottedGraph[FixedG] = setPointPath(DiscreteInterval(increment))
 
-  /** Create a `DottedGraph` with a sequence of temporal marks with a separation of `increment`
+  /** Create a `DottedGraph` with a sequence of temporal epochs with a separation of `increment`
     * covering all the timeline aligned with `offset`.
     * @param increment the step size
     * @param offset the offset to align with
@@ -85,61 +84,61 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   def walk(increment: Long, offset: Long): DottedGraph[FixedG] =
     setPointPath(DiscreteInterval(increment), offset = DiscreteInterval(offset))
 
-  /** Create a `DottedGraph` with a sequence of temporal marks with a separation of `increment` covering all the
+  /** Create a `DottedGraph` with a sequence of temporal epochs with a separation of `increment` covering all the
     * timeline aligned with 0.
     * @param increment the step size
     */
   def walk(increment: String): DottedGraph[FixedG] = setPointPath(parseInterval(increment))
 
-  /** Create a `DottedGraph` with a sequence of temporal marks with a separation of `increment` covering all the timeline aligned with `offset`.
-    * These temporal marks get generated as the timeline keeps growing.
+  /** Create a `DottedGraph` with a sequence of temporal epochs with a separation of `increment` covering all the timeline aligned with `offset`.
+    * These epochs get generated until the end of the current timeline.
     * @param increment the interval to use as the step size
     * @param offset the interval to expressing the offset from the epoch to align with
     */
   def walk(increment: String, offset: String): DottedGraph[FixedG] =
     setPointPath(parseInterval(increment), offset = parseInterval(offset))
 
-  /** Create a DottedGraph with a sequence of temporal marks with a separation of `increment` starting at `start`.
-    * These temporal marks get generated as the timeline keeps growing.
-    * @param start the point to create the first temporal mark
+  /** Create a DottedGraph with a sequence of temporal epochs with a separation of `increment` starting at `start`.
+    * These epochs get generated until the end of the available timeline.
+    * @param start the point to create the first epoch
     * @param increment the step size
     */
   def depart(start: Long, increment: Long): DottedGraph[FixedG] =
     setPointPath(DiscreteInterval(increment), start = Some(start))
 
-  /** Create a DottedGraph with a sequence of temporal marks with a separation of `increment` starting at `start`.
-    * These temporal marks get generated as the timeline keeps growing.
-    * @param start the timestamp to create the first temporal mark
+  /** Create a DottedGraph with a sequence of temporal epochs with a separation of `increment` starting at `start`.
+    * These epochs get generated until the end of the available timeline.
+    * @param start the timestamp to create the first epoch
     * @param increment the interval expressing the step size
     */
   def depart(start: String, increment: String): DottedGraph[FixedG] =
     setPointPath(parseInterval(increment), start = Some(parseDateTime(start)))
 
-  /** Create a DottedGraph with a sequence of temporal marks with a separation of `increment` from the start of the timeline ending at `end`.
-    * @param end the point to create the last temporal mark
+  /** Create a DottedGraph with a sequence of temporal epochs with a separation of `increment` from the start of the timeline ending at `end`.
+    * @param end the point to create the last epoch
     * @param increment the step size
     */
   def climb(end: Long, increment: Long): DottedGraph[FixedG] =
     setPointPath(DiscreteInterval(increment), end = Some(end))
 
-  /** Create a DottedGraph with a sequence of temporal marks with a separation of `increment` starting at `start`.
-    * @param start the timestamp to create the first temporal mark
-    * @param increment the interval expressing the step size
+  /** Create a DottedGraph with a sequence of temporal epochs with a separation of `increment` from the start of the timeline ending at `end`.
+    * @param end the point to create the last epoch
+    * @param increment the step size
     */
   def climb(end: String, increment: String): DottedGraph[FixedG] =
     setPointPath(parseInterval(increment), end = Some(parseDateTime(end)))
 
-  /** Create a DottedGraph with a sequence of temporal marks with a separation of `increment` starting at `start` and ending at `end` (with a smaller step at the end if necessary).
-    * @param start the point to create the first temporal mark
-    * @param end the point to create the last temporal mark
+  /** Create a DottedGraph with a sequence of temporal epochs with a separation of `increment` starting at `start` and ending at `end` (with a smaller step at the end if necessary).
+    * @param start the point to create the first epoch
+    * @param end the point to create the last epoch
     * @param increment the step size
     */
   def range(start: Long, end: Long, increment: Long): DottedGraph[FixedG] =
     setPointPath(DiscreteInterval(increment), start = Some(start), end = Some(end))
 
-  /** Create a DottedGraph with a sequence of temporal marks with a separation of `increment` starting at `start` and ending at `end` (with a smaller step at the end if necessary).
-    * @param start the timestamp to create the first temporal mark
-    * @param end the timestamp to create the first temporal mark
+  /** Create a DottedGraph with a sequence of temporal epochs with a separation of `increment` starting at `start` and ending at `end` (with a smaller step at the end if necessary).
+    * @param start the timestamp to create the first epoch
+    * @param end the timestamp to create the first epoch
     * @param increment the interval expressing the step size
     */
   def range(start: String, end: String, increment: String): DottedGraph[FixedG] =
@@ -180,15 +179,14 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
 /** A graph with an underlying timeline with a start time and, optionally, an end time.
   *
   * It offers methods to modify this timeline.
-  * There are also methods to create a one or a sequence of temporal marks over the timeline,
-  * therefore producing a so-called DottedGraph,
-  * that can be further used to create a set of perspectives over the timeline of the graph to work with.
+  * There are also methods to create one or a sequence of temporal epochs over the timeline,
+  * producing a DottedGraph. This can be further used to create a set of perspectives over the timeline of the graph to work with.
   * This class supports all the graph operations defined in `GraphOperations`.
-  * If any graph operation is invoked from this instance, it is applied only over the elements of the graph within
+  * If any graph operation is invoked from this instance, it is applied over only the elements of the graph within
   * the timeline.
   *
   * @note All the timestamps must follow the format set in the configuration path `"raphtory.query.timeFormat"`.
-  *  By default is `"yyyy-MM-dd[ HH:mm:ss[.SSS]]"`
+  *  By default it is `"yyyy-MM-dd[ HH:mm:ss[.SSS]]"`
   *  All the strings expressing intervals need to be in the format `"<number> <unit> [<number> <unit> [...]]"`,
   *  where numbers must be integers and units must be one of
   *  {'year', 'month', 'week', 'day', 'hour', 'min'/'minute', 'sec'/'second', 'milli'/'millisecond'}
@@ -212,7 +210,7 @@ class TemporalGraph private[api] (
 /** The multilayer view corresponding to [[TemporalGraph]]
   *
   * This exposes the same timeline operations as [[TemporalGraph]] but extends
-  * [[MultilayerGraphView]] which means that all algorithm operations act on [[visitor.ExplodedVertex]]s.
+  * [[MultilayerGraphView]] which means that all algorithm operations act on [[com.raphtory.api.analysis.visitor.ExplodedVertex ExplodedVertices]].
   *
   * @see [[TemporalGraph]], [[MultilayerGraphView]], [[DottedGraph]]
   */

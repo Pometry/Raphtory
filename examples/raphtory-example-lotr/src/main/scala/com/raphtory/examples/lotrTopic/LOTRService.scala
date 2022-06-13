@@ -14,7 +14,6 @@ object LOTRService extends RaphtoryService[String] {
 
   FileUtils.curlFile(path, url)
 
-
   override def defineSpout(): Spout[String] = FileSpout(path)
 
   override def defineBuilder: LOTRGraphBuilder = new LOTRGraphBuilder()

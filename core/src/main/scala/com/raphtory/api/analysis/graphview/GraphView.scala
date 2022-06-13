@@ -10,7 +10,7 @@ import com.raphtory.api.analysis.table.Table
 
 /** Core interface for the analysis API.
   *
-  * A `GraphView`` is an immutable collection of perspectives over a graph generated for Raphtory that supports
+  * A `GraphView` is an immutable collection of perspectives over a graph generated for Raphtory that supports
   * all graph operations defined in the [[GraphPerspective]].
   * It implements the operations exposed by [[GraphPerspective]] returning a new `GraphView` or [[MultilayerGraphView]] for
   * those operations that have a graph or multilayer graph as a result.
@@ -18,39 +18,38 @@ import com.raphtory.api.analysis.table.Table
   * collection. Different perspectives in the collection do not share algorithmic state.
   *
   * @see [[GraphPerspective]], [[TemporalGraph]], [[RaphtoryGraph]], [[TemporalGraphConnection]], [[DeployedTemporalGraph]]
-  *
-  * @define transformBody @param algorithm Algorithm to apply to the graph
-  *                       @return Transformed graph
-  *                       @note `transform` keeps track of the name of the applied algorithm and
-  *                       clears the message queues at the end of the algorithm
-  *
-  * @define executeBody @param algorithm Algorithm to run
-  *                     @return Table with algorithm results
-  *                     @note `execute` keeps track of the name of the applied algorithm
   */
 trait GraphView extends GraphPerspective {
 
   /** Apply a [[com.raphtory.api.analysis.algorithm.Generic Generic]] algorithm to the graph
     *
-    * $transformBody
+    * @param algorithm Algorithm to apply to the graph
+    * @return Transformed graph
+    * @note `transform` keeps track of the name of the applied algorithm and clears the message queues at the end of the algorithm
     */
   def transform(algorithm: Generic): Graph
 
   /** Apply a [[com.raphtory.api.analysis.algorithm.MultilayerProjection MultilayerProjection]] algorithm to the graph
     *
-    * $transformBody
+    * @param algorithm Algorithm to apply to the graph
+    * @return Transformed graph
+    * @note `transform` keeps track of the name of the applied algorithm and clears the message queues at the end of the algorithm
     */
   def transform(algorithm: MultilayerProjection): MultilayerGraph
 
   /** Apply a [[com.raphtory.api.analysis.algorithm.GenericReduction GenericReduction]] algorithm to the graph
     *
-    * $transformBody
+    * @param algorithm Algorithm to apply to the graph
+    * @return Transformed graph
+    * @note `transform` keeps track of the name of the applied algorithm and clears the message queues at the end of the algorithm
     */
   def transform(algorithm: GenericReduction): ReducedGraph
 
   /** Run a [[com.raphtory.api.analysis.algorithm.GenericallyApplicable GenericallyApplicable]] algorithm on the graph and return results
     *
-    * $executeBody
+    *  @param algorithm Algorithm to run
+    *  @return Table with algorithm results
+    *  @note `execute` keeps track of the name of the applied algorithm
     */
   def execute(algorithm: GenericallyApplicable): Table
 }
@@ -63,25 +62,33 @@ trait MultilayerGraphView extends MultilayerGraphPerspective with GraphView {
 
   /** Apply a `Multilayer` algorithm to the graph
     *
-    * $transformBody
+    * @param algorithm Algorithm to apply to the graph
+    * @return Transformed graph
+    * @note `transform` keeps track of the name of the applied algorithm and clears the message queues at the end of the algorithm
     */
   def transform(algorithm: Multilayer): Graph
 
   /** Apply a `MultilayerReduction` algorithm to the graph
     *
-    * $transformBody
+    * @param algorithm Algorithm to apply to the graph
+    * @return Transformed graph
+    * @note `transform` keeps track of the name of the applied algorithm and clears the message queues at the end of the algorithm
     */
   def transform(algorithm: MultilayerReduction): ReducedGraph
 
   /** Run a `Multilayer` algorithm on the graph and return results
     *
-    * $executeBody
+    *  @param algorithm Algorithm to run
+    *  @return Table with algorithm results
+    *  @note `execute` keeps track of the name of the applied algorithm
     */
   def execute(algorithm: Multilayer): Table
 
   /** Run a `MultilayerReduction` algorithm on the graph and return results
     *
-    * $executeBody
+    *  @param algorithm Algorithm to run
+    *  @return Table with algorithm results
+    *  @note `execute` keeps track of the name of the applied algorithm
     */
   def execute(algorithm: MultilayerReduction): Table
 }

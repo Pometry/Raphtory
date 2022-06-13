@@ -44,7 +44,8 @@ raphtory_root = str(Path(__file__).resolve().parents[2])
 raphtory_src_root = str(Path(__file__).resolve().parents[2] / "core" / "src" / "main" / "scala")
 autodoc_packages = [
     "com.raphtory.algorithms.generic",
-    "com.raphtory.algorithms.temporal"
+    "com.raphtory.algorithms.temporal",
+    "com.raphtory.algorithms.filters"
 ]
 
 # Add any paths that contain templates here, relative to this directory.

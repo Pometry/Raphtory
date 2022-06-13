@@ -1,11 +1,11 @@
-package com.raphtory.algorithms.generic.filters
+package com.raphtory.algorithms.filters
 
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.visitor.Vertex
 
 /**
-  * {s} `VertexFilter(f: Vertex => Boolean)`
+  * {s}`VertexFilter(f: Vertex => Boolean)`
   *   : Filtered view of the graph achieved by retaining vertices according to a predicate function {s}`f`
   *
   *   This transforms the graph by keeping only vertices for which {s}`f` returns true. This fits well within a chain of
@@ -13,9 +13,9 @@ import com.raphtory.api.analysis.visitor.Vertex
   *   before running a chosen algorithm.
   *
   * ```{seealso}
-  * [](com.raphtory.algorithms.generic.filters.VertexFilterGraphState)
-  * [](com.raphtory.algorithms.generic.filters.VertexQuantileFilter)
-  * [](com.raphtory.algorithms.generic.filters.EdgeFilter)
+  * [](com.raphtory.algorithms.filters.VertexFilterGraphState)
+  * [](com.raphtory.algorithms.filters.VertexQuantileFilter)
+  * [](com.raphtory.algorithms.filters.EdgeFilter)
   * ```
   */
 class VertexFilter(f: Vertex => Boolean) extends NodeList() {

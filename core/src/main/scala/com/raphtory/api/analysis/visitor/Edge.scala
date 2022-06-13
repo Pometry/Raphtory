@@ -48,8 +48,7 @@ trait Edge extends EntityVisitor {
     *
     * @param weightProperty  edge property to use for computing edge weight
     * @param mergeStrategy merge strategy to use for converting property history to edge weight
-    *                      (see [`PropertyMergeStrategy`](com.raphtory.graph.visitor.PropertyMergeStrategy)
-    *                      for predefined options or provide custom function). By default this returns the
+    *                      (see [[PropertyMergeStrategy]] for predefined options or provide custom function). By default this returns the
     *                      sum of property values.
     * @param default default value for the weight property before applying the merge strategy.
     *                This defaults to `1` if `A` is a numeric type. This default value is applied before applying the
@@ -74,7 +73,7 @@ trait Edge extends EntityVisitor {
     *
     *  @param weightProperty  edge property to use for computing edge weight
     *  @param mergeStrategy merge strategy to use for converting property history to edge weight
-    *                       (see [`PropertyMergeStrategy`](com.raphtory.graph.visitor.PropertyMergeStrategy)
+    *                       (see [[PropertyMergeStrategy]]
     *                       for predefined options or provide custom function). By default this returns the
     *                       sum of property values.
     */
@@ -87,7 +86,7 @@ trait Edge extends EntityVisitor {
     * @tparam B return type of the merge strategy (only specify if using a custom merge strategy)
     *
     *  @param mergeStrategy merge strategy to use for converting property history to edge weight
-    *                       (see [`PropertyMergeStrategy`](com.raphtory.graph.visitor.PropertyMergeStrategy)
+    *                       (see [[PropertyMergeStrategy]]
     *                       for predefined options or provide custom function). By default this returns the
     *                       sum of property values.
     */
@@ -96,33 +95,27 @@ trait Edge extends EntityVisitor {
 
   /** Compute the weight of the edge by sum
     *
-    * @tparam A value type for the edge weight property (if `mergeStrategy` is not given, this needs to be a numeric type)
+    * @tparam A value type for the edge weight property - this needs to be a numeric type
     *
     *  @param weightProperty  edge property to use for computing edge weight
     *  @param default default value for the weight property before applying the merge strategy.
-    *                 This defaults to `1` if `A` is a numeric type. This default value is applied before applying the
-    *                 merge strategy. In the case where, e.g., `mergeStrategy =  PropertyMergeStrategy.sum[A]`, the
-    *                 computed weight is the number of times the edge was active in the current view if the weight
-    *                 property is not found.
+    *                 This defaults to `1`.
     */
   def weight[A: Numeric](weightProperty: String, default: A): A =
     weight(weightProperty, PropertyMergeStrategy.sum[A], default)
 
   /** Compute the weight of the edge by sum
     *
-    * @tparam A value type for the edge weight property (this needs to be a numeric type)
-    *  @param default default value for the weight property before applying the merge strategy.
-    *                 This defaults to `1` if `A` is a numeric type. This default value is applied before applying the
-    *                 merge strategy. In the case where, e.g., `mergeStrategy =  PropertyMergeStrategy.sum[A]`, the
-    *                 computed weight is the number of times the edge was active in the current view if the weight
-    *                 property is not found.
+    * @tparam A value type for the edge weight property - this needs to be a numeric type
+    *
+    *  @param default default value for the weight property before applying the merge strategy. This defaults to `1`.
     */
   def weight[A: Numeric](default: A): A =
     weight("weight", default)
 
   /** Compute the weight of the edge by sum
     *
-    * @tparam A value type for the edge weight property (if `mergeStrategy` is not given, this needs to be a numeric type)
+    * @tparam A value type for the edge weight property - this needs to be a numeric type
     * @param weightProperty  edge property to use for computing edge weight
     */
   def weight[A: Numeric](weightProperty: String): A =
@@ -130,13 +123,12 @@ trait Edge extends EntityVisitor {
 
   /** Compute the weight of the edge by sum
     *
-    * @tparam A value type for the edge weight property (if `mergeStrategy` is not given, this needs to be a numeric type)
+    * @tparam A value type for the edge weight property - this needs to be a numeric type
     */
   def weight[A: Numeric](): A =
     weight("weight", 1: A)
 
-  //send a message to the vertex on the other end of the edge
-  /** Send a message to the destination vertex of the edge
+  /** Send a message to the vertex connected on the other side of the edge
     * @param data Message data to send
     */
   def send(data: Any): Unit

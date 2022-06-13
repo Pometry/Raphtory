@@ -53,7 +53,6 @@ trait Vertex extends EntityVisitor {
 
   /** Vote to stop iterating (iteration stops if all vertices voted to halt) */
   def voteToHalt(): Unit
-  //Send message
 
   /** Send data to this vertex at the next Step/Iteration
     * @param data message data to send
@@ -67,19 +66,19 @@ trait Vertex extends EntityVisitor {
   def messageVertex(vertexId: IDType, data: Any): Unit
 
   /** Send the same message data to all out-neighbours of this vertex
-    * @param message message data to send
+    * @param message message data to sent
     */
   def messageOutNeighbours(message: Any): Unit =
     getOutNeighbours().foreach(messageVertex(_, message))
 
   /** Send the same message data to all in- and out-neighbours of this vertex
-    * @param message message data to send
+    * @param message message data to sent
     */
   def messageAllNeighbours(message: Any): Unit =
     getAllNeighbours().foreach(messageVertex(_, message))
 
   /** Send the same message data to all in-neighbours of this vertex
-    * @param message message data to send
+    * @param message message data to sent
     */
   def messageInNeighbours(message: Any): Unit = getInNeighbours().foreach(messageVertex(_, message))
 
@@ -104,7 +103,6 @@ trait Vertex extends EntityVisitor {
   def getAllNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IDType] =
     (getInNeighbours(after, before) ++ getOutNeighbours(after, before)).distinct
 
-  //Check Neighbours
   private lazy val inNeighbourSet  = getInNeighbours().toSet
   private lazy val outNeighbourSet = getOutNeighbours().toSet
 
@@ -257,14 +255,12 @@ trait Vertex extends EntityVisitor {
   ): Option[List[ExplodedEdge]] =
     getEdge(id, after, before).map(_.explode())
 
-  // analytical state
   /** Set algorithmic state for this vertex
     * @param key key to use for setting value
     * @param value new value for state
     */
   def setState(key: String, value: Any): Unit
 
-  // if includeProperties = true, key is looked up first in analytical state with a fall-through to properties if not found
   /** Retrieve value from algorithmic state
     * @tparam `T` value type for state
     * @param key key to use for retrieving state
@@ -288,7 +284,14 @@ trait Vertex extends EntityVisitor {
     *         or vertex properties
     */
   def containsState(key: String, includeProperties: Boolean = false): Boolean
-  // if includeProperties = true and value is pulled in from properties, the new value is set as state
+
+  /** Retrieve value from algorithmic state if it exists or set this state to a default value and return otherwise
+    * @tparam `T` value type for state
+    * @param key key to use for retrieving state
+    * @param value default value to set and return if state does not exist
+    * @param includeProperties set this to `true` to fall-through to vertex properties
+    *                          if `key` is not found in algorithmic state. State is only set if this is also not found.
+    */
   def getOrSetState[T](key: String, value: T, includeProperties: Boolean = false): T
 
   /** Append new value to existing array or initialise new array if state does not exist

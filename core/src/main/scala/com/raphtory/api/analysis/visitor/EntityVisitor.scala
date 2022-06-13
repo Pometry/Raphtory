@@ -17,31 +17,39 @@ abstract class EntityVisitor {
   /** Return the type of the entity */
   def Type(): String
 
-  /** Return next event (addition or deletion) after timestamp `time` as an
+  /** Return the next event (addition or deletion) after the given timestamp `time` as an
     * [[com.raphtory.api.analysis.visitor.HistoricEvent HistoricEvent]]. This is wrapped in an option as
     * it is possible that no activity occurred after the given time. An optional `strict` Boolean argument is also
     * available which allows events exactly at the given time to be returned if set to `false`.
+    *
+    * @param time The time after which to return the next occurring event
+    * @param strict Whether events occurring exactly at the given time should be excluded or not
+    * @return an optional historic event containing the event if one exists
     */
   def firstActivityAfter(time: Long, strict: Boolean = true): Option[HistoricEvent]
 
-  /** Return the last event (addition or deletion) before timestamp `time` as an
+  /** Return the last event (addition or deletion) before the given timestamp `time` as an
     * [[com.raphtory.api.analysis.visitor.HistoricEvent HistoricEvent]].  The result is wrapped in an option as it is
     * possible that no activity occurred before the given time. An optional `strict` Boolean argument is also
     * available which allows events exactly at the given time to be returned if set to `false`.
+    *
+    * @param time The time before which to return the latest occurring event
+    * @param strict Whether events occurring exactly at the given time should be excluded or not
+    * @return an optional historic event containing the event if one exists
     */
   def lastActivityBefore(time: Long, strict: Boolean = true): Option[HistoricEvent]
 
-  /** Return the most recent event (addition or deletion) in the current view as an
+  /** Return the most recent event (addition or deletion) in the current view as a
     * [[com.raphtory.api.analysis.visitor.HistoricEvent HistoricEvent]]
     */
   def latestActivity(): HistoricEvent
 
-  /** Return the first event (addition or deltion) in the current view as an
+  /** Return the first event (addition or deltion) in the current view as a
     * [[com.raphtory.api.analysis.visitor.HistoricEvent HistoricEvent]]
     */
   def earliestActivity(): HistoricEvent
 
-  /** Return list of keys for available properties for the entity */
+  /** Return a list of keys for available properties for the entity */
   def getPropertySet(): List[String]
 
   /** Apply a merge strategy to compute the value for property `key` based on its history in the current view.
@@ -76,7 +84,7 @@ abstract class EntityVisitor {
       case None          => None
     }
 
-  /** Get most recent value for property `key` in the current view.
+  /** Get the most recent value for property `key` in the current view.
     * Returns `None` if the property does not exist or its history in the current view is empty.
     *
     * @tparam A Value type of the property
@@ -86,18 +94,18 @@ abstract class EntityVisitor {
   def getProperty[A](key: String): Option[A] =
     getProperty(key, PropertyMergeStrategy.latest[A])
 
-  /** Apply a merge strategy to compute the property value if the property exists and its history in the current view
-    * is not empty or a default value otherwise
+  /** Apply a merge strategy to compute an aggregate property value given: The property exists and its history in the current view
+    * is not empty. If either is false a default value is instead used.
     *
     * @tparam A Value type of property
     *
-    * @tparam B Return type of merge strategy
+    * @tparam B Return type of the merge strategy
     *
     * @param key Property name
     *
     * @param otherwise Default value to use if property value does not exist
     *
-    * @param mergeStrategy Function to apply to the property history to compute the property value
+    * @param mergeStrategy Function to apply to the property history to compute the returned property value.
     */
   def getPropertyOrElse[A, B](key: String, otherwise: B, mergeStrategy: PropertyMerge[A, B]): B =
     getProperty[A, B](key, mergeStrategy) match {
@@ -116,17 +124,17 @@ abstract class EntityVisitor {
   def getPropertyOrElse[A](key: String, otherwise: A): A =
     getPropertyOrElse(key, otherwise, PropertyMergeStrategy.latest[A])
 
-  /** Get the most recent value of property `key` before time `time`
+  /** Get the most recent value of a property `key` before time `time`
     *
     * @tparam T Value type of property
     *
     * @param key Property name
     *
-    * @param time Time stamp for property lookup
+    * @param time Timestamp for property lookup
     */
   def getPropertyAt[T](key: String, time: Long): Option[T]
 
-  /** Return values for property `key`. Returns `None` if no property with name `key` exists.
+  /** Return values for a property `key`. Returns `None` if no property with name `key` exists.
     * Otherwise returns a list of values (which may be empty).
     *
     * @param key Name of property
@@ -151,7 +159,7 @@ abstract class EntityVisitor {
       case None          => None
     }
 
-  /** Return history of values for property `key`. Returns `None` if no property with name `key` exists.
+  /** Returns a history of values for the property `key`. Returns `None` if no property with name `key` exists.
     * Otherwise returns a list of `(timestamp, value)` tuples (which may be empty).
     *
     * The exact behaviour depends on the type of the property:
@@ -180,7 +188,7 @@ abstract class EntityVisitor {
       before: Long = Long.MaxValue
   ): Option[List[(Long, T)]]
 
-  /** Return values for property `key`. Returns `None` if no property with name `key` exists.
+  /** Return values for the property `key`. Returns `None` if no property with name `key` exists.
     * Otherwise returns a TimeSeries (from this library: https://github.com/Sqooba/scala-timeseries-lib)
     * which may be empty.
     * This function utilises the getPropertyHistory function and maps over the list of tuples,
@@ -214,12 +222,16 @@ abstract class EntityVisitor {
     }
 
   //functionality to access the history of the edge or vertex + helpers
-  /** Return list of all events (additions or deletions) in the current view. Each event is
+
+  /** Return a list of all events (additions or deletions) in the current view. Each event is
     * returned as an [[com.raphtory.api.analysis.visitor.HistoricEvent HistoricEvent]] which
     * encodes whether the event is an addition or deletion and the time of the event.
     */
   def history(): List[HistoricEvent]
 
+  /** Returns a TimeSeries (from this library: https://github.com/Sqooba/scala-timeseries-lib) of the entities [[com.raphtory.api.analysis.visitor.HistoricEvent HistoricEvents]]
+    * within the current view by mapping over the `history` function.
+    */
   def timeSeriesHistory(): TimeSeries[Boolean] = {
     val tsSeq: List[TSEntry[Boolean]] = history().map(history =>
       TSEntry(history.time, history.event, 1) //1 as the history is already in order
@@ -228,16 +240,16 @@ abstract class EntityVisitor {
   }
 
   /** Return `true` if any event (addition or deletion) occurred during the time window starting at
-    * `after` and ending at `before` and `false` otherwise.
+    * `after` and ending at `before`. Otherwise returns `false`.
     *
-    * @param after inclusive lower bound for the timewindow (defaults to oldest data point)
-    * @param before inclusive upper bound for the timewindow (defaults to newest data point)
+    * @param after inclusive lower bound for the time window (defaults to oldest data point)
+    * @param before inclusive upper bound for the time window (defaults to newest data point)
     */
   def active(after: Long = Long.MinValue, before: Long = Long.MaxValue): Boolean
 
   /** Check if the entity is currently alive (i.e, the last event was an addition) at time `time`.
     *
-    * @param time timepoint for check
+    * @param time time point to check
     * @param window If a value for `window` is given, the entity is considered as having been deleted if more
     *               than `window` time has passed since the last addition event.
     */

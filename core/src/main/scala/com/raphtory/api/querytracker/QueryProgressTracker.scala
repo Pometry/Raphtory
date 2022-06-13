@@ -18,18 +18,17 @@ import scala.concurrent.duration.Duration
 private class DoneException extends Exception
 
 /** Tracks the progress of Raphtory queries in terms of number of perspectives processed and duration taken to process each perspective.
-  * Queries in Raphtory run as a series of `Perspectives` which are graph views at specific timestamps and windows as the query progresses.
-  * The progress tracker thus helps track query progress until the job is completed. Query types supported include `PointQuery`, `RangeQuery` and `LiveQuery`
+  * Queries in Raphtory run on a series of `Perspectives` which are how the graph would have looked at specific timestamps with given windows.
+  * The progress tracker thus helps track query progress until the job is completed
   *
-  * Usage:
-  *
+  * @example
   * {{{
   * import com.raphtory.Raphtory
-  * import com.raphtory.spoutsResourceSpout
+  * import com.raphtory.FileSpout
   * import com.raphtory.algorithms.generic.ConnectedComponents
   * import com.raphtory.sinks.FileSink
   *
-  * val graph = Raphtory.load(ResourceSpout("resource"), YourGraphBuilder())
+  * val graph = Raphtory.load(FileSpout("/path/to/your/data"), YourGraphBuilder())
   * val queryProgressTracker = graph.range(1, 32674, 10000)
   *   .window(List(500, 1000, 10000))
   *   .execute(ConnectedComponents)

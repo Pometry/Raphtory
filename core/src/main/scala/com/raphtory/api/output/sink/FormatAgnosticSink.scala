@@ -16,7 +16,7 @@ abstract class FormatAgnosticSink(format: Format) extends Sink {
     * @param jobID The ID of the job that generated the table
     * @param partitionID The ID of the partition of the table
     * @param config The configuration provided by the user
-    * @param itemDelimiter The `String` to be used as delimiter between items when necessary
+    * @param itemDelimiter The `String` to be used as a delimiter between items when necessary
     * @return The [[com.raphtory.api.output.sink.SinkConnector SinkConnector]] implementing the execution of this `FormatAgnosticSink`
     *
     * @see [[com.raphtory.api.output.sink.SinkConnector SinkConnector]]

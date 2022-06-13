@@ -90,7 +90,7 @@ class client:
         '''
         self.java_import("com.raphtory.Raphtory")
         self.java_import("scala.collection.JavaConverters")
-        self.java_import("com.raphtory.utils.PythonUtil")
+        self.java_import("com.raphtory.internals.python.PythonUtil")
 
     def java_import(self, import_class):
         '''

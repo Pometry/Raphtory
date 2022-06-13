@@ -9,7 +9,7 @@ trait ExplodedVertex extends Vertex with ExplodedEntityVisitor {
   override type Edge <: ConcreteExplodedEdge[IDType]
 
   /** returns the name of the underlying vertex joined with the timestamp using `_`
-    * @param nameProperty Vertex property to use for looking up name
+    * @param nameProperty Vertex property to use for looking up the name
     */
   override def name(nameProperty: String): String = s"${super.name(nameProperty)}_$timestamp"
 

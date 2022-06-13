@@ -7,7 +7,7 @@ import com.raphtory.api.output.sink.SinkExecutor
 import com.raphtory.api.time.Perspective
 import com.typesafe.config.Config
 
-/** A `Format` that writes a `Table` in comma-separated values (CSV) format
+/** A `Format` that writes a `Table` in comma-separated value (CSV) format
   *
   * This format outputs one CSV line per row.
   * The first two values are the timestamp used to create the perspective corresponding to that row

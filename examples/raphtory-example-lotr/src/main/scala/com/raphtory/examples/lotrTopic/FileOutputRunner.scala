@@ -1,6 +1,8 @@
 package com.raphtory.examples.lotrTopic
 
 import com.raphtory.Raphtory
+import com.raphtory.algorithms.filters.EdgeQuantileFilter
+import com.raphtory.algorithms.filters.VertexQuantileFilter
 import com.raphtory.examples.lotrTopic.analysis.DegreesSeparation
 import com.raphtory.examples.lotrTopic.graphbuilders.LOTRGraphBuilder
 import com.raphtory.spouts.FileSpout
@@ -8,8 +10,6 @@ import com.raphtory.sinks.FileSink
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.centrality.Degree
 import com.raphtory.algorithms.generic.centrality.WeightedDegree
-import com.raphtory.algorithms.generic.filters.EdgeQuantileFilter
-import com.raphtory.algorithms.generic.filters.VertexQuantileFilter
 import com.raphtory.utils.FileUtils
 
 import scala.language.postfixOps
@@ -43,5 +43,5 @@ object FileOutputRunner extends App {
     .writeTo(output)
 
   queryHandlerCC.waitForJob()
-  
+
 }

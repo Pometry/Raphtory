@@ -5,7 +5,7 @@ import com.raphtory.internals.management.QuerySender
 
 /** Reduced GraphView with fixed timeline
   *
-  * This [[GraphView]] is returned by the [[DottedGraph]] operations for non-mutlilayer views
+  * This [[GraphView]] is returned by the [[DottedGraph]] operations for non-multilayer views
   * and does not support further timeline manipulation.
   *
   * @see [[GraphView]], [[MultilayerRaphtoryGraph]], [[DottedGraph]]

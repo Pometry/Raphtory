@@ -11,7 +11,7 @@ import com.typesafe.config.Config
   *  function which allows the user to clean up the resources (scheduler/topic repo/connections etc.) used to connect to a deployment.
   *
   * @see
-  *  [[com.raphtory.Raphtory]]
+  *  [[com.raphtory.Raphtory Raphtory]]
   *  [[DeployedTemporalGraph]]
   *  [[TemporalGraph]]
   */

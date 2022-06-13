@@ -21,10 +21,10 @@ import org.apache.pulsar.client.api.Schema
   * {{{
   * import com.raphtory.algorithms.generic.EdgeList
   * import com.raphtory.sinks.PulsarSink
-  * import com.raphtory.components.spout.instance.ResourceSpout
+  * import com.raphtory.spouts.FileSpout
   *
   * val graphBuilder = new YourGraphBuilder()
-  * val graph = Raphtory.stream(ResourceSpout("resource"), graphBuilder)
+  * val graph = Raphtory.stream(FileSpout("/path/to/your/file"), graphBuilder)
   * val topic = "test"
   * val sink = PulsarSink(topic)
   *

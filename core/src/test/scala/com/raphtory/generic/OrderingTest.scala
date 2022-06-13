@@ -10,9 +10,9 @@ import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.generic.CheckHistory.isSortedIncreasing
+import com.raphtory.internals.storage.pojograph.OrderedBuffer
 import com.raphtory.spouts.SequenceSpout
-import com.raphtory.utils.OrderedBuffer
-import com.raphtory.utils.OrderedBuffer.HistoricEventOrdering
+import OrderedBuffer.HistoricEventOrdering
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.io.Source

@@ -58,13 +58,13 @@ trait GraphPerspective {
 
   /** Filter vertices of the graph
     *
-    * @param f filter function (only vertices for which `f` returns `true` are kept)
+    * @param f filter function (only vertices for which `f` returns `true` are kept). All associated edges of filtered vertices are also removed.
     */
   def vertexFilter(f: (Vertex) => Boolean): Graph
 
   /** Filter vertices of the graph with global graph state
     *
-    * @param f filter function with access to graph state (only vertices for which `f` returns `true` are kept)
+    * @param f filter function with access to graph state (only vertices for which `f` returns `true` are kept). All associated edges of filtered vertices are also removed.
     */
   def vertexFilter(f: (Vertex, GraphState) => Boolean): Graph
 
@@ -89,10 +89,10 @@ trait GraphPerspective {
   /** Switch to multilayer view
     *
     * After calling `multilayerView`, subsequent methods that manipulate vertices act on
-    * [[visitor.ExplodedVertex ExplodedVertex]] instead. If [[visitor.ExplodedVertex ExplodedVertex]]
+    * [[visitor.ExplodedVertex ExplodedVertices]] instead. If [[visitor.ExplodedVertex ExplodedVertex]]
     * instances were already created by a previous call to `multilayerView`, they are preserved. Otherwise, this
     * method creates an [[visitor.ExplodedVertex ExplodedVertex]] instance for each
-    * timepoint that a vertex is active.
+    * time point that a vertex is active.
     */
   def multilayerView: MultilayerGraph
 
@@ -173,8 +173,7 @@ trait GraphPerspective {
     */
   def step(f: (Vertex, GraphState) => Unit): Graph
 
-  /** Execute algorithm step with global graph state repeatedly for given number of iterations or
-    * until all vertices have voted to halt.
+  /** Execute algorithm step repeatedly for given number of iterations or until all vertices have voted to halt.
     *
     * @param f algorithm step (run once for each vertex per iteration)
     *
@@ -225,7 +224,7 @@ trait GraphPerspective {
 
 //  TODO: Implement GraphState version of explodeSelect
 
-  /** Clear messages from previous operations */
+  /** Clear messages from previous operations. This function is predominantly used internally and shouldn't be called by the user unless they know what they are doing. */
   def clearMessages(): Graph
 }
 
