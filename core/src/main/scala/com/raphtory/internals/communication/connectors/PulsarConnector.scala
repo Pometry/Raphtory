@@ -44,9 +44,7 @@ private[raphtory] class PulsarConnector(
     override def closeWithMessage(message: T): Unit =
       producer
         .flushAsync()
-        .thenApply(_ =>
-          producer.sendAsync(serialise(message)).thenApply(_ => producer.closeAsync())
-        )
+        .thenApply(_ => producer.sendAsync(serialise(message)).thenApply(_ => producer.closeAsync()))
   }
 
   private val kryo: KryoSerialiser = KryoSerialiser()

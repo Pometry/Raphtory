@@ -1,5 +1,8 @@
 package com.raphtory.internals.components.partition
 
+import cats.effect.Async
+import cats.effect.Resource
+import cats.effect.Spawn
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.querymanager.EndQuery
@@ -89,4 +92,22 @@ private[raphtory] class Reader(
 
   }
 
+}
+
+object Reader {
+
+  def apply[IO[_]: Async: Spawn](
+      partitionID: Int,
+      storage: GraphPartition,
+      scheduler: Scheduler,
+      conf: Config,
+      topics: TopicRepository
+  ): Resource[IO, Reader] =
+    Component.makeAndStartPart(
+            partitionID,
+            topics,
+            s"reader-$partitionID",
+            Seq(topics.queryPrep),
+            new Reader(partitionID, storage, scheduler, conf, topics)
+    )
 }

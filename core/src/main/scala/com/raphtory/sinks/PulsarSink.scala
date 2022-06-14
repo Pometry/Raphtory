@@ -36,8 +36,7 @@ import org.apache.pulsar.client.api.Schema
   *      [[com.raphtory.api.analysis.table.Table Table]]
   *      [[com.raphtory.Raphtory Raphtory]]
   */
-case class PulsarSink(topic: String, format: Format = CsvFormat())
-        extends FormatAgnosticSink(format) {
+case class PulsarSink(topic: String, format: Format = CsvFormat()) extends FormatAgnosticSink(format) {
 
   override def buildConnector(
       jobID: String,

@@ -1,17 +1,13 @@
 package com.raphtory
 
-import akka.actor.typed.SpawnProtocol.Spawn
-import cats.effect.Sync
-import cats.effect.kernel.Async
+import cats.effect.Async
+import cats.effect.Spawn
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
-import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraphConnection
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
 import com.raphtory.internals.communication.repositories.PulsarAkkaTopicRepository
-import com.raphtory.internals.communication.repositories.PulsarTopicRepository
 import com.raphtory.internals.components.graphbuilder.BuildExecutorGroup
-import com.raphtory.internals.components.graphbuilder.BuilderExecutor
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManager
 import com.raphtory.internals.components.spout.SpoutExecutor
@@ -233,8 +229,7 @@ object Raphtory {
       topicRepo        <- PulsarAkkaTopicRepository(config)
       qm               <- QueryManager(config, topicRepo)
       spoutExec        <- SpoutExecutor(spout, config, topicRepo)
-      builderIDManager <-
-        makeIdManager(config, localDeployment = true, s"/$deploymentID/builderCount")
+      builderIDManager <- makeIdManager(config, localDeployment = true, s"/$deploymentID/builderCount")
       _                <- BuildExecutorGroup(config, builderIDManager, topicRepo, graphBuilder)
 
     } yield new DeployedTemporalGraph(Query(), querySender, deployment, config)

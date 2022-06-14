@@ -44,9 +44,7 @@ class LOTRGraphBuilderTest extends AnyFunSuite with BeforeAndAfter {
     val all_topics = admin.topics.getList("public/default")
     all_topics.forEach(topic_name =>
       try {
-        if (
-                (topic_name contains test_producer_topic) || (topic_name contains test_graph_builder_topic)
-        )
+        if ((topic_name contains test_producer_topic) || (topic_name contains test_graph_builder_topic))
           admin.topics.unloadAsync(topic_name)
         admin.topics.delete(topic_name, true)
       }

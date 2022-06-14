@@ -1,6 +1,7 @@
 package com.raphtory.internals.components.querymanager
 
-import cats.effect.{Async, Resource}
+import cats.effect.Async
+import cats.effect.Resource
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.management.Scheduler

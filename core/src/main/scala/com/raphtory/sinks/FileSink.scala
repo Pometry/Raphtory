@@ -35,8 +35,7 @@ import java.io.FileWriter
   *      [[com.raphtory.api.analysis.table.Table Table]]
   *      [[com.raphtory.Raphtory Raphtory]]
   */
-case class FileSink(filePath: String, format: Format = CsvFormat())
-        extends FormatAgnosticSink(format) {
+case class FileSink(filePath: String, format: Format = CsvFormat()) extends FormatAgnosticSink(format) {
 
   override def buildConnector(
       jobID: String,

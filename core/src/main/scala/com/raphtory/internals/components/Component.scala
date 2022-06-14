@@ -3,7 +3,10 @@ package com.raphtory.internals.components
 import cats.effect.Async
 import cats.effect.Resource
 import cats.effect.Spawn
+import cats.effect.kernel.Fiber
 import cats.effect.kernel.Outcome.Succeeded
+import cats.effect.kernel.Outcome.canceled
+import com.raphtory.internals.communication.CancelableListener
 import com.raphtory.internals.communication.CanonicalTopic
 import com.raphtory.internals.communication.Topic
 import com.raphtory.internals.communication.TopicRepository
@@ -29,91 +32,57 @@ object Component {
   import cats.effect.syntax.spawn._
   import cats.syntax.all._
 
-  def makeAndStartSimple[IO[_]: Spawn, SP, C <: Component[SP]](
+  def makeAndStart[IO[_]: Spawn, T, C <: Component[T]](
+      repo: TopicRepository,
+      name: String,
+      ts: Seq[CanonicalTopic[T]],
       comp: => C
   )(implicit IO: Async[IO]): Resource[IO, C] =
     Resource
       .make {
         for {
-          sp    <- IO.delay(comp)
-          spFib <- IO.delay(sp.run()).start
-        } yield (sp, spFib)
+          qm          <- IO.delay(comp)
+          runnerFib   <- IO.blocking(qm.run()).start
+          listener    <- IO.delay(repo.registerListener(s"${qm.deploymentID}-$name", qm.handleMessage, ts))
+          listenerFib <- IO.blocking(listener.start()).start
+        } yield (qm, listener, listenerFib, runnerFib)
       } {
-        case (sp, spFib) => spFib.cancel *> IO.delay(sp.stop())
-      } // FIXME: review if this is sane, if the FIRST while loop didn't finish it will be canceled
-      .map { case (sp, _) => sp }
-
-  def makeAndStart[IO[_], T, C <: Component[T]](
-      repo: TopicRepository,
-      name: String,
-      ts: Seq[CanonicalTopic[T]],
-      comp: => C
-  )(implicit
-      IO: Async[IO],
-      C: Spawn[IO]
-  ): Resource[IO, C]                         =
-    Resource
-      .make {
-        for {
-          qm       <- IO.delay(comp)
-          listener <- IO.delay {
-                        repo.registerListener(
-                                s"${qm.deploymentID}-$name",
-                                qm.handleMessage,
-                                ts
-                        )
-                      }.start
-        } yield (qm, listener)
-      } {
-        case (qm, listenerFib) =>
-          for {
-            listener <- listenerFib.join
-            _        <- IO.defer {
-                          listener match {
-                            case Succeeded(fib) => fib.map(_.close())
-                            case _              => IO.delay(println(s"Unable to close $name listener"))
-                          }
-                        }
-            _        <- IO.delay(qm.stop())
-          } yield ()
+        case (qm, listener, listenerFib, runner) =>
+          cleanup(qm, listener, listenerFib, runner)
       }
-      .map { case (qm, _) => qm }
+      .map { case (qm, _, _, _) => qm }
 
-  def makeAndStartPart[IO[_], T, C <: Component[T]](
+  def makeAndStartPart[IO[_]: Spawn, T, C <: Component[T]](
       partitionId: Int,
       repo: TopicRepository,
       name: String,
       ts: Seq[Topic[T]],
       comp: => C
-  )(implicit
-      IO: Async[IO],
-      C: Spawn[IO]
-  ): Resource[IO, C]                         =
+  )(implicit IO: Async[IO]): Resource[IO, C] =
     Resource
       .make {
         for {
-          qm       <- IO.delay(comp)
-          listener <- IO.delay {
-                        repo.registerListener(
-                                s"${qm.deploymentID}-$name",
-                                qm.handleMessage,
-                                ts,
-                                partitionId
-                        )
-                      }.start
-        } yield (qm, listener)
+          qm          <- IO.delay(comp)
+          runnerFib   <- IO.blocking(qm.run()).start
+          listener    <- IO.delay(repo.registerListener(s"${qm.deploymentID}-$name", qm.handleMessage, ts, partitionId))
+          listenerFib <- IO.blocking(listener.start()).start
+        } yield (qm, listener, listenerFib, runnerFib)
       } {
-        case (qm, listenerFib) =>
-          for {
-            listener <- listenerFib.join
-            _        <- IO.defer {
-                          listener match {
-                            case Succeeded(fib) => fib.map(_.close())
-                            case _              => IO.delay(println(s"Unable to close $name listener"))
-                          }
-                        }
-            _        <- IO.delay(qm.stop())
-          } yield ()
+        case (qm, listener, listenerFib, runner) =>
+          cleanup(qm, listener, listenerFib, runner)
       }
-      .map { case (qm, _) => qm }
+      .map { case (qm, _, _, _) => qm }
+
+  private def cleanup[C <: Component[T], T, IO[_]](
+      qm: C,
+      listener: CancelableListener,
+      listenerFib: Fiber[IO, Throwable, Unit],
+      runner: Fiber[IO, Throwable, Unit]
+  )(implicit IO: Async[IO])                  =
+    for {
+      _ <- IO.blocking(listener.close())
+      _ <- listenerFib.cancel
+      _ <- IO.blocking(qm.stop())
+      _ <- runner.cancel
+    } yield ()
 }

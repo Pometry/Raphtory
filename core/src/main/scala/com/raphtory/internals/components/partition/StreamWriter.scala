@@ -1,6 +1,10 @@
 package com.raphtory.internals.components.partition
 
 import com.raphtory.internals.graph.GraphAlteration._
+import cats.effect.kernel.Spawn
+import cats.effect.Async
+import cats.effect.Resource
+import com.raphtory.api.input._
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.graph.GraphAlteration
@@ -33,10 +37,9 @@ private[raphtory] class StreamWriter(
   override def run(): Unit = {}
 //    listener.start()
 
-  override def stop(): Unit = {
+  override def stop(): Unit =
     neighbours.values.foreach(_.close())
 //    listener.close()
-  }
 
   override def handleMessage(msg: GraphAlteration): Unit = {
     msg match {
@@ -281,7 +284,7 @@ object StreamWriter {
       config: Config,
       topics: TopicRepository
   ): Resource[IO, StreamWriter] =
-    Component.makeAndStartPart(
+    Component.makeAndStart(
             partitionId,
             topics,
             s"writer-$partitionId",

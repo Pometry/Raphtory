@@ -4,7 +4,9 @@ import cats.effect.Async
 import cats.effect.Resource
 import cats.effect.Spawn
 import com.raphtory.api.input.Spout
+import com.raphtory.internals.communication.CanonicalTopic
 import com.raphtory.internals.communication.EndPoint
+import com.raphtory.internals.communication.Topic
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.management.Scheduler
@@ -75,6 +77,12 @@ object SpoutExecutor {
       config: Config,
       topics: TopicRepository
   )(implicit IO: Async[IO]): Resource[IO, SpoutExecutor[SP]] =
-    Component.makeAndStartSimple(new SpoutExecutor[SP](spout, config, topics, new Scheduler))
+    Component
+      .makeAndStart(
+              topics,
+              "spout-executor",
+              Seq.empty[CanonicalTopic[SP]],
+              new SpoutExecutor[SP](spout, config, topics, new Scheduler)
+      )
 
 }

@@ -114,9 +114,9 @@ private[raphtory] class QueryHandler(
     }
     catch {
       case e: Throwable =>
-        e.printStackTrace()
         logger.error(
-                s"Deployment $deploymentID: Failed to handle message. ${e.getMessage}. Skipping perspective."
+                s"Deployment $deploymentID: Failed to handle message. ${e.getMessage}. Skipping perspective.",
+                e
         )
         currentState = executeNextPerspective()
     }
@@ -433,12 +433,11 @@ private[raphtory] class QueryHandler(
     telemetry.totalGraphOperations.labels(jobID, deploymentID).inc()
 
     currentOperation match {
-      case Iterate(f, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt =>
+      case Iterate(f, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt             =>
         currentOperation = Iterate(f, iterations - 1, executeMessagedOnly)
-      case IterateWithGraph(f, iterations, executeMessagedOnly, _)
-          if iterations > 1 && !allVoteToHalt =>
+      case IterateWithGraph(f, iterations, executeMessagedOnly, _) if iterations > 1 && !allVoteToHalt =>
         currentOperation = IterateWithGraph(f, iterations - 1, executeMessagedOnly)
-      case _                                                                               =>
+      case _                                                                                           =>
         currentOperation = getNextGraphOperation(graphFunctions).get
     }
     allVoteToHalt = true

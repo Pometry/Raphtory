@@ -38,12 +38,11 @@ private[raphtory] class Py4JServer[IO[_]](gatewayServer: GatewayServer)(implicit
     // setup resources that need closing
     val channelR: Resource[IO, FileChannel] = for {
       tmpPath <- Py4JServer.createTmpFile(filename.getParent, filename)
-      channel <-
-        Resource.fromAutoCloseable(
-                IO.blocking(
-                        FileChannel.open(tmpPath, StandardOpenOption.WRITE, StandardOpenOption.READ)
-                )
-        )
+      channel <- Resource.fromAutoCloseable(
+                         IO.blocking(
+                                 FileChannel.open(tmpPath, StandardOpenOption.WRITE, StandardOpenOption.READ)
+                         )
+                 )
     } yield channel
 
     // write content
@@ -105,8 +104,7 @@ private[raphtory] object Py4JServer {
   ): Resource[IO, Py4JServer[IO]] =
     for {
       py4jGateway <- makeGatewayServer(entryPoint)
-      server      <-
-        Resource.eval(Sync[IO].delay(new Py4JServer[IO](py4jGateway)).flatTap(_.start(config)))
+      server      <- Resource.eval(Sync[IO].delay(new Py4JServer[IO](py4jGateway)).flatTap(_.start(config)))
     } yield server
 
   private def makeGatewayServer[IO[_]](

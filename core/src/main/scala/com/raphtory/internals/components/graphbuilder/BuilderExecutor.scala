@@ -1,9 +1,9 @@
 package com.raphtory.internals.components.graphbuilder
 
-import akka.actor.typed.SpawnProtocol.Spawn
 import cats.Foldable
 import cats.effect.Async
 import cats.effect.Resource
+import cats.effect.Spawn
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.internals.communication.TopicRepository
@@ -76,7 +76,7 @@ object BuilderExecutor {
   ): Resource[IO, BuilderExecutor[T]] =
     Component.makeAndStart(
             topics,
-            "builder-executor-${name}",
+            s"builder-executor-$name",
             List(topics.spout[T]),
             new BuilderExecutor[T](name, deploymentID, graphBuilder, conf, topics)
     )
@@ -105,17 +105,16 @@ object BuildExecutorGroup {
     val iter = (0 until totalBuilders)
       .map { _ =>
         for {
-          name <-
-            Resource.eval(Async[IO].blocking {
-              builderIDManager
-                .getNextAvailableID()
-                .getOrElse(
-                        throw new Exception(
-                                s"Failed to retrieve Builder ID. " +
-                                  s"ID Manager at Zookeeper '$builderIDManager' was unreachable."
-                        )
-                )
-            })
+          name <- Resource.eval(Async[IO].blocking {
+                    builderIDManager
+                      .getNextAvailableID()
+                      .getOrElse(
+                              throw new Exception(
+                                      s"Failed to retrieve Builder ID. " +
+                                        s"ID Manager at Zookeeper '$builderIDManager' was unreachable."
+                              )
+                      )
+                  })
           _    <- BuilderExecutor(name, deploymentID, graphBuilder, config, topics)
         } yield ()
       }

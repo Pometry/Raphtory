@@ -27,8 +27,7 @@ private[raphtory] case class SetMetaData(vertices: Int) extends QueryManagement
 
 private[raphtory] case object JobDone extends QueryManagement
 
-private[raphtory] case class CreatePerspective(id: Int, perspective: Perspective)
-        extends QueryManagement
+private[raphtory] case class CreatePerspective(id: Int, perspective: Perspective) extends QueryManagement
 
 private[raphtory] case object StartGraph extends QueryManagement
 
@@ -49,8 +48,7 @@ private[raphtory] case class VertexMessage[+T, VertexID](
     data: T
 ) extends GenericVertexMessage[VertexID]
 
-private[raphtory] case class VertexMessageBatch(data: Array[GenericVertexMessage[_]])
-        extends QueryManagement
+private[raphtory] case class VertexMessageBatch(data: Array[GenericVertexMessage[_]]) extends QueryManagement
 
 private[raphtory] case class FilteredEdgeMessage[VertexID](
     superstep: Int,
@@ -106,9 +104,8 @@ sealed private[raphtory] trait PerspectiveStatus extends JobStatus {
   def perspectiveID: Int
 }
 
-private[raphtory] case class PerspectiveEstablished(perspectiveID: Int, vertices: Int)
-        extends PerspectiveStatus
-private[raphtory] case class MetaDataSet(perspectiveID: Int) extends PerspectiveStatus
+private[raphtory] case class PerspectiveEstablished(perspectiveID: Int, vertices: Int) extends PerspectiveStatus
+private[raphtory] case class MetaDataSet(perspectiveID: Int)                           extends PerspectiveStatus
 
 private[raphtory] case class GraphFunctionComplete(
     perspectiveID: Int,
@@ -130,5 +127,4 @@ private[raphtory] case class GraphFunctionCompleteWithState(
 private[raphtory] case class TableFunctionComplete(perspectiveID: Int) extends PerspectiveStatus
 private[raphtory] case class TableBuilt(perspectiveID: Int)            extends PerspectiveStatus
 
-private[raphtory] case class AlgorithmFailure(perspectiveID: Int, exception: Throwable)
-        extends PerspectiveStatus
+private[raphtory] case class AlgorithmFailure(perspectiveID: Int, exception: Throwable) extends PerspectiveStatus

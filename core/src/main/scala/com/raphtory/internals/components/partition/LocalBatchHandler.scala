@@ -1,7 +1,12 @@
 package com.raphtory.internals.components.partition
 
+import cats.effect.Async
+import cats.effect.Resource
+import cats.effect.Spawn
+import com.raphtory.api.input.GraphAlteration
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
+import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.management.Scheduler
@@ -75,4 +80,23 @@ private[raphtory] class LocalBatchHandler[T: ClassTag](
       case (id, partition) =>
         partition.getStorage().stopBatchIngesting()
     }
+}
+
+object LocalBatchHandler {
+
+  def apply[IO[_]: Async: Spawn, T: ClassTag](
+      partitionIds: mutable.Set[Int],
+      batchWriters: mutable.Map[Int, BatchWriter[T]],
+      spout: Spout[T],
+      graphBuilder: GraphBuilder[T],
+      topics: TopicRepository,
+      config: Config,
+      scheduler: Scheduler
+  ): Resource[IO, LocalBatchHandler[T]] =
+    Component.makeAndStart(
+            topics,
+            s"local-batch-handler",
+            Seq.empty,
+            new LocalBatchHandler[T](partitionIds, batchWriters, spout, graphBuilder, config, scheduler)
+    )
 }
