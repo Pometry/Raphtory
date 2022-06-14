@@ -103,8 +103,10 @@ class AccumulatorTest extends BaseCorrectnessTest {
     job.waitForJob()
 
     getResults().foreach { res =>
-      val t = res.split(",")
-      t(t.size - 1).shouldEqual("true")
+      if (res.nonEmpty) {
+        val t = res.split(",")
+        t(t.size - 1).shouldEqual("true")
+      }
     }
     graph.deployment.stop()
   }

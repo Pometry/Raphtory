@@ -39,7 +39,8 @@ case class PrintSink(format: Format = CsvFormat()) extends FormatAgnosticSink(fo
       jobID: String,
       partitionID: Int,
       config: Config,
-      itemDelimiter: String
+      itemDelimiter: String,
+      fileExtension: String
   ): SinkConnector =
     new StreamSinkConnector(itemDelimiter) {
       override def output(value: String): Unit = System.out.print(value)

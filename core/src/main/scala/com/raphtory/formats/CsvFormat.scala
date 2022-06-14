@@ -26,6 +26,7 @@ import com.typesafe.config.Config
   */
 case class CsvFormat() extends Format {
   override def defaultDelimiter: String = "\n"
+  override def defaultExtension: String = "csv"
 
   override def executor(
       connector: SinkConnector,

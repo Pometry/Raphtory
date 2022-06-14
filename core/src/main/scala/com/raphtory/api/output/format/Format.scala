@@ -28,6 +28,9 @@ trait Format {
   /** Returns the item delimiter to be used by the `SinkConnector` to separate the items if necessary */
   def defaultDelimiter: String
 
+  /** Returns the default file extension to use if needed, e.g. 'csv' for a CSV file */
+  def defaultExtension: String
+
   /** Creates a `SinkExecutor` implementing the actual operation of the format
     * @param connector the `SinkConnector` to be used by this format to write out the items
     * @param jobID the ID of the job that generated the table
