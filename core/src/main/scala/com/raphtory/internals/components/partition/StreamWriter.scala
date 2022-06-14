@@ -284,7 +284,7 @@ object StreamWriter {
       config: Config,
       topics: TopicRepository
   ): Resource[IO, StreamWriter] =
-    Component.makeAndStart(
+    Component.makeAndStartPart(
             partitionId,
             topics,
             s"writer-$partitionId",

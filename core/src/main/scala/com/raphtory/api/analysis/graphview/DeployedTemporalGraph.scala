@@ -18,6 +18,5 @@ import com.typesafe.config.Config
 class DeployedTemporalGraph private[raphtory] (
     override private[api] val query: Query,
     override private[api] val querySender: QuerySender,
-    val deployment: Deployment,
     override private[api] val conf: Config
 ) extends TemporalGraph(query, querySender, conf) {}

@@ -30,8 +30,8 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
   private val deploymentID: String = conf.getString("raphtory.deploy.id")
   private val spoutTopic: String   = conf.getString("raphtory.spout.topic")
 
-  private var partitions: Partitions =
-    componentFactory.partition(scheduler, batchLoading, Some(spout), Some(graphBuilder))
+  // private var partitions: Partitions =
+  //   componentFactory.partition(scheduler, batchLoading, Some(spout), Some(graphBuilder))
 
 //  private var queryManager = componentFactory.query(scheduler)
 
@@ -46,9 +46,9 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
 
   /** Stops components - partitions, query manager, graph builders, spout worker */
   def stop(): Unit = {
-    partitions.writers.foreach(_.stop())
-    partitions.readers.foreach(_.stop())
-    partitions = null
+    // partitions.writers.foreach(_.stop())
+    // partitions.readers.foreach(_.stop())
+    // partitions = null
 //    queryManager.worker.stop()
 //    queryManager = null
 

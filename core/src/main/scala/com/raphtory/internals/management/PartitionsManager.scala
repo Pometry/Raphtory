@@ -12,6 +12,7 @@ import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.partition.BatchWriter
 import com.raphtory.internals.components.partition.LocalBatchHandler
 import com.raphtory.internals.components.partition.Reader
+import com.raphtory.internals.components.partition.StreamWriter
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.id.IDManager
 import com.raphtory.internals.storage.pojograph.PojoBasedPartition
@@ -27,10 +28,10 @@ sealed trait PartitionsManager
 case class BatchPartitionManager[T](
     storages: List[GraphPartition],
     readers: List[Reader],
-    writers: List[LocalBatchHandler[T]],
+    writers: List[Component[GraphAlteration]],
     partitionIds: List[Int],
     batchWriters: List[(Int, BatchWriter[T])]
-)
+) extends PartitionsManager
 
 object BatchPartitionManager {
 
@@ -42,7 +43,11 @@ case class StreamingPartitionManager(
     storages: List[GraphPartition],
     readers: List[Reader],
     writers: List[Component[GraphAlteration]]
-)
+) extends PartitionsManager
+
+object StreamingPartitionManager {
+  def empty = StreamingPartitionManager(List.empty, List.empty, List.empty)
+}
 
 object PartitionsManager {
   import alleycats.std.iterable._
@@ -111,7 +116,36 @@ object PartitionsManager {
       }
     }
 
-  def streaming[IO[_]: Spawn, T](conf: Config)(implicit
+  def streaming[IO[_]: Spawn, T](
+      config: Config,
+      partitionIDManager: IDManager,
+      topics: TopicRepository,
+      scheduler: Scheduler
+  )(implicit
       IO: Async[IO]
-  ): Resource[IO, PartitionsManager] = ???
+  ): Resource[IO, PartitionsManager] = {
+
+    val deploymentID    = config.getString("raphtory.deploy.id")
+    val totalPartitions = config.getInt("raphtory.partitions.countPerServer")
+
+    logger.info(s"Creating '$totalPartitions' Partition Managers for $deploymentID.")
+
+    val partitions: Iterable[Int] = 0 until totalPartitions
+
+    val partMResource: Resource[IO, StreamingPartitionManager] = partitions.foldLeftM(StreamingPartitionManager.empty) {
+      (pm, i) =>
+        val pm1 = for {
+          partitionId <- nextId(partitionIDManager)
+          storage     <- IO.delay(new PojoBasedPartition(partitionId, config))
+        } yield (partitionId, storage)
+        for {
+          a1 <- cats.effect.Resource.eval(pm1)
+          (partitionId, storage) = a1
+          reader                <- Reader(partitionId, storage, scheduler, config, topics)
+          writer                <- StreamWriter(partitionId, storage, config, topics)
+        } yield pm.copy(readers = reader :: pm.readers, writers = writer :: pm.writers)
+    }
+
+    partMResource
+  }
 }

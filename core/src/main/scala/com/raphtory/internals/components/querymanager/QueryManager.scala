@@ -2,6 +2,7 @@ package com.raphtory.internals.components.querymanager
 
 import cats.effect.Async
 import cats.effect.Resource
+import com.raphtory.internals.communication.CanonicalTopic
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.management.Scheduler
@@ -119,10 +120,11 @@ object QueryManager {
       topics: TopicRepository
   ): Resource[IO, QueryManager] = {
     val scheduler = new Scheduler
-    Component.makeAndStart(
+    val topicList = List(topics.submissions, topics.watermark, topics.completedQueries)
+    Component.makeAndStart[IO, QueryManagement, QueryManager](
             topics,
             "query-manager",
-            Seq(topics.submissions, topics.watermark, topics.completedQueries),
+            topicList,
             new QueryManager(scheduler, config, topics)
     )
   }

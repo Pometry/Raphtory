@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory
 
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
+import cats.effect.kernel.Resource
 
 /**  `Raphtory` object for creating Raphtory Components
   *
@@ -219,7 +220,7 @@ object Raphtory {
       graphBuilder: GraphBuilder[T],
       customConfig: Map[String, Any] = Map(),
       batchLoading: Boolean
-  )(implicit IO: Async[IO]) = {
+  )(implicit IO: Async[IO]): Resource[IO, DeployedTemporalGraph] = {
     val config         = confBuilder(customConfig, distributed = false)
     val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
     val deploymentID   = config.getString("raphtory.deploy.id")
@@ -230,9 +231,14 @@ object Raphtory {
       qm               <- QueryManager(config, topicRepo)
       spoutExec        <- SpoutExecutor(spout, config, topicRepo)
       builderIDManager <- makeIdManager(config, localDeployment = true, s"/$deploymentID/builderCount")
+      partitionIdManager <- makeIdManager(config, localDeployment = true, s"/$deploymentID/partitionCount")
       _                <- BuildExecutorGroup(config, builderIDManager, topicRepo, graphBuilder)
+      _ <- {
+        if (batchLoading) PartitionsManager.batchLoading(config, partitionIdManager, topicRepo, scheduler, spout, graphBuilder)
+        else PartitionsManager.streaming(config, partitionIdManager, topicRepo, scheduler)
+      }
 
-    } yield new DeployedTemporalGraph(Query(), querySender, deployment, config)
+    } yield new DeployedTemporalGraph(Query(), new QuerySender(scheduler, topicRepo), config)
   }
 
   def shutdown(): Unit = {

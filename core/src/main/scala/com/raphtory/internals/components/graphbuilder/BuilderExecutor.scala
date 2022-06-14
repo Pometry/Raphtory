@@ -67,7 +67,7 @@ private[raphtory] class BuilderExecutor[T: ClassTag](
 
 object BuilderExecutor {
 
-  def apply[IO[_]: Async: Spawn, T](
+  def apply[IO[_]: Async: Spawn, T: ClassTag](
       name: Int,
       deploymentID: String,
       graphBuilder: GraphBuilder[T],

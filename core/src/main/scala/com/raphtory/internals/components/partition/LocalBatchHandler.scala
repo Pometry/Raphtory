@@ -92,8 +92,8 @@ object LocalBatchHandler {
       topics: TopicRepository,
       config: Config,
       scheduler: Scheduler
-  ): Resource[IO, LocalBatchHandler[T]] =
-    Component.makeAndStart(
+  ): Resource[IO, Component[GraphAlteration]] =
+    Component.makeAndStart[IO, GraphAlteration, LocalBatchHandler[T]](
             topics,
             s"local-batch-handler",
             Seq.empty,

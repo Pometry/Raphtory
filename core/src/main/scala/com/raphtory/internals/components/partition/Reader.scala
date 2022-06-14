@@ -107,7 +107,7 @@ object Reader {
             partitionID,
             topics,
             s"reader-$partitionID",
-            Seq(topics.queryPrep),
+            List(topics.queryPrep),
             new Reader(partitionID, storage, scheduler, conf, topics)
     )
 }

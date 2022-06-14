@@ -37,7 +37,7 @@ object Component {
       name: String,
       ts: Seq[CanonicalTopic[T]],
       comp: => C
-  )(implicit IO: Async[IO]): Resource[IO, C] =
+  )(implicit IO: Async[IO]): Resource[IO, C] = {
     Resource
       .make {
         for {
@@ -46,11 +46,15 @@ object Component {
           listener    <- IO.delay(repo.registerListener(s"${qm.deploymentID}-$name", qm.handleMessage, ts))
           listenerFib <- IO.blocking(listener.start()).start
         } yield (qm, listener, listenerFib, runnerFib)
+
       } {
         case (qm, listener, listenerFib, runner) =>
           cleanup(qm, listener, listenerFib, runner)
       }
       .map { case (qm, _, _, _) => qm }
+
+      ???
+  }
 
   def makeAndStartPart[IO[_]: Spawn, T, C <: Component[T]](
       partitionId: Int,
@@ -73,8 +77,8 @@ object Component {
       }
       .map { case (qm, _, _, _) => qm }
 
-  private def cleanup[C <: Component[T], T, IO[_]](
-      qm: C,
+  private def cleanup[A, IO[_]](
+      qm: Component[A],
       listener: CancelableListener,
       listenerFib: Fiber[IO, Throwable, Unit],
       runner: Fiber[IO, Throwable, Unit]
