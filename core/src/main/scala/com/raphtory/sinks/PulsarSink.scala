@@ -43,7 +43,8 @@ case class PulsarSink(topic: String, format: Format = CsvFormat())
       jobID: String,
       partitionID: Int,
       config: Config,
-      itemDelimiter: String
+      itemDelimiter: String,
+      fileExtension: String
   ): SinkConnector =
     new MessageSinkConnector {
       private val client                            = new PulsarConnector(config).accessClient

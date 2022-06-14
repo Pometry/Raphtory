@@ -60,6 +60,7 @@ import java.io.StringWriter
   */
 case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
   override def defaultDelimiter: String = "\n"
+  override def defaultExtension: String = "json"
 
   override def executor(
       connector: SinkConnector,
