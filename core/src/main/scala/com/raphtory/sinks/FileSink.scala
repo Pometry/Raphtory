@@ -53,6 +53,10 @@ case class FileSink(filePath: String, format: Format = CsvFormat())
       private val fileWriter    = new FileWriter(file)
 
       override def output(value: String): Unit = fileWriter.write(value)
-      override def close(): Unit               = fileWriter.close()
+
+      override def close(): Unit = {
+        fileWriter.write('\n')
+        fileWriter.close()
+      }
     }
 }
