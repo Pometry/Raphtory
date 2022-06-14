@@ -43,14 +43,20 @@ case class FileSink(filePath: String, format: Format = CsvFormat())
       jobID: String,
       partitionID: Int,
       config: Config,
-      itemDelimiter: String
+      itemDelimiter: String,
+      fileExtension: String
   ): SinkConnector =
     new StreamSinkConnector(itemDelimiter) {
       private val workDirectory = s"$filePath/$jobID"
       new File(workDirectory).mkdirs()
-      private val fileWriter    = new FileWriter(s"$workDirectory/partition-$partitionID")
+      private val file          = s"$workDirectory/partition-$partitionID.$fileExtension"
+      private val fileWriter    = new FileWriter(file)
 
       override def output(value: String): Unit = fileWriter.write(value)
-      override def close(): Unit               = fileWriter.close()
+
+      override def close(): Unit = {
+        fileWriter.write('\n')
+        fileWriter.close()
+      }
     }
 }
