@@ -137,19 +137,19 @@ private[raphtory] trait PojoVertexBase extends Vertex {
   ): Option[Edge] =
     individualEdge(internalIncomingEdges ++ internalOutgoingEdges, after, before, id)
 
-  private def allEdge(
+  def allEdge(
       edges: mutable.Map[IDType, Edge],
       after: Long,
       before: Long
   ): List[Edge] =
-    if (after == Long.MinValue && before == Long.MaxValue)
+    if (after <= lens.start && before >= lens.end)
       edges.values.toList
     else
       edges.collect {
         case (_, edge) if edge.active(after, before) => edge
       }.toList
 
-  private def individualEdge(
+  def individualEdge(
       edges: mutable.Map[IDType, Edge],
       after: Long,
       before: Long,

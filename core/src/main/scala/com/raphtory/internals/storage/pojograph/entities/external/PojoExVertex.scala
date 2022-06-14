@@ -216,4 +216,19 @@ private[raphtory] class PojoExVertex(
         exploded(time)
           .receiveMessage(msg)
     }
+
+  override def individualEdge(
+      edges: mutable.Map[Long, PojoExEdge],
+      after: Long,
+      before: Long,
+      id: Long
+  ): Option[PojoExEdge] =
+    super.individualEdge(edges, after, before, id).map(edge => edge.viewBetween(after, before))
+
+  override def allEdge(
+      edges: mutable.Map[Long, PojoExEdge],
+      after: Long,
+      before: Long
+  ): List[PojoExEdge] =
+    super.allEdge(edges, after, before).map(edge => edge.viewBetween(after, before))
 }

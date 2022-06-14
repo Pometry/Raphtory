@@ -8,9 +8,18 @@ import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoEdge
 import com.raphtory.internals.storage.pojograph.entities.internal.SplitEdge
 
-private[raphtory] class PojoExEdge(val edge: PojoEdge, id: Long, val view: PojoGraphLens)
-        extends PojoExEntity(edge, view)
+private[raphtory] class PojoExEdge(
+    val edge: PojoEdge,
+    id: Long,
+    val view: PojoGraphLens,
+    start: Long,
+    end: Long
+) extends PojoExEntity(edge, view, start, end)
         with ConcreteEdge[Long] {
+
+  def this(entity: PojoEdge, id: Long, view: PojoGraphLens) = {
+    this(entity, id, view, view.start, view.end)
+  }
 
   override type ExplodedEdge = PojoExplodedEdge
   def ID: Long = id
@@ -32,4 +41,7 @@ private[raphtory] class PojoExEdge(val edge: PojoEdge, id: Long, val view: PojoG
     view.sendMessage(FilteredOutEdgeMessage(view.superStep + 1, src, dst))
     view.sendMessage(FilteredInEdgeMessage(view.superStep + 1, dst, src))
   }
+
+  def viewBetween(after: Long = view.start, before: Long = view.end) =
+    new PojoExEdge(edge, id, view, math.max(after, view.start), math.min(before, view.end))
 }
