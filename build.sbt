@@ -8,6 +8,8 @@ ThisBuild / organization := "com.raphtory"
 ThisBuild / organizationName := "raphtory"
 ThisBuild / organizationHomepage := Some(url("https://raphtory.readthedocs.io/"))
 
+ThisBuild / resolvers += "Mulesoft Repository" at "https://repository.mulesoft.org/nexus/content/repositories/public/"
+
 sonatypeCredentialHost := "s01.oss.sonatype.org"
 sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 
@@ -72,8 +74,12 @@ lazy val core = (project in file("core"))
           assemblySettings,
           defaultSettings,
           libraryDependencies ++= Seq(
+                  //please keep in alphabetical order
+                  akkaTyped,
+                  catsEffect,
                   curatorRecipes,
                   gson,
+                  javaxScript,
                   log4jSlft4,
                   log4jApi,
                   log4jCore,
@@ -94,10 +100,8 @@ lazy val core = (project in file("core"))
                   sprayJson,
                   timeSeries,
                   twitterChill,
-                  catsEffect,
                   typesafeConfig,
-                  zookeeper,
-                  akkaTyped
+                  zookeeper
           ),
           libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
   )
