@@ -100,6 +100,7 @@ lazy val core = (project in file("core"))
                   timeSeries,
                   twitterChill,
                   catsEffect,
+                  catsMUnit,
                   alleyCats,
                   typesafeConfig,
                   zookeeper

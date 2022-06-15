@@ -1,5 +1,6 @@
 package com.raphtory.enrontest
 
+import cats.effect.IO
 import com.raphtory.BaseRaphtoryAlgoTest
 import com.raphtory.GraphState
 import com.raphtory.Raphtory
@@ -19,7 +20,7 @@ import java.io.File
 @DoNotDiscover
 class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
-  test("Graph State Test") {
+  withGraph.test("Graph State Test") { graph =>
     val sink: FileSink = FileSink(outputDirectory)
 
     graph
@@ -29,22 +30,20 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
       .writeTo(sink)
       .waitForJob()
 
-    assert(true)
   }
 
-  test("Connected Components Test") {
+  withGraph.test("Connected Components Test") { graph =>
     val sink: FileSink = FileSink(outputDirectory)
 
-    val result = algorithmTest(
+    algorithmTest(
             algorithm = ConnectedComponents(),
             sink = sink,
             start = 1,
             end = 32674,
             increment = 10000,
             windows = List(500, 1000, 10000)
-    )
+    )(graph).unsafeToFuture()
 
-    assert(true)
   }
 
   override def batchLoading(): Boolean = false

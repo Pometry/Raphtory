@@ -3,7 +3,6 @@ package com.raphtory.internals.components.partition
 import cats.effect.Async
 import cats.effect.Resource
 import cats.effect.Spawn
-import com.raphtory.api.input.GraphAlteration
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
 import com.raphtory.internals.communication.TopicRepository

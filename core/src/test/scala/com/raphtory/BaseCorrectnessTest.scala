@@ -1,17 +1,8 @@
 package com.raphtory
 
-import com.google.common.hash.Hashing
-import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.algorithm.GenericallyApplicable
-import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
-import com.raphtory.api.input.GraphBuilder
-import com.raphtory.api.input.Spout
-import com.raphtory.spouts.IdentitySpout
-import com.raphtory.spouts.ResourceSpout
-import com.raphtory.spouts.SequenceSpout
-import org.scalatest.Assertion
-
-import java.nio.charset.StandardCharsets
+import com.raphtory.api.input.{GraphBuilder, Spout}
+import com.raphtory.spouts.{IdentitySpout, ResourceSpout, SequenceSpout}
 
 case class TestQuery(
     algorithm: GenericallyApplicable,
@@ -44,43 +35,37 @@ abstract class BaseCorrectnessTest(
       test: TestQuery,
       graphResource: String,
       resultsResource: String
-  ): Assertion = {
-    graph = Raphtory.load(ResourceSpout(graphResource), setGraphBuilder())
-    try correctnessTest(test, resultsResource)
-    finally graph.deployment.stop()
-  }
+  ): Boolean =
+    Raphtory
+      .load(ResourceSpout(graphResource), setGraphBuilder())
+      .use {
+        algorithmPointTest(test.algorithm, test.timestamp,test.windows)
+      }
+      .map(actual =>
+        actual == correctResultsHash(
+                resultsResource
+        )
+      )
+      .unsafeRunSync()
 
   def correctnessTest(
       test: TestQuery,
       graphEdges: Seq[String],
       results: Seq[String]
-  ): Assertion = {
-    graph = Raphtory.load(SequenceSpout(graphEdges: _*), setGraphBuilder())
-    try correctnessTest(test, results)
-    finally graph.deployment.stop()
-  }
-
-  def correctnessTest(
-      test: TestQuery,
-      results: Seq[String]
-  ): Assertion =
-    algorithmPointTest(
-            test.algorithm,
-            test.timestamp,
-            test.windows
-    ) shouldEqual correctResultsHash(
-            results
-    )
-
-  def correctnessTest(
-      test: TestQuery,
-      resultsResource: String
-  ): Assertion =
-    algorithmPointTest(
-            test.algorithm,
-            test.timestamp,
-            test.windows
-    ) shouldEqual correctResultsHash(
-            resultsResource
-    )
+  ): Boolean =
+    Raphtory
+      .load(SequenceSpout(graphEdges: _*), setGraphBuilder())
+      .use {
+        algorithmPointTest(
+                test.algorithm,
+          test.timestamp,
+          test.windows
+        )
+      }
+      .map(actual =>
+        actual == correctResultsHash(
+                results
+        )
+      )
+      .unsafeRunSync()
 }

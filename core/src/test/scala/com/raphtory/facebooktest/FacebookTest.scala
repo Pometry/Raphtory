@@ -16,18 +16,18 @@ import org.scalatest._
 @DoNotDiscover
 class FacebookTest extends BaseRaphtoryAlgoTest[String] {
 
-  test("Connected Components Test") {
+  withGraph.test("Connected Components Test") { graph =>
     val sink = FileSink(outputDirectory)
 
     val result = algorithmPointTest(
             algorithm = ConnectedComponents(),
             sink = sink,
             timestamp = 88234
-    )
+    )(graph).unsafeRunSync()
 
     val expected = "96e9415d7b657e0c306021bfa55daa9d5507271ccff2390894e16597470cb4ab"
 
-    result shouldEqual expected
+    assertEquals(result, expected)
   }
 
   override def batchLoading(): Boolean = false

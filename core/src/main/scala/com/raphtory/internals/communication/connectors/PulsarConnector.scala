@@ -1,6 +1,6 @@
 package com.raphtory.internals.communication.connectors
 
-import cats.effect.Sync
+import cats.effect.{Async, Sync}
 import cats.effect.kernel.Resource
 import com.raphtory.internals.communication.CancelableListener
 import com.raphtory.internals.communication.CanonicalTopic
@@ -259,7 +259,7 @@ object PulsarConnector {
     new PulsarConnector(client, adminClient, config)
   }
 
-  def apply[IO[_]](config: Config)(implicit IO: Sync[IO]): Resource[IO, PulsarConnector] =
+  def apply[IO[_]](config: Config)(implicit IO: Async[IO]): Resource[IO, PulsarConnector] =
     for {
       pulsarClient      <- Resource.fromAutoCloseable(IO.blocking(makePulsarClient(config)))
       pulsarAdminClient <- Resource.fromAutoCloseable(IO.blocking(makeAdminClient(config)))

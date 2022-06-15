@@ -37,7 +37,7 @@ class LOTRGraphBuilderTest extends AnyFunSuite with BeforeAndAfter {
   val admin: PulsarAdmin                           =
     PulsarAdmin.builder.serviceHttpUrl(config.getString("raphtory.pulsar.admin.address")).build
   implicit private val schema: Schema[Array[Byte]] = Schema.BYTES
-  val pulsarConnector                              = new PulsarConnector(config)
+  val pulsarConnector: PulsarConnector             = PulsarConnector.unsafeApply(config)
   val kryo                                         = new KryoSerialiser()
 
   def deleteTestTopic(): Unit = {

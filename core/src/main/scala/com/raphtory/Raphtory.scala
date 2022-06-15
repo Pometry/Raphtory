@@ -240,7 +240,7 @@ object Raphtory {
         else PartitionsManager.streaming(config, partitionIdManager, topicRepo, scheduler)
       }
 
-    } yield new DeployedTemporalGraph(Query(), new QuerySender(scheduler, topicRepo, config), config)
+    } yield new DeployedTemporalGraph(Query(), new QuerySender(scheduler, topicRepo, config), config, deploymentID)
   }
 
   def shutdown(): Unit = {
