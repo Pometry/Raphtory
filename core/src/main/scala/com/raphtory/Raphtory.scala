@@ -1,6 +1,7 @@
 package com.raphtory
 
 import cats.effect.Async
+import cats.effect.IO
 import cats.effect.Spawn
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraphConnection
@@ -60,12 +61,12 @@ object Raphtory {
     * @param customConfig Custom configuration for the deployment
     * @return The graph object for this stream
     */
-  def stream[T: TypeTag: ClassTag](
+  def stream[T: ClassTag](
       spout: Spout[T] = new IdentitySpout[T](),
       graphBuilder: GraphBuilder[T],
       customConfig: Map[String, Any] = Map()
-  ): DeployedTemporalGraph = ???
-//    deployLocalGraph(spout, graphBuilder, customConfig, false)
+  ): Resource[IO, DeployedTemporalGraph] =
+    deployLocalGraphV2[T, IO](spout, graphBuilder, customConfig, batchLoading = false)
 
   /** Creates a batch loading version of a `DeployedTemporalGraph` object that can be used to express
     * queries from.
@@ -75,12 +76,12 @@ object Raphtory {
     * @param customConfig Custom configuration for the deployment
     * @return The graph object created by this batch loader
     */
-  def load[T: TypeTag: ClassTag](
+  def load[T: ClassTag](
       spout: Spout[T] = new IdentitySpout[T](),
       graphBuilder: GraphBuilder[T],
       customConfig: Map[String, Any] = Map()
-  ): DeployedTemporalGraph = ???
-//    deployLocalGraph(spout, graphBuilder, customConfig, true)
+  ): Resource[IO, DeployedTemporalGraph] =
+    deployLocalGraphV2[T, IO](spout, graphBuilder, customConfig, batchLoading = true)
 
   /** Creates a `TemporalGraphConnection` object referencing an already deployed graph that
     * can be used to submit queries.
@@ -215,7 +216,7 @@ object Raphtory {
 //    new DeployedTemporalGraph(Query(), querySender, deployment, conf)
 //  }
 
-  private def deployLocalGraphV2[T: ClassTag, TypeTag, IO[_]: Spawn](
+  private def deployLocalGraphV2[T: ClassTag, IO[_]: Spawn](
       spout: Spout[T] = new IdentitySpout[T](),
       graphBuilder: GraphBuilder[T],
       customConfig: Map[String, Any] = Map(),
