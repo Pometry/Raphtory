@@ -37,7 +37,7 @@ object Component {
       name: String,
       ts: Seq[CanonicalTopic[T]],
       comp: => C
-  )(implicit IO: Async[IO]): Resource[IO, C] = {
+  )(implicit IO: Async[IO]): Resource[IO, C] =
     Resource
       .make {
         for {
@@ -52,9 +52,6 @@ object Component {
           cleanup(qm, listener, listenerFib, runner)
       }
       .map { case (qm, _, _, _) => qm }
-
-    ???
-  }
 
   def makeAndStartPart[IO[_]: Spawn, T, C <: Component[T]](
       partitionId: Int,
