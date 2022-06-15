@@ -4,22 +4,20 @@ import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
 
 /**
-  * Test to use the AWS S3 Spout, requires bucket name and bucket path that you would like to ingest,
-  * set in application.conf.
+  * Tests the AWS S3 Spout and Sink, requires bucket name and bucket path that you would like to ingest.
+  * Also requires bucket to output results into. Both set in application.conf.
   */
 
 object AwsSpoutTest extends App {
-  val config               = Raphtory.getDefaultConfig()
-  val awsS3SpoutBucketName = config.getString("raphtory.spout.aws.local.spoutBucketName")
-  val awsS3SpoutBucketPath = config.getString("raphtory.spout.aws.local.spoutBucketPath")
-  val inputFilePath = config.getString("raphtory.spout.aws.local.inputFilePath")
+  val config                        = Raphtory.getDefaultConfig()
+  val awsS3SpoutBucketName          = config.getString("raphtory.spout.aws.local.spoutBucketName")
+  val awsS3SpoutBucketKey          = config.getString("raphtory.spout.aws.local.spoutBucketPath")
   val awsS3OutputFormatBucketName = config.getString("raphtory.spout.aws.local.outputBucketName")
-  val awsS3OutputFormatBucketKey = config.getString("raphtory.spout.aws.local.outputBucketKey")
 
-  val source = AwsS3Spout(awsS3SpoutBucketName,awsS3SpoutBucketPath)
+  val source               = AwsS3Spout(awsS3SpoutBucketName,awsS3SpoutBucketKey)
   val builder              = new LOTRGraphBuilder()
   val graph                = Raphtory.stream(spout = source, graphBuilder = builder)
-  val output               = AwsSink(awsS3OutputFormatBucketName, awsS3OutputFormatBucketKey)
+  val output               = AwsS3Sink(awsS3OutputFormatBucketName)
 
 
   val queryHandler = graph
