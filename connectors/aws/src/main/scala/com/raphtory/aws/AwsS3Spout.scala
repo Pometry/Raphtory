@@ -1,21 +1,13 @@
 package com.raphtory.aws
 
 import com.amazonaws.auth.AWSStaticCredentialsProvider
-import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
-import com.typesafe.scalalogging.Logger
-import org.slf4j.LoggerFactory
 import com.amazonaws.services.s3.model.GetObjectRequest
 import com.amazonaws.services.s3.model.S3Object
-import com.amazonaws.services.securitytoken.AWSSecurityTokenService
-import com.raphtory.Raphtory
 import com.raphtory.api.input.Spout
-
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import com.typesafe.config.Config
-import com.typesafe.config.ConfigFactory
 
 /**
   * @param awsS3SpoutBucketName
@@ -23,9 +15,8 @@ import com.typesafe.config.ConfigFactory
   *
   * The AwsS3Spout takes in the name and path of the AWS S3 bucket that you would like
   * to ingest into Raphtory, usually this is set in your tests.
-  * It requires the `arnToken`, `durationSeconds` and `tokenCode` to be set in `application.conf`.
   *
-  * It builds an S3 client using credentials obtained through multi-factor authentication.
+  * It builds an S3 client using credentials obtained through multi-factor authentication or through providing access keys.
   * The data is streamed from AWS S3 until null is reached.
   */
 
