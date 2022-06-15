@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory
 import com.amazonaws.services.s3.model.GetObjectRequest
 import com.amazonaws.services.s3.model.S3Object
 import com.amazonaws.services.securitytoken.AWSSecurityTokenService
+import com.raphtory.Raphtory
 import com.raphtory.api.input.Spout
 
 import java.io.BufferedReader
@@ -30,34 +31,25 @@ import com.typesafe.config.ConfigFactory
 
 class AwsS3Spout(awsS3SpoutBucketName: String, awsS3SpoutBucketPath: String) extends Spout[String] {
 
-  val raphtoryConfig: Config = ConfigFactory.load()
+  val credentials: AwsCredentials = AwsS3Connector().getAWSCredentials()
 
-  private val arnToken        = raphtoryConfig.getString("raphtory.spout.aws.local.amazonResourceName")
-  private val durationSeconds = raphtoryConfig.getInt("raphtory.spout.aws.local.durationSeconds")
-  private val tokenCode       = raphtoryConfig.getString("raphtory.spout.aws.local.mfaTokenCode")
-  private val region          = Regions.US_EAST_1
-
-  val stsClient: AWSSecurityTokenService = AWSStsClient(region).stsClient
-
-  val credentials: AwsCredentials =
-    AWSAssumeRole(stsClient).getTempCredentials(arnToken, durationSeconds, tokenCode)
-
-  val s3Client: AmazonS3 = AmazonS3ClientBuilder
+  private val s3Client: AmazonS3 = AmazonS3ClientBuilder
     .standard()
     .withCredentials(
-            new AWSStaticCredentialsProvider(credentials)
+      new AWSStaticCredentialsProvider(credentials)
     )
     .build()
 
   val s3object: S3Object =
     s3Client.getObject(new GetObjectRequest(awsS3SpoutBucketName, awsS3SpoutBucketPath))
+
   val s3Reader           = new BufferedReader(new InputStreamReader(s3object.getObjectContent))
 
   override def hasNext: Boolean =
     s3Reader.readLine() != null
 
   override def next(): String =
-    if ((s3Reader.readLine()) != null)
+    if (s3Reader.readLine() != null)
       s3Reader.readLine()
     else {
       logger.error(s"NullPointerException: check your data source")
