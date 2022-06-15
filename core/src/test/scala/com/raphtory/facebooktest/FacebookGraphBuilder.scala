@@ -3,8 +3,8 @@ package com.raphtory.facebooktest
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
-import com.raphtory.api.input.Type
 import com.raphtory.api.input.Properties._
+import com.raphtory.internals.graph.Type
 
 /*
  *

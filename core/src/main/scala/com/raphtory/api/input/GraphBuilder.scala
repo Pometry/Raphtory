@@ -1,6 +1,7 @@
 package com.raphtory.api.input
 
 import com.raphtory.internals.components.partition.BatchWriter
+import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.management.telemetry.ComponentTelemetryHandler
 import com.typesafe.scalalogging.Logger
 import net.openhft.hashing.LongHashFunction
@@ -137,8 +138,8 @@ trait GraphBuilder[T] extends Serializable {
   /** Adds a new vertex to the graph or updates an existing vertex
     *
     * @param updateTime timestamp for vertex update
-    * @param srcId ID of vertex to add/update
-    * @param vertexType specify a [[com.raphtory.api.input.Type Type]] for the vertex
+    * @param srcId      ID of vertex to add/update
+    * @param vertexType specify a [[Type Type]] for the vertex
     */
   protected def addVertex(updateTime: Long, srcId: Long, vertexType: Type): Unit = {
     val update = VertexAdd(updateTime, srcId, Properties(), Some(vertexType))
@@ -149,10 +150,10 @@ trait GraphBuilder[T] extends Serializable {
   /** Adds a new vertex to the graph or updates an existing vertex
     *
     * @param updateTime timestamp for vertex update
-    * @param srcId ID of vertex to add/update
+    * @param srcId      ID of vertex to add/update
     * @param properties vertex properties for the update (see [[com.raphtory.api.input.Properties Properties]] for the
     *                   available property types)
-    * @param vertexType specify a [[com.raphtory.api.input.Type Type]] for the vertex
+    * @param vertexType specify a [[Type Type]] for the vertex
     */
   protected def addVertex(
       updateTime: Long,
@@ -186,12 +187,13 @@ trait GraphBuilder[T] extends Serializable {
   }
 
   /** Adds a new edge to the graph or updates an existing edge
+    *
     * @param updateTime timestamp for edge update
-    * @param srcId ID of source vertex of the edge
-    * @param dstId ID of destination vertex of the edge
+    * @param srcId      ID of source vertex of the edge
+    * @param dstId      ID of destination vertex of the edge
     * @param properties edge properties for the update (see [[com.raphtory.api.input.Properties Properties]] for the
     *                   available property types)
-    * @param edgeType specify a [[com.raphtory.api.input.Type Type]] for the edge
+    * @param edgeType   specify a [[Type Type]] for the edge
     */
   protected def addEdge(
       updateTime: Long,
@@ -205,10 +207,11 @@ trait GraphBuilder[T] extends Serializable {
   }
 
   /** Adds a new edge to the graph or updates an existing edge
+    *
     * @param updateTime timestamp for edge update
-    * @param srcId ID of source vertex of the edge
-    * @param dstId ID of destination vertex of the edge
-    * @param edgeType specify a [[com.raphtory.api.input.Type Type]] for the edge
+    * @param srcId      ID of source vertex of the edge
+    * @param dstId      ID of destination vertex of the edge
+    * @param edgeType   specify a [[Type Type]] for the edge
     */
   protected def addEdge(updateTime: Long, srcId: Long, dstId: Long, edgeType: Type): Unit = {
     val update = EdgeAdd(updateTime, srcId, dstId, Properties(), Some(edgeType))
@@ -217,12 +220,13 @@ trait GraphBuilder[T] extends Serializable {
   }
 
   /** Adds a new edge to the graph or updates an existing edge
+    *
     * @param updateTime timestamp for edge update
-    * @param srcId ID of source vertex of the edge
-    * @param dstId ID of destination vertex of the edge
+    * @param srcId      ID of source vertex of the edge
+    * @param dstId      ID of destination vertex of the edge
     * @param properties edge properties for the update (see [[com.raphtory.api.input.Properties Properties]] for the
     *                   available property types)
-    * @param edgeType specify a [[com.raphtory.api.input.Type Type]] for the edge
+    * @param edgeType   specify a [[Type Type]] for the edge
     */
   protected def addEdge(
       updateTime: Long,
