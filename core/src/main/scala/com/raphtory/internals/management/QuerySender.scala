@@ -5,10 +5,12 @@ import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.querymanager.Query
 
 import scala.util.Random
+import com.typesafe.config.Config
 
 private[raphtory] class QuerySender(
     private val scheduler: Scheduler,
-    private val topics: TopicRepository
+    private val topics: TopicRepository,
+    private val config: Config
 ) {
 
   def submit(query: Query, customJobName: String = ""): QueryProgressTracker = {
@@ -16,7 +18,9 @@ private[raphtory] class QuerySender(
     val jobID       = jobName + "_" + Random.nextLong().abs
     val outputQuery = query.copy(name = jobID)
     topics.submissions.endPoint sendAsync outputQuery
-    componentFactory.queryProgressTracker(jobID, scheduler)
+    val tracker     = QueryProgressTracker.unsafeApply(jobID, config, topics)
+    scheduler.execute(tracker)
+    tracker
   }
 
   private def getDefaultName(query: Query): String =

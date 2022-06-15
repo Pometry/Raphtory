@@ -45,7 +45,7 @@ case class PulsarSink(topic: String, format: Format = CsvFormat()) extends Forma
       fileExtension: String
   ): SinkConnector =
     new MessageSinkConnector {
-      private val client                            = new PulsarConnector(config).accessClient
+      private val client                            = PulsarConnector.unsafeApply(config).accessClient
       private lazy val stringProducer               = client.newProducer(Schema.STRING).topic(topic).create()
       override def sendAsync(message: String): Unit = stringProducer.sendAsync(message)
       override def close(): Unit                    = client.close()

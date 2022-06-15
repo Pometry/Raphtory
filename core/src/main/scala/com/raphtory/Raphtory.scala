@@ -226,19 +226,20 @@ object Raphtory {
     val deploymentID   = config.getString("raphtory.deploy.id")
     val scheduler      = new Scheduler()
     for {
-      pro              <- Prometheus[IO](prometheusPort)
-      topicRepo        <- PulsarAkkaTopicRepository(config)
-      qm               <- QueryManager(config, topicRepo)
-      spoutExec        <- SpoutExecutor(spout, config, topicRepo)
-      builderIDManager <- makeIdManager(config, localDeployment = true, s"/$deploymentID/builderCount")
+      pro                <- Prometheus[IO](prometheusPort)
+      topicRepo          <- PulsarAkkaTopicRepository(config)
+      qm                 <- QueryManager(config, topicRepo)
+      spoutExec          <- SpoutExecutor(spout, config, topicRepo)
+      builderIDManager   <- makeIdManager(config, localDeployment = true, s"/$deploymentID/builderCount")
       partitionIdManager <- makeIdManager(config, localDeployment = true, s"/$deploymentID/partitionCount")
-      _                <- BuildExecutorGroup(config, builderIDManager, topicRepo, graphBuilder)
-      _ <- {
-        if (batchLoading) PartitionsManager.batchLoading(config, partitionIdManager, topicRepo, scheduler, spout, graphBuilder)
+      _                  <- BuildExecutorGroup(config, builderIDManager, topicRepo, graphBuilder)
+      _                  <- {
+        if (batchLoading)
+          PartitionsManager.batchLoading(config, partitionIdManager, topicRepo, scheduler, spout, graphBuilder)
         else PartitionsManager.streaming(config, partitionIdManager, topicRepo, scheduler)
       }
 
-    } yield new DeployedTemporalGraph(Query(), new QuerySender(scheduler, topicRepo), config)
+    } yield new DeployedTemporalGraph(Query(), new QuerySender(scheduler, topicRepo, config), config)
   }
 
   def shutdown(): Unit = {

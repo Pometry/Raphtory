@@ -139,8 +139,19 @@ class QueryProgressTracker private[raphtory] (
 
   /** Block until job is complete */
   def waitForJob(timeout: Duration = Duration.Inf): Unit =
-    try Await.result[Unit](isJobDonePromise.future, timeout)
+    try {
+      Await.result[Unit](isJobDonePromise.future, timeout)
+      if (isJobDone) stop()
+    }
     catch {
       case e: DoneException =>
     }
+}
+
+object QueryProgressTracker {
+
+  def unsafeApply(jobId: String, config: Config, topics: TopicRepository): QueryProgressTracker = {
+    val tracker = new QueryProgressTracker(jobId, config, topics)
+    tracker
+  }
 }

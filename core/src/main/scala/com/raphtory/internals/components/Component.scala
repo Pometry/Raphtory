@@ -53,7 +53,7 @@ object Component {
       }
       .map { case (qm, _, _, _) => qm }
 
-      ???
+    ???
   }
 
   def makeAndStartPart[IO[_]: Spawn, T, C <: Component[T]](

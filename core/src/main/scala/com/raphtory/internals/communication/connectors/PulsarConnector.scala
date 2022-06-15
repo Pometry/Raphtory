@@ -23,12 +23,14 @@ import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.math.Ordering.Implicits.infixOrderingOps
+import java.io.Closeable
 
 private[raphtory] class PulsarConnector(
     client: PulsarClient,
     pulsarAdmin: PulsarAdmin,
     config: Config
-) extends Connector {
+) extends Connector
+        with Closeable {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   case class PulsarEndPoint[T](producer: Producer[Array[Byte]]) extends EndPoint[T] {
@@ -240,9 +242,22 @@ private[raphtory] class PulsarConnector(
   }
 
   override def shutdown(): Unit = {}
+
+  override def close(): Unit = {
+    if (!client.isClosed())
+      client.close()
+
+    pulsarAdmin.close()
+  }
 }
 
 object PulsarConnector {
+
+  def unsafeApply(config: Config): PulsarConnector = {
+    val client      = makePulsarClient(config)
+    val adminClient = makeAdminClient(config)
+    new PulsarConnector(client, adminClient, config)
+  }
 
   def apply[IO[_]](config: Config)(implicit IO: Sync[IO]): Resource[IO, PulsarConnector] =
     for {
