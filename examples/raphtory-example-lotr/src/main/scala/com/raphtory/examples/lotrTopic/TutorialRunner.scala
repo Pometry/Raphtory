@@ -17,7 +17,7 @@ import sys.process._
 import java.io.File
 import com.raphtory.algorithms.generic.ConnectedComponents
 
-object FileOutputRunner extends App {
+object TutorialRunner extends App {
   val path = "/tmp/lotr.csv"
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
 
