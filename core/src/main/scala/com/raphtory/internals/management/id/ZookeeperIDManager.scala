@@ -3,58 +3,49 @@ package com.raphtory.internals.management.id
 import com.typesafe.scalalogging.Logger
 import org.apache.curator.framework.CuratorFramework
 import org.apache.curator.framework.CuratorFrameworkFactory
-import org.apache.curator.framework.recipes.atomic.DistributedAtomicInteger
 import org.apache.curator.retry.ExponentialBackoffRetry
-import org.apache.curator.retry.RetryNTimes
-import org.slf4j.LoggerFactory;
+import org.apache.zookeeper.CreateMode
+import org.slf4j.LoggerFactory
 
-private[raphtory] class ZookeeperIDManager(zookeeperAddress: String, atomicPath: String)
-        extends IDManager {
+import scala.jdk.CollectionConverters._
+
+private[raphtory] class ZookeeperIDManager(
+    zookeeperAddress: String,
+    deploymentID: String,
+    counterID: String
+) extends IDManager {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val client: CuratorFramework = CuratorFrameworkFactory
+  private val parentPath   = s"/$deploymentID/$counterID"
+  private val sequencePath = s"$parentPath/id"
+
+  private val client = CuratorFrameworkFactory
     .builder()
     .connectString(zookeeperAddress)
     .retryPolicy(new ExponentialBackoffRetry(1000, 3))
     .build();
 
-  private val atomicInt: DistributedAtomicInteger =
-    new DistributedAtomicInteger(client, atomicPath, new RetryNTimes(10, 500), null);
+  client.start()
 
-  client.start
-
-  def getNextAvailableID(): Option[Int] = {
-    val incremented = atomicInt.increment()
-
-    if (incremented.succeeded()) {
-      val id = incremented.preValue()
-
-      logger.trace(s"Zookeeper $zookeeperAddress: Atomic integer pre value at '$id'.")
-
+  def getNextAvailableID(): Option[Int] =
+    try {
+      val sequenceNumber = client
+        .create()
+        .creatingParentsIfNeeded()
+        .withMode(CreateMode.EPHEMERAL_SEQUENTIAL)
+        .forPath(sequencePath)
+        .split("/")
+        .last
+      val id             = client.getChildren.forPath(parentPath).asScala.sorted.indexOf(sequenceNumber)
+      logger.trace(s"Zookeeper $zookeeperAddress: Get new id '$id'.")
       Some(id)
     }
-    else {
-      logger.error(s"Zookeeper $zookeeperAddress: Failed to increment atomic integer.")
-
-      None
+    catch {
+      case e: Exception =>
+        e.printStackTrace()
+        logger.error(s"Zookeeper $zookeeperAddress: Failed to get id.")
+        None
     }
-  }
 
-  def resetID(): Unit = {
-    logger.debug(s"Zookeeper $zookeeperAddress: Atomic integer requested for reset.")
-
-    logger.debug(
-            s"Zookeeper $zookeeperAddress: Atomic integer value now at '${atomicInt.get().preValue()}'."
-    )
-
-    atomicInt.forceSet(0)
-
-    logger.debug(
-            s"Zookeeper $zookeeperAddress: Atomic integer value now at '${atomicInt.get().postValue()}'."
-    )
-  }
-
-  def stop(): Unit =
-    client.close()
-
+  def stop(): Unit = client.close()
 }

@@ -40,9 +40,9 @@ private[raphtory] class ComponentFactory(
     else {
       val zookeeperAddress     = conf.getString("raphtory.zookeeper.address")
       val zkBuilderIDManager   =
-        new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/builderCount")
+        new ZookeeperIDManager(zookeeperAddress, deploymentID, "builderCount")
       val zkPartitionIDManager =
-        new ZookeeperIDManager(zookeeperAddress, s"/$deploymentID/partitionCount")
+        new ZookeeperIDManager(zookeeperAddress, deploymentID, "partitionCount")
       (zkBuilderIDManager, zkPartitionIDManager)
     }
 
@@ -170,6 +170,7 @@ private[raphtory] class ComponentFactory(
       Partitions(x.map(_._1).toList, x.map(_._2).toList, x.map(_._3).toList)
     }
 
+    logger.info(s"Created partitions with ids: ${partitionIDs.toList}.")
     partitions
   }
 

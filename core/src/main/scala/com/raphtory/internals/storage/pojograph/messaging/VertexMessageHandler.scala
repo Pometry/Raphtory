@@ -54,7 +54,14 @@ private[raphtory] class VertexMessageHandler(
       receivedMessages.incrementAndGet()
     }
     else { //sending to a remote partition
-      val producer = endPoints.get(destinationPartition)
+      val producer = endPoints match {
+        case Some(endPoints) => endPoints(destinationPartition)
+        case None            =>
+          val msg =
+            s"Trying to send message to partition $destinationPartition from partition ${pojoGraphLens.partitionID} but no endPoints were provided"
+          logger.error(msg)
+          throw new IllegalStateException(msg)
+      }
       if (messageBatch) {
         val cache = messageCache(producer)
         cache.synchronized {
