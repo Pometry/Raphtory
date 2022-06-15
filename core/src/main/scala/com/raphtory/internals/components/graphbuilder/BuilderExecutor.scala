@@ -1,7 +1,7 @@
 package com.raphtory.internals.components.graphbuilder
 
 import com.raphtory.api.input.GraphBuilder
-import com.raphtory.api.input.GraphUpdate
+import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.serialisers.Marshal

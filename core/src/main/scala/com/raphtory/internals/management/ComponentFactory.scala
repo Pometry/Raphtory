@@ -1,6 +1,5 @@
 package com.raphtory.internals.management
 
-import com.raphtory.api.input.GraphAlteration
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
 import com.raphtory.api.querytracker.QueryProgressTracker
@@ -14,6 +13,7 @@ import com.raphtory.internals.components.partition.StreamWriter
 import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.components.querymanager.QueryManager
 import com.raphtory.internals.components.spout.SpoutExecutor
+import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.id.LocalIDManager
 import com.raphtory.internals.management.id.ZookeeperIDManager

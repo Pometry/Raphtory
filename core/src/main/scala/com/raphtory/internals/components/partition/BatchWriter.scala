@@ -1,11 +1,7 @@
 package com.raphtory.internals.components.partition
 
-import com.raphtory.api.input.BatchAddRemoteEdge
-import com.raphtory.api.input.EdgeAdd
-import com.raphtory.api.input.EdgeDelete
-import com.raphtory.api.input.GraphAlteration
-import com.raphtory.api.input.SyncNewEdgeRemoval
-import com.raphtory.api.input.VertexAdd
+import com.raphtory.internals.graph.GraphAlteration._
+import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.telemetry.ComponentTelemetryHandler
 import com.typesafe.scalalogging.Logger

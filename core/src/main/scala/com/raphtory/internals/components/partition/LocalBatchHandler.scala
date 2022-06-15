@@ -1,9 +1,9 @@
 package com.raphtory.internals.components.partition
 
-import com.raphtory.api.input.GraphAlteration
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
 import com.raphtory.internals.components.Component
+import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
