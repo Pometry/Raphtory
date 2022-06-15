@@ -101,7 +101,7 @@ case class AwsS3Sink(awsS3OutputFormatBucketName: String, format: Format = CsvFo
 
       override def closeItem(): Unit = {
 
-        if (stream0.size() >= streamLimit || stream1.size() >= streamLimit || stream2.size() >= streamLimit || stream3.size() >= streamLimit) {
+        if (stream0.size() > streamLimit || stream1.size() > streamLimit || stream2.size() > streamLimit || stream3.size() > streamLimit) {
 
           def makeUploadRequest(stream: ByteArrayOutputStream) = {
             // Upload file parts in 5MB parts
