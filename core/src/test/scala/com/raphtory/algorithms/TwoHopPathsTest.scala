@@ -6,12 +6,10 @@ import com.raphtory.algorithms.generic.TwoHopPaths
 
 class TwoHopPathsTest extends BaseCorrectnessTest {
   test("Test two-hop Paths") {
-    assert(
-            correctnessTest(
-                    TestQuery(TwoHopPaths("1", "7"), 23),
-                    "MotifCount/motiftest.csv",
-                    "TwoHopPaths/twohopResults.csv"
-            )
+    correctnessTest(
+            TestQuery(TwoHopPaths("1", "7"), 23),
+            "MotifCount/motiftest.csv",
+            "TwoHopPaths/twohopResults.csv"
     )
   }
 

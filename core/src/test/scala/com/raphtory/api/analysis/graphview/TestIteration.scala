@@ -40,12 +40,10 @@ object CountIterations {
 
 class TestIteration extends BaseCorrectnessTest {
   test("Testing vote-to-halt works") {
-    assert(
-            correctnessTest(
-                    TestQuery(CountIterations(10, 100), 23),
-                    "MotifCount/motiftest.csv",
-                    "Iterations/results.csv"
-            )
+    correctnessTest(
+            TestQuery(CountIterations(10, 100), 23),
+            "MotifCount/motiftest.csv",
+            "Iterations/results.csv"
     )
   }
 }

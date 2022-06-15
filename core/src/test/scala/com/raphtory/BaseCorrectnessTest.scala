@@ -9,6 +9,7 @@ import com.raphtory.api.input.Spout
 import com.raphtory.spouts.IdentitySpout
 import com.raphtory.spouts.ResourceSpout
 import com.raphtory.spouts.SequenceSpout
+import org.scalatest.Assertion
 
 import java.nio.charset.StandardCharsets
 
@@ -43,7 +44,7 @@ abstract class BaseCorrectnessTest(
       test: TestQuery,
       graphResource: String,
       resultsResource: String
-  ): Boolean = {
+  ): Assertion = {
     graph = Raphtory.load(ResourceSpout(graphResource), setGraphBuilder())
     try correctnessTest(test, resultsResource)
     finally graph.deployment.stop()
@@ -53,7 +54,7 @@ abstract class BaseCorrectnessTest(
       test: TestQuery,
       graphEdges: Seq[String],
       results: Seq[String]
-  ): Boolean = {
+  ): Assertion = {
     graph = Raphtory.load(SequenceSpout(graphEdges: _*), setGraphBuilder())
     try correctnessTest(test, results)
     finally graph.deployment.stop()
@@ -62,24 +63,24 @@ abstract class BaseCorrectnessTest(
   def correctnessTest(
       test: TestQuery,
       results: Seq[String]
-  ): Boolean =
+  ): Assertion =
     algorithmPointTest(
             test.algorithm,
             test.timestamp,
             test.windows
-    ) == correctResultsHash(
+    ) shouldEqual correctResultsHash(
             results
     )
 
   def correctnessTest(
       test: TestQuery,
       resultsResource: String
-  ): Boolean =
+  ): Assertion =
     algorithmPointTest(
             test.algorithm,
             test.timestamp,
             test.windows
-    ) == correctResultsHash(
+    ) shouldEqual correctResultsHash(
             resultsResource
     )
 }

@@ -6,12 +6,10 @@ import com.raphtory.algorithms.generic.ConnectedComponents
 
 class ConnectedComponentsTest extends BaseCorrectnessTest {
   test("Test two components") {
-    assert(
-            correctnessTest(
-                    TestQuery(ConnectedComponents(), 7),
-                    "ConnectedComponents/twoComponents.csv",
-                    "ConnectedComponents/twoComponentsResults.csv"
-            )
+    correctnessTest(
+            TestQuery(ConnectedComponents(), 7),
+            "ConnectedComponents/twoComponents.csv",
+            "ConnectedComponents/twoComponentsResults.csv"
     )
   }
 

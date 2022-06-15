@@ -10,21 +10,17 @@ import com.raphtory.api.input.GraphBuilder
 class MaxFlowTest extends BaseCorrectnessTest {
   override def setGraphBuilder(): GraphBuilder[String] = WeightedGraphBuilder()
   test("test on line graph") {
-    assert(
-            correctnessTest(
-                    TestQuery(MaxFlow[Long]("1", "3"), 2),
-                    "MaxFlow/minimalTest.csv",
-                    "MaxFlow/minimalResult.csv"
-            )
+    correctnessTest(
+            TestQuery(MaxFlow[Long]("1", "3"), 2),
+            "MaxFlow/minimalTest.csv",
+            "MaxFlow/minimalResult.csv"
     )
   }
   test("test on two connected cliques") {
-    assert(
-            correctnessTest(
-                    TestQuery(MaxFlow[Long]("2", "101", maxIterations = 10000), 9899),
-                    "MaxFlow/bottleneck.csv",
-                    "MaxFlow/bottleneckResult.csv"
-            )
+    correctnessTest(
+            TestQuery(MaxFlow[Long]("2", "101", maxIterations = 10000), 9899),
+            "MaxFlow/bottleneck.csv",
+            "MaxFlow/bottleneckResult.csv"
     )
   }
 }

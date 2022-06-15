@@ -8,12 +8,10 @@ import scala.::
 
 class WattsTest extends BaseCorrectnessTest {
   test("Test Watts cascade on small example") {
-    assert(
-            correctnessTest(
-                    TestQuery(WattsCascade(threshold = 0.5, infectedSeed = Set("1")), 23),
-                    "MotifCount/motiftest.csv",
-                    "WattsCascade/wattsResults.csv"
-            )
+    correctnessTest(
+            TestQuery(WattsCascade(threshold = 0.5, infectedSeed = Set("1")), 23),
+            "MotifCount/motiftest.csv",
+            "WattsCascade/wattsResults.csv"
     )
   }
 }

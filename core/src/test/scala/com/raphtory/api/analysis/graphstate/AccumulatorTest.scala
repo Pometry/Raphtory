@@ -71,17 +71,15 @@ class AccumulatorTest extends BaseCorrectnessTest(startGraph = true) {
   override def setSpout(): Spout[String] = ResourceSpout("MotifCount/motiftest.csv")
 
   test("Test accumulators by counting nodes") {
-    assert(correctnessTest(TestQuery(CountNodes, 23), "Accumulator/results.csv"))
+    correctnessTest(TestQuery(CountNodes, 23), "Accumulator/results.csv")
   }
+
   test("Test resetting of accumulators by running CountNodes twice (should not change result)") {
-    assert(
-            correctnessTest(TestQuery(CountNodes -> CountNodes, 23), "Accumulator/results.csv")
-    )
+    correctnessTest(TestQuery(CountNodes -> CountNodes, 23), "Accumulator/results.csv")
   }
+
   test("Test rotation of accumulators and state retention by running counting nodes twice") {
-    assert(
-            correctnessTest(TestQuery(CountNodesTwice, 23), "Accumulator/results2.csv")
-    )
+    correctnessTest(TestQuery(CountNodesTwice, 23), "Accumulator/results2.csv")
   }
 
   test("Test nodeCount on graph state is consistent for multiple perspectives") {

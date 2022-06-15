@@ -59,13 +59,11 @@ object CheckHistory {
 
 class OrderingTest extends BaseCorrectnessTest {
   test("test history is sorted") {
-    assert(
-            correctnessTest(
-                    TestQuery(CheckHistory(), 23),
-                    for (i <- 0 until 100)
-                      yield s"${Random.nextInt(10)},${Random.nextInt(10)},${Random.nextInt(100)}",
-                    Seq("23,true,true")
-            )
+    correctnessTest(
+            TestQuery(CheckHistory(), 23),
+            for (i <- 0 until 100)
+              yield s"${Random.nextInt(10)},${Random.nextInt(10)},${Random.nextInt(100)}",
+            Seq("23,true,true")
     )
   }
 }

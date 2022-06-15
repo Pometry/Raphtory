@@ -6,12 +6,10 @@ import com.raphtory.algorithms.generic.motif.TriangleCount
 
 class TriangleCountTest extends BaseCorrectnessTest {
   test("test triangle counting") {
-    assert(
-            correctnessTest(
-                    TestQuery(TriangleCount, 23),
-                    "MotifCount/motiftest.csv",
-                    "TriangleCount/triangleCorrectResult.csv"
-            )
+    correctnessTest(
+            TestQuery(TriangleCount, 23),
+            "MotifCount/motiftest.csv",
+            "TriangleCount/triangleCorrectResult.csv"
     )
   }
 

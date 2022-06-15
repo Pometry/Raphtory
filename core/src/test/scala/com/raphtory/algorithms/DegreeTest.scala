@@ -14,21 +14,17 @@ class DegreeTest extends BaseCorrectnessTest(startGraph = true) {
   override def setSpout(): Spout[String] = ResourceSpout("Degree/degreeTest.csv")
 
   test("weighted Degree with weighted edges") {
-    assert(
-            correctnessTest(TestQuery(WeightedDegree[Long](), 6), "Degree/weightedResult.csv")
-    )
+    correctnessTest(TestQuery(WeightedDegree[Long](), 6), "Degree/weightedResult.csv")
   }
 
   test("weighted Degree with edge count") {
-    assert(
-            correctnessTest(
-                    TestQuery(WeightedDegree[Long](""), 6),
-                    "Degree/countedResult.csv"
-            )
+    correctnessTest(
+            TestQuery(WeightedDegree[Long](""), 6),
+            "Degree/countedResult.csv"
     )
   }
 
   test("unweighted Degree") {
-    assert(correctnessTest(TestQuery(Degree, 6), "Degree/unweightedResult.csv"))
+    correctnessTest(TestQuery(Degree, 6), "Degree/unweightedResult.csv")
   }
 }

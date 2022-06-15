@@ -9,11 +9,9 @@ import com.raphtory.spouts.ResourceSpout
 class TimeSeriesTest extends BaseCorrectnessTest(startGraph = true) {
   override def setSpout(): Spout[String] = ResourceSpout("TimeSeriesGraphState/timeSeries.csv")
   test("Time Series Test") {
-    assert(
-            correctnessTest(
-                    TestQuery(TimeSeriesGraphState(), 4),
-                    "TimeSeriesGraphState/timeSeriesResult.csv"
-            )
+    correctnessTest(
+            TestQuery(TimeSeriesGraphState(), 4),
+            "TimeSeriesGraphState/timeSeriesResult.csv"
     )
   }
 }
