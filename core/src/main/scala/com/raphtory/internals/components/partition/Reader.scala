@@ -30,18 +30,14 @@ private[raphtory] class Reader(
   private val executorMap      = mutable.Map[String, QueryExecutor]()
   private val watermarkPublish = topics.watermark.endPoint
 
-  private val queryPrepListener                              =
-    topics.registerListener(s"$deploymentID-reader-$partitionID", handleMessage, topics.queryPrep)
   private var scheduledWatermark: Option[() => Future[Unit]] = None
 
   override def run(): Unit = {
     logger.debug(s"Partition $partitionID: Starting Reader Consumer.")
-    queryPrepListener.start()
     scheduleWatermarker()
   }
 
   override def stop(): Unit = {
-    queryPrepListener.close()
     scheduledWatermark.foreach(cancelable => cancelable())
     watermarkPublish.close()
     executorMap.synchronized {

@@ -76,7 +76,7 @@ object BuilderExecutor {
   ): Resource[IO, BuilderExecutor[T]] =
     Component.makeAndStart(
             topics,
-            s"builder-executor-$name",
+            s"builder-$name",
             List(topics.spout[T]),
             new BuilderExecutor[T](name, deploymentID, graphBuilder, conf, topics)
     )

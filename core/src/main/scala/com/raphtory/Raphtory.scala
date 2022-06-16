@@ -227,13 +227,19 @@ object Raphtory {
     val deploymentID   = config.getString("raphtory.deploy.id")
     val scheduler      = new Scheduler()
     for {
-      pro                <- Prometheus[IO](prometheusPort)
+      _                  <- Prometheus[IO](prometheusPort)
       topicRepo          <- PulsarAkkaTopicRepository(config)
-      qm                 <- QueryManager(config, topicRepo)
-      spoutExec          <- SpoutExecutor(spout, config, topicRepo)
+      _                  <- QueryManager(config, topicRepo)
+      _                  <- {
+        if (batchLoading) Resource.eval(IO.unit)
+        else SpoutExecutor(spout, config, topicRepo)
+      }
       builderIDManager   <- makeIdManager(config, localDeployment = true, s"/$deploymentID/builderCount")
       partitionIdManager <- makeIdManager(config, localDeployment = true, s"/$deploymentID/partitionCount")
-      _                  <- BuildExecutorGroup(config, builderIDManager, topicRepo, graphBuilder)
+      _                  <- {
+        if (batchLoading) Resource.eval(IO.unit)
+        else BuildExecutorGroup(config, builderIDManager, topicRepo, graphBuilder)
+      }
       _                  <- {
         if (batchLoading)
           PartitionsManager.batchLoading(config, partitionIdManager, topicRepo, scheduler, spout, graphBuilder)
