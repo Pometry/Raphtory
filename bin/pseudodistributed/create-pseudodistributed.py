@@ -27,11 +27,11 @@ except OSError as error:
 
 shutil.copy(jar_folder + jar_name, folder)
 
-os.environ["RAPHTORY_INTERNALS_COMPONENTS_PARTITION_LOG"] = "TRACE"
-os.environ["RAPHTORY_INTERNALS_COMPONENTS_QUERYMANAGER_LOG"] = "TRACE"
-os.environ["RAPHTORY_INTERNALS_COMPONENTS_QUERYTRACKER_LOG"] = "TRACE"
-os.environ["RAPHTORY_INTERNALS_COMPONENTS_SPOUT_LOG"] = "TRACE"
-os.environ["RAPHTORY_INTERNALS_COMPONENTS_GRAPHBUILDER_LOG"] = "TRACE"
+os.environ["RAPHTORY_INTERNALS_COMPONENTS_PARTITION_LOG"] = "DEBUG"
+os.environ["RAPHTORY_INTERNALS_COMPONENTS_QUERYMANAGER_LOG"] = "DEBUG"
+os.environ["RAPHTORY_INTERNALS_COMPONENTS_QUERYTRACKER_LOG"] = "DEBUG"
+os.environ["RAPHTORY_INTERNALS_COMPONENTS_SPOUT_LOG"] = "DEBUG"
+os.environ["RAPHTORY_INTERNALS_COMPONENTS_GRAPHBUILDER_LOG"] = "DEBUG"
 
 os.environ['RAPHTORY_PULSAR_BROKER_ADDRESS']= "pulsar://127.0.0.1:6650"
 os.environ['RAPHTORY_PULSAR_ADMIN_ADDRESS']= "http://127.0.0.1:8080"
@@ -39,7 +39,7 @@ os.environ['RAPHTORY_ZOOKEEPER_ADDRESS']= "127.0.0.1:2181"
 
 os.chdir(folder)
 
-# Change the RAM asigned to Java (Scala)
+# Change the RAM assigned to Java (Scala)
 os.environ["JAVA_OPTS"]="-XX:+UseShenandoahGC -XX:+UseStringDeduplication -Xms1G -Xmx1G -Xss128M"
 
 os.system('scala -classpath ' + jar_name + ' ' + main_class + ' ' + service_name)

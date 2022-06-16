@@ -124,21 +124,14 @@ Enter number: 4
 23:11:34.862 [run-main-0] INFO  com.raphtory.internals.management.GraphDeployment - Created Graph Spout topic with name 'raphtory_data_raw_181811870'.
 ```
 
-Next, we should see that our query has been submitted. If the time we have asked for within the query has yet to be ingested, or is busy synchronising we will get a message informing us so, but that it will be resubmitted soon. Once the required timestamp is available, the analysis will be run. To manage these times Raphtory maintains a global watermark which reports the status of the partitions, and the time they believe is safe to execute on. These individual times are then aggregated into a global minimum time to make sure the results are always correct. The timestamp chosen for this query (`32674`) is just before the final timestamp in the file. 
-
-Query submitted:
+Next, we should see that our query has been submitted:
 ``` 
 23:11:35.043 [run-main-0] INFO  com.raphtory.internals.management.ComponentFactory - Creating new Query Progress Tracker for 'DegreesSeparation_8822143620455242909'.
 23:11:35.080 [spawner-akka.actor.default-dispatcher-3] INFO  com.raphtory.internals.components.querymanager.QueryManager - Query 'DegreesSeparation_8822143620455242909' received, your job ID is 'DegreesSeparation_8822143620455242909'.
 23:11:35.157 [monix-computation-138] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job DegreesSeparation_8822143620455242909: Starting query progress tracker.
 ```
 
-If the data has not fully ingested yet you may get a message informing you of where the watermark is currently at (only shows when logger level is set to 'debug'):
-```
-23:11:36.200 [monix-computation-138] DEBUG com.raphtory.core.components.querymanager.QueryHandler - Job 'DegreesSeparation_8822143620455242909': Perspective 'Perspective(32674,None)' is not ready, currently at '270'.
-```
-
-Once the data has completed ingesting the query can run. The logs for this contain information about the Job ID, topics, perspectives, windows and the time it has taken to run.
+Finally, once the data has completed ingesting, the query can run. The logs for this contain information about the Job ID, topics, perspectives, windows and the time it has taken to run.
 ```
 23:11:37.247 [spawner-akka.actor.default-dispatcher-9] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job 'DegreesSeparation_8822143620455242909': Perspective '32674' finished in 2202 ms.
 23:11:37.247 [spawner-akka.actor.default-dispatcher-9] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job DegreesSeparation_8822143620455242909: Running query, processed 1 perspectives.

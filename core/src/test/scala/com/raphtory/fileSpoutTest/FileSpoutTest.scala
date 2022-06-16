@@ -1,7 +1,6 @@
 package com.raphtory.fileSpoutTest
 
 import com.raphtory.utils.FileUtils
-import com.raphtory.utils.FileUtils.logger
 import org.scalatest.BeforeAndAfter
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite

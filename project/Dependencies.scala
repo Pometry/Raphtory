@@ -30,7 +30,7 @@ object Dependencies {
   lazy val curatorRecipes = "org.apache.curator" % "curator-recipes"  % curatorVersion
 
   lazy val javaxScript =
-    "javax.script" % "js-engine" % javaxScriptVersion //needed to stop logger throwing an exception
+    "javax.script" % "js-engine" % javaxScriptVersion //Creates a fake POM to avoid the logger throwing a class not found exception
 
   lazy val gson =
     "com.google.code.gson" % "gson" % gsonVersion excludeAll (excludeLog4j, excludeSlf4j)
