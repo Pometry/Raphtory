@@ -4,15 +4,18 @@ import com.raphtory.BaseCorrectnessTest
 import com.raphtory.algorithms.generic.centrality.Degree
 import com.raphtory.algorithms.generic.centrality.WeightedDegree
 import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Spout
+import com.raphtory.spouts.ResourceSpout
 
-class DegreeTest extends BaseCorrectnessTest {
+class DegreeTest extends BaseCorrectnessTest(startGraph = true) {
   override def setGraphBuilder(): GraphBuilder[String] = WeightedGraphBuilder()
+
+  override def setSpout(): Spout[String] = ResourceSpout("Degree/degreeTest.csv")
 
   test("weighted Degree with weighted edges") {
     assert(
             correctnessTest(
                     WeightedDegree[Long](),
-                    "Degree/degreeTest.csv",
                     "Degree/weightedResult.csv",
                     6
             )
@@ -23,7 +26,6 @@ class DegreeTest extends BaseCorrectnessTest {
     assert(
             correctnessTest(
                     WeightedDegree[Long](""),
-                    "Degree/degreeTest.csv",
                     "Degree/countedResult.csv",
                     6
             )
@@ -31,6 +33,6 @@ class DegreeTest extends BaseCorrectnessTest {
   }
 
   test("unweighted Degree") {
-    assert(correctnessTest(Degree, "Degree/degreeTest.csv", "Degree/unweightedResult.csv", 6))
+    assert(correctnessTest(Degree, "Degree/unweightedResult.csv", 6))
   }
 }

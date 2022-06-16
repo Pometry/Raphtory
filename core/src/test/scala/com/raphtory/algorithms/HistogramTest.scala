@@ -4,14 +4,16 @@ import com.raphtory.BaseCorrectnessTest
 import com.raphtory.algorithms.filters.VertexFilter
 import com.raphtory.algorithms.generic.VertexHistogram
 import com.raphtory.algorithms.generic.centrality.Degree
+import com.raphtory.api.input.Spout
+import com.raphtory.spouts.ResourceSpout
 
-class HistogramTest extends BaseCorrectnessTest {
+class HistogramTest extends BaseCorrectnessTest(startGraph = true) {
+  override def setSpout(): Spout[String] = ResourceSpout("MotifCount/motiftest.csv")
 
   test("Histogram Test on in-degree") {
     assert(
             correctnessTest(
                     Degree -> VertexHistogram[Int]("inDegree", noBins = 5),
-                    "MotifCount/motiftest.csv",
                     "Histogram/inHistogramResult.csv",
                     23
             )
@@ -22,7 +24,6 @@ class HistogramTest extends BaseCorrectnessTest {
     assert(
             correctnessTest(
                     Degree -> VertexHistogram[Int]("outDegree", noBins = 5),
-                    "MotifCount/motiftest.csv",
                     "Histogram/outHistogramResult.csv",
                     23
             )
@@ -33,7 +34,6 @@ class HistogramTest extends BaseCorrectnessTest {
     assert(
             correctnessTest(
                     Degree -> VertexHistogram[Int]("degree", noBins = 5),
-                    "MotifCount/motiftest.csv",
                     "Histogram/totalHistogramResult.csv",
                     23
             )

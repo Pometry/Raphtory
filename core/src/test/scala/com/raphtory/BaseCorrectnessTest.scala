@@ -3,6 +3,7 @@ package com.raphtory
 import com.google.common.hash.Hashing
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.algorithm.GenericallyApplicable
+import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
 import com.raphtory.spouts.IdentitySpout
@@ -11,7 +12,13 @@ import com.raphtory.spouts.SequenceSpout
 
 import java.nio.charset.StandardCharsets
 
-abstract class BaseCorrectnessTest extends BaseRaphtoryAlgoTest[String] {
+abstract class BaseCorrectnessTest(
+    deleteResultAfterFinish: Boolean = true,
+    startGraph: Boolean = false
+) extends BaseRaphtoryAlgoTest[String](
+                deleteResultAfterFinish,
+                startGraph
+        ) {
 
   override def setGraphBuilder(): GraphBuilder[String] = BasicGraphBuilder()
 
@@ -23,10 +30,6 @@ abstract class BaseCorrectnessTest extends BaseRaphtoryAlgoTest[String] {
     finally source.close()
   }
 
-  override def beforeAll(): Unit = setup()
-
-  override def afterAll(): Unit = {}
-
   private def correctResultsHash(rows: IterableOnce[String]): String =
     resultsHash(rows)
 
@@ -37,15 +40,8 @@ abstract class BaseCorrectnessTest extends BaseRaphtoryAlgoTest[String] {
       lastTimestamp: Int
   ): Boolean = {
     graph = Raphtory.load(ResourceSpout(graphResource), setGraphBuilder())
-
-    val res = algorithmPointTest(
-            algorithm,
-            lastTimestamp
-    ) == correctResultsHash(
-            resultsResource
-    )
-    graph.deployment.stop()
-    res
+    try correctnessTest(algorithm, resultsResource, lastTimestamp)
+    finally graph.deployment.stop()
   }
 
   def correctnessTest(
@@ -55,13 +51,31 @@ abstract class BaseCorrectnessTest extends BaseRaphtoryAlgoTest[String] {
       lastTimestamp: Int
   ): Boolean = {
     graph = Raphtory.load(SequenceSpout(graphEdges: _*), setGraphBuilder())
-    val res = algorithmPointTest(
+    try correctnessTest(algorithm, results, lastTimestamp)
+    finally graph.deployment.stop()
+  }
+
+  def correctnessTest(
+      algorithm: GenericallyApplicable,
+      results: Seq[String],
+      lastTimestamp: Int
+  ): Boolean =
+    algorithmPointTest(
             algorithm,
             lastTimestamp
     ) == correctResultsHash(
             results
     )
-    graph.deployment.stop()
-    res
-  }
+
+  def correctnessTest(
+      algorithm: GenericallyApplicable,
+      resultsResource: String,
+      lastTimestamp: Int
+  ): Boolean =
+    algorithmPointTest(
+            algorithm,
+            lastTimestamp
+    ) == correctResultsHash(
+            resultsResource
+    )
 }
