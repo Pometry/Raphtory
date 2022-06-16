@@ -30,19 +30,20 @@ private[raphtory] class ComponentFactory(
     topicRepo: TopicRepository,
     localDeployment: Boolean = false
 ) {
-  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-
-  private lazy val deploymentID = conf.getString("raphtory.deploy.id")
+  private val logger: Logger                = Logger(LoggerFactory.getLogger(this.getClass))
+  private lazy val deploymentID             = conf.getString("raphtory.deploy.id")
+  private lazy val partitionServers: Int    = conf.getInt("raphtory.partitions.serverCount")
+  private lazy val partitionsPerServer: Int = conf.getInt("raphtory.partitions.countPerServer")
+  private lazy val totalPartitions: Int     = partitionServers * partitionsPerServer
 
   private lazy val (builderIDManager, partitionIDManager) =
     if (localDeployment)
       (new LocalIDManager, new LocalIDManager)
     else {
       val zookeeperAddress     = conf.getString("raphtory.zookeeper.address")
-      val zkBuilderIDManager   =
-        new ZookeeperIDManager(zookeeperAddress, deploymentID, "builderCount")
+      val zkBuilderIDManager   = ZookeeperIDManager(zookeeperAddress, deploymentID, "builderCount")
       val zkPartitionIDManager =
-        new ZookeeperIDManager(zookeeperAddress, deploymentID, "partitionCount")
+        ZookeeperIDManager(zookeeperAddress, deploymentID, "partitionCount", totalPartitions)
       (zkBuilderIDManager, zkPartitionIDManager)
     }
 
@@ -90,88 +91,50 @@ private[raphtory] class ComponentFactory(
       spout: Option[Spout[T]] = None,
       graphBuilder: Option[GraphBuilder[T]] = None
   ): Partitions = {
-    val totalPartitions = conf.getInt("raphtory.partitions.countPerServer")
-    logger.info(s"Creating '$totalPartitions' Partition Managers for $deploymentID.")
+    logger.info(s"Creating '$partitionsPerServer' Partition Managers for $deploymentID.")
 
-    val batchWriters = mutable.Map[Int, BatchWriter[T]]()
-    val partitionIDs = mutable.Set[Int]()
-
-    val partitions = if (batchLoading) {
-      val x: Seq[(GraphPartition, Reader)] = for (i <- 0 until totalPartitions) yield {
-        val partitionID = partitionIDManager.getNextAvailableID() match {
-          case Some(id) => id
-          case None     =>
-            throw new Exception(s"Failed to retrieve Partition ID")
-        }
-
-        val storage: GraphPartition = new PojoBasedPartition(partitionID, conf)
-
-        batchWriters += (
-                (
-                        i,
-                        new BatchWriter[T](
-                                partitionID,
-                                storage
-                        )
-                )
-        )
-        partitionIDs += i
-
-        val reader: Reader = new Reader(partitionID, storage, scheduler, conf, topicRepo)
-        scheduler.execute(reader)
-
-        (storage, reader)
+    val partitionIDs = List.fill(partitionsPerServer) {
+      partitionIDManager.getNextAvailableID() match {
+        case Some(id) => id
+        case None     => throw new Exception(s"Failed to retrieve Partition ID")
       }
-
-      val batchHandler = new LocalBatchHandler[T](
-              partitionIDs,
-              batchWriters,
-              spout.get,
-              graphBuilder.get,
-              conf,
-              scheduler
-      )
-      scheduler.execute(batchHandler)
-
-      Partitions(x.map(_._1).toList, x.map(_._2).toList, List(batchHandler))
     }
-    else {
-      val x: Seq[(GraphPartition, Reader, Component[GraphAlteration])] =
-        for (i <- 0 until totalPartitions) yield {
-          val partitionID = partitionIDManager.getNextAvailableID() match {
-            case Some(id) => id
-            case None     =>
-              throw new Exception(s"Failed to retrieve Partition ID")
-          }
 
-          val storage = new PojoBasedPartition(partitionID, conf)
+    logger.info(s"Creating partitions with ids: $partitionIDs.")
 
-          val writer =
-            new StreamWriter(
-                    partitionID,
-                    storage,
-                    conf,
-                    topicRepo
-            )
-          scheduler.execute(writer)
+    val storages = partitionIDs map (id => new PojoBasedPartition(id, conf))
 
-          val reader = new Reader(
-                  partitionID,
-                  storage,
-                  scheduler,
-                  conf,
-                  topicRepo
-          )
-          scheduler.execute(reader)
+    val readers = partitionIDs zip storages map {
+      case (id, storage) =>
+        new Reader(id, storage, scheduler, conf, topicRepo)
+    }
 
-          (storage, reader, writer)
+    val writers =
+      if (batchLoading) {
+        val batchWriters      = partitionIDs zip storages map {
+          case (id, storage) =>
+            new BatchWriter[T](id, storage)
+        }
+        val localBatchHandler = new LocalBatchHandler[T](
+                mutable.Set.from(partitionIDs),
+                mutable.Map.from(partitionIDs zip batchWriters),
+                spout.get,
+                graphBuilder.get,
+                conf,
+                scheduler
+        )
+        List(localBatchHandler)
+      }
+      else
+        partitionIDs zip storages map {
+          case (id, storage) =>
+            new StreamWriter(id, storage, conf, topicRepo)
         }
 
-      Partitions(x.map(_._1).toList, x.map(_._2).toList, x.map(_._3).toList)
-    }
+    readers foreach (reader => scheduler.execute(reader))
+    writers foreach (writer => scheduler.execute(writer))
 
-    logger.info(s"Created partitions with ids: ${partitionIDs.toList}.")
-    partitions
+    Partitions(storages, readers, writers)
   }
 
   def spout[T](
