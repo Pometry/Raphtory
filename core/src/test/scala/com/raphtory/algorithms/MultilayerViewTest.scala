@@ -1,6 +1,7 @@
 package com.raphtory.algorithms
 
 import com.raphtory.BaseCorrectnessTest
+import com.raphtory.TestQuery
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.algorithms.temporal.TemporalEdgeList
@@ -34,9 +35,8 @@ class MultilayerViewTest extends BaseCorrectnessTest(startGraph = true) {
   test("test multilayer view") {
     assert(
             correctnessTest(
-                    MultilayerView() -> EdgeList(),
-                    Seq("2,1_1,2_1", "2,2_2,1_2"),
-                    2
+                    TestQuery(MultilayerView() -> EdgeList(), 2),
+                    Seq("2,1_1,2_1", "2,2_2,1_2")
             )
     )
   }
@@ -44,22 +44,24 @@ class MultilayerViewTest extends BaseCorrectnessTest(startGraph = true) {
   test("test temporal node list") {
     assert(
             correctnessTest(
-                    TemporalNodeList(),
-                    Seq("2,1,1", "2,1,2", "2,2,1", "2,2,2"),
-                    2
+                    TestQuery(TemporalNodeList(), 2),
+                    Seq("2,1,1", "2,1,2", "2,2,1", "2,2,2")
             )
     )
   }
 
   test("test temporal edge list") {
     assert(
-            correctnessTest(TemporalEdgeList(), Seq("2,1,2,1", "2,2,1,2"), 2)
+            correctnessTest(TestQuery(TemporalEdgeList(), 2), Seq("2,1,2,1", "2,2,1,2"))
     )
   }
 
   test("test property merging") {
     assert(
-            correctnessTest(WriteValue() -> NodeList("testing"), Seq("2,1,2", "2,2,2"), 2)
+            correctnessTest(
+                    TestQuery(WriteValue() -> NodeList("testing"), 2),
+                    Seq("2,1,2", "2,2,2")
+            )
     )
   }
 

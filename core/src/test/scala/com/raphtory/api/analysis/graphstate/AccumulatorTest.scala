@@ -3,6 +3,7 @@ package com.raphtory.api.analysis.graphstate
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.BasicGraphBuilder
 import com.raphtory.Raphtory
+import com.raphtory.TestQuery
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphview.Alignment
@@ -70,24 +71,16 @@ class AccumulatorTest extends BaseCorrectnessTest(startGraph = true) {
   override def setSpout(): Spout[String] = ResourceSpout("MotifCount/motiftest.csv")
 
   test("Test accumulators by counting nodes") {
-    assert(correctnessTest(CountNodes, "Accumulator/results.csv", 23))
+    assert(correctnessTest(TestQuery(CountNodes, 23), "Accumulator/results.csv"))
   }
   test("Test resetting of accumulators by running CountNodes twice (should not change result)") {
     assert(
-            correctnessTest(
-                    CountNodes -> CountNodes,
-                    "Accumulator/results.csv",
-                    23
-            )
+            correctnessTest(TestQuery(CountNodes -> CountNodes, 23), "Accumulator/results.csv")
     )
   }
   test("Test rotation of accumulators and state retention by running counting nodes twice") {
     assert(
-            correctnessTest(
-                    CountNodesTwice,
-                    "Accumulator/results2.csv",
-                    23
-            )
+            correctnessTest(TestQuery(CountNodesTwice, 23), "Accumulator/results2.csv")
     )
   }
 

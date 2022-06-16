@@ -1,6 +1,7 @@
 package com.raphtory.algorithms
 
 import com.raphtory.BaseCorrectnessTest
+import com.raphtory.TestQuery
 import com.raphtory.algorithms.filters.VertexFilter
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.algorithm.Generic
@@ -12,10 +13,9 @@ class VertexFilterTest extends BaseCorrectnessTest {
   test("Vertex is being filtered") {
     assert(
             correctnessTest(
-                    VertexFilter(_.ID != 1) -> EdgeList(),
+                    TestQuery(VertexFilter(_.ID != 1) -> EdgeList(), 23),
                     "MotifCount/motiftest.csv",
-                    "VertexFilter/motifFilterTest.csv",
-                    23
+                    "VertexFilter/motifFilterTest.csv"
             )
     )
   }

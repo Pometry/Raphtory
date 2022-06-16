@@ -12,6 +12,12 @@ import com.raphtory.spouts.SequenceSpout
 
 import java.nio.charset.StandardCharsets
 
+case class TestQuery(
+    algorithm: GenericallyApplicable,
+    timestamp: Long,
+    windows: List[Long] = List.empty[Long]
+)
+
 abstract class BaseCorrectnessTest(
     deleteResultAfterFinish: Boolean = true,
     startGraph: Boolean = false
@@ -34,47 +40,45 @@ abstract class BaseCorrectnessTest(
     resultsHash(rows)
 
   def correctnessTest(
-      algorithm: GenericallyApplicable,
+      test: TestQuery,
       graphResource: String,
-      resultsResource: String,
-      lastTimestamp: Int
+      resultsResource: String
   ): Boolean = {
     graph = Raphtory.load(ResourceSpout(graphResource), setGraphBuilder())
-    try correctnessTest(algorithm, resultsResource, lastTimestamp)
+    try correctnessTest(test, resultsResource)
     finally graph.deployment.stop()
   }
 
   def correctnessTest(
-      algorithm: GenericallyApplicable,
+      test: TestQuery,
       graphEdges: Seq[String],
-      results: Seq[String],
-      lastTimestamp: Int
+      results: Seq[String]
   ): Boolean = {
     graph = Raphtory.load(SequenceSpout(graphEdges: _*), setGraphBuilder())
-    try correctnessTest(algorithm, results, lastTimestamp)
+    try correctnessTest(test, results)
     finally graph.deployment.stop()
   }
 
   def correctnessTest(
-      algorithm: GenericallyApplicable,
-      results: Seq[String],
-      lastTimestamp: Int
+      test: TestQuery,
+      results: Seq[String]
   ): Boolean =
     algorithmPointTest(
-            algorithm,
-            lastTimestamp
+            test.algorithm,
+            test.timestamp,
+            test.windows
     ) == correctResultsHash(
             results
     )
 
   def correctnessTest(
-      algorithm: GenericallyApplicable,
-      resultsResource: String,
-      lastTimestamp: Int
+      test: TestQuery,
+      resultsResource: String
   ): Boolean =
     algorithmPointTest(
-            algorithm,
-            lastTimestamp
+            test.algorithm,
+            test.timestamp,
+            test.windows
     ) == correctResultsHash(
             resultsResource
     )

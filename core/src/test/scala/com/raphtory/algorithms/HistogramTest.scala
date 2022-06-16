@@ -1,6 +1,7 @@
 package com.raphtory.algorithms
 
 import com.raphtory.BaseCorrectnessTest
+import com.raphtory.TestQuery
 import com.raphtory.algorithms.filters.VertexFilter
 import com.raphtory.algorithms.generic.VertexHistogram
 import com.raphtory.algorithms.generic.centrality.Degree
@@ -13,9 +14,8 @@ class HistogramTest extends BaseCorrectnessTest(startGraph = true) {
   test("Histogram Test on in-degree") {
     assert(
             correctnessTest(
-                    Degree -> VertexHistogram[Int]("inDegree", noBins = 5),
-                    "Histogram/inHistogramResult.csv",
-                    23
+                    TestQuery(Degree -> VertexHistogram[Int]("inDegree", noBins = 5), 23),
+                    "Histogram/inHistogramResult.csv"
             )
     )
   }
@@ -23,9 +23,8 @@ class HistogramTest extends BaseCorrectnessTest(startGraph = true) {
   test("Histogram Test on out-degree") {
     assert(
             correctnessTest(
-                    Degree -> VertexHistogram[Int]("outDegree", noBins = 5),
-                    "Histogram/outHistogramResult.csv",
-                    23
+                    TestQuery(Degree -> VertexHistogram[Int]("outDegree", noBins = 5), 23),
+                    "Histogram/outHistogramResult.csv"
             )
     )
   }
@@ -33,9 +32,8 @@ class HistogramTest extends BaseCorrectnessTest(startGraph = true) {
   test("Histogram Test on total degree") {
     assert(
             correctnessTest(
-                    Degree -> VertexHistogram[Int]("degree", noBins = 5),
-                    "Histogram/totalHistogramResult.csv",
-                    23
+                    TestQuery(Degree -> VertexHistogram[Int]("degree", noBins = 5), 23),
+                    "Histogram/totalHistogramResult.csv"
             )
     )
   }

@@ -1,6 +1,7 @@
 package com.raphtory.api.analysis.graphview
 
 import com.raphtory.BaseCorrectnessTest
+import com.raphtory.TestQuery
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
@@ -41,10 +42,9 @@ class TestIteration extends BaseCorrectnessTest {
   test("Testing vote-to-halt works") {
     assert(
             correctnessTest(
-                    CountIterations(10, 100),
+                    TestQuery(CountIterations(10, 100), 23),
                     "MotifCount/motiftest.csv",
-                    "Iterations/results.csv",
-                    23
+                    "Iterations/results.csv"
             )
     )
   }
