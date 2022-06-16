@@ -50,9 +50,6 @@ class AWSAssumeRole(sts: AWSSecurityTokenService) {
   }
 }
 
-object AWSAssumeRole {
-  def apply(sts: AWSSecurityTokenService) = new AWSAssumeRole(sts)
-}
 
 /**
   * @param region
