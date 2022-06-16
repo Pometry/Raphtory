@@ -129,25 +129,37 @@ trait Vertex extends EntityVisitor {
   /** Return all edges starting or ending at this vertex
     * @param after only return edges that are active after time `after`
     * @param before only return edges that are active before time `before`
+    *
+    * The `after` and `before` parameters also restrict the history of the returned edges such that it only
+    * contains events within the window.
     */
   def getAllEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]
 
   /** Return all edges starting at this vertex
     * @param after only return edges that are active after time `after`
     * @param before only return edges that are active before time `before`
+    *
+    * The `after` and `before` parameters also restrict the history of the returned edges such that it only
+    * contains events within the window.
     */
   def getOutEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]
 
   /** Return all edges ending at this vertex
     * @param after  only return edges that are active after time `after`
     * @param before only return edges that are active before time `before`
+    *
+    * The `after` and `before` parameters also restrict the history of the returned edges such that it only
+    * contains events within the window.
     */
   def getInEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]
 
-  /** Return specified individual edge if it is an out-edge of this vertex
+  /** Return specified edge if it is an out-edge of this vertex
     * @param id ID of edge to return
     * @param after only return edge if it is active after time `after`
     * @param before only return edge if it is active before time `before`
+    *
+    * The `after` and `before` parameters also restrict the history of the returned edge such that it only
+    * contains events within the window.
     */
   def getOutEdge(
       id: IDType,
@@ -155,10 +167,13 @@ trait Vertex extends EntityVisitor {
       before: Long = Long.MaxValue
   ): Option[Edge]
 
-  /** Return specified individual edge if it is an in-edge of this vertex
+  /** Return specified edge if it is an in-edge of this vertex
     * @param id ID of edge to return
     * @param after only return edge if it is active after time `after`
     * @param before only return edge if it is active before time `before`
+    *
+    * The `after` and `before` parameters also restrict the history of the returned edge such that it only
+    * contains events within the window.
     */
   def getInEdge(
       id: IDType,
@@ -166,15 +181,18 @@ trait Vertex extends EntityVisitor {
       before: Long = Long.MaxValue
   ): Option[Edge]
 
-  /** Return specified individual edge if it is an in-edge or an out-edge of this vertex
+  /** Return specified edge if it is an in-edge or an out-edge of this vertex
     *
-    * This function returns a list of edges, where the list is empty of neither an in-edge nor an out-edge
-    * with this id exists, one element if either an in-edge or an out-edge with the id exists or two elements if
-    * both in-edge and out-edge exist.
+    * This function returns a list of edges, where the list is empty if neither an in-edge nor an out-edge
+    * with this id exists, contains one element if either an in-edge or an out-edge with the id exists, or
+    * contains two elements if both in-edge and out-edge exist.
     *
     * @param id ID of edge to return
     * @param after only return edge if it is active after time `after`
     * @param before only return edge if it is active before time `before`
+    *
+    * The `after` and `before` parameters also restrict the history of the returned edges such that it only
+    * contains events within the window.
     */
   def getEdge(
       id: IDType,
