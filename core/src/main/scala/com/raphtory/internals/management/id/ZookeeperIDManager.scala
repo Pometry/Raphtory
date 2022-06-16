@@ -7,17 +7,17 @@ import org.apache.curator.retry.ExponentialBackoffRetry
 import org.apache.zookeeper.CreateMode
 import org.slf4j.LoggerFactory
 
-import scala.jdk.CollectionConverters._
+import scala.util.Success
+import scala.util.Try
 
 private[raphtory] class ZookeeperIDManager(
     zookeeperAddress: String,
     deploymentID: String,
-    counterID: String
+    counterID: String,
+    totalPartitionsOnCluster: Int
 ) extends IDManager {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-
-  private val parentPath   = s"/$deploymentID/$counterID"
-  private val sequencePath = s"$parentPath/id"
+  private val idSetPath      = s"/$deploymentID/$counterID"
 
   private val client = CuratorFrameworkFactory
     .builder()
@@ -27,25 +27,46 @@ private[raphtory] class ZookeeperIDManager(
 
   client.start()
 
-  def getNextAvailableID(): Option[Int] =
-    try {
-      val sequenceNumber = client
-        .create()
-        .creatingParentsIfNeeded()
-        .withMode(CreateMode.EPHEMERAL_SEQUENTIAL)
-        .forPath(sequencePath)
-        .split("/")
-        .last
-      val id             = client.getChildren.forPath(parentPath).asScala.sorted.indexOf(sequenceNumber)
-      logger.trace(s"Zookeeper $zookeeperAddress: Get new id '$id'.")
-      Some(id)
+  def getNextAvailableID(): Option[Int] = {
+    val candidateIds = (0 until totalPartitionsOnCluster).iterator
+
+    val id = candidateIds
+      .map(id => allocateId(client, idSetPath, id))
+      .collect { case Success(id) => id }
+      .nextOption()
+
+    id match {
+      case Some(id) => logger.trace(s"Zookeeper $zookeeperAddress: Get new id '$id'.")
+      case None     => logger.error(s"Zookeeper $zookeeperAddress: Failed to get id.")
     }
-    catch {
-      case e: Exception =>
-        e.printStackTrace()
-        logger.error(s"Zookeeper $zookeeperAddress: Failed to get id.")
-        None
-    }
+    id
+  }
 
   def stop(): Unit = client.close()
+
+  private def allocateId(client: CuratorFramework, idSetPath: String, id: Int): Try[Int] =
+    Try {
+      client
+        .create()
+        .creatingParentsIfNeeded()
+        .withMode(CreateMode.EPHEMERAL)
+        .forPath(s"$idSetPath/$id/allocated")
+      id
+    }
+}
+
+object ZookeeperIDManager {
+
+  def apply(
+      zookeeperAddress: String,
+      deploymentID: String,
+      counterID: String
+  ) = new ZookeeperIDManager(zookeeperAddress, deploymentID, counterID, Int.MaxValue)
+
+  def apply(
+      zookeeperAddress: String,
+      deploymentID: String,
+      counterID: String,
+      totalPartitionsOnCluster: Int
+  ) = new ZookeeperIDManager(zookeeperAddress, deploymentID, counterID, totalPartitionsOnCluster)
 }
