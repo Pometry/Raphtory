@@ -44,32 +44,43 @@ As of February 2022, this is a guide to run this within IntelliJ.
 
 Output in terminal when running `PulsarOutputRunner.scala`
 ```json
-12:23:03.765 [main] INFO  com.raphtory.config.ComponentFactory - Creating '2' Partition Managers.
-12:23:07.241 [main] INFO  com.raphtory.config.ComponentFactory - Creating new Query Manager.
-12:23:07.567 [main] INFO  com.raphtory.config.ComponentFactory - Creating new Spout 'raphtory_data_raw_887356734'.
-12:23:07.567 [main] INFO  com.raphtory.config.ComponentFactory - Creating '2' Graph Builders.
-12:23:08.849 [main] INFO  com.raphtory.client.RaphtoryGraph - Created Graph object with deployment ID 'raphtory_887356734'.
-12:23:08.849 [main] INFO  com.raphtory.client.RaphtoryGraph - Created Graph Spout topic with name 'raphtory_data_raw_887356734'.
-12:23:29.195 [main] INFO  com.raphtory.config.ComponentFactory - Creating new Query Progress Tracker for deployment 'raphtory_887356734' and job 'EdgeList_1646310208857' at topic 'raphtory_887356734_EdgeList_1646310208857'.
-12:23:29.196 [main] INFO  com.raphtory.components.querytracker.QueryProgressTracker - Starting query progress tracker.
-12:23:29.302 [pulsar-external-listener-9-1] INFO  com.raphtory.components.querymanager.QueryManager - Point Query 'EdgeList_1646310208857' received, your job ID is 'EdgeList_1646310208857'.
-12:23:29.541 [main] INFO  com.raphtory.config.ComponentFactory - Creating new Query Progress Tracker for deployment 'raphtory_887356734' and job 'PageRank_1646310209197' at topic 'raphtory_887356734_PageRank_1646310209197'.
-12:23:29.542 [main] INFO  com.raphtory.components.querytracker.QueryProgressTracker - Starting query progress tracker.
-12:23:30.959 [pulsar-external-listener-9-1] INFO  com.raphtory.components.querymanager.QueryManager - Range Query 'PageRank_1646310209197' received, your job ID is 'PageRank_1646310209197'.
-12:23:38.859 [pulsar-external-listener-9-1] INFO  com.raphtory.components.querytracker.QueryProgressTracker - Job 'EdgeList_1646310208857': Perspective '30000' finished in 9663 ms.
-12:23:38.860 [pulsar-external-listener-9-1] INFO  com.raphtory.components.querytracker.QueryProgressTracker - Job EdgeList_1646310208857: Running query, processed 1 perspectives.
-12:23:38.953 [pulsar-external-listener-9-1] INFO  com.raphtory.components.querytracker.QueryProgressTracker - Job EdgeList_1646310208857: Query completed with 1 perspectives and finished in 9757 ms.
-12:24:00.772 [pulsar-external-listener-9-1] INFO  com.raphtory.components.querytracker.QueryProgressTracker - Job 'PageRank_1646310209197': Perspective '20000' with window '10000' finished in 31229 ms.
-12:24:00.772 [pulsar-external-listener-9-1] INFO  com.raphtory.components.querytracker.QueryProgressTracker - Job PageRank_1646310209197: Running query, processed 1 perspectives.
-12:24:05.232 [pulsar-external-listener-9-1] INFO  com.raphtory.components.querytracker.QueryProgressTracker - Job 'PageRank_1646310209197': Perspective '20000' with window '1000' finished in 4460 ms.
-...
-12:24:42.408 [pulsar-external-listener-9-1] INFO  com.raphtory.components.querytracker.QueryProgressTracker - Job PageRank_1646310209197: Running query, processed 6 perspectives.
-12:24:42.513 [pulsar-external-listener-9-1] INFO  com.raphtory.components.querytracker.QueryProgressTracker - Job PageRank_1646310209197: Query completed with 6 perspectives and finished in 72970 ms.
+Enter number: 3
+[info] running com.raphtory.examples.lotrTopic.PulsarOutputRunner
+14:01:17.044 [run-main-0] INFO  com.raphtory.spouts.FileSpout - Spout: Processing file 'lotr.csv' ...
+14:01:17.930 [spawner-akka.actor.default-dispatcher-3] INFO  akka.event.slf4j.Slf4jLogger - Slf4jLogger started
+14:01:19.555 [run-main-0] INFO  com.raphtory.internals.management.ComponentFactory - Creating '1' Partition Managers for raphtory_1072124052.
+14:01:19.749 [run-main-0] INFO  com.raphtory.internals.management.ComponentFactory - Creating new Query Manager.
+14:01:19.763 [run-main-0] INFO  com.raphtory.internals.management.GraphDeployment - Created Graph object with deployment ID 'raphtory_1072124052'.
+14:01:19.763 [run-main-0] INFO  com.raphtory.internals.management.GraphDeployment - Created Graph Spout topic with name 'raphtory_data_raw_1072124052'.
+14:01:20.103 [run-main-0] INFO  com.raphtory.internals.management.ComponentFactory - Creating new Query Progress Tracker for 'EdgeList_8100741964076353527'.
+14:01:20.105 [io-compute-3] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job EdgeList_8100741964076353527: Starting query progress tracker.
+14:01:20.121 [run-main-0] INFO  com.raphtory.internals.management.ComponentFactory - Creating new Query Progress Tracker for 'PageRank_8567638990663365259'.
+14:01:20.122 [io-compute-6] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job PageRank_8567638990663365259: Starting query progress tracker.
+14:01:20.152 [spawner-akka.actor.default-dispatcher-3] INFO  com.raphtory.internals.components.querymanager.QueryManager - Query 'EdgeList_8100741964076353527' received, your job ID is 'EdgeList_8100741964076353527'.
+14:01:20.180 [spawner-akka.actor.default-dispatcher-3] INFO  com.raphtory.internals.components.querymanager.QueryManager - Query 'PageRank_8567638990663365259' received, your job ID is 'PageRank_8567638990663365259'.
+14:01:23.613 [spawner-akka.actor.default-dispatcher-7] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job 'PageRank_8567638990663365259': Perspective '20000' with window '10000' finished in 3492 ms.
+14:01:23.614 [spawner-akka.actor.default-dispatcher-7] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job PageRank_8567638990663365259: Running query, processed 1 perspectives.
+14:01:23.681 [spawner-akka.actor.default-dispatcher-10] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job 'PageRank_8567638990663365259': Perspective '20000' with window '1000' finished in 67 ms.
+14:01:23.682 [spawner-akka.actor.default-dispatcher-10] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job PageRank_8567638990663365259: Running query, processed 2 perspectives.
+14:01:23.705 [spawner-akka.actor.default-dispatcher-6] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job 'PageRank_8567638990663365259': Perspective '20000' with window '500' finished in 23 ms.
+14:01:23.706 [spawner-akka.actor.default-dispatcher-6] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job PageRank_8567638990663365259: Running query, processed 3 perspectives.
+14:01:23.738 [spawner-akka.actor.default-dispatcher-6] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job 'EdgeList_8100741964076353527': Perspective '30000' finished in 3633 ms.
+14:01:23.739 [spawner-akka.actor.default-dispatcher-6] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job EdgeList_8100741964076353527: Running query, processed 1 perspectives.
+14:01:23.853 [spawner-akka.actor.default-dispatcher-6] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job 'PageRank_8567638990663365259': Perspective '30000' with window '10000' finished in 147 ms.
+14:01:23.853 [spawner-akka.actor.default-dispatcher-6] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job PageRank_8567638990663365259: Running query, processed 4 perspectives.
+14:01:23.879 [spawner-akka.actor.default-dispatcher-10] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job 'PageRank_8567638990663365259': Perspective '30000' with window '1000' finished in 26 ms.
+14:01:23.879 [spawner-akka.actor.default-dispatcher-10] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job PageRank_8567638990663365259: Running query, processed 5 perspectives.
+14:01:23.893 [spawner-akka.actor.default-dispatcher-7] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job 'PageRank_8567638990663365259': Perspective '30000' with window '500' finished in 14 ms.
+14:01:23.894 [spawner-akka.actor.default-dispatcher-7] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job PageRank_8567638990663365259: Running query, processed 6 perspectives.
+14:01:26.144 [spawner-akka.actor.default-dispatcher-8] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job EdgeList_8100741964076353527: Query completed with 1 perspectives and finished in 6039 ms.
+14:01:26.145 [spawner-akka.actor.default-dispatcher-5] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job PageRank_8567638990663365259: Query completed with 6 perspectives and finished in 6024 ms.
 ```
 
 Terminal output to show job has finished and is ready for visualising the data in Jupyter Notebook
 ```json
-12:24:42.513 [pulsar-external-listener-9-1] INFO  com.raphtory.components.querytracker.QueryProgressTracker - Job PageRank_1646310209197: Query completed with 6 perspectives and finished in 72970 ms.
+
+14:01:26.144 [spawner-akka.actor.default-dispatcher-8] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job EdgeList_8100741964076353527: Query completed with 1 perspectives and finished in 6039 ms.
+14:01:26.145 [spawner-akka.actor.default-dispatcher-5] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job PageRank_8567638990663365259: Query completed with 6 perspectives and finished in 6024 ms.
 ```
 
 The results will be saved to two Topics `EdgeList` and `PageRank`, producing the following results

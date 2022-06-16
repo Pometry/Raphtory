@@ -94,11 +94,12 @@ sbt:example-lotr> compile
 sbt:example-lotr>
 ```
 
-**Note:** If there are a million errors saying that classes are not part of the package `com.raphtory` this is probably because your `raphtory.jar` did not publish correctly or your refresh of the sbt project did not occur. Alternatively if you have errors saying that something cannot be referenced as a URI, this is a Java version issue (the version you are using is higher than 11) and you should set the correct version as above.
-
+```{note} 
+If there are a million errors saying that classes are not part of the package `com.raphtory` this is probably because your `raphtory.jar` did not publish correctly or your refresh of the sbt project did not occur. Alternatively if you have errors saying that something cannot be referenced as a URI, this is a Java version issue (the version you are using is higher than 11) and you should set the correct version as above.
+```
 
 ### Running
-To test that you have Raphtory working properly on your machine, use the command `run` when prompted again with `>`. From this you should get a request to select a main class (as can be seen below). Ignore the `LOTRClient` and `LOTRService` for now, these are used in the distributed deployment. We want to select number 3, the `TutorialRunner`.
+To test that you have Raphtory working properly on your machine, use the command `run` when prompted again with `>`. From this you should get a request to select a main class (as can be seen below). Ignore the `PulsarRunner`,  `LOTRClient` and `LOTRService` for now, these are used in the distributed deployment. We want to select number 4, the `TutorialRunner`.
 
 <p align="center">
 	<img src="../_static/install/sbtrunselect.png" alt="Main Classes within the LOTR example"/>
@@ -113,7 +114,7 @@ And you're done!  This will run the Lord of the Rings example that we will come 
 First of all as Raphtory begins executing we should see some messages showing that the ingestion components of Raphtory are online and as such the system is ready for analysis to be performed. Don't worry about what these are for the second, we will go through this in the next section.
 
 ```bash
-Enter number: 3
+Enter number: 4
 [info] running com.raphtory.examples.lotrTopic.TutorialRunner
 23:11:33.381 [run-main-0] INFO  com.raphtory.spouts.FileSpout - Spout: Processing file 'lotr.csv' ...
 23:11:33.884 [spawner-akka.actor.default-dispatcher-3] INFO  akka.event.slf4j.Slf4jLogger - Slf4jLogger started

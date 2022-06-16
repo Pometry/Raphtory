@@ -36,12 +36,4 @@ object TutorialRunner extends App {
 
   queryHandler.waitForJob()
 
-  val queryHandlerCC = graph
-    .at(32674)
-    .past()
-    .execute(ConnectedComponents())
-    .writeTo(output)
-
-  queryHandlerCC.waitForJob()
-
 }
