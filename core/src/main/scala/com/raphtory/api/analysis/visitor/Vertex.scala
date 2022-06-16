@@ -24,7 +24,7 @@ trait Vertex extends EntityVisitor {
   /** Concrete type for this vertex's exploded edges which implements
     * [[com.raphtory.api.analysis.visitor.ExplodedEdge ExplodedEdge]]
     */
-  type ExplodedEdge = visitor.ConcreteExplodedEdge[IDType]
+  type ExplodedEdge = Edge#ExplodedEdge
 
   /** implicit ordering object for use when comparing vertex IDs */
   implicit val IDOrdering: Ordering[IDType]
@@ -130,7 +130,7 @@ trait Vertex extends EntityVisitor {
     * @param after only return edges that are active after time `after`
     * @param before only return edges that are active before time `before`
     */
-  def getEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]
+  def getAllEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]
 
   /** Return all edges starting at this vertex
     * @param after only return edges that are active after time `after`
@@ -166,7 +166,12 @@ trait Vertex extends EntityVisitor {
       before: Long = Long.MaxValue
   ): Option[Edge]
 
-  /** Return specified edge if it is an in- or out-edge of this vertex
+  /** Return specified individual edge if it is an in-edge or an out-edge of this vertex
+    *
+    * This function returns a list of edges, where the list is empty of neither an in-edge nor an out-edge
+    * with this id exists, one element if either an in-edge or an out-edge with the id exists or two elements if
+    * both in-edge and out-edge exist.
+    *
     * @param id ID of edge to return
     * @param after only return edge if it is active after time `after`
     * @param before only return edge if it is active before time `before`
@@ -175,7 +180,7 @@ trait Vertex extends EntityVisitor {
       id: IDType,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
-  ): Option[Edge]
+  ): List[Edge]
 
   /** Return all exploded [[com.raphtory.api.analysis.visitor.ExplodedEdge ExplodedEdge]] views for each time point
     * that an in- or out-edge of this vertex is active
@@ -183,11 +188,11 @@ trait Vertex extends EntityVisitor {
     * @param after  only return views for activity after time `after`
     * @param before only return view for activity before time `before`
     */
-  def explodeEdges(
+  def explodeAllEdges(
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): List[ExplodedEdge] =
-    getEdges(after, before).flatMap(_.explode())
+    getAllEdges(after, before).flatMap(_.explode())
 
   /** Return all exploded [[com.raphtory.api.analysis.visitor.ExplodedEdge ExplodedEdge]] views for each time point
     * that an out-edge of this vertex is active
@@ -252,8 +257,13 @@ trait Vertex extends EntityVisitor {
       id: IDType,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
-  ): Option[List[ExplodedEdge]] =
-    getEdge(id, after, before).map(_.explode())
+  ): Option[List[ExplodedEdge]] = {
+    val edges = getEdge(id, after, before)
+    if (edges.isEmpty)
+      None
+    else
+      Some(edges.flatMap(_.explode()))
+  }
 
   /** Set algorithmic state for this vertex
     * @param key key to use for setting value
@@ -315,7 +325,7 @@ trait Vertex extends EntityVisitor {
       case EdgeDirection.Outgoing =>
         getOutEdges()
       case EdgeDirection.Both     =>
-        getEdges()
+        getAllEdges()
     })
       .map(_.weight(weightProperty, edgeMergeStrategy, defaultWeight))
       .sum

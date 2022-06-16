@@ -110,7 +110,7 @@ private[raphtory] trait PojoVertexBase extends Vertex {
     allEdge(internalIncomingEdges, after, before)
 
   //all edges
-  def getEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge] =
+  def getAllEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge] =
     getInEdges(after, before) ++ getOutEdges(after, before)
 
   //out edges individual
@@ -129,13 +129,8 @@ private[raphtory] trait PojoVertexBase extends Vertex {
   ): Option[Edge] =
     individualEdge(internalIncomingEdges, after, before, id)
 
-  // edge individual
-  def getEdge(
-      id: IDType,
-      after: Long = Long.MinValue,
-      before: Long = Long.MaxValue
-  ): Option[Edge] =
-    individualEdge(internalIncomingEdges ++ internalOutgoingEdges, after, before, id)
+  override def getEdge(id: IDType, after: Long, before: Long): List[Edge] =
+    List(getInEdge(id, after, before), getOutEdge(id, after, before)).flatten
 
   def allEdge(
       edges: mutable.Map[IDType, Edge],

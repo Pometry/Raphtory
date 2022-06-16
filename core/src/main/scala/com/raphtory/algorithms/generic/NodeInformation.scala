@@ -86,7 +86,7 @@ class NodeInformation(initialID: Long, hopsAway: Int = 1) extends Generic {
         val name                             = vertex.name()
         val involved: Boolean                = vertex.getStateOrElse("vertexInvolved", false)
         val edgeInformation: Array[EdgeInfo] = vertex
-          .getEdges()
+          .getAllEdges()
           .map { edge =>
             EdgeInfo(
                     edge.src.toString,

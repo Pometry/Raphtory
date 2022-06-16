@@ -6,6 +6,7 @@ import com.raphtory.api.analysis.visitor.Vertex
 
 import scala.math.log10
 import scala.math.pow
+import math.Numeric.Implicits._
 
 /**
   * {s}`Distinctiveness(alpha: Double=1.0, weightProperty="weight")`
@@ -46,21 +47,20 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
-        val edges  = vertex.getEdges()
+        val edges  = vertex.getAllEdges()
         val degree = edges.size
 
         // sum of edge weights each exponentiated by alpha, purely for D3 & D4
         val weight     =
-          edges.map(e => pow(e.getPropertyOrElse(weightProperty, e.history().size), alpha)).sum
+          edges.map(e => pow(e.weight[T]().toDouble, alpha)).sum
         // sum of edge weights, purely for D3
-        val nodeWeight = numeric.toDouble(vertex.weightedTotalDegree[T]())
+        val nodeWeight = vertex.weightedTotalDegree[T]().toDouble
 
         vertex.messageAllNeighbours(vertex.ID, degree, weight, nodeWeight)
       }
-      .step { vertex =>
+      .step { (vertex, graphState) =>
         val messages = vertex.messageQueue[(vertex.IDType, Int, Double, Double)]
-        val N        =
-          1 // graph.nodeCount().toDouble TODO: nodeCount() is not available anymore, needs a solution
+        val N        = graphState.nodeCount
         vertex.setState("D1", D1(vertex)(messages, N, alpha))
         vertex.setState("D2", D2(vertex)(messages, N, alpha))
         vertex.setState("D3", D3(vertex)(messages, N, alpha))
@@ -76,8 +76,11 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
     messages
       .map({
         case (id, degree, _, _) =>
-          val edge       = vertex.getEdge(id).head
-          val edgeWeight = edge.weight(default = 1.0f).toDouble
+          val edgeWeight = vertex
+            .getEdge(id)
+            .map(_.weight[T]())
+            .sum
+            .toDouble
           edgeWeight * (log10(noNodes - 1) - alpha * log10(degree))
       })
       .sum
@@ -102,8 +105,7 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
     messages
       .map({
         case (id, _, nodePowerWeight, nodeSumWeight) =>
-          val edge       = vertex.getEdge(id).head
-          val edgeWeight = edge.weight(default = 1.0f).toDouble
+          val edgeWeight = vertex.getEdge(id).map(_.weight[T]()).sum.toDouble
           edgeWeight * (log10(nodeSumWeight / 2.0) - log10(
                   nodePowerWeight - pow(edgeWeight, alpha) + 1
           ))
@@ -118,8 +120,7 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
     messages
       .map({
         case (id, _, nodePowerWeight, _) =>
-          val edge       = vertex.getEdge(id).head
-          val edgeWeight = edge.weight(default = 1.0f).toDouble
+          val edgeWeight = vertex.getEdge(id).map(_.weight[T]()).sum.toDouble
           pow(edgeWeight, alpha + 1) / nodePowerWeight
       })
       .sum
