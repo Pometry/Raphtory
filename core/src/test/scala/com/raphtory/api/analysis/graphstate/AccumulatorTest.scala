@@ -98,7 +98,7 @@ class AccumulatorTest extends BaseCorrectnessTest(startGraph = true) {
         getResults(jobId).foreach { res =>
           if (res.nonEmpty) {
             val t = res.split(",")
-            assertEquals(t(t.size - 1), ("true"))
+            assertEquals(t(t.size - 1), "true")
           }
         }
       }

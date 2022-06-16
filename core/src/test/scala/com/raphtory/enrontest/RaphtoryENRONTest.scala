@@ -16,6 +16,9 @@ import org.scalatest.DoNotDiscover
 import scala.language.postfixOps
 import sys.process._
 import java.io.File
+import java.net.URL
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 @DoNotDiscover
 class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
@@ -52,19 +55,10 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
   override def setGraphBuilder(): GraphBuilder[String] = new ENRONGraphBuilder()
 
-  override def setup(): Unit = {
-    val path = "/tmp/email_test.csv"
-    val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/email_test.csv"
+  override def liftFileIfNotPresent: Option[(String, URL)] =
+    Some("/tmp/email_test.csv" -> new URL("https://raw.githubusercontent.com/Raphtory/Data/main/email_test.csv"))
 
-    if (!new File(path).exists())
-      try s"curl -o $path $url" !!
-      catch {
-        case ex: Exception =>
-          logger.error(s"Failed to download 'email_test.csv' due to ${ex.getMessage}.")
-          ex.printStackTrace()
-          (s"rm $path" !)
-          throw ex
-      }
-  }
+
+  override def munitTimeout: Duration = new FiniteDuration(Int.MaxValue, TimeUnit.SECONDS)
 
 }

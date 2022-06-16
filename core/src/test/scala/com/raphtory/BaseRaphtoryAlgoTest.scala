@@ -1,6 +1,8 @@
 package com.raphtory
 
+import cats.effect
 import cats.effect.IO
+import cats.effect.SyncIO
 import cats.effect.kernel.Resource
 import com.google.common.hash.Hashing
 import com.raphtory.api.analysis.algorithm.GenericallyApplicable
@@ -26,11 +28,17 @@ import org.scalatest.matchers.should.Matchers
 import org.slf4j.LoggerFactory
 
 import java.io.File
+import java.net.URL
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.Paths
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
+import scala.sys.process._
+import scala.util
 
-abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinish: Boolean = true) extends CatsEffectSuite {
+abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinish: Boolean = true)
+        extends CatsEffectSuite {
 
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
@@ -42,15 +50,33 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
     if (batchLoading()) Raphtory.load[T](setSpout(), setGraphBuilder())
     else Raphtory.stream[T](setSpout(), setGraphBuilder())
 
-  val withGraph =  ResourceFixture(graph)
+  val withGraph: SyncIO[FunFixture[DeployedTemporalGraph]] = ResourceFixture(
+          for {
+            _ <- manageTestFile
+            g <- graph
+          } yield g
+  )
 
-//  var graph: DeployedTemporalGraph     = _
-//  def pulsarConnector: PulsarConnector = new PulsarConnector(conf)
-//  def conf: Config                     = graph.deployment.conf
-//  def deploymentID: String             = conf.getString("raphtory.deploy.id")
+  private def manageTestFile: Resource[IO, Any] =
+    liftFileIfNotPresent match {
+      case None           => Resource.eval(IO.unit)
+      case Some((p, url)) =>
+        val path = Paths.get(p)
+        Resource.make(IO.blocking(if (Files.notExists(path)) s"curl -o $path $url" !!))(_ =>
+          IO.blocking { // this is a bit hacky but it allows us
+            Runtime.getRuntime.addShutdownHook(new Thread {
+              override def run(): Unit = {
+                util.Try(s"rm $path" !)
+              }
+            })
+          }
+        )
+    }
 
   override def beforeAll(): Unit =
     setup()
+
+  def liftFileIfNotPresent: Option[(String, URL)] = None
 
 //    val spout: Spout[T]               = setSpout()
 //    val graphBuilder: GraphBuilder[T] = setGraphBuilder()

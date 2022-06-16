@@ -67,8 +67,7 @@
         </Logger>
 
         <!-- LOGGER FOR RAPHTORY DEVELOPMENT WHEN IT IS IN USE -->
-        <Logger name="com.raphtory.develop" level="${env:DEVELOP_LOG:-INFO}">
-        </Logger>
+        <Logger name="com.raphtory" level="INFO"/>
 
         <Root level="info">
             <AppenderRef ref="Console"/>

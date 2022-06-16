@@ -24,7 +24,8 @@ object StreamGraphStopTestRunner extends IOApp {
 }
 
 object BatchGraphStopTestRunner extends App {
-  Raphtory.load(SequenceSpout("2,2,2"), BasicGraphBuilder())
+  Raphtory
+    .load(SequenceSpout("2,2,2"), BasicGraphBuilder())
     .use(_ => IO(println(ShutdownTest.signal)))
     .map(_ => ExitCode.Success)
 }

@@ -1,7 +1,9 @@
 package com.raphtory.internals.communication.repositories
 
-import cats.effect.kernel.{Async, Resource}
-import com.raphtory.internals.communication.{Connector, TopicRepository}
+import cats.effect.kernel.Async
+import cats.effect.kernel.Resource
+import com.raphtory.internals.communication.Connector
+import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.connectors.PulsarConnector
 import com.typesafe.config.Config
 

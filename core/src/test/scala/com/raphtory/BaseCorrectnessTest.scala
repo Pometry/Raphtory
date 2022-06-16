@@ -1,8 +1,11 @@
 package com.raphtory
 
 import com.raphtory.api.analysis.algorithm.GenericallyApplicable
-import com.raphtory.api.input.{GraphBuilder, Spout}
-import com.raphtory.spouts.{IdentitySpout, ResourceSpout, SequenceSpout}
+import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Spout
+import com.raphtory.spouts.IdentitySpout
+import com.raphtory.spouts.ResourceSpout
+import com.raphtory.spouts.SequenceSpout
 
 case class TestQuery(
     algorithm: GenericallyApplicable,

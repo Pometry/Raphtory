@@ -227,7 +227,7 @@ object Raphtory {
     val deploymentID   = config.getString("raphtory.deploy.id")
     val scheduler      = new Scheduler()
     for {
-      _                  <- Prometheus[IO](prometheusPort)
+//      _                  <- Prometheus[IO](prometheusPort)
       topicRepo          <- PulsarAkkaTopicRepository(config)
       _                  <- QueryManager(config, topicRepo)
       _                  <- {

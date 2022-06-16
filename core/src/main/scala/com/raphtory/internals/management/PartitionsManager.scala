@@ -12,7 +12,8 @@ import com.raphtory.internals.components.partition.BatchWriter
 import com.raphtory.internals.components.partition.LocalBatchHandler
 import com.raphtory.internals.components.partition.Reader
 import com.raphtory.internals.components.partition.StreamWriter
-import com.raphtory.internals.graph.{GraphAlteration, GraphPartition}
+import com.raphtory.internals.graph.GraphAlteration
+import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.id.IDManager
 import com.raphtory.internals.storage.pojograph.PojoBasedPartition
 import com.typesafe.config.Config

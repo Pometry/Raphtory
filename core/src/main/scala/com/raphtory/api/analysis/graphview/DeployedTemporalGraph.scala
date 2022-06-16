@@ -22,6 +22,6 @@ class DeployedTemporalGraph private[raphtory] (
     val deploymentId: String
 ) extends TemporalGraph(query, querySender, conf) {
 
-  def config:Config = conf
+  def config: Config = conf
 
 }

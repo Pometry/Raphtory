@@ -1,6 +1,7 @@
 package com.raphtory.internals.communication.connectors
 
-import cats.effect.{Async, Sync}
+import cats.effect.Async
+import cats.effect.Sync
 import cats.effect.kernel.Resource
 import com.raphtory.internals.communication.CancelableListener
 import com.raphtory.internals.communication.CanonicalTopic
