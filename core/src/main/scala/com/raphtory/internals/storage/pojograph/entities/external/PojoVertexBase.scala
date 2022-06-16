@@ -154,8 +154,8 @@ private[raphtory] trait PojoVertexBase extends Vertex {
       after: Long,
       before: Long,
       id: IDType
-  ) =
-    if (after == 0 && before == Long.MaxValue)
+  ): Option[Edge] =
+    if (after <= lens.start && before >= lens.end)
       edges.get(id)
     else
       edges.get(id) match {

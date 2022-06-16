@@ -72,7 +72,7 @@ private[raphtory] class PojoExVertex(
         )
       }
     }
-//    handle interlayer edges if provided
+    //    handle interlayer edges if provided
     interlayerEdgeBuilder.foreach { builder =>
       if (interlayerEdges.nonEmpty)
         interlayerEdges.foreach { edge =>

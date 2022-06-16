@@ -9,7 +9,6 @@ import com.raphtory.internals.storage.pojograph.OrderedBuffer.TupleByFirstOrderi
 import scala.collection.IndexedSeqView
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
-import scala.collection.mutable.ArrayBuffer
 
 abstract private[raphtory] class PojoExEntity(
     entity: PojoEntity,
@@ -93,8 +92,8 @@ abstract private[raphtory] class PojoExEntity(
 
   def getPropertyHistory[T](
       key: String,
-      after: Long = start,
-      before: Long = end
+      after: Long,
+      before: Long
   ): Option[List[(Long, T)]] =
     entity.properties.get(key) map { p =>
       p.valueHistory(
