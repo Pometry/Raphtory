@@ -3,6 +3,7 @@ package com.raphtory.generic
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.BasicGraphBuilder
 import com.raphtory.Raphtory
+import com.raphtory.TestQuery
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
@@ -31,7 +32,7 @@ class CheckHistory extends Generic {
       .step { (vertex, graphState) =>
         val history = vertex.history()
         val sorted  = isSortedIncreasing(history)
-        vertex.getEdges().foreach { edge =>
+        vertex.getAllEdges().foreach { edge =>
           val history = edge.history()
           val sorted  = isSortedIncreasing(history)
           graphState("edgeHistoryOrdered") += sorted
@@ -58,14 +59,11 @@ object CheckHistory {
 
 class OrderingTest extends BaseCorrectnessTest {
   test("test history is sorted") {
-    assert(
-            correctnessTest(
-                    CheckHistory(),
-                    for (i <- 0 until 100)
-                      yield s"${Random.nextInt(10)},${Random.nextInt(10)},${Random.nextInt(100)}",
-                    Seq("23,true,true"),
-                    23
-            )
+    correctnessTest(
+            TestQuery(CheckHistory(), 23),
+            for (i <- 0 until 100)
+              yield s"${Random.nextInt(10)},${Random.nextInt(10)},${Random.nextInt(100)}",
+            Seq("23,true,true")
     )
   }
 }

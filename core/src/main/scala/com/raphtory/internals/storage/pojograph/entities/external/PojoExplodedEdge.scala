@@ -1,39 +1,28 @@
 package com.raphtory.internals.storage.pojograph.entities.external
 
 import com.raphtory.api.analysis.visitor.ConcreteExplodedEdge
-import com.raphtory.internals.components.querymanager.FilteredInEdgeMessage
-import com.raphtory.internals.components.querymanager.FilteredOutEdgeMessage
-import com.raphtory.internals.components.querymanager.VertexMessage
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoEdge
 
 private[raphtory] class PojoExplodedEdge(
     objectEdge: PojoEdge,
-    view: PojoGraphLens,
-    id: Long,
+    override val view: PojoGraphLens,
+    override val ID: Long,
     val src: Long,
     val dst: Long,
     override val timestamp: Long
 ) extends PojoExEntity(objectEdge, view)
+        with PojoExEdgeBase[Long]
         with ConcreteExplodedEdge[Long] {
   override type ExplodedEdge = PojoExplodedEdge
-  override def ID: Long = id
 
   override def explode(): List[ExplodedEdge] = List(this)
-
-  override def send(data: Any): Unit = view.sendMessage(VertexMessage(view.superStep + 1, id, data))
 
   override def getPropertyHistory[T](
       key: String,
       after: Long,
       before: Long = timestamp
   ): Option[List[(Long, T)]] = super.getPropertyHistory(key, after, before)
-
-  override def remove(): Unit = {
-    view.needsFiltering = true
-    view.sendMessage(FilteredOutEdgeMessage(view.superStep + 1, src, dst))
-    view.sendMessage(FilteredInEdgeMessage(view.superStep + 1, dst, src))
-  }
 }
 
 private[raphtory] object PojoExplodedEdge {

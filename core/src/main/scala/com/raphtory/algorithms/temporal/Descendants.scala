@@ -54,7 +54,7 @@ class Descendants(
     graph
       .step { vertex =>
         if (vertex.name() == seed) {
-          (if (directed) vertex.getOutEdges() else vertex.getEdges())
+          (if (directed) vertex.getOutEdges() else vertex.getAllEdges())
             .foreach(e =>
               e.firstActivityAfter(time, strict) match {
                 case Some(event) =>
@@ -69,7 +69,7 @@ class Descendants(
               { vertex =>
                 val earliestTime = vertex.messageQueue[Long].min
                 vertex.setState("descendant", true)
-                (if (directed) vertex.getOutEdges() else vertex.getEdges())
+                (if (directed) vertex.getOutEdges() else vertex.getAllEdges())
                   .foreach(e =>
                     e.firstActivityAfter(time, strict) match {
                       case Some(event) =>

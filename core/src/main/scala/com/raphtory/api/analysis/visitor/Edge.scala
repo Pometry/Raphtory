@@ -33,6 +33,12 @@ trait Edge extends EntityVisitor {
   /** ID of the destination vertex of the edge */
   def dst: IDType
 
+  /** `true` if the edge is an out-edge */
+  def isOutgoing: Boolean = ID == dst
+
+  /** `true` if the edge is an in-edge */
+  def isIncoming: Boolean = ID == src
+
   /** Return an [[ExplodedEdge]] instance for each time the edge is
     * active in the current view.
     */

@@ -110,7 +110,7 @@ private[raphtory] trait PojoVertexBase extends Vertex {
     allEdge(internalIncomingEdges, after, before)
 
   //all edges
-  def getEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge] =
+  def getAllEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge] =
     getInEdges(after, before) ++ getOutEdges(after, before)
 
   //out edges individual
@@ -129,33 +129,28 @@ private[raphtory] trait PojoVertexBase extends Vertex {
   ): Option[Edge] =
     individualEdge(internalIncomingEdges, after, before, id)
 
-  // edge individual
-  def getEdge(
-      id: IDType,
-      after: Long = Long.MinValue,
-      before: Long = Long.MaxValue
-  ): Option[Edge] =
-    individualEdge(internalIncomingEdges ++ internalOutgoingEdges, after, before, id)
+  override def getEdge(id: IDType, after: Long, before: Long): List[Edge] =
+    List(getInEdge(id, after, before), getOutEdge(id, after, before)).flatten
 
-  private def allEdge(
+  def allEdge(
       edges: mutable.Map[IDType, Edge],
       after: Long,
       before: Long
   ): List[Edge] =
-    if (after == Long.MinValue && before == Long.MaxValue)
+    if (after <= lens.start && before >= lens.end)
       edges.values.toList
     else
       edges.collect {
         case (_, edge) if edge.active(after, before) => edge
       }.toList
 
-  private def individualEdge(
+  def individualEdge(
       edges: mutable.Map[IDType, Edge],
       after: Long,
       before: Long,
       id: IDType
-  ) =
-    if (after == 0 && before == Long.MaxValue)
+  ): Option[Edge] =
+    if (after <= lens.start && before >= lens.end)
       edges.get(id)
     else
       edges.get(id) match {
