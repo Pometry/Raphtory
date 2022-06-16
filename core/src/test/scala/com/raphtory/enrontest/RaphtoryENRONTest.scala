@@ -1,39 +1,33 @@
 package com.raphtory.enrontest
 
-import cats.effect.IO
 import com.raphtory.BaseRaphtoryAlgoTest
-import com.raphtory.GraphState
-import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
-import com.raphtory.internals.components.spout.SpoutExecutor
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
-import org.apache.pulsar.client.api.Schema
 import org.scalatest.DoNotDiscover
 
-import scala.language.postfixOps
-import sys.process._
-import java.io.File
 import java.net.URL
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.FiniteDuration
+import scala.language.postfixOps
 
 @DoNotDiscover
 class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
-  withGraph.test("Graph State Test") { graph =>
-    val sink: FileSink = FileSink(outputDirectory)
-
-    graph
-      .walk(10000)
-      .past()
-      .execute(GraphState())
-      .writeTo(sink)
-      .waitForJob()
-
-  }
+//  withGraph.test("Graph State Test") { graph =>
+//    val sink: FileSink = FileSink(outputDirectory)
+//
+//    graph
+//      .walk(10000)
+//      .past()
+//      .execute(GraphState())
+//      .writeTo(sink)
+//      .waitForJob()
+//
+//  }
 
   withGraph.test("Connected Components Test") { graph =>
     val sink: FileSink = FileSink(outputDirectory)
@@ -58,7 +52,6 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
   override def liftFileIfNotPresent: Option[(String, URL)] =
     Some("/tmp/email_test.csv" -> new URL("https://raw.githubusercontent.com/Raphtory/Data/main/email_test.csv"))
 
-
-  override def munitTimeout: Duration = new FiniteDuration(Int.MaxValue, TimeUnit.SECONDS)
+  override def munitTimeout: Duration                      = new FiniteDuration(Int.MaxValue, TimeUnit.SECONDS)
 
 }

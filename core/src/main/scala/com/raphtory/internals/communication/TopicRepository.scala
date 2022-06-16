@@ -1,5 +1,8 @@
 package com.raphtory.internals.communication
 
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+import com.raphtory.internals.communication.repositories.PulsarTopicRepository
 import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.components.querymanager.EndQuery
 import com.raphtory.internals.components.querymanager.Query
@@ -122,4 +125,16 @@ private[raphtory] class TopicRepository(
   }
 
   def shutdown(): Unit = allConnectors.foreach(_.shutdown())
+}
+
+object TopicRepository {
+
+  def unsafePulsar(config: Config): UnManagedCloseable[TopicRepository] =
+    PulsarTopicRepository[IO](config).allocated
+      .map { case (t, shutdown) => UnManagedCloseable(t, () => shutdown.unsafeRunSync()) }
+      .unsafeRunSync()
+}
+
+case class UnManagedCloseable[T](t: T, shutdown: () => Unit) extends AutoCloseable {
+  override def close(): Unit = shutdown()
 }

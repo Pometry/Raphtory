@@ -116,7 +116,7 @@ object PartitionsManager {
       }
     }
 
-  def streaming[IO[_]: Spawn, T](
+  def streaming[IO[_]: Spawn](
       config: Config,
       partitionIDManager: IDManager,
       topics: TopicRepository,

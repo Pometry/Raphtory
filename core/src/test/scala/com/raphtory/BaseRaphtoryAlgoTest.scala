@@ -65,9 +65,8 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
         Resource.make(IO.blocking(if (Files.notExists(path)) s"curl -o $path $url" !!))(_ =>
           IO.blocking { // this is a bit hacky but it allows us
             Runtime.getRuntime.addShutdownHook(new Thread {
-              override def run(): Unit = {
+              override def run(): Unit =
                 util.Try(s"rm $path" !)
-              }
             })
           }
         )

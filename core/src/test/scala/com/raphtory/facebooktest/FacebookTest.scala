@@ -34,6 +34,7 @@ class FacebookTest extends BaseRaphtoryAlgoTest[String] {
 
   override def setGraphBuilder() = new FacebookGraphBuilder()
 
-  override def liftFileIfNotPresent: Option[(String, URL)] = Some((tempFilePath, new URL("https://raw.githubusercontent.com/Raphtory/Data/main/facebook.csv") ))
+  override def liftFileIfNotPresent: Option[(String, URL)] =
+    Some((tempFilePath, new URL("https://raw.githubusercontent.com/Raphtory/Data/main/facebook.csv")))
 
 }
