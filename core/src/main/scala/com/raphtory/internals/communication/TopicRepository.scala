@@ -1,7 +1,6 @@
 package com.raphtory.internals.communication
 
-import com.raphtory.api.input.GraphUpdate
-import com.raphtory.api.input.GraphUpdateEffect
+import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.components.querymanager.EndQuery
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManagement

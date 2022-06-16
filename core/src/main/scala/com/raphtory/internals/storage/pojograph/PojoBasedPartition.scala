@@ -1,23 +1,23 @@
 package com.raphtory.internals.storage.pojograph
 
 import com.raphtory.api.input.DoubleProperty
-import com.raphtory.api.input.EdgeSyncAck
 import com.raphtory.api.input.FloatProperty
-import com.raphtory.api.input.GraphUpdateEffect
 import com.raphtory.api.input.ImmutableProperty
-import com.raphtory.api.input.InboundEdgeRemovalViaVertex
 import com.raphtory.api.input.LongProperty
-import com.raphtory.api.input.OutboundEdgeRemovalViaVertex
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.StringProperty
-import com.raphtory.api.input.SyncExistingEdgeAdd
-import com.raphtory.api.input.SyncExistingEdgeRemoval
-import com.raphtory.api.input.SyncExistingRemovals
-import com.raphtory.api.input.SyncNewEdgeAdd
-import com.raphtory.api.input.SyncNewEdgeRemoval
 import com.raphtory.api.input.Type
-import com.raphtory.api.input.VertexRemoveSyncAck
 import com.raphtory.api.input.Properties._
+import com.raphtory.internals.graph.GraphAlteration.EdgeSyncAck
+import com.raphtory.internals.graph.GraphAlteration.GraphUpdateEffect
+import com.raphtory.internals.graph.GraphAlteration.InboundEdgeRemovalViaVertex
+import com.raphtory.internals.graph.GraphAlteration.OutboundEdgeRemovalViaVertex
+import com.raphtory.internals.graph.GraphAlteration.SyncExistingEdgeAdd
+import com.raphtory.internals.graph.GraphAlteration.SyncExistingEdgeRemoval
+import com.raphtory.internals.graph.GraphAlteration.SyncExistingRemovals
+import com.raphtory.internals.graph.GraphAlteration.SyncNewEdgeAdd
+import com.raphtory.internals.graph.GraphAlteration.SyncNewEdgeRemoval
+import com.raphtory.internals.graph.GraphAlteration.VertexRemoveSyncAck
 import com.raphtory.internals.graph.GraphLens
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.storage.pojograph.entities.external.PojoExVertex
@@ -190,7 +190,7 @@ private[raphtory] class PojoBasedPartition(partition: Int, conf: Config)
         (false, newEdge)
     }
 
-    val maybeEffect: Option[GraphUpdateEffect] =
+    val maybeEffect =
       if (present) {
         edge revive msgTime //if the edge was previously created we need to revive it
         logger.trace(s"Edge ${edge.getSrcId} - ${edge.getDstId} revived")

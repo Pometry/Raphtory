@@ -11,7 +11,7 @@ import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.management.ComponentFactory
 import com.raphtory.internals.management.ConfigHandler
 import com.raphtory.internals.management.GraphDeployment
-import com.raphtory.internals.management.MonixScheduler
+import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.management.Py4JServer
 import com.raphtory.internals.management.QuerySender
 import com.raphtory.spouts.IdentitySpout
@@ -91,7 +91,7 @@ object Raphtory {
     * @return A temporal graph object
     */
   def connect(customConfig: Map[String, Any] = Map()): TemporalGraphConnection = {
-    val scheduler        = new MonixScheduler()
+    val scheduler        = new Scheduler()
     val conf             = confBuilder(customConfig, true)
     javaPy4jGatewayServer.start(conf)
     startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
@@ -121,7 +121,7 @@ object Raphtory {
   }
 
   private[raphtory] def createSpout[T](spout: Spout[T]): Unit = {
-    val scheduler        = new MonixScheduler()
+    val scheduler        = new Scheduler()
     val conf             = confBuilder(distributed = true)
     startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
     val topics           = PulsarTopicRepository(conf)
@@ -132,7 +132,7 @@ object Raphtory {
   private[raphtory] def createGraphBuilder[T: ClassTag](
       builder: GraphBuilder[T]
   ): Unit = {
-    val scheduler        = new MonixScheduler()
+    val scheduler        = new Scheduler()
     val conf             = confBuilder(distributed = true)
     startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
     val topics           = PulsarTopicRepository(conf)
@@ -145,7 +145,7 @@ object Raphtory {
       spout: Option[Spout[T]] = None,
       graphBuilder: Option[GraphBuilder[T]] = None
   ): Unit = {
-    val scheduler        = new MonixScheduler()
+    val scheduler        = new Scheduler()
     val conf             = confBuilder(distributed = true)
     startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
     val topics           = PulsarTopicRepository(conf)
@@ -154,7 +154,7 @@ object Raphtory {
   }
 
   private[raphtory] def createQueryManager(): Unit = {
-    val scheduler        = new MonixScheduler()
+    val scheduler        = new Scheduler()
     val conf             = confBuilder(distributed = true)
     startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
     val topics           = PulsarTopicRepository(conf)
@@ -190,7 +190,7 @@ object Raphtory {
       customConfig: Map[String, Any] = Map(),
       batchLoading: Boolean
   ) = {
-    val scheduler          = new MonixScheduler()
+    val scheduler          = new Scheduler()
     val conf               = confBuilder(customConfig, distributed = false)
     val activePythonServer = conf.getBoolean("raphtory.python.active")
     if (activePythonServer)

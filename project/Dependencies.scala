@@ -18,6 +18,7 @@ object Dependencies {
   private lazy val typesafeConfigVersion = "1.4.2"
   private lazy val zookeeperVersion      = "3.7.0"
   private lazy val akkaTypedVersion      = "2.6.19"
+  private lazy val catsEffectVersion     = "3.3.12"
 
   lazy val excludePulsarBinding = ExclusionRule(organization = "org.apache.pulsar")
   lazy val excludeSlf4j         = ExclusionRule(organization = "org.slf4j")
@@ -30,7 +31,6 @@ object Dependencies {
   lazy val log4jApi   = "org.apache.logging.log4j" % "log4j-api"        % log4jVersion
   lazy val log4jCore  = "org.apache.logging.log4j" % "log4j-core"       % log4jVersion
   lazy val log4jSlft4 = "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion
-  lazy val monix      = "io.monix"                %% "monix"            % monixVersion
 
   lazy val openhft =
     "net.openhft" % "zero-allocation-hashing" % openhftVersion excludeAll (excludeLog4j, excludeSlf4j)
@@ -58,4 +58,6 @@ object Dependencies {
   lazy val typesafeConfig = "com.typesafe"         % "config"           % typesafeConfigVersion
   lazy val zookeeper      = "org.apache.zookeeper" % "zookeeper"        % zookeeperVersion
   lazy val akkaTyped      = "com.typesafe.akka"   %% "akka-actor-typed" % akkaTypedVersion
+  lazy val catsEffect = "org.typelevel" %% "cats-effect" % catsEffectVersion
+
 }
