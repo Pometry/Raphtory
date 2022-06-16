@@ -16,7 +16,7 @@ import java.io.InputStreamReader
   * The AwsS3Spout takes in the name and path of the AWS S3 bucket that you would like
   * to ingest into Raphtory, usually this is set in your tests.
   *
-  * It builds an S3 client using credentials obtained through multi-factor authentication or through providing access keys.
+  * It builds an S3 client using credentials obtained through providing access keys.
   * The data is streamed from AWS S3 until null is reached.
   */
 
