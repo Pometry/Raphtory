@@ -94,7 +94,7 @@ private[raphtory] class PulsarConnector(config: Config) extends Connector {
       .toSeq
 
     new CancelableListener {
-      var consumers: Seq[Consumer[Array[Byte]]] = _
+      var consumers: Seq[Consumer[Array[Byte]]] = Seq()
       override def start(): Unit                = consumers = consumerBuilders map (_.subscribe())
       override def close(): Unit                =
         consumers foreach { consumer =>

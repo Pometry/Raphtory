@@ -3,58 +3,70 @@ package com.raphtory.internals.management.id
 import com.typesafe.scalalogging.Logger
 import org.apache.curator.framework.CuratorFramework
 import org.apache.curator.framework.CuratorFrameworkFactory
-import org.apache.curator.framework.recipes.atomic.DistributedAtomicInteger
 import org.apache.curator.retry.ExponentialBackoffRetry
-import org.apache.curator.retry.RetryNTimes
-import org.slf4j.LoggerFactory;
+import org.apache.zookeeper.CreateMode
+import org.slf4j.LoggerFactory
 
-private[raphtory] class ZookeeperIDManager(zookeeperAddress: String, atomicPath: String)
-        extends IDManager {
+import scala.util.Success
+import scala.util.Try
+
+private[raphtory] class ZookeeperIDManager(
+    zookeeperAddress: String,
+    deploymentID: String,
+    poolID: String,
+    poolSize: Int
+) extends IDManager {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val idSetPath      = s"/$deploymentID/$poolID"
 
-  private val client: CuratorFramework = CuratorFrameworkFactory
+  private val client = CuratorFrameworkFactory
     .builder()
     .connectString(zookeeperAddress)
     .retryPolicy(new ExponentialBackoffRetry(1000, 3))
     .build();
 
-  private val atomicInt: DistributedAtomicInteger =
-    new DistributedAtomicInteger(client, atomicPath, new RetryNTimes(10, 500), null);
-
-  client.start
+  client.start()
 
   def getNextAvailableID(): Option[Int] = {
-    val incremented = atomicInt.increment()
+    val candidateIds = (0 until poolSize).iterator
 
-    if (incremented.succeeded()) {
-      val id = incremented.preValue()
+    val id = candidateIds
+      .map(id => allocateId(client, idSetPath, id))
+      .collect { case Success(id) => id }
+      .nextOption()
 
-      logger.trace(s"Zookeeper $zookeeperAddress: Atomic integer pre value at '$id'.")
-
-      Some(id)
+    id match {
+      case Some(id) => logger.trace(s"Zookeeper $zookeeperAddress: Get new id '$id'.")
+      case None     => logger.error(s"Zookeeper $zookeeperAddress: Failed to get id.")
     }
-    else {
-      logger.error(s"Zookeeper $zookeeperAddress: Failed to increment atomic integer.")
-
-      None
-    }
+    id
   }
 
-  def resetID(): Unit = {
-    logger.debug(s"Zookeeper $zookeeperAddress: Atomic integer requested for reset.")
+  def stop(): Unit = client.close()
 
-    logger.debug(
-            s"Zookeeper $zookeeperAddress: Atomic integer value now at '${atomicInt.get().preValue()}'."
-    )
+  private def allocateId(client: CuratorFramework, idSetPath: String, id: Int): Try[Int] =
+    Try {
+      client
+        .create()
+        .creatingParentsIfNeeded()
+        .withMode(CreateMode.EPHEMERAL)
+        .forPath(s"$idSetPath/$id/allocated")
+      id
+    }
+}
 
-    atomicInt.forceSet(0)
+private[raphtory] object ZookeeperIDManager {
 
-    logger.debug(
-            s"Zookeeper $zookeeperAddress: Atomic integer value now at '${atomicInt.get().postValue()}'."
-    )
-  }
+  def apply(
+      zookeeperAddress: String,
+      deploymentID: String,
+      counterID: String
+  ) = new ZookeeperIDManager(zookeeperAddress, deploymentID, counterID, Int.MaxValue)
 
-  def stop(): Unit =
-    client.close()
-
+  def apply(
+      zookeeperAddress: String,
+      deploymentID: String,
+      poolID: String,
+      poolSize: Int
+  ) = new ZookeeperIDManager(zookeeperAddress, deploymentID, poolID, poolSize)
 }
