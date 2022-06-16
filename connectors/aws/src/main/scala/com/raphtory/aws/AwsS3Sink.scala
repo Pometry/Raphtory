@@ -82,7 +82,7 @@ case class AwsS3Sink(awsS3OutputFormatBucketName: String, format: Format = CsvFo
       Write results to respective partition streams and add new line for every line of result
        */
       override def write(value: String): Unit = {
-           stream.write((value + '\n').getBytes(StandardCharsets.UTF_8))
+           stream.write(value.getBytes(StandardCharsets.UTF_8))
       }
 
       /**
@@ -93,8 +93,9 @@ case class AwsS3Sink(awsS3OutputFormatBucketName: String, format: Format = CsvFo
 
       override def closeItem(): Unit = {
 
-        if (stream.size() > streamLimit) {
+        stream.write(itemDelimiter.getBytes(StandardCharsets.UTF_8))
 
+        if (stream.size() > streamLimit) {
           def makeUploadRequest(stream: ByteArrayOutputStream) = {
             // Upload file parts in 5MB parts
             while (streamPosition < stream.size()) {
@@ -117,8 +118,6 @@ case class AwsS3Sink(awsS3OutputFormatBucketName: String, format: Format = CsvFo
             }
           }
            makeUploadRequest(stream)
-
-
         }
       }
 
