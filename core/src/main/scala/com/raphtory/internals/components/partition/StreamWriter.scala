@@ -1,21 +1,9 @@
 package com.raphtory.internals.components.partition
 
-import com.raphtory.api.input.EdgeAdd
-import com.raphtory.api.input.EdgeDelete
-import com.raphtory.api.input.EdgeSyncAck
-import com.raphtory.api.input.GraphAlteration
-import com.raphtory.api.input.InboundEdgeRemovalViaVertex
-import com.raphtory.api.input.OutboundEdgeRemovalViaVertex
-import com.raphtory.api.input.SyncExistingEdgeAdd
-import com.raphtory.api.input.SyncExistingEdgeRemoval
-import com.raphtory.api.input.SyncExistingRemovals
-import com.raphtory.api.input.SyncNewEdgeAdd
-import com.raphtory.api.input.SyncNewEdgeRemoval
-import com.raphtory.api.input.VertexAdd
-import com.raphtory.api.input.VertexDelete
-import com.raphtory.api.input.VertexRemoveSyncAck
+import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
+import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphPartition
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger

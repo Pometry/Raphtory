@@ -3,16 +3,16 @@ package com.raphtory.deploy.kubernetes
 import com.raphtory.deploy.kubernetes.components._
 
 /** Calls `create` method on RaphtoryKubernetes classes to create kubernetes objects.
- * Kubernetes objects that are iterated over are read from application.conf values.
- *
- * @see
- * [[RaphtoryKubernetesNamespaces]]
- * [[RaphtoryKubernetesRegistrySecret]]
- * [[RaphtoryKubernetesServiceAccounts]]
- * [[RaphtoryKubernetesDeployments]]
- * [[RaphtoryKubernetesServices]]
- * [[RaphtoryKubernetesIngresses]]
- */
+  * Kubernetes objects that are iterated over are read from application.conf values.
+  *
+  * @see
+  * [[RaphtoryKubernetesNamespaces]]
+  * [[RaphtoryKubernetesRegistrySecret]]
+  * [[RaphtoryKubernetesServiceAccounts]]
+  * [[RaphtoryKubernetesDeployments]]
+  * [[RaphtoryKubernetesServices]]
+  * [[RaphtoryKubernetesIngresses]]
+  */
 object Deploy {
 
   /** Deploy Kubernetes resources */

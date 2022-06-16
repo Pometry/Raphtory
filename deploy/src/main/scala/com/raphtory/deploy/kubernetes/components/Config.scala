@@ -9,7 +9,7 @@ import java.util
 class Config {
   var conf = ConfigFactory.load()
 
-  val raphtoryDeploymentId: String = 
+  val raphtoryDeploymentId: String =
     conf.getString("raphtory.deploy.kubernetes.id")
 
   val raphtoryKubernetesNamespaceName: String =
@@ -21,7 +21,7 @@ class Config {
   val raphtoryKubernetesDeployments: util.Set[String] =
     conf.getConfig("raphtory.deploy.kubernetes.deployments").root().keySet()
 
-  val raphtoryKubernetesMasterUrl: String = 
+  val raphtoryKubernetesMasterUrl: String =
     conf.getString("raphtory.deploy.kubernetes.master.url")
 
   val raphtoryKubernetesLogger: KubernetesLogger =

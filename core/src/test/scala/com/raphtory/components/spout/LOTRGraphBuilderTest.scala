@@ -1,16 +1,12 @@
 package com.raphtory.components.spout
 
 import com.raphtory.Raphtory
-import com.raphtory.api.input.EdgeAdd
-import com.raphtory.api.input.GraphUpdate
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
-import com.raphtory.api.input.VertexAdd
 import com.raphtory.api.input.GraphBuilder.assignID
 import com.raphtory.internals.communication.connectors.PulsarConnector
-import com.raphtory.api.input.Properties._
-import com.raphtory.internals.components.graphbuilder.BuilderExecutor
+import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.serialisers.KryoSerialiser
 import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.typesafe.config.Config

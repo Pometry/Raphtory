@@ -1,5 +1,6 @@
 package com.raphtory.internals.storage.pojograph
 
+import cats.effect.IO
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.RowImplementation
@@ -12,13 +13,12 @@ import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.graph.GraphLens
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
-import com.raphtory.internals.management.MonixScheduler
+import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.storage.pojograph.entities.external.PojoExVertex
 import com.raphtory.internals.storage.pojograph.entities.external.PojoVertexBase
 import com.raphtory.internals.storage.pojograph.messaging.VertexMessageHandler
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import monix.eval.Task
 import org.slf4j.LoggerFactory
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -35,7 +35,7 @@ final private[raphtory] case class PojoGraphLens(
     private val sentMessages: AtomicInteger,
     private val receivedMessages: AtomicInteger,
     private val errorHandler: (Throwable) => Unit,
-    private val scheduler: MonixScheduler
+    private val scheduler: Scheduler
 ) extends GraphLens(jobId, start, end)
         with LensInterface {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
@@ -132,20 +132,20 @@ final private[raphtory] case class PojoGraphLens(
   override def explodeView(
       interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]]
   )(onComplete: => Unit): Unit = {
-    val tasks: Iterable[Task[Unit]] = {
+    val tasks: Iterable[IO[Unit]] = {
       if (exploded)
         if (interlayerEdgeBuilder.nonEmpty)
           vertexMap.values.map { vertex =>
-            Task {
+            IO {
               vertex.explode(interlayerEdgeBuilder)
             }
           }
         else
-          Seq(Task.unit)
+          Seq(IO.unit)
       else {
         exploded = true
         vertexMap.values.map { vertex =>
-          Task {
+          IO {
             vertex.explode(interlayerEdgeBuilder)
           }
         }
@@ -161,7 +161,7 @@ final private[raphtory] case class PojoGraphLens(
   )(onComplete: => Unit): Unit = {
     exploded = false
     val tasks = vertexMap.values.map { vertex =>
-      Task(vertex.reduce(defaultMergeStrategy, mergeStrategyMap, aggregate))
+      IO(vertex.reduce(defaultMergeStrategy, mergeStrategyMap, aggregate))
     }
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
@@ -171,7 +171,7 @@ final private[raphtory] case class PojoGraphLens(
     val tasks      = vertexIterator
       .map { vertex =>
         count += 1
-        Task(f.asInstanceOf[PojoVertexBase => Unit](vertex))
+        IO(f.asInstanceOf[PojoVertexBase => Unit](vertex))
       }
       .iterator
       .to(Iterable)
@@ -187,7 +187,7 @@ final private[raphtory] case class PojoGraphLens(
     val tasks      = vertexIterator
       .map { vertex =>
         count += 1
-        Task(f.asInstanceOf[(PojoVertexBase, GraphState) => Unit](vertex, graphState))
+        IO(f.asInstanceOf[(PojoVertexBase, GraphState) => Unit](vertex, graphState))
       }
       .iterator
       .to(Iterable)
@@ -201,7 +201,7 @@ final private[raphtory] case class PojoGraphLens(
       .collect {
         case vertex if vertex.hasMessage =>
           count += 1
-          Task(f.asInstanceOf[PojoVertexBase => Unit](vertex))
+          IO(f.asInstanceOf[PojoVertexBase => Unit](vertex))
       }
       .iterator
       .to(Iterable)
@@ -218,7 +218,7 @@ final private[raphtory] case class PojoGraphLens(
       .collect {
         case vertex if vertex.hasMessage =>
           count += 1
-          Task(f.asInstanceOf[(PojoVertexBase, GraphState) => Unit](vertex, graphState))
+          IO(f.asInstanceOf[(PojoVertexBase, GraphState) => Unit](vertex, graphState))
       }
       .iterator
       .to(Iterable)

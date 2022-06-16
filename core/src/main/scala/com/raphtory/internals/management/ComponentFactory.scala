@@ -1,6 +1,5 @@
 package com.raphtory.internals.management
 
-import com.raphtory.api.input.GraphAlteration
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
 import com.raphtory.api.querytracker.QueryProgressTracker
@@ -14,6 +13,7 @@ import com.raphtory.internals.components.partition.StreamWriter
 import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.components.querymanager.QueryManager
 import com.raphtory.internals.components.spout.SpoutExecutor
+import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.id.LocalIDManager
 import com.raphtory.internals.management.id.ZookeeperIDManager
@@ -49,7 +49,7 @@ private[raphtory] class ComponentFactory(
   def builder[T: ClassTag](
       graphBuilder: GraphBuilder[T],
       batchLoading: Boolean = false,
-      scheduler: MonixScheduler
+      scheduler: Scheduler
   ): Option[List[ThreadedWorker[T]]] =
     if (!batchLoading) {
       val totalBuilders = conf.getInt("raphtory.builders.countPerServer")
@@ -85,7 +85,7 @@ private[raphtory] class ComponentFactory(
     else None
 
   def partition[T: ClassTag](
-      scheduler: MonixScheduler,
+      scheduler: Scheduler,
       batchLoading: Boolean = false,
       spout: Option[Spout[T]] = None,
       graphBuilder: Option[GraphBuilder[T]] = None
@@ -176,7 +176,7 @@ private[raphtory] class ComponentFactory(
   def spout[T](
       spout: Spout[T],
       batchLoading: Boolean = false,
-      scheduler: MonixScheduler
+      scheduler: Scheduler
   ): Option[ThreadedWorker[T]] =
     if (!batchLoading) {
       val spoutExecutor = new SpoutExecutor[T](spout, conf, topicRepo, scheduler)
@@ -187,7 +187,7 @@ private[raphtory] class ComponentFactory(
     }
     else None
 
-  def query(scheduler: MonixScheduler): ThreadedWorker[QueryManagement] = {
+  def query(scheduler: Scheduler): ThreadedWorker[QueryManagement] = {
     logger.info(s"Creating new Query Manager.")
 
     val queryManager = new QueryManager(scheduler, conf, topicRepo)
@@ -197,7 +197,7 @@ private[raphtory] class ComponentFactory(
 
   def queryProgressTracker(
       jobID: String,
-      scheduler: MonixScheduler
+      scheduler: Scheduler
   ): QueryProgressTracker = {
     logger.info(
             s"Creating new Query Progress Tracker for '$jobID'."

@@ -102,7 +102,7 @@ sealed private[raphtory] trait JobStatus extends QueryManagement
 private[raphtory] case class ExecutorEstablished(worker: Int) extends JobStatus
 private[raphtory] case object WriteCompleted                  extends JobStatus
 
-sealed private[raphtory] trait PerspectiveStatus             extends JobStatus {
+sealed private[raphtory] trait PerspectiveStatus extends JobStatus {
   def perspectiveID: Int
 }
 

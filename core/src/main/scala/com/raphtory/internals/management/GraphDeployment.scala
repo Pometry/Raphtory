@@ -22,7 +22,7 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
     graphBuilder: GraphBuilder[T],
     val conf: Config,
     private val componentFactory: ComponentFactory,
-    private val scheduler: MonixScheduler
+    private val scheduler: Scheduler
 ) extends Deployment {
 
   allowIllegalReflection()
@@ -69,7 +69,6 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
       case None         =>
     }
     componentFactory.stop()
-    scheduler.shutdown()
   }
 
   private def allowIllegalReflection() = {
