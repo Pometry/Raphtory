@@ -78,7 +78,7 @@ To deploy Raphtory, you must set the following parameters
 
 To configure the kubernetes deployable components, you can also set the following
 
-| Java                                                                         | Environment Variable                                                          | Type    | Description                                                |
+| Java Parameter                                                                        | Environment Variable                                                          | Type    | Description                                                |
 |------------------------------------------------------------------------------|-------------------------------------------------------------------------------|---------|------------------------------------------------------------|
 | raphtory.deploy.kubernetes.namespace.create                                  | RAPHTORY_DEPLOY_KUBERNETES_NAMESPACE_CREATE                                   | Boolean | Toggle for creation of namespace                           |
 | raphtory.deploy.kubernetes.namespace.name                                    | RAPHTORY_DEPLOY_KUBERNETES_NAMESPACE_NAME                                     | String  | Name of the namespace that will be deployed into           |
@@ -120,6 +120,43 @@ To configure the kubernetes deployable components, you can also set the followin
 | raphtory.deploy.kubernetes.deployments.querymanager.ingress                  | RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_QUERYMANAGER_INGRESS_CREATE            | Boolean | Toggle for creation of query manager ingress               |
 
 
+To configure kubernetes resources for deployments you can adjust the below java parameter values
+
+| Java Parameter | Type | Description |
+|----------------|------|-------------|
+| raphtory.deploy.kubernetes.deployments.spout.resources.requests.memory.amount | String | Kubernetes requests memory amount for spout deployment |
+| raphtory.deploy.kubernetes.deployments.spout.resources.requests.memory.format | String | Kubernetes requests memory format for spout deployment |
+| raphtory.deploy.kubernetes.deployments.spout.resources.requests.cpu.amount | String | Kubernetes requests CPU amount for spout deployment |
+| raphtory.deploy.kubernetes.deployments.spout.resources.requests.cpu.format | String | Kubernetes requests CPU format for spout deployment |
+| raphtory.deploy.kubernetes.deployments.spout.resources.limits.memory.amount | String | Kubernetes requests memory amount for spout deployment |
+| raphtory.deploy.kubernetes.deployments.spout.resources.limits.memory.format | String | Kubernetes requests memory format for spout deployment |
+| raphtory.deploy.kubernetes.deployments.spout.resources.limits.cpu.amount | String | Kubernetes requests CPU amount for spout deployment |
+| raphtory.deploy.kubernetes.deployments.spout.resources.limits.cpu.format | String | Kubernetes requests CPU format for spout deployment |
+| raphtory.deploy.kubernetes.deployments.builder.resources.requests.memory.amount | String | Kubernetes requests memory amount for builder deployment |
+| raphtory.deploy.kubernetes.deployments.builder.resources.requests.memory.format | String | Kubernetes requests memory format for builder deployment |
+| raphtory.deploy.kubernetes.deployments.builder.resources.requests.cpu.amount | String | Kubernetes requests CPU amount for builder deployment |
+| raphtory.deploy.kubernetes.deployments.builder.resources.requests.cpu.format | String | Kubernetes requests CPU format for builder deployment |
+| raphtory.deploy.kubernetes.deployments.builder.resources.limits.memory.amount | String | Kubernetes requests memory amount for builder deployment |
+| raphtory.deploy.kubernetes.deployments.builder.resources.limits.memory.format | String | Kubernetes requests memory format for builder deployment |
+| raphtory.deploy.kubernetes.deployments.builder.resources.limits.cpu.amount | String | Kubernetes requests CPU amount for builder deployment |
+| raphtory.deploy.kubernetes.deployments.builder.resources.limits.cpu.format | String | Kubernetes requests CPU format for builder deployment 
+| raphtory.deploy.kubernetes.deployments.partitionmanager.resources.requests.memory.amount | String | Kubernetes requests memory amount for partition manager deployment |
+| raphtory.deploy.kubernetes.deployments.partitionmanager.resources.requests.memory.format | String | Kubernetes requests memory format for partition manager deployment |
+| raphtory.deploy.kubernetes.deployments.partitionmanager.resources.requests.cpu.amount | String | Kubernetes requests CPU amount for partition manager deployment |
+| raphtory.deploy.kubernetes.deployments.partitionmanager.resources.requests.cpu.format | String | Kubernetes requests CPU format for partition manager deployment |
+| raphtory.deploy.kubernetes.deployments.partitionmanager.resources.limits.memory.amount | String | Kubernetes requests memory amount for partition manager deployment |
+| raphtory.deploy.kubernetes.deployments.partitionmanager.resources.limits.memory.format | String | Kubernetes requests memory format for partition manager deployment |
+| raphtory.deploy.kubernetes.deployments.partitionmanager.resources.limits.cpu.amount | String | Kubernetes requests CPU amount for partition manager deployment |
+| raphtory.deploy.kubernetes.deployments.partitionmanager.resources.limits.cpu.format | String | Kubernetes requests CPU format for partition manager deployment |
+| raphtory.deploy.kubernetes.deployments.querymanager.resources.requests.memory.amount | String | Kubernetes requests memory amount for query manager deployment |
+| raphtory.deploy.kubernetes.deployments.querymanager.resources.requests.memory.format | String | Kubernetes requests memory format for query manager deployment |
+| raphtory.deploy.kubernetes.deployments.querymanager.resources.requests.cpu.amount | String | Kubernetes requests CPU amount for query manager deployment |
+| raphtory.deploy.kubernetes.deployments.querymanager.resources.requests.cpu.format | String | Kubernetes requests CPU format for query manager deployment |
+| raphtory.deploy.kubernetes.deployments.querymanager.resources.limits.memory.amount | String | Kubernetes requests memory amount for query manager deployment |
+| raphtory.deploy.kubernetes.deployments.querymanager.resources.limits.memory.format | String | Kubernetes requests memory format for query manager deployment |
+| raphtory.deploy.kubernetes.deployments.querymanager.resources.limits.cpu.amount | String | Kubernetes requests CPU amount for query manager deployment |
+| raphtory.deploy.kubernetes.deployments.querymanager.resources.limits.cpu.format | String | Kubernetes requests CPU format for query manager deployment |
+
 To configure the deployment run settings, raphtory will read in exported environment variables with certain prefixes.
 
 `RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_ALL_PODS_ENV_` prefix is used to define env vars that will be added to all pods
@@ -132,11 +169,11 @@ The text that follows the prefix in the key is used as the key for the environme
 Example of how to add run time environment variables to all pods or to specific component pods:
 
 ```
-export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_ALL_PODS_ENV_ENVIRONMENT_VARIABLE="environment variable named "ENVIRONMENT_VARIABLE" added to all component pods"
-export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_SPOUT_PODS_ENV_ENVIRONMENT_VARIABLE="environment variable named "ENVIRONMENT_VARIABLE" added to spout component pods"
-export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_PARTITIONMANAGER_PODS_ENV_ENVIRONMENT_VARIABLE="environment variable named "ENVIRONMENT_VARIABLE" added to partition manager component pods"
-export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_QUERYMANAGER_PODS_ENV_ENVIRONMENT_VARIABLE="environment variable named "ENVIRONMENT_VARIABLE" added to query manager component pods"
-export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_BUILDER_PODS_ENV_ENVIRONMENT_VARIABLE="environment variable named "ENVIRONMENT_VARIABLE" added to builder component pods"
+export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_ALL_PODS_ENV_ENVIRONMENT_VARIABLE="environment variable named ENVIRONMENT_VARIABLE added to all component pods"
+export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_SPOUT_PODS_ENV_ENVIRONMENT_VARIABLE="environment variable named ENVIRONMENT_VARIABLE added to spout component pods"
+export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_PARTITIONMANAGER_PODS_ENV_ENVIRONMENT_VARIABLE="environment variable named ENVIRONMENT_VARIABLE added to partition manager component pods"
+export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_QUERYMANAGER_PODS_ENV_ENVIRONMENT_VARIABLE="environment variable named ENVIRONMENT_VARIABLE added to query manager component pods"
+export RAPHTORY_DEPLOY_KUBERNETES_DEPLOYMENTS_BUILDER_PODS_ENV_ENVIRONMENT_VARIABLE="environment variable named ENVIRONMENT_VARIABLE added to builder component pods"
 ```
 
 Required run time settings
