@@ -13,11 +13,11 @@ import scala.util.Try
 private[raphtory] class ZookeeperIDManager(
     zookeeperAddress: String,
     deploymentID: String,
-    counterID: String,
-    totalPartitionsOnCluster: Int
+    poolID: String,
+    poolSize: Int
 ) extends IDManager {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-  private val idSetPath      = s"/$deploymentID/$counterID"
+  private val idSetPath      = s"/$deploymentID/$poolID"
 
   private val client = CuratorFrameworkFactory
     .builder()
@@ -28,7 +28,7 @@ private[raphtory] class ZookeeperIDManager(
   client.start()
 
   def getNextAvailableID(): Option[Int] = {
-    val candidateIds = (0 until totalPartitionsOnCluster).iterator
+    val candidateIds = (0 until poolSize).iterator
 
     val id = candidateIds
       .map(id => allocateId(client, idSetPath, id))
@@ -66,7 +66,7 @@ private[raphtory] object ZookeeperIDManager {
   def apply(
       zookeeperAddress: String,
       deploymentID: String,
-      counterID: String,
-      totalPartitionsOnCluster: Int
-  ) = new ZookeeperIDManager(zookeeperAddress, deploymentID, counterID, totalPartitionsOnCluster)
+      poolID: String,
+      poolSize: Int
+  ) = new ZookeeperIDManager(zookeeperAddress, deploymentID, poolID, poolSize)
 }
