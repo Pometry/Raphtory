@@ -75,22 +75,14 @@ case class AwsS3Sink(awsS3OutputFormatBucketName: String, format: Format = CsvFo
       private var uploadRequest: Option[UploadPartRequest] = None
       private var streamPosition: Long = 0L
 
-      private var stream0: ByteArrayOutputStream = new ByteArrayOutputStream()
-      private var stream1: ByteArrayOutputStream = new ByteArrayOutputStream()
-      private var stream2: ByteArrayOutputStream = new ByteArrayOutputStream()
-      private var stream3: ByteArrayOutputStream = new ByteArrayOutputStream()
+      private var stream: ByteArrayOutputStream = new ByteArrayOutputStream()
 
 
       /*
       Write results to respective partition streams and add new line for every line of result
        */
       override def write(value: String): Unit = {
-        partitionID match {
-          case 0 => stream0.write((value + '\n').getBytes(StandardCharsets.UTF_8))
-          case 1 => stream1.write((value + '\n').getBytes(StandardCharsets.UTF_8))
-          case 2 => stream2.write((value + '\n').getBytes(StandardCharsets.UTF_8))
-          case 3 => stream3.write((value + '\n').getBytes(StandardCharsets.UTF_8))
-        }
+           stream.write((value + '\n').getBytes(StandardCharsets.UTF_8))
       }
 
       /**
@@ -101,7 +93,7 @@ case class AwsS3Sink(awsS3OutputFormatBucketName: String, format: Format = CsvFo
 
       override def closeItem(): Unit = {
 
-        if (stream0.size() > streamLimit || stream1.size() > streamLimit || stream2.size() > streamLimit || stream3.size() > streamLimit) {
+        if (stream.size() > streamLimit) {
 
           def makeUploadRequest(stream: ByteArrayOutputStream) = {
             // Upload file parts in 5MB parts
@@ -124,13 +116,8 @@ case class AwsS3Sink(awsS3OutputFormatBucketName: String, format: Format = CsvFo
               logger.info(s"On part number: $partNumber, stream position in bytes: $streamPosition")
             }
           }
+           makeUploadRequest(stream)
 
-          partitionID match {
-            case 0 => makeUploadRequest(stream0)
-            case 1 => makeUploadRequest(stream1)
-            case 2 => makeUploadRequest(stream2)
-            case 3 => makeUploadRequest(stream3)
-          }
 
         }
       }
@@ -169,20 +156,9 @@ case class AwsS3Sink(awsS3OutputFormatBucketName: String, format: Format = CsvFo
 
             def putObject(stream: ByteArrayOutputStream) = s3Client.putObject(new PutObjectRequest(awsS3OutputFormatBucketName, s"$jobID/partition-$partitionID", stream.toInputStream, metadata))
 
-            partitionID match {
-              case 0 =>
-                setContentLength(metadata, stream0)
-                putObject(stream0)
-              case 1 =>
-                setContentLength(metadata, stream1)
-                putObject(stream1)
-              case 2 =>
-                setContentLength(metadata, stream2)
-                putObject(stream2)
-              case 3 =>
-                setContentLength(metadata, stream3)
-                putObject(stream3)
-            }
+                setContentLength(metadata, stream)
+                putObject(stream)
+
         }
       }
     }
