@@ -27,8 +27,10 @@ import java.nio.charset.StandardCharsets
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
-abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinish: Boolean = true)
-        extends AnyFunSuite
+abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](
+    deleteResultAfterFinish: Boolean = true,
+    startGraph: Boolean = true
+) extends AnyFunSuite
         with BeforeAndAfter
         with BeforeAndAfterAll
         with Matchers {
@@ -46,17 +48,19 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
   override def beforeAll(): Unit = {
     setup()
+    if (startGraph) {
+      val spout: Spout[T]               = setSpout()
+      val graphBuilder: GraphBuilder[T] = setGraphBuilder()
 
-    val spout: Spout[T]               = setSpout()
-    val graphBuilder: GraphBuilder[T] = setGraphBuilder()
-
-    graph = Option
-      .when(batchLoading())(Raphtory.load[T](spout, graphBuilder))
-      .fold(Raphtory.stream[T](spout, graphBuilder))(identity)
+      graph = Option
+        .when(batchLoading())(Raphtory.load[T](spout, graphBuilder))
+        .fold(Raphtory.stream[T](spout, graphBuilder))(identity)
+    }
   }
 
   override def afterAll(): Unit =
-    graph.deployment.stop()
+    if (startGraph)
+      graph.deployment.stop()
 
   override def withFixture(test: NoArgTest): Outcome =
     // Only clean the test directory if test succeeds

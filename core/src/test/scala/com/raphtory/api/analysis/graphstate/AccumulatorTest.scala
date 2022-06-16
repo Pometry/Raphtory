@@ -3,6 +3,7 @@ package com.raphtory.api.analysis.graphstate
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.BasicGraphBuilder
 import com.raphtory.Raphtory
+import com.raphtory.TestQuery
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphview.Alignment
@@ -10,6 +11,7 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
+import com.raphtory.api.input.Spout
 import com.raphtory.spouts.ResourceSpout
 
 object CountNodes extends Generic {
@@ -65,34 +67,22 @@ object CheckNodeCount extends Generic {
     }
 }
 
-class AccumulatorTest extends BaseCorrectnessTest {
+class AccumulatorTest extends BaseCorrectnessTest(startGraph = true) {
+  override def setSpout(): Spout[String] = ResourceSpout("MotifCount/motiftest.csv")
 
   test("Test accumulators by counting nodes") {
-    assert(correctnessTest(CountNodes, "MotifCount/motiftest.csv", "Accumulator/results.csv", 23))
+    correctnessTest(TestQuery(CountNodes, 23), "Accumulator/results.csv")
   }
+
   test("Test resetting of accumulators by running CountNodes twice (should not change result)") {
-    assert(
-            correctnessTest(
-                    CountNodes -> CountNodes,
-                    "MotifCount/motiftest.csv",
-                    "Accumulator/results.csv",
-                    23
-            )
-    )
+    correctnessTest(TestQuery(CountNodes -> CountNodes, 23), "Accumulator/results.csv")
   }
+
   test("Test rotation of accumulators and state retention by running counting nodes twice") {
-    assert(
-            correctnessTest(
-                    CountNodesTwice,
-                    "MotifCount/motiftest.csv",
-                    "Accumulator/results2.csv",
-                    23
-            )
-    )
+    correctnessTest(TestQuery(CountNodesTwice, 23), "Accumulator/results2.csv")
   }
 
   test("Test nodeCount on graph state is consistent for multiple perspectives") {
-    graph = Raphtory.load(ResourceSpout("MotifCount/motiftest.csv"), BasicGraphBuilder())
     val job = graph
       .range(10, 23, 1)
       .window(10, Alignment.END)
@@ -108,6 +98,5 @@ class AccumulatorTest extends BaseCorrectnessTest {
         t(t.size - 1).shouldEqual("true")
       }
     }
-    graph.deployment.stop()
   }
 }
