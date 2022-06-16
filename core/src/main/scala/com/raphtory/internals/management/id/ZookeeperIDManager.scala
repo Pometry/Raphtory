@@ -55,7 +55,7 @@ private[raphtory] class ZookeeperIDManager(
     }
 }
 
-object ZookeeperIDManager {
+private[raphtory] object ZookeeperIDManager {
 
   def apply(
       zookeeperAddress: String,
