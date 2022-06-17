@@ -1,4 +1,4 @@
-# Deploying Raphtory 
+# Deploying Raphtory Bare Metal
 
 ## Single Machine
 Once you are happy that your data source is ingesting properly through the selected `Spout` and the model you are creating through your `Graph Builder` is fit for purpose, we may compile your code into a deployable jar. This is a simple process utilising SBT and allows you to deploy this code anywhere you can copy the Jar to. For this tutorial we will be building a `fat` jar which includes all of the underlying packages (including Raphtory). This is standalone and requires nothing else to run other than java/scala.
@@ -80,7 +80,7 @@ The tracking of this query will be output on the client terminal, but the deploy
 	<img src="../_static/deployment/serverclient.png" alt="Raphtory Client connecting to a deployment"/>
 </p>
 
-### Connecting to a remote deployment
+### Connecting To A Remote Deployment
 If you want to run your Raphtory deployment on a remote box whilst connecting via a local client, this is completely fine, but requires a couple more configuration steps. Deployments and clients need to share a Pulsar topic in order to properly connect with each other and, therefore, need the IP/port of this service. This can achieved by setting up the following environment variables (we provide in this page the values for connecting to a local Pulsar deployment with its default values). 
 
 ```bash
@@ -106,22 +106,12 @@ val customConfig: Map[String, String] = Map(
 When the graph is deployed in the same machine using the default Raphtory configuration you can omit these configuration parameters which is why they are not in the `LOTRClient`. However, in all instances we need to set the deployment ID.
 ```
 
-
-
 ## Distributed
+In all prior parts of this tutorial we have been discussing Raphtory running as a singular process on one machine. However, Raphtory can be deployed as a set of multiple services in order to better take advantage of distributed resources, and flexibly scale its functionality horizontally. In order to show how this works, we will go over a base distributed scenario.
 
-Raphtory can be deployed as a set of multiple services in order to better take advantage of distributed resources, and flexibly scale horizontally its functionality. In order to show how this setup works, we will go over a base distributed scenario.
+In our previous examples, we have been running Raphtory via the {scaladoc}`com.raphtory.Raphtory` object. This is used for local and single machine development, as `.load()` and `.stream()` initiate all the necessary components. This, of course, does not provide you with granular control over the system. For example, you may feel that the spout requires much less RAM than the graph builder or partition manager. You may also want to run the client across a cluster, whereby each machine runs a different component, which aids with scaling to larger datasets and analytical tasks. 
 
-In our previous examples, we have been running Raphtory via the `RaphtoryGraph`
-instance. This is used for local and single machine development, as the `RaphtoryGraph` instance initiates all the necessary components. This, of course, does not provide you with granular control over the system. For example, you may feel that the spout requires much less RAM than the graph builder or partition manager. You may also want to run the client across a cluster, whereby each machine runs a different component, which aids with scaling to larger datasets and analytical tasks. 
-
-For these reasons, you can run your programs as `RaphtoryService`(s) instead. 
-The service file gives the user more granular control over each individual component. 
-With the service, the user is also able to send analysis queries on-demand. 
-For example, you can run the service, ingest the entire graph, and then run multiple
-queries or leave the machine running for other users. 
-
-From a coding point of view, the approach is similar to using `RaphtoryGraph`; you only have to specify the spout and builder classes required to read and parse the data. For instance, the code below will create and run the LOTR example as a distributed service. 
+For these reasons, you can run your components via {scaladoc}`com.raphtory.RaphtoryService` instead. From a coding point of view, the approach is similar to using the {scaladoc}`com.raphtory.Raphtory` object; you only have to specify the spout and builder classes required to read and parse the data. For instance, the code below will create and run the LOTR example as a distributed service. 
 
 ```scala
 import com.raphtory.api.input.Spout
@@ -137,16 +127,36 @@ object LOTRService extends RaphtoryService[String] {
 
 }
 ```
-To run the code above, rather than starting a single Raphtory program, you will deploy multiple services providing the different components. The following services must be individually started. 
+To run the code above, rather than starting a single Raphtory program, you must deploy multiple services providing the different components. The following services must be individually started. 
 
-* ´spout´ - Ingests the data
-* ´builder´ - Defines how to build the graph from the data
-* ´partitionmanager´ - Stores the live graph and all the history 
-* ´querymanager´ - Accepts new analysis queries and runs them across the partitions
+* ´spout´ - Runs the specified spout.
+* ´builder´ - Launches an instance of the specified Graph Builder.
+* ´partitionmanager´ - Launches a partition to store a portion of the graph and run analytics on it.
+* ´querymanager´ - Accepts new analysis queries and runs them across the partitions.
 
-You start each service through either scala or sbt, selecting your implementation of `RaphtoryService` as the main class, and specifying one additional command-line argument selecting what service you wish to start. You need all these services running for Raphtory to work, although if the data will be loaded in batch mode, you can start the ´alinonepm´ service that combines spout, builder and partitionmanager in the same service deployment.  
+You start each service through either scala or sbt, selecting your implementation of `RaphtoryService` as the main class, and specifying one additional command-line argument selecting what service you wish to start. You need at least one of each service for Raphtory to work. The commands for running the LOTRService would be as follows:
 
-### Optional Variables
+```
+scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.5.jar com.raphtory.examples.lotr.LOTRService spout
+scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.5.jar com.raphtory.examples.lotr.LOTRService builder
+scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.5.jar com.raphtory.examples.lotr.LOTRService partitionmanager
+scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.5.jar com.raphtory.examples.lotr.LOTRService querymanager
+```
+
+Running these as 4 separate processes in a pseudo-distributed fashion and then submitting a query via the same client will produce the following output: 
+
+<p align="center">
+	<img src="../_static/deployment/distributed.png" alt="Pseudo-distributed Raphtory deployment"/>
+</p>
+
+
+```{note}
+The warning "Cannot create prometheus server as port 9999 is already bound, this could be you have multiple raphtory instances running on the same machine." Is fairly self explanatory, but is caused by us running these services together for demonstration purposes when in production they would be on separate machines or containerized. 
+```
+
+As a final comment on the distributed deployment, as the partitions are stateful if you are intending to deploy more than one you need to let all components know how many there will be. This as before is done via environment variables, specifically `RAPHTORY_PARTITIONS_SERVERCOUNT`. If this is incorrectly set your deployment will produce some very interesting results.
+
+### Suggested Java ops
 
 In order to configure how many resources are allocated, each service should be run whilst specifying the following JAVA_OPTS.
 Please adjust the `Xms` and `Xmx` to the amount of free memory on the box.  [This helps A LOT with GC]

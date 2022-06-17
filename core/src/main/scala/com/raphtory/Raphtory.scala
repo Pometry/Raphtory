@@ -91,13 +91,16 @@ object Raphtory {
     * @return A temporal graph object
     */
   def connect(customConfig: Map[String, Any] = Map()): TemporalGraphConnection = {
-    val scheduler        = new Scheduler()
-    val conf             = confBuilder(customConfig, true)
-    javaPy4jGatewayServer.start(conf)
+    val scheduler          = new Scheduler()
+    val conf               = confBuilder(customConfig, true)
+    val activePythonServer = conf.getBoolean("raphtory.python.active")
+    if (activePythonServer)
+      javaPy4jGatewayServer.start(conf)
     startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
-    val topics           = PulsarTopicRepository(conf)
-    val componentFactory = new ComponentFactory(conf, topics)
-    val querySender      = new QuerySender(componentFactory, scheduler, topics)
+    allowIllegalReflection()
+    val topics             = PulsarTopicRepository(conf)
+    val componentFactory   = new ComponentFactory(conf, topics)
+    val querySender        = new QuerySender(componentFactory, scheduler, topics)
     new TemporalGraphConnection(Query(), querySender, conf, scheduler, topics)
   }
 
@@ -124,6 +127,7 @@ object Raphtory {
     val scheduler        = new Scheduler()
     val conf             = confBuilder(distributed = true)
     startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
+    allowIllegalReflection()
     val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
     componentFactory.spout(spout, false, scheduler)
@@ -135,6 +139,7 @@ object Raphtory {
     val scheduler        = new Scheduler()
     val conf             = confBuilder(distributed = true)
     startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
+    allowIllegalReflection()
     val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
     componentFactory.builder(builder, false, scheduler)
@@ -148,6 +153,7 @@ object Raphtory {
     val scheduler        = new Scheduler()
     val conf             = confBuilder(distributed = true)
     startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
+    allowIllegalReflection()
     val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
     componentFactory.partition(scheduler, batchLoading, spout, graphBuilder)
@@ -157,6 +163,7 @@ object Raphtory {
     val scheduler        = new Scheduler()
     val conf             = confBuilder(distributed = true)
     startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
+    allowIllegalReflection()
     val topics           = PulsarTopicRepository(conf)
     val componentFactory = new ComponentFactory(conf, topics)
     componentFactory.query(scheduler)
@@ -196,6 +203,7 @@ object Raphtory {
     if (activePythonServer)
       javaPy4jGatewayServer.start(conf)
     startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
+    allowIllegalReflection()
     val topics             = PulsarTopicRepository(conf)
     val componentFactory   = new ComponentFactory(conf, topics, true)
     val querySender        = new QuerySender(componentFactory, scheduler, topics)
@@ -213,5 +221,30 @@ object Raphtory {
   def shutdown(): Unit = {
     prometheusServer.foreach(_.close())
     javaPy4jGatewayServer.shutdown()
+  }
+
+  private[raphtory] def allowIllegalReflection() = {
+    import java.lang.reflect.Field
+
+    try { // Turn off illegal access log messages.
+      val loggerClass = Class.forName("jdk.internal.module.IllegalAccessLogger")
+      val loggerField = loggerClass.getDeclaredField("logger")
+      val unsafeClass = Class.forName("sun.misc.Unsafe")
+      val unsafeField = unsafeClass.getDeclaredField("theUnsafe")
+      unsafeField.setAccessible(true)
+      val unsafe      = unsafeField.get(null)
+      val offset      =
+        unsafeClass
+          .getMethod("staticFieldOffset", classOf[Field])
+          .invoke(unsafe, loggerField)
+          .asInstanceOf[Long]
+      unsafeClass
+        .getMethod("putObjectVolatile", classOf[Object], classOf[Long], classOf[Object])
+        .invoke(unsafe, loggerClass, offset, null)
+    }
+    catch {
+      case ex: Exception =>
+        ex.printStackTrace()
+    }
   }
 }
