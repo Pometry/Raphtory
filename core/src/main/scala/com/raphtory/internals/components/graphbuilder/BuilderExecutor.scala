@@ -73,13 +73,15 @@ object BuilderExecutor {
       graphBuilder: GraphBuilder[T],
       conf: Config,
       topics: TopicRepository
-  ): Resource[IO, BuilderExecutor[T]] =
+  ): Resource[IO, BuilderExecutor[T]] = {
+    val elems = topics.spout[T]
     Component.makeAndStart(
             topics,
             s"builder-$name",
-            List(topics.spout[T]),
+            List(elems),
             new BuilderExecutor[T](name, deploymentID, graphBuilder, conf, topics)
     )
+  }
 }
 
 // FIXME: probably good use of cats-effect Supervisor

@@ -1,130 +1,148 @@
 package com.raphtory.components.spout
 
-import com.raphtory.Raphtory
-import com.raphtory.api.input.ImmutableProperty
-import com.raphtory.api.input.Properties
-import com.raphtory.api.input.Type
+import cats.effect.{IO, Resource, SyncIO}
+import cats.implicits.toFoldableOps
+import com.raphtory.{Raphtory, RaphtoryService}
 import com.raphtory.api.input.GraphBuilder.assignID
+import com.raphtory.api.input.{ImmutableProperty, Properties, Type}
 import com.raphtory.internals.communication.connectors.PulsarConnector
 import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.serialisers.KryoSerialiser
 import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.typesafe.config.Config
+import munit.CatsEffectSuite
 import org.apache.pulsar.client.admin.PulsarAdmin
-import org.apache.pulsar.client.admin.PulsarAdminException
-import org.apache.pulsar.client.api.Schema
-import org.apache.pulsar.client.api.SubscriptionInitialPosition
-import org.scalatest.BeforeAndAfter
-import org.scalatest.DoNotDiscover
-import org.scalatest.funsuite.AnyFunSuite
+import org.apache.pulsar.client.api._
 
-//Running this breaks all other tests, why?
-@DoNotDiscover
-class LOTRGraphBuilderTest extends AnyFunSuite with BeforeAndAfter {
+import java.util.concurrent.TimeUnit
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-  final val test_producer_topic: String      = "_test_lotr_graph_input_topic"
-  final val test_graph_builder_topic: String = "_test_lotr_graph_object_topic"
+//Check if this test breaks stuff
+class LOTRGraphBuilderTest extends CatsEffectSuite {
 
-  val config: Config = Raphtory.getDefaultConfig(
-          Map[String, Any](
-                  ("raphtory.spout.topic", test_producer_topic),
-                  ("raphtory.deploy.id", test_graph_builder_topic),
-                  ("raphtory.deploy.id", test_graph_builder_topic)
-          ),
-          distributed = false
-  )
+  private val _test_lotr_graph_object_topic = "_test_lotr_graph_object_topic"
 
-  val admin: PulsarAdmin                           =
-    PulsarAdmin.builder.serviceHttpUrl(config.getString("raphtory.pulsar.admin.address")).build
-  implicit private val schema: Schema[Array[Byte]] = Schema.BYTES
-  val pulsarConnector: PulsarConnector             = PulsarConnector.unsafeApply(config)
-  val kryo                                         = new KryoSerialiser()
+  val pulsarWithBuilder: SyncIO[FunFixture[PulsarConnector]] =
+    ResourceFixture(for {
+      con <- PulsarConnector[IO](config)
+      _   <- RaphtoryService.default(null, new LOTRGraphBuilder).builderDeploy(config, localDeployment = true)
+      _   <- Resource.make(IO.pure(()))(_ => deleteTestTopic(con.adminClient))
+    } yield con)
 
-  def deleteTestTopic(): Unit = {
-    val all_topics = admin.topics.getList("public/default")
-    all_topics.forEach(topic_name =>
-      try {
-        if ((topic_name contains test_producer_topic) || (topic_name contains test_graph_builder_topic))
-          admin.topics.unloadAsync(topic_name)
-        admin.topics.delete(topic_name, true)
-      }
-      catch {
-        case e: PulsarAdminException =>
-      }
-    )
+  def producerConsumerPair(
+      client: PulsarClient,
+      producerTopic: String,
+      consumerTopic: String
+  ): Resource[IO, (Producer[Array[Byte]], Consumer[Array[Byte]])] =
+    for {
+      p <- Resource.fromAutoCloseable(IO.delay(makeProducer(client, producerTopic)))
+      c <- Resource.make(IO.delay(makeConsumer(client, consumerTopic)))(c =>
+        IO.fromCompletableFuture(IO.delay(c.unsubscribeAsync())).void *> IO.fromCompletableFuture(IO.delay(c.closeAsync())).void)
+    } yield (p, c)
+
+  pulsarWithBuilder.test("Receive messages from GraphBuilder 2 add VertexAdd and 1 EdgeAdd") { con =>
+    val client = con.accessClient
+    val kryo   = new KryoSerialiser()
+
+    val producer_topic     = s"persistent://public/${_test_lotr_graph_object_topic}_0/${_test_lotr_graph_object_topic}_0"
+    val graph_object_topic =
+      s"persistent://public/${_test_lotr_graph_object_topic}_0/graph.updates-${_test_lotr_graph_object_topic}_0-0"
+
+    producerConsumerPair(client, producer_topic, graph_object_topic).use {
+      case (producer, consumer) =>
+        IO.blocking {
+
+          // first create a local spout and ingest some local data
+          val doneSending = producer.sendAsync(kryo.serialise("Gandalf,Benjamin,400"))
+          doneSending.get(60, TimeUnit.SECONDS)
+
+          val srcID          = assignID("Gandalf")
+          val tarID          = assignID("Benjamin")
+          val messageAddExp  = VertexAdd(
+                  400,
+                  srcID,
+                  Properties(ImmutableProperty("name", "Gandalf")),
+                  Some(Type("Character"))
+          )
+          val messageAddExp2 = VertexAdd(
+                  400,
+                  tarID,
+                  Properties(ImmutableProperty("name", "Benjamin")),
+                  Some(Type("Character"))
+          )
+          val messageEdgeExp =
+            EdgeAdd(400, srcID, tarID, Properties(), Some(Type("Character Co-occurence")))
+
+          // finally check that they created the objects
+
+          val msgs = (0 until 3).map { _ =>
+            val msg = consumer.receive()
+            consumer.acknowledge(msg)
+            msg
+          }
+
+          val actualMsgs: Set[GraphUpdate] = msgs.toList
+            .map(_.getValue)
+            .map(msgBytes => kryo.deserialise[GraphUpdate](msgBytes))
+            .toSet
+
+          val expectedMsgs: Set[GraphUpdate] = Set(messageAddExp, messageAddExp2, messageEdgeExp)
+
+          assertEquals(actualMsgs, expectedMsgs)
+
+        }
+
+    }
+
   }
 
-  before {
-    deleteTestTopic()
-  }
+  private def makeProducer(client: PulsarClient, producer_topic: String) =
+    client.newProducer(Schema.BYTES).topic(producer_topic).create()
 
-  after {
-    deleteTestTopic()
-  }
-
-  try {
-    // first create a local spout and ingest some local data
-    deleteTestTopic()
-    val client         = pulsarConnector.accessClient
-    val producer_topic = test_producer_topic
-    val producer       = client.newProducer(Schema.BYTES).topic(producer_topic).create()
-
-    producer.sendAsync(kryo.serialise("Gandalf,Benjamin,400"))
-
-    val srcID              = assignID("Gandalf")
-    val tarID              = assignID("Benjamin")
-    val messageAddExp      = VertexAdd(
-            400,
-            srcID,
-            Properties(ImmutableProperty("name", "Gandalf")),
-            Some(Type("Character"))
-    )
-    val messageAddExp2     = VertexAdd(
-            400,
-            tarID,
-            Properties(ImmutableProperty("name", "Benjamin")),
-            Some(Type("Character"))
-    )
-    val messageEdgeExp     =
-      EdgeAdd(400, srcID, tarID, Properties(), Some(Type("Character Co-occurence")))
-    val graph_object_topic = test_graph_builder_topic + "_0"
-    Raphtory.createGraphBuilder(new LOTRGraphBuilder())
-
-    // finally check that they created the objects
-
-    val consumer       = client
+  private def makeConsumer(client: PulsarClient, graph_object_topic: String) = {
+    val consumer: Consumer[Array[Byte]] = client
       .newConsumer(Schema.BYTES)
       .subscriptionName("_test_lotr_graph_output_sub")
       .topic(graph_object_topic)
       .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
       .subscribe()
-    val messageAdd     = consumer.receive
-    consumer.acknowledge(messageAdd)
-    val messageAdd2    = consumer.receive
-    consumer.acknowledge(messageAdd2)
-    val messageAddEdge = consumer.receive
-    consumer.acknowledge(messageAddEdge)
 
-    test("LOTRGraphBuilder: e2e Graph builder Produces first vertex") {
-      val msg = kryo.deserialise[GraphUpdate](messageAdd.getValue)
-      assert(msg == messageAddExp, "Vertex Add Gandalf")
-    }
-    test("LOTRGraphBuilder: e2e Graph builder Produces second vertex") {
-      val msg = kryo.deserialise[GraphUpdate](messageAdd2.getValue)
-      assert(msg == messageAddExp2, "Vertex Add Benjamin")
-    }
-    test("LOTRGraphBuilder: e2e Graph builder Produces edge") {
-      val msg = kryo.deserialise[GraphUpdate](messageAddEdge.getValue)
-      assert(msg == messageEdgeExp, "Edge Add Gandalf -> Benjamin")
-    }
-    producer.close()
-    consumer.close()
-    client.close()
+    consumer
   }
-  catch {
-    case e: Exception =>
-      e.printStackTrace()
-      assert(false)
+
+  final def test_producer_topic: String      = _test_lotr_graph_object_topic
+  final def test_graph_builder_topic: String = _test_lotr_graph_object_topic
+
+  def config: Config =
+    Raphtory.getDefaultConfig(
+            Map[String, Any](
+                    ("raphtory.spout.topic", test_producer_topic),
+                    ("raphtory.deploy.id", test_graph_builder_topic),
+                    ("raphtory.pulsar.broker.ioThreads", 1),
+                    ("raphtory.builders.countPerServer", 1),
+                    ("raphtory.partitions.countPerServer", 1)
+            ),
+            salt = Some(0),
+            distributed = false
+    )
+
+  def deleteTestTopic(admin: PulsarAdmin): IO[Unit] = {
+    val subjectTopic = for {
+      tenant <- admin.tenants().getTenants.asScala
+      ns     <- admin.namespaces().getNamespaces(tenant).asScala
+      topic  <- admin.topics().getList(ns).asScala
+      _ = println(topic)
+      if topic.endsWith(s"${_test_lotr_graph_object_topic}_0")
+    } yield topic
+
+    subjectTopic
+      .map { topicName =>
+        IO.println(s"Deleting $topicName") *>
+          IO.fromCompletableFuture(IO.delay(admin.topics().terminateTopicAsync(topicName)))
+//        *> IO.fromCompletableFuture(IO.delay(admin.topics().deleteAsync(topicName)))
+      }
+      .toList
+      .sequence_
   }
 
 }

@@ -11,6 +11,7 @@ import com.raphtory.internals.communication.repositories.PulsarTopicRepository
 import com.raphtory.internals.components.graphbuilder.BuildExecutorGroup
 import com.raphtory.internals.components.querymanager.QueryManager
 import com.raphtory.internals.components.spout.SpoutExecutor
+import com.raphtory.internals.management.BatchPartitionManager
 import com.raphtory.internals.management.PartitionsManager
 import com.raphtory.internals.management.Prometheus
 import com.raphtory.internals.management.Scheduler
@@ -72,57 +73,71 @@ abstract class RaphtoryService[T: ClassTag] extends IOApp {
     * producers for each row. Supported spout types are FileSpout`, `ResourceSpout`,
     * `StaticGraphSpout`.
     */
-  private def spoutDeploy(config: Config): Resource[IO, Unit] = {
+  def spoutDeploy(config: Config): Resource[IO, Unit] = {
     val metricsPort = config.getInt("raphtory.prometheus.metrics.port")
     for {
       _         <- Prometheus[IO](metricsPort)
       topicRepo <- PulsarTopicRepository[IO](config)
-      _         <- SpoutExecutor[IO, T](defineSpout(), config, topicRepo)
-    } yield ()
+      s         <- SpoutExecutor[IO, T](defineSpout(), config, topicRepo)
+    } yield s
   }
 
-  private def builderDeploy(config: Config) = {
+  def builderDeploy(config: Config, localDeployment: Boolean = false): Resource[IO, BuildExecutorGroup] = {
     val deploymentID = config.getString("raphtory.deploy.id")
     val metricsPort  = config.getInt("raphtory.prometheus.metrics.port")
     for {
       _                <- Prometheus[IO](metricsPort)
       topicRepo        <- PulsarTopicRepository[IO](config)
-      builderIDManager <- makeIdManager[IO](config, localDeployment = false, s"/$deploymentID/builderCount")
-      _                <- BuildExecutorGroup[IO, T](config, builderIDManager, topicRepo, defineBuilder)
-    } yield ()
+      builderIDManager <- makeIdManager[IO](config, localDeployment, s"/$deploymentID/builderCount")
+      beg              <- BuildExecutorGroup[IO, T](config, builderIDManager, topicRepo, defineBuilder)
+    } yield beg
 
   }
 
-  private def batchPartitionDeploy(config: Config) = {
+  def batchPartitionDeploy(config: Config): Resource[IO, BatchPartitionManager[T]] = {
     val deploymentID = config.getString("raphtory.deploy.id")
     val metricsPort  = config.getInt("raphtory.prometheus.metrics.port")
     for {
       _                  <- Prometheus[IO](metricsPort)
       topicRepo          <- PulsarTopicRepository[IO](config)
       partitionIDManager <- makeIdManager[IO](config, localDeployment = false, s"/$deploymentID/partitionCount")
-      _                  <- PartitionsManager
+      pm                 <- PartitionsManager
                               .batchLoading[IO, T](config, partitionIDManager, topicRepo, new Scheduler(), defineSpout(), defineBuilder)
-    } yield ()
+    } yield pm
   }
 
-  private def streamingPartitionDeploy(config: Config) = {
+  def streamingPartitionDeploy(config: Config): Resource[IO, PartitionsManager] = {
     val deploymentID = config.getString("raphtory.deploy.id")
     val metricsPort  = config.getInt("raphtory.prometheus.metrics.port")
     for {
       _                  <- Prometheus[IO](metricsPort)
       topicRepo          <- PulsarTopicRepository[IO](config)
       partitionIDManager <- makeIdManager[IO](config, localDeployment = false, s"/$deploymentID/partitionCount")
-      _                  <- PartitionsManager
+      pm                 <- PartitionsManager
                               .streaming[IO](config, partitionIDManager, topicRepo, new Scheduler())
-    } yield ()
+    } yield pm
   }
 
-  private def queryManagerDeploy(config: Config) = {
+  def queryManagerDeploy(config: Config): Resource[IO, QueryManager] = {
     val metricsPort = config.getInt("raphtory.prometheus.metrics.port")
     for {
       _         <- Prometheus[IO](metricsPort)
       topicRepo <- PulsarTopicRepository[IO](config)
-      _         <- QueryManager[IO](config, topicRepo)
-    } yield ()
+      qm        <- QueryManager[IO](config, topicRepo)
+    } yield qm
   }
+}
+
+object RaphtoryService {
+
+  def default[T: ClassTag](spout: Spout[T], graphBuilder: GraphBuilder[T]): RaphtoryService[T] =
+    new RaphtoryService[T] {
+
+      /** Defines type of Spout to be created for ingesting data
+        */
+      override def defineSpout(): Spout[T] = spout
+
+      /** Initialise `GraphBuilder` for building graphs */
+      override def defineBuilder: GraphBuilder[T] = graphBuilder
+    }
 }

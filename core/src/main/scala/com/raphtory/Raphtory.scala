@@ -25,6 +25,8 @@ import com.raphtory.internals.management.id.IDManager
 import com.raphtory.internals.management.id.LocalIDManager
 import com.raphtory.internals.management.id.ZookeeperIDManager
 
+import scala.util.Random
+
 /**  `Raphtory` object for creating Raphtory Components
   *
   * @example
@@ -111,12 +113,14 @@ object Raphtory {
     */
   def getDefaultConfig(
       customConfig: Map[String, Any] = Map(),
-      distributed: Boolean = false
+      distributed: Boolean = false,
+      salt: Option[Int] = None
   ): Config =
-    confBuilder(customConfig, distributed)
+    confBuilder(customConfig, salt,distributed)
 
-  def confBuilder(customConfig: Map[String, Any] = Map(), distributed: Boolean): Config = {
+  def confBuilder(customConfig: Map[String, Any] = Map(), salt:Option[Int] = None, distributed: Boolean): Config = {
     val confHandler = new ConfigHandler()
+    salt.foreach(s => confHandler.setSalt(s))
     customConfig.foreach { case (key, value) => confHandler.addCustomConfig(key, value) }
     confHandler.getConfig(distributed)
   }
@@ -158,7 +162,7 @@ object Raphtory {
     val deploymentID   = config.getString("raphtory.deploy.id")
     val scheduler      = new Scheduler()
     for {
-//      _                  <- Prometheus[IO](prometheusPort) FIXME: need some sync because this thing does not stop
+      _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
       topicRepo          <- PulsarAkkaTopicRepository(config)
       _                  <- QueryManager(config, topicRepo)
       _                  <- {
