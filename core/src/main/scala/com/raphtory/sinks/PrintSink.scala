@@ -42,8 +42,28 @@ case class PrintSink(format: Format = CsvFormat()) extends FormatAgnosticSink(fo
       itemDelimiter: String,
       fileExtension: String
   ): SinkConnector =
-    new StreamSinkConnector(itemDelimiter) {
-      override def output(value: String): Unit = System.out.print(value)
-      override def close(): Unit               = System.out.println()
+    new SinkConnector {
+      val currentItem    = new StringBuilder()
+      var justClosedItem = false
+
+      override def write(value: String): Unit = {
+        if (justClosedItem) {
+          System.out.print(currentItem)
+          justClosedItem = false
+          currentItem.setLength(0)
+        }
+        currentItem.append(value)
+      }
+
+      override def closeItem(): Unit = {
+        currentItem.append(itemDelimiter)
+        justClosedItem = true
+      }
+
+      override def close(): Unit = {
+        if (justClosedItem)
+          System.out.print(currentItem)
+        System.out.println()
+      }
     }
 }
