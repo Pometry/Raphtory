@@ -105,19 +105,20 @@ private[raphtory] class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Com
       }
     }
     new CancelableListener {
-      var futureSelf: Future[ActorRef[Array[Byte]]] = _
+      var futureSelf: Option[Future[ActorRef[Array[Byte]]]] = None
       override def start(): Unit = {
         implicit val timeout: Timeout     = akkaSpawnerTimeout
         implicit val scheduler: Scheduler = actorSystem.scheduler
-        futureSelf = actorSystem ? ((ref: ActorRef[ActorRef[Array[Byte]]]) =>
+        val spawnRequestBuilder           = (ref: ActorRef[ActorRef[Array[Byte]]]) =>
           SpawnProtocol.Spawn(behavior, id, Props.empty, ref)
-        )
+        futureSelf = Some(actorSystem ? spawnRequestBuilder)
       }
 
-      override def close(): Unit = {
-        val selfResolutionTimeout: Duration = 10.seconds
-        Await.result(futureSelf, selfResolutionTimeout) ! serialise(StopActor)
-      }
+      override def close(): Unit =
+        futureSelf.foreach { futureSelf =>
+          val selfResolutionTimeout: Duration = 10.seconds
+          Await.result(futureSelf, selfResolutionTimeout) ! serialise(StopActor)
+        }
     }
   }
 
