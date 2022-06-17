@@ -1,10 +1,10 @@
-package com.raphtory.examples.lotrTopic
+package com.raphtory.examples.lotr
 
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.filters.EdgeQuantileFilter
 import com.raphtory.algorithms.filters.VertexQuantileFilter
-import com.raphtory.examples.lotrTopic.analysis.DegreesSeparation
-import com.raphtory.examples.lotrTopic.graphbuilders.LOTRGraphBuilder
+import com.raphtory.examples.lotr.analysis.DegreesSeparation
+import com.raphtory.examples.lotr.graphbuilders.LOTRGraphBuilder
 import com.raphtory.spouts.FileSpout
 import com.raphtory.sinks.FileSink
 import com.raphtory.algorithms.generic.ConnectedComponents
@@ -25,7 +25,7 @@ object TutorialRunner extends App {
 
   val source  = FileSpout(path)
   val builder = new LOTRGraphBuilder()
-  val graph   = Raphtory.load(spout = source, graphBuilder = builder)
+  val graph   = Raphtory.stream(spout = source, graphBuilder = builder)
   val output  = FileSink("/tmp/raphtory")
 
   val queryHandler = graph

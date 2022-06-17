@@ -1,10 +1,10 @@
-package com.raphtory.examples.lotrTopic
+package com.raphtory.examples.lotr
 
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.api.analysis.graphview.Alignment
-import com.raphtory.examples.lotrTopic.graphbuilders.LOTRGraphBuilder
+import com.raphtory.examples.lotr.graphbuilders.LOTRGraphBuilder
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils

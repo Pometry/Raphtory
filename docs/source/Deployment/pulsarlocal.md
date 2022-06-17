@@ -3,12 +3,13 @@
 As was briefly mentioned in the introduction, alongside the `Raphtory.load()` function for static datasets, Raphtory has a streaming graph deployment (`Raphtory.stream()`) which allows the continuous ingestion of new data. From an API level this looks almost identical and all spouts that work for `load` will work in a `stream`. For instance, the LOTR `TutorialRunner` we previously worked with can be edited to run as a stream: 
 
 ```
-val source  = FileSpout(path)													 val source  = FileSpout(path)
-val builder = new LOTRGraphBuilder()									--->	 val builder = new LOTRGraphBuilder()	
+val builder = new LOTRGraphBuilder()	
 val graph   = Raphtory.load(spout = source, graphBuilder = builder)		     	 val graph   = Raphtory.stream(spout = source, graphBuilder = builder)
 ```
 
- Whilst the `FileSpout` can be set to poll a directory for new files in this instance, more interestingly, we can now make use of an array of new data input formats including pub/sub systems like [Kafka](https://kafka.apache.org) and online streams like the [Twitter API](https://developer.twitter.com/en/docs/twitter-api/tools-and-libraries/v2). In these instances, new data can continuously flow into Raphtory as soon as it is published and queries can be set to run on it as soon as it has synchronised. To manage parallel ingestion and analysis safely Raphtory maintains a global watermark which reports the status of each partition, and the time they believe is safe to execute on. These individual times are then aggregated into a global minimum time to make sure only safe Perspectives are generated and, therefore, the output results are correct. 
+ Whilst the `FileSpout` can be set to poll a directory for new files in this instance, more interestingly, we can now make use of an array of new data input formats including pub/sub systems like [Kafka](https://kafka.apache.org) and online streams like the [Twitter API](https://developer.twitter.com/en/docs/twitter-api/tools-and-libraries/v2). In these instances, new data can continuously flow into Raphtory as soon as it is published and queries can be set to run on it as soon as it has synchronised. 
+ 
+ To manage parallel ingestion and analysis safely Raphtory maintains a global watermark which reports the status of each partition, and the time they believe is safe to execute on. These individual times are then aggregated into a global minimum time to make sure only safe Perspectives are generated and, therefore, the output results are correct. 
  
 ```{note}
 The query API, execution and results on streaming graphs are exactly the same as those on their loaded counterparts assuming the same graph builder and underlying data.
@@ -22,7 +23,9 @@ We can increase the number of graph builders and partitions we have locally to t
 
 To support distribution, Raphtory has been rebuilt to utilize [Akka](https://akka.io) for control messages and [Apache Pulsar](https://pulsar.apache.org) as its broker to support communication between components. Using Pulsar means that all data sent within Raphtory is fully backed up and communication can easily scale to millions of messages a second. 
 
-This does, however, mean we need to be able to connect to a Pulsar cluster when running Raphtory in this fashion. Fortunately, Pulsar comes with a standalone mode which packages everything together to be run once installed.  Pulsar can be installed in a variety of ways, which can be seen below. We have also create a hand Pulsar script which will automatically manage this for you, if you prefer. The details for this can be found at the bottom of the page.
+This does, however, mean we need to be able to connect to a Pulsar cluster when running Raphtory in this fashion. Fortunately, Pulsar comes with a standalone mode which packages everything together to be run once installed.  Pulsar can be installed in a variety of ways, which can be seen below. 
+
+We have also created a handy Pulsar script which will automatically manage this for you, if you prefer. The details for this can be found at the bottom of the page.
 
 
 ## Installing Apache Pulsar

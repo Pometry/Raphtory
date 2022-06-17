@@ -1,16 +1,119 @@
-# Running Raphtory distributed
+# Deploying Raphtory 
+
+## Single Machine
+Once you are happy that your data source is ingesting properly through the selected `Spout` and the model you are creating through your `Graph Builder` is fit for purpose, we may compile your code into a deployable jar. This is a simple process utilising SBT and allows you to deploy this code anywhere you can copy the Jar to. For this tutorial we will be building a `fat` jar which includes all of the underlying packages (including Raphtory). This is standalone and requires nothing else to run other than java/scala.
+
+To do this we will use the sbt assembly plugin, which must be added to the `project/plugins.sbt` file in your sbt project. This has already been done inside the [raphtory-example-lotr](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-lotr) project, and should look like the following:
+
+```
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "1.1.0")
+```
+
+Once the plugin has been added you can simply run `sbt assembly` from your projects main directory. This will compile all the classes, deduplicate any class files from the underlying imports and produce you a runnable fat jar. This will be available in your project under `target/scala-2.13/PROJECT_NAME-assembly-PROJECT_VERSION.jar`. For instance you can see the jar for the LOTR example below:
+
+```
+[warn] multiple main classes detected: run 'show discoveredMainClasses' to see the list
+[info] Strategy 'concat' was applied to 2 files (Run the task at debug level to see details)
+[info] Strategy 'discard' was applied to 7 files (Run the task at debug level to see details)
+[info] Strategy 'filterDistinctLines' was applied to 5 files (Run the task at debug level to see details)
+[info] Strategy 'first' was applied to 4550 files (Run the task at debug level to see details)
+[info] Strategy 'rename' was applied to 14 files (Run the task at debug level to see details)
+[success] Total time: 58 s, completed 17 Jun 2022, 01:23:54
+
+ls target/scala-2.13
+classes                       example-lotr-assembly-0.5.jar
+```
+
+We can now run this jar in our terminal via scala by adding it onto the classpath and selecting the main function we wish to run. In the below example we run our modified `TutorialRunner` where we have swapped from `load` to `stream`. The output/log for this should be exactly the same as before.
+
+```
+scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.5.jar com.raphtory.examples.lotr.TutorialRunner
+
+02:24:57.946 [main] INFO  com.raphtory.spouts.FileSpout - Spout: Processing file 'lotr.csv' ...
+02:24:59.250 [main] INFO  com.raphtory.internals.management.ComponentFactory - Creating '1' Partition Managers for raphtory_57786302.
+02:25:00.861 [main] INFO  com.raphtory.internals.management.ComponentFactory - Creating new Query Manager.
+02:25:01.366 [main] INFO  com.raphtory.internals.management.ComponentFactory - Creating new Spout.
+02:25:01.366 [main] INFO  com.raphtory.internals.management.ComponentFactory - Creating '1' Graph Builders.
+02:25:01.506 [main] INFO  com.raphtory.internals.management.GraphDeployment - Created Graph object with deployment ID 'raphtory_57786302'.
+02:25:01.506 [main] INFO  com.raphtory.internals.management.GraphDeployment - Created Graph Spout topic with name 'raphtory_data_raw_57786302'.
+02:25:01.615 [main] INFO  com.raphtory.internals.management.ComponentFactory - Creating new Query Progress Tracker for 'DegreesSeparation_3184984120317965529'.
+02:25:01.640 [io-compute-4] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job DegreesSeparation_3184984120317965529: Starting query progress tracker.
+02:25:01.766 [pulsar-external-listener-4-1] INFO  com.raphtory.internals.components.querymanager.QueryManager - Query 'DegreesSeparation_3184984120317965529' received, your job ID is 'DegreesSeparation_3184984120317965529'.
+02:25:06.891 [pulsar-external-listener-4-1] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job 'DegreesSeparation_3184984120317965529': Perspective '32674' finished in 5251 ms.
+02:25:06.891 [pulsar-external-listener-4-1] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job DegreesSeparation_3184984120317965529: Running query, processed 1 perspectives.
+02:25:06.992 [pulsar-external-listener-4-1] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job DegreesSeparation_3184984120317965529: Query completed with 1 perspectives and finished in 5352 ms.
+```
+
+```{note}
+The deployment ID is provided in this log "Created Graph object with deployment ID 'raphtory_57786302'" -- This will be important in the next step.
+```
+
+## Attaching A Client To Submit Queries 
+Once the graph is deployed and the data is ingested you may find you want to submit new queries to it, possibly requiring a code change. If we had to reassemble the jar and reingest the data every time this happened it would be a massive time sink. Instead we may deploy `client` code which connects to a running Raphtory deployment and submits new queries. 
+
+This is done via the `Raphtory.connect()` function which returns a {scaladoc}`com.raphtory.api.analysis.graphview.TemporalGraphConnection` instance, exposing exactly the same API as `load()` and `stream()`. An example of such a client can be seen below from the [raphtory-example-lotr](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-lotr) project. The client is setup to connect to the deployment, execute [Connected Components](com.raphtory.algorithms.generic.ConnectedComponents) on the latest time point, write the results to "/tmp/raphtory" and then disconnect and shutdown:
+
+```scala 
+object LOTRClient extends App {
+
+  val client = Raphtory.connect()
+
+  val output = FileSink("/tmp/raphtory")
+
+  val progressTracker = client.execute(ConnectedComponents()).writeTo(output)
+  
+  progressTracker.waitForJob()
+  
+  client.disconnect()
+}
+```
+
+To run this code (which for the purpose of this example is part of the same jar) we need to first let the client know what the deployment ID is so that it can connect to the correct Pulsar Topic. This can be done by setting the `RAPHTORY_DEPLOY_ID` environment variable and then running the class (I have used the deployment ID from above):
+
+```
+export RAPHTORY_DEPLOY_ID=raphtory_57786302
+scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.5.jar com.raphtory.examples.lotr.LOTRClient
+```
+
+The tracking of this query will be output on the client terminal, but the deployment will also log the submission of the query. These can be seen side by side below:
+<p align="center">
+	<img src="../_static/deployment/serverclient.png" alt="Raphtory Client connecting to a deployment"/>
+</p>
+
+### Connecting to a remote deployment
+If you want to run your Raphtory deployment on a remote box whilst connecting via a local client, this is completely fine, but requires a couple more configuration steps. Deployments and clients need to share a Pulsar topic in order to properly connect with each other and, therefore, need the IP/port of this service. This can achieved by setting up the following environment variables (we provide in this page the values for connecting to a local Pulsar deployment with its default values). 
+
+```bash
+export RAPHTORY_PULSAR_BROKER_ADDRESS = "pulsar://127.0.0.1:6650"
+export RAPHTORY_PULSAR_ADMIN_ADDRESS = "http://127.0.0.1:8080"
+export RAPHTORY_ZOOKEEPER_ADDRESS = "127.0.0.1:2181"
+```
+
+Alternatively you can do this via the `connect(customConfig)` method in the `Raphtory` object. The `customConfig` here is to provide the appropriate configuration to locate the graph (i.e. pulsar address). For instance, translating the above env vars into `customConfig` would look like the following:
+
+```scala
+val customConfig: Map[String, String] = Map(
+          ("raphtory.pulsar.admin.address","http://127.0.0.1:8080"),
+          ("raphtory.pulsar.broker.address","pulsar://127.0.0.1:6650"),
+          ("raphtory.zookeeper.address", "127.0.0.1:2181")
+  )
+  
+  val client = Raphtory.connect(customConfig)
+```
+
+
+```{note}
+When the graph is deployed in the same machine using the default Raphtory configuration you can omit these configuration parameters which is why they are not in the `LOTRClient`. However, in all instances we need to set the deployment ID.
+```
+
+
+
+## Distributed
 
 Raphtory can be deployed as a set of multiple services in order to better take advantage of distributed resources, and flexibly scale horizontally its functionality. In order to show how this setup works, we will go over a base distributed scenario.
 
-
-## Bare metal distributed -- Raphtory services
-
 In our previous examples, we have been running Raphtory via the `RaphtoryGraph`
-instance. This is used for local and single machine development, as the `RaphtoryGraph` instance
-initiates all the necessary components. This, of course, does not provide you with granular control over the system. For example, you may feel that the spout requires
-much less RAM than the graph builder or partition manager. You may also want to 
-run the client across a cluster, whereby each machine runs a different component, which aids
-with scaling to larger datasets and analytical tasks. 
+instance. This is used for local and single machine development, as the `RaphtoryGraph` instance initiates all the necessary components. This, of course, does not provide you with granular control over the system. For example, you may feel that the spout requires much less RAM than the graph builder or partition manager. You may also want to run the client across a cluster, whereby each machine runs a different component, which aids with scaling to larger datasets and analytical tasks. 
 
 For these reasons, you can run your programs as `RaphtoryService`(s) instead. 
 The service file gives the user more granular control over each individual component. 
@@ -21,19 +124,17 @@ queries or leave the machine running for other users.
 From a coding point of view, the approach is similar to using `RaphtoryGraph`; you only have to specify the spout and builder classes required to read and parse the data. For instance, the code below will create and run the LOTR example as a distributed service. 
 
 ```scala
-
-import com.raphtory.core.build.server.RaphtoryService
-import com.raphtory.core.components.graphbuilder.GraphBuilder
-import com.raphtory.core.components.spout.Spout
+import com.raphtory.api.input.Spout
+import com.raphtory.RaphtoryService
+import com.raphtory.examples.lotrTopic.graphbuilders.LOTRGraphBuilder
 import com.raphtory.spouts.FileSpout
 
-object LOTRDistributed extends RaphtoryService[String]{
+object LOTRService extends RaphtoryService[String] {
 
-  override def defineSpout: Spout[String] = 
-    new FileSpout("src/main/scala/com/raphtory/dev/lotr", "lotr.csv")
+  override def defineSpout(): Spout[String] = FileSpout("/tmp/lotr.csv")
 
-  override def defineBuilder: GraphBuilder[String] = 
-    new LOTRGraphBuilder()
+  override def defineBuilder: LOTRGraphBuilder = new LOTRGraphBuilder()
+
 }
 ```
 To run the code above, rather than starting a single Raphtory program, you will deploy multiple services providing the different components. The following services must be individually started. 
@@ -45,18 +146,6 @@ To run the code above, rather than starting a single Raphtory program, you will 
 
 You start each service through either scala or sbt, selecting your implementation of `RaphtoryService` as the main class, and specifying one additional command-line argument selecting what service you wish to start. You need all these services running for Raphtory to work, although if the data will be loaded in batch mode, you can start the ´alinonepm´ service that combines spout, builder and partitionmanager in the same service deployment.  
 
-The Raphtory services  communicate with each other using Pulsar. If you do not have a pulsar broker, you can run one locally. See [pulsar local deployment](pulsarlocal.md) for information on different deployment options and the required install steps.
-
-## Service configuration Variables
-
-Raphtory Services need the location of Pulsar in order to properly connect among each other. This is achieved by setting up the following environment variables (we provide in this page the values for connecting to a local Pulsar deployment with its default values). 
-
-```bash
-export RAPHTORY_PULSAR_BROKER_ADDRESS = "pulsar://127.0.0.1:6650"
-export RAPHTORY_PULSAR_ADMIN_ADDRESS = "http://127.0.0.1:8080"
-export RAPHTORY_ZOOKEEPER_ADDRESS = "127.0.0.1:2181"
-```
-
 ### Optional Variables
 
 In order to configure how many resources are allocated, each service should be run whilst specifying the following JAVA_OPTS.
@@ -66,36 +155,6 @@ Please adjust the `Xms` and `Xmx` to the amount of free memory on the box.  [Thi
 export JAVA_OPTS=-XX:+UseShenandoahGC -XX:+UseStringDeduplication -Xms10G -Xmx10G -Xss128M
 ```
 
-If using the parquet reader, we also recommend installing hadoop and adding the HOME and OPTs to the system environment ;
-
-```bash
-Environment='HADOOP_HOME=/usr/local/bin/hadoop-3.3.1'
-Environment="HADOOP_OPTS=-Djava.library.path=/usr/local/bin/hadoop-3.3.1/lib/native"
-Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/usr/local/bin/hadoop-3.3.1/bin/:/usr/local/bin/hadoop-3.3.1/sbin/
-```
-
-# Bare metal
-
-The difference between the two from an analysis perspective is that `load` will block any submitted queries until the data has finished ingesting - allowing it to handle completely out of order data. On the other hand when using `stream` it is assumed new data is continuously arriving (in roughly chronological order) which Raphtory handles with a watermarking heuristic to decide what time is safe to analyse across all the partitions. Therefore, queries where the perspective time fully ingested and synchronised allowed to progress and which should be blocked until the time they are set to run at has arrived and has been synchronised.
-
-## Bare metal single node
-
-Set up dependencies
-
-To run Raphtory locally on a macbook/laptop there are several ways this can be achieved
-- Intelij IDE
-- Local java process 
-- Minikube - See [ kubernetes deployment ](kubernetes.md)
 
 
 
-## Sending analysis queries to Raphtory with a client
-
-
-Finally, if you have a graph deployed somewhere else and want to submit new queries to it you can do this via the `connect(customConfig)` method in the `Raphtory` object. The `customConfig` here is to provide the appropriate configuration to locate the graph (i.e. the akka/pulsar address). If the graph is deployed in the same machine using the default Raphtory configuration you can omit this configuration parameter:
-
-```scala
-val graph = Raphtory.connect()
-```
-
-From this point, you can keep working with your graph as we have done so far.

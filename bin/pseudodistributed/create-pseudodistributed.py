@@ -17,7 +17,7 @@ folder = "/tmp/raphtory/" + service_name
 
 jar_folder = "examples/raphtory-example-lotr/target/scala-2.13/"
 jar_name = "example-lotr-assembly-0.5.jar"
-main_class = "com.raphtory.examples.lotrTopic.LOTRService"
+main_class = "com.raphtory.examples.lotr.LOTRService"
 
 try:
     path = Path(folder)

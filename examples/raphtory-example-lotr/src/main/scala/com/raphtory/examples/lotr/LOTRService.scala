@@ -1,8 +1,8 @@
-package com.raphtory.examples.lotrTopic
+package com.raphtory.examples.lotr
 
 import com.raphtory.api.input.Spout
 import com.raphtory.RaphtoryService
-import com.raphtory.examples.lotrTopic.graphbuilders.LOTRGraphBuilder
+import com.raphtory.examples.lotr.graphbuilders.LOTRGraphBuilder
 import com.raphtory.spouts.FileSpout
 
 object LOTRService extends RaphtoryService[String] {

@@ -196,8 +196,7 @@ object Raphtory {
     if (activePythonServer)
       javaPy4jGatewayServer.start(conf)
     startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
-    val topics             =
-      if (activePythonServer) PulsarTopicRepository(conf) else PulsarAkkaTopicRepository(conf)
+    val topics             = PulsarTopicRepository(conf)
     val componentFactory   = new ComponentFactory(conf, topics, true)
     val querySender        = new QuerySender(componentFactory, scheduler, topics)
     val deployment         = new GraphDeployment[T](
