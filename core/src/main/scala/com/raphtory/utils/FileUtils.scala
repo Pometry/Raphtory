@@ -23,12 +23,13 @@ object FileUtils {
 
     val tempDirectory = new File(path)
 
-    if (tempDirectory.exists())
+    if (tempDirectory.exists()) {
       logger.debug(s"Temporary directory '$tempDirectory' already exists.")
 
-    // If tempDirectory already exists
-    // then delete it and recreate it entirely
-    if (clean) tempDirectory.delete()
+      // If tempDirectory already exists
+      // then delete it and recreate it entirely
+      if (clean) tempDirectory.delete()
+    }
     try {
       val created = tempDirectory.mkdirs()
 
