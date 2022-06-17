@@ -26,7 +26,7 @@ import java.io.StringWriter
   * {
   *   "jobID": "EdgeCount",
   *   "partitionID": 0,
-  *   "perspectives":
+  *   "perspectives": [
   *     {
   *       "timestamp": 10,
   *       "window": null,
@@ -45,6 +45,7 @@ import java.io.StringWriter
   *         ]
   *       ]
   *     }
+  *   ]
   * }
   * }}}
   *
