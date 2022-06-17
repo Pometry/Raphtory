@@ -8,7 +8,7 @@ import com.typesafe.config.Config
   *
   * A format is a way to translate a `Table` into one or more text items.
   *
-  * An item is a piece of information meaningful by itself and isolated from all other other entities from the perspective of the format.
+  * An item is a piece of information meaningful by itself and isolated from all other entities from the perspective of the format.
   * For instance, in CSV format, an item might be just a row of the CSV table,
   * whereas if the entire table is written out within just one JSON object, the entire JSON object would be an item.
   *

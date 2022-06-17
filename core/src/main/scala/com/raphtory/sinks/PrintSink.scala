@@ -5,7 +5,6 @@ import com.raphtory.api.output.format.Format
 import com.raphtory.api.output.sink.FormatAgnosticSink
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.output.sink.SinkConnector
-import com.raphtory.api.output.sink.StreamSinkConnector
 import com.raphtory.formats.CsvFormat
 import com.typesafe.config.Config
 
@@ -43,27 +42,8 @@ case class PrintSink(format: Format = CsvFormat()) extends FormatAgnosticSink(fo
       fileExtension: String
   ): SinkConnector =
     new SinkConnector {
-      val currentItem    = new StringBuilder()
-      var justClosedItem = false
-
-      override def write(value: String): Unit = {
-        if (justClosedItem) {
-          System.out.print(currentItem)
-          justClosedItem = false
-          currentItem.setLength(0)
-        }
-        currentItem.append(value)
-      }
-
-      override def closeItem(): Unit = {
-        currentItem.append(itemDelimiter)
-        justClosedItem = true
-      }
-
-      override def close(): Unit = {
-        if (justClosedItem)
-          System.out.print(currentItem)
-        System.out.println()
-      }
+      override def write(value: String): Unit = System.out.print(value)
+      override def closeItem(): Unit          = System.out.print(itemDelimiter)
+      override def close(): Unit = {}
     }
 }
