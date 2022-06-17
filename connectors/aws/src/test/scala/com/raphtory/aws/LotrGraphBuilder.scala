@@ -3,7 +3,7 @@ package com.raphtory.aws
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
-import com.raphtory.internals.graph.Type
+import com.raphtory.api.input.Type
 
 class LOTRGraphBuilder() extends GraphBuilder[String] {
 
