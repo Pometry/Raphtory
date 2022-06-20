@@ -5,11 +5,14 @@ import cats.effect.IO
 import cats.effect.Resource
 import cats.effect.Spawn
 import cats.effect.Sync
+import cats.effect.unsafe.implicits.global
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraphConnection
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
+import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.repositories.PulsarAkkaTopicRepository
+import com.raphtory.internals.communication.repositories.PulsarTopicRepository
 import com.raphtory.internals.components.graphbuilder.BuildExecutorGroup
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManager
@@ -53,9 +56,6 @@ import com.raphtory.internals.management.id.ZookeeperIDManager
 object Raphtory {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-//  private lazy val javaPy4jGatewayServer           = new Py4JServer(this)
-//  private var prometheusServer: Option[HTTPServer] = None
-
   /** Creates a streaming version of a `DeployedTemporalGraph` object that can be used to express queries from.
     *
     * @param spout Spout to ingest objects of type `T` into the deployment
@@ -85,22 +85,28 @@ object Raphtory {
   ): Resource[IO, DeployedTemporalGraph] =
     deployLocalGraphV2[T, IO](spout, graphBuilder, customConfig, batchLoading = true)
 
+  private def connectManaged(customConfig: Map[String, Any] = Map()) = {
+    val config         = confBuilder(customConfig, distributed = true)
+    val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
+    for {
+      _         <- Py4JServer.fromEntryPoint[IO](this, config)
+      _         <- Prometheus[IO](prometheusPort)
+      topicRepo <- PulsarTopicRepository[IO](config)
+    } yield (topicRepo, config)
+  }
+
   /** Creates a `TemporalGraphConnection` object referencing an already deployed graph that
     * can be used to submit queries.
     *
     * @param customConfig Custom configuration for the deployment being referenced
     * @return A temporal graph object
     */
-  def connect(customConfig: Map[String, Any] = Map()): TemporalGraphConnection =
-//    val scheduler        = new Scheduler()
-//    val conf             = confBuilder(customConfig, true)
-////    javaPy4jGatewayServer.start(conf)
-////    startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
-//    val topics           = PulsarTopicRepository(conf)
-//    val componentFactory = new ComponentFactory(conf, topics)
-//    val querySender      = new QuerySender(componentFactory, scheduler, topics)
-//    new TemporalGraphConnection(Query(), querySender, conf, scheduler, topics)
-    ???
+  def connect(customConfig: Map[String, Any] = Map()): TemporalGraphConnection = {
+    val managed: IO[((TopicRepository, Config), IO[Unit])] = connectManaged(customConfig).allocated
+
+    val ((topicRepo, config), shutdown) = managed.unsafeRunSync()
+    new TemporalGraphConnection(Query(), new QuerySender(new Scheduler(), topicRepo, config), config, shutdown)
+  }
 
   /** Returns a default config using `ConfigFactory` for initialising parameters for
     * running Raphtory components. This uses the default application parameters
@@ -160,7 +166,7 @@ object Raphtory {
     val deploymentID   = config.getString("raphtory.deploy.id")
     val scheduler      = new Scheduler()
     for {
-//      _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
+      _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
       topicRepo          <- PulsarAkkaTopicRepository(config)
       _                  <- QueryManager(config, topicRepo)
       _                  <- {

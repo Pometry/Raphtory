@@ -33,7 +33,7 @@ object BatchGraphStopTestRunner extends App {
 object ConnectGraphStopTestRunner extends App {
   //TODO: figure out connect
   val graph = Raphtory.connect()
-  graph.disconnect()
+  graph.close()
   Raphtory.shutdown()
   println(ShutdownTest.signal)
 }
