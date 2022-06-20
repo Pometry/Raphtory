@@ -54,7 +54,7 @@ private[raphtory] class PulsarConnector(
 
   def accessClient: PulsarClient = client
 
-  def adminClient = pulsarAdmin
+  def adminClient: PulsarAdmin = pulsarAdmin
 
   override def register[T](
       id: String,
@@ -148,7 +148,7 @@ private[raphtory] class PulsarConnector(
       subscriptionName: String,
       schema: Schema[T],
       topics: Seq[String]
-  ): ConsumerBuilder[T] = {
+  ): ConsumerBuilder[T] =
     client
       .newConsumer(schema)
       .priorityLevel(0)
@@ -158,7 +158,6 @@ private[raphtory] class PulsarConnector(
       .maxTotalReceiverQueueSizeAcrossPartitions(Integer.MAX_VALUE)
       .receiverQueueSize(200_000)
       .poolMessages(true)
-  }
 
   def createSharedConsumer[T](
       subscriptionName: String,

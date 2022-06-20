@@ -92,6 +92,7 @@ private[raphtory] class QueryExecutor(
   }
 
   override def stop(): Unit = {
+//    sinkExecutor.close()
     listener.close()
     logger.debug(s"closing query executor consumer for $jobID on partition $partitionID")
     taskManager.close()

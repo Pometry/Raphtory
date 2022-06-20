@@ -8,7 +8,6 @@ import com.raphtory.api.input.Type
 class LOTRGraphBuilder() extends GraphBuilder[String] {
 
   override def parseTuple(tuple: String): Unit = {
-    println(s"TUPLE TIME! ${tuple}")
     val fileLine   = tuple.replace("\"", "").split(",").map(_.trim)
     val sourceNode = fileLine(0)
     val srcID      = assignID(sourceNode)
@@ -29,7 +28,5 @@ class LOTRGraphBuilder() extends GraphBuilder[String] {
             Type("Character")
     )
     addEdge(timeStamp, srcID, tarID, Type("Character Co-occurence"))
-
-    println("DONE!")
   }
 }

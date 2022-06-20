@@ -1,10 +1,15 @@
 package com.raphtory.components.spout
 
-import cats.effect.{IO, Resource, SyncIO}
+import cats.effect.IO
+import cats.effect.Resource
+import cats.effect.SyncIO
 import cats.implicits.toFoldableOps
-import com.raphtory.{Raphtory, RaphtoryService}
+import com.raphtory.Raphtory
+import com.raphtory.RaphtoryService
 import com.raphtory.api.input.GraphBuilder.assignID
-import com.raphtory.api.input.{ImmutableProperty, Properties, Type}
+import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.Properties
+import com.raphtory.api.input.Type
 import com.raphtory.internals.communication.connectors.PulsarConnector
 import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.serialisers.KryoSerialiser
@@ -37,7 +42,10 @@ class LOTRGraphBuilderTest extends CatsEffectSuite {
     for {
       p <- Resource.fromAutoCloseable(IO.delay(makeProducer(client, producerTopic)))
       c <- Resource.make(IO.delay(makeConsumer(client, consumerTopic)))(c =>
-        IO.fromCompletableFuture(IO.delay(c.unsubscribeAsync())).void *> IO.fromCompletableFuture(IO.delay(c.closeAsync())).void)
+             IO.fromCompletableFuture(IO.delay(c.unsubscribeAsync())).void *> IO
+               .fromCompletableFuture(IO.delay(c.closeAsync()))
+               .void
+           )
     } yield (p, c)
 
   pulsarWithBuilder.test("Receive messages from GraphBuilder 2 add VertexAdd and 1 EdgeAdd") { con =>
@@ -131,7 +139,7 @@ class LOTRGraphBuilderTest extends CatsEffectSuite {
       tenant <- admin.tenants().getTenants.asScala
       ns     <- admin.namespaces().getNamespaces(tenant).asScala
       topic  <- admin.topics().getList(ns).asScala
-      _ = println(topic)
+      _       = println(topic)
       if topic.endsWith(s"${_test_lotr_graph_object_topic}_0")
     } yield topic
 

@@ -1,5 +1,3 @@
 package com.raphtory
 
-class RaphtoryContext {
-
-}
+class RaphtoryContext {}
