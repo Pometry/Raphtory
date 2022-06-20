@@ -244,8 +244,6 @@ private[raphtory] class QueryHandler(
                 s"Job '$jobID': Checking messages - Received messages total:$receivedMessageCount , Sent messages total: $sentMessageCount."
         )
         if (checkingMessages && topics.jobOperationsConnector.isInstanceOf[PulsarConnector]) { // TODO: clean up later this section
-          logger.debug(s"Check messages called twice")
-
           val pulsarConnector = topics.jobOperationsConnector.asInstanceOf[PulsarConnector]
           val pulsarEndPoint  =
             workerList.asInstanceOf[pulsarConnector.PulsarEndPoint[QueryManagement]]
@@ -268,7 +266,6 @@ private[raphtory] class QueryHandler(
               logger.debug(s"Read message $message")
             }
           }
-          throw new RuntimeException("Message check called twice")
         }
         readyCount = 0
         receivedMessageCount = 0

@@ -204,7 +204,12 @@ object Raphtory {
       javaPy4jGatewayServer.start(conf)
     startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
     allowIllegalReflection()
-    val topics             = PulsarTopicRepository(conf)
+    val queriesEnabled     = conf.getBoolean("raphtory.query.localEnabled")
+    println(queriesEnabled + "Sssssssdasdasdasdasdas")
+    val topics             =
+      if (queriesEnabled)
+        PulsarTopicRepository(conf)
+      else PulsarAkkaTopicRepository(conf)
     val componentFactory   = new ComponentFactory(conf, topics, true)
     val querySender        = new QuerySender(componentFactory, scheduler, topics)
     val deployment         = new GraphDeployment[T](
