@@ -2,6 +2,7 @@ package com.raphtory.internals.management.id
 
 import cats.effect.Resource
 import cats.effect.Sync
+import cats.syntax.all._
 import com.typesafe.scalalogging.Logger
 import org.apache.curator.framework.CuratorFramework
 import org.apache.curator.framework.CuratorFrameworkFactory
@@ -16,18 +17,11 @@ private[raphtory] class ZookeeperIDManager(
     zookeeperAddress: String,
     deploymentID: String,
     poolID: String,
-    poolSize: Int
+    poolSize: Int,
+    client: CuratorFramework
 ) extends IDManager {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val idSetPath      = s"/$deploymentID/$poolID"
-
-  private val client = CuratorFrameworkFactory
-    .builder()
-    .connectString(zookeeperAddress)
-    .retryPolicy(new ExponentialBackoffRetry(1000, 3))
-    .build();
-
-  client.start()
 
   def getNextAvailableID(): Option[Int] = {
     val candidateIds = (0 until poolSize).iterator
@@ -43,8 +37,6 @@ private[raphtory] class ZookeeperIDManager(
     }
     id
   }
-
-  def stop(): Unit = client.close()
 
   private def allocateId(client: CuratorFramework, idSetPath: String, id: Int): Try[Int] =
     Try {
@@ -73,17 +65,29 @@ private[raphtory] object ZookeeperIDManager {
   ) = new ZookeeperIDManager(zookeeperAddress, deploymentID, poolID, poolSize)
 
   def apply[IO[_]: Sync](
-                          zookeeperAddress: String,
-                          atomicPath: String
-                        ): Resource[IO, ZookeeperIDManager] =
+      zookeeperAddress: String,
+      deploymentId: String,
+      poolID: String,
+      poolSize: Int
+  ): Resource[IO, ZookeeperIDManager] =
     Resource
-      .fromAutoCloseable(Sync[IO].delay {
-        CuratorFrameworkFactory
-          .builder()
-          .connectString(zookeeperAddress)
-          .retryPolicy(new ExponentialBackoffRetry(1000, 3))
-          .build();
-      })
-      .map(new ZookeeperIDManager(zookeeperAddress, atomicPath, _))
+      .fromAutoCloseable(
+              Sync[IO]
+                .delay {
+                  CuratorFrameworkFactory
+                    .builder()
+                    .connectString(zookeeperAddress)
+                    .retryPolicy(new ExponentialBackoffRetry(1000, 3))
+                    .build();
+                }
+                .flatTap(c => Sync[IO].blocking(c.start()))
+      )
+      .map(new ZookeeperIDManager(zookeeperAddress, deploymentId, poolID, poolSize, _))
 
+  def apply[IO[_]: Sync](
+      zookeeperAddress: String,
+      deploymentId: String,
+      counterId: String
+  ): Resource[IO, ZookeeperIDManager] =
+    apply(zookeeperAddress, deploymentId, counterId, Int.MaxValue)
 }

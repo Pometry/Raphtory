@@ -1,22 +1,27 @@
 package com.raphtory
 
-import cats.effect.{IO, SyncIO}
+import cats.effect.IO
+import cats.effect.SyncIO
 import cats.effect.kernel.Resource
 import com.google.common.hash.Hashing
 import com.raphtory.api.analysis.algorithm.GenericallyApplicable
-import com.raphtory.api.analysis.graphview.{Alignment, DeployedTemporalGraph}
-import com.raphtory.api.input.{GraphBuilder, Spout}
+import com.raphtory.api.analysis.graphview.Alignment
+import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
+import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Spout
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.sinks.FileSink
 import com.typesafe.scalalogging.Logger
 import munit.CatsEffectSuite
-import org.apache.pulsar.client.api.{Consumer, Message}
+import org.apache.pulsar.client.api.Consumer
+import org.apache.pulsar.client.api.Message
 import org.slf4j.LoggerFactory
 
 import java.io.File
 import java.net.URL
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Paths}
+import java.nio.file.Files
+import java.nio.file.Paths
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 import scala.sys.process._
@@ -60,7 +65,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
   def setSpout(): Spout[T]
   def setGraphBuilder(): GraphBuilder[T]
-  def batchLoading(): Boolean                                               = true
+  def batchLoading(): Boolean = true
 
   def receiveMessage(consumer: Consumer[Array[Byte]]): Message[Array[Byte]] =
     consumer.receive

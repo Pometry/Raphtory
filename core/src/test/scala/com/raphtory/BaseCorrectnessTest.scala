@@ -42,7 +42,7 @@ abstract class BaseCorrectnessTest(
     Raphtory
       .load(ResourceSpout(graphResource), setGraphBuilder())
       .use {
-        algorithmPointTest(test.algorithm, test.timestamp,test.windows)
+        algorithmPointTest(test.algorithm, test.timestamp, test.windows)
       }
       .map(actual =>
         actual == correctResultsHash(
@@ -61,8 +61,8 @@ abstract class BaseCorrectnessTest(
       .use {
         algorithmPointTest(
                 test.algorithm,
-          test.timestamp,
-          test.windows
+                test.timestamp,
+                test.windows
         )
       }
       .map(actual =>

@@ -27,8 +27,7 @@ import scala.concurrent.duration.DurationInt
 
 private case object StopActor
 
-private[raphtory] class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command])
-        extends Connector {
+private[raphtory] class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Command]) extends Connector {
   private val logger: Logger                              = Logger(LoggerFactory.getLogger(this.getClass))
   private val akkaReceptionistRegisteringTimeout: Timeout = 1.seconds
   private val akkaSpawnerTimeout: Timeout                 = 1.seconds
@@ -36,8 +35,7 @@ private[raphtory] class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Com
 
   private val kryo: KryoSerialiser = KryoSerialiser()
 
-  case class AkkaEndPoint[T](actorRefs: Future[Set[ActorRef[Array[Byte]]]], topic: String)
-          extends EndPoint[T] {
+  case class AkkaEndPoint[T](actorRefs: Future[Set[ActorRef[Array[Byte]]]], topic: String) extends EndPoint[T] {
     private val endPointResolutionTimeout: Duration = 10.seconds
 
     override def sendAsync(message: T): Unit           =

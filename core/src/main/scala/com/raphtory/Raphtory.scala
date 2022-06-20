@@ -1,10 +1,6 @@
 package com.raphtory
 
-import cats.effect.Async
-import cats.effect.IO
-import cats.effect.Resource
-import cats.effect.Spawn
-import cats.effect.Sync
+import cats.effect._
 import cats.effect.unsafe.implicits.global
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraphConnection
@@ -18,15 +14,15 @@ import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManager
 import com.raphtory.internals.components.spout.SpoutExecutor
 import com.raphtory.internals.management._
+import com.raphtory.internals.management.id.IDManager
+import com.raphtory.internals.management.id.LocalIDManager
+import com.raphtory.internals.management.id.ZookeeperIDManager
 import com.raphtory.spouts.IdentitySpout
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 import scala.reflect.ClassTag
-import com.raphtory.internals.management.id.IDManager
-import com.raphtory.internals.management.id.LocalIDManager
-import com.raphtory.internals.management.id.ZookeeperIDManager
 
 /**  `Raphtory` object for creating Raphtory Components
   *
@@ -173,8 +169,8 @@ object Raphtory {
         if (batchLoading) Resource.eval(IO.unit)
         else SpoutExecutor(spout, config, topicRepo)
       }
-      builderIDManager   <- makeIdManager(config, localDeployment = true, s"/$deploymentID/builderCount")
-      partitionIdManager <- makeIdManager(config, localDeployment = true, s"/$deploymentID/partitionCount")
+      builderIDManager   <- makeBuilderIdManager(config, localDeployment = true, deploymentID)
+      partitionIdManager <- makePartitionIdManager(config, localDeployment = true, deploymentID)
       _                  <- {
         if (batchLoading) Resource.eval(IO.unit)
         else BuildExecutorGroup(config, builderIDManager, topicRepo, graphBuilder)
@@ -188,21 +184,33 @@ object Raphtory {
     } yield new DeployedTemporalGraph(Query(), new QuerySender(scheduler, topicRepo, config), config, deploymentID)
   }
 
-  def shutdown(): Unit = {
-//    prometheusServer.foreach(_.close())
-//    javaPy4jGatewayServer.shutdown()
-  }
+  def shutdown(): Unit = {}
 
-  def makeIdManager[IO[_]: Sync](
+  def makePartitionIdManager[IO[_]: Sync](
       config: Config,
       localDeployment: Boolean,
-      path: String
+      deploymentId: String
+  ): Resource[IO, IDManager] =
+    if (localDeployment)
+      Resource.eval(Sync[IO].delay(new LocalIDManager))
+    else {
+      val zookeeperAddress         = config.getString("raphtory.zookeeper.address")
+      val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
+      val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
+      val totalPartitions: Int     = partitionServers * partitionsPerServer
+      ZookeeperIDManager(zookeeperAddress, deploymentId, "partitionCount", poolSize = totalPartitions)
+    }
+
+  def makeBuilderIdManager[IO[_]: Sync](
+      config: Config,
+      localDeployment: Boolean,
+      deploymentId: String
   ): Resource[IO, IDManager] =
     if (localDeployment)
       Resource.eval(Sync[IO].delay(new LocalIDManager))
     else {
       val zookeeperAddress = config.getString("raphtory.zookeeper.address")
-      ZookeeperIDManager(zookeeperAddress, path)
+      ZookeeperIDManager(zookeeperAddress, deploymentId, "builderCount")
     }
 
 }
