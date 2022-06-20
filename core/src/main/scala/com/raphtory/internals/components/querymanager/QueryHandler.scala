@@ -421,7 +421,10 @@ private[raphtory] class QueryHandler(
 
   def perspectiveIsReady(perspective: Perspective): Boolean = {
     val time = getLatestTime
-    perspective.timestamp <= time
+    perspective.window match {
+      case Some(_) => perspective.actualEnd <= time
+      case None    => perspective.timestamp <= time
+    }
   }
 
   @tailrec
