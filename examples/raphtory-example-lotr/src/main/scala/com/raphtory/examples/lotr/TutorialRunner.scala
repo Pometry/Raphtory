@@ -1,10 +1,10 @@
-package com.raphtory.examples.lotrTopic
+package com.raphtory.examples.lotr
 
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.filters.EdgeQuantileFilter
 import com.raphtory.algorithms.filters.VertexQuantileFilter
-import com.raphtory.examples.lotrTopic.analysis.DegreesSeparation
-import com.raphtory.examples.lotrTopic.graphbuilders.LOTRGraphBuilder
+import com.raphtory.examples.lotr.analysis.DegreesSeparation
+import com.raphtory.examples.lotr.graphbuilders.LOTRGraphBuilder
 import com.raphtory.spouts.FileSpout
 import com.raphtory.sinks.FileSink
 import com.raphtory.algorithms.generic.ConnectedComponents
@@ -17,7 +17,7 @@ import sys.process._
 import java.io.File
 import com.raphtory.algorithms.generic.ConnectedComponents
 
-object FileOutputRunner extends App {
+object TutorialRunner extends App {
   val path = "/tmp/lotr.csv"
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
 
@@ -31,17 +31,9 @@ object FileOutputRunner extends App {
   val queryHandler = graph
     .at(32674)
     .past()
-    .execute(DegreesSeparation())
-    .writeTo(output)
-
-  queryHandler.waitForJob()
-
-  val queryHandlerCC = graph
-    .at(32674)
-    .past()
     .execute(ConnectedComponents())
     .writeTo(output)
 
-  queryHandlerCC.waitForJob()
+  queryHandler.waitForJob()
 
 }

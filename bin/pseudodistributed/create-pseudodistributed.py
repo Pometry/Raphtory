@@ -8,6 +8,7 @@
 #! /usr/bin/python3
 
 import os, sys, shutil
+from pathlib import Path
 
 service_name = sys.argv[1]
 
@@ -15,21 +16,22 @@ folder = "/tmp/raphtory/" + service_name
 
 
 jar_folder = "examples/raphtory-example-lotr/target/scala-2.13/"
-jar_name = "example-lotr-assembly-0.5.jar"
-main_class = "com.raphtory.examples.lotrTopic.LOTRService"
+jar_name = "example-lotr-assembly-0.1.0.jar"
+main_class = "com.raphtory.examples.lotr.LOTRService"
 
 try:
-    os.mkdir(folder)
+    path = Path(folder)
+    path.mkdir(parents=True, exist_ok=True)
 except OSError as error:
     print(error)    
 
 shutil.copy(jar_folder + jar_name, folder)
 
-os.environ["RAPHTORY_COMPONENTS_PARTITION_LOG"] = "DEBUG"
-os.environ["RAPHTORY_COMPONENTS_QUERYMANAGER_LOG"] = "DEBUG"
-os.environ["RAPHTORY_COMPONENTS_QUERYTRACKER_LOG"] = "DEBUG"
-os.environ["RAPHTORY_COMPONENTS_SPOUT_LOG"] = "DEBUG"
-os.environ["RAPHTORY_COMPONENTS_GRAPHBUILDER_LOG"] = "DEBUG"
+os.environ["RAPHTORY_INTERNALS_COMPONENTS_PARTITION_LOG"] = "DEBUG"
+os.environ["RAPHTORY_INTERNALS_COMPONENTS_QUERYMANAGER_LOG"] = "DEBUG"
+os.environ["RAPHTORY_INTERNALS_COMPONENTS_QUERYTRACKER_LOG"] = "DEBUG"
+os.environ["RAPHTORY_INTERNALS_COMPONENTS_SPOUT_LOG"] = "DEBUG"
+os.environ["RAPHTORY_INTERNALS_COMPONENTS_GRAPHBUILDER_LOG"] = "DEBUG"
 
 os.environ['RAPHTORY_PULSAR_BROKER_ADDRESS']= "pulsar://127.0.0.1:6650"
 os.environ['RAPHTORY_PULSAR_ADMIN_ADDRESS']= "http://127.0.0.1:8080"
@@ -37,7 +39,7 @@ os.environ['RAPHTORY_ZOOKEEPER_ADDRESS']= "127.0.0.1:2181"
 
 os.chdir(folder)
 
-# Change the RAM asigned to Java (Scala)
+# Change the RAM assigned to Java (Scala)
 os.environ["JAVA_OPTS"]="-XX:+UseShenandoahGC -XX:+UseStringDeduplication -Xms1G -Xmx1G -Xss128M"
 
 os.system('scala -classpath ' + jar_name + ' ' + main_class + ' ' + service_name)

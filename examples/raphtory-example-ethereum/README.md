@@ -29,7 +29,7 @@ As of February 2022, this is a guide to run this within IntelliJ.
 
 ## Running this example
 
-1. This example project is up on Github: [raphtory-example-ethereum](https://github.com/Raphtory/Examples/tree/0.5.0/raphtory-example-ethereum). Please install dependencies from [here](https://raphtory.readthedocs.io/en/development/Install/installdependencies.html).
+1. This example project is up on Github: [raphtory-example-ethereum](https://github.com/Raphtory/Raphtory/tree/development/examples/raphtory-example-ethereum). Please install dependencies from [here](https://raphtory.readthedocs.io/en/development/Install/installdependencies.html).
 2. Download the _transactions_09000000_09099999_small.csv.gz_ data from [raphtory-data](https://github.com/Raphtory/Data) repository and place it inside the 'data' folder.
 2. Download the _etherscan_tags.csv_ data from [raphtory-data](https://github.com/Raphtory/Data) repository and place it inside the 'src/main/resources' folder.
 3. In the Examples folder, open up the directory `raphtory-example-ethereum` to get this example running.

@@ -16,7 +16,7 @@ import scala.util.matching.Regex
   * It is included for users creating their own examples or alternative file handling spouts/sinks.
   */
 object FileUtils {
-  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private lazy val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   def createOrCleanDirectory(path: String, clean: Boolean = true): File = {
     logger.debug(s"Creating temp folder '$path'.")
@@ -68,7 +68,6 @@ object FileUtils {
     val file = new File(path)
     if (file.isFile) {
       logger.debug(s"Found single file ${file.getPath} matching criteria.")
-
       List(file)
     }
     else if (file.isDirectory) {
@@ -112,4 +111,5 @@ object FileUtils {
           (s"rm $path" !)
           throw ex
       }
+
 }

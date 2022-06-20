@@ -27,7 +27,6 @@ import scala.reflect.ClassTag
   *        [[api.input.Spout Spout]]
   */
 abstract class RaphtoryService[T: ClassTag] {
-  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   /** Defines type of Spout to be created for ingesting data
     */

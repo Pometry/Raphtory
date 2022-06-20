@@ -35,7 +35,7 @@ Rows in a {scaladoc}`com.raphtory.api.analysis.table.Table` are manipulated usin
 {scaladoc}`com.raphtory.api.analysis.table.Row` class. 
 
 The support for different graph views is still experimental. Algorithms that are view-agnostic (in particular, 
-all algorithms from previous versions of Raphtory < 0.5) should extend the 
+all algorithms from Raphtory-akka (The prior deprecated version)) should extend the 
 {scaladoc}`com.raphtory.api.analysis.algorithm.Generic` algorithm base-class.
 
 The algorithm API package also contains
@@ -104,8 +104,8 @@ All of this can be seen in the example below:
 ```
 
 In this instance, the vertices check the messages they have received from neighbours and set their `cclabel` to be
-the minimum number received. This new label is then sent to their neighbours, allowing it to propagate and the
-neighbours who sent other labels set it themselves in the next step. If no new label is found
+the minimum number received. This new label is then sent to their neighbours, allowing it to propagate to the
+neighbours who sent the other labels in the next step. If no new label is found
 (as their own label is already lower) a vertex may call {s}`voteToHalt()`. This means that they believe they have
 found their final value and therefore the algorithm may converge early. No new messages are sent in this instance.
 
@@ -219,7 +219,7 @@ simple to implement your own if you have a specific destination in mind.
 
 As an example from our prior code snippets the {scaladoc}`com.raphtory.sinks.FileSink` saves the results of each 
 partition as separate
-files to a directory. This directory is the only argument required when creating the
+files in a directory. This directory is the only argument required when creating the
 {scaladoc}`com.raphtory.sinks.FileSink` object and passing it to the query:
 
 ```scala
@@ -386,7 +386,7 @@ import com.raphtory.algorithms.generic.community.LPA
 import com.raphtory.algorithms.generic.CBOD
 val lpa_cbod = LPA() -> CBOD(label="lpalabel")
 ```
-This resutls in a new algorithm with an {s}`apply()` method that simply calls the {s}`apply()` method
+This results in a new algorithm with an {s}`apply()` method that simply calls the {s}`apply()` method
 of the input algorithms in sequence, i.e.,
 
  ```scala
