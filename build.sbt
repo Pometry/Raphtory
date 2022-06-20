@@ -3,7 +3,7 @@ import sbt.Keys.baseDirectory
 import Dependencies._
 
 ThisBuild / scalaVersion := "2.13.7"
-ThisBuild / version := "0.5"
+ThisBuild / version := "0.1.0"
 ThisBuild / organization := "com.raphtory"
 ThisBuild / organizationName := "raphtory"
 ThisBuild / organizationHomepage := Some(url("https://raphtory.readthedocs.io/"))
@@ -105,22 +105,6 @@ lazy val core = (project in file("core"))
           ),
           libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
   )
-
-// DEPLOYMENTS
-
-//lazy val core = (project in file("deployment"))
-//  .settings(
-//          name := "deployment",
-//          version := "0.5",
-//          assembly / test := {},
-//          assemblySettings,
-//          defaultSettings,
-//          libraryDependencies ++= Seq(
-//                  curatorRecipes,
-//                  k8Client,
-//          ),
-//          libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
-//  )
 
 // CONNECTORS
 

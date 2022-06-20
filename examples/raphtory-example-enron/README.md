@@ -7,7 +7,7 @@ We have implemented the Connected Components algorithm which will organise email
 
 ## Project Overview
 
-This [example](https://github.com/Raphtory/Examples/tree/0.5.0/raphtory-example-enron) builds a graph from the [Enron email dataset](https://www.kaggle.com/wcukierski/enron-email-dataset) and runs a query to tell us emails all connected by paths to each other.
+This [example](https://github.com/Raphtory/Raphtory/tree/development/examples/raphtory-example-enron) builds a graph from the [Enron email dataset](https://www.kaggle.com/wcukierski/enron-email-dataset) and runs a query to tell us emails all connected by paths to each other.
 
 In the examples folder you will find `EnronGraphBuilder.scala` and `Runner.scala`.
 
@@ -42,7 +42,7 @@ As of February 2022, this is a guide to run this within IntelliJ.
 
 ## Running this example
 
-1. This example project is up on Github: [raphtory-example-enron](https://github.com/Raphtory/Examples/tree/0.5.0/raphtory-example-enron). If you have downloaded the Examples folder from the installation guide previously, then the Enron example will already be set up. If not, please return [there](https://raphtory.readthedocs.io/en/development/Install/installdependencies.html) and complete this step first.
+1. This example project is up on Github: [raphtory-example-enron](https://github.com/Raphtory/Raphtory/tree/development/examples/raphtory-example-enron). If you have downloaded the Examples folder from the installation guide previously, then the Enron example will already be set up. If not, please return [there](https://raphtory.readthedocs.io/en/development/Install/installdependencies.html) and complete this step first.
 2. Download the _email_test.csv_ data from [raphtory-data](https://github.com/Raphtory/Data) repository and place it inside of the resources folder.
 3. In the Examples folder, open up the directory `raphtory-example-enron` to get this example running.
 4. Install all the python libraries necessary for visualising your data via the [Jupyter Notebook Tutorial](https://raphtory.readthedocs.io/en/development/PythonClient/tutorial.html). Once you have Jupyter Notebook up and running on your local machine, you can open up the Jupyter Notebook specific for this project, with all the commands needed to output your graph. This can be found by following the path `src/main/python/EnronJupyterNotebook.ipynb`.

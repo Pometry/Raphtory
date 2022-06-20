@@ -21,13 +21,13 @@ Once the plugin has been added you can simply run `sbt assembly` from your proje
 [success] Total time: 58 s, completed 17 Jun 2022, 01:23:54
 
 ls target/scala-2.13
-classes                       example-lotr-assembly-0.5.jar
+classes                       example-lotr-assembly-0.1.0.jar
 ```
 
 We can now run this jar in our terminal via scala by adding it onto the classpath and selecting the main function we wish to run. In the below example we run our modified `TutorialRunner` where we have swapped from `load` to `stream`. The output/log for this should be exactly the same as before.
 
 ```
-scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.5.jar com.raphtory.examples.lotr.TutorialRunner
+scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.1.0.jar com.raphtory.examples.lotr.TutorialRunner
 
 02:24:57.946 [main] INFO  com.raphtory.spouts.FileSpout - Spout: Processing file 'lotr.csv' ...
 02:24:59.250 [main] INFO  com.raphtory.internals.management.ComponentFactory - Creating '1' Partition Managers for raphtory_57786302.
@@ -55,7 +55,7 @@ Before running a client we must make one change when executing the TutorialRunne
 
 ```
 export RAPHTORY_QUERY_LOCALENABLED=true
-scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.5.jar com.raphtory.examples.lotr.TutorialRunner
+scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.1.0.jar com.raphtory.examples.lotr.TutorialRunner
 ```
 
 Once queries are enabled and the runner is deployed, a client may connect via the `Raphtory.connect()` function. This returns a {scaladoc}`com.raphtory.api.analysis.graphview.TemporalGraphConnection` instance, exposing exactly the same API as `load()` and `stream()`. An example of such a client can be seen below from the [raphtory-example-lotr](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-lotr) project. The client is setup to connect to the deployment, execute [Connected Components](com.raphtory.algorithms.generic.ConnectedComponents) on the latest time point, write the results to "/tmp/raphtory" and then disconnect and shutdown:
@@ -79,7 +79,7 @@ To run this code (which for the purpose of this example is part of the same jar)
 
 ```
 export RAPHTORY_DEPLOY_ID=raphtory_57786302
-scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.5.jar com.raphtory.examples.lotr.LOTRClient
+scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.1.0.jar com.raphtory.examples.lotr.LOTRClient
 ```
 
 The tracking of this query will be output on the client terminal, but the deployment will also log the submission of the query. These can be seen side by side below:
@@ -144,10 +144,10 @@ To run the code above, rather than starting a single Raphtory program, you must 
 You can start each service through either scala or sbt, selecting your implementation of `RaphtoryService` as the main class and specifying which service you wish to start via a command-line argument . You need at least one of each service for Raphtory to work. The commands for running the LOTRService would be as follows:
 
 ```
-scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.5.jar com.raphtory.examples.lotr.LOTRService spout
-scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.5.jar com.raphtory.examples.lotr.LOTRService builder
-scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.5.jar com.raphtory.examples.lotr.LOTRService partitionmanager
-scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.5.jar com.raphtory.examples.lotr.LOTRService querymanager
+scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.1.0.jar com.raphtory.examples.lotr.LOTRService spout
+scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.1.0.jar com.raphtory.examples.lotr.LOTRService builder
+scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.1.0.jar com.raphtory.examples.lotr.LOTRService partitionmanager
+scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.1.0.jar com.raphtory.examples.lotr.LOTRService querymanager
 ```
 
 Running these as 4 separate processes in a pseudo-distributed fashion and then submitting a query via the same client will produce the following output: 

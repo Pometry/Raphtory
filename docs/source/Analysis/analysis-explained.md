@@ -35,7 +35,7 @@ Rows in a {scaladoc}`com.raphtory.api.analysis.table.Table` are manipulated usin
 {scaladoc}`com.raphtory.api.analysis.table.Row` class. 
 
 The support for different graph views is still experimental. Algorithms that are view-agnostic (in particular, 
-all algorithms from previous versions of Raphtory < 0.5) should extend the 
+all algorithms from Raphtory-akka (The prior deprecated version)) should extend the 
 {scaladoc}`com.raphtory.api.analysis.algorithm.Generic` algorithm base-class.
 
 The algorithm API package also contains
