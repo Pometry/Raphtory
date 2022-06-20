@@ -1,41 +1,25 @@
 package com.raphtory
 
-import cats.effect
-import cats.effect.IO
-import cats.effect.SyncIO
+import cats.effect.{IO, SyncIO}
 import cats.effect.kernel.Resource
 import com.google.common.hash.Hashing
 import com.raphtory.api.analysis.algorithm.GenericallyApplicable
-import com.raphtory.api.analysis.graphview.Alignment
-import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
-import com.raphtory.api.input.GraphBuilder
-import com.raphtory.api.input.Spout
+import com.raphtory.api.analysis.graphview.{Alignment, DeployedTemporalGraph}
+import com.raphtory.api.input.{GraphBuilder, Spout}
 import com.raphtory.api.output.sink.Sink
-import com.raphtory.internals.communication.connectors.PulsarConnector
 import com.raphtory.sinks.FileSink
-import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import munit.CatsEffectSuite
-import org.apache.commons.io.FileUtils
-import org.apache.pulsar.client.api.Consumer
-import org.apache.pulsar.client.api.Message
-import org.scalatest.BeforeAndAfter
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.Failed
-import org.scalatest.Outcome
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.matchers.should.Matchers
+import org.apache.pulsar.client.api.{Consumer, Message}
 import org.slf4j.LoggerFactory
 
 import java.io.File
 import java.net.URL
 import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.nio.file.Paths
+import java.nio.file.{Files, Paths}
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 import scala.sys.process._
-import scala.util
 
 abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinish: Boolean = true)
         extends CatsEffectSuite {
@@ -66,51 +50,17 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           IO.blocking { // this is a bit hacky but it allows us
             Runtime.getRuntime.addShutdownHook(new Thread {
               override def run(): Unit =
-                util.Try(s"rm $path" !)
+                Files.deleteIfExists(path)
             })
           }
         )
     }
 
-  override def beforeAll(): Unit =
-    setup()
-
   def liftFileIfNotPresent: Option[(String, URL)] = None
-
-//    val spout: Spout[T]               = setSpout()
-//    val graphBuilder: GraphBuilder[T] = setGraphBuilder()
-
-//    graph = Option
-//      .when(batchLoading())(Raphtory.load[T](spout, graphBuilder))
-//      .fold(Raphtory.stream[T](spout, graphBuilder))(identity)
-
-//  override def afterAll(): Unit = {}
-//    graph.deployment.stop()
-
-//  override def withFixture(test: NoArgTest): Outcome =
-//    // Only clean the test directory if test succeeds
-//    super.withFixture(test) match {
-//      case failed: Failed =>
-//        info(s"The test '${test.name}' failed. Keeping test results for inspection.")
-//        info("Results (first 100 rows):\n" + getResults(jobId).take(100).mkString("\n"))
-//        failed
-//      case other          =>
-//        if (deleteResultAfterFinish)
-//          try {
-//            val path = new File(outputDirectory + s"/$jobId")
-//            FileUtils.deleteDirectory(path)
-//          }
-//          catch {
-//            case e: Throwable =>
-//              e.printStackTrace()
-//          }
-//        other
-//    }
 
   def setSpout(): Spout[T]
   def setGraphBuilder(): GraphBuilder[T]
   def batchLoading(): Boolean                                               = true
-  def setup(): Unit = {}
 
   def receiveMessage(consumer: Consumer[Array[Byte]]): Message[Array[Byte]] =
     consumer.receive
