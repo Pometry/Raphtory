@@ -420,8 +420,7 @@ private[raphtory] class QueryHandler(
   }
 
   def perspectiveIsReady(perspective: Perspective): Boolean = {
-    val time                 = getLatestTime
-    val optionalEarliestTime = getOptionalEarliestTime
+    val time = getLatestTime
     perspective.timestamp <= time
   }
 
