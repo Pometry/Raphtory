@@ -3,7 +3,6 @@ package com.raphtory.sinks
 import com.raphtory.api.output.format.Format
 import com.raphtory.api.output.sink.FormatAgnosticSink
 import com.raphtory.api.output.sink.SinkConnector
-import com.raphtory.api.output.sink.StreamSinkConnector
 import com.raphtory.formats.CsvFormat
 import com.typesafe.config.Config
 
@@ -46,17 +45,14 @@ case class FileSink(filePath: String, format: Format = CsvFormat())
       itemDelimiter: String,
       fileExtension: String
   ): SinkConnector =
-    new StreamSinkConnector(itemDelimiter) {
+    new SinkConnector {
       private val workDirectory = s"$filePath/$jobID"
       new File(workDirectory).mkdirs()
       private val file          = s"$workDirectory/partition-$partitionID.$fileExtension"
       private val fileWriter    = new FileWriter(file)
 
-      override def output(value: String): Unit = fileWriter.write(value)
-
-      override def close(): Unit = {
-        fileWriter.write('\n')
-        fileWriter.close()
-      }
+      override def write(value: String): Unit = fileWriter.write(value)
+      override def closeItem(): Unit          = fileWriter.write(itemDelimiter)
+      override def close(): Unit              = fileWriter.close()
     }
 }

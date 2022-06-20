@@ -9,7 +9,6 @@ package com.raphtory.api.output.sink
   * For instance, in a message system such as Pulsar, each item might be sent in a separate message.
   * If this doesn't exist, a delimiter may instead be used.
   * For instance, in a file sink, a newline character delimiter `"\n"` can be used.
-  * If we write just one item into the output, there shouldn't be any delimiter symbols as they are not needed.
   *
   * Implementations of this trait are intended to be used by calling `write` one or more times to compose an item
   * and `closeItem` when the current item is completed.
