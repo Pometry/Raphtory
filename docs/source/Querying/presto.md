@@ -1,7 +1,7 @@
 # Querying in-flight data
 
 This example builds a raw data stream that can be queried in real-time with Pulsar SQL.
-The code for this example can be found in [here](https://github.com/Raphtory/Examples/tree/0.5.0/raphtory-example-presto)
+The code for this example can be found in here
 
 ## What is Pulsar SQL?
 

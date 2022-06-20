@@ -12,7 +12,7 @@ import os, sys, shutil
 deploy_class = "com.raphtory.deployment.kubernetes.Deploy"
 
 jar_folder = "examples/raphtory-example-lotr/target/scala-2.13/"
-deploy_jar = "core/target/scala-2.13/core-assembly-0.5.jar"
+deploy_jar = "core/target/scala-2.13/core-assembly-0.1.0.jar"
 
 #Full path of your pushed docker image (compatible with raphtory-docker-image script, and the main service class) 
 docker_image = "docker.io/yourname/raphtory:yourtag"

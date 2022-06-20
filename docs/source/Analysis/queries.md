@@ -87,7 +87,7 @@ graph
   .execute(ConnectedComponents())
   .writeTo(output)
 ```
-In this example, starting from January 1 2020 we move forward one day at a time, looking back over only the last data of data. At each of these stopping points (`perspectives`) we execute the algorithm and write the results to the file. If we set up a spout from a streaming source which continues to ingest data, Raphtory will continue to create a new `windowed perspective` every day as the new information arrives.
+In this example, starting from January 1 2020 we move forward one day at a time, looking forward over the next day of data. At each of these stopping points (`perspectives`) we execute the algorithm and write the results to the file. If we set up a spout from a streaming source which continues to ingest data, Raphtory will continue to create a new `windowed perspective` every day as the new information arrives.
 
 As can be seen in the example, the process to create perspectives has two steps. The first of these is setting the times you are interested in, which can be a singular point (using `at()`) or, alternatively, a sequence of points with a given increment. For sequences, four different methods are available:
 
@@ -98,7 +98,9 @@ As can be seen in the example, the process to create perspectives has two steps.
 | `range(start,end,increment`| Set the start time, end time and increment |
 | `walk(increment)`          | Set only the increment                     |
 
-**Note:** If no start and end time are provided, Raphtory will default to the minimum and maximum times in the data (or min and max of the time range if a `slice()` etc. has been applied).
+```{note} 
+If no start and end time are provided, Raphtory will default to the minimum and maximum times in the data (or min and max of the time range if a `slice()` etc. has been applied).
+```
 
 The second step is to specify which direction we are looking in at each time point, for which we have three options. We can look to the `past`, to the `future`, or set a `window`. In the third case, we can align the time point as: 
 
@@ -107,7 +109,9 @@ The second step is to specify which direction we are looking in at each time poi
 * The `Middle` of the window - including data from half the time in both the past and future, providing a smoothing effect.
 
 
-**Note:** You can refer to the {scaladoc}`com.raphtory.api.analysis.graphview.DottedGraph` documentation for further details.
+```{note} 
+ You can refer to the {scaladoc}`com.raphtory.api.analysis.graphview.DottedGraph` documentation for further details.
+```
 
 Coming back to our first example, we can execute a `walk` along a year of data with increments of one day, and a window of one week into the future as follows:
 
@@ -122,8 +126,9 @@ graph
 
 The `walk` function doesn't take a start or end time as it explores all available perspectives (given the other filters applied). For the above instance this generates a sequence of perspectives where the first contains data between `Dec 26, 2019` to `Jan 1, 2020`, the second one from `Dec 27, 2019` to `Jan 2, 2020`, etc. The last perspective of the sequence is then going to be from `Dec 31, 2020` to `Jan 6, 2021`. 
 
-**Note** The reason dates outside of the `.slice("2020-01-01", "2021-01-01")` appear in this sequence is because Raphtory includes `partial windows` i.e. where only part of the perspectives time range is inside of the slice. For instance, the perspective for `Dec 27, 2019` to `Jan 2, 2020` has a small amount of data inside of the slice which can be analysed. An example of these partial windows can be seen in the bottom left of the diagram at the top of the page.  
-
+```{note} 
+The reason dates outside of the `.slice("2020-01-01", "2021-01-01")` appear in this sequence is because Raphtory includes `partial windows` i.e. where only part of the perspectives time range is inside of the slice. For instance, the perspective for `Dec 27, 2019` to `Jan 2, 2020` has a small amount of data inside of the slice which can be analysed. An example of these partial windows can be seen in the bottom left of the diagram at the top of the page.  
+```
 
 ## Operating over the graph
 
@@ -157,39 +162,45 @@ graph
 
 This is especially useful when you want to preprocess the graph before applying an already defined algorithm. For instance, above we only keep nodes with an out degree greater than 10.
 
-**Note:** When filtering vertices, if a vertex is to be removed so will ALL of its edges. This means they will no longer be available to the vertex attached on the other side. 
+```{note} 
+When filtering vertices, if a vertex is to be removed so will ALL of its edges. This means they will no longer be available to the vertex attached on the other side. 
+```
 
 ## Looking at the output
 
-Coming back to our Lord of the Rings example, we can analyse the output produced by the query inside `FileOutputRunner.scala`:
+Coming back to our Lord of the Rings example, we can analyse the output produced by the query inside `TutorialRunner.scala`:
 
 ```scala
-graph
-  .at(32670)
-  .past()
-  .execute(DegreesSeparation())
-  .writeTo(output)
+  val queryHandler = graph
+    .at(32674)
+    .past()
+    .execute(DegreesSeparation())
+    .writeTo(output)
 ```
-As we can now understand, what we are doing here is creating a perspective at sentence 32670, looking into the past and, therefore, including everything from sentence 1. Running this algorithm returns the following data:
+As we can now understand, what we are doing here is creating a perspective at sentence 32674, looking into the past and, therefore, including everything from sentence 1. Running this algorithm returns the following data:
 
 ```
-32670,Odo,2
-32670,Samwise,1
-32670,Elendil,2
-32670,Valandil,2
-32670,Angbor,2
-32670,Arwen,2
-32670,Treebeard,1
-32670,Óin,3
-32670,Butterbur,1
-32670,Finduilas,2
-32670,Celebrimbor,2
-32670,Grimbeorn,2
-32670,Lobelia,2
+32674,Hirgon,1
+32674,Hador,3
+32674,Horn,2
+32674,Galadriel,1
+32674,Isildur,1
+32674,Mablung,2
+32674,Gram,2
+32674,Thingol,2
+32674,Celebrían,3
+32674,Gamling,2
+32674,Déagol,2
+32674,Findegil,2
+32674,Brand,-1
+32674,Baldor,2
+32674,Helm,1
+32674,Thengel,1
+32674,Gil-galad,2
 ...
 ```
 
-This data tells us that at a given time, person X and Gandalf are N number of hops away. In this instance, at time 32670, Samwise was at minimum 1 hop away from Gandalf, whereas Odo was 2 hops away.
+This data tells us that at a given time, person X and Gandalf are N number of hops away. In this instance, at time 32674, Isildur was at minimum 1 hop away from Gandalf, whereas Baldor was 2 hops away.
 
 ## What now?
 To summarise, Raphtory's analytical engine provides a way of expressing a large variety of graph algorithms, implemented by vertex computations and, unlike other graph tools, has functionalities for expressing temporal queries in an intuitive manner.

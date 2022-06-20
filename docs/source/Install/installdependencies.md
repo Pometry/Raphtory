@@ -51,40 +51,19 @@ sdk use sbt 1.6.2
 
 Everything should now be installed and ready for us to get your first Raphtory Job underway!
 
-## Running the latest Raphtory release in an Example Project
-All the example projects can be found in the [Raphtory repo](https://github.com/Raphtory/Raphtory). 
+## Running the latest Raphtory example projects via SBT
+All example projects can be found in the [Raphtory repo](https://github.com/Raphtory/Raphtory). 
 
 ```bash
 git clone https://github.com/Raphtory/Raphtory.git
 git checkout THE_BRANCH_YOU_ARE_WORKING_ON
 ```
 
-As we are using the Lord of the Rings example, we should now move into this directory - this is a totally independent sbt project. 
+For this tutorial we are using the Lord of the Rings example, so we should now move into this directory - this is a totally independent sbt project. 
 
 ```bash
 cd examples/raphtory-example-lotr
 ```
-
-We need to firstly build the Raphtory jar into the Maven folder on your local computer by running this command in your root Raphtory directory:
-
-```bash
-sbt "core/publishLocal"
-```
-
-
-If you are working on this via Intellij you should give your sbt a refresh to reload the project locally and make sure it is using the new Raphtory jar. The button for this is the two rotating arrows located on the on the right hand side window within the sbt tab.  
-
-If you make any changes to the core Raphtory code, you can go into your local ivy repo to delete the old jar and then re-publish using `sbt "core/publishLocal"`
-
-```bash
-cd .ivy2/local/com.raphtory
-ls
-rm (whichever jar you want to delete)
-```
-
- Alternatively, if you are making several iterative changes, you can add a dependency `version := "0.1-SNAPSHOT"` in the examples `build.sbt` file and subsequent calls to `sbt publishLocal` will not require you to manually delete jars from your local repo. 
-
-## Running Raphtory via SBT
 
 ### Compiling
  You can now use the command `sbt` to start the Scala Build Tool. Once you see either the `>` or `sbt:example-lotr>` prompt, it means that you are in the SBT interactive shell. You can now run `compile` to build the project. This should produce output similar to below if working correctly:
@@ -96,11 +75,16 @@ sbt:example-lotr> compile
 sbt:example-lotr>
 ```
 
-**Note:** If there are a million errors saying that classes are not part of the package `com.raphtory` this is probably because your `raphtory.jar` did not publish correctly or your refresh of the sbt project did not occur. Alternatively if you have errors saying that something cannot be referenced as a URI, this is a Java version issue (the version you are using is higher than 11) and you should set the correct version as above.
-
+```{note} 
+If there are a million errors saying that classes are not part of the package `com.raphtory` this is probably because your `raphtory.jar` did not publish correctly or your refresh of the sbt project did not occur. Alternatively if you have errors saying that something cannot be referenced as a URI, this is a Java version issue (the version you are using is higher than 11) and you should set the correct version as above.
+```
 
 ### Running
-To test that you have Raphtory working properly on your machine, use the command `run` when prompted again with `>`. 
+To test that you have Raphtory working properly on your machine, use the command `run` when prompted again with `>`. From this you should get a request to select a main class (as can be seen below). Ignore the `PulsarRunner`,  `LOTRClient` and `LOTRService` for now, these are used in the distributed deployment. We want to select number 4, the `TutorialRunner`.
+
+<p align="center">
+	<img src="../_static/install/sbtrunselect.png" alt="Main Classes within the LOTR example"/>
+</p>
 
 And you're done!  This will run the Lord of the Rings example that we will come back to in the next few tutorials. 
 
@@ -111,73 +95,73 @@ And you're done!  This will run the Lord of the Rings example that we will come 
 First of all as Raphtory begins executing we should see some messages showing that the ingestion components of Raphtory are online and as such the system is ready for analysis to be performed. Don't worry about what these are for the second, we will go through this in the next section.
 
 ```bash
-18:33:20.091 [ScalaTest-run] INFO  com.raphtory.core.config.ComponentFactory - Creating '2' Partition Managers.
-18:33:23.095 [ScalaTest-run] INFO  com.raphtory.core.config.ComponentFactory - Creating new Query Manager.
-18:33:23.444 [ScalaTest-run] INFO  com.raphtory.core.config.ComponentFactory - Creating new Spout 'raphtory_data_raw_1602187403'.
-18:33:23.444 [ScalaTest-run] INFO  com.raphtory.core.config.ComponentFactory - Creating '2' Graph Builders.
-18:46:13.393 [monix-computation-56] INFO  com.raphtory.core.components.spout.executor.StaticGraphSpoutExecutor - Reading data from '/tmp/facebook.csv'.
-18:33:24.779 [ScalaTest-run] INFO  com.raphtory.core.client.RaphtoryGraph - Created Graph object with deployment ID 'raphtory_1602187403'.
-18:33:24.779 [ScalaTest-run] INFO  com.raphtory.core.client.RaphtoryGraph - Created Graph Spout topic with name 'raphtory_data_raw_1602187403'.
-18:33:25.438 [ScalaTest-run] INFO  com.raphtory.generic.PulsarOutputTest - Consumer created.
+Enter number: 4
+[info] running com.raphtory.examples.lotrTopic.TutorialRunner
+23:11:33.381 [run-main-0] INFO  com.raphtory.spouts.FileSpout - Spout: Processing file 'lotr.csv' ...
+23:11:33.884 [spawner-akka.actor.default-dispatcher-3] INFO  akka.event.slf4j.Slf4jLogger - Slf4jLogger started
+23:11:34.808 [run-main-0] INFO  com.raphtory.internals.management.ComponentFactory - Creating '1' Partition Managers for raphtory_181811870.
+23:11:34.856 [run-main-0] INFO  com.raphtory.internals.management.ComponentFactory - Creating new Query Manager.
+23:11:34.862 [run-main-0] INFO  com.raphtory.internals.management.GraphDeployment - Created Graph object with deployment ID 'raphtory_181811870'.
+23:11:34.862 [run-main-0] INFO  com.raphtory.internals.management.GraphDeployment - Created Graph Spout topic with name 'raphtory_data_raw_181811870'.
 ```
 
-We should then see that the Partitions have started to ingest messages, meaning the data has been picked up and is being turned into a graph. In this example there are two partitions running, so we get output for both. 
-
-Next, we should see that our query has been submitted. If the time we have asked for within the query has yet to be ingested, or is busy synchronising we will get a message informing us so, but that it will be resubmitted soon. Once the required timestamp is available, the analysis will be run. To manage these times Raphtory maintains a global watermark which reports the status of the partitions, and the time they believe is safe to execute on. These individual times are then aggregated into a global minimum time to make sure the results are always correct. The timestamp chosen for this query (`32670`) is just before the final timestamp in the file. 
-
-Query submitted:
+Next, we should see that our query has been submitted:
 ``` 
-18:59:58.307 [pulsar-external-listener-9-1] INFO  com.raphtory.core.components.querymanager.QueryManager - Point Query 'EdgeList_1645815597845' received, your job ID is 'EdgeList_1645815597845'.
+23:11:35.043 [run-main-0] INFO  com.raphtory.internals.management.ComponentFactory - Creating new Query Progress Tracker for 'DegreesSeparation_8822143620455242909'.
+23:11:35.080 [spawner-akka.actor.default-dispatcher-3] INFO  com.raphtory.internals.components.querymanager.QueryManager - Query 'DegreesSeparation_8822143620455242909' received, your job ID is 'DegreesSeparation_8822143620455242909'.
+23:11:35.157 [monix-computation-138] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job DegreesSeparation_8822143620455242909: Starting query progress tracker.
 ```
 
-Data not fully ingested yet (only shows when logger level is set to 'debug'):
+Finally, once the data has completed ingesting, the query can run. The logs for this contain information about the Job ID, topics, perspectives, windows and the time it has taken to run.
 ```
-18:59:59.504 [pulsar-external-listener-9-1] DEBUG com.raphtory.core.components.querymanager.QueryHandler - Job 'EdgeList_1645815597845': Perspective 'Perspective(32674,None)' is not ready, currently at '270'.
-```
-
-Data was fully ingested and the query completed:
-```
-19:00:07.990 [pulsar-external-listener-9-1] INFO  com.raphtory.core.components.querytracker.QueryProgressTracker - Job 'EdgeList_1645815597845': Perspective '30000' finished in 9788 ms.
+23:11:37.247 [spawner-akka.actor.default-dispatcher-9] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job 'DegreesSeparation_8822143620455242909': Perspective '32674' finished in 2202 ms.
+23:11:37.247 [spawner-akka.actor.default-dispatcher-9] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job DegreesSeparation_8822143620455242909: Running query, processed 1 perspectives.
+23:11:37.255 [spawner-akka.actor.default-dispatcher-3] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job DegreesSeparation_8822143620455242909: Query completed with 1 perspectives and finished in 2210 ms.
 ````
 
-Finally we can see logs containing information about the Job ID, topics, perspectives, windows and the time it has taken to run.
-
-```bash
-18:59:58.202 [main] INFO  com.raphtory.core.config.ComponentFactory - Creating new Query Progress Tracker for deployment 'raphtory_1279440800' and job 'EdgeList_1645815597845' at topic 'raphtory_1279440800_EdgeList_1645815597845'.
-18:59:58.202 [main] INFO  com.raphtory.core.components.querytracker.QueryProgressTracker - Starting query progress tracker.
-```
-```
-19:00:29.906 [pulsar-external-listener-9-1] INFO  com.raphtory.core.components.querytracker.QueryProgressTracker - Job 'PageRank_1645815598203': Perspective '20000' with window '10000' finished in 31390 ms.
-19:00:29.907 [pulsar-external-listener-9-1] INFO  com.raphtory.core.components.querytracker.QueryProgressTracker - Job PageRank_1645815598203: Running query, processed 1 perspectives.
-19:00:34.304 [pulsar-external-listener-9-1] INFO  com.raphtory.core.components.querytracker.QueryProgressTracker - Job 'PageRank_1645815598203': Perspective '20000' with window '1000' finished in 4397 ms.
-19:00:34.304 [pulsar-external-listener-9-1] INFO  com.raphtory.core.components.querytracker.QueryProgressTracker - Job PageRank_1645815598203: Running query, processed 2 perspectives.
-19:00:38.284 [pulsar-external-listener-9-1] INFO  com.raphtory.core.components.querytracker.QueryProgressTracker - Job 'PageRank_1645815598203': Perspective '20000' with window '500' finished in 3980 ms.
-19:00:38.284 [pulsar-external-listener-9-1] INFO  com.raphtory.core.components.querytracker.QueryProgressTracker - Job PageRank_1645815598203: Running query, processed 3 perspectives.
-19:01:02.343 [pulsar-external-listener-9-1] INFO  com.raphtory.core.components.querytracker.QueryProgressTracker - Job 'PageRank_1645815598203': Perspective '30000' with window '10000' finished in 24059 ms.
-19:01:02.343 [pulsar-external-listener-9-1] INFO  com.raphtory.core.components.querytracker.QueryProgressTracker - Job PageRank_1645815598203: Running query, processed 4 perspectives.
-19:01:08.120 [pulsar-external-listener-9-1] INFO  com.raphtory.core.components.querytracker.QueryProgressTracker - Job 'PageRank_1645815598203': Perspective '30000' with window '1000' finished in 5777 ms.
-19:01:08.120 [pulsar-external-listener-9-1] INFO  com.raphtory.core.components.querytracker.QueryProgressTracker - Job PageRank_1645815598203: Running query, processed 5 perspectives.
-19:01:12.685 [pulsar-external-listener-9-1] INFO  com.raphtory.core.components.querytracker.QueryProgressTracker - Job 'PageRank_1645815598203': Perspective '30000' with window '500' finished in 4565 ms.
-19:01:12.686 [pulsar-external-listener-9-1] INFO  com.raphtory.core.components.querytracker.QueryProgressTracker - Job PageRank_1645815598203: Running query, processed 6 perspectives.
-```
 
 ### Checking your output
-Once the query has finished executing Raphtory will not stop running. This is because we may submit more queries to the running instance, now that it has ingested the graph. However, you may kill the Raphtory job and check out the output. For the example, queries should begin being saved to `/tmp` or the directory specified in the `Runner` class if you have changed it. Below is an example of the CSV file that has been output. This means that Raphtory is working as it should and you can move onto creating your first graph for analysis. The meaning of this output is only a couple pages away, so don't threat if it looks a little odd right now!
+Once the query has finished executing Raphtory will not stop running. This is because we may submit more queries to the running instance, now that it has ingested the graph. However, you may now kill the Raphtory job and check out the output. For the example, results will be saved to `/tmp/raphtory` or the directory specified in the `TutorialRunner` class if you have changed it. Below is an example of the CSV file that has been output. This means that Raphtory is working as it should and you can move onto creating your first graph for analysis. The meaning of this output is only a couple pages away, so don't threat if it looks a little odd right now!
 
 
 ````
-32670,  Odo,        2
-32670,  Samwise,    1
-32670,  Elendil,    2
-32670,  Valandil,   2
-32670,  Angbor,     2
-32670,  Arwen,      2
-32670,  Treebeard,  1
-32670,  Óin,        3
-32670,  Butterbur,  1
-32670,  Finduilas,  2
-32670,  Celebrimbor,2
-32670,  Grimbeorn,  2
-32670,  Lobelia,    2
-32670,  Helm,       1
+32674,Hirgon,1
+32674,Hador,3
+32674,Horn,2
+32674,Galadriel,1
+32674,Isildur,1
+32674,Mablung,2
+32674,Gram,2
+32674,Thingol,2
+32674,Celebrían,3
+32674,Gamling,2
+32674,Déagol,2
+32674,Findegil,2
+32674,Brand,-1
+32674,Baldor,2
+32674,Helm,1
+32674,Thengel,1
+32674,Gil-galad,2
 ````
+
+## Editing Raphtory core
+
+```{note}
+If you are just building applications on top of Raphtory this section can be skipped as it discusses how to publish a new local version of Raphtory-core which can be used by your apps. 
+```
+
+Once you have cloned the raphtory repo and made your changes you may build the new Raphtory jar and publish into the Maven folder on your local computer by running this command in your root Raphtory directory:
+
+```bash
+sbt "core/publishLocal"
+```
+
+If you are working on your application via Intellij you should give your sbt a refresh to reload the project locally and make sure it is using the new Raphtory jar. The button for this is the two rotating arrows located on the right hand side window within the sbt tab.  
+
+If you make any more changes to the core Raphtory code, you can go into your local ivy repo to delete the old jar and then re-publish using `sbt "core/publishLocal"`.  Alternatively, if you are making several iterative changes, you can add a dependency `version := "0.1-SNAPSHOT"` in the core `build.sbt` file and subsequent calls to `sbt publishLocal` will not require you to manually delete jars from your local repo. The Raphtory dependency in your project will need to be updated accordingly however.
+
+```bash
+cd ~/.ivy2/local/com.raphtory
+ls
+rm (whichever jar you want to delete)
+```
