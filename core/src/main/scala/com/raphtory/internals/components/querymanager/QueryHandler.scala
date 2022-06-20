@@ -366,22 +366,6 @@ private[raphtory] class QueryHandler(
       tracker sendAsync currentPerspective
     currentPerspectiveID += 1
     perspectiveController.nextPerspective() match {
-      case Some(perspective)
-          if perspective.actualEnd <= latestTime && oldestTime
-            .exists(perspective.actualStart >= _) =>
-        logTotalTimeTaken(perspective)
-        messagetoAllJobWorkers(CreatePerspective(currentPerspectiveID, perspective))
-        currentPerspective = perspective
-        graphState = GraphStateImplementation.empty
-        vertexCount = 0
-        graphFunctions = null
-        tableFunctions = null
-        val localPerspectiveSetupTime = System.currentTimeMillis() - timeTaken
-        logger.debug(
-                s"Job '$jobID': Perspective '$perspective' is starting. Took ${localPerspectiveSetupTime}ms"
-        )
-        timeTaken = System.currentTimeMillis()
-        Stages.EstablishPerspective
       case Some(perspective) =>
         logger.trace(
                 s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$latestTime'."
@@ -390,9 +374,9 @@ private[raphtory] class QueryHandler(
         currentPerspective = perspective
         graphFunctions = null
         tableFunctions = null
-        scheduler.scheduleOnce(1.seconds, recheckTimer())
-
-        Stages.EstablishPerspective
+        vertexCount = 0
+        graphState = GraphStateImplementation.empty
+        recheckTime(currentPerspective)
       case None              =>
         logger.debug(s"Job '$jobID': No more perspectives to run.")
         messagetoAllJobWorkers(CompleteWrite)
@@ -418,9 +402,11 @@ private[raphtory] class QueryHandler(
   }
 
   private def recheckTime(perspective: Perspective): Stage = {
-    val time = getLatestTime
+    val time                 = getLatestTime
+    val optionalEarliestTime = getOptionalEarliestTime
+
     timeTaken = System.currentTimeMillis()
-    if (perspective.actualEnd <= time) {
+    if (perspectiveIsReady(perspective)) {
       logger.debug(s"Job '$jobID': Created perspective at time $time.")
 
       messagetoAllJobWorkers(CreatePerspective(currentPerspectiveID, perspective))
@@ -431,6 +417,12 @@ private[raphtory] class QueryHandler(
       scheduler.scheduleOnce(1.seconds, recheckTimer())
       Stages.EstablishPerspective
     }
+  }
+
+  def perspectiveIsReady(perspective: Perspective): Boolean = {
+    val time                 = getLatestTime
+    val optionalEarliestTime = getOptionalEarliestTime
+    perspective.timestamp <= time
   }
 
   @tailrec
