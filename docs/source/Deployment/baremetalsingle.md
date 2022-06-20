@@ -51,7 +51,14 @@ The deployment ID is provided in this log "Created Graph object with deployment 
 ## Attaching A Client To Submit Queries 
 Once the graph is deployed and the data is ingested you may find you want to submit new queries to it, possibly requiring a code change. If we had to reassemble the jar and reingest the data every time this happened it would be a massive time sink. Instead we may deploy `client` code which connects to a running Raphtory deployment and submits new queries. 
 
-This is done via the `Raphtory.connect()` function which returns a {scaladoc}`com.raphtory.api.analysis.graphview.TemporalGraphConnection` instance, exposing exactly the same API as `load()` and `stream()`. An example of such a client can be seen below from the [raphtory-example-lotr](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-lotr) project. The client is setup to connect to the deployment, execute [Connected Components](com.raphtory.algorithms.generic.ConnectedComponents) on the latest time point, write the results to "/tmp/raphtory" and then disconnect and shutdown:
+Before running a client we must make one change when executing the TutorialRunner (or any other local deployment). To enable queries we must set the RAPHTORY_QUERY_LOCALENABLED environment variable to `true`. This swaps the control messages for analysis to Pulsar and enables clients to connect from anywhere:
+
+```
+export RAPHTORY_QUERY_LOCALENABLED=true
+scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.5.jar com.raphtory.examples.lotr.TutorialRunner
+```
+
+Once queries are enabled and the runner is deployed, a client may connect via the `Raphtory.connect()` function. This returns a {scaladoc}`com.raphtory.api.analysis.graphview.TemporalGraphConnection` instance, exposing exactly the same API as `load()` and `stream()`. An example of such a client can be seen below from the [raphtory-example-lotr](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-lotr) project. The client is setup to connect to the deployment, execute [Connected Components](com.raphtory.algorithms.generic.ConnectedComponents) on the latest time point, write the results to "/tmp/raphtory" and then disconnect and shutdown:
 
 ```scala 
 object LOTRClient extends App {
@@ -134,7 +141,7 @@ To run the code above, rather than starting a single Raphtory program, you must 
 * ´partitionmanager´ - Launches a partition to store a portion of the graph and run analytics on it.
 * ´querymanager´ - Accepts new analysis queries and runs them across the partitions.
 
-You start each service through either scala or sbt, selecting your implementation of `RaphtoryService` as the main class, and specifying one additional command-line argument selecting what service you wish to start. You need at least one of each service for Raphtory to work. The commands for running the LOTRService would be as follows:
+You can start each service through either scala or sbt, selecting your implementation of `RaphtoryService` as the main class and specifying which service you wish to start via a command-line argument . You need at least one of each service for Raphtory to work. The commands for running the LOTRService would be as follows:
 
 ```
 scala -classpath examples/raphtory-example-lotr/target/scala-2.13/example-lotr-assembly-0.5.jar com.raphtory.examples.lotr.LOTRService spout
@@ -154,7 +161,7 @@ Running these as 4 separate processes in a pseudo-distributed fashion and then s
 The warning "Cannot create prometheus server as port 9999 is already bound, this could be you have multiple raphtory instances running on the same machine." Is fairly self explanatory, but is caused by us running these services together for demonstration purposes when in production they would be on separate machines or containerized. 
 ```
 
-As a final comment on the distributed deployment, as the partitions are stateful if you are intending to deploy more than one you need to let all components know how many there will be. This as before is done via environment variables, specifically `RAPHTORY_PARTITIONS_SERVERCOUNT`. If this is incorrectly set your deployment will produce some very interesting results.
+As a final comment on the distributed deployment, as the partitions are stateful if you are intending to deploy more than one you need to let all components know how many there will be. This as before is done via environment variables, specifically `RAPHTORY_PARTITIONS_SERVERCOUNT`. 
 
 ### Suggested Java ops
 

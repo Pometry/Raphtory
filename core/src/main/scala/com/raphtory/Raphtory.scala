@@ -205,7 +205,6 @@ object Raphtory {
     startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
     allowIllegalReflection()
     val queriesEnabled     = conf.getBoolean("raphtory.query.localEnabled")
-    println(queriesEnabled + "Sssssssdasdasdasdasdas")
     val topics             =
       if (queriesEnabled)
         PulsarTopicRepository(conf)

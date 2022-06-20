@@ -51,38 +51,19 @@ sdk use sbt 1.6.2
 
 Everything should now be installed and ready for us to get your first Raphtory Job underway!
 
-## Running the latest Raphtory release in an Example Project
-All the example projects can be found in the [Raphtory repo](https://github.com/Raphtory/Raphtory). 
+## Running the latest Raphtory example projects via SBT
+All example projects can be found in the [Raphtory repo](https://github.com/Raphtory/Raphtory). 
 
 ```bash
 git clone https://github.com/Raphtory/Raphtory.git
 git checkout THE_BRANCH_YOU_ARE_WORKING_ON
 ```
 
-Once downloaded, we need to firstly build the Raphtory jar into the Maven folder on your local computer by running this command in your root Raphtory directory:
-
-```bash
-sbt "core/publishLocal"
-```
-
-If you are working on this via Intellij you should give your sbt a refresh to reload the project locally and make sure it is using the new Raphtory jar. The button for this is the two rotating arrows located on the right hand side window within the sbt tab.  
-
-If you make any changes to the core Raphtory code, you can go into your local ivy repo to delete the old jar and then re-publish using `sbt "core/publishLocal"`.  Alternatively, if you are making several iterative changes, you can add a dependency `version := "0.1-SNAPSHOT"` in the examples `build.sbt` file and subsequent calls to `sbt publishLocal` will not require you to manually delete jars from your local repo. 
-
-```bash
-cd ~/.ivy2/local/com.raphtory
-ls
-rm (whichever jar you want to delete)
-```
-
-Next, as we are using the Lord of the Rings example, we should now move into this directory - this is a totally independent sbt project. 
+For this tutorial we are using the Lord of the Rings example, so we should now move into this directory - this is a totally independent sbt project. 
 
 ```bash
 cd examples/raphtory-example-lotr
 ```
-
-
-## Running Raphtory via SBT
 
 ### Compiling
  You can now use the command `sbt` to start the Scala Build Tool. Once you see either the `>` or `sbt:example-lotr>` prompt, it means that you are in the SBT interactive shell. You can now run `compile` to build the project. This should produce output similar to below if working correctly:
@@ -162,3 +143,25 @@ Once the query has finished executing Raphtory will not stop running. This is be
 32674,Thengel,1
 32674,Gil-galad,2
 ````
+
+## Editing Raphtory core
+
+```{note}
+If you are just building applications on top of Raphtory this section can be skipped as it discusses how to publish a new local version of Raphtory-core which can be used by your apps. 
+```
+
+Once you have cloned the raphtory repo and made your changes you may build the new Raphtory jar and publish into the Maven folder on your local computer by running this command in your root Raphtory directory:
+
+```bash
+sbt "core/publishLocal"
+```
+
+If you are working on your application via Intellij you should give your sbt a refresh to reload the project locally and make sure it is using the new Raphtory jar. The button for this is the two rotating arrows located on the right hand side window within the sbt tab.  
+
+If you make any more changes to the core Raphtory code, you can go into your local ivy repo to delete the old jar and then re-publish using `sbt "core/publishLocal"`.  Alternatively, if you are making several iterative changes, you can add a dependency `version := "0.1-SNAPSHOT"` in the core `build.sbt` file and subsequent calls to `sbt publishLocal` will not require you to manually delete jars from your local repo. The Raphtory dependency in your project will need to be updated accordingly however.
+
+```bash
+cd ~/.ivy2/local/com.raphtory
+ls
+rm (whichever jar you want to delete)
+```
