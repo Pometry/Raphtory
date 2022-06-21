@@ -5,6 +5,9 @@ import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.spouts.StaticGraphSpout
 
 import java.net.URL
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 
 class TwitterTest extends BaseRaphtoryAlgoTest[String] {
@@ -25,4 +28,6 @@ class TwitterTest extends BaseRaphtoryAlgoTest[String] {
 
   override def liftFileIfNotPresent: Option[(String, URL)] =
     Some(tmpFilePath -> new URL("https://raw.githubusercontent.com/Raphtory/Data/main/snap-twitter.csv"))
+
+  override def munitTimeout: Duration                      = new FiniteDuration(180, TimeUnit.SECONDS)
 }
