@@ -6,7 +6,7 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.{Row, Table}
 
 /**
-  * {s}`TriangleCount()`
+  * {s}`LocalTriangleCount()`
   *  : Returns the number of triangles.
   *
   * The triangle count algorithm counts the number of triangles

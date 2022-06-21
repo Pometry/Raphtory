@@ -4,6 +4,27 @@ import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.{Row, Table}
 
+/**
+  * {s}`GlobalClusteringCoefficient()`
+  *  : Returns the two graph-wide clustering coefficients.
+  *
+  *  The first of these is the average clustering
+  *  coefficient, the mean of all node local clustering coefficients. The second of these is the transitivity
+  *  which is 3 times the number of triangles divided by the number of wedges, representing the probability that
+  *  a randomly chosen wedge is closed as a triangle.
+  *
+  * ## Returns
+  *
+  *  | average clustering       | transitivity               |
+  *  | ------------------------ | -------------------------- |
+  *  | {s}`avgCluster: Double`  | {s}`transitivity: Double`  |
+  *
+  * ```{note}
+  *  Edges here are treated as undirected, so if the underlying network is directed here,
+  * 'neighbours' refers to the union of in-neighbours and out-neighbours.
+  * ``
+  */
+
 object GlobalClusteringCoefficient extends Generic{
 
   override def apply(graph: GraphPerspective): graph.Graph =
