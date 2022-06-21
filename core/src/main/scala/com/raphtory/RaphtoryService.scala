@@ -4,7 +4,6 @@ import cats.effect.ExitCode
 import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.Resource
-import com.raphtory.Raphtory.makeIdManager
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
 import com.raphtory.internals.communication.repositories.PulsarTopicRepository
@@ -73,7 +72,7 @@ abstract class RaphtoryService[T: ClassTag] extends IOApp {
     * producers for each row. Supported spout types are FileSpout`, `ResourceSpout`,
     * `StaticGraphSpout`.
     */
-  def spoutDeploy(config: Config): Resource[IO, Unit] = {
+  def spoutDeploy(config: Config): Resource[IO, SpoutExecutor[T]] = {
     val metricsPort = config.getInt("raphtory.prometheus.metrics.port")
     for {
       _         <- Prometheus[IO](metricsPort)
@@ -88,7 +87,7 @@ abstract class RaphtoryService[T: ClassTag] extends IOApp {
     for {
       _                <- Prometheus[IO](metricsPort)
       topicRepo        <- PulsarTopicRepository[IO](config)
-      builderIDManager <- makeIdManager[IO](config, localDeployment, s"/$deploymentID/builderCount")
+      builderIDManager <- Raphtory.makeBuilderIdManager[IO](config, localDeployment, deploymentID)
       beg              <- BuildExecutorGroup[IO, T](config, builderIDManager, topicRepo, defineBuilder)
     } yield beg
 
@@ -100,7 +99,7 @@ abstract class RaphtoryService[T: ClassTag] extends IOApp {
     for {
       _                  <- Prometheus[IO](metricsPort)
       topicRepo          <- PulsarTopicRepository[IO](config)
-      partitionIDManager <- makeIdManager[IO](config, localDeployment = false, s"/$deploymentID/partitionCount")
+      partitionIDManager <- Raphtory.makePartitionIdManager[IO](config, localDeployment = false, deploymentID)
       pm                 <- PartitionsManager
                               .batchLoading[IO, T](config, partitionIDManager, topicRepo, new Scheduler(), defineSpout(), defineBuilder)
     } yield pm
@@ -112,7 +111,7 @@ abstract class RaphtoryService[T: ClassTag] extends IOApp {
     for {
       _                  <- Prometheus[IO](metricsPort)
       topicRepo          <- PulsarTopicRepository[IO](config)
-      partitionIDManager <- makeIdManager[IO](config, localDeployment = false, s"/$deploymentID/partitionCount")
+      partitionIDManager <- Raphtory.makePartitionIdManager[IO](config, localDeployment = false, deploymentID)
       pm                 <- PartitionsManager
                               .streaming[IO](config, partitionIDManager, topicRepo, new Scheduler())
     } yield pm

@@ -1,6 +1,8 @@
 package com.raphtory
 
+import cats.effect.IO
 import com.raphtory.api.analysis.algorithm.GenericallyApplicable
+import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
 import com.raphtory.spouts.IdentitySpout
@@ -16,10 +18,7 @@ case class TestQuery(
 abstract class BaseCorrectnessTest(
     deleteResultAfterFinish: Boolean = true,
     startGraph: Boolean = false
-) extends BaseRaphtoryAlgoTest[String](
-                deleteResultAfterFinish,
-                startGraph
-        ) {
+) extends BaseRaphtoryAlgoTest[String](deleteResultAfterFinish) {
 
   override def setGraphBuilder(): GraphBuilder[String] = BasicGraphBuilder()
 
@@ -71,4 +70,17 @@ abstract class BaseCorrectnessTest(
         )
       )
       .unsafeRunSync()
+
+  def correctnessTest(test: TestQuery, results: Seq[String])(graph: DeployedTemporalGraph): IO[Unit] =
+    algorithmPointTest(test.algorithm, test.timestamp, test.windows)(graph).map { obtained =>
+      val expected = correctResultsHash(results)
+      assertEquals(obtained, expected)
+    }
+
+  def correctnessTest(test: TestQuery, results: String)(graph: DeployedTemporalGraph): IO[Unit] =
+    algorithmPointTest(test.algorithm, test.timestamp, test.windows)(graph).map { obtained =>
+      val expected = correctResultsHash(results)
+      assertEquals(obtained, expected)
+    }
+
 }

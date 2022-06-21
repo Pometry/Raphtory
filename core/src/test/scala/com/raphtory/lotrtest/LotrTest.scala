@@ -35,6 +35,7 @@ import sys.process._
 
 class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
+
   withGraph.test("Graph State Test") { graph =>
     val expected = "c21170ae40544156af69000d2b0d6e8eaf5f593d3905810c7527f2e09b8e9172"
     algorithmTest(
@@ -192,7 +193,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
             end = 32674,
             increment = 10000,
             windows = List(500, 1000, 10000)
-    )(graph).map(assertEquals(_, "85c24ece1ac693814abbac304d18858572a0d7644457f9272cf642caf8517660"))
+    )(graph).map(assertEquals(_, "f59f9a0d2fc205ac3909abe4ddfcd4f63950e17eb85c6ffe48328529d19f93b2"))
   }
 
   withGraph.test("Weighted Random Walk") { graph =>

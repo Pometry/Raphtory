@@ -8,7 +8,7 @@ import com.raphtory.spouts.ResourceSpout
 
 class AdjPlusTest extends BaseCorrectnessTest(startGraph = true) {
   override def setSpout(): Spout[String] = ResourceSpout("MotifCount/motiftest.csv")
-  test("Test AdjPlus projection on small example") {
+  withGraph.test("Test AdjPlus projection on small example") {
     correctnessTest(TestQuery(AdjPlus, 23), "AdjPlus/adjPlusResults.csv")
   }
 }

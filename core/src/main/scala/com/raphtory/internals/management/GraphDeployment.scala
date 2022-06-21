@@ -25,6 +25,7 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
     private val scheduler: Scheduler
 ) extends Deployment {
 
+  allowIllegalReflection()
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val deploymentID: String = conf.getString("raphtory.deploy.id")
@@ -45,10 +46,10 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
   logger.info(s"Created Graph Spout topic with name '$spoutTopic'.")
 
   /** Stops components - partitions, query manager, graph builders, spout worker */
-  def stop(): Unit =
-    // partitions.writers.foreach(_.stop())
-    // partitions.readers.foreach(_.stop())
-    // partitions = null
+  def stop(): Unit = {}
+  // partitions.writers.foreach(_.stop())
+  // partitions.readers.foreach(_.stop())
+  // partitions = null
 //    queryManager.worker.stop()
 //    queryManager = null
 
@@ -65,5 +66,31 @@ private[raphtory] class GraphDeployment[T: ClassTag: TypeTag](
 //
 //      case None         =>
 //    }
-    componentFactory.stop()
+//    componentFactory.stop()
+
+  private def allowIllegalReflection() = {
+    import java.lang.reflect.Field
+
+    try { // Turn off illegal access log messages.
+      val loggerClass = Class.forName("jdk.internal.module.IllegalAccessLogger")
+      val loggerField = loggerClass.getDeclaredField("logger")
+      val unsafeClass = Class.forName("sun.misc.Unsafe")
+      val unsafeField = unsafeClass.getDeclaredField("theUnsafe")
+      unsafeField.setAccessible(true)
+      val unsafe      = unsafeField.get(null)
+      val offset      =
+        unsafeClass
+          .getMethod("staticFieldOffset", classOf[Field])
+          .invoke(unsafe, loggerField)
+          .asInstanceOf[Long]
+      unsafeClass
+        .getMethod("putObjectVolatile", classOf[Object], classOf[Long], classOf[Object])
+        .invoke(unsafe, loggerClass, offset, null)
+    }
+    catch {
+      case ex: Exception =>
+        logger.warn("Failed to disable Java 10 access warning:")
+        ex.printStackTrace()
+    }
+  }
 }

@@ -16,6 +16,7 @@ import org.apache.pulsar.client.api.Schema
 import org.scalatest.Ignore
 
 import java.io.File
+import java.net.URL
 import scala.language.postfixOps
 import scala.sys.process._
 
@@ -57,24 +58,13 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFin
 
   override def batchLoading(): Boolean = false
 
-  override def setSpout(): Spout[String] = FileSpout(s"/tmp/lotr.csv")
+  def filePath = s"/tmp/lotr.csv"
+
+  override def setSpout(): Spout[String] = FileSpout(filePath)
 
   override def setGraphBuilder(): GraphBuilder[String] = new LOTRGraphBuilder()
 
-  override def setup(): Unit = {
-    val path = "/tmp/lotr.csv"
-    val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
-
-    if (!new File(path).exists())
-      try s"curl -o $path $url" !!
-      catch {
-        case ex: Exception =>
-          logger.error(s"Failed to download 'lotr.csv' due to ${ex.getMessage}.")
-          ex.printStackTrace()
-
-          (s"rm $path" !)
-          throw ex
-      }
-  }
+  override def liftFileIfNotPresent: Option[(String, URL)] =
+    Some(filePath -> new URL("https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"))
 
 }

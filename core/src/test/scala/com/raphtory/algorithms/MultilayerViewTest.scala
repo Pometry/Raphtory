@@ -32,25 +32,25 @@ class MultilayerViewTest extends BaseCorrectnessTest(startGraph = true) {
 
   override def setSpout(): Spout[String] = SequenceSpout(edges: _*)
 
-  test("test multilayer view") {
+  withGraph.test("test multilayer view") {
     correctnessTest(
             TestQuery(MultilayerView() -> EdgeList(), 2),
             Seq("2,1_1,2_1", "2,2_2,1_2")
     )
   }
 
-  test("test temporal node list") {
+  withGraph.test("test temporal node list") {
     correctnessTest(
             TestQuery(TemporalNodeList(), 2),
             Seq("2,1,1", "2,1,2", "2,2,1", "2,2,2")
     )
   }
 
-  test("test temporal edge list") {
+  withGraph.test("test temporal edge list") {
     correctnessTest(TestQuery(TemporalEdgeList(), 2), Seq("2,1,2,1", "2,2,1,2"))
   }
 
-  test("test property merging") {
+  withGraph.test("test property merging") {
     correctnessTest(
             TestQuery(WriteValue() -> NodeList("testing"), 2),
             Seq("2,1,2", "2,2,2")

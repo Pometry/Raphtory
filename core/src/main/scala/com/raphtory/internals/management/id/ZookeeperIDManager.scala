@@ -51,19 +51,6 @@ private[raphtory] class ZookeeperIDManager(
 
 private[raphtory] object ZookeeperIDManager {
 
-  def apply(
-      zookeeperAddress: String,
-      deploymentID: String,
-      counterID: String
-  ) = new ZookeeperIDManager(zookeeperAddress, deploymentID, counterID, Int.MaxValue)
-
-  def apply(
-      zookeeperAddress: String,
-      deploymentID: String,
-      poolID: String,
-      poolSize: Int
-  ) = new ZookeeperIDManager(zookeeperAddress, deploymentID, poolID, poolSize)
-
   def apply[IO[_]: Sync](
       zookeeperAddress: String,
       deploymentId: String,
