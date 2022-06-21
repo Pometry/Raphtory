@@ -68,6 +68,8 @@ private[raphtory] case class FilteredOutEdgeMessage[VertexID](
     sourceId: VertexID
 ) extends GenericVertexMessage[VertexID]
 
+private[raphtory] case class VertexMessagesSync(superstep: Int, partitionID: Int, count: Long)
+
 private[raphtory] case class Query(
     name: String = "",
     points: PointSet = NullPointSet,
