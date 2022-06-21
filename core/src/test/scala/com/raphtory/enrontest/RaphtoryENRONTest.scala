@@ -6,7 +6,6 @@ import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
-import org.scalatest.DoNotDiscover
 
 import java.net.URL
 import java.util.concurrent.TimeUnit
@@ -14,7 +13,6 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 
-@DoNotDiscover
 class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
 //  withGraph.test("Graph State Test") { graph =>
@@ -29,7 +27,7 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 //
 //  }
 
-  withGraph.test("Connected Components Test") { graph =>
+  test("Connected Components Test") {
     val sink: FileSink = FileSink(outputDirectory)
 
     algorithmTest(
@@ -39,7 +37,7 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
             end = 32674,
             increment = 10000,
             windows = List(500, 1000, 10000)
-    )(graph).unsafeToFuture()
+    )
 
   }
 

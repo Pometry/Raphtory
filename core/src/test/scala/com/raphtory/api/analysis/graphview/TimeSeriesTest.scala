@@ -8,7 +8,7 @@ import com.raphtory.spouts.ResourceSpout
 
 class TimeSeriesTest extends BaseCorrectnessTest(startGraph = true) {
   override def setSpout(): Spout[String] = ResourceSpout("TimeSeriesGraphState/timeSeries.csv")
-  withGraph.test("Time Series Test") {
+  test("Time Series Test") {
     correctnessTest(
             TestQuery(TimeSeriesGraphState(), 4),
             "TimeSeriesGraphState/timeSeriesResult.csv"

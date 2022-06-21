@@ -35,7 +35,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   val outputDirectory: String = "/tmp/raphtoryTest"
   def defaultSink: Sink       = FileSink(outputDirectory)
 
-  def graph: Resource[IO, DeployedTemporalGraph] =
+  private def graph: Resource[IO, DeployedTemporalGraph] =
     if (batchLoading()) Raphtory.load[T](setSpout(), setGraphBuilder())
     else Raphtory.stream[T](setSpout(), setGraphBuilder())
 
@@ -45,6 +45,18 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
             g <- graph
           } yield g
   )
+
+  val suiteGraph: Fixture[DeployedTemporalGraph] = ResourceSuiteLocalFixture(
+          "graph",
+          for {
+            _ <- manageTestFile
+            g <- graph
+          } yield g
+  )
+
+  def graphS = suiteGraph()
+
+  override def munitFixtures = List(suiteGraph)
 
   private def manageTestFile: Resource[IO, Any] =
     liftFileIfNotPresent match {
@@ -70,7 +82,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   def receiveMessage(consumer: Consumer[Array[Byte]]): Message[Array[Byte]] =
     consumer.receive
 
-  def algorithmTest(
+  private def algorithmTestInternal(
       algorithm: GenericallyApplicable,
       start: Long,
       end: Long,
@@ -92,12 +104,24 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
       generateTestHash(jobId)
     }
 
+  def algorithmTest(
+      algorithm: GenericallyApplicable,
+      start: Long,
+      end: Long,
+      increment: Long,
+      windows: List[Long] = List[Long](),
+      sink: Sink = defaultSink,
+      graph: DeployedTemporalGraph = graphS
+  ): IO[String] =
+    algorithmTestInternal(algorithm, start, end, increment, windows, sink)(graph)
+
   def algorithmPointTest(
       algorithm: GenericallyApplicable,
       timestamp: Long,
       windows: List[Long] = List[Long](),
-      sink: Sink = defaultSink
-  )(graph: DeployedTemporalGraph): IO[String] =
+      sink: Sink = defaultSink,
+      graph: DeployedTemporalGraph = graphS
+  ): IO[String] =
     IO {
       val queryProgressTracker = graph
         .at(timestamp)

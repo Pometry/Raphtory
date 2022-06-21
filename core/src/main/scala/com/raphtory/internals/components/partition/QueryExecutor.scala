@@ -45,6 +45,7 @@ import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 import java.util.concurrent.atomic.AtomicInteger
+import scala.util.Try
 
 private[raphtory] class QueryExecutor(
     partitionID: Int,
@@ -93,7 +94,7 @@ private[raphtory] class QueryExecutor(
 
   override def stop(): Unit = {
 //    sinkExecutor.close()
-    listener.close()
+    Try(listener.close())
     logger.debug(s"closing query executor consumer for $jobID on partition $partitionID")
     taskManager.close()
     neighbours match {

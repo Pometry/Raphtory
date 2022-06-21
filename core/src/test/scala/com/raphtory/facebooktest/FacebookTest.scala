@@ -4,22 +4,20 @@ import com.raphtory.BaseRaphtoryAlgoTest
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.StaticGraphSpout
-import org.scalatest._
 
 import java.net.URL
 import scala.language.postfixOps
 
-@DoNotDiscover
 class FacebookTest extends BaseRaphtoryAlgoTest[String] {
 
-  withGraph.test("Connected Components Test") { graph =>
+  test("Connected Components Test") {
     val sink = FileSink(outputDirectory)
 
     val result = algorithmPointTest(
             algorithm = ConnectedComponents(),
             sink = sink,
             timestamp = 88234
-    )(graph).unsafeRunSync()
+    ).unsafeRunSync()
 
     val expected = "96e9415d7b657e0c306021bfa55daa9d5507271ccff2390894e16597470cb4ab"
 

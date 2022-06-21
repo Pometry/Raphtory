@@ -66,15 +66,15 @@ class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
 
   val resExploded: Seq[String] = input.map(e => s"${edges.size - 1},$e")
 
-  withGraph.test("test edge ingestion and output") {
+  test("test edge ingestion and output") {
     correctnessTest(TestQuery(EdgeList(), edges.size - 1), res)
   }
 
-  withGraph.test("test exploded edge output") {
+  test("test exploded edge output") {
     correctnessTest(TestQuery(TemporalEdgeList(), edges.size - 1), resExploded)
   }
 
-  withGraph.test("test exploded edge output with window") {
+  test("test exploded edge output with window") {
     val query = TestQuery(TemporalEdgeList(), 70, List(30))
     val res   = input
       .filter { e =>
@@ -85,7 +85,7 @@ class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
     correctnessTest(query, res)
   }
 
-  withGraph.test("test windowing functionality") {
+  test("test windowing functionality") {
     correctnessTest(
             TestQuery(EdgeList(), edges.size - 2, List(edges.size - 4)),
             edges
@@ -98,7 +98,7 @@ class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
     )
   }
 
-  withGraph.test("test out-edge history access with time window") {
+  test("test out-edge history access with time window") {
     val after  = 10
     val before = 40
     val res    = resExploded.filter { e =>
@@ -111,7 +111,7 @@ class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
     )
   }
 
-  withGraph.test("test out-edge history access with time window and restricted view") {
+  test("test out-edge history access with time window and restricted view") {
     val after     = 10
     val before    = 40
     val timestamp = 30
@@ -128,7 +128,7 @@ class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
     )
   }
 
-  withGraph.test("test in-edge history access with time window") {
+  test("test in-edge history access with time window") {
     val after  = 10
     val before = 40
     val res    = resExploded.filter { e =>
@@ -141,7 +141,7 @@ class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
     )
   }
 
-  withGraph.test("test temporal node-list output with window") {
+  test("test temporal node-list output with window") {
     val query = TestQuery(TemporalNodeList(), 70, List(30))
     val res   = input
       .filter { e =>

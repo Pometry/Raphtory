@@ -3,19 +3,10 @@ package com.raphtory.lotrtest
 import com.raphtory.BaseRaphtoryAlgoTest
 import com.raphtory.GlobalState
 import com.raphtory.GraphState
-import com.raphtory.Raphtory
-import com.raphtory.algorithms.generic.BinaryDiffusion
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.centrality.AverageNeighbourDegree
 import com.raphtory.algorithms.generic.centrality.Degree
-import com.raphtory.algorithms.generic.centrality.Distinctiveness
-import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.algorithms.generic.centrality.WeightedDegree
-import com.raphtory.algorithms.generic.centrality.WeightedPageRank
-import com.raphtory.algorithms.generic.community.LPA
-import com.raphtory.algorithms.generic.community.SLPA
-import com.raphtory.algorithms.generic.dynamic.DiscreteSI
-import com.raphtory.algorithms.generic.dynamic.RandomWalk
 import com.raphtory.algorithms.generic.dynamic.WattsCascade
 import com.raphtory.algorithms.generic.dynamic.WeightedRandomWalk
 import com.raphtory.algorithms.generic.motif.SquareCount
@@ -25,18 +16,14 @@ import com.raphtory.algorithms.temporal.Descendants
 import com.raphtory.algorithms.temporal.dynamic.GenericTaint
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
-import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 
-import java.io.File
 import java.net.URL
 import scala.language.postfixOps
-import sys.process._
 
 class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
-
-  withGraph.test("Graph State Test") { graph =>
+  test("Graph State Test") {
     val expected = "c21170ae40544156af69000d2b0d6e8eaf5f593d3905810c7527f2e09b8e9172"
     algorithmTest(
             algorithm = GraphState(),
@@ -44,45 +31,44 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
             end = 32674,
             increment = 10000,
             windows = List(500, 1000, 10000)
-    )(graph)
-      .map(result => assertEquals(result, expected))
+    ).map(result => assertEquals(result, expected))
   }
 
-  withGraph.test("Global State Test") { graph =>
+  test("Global State Test") {
     algorithmTest(
             algorithm = new GlobalState(),
             start = 1,
             end = 32674,
             increment = 10000,
             windows = List(500, 1000, 10000)
-    )(graph).map(assertEquals(_, "206d686bb8c5c119980d1743e4ec2aceb1dc62895d0931b5608f521e4da5c334"))
+    ).map(assertEquals(_, "206d686bb8c5c119980d1743e4ec2aceb1dc62895d0931b5608f521e4da5c334"))
   }
 
-  withGraph.test("Degree Test") { graph =>
+  test("Degree Test") {
     algorithmTest(
             algorithm = Degree,
             start = 1,
             end = 32674,
             increment = 10000,
             windows = List(500, 1000, 10000)
-    )(graph).map(assertEquals(_, "53fe18d6e38b2b32a1c8498100b888e3fd6b0d552dae99bb65fc29fd4f76336f"))
+    ).map(assertEquals(_, "53fe18d6e38b2b32a1c8498100b888e3fd6b0d552dae99bb65fc29fd4f76336f"))
   }
 
-//  withGraph.test("Distinctiveness Test") { graph =>
+//  test("Distinctiveness Test") {
 //    //    TODO: Implement actual test as output is not deterministic due to floating point errors
-//    algorithmTest(Distinctiveness[Double](), 1, 32674, 10000, List(500, 1000, 10000))(graph).map(_ =>
+//    algorithmTest(Distinctiveness[Double](), 1, 32674, 10000, List(500, 1000, 10000)).map(_ =>
 //      assert(cond = true)
 //    )
 //  }
 
-  withGraph.test("AverageNeighbourDegree Test") { graph =>
+  test("AverageNeighbourDegree Test") {
     algorithmTest(
             algorithm = AverageNeighbourDegree,
             start = 1,
             end = 32674,
             increment = 10000,
             windows = List(500, 1000, 10000)
-    )(graph).map(assertEquals(_, "61d767d6ba98d5a06099d4f6d1e42f139dcb893b1caba7983ba4d87d648c6a8a"))
+    ).map(assertEquals(_, "61d767d6ba98d5a06099d4f6d1e42f139dcb893b1caba7983ba4d87d648c6a8a"))
 
   }
 
@@ -98,14 +84,14 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 //    assert(true)
 //  }
 
-  withGraph.test("Strength Test") { graph =>
+  test("Strength Test") {
     algorithmTest(
             algorithm = WeightedDegree[Long](),
             start = 1,
             end = 32674,
             increment = 10000,
             windows = List(500, 1000, 10000)
-    )(graph).map(assertEquals(_, "ce2c985cd5db976c5fda5ffaa317d52f8e04236cc602b41468eb80d01be333ac"))
+    ).map(assertEquals(_, "ce2c985cd5db976c5fda5ffaa317d52f8e04236cc602b41468eb80d01be333ac"))
 
   }
 
@@ -123,14 +109,14 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 //    )
 //  }
 
-  withGraph.test("Connected Components Test") { graph =>
+  test("Connected Components Test") {
     algorithmTest(
             algorithm = ConnectedComponents(),
             start = 1,
             end = 32674,
             increment = 10000,
             windows = List(500, 1000, 10000)
-    )(graph).map(assertEquals(_, "c6c26df04212ac7c0ba352d3acd79fb2c38f2c2943079bbe48dde9ea2b399410"))
+    ).map(assertEquals(_, "c6c26df04212ac7c0ba352d3acd79fb2c38f2c2943079bbe48dde9ea2b399410"))
   }
 //
 //  test("Random Walk Test") {
@@ -139,14 +125,14 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 //    assert(true)
 //  }
 
-  withGraph.test("Watts Cascade Test") { graph =>
+  test("Watts Cascade Test") {
     algorithmTest(
             algorithm = WattsCascade(infectedSeed = Array("Gandalf"), threshold = 0.1),
             start = 1,
             end = 32674,
             increment = 10000,
             windows = List(500, 1000, 10000)
-    )(graph).map(assertEquals(_, "772d24456e6b63f2a7b4c4111f34ea0685344d16237b77880058770903b5ae27"))
+    ).map(assertEquals(_, "772d24456e6b63f2a7b4c4111f34ea0685344d16237b77880058770903b5ae27"))
   }
 
 //  test("DiscreteSI test") {
@@ -156,71 +142,71 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 //    )
 //  }
 
-  withGraph.test("Chain Test") { graph =>
+  test("Chain Test") {
     algorithmTest(
             algorithm = TriangleCount -> ConnectedComponents(),
             start = 1,
             end = 32674,
             increment = 10000,
             windows = List(500, 1000, 10000)
-    )(graph).map(assertEquals(_, "c6c26df04212ac7c0ba352d3acd79fb2c38f2c2943079bbe48dde9ea2b399410"))
+    ).map(assertEquals(_, "c6c26df04212ac7c0ba352d3acd79fb2c38f2c2943079bbe48dde9ea2b399410"))
   }
 
-  withGraph.test("Square counting test") { graph =>
+  test("Square counting test") {
     algorithmTest(
             algorithm = SquareCount,
             start = 1,
             end = 32674,
             increment = 10000,
             windows = List(500, 1000, 10000)
-    )(graph).map(assertEquals(_, "7f025a14361326d15e6ce9736cc5b292873a9b3a638e1f3bda1f029b44153cd8"))
+    ).map(assertEquals(_, "7f025a14361326d15e6ce9736cc5b292873a9b3a638e1f3bda1f029b44153cd8"))
   }
 
-  withGraph.test("Temporal Triangle Count") { graph =>
+  test("Temporal Triangle Count") {
     algorithmTest(
             algorithm = TriangleCount,
             start = 1,
             end = 32674,
             increment = 10000,
             windows = List(500, 1000, 10000)
-    )(graph).map(assertEquals(_, "91588edb0139e62ff1acc1be54d89a12e1691bf1ef610da8667f91e5089a0d27"))
+    ).map(assertEquals(_, "91588edb0139e62ff1acc1be54d89a12e1691bf1ef610da8667f91e5089a0d27"))
   }
 
-  withGraph.test("Taint Tracking") { graph =>
+  test("Taint Tracking") {
     algorithmTest(
             algorithm = GenericTaint(1, infectedNodes = Set("Bilbo"), stopNodes = Set("Aragorn")),
             start = 1,
             end = 32674,
             increment = 10000,
             windows = List(500, 1000, 10000)
-    )(graph).map(assertEquals(_, "f59f9a0d2fc205ac3909abe4ddfcd4f63950e17eb85c6ffe48328529d19f93b2"))
+    ).map(assertEquals(_, "f59f9a0d2fc205ac3909abe4ddfcd4f63950e17eb85c6ffe48328529d19f93b2"))
   }
 
-  withGraph.test("Weighted Random Walk") { graph =>
+  test("Weighted Random Walk") {
     algorithmPointTest(
             algorithm = WeightedRandomWalk[Int](),
             timestamp = 32674
-    )(graph).map(_ => assert(cond = true))
+    ).map(_ => assert(cond = true))
   }
 
-  withGraph.test("Ancestors Test") { graph =>
+  test("Ancestors Test") {
     algorithmTest(
             algorithm = Ancestors("Gandalf", 32674, strict = false),
             start = 1,
             end = 32674,
             increment = 10000,
             windows = List(500, 1000, 10000)
-    )(graph).map(assertEquals(_, "5f7055f9493d2b328f8e4e13239e683276f48ab3e44d7f3a13a61347405b35a7"))
+    ).map(assertEquals(_, "5f7055f9493d2b328f8e4e13239e683276f48ab3e44d7f3a13a61347405b35a7"))
   }
 
-  withGraph.test("Descendants Test") { graph =>
+  test("Descendants Test") {
     algorithmTest(
             algorithm = Descendants("Gandalf", 1000, strict = false),
             start = 1,
             end = 32674,
             increment = 10000,
             windows = List(500, 1000, 10000)
-    )(graph).map(assertEquals(_, "3d31b8b47bd25d919993680eed78c51fb991cb062f863025d2e795ecac999873"))
+    ).map(assertEquals(_, "3d31b8b47bd25d919993680eed78c51fb991cb062f863025d2e795ecac999873"))
   }
 
 // TODO Re-enable with Seed to produce same result

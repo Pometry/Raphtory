@@ -71,37 +71,44 @@ object CheckNodeCount extends Generic {
 class AccumulatorTest extends BaseCorrectnessTest(startGraph = true) {
   override def setSpout(): Spout[String] = ResourceSpout("MotifCount/motiftest.csv")
 
-  withGraph.test("Test accumulators by counting nodes") {
+  test("Test accumulators by counting nodes") {
     correctnessTest(TestQuery(CountNodes, 23), "Accumulator/results.csv")
   }
 
-  withGraph.test("Test resetting of accumulators by running CountNodes twice (should not change result)") {
+  test("Test resetting of accumulators by running CountNodes twice (should not change result)") {
     correctnessTest(TestQuery(CountNodes -> CountNodes, 23), "Accumulator/results.csv")
   }
 
-  withGraph.test("Test rotation of accumulators and state retention by running counting nodes twice") {
+  test("Test rotation of accumulators and state retention by running counting nodes twice") {
     correctnessTest(TestQuery(CountNodesTwice, 23), "Accumulator/results2.csv")
   }
 
   test("Test nodeCount on graph state is consistent for multiple perspectives") {
-    Raphtory.load(ResourceSpout("MotifCount/motiftest.csv"), BasicGraphBuilder()).use { graph =>
-      IO {
-        val job = graph
-          .range(10, 23, 1)
-          .window(10, Alignment.END)
-          .execute(CheckNodeCount)
-          .writeTo(defaultSink)
+    Raphtory
+      .load(
+              ResourceSpout("MotifCount/motiftest.csv"),
+              BasicGraphBuilder(),
+              customConfig =
+                Map("raphtory.prometheus.metrics.port" -> 0) // this makes prometheus start on a random unused port
+      )
+      .use { graph =>
+        IO {
+          val job = graph
+            .range(10, 23, 1)
+            .window(10, Alignment.END)
+            .execute(CheckNodeCount)
+            .writeTo(defaultSink)
 
-        val jobId = job.getJobId
-        job.waitForJob()
+          val jobId = job.getJobId
+          job.waitForJob()
 
-        getResults(jobId).foreach { res =>
-          if (res.nonEmpty) {
-            val t = res.split(",")
-            assertEquals(t(t.size - 1), "true")
+          getResults(jobId).foreach { res =>
+            if (res.nonEmpty) {
+              val t = res.split(",")
+              assertEquals(t(t.size - 1), "true")
+            }
           }
         }
       }
-    }
   }
 }

@@ -37,48 +37,39 @@ abstract class BaseCorrectnessTest(
       test: TestQuery,
       graphResource: String,
       resultsResource: String
-  ): Boolean =
+  ): IO[Unit] =
     Raphtory
       .load(ResourceSpout(graphResource), setGraphBuilder())
-      .use {
-        algorithmPointTest(test.algorithm, test.timestamp, test.windows)
+      .use { g =>
+        algorithmPointTest(test.algorithm, test.timestamp, test.windows, graph = g)
       }
-      .map(actual =>
-        actual == correctResultsHash(
-                resultsResource
-        )
-      )
-      .unsafeRunSync()
+      .map(assertEquals(_, correctResultsHash(resultsResource)))
 
   def correctnessTest(
       test: TestQuery,
       graphEdges: Seq[String],
       results: Seq[String]
-  ): Boolean =
+  ): IO[Unit] =
     Raphtory
       .load(SequenceSpout(graphEdges: _*), setGraphBuilder())
-      .use {
+      .use { g =>
         algorithmPointTest(
                 test.algorithm,
                 test.timestamp,
-                test.windows
+                test.windows,
+                graph = g
         )
       }
-      .map(actual =>
-        actual == correctResultsHash(
-                results
-        )
-      )
-      .unsafeRunSync()
+      .map(assertEquals(_, correctResultsHash(results)))
 
-  def correctnessTest(test: TestQuery, results: Seq[String])(graph: DeployedTemporalGraph): IO[Unit] =
-    algorithmPointTest(test.algorithm, test.timestamp, test.windows)(graph).map { obtained =>
+  def correctnessTest(test: TestQuery, results: Seq[String]): IO[Unit] =
+    algorithmPointTest(test.algorithm, test.timestamp, test.windows).map { obtained =>
       val expected = correctResultsHash(results)
       assertEquals(obtained, expected)
     }
 
-  def correctnessTest(test: TestQuery, results: String)(graph: DeployedTemporalGraph): IO[Unit] =
-    algorithmPointTest(test.algorithm, test.timestamp, test.windows)(graph).map { obtained =>
+  def correctnessTest(test: TestQuery, results: String): IO[Unit] =
+    algorithmPointTest(test.algorithm, test.timestamp, test.windows).map { obtained =>
       val expected = correctResultsHash(results)
       assertEquals(obtained, expected)
     }
