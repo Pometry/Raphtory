@@ -85,7 +85,7 @@ class AccumulatorTest extends BaseCorrectnessTest(startGraph = true) {
 
   test("Test nodeCount on graph state is consistent for multiple perspectives") {
     Raphtory
-      .load(
+      .loadIO(
               ResourceSpout("MotifCount/motiftest.csv"),
               BasicGraphBuilder(),
               customConfig =

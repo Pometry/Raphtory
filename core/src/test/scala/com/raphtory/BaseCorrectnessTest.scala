@@ -39,7 +39,7 @@ abstract class BaseCorrectnessTest(
       resultsResource: String
   ): IO[Unit] =
     Raphtory
-      .load(ResourceSpout(graphResource), setGraphBuilder())
+      .loadIO(ResourceSpout(graphResource), setGraphBuilder())
       .use { g =>
         algorithmPointTest(test.algorithm, test.timestamp, test.windows, graph = g)
       }
@@ -51,7 +51,7 @@ abstract class BaseCorrectnessTest(
       results: Seq[String]
   ): IO[Unit] =
     Raphtory
-      .load(SequenceSpout(graphEdges: _*), setGraphBuilder())
+      .loadIO(SequenceSpout(graphEdges: _*), setGraphBuilder())
       .use { g =>
         algorithmPointTest(
                 test.algorithm,

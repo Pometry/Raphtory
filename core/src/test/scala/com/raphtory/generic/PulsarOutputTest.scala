@@ -15,10 +15,8 @@ import com.raphtory.spouts.FileSpout
 import org.apache.pulsar.client.api.Schema
 import org.scalatest.Ignore
 
-import java.io.File
 import java.net.URL
 import scala.language.postfixOps
-import scala.sys.process._
 
 @Ignore
 class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFinish = false) {

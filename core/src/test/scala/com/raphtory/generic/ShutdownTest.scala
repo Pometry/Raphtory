@@ -18,14 +18,14 @@ object StreamGraphStopTestRunner extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] =
     Raphtory
-      .stream(graphBuilder = BasicGraphBuilder(), spout = SequenceSpout("1,1,1"))
+      .streamIO(graphBuilder = BasicGraphBuilder(), spout = SequenceSpout("1,1,1"))
       .use(_ => IO(println(ShutdownTest.signal)))
       .map(_ => ExitCode.Success)
 }
 
 object BatchGraphStopTestRunner extends App {
   Raphtory
-    .load(SequenceSpout("2,2,2"), BasicGraphBuilder())
+    .loadIO(SequenceSpout("2,2,2"), BasicGraphBuilder())
     .use(_ => IO(println(ShutdownTest.signal)))
     .map(_ => ExitCode.Success)
 }

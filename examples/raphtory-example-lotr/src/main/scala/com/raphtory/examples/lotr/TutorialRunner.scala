@@ -22,7 +22,7 @@ object TutorialRunner extends IOApp {
 
     val source  = FileSpout(path)
     val builder = new LOTRGraphBuilder()
-    Raphtory.load(spout = source, graphBuilder = builder).use { graph =>
+    Raphtory.loadIO(spout = source, graphBuilder = builder).use { graph =>
       IO.blocking {
 
         val output = FileSink("/tmp/raphtory")

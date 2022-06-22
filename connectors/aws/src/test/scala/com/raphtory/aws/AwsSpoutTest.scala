@@ -23,7 +23,7 @@ object AwsSpoutTest extends IOApp {
     val source               = AwsS3Spout(awsS3SpoutBucketName,awsS3SpoutBucketKey)
     val builder              = new LotrGraphBuilder()
     val output               = AwsS3Sink(awsS3OutputFormatBucketName)
-    Raphtory.stream(spout = source, graphBuilder = builder).use { graph =>
+    Raphtory.streamIO(spout = source, graphBuilder = builder).use { graph =>
       IO {
         graph
           .at(32674)

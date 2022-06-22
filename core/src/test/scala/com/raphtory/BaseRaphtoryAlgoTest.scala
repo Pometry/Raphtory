@@ -36,8 +36,8 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   def defaultSink: Sink       = FileSink(outputDirectory)
 
   private def graph: Resource[IO, DeployedTemporalGraph] =
-    if (batchLoading()) Raphtory.load[T](setSpout(), setGraphBuilder())
-    else Raphtory.stream[T](setSpout(), setGraphBuilder())
+    if (batchLoading()) Raphtory.loadIO[T](setSpout(), setGraphBuilder())
+    else Raphtory.streamIO[T](setSpout(), setGraphBuilder())
 
   val withGraph: SyncIO[FunFixture[DeployedTemporalGraph]] = ResourceFixture(
           for {

@@ -26,7 +26,7 @@ object Runner extends IOApp {
         new LiveTwitterRetweetGraphBuilder()
       else
         new LiveTwitterUserGraphBuilder()
-    Raphtory.stream(spout = source, graphBuilder = builder).use { graph =>
+    Raphtory.streamIO(spout = source, graphBuilder = builder).use { graph =>
       IO {
         graph
           .walk("10 milliseconds")

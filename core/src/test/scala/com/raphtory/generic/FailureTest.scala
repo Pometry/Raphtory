@@ -21,7 +21,7 @@ class FailingAlgo extends Generic {
 class FailureTest extends AnyFunSuite {
   test("test failure propagation") {
     Raphtory
-      .stream(
+      .streamIO(
               spout = SequenceSpout("1,1,1"),
               graphBuilder = BasicGraphBuilder()
       )

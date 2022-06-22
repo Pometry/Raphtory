@@ -32,7 +32,7 @@ object LiveTwitterTest extends IOApp {
       else
         new LiveTwitterUserGraphBuilder()
 
-    Raphtory.stream[Tweet](spout, graphBuilder).use { graph =>
+    Raphtory.streamIO[Tweet](spout, graphBuilder).use { graph =>
       IO {
         graph
           .walk("5 milliseconds")
