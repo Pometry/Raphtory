@@ -209,9 +209,9 @@ private[raphtory] class QueryExecutor(
           val time = System.currentTimeMillis()
           graphLens.nextStep()
           graphLens.explodeView(interlayerEdgeBuilder) {
-            val sentMessages     = sentMessageCount.get()
-            val receivedMessages = receivedMessageCount.get()
-            flushMessages().thenApply { _ =>
+            afterAllMessagesSentAndReceived {
+              val sentMessages     = sentMessageCount.get()
+              val receivedMessages = receivedMessageCount.get()
               taskManager sendAsync
                 GraphFunctionComplete(
                         currentPerspectiveID,
@@ -230,9 +230,10 @@ private[raphtory] class QueryExecutor(
           val time = System.currentTimeMillis()
           graphLens.nextStep()
           graphLens.reduceView(defaultMergeStrategy, mergeStrategyMap, aggregate) {
-            val sentMessages     = sentMessageCount.get()
-            val receivedMessages = receivedMessageCount.get()
-            flushMessages().thenApply { _ =>
+            afterAllMessagesSentAndReceived {
+              val sentMessages     = sentMessageCount.get()
+              val receivedMessages = receivedMessageCount.get()
+
               taskManager sendAsync
                 GraphFunctionComplete(
                         currentPerspectiveID,
@@ -251,9 +252,9 @@ private[raphtory] class QueryExecutor(
           val time = System.currentTimeMillis()
           graphLens.nextStep()
           graphLens.runGraphFunction(f) {
-            val sentMessages     = sentMessageCount.get()
-            val receivedMessages = receivedMessageCount.get()
-            flushMessages().thenApply { _ =>
+            afterAllMessagesSentAndReceived {
+              val sentMessages     = sentMessageCount.get()
+              val receivedMessages = receivedMessageCount.get()
               taskManager sendAsync
                 GraphFunctionComplete(
                         currentPerspectiveID,
@@ -272,10 +273,9 @@ private[raphtory] class QueryExecutor(
           val time = System.currentTimeMillis()
           graphLens.nextStep()
           graphLens.runGraphFunction(f, graphState) {
-
-            val sentMessages     = sentMessageCount.get()
-            val receivedMessages = receivedMessageCount.get()
-            flushMessages().thenApply { _ =>
+            afterAllMessagesSentAndReceived {
+              val sentMessages     = sentMessageCount.get()
+              val receivedMessages = receivedMessageCount.get()
               taskManager sendAsync
                 GraphFunctionCompleteWithState(
                         currentPerspectiveID,
@@ -301,9 +301,10 @@ private[raphtory] class QueryExecutor(
             else
               graphLens.runGraphFunction(f)(_)
           fun {
-            val sentMessages     = sentMessageCount.get()
-            val receivedMessages = receivedMessageCount.get()
-            flushMessages().thenApply { _ =>
+            afterAllMessagesSentAndReceived {
+              val sentMessages     = sentMessageCount.get()
+              val receivedMessages = receivedMessageCount.get()
+
               taskManager sendAsync
                 GraphFunctionComplete(
                         currentPerspectiveID,
@@ -330,10 +331,10 @@ private[raphtory] class QueryExecutor(
             else
               graphLens.runGraphFunction(f, graphState)(_)
           fun {
-            val sentMessages     = sentMessageCount.get()
-            val receivedMessages = receivedMessageCount.get()
-            votedToHalt = graphLens.checkVotes()
-            flushMessages().thenApply { _ =>
+            afterAllMessagesSentAndReceived {
+              val sentMessages     = sentMessageCount.get()
+              val receivedMessages = receivedMessageCount.get()
+              votedToHalt = graphLens.checkVotes()
               taskManager sendAsync
                 GraphFunctionCompleteWithState(
                         currentPerspectiveID,
@@ -364,22 +365,26 @@ private[raphtory] class QueryExecutor(
           val time = System.currentTimeMillis()
           graphLens.nextStep()
           graphLens.executeSelect(f) {
-            taskManager sendAsync TableBuilt(currentPerspectiveID)
-            logger.debug(
-                    s"Job '$jobID' at Partition '$partitionID': Select executed on graph in ${System
-                      .currentTimeMillis() - time}ms."
-            )
+            afterAllMessagesSentAndReceived {
+              taskManager sendAsync TableBuilt(currentPerspectiveID)
+              logger.debug(
+                      s"Job '$jobID' at Partition '$partitionID': Select executed on graph in ${System
+                        .currentTimeMillis() - time}ms."
+              )
+            }
           }
 
         case SelectWithGraph(f, graphState)                                   =>
           val time = System.currentTimeMillis()
           graphLens.nextStep()
           graphLens.executeSelect(f, graphState) {
-            taskManager sendAsync TableBuilt(currentPerspectiveID)
-            logger.debug(
-                    s"Job '$jobID' at Partition '$partitionID': Select executed on graph with accumulators in ${System
-                      .currentTimeMillis() - time}ms."
-            )
+            afterAllMessagesSentAndReceived {
+              taskManager sendAsync TableBuilt(currentPerspectiveID)
+              logger.debug(
+                      s"Job '$jobID' at Partition '$partitionID': Select executed on graph with accumulators in ${System
+                        .currentTimeMillis() - time}ms."
+              )
+            }
           }
 
         case GlobalSelect(f, graphState)                                      =>
@@ -406,11 +411,13 @@ private[raphtory] class QueryExecutor(
           val time = System.currentTimeMillis()
           graphLens.nextStep()
           graphLens.explodeSelect(f) {
-            taskManager sendAsync TableBuilt(currentPerspectiveID)
-            logger.debug(
-                    s"Job '$jobID' at Partition '$partitionID': Exploded Select executed on graph in ${System
-                      .currentTimeMillis() - time}ms."
-            )
+            afterAllMessagesSentAndReceived {
+              taskManager sendAsync TableBuilt(currentPerspectiveID)
+              logger.debug(
+                      s"Job '$jobID' at Partition '$partitionID': Exploded Select executed on graph in ${System
+                        .currentTimeMillis() - time}ms."
+              )
+            }
           }
 
         case TableFilter(f)                                                   =>
@@ -556,5 +563,8 @@ private[raphtory] class QueryExecutor(
         messageCache.put(producer, mutable.ArrayBuffer[GenericVertexMessage[_]]())
     })
   }
+
+  private def afterAllMessagesSentAndReceived(f: => Unit): Unit =
+    flushMessages().thenApply(_ => f)
 
 }
