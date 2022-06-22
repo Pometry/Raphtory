@@ -63,7 +63,7 @@ abstract class RaphtoryService[T: ClassTag] extends IOApp {
 
   def useToExitCode[R](name: String, r: Resource[IO, R]): IO[ExitCode] =
     r.attempt.use {
-      case Right(_) => IO(ExitCode.Success)
+      case Right(_) => IO.never *> IO(ExitCode.Success)
       case Left(t)  => IO(logger.error(s"Failed to start $name", t)) *> IO(ExitCode.Error)
     }
 
