@@ -15,7 +15,7 @@ Raphtory is an open-source platform for distributed real-time temporal graph ana
 </p>
 
 ## 0.1.0 - Raphtory Post Alpha Release
-With the upcoming release of 0.1.0, we have completely rebuilt Raphtory from the ground up. The full changelog can be dug into [here](https://github.com/Raphtory/Raphtory/releases), but as a sneak peek this includes:
+With the release of 0.1.0, we have completely rebuilt Raphtory from the ground up. The full changelog can be dug into [here](https://github.com/Raphtory/Raphtory/releases), but as a sneak peek this includes:
 
 * A brand new Analytical API with expressive windowing and history exploration, composable algorithms/chaining, global aggregators/histograms, filters/sampling, multilayer graph projections, clearer output formats and much more.
 * A communication layer which allows for fine-grained management of how Raphtory components send messages. This by default is split between [Apache Pulsar](https://pulsar.apache.org) for updates and vertex messages and [Akka](https://akka.io) for control messages. This fixes a number of issues faced in prior versions, notably around message back pressure and cluster management.
