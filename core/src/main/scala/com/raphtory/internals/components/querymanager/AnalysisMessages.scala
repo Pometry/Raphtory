@@ -37,7 +37,9 @@ private[raphtory] case object RecheckTime                 extends QueryManagemen
 private[raphtory] case object RecheckEarliestTime         extends QueryManagement
 private[raphtory] case class CheckMessages(jobId: String) extends QueryManagement
 
-sealed private[raphtory] trait GenericVertexMessage[VertexID] extends QueryManagement {
+sealed private[raphtory] trait VertexMessaging extends QueryManagement
+
+sealed private[raphtory] trait GenericVertexMessage[VertexID] extends VertexMessaging {
   def superstep: Int
   def vertexId: VertexID
 }
@@ -48,7 +50,7 @@ private[raphtory] case class VertexMessage[+T, VertexID](
     data: T
 ) extends GenericVertexMessage[VertexID]
 
-private[raphtory] case class VertexMessageBatch(data: Array[GenericVertexMessage[_]]) extends QueryManagement
+private[raphtory] case class VertexMessageBatch(data: Array[GenericVertexMessage[_]]) extends VertexMessaging
 
 private[raphtory] case class FilteredEdgeMessage[VertexID](
     superstep: Int,

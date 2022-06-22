@@ -16,6 +16,7 @@ import com.raphtory.api.analysis.table.TableFilter
 import com.raphtory.api.analysis.table.WriteToOutput
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.output.sink.SinkExecutor
+import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.querymanager.AlgorithmFailure
@@ -34,17 +35,22 @@ import com.raphtory.internals.components.querymanager.SetMetaData
 import com.raphtory.internals.components.querymanager.TableBuilt
 import com.raphtory.internals.components.querymanager.TableFunctionComplete
 import com.raphtory.internals.components.querymanager.VertexMessageBatch
+import com.raphtory.internals.components.querymanager.VertexMessagesSync
+import com.raphtory.internals.components.querymanager.VertexMessaging
 import com.raphtory.internals.components.querymanager.WriteCompleted
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
+import com.raphtory.internals.storage.pojograph.messaging.VertexMessageHandler
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
+import scala.collection.mutable
 import scala.util.Try
 
 private[raphtory] class QueryExecutor(
@@ -65,16 +71,46 @@ private[raphtory] class QueryExecutor(
   private val receivedMessageCount: AtomicInteger = new AtomicInteger(0)
   private var votedToHalt: Boolean                = false
 
-  private val listeningTopics =
-    if (totalPartitions > 1) Seq(topics.jobOperations(jobID), topics.vertexMessages(jobID))
-    else Seq(topics.jobOperations(jobID))
+  private val msgBatchPath: String  = "raphtory.partitions.batchMessages"
+  private val messageBatch: Boolean = conf.getBoolean(msgBatchPath)
+  private val maxBatchSize: Int     = conf.getInt("raphtory.partitions.maxMessageBatchSize")
+
+  if (messageBatch)
+    logger.debug(
+            s"Message batching is set to on. To change this modify '$msgBatchPath' in the application conf."
+    )
 
   private val listener = topics.registerListener(
           s"$deploymentID-$jobID-query-executor-$partitionID",
           handleMessage,
-          listeningTopics,
+          topics.jobOperations(jobID),
           partitionID
   )
+
+  private val vertexMessageListener =
+    if (totalPartitions > 1)
+      Some(
+              topics.registerListener(
+                      s"$deploymentID-$jobID-query-executor-$partitionID",
+                      receiveVertexMessage,
+                      topics.vertexMessages(jobID),
+                      partitionID
+              )
+      )
+    else None
+
+  private val vertexControlMessageListener =
+    if (totalPartitions > 1)
+      Some(
+              topics.registerListener(
+                      s"$deploymentID-$jobID-query-executor-$partitionID",
+                      receiveVertexControlMessage,
+                      topics.vertexMessagesSync(jobID),
+                      partitionID
+              )
+      )
+    else
+      None
 
   private val taskManager = topics.jobStatus(jobID).endPoint
 
@@ -89,11 +125,15 @@ private[raphtory] class QueryExecutor(
   override def run(): Unit = {
     logger.debug(s"Job '$jobID' at Partition '$partitionID': Starting query executor consumer.")
     listener.start()
+    vertexMessageListener.foreach(_.start())
+    vertexControlMessageListener.foreach(_.start())
     taskManager sendAsync ExecutorEstablished(partitionID)
   }
 
   override def stop(): Unit = {
-    Try(listener.close())
+    listener.close()
+    vertexMessageListener.foreach(_.close())
+    vertexControlMessageListener.foreach(_.close())
     logger.debug(s"closing query executor consumer for $jobID on partition $partitionID")
     taskManager.close()
     neighbours match {
@@ -102,46 +142,56 @@ private[raphtory] class QueryExecutor(
     }
   }
 
+  def receiveVertexMessage(msg: VertexMessaging): Unit =
+    try msg match {
+
+      case VertexMessageBatch(msgBatch) =>
+        logger.trace(
+                s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessageBatch', '[${msgBatch
+                  .mkString(",")}]'."
+        )
+        msgBatch.foreach(message => graphLens.receiveMessage(message))
+        receivedMessageCount.addAndGet(msgBatch.size)
+
+      case msg: GenericVertexMessage[_] =>
+        logger.trace(
+                s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessage', '$msg'."
+        )
+        graphLens.receiveMessage(msg)
+        receivedMessageCount.addAndGet(1)
+    }
+    catch {
+      case e: Throwable =>
+        errorHandler(e)
+    }
+
+  def receiveVertexControlMessage(msg: VertexMessagesSync): Unit = {}
+
   override def handleMessage(msg: QueryManagement): Unit = {
     try {
       msg match {
-
-        case VertexMessageBatch(msgBatch)                                     =>
-          logger.trace(
-                  s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessageBatch', '[${msgBatch
-                    .mkString(",")}]'."
-          )
-          msgBatch.foreach(message => graphLens.receiveMessage(message))
-          receivedMessageCount.addAndGet(msgBatch.size)
-
-        case msg: GenericVertexMessage[_]                                     =>
-          logger.trace(
-                  s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessage', '$msg'."
-          )
-          graphLens.receiveMessage(msg)
-          receivedMessageCount.addAndGet(1)
-
         case CreatePerspective(id, perspective)                               =>
+          currentPerspectiveID = id
+          currentPerspective = perspective
+          sentMessageCount.set(0)
+          receivedMessageCount.set(0)
+          refreshBuffers()
           val time = System.currentTimeMillis()
-          val lens = PojoGraphLens(
+          graphLens = PojoGraphLens(
                   jobID,
                   perspective.actualStart,
                   perspective.actualEnd,
                   superStep = 0,
                   storage,
                   conf,
-                  neighbours,
+                  sendMessage,
                   sentMessageCount,
                   receivedMessageCount,
                   errorHandler,
                   scheduler
           )
-          currentPerspectiveID = id
-          currentPerspective = perspective
-          graphLens = lens
-          sentMessageCount.set(0)
-          receivedMessageCount.set(0)
-          taskManager sendAsync PerspectiveEstablished(currentPerspectiveID, lens.getSize)
+
+          taskManager sendAsync PerspectiveEstablished(currentPerspectiveID, graphLens.localNodeCount)
           logger.debug(
                   s"Job '$jobID' at Partition '$partitionID': Created perspective at time '${perspective.timestamp}' with window '${perspective.window}'. in ${System
                     .currentTimeMillis() - time}ms"
@@ -161,7 +211,7 @@ private[raphtory] class QueryExecutor(
           graphLens.explodeView(interlayerEdgeBuilder) {
             val sentMessages     = sentMessageCount.get()
             val receivedMessages = receivedMessageCount.get()
-            graphLens.getMessageHandler().flushMessages().thenApply { _ =>
+            flushMessages().thenApply { _ =>
               taskManager sendAsync
                 GraphFunctionComplete(
                         currentPerspectiveID,
@@ -182,7 +232,7 @@ private[raphtory] class QueryExecutor(
           graphLens.reduceView(defaultMergeStrategy, mergeStrategyMap, aggregate) {
             val sentMessages     = sentMessageCount.get()
             val receivedMessages = receivedMessageCount.get()
-            graphLens.getMessageHandler().flushMessages().thenApply { _ =>
+            flushMessages().thenApply { _ =>
               taskManager sendAsync
                 GraphFunctionComplete(
                         currentPerspectiveID,
@@ -203,7 +253,7 @@ private[raphtory] class QueryExecutor(
           graphLens.runGraphFunction(f) {
             val sentMessages     = sentMessageCount.get()
             val receivedMessages = receivedMessageCount.get()
-            graphLens.getMessageHandler().flushMessages().thenApply { _ =>
+            flushMessages().thenApply { _ =>
               taskManager sendAsync
                 GraphFunctionComplete(
                         currentPerspectiveID,
@@ -225,7 +275,7 @@ private[raphtory] class QueryExecutor(
 
             val sentMessages     = sentMessageCount.get()
             val receivedMessages = receivedMessageCount.get()
-            graphLens.getMessageHandler().flushMessages().thenApply { _ =>
+            flushMessages().thenApply { _ =>
               taskManager sendAsync
                 GraphFunctionCompleteWithState(
                         currentPerspectiveID,
@@ -253,7 +303,7 @@ private[raphtory] class QueryExecutor(
           fun {
             val sentMessages     = sentMessageCount.get()
             val receivedMessages = receivedMessageCount.get()
-            graphLens.getMessageHandler().flushMessages().thenApply { _ =>
+            flushMessages().thenApply { _ =>
               taskManager sendAsync
                 GraphFunctionComplete(
                         currentPerspectiveID,
@@ -283,7 +333,7 @@ private[raphtory] class QueryExecutor(
             val sentMessages     = sentMessageCount.get()
             val receivedMessages = receivedMessageCount.get()
             votedToHalt = graphLens.checkVotes()
-            graphLens.getMessageHandler().flushMessages().thenApply { _ =>
+            flushMessages().thenApply { _ =>
               taskManager sendAsync
                 GraphFunctionCompleteWithState(
                         currentPerspectiveID,
@@ -438,4 +488,73 @@ private[raphtory] class QueryExecutor(
     error.printStackTrace()
     taskManager sendAsync AlgorithmFailure(currentPerspectiveID, error)
   }
+
+  private val messageCache =
+    mutable.Map[EndPoint[VertexMessaging], mutable.ArrayBuffer[GenericVertexMessage[_]]]()
+  refreshBuffers()
+
+  def sendMessage(message: GenericVertexMessage[_]): Unit = {
+    val vId                  = message.vertexId match {
+      case (v: Long, _) => v
+      case v: Long      => v
+    }
+    sentMessageCount.incrementAndGet()
+    val destinationPartition = (vId.abs % totalPartitions).toInt
+    if (destinationPartition == partitionID) { //sending to this partition
+      graphLens.receiveMessage(message)
+      receivedMessageCount.incrementAndGet()
+    }
+    else { //sending to a remote partition
+      val producer = neighbours match {
+        case Some(endPoints) => endPoints(destinationPartition)
+        case None            =>
+          val msg =
+            s"Trying to send message to partition $destinationPartition from partition $partitionID but no endPoints were provided"
+          logger.error(msg)
+          throw new IllegalStateException(msg)
+      }
+      if (messageBatch) {
+        val cache = messageCache(producer)
+        cache.synchronized {
+          cache += message
+          if (cache.size > maxBatchSize)
+            sendCached(producer)
+        }
+      }
+      else
+        producer sendAsync message
+    }
+
+  }
+
+  def sendCached(readerJobWorker: EndPoint[VertexMessaging]): Unit = {
+    val cache = messageCache(readerJobWorker)
+    cache.synchronized {
+      readerJobWorker sendAsync VertexMessageBatch(cache.toArray)
+      cache.clear() // synchronisation breaks if we create a new object here
+    }
+  }
+
+  def flushMessages(): CompletableFuture[Void] = {
+    logger.debug("Flushing messages in vertex handler.")
+
+    if (messageBatch)
+      messageCache.keys.foreach(producer => sendCached(producer))
+    neighbours match {
+      case Some(producers) =>
+        val futures = producers.values.map(_.flushAsync())
+        CompletableFuture.allOf(futures.toSeq: _*)
+      case None            => CompletableFuture.completedFuture(null)
+    }
+  }
+
+  private def refreshBuffers(): Unit = {
+    logger.debug("Refreshing messageCache buffers for all Producers.")
+
+    neighbours.foreach(_.foreach {
+      case (key, producer) =>
+        messageCache.put(producer, mutable.ArrayBuffer[GenericVertexMessage[_]]())
+    })
+  }
+
 }

@@ -3,9 +3,10 @@ package com.raphtory.internals.communication
 import com.raphtory.internals.components.querymanager.EndQuery
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManagement
+import com.raphtory.internals.components.querymanager.VertexMessagesSync
+import com.raphtory.internals.components.querymanager.VertexMessaging
 import com.raphtory.internals.components.querymanager.WatermarkTime
 import com.raphtory.internals.graph.GraphAlteration._
-import com.raphtory.internals.components.querymanager.VertexMessagesSync
 import com.typesafe.config.Config
 
 private[raphtory] class TopicRepository(
@@ -69,8 +70,8 @@ private[raphtory] class TopicRepository(
   final def jobStatus(jobId: String): ExclusiveTopic[QueryManagement] =
     ExclusiveTopic[QueryManagement](jobStatusConnector, "job.status", s"$depId-$jobId")
 
-  final def vertexMessages(jobId: String): ShardingTopic[QueryManagement] =
-    ShardingTopic[QueryManagement](
+  final def vertexMessages(jobId: String): ShardingTopic[VertexMessaging] =
+    ShardingTopic[VertexMessaging](
             numPartitions,
             vertexMessagesConnector,
             "vertex.messages",
