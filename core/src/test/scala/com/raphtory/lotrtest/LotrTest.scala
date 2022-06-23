@@ -10,7 +10,7 @@ import com.raphtory.algorithms.generic.centrality.WeightedDegree
 import com.raphtory.algorithms.generic.dynamic.WattsCascade
 import com.raphtory.algorithms.generic.dynamic.WeightedRandomWalk
 import com.raphtory.algorithms.generic.motif.SquareCount
-import com.raphtory.algorithms.generic.motif.TriangleCount
+import com.raphtory.algorithms.generic.motif.LocalTriangleCount
 import com.raphtory.algorithms.temporal.Ancestors
 import com.raphtory.algorithms.temporal.Descendants
 import com.raphtory.algorithms.temporal.dynamic.GenericTaint
@@ -144,7 +144,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Chain Test") {
     algorithmTest(
-            algorithm = TriangleCount -> ConnectedComponents(),
+            algorithm = LocalTriangleCount -> ConnectedComponents(),
             start = 1,
             end = 32674,
             increment = 10000,
@@ -164,7 +164,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Temporal Triangle Count") {
     algorithmTest(
-            algorithm = TriangleCount,
+            algorithm = LocalTriangleCount,
             start = 1,
             end = 32674,
             increment = 10000,
