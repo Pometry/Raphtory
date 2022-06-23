@@ -1,16 +1,17 @@
-package com.raphtory.generic
+package com.raphtory.api
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
-import com.raphtory.BaseCorrectnessTest
-import com.raphtory.BasicGraphBuilder
-import com.raphtory.Raphtory
 import com.raphtory.api.analysis.algorithm.Generic
-import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.internals.communication.repositories.PulsarAkkaTopicRepository
+import com.raphtory.internals.components.querymanager.GraphFunctionComplete
+import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.SequenceSpout
-import org.scalatest.funsuite.AnyFunSuite
+import com.raphtory.BasicGraphBuilder
+import com.raphtory.Raphtory
+import com.raphtory.internals.communication.EndPoint
+import munit.CatsEffectSuite
 
 class FailingAlgo extends Generic {
 
@@ -18,8 +19,8 @@ class FailingAlgo extends Generic {
     graph.step(_ => throw new Exception("Algorithm failed"))
 }
 
-class FailureTest extends AnyFunSuite {
-  test("test failure propagation") {
+class FailureTest extends CatsEffectSuite {
+  test("test failure propagation for failure in algorithm step") {
     Raphtory
       .streamIO(
               spout = SequenceSpout("1,1,1"),
@@ -42,7 +43,5 @@ class FailureTest extends AnyFunSuite {
           ) // if query failed to terminate after 20 seconds, assuming infinite loop
         }
       }
-      .unsafeRunSync()
-
   }
 }

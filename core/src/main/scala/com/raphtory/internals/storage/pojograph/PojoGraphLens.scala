@@ -32,8 +32,6 @@ final private[raphtory] case class PojoGraphLens(
     private val storage: GraphPartition,
     private val conf: Config,
     private val messageSender: GenericVertexMessage[_] => Unit,
-    private val sentMessages: AtomicInteger,
-    private val receivedMessages: AtomicInteger,
     private val errorHandler: (Throwable) => Unit,
     private val scheduler: Scheduler
 ) extends GraphLens(jobId, start, end)

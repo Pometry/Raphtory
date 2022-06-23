@@ -70,7 +70,7 @@ private[raphtory] case class FilteredOutEdgeMessage[VertexID](
     sourceId: VertexID
 ) extends GenericVertexMessage[VertexID]
 
-private[raphtory] case class VertexMessagesSync(superstep: Int, partitionID: Int, count: Long)
+private[raphtory] case class VertexMessagesSync(partitionID: Int, count: Long)
 
 private[raphtory] case class Query(
     name: String = "",
@@ -114,16 +114,16 @@ private[raphtory] case class MetaDataSet(perspectiveID: Int)                    
 private[raphtory] case class GraphFunctionComplete(
     perspectiveID: Int,
     partitionID: Int,
-    receivedMessages: Int,
-    sentMessages: Int,
+    receivedMessages: Long,
+    sentMessages: Long,
     votedToHalt: Boolean = false
 ) extends PerspectiveStatus
 
 private[raphtory] case class GraphFunctionCompleteWithState(
     perspectiveID: Int,
     partitionID: Int,
-    receivedMessages: Int,
-    sentMessages: Int,
+    receivedMessages: Long,
+    sentMessages: Long,
     votedToHalt: Boolean = false,
     graphState: GraphStateImplementation
 ) extends PerspectiveStatus
