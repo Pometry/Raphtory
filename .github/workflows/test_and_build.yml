@@ -57,7 +57,7 @@ jobs:
       - name: Run SBT tests
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH
-          sbt core/test
+          sbt test
         timeout-minutes: 10
     if: needs.configure.outputs.type == 'regular'
 
