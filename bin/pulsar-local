@@ -30,18 +30,20 @@ Options:
         start
         stop
 
-  -v pulsar version        Version of pulsar to install and use.
-                           Default is set to "2.9.0"
+  -v pulsar version                   Version of pulsar to install and use.
+                                      Default is set to "2.9.0"
 
-  -p pulsar install path   Path to install location for pulsar binaries.
-                           Must have write and execute permissions for the specified directory
-                           Default set to /usr/local/bin
-                           (use with machine deployment_type)
+  -p pulsar install path              Path to install location for pulsar binaries.
+                                      Must have write and execute permissions for the specified directory
+                                      Default set to /usr/local/bin
+                                      (use with machine deployment_type)
 
-  -m minikube context      Name of minikube cluster context (required when using 'minikube' action)
-                           To see available contexts, run 'kubectl config get-contexts -o name'
+  -m minikube context                 Name of minikube cluster context (required when using 'minikube' action)
+                                      To see available contexts, run 'kubectl config get-contexts -o name'
 
-  -q quiet mode            Will suppress logging to terminal where possible
+  -q quiet mode                       Will suppress logging to terminal where possible
+
+  -l disable local pulsar connection  Will disable local connection to minikube pulsar and will not override advertise address
 
 USAGE
   exit 1
@@ -50,8 +52,9 @@ USAGE
 PULSAR_INSTALL_PATH=/usr/local/bin
 PULSAR_VERSION=2.9.0
 PULSAR_HELM_CHART_VERSION=2.7.10
+PULSAR_LOCAL_MACHINE_CONNECTION="--set-string broker.configData.advertisedAddress=localhost"
 
-while getopts a:d:v:p:m:q opt
+while getopts a:d:v:p:m:ql opt
 do
  case "${opt}" in
    a) ACTION=${OPTARG};;
@@ -59,15 +62,16 @@ do
    v) PULSAR_VERSION=${OPTARG};;
    p) PULSAR_INSTALL_PATH=${OPTARG};;
    m) PULSAR_LOCAL_MINIKUBE_CONTEXT=${OPTARG};;
+   l) unset PULSAR_LOCAL_MACHINE_CONNECTION;;
    q) QUIET="true";;
    *) usage;;
  esac
 done
 
-# For helm install, set version to 2.7.4 untill the below issues with helm 2.9.0 are resolved by pulsar team
+# For helm install, set pulsar docker image version to 2.7.4 untill the below issues with 2.9.0 are resolved by pulsar team
 # https://github.com/apache/pulsar-helm-chart/issues/188
 # https://github.com/apache/pulsar-helm-chart/issues/190
-[[ $DEPLOYMENT_TYPE == "minikube" ]] && PULSAR_VERSION=2.7.4
+[[ $DEPLOYMENT_TYPE -eq "minikube" ]] && PULSAR_VERSION=2.7.4
 
 PULSAR_BIN_PATH="${PULSAR_INSTALL_PATH}/apache-pulsar-${PULSAR_VERSION}"
 PULSAR_CONNECTORS_PATH="${PULSAR_BIN_PATH}/connectors"
@@ -120,7 +124,6 @@ docker_start () {
   -p 2181:2181 \
   --mount source=pulsardata,target=/pulsar/data \
   --mount source=pulsarconf,target=/pulsar/conf \
-  --platform linux/amd64 \
   apachepulsar/pulsar-all:${PULSAR_VERSION} \
   bin/pulsar standalone --advertised-address localhost 2>&1 > /dev/null
 }
@@ -195,7 +198,7 @@ minikube_start () {
   echo "Adding helm repo"
   helm repo add apache https://pulsar.apache.org/charts
   helm repo update
-  echo "Installing pulsar helm chart"
+  echo "Installing pulsar helm chart version $PULSAR_HELM_CHART_VERSION with docker image version $PULSAR_VERSION"
   helm install -n pulsar pulsar apache/pulsar\
     --version=${PULSAR_HELM_CHART_VERSION} \
     --create-namespace \
@@ -219,21 +222,26 @@ minikube_start () {
     --set images.autorecovery.tag=$PULSAR_VERSION \
     --set images.broker.tag=$PULSAR_VERSION \
     --set images.proxy.tag=$PULSAR_VERSION \
-    --set images.functions.tag=$PULSAR_VERSION
+    --set images.functions.tag=$PULSAR_VERSION $PULSAR_LOCAL_MACHINE_CONNECTION
 
-  echo "Waiting 5 minutes to allow services to start"
-  sleep 300
-
-  echo "Forwarding ports"
-  kubectl port-forward service/pulsar-broker --namespace pulsar 6650:6650 &
-  kubectl port-forward service/pulsar-broker --namespace pulsar 8080:8080 &
-  kubectl port-forward service/pulsar-zookeeper --namespace pulsar 2181:2181 &
-  echo "Ports forwarded"
+  if [ -n "${PULSAR_LOCAL_MACHINE_CONNECTION}" ];
+  then
+    echo "Waiting 5 minutes to allow services to start"
+    sleep 300
+    echo "Forwarding ports"
+    kubectl port-forward service/pulsar-broker --namespace pulsar 6650:6650 &
+    kubectl port-forward service/pulsar-broker --namespace pulsar 8080:8080 &
+    kubectl port-forward service/pulsar-zookeeper --namespace pulsar 2181:2181 &
+    echo "Ports forwarded"
+  fi
 }
 
 minikube_get_proxy_details () {
-  echo "To connect to pulsar broker in minkube, you can connect to the proxy URL's below"
-  minikube service list --profile $PULSAR_LOCAL_MINIKUBE_CONTEXT -n pulsar|egrep "http/|pulsar/"
+  if [ -n "${PULSAR_LOCAL_MACHINE_CONNECTION}" ];
+  then
+    echo "To connect to pulsar broker in minkube, you can connect to the proxy URL's below"
+    minikube service list --profile $PULSAR_LOCAL_MINIKUBE_CONTEXT -n pulsar|egrep "http/|pulsar/"
+  fi
 }
 
 minikube_stop () {
