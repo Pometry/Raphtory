@@ -27,8 +27,7 @@ private[raphtory] trait PojoVertexBase extends Vertex {
   def hasMessage: Boolean =
     multiQueue.getMessageQueue(lens.superStep).nonEmpty
 
-  def messageQueue[T]
-      : List[T] = { //clears queue after getting it to make sure not there for next iteration
+  def messageQueue[T]: List[T] = { //clears queue after getting it to make sure not there for next iteration
     val queue = multiQueue.getMessageQueue(lens.superStep).map(_.asInstanceOf[T])
     multiQueue.clearQueue(lens.superStep)
     queue
@@ -94,12 +93,8 @@ private[raphtory] trait PojoVertexBase extends Vertex {
     // key is the vertex of the other side of edge
     filtered = true
     lens.needsFiltering = true
-    internalIncomingEdges.keys.foreach(k =>
-      lens.sendMessage(FilteredOutEdgeMessage(lens.superStep + 1, k, ID))
-    )
-    internalOutgoingEdges.keys.foreach(k =>
-      lens.sendMessage(FilteredInEdgeMessage(lens.superStep + 1, k, ID))
-    )
+    internalIncomingEdges.keys.foreach(k => lens.sendMessage(FilteredOutEdgeMessage(lens.superStep + 1, k, ID)))
+    internalOutgoingEdges.keys.foreach(k => lens.sendMessage(FilteredInEdgeMessage(lens.superStep + 1, k, ID)))
   }
 
   def getOutEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge] =

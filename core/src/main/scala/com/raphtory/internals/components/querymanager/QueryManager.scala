@@ -1,5 +1,8 @@
 package com.raphtory.internals.components.querymanager
 
+import cats.effect.Async
+import cats.effect.Resource
+import com.raphtory.internals.communication.CanonicalTopic
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.management.Scheduler
@@ -22,23 +25,12 @@ private[raphtory] class QueryManager(
   //private val watermarkGlobal                           = pulsarController.globalwatermarkPublisher() TODO: turn back on when needed
   private val watermarks: Map[Int, WatermarkTime] = new TrieMap[Int, WatermarkTime]()
 
-  private val listener = topics
-    .registerListener(
-            s"$deploymentID-query-manager",
-            handleMessage,
-            Seq(topics.submissions, topics.watermark, topics.completedQueries)
-    )
-
-  override def run(): Unit = {
+  override def run(): Unit =
     logger.debug("Starting Query Manager Consumer.")
-    listener.start()
-  }
 
-  override def stop(): Unit = {
-    listener.close()
+  override def stop(): Unit =
     currentQueries.foreach(_._2.stop())
-    // watermarkGlobal.close() TODO: turn back on when needed
-  }
+  // watermarkGlobal.close() TODO: turn back on when needed
 
   override def handleMessage(msg: QueryManagement): Unit =
     msg match {
@@ -117,4 +109,24 @@ private[raphtory] class QueryManager(
     else
       None
   // not received a message from each partition yet
+}
+
+object QueryManager {
+
+  import cats.effect.Spawn
+
+  def apply[IO[_]: Async: Spawn](
+      config: Config,
+      topics: TopicRepository
+  ): Resource[IO, QueryManager] = {
+    val scheduler = new Scheduler
+    val topicList = List(topics.submissions, topics.watermark, topics.completedQueries)
+    Component.makeAndStart[IO, QueryManagement, QueryManager](
+            topics,
+            "query-manager",
+            topicList,
+            new QueryManager(scheduler, config, topics)
+    )
+  }
+
 }

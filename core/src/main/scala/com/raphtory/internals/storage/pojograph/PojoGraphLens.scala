@@ -90,8 +90,7 @@ final private[raphtory] case class PojoGraphLens(
       graphState: GraphState
   )(onComplete: => Unit): Unit = {
     dataTable = vertexIterator.flatMap { vertex =>
-      f.asInstanceOf[(PojoVertexBase, GraphState) => RowImplementation](vertex, graphState)
-        .yieldAndRelease
+      f.asInstanceOf[(PojoVertexBase, GraphState) => RowImplementation](vertex, graphState).yieldAndRelease
     }
     onComplete
   }

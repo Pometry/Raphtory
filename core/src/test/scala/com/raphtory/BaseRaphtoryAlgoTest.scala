@@ -1,5 +1,8 @@
 package com.raphtory
 
+import cats.effect.IO
+import cats.effect.SyncIO
+import cats.effect.kernel.Resource
 import com.google.common.hash.Hashing
 import com.raphtory.api.analysis.algorithm.GenericallyApplicable
 import com.raphtory.api.analysis.graphview.Alignment
@@ -7,33 +10,24 @@ import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
 import com.raphtory.api.output.sink.Sink
-import com.raphtory.internals.communication.connectors.PulsarConnector
 import com.raphtory.sinks.FileSink
-import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import org.apache.commons.io.FileUtils
+import munit.CatsEffectSuite
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
-import org.scalatest.BeforeAndAfter
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.Failed
-import org.scalatest.Outcome
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.matchers.should.Matchers
 import org.slf4j.LoggerFactory
 
 import java.io.File
+import java.net.URL
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.Paths
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
+import scala.sys.process._
 
-abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](
-    deleteResultAfterFinish: Boolean = true,
-    startGraph: Boolean = true
-) extends AnyFunSuite
-        with BeforeAndAfter
-        with BeforeAndAfterAll
-        with Matchers {
+abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinish: Boolean = true)
+        extends CatsEffectSuite {
 
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
@@ -41,54 +35,74 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](
   val outputDirectory: String = "/tmp/raphtoryTest"
   def defaultSink: Sink       = FileSink(outputDirectory)
 
-  var graph: DeployedTemporalGraph     = _
-  def pulsarConnector: PulsarConnector = new PulsarConnector(conf)
-  def conf: Config                     = graph.deployment.conf
-  def deploymentID: String             = conf.getString("raphtory.deploy.id")
+  private def graph: Resource[IO, DeployedTemporalGraph] =
+    if (batchLoading()) Raphtory.loadIO[T](setSpout(), setGraphBuilder())
+    else Raphtory.streamIO[T](setSpout(), setGraphBuilder())
 
-  override def beforeAll(): Unit = {
-    setup()
-    if (startGraph) {
-      val spout: Spout[T]               = setSpout()
-      val graphBuilder: GraphBuilder[T] = setGraphBuilder()
+  val withGraph: SyncIO[FunFixture[DeployedTemporalGraph]] = ResourceFixture(
+          for {
+            _ <- manageTestFile
+            g <- graph
+          } yield g
+  )
 
-      graph = Option
-        .when(batchLoading())(Raphtory.load[T](spout, graphBuilder))
-        .fold(Raphtory.stream[T](spout, graphBuilder))(identity)
-    }
-  }
+  val suiteGraph: Fixture[DeployedTemporalGraph] = ResourceSuiteLocalFixture(
+          "graph",
+          for {
+            _ <- manageTestFile
+            g <- graph
+          } yield g
+  )
 
-  override def afterAll(): Unit =
-    if (startGraph)
-      graph.deployment.stop()
+  def graphS = suiteGraph()
 
-  override def withFixture(test: NoArgTest): Outcome =
-    // Only clean the test directory if test succeeds
-    super.withFixture(test) match {
-      case failed: Failed =>
-        info(s"The test '${test.name}' failed. Keeping test results for inspection.")
-        info("Results (first 100 rows):\n" + getResults(jobId).take(100).mkString("\n"))
-        failed
-      case other          =>
-        if (deleteResultAfterFinish)
-          try {
-            val path = new File(outputDirectory + s"/$jobId")
-            FileUtils.deleteDirectory(path)
+  override def munitFixtures = List(suiteGraph)
+
+  private def manageTestFile: Resource[IO, Any] =
+    liftFileIfNotPresent match {
+      case None           => Resource.eval(IO.unit)
+      case Some((p, url)) =>
+        val path = Paths.get(p)
+        Resource.make(IO.blocking(if (Files.notExists(path)) s"curl -o $path $url" !!))(_ =>
+          IO.blocking { // this is a bit hacky but it allows us
+            Runtime.getRuntime.addShutdownHook(new Thread {
+              override def run(): Unit =
+                Files.deleteIfExists(path)
+            })
           }
-          catch {
-            case e: Throwable =>
-              e.printStackTrace()
-          }
-        other
+        )
     }
+
+  def liftFileIfNotPresent: Option[(String, URL)] = None
 
   def setSpout(): Spout[T]
   def setGraphBuilder(): GraphBuilder[T]
-  def batchLoading(): Boolean                                               = true
-  def setup(): Unit = {}
+  def batchLoading(): Boolean = true
 
   def receiveMessage(consumer: Consumer[Array[Byte]]): Message[Array[Byte]] =
     consumer.receive
+
+  private def algorithmTestInternal(
+      algorithm: GenericallyApplicable,
+      start: Long,
+      end: Long,
+      increment: Long,
+      windows: List[Long] = List[Long](),
+      sink: Sink = defaultSink
+  )(graph: DeployedTemporalGraph): IO[String] =
+    IO {
+      val queryProgressTracker = graph
+        .range(start, end, increment)
+        .window(windows, Alignment.END)
+        .execute(algorithm)
+        .writeTo(sink)
+
+      val jobId = queryProgressTracker.getJobId
+
+      queryProgressTracker.waitForJob()
+
+      generateTestHash(jobId)
+    }
 
   def algorithmTest(
       algorithm: GenericallyApplicable,
@@ -96,39 +110,31 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](
       end: Long,
       increment: Long,
       windows: List[Long] = List[Long](),
-      sink: Sink = defaultSink
-  ): String = {
-    val queryProgressTracker = graph
-      .range(start, end, increment)
-      .window(windows, Alignment.END)
-      .execute(algorithm)
-      .writeTo(sink)
-
-    jobId = queryProgressTracker.getJobId
-
-    queryProgressTracker.waitForJob()
-
-    generateTestHash(jobId)
-  }
+      sink: Sink = defaultSink,
+      graph: DeployedTemporalGraph = graphS
+  ): IO[String] =
+    algorithmTestInternal(algorithm, start, end, increment, windows, sink)(graph)
 
   def algorithmPointTest(
       algorithm: GenericallyApplicable,
       timestamp: Long,
       windows: List[Long] = List[Long](),
-      sink: Sink = defaultSink
-  ): String = {
-    val queryProgressTracker = graph
-      .at(timestamp)
-      .window(windows, Alignment.END)
-      .execute(algorithm)
-      .writeTo(sink)
+      sink: Sink = defaultSink,
+      graph: DeployedTemporalGraph = graphS
+  ): IO[String] =
+    IO {
+      val queryProgressTracker = graph
+        .at(timestamp)
+        .window(windows, Alignment.END)
+        .execute(algorithm)
+        .writeTo(sink)
 
-    jobId = queryProgressTracker.getJobId
+      val jobId = queryProgressTracker.getJobId
 
-    queryProgressTracker.waitForJob()
+      queryProgressTracker.waitForJob()
 
-    generateTestHash(jobId)
-  }
+      generateTestHash(jobId)
+    }
 
   def resultsHash(results: IterableOnce[String]): String =
     Hashing

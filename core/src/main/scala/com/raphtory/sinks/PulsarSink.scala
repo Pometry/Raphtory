@@ -8,7 +8,6 @@ import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.output.sink.SinkConnector
 import com.raphtory.formats.CsvFormat
 import com.raphtory.internals.communication.connectors.PulsarConnector
-import com.raphtory.internals.management.GraphDeployment
 import com.typesafe.config.Config
 import org.apache.pulsar.client.api.Schema
 
@@ -36,8 +35,7 @@ import org.apache.pulsar.client.api.Schema
   *      [[com.raphtory.api.analysis.table.Table Table]]
   *      [[com.raphtory.Raphtory Raphtory]]
   */
-case class PulsarSink(topic: String, format: Format = CsvFormat())
-        extends FormatAgnosticSink(format) {
+case class PulsarSink(topic: String, format: Format = CsvFormat()) extends FormatAgnosticSink(format) {
 
   override def buildConnector(
       jobID: String,
@@ -47,9 +45,15 @@ case class PulsarSink(topic: String, format: Format = CsvFormat())
       fileExtension: String
   ): SinkConnector =
     new MessageSinkConnector {
-      private val client                            = new PulsarConnector(config).accessClient
+      private val conn                              = PulsarConnector.unsafeApply(config)
+      private val client                            = conn.accessClient
+      private val adminClient                       = conn.adminClient
       private lazy val stringProducer               = client.newProducer(Schema.STRING).topic(topic).create()
       override def sendAsync(message: String): Unit = stringProducer.sendAsync(message)
-      override def close(): Unit                    = client.close()
+
+      override def close(): Unit = {
+        client.close()
+        adminClient.close()
+      }
     }
 }

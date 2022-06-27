@@ -53,6 +53,14 @@ private[raphtory] class QueryHandler(
   private val tracker        = topics.queryTrack(jobID).endPoint
   private val workerList     = topics.jobOperations(jobID).endPoint
 
+  override def stop(): Unit = {
+    listener.close()
+    self.close()
+    readers.close()
+    tracker.close()
+    workerList.close()
+  }
+
   private val listener =
     topics.registerListener(
             s"$deploymentID-$jobID-query-handler",
@@ -91,14 +99,6 @@ private[raphtory] class QueryHandler(
     listener.start()
   }
 
-  override def stop(): Unit = {
-    listener.close()
-    self.close()
-    readers.close()
-    tracker.close()
-    workerList.close()
-  }
-
   override def handleMessage(msg: QueryManagement): Unit =
     try msg match {
       case msg: PerspectiveStatus if msg.perspectiveID != currentPerspectiveID =>
@@ -114,9 +114,9 @@ private[raphtory] class QueryHandler(
     }
     catch {
       case e: Throwable =>
-        e.printStackTrace()
         logger.error(
-                s"Deployment $deploymentID: Failed to handle message. ${e.getMessage}. Skipping perspective."
+                s"Deployment $deploymentID: Failed to handle message. ${e.getMessage}. Skipping perspective.",
+                e
         )
         currentState = executeNextPerspective()
     }
@@ -433,12 +433,11 @@ private[raphtory] class QueryHandler(
     telemetry.totalGraphOperations.labels(jobID, deploymentID).inc()
 
     currentOperation match {
-      case Iterate(f, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt =>
+      case Iterate(f, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt             =>
         currentOperation = Iterate(f, iterations - 1, executeMessagedOnly)
-      case IterateWithGraph(f, iterations, executeMessagedOnly, _)
-          if iterations > 1 && !allVoteToHalt =>
+      case IterateWithGraph(f, iterations, executeMessagedOnly, _) if iterations > 1 && !allVoteToHalt =>
         currentOperation = IterateWithGraph(f, iterations - 1, executeMessagedOnly)
-      case _                                                                               =>
+      case _                                                                                           =>
         currentOperation = getNextGraphOperation(graphFunctions).get
     }
     allVoteToHalt = true

@@ -233,9 +233,9 @@ abstract class EntityVisitor {
     * within the current view by mapping over the `history` function.
     */
   def timeSeriesHistory(): TimeSeries[Boolean] = {
-    val tsSeq: List[TSEntry[Boolean]] = history().map(history =>
-      TSEntry(history.time, history.event, 1) //1 as the history is already in order
-    )
+    val tsSeq: List[TSEntry[Boolean]] =
+      history().map(history => TSEntry(history.time, history.event, 1) //1 as the history is already in order
+      )
     TimeSeries.ofOrderedEntriesUnsafe(tsSeq)
   }
 

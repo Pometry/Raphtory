@@ -1,6 +1,12 @@
 package com.raphtory.internals.components.spout
 
+import cats.effect.Async
+import cats.effect.Resource
+import cats.effect.Spawn
 import com.raphtory.api.input.Spout
+import com.raphtory.internals.communication.CanonicalTopic
+import com.raphtory.internals.communication.EndPoint
+import com.raphtory.internals.communication.Topic
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.management.Scheduler
@@ -31,7 +37,7 @@ private[raphtory] class SpoutExecutor[T](
     executeSpout()
   }: Unit
 
-  private val builders = topics.spout[T].endPoint
+  private val builders: EndPoint[T] = topics.spout[T].endPoint
 
   override def stop(): Unit = {
     scheduledRun.foreach(cancelable => cancelable())
@@ -61,5 +67,22 @@ private[raphtory] class SpoutExecutor[T](
     logger.debug("Spout: Scheduling spout to poll again in 10 seconds.")
     scheduledRun = Option(scheduler.scheduleOnce(1.seconds, rescheduler()))
   }
+
+}
+
+object SpoutExecutor {
+
+  def apply[IO[_]: Spawn, SP](
+      spout: Spout[SP],
+      config: Config,
+      topics: TopicRepository
+  )(implicit IO: Async[IO]): Resource[IO, SpoutExecutor[SP]] =
+    Component
+      .makeAndStart(
+              topics,
+              "spout-executor",
+              Seq.empty[CanonicalTopic[SP]],
+              new SpoutExecutor[SP](spout, config, topics, new Scheduler)
+      )
 
 }

@@ -110,7 +110,6 @@ object TwoHopPaths {
   sealed trait Message[VertexID]
   case class RequestFirstHop[VertexID](source: VertexID) extends Message[VertexID]
 
-  case class RequestSecondHop[VertexID](source: VertexID, firstHop: String)
-          extends Message[VertexID]
-  case class Response[VertexID](firstHop: String, secondHop: String) extends Message[VertexID]
+  case class RequestSecondHop[VertexID](source: VertexID, firstHop: String) extends Message[VertexID]
+  case class Response[VertexID](firstHop: String, secondHop: String)        extends Message[VertexID]
 }

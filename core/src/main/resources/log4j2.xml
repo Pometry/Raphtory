@@ -66,10 +66,6 @@
         <Logger name="com.raphtory.internals.components.spout" level="${env:RAPHTORY_INTERNALS_COMPONENTS_SPOUT_LOG:-INFO}">
         </Logger>
 
-        <!-- LOGGER FOR RAPHTORY DEVELOPMENT WHEN IT IS IN USE -->
-        <Logger name="com.raphtory.develop" level="${env:DEVELOP_LOG:-INFO}">
-        </Logger>
-
         <Root level="info">
             <AppenderRef ref="Console"/>
         </Root>

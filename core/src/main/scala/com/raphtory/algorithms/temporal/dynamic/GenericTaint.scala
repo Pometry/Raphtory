@@ -44,8 +44,7 @@ import com.raphtory.api.analysis.table.Table
   *  | ----------------- | ------------------ | --------------------- | ----------------- |
   *  | {s}`name: String` | {s}`edge.ID: Long` | {s}`event.time: Long` | {s}`name: String` |
   */
-class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set())
-        extends Generic {
+class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set()) extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph

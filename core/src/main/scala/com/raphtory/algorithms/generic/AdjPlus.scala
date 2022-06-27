@@ -58,9 +58,7 @@ object AdjPlus extends Generic {
         val adj = vertex.getState[Array[vertex.IDType]]("adjPlus")
         adj.foreach(a => vertex.messageVertex(a, vertex.ID))
       }
-      .step(vertex =>
-        vertex.messageQueue[vertex.IDType].foreach(v => vertex.messageVertex(v, vertex.name()))
-      )
+      .step(vertex => vertex.messageQueue[vertex.IDType].foreach(v => vertex.messageVertex(v, vertex.name())))
       .select(vertex => Row(vertex.name(), vertex.messageQueue[String]))
       .explode(row => row.getAs[Iterable[String]](1).map(v => Row(row.get(0), v)))
 }

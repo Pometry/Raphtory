@@ -50,9 +50,7 @@ object CountPR extends Generic {
               .step { vertex =>
                 val adj = vertex.getState[Array[vertex.IDType]]("adjPlus")
                 //        message neighbour set for pr and qr counting
-                adj.foreach(neighbour_id =>
-                  vertex.messageVertex(neighbour_id, FirstStep(vertex.ID, adj))
-                )
+                adj.foreach(neighbour_id => vertex.messageVertex(neighbour_id, FirstStep(vertex.ID, adj)))
               }
               .step { vertex =>
                 val adj = vertex.getState[Array[vertex.IDType]]("adjPlus")
@@ -60,9 +58,7 @@ object CountPR extends Generic {
                   val p     = message.p
                   val adj_p = message.adj
                   //          forward neighbour set for pr square counting
-                  adj.foreach(neighbour_id =>
-                    vertex.messageVertex(neighbour_id, SecondStep(p, vertex.ID, adj_p))
-                  )
+                  adj.foreach(neighbour_id => vertex.messageVertex(neighbour_id, SecondStep(p, vertex.ID, adj_p)))
                 }
               }
     )
@@ -86,9 +82,7 @@ object CountQR extends Generic {
                   val p     = message.p
                   val adj_p = message.adj
                   //          forward neighbour set for pr square counting
-                  adj_p.foreach(neighbour_id =>
-                    vertex.messageVertex(neighbour_id, SecondStep(p, vertex.ID, adj))
-                  )
+                  adj_p.foreach(neighbour_id => vertex.messageVertex(neighbour_id, SecondStep(p, vertex.ID, adj)))
                 }
               }
     )
@@ -111,9 +105,7 @@ object CountPQ extends Generic {
         var count      = vertex.getStateOrElse[Long]("squareCount", 0L)
         val wedgeCount = mutable.Map[vertex.IDType, mutable.ArrayBuffer[vertex.IDType]]()
         vertex.messageQueue[WedgeMessage[vertex.IDType]].foreach { message =>
-          message.s.foreach(s =>
-            wedgeCount.getOrElseUpdate(s, mutable.ArrayBuffer[vertex.IDType]()).append(message.p)
-          )
+          message.s.foreach(s => wedgeCount.getOrElseUpdate(s, mutable.ArrayBuffer[vertex.IDType]()).append(message.p))
         }
         wedgeCount.foreach({
           case (s, others) =>

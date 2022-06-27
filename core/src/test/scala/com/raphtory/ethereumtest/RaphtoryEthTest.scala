@@ -19,6 +19,6 @@ object RaphtoryEthTest {
 
     val spout: Spout[String] = FileSpout(fileName)
     val gb                   = new EthereumGraphBuilder()
-    val graph                = Raphtory.stream(spout, gb)
+    val graph                = Raphtory.streamIO(spout, gb)
   }
 }

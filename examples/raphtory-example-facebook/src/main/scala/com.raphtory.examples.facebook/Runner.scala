@@ -1,42 +1,44 @@
 package com.raphtory.examples.facebook
 
 import com.raphtory.Raphtory
-import com.raphtory.algorithms.generic.ConnectedComponents
-import com.raphtory.algorithms.generic.EdgeList
+import com.raphtory.algorithms.generic.{ConnectedComponents, EdgeList}
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.examples.facebook.graphbuilders.FacebookGraphBuilder
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.StaticGraphSpout
-import com.typesafe.config
 
 import java.io.File
+import java.nio.file.{Files, Paths}
 import scala.language.postfixOps
-import sys.process._
+import scala.sys.process._
+import scala.util.Using
 
 object Runner extends App {
-
-  // Create Graph
 
   if (!new File("/tmp", "facebook.csv").exists()) {
     val path = "/tmp/facebook.csv"
     try s"curl -o $path https://raw.githubusercontent.com/Raphtory/Data/main/facebook.csv " !!
     catch {
       case ex: Exception =>
-        ex.printStackTrace()
-
-        (s"rm $path" !)
+        Files.deleteIfExists(Paths.get(path))
         throw ex
     }
   }
 
   val source: StaticGraphSpout = StaticGraphSpout("/tmp/facebook.csv")
   val builder                  = new FacebookGraphBuilder()
-  val graph                    = Raphtory.load(spout = source, graphBuilder = builder)
-  Thread.sleep(20000)
-  graph.at(88234).past().execute(EdgeList()).writeTo(PulsarSink("EdgeList"))
-  graph
-    .range(10000, 88234, 10000)
-    .window(List(500, 1000, 10000), Alignment.END)
-    .execute(ConnectedComponents())
-    .writeTo(PulsarSink("ConnectedComponents"))
+
+  Using(Raphtory.load(spout = source, graphBuilder = builder)) { graph =>
+    graph
+      .at(88234)
+      .past()
+      .execute(EdgeList())
+      .writeTo(PulsarSink("EdgeList"))
+
+    graph
+      .range(10000, 88234, 10000)
+      .window(List(500, 1000, 10000), Alignment.END)
+      .execute(ConnectedComponents())
+      .writeTo(PulsarSink("ConnectedComponents"))
+  }
 }
