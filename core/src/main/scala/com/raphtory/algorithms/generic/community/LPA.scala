@@ -80,7 +80,7 @@ class LPA[T: Numeric](weight: String = "", maxIter: Int = 50, seed: Long = -1)
 
 object LPA {
 
-  def apply[T: Numeric](weight: String = "weight", maxIter: Int = 500, seed: Long = -1) =
+  def apply[T: Numeric](weight: String = "weight", maxIter: Int = 50, seed: Long = -1) =
     new LPA(weight, maxIter, seed)
 
   def lpa[T](vertex: Vertex, weight: String, SP: Double, rnd: Random)(implicit
