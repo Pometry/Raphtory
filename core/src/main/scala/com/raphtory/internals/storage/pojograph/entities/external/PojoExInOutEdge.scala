@@ -1,25 +1,23 @@
 package com.raphtory.internals.storage.pojograph.entities.external
 
+import com.raphtory.api.analysis.visitor.ConcreteEdge
+import com.raphtory.api.analysis.visitor.ConcreteExplodedEdge
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.internals.components.querymanager.VertexMessage
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 
-class PojoExInOutEdge(
-    in: PojoExEdge,
-    out: PojoExEdge,
-    override val ID: Long,
-    override val src: Long,
-    override val view: PojoGraphLens,
-    start: Long,
-    end: Long
-) extends PojoExEdgeBase[Long] {
+abstract class PojoExInOutEdgeBase[Eundir <: PojoExInOutEdgeBase[Eundir, Edir, T], Edir <: PojoExDirectedEdgeBase[
+        Edir,
+        T
+], T](in: Edir, out: Edir, asInEdge: Boolean)
+        extends PojoExEdgeBase[T] { this: Eundir =>
+  override def ID: IDType  = in.ID
+  override def src: IDType = if (asInEdge) in.src else out.src
+  override def dst: IDType = if (asInEdge) in.dst else out.dst
+
+  override val view: PojoGraphLens = in.view
+
   val edges = List(in, out)
-  override type ExplodedEdge = PojoExplodedEdge
-
-  override def dst: IDType = ID
-
-  override def explode(): List[ExplodedEdge] =
-    edges.flatMap(_.explode())
 
   override def remove(): Unit =
     edges.foreach(_.remove())
@@ -58,7 +56,7 @@ class PojoExInOutEdge(
 
   override def getPropertyHistory[T](
       key: String,
-      after: Long = start,
+      after: Long,
       before: Long
   ): Option[List[(Long, T)]] = {
     val histories = edges.map(_.getPropertyHistory[T](key, after, before))
@@ -77,14 +75,40 @@ class PojoExInOutEdge(
   override def aliveAt(time: Long, window: Long): Boolean =
     edges.exists(_.aliveAt(time, window))
 
-  def viewBetween(after: Long, before: Long): PojoExInOutEdge =
-    new PojoExInOutEdge(
-            in.viewBetween(after, before),
-            out.viewBetween(after, before),
-            ID,
-            src,
-            view,
-            start,
-            end
-    )
+  override def start: Long = math.min(in.start, out.start)
+
+  override def end: Long = math.max(in.end, out.end)
+}
+
+class PojoExInOutEdge(
+    in: PojoExEdge,
+    out: PojoExEdge,
+    asInEdge: Boolean = false
+) extends PojoExInOutEdgeBase[PojoExInOutEdge, PojoExEdge, Long](in, out, asInEdge)
+        with PojoExReducedEdgeBase {
+
+  override def viewBetween(after: Long, before: Long): PojoExInOutEdge =
+    new PojoExInOutEdge(in.viewBetween(after, before), out.viewBetween(after, before), asInEdge)
+
+  /** concrete type for exploded edge views of this edge which implements
+    * [[ExplodedEdge]] with same `IDType`
+    */
+  override type ExplodedEdge = PojoExplodedInOutEdge
+
+  /** Return an [[ExplodedEdge]] instance for each time the edge is
+    * active in the current view.
+    */
+  override def explode(): List[ExplodedEdge] =
+    in.explode().zip(out.explode()).map { case (e1, e2) => new PojoExplodedInOutEdge(e1, e2, asInEdge) }
+}
+
+class PojoExplodedInOutEdge(
+    in: PojoExplodedEdge,
+    out: PojoExplodedEdge,
+    asInEdge: Boolean = false
+) extends PojoExInOutEdgeBase[PojoExplodedInOutEdge, PojoExplodedEdge, Long](in, out, asInEdge)
+        with ConcreteExplodedEdge[Long] {
+
+  /** Timestamp for exploded entity */
+  override def timestamp: Long = in.timestamp
 }

@@ -13,12 +13,46 @@ import scala.collection.mutable
 
 private[raphtory] trait PojoVertexBase extends Vertex {
   // abstract state
-  protected def lens: PojoGraphLens
-  protected val internalIncomingEdges: mutable.Map[IDType, Edge]
-  protected val internalOutgoingEdges: mutable.Map[IDType, Edge]
+  override type Edge <: PojoExEdgeBase[IDType]
+  def lens: PojoGraphLens
+
+  // messaging
+  def hasMessage: Boolean
+
+  def messageQueue[T]: List[T]
+
+  def clearMessageQueue(): Unit
+
+  def voteToHalt(): Unit = lens.vertexVoted()
+
+  //Send message
+  override def messageSelf(data: Any): Unit =
+    lens.sendMessage(VertexMessage(lens.superStep + 1, ID, data))
+
+  def messageVertex(vertexId: IDType, data: Any): Unit = {
+    val message = VertexMessage(lens.superStep + 1, vertexId, data)
+    lens.sendMessage(message)
+  }
+
+  def receiveMessage(msg: GenericVertexMessage[_]): Unit
+
+  def executeEdgeDelete(): Unit
+
+  def isFiltered: Boolean
+
+  override def getEdge(id: IDType): List[Edge] =
+    List(getInEdge(id), getOutEdge(id)).flatten
+}
+
+private[raphtory] trait PojoConcreteVertexBase extends PojoVertexBase {
+  // abstract state
+  override type Edge <: PojoExDirectedEdgeBase[Edge, IDType]
+  def lens: PojoGraphLens
+  val internalIncomingEdges: mutable.Map[IDType, Edge]
+  val internalOutgoingEdges: mutable.Map[IDType, Edge]
 
   // queues
-  protected var multiQueue: VertexMultiQueue =
+  val multiQueue: VertexMultiQueue =
     new VertexMultiQueue() //Map of queues for all ongoing processing
   protected val incomingEdgeDeleteMultiQueue: VertexMultiQueue = new VertexMultiQueue()
   protected val outgoingEdgeDeleteMultiQueue: VertexMultiQueue = new VertexMultiQueue()
@@ -34,29 +68,7 @@ private[raphtory] trait PojoVertexBase extends Vertex {
   }
 
   def clearMessageQueue(): Unit =
-    multiQueue = new VertexMultiQueue()
-
-  def voteToHalt(): Unit = lens.vertexVoted()
-
-  //Send message
-  override def messageSelf(data: Any): Unit =
-    lens.sendMessage(VertexMessage(lens.superStep + 1, ID, data))
-
-  def messageVertex(vertexId: IDType, data: Any): Unit = {
-    val message = VertexMessage(lens.superStep + 1, vertexId, data)
-    lens.sendMessage(message)
-  }
-
-  override def messageOutNeighbours(message: Any): Unit =
-    internalOutgoingEdges.keys.foreach(vId => messageVertex(vId, message))
-
-  override def messageAllNeighbours(message: Any): Unit =
-    internalOutgoingEdges.keySet
-      .union(internalIncomingEdges.keySet)
-      .foreach(vId => messageVertex(vId, message))
-
-  override def messageInNeighbours(message: Any): Unit =
-    internalIncomingEdges.keys.foreach(vId => messageVertex(vId, message))
+    multiQueue.clearAll()
 
   def receiveMessage(msg: GenericVertexMessage[_]): Unit =
     msg match {
@@ -87,7 +99,7 @@ private[raphtory] trait PojoVertexBase extends Vertex {
     incomingEdgeDeleteMultiQueue.clearQueue(lens.superStep)
   }
 
-  def isFiltered = filtered
+  def isFiltered: Boolean = filtered
 
   def remove(): Unit = {
     // key is the vertex of the other side of edge
@@ -97,59 +109,19 @@ private[raphtory] trait PojoVertexBase extends Vertex {
     internalOutgoingEdges.keys.foreach(k => lens.sendMessage(FilteredInEdgeMessage(lens.superStep + 1, k, ID)))
   }
 
-  def getOutEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge] =
-    allEdge(internalOutgoingEdges, after, before)
+  def outEdges: List[Edge] = internalOutgoingEdges.values.toList
 
-  //in edges whole
-  def getInEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge] =
-    allEdge(internalIncomingEdges, after, before)
-
-  //all edges
-  def getAllEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge] =
-    getInEdges(after, before) ++ getOutEdges(after, before)
+  def inEdges: List[Edge] = internalIncomingEdges.values.toList
 
   //out edges individual
   def getOutEdge(
-      id: IDType,
-      after: Long = Long.MinValue,
-      before: Long = Long.MaxValue
+      id: IDType
   ): Option[Edge] =
-    individualEdge(internalOutgoingEdges, after, before, id)
+    internalOutgoingEdges.get(id)
 
   //In edges individual
   def getInEdge(
-      id: IDType,
-      after: Long = Long.MinValue,
-      before: Long = Long.MaxValue
-  ): Option[Edge] =
-    individualEdge(internalIncomingEdges, after, before, id)
-
-  override def getEdge(id: IDType, after: Long, before: Long): List[Edge] =
-    List(getInEdge(id, after, before), getOutEdge(id, after, before)).flatten
-
-  def allEdge(
-      edges: mutable.Map[IDType, Edge],
-      after: Long,
-      before: Long
-  ): List[Edge] =
-    if (after <= lens.start && before >= lens.end)
-      edges.values.toList
-    else
-      edges.collect {
-        case (_, edge) if edge.active(after, before) => edge
-      }.toList
-
-  def individualEdge(
-      edges: mutable.Map[IDType, Edge],
-      after: Long,
-      before: Long,
       id: IDType
   ): Option[Edge] =
-    if (after <= lens.start && before >= lens.end)
-      edges.get(id)
-    else
-      edges.get(id) match {
-        case Some(edge) => if (edge.active(after, before)) Some(edge) else None
-        case None       => None
-      }
+    internalIncomingEdges.get(id)
 }

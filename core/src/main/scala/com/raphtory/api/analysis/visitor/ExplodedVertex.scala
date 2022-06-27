@@ -8,6 +8,9 @@ trait ExplodedVertex extends Vertex with ExplodedEntityVisitor {
   override type IDType = (Long, Long)
   override type Edge <: ConcreteExplodedEdge[IDType]
 
+  implicit override val IDOrdering: Ordering[(Long, Long)] =
+    Ordering.Tuple2(Ordering.Long, Ordering.Long)
+
   /** returns the name of the underlying vertex joined with the timestamp using `_`
     * @param nameProperty Vertex property to use for looking up the name
     */

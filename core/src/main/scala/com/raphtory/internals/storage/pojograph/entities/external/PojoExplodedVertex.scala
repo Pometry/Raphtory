@@ -2,24 +2,23 @@ package com.raphtory.internals.storage.pojograph.entities.external
 
 import com.raphtory.api.analysis.visitor.ExplodedVertex
 import com.raphtory.api.analysis.visitor.HistoricEvent
-import com.raphtory.internals.storage.pojograph.PojoGraphLens
+import com.raphtory.internals.components.querymanager.FilteredInEdgeMessage
+import com.raphtory.internals.components.querymanager.FilteredOutEdgeMessage
+import com.raphtory.internals.storage.pojograph.messaging.VertexMultiQueue
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
 private[raphtory] class PojoExplodedVertex(
     val vertex: PojoExVertex,
-    override val timestamp: Long,
-    override val lens: PojoGraphLens
-) extends ExplodedVertex
-        with PojoVertexBase {
+    override val timestamp: Long
+) extends PojoVertexViewBase(vertex)
+        with PojoConcreteVertexBase
+        with ExplodedVertex {
   override val internalIncomingEdges = mutable.Map.empty[(Long, Long), PojoExMultilayerEdge]
   override val internalOutgoingEdges = mutable.Map.empty[(Long, Long), PojoExMultilayerEdge]
 
   override type Edge = PojoExMultilayerEdge
-
-  implicit override val IDOrdering: Ordering[(Long, Long)] =
-    Ordering.Tuple2(Ordering.Long, Ordering.Long)
 
   var computationValues: Map[String, Any] =
     Map.empty //Partial results kept between supersteps in calculation
@@ -75,19 +74,6 @@ private[raphtory] class PojoExplodedVertex(
       case None      =>
         setState(key, Array(value))
     }
-
-  override def latestActivity(): HistoricEvent = vertex.latestActivity()
-
-  override def earliestActivity(): HistoricEvent = vertex.earliestActivity()
-
-  override def getPropertyAt[T](key: String, time: Long): Option[T] =
-    vertex.getPropertyAt(key, time)
-
-  override def history(): List[HistoricEvent] = vertex.history()
-
-  override def active(after: Long, before: Long): Boolean = vertex.active(after, before)
-
-  override def aliveAt(time: Long, window: Long): Boolean = vertex.aliveAt(time, window)
 
   override def remove(): Unit = {
     super.remove()

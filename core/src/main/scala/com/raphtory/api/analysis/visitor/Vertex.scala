@@ -21,11 +21,6 @@ trait Vertex extends EntityVisitor {
   /** Concrete edge type for this vertex which implements [[com.raphtory.api.analysis.visitor.Edge Edge]] */
   type Edge <: visitor.ConcreteEdge[IDType]
 
-  /** Concrete type for this vertex's exploded edges which implements
-    * [[com.raphtory.api.analysis.visitor.ExplodedEdge ExplodedEdge]]
-    */
-  type ExplodedEdge = Edge#ExplodedEdge
-
   /** implicit ordering object for use when comparing vertex IDs */
   implicit val IDOrdering: Ordering[IDType]
 
@@ -69,116 +64,80 @@ trait Vertex extends EntityVisitor {
     * @param message message data to sent
     */
   def messageOutNeighbours(message: Any): Unit =
-    getOutNeighbours().foreach(messageVertex(_, message))
+    outNeighbours.foreach(messageVertex(_, message))
 
   /** Send the same message data to all in- and out-neighbours of this vertex
     * @param message message data to sent
     */
   def messageAllNeighbours(message: Any): Unit =
-    getAllNeighbours().foreach(messageVertex(_, message))
+    neighbours.foreach(messageVertex(_, message))
 
   /** Send the same message data to all in-neighbours of this vertex
     * @param message message data to sent
     */
-  def messageInNeighbours(message: Any): Unit = getInNeighbours().foreach(messageVertex(_, message))
+  def messageInNeighbours(message: Any): Unit = inNeighbours.foreach(messageVertex(_, message))
 
   /** Get IDs of all out-neighbours of the vertex
-    * @param after only return neighbours that are active after time `after`
-    * @param before only return neighbours that are active before time `before`
     */
-  def getOutNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IDType] =
-    getOutEdges(after, before).map(_.dst)
+  def outNeighbours: List[IDType] =
+    outEdges.map(_.dst)
 
   /** Get IDs fo all in-neighbours of the vertex
     * @param after only return neighbours that are active after time `after`
     * @param before only return neighbours that are active before time `before`
     */
-  def getInNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IDType] =
-    getInEdges(after, before).map(_.src)
+  def inNeighbours: List[IDType] =
+    inEdges.map(_.src)
 
   /** Get IDs of all in- and out-neighbours of the vertex
-    * @param after  only return neighbours that are active after time `after`
-    * @param before only return neighbours that are active before time `before`
     */
-  def getAllNeighbours(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[IDType] =
-    (getInNeighbours(after, before) ++ getOutNeighbours(after, before)).distinct
-
-  private lazy val inNeighbourSet  = getInNeighbours().toSet
-  private lazy val outNeighbourSet = getOutNeighbours().toSet
+  def neighbours: List[IDType] =
+    (inNeighbours ++ outNeighbours).distinct
 
   /** Check if the vertex with ID `id` is an in- or out-neighbour of this vertex */
   def isNeighbour(id: IDType): Boolean =
-    inNeighbourSet.contains(id) || outNeighbourSet.contains(id)
+    isInNeighbour(id) || isOutNeighbour(id)
 
   /** Check if the vertex with ID `id` is an in-neighbour of this vertex */
-  def isInNeighbour(id: IDType): Boolean = inNeighbourSet.contains(id)
+  def isInNeighbour(id: IDType): Boolean = inNeighbours.contains(id)
 
   /** Check if the vertex with ID `id` is an out-neighbour of this vertex */
-  def isOutNeighbour(id: IDType): Boolean = outNeighbourSet.contains(id)
+  def isOutNeighbour(id: IDType): Boolean = outNeighbours.contains(id)
 
   //Degree
   /** Total number of neighbours (including in-neighbours and out-neighbours) of the vertex */
-  def degree: Int = getAllNeighbours().size
+  def degree: Int = neighbours.size
 
   /** Number of out-neighbours of the vertex */
-  def outDegree: Int = getOutNeighbours().size
+  def outDegree: Int = outNeighbours.size
 
   /** Number of in-neighbours of the vertex */
-  def inDegree: Int = getInNeighbours().size
+  def inDegree: Int = inNeighbours.size
 
   /** Return all edges starting or ending at this vertex
-    * @param after only return edges that are active after time `after`
-    * @param before only return edges that are active before time `before`
-    *
-    * The `after` and `before` parameters also restrict the history of the returned edges such that it only
-    * contains events within the window.
     */
-  def getAllEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]
+  def edges: List[Edge] = inEdges ++ outEdges
 
   /** Return all edges starting at this vertex
-    * @param after only return edges that are active after time `after`
-    * @param before only return edges that are active before time `before`
-    *
-    * The `after` and `before` parameters also restrict the history of the returned edges such that it only
-    * contains events within the window.
     */
-  def getOutEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]
+  def outEdges: List[Edge]
 
   /** Return all edges ending at this vertex
-    * @param after  only return edges that are active after time `after`
-    * @param before only return edges that are active before time `before`
-    *
-    * The `after` and `before` parameters also restrict the history of the returned edges such that it only
-    * contains events within the window.
     */
-  def getInEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]
+  def inEdges: List[Edge]
 
   /** Return specified edge if it is an out-edge of this vertex
     * @param id ID of edge to return
-    * @param after only return edge if it is active after time `after`
-    * @param before only return edge if it is active before time `before`
-    *
-    * The `after` and `before` parameters also restrict the history of the returned edge such that it only
-    * contains events within the window.
     */
   def getOutEdge(
-      id: IDType,
-      after: Long = Long.MinValue,
-      before: Long = Long.MaxValue
+      id: IDType
   ): Option[Edge]
 
   /** Return specified edge if it is an in-edge of this vertex
     * @param id ID of edge to return
-    * @param after only return edge if it is active after time `after`
-    * @param before only return edge if it is active before time `before`
-    *
-    * The `after` and `before` parameters also restrict the history of the returned edge such that it only
-    * contains events within the window.
     */
   def getInEdge(
-      id: IDType,
-      after: Long = Long.MinValue,
-      before: Long = Long.MaxValue
+      id: IDType
   ): Option[Edge]
 
   /** Return specified edge if it is an in-edge or an out-edge of this vertex
@@ -188,100 +147,10 @@ trait Vertex extends EntityVisitor {
     * contains two elements if both in-edge and out-edge exist.
     *
     * @param id ID of edge to return
-    * @param after only return edge if it is active after time `after`
-    * @param before only return edge if it is active before time `before`
-    *
-    * The `after` and `before` parameters also restrict the history of the returned edges such that it only
-    * contains events within the window.
     */
   def getEdge(
-      id: IDType,
-      after: Long = Long.MinValue,
-      before: Long = Long.MaxValue
+      id: IDType
   ): List[Edge]
-
-  /** Return all exploded [[com.raphtory.api.analysis.visitor.ExplodedEdge ExplodedEdge]] views for each time point
-    * that an in- or out-edge of this vertex is active
-    *
-    * @param after  only return views for activity after time `after`
-    * @param before only return view for activity before time `before`
-    */
-  def explodeAllEdges(
-      after: Long = Long.MinValue,
-      before: Long = Long.MaxValue
-  ): List[ExplodedEdge] =
-    getAllEdges(after, before).flatMap(_.explode())
-
-  /** Return all exploded [[com.raphtory.api.analysis.visitor.ExplodedEdge ExplodedEdge]] views for each time point
-    * that an out-edge of this vertex is active
-    *
-    * @param after  only return views for activity after time `after`
-    * @param before only return view for activity before time `before`
-    */
-  def explodeOutEdges(
-      after: Long = Long.MinValue,
-      before: Long = Long.MaxValue
-  ): List[ExplodedEdge] =
-    getOutEdges(after, before).flatMap(_.explode())
-
-  /** Return all exploded [[com.raphtory.api.analysis.visitor.ExplodedEdge ExplodedEdge]] views for each time point
-    * that an in-edge of this vertex is active
-    *
-    * @param after  only return views for activity after time `after`
-    * @param before only return view for activity before time `before`
-    */
-  def explodeInEdges(
-      after: Long = Long.MinValue,
-      before: Long = Long.MaxValue
-  ): List[ExplodedEdge] =
-    getInEdges(after, before).flatMap(_.explode())
-
-  /** Return an individual exploded [[com.raphtory.api.analysis.visitor.ExplodedEdge ExplodedEdge]] views for an individual edge
-    * if it is an out-edge of this vertex
-    *
-    * @param id ID of edge to explode
-    * @param after  only return views for activity after time `after`
-    * @param before only return view for activity before time `before`
-    */
-  def explodeOutEdge(
-      id: IDType,
-      after: Long = Long.MinValue,
-      before: Long = Long.MaxValue
-  ): Option[List[ExplodedEdge]] =
-    getOutEdge(id, after, before).map(_.explode())
-
-  /** Return exploded [[com.raphtory.api.analysis.visitor.ExplodedEdge ExplodedEdge]] views for an individual edge
-    * if it is an in-edge of this vertex
-    *
-    * @param id ID of edge to explode
-    * @param after  only return views for activity after time `after`
-    * @param before only return view for activity before time `before`
-    */
-  def explodeInEdge(
-      id: IDType,
-      after: Long = Long.MinValue,
-      before: Long = Long.MaxValue
-  ): Option[List[ExplodedEdge]] =
-    getInEdge(id, after, before).map(_.explode())
-
-  /** Return an individual exploded [[com.raphtory.api.analysis.visitor.ExplodedEdge ExplodedEdge]] views for an individual edge
-    * if it is an in- or out-edge of this vertex
-    *
-    * @param id ID of edge to explode
-    * @param after  only return views for activity after time `after`
-    * @param before only return view for activity before time `before`
-    */
-  def explodedEdge(
-      id: IDType,
-      after: Long = Long.MinValue,
-      before: Long = Long.MaxValue
-  ): Option[List[ExplodedEdge]] = {
-    val edges = getEdge(id, after, before)
-    if (edges.isEmpty)
-      None
-    else
-      Some(edges.flatMap(_.explode()))
-  }
 
   /** Set algorithmic state for this vertex
     * @param key key to use for setting value
@@ -339,11 +208,11 @@ trait Vertex extends EntityVisitor {
   ): B =
     (dir match {
       case EdgeDirection.Incoming =>
-        getInEdges()
+        inEdges
       case EdgeDirection.Outgoing =>
-        getOutEdges()
+        outEdges
       case EdgeDirection.Both     =>
-        getAllEdges()
+        edges
     })
       .map(_.weight(weightProperty, edgeMergeStrategy, defaultWeight))
       .sum

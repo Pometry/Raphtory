@@ -47,7 +47,7 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
-        val edges  = vertex.getAllEdges()
+        val edges  = vertex.edges
         val degree = edges.size
 
         // sum of edge weights each exponentiated by alpha, purely for D3 & D4

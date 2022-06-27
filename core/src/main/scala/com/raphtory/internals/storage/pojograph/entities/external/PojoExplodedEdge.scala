@@ -5,24 +5,31 @@ import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoEdge
 
 private[raphtory] class PojoExplodedEdge(
-    objectEdge: PojoEdge,
-    override val view: PojoGraphLens,
+    val edge: PojoEdge,
+    val view: PojoGraphLens,
     override val ID: Long,
-    val src: Long,
-    val dst: Long,
+    val start: Long,
     override val timestamp: Long
-) extends PojoExEntity(objectEdge, view)
-        with PojoExEdgeBase[Long]
+) extends PojoExEntity(edge, view, start, timestamp)
+        with PojoExDirectedEdgeBase[PojoExplodedEdge, Long]
         with ConcreteExplodedEdge[Long] {
-  override type ExplodedEdge = PojoExplodedEdge
 
-  override def explode(): List[ExplodedEdge] = List(this)
+  override type Eundir = PojoExplodedInOutEdge
 
-  override def getPropertyHistory[T](
-      key: String,
-      after: Long,
-      before: Long = timestamp
-  ): Option[List[(Long, T)]] = super.getPropertyHistory(key, after, before)
+  override def reversed: PojoReversedExplodedEdge =
+    PojoReversedExplodedEdge.fromExplodedEdge(this, timestamp)
+
+  override def src: Long = edge.getSrcId
+
+  override def dst: Long = edge.getDstId
+
+  override def end: Long = timestamp
+
+  override def combineUndirected(other: PojoExplodedEdge, asInEdge: Boolean): PojoExplodedInOutEdge =
+    if (isIncoming)
+      new PojoExplodedInOutEdge(this, other, asInEdge)
+    else
+      new PojoExplodedInOutEdge(other, this, asInEdge)
 }
 
 private[raphtory] object PojoExplodedEdge {
@@ -32,8 +39,7 @@ private[raphtory] object PojoExplodedEdge {
             pojoExEdge.edge,
             pojoExEdge.view,
             pojoExEdge.ID,
-            pojoExEdge.src,
-            pojoExEdge.dst,
+            pojoExEdge.start,
             timestamp
     )
 }

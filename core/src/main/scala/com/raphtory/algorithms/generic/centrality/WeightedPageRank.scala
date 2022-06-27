@@ -60,7 +60,7 @@ class WeightedPageRank[T](
         val initLabel         = 1.0f
         vertex.setState("prlabel", initLabel)
         val outWeight: Double = numeric.toDouble(vertex.weightedOutDegree())
-        vertex.getOutEdges().foreach { e =>
+        vertex.outEdges.foreach { e =>
           vertex.messageVertex(
                   e.ID,
                   numeric.toDouble(e.weight[T](weightProperty = weightProperty)) / outWeight
@@ -78,7 +78,7 @@ class WeightedPageRank[T](
 
                 val outWeight =
                   numeric.toDouble(vertex.weightedOutDegree(weightProperty = weightProperty))
-                vertex.getOutEdges().foreach { e =>
+                vertex.outEdges.foreach { e =>
                   vertex.messageVertex(
                           e.ID,
                           newLabel * numeric

@@ -1,5 +1,6 @@
 package com.raphtory.internals.storage.pojograph.entities.external
 
+import com.raphtory.api.analysis.visitor.ConcreteEdge
 import com.raphtory.api.analysis.visitor.ConcreteExplodedEdge
 import com.raphtory.api.analysis.visitor.EntityVisitor
 import com.raphtory.api.analysis.visitor.HistoricEvent
@@ -12,10 +13,8 @@ private[raphtory] class PojoExMultilayerEdge(
     override val dst: (Long, Long),
     protected val edge: EntityVisitor,
     override val view: PojoGraphLens
-) extends PojoExEdgeBase[(Long, Long)]
+) extends PojoExDirectedEdgeBase[PojoExMultilayerEdge, (Long, Long)]
         with ConcreteExplodedEdge[(Long, Long)] {
-  override type ExplodedEdge = PojoExMultilayerEdge
-  override def explode(): List[ExplodedEdge] = List(this)
 
   override def Type(): String = edge.Type()
 
@@ -44,4 +43,27 @@ private[raphtory] class PojoExMultilayerEdge(
   override def active(after: Long, before: Long): Boolean = edge.active(after, before)
 
   override def aliveAt(time: Long, window: Long): Boolean = edge.aliveAt(time, window)
+
+  override def reversed: PojoExMultilayerEdge =
+    new PojoExMultilayerEdge(timestamp, ID, dst, src, edge, view)
+
+  override type Eundir = PojoExMultilayerInOutEdge
+
+  override def combineUndirected(other: PojoExMultilayerEdge, asInEdge: Boolean): PojoExMultilayerInOutEdge =
+    if (isIncoming)
+      new PojoExMultilayerInOutEdge(this, other, asInEdge)
+    else
+      new PojoExMultilayerInOutEdge(other, this, asInEdge)
+
+  override def start: Long = view.start
+
+  override def end: Long = timestamp
+}
+
+class PojoExMultilayerInOutEdge(in: PojoExMultilayerEdge, out: PojoExMultilayerEdge, asInEdge: Boolean)
+        extends PojoExInOutEdgeBase[PojoExMultilayerInOutEdge, PojoExMultilayerEdge, (Long, Long)](in, out, asInEdge)
+        with ConcreteExplodedEdge[(Long, Long)] {
+
+  /** Timestamp for exploded entity */
+  override def timestamp: Long = in.timestamp
 }

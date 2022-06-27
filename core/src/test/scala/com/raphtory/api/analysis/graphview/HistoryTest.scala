@@ -5,6 +5,7 @@ import com.raphtory.algorithms.generic.NeighbourNames
 import com.raphtory.algorithms.temporal.TemporalEdgeList
 import com.raphtory.algorithms.temporal.TemporalNodeList
 import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.input.Spout
@@ -14,12 +15,12 @@ import com.raphtory.TestQuery
 
 import scala.util.Random
 
-class WindowedOutEdgeHistory(after: Long, before: Long) extends Generic {
+class WindowedOutEdgeHistory(after: Long, before: Long) extends GenericReduction {
 
-  override def apply(graph: GraphPerspective): graph.Graph =
-    NeighbourNames(graph)
+  override def apply(graph: GraphPerspective): graph.ReducedGraph =
+    NeighbourNames(graph.reducedView)
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: ReducedGraphPerspective): Table =
     graph.explodeSelect { vertex =>
       vertex
         .getOutEdges(after, before)
@@ -33,12 +34,12 @@ class WindowedOutEdgeHistory(after: Long, before: Long) extends Generic {
     }
 }
 
-class WindowedInEdgeHistory(after: Long, before: Long) extends Generic {
+class WindowedInEdgeHistory(after: Long, before: Long) extends GenericReduction {
 
-  override def apply(graph: GraphPerspective): graph.Graph =
-    NeighbourNames(graph)
+  override def apply(graph: GraphPerspective): graph.ReducedGraph =
+    NeighbourNames(graph.reducedView)
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: ReducedGraphPerspective): Table =
     graph.explodeSelect { vertex =>
       vertex
         .getInEdges(after, before)

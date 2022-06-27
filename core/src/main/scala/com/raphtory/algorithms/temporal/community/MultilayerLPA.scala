@@ -1,9 +1,12 @@
 package com.raphtory.algorithms.temporal.community
 
 import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
+import com.raphtory.api.analysis.visitor.ReducedVertex
 import com.raphtory.api.analysis.visitor.Vertex
 
 import scala.util.Random
@@ -66,13 +69,13 @@ class MultilayerLPA(
     layerSize: Long,
     omega: Double = 1.0,
     seed: Long = -1
-) extends Generic {
+) extends GenericReduction {
 
   private val rnd: Random = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)
   private val SP          = 0.2f // Stickiness probability
 
-  override def apply(graph: GraphPerspective): graph.Graph = {
-    def interLayerWeights(omega: Double, v: Vertex, ts: Long): Float =
+  override def apply(graph: GraphPerspective): graph.ReducedGraph = {
+    def interLayerWeights(omega: Double, v: ReducedVertex, ts: Long): Float =
       omega match {
         case -1 =>
           val neilabs = weightFunction(v, ts)
@@ -80,7 +83,7 @@ class MultilayerLPA(
         case _  => omega.toFloat
       }
 
-    def weightFunction(v: Vertex, ts: Long): Map[v.IDType, Float] =
+    def weightFunction(v: ReducedVertex, ts: Long): Map[v.IDType, Float] =
       (v.getInEdges(after = ts - layerSize, before = ts) ++ v.getOutEdges(
               after = ts - layerSize,
               before = ts
@@ -90,7 +93,7 @@ class MultilayerLPA(
         .mapValues(x => x.map(_._2).sum / x.size)
         .toMap // (ID -> Freq)
 
-    graph
+    graph.reducedView
       .step { vertex =>
         // Assign random labels for all instances in time of a vertex as Map(ts, lab)
         val tlabels =
@@ -173,7 +176,7 @@ class MultilayerLPA(
       )
   }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: ReducedGraphPerspective): Table =
     graph
       .select { vertex =>
         Row(

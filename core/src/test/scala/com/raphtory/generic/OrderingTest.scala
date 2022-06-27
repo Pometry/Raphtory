@@ -32,7 +32,7 @@ class CheckHistory extends Generic {
       .step { (vertex, graphState) =>
         val history = vertex.history()
         val sorted  = isSortedIncreasing(history)
-        vertex.getAllEdges().foreach { edge =>
+        vertex.edges.foreach { edge =>
           val history = edge.history()
           val sorted  = isSortedIncreasing(history)
           graphState("edgeHistoryOrdered") += sorted

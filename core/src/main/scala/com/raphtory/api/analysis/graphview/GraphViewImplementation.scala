@@ -124,8 +124,7 @@ private[api] trait GraphViewImplementation[
 
   override def edgeFilter(f: Edge => Boolean, pruneNodes: Boolean): G = {
     val filtered = step { vertex =>
-      vertex
-        .getOutEdges()
+      vertex.outEdges
         .foreach(edge => if (!f(edge)) edge.remove())
     }
     if (pruneNodes)
@@ -135,8 +134,7 @@ private[api] trait GraphViewImplementation[
 
   override def edgeFilter(f: (Edge, GraphState) => Boolean, pruneNodes: Boolean): G = {
     val filtered = step((vertex, graphState) =>
-      vertex
-        .getOutEdges()
+      vertex.outEdges
         .foreach(edge => if (!f(edge, graphState)) edge.remove())
     )
     if (pruneNodes)

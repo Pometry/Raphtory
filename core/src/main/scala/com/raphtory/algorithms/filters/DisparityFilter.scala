@@ -53,7 +53,7 @@ class DisparityFilter[T: Numeric: Bounded: ClassTag](
 
         val k1 = vertex.degree
         val s1 = vertex.weightedTotalDegree[T](weightProperty = weightProperty).toDouble
-        vertex.getInEdges().foreach { edge =>
+        vertex.inEdges.foreach { edge =>
           val k2  = degreeMap(edge.src)
           val s2  = weightMap(edge.src).toDouble
           val wgt = edge.weight[T](weightProperty = weightProperty)

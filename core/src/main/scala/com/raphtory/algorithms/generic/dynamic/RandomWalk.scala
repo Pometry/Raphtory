@@ -51,7 +51,7 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends Generi
   protected val rnd: Random = if (seed != -1) new Random(seed) else new Random()
 
   protected def selectNeighbour(vertex: Vertex) = {
-    val neighbours = vertex.getOutNeighbours()
+    val neighbours = vertex.outNeighbours
     if (neighbours.isEmpty)
       vertex.ID
     else
