@@ -8,6 +8,8 @@ import com.raphtory.internals.components.Component
 import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
+import org.apache.bcel.Repository
+import org.apache.bcel.classfile.JavaClass
 import org.slf4j.LoggerFactory
 
 import scala.collection.concurrent._

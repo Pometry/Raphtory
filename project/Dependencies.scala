@@ -29,6 +29,7 @@ object Dependencies {
   lazy val excludeLog4j         = ExclusionRule(organization = "log4j")
 
   lazy val akkaTyped      = "com.typesafe.akka" %% "akka-actor-typed" % akkaTypedVersion
+  lazy val bcel = "org.apache.bcel" % "bcel" % "6.5.0"
   lazy val catsEffect     = "org.typelevel"     %% "cats-effect"      % catsEffectVersion
   lazy val curatorRecipes = "org.apache.curator" % "curator-recipes"  % curatorVersion
 

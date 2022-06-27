@@ -76,6 +76,7 @@ lazy val core = (project in file("core"))
           libraryDependencies ++= Seq(
                   //please keep in alphabetical order
                   akkaTyped,
+                  bcel,
                   curatorRecipes,
                   gson,
                   javaxScript,

@@ -20,8 +20,10 @@ private[raphtory] case class WatermarkTime(
     safe: Boolean
 ) extends QueryManagement
 
-private[raphtory] case object StartAnalysis                               extends QueryManagement
-private[raphtory] case class EstablishExecutor(jobID: String, sink: Sink) extends QueryManagement
+private[raphtory] case object StartAnalysis extends QueryManagement
+
+private[raphtory] case class EstablishExecutor(_bootstrap: DynamicLoader, jobID: String, sink: Sink)
+        extends QueryManagement
 
 private[raphtory] case class SetMetaData(vertices: Int) extends QueryManagement
 
@@ -73,16 +75,21 @@ private[raphtory] case class FilteredOutEdgeMessage[VertexID](
 private[raphtory] case class VertexMessagesSync(partitionID: Int, count: Long)
 
 private[raphtory] case class Query(
+    _bootstrap: DynamicLoader = DynamicLoader(), // leave the `_` this field gets deserialized first
     name: String = "",
     points: PointSet = NullPointSet,
-    timelineStart: Long = Long.MinValue, // inclusive
-    timelineEnd: Long = Long.MaxValue,   // inclusive
+    timelineStart: Long = Long.MinValue,         // inclusive
+    timelineEnd: Long = Long.MaxValue,           // inclusive
     windows: List[Interval] = List(),
     windowAlignment: Alignment.Value = Alignment.START,
     graphFunctions: Queue[GraphFunction] = Queue(),
     tableFunctions: Queue[TableFunction] = Queue(),
     sink: Option[Sink] = None
 ) extends QueryManagement
+
+case class DynamicLoader(classes: Set[Class[_]] = Set.empty) {
+  def +(cls: Class[_]): DynamicLoader = this.copy(classes = classes + cls)
+}
 
 sealed private[raphtory] trait PointSet
 private[raphtory] case object NullPointSet           extends PointSet
@@ -95,7 +102,11 @@ private[raphtory] case class PointPath(
     offset: Interval = NullInterval
 ) extends PointSet
 
-private[raphtory] case class EndQuery(jobID: String)        extends QueryManagement
+trait QueryLifeCycle extends QueryManagement {
+  def jobID: String
+}
+
+private[raphtory] case class EndQuery(jobID: String)        extends QueryLifeCycle
 private[raphtory] case class QueryNotPresent(jobID: String) extends QueryManagement
 
 // Messages for jobStatus topic
