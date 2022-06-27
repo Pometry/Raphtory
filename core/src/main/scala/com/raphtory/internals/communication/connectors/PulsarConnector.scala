@@ -244,14 +244,14 @@ private[raphtory] class PulsarConnector(
     pulsarAdmin.namespaces().setDeduplicationStatus(namespace, false)
   }
 
-  override def shutdown(): Unit = {}
-
   override def close(): Unit = {
     if (!client.isClosed())
       client.close()
 
     pulsarAdmin.close()
   }
+
+  override def shutdown(): Unit = {}
 }
 
 object PulsarConnector {

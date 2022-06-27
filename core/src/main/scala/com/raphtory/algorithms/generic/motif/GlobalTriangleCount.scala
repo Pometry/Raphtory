@@ -29,15 +29,15 @@ object GlobalTriangleCount extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     LocalTriangleCount(graph)
-      .setGlobalState(state => state.newAdder[Int]("triangles",retainState = true))
-      .step { (vertex,state) =>
+      .setGlobalState(state => state.newAdder[Int]("triangles", retainState = true))
+      .step { (vertex, state) =>
         val tri = vertex.getState[Int]("triangleCount")
-        state("triangles")+= tri
+        state("triangles") += tri
       }
 
-  override def tabularise(graph: GraphPerspective) : Table =
-    graph.globalSelect{ state =>
+  override def tabularise(graph: GraphPerspective): Table =
+    graph.globalSelect { state =>
       val totalTri: Int = state("triangles").value
-      Row(totalTri/3)
+      Row(totalTri / 3)
     }
 }

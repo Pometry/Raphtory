@@ -147,7 +147,6 @@ class LOTRGraphBuilderTest extends CatsEffectSuite {
       .map { topicName =>
         IO.println(s"Deleting $topicName") *>
           IO.fromCompletableFuture(IO.delay(admin.topics().terminateTopicAsync(topicName)))
-//        *> IO.fromCompletableFuture(IO.delay(admin.topics().deleteAsync(topicName)))
       }
       .toList
       .sequence_

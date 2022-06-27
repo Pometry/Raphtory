@@ -64,7 +64,7 @@ object Raphtory {
       graphBuilder: GraphBuilder[T],
       customConfig: Map[String, Any] = Map()
   ): Resource[IO, DeployedTemporalGraph] =
-    deployLocalGraphV2[T, IO](spout, graphBuilder, customConfig, batchLoading = false).map {
+    deployLocalGraph[T, IO](spout, graphBuilder, customConfig, batchLoading = false).map {
       case (qs, config, deploymentId) =>
         new DeployedTemporalGraph(Query(), qs, config, deploymentId, shutdown = IO.unit)
     }
@@ -83,7 +83,7 @@ object Raphtory {
       customConfig: Map[String, Any] = Map()
   ): DeployedTemporalGraph = {
     val ((qs, config, deploymentId), shutdown) =
-      deployLocalGraphV2[T, IO](spout, graphBuilder, customConfig, batchLoading = false).allocated.unsafeRunSync()
+      deployLocalGraph[T, IO](spout, graphBuilder, customConfig, batchLoading = false).allocated.unsafeRunSync()
 
     new DeployedTemporalGraph(Query(), qs, config, deploymentId, shutdown)
   }
@@ -101,7 +101,7 @@ object Raphtory {
       graphBuilder: GraphBuilder[T],
       customConfig: Map[String, Any] = Map()
   ): Resource[IO, DeployedTemporalGraph] =
-    deployLocalGraphV2[T, IO](spout, graphBuilder, customConfig, batchLoading = true).map {
+    deployLocalGraph[T, IO](spout, graphBuilder, customConfig, batchLoading = true).map {
       case (qs, config, deploymentId) =>
         new DeployedTemporalGraph(Query(), qs, config, deploymentId, shutdown = IO.unit)
     }
@@ -120,7 +120,7 @@ object Raphtory {
       customConfig: Map[String, Any] = Map()
   ): DeployedTemporalGraph = {
     val ((qs, config, deploymentId), shutdown) =
-      deployLocalGraphV2[T, IO](spout, graphBuilder, customConfig, batchLoading = true).allocated.unsafeRunSync()
+      deployLocalGraph[T, IO](spout, graphBuilder, customConfig, batchLoading = true).allocated.unsafeRunSync()
 
     new DeployedTemporalGraph(Query(), qs, config, deploymentId, shutdown)
 
@@ -160,17 +160,21 @@ object Raphtory {
       customConfig: Map[String, Any] = Map(),
       distributed: Boolean = false,
       salt: Option[Int] = None
-  ): Config                  =
+  ): Config =
     confBuilder(customConfig, salt, distributed)
 
-  def confBuilder(customConfig: Map[String, Any] = Map(), salt: Option[Int] = None, distributed: Boolean): Config = {
+  private[raphtory] def confBuilder(
+      customConfig: Map[String, Any] = Map(),
+      salt: Option[Int] = None,
+      distributed: Boolean
+  ): Config = {
     val confHandler = new ConfigHandler()
     salt.foreach(s => confHandler.setSalt(s))
     customConfig.foreach { case (key, value) => confHandler.addCustomConfig(key, value) }
     confHandler.getConfig(distributed)
   }
 
-  private def deployLocalGraphV2[T: ClassTag, IO[_]](
+  private def deployLocalGraph[T: ClassTag, IO[_]](
       spout: Spout[T] = new IdentitySpout[T](),
       graphBuilder: GraphBuilder[T],
       customConfig: Map[String, Any] = Map(),
@@ -202,8 +206,6 @@ object Raphtory {
 
     } yield (new QuerySender(scheduler, topicRepo, config), config, deploymentID)
   }
-
-  def shutdown(): Unit = {}
 
   def makePartitionIdManager[IO[_]: Sync](
       config: Config,

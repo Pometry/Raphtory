@@ -69,8 +69,7 @@ abstract class RaphtoryService[T: ClassTag] extends IOApp {
 
   /**
     * Creates `Spout` to read or ingest data from resources or files, sending messages to builder
-    * producers for each row. Supported spout types are FileSpout`, `ResourceSpout`,
-    * `StaticGraphSpout`.
+    * producers for each row.
     */
   def spoutDeploy(config: Config): Resource[IO, SpoutExecutor[T]] = {
     val metricsPort = config.getInt("raphtory.prometheus.metrics.port")

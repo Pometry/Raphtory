@@ -25,21 +25,12 @@ private[raphtory] class StreamWriter(
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val neighbours     = topics.graphSync.endPoint
 
-//  private val listener          =
-//    topics.registerListener(
-//            s"$deploymentID-writer-$partitionID",
-//            handleMessage,
-//            Seq(topics.graphUpdates, topics.graphSync),
-//            partitionID
-//    )
   private var processedMessages = 0
 
   override def run(): Unit = {}
-//    listener.start()
 
   override def stop(): Unit =
     neighbours.values.foreach(_.close())
-//    listener.close()
 
   override def handleMessage(msg: GraphAlteration): Unit = {
     msg match {

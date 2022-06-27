@@ -150,8 +150,6 @@ class QueryProgressTracker private[raphtory] (
 
 object QueryProgressTracker {
 
-  def unsafeApply(jobId: String, config: Config, topics: TopicRepository): QueryProgressTracker = {
-    val tracker = new QueryProgressTracker(jobId, config, topics)
-    tracker
-  }
+  def unsafeApply(jobId: String, config: Config, topics: TopicRepository): QueryProgressTracker =
+    new QueryProgressTracker(jobId, config, topics)
 }

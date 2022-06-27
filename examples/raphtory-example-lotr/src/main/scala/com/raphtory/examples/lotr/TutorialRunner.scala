@@ -1,8 +1,5 @@
 package com.raphtory.examples.lotr
 
-import cats.effect.ExitCode
-import cats.effect.IO
-import cats.effect.IOApp
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.examples.lotr.graphbuilders.LOTRGraphBuilder
@@ -12,30 +9,24 @@ import com.raphtory.utils.FileUtils
 
 import scala.language.postfixOps
 
-object TutorialRunner extends IOApp {
+object TutorialRunner extends App {
 
-  override def run(args: List[String]): IO[ExitCode] = {
-    val path = "/tmp/lotr.csv"
-    val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
+  val path = "/tmp/lotr.csv"
+  val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
 
-    FileUtils.curlFile(path, url)
+  FileUtils.curlFile(path, url)
 
-    val source  = FileSpout(path)
-    val builder = new LOTRGraphBuilder()
-    Raphtory.loadIO(spout = source, graphBuilder = builder).use { graph =>
-      IO.blocking {
+  val source  = FileSpout(path)
+  val builder = new LOTRGraphBuilder()
+  val graph   = Raphtory.load(spout = source, graphBuilder = builder)
 
-        val output = FileSink("/tmp/raphtory")
+  val output = FileSink("/tmp/raphtory")
 
-        graph
-          .at(32674)
-          .past()
-          .execute(ConnectedComponents())
-          .writeTo(output)
-          .waitForJob()
-        ExitCode.Success
-      }
-    }
-  }
+  graph
+    .at(32674)
+    .past()
+    .execute(ConnectedComponents())
+    .writeTo(output)
+    .waitForJob()
 
 }

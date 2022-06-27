@@ -1,6 +1,7 @@
 package com.raphtory.enrontest
 
 import com.raphtory.BaseRaphtoryAlgoTest
+import com.raphtory.GraphState
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
@@ -15,17 +16,17 @@ import scala.language.postfixOps
 
 class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
-//  withGraph.test("Graph State Test") { graph =>
-//    val sink: FileSink = FileSink(outputDirectory)
-//
-//    graph
-//      .walk(10000)
-//      .past()
-//      .execute(GraphState())
-//      .writeTo(sink)
-//      .waitForJob()
-//
-//  }
+  withGraph.test("Graph State Test".ignore) { graph =>
+    val sink: FileSink = FileSink(outputDirectory)
+
+    graph
+      .walk(10000)
+      .past()
+      .execute(GraphState())
+      .writeTo(sink)
+      .waitForJob()
+
+  }
 
   test("Connected Components Test") {
     val sink: FileSink = FileSink(outputDirectory)
