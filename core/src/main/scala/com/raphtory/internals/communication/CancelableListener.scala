@@ -1,5 +1,7 @@
 package com.raphtory.internals.communication
 
+import scala.util.Try
+
 private[raphtory] trait CancelableListener {
   def start(): Unit
   def close(): Unit
@@ -13,7 +15,7 @@ private[raphtory] object CancelableListener {
 
       override def close(): Unit =
         listeners foreach (listener => {
-          listener.close()
+          Try(listener.close())
         })
     }
 }

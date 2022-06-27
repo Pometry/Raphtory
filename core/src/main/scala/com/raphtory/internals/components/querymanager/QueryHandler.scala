@@ -78,14 +78,14 @@ private[raphtory] class QueryHandler(
   private var currentPerspective: Perspective =
     Perspective(DEFAULT_PERSPECTIVE_TIME, DEFAULT_PERSPECTIVE_WINDOW, 0, 0)
 
-  private var lastTime: Long            = 0L
-  private var readyCount: Int           = 0
-  private var vertexCount: Int          = 0
-  private var receivedMessageCount: Int = 0
-  private var sentMessageCount: Int     = 0
-  private var checkingMessages: Boolean = false
-  private var allVoteToHalt: Boolean    = true
-  private var timeTaken                 = System.currentTimeMillis()
+  private var lastTime: Long             = 0L
+  private var readyCount: Int            = 0
+  private var vertexCount: Int           = 0
+  private var receivedMessageCount: Long = 0
+  private var sentMessageCount: Long     = 0
+  private var checkingMessages: Boolean  = false
+  private var allVoteToHalt: Boolean     = true
+  private var timeTaken                  = System.currentTimeMillis()
 
   private var currentState: Stage = SpawnExecutors
 
@@ -217,8 +217,8 @@ private[raphtory] class QueryHandler(
 
   private def processGraphFunctionComplete(
       partitionID: Int,
-      receivedMessages: Int,
-      sentMessages: Int,
+      receivedMessages: Long,
+      sentMessages: Long,
       votedToHalt: Boolean
   ) = {
     sentMessageCount += sentMessages
@@ -240,38 +240,36 @@ private[raphtory] class QueryHandler(
         nextGraphOperation(vertexCount)
       }
       else {
-        logger.debug(
-                s"Job '$jobID': Checking messages - Received messages total:$receivedMessageCount , Sent messages total: $sentMessageCount."
+        logger.error(
+                s"Message check failed: Total received messages: $receivedMessageCount, total sent messages: $sentMessageCount"
         )
-        if (checkingMessages && topics.jobOperationsConnector.isInstanceOf[PulsarConnector]) { // TODO: clean up later this section
-          val pulsarConnector = topics.jobOperationsConnector.asInstanceOf[PulsarConnector]
-          val pulsarEndPoint  =
-            workerList.asInstanceOf[pulsarConnector.PulsarEndPoint[QueryManagement]]
-          val topic           = pulsarEndPoint.producer.getTopic
-          logger.debug(s"Checking messages for topic $topic")
-          val consumer        = pulsarConnector.createExclusiveConsumer("dumping", Schema.BYTES, topic)
-          var has_message     = true
-          while (has_message) {
-            val msg =
-              consumer.receive(
-                      10,
-                      TimeUnit.SECONDS
-              ) // add some timeout to see if new messages come in
-            if (msg == null)
-              has_message = false
-            else {
-              val message = KryoSerialiser().deserialise[QueryManagement](msg.getValue)
-              consumer.acknowledge(msg)
-              msg.release()
-              logger.debug(s"Read message $message")
+        topics.jobOperationsConnector match {
+          case pulsarConnector: PulsarConnector => // TODO: clean up later this section
+
+            val pulsarEndPoint =
+              workerList.asInstanceOf[pulsarConnector.PulsarEndPoint[QueryManagement]]
+            val topic          = pulsarEndPoint.producer.getTopic
+            logger.debug(s"Checking messages for topic $topic")
+            val consumer       = pulsarConnector.createExclusiveConsumer("dumping", Schema.BYTES, topic)
+            var has_message    = true
+            while (has_message) {
+              val msg =
+                consumer.receive(
+                        10,
+                        TimeUnit.SECONDS
+                ) // add some timeout to see if new messages come in
+              if (msg == null)
+                has_message = false
+              else {
+                val message = KryoSerialiser().deserialise[QueryManagement](msg.getValue)
+                consumer.acknowledge(msg)
+                msg.release()
+                logger.debug(s"Read message $message")
+              }
             }
-          }
+          case _ =>
         }
-        readyCount = 0
-        receivedMessageCount = 0
-        sentMessageCount = 0
-        checkingMessages = true
-        messagetoAllJobWorkers(CheckMessages(jobID))
+        throw new RuntimeException("Message check failed")
         Stages.ExecuteGraph
       }
     else

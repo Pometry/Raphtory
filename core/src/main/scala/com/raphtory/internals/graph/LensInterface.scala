@@ -13,7 +13,7 @@ import com.raphtory.internals.storage.pojograph.messaging.VertexMessageHandler
 private[raphtory] trait LensInterface {
 
   def partitionID(): Int
-
+  def localNodeCount: Int
   def getFullGraphSize: Int
   def setFullGraphSize(size: Int): Unit
 
@@ -51,7 +51,6 @@ private[raphtory] trait LensInterface {
       f: (_, GraphState) => Unit,
       graphState: GraphState
   )(onComplete: => Unit): Unit
-  def getMessageHandler(): VertexMessageHandler
   def checkVotes(): Boolean
   def sendMessage(msg: GenericVertexMessage[_]): Unit
   def vertexVoted(): Unit

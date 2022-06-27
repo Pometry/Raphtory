@@ -1,9 +1,7 @@
 package com.raphtory.fileSpoutTest
 
 import com.raphtory.utils.FileUtils
-import org.scalatest.BeforeAndAfter
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 import java.io.File
 import java.util.UUID
@@ -12,7 +10,7 @@ import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermissions
 import java.util
 
-class FileSpoutTest extends AnyFunSuite with BeforeAndAfterAll {
+class FileSpoutTest extends FunSuite {
 
   val tempDir       = Files.createTempDirectory("FileSpoutTest").toFile.getAbsolutePath
   val ownerWritable = PosixFilePermissions.fromString("-w-------")
@@ -26,7 +24,7 @@ class FileSpoutTest extends AnyFunSuite with BeforeAndAfterAll {
   }
   test("FileUtils.validatePath should throw if file does not exist") {
     val randomName = "/" + UUID.randomUUID().toString + ".hy"
-    assertThrows[java.io.FileNotFoundException](FileUtils.validatePath(randomName))
+    intercept[java.io.FileNotFoundException](FileUtils.validatePath(randomName))
   }
 //  test("FileUtils.validatePath should throw if file cannot be read"){
 //    // make a temp file
@@ -38,7 +36,7 @@ class FileSpoutTest extends AnyFunSuite with BeforeAndAfterAll {
   }
   test("FileUtils.createOrCleanDirectory should be allowed to make new temp folders") {
     val newDir = tempDir + "/" + UUID.randomUUID().toString
-    assert(FileUtils.createOrCleanDirectory(newDir).getAbsolutePath === newDir)
+    assertEquals(FileUtils.createOrCleanDirectory(newDir).getAbsolutePath, newDir)
     tempDirs.add(newDir)
   }
 //  test("FileUtils.createOrCleanDirectory should be allowed to clean existing temp folders"){
