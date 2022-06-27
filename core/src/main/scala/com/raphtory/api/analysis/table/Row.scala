@@ -116,9 +116,8 @@ private[raphtory] class RowImplementation extends Row {
 object Row {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private[table] val pool = ThreadLocal.withInitial[ArrayBuffer[RowImplementation]](() =>
-    ArrayBuffer.empty[RowImplementation]
-  )
+  private[table] val pool =
+    ThreadLocal.withInitial[ArrayBuffer[RowImplementation]](() => ArrayBuffer.empty[RowImplementation])
 
   /** Create a new Row object */
   def apply(values: Any*): Row = {

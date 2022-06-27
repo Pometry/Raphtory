@@ -155,17 +155,15 @@ private[raphtory] class GraphStateImplementation(override val nodeCount: Int) ex
       numeric: Numeric[T],
       bounded: Bounded[T]
   ): Unit =
-    accumulatorState(name) =
-      AccumulatorImplementation[T](initialValue, retainState = retainState, numeric.max)
-        .asInstanceOf[AccumulatorImplementation[Any, Any]]
+    accumulatorState(name) = AccumulatorImplementation[T](initialValue, retainState = retainState, numeric.max)
+      .asInstanceOf[AccumulatorImplementation[Any, Any]]
 
   override def newMin[T](name: String, initialValue: T, retainState: Boolean)(implicit
       numeric: Numeric[T],
       bounded: Bounded[T]
   ): Unit =
-    accumulatorState(name) =
-      AccumulatorImplementation[T](initialValue, retainState = retainState, numeric.min)
-        .asInstanceOf[AccumulatorImplementation[Any, Any]]
+    accumulatorState(name) = AccumulatorImplementation[T](initialValue, retainState = retainState, numeric.min)
+      .asInstanceOf[AccumulatorImplementation[Any, Any]]
 
   override def newHistogram[T: Numeric](
       name: String,
@@ -174,18 +172,16 @@ private[raphtory] class GraphStateImplementation(override val nodeCount: Int) ex
       maxValue: T,
       retainState: Boolean
   ): Unit =
-    accumulatorState(name) =
-      HistogramAccumulatorImplementation[T](noBins, minValue, maxValue, retainState)
-        .asInstanceOf[AccumulatorImplementation[Any, Any]]
+    accumulatorState(name) = HistogramAccumulatorImplementation[T](noBins, minValue, maxValue, retainState)
+      .asInstanceOf[AccumulatorImplementation[Any, Any]]
 
   override def newAll(name: String, retainState: Boolean): Unit =
     accumulatorState(name) = AccumulatorImplementation[Boolean](true, retainState, _ && _)
       .asInstanceOf[AccumulatorImplementation[Any, Any]]
 
   override def newAny(name: String, retainState: Boolean): Unit =
-    accumulatorState(name) =
-      AccumulatorImplementation[Boolean](initialValue = false, retainState, _ || _)
-        .asInstanceOf[AccumulatorImplementation[Any, Any]]
+    accumulatorState(name) = AccumulatorImplementation[Boolean](initialValue = false, retainState, _ || _)
+      .asInstanceOf[AccumulatorImplementation[Any, Any]]
 
   def update(graphState: GraphStateImplementation): Unit =
     graphState.accumulatorState.foreach {

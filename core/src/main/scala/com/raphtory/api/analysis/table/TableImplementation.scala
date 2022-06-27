@@ -5,8 +5,7 @@ import com.raphtory.api.querytracker.QueryProgressTracker
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.management.QuerySender
 
-private[api] class TableImplementation(val query: Query, private val querySender: QuerySender)
-        extends Table {
+private[api] class TableImplementation(val query: Query, private val querySender: QuerySender) extends Table {
 
   override def filter(f: Row => Boolean): Table = {
     def closurefunc(v: Row): Boolean = f(v)

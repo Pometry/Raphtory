@@ -109,9 +109,8 @@ private[raphtory] object PerspectiveController {
         boundedPerspectives
     }
 
-    val trimmedPerspectives = untrimmedPerspectives map (stream =>
-      stream.map(trimPerspective(_, query.timelineStart, query.timelineEnd))
-    )
+    val trimmedPerspectives =
+      untrimmedPerspectives map (stream => stream.map(trimPerspective(_, query.timelineStart, query.timelineEnd)))
 
     if (trimmedPerspectives forall (_.isEmpty))
       logger.warn(

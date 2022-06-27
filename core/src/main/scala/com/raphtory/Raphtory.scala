@@ -1,28 +1,28 @@
 package com.raphtory
 
+import cats.effect._
+import cats.effect.unsafe.implicits.global
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
-import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraphConnection
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
+import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.repositories.PulsarAkkaTopicRepository
 import com.raphtory.internals.communication.repositories.PulsarTopicRepository
+import com.raphtory.internals.components.graphbuilder.BuildExecutorGroup
 import com.raphtory.internals.components.querymanager.Query
-import com.raphtory.internals.management.ComponentFactory
-import com.raphtory.internals.management.ConfigHandler
-import com.raphtory.internals.management.GraphDeployment
-import com.raphtory.internals.management.Scheduler
-import com.raphtory.internals.management.Py4JServer
-import com.raphtory.internals.management.QuerySender
+import com.raphtory.internals.components.querymanager.QueryManager
+import com.raphtory.internals.components.spout.SpoutExecutor
+import com.raphtory.internals.management._
+import com.raphtory.internals.management.id.IDManager
+import com.raphtory.internals.management.id.LocalIDManager
+import com.raphtory.internals.management.id.ZookeeperIDManager
 import com.raphtory.spouts.IdentitySpout
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import io.prometheus.client.exporter.HTTPServer
 import org.slf4j.LoggerFactory
 
-import java.io.IOException
 import scala.reflect.ClassTag
-import scala.reflect.runtime.universe.TypeTag
 
 /**  `Raphtory` object for creating Raphtory Components
   *
@@ -52,9 +52,6 @@ import scala.reflect.runtime.universe.TypeTag
 object Raphtory {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private lazy val javaPy4jGatewayServer           = new Py4JServer(this)
-  private var prometheusServer: Option[HTTPServer] = None
-
   /** Creates a streaming version of a `DeployedTemporalGraph` object that can be used to express queries from.
     *
     * @param spout Spout to ingest objects of type `T` into the deployment
@@ -62,12 +59,34 @@ object Raphtory {
     * @param customConfig Custom configuration for the deployment
     * @return The graph object for this stream
     */
-  def stream[T: TypeTag: ClassTag](
+  def streamIO[T: ClassTag](
       spout: Spout[T] = new IdentitySpout[T](),
       graphBuilder: GraphBuilder[T],
       customConfig: Map[String, Any] = Map()
-  ): DeployedTemporalGraph =
-    deployLocalGraph(spout, graphBuilder, customConfig, false)
+  ): Resource[IO, DeployedTemporalGraph] =
+    deployLocalGraph[T, IO](spout, graphBuilder, customConfig, batchLoading = false).map {
+      case (qs, config, deploymentId) =>
+        new DeployedTemporalGraph(Query(), qs, config, deploymentId, shutdown = IO.unit)
+    }
+
+  /** Creates a streaming version of a `DeployedTemporalGraph` object that can be used to express queries from.
+    *  this is unmanaged and returns [[DeployedTemporalGraph]] which implements [[AutoCloseable]]
+    *
+    * @param spout Spout to ingest objects of type `T` into the deployment
+    * @param graphBuilder Graph builder to parse the input objects
+    * @param customConfig Custom configuration for the deployment
+    * @return The graph object for this stream
+    */
+  def stream[T: ClassTag](
+      spout: Spout[T] = new IdentitySpout[T](),
+      graphBuilder: GraphBuilder[T],
+      customConfig: Map[String, Any] = Map()
+  ): DeployedTemporalGraph = {
+    val ((qs, config, deploymentId), shutdown) =
+      deployLocalGraph[T, IO](spout, graphBuilder, customConfig, batchLoading = false).allocated.unsafeRunSync()
+
+    new DeployedTemporalGraph(Query(), qs, config, deploymentId, shutdown)
+  }
 
   /** Creates a batch loading version of a `DeployedTemporalGraph` object that can be used to express
     * queries from.
@@ -77,12 +96,45 @@ object Raphtory {
     * @param customConfig Custom configuration for the deployment
     * @return The graph object created by this batch loader
     */
-  def load[T: TypeTag: ClassTag](
+  def loadIO[T: ClassTag](
       spout: Spout[T] = new IdentitySpout[T](),
       graphBuilder: GraphBuilder[T],
       customConfig: Map[String, Any] = Map()
-  ): DeployedTemporalGraph =
-    deployLocalGraph(spout, graphBuilder, customConfig, true)
+  ): Resource[IO, DeployedTemporalGraph] =
+    deployLocalGraph[T, IO](spout, graphBuilder, customConfig, batchLoading = true).map {
+      case (qs, config, deploymentId) =>
+        new DeployedTemporalGraph(Query(), qs, config, deploymentId, shutdown = IO.unit)
+    }
+
+  /** Creates a batch loading version of a `DeployedTemporalGraph` object that can be used to express
+    * queries from.
+    *
+    * @param spout Spout to ingest objects of type `T` into the deployment
+    * @param graphBuilder Graph builder to parse the input objects
+    * @param customConfig Custom configuration for the deployment
+    * @return The graph object created by this batch loader
+    */
+  def load[T: ClassTag](
+      spout: Spout[T] = new IdentitySpout[T](),
+      graphBuilder: GraphBuilder[T],
+      customConfig: Map[String, Any] = Map()
+  ): DeployedTemporalGraph = {
+    val ((qs, config, deploymentId), shutdown) =
+      deployLocalGraph[T, IO](spout, graphBuilder, customConfig, batchLoading = true).allocated.unsafeRunSync()
+
+    new DeployedTemporalGraph(Query(), qs, config, deploymentId, shutdown)
+
+  }
+
+  private def connectManaged(customConfig: Map[String, Any] = Map()) = {
+    val config         = confBuilder(customConfig, distributed = true)
+    val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
+    for {
+      _         <- Py4JServer.fromEntryPoint[IO](this, config)
+      _         <- Prometheus[IO](prometheusPort)
+      topicRepo <- PulsarTopicRepository[IO](config)
+    } yield (topicRepo, config)
+  }
 
   /** Creates a `TemporalGraphConnection` object referencing an already deployed graph that
     * can be used to submit queries.
@@ -91,17 +143,10 @@ object Raphtory {
     * @return A temporal graph object
     */
   def connect(customConfig: Map[String, Any] = Map()): TemporalGraphConnection = {
-    val scheduler          = new Scheduler()
-    val conf               = confBuilder(customConfig, true)
-    val activePythonServer = conf.getBoolean("raphtory.python.active")
-    if (activePythonServer)
-      javaPy4jGatewayServer.start(conf)
-    startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
-    allowIllegalReflection()
-    val topics             = PulsarTopicRepository(conf)
-    val componentFactory   = new ComponentFactory(conf, topics)
-    val querySender        = new QuerySender(componentFactory, scheduler, topics)
-    new TemporalGraphConnection(Query(), querySender, conf, scheduler, topics)
+    val managed: IO[((TopicRepository, Config), IO[Unit])] = connectManaged(customConfig).allocated
+
+    val ((topicRepo, config), shutdown) = managed.unsafeRunSync()
+    new TemporalGraphConnection(Query(), new QuerySender(new Scheduler(), topicRepo, config), config, shutdown)
   }
 
   /** Returns a default config using `ConfigFactory` for initialising parameters for
@@ -113,142 +158,80 @@ object Raphtory {
     */
   def getDefaultConfig(
       customConfig: Map[String, Any] = Map(),
-      distributed: Boolean = false
+      distributed: Boolean = false,
+      salt: Option[Int] = None
   ): Config =
-    confBuilder(customConfig, distributed)
+    confBuilder(customConfig, salt, distributed)
 
-  private def confBuilder(customConfig: Map[String, Any] = Map(), distributed: Boolean): Config = {
+  private[raphtory] def confBuilder(
+      customConfig: Map[String, Any] = Map(),
+      salt: Option[Int] = None,
+      distributed: Boolean
+  ): Config = {
     val confHandler = new ConfigHandler()
+    salt.foreach(s => confHandler.setSalt(s))
     customConfig.foreach { case (key, value) => confHandler.addCustomConfig(key, value) }
     confHandler.getConfig(distributed)
   }
 
-  private[raphtory] def createSpout[T](spout: Spout[T]): Unit = {
-    val scheduler        = new Scheduler()
-    val conf             = confBuilder(distributed = true)
-    startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
-    allowIllegalReflection()
-    val topics           = PulsarTopicRepository(conf)
-    val componentFactory = new ComponentFactory(conf, topics)
-    componentFactory.spout(spout, false, scheduler)
-  }
-
-  private[raphtory] def createGraphBuilder[T: ClassTag](
-      builder: GraphBuilder[T]
-  ): Unit = {
-    val scheduler        = new Scheduler()
-    val conf             = confBuilder(distributed = true)
-    startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
-    allowIllegalReflection()
-    val topics           = PulsarTopicRepository(conf)
-    val componentFactory = new ComponentFactory(conf, topics)
-    componentFactory.builder(builder, false, scheduler)
-  }
-
-  private[raphtory] def createPartitionManager[T: ClassTag](
-      batchLoading: Boolean = false,
-      spout: Option[Spout[T]] = None,
-      graphBuilder: Option[GraphBuilder[T]] = None
-  ): Unit = {
-    val scheduler        = new Scheduler()
-    val conf             = confBuilder(distributed = true)
-    startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
-    allowIllegalReflection()
-    val topics           = PulsarTopicRepository(conf)
-    val componentFactory = new ComponentFactory(conf, topics)
-    componentFactory.partition(scheduler, batchLoading, spout, graphBuilder)
-  }
-
-  private[raphtory] def createQueryManager(): Unit = {
-    val scheduler        = new Scheduler()
-    val conf             = confBuilder(distributed = true)
-    startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
-    allowIllegalReflection()
-    val topics           = PulsarTopicRepository(conf)
-    val componentFactory = new ComponentFactory(conf, topics)
-    componentFactory.query(scheduler)
-  }
-
-  private def newPrometheusServer(prometheusPort: Int): Unit =
-    try prometheusServer = Some(new HTTPServer(prometheusPort))
-    catch {
-      case e: IOException =>
-        logger.error(
-                s"Cannot create prometheus server as port $prometheusPort is already bound, " +
-                  s"this could be you have multiple raphtory instances running on the same machine. "
-        )
-    }
-
-  private[raphtory] def startPrometheus(prometheusPort: Int): Unit =
-    synchronized {
-      prometheusServer match {
-        case Some(server) =>
-          if (server.getPort != prometheusPort)
-            logger.warn(
-                    s"This Raphtory Instance is already running a Prometheus Server on port ${server.getPort}."
-            )
-        case None         => newPrometheusServer(prometheusPort)
-      }
-    }
-
-  private def deployLocalGraph[T: ClassTag: TypeTag](
+  private def deployLocalGraph[T: ClassTag, IO[_]](
       spout: Spout[T] = new IdentitySpout[T](),
       graphBuilder: GraphBuilder[T],
       customConfig: Map[String, Any] = Map(),
       batchLoading: Boolean
-  ) = {
-    val scheduler          = new Scheduler()
-    val conf               = confBuilder(customConfig, distributed = false)
-    val activePythonServer = conf.getBoolean("raphtory.python.active")
-    if (activePythonServer)
-      javaPy4jGatewayServer.start(conf)
-    startPrometheus(conf.getInt("raphtory.prometheus.metrics.port"))
-    allowIllegalReflection()
-    val queriesEnabled     = conf.getBoolean("raphtory.query.localEnabled")
-    val topics             =
-      if (queriesEnabled)
-        PulsarTopicRepository(conf)
-      else PulsarAkkaTopicRepository(conf)
-    val componentFactory   = new ComponentFactory(conf, topics, true)
-    val querySender        = new QuerySender(componentFactory, scheduler, topics)
-    val deployment         = new GraphDeployment[T](
-            batchLoading,
-            spout,
-            graphBuilder,
-            conf,
-            componentFactory,
-            scheduler
-    )
-    new DeployedTemporalGraph(Query(), querySender, deployment, conf)
+  )(implicit IO: Async[IO]): Resource[IO, (QuerySender, Config, String)] = {
+    val config         = confBuilder(customConfig, distributed = false)
+    val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
+    val deploymentID   = config.getString("raphtory.deploy.id")
+    val scheduler      = new Scheduler()
+    for {
+      _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
+      topicRepo          <- PulsarAkkaTopicRepository(config)
+      _                  <- QueryManager(config, topicRepo)
+      _                  <- {
+        if (batchLoading) Resource.eval(IO.unit)
+        else SpoutExecutor(spout, config, topicRepo)
+      }
+      builderIDManager   <- makeBuilderIdManager(config, localDeployment = true, deploymentID)
+      partitionIdManager <- makePartitionIdManager(config, localDeployment = true, deploymentID)
+      _                  <- {
+        if (batchLoading) Resource.eval(IO.unit)
+        else BuildExecutorGroup(config, builderIDManager, topicRepo, graphBuilder)
+      }
+      _                  <- {
+        if (batchLoading)
+          PartitionsManager.batchLoading(config, partitionIdManager, topicRepo, scheduler, spout, graphBuilder)
+        else PartitionsManager.streaming(config, partitionIdManager, topicRepo, scheduler)
+      }
+
+    } yield (new QuerySender(scheduler, topicRepo, config), config, deploymentID)
   }
 
-  def shutdown(): Unit = {
-    prometheusServer.foreach(_.close())
-    javaPy4jGatewayServer.shutdown()
-  }
-
-  private[raphtory] def allowIllegalReflection() = {
-    import java.lang.reflect.Field
-
-    try { // Turn off illegal access log messages.
-      val loggerClass = Class.forName("jdk.internal.module.IllegalAccessLogger")
-      val loggerField = loggerClass.getDeclaredField("logger")
-      val unsafeClass = Class.forName("sun.misc.Unsafe")
-      val unsafeField = unsafeClass.getDeclaredField("theUnsafe")
-      unsafeField.setAccessible(true)
-      val unsafe      = unsafeField.get(null)
-      val offset      =
-        unsafeClass
-          .getMethod("staticFieldOffset", classOf[Field])
-          .invoke(unsafe, loggerField)
-          .asInstanceOf[Long]
-      unsafeClass
-        .getMethod("putObjectVolatile", classOf[Object], classOf[Long], classOf[Object])
-        .invoke(unsafe, loggerClass, offset, null)
+  def makePartitionIdManager[IO[_]: Sync](
+      config: Config,
+      localDeployment: Boolean,
+      deploymentId: String
+  ): Resource[IO, IDManager] =
+    if (localDeployment)
+      Resource.eval(Sync[IO].delay(new LocalIDManager))
+    else {
+      val zookeeperAddress         = config.getString("raphtory.zookeeper.address")
+      val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
+      val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
+      val totalPartitions: Int     = partitionServers * partitionsPerServer
+      ZookeeperIDManager(zookeeperAddress, deploymentId, "partitionCount", poolSize = totalPartitions)
     }
-    catch {
-      case ex: Exception =>
-        ex.printStackTrace()
+
+  def makeBuilderIdManager[IO[_]: Sync](
+      config: Config,
+      localDeployment: Boolean,
+      deploymentId: String
+  ): Resource[IO, IDManager] =
+    if (localDeployment)
+      Resource.eval(Sync[IO].delay(new LocalIDManager))
+    else {
+      val zookeeperAddress = config.getString("raphtory.zookeeper.address")
+      ZookeeperIDManager(zookeeperAddress, deploymentId, "builderCount")
     }
-  }
+
 }

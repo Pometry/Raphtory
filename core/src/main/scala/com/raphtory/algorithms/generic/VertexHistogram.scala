@@ -9,8 +9,7 @@ import com.raphtory.utils.Bounded
 
 import scala.reflect.ClassTag
 
-class VertexHistogram[T: Numeric: Bounded: ClassTag](propertyString: String, noBins: Int = 1000)
-        extends Generic {
+class VertexHistogram[T: Numeric: Bounded: ClassTag](propertyString: String, noBins: Int = 1000) extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
