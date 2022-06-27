@@ -31,9 +31,7 @@ final private[raphtory] case class PojoGraphLens(
     var superStep: Int,
     private val storage: GraphPartition,
     private val conf: Config,
-    private val neighbours: Option[Map[Int, EndPoint[QueryManagement]]],
-    private val sentMessages: AtomicInteger,
-    private val receivedMessages: AtomicInteger,
+    private val messageSender: GenericVertexMessage[_] => Unit,
     private val errorHandler: (Throwable) => Unit,
     private val scheduler: Scheduler
 ) extends GraphLens(jobId, start, end)
@@ -46,9 +44,6 @@ final private[raphtory] case class PojoGraphLens(
   private var exploded: Boolean = false
 
   var needsFiltering = false //used in PojoExEdge
-
-  private val messageHandler: VertexMessageHandler =
-    VertexMessageHandler(conf, neighbours, this, sentMessages, receivedMessages)
 
   val partitionID: Int = storage.getPartitionID
 
@@ -74,7 +69,7 @@ final private[raphtory] case class PojoGraphLens(
     logger.trace(s"Set Graph Size to '$fullGraphSize'.")
   }
 
-  def getSize: Int = vertices.length
+  def localNodeCount: Int = vertices.length
 
   private var dataTable: Iterator[RowImplementation] = Iterator()
 
@@ -225,11 +220,9 @@ final private[raphtory] case class PojoGraphLens(
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
-  def getMessageHandler(): VertexMessageHandler = messageHandler
-
   def checkVotes(): Boolean = vertexCount.get() == voteCount.get()
 
-  def sendMessage(msg: GenericVertexMessage[_]): Unit = messageHandler.sendMessage(msg)
+  def sendMessage(msg: GenericVertexMessage[_]): Unit = messageSender(msg)
 
   def vertexVoted(): Unit = voteCount.incrementAndGet()
 

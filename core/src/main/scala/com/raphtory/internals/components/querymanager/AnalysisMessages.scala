@@ -37,7 +37,9 @@ private[raphtory] case object RecheckTime                 extends QueryManagemen
 private[raphtory] case object RecheckEarliestTime         extends QueryManagement
 private[raphtory] case class CheckMessages(jobId: String) extends QueryManagement
 
-sealed private[raphtory] trait GenericVertexMessage[VertexID] extends QueryManagement {
+sealed private[raphtory] trait VertexMessaging extends QueryManagement
+
+sealed private[raphtory] trait GenericVertexMessage[VertexID] extends VertexMessaging {
   def superstep: Int
   def vertexId: VertexID
 }
@@ -48,7 +50,7 @@ private[raphtory] case class VertexMessage[+T, VertexID](
     data: T
 ) extends GenericVertexMessage[VertexID]
 
-private[raphtory] case class VertexMessageBatch(data: Array[GenericVertexMessage[_]]) extends QueryManagement
+private[raphtory] case class VertexMessageBatch(data: Array[GenericVertexMessage[_]]) extends VertexMessaging
 
 private[raphtory] case class FilteredEdgeMessage[VertexID](
     superstep: Int,
@@ -67,6 +69,8 @@ private[raphtory] case class FilteredOutEdgeMessage[VertexID](
     vertexId: VertexID,
     sourceId: VertexID
 ) extends GenericVertexMessage[VertexID]
+
+private[raphtory] case class VertexMessagesSync(partitionID: Int, count: Long)
 
 private[raphtory] case class Query(
     name: String = "",
@@ -110,16 +114,16 @@ private[raphtory] case class MetaDataSet(perspectiveID: Int)                    
 private[raphtory] case class GraphFunctionComplete(
     perspectiveID: Int,
     partitionID: Int,
-    receivedMessages: Int,
-    sentMessages: Int,
+    receivedMessages: Long,
+    sentMessages: Long,
     votedToHalt: Boolean = false
 ) extends PerspectiveStatus
 
 private[raphtory] case class GraphFunctionCompleteWithState(
     perspectiveID: Int,
     partitionID: Int,
-    receivedMessages: Int,
-    sentMessages: Int,
+    receivedMessages: Long,
+    sentMessages: Long,
     votedToHalt: Boolean = false,
     graphState: GraphStateImplementation
 ) extends PerspectiveStatus

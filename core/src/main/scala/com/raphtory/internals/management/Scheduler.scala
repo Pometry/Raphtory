@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.IORuntime
 import com.raphtory.internals.components.Component
 
+import java.util.concurrent.CompletableFuture
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
@@ -15,6 +16,9 @@ private[raphtory] class Scheduler {
 
   def execute[T](component: Component[T]): Unit =
     IO.blocking(component.run()).unsafeToFuture()
+
+  def executeCompletable[T](task: => Unit): CompletableFuture[Unit] =
+    IO.blocking(task).unsafeToCompletableFuture()
 
   def scheduleOnce(delay: FiniteDuration, task: => Unit): () => Future[Unit] = {
     val (_, cancel) = (IO.sleep(delay) *> IO.blocking(task)).unsafeToFutureCancelable()
