@@ -1,12 +1,29 @@
 package com.raphtory.examples.nft.graphbuilder
 
-import com.raphtory.components.graphbuilder.GraphBuilder
-import com.raphtory.components.graphbuilder.Properties.{DoubleProperty, FloatProperty, ImmutableProperty, LongProperty, Properties, StringProperty, Type}
+import com.raphtory.api.input.{DoubleProperty, GraphBuilder, ImmutableProperty, Properties, StringProperty, Type}
 
 import java.time.{LocalDateTime, ZoneOffset}
 import java.time.format.DateTimeFormatter
 
+import scala.collection.mutable
+import scala.io.Source
+
+
 class NFTGraphBuilder extends GraphBuilder[String] {
+
+  def setupDatePrices(): mutable.HashMap[String, Double] = {
+    val eth_historic_csv ="/Users/haaroony/OneDrive - Pometry Ltd/nft_andrea/ETH-USD.csv"
+    val src = Source.fromFile(eth_historic_csv)
+    val date_price_map = new mutable.HashMap[String,Double]()
+    src.getLines.drop(1).foreach { line =>
+      val l = line.split(",").toList
+      date_price_map.put(l(0), (l(1).toDouble + l(2).toDouble) / 2)
+    }
+    src.close()
+    date_price_map
+  }
+
+  var date_price = setupDatePrices()
 
   override def parseTuple(tuple: String): Unit = {
     val fileLine = tuple.split(",").map(_.trim)
@@ -14,18 +31,24 @@ class NFTGraphBuilder extends GraphBuilder[String] {
     if (fileLine(0) == "Smart_contract") return
     // Seller details
     val seller_address = fileLine(3)
-    val seller_address_id = assignID(seller_address)
+    val seller_address_hash = assignID(seller_address)
     // Buyer details
     val buyer_address = fileLine(5)
-    val buyer_address_id = assignID(buyer_address)
+    val buyer_address_hash = assignID(buyer_address)
     // Transaction details
     val datetime_str = fileLine(19)
     val timeStamp = LocalDateTime.parse(datetime_str, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).toEpochSecond(ZoneOffset.UTC)
     val tx_hash = fileLine(2)
     val token_id_str = fileLine(1)
-    val token_id = token_id_str.toDouble.toLong
+    val token_id_long = token_id_str.toDouble.toLong
     val crypto = fileLine(12)
-    val price_USD = fileLine(13).toDouble
+
+    var price_USD = 0.0
+    if(fileLine(13) == ""){
+      price_USD = date_price(datetime_str.substring(0, 10))
+    } else {
+      price_USD = fileLine(13).toDouble
+    }
 
     // NFT Details
     val collection_cleaned = fileLine(22)
@@ -35,14 +58,14 @@ class NFTGraphBuilder extends GraphBuilder[String] {
     // add buyer node
     addVertex(
       timeStamp,
-      buyer_address_id,
+      buyer_address_hash,
       Properties(ImmutableProperty("address", buyer_address)),
       Type("Wallet")
     )
     // add seller node
     addVertex(
       timeStamp,
-      seller_address_id,
+      seller_address_hash,
       Properties(ImmutableProperty("address", seller_address)),
       Type("Wallet")
     )
@@ -50,7 +73,7 @@ class NFTGraphBuilder extends GraphBuilder[String] {
     // Add node for NFT
     addVertex(
       timeStamp,
-      token_id,
+      token_id_long,
       Properties(
         ImmutableProperty("id", token_id_str),
         ImmutableProperty("collection", collection_cleaned),
@@ -63,8 +86,8 @@ class NFTGraphBuilder extends GraphBuilder[String] {
     // add edge between buyer and nft
     addEdge(
       timeStamp,
-      buyer_address_id,
-      token_id,
+      buyer_address_hash,
+      token_id_long,
       Properties(
         StringProperty("transaction_hash", tx_hash),
         StringProperty("crypto", crypto),
@@ -75,3 +98,4 @@ class NFTGraphBuilder extends GraphBuilder[String] {
     )
   }
 }
+
