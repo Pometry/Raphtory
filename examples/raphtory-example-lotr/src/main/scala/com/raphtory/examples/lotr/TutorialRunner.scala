@@ -29,4 +29,5 @@ object TutorialRunner extends App {
     .writeTo(output)
     .waitForJob()
 
+  graph.close()
 }
