@@ -1,4 +1,4 @@
-package com.raphtory.examples.coho.companiesStream
+package com.raphtory.examples.coho.companiesStream.rawModel
 
 case class Company(
                                resource_kind: Option[String],

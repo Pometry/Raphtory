@@ -1,8 +1,8 @@
-package com.raphtory.examples.coho.companiesStream
+package com.raphtory.examples.coho.companiesStream.rawModel
 
 import spray.json._
 
-class CompaniesHouseJsonProtocol extends DefaultJsonProtocol {
+object CompaniesHouseJsonProtocol extends DefaultJsonProtocol {
 
   implicit val eventFormat = jsonFormat4(Event)
   implicit val confirmationStatementFormat = jsonFormat4(ConfirmationStatement)
@@ -19,8 +19,9 @@ class CompaniesHouseJsonProtocol extends DefaultJsonProtocol {
   implicit val previousCompanyNamesFormat = jsonFormat3(PreviousCompanyNames)
   implicit val serviceAddressFormat = jsonFormat8(ServiceAddress)
   implicit val annualReturnFormat = jsonFormat4(AnnualReturn)
-  implicit val branchCompanyDetailsFormat = jsonFormat3(BranchCompanyDetails)
-
+  implicit val branchCompanyDetailsFormat: RootJsonFormat[BranchCompanyDetails] = jsonFormat3(BranchCompanyDetails)
+  implicit val accountsFormat = jsonFormat9(Accounts)
+  implicit val foreignCompanyFormat = jsonFormat8(ForeignCompanyDetails)
 
   def getRawField(field: String)(implicit jsObj: JsObject): Option[JsValue] =
     jsObj.getFields(field).headOption
@@ -49,46 +50,24 @@ class CompaniesHouseJsonProtocol extends DefaultJsonProtocol {
       case None => None
     }
 
-  implicit object CompanyFormat extends RootJsonFormat[Company] {
-
-    override def write(obj: Company) = JsString("TODO")
-    override def read(value: JsValue): Company = {
-      implicit val jsObj = value.asJsObject
-
-      Company(
-        getField("resource_kind"),
-        getField("resource_uri"),
-        getInt("resource_id"),
-        getRawField("data") match {
-          case Some(d) => Some(d.convertTo[Data])
-          case None => None
-        },
-        getRawField("event") match {
-          case Some(e) => Some(e.convertTo[Event])
-          case None => None
-        }
-      )
-    }
-  }
-
   implicit object DataFormat extends RootJsonFormat[Data] {
 
     override def write(obj: Data): JsValue =  JsString("TODO")
     override def read(json: JsValue): Data = {
       implicit val jsObj = json.asJsObject
-       Data(
+      Data(
         getRawField("accounts") match {
           case Some(a) => Some(a.convertTo[Accounts])
           case None => None
         },
-         getRawField("annual_return") match {
-           case Some(ar) => Some(ar.convertTo[AnnualReturn])
-           case None => None
-         },
-         getRawField("branch_company_details") match {
-           case Some(ar) => Some(ar.convertTo[BranchCompanyDetails])
-           case None => None
-         },
+        getRawField("annual_return") match {
+          case Some(ar) => Some(ar.convertTo[AnnualReturn])
+          case None => None
+        },
+        getRawField("branch_company_details") match {
+          case Some(ar) => Some(ar.convertTo[BranchCompanyDetails])
+          case None => None
+        },
         getBoolean("can_file"),
         getField("company_name"),
         getField("company_number"),
@@ -115,25 +94,49 @@ class CompaniesHouseJsonProtocol extends DefaultJsonProtocol {
           case Some(l) => Some(l.convertTo[Links])
           case None => None
         },
-         getRawField("previous_company_names") match {
-           case Some(pcn) => Some(pcn.convertTo[PreviousCompanyNames])
-           case None => None
-         },
+        getRawField("previous_company_names") match {
+          case Some(pcn) => Some(pcn.convertTo[PreviousCompanyNames])
+          case None => None
+        },
         getRawField("registered_office_address") match {
           case Some(roa) => Some(roa.convertTo[RegisteredOfficeAddress])
           case None => None
         },
-         getBoolean("registered_office_is_in_dispute"),
-         getRawField("service_address") match {
-           case Some(sa) => Some(sa.convertTo[ServiceAddress])
-           case None => None
-         },
+        getBoolean("registered_office_is_in_dispute"),
+        getRawField("service_address") match {
+          case Some(sa) => Some(sa.convertTo[ServiceAddress])
+          case None => None
+        },
         getField("sic_codes"),
         getField("_type"),
         getBoolean("undeliverable_registered_office_address")
       )
     }
   }
+
+  implicit object CompanyFormat extends RootJsonFormat[Company] {
+
+    override def write(obj: Company) = JsString("TODO")
+
+    override def read(json: JsValue): Company = {
+      implicit val jsObj = json.asJsObject
+
+      Company(
+        getField("resource_kind"),
+        getField("resource_uri"),
+        getInt("resource_id"),
+        getRawField("data") match {
+          case Some(d) => Some(d.convertTo[Data])
+          case None => None
+        },
+        getRawField("event") match {
+          case Some(e) => Some(e.convertTo[Event])
+          case None => None
+        }
+      )
+    }
+  }
+
 
   implicit object AccountsFormat extends RootJsonFormat[Accounts] {
 

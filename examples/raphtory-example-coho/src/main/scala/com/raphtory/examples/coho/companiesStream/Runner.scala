@@ -6,7 +6,7 @@ import com.raphtory.examples.coho.companiesStream.graphbuilders.CompaniesStreamR
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.WebSocketSpout
 
-class Runner extends App {
+object Runner extends App {
 
   val raphtoryConfig               = Raphtory.getDefaultConfig()
   private val auth = raphtoryConfig.getString("raphtory.spout.coho.authorization")
@@ -17,8 +17,8 @@ class Runner extends App {
   val graph = Raphtory.stream(spout = source, graphBuilder = builder)
   val output = FileSink("/tmp/cohostream")
   graph
-    .walk("10 milliseconds")
-    .window("10 milliseconds")
+    .walk("10 seconds")
+    .window("10 seconds")
     .execute(EdgeList())
     .writeTo(output)
 }

@@ -1,18 +1,19 @@
 package com.raphtory.examples.coho.companiesStream.graphbuilders
 
 import com.raphtory.api.input.{BooleanProperty, GraphBuilder, IntegerProperty, Properties, StringProperty}
-import com.raphtory.examples.coho.companiesStream.Company
+import com.raphtory.examples.coho.companiesStream.rawModel._
 import spray.json._
-
 import java.time.OffsetDateTime
 
-class CompaniesStreamRawGraphBuilder() extends GraphBuilder[String] {
+class CompaniesStreamRawGraphBuilder extends GraphBuilder[String] {
   private val nullStr = "null"
+
+  import com.raphtory.examples.coho.companiesStream.rawModel.CompaniesHouseJsonProtocol.CompanyFormat
 
   override def parseTuple(tuple: String) = {
     try {
       val command = tuple
-      val company: Company = command.parseJson.convertTo[Company]
+      val company = command.parseJson.convertTo[Company]
       sendCompanyToPartitions(company)
     } catch {
       case e: Exception => e.printStackTrace
@@ -102,28 +103,28 @@ class CompaniesStreamRawGraphBuilder() extends GraphBuilder[String] {
                 "has_been_liquidated",
                 data.has_been_liquidated match {
                   case Some(has_been_liquidated) => has_been_liquidated
-                  case None => null
+                  case None => false
                 }
               ),
               BooleanProperty(
                 "has_charges",
                 data.has_charges match {
                   case Some(has_charges) => has_charges
-                  case None => null
+                  case None => false
                 }
               ),
               BooleanProperty(
                 "has_insolvency_history",
                 data.has_insolvency_history match {
                   case Some(has_insolvency_history) => has_insolvency_history
-                  case None => null
+                  case None => false
                 }
               ),
               BooleanProperty(
                 "is_community_interest_company",
                 data.is_community_interest_company match {
                   case Some(is_community_interest_company) => is_community_interest_company
-                  case None => null
+                  case None => false
                 }
               ),
               StringProperty("jurisdiction", data.jurisdiction.get),
@@ -138,7 +139,7 @@ class CompaniesStreamRawGraphBuilder() extends GraphBuilder[String] {
                 "registered_office_is_in_dispute",
                 data.registered_office_is_in_dispute match {
                   case Some(registered_office_is_in_dispute) => registered_office_is_in_dispute
-                  case None => null
+                  case None => false
                 }
               ),
               StringProperty(
@@ -152,7 +153,7 @@ class CompaniesStreamRawGraphBuilder() extends GraphBuilder[String] {
                 "undeliverable_registered_office_address",
                 data.undeliverable_registered_office_address match {
                   case Some(undeliverable_registered_office_address) => undeliverable_registered_office_address
-                  case None => null
+                  case None => false
                 }
               ),
               StringProperty("type", data._type.get)
