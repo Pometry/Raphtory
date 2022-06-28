@@ -590,7 +590,8 @@ private[raphtory] class QueryExecutor(
       .thenCompose(_ =>
         scheduler.executeCompletable {
           logger.debug(s"Partition $partitionID is waiting for messages")
-          stepDoneLock.acquire()
+          if (totalPartitions > 1)
+            stepDoneLock.acquire()
           logger.debug(s"Partition $partitionID has received all messages, finalising step")
           f
         }
