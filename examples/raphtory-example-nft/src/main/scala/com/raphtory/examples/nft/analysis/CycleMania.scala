@@ -15,6 +15,7 @@ class CycleMania() extends Generic {
   //    println()
   //  }
 
+
   case class Sale(buyer: String, price_usd: Double, tx_hash: String, nft_id: String)
   case class Cycle(sales: List[Sale])
   case class CycleData(buyer: String, profit_usd: Double, cycle: Cycle)
@@ -52,7 +53,6 @@ class CycleMania() extends Generic {
             }
           }
           if (allCyclesFound.size > 0) {
-            print("We found a cycle")
             vertex.setState(CYCLES_FOUND, allCyclesFound)
             vertex.setState(HAS_CYCLE, true)
           }
@@ -61,30 +61,27 @@ class CycleMania() extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .select( vertex => {
+      .explodeSelect( vertex => {
         val vertexType = vertex.Type()
         val cycleFound: Boolean = vertex.getStateOrElse(HAS_CYCLE, false)
-        if (vertexType == "NFT" & cycleFound){
+        if (vertexType == "NFT" & cycleFound) {
           val nftID = vertex.getPropertyOrElse("id", "")
-          //  case class CycleData(seller: String, profit_usd: Double, cycle: Path)
-          //  case class Node(nft_id: String, cycles_found: Int, cycle_data: CycleData)
           val cycleInfos: List[Cycle] = vertex.getState(CYCLES_FOUND)
-          cycleInfos.foreach(cycle => {
+          cycleInfos.map(cycleFound => {
             val cycleData: CycleData = CycleData(
-              buyer = cycle.sales(0).buyer,
-              profit_usd = cycle.sales(-1).price_usd - cycle.sales(0).price_usd,
-              cycle = cycle,
+              buyer = cycleFound.sales(0).buyer,
+              profit_usd = cycleFound.sales.last.price_usd - cycleFound.sales(0).price_usd,
+              cycle = cycleFound,
             )
             Row(
-              Node(
-                nft_id = nftID,
-                cycles_found = cycleInfos.size,
-                cycle_data = cycleData
-              )
+                nftID,
+                cycleInfos.size,
+                cycleData
             )
           })
+        } else {
+          List(Row())
         }
-        Row()
       }).filter(row => row.getValues().nonEmpty)
 }
 
