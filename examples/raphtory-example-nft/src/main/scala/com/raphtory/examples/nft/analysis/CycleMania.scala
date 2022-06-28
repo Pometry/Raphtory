@@ -51,18 +51,20 @@ class CycleMania() extends Generic {
               }
             }
           }
-          if (allCyclesFound.size > 0)
+          if (allCyclesFound.size > 0) {
+            print("We found a cycle")
             vertex.setState(CYCLES_FOUND, allCyclesFound)
-          vertex.setState(HAS_CYCLE, true)
+            vertex.setState(HAS_CYCLE, true)
+          }
         }
       }
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .select { vertex =>
+      .select( vertex => {
         val vertexType = vertex.Type()
         val cycleFound: Boolean = vertex.getStateOrElse(HAS_CYCLE, false)
-        if (vertexType & cycleFound) {
+        if (vertexType == "NFT" & cycleFound){
           val nftID = vertex.getPropertyOrElse("id", "")
           //  case class CycleData(seller: String, profit_usd: Double, cycle: Path)
           //  case class Node(nft_id: String, cycles_found: Int, cycle_data: CycleData)
@@ -74,8 +76,6 @@ class CycleMania() extends Generic {
               cycle = cycle,
             )
             Row(
-              // TODO FINISH THIS TABULARISE FUNCTION FOR CYCLES
-              // LOOK AT THE DATA YOU ARE WORKING WITH
               Node(
                 nft_id = nftID,
                 cycles_found = cycleInfos.size,
@@ -84,8 +84,8 @@ class CycleMania() extends Generic {
             )
           })
         }
-      }.filter (row => row.getValues().nonEmpty)
-
+        Row()
+      }).filter(row => row.getValues().nonEmpty)
 }
 
 object CycleMania {
