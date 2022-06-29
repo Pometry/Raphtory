@@ -1,9 +1,11 @@
 package com.raphtory.examples.coho.companiesStream.rawModel
 
+import java.util.Date
+
 case class Company(
                                resource_kind: Option[String],
                                resource_uri: Option[String],
-                               resource_id: Option[Int],
+                               resource_id: Option[String],
                                data: Option[Data],
                                event: Option[Event]
                              )
@@ -51,8 +53,8 @@ case class Accounts(
                    )
 
 case class AccountingReferenceDate(
-                                  day: Option[Int],
-                                  month: Option[Int]
+                                  day: Option[String],
+                                  month: Option[String]
                                   )
 
 case class LastAccounts(
@@ -131,17 +133,17 @@ case class AccountingRequirement(
                                 )
 
 case class AccountPeriodFrom(
-                                day: Option[Int],
-                                month: Option[Int]
+                                day: Option[String],
+                                month: Option[String]
                             )
 
 case class AccountPeriodTo(
-                          day: Option[Int],
-                          month: Option[Int]
+                          day: Option[String],
+                          month: Option[String]
                           )
 
 case class MustFileWithin(
-                         months: Option[Int]
+                         months: Option[String]
                          )
 
 case class OriginatingRegistry(
@@ -149,8 +151,10 @@ case class OriginatingRegistry(
                               name: Option[String]
                               )
 
+case class CeasedOn(date: Option[String])
+
 case class PreviousCompanyNames(
-                               ceased_on: Option[String],
+                               ceased_on: Option[CeasedOn],
                                effective_from: Option[String],
                                name: Option[String]
                                )

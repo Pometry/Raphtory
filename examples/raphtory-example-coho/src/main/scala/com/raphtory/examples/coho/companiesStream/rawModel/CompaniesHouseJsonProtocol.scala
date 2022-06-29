@@ -16,12 +16,14 @@ object CompaniesHouseJsonProtocol extends DefaultJsonProtocol {
   implicit val mustFileWithinFormat = jsonFormat1(MustFileWithin)
   implicit val accountingRequirementFormat = jsonFormat2(AccountingRequirement)
   implicit val originatingRegistryFormat = jsonFormat2(OriginatingRegistry)
+  implicit val ceasedOnFormat = jsonFormat1(CeasedOn)
   implicit val previousCompanyNamesFormat = jsonFormat3(PreviousCompanyNames)
   implicit val serviceAddressFormat = jsonFormat8(ServiceAddress)
   implicit val annualReturnFormat = jsonFormat4(AnnualReturn)
   implicit val branchCompanyDetailsFormat: RootJsonFormat[BranchCompanyDetails] = jsonFormat3(BranchCompanyDetails)
   implicit val accountsFormat = jsonFormat9(Accounts)
   implicit val foreignCompanyFormat = jsonFormat8(ForeignCompanyDetails)
+
 
   def getRawField(field: String)(implicit jsObj: JsObject): Option[JsValue] =
     jsObj.getFields(field).headOption
@@ -32,23 +34,18 @@ object CompaniesHouseJsonProtocol extends DefaultJsonProtocol {
       case None => None
     }
 
+  def getInteger(field: String)(implicit jsObj: JsObject): Option[Integer] =
+    getField(field) match {
+      case Some(s) => Some(s.toInt)
+      case None => None
+    }
+
   def getBoolean(field: String)(implicit jsObj: JsObject): Option[Boolean] =
     getField(field) match {
       case Some(s) => Some(s.toBoolean)
       case None => None
     }
 
-  def getInt(field: String)(implicit jsObj: JsObject): Option[Int] =
-    getField(field) match {
-      case Some(s) => Some(s.toInt)
-      case None => None
-    }
-
-  def getLong(field: String)(implicit jsObj: JsObject): Option[Long] =
-    getField(field) match {
-      case Some(s) => Some(s.toLong)
-      case None => None
-    }
 
   implicit object DataFormat extends RootJsonFormat[Data] {
 
@@ -124,7 +121,7 @@ object CompaniesHouseJsonProtocol extends DefaultJsonProtocol {
       Company(
         getField("resource_kind"),
         getField("resource_uri"),
-        getInt("resource_id"),
+        getField("resource_id"),
         getRawField("data") match {
           case Some(d) => Some(d.convertTo[Data])
           case None => None

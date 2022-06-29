@@ -27,7 +27,7 @@ class WebSocketSpout(url: String, auth: Option[String], contentType: Option[Stri
 
   override def spoutReschedules(): Boolean = true
 
-  override def hasNext: Boolean = input.nonEmpty
+  override def hasNext: Boolean = bufferedReader.readLine().nonEmpty
 
   override def next(): String = {
     try {

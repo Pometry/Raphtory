@@ -3,6 +3,7 @@ package com.raphtory.examples.coho.companiesStream.graphbuilders
 import com.raphtory.api.input.{BooleanProperty, GraphBuilder, IntegerProperty, Properties, StringProperty}
 import com.raphtory.examples.coho.companiesStream.rawModel._
 import spray.json._
+
 import java.time.OffsetDateTime
 
 class CompaniesStreamRawGraphBuilder extends GraphBuilder[String] {
@@ -22,7 +23,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String] {
     def sendCompanyToPartitions(
                                company: Company
                                ): Unit  = {
-      val companyNumber = company.resource_id.get
+      val companyNumber = company.resource_id.get.hashCode()
       val timestamp = OffsetDateTime.parse(company.data.get.date_of_creation.get).toEpochSecond
         addVertex(
           timestamp,
@@ -45,7 +46,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String] {
             StringProperty(
               "resource_id",
               company.resource_id match {
-                case Some(id) => id.toString
+                case Some(id) => id
                 case None => nullStr
               }
             ),
@@ -56,11 +57,11 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String] {
                 case None => nullStr
               }
             ),
-            StringProperty(
+            IntegerProperty(
               "event",
               company.event match {
-                case Some(event) => event.timepoint.toString
-                case None => nullStr
+                case Some(event) => event.timepoint.get
+                case None => -1
               }
             )
           )
@@ -68,7 +69,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String] {
 
       // CompanyProfile resource data
         for (data <- company.data) {
-          val dataCompanyNumber = data.company_number.get.toLong
+          val dataCompanyNumber = data.company_number.get.hashCode()
           addVertex(
             timestamp,
             companyNumber,
@@ -170,8 +171,8 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String] {
                 timestamp,
                 companyNumber,
                 Properties(
-                  IntegerProperty("accounting_reference_date_day", accountingReference.day.get),
-                  IntegerProperty("accounting_reference_date_month", accountingReference.month.get)
+                  StringProperty("accounting_reference_date_day", accountingReference.day.get),
+                  StringProperty("accounting_reference_date_month", accountingReference.month.get)
                 )
               )
             }
@@ -297,8 +298,8 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String] {
                   timestamp,
                   companyNumber,
                   Properties(
-                    IntegerProperty("account_period_from_day", accountFrom.day.get),
-                    IntegerProperty("account_period_from_month", accountFrom.month.get)
+                    StringProperty("account_period_from_day", accountFrom.day.get),
+                    StringProperty("account_period_from_month", accountFrom.month.get)
                   )
                 )
                 addEdge(timestamp, accountDst, accountFrom.day.get.hashCode(), Properties(StringProperty("type", "accountsToAccountPeriodFrom")))
@@ -310,8 +311,8 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String] {
                   timestamp,
                   companyNumber,
                   Properties(
-                    IntegerProperty("account_period_to_day", accountTo.day.get),
-                    IntegerProperty("account_period_to_month", accountTo.month.get)
+                    StringProperty("account_period_to_day", accountTo.day.get),
+                    StringProperty("account_period_to_month", accountTo.month.get)
                   )
                 )
                 addEdge(timestamp, accountDst, accountTo.day.get.hashCode(), Properties(StringProperty("type", "accountsToAccountPeriodTo")))
@@ -323,7 +324,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String] {
                   timestamp,
                   companyNumber,
                   Properties(
-                    IntegerProperty("must_file_within_months", mustFileWithin.months.get)
+                    StringProperty("must_file_within_months", mustFileWithin.months.get)
                   )
                 )
                 addEdge(timestamp, accountDst, mustFileWithin.months.get.hashCode(), Properties(StringProperty("type", "accountsToMustFileWithin")))
@@ -365,7 +366,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String] {
               timestamp,
               companyNumber,
               Properties(
-                StringProperty("ceased_on", previousCompanyNames.ceased_on.get),
+                StringProperty("ceased_on", previousCompanyNames.ceased_on.get.date.get),
                 StringProperty("effective_from", previousCompanyNames.effective_from.get),
                 StringProperty("name", previousCompanyNames.name.get)
               )
