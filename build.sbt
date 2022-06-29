@@ -80,6 +80,7 @@ lazy val core = (project in file("core"))
                   akkaTyped,
                   bcel,
                   curatorRecipes,
+                  decline,
                   jackson,
                   javaxScript,
                   log4jSlft4,

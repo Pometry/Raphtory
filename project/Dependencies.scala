@@ -34,6 +34,7 @@ object Dependencies {
   lazy val bcel             = "org.apache.bcel"               % "bcel"                 % bcelVersion
   lazy val catsEffect       = "org.typelevel"                %% "cats-effect"          % catsEffectVersion
   lazy val curatorRecipes   = "org.apache.curator"            % "curator-recipes"      % curatorVersion
+  lazy val decline = "com.monovore" %% "decline-effect" % "2.3.0"
   lazy val jackson          = "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
 
   lazy val javaxScript =

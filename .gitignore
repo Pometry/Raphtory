@@ -43,7 +43,7 @@ mainproject/build.sbt
 .*.sw[op]
 
 sbt/
-cluster/src/main/scala/scala.iml
+*.iml
 core/src/main/scala/com/raphtory/testDeploy.scala
 
 .env

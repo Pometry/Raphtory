@@ -52,6 +52,7 @@ private[raphtory] class Py4JServer[IO[_]](gatewayServer: GatewayServer)(implicit
         val dos: ByteArrayDataOutput = ByteStreams.newDataOutput() //this doesn't need closing
         dos.writeInt(port)
         val secretBytes              = secret.getBytes(UTF_8)
+        logger.info(s"PythonGatewayServer secret - $secret")
         dos.writeInt(secretBytes.length)
         dos.write(secretBytes, 0, secretBytes.length)
         c.write(ByteBuffer.wrap(dos.toByteArray))
@@ -79,13 +80,13 @@ private[raphtory] class Py4JServer[IO[_]](gatewayServer: GatewayServer)(implicit
       gatewayServer.start()
       gatewayServer.getListeningPort
     }.flatMap { boundPort =>
-      IO.blocking {
+      IO.defer {
         if (boundPort == -1) {
           logger.error("Failed to bind; Not running python gateway")
           IO.raiseError(new IllegalStateException("Unable to start Py4J Server"))
         }
         else {
-          logger.info(s"Started PythonGatewayServer on port $boundPort")
+          logger.info(s"Started PythonGatewayServer on port $boundPort host: ${gatewayServer.getAddress}")
           writePortToFile(boundPort, conf)
         }
       }
@@ -122,7 +123,7 @@ private[raphtory] object Py4JServer {
 
   private def localhost = InetAddress.getLoopbackAddress
 
-  private def secret: String = {
+  lazy val secret: String = {
     val rnd         = new SecureRandom()
     val secretBytes = new Array[Byte](256 / JByte.SIZE)
     rnd.nextBytes(secretBytes)
