@@ -102,11 +102,7 @@ private[raphtory] case class PointPath(
     offset: Interval = NullInterval
 ) extends PointSet
 
-trait QueryLifeCycle extends QueryManagement {
-  def jobID: String
-}
-
-private[raphtory] case class EndQuery(jobID: String)        extends QueryLifeCycle
+private[raphtory] case class EndQuery(jobID: String)        extends QueryManagement
 private[raphtory] case class QueryNotPresent(jobID: String) extends QueryManagement
 
 // Messages for jobStatus topic
