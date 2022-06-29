@@ -1,30 +1,21 @@
 package com.raphtory.internals.communication.connectors
 
+import java.io.Closeable
+import java.util.concurrent.{CompletableFuture, TimeUnit}
 import cats.effect.Async
-import cats.effect.Sync
 import cats.effect.kernel.Resource
-import com.raphtory.internals.communication.CancelableListener
-import com.raphtory.internals.communication.CanonicalTopic
-import com.raphtory.internals.communication.Connector
-import com.raphtory.internals.communication.EndPoint
-import com.raphtory.internals.communication.Topic
-import com.raphtory.internals.communication.WorkPullTopic
+import com.raphtory.internals.communication._
 import com.raphtory.internals.serialisers.KryoSerialiser
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import org.apache.pulsar.client.admin.PulsarAdmin
-import org.apache.pulsar.client.admin.PulsarAdminException
+import org.apache.pulsar.client.admin.{PulsarAdmin, PulsarAdminException}
 import org.apache.pulsar.client.api.PulsarClientException.BrokerMetadataException
 import org.apache.pulsar.client.api._
 import org.apache.pulsar.common.policies.data.RetentionPolicies
 import org.slf4j.LoggerFactory
-
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.math.Ordering.Implicits.infixOrderingOps
-import java.io.Closeable
 
 private[raphtory] class PulsarConnector(
     client: PulsarClient,
@@ -178,8 +169,7 @@ private[raphtory] class PulsarConnector(
       .subscribe()
 
   private def createTopic[T](topic: Topic[T]): String = {
-    val persistence = true
-
+    val persistence   = true
     val tenant        = config.getString(s"raphtory.pulsar.topics.${topic.id}.tenant")
     val namespace     = config.getString(s"raphtory.pulsar.topics.${topic.id}.namespace")
     val retentionTime = config.getString(s"raphtory.pulsar.topics.${topic.id}.retention.time").toInt
@@ -290,7 +280,6 @@ object PulsarConnector {
         .maxConcurrentLookupRequests(50_000)
         .maxLookupRequests(100_000)
         .serviceUrl(pulsarAddress)
-        .serviceUrl(pulsarAdminAddress)
         .build()
     client
   }
