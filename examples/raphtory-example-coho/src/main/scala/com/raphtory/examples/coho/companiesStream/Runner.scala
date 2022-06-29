@@ -17,8 +17,9 @@ object Runner extends App {
   val graph = Raphtory.stream(spout = source, graphBuilder = builder)
   val output = FileSink("/tmp/cohostream")
   graph
-    .walk("10 seconds")
-    .window("10 seconds")
+    .walk("10 milliseconds")
+    .window("10 milliseconds")
     .execute(EdgeList())
     .writeTo(output)
+    .waitForJob()
 }

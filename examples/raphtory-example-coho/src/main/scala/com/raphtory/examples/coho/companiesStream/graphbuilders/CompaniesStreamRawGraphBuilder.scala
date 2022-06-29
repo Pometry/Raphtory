@@ -539,25 +539,27 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String] {
 
           //The previous names of this company
           for (previousCompanyNames <- data.previous_company_names) {
-            addVertex(
-              timestamp,
-              companyNumber,
-              Properties(
-                StringProperty("ceased_on",
-                  previousCompanyNames.map(pcn =>
-                  pcn.ceased_on.getOrElse(nullStr)
-                  ).mkString
-                ),
-                StringProperty("effective_from",
-                  previousCompanyNames.map(pcn =>
-                 pcn.effective_from.getOrElse(nullStr)).mkString),
-                StringProperty("name",
-                  previousCompanyNames.map(pcn =>
-                  pcn.name.getOrElse(nullStr)).mkString)
+            for (name <- previousCompanyNames) {
+              addVertex(
+                timestamp,
+                companyNumber,
+                Properties(
+                  StringProperty("ceased_on", name.ceased_on match {
+                    case Some(ceased_on) => ceased_on
+                    case None => nullStr
+                  }),
+                  StringProperty("effective_from", name.effective_from match {
+                    case Some(effective_from) => effective_from
+                    case None => nullStr
+                  }),
+                  StringProperty("name", name.name match {
+                    case Some(name) => name
+                    case None => nullStr
+                  })
+                )
               )
-            )
-            addEdge(timestamp, dataCompanyNumber,  previousCompanyNames.map(pcn =>
-              pcn.name.getOrElse(nullStr)).mkString.hashCode, Properties(StringProperty("type", "dataToPreviousNames")))
+              addEdge(timestamp, dataCompanyNumber, name.name.getOrElse(nullStr).hashCode, Properties(StringProperty("type", "dataToPreviousNames")))
+            }
           }
             //The address of the company's registered office
             for (registeredOfficeAddress <- data.registered_office_address) {
