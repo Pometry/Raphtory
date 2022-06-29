@@ -95,3 +95,7 @@ core/src/main/scala/com/raphtory/lotr
 .metals
 .vscode
 project/metals.sbt
+
+# Python
+python/pyraphtory/deps/jars
+*.pyc

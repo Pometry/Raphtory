@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "pyraphtory"
+version = "0.1.0"
+description = ""
+authors = ["Fabian Murariu <murariu.fabian@gmail.com>"]
+
+packages = [
+    {"include" = "deps/jars/*.jar"}
+]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+py4j = "^0.10"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
