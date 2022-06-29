@@ -83,7 +83,7 @@ trait ReducedVertex extends Vertex {
       id: IDType,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
-  ): List[Edge]
+  ): List[Edge] = List(getInEdge(id, after, before), getOutEdge(id, after, before)).flatten
 
   /** Return all exploded [[com.raphtory.api.analysis.visitor.ExplodedEdge ExplodedEdge]] views for each time point
     * that an in- or out-edge of this vertex is active

@@ -14,7 +14,7 @@ private[raphtory] class PojoExEdge(
 ) extends PojoExEntity(edge, view, start, end)
         with PojoExReducedEdgeBase
         with PojoExDirectedEdgeBase[PojoExEdge, Long] {
-  override type Eundir = PojoExInOutEdge
+  override type Eundir = PojoExReducedEdgeBase
 
   def this(entity: PojoEdge, id: Long, view: PojoGraphLens) = {
     this(entity, id, view, view.start, view.end)

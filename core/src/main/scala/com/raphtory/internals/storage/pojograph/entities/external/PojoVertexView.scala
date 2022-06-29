@@ -1,6 +1,8 @@
 package com.raphtory.internals.storage.pojograph.entities.external
 
+import com.raphtory.api.analysis.visitor.ExplodedVertex
 import com.raphtory.api.analysis.visitor.HistoricEvent
+import com.raphtory.api.analysis.visitor.ReducedVertex
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import com.raphtory.internals.components.querymanager.VertexMessage
@@ -43,8 +45,6 @@ abstract class PojoVertexViewBase(vertex: PojoVertexBase) extends PojoVertexBase
 abstract class PojoLocalVertexViewBase(val vertex: PojoVertexBase) extends PojoVertexViewBase(vertex) {
   override type IDType = vertex.IDType
 
-//  override val multiQueue: VertexMultiQueue = vertex.multiQueue
-
   override def setState(key: String, value: Any): Unit = vertex.setState(key, value)
 
   override def getState[T](key: String, includeProperties: Boolean): T = vertex.getState(key, includeProperties)
@@ -79,10 +79,11 @@ abstract class PojoLocalVertexViewBase(val vertex: PojoVertexBase) extends PojoV
   override def executeEdgeDelete(): Unit = vertex.executeEdgeDelete()
 }
 
-class PojoUndirectedVertexView(override val vertex: PojoConcreteVertexBase) extends PojoLocalVertexViewBase(vertex) {
+class PojoUndirectedVertexView[T](override val vertex: PojoConcreteVertexBase[T])
+        extends PojoLocalVertexViewBase(vertex) {
 
   override type IDType = vertex.IDType
-  override type Edge   = PojoExEdgeBase[vertex.IDType]
+  override type Edge   = vertex.Edge#Eundir
 
   def outEdges: List[Edge] =
     vertex.inEdges.map { inEdge =>
@@ -90,23 +91,17 @@ class PojoUndirectedVertexView(override val vertex: PojoConcreteVertexBase) exte
         case Some(outEdge) => inEdge.combineUndirected(outEdge, asInEdge = false)
         case None          => inEdge.reversed
       }
-    } ++ vertex.outEdges.filter(outEdge => vertex.getInEdge(outEdge.ID).isDefined)
+    } ++ vertex.outEdges.filterNot(outEdge => vertex.getInEdge(outEdge.ID).isDefined)
 
-  /** Return all edges ending at this vertex
-    */
-  def inEdges: List[PojoExEdgeBase[vertex.IDType]] =
+  def inEdges: List[Edge] =
     vertex.outEdges.map { outEdge =>
       vertex.getInEdge(outEdge.ID) match {
         case Some(inEdge) => outEdge.combineUndirected(inEdge, asInEdge = true)
         case None         => outEdge.reversed
       }
-    } ++ vertex.inEdges.filter(inEdge => vertex.getOutEdge(inEdge.ID).isDefined)
+    } ++ vertex.inEdges.filterNot(inEdge => vertex.getOutEdge(inEdge.ID).isDefined)
 
-  /** Return specified edge if it is an out-edge of this vertex
-    *
-    * @param id ID of edge to return
-    */
-  def getOutEdge(id: vertex.IDType): Option[PojoExEdgeBase[vertex.IDType]] =
+  def getOutEdge(id: vertex.IDType): Option[Edge] =
     vertex.getOutEdge(id) match {
       case Some(outEdge) =>
         vertex.getInEdge(id) match {
@@ -120,11 +115,7 @@ class PojoUndirectedVertexView(override val vertex: PojoConcreteVertexBase) exte
         }
     }
 
-  /** Return specified edge if it is an in-edge of this vertex
-    *
-    * @param id ID of edge to return
-    */
-  def getInEdge(id: vertex.IDType): Option[PojoExEdgeBase[vertex.IDType]] =
+  def getInEdge(id: vertex.IDType): Option[Edge] =
     vertex.getInEdge(id) match {
       case Some(inEdge) =>
         vertex.getOutEdge(id) match {
@@ -137,4 +128,47 @@ class PojoUndirectedVertexView(override val vertex: PojoConcreteVertexBase) exte
           case None          => None
         }
     }
+}
+
+class PojoReducedUndirectedVertexView(override val vertex: PojoExVertex)
+        extends PojoUndirectedVertexView(vertex)
+        with ReducedVertex {
+  override type Edge = PojoExReducedEdgeBase
+
+  override def getOutEdges(after: Long, before: Long): List[Edge] =
+    vertex.getInEdges(after, before).map { inEdge =>
+      vertex.getOutEdge(inEdge.ID, after, before) match {
+        case Some(outEdge) => inEdge.combineUndirected(outEdge, asInEdge = false)
+        case None          => inEdge.reversed
+      }
+    } ++ vertex.getOutEdges(after, before).filterNot(outEdge => vertex.getInEdge(outEdge.ID, after, before).isDefined)
+
+  override def getInEdges(after: Long, before: Long): List[Edge] =
+    vertex.getOutEdges(after, before).map { outEdge =>
+      vertex.getInEdge(outEdge.ID, after, before) match {
+        case Some(inEdge) => outEdge.combineUndirected(inEdge, asInEdge = true)
+        case None         => outEdge.reversed
+      }
+    } ++ vertex.getInEdges(after, before).filterNot(inEdge => vertex.getOutEdge(inEdge.ID, after, before).isDefined)
+
+  override def getOutEdge(id: Long, after: Long, before: Long): Option[Edge] =
+    getOutEdge(id).collect { case edge if edge.active(after, before) => edge.viewBetween(after, before) }
+
+  override def getInEdge(id: Long, after: Long, before: Long): Option[Edge]  =
+    getInEdge(id).collect { case edge if edge.active(after, before) => edge.viewBetween(after, before) }
+}
+
+object PojoReducedUndirectedVertexView {
+  def apply(vertex: PojoExVertex) = new PojoReducedUndirectedVertexView(vertex)
+}
+
+class PojoExplodedUndirectedVertexView(override val vertex: PojoExplodedVertex)
+        extends PojoUndirectedVertexView[(Long, Long)](vertex)
+        with ExplodedVertex {
+
+  override def timestamp: Long = vertex.timestamp
+}
+
+object PojoExplodedUndirectedVertexView {
+  def apply(vertex: PojoExplodedVertex) = new PojoExplodedUndirectedVertexView(vertex)
 }

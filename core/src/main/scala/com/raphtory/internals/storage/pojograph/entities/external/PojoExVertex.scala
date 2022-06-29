@@ -20,7 +20,7 @@ private[raphtory] class PojoExVertex(
     override val internalOutgoingEdges: mutable.Map[Long, PojoExEdge],
     override val lens: PojoGraphLens
 ) extends PojoExEntity(v, lens)
-        with PojoConcreteVertexBase
+        with PojoConcreteVertexBase[Long]
         with ReducedVertex {
 
   override type Edge = PojoExEdge
@@ -248,6 +248,5 @@ private[raphtory] class PojoExVertex(
   override def getInEdge(id: Long, after: Long, before: Long): Option[PojoExEdge] =
     individualEdge(internalIncomingEdges, after, before, id)
 
-  override def getEdge(id: Long, after: Long, before: Long): List[PojoExEdge] =
-    List(getInEdge(id, after, before), getOutEdge(id, after, before)).flatten
+  override def viewUndirected: PojoReducedUndirectedVertexView = PojoReducedUndirectedVertexView(this)
 }

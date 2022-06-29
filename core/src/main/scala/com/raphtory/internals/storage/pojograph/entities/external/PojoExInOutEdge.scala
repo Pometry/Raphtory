@@ -107,8 +107,7 @@ class PojoExplodedInOutEdge(
     out: PojoExplodedEdge,
     asInEdge: Boolean = false
 ) extends PojoExInOutEdgeBase[PojoExplodedInOutEdge, PojoExplodedEdge, Long](in, out, asInEdge)
-        with ConcreteExplodedEdge[Long] {
+        with PojoExplodedEdgeBase[Long] {
 
-  /** Timestamp for exploded entity */
   override def timestamp: Long = in.timestamp
 }

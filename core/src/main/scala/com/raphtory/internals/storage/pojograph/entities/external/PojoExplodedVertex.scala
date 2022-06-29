@@ -13,7 +13,7 @@ private[raphtory] class PojoExplodedVertex(
     val vertex: PojoExVertex,
     override val timestamp: Long
 ) extends PojoVertexViewBase(vertex)
-        with PojoConcreteVertexBase
+        with PojoConcreteVertexBase[(Long, Long)]
         with ExplodedVertex {
   override val internalIncomingEdges = mutable.Map.empty[(Long, Long), PojoExMultilayerEdge]
   override val internalOutgoingEdges = mutable.Map.empty[(Long, Long), PojoExMultilayerEdge]
@@ -79,4 +79,6 @@ private[raphtory] class PojoExplodedVertex(
     super.remove()
     vertex.explodedNeedsFiltering = true
   }
+
+  override def viewUndirected: PojoUndirectedVertexView[(Long, Long)] = PojoExplodedUndirectedVertexView(this)
 }

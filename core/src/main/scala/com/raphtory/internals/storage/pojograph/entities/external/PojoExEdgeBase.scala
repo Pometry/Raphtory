@@ -1,6 +1,7 @@
 package com.raphtory.internals.storage.pojograph.entities.external
 
 import com.raphtory.api.analysis.visitor.ConcreteEdge
+import com.raphtory.api.analysis.visitor.ConcreteExplodedEdge
 import com.raphtory.api.analysis.visitor.ReducedEdge
 import com.raphtory.internals.components.querymanager.FilteredInEdgeMessage
 import com.raphtory.internals.components.querymanager.FilteredOutEdgeMessage
@@ -24,11 +25,13 @@ trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
   }
 }
 
+trait PojoExplodedEdgeBase[T] extends PojoExEdgeBase[T] with ConcreteExplodedEdge[T]
+
 trait PojoExDirectedEdgeBase[Edir <: PojoExDirectedEdgeBase[
         Edir,
         T
 ], T] extends PojoExEdgeBase[T] { this: Edir =>
-  type Eundir <: PojoExEdgeBase[T]
+  type Eundir >: Edir <: PojoExEdgeBase[T]
   def reversed: Edir
 
   def combineUndirected(other: Edir, asInEdge: Boolean): Eundir

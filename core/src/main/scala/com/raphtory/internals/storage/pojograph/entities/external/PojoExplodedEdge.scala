@@ -12,9 +12,9 @@ private[raphtory] class PojoExplodedEdge(
     override val timestamp: Long
 ) extends PojoExEntity(edge, view, start, timestamp)
         with PojoExDirectedEdgeBase[PojoExplodedEdge, Long]
-        with ConcreteExplodedEdge[Long] {
+        with PojoExplodedEdgeBase[Long] {
 
-  override type Eundir = PojoExplodedInOutEdge
+  override type Eundir = PojoExplodedEdgeBase[Long]
 
   override def reversed: PojoReversedExplodedEdge =
     PojoReversedExplodedEdge.fromExplodedEdge(this, timestamp)

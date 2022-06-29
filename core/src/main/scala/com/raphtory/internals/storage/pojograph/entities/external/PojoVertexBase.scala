@@ -44,8 +44,9 @@ private[raphtory] trait PojoVertexBase extends Vertex {
     List(getInEdge(id), getOutEdge(id)).flatten
 }
 
-private[raphtory] trait PojoConcreteVertexBase extends PojoVertexBase {
+private[raphtory] trait PojoConcreteVertexBase[T] extends PojoVertexBase {
   // abstract state
+  override type IDType = T
   override type Edge <: PojoExDirectedEdgeBase[Edge, IDType]
   def lens: PojoGraphLens
   val internalIncomingEdges: mutable.Map[IDType, Edge]
@@ -56,6 +57,8 @@ private[raphtory] trait PojoConcreteVertexBase extends PojoVertexBase {
     new VertexMultiQueue() //Map of queues for all ongoing processing
   protected val incomingEdgeDeleteMultiQueue: VertexMultiQueue = new VertexMultiQueue()
   protected val outgoingEdgeDeleteMultiQueue: VertexMultiQueue = new VertexMultiQueue()
+
+  def viewUndirected: PojoUndirectedVertexView[T]
 
   // messaging
   def hasMessage: Boolean =
