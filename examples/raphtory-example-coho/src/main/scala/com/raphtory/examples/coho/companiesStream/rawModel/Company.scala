@@ -1,7 +1,5 @@
 package com.raphtory.examples.coho.companiesStream.rawModel
 
-import java.util.Date
-
 case class Company(
                                resource_kind: Option[String],
                                resource_uri: Option[String],
@@ -31,7 +29,7 @@ case class Data(
                jurisdiction: Option[String],
                last_full_members_list_date: Option[String],
                links: Option[Links],
-               previous_company_names: Option[PreviousCompanyNames],
+               previous_company_names: Option[Array[PreviousCompanyNames]],
                registered_office_address: Option[RegisteredOfficeAddress],
                registered_office_is_in_dispute: Option[Boolean],
                service_address: Option[ServiceAddress],
@@ -151,10 +149,9 @@ case class OriginatingRegistry(
                               name: Option[String]
                               )
 
-case class CeasedOn(date: Option[String])
 
 case class PreviousCompanyNames(
-                               ceased_on: Option[CeasedOn],
+                               ceased_on: Option[String],
                                effective_from: Option[String],
                                name: Option[String]
                                )

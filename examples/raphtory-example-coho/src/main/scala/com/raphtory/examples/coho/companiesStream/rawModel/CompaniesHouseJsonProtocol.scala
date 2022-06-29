@@ -16,11 +16,9 @@ object CompaniesHouseJsonProtocol extends DefaultJsonProtocol {
   implicit val mustFileWithinFormat = jsonFormat1(MustFileWithin)
   implicit val accountingRequirementFormat = jsonFormat2(AccountingRequirement)
   implicit val originatingRegistryFormat = jsonFormat2(OriginatingRegistry)
-  implicit val ceasedOnFormat = jsonFormat1(CeasedOn)
-  implicit val previousCompanyNamesFormat = jsonFormat3(PreviousCompanyNames)
   implicit val serviceAddressFormat = jsonFormat8(ServiceAddress)
   implicit val annualReturnFormat = jsonFormat4(AnnualReturn)
-  implicit val branchCompanyDetailsFormat: RootJsonFormat[BranchCompanyDetails] = jsonFormat3(BranchCompanyDetails)
+  implicit val branchCompanyDetailsFormat = jsonFormat3(BranchCompanyDetails)
   implicit val accountsFormat = jsonFormat9(Accounts)
   implicit val foreignCompanyFormat = jsonFormat8(ForeignCompanyDetails)
 
@@ -35,17 +33,29 @@ object CompaniesHouseJsonProtocol extends DefaultJsonProtocol {
     }
 
   def getInteger(field: String)(implicit jsObj: JsObject): Option[Integer] =
-    getField(field) match {
-      case Some(s) => Some(s.toInt)
+    getRawField(field) match {
+      case Some(s) => Some(s.toString().toInt)
       case None => None
     }
 
   def getBoolean(field: String)(implicit jsObj: JsObject): Option[Boolean] =
-    getField(field) match {
-      case Some(s) => Some(s.toBoolean)
+    getRawField(field) match {
+      case Some(s) => Some(s.toString().toBoolean)
       case None => None
     }
 
+  implicit object PreviousCompanyNamesFormat extends RootJsonFormat[PreviousCompanyNames] {
+    override def write(obj: PreviousCompanyNames): JsValue = JsString("TODO")
+
+    override def read(json: JsValue): PreviousCompanyNames  = {
+      implicit val jsObj = json.asJsObject
+      PreviousCompanyNames(
+        getField("ceased_on"),
+        getField("effective_from"),
+        getField("name")
+      )
+    }
+  }
 
   implicit object DataFormat extends RootJsonFormat[Data] {
 
@@ -92,7 +102,7 @@ object CompaniesHouseJsonProtocol extends DefaultJsonProtocol {
           case None => None
         },
         getRawField("previous_company_names") match {
-          case Some(pcn) => Some(pcn.convertTo[PreviousCompanyNames])
+          case Some(pcn) => Some(pcn.convertTo[Array[PreviousCompanyNames]])
           case None => None
         },
         getRawField("registered_office_address") match {
@@ -196,6 +206,7 @@ object CompaniesHouseJsonProtocol extends DefaultJsonProtocol {
         getField("registration_number")
       )
     }
-
   }
+
+
 }
