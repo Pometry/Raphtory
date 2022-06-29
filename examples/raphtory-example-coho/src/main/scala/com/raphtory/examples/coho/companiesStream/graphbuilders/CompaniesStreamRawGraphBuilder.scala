@@ -5,11 +5,11 @@ import com.raphtory.examples.coho.companiesStream.rawModel._
 import spray.json._
 import java.text.SimpleDateFormat
 import java.util.Date
+import com.raphtory.examples.coho.companiesStream.rawModel.CompaniesHouseJsonProtocol.CompanyFormat
 
 class CompaniesStreamRawGraphBuilder extends GraphBuilder[String] {
   private val nullStr = "null"
 
-  import com.raphtory.examples.coho.companiesStream.rawModel.CompaniesHouseJsonProtocol.CompanyFormat
 
   override def parseTuple(tuple: String) = {
     try {
@@ -28,8 +28,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String] {
       } catch {
         case e: java.text.ParseException => 0
       }
-      val epoch = date.getTime
-      epoch/1000
+       date.getTime
     }
 
     def sendCompanyToPartitions(
