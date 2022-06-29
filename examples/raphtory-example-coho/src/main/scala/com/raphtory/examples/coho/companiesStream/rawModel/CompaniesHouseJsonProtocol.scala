@@ -10,7 +10,7 @@ object CompaniesHouseJsonProtocol extends DefaultJsonProtocol {
   implicit val accountingReferenceDateFormat = jsonFormat2(AccountingReferenceDate)
   implicit val lastAccountsFormat = jsonFormat2(LastAccounts)
   implicit val nextAccountsFormat = jsonFormat3(NextAccounts)
-  implicit val linksFormat = jsonFormat6(Links)
+  implicit val linksFormat = jsonFormat4(Links)
   implicit val accountPeriodFromFormat = jsonFormat2(AccountPeriodFrom)
   implicit val accountPeriodToFormat = jsonFormat2(AccountPeriodTo)
   implicit val mustFileWithinFormat = jsonFormat1(MustFileWithin)

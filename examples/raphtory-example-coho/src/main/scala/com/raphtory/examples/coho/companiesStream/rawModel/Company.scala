@@ -74,8 +74,6 @@ case class ConfirmationStatement(
                                 )
 
 case class Links(
-                  filing_history: Option[String],
-                  officers: Option[String],
                   persons_with_significant_control: Option[String],
                   persons_with_significant_control_statements: Option[String],
                   registers: Option[String],
