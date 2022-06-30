@@ -13,6 +13,7 @@ class NFTGraphBuilder extends GraphBuilder[String] {
 
   def setupDatePrices(): mutable.HashMap[String, Double] = {
     val eth_historic_csv ="/Users/haaroony/OneDrive - Pometry Ltd/nft_andrea/ETH-USD.csv"
+    // val eth_historic_csv ="/home/ubuntu/data/ETH-USD.csv"
     val src = Source.fromFile(eth_historic_csv)
     val date_price_map = new mutable.HashMap[String,Double]()
     src.getLines.drop(1).foreach { line =>
@@ -27,75 +28,82 @@ class NFTGraphBuilder extends GraphBuilder[String] {
 
   override def parseTuple(tuple: String): Unit = {
     val fileLine = tuple.split(",").map(_.trim)
-    // Skip Header
-    if (fileLine(0) == "Smart_contract") return
-    // Seller details
-    val seller_address = fileLine(3)
-    val seller_address_hash = assignID(seller_address)
-    // Buyer details
-    val buyer_address = fileLine(5)
-    val buyer_address_hash = assignID(buyer_address)
-    // Transaction details
-    val datetime_str = fileLine(19)
-    val timeStamp = LocalDateTime.parse(datetime_str, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).toEpochSecond(ZoneOffset.UTC)
-    val tx_hash = fileLine(2)
-    val token_id_str = fileLine(1)
-    val token_id_long = token_id_str.toDouble.toLong
-    val crypto = fileLine(12)
+//    try {
+      // Skip Header
+      if (fileLine(0) == "Smart_contract") return
+      // Seller details
+      val seller_address = fileLine(3)
+      val seller_address_hash = assignID(seller_address)
+      // Buyer details
+      val buyer_address = fileLine(5)
+      val buyer_address_hash = assignID(buyer_address)
+      // Transaction details
+      val datetime_str = fileLine(13)
+      val timeStamp = LocalDateTime.parse(datetime_str, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).toEpochSecond(ZoneOffset.UTC)
+      val tx_hash = fileLine(2)
+      val token_id_str = fileLine(1)
+      val token_id_long = assignID(token_id_str)
+      val crypto = fileLine(8)
+      if (crypto != "ETH")
+        return
+      var price_USD = 0.0
+      if (fileLine(9) == "") {
+        price_USD = date_price(datetime_str.substring(0, 10))
+      } else {
+        price_USD = fileLine(9).toDouble
+      }
 
-    var price_USD = 0.0
-    if(fileLine(13) == ""){
-      price_USD = date_price(datetime_str.substring(0, 10))
-    } else {
-      price_USD = fileLine(13).toDouble
-    }
+      // NFT Details
+      val collection_cleaned = fileLine(14)
+      val market = fileLine(11)
+      val category = fileLine(15)
 
-    // NFT Details
-    val collection_cleaned = fileLine(22)
-    val market = fileLine(17)
-    val category = fileLine(23)
+      // add buyer node
+      addVertex(
+        timeStamp,
+        buyer_address_hash,
+        Properties(ImmutableProperty("address", buyer_address)),
+        Type("Wallet")
+      )
+      // add seller node
+      addVertex(
+        timeStamp,
+        seller_address_hash,
+        Properties(ImmutableProperty("address", seller_address)),
+        Type("Wallet")
+      )
 
-    // add buyer node
-    addVertex(
-      timeStamp,
-      buyer_address_hash,
-      Properties(ImmutableProperty("address", buyer_address)),
-      Type("Wallet")
-    )
-    // add seller node
-    addVertex(
-      timeStamp,
-      seller_address_hash,
-      Properties(ImmutableProperty("address", seller_address)),
-      Type("Wallet")
-    )
+      // Add node for NFT
+      addVertex(
+        timeStamp,
+        token_id_long,
+        Properties(
+          ImmutableProperty("id", token_id_str),
+          ImmutableProperty("collection", collection_cleaned),
+          ImmutableProperty("category", category)
+        ),
+        Type("NFT")
+      )
 
-    // Add node for NFT
-    addVertex(
-      timeStamp,
-      token_id_long,
-      Properties(
-        ImmutableProperty("id", token_id_str),
-        ImmutableProperty("collection", collection_cleaned),
-        ImmutableProperty("category", category)
-      ),
-      Type("NFT")
-    )
-
-    // Creating a bipitide graph,
-    // add edge between buyer and nft
-    addEdge(
-      timeStamp,
-      buyer_address_hash,
-      token_id_long,
-      Properties(
-        StringProperty("transaction_hash", tx_hash),
-        StringProperty("crypto", crypto),
-        DoubleProperty("price_USD", price_USD),
-        StringProperty("market", market)
-      ),
-      Type("Purchase")
-    )
+      // Creating a bipitide graph,
+      // add edge between buyer and nft
+      addEdge(
+        timeStamp,
+        buyer_address_hash,
+        token_id_long,
+        Properties(
+          StringProperty("transaction_hash", tx_hash),
+          StringProperty("crypto", crypto),
+          DoubleProperty("price_USD", price_USD),
+          StringProperty("market", market),
+          StringProperty("token_id", token_id_str),
+          StringProperty("buyer_address", buyer_address)
+        ),
+        Type("Purchase")
+      )
+//    } catch {
+//      case e: Exception => println(e); println(tuple)
+//    }
   }
 }
 
