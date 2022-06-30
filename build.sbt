@@ -52,6 +52,7 @@ lazy val root = (project in file("."))
           core,
           connectorsAWS,
           connectorsTwitter,
+          examplesCoho,
           examplesEnron,
           examplesFacebook,
           examplesGab,
@@ -117,6 +118,9 @@ lazy val connectorsTwitter =
   (project in file("connectors/twitter")).dependsOn(core).settings(assemblySettings)
 
 // EXAMPLE PROJECTS
+
+lazy val examplesCoho =
+  (project in file("examples/raphtory-example-coho")).dependsOn(core).settings(assemblySettings)
 
 lazy val examplesEnron =
   (project in file("examples/raphtory-example-enron")).dependsOn(core).settings(assemblySettings)
