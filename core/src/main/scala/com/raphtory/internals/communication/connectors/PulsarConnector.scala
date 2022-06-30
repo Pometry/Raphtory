@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.math.Ordering.Implicits.infixOrderingOps
+import scala.util.control.NonFatal
 
 private[raphtory] class PulsarConnector(
     client: PulsarClient,
@@ -29,7 +30,14 @@ private[raphtory] class PulsarConnector(
 
     override def sendAsync(message: T): Unit = {
       logger.debug(s"sending message: '$message' to topic: '${producer.getTopic}'")
-      producer.sendAsync(serialise(message))
+      try {
+        producer.sendAsync(serialise(message))
+      }
+      catch {
+        case NonFatal(t)=>
+          logger.error(s"Failed to send MSG $message", t)
+          throw t
+      }
     }
     override def close(): Unit = producer.flushAsync().thenApply(_ => producer.closeAsync())
 
@@ -114,8 +122,7 @@ private[raphtory] class PulsarConnector(
         }
         catch {
           case e: Exception =>
-            e.printStackTrace()
-            logger.error(s"Component $listenerId: Failed to handle message. ${e.getMessage}")
+            logger.error(s"Component $listenerId: Failed to handle message. ${e.getMessage}", e)
             consumer.negativeAcknowledge(msg)
             throw e
         }
