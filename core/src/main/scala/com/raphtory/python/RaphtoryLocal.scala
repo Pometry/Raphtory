@@ -29,6 +29,7 @@ object RaphtoryLocal
     input.map { file =>
       (for {
         graph <- Raphtory.loadIO(spout = FileSpout(file.toString), graphBuilder = new LOTRGraphBuilder())
+        _     <- Py4JServer.fromEntryPoint[IO](new PyRaphtory(graph), graph.config)
       } yield ExitCode.Success).use(code => IO.never *> IO.pure(code))
     }
   }

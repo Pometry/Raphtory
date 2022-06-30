@@ -187,7 +187,6 @@ object Raphtory { self =>
     val scheduler      = new Scheduler()
     for {
       _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
-      _                  <- Py4JServer.fromEntryPoint(self, config)
       topicRepo          <- LocalTopicRepository(config)
       _                  <- QueryManager(config, topicRepo)
       _                  <- {

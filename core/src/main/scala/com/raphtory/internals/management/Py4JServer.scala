@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 import java.security.SecureRandom
 
@@ -136,5 +137,5 @@ private[raphtory] object Py4JServer {
                     Files
                       .createTempFile(dir, "connection", ".info")
             )
-    )(tmpFile => IO.blocking(Files.move(tmpFile, renameTo)))
+    )(tmpFile => IO.blocking(Files.move(tmpFile, renameTo, StandardCopyOption.REPLACE_EXISTING)))
 }
