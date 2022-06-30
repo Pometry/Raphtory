@@ -216,7 +216,7 @@ private[api] trait GraphViewImplementation[
       case "" => algorithm.name
       case _  => query.name + ":" + algorithm.name
     }
-    newGraph(query.copy(name = newName), querySender)
+    newGraph(query.copy(name = newName, _bootstrap = query._bootstrap + algorithm.getClass), querySender)
   }
 }
 
