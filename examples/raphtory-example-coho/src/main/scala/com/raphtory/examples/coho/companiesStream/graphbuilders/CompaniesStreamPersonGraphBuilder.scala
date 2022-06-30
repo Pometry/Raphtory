@@ -11,7 +11,6 @@ import java.util.Date
  * The CompaniesStreamPersonGraphBuilder sets source node as the company
  * and the target node as the person of significant control, therefore the edge represents
  * companies linked to a specific person.
- *
  */
 
 class CompaniesStreamPersonGraphBuilder extends GraphBuilder[String] {

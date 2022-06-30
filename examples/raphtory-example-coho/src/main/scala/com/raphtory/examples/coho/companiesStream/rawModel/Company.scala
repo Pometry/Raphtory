@@ -1,7 +1,6 @@
 package com.raphtory.examples.coho.companiesStream.rawModel
 
 /**
- *
  * Case classes for all the Companies House fields in the Company Information Stream.
  */
 
