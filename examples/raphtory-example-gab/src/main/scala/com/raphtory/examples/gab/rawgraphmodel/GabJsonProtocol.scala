@@ -8,7 +8,7 @@ object GabJsonProtocol extends DefaultJsonProtocol {
   implicit val gabMediaFormat           = jsonFormat5(GabMedia)
   implicit val gabAttachmentFormat      = jsonFormat2(GabAttachment)
   implicit val gabCategoryDetailsFormat = jsonFormat4(GabCategoryDetails)
-  implicit val gabCategotyUserFormat    = jsonFormat10(GabUser)
+  implicit val gabCategoryUserFormat    = jsonFormat10(GabUser)
   implicit val gabTopicFormat           = jsonFormat5(GabTopic)
   implicit val gabRepliesFormat         = jsonFormat1(GabReplies)
 

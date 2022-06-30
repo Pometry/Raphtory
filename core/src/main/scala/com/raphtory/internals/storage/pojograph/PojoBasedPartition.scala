@@ -34,6 +34,8 @@ private[raphtory] class PojoBasedPartition(partition: Int, conf: Config)
       case LongProperty(key, value)      => entity + (msgTime, false, key, value)
       case DoubleProperty(key, value)    => entity + (msgTime, false, key, value)
       case FloatProperty(key, value)     => entity + (msgTime, false, key, value)
+      case BooleanProperty(key, value)    => entity + (msgTime, false, key, value)
+      case IntegerProperty(key, value)    => entity + (msgTime, false, key, value)
       case ImmutableProperty(key, value) => entity + (msgTime, true, key, value)
     }
 
