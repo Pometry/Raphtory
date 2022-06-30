@@ -7,6 +7,13 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import com.raphtory.examples.coho.companiesStream.rawModel.CompaniesHouseJsonProtocol.CompanyFormat
 
+/**
+ * The CompaniesStreamRawGraphBuilder sets each json object as a vertex
+ * and edges as the links between these objects. This creates a big network
+ * for a companies information.
+ *
+ */
+
 class CompaniesStreamRawGraphBuilder extends GraphBuilder[String] {
   private val nullStr = "null"
 

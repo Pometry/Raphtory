@@ -2,6 +2,10 @@ package com.raphtory.examples.coho.companiesStream.rawModel
 
 import spray.json._
 
+/**
+ * Implicit variables and objects to handle the json objects of the Companies House stream data.
+ */
+
 object CompaniesHouseJsonProtocol extends DefaultJsonProtocol {
 
   implicit val eventFormat = jsonFormat4(Event)

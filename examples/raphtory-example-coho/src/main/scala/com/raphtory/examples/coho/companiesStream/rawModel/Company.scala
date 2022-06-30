@@ -1,5 +1,10 @@
 package com.raphtory.examples.coho.companiesStream.rawModel
 
+/**
+ *
+ * Case classes for all the Companies House fields in the Company Information Stream.
+ */
+
 case class Company(
                                resource_kind: Option[String],
                                resource_uri: Option[String],

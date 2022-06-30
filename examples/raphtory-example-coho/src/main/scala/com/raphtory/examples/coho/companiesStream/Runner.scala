@@ -6,6 +6,13 @@ import com.raphtory.examples.coho.companiesStream.graphbuilders.{CompaniesStream
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.WebSocketSpout
 
+/**
+ * Runner to build a person to company network or raw network for a company.
+ * Auth is set in the environment variables. Content Type and URL can be set in app conf of this directory.
+ * The URL defines the stream you would like to pull from Companies House: https://developer-specs.company-information.service.gov.uk/streaming-api/reference
+ * You will need to create an application with a key to get an authorization key to access this resource.
+ */
+
 object Runner extends App {
 
   val raphtoryConfig               = Raphtory.getDefaultConfig()

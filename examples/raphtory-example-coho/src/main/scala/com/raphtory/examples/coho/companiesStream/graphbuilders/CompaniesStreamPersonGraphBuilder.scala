@@ -4,9 +4,15 @@ import com.raphtory.api.input.{GraphBuilder, ImmutableProperty, Properties, Stri
 import com.raphtory.examples.coho.companiesStream.rawModel.CompaniesHouseJsonProtocol.{CompanyFormat, getField}
 import com.raphtory.examples.coho.companiesStream.rawModel.Company
 import spray.json._
-
 import java.text.SimpleDateFormat
 import java.util.Date
+
+/**
+ * The CompaniesStreamPersonGraphBuilder sets source node as the company
+ * and the target node as the person of significant control, therefore the edge represents
+ * companies linked to a specific person.
+ *
+ */
 
 class CompaniesStreamPersonGraphBuilder extends GraphBuilder[String] {
   private val nullStr = "null"
