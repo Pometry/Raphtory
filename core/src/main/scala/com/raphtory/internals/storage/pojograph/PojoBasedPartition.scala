@@ -4,7 +4,7 @@ import com.raphtory.api.input._
 import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
-import com.raphtory.internals.storage.pojograph.entities.external.PojoExVertex
+import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExVertex
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoEdge
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoEntity
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoVertex

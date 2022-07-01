@@ -1,4 +1,4 @@
-package com.raphtory.internals.storage.pojograph.entities.external
+package com.raphtory.internals.storage.pojograph.entities.external.edge
 
 import com.raphtory.api.analysis.visitor.ConcreteEdge
 import com.raphtory.api.analysis.visitor.ConcreteExplodedEdge

@@ -11,8 +11,8 @@ import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.management.Scheduler
-import com.raphtory.internals.storage.pojograph.entities.external.PojoExVertex
-import com.raphtory.internals.storage.pojograph.entities.external.PojoVertexBase
+import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExVertex
+import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoVertexBase
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory

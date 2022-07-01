@@ -1,16 +1,19 @@
-package com.raphtory.internals.storage.pojograph.entities.external
+package com.raphtory.internals.storage.pojograph.entities.external.vertex
 
+import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.api.analysis.visitor.InterlayerEdge
 import com.raphtory.api.analysis.visitor.ReducedVertex
 import com.raphtory.api.analysis.visitor.Vertex
-import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
+import com.raphtory.internals.storage.pojograph.entities.external.PojoExEntity
+import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExEdge
+import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExMultilayerEdge
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoVertex
 
-import scala.language.existentials
 import scala.collection.mutable
+import scala.language.existentials
 import scala.math.Ordering
 import scala.reflect.ClassTag
 

@@ -1,8 +1,8 @@
 package com.raphtory.internals.storage.pojograph.entities.internal
 
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
-import com.raphtory.internals.storage.pojograph.entities.external.PojoExEdge
-import com.raphtory.internals.storage.pojograph.entities.external.PojoExVertex
+import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExEdge
+import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExVertex
 
 import scala.collection.mutable
 

@@ -1,6 +1,8 @@
-package com.raphtory.internals.storage.pojograph.entities.external
+package com.raphtory.internals.storage.pojograph.entities.external.edge
 
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
+import com.raphtory.internals.storage.pojograph.entities.external.PojoExEntity
+import com.raphtory.internals.storage.pojograph.entities.external.vertex._
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoEdge
 
 private[pojograph] class PojoExplodedEdge(

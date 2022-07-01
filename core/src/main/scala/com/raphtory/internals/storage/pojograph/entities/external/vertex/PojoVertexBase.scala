@@ -1,12 +1,10 @@
-package com.raphtory.internals.storage.pojograph.entities.external
+package com.raphtory.internals.storage.pojograph.entities.external.vertex
 
 import com.raphtory.api.analysis.visitor.Vertex
-import com.raphtory.internals.components.querymanager.FilteredEdgeMessage
-import com.raphtory.internals.components.querymanager.FilteredInEdgeMessage
-import com.raphtory.internals.components.querymanager.FilteredOutEdgeMessage
-import com.raphtory.internals.components.querymanager.GenericVertexMessage
-import com.raphtory.internals.components.querymanager.VertexMessage
+import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
+import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExDirectedEdgeBase
+import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExEdgeBase
 import com.raphtory.internals.storage.pojograph.messaging.VertexMultiQueue
 
 import scala.collection.mutable

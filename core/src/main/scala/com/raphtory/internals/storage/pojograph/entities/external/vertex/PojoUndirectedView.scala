@@ -1,7 +1,8 @@
-package com.raphtory.internals.storage.pojograph.entities.external
+package com.raphtory.internals.storage.pojograph.entities.external.vertex
 
 import com.raphtory.api.analysis.visitor.ExplodedVertex
 import com.raphtory.api.analysis.visitor.ReducedVertex
+import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExReducedEdgeBase
 
 private[pojograph] class PojoUndirectedVertexView[T](override val vertex: PojoConcreteVertexBase[T])
         extends PojoLocalVertexViewBase(vertex) {

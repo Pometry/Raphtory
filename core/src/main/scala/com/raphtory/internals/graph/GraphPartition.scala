@@ -4,7 +4,7 @@ import com.raphtory.internals.graph.GraphAlteration.GraphUpdateEffect
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdateEffect
-import com.raphtory.internals.storage.pojograph.entities.external.PojoExVertex
+import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExVertex
 import com.typesafe.config.Config
 
 import scala.collection.mutable

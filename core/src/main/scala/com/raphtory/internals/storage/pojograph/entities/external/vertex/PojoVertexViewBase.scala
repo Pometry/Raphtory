@@ -1,8 +1,9 @@
-package com.raphtory.internals.storage.pojograph.entities.external
+package com.raphtory.internals.storage.pojograph.entities.external.vertex
 
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
+
 import scala.reflect.ClassTag
 
 abstract private[pojograph] class PojoVertexViewBase(vertex: PojoVertexBase) extends PojoVertexBase {
