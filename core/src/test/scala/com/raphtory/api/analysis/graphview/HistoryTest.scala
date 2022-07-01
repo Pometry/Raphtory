@@ -71,8 +71,30 @@ class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
     correctnessTest(TestQuery(EdgeList(), edges.size - 1), res)
   }
 
+  test("test edge ingestion and output on undirected view") {
+    correctnessTest(
+            TestQuery(EdgeList(), edges.size - 1),
+            graphS.undirectedView,
+            res.flatMap { e =>
+              val parts = e.split(",")
+              List(e, List(parts(0), parts(2), parts(1)).mkString(","))
+            }.distinct
+    )
+  }
+
   test("test exploded edge output") {
     correctnessTest(TestQuery(TemporalEdgeList(), edges.size - 1), resExploded)
+  }
+
+  test("test exploded edge output on undirected view") {
+    correctnessTest(
+            TestQuery(TemporalEdgeList(), edges.size - 1),
+            graphS.undirectedView,
+            resExploded.flatMap { e =>
+              val parts = e.split(",")
+              List(e, List(parts(0), parts(2), parts(1), parts(3)).mkString(","))
+            }.distinct
+    )
   }
 
   test("test exploded edge output with window") {
@@ -84,6 +106,22 @@ class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
       }
       .map(e => s"${query.timestamp},${query.windows.head},$e")
     correctnessTest(query, res)
+  }
+
+  test("test exploded edge output with window on undirected view") {
+    val query = TestQuery(TemporalEdgeList(), 70, List(30))
+    val res   = input
+      .filter { e =>
+        val t = e.split(",").last.toInt
+        t > query.timestamp - query.windows.head && t <= query.timestamp
+      }
+      .map(e => s"${query.timestamp},${query.windows.head},$e")
+      .flatMap { e =>
+        val parts = e.split(",")
+        List(e, List(parts(0), parts(1), parts(3), parts(2), parts(4)).mkString(","))
+      }
+      .distinct
+    correctnessTest(query, graphS.undirectedView, res)
   }
 
   test("test windowing functionality") {
