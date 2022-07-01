@@ -3,19 +3,13 @@ package com.raphtory.internals.storage.pojograph.entities.external
 import com.raphtory.api.analysis.visitor.ExplodedVertex
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.api.analysis.visitor.ReducedVertex
-import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
-import com.raphtory.internals.components.querymanager.VertexMessage
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
-import com.raphtory.internals.storage.pojograph.messaging.VertexMultiQueue
-
-import scala.collection.mutable
 import scala.reflect.ClassTag
 
 abstract class PojoVertexViewBase(vertex: PojoVertexBase) extends PojoVertexBase {
   override def lens: PojoGraphLens = vertex.lens
 
-  /** Return the type of the entity */
   override def Type(): String = vertex.Type()
 
   override def firstActivityAfter(time: Long, strict: Boolean): Option[HistoricEvent] =
