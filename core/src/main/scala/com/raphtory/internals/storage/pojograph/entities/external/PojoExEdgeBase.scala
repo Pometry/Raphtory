@@ -28,10 +28,10 @@ private[pojograph] trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
 
 private[pojograph] trait PojoExplodedEdgeBase[T] extends PojoExEdgeBase[T] with ConcreteExplodedEdge[T]
 
-private[pojograph] trait PojoExDirectedEdgeBase[Edir <: PojoExDirectedEdgeBase[
-        Edir,
-        T
-], T] extends PojoExEdgeBase[T] { this: Edir =>
+private[pojograph] trait PojoExDirectedEdgeBase[
+    Edir <: PojoExDirectedEdgeBase[Edir, T],
+    T
+] extends PojoExEdgeBase[T] { this: Edir =>
   type Eundir >: Edir <: PojoExEdgeBase[T]
   def reversed: Edir
 

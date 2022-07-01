@@ -7,7 +7,7 @@ private[pojograph] class PojoReversedVertexView[T](override val vertex: PojoConc
         extends PojoLocalVertexViewBase(vertex) {
 
   override type IDType = vertex.IDType
-  override type Edge   = vertex.Edge#Eundir
+  override type Edge   = vertex.Edge
 
   def outEdges: List[Edge] =
     vertex.inEdges.map(_.reversed)
@@ -25,7 +25,6 @@ private[pojograph] class PojoReversedVertexView[T](override val vertex: PojoConc
 private[pojograph] class PojoReducedReversedVertexView(override val vertex: PojoExVertex)
         extends PojoReversedVertexView(vertex)
         with ReducedVertex {
-  override type Edge = PojoExReducedEdgeBase
 
   override def getOutEdges(after: Long, before: Long): List[Edge] =
     vertex.getInEdges(after, before).map(_.reversed)

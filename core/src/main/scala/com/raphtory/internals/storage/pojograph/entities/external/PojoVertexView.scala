@@ -1,8 +1,6 @@
 package com.raphtory.internals.storage.pojograph.entities.external
 
-import com.raphtory.api.analysis.visitor.ExplodedVertex
 import com.raphtory.api.analysis.visitor.HistoricEvent
-import com.raphtory.api.analysis.visitor.ReducedVertex
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import scala.reflect.ClassTag

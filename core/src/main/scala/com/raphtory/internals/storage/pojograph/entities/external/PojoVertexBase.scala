@@ -11,7 +11,7 @@ import com.raphtory.internals.storage.pojograph.messaging.VertexMultiQueue
 
 import scala.collection.mutable
 
-private[raphtory] trait PojoVertexBase extends Vertex {
+private[pojograph] trait PojoVertexBase extends Vertex {
   // abstract state
   override type Edge <: PojoExEdgeBase[IDType]
   def lens: PojoGraphLens
@@ -44,7 +44,7 @@ private[raphtory] trait PojoVertexBase extends Vertex {
     List(getInEdge(id), getOutEdge(id)).flatten
 }
 
-private[raphtory] trait PojoConcreteVertexBase[T] extends PojoVertexBase {
+private[pojograph] trait PojoConcreteVertexBase[T] extends PojoVertexBase {
   // abstract state
   override type IDType = T
   override type Edge <: PojoExDirectedEdgeBase[Edge, IDType]
