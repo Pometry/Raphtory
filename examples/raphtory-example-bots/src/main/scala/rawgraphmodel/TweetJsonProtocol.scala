@@ -7,7 +7,6 @@ object TweetJsonProtocol extends DefaultJsonProtocol {
   implicit val public_MetricFormat   = jsonFormat4(Public_Metrics)
 
   implicit object TweetJsonFormat extends RootJsonFormat[Tweet] {
-    // TODO Writer method
 
     def getRawField(field: String)(implicit jsObj: JsObject): Option[JsValue] =
       jsObj.getFields(field).headOption
@@ -30,13 +29,13 @@ object TweetJsonProtocol extends DefaultJsonProtocol {
         case None    => None
       }
 
+    def write(p: Tweet) = JsString("TODO")
+
     def getLong(field: String)(implicit jsObj: JsObject): Option[Long] =
       getField(field) match {
         case Some(s) => Some(s.toLong)
         case None    => None
       }
-
-    def write(p: Tweet) = JsString("TODO")
 
     def read(value: JsValue) = {
       implicit val jsObj = value.asJsObject
@@ -44,21 +43,22 @@ object TweetJsonProtocol extends DefaultJsonProtocol {
       new Tweet(
         getLong("author_id"),
         getLong("conversation_id"),
-        getField("created_at") match {
-          case Some(s) => Some(s.replaceAll("\"", ""))
-          case None    => None
-        },
+        getLong("create_at"),
+        //        getField("created_at") match {
+        //          case Some(s) => Some(s.replaceAll("\"", ""))
+        //          case None    => None
+        //        },
         getLong("id"),
         getLong("in_reply_to_user"),
         getField("lang"),
         getRawField("public_metrics") match {
           case Some(p) => Some(p.convertTo[Public_Metrics])
-          case None    => None //Figure this shit out
-        },
-        getRawField("referenced_tweets") match {
-          case Some(r) => Some(r.convertTo[Referenced_Tweet]) //Figure out how to do possible list
           case None    => None
         },
+        //        getRawField("referenced_tweets") match {
+        //          case Some(r) => Some(r.convertTo[Referenced_Tweet])
+        //          case None    => None
+        //        },
         getField("source"),
         getField("text")
       )

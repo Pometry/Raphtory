@@ -29,33 +29,21 @@ class BotsFromJsonGraphBuilder extends GraphBuilder[String] {
     def sendPostToPartitions(
                               tweet: Tweet,
                             ): Unit = {
-      val srcID  = tweet.author_id.toLong
-      val timestamp = OffsetDateTime.parse(tweet.created_at.get).toEpochSecond
+      val srcID  = tweet.author_id.get
+      //val timestamp = OffsetDateTime.parse(tweet.created_at.get).toEpochSecond
+      val timestamp = tweet.created_at.get/1000
       addVertex(timestamp,
         srcID,
         Properties(
           StringProperty("retweet_count",
-            tweet.public_metrics.retweet_count match {
+            tweet.public_metrics.get.retweet_count match {
               case Some(r) => r.toString
-              case None            => nullStr
-            }
-          ),
-          StringProperty("reply_count",
-            tweet.public_metrics.retweet_count match {
-              case Some(r) => r.toString
-              case None            => nullStr
+              case None    => nullStr
             }
           ),
           StringProperty("like_count",
-            tweet.public_metrics.like_count match {
+            tweet.public_metrics.get.like_count match {
               case Some(l) => l.toString
-              case None            => nullStr
-            }
-          ),
-
-          StringProperty("quote_count",
-            tweet.public_metrics.quote_count match {
-              case Some(r) => r.toString
               case None            => nullStr
             }
           )
@@ -70,6 +58,6 @@ class BotsFromJsonGraphBuilder extends GraphBuilder[String] {
         case None =>
       }
 
-      }
     }
+  }
 }

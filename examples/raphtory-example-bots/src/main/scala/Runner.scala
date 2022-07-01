@@ -1,6 +1,6 @@
 import analysis.{MemberRank, TemporalMemberRank}
 import com.raphtory.Raphtory
-import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.algorithms.generic.{ConnectedComponents, EdgeList}
 import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
@@ -9,7 +9,7 @@ import graphbuilders.{BotsFromJsonGraphBuilder, BotsGraphBuilder}
 import scala.language.postfixOps
 
 object Runner extends App {
-  val path = "/Pometry/cleanedData5000/000.json"
+  val path = "/tmp/000.json"
 
   val source  = FileSpout(path)
   val builder = new BotsFromJsonGraphBuilder()
@@ -17,12 +17,9 @@ object Runner extends App {
   val output  = FileSink("/tmp/raphtory")
 
   val queryHandler = graph
-    .range(1543277951, 1543414175, 500000000)
-    //.at(1543277951)
+    .at(1643336173)
     .past()
-    .execute(ConnectedComponents())
-//    .transform(PageRank())
-//    .execute(MemberRank() -> TemporalMemberRank())
+    .execute(EdgeList())
     .writeTo(output)
 
   queryHandler.waitForJob()
