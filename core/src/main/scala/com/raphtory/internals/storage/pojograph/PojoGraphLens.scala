@@ -53,11 +53,20 @@ final private[raphtory] case class PojoGraphLens(
   private var vertices: Array[PojoExVertex] =
     vertexMap.values.toArray
 
-  private def vertexIterator =
-    if (exploded)
-      vertices.iterator.flatMap(_.explodedVertices)
+  private var unDir: Boolean = false
+
+  private def vertexIterator = {
+    val it =
+      if (exploded)
+        vertices.iterator.flatMap(_.explodedVertices)
+      else
+        vertices.iterator
+
+    if (unDir)
+      it.map(_.viewUndirected)
     else
-      vertices.iterator
+      it
+  }
 
   def getFullGraphSize: Int = {
     logger.trace(s"Current Graph size at '$fullGraphSize'.")
@@ -148,7 +157,17 @@ final private[raphtory] case class PojoGraphLens(
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
-  override def reduceView(
+  def viewUndirected()(onComplete: => Unit): Unit = {
+    unDir = true
+    onComplete
+  }
+
+  override def viewDirected()(onComplete: => Unit): Unit = {
+    unDir = false
+    onComplete
+  }
+
+  def reduceView(
       defaultMergeStrategy: Option[PropertyMerge[_, _]],
       mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
       aggregate: Boolean

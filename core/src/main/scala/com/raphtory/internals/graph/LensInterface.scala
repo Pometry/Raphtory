@@ -33,6 +33,10 @@ private[raphtory] trait LensInterface {
       interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]]
   )(onComplete: => Unit): Unit
 
+  def viewUndirected()(onComplete: => Unit): Unit
+
+  def viewDirected()(onComplete: => Unit): Unit
+
   def reduceView(
       defaultMergeStrategy: Option[PropertyMerge[_, _]],
       mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
