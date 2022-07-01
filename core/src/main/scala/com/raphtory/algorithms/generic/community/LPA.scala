@@ -1,7 +1,7 @@
 package com.raphtory.algorithms.generic.community
 
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.algorithms.generic.community.LPA.lpa
+import com.raphtory.algorithms.generic.community.LPA.{MinTieBreak, TieBreaker, lpa}
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
@@ -24,12 +24,18 @@ import scala.util.Random
   *   {s}`weight: String = ""`
   *    : Edge weight property. To be specified in case of weighted graph.
   *
+  *   {s}`tieBreaker: TieBreaker = MinTieBreak`
+  *    : rule for breaking ties between equally weighted neighbourhood labels. Default is to pick the minimum valued label.
+  *
   *   {s}`maxIter: Int = 500`
   *    : Maximum iterations for algorithm to run.
   *
   *   {s}`seed: Long`
   *    : Value used for the random selection, can be set to ensure same result is returned per run.
   *      If not specified, it will generate a random seed.
+  *
+  *    {s}`stickinessProb: Float`
+  *    : Probability that regardless of the tiebreak algorithm used, a vertex will just keep its previous label.
   *
   * ## States
   *
@@ -52,12 +58,12 @@ import scala.util.Random
   * [](com.raphtory.algorithms.generic.community.SLPA), [](com.raphtory.algorithms.temporal.community.MultilayerLPA)
   * ```
   */
-class LPA[T: Numeric](weight: String = "", maxIter: Int = 50, seed: Long = -1)
+class LPA[T: Numeric](weight: String = "weight", tieBreaker: TieBreaker = MinTieBreak(), stickinessProb: Float=0.2F, maxIter: Int = 50, seed: Long = -1)
         extends NodeList(Seq("community")) {
 
   private val rnd: Random = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)
 
-  private val SP = 0.2f // Stickiness probability
+  private val SP = stickinessProb // Stickiness probability
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -66,7 +72,7 @@ class LPA[T: Numeric](weight: String = "", maxIter: Int = 50, seed: Long = -1)
         vertex.setState("community", lab)
         vertex.messageAllNeighbours((vertex.ID, lab))
       }
-      .iterate(vertex => lpa(vertex, weight, SP, rnd), maxIter, false)
+      .iterate(vertex => lpa(vertex, weight, tieBreaker, SP, rnd), maxIter, false)
 
   override def tabularise(graph: GraphPerspective): Table =
     graph.select { vertex =>
@@ -80,10 +86,10 @@ class LPA[T: Numeric](weight: String = "", maxIter: Int = 50, seed: Long = -1)
 
 object LPA {
 
-  def apply[T: Numeric](weight: String = "weight", maxIter: Int = 50, seed: Long = -1) =
-    new LPA(weight, maxIter, seed)
+  def apply[T: Numeric](weight: String = "weight", tieBreaker: TieBreaker = MinTieBreak(), stickinessProb: Float=0.2F, maxIter: Int = 50, seed: Long = -1) =
+    new LPA(weight, tieBreaker, stickinessProb, maxIter, seed)
 
-  def lpa[T](vertex: Vertex, weight: String, SP: Double, rnd: Random)(implicit
+  def lpa[T](vertex: Vertex, weight: String, tieBreak: TieBreaker, SP: Double, rnd: Random)(implicit
       numeric: Numeric[T]
   ): Unit = {
     val vlabel     = vertex.getState[Long]("community")
@@ -99,7 +105,12 @@ object LPA {
       .map(v => (v._2, neigh_freq.getOrElse(v._1, 1.0f)))
     // Get label most prominent in neighborhood of vertex
     val maxlab     = gp.groupBy(_._1).view.mapValues(_.map(_._2).sum)
-    var newLabel   = maxlab.filter(_._2 == maxlab.values.max).keySet.max
+    val possLabels = maxlab.filter(_._2 == maxlab.values.max).keySet.toList
+
+    var newLabel = 0L
+    if (possLabels.contains(vlabel)) {
+      newLabel = vlabel
+    } else newLabel = tieBreak.chooseLabel(possLabels, vertex)
     // Update node label and broadcast
     if (newLabel == vlabel)
       vertex.voteToHalt()
@@ -107,4 +118,21 @@ object LPA {
     vertex.setState("community", newLabel)
     vertex.messageAllNeighbours((vertex.ID, newLabel))
   }
+
+  sealed trait TieBreaker {
+    def chooseLabel(possLabels:List[Long], vertex: Vertex) : Long
+  }
+
+  case class RandomTieBreak() extends TieBreaker {
+    override def chooseLabel(possLabels: List[Long], vertex: Vertex): Long = possLabels(Random.nextInt(possLabels.length))
+  }
+
+  case class MinTieBreak() extends TieBreaker {
+    override def chooseLabel(possLabels: List[Long], vertex: Vertex): Long = possLabels.min
+  }
+
+  case class CustomTieBreak(f:(List[Long], Vertex) => Long) extends TieBreaker {
+    override def chooseLabel(possLabels: List[Long], vertex: Vertex): Long = f(possLabels, vertex)
+  }
+
 }
