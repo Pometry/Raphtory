@@ -638,8 +638,8 @@ class QuerySuperstepSync(totalPartitions: Int) {
   }
 
   def updateControlMessageCount(count: Long): Unit = {
-    controlMessageSemaphore.release(1)
     targetReceivedMessageCount.addAndGet(count)
+    controlMessageSemaphore.release(1)
   }
 
   def updateVertexMessageCount(count: Int): Unit =
