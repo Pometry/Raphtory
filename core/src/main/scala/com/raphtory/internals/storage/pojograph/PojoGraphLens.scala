@@ -7,16 +7,12 @@ import com.raphtory.api.analysis.table.RowImplementation
 import com.raphtory.api.analysis.visitor.InterlayerEdge
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
-import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
-import com.raphtory.internals.components.querymanager.QueryManagement
-import com.raphtory.internals.graph.GraphLens
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.storage.pojograph.entities.external.PojoExVertex
 import com.raphtory.internals.storage.pojograph.entities.external.PojoVertexBase
-import com.raphtory.internals.storage.pojograph.messaging.VertexMessageHandler
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -34,8 +30,7 @@ final private[raphtory] case class PojoGraphLens(
     private val messageSender: GenericVertexMessage[_] => Unit,
     private val errorHandler: (Throwable) => Unit,
     private val scheduler: Scheduler
-) extends GraphLens(jobId, start, end)
-        with LensInterface {
+) extends LensInterface {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val voteCount         = new AtomicInteger(0)
@@ -55,6 +50,8 @@ final private[raphtory] case class PojoGraphLens(
 
   private var unDir: Boolean = false
 
+  private var reversed: Boolean = false
+
   private def vertexIterator = {
     val it =
       if (exploded)
@@ -64,6 +61,8 @@ final private[raphtory] case class PojoGraphLens(
 
     if (unDir)
       it.map(_.viewUndirected)
+    else if (reversed)
+      it.map(_.viewReversed)
     else
       it
   }
@@ -162,8 +161,13 @@ final private[raphtory] case class PojoGraphLens(
     onComplete
   }
 
-  override def viewDirected()(onComplete: => Unit): Unit = {
+  def viewDirected()(onComplete: => Unit): Unit = {
     unDir = false
+    onComplete
+  }
+
+  def viewReversed()(onComplete: => Unit): Unit = {
+    reversed = !reversed
     onComplete
   }
 
@@ -277,10 +281,6 @@ final private[raphtory] case class PojoGraphLens(
         )
     }
   }
-
-  override def getStart(): Long = start
-
-  override def getEnd(): Long = end
 
   def clearMessages(): Unit =
     vertexMap.foreach {

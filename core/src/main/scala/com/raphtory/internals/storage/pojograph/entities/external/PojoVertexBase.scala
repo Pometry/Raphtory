@@ -60,6 +60,8 @@ private[raphtory] trait PojoConcreteVertexBase[T] extends PojoVertexBase {
 
   def viewUndirected: PojoUndirectedVertexView[T]
 
+  def viewReversed: PojoReversedVertexView[T]
+
   // messaging
   def hasMessage: Boolean =
     multiQueue.getMessageQueue(lens.superStep).nonEmpty

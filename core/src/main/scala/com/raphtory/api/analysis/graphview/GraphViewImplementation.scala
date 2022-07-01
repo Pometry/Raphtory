@@ -44,6 +44,8 @@ final private[raphtory] case class DirectedView() extends GraphFunction
 
 final private[raphtory] case class UndirectedView() extends GraphFunction
 
+final private[raphtory] case class ReversedView() extends GraphFunction
+
 final private[raphtory] case class Step(f: (_) => Unit) extends GraphFunction
 
 final private[raphtory] case class StepWithGraph(
@@ -131,6 +133,8 @@ private[api] trait GraphViewImplementation[
   override def undirectedView: G = addFunction(UndirectedView())
 
   override def directedView: G = addFunction(DirectedView())
+
+  override def reversedView: G = addFunction(ReversedView())
 
   override def edgeFilter(f: Edge => Boolean, pruneNodes: Boolean): G = {
     val filtered = step { vertex =>

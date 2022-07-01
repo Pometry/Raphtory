@@ -1,12 +1,10 @@
 package com.raphtory.internals.storage.pojograph.entities.external
 
-import com.raphtory.api.analysis.visitor.ConcreteEdge
-import com.raphtory.api.analysis.visitor.ConcreteExplodedEdge
 import com.raphtory.api.analysis.visitor.EntityVisitor
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 
-private[raphtory] class PojoExMultilayerEdge(
+private[pojograph] class PojoExMultilayerEdge(
     override val timestamp: Long,
     override val ID: (Long, Long),
     override val src: (Long, Long),
@@ -60,8 +58,11 @@ private[raphtory] class PojoExMultilayerEdge(
   override def end: Long = timestamp
 }
 
-class PojoExMultilayerInOutEdge(in: PojoExMultilayerEdge, out: PojoExMultilayerEdge, asInEdge: Boolean)
-        extends PojoExInOutEdgeBase[PojoExMultilayerInOutEdge, PojoExMultilayerEdge, (Long, Long)](in, out, asInEdge)
+private[pojograph] class PojoExMultilayerInOutEdge(
+    in: PojoExMultilayerEdge,
+    out: PojoExMultilayerEdge,
+    asInEdge: Boolean
+) extends PojoExInOutEdgeBase[PojoExMultilayerInOutEdge, PojoExMultilayerEdge, (Long, Long)](in, out, asInEdge)
         with PojoExplodedEdgeBase[(Long, Long)] {
 
   /** Timestamp for exploded entity */

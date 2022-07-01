@@ -8,6 +8,7 @@ import com.raphtory.api.analysis.graphview.Iterate
 import com.raphtory.api.analysis.graphview.IterateWithGraph
 import com.raphtory.api.analysis.graphview.MultilayerView
 import com.raphtory.api.analysis.graphview.ReduceView
+import com.raphtory.api.analysis.graphview.ReversedView
 import com.raphtory.api.analysis.graphview.Select
 import com.raphtory.api.analysis.graphview.SelectWithGraph
 import com.raphtory.api.analysis.graphview.Step
@@ -46,7 +47,6 @@ import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
-import com.raphtory.internals.storage.pojograph.messaging.VertexMessageHandler
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -56,8 +56,6 @@ import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable
-import scala.concurrent.duration.DurationInt
-import scala.util.Try
 
 private[raphtory] class QueryExecutor(
     partitionID: Int,
@@ -384,6 +382,27 @@ private[raphtory] class QueryExecutor(
 
               logger
                 .debug(s"Job '$jobID' at Partition '$partitionID': DirectedView function finished in ${System
+                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages.")
+            }
+          }
+
+        case ReversedView()                                                =>
+          startStep()
+          graphLens.viewReversed() {
+            finaliseStep {
+              val sentMessages     = sentMessageCount.get()
+              val receivedMessages = receivedMessageCount.get()
+
+              taskManager sendAsync
+                GraphFunctionComplete(
+                        currentPerspectiveID,
+                        partitionID,
+                        receivedMessages,
+                        sentMessages
+                )
+
+              logger
+                .debug(s"Job '$jobID' at Partition '$partitionID': ReversedView function finished in ${System
                   .currentTimeMillis() - time}ms and sent '$sentMessages' messages.")
             }
           }

@@ -74,7 +74,7 @@ abstract private[raphtory] class GraphPartition(partitionID: Int, conf: Config) 
 
   // Analysis Functions
   def getVertices(
-      graphPerspective: GraphLens,
+      graphPerspective: LensInterface,
       start: Long,
       end: Long
   ): mutable.Map[Long, PojoExVertex]

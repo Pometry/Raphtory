@@ -167,10 +167,18 @@ trait GraphPerspective {
   def undirectedView: Graph
 
   /**
-    * Vie the graph as a directed network (duplicated edges created by a previous call to `undirectedView` are removed
+    * View the graph as a directed network (duplicated edges created by a previous call to `undirectedView` are removed
     * and bi-directional edges un-merged)
     */
   def directedView: Graph
+
+  /**
+    * Reverse the direction of each edge in the graph.
+    *
+    * Note that if the graph is currently viewed as undirected, this method has no immediate effect, however,
+    * edges will be reversed on a subsequent call to `directedView`
+    */
+  def reversedView: Graph
 
   /** Execute algorithm step
     *
@@ -300,6 +308,7 @@ private[api] trait ConcreteGraphPerspective[V <: visitor.Vertex, G <: ConcreteGr
   ): ReducedGraph
   def undirectedView: Graph
   def directedView: Graph
+  def reversedView: Graph
   def step(f: (Vertex) => Unit): Graph
   def step(f: (Vertex, GraphState) => Unit): Graph
   def iterate(f: (Vertex) => Unit, iterations: Int, executeMessagedOnly: Boolean): Graph

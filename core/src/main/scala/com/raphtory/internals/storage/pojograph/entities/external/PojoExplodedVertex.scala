@@ -9,7 +9,7 @@ import com.raphtory.internals.storage.pojograph.messaging.VertexMultiQueue
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-private[raphtory] class PojoExplodedVertex(
+private[pojograph] class PojoExplodedVertex(
     val vertex: PojoExVertex,
     override val timestamp: Long
 ) extends PojoVertexViewBase(vertex)
@@ -81,4 +81,6 @@ private[raphtory] class PojoExplodedVertex(
   }
 
   override def viewUndirected: PojoUndirectedVertexView[(Long, Long)] = PojoExplodedUndirectedVertexView(this)
+
+  override def viewReversed: PojoReversedVertexView[(Long, Long)] = PojoExplodedReversedVertexView(this)
 }

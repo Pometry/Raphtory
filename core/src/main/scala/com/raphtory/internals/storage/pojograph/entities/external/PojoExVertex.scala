@@ -249,4 +249,6 @@ private[raphtory] class PojoExVertex(
     individualEdge(internalIncomingEdges, after, before, id)
 
   override def viewUndirected: PojoReducedUndirectedVertexView = PojoReducedUndirectedVertexView(this)
+
+  override def viewReversed: PojoReversedVertexView[Long] = PojoReducedReversedVertexView(this)
 }
