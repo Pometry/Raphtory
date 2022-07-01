@@ -75,10 +75,15 @@ class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
     correctnessTest(
             TestQuery(EdgeList(), edges.size - 1),
             graphS.undirectedView,
-            res.flatMap { e =>
-              val parts = e.split(",")
-              List(e, List(parts(0), parts(2), parts(1)).mkString(","))
-            }.distinct
+            (res ++ reverseEdges(res)).distinct
+    )
+  }
+
+  test("test edge ingestion and output on reversed view") {
+    correctnessTest(
+            TestQuery(EdgeList(), edges.size - 1),
+            graphS.reversedView,
+            reverseEdges(res)
     )
   }
 
@@ -90,10 +95,15 @@ class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
     correctnessTest(
             TestQuery(TemporalEdgeList(), edges.size - 1),
             graphS.undirectedView,
-            resExploded.flatMap { e =>
-              val parts = e.split(",")
-              List(e, List(parts(0), parts(2), parts(1), parts(3)).mkString(","))
-            }.distinct
+            (resExploded ++ reverseEdges(resExploded)).distinct
+    )
+  }
+
+  test("test exploded edge output on reversed view") {
+    correctnessTest(
+            TestQuery(TemporalEdgeList(), edges.size - 1),
+            graphS.reversedView,
+            reverseEdges(resExploded)
     )
   }
 
@@ -116,12 +126,18 @@ class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
         t > query.timestamp - query.windows.head && t <= query.timestamp
       }
       .map(e => s"${query.timestamp},${query.windows.head},$e")
-      .flatMap { e =>
-        val parts = e.split(",")
-        List(e, List(parts(0), parts(1), parts(3), parts(2), parts(4)).mkString(","))
+    correctnessTest(query, graphS.undirectedView, (res ++ reverseEdgesWithWindow(res)).distinct)
+  }
+
+  test("test exploded edge output with window on reversed view") {
+    val query = TestQuery(TemporalEdgeList(), 70, List(30))
+    val res   = input
+      .filter { e =>
+        val t = e.split(",").last.toInt
+        t > query.timestamp - query.windows.head && t <= query.timestamp
       }
-      .distinct
-    correctnessTest(query, graphS.undirectedView, res)
+      .map(e => s"${query.timestamp},${query.windows.head},$e")
+    correctnessTest(query, graphS.reversedView, reverseEdgesWithWindow(res))
   }
 
   test("test windowing functionality") {
@@ -137,22 +153,33 @@ class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
     )
   }
 
-  test("test windowing functionality on undirected view") {
+  test("test windowing functionality on undirectedView") {
+    val res = edges
+      .slice(
+              2,
+              edges.size - 1
+      ) // slice has exclusive end but our window is inclusive
+      .distinct
+      .map(e => s"${edges.size - 2},${edges.size - 4},$e")
     correctnessTest(
             TestQuery(EdgeList(), edges.size - 2, List(edges.size - 4)),
             graphS.undirectedView,
-            edges
-              .slice(
-                      2,
-                      edges.size - 1
-              ) // slice has exclusive end but our window is inclusive
-              .distinct
-              .map(e => s"${edges.size - 2},${edges.size - 4},$e")
-              .flatMap { e =>
-                val parts = e.split(",")
-                List(e, List(parts(0), parts(1), parts(3), parts(2)).mkString(","))
-              }
-              .distinct
+            (res ++ reverseEdgesWithWindow(res)).distinct
+    )
+  }
+
+  test("test windowing functionality on reversedView") {
+    val res = edges
+      .slice(
+              2,
+              edges.size - 1
+      ) // slice has exclusive end but our window is inclusive
+      .distinct
+      .map(e => s"${edges.size - 2},${edges.size - 4},$e")
+    correctnessTest(
+            TestQuery(EdgeList(), edges.size - 2, List(edges.size - 4)),
+            graphS.reversedView,
+            reverseEdgesWithWindow(res)
     )
   }
 
@@ -172,21 +199,28 @@ class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
   test("test out-edge history access with time window on undirected view") {
     val after  = 10
     val before = 40
-    val res    = resExploded
-      .filter { e =>
-        val t = e.split(",").last.toInt
-        t >= after && t <= before
-      }
-      .flatMap { e =>
-        val parts = e.split(",")
-        List(e, List(parts(0), parts(2), parts(1), parts(3)).mkString(","))
-      }
-      .distinct
-
+    val res    = resExploded.filter { e =>
+      val t = e.split(",").last.toInt
+      t >= after && t <= before
+    }
     correctnessTest(
             TestQuery(new WindowedOutEdgeHistory(after, before), edges.size - 1),
             graphS.undirectedView,
-            res
+            (res ++ reverseEdges(res)).distinct
+    )
+  }
+
+  test("test out-edge history access with time window on reversed view") {
+    val after  = 10
+    val before = 40
+    val res    = resExploded.filter { e =>
+      val t = e.split(",").last.toInt
+      t >= after && t <= before
+    }
+    correctnessTest(
+            TestQuery(new WindowedOutEdgeHistory(after, before), edges.size - 1),
+            graphS.reversedView,
+            reverseEdges(res)
     )
   }
 
@@ -218,15 +252,28 @@ class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
         t >= math.max(after, timestamp - window + 1) && t <= math.min(timestamp, before)
       }
       .map(e => s"$timestamp,$window,$e")
-      .flatMap { e =>
-        val parts = e.split(",")
-        List(e, List(parts(0), parts(1), parts(3), parts(2), parts(4)).mkString(","))
-      }
-      .distinct
     correctnessTest(
             TestQuery(new WindowedOutEdgeHistory(after, before), timestamp, List(window)),
             graphS.undirectedView,
-            res
+            (res ++ reverseEdgesWithWindow(res)).distinct
+    )
+  }
+
+  test("test out-edge history access with time window and restricted view on reversed view") {
+    val after     = 10
+    val before    = 40
+    val timestamp = 30
+    val window    = 10
+    val res       = input
+      .filter { e =>
+        val t = e.split(",").last.toInt
+        t >= math.max(after, timestamp - window + 1) && t <= math.min(timestamp, before)
+      }
+      .map(e => s"$timestamp,$window,$e")
+    correctnessTest(
+            TestQuery(new WindowedOutEdgeHistory(after, before), timestamp, List(window)),
+            graphS.reversedView,
+            reverseEdgesWithWindow(res)
     )
   }
 
@@ -246,21 +293,30 @@ class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
   test("test in-edge history access with time window on undirected view") {
     val after  = 10
     val before = 40
-    val res    = resExploded
-      .filter { e =>
-        val t = e.split(",").last.toInt
-        t >= after && t <= before
-      }
-      .flatMap { e =>
-        val parts = e.split(",")
-        List(e, List(parts(0), parts(2), parts(1), parts(3)).mkString(","))
-      }
-      .distinct
+    val res    = resExploded.filter { e =>
+      val t = e.split(",").last.toInt
+      t >= after && t <= before
+    }
 
     correctnessTest(
             TestQuery(new WindowedInEdgeHistory(after, before), edges.size - 1),
             graphS.undirectedView,
-            res
+            (res ++ reverseEdges(res)).distinct
+    )
+  }
+
+  test("test in-edge history access with time window on reversed view") {
+    val after  = 10
+    val before = 40
+    val res    = resExploded.filter { e =>
+      val t = e.split(",").last.toInt
+      t >= after && t <= before
+    }
+
+    correctnessTest(
+            TestQuery(new WindowedInEdgeHistory(after, before), edges.size - 1),
+            graphS.reversedView,
+            reverseEdges(res)
     )
   }
 
@@ -282,4 +338,15 @@ class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
     correctnessTest(query, res)
   }
 
+  def reverseEdges(edges: Seq[String]): Seq[String] =
+    edges.map { e =>
+      val parts = e.split(",")
+      (List(parts(0), parts(2), parts(1)) ++ parts.slice(3, parts.size)).mkString(",")
+    }
+
+  def reverseEdgesWithWindow(edges: Seq[String]): Seq[String] =
+    edges.map { e =>
+      val parts = e.split(",")
+      (List(parts(0), parts(1), parts(3), parts(2)) ++ parts.slice(4, parts.size)).mkString(",")
+    }
 }
