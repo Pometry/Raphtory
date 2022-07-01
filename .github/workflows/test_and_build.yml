@@ -88,7 +88,7 @@ jobs:
         if: needs.configure.outputs.type == 'master'
       - name: Get latest tag
         id: bumped-tag
-        uses: actions-ecosystem/action-get-latest-tag@v1
+        uses: actions-ecosystem/action-get-latest-tag@v1.6.0
         with:
           semver_only: true
         if: needs.configure.outputs.type == 'master'
