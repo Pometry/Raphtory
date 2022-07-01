@@ -95,6 +95,7 @@ jobs:
       # Tag when scheduled nightly run
       - name: Push nightly build tag
         run: |
+          apt-get install git
           git config user.name "${GITHUB_ACTOR}"
           git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
           git tag -a "${{ needs.configure.outputs.branch }}-nightly-build-${{ needs.configure.outputs.date }}" -m "${{ needs.configure.outputs.branch }} nightly build - ${{ needs.configure.outputs.date }}"
