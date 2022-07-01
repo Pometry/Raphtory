@@ -66,20 +66,19 @@ private[raphtory] class QueryExecutor(
     scheduler: Scheduler
 ) extends Component[QueryManagement](conf) {
 
-  private val logger: Logger                             = Logger(LoggerFactory.getLogger(this.getClass))
-  private var currentPerspectiveID: Int                  = _
-  private var currentPerspective: Perspective            = _
-  private var graphLens: LensInterface                   = _
-  private val sentMessageCount: AtomicLong               = new AtomicLong(0)
-  private val actualReceivedMessageCount: AtomicLong     = new AtomicLong(0)
-  private val targetReceivedMessageCount: AtomicLong     = new AtomicLong(0)
-  private val receivedControlMessageCount: AtomicInteger = new AtomicInteger(0)
-  private var votedToHalt: Boolean                       = false
+  private val logger: Logger                   = Logger(LoggerFactory.getLogger(this.getClass))
+  private var currentPerspectiveID: Int        = _
+  private var currentPerspective: Perspective  = _
+  private var graphLens: LensInterface         = _
+  private val sentMessageCount: AtomicLong     = new AtomicLong(0)
+  private val receivedMessageCount: AtomicLong = new AtomicLong(0)
+  private var votedToHalt: Boolean             = false
 
   private val msgBatchPath: String  = "raphtory.partitions.batchMessages"
   private val messageBatch: Boolean = conf.getBoolean(msgBatchPath)
   private val maxBatchSize: Int     = conf.getInt("raphtory.partitions.maxMessageBatchSize")
-  private val stepDoneLock          = new Semaphore(0)
+
+  private val sync = new QuerySuperstepSync(totalPartitions)
 
   if (messageBatch)
     logger.debug(
@@ -153,25 +152,24 @@ private[raphtory] class QueryExecutor(
   }
 
   def receiveVertexMessage(msg: VertexMessaging): Unit =
-    try {
-      msg match {
+    try msg match {
 
-        case VertexMessageBatch(msgBatch) =>
-          logger.trace(
-                  s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessageBatch', '[${msgBatch
-                    .mkString(",")}]'."
-          )
-          msgBatch.foreach(message => graphLens.receiveMessage(message))
-          actualReceivedMessageCount.addAndGet(msgBatch.size)
+      case VertexMessageBatch(msgBatch) =>
+        logger.trace(
+                s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessageBatch', '[${msgBatch
+                  .mkString(",")}]'."
+        )
+        msgBatch.foreach(message => graphLens.receiveMessage(message))
+        receivedMessageCount.addAndGet(msgBatch.size)
+        sync.updateVertexMessageCount(msgBatch.size)
 
-        case msg: GenericVertexMessage[_] =>
-          logger.trace(
-                  s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessage', '$msg'."
-          )
-          graphLens.receiveMessage(msg)
-          actualReceivedMessageCount.addAndGet(1)
-      }
-      maybeDoneReceiving()
+      case msg: GenericVertexMessage[_] =>
+        logger.trace(
+                s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessage', '$msg'."
+        )
+        graphLens.receiveMessage(msg)
+        receivedMessageCount.incrementAndGet()
+        sync.updateVertexMessageCount(1)
     }
     catch {
       case e: Throwable =>
@@ -182,9 +180,7 @@ private[raphtory] class QueryExecutor(
     logger.debug(
             s"Partition $partitionID received control message from ${msg.partitionID}, should receive ${msg.count} messages"
     )
-    targetReceivedMessageCount.addAndGet(msg.count)
-    receivedControlMessageCount.incrementAndGet()
-    maybeDoneReceiving()
+    sync.updateControlMessageCount(msg.count)
   }
 
   override def handleMessage(msg: QueryManagement): Unit = {
@@ -194,9 +190,9 @@ private[raphtory] class QueryExecutor(
         case CreatePerspective(id, perspective)                               =>
           currentPerspectiveID = id
           currentPerspective = perspective
+          receivedMessageCount.set(0)
           sentMessageCount.set(0)
-          actualReceivedMessageCount.set(0)
-          targetReceivedMessageCount.set(0)
+          sync.reset()
           refreshBuffers()
           graphLens = PojoGraphLens(
                   jobID,
@@ -228,7 +224,7 @@ private[raphtory] class QueryExecutor(
           graphLens.explodeView(interlayerEdgeBuilder) {
             finaliseStep {
               val sentMessages     = sentMessageCount.get()
-              val receivedMessages = actualReceivedMessageCount.get()
+              val receivedMessages = receivedMessageCount.get()
               taskManager sendAsync
                 GraphFunctionComplete(
                         currentPerspectiveID,
@@ -248,7 +244,7 @@ private[raphtory] class QueryExecutor(
           graphLens.reduceView(defaultMergeStrategy, mergeStrategyMap, aggregate) {
             finaliseStep {
               val sentMessages     = sentMessageCount.get()
-              val receivedMessages = actualReceivedMessageCount.get()
+              val receivedMessages = receivedMessageCount.get()
 
               taskManager sendAsync
                 GraphFunctionComplete(
@@ -269,7 +265,7 @@ private[raphtory] class QueryExecutor(
           graphLens.runGraphFunction(f) {
             finaliseStep {
               val sentMessages     = sentMessageCount.get()
-              val receivedMessages = actualReceivedMessageCount.get()
+              val receivedMessages = receivedMessageCount.get()
               taskManager sendAsync
                 GraphFunctionComplete(
                         currentPerspectiveID,
@@ -289,7 +285,7 @@ private[raphtory] class QueryExecutor(
           graphLens.runGraphFunction(f, graphState) {
             finaliseStep {
               val sentMessages     = sentMessageCount.get()
-              val receivedMessages = actualReceivedMessageCount.get()
+              val receivedMessages = receivedMessageCount.get()
               taskManager sendAsync
                 GraphFunctionCompleteWithState(
                         currentPerspectiveID,
@@ -316,7 +312,7 @@ private[raphtory] class QueryExecutor(
           fun {
             finaliseStep {
               val sentMessages     = sentMessageCount.get()
-              val receivedMessages = actualReceivedMessageCount.get()
+              val receivedMessages = receivedMessageCount.get()
 
               taskManager sendAsync
                 GraphFunctionComplete(
@@ -345,7 +341,7 @@ private[raphtory] class QueryExecutor(
           fun {
             finaliseStep {
               val sentMessages     = sentMessageCount.get()
-              val receivedMessages = actualReceivedMessageCount.get()
+              val receivedMessages = receivedMessageCount.get()
               votedToHalt = graphLens.checkVotes()
               taskManager sendAsync
                 GraphFunctionCompleteWithState(
@@ -470,21 +466,6 @@ private[raphtory] class QueryExecutor(
           logger.debug(
                   s"Job '$jobID' at Partition '$partitionID': Received 'EndQuery' message. "
           )
-
-        case _: CheckMessages                                                 =>
-          taskManager sendAsync
-            GraphFunctionComplete(
-                    currentPerspectiveID,
-                    partitionID,
-                    actualReceivedMessageCount.get(),
-                    sentMessageCount.get(),
-                    votedToHalt
-            )
-
-          logger.debug(
-                  s"Job '$jobID' at Partition '$partitionID': Messages checked in ${System
-                    .currentTimeMillis() - time}ms."
-          )
       }
     }
     catch {
@@ -513,8 +494,7 @@ private[raphtory] class QueryExecutor(
     val destinationPartition = (vId.abs % totalPartitions).toInt
     if (destinationPartition == partitionID) { //sending to this partition
       graphLens.receiveMessage(message)
-      actualReceivedMessageCount.incrementAndGet()
-      targetReceivedMessageCount.incrementAndGet()
+      receivedMessageCount.incrementAndGet()
     }
     else { //sending to a remote partition
       perStepSentMessageCounts(destinationPartition).incrementAndGet()
@@ -587,29 +567,41 @@ private[raphtory] class QueryExecutor(
     perStepSentMessageCounts.values.foreach(_.set(0))
     flushMessages()
       .thenCompose(_ => flushControlMessages())
+      .thenCompose(_ => sync.awaitSuperstepComplete)
       .thenCompose(_ =>
         scheduler.executeCompletable {
-          logger.debug(s"Partition $partitionID is waiting for messages")
-          if (totalPartitions > 1)
-            stepDoneLock.acquire()
           logger.debug(s"Partition $partitionID has received all messages, finalising step")
           f
         }
       )
   }
+}
 
-  private def maybeDoneReceiving(): Unit =
-    stepDoneLock.synchronized {
-      if (
-              receivedControlMessageCount.get() == neighbours.size - 1 && actualReceivedMessageCount
-                .get() == targetReceivedMessageCount.get()
-      )
-        if (stepDoneLock.availablePermits() == 0) {
-          logger.debug(s"All messages on partition $partitionID received, releasing lock")
-          receivedControlMessageCount.set(0)
-          stepDoneLock.release()
-        }
-        else
-          logger.error("Tried to complete step twice, this should not happen!")
+class QuerySuperstepSync(totalPartitions: Int) {
+  private val logger: Logger                             = Logger(LoggerFactory.getLogger(this.getClass))
+  private val controlMessageSemaphore                    = new Semaphore(0)
+  private val actualReceivedMessageCount: AtomicLong     = new AtomicLong(0)
+  private val targetReceivedMessageCount: AtomicLong     = new AtomicLong(0)
+  private val receivedControlMessageCount: AtomicInteger = new AtomicInteger(0)
+
+  def reset(): Unit = {
+    actualReceivedMessageCount.set(0)
+    targetReceivedMessageCount.set(0)
+    receivedControlMessageCount.set(0)
+  }
+
+  def updateControlMessageCount(count: Long): Unit = {
+    controlMessageSemaphore.release(1)
+    targetReceivedMessageCount.addAndGet(count)
+  }
+
+  def updateVertexMessageCount(count: Int): Unit =
+    actualReceivedMessageCount.addAndGet(count)
+
+  def awaitSuperstepComplete: CompletableFuture[Void] =
+    CompletableFuture.runAsync { () =>
+      controlMessageSemaphore.acquire(totalPartitions - 1)
+      val target = targetReceivedMessageCount.get()
+      while (!actualReceivedMessageCount.compareAndSet(target, target)) {}
     }
 }
