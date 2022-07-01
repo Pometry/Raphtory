@@ -93,9 +93,28 @@ class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
               .slice(
                       2,
                       edges.size - 1
-              ) // slice has exclusive ends but our window is inclusive
+              ) // slice has exclusive end but our window is inclusive
               .distinct
               .map(e => s"${edges.size - 2},${edges.size - 4},$e")
+    )
+  }
+
+  test("test windowing functionality on undirected view") {
+    correctnessTest(
+            TestQuery(EdgeList(), edges.size - 2, List(edges.size - 4)),
+            graphS.undirectedView,
+            edges
+              .slice(
+                      2,
+                      edges.size - 1
+              ) // slice has exclusive end but our window is inclusive
+              .distinct
+              .map(e => s"${edges.size - 2},${edges.size - 4},$e")
+              .flatMap { e =>
+                val parts = e.split(",")
+                List(e, List(parts(0), parts(1), parts(3), parts(2)).mkString(","))
+              }
+              .distinct
     )
   }
 
@@ -108,6 +127,27 @@ class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
     }
     correctnessTest(
             TestQuery(new WindowedOutEdgeHistory(after, before), edges.size - 1),
+            res
+    )
+  }
+
+  test("test out-edge history access with time window on undirected view") {
+    val after  = 10
+    val before = 40
+    val res    = resExploded
+      .filter { e =>
+        val t = e.split(",").last.toInt
+        t >= after && t <= before
+      }
+      .flatMap { e =>
+        val parts = e.split(",")
+        List(e, List(parts(0), parts(2), parts(1), parts(3)).mkString(","))
+      }
+      .distinct
+
+    correctnessTest(
+            TestQuery(new WindowedOutEdgeHistory(after, before), edges.size - 1),
+            graphS.undirectedView,
             res
     )
   }
@@ -129,6 +169,29 @@ class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
     )
   }
 
+  test("test out-edge history access with time window and restricted view on undirected view") {
+    val after     = 10
+    val before    = 40
+    val timestamp = 30
+    val window    = 10
+    val res       = input
+      .filter { e =>
+        val t = e.split(",").last.toInt
+        t >= math.max(after, timestamp - window + 1) && t <= math.min(timestamp, before)
+      }
+      .map(e => s"$timestamp,$window,$e")
+      .flatMap { e =>
+        val parts = e.split(",")
+        List(e, List(parts(0), parts(1), parts(3), parts(2), parts(4)).mkString(","))
+      }
+      .distinct
+    correctnessTest(
+            TestQuery(new WindowedOutEdgeHistory(after, before), timestamp, List(window)),
+            graphS.undirectedView,
+            res
+    )
+  }
+
   test("test in-edge history access with time window") {
     val after  = 10
     val before = 40
@@ -138,6 +201,27 @@ class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
     }
     correctnessTest(
             TestQuery(new WindowedInEdgeHistory(after, before), edges.size - 1),
+            res
+    )
+  }
+
+  test("test in-edge history access with time window on undirected view") {
+    val after  = 10
+    val before = 40
+    val res    = resExploded
+      .filter { e =>
+        val t = e.split(",").last.toInt
+        t >= after && t <= before
+      }
+      .flatMap { e =>
+        val parts = e.split(",")
+        List(e, List(parts(0), parts(2), parts(1), parts(3)).mkString(","))
+      }
+      .distinct
+
+    correctnessTest(
+            TestQuery(new WindowedInEdgeHistory(after, before), edges.size - 1),
+            graphS.undirectedView,
             res
     )
   }
@@ -159,4 +243,5 @@ class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
       .distinct
     correctnessTest(query, res)
   }
+
 }
