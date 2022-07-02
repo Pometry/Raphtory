@@ -88,9 +88,10 @@ jobs:
         if: needs.configure.outputs.type == 'master'
       - name: Get latest tag
         id: bumped-tag
-        uses: actions-ecosystem/action-get-latest-tag@v1.6.0
-        with:
-          semver_only: true
+        run: |
+          sudo apt-get update && sudo apt-get install -y git
+          export LATEST_TAG=$(git tag -l --sort=-version:refname|grep "[0-9]*[.][0-9]*[.][0-9]*$"|head -1)
+          echo "::set-output name=tag::${LATEST_TAG}"
         if: needs.configure.outputs.type == 'master'
       # Tag when scheduled nightly run
       - name: Push nightly build tag
