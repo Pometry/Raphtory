@@ -109,7 +109,7 @@ jobs:
       # Get artifacts
       - name: Get artifact path
         id: artifact
-        run: echo "::set-output name=path::$(find . -name raphtory*.jar)"
+        run: echo "::set-output name=path::$(find core -name core-assembly*.jar)"
       # Create release and upload artifacts to release if nightly
       - name: Name artifact for nightly release
         id: artifact-nightly
