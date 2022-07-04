@@ -73,16 +73,16 @@ jobs:
         run: |
           apt-get update && apt-get install sudo
           sudo apt-get update && sudo apt-get install -y git unzip
-      - name: Configure git
-        run: |
-          git config --global --add safe.directory '*'
-          git config user.name "${GITHUB_ACTOR}"
-          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
       - name: Checkout code
         uses: actions/checkout@v2
         with:
           fetch-depth: '0'
           ref: "${{ needs.configure.outputs.branch }}"
+      - name: Configure git
+        run: |
+          git config --global --add safe.directory '*'
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
       - name: Get sbt package
         run: curl -L "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.zip" -o sbt-1.5.5.zip && unzip sbt-1.5.5.zip
       - name: Run sbt assembly
