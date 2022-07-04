@@ -43,6 +43,21 @@ private object AccumulatorImplementation {
 
 import scala.math.Numeric.Implicits.infixNumericOps
 
+private class CounterImplementation[T] () extends Counter[T] {
+  val counts : List[(T,Int)] = List()
+
+  override def totalCount: Int = counts.map(_._2).sum
+  override def largest : (T,Int) = counts.maxBy(_._2)
+  override def largest(k: Int): List[(T,Int)] = counts.sortBy(_._2).takeRight(k.min(counts.size))
+
+}
+
+object CounterImplementation {
+  def apply[T]() = new CounterImplementation[T]()
+}
+
+private class CounterAccumulatorImplementation[T] extends AccumulatorImplementation[(T, Int),Counter[T]]
+
 private class HistogramImplementation[T: Numeric](
     val noBins: Int,
     override val minValue: T,
