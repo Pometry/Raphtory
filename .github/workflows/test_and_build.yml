@@ -89,12 +89,14 @@ jobs:
       - name: Get latest tag
         id: bumped-tag
         run: |
+          apt-get update && apt-get install sudo
           sudo apt-get update && sudo apt-get install -y git
           echo "::set-output name=tag::$(git tag -l --sort=-version:refname|grep [0-9]*[.][0-9]*[.][0-9]*$|head -1)"
         if: needs.configure.outputs.type == 'master'
       # Tag when scheduled nightly run
       - name: Push nightly build tag
         run: |
+          apt-get update && apt-get install sudo
           sudo apt-get update && sudo apt-get install -y git
           git config user.name "${GITHUB_ACTOR}"
           git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
