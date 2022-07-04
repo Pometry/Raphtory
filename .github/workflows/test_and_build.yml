@@ -90,13 +90,12 @@ jobs:
         id: bumped-tag
         run: |
           sudo apt-get update && sudo apt-get install -y git
-          export LATEST_TAG=$(git tag -l --sort=-version:refname|grep "[0-9]*[.][0-9]*[.][0-9]*$"|head -1)
-          echo "::set-output name=tag::${LATEST_TAG}"
+          echo "::set-output name=tag::$(git tag -l --sort=-version:refname|grep [0-9]*[.][0-9]*[.][0-9]*$|head -1)"
         if: needs.configure.outputs.type == 'master'
       # Tag when scheduled nightly run
       - name: Push nightly build tag
         run: |
-          apt-get install git
+          sudo apt-get update && sudo apt-get install -y git
           git config user.name "${GITHUB_ACTOR}"
           git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
           git tag -a "${{ needs.configure.outputs.branch }}-nightly-build-${{ needs.configure.outputs.date }}" -m "${{ needs.configure.outputs.branch }} nightly build - ${{ needs.configure.outputs.date }}"
