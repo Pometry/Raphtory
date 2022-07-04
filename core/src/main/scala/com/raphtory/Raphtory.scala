@@ -50,7 +50,7 @@ import scala.reflect.ClassTag
   *      [[api.analysis.graphview.DeployedTemporalGraph DeployedTemporalGraph]]
   *      [[api.analysis.graphview.TemporalGraph TemporalGraph]]
   */
-object Raphtory { self =>
+object Raphtory {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   /** Creates a streaming version of a `DeployedTemporalGraph` object that can be used to express queries from.

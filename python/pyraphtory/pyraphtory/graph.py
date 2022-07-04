@@ -23,3 +23,4 @@ class TemporalGraphConnection:
 
     def wait_for_job(self):
         self.jvm_graph.waitForJobInf()
+

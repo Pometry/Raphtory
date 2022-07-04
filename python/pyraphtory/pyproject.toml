@@ -5,12 +5,11 @@ description = ""
 authors = ["Fabian Murariu <murariu.fabian@gmail.com>"]
 
 packages = [
-    {"include" = "deps/jars/*.jar"}
 ]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-py4j = "^0.10"
+pemja = "^0.1.5"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
