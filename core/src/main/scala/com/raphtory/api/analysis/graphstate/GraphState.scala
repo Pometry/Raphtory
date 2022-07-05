@@ -210,6 +210,21 @@ abstract class GraphState {
       retainState: Boolean = true
   ): Unit
 
+  /** Create a new counter that tracks the counts of a categorical graph quantity
+    *
+    * @param name Name for the histogram
+    * @param noBins Number of histogram bins
+    * @param minValue Minimum data value for distribution
+    * @param maxValue Maximum data value distribution
+    * $retainState
+    *
+    * @tparam T Type of histogram values
+    */
+  def newCounter[T](
+                                name: String,
+                                retainState: Boolean = true
+                              ): Unit
+
   /** Create new Boolean accumulator that returns `true` if all accumulated values are `true` and `false` otherwise
     *
     * $name

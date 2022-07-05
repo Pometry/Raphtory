@@ -44,19 +44,51 @@ private object AccumulatorImplementation {
 import scala.math.Numeric.Implicits.infixNumericOps
 
 private class CounterImplementation[T] () extends Counter[T] {
-  val counts : List[(T,Int)] = List()
+  var totalCount : Int = 0
+  var counts: Map[T, Int] = Map()
 
-  override def totalCount: Int = counts.map(_._2).sum
+  override def getCounts: Map[T, Int] = counts
   override def largest : (T,Int) = counts.maxBy(_._2)
-  override def largest(k: Int): List[(T,Int)] = counts.sortBy(_._2).takeRight(k.min(counts.size))
+  override def largest(k: Int): List[(T,Int)] = counts.toList.sortBy(_._2).takeRight(k.min(counts.size))
 
 }
 
-object CounterImplementation {
+private object CounterImplementation {
   def apply[T]() = new CounterImplementation[T]()
 }
 
-private class CounterAccumulatorImplementation[T] extends AccumulatorImplementation[(T, Int),Counter[T]]
+private class CounterAccumulatorImplementation[T](retainState:Boolean) extends AccumulatorImplementation[(T, Int),Counter[T]] {
+  var value: Counter[T] = CounterImplementation()
+  var currentValue: CounterImplementation[T] = CounterImplementation()
+  override def merge(other: Counter[T]): Unit = {
+    currentValue.totalCount += other.totalCount
+    val newCounts = (currentValue.getCounts ++ other.getCounts).groupBy(_._1).map { case (k,v) => k -> v.values.sum }
+    currentValue.counts = newCounts
+    }
+
+  override def reset(): Unit = {
+    if (retainState) {
+      merge(value)
+    } else {
+      val tmp = value.asInstanceOf[CounterImplementation[T]]
+      value = currentValue
+      currentValue = tmp
+      currentValue.totalCount = 0
+    }
+  }
+
+  /** Add new value to accumulator
+    *
+    * @param newValue Value to add
+    */
+  override def +=(newValue: (T, Int)): Unit = {
+    if (currentValue.counts.contains(newValue._1)) {
+      currentValue.counts+=(newValue._1 -> (currentValue.counts(newValue._1) + newValue._2))
+    } else {
+      currentValue.counts+=(newValue._1 -> newValue._2)
+    }
+  }
+}
 
 private class HistogramImplementation[T: Numeric](
     val noBins: Int,
@@ -189,6 +221,10 @@ private[raphtory] class GraphStateImplementation(override val nodeCount: Int) ex
   ): Unit =
     accumulatorState(name) = HistogramAccumulatorImplementation[T](noBins, minValue, maxValue, retainState)
       .asInstanceOf[AccumulatorImplementation[Any, Any]]
+
+  override def newCounter[T](name: String, retainState: Boolean): Unit =
+    accumulatorState(name) = CounterImplementation[T]()
+    .asInstanceOf[AccumulatorImplementation[Any,Any]]
 
   override def newAll(name: String, retainState: Boolean): Unit =
     accumulatorState(name) = AccumulatorImplementation[Boolean](true, retainState, _ && _)
