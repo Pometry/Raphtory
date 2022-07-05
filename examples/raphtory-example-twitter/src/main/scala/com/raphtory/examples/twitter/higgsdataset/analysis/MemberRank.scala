@@ -39,10 +39,10 @@ class MemberRank() extends Generic {
         val queue: Seq[(vertex.IDType, Double)] = vertex.messageQueue[(vertex.IDType, Double)]
 
         //Get the vertex in degree
-        val inDegree = vertex.getInNeighbours().size.toDouble
+        val inDegree = vertex.inDegree.toDouble
 
         //makes list of all the raw scores from data
-        val rawScoreList: List[Score] = vertex.getInEdges().map {
+        val rawScoreList: List[Score] = vertex.inEdges.map {
           case edge: Edge =>
             if (inDegree < 0) Score(negativeScore = inDegree)
             else Score(positiveScore = inDegree)

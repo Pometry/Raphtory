@@ -1,7 +1,9 @@
 package com.raphtory.algorithms.temporal.dynamic
 
 import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 
@@ -44,10 +46,11 @@ import com.raphtory.api.analysis.table.Table
   *  | ----------------- | ------------------ | --------------------- | ----------------- |
   *  | {s}`name: String` | {s}`edge.ID: Long` | {s}`event.time: Long` | {s}`name: String` |
   */
-class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set()) extends Generic {
+class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set())
+        extends GenericReduction {
 
-  override def apply(graph: GraphPerspective): graph.Graph =
-    graph
+  override def apply(graph: GraphPerspective): graph.ReducedGraph =
+    graph.reducedView
       // the step functions run on every single vertex ONCE at the beginning of the algorithm
       .step {
         // for each vertex in the graph
@@ -137,7 +140,7 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
       )
   // get all vertexes and their status
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: ReducedGraphPerspective): Table =
     graph
       .select(vertex =>
         Row(

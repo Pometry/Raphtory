@@ -1,6 +1,7 @@
 package com.raphtory.algorithms.generic
 
 import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.algorithm.NodeListOutput
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
@@ -50,17 +51,8 @@ import com.raphtory.api.analysis.table.Table
 class NodeList(
     properties: Seq[String] = Seq.empty[String],
     defaults: Map[String, Any] = Map.empty[String, Any]
-) extends Generic {
-
-  override def tabularise(graph: GraphPerspective): Table =
-    graph.select { vertex =>
-      val row = vertex.name() +: properties.map(name =>
-        vertex.getStateOrElse(name, defaults.getOrElse(name, None), includeProperties = true)
-      )
-      Row(row: _*)
-    }
-
-}
+) extends NodeListOutput(properties, defaults)
+        with Generic {}
 
 object NodeList {
 

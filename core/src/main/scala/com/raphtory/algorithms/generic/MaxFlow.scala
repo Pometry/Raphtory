@@ -76,7 +76,7 @@ class MaxFlow[T](
         if (vertex.name() == source) {
           val flow = mutable.Map[vertex.IDType, T]()
           vertex.setState("distanceLabel", n)
-          vertex.getOutEdges().foreach { edge =>
+          vertex.outEdges.foreach { edge =>
             val c: T = edge.weight[T](capacityLabel)
             flow(edge.dst) = c
             vertex.messageVertex(edge.dst, FlowAdded(vertex.ID, c))
@@ -109,7 +109,7 @@ class MaxFlow[T](
                 else {
                   val label: Int = vertex.getState("distanceLabel")
                   // push operation
-                  for (edge <- vertex.getOutEdges()) {
+                  for (edge <- vertex.outEdges) {
                     val dst = edge.dst
                     if (label == labels.getOrElse(dst, 0) + 1) {
                       val c: T     = edge.weight(capacityLabel)
@@ -137,7 +137,7 @@ class MaxFlow[T](
 
                   if (excess > 0) {
                     var newLabel = Int.MaxValue
-                    for (edge <- vertex.getOutEdges()) {
+                    for (edge <- vertex.outEdges) {
                       val c: T = edge.weight(capacityLabel)
                       val dst  = edge.dst
                       if (c - flow.getOrElse(dst, 0) > 0)

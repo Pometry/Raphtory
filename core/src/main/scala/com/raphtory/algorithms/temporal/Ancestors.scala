@@ -54,7 +54,7 @@ class Ancestors(
     graph
       .step { vertex =>
         if (vertex.name() == seed) {
-          (if (directed) vertex.getInEdges() else vertex.getAllEdges())
+          (if (directed) vertex.inEdges else vertex.edges)
             .foreach(e =>
               e.lastActivityBefore(time, strict) match {
                 case Some(event) =>
@@ -70,7 +70,7 @@ class Ancestors(
               { vertex =>
                 val latestTime = vertex.messageQueue[Long].max
                 vertex.setState("ancestor", true)
-                (if (directed) vertex.getInEdges() else vertex.getAllEdges())
+                (if (directed) vertex.inEdges else vertex.edges)
                   .foreach(e =>
                     e.lastActivityBefore(time, strict) match {
                       case Some(event) =>

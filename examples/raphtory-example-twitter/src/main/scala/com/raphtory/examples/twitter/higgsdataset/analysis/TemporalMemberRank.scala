@@ -1,7 +1,8 @@
 package com.raphtory.examples.twitter.higgsdataset.analysis
 
-import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 
@@ -10,12 +11,12 @@ import com.raphtory.api.analysis.table.Table
   * This algorithm takes vertices with big differences in their raw scores and MemberRank scores
   * and checks the in edge creations over time.
   */
-class TemporalMemberRank() extends Generic {
+class TemporalMemberRank() extends GenericReduction {
 
   case class NeighbourAndTime[T](id: T, time: Long)
 
-  override def apply(graph: GraphPerspective): graph.Graph =
-    graph.step { vertex =>
+  override def apply(graph: GraphPerspective): graph.ReducedGraph =
+    graph.reducedView.step { vertex =>
       // The original scores that someone received by their peers
 
       val negativeRaw = Math.abs(vertex.getState[Double]("negativeRawScore"))
@@ -45,7 +46,7 @@ class TemporalMemberRank() extends Generic {
       vertex.setState("times", times)
     }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: ReducedGraphPerspective): Table =
     graph
       .select { vertex =>
         Row(

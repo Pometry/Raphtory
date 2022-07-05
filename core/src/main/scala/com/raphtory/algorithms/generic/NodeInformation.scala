@@ -85,16 +85,13 @@ class NodeInformation(initialID: Long, hopsAway: Int = 1) extends Generic {
         val vertexID                         = vertex.ID
         val name                             = vertex.name()
         val involved: Boolean                = vertex.getStateOrElse("vertexInvolved", false)
-        val edgeInformation: Array[EdgeInfo] = vertex
-          .getAllEdges()
-          .map { edge =>
-            EdgeInfo(
-                    edge.src.toString,
-                    edge.dst.toString,
-                    EdgeData(edge.weight(weightProperty = "Character Co-occurence", 0))
-            )
-          }
-          .toArray
+        val edgeInformation: Array[EdgeInfo] = vertex.edges.map { edge =>
+          EdgeInfo(
+                  edge.src.toString,
+                  edge.dst.toString,
+                  EdgeData(edge.weight(weightProperty = "Character Co-occurence", 0))
+          )
+        }.toArray
 
         if (involved)
           Row(

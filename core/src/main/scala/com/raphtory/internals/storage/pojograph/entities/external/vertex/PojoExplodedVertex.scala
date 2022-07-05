@@ -1,25 +1,22 @@
-package com.raphtory.internals.storage.pojograph.entities.external
+package com.raphtory.internals.storage.pojograph.entities.external.vertex
 
 import com.raphtory.api.analysis.visitor.ExplodedVertex
 import com.raphtory.api.analysis.visitor.HistoricEvent
-import com.raphtory.internals.storage.pojograph.PojoGraphLens
+import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExMultilayerEdge
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-private[raphtory] class PojoExplodedVertex(
+private[pojograph] class PojoExplodedVertex(
     val vertex: PojoExVertex,
-    override val timestamp: Long,
-    override val lens: PojoGraphLens
-) extends ExplodedVertex
-        with PojoVertexBase {
+    override val timestamp: Long
+) extends PojoVertexViewBase(vertex)
+        with PojoConcreteVertexBase[(Long, Long)]
+        with ExplodedVertex {
   override val internalIncomingEdges = mutable.Map.empty[(Long, Long), PojoExMultilayerEdge]
   override val internalOutgoingEdges = mutable.Map.empty[(Long, Long), PojoExMultilayerEdge]
 
   override type Edge = PojoExMultilayerEdge
-
-  implicit override val IDOrdering: Ordering[(Long, Long)] =
-    Ordering.Tuple2(Ordering.Long, Ordering.Long)
 
   var computationValues: Map[String, Any] =
     Map.empty //Partial results kept between supersteps in calculation
@@ -76,21 +73,12 @@ private[raphtory] class PojoExplodedVertex(
         setState(key, Array(value))
     }
 
-  override def latestActivity(): HistoricEvent = vertex.latestActivity()
-
-  override def earliestActivity(): HistoricEvent = vertex.earliestActivity()
-
-  override def getPropertyAt[T](key: String, time: Long): Option[T] =
-    vertex.getPropertyAt(key, time)
-
-  override def history(): List[HistoricEvent] = vertex.history()
-
-  override def active(after: Long, before: Long): Boolean = vertex.active(after, before)
-
-  override def aliveAt(time: Long, window: Long): Boolean = vertex.aliveAt(time, window)
-
   override def remove(): Unit = {
     super.remove()
     vertex.explodedNeedsFiltering = true
   }
+
+  override def viewUndirected: PojoUndirectedVertexView[(Long, Long)] = PojoExplodedUndirectedVertexView(this)
+
+  override def viewReversed: PojoReversedVertexView[(Long, Long)] = PojoExplodedReversedVertexView(this)
 }

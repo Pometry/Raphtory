@@ -2,7 +2,8 @@ package com.raphtory.algorithms.generic.motif
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.{Row, Table}
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 
 /**
   * {s}`GlobalClusteringCoefficient()`

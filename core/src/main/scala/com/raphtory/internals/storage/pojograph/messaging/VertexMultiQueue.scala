@@ -27,6 +27,12 @@ final private[raphtory] class VertexMultiQueue {
       oddMessageQueue.clear()
     }
 
+  def clearAll(): Unit = {
+    evenMessageQueue.clear()
+    oddMessageQueue.clear()
+    logger.trace(s"Clearing both message queues")
+  }
+
   def receiveMessage(superStep: Int, data: Any): Unit =
     if (superStep % 2 == 0)
       evenMessageQueue.synchronized(evenMessageQueue += data)

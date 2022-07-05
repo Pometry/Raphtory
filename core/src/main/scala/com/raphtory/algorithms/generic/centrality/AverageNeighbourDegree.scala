@@ -1,6 +1,8 @@
 package com.raphtory.algorithms.generic.centrality
 
 import com.raphtory.algorithms.generic.NodeList
+import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.algorithm.NodeListOutput
 import com.raphtory.api.analysis.graphview.GraphPerspective
 
 /**

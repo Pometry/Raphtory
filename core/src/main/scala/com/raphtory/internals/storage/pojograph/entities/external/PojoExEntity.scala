@@ -10,7 +10,7 @@ import scala.collection.IndexedSeqView
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
 
-abstract private[raphtory] class PojoExEntity(
+abstract private[pojograph] class PojoExEntity(
     entity: PojoEntity,
     view: PojoGraphLens,
     start: Long,

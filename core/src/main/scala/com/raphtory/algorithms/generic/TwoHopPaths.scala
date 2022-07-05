@@ -66,8 +66,7 @@ class TwoHopPaths(seeds: Set[String] = Set[String]()) extends Generic {
                   message =>
                     message match {
                       case RequestFirstHop(source)            =>
-                        vertex
-                          .getOutNeighbours()
+                        vertex.outNeighbours
                           .foreach(n =>
                             if (n != source)
                               vertex.messageVertex(n, RequestSecondHop(source, vertex.name()))
