@@ -160,6 +160,26 @@ trait GraphPerspective {
       mergeStrategyMap: Map[String, PropertyMerge[_, _]] = Map.empty[String, PropertyMerge[_, _]]
   ): ReducedGraph
 
+  /**
+    * View the graph as an undirected network (edges that exist only in one direction are duplicated and edges that exist
+    * in both directions are merged)
+    */
+  def undirectedView: Graph
+
+  /**
+    * View the graph as a directed network (duplicated edges created by a previous call to `undirectedView` are removed
+    * and bi-directional edges un-merged)
+    */
+  def directedView: Graph
+
+  /**
+    * Reverse the direction of each edge in the graph.
+    *
+    * Note that if the graph is currently viewed as undirected, this method has no immediate effect, however,
+    * edges will be reversed on a subsequent call to `directedView`
+    */
+  def reversedView: Graph
+
   /** Execute algorithm step
     *
     * @param f algorithm step (run once for each vertex)
@@ -286,6 +306,9 @@ private[api] trait ConcreteGraphPerspective[V <: visitor.Vertex, G <: ConcreteGr
       defaultMergeStrategy: PropertyMerge[_, _] = PropertyMergeStrategy.sequence[Any],
       mergeStrategyMap: Map[String, PropertyMerge[_, _]] = Map.empty[String, PropertyMerge[_, _]]
   ): ReducedGraph
+  def undirectedView: Graph
+  def directedView: Graph
+  def reversedView: Graph
   def step(f: (Vertex) => Unit): Graph
   def step(f: (Vertex, GraphState) => Unit): Graph
   def iterate(f: (Vertex) => Unit, iterations: Int, executeMessagedOnly: Boolean): Graph

@@ -18,11 +18,6 @@ trait Edge extends EntityVisitor {
   /** type of vertex IDs for this edge */
   type IDType
 
-  /** concrete type for exploded edge views of this edge which implements
-    *  [[ExplodedEdge]] with same `IDType`
-    */
-  type ExplodedEdge <: ConcreteExplodedEdge[IDType]
-
   //information about the edge meta data
   /** Edge ID */
   def ID: IDType
@@ -38,11 +33,6 @@ trait Edge extends EntityVisitor {
 
   /** `true` if the edge is an in-edge */
   def isIncoming: Boolean = ID == src
-
-  /** Return an [[ExplodedEdge]] instance for each time the edge is
-    * active in the current view.
-    */
-  def explode(): List[ExplodedEdge]
 
   /** Filter the edge from the `GraphPerspective`. */
   def remove(): Unit

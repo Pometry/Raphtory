@@ -47,12 +47,12 @@ object LocalTriangleCount extends NodeList(Seq("triangleCount")) {
     graph
       .step { (vertex, _) =>
         vertex.setState("triangleCount", 0)
-        val neighbours = vertex.getAllNeighbours().toSet
+        val neighbours = vertex.neighbours.toSet
         neighbours.foreach(nb => vertex.messageVertex(nb, neighbours))
       }
       .setGlobalState(state => state.newAdder[Int]("triangles", retainState = true))
       .step { (vertex, _) =>
-        val neighbours = vertex.getAllNeighbours().toSet
+        val neighbours = vertex.neighbours.toSet
         val queue      = vertex.messageQueue[Set[vertex.IDType]]
         var tri        = 0
         queue.foreach(nbs => tri += nbs.intersect(neighbours).size)

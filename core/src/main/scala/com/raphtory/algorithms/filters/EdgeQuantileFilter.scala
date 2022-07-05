@@ -72,7 +72,7 @@ class EdgeQuantileFilter[T: Numeric: Bounded: ClassTag](
         state.newMax[T]("weightMax", retainState = true)
       }
       .step { (vertex, state) =>
-        vertex.getOutEdges().foreach { edge =>
+        vertex.outEdges.foreach { edge =>
           state("weightMin") += edge.weight[T](weightString)
           state("weightMax") += edge.weight[T](weightString)
         }
@@ -86,7 +86,7 @@ class EdgeQuantileFilter[T: Numeric: Bounded: ClassTag](
       // Populate histogram with weights
       .step { (vertex, state) =>
         val histogram = state("weightDist")
-        vertex.getOutEdges().foreach { edge =>
+        vertex.outEdges.foreach { edge =>
           histogram += (edge.weight(weightString))
         }
       }

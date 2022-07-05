@@ -72,7 +72,7 @@ class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) exten
       .step { vertex =>
         import vertex._
         vertex.setState("walk", ArrayBuffer[String](vertex.name()))
-        val neighbours = vertex.getOutNeighbours().toArray
+        val neighbours = vertex.outNeighbours.toArray
         if (neighbours.isEmpty)
           vertex.messageSelf(WalkMessage(vertex.ID, vertex.ID, neighbours))
         else
@@ -87,7 +87,7 @@ class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) exten
                 vertex.messageQueue[Messages[vertex.IDType]].foreach {
                   case WalkMessage(source, last, lastNeighbours) =>
                     vertex.messageVertex(source, StoreMessage(vertex.name()))
-                    val neighbours = vertex.getOutNeighbours().toArray
+                    val neighbours = vertex.outNeighbours.toArray
                     if (neighbours.isEmpty)
                       //              random walk remains at current vertex if no out-neighbours
                       vertex.messageSelf(WalkMessage(source, vertex.ID, neighbours))

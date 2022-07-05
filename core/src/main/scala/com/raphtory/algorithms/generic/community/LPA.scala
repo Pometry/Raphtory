@@ -86,7 +86,7 @@ object LPA {
       numeric: Numeric[T]
   ): Unit = {
     val vlabel     = vertex.getState[Long]("community")
-    val vneigh     = vertex.getAllEdges()
+    val vneigh     = vertex.edges
     val neigh_freq = vneigh
       .map(e => (e.ID, e.weight(weightProperty = weight)))
       .groupBy(_._1)

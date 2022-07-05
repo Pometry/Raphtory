@@ -6,7 +6,6 @@ import com.raphtory.api.analysis.visitor.InterlayerEdge
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
-import com.raphtory.internals.storage.pojograph.messaging.VertexMessageHandler
 
 /** Abstract interface for the GraphLens, responsible for executing algorithms
   */
@@ -32,6 +31,12 @@ private[raphtory] trait LensInterface {
   def explodeView(
       interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]]
   )(onComplete: => Unit): Unit
+
+  def viewUndirected()(onComplete: => Unit): Unit
+
+  def viewDirected()(onComplete: => Unit): Unit
+
+  def viewReversed()(onComplete: => Unit): Unit
 
   def reduceView(
       defaultMergeStrategy: Option[PropertyMerge[_, _]],
@@ -59,6 +64,7 @@ private[raphtory] trait LensInterface {
 
   def clearMessages(): Unit
 
-  def getStart(): Long
-  def getEnd(): Long
+  def start: Long
+  def end: Long
+  def jobId: String
 }

@@ -2,9 +2,9 @@ package com.raphtory.internals.storage.pojograph
 
 import com.raphtory.api.input._
 import com.raphtory.internals.graph.GraphAlteration._
-import com.raphtory.internals.graph.GraphLens
 import com.raphtory.internals.graph.GraphPartition
-import com.raphtory.internals.storage.pojograph.entities.external.PojoExVertex
+import com.raphtory.internals.graph.LensInterface
+import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExVertex
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoEdge
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoEntity
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoVertex
@@ -34,8 +34,8 @@ private[raphtory] class PojoBasedPartition(partition: Int, conf: Config)
       case LongProperty(key, value)      => entity + (msgTime, false, key, value)
       case DoubleProperty(key, value)    => entity + (msgTime, false, key, value)
       case FloatProperty(key, value)     => entity + (msgTime, false, key, value)
-      case BooleanProperty(key, value)    => entity + (msgTime, false, key, value)
-      case IntegerProperty(key, value)    => entity + (msgTime, false, key, value)
+      case BooleanProperty(key, value)   => entity + (msgTime, false, key, value)
+      case IntegerProperty(key, value)   => entity + (msgTime, false, key, value)
       case ImmutableProperty(key, value) => entity + (msgTime, true, key, value)
     }
 
@@ -454,7 +454,7 @@ private[raphtory] class PojoBasedPartition(partition: Int, conf: Config)
 
   // Analysis Functions
   override def getVertices(
-      lens: GraphLens,
+      lens: LensInterface,
       start: Long,
       end: Long
   ): mutable.Map[Long, PojoExVertex] = {

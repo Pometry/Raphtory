@@ -2,6 +2,7 @@ package com.raphtory.internals.components.querymanager
 
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview.Alignment
+import com.raphtory.api.analysis.graphview.GlobalGraphFunction
 import com.raphtory.api.analysis.graphview.GraphFunction
 import com.raphtory.api.analysis.table.TableFunction
 import com.raphtory.api.output.sink.Sink
@@ -102,6 +103,10 @@ private[raphtory] case class PointPath(
     offset: Interval = NullInterval
 ) extends PointSet
 
+private[raphtory] case class GraphFunctionWithGlobalState(
+    function: GlobalGraphFunction,
+    graphState: GraphStateImplementation
+)                                                           extends QueryManagement
 private[raphtory] case class EndQuery(jobID: String)        extends QueryManagement
 private[raphtory] case class QueryNotPresent(jobID: String) extends QueryManagement
 

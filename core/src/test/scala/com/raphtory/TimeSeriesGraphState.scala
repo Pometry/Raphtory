@@ -12,8 +12,8 @@ class TimeSeriesGraphState() extends Generic {
       val propertyhistory =
         vertex.getPropertySet().toArray.map(x => vertex.getTimeSeriesPropertyHistory(x).size).sum
 
-      val inEdges  = vertex.getInEdges()
-      val outEdges = vertex.getOutEdges()
+      val inEdges  = vertex.inEdges
+      val outEdges = vertex.outEdges
 
       val inEdgesHistory =
         inEdges.map(e => e.timeSeriesHistory().size).sum
