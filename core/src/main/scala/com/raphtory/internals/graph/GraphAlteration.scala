@@ -61,8 +61,7 @@ private[raphtory] object GraphAlteration {
       properties: Properties
   ) extends GraphUpdateEffect(dstId)
 
-  case class SyncExistingEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long)
-          extends GraphUpdateEffect(dstId)
+  case class SyncExistingEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long) extends GraphUpdateEffect(dstId)
 
   case class SyncNewEdgeRemoval(
       msgTime: Long,
@@ -72,11 +71,9 @@ private[raphtory] object GraphAlteration {
   ) extends GraphUpdateEffect(dstId)
 
   /** Edge removals generated via vertex removals */
-  case class OutboundEdgeRemovalViaVertex(msgTime: Long, srcId: Long, dstId: Long)
-          extends GraphUpdateEffect(dstId)
+  case class OutboundEdgeRemovalViaVertex(msgTime: Long, srcId: Long, dstId: Long) extends GraphUpdateEffect(dstId)
 
-  case class InboundEdgeRemovalViaVertex(msgTime: Long, srcId: Long, dstId: Long)
-          extends GraphUpdateEffect(srcId)
+  case class InboundEdgeRemovalViaVertex(msgTime: Long, srcId: Long, dstId: Long) extends GraphUpdateEffect(srcId)
 
   /** Responses from a partition receiving any of the above */
   case class SyncExistingRemovals(
@@ -94,6 +91,5 @@ private[raphtory] object GraphAlteration {
       fromAddition: Boolean
   ) extends GraphUpdateEffect(srcId)
 
-  case class VertexRemoveSyncAck(msgTime: Long, override val updateId: Long)
-          extends GraphUpdateEffect(updateId)
+  case class VertexRemoveSyncAck(msgTime: Long, override val updateId: Long) extends GraphUpdateEffect(updateId)
 }

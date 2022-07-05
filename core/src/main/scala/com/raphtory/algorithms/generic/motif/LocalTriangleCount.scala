@@ -1,9 +1,7 @@
 package com.raphtory.algorithms.generic.motif
 
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.{Row, Table}
 
 /**
   * {s}`LocalTriangleCount()`
@@ -47,14 +45,14 @@ object LocalTriangleCount extends NodeList(Seq("triangleCount")) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
-      .step { (vertex, state) =>
+      .step { (vertex, _) =>
         vertex.setState("triangleCount", 0)
-        val neighbours = vertex.getAllNeighbours().toSet
+        val neighbours = vertex.neighbours.toSet
         neighbours.foreach(nb => vertex.messageVertex(nb, neighbours))
       }
-      .setGlobalState(state => state.newAdder[Int]("triangles",retainState = true))
-      .step { (vertex,state) =>
-        val neighbours = vertex.getAllNeighbours().toSet
+      .setGlobalState(state => state.newAdder[Int]("triangles", retainState = true))
+      .step { (vertex, _) =>
+        val neighbours = vertex.neighbours.toSet
         val queue      = vertex.messageQueue[Set[vertex.IDType]]
         var tri        = 0
         queue.foreach(nbs => tri += nbs.intersect(neighbours).size)

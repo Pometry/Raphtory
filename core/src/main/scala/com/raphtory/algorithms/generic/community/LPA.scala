@@ -58,6 +58,7 @@ import scala.util.Random
   * [](com.raphtory.algorithms.generic.community.SLPA), [](com.raphtory.algorithms.temporal.community.MultilayerLPA)
   * ```
   */
+  
 class LPA[T: Numeric](weight: String = "weight", tieBreaker: TieBreaker = MinTieBreak(), stickinessProb: Float=0.2F, maxIter: Int = 50, seed: Long = -1)
         extends NodeList(Seq("community")) {
 
@@ -93,7 +94,7 @@ object LPA {
       numeric: Numeric[T]
   ): Unit = {
     val vlabel     = vertex.getState[Long]("community")
-    val vneigh     = vertex.getAllEdges()
+    val vneigh     = vertex.edges
     val neigh_freq = vneigh
       .map(e => (e.ID, e.weight(weightProperty = weight)))
       .groupBy(_._1)

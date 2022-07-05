@@ -6,9 +6,9 @@ import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.output.format.Format
 import com.raphtory.api.time.DiscreteInterval
 import com.raphtory.internals.graph.Perspective
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class JsonFormatTest extends AnyFunSuite {
+class JsonFormatTest extends FunSuite {
   private val jobID       = "job-id"
   private val partitionID = 13
 
@@ -66,7 +66,7 @@ class JsonFormatTest extends AnyFunSuite {
 
   test("JsonFormat.ROW level output matches table data") {
     val output = formatTable(JsonFormat(), sampleTable, jobID, partitionID)
-    assert(output === rowLevelOutput)
+    assertEquals(output, rowLevelOutput)
   }
 
   test("JsonFormat.ROW level output lines are valid JSON") {
@@ -79,7 +79,7 @@ class JsonFormatTest extends AnyFunSuite {
 
   test("JsonFormat.GLOBAL level output matches table data") {
     val output = formatTable(JsonFormat(JsonFormat.GLOBAL), sampleTable, jobID, partitionID)
-    assert(output === globalLevelOutput)
+    assertEquals(output, globalLevelOutput)
   }
 
   test("JsonFormat.GLOBAL level output is valid JSON") {

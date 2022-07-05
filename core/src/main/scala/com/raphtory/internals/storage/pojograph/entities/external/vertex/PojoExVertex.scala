@@ -1,26 +1,29 @@
-package com.raphtory.internals.storage.pojograph.entities.external
+package com.raphtory.internals.storage.pojograph.entities.external.vertex
 
+import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.api.analysis.visitor.InterlayerEdge
 import com.raphtory.api.analysis.visitor.ReducedVertex
 import com.raphtory.api.analysis.visitor.Vertex
-import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
+import com.raphtory.internals.storage.pojograph.entities.external.PojoExEntity
+import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExEdge
+import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExMultilayerEdge
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoVertex
 
-import scala.language.existentials
 import scala.collection.mutable
+import scala.language.existentials
 import scala.math.Ordering
 import scala.reflect.ClassTag
 
 private[raphtory] class PojoExVertex(
     private val v: PojoVertex,
-    override protected val internalIncomingEdges: mutable.Map[Long, PojoExEdge],
-    override protected val internalOutgoingEdges: mutable.Map[Long, PojoExEdge],
-    override protected val lens: PojoGraphLens
+    override val internalIncomingEdges: mutable.Map[Long, PojoExEdge],
+    override val internalOutgoingEdges: mutable.Map[Long, PojoExEdge],
+    override val lens: PojoGraphLens
 ) extends PojoExEntity(v, lens)
-        with PojoVertexBase
+        with PojoConcreteVertexBase[Long]
         with ReducedVertex {
 
   override type Edge = PojoExEdge
@@ -41,7 +44,7 @@ private[raphtory] class PojoExVertex(
       history().foreach {
         case HistoricEvent(time, event) =>
           if (event)
-            exploded += (time -> new PojoExplodedVertex(this, time, lens))
+            exploded += (time -> new PojoExplodedVertex(this, time))
       }
       explodedVertices = exploded.values.toArray[PojoExplodedVertex]
 
@@ -217,18 +220,38 @@ private[raphtory] class PojoExVertex(
           .receiveMessage(msg)
     }
 
-  override def individualEdge(
+  def individualEdge(
       edges: mutable.Map[Long, PojoExEdge],
       after: Long,
       before: Long,
       id: Long
   ): Option[PojoExEdge] =
-    super.individualEdge(edges, after, before, id).map(edge => edge.viewBetween(after, before))
+    edges.get(id) match {
+      case Some(edge) if edge.active(after, before) => Some(edge.viewBetween(after, before))
+      case _                                        => None
+    }
 
-  override def allEdge(
+  def allEdge(
       edges: mutable.Map[Long, PojoExEdge],
       after: Long,
       before: Long
   ): List[PojoExEdge] =
-    super.allEdge(edges, after, before).map(edge => edge.viewBetween(after, before))
+    edges
+      .collect { case (_, edge) if edge.active(after, before) => edge }
+      .map(edge => edge.viewBetween(after, before))
+      .toList
+
+  def getOutEdges(after: Long, before: Long): List[PojoExEdge] = allEdge(internalOutgoingEdges, after, before)
+
+  def getInEdges(after: Long, before: Long): List[PojoExEdge] = allEdge(internalIncomingEdges, after, before)
+
+  override def getOutEdge(id: Long, after: Long, before: Long): Option[PojoExEdge] =
+    individualEdge(internalOutgoingEdges, after, before, id)
+
+  override def getInEdge(id: Long, after: Long, before: Long): Option[PojoExEdge] =
+    individualEdge(internalIncomingEdges, after, before, id)
+
+  override def viewUndirected: PojoReducedUndirectedVertexView = PojoReducedUndirectedVertexView(this)
+
+  override def viewReversed: PojoReversedVertexView[Long] = PojoReducedReversedVertexView(this)
 }

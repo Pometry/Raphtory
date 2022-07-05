@@ -1,5 +1,6 @@
 package com.raphtory.api.analysis.graphstate
 
+import cats.effect.IO
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.BasicGraphBuilder
 import com.raphtory.Raphtory
@@ -83,20 +84,31 @@ class AccumulatorTest extends BaseCorrectnessTest(startGraph = true) {
   }
 
   test("Test nodeCount on graph state is consistent for multiple perspectives") {
-    val job = graph
-      .range(10, 23, 1)
-      .window(10, Alignment.END)
-      .execute(CheckNodeCount)
-      .writeTo(defaultSink)
+    Raphtory
+      .loadIO(
+              ResourceSpout("MotifCount/motiftest.csv"),
+              BasicGraphBuilder(),
+              customConfig =
+                Map("raphtory.prometheus.metrics.port" -> 0) // this makes prometheus start on a random unused port
+      )
+      .use { graph =>
+        IO {
+          val job = graph
+            .range(10, 23, 1)
+            .window(10, Alignment.END)
+            .execute(CheckNodeCount)
+            .writeTo(defaultSink)
 
-    jobId = job.getJobId
-    job.waitForJob()
+          val jobId = job.getJobId
+          job.waitForJob()
 
-    getResults().foreach { res =>
-      if (res.nonEmpty) {
-        val t = res.split(",")
-        t(t.size - 1).shouldEqual("true")
+          getResults(jobId).foreach { res =>
+            if (res.nonEmpty) {
+              val t = res.split(",")
+              assertEquals(t(t.size - 1), "true")
+            }
+          }
+        }
       }
-    }
   }
 }

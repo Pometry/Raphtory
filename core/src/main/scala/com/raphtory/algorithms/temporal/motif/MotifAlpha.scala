@@ -1,6 +1,8 @@
 package com.raphtory.algorithms.temporal.motif
 
 import com.raphtory.algorithms.generic.NodeList
+import com.raphtory.api.analysis.algorithm.GenericReduction
+import com.raphtory.api.analysis.algorithm.NodeListOutput
 import com.raphtory.api.analysis.graphview.GraphPerspective
 
 /**
@@ -32,10 +34,10 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
   *  | ----------------- | ----------------------- |
   *  | {s}`name: String` | {s}`motifAlpha: Int`    |
   */
-object MotifAlpha extends NodeList(Seq("motifAlpha")) {
+object MotifAlpha extends NodeListOutput(Seq("motifAlpha")) with GenericReduction {
 
-  override def apply(graph: GraphPerspective): graph.Graph =
-    graph.step { vertex =>
+  override def apply(graph: GraphPerspective): graph.ReducedGraph =
+    graph.reducedView.step { vertex =>
       if (vertex.explodeInEdges().nonEmpty & vertex.explodeOutEdges().nonEmpty)
         vertex.setState(
                 "motifAlpha",
@@ -44,9 +46,7 @@ object MotifAlpha extends NodeList(Seq("motifAlpha")) {
                   .map(inEdge =>
                     vertex
                       .explodeOutEdges()
-                      .count(e =>
-                        e.timestamp > inEdge.timestamp & e.dst != inEdge.src & e.dst != inEdge.dst
-                      )
+                      .count(e => e.timestamp > inEdge.timestamp & e.dst != inEdge.src & e.dst != inEdge.dst)
                   )
                   .sum
         )

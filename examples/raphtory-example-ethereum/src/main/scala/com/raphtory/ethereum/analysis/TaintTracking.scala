@@ -1,15 +1,16 @@
 package com.raphtory.ethereum.analysis
 
 import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 
-class Taint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set())
-        extends Generic {
+class Taint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set()) extends GenericReduction {
 
-  override def apply(graph: GraphPerspective): graph.Graph =
-    graph
+  override def apply(graph: GraphPerspective): graph.ReducedGraph =
+    graph.reducedView
       // the step functions run on every single vertex ONCE at the beginning of the algorithm
       .step {
         // for each vertex in the graph
@@ -137,7 +138,7 @@ class Taint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] 
               true
       )
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: ReducedGraphPerspective): Table =
     graph
       .select(vertex =>
         Row(

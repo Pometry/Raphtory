@@ -52,6 +52,7 @@ lazy val root = (project in file("."))
           core,
           connectorsAWS,
           connectorsTwitter,
+          examplesCoho,
           examplesEnron,
           examplesFacebook,
           examplesGab,
@@ -76,7 +77,7 @@ lazy val core = (project in file("core"))
           libraryDependencies ++= Seq(
                   //please keep in alphabetical order
                   akkaTyped,
-                  catsEffect,
+                  bcel,
                   curatorRecipes,
                   gson,
                   javaxScript,
@@ -100,6 +101,9 @@ lazy val core = (project in file("core"))
                   sprayJson,
                   timeSeries,
                   twitterChill,
+                  catsEffect,
+                  catsMUnit,
+                  alleyCats,
                   typesafeConfig,
                   zookeeper
           ),
@@ -115,6 +119,9 @@ lazy val connectorsTwitter =
   (project in file("connectors/twitter")).dependsOn(core).settings(assemblySettings)
 
 // EXAMPLE PROJECTS
+
+lazy val examplesCoho =
+  (project in file("examples/raphtory-example-coho")).dependsOn(core).settings(assemblySettings)
 
 lazy val examplesEnron =
   (project in file("examples/raphtory-example-enron")).dependsOn(core).settings(assemblySettings)

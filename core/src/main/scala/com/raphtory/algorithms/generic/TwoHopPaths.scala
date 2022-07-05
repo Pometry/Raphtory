@@ -66,8 +66,7 @@ class TwoHopPaths(seeds: Set[String] = Set[String]()) extends Generic {
                   message =>
                     message match {
                       case RequestFirstHop(source)            =>
-                        vertex
-                          .getOutNeighbours()
+                        vertex.outNeighbours
                           .foreach(n =>
                             if (n != source)
                               vertex.messageVertex(n, RequestSecondHop(source, vertex.name()))
@@ -110,7 +109,6 @@ object TwoHopPaths {
   sealed trait Message[VertexID]
   case class RequestFirstHop[VertexID](source: VertexID) extends Message[VertexID]
 
-  case class RequestSecondHop[VertexID](source: VertexID, firstHop: String)
-          extends Message[VertexID]
-  case class Response[VertexID](firstHop: String, secondHop: String) extends Message[VertexID]
+  case class RequestSecondHop[VertexID](source: VertexID, firstHop: String) extends Message[VertexID]
+  case class Response[VertexID](firstHop: String, secondHop: String)        extends Message[VertexID]
 }

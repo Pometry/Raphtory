@@ -5,6 +5,7 @@ import Stages.Stage
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview.ClearChain
 import com.raphtory.api.analysis.graphview.ExplodeSelect
+import com.raphtory.api.analysis.graphview.GlobalGraphFunction
 import com.raphtory.api.analysis.graphview.GlobalSelect
 import com.raphtory.api.analysis.graphview.GraphFunction
 import com.raphtory.api.analysis.graphview.Iterate
@@ -17,6 +18,7 @@ import com.raphtory.api.analysis.graphview.SelectWithGraph
 import com.raphtory.api.analysis.graphview.SetGlobalState
 import com.raphtory.api.analysis.graphview.Step
 import com.raphtory.api.analysis.graphview.StepWithGraph
+import com.raphtory.api.analysis.graphview.TabularisingGraphFunction
 import com.raphtory.api.analysis.table.TableFunction
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.connectors.PulsarConnector
@@ -53,6 +55,14 @@ private[raphtory] class QueryHandler(
   private val tracker        = topics.queryTrack(jobID).endPoint
   private val workerList     = topics.jobOperations(jobID).endPoint
 
+  override def stop(): Unit = {
+    listener.close()
+    self.close()
+    readers.close()
+    tracker.close()
+    workerList.close()
+  }
+
   private val listener =
     topics.registerListener(
             s"$deploymentID-$jobID-query-handler",
@@ -70,14 +80,14 @@ private[raphtory] class QueryHandler(
   private var currentPerspective: Perspective =
     Perspective(DEFAULT_PERSPECTIVE_TIME, DEFAULT_PERSPECTIVE_WINDOW, 0, 0)
 
-  private var lastTime: Long            = 0L
-  private var readyCount: Int           = 0
-  private var vertexCount: Int          = 0
-  private var receivedMessageCount: Int = 0
-  private var sentMessageCount: Int     = 0
-  private var checkingMessages: Boolean = false
-  private var allVoteToHalt: Boolean    = true
-  private var timeTaken                 = System.currentTimeMillis()
+  private var lastTime: Long             = 0L
+  private var readyCount: Int            = 0
+  private var vertexCount: Int           = 0
+  private var receivedMessageCount: Long = 0
+  private var sentMessageCount: Long     = 0
+  private var checkingMessages: Boolean  = false
+  private var allVoteToHalt: Boolean     = true
+  private var timeTaken                  = System.currentTimeMillis()
 
   private var currentState: Stage = SpawnExecutors
 
@@ -85,18 +95,10 @@ private[raphtory] class QueryHandler(
   private def recheckEarliestTimer(): Unit = self sendAsync RecheckEarliestTime
 
   override def run(): Unit = {
-    messageReader(EstablishExecutor(jobID, query.sink.get))
+    messageReader(EstablishExecutor(query._bootstrap, jobID, query.sink.get))
     timeTaken = System.currentTimeMillis() //Set time from the point we ask the executors to set up
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
     listener.start()
-  }
-
-  override def stop(): Unit = {
-    listener.close()
-    self.close()
-    readers.close()
-    tracker.close()
-    workerList.close()
   }
 
   override def handleMessage(msg: QueryManagement): Unit =
@@ -114,9 +116,9 @@ private[raphtory] class QueryHandler(
     }
     catch {
       case e: Throwable =>
-        e.printStackTrace()
         logger.error(
-                s"Deployment $deploymentID: Failed to handle message. ${e.getMessage}. Skipping perspective."
+                s"Deployment $deploymentID: Failed to handle message. ${e.getMessage}. Skipping perspective.",
+                e
         )
         currentState = executeNextPerspective()
     }
@@ -217,8 +219,8 @@ private[raphtory] class QueryHandler(
 
   private def processGraphFunctionComplete(
       partitionID: Int,
-      receivedMessages: Int,
-      sentMessages: Int,
+      receivedMessages: Long,
+      sentMessages: Long,
       votedToHalt: Boolean
   ) = {
     sentMessageCount += sentMessages
@@ -240,38 +242,36 @@ private[raphtory] class QueryHandler(
         nextGraphOperation(vertexCount)
       }
       else {
-        logger.debug(
-                s"Job '$jobID': Checking messages - Received messages total:$receivedMessageCount , Sent messages total: $sentMessageCount."
+        logger.error(
+                s"Message check failed: Total received messages: $receivedMessageCount, total sent messages: $sentMessageCount"
         )
-        if (checkingMessages && topics.jobOperationsConnector.isInstanceOf[PulsarConnector]) { // TODO: clean up later this section
-          val pulsarConnector = topics.jobOperationsConnector.asInstanceOf[PulsarConnector]
-          val pulsarEndPoint  =
-            workerList.asInstanceOf[pulsarConnector.PulsarEndPoint[QueryManagement]]
-          val topic           = pulsarEndPoint.producer.getTopic
-          logger.debug(s"Checking messages for topic $topic")
-          val consumer        = pulsarConnector.createExclusiveConsumer("dumping", Schema.BYTES, topic)
-          var has_message     = true
-          while (has_message) {
-            val msg =
-              consumer.receive(
-                      10,
-                      TimeUnit.SECONDS
-              ) // add some timeout to see if new messages come in
-            if (msg == null)
-              has_message = false
-            else {
-              val message = KryoSerialiser().deserialise[QueryManagement](msg.getValue)
-              consumer.acknowledge(msg)
-              msg.release()
-              logger.debug(s"Read message $message")
+        topics.jobOperationsConnector match {
+          case pulsarConnector: PulsarConnector => // TODO: clean up later this section
+
+            val pulsarEndPoint =
+              workerList.asInstanceOf[pulsarConnector.PulsarEndPoint[QueryManagement]]
+            val topic          = pulsarEndPoint.producer.getTopic
+            logger.debug(s"Checking messages for topic $topic")
+            val consumer       = pulsarConnector.createExclusiveConsumer("dumping", Schema.BYTES, topic)
+            var has_message    = true
+            while (has_message) {
+              val msg =
+                consumer.receive(
+                        10,
+                        TimeUnit.SECONDS
+                ) // add some timeout to see if new messages come in
+              if (msg == null)
+                has_message = false
+              else {
+                val message = KryoSerialiser().deserialise[QueryManagement](msg.getValue)
+                consumer.acknowledge(msg)
+                msg.release()
+                logger.debug(s"Read message $message")
+              }
             }
-          }
+          case _ =>
         }
-        readyCount = 0
-        receivedMessageCount = 0
-        sentMessageCount = 0
-        checkingMessages = true
-        messagetoAllJobWorkers(CheckMessages(jobID))
+        throw new RuntimeException("Message check failed")
         Stages.ExecuteGraph
       }
     else
@@ -433,12 +433,11 @@ private[raphtory] class QueryHandler(
     telemetry.totalGraphOperations.labels(jobID, deploymentID).inc()
 
     currentOperation match {
-      case Iterate(f, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt =>
+      case Iterate(f, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt          =>
         currentOperation = Iterate(f, iterations - 1, executeMessagedOnly)
-      case IterateWithGraph(f, iterations, executeMessagedOnly, _)
-          if iterations > 1 && !allVoteToHalt =>
+      case IterateWithGraph(f, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt =>
         currentOperation = IterateWithGraph(f, iterations - 1, executeMessagedOnly)
-      case _                                                                               =>
+      case _                                                                                        =>
         currentOperation = getNextGraphOperation(graphFunctions).get
     }
     allVoteToHalt = true
@@ -447,68 +446,30 @@ private[raphtory] class QueryHandler(
             s"Job '$jobID': Executing graph function '${currentOperation.getClass.getSimpleName}'."
     )
     currentOperation match {
-      case f: Iterate                                                =>
-        messagetoAllJobWorkers(f)
-        Stages.ExecuteGraph
-
-      case IterateWithGraph(fun, iterations, executeMessagedOnly, _) =>
-        messagetoAllJobWorkers(
-                IterateWithGraph(
-                        fun,
-                        iterations,
-                        executeMessagedOnly,
-                        graphState
-                )
-        )
-        Stages.ExecuteGraph
-
-      case f: MultilayerView                                         =>
-        messagetoAllJobWorkers(f)
-        Stages.ExecuteGraph
-
-      case f: ReduceView                                             =>
-        messagetoAllJobWorkers(f)
-        Stages.ExecuteGraph
-
-      case f: Step                                                   =>
-        messagetoAllJobWorkers(f)
-        Stages.ExecuteGraph
-
-      case StepWithGraph(fun, _)                                     =>
-        messagetoAllJobWorkers(StepWithGraph(fun, graphState))
-        Stages.ExecuteGraph
-
-      case f: ClearChain                                             =>
-        messagetoAllJobWorkers(f)
-        Stages.ExecuteGraph
-
-      case PerspectiveDone()                                         =>
+      case PerspectiveDone()      =>
         logger.debug(
                 s"Job '$jobID': Executing next perspective with windows '${currentPerspective.window}'" +
                   s" and timestamp '${currentPerspective.timestamp}'."
         )
         executeNextPerspective()
 
-      case f: Select                                                 =>
-        messagetoAllJobWorkers(f)
-        Stages.ExecuteTable
-
-      case SelectWithGraph(fun, _)                                   =>
-        messagetoAllJobWorkers(SelectWithGraph(fun, graphState))
-        Stages.ExecuteTable
-
-      case GlobalSelect(f, _)                                        =>
-        messagetoAllJobWorkers(GlobalSelect(f, graphState))
-        Stages.ExecuteTable
-
-      case f: ExplodeSelect                                          =>
-        messagetoAllJobWorkers(f)
-        Stages.ExecuteTable
-
-      case SetGlobalState(fun)                                       =>
+      case SetGlobalState(fun)    =>
         fun(graphState)
         nextGraphOperation(vertexCount)
 
+      case f: GlobalGraphFunction =>
+        messagetoAllJobWorkers(GraphFunctionWithGlobalState(f, graphState))
+        if (f.isInstanceOf[TabularisingGraphFunction])
+          Stages.ExecuteTable
+        else
+          Stages.ExecuteGraph
+
+      case f: GraphFunction       =>
+        messagetoAllJobWorkers(f)
+        if (f.isInstanceOf[TabularisingGraphFunction])
+          Stages.ExecuteTable
+        else
+          Stages.ExecuteGraph
     }
   }
 

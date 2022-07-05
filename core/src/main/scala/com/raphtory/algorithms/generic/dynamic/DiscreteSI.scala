@@ -56,8 +56,7 @@ class DiscreteSI(
         if (infectedNodes contains vertex.name()) {
           vertex.setState("infected", true)
           vertex.setState("generation", 0)
-          vertex
-            .getOutEdges()
+          vertex.outEdges
             .foreach(edge => if (randomiser.nextFloat() < infectionProbability) edge.send(1))
         }
         else
@@ -73,7 +72,7 @@ class DiscreteSI(
                   val generation = vertex.messageQueue[Int].head
                   vertex.setState("infected", true)
                   vertex.setState("generation", generation)
-                  vertex.getOutEdges().foreach { edge =>
+                  vertex.outEdges.foreach { edge =>
                     if (randomiser.nextFloat() < infectionProbability) edge.send(generation + 1)
                   }
                 }

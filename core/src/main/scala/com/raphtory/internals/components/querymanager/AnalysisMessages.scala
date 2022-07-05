@@ -2,6 +2,7 @@ package com.raphtory.internals.components.querymanager
 
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview.Alignment
+import com.raphtory.api.analysis.graphview.GlobalGraphFunction
 import com.raphtory.api.analysis.graphview.GraphFunction
 import com.raphtory.api.analysis.table.TableFunction
 import com.raphtory.api.output.sink.Sink
@@ -20,15 +21,16 @@ private[raphtory] case class WatermarkTime(
     safe: Boolean
 ) extends QueryManagement
 
-private[raphtory] case object StartAnalysis                               extends QueryManagement
-private[raphtory] case class EstablishExecutor(jobID: String, sink: Sink) extends QueryManagement
+private[raphtory] case object StartAnalysis extends QueryManagement
+
+private[raphtory] case class EstablishExecutor(_bootstrap: DynamicLoader, jobID: String, sink: Sink)
+        extends QueryManagement
 
 private[raphtory] case class SetMetaData(vertices: Int) extends QueryManagement
 
 private[raphtory] case object JobDone extends QueryManagement
 
-private[raphtory] case class CreatePerspective(id: Int, perspective: Perspective)
-        extends QueryManagement
+private[raphtory] case class CreatePerspective(id: Int, perspective: Perspective) extends QueryManagement
 
 private[raphtory] case object StartGraph extends QueryManagement
 
@@ -38,7 +40,9 @@ private[raphtory] case object RecheckTime                 extends QueryManagemen
 private[raphtory] case object RecheckEarliestTime         extends QueryManagement
 private[raphtory] case class CheckMessages(jobId: String) extends QueryManagement
 
-sealed private[raphtory] trait GenericVertexMessage[VertexID] extends QueryManagement {
+sealed private[raphtory] trait VertexMessaging extends QueryManagement
+
+sealed private[raphtory] trait GenericVertexMessage[VertexID] extends VertexMessaging {
   def superstep: Int
   def vertexId: VertexID
 }
@@ -49,8 +53,7 @@ private[raphtory] case class VertexMessage[+T, VertexID](
     data: T
 ) extends GenericVertexMessage[VertexID]
 
-private[raphtory] case class VertexMessageBatch(data: Array[GenericVertexMessage[_]])
-        extends QueryManagement
+private[raphtory] case class VertexMessageBatch(data: Array[GenericVertexMessage[_]]) extends VertexMessaging
 
 private[raphtory] case class FilteredEdgeMessage[VertexID](
     superstep: Int,
@@ -70,17 +73,24 @@ private[raphtory] case class FilteredOutEdgeMessage[VertexID](
     sourceId: VertexID
 ) extends GenericVertexMessage[VertexID]
 
+private[raphtory] case class VertexMessagesSync(partitionID: Int, count: Long)
+
 private[raphtory] case class Query(
+    _bootstrap: DynamicLoader = DynamicLoader(), // leave the `_` this field gets deserialized first
     name: String = "",
     points: PointSet = NullPointSet,
-    timelineStart: Long = Long.MinValue, // inclusive
-    timelineEnd: Long = Long.MaxValue,   // inclusive
+    timelineStart: Long = Long.MinValue,         // inclusive
+    timelineEnd: Long = Long.MaxValue,           // inclusive
     windows: List[Interval] = List(),
     windowAlignment: Alignment.Value = Alignment.START,
     graphFunctions: Queue[GraphFunction] = Queue(),
     tableFunctions: Queue[TableFunction] = Queue(),
     sink: Option[Sink] = None
 ) extends QueryManagement
+
+case class DynamicLoader(classes: Set[Class[_]] = Set.empty) {
+  def +(cls: Class[_]): DynamicLoader = this.copy(classes = classes + cls)
+}
 
 sealed private[raphtory] trait PointSet
 private[raphtory] case object NullPointSet           extends PointSet
@@ -93,6 +103,10 @@ private[raphtory] case class PointPath(
     offset: Interval = NullInterval
 ) extends PointSet
 
+private[raphtory] case class GraphFunctionWithGlobalState(
+    function: GlobalGraphFunction,
+    graphState: GraphStateImplementation
+)                                                           extends QueryManagement
 private[raphtory] case class EndQuery(jobID: String)        extends QueryManagement
 private[raphtory] case class QueryNotPresent(jobID: String) extends QueryManagement
 
@@ -106,23 +120,22 @@ sealed private[raphtory] trait PerspectiveStatus extends JobStatus {
   def perspectiveID: Int
 }
 
-private[raphtory] case class PerspectiveEstablished(perspectiveID: Int, vertices: Int)
-        extends PerspectiveStatus
-private[raphtory] case class MetaDataSet(perspectiveID: Int) extends PerspectiveStatus
+private[raphtory] case class PerspectiveEstablished(perspectiveID: Int, vertices: Int) extends PerspectiveStatus
+private[raphtory] case class MetaDataSet(perspectiveID: Int)                           extends PerspectiveStatus
 
 private[raphtory] case class GraphFunctionComplete(
     perspectiveID: Int,
     partitionID: Int,
-    receivedMessages: Int,
-    sentMessages: Int,
+    receivedMessages: Long,
+    sentMessages: Long,
     votedToHalt: Boolean = false
 ) extends PerspectiveStatus
 
 private[raphtory] case class GraphFunctionCompleteWithState(
     perspectiveID: Int,
     partitionID: Int,
-    receivedMessages: Int,
-    sentMessages: Int,
+    receivedMessages: Long,
+    sentMessages: Long,
     votedToHalt: Boolean = false,
     graphState: GraphStateImplementation
 ) extends PerspectiveStatus
@@ -130,5 +143,4 @@ private[raphtory] case class GraphFunctionCompleteWithState(
 private[raphtory] case class TableFunctionComplete(perspectiveID: Int) extends PerspectiveStatus
 private[raphtory] case class TableBuilt(perspectiveID: Int)            extends PerspectiveStatus
 
-private[raphtory] case class AlgorithmFailure(perspectiveID: Int, exception: Throwable)
-        extends PerspectiveStatus
+private[raphtory] case class AlgorithmFailure(perspectiveID: Int, exception: Throwable) extends PerspectiveStatus

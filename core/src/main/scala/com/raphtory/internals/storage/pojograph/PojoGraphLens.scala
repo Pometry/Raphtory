@@ -7,16 +7,12 @@ import com.raphtory.api.analysis.table.RowImplementation
 import com.raphtory.api.analysis.visitor.InterlayerEdge
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
-import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
-import com.raphtory.internals.components.querymanager.QueryManagement
-import com.raphtory.internals.graph.GraphLens
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.management.Scheduler
-import com.raphtory.internals.storage.pojograph.entities.external.PojoExVertex
-import com.raphtory.internals.storage.pojograph.entities.external.PojoVertexBase
-import com.raphtory.internals.storage.pojograph.messaging.VertexMessageHandler
+import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExVertex
+import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoVertexBase
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -31,13 +27,10 @@ final private[raphtory] case class PojoGraphLens(
     var superStep: Int,
     private val storage: GraphPartition,
     private val conf: Config,
-    private val neighbours: Option[Map[Int, EndPoint[QueryManagement]]],
-    private val sentMessages: AtomicInteger,
-    private val receivedMessages: AtomicInteger,
+    private val messageSender: GenericVertexMessage[_] => Unit,
     private val errorHandler: (Throwable) => Unit,
     private val scheduler: Scheduler
-) extends GraphLens(jobId, start, end)
-        with LensInterface {
+) extends LensInterface {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val voteCount         = new AtomicInteger(0)
@@ -47,9 +40,6 @@ final private[raphtory] case class PojoGraphLens(
 
   var needsFiltering = false //used in PojoExEdge
 
-  private val messageHandler: VertexMessageHandler =
-    VertexMessageHandler(conf, neighbours, this, sentMessages, receivedMessages)
-
   val partitionID: Int = storage.getPartitionID
 
   private lazy val vertexMap: mutable.Map[Long, PojoExVertex] =
@@ -58,11 +48,24 @@ final private[raphtory] case class PojoGraphLens(
   private var vertices: Array[PojoExVertex] =
     vertexMap.values.toArray
 
-  private def vertexIterator =
-    if (exploded)
-      vertices.iterator.flatMap(_.explodedVertices)
+  private var unDir: Boolean = false
+
+  private var reversed: Boolean = false
+
+  private def vertexIterator = {
+    val it =
+      if (exploded)
+        vertices.iterator.flatMap(_.explodedVertices)
+      else
+        vertices.iterator
+
+    if (unDir)
+      it.map(_.viewUndirected)
+    else if (reversed)
+      it.map(_.viewReversed)
     else
-      vertices.iterator
+      it
+  }
 
   def getFullGraphSize: Int = {
     logger.trace(s"Current Graph size at '$fullGraphSize'.")
@@ -74,7 +77,7 @@ final private[raphtory] case class PojoGraphLens(
     logger.trace(s"Set Graph Size to '$fullGraphSize'.")
   }
 
-  def getSize: Int = vertices.length
+  def localNodeCount: Int = vertices.length
 
   private var dataTable: Iterator[RowImplementation] = Iterator()
 
@@ -90,8 +93,7 @@ final private[raphtory] case class PojoGraphLens(
       graphState: GraphState
   )(onComplete: => Unit): Unit = {
     dataTable = vertexIterator.flatMap { vertex =>
-      f.asInstanceOf[(PojoVertexBase, GraphState) => RowImplementation](vertex, graphState)
-        .yieldAndRelease
+      f.asInstanceOf[(PojoVertexBase, GraphState) => RowImplementation](vertex, graphState).yieldAndRelease
     }
     onComplete
   }
@@ -154,7 +156,22 @@ final private[raphtory] case class PojoGraphLens(
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
-  override def reduceView(
+  def viewUndirected()(onComplete: => Unit): Unit = {
+    unDir = true
+    onComplete
+  }
+
+  def viewDirected()(onComplete: => Unit): Unit = {
+    unDir = false
+    onComplete
+  }
+
+  def viewReversed()(onComplete: => Unit): Unit = {
+    reversed = !reversed
+    onComplete
+  }
+
+  def reduceView(
       defaultMergeStrategy: Option[PropertyMerge[_, _]],
       mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
       aggregate: Boolean
@@ -226,11 +243,9 @@ final private[raphtory] case class PojoGraphLens(
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
-  def getMessageHandler(): VertexMessageHandler = messageHandler
-
   def checkVotes(): Boolean = vertexCount.get() == voteCount.get()
 
-  def sendMessage(msg: GenericVertexMessage[_]): Unit = messageHandler.sendMessage(msg)
+  def sendMessage(msg: GenericVertexMessage[_]): Unit = messageSender(msg)
 
   def vertexVoted(): Unit = voteCount.incrementAndGet()
 
@@ -266,10 +281,6 @@ final private[raphtory] case class PojoGraphLens(
         )
     }
   }
-
-  override def getStart(): Long = start
-
-  override def getEnd(): Long = end
 
   def clearMessages(): Unit =
     vertexMap.foreach {

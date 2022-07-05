@@ -2,6 +2,7 @@ import sbt._
 
 object Dependencies {
   private lazy val akkaTypedVersion      = "2.6.19"
+  private lazy val bcelVersion           = "6.5.0"
   private lazy val catsEffectVersion     = "3.3.12"
   private lazy val chillVersion          = "0.10.0"
   private lazy val curatorVersion        = "5.2.1"
@@ -20,12 +21,15 @@ object Dependencies {
   private lazy val timeSeriesVersion     = "1.7.0"
   private lazy val typesafeConfigVersion = "1.4.2"
   private lazy val zookeeperVersion      = "3.7.0"
+  private lazy val catsVersion           = "2.7.0"
+  private lazy val catsMUnitVersion      = "1.0.7"
 
   lazy val excludePulsarBinding = ExclusionRule(organization = "org.apache.pulsar")
   lazy val excludeSlf4j         = ExclusionRule(organization = "org.slf4j")
   lazy val excludeLog4j         = ExclusionRule(organization = "log4j")
 
   lazy val akkaTyped      = "com.typesafe.akka" %% "akka-actor-typed" % akkaTypedVersion
+  lazy val bcel           = "org.apache.bcel"    % "bcel"             % bcelVersion
   lazy val catsEffect     = "org.typelevel"     %% "cats-effect"      % catsEffectVersion
   lazy val curatorRecipes = "org.apache.curator" % "curator-recipes"  % curatorVersion
 
@@ -60,8 +64,10 @@ object Dependencies {
 
   lazy val timeSeries =
     "io.sqooba.oss" %% "scala-timeseries-lib" % timeSeriesVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val twitterChill   = "com.twitter"         %% "chill"     % chillVersion
-  lazy val typesafeConfig = "com.typesafe"         % "config"    % typesafeConfigVersion
-  lazy val zookeeper      = "org.apache.zookeeper" % "zookeeper" % zookeeperVersion
+  lazy val twitterChill   = "com.twitter"         %% "chill"               % chillVersion
+  lazy val typesafeConfig = "com.typesafe"         % "config"              % typesafeConfigVersion
+  lazy val zookeeper      = "org.apache.zookeeper" % "zookeeper"           % zookeeperVersion
+  lazy val catsMUnit      = "org.typelevel"       %% "munit-cats-effect-3" % catsMUnitVersion % Test
+  lazy val alleyCats      = "org.typelevel"       %% "alleycats-core"      % catsVersion
 
 }

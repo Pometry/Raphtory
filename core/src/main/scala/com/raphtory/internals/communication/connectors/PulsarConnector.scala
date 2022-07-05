@@ -1,11 +1,11 @@
 package com.raphtory.internals.communication.connectors
 
-import com.raphtory.internals.communication.CancelableListener
-import com.raphtory.internals.communication.CanonicalTopic
-import com.raphtory.internals.communication.Connector
-import com.raphtory.internals.communication.EndPoint
-import com.raphtory.internals.communication.Topic
-import com.raphtory.internals.communication.WorkPullTopic
+import java.io.Closeable
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
+import cats.effect.Async
+import cats.effect.kernel.Resource
+import com.raphtory.internals.communication._
 import com.raphtory.internals.serialisers.KryoSerialiser
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -15,21 +15,29 @@ import org.apache.pulsar.client.api.PulsarClientException.BrokerMetadataExceptio
 import org.apache.pulsar.client.api._
 import org.apache.pulsar.common.policies.data.RetentionPolicies
 import org.slf4j.LoggerFactory
-
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.math.Ordering.Implicits.infixOrderingOps
+import scala.util.control.NonFatal
 
-private[raphtory] class PulsarConnector(config: Config) extends Connector {
+private[raphtory] class PulsarConnector(
+    client: PulsarClient,
+    pulsarAdmin: PulsarAdmin,
+    config: Config
+) extends Connector
+        with Closeable {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   case class PulsarEndPoint[T](producer: Producer[Array[Byte]]) extends EndPoint[T] {
 
     override def sendAsync(message: T): Unit = {
       logger.debug(s"sending message: '$message' to topic: '${producer.getTopic}'")
-      producer.sendAsync(serialise(message))
+      try producer.sendAsync(serialise(message))
+      catch {
+        case NonFatal(t) =>
+          logger.error(s"Failed to send MSG $message", t)
+          throw t
+      }
     }
     override def close(): Unit = producer.flushAsync().thenApply(_ => producer.closeAsync())
 
@@ -38,42 +46,14 @@ private[raphtory] class PulsarConnector(config: Config) extends Connector {
     override def closeWithMessage(message: T): Unit =
       producer
         .flushAsync()
-        .thenApply(_ =>
-          producer.sendAsync(serialise(message)).thenApply(_ => producer.closeAsync())
-        )
+        .thenApply(_ => producer.sendAsync(serialise(message)).thenApply(_ => producer.closeAsync()))
   }
-
-  private val pulsarAddress: String      = config.getString("raphtory.pulsar.broker.address")
-  private val pulsarAdminAddress: String = config.getString("raphtory.pulsar.admin.address")
-  private val numIoThreads               = config.getInt("raphtory.pulsar.broker.ioThreads")
-  private val useAllListenerThreads      = "raphtory.pulsar.broker.useAvailableThreadsInSystem"
-
-  private val listenerThreads =
-    if (config.hasPath(useAllListenerThreads) && config.getBoolean(useAllListenerThreads))
-      Runtime.getRuntime.availableProcessors()
-    else
-      config.getInt("raphtory.pulsar.broker.listenerThreads")
 
   private val kryo: KryoSerialiser = KryoSerialiser()
 
-  private val client: PulsarClient =
-    PulsarClient
-      .builder()
-      .ioThreads(numIoThreads)
-      .listenerThreads(listenerThreads)
-      .maxConcurrentLookupRequests(50_000)
-      .maxLookupRequests(100_000)
-      .serviceUrl(pulsarAddress)
-      .serviceUrl(pulsarAdminAddress)
-      .build()
-
-  private val pulsarAdmin: PulsarAdmin = PulsarAdmin.builder
-    .serviceHttpUrl(pulsarAdminAddress)
-    .tlsTrustCertsFilePath(null)
-    .allowTlsInsecureConnection(false)
-    .build
-
   def accessClient: PulsarClient = client
+
+  def adminClient: PulsarAdmin = pulsarAdmin
 
   override def register[T](
       id: String,
@@ -142,8 +122,7 @@ private[raphtory] class PulsarConnector(config: Config) extends Connector {
         }
         catch {
           case e: Exception =>
-            e.printStackTrace()
-            logger.error(s"Component $listenerId: Failed to handle message. ${e.getMessage}")
+            logger.error(s"Component $listenerId: Failed to handle message. ${e.getMessage}", e)
             consumer.negativeAcknowledge(msg)
             throw e
         }
@@ -197,8 +176,7 @@ private[raphtory] class PulsarConnector(config: Config) extends Connector {
       .subscribe()
 
   private def createTopic[T](topic: Topic[T]): String = {
-    val persistence = true
-
+    val persistence   = true
     val tenant        = config.getString(s"raphtory.pulsar.topics.${topic.id}.tenant")
     val namespace     = config.getString(s"raphtory.pulsar.topics.${topic.id}.namespace")
     val retentionTime = config.getString(s"raphtory.pulsar.topics.${topic.id}.retention.time").toInt
@@ -263,8 +241,62 @@ private[raphtory] class PulsarConnector(config: Config) extends Connector {
     pulsarAdmin.namespaces().setDeduplicationStatus(namespace, false)
   }
 
-  override def shutdown(): Unit = {
-    client.shutdown()
+  override def close(): Unit = {
+    if (!client.isClosed())
+      client.close()
+
     pulsarAdmin.close()
+  }
+
+  override def shutdown(): Unit = {}
+}
+
+object PulsarConnector {
+
+  def unsafeApply(config: Config): PulsarConnector = {
+    val client      = makePulsarClient(config)
+    val adminClient = makeAdminClient(config)
+    new PulsarConnector(client, adminClient, config)
+  }
+
+  def apply[IO[_]](config: Config)(implicit IO: Async[IO]): Resource[IO, PulsarConnector] =
+    for {
+      pulsarClient      <- Resource.fromAutoCloseable(IO.blocking(makePulsarClient(config)))
+      pulsarAdminClient <- Resource.fromAutoCloseable(IO.blocking(makeAdminClient(config)))
+    } yield new PulsarConnector(pulsarClient, pulsarAdminClient, config)
+
+  private def makePulsarClient(config: Config): PulsarClient = {
+
+    val numIoThreads          = config.getInt("raphtory.pulsar.broker.ioThreads")
+    val pulsarAddress: String = config.getString("raphtory.pulsar.broker.address")
+
+    val useAllListenerThreads = "raphtory.pulsar.broker.useAvailableThreadsInSystem"
+
+    val pulsarAdminAddress: String = config.getString("raphtory.pulsar.admin.address")
+    val listenerThreads            =
+      if (config.hasPath(useAllListenerThreads) && config.getBoolean(useAllListenerThreads))
+        Runtime.getRuntime.availableProcessors()
+      else
+        config.getInt("raphtory.pulsar.broker.listenerThreads")
+
+    val client: PulsarClient =
+      PulsarClient
+        .builder()
+        .ioThreads(numIoThreads)
+        .listenerThreads(listenerThreads)
+        .maxConcurrentLookupRequests(50_000)
+        .maxLookupRequests(100_000)
+        .serviceUrl(pulsarAddress)
+        .build()
+    client
+  }
+
+  private def makeAdminClient(config: Config): PulsarAdmin = {
+    val pulsarAdminAddress: String = config.getString("raphtory.pulsar.admin.address")
+    PulsarAdmin.builder
+      .serviceHttpUrl(pulsarAdminAddress)
+      .tlsTrustCertsFilePath(null)
+      .allowTlsInsecureConnection(false)
+      .build
   }
 }

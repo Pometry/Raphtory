@@ -10,13 +10,13 @@ import com.raphtory.internals.components.querymanager.PointPath
 import com.raphtory.internals.components.querymanager.Query
 import com.typesafe.config.Config
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 /** This test uses a mock TemporalGraph as starting point
   * to check if the objects within this hierarchy create the Query object correctly.
   * It doesn't deploy or connect to anything.
   */
-class RaphtoryGraphTest extends AnyFunSuite {
+class RaphtoryGraphTest extends FunSuite {
 
   private def createMockGraph(config: Map[String, String] = Map()) =
     new TemporalGraph(Query(), null, Raphtory.getDefaultConfig(config))
@@ -35,12 +35,12 @@ class RaphtoryGraphTest extends AnyFunSuite {
       .filter(_.getInt(0) == 1)
     val query = table.asInstanceOf[TableImplementation].query
 
-    assert(query.timelineStart === 100)
-    assert(query.timelineEnd === 499)
-    assert(query.points.asInstanceOf[PointPath].increment === DiscreteInterval(100))
-    assert(query.windows === List(DiscreteInterval(50)))
+    assertEquals(query.timelineStart, 100L)
+    assertEquals(query.timelineEnd, 499L)
+    assertEquals(query.points.asInstanceOf[PointPath].increment, DiscreteInterval(100))
+    assertEquals(query.windows, List(DiscreteInterval(50)))
 
-    assert(query.graphFunctions.length === 6)
+    assertEquals(query.graphFunctions.length, 6)
     assert(query.graphFunctions(0).isInstanceOf[Step])
     assert(query.graphFunctions(1).isInstanceOf[Step])
     assert(query.graphFunctions(2).isInstanceOf[Step])
@@ -48,7 +48,7 @@ class RaphtoryGraphTest extends AnyFunSuite {
     assert(query.graphFunctions(4).isInstanceOf[ClearChain])
     assert(query.graphFunctions(5).isInstanceOf[Select])
 
-    assert(query.tableFunctions.length === 1)
+    assertEquals(query.tableFunctions.length, 1)
     assert(query.tableFunctions.head.isInstanceOf[TableFilter])
   }
 

@@ -1,5 +1,8 @@
 package com.raphtory.internals.components.partition
 
+import cats.effect.Async
+import cats.effect.Resource
+import cats.effect.Spawn
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.querymanager.EndQuery
@@ -27,18 +30,14 @@ private[raphtory] class Reader(
   private val executorMap      = mutable.Map[String, QueryExecutor]()
   private val watermarkPublish = topics.watermark.endPoint
 
-  private val queryPrepListener                              =
-    topics.registerListener(s"$deploymentID-reader-$partitionID", handleMessage, topics.queryPrep)
   private var scheduledWatermark: Option[() => Future[Unit]] = None
 
   override def run(): Unit = {
     logger.debug(s"Partition $partitionID: Starting Reader Consumer.")
-    queryPrepListener.start()
     scheduleWatermarker()
   }
 
   override def stop(): Unit = {
-    queryPrepListener.close()
     scheduledWatermark.foreach(cancelable => cancelable())
     watermarkPublish.close()
     executorMap.synchronized {
@@ -48,14 +47,14 @@ private[raphtory] class Reader(
 
   override def handleMessage(msg: QueryManagement): Unit =
     msg match {
-      case EstablishExecutor(jobID, sink) =>
+      case EstablishExecutor(_, jobID, sink) =>
         val queryExecutor =
           new QueryExecutor(partitionID, sink, storage, jobID, conf, topics, scheduler)
         scheduler.execute(queryExecutor)
         telemetry.queryExecutorCollector.labels(partitionID.toString, deploymentID).inc()
         executorMap += ((jobID, queryExecutor))
 
-      case req: EndQuery                  =>
+      case req: EndQuery                     =>
         logger.debug(s"Reader on partition $partitionID received $req")
         executorMap.synchronized {
           try {
@@ -89,4 +88,22 @@ private[raphtory] class Reader(
 
   }
 
+}
+
+object Reader {
+
+  def apply[IO[_]: Async: Spawn](
+      partitionID: Int,
+      storage: GraphPartition,
+      scheduler: Scheduler,
+      conf: Config,
+      topics: TopicRepository
+  ): Resource[IO, Reader] =
+    Component.makeAndStartPart(
+            partitionID,
+            topics,
+            s"reader-$partitionID",
+            List(topics.queryPrep),
+            new Reader(partitionID, storage, scheduler, conf, topics)
+    )
 }

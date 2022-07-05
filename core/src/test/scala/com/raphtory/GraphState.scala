@@ -14,24 +14,22 @@ class GraphState() extends Generic {
       val degSum           = vertex.inDegree + vertex.outDegree
       val vdeletions       = vertex.numDeletions
       val vcreations       = vertex.numCreations
-      val outedgedeletions = vertex.getOutEdges().map(edge => edge.numDeletions).sum
-      val outedgecreations = vertex.getOutEdges().map(edge => edge.numCreations).sum
+      val outedgedeletions = vertex.outEdges.map(edge => edge.numDeletions).sum
+      val outedgecreations = vertex.outEdges.map(edge => edge.numCreations).sum
 
-      val inedgedeletions = vertex.getInEdges().map(edge => edge.numDeletions).sum
-      val inedgecreations = vertex.getInEdges().map(edge => edge.numCreations).sum
+      val inedgedeletions = vertex.inEdges.map(edge => edge.numDeletions).sum
+      val inedgecreations = vertex.inEdges.map(edge => edge.numCreations).sum
 
       val properties             = vertex.getPropertySet().size
       val propertyhistory        =
         vertex.getPropertySet().toArray.map(x => vertex.getPropertyHistory(x).size).sum
-      val outedgeProperties      = vertex.getOutEdges().map(edge => edge.getPropertySet().size).sum
-      val outedgePropertyHistory = vertex
-        .getOutEdges()
+      val outedgeProperties      = vertex.outEdges.map(edge => edge.getPropertySet().size).sum
+      val outedgePropertyHistory = vertex.outEdges
         .map(edge => edge.getPropertySet().toArray.map(x => edge.getPropertyHistory(x).size).sum)
         .sum
 
-      val inedgeProperties      = vertex.getInEdges().map(edge => edge.getPropertySet().size).sum
-      val inedgePropertyHistory = vertex
-        .getInEdges()
+      val inedgeProperties      = vertex.inEdges.map(edge => edge.getPropertySet().size).sum
+      val inedgePropertyHistory = vertex.inEdges
         .map(edge => edge.getPropertySet().toArray.map(x => edge.getPropertyHistory(x).size).sum)
         .sum
 

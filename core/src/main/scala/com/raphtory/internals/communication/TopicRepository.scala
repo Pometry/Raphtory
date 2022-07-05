@@ -1,10 +1,12 @@
 package com.raphtory.internals.communication
 
-import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.components.querymanager.EndQuery
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManagement
+import com.raphtory.internals.components.querymanager.VertexMessagesSync
+import com.raphtory.internals.components.querymanager.VertexMessaging
 import com.raphtory.internals.components.querymanager.WatermarkTime
+import com.raphtory.internals.graph.GraphAlteration._
 import com.typesafe.config.Config
 
 private[raphtory] class TopicRepository(
@@ -22,11 +24,12 @@ private[raphtory] class TopicRepository(
   protected def watermarkConnector: Connector        = defaultConnector
   protected def queryPrepConnector: Connector        = defaultConnector
 
-  protected def queryTrackConnector: Connector     = defaultConnector
-  protected def rechecksConnector: Connector       = defaultConnector
-  protected def jobStatusConnector: Connector      = defaultConnector
-  protected def vertexMessagesConnector: Connector = defaultConnector
-  def jobOperationsConnector: Connector            = defaultConnector // accessed within the queryHandler
+  protected def queryTrackConnector: Connector         = defaultConnector
+  protected def rechecksConnector: Connector           = defaultConnector
+  protected def jobStatusConnector: Connector          = defaultConnector
+  protected def vertexMessagesConnector: Connector     = defaultConnector
+  protected def vertexMessagesSyncConnector: Connector = defaultConnector
+  def jobOperationsConnector: Connector                = defaultConnector // accessed within the queryHandler
 
   // Configuration
   private val spoutAddress: String     = conf.getString("raphtory.spout.topic")
@@ -67,11 +70,19 @@ private[raphtory] class TopicRepository(
   final def jobStatus(jobId: String): ExclusiveTopic[QueryManagement] =
     ExclusiveTopic[QueryManagement](jobStatusConnector, "job.status", s"$depId-$jobId")
 
-  final def vertexMessages(jobId: String): ShardingTopic[QueryManagement] =
-    ShardingTopic[QueryManagement](
+  final def vertexMessages(jobId: String): ShardingTopic[VertexMessaging] =
+    ShardingTopic[VertexMessaging](
             numPartitions,
             vertexMessagesConnector,
             "vertex.messages",
+            s"$depId-$jobId"
+    )
+
+  final def vertexMessagesSync(jobId: String): ShardingTopic[VertexMessagesSync] =
+    ShardingTopic[VertexMessagesSync](
+            numPartitions,
+            vertexMessagesSyncConnector,
+            "vertex.messages.sync",
             s"$depId-$jobId"
     )
 
@@ -121,5 +132,4 @@ private[raphtory] class TopicRepository(
     CancelableListener(listeners)
   }
 
-  def shutdown(): Unit = allConnectors.foreach(_.shutdown())
 }

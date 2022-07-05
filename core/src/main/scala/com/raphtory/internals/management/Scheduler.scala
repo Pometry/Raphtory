@@ -3,9 +3,8 @@ package com.raphtory.internals.management
 import cats.effect.IO
 import cats.effect.unsafe.IORuntime
 import com.raphtory.internals.components.Component
-import com.typesafe.scalalogging.Logger
-import org.slf4j.LoggerFactory
 
+import java.util.concurrent.CompletableFuture
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
@@ -16,10 +15,13 @@ private[raphtory] class Scheduler {
   implicit val runtime = IORuntime.global
 
   def execute[T](component: Component[T]): Unit =
-    IO.delay(component.run()).unsafeToFuture()
+    IO.blocking(component.run()).unsafeToFuture()
+
+  def executeCompletable[T](task: => Unit): CompletableFuture[Unit] =
+    IO.blocking(task).unsafeToCompletableFuture()
 
   def scheduleOnce(delay: FiniteDuration, task: => Unit): () => Future[Unit] = {
-    val (_, cancel) = (IO.sleep(delay) *> IO(task)).unsafeToFutureCancelable()
+    val (_, cancel) = (IO.sleep(delay) *> IO.blocking(task)).unsafeToFutureCancelable()
     cancel
   }
 
@@ -31,8 +33,8 @@ private[raphtory] class Scheduler {
 
     val (_, cancelable) = IO
       .parSequenceN(threads)(tasks.to(LazyList))
-      .onError(t => IO(errorHandler(t)))
-      .flatMap(_ => IO(onSuccess))
+      .onError(t => IO.blocking(errorHandler(t)))
+      .flatMap(_ => IO.blocking(onSuccess))
       .unsafeToFutureCancelable()
 
     cancelable

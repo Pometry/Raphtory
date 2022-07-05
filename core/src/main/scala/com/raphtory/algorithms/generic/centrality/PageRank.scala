@@ -40,8 +40,7 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
   * [](com.raphtory.algorithms.generic.centrality.WeightedPageRank
   * ```
   */
-class PageRank(dampingFactor: Double = 0.85, iterateSteps: Int = 100)
-        extends NodeList(Seq("prlabel")) {
+class PageRank(dampingFactor: Double = 0.85, iterateSteps: Int = 100) extends NodeList(Seq("prlabel")) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph

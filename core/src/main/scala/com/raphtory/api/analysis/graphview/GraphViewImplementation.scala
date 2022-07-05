@@ -26,6 +26,10 @@ import com.raphtory.internals.management.QuerySender
 sealed private[raphtory] trait GraphFunction                             extends QueryManagement
 final private[raphtory] case class SetGlobalState(f: GraphState => Unit) extends GraphFunction
 
+sealed private[raphtory] trait GlobalGraphFunction extends GraphFunction
+
+sealed private[raphtory] trait TabularisingGraphFunction extends GraphFunction
+
 final private[raphtory] case class MultilayerView(
     interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]]
 ) extends GraphFunction
@@ -36,12 +40,17 @@ final private[raphtory] case class ReduceView(
     aggregate: Boolean = false
 ) extends GraphFunction
 
+final private[raphtory] case class DirectedView() extends GraphFunction
+
+final private[raphtory] case class UndirectedView() extends GraphFunction
+
+final private[raphtory] case class ReversedView() extends GraphFunction
+
 final private[raphtory] case class Step(f: (_) => Unit) extends GraphFunction
 
 final private[raphtory] case class StepWithGraph(
-    f: (_, GraphState) => Unit,
-    graphState: GraphStateImplementation = GraphStateImplementation.empty
-) extends GraphFunction
+    f: (_, GraphState) => Unit
+) extends GlobalGraphFunction
 
 final private[raphtory] case class Iterate(
     f: (_) => Unit,
@@ -52,22 +61,21 @@ final private[raphtory] case class Iterate(
 final private[raphtory] case class IterateWithGraph(
     f: (_, GraphState) => Unit,
     iterations: Int,
-    executeMessagedOnly: Boolean,
-    graphState: GraphStateImplementation = GraphStateImplementation.empty
-) extends GraphFunction
+    executeMessagedOnly: Boolean
+) extends GlobalGraphFunction
 
-final private[raphtory] case class Select(f: _ => Row) extends GraphFunction
+final private[raphtory] case class Select(f: _ => Row) extends TabularisingGraphFunction
 
 final private[raphtory] case class SelectWithGraph(
-    f: (_, GraphState) => Row,
-    graphState: GraphStateImplementation = GraphStateImplementation.empty
-) extends GraphFunction
+    f: (_, GraphState) => Row
+) extends TabularisingGraphFunction
+        with GlobalGraphFunction
 
 final private[raphtory] case class GlobalSelect(
-    f: GraphState => Row,
-    graphState: GraphStateImplementation = GraphStateImplementation.empty
-)                                                                   extends GraphFunction
-final private[raphtory] case class ExplodeSelect(f: _ => List[Row]) extends GraphFunction
+    f: GraphState => Row
+)                                                                   extends TabularisingGraphFunction
+        with GlobalGraphFunction
+final private[raphtory] case class ExplodeSelect(f: _ => List[Row]) extends TabularisingGraphFunction
 final private[raphtory] case class ClearChain()                     extends GraphFunction
 final private[raphtory] case class PerspectiveDone()                extends GraphFunction
 
@@ -122,10 +130,15 @@ private[api] trait GraphViewImplementation[
   ): RG =
     addRFunction(ReduceView(Some(defaultMergeStrategy), Some(mergeStrategyMap), aggregate = true))
 
+  override def undirectedView: G = addFunction(UndirectedView())
+
+  override def directedView: G = addFunction(DirectedView())
+
+  override def reversedView: G = addFunction(ReversedView())
+
   override def edgeFilter(f: Edge => Boolean, pruneNodes: Boolean): G = {
     val filtered = step { vertex =>
-      vertex
-        .getOutEdges()
+      vertex.outEdges
         .foreach(edge => if (!f(edge)) edge.remove())
     }
     if (pruneNodes)
@@ -135,8 +148,7 @@ private[api] trait GraphViewImplementation[
 
   override def edgeFilter(f: (Edge, GraphState) => Boolean, pruneNodes: Boolean): G = {
     val filtered = step((vertex, graphState) =>
-      vertex
-        .getOutEdges()
+      vertex.outEdges
         .foreach(edge => if (!f(edge, graphState)) edge.remove())
     )
     if (pruneNodes)
@@ -216,7 +228,7 @@ private[api] trait GraphViewImplementation[
       case "" => algorithm.name
       case _  => query.name + ":" + algorithm.name
     }
-    newGraph(query.copy(name = newName), querySender)
+    newGraph(query.copy(name = newName, _bootstrap = query._bootstrap + algorithm.getClass), querySender)
   }
 }
 
