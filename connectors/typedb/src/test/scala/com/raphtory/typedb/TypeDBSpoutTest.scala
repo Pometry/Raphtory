@@ -2,13 +2,7 @@ package com.raphtory.typedb
 
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
-import com.raphtory.sinks.{FileSink, PulsarSink}
-import org.apache.http.HttpHeaders
-import org.apache.http.client.methods.RequestBuilder
-import org.apache.http.impl.client.HttpClients
-import ujson.Value.Value
-
-import java.io.{BufferedReader, InputStream, InputStreamReader}
+import com.raphtory.sinks.FileSink
 
 object TypeDBSpoutTest {
 
