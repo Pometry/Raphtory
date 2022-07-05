@@ -104,7 +104,7 @@ jobs:
       - name: Push nightly build tag
         run: |
           git tag -a "${{ needs.configure.outputs.branch }}-nightly-build-${{ needs.configure.outputs.date }}" -m "${{ needs.configure.outputs.branch }} nightly build - ${{ needs.configure.outputs.date }}"
-          git push origin "${{ env.software_version }}"
+          git push origin "${{ needs.configure.outputs.branch }}-nightly-build-${{ needs.configure.outputs.date }}"
         if: needs.configure.outputs.type == 'nightly'
       # Get artifacts
       - name: Get artifact path
