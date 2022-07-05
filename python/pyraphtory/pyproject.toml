@@ -9,7 +9,7 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.8"
-pemja = "^0.1.5"
+pemja = "^0.2.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

@@ -68,7 +68,7 @@ trait GraphBuilder[T] extends Serializable {
     *
     * @param uniqueChars Vertex name
     */
-  def assignID(uniqueChars: String): Long = LongHashFunction.xx3().hashChars(uniqueChars)
+  def assignID(uniqueChars: String): Long = GraphBuilder.assignID(uniqueChars)
 
   /** Parses `tuple` and fetches list of updates for the graph This is used internally to retrieve updates. */
   private[raphtory] def getUpdates(tuple: T)(failOnError: Boolean = true): List[GraphUpdate] = {

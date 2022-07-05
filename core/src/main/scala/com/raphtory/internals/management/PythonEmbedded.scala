@@ -5,22 +5,29 @@ import cats.Applicative
 import cats.Monad
 import cats.effect.Async
 import cats.effect.Resource
+import com.fasterxml.jackson.databind.PropertyNamingStrategies.SnakeCaseStrategy
+import com.raphtory.api.input.{GraphBuilder, ImmutableProperty, Property, Type}
+import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
+import com.raphtory.internals.graph.GraphAlteration.VertexAdd
 import pemja.core.PythonInterpreter
 import pemja.core.PythonInterpreterConfig
 
 import java.nio.file.Path
 import java.util
+import scala.collection.mutable
 import scala.reflect.ClassTag
+import scala.util.Success
+import scala.util.Try
 
-class PythonEmbedded[IO[_]](py: PythonInterpreter, private var i: Int = 0)(implicit IO: Async[IO]) {
+class PythonEmbedded[IO[_]](py: PythonInterpreter, private var i: Int = 0)(implicit IO: Async[IO]) { self =>
 
-  def loadGraphBuilder(cls: String, pkg: String): IO[PyRef] =
+  def loadGraphBuilder(cls: String, pkg: String): IO[PythonGraphBuilder[IO]] =
     IO.blocking {
-      py.exec(s"from $pkg import $cls")
+      py.exec(s"import $pkg")
       val name = s"pyref_$i"
       i += 1
-      py.exec(s"$name = $cls()")
-      PyRef(name)
+      py.exec(s"$name = $pkg.$cls()")
+      new PythonGraphBuilder(PyRef(name), self)
     }
 
   private[management] def invoke(ref: PyRef, methodName: String, args: Vector[Object] = Vector.empty) =
@@ -42,7 +49,7 @@ class PythonEmbedded[IO[_]](py: PythonInterpreter, private var i: Int = 0)(impli
       i += 1
       py.exec(s"$name = $expr; print($name)")
       val pyObj = py.get(name, PE.clz.asSubclass(classOf[Object]))
-      val a = PE.decode(pyObj)
+      val a     = PE.decode(pyObj)
       a
     }
 
@@ -52,14 +59,17 @@ object PythonEmbedded {
 
   def apply[IO[_]: Async](pythonPaths: Path*): Resource[IO, PythonEmbedded[IO]] =
     for {
-      config <- Resource.eval(Async[IO].blocking {
-                  pythonPaths
-                    .foldLeft(PythonInterpreterConfig.newBuilder()) { (b, path) =>
-                      b.addPythonPaths(path.toAbsolutePath.toString)
-                    }
-                    .setPythonExec("/home/murariuf/.virtualenvs/raphtory/bin/python3")
-                    .build()
-                })
+      config <-
+        Resource.eval(Async[IO].blocking {
+          val builder =
+            PythonInterpreterConfig.newBuilder().setPythonExec("/home/murariuf/.virtualenvs/raphtory/bin/python3")
+          pythonPaths
+            .foldLeft(builder) { (b, path) =>
+              println(s"adding $path")
+              b.addPythonPaths(path.toAbsolutePath.toString)
+            }
+            .build()
+        })
       py     <- Resource.fromAutoCloseable(Async[IO].blocking(new PythonInterpreter(config))).map(new PythonEmbedded(_))
     } yield py
 }
@@ -75,7 +85,7 @@ class PythonGraphBuilder[IO[_]: Monad](ref: PyRef, py: PythonEmbedded[IO]) {
 
   def parseTuple(line: String) =
     py.invoke(ref, "parse_tuple", Vector(line)) *>
-      py.getT[Vector[Person]](s"${ref.name}.get_actions()")
+      py.getT[Vector[GraphUpdate]](s"${ref.name}.get_actions()")
 
 }
 
@@ -106,12 +116,39 @@ object PythonEncoder {
   implicit val longEncoder: PythonEncoder[Long] =
     createEncoder[Long](int => Long.box(int), pylong => pylong.asInstanceOf[java.lang.Long], classOf[java.lang.Long])
 
+  implicit val doubleEncoder: PythonEncoder[Double] =
+    createEncoder[Double](
+            int => Double.box(int),
+            pylong => pylong.asInstanceOf[java.lang.Double],
+            classOf[java.lang.Double]
+    )
+
+  implicit val floatEncoder: PythonEncoder[Float] =
+    createEncoder[Float](
+            int => Float.box(int),
+            pylong => pylong.asInstanceOf[java.lang.Float],
+            classOf[java.lang.Float]
+    )
+
+  implicit def optEncoder[T](implicit PE: PythonEncoder[T]): PythonEncoder[Option[T]] =
+    createEncoder[Option[T]](
+            {
+              case None    => null
+              case Some(t) => PE.encode(t)
+            },
+            {
+              case null => None
+              case t    => Option(PE.decode(t))
+            },
+            PE.clz
+    )
+
   implicit def vecEncode[T: PythonEncoder: ClassTag]: PythonEncoder[Vector[T]] =
     createEncoder[Vector[T]](
             vec => vec.map(t => PythonEncoder[T].encode(t)).toArray,
             pyObj => {
               val objects = pyObj.asInstanceOf[Array[Object]]
-              val ts = objects.map(obj => PythonEncoder[T].decode(obj))
+              val ts      = objects.map(obj => PythonEncoder[T].decode(obj))
               ts.toVector
             },
             classOf[Array[Object]]
@@ -142,11 +179,41 @@ object PythonEncoder {
 
       override def decode(pyObj: Object): T = {
         val pyO = pyObj.asInstanceOf[java.util.HashMap[String, Object]]
-        ctx.construct(p => p.typeclass.decode(pyO.get(p.label)))
+        ctx.construct { p =>
+          val value = pyO.get(camelToSnakeCase(p.label))
+          assert(value != null, s"cannot find key ${p.label} within ${pyO.keySet()}")
+          p.typeclass.decode(value)
+        }
       }
 
       override def clz: Class[_] = classOf[java.util.HashMap[String, Object]]
     }
+
+  def camelToSnakeCase(input: String): String = {
+    if (input == null) return input // garbage in, garbage out
+    val length            = input.length
+    val result            = new mutable.StringBuilder(length * 2)
+    var resultLength      = 0
+    var wasPrevTranslated = false
+    for (i <- 0 until length) {
+      var c = input.charAt(i)
+      if (i > 0 || c != '_') { // skip first starting underscore
+        if (Character.isUpperCase(c)) {
+          if (!wasPrevTranslated && resultLength > 0 && result.charAt(resultLength - 1) != '_') {
+            result.append('_')
+            resultLength += 1
+          }
+          c = Character.toLowerCase(c)
+          wasPrevTranslated = true
+        }
+        else wasPrevTranslated = false
+        result.append(c)
+        resultLength += 1
+      }
+    }
+    if (resultLength > 0) result.toString
+    else input
+  }
 
   def split[T](ctx: SealedTrait[PythonEncoder, T]): PythonEncoder[T] =
     new Typeclass[T] {
@@ -162,9 +229,24 @@ object PythonEncoder {
       override def decode(pyObj: Object): T =
         pyObj match {
           case hm: util.HashMap[String, Object] @unchecked =>
-            val name    = hm.get("_type").asInstanceOf[String]
-            val subtype = ctx.subtypes.find(_.typeName.full == name).get
-            subtype.typeclass.decode(pyObj)
+            val name = hm.get("_type").asInstanceOf[String]
+            ctx.subtypes.find(_.typeName.full == name) match {
+              case Some(st) =>
+                st.typeclass.decode(pyObj)
+              case None     => // TRY EVERYTHING
+                val maybe = ctx.subtypes
+                  .map { st =>
+                    Try {
+                      st.typeclass.decode(pyObj)
+                    }
+                  }
+                  .collectFirst { case Success(value) => value }
+                maybe match {
+                  case Some(v) => v
+                  case None    =>
+                    throw new IllegalArgumentException(s"Unable to pick sealed trait variant $hm")
+                }
+            }
         }
 
       override def clz: Class[_] = classOf[java.util.HashMap[String, Object]]
@@ -174,5 +256,7 @@ object PythonEncoder {
 
 }
 
-case class Person(name: String, age: Long)
-
+object PythonInterop{
+  def assignId(s:String): Long =
+    GraphBuilder.assignID(s)
+}
