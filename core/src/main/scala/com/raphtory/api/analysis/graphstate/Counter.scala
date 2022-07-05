@@ -1,10 +1,12 @@
 package com.raphtory.api.analysis.graphstate
 
+import scala.collection.mutable
+
 abstract class Counter[T] {
 
   def totalCount : Int
 
-  def getCounts : Map[T,Int]
+  def getCounts : mutable.Map[T,Int]
 
   def largest : (T,Int)
 

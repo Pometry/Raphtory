@@ -45,11 +45,19 @@ import scala.math.Numeric.Implicits.infixNumericOps
 
 private class CounterImplementation[T] () extends Counter[T] {
   var totalCount : Int = 0
-  var counts: Map[T, Int] = Map()
+  var counts: mutable.Map[T, Int] = mutable.Map[T,Int]()
 
-  override def getCounts: Map[T, Int] = counts
+  override def getCounts: mutable.Map[T, Int] = counts
   override def largest : (T,Int) = counts.maxBy(_._2)
   override def largest(k: Int): List[(T,Int)] = counts.toList.sortBy(_._2).takeRight(k.min(counts.size))
+
+  def +=(newValue: (T, Int)): Unit = this.synchronized{
+    if (counts.contains(newValue._1)) {
+      counts+=(newValue._1 -> (counts(newValue._1) + newValue._2))
+    } else {
+      counts+=(newValue._1 -> newValue._2)
+    }
+  }
 
 }
 
@@ -60,34 +68,33 @@ private object CounterImplementation {
 private class CounterAccumulatorImplementation[T](retainState:Boolean) extends AccumulatorImplementation[(T, Int),Counter[T]] {
   var value: Counter[T] = CounterImplementation()
   var currentValue: CounterImplementation[T] = CounterImplementation()
+
   override def merge(other: Counter[T]): Unit = {
     currentValue.totalCount += other.totalCount
-    val newCounts = (currentValue.getCounts ++ other.getCounts).groupBy(_._1).map { case (k,v) => k -> v.values.sum }
+    val (map1, map2) = (currentValue.getCounts, other.getCounts)
+    val newCounts = map1 ++ map2.map{case (k,v) => k -> (v + map1.getOrElse(k,0))}
     currentValue.counts = newCounts
-    }
+  }
 
   override def reset(): Unit = {
     if (retainState) {
       merge(value)
-    } else {
-      val tmp = value.asInstanceOf[CounterImplementation[T]]
-      value = currentValue
-      currentValue = tmp
-      currentValue.totalCount = 0
     }
+    val tmp = value.asInstanceOf[CounterImplementation[T]]
+    value = currentValue
+    currentValue = tmp
+    currentValue.totalCount = 0
   }
 
   /** Add new value to accumulator
     *
     * @param newValue Value to add
     */
-  override def +=(newValue: (T, Int)): Unit = {
-    if (currentValue.counts.contains(newValue._1)) {
-      currentValue.counts+=(newValue._1 -> (currentValue.counts(newValue._1) + newValue._2))
-    } else {
-      currentValue.counts+=(newValue._1 -> newValue._2)
-    }
-  }
+  override def +=(newValue: (T, Int)): Unit = currentValue+=newValue
+}
+
+private object CounterAccumulatorImplementation {
+  def apply[T](retainState:Boolean) = new CounterAccumulatorImplementation[T](retainState)
 }
 
 private class HistogramImplementation[T: Numeric](
@@ -223,7 +230,7 @@ private[raphtory] class GraphStateImplementation(override val nodeCount: Int) ex
       .asInstanceOf[AccumulatorImplementation[Any, Any]]
 
   override def newCounter[T](name: String, retainState: Boolean): Unit =
-    accumulatorState(name) = CounterImplementation[T]()
+    accumulatorState(name) = CounterAccumulatorImplementation[T](retainState)
     .asInstanceOf[AccumulatorImplementation[Any,Any]]
 
   override def newAll(name: String, retainState: Boolean): Unit =
