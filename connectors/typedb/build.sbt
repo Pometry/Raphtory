@@ -1,0 +1,10 @@
+name := "aws"
+version := "0.5"
+organization := "com.raphtory"
+scalaVersion := "2.13.7"
+libraryDependencies += "com.raphtory"                %% "core"      % "0.5"
+libraryDependencies += "com.vaticle.typedb" % "typedb-client" % "2.11.0"
+libraryDependencies += "com.univocity" % "univocity-parsers" % "2.9.1"
+libraryDependencies += "org.sharegov" % "mjson" % "1.4.1"
+resolvers += Resolver.mavenLocal
+resolvers += "repo.vaticle.com" at "https://repo.vaticle.com/repository/maven/"
