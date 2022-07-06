@@ -24,7 +24,7 @@ import scala.language.postfixOps
 class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Graph State Test") {
-    val expected = "c21170ae40544156af69000d2b0d6e8eaf5f593d3905810c7527f2e09b8e9172"
+    val expected = "5386ab26d807ceebc3be32ac6284c74a9e5f509db8443816ee10c5d6fadda582"
     algorithmTest(
             algorithm = GraphState(),
             start = 1,
