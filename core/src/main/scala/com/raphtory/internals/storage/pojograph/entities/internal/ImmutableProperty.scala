@@ -2,8 +2,6 @@ package com.raphtory.internals.storage.pojograph.entities.internal
 
 import com.raphtory.api.analysis.visitor.PropertyValue
 
-import math.Ordering.Implicits._
-
 private[raphtory] class ImmutableProperty(creationTime: Long, index: Long, value: Any) extends Property {
   private var propertyValue: PropertyValue[Any]   = PropertyValue(creationTime, index, value)
   override def valueAt(time: Long): Iterable[Any] = if (time >= propertyValue.time) Some(propertyValue.value) else None
@@ -19,8 +17,11 @@ private[raphtory] class ImmutableProperty(creationTime: Long, index: Long, value
     else
       Array(propertyValue)
 
-  override def update(msgTime: Long, index: Long, newValue: Any): Unit =
-    propertyValue = propertyValue.min(PropertyValue(msgTime, index, newValue))
+  override def update(msgTime: Long, index: Long, newValue: Any): Unit = {
+    val updateValue = PropertyValue(msgTime, index, newValue)
+    if (updateValue < propertyValue)
+      propertyValue = updateValue
+  }
 
   override def currentValue: Any = propertyValue.value
   override def creation: Long    = propertyValue.time

@@ -5,6 +5,8 @@ import io.sqooba.oss.timeseries.TimeSeries
 import io.sqooba.oss.timeseries.immutable.EmptyTimeSeries
 import io.sqooba.oss.timeseries.immutable.TSEntry
 
+import scala.math.Ordered.orderingToOrdered
+
 /** Common base class for [[Edge]] and [[Vertex]]
   *
   * The `EntityVisitor` class defines the interface for accessing properties (set when the graph is constructed)
@@ -272,11 +274,18 @@ abstract class EntityVisitor {
   *
   * @see [[EntityVisitor]], [[Vertex]], [[Edge]]
   */
-case class HistoricEvent(time: Long, index: Long, event: Boolean = true)
+case class HistoricEvent(time: Long, index: Long, event: Boolean = true) extends IndexedValue {
 
-object HistoricEvent {
-  implicit val ordering: Ordering[HistoricEvent] = Ordering.by(event => (event.time, event.index))
+  override def sameValue(that: IndexedValue): Boolean =
+    that match {
+      case HistoricEvent(otime, _, oevent) => otime == time && oevent == event
+      case _                               => false
+    }
 }
+
+//object HistoricEvent {
+//  implicit val ordering: Ordering[IndexedValue] = IndexedValue.ordering[IndexedValue]
+//}
 
 /** Case class for encoding property value updates
   *
@@ -284,8 +293,27 @@ object HistoricEvent {
   * @param index Index of update
   * @param value new property value
   */
-case class PropertyValue[A](time: Long, index: Long, value: A = null)
+case class PropertyValue[A](time: Long, index: Long, value: A = null) extends IndexedValue {
 
-object PropertyValue {
-  implicit def ordering[T]: Ordering[PropertyValue[T]] = Ordering.by(v => (v.time, v.index))
+  override def sameValue(that: IndexedValue): Boolean =
+    that match {
+      case PropertyValue(otime, _, ovalue) => otime == time && ovalue == value
+      case _                               => false
+    }
+}
+
+trait IndexedValue extends Ordered[IndexedValue] {
+  def time: Long
+  def index: Long
+
+  def compare(that: IndexedValue): Int = (time, index) compare (that.time, that.index)
+  def sameValue(that: IndexedValue): Boolean
+}
+
+//object IndexedValue {
+//  implicit def ordering[T <: IndexedValue]: Ordering[T] = Ordering.by(v => (v.time, v.index))
+//}
+
+case class SearchPoint(time: Long, index: Long) extends IndexedValue {
+  override def sameValue(that: IndexedValue): Boolean = that.time == time
 }

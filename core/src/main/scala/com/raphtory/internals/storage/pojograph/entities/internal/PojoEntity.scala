@@ -1,11 +1,18 @@
 package com.raphtory.internals.storage.pojograph.entities.internal
 
 import com.raphtory.api.analysis.visitor.HistoricEvent
+import com.raphtory.api.analysis.visitor.IndexedValue
+import com.raphtory.api.analysis.visitor.PropertyValue
+import com.raphtory.api.analysis.visitor.SearchPoint
 import com.raphtory.internals.storage.pojograph.OrderedBuffer._
 
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
+import scala.collection.IndexedSeqView
 import scala.collection.mutable
+import com.raphtory.internals.storage.pojograph.History
+
+import scala.math.Ordering.Implicits.infixOrderingOps
 
 case class Index[T: Ordering](time: Long, secondaryIndex: T)
 
@@ -28,12 +35,15 @@ abstract private[raphtory] class PojoEntity(
   val properties: mutable.Map[String, Property] = mutable.Map[String, Property]()
 
   // History of that entity
-  var history: mutable.ArrayBuffer[HistoricEvent] = mutable.ArrayBuffer.empty
+  val history: History[HistoricEvent]             = History()
+  history.insert(HistoricEvent(creationTime, index, isInitialValue))
   var deletions: mutable.ListBuffer[(Long, Long)] = mutable.ListBuffer.empty
-  history sortedAppend HistoricEvent(creationTime, index, isInitialValue)
 
-  def oldestPoint: Long = history(0).time
-  def latestPoint: Long = history(history.length - 1).time
+  def oldestPoint: Long = history.first.time
+  def latestPoint: Long = history.last.time
+
+  def viewHistoryBetween(after: Long, before: Long): IndexedSeqView[HistoricEvent] =
+    history.slice(SearchPoint(after, Long.MinValue), SearchPoint(before, Long.MaxValue))
 
   // History of that entity
   def deletionList: List[(Long, Long)] = deletions.toList
@@ -47,10 +57,10 @@ abstract private[raphtory] class PojoEntity(
   def getType: String = entityType
 
   def revive(msgTime: Long, index: Long): Unit =
-    history sortedAppend HistoricEvent(msgTime, index, event = true)
+    history insert HistoricEvent(msgTime, index, event = true)
 
   def kill(msgTime: Long, index: Long): Unit = {
-    history sortedAppend HistoricEvent(msgTime, index, event = false)
+    history insert HistoricEvent(msgTime, index, event = false)
     deletions sortedAppend (msgTime, index)
   }
 
@@ -68,34 +78,28 @@ abstract private[raphtory] class PojoEntity(
           properties.put(key, new MutableProperty(msgTime, index, value))
     }
 
-  def wipe(): Unit = history = mutable.ArrayBuffer()
+  def wipe(): Unit = history.clear()
 
-  protected def closestTime(time: Long, index: Long): HistoricEvent =
-    if (time < oldestPoint)
-      HistoricEvent(-1, -1, false)
-    else {
-      val point = history.search(HistoricEvent(time, index, true))
-      point match {
-        case Found(i)          => history(i)
-        case InsertionPoint(i) => history(i - 1)
-      }
+  def aliveAt(time: Long): Boolean =
+    history.closest(time, Long.MaxValue) match {
+      case Some(h) => h.event
+      case None    => false
     }
-
-  def aliveAt(time: Long): Boolean = if (time < oldestPoint) false else closestTime(time, Long.MaxValue).event
 
   // startTime and endTime are inclusive. The existence of exclusive bounds is handled externally
   def aliveBetween(startTime: Long, endTime: Long): Boolean =
-    if (endTime < oldestPoint)
-      false
-    else {
-      val closest = closestTime(endTime, Long.MaxValue)
-      if (startTime <= closest.time)
-        closest.event // TODO: Check the logic for what should happen if entity is alive for part of the window
-      else false
+    history.closest(endTime, Long.MaxValue) match {
+      case None    => false
+      case Some(h) =>
+        if (startTime <= h.time)
+          h.event // TODO: Check the logic for what should happen if entity is alive for part of the window
+        else false
     }
 
-  def activityAfter(time: Long)             = history.exists(k => k.time >= time)
-  def activityBefore(time: Long)            = history.exists(k => k.time <= time)
-  def activityBetween(min: Long, max: Long) = history.exists(k => k.time >= min && k.time <= max)
+  def activityAfter(time: Long): Boolean  = history.after(SearchPoint(time, Long.MinValue)).nonEmpty
+  def activityBefore(time: Long): Boolean = history.before(SearchPoint(time, Long.MaxValue)).nonEmpty
+
+  def activityBetween(min: Long, max: Long): Boolean =
+    history.slice(SearchPoint(min, Long.MinValue), SearchPoint(max, Long.MaxValue)).nonEmpty
 
 }

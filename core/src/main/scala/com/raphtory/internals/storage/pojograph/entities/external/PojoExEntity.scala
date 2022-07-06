@@ -21,16 +21,7 @@ abstract private[pojograph] class PojoExEntity(
     this(entity, view, view.start, view.end)
   }
 
-  protected lazy val historyInView: IndexedSeqView[HistoricEvent] = {
-    val history    = entity.history
-    val startIndex = entity.history.search(HistoricEvent(start, Long.MinValue)).insertionPoint
-    val endIndex   = entity.history.search(HistoricEvent(end, Long.MaxValue)) match {
-      case Found(i)          => i + 1
-      case InsertionPoint(i) => i
-    }
-
-    history.view.slice(startIndex, endIndex)
-  }
+  protected lazy val historyInView: IndexedSeqView[HistoricEvent] = entity.viewHistoryBetween(start, end)
 
   def Type(): String = entity.getType
 

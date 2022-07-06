@@ -7,7 +7,7 @@ private[raphtory] class PojoEdge(msgTime: Long, index: Long, srcId: Long, dstId:
         extends PojoEntity(msgTime, index, initialValue) {
 
   def killList(vKills: List[(Long, Long)]): Unit =
-    history sortedExtend vKills.map(x => HistoricEvent(x._1, x._2, false))
+    history.extend(vKills.map(x => HistoricEvent(x._1, x._2, false)))
 
   def getSrcId: Long = srcId
   def getDstId: Long = dstId
