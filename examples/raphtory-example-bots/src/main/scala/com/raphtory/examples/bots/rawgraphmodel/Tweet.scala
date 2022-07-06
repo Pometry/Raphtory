@@ -1,16 +1,17 @@
-package rawgraphmodel
+package com.raphtory.examples.bots.rawgraphmodel
 
 case class Tweet (
                    author_id: Option[Long],
                    conversation_id: Option[Long],
                    created_at: Option[Long],
-                   id: Option[Long],
+                   id: Option[String],
                    in_reply_to_user_id: Option[Long],
                    lang: Option[String],
                    public_metrics: Option[Public_Metrics],
-                   //                   referenced_tweets: Option[Seq[Referenced_Tweet]],
+                   referenced_tweets: Option[String],
                    source: Option[String],
-                   text: Option[String]
+                   text: Option[String],
+                   //                   parent: Option[Tweet]
                  )
 
 case class Public_Metrics (
@@ -24,6 +25,7 @@ case class Referenced_Tweet (
                               reference_type: Option[String],
                               id: Option[Long]
                             )
+
 
 
 

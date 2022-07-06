@@ -1,4 +1,4 @@
-package rawgraphmodel
+package com.raphtory.examples.bots.graphbuilders
 
 object TwitterEntityType extends Enumeration {
   val user: Value  = Value("user")
