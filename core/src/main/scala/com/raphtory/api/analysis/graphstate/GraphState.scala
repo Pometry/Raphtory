@@ -212,13 +212,10 @@ abstract class GraphState {
 
   /** Create a new counter that tracks the counts of a categorical graph quantity
     *
-    * @param name Name for the histogram
-    * @param noBins Number of histogram bins
-    * @param minValue Minimum data value for distribution
-    * @param maxValue Maximum data value distribution
+    * @param name Name for the counter
     * $retainState
     *
-    * @tparam T Type of histogram values
+    * @tparam T Type of counted values
     */
   def newCounter[T](
                                 name: String,
