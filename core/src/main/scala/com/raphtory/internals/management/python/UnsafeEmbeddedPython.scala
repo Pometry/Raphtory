@@ -1,36 +1,54 @@
 package com.raphtory.internals.management.python
 
-import com.raphtory.internals.management.PyRef
-import com.raphtory.internals.management.PythonEncoder
-import pemja.core.PythonInterpreter
-import pemja.core.PythonInterpreterConfig
+import cats.Id
+import com.raphtory.api.input.GraphBuilder
+import com.raphtory.internals.management.{PyRef, PythonEncoder, PythonInterop}
+import pemja.core.{PythonInterpreter, PythonInterpreterConfig}
 
-import java.nio.file.Path
-import java.nio.file.Paths
+import java.nio.file.{Path, Paths}
+import scala.util.Using
 
-class UnsafeEmbeddedPython(py: PythonInterpreter, private var i: Int = 0) extends AutoCloseable { self =>
+class UnsafeEmbeddedPython(py: PythonInterpreter, private var i: Int = 0)
+        extends EmbeddedPython[Id]
+        with AutoCloseable { self =>
 
-  def loadGraphBuilder[T: PythonEncoder](cls: String, pkg: String): UnsafeGraphBuilder[T] = {
+  def loadGraphBuilder[T:PythonEncoder](cls: String, pkg: String): Id[GraphBuilder[T]] = {
     py.exec(s"import $pkg")
-    val name = s"pyref_$i"
-    i += 1
+    val name: String = newVar
     py.exec(s"$name = $pkg.$cls()")
     new UnsafeGraphBuilder[T](PyRef(name), self)
   }
 
-  private[management] def invoke(ref: PyRef, methodName: String, args: Vector[Object] = Vector.empty) =
+  def invoke(ref: PyRef, methodName: String, args: Vector[Object] = Vector.empty): Id[Unit] =
     py.invokeMethod(ref.name, methodName, args: _*)
 
-  private[management] def eval[T](expr: String)(implicit PE: PythonEncoder[T]): T = {
-    val name  = s"tmp_$i"
-    i += 1
-    py.exec(s"$name = $expr")
-    val pyObj = py.get(name, PE.clz.asSubclass(classOf[Object]))
-    py.exec(s"del $name")
-    PE.decode(pyObj)
-  }
+  def eval[T](expr: String)(implicit PE: PythonEncoder[T]): Id[T] =
+    Using(tmpVar) {
+      case TmpVar(name) =>
+        py.exec(s"$name = $expr")
+        val pyObj = py.get(name, PE.clz.asSubclass(classOf[Object]))
+        PE.decode(pyObj)
+    }.get
 
   override def close(): Unit = py.close()
+
+  private def tmpVar = {
+    val name = s"tmp_$i"
+    i += 1
+    TmpVar(name)
+  }
+
+  private def newVar = {
+    val name = s"pyref_$i"
+    i += 1
+    name
+  }
+
+  case class TmpVar(name: String) extends AutoCloseable {
+
+    override def close(): Unit =
+      py.exec(s"del $name")
+  }
 }
 
 object UnsafeEmbeddedPython {
@@ -42,6 +60,8 @@ object UnsafeEmbeddedPython {
     )
 
   def apply(pythonPaths: Path*): UnsafeEmbeddedPython = {
+    //
+    val x = PythonInterop.assignId("zx")
     val builder =
       PythonInterpreterConfig
         .newBuilder()

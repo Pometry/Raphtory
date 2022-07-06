@@ -1,4 +1,6 @@
-from pyraphtory.extra import Algorithm, Sink
+from pyraphtory.extra import Sink
+from pyraphtory.vertex import Step, Iterate
+import dill as pickle
 
 
 class TemporalGraphConnection:
@@ -13,8 +15,18 @@ class TemporalGraphConnection:
         g = self.jvm_graph.past()
         return TemporalGraphConnection(g)
 
-    def execute(self, algo: Algorithm):
-        g = self.jvm_graph.execute(algo.jvm_algo)
+    # def execute(self, algo: Algorithm):
+    #     g = self.jvm_graph.execute(algo.jvm_algo)
+    #     return TemporalGraphConnection(g)
+
+    def step(self, s: Step):
+        step_bytes = pickle.dumps(s)
+        g = self.jvm_graph.pythonStep(step_bytes)
+        return TemporalGraphConnection(g)
+
+    def iterate(self, i: Iterate):
+        iterate_bytes = pickle.dumps(i)
+        g = self.jvm_graph.pythonIterate(iterate_bytes, i.iterations, i.execute_messaged_only)
         return TemporalGraphConnection(g)
 
     def write_to(self, s: Sink):
@@ -23,4 +35,3 @@ class TemporalGraphConnection:
 
     def wait_for_job(self):
         self.jvm_graph.waitForJobInf()
-

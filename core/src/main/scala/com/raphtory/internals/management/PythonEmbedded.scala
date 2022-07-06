@@ -1,18 +1,22 @@
 package com.raphtory.internals.management
 
-import cats.{Applicative, Monad}
-import cats.effect.{Async, Resource}
+import cats.Applicative
+import cats.Monad
+import cats.effect.Async
+import cats.effect.Resource
 import cats.syntax.all._
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
-import pemja.core.{PythonInterpreter, PythonInterpreterConfig}
+import pemja.core.PythonInterpreter
+import pemja.core.PythonInterpreterConfig
 
 import java.nio.file.Path
 import java.util
 import java.util.concurrent.Callable
 import scala.collection.mutable
 import scala.reflect.ClassTag
-import scala.util.{Success, Try}
+import scala.util.Success
+import scala.util.Try
 
 class PythonEmbedded[IO[_]](py: PythonInterpreter, private var i: Int = 0)(implicit IO: Async[IO]) { self =>
 
@@ -40,10 +44,23 @@ class PythonEmbedded[IO[_]](py: PythonInterpreter, private var i: Int = 0)(impli
       a
     }
 
+  private[management] def withUnsafePy[T](f: PythonInterpreter => T): IO[T] =
+    IO.blocking {
+      f(py)
+    }
+
   private[management] def javaInterop(c: Callable[String]): IO[Unit] =
     IO.blocking {
       py.set("a", c)
       py.exec("a.call()")
+    }
+
+  def set(eval: Any): IO[PyRef] =
+    IO.blocking {
+      val name = s"tmp_$i"
+      i += 1
+      py.set(name, eval)
+      PyRef(name)
     }
 }
 
@@ -51,14 +68,17 @@ object PythonEmbedded {
 
   def apply[IO[_]: Async](pythonPaths: Path*): Resource[IO, PythonEmbedded[IO]] =
     for {
-      config <-
-        Resource.eval(Async[IO].blocking {
-          pythonPaths
-            .foldLeft(PythonInterpreterConfig.newBuilder().setPythonExec("/home/murariuf/.virtualenvs/raphtory/bin/python3")) { (b, path) =>
-              b.addPythonPaths(path.toAbsolutePath.toString)
-            }
-            .build()
-        })
+      config <- Resource.eval(Async[IO].blocking {
+                  pythonPaths
+                    .foldLeft(
+                            PythonInterpreterConfig
+                              .newBuilder()
+                              .setPythonExec("/home/murariuf/.virtualenvs/raphtory/bin/python3")
+                    ) { (b, path) =>
+                      b.addPythonPaths(path.toAbsolutePath.toString)
+                    }
+                    .build()
+                })
       py     <- Resource.fromAutoCloseable(Async[IO].blocking(new PythonInterpreter(config))).map(new PythonEmbedded(_))
     } yield py
 
