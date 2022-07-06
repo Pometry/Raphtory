@@ -1,6 +1,8 @@
 package com.raphtory.internals.storage.pojograph.entities.internal
 
 import com.raphtory.api.analysis.visitor.PropertyValue
+import com.raphtory.api.analysis.visitor.SearchPoint
+import com.raphtory.internals.storage.pojograph.History
 import com.raphtory.internals.storage.pojograph.OrderedBuffer._
 
 import scala.collection.Searching.Found
@@ -14,38 +16,29 @@ import scala.math.Ordering.Implicits.infixOrderingOps
   */
 private[raphtory] class MutableProperty(creationTime: Long, index: Long, value: Any) extends Property {
 
-  private val previousState: mutable.ArrayBuffer[PropertyValue[Any]] =
-    mutable.ArrayBuffer(PropertyValue(creationTime, index, value))
+  private val previousState: History[PropertyValue[Any]] = History()
+  previousState.insert(PropertyValue(creationTime, index, value))
 
-  private def earliest: PropertyValue[Any] = previousState.head
+  private def earliest: PropertyValue[Any] = previousState.first
   override def creation: Long              = earliest.time
 
   def update(msgTime: Long, index: Long, value: Any): Unit = {
     val newValue = PropertyValue(msgTime, index, value)
-    previousState.sortedAppend(newValue)
+    previousState.insert(newValue)
   }
 
   def valueAt(time: Long): collection.Iterable[Any] =
-    if (time < earliest.time)
-      Seq.empty
-    else {
-      val start = previousState.search(PropertyValue[Any](time, Long.MinValue)).insertionPoint
-      val end   = previousState.search(PropertyValue[Any](time, Long.MaxValue), start, previousState.size) match {
-        case Found(i)          => i + 1
-        case InsertionPoint(i) => i
-      }
-      previousState.slice(start, end).map(_.value)
-    }
+    previousState.slice(SearchPoint(time, Long.MinValue), SearchPoint(time + 1, Long.MinValue)).map(_.value)
 
   override def valueHistory(
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): Iterable[PropertyValue[Any]] =
-    previousState.filter(x => (x.time >= after) && (x.time <= before))
+    previousState.slice(SearchPoint(after, Long.MinValue), SearchPoint(before + 1, Long.MinValue))
 
-  def currentValue: Any = previousState.head.value
-  def currentTime: Long = previousState.head.time
+  def currentValue: Any = previousState.last.value
+  def currentTime: Long = previousState.last.time
 
-  override def values: Iterable[PropertyValue[Any]] = previousState
+  override def values: Iterable[PropertyValue[Any]] = previousState.buffer
 
 }
