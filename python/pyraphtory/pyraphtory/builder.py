@@ -54,6 +54,9 @@ class BaseBuilder:
     def get_actions(self):
         return self.actions
 
+    def reset_actions(self):
+        self.actions.clear()
+
     def parse_tuple(self, line: str):
         src_node, target_node, timestamp, *_ = line.split(",")
 

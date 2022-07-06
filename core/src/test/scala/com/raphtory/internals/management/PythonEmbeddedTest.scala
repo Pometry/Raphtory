@@ -1,17 +1,13 @@
 package com.raphtory.internals.management
 
 import cats.effect.IO
-import com.raphtory.api.input.ImmutableProperty
-import com.raphtory.api.input.Properties
-import com.raphtory.api.input.Type
-import com.raphtory.internals.graph.GraphAlteration.EdgeAdd
-import com.raphtory.internals.graph.GraphAlteration.VertexAdd
+import com.raphtory.api.input.{ImmutableProperty, Properties, Type}
+import com.raphtory.internals.graph.GraphAlteration.{EdgeAdd, VertexAdd}
 import munit.CatsEffectSuite
 
 import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 class PythonEmbeddedTest extends CatsEffectSuite {
   test("can startup an embedded Python") {
@@ -22,6 +18,10 @@ class PythonEmbeddedTest extends CatsEffectSuite {
       for {
         b      <- py.loadGraphBuilder("BaseBuilder", "builder")
         actual <- b.parseTuple("Frodo,Sam,32666")
+        _ <- py.javaInterop(() => {
+          println("HELLO CALLABLE!")
+          "blerg"
+        })
       } yield assertEquals(
               actual,
               Vector(

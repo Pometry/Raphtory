@@ -1,23 +1,18 @@
 package com.raphtory.internals.management
 
+import cats.{Applicative, Monad}
+import cats.effect.{Async, Resource}
 import cats.syntax.all._
-import cats.Applicative
-import cats.Monad
-import cats.effect.Async
-import cats.effect.Resource
-import com.fasterxml.jackson.databind.PropertyNamingStrategies.SnakeCaseStrategy
-import com.raphtory.api.input.{GraphBuilder, ImmutableProperty, Property, Type}
+import com.raphtory.api.input.GraphBuilder
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
-import com.raphtory.internals.graph.GraphAlteration.VertexAdd
-import pemja.core.PythonInterpreter
-import pemja.core.PythonInterpreterConfig
+import pemja.core.{PythonInterpreter, PythonInterpreterConfig}
 
 import java.nio.file.Path
 import java.util
+import java.util.concurrent.Callable
 import scala.collection.mutable
 import scala.reflect.ClassTag
-import scala.util.Success
-import scala.util.Try
+import scala.util.{Success, Try}
 
 class PythonEmbedded[IO[_]](py: PythonInterpreter, private var i: Int = 0)(implicit IO: Async[IO]) { self =>
 
@@ -35,24 +30,21 @@ class PythonEmbedded[IO[_]](py: PythonInterpreter, private var i: Int = 0)(impli
       py.invokeMethod(ref.name, methodName, args: _*)
     }
 
-  private[management] def get[T](expr: String, clz: Class[T]): IO[T] =
-    IO.blocking {
-      val name = s"tmp_$i"
-      i += 1
-      py.exec(s"$name = $expr; print($name)")
-      py.get(name, clz)
-    }
-
-  private[management] def getT[T](expr: String)(implicit PE: PythonEncoder[T]): IO[T] =
+  private[management] def eval[T](expr: String)(implicit PE: PythonEncoder[T]): IO[T] =
     IO.blocking {
       val name  = s"tmp_$i"
       i += 1
-      py.exec(s"$name = $expr; print($name)")
+      py.exec(s"$name = $expr")
       val pyObj = py.get(name, PE.clz.asSubclass(classOf[Object]))
       val a     = PE.decode(pyObj)
       a
     }
 
+  private[management] def javaInterop(c: Callable[String]): IO[Unit] =
+    IO.blocking {
+      py.set("a", c)
+      py.exec("a.call()")
+    }
 }
 
 object PythonEmbedded {
@@ -61,17 +53,15 @@ object PythonEmbedded {
     for {
       config <-
         Resource.eval(Async[IO].blocking {
-          val builder =
-            PythonInterpreterConfig.newBuilder().setPythonExec("/home/murariuf/.virtualenvs/raphtory/bin/python3")
           pythonPaths
-            .foldLeft(builder) { (b, path) =>
-              println(s"adding $path")
+            .foldLeft(PythonInterpreterConfig.newBuilder().setPythonExec("/home/murariuf/.virtualenvs/raphtory/bin/python3")) { (b, path) =>
               b.addPythonPaths(path.toAbsolutePath.toString)
             }
             .build()
         })
       py     <- Resource.fromAutoCloseable(Async[IO].blocking(new PythonInterpreter(config))).map(new PythonEmbedded(_))
     } yield py
+
 }
 
 /**
@@ -85,7 +75,7 @@ class PythonGraphBuilder[IO[_]: Monad](ref: PyRef, py: PythonEmbedded[IO]) {
 
   def parseTuple(line: String) =
     py.invoke(ref, "parse_tuple", Vector(line)) *>
-      py.getT[Vector[GraphUpdate]](s"${ref.name}.get_actions()")
+      py.eval[Vector[GraphUpdate]](s"${ref.name}.get_actions()")
 
 }
 
@@ -164,8 +154,9 @@ object PythonEncoder {
     }
 
   // ******* TYPE CLASS DERIVATION ******* //
-  import language.experimental.macros
   import magnolia1._
+
+  import language.experimental.macros
   type Typeclass[T] = PythonEncoder[T]
 
   def join[T](ctx: CaseClass[PythonEncoder, T]): PythonEncoder[T] =
@@ -256,7 +247,8 @@ object PythonEncoder {
 
 }
 
-object PythonInterop{
-  def assignId(s:String): Long =
+object PythonInterop {
+
+  def assignId(s: String): Long =
     GraphBuilder.assignID(s)
 }
