@@ -1,5 +1,8 @@
 package com.raphtory.network
 
+import cats.effect.IO
+import cats.effect.Resource
+import cats.effect.unsafe.implicits.global
 import org.scalatest.funsuite.AnyFunSuite
 import com.dimafeng.testcontainers.DockerComposeContainer
 import com.dimafeng.testcontainers.ForAllTestContainer
@@ -7,6 +10,7 @@ import com.raphtory.Raphtory
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.communication.ExclusiveTopic
 import com.raphtory.internals.communication.connectors.AkkaConnector
+import munit.CatsEffectSuite
 import org.scalatest.DoNotDiscover
 
 import java.io.File
@@ -28,6 +32,21 @@ class UnreliableNetworkTest extends AnyFunSuite with ForAllTestContainer {
 
   override val container: DockerComposeContainer = DockerComposeContainer(composeFile, env = env)
 
+//  private val listeningConnector: Fixture[AkkaConnector] =
+//    ResourceSuiteLocalFixture("listening-connector", AkkaConnector[IO](AkkaConnector.SeedMode, config))
+//
+//  private val clientConnector: Fixture[AkkaConnector] =
+//    ResourceSuiteLocalFixture("client-connector", AkkaConnector[IO](AkkaConnector.ClientMode, config))
+
+  private val makeListeningConnector = AkkaConnector[IO](AkkaConnector.SeedMode, config)
+
+  private val makeClientConnector = AkkaConnector[IO](AkkaConnector.ClientMode, config)
+
+  private val connectors = for {
+    listeningConnector <- makeListeningConnector
+    clientConnector    <- makeClientConnector
+  } yield (listeningConnector, clientConnector)
+
   @tailrec
   private def sendNMessages(endPoint: EndPoint[Request], numberOfMessages: Int): Unit =
     if (numberOfMessages > 0) {
@@ -48,24 +67,24 @@ class UnreliableNetworkTest extends AnyFunSuite with ForAllTestContainer {
   }
 
   test("package drop") {
-    val listeningConnector: AkkaConnector = ??? //new AkkaConnector(AkkaConnector.SeedMode, config)
-    val clientConnector: AkkaConnector    = ??? // new AkkaConnector(AkkaConnector.ClientMode, config)
-    val messagesToSend                    = 1000
 
-    val listeningTopic = ExclusiveTopic[Request](listeningConnector, "request-topic")
-    val listener       = listeningConnector.register("id", Counter.handleMessage, Seq(listeningTopic))
-    listener.start()
+    val messagesToSend = 1000
 
-    val endPoint = ExclusiveTopic[Request](clientConnector, "request-topic").endPoint
+    val countResultComputation = connectors.use {
+      case (listeningConnector, clientConnector) =>
+        val listeningTopic = ExclusiveTopic[Request](listeningConnector, "request-topic")
+        val listener       = listeningConnector.register("id", Counter.handleMessage, Seq(listeningTopic))
+        listener.start()
 
-    sendNMessages(endPoint, messagesToSend)
-    val countResult = waitForExpectedValue(0, messagesToSend)
+        val endPoint = ExclusiveTopic[Request](clientConnector, "request-topic").endPoint
+
+        sendNMessages(endPoint, messagesToSend)
+        IO(waitForExpectedValue(0, messagesToSend))
+    }
+
+    val countResult = countResultComputation.unsafeRunSync()
 
     assert(countResult === messagesToSend)
-
-    listener.close()
-    listeningConnector.shutdown()
-    clientConnector.shutdown()
   }
 }
 
