@@ -58,6 +58,7 @@ lazy val root = (project in file("."))
           examplesLotr,
           examplesTwitter,
           examplesNFT,
+          examplesBots,
           deploy
   )
 
@@ -65,7 +66,7 @@ lazy val core = (project in file("core"))
   .settings(
           name := "core",
           assembly / test := {},
-          scalafmtOnCompile := false,
+          scalafmtOnCompile := true,
           Compile / doc / scalacOptions := Seq(
                   "-skip-packages",
                   "com.raphtory.algorithms.generic:com.raphtory.algorithms.temporal:com.raphtory.algorithms.filters",
@@ -153,6 +154,9 @@ lazy val examplesNFT =
   (project in file("examples/raphtory-example-nft"))
     .dependsOn(core)
     .settings(assemblySettings)
+
+lazy val examplesBots =
+  (project in file("examples/raphtory-example-bots")).dependsOn(core).settings(assemblySettings)
 
 lazy val deploy =
   (project in file("deploy"))

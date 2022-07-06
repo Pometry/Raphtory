@@ -1,4 +1,4 @@
-package graphbuilders
+package com.raphtory.examples.bots.graphbuilders
 
 import com.raphtory.api.input.{GraphBuilder, ImmutableProperty, Properties, Type}
 

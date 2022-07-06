@@ -1,5 +1,6 @@
-package rawgraphmodel
+package com.raphtory.examples.bots.rawgraphmodel
 
+import com.raphtory.examples.bots.rawgraphmodel.{Public_Metrics, Tweet}
 import spray.json._
 
 object TweetJsonProtocol extends DefaultJsonProtocol {
@@ -43,24 +44,39 @@ object TweetJsonProtocol extends DefaultJsonProtocol {
       new Tweet(
         getLong("author_id"),
         getLong("conversation_id"),
-        getLong("create_at"),
+        getLong("created_at"),
         //        getField("created_at") match {
         //          case Some(s) => Some(s.replaceAll("\"", ""))
         //          case None    => None
         //        },
-        getLong("id"),
-        getLong("in_reply_to_user"),
+        getField("id"),
+        getRawField("in_reply_to_user_id") match {
+          case Some(i) =>
+            if (i == JsNull) {
+              Some(0L)
+            }
+            else {
+              Some(i.convertTo[Long])
+            }
+          case None    => None
+
+        },
         getField("lang"),
         getRawField("public_metrics") match {
           case Some(p) => Some(p.convertTo[Public_Metrics])
           case None    => None
         },
+        getField("referenced_tweets"),
         //        getRawField("referenced_tweets") match {
         //          case Some(r) => Some(r.convertTo[Referenced_Tweet])
         //          case None    => None
         //        },
         getField("source"),
-        getField("text")
+        getField("text"),
+        //        getRawField("parent") match {
+        //          case Some(p) => Some(p.convertTo[Tweet])
+        //          case None    => None
+        //        }
       )
     }
   }
