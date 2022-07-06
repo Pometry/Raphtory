@@ -11,6 +11,6 @@ private[raphtory] object AkkaTopicRepository {
 
   def apply[IO[_]: Sync](config: Config): Resource[IO, TopicRepository] = {
     val connectorResource = AkkaConnector(AkkaConnector.StandaloneMode, config)
-    connectorResource.map(akkaConnector => new TopicRepository(akkaConnector, config, Array()))
+    connectorResource.map(akkaConnector => TopicRepository(akkaConnector, config))
   }
 }

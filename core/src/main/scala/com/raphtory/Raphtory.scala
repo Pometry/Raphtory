@@ -7,9 +7,9 @@ import com.raphtory.api.analysis.graphview.TemporalGraphConnection
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
 import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.communication.repositories.PulsarAkkaClusterTopicRepository
-import com.raphtory.internals.communication.repositories.PulsarAkkaTopicRepository
-import com.raphtory.internals.communication.repositories.PulsarTopicRepository
+import com.raphtory.internals.communication.connectors.AkkaConnector
+import com.raphtory.internals.communication.repositories.DistributedTopicRepository
+import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import com.raphtory.internals.components.graphbuilder.BuildExecutorGroup
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManager
@@ -133,7 +133,7 @@ object Raphtory {
     for {
       _         <- Py4JServer.fromEntryPoint[IO](this, config)
       _         <- Prometheus[IO](prometheusPort)
-      topicRepo <- PulsarAkkaClusterTopicRepository[IO](config)
+      topicRepo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config)
     } yield (topicRepo, config)
   }
 
@@ -187,7 +187,7 @@ object Raphtory {
     val scheduler      = new Scheduler()
     for {
       _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
-      topicRepo          <- PulsarAkkaTopicRepository(config)
+      topicRepo          <- LocalTopicRepository(config)
       _                  <- QueryManager(config, topicRepo)
       _                  <- {
         if (batchLoading) Resource.eval(IO.unit)
