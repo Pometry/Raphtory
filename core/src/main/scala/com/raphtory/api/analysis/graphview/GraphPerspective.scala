@@ -186,6 +186,8 @@ trait GraphPerspective {
     */
   def step(f: (Vertex) => Unit): Graph
 
+  def pythonStep(pickleStep: Array[Byte]): Graph
+
   /** Execute algorithm step with global graph state (has access to accumulated state from
     * previous steps and allows for accumulation of new values)
     *
@@ -203,6 +205,7 @@ trait GraphPerspective {
     */
   def iterate(f: (Vertex) => Unit, iterations: Int, executeMessagedOnly: Boolean): Graph
 
+  def pythonIterate(pickleIterate: Array[Byte], iterations: Long, executeMessagedOnly: Boolean): Graph
   /** Execute algorithm step with global graph state repeatedly for given number of iterations or
     * until all vertices have voted to halt.
     *

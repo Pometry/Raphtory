@@ -158,6 +158,11 @@ private[api] trait GraphViewImplementation[
 
   override def step(f: (V) => Unit): G = addFunction(Step(f))
 
+  override def pythonStep(pickledPyObj:Array[Byte]): G = {
+    println(s"OLA STEP! ${pickledPyObj.length}")
+    this
+  }
+
   override def step(f: (V, GraphState) => Unit): G =
     addFunction(StepWithGraph(f))
 
@@ -166,6 +171,11 @@ private[api] trait GraphViewImplementation[
       iterations: Int,
       executeMessagedOnly: Boolean
   ): G = addFunction(Iterate(f, iterations, executeMessagedOnly))
+
+  override def pythonIterate(pyObj: Array[Byte], iterations:Long, executeMessagedOnly: Boolean): G = {
+    println(s"OLA ITERATE! ${pyObj.length}")
+    this
+  }
 
   override def iterate(
       f: (V, GraphState) => Unit,

@@ -10,5 +10,9 @@ trait EmbeddedPython[IO[_]] {
 
   def eval[T](expr: String)(implicit PE: PythonEncoder[T]): IO[T]
 
-  def loadGraphBuilder[T: PythonEncoder](cls: String, pkg: String): GraphBuilder[T]
+  def run(script: String): IO[Unit]
+
+  def loadGraphBuilder[T: PythonEncoder](cls: String, pkg: Option[String]): IO[GraphBuilder[T]]
+
+  def set(name:String, obj:Any):IO[Unit]
 }

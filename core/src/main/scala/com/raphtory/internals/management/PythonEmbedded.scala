@@ -271,4 +271,8 @@ object PythonInterop {
 
   def assignId(s: String): Long =
     GraphBuilder.assignID(s)
+
+  def bytesMe(o: Object) = {
+    println(o)
+  }
 }

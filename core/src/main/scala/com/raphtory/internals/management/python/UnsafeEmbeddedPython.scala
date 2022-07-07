@@ -2,7 +2,7 @@ package com.raphtory.internals.management.python
 
 import cats.Id
 import com.raphtory.api.input.GraphBuilder
-import com.raphtory.internals.management.{PyRef, PythonEncoder, PythonInterop}
+import com.raphtory.internals.management.{PyRef, PythonEncoder}
 import pemja.core.{PythonInterpreter, PythonInterpreterConfig}
 
 import java.nio.file.{Path, Paths}
@@ -12,10 +12,10 @@ class UnsafeEmbeddedPython(py: PythonInterpreter, private var i: Int = 0)
         extends EmbeddedPython[Id]
         with AutoCloseable { self =>
 
-  def loadGraphBuilder[T:PythonEncoder](cls: String, pkg: String): Id[GraphBuilder[T]] = {
-    py.exec(s"import $pkg")
+  def loadGraphBuilder[T: PythonEncoder](cls: String, pkg: Option[String]): Id[GraphBuilder[T]] = {
+    pkg.foreach(pkg =>py.exec( s"from $pkg import $cls")) // import the class if it's in a package
     val name: String = newVar
-    py.exec(s"$name = $pkg.$cls()")
+    py.exec(s"$name = $cls()")
     new UnsafeGraphBuilder[T](PyRef(name), self)
   }
 
@@ -29,6 +29,9 @@ class UnsafeEmbeddedPython(py: PythonInterpreter, private var i: Int = 0)
         val pyObj = py.get(name, PE.clz.asSubclass(classOf[Object]))
         PE.decode(pyObj)
     }.get
+
+  def run(script: String): Id[Unit] =
+    py.exec(script)
 
   override def close(): Unit = py.close()
 
@@ -49,19 +52,21 @@ class UnsafeEmbeddedPython(py: PythonInterpreter, private var i: Int = 0)
     override def close(): Unit =
       py.exec(s"del $name")
   }
+
+  override def set(name: String, obj: Any): Id[Unit] = {
+    py.set(name, obj)
+  }
 }
 
 object UnsafeEmbeddedPython {
 
   def defaultPaths: Seq[Path] =
     Vector(
-            Paths.get("/pometry/Source/Raphtory/python/pyraphtory/pyraphtory"),
+            Paths.get("/pometry/Source/Raphtory/python/pyraphtory"),
             Paths.get("/home/murariuf/.virtualenvs/raphtory/lib/python3.8/site-packages")
     )
 
   def apply(pythonPaths: Path*): UnsafeEmbeddedPython = {
-    //
-    val x = PythonInterop.assignId("zx")
     val builder =
       PythonInterpreterConfig
         .newBuilder()

@@ -1,3 +1,6 @@
+from abc import abstractmethod
+
+
 class Vertex:
     def __init__(self, jvm_v):
         self.v = jvm_v
@@ -21,25 +24,12 @@ class Vertex:
         self.v.vote_to_halt()
 
 
-class RaphtoryStep:
+class Step(object):
     pass
 
 
-class Step(RaphtoryStep):
-    def eval(self, v: Vertex):
-        v['cclabel'] = v.id()
-        v.message_all_neighbours(v.id())
+class Iterate(object):
 
-
-class Iterate(RaphtoryStep):
     def __init__(self, iterations: int, execute_messaged_only: bool):
-        self.iterations = iterations,
+        self.iterations = iterations
         self.execute_messaged_only = execute_messaged_only
-
-    def eval(self, v: Vertex):
-        label = min(v.message_queue())
-        if label < v['cclabel']:
-            v['cclabel'] = label
-            v.message_all_neighbours(label)
-        else:
-            v.vote_to_halt()
