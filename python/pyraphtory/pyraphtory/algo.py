@@ -6,7 +6,7 @@ class Vertex:
         self.v.set_state(key, value)
 
     def __getitem__(self, key):
-        self.v.get_state(key, False)
+        return self.v.get_state(key, True)
 
     def id(self):
         return self.v.ID()
@@ -34,3 +34,9 @@ class Iterate(object):
     def __init__(self, iterations: int, execute_messaged_only: bool):
         self.iterations = iterations
         self.execute_messaged_only = execute_messaged_only
+
+    def eval_from_jvm(self, jvm_vertex):
+        self.eval(Vertex(jvm_vertex))
+
+    def eval(self, v):
+        pass

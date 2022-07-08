@@ -1,5 +1,6 @@
 package com.raphtory.internals.components.partition
 
+import cats.Id
 import com.raphtory.api.analysis.graphview.ClearChain
 import com.raphtory.api.analysis.graphview.DirectedView
 import com.raphtory.api.analysis.graphview.ExplodeSelect
@@ -49,7 +50,9 @@ import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.management.Scheduler
-import com.raphtory.internals.management.python.{PythonStepEvaluator, UnsafeEmbeddedPythonProxy}
+import com.raphtory.internals.management.python.PythonIterateEvaluator
+import com.raphtory.internals.management.python.PythonStepEvaluator
+import com.raphtory.internals.management.python.UnsafeEmbeddedPythonProxy
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -61,7 +64,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable
 import scala.io.Source
-import scala.util.{Try, Using}
+import scala.util.Try
+import scala.util.Using
 
 private[raphtory] class QueryExecutor(
     partitionID: Int,
@@ -350,6 +354,16 @@ private[raphtory] class QueryExecutor(
                   .currentTimeMillis() - time}ms and sent '$sentMessages' messages.")
             }
           }
+        case PythonStep(p)                                                    =>
+          Using(Source.fromFile("/pometry/Source/Raphtory/python/pyraphtory/sample.py")) { file =>
+            py.run(file.mkString)
+          }
+
+          Using(new PythonStepEvaluator[Id](p, py)) { eval =>
+            evaluateStep(time, eval)
+          }.get
+        case Step(f: (Vertex => Unit))                                        =>
+          evaluateStep(time, f)
 
         case UndirectedView()                                              =>
           startStep()
@@ -393,9 +407,16 @@ private[raphtory] class QueryExecutor(
             }
           }
 
-        case _: PythonIterate                                                 =>
-          println("BOOM ITERATE")
-          ???
+        case p: PythonIterate                                                 =>
+          Using(Source.fromFile("/pometry/Source/Raphtory/python/pyraphtory/sample.py")) { file =>
+            py.run(file.mkString)
+          } // FIXME this needs to receive the actual PY file (possibly when the python instance is started)
+          Using(new PythonIterateEvaluator[Id](p.bytes, py)) { eval =>
+            evaluateIterate(time, eval, p.executeMessagedOnly)
+          }.get
+        case Iterate(f: (Vertex => Unit), iterations, executeMessagedOnly)    =>
+          evaluateIterate(time, f, executeMessagedOnly)
+
         case ReversedView()                                                =>
           startStep()
           graphLens.viewReversed() {
@@ -544,6 +565,36 @@ private[raphtory] class QueryExecutor(
         errorHandler(e)
     }
     logger.debug(s"Partition $partitionID handled message $msg in ${System.currentTimeMillis() - time}ms")
+  }
+
+  private def evaluateIterate(time: Long, f: Vertex => Unit, executeMessagedOnly: Boolean): Unit = {
+    startStep()
+    val fun =
+      if (executeMessagedOnly)
+        graphLens.runMessagedGraphFunction(f)(_)
+      else
+        graphLens.runGraphFunction(f)(_)
+    fun {
+      finaliseStep {
+        val sentMessages     = sentMessageCount.get()
+        val receivedMessages = receivedMessageCount.get()
+
+        taskManager sendAsync
+          GraphFunctionComplete(
+                  currentPerspectiveID,
+                  partitionID,
+                  receivedMessages,
+                  sentMessages,
+                  graphLens.checkVotes()
+          )
+
+        votedToHalt = graphLens.checkVotes()
+        logger.debug(
+                s"Job '$jobID' at Partition '$partitionID': Iterate function completed in ${System
+                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to $executeMessagedOnly."
+        )
+      }
+    }
   }
 
   private def evaluateStep(time: Long, f: Vertex => Unit) = {

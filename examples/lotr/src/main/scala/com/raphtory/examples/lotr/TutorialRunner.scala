@@ -36,6 +36,7 @@ object TutorialRunner extends App {
     .at(32674)
     .past()
     .step { vertex =>
+      println(vertex.ID)
       vertex.setState("cclabel", vertex.ID)
       vertex.messageAllNeighbours(vertex.ID)
     }

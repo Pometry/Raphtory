@@ -64,15 +64,6 @@ object PyRaphtory
           _        <- Resource.eval(IO.blocking(py.run("RaphtoryContext(TemporalGraph(raphtory_graph)).eval()")))
         } yield graph)
           .use { graph =>
-//            IO {
-//              val output = FileSink("/tmp/raphtory")
-//              graph
-//                .at(32674)
-//                .past()
-//                .execute(ConnectedComponents())
-//                .writeTo(output)
-//                .waitForJob()
-//            }
             IO.sleep(FiniteDuration(50, "s")) *> IO.unit
           }
           .map(_ => ExitCode.Success)

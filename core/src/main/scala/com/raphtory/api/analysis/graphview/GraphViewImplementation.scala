@@ -163,9 +163,8 @@ private[api] trait GraphViewImplementation[
 
   override def step(f: V => Unit): G = addFunction(Step(f))
 
-  override def pythonStep(pickledPyObj: Array[Byte]): G = {
+  override def pythonStep(pickledPyObj: Array[Byte]): G =
     addFunction(PythonStep(pickledPyObj))
-  }
 
   override def step(f: (V, GraphState) => Unit): G =
     addFunction(StepWithGraph(f))
@@ -179,15 +178,16 @@ private[api] trait GraphViewImplementation[
   override def pythonIterate(pyObj: Array[Byte], iterations: Long, executeMessagedOnly: Boolean): G =
     addFunction(PythonIterate(pyObj, iterations, executeMessagedOnly))
 
-  override def pythonSelect(columns:Array[Object]): Table = {
-    val cols = columns.collect{case s:String => s}.toVector
+  override def pythonSelect(columns: Array[Object]): Table = {
+    val cols = columns.collect { case s: String => s }.toVector
     this.select { vertex =>
-      val maybeStrings =
-        cols.flatMap(name => vertex.getStateOrElse(name, Option.empty[String], includeProperties = true))
-      val row          = vertex.name() +: maybeStrings
+      val maybeObjects =
+        cols.flatMap(name => Option(vertex.getStateOrElse[Object](name, null, includeProperties = true)))
+      val row          = vertex.name() +: maybeObjects
       Row(row: _*)
     }
   }
+
   override def iterate(
       f: (V, GraphState) => Unit,
       iterations: Int,
