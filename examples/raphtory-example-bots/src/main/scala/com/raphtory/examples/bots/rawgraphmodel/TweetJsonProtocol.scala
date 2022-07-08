@@ -49,7 +49,7 @@ object TweetJsonProtocol extends DefaultJsonProtocol {
         //          case Some(s) => Some(s.replaceAll("\"", ""))
         //          case None    => None
         //        },
-        getField("id"),
+        getLong("id"),
         getRawField("in_reply_to_user_id") match {
           case Some(i) =>
             if (i == JsNull) {
@@ -73,10 +73,7 @@ object TweetJsonProtocol extends DefaultJsonProtocol {
         //        },
         getField("source"),
         getField("text"),
-        //        getRawField("parent") match {
-        //          case Some(p) => Some(p.convertTo[Tweet])
-        //          case None    => None
-        //        }
+        getField("label")
       )
     }
   }
