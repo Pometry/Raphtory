@@ -60,17 +60,23 @@ private[pojograph] class PojoReversedExplodedEdge(
     override val view: PojoGraphLens,
     override val ID: Long,
     override val timePoint: IndexedValue
-) extends PojoExplodedEdge(objectEdge, view, ID, timePoint) {}
+) extends PojoExplodedEdge(objectEdge, view, ID, timePoint) {
+  override def src: Long = edge.getDstId
+
+  override def dst: Long = edge.getSrcId
+}
 
 private[pojograph] object PojoReversedExplodedEdge {
 
-  def fromExplodedEdge(pojoExEdge: PojoExplodedEdge): PojoReversedExplodedEdge =
+  def fromExplodedEdge(pojoExEdge: PojoExplodedEdge): PojoReversedExplodedEdge = {
+    val id = if (pojoExEdge.ID == pojoExEdge.src) pojoExEdge.dst else pojoExEdge.src
     new PojoReversedExplodedEdge(
             pojoExEdge.edge,
             pojoExEdge.view,
-            pojoExEdge.ID,
+            id,
             pojoExEdge.timePoint
     )
+  }
 
   def fromReversedEdge(pojoExReversedEdge: PojoExReversedEdge, timestamp: IndexedValue): PojoReversedExplodedEdge =
     new PojoReversedExplodedEdge(
