@@ -1,8 +1,10 @@
 package com.raphtory.formats
 
-import com.google.gson.Gson
-import com.google.gson.GsonBuilder
-import com.google.gson.stream.JsonWriter
+import com.fasterxml.jackson.core.JsonGenerator
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter
+import com.fasterxml.jackson.databind.ObjectWriter
+import com.fasterxml.jackson.databind.json.JsonMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.output.format.Format
 import com.raphtory.api.output.sink.SinkConnector
@@ -24,28 +26,13 @@ import java.io.StringWriter
   * the output might look as follows if `level` is set to `JsonFormat.GLOBAL`:
   * {{{
   * {
-  *   "jobID": "EdgeCount",
-  *   "partitionID": 0,
-  *   "perspectives": [
-  *     {
-  *       "timestamp": 10,
-  *       "window": null,
-  *       "rows": [
-  *         [
-  *           "id1",
-  *           12
-  *         ],
-  *         [
-  *           "id2",
-  *           13
-  *         ],
-  *         [
-  *           "id3",
-  *           24
-  *         ]
-  *       ]
-  *     }
-  *   ]
+  *   "jobID" : "EdgeCount",
+  *   "partitionID" : 0,
+  *   "perspectives" : [ {
+  *     "timestamp" : 10,
+  *     "window" : null,
+  *     "rows" : [ [ "id1", 12 ], [ "id2", 13 ], [ "id3", 24 ] ]
+  *   } ]
   * }
   * }}}
   *
@@ -74,27 +61,30 @@ case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
       case JsonFormat.ROW    => rowLevelExecutor(connector)
     }
 
-  private def printPerspectiveProperties(jsonWriter: JsonWriter, perspective: Perspective): Unit = {
-    jsonWriter.name("timestamp").value(perspective.timestamp)
+  private def printPerspectiveProperties(generator: JsonGenerator, perspective: Perspective): Unit = {
+    generator.writeNumberField("timestamp", perspective.timestamp)
+    generator.writeFieldName("window")
     perspective.window match {
-      case Some(DiscreteInterval(interval)) => jsonWriter.name("window").value(interval)
-      case Some(TimeInterval(interval))     => jsonWriter.name("window").value(interval.toString)
-      case _                                => jsonWriter.name("window").nullValue()
+      case Some(DiscreteInterval(interval)) => generator.writeNumber(interval)
+      case Some(TimeInterval(interval))     => generator.writeString(interval.toString)
+      case _                                => generator.writeNull()
     }
   }
 
-  private def printRowObject(jsonWriter: JsonWriter, gson: Gson, row: Row): Unit =
-    gson.toJson(row.getValues(), classOf[Array[Any]], jsonWriter)
+  private def printRowObject(generator: JsonGenerator, serializer: ObjectWriter, row: Row): Unit =
+    serializer.writeValue(generator, row.getValues())
 
-  private def flush(stringWriter: StringWriter, connector: SinkConnector): Unit = {
+  private def flush(generator: JsonGenerator, stringWriter: StringWriter, connector: SinkConnector): Unit = {
+    generator.flush()
     connector.write(stringWriter.toString)
     stringWriter.getBuffer.setLength(0)
   }
 
   private def rowLevelExecutor(connector: SinkConnector): SinkExecutor =
     new SinkExecutor {
-      private val gson         = new GsonBuilder().setPrettyPrinting().create()
       private val stringWriter = new StringWriter()
+      private val mapper       = JsonMapper.builder().addModule(DefaultScalaModule).build()
+      private val serializer   = mapper.writer()
 
       private var currentPerspective: Perspective = _
 
@@ -102,14 +92,14 @@ case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
         currentPerspective = perspective
 
       override protected def writeRow(row: Row): Unit = {
-        val jsonWriter = new JsonWriter(stringWriter)
-        jsonWriter.beginObject()
-        printPerspectiveProperties(jsonWriter, currentPerspective)
-        jsonWriter.name("row")
-        printRowObject(jsonWriter, gson, row)
-        jsonWriter.endObject()
+        val generator = mapper.createGenerator(stringWriter)
+        generator.writeStartObject()
+        printPerspectiveProperties(generator, currentPerspective)
+        generator.writeFieldName("row")
+        printRowObject(generator, serializer, row)
+        generator.writeEndObject()
 
-        flush(stringWriter, connector)
+        flush(generator, stringWriter, connector)
         connector.closeItem()
       }
 
@@ -123,41 +113,41 @@ case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
       partitionID: Int
   ): SinkExecutor =
     new SinkExecutor {
-      private val gson                   = new GsonBuilder().setPrettyPrinting().create()
-      private val stringWriter           = new StringWriter()
-      private val jsonWriter: JsonWriter = new JsonWriter(stringWriter)
+      private val stringWriter = new StringWriter()
+      private val mapper       = JsonMapper.builder().addModule(DefaultScalaModule).build()
+      private val serializer   = mapper.writer()
+      private val generator    = mapper.createGenerator(stringWriter)
 
-      jsonWriter.setIndent("  ")
-      jsonWriter.beginObject()
-      jsonWriter.name("jobID").value(jobID)
-      jsonWriter.name("partitionID").value(partitionID)
-      jsonWriter.name("perspectives")
-      jsonWriter.beginArray()
-      flush(stringWriter, connector)
+      generator.setPrettyPrinter(new DefaultPrettyPrinter())
+
+      generator.writeStartObject()
+      generator.writeStringField("jobID", jobID)
+      generator.writeNumberField("partitionID", partitionID)
+      generator.writeArrayFieldStart("perspectives")
+      flush(generator, stringWriter, connector)
 
       override def setupPerspective(perspective: Perspective): Unit = {
-        jsonWriter.beginObject()
-        printPerspectiveProperties(jsonWriter, perspective)
-        jsonWriter.name("rows")
-        jsonWriter.beginArray()
-        flush(stringWriter, connector)
+        generator.writeStartObject()
+        printPerspectiveProperties(generator, perspective)
+        generator.writeArrayFieldStart("rows")
+        flush(generator, stringWriter, connector)
       }
 
       override protected def writeRow(row: Row): Unit = {
-        printRowObject(jsonWriter, gson, row)
-        flush(stringWriter, connector)
+        printRowObject(generator, serializer, row)
+        flush(generator, stringWriter, connector)
       }
 
       override def closePerspective(): Unit = {
-        jsonWriter.endArray()
-        jsonWriter.endObject()
-        flush(stringWriter, connector)
+        generator.writeEndArray()
+        generator.writeEndObject()
+        flush(generator, stringWriter, connector)
       }
 
       override def close(): Unit = {
-        jsonWriter.endArray()
-        jsonWriter.endObject()
-        flush(stringWriter, connector)
+        generator.writeEndArray()
+        generator.writeEndObject()
+        flush(generator, stringWriter, connector)
         connector.closeItem()
         connector.close()
       }
