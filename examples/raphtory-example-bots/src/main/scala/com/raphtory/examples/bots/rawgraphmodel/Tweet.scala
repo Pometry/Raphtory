@@ -4,14 +4,14 @@ case class Tweet (
                    author_id: Option[Long],
                    conversation_id: Option[Long],
                    created_at: Option[Long],
-                   id: Option[String],
+                   id: Option[Long],
                    in_reply_to_user_id: Option[Long],
                    lang: Option[String],
                    public_metrics: Option[Public_Metrics],
                    referenced_tweets: Option[String],
                    source: Option[String],
                    text: Option[String],
-                   //                   parent: Option[Tweet]
+                   label: Option[String]
                  )
 
 case class Public_Metrics (
