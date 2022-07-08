@@ -5,6 +5,7 @@ import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.input.{ImmutableProperty, Properties, Type}
 import com.raphtory.internals.components.querymanager.VertexMessage
 import com.raphtory.internals.graph.GraphAlteration.{EdgeAdd, VertexAdd}
+import com.raphtory.internals.management.python.PythonVertex
 import com.raphtory.internals.storage.pojograph.{PojoBasedPartition, PojoGraphLens}
 import com.raphtory.internals.storage.pojograph.entities.external.PojoExVertex
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoVertex
@@ -96,18 +97,3 @@ class PythonEmbeddedTest extends CatsEffectSuite {
   override def munitTimeout: Duration = FiniteDuration(1, TimeUnit.DAYS)
 }
 
-class PythonVertex(v: Vertex) {
-  def ID: Any = v.ID
-
-  def message_queue[T]: util.List[T] = v.messageQueue[T].asJava
-
-  def message_all_neighbours(msg: Any): Unit = v.messageAllNeighbours(msg)
-
-  def set_state(key: String, value: Any): Unit = v.setState(key, value)
-
-  def get_state[T](key: String, includeProperties: Boolean): T =
-    v.getState[T](key, includeProperties = includeProperties)
-
-  def vote_to_halt(): Unit = v.voteToHalt()
-
-}

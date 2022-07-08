@@ -3,6 +3,7 @@ package com.raphtory.api.analysis.table
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.querytracker.QueryProgressTracker
 import com.raphtory.internals.components.querymanager.QueryManagement
+import com.raphtory.sinks.FileSink
 sealed private[raphtory] trait TableFunction extends QueryManagement
 
 final private[raphtory] case class TableFilter(f: (Row) => Boolean)     extends TableFunction
@@ -45,4 +46,8 @@ trait Table {
     * @param sink [[com.raphtory.api.output.sink.Sink Sink]] for writing results
     */
   def writeTo(sink: Sink): QueryProgressTracker
+
+  def writeToFile(name:String): QueryProgressTracker = {
+    writeTo(FileSink(name))
+  }
 }

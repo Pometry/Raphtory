@@ -7,14 +7,20 @@ import cats.syntax.all._
 import com.monovore.decline._
 import com.monovore.decline.effect._
 import com.raphtory.Raphtory
+import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.api.analysis.algorithm.BaseAlgorithm
+import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.algorithm.GenericallyApplicable
+import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.internals.management.python.UnsafeEmbeddedPythonProxy
+import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
 
 import java.nio.file.Files
 import java.nio.file.Path
+import scala.concurrent.duration.FiniteDuration
 import scala.io.Source
-import scala.util.Using
 
 object PyRaphtory
         extends CommandIOApp(
@@ -36,6 +42,7 @@ object PyRaphtory
 
     val res: Opts[ConMode] = local orElse distributed
     val py                 = UnsafeEmbeddedPythonProxy()
+    val builderPy          = UnsafeEmbeddedPythonProxy()
 
     val path = "/tmp/lotr.csv"
     val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
@@ -45,12 +52,30 @@ object PyRaphtory
       case (file, Local, builderClass) =>
         (for {
           pyScript <- Resource.fromAutoCloseable(IO.blocking(Source.fromFile(file.toFile)))
-          _        <- Resource.eval(IO.blocking(py.run(pyScript.mkString)))
-          builder  <- Resource.eval(IO.blocking(py.loadGraphBuilder[String](builderClass, None)))
+          // ONE PYTHON FOR THE BUILDER
+          script    = pyScript.mkString
+          _        <- Resource.eval(IO.blocking(builderPy.run(script)))
+          builder  <- Resource.eval(IO.blocking(builderPy.loadGraphBuilder[String](builderClass, None)))
+          // ONE PYTHON FOR THE EVALUATOR
+          _        <- Resource.eval(IO.blocking(py.run(script)))
           graph    <- Raphtory.loadIO(spout = FileSpout(path), graphBuilder = builder)
+//          _        <- Resource.eval(IO.sleep(FiniteDuration(10, "s")))
           _        <- Resource.eval(IO.blocking(py.set("raphtory_graph", graph)))
-          _ <- Resource.eval(IO.blocking(py.run("RaphtoryContext(TemporalGraph(raphtory_graph)).eval()")))
-        } yield ()).use(_ => IO.pure(ExitCode.Success))
+          _        <- Resource.eval(IO.blocking(py.run("RaphtoryContext(TemporalGraph(raphtory_graph)).eval()")))
+        } yield graph)
+          .use { graph =>
+//            IO {
+//              val output = FileSink("/tmp/raphtory")
+//              graph
+//                .at(32674)
+//                .past()
+//                .execute(ConnectedComponents())
+//                .writeTo(output)
+//                .waitForJob()
+//            }
+            IO.sleep(FiniteDuration(50, "s")) *> IO.unit
+          }
+          .map(_ => ExitCode.Success)
     }
   }
 

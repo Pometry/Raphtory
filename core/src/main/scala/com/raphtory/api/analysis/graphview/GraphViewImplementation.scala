@@ -46,20 +46,25 @@ final private[raphtory] case class UndirectedView() extends GraphFunction
 
 final private[raphtory] case class ReversedView() extends GraphFunction
 
-final private[raphtory] case class Step(f: (_) => Unit) extends GraphFunction
+final private[raphtory] case class Step[V <: Vertex](f: (V) => Unit) extends GraphFunction
+
+final private[raphtory] case class PythonStep(pyObj: Array[Byte]) extends GraphFunction
 
 final private[raphtory] case class StepWithGraph(
     f: (_, GraphState) => Unit
 ) extends GlobalGraphFunction
 
-final private[raphtory] case class Iterate(
-    f: (_) => Unit,
+final private[raphtory] case class Iterate[V <: Vertex](
+    f: V => Unit,
     iterations: Int,
     executeMessagedOnly: Boolean
 ) extends GraphFunction
 
-final private[raphtory] case class IterateWithGraph(
-    f: (_, GraphState) => Unit,
+final private[raphtory] case class PythonIterate(bytes: Array[Byte], iterations: Long, executeMessagedOnly: Boolean)
+        extends GraphFunction
+
+final private[raphtory] case class IterateWithGraph[V <: Vertex](
+    f: (V, GraphState) => Unit,
     iterations: Int,
     executeMessagedOnly: Boolean
 ) extends GlobalGraphFunction
@@ -156,11 +161,10 @@ private[api] trait GraphViewImplementation[
     else filtered
   }
 
-  override def step(f: (V) => Unit): G = addFunction(Step(f))
+  override def step(f: V => Unit): G = addFunction(Step(f))
 
-  override def pythonStep(pickledPyObj:Array[Byte]): G = {
-    println(s"OLA STEP! ${pickledPyObj.length}")
-    this
+  override def pythonStep(pickledPyObj: Array[Byte]): G = {
+    addFunction(PythonStep(pickledPyObj))
   }
 
   override def step(f: (V, GraphState) => Unit): G =
@@ -172,11 +176,18 @@ private[api] trait GraphViewImplementation[
       executeMessagedOnly: Boolean
   ): G = addFunction(Iterate(f, iterations, executeMessagedOnly))
 
-  override def pythonIterate(pyObj: Array[Byte], iterations:Long, executeMessagedOnly: Boolean): G = {
-    println(s"OLA ITERATE! ${pyObj.length}")
-    this
-  }
+  override def pythonIterate(pyObj: Array[Byte], iterations: Long, executeMessagedOnly: Boolean): G =
+    addFunction(PythonIterate(pyObj, iterations, executeMessagedOnly))
 
+  override def pythonSelect(columns:Array[Object]): Table = {
+    val cols = columns.collect{case s:String => s}.toVector
+    this.select { vertex =>
+      val maybeStrings =
+        cols.flatMap(name => vertex.getStateOrElse(name, Option.empty[String], includeProperties = true))
+      val row          = vertex.name() +: maybeStrings
+      Row(row: _*)
+    }
+  }
   override def iterate(
       f: (V, GraphState) => Unit,
       iterations: Int,

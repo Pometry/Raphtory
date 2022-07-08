@@ -13,7 +13,7 @@ class UnsafeEmbeddedPython(py: PythonInterpreter, private var i: Int = 0)
         with AutoCloseable { self =>
 
   def loadGraphBuilder[T: PythonEncoder](cls: String, pkg: Option[String]): Id[GraphBuilder[T]] = {
-    pkg.foreach(pkg =>py.exec( s"from $pkg import $cls")) // import the class if it's in a package
+    pkg.foreach(pkg => py.exec(s"from $pkg import $cls")) // import the class if it's in a package
     val name: String = newVar
     py.exec(s"$name = $cls()")
     new UnsafeGraphBuilder[T](PyRef(name), self)
@@ -53,9 +53,8 @@ class UnsafeEmbeddedPython(py: PythonInterpreter, private var i: Int = 0)
       py.exec(s"del $name")
   }
 
-  override def set(name: String, obj: Any): Id[Unit] = {
+  override def set(name: String, obj: Any): Id[Unit] =
     py.set(name, obj)
-  }
 }
 
 object UnsafeEmbeddedPython {
@@ -73,11 +72,12 @@ object UnsafeEmbeddedPython {
         .setPythonExec("/home/murariuf/.virtualenvs/raphtory/bin/python3")
         .setExcType(PythonInterpreterConfig.ExecType.MULTI_THREAD)
 
-    val config = (pythonPaths ++ defaultPaths)
+    val config      = (pythonPaths ++ defaultPaths)
       .foldLeft(builder) { (b, path) =>
         b.addPythonPaths(path.toAbsolutePath.toString)
       }
       .build()
-    new UnsafeEmbeddedPython(new PythonInterpreter(config))
+    val interpreter = new PythonInterpreter(config)
+    new UnsafeEmbeddedPython(interpreter)
   }
 }

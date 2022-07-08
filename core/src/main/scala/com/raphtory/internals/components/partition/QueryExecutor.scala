@@ -7,6 +7,8 @@ import com.raphtory.api.analysis.graphview.GlobalSelect
 import com.raphtory.api.analysis.graphview.Iterate
 import com.raphtory.api.analysis.graphview.IterateWithGraph
 import com.raphtory.api.analysis.graphview.MultilayerView
+import com.raphtory.api.analysis.graphview.PythonIterate
+import com.raphtory.api.analysis.graphview.PythonStep
 import com.raphtory.api.analysis.graphview.ReduceView
 import com.raphtory.api.analysis.graphview.ReversedView
 import com.raphtory.api.analysis.graphview.Select
@@ -17,6 +19,7 @@ import com.raphtory.api.analysis.graphview.UndirectedView
 import com.raphtory.api.analysis.table.Explode
 import com.raphtory.api.analysis.table.TableFilter
 import com.raphtory.api.analysis.table.WriteToOutput
+import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.output.sink.SinkExecutor
 import com.raphtory.internals.communication.EndPoint
@@ -46,6 +49,7 @@ import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.management.Scheduler
+import com.raphtory.internals.management.python.{PythonStepEvaluator, UnsafeEmbeddedPythonProxy}
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -56,6 +60,8 @@ import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable
+import scala.io.Source
+import scala.util.{Try, Using}
 
 private[raphtory] class QueryExecutor(
     partitionID: Int,
@@ -80,6 +86,7 @@ private[raphtory] class QueryExecutor(
   private val maxBatchSize: Int     = conf.getInt("raphtory.partitions.maxMessageBatchSize")
 
   private val sync = new QuerySuperstepSync(totalPartitions)
+  private lazy val py               = UnsafeEmbeddedPythonProxy()
 
   if (messageBatch)
     logger.debug(
@@ -386,6 +393,9 @@ private[raphtory] class QueryExecutor(
             }
           }
 
+        case _: PythonIterate                                                 =>
+          println("BOOM ITERATE")
+          ???
         case ReversedView()                                                =>
           startStep()
           graphLens.viewReversed() {
@@ -407,25 +417,20 @@ private[raphtory] class QueryExecutor(
             }
           }
 
-        case Step(f)                                                       =>
-          startStep()
-          graphLens.runGraphFunction(f) {
-            finaliseStep {
-              val sentMessages     = sentMessageCount.get()
-              val receivedMessages = receivedMessageCount.get()
-              taskManager sendAsync
-                GraphFunctionComplete(
-                        currentPerspectiveID,
-                        partitionID,
-                        receivedMessages,
-                        sentMessages
-                )
+        case PythonStep(p)                                                    =>
 
-              logger
-                .debug(s"Job '$jobID' at Partition '$partitionID': Step function finished in ${System
-                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages.")
-            }
+          println("BOOM STEP")
+          Using(Source.fromFile("/pometry/Source/Raphtory/python/pyraphtory/sample.py")){
+            file =>
+              py.run(file.mkString)
           }
+
+          Using(new PythonStepEvaluator[Id](p, py)){
+            eval =>
+              evaluateStep(time, eval)
+          }.get
+        case Step(f: (Vertex => Unit))                                        =>
+          evaluateStep(time, f)
 
         case Iterate(f, iterations, executeMessagedOnly)                   =>
           startStep()
@@ -539,6 +544,27 @@ private[raphtory] class QueryExecutor(
         errorHandler(e)
     }
     logger.debug(s"Partition $partitionID handled message $msg in ${System.currentTimeMillis() - time}ms")
+  }
+
+  private def evaluateStep(time: Long, f: Vertex => Unit) = {
+    startStep()
+    graphLens.runGraphFunction(f) {
+      finaliseStep {
+        val sentMessages     = sentMessageCount.get()
+        val receivedMessages = receivedMessageCount.get()
+        taskManager sendAsync
+          GraphFunctionComplete(
+                  currentPerspectiveID,
+                  partitionID,
+                  receivedMessages,
+                  sentMessages
+          )
+
+        logger
+          .debug(s"Job '$jobID' at Partition '$partitionID': Step function finished in ${System
+            .currentTimeMillis() - time}ms and sent '$sentMessages' messages.")
+      }
+    }
   }
 
   def errorHandler(error: Throwable): Unit = {

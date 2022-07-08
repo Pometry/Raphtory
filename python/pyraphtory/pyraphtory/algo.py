@@ -1,6 +1,3 @@
-from abc import abstractmethod
-
-
 class Vertex:
     def __init__(self, jvm_v):
         self.v = jvm_v
@@ -25,7 +22,11 @@ class Vertex:
 
 
 class Step(object):
-    pass
+    def eval_from_jvm(self, jvm_vertex):
+        self.eval(Vertex(jvm_vertex))
+
+    def eval(self, v):
+        pass
 
 
 class Iterate(object):

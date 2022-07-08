@@ -78,7 +78,7 @@ object UnsafeEmbeddedPythonProxy {
           val value = queue.poll(100, TimeUnit.MILLISECONDS)
           value match {
             case null                                        => // loopy loop
-            case Set(name, obj, reply) =>
+            case Set(name, obj, reply)                       =>
               reply.complete(Try(py.set(name, obj)))
             case Run(script, reply)                          =>
               reply.complete(Try(py.run(script)))
@@ -114,5 +114,5 @@ case class NewGraphBuilder[T](cls: String, pkg: Option[String], reply: Promise[G
     val PE: PythonEncoder[T]
 ) extends PyMsg[GraphBuilder[Any]]
 
-case class Run(script: String, reply: Promise[Any]) extends PyMsg[Any]
-case class Set(script: String, obj:Any, reply: Promise[Any]) extends PyMsg[Any]
+case class Run(script: String, reply: Promise[Any])           extends PyMsg[Any]
+case class Set(script: String, obj: Any, reply: Promise[Any]) extends PyMsg[Any]

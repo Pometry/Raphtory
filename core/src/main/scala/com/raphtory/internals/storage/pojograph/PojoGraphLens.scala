@@ -183,12 +183,12 @@ final private[raphtory] case class PojoGraphLens(
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
-  def runGraphFunction(f: _ => Unit)(onComplete: => Unit): Unit = {
+  def runGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit = {
     var count: Int = 0
     val tasks      = vertexIterator
-      .map { vertex =>
+      .map { vertex:Vertex =>
         count += 1
-        IO(f.asInstanceOf[PojoVertexBase => Unit](vertex))
+        IO(f(vertex))
       }
       .iterator
       .to(Iterable)

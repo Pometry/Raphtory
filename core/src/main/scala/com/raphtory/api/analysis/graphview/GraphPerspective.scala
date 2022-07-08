@@ -10,6 +10,8 @@ import com.raphtory.api.analysis.visitor.InterlayerEdge
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy
 import PropertyMergeStrategy.PropertyMerge
 
+import scala.jdk.CollectionConverters.ListHasAsScala
+
 /** Public interface for graph operations
   *
   * The `GraphPerspective` is the interface for defining algorithms in Raphtory and records all operations to be
@@ -206,6 +208,9 @@ trait GraphPerspective {
   def iterate(f: (Vertex) => Unit, iterations: Int, executeMessagedOnly: Boolean): Graph
 
   def pythonIterate(pickleIterate: Array[Byte], iterations: Long, executeMessagedOnly: Boolean): Graph
+
+  def pythonSelect(column:Array[Object]): Table
+
   /** Execute algorithm step with global graph state repeatedly for given number of iterations or
     * until all vertices have voted to halt.
     *

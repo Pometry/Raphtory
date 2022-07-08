@@ -1,9 +1,26 @@
 import traceback
+from typing import List
 
 import cloudpickle as pickle
-
 from pyraphtory.algo import Iterate, Step
-from pyraphtory.extra import Sink
+
+
+class ProgressTracker(object):
+    def __init__(self, jvm_tracker):
+        self.jvm_tracker = jvm_tracker
+
+    def wait_for_job(self):
+        self.jvm_tracker.waitForJobInf()
+
+
+class Table(object):
+
+    def __init__(self, jvm_table):
+        self.jvm_table = jvm_table
+
+    def write_to_file(self, name: str):
+        g = self.jvm_table.writeToFile(name)
+        return ProgressTracker(g)
 
 
 class TemporalGraph(object):
@@ -36,9 +53,10 @@ class TemporalGraph(object):
             print(str(e))
             traceback.print_exc()
 
-    def write_to(self, s: Sink):
-        g = self.jvm_graph.writeTo(s.jvm_sink)
-        return TemporalGraph(g)
-
-    def wait_for_job(self):
-        self.jvm_graph.waitForJobInf()
+    def select(self, columns: List[str]):
+        try:
+            g = self.jvm_graph.pythonSelect(columns)
+            return Table(g)
+        except Exception as e:
+            print(str(e))
+            traceback.print_exc()
