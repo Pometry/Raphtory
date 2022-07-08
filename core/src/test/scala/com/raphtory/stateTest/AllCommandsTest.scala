@@ -45,8 +45,7 @@ class AllCommandsTest extends BaseRaphtoryAlgoTest[String] {
     }
 
   }
-
-  override def setSpout(): Spout[String] = FileSpout()
+  override def setSpout(): Spout[String] = FileSpout("/tmp/testupdates.csv")
 
   override def setGraphBuilder(): GraphBuilder[String] = new AllCommandsBuilder()
 

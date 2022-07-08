@@ -51,7 +51,14 @@ private[raphtory] class LocalBatchHandler[T: ClassTag](
   private def runIngestion(): Unit = {
     while (spout.hasNextIterator()) {
       startIngesting()
-      spout.nextIterator().foreach(graphBuilder.parseTuple)
+      spout.nextIterator().foreach(line => {
+        try {
+          graphBuilder.parseTuple(line)
+        }
+        catch {
+          case e: Exception => logger.info(s"Could not parse: ${line}. Fails with exception ${e.toString}")
+        }
+      })
     }
 
     stopIngesting()

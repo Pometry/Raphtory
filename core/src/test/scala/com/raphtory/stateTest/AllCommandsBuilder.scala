@@ -41,19 +41,15 @@ class AllCommandsBuilder extends GraphBuilder[String] {
 
       //send the srcID and properties to the graph manager
       addVertex(msgTime, srcId, properties)
-      logger.info(s"Adding Vertex and sending $srcId and $properties to graph manager")
     }
-    else {
+    else
       addVertex(msgTime, srcId)
-      logger.info(s"Adding Vertex and sending $srcId to graph manager")
-    }
     // if there are not any properties, just send the srcID
   }
 
   def vertexRemoval(command: JsObject): Unit = {
     val msgTime = command.fields("messageID").toString().toLong
     val srcId   = command.fields("srcID").toString().toInt //extract the srcID
-    logger.info(s"Deleting vertex $srcId")
     deleteVertex(msgTime, srcId)
   }
 
@@ -74,12 +70,9 @@ class AllCommandsBuilder extends GraphBuilder[String] {
       )
 
       addEdge(msgTime, srcId, dstId, properties)
-      logger.info(s"Added Edge with properties $properties")
     }
-    else {
+    else
       addEdge(msgTime, srcId, dstId)
-      logger.info("Added Edge with no properties")
-    }
   }
 
   def edgeRemoval(command: JsObject): Unit = {
@@ -87,7 +80,6 @@ class AllCommandsBuilder extends GraphBuilder[String] {
     val srcId   = command.fields("srcID").toString().toInt //extract the srcID
     val dstId   = command.fields("dstID").toString().toInt //extract the dstID
     deleteEdge(msgTime, srcId, dstId)
-    logger.info(s"Deleted Edge with $srcId and $dstId")
   }
 
 }
