@@ -1,5 +1,7 @@
 package com.raphtory.internals.storage.pojograph.entities.external.edge
 
+import com.raphtory.api.analysis.visitor.IndexedValue
+import com.raphtory.api.analysis.visitor.TimePoint
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.raphtory.internals.storage.pojograph.entities.external.PojoExEntity
 import com.raphtory.internals.storage.pojograph.entities.external.vertex._
@@ -7,24 +9,23 @@ import com.raphtory.internals.storage.pojograph.entities.internal.PojoEdge
 
 private[pojograph] class PojoExplodedEdge(
     val edge: PojoEdge,
-    val view: PojoGraphLens,
+    override val view: PojoGraphLens,
     override val ID: Long,
-    val start: Long,
-    override val timestamp: Long
-) extends PojoExEntity(edge, view, start, timestamp)
+    val timePoint: IndexedValue
+) extends PojoExEntity(edge, view, timePoint, timePoint)
         with PojoExDirectedEdgeBase[PojoExplodedEdge, Long]
         with PojoExplodedEdgeBase[Long] {
 
   override type Eundir = PojoExplodedEdgeBase[Long]
 
   override def reversed: PojoReversedExplodedEdge =
-    PojoReversedExplodedEdge.fromExplodedEdge(this, timestamp)
+    PojoReversedExplodedEdge.fromExplodedEdge(this)
 
   override def src: Long = edge.getSrcId
 
   override def dst: Long = edge.getDstId
 
-  override def end: Long = timestamp
+  override def timestamp: Long = timePoint.time
 
   override def combineUndirected(other: PojoExplodedEdge, asInEdge: Boolean): PojoExplodedInOutEdge =
     if (isIncoming)
@@ -35,13 +36,12 @@ private[pojograph] class PojoExplodedEdge(
 
 private[pojograph] object PojoExplodedEdge {
 
-  def fromEdge(pojoExEdge: PojoExEdge, timestamp: Long): PojoExplodedEdge =
+  def fromEdge(pojoExEdge: PojoExEdge, timePoint: IndexedValue): PojoExplodedEdge =
     new PojoExplodedEdge(
             pojoExEdge.edge,
             pojoExEdge.view,
             pojoExEdge.ID,
-            pojoExEdge.start,
-            timestamp
+            timePoint
     )
 }
 
@@ -52,34 +52,31 @@ private[pojograph] class PojoExplodedInOutEdge(
 ) extends PojoExInOutEdgeBase[PojoExplodedInOutEdge, PojoExplodedEdge, Long](in, out, asInEdge)
         with PojoExplodedEdgeBase[Long] {
 
-  override def timestamp: Long = in.timestamp
+  override def timePoint: IndexedValue = in.timePoint
 }
 
 private[pojograph] class PojoReversedExplodedEdge(
     objectEdge: PojoEdge,
     override val view: PojoGraphLens,
     override val ID: Long,
-    override val start: Long,
-    override val timestamp: Long
-) extends PojoExplodedEdge(objectEdge, view, ID, start, timestamp) {}
+    override val timePoint: IndexedValue
+) extends PojoExplodedEdge(objectEdge, view, ID, timePoint) {}
 
 private[pojograph] object PojoReversedExplodedEdge {
 
-  def fromExplodedEdge(pojoExEdge: PojoExplodedEdge, timestamp: Long): PojoReversedExplodedEdge =
+  def fromExplodedEdge(pojoExEdge: PojoExplodedEdge): PojoReversedExplodedEdge =
     new PojoReversedExplodedEdge(
             pojoExEdge.edge,
             pojoExEdge.view,
             pojoExEdge.ID,
-            pojoExEdge.start,
-            timestamp
+            pojoExEdge.timePoint
     )
 
-  def fromReversedEdge(pojoExReversedEdge: PojoExReversedEdge, timestamp: Long): PojoReversedExplodedEdge =
+  def fromReversedEdge(pojoExReversedEdge: PojoExReversedEdge, timestamp: IndexedValue): PojoReversedExplodedEdge =
     new PojoReversedExplodedEdge(
             pojoExReversedEdge.edge,
             pojoExReversedEdge.view,
             pojoExReversedEdge.ID,
-            pojoExReversedEdge.start,
             timestamp
     )
 }

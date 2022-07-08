@@ -38,7 +38,7 @@ case class BooleanProperty(key: String, value: Boolean) extends Property
 case class IntegerProperty(key: String, value: Integer) extends Property
 
 /** Wrapper class for properties */
-case class Properties(property: Vector[Property])
+case class Properties(properties: Vector[Property])
 
 object Properties {
   def apply(property: Property*): Properties = Properties(Vector.from(property))

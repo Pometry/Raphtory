@@ -2,23 +2,96 @@ package com.raphtory.internals.storage.pojograph
 
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.api.analysis.visitor.IndexedValue
-import com.raphtory.api.analysis.visitor.SearchPoint
+import com.raphtory.api.analysis.visitor.TimePoint
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
+import scala.collection.IndexedSeqOps
 import scala.collection.IndexedSeqView
 import scala.collection.mutable
 import scala.math.Ordering.Implicits.infixOrderingOps
 
-private[raphtory] class History[T <: IndexedValue] {
+trait HistoryOps[T <: IndexedValue] extends IndexedSeq[T] {
+  def first: T
+  def last: T
+  def slice(from: IndexedValue, until: IndexedValue): HistoryView[T]
+  def before(to: IndexedValue): HistoryView[T]
+  def after(from: IndexedValue): HistoryView[T]
+  def closest(time: IndexedValue): Option[T]
+  def iterateUniqueTimes: Iterator[T] = new IterateUniqueTimePoints[T](this)
+}
+
+private[raphtory] class IterateUniqueTimePoints[T <: IndexedValue](underlying: HistoryOps[T]) extends Iterator[T] {
+  private var index: Int     = 0
+  private var lastTime: Long = Long.MinValue
+
+  override def hasNext: Boolean = {
+    while (index < underlying.length && underlying(index).time == lastTime)
+      index += 1
+    index < underlying.length
+  }
+
+  override def next(): T =
+    if (hasNext) {
+      val value = underlying(index)
+      lastTime = value.time
+      value
+    }
+    else
+      throw new NoSuchElementException
+}
+
+private[raphtory] class HistoryView[T <: IndexedValue](startIndex: Int, endIndex: Int, buffer: mutable.ArrayBuffer[T])
+        extends HistoryOps[T] {
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+
+  def apply(i: Int): T =
+    buffer(startIndex + i)
+
+  def length: Int = endIndex - startIndex
+
+  def slice(from: IndexedValue, until: IndexedValue): HistoryView[T] = {
+    val leftIndex  = buffer.search(from, startIndex, endIndex).insertionPoint
+    val rightIndex = buffer.search(until, leftIndex, endIndex).insertionPoint
+    new HistoryView[T](leftIndex, rightIndex, buffer)
+  }
+
+  def before(to: IndexedValue): HistoryView[T] = {
+    val index = buffer.search(to, startIndex, endIndex) match {
+      case Found(i)          => i + 1
+      case InsertionPoint(i) => i
+    }
+    new HistoryView[T](startIndex, index, buffer)
+  }
+
+  def after(from: IndexedValue): HistoryView[T] = {
+    val index = buffer.search(from, startIndex, endIndex).insertionPoint
+    new HistoryView[T](index, endIndex, buffer)
+  }
+
+  def closest(time: IndexedValue): Option[T] =
+    if (isEmpty || time < head)
+      None
+    else
+      buffer.search(time, startIndex, endIndex) match {
+        case Found(i)          => Some(buffer(i))
+        case InsertionPoint(i) => Some(buffer(i - 1))
+      }
+
+  override def first: T = head
+}
+
+private[raphtory] class History[T <: IndexedValue] extends HistoryOps[T] {
   val buffer                 = mutable.ArrayBuffer.empty[T]
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  def first: T = buffer.head
+  def apply(i: Int): T = buffer(i)
 
-  def last: T = buffer.last
+  def length: Int = buffer.length
+
+  def first: T = buffer.head
 
   def clear(): Unit = buffer.clear()
 
@@ -40,35 +113,33 @@ private[raphtory] class History[T <: IndexedValue] {
 
   def extend(elements: IterableOnce[T]): Unit = elements.iterator.foreach(e => insert(e))
 
-  def slice(from: SearchPoint, until: SearchPoint): IndexedSeqView[T] = {
+  def slice(from: IndexedValue, until: IndexedValue): HistoryView[T] = {
     val leftIndex  = buffer.search(from).insertionPoint
     val rightIndex = buffer.search(until, leftIndex, buffer.size).insertionPoint
-    buffer.view.slice(leftIndex, rightIndex)
+    new HistoryView[T](leftIndex, rightIndex, buffer)
   }
 
-  def before(to: SearchPoint): IndexedSeqView[T] = {
+  def before(to: IndexedValue): HistoryView[T] = {
     val index = buffer.search(to) match {
       case Found(i)          => i + 1
       case InsertionPoint(i) => i
     }
-    buffer.view.slice(0, index)
+    new HistoryView[T](0, index, buffer)
   }
 
-  def after(from: SearchPoint): IndexedSeqView[T] = {
+  def after(from: IndexedValue): HistoryView[T] = {
     val index = buffer.search(from).insertionPoint
-    buffer.view.slice(index, buffer.size)
+    new HistoryView[T](index, buffer.size, buffer)
   }
 
-  def closest(time: Long, index: Long): Option[T] = {
-    val point = SearchPoint(time, index)
-    if (buffer.isEmpty || point < buffer.head)
+  def closest(time: IndexedValue): Option[T] =
+    if (buffer.isEmpty || time < buffer.head)
       None
     else
-      buffer.search(point) match {
+      buffer.search(time) match {
         case Found(i)          => Some(buffer(i))
         case InsertionPoint(i) => Some(buffer(i - 1))
       }
-  }
 }
 
 object History {

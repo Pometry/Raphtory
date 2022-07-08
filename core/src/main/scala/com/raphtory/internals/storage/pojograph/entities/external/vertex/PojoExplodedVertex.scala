@@ -24,7 +24,7 @@ private[pojograph] class PojoExplodedVertex(
 
   override def ID: IDType = (vertex.ID, timestamp)
 
-  override def Type(): String = vertex.Type()
+  override def Type: String = vertex.Type
 
   override def firstActivityAfter(time: Long = timestamp, strict: Boolean): Option[HistoricEvent] =
     vertex.firstActivityAfter(time, strict)

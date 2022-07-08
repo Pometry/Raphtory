@@ -17,7 +17,7 @@ import scala.math.Ordered.orderingToOrdered
 abstract class EntityVisitor {
 
   /** Return the type of the entity */
-  def Type(): String
+  def Type: String
 
   /** Return the next event (addition or deletion) after the given timestamp `time` as an
     * [[com.raphtory.api.analysis.visitor.HistoricEvent HistoricEvent]]. This is wrapped in an option as
@@ -306,14 +306,27 @@ trait IndexedValue extends Ordered[IndexedValue] {
   def time: Long
   def index: Long
 
+  def next: TimePoint =
+    if (this == TimePoint.last) TimePoint.last
+    else if (index < Long.MaxValue) TimePoint(time, index + 1)
+    else TimePoint(time + 1, Long.MinValue)
+
+  def previous: TimePoint =
+    if (this == TimePoint.first) TimePoint.first
+    else if (index > Long.MinValue) TimePoint(time, index - 1)
+    else TimePoint(time - 1, Long.MaxValue)
+
   def compare(that: IndexedValue): Int = (time, index) compare (that.time, that.index)
   def sameValue(that: IndexedValue): Boolean
 }
 
-//object IndexedValue {
-//  implicit def ordering[T <: IndexedValue]: Ordering[T] = Ordering.by(v => (v.time, v.index))
-//}
-
-case class SearchPoint(time: Long, index: Long) extends IndexedValue {
+case class TimePoint(time: Long, index: Long) extends IndexedValue {
   override def sameValue(that: IndexedValue): Boolean = that.time == time
+}
+
+object TimePoint {
+  val first: TimePoint                  = TimePoint(Long.MinValue, Long.MinValue)
+  def first(timestamp: Long): TimePoint = TimePoint(timestamp, Long.MinValue)
+  val last: TimePoint                   = TimePoint(Long.MaxValue, Long.MaxValue)
+  def last(timestamp: Long): TimePoint  = TimePoint(timestamp, Long.MaxValue)
 }

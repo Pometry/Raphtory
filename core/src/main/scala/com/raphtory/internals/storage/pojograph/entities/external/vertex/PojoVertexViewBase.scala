@@ -10,7 +10,7 @@ import scala.reflect.ClassTag
 abstract private[pojograph] class PojoVertexViewBase(vertex: PojoVertexBase) extends PojoVertexBase {
   override def lens: PojoGraphLens = vertex.lens
 
-  override def Type(): String = vertex.Type()
+  override def Type: String = vertex.Type
 
   override def firstActivityAfter(time: Long, strict: Boolean): Option[HistoricEvent] =
     vertex.firstActivityAfter(time, strict)

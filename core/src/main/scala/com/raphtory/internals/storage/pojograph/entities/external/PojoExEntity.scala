@@ -2,64 +2,66 @@ package com.raphtory.internals.storage.pojograph.entities.external
 
 import com.raphtory.api.analysis.visitor.EntityVisitor
 import com.raphtory.api.analysis.visitor.HistoricEvent
+import com.raphtory.api.analysis.visitor.IndexedValue
 import com.raphtory.api.analysis.visitor.PropertyValue
+import com.raphtory.api.analysis.visitor.TimePoint
+import com.raphtory.internals.storage.pojograph.HistoryView
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
+import com.raphtory.internals.storage.pojograph.entities.PojoEntityView
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoEntity
+import com.raphtory.internals.storage.pojograph.entities.internal.Property
+import com.raphtory.internals.storage.pojograph.entities.internal.PropertyView
+import com.raphtory.utils.OrderingFunctions._
 
 import scala.collection.IndexedSeqView
+import scala.collection.mutable
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
 
 abstract private[pojograph] class PojoExEntity(
     entity: PojoEntity,
-    view: PojoGraphLens,
-    start: Long,
-    end: Long
-) extends EntityVisitor {
+    val view: PojoGraphLens,
+    val start: IndexedValue,
+    val end: IndexedValue
+) extends EntityVisitor
+        with PojoEntityView {
 
   def this(entity: PojoEntity, view: PojoGraphLens) = {
-    this(entity, view, view.start, view.end)
+    this(entity, view, TimePoint.first(view.start), TimePoint.last(view.end))
   }
 
-  protected lazy val historyInView: IndexedSeqView[HistoricEvent] = entity.viewHistoryBetween(start, end)
+  override lazy val historyView: HistoryView[HistoricEvent] = entity.historyView.slice(start, end.next)
+  val properties: mutable.Map[String, PropertyView]         = mutable.Map.empty
 
-  def Type(): String = entity.getType
+  def get(property: String): Option[PropertyView] =
+    properties.get(property) match {
+      case f: Some[PropertyView] => f
+      case None                  =>
+        entity.get(property) match {
+          case Some(v) =>
+            val p = v.viewBetween(start, end)
+            properties(property) = p
+            Some(p)
+          case None    => None
+        }
+    }
+
+  def Type: String = entity.Type
 
   def firstActivityAfter(time: Long, strict: Boolean = true): Option[HistoricEvent] =
-    if (strict && time >= historyInView.last.time)
-      None // >= because if it equals the latest point there is nothing that happens after it
-    else if (!strict && time > historyInView.last.time)
-      None
-    else {
-      val searchPoint = if (strict) HistoricEvent(time, Long.MaxValue) else HistoricEvent(time, Long.MinValue)
-      val index       = historyInView.search(searchPoint) match {
-        case Found(i)          => if (strict) i + 1 else i
-        case InsertionPoint(i) => i // is not plus one as this would be the value above `time`
-      }
-      Some(historyInView(index))
-    }
+    if (strict) historyView.after(TimePoint.first(time + 1)).headOption
+    else historyView.after(TimePoint.first(time)).headOption
 
   def lastActivityBefore(time: Long, strict: Boolean = true): Option[HistoricEvent] =
-    if (strict && time <= historyInView.head.time)
-      None // <= because if its the oldest time there cannot be an event before it
-    else if (!strict && time < historyInView.head.time)
-      None
-    else {
-      val searchPoint = if (strict) HistoricEvent(time, Long.MinValue) else HistoricEvent(time, Long.MaxValue)
-      val index       = historyInView.search(searchPoint) match {
-        case Found(i)          => if (strict) i - 1 else i
-        case InsertionPoint(i) => i - 1
+    if (strict) historyView.before(TimePoint.last(time - 1)).headOption
+    else historyView.before(TimePoint.last(time)).headOption
 
-      }
-      Some(historyInView(index))
-    }
+  def latestActivity(): HistoricEvent = historyView.last
 
-  def latestActivity(): HistoricEvent = historyInView.last
-
-  def earliestActivity(): HistoricEvent = historyInView.head
+  def earliestActivity(): HistoricEvent = historyView.head
 
   def getPropertySet(): List[String] =
-    entity.properties.filter(p => p._2.creation <= end).keys.toList
+    entity.properties.filter(p => p._2.earliest <= end).keys.toList
 
   //  //TODo ADD Before
 //  def getPropertyValues[T](key: String, after: Long, before: Long): Option[List[T]] =
@@ -73,28 +75,11 @@ abstract private[pojograph] class PojoExEntity(
       after: Long,
       before: Long
   ): Option[List[PropertyValue[T]]] =
-    entity.properties.get(key) map { p =>
-      p.valueHistory(
-              math.max(start, after),
-              math.min(end, before)
-      ).toList
-        .map(_.asInstanceOf[PropertyValue[T]])
-    }
+    get(key).map(
+            _.valueHistory(TimePoint.first(after), TimePoint.last(before)).toList
+              .map(_.asInstanceOf[PropertyValue[T]])
+    )
 
   def history(): List[HistoricEvent] =
-    historyInView.toList
-
-  def aliveAt(time: Long): Boolean = timeIsInView(time) && entity.aliveAt(time)
-
-  // This function considers that the start of the window is exclusive, but PojoEntity.aliveBetween
-  // considers both bounds as inclusive, we correct the start of the window by 1
-  def aliveAt(time: Long, window: Long): Boolean =
-    time >= start &&
-      time - window < end &&
-      entity.aliveBetween(math.max(time - window + 1, start), math.min(time, end))
-
-  def active(after: Long = Long.MinValue, before: Long = Long.MaxValue): Boolean =
-    historyInView.exists(k => k.time >= after && k.time <= before)
-
-  def timeIsInView(time: Long): Boolean = (time >= start) && (time <= end)
+    historyView.toList
 }

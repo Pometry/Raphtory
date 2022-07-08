@@ -42,7 +42,8 @@ private[raphtory] class PojoExVertex(
   ): Unit = {
     if (exploded.isEmpty) {
       // exploding the view
-      history().foreach {
+
+      historyView.foreach {
         case HistoricEvent(time, index, event) =>
           if (event)
             exploded += (time -> new PojoExplodedVertex(this, time))

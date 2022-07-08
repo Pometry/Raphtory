@@ -1,6 +1,7 @@
 package com.raphtory.api.analysis.graphview
 
 import com.raphtory.BaseCorrectnessTest
+import com.raphtory.BasicGraphBuilder
 import com.raphtory.TestQuery
 import com.raphtory.algorithms.WeightedGraphBuilder
 import com.raphtory.algorithms.temporal.TemporalEdgeList
@@ -16,13 +17,15 @@ class RepeatedEdgeTest extends BaseCorrectnessTest(startGraph = true) {
   val edges = {
     for (i <- 0 until 100) yield s"${rng.nextInt(20)},${rng.nextInt(20)}"
   }
-  val input: Seq[String] = (0 until 4).flatMap(j => edges.zipWithIndex.map { case (s, i) => s"$s,$i, $j" })
+  val input                      = edges.zipWithIndex.map { case (s, i) => s"$s,$i" }
+  val repeatedInput: Seq[String] = (0 until 4).flatMap(j => input.map(s => s"$s,$j"))
 
-  override def setSpout(): Spout[String] = SequenceSpout(input: _*)
+  override def setSpout(): Spout[String] = SequenceSpout(repeatedInput: _*)
 
   override def setGraphBuilder(): GraphBuilder[String] = WeightedGraphBuilder()
 
   test("Multilayer edgelist test with repeated edges") {
-    correctnessTest(TestQuery(TemporalEdgeList("weight"), edges.size - 1), input)
+    val res = repeatedInput.map(s => s"${edges.size - 1},$s")
+    correctnessTest(TestQuery(TemporalEdgeList("weight"), edges.size - 1), res)
   }
 }

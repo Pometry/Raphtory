@@ -3,19 +3,22 @@ package com.raphtory.internals.storage.pojograph.entities.external.edge
 import com.raphtory.api.analysis.visitor.ConcreteEdge
 import com.raphtory.api.analysis.visitor.ConcreteExplodedEdge
 import com.raphtory.api.analysis.visitor.HistoricEvent
+import com.raphtory.api.analysis.visitor.IndexedValue
 import com.raphtory.api.analysis.visitor.PropertyValue
 import com.raphtory.api.analysis.visitor.ReducedEdge
+import com.raphtory.api.analysis.visitor.TimePoint
 import com.raphtory.internals.components.querymanager.FilteredInEdgeMessage
 import com.raphtory.internals.components.querymanager.FilteredOutEdgeMessage
 import com.raphtory.internals.components.querymanager.VertexMessage
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
+import com.raphtory.utils.OrderingFunctions._
 
 private[pojograph] trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
   def view: PojoGraphLens
 
-  def start: Long
+  def start: IndexedValue
 
-  def end: Long
+  def end: IndexedValue
 
   def send(data: Any): Unit =
     view.sendMessage(VertexMessage(view.superStep + 1, ID, data))
@@ -27,7 +30,10 @@ private[pojograph] trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
   }
 }
 
-private[pojograph] trait PojoExplodedEdgeBase[T] extends PojoExEdgeBase[T] with ConcreteExplodedEdge[T]
+private[pojograph] trait PojoExplodedEdgeBase[T] extends PojoExEdgeBase[T] with ConcreteExplodedEdge[T] {
+  def timePoint: IndexedValue
+  override def timestamp: Long = timePoint.time
+}
 
 private[pojograph] trait PojoExDirectedEdgeBase[
     Edir <: PojoExDirectedEdgeBase[Edir, T],
@@ -42,6 +48,14 @@ private[pojograph] trait PojoExDirectedEdgeBase[
 private[pojograph] trait PojoExReducedEdgeBase extends PojoExEdgeBase[Long] with ReducedEdge {
 
   def viewBetween(after: Long, before: Long): PojoExReducedEdgeBase
+  def viewBetween(after: IndexedValue, before: IndexedValue): PojoExReducedEdgeBase
+}
+
+private[pojograph] trait PojoExReducedEdgeImplementation[E <: PojoExReducedEdgeImplementation[E]]
+        extends PojoExReducedEdgeBase {
+  def viewBetween(after: Long, before: Long): E = viewBetween(TimePoint.first(after), TimePoint.last(before))
+
+  override def viewBetween(after: IndexedValue, before: IndexedValue): E
 }
 
 abstract private[pojograph] class PojoExInOutEdgeBase[Eundir <: PojoExInOutEdgeBase[
@@ -66,7 +80,7 @@ abstract private[pojograph] class PojoExInOutEdgeBase[Eundir <: PojoExInOutEdgeB
 
   override def send(data: Any): Unit = view.sendMessage(VertexMessage(view.superStep + 1, ID, data))
 
-  override def Type(): String = edges.map(_.Type()).distinct.mkString("_")
+  override def Type: String = edges.map(_.Type).distinct.mkString("_")
 
   override def firstActivityAfter(time: Long, strict: Boolean): Option[HistoricEvent] =
     edges
@@ -111,7 +125,7 @@ abstract private[pojograph] class PojoExInOutEdgeBase[Eundir <: PojoExInOutEdgeB
   override def aliveAt(time: Long, window: Long): Boolean =
     edges.exists(_.aliveAt(time, window))
 
-  override def start: Long = math.min(in.start, out.start)
+  override def start: IndexedValue = min(in.start, out.start)
 
-  override def end: Long = math.max(in.end, out.end)
+  override def end: IndexedValue = max(in.end, out.end)
 }

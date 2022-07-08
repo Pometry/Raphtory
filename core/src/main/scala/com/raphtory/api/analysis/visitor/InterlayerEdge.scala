@@ -12,7 +12,7 @@ case class InterlayerEdge(
     properties: Map[String, Any] = Map.empty[String, Any]
 ) extends EntityVisitor {
 
-  override def Type(): String =
+  override def Type: String =
     properties.get("type") match {
       case Some(value) => value.toString
       case None        => ""
