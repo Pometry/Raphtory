@@ -20,6 +20,7 @@ case class StringSink(format: Format) extends FormatAgnosticSink(format) {
       fileExtension: String
   ): SinkConnector =
     new SinkConnector {
+      override def allowsHeader: Boolean      = true
       override def write(value: String): Unit = stringWriter.write(value)
       override def closeItem(): Unit          = stringWriter.write(itemDelimiter)
       override def close(): Unit = {}
