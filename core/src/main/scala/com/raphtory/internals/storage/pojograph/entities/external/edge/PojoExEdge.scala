@@ -57,13 +57,61 @@ private[pojograph] class PojoExInOutEdge(
   /** concrete type for exploded edge views of this edge which implements
     * [[ExplodedEdge]] with same `IDType`
     */
-  override type ExplodedEdge = PojoExplodedInOutEdge
+  override type ExplodedEdge = PojoExplodedEdgeBase[Long]
 
   /** Return an [[ExplodedEdge]] instance for each time the edge is
     * active in the current view.
     */
-  override def explode(): List[ExplodedEdge] =
-    in.explode().zip(out.explode()).map { case (e1, e2) => new PojoExplodedInOutEdge(e1, e2, asInEdge) }
+  override def explode(): List[ExplodedEdge] = {
+    val inEdges         = in.explode().iterator
+    val outEdges        = out.explode().iterator
+    val transformInEdge =
+      if (asInEdge) (edge: PojoExplodedEdge) => edge
+      else (edge: PojoExplodedEdge) => edge.reversed
+
+    val transformOutEdge =
+      if (asInEdge) (edge: PojoExplodedEdge) => edge.reversed
+      else (edge: PojoExplodedEdge) => edge
+
+    val mergedIter: Iterator[PojoExplodedEdgeBase[Long]] = new Iterator[ExplodedEdge] {
+      var inEdge: Option[PojoExplodedEdge]  = inEdges.nextOption()
+      var outEdge: Option[PojoExplodedEdge] = outEdges.nextOption()
+
+      override def hasNext: Boolean = inEdge.isDefined || outEdge.isDefined
+
+      override def next(): ExplodedEdge =
+        if (hasNext)
+          inEdge match {
+            case Some(ie) =>
+              outEdge match {
+                case Some(oe) =>
+                  if (ie.timePoint < oe.timePoint) {
+                    inEdge = inEdges.nextOption()
+                    transformInEdge(ie)
+                  }
+                  else if (ie.timePoint > oe.timePoint) {
+                    outEdge = outEdges.nextOption()
+                    transformOutEdge(oe)
+                  }
+                  else {
+                    inEdge = inEdges.nextOption()
+                    outEdge = outEdges.nextOption()
+                    new PojoExplodedInOutEdge(ie, oe, asInEdge)
+                  }
+                case None     =>
+                  inEdge = inEdges.nextOption()
+                  transformInEdge(ie)
+              }
+            case None     =>
+              val oe = outEdge.get
+              outEdge = outEdges.nextOption()
+              transformOutEdge(oe)
+          }
+        else
+          throw new NoSuchElementException
+    }
+    mergedIter.toList
+  }
 }
 
 private[pojograph] class PojoExReversedEdge(
