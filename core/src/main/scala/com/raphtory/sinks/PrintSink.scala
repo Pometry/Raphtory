@@ -42,6 +42,7 @@ case class PrintSink(format: Format = CsvFormat()) extends FormatAgnosticSink(fo
       fileExtension: String
   ): SinkConnector =
     new SinkConnector {
+      override def allowsHeader: Boolean      = true
       override def write(value: String): Unit = System.out.print(value)
       override def closeItem(): Unit          = System.out.print(itemDelimiter)
       override def close(): Unit = {}

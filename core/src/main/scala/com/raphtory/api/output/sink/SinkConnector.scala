@@ -19,6 +19,9 @@ package com.raphtory.api.output.sink
   */
 trait SinkConnector {
 
+  /** Returns true if the connector supports writing a header in the output */
+  def allowsHeader: Boolean
+
   /** Appends a `value` to the current item
     * @param value the value to append
     */
@@ -29,4 +32,13 @@ trait SinkConnector {
 
   /** Ensures that the output of this sink completed and frees up all the resources used by it. */
   def close(): Unit
+
+  /** Writes a header for the output if this connector support it as specified by `allowsHeader`
+    * @param header the header to be written at the beginning
+    */
+  final def writeHeader(header: String): Unit =
+    if (allowsHeader) {
+      write(header)
+      closeItem()
+    }
 }

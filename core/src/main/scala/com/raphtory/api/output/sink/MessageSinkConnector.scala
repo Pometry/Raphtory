@@ -13,6 +13,8 @@ abstract class MessageSinkConnector extends SinkConnector {
     */
   protected def sendAsync(message: String): Unit
 
+  final override def allowsHeader: Boolean = false
+
   final override def write(value: String): Unit = stringBuilder.append(value)
 
   final override def closeItem(): Unit = {
