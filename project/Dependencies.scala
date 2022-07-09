@@ -6,8 +6,8 @@ object Dependencies {
   private lazy val catsEffectVersion     = "3.3.12"
   private lazy val chillVersion          = "0.10.0"
   private lazy val curatorVersion        = "5.2.1"
+  private lazy val jacksonVersion        = "2.13.3"
   private lazy val javaxScriptVersion    = "1.1"
-  private lazy val gsonVersion           = "2.9.0"
   private lazy val log4jVersion          = "2.17.2"
   private lazy val monixVersion          = "3.4.0"
   private lazy val openhftVersion        = "0.15"
@@ -28,16 +28,14 @@ object Dependencies {
   lazy val excludeSlf4j         = ExclusionRule(organization = "org.slf4j")
   lazy val excludeLog4j         = ExclusionRule(organization = "log4j")
 
-  lazy val akkaTyped      = "com.typesafe.akka" %% "akka-actor-typed" % akkaTypedVersion
-  lazy val bcel           = "org.apache.bcel"    % "bcel"             % bcelVersion
-  lazy val catsEffect     = "org.typelevel"     %% "cats-effect"      % catsEffectVersion
-  lazy val curatorRecipes = "org.apache.curator" % "curator-recipes"  % curatorVersion
+  lazy val akkaTyped      = "com.typesafe.akka"            %% "akka-actor-typed"     % akkaTypedVersion
+  lazy val bcel           = "org.apache.bcel"               % "bcel"                 % bcelVersion
+  lazy val catsEffect     = "org.typelevel"                %% "cats-effect"          % catsEffectVersion
+  lazy val curatorRecipes = "org.apache.curator"            % "curator-recipes"      % curatorVersion
+  lazy val jackson        = "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
 
   lazy val javaxScript =
     "javax.script" % "js-engine" % javaxScriptVersion //Creates a fake POM to avoid the logger throwing a class not found exception
-
-  lazy val gson =
-    "com.google.code.gson" % "gson" % gsonVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val log4jApi   = "org.apache.logging.log4j" % "log4j-api"        % log4jVersion
   lazy val log4jCore  = "org.apache.logging.log4j" % "log4j-core"       % log4jVersion
   lazy val log4jSlft4 = "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion

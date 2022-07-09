@@ -80,7 +80,7 @@ lazy val core = (project in file("core"))
                   akkaTyped,
                   bcel,
                   curatorRecipes,
-                  gson,
+                  jackson,
                   javaxScript,
                   log4jSlft4,
                   log4jApi,
@@ -178,18 +178,17 @@ lazy val assemblySettings = assembly / assemblyMergeStrategy := {
     MergeStrategy.rename
   case PathList("META-INF", xs @ _*)                                                      =>
     xs map { _.toLowerCase } match {
-      case "manifest.mf" :: Nil | "index.list" :: Nil | "dependencies" :: Nil  =>
+      case "manifest.mf" :: Nil | "index.list" :: Nil | "dependencies" :: Nil                         =>
         MergeStrategy.discard
-      case ps @ x :: xs if ps.last.endsWith(".sf") || ps.last.endsWith(".dsa") =>
+      case ps @ x :: xs if ps.last.endsWith(".sf") || ps.last.endsWith(".dsa")                        =>
         MergeStrategy.discard
-      case "plexus" :: xs                                                      =>
+      case "plexus" :: xs                                                                             =>
         MergeStrategy.discard
-      case "services" :: xs                                                    =>
+      case "services" :: xs                                                                           =>
         MergeStrategy.filterDistinctLines
-      case "spring.schemas" :: Nil | "spring.handlers" :: Nil |
-          "io.netty.versions.properties" :: Nil =>
+      case "spring.schemas" :: Nil | "spring.handlers" :: Nil | "io.netty.versions.properties" :: Nil =>
         MergeStrategy.filterDistinctLines
-      case _                                                                   => MergeStrategy.first
+      case _                                                                                          => MergeStrategy.first
     }
   case _                                                                                  => MergeStrategy.first
 }
