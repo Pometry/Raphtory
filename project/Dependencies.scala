@@ -1,7 +1,7 @@
 import sbt._
 
 object Dependencies {
-  private lazy val akkaTypedVersion      = "2.6.19"
+  private lazy val akkaVersion           = "2.6.19"
   private lazy val bcelVersion           = "6.5.0"
   private lazy val catsEffectVersion     = "3.3.12"
   private lazy val chillVersion          = "0.10.0"
@@ -18,6 +18,7 @@ object Dependencies {
   private lazy val scalatestVersion      = "3.2.11"
   private lazy val slf4jVersion          = "1.7.36"
   private lazy val sprayJsonVersion      = "1.3.6"
+  private lazy val testContainersVersion = "0.40.8"
   private lazy val timeSeriesVersion     = "1.7.0"
   private lazy val typesafeConfigVersion = "1.4.2"
   private lazy val zookeeperVersion      = "3.7.0"
@@ -28,11 +29,12 @@ object Dependencies {
   lazy val excludeSlf4j         = ExclusionRule(organization = "org.slf4j")
   lazy val excludeLog4j         = ExclusionRule(organization = "log4j")
 
-  lazy val akkaTyped      = "com.typesafe.akka"            %% "akka-actor-typed"     % akkaTypedVersion
-  lazy val bcel           = "org.apache.bcel"               % "bcel"                 % bcelVersion
-  lazy val catsEffect     = "org.typelevel"                %% "cats-effect"          % catsEffectVersion
-  lazy val curatorRecipes = "org.apache.curator"            % "curator-recipes"      % curatorVersion
-  lazy val jackson        = "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
+  lazy val akkaClusterTyped = "com.typesafe.akka"            %% "akka-cluster-typed"   % akkaVersion
+  lazy val akkaTyped        = "com.typesafe.akka"            %% "akka-actor-typed"     % akkaVersion
+  lazy val bcel             = "org.apache.bcel"               % "bcel"                 % bcelVersion
+  lazy val catsEffect       = "org.typelevel"                %% "cats-effect"          % catsEffectVersion
+  lazy val curatorRecipes   = "org.apache.curator"            % "curator-recipes"      % curatorVersion
+  lazy val jackson          = "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
 
   lazy val javaxScript =
     "javax.script" % "js-engine" % javaxScriptVersion //Creates a fake POM to avoid the logger throwing a class not found exception
@@ -55,12 +57,13 @@ object Dependencies {
   lazy val pulsarOriginal   = "org.apache.pulsar"           % "pulsar-client-original"         % pulsarVersion
   lazy val py4j             = "net.sf.py4j"                 % "py4j"                           % py4jVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val scalaLogging     = "com.typesafe.scala-logging" %% "scala-logging"                  % scalaLoggingVersion
-  lazy val scalaTest        = "org.scalatest"              %% "scalatest"                      % scalatestVersion % Test
+  lazy val scalaTest        = "org.scalatest"              %% "scalatest"                      % scalatestVersion      % Test
   lazy val scalaTestCompile = "org.scalatest"              %% "scalatest"                      % scalatestVersion
   lazy val slf4j            = "org.slf4j"                   % "slf4j-api"                      % slf4jVersion
   lazy val sprayJson        = "io.spray"                   %% "spray-json"                     % sprayJsonVersion
+  lazy val testContainers   = "com.dimafeng"               %% "testcontainers-scala-munit"     % testContainersVersion % "test"
 
-  lazy val timeSeries =
+  lazy val timeSeries       =
     "io.sqooba.oss" %% "scala-timeseries-lib" % timeSeriesVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val twitterChill   = "com.twitter"         %% "chill"               % chillVersion
   lazy val typesafeConfig = "com.typesafe"         % "config"              % typesafeConfigVersion

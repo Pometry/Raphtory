@@ -3,7 +3,6 @@ package com.raphtory.api
 import cats.effect.IO
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.internals.communication.repositories.PulsarAkkaTopicRepository
 import com.raphtory.internals.components.querymanager.GraphFunctionComplete
 import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.sinks.FileSink
