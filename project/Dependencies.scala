@@ -57,15 +57,13 @@ object Dependencies {
   lazy val pulsarOriginal   = "org.apache.pulsar"           % "pulsar-client-original"         % pulsarVersion
   lazy val py4j             = "net.sf.py4j"                 % "py4j"                           % py4jVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val scalaLogging     = "com.typesafe.scala-logging" %% "scala-logging"                  % scalaLoggingVersion
-  lazy val scalaTest        = "org.scalatest"              %% "scalatest"                      % scalatestVersion % Test
+  lazy val scalaTest        = "org.scalatest"              %% "scalatest"                      % scalatestVersion      % Test
   lazy val scalaTestCompile = "org.scalatest"              %% "scalatest"                      % scalatestVersion
   lazy val slf4j            = "org.slf4j"                   % "slf4j-api"                      % slf4jVersion
   lazy val sprayJson        = "io.spray"                   %% "spray-json"                     % sprayJsonVersion
+  lazy val testContainers   = "com.dimafeng"               %% "testcontainers-scala-munit"     % testContainersVersion % "test"
 
-  lazy val testContainers =
-    "com.dimafeng" %% "testcontainers-scala-scalatest" % testContainersVersion % "test"
-
-  lazy val timeSeries =
+  lazy val timeSeries       =
     "io.sqooba.oss" %% "scala-timeseries-lib" % timeSeriesVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val twitterChill   = "com.twitter"         %% "chill"               % chillVersion
   lazy val typesafeConfig = "com.typesafe"         % "config"              % typesafeConfigVersion

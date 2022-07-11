@@ -1,17 +1,15 @@
 package com.raphtory.network
 
 import cats.effect.IO
-import cats.effect.Resource
 import cats.effect.unsafe.implicits.global
-import org.scalatest.funsuite.AnyFunSuite
 import com.dimafeng.testcontainers.DockerComposeContainer
-import com.dimafeng.testcontainers.ForAllTestContainer
+import com.dimafeng.testcontainers.munit.TestContainerForAll
 import com.raphtory.Raphtory
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.communication.ExclusiveTopic
 import com.raphtory.internals.communication.connectors.AkkaConnector
-import munit.CatsEffectSuite
-import org.scalatest.DoNotDiscover
+import munit.FunSuite
+import munit.IgnoreSuite
 
 import java.io.File
 import scala.annotation.tailrec
@@ -22,21 +20,15 @@ case object GetCount       extends Request
 
 case class Result(value: Int)
 
-@DoNotDiscover
-class UnreliableNetworkTest extends AnyFunSuite with ForAllTestContainer {
+@IgnoreSuite
+class UnreliableNetworkTest extends FunSuite with TestContainerForAll {
   private val virtualPort = Raphtory.getDefaultConfig().getInt("raphtory.akka.port")
   private val actualPort  = virtualPort + 1
   private val env         = Map("INPUT_PORT" -> s"$virtualPort", "OUTPUT_PORT" -> s"$actualPort")
   private val config      = Raphtory.getDefaultConfig(Map("raphtory.akka.bindPort" -> s"$actualPort"))
   private val composeFile = new File("core/src/test/scala/com/raphtory/network/docker-compose.yml")
 
-  override val container: DockerComposeContainer = DockerComposeContainer(composeFile, env = env)
-
-//  private val listeningConnector: Fixture[AkkaConnector] =
-//    ResourceSuiteLocalFixture("listening-connector", AkkaConnector[IO](AkkaConnector.SeedMode, config))
-//
-//  private val clientConnector: Fixture[AkkaConnector] =
-//    ResourceSuiteLocalFixture("client-connector", AkkaConnector[IO](AkkaConnector.ClientMode, config))
+  override val containerDef: DockerComposeContainer.Def = DockerComposeContainer.Def(composeFile, env = env)
 
   private val makeListeningConnector = AkkaConnector[IO](AkkaConnector.SeedMode, config)
 
@@ -66,7 +58,7 @@ class UnreliableNetworkTest extends AnyFunSuite with ForAllTestContainer {
       currentCount
   }
 
-  test("package drop") {
+  test("1000 messages sent over an unreliable network are received at the other end") {
 
     val messagesToSend = 1000
 
@@ -84,7 +76,7 @@ class UnreliableNetworkTest extends AnyFunSuite with ForAllTestContainer {
 
     val countResult = countResultComputation.unsafeRunSync()
 
-    assert(countResult === messagesToSend)
+    assertEquals(countResult, messagesToSend)
   }
 }
 
