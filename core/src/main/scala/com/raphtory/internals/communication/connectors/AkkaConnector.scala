@@ -6,6 +6,8 @@ import akka.actor.typed.receptionist.ServiceKey
 import akka.actor.typed.scaladsl.AskPattern.Askable
 import akka.actor.typed.scaladsl.Behaviors
 import akka.util.Timeout
+import cats.effect.Resource
+import cats.effect.Sync
 import com.raphtory.internals.communication.BroadcastTopic
 import com.raphtory.internals.communication.CancelableListener
 import com.raphtory.internals.communication.CanonicalTopic
@@ -15,15 +17,19 @@ import com.raphtory.internals.communication.ExclusiveTopic
 import com.raphtory.internals.communication.Topic
 import com.raphtory.internals.communication.WorkPullTopic
 import com.raphtory.internals.serialisers.KryoSerialiser
+import com.typesafe.config.Config
+import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
+import java.net.InetAddress
 import java.util.concurrent.CompletableFuture
 import scala.annotation.tailrec
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
+import scala.util.Try
 
 private case object StopActor
 
@@ -32,11 +38,10 @@ private[raphtory] class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Com
   private val akkaReceptionistRegisteringTimeout: Timeout = 1.seconds
   private val akkaSpawnerTimeout: Timeout                 = 1.seconds
   private val akkaReceptionistFindingTimeout: Timeout     = 1.seconds
-
-  private val kryo: KryoSerialiser = KryoSerialiser()
+  private val kryo: KryoSerialiser                        = KryoSerialiser()
 
   case class AkkaEndPoint[T](actorRefs: Future[Set[ActorRef[Array[Byte]]]], topic: String) extends EndPoint[T] {
-    private val endPointResolutionTimeout: Duration = 10.seconds
+    private val endPointResolutionTimeout: Duration = 60.seconds
 
     override def sendAsync(message: T): Unit           =
       try Await.result(actorRefs, endPointResolutionTimeout) foreach (_ ! serialise(message))
@@ -149,4 +154,50 @@ private[raphtory] class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Com
   private def serialise(value: Any): Array[Byte]    = kryo.serialise(value)
 
   override def shutdown(): Unit = {}
+}
+
+object AkkaConnector {
+  sealed trait Mode
+  case object StandaloneMode extends Mode
+  case object ClientMode     extends Mode
+  case object SeedMode       extends Mode
+
+  private val systemName = "spawner"
+
+  def apply[IO[_]: Sync](mode: Mode, config: Config): Resource[IO, AkkaConnector] =
+    Resource
+      .make(Sync[IO].delay(buildActorSystem(mode, config)))(system => Sync[IO].delay(system.terminate()))
+      .map(new AkkaConnector(_))
+
+  private def buildActorSystem(mode: Mode, config: Config) =
+    mode match {
+      case AkkaConnector.StandaloneMode => ActorSystem(SpawnProtocol(), systemName)
+      case _                            =>
+        val seed                = mode match {
+          case AkkaConnector.SeedMode   => true
+          case AkkaConnector.ClientMode => false
+        }
+        val providedSeedAddress = config.getString("raphtory.query.address")
+        val seedAddress         =
+          Try(InetAddress.getByName(providedSeedAddress).getHostAddress)
+            .getOrElse(providedSeedAddress)
+        ActorSystem(SpawnProtocol(), systemName, akkaConfig(seedAddress, seed, config))
+    }
+
+  private def akkaConfig(seedAddress: String, seed: Boolean, config: Config) = {
+    val localCanonicalPort = if (seed) advertisedPort(config) else "0"
+    val localBindPort      = if (seed) bindPort(config) else "\"\"" // else, it uses canonical port instead
+    val hostname           = if (seed) seedAddress else "<getHostAddress>"
+    ConfigFactory.parseString(s"""
+      akka.cluster.downing-provider-class="akka.cluster.sbr.SplitBrainResolverProvider"
+      akka.remote.artery.canonical.hostname="$hostname"
+      akka.remote.artery.canonical.port=$localCanonicalPort
+      akka.remote.artery.bind.port=$localBindPort
+      akka.actor.provider=cluster
+      akka.cluster.seed-nodes=["akka://$systemName@$seedAddress:${advertisedPort(config)}"]
+    """)
+  }
+
+  private def advertisedPort(config: Config) = config.getString("raphtory.akka.port")
+  private def bindPort(config: Config)       = config.getString("raphtory.akka.bindPort")
 }

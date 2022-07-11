@@ -9,5 +9,5 @@ import com.typesafe.config.Config
 private[raphtory] object PulsarTopicRepository {
 
   def apply[IO[_]: Async](config: Config): Resource[IO, TopicRepository] =
-    PulsarConnector(config).map(connector => new TopicRepository(connector, config, Array()))
+    PulsarConnector(config).map(connector => TopicRepository(connector, config))
 }
