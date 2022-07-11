@@ -9,6 +9,7 @@ import pemja.core.PythonInterpreterConfig
 
 import java.nio.file.Path
 import java.nio.file.Paths
+import scala.util.Try
 import scala.util.Using
 
 class UnsafeEmbeddedPython(py: PythonInterpreter, private var i: Int = 0)
@@ -62,20 +63,27 @@ class UnsafeEmbeddedPython(py: PythonInterpreter, private var i: Int = 0)
 
 object UnsafeEmbeddedPython {
 
-  def defaultPaths: Seq[Path] =
-    Vector(
-            Paths.get("/pometry/Source/Raphtory/python/pyraphtory"),
-            Paths.get("/home/murariuf/.virtualenvs/raphtory/lib/python3.8/site-packages")
-    )
-
   def apply(pythonPaths: Path*): UnsafeEmbeddedPython = {
+    import sys.process._
+
+    val pythonExec: String = Try(sys.env("PYEXEC"))
+      .orElse(Try("which python3" !!))
+      .getOrElse(
+              throw new IllegalArgumentException("Unable to find python3 on path or via environment variable PYEXEC")
+      )
+      .trim
+
+    val sitePackages = Try(s"""$pythonExec -c 'import site; print(" ".join(site.getsitepackages()))'""" !!)
+      .map(res => res.trim.split(" ").map(Paths.get(_)))
+      .get
+
     val builder =
       PythonInterpreterConfig
         .newBuilder()
-        .setPythonExec("/home/murariuf/.virtualenvs/raphtory/bin/python3")
+        .setPythonExec(pythonExec)
         .setExcType(PythonInterpreterConfig.ExecType.MULTI_THREAD)
 
-    val config      = (pythonPaths ++ defaultPaths)
+    val config      = (pythonPaths ++ sitePackages)
       .foldLeft(builder) { (b, path) =>
         b.addPythonPaths(path.toAbsolutePath.toString)
       }

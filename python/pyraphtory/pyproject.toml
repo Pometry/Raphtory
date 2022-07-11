@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pyraphtory"
-version = "0.1.0"
+version = "0.1.16"
 description = ""
 authors = ["Fabian Murariu <murariu.fabian@gmail.com>"]
 
@@ -8,9 +8,9 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8"
-pemja = "^0.2.0"
-dill = "^0.3"
+python = ">=3.8 <3.11"
+pemja = "0.2.0"
+dill = "0.3"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

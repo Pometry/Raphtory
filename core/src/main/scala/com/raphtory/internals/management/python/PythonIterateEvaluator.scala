@@ -1,13 +1,14 @@
 package com.raphtory.internals.management.python
 
+import cats.syntax.functor._
+import cats.Functor
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.internals.management.PyRef
 
 import scala.util.Random
 
-class PythonIterateEvaluator[IO[_]](pyObjBytes: Array[Byte], py: EmbeddedPython[IO])
-        extends (Vertex => IO[Unit])
-        with AutoCloseable {
+class PythonIterateEvaluator[IO[_]: Functor](pyObjBytes: Array[Byte], py: EmbeddedPython[IO])
+        extends (Vertex => IO[Unit]) {
 
   private val eval_name = s"_${Random.alphanumeric.take(32).mkString}"
   py.set(s"${eval_name}_bytes", pyObjBytes)
@@ -15,7 +16,6 @@ class PythonIterateEvaluator[IO[_]](pyObjBytes: Array[Byte], py: EmbeddedPython[
   py.run(s"del ${eval_name}_bytes")
 
   override def apply(v: Vertex): IO[Unit] =
-    py.invoke(PyRef(eval_name), "eval_from_jvm", Vector(new PythonVertex(v)))
+    py.invoke(PyRef(eval_name), "eval_from_jvm", Vector(new PythonVertex(v))).map(_ => ())
 
-  override def close(): Unit = {}
 }

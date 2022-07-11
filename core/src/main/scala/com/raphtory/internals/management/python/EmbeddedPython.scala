@@ -14,5 +14,5 @@ trait EmbeddedPython[IO[_]] {
 
   def loadGraphBuilder[T: PythonEncoder](cls: String, pkg: Option[String]): IO[GraphBuilder[T]]
 
-  def set(name:String, obj:Any):IO[Unit]
+  def set(name: String, obj: Any): IO[Unit]
 }

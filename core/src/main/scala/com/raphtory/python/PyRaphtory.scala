@@ -1,6 +1,8 @@
 package com.raphtory.python
 
-import cats.effect.{ExitCode, IO, Resource}
+import cats.effect.ExitCode
+import cats.effect.IO
+import cats.effect.Resource
 import cats.syntax.all._
 import com.monovore.decline._
 import com.monovore.decline.effect._
@@ -11,7 +13,8 @@ import com.raphtory.internals.management.python.UnsafeEmbeddedPythonProxy
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
 
-import java.nio.file.{Files, Path}
+import java.nio.file.Files
+import java.nio.file.Path
 import scala.io.Source
 import scala.util.Using
 
@@ -34,6 +37,7 @@ object PyRaphtory
     val distributed = Opts.flag("distributed", "Connect to existing Raphtory cluster", "d").map(_ => Distributed)
 
     val res: Opts[ConMode] = local orElse distributed
+    // FIXME: these need lifting into IO but GraphBuilder is still outside of IO
     val evalPy             = UnsafeEmbeddedPythonProxy()
     val builderPy          = UnsafeEmbeddedPythonProxy()
 

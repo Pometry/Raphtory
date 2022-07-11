@@ -2,11 +2,15 @@ package com.raphtory.internals.management
 
 import cats.effect.IO
 import com.raphtory.api.analysis.visitor.Vertex
-import com.raphtory.api.input.{ImmutableProperty, Properties, Type}
+import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.Properties
+import com.raphtory.api.input.Type
 import com.raphtory.internals.components.querymanager.VertexMessage
-import com.raphtory.internals.graph.GraphAlteration.{EdgeAdd, VertexAdd}
+import com.raphtory.internals.graph.GraphAlteration.EdgeAdd
+import com.raphtory.internals.graph.GraphAlteration.VertexAdd
 import com.raphtory.internals.management.python.PythonVertex
-import com.raphtory.internals.storage.pojograph.{PojoBasedPartition, PojoGraphLens}
+import com.raphtory.internals.storage.pojograph.PojoBasedPartition
+import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.raphtory.internals.storage.pojograph.entities.external.PojoExVertex
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoVertex
 import com.typesafe.config.Config
@@ -16,7 +20,8 @@ import java.nio.file.Paths
 import java.util
 import java.util.concurrent.TimeUnit
 import scala.collection.mutable
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
 class PythonEmbeddedTest extends CatsEffectSuite {
@@ -32,10 +37,10 @@ class PythonEmbeddedTest extends CatsEffectSuite {
         _        <- py.withUnsafePy {
                       _.exec {
                         s"""from vertex import Vertex, Step
-                            |v = Vertex(${pyVertex.name})
-                            |s = Step()
-                            |s.eval(v)
-                            |""".stripMargin
+                    |v = Vertex(${pyVertex.name})
+                    |s = Step()
+                    |s.eval(v)
+                    |""".stripMargin
                       }
                     }
       } yield ()
@@ -96,4 +101,3 @@ class PythonEmbeddedTest extends CatsEffectSuite {
 
   override def munitTimeout: Duration = FiniteDuration(1, TimeUnit.DAYS)
 }
-

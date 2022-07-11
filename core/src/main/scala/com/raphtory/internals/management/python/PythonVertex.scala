@@ -12,13 +12,11 @@ class PythonVertex(v: Vertex) {
 
   def message_all_neighbours(msg: Any): Unit = v.messageAllNeighbours(msg)
 
-  def set_state(key: String, value: Any): Unit = {
+  def set_state(key: String, value: Any): Unit =
     v.setState(key, value)
-  }
 
-  def get_state[T](key: String, includeProperties: Boolean): T = {
+  def get_state[T](key: String, includeProperties: Boolean): T =
     v.getState[T](key, includeProperties = includeProperties)
-  }
 
   def vote_to_halt(): Unit = v.voteToHalt()
 

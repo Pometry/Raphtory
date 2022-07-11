@@ -12,5 +12,5 @@ trait PythonSupport {
 
   def pythonSelect(column: Array[Object]): Table
 
-  def loadPythonScript(script:String) : Graph
+  def loadPythonScript(script: String): Graph
 }

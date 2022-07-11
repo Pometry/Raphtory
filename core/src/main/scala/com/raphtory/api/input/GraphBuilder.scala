@@ -189,9 +189,8 @@ trait GraphBuilder[T] extends Serializable {
     updateEdgeAddStats()
   }
 
-  protected def updateEdgeAddStats(): Unit = {
+  protected def updateEdgeAddStats(): Unit =
     ComponentTelemetryHandler.edgeAddCounter.labels(deploymentID).inc()
-  }
 
   /** Adds a new edge to the graph or updates an existing edge
     *

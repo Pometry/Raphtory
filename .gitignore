@@ -99,3 +99,4 @@ project/metals.sbt
 # Python
 python/pyraphtory/deps/jars
 *.pyc
+version

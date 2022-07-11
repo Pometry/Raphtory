@@ -2,10 +2,14 @@ package com.raphtory.internals.management.python
 
 import cats.Id
 import com.raphtory.api.input.GraphBuilder
-import com.raphtory.internals.graph.GraphAlteration.{EdgeAdd, GraphUpdate, VertexAdd}
-import com.raphtory.internals.management.{PyRef, PythonEncoder}
+import com.raphtory.internals.graph.GraphAlteration.EdgeAdd
+import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
+import com.raphtory.internals.graph.GraphAlteration.VertexAdd
+import com.raphtory.internals.management.PyRef
+import com.raphtory.internals.management.PythonEncoder
 
-class UnsafeGraphBuilder[T](val ref: PyRef, py: EmbeddedPython[Id])(implicit PE: PythonEncoder[T]) extends GraphBuilder[T] {
+class UnsafeGraphBuilder[T](val ref: PyRef, py: EmbeddedPython[Id])(implicit PE: PythonEncoder[T])
+        extends GraphBuilder[T] {
 
   /** Processes raw data message `tuple` from the spout to extract source node, destination node,
     * timestamp info, etc.

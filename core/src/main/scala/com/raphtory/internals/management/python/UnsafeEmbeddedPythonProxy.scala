@@ -23,13 +23,13 @@ class UnsafeEmbeddedPythonProxy(
         with AutoCloseable { self =>
 
   override def invoke(ref: PyRef, methodName: String, args: Vector[Object]): Id[Object] = {
-    val reply = Promise[Object]
+    val reply = Promise[Object]()
     queue.offer(Invoke(ref, methodName, args, reply))
     Await.result(reply.future, Duration.Inf)
   }
 
   override def eval[T](expr: String)(implicit PE: PythonEncoder[T]): Id[T] = {
-    val reply           = Promise[T]
+    val reply           = Promise[T]()
     val msg: PyMsg[Any] = Eval[T](expr, reply).asInstanceOf[PyMsg[Any]]
     queue.offer(msg)
     Await.result(reply.future, Duration.Inf)
@@ -41,7 +41,7 @@ class UnsafeEmbeddedPythonProxy(
   }
 
   override def loadGraphBuilder[T: PythonEncoder](cls: String, pkg: Option[String]): GraphBuilder[T] = {
-    val reply           = Promise[GraphBuilder[T]]
+    val reply           = Promise[GraphBuilder[T]]()
     val msg: PyMsg[Any] =
       NewGraphBuilder[T](cls, pkg, reply.asInstanceOf[Promise[GraphBuilder[Any]]]).asInstanceOf[PyMsg[Any]]
     queue.offer(msg)
@@ -53,13 +53,13 @@ class UnsafeEmbeddedPythonProxy(
   }
 
   override def run(script: String): Id[Unit] = {
-    val reply = Promise[Any]
+    val reply = Promise[Any]()
     queue.offer(Run(script, reply))
     Await.result(reply.future, Duration.Inf)
   }
 
   override def set(name: String, obj: Any): Id[Unit] = {
-    val reply = Promise[Any]
+    val reply = Promise[Any]()
     queue.offer(Set(name, obj, reply))
     Await.result(reply.future, Duration.Inf)
   }
@@ -82,7 +82,7 @@ object UnsafeEmbeddedPythonProxy {
               reply.complete(Try(py.set(name, obj)))
             case Run(script, reply)                          =>
               reply.complete(Try(py.run(script)))
-            case ngb: NewGraphBuilder[Any]                   =>
+            case ngb: NewGraphBuilder[Any] @unchecked        =>
               ngb.reply.complete(Try(py.loadGraphBuilder[Any](ngb.cls, ngb.pkg)(ngb.PE)))
             case e: Eval[Any] @unchecked                     =>
               e.reply.complete(Try(py.eval(e.expr)(e.PE)))

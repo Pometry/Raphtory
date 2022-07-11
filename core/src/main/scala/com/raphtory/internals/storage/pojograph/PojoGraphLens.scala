@@ -186,7 +186,7 @@ final private[raphtory] case class PojoGraphLens(
   def runGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit = {
     var count: Int = 0
     val tasks      = vertexIterator
-      .map { vertex:Vertex =>
+      .map { vertex: Vertex =>
         count += 1
         IO(f(vertex))
       }

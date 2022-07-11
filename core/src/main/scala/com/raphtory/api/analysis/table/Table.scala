@@ -47,7 +47,6 @@ trait Table {
     */
   def writeTo(sink: Sink): QueryProgressTracker
 
-  def writeToFile(name:String): QueryProgressTracker = {
+  def writeToFile(name: String): QueryProgressTracker =
     writeTo(FileSink(name))
-  }
 }

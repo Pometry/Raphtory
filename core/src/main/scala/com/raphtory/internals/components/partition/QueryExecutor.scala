@@ -1,6 +1,7 @@
 package com.raphtory.internals.components.partition
 
 import cats.Id
+import cats.catsInstancesForId
 import com.raphtory.api.analysis.graphview.ClearChain
 import com.raphtory.api.analysis.graphview.DirectedView
 import com.raphtory.api.analysis.graphview.ExplodeSelect
@@ -353,11 +354,9 @@ private[raphtory] class QueryExecutor(
                   .currentTimeMillis() - time}ms and sent '$sentMessages' messages.")
             }
           }
-        case PythonStep(p)                                                    =>
-          Using(new PythonStepEvaluator[Id](p, py)) { eval =>
-            evaluateStep(time, eval)
-          }.get
-        case Step(f: (Vertex => Unit))                                        =>
+        case PythonStep(p)                                                            =>
+          evaluateStep(time, new PythonStepEvaluator[Id](p, py))
+        case Step(f: (Vertex => Unit) @unchecked)                                     =>
           evaluateStep(time, f)
 
         case UndirectedView()                                              =>
@@ -402,11 +401,9 @@ private[raphtory] class QueryExecutor(
             }
           }
 
-        case p: PythonIterate                                                 =>
-          Using(new PythonIterateEvaluator[Id](p.bytes, py)) { eval =>
-            evaluateIterate(time, eval, p.executeMessagedOnly)
-          }.get
-        case Iterate(f: (Vertex => Unit), iterations, executeMessagedOnly)    =>
+        case p: PythonIterate                                                         =>
+          evaluateIterate(time, new PythonIterateEvaluator[Id](p.bytes, py), p.executeMessagedOnly)
+        case Iterate(f: (Vertex => Unit) @unchecked, iterations, executeMessagedOnly) =>
           evaluateIterate(time, f, executeMessagedOnly)
 
         case ReversedView()                                                =>

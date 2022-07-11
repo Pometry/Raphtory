@@ -171,7 +171,7 @@ private[api] trait GraphViewImplementation[
     addFunction(PythonStep(pickledPyObj))
 
   def loadPythonScript(script: String): G =
-     newGraph(query.copy(pyScript = Some(script)), querySender)
+    newGraph(query.copy(pyScript = Some(script)), querySender)
 
   override def step(f: (V, GraphState) => Unit): G =
     addFunction(StepWithGraph(f))
