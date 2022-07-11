@@ -1,28 +1,19 @@
 package com.raphtory.python
 
-import cats.effect.ExitCode
-import cats.effect.IO
-import cats.effect.Resource
+import cats.effect.{ExitCode, IO, Resource}
 import cats.syntax.all._
 import com.monovore.decline._
 import com.monovore.decline.effect._
 import com.raphtory.Raphtory
-import com.raphtory.algorithms.generic.ConnectedComponents
-import com.raphtory.api.analysis.algorithm.BaseAlgorithm
-import com.raphtory.api.analysis.algorithm.Generic
-import com.raphtory.api.analysis.algorithm.GenericallyApplicable
-import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.querytracker.QueryProgressTracker
 import com.raphtory.internals.management.PyRef
 import com.raphtory.internals.management.python.UnsafeEmbeddedPythonProxy
-import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
 
-import java.nio.file.Files
-import java.nio.file.Path
-import scala.concurrent.duration.FiniteDuration
+import java.nio.file.{Files, Path}
 import scala.io.Source
+import scala.util.Using
 
 object PyRaphtory
         extends CommandIOApp(
@@ -43,7 +34,7 @@ object PyRaphtory
     val distributed = Opts.flag("distributed", "Connect to existing Raphtory cluster", "d").map(_ => Distributed)
 
     val res: Opts[ConMode] = local orElse distributed
-    val py                 = UnsafeEmbeddedPythonProxy()
+    val evalPy             = UnsafeEmbeddedPythonProxy()
     val builderPy          = UnsafeEmbeddedPythonProxy()
 
     val path = "/tmp/lotr.csv"
@@ -52,32 +43,37 @@ object PyRaphtory
 
     (input, res, builder).tupled.map {
       case (file, Local, builderClass) =>
-        (for {
-          pyScript <- Resource.fromAutoCloseable(IO.blocking(Source.fromFile(file.toFile)))
-          // ONE PYTHON FOR THE BUILDER
-          script    = pyScript.mkString
-          _        <- Resource.eval(IO.blocking(builderPy.run(script)))
-          builder  <- Resource.eval(IO.blocking(builderPy.loadGraphBuilder[String](builderClass, None)))
-          // ONE PYTHON FOR THE EVALUATOR
-          _        <- Resource.eval(IO.blocking(py.run(script)))
-          graph    <- Raphtory.loadIO(spout = FileSpout(path), graphBuilder = builder)
-          _        <- Resource.eval(IO.blocking(py.set("raphtory_graph", graph)))
-          _        <- Resource.eval(IO.blocking(py.set("py_script", script)))
-          _        <-
-            Resource.eval(
-                    IO.blocking(
-                            py.run(
-                                    "tracker = RaphtoryContext(rg = TemporalGraph(raphtory_graph), script=py_script).eval()"
-                            )
-                    )
-            )
-          tracker  <- Resource.eval(IO.blocking(py.invoke(PyRef("tracker"), "inner_tracker")))
-        } yield tracker)
-          .use {
-            case qt: QueryProgressTracker =>
-              IO.blocking(qt.waitForJob())
-          }
-          .map(_ => ExitCode.Success)
+        val builderIO = for {
+          script  <- IO.fromEither(Using(Source.fromFile(file.toFile))(_.mkString).toEither)
+          _       <- IO.blocking(builderPy.run(script))
+          builder <- IO.blocking(builderPy.loadGraphBuilder[String](builderClass, None))
+          _       <- IO.blocking(evalPy.run(script))
+        } yield (builder, script)
+
+        val mainRes = for {
+          out              <- Resource.eval(builderIO)
+          (builder, script) = out
+          graph            <- Raphtory.loadIO(spout = FileSpout(path), graphBuilder = builder)
+        } yield (graph, script)
+
+        mainRes.use {
+          case (graph, script) =>
+            for {
+              _       <- IO.blocking(evalPy.set("raphtory_graph", graph))
+              _       <- IO.blocking(evalPy.set("py_script", script))
+              _       <-
+                IO.blocking(
+                        evalPy.run(
+                                "tracker = RaphtoryContext(rg = TemporalGraph(raphtory_graph), script=py_script).eval()"
+                        )
+                )
+              tracker <- IO.blocking(evalPy.invoke(PyRef("tracker"), "inner_tracker")).map {
+                           case qt: QueryProgressTracker => qt
+                         }
+              _       <- IO.blocking(tracker.waitForJob())
+            } yield ExitCode.Success
+        }
+
     }
   }
 

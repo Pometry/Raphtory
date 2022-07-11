@@ -63,8 +63,6 @@ import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable
-import scala.io.Source
-import scala.util.Try
 import scala.util.Using
 
 private[raphtory] class QueryExecutor(
@@ -74,7 +72,8 @@ private[raphtory] class QueryExecutor(
     jobID: String,
     conf: Config,
     topics: TopicRepository,
-    scheduler: Scheduler
+    scheduler: Scheduler,
+    pyScript: Option[String]
 ) extends Component[QueryManagement](conf) {
 
   private val logger: Logger                   = Logger(LoggerFactory.getLogger(this.getClass))
@@ -90,7 +89,7 @@ private[raphtory] class QueryExecutor(
   private val maxBatchSize: Int     = conf.getInt("raphtory.partitions.maxMessageBatchSize")
 
   private val sync = new QuerySuperstepSync(totalPartitions)
-  private lazy val py               = UnsafeEmbeddedPythonProxy()
+  private lazy val py               = UnsafeEmbeddedPythonProxy(pyScript)
 
   if (messageBatch)
     logger.debug(
@@ -355,10 +354,6 @@ private[raphtory] class QueryExecutor(
             }
           }
         case PythonStep(p)                                                    =>
-//          Using(Source.fromFile("/pometry/Source/Raphtory/python/pyraphtory/sample.py")) { file =>
-//            py.run(file.mkString)
-//          }
-
           Using(new PythonStepEvaluator[Id](p, py)) { eval =>
             evaluateStep(time, eval)
           }.get
@@ -408,9 +403,6 @@ private[raphtory] class QueryExecutor(
           }
 
         case p: PythonIterate                                                 =>
-          Using(Source.fromFile("/pometry/Source/Raphtory/python/pyraphtory/sample.py")) { file =>
-            py.run(file.mkString)
-          } // FIXME this needs to receive the actual PY file (possibly when the python instance is started)
           Using(new PythonIterateEvaluator[Id](p.bytes, py)) { eval =>
             evaluateIterate(time, eval, p.executeMessagedOnly)
           }.get

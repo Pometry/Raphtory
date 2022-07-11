@@ -2,10 +2,13 @@ package com.raphtory.internals.management.python
 
 import cats.Id
 import com.raphtory.api.input.GraphBuilder
-import com.raphtory.internals.management.{PyRef, PythonEncoder}
-import pemja.core.{PythonInterpreter, PythonInterpreterConfig}
+import com.raphtory.internals.management.PyRef
+import com.raphtory.internals.management.PythonEncoder
+import pemja.core.PythonInterpreter
+import pemja.core.PythonInterpreterConfig
 
-import java.nio.file.{Path, Paths}
+import java.nio.file.Path
+import java.nio.file.Paths
 import scala.util.Using
 
 class UnsafeEmbeddedPython(py: PythonInterpreter, private var i: Int = 0)

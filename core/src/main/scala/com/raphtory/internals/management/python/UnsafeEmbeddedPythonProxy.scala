@@ -67,7 +67,7 @@ class UnsafeEmbeddedPythonProxy(
 
 object UnsafeEmbeddedPythonProxy {
 
-  def apply(): UnsafeEmbeddedPythonProxy = {
+  def apply(imports: Iterable[String] = Iterable.empty[String]): UnsafeEmbeddedPythonProxy = {
 
     val done  = new AtomicBoolean(false)
     val queue = new ArrayBlockingQueue[Any](10)
@@ -94,7 +94,10 @@ object UnsafeEmbeddedPythonProxy {
       ()
     }
 
-    new UnsafeEmbeddedPythonProxy(queue, f, done)
+    imports.foldLeft(new UnsafeEmbeddedPythonProxy(queue, f, done)) { (proxy, script) =>
+      proxy.run(script)
+      proxy
+    }
   }
 
   def isDone(done: AtomicBoolean): Boolean =

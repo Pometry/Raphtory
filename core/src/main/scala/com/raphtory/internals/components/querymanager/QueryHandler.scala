@@ -95,7 +95,7 @@ private[raphtory] class QueryHandler(
   private def recheckEarliestTimer(): Unit = self sendAsync RecheckEarliestTime
 
   override def run(): Unit = {
-    messageReader(EstablishExecutor(query._bootstrap, jobID, query.sink.get))
+    messageReader(EstablishExecutor(query._bootstrap, jobID, query.sink.get,query.pyScript))
     timeTaken = System.currentTimeMillis() //Set time from the point we ask the executors to set up
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
     listener.start()

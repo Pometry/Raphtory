@@ -47,9 +47,9 @@ private[raphtory] class Reader(
 
   override def handleMessage(msg: QueryManagement): Unit =
     msg match {
-      case EstablishExecutor(_, jobID, sink) =>
+      case EstablishExecutor(_, jobID, sink, pyScript) =>
         val queryExecutor =
-          new QueryExecutor(partitionID, sink, storage, jobID, conf, topics, scheduler)
+          new QueryExecutor(partitionID, sink, storage, jobID, conf, topics, scheduler, pyScript)
         scheduler.execute(queryExecutor)
         telemetry.queryExecutorCollector.labels(partitionID.toString, deploymentID).inc()
         executorMap += ((jobID, queryExecutor))
