@@ -22,8 +22,8 @@ class UnsafeEmbeddedPythonProxy(
 ) extends EmbeddedPython[Id]
         with AutoCloseable { self =>
 
-  override def invoke(ref: PyRef, methodName: String, args: Vector[Object]): Id[Unit] = {
-    val reply = Promise[Any]
+  override def invoke(ref: PyRef, methodName: String, args: Vector[Object]): Id[Object] = {
+    val reply = Promise[Object]
     queue.offer(Invoke(ref, methodName, args, reply))
     Await.result(reply.future, Duration.Inf)
   }
@@ -105,8 +105,8 @@ sealed trait PyMsg[T] {
   def reply: Promise[T]
 }
 
-case class Invoke(ref: PyRef, methodName: String, args: Vector[Object] = Vector.empty, reply: Promise[Any])
-        extends PyMsg[Any]
+case class Invoke(ref: PyRef, methodName: String, args: Vector[Object] = Vector.empty, reply: Promise[Object])
+        extends PyMsg[Object]
 
 case class Eval[T](expr: String, reply: Promise[T])(implicit val PE: PythonEncoder[T]) extends PyMsg[T]
 

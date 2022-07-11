@@ -6,7 +6,7 @@ import com.raphtory.internals.management.PythonEncoder
 
 trait EmbeddedPython[IO[_]] {
 
-  def invoke(ref: PyRef, methodName: String, args: Vector[Object] = Vector.empty): IO[Unit]
+  def invoke(ref: PyRef, methodName: String, args: Vector[Object] = Vector.empty): IO[Object]
 
   def eval[T](expr: String)(implicit PE: PythonEncoder[T]): IO[T]
 

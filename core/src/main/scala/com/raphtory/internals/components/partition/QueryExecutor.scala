@@ -355,9 +355,9 @@ private[raphtory] class QueryExecutor(
             }
           }
         case PythonStep(p)                                                    =>
-          Using(Source.fromFile("/pometry/Source/Raphtory/python/pyraphtory/sample.py")) { file =>
-            py.run(file.mkString)
-          }
+//          Using(Source.fromFile("/pometry/Source/Raphtory/python/pyraphtory/sample.py")) { file =>
+//            py.run(file.mkString)
+//          }
 
           Using(new PythonStepEvaluator[Id](p, py)) { eval =>
             evaluateStep(time, eval)

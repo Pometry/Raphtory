@@ -12,6 +12,9 @@ class ProgressTracker(object):
     def wait_for_job(self):
         self.jvm_tracker.waitForJobInf()
 
+    def inner_tracker(self):
+        return self.jvm_tracker
+
 
 class Table(object):
 
@@ -52,6 +55,10 @@ class TemporalGraph(object):
         except Exception as e:
             print(str(e))
             traceback.print_exc()
+
+    def transform(self, algo):
+        g = self.jvm_graph.transform(algo.jvm_algo)
+        return TemporalGraph(g)
 
     def select(self, columns: List[str]):
         try:

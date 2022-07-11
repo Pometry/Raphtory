@@ -48,8 +48,6 @@ final private[raphtory] case class ReversedView() extends GraphFunction
 
 final private[raphtory] case class Step[V <: Vertex](f: (V) => Unit) extends GraphFunction
 
-final private[raphtory] case class PythonStep(pyObj: Array[Byte]) extends GraphFunction
-
 final private[raphtory] case class StepWithGraph(
     f: (_, GraphState) => Unit
 ) extends GlobalGraphFunction
@@ -60,8 +58,13 @@ final private[raphtory] case class Iterate[V <: Vertex](
     executeMessagedOnly: Boolean
 ) extends GraphFunction
 
-final private[raphtory] case class PythonIterate(bytes: Array[Byte], iterations: Long, executeMessagedOnly: Boolean)
-        extends GraphFunction
+final private[raphtory] case class PythonStep(pyObj: Array[Byte]) extends GraphFunction
+
+final private[raphtory] case class PythonIterate(
+    bytes: Array[Byte],
+    iterations: Long,
+    executeMessagedOnly: Boolean
+) extends GraphFunction
 
 final private[raphtory] case class IterateWithGraph[V <: Vertex](
     f: (V, GraphState) => Unit,
@@ -90,6 +93,7 @@ private[api] trait GraphViewImplementation[
     RG <: ReducedGraphViewImplementation[RG, MG],
     MG <: MultilayerGraphViewImplementation[MG, RG]
 ] extends ConcreteGraphPerspective[V, G, RG, MG]
+        with PythonSupport
         with GraphBase[G, RG, MG]
         with GraphView { this: G =>
 
@@ -165,6 +169,9 @@ private[api] trait GraphViewImplementation[
 
   override def pythonStep(pickledPyObj: Array[Byte]): G =
     addFunction(PythonStep(pickledPyObj))
+
+  def loadPythonScript(script: String): G =
+    newGraph(query.copy(pyScript = Some(script)), querySender)
 
   override def step(f: (V, GraphState) => Unit): G =
     addFunction(StepWithGraph(f))

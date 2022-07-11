@@ -85,7 +85,8 @@ private[raphtory] case class Query(
     windowAlignment: Alignment.Value = Alignment.START,
     graphFunctions: Queue[GraphFunction] = Queue(),
     tableFunctions: Queue[TableFunction] = Queue(),
-    sink: Option[Sink] = None
+    sink: Option[Sink] = None,
+    pyScript: Option[String] = None
 ) extends QueryManagement
 
 case class DynamicLoader(classes: Set[Class[_]] = Set.empty) {

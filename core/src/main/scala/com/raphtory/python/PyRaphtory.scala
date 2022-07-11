@@ -12,6 +12,8 @@ import com.raphtory.api.analysis.algorithm.BaseAlgorithm
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.algorithm.GenericallyApplicable
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.querytracker.QueryProgressTracker
+import com.raphtory.internals.management.PyRef
 import com.raphtory.internals.management.python.UnsafeEmbeddedPythonProxy
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
@@ -59,12 +61,21 @@ object PyRaphtory
           // ONE PYTHON FOR THE EVALUATOR
           _        <- Resource.eval(IO.blocking(py.run(script)))
           graph    <- Raphtory.loadIO(spout = FileSpout(path), graphBuilder = builder)
-//          _        <- Resource.eval(IO.sleep(FiniteDuration(10, "s")))
           _        <- Resource.eval(IO.blocking(py.set("raphtory_graph", graph)))
-          _        <- Resource.eval(IO.blocking(py.run("RaphtoryContext(TemporalGraph(raphtory_graph)).eval()")))
-        } yield graph)
-          .use { graph =>
-            IO.sleep(FiniteDuration(50, "s")) *> IO.unit
+          _        <- Resource.eval(IO.blocking(py.set("py_script", script)))
+          _        <-
+            Resource.eval(
+                    IO.blocking(
+                            py.run(
+                                    "tracker = RaphtoryContext(rg = TemporalGraph(raphtory_graph), script=py_script).eval()"
+                            )
+                    )
+            )
+          tracker  <- Resource.eval(IO.blocking(py.invoke(PyRef("tracker"), "inner_tracker")))
+        } yield tracker)
+          .use {
+            case qt: QueryProgressTracker =>
+              IO.blocking(qt.waitForJob())
           }
           .map(_ => ExitCode.Success)
     }

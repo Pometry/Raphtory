@@ -1,3 +1,10 @@
+class ConnectedComponents(object):
+    def __init__(self):
+        from pemja import findClass
+        JConnectedComponents = findClass('com.raphtory.algorithms.generic.ConnectedComponents ')
+        self.jvm_algo = JConnectedComponents()
+
+
 class Vertex:
     def __init__(self, jvm_v):
         self.v = jvm_v
