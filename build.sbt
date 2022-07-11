@@ -58,7 +58,6 @@ lazy val root = (project in file("."))
           examplesFacebook,
           examplesGab,
           examplesLotr,
-          examplesPresto,
           examplesTwitter,
           deploy
   )
@@ -125,28 +124,25 @@ lazy val connectorsTypeDB =
 // EXAMPLE PROJECTS
 
 lazy val examplesCoho =
-  (project in file("examples/raphtory-example-coho")).dependsOn(core).settings(assemblySettings)
+  (project in file("examples/companies-house")).dependsOn(core).settings(assemblySettings)
 
 lazy val examplesEnron =
-  (project in file("examples/raphtory-example-enron")).dependsOn(core).settings(assemblySettings)
+  (project in file("examples/enron")).dependsOn(core).settings(assemblySettings)
 
 lazy val examplesEthereum =
-  (project in file("examples/raphtory-example-ethereum")).dependsOn(core).settings(assemblySettings)
+  (project in file("examples/ethereum")).dependsOn(core).settings(assemblySettings)
 
 lazy val examplesFacebook =
-  (project in file("examples/raphtory-example-facebook")).dependsOn(core).settings(assemblySettings)
+  (project in file("examples/facebook")).dependsOn(core).settings(assemblySettings)
 
 lazy val examplesGab =
-  (project in file("examples/raphtory-example-gab")).dependsOn(core).settings(assemblySettings)
+  (project in file("examples/gab")).dependsOn(core).settings(assemblySettings)
 
 lazy val examplesLotr =
-  (project in file("examples/raphtory-example-lotr")).dependsOn(core).settings(assemblySettings)
-
-lazy val examplesPresto =
-  (project in file("examples/raphtory-example-presto")).dependsOn(core).settings(assemblySettings)
+  (project in file("examples/lotr")).dependsOn(core).settings(assemblySettings)
 
 lazy val examplesTwitter =
-  (project in file("examples/raphtory-example-twitter"))
+  (project in file("examples/twitter"))
     .dependsOn(core, connectorsTwitter)
     .settings(assemblySettings)
 
