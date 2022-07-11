@@ -1,7 +1,9 @@
 package com.raphtory.algorithms.generic.community
 
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.algorithms.generic.community.LPA.{MinTieBreak, TieBreaker, lpa}
+import com.raphtory.algorithms.generic.community.LPA.MinTieBreak
+import com.raphtory.algorithms.generic.community.LPA.TieBreaker
+import com.raphtory.algorithms.generic.community.LPA.lpa
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
@@ -58,9 +60,14 @@ import scala.util.Random
   * [](com.raphtory.algorithms.generic.community.SLPA), [](com.raphtory.algorithms.temporal.community.MultilayerLPA)
   * ```
   */
-  
-class LPA[T: Numeric](weight: String = "weight", tieBreaker: TieBreaker = MinTieBreak(), stickinessProb: Float=0.2F, maxIter: Int = 50, seed: Long = -1)
-        extends NodeList(Seq("community")) {
+
+class LPA[T: Numeric](
+    weight: String = "weight",
+    tieBreaker: TieBreaker = MinTieBreak(),
+    stickinessProb: Float = 0.2f,
+    maxIter: Int = 50,
+    seed: Long = -1
+) extends NodeList(Seq("community")) {
 
   private val rnd: Random = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)
 
@@ -87,7 +94,13 @@ class LPA[T: Numeric](weight: String = "weight", tieBreaker: TieBreaker = MinTie
 
 object LPA {
 
-  def apply[T: Numeric](weight: String = "weight", tieBreaker: TieBreaker = MinTieBreak(), stickinessProb: Float=0.2F, maxIter: Int = 50, seed: Long = -1) =
+  def apply[T: Numeric](
+      weight: String = "weight",
+      tieBreaker: TieBreaker = MinTieBreak(),
+      stickinessProb: Float = 0.2f,
+      maxIter: Int = 50,
+      seed: Long = -1
+  ) =
     new LPA(weight, tieBreaker, stickinessProb, maxIter, seed)
 
   def lpa[T](vertex: Vertex, weight: String, tieBreak: TieBreaker, SP: Double, rnd: Random)(implicit
@@ -109,9 +122,9 @@ object LPA {
     val possLabels = maxlab.filter(_._2 == maxlab.values.max).keySet.toList
 
     var newLabel = 0L
-    if (possLabels.contains(vlabel)) {
+    if (possLabels.contains(vlabel))
       newLabel = vlabel
-    } else newLabel = tieBreak.chooseLabel(possLabels, vertex)
+    else newLabel = tieBreak.chooseLabel(possLabels, vertex)
     // Update node label and broadcast
     if (newLabel == vlabel)
       vertex.voteToHalt()
@@ -121,18 +134,20 @@ object LPA {
   }
 
   sealed trait TieBreaker {
-    def chooseLabel(possLabels:List[Long], vertex: Vertex) : Long
+    def chooseLabel(possLabels: List[Long], vertex: Vertex): Long
   }
 
   case class RandomTieBreak() extends TieBreaker {
-    override def chooseLabel(possLabels: List[Long], vertex: Vertex): Long = possLabels(Random.nextInt(possLabels.length))
+
+    override def chooseLabel(possLabels: List[Long], vertex: Vertex): Long =
+      possLabels(Random.nextInt(possLabels.length))
   }
 
   case class MinTieBreak() extends TieBreaker {
     override def chooseLabel(possLabels: List[Long], vertex: Vertex): Long = possLabels.min
   }
 
-  case class CustomTieBreak(f:(List[Long], Vertex) => Long) extends TieBreaker {
+  case class CustomTieBreak(f: (List[Long], Vertex) => Long) extends TieBreaker {
     override def chooseLabel(possLabels: List[Long], vertex: Vertex): Long = f(possLabels, vertex)
   }
 
