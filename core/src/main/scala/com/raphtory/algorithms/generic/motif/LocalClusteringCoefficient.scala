@@ -29,14 +29,12 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 
 object LocalClusteringCoefficient extends NodeList(Seq("clustering")) {
 
-  override def apply(graph: GraphPerspective): graph.Graph = {
+  override def apply(graph: GraphPerspective): graph.Graph =
     LocalTriangleCount(graph)
-      .step({
-        vertex =>
-          val tC = vertex.getState[Int]("triangles")
-          val k = vertex.degree
-          vertex.setState("clustering",if(k>1) 2.0*tC.toDouble/(k*(k-1)) else 0.0)
-      })
-  }
+      .step { vertex =>
+        val tC = vertex.getState[Int]("triangles")
+        val k  = vertex.degree
+        vertex.setState("clustering", if (k > 1) 2.0 * tC.toDouble / (k * (k - 1)) else 0.0)
+      }
 
 }
