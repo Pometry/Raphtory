@@ -21,7 +21,8 @@ RUN pip install /pyraphtory/dist/pyraphtory-0.1.16.tar.gz
 # =============================
 FROM eclipse-temurin:11.0.15_10-jdk as raphtory-core
 RUN apt update
-RUN apt install -y python3
+RUN apt install -y python3 libpython3.10
+RUN ln -s /usr/lib/x86_64-linux-gnu/libpython3.10.so.1 /usr/lib/x86_64-linux-gnu/libpython3.so
 RUN mkdir -p /raphtory/jars
 RUN mkdir -p /raphtory/bin
 RUN mkdir -p /raphtory/data

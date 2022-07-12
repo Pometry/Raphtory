@@ -90,8 +90,7 @@ object UnsafeEmbeddedPythonProxy {
               reply.complete(Try(py.invoke(ref, methodName, args)))
           }
         }
-      }
-      ()
+      }.get
     }
 
     imports.foldLeft(new UnsafeEmbeddedPythonProxy(queue, f, done)) { (proxy, script) =>

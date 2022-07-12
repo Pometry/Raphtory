@@ -11,7 +11,7 @@
         <Logger name="com.raphtory" level="${env:RAPHTORY_CORE_LOG:-DEBUG}">
         </Logger>
 
-        <Root level="info">
+        <Root level="DEBUG">
             <AppenderRef ref="Console"/>
         </Root>
     </Loggers>

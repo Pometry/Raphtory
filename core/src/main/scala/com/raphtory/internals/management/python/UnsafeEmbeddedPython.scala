@@ -11,6 +11,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import scala.util.Try
 import scala.util.Using
+import scala.util.control.NonFatal
 
 class UnsafeEmbeddedPython(py: PythonInterpreter, private var i: Int = 0)
         extends EmbeddedPython[Id]
@@ -66,29 +67,36 @@ object UnsafeEmbeddedPython {
   def apply(pythonPaths: Path*): UnsafeEmbeddedPython = {
     import sys.process._
 
-    val pythonExec: String = Try(sys.env("PYEXEC"))
-      .orElse(Try("which python3" !!))
-      .getOrElse(
-              throw new IllegalArgumentException("Unable to find python3 on path or via environment variable PYEXEC")
-      )
-      .trim
+    try {
+      val pythonExec: String = Try(sys.env("PYEXEC"))
+        .orElse(Try("which python3" !!))
+        .getOrElse(
+                throw new IllegalArgumentException("Unable to find python3 on path or via environment variable PYEXEC")
+        )
+        .trim
 
-    val sitePackages = Try(s"""$pythonExec -c 'import site; print(" ".join(site.getsitepackages()))'""" !!)
-      .map(res => res.trim.split(" ").map(Paths.get(_)))
-      .get
+      val sitePackages = Try(s"""$pythonExec -c 'import site; print(" ".join(site.getsitepackages()))'""" !!)
+        .map(res => res.trim.split(" ").map(Paths.get(_)))
+        .get
 
-    val builder =
-      PythonInterpreterConfig
-        .newBuilder()
-        .setPythonExec(pythonExec)
-        .setExcType(PythonInterpreterConfig.ExecType.MULTI_THREAD)
+      val builder =
+        PythonInterpreterConfig
+          .newBuilder()
+          .setPythonExec(pythonExec)
+          .setExcType(PythonInterpreterConfig.ExecType.MULTI_THREAD)
 
-    val config      = (pythonPaths ++ sitePackages)
-      .foldLeft(builder) { (b, path) =>
-        b.addPythonPaths(path.toAbsolutePath.toString)
-      }
-      .build()
-    val interpreter = new PythonInterpreter(config)
-    new UnsafeEmbeddedPython(interpreter)
+      val config      = (pythonPaths ++ sitePackages)
+        .foldLeft(builder) { (b, path) =>
+          b.addPythonPaths(path.toAbsolutePath.toString)
+        }
+        .build()
+      val interpreter = new PythonInterpreter(config)
+      new UnsafeEmbeddedPython(interpreter)
+    }
+    catch {
+      case NonFatal(t) =>
+        t.printStackTrace()
+        throw t
+    }
   }
 }
