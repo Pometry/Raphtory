@@ -23,8 +23,12 @@ private[raphtory] case class WatermarkTime(
 
 private[raphtory] case object StartAnalysis extends QueryManagement
 
-private[raphtory] case class EstablishExecutor(_bootstrap: DynamicLoader, jobID: String, sink: Sink, pyScript: Option[String])
-        extends QueryManagement
+private[raphtory] case class EstablishExecutor(
+    _bootstrap: DynamicLoader,
+    jobID: String,
+    sink: Sink,
+    pyScript: Option[String]
+) extends QueryManagement
 
 private[raphtory] case class SetMetaData(vertices: Int) extends QueryManagement
 

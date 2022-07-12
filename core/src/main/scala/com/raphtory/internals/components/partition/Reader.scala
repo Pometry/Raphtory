@@ -54,7 +54,7 @@ private[raphtory] class Reader(
         telemetry.queryExecutorCollector.labels(partitionID.toString, deploymentID).inc()
         executorMap += ((jobID, queryExecutor))
 
-      case req: EndQuery                     =>
+      case req: EndQuery                               =>
         logger.debug(s"Reader on partition $partitionID received $req")
         executorMap.synchronized {
           try {

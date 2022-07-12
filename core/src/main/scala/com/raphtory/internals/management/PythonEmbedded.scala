@@ -126,6 +126,16 @@ object PythonEncoder {
   implicit val longEncoder: PythonEncoder[Long] =
     createEncoder[Long](int => Long.box(int), pylong => pylong.asInstanceOf[java.lang.Long], classOf[java.lang.Long])
 
+  implicit val booleanEncoder: PythonEncoder[Boolean] =
+    createEncoder[Boolean](
+            int => Boolean.box(int),
+            pylong => pylong.asInstanceOf[java.lang.Boolean],
+            classOf[java.lang.Boolean]
+    )
+
+  implicit val integerEncoder: PythonEncoder[Integer] =
+    createEncoder[Integer](int => int, pylong => pylong.asInstanceOf[java.lang.Integer], classOf[java.lang.Integer])
+
   implicit val doubleEncoder: PythonEncoder[Double] =
     createEncoder[Double](
             int => Double.box(int),

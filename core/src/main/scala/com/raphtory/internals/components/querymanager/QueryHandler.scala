@@ -97,7 +97,7 @@ private[raphtory] class QueryHandler(
   private def recheckEarliestTimer(): Unit = self sendAsync RecheckEarliestTime
 
   override def run(): Unit = {
-    messageReader(EstablishExecutor(query._bootstrap, jobID, query.sink.get,query.pyScript))
+    messageReader(EstablishExecutor(query._bootstrap, jobID, query.sink.get, query.pyScript))
     timeTaken = System.currentTimeMillis() //Set time from the point we ask the executors to set up
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
     listener.start()
@@ -438,10 +438,10 @@ private[raphtory] class QueryHandler(
       case Iterate(f: (Vertex => Unit) @unchecked, iterations, executeMessagedOnly)
           if iterations > 1 && !allVoteToHalt =>
         currentOperation = Iterate(f, iterations - 1, executeMessagedOnly)
-      case IterateWithGraph(f: ((Vertex, GraphState) => Unit) @unchecked, iterations, executeMessagedOnly, _)
+      case IterateWithGraph(f: ((Vertex, GraphState) => Unit) @unchecked, iterations, executeMessagedOnly)
           if iterations > 1 && !allVoteToHalt =>
         currentOperation = IterateWithGraph(f, iterations - 1, executeMessagedOnly)
-      case _                                                                                        =>
+      case _ =>
         currentOperation = getNextGraphOperation(graphFunctions).get
     }
     allVoteToHalt = true

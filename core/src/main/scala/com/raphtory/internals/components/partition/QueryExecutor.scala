@@ -89,8 +89,8 @@ private[raphtory] class QueryExecutor(
   private val messageBatch: Boolean = conf.getBoolean(msgBatchPath)
   private val maxBatchSize: Int     = conf.getInt("raphtory.partitions.maxMessageBatchSize")
 
-  private val sync = new QuerySuperstepSync(totalPartitions)
-  private lazy val py               = UnsafeEmbeddedPythonProxy(pyScript)
+  private val sync    = new QuerySuperstepSync(totalPartitions)
+  private lazy val py = UnsafeEmbeddedPythonProxy(pyScript)
 
   if (messageBatch)
     logger.debug(
@@ -199,7 +199,7 @@ private[raphtory] class QueryExecutor(
     val time = System.currentTimeMillis()
     try {
       msg match {
-        case CreatePerspective(id, perspective)                            =>
+        case CreatePerspective(id, perspective)                                       =>
           currentPerspectiveID = id
           currentPerspective = perspective
           receivedMessageCount.set(0)
@@ -224,14 +224,14 @@ private[raphtory] class QueryExecutor(
                     .currentTimeMillis() - time}ms"
           )
 
-        case SetMetaData(vertices)                                         =>
+        case SetMetaData(vertices)                                                    =>
           graphLens.setFullGraphSize(vertices)
           taskManager sendAsync MetaDataSet(currentPerspectiveID)
           logger.debug(
                   s"Job $jobID at Partition '$partitionID': Meta Data set in ${System.currentTimeMillis() - time}ms"
           )
 
-        case GraphFunctionWithGlobalState(function, graphState)            =>
+        case GraphFunctionWithGlobalState(function, graphState)                       =>
           function match {
             case StepWithGraph(f)                                     =>
               startStep()
@@ -314,7 +314,7 @@ private[raphtory] class QueryExecutor(
               }
           }
 
-        case MultilayerView(interlayerEdgeBuilder)                         =>
+        case MultilayerView(interlayerEdgeBuilder)                                    =>
           startStep()
           graphLens.explodeView(interlayerEdgeBuilder) {
             finaliseStep {
@@ -334,7 +334,7 @@ private[raphtory] class QueryExecutor(
             }
           }
 
-        case ReduceView(defaultMergeStrategy, mergeStrategyMap, aggregate) =>
+        case ReduceView(defaultMergeStrategy, mergeStrategyMap, aggregate)            =>
           startStep()
           graphLens.reduceView(defaultMergeStrategy, mergeStrategyMap, aggregate) {
             finaliseStep {
@@ -359,7 +359,7 @@ private[raphtory] class QueryExecutor(
         case Step(f: (Vertex => Unit) @unchecked)                                     =>
           evaluateStep(time, f)
 
-        case UndirectedView()                                              =>
+        case UndirectedView()                                                         =>
           startStep()
           graphLens.viewUndirected() {
             finaliseStep {
@@ -380,7 +380,7 @@ private[raphtory] class QueryExecutor(
             }
           }
 
-        case DirectedView()                                                =>
+        case DirectedView()                                                           =>
           startStep()
           graphLens.viewDirected() {
             finaliseStep {
@@ -406,7 +406,7 @@ private[raphtory] class QueryExecutor(
         case Iterate(f: (Vertex => Unit) @unchecked, iterations, executeMessagedOnly) =>
           evaluateIterate(time, f, executeMessagedOnly)
 
-        case ReversedView()                                                =>
+        case ReversedView()                                                           =>
           startStep()
           graphLens.viewReversed() {
             finaliseStep {
@@ -427,22 +427,7 @@ private[raphtory] class QueryExecutor(
             }
           }
 
-        case PythonStep(p)                                                    =>
-
-          println("BOOM STEP")
-          Using(Source.fromFile("/pometry/Source/Raphtory/python/pyraphtory/sample.py")){
-            file =>
-              py.run(file.mkString)
-          }
-
-          Using(new PythonStepEvaluator[Id](p, py)){
-            eval =>
-              evaluateStep(time, eval)
-          }.get
-        case Step(f: (Vertex => Unit))                                        =>
-          evaluateStep(time, f)
-
-        case Iterate(f, iterations, executeMessagedOnly)                   =>
+        case Iterate(f: (Vertex => Unit) @unchecked, iterations, executeMessagedOnly) =>
           startStep()
           val fun =
             if (executeMessagedOnly)
@@ -471,7 +456,7 @@ private[raphtory] class QueryExecutor(
             }
           }
 
-        case ClearChain()                                                  =>
+        case ClearChain()                                                             =>
           graphLens.clearMessages()
           taskManager sendAsync GraphFunctionComplete(currentPerspectiveID, partitionID, 0, 0)
           logger.debug(
@@ -479,7 +464,7 @@ private[raphtory] class QueryExecutor(
                     .currentTimeMillis() - time}ms."
           )
 
-        case Select(f)                                                     =>
+        case Select(f)                                                                =>
           startStep()
           graphLens.executeSelect(f) {
             finaliseStep {
@@ -492,7 +477,7 @@ private[raphtory] class QueryExecutor(
           }
 
         //TODO create explode select with accumulators
-        case ExplodeSelect(f)                                              =>
+        case ExplodeSelect(f)                                                         =>
           startStep()
           graphLens.explodeSelect(f) {
             finaliseStep {
@@ -504,7 +489,7 @@ private[raphtory] class QueryExecutor(
             }
           }
 
-        case TableFilter(f)                                                =>
+        case TableFilter(f)                                                           =>
           graphLens.filteredTable(f) {
             taskManager sendAsync TableFunctionComplete(currentPerspectiveID)
             logger.debug(
@@ -513,7 +498,7 @@ private[raphtory] class QueryExecutor(
             )
           }
 
-        case Explode(f)                                                    =>
+        case Explode(f)                                                               =>
           graphLens.explodeTable(f) {
             taskManager sendAsync TableFunctionComplete(currentPerspectiveID)
             logger.debug(
@@ -522,7 +507,7 @@ private[raphtory] class QueryExecutor(
             )
           }
 
-        case WriteToOutput                                                 =>
+        case WriteToOutput                                                            =>
           sinkExecutor.setupPerspective(currentPerspective)
           val writer = row => sinkExecutor.threadSafeWriteRow(row)
           graphLens.writeDataTable(writer) {
@@ -534,7 +519,7 @@ private[raphtory] class QueryExecutor(
             )
           }
 
-        case CompleteWrite                                                 =>
+        case CompleteWrite                                                            =>
           sinkExecutor.close()
           logger.debug(
                   s"Job '$jobID' at Partition '$partitionID': Received 'CompleteWrite' message. " +
@@ -543,7 +528,7 @@ private[raphtory] class QueryExecutor(
           taskManager sendAsync WriteCompleted
 
         //TODO Kill this worker once this is received
-        case EndQuery(jobID)                                               =>
+        case EndQuery(jobID)                                                          =>
           logger.debug(
                   s"Job '$jobID' at Partition '$partitionID': Received 'EndQuery' message. "
           )

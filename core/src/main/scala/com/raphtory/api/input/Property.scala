@@ -11,8 +11,6 @@ sealed trait Property {
   /** property name */
   def key: String
 
-//  /** value property value */
-//  def value: Any
 }
 
 /** Vertex/Edge type (this is not a `Property`) */
