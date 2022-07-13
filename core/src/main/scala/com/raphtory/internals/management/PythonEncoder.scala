@@ -1,111 +1,14 @@
 package com.raphtory.internals.management
 
-import cats.Applicative
-import cats.Monad
-import cats.effect.Async
-import cats.effect.Resource
-import cats.syntax.all._
 import com.raphtory.api.input.GraphBuilder
-import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
-import pemja.core.PythonInterpreter
-import pemja.core.PythonInterpreterConfig
 
-import java.nio.file.Path
 import java.util
-import java.util.concurrent.Callable
 import scala.collection.mutable
 import scala.reflect.ClassTag
 import scala.util.Success
 import scala.util.Try
 
-class PythonEmbedded[IO[_]](py: PythonInterpreter, private var i: Int = 0)(implicit IO: Async[IO]) { self =>
-
-  def loadGraphBuilder(cls: String, pkg: String): IO[PythonGraphBuilder[IO]] =
-    IO.blocking {
-      py.exec(s"import $pkg")
-      val name = s"pyref_$i"
-      i += 1
-      py.exec(s"$name = $pkg.$cls()")
-      new PythonGraphBuilder(PyRef(name), self)
-    }
-
-  private[management] def invoke(ref: PyRef, methodName: String, args: Vector[Object] = Vector.empty) =
-    IO.blocking {
-      py.invokeMethod(ref.name, methodName, args: _*)
-    }
-
-  private[management] def eval[T](expr: String)(implicit PE: PythonEncoder[T]): IO[T] =
-    IO.blocking {
-      val name  = s"tmp_$i"
-      i += 1
-      py.exec(s"$name = $expr")
-      val pyObj = py.get(name, PE.clz.asSubclass(classOf[Object]))
-      val a     = PE.decode(pyObj)
-      a
-    }
-
-  private[management] def withUnsafePy[T](f: PythonInterpreter => T): IO[T] =
-    IO.blocking {
-      f(py)
-    }
-
-  private[management] def javaInterop(c: Callable[String]): IO[Unit] =
-    IO.blocking {
-      py.set("a", c)
-      py.exec("a.call()")
-    }
-
-  def set(eval: Any): IO[PyRef] =
-    IO.blocking {
-      val name = s"tmp_$i"
-      i += 1
-      py.set(name, eval)
-      PyRef(name)
-    }
-}
-
-object PythonEmbedded {
-
-  def apply[IO[_]: Async](pythonPaths: Path*): Resource[IO, PythonEmbedded[IO]] =
-    for {
-      config <- Resource.eval(Async[IO].blocking {
-                  pythonPaths
-                    .foldLeft(
-                            PythonInterpreterConfig
-                              .newBuilder()
-                              .setPythonExec("/home/murariuf/.virtualenvs/raphtory/bin/python3")
-                    ) { (b, path) =>
-                      b.addPythonPaths(path.toAbsolutePath.toString)
-                    }
-                    .build()
-                })
-      py     <- Resource.fromAutoCloseable(Async[IO].blocking(new PythonInterpreter(config))).map(new PythonEmbedded(_))
-    } yield py
-
-}
-
-/**
-  * Reference of object inside python
-  * @param name
-  * name of variable inside the python context
-  */
-case class PyRef(name: String)
-
-class PythonGraphBuilder[IO[_]: Monad](ref: PyRef, py: PythonEmbedded[IO]) {
-
-  def parseTuple(line: String) =
-    py.invoke(ref, "parse_tuple", Vector(line)) *>
-      py.eval[Vector[GraphUpdate]](s"${ref.name}.get_actions()")
-
-}
-
-object PythonGraphBuilder {
-
-  def apply[IO[_]: Monad](ref: PyRef, py: PythonEmbedded[IO]): IO[PythonGraphBuilder[IO]] =
-    Applicative[IO].pure(new PythonGraphBuilder[IO](ref, py))
-}
-
-trait PythonEncoder[A] {
+trait PythonEncoder[A] extends Serializable{
   def encode(a: A): Object
 
   def decode(pyObj: Object): A
@@ -283,3 +186,10 @@ object PythonInterop {
     GraphBuilder.assignID(s)
 
 }
+
+/**
+ * Reference of object inside python
+ * @param name
+ * name of variable inside the python context
+ */
+case class PyRef(name: String)

@@ -16,7 +16,7 @@ private[serialisers] class DynamicClassLoader(parent: ClassLoader, storage: Conc
 
   @throws[ClassNotFoundException]
   override def findClass(name: String): Class[_] =
-    Try(super.findClass(name)) match {
+    Try(super.loadClass(name)) match {
       case Success(cls)                       => cls
       case Failure(t: ClassNotFoundException) =>
         val clzBytes = storage.get(name)

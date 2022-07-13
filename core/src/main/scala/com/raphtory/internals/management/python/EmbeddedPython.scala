@@ -4,7 +4,7 @@ import com.raphtory.api.input.GraphBuilder
 import com.raphtory.internals.management.PyRef
 import com.raphtory.internals.management.PythonEncoder
 
-trait EmbeddedPython[IO[_]] {
+trait EmbeddedPython[IO[_]]{
 
   def invoke(ref: PyRef, methodName: String, args: Vector[Object] = Vector.empty): IO[Object]
 
