@@ -8,7 +8,7 @@ import scala.reflect.ClassTag
 import scala.util.Success
 import scala.util.Try
 
-trait PythonEncoder[A] extends Serializable{
+trait PythonEncoder[A] extends Serializable {
   def encode(a: A): Object
 
   def decode(pyObj: Object): A
@@ -188,8 +188,8 @@ object PythonInterop {
 }
 
 /**
- * Reference of object inside python
- * @param name
- * name of variable inside the python context
- */
+  * Reference of object inside python
+  * @param name
+  * name of variable inside the python context
+  */
 case class PyRef(name: String)
