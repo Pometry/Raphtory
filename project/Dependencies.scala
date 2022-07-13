@@ -7,9 +7,7 @@ object Dependencies {
   private lazy val chillVersion          = "0.10.0"
   private lazy val curatorVersion        = "5.2.1"
   private lazy val jacksonVersion        = "2.13.3"
-  private lazy val javaxScriptVersion    = "1.1"
-  private lazy val log4jVersion          = "2.17.2"
-  private lazy val monixVersion          = "3.4.0"
+  private lazy val log4jVersion          = "2.18.0"
   private lazy val openhftVersion        = "0.15"
   private lazy val prometheusVersion     = "0.15.0"
   private lazy val pulsarVersion         = "2.9.1"
@@ -36,8 +34,6 @@ object Dependencies {
   lazy val curatorRecipes   = "org.apache.curator"            % "curator-recipes"      % curatorVersion
   lazy val jackson          = "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
 
-  lazy val javaxScript =
-    "javax.script" % "js-engine" % javaxScriptVersion //Creates a fake POM to avoid the logger throwing a class not found exception
   lazy val log4jApi   = "org.apache.logging.log4j" % "log4j-api"        % log4jVersion
   lazy val log4jCore  = "org.apache.logging.log4j" % "log4j-core"       % log4jVersion
   lazy val log4jSlft4 = "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion
@@ -63,7 +59,7 @@ object Dependencies {
   lazy val sprayJson        = "io.spray"                   %% "spray-json"                     % sprayJsonVersion
   lazy val testContainers   = "com.dimafeng"               %% "testcontainers-scala-munit"     % testContainersVersion % "test"
 
-  lazy val timeSeries       =
+  lazy val timeSeries =
     "io.sqooba.oss" %% "scala-timeseries-lib" % timeSeriesVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val twitterChill   = "com.twitter"         %% "chill"               % chillVersion
   lazy val typesafeConfig = "com.typesafe"         % "config"              % typesafeConfigVersion
