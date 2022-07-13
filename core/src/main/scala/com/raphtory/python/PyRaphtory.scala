@@ -35,6 +35,9 @@ object PyRaphtory
     val builder = Opts
       .option[String](long = "builder", short = "g", help = "Class for graph builder")
 
+    val connect = Opts
+      .option[String](long = "connect", short = "c", help = "Pulsar host:port, pulsar admin host:port, ZK host:port")
+
     val local       = Opts.flag("local", "Run Raphtory locally", "l").map(_ => Local)
     val distributed = Opts.flag("distributed", "Connect to existing Raphtory cluster", "d").map(_ => Distributed)
     val streaming   = Opts.flag("streaming", "Load the file in streaming mode", "s").map(_ => Streaming)
