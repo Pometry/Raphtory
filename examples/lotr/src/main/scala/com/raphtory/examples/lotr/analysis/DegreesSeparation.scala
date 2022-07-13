@@ -5,7 +5,7 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 
-class DegreesSeparation(name: String = "Gandalf") extends Generic {
+class DegreesSeparation(name: String = "Gandalf") extends Generic[Row] {
 
   final val SEPARATION = "SEPARATION"
 
@@ -32,11 +32,9 @@ class DegreesSeparation(name: String = "Gandalf") extends Generic {
               executeMessagedOnly = true
       )
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph
-      .select(vertex =>
-        Row(vertex.getPropertyOrElse("name", "unknown"), vertex.getStateOrElse[Int](SEPARATION, -1))
-      )
+      .select(vertex => Row(vertex.getPropertyOrElse("name", "unknown"), vertex.getStateOrElse[Int](SEPARATION, -1)))
   //.filter(row=> row.getInt(1) > -1)
 }
 

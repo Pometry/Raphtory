@@ -54,7 +54,7 @@ import scala.collection.mutable.ArrayBuffer
   *  | ----------------- | ------------------------- | --- | -------------------------- |
   *  | {s}`name: String` | {s}`motifCounts(0): Long` | ... | {s}`motifCounts(12): Long` |
   */
-object ThreeNodeMotifs extends Generic {
+object ThreeNodeMotifs extends Generic[Row] {
   //  edge direction constants
   val inoutEdge = 0
   val outEdge   = 1
@@ -157,7 +157,7 @@ object ThreeNodeMotifs extends Generic {
         vertex.setState("motifCounts", motifCounts)
       }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph.select { vertex =>
       val motifCounts = vertex.getState[ArrayBuffer[Long]]("motifCounts")
       val row         = vertex.name() +: motifCounts

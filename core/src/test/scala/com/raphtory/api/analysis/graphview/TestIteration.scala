@@ -7,7 +7,7 @@ import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 
-class CountIterations(num_iters_before_vote: Int, num_iters: Int) extends Generic {
+class CountIterations(num_iters_before_vote: Int, num_iters: Int) extends Generic[Row] {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -28,7 +28,7 @@ class CountIterations(num_iters_before_vote: Int, num_iters: Int) extends Generi
         graphState("maxIterations") += vertex.getState("iterations")
       }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph.globalSelect(graphState => Row(graphState("maxIterations").value))
 }
 

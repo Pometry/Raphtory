@@ -69,7 +69,7 @@ class MultilayerLPA(
     layerSize: Long,
     omega: Double = 1.0,
     seed: Long = -1
-) extends GenericReduction {
+) extends GenericReduction[Row] {
 
   private val rnd: Random = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)
   private val SP          = 0.2f // Stickiness probability
@@ -176,7 +176,7 @@ class MultilayerLPA(
       )
   }
 
-  override def tabularise(graph: ReducedGraphPerspective): Table =
+  override def tabularise(graph: ReducedGraphPerspective): Table[Row] =
     graph
       .select { vertex =>
         Row(

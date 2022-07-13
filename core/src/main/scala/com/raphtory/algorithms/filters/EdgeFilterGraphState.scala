@@ -25,7 +25,7 @@ import com.raphtory.api.analysis.visitor.Edge
   * ```
   */
 
-class EdgeFilterGraphState(f: (Edge, GraphState) => Boolean, pruneNodes: Boolean = true) extends Generic {
+class EdgeFilterGraphState(f: (Edge, GraphState) => Boolean, pruneNodes: Boolean = true) extends Generic[Any] {
 
   override def apply(graph: GraphPerspective): graph.Graph = graph.edgeFilter(f, pruneNodes)
 }

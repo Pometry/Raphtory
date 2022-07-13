@@ -14,7 +14,7 @@ import com.raphtory.api.analysis.visitor.PropertyMergeStrategy
 import com.raphtory.api.input.Spout
 import com.raphtory.spouts.SequenceSpout
 
-class WriteValue extends GenericReduction {
+class WriteValue extends GenericReduction[Any] {
 
   override def apply(graph: GraphPerspective): graph.ReducedGraph =
     graph.multilayerView

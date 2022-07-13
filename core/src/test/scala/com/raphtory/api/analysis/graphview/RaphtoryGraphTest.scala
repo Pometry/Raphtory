@@ -33,7 +33,7 @@ class RaphtoryGraphTest extends FunSuite {
       .transform(ConnectedComponents())
       .select(vertex => Row(vertex.getState("new")))
       .filter(_.getInt(0) == 1)
-    val query = table.asInstanceOf[TableImplementation].query
+    val query = table.asInstanceOf[TableImplementation[_]].query
 
     assertEquals(query.timelineStart, 100L)
     assertEquals(query.timelineEnd, 499L)

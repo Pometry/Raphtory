@@ -64,18 +64,18 @@ final private[raphtory] case class IterateWithGraph(
     executeMessagedOnly: Boolean
 ) extends GlobalGraphFunction
 
-final private[raphtory] case class Select(f: _ => Row) extends TabularisingGraphFunction
+final private[raphtory] case class Select(f: _ => Any) extends TabularisingGraphFunction
 
 final private[raphtory] case class SelectWithGraph(
-    f: (_, GraphState) => Row
+    f: (_, GraphState) => Any
 ) extends TabularisingGraphFunction
         with GlobalGraphFunction
 
 final private[raphtory] case class GlobalSelect(
-    f: GraphState => Row
+    f: GraphState => Any
 )                                                                   extends TabularisingGraphFunction
         with GlobalGraphFunction
-final private[raphtory] case class ExplodeSelect(f: _ => List[Row]) extends TabularisingGraphFunction
+final private[raphtory] case class ExplodeSelect(f: _ => List[Any]) extends TabularisingGraphFunction
 final private[raphtory] case class ClearChain()                     extends GraphFunction
 final private[raphtory] case class PerspectiveDone()                extends GraphFunction
 
@@ -173,16 +173,16 @@ private[api] trait GraphViewImplementation[
       executeMessagedOnly: Boolean
   ): G = addFunction(IterateWithGraph(f, iterations, executeMessagedOnly))
 
-  override def select(f: V => Row): Table =
+  override def select[T](f: V => T): Table[T] =
     addSelect(Select(f))
 
-  override def select(f: (V, GraphState) => Row): Table =
+  override def select[T](f: (V, GraphState) => T): Table[T] =
     addSelect(SelectWithGraph(f))
 
-  override def globalSelect(f: GraphState => Row): Table =
+  override def globalSelect[T](f: GraphState => T): Table[T] =
     addSelect(GlobalSelect(f))
 
-  override def explodeSelect(f: V => List[Row]): Table =
+  override def explodeSelect[T](f: V => List[T]): Table[T] =
     addSelect(ExplodeSelect(f))
 
   override def clearMessages(): G =
@@ -191,21 +191,21 @@ private[api] trait GraphViewImplementation[
   /**  Execute only the apply step of the algorithm on every perspective and returns a new RaphtoryGraph with the result.
     *  @param algorithm algorithm to apply
     */
-  def transform(algorithm: Generic): G =
+  def transform(algorithm: Generic[_]): G =
     algorithm
       .apply(withTransformedName(algorithm))
       .clearMessages()
 
-  def transform(algorithm: MultilayerProjection): MG =
+  def transform(algorithm: MultilayerProjection[_]): MG =
     algorithm(withTransformedName(algorithm)).clearMessages()
 
-  def transform(algorithm: GenericReduction): RG =
+  def transform(algorithm: GenericReduction[_]): RG =
     algorithm(withTransformedName(algorithm)).clearMessages()
 
   /** Execute the algorithm on every perspective and returns a new `RaphtoryGraph` with the result.
     * @param algorithm to apply
     */
-  def execute(algorithm: GenericallyApplicable): Table =
+  def execute[T](algorithm: GenericallyApplicable[T]): Table[T] =
     algorithm.run(withTransformedName(algorithm))
 
   private def addFunction(function: GraphFunction) =
@@ -217,13 +217,13 @@ private[api] trait GraphViewImplementation[
   private def addMFunction(function: GraphFunction) =
     newMGraph(query.copy(graphFunctions = query.graphFunctions.enqueue(function)), querySender)
 
-  private def addSelect(function: GraphFunction) =
-    new TableImplementation(
+  private def addSelect[T](function: GraphFunction) =
+    new TableImplementation[T](
             query.copy(graphFunctions = query.graphFunctions.enqueue(function)),
             querySender
     )
 
-  private[api] def withTransformedName(algorithm: BaseAlgorithm) = {
+  private[api] def withTransformedName(algorithm: BaseAlgorithm[_]) = {
     val newName = query.name match {
       case "" => algorithm.name
       case _  => query.name + ":" + algorithm.name
@@ -239,16 +239,16 @@ private[api] trait MultilayerGraphViewImplementation[
         with ConcreteMultilayerGraphPerspective[G, RG]
         with MultilayerGraphView { this: G =>
 
-  def transform(algorithm: Multilayer): G =
+  def transform(algorithm: Multilayer[_]): G =
     algorithm(withTransformedName(algorithm)).clearMessages()
 
-  def transform(algorithm: MultilayerReduction): RG =
+  def transform(algorithm: MultilayerReduction[_]): RG =
     algorithm(withTransformedName(algorithm)).clearMessages()
 
-  def execute(algorithm: Multilayer): Table =
+  def execute[T](algorithm: Multilayer[T]): Table[T] =
     algorithm.run(withTransformedName(algorithm))
 
-  def execute(algorithm: MultilayerReduction): Table =
+  def execute[T](algorithm: MultilayerReduction[T]): Table[T] =
     algorithm.run(withTransformedName(algorithm))
 
   private[api] def newGraph(query: Query, querySender: QuerySender): G =

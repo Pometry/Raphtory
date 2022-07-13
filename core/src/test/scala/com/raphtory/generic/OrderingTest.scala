@@ -21,7 +21,7 @@ import scala.util.Random
 import scala.math.Ordering.Implicits._
 import scala.reflect.ClassTag
 
-class CheckHistory extends Generic {
+class CheckHistory extends Generic[Row] {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -40,7 +40,7 @@ class CheckHistory extends Generic {
         graphState("vertexHistoryOrdered") += sorted
       }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph.globalSelect(graphState =>
       Row(graphState("vertexHistoryOrdered").value, graphState("edgeHistoryOrdered").value)
     )

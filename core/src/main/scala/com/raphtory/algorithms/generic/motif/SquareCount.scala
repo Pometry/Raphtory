@@ -12,7 +12,7 @@ case class SecondStep[VertexID](p: VertexID, q: VertexID, adj: Array[VertexID])
 case class CountMessage(count: Long)
 case class WedgeMessage[VertexID](p: VertexID, s: Array[VertexID])
 
-object AccumulateCounts extends Generic {
+object AccumulateCounts extends Generic[Any] {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -41,7 +41,7 @@ object AccumulateCounts extends Generic {
       }
 }
 
-object CountPR extends Generic {
+object CountPR extends Generic[Any] {
 
   override def apply(graph: GraphPerspective): graph.Graph = {
     val counts = AccumulateCounts
@@ -65,7 +65,7 @@ object CountPR extends Generic {
   }
 }
 
-object CountQR extends Generic {
+object CountQR extends Generic[Any] {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     AccumulateCounts(
@@ -88,7 +88,7 @@ object CountQR extends Generic {
     )
 }
 
-object CountPQ extends Generic {
+object CountPQ extends Generic[Any] {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph

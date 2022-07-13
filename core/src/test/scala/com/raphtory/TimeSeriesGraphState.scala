@@ -5,9 +5,9 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 
-class TimeSeriesGraphState() extends Generic {
+class TimeSeriesGraphState() extends Generic[Row] {
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph.select { vertex =>
       val propertyhistory =
         vertex.getPropertySet().toArray.map(x => vertex.getTimeSeriesPropertyHistory(x).size).sum

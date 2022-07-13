@@ -14,7 +14,7 @@ import com.raphtory.api.analysis.visitor.Vertex
   *  TODO add in tests for accumulators of different types - test default values and not refreshing the value on a new superstep
   */
 
-class GlobalState extends Generic {
+class GlobalState extends Generic[Row] {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -38,7 +38,7 @@ class GlobalState extends Generic {
           graphState("name length multiplier") += totalNameLength.toLong
       }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph.globalSelect(graphState =>
       Row(
               graphState("name length max").value,

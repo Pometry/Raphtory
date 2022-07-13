@@ -15,7 +15,7 @@ import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.input.Spout
 import com.raphtory.spouts.ResourceSpout
 
-object CountNodes extends Generic {
+object CountNodes extends Generic[Row] {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -26,13 +26,13 @@ object CountNodes extends Generic {
         globalState("nodeCount") += 1
       }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph
       .globalSelect(graphState => Row(graphState("nodeCount").value))
 
 }
 
-object CountNodesTwice extends Generic {
+object CountNodesTwice extends Generic[Row] {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -49,19 +49,19 @@ object CountNodesTwice extends Generic {
         globalState("nodeCountDoubled") += 1
       }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph
       .globalSelect { graphState: GraphState =>
         Row(graphState("nodeCount").value, graphState("nodeCountDoubled").value)
       }
 }
 
-object CheckNodeCount extends Generic {
+object CheckNodeCount extends Generic[Row] {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     CountNodes(graph)
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph.globalSelect { graphState =>
       val n: Int = graphState("nodeCount").value
       Row(graphState.nodeCount == n)

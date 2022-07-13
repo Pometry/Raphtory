@@ -9,27 +9,21 @@ import com.raphtory.api.time.DiscreteInterval
 import com.raphtory.internals.graph.Perspective
 import munit.FunSuite
 
-class JsonFormatTest extends FunSuite {
-  private val jobID       = "job-id"
-  private val partitionID = 13
-  private val reader      = JsonMapper.builder().addModule(DefaultScalaModule).build().reader()
+class JsonFormatTest extends FormatTest {
+  private val reader = JsonMapper.builder().addModule(DefaultScalaModule).build().reader()
 
-  private val sampleTable = List(
-          (Perspective(100, None, 0, 100), List(Row("id1", 34), Row("id2", 24))),
-          (
-                  Perspective(200, Some(DiscreteInterval(200)), 0, 200),
-                  List(Row("id1", 56), Row("id2", 67))
-          )
-  )
+  private val rowLevelCaseClassOutput =
+    """{"timestamp":100,"window":null,"row":{"name":"John","age":25}}
+      |""".stripMargin
 
-  private val rowLevelOutput =
+  private val rowLevelRowOutput =
     """{"timestamp":100,"window":null,"row":["id1",34]}
       |{"timestamp":100,"window":null,"row":["id2",24]}
       |{"timestamp":200,"window":200,"row":["id1",56]}
       |{"timestamp":200,"window":200,"row":["id2",67]}
       |""".stripMargin
 
-  private val globalLevelOutput =
+  private val globalLevelRowOutput =
     """{
       |  "jobID" : "job-id",
       |  "partitionID" : 13,
@@ -46,24 +40,29 @@ class JsonFormatTest extends FunSuite {
       |""".stripMargin
 
   test("JsonFormat.ROW level output matches table data") {
-    val output = formatTable(JsonFormat(), sampleTable, jobID, partitionID)
-    assertEquals(output, rowLevelOutput)
+    val output = formatTable(JsonFormat(), rowTable, jobID, partitionID)
+    assertEquals(output, rowLevelRowOutput)
   }
 
   test("JsonFormat.ROW level output lines are valid JSON") {
-    val output = formatTable(JsonFormat(), sampleTable, jobID, partitionID)
+    val output = formatTable(JsonFormat(), rowTable, jobID, partitionID)
     output.split("\n") foreach { line =>
       reader.createParser(line).readValueAs(classOf[Any])
     }
   }
 
+  test("Product fields are correctly written out") {
+    val output = formatTable(JsonFormat(), caseClassTable, jobID, partitionID)
+    assertEquals(output, rowLevelCaseClassOutput)
+  }
+
   test("JsonFormat.GLOBAL level output matches table data") {
-    val output = formatTable(JsonFormat(JsonFormat.GLOBAL), sampleTable, jobID, partitionID)
-    assertEquals(output, globalLevelOutput)
+    val output = formatTable(JsonFormat(JsonFormat.GLOBAL), rowTable, jobID, partitionID)
+    assertEquals(output, globalLevelRowOutput)
   }
 
   test("JsonFormat.GLOBAL level output is valid JSON") {
-    val output = formatTable(JsonFormat(JsonFormat.GLOBAL), sampleTable, jobID, partitionID)
+    val output = formatTable(JsonFormat(JsonFormat.GLOBAL), rowTable, jobID, partitionID)
     reader.createParser(output).readValueAs(classOf[Any])
   }
 
@@ -74,25 +73,5 @@ class JsonFormatTest extends FunSuite {
     )
     val output    = formatTable(JsonFormat(JsonFormat.GLOBAL), docsTable, "EdgeCount", 0)
     reader.createParser(output).readValueAs(classOf[Any])
-  }
-
-  private def formatTable(
-      format: Format,
-      table: List[(Perspective, List[Row])],
-      jobID: String,
-      partitionID: Int
-  ): String = {
-    val sink     = StringSink(format = format)
-    val executor = sink.executor(jobID, partitionID, Raphtory.getDefaultConfig())
-
-    table foreach {
-      case (perspective, rows) =>
-        executor.setupPerspective(perspective)
-        rows foreach (row => executor.threadSafeWriteRow(row))
-        executor.closePerspective()
-    }
-    executor.close()
-
-    sink.output
   }
 }

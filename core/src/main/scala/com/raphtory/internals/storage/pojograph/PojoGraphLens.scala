@@ -79,54 +79,50 @@ final private[raphtory] case class PojoGraphLens(
 
   def localNodeCount: Int = vertices.length
 
-  private var dataTable: Iterator[RowImplementation] = Iterator()
+  private var dataTable: Iterator[Any] = Iterator()
 
-  def executeSelect(f: _ => Row)(onComplete: => Unit): Unit = {
-    dataTable = vertexIterator.flatMap { vertex =>
-      f.asInstanceOf[PojoVertexBase => RowImplementation](vertex).yieldAndRelease
+  def executeSelect(f: _ => Any)(onComplete: => Unit): Unit = {
+    dataTable = vertexIterator.map { vertex =>
+      f.asInstanceOf[PojoVertexBase => Any](vertex)
     }
     onComplete
   }
 
-  def executeSelect(
-      f: (_, GraphState) => Row,
+  override def executeSelect(
+      f: (_, GraphState) => Any,
       graphState: GraphState
   )(onComplete: => Unit): Unit = {
-    dataTable = vertexIterator.flatMap { vertex =>
-      f.asInstanceOf[(PojoVertexBase, GraphState) => RowImplementation](vertex, graphState).yieldAndRelease
+    dataTable = vertexIterator.map { vertex =>
+      f.asInstanceOf[(PojoVertexBase, GraphState) => Any](vertex, graphState)
     }
     onComplete
   }
 
-  def executeSelect(
-      f: GraphState => Row,
+  override def executeSelect(
+      f: GraphState => Any,
       graphState: GraphState
   )(onComplete: => Unit): Unit = {
     if (partitionID == 0)
-      dataTable = Iterator
-        .fill(1)(f(graphState).asInstanceOf[RowImplementation])
-        .flatMap(_.yieldAndRelease)
+      dataTable = Iterator(f(graphState))
     onComplete
   }
 
-  def explodeSelect(f: _ => IterableOnce[Row])(onComplete: => Unit): Unit = {
-    dataTable = vertexIterator
-      .flatMap(f.asInstanceOf[PojoVertexBase => IterableOnce[RowImplementation]])
-      .flatMap(_.yieldAndRelease)
+  override def explodeSelect(f: _ => IterableOnce[Any])(onComplete: => Unit): Unit = {
+    dataTable = vertexIterator.flatMap(f.asInstanceOf[PojoVertexBase => IterableOnce[Any]])
     onComplete
   }
 
-  def filteredTable(f: Row => Boolean)(onComplete: => Unit): Unit = {
+  override def filteredTable(f: Any => Boolean)(onComplete: => Unit): Unit = {
     dataTable = dataTable.filter(f)
     onComplete
   }
 
-  def explodeTable(f: Row => IterableOnce[Row])(onComplete: => Unit): Unit = {
-    dataTable = dataTable.flatMap(_.explode(f))
+  override def explodeTable(f: Any => IterableOnce[Any])(onComplete: => Unit): Unit = {
+    dataTable = dataTable.flatMap(f)
     onComplete
   }
 
-  def writeDataTable(writer: Row => Unit)(onComplete: => Unit): Unit = {
+  override def writeDataTable(writer: Any => Unit)(onComplete: => Unit): Unit = {
     dataTable.foreach(row => writer(row))
     onComplete
   }

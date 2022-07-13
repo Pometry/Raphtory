@@ -222,25 +222,25 @@ trait GraphPerspective {
     *
     * @param f function to extract data from vertex (run once for each vertex)
     */
-  def select(f: Vertex => Row): Table
+  def select[T](f: Vertex => T): Table[T]
 
   /** Write output to table with access to global graph state
     *
     * @param f function to extract data from vertex and graph state (run once for each vertex)
     */
-  def select(f: (Vertex, GraphState) => Row): Table
+  def select[T](f: (Vertex, GraphState) => T): Table[T]
 
   /** Write global graph state to table (this creates a table with a single row)
     *
     * @param f function to extract data from graph state (runs only once)
     */
-  def globalSelect(f: GraphState => Row): Table
+  def globalSelect[T](f: GraphState => T): Table[T]
 
   /** Write output to table with multiple rows per vertex
     *
     * @param f function to extract data from vertex
     */
-  def explodeSelect(f: Vertex => List[Row]): Table
+  def explodeSelect[T](f: Vertex => List[T]): Table[T]
 
 //  TODO: Implement GraphState version of explodeSelect
 
@@ -318,10 +318,10 @@ private[api] trait ConcreteGraphPerspective[V <: visitor.Vertex, G <: ConcreteGr
       iterations: Int,
       executeMessagedOnly: Boolean
   ): Graph
-  def select(f: Vertex => Row): Table
-  def select(f: (Vertex, GraphState) => Row): Table
-  def globalSelect(f: GraphState => Row): Table
-  def explodeSelect(f: Vertex => List[Row]): Table
+  def select[T](f: Vertex => T): Table[T]
+  def select[T](f: (Vertex, GraphState) => T): Table[T]
+  def globalSelect[T](f: GraphState => T): Table[T]
+  def explodeSelect[T](f: Vertex => List[T]): Table[T]
   def clearMessages(): Graph
 }
 

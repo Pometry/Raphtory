@@ -7,7 +7,7 @@ import com.raphtory.api.analysis.visitor.Vertex
 
 class MultilayerView(
     interlayerEdgeBuilder: Vertex => Seq[InterlayerEdge]
-) extends MultilayerProjection {
+) extends MultilayerProjection[Any] {
 
   override def apply(graph: GraphPerspective): graph.MultilayerGraph =
     graph.multilayerView(interlayerEdgeBuilder)

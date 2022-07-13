@@ -14,7 +14,7 @@ import com.raphtory.api.analysis.visitor.Edge
   * the effects of bots further.
   */
 
-class MemberRank() extends Generic {
+class MemberRank() extends Generic[Row] {
 
   case class Score(negativeScore: Double = 0.0, positiveScore: Double = 0.0) {
 
@@ -93,7 +93,7 @@ class MemberRank() extends Generic {
     *   5) New Negative Score
     *   6) New Positive Score
     */
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph.select { vertex =>
       Row(
               vertex.getPropertyOrElse("name", vertex.ID),

@@ -18,7 +18,7 @@ import scala.util.Random
   * ```
   */
 
-class UniformEdgeSample(p: Float, pruneNodes: Boolean = true) extends Generic {
+class UniformEdgeSample(p: Float, pruneNodes: Boolean = true) extends Generic[Any] {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph.edgeFilter(_ => Random.nextFloat() < p, pruneNodes = pruneNodes)

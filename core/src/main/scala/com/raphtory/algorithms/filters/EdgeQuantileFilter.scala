@@ -56,7 +56,7 @@ class EdgeQuantileFilter[T: Numeric: Bounded: ClassTag](
     upperExclusive: Boolean = false,
     noBins: Int = 1000,
     pruneNodes: Boolean = true
-) extends Generic {
+) extends Generic[Any] {
 
   override def apply(graph: GraphPerspective): graph.Graph = {
     // Check inputs are sound

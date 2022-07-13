@@ -9,10 +9,11 @@ import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.SequenceSpout
 import com.raphtory.BasicGraphBuilder
 import com.raphtory.Raphtory
+import com.raphtory.api.analysis.table.Row
 import com.raphtory.internals.communication.EndPoint
 import munit.CatsEffectSuite
 
-class FailingAlgo extends Generic {
+class FailingAlgo extends Generic[Row] {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph.step(_ => throw new Exception("Algorithm failed"))

@@ -54,7 +54,7 @@ import com.raphtory.api.analysis.table.Table
   *   ```
   */
 
-class NodeInformation(initialID: Long, hopsAway: Int = 1) extends Generic {
+class NodeInformation(initialID: Long, hopsAway: Int = 1) extends Generic[Row] {
 
   case class Node(label: String, metadata: NodeData, edges: Array[EdgeInfo])
   case class NodeData(id: String)
@@ -79,7 +79,7 @@ class NodeInformation(initialID: Long, hopsAway: Int = 1) extends Generic {
               true
       )
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph
       .select { vertex =>
         val vertexID                         = vertex.ID

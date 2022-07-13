@@ -71,8 +71,13 @@ case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
     }
   }
 
-  private def printRowObject(generator: JsonGenerator, serializer: ObjectWriter, row: Row): Unit =
-    serializer.writeValue(generator, row.getValues())
+  private def printRowObject(generator: JsonGenerator, serializer: ObjectWriter, row: Any): Unit = {
+    val valueToPrint = row match {
+      case row: Row => row.getValues()
+      case _        => row
+    }
+    serializer.writeValue(generator, valueToPrint)
+  }
 
   private def flush(generator: JsonGenerator, stringWriter: StringWriter, connector: SinkConnector): Unit = {
     generator.flush()
@@ -91,7 +96,7 @@ case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
       override def setupPerspective(perspective: Perspective): Unit =
         currentPerspective = perspective
 
-      override protected def writeRow(row: Row): Unit = {
+      override protected def writeRow(row: Any): Unit = {
         val generator = mapper.createGenerator(stringWriter)
         generator.writeStartObject()
         printPerspectiveProperties(generator, currentPerspective)
@@ -133,7 +138,7 @@ case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
         flush(generator, stringWriter, connector)
       }
 
-      override protected def writeRow(row: Row): Unit = {
+      override protected def writeRow(row: Any): Unit = {
         printRowObject(generator, serializer, row)
         flush(generator, stringWriter, connector)
       }

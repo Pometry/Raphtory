@@ -47,8 +47,8 @@ import com.raphtory.api.analysis.table.Table
 class CBOD(
     label: String = "community",
     cutoff: Double = 0.0,
-    labeler: Generic = Identity
-) extends Generic {
+    labeler: Generic[_] = Identity
+) extends Generic[Row] {
 
   // Run CBOD algorithm and sets "outlierscore" state
   override def apply(graph: GraphPerspective): graph.Graph =
@@ -65,7 +65,7 @@ class CBOD(
       }
 
   // extract vertex ID and outlier score for vertices with outlierscore >= threshold
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph
       .select { vertex =>
         Row(
@@ -81,7 +81,7 @@ object CBOD {
   def apply(
       label: String = "community",
       cutoff: Double = 0.0,
-      labeler: Generic = Identity
+      labeler: Generic[_] = Identity
   ) =
     new CBOD(label, cutoff, labeler)
 }

@@ -39,9 +39,9 @@ import com.raphtory.api.analysis.table.Table
 class TemporalNodeList(
     properties: Seq[String] = Seq.empty[String],
     defaults: Map[String, Any] = Map.empty[String, Any]
-) extends Generic {
+) extends Generic[Row] {
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph.multilayerView
       .select { vertex =>
         Row(

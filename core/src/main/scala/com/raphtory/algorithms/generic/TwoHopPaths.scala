@@ -51,7 +51,7 @@ import scala.collection.mutable.ArrayBuffer
   *
   *  4. The source node compiles all response messages
   */
-class TwoHopPaths(seeds: Set[String] = Set[String]()) extends Generic {
+class TwoHopPaths(seeds: Set[String] = Set[String]()) extends Generic[Row] {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -86,7 +86,7 @@ class TwoHopPaths(seeds: Set[String] = Set[String]()) extends Generic {
               true
       )
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph
       .select(vertex =>
         Row(

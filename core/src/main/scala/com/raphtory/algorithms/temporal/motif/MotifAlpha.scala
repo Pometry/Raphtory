@@ -4,6 +4,7 @@ import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.algorithm.NodeListOutput
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.table.Row
 
 /**
   * {s}`MotifAlpha()`
@@ -34,7 +35,7 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
   *  | ----------------- | ----------------------- |
   *  | {s}`name: String` | {s}`motifAlpha: Int`    |
   */
-object MotifAlpha extends NodeListOutput(Seq("motifAlpha")) with GenericReduction {
+object MotifAlpha extends NodeListOutput(Seq("motifAlpha")) with GenericReduction[Row] {
 
   override def apply(graph: GraphPerspective): graph.ReducedGraph =
     graph.reducedView.step { vertex =>

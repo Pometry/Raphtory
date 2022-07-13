@@ -34,11 +34,11 @@ import com.raphtory.api.analysis.table.Table
 class EdgeList(
     properties: Seq[String] = Seq.empty[String],
     defaults: Map[String, Any] = Map.empty[String, Any]
-) extends Generic {
+) extends Generic[Row] {
 
   override def apply(graph: GraphPerspective): graph.Graph = NeighbourNames(graph)
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph
       .explodeSelect { vertex =>
         val neighbourMap = vertex.getState[Map[vertex.IDType, String]]("neighbourNames")

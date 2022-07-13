@@ -59,7 +59,7 @@ import scala.util.Random
   *  Speaker-listener Interaction Dynamic Process by Jierui Xie, Boleslaw K. Szymanski and Xiaoming Liu (2011)
   *  ```
   */
-class SLPA(iterNumber: Int = 50, speakerRule: Rule, listenerRule: Rule) extends Generic {
+class SLPA(iterNumber: Int = 50, speakerRule: Rule, listenerRule: Rule) extends Generic[Row] {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -86,7 +86,7 @@ class SLPA(iterNumber: Int = 50, speakerRule: Rule, listenerRule: Rule) extends 
               iterations = iterNumber
       )
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph.select { vertex =>
       val memory = vertex.getState[mutable.Queue[Long]]("memory")
       Row(vertex.name(), "[" + memory.mkString(" ") + "]")

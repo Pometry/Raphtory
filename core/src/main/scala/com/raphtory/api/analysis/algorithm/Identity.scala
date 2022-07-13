@@ -8,4 +8,4 @@ package com.raphtory.api.analysis.algorithm
   *  title="com.raphtory.algorithms.generic.CBOD"
   * >CBOD</a>
   */
-object Identity extends Generic {}
+object Identity extends Generic[Any] {}

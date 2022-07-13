@@ -3,6 +3,7 @@ package com.raphtory.api.analysis.algorithm
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.graphview.MultilayerGraphPerspective
 import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
+import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -13,7 +14,7 @@ import org.slf4j.LoggerFactory
   *                   clearing all messages in-between. The `tabularise` method of the chained algorithm calls only
   *                   the `tabularise` method of `other`.
   */
-trait Generic extends GenericallyApplicable {
+trait Generic[T] extends GenericallyApplicable[T] {
   override type Out = GraphPerspective
 
   /** Logger instance for writing out log messages */
@@ -35,12 +36,12 @@ trait Generic extends GenericallyApplicable {
     * $chainBody
     * @param other Algorithm to apply after this one
     */
-  override def ->(other: Generic): Generic =
-    new ChainedAlgorithm(this, other) with Generic {
+  override def ->[Q](other: Generic[Q]): Generic[Q] =
+    new ChainedAlgorithm[T, Q, Generic[T], Generic[Q]](this, other) with Generic[Q] {
 
-      override def apply(graph: GraphPerspective): graph.Graph =
+      override def apply(graph: GraphPerspective): graph.Graph   =
         second(first(graph).clearMessages())
-      override def tabularise(graph: GraphPerspective): Table  = second.tabularise(graph)
+      override def tabularise(graph: GraphPerspective): Table[Q] = second.tabularise(graph)
     }
 
   /** Chain this algorithm with a [[MultilayerProjection]] to create a new [[MultilayerProjection]]
@@ -48,12 +49,12 @@ trait Generic extends GenericallyApplicable {
     * $chainBody
     * @param other Algorithm to apply after this one
     */
-  def ->(other: MultilayerProjection): MultilayerProjection =
-    new ChainedAlgorithm(this, other) with MultilayerProjection {
+  def ->[Q](other: MultilayerProjection[Q]): MultilayerProjection[Q] =
+    new ChainedAlgorithm[T, Q, Generic[T], MultilayerProjection[Q]](this, other) with MultilayerProjection[Q] {
 
-      override def apply(graph: GraphPerspective): graph.MultilayerGraph =
+      override def apply(graph: GraphPerspective): graph.MultilayerGraph   =
         second(first(graph).clearMessages())
-      override def tabularise(graph: MultilayerGraphPerspective): Table  = second.tabularise(graph)
+      override def tabularise(graph: MultilayerGraphPerspective): Table[Q] = second.tabularise(graph)
     }
 
   /** Chain this algorithm with a [[GenericReduction]] to create a new [[GenericReduction]]
@@ -61,11 +62,11 @@ trait Generic extends GenericallyApplicable {
     * $chainBody
     * @param other Algorithm to apply after this one
     */
-  def ->(other: GenericReduction): GenericReduction =
-    new ChainedAlgorithm(this, other) with GenericReduction {
+  def ->[Q](other: GenericReduction[Q]): GenericReduction[Q] =
+    new ChainedAlgorithm[T, Q, Generic[T], GenericReduction[Q]](this, other) with GenericReduction[Q] {
 
-      override def apply(graph: GraphPerspective): graph.ReducedGraph =
+      override def apply(graph: GraphPerspective): graph.ReducedGraph   =
         second(first(graph).clearMessages())
-      override def tabularise(graph: ReducedGraphPerspective): Table  = second.tabularise(graph)
+      override def tabularise(graph: ReducedGraphPerspective): Table[Q] = second.tabularise(graph)
     }
 }

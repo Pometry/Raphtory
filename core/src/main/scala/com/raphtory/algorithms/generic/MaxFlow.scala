@@ -67,7 +67,7 @@ class MaxFlow[T](
     capacityLabel: String = "weight",
     maxIterations: Int = Int.MaxValue
 )(implicit numeric: Numeric[T])
-        extends Generic {
+        extends Generic[Row] {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -166,7 +166,7 @@ class MaxFlow[T](
               executeMessagedOnly = true
       )
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph.explodeSelect(vertex =>
       if (vertex.name() == source)
         List(Row(vertex.getState[mutable.Map[Long, T]]("flow").values.sum))

@@ -51,7 +51,7 @@ trait SinkExecutor {
     * handle synchronization.
     * @param row the row of data to write out
     */
-  protected def writeRow(row: Row): Unit
+  protected def writeRow(row: Any): Unit
 
   /** Closes the writing of the current graph perspective.
     * This method gets called every time all the rows from one graph perspective have been successfully written out so
@@ -66,5 +66,5 @@ trait SinkExecutor {
   def close(): Unit
 
   /** Thread safe version of `writeRow` used internally by Raphtory to write a `row`. */
-  final private[raphtory] def threadSafeWriteRow(row: Row): Unit = synchronized(writeRow(row))
+  final private[raphtory] def threadSafeWriteRow(row: Any): Unit = synchronized(writeRow(row))
 }

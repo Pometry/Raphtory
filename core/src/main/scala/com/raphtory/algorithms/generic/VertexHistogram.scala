@@ -9,7 +9,7 @@ import com.raphtory.utils.Bounded
 
 import scala.reflect.ClassTag
 
-class VertexHistogram[T: Numeric: Bounded: ClassTag](propertyString: String, noBins: Int = 1000) extends Generic {
+class VertexHistogram[T: Numeric: Bounded: ClassTag](propertyString: String, noBins: Int = 1000) extends Generic[Row] {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -32,7 +32,7 @@ class VertexHistogram[T: Numeric: Bounded: ClassTag](propertyString: String, noB
         histogram += vertex.getState[T](propertyString)
       }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph.globalSelect { state =>
       val rowSeq = Seq(state[T, T]("propertyMin").value, state[T, T]("propertyMax").value) ++ state[
               T,

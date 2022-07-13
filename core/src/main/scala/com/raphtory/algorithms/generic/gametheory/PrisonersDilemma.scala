@@ -133,7 +133,7 @@ class PrisonersDilemma(
     vertex.setState("step", PLAYSTEP)
   }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph.select { vertex =>
       val history = vertex.getState[mutable.Queue[Int]]("cooperationHistory")
       Row(vertex.name(), "[" + history.mkString(" ") + "]")

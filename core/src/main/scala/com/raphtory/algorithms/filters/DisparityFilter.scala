@@ -34,7 +34,7 @@ import scala.math.Numeric.Implicits.infixNumericOps
 class DisparityFilter[T: Numeric: Bounded: ClassTag](
     alpha: Double = 0.05,
     weightProperty: String = "weight"
-) extends Generic {
+) extends Generic[Any] {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph

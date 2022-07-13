@@ -5,9 +5,9 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 
-class GraphState() extends Generic {
+class GraphState() extends Generic[GraphState.VertexState] {
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[GraphState.VertexState] =
     graph.select { vertex =>
       val inDeg            = vertex.inDegree
       val outDeg           = vertex.outDegree
@@ -33,7 +33,7 @@ class GraphState() extends Generic {
         .map(edge => edge.getPropertySet().toArray.map(x => edge.getPropertyHistory(x).size).sum)
         .sum
 
-      Row(
+      GraphState.VertexState(
               vertex.ID,
               inDeg,
               outDeg,
@@ -55,5 +55,25 @@ class GraphState() extends Generic {
 }
 
 object GraphState {
+
+  case class VertexState(
+      id: Any,
+      inDeg: Int,
+      outDeg: Int,
+      degSum: Int,
+      vertexDeletions: Long,
+      vertexCreations: Long,
+      outEdgeDeletions: Long,
+      outEdgeCreations: Long,
+      inEdgeDeletions: Long,
+      inEdgeCreations: Long,
+      properties: Int,
+      propertyHistory: Int,
+      outEdgeProperties: Int,
+      outEdgePropertyHistory: Int,
+      inEdgeProperties: Int,
+      inEdgePropertyHistory: Int
+  )
+
   def apply() = new GraphState()
 }

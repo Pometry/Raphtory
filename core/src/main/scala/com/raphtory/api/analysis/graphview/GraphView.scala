@@ -6,6 +6,7 @@ import com.raphtory.api.analysis.algorithm.GenericallyApplicable
 import com.raphtory.api.analysis.algorithm.Multilayer
 import com.raphtory.api.analysis.algorithm.MultilayerProjection
 import com.raphtory.api.analysis.algorithm.MultilayerReduction
+import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 
 /** Core interface for the analysis API.
@@ -27,7 +28,7 @@ trait GraphView extends GraphPerspective {
     * @return Transformed graph
     * @note `transform` keeps track of the name of the applied algorithm and clears the message queues at the end of the algorithm
     */
-  def transform(algorithm: Generic): Graph
+  def transform(algorithm: Generic[_]): Graph
 
   /** Apply a [[com.raphtory.api.analysis.algorithm.MultilayerProjection MultilayerProjection]] algorithm to the graph
     *
@@ -35,7 +36,7 @@ trait GraphView extends GraphPerspective {
     * @return Transformed graph
     * @note `transform` keeps track of the name of the applied algorithm and clears the message queues at the end of the algorithm
     */
-  def transform(algorithm: MultilayerProjection): MultilayerGraph
+  def transform(algorithm: MultilayerProjection[_]): MultilayerGraph
 
   /** Apply a [[com.raphtory.api.analysis.algorithm.GenericReduction GenericReduction]] algorithm to the graph
     *
@@ -43,7 +44,7 @@ trait GraphView extends GraphPerspective {
     * @return Transformed graph
     * @note `transform` keeps track of the name of the applied algorithm and clears the message queues at the end of the algorithm
     */
-  def transform(algorithm: GenericReduction): ReducedGraph
+  def transform(algorithm: GenericReduction[_]): ReducedGraph
 
   /** Run a [[com.raphtory.api.analysis.algorithm.GenericallyApplicable GenericallyApplicable]] algorithm on the graph and return results
     *
@@ -51,7 +52,7 @@ trait GraphView extends GraphPerspective {
     *  @return Table with algorithm results
     *  @note `execute` keeps track of the name of the applied algorithm
     */
-  def execute(algorithm: GenericallyApplicable): Table
+  def execute[T](algorithm: GenericallyApplicable[T]): Table[T]
 }
 
 /** Extends [[GraphView]] with variants of the `transform` and `execute` methods specific to multilayer graphs
@@ -66,7 +67,7 @@ trait MultilayerGraphView extends MultilayerGraphPerspective with GraphView {
     * @return Transformed graph
     * @note `transform` keeps track of the name of the applied algorithm and clears the message queues at the end of the algorithm
     */
-  def transform(algorithm: Multilayer): Graph
+  def transform(algorithm: Multilayer[_]): Graph
 
   /** Apply a `MultilayerReduction` algorithm to the graph
     *
@@ -74,7 +75,7 @@ trait MultilayerGraphView extends MultilayerGraphPerspective with GraphView {
     * @return Transformed graph
     * @note `transform` keeps track of the name of the applied algorithm and clears the message queues at the end of the algorithm
     */
-  def transform(algorithm: MultilayerReduction): ReducedGraph
+  def transform(algorithm: MultilayerReduction[_]): ReducedGraph
 
   /** Run a `Multilayer` algorithm on the graph and return results
     *
@@ -82,7 +83,7 @@ trait MultilayerGraphView extends MultilayerGraphPerspective with GraphView {
     *  @return Table with algorithm results
     *  @note `execute` keeps track of the name of the applied algorithm
     */
-  def execute(algorithm: Multilayer): Table
+  def execute[T](algorithm: Multilayer[T]): Table[T]
 
   /** Run a `MultilayerReduction` algorithm on the graph and return results
     *
@@ -90,5 +91,5 @@ trait MultilayerGraphView extends MultilayerGraphPerspective with GraphView {
     *  @return Table with algorithm results
     *  @note `execute` keeps track of the name of the applied algorithm
     */
-  def execute(algorithm: MultilayerReduction): Table
+  def execute[T](algorithm: MultilayerReduction[T]): Table[T]
 }

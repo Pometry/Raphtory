@@ -47,7 +47,7 @@ import com.raphtory.api.analysis.table.Table
   *  | {s}`name: String` | {s}`edge.ID: Long` | {s}`event.time: Long` | {s}`name: String` |
   */
 class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set())
-        extends GenericReduction {
+        extends GenericReduction[Row] {
 
   override def apply(graph: GraphPerspective): graph.ReducedGraph =
     graph.reducedView
@@ -140,7 +140,7 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
       )
   // get all vertexes and their status
 
-  override def tabularise(graph: ReducedGraphPerspective): Table =
+  override def tabularise(graph: ReducedGraphPerspective): Table[Row] =
     graph
       .select(vertex =>
         Row(

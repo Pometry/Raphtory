@@ -15,12 +15,12 @@ import com.raphtory.TestQuery
 
 import scala.util.Random
 
-class WindowedOutEdgeHistory(after: Long, before: Long) extends GenericReduction {
+class WindowedOutEdgeHistory(after: Long, before: Long) extends GenericReduction[Row] {
 
   override def apply(graph: GraphPerspective): graph.ReducedGraph =
     NeighbourNames(graph.reducedView)
 
-  override def tabularise(graph: ReducedGraphPerspective): Table =
+  override def tabularise(graph: ReducedGraphPerspective): Table[Row] =
     graph.explodeSelect { vertex =>
       vertex
         .getOutEdges(after, before)
@@ -34,12 +34,12 @@ class WindowedOutEdgeHistory(after: Long, before: Long) extends GenericReduction
     }
 }
 
-class WindowedInEdgeHistory(after: Long, before: Long) extends GenericReduction {
+class WindowedInEdgeHistory(after: Long, before: Long) extends GenericReduction[Row] {
 
   override def apply(graph: GraphPerspective): graph.ReducedGraph =
     NeighbourNames(graph.reducedView)
 
-  override def tabularise(graph: ReducedGraphPerspective): Table =
+  override def tabularise(graph: ReducedGraphPerspective): Table[Row] =
     graph.explodeSelect { vertex =>
       vertex
         .getInEdges(after, before)

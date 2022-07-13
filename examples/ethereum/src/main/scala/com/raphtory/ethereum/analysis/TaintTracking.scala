@@ -7,7 +7,7 @@ import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 
-class Taint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set()) extends GenericReduction {
+class Taint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set()) extends GenericReduction[Row] {
 
   override def apply(graph: GraphPerspective): graph.ReducedGraph =
     graph.reducedView
@@ -138,7 +138,7 @@ class Taint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] 
               true
       )
 
-  override def tabularise(graph: ReducedGraphPerspective): Table =
+  override def tabularise(graph: ReducedGraphPerspective): Table[Row] =
     graph
       .select(vertex =>
         Row(

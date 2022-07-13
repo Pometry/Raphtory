@@ -35,9 +35,9 @@ import com.raphtory.api.analysis.table.Table
 class TemporalEdgeList(
     properties: Seq[String] = Seq.empty[String],
     defaults: Map[String, Any] = Map.empty[String, Any]
-) extends Generic {
+) extends Generic[Row] {
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     NeighbourNames(graph.reducedView).multilayerView
       .explodeSelect { vertex =>
         val neighbourMap = vertex.getState[Map[Long, String]]("neighbourNames")

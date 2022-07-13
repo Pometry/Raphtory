@@ -52,7 +52,7 @@ class NodeList(
     properties: Seq[String] = Seq.empty[String],
     defaults: Map[String, Any] = Map.empty[String, Any]
 ) extends NodeListOutput(properties, defaults)
-        with Generic {}
+        with Generic[Row] {}
 
 object NodeList {
 

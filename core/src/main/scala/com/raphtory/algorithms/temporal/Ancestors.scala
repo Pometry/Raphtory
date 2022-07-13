@@ -48,7 +48,7 @@ class Ancestors(
     delta: Long = Long.MaxValue,
     directed: Boolean = true,
     strict: Boolean = true
-) extends Generic {
+) extends Generic[Row] {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -84,7 +84,7 @@ class Ancestors(
               iterations = 100
       )
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph.select(vertex => Row(vertex.name(), vertex.getStateOrElse[Boolean]("ancestor", false)))
 
 }

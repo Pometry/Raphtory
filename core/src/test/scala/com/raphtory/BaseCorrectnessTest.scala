@@ -14,7 +14,7 @@ import com.raphtory.spouts.SequenceSpout
 import scala.collection.mutable
 
 case class TestQuery(
-    algorithm: GenericallyApplicable,
+    algorithm: GenericallyApplicable[_],
     timestamp: Long,
     windows: List[Long] = List.empty[Long]
 )

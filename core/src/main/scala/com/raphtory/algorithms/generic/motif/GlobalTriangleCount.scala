@@ -26,7 +26,7 @@ import com.raphtory.api.analysis.table.Table
   * ``
   */
 
-object GlobalTriangleCount extends Generic {
+object GlobalTriangleCount extends Generic[Row] {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     LocalTriangleCount(graph)
@@ -36,7 +36,7 @@ object GlobalTriangleCount extends Generic {
         state("triangles") += tri
       }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph.globalSelect { state =>
       val totalTri: Int = state("triangles").value
       Row(totalTri / 3)

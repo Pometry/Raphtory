@@ -82,7 +82,7 @@ class LPA[T: Numeric](
       }
       .iterate(vertex => lpa(vertex, weight, tieBreaker, SP, rnd), maxIter, false)
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph.select { vertex =>
       Row(
               vertex.name(),

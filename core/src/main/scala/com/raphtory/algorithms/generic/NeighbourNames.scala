@@ -23,7 +23,7 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
   *  [](com.raphtory.algorithms.temporal.TemporalEdgeList)
   *  ```
   */
-object NeighbourNames extends Generic {
+object NeighbourNames extends Generic[Any] {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph

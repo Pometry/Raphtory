@@ -11,7 +11,7 @@ import com.raphtory.api.analysis.table.Table
   * This algorithm takes vertices with big differences in their raw scores and MemberRank scores
   * and checks the in edge creations over time.
   */
-class TemporalMemberRank() extends GenericReduction {
+class TemporalMemberRank() extends GenericReduction[Row] {
 
   case class NeighbourAndTime[T](id: T, time: Long)
 
@@ -46,7 +46,7 @@ class TemporalMemberRank() extends GenericReduction {
       vertex.setState("times", times)
     }
 
-  override def tabularise(graph: ReducedGraphPerspective): Table =
+  override def tabularise(graph: ReducedGraphPerspective): Table[Row] =
     graph
       .select { vertex =>
         Row(

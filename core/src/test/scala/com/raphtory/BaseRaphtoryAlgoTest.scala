@@ -83,7 +83,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
     consumer.receive
 
   private def algorithmTestInternal(
-      algorithm: GenericallyApplicable,
+      algorithm: GenericallyApplicable[_],
       start: Long,
       end: Long,
       increment: Long,
@@ -105,7 +105,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
     }
 
   def algorithmTest(
-      algorithm: GenericallyApplicable,
+      algorithm: GenericallyApplicable[_],
       start: Long,
       end: Long,
       increment: Long,
@@ -116,7 +116,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
     algorithmTestInternal(algorithm, start, end, increment, windows, sink)(graph)
 
   def algorithmPointTest(
-      algorithm: GenericallyApplicable,
+      algorithm: GenericallyApplicable[_],
       timestamp: Long,
       windows: List[Long] = List[Long](),
       sink: Sink = defaultSink,

@@ -64,7 +64,7 @@ import scala.collection.compat.immutable.ArraySeq
   *
   * [^node2vec]: [node2vec: Scalable Feature Learning for Networks](https://arxiv.org/abs/1607.00653)
   */
-class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) extends Generic {
+class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) extends Generic[Row] {
   private val rng = new Random() //TODO does this need a seed?
 
   override def apply(graph: GraphPerspective): graph.Graph =
@@ -122,7 +122,7 @@ class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) exten
         }
       }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph.select(vertex => Row(vertex.getState[ArrayBuffer[String]]("walk").toSeq: _*))
 }
 

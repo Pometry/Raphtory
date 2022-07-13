@@ -35,7 +35,7 @@ import scala.math.Ordering.Implicits._
   * [](com.raphtory.algorithms.generic.motif.SquareCount)
   * ```
   */
-object AdjPlus extends Generic {
+object AdjPlus extends Generic[Row] {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph.step(vertex => vertex.messageAllNeighbours((vertex.ID, vertex.degree))).step { vertex =>
@@ -51,7 +51,7 @@ object AdjPlus extends Generic {
       vertex.setState("adjPlus", adj)
     }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective) =
 //    return adjPlus as edge list
     graph
       .step { vertex =>

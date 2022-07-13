@@ -5,17 +5,13 @@ import com.raphtory.api.querytracker.QueryProgressTracker
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.management.QuerySender
 
-private[api] class TableImplementation(val query: Query, private val querySender: QuerySender) extends Table {
+private[api] class TableImplementation[T](val query: Query, private val querySender: QuerySender) extends Table[T] {
 
-  override def filter(f: Row => Boolean): Table = {
-    def closurefunc(v: Row): Boolean = f(v)
-    addFunction(TableFilter(closurefunc))
-  }
+  override def filter(f: T => Boolean): Table[T] =
+    addFunction(TableFilter(f.asInstanceOf[Any => Boolean]))
 
-  override def explode(f: Row => IterableOnce[Row]): Table = {
-    def closurefunc(v: Row): IterableOnce[Row] = f(v)
-    addFunction(Explode(closurefunc))
-  }
+  override def explode[Q](f: T => IterableOnce[Q]): Table[Q] =
+    addFunction(Explode(f.asInstanceOf[Any => IterableOnce[Any]]))
 
   override def writeTo(sink: Sink, jobName: String): QueryProgressTracker = {
     val closedQuery     = addFunction(WriteToOutput).query
@@ -26,8 +22,8 @@ private[api] class TableImplementation(val query: Query, private val querySender
   override def writeTo(sink: Sink): QueryProgressTracker =
     writeTo(sink, "")
 
-  private def addFunction(function: TableFunction) =
-    new TableImplementation(
+  private def addFunction[Q](function: TableFunction) =
+    new TableImplementation[Q](
             query.copy(tableFunctions = query.tableFunctions.enqueue(function)),
             querySender
     )

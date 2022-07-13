@@ -26,7 +26,7 @@ import com.raphtory.api.analysis.table.Table
   * ``
   */
 
-object GlobalClusteringCoefficient extends Generic {
+object GlobalClusteringCoefficient extends Generic[Row] {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     GlobalTriangleCount(graph)
@@ -41,7 +41,7 @@ object GlobalClusteringCoefficient extends Generic {
         state("wedges") += k * (k - 1) / 2
       }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table[Row] =
     graph.globalSelect { state =>
       val totalCluster: Double = state("totalClustering").value
       // the below is thrice the actual number of triangles, hence none of the usual factor of 3 in the
