@@ -24,7 +24,7 @@ import com.typesafe.config.Config
   * 10,5,id3,24
   * }}}
   */
-case class CsvFormat() extends Format {
+case class CsvFormat(delimiter: String = ",") extends Format {
   override def defaultDelimiter: String = "\n"
   override def defaultExtension: String = "csv"
 
@@ -41,12 +41,13 @@ case class CsvFormat() extends Format {
         currentPerspective = perspective
 
       override protected def writeRow(row: Row): Unit = {
-        currentPerspective.window match {
+        val value = currentPerspective.window match {
           case Some(w) =>
-            connector.write(s"${currentPerspective.timestamp},$w,${row.getValues().mkString(",")}")
+            s"${currentPerspective.timestamp}$delimiter$w$delimiter${row.getValues().mkString(delimiter)}"
           case None    =>
-            connector.write(s"${currentPerspective.timestamp},${row.getValues().mkString(",")}")
+            s"${currentPerspective.timestamp}$delimiter${row.getValues().mkString(delimiter)}"
         }
+        connector.write(value)
         connector.closeItem()
       }
 
