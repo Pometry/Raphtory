@@ -3,7 +3,11 @@ services:
   pulsar:
     hostname: pulsar
     image: apachepulsar/pulsar:2.9.1
-    command: bin/pulsar standalone --advertised-address pulsar
+#    command: bin/pulsar standalone --advertised-address pulsar > /dev/null
+    entrypoint:
+      - bash
+      - -c
+      - "bin/pulsar standalone --advertised-address pulsar > /dev/null"
     healthcheck:
       test: curl -s http://pulsar:8080/admin/v2/worker/cluster
       interval: 1m30s
@@ -12,18 +16,63 @@ services:
       start_period: 60s
     ports:
       - 8080:8080
-  pyraphtory:
+      - 6650:6650
+      - 2181:2181
+  spout:
     image: localhost/raphtory-os:0.1.16
     environment:
       RAPHTORY_PULSAR_BROKER_ADDRESS: "pulsar://pulsar:6650"
       RAPHTORY_PULSAR_ADMIN_ADDRESS: "http://pulsar:8080"
       RAPHTORY_ZOOKEEPER_ADDRESS: "pulsar:2181"
+      RAPHTORY_QUERY_ADDRESS: query
+      RAPHTORY_SPOUT_FILE: /tmp/lotr.csv
     volumes:
-      - "./data:/pyraphtory/data:Z"
-    #    depends_on:
-    #      pulsar:
-    #        condition: service_healthy
+      - "./spout:/tmp:Z"
     entrypoint:
       - bash
       - -c
-      - "sleep 60 && java -cp /raphtory/jars/* com.raphtory.python.PyRaphtory -f /pyraphtory/data/sample.py -l -b LotrGraphBuilder"
+      - "sleep 15 && java -cp /raphtory/jars/* com.raphtory.PyRaphtoryService spout"
+  builder:
+    image: localhost/raphtory-os:0.1.16
+    environment:
+      RAPHTORY_PULSAR_BROKER_ADDRESS: "pulsar://pulsar:6650"
+      RAPHTORY_PULSAR_ADMIN_ADDRESS: "http://pulsar:8080"
+      RAPHTORY_ZOOKEEPER_ADDRESS: "pulsar:2181"
+      RAPHTORY_QUERY_ADDRESS: query
+      PYRAPHTORY_GB_FILE: /tmp/sample.py
+      PYRAPHTORY_GB_CLASS: LotrGraphBuilder
+    volumes:
+      - "./builder:/tmp:Z"
+    entrypoint:
+      - bash
+      - -c
+      - "sleep 15 && java -cp /raphtory/jars/* com.raphtory.PyRaphtoryService builder"
+  query:
+    image: localhost/raphtory-os:0.1.16
+    hostname: query
+    environment:
+      RAPHTORY_PULSAR_BROKER_ADDRESS: "pulsar://pulsar:6650"
+      RAPHTORY_PULSAR_ADMIN_ADDRESS: "http://pulsar:8080"
+      RAPHTORY_ZOOKEEPER_ADDRESS: "pulsar:2181"
+      RAPHTORY_QUERY_ADDRESS: query
+      RAPHTORY_CORE_LOG: DEBUG
+    volumes:
+      - "./query:/tmp:Z"
+    entrypoint:
+      - bash
+      - -c
+      - "sleep 15 && java -cp /raphtory/jars/* com.raphtory.PyRaphtoryService querymanager"
+  partition:
+    image: localhost/raphtory-os:0.1.16
+    hostname: partition
+    environment:
+      RAPHTORY_PULSAR_BROKER_ADDRESS: "pulsar://pulsar:6650"
+      RAPHTORY_PULSAR_ADMIN_ADDRESS: "http://pulsar:8080"
+      RAPHTORY_ZOOKEEPER_ADDRESS: "pulsar:2181"
+      RAPHTORY_QUERY_ADDRESS: query
+    volumes:
+      - "./partition:/tmp:Z"
+    entrypoint:
+      - bash
+      - -c
+      - "sleep 15 && java -cp /raphtory/jars/* com.raphtory.PyRaphtoryService partitionmanager"

@@ -55,9 +55,3 @@ class RaphtoryContext(BaseContext):
         except Exception as e:
             print(str(e))
             traceback.print_exc()
-
-
-# YO-10-GA
-from datetime import datetime
-
-print(f"IMPORTED! {datetime.now()}")

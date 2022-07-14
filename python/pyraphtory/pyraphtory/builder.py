@@ -55,6 +55,7 @@ class BaseBuilder:
     def parse_tuple(self, line: str):
         pass
 
+    # TODO: revise these methods to call actual JVM methods not return objects
     def add_vertex(self, timestamp: int, src_id: int, props: List[Property], tpe: str):
         self.actions.append(asdict(VertexAdd(timestamp, src_id, Properties(props), Type(tpe))))
 

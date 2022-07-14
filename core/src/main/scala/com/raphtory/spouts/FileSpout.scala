@@ -8,6 +8,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
 import java.util.zip.GZIPInputStream
 import java.util.zip.ZipInputStream
 import scala.collection.mutable
@@ -166,7 +167,7 @@ class FileSpout[T: TypeTag](
           logger.debug(s"Spout: Attempting to hard link file '$file' -> '${Paths
             .get(sourceSubFolder + "/" + file.getName)}'.")
           try Files
-            .createLink(
+            .createSymbolicLink(
                     Paths.get(sourceSubFolder + "/" + file.getName),
                     file.toPath
             )

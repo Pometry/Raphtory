@@ -30,6 +30,7 @@ RUN ln -s /usr/lib/x86_64-linux-gnu/libpython3.10.so.1 /usr/lib/x86_64-linux-gnu
 RUN mkdir -p /raphtory/jars
 RUN mkdir -p /raphtory/bin
 RUN mkdir -p /raphtory/data
+RUN mkdir -p /tmp
 COPY bin/docker/raphtory/bin /raphtory/bin
 COPY --from=sbt-builder /root/core/target/scala-2.13/core-assembly-$VERSION.jar /raphtory/jars/
 COPY --from=python-build /opt/venv /opt/venv

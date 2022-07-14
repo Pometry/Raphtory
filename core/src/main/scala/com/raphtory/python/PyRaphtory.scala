@@ -7,6 +7,7 @@ import cats.syntax.all._
 import com.monovore.decline._
 import com.monovore.decline.effect._
 import com.raphtory.Raphtory
+import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.querytracker.QueryProgressTracker
 import com.raphtory.internals.management.PyRef
@@ -33,20 +34,46 @@ object PyRaphtory
       .validate("file does not exist")(Files.exists(_))
 
     val builder = Opts
-      .option[String](long = "builder", short = "g", help = "Class for graph builder")
+      .flagOption[String](long = "builder", short = "g", help = "Class for graph builder")
+      .orNone
+      .map(_.flatten)
 
     val connect = Opts
-      .option[String](long = "connect", short = "c", help = "Pulsar host:port, pulsar admin host:port, ZK host:port")
+      .flagOption[String](
+              long = "connect",
+              short = "c",
+              help =
+                "Pulsar (eg. --connect raphtory.pulsar.admin.address=http://localhost:8080,raphtory.pulsar.broker.address=pulsar://127.0.0.1:6650,raphtory.zookeeper.address=127.0.0.1:2181"
+      )
+      .orNone
+      .map(_.flatten)
 
-    val local       = Opts.flag("local", "Run Raphtory locally", "l").map(_ => Local)
-    val distributed = Opts.flag("distributed", "Connect to existing Raphtory cluster", "d").map(_ => Distributed)
-    val streaming   = Opts.flag("streaming", "Load the file in streaming mode", "s").map(_ => Streaming)
-    val batch       = Opts.flag("batch", "Load the file in batch mode", "b").map(_ => Batch)
+    val loading: Opts[Option[LoadingMode]] =
+      Opts
+        .flagOption[String]("mode", "Load files streaming|batch (valid with local mode only)", "m")
+        .map { maybeMode =>
+          maybeMode.map(_.toLowerCase).map {
+            case "streaming" => Streaming
+            case "batch"     => Batch
+          }
+        }
+        .orNone
+        .map(_.flatten)
 
-    val res: Opts[ConMode] = local orElse distributed
-    val loading            = batch orElse streaming
+    val res    = connect.map {
+      case None             => Local
+      case Some(pulsarConf) =>
+        val extraConf = pulsarConf
+          .split(",")
+          .map { line =>
+            val property :: value :: _ = line.trim.split("=").toList
+            property -> value
+          }
+          .toMap
+        Distributed(extraConf)
+    }
     // FIXME: these need lifting into IO but GraphBuilder is still outside of IO
-    val evalPy             = UnsafeEmbeddedPythonProxy()
+    val evalPy = UnsafeEmbeddedPythonProxy()
 
     val path = "/tmp/lotr.csv"
     val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
@@ -61,7 +88,18 @@ object PyRaphtory
       }
 
     (input, res, loading, builder).tupled.map {
-      case (file, Local, loadingMode, builderClass) =>
+      case (input, Distributed(config), _, _)                   =>
+        val res = for {
+          script <- Resource.fromAutoCloseable[IO, Source](IO.blocking(Source.fromFile(input.toFile))).map(_.mkString)
+          graph  <- Raphtory.connectIO(config)
+        } yield (graph, script)
+
+        res.use {
+          case (graph, script) =>
+            IO.blocking(evalPy.run(script)) *> runToPython(evalPy, graph, script)
+        }
+
+      case (file, Local, Some(loadingMode), Some(builderClass)) =>
         val builderIO = for {
           script <- IO.fromEither(Using(Source.fromFile(file.toFile))(_.mkString).toEither)
           _      <- IO.blocking(evalPy.run(script))
@@ -74,30 +112,32 @@ object PyRaphtory
 
         mainRes.use {
           case (graph, script) =>
-            for {
-              _       <- IO.blocking(evalPy.set("raphtory_graph", graph))
-              _       <- IO.blocking(evalPy.set("py_script", script))
-              _       <-
-                IO.blocking(
-                        evalPy.run(
-                                "tracker = RaphtoryContext(rg = TemporalGraph(raphtory_graph), script=py_script).eval()"
-                        )
-                )
-              tracker <- IO.blocking(evalPy.invoke(PyRef("tracker"), "inner_tracker")).map {
-                           case qt: QueryProgressTracker => qt
-                         }
-              _       <- IO.blocking(tracker.waitForJob())
-            } yield ExitCode.Success
+            runToPython(evalPy, graph, script)
         }
-
+      case unsupported                                          =>
+        IO.raiseError(new IllegalArgumentException(s"Unsupported parameters $unsupported"))
     }
   }
 
+  private def runToPython(evalPy: UnsafeEmbeddedPythonProxy, graph: TemporalGraph, script: String) =
+    for {
+      _       <- IO.blocking(evalPy.set("raphtory_graph", graph))
+      _       <- IO.blocking(evalPy.set("py_script", script))
+      _       <- IO.blocking(
+                         evalPy.run(
+                                 "tracker = RaphtoryContext(rg = TemporalGraph(raphtory_graph), script=py_script).eval()"
+                         )
+                 )
+      tracker <- IO.blocking(evalPy.invoke(PyRef("tracker"), "inner_tracker")).map {
+                   case qt: QueryProgressTracker => qt
+                 }
+      _       <- IO.blocking(tracker.waitForJob())
+    } yield ExitCode.Success
 }
 
 sealed trait ConMode
-case object Distributed extends ConMode
-case object Local       extends ConMode
+case class Distributed(conf: Map[String, String]) extends ConMode
+case object Local                                 extends ConMode
 
 sealed trait LoadingMode
 case object Batch     extends LoadingMode

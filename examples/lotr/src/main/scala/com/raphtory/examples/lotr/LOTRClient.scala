@@ -1,6 +1,6 @@
 package com.raphtory.examples.lotr
 
-import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.algorithms.generic.ConnectedComponentsV2
 import com.raphtory.Raphtory
 import com.raphtory.sinks.FileSink
 
@@ -16,7 +16,7 @@ object LOTRClient extends App {
 
   val output = FileSink("/tmp/raphtory")
 
-  val progressTracker = client.execute(ConnectedComponents()).writeTo(output)
+  val progressTracker = client.execute(new ConnectedComponentsV2()).writeTo(output)
 
   progressTracker.waitForJob()
 

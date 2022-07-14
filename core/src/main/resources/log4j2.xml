@@ -21,51 +21,6 @@
         <Logger name="com.raphtory" level="${env:RAPHTORY_CORE_LOG:-INFO}">
         </Logger>
 
-        <!-- LOGGERS FOR RAPHTORY PACKAGES -->
-        <Logger name="com.raphtory.algorithms" level="${env:RAPHTORY_ALGORITHMS_LOG:-INFO}">
-        </Logger>
-        <Logger name="com.raphtory.api" level="${env:RAPHTORY_API_LOG:-INFO}">
-        </Logger>
-       <Logger name="com.raphtory.formats" level="${env:RAPHTORY_FORMATS_LOG:-INFO}">
-        </Logger>
-        <Logger name="com.raphtory.sinks" level="${env:RAPHTORY_SINKS_LOG:-INFO}">
-        </Logger>
-        <Logger name="com.raphtory.spouts" level="${env:RAPHTORY_SPOUTS_LOG:-INFO}">
-        </Logger>
-        <Logger name="com.raphtory.utils" level="${env:RAPHTORY_UTIL_LOG:-INFO}">
-        </Logger>
-
-        <!-- LOGGERS FOR RAPHTORY INTERNALS PACKAGES -->
-        <Logger name="com.raphtory.internals" level="${env:RAPHTORY_INTERNALS_LOG:-INFO}">
-        </Logger>
-        <Logger name="com.raphtory.internals.communication" level="${env:RAPHTORY_INTERNALS_COMMUNICATION_LOG:-INFO}">
-        </Logger>
-        <Logger name="com.raphtory.internals.graph" level="${env:RAPHTORY_INTERNALS_GRAPH_LOG:-INFO}">
-        </Logger>
-        <Logger name="com.raphtory.internals.management" level="${env:RAPHTORY_INTERNALS_MANAGEMENT_LOG:-INFO}">
-        </Logger>
-        <Logger name="com.raphtory.internals.serialisers" level="${env:RAPHTORY_INTERNALS_SERIALISERS_LOG:-INFO}">
-        </Logger>
-        <Logger name="com.raphtory.internals.storage" level="${env:RAPHTORY_INTERNALS_STORAGE_LOG:-INFO}">
-        </Logger>
-        <Logger name="com.raphtory.internals.time" level="${env:RAPHTORY_INTERNALS_TIME_LOG:-INFO}">
-        </Logger>
-
-
-        <!-- LOGGERS FOR RAPHTORY COMPONENTS -->
-        <Logger name="com.raphtory.internals.components" level="${env:RAPHTORY_INTERNALS_COMPONENTS_LOG:-INFO}">
-        </Logger>
-        <Logger name="com.raphtory.internals.components.graphbuilder" level="${env:RAPHTORY_INTERNALS_COMPONENTS_GRAPHBUILDER_LOG:-INFO}">
-        </Logger>
-        <Logger name="com.raphtory.internals.components.partition" level="${env:RAPHTORY_INTERNALS_COMPONENTS_PARTITION_LOG:-INFO}">
-        </Logger>
-        <Logger name="com.raphtory.internals.components.querymanager" level="${env:RAPHTORY_INTERNALS_COMPONENTS_QUERYMANAGER_LOG:-INFO}">
-        </Logger>
-        <Logger name="com.raphtory.internals.components.querytracker" level="${env:RAPHTORY_INTERNALS_COMPONENTS_QUERYTRACKER_LOG:-INFO}">
-        </Logger>
-        <Logger name="com.raphtory.internals.components.spout" level="${env:RAPHTORY_INTERNALS_COMPONENTS_SPOUT_LOG:-INFO}">
-        </Logger>
-
         <Root level="info">
             <AppenderRef ref="Console"/>
         </Root>
