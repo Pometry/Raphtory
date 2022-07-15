@@ -44,6 +44,7 @@ services:
       RAPHTORY_ZOOKEEPER_ADDRESS: "pulsar:2181"
       RAPHTORY_QUERY_ADDRESS: query
       RAPHTORY_SPOUT_FILE: /tmp/lotr.csv
+      RAPHTORY_PARTITIONS_SERVERCOUNT: 2
     volumes:
       - "./tmp/spout:/tmp:Z"
     entrypoint:
@@ -61,6 +62,7 @@ services:
       RAPHTORY_QUERY_ADDRESS: query
       PYRAPHTORY_GB_FILE: /tmp/sample.py
       PYRAPHTORY_GB_CLASS: LotrGraphBuilder
+      RAPHTORY_PARTITIONS_SERVERCOUNT: 2
     volumes:
       - "./tmp/builder:/tmp:Z"
     entrypoint:
@@ -78,6 +80,7 @@ services:
       RAPHTORY_ZOOKEEPER_ADDRESS: "pulsar:2181"
       RAPHTORY_QUERY_ADDRESS: query
       RAPHTORY_CORE_LOG: DEBUG
+      RAPHTORY_PARTITIONS_SERVERCOUNT: 2
     volumes:
       - "./tmp/query:/tmp:Z"
     entrypoint:
@@ -88,15 +91,16 @@ services:
     networks:
       pulsar:
     image: "localhost/raphtory-os:${VERSION}"
-    hostname: partition
     environment:
       RAPHTORY_PULSAR_BROKER_ADDRESS: "pulsar://pulsar-proxy:6650"
       RAPHTORY_PULSAR_ADMIN_ADDRESS: "http://pulsar-proxy:8080"
       RAPHTORY_ZOOKEEPER_ADDRESS: "pulsar:2181"
       RAPHTORY_QUERY_ADDRESS: query
-    volumes:
-      - "./tmp/partition:/tmp:Z"
+      RAPHTORY_PARTITIONS_SERVERCOUNT: 2
     entrypoint:
       - bash
       - -c
       - "sleep 15 && java -cp /raphtory/jars/* com.raphtory.PyRaphtoryService partitionmanager"
+    deploy:
+      mode: replicated
+      replicas: 2
