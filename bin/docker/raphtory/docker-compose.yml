@@ -2,7 +2,7 @@ version: "3.9"
 networks:
   pulsar:
     driver: bridge
-
+# FIXME: I'm unable to add depends_on pulsar because on my box at least it refuses to start with some strange metadata error
 services:
   pulsar:
     hostname: pulsar
@@ -37,7 +37,7 @@ services:
   spout:
     networks:
       pulsar:
-    image: localhost/raphtory-os:0.1.16
+    image: "localhost/raphtory-os:${VERSION}"
     environment:
       RAPHTORY_PULSAR_BROKER_ADDRESS: "pulsar://pulsar-proxy:6650"
       RAPHTORY_PULSAR_ADMIN_ADDRESS: "http://pulsar-proxy:8080"
@@ -53,7 +53,7 @@ services:
   builder:
     networks:
       pulsar:
-    image: localhost/raphtory-os:0.1.16
+    image: "localhost/raphtory-os:${VERSION}"
     environment:
       RAPHTORY_PULSAR_BROKER_ADDRESS: "pulsar://pulsar-proxy:6650"
       RAPHTORY_PULSAR_ADMIN_ADDRESS: "http://pulsar-proxy:8080"
@@ -70,7 +70,7 @@ services:
   query:
     networks:
       pulsar:
-    image: localhost/raphtory-os:0.1.16
+    image: "localhost/raphtory-os:${VERSION}"
     hostname: query
     environment:
       RAPHTORY_PULSAR_BROKER_ADDRESS: "pulsar://pulsar-proxy:6650"
@@ -87,7 +87,7 @@ services:
   partition:
     networks:
       pulsar:
-    image: localhost/raphtory-os:0.1.16
+    image: "localhost/raphtory-os:${VERSION}"
     hostname: partition
     environment:
       RAPHTORY_PULSAR_BROKER_ADDRESS: "pulsar://pulsar-proxy:6650"
