@@ -1,6 +1,7 @@
 SHELL:=/bin/bash -euxo pipefail
 DOCKER_RAP:=bin/docker/raphtory
 DOCKER_TMP:=$(DOCKER_RAP)/tmp
+MODE:=batch
 
 version:
 	sbt -Dsbt.supershell=false -error "print core/version" > version
@@ -9,12 +10,26 @@ version:
 sbt-build: version
 	sbt clean "core/assembly"
 
+.PHONY python-build:
+python-build: version
+	if [ -z ${JAVA_HOME+x} ]; then echo "JAVA_HOME is unset" && exit 1; else echo "JAVA_HOME is set to '$var'"; fi
+	cd python/pyraphtory/ && \
+		poetry build && \
+		poetry install && \
+		pip install --upgrade pip && \
+		pip install dist/pyraphtory-$$(cat version).tar.gz
+
+.PHONY pyraphtory-local:
+pyraphtory-local: version
+	java -cp core/target/scala-2.13/*.jar com.raphtory.python.PyRaphtory --input=$(INPUT) --py=$(PYFILE) --builder=$(BUILDER) --mode=$(MODE)
+
 .PHONY: docker-build
 docker-build: version
 	docker build \
 		--build-arg VERSION="$$(cat version)" \
 		-t raphtory-os:$$(cat version) \
 		-f $(DOCKER_RAP)/DockerfileV2 . --compress
+
 
 .PHONY: run-local-cluster
 run-local-cluster: version
@@ -34,3 +49,6 @@ clean-local-cluster:
 clean:
 	rm version
 	sbt clean
+
+local-pulsar: version
+	VERSION=$$(cat version) docker-compose -f $(DOCKER_RAP)/docker-compose-local.yml up

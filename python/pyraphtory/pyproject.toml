@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pyraphtory"
-version = "0.1.16"
+version = "0.1.0"
 description = ""
 authors = ["Fabian Murariu <murariu.fabian@gmail.com>"]
 

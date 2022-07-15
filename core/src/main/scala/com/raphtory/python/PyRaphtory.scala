@@ -14,7 +14,6 @@ import com.raphtory.internals.management.PyRef
 import com.raphtory.internals.management.python.PythonGraphBuilder
 import com.raphtory.internals.management.python.UnsafeEmbeddedPythonProxy
 import com.raphtory.spouts.FileSpout
-import com.raphtory.utils.FileUtils
 
 import java.nio.file.Files
 import java.nio.file.Path
@@ -29,8 +28,13 @@ object PyRaphtory
         ) {
 
   override def main: Opts[IO[ExitCode]] = {
+
     val input = Opts
-      .option[Path](long = "file", short = "f", help = "Input file for Python script")
+      .option[Path](long = "input", short = "f", help = "Path of file to load with FileSpout")
+      .validate("file does not exist")(Files.exists(_))
+
+    val pyScript = Opts
+      .option[Path](long = "py", short = "p", help = "Python file with algorithm and loader")
       .validate("file does not exist")(Files.exists(_))
 
     val builder = Opts
@@ -75,10 +79,6 @@ object PyRaphtory
     // FIXME: these need lifting into IO but GraphBuilder is still outside of IO
     val evalPy = UnsafeEmbeddedPythonProxy()
 
-    val path = "/tmp/lotr.csv"
-    val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
-    FileUtils.curlFile(path, url)
-
     def bootRaphtory(loadingMode: LoadingMode, path: Path, builder: GraphBuilder[String]) =
       loadingMode match {
         case Streaming =>
@@ -87,10 +87,11 @@ object PyRaphtory
           Raphtory.loadIO(spout = FileSpout(path.toString), graphBuilder = builder)
       }
 
-    (input, res, loading, builder).tupled.map {
-      case (input, Distributed(config), _, _)                   =>
+    (pyScript, input, res, loading, builder).tupled.map {
+      case (pyScript, _, Distributed(config), _, _)                        =>
         val res = for {
-          script <- Resource.fromAutoCloseable[IO, Source](IO.blocking(Source.fromFile(input.toFile))).map(_.mkString)
+          script <-
+            Resource.fromAutoCloseable[IO, Source](IO.blocking(Source.fromFile(pyScript.toFile))).map(_.mkString)
           graph  <- Raphtory.connectIO(config)
         } yield (graph, script)
 
@@ -99,7 +100,7 @@ object PyRaphtory
             IO.blocking(evalPy.run(script)) *> runToPython(evalPy, graph, script)
         }
 
-      case (file, Local, Some(loadingMode), Some(builderClass)) =>
+      case (file, inputPath, Local, Some(loadingMode), Some(builderClass)) =>
         val builderIO = for {
           script <- IO.fromEither(Using(Source.fromFile(file.toFile))(_.mkString).toEither)
           _      <- IO.blocking(evalPy.run(script))
@@ -107,14 +108,14 @@ object PyRaphtory
 
         val mainRes = for {
           script <- Resource.eval(builderIO)
-          graph  <- bootRaphtory(loadingMode, Path.of(path), PythonGraphBuilder(script, builderClass))
+          graph  <- bootRaphtory(loadingMode, inputPath, PythonGraphBuilder(script, builderClass))
         } yield (graph, script)
 
         mainRes.use {
           case (graph, script) =>
             runToPython(evalPy, graph, script)
         }
-      case unsupported                                          =>
+      case unsupported                                                     =>
         IO.raiseError(new IllegalArgumentException(s"Unsupported parameters $unsupported"))
     }
   }

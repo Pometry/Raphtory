@@ -73,7 +73,7 @@ class DynamicLoaderSerializer(default: Serializer[DynamicLoader]) extends Serial
       kryo.readObject(input, tpe, default).copy(classes = classes) // read the empty dummy obj
     }
     catch {
-      case t:Throwable =>
+      case t: Throwable =>
         logger.error("Failed to read Dynamic Loader", t)
         throw t
     }
