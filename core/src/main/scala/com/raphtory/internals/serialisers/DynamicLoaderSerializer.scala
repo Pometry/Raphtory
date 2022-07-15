@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory
 
 import java.io.ByteArrayOutputStream
 import scala.util.Using
+import scala.util.control.NonFatal
 
 class DynamicLoaderSerializer(default: Serializer[DynamicLoader]) extends Serializer[DynamicLoader] {
 
@@ -58,16 +59,22 @@ class DynamicLoaderSerializer(default: Serializer[DynamicLoader]) extends Serial
     logger.debug(s"Done Writing the DynamicLoader object")
   }
 
-  override def read(kryo: Kryo, input: Input, tpe: Class[DynamicLoader]): DynamicLoader = {
+  override def read(kryo: Kryo, input: Input, tpe: Class[DynamicLoader]): DynamicLoader =
     // read how many classes are setup for Dynamic loading
-    val n       = input.readInt()
-    val classes = (0 until n).map { _ =>
-      val name   = input.readString()
-      val length = input.readInt()
-      val bytes  = input.readBytes(length)
-      DynamicClassLoader.injectClass(name, bytes, DynamicClassLoader(kryo.getClassLoader))
-    }.toSet
-    logger.debug(s"Loaded $n classes: $classes")
-    kryo.readObject(input, tpe, default).copy(classes = classes) // read the empty dummy obj
-  }
+    try {
+      val n       = input.readInt()
+      val classes = (0 until n).map { _ =>
+        val name   = input.readString()
+        val length = input.readInt()
+        val bytes  = input.readBytes(length)
+        DynamicClassLoader.injectClass(name, bytes, DynamicClassLoader(kryo.getClassLoader))
+      }.toSet
+      logger.debug(s"Loaded $n classes: $classes")
+      kryo.readObject(input, tpe, default).copy(classes = classes) // read the empty dummy obj
+    }
+    catch {
+      case t:Throwable =>
+        logger.error("Failed to read Dynamic Loader", t)
+        throw t
+    }
 }

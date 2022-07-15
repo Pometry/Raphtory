@@ -9,7 +9,7 @@ from abc import abstractmethod
 from pyraphtory.graph import TemporalGraph
 
 
-class BaseContext:
+class BaseContext(object):
 
     def __init__(self, rg: TemporalGraph, script: str):
         self._rg = rg

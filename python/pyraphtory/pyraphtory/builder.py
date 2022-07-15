@@ -1,6 +1,5 @@
+from dataclasses import dataclass, asdict
 from typing import List, Optional
-from dataclasses import dataclass, asdict, field, InitVar
-from abc import ABC
 
 
 @dataclass
@@ -40,7 +39,7 @@ class EdgeAdd(object):
     e_type: Optional[Type]
 
 
-class BaseBuilder:
+class BaseBuilder(object):
     def __init__(self):
         from pemja import findClass
         self.interop = findClass('com.raphtory.internals.management.PythonInterop')

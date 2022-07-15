@@ -13,10 +13,6 @@ object PyRaphtoryService extends RaphtoryService[String] {
   val ENV_GB_FILE    = "PYRAPHTORY_GB_FILE"
   val ENV_GB_CLASS   = "PYRAPHTORY_GB_CLASS"
 
-//  require(sys.env.contains(ENV_SPOUT_FILE), s"${ENV_SPOUT_FILE} variable needs to be set")
-//  require(sys.env.contains(ENV_GB_FILE), s"${ENV_GB_FILE} variable needs to be set to python file where graph builder class is declared")
-//  require(sys.env.contains(ENV_GB_CLASS), s"${ENV_GB_CLASS} variable needs to be set to python class")
-
   /** Defines type of Spout to be created for ingesting data
     */
   override def defineSpout(): Spout[String] = FileSpout(sys.env(ENV_SPOUT_FILE))

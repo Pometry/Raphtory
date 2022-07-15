@@ -1,23 +1,7 @@
 package com.raphtory.internals.components.partition
 
 import cats.Id
-import cats.catsInstancesForId
-import com.raphtory.api.analysis.graphview.ClearChain
-import com.raphtory.api.analysis.graphview.DirectedView
-import com.raphtory.api.analysis.graphview.ExplodeSelect
-import com.raphtory.api.analysis.graphview.GlobalSelect
-import com.raphtory.api.analysis.graphview.Iterate
-import com.raphtory.api.analysis.graphview.IterateWithGraph
-import com.raphtory.api.analysis.graphview.MultilayerView
-import com.raphtory.api.analysis.graphview.PythonIterate
-import com.raphtory.api.analysis.graphview.PythonStep
-import com.raphtory.api.analysis.graphview.ReduceView
-import com.raphtory.api.analysis.graphview.ReversedView
-import com.raphtory.api.analysis.graphview.Select
-import com.raphtory.api.analysis.graphview.SelectWithGraph
-import com.raphtory.api.analysis.graphview.Step
-import com.raphtory.api.analysis.graphview.StepWithGraph
-import com.raphtory.api.analysis.graphview.UndirectedView
+import com.raphtory.api.analysis.graphview._
 import com.raphtory.api.analysis.table.Explode
 import com.raphtory.api.analysis.table.TableFilter
 import com.raphtory.api.analysis.table.WriteToOutput
@@ -27,26 +11,7 @@ import com.raphtory.api.output.sink.SinkExecutor
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
-import com.raphtory.internals.components.querymanager.AlgorithmFailure
-import com.raphtory.internals.components.querymanager.CheckMessages
-import com.raphtory.internals.components.querymanager.CompleteWrite
-import com.raphtory.internals.components.querymanager.CreatePerspective
-import com.raphtory.internals.components.querymanager.EndQuery
-import com.raphtory.internals.components.querymanager.ExecutorEstablished
-import com.raphtory.internals.components.querymanager.GenericVertexMessage
-import com.raphtory.internals.components.querymanager.GraphFunctionComplete
-import com.raphtory.internals.components.querymanager.GraphFunctionCompleteWithState
-import com.raphtory.internals.components.querymanager.GraphFunctionWithGlobalState
-import com.raphtory.internals.components.querymanager.MetaDataSet
-import com.raphtory.internals.components.querymanager.PerspectiveEstablished
-import com.raphtory.internals.components.querymanager.QueryManagement
-import com.raphtory.internals.components.querymanager.SetMetaData
-import com.raphtory.internals.components.querymanager.TableBuilt
-import com.raphtory.internals.components.querymanager.TableFunctionComplete
-import com.raphtory.internals.components.querymanager.VertexMessageBatch
-import com.raphtory.internals.components.querymanager.VertexMessagesSync
-import com.raphtory.internals.components.querymanager.VertexMessaging
-import com.raphtory.internals.components.querymanager.WriteCompleted
+import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.graph.Perspective
@@ -64,7 +29,6 @@ import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable
-import scala.util.Using
 
 private[raphtory] class QueryExecutor(
     partitionID: Int,

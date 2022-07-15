@@ -1,8 +1,8 @@
 package com.raphtory.examples.lotr
 
-import com.raphtory.algorithms.generic.ConnectedComponentsV2
+import com.raphtory.algorithms.generic.BlergoBlargo
 import com.raphtory.Raphtory
-import com.raphtory.sinks.FileSink
+import com.raphtory.sinks.{FileSink, PrintSink}
 
 object LOTRClient extends App {
 
@@ -14,9 +14,9 @@ object LOTRClient extends App {
 
   val client = Raphtory.connect(customConfig)
 
-  val output = FileSink("/tmp/raphtory")
+//  val output = FileSink("/tmp/raphtory")
 
-  val progressTracker = client.execute(new ConnectedComponentsV2()).writeTo(output)
+  val progressTracker = client.execute(new BlergoBlargo()).writeTo(PrintSink())
 
   progressTracker.waitForJob()
 

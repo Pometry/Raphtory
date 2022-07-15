@@ -50,7 +50,7 @@ private[raphtory] class QueryManager(
           case None               => //sender ! QueryNotPresent(req.jobID)
         }
       case watermark: WatermarkTime =>
-        logger.debug(
+        logger.trace(
                 s"Setting watermark to earliest time '${watermark.oldestTime}'" +
                   s" and latest time '${watermark.latestTime}'" +
                   s" for partition '${watermark.partitionID}'."

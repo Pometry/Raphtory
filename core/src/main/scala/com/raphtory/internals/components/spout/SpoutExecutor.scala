@@ -64,7 +64,7 @@ private[raphtory] class SpoutExecutor[T](
 
   private def reschedule(): Unit = {
     // TODO: Parameterise the delay
-    logger.debug("Spout: Scheduling spout to poll again in 10 seconds.")
+    logger.trace("Spout: Scheduling spout to poll again in 10 seconds.")
     scheduledRun = Option(scheduler.scheduleOnce(1.seconds, rescheduler()))
   }
 

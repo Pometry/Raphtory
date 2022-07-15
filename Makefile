@@ -10,7 +10,7 @@ sbt-build: version
 	sbt clean "core/assembly"
 
 .PHONY: docker-build
-docker-build:
+docker-build: version
 	docker build \
 		--build-arg VERSION="$$(cat version)" \
 		-t raphtory-os:$$(cat version) \
@@ -30,3 +30,7 @@ run-local-cluster: version
 clean-local-cluster:
 	docker-compose -f $(DOCKER_RAP)/docker-compose.yml down --remove-orphans
 	rm -Rf $(DOCKER_TMP)/*
+
+clean:
+	rm version
+	sbt clean

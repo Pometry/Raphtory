@@ -83,7 +83,7 @@ class FileSpout[T: TypeTag](
       if (!reReadFiles)
         if (currentfile != null) {
           val fileName = currentfile.getPath.replace(outputDirectory, "")
-          logger.debug(s"Spout: Adding file $fileName to completed list.")
+          logger.trace(s"Spout: Adding file $fileName to completed list.")
           completedFiles.add(fileName)
         }
       lines = files.headOption match {

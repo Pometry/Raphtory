@@ -71,7 +71,7 @@ object ConnectedComponents {
   def apply() = new ConnectedComponents()
 }
 
-class ConnectedComponentsV2 extends NodeList(Seq("cclabel")) {
+class BlergoBlargo extends NodeList(Seq("cclabel")) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
