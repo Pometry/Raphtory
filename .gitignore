@@ -100,3 +100,4 @@ project/metals.sbt
 python/pyraphtory/deps/jars
 *.pyc
 version
+bin/docker/raphtory/tmp/*
