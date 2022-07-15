@@ -8,8 +8,6 @@ ThisBuild / organization := "com.raphtory"
 ThisBuild / organizationName := "raphtory"
 ThisBuild / organizationHomepage := Some(url("https://raphtory.readthedocs.io/"))
 
-ThisBuild / resolvers += "Mulesoft Repository" at "https://repository.mulesoft.org/nexus/content/repositories/public/"
-
 sonatypeCredentialHost := "s01.oss.sonatype.org"
 sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 
@@ -82,7 +80,6 @@ lazy val core = (project in file("core"))
                   curatorRecipes,
                   decline,
                   jackson,
-                  javaxScript,
                   log4jSlft4,
                   log4jApi,
                   log4jCore,
