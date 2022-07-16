@@ -42,7 +42,7 @@ class NFTGraphBuilder extends GraphBuilder[String] {
       val timeStamp = LocalDateTime.parse(datetime_str, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).toEpochSecond(ZoneOffset.UTC)
       val tx_hash = fileLine(2)
       val token_id_str = fileLine(1)
-      val token_id_long = assignID(token_id_str)
+      val token_id_hash = assignID(token_id_str)
       val crypto = fileLine(8)
       if (crypto != "ETH")
         return
@@ -76,7 +76,7 @@ class NFTGraphBuilder extends GraphBuilder[String] {
       // Add node for NFT
       addVertex(
         timeStamp,
-        token_id_long,
+        token_id_hash,
         Properties(
           ImmutableProperty("id", token_id_str),
           ImmutableProperty("collection", collection_cleaned),
@@ -90,7 +90,7 @@ class NFTGraphBuilder extends GraphBuilder[String] {
       addEdge(
         timeStamp,
         buyer_address_hash,
-        token_id_long,
+        token_id_hash,
         Properties(
           StringProperty("transaction_hash", tx_hash),
           StringProperty("crypto", crypto),

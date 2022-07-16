@@ -34,10 +34,11 @@ class CycleMania(moneyCycles: Boolean = true) extends Generic {
           // SRC = seller, DST = NFT they bought, Price_USD = Price,
           val purchasers                  = allPurchases.map(e =>
             Sale(
-                    e.src.toString,
+                    e.getPropertyOrElse("buyer_address", "_UNKNOWN_"),
                     e.getPropertyOrElse("price_USD", 0.0),
+                    e.timestamp,
                     e.getPropertyOrElse("transaction_hash", ""),
-                    e.dst.toString
+                    e.getPropertyOrElse("token_id", "_UNKNOWN_")
             )
           )
           if (purchasers.size > 2) {
@@ -58,16 +59,17 @@ class CycleMania(moneyCycles: Boolean = true) extends Generic {
                 val previousPrice         = purchasers(previousBuyerPosition).price_usd
                 val currentPrice          = itemSale.price_usd
                 if (moneyCycles) {
+                  // ISSUE: If user is the same and at a loss, then the cycle keeps going.
+                  buyersSeen.update(buyerId, position)
                   if (previousPrice < currentPrice) {
                     // println(f"Money Cycle found, item $buyerId, from ${buyersSeen.get(buyerId)} to $position ")
-                    buyersSeen.update(buyerId, position)
-                    allCyclesFound = Cycle(purchasers.slice(previousBuyerPosition, position + 1)) :: allCyclesFound
+                    allCyclesFound = Cycle(purchasers.slice(previousBuyerPosition, position + 1).toArray[Sale]) :: allCyclesFound
                   }
                 }
                 else {
                   // println(f"All Cycle found, item $buyerId, from ${buyersSeen.get(buyerId)} to $position ")
                   buyersSeen.update(buyerId, position)
-                  allCyclesFound = Cycle(purchasers.slice(previousBuyerPosition, position + 1)) :: allCyclesFound
+                  allCyclesFound = Cycle(purchasers.slice(previousBuyerPosition, position + 1).toArray[Sale]) :: allCyclesFound
                 }
               }
             }
@@ -83,19 +85,23 @@ class CycleMania(moneyCycles: Boolean = true) extends Generic {
     graph
       .explodeSelect { vertex =>
         val vertexType          = vertex.Type()
-        val cycleFound: Boolean = vertex.getStateOrElse(HAS_CYCLE, false)
-        if (vertexType == "NFT" & cycleFound) {
-          val nftID                   = vertex.getPropertyOrElse("id", "")
-          val cycleInfos: List[Cycle] = vertex.getState(CYCLES_FOUND)
-          cycleInfos.map { cycleFound =>
+        val has_cycle: Boolean = vertex.getStateOrElse(HAS_CYCLE, false)
+        if (vertexType == "NFT" & has_cycle) {
+          val nftID                   = vertex.getPropertyOrElse("id", "_UNKNOWN_")
+          val cyclesFound: List[Cycle] = vertex.getState(CYCLES_FOUND)
+          val nftCollection = vertex.getPropertyOrElse("collection", "_UNKNOWN_")
+          val nftCategory = vertex.getPropertyOrElse("category", "_UNKNOWN_")
+          cyclesFound.map { singleCycle =>
             val cycleData: CycleData = CycleData(
-                    buyer = cycleFound.sales.head.buyer,
-                    profit_usd = cycleFound.sales.last.price_usd - cycleFound.sales.head.price_usd,
-                    cycle = cycleFound
+                    buyer = singleCycle.sales.head.buyer,
+                    profit_usd = singleCycle.sales.last.price_usd - singleCycle.sales.head.price_usd,
+                    cycle = singleCycle
             )
             Row(
                     nftID,
-                    cycleInfos.size,
+                    nftCollection,
+                    nftCategory,
+                    singleCycle.sales.length,
                     cycleData
             )
           }
@@ -105,13 +111,13 @@ class CycleMania(moneyCycles: Boolean = true) extends Generic {
       }
       .filter(row => row.getValues().nonEmpty)
 
-  case class Sale(buyer: String, price_usd: Double, tx_hash: String, nft_id: String)
+  case class Sale(buyer: String, price_usd: Double, time: Long, tx_hash: String, nft_id: String)
 
-  case class Cycle(sales: List[Sale])
+  case class Cycle(sales: Array[Sale])
 
   case class CycleData(buyer: String, profit_usd: Double, cycle: Cycle)
 
-  case class Node(nft_id: String, cycles_found: Int, cycle_data: CycleData)
+  case class Node(nft_id: String, nft_collection: String, nft_category: String, cycles_found: Int, cycle_data: CycleData)
 
 }
 
