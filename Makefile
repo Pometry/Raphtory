@@ -16,8 +16,8 @@ python-build: version
 	cd python/pyraphtory/ && \
 		poetry build && \
 		poetry install && \
-		pip install --upgrade pip && \
-		pip install dist/pyraphtory-$$(cat version).tar.gz
+		pip install --upgrade pip
+	pip install python/pyraphtory/dist/pyraphtory-$$(cat version).tar.gz
 
 .PHONY pyraphtory-local:
 pyraphtory-local: version

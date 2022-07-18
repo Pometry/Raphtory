@@ -20,7 +20,8 @@ with python support or connect to an existing Raphtory Cluster (more on that lat
 1. Run the commands below
 
 ```bash
-cd $HOME/Source/Raphtory
+#go to raphtory source root (eg. cd $HOME/Source/Raphtory)
+cd <where you have checked out Raphtory>
 make python-build
 ```
 
@@ -36,6 +37,7 @@ make sbt-build
 2. (in a different shell) run pyraphtory
 
 ```bash
+curl -o /tmp/lotr.csv https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv
 # using make
 make INPUT=/tmp/lotr.csv PYFILE=python/pyraphtory/sample.py BUILDER=LotrGraphBuilder pyraphtory-local
 # or directly in bash
