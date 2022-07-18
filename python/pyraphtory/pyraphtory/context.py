@@ -47,11 +47,16 @@ class PyRaphtory(object):
 
     def __init__(self, spout_input: Path, builder_script: Path, builder_class: str, mode: str):
         jar_location = Path(inspect.getfile(self.__class__)).parent.parent
-        jars = ":".join([str(jar) for jar in jar_location.glob('deps/jars/*.jar')])
+        print(jar_location)
+        jars = ":".join([str(jar) for jar in jar_location.glob('lib/*.jar')])
+
+        print(jars)
+        args = ["java", "-cp", jars, "com.raphtory.python.PyRaphtory", f"--input={spout_input.absolute()}",
+                 f"--py={builder_script.absolute()}", f"--builder={builder_class}", f"--mode={mode}"]
+        print(" ".join(args))
 
         self.j_raphtory = Popen(
-            args=["java", "-cp", jars, "com.raphtory.python.PyRaphtory", f"--input={spout_input.absolute()}",
-                  f"--py={builder_script.absolute()}", f"--builder={builder_class}", f"--mode={mode}"],
+            args=args,
             stdout=PIPE,
             stderr=PIPE
         )
@@ -108,5 +113,4 @@ class PyRaphtory(object):
         return self.j_gateway.entry_point.connectedComponents()
 
     def file_sink(self, path: Path):
-        jvm_sink = self.j_gateway.entry_point.file_sink(str(path))
-        return Sink(jvm_sink)
+        return self.j_gateway.entry_point.fileSink(str(path))

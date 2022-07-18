@@ -31,11 +31,11 @@ object PyRaphtory
 
     val input = Opts
       .option[Path](long = "input", short = "f", help = "Path of file to load with FileSpout")
-      .validate("file does not exist")(Files.exists(_))
+      .validate("Input file does not exist")(Files.exists(_))
 
     val pyScript = Opts
       .option[Path](long = "py", short = "p", help = "Python file with algorithm and loader")
-      .validate("file does not exist")(Files.exists(_))
+      .validate("Python script file does not exist")(Files.exists(_))
       .orNone
 
     val builder = Opts
