@@ -46,7 +46,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Degree Test") {
     algorithmTest(
-            algorithm = Degree,
+            algorithm = Degree(),
             start = 1,
             end = 32674,
             increment = 10000,
