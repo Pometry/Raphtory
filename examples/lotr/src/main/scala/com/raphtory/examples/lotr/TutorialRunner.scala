@@ -26,7 +26,7 @@ object TutorialRunner extends App {
   graph
     .at(32674)
     .past()
-    .execute(PageRank())
+    .execute(ConnectedComponents())
     .writeTo(output)
     .waitForJob()
 
