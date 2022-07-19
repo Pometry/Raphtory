@@ -1,3 +1,5 @@
+import traceback
+
 from pyraphtory.vertex import Vertex
 
 

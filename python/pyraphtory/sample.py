@@ -35,7 +35,7 @@ class CCIterate1(Iterate):
         label = min(v.message_queue())
         if label < v['cclabel']:
             v['cclabel'] = label
-            print(v['name']+' '+str(label))
+            print(f"{v['name']} {label}")
             v.message_all_neighbours(label)
         else:
             v.vote_to_halt()
