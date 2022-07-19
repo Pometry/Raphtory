@@ -12,6 +12,7 @@ sbt-build: version
 
 .PHONY python-build:
 python-build: version
+	if [ -z ${JAVA_HOME+x} ]; then echo "JAVA_HOME is unset" && exit 1; else echo "JAVA_HOME is set to '$var'"; fi
 	cd python/pyraphtory/ && \
 		poetry build && \
 		poetry install && \
