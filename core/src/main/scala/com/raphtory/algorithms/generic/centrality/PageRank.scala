@@ -64,7 +64,7 @@ class PageRank(dampingFactor: Double = 0.85, iterateSteps: Int = 100) extends No
                 vertex.setState("prlabel", newLabel)
 
                 val outDegree = vertex.outDegree
-                val abs = Math.abs(newLabel - currentLabel)
+                val abs       = Math.abs(newLabel - currentLabel)
 
                 if (outDegree > 0) {
                   val msg = newLabel / outDegree

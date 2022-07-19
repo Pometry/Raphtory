@@ -31,32 +31,34 @@ class BaseContext(object):
         self._rg = value
 
 
-def join(stderr: IO[AnyStr] | None, stdout: IO[AnyStr] | None):
+def join(stderr: IO[AnyStr] | None, stdout: IO[AnyStr] | None, logging: bool = False):
     if stderr and stdout:
         out = stdout.readline()
         while out:
+            if logging:
+                print(out)
             yield out
             out = stdout.readline()
         err = stderr.readline()
         while err:
+            print(err)
             yield err
             err = stderr.readline()
 
 
 class PyRaphtory(object):
 
-    def __init__(self, spout_input: Path, builder_script: Path, builder_class: str, mode: str):
+    def __init__(self, spout_input: Path, builder_script: Path, builder_class: str, mode: str, logging: bool = False):
         jar_location = Path(inspect.getfile(self.__class__)).parent.parent
-        print(jar_location)
         jars = ":".join([str(jar) for jar in jar_location.glob('lib/*.jar')])
 
-        print(jars)
-        args = ["java", "-cp", jars, "com.raphtory.python.PyRaphtory", f"--input={spout_input.absolute()}",
-                 f"--py={builder_script.absolute()}", f"--builder={builder_class}", f"--mode={mode}", "--py4j"]
-        print(" ".join(args))
+        self.args = ["java", "-cp", jars, "com.raphtory.python.PyRaphtory", f"--input={spout_input.absolute()}",
+                     f"--py={builder_script.absolute()}", f"--builder={builder_class}", f"--mode={mode}", "--py4j"]
+        self.logging = logging
 
+    def __enter__(self):
         self.j_raphtory = Popen(
-            args=args,
+            args=self.args,
             stdout=PIPE,
             stderr=PIPE
         )
@@ -64,11 +66,10 @@ class PyRaphtory(object):
         self.java_gateway_port = None
         self.java_gateway_auth = None
 
-        for line in join(self.j_raphtory.stderr, self.j_raphtory.stdout):
+        for line in join(self.j_raphtory.stderr, self.j_raphtory.stdout, self.logging):
             if not line:
                 break
             else:
-                print(line)
                 port_text = re.search("Started PythonGatewayServer on port ([0-9]+)", str(line))
                 auth_text = re.search("PythonGatewayServer secret - ([0-9a-f]+)", str(line))
                 if port_text:
@@ -79,7 +80,6 @@ class PyRaphtory(object):
                 if self.java_gateway_auth and self.java_gateway_port:
                     break
 
-    def __enter__(self):
         self.j_gateway = JavaGateway(
             gateway_parameters=GatewayParameters(
                 address="127.0.0.1",
@@ -100,6 +100,12 @@ class PyRaphtory(object):
             self.j_gateway.close()
         finally:
             pass
+
+    def open(self):
+        return self.__enter__()
+
+    def shutdown(self):
+        return self.__exit__(None, None, None)
 
     def graph(self):
         try:

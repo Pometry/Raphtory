@@ -1,6 +1,8 @@
 package com.raphtory.python
 
-import cats.effect.{ExitCode, IO, Resource}
+import cats.effect.ExitCode
+import cats.effect.IO
+import cats.effect.Resource
 import cats.syntax.all._
 import com.monovore.decline._
 import com.monovore.decline.effect._
@@ -8,11 +10,15 @@ import com.raphtory.Raphtory
 import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.querytracker.QueryProgressTracker
-import com.raphtory.internals.management.{Py4JServer, PyRef}
-import com.raphtory.internals.management.python.{PythonEntrypoint, PythonGraphBuilder, UnsafeEmbeddedPythonProxy}
+import com.raphtory.internals.management.Py4JServer
+import com.raphtory.internals.management.PyRef
+import com.raphtory.internals.management.python.PythonEntrypoint
+import com.raphtory.internals.management.python.PythonGraphBuilder
+import com.raphtory.internals.management.python.UnsafeEmbeddedPythonProxy
 import com.raphtory.spouts.FileSpout
 
-import java.nio.file.{Files, Path}
+import java.nio.file.Files
+import java.nio.file.Path
 import scala.io.Source
 import scala.util.Using
 
@@ -90,7 +96,7 @@ object PyRaphtory
       }
 
     (py4j, pyScript, input, res, loading, builder).tupled.map {
-      case (_, Some(pyScript), _, Distributed(config), _, _)                        =>
+      case (_, Some(pyScript), _, Distributed(config), _, _)                           =>
         val res = for {
           script <-
             Resource.fromAutoCloseable[IO, Source](IO.blocking(Source.fromFile(pyScript.toFile))).map(_.mkString)
@@ -119,7 +125,7 @@ object PyRaphtory
             if (py4j) IO.never
             else runToPython(evalPy, graph, script)
         }
-      case unsupported                                                           =>
+      case unsupported                                                                 =>
         IO.raiseError(new IllegalArgumentException(s"Unsupported parameters $unsupported"))
     }
   }

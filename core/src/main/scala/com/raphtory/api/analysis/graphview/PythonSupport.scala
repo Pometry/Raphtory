@@ -10,7 +10,7 @@ trait PythonSupport {
 
   def pythonIterate(pickleIterate: Array[Byte], iterations: Long, executeMessagedOnly: Boolean): Graph
 
-  def pythonSelect(column: Array[Object]): Table
+  def pythonSelect(column: java.util.ArrayList[Object]): Table
 
   def loadPythonScript(script: String): Graph
 }
