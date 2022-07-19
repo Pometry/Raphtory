@@ -20,6 +20,9 @@ class Vertex(object):
     def vote_to_halt(self):
         self.v.vote_to_halt()
 
+    def in_degree(self):
+        return self.v.in_degree()
+
     def out_degree(self):
         return self.v.out_degree()
 
