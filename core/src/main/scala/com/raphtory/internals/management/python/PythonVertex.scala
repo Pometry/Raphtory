@@ -10,8 +10,15 @@ class PythonVertex(v: Vertex) {
 
   def name(nameProperty: String): String = v.name(nameProperty)
 
-  def message_queue[T]: util.List[T] = v.messageQueue[T].asJava
-
+  def message_queue[T]: util.List[T] = {
+    //    val queue          = v.messageQueue[T]
+    //    val javaqueue      = queue.asJava
+    //    val scalaqueuesize = queue.size
+    //    val javaqueuesize  = javaqueue.size()
+    //    println(f"Scala_q_s $scalaqueuesize Java_q_s $javaqueuesize")
+    //    javaqueue
+    v.messageQueue[T].asJava
+  }
   def message_all_neighbours(msg: Any): Unit = v.messageAllNeighbours(msg)
 
   def message_outgoing_neighbours(msg: Any): Unit = v.messageOutNeighbours(msg)

@@ -39,7 +39,11 @@ class PGIterate1(Iterate):
 
     def eval(self, v: Vertex):
         current_label = v[PR_LABEL]
-        summed_queue = sum(v.message_queue())
+        print("SARAUMON QUEUE")
+        queue = v.message_queue()
+        if v.name() == "Saruman":
+            print(f'SARAUMON queue size {len(queue)}, IN_DEG {v.in_degree()} OUT_DEG {v.out_degree()}')
+        summed_queue = sum(queue)
         new_label = (1 - self.damping_factor) + self.damping_factor * summed_queue
         v[PR_LABEL] = new_label
 
@@ -50,7 +54,7 @@ class PGIterate1(Iterate):
             msg = new_label / out_degree
             v.message_outgoing_neighbours(msg)
             if v.name() == "Saruman":
-                print("S-MAN NEW_LL "+str(new_label)+"CURRENT_L "+str(current_label)+", ABS "+str(abs_val)+", OUTDEG "+str(out_degree)+", MSG "+str(msg))
+                print("S-MAN SUM_Q "+str(summed_queue)+", NEW_LL "+str(new_label)+"CURRENT_L "+str(current_label)+", ABS "+str(abs_val)+", OUTDEG "+str(out_degree)+", MSG "+str(msg))
 
         if abs_val < 0.00001:
             if v.name() == "Saruman":

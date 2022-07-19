@@ -59,18 +59,23 @@ class PageRank(dampingFactor: Double = 0.85, iterateSteps: Int = 100) extends No
               { vertex =>
                 val currentLabel = vertex.getState[Double]("prlabel")
 
-                val queue    = vertex.messageQueue[Double]
-                val newLabel = (1 - dampingFactor) + dampingFactor * queue.sum
+                val queue        = vertex.messageQueue[Double]
+                if (vertex.name() == "Saruman")
+                  println("queue size " + queue.size + " IN_DEG " + vertex.inDegree + " OUT_DEG " + vertex.outDegree)
+                val summed_queue = queue.sum
+                val newLabel     = (1 - dampingFactor) + dampingFactor * summed_queue
                 vertex.setState("prlabel", newLabel)
 
                 val outDegree = vertex.outDegree
-                val abs = Math.abs(newLabel - currentLabel)
+                val abs       = Math.abs(newLabel - currentLabel)
 
                 if (outDegree > 0) {
                   val msg = newLabel / outDegree
                   vertex.messageOutNeighbours(msg)
                   if (vertex.name() == "Saruman")
-                    println(f"S-MAN NEW_L $newLabel, CURRENT_L $currentLabel, ABS $abs, OUTDEG $outDegree, MSG $msg")
+                    println(
+                            f"S-MAN SUM_Q $summed_queue NEW_L $newLabel, CURRENT_L $currentLabel, ABS $abs, OUTDEG $outDegree, MSG $msg"
+                    )
                 }
 
                 if (abs < 0.00001) {

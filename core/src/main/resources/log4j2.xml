@@ -18,7 +18,7 @@
         </Logger>
 
         <!-- LOGGER FOR RAPHTORY CORE -->
-        <Logger name="com.raphtory" level="${env:RAPHTORY_CORE_LOG:-DEBUG}">
+        <Logger name="com.raphtory" level="${env:RAPHTORY_CORE_LOG:-WARN}">
         </Logger>
 
 <!--        &lt;!&ndash; LOGGERS FOR RAPHTORY PACKAGES &ndash;&gt;-->
