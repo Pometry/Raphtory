@@ -28,9 +28,7 @@ class PGStep1(Step):
         out_degree = v.out_degree()
         if out_degree > 0:
             msg = initLabel / out_degree
-            v.message_outgoing_neighbours(initLabel / out_degree)
-            if v.name() == "Saruman":
-                print("SARUMAN OUT DEGREE "+str(out_degree)+" and MESSAGE "+str(msg))
+            v.message_outgoing_neighbours(msg)
 
 class PGIterate1(Iterate):
     def __init__(self, iterations: int, execute_messaged_only: bool, damping_factor: float = 0.85):
@@ -39,22 +37,17 @@ class PGIterate1(Iterate):
 
     def eval(self, v: Vertex):
         current_label = v[PR_LABEL]
-        summed_queue = sum(v.message_queue())
+        queue = v.message_queue()
+        summed_queue = sum(queue)
         new_label = (1 - self.damping_factor) + self.damping_factor * summed_queue
         v[PR_LABEL] = new_label
 
         out_degree = v.out_degree()
-        abs_val = abs(new_label - current_label)
 
         if out_degree > 0:
-            msg = new_label / out_degree
-            v.message_outgoing_neighbours(msg)
-            if v.name() == "Saruman":
-                print("S-MAN NEW_LL "+str(new_label)+"CURRENT_L "+str(current_label)+", ABS "+str(abs_val)+", OUTDEG "+str(out_degree)+", MSG "+str(msg))
+            v.message_outgoing_neighbours(new_label / out_degree)
 
-        if abs_val < 0.00001:
-            if v.name() == "Saruman":
-                print("YOU SHALL NOT PASS")
+        if abs(new_label - current_label) < 0.00001:
             v.vote_to_halt()
 
 
@@ -67,7 +60,7 @@ class RaphtoryContext(BaseContext):
             return self.rg.at(32674) \
                 .past() \
                 .step(PGStep1()) \
-                .iterate(PGIterate1(iterations=100, execute_messaged_only=True)) \
+                .iterate(PGIterate1(iterations=100, execute_messaged_only=False)) \
                 .select([PR_LABEL]) \
                 .write_to_file("/tmp/pyraphtory_pr_label")
         except Exception as e:
