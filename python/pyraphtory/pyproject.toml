@@ -5,12 +5,17 @@ description = ""
 authors = ["Fabian Murariu <murariu.fabian@gmail.com>"]
 
 packages = [
+    {"include" = "lib/core-assembly-0.1.0.jar"},
+    {"include" = "pyraphtory/*.py"},
+    {"include" = "pyraphtory/**/*.py"}
 ]
+
 
 [tool.poetry.dependencies]
 python = ">=3.8 <3.11"
 pemja = ">=0.2.0"
 cloudpickle=">=0.4"
+py4j="^0.10"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

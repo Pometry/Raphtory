@@ -23,6 +23,8 @@ import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.management.QuerySender
 
+import scala.jdk.CollectionConverters.ListHasAsScala
+
 sealed private[raphtory] trait GraphFunction                             extends QueryManagement
 final private[raphtory] case class SetGlobalState(f: GraphState => Unit) extends GraphFunction
 
@@ -185,8 +187,8 @@ private[api] trait GraphViewImplementation[
   override def pythonIterate(pyObj: Array[Byte], iterations: Long, executeMessagedOnly: Boolean): G =
     addFunction(PythonIterate(pyObj, iterations, executeMessagedOnly))
 
-  override def pythonSelect(columns: Array[Object]): Table = {
-    val cols = columns.collect { case s: String => s }.toVector
+  override def pythonSelect(columns: java.util.ArrayList[Object]): Table = {
+    val cols = columns.asScala.collect { case s: String => s }.toVector
     this.select { vertex =>
       val maybeObjects =
         cols.flatMap(name => Option(vertex.getStateOrElse[Object](name, null, includeProperties = true)))

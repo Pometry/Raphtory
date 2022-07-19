@@ -10,7 +10,9 @@ import com.raphtory.Raphtory
 import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.querytracker.QueryProgressTracker
+import com.raphtory.internals.management.Py4JServer
 import com.raphtory.internals.management.PyRef
+import com.raphtory.internals.management.python.PythonEntrypoint
 import com.raphtory.internals.management.python.PythonGraphBuilder
 import com.raphtory.internals.management.python.UnsafeEmbeddedPythonProxy
 import com.raphtory.spouts.FileSpout
@@ -23,19 +25,25 @@ import scala.util.Using
 object PyRaphtory
         extends CommandIOApp(
                 name = "PyRaphtory",
-                header = "Support for running Raphtory locally for pyraphtory",
+                header = "Support for running supporting Python withing Raphtory",
                 version = "0.1.0"
         ) {
 
   override def main: Opts[IO[ExitCode]] = {
 
+    val py4j = Opts.flag(long = "py4j", short = "j", help = "Enable Py4J").orNone.map {
+      case None => false
+      case _    => true
+    }
+
     val input = Opts
       .option[Path](long = "input", short = "f", help = "Path of file to load with FileSpout")
-      .validate("file does not exist")(Files.exists(_))
+      .validate("Input file does not exist")(Files.exists(_))
 
     val pyScript = Opts
       .option[Path](long = "py", short = "p", help = "Python file with algorithm and loader")
-      .validate("file does not exist")(Files.exists(_))
+      .validate("Python script file does not exist")(Files.exists(_))
+      .orNone
 
     val builder = Opts
       .flagOption[String](long = "builder", short = "g", help = "Class for graph builder")
@@ -87,8 +95,8 @@ object PyRaphtory
           Raphtory.loadIO(spout = FileSpout(path.toString), graphBuilder = builder)
       }
 
-    (pyScript, input, res, loading, builder).tupled.map {
-      case (pyScript, _, Distributed(config), _, _)                        =>
+    (py4j, pyScript, input, res, loading, builder).tupled.map {
+      case (_, Some(pyScript), _, Distributed(config), _, _)                           =>
         val res = for {
           script <-
             Resource.fromAutoCloseable[IO, Source](IO.blocking(Source.fromFile(pyScript.toFile))).map(_.mkString)
@@ -100,7 +108,7 @@ object PyRaphtory
             IO.blocking(evalPy.run(script)) *> runToPython(evalPy, graph, script)
         }
 
-      case (file, inputPath, Local, Some(loadingMode), Some(builderClass)) =>
+      case (py4j, Some(file), inputPath, Local, Some(loadingMode), Some(builderClass)) =>
         val builderIO = for {
           script <- IO.fromEither(Using(Source.fromFile(file.toFile))(_.mkString).toEither)
           _      <- IO.blocking(evalPy.run(script))
@@ -109,13 +117,15 @@ object PyRaphtory
         val mainRes = for {
           script <- Resource.eval(builderIO)
           graph  <- bootRaphtory(loadingMode, inputPath, PythonGraphBuilder(script, builderClass))
+          _      <- Py4JServer.fromEntryPoint[IO](new PythonEntrypoint(graph), graph.config)
         } yield (graph, script)
 
         mainRes.use {
           case (graph, script) =>
-            runToPython(evalPy, graph, script)
+            if (py4j) IO.never
+            else runToPython(evalPy, graph, script)
         }
-      case unsupported                                                     =>
+      case unsupported                                                                 =>
         IO.raiseError(new IllegalArgumentException(s"Unsupported parameters $unsupported"))
     }
   }

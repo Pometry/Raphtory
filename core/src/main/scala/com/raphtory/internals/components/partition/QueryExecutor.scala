@@ -391,35 +391,6 @@ private[raphtory] class QueryExecutor(
             }
           }
 
-        case Iterate(f: (Vertex => Unit) @unchecked, iterations, executeMessagedOnly) =>
-          startStep()
-          val fun =
-            if (executeMessagedOnly)
-              graphLens.runMessagedGraphFunction(f)(_)
-            else
-              graphLens.runGraphFunction(f)(_)
-          fun {
-            finaliseStep {
-              val sentMessages     = sentMessageCount.get()
-              val receivedMessages = receivedMessageCount.get()
-
-              taskManager sendAsync
-                GraphFunctionComplete(
-                        currentPerspectiveID,
-                        partitionID,
-                        receivedMessages,
-                        sentMessages,
-                        graphLens.checkVotes()
-                )
-
-              votedToHalt = graphLens.checkVotes()
-              logger.debug(
-                      s"Job '$jobID' at Partition '$partitionID': Iterate function completed in ${System
-                        .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to $executeMessagedOnly."
-              )
-            }
-          }
-
         case ClearChain()                                                             =>
           graphLens.clearMessages()
           taskManager sendAsync GraphFunctionComplete(currentPerspectiveID, partitionID, 0, 0)
