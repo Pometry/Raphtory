@@ -1,8 +1,6 @@
 package com.raphtory.python
 
-import cats.effect.ExitCode
-import cats.effect.IO
-import cats.effect.Resource
+import cats.effect.{ExitCode, IO, Resource}
 import cats.syntax.all._
 import com.monovore.decline._
 import com.monovore.decline.effect._
@@ -10,13 +8,11 @@ import com.raphtory.Raphtory
 import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.querytracker.QueryProgressTracker
-import com.raphtory.internals.management.Py4JServer
-import com.raphtory.internals.management.PyRef
+import com.raphtory.internals.management.{Py4JServer, PyRef}
 import com.raphtory.internals.management.python.{PythonEntrypoint, PythonGraphBuilder, UnsafeEmbeddedPythonProxy}
 import com.raphtory.spouts.FileSpout
 
-import java.nio.file.Files
-import java.nio.file.Path
+import java.nio.file.{Files, Path}
 import scala.io.Source
 import scala.util.Using
 
@@ -28,6 +24,11 @@ object PyRaphtory
         ) {
 
   override def main: Opts[IO[ExitCode]] = {
+
+    val py4j = Opts.flag(long = "py4j", short = "j", help = "Enable Py4J").orNone.map {
+      case None => false
+      case _    => true
+    }
 
     val input = Opts
       .option[Path](long = "input", short = "f", help = "Path of file to load with FileSpout")
@@ -88,8 +89,8 @@ object PyRaphtory
           Raphtory.loadIO(spout = FileSpout(path.toString), graphBuilder = builder)
       }
 
-    (pyScript, input, res, loading, builder).tupled.map {
-      case (Some(pyScript), _, Distributed(config), _, _)                        =>
+    (py4j, pyScript, input, res, loading, builder).tupled.map {
+      case (_, Some(pyScript), _, Distributed(config), _, _)                        =>
         val res = for {
           script <-
             Resource.fromAutoCloseable[IO, Source](IO.blocking(Source.fromFile(pyScript.toFile))).map(_.mkString)
@@ -101,7 +102,7 @@ object PyRaphtory
             IO.blocking(evalPy.run(script)) *> runToPython(evalPy, graph, script)
         }
 
-      case (Some(file), inputPath, Local, Some(loadingMode), Some(builderClass)) =>
+      case (py4j, Some(file), inputPath, Local, Some(loadingMode), Some(builderClass)) =>
         val builderIO = for {
           script <- IO.fromEither(Using(Source.fromFile(file.toFile))(_.mkString).toEither)
           _      <- IO.blocking(evalPy.run(script))
@@ -115,7 +116,8 @@ object PyRaphtory
 
         mainRes.use {
           case (graph, script) =>
-            runToPython(evalPy, graph, script)
+            if (py4j) IO.never
+            else runToPython(evalPy, graph, script)
         }
       case unsupported                                                           =>
         IO.raiseError(new IllegalArgumentException(s"Unsupported parameters $unsupported"))

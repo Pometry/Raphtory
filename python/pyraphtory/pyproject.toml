@@ -5,7 +5,9 @@ description = ""
 authors = ["Fabian Murariu <murariu.fabian@gmail.com>"]
 
 packages = [
-    {"include" = "lib/core-assembly-0.1.0.jar"}
+    {"include" = "lib/core-assembly-0.1.0.jar"},
+    {"include" = "pyraphtory/*.py"},
+    {"include" = "pyraphtory/**/*.py"}
 ]
 
 

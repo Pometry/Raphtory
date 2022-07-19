@@ -52,7 +52,7 @@ class PyRaphtory(object):
 
         print(jars)
         args = ["java", "-cp", jars, "com.raphtory.python.PyRaphtory", f"--input={spout_input.absolute()}",
-                 f"--py={builder_script.absolute()}", f"--builder={builder_class}", f"--mode={mode}"]
+                 f"--py={builder_script.absolute()}", f"--builder={builder_class}", f"--mode={mode}", "--py4j"]
         print(" ".join(args))
 
         self.j_raphtory = Popen(
