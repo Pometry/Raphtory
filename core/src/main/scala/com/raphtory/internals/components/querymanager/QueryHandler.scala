@@ -1,19 +1,15 @@
 package com.raphtory.internals.components.querymanager
 
-import com.raphtory.api.analysis.graphstate.GraphState
-import com.raphtory.api.analysis.graphstate.GraphStateImplementation
+import com.raphtory.api.analysis.graphstate.{GraphState, GraphStateImplementation}
 import com.raphtory.api.analysis.graphview._
 import com.raphtory.api.analysis.table.TableFunction
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.connectors.PulsarConnector
 import com.raphtory.internals.components.Component
-import com.raphtory.internals.components.querymanager.Stages.SpawnExecutors
-import com.raphtory.internals.components.querymanager.Stages.Stage
-import com.raphtory.internals.graph.Perspective
-import com.raphtory.internals.graph.PerspectiveController
-import com.raphtory.internals.graph.PerspectiveController.DEFAULT_PERSPECTIVE_TIME
-import com.raphtory.internals.graph.PerspectiveController.DEFAULT_PERSPECTIVE_WINDOW
+import com.raphtory.internals.components.querymanager.Stages.{SpawnExecutors, Stage}
+import com.raphtory.internals.graph.{Perspective, PerspectiveController}
+import com.raphtory.internals.graph.PerspectiveController.{DEFAULT_PERSPECTIVE_TIME, DEFAULT_PERSPECTIVE_WINDOW}
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.serialisers.KryoSerialiser
 import com.typesafe.config.Config
@@ -420,15 +416,14 @@ private[raphtory] class QueryHandler(
     telemetry.totalGraphOperations.labels(jobID, deploymentID).inc()
 
     currentOperation match {
-      case Iterate(f: (Vertex => Unit) @unchecked, iterations, executeMessagedOnly)
-          if iterations > 1 && !allVoteToHalt =>
+      case Iterate(f: (Vertex => Unit) @unchecked, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt =>
         currentOperation = Iterate(f, iterations - 1, executeMessagedOnly)
       case PythonIterate(bytes, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt =>
         currentOperation = PythonIterate(bytes, iterations - 1, executeMessagedOnly)
       case IterateWithGraph(f: ((Vertex, GraphState) => Unit) @unchecked, iterations, executeMessagedOnly)
           if iterations > 1 && !allVoteToHalt =>
         currentOperation = IterateWithGraph(f, iterations - 1, executeMessagedOnly)
-      case _                                                                                         =>
+      case _ =>
         currentOperation = getNextGraphOperation(graphFunctions).get
     }
     allVoteToHalt = true
