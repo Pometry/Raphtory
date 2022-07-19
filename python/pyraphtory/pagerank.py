@@ -39,7 +39,6 @@ class PGIterate1(Iterate):
 
     def eval(self, v: Vertex):
         current_label = v[PR_LABEL]
-        print("SARAUMON QUEUE")
         queue = v.message_queue()
         if v.name() == "Saruman":
             print(f'SARAUMON queue size {len(queue)}, IN_DEG {v.in_degree()} OUT_DEG {v.out_degree()}')
