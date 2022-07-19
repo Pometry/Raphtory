@@ -416,9 +416,11 @@ private[raphtory] class QueryHandler(
     telemetry.totalGraphOperations.labels(jobID, deploymentID).inc()
 
     currentOperation match {
-      case Iterate(f: (Vertex => Unit) @unchecked, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt =>
+      case Iterate(f: (Vertex => Unit) @unchecked, iterations, executeMessagedOnly) 
+          if iterations > 1 && !allVoteToHalt =>
         currentOperation = Iterate(f, iterations - 1, executeMessagedOnly)
-      case PythonIterate(bytes, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt =>
+      case PythonIterate(bytes, iterations, executeMessagedOnly) 
+          if iterations > 1 && !allVoteToHalt =>
         currentOperation = PythonIterate(bytes, iterations - 1, executeMessagedOnly)
       case IterateWithGraph(f: ((Vertex, GraphState) => Unit) @unchecked, iterations, executeMessagedOnly)
           if iterations > 1 && !allVoteToHalt =>
