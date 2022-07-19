@@ -19,3 +19,12 @@ class Vertex(object):
 
     def vote_to_halt(self):
         self.v.vote_to_halt()
+
+    def out_degree(self):
+        return self.v.out_degree()
+
+    def message_outgoing_neighbours(self, msg):
+        self.v.message_outgoing_neighbours(msg)
+
+    def name(self, name_property="name"):
+        return self.v.name(name_property)

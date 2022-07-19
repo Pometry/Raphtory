@@ -48,12 +48,15 @@ class PageRank(dampingFactor: Double = 0.85, iterateSteps: Int = 100) extends No
         val initLabel = 1.0
         vertex.setState("prlabel", initLabel)
         val outDegree = vertex.outDegree
-        if (outDegree > 0.0)
-          vertex.messageOutNeighbours(initLabel / outDegree)
+        if (outDegree > 0.0) {
+          val msg = initLabel / outDegree
+          vertex.messageOutNeighbours(msg)
+          if (vertex.name() == "Saruman")
+            println(f"SARUMAN OUT DEGREE $outDegree and MESSAGE $msg")
+        }
       }
       .iterate(
               { vertex =>
-                val vname        = vertex.name() // for logging purposes
                 val currentLabel = vertex.getState[Double]("prlabel")
 
                 val queue    = vertex.messageQueue[Double]
@@ -61,11 +64,20 @@ class PageRank(dampingFactor: Double = 0.85, iterateSteps: Int = 100) extends No
                 vertex.setState("prlabel", newLabel)
 
                 val outDegree = vertex.outDegree
-                if (outDegree > 0)
-                  vertex.messageOutNeighbours(newLabel / outDegree)
+                val abs = Math.abs(newLabel - currentLabel)
 
-                if (Math.abs(newLabel - currentLabel) < 0.00001)
+                if (outDegree > 0) {
+                  val msg = newLabel / outDegree
+                  vertex.messageOutNeighbours(msg)
+                  if (vertex.name() == "Saruman")
+                    println(f"S-MAN NEW_L $newLabel, CURRENT_L $currentLabel, ABS $abs, OUTDEG $outDegree, MSG $msg")
+                }
+
+                if (abs < 0.00001) {
+                  if (vertex.name() == "Saruman")
+                    println("YOU SHOULD NOT PASS")
                   vertex.voteToHalt()
+                }
               },
               iterateSteps,
               false

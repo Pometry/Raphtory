@@ -56,6 +56,9 @@ class ConnectedComponents extends NodeList(Seq("cclabel")) {
                 if (label < vertex.getState[vertex.IDType]("cclabel")) {
                   vertex.setState("cclabel", label)
                   vertex.messageAllNeighbours(label)
+                  // TODO REMOVE LINES BELOW, ITS DEBUG
+                  val name = vertex.name()
+                  println(f"$name $label")
                 }
                 else
                   vertex.voteToHalt()
@@ -69,29 +72,4 @@ class ConnectedComponents extends NodeList(Seq("cclabel")) {
 // THIS IS USED FOR PYTHON
 object ConnectedComponents {
   def apply() = new ConnectedComponents()
-}
-
-class BlergoBlargo extends NodeList(Seq("cclabel")) {
-
-  override def apply(graph: GraphPerspective): graph.Graph =
-    graph
-      .step { vertex =>
-        vertex.setState("cclabel", vertex.ID)
-        vertex.messageAllNeighbours(vertex.ID)
-      }
-      .iterate(
-              { vertex =>
-                import vertex.IDOrdering
-                val label = vertex.messageQueue[vertex.IDType].min
-                if (label < vertex.getState[vertex.IDType]("cclabel")) {
-                  vertex.setState("cclabel", label)
-                  vertex.messageAllNeighbours(label)
-                }
-                else
-                  vertex.voteToHalt()
-              },
-              iterations = 100,
-              executeMessagedOnly = true
-      )
-
 }

@@ -2,6 +2,7 @@ package com.raphtory.examples.lotr
 
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.examples.lotr.graphbuilders.LOTRGraphBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
@@ -18,9 +19,9 @@ object TutorialRunner extends App {
 
   val source  = FileSpout(path)
   val builder = new LOTRGraphBuilder()
-  val graph   = Raphtory.stream(spout = source, graphBuilder = builder)
+  val graph   = Raphtory.load(spout = source, graphBuilder = builder)
 
-  val output = FileSink("/tmp/raphtory")
+  val output = FileSink("/tmp/raphtory_scala_cc")
 
   graph
     .at(32674)
