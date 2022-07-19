@@ -46,46 +46,25 @@ class PageRank(dampingFactor: Double = 0.85, iterateSteps: Int = 100) extends No
     graph
       .step { vertex =>
         val initLabel = 1.0
-        vertex.setState("prlabel", (vertex.name(), initLabel))
+        vertex.setState("prlabel", initLabel)
         val outDegree = vertex.outDegree
-        if (outDegree > 0.0) {
-          val msg = initLabel / outDegree
-          vertex.messageOutNeighbours((vertex.name(), msg))
-          if (vertex.name() == "Isildur")
-            println(f"SARUMAN OUT DEGREE $outDegree and MESSAGE $msg")
-        }
+        if (outDegree > 0.0)
+          vertex.messageOutNeighbours(initLabel / outDegree)
       }
       .iterate(
               { vertex =>
-                val currentLabel_string = vertex.getState[(String, Double)]("prlabel")
-                val currentLabel = currentLabel_string._2
-                val queue_string        = vertex.messageQueue[(String, Double)]
-                val queue = queue_string.map(x => x._2)
-                if (vertex.name() == "Isildur") {
-                  println("queue size " + queue.size + " IN_DEG " + vertex.inDegree + " OUT_DEG " + vertex.outDegree)
-                  println("S_MAN messages " + queue_string)
-                }
-                val summed_queue = queue.sum
-                val newLabel     = (1 - dampingFactor) + dampingFactor * summed_queue
-                vertex.setState("prlabel", (vertex.name(), newLabel))
+                val currentLabel = vertex.getState[Double]("prlabel")
+                val queue        = vertex.messageQueue[Double]
+                val newLabel     = (1 - dampingFactor) + dampingFactor * queue.sum
+                vertex.setState("prlabel", newLabel)
 
                 val outDegree = vertex.outDegree
-                val abs       = Math.abs(newLabel - currentLabel)
 
-                if (outDegree > 0) {
-                  val msg = newLabel / outDegree
-                  vertex.messageOutNeighbours((vertex.name(), msg))
-                  if (vertex.name() == "Isildur")
-                    println(
-                            f"S-MAN SUM_Q $summed_queue NEW_L $newLabel, CURRENT_L $currentLabel, ABS $abs, OUTDEG $outDegree, MSG $msg"
-                    )
-                }
+                if (outDegree > 0)
+                  vertex.messageOutNeighbours(newLabel / outDegree)
 
-                if (abs < 0.00001) {
-                  if (vertex.name() == "Isildur")
-                    println("YOU SHOULD NOT PASS")
+                if (Math.abs(newLabel - currentLabel) < 0.00001)
                   vertex.voteToHalt()
-                }
               },
               iterateSteps,
               false

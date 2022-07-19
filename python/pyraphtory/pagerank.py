@@ -18,20 +18,17 @@ class LotrGraphBuilder(BaseBuilder):
         self.add_vertex(int(timestamp), src_id, [ImmutableProperty("name", src_node)], "Character")
         self.add_vertex(int(timestamp), tar_id, [ImmutableProperty("name", target_node)], "Character")
         self.add_edge(int(timestamp), src_id, tar_id, [], "Character Co-occurence")
-        # print(f"add edge {src_node} {target_node}")
 
 PR_LABEL = 'prlabel'
 
 class PGStep1(Step):
     def eval(self, v: Vertex):
         initLabel = 1.0
-        v[PR_LABEL] = (v.name(), initLabel)
+        v[PR_LABEL] = initLabel
         out_degree = v.out_degree()
         if out_degree > 0:
             msg = initLabel / out_degree
-            v.message_outgoing_neighbours((v.name(), msg))
-            if v.name() == "Isildur":
-                print("SARUMAN OUT DEGREE "+str(out_degree)+" and MESSAGE "+str(msg))
+            v.message_outgoing_neighbours(msg)
 
 class PGIterate1(Iterate):
     def __init__(self, iterations: int, execute_messaged_only: bool, damping_factor: float = 0.85):
@@ -39,30 +36,18 @@ class PGIterate1(Iterate):
         self.damping_factor = damping_factor
 
     def eval(self, v: Vertex):
-        current_label_s = v[PR_LABEL]
-        current_label = current_label_s[1]
-        queue_s = v.message_queue()
-        queue = [x[1] for x in queue_s]
-        # print(v.name())
-        if v.name() == "Isildur":
-            print(f'S-MAN queue size {len(queue)}, IN_DEG {v.in_degree()} OUT_DEG {v.out_degree()}')
-            print(f'S-MAN messages {queue_s}')
+        current_label = v[PR_LABEL]
+        queue = v.message_queue()
         summed_queue = sum(queue)
         new_label = (1 - self.damping_factor) + self.damping_factor * summed_queue
-        v[PR_LABEL] = (v.name(), new_label)
+        v[PR_LABEL] = new_label
 
         out_degree = v.out_degree()
-        abs_val = abs(new_label - current_label)
 
         if out_degree > 0:
-            msg = new_label / out_degree
-            v.message_outgoing_neighbours((v.name(), msg))
-            if v.name() == "Isildur":
-                print("S-MAN SUM_Q "+str(summed_queue)+", NEW_LL "+str(new_label)+"CURRENT_L "+str(current_label)+", ABS "+str(abs_val)+", OUTDEG "+str(out_degree)+", MSG "+str(msg))
+            v.message_outgoing_neighbours(new_label / out_degree)
 
-        if abs_val < 0.00001:
-            if v.name() == "Isildur":
-                print("YOU SHALL NOT PASS")
+        if abs(new_label - current_label) < 0.00001:
             v.vote_to_halt()
 
 
@@ -75,7 +60,7 @@ class RaphtoryContext(BaseContext):
             return self.rg.at(32674) \
                 .past() \
                 .step(PGStep1()) \
-                .iterate(PGIterate1(iterations=100, execute_messaged_only=True)) \
+                .iterate(PGIterate1(iterations=100, execute_messaged_only=False)) \
                 .select([PR_LABEL]) \
                 .write_to_file("/tmp/pyraphtory_pr_label")
         except Exception as e:
