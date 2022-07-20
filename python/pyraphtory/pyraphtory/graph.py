@@ -12,6 +12,9 @@ class ProgressTracker(object):
     def wait_for_job(self):
         self.jvm_tracker.waitForJobInf()
 
+    def job_id(self):
+        self.jvm_tracker.getJobId()
+
     def inner_tracker(self):
         return self.jvm_tracker
 

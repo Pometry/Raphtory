@@ -4,6 +4,7 @@ import subprocess
 from abc import abstractmethod
 from pathlib import Path
 from subprocess import PIPE, Popen
+from threading import Thread
 from typing import IO, AnyStr
 
 from py4j.java_gateway import JavaGateway, GatewayParameters
@@ -61,8 +62,7 @@ class PyRaphtory(object):
         self.j_raphtory = Popen(
             args=self.args,
             stdout=PIPE,
-            stderr=PIPE,
-            creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+            stderr=PIPE
         )
 
         self.java_gateway_port = None
@@ -81,6 +81,12 @@ class PyRaphtory(object):
 
                 if self.java_gateway_auth and self.java_gateway_port:
                     break
+
+        def loopy(rg):
+            for _ in rg.log_lines(False):
+                pass
+
+        self.t = Thread(target=loopy, args=(self, )).start()
 
         self.j_gateway = JavaGateway(
             gateway_parameters=GatewayParameters(
