@@ -82,11 +82,9 @@ class PyRaphtory(object):
                 if self.java_gateway_auth and self.java_gateway_port:
                     break
 
-        def loopy(rg):
-            for _ in rg.log_lines(False):
-                pass
-
-        self.t = Thread(target=loopy, args=(self, )).start()
+        # These two are important, if they are not closed the forked JVM will block while writing files
+        self.j_raphtory.stdout.close()
+        self.j_raphtory.stderr.close()
 
         self.j_gateway = JavaGateway(
             gateway_parameters=GatewayParameters(
