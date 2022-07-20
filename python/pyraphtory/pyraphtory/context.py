@@ -1,5 +1,6 @@
 import inspect
 import re
+import subprocess
 from abc import abstractmethod
 from pathlib import Path
 from subprocess import PIPE, Popen
@@ -60,7 +61,8 @@ class PyRaphtory(object):
         self.j_raphtory = Popen(
             args=self.args,
             stdout=PIPE,
-            stderr=PIPE
+            stderr=PIPE,
+            creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
         )
 
         self.java_gateway_port = None

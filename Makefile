@@ -13,7 +13,7 @@ sbt-build: version
 
 .PHONY python-build:
 python-build: version
-	cd python/pyraphtory/ && \
+	cd python/pyraphtory/ && mkdir -p lib && \
 		poetry build && \
 		poetry install && \
 		pip install --upgrade pip

@@ -20,16 +20,15 @@ with python support or connect to an existing Raphtory Cluster (more on that lat
 1. Run the commands below
 
 ```bash
+make sbt-build
+```
+
+```bash
 #go to raphtory source root (eg. cd $HOME/Source/Raphtory)
 cd <where you have checked out Raphtory>
 make python-build
 ```
 
-### Build the core scala jar
-
-```bash
-make sbt-build
-```
 
 ### Run the PyRaphtory class
 
