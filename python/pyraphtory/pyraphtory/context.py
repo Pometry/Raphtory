@@ -66,7 +66,7 @@ class PyRaphtory(object):
         self.java_gateway_port = None
         self.java_gateway_auth = None
 
-        for line in join(self.j_raphtory.stderr, self.j_raphtory.stdout, self.logging):
+        for line in self.log_lines(self.logging):
             if not line:
                 break
             else:
@@ -89,6 +89,9 @@ class PyRaphtory(object):
                 auto_convert=True,
                 eager_load=True))
         return self
+
+    def log_lines(self, logging: bool):
+        return join(self.j_raphtory.stderr, self.j_raphtory.stdout, logging)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         try:

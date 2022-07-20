@@ -10,7 +10,14 @@ trait PythonSupport {
 
   def pythonIterate(pickleIterate: Array[Byte], iterations: Long, executeMessagedOnly: Boolean): Graph
 
-  def pythonSelect(column: java.util.ArrayList[Object]): Table
+  /**
+    * pemja and py4j provide different objects here
+    * one sends an [[java.util.ArrayList]] the other plain [[Array]]
+    *
+    * @param columns
+    * @return
+    */
+  def pythonSelect(column: Object): Table
 
   def loadPythonScript(script: String): Graph
 }

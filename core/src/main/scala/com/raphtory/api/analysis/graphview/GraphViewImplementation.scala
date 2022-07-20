@@ -187,8 +187,15 @@ private[api] trait GraphViewImplementation[
   override def pythonIterate(pyObj: Array[Byte], iterations: Long, executeMessagedOnly: Boolean): G =
     addFunction(PythonIterate(pyObj, iterations, executeMessagedOnly))
 
-  override def pythonSelect(columns: java.util.ArrayList[Object]): Table = {
-    val cols = columns.asScala.collect { case s: String => s }.toVector
+  override def pythonSelect(columns: Object): Table =
+    pythonSelectSupport(columns)
+
+  private def pythonSelectSupport(columns: Object) = {
+    val cs   = columns match {
+      case arr: Array[_]           => arr.iterator
+      case list: java.util.List[_] => list.asScala.iterator
+    }
+    val cols = cs.collect { case s: String => s }.toVector
     this.select { vertex =>
       val maybeObjects =
         cols.flatMap(name => Option(vertex.getStateOrElse[Object](name, null, includeProperties = true)))
