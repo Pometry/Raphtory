@@ -8,7 +8,7 @@ import com.raphtory.internals.management.PyRef
 import scala.util.Random
 
 class PythonGlobalStateEvaluator[IO[_]: Functor](pyObjBytes: Array[Byte], py: EmbeddedPython[IO])
-  extends (GraphState => IO[Unit]) {
+        extends (GraphState => IO[Unit]) {
 
   private val eval_name = s"_${Random.alphanumeric.take(32).mkString}"
 

@@ -67,7 +67,8 @@ private[raphtory] class QueryManager(
             id,
             query,
             conf,
-            topics
+            topics,
+            query.pyScript
     )
     scheduler.execute(queryHandler)
     telemetry.totalQueriesSpawned.labels(deploymentID).inc()
