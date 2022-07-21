@@ -23,18 +23,16 @@ class LotrGraphBuilder(BaseBuilder):
 class LTCStep1(Step):
     def eval(self, v: Vertex):
         v["triangleCount"] = 0
-        neighbours = set(v.neighbours())
+        neighbours = {n:False for n in v.neighbours()}
         v.message_all_neighbours(neighbours)
-
-
 
 class LTCStep2(Step):
     def eval(self, v: Vertex):
-        neighbours = set(v.neighbours())
+        neighbours = v.neighbours()
         queue = v.message_queue()
         tri = 0
         for msg in queue:
-            tri += len(msg.intersection(neighbours))
+            tri += len(set(neighbours).intersection(msg.keys()))
         v['triangleCount'] = tri / 2
 
 
@@ -49,6 +47,7 @@ class RaphtoryContext(BaseContext):
                 .step(LTCStep1()) \
                 .set_global_state(NumAdder(name="triangles", retain_state=True)) \
                 .step(LTCStep2()) \
+                .select(["triangleCount"]) \
                 .write_to_file("/tmp/pyraphtory_local_triangle_state")
         except Exception as e:
             print(str(e))
