@@ -11,6 +11,14 @@ class Step(object):
         pass
 
 
+class StepState(object):
+    def eval_from_jvm(self, jvm_vertex, jvm_global_state):
+        self.eval(Vertex(jvm_vertex), GlobalState(jvm_global_state))
+
+    def eval(self, v, s):
+        pass
+
+
 class State(object):
     def eval_from_jvm(self, jvm_global_state):
         self.eval(GlobalState(jvm_global_state))
