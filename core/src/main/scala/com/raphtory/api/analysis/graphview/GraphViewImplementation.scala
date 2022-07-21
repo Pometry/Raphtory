@@ -68,6 +68,8 @@ final private[raphtory] case class PythonIterate(
     executeMessagedOnly: Boolean
 ) extends GraphFunction
 
+final private[raphtory] case class PythonSetGlobalState(pyObj: Array[Byte]) extends GraphFunction
+
 final private[raphtory] case class IterateWithGraph[V <: Vertex](
     f: (V, GraphState) => Unit,
     iterations: Int,
@@ -203,6 +205,9 @@ private[api] trait GraphViewImplementation[
       Row(row: _*)
     }
   }
+
+  override def pythonSetGlobalState(pyObj: Array[Byte]): G =
+    addFunction(PythonSetGlobalState(pyObj))
 
   override def iterate(
       f: (V, GraphState) => Unit,

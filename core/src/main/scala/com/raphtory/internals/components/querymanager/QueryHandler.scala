@@ -15,6 +15,7 @@ import com.raphtory.internals.graph.PerspectiveController
 import com.raphtory.internals.graph.PerspectiveController.DEFAULT_PERSPECTIVE_TIME
 import com.raphtory.internals.graph.PerspectiveController.DEFAULT_PERSPECTIVE_WINDOW
 import com.raphtory.internals.management.Scheduler
+import com.raphtory.internals.management.python.{PythonGlobalStateEvaluator, UnsafeEmbeddedPythonProxy}
 import com.raphtory.internals.serialisers.KryoSerialiser
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -33,7 +34,8 @@ private[raphtory] class QueryHandler(
     jobID: String,
     query: Query,
     conf: Config,
-    topics: TopicRepository
+    topics: TopicRepository,
+    pyScript: Option[String]
 ) extends Component[QueryManagement](conf) {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
@@ -41,6 +43,8 @@ private[raphtory] class QueryHandler(
   private val readers        = topics.queryPrep.endPoint
   private val tracker        = topics.queryTrack(jobID).endPoint
   private val workerList     = topics.jobOperations(jobID).endPoint
+
+  private lazy val py = UnsafeEmbeddedPythonProxy(pyScript)
 
   override def stop(): Unit = {
     listener.close()
@@ -445,6 +449,11 @@ private[raphtory] class QueryHandler(
         executeNextPerspective()
 
       case SetGlobalState(fun)    =>
+        fun(graphState)
+        nextGraphOperation(vertexCount)
+
+      case PythonSetGlobalState(pyObj) =>
+        val fun = new PythonGlobalStateEvaluator(pyObj, py)
         fun(graphState)
         nextGraphOperation(vertexCount)
 

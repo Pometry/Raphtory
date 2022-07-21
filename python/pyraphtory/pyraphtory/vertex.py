@@ -31,3 +31,15 @@ class Vertex(object):
 
     def name(self, name_property="name"):
         return self.v.name(name_property)
+
+    def neighbours(self):
+        return self.v.neighbours()
+
+
+class GlobalState(object):
+    def __init__(self, jvm_global_state):
+        self.jvm_global_state = jvm_global_state
+
+    def numAdder(self, name: str, initial_value: int, retain_state: bool):
+        self.jvm_global_state.numAdder(name, initial_value, retain_state)
+

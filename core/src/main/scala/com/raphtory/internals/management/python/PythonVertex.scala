@@ -32,4 +32,6 @@ class PythonVertex(v: Vertex) {
 
   def degree(): Int = v.degree
 
+  def neighbours(): util.List[Any] = v.neighbours.asJava.asInstanceOf[util.List[Any]]
+
 }

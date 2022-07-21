@@ -2,7 +2,7 @@ import traceback
 from typing import List
 
 import cloudpickle as pickle
-from pyraphtory.algo import Iterate, Step
+from pyraphtory.algo import Iterate, Step, State
 
 
 class ProgressTracker(object):
@@ -40,6 +40,15 @@ class TemporalGraph(object):
     def past(self):
         g = self.jvm_graph.past()
         return TemporalGraph(g)
+
+    def set_global_state(self, s: State):
+        try:
+            state_bytes = pickle.dumps(s)
+            g = self.jvm_graph.pythonSetGlobalState(state_bytes)
+            return TemporalGraph(g)
+        except Exception as e:
+            print(str(e))
+            traceback.print_exc()
 
     def step(self, s: Step):
         try:
