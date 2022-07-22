@@ -124,6 +124,9 @@ class PyRaphtory(object):
             print(str(err.__str__().encode('utf-8')))
             raise err
 
+    def local_sink(self):
+        return self.j_gateway.entry_point.localSink()
+
     def connected_components(self):
         return self.j_gateway.entry_point.connectedComponents()
 

@@ -28,6 +28,10 @@ class Table(object):
         g = self.jvm_table.writeToFile(name)
         return ProgressTracker(g)
 
+    def write_to(self, sink):
+        g = self.jvm_table.writeTo(sink)
+        return ProgressTracker(g)
+
 
 class TemporalGraph(object):
     def __init__(self, jvm_graph):

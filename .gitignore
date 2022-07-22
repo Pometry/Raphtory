@@ -101,3 +101,5 @@ python/pyraphtory/deps/jars
 *.pyc
 version
 bin/docker/raphtory/tmp/*
+.ipynb_checkpoints/
+python/pyraphtory/lib/

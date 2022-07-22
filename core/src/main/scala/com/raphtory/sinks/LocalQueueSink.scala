@@ -5,10 +5,16 @@ import com.raphtory.api.output.sink.FormatAgnosticSink
 import com.raphtory.api.output.sink.SinkConnector
 import com.raphtory.formats.CsvFormat
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
 
-import java.util.concurrent.ArrayBlockingQueue
+import java.util
+import java.util.concurrent.LinkedBlockingDeque
+import java.util.concurrent.TimeUnit
 
-class LocalQueueSink(q: ArrayBlockingQueue[String], format: Format = CsvFormat()) extends FormatAgnosticSink(format) {
+class LocalQueueSink(format: Format = CsvFormat()) extends FormatAgnosticSink(format) {
+
+  def q: LinkedBlockingDeque[String] = LocalQueueSink.localTransferQueue
 
   /** Builds a [[com.raphtory.api.output.sink.SinkConnector SinkConnector]] to be used by Raphtory for
     * writing a table using the provided [[com.raphtory.api.output.format.Format Format]].
@@ -29,11 +35,14 @@ class LocalQueueSink(q: ArrayBlockingQueue[String], format: Format = CsvFormat()
   ): SinkConnector =
     new SinkConnector {
 
+      private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+
       /** Appends a `value` to the current item
         *
         * @param value the value to append
         */
-      override def write(value: String): Unit = q.offer(value)
+      override def write(value: String): Unit =
+        q.offer(value)
 
       /** Completes the writing of the current item */
       override def closeItem(): Unit = {}
@@ -41,4 +50,20 @@ class LocalQueueSink(q: ArrayBlockingQueue[String], format: Format = CsvFormat()
       /** Ensures that the output of this sink completed and frees up all the resources used by it. */
       override def close(): Unit = {}
     }
+
+  def awaitNext(ms: Long): String =
+    q.poll(ms, TimeUnit.MILLISECONDS)
+
+  def size: Int = q.size()
+
+  def results: util.ArrayList[String] = {
+    val list = new util.ArrayList[String]()
+    q.drainTo(list)
+    list
+  }
+}
+
+object LocalQueueSink {
+  // FIXME: this is a cheat so we can transfer data when uwing Raphtory Locally
+  @transient val localTransferQueue = new LinkedBlockingDeque[String]()
 }
