@@ -1,4 +1,3 @@
-import traceback
 from typing import Any, List
 
 from pyraphtory.vertex import Vertex, GraphState
