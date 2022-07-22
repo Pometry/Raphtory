@@ -8,11 +8,10 @@ import java.time.format.DateTimeFormatter
 import scala.collection.mutable
 import scala.io.Source
 
-
 class NFTGraphBuilder extends GraphBuilder[String] {
 
   def setupDatePrices(): mutable.HashMap[String, Double] = {
-    val eth_historic_csv ="/Users/haaroony/OneDrive - Pometry Ltd/nft_andrea/ETH-USD.csv"
+    val eth_historic_csv ="/tmp/ETH-USD.csv"
     // val eth_historic_csv ="/home/ubuntu/data/ETH-USD.csv"
     val src = Source.fromFile(eth_historic_csv)
     val date_price_map = new mutable.HashMap[String,Double]()
@@ -28,7 +27,6 @@ class NFTGraphBuilder extends GraphBuilder[String] {
 
   override def parseTuple(tuple: String): Unit = {
     val fileLine = tuple.split(",").map(_.trim)
-//    try {
       // Skip Header
       if (fileLine(0) == "Smart_contract") return
       // Seller details
@@ -85,7 +83,7 @@ class NFTGraphBuilder extends GraphBuilder[String] {
         Type("NFT")
       )
 
-      // Creating a bipitide graph,
+      // Creating a bipartite graph,
       // add edge between buyer and nft
       addEdge(
         timeStamp,
@@ -101,9 +99,6 @@ class NFTGraphBuilder extends GraphBuilder[String] {
         ),
         Type("Purchase")
       )
-//    } catch {
-//      case e: Exception => println(e); println(tuple)
-//    }
   }
 }
 
