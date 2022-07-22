@@ -73,7 +73,7 @@ class TemporalGraph(object):
             traceback.print_exc()
 
     def transform(self, algo):
-        g = self.jvm_graph.transform(algo.jvm_algo)
+        g = self.jvm_graph.transform(algo)
         return TemporalGraph(g)
 
     def select(self, columns: List[str]):
