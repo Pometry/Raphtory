@@ -3,8 +3,7 @@ from typing import List
 
 import cloudpickle as pickle
 
-from pyraphtory.steps import Iterate, Step, State, StepState
-
+from pyraphtory.steps import Iterate, Step, State, StepState, GlobalSelect
 
 class ProgressTracker(object):
     def __init__(self, jvm_tracker):
@@ -97,4 +96,14 @@ class TemporalGraph(object):
         except Exception as e:
             print(str(e))
             traceback.print_exc()
+
+    def global_select(self, gs: GlobalSelect):
+        try:
+            global_select_bytes = pickle.dumps(gs)
+            g = self.jvm_graph.pythonGlobalSelect(global_select_bytes)
+            return Table(g)
+        except Exception as e:
+            print(str(e))
+            traceback.print_exc()
+
 

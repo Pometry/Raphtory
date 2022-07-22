@@ -88,8 +88,13 @@ final private[raphtory] case class SelectWithGraph(
 
 final private[raphtory] case class GlobalSelect(
     f: GraphState => Row
-)                                                                   extends TabularisingGraphFunction
+) extends TabularisingGraphFunction
         with GlobalGraphFunction
+
+final private[raphtory] case class PythonGlobalSelect(pyObj: Array[Byte])
+        extends TabularisingGraphFunction
+        with GlobalGraphFunction
+
 final private[raphtory] case class ExplodeSelect(f: _ => List[Row]) extends TabularisingGraphFunction
 final private[raphtory] case class ClearChain()                     extends GraphFunction
 final private[raphtory] case class PerspectiveDone()                extends GraphFunction
@@ -183,8 +188,8 @@ private[api] trait GraphViewImplementation[
   override def step(f: (V, GraphState) => Unit): G =
     addFunction(StepWithGraph(f))
 
-  override def pythonStepState(pickledPyObj: Array[Byte]): G =
-    addFunction(PythonStepWithGraph(pickledPyObj))
+  override def pythonStepState(pyObj: Array[Byte]): G =
+    addFunction(PythonStepWithGraph(pyObj))
 
   override def iterate(
       f: (V) => Unit,
@@ -250,6 +255,9 @@ private[api] trait GraphViewImplementation[
 
   override def globalSelect(f: GraphState => Row): Table =
     addSelect(GlobalSelect(f))
+
+  override def pythonGlobalSelect(pyObj: Array[Byte]): Table =
+    addSelect(PythonGlobalSelect(pyObj))
 
   override def explodeSelect(f: V => List[Row]): Table =
     addSelect(ExplodeSelect(f))

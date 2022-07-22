@@ -1,11 +1,12 @@
 import traceback
 
-# from localtrianglecount import LocalTriangleCount
-from pyraphtory.steps import Vertex, NumAdder, StepState, Step
+from typing import Any
+
+from pyraphtory.steps import Vertex, NumAdder, StepState, Step, GlobalSelect
 from pyraphtory.builder import *
 from pyraphtory.context import BaseContext
 from pyraphtory.graph import TemporalGraph
-from pyraphtory.vertex import GlobalState
+from pyraphtory.vertex import GraphState
 
 
 class LotrGraphBuilder(BaseBuilder):
@@ -24,16 +25,14 @@ class LotrGraphBuilder(BaseBuilder):
 
 
 class GTCStep1(StepState):
-    def eval(self, v: Vertex, gs: GlobalState):
+    def eval(self, v: Vertex, gs: GraphState):
         tri = v['triangleCount']
         gs['triangles'].update(tri)
 
-
-class GTCStep2(StepState):
-    def eval(self, v: Vertex, gs: GlobalState):
-        print('step2')
-        print(gs['triangles'].value())
-        gs['triangles'].update(int(gs['triangles'].value() / 3))
+class GTCGS1(GlobalSelect):
+    def eval(self, gs: GraphState) -> List[Any]:
+        division = int(gs['triangles'].value() / 3)
+        return [division]
 
 class RaphtoryContext(BaseContext):
     def __init__(self, rg: TemporalGraph, script):
@@ -42,12 +41,11 @@ class RaphtoryContext(BaseContext):
     def eval(self):
         try:
             local_triangle_count = LocalTriangleCount()
-            graph =  self.rg.at(32674).past()
+            graph = self.rg.at(32674).past()
             return local_triangle_count(graph) \
                 .set_global_state(NumAdder(name="triangles", retain_state=True)) \
                 .step_state(GTCStep1()) \
-                .step_state(GTCStep2()) \
-                .select_state(["triangles"]) \
+                .global_select(GTCGS1()) \
                 .write_to_file("/tmp/pyraphtory_global_triangle_state")
         except Exception as e:
             print(str(e))
@@ -77,6 +75,3 @@ class LocalTriangleCount(object):
         return graph.step(LTCStep1()) \
             .set_global_state(NumAdder(name="triangles", retain_state=True)) \
             .step(LTCStep2())
-
-
-

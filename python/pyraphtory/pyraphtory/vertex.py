@@ -36,7 +36,7 @@ class Vertex(object):
         return self.v.neighbours()
 
 
-class GlobalState(object):
+class GraphState(object):
     def __init__(self, jvm_global_state):
         self.jvm_global_state = jvm_global_state
 

@@ -21,9 +21,11 @@ trait PythonSupport {
 
   def pythonSelectState(column: Object): Table
 
-  def pythonStepState(pickleStep: Array[Byte]): Graph
+  def pythonStepState(pyObj: Array[Byte]): Graph
 
   def loadPythonScript(script: String): Graph
 
-  def pythonSetGlobalState(pickleState: Array[Byte]): Graph
+  def pythonSetGlobalState(pyObj: Array[Byte]): Graph
+
+  def pythonGlobalSelect(pyObj: Array[Byte]): Table
 }

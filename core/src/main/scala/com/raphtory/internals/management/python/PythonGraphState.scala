@@ -3,7 +3,7 @@ package com.raphtory.internals.management.python
 import com.raphtory.api.analysis.graphstate.Accumulator
 import com.raphtory.api.analysis.graphstate.GraphState
 
-class PythonGlobalState(gs: GraphState) {
+class PythonGraphState(gs: GraphState) {
 
   def set_state_num(key: String, value: Any): Unit =
     gs.apply[Any, Long](key).+=(value)
