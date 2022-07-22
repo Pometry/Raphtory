@@ -1,14 +1,16 @@
 package com.raphtory.sinks
 
 import com.raphtory.api.output.format.Format
-import com.raphtory.api.output.sink.{FormatAgnosticSink, SinkConnector}
+import com.raphtory.api.output.sink.FormatAgnosticSink
+import com.raphtory.api.output.sink.SinkConnector
 import com.raphtory.formats.CsvFormat
 import com.typesafe.config.Config
 
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
-import java.nio.file.{Path, StandardOpenOption}
+import java.nio.file.Path
+import java.nio.file.StandardOpenOption
 
 /** A [[com.raphtory.api.output.sink.Sink Sink]] that writes a `Table` into files using the given `format`.
   *

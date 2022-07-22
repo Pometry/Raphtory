@@ -1,6 +1,6 @@
 import traceback
 
-from pyraphtory.algo import Vertex, Iterate, Step
+from pyraphtory.steps import Vertex, Iterate, Step
 from pyraphtory.builder import *
 from pyraphtory.context import BaseContext
 from pyraphtory.graph import TemporalGraph

@@ -1,6 +1,6 @@
 import traceback
 
-from pyraphtory.steps import Vertex, Iterate, Step
+from pyraphtory.steps import Vertex, Iterate, Step, NumAdder
 from pyraphtory.builder import *
 from pyraphtory.context import BaseContext
 from pyraphtory.graph import TemporalGraph
@@ -21,24 +21,28 @@ class LotrGraphBuilder(BaseBuilder):
         self.add_edge(int(timestamp), src_id, tar_id, [], "Character Co-occurence")
 
 
-class CCStep1(Step):
+class LTCStep1(Step):
     def eval(self, v: Vertex):
-        v['cclabel'] = v.id()
-        v.message_all_neighbours(v.id())
+        v["triangleCount"] = 0
+        neighbours = {n: False for n in v.neighbours()}
+        v.message_all_neighbours(neighbours)
 
 
-class CCIterate1(Iterate):
-    def __init__(self, iterations: int, execute_messaged_only: bool):
-        super().__init__(iterations, execute_messaged_only)
-
+class LTCStep2(Step):
     def eval(self, v: Vertex):
-        label = min(v.message_queue())
-        if label < v['cclabel']:
-            v['cclabel'] = label
-            print(f"{v['name']} {label}")
-            v.message_all_neighbours(label)
-        else:
-            v.vote_to_halt()
+        neighbours = v.neighbours()
+        queue = v.message_queue()
+        tri = 0
+        for msg in queue:
+            tri += len(set(neighbours).intersection(msg.keys()))
+        v['triangleCount'] = tri / 2
+
+
+class LocalTriangleCount(object):
+    def __call__(self, graph: TemporalGraph, *args, **kwargs) -> TemporalGraph:
+        return graph.step(LTCStep1()) \
+            .set_global_state(NumAdder(name="triangles", retain_state=True)) \
+            .step(LTCStep2())
 
 
 class RaphtoryContext(BaseContext):
@@ -47,12 +51,11 @@ class RaphtoryContext(BaseContext):
 
     def eval(self):
         try:
-            return self.rg.at(32674) \
-                .past() \
-                .step(CCStep1()) \
-                .iterate(CCIterate1(iterations=100, execute_messaged_only=True)) \
-                .select(['cclabel']) \
-                .write_to_file("/tmp/pyraphtory_output")
+            ltc = LocalTriangleCount()
+            graph = self.rg.at(32674).past()
+            return ltc(graph) \
+                .select(["triangleCount"]) \
+                .write_to_file("/tmp/pyraphtory_local_triangle_state")
         except Exception as e:
             print(str(e))
             traceback.print_exc()

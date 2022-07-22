@@ -1,8 +1,11 @@
 package com.raphtory.internals.components.partition
 
 import cats.Id
+import com.raphtory.api.analysis.graphstate.GraphState
+import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview._
 import com.raphtory.api.analysis.table.Explode
+import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.TableFilter
 import com.raphtory.api.analysis.table.WriteToOutput
 import com.raphtory.api.analysis.visitor.Vertex
@@ -16,7 +19,9 @@ import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.management.Scheduler
+import com.raphtory.internals.management.python.PythonGlobalSelectEvaluator
 import com.raphtory.internals.management.python.PythonIterateEvaluator
+import com.raphtory.internals.management.python.PythonStateStepEvaluator
 import com.raphtory.internals.management.python.PythonStepEvaluator
 import com.raphtory.internals.management.python.UnsafeEmbeddedPythonProxy
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
@@ -197,27 +202,11 @@ private[raphtory] class QueryExecutor(
 
         case GraphFunctionWithGlobalState(function, graphState)                       =>
           function match {
+            case PythonStepWithGraph(pyObj)                           =>
+              evalStepWithGraph(time, graphState, new PythonStateStepEvaluator[Id](pyObj, py))
             case StepWithGraph(f)                                     =>
-              startStep()
-              graphLens.runGraphFunction(f, graphState) {
-                finaliseStep {
-                  val sentMessages     = sentMessageCount.get()
-                  val receivedMessages = receivedMessageCount.get()
-                  taskManager sendAsync
-                    GraphFunctionCompleteWithState(
-                            currentPerspectiveID,
-                            partitionID,
-                            receivedMessages,
-                            sentMessages,
-                            graphState = graphState
-                    )
+              evalStepWithGraph(time, graphState, f)
 
-                  logger.debug(
-                          s"Job '$jobID' at Partition '$partitionID': Step function on graph with accumulators finished in ${System
-                            .currentTimeMillis() - time}ms and sent '$sentMessages' messages."
-                  )
-                }
-              }
             case IterateWithGraph(f, iterations, executeMessagedOnly) =>
               startStep()
               val fun =
@@ -258,24 +247,10 @@ private[raphtory] class QueryExecutor(
                   )
                 }
               }
-
+            case PythonGlobalSelect(f)                                =>
+              evalGlobalSelect(time, graphState, new PythonGlobalSelectEvaluator[Id](f, py))
             case GlobalSelect(f)                                      =>
-              startStep()
-              if (partitionID == 0)
-                graphLens.executeSelect(f, graphState) {
-                  taskManager sendAsync TableBuilt(currentPerspectiveID)
-                  logger.debug(
-                          s"Job '$jobID' at Partition '$partitionID': Global Select executed on graph with accumulators in ${System
-                            .currentTimeMillis() - time}ms."
-                  )
-                }
-              else {
-                taskManager sendAsync TableBuilt(currentPerspectiveID)
-                logger.debug(
-                        s"Job '$jobID' at Partition '$partitionID': Global Select executed on graph with accumulators in ${System
-                          .currentTimeMillis() - time}ms."
-                )
-              }
+              evalGlobalSelect(time, graphState, f)
           }
 
         case MultilayerView(interlayerEdgeBuilder)                                    =>
@@ -320,6 +295,7 @@ private[raphtory] class QueryExecutor(
           }
         case PythonStep(p)                                                            =>
           evaluateStep(time, new PythonStepEvaluator[Id](p, py))
+
         case Step(f: (Vertex => Unit) @unchecked)                                     =>
           evaluateStep(time, f)
 
@@ -474,6 +450,48 @@ private[raphtory] class QueryExecutor(
         errorHandler(e)
     }
     logger.debug(s"Partition $partitionID handled message $msg in ${System.currentTimeMillis() - time}ms")
+  }
+
+  private def evalGlobalSelect(time: Long, graphState: GraphStateImplementation, f: GraphState => Row) = {
+    startStep()
+    if (partitionID == 0)
+      graphLens.executeSelect(f, graphState) {
+        taskManager sendAsync TableBuilt(currentPerspectiveID)
+        logger.debug(
+                s"Job '$jobID' at Partition '$partitionID': Global Select executed on graph with accumulators in ${System
+                  .currentTimeMillis() - time}ms."
+        )
+      }
+    else {
+      taskManager sendAsync TableBuilt(currentPerspectiveID)
+      logger.debug(
+              s"Job '$jobID' at Partition '$partitionID': Global Select executed on graph with accumulators in ${System
+                .currentTimeMillis() - time}ms."
+      )
+    }
+  }
+
+  private def evalStepWithGraph(time: Long, graphState: GraphStateImplementation, f: (_, GraphState) => Unit): Unit = {
+    startStep()
+    graphLens.runGraphFunction(f, graphState) {
+      finaliseStep {
+        val sentMessages     = sentMessageCount.get()
+        val receivedMessages = receivedMessageCount.get()
+        taskManager sendAsync
+          GraphFunctionCompleteWithState(
+                  currentPerspectiveID,
+                  partitionID,
+                  receivedMessages,
+                  sentMessages,
+                  graphState = graphState
+          )
+
+        logger.debug(
+                s"Job '$jobID' at Partition '$partitionID': Step function on graph with accumulators finished in ${System
+                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages."
+        )
+      }
+    }
   }
 
   private def evaluateIterate(time: Long, f: Vertex => Unit, executeMessagedOnly: Boolean): Unit = {

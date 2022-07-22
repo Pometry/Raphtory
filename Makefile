@@ -9,6 +9,7 @@ version:
 .PHONY sbt-build:
 sbt-build: version
 	sbt clean "core/assembly"
+	mkdir -p python/pyraphtory/lib/
 	cp core/target/scala-2.13/core-assembly-$$(cat version).jar python/pyraphtory/lib/
 
 .PHONY python-build:

@@ -7,6 +7,7 @@ import com.raphtory.api.analysis.algorithm.GenericallyApplicable
 import com.raphtory.api.analysis.algorithm.Multilayer
 import com.raphtory.api.analysis.algorithm.MultilayerProjection
 import com.raphtory.api.analysis.algorithm.MultilayerReduction
+import com.raphtory.api.analysis.graphstate.Accumulator
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.table.Row
@@ -62,11 +63,15 @@ final private[raphtory] case class Iterate[V <: Vertex](
 
 final private[raphtory] case class PythonStep(pyObj: Array[Byte]) extends GraphFunction
 
+final private[raphtory] case class PythonStepWithGraph(pyObj: Array[Byte]) extends GlobalGraphFunction
+
 final private[raphtory] case class PythonIterate(
     bytes: Array[Byte],
     iterations: Long,
     executeMessagedOnly: Boolean
 ) extends GraphFunction
+
+final private[raphtory] case class PythonSetGlobalState(pyObj: Array[Byte]) extends GraphFunction
 
 final private[raphtory] case class IterateWithGraph[V <: Vertex](
     f: (V, GraphState) => Unit,
@@ -83,8 +88,13 @@ final private[raphtory] case class SelectWithGraph(
 
 final private[raphtory] case class GlobalSelect(
     f: GraphState => Row
-)                                                                   extends TabularisingGraphFunction
+) extends TabularisingGraphFunction
         with GlobalGraphFunction
+
+final private[raphtory] case class PythonGlobalSelect(pyObj: Array[Byte])
+        extends TabularisingGraphFunction
+        with GlobalGraphFunction
+
 final private[raphtory] case class ExplodeSelect(f: _ => List[Row]) extends TabularisingGraphFunction
 final private[raphtory] case class ClearChain()                     extends GraphFunction
 final private[raphtory] case class PerspectiveDone()                extends GraphFunction
@@ -178,6 +188,9 @@ private[api] trait GraphViewImplementation[
   override def step(f: (V, GraphState) => Unit): G =
     addFunction(StepWithGraph(f))
 
+  override def pythonStepState(pyObj: Array[Byte]): G =
+    addFunction(PythonStepWithGraph(pyObj))
+
   override def iterate(
       f: (V) => Unit,
       iterations: Int,
@@ -189,6 +202,27 @@ private[api] trait GraphViewImplementation[
 
   override def pythonSelect(columns: Object): Table =
     pythonSelectSupport(columns)
+
+  override def pythonSelectState(columns: Object): Table =
+    pythonSelectStateSupport(columns)
+
+  private def pythonSelectStateSupport(columns: Object) = {
+    val cs   = columns match {
+      case arr: Array[_]           => arr.iterator
+      case list: java.util.List[_] => list.asScala.iterator
+    }
+    val cols = cs.collect { case s: String => s }.toVector
+    globalSelect { state =>
+      print(state(cols(0)))
+      val row: Seq[Any] =
+        cols.map { name =>
+          val name1: Accumulator[Any, Any] = state[Any, Any](name)
+          name1.value
+        }
+      println(row)
+      Row(row: _*)
+    }
+  }
 
   private def pythonSelectSupport(columns: Object) = {
     val cs   = columns match {
@@ -204,6 +238,9 @@ private[api] trait GraphViewImplementation[
     }
   }
 
+  override def pythonSetGlobalState(pyObj: Array[Byte]): G =
+    addFunction(PythonSetGlobalState(pyObj))
+
   override def iterate(
       f: (V, GraphState) => Unit,
       iterations: Int,
@@ -218,6 +255,9 @@ private[api] trait GraphViewImplementation[
 
   override def globalSelect(f: GraphState => Row): Table =
     addSelect(GlobalSelect(f))
+
+  override def pythonGlobalSelect(pyObj: Array[Byte]): Table =
+    addSelect(PythonGlobalSelect(pyObj))
 
   override def explodeSelect(f: V => List[Row]): Table =
     addSelect(ExplodeSelect(f))
