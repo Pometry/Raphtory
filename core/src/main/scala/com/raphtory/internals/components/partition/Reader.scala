@@ -3,10 +3,9 @@ package com.raphtory.internals.components.partition
 import cats.effect.Async
 import cats.effect.Resource
 import cats.effect.Spawn
+import com.raphtory.internals.communication.Topic
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
-import com.raphtory.internals.components.querymanager.EndQuery
-import com.raphtory.internals.components.querymanager.EstablishExecutor
 import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.Scheduler
@@ -19,6 +18,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 private[raphtory] class Reader(
+    graphID: String,
     partitionID: Int,
     storage: GraphPartition,
     scheduler: Scheduler,
@@ -27,7 +27,6 @@ private[raphtory] class Reader(
 ) extends Component[QueryManagement](conf) {
 
   private val logger: Logger   = Logger(LoggerFactory.getLogger(this.getClass))
-  private val executorMap      = mutable.Map[String, QueryExecutor]()
   private val watermarkPublish = topics.watermark.endPoint
 
   private var scheduledWatermark: Option[() => Future[Unit]] = None
@@ -40,34 +39,9 @@ private[raphtory] class Reader(
   override def stop(): Unit = {
     scheduledWatermark.foreach(cancelable => cancelable())
     watermarkPublish.close()
-    executorMap.synchronized {
-      executorMap.foreach(_._2.stop())
-    }
   }
 
-  override def handleMessage(msg: QueryManagement): Unit =
-    msg match {
-      case EstablishExecutor(_, jobID, sink) =>
-        val queryExecutor =
-          new QueryExecutor(partitionID, sink, storage, jobID, conf, topics, scheduler)
-        scheduler.execute(queryExecutor)
-        telemetry.queryExecutorCollector.labels(partitionID.toString, deploymentID).inc()
-        executorMap += ((jobID, queryExecutor))
-
-      case req: EndQuery                     =>
-        logger.debug(s"Reader on partition $partitionID received $req")
-        executorMap.synchronized {
-          try {
-            executorMap(req.jobID).stop()
-            executorMap.remove(req.jobID)
-            telemetry.queryExecutorCollector.labels(partitionID.toString, deploymentID).dec()
-          }
-          catch {
-            case e: Exception =>
-              e.printStackTrace()
-          }
-        }
-    }
+  override def handleMessage(msg: QueryManagement): Unit = {}
 
   private def checkWatermark(): Unit = {
     storage.watermarker.updateWatermark()
@@ -93,6 +67,7 @@ private[raphtory] class Reader(
 object Reader {
 
   def apply[IO[_]: Async: Spawn](
+      graphID: String,
       partitionID: Int,
       storage: GraphPartition,
       scheduler: Scheduler,
@@ -103,7 +78,7 @@ object Reader {
             partitionID,
             topics,
             s"reader-$partitionID",
-            List(topics.queryPrep),
-            new Reader(partitionID, storage, scheduler, conf, topics)
+            List[Topic[QueryManagement]](),
+            new Reader(graphID, partitionID, storage, scheduler, conf, topics)
     )
 }

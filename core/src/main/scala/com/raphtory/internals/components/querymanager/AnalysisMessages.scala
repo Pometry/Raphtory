@@ -5,6 +5,8 @@ import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.GlobalGraphFunction
 import com.raphtory.api.analysis.graphview.GraphFunction
 import com.raphtory.api.analysis.table.TableFunction
+import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Spout
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.time.Interval
 import com.raphtory.api.time.NullInterval
@@ -22,9 +24,6 @@ private[raphtory] case class WatermarkTime(
 ) extends QueryManagement
 
 private[raphtory] case object StartAnalysis extends QueryManagement
-
-private[raphtory] case class EstablishExecutor(_bootstrap: DynamicLoader, jobID: String, sink: Sink)
-        extends QueryManagement
 
 private[raphtory] case class SetMetaData(vertices: Int) extends QueryManagement
 
@@ -144,3 +143,14 @@ private[raphtory] case class TableFunctionComplete(perspectiveID: Int) extends P
 private[raphtory] case class TableBuilt(perspectiveID: Int)            extends PerspectiveStatus
 
 private[raphtory] case class AlgorithmFailure(perspectiveID: Int, exception: Throwable) extends PerspectiveStatus
+
+// Messages to ingestSetup topic
+private[raphtory] case class EstablishGraph[T](graphID: String, spout: Spout[T], builder: GraphBuilder[T])
+
+// Messages for partitionSetup topic
+sealed private[raphtory] trait PartitionManagement
+private[raphtory] case class EstablishPartition(graphID: String) extends PartitionManagement
+
+private[raphtory] case class EstablishExecutor(_bootstrap: DynamicLoader, graphID: String, jobID: String, sink: Sink)
+        extends PartitionManagement
+private[raphtory] case class StopExecutor(jobID: String) extends PartitionManagement

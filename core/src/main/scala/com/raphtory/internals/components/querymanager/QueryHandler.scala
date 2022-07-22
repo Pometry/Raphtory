@@ -43,6 +43,7 @@ import scala.util.Try
 private[raphtory] class QueryHandler(
     queryManager: QueryManager,
     scheduler: Scheduler,
+    graphID: String,
     jobID: String,
     query: Query,
     conf: Config,
@@ -51,14 +52,14 @@ private[raphtory] class QueryHandler(
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val self           = topics.rechecks(jobID).endPoint
-  private val readers        = topics.queryPrep.endPoint
+  private val partitions     = topics.partitionSetup.endPoint
   private val tracker        = topics.queryTrack(jobID).endPoint
   private val workerList     = topics.jobOperations(jobID).endPoint
 
   override def stop(): Unit = {
     listener.close()
     self.close()
-    readers.close()
+    partitions.close()
     tracker.close()
     workerList.close()
   }
@@ -95,7 +96,7 @@ private[raphtory] class QueryHandler(
   private def recheckEarliestTimer(): Unit = self sendAsync RecheckEarliestTime
 
   override def run(): Unit = {
-    messageReader(EstablishExecutor(query._bootstrap, jobID, query.sink.get))
+    messagePartitions(EstablishExecutor(query._bootstrap, graphID, jobID, query.sink.get))
     timeTaken = System.currentTimeMillis() //Set time from the point we ask the executors to set up
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
     listener.start()
@@ -495,14 +496,14 @@ private[raphtory] class QueryHandler(
   private def messagetoAllJobWorkers(msg: QueryManagement): Unit =
     workerList sendAsync msg
 
-  private def messageReader(msg: QueryManagement): Unit =
-    readers sendAsync msg
+  private def messagePartitions(msg: PartitionManagement): Unit =
+    partitions sendAsync msg
 
   private def killJob() = {
     messagetoAllJobWorkers(EndQuery(jobID))
     workerList.close()
-    messageReader(EndQuery(jobID))
-    readers.close()
+    messagePartitions(StopExecutor(jobID))
+    partitions.close()
 
     val queryManager = topics.completedQueries.endPoint
     queryManager closeWithMessage EndQuery(jobID)

@@ -11,6 +11,7 @@ import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import com.raphtory.internals.components.graphbuilder.BuildExecutorGroup
+import com.raphtory.internals.components.querymanager.EstablishPartition
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManager
 import com.raphtory.internals.components.spout.SpoutExecutor
@@ -188,7 +189,6 @@ object Raphtory {
     for {
       _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
       topicRepo          <- LocalTopicRepository(config)
-      _                  <- QueryManager(config, topicRepo)
       _                  <- {
         if (batchLoading) Resource.eval(IO.unit)
         else SpoutExecutor(spout, config, topicRepo)
@@ -204,7 +204,13 @@ object Raphtory {
           PartitionsManager.batchLoading(config, partitionIdManager, topicRepo, scheduler, spout, graphBuilder)
         else PartitionsManager.streaming(config, partitionIdManager, topicRepo, scheduler)
       }
-
+      _                  <- Resource.eval(IO.delay {
+                              val partitions = topicRepo.partitionSetup.endPoint
+                              println("sending request to create partitions")
+                              partitions sendAsync EstablishPartition("graph")
+                              partitions.close()
+                            })
+      _                  <- QueryManager(config, topicRepo)
     } yield (new QuerySender(scheduler, topicRepo, config), config, deploymentID)
   }
 

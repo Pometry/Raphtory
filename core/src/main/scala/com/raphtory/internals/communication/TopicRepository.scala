@@ -2,6 +2,7 @@ package com.raphtory.internals.communication
 
 import com.raphtory.Raphtory
 import com.raphtory.internals.components.querymanager.EndQuery
+import com.raphtory.internals.components.querymanager.PartitionManagement
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.components.querymanager.VertexMessagesSync
@@ -24,6 +25,8 @@ private[raphtory] class TopicRepository(
   protected def completedQueriesConnector: Connector = defaultControlConnector
   protected def watermarkConnector: Connector        = defaultControlConnector
   protected def queryPrepConnector: Connector        = defaultControlConnector
+  protected def ingestSetupConnector: Connector      = defaultControlConnector
+  protected def partitionSetupConnector: Connector   = defaultControlConnector
 
   protected def queryTrackConnector: Connector         = defaultControlConnector
   protected def rechecksConnector: Connector           = defaultControlConnector
@@ -58,8 +61,11 @@ private[raphtory] class TopicRepository(
   final def watermark: ExclusiveTopic[WatermarkTime] =
     ExclusiveTopic[WatermarkTime](watermarkConnector, "watermark", depId)
 
-  final def queryPrep: BroadcastTopic[QueryManagement] =
-    BroadcastTopic[QueryManagement](numPartitions, queryPrepConnector, "query.prep", depId)
+  final def ingestSetup: ExclusiveTopic[PartitionManagement] =
+    ExclusiveTopic[PartitionManagement](ingestSetupConnector, "ingest.setup", depId)
+
+  final def partitionSetup: BroadcastTopic[PartitionManagement] =
+    BroadcastTopic[PartitionManagement](numPartitions, partitionSetupConnector, "partition.setup", depId)
 
   // Job wise topics
   final def queryTrack(jobId: String): ExclusiveTopic[QueryManagement] =

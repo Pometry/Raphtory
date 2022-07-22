@@ -1,15 +1,15 @@
 package com.raphtory.internals.management
 
-import cats.effect
 import cats.effect.Async
-import cats.effect.kernel.Resource
-import cats.effect.kernel.Spawn
+import cats.effect.Resource
+import cats.effect.Spawn
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.partition.BatchWriter
 import com.raphtory.internals.components.partition.LocalBatchHandler
+import com.raphtory.internals.components.partition.PartitionManager
 import com.raphtory.internals.components.partition.Reader
 import com.raphtory.internals.components.partition.StreamWriter
 import com.raphtory.internals.graph.GraphAlteration
@@ -40,13 +40,11 @@ object BatchPartitionManager {
 }
 
 case class StreamingPartitionManager(
-    storages: List[GraphPartition],
-    readers: List[Reader],
-    writers: List[Component[GraphAlteration]]
+    partitions: List[PartitionManager]
 ) extends PartitionsManager
 
 object StreamingPartitionManager {
-  def empty = StreamingPartitionManager(List.empty, List.empty, List.empty)
+  def empty = StreamingPartitionManager(List.empty)
 }
 
 object PartitionsManager {
@@ -88,7 +86,7 @@ object PartitionsManager {
         for {
           a1 <- cats.effect.Resource.eval(pm1)
           (partitionId, pm, storage) = a1
-          reader                    <- Reader(partitionId, storage, scheduler, config, topics)
+          reader                    <- Reader("graph", partitionId, storage, scheduler, config, topics)
         } yield pm.copy(readers = reader :: pm.readers)
     }
 
@@ -141,9 +139,8 @@ object PartitionsManager {
         for {
           a1 <- cats.effect.Resource.eval(pm1)
           (partitionId, storage) = a1
-          reader                <- Reader(partitionId, storage, scheduler, config, topics)
-          writer                <- StreamWriter(partitionId, storage, config, topics)
-        } yield pm.copy(readers = reader :: pm.readers, writers = writer :: pm.writers)
+          partition             <- PartitionManager(partitionId, scheduler, config, topics)
+        } yield pm.copy(partitions = partition :: pm.partitions)
     }
 
     partMResource

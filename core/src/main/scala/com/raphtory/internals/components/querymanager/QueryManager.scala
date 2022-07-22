@@ -25,8 +25,7 @@ private[raphtory] class QueryManager(
   //private val watermarkGlobal                           = pulsarController.globalwatermarkPublisher() TODO: turn back on when needed
   private val watermarks: Map[Int, WatermarkTime] = new TrieMap[Int, WatermarkTime]()
 
-  override def run(): Unit =
-    logger.debug("Starting Query Manager Consumer.")
+  override def run(): Unit = logger.debug("Starting Query Manager Consumer.")
 
   override def stop(): Unit =
     currentQueries.foreach(_._2.stop())
@@ -64,6 +63,7 @@ private[raphtory] class QueryManager(
     val queryHandler = new QueryHandler(
             this,
             scheduler,
+            "graph",
             id,
             query,
             conf,
