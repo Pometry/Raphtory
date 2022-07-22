@@ -10,18 +10,18 @@ import scala.collection.mutable
 
 class CycleMania(moneyCycles: Boolean = true) extends Generic {
 
-  //  def printCycleInfo(purchasers: List[Any], i: Int, j: Int): Unit = {
-  //    print("Found an NFT cycle that sold for profit : ")
-  //    for (k <- i to j) {
-  //      print(" "+purchasers(k))
-  //    }
-  //    println()
-  //  }
+  // helper function to print cycle information
+  def printCycleInfo(purchasers: List[Any], i: Int, j: Int): Unit = {
+    print("Found an NFT cycle that sold for profit : ")
+    for (k <- i to j) {
+      print(" "+purchasers(k))
+    }
+    println()
+  }
 
   final val HAS_CYCLE: String    = "HAS_CYCLE"
   final val CYCLES_FOUND: String = "CYCLES_FOUND"
 
-  // FASTER ALGORITHM
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
@@ -124,39 +124,3 @@ class CycleMania(moneyCycles: Boolean = true) extends Generic {
 object CycleMania {
   def apply() = new CycleMania()
 }
-
-// O(n^2)
-//  override def apply(graph: GraphPerspective): graph.Graph =
-//    graph
-//      .step { vertex =>
-//        // only for vertexes that are of type NFT
-//        if (vertex.Type() == "NFT") {
-//          var allCyclesFound: List[Cycle] = List()
-//          // get all of my incoming exploded edges and sort them by time
-//          val allPurchases = vertex.explodeInEdges().sortBy(e => e.timestamp)
-//          // get all the buyers
-//          // SRC = seller, DST = NFT they bought, Price_USD = Price,
-//          val purchasers = allPurchases.map(e => Sale(e.src.toString, e.getPropertyOrElse("price_USD", 0.0), e.getPropertyOrElse("transaction_hash", ""), e.dst.toString))
-//          if (purchasers.size > 2) {
-//            //            println(purchasers)
-//            // for each buyer, and when they bought it print this result, O(n^2) bad complexity
-//            // check if all the nfts are the same, if not then skip
-//            for ((finding_id, i) <- purchasers.view.zipWithIndex) {
-//              for ((found_id, j) <- purchasers.view.zipWithIndex.takeRight(purchasers.size - i - 1)) {
-//                //                println(purchasers.size, i, j)
-//                // if the start and end nodes are the same, AND, the NFT sold for more money then print it
-//                if (finding_id.buyer == found_id.buyer) { // The SRC ids, i.e. the Users are the same, so seller bought again
-//                  if (finding_id.price_usd < found_id.price_usd) { // and the price before is more than the price after
-//                    // found an nft cycle now we save it
-//                    allCyclesFound = Cycle(purchasers.slice(i, j + 1)) :: allCyclesFound
-//                  }
-//                }
-//              }
-//            }
-//          }
-//          if (allCyclesFound.size > 0) {
-//            vertex.setState(CYCLES_FOUND, allCyclesFound)
-//            vertex.setState(HAS_CYCLE, true)
-//          }
-//        }
-//      }
