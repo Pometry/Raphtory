@@ -1,12 +1,11 @@
 package com.raphtory.examples.nft
 
 import com.raphtory.Raphtory
-import com.raphtory.examples.nft.analysis.{CycleMania, CycleManiaONSquared}
+import com.raphtory.examples.nft.analysis.CycleMania
 import com.raphtory.examples.nft.graphbuilder.NFTGraphBuilder
-import com.raphtory.formats.{CsvFormat, JsonFormat}
-import com.raphtory.sinks.{FileSink, PrintSink}
+import com.raphtory.formats.JsonFormat
+import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
-import com.raphtory.utils.FileUtils
 
 object LocalRunner extends App {
 
