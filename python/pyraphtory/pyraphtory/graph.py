@@ -74,7 +74,7 @@ class TemporalGraph(object):
 
     def transform(self, algo):
         g = self.jvm_graph.transform(algo)
-        return TemporalGraph(g)
+        return Table(g)
 
     def select(self, columns: List[str]):
         try:
