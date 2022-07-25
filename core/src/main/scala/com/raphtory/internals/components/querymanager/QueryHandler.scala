@@ -354,15 +354,16 @@ private[raphtory] class QueryHandler(
     val latestTime = getLatestTime
     val oldestTime = getOptionalEarliestTime
     telemetry.totalPerspectivesProcessed.labels(jobID, deploymentID).inc()
-    if (currentPerspective.timestamp != -1) //ignore initial placeholder
+    if (currentPerspective.timestamp != -1) { //ignore initial placeholder
       tracker sendAsync currentPerspective
+      logTotalTimeTaken()
+    }
     currentPerspectiveID += 1
     perspectiveController.nextPerspective() match {
       case Some(perspective) =>
         logger.trace(
                 s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$latestTime'."
         )
-        logTotalTimeTaken(perspective)
         currentPerspective = perspective
         graphFunctions = null
         tableFunctions = null
@@ -376,22 +377,20 @@ private[raphtory] class QueryHandler(
     }
   }
 
-  private def logTotalTimeTaken(perspective: Perspective): Unit = {
+  private def logTotalTimeTaken(): Unit =
     if (currentPerspective.timestamp != DEFAULT_PERSPECTIVE_TIME)
       currentPerspective.window match {
         case Some(window) =>
-          logger.debug(
+          logger.info(
                   s"Job '$jobID': Perspective at Time '${currentPerspective.timestamp}' with " +
                     s"Window $window took ${System.currentTimeMillis() - lastTime} ms to run."
           )
         case None         =>
-          logger.debug(
+          logger.info(
                   s"Job '$jobID': Perspective at Time '${currentPerspective.timestamp}' " +
                     s"took ${System.currentTimeMillis() - lastTime} ms to run. "
           )
       }
-    lastTime = System.currentTimeMillis()
-  }
 
   private def recheckTime(perspective: Perspective): Stage = {
     val time                 = getLatestTime
@@ -400,7 +399,7 @@ private[raphtory] class QueryHandler(
     timeTaken = System.currentTimeMillis()
     if (perspectiveIsReady(perspective)) {
       logger.debug(s"Job '$jobID': Created perspective at time $time.")
-
+      lastTime = System.currentTimeMillis()
       messagetoAllJobWorkers(CreatePerspective(currentPerspectiveID, perspective))
       Stages.EstablishPerspective
     }
