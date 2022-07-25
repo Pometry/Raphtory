@@ -41,7 +41,7 @@ object DynamicClassLoader {
   private[serialisers] val classStorage = new ConcurrentHashMap[String, Array[Byte]]()
 
   def injectClass(name: String, clzBytes: Array[Byte], classLoader: DynamicClassLoader): Class[_] = {
-    logger.info(s"Loading dynamic class [$name], size: ${clzBytes.length}")
+    logger.debug(s"Loading dynamic class [$name], size: ${clzBytes.length}")
     classStorage.computeIfAbsent(name, _ => clzBytes)
     classLoader.findClass(name)
   }
