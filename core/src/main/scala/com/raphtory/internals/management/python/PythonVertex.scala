@@ -34,4 +34,8 @@ class PythonVertex(v: Vertex) {
 
   def neighbours(): util.List[Any] = v.neighbours.asJava.asInstanceOf[util.List[Any]]
 
+  def out_neighbours(): util.List[Any] = v.outNeighbours.asJava.asInstanceOf[util.List[Any]]
+
+  def message_vertex(vertexId: v.IDType, msg: Any): Unit = v.messageVertex(vertexId, msg)
+
 }

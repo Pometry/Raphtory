@@ -389,16 +389,7 @@ private[raphtory] class QueryExecutor(
 
         //TODO create explode select with accumulators
         case ExplodeSelect(f)                                                         =>
-          startStep()
-          graphLens.explodeSelect(f) {
-            finaliseStep {
-              taskManager sendAsync TableBuilt(currentPerspectiveID)
-              logger.debug(
-                      s"Job '$jobID' at Partition '$partitionID': Exploded Select executed on graph in ${System
-                        .currentTimeMillis() - time}ms."
-              )
-            }
-          }
+          evalExplodeSelect(time, f)
 
         case TableFilter(f)                                                           =>
           graphLens.filteredTable(f) {
@@ -450,6 +441,19 @@ private[raphtory] class QueryExecutor(
         errorHandler(e)
     }
     logger.debug(s"Partition $partitionID handled message $msg in ${System.currentTimeMillis() - time}ms")
+  }
+
+  private def evalExplodeSelect(time: Long, f: Function[_, List[Row]]) = {
+    startStep()
+    graphLens.explodeSelect(f) {
+      finaliseStep {
+        taskManager sendAsync TableBuilt(currentPerspectiveID)
+        logger.debug(
+                s"Job '$jobID' at Partition '$partitionID': Exploded Select executed on graph in ${System
+                  .currentTimeMillis() - time}ms."
+        )
+      }
+    }
   }
 
   private def evalGlobalSelect(time: Long, graphState: GraphStateImplementation, f: GraphState => Row) = {
