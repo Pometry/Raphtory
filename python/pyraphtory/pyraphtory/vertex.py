@@ -26,6 +26,9 @@ class Vertex(object):
     def out_degree(self):
         return self.v.out_degree()
 
+    def degree(self):
+        return self.v.degree()
+
     def message_outgoing_neighbours(self, msg):
         self.v.message_outgoing_neighbours(msg)
 
@@ -34,7 +37,6 @@ class Vertex(object):
 
     def neighbours(self):
         return self.v.neighbours()
-
 
 class GraphState(object):
     def __init__(self, jvm_global_state):
