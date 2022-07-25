@@ -23,7 +23,7 @@ private[raphtory] class BatchWriter[T: ClassTag](
   private var processedMessages = 0
   private val logger: Logger    = Logger(LoggerFactory.getLogger(this.getClass))
 
-  def handleMessage(msg: GraphAlteration): Unit = {
+  def sendAsync(msg: GraphUpdate): Unit = {
     msg match {
       //Updates from the Graph Builder
       //TODO Make Vertex Deletions batch ingestable
@@ -99,11 +99,9 @@ private[raphtory] class BatchWriter[T: ClassTag](
       )
   }
 
-  override def sendAsync(message: GraphUpdate): Unit = handleMessage(message)
-
   override def flushAsync(): CompletableFuture[Void] = CompletableFuture.completedFuture(null)
 
   override def close(): Unit = {}
 
-  override def closeWithMessage(message: GraphUpdate): Unit = handleMessage(message)
+  override def closeWithMessage(message: GraphUpdate): Unit = sendAsync(message)
 }

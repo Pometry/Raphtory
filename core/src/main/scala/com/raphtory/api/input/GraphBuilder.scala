@@ -92,7 +92,7 @@ trait GraphBuilder[T] extends Serializable {
   private[raphtory] def setBuilderMetaData(
       builderID: Int,
       deploymentID: String
-  ) = {
+  ): Unit = {
     this.builderID = builderID
     this.deploymentID = deploymentID
   }
@@ -101,7 +101,7 @@ trait GraphBuilder[T] extends Serializable {
       IDs: mutable.Set[Int],
       batchWriters: collection.Map[Int, BatchWriter[T]],
       partitions: Int
-  ) = {
+  ): Unit = {
     partitionIDs = IDs
     writers = batchWriters
     batching = true
@@ -110,7 +110,7 @@ trait GraphBuilder[T] extends Serializable {
 
   private[raphtory] def setupStreamIngestion(
       streamWriters: collection.Map[Int, EndPoint[GraphUpdate]]
-  ) = {
+  ): Unit = {
     writers = streamWriters
     partitionIDs = writers.keySet
     batching = false
