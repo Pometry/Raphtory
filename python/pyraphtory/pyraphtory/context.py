@@ -139,5 +139,8 @@ class PyRaphtory(object):
     def pageRank(self):
         return self.j_gateway.entry_point.pageRank()
 
+    def twoHopsPath(self, seeds: set[str]):
+        return self.j_gateway.entry_point.twoHopPaths(seeds)
+
     def file_sink(self, path: Path):
         return self.j_gateway.entry_point.fileSink(str(path))
