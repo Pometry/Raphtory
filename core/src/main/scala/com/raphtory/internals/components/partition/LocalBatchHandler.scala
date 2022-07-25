@@ -4,7 +4,9 @@ import cats.effect.Async
 import cats.effect.Resource
 import cats.effect.Spawn
 import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.GraphBuilderInstance
 import com.raphtory.api.input.Spout
+import com.raphtory.api.input.SpoutInstance
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.graph.GraphAlteration
@@ -20,8 +22,8 @@ import scala.reflect.ClassTag
 private[raphtory] class LocalBatchHandler[T: ClassTag](
     partitionIDs: mutable.Set[Int],
     batchWriters: mutable.Map[Int, BatchWriter[T]],
-    spout: Spout[T],
-    graphBuilder: GraphBuilder[T],
+    spout: SpoutInstance[T],
+    graphBuilder: GraphBuilderInstance[T],
     conf: Config,
     scheduler: Scheduler
 ) extends Component[GraphAlteration](conf) {
@@ -31,10 +33,6 @@ private[raphtory] class LocalBatchHandler[T: ClassTag](
   graphBuilder.setupBatchIngestion(partitionIDs, batchWriters, totalPartitions)
 
   // TODO get builderID to pull from zookeeper once stream and batch can run synchro
-  graphBuilder.setBuilderMetaData(
-          builderID = 0,
-          deploymentID
-  )
 
   private val rescheduler  = () => {
     spout.executeReschedule()
@@ -89,6 +87,7 @@ private[raphtory] class LocalBatchHandler[T: ClassTag](
 object LocalBatchHandler {
 
   def apply[IO[_]: Async: Spawn, T: ClassTag](
+      deploymentID: String,
       partitionIds: mutable.Set[Int],
       batchWriters: mutable.Map[Int, BatchWriter[T]],
       spout: Spout[T],
@@ -101,6 +100,13 @@ object LocalBatchHandler {
             topics,
             s"local-batch-handler",
             Seq.empty,
-            new LocalBatchHandler[T](partitionIds, batchWriters, spout, graphBuilder, config, scheduler)
+            new LocalBatchHandler[T](
+                    partitionIds,
+                    batchWriters,
+                    spout.buildSpout(),
+                    graphBuilder.buildInstance(deploymentID),
+                    config,
+                    scheduler
+            )
     )
 }

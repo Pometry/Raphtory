@@ -17,7 +17,11 @@ import org.slf4j.LoggerFactory
   *
   * @see [[com.raphtory.spouts.FileSpout FileSpout]], [[com.raphtory.Raphtory]], [[com.raphtory.api.input.GraphBuilder]]
   */
-trait Spout[T] extends Iterator[T] {
+trait Spout[T] {
+  def buildSpout(): SpoutInstance[T]
+}
+
+trait SpoutInstance[T] extends Iterator[T] {
 
   /** Logger instance for writing out log messages */
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))

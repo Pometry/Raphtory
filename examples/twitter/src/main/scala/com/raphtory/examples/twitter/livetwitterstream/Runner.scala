@@ -19,7 +19,7 @@ object Runner extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] = {
 
-    val source  = new LiveTwitterSpout()
+    val source  = LiveTwitterSpout()
     val output  = PulsarSink("EdgeList")
     val builder =
       if (enableRetweetGraphBuilder)

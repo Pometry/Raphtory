@@ -6,6 +6,7 @@ import com.raphtory.api.analysis.graphview.GlobalGraphFunction
 import com.raphtory.api.analysis.graphview.GraphFunction
 import com.raphtory.api.analysis.table.TableFunction
 import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.time.Interval
@@ -145,7 +146,7 @@ private[raphtory] case class TableBuilt(perspectiveID: Int)            extends P
 private[raphtory] case class AlgorithmFailure(perspectiveID: Int, exception: Throwable) extends PerspectiveStatus
 
 // Messages to ingestSetup topic
-private[raphtory] case class EstablishGraph[T](graphID: String, spout: Spout[T], builder: GraphBuilder[T])
+private[raphtory] case class EstablishGraph(graphID: String, source: Source)
 
 // Messages for partitionSetup topic
 sealed private[raphtory] trait PartitionManagement

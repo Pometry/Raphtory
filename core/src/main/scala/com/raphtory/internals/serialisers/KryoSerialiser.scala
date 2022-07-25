@@ -26,7 +26,7 @@ import com.twitter.chill.KryoPool
   * producer.sendAsync(kryo.serialise("Gandalf,Benjamin,400"))
   * }}}
   */
-private[raphtory] class KryoSerialiser {
+class KryoSerialiser {
   private val kryo: KryoPool = ScalaKryoMaker.defaultPool
 
   /** serialise value to byte array
@@ -41,7 +41,7 @@ private[raphtory] class KryoSerialiser {
     kryo.fromBytes(bytes).asInstanceOf[T]
 }
 
-private[raphtory] object KryoSerialiser {
+object KryoSerialiser {
 
   def apply(): KryoSerialiser =
     new KryoSerialiser()

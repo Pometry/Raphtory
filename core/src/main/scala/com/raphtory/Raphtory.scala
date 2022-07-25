@@ -5,12 +5,15 @@ import cats.effect.unsafe.implicits.global
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraphConnection
 import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import com.raphtory.internals.components.graphbuilder.BuildExecutorGroup
+import com.raphtory.internals.components.ingestion.IngestionManager
+import com.raphtory.internals.components.querymanager.EstablishGraph
 import com.raphtory.internals.components.querymanager.EstablishPartition
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManager
@@ -189,16 +192,7 @@ object Raphtory {
     for {
       _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
       topicRepo          <- LocalTopicRepository(config)
-      _                  <- {
-        if (batchLoading) Resource.eval(IO.unit)
-        else SpoutExecutor(spout, config, topicRepo)
-      }
-      builderIDManager   <- makeBuilderIdManager(config, localDeployment = true, deploymentID)
       partitionIdManager <- makePartitionIdManager(config, localDeployment = true, deploymentID)
-      _                  <- {
-        if (batchLoading) Resource.eval(IO.unit)
-        else BuildExecutorGroup(config, builderIDManager, topicRepo, graphBuilder)
-      }
       _                  <- {
         if (batchLoading)
           PartitionsManager.batchLoading(config, partitionIdManager, topicRepo, scheduler, spout, graphBuilder)
@@ -206,9 +200,17 @@ object Raphtory {
       }
       _                  <- Resource.eval(IO.delay {
                               val partitions = topicRepo.partitionSetup.endPoint
-                              println("sending request to create partitions")
                               partitions sendAsync EstablishPartition("graph")
                               partitions.close()
+                            })
+      _                  <- {
+        if (batchLoading) Resource.eval(IO.unit)
+        else IngestionManager(deploymentID, config, topicRepo)
+      }
+      _                  <- Resource.eval(IO.delay {
+                              val ingestionSetup = topicRepo.ingestSetup.endPoint
+                              ingestionSetup sendAsync EstablishGraph("graph", Source(spout, graphBuilder, config))
+                              ingestionSetup.close()
                             })
       _                  <- QueryManager(config, topicRepo)
     } yield (new QuerySender(scheduler, topicRepo, config), config, deploymentID)

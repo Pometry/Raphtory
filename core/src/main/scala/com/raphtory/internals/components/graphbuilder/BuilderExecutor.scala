@@ -5,6 +5,7 @@ import cats.effect.Async
 import cats.effect.Resource
 import cats.effect.Spawn
 import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.GraphBuilderInstance
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
@@ -19,16 +20,10 @@ import scala.reflect.ClassTag
 private[raphtory] class BuilderExecutor[T: ClassTag](
     name: Int,
     deploymentID: String,
-    graphBuilder: GraphBuilder[T],
+    graphBuilder: GraphBuilderInstance[T],
     conf: Config,
     topics: TopicRepository
 ) extends Component[T](conf) {
-  private val safegraphBuilder     = Marshal.deepCopy(graphBuilder)
-  safegraphBuilder
-    .setBuilderMetaData(
-            name,
-            deploymentID
-    )
   private val failOnError: Boolean = conf.getBoolean("raphtory.builders.failOnError")
   private val writers              = topics.graphUpdates.endPoint
   private val logger: Logger       = Logger(LoggerFactory.getLogger(this.getClass))
@@ -46,7 +41,7 @@ private[raphtory] class BuilderExecutor[T: ClassTag](
   }
 
   override def handleMessage(msg: T): Unit =
-    safegraphBuilder
+    graphBuilder
       .getUpdates(msg)(failOnError = failOnError)
       .foreach { message =>
         sendUpdate(message)
@@ -79,7 +74,7 @@ object BuilderExecutor {
             topics,
             s"builder-$name",
             List(elems),
-            new BuilderExecutor[T](name, deploymentID, graphBuilder, conf, topics)
+            new BuilderExecutor[T](name, deploymentID, graphBuilder.buildInstance(deploymentID), conf, topics)
     )
   }
 }

@@ -2,6 +2,7 @@ package com.raphtory.internals.communication
 
 import com.raphtory.Raphtory
 import com.raphtory.internals.components.querymanager.EndQuery
+import com.raphtory.internals.components.querymanager.EstablishGraph
 import com.raphtory.internals.components.querymanager.PartitionManagement
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManagement
@@ -61,8 +62,8 @@ private[raphtory] class TopicRepository(
   final def watermark: ExclusiveTopic[WatermarkTime] =
     ExclusiveTopic[WatermarkTime](watermarkConnector, "watermark", depId)
 
-  final def ingestSetup: ExclusiveTopic[PartitionManagement] =
-    ExclusiveTopic[PartitionManagement](ingestSetupConnector, "ingest.setup", depId)
+  final def ingestSetup: ExclusiveTopic[EstablishGraph] =
+    ExclusiveTopic[EstablishGraph](ingestSetupConnector, "ingest.setup", depId)
 
   final def partitionSetup: BroadcastTopic[PartitionManagement] =
     BroadcastTopic[PartitionManagement](numPartitions, partitionSetupConnector, "partition.setup", depId)

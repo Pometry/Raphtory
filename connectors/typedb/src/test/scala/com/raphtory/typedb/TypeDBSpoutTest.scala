@@ -7,7 +7,7 @@ import com.raphtory.sinks.FileSink
 object TypeDBSpoutTest {
 
   def main(args: Array[String]): Unit = {
-    val spout        = new TypeDBSpout("")
+    val spout        = TypeDBSpout("")
     val graphBuilder = ???
     val graph        = Raphtory.stream[String](spout, graphBuilder)
     graph

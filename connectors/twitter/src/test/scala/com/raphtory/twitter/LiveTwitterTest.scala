@@ -25,7 +25,7 @@ object LiveTwitterTest extends IOApp {
     val enableRetweetGraphBuilder: Boolean =
       raphtoryConfig.getBoolean("raphtory.spout.twitter.local.enableRetweetFilter")
 
-    val spout        = new LiveTwitterSpout()
+    val spout        = LiveTwitterSpout()
     val graphBuilder =
       if (enableRetweetGraphBuilder)
         new LiveTwitterRetweetGraphBuilder()

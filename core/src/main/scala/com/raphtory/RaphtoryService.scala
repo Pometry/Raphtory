@@ -77,7 +77,7 @@ abstract class RaphtoryService[T: ClassTag] extends IOApp {
     for {
       _         <- Prometheus[IO](metricsPort)
       topicRepo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config)
-      s         <- SpoutExecutor[IO, T](defineSpout(), config, topicRepo)
+      s         <- SpoutExecutor[IO, T](defineSpout().buildSpout(), config, topicRepo)
     } yield s
   }
 

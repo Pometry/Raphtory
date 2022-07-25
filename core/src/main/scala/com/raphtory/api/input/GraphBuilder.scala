@@ -38,17 +38,7 @@ import scala.collection.mutable.ArrayBuffer
   *
   * @see [[Properties]] [[Spout]]
   */
-trait GraphBuilder[T] extends Serializable {
-
-  /** Logger instance for writing out log messages */
-  val logger: Logger                                         = Logger(LoggerFactory.getLogger(this.getClass))
-  private var updates: ArrayBuffer[GraphUpdate]              = ArrayBuffer()
-  private var partitionIDs: mutable.Set[Int]                 = _
-  private var batchWriters: mutable.Map[Int, BatchWriter[T]] = _
-  private var builderID: Int                                 = _
-  private var deploymentID: String                           = _
-  private var batching: Boolean                              = false
-  private var totalPartitions: Int                           = 1
+trait GraphBuilder[T] {
 
   /** Processes raw data message `tuple` from the spout to extract source node, destination node,
     * timestamp info, etc.
@@ -59,7 +49,7 @@ trait GraphBuilder[T] extends Serializable {
     *
     *  @param tuple raw input data
     */
-  def parseTuple(tuple: T): Unit
+  def parse(graph: Graph, tuple: T): Unit
 
   /** Convenience method for generating unique IDs based on vertex names
     *
@@ -70,12 +60,33 @@ trait GraphBuilder[T] extends Serializable {
     */
   def assignID(uniqueChars: String): Long = LongHashFunction.xx3().hashChars(uniqueChars)
 
+  def buildInstance(deploymentID: String): GraphBuilderInstance[T] =
+    new GraphBuilderInstance[T] {
+      override def getDeploymentID: String    = deploymentID
+      override def parseTuple(tuple: T): Unit = parse(this, tuple)
+    }
+}
+
+trait GraphBuilderInstance[T] extends Serializable with Graph {
+
+  /** Logger instance for writing out log messages */
+  val logger: Logger                                         = Logger(LoggerFactory.getLogger(this.getClass))
+  private val deploymentID                                   = getDeploymentID
+  private var updates: ArrayBuffer[GraphUpdate]              = ArrayBuffer()
+  private var partitionIDs: mutable.Set[Int]                 = _
+  private var batchWriters: mutable.Map[Int, BatchWriter[T]] = _
+  private var builderID: Int                                 = 0
+  private var batching: Boolean                              = false
+  private var totalPartitions: Int                           = 1
+
+  def getDeploymentID: String
+  def parseTuple(tuple: T): Unit
+
   /** Parses `tuple` and fetches list of updates for the graph This is used internally to retrieve updates. */
   private[raphtory] def getUpdates(tuple: T)(failOnError: Boolean = true): List[GraphUpdate] = {
-    try {
-      logger.trace(s"Parsing tuple: $tuple")
-      parseTuple(tuple)
-    }
+    try
+//      logger.trace(s"Parsing tuple: $tuple")
+    parseTuple(tuple)
     catch {
       case e: Exception =>
         if (failOnError)
@@ -90,14 +101,6 @@ trait GraphBuilder[T] extends Serializable {
     updates = ArrayBuffer()
 
     toReturn.toList
-  }
-
-  private[raphtory] def setBuilderMetaData(
-      builderID: Int,
-      deploymentID: String
-  ) = {
-    this.builderID = builderID
-    this.deploymentID = deploymentID
   }
 
   private[raphtory] def setupBatchIngestion(
@@ -116,7 +119,7 @@ trait GraphBuilder[T] extends Serializable {
     * @param updateTime timestamp for vertex update
     * @param srcId ID of vertex to add/update
     */
-  protected def addVertex(updateTime: Long, srcId: Long): Unit = {
+  override def addVertex(updateTime: Long, srcId: Long): Unit = {
     val update = VertexAdd(updateTime, srcId, Properties(), None)
     handleVertexAdd(update)
     ComponentTelemetryHandler.vertexAddCounter.labels(deploymentID).inc()
@@ -129,7 +132,7 @@ trait GraphBuilder[T] extends Serializable {
     * @param properties vertex properties for the update (see [[com.raphtory.api.input.Properties Properties]] for the
     *                   available property types)
     */
-  protected def addVertex(updateTime: Long, srcId: Long, properties: Properties): Unit = {
+  override def addVertex(updateTime: Long, srcId: Long, properties: Properties): Unit = {
     val update = VertexAdd(updateTime, srcId, properties, None)
     handleVertexAdd(update)
     ComponentTelemetryHandler.vertexAddCounter.labels(deploymentID).inc()
@@ -141,7 +144,7 @@ trait GraphBuilder[T] extends Serializable {
     * @param srcId      ID of vertex to add/update
     * @param vertexType specify a [[Type Type]] for the vertex
     */
-  protected def addVertex(updateTime: Long, srcId: Long, vertexType: Type): Unit = {
+  override def addVertex(updateTime: Long, srcId: Long, vertexType: Type): Unit = {
     val update = VertexAdd(updateTime, srcId, Properties(), Some(vertexType))
     handleVertexAdd(update)
     ComponentTelemetryHandler.vertexAddCounter.labels(deploymentID).inc()
@@ -155,7 +158,7 @@ trait GraphBuilder[T] extends Serializable {
     *                   available property types)
     * @param vertexType specify a [[Type Type]] for the vertex
     */
-  protected def addVertex(
+  override def addVertex(
       updateTime: Long,
       srcId: Long,
       properties: Properties,
@@ -170,7 +173,7 @@ trait GraphBuilder[T] extends Serializable {
     * @param updateTime time of deletion (a vertex is considered as no longer present in the graph after this time)
     * @param srcId Id of vertex to delete
     */
-  protected def deleteVertex(updateTime: Long, srcId: Long): Unit = {
+  override def deleteVertex(updateTime: Long, srcId: Long): Unit = {
     updates += VertexDelete(updateTime, srcId)
     ComponentTelemetryHandler.vertexDeleteCounter.labels(deploymentID).inc()
   }
@@ -180,7 +183,7 @@ trait GraphBuilder[T] extends Serializable {
     * @param srcId ID of source vertex of the edge
     * @param dstId ID of destination vertex of the edge
     */
-  protected def addEdge(updateTime: Long, srcId: Long, dstId: Long): Unit = {
+  override def addEdge(updateTime: Long, srcId: Long, dstId: Long): Unit = {
     val update = EdgeAdd(updateTime, srcId, dstId, Properties(), None)
     handleEdgeAdd(update)
     ComponentTelemetryHandler.edgeAddCounter.labels(deploymentID).inc()
@@ -195,7 +198,7 @@ trait GraphBuilder[T] extends Serializable {
     *                   available property types)
     * @param edgeType   specify a [[Type Type]] for the edge
     */
-  protected def addEdge(
+  override def addEdge(
       updateTime: Long,
       srcId: Long,
       dstId: Long,
@@ -213,7 +216,7 @@ trait GraphBuilder[T] extends Serializable {
     * @param dstId      ID of destination vertex of the edge
     * @param edgeType   specify a [[Type Type]] for the edge
     */
-  protected def addEdge(updateTime: Long, srcId: Long, dstId: Long, edgeType: Type): Unit = {
+  override def addEdge(updateTime: Long, srcId: Long, dstId: Long, edgeType: Type): Unit = {
     val update = EdgeAdd(updateTime, srcId, dstId, Properties(), Some(edgeType))
     handleEdgeAdd(update)
     ComponentTelemetryHandler.edgeAddCounter.labels(deploymentID).inc()
@@ -228,7 +231,7 @@ trait GraphBuilder[T] extends Serializable {
     *                   available property types)
     * @param edgeType   specify a [[Type Type]] for the edge
     */
-  protected def addEdge(
+  override def addEdge(
       updateTime: Long,
       srcId: Long,
       dstId: Long,
@@ -245,7 +248,7 @@ trait GraphBuilder[T] extends Serializable {
     * @param srcId ID of source vertex of the edge
     * @param dstId ID of the destination vertex of the edge
     */
-  protected def deleteEdge(updateTime: Long, srcId: Long, dstId: Long): Unit = {
+  override def deleteEdge(updateTime: Long, srcId: Long, dstId: Long): Unit = {
     updates += EdgeDelete(updateTime, srcId, dstId)
     ComponentTelemetryHandler.edgeDeleteCounter.labels(deploymentID).inc()
   }
@@ -289,4 +292,17 @@ object GraphBuilder {
 
   def assignID(uniqueChars: String): Long =
     LongHashFunction.xx3().hashChars(uniqueChars)
+}
+
+trait Graph {
+  def addVertex(updateTime: Long, srcId: Long): Unit
+  def addVertex(updateTime: Long, srcId: Long, properties: Properties): Unit
+  def addVertex(updateTime: Long, srcId: Long, vertexType: Type): Unit
+  def addVertex(updateTime: Long, srcId: Long, properties: Properties, vertexType: Type): Unit
+  def deleteVertex(updateTime: Long, srcId: Long): Unit
+  def addEdge(updateTime: Long, srcId: Long, dstId: Long): Unit
+  def addEdge(updateTime: Long, srcId: Long, dstId: Long, properties: Properties): Unit
+  def addEdge(updateTime: Long, srcId: Long, dstId: Long, edgeType: Type): Unit
+  def addEdge(updateTime: Long, srcId: Long, dstId: Long, properties: Properties, edgeType: Type): Unit
+  def deleteEdge(updateTime: Long, srcId: Long, dstId: Long): Unit
 }

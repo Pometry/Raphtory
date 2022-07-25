@@ -93,6 +93,7 @@ object PartitionsManager {
     for {
       pm           <- partMResource
       batchHandler <- LocalBatchHandler(
+                              deploymentID,
                               mutable.Set(pm.partitionIds: _*),
                               mutable.Map(pm.batchWriters: _*),
                               spout,
