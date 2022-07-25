@@ -8,8 +8,6 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
-import scala.collection.IndexedSeqOps
-import scala.collection.IndexedSeqView
 import scala.collection.mutable
 import scala.math.Ordering.Implicits.infixOrderingOps
 
