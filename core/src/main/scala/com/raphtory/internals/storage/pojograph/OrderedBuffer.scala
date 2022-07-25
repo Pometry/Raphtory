@@ -43,7 +43,6 @@ private[raphtory] class IterateUniqueTimePoints[T <: IndexedValue](underlying: H
 
 private[raphtory] class HistoryView[T <: IndexedValue](startIndex: Int, endIndex: Int, buffer: mutable.ArrayBuffer[T])
         extends HistoryOps[T] {
-  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   def apply(i: Int): T =
     buffer(startIndex + i)
