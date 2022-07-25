@@ -136,5 +136,8 @@ class PyRaphtory(object):
     def localTriangleCount(self):
         return self.j_gateway.entry_point.localTriangleCount()
 
+    def pageRank(self):
+        return self.j_gateway.entry_point.pageRank()
+
     def file_sink(self, path: Path):
         return self.j_gateway.entry_point.fileSink(str(path))

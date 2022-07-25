@@ -1,7 +1,7 @@
 package com.raphtory.internals.management.python
 
 import com.raphtory.algorithms.generic.ConnectedComponents
-import com.raphtory.algorithms.generic.centrality.Degree
+import com.raphtory.algorithms.generic.centrality.{Degree, PageRank}
 import com.raphtory.algorithms.generic.motif.LocalTriangleCount
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.sinks.FileSink
@@ -16,6 +16,8 @@ class PythonEntrypoint(graph: GraphPerspective) {
   def degree = new Degree
 
   def localTriangleCount = new LocalTriangleCount
+
+  def pageRank = new PageRank
 
   def fileSink(path: String): FileSink = FileSink(path)
 
