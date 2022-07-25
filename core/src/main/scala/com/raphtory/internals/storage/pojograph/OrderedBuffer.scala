@@ -82,8 +82,7 @@ private[raphtory] class HistoryView[T <: IndexedValue](startIndex: Int, endIndex
 }
 
 private[raphtory] class History[T <: IndexedValue] extends HistoryOps[T] {
-  val buffer                 = mutable.ArrayBuffer.empty[T]
-  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  val buffer = mutable.ArrayBuffer.empty[T]
 
   def apply(i: Int): T = buffer(i)
 
@@ -94,7 +93,10 @@ private[raphtory] class History[T <: IndexedValue] extends HistoryOps[T] {
   def clear(): Unit = buffer.clear()
 
   def insert(element: T): Unit =
-    if (buffer.isEmpty || element > buffer.last) buffer += element
+    if (buffer.isEmpty || element > buffer.last) {
+      buffer += element
+      History.logger.trace(s"Inserting element $element at the end.")
+    }
     else {
       val insertionPoint = buffer.search(element)
       insertionPoint match {
@@ -104,7 +106,7 @@ private[raphtory] class History[T <: IndexedValue] extends HistoryOps[T] {
                     s"Mismatched duplicate element: old=${buffer(foundIndex)}, new=$element"
             )
         case InsertionPoint(insertionPoint) =>
-          logger.debug(s"inserting element $element out of order at index $insertionPoint of ${buffer.size}")
+          History.logger.debug(s"inserting element $element out of order at index $insertionPoint of ${buffer.size}")
           buffer.insert(insertionPoint, element)
       }
     }
@@ -141,6 +143,7 @@ private[raphtory] class History[T <: IndexedValue] extends HistoryOps[T] {
 }
 
 object History {
+  val logger: Logger             = Logger(LoggerFactory.getLogger(this.getClass))
   def apply[T <: IndexedValue]() = new History[T]
 }
 
