@@ -130,5 +130,8 @@ class PyRaphtory(object):
     def connected_components(self):
         return self.j_gateway.entry_point.connectedComponents()
 
+    def degree(self):
+        return self.j_gateway.entry_point.degree()
+
     def file_sink(self, path: Path):
         return self.j_gateway.entry_point.fileSink(str(path))
