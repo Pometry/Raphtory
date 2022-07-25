@@ -1,6 +1,7 @@
 package com.raphtory.examples.nft.analysis
 
 import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
@@ -13,9 +14,8 @@ class CycleMania(moneyCycles: Boolean = true) extends Generic {
   // helper function to print cycle information
   def printCycleInfo(purchasers: List[Any], i: Int, j: Int): Unit = {
     print("Found an NFT cycle that sold for profit : ")
-    for (k <- i to j) {
-      print(" "+purchasers(k))
-    }
+    for (k <- i to j)
+      print(" " + purchasers(k))
     println()
   }
 
@@ -23,7 +23,7 @@ class CycleMania(moneyCycles: Boolean = true) extends Generic {
   final val CYCLES_FOUND: String = "CYCLES_FOUND"
 
   override def apply(graph: GraphPerspective): graph.Graph =
-    graph
+    graph.reducedView
       .step { vertex =>
         // only for vertexes that are of type NFT
         if (vertex.Type() == "NFT") {
@@ -61,15 +61,16 @@ class CycleMania(moneyCycles: Boolean = true) extends Generic {
                 if (moneyCycles) {
                   // ISSUE: If user is the same and at a loss, then the cycle keeps going.
                   buyersSeen.update(buyerId, position)
-                  if (previousPrice < currentPrice) {
+                  if (previousPrice < currentPrice)
                     // println(f"Money Cycle found, item $buyerId, from ${buyersSeen.get(buyerId)} to $position ")
-                    allCyclesFound = Cycle(purchasers.slice(previousBuyerPosition, position + 1).toArray[Sale]) :: allCyclesFound
-                  }
+                    allCyclesFound =
+                      Cycle(purchasers.slice(previousBuyerPosition, position + 1).toArray[Sale]) :: allCyclesFound
                 }
                 else {
                   // println(f"All Cycle found, item $buyerId, from ${buyersSeen.get(buyerId)} to $position ")
                   buyersSeen.update(buyerId, position)
-                  allCyclesFound = Cycle(purchasers.slice(previousBuyerPosition, position + 1).toArray[Sale]) :: allCyclesFound
+                  allCyclesFound =
+                    Cycle(purchasers.slice(previousBuyerPosition, position + 1).toArray[Sale]) :: allCyclesFound
                 }
               }
             }
@@ -80,17 +81,18 @@ class CycleMania(moneyCycles: Boolean = true) extends Generic {
           }
         }
       }
+      .asInstanceOf[graph.Graph]
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
       .explodeSelect { vertex =>
-        val vertexType          = vertex.Type()
+        val vertexType         = vertex.Type()
         val has_cycle: Boolean = vertex.getStateOrElse(HAS_CYCLE, false)
         if (vertexType == "NFT" & has_cycle) {
-          val nftID                   = vertex.getPropertyOrElse("id", "_UNKNOWN_")
+          val nftID                    = vertex.getPropertyOrElse("id", "_UNKNOWN_")
           val cyclesFound: List[Cycle] = vertex.getState(CYCLES_FOUND)
-          val nftCollection = vertex.getPropertyOrElse("collection", "_UNKNOWN_")
-          val nftCategory = vertex.getPropertyOrElse("category", "_UNKNOWN_")
+          val nftCollection            = vertex.getPropertyOrElse("collection", "_UNKNOWN_")
+          val nftCategory              = vertex.getPropertyOrElse("category", "_UNKNOWN_")
           cyclesFound.map { singleCycle =>
             val cycleData: CycleData = CycleData(
                     buyer = singleCycle.sales.head.buyer,
@@ -117,7 +119,13 @@ class CycleMania(moneyCycles: Boolean = true) extends Generic {
 
   case class CycleData(buyer: String, profit_usd: Double, cycle: Cycle)
 
-  case class Node(nft_id: String, nft_collection: String, nft_category: String, cycles_found: Int, cycle_data: CycleData)
+  case class Node(
+      nft_id: String,
+      nft_collection: String,
+      nft_category: String,
+      cycles_found: Int,
+      cycle_data: CycleData
+  )
 
 }
 

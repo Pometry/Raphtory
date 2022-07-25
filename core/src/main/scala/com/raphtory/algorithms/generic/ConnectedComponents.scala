@@ -58,7 +58,6 @@ class ConnectedComponents extends NodeList(Seq("cclabel")) {
                   vertex.messageAllNeighbours(label)
                   // TODO REMOVE LINES BELOW, ITS DEBUG
                   val name = vertex.name()
-                  println(f"$name $label")
                 }
                 else
                   vertex.voteToHalt()

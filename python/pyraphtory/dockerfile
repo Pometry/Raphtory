@@ -1,0 +1,29 @@
+version: "3.9"
+services:
+  pulsar:
+    hostname: pulsar
+    image: apachepulsar/pulsar:2.9.1
+    command: bin/pulsar standalone --advertised-address pulsar
+    healthcheck:
+      test: curl -s http://pulsar:8080/admin/v2/worker/cluster
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    ports:
+      - 8080:8080
+  pyraphtory:
+    image: localhost/raphtory-os:0.1.16
+    environment:
+      RAPHTORY_PULSAR_BROKER_ADDRESS: "pulsar://pulsar:6650"
+      RAPHTORY_PULSAR_ADMIN_ADDRESS: "http://pulsar:8080"
+      RAPHTORY_ZOOKEEPER_ADDRESS: "pulsar:2181"
+    volumes:
+      - "./data:/pyraphtory/data:Z"
+    #    depends_on:
+    #      pulsar:
+    #        condition: service_healthy
+    entrypoint:
+      - bash
+      - -c
+      - "sleep 60 && java -cp /raphtory/jars/* com.raphtory.python.PyRaphtory -f /pyraphtory/data/sample.py -l -b LotrGraphBuilder"
