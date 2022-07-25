@@ -10,6 +10,8 @@ import com.raphtory.api.analysis.visitor.InterlayerEdge
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy
 import PropertyMergeStrategy.PropertyMerge
 
+import scala.jdk.CollectionConverters.ListHasAsScala
+
 /** Public interface for graph operations
   *
   * The `GraphPerspective` is the interface for defining algorithms in Raphtory and records all operations to be

@@ -7,7 +7,10 @@ import com.raphtory.formats.CsvFormat
 import com.typesafe.config.Config
 
 import java.io.File
-import java.io.FileWriter
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
+import java.nio.file.Path
+import java.nio.file.StandardOpenOption
 
 /** A [[com.raphtory.api.output.sink.Sink Sink]] that writes a `Table` into files using the given `format`.
   *
@@ -48,10 +51,10 @@ case class FileSink(filePath: String, format: Format = CsvFormat()) extends Form
       private val workDirectory = s"$filePath/$jobID"
       new File(workDirectory).mkdirs()
       private val file          = s"$workDirectory/partition-$partitionID.$fileExtension"
-      private val fileWriter    = new FileWriter(file)
+      private val fileWriter    = FileChannel.open(Path.of(file), StandardOpenOption.CREATE, StandardOpenOption.WRITE)
 
-      override def write(value: String): Unit = fileWriter.write(value)
-      override def closeItem(): Unit          = fileWriter.write(itemDelimiter)
+      override def write(value: String): Unit = fileWriter.write(ByteBuffer.wrap(value.getBytes()))
+      override def closeItem(): Unit          = fileWriter.write(ByteBuffer.wrap(itemDelimiter.getBytes()))
       override def close(): Unit              = fileWriter.close()
     }
 }

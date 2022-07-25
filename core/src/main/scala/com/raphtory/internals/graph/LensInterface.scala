@@ -44,7 +44,7 @@ private[raphtory] trait LensInterface {
       aggregate: Boolean
   )(onComplete: => Unit): Unit
 
-  def runGraphFunction(f: _ => Unit)(onComplete: => Unit): Unit
+  def runGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit
 
   def runGraphFunction(
       f: (_, GraphState) => Unit,

@@ -23,8 +23,12 @@ private[raphtory] case class WatermarkTime(
 
 private[raphtory] case object StartAnalysis extends QueryManagement
 
-private[raphtory] case class EstablishExecutor(_bootstrap: DynamicLoader, jobID: String, sink: Sink)
-        extends QueryManagement
+private[raphtory] case class EstablishExecutor(
+    _bootstrap: DynamicLoader,
+    jobID: String,
+    sink: Sink,
+    pyScript: Option[String]
+) extends QueryManagement
 
 private[raphtory] case class SetMetaData(vertices: Int) extends QueryManagement
 
@@ -85,7 +89,8 @@ private[raphtory] case class Query(
     windowAlignment: Alignment.Value = Alignment.START,
     graphFunctions: Queue[GraphFunction] = Queue(),
     tableFunctions: Queue[TableFunction] = Queue(),
-    sink: Option[Sink] = None
+    sink: Option[Sink] = None,
+    pyScript: Option[String] = None
 ) extends QueryManagement
 
 case class DynamicLoader(classes: Set[Class[_]] = Set.empty) {

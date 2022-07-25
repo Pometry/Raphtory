@@ -5,6 +5,7 @@ import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.TableFilter
 import com.raphtory.api.analysis.table.TableImplementation
+import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.time.DiscreteInterval
 import com.raphtory.internals.components.querymanager.PointPath
 import com.raphtory.internals.components.querymanager.Query
@@ -41,10 +42,10 @@ class RaphtoryGraphTest extends FunSuite {
     assertEquals(query.windows, List(DiscreteInterval(50)))
 
     assertEquals(query.graphFunctions.length, 6)
-    assert(query.graphFunctions(0).isInstanceOf[Step])
-    assert(query.graphFunctions(1).isInstanceOf[Step])
-    assert(query.graphFunctions(2).isInstanceOf[Step])
-    assert(query.graphFunctions(3).isInstanceOf[Iterate])
+    assert(query.graphFunctions(0).isInstanceOf[Step[Vertex]])
+    assert(query.graphFunctions(1).isInstanceOf[Step[Vertex]])
+    assert(query.graphFunctions(2).isInstanceOf[Step[Vertex]])
+    assert(query.graphFunctions(3).isInstanceOf[Iterate[Vertex]])
     assert(query.graphFunctions(4).isInstanceOf[ClearChain])
     assert(query.graphFunctions(5).isInstanceOf[Select])
 

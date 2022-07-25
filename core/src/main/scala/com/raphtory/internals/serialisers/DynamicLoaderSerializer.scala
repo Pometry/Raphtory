@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory
 
 import java.io.ByteArrayOutputStream
 import scala.util.Using
+import scala.util.control.NonFatal
 
 class DynamicLoaderSerializer(default: Serializer[DynamicLoader]) extends Serializer[DynamicLoader] {
 
@@ -46,7 +47,7 @@ class DynamicLoaderSerializer(default: Serializer[DynamicLoader]) extends Serial
     }
 
   override def write(kryo: Kryo, output: Output, q: DynamicLoader): Unit = {
-    logger.info(s"Writing down ${q.classes.size} classes for dynamic loading ${q.classes}")
+    logger.debug(s"Writing down ${q.classes.size} classes for dynamic loading ${q.classes}")
     output.writeInt(q.classes.size)
     q.classes.foreach { c =>
       val (bytes, name) = class2Bytecode(c)
@@ -55,19 +56,25 @@ class DynamicLoaderSerializer(default: Serializer[DynamicLoader]) extends Serial
       output.writeBytes(bytes)
     }
     kryo.writeObject(output, DynamicLoader(), default) // write some dummy obj
-    logger.info(s"Done Writing the DynamicLoader object")
+    logger.debug(s"Done Writing the DynamicLoader object")
   }
 
-  override def read(kryo: Kryo, input: Input, tpe: Class[DynamicLoader]): DynamicLoader = {
+  override def read(kryo: Kryo, input: Input, tpe: Class[DynamicLoader]): DynamicLoader =
     // read how many classes are setup for Dynamic loading
-    val n       = input.readInt()
-    val classes = (0 until n).map { _ =>
-      val name   = input.readString()
-      val length = input.readInt()
-      val bytes  = input.readBytes(length)
-      DynamicClassLoader.injectClass(name, bytes, DynamicClassLoader(kryo.getClassLoader))
-    }.toSet
-    logger.info(s"Loaded $n classes: $classes")
-    kryo.readObject(input, tpe, default).copy(classes = classes) // read the empty dummy obj
-  }
+    try {
+      val n       = input.readInt()
+      val classes = (0 until n).map { _ =>
+        val name   = input.readString()
+        val length = input.readInt()
+        val bytes  = input.readBytes(length)
+        DynamicClassLoader.injectClass(name, bytes, DynamicClassLoader(kryo.getClassLoader))
+      }.toSet
+      logger.debug(s"Loaded $n classes: $classes")
+      kryo.readObject(input, tpe, default).copy(classes = classes) // read the empty dummy obj
+    }
+    catch {
+      case t: Throwable =>
+        logger.error("Failed to read Dynamic Loader", t)
+        throw t
+    }
 }

@@ -19,12 +19,12 @@ object FileUtils {
   private lazy val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   def createOrCleanDirectory(path: String, clean: Boolean = true): File = {
-    logger.debug(s"Creating temp folder '$path'.")
+    logger.trace(s"Creating temp folder '$path'.")
 
     val tempDirectory = new File(path)
 
     if (tempDirectory.exists()) {
-      logger.debug(s"Temporary directory '$tempDirectory' already exists.")
+      logger.trace(s"Temporary directory '$tempDirectory' already exists.")
 
       // If tempDirectory already exists
       // then delete it and recreate it entirely
