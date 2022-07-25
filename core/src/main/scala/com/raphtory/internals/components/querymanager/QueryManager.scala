@@ -50,7 +50,7 @@ private[raphtory] class QueryManager(
           case None               => //sender ! QueryNotPresent(req.jobID)
         }
       case watermark: WatermarkTime =>
-        logger.debug(
+        logger.trace(
                 s"Setting watermark to earliest time '${watermark.oldestTime}'" +
                   s" and latest time '${watermark.latestTime}'" +
                   s" for partition '${watermark.partitionID}'."
@@ -67,7 +67,8 @@ private[raphtory] class QueryManager(
             id,
             query,
             conf,
-            topics
+            topics,
+            query.pyScript
     )
     scheduler.execute(queryHandler)
     telemetry.totalQueriesSpawned.labels(deploymentID).inc()

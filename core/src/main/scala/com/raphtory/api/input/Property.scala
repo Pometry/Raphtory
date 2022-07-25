@@ -11,8 +11,6 @@ sealed trait Property {
   /** property name */
   def key: String
 
-  /** value property value */
-  def value: Any
 }
 
 /** Vertex/Edge type (this is not a `Property`) */
@@ -40,4 +38,8 @@ case class BooleanProperty(key: String, value: Boolean) extends Property
 case class IntegerProperty(key: String, value: Integer) extends Property
 
 /** Wrapper class for properties */
-case class Properties(property: Property*)
+case class Properties(property: Vector[Property])
+
+object Properties {
+  def apply(property: Property*): Properties = Properties(Vector.from(property))
+}

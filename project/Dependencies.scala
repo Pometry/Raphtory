@@ -6,9 +6,11 @@ object Dependencies {
   private lazy val catsEffectVersion     = "3.3.12"
   private lazy val chillVersion          = "0.10.0"
   private lazy val curatorVersion        = "5.2.1"
+  private lazy val declineVersion        = "2.3.0"
   private lazy val jacksonVersion        = "2.13.3"
   private lazy val log4jVersion          = "2.18.0"
   private lazy val openhftVersion        = "0.15"
+  private lazy val pemjaVersion          = "0.2.0"
   private lazy val prometheusVersion     = "0.15.0"
   private lazy val pulsarVersion         = "2.9.1"
   private lazy val py4jVersion           = "0.10.9.5"
@@ -32,11 +34,14 @@ object Dependencies {
   lazy val bcel             = "org.apache.bcel"               % "bcel"                 % bcelVersion
   lazy val catsEffect       = "org.typelevel"                %% "cats-effect"          % catsEffectVersion
   lazy val curatorRecipes   = "org.apache.curator"            % "curator-recipes"      % curatorVersion
+  lazy val decline        = "com.monovore"      %% "decline-effect"   % declineVersion
   lazy val jackson          = "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
 
   lazy val log4jApi   = "org.apache.logging.log4j" % "log4j-api"        % log4jVersion
   lazy val log4jCore  = "org.apache.logging.log4j" % "log4j-core"       % log4jVersion
   lazy val log4jSlft4 = "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion
+
+  lazy val magnolia = "com.softwaremill.magnolia1_2" %% "magnolia" % "1.1.2"
 
   lazy val openhft =
     "net.openhft" % "zero-allocation-hashing" % openhftVersion excludeAll (excludeLog4j, excludeSlf4j)
@@ -45,6 +50,7 @@ object Dependencies {
   lazy val prometheusHttp    = "io.prometheus" % "simpleclient_httpserver" % prometheusVersion
   lazy val prometheusHotspot = "io.prometheus" % "simpleclient_hotspot"    % prometheusVersion
 
+  lazy val pemja = "com.alibaba" % "pemja" % pemjaVersion
   lazy val pulsarAdmin =
     "org.apache.pulsar" % "pulsar-client-admin-original" % pulsarVersion excludeAll excludePulsarBinding
   lazy val pulsarApi        = "org.apache.pulsar"           % "pulsar-client-api"              % pulsarVersion

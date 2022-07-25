@@ -1,0 +1,35 @@
+version: "3.9"
+networks:
+  pulsar:
+    driver: bridge
+# FIXME: I'm unable to add depends_on pulsar because on my box at least it refuses to start with some strange metadata error
+services:
+  pulsar:
+    hostname: pulsar
+    networks:
+      pulsar:
+    image: apachepulsar/pulsar:2.9.1
+    entrypoint:
+      - bash
+      - -c
+      - "bin/pulsar standalone --advertised-address pulsar > /dev/null"
+    healthcheck:
+      test: curl -s http://pulsar:8080/admin/v2/worker/cluster
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    ports:
+      - 2181:2181
+  pulsar-proxy:
+    hostname: pulsar-proxy
+    networks:
+      pulsar:
+    image: apachepulsar/pulsar:2.9.1
+    entrypoint:
+      - bash
+      - -c
+      - "sleep 15 && bin/pulsar proxy -zk pulsar:2181 -cs pulsar:2181"
+    ports:
+      - 8080:8080
+      - 6650:6650

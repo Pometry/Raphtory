@@ -1,0 +1,106 @@
+version: "3.9"
+networks:
+  pulsar:
+    driver: bridge
+# FIXME: I'm unable to add depends_on pulsar because on my box at least it refuses to start with some strange metadata error
+services:
+  pulsar:
+    hostname: pulsar
+    networks:
+      pulsar:
+    image: apachepulsar/pulsar:2.9.1
+    #    command: bin/pulsar standalone --advertised-address pulsar
+    entrypoint:
+      - bash
+      - -c
+      - "bin/pulsar standalone --advertised-address pulsar > /dev/null"
+    healthcheck:
+      test: curl -s http://pulsar:8080/admin/v2/worker/cluster
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    ports:
+      - 2181:2181
+  pulsar-proxy:
+    hostname: pulsar-proxy
+    networks:
+      pulsar:
+    image: apachepulsar/pulsar:2.9.1
+    entrypoint:
+      - bash
+      - -c
+      - "sleep 15 && bin/pulsar proxy -zk pulsar:2181 -cs pulsar:2181"
+    ports:
+      - 8080:8080
+      - 6650:6650
+  spout:
+    networks:
+      pulsar:
+    image: "localhost/raphtory-os:${VERSION}"
+    environment:
+      RAPHTORY_PULSAR_BROKER_ADDRESS: "pulsar://pulsar-proxy:6650"
+      RAPHTORY_PULSAR_ADMIN_ADDRESS: "http://pulsar-proxy:8080"
+      RAPHTORY_ZOOKEEPER_ADDRESS: "pulsar:2181"
+      RAPHTORY_QUERY_ADDRESS: query
+      RAPHTORY_SPOUT_FILE: /tmp/lotr.csv
+      RAPHTORY_PARTITIONS_SERVERCOUNT: 2
+    volumes:
+      - "./tmp/spout:/tmp:Z"
+    entrypoint:
+      - bash
+      - -c
+      - "sleep 15 && java -cp /raphtory/jars/* com.raphtory.PyRaphtoryService spout"
+  builder:
+    networks:
+      pulsar:
+    image: "localhost/raphtory-os:${VERSION}"
+    environment:
+      RAPHTORY_PULSAR_BROKER_ADDRESS: "pulsar://pulsar-proxy:6650"
+      RAPHTORY_PULSAR_ADMIN_ADDRESS: "http://pulsar-proxy:8080"
+      RAPHTORY_ZOOKEEPER_ADDRESS: "pulsar:2181"
+      RAPHTORY_QUERY_ADDRESS: query
+      PYRAPHTORY_GB_FILE: /tmp/sample.py
+      PYRAPHTORY_GB_CLASS: LotrGraphBuilder
+      RAPHTORY_PARTITIONS_SERVERCOUNT: 2
+    volumes:
+      - "./tmp/builder:/tmp:Z"
+    entrypoint:
+      - bash
+      - -c
+      - "sleep 15 && java -cp /raphtory/jars/* com.raphtory.PyRaphtoryService builder"
+  query:
+    networks:
+      pulsar:
+    image: "localhost/raphtory-os:${VERSION}"
+    hostname: query
+    environment:
+      RAPHTORY_PULSAR_BROKER_ADDRESS: "pulsar://pulsar-proxy:6650"
+      RAPHTORY_PULSAR_ADMIN_ADDRESS: "http://pulsar-proxy:8080"
+      RAPHTORY_ZOOKEEPER_ADDRESS: "pulsar:2181"
+      RAPHTORY_QUERY_ADDRESS: query
+      RAPHTORY_CORE_LOG: DEBUG
+      RAPHTORY_PARTITIONS_SERVERCOUNT: 2
+    volumes:
+      - "./tmp/query:/tmp:Z"
+    entrypoint:
+      - bash
+      - -c
+      - "sleep 15 && java -cp /raphtory/jars/* com.raphtory.PyRaphtoryService querymanager"
+  partition:
+    networks:
+      pulsar:
+    image: "localhost/raphtory-os:${VERSION}"
+    environment:
+      RAPHTORY_PULSAR_BROKER_ADDRESS: "pulsar://pulsar-proxy:6650"
+      RAPHTORY_PULSAR_ADMIN_ADDRESS: "http://pulsar-proxy:8080"
+      RAPHTORY_ZOOKEEPER_ADDRESS: "pulsar:2181"
+      RAPHTORY_QUERY_ADDRESS: query
+      RAPHTORY_PARTITIONS_SERVERCOUNT: 2
+    entrypoint:
+      - bash
+      - -c
+      - "sleep 15 && java -cp /raphtory/jars/* com.raphtory.PyRaphtoryService partitionmanager"
+    deploy:
+      mode: replicated
+      replicas: 2

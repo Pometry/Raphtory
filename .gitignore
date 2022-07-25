@@ -43,7 +43,7 @@ mainproject/build.sbt
 .*.sw[op]
 
 sbt/
-cluster/src/main/scala/scala.iml
+*.iml
 core/src/main/scala/com/raphtory/testDeploy.scala
 
 .env
@@ -95,3 +95,11 @@ core/src/main/scala/com/raphtory/lotr
 .metals
 .vscode
 project/metals.sbt
+
+# Python
+python/pyraphtory/deps/jars
+*.pyc
+version
+bin/docker/raphtory/tmp/*
+.ipynb_checkpoints/
+python/pyraphtory/lib/

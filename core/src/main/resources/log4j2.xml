@@ -4,6 +4,12 @@
         <Console name="Console" target="SYSTEM_OUT">
             <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n" />
         </Console>
+        <File name="LogFile" fileName="logs/app.log">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n" />
+        </File>
+        <Async name="Async">
+            <AppenderRef ref="LogFile"/>
+        </Async>
     </Appenders>
     <Loggers>
         <!-- LOGGERS FOR UNDERLYING PACKAGES -->
@@ -68,6 +74,7 @@
 
         <Root level="info">
             <AppenderRef ref="Console"/>
+            <AppenderRef ref="Async"/>
         </Root>
     </Loggers>
 </Configuration>

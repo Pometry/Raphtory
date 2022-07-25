@@ -56,6 +56,9 @@ class ConnectedComponents extends NodeList(Seq("cclabel")) {
                 if (label < vertex.getState[vertex.IDType]("cclabel")) {
                   vertex.setState("cclabel", label)
                   vertex.messageAllNeighbours(label)
+                  // TODO REMOVE LINES BELOW, ITS DEBUG
+                  val name = vertex.name()
+                  println(f"$name $label")
                 }
                 else
                   vertex.voteToHalt()

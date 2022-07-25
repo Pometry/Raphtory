@@ -1,0 +1,15 @@
+core/target
+examples/*/target
+.git
+.bloop
+.bsp
+.github
+.gitlab
+.idea
+.metals
+.vscode
+docs/
+tmp/
+*.tar.gz
+*.zip
+*.class

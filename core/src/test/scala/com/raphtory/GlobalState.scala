@@ -1,6 +1,7 @@
 package com.raphtory
 
 import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.graphstate
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
@@ -18,7 +19,7 @@ class GlobalState extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
-      .setGlobalState { graphState =>
+      .setGlobalState { graphState: graphstate.GraphState =>
         graphState.newMax[Int]("name length max")
         graphState.newMin[Int]("name length min")
         graphState.newAdder[Int]("name length total")
