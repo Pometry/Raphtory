@@ -57,6 +57,7 @@ lazy val root = (project in file("."))
           examplesGab,
           examplesLotr,
           examplesTwitter,
+          examplesNFT,
           deploy
   )
 
@@ -146,6 +147,11 @@ lazy val examplesLotr =
 lazy val examplesTwitter =
   (project in file("examples/twitter"))
     .dependsOn(core, connectorsTwitter)
+    .settings(assemblySettings)
+
+lazy val examplesNFT =
+  (project in file("examples/raphtory-example-nft"))
+    .dependsOn(core)
     .settings(assemblySettings)
 
 lazy val deploy =

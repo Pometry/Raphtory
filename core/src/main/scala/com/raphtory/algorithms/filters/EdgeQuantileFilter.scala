@@ -94,7 +94,6 @@ class EdgeQuantileFilter[T: Numeric: Bounded: ClassTag](
         val histogram: Histogram[T] = state("weightDist").value
         state.newConstant[Float]("upperQuantile", histogram.quantile(upper))
         state.newConstant[Float]("lowerQuantile", histogram.quantile(lower))
-        println(histogram.quantile(lower), histogram.quantile(upper))
       }
 
       // Finally remove edges that fall outside these quantiles

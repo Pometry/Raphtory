@@ -219,7 +219,6 @@ private[api] trait GraphViewImplementation[
           val name1: Accumulator[Any, Any] = state[Any, Any](name)
           name1.value
         }
-      println(row)
       Row(row: _*)
     }
   }
