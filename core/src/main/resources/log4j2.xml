@@ -4,13 +4,16 @@
         <Property name="defaultLogLevel">${env:RAPHTORY_CORE_LOG:-INFO}</Property>
         <Property name="defaultInternalsLogLevel">${env:RAPHTORY_INTERNALS_LOG:-${defaultLogLevel}}</Property>
         <Property name="defaultInternalsComponentsLogLevel">${env:RAPHTORY_INTERNALS_COMPONENTS_LOG:-${defaultInternalsLogLevel}}</Property>
+        <Property name="logFileName">${env:RAPHTORY_LOGFILE:-logs/app.log}</Property>
+        <Property name="logFileAppend">${env:RAPHTORY_APPEND_LOGFILE:-false}</Property>
+        <Property name="logger">${env:RAPHTORY_LOGGER:-Async}</Property>
     </Properties>
 
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
             <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n" />
         </Console>
-        <File name="LogFile" fileName="logs/app.log">
+        <File name="LogFile" fileName="${logFileName}" append="${logFileAppend}">
             <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n" />
         </File>
         <Async name="Async">
@@ -20,7 +23,6 @@
     <Loggers>
         <!-- LOGGERS FOR UNDERLYING PACKAGES -->
         <Logger name="org.hibernate" level="${env:RAPHTORY_SQL_LOG:-off}">
-            <AppenderRef ref="Console"/>
         </Logger>
         <Logger name="com.scurrilous.circe.checksum.Crc32cIntChecksum" level="${env:RAPHTORY_CHECKSUM_LOG:-off}">
         </Logger>
@@ -78,9 +80,9 @@
         <Logger name="com.raphtory.internals.components.spout" level="${env:RAPHTORY_INTERNALS_COMPONENTS_SPOUT_LOG:-${defaultInternalsComponentsLogLevel}}">
         </Logger>
 
-        <Root level="info">
+        <Root level="${defaultLogLevel}">
             <AppenderRef ref="Console"/>
-            <AppenderRef ref="Async"/>
+            <AppenderRef ref="${logger}"/>
         </Root>
     </Loggers>
 </Configuration>
