@@ -1,8 +1,9 @@
 package com.raphtory.examples.bots.graphbuilders
 
-import com.raphtory.api.input.{GraphBuilder, ImmutableProperty, Properties, Type}
+import com.raphtory.api.input.{FloatProperty, GraphBuilder, ImmutableProperty, Properties, StringProperty, Type}
 
 import java.text.SimpleDateFormat
+import java.time.OffsetDateTime
 import java.util.Date
 
 class BotsGraphBuilder extends GraphBuilder[String] {
@@ -20,27 +21,18 @@ class BotsGraphBuilder extends GraphBuilder[String] {
   }
 
   override def parseTuple(tuple: String): Unit = {
-//    val line = new String(tuple,"UTF-8")
+//    val line = new String(tuple,"UTF-8")//author_id	created_at	in_reply_to_user_id	lang	retweet_count	like_count	source	text
     val fileLine   = tuple.split(",").map(_.trim)
-    val sourceNode = fileLine(2)
-    val srcID      = assignID(sourceNode)
-    val targetNode = fileLine(9)
-    val tarID      = assignID(targetNode)
-    val timeStamp  = getTimeStamp(fileLine(1))
-
-    addVertex(
-            timeStamp,
-            srcID,
-            Properties(ImmutableProperty("name", sourceNode)),
-            Type("User")
-    )
-    addVertex(
-            timeStamp,
-            tarID,
-            Properties(ImmutableProperty("name", targetNode)),
-            Type("User")
-    )
-    addEdge(timeStamp, srcID, tarID, Type("Retweet"))
+    val userID  = fileLine(0).toLong
+    val replyID = fileLine(4)
+    val timestamp  = getTimeStamp(fileLine(2))
+    val sentiment = fileLine(6).toString
+//    val timestamp = OffsetDateTime.parse(fileLine(1)).toEpochSecond
+    addVertex(timestamp, userID, Type("User"))
+    if (replyID != "") {
+      addVertex(timestamp, replyID.toFloat.toLong, Type("User"))
+      addEdge(timestamp, userID, replyID.toFloat.toLong, Properties(ImmutableProperty("sentiment", sentiment)),Type("Retweeted"))
+    }
   }
 
 }
