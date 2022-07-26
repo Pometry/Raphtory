@@ -17,13 +17,14 @@ import scala.concurrent.duration.DurationInt
 
 private[raphtory] class IngestionExecutor(
     deploymentID: String,
+    graphID: String,
     source: Source,
     conf: Config,
     topics: TopicRepository,
     scheduler: Scheduler
 ) extends Component[Any](conf) {
   private val logger: Logger        = Logger(LoggerFactory.getLogger(this.getClass))
-  private val writers               = topics.graphUpdates.endPoint
+  private val writers               = topics.graphUpdates(graphID).endPoint
   private val sourceExecutor        = source.buildSource(deploymentID)
   private val spoutReschedulesCount = telemetry.spoutReschedules.labels(deploymentID)
   private val fileLinesSent         = telemetry.fileLinesSent.labels(deploymentID)
@@ -42,7 +43,7 @@ private[raphtory] class IngestionExecutor(
   }
 
   override def run(): Unit = {
-    logger.info("running ingestion executor")
+    logger.debug("Running ingestion executor")
     executeSpout()
   }
 
@@ -74,6 +75,7 @@ object IngestionExecutor {
 
   def apply[IO[_]: Spawn](
       deploymentID: String,
+      graphID: String,
       source: Source,
       config: Config,
       topics: TopicRepository
@@ -83,7 +85,7 @@ object IngestionExecutor {
               topics,
               "spout-executor",
               Seq.empty[CanonicalTopic[Any]],
-              new IngestionExecutor(deploymentID, source, config, topics, new Scheduler)
+              new IngestionExecutor(deploymentID, graphID, source, config, topics, new Scheduler)
       )
 
 }

@@ -1,5 +1,7 @@
 package com.raphtory
 
+import cats.data.State
+import cats.effect
 import cats.effect._
 import cats.effect.unsafe.implicits.global
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
@@ -14,7 +16,6 @@ import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import com.raphtory.internals.components.graphbuilder.BuildExecutorGroup
 import com.raphtory.internals.components.ingestion.IngestionManager
 import com.raphtory.internals.components.querymanager.EstablishGraph
-import com.raphtory.internals.components.querymanager.EstablishPartition
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManager
 import com.raphtory.internals.components.spout.SpoutExecutor
@@ -27,6 +28,7 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
+import java.util.UUID
 import scala.reflect.ClassTag
 
 /**  `Raphtory` object for creating Raphtory Components
@@ -57,6 +59,12 @@ import scala.reflect.ClassTag
 object Raphtory {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
+  protected case class Service(client: QuerySender, deploymentID: String, shutdown: IO[Unit], graphs: Set[String])
+
+  private var localService: Option[Service] = None
+
+  private lazy val confHandler = new ConfigHandler()
+
   /** Creates a streaming version of a `DeployedTemporalGraph` object that can be used to express queries from.
     *
     * @param spout Spout to ingest objects of type `T` into the deployment
@@ -86,12 +94,8 @@ object Raphtory {
       spout: Spout[T] = new IdentitySpout[T](),
       graphBuilder: GraphBuilder[T],
       customConfig: Map[String, Any] = Map()
-  ): DeployedTemporalGraph = {
-    val ((qs, config, deploymentId), shutdown) =
-      deployLocalGraph[T, IO](spout, graphBuilder, customConfig, batchLoading = false).allocated.unsafeRunSync()
-
-    new DeployedTemporalGraph(Query(), qs, config, deploymentId, shutdown)
-  }
+  ): DeployedTemporalGraph =
+    submitLocalGraph(spout, graphBuilder, customConfig = customConfig)
 
   /** Creates a batch loading version of a `DeployedTemporalGraph` object that can be used to express
     * queries from.
@@ -173,7 +177,6 @@ object Raphtory {
       salt: Option[Int] = None,
       distributed: Boolean
   ): Config = {
-    val confHandler = new ConfigHandler()
     salt.foreach(s => confHandler.setSalt(s))
     customConfig.foreach { case (key, value) => confHandler.addCustomConfig(key, value) }
     confHandler.getConfig(distributed)
@@ -198,22 +201,62 @@ object Raphtory {
           PartitionsManager.batchLoading(config, partitionIdManager, topicRepo, scheduler, spout, graphBuilder)
         else PartitionsManager.streaming(config, partitionIdManager, topicRepo, scheduler)
       }
-      _                  <- Resource.eval(IO.delay {
-                              val partitions = topicRepo.partitionSetup.endPoint
-                              partitions sendAsync EstablishPartition("graph")
-                              partitions.close()
-                            })
       _                  <- {
         if (batchLoading) Resource.eval(IO.unit)
         else IngestionManager(deploymentID, config, topicRepo)
       }
-      _                  <- Resource.eval(IO.delay {
-                              val ingestionSetup = topicRepo.ingestSetup.endPoint
-                              ingestionSetup sendAsync EstablishGraph("graph", Source(spout, graphBuilder, config))
-                              ingestionSetup.close()
-                            })
       _                  <- QueryManager(config, topicRepo)
-    } yield (new QuerySender(scheduler, topicRepo, config), config, deploymentID)
+      client             <- Resource.eval(IO.delay(new QuerySender(scheduler, topicRepo, config)))
+      _                  <- Resource.eval(IO.delay {
+                              client.submitGraph(Source(spout, graphBuilder, config), "")
+                            })
+    } yield (client, config, deploymentID)
+  }
+
+  private def submitLocalGraph[T](
+      spout: Spout[T],
+      graphBuilder: GraphBuilder[T],
+      name: String = "",
+      customConfig: Map[String, Any] = Map()
+  ): DeployedTemporalGraph = {
+    val graphID = if (name.isEmpty) UUID.randomUUID().toString else name
+    val service = localService match {
+      case Some(service) => service.copy(graphs = service.graphs + graphID)
+      case None          => deployLocalService()
+    }
+    val config  = confBuilder(customConfig, distributed = false)
+    val client  = service.client
+    client.submitGraph(Source(spout, graphBuilder, config), graphID)
+
+    val unusedService = IO {
+      val remainingGraphs = service.graphs - graphID
+      localService = localService.map(service => service.copy(graphs = remainingGraphs))
+      remainingGraphs.isEmpty
+    }
+    val graphShutdown = unusedService.flatMap {
+      case true  => service.shutdown
+      case false => IO.unit
+    }
+
+    new DeployedTemporalGraph(Query(graphID = graphID), client, config, service.deploymentID, graphShutdown)
+  }
+
+  private def deployLocalService(): Service = {
+    val config          = confBuilder(distributed = false)
+    val scheduler       = new Scheduler()
+    val prometheusPort  = config.getInt("raphtory.prometheus.metrics.port")
+    val deploymentID    = config.getString("raphtory.deploy.id")
+    val serviceResource = for {
+      _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
+      topicRepo          <- LocalTopicRepository[IO](config)
+      partitionIdManager <- makePartitionIdManager[IO](config, localDeployment = true, deploymentID)
+      _                  <- PartitionsManager.streaming[IO](config, partitionIdManager, topicRepo, scheduler)
+      _                  <- IngestionManager[IO](deploymentID, config, topicRepo)
+      _                  <- QueryManager[IO](config, topicRepo)
+    } yield new QuerySender(scheduler, topicRepo, config)
+
+    val (client, shutdown) = serviceResource.allocated.unsafeRunSync()
+    Service(client, deploymentID, shutdown, Set())
   }
 
   def makePartitionIdManager[IO[_]: Sync](

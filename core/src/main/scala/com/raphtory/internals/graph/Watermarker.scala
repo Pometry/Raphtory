@@ -12,7 +12,7 @@ import scala.collection.concurrent.Map
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
-private[raphtory] class Watermarker(storage: GraphPartition) {
+private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val lock: Lock     = new ReentrantLock()
@@ -21,7 +21,7 @@ private[raphtory] class Watermarker(storage: GraphPartition) {
   val latestTime: AtomicLong = new AtomicLong(0)
 
   private var latestWatermark =
-    WatermarkTime(storage.getPartitionID, Long.MaxValue, 0, safe = false)
+    WatermarkTime(graphID, storage.getPartitionID, Long.MaxValue, 0, safe = false)
 
   //Current unsynchronised updates
   private val edgeAdditions: mutable.TreeSet[(Long, (Long, Long))] = mutable.TreeSet()
@@ -127,7 +127,7 @@ private[raphtory] class Watermarker(storage: GraphPartition) {
           edgeAdditions.isEmpty && edgeDeletions.isEmpty && vertexDeletions.isEmpty
 
         val newWatermark =
-          WatermarkTime(storage.getPartitionID, oldestTime.get(), finalTime, noBlockingOperations)
+          WatermarkTime(graphID, storage.getPartitionID, oldestTime.get(), finalTime, noBlockingOperations)
 
         if (newWatermark != latestWatermark)
           logger.debug(

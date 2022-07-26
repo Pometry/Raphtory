@@ -18,6 +18,7 @@ import scala.collection.immutable.Queue
 private[raphtory] trait QueryManagement extends Serializable
 
 private[raphtory] case class WatermarkTime(
+    graphID: String,
     partitionID: Int,
     oldestTime: Long,
     latestTime: Long,
@@ -75,9 +76,12 @@ private[raphtory] case class FilteredOutEdgeMessage[VertexID](
 
 private[raphtory] case class VertexMessagesSync(partitionID: Int, count: Long)
 
+sealed private[raphtory] trait Submission extends QueryManagement
+
 private[raphtory] case class Query(
     _bootstrap: DynamicLoader = DynamicLoader(), // leave the `_` this field gets deserialized first
     name: String = "",
+    graphID: String = "",
     points: PointSet = NullPointSet,
     timelineStart: Long = Long.MinValue,         // inclusive
     timelineEnd: Long = Long.MaxValue,           // inclusive
@@ -86,7 +90,7 @@ private[raphtory] case class Query(
     graphFunctions: Queue[GraphFunction] = Queue(),
     tableFunctions: Queue[TableFunction] = Queue(),
     sink: Option[Sink] = None
-) extends QueryManagement
+) extends Submission
 
 case class DynamicLoader(classes: Set[Class[_]] = Set.empty) {
   def +(cls: Class[_]): DynamicLoader = this.copy(classes = classes + cls)
@@ -145,13 +149,10 @@ private[raphtory] case class TableBuilt(perspectiveID: Int)            extends P
 
 private[raphtory] case class AlgorithmFailure(perspectiveID: Int, exception: Throwable) extends PerspectiveStatus
 
-// Messages to ingestSetup topic
-private[raphtory] case class EstablishGraph(graphID: String, source: Source)
-
 // Messages for partitionSetup topic
-sealed private[raphtory] trait PartitionManagement
-private[raphtory] case class EstablishPartition(graphID: String) extends PartitionManagement
+sealed private[raphtory] trait GraphManagement                               extends QueryManagement
+private[raphtory] case class EstablishGraph(graphID: String, source: Source) extends Submission with GraphManagement
 
 private[raphtory] case class EstablishExecutor(_bootstrap: DynamicLoader, graphID: String, jobID: String, sink: Sink)
-        extends PartitionManagement
-private[raphtory] case class StopExecutor(jobID: String) extends PartitionManagement
+        extends GraphManagement
+private[raphtory] case class StopExecutor(jobID: String) extends GraphManagement

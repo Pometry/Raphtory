@@ -5,11 +5,12 @@ import cats.effect.IO
 import cats.effect.Resource
 import cats.effect.Spawn
 import cats.effect.unsafe.implicits.global
+import com.raphtory.api.output.sink.Sink
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.querymanager.EstablishExecutor
-import com.raphtory.internals.components.querymanager.EstablishPartition
-import com.raphtory.internals.components.querymanager.PartitionManagement
+import com.raphtory.internals.components.querymanager.EstablishGraph
+import com.raphtory.internals.components.querymanager.GraphManagement
 import com.raphtory.internals.components.querymanager.StopExecutor
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.Scheduler
@@ -26,7 +27,7 @@ class PartitionManager(
     scheduler: Scheduler,
     conf: Config,
     topics: TopicRepository
-) extends Component[PartitionManagement](conf) {
+) extends Component[GraphManagement](conf) {
 
   case class Partition(readerCancel: IO[Unit], writerCancel: IO[Unit], storage: GraphPartition) {
 
@@ -38,26 +39,30 @@ class PartitionManager(
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val partitions = mutable.Map[String, Partition]()
-  private val executors  = new ConcurrentHashMap[String, QueryExecutor]()
+  private val partitions       = mutable.Map[String, Partition]()
+  private val pendingExecutors = mutable.Map[String, EstablishExecutor]()
+  private val executors        = new ConcurrentHashMap[String, QueryExecutor]()
 
-  override def handleMessage(msg: PartitionManagement): Unit =
+  override def handleMessage(msg: GraphManagement): Unit =
     msg match {
-      case EstablishPartition(graphID)                =>
-        val storage           = new PojoBasedPartition(partitionID, conf)
+      case establishGraph: EstablishGraph =>
+        val graphID           = establishGraph.graphID
+        val storage           = new PojoBasedPartition(graphID, partitionID, conf)
         val readerResource    = Reader[IO](graphID, partitionID, storage, scheduler, conf, topics)
         val writerResource    = StreamWriter[IO](graphID, partitionID, storage, conf, topics)
         val (_, readerCancel) = readerResource.allocated.unsafeRunSync()
         val (_, writerCancel) = writerResource.allocated.unsafeRunSync()
         partitions.put(graphID, Partition(readerCancel, writerCancel, storage))
-      case EstablishExecutor(_, graphID, jobID, sink) =>
-        val storage       = partitions(graphID).storage
-        val queryExecutor =
-          new QueryExecutor(partitionID, sink, storage, graphID, jobID, conf, topics, scheduler)
-        scheduler.execute(queryExecutor)
-//        telemetry.queryExecutorCollector.labels(partitionID.toString, deploymentID).inc()
-        executors.put(jobID, queryExecutor)
-      case StopExecutor(jobID)                        =>
+        if (pendingExecutors.contains(graphID)) {
+          val request = pendingExecutors(graphID)
+          establishExecutor(request)
+        }
+      case request: EstablishExecutor     =>
+        if (partitions contains request.graphID)
+          establishExecutor(request)
+        else
+          pendingExecutors.put(request.graphID, request)
+      case StopExecutor(jobID)            =>
         logger.debug(s"Partition manager $partitionID received EndQuery($jobID)")
         try Option(executors.remove(jobID)).foreach(_.stop())
 //            telemetry.queryExecutorCollector.labels(partitionID.toString, deploymentID).dec()
@@ -74,6 +79,17 @@ class PartitionManager(
     executors forEach { (jobID, _) => Option(executors.remove(jobID)).foreach(_.stop()) }
     partitions foreach { case (graphID, _) => partitions.remove(graphID).foreach(_.stop()) }
   }
+
+  private def establishExecutor(request: EstablishExecutor) =
+    request match {
+      case EstablishExecutor(_, graphID, jobID, sink) =>
+        val storage       = partitions(graphID).storage
+        val queryExecutor =
+          new QueryExecutor(partitionID, sink, storage, graphID, jobID, conf, topics, scheduler)
+        scheduler.execute(queryExecutor)
+        //        telemetry.queryExecutorCollector.labels(partitionID.toString, deploymentID).inc()
+        executors.put(jobID, queryExecutor)
+    }
 }
 
 object PartitionManager {

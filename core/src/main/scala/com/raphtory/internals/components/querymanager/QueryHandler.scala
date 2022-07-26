@@ -406,7 +406,6 @@ private[raphtory] class QueryHandler(
     timeTaken = System.currentTimeMillis()
     if (perspectiveIsReady(perspective)) {
       logger.debug(s"Job '$jobID': Created perspective at time $time.")
-
       messagetoAllJobWorkers(CreatePerspective(currentPerspectiveID, perspective))
       Stages.EstablishPerspective
     }
@@ -496,7 +495,7 @@ private[raphtory] class QueryHandler(
   private def messagetoAllJobWorkers(msg: QueryManagement): Unit =
     workerList sendAsync msg
 
-  private def messagePartitions(msg: PartitionManagement): Unit =
+  private def messagePartitions(msg: GraphManagement): Unit =
     partitions sendAsync msg
 
   private def killJob() = {
@@ -518,9 +517,9 @@ private[raphtory] class QueryHandler(
   private def getNextTableOperation(queue: mutable.Queue[TableFunction]) =
     Try(queue.dequeue()).toOption
 
-  private def getLatestTime: Long = queryManager.latestTime()
+  private def getLatestTime: Long = queryManager.latestTime(graphID)
 
-  private def getOptionalEarliestTime: Option[Long] = queryManager.earliestTime()
+  private def getOptionalEarliestTime: Option[Long] = queryManager.earliestTime(graphID)
 }
 
 private[raphtory] object Stages extends Enumeration {

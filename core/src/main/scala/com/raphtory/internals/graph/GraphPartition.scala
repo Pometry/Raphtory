@@ -11,11 +11,11 @@ import scala.collection.mutable
 
 /** Singleton representing the Storage for the entities
   */
-abstract private[raphtory] class GraphPartition(partitionID: Int, conf: Config) {
+abstract private[raphtory] class GraphPartition(graphID: String, partitionID: Int, conf: Config) {
 
   protected val failOnError: Boolean = conf.getBoolean("raphtory.partitions.failOnError")
   private var batchIngesting         = false
-  val watermarker                    = new Watermarker(this)
+  val watermarker                    = new Watermarker(graphID, this)
   def startBatchIngesting()          = batchIngesting = true
   def stopBatchIngesting()           = batchIngesting = false
   def currentyBatchIngesting()       = batchIngesting

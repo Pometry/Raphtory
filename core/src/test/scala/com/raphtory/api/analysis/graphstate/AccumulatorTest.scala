@@ -5,6 +5,7 @@ import com.raphtory.BaseCorrectnessTest
 import com.raphtory.BasicGraphBuilder
 import com.raphtory.Raphtory
 import com.raphtory.TestQuery
+import com.raphtory.TestUtils
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphview.Alignment
@@ -102,7 +103,7 @@ class AccumulatorTest extends BaseCorrectnessTest(startGraph = true) {
           val jobId = job.getJobId
           job.waitForJob()
 
-          getResults(jobId).foreach { res =>
+          TestUtils.getResults(outputDirectory, jobId).foreach { res =>
             if (res.nonEmpty) {
               val t = res.split(",")
               assertEquals(t(t.size - 1), "true")

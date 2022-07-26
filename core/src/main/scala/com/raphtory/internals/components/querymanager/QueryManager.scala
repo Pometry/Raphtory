@@ -21,9 +21,11 @@ private[raphtory] class QueryManager(
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val currentQueries = mutable.Map[String, QueryHandler]()
+  private val partitions     = topics.partitionSetup.endPoint
+  private val ingestion      = topics.ingestSetup.endPoint
 
   //private val watermarkGlobal                           = pulsarController.globalwatermarkPublisher() TODO: turn back on when needed
-  private val watermarks: Map[Int, WatermarkTime] = new TrieMap[Int, WatermarkTime]()
+  private val watermarks = new TrieMap[(String, Int), WatermarkTime]()
 
   override def run(): Unit = logger.debug("Starting Query Manager Consumer.")
 
@@ -33,42 +35,37 @@ private[raphtory] class QueryManager(
 
   override def handleMessage(msg: QueryManagement): Unit =
     msg match {
-      case query: Query             =>
+      case establishGraph: EstablishGraph =>
+        partitions sendAsync establishGraph
+        ingestion sendAsync establishGraph
+        logger.debug(s"deploying graph with graph ID: ${establishGraph.graphID}")
+      case query: Query                   =>
         val jobID        = query.name
-        logger.debug(
-                s"Handling query: $query"
-        )
+        logger.debug(s"Handling query: $query")
         val queryHandler = spawnQuery(jobID, query)
         trackNewQuery(jobID, queryHandler)
 
-      case req: EndQuery            =>
+      case req: EndQuery                  =>
         currentQueries.get(req.jobID) match {
           case Some(queryhandler) =>
             queryhandler.stop()
             currentQueries.remove(req.jobID)
           case None               => //sender ! QueryNotPresent(req.jobID)
         }
-      case watermark: WatermarkTime =>
+      case watermark: WatermarkTime       =>
         logger.debug(
                 s"Setting watermark to earliest time '${watermark.oldestTime}'" +
                   s" and latest time '${watermark.latestTime}'" +
-                  s" for partition '${watermark.partitionID}'."
+                  s" for partition '${watermark.partitionID}'" +
+                  s" in graph ${watermark.graphID}."
         )
-        watermarks.put(watermark.partitionID, watermark)
+        watermarks.put((watermark.graphID, watermark.partitionID), watermark)
     }
 
   private def spawnQuery(id: String, query: Query): QueryHandler = {
     logger.info(s"Query '${query.name}' received, your job ID is '$id'.")
 
-    val queryHandler = new QueryHandler(
-            this,
-            scheduler,
-            "graph",
-            id,
-            query,
-            conf,
-            topics
-    )
+    val queryHandler = new QueryHandler(this, scheduler, query.graphID, id, query, conf, topics)
     scheduler.execute(queryHandler)
     telemetry.totalQueriesSpawned.labels(deploymentID).inc()
     queryHandler
@@ -78,20 +75,22 @@ private[raphtory] class QueryManager(
     //sender() ! ManagingTask(queryHandler)
     currentQueries += ((jobID, queryHandler))
 
-  def latestTime(): Long = {
+  def latestTime(graphID: String): Long = {
     val watermark = if (watermarks.size == totalPartitions) {
       var safe    = true
       var minTime = Long.MaxValue
       var maxTime = Long.MinValue
 
-      watermarks.foreach {
-        case (key, watermark) =>
-          safe = watermark.safe && safe
-          minTime = Math.min(minTime, watermark.latestTime)
-          maxTime = Math.max(maxTime, watermark.latestTime)
-          telemetry.globalWatermarkMin.labels(deploymentID).set(minTime.toDouble)
-          telemetry.globalWatermarkMax.labels(deploymentID).set(maxTime.toDouble)
-      }
+      watermarks
+        .filter { case ((id, _), _) => id == graphID } // TODO: we should have a map inside a map instead
+        .foreach {
+          case (key, watermark) =>
+            safe = watermark.safe && safe
+            minTime = Math.min(minTime, watermark.latestTime)
+            maxTime = Math.max(maxTime, watermark.latestTime)
+            telemetry.globalWatermarkMin.labels(deploymentID).set(minTime.toDouble)
+            telemetry.globalWatermarkMax.labels(deploymentID).set(maxTime.toDouble)
+        }
       if (safe) maxTime else minTime
     }
     else 0 // not received a message from each partition yet
@@ -99,11 +98,11 @@ private[raphtory] class QueryManager(
     watermark
   }
 
-  def earliestTime(): Option[Long] =
+  def earliestTime(graphID: String): Option[Long] =
     if (watermarks.size == totalPartitions) {
-      val startTimes = watermarks map {
-        case (_, watermark) => watermark.oldestTime
-      }
+      val startTimes = watermarks
+        .filter { case ((id, _), _) => id == graphID } // TODO: we should have a map inside a map instead
+        .map { case (_, watermark) => watermark.oldestTime }
       Some(startTimes.min)
     }
     else

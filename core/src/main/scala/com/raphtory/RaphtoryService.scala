@@ -88,7 +88,7 @@ abstract class RaphtoryService[T: ClassTag] extends IOApp {
       _                <- Prometheus[IO](metricsPort)
       topicRepo        <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config)
       builderIDManager <- Raphtory.makeBuilderIdManager[IO](config, localDeployment, deploymentID)
-      beg              <- BuildExecutorGroup[IO, T](config, builderIDManager, topicRepo, defineBuilder)
+      beg              <- BuildExecutorGroup[IO, T](config, "", builderIDManager, topicRepo, defineBuilder)
     } yield beg
 
   }

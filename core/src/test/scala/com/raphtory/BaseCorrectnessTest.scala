@@ -29,7 +29,7 @@ abstract class BaseCorrectnessTest(
       val tracker =
         graph.at(test.timestamp).window(test.windows, Alignment.END).execute(test.algorithm).writeTo(defaultSink)
       tracker.waitForJob()
-      getResults(tracker.getJobId)
+      TestUtils.getResults(outputDirectory, tracker.getJobId)
     }
 
 //  private def normaliseResults(results: IterableOnce[String]): collection.Map[String, Int] = {
@@ -47,12 +47,12 @@ abstract class BaseCorrectnessTest(
 
   private def correctResultsHash(resultsResource: String): String = {
     val source = scala.io.Source.fromResource(resultsResource)
-    try resultsHash(source.getLines())
+    try TestUtils.resultsHash(source.getLines())
     finally source.close()
   }
 
   private def correctResultsHash(rows: IterableOnce[String]): String =
-    resultsHash(rows)
+    TestUtils.resultsHash(rows)
 
   def assertResultsMatch(obtained: IterableOnce[String], resultsResource: String): Unit = {
     val source = scala.io.Source.fromResource(resultsResource)

@@ -20,12 +20,13 @@ import scala.reflect.ClassTag
 private[raphtory] class BuilderExecutor[T: ClassTag](
     name: Int,
     deploymentID: String,
+    graphID: String,
     graphBuilder: GraphBuilderInstance[T],
     conf: Config,
     topics: TopicRepository
 ) extends Component[T](conf) {
   private val failOnError: Boolean = conf.getBoolean("raphtory.builders.failOnError")
-  private val writers              = topics.graphUpdates.endPoint
+  private val writers              = topics.graphUpdates(graphID).endPoint
   private val logger: Logger       = Logger(LoggerFactory.getLogger(this.getClass))
 
   private var messagesProcessed = 0
@@ -65,6 +66,7 @@ object BuilderExecutor {
   def apply[IO[_]: Async: Spawn, T: ClassTag](
       name: Int,
       deploymentID: String,
+      graphID: String,
       graphBuilder: GraphBuilder[T],
       conf: Config,
       topics: TopicRepository
@@ -74,7 +76,7 @@ object BuilderExecutor {
             topics,
             s"builder-$name",
             List(elems),
-            new BuilderExecutor[T](name, deploymentID, graphBuilder.buildInstance(deploymentID), conf, topics)
+            new BuilderExecutor[T](name, deploymentID, graphID, graphBuilder.buildInstance(deploymentID), conf, topics)
     )
   }
 }
@@ -88,6 +90,7 @@ object BuildExecutorGroup {
 
   def apply[IO[_]: Async: Spawn, T: ClassTag](
       config: Config,
+      graphID: String,
       builderIDManager: IDManager,
       topics: TopicRepository,
       graphBuilder: GraphBuilder[T]
@@ -112,7 +115,7 @@ object BuildExecutorGroup {
                               )
                       )
                   })
-          _    <- BuilderExecutor(name, deploymentID, graphBuilder, config, topics)
+          _    <- BuilderExecutor(name, deploymentID, graphID, graphBuilder, config, topics)
         } yield ()
       }
 

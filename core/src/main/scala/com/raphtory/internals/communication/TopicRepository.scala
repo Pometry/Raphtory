@@ -3,9 +3,10 @@ package com.raphtory.internals.communication
 import com.raphtory.Raphtory
 import com.raphtory.internals.components.querymanager.EndQuery
 import com.raphtory.internals.components.querymanager.EstablishGraph
-import com.raphtory.internals.components.querymanager.PartitionManagement
+import com.raphtory.internals.components.querymanager.GraphManagement
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManagement
+import com.raphtory.internals.components.querymanager.Submission
 import com.raphtory.internals.components.querymanager.VertexMessagesSync
 import com.raphtory.internals.components.querymanager.VertexMessaging
 import com.raphtory.internals.components.querymanager.WatermarkTime
@@ -47,26 +48,27 @@ private[raphtory] class TopicRepository(
   final def spout[T]: WorkPullTopic[T] =
     WorkPullTopic[T](spoutConnector, "spout", customAddress = spoutAddress)
 
-  final def graphUpdates: ShardingTopic[GraphUpdate] =
-    ShardingTopic[GraphUpdate](numPartitions, graphUpdatesConnector, s"graph.updates", depId)
-
-  final def graphSync: ShardingTopic[GraphUpdateEffect] =
-    ShardingTopic[GraphUpdateEffect](numPartitions, graphSyncConnector, s"graph.sync", depId)
-
-  final def submissions: ExclusiveTopic[Query] =
-    ExclusiveTopic[Query](submissionsConnector, s"submissions", depId)
+  final def submissions: ExclusiveTopic[Submission] =
+    ExclusiveTopic[Submission](submissionsConnector, s"submissions", depId)
 
   final def completedQueries: ExclusiveTopic[EndQuery] =
     ExclusiveTopic[EndQuery](completedQueriesConnector, "completed.queries", depId)
 
-  final def watermark: ExclusiveTopic[WatermarkTime] =
-    ExclusiveTopic[WatermarkTime](watermarkConnector, "watermark", depId)
-
   final def ingestSetup: ExclusiveTopic[EstablishGraph] =
     ExclusiveTopic[EstablishGraph](ingestSetupConnector, "ingest.setup", depId)
 
-  final def partitionSetup: BroadcastTopic[PartitionManagement] =
-    BroadcastTopic[PartitionManagement](numPartitions, partitionSetupConnector, "partition.setup", depId)
+  final def partitionSetup: BroadcastTopic[GraphManagement] =
+    BroadcastTopic[GraphManagement](numPartitions, partitionSetupConnector, "partition.setup", depId)
+
+  // graph wise topics
+  final def graphUpdates(graphID: String): ShardingTopic[GraphUpdate] =
+    ShardingTopic[GraphUpdate](numPartitions, graphUpdatesConnector, s"graph.updates", s"$depId-$graphID")
+
+  final def graphSync(graphID: String): ShardingTopic[GraphUpdateEffect] =
+    ShardingTopic[GraphUpdateEffect](numPartitions, graphSyncConnector, s"graph.sync", s"$depId-$graphID")
+
+  final def watermark: ExclusiveTopic[WatermarkTime] =
+    ExclusiveTopic[WatermarkTime](watermarkConnector, "watermark", depId)
 
   // Job wise topics
   final def queryTrack(jobId: String): ExclusiveTopic[QueryManagement] =

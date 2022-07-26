@@ -1,7 +1,9 @@
 package com.raphtory.internals.management
 
+import com.raphtory.api.input.Source
 import com.raphtory.api.querytracker.QueryProgressTracker
 import com.raphtory.internals.communication.TopicRepository
+import com.raphtory.internals.components.querymanager.EstablishGraph
 import com.raphtory.internals.components.querymanager.Query
 import com.typesafe.config.Config
 
@@ -24,6 +26,9 @@ private[raphtory] class QuerySender(
     scheduler.execute(tracker)
     tracker
   }
+
+  def submitGraph(source: Source, id: String): Unit =
+    topics.submissions.endPoint sendAsync EstablishGraph(id, source)
 
   private def getDefaultName(query: Query): String =
     if (query.name.nonEmpty) query.name else query.hashCode().abs.toString

@@ -73,7 +73,7 @@ object PartitionsManager {
       (pm, i) =>
         val pm1 = for {
           partitionId <- nextId(partitionIDManager)
-          storage     <- IO.delay(new PojoBasedPartition(partitionId, config))
+          storage     <- IO.delay(new PojoBasedPartition("", partitionId, config))
           writer      <- IO.delay(new BatchWriter[T](partitionId, storage))
         } yield (
                 partitionId,
@@ -86,7 +86,7 @@ object PartitionsManager {
         for {
           a1 <- cats.effect.Resource.eval(pm1)
           (partitionId, pm, storage) = a1
-          reader                    <- Reader("graph", partitionId, storage, scheduler, config, topics)
+          reader                    <- Reader("", partitionId, storage, scheduler, config, topics)
         } yield pm.copy(readers = reader :: pm.readers)
     }
 
@@ -135,7 +135,7 @@ object PartitionsManager {
       (pm, i) =>
         val pm1 = for {
           partitionId <- nextId(partitionIDManager)
-          storage     <- IO.delay(new PojoBasedPartition(partitionId, config))
+          storage     <- IO.delay(new PojoBasedPartition("", partitionId, config)) // TODO: remove
         } yield (partitionId, storage)
         for {
           a1 <- cats.effect.Resource.eval(pm1)

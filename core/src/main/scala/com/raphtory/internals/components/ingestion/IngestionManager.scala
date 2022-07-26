@@ -7,7 +7,6 @@ import cats.effect.Spawn
 import cats.effect.unsafe.implicits.global
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
-import com.raphtory.internals.components.graphbuilder.BuilderExecutor
 import com.raphtory.internals.components.querymanager.EstablishGraph
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -32,7 +31,7 @@ class IngestionManager(
     msg match {
       case EstablishGraph(graphID, source) =>
         logger.debug(s"Received query to spawn graph: $msg")
-        val ingestionResource    = IngestionExecutor[IO](deploymentID, source, conf, topics)
+        val ingestionResource    = IngestionExecutor[IO](deploymentID, graphID, source, conf, topics)
         val (_, ingestionCancel) = ingestionResource.allocated.unsafeRunSync()
         graphDeployments.put(graphID, Graph(ingestionCancel))
     }

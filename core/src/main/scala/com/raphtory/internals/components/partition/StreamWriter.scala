@@ -24,7 +24,7 @@ private[raphtory] class StreamWriter(
 ) extends Component[GraphAlteration](conf) {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-  private val neighbours     = topics.graphSync.endPoint
+  private val neighbours     = topics.graphSync(graphID).endPoint
 
   private var processedMessages = 0
 
@@ -281,7 +281,7 @@ object StreamWriter {
             partitionId,
             topics,
             s"writer-$partitionId",
-            List(topics.graphUpdates, topics.graphSync),
+            List(topics.graphUpdates(graphID), topics.graphSync(graphID)),
             new StreamWriter(
                     graphID = graphID,
                     partitionID = partitionId,

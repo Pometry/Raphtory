@@ -41,7 +41,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
   val withGraph: SyncIO[FunFixture[DeployedTemporalGraph]] = ResourceFixture(
           for {
-            _ <- manageTestFile
+            _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
             g <- graph
           } yield g
   )
@@ -49,7 +49,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   val suiteGraph: Fixture[DeployedTemporalGraph] = ResourceSuiteLocalFixture(
           "graph",
           for {
-            _ <- manageTestFile
+            _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
             g <- graph
           } yield g
   )
@@ -57,21 +57,6 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   def graphS = suiteGraph()
 
   override def munitFixtures = List(suiteGraph)
-
-  private def manageTestFile: Resource[IO, Any] =
-    liftFileIfNotPresent match {
-      case None           => Resource.eval(IO.unit)
-      case Some((p, url)) =>
-        val path = Paths.get(p)
-        Resource.make(IO.blocking(if (Files.notExists(path)) s"curl -o $path $url" !!))(_ =>
-          IO.blocking { // this is a bit hacky but it allows us
-            Runtime.getRuntime.addShutdownHook(new Thread {
-              override def run(): Unit =
-                Files.deleteIfExists(path)
-            })
-          }
-        )
-    }
 
   def liftFileIfNotPresent: Option[(String, URL)] = None
 
@@ -101,7 +86,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
       queryProgressTracker.waitForJob()
 
-      generateTestHash(jobId)
+      TestUtils.generateTestHash(outputDirectory, jobId)
     }
 
   def algorithmTest(
@@ -133,35 +118,6 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
       queryProgressTracker.waitForJob()
 
-      generateTestHash(jobId)
+      TestUtils.generateTestHash(outputDirectory, jobId)
     }
-
-  def resultsHash(results: IterableOnce[String]): String =
-    Hashing
-      .sha256()
-      .hashString(results.iterator.toSeq.sorted.mkString, StandardCharsets.UTF_8)
-      .toString
-
-  def getResults(jobID: String = jobId): Iterator[String] = {
-    val files = new File(outputDirectory + "/" + jobID)
-      .listFiles()
-      .filter(_.isFile)
-
-    files.iterator.flatMap { file =>
-      val source = scala.io.Source.fromFile(file)
-      try source.getLines().toList
-      catch {
-        case e: Exception => throw e
-      }
-      finally source.close()
-    }
-  }
-
-  private def generateTestHash(jobId: String = jobId): String = {
-    val results = getResults(jobId)
-    val hash    = resultsHash(results)
-    logger.info(s"Generated hash code: '$hash'.")
-
-    hash
-  }
 }
