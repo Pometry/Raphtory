@@ -1,32 +1,57 @@
-# Raphtory Client
+# Getting started with `pyraphtory`
 
-This is the python client for the Raphtory project
+Pyraphtory is the new version of the Raphtory python API. It is in experimental stage, so everything might change.
 
-Install via pip 
+## Running the PyRaphtory sample locally
 
-`pip install raphtory-client` 
+At the core of this iteration is the `com.raphtory.python.PyRaphtory` class that is able to start a Raphtory instance
+with python support or connect to an existing Raphtory Cluster (more on that later)
 
-* PyPi [https://pypi.org/project/raphtory-client/](https://pypi.org/project/raphtory-client/)
-* Github [https://github.com/Raphtory/Raphtory/](https://github.com/Raphtory/Raphtory/)
-* Website [https://raphtory.github.io/](https://raphtory.github.io/)
-* Slack [https://raphtory.slack.com](https://raphtory.slack.com)
-* Tutorial [https://raphtory.readthedocs.io/en/master/PythonClient/tutorial.html#](https://raphtory.readthedocs.io/en/master/PythonClient/tutorial_py_raphtory.html)
-* Documentation [https://raphtory.readthedocs.io/en/master/PythonClient/RaphtoryClient.html](https://raphtory.readthedocs.io/en/master/PythonClient/RaphtoryClient.html)
-* Bug reports/Feature request [https://github.com/raphtory/raphtory/issues](https://github.com/raphtory/raphtory/issues)
+### Prelude
+
+1. get the Raphtory source code say in `git clone https://github.com/Raphtory/Raphtory.git $HOME/Source/Raphtory`
+2. install `make` and `python3`
+
+### Setup a python virtual environment with dependencies
+
+1. The pemja library we use looks for JAVA_HOME environment variable so make sure that points to a JDK location
+1. Create an python virtual environment called (anything you want) `raphtory` and activete it
+1. Install [poetry](https://python-poetry.org/)
+1. Run the commands below
+
+```bash
+make sbt-build
+```
+
+```bash
+#go to raphtory source root (eg. cd $HOME/Source/Raphtory)
+cd <where you have checked out Raphtory>
+make python-build
+```
 
 
-Raphtory is an open-source platform for distributed real-time temporal graph analytics, 
-allowing you to load and process large dynamic datsets across time. If you would like a 
-brief summary of what its used for before fully diving into the getting started guide please 
-check out [this](https://www.turing.ac.uk/blog/just-add-time-dizzying-potential-dynamic-graphs) 
-article from the Alan Turing Institute first!
+### Run the PyRaphtory class
 
-## Docs
+1. start pulsar and proxy `make local-pulsar`
+2. (in a different shell) run pyraphtory
 
-The documentation for this specific library can 
-be found [here](https://raphtory.readthedocs.io/en/development/PythonClient/RaphtoryClient.html) 
+```bash
+curl -o /tmp/lotr.csv https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv
+# using make
+make INPUT=/tmp/lotr.csv PYFILE=python/pyraphtory/sample.py BUILDER=LotrGraphBuilder pyraphtory-local
+# or directly in bash
+java -cp core/target/scala-2.13/*.jar com.raphtory.python.PyRaphtory --file=$(INPUT) --py=$(PYFILE) --builder=$(BUILDER) --mode=$(MODE)
+```
 
-An example jupyter notebook for this client can be found [here](https://raphtory.readthedocs.io/en/master/PythonClient/tutorial_py_raphtory.html)
+## Connect to a running cluster (advanced)
 
-A tutorial demonstration how to use this with an example LOTR dataset raphtory/examples/raphtory-example-lotr can be found [here](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-lotr)
+1. Follow the `Prelude` and `Setup a python virtual environment with dependencies` from the `Running the PyRaphtory sample locally` guide.
+2. Open the Makefile and inspect the `run-local-cluster` step, ensure the data is available for the spout and the python file is available for the builder
+3. Open the `bin/docker/raphtory/docker-compose.yml` file and edit `RAPHTORY_SPOUT_FILE`, `PYRAPHTORY_GB_FILE`, `PYRAPHTORY_GB_CLASS` environment variables
+4. run
 
+```bash
+java -cp core/target/scala-2.13/*.jar com.raphtory.python.PyRaphtory \
+  --py python/pyraphtory/sample.py \
+  --connect="raphtory.pulsar.admin.address=http://localhost:8080,raphtory.pulsar.broker.address=pulsar://127.0.0.1:6650,raphtory.zookeeper.address=127.0.0.1:2181"
+```

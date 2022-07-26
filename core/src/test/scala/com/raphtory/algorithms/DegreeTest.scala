@@ -25,6 +25,6 @@ class DegreeTest extends BaseCorrectnessTest(startGraph = true) {
   }
 
   test("unweighted Degree") {
-    correctnessTest(TestQuery(Degree, 6), "Degree/unweightedResult.csv")
+    correctnessTest(TestQuery(Degree(), 6), "Degree/unweightedResult.csv")
   }
 }

@@ -65,7 +65,7 @@ lazy val core = (project in file("core"))
   .settings(
           name := "core",
           assembly / test := {},
-          scalafmtOnCompile := true,
+          scalafmtOnCompile := false,
           Compile / doc / scalacOptions := Seq(
                   "-skip-packages",
                   "com.raphtory.algorithms.generic:com.raphtory.algorithms.temporal:com.raphtory.algorithms.filters",

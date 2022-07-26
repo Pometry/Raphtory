@@ -32,7 +32,7 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
   * [](com.raphtory.algorithms.generic.centrality.WeightedDegree)
   * ```
   */
-object Degree extends NodeList(Seq("inDegree", "outDegree", "degree")) {
+class Degree extends NodeList(Seq("inDegree", "outDegree", "degree")) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph.step { vertex =>
@@ -40,4 +40,9 @@ object Degree extends NodeList(Seq("inDegree", "outDegree", "degree")) {
       vertex.setState("outDegree", vertex.outDegree)
       vertex.setState("degree", vertex.degree)
     }
+}
+
+// THIS IS USED FOR PYTHON
+object Degree {
+  def apply() = new Degree()
 }

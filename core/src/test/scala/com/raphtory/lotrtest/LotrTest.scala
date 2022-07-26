@@ -46,7 +46,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Degree Test") {
     algorithmTest(
-            algorithm = Degree,
+            algorithm = Degree(),
             start = 1,
             end = 32674,
             increment = 10000,
@@ -144,7 +144,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Chain Test") {
     algorithmTest(
-            algorithm = LocalTriangleCount -> ConnectedComponents(),
+            algorithm = LocalTriangleCount() -> ConnectedComponents(),
             start = 1,
             end = 32674,
             increment = 10000,
@@ -164,7 +164,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Temporal Triangle Count") {
     algorithmTest(
-            algorithm = LocalTriangleCount,
+            algorithm = LocalTriangleCount(),
             start = 1,
             end = 32674,
             increment = 10000,
