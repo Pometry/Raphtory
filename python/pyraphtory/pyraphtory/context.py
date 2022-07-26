@@ -133,13 +133,13 @@ class PyRaphtory(object):
     def degree(self):
         return self.j_gateway.entry_point.degree()
 
-    def localTriangleCount(self):
+    def local_triangle_count(self):
         return self.j_gateway.entry_point.localTriangleCount()
 
-    def pageRank(self):
+    def page_rank(self):
         return self.j_gateway.entry_point.pageRank()
 
-    def twoHopsPath(self, seeds: set[str]):
+    def two_hops_path(self, seeds: set[str]):
         return self.j_gateway.entry_point.twoHopPaths(seeds)
 
     def file_sink(self, path: Path):
