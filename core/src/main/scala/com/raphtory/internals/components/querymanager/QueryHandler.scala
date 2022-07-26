@@ -39,6 +39,7 @@ private[raphtory] class QueryHandler(
     pyScript: Option[String]
 ) extends Component[QueryManagement](conf) {
 
+  private val startTime      = System.currentTimeMillis()
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val self           = topics.rechecks(jobID).endPoint
   private val readers        = topics.queryPrep.endPoint
@@ -46,14 +47,6 @@ private[raphtory] class QueryHandler(
   private val workerList     = topics.jobOperations(jobID).endPoint
 
   private lazy val py = UnsafeEmbeddedPythonProxy(pyScript)
-
-  override def stop(): Unit = {
-    listener.close()
-    self.close()
-    readers.close()
-    tracker.close()
-    workerList.close()
-  }
 
   private val listener =
     topics.registerListener(
@@ -82,6 +75,16 @@ private[raphtory] class QueryHandler(
   private var timeTaken                  = System.currentTimeMillis()
 
   private var currentState: Stage = SpawnExecutors
+
+  logger.debug(s"Spawned QueryHandler for $jobID in ${System.currentTimeMillis() - startTime}ms")
+
+  override def stop(): Unit = {
+    listener.close()
+    self.close()
+    readers.close()
+    tracker.close()
+    workerList.close()
+  }
 
   private def recheckTimer(): Unit         = self sendAsync RecheckTime
   private def recheckEarliestTimer(): Unit = self sendAsync RecheckEarliestTime
