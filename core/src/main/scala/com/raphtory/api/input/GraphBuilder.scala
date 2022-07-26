@@ -160,17 +160,19 @@ trait GraphBuilder[T] extends Serializable {
     *
     * @param updateTime timestamp for vertex update
     * @param srcId      ID of vertex to add/update
-    * @param properties vertex properties for the update (see [[com.raphtory.api.input.Properties Properties]] for the
+    * @param properties Optionally specify vertex properties for the update (see [[com.raphtory.api.input.Properties Properties]] for the
     *                   available property types)
-    * @param vertexType specify a [[Type Type]] for the vertex
+    * @param vertexType Optionally specify a [[Type Type]] for the vertex
+    * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
     */
   protected def addVertex(
       updateTime: Long,
       srcId: Long,
-      properties: Properties,
-      vertexType: Type
+      properties: Properties = Properties(),
+      vertexType: MaybeType = NoType,
+      secondaryIndex: Long = index
   ): Unit = {
-    val update = VertexAdd(updateTime, index, srcId, properties, Some(vertexType))
+    val update = VertexAdd(updateTime, secondaryIndex, srcId, properties, vertexType.toOption)
     handleGraphUpdate(update)
     updateVertexAddStats()
   }
@@ -178,9 +180,10 @@ trait GraphBuilder[T] extends Serializable {
   /** Marks a vertex as deleted
     * @param updateTime time of deletion (a vertex is considered as no longer present in the graph after this time)
     * @param srcId Id of vertex to delete
+    * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
     */
-  protected def deleteVertex(updateTime: Long, srcId: Long): Unit = {
-    handleGraphUpdate(VertexDelete(updateTime, index, srcId))
+  protected def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long = index): Unit = {
+    handleGraphUpdate(VertexDelete(updateTime, secondaryIndex, srcId))
     ComponentTelemetryHandler.vertexDeleteCounter.labels(deploymentID).inc()
   }
 
@@ -206,6 +209,7 @@ trait GraphBuilder[T] extends Serializable {
     * @param properties edge properties for the update (see [[com.raphtory.api.input.Properties Properties]] for the
     *                   available property types)
     * @param edgeType   specify a [[Type Type]] for the edge
+    * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
     */
   protected def addEdge(
       updateTime: Long,
@@ -244,10 +248,11 @@ trait GraphBuilder[T] extends Serializable {
       updateTime: Long,
       srcId: Long,
       dstId: Long,
-      properties: Properties,
-      edgeType: Type
+      properties: Properties = Properties(),
+      edgeType: MaybeType = NoType,
+      secondaryIndex: Long = index
   ): Unit = {
-    val update = EdgeAdd(updateTime, index, srcId, dstId, properties, Some(edgeType))
+    val update = EdgeAdd(updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption)
     handleEdgeAdd(update)
     updateEdgeAddStats()
   }
@@ -256,8 +261,9 @@ trait GraphBuilder[T] extends Serializable {
     * @param updateTime time of deletion (the edge is considered as no longer present in the graph after this time)
     * @param srcId ID of source vertex of the edge
     * @param dstId ID of the destination vertex of the edge
+    * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
     */
-  protected def deleteEdge(updateTime: Long, srcId: Long, dstId: Long): Unit = {
+  protected def deleteEdge(updateTime: Long, srcId: Long, dstId: Long, secondaryIndex: Long = index): Unit = {
     handleGraphUpdate(EdgeDelete(updateTime, index, srcId, dstId))
     ComponentTelemetryHandler.edgeDeleteCounter.labels(deploymentID).inc()
   }
