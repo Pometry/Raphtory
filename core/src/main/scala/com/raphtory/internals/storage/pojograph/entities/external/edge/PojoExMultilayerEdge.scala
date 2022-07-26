@@ -2,6 +2,7 @@ package com.raphtory.internals.storage.pojograph.entities.external.edge
 
 import com.raphtory.api.analysis.visitor.EntityVisitor
 import com.raphtory.api.analysis.visitor.HistoricEvent
+import com.raphtory.api.analysis.visitor.PropertyValue
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 
 private[pojograph] class PojoExMultilayerEdge(
@@ -34,7 +35,7 @@ private[pojograph] class PojoExMultilayerEdge(
       key: String,
       after: Long,
       before: Long = timestamp
-  ): Option[List[(Long, T)]] = edge.getPropertyHistory[T](key, after, before)
+  ): Option[Iterable[PropertyValue[T]]] = edge.getPropertyHistory[T](key, after, before)
 
   override def history(): List[HistoricEvent] = edge.history()
 

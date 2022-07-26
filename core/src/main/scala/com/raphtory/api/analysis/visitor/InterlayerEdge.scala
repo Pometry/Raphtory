@@ -28,22 +28,22 @@ case class InterlayerEdge(
       key: String,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
-  ): Option[List[(Long, T)]] =
+  ): Option[List[PropertyValue[T]]] =
     properties.get(key) match {
       case None        => None
       case Some(value) =>
         val actualTime = Seq(srcTime, dstTime, after).min
         if (actualTime > before)
-          Some(List.empty[(Long, T)])
+          Some(List.empty)
         else
-          Some(List[(Long, T)]((actualTime, value.asInstanceOf[T])))
+          Some(List(PropertyValue(actualTime, 0, value.asInstanceOf[T])))
     }
 
   override def latestActivity(): HistoricEvent =
-    HistoricEvent(math.max(srcTime, dstTime), event = false)
+    HistoricEvent(time = math.max(srcTime, dstTime), index = 0L, event = false)
 
   override def earliestActivity(): HistoricEvent =
-    HistoricEvent(math.min(srcTime, dstTime), event = true)
+    HistoricEvent(math.min(srcTime, dstTime), 0L, event = true)
 
   override def getPropertyAt[T](key: String, time: Long): Option[T] =
     if (time < math.min(srcTime, dstTime) || time > math.max(srcTime, dstTime))

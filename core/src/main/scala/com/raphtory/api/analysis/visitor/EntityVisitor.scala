@@ -132,7 +132,9 @@ abstract class EntityVisitor {
     *
     * @param time Timestamp for property lookup
     */
-  def getPropertyAt[T](key: String, time: Long): Option[T]
+  //TODO: Add customised merge strategies and figure out how this should work
+  def getPropertyAt[T](key: String, time: Long): Option[T] =
+    getPropertyHistory[T](key, time, time).map(h => PropertyMergeStrategy.latest[T](h))
 
   /** Return values for a property `key`. Returns `None` if no property with name `key` exists.
     * Otherwise returns a list of values (which may be empty).
@@ -150,12 +152,10 @@ abstract class EntityVisitor {
       key: String,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
-  ): Option[List[T]] =
+  ): Option[Iterable[T]] =
     getPropertyHistory[T](key, after, before) match {
       case Some(history) =>
-        Some(history.map({
-          case (timestamp, value) => value
-        }))
+        Some(PropertyMergeStrategy.sequence(history))
       case None          => None
     }
 
@@ -186,7 +186,7 @@ abstract class EntityVisitor {
       key: String,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
-  ): Option[List[(Long, T)]]
+  ): Option[Iterable[PropertyValue[T]]]
 
   /** Return values for the property `key`. Returns `None` if no property with name `key` exists.
     * Otherwise returns a TimeSeries (from this library: https://github.com/Sqooba/scala-timeseries-lib)
@@ -212,10 +212,10 @@ abstract class EntityVisitor {
             .sliding(2)
             .withPartial(false)
             .map {
-              case List((timestamp1, value1), (timestamp2, value2)) =>
-                TSEntry[T](timestamp1, value1, timestamp2 - timestamp1)
+              case List(propertyValue1, propertyValue2) =>
+                TSEntry[T](propertyValue1.time, propertyValue1.value, propertyValue2.time - propertyValue1.time)
             }
-            .++(Seq(TSEntry[T](timestampList.last._1, timestampList.last._2, before)))
+            .++(Seq(TSEntry[T](timestampList.last.time, timestampList.last.value, before)))
             .toSeq
         }
       else EmptyTimeSeries
@@ -272,4 +272,20 @@ abstract class EntityVisitor {
   *
   * @see [[EntityVisitor]], [[Vertex]], [[Edge]]
   */
-case class HistoricEvent(time: Long, event: Boolean)
+case class HistoricEvent(time: Long, index: Long, event: Boolean = true)
+
+object HistoricEvent {
+  implicit val ordering: Ordering[HistoricEvent] = Ordering.by(event => (event.time, event.index))
+}
+
+/** Case class for encoding property value updates
+  *
+  * @param time Timestamp of update
+  * @param index Index of update
+  * @param value new property value
+  */
+case class PropertyValue[A](time: Long, index: Long, value: A = null)
+
+object PropertyValue {
+  implicit def ordering[T]: Ordering[PropertyValue[T]] = Ordering.by(v => (v.time, v.index))
+}

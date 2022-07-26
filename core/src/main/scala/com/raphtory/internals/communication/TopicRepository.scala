@@ -40,8 +40,8 @@ private[raphtory] class TopicRepository(
   private val numPartitions: Int       = partitionServers * partitionsPerServer
 
   // Global topics
-  final def spout[T]: WorkPullTopic[T] =
-    WorkPullTopic[T](spoutConnector, "spout", customAddress = spoutAddress)
+  final def spout[T]: WorkPullTopic[(T, Long)] =
+    WorkPullTopic[(T, Long)](spoutConnector, "spout", customAddress = spoutAddress)
 
   final def graphUpdates: ShardingTopic[GraphUpdate] =
     ShardingTopic[GraphUpdate](numPartitions, graphUpdatesConnector, s"graph.updates", depId)

@@ -1,25 +1,30 @@
 package com.raphtory.internals.storage.pojograph.entities.internal
 
-private[raphtory] class ImmutableProperty(creationTime: Long, value: Any) extends Property {
-  private var earliestTime: Long                = creationTime
-  override def valueAt(time: Long): Option[Any] = if (time >= earliestTime) Some(value) else None
+import com.raphtory.api.analysis.visitor.PropertyValue
+
+import math.Ordering.Implicits._
+
+private[raphtory] class ImmutableProperty(creationTime: Long, index: Long, value: Any) extends Property {
+  private var propertyValue: PropertyValue[Any]   = PropertyValue(creationTime, index, value)
+  override def valueAt(time: Long): Iterable[Any] = if (time >= propertyValue.time) Some(propertyValue.value) else None
 
   override def valueHistory(
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
-  ): Array[(Long, Any)] =
-    if (earliestTime > before)
-      Array.empty[(Long, Any)]
-    else if (after > earliestTime)
-      Array[(Long, Any)]((after, value))
+  ): Iterable[PropertyValue[Any]] =
+    if (propertyValue.time > before)
+      Array.empty[PropertyValue[Any]]
+    else if (after > propertyValue.time)
+      Array(propertyValue.copy(time = after, index = 0))
     else
-      Array[(Long, Any)]((earliestTime, value))
+      Array(propertyValue)
 
-  override def update(msgTime: Long, newValue: Any): Unit =
-    if (msgTime <= earliestTime) earliestTime = msgTime
-  override def currentValue(): Any                        = value
-  override def creation(): Long                           = earliestTime
+  override def update(msgTime: Long, index: Long, newValue: Any): Unit =
+    propertyValue = propertyValue.min(PropertyValue(msgTime, index, newValue))
 
-  override def values(): Array[(Long, Any)] = Array[(Long, Any)]((creationTime, value))
+  override def currentValue: Any = propertyValue.value
+  override def creation: Long    = propertyValue.time
+
+  override def values: Iterable[PropertyValue[Any]] = Array(propertyValue)
 
 }

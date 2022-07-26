@@ -12,14 +12,6 @@ import scala.math.Ordering.Implicits.infixOrderingOps
 private[raphtory] object OrderedBuffer {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  implicit object TupleByFirstOrdering extends Ordering[(Long, Any)] {
-    def compare(a: (Long, Any), b: (Long, Any)): Int = a._1 compare b._1
-  }
-
-  implicit object HistoricEventOrdering extends Ordering[HistoricEvent] {
-    def compare(a: HistoricEvent, b: HistoricEvent): Int = a.time compare b.time
-  }
-
   implicit class OrderedAppend[T: Ordering](buffer: mutable.Buffer[T]) {
 
     def sortedAppend(element: T): Unit =

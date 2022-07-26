@@ -3,6 +3,7 @@ package com.raphtory.internals.management.python
 import scala.collection.mutable
 import cats.Id
 import com.raphtory.api.input.GraphBuilder
+import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.components.partition.BatchWriter
 import com.raphtory.internals.graph.GraphAlteration.EdgeAdd
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
@@ -28,7 +29,7 @@ class UnsafeGraphBuilder[T](val ref: PyRef, py: EmbeddedPython[Id])(implicit PE:
     py.invoke(ref, "reset_actions", Vector.empty)
     actions.collect {
       case m: VertexAdd =>
-        handleVertexAdd(m)
+        handleGraphUpdate(m)
         updateVertexAddStats()
       case m: EdgeAdd   =>
         handleEdgeAdd(m)
@@ -62,9 +63,14 @@ case class PythonGraphBuilder[T](pyScript: String, pyClass: String)(implicit PE:
 
   override private[raphtory] def setupBatchIngestion(
       IDs: mutable.Set[Int],
-      writers: mutable.Map[Int, BatchWriter[T]],
+      batchWriters: collection.Map[Int, BatchWriter[T]],
       partitions: Int
-  ): Unit = proxy.setupBatchIngestion(IDs, writers, partitions)
+  ): Unit = proxy.setupBatchIngestion(IDs, batchWriters, partitions)
 
-  override private[raphtory] def getUpdates(tuple: T)(failOnError: Boolean) = proxy.getUpdates(tuple)(failOnError)
+  override private[raphtory] def setupStreamIngestion(
+      streamWriters: collection.Map[Int, EndPoint[GraphUpdate]]
+  ): Unit = proxy.setupStreamIngestion(streamWriters)
+
+  override private[raphtory] def sendUpdates(tuple: T, tupleIndex: Long)(failOnError: Boolean): Unit =
+    proxy.sendUpdates(tuple, tupleIndex)(failOnError)
 }

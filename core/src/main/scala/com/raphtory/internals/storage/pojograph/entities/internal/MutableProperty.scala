@@ -1,52 +1,51 @@
 package com.raphtory.internals.storage.pojograph.entities.internal
 
+import com.raphtory.api.analysis.visitor.PropertyValue
 import com.raphtory.internals.storage.pojograph.OrderedBuffer._
 
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
 import scala.collection.mutable
+import scala.math.Ordering.Implicits.infixOrderingOps
 
 /**
   * @param creationTime
   * @param value         Property value
   */
-private[raphtory] class MutableProperty(creationTime: Long, value: Any) extends Property {
-  private var previousState: mutable.ArrayBuffer[(Long, Any)] = mutable.ArrayBuffer()
-  // add in the initial information
-  update(creationTime, value)
+private[raphtory] class MutableProperty(creationTime: Long, index: Long, value: Any) extends Property {
 
-  private var earliest: Long    = creationTime
-  private var earliestval: Any  = value
-  override def creation(): Long = earliest
+  private val previousState: mutable.ArrayBuffer[PropertyValue[Any]] =
+    mutable.ArrayBuffer(PropertyValue(creationTime, index, value))
 
-  def update(msgTime: Long, newValue: Any): Unit = {
-    if (msgTime < earliest) {
-      earliest = msgTime
-      earliestval = newValue
-    }
-    previousState.sortedAppend(msgTime, newValue)
+  private def earliest: PropertyValue[Any] = previousState.head
+  override def creation: Long              = earliest.time
+
+  def update(msgTime: Long, index: Long, value: Any): Unit = {
+    val newValue = PropertyValue(msgTime, index, value)
+    previousState.sortedAppend(newValue)
   }
 
-  def valueAt(time: Long): Option[Any] =
-    if (time < earliest)
-      None
+  def valueAt(time: Long): collection.Iterable[Any] =
+    if (time < earliest.time)
+      Seq.empty
     else {
-      val index = previousState.search((time, None))(TupleByFirstOrdering)
-      index match {
-        case Found(i)          => Some(previousState(i)._2)
-        case InsertionPoint(i) => Some(previousState(i - 1)._2)
+      val start = previousState.search(PropertyValue[Any](time, Long.MinValue)).insertionPoint
+      val end   = previousState.search(PropertyValue[Any](time, Long.MaxValue), start, previousState.size) match {
+        case Found(i)          => i + 1
+        case InsertionPoint(i) => i
       }
+      previousState.slice(start, end).map(_.value)
     }
 
   override def valueHistory(
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
-  ): Array[(Long, Any)] =
-    previousState.filter(x => (x._1 >= after) && (x._1 <= before)).toArray
+  ): Iterable[PropertyValue[Any]] =
+    previousState.filter(x => (x.time >= after) && (x.time <= before))
 
-  def currentValue(): Any = previousState.head._2
-  def currentTime(): Long = previousState.head._1
+  def currentValue: Any = previousState.head.value
+  def currentTime: Long = previousState.head.time
 
-  override def values(): Array[(Long, Any)] = previousState.toArray
+  override def values: Iterable[PropertyValue[Any]] = previousState
 
 }

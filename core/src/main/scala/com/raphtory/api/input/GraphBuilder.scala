@@ -1,6 +1,8 @@
 package com.raphtory.api.input
 
+import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.components.partition.BatchWriter
+import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.management.telemetry.ComponentTelemetryHandler
 import com.typesafe.scalalogging.Logger
@@ -41,14 +43,14 @@ import scala.collection.mutable.ArrayBuffer
 trait GraphBuilder[T] extends Serializable {
 
   /** Logger instance for writing out log messages */
-  val logger: Logger                                         = Logger(LoggerFactory.getLogger(this.getClass))
-  private var updates: ArrayBuffer[GraphUpdate]              = ArrayBuffer()
-  private var partitionIDs: mutable.Set[Int]                 = _
-  private var batchWriters: mutable.Map[Int, BatchWriter[T]] = _
-  private var builderID: Int                                 = _
-  private var deploymentID: String                           = _
-  private var batching: Boolean                              = false
-  private var totalPartitions: Int                           = 1
+  val logger: Logger                                              = Logger(LoggerFactory.getLogger(this.getClass))
+  private var index: Long                                         = -1L
+  private var partitionIDs: collection.Set[Int]                   = _
+  private var writers: collection.Map[Int, EndPoint[GraphUpdate]] = _
+  private var builderID: Int                                      = _
+  private var deploymentID: String                                = _
+  private var batching: Boolean                                   = false
+  private var totalPartitions: Int                                = 1
 
   /** Processes raw data message `tuple` from the spout to extract source node, destination node,
     * timestamp info, etc.
@@ -71,9 +73,10 @@ trait GraphBuilder[T] extends Serializable {
   def assignID(uniqueChars: String): Long = GraphBuilder.assignID(uniqueChars)
 
   /** Parses `tuple` and fetches list of updates for the graph This is used internally to retrieve updates. */
-  private[raphtory] def getUpdates(tuple: T)(failOnError: Boolean = true): List[GraphUpdate] = {
+  private[raphtory] def sendUpdates(tuple: T, tupleIndex: Long)(failOnError: Boolean = true): Unit =
     try {
-      logger.trace(s"Parsing tuple: $tuple")
+      logger.trace(s"Parsing tuple: $tuple with index $tupleIndex")
+      index = tupleIndex
       parseTuple(tuple)
     }
     catch {
@@ -86,12 +89,6 @@ trait GraphBuilder[T] extends Serializable {
         }
     }
 
-    val toReturn = updates
-    updates = ArrayBuffer()
-
-    toReturn.toList
-  }
-
   private[raphtory] def setBuilderMetaData(
       builderID: Int,
       deploymentID: String
@@ -102,13 +99,22 @@ trait GraphBuilder[T] extends Serializable {
 
   private[raphtory] def setupBatchIngestion(
       IDs: mutable.Set[Int],
-      writers: mutable.Map[Int, BatchWriter[T]],
+      batchWriters: collection.Map[Int, BatchWriter[T]],
       partitions: Int
   ) = {
     partitionIDs = IDs
-    batchWriters = writers
+    writers = batchWriters
     batching = true
     totalPartitions = partitions
+  }
+
+  private[raphtory] def setupStreamIngestion(
+      streamWriters: collection.Map[Int, EndPoint[GraphUpdate]]
+  ) = {
+    writers = streamWriters
+    partitionIDs = writers.keySet
+    batching = false
+    totalPartitions = writers.size
   }
 
   /** Adds a new vertex to the graph or updates an existing vertex
@@ -117,8 +123,8 @@ trait GraphBuilder[T] extends Serializable {
     * @param srcId ID of vertex to add/update
     */
   protected def addVertex(updateTime: Long, srcId: Long): Unit = {
-    val update = VertexAdd(updateTime, srcId, Properties(), None)
-    handleVertexAdd(update)
+    val update = VertexAdd(updateTime, index, srcId, Properties(), None)
+    handleGraphUpdate(update)
     updateVertexAddStats()
   }
 
@@ -133,8 +139,8 @@ trait GraphBuilder[T] extends Serializable {
     *                   available property types)
     */
   protected def addVertex(updateTime: Long, srcId: Long, properties: Properties): Unit = {
-    val update = VertexAdd(updateTime, srcId, properties, None)
-    handleVertexAdd(update)
+    val update = VertexAdd(updateTime, index, srcId, properties, None)
+    handleGraphUpdate(update)
     updateVertexAddStats()
   }
 
@@ -145,8 +151,8 @@ trait GraphBuilder[T] extends Serializable {
     * @param vertexType specify a [[Type Type]] for the vertex
     */
   protected def addVertex(updateTime: Long, srcId: Long, vertexType: Type): Unit = {
-    val update = VertexAdd(updateTime, srcId, Properties(), Some(vertexType))
-    handleVertexAdd(update)
+    val update = VertexAdd(updateTime, index, srcId, Properties(), Some(vertexType))
+    handleGraphUpdate(update)
     updateVertexAddStats()
   }
 
@@ -164,8 +170,8 @@ trait GraphBuilder[T] extends Serializable {
       properties: Properties,
       vertexType: Type
   ): Unit = {
-    val update = VertexAdd(updateTime, srcId, properties, Some(vertexType))
-    handleVertexAdd(update)
+    val update = VertexAdd(updateTime, index, srcId, properties, Some(vertexType))
+    handleGraphUpdate(update)
     updateVertexAddStats()
   }
 
@@ -174,7 +180,7 @@ trait GraphBuilder[T] extends Serializable {
     * @param srcId Id of vertex to delete
     */
   protected def deleteVertex(updateTime: Long, srcId: Long): Unit = {
-    updates += VertexDelete(updateTime, srcId)
+    handleGraphUpdate(VertexDelete(updateTime, index, srcId))
     ComponentTelemetryHandler.vertexDeleteCounter.labels(deploymentID).inc()
   }
 
@@ -184,7 +190,7 @@ trait GraphBuilder[T] extends Serializable {
     * @param dstId ID of destination vertex of the edge
     */
   protected def addEdge(updateTime: Long, srcId: Long, dstId: Long): Unit = {
-    val update = EdgeAdd(updateTime, srcId, dstId, Properties(), None)
+    val update = EdgeAdd(updateTime, index, srcId, dstId, Properties(), None)
     handleEdgeAdd(update)
     updateEdgeAddStats()
   }
@@ -207,7 +213,7 @@ trait GraphBuilder[T] extends Serializable {
       dstId: Long,
       properties: Properties
   ): Unit = {
-    val update = EdgeAdd(updateTime, srcId, dstId, properties, None)
+    val update = EdgeAdd(updateTime, index, srcId, dstId, properties, None)
     handleEdgeAdd(update)
     updateEdgeAddStats()
   }
@@ -220,7 +226,7 @@ trait GraphBuilder[T] extends Serializable {
     * @param edgeType   specify a [[Type Type]] for the edge
     */
   protected def addEdge(updateTime: Long, srcId: Long, dstId: Long, edgeType: Type): Unit = {
-    val update = EdgeAdd(updateTime, srcId, dstId, Properties(), Some(edgeType))
+    val update = EdgeAdd(updateTime, index, srcId, dstId, Properties(), Some(edgeType))
     handleEdgeAdd(update)
     updateEdgeAddStats()
   }
@@ -241,7 +247,7 @@ trait GraphBuilder[T] extends Serializable {
       properties: Properties,
       edgeType: Type
   ): Unit = {
-    val update = EdgeAdd(updateTime, srcId, dstId, properties, Some(edgeType))
+    val update = EdgeAdd(updateTime, index, srcId, dstId, properties, Some(edgeType))
     handleEdgeAdd(update)
     updateEdgeAddStats()
   }
@@ -252,31 +258,29 @@ trait GraphBuilder[T] extends Serializable {
     * @param dstId ID of the destination vertex of the edge
     */
   protected def deleteEdge(updateTime: Long, srcId: Long, dstId: Long): Unit = {
-    updates += EdgeDelete(updateTime, srcId, dstId)
+    handleGraphUpdate(EdgeDelete(updateTime, index, srcId, dstId))
     ComponentTelemetryHandler.edgeDeleteCounter.labels(deploymentID).inc()
   }
 
-  protected def handleVertexAdd(update: VertexAdd): Any =
-    if (batching) {
-      val partitionForTuple = checkPartition(update.srcId)
-      if (partitionIDs contains partitionForTuple)
-        batchWriters(partitionForTuple).handleMessage(update)
-    }
-    else
-      updates += update
+  protected def handleGraphUpdate(update: GraphUpdate): Any = {
+    val partitionForTuple = checkPartition(update.srcId)
+    if (partitionIDs contains partitionForTuple)
+      writers(partitionForTuple).sendAsync(update)
+  }
 
-  protected def handleEdgeAdd(update: EdgeAdd): Any =
+  protected def handleEdgeAdd(update: EdgeAdd): Any = {
+    val partitionForSrc = checkPartition(update.srcId)
+    if (partitionIDs contains partitionForSrc)
+      writers(partitionForSrc).sendAsync(update)
     if (batching) {
-      val partitionForSrc = checkPartition(update.srcId)
       val partitionForDst = checkPartition(update.dstId)
-      if (partitionIDs contains partitionForSrc)
-        batchWriters(partitionForSrc).handleMessage(update)
       if (
               (partitionIDs contains partitionForDst) && (partitionForDst != partitionForSrc)
       ) //TODO doesn't see to currently work
-        batchWriters(partitionForDst).handleMessage(
+        writers(partitionForDst).sendAsync(
                 BatchAddRemoteEdge(
                         update.updateTime,
+                        index,
                         update.srcId,
                         update.dstId,
                         update.properties,
@@ -284,8 +288,7 @@ trait GraphBuilder[T] extends Serializable {
                 )
         )
     }
-    else
-      updates += update
+  }
 
   private def checkPartition(id: Long): Int =
     (id.abs % totalPartitions).toInt

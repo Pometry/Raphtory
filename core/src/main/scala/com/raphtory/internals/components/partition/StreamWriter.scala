@@ -93,7 +93,7 @@ private[raphtory] class StreamWriter(
   def processVertexAdd(update: VertexAdd): Unit = {
     logger.trace(s"Partition $partitionID: Received VertexAdd message '$update'.")
 
-    storage.addVertex(update.updateTime, update.srcId, update.properties, update.vType)
+    storage.addVertex(update.updateTime, update.index, update.srcId, update.properties, update.vType)
     storage.timings(update.updateTime)
     telemetry.vertexAddCollector
       .labels(partitionID.toString, deploymentID)
@@ -107,6 +107,7 @@ private[raphtory] class StreamWriter(
     storage.timings(update.updateTime)
     storage.addEdge(
             update.updateTime,
+            update.index,
             update.srcId,
             update.dstId,
             update.properties,
@@ -114,7 +115,7 @@ private[raphtory] class StreamWriter(
     ) match {
       case Some(value) =>
         neighbours(getWriter(value.updateId)) sendAsync value
-        storage.watermarker.trackEdgeAddition(update.updateTime, update.srcId, update.dstId)
+        storage.watermarker.trackEdgeAddition(update.updateTime, update.index, update.srcId, update.dstId)
       case None        => //Edge is local
     }
     telemetry.streamWriterEdgeAdditionsCollector.labels(partitionID.toString, deploymentID).inc()
@@ -124,10 +125,10 @@ private[raphtory] class StreamWriter(
     logger.trace(s"Partition $partitionID: Received EdgeDelete message '$update'.")
 
     storage.timings(update.updateTime)
-    storage.removeEdge(update.updateTime, update.srcId, update.dstId) match {
+    storage.removeEdge(update.updateTime, update.index, update.srcId, update.dstId) match {
       case Some(value) =>
         neighbours(getWriter(value.updateId)) sendAsync value
-        storage.watermarker.trackEdgeDeletion(update.updateTime, update.srcId, update.dstId)
+        storage.watermarker.trackEdgeDeletion(update.updateTime, update.index, update.srcId, update.dstId)
       case None        => //Edge is local
     }
     telemetry.streamWriterEdgeDeletionsCollector.labels(partitionID.toString, deploymentID).inc()
@@ -136,10 +137,10 @@ private[raphtory] class StreamWriter(
   def processVertexDelete(update: VertexDelete): Unit = {
     logger.trace(s"Partition $partitionID: Received VertexDelete message '$update'.")
 
-    val edgeRemovals = storage.removeVertex(update.updateTime, update.srcId)
+    val edgeRemovals = storage.removeVertex(update.updateTime, update.index, update.srcId)
     if (edgeRemovals.nonEmpty) {
       edgeRemovals.foreach(effect => neighbours(getWriter(effect.updateId)) sendAsync effect)
-      storage.watermarker.trackVertexDeletion(update.updateTime, update.srcId, edgeRemovals.size)
+      storage.watermarker.trackVertexDeletion(update.updateTime, update.index, update.srcId, edgeRemovals.size)
     }
     telemetry.streamWriterVertexDeletionsCollector
       .labels(partitionID.toString, deploymentID)
@@ -150,9 +151,9 @@ private[raphtory] class StreamWriter(
   def processSyncNewEdgeAdd(req: SyncNewEdgeAdd): Unit = {
     logger.trace("A writer has requested a new edge sync for a destination node in this worker.")
 
-    storage.timings(req.msgTime)
+    storage.timings(req.updateTime)
     val effect = storage
-      .syncNewEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties, req.removals, req.vType)
+      .syncNewEdgeAdd(req.updateTime, req.index, req.srcId, req.dstId, req.properties, req.removals, req.vType)
     neighbours(getWriter(effect.updateId)) sendAsync effect
     telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
@@ -162,8 +163,8 @@ private[raphtory] class StreamWriter(
             s"Partition '$partitionID': A writer has requested an existing edge sync for a destination node on in this worker."
     )
 
-    storage.timings(req.msgTime)
-    val effect = storage.syncExistingEdgeAdd(req.msgTime, req.srcId, req.dstId, req.properties)
+    storage.timings(req.updateTime)
+    val effect = storage.syncExistingEdgeAdd(req.updateTime, req.index, req.srcId, req.dstId, req.properties)
     neighbours(getWriter(effect.updateId)) sendAsync effect
     telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
@@ -174,8 +175,8 @@ private[raphtory] class StreamWriter(
             s"Partition '$partitionID': A remote worker is asking for a new edge to be removed for a destination node in this worker."
     )
 
-    storage.timings(req.msgTime)
-    val effect = storage.syncNewEdgeRemoval(req.msgTime, req.srcId, req.dstId, req.removals)
+    storage.timings(req.updateTime)
+    val effect = storage.syncNewEdgeRemoval(req.updateTime, req.index, req.srcId, req.dstId, req.removals)
     neighbours(getWriter(effect.updateId)) sendAsync effect
     telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
@@ -185,8 +186,8 @@ private[raphtory] class StreamWriter(
             s"Partition '$partitionID': A remote worker is asking for the deletion of an existing edge."
     )
 
-    storage.timings(req.msgTime)
-    val effect = storage.syncExistingEdgeRemoval(req.msgTime, req.srcId, req.dstId)
+    storage.timings(req.updateTime)
+    val effect = storage.syncExistingEdgeRemoval(req.updateTime, req.index, req.srcId, req.dstId)
     neighbours(getWriter(effect.updateId)) sendAsync effect
     telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
@@ -197,8 +198,8 @@ private[raphtory] class StreamWriter(
             s"Partition '$partitionID': Syncs the deletion of an edge, but for when the removal comes from a vertex."
     )
 
-    storage.timings(req.msgTime)
-    val effect = storage.outboundEdgeRemovalViaVertex(req.msgTime, req.srcId, req.dstId)
+    storage.timings(req.updateTime)
+    val effect = storage.outboundEdgeRemovalViaVertex(req.updateTime, req.index, req.srcId, req.dstId)
     neighbours(getWriter(effect.updateId)) sendAsync effect
     telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
@@ -208,7 +209,7 @@ private[raphtory] class StreamWriter(
             s"Partition '$partitionID': Syncs the deletion of an edge, but for when the removal comes to a vertex."
     )
 
-    val effect = storage.inboundEdgeRemovalViaVertex(req.msgTime, req.srcId, req.dstId)
+    val effect = storage.inboundEdgeRemovalViaVertex(req.updateTime, req.index, req.srcId, req.dstId)
     neighbours(getWriter(effect.updateId)) sendAsync effect
     telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
@@ -219,8 +220,8 @@ private[raphtory] class StreamWriter(
             s"Partition '$partitionID': The remote worker has returned all removals in the destination node -- for new edges"
     )
 
-    storage.syncExistingRemovals(req.msgTime, req.srcId, req.dstId, req.removals)
-    untrackEdgeUpdate(req.msgTime, req.srcId, req.dstId, req.fromAddition)
+    storage.syncExistingRemovals(req.updateTime, req.index, req.srcId, req.dstId, req.removals)
+    untrackEdgeUpdate(req.updateTime, req.index, req.srcId, req.dstId, req.fromAddition)
     telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
 
@@ -230,7 +231,8 @@ private[raphtory] class StreamWriter(
     )
 
     untrackEdgeUpdate(
-            req.msgTime,
+            req.updateTime,
+            req.index,
             req.srcId,
             req.dstId,
             req.fromAddition
@@ -238,18 +240,18 @@ private[raphtory] class StreamWriter(
     telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
 
-  private def untrackEdgeUpdate(msgTime: Long, srcId: Long, dstId: Long, fromAddition: Boolean) =
+  private def untrackEdgeUpdate(msgTime: Long, index: Long, srcId: Long, dstId: Long, fromAddition: Boolean) =
     if (fromAddition)
-      storage.watermarker.untrackEdgeAddition(msgTime, srcId, dstId)
+      storage.watermarker.untrackEdgeAddition(msgTime, index, srcId, dstId)
     else
-      storage.watermarker.untrackEdgeDeletion(msgTime, srcId, dstId)
+      storage.watermarker.untrackEdgeDeletion(msgTime, index, srcId, dstId)
 
   def processVertexRemoveSyncAck(req: VertexRemoveSyncAck): Unit = {
     logger.trace(
             s"Partition '$partitionID': The remote worker acknowledges the completion of vertex removal."
     )
 
-    storage.watermarker.untrackVertexDeletion(req.msgTime, req.updateId)
+    storage.watermarker.untrackVertexDeletion(req.updateTime, req.index, req.updateId)
     telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, deploymentID)
   }
 
