@@ -5,7 +5,7 @@
         <Property name="defaultInternalsLogLevel">${env:RAPHTORY_INTERNALS_LOG:-${defaultLogLevel}}</Property>
         <Property name="defaultInternalsComponentsLogLevel">${env:RAPHTORY_INTERNALS_COMPONENTS_LOG:-${defaultInternalsLogLevel}}</Property>
         <Property name="logFileName">${env:RAPHTORY_LOGFILE:-logs/app.log}</Property>
-        <Property name="logFileAppend">${env:RAPHTORY_APPEND_LOGFILE:-false}</Property>
+        <Property name="logFileAppend">${env:RAPHTORY_APPEND_LOGFILE:-true}</Property>
         <Property name="logger">${env:RAPHTORY_LOGGER:-Async}</Property>
     </Properties>
 
