@@ -403,7 +403,7 @@ private[raphtory] class QueryHandler(
     }
     else {
       logger.debug(s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$time'.")
-      scheduler.scheduleOnce(1.seconds, recheckTimer())
+      scheduler.scheduleOnce(10.milliseconds, recheckTimer())
       Stages.EstablishPerspective
     }
   }
