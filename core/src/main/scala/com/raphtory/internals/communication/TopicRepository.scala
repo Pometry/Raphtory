@@ -28,8 +28,8 @@ private[raphtory] class TopicRepository(
   protected def queryTrackConnector: Connector         = defaultControlConnector
   protected def rechecksConnector: Connector           = defaultControlConnector
   protected def jobStatusConnector: Connector          = defaultControlConnector
-  protected def vertexMessagesConnector: Connector     = defaultDataConnector
-  protected def vertexMessagesSyncConnector: Connector = defaultDataConnector
+  protected def vertexMessagesConnector: Connector     = defaultControlConnector
+  protected def vertexMessagesSyncConnector: Connector = defaultControlConnector
   def jobOperationsConnector: Connector                = defaultControlConnector // accessed within the queryHandler
 
   // Configuration

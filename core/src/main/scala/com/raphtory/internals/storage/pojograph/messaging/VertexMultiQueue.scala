@@ -4,9 +4,9 @@ import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ArrayBuffer
+import VertexMultiQueue.logger
 
 final private[raphtory] class VertexMultiQueue {
-  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val evenMessageQueue: ArrayBuffer[Any] = ArrayBuffer.empty
   private val oddMessageQueue: ArrayBuffer[Any]  = ArrayBuffer.empty
@@ -39,4 +39,8 @@ final private[raphtory] class VertexMultiQueue {
     else
       oddMessageQueue.synchronized(oddMessageQueue += data)
 
+}
+
+object VertexMultiQueue {
+  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 }
