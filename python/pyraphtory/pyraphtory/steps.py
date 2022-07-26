@@ -1,6 +1,6 @@
 from typing import Any, List
 
-from pyraphtory.vertex import Vertex, GraphState
+from pyraphtory.vertex import Vertex, GraphState, Row
 
 
 class Step(object):
@@ -46,7 +46,6 @@ class NumAdder(State):
         s.numAdder(self.name, self.initial_value, self.retain_state)
 
 
-
 class Iterate(object):
     def __init__(self, iterations: int, execute_messaged_only: bool):
         self.iterations = iterations
@@ -57,3 +56,11 @@ class Iterate(object):
 
     def eval(self, v):
         pass
+
+class Explode(object):
+    def eval_from_jvm(self, jvm_row) -> List[Any]:
+        self.eval(Row(jvm_row))
+
+    def eval(self, v):
+        pass
+

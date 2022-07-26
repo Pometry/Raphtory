@@ -2,6 +2,7 @@ package com.raphtory.examples.lotr
 
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.algorithms.generic.centrality.Degree
 import com.raphtory.algorithms.generic.motif.GlobalTriangleCount
 import com.raphtory.examples.lotr.graphbuilders.LOTRGraphBuilder
 import com.raphtory.sinks.FileSink
@@ -26,7 +27,7 @@ object TutorialRunner extends App {
   graph
     .at(32674)
     .past()
-    .execute(GlobalTriangleCount)
+    .execute(Degree)
     .writeTo(output)
     .waitForJob()
 

@@ -3,7 +3,7 @@ from typing import List
 
 import cloudpickle as pickle
 
-from pyraphtory.steps import Iterate, Step, State, StepState, GlobalSelect
+from pyraphtory.steps import Iterate, Step, State, StepState, GlobalSelect, Explode
 
 class ProgressTracker(object):
     def __init__(self, jvm_tracker):
@@ -31,14 +31,14 @@ class Table(object):
         g = self.jvm_table.writeTo(sink)
         return ProgressTracker(g)
 
-    # def explode(self, explode: Explode):
-    #     try:
-    #         explode_bytes = pickle.dumps(explode)
-    #         t = self.jvm_table.pythonExplode(explode_bytes)
-    #         return Table(t)
-    #     except Exception as e:
-    #         print(str(e))
-    #         traceback.print_exc()
+    def explode(self, explode: Explode):
+        try:
+            explode_bytes = pickle.dumps(explode)
+            t = self.jvm_table.pythonExplode(explode_bytes)
+            return Table(t)
+        except Exception as e:
+            print(str(e))
+            traceback.print_exc()
 
 
 class TemporalGraph(object):
@@ -117,14 +117,5 @@ class TemporalGraph(object):
         except Exception as e:
             print(str(e))
             traceback.print_exc()
-
-    # def explode_select(self, es: ExplodeSelect):
-    #     try:
-    #         explode_select_bytes = pickle.dumps(es)
-    #         t = self.jvm_graph.pythonExplodeSelect(explode_select_bytes)
-    #         return Table(t)
-    #     except Exception as e:
-    #         print(str(e))
-    #         traceback.print_exc()
 
 

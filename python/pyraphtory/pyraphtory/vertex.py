@@ -58,3 +58,11 @@ class GraphState(object):
     def numAdder(self, name: str, initial_value: int, retain_state: bool):
         self.jvm_global_state.numAdder(name, initial_value, retain_state)
 
+class Row(object):
+    def __init__(self, jvm_row):
+        self.jvm_row = jvm_row
+
+    def __getitem__(self, index):
+        return self.jvm_row.get(index)
+
+

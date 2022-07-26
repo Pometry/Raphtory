@@ -31,4 +31,8 @@ private[api] class TableImplementation(val query: Query, private val querySender
             query.copy(tableFunctions = query.tableFunctions.enqueue(function)),
             querySender
     )
+
+  override def pythonExplode(pyObj: Array[Byte]): Table = {
+    addFunction(PythonExplode(pyObj))
+  }
 }

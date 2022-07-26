@@ -54,10 +54,10 @@ class TwoHopPathsIterate(Iterate):
                         source = msg['source']
                         v.message_vertex(source, {'req': RESPONSE, 'first_hop': first_hop, 'second_hop': v.name()})
                     case msg if msg['req'] == RESPONSE:
-                        paths = list(v[TWO_HOP_PATHS])
+                        paths = set(v[TWO_HOP_PATHS])
                         newPath = (msg['first_hop'], msg['second_hop'])
-                        paths.append(newPath)
-                        v[TWO_HOP_PATHS] = paths
+                        paths.add(newPath)
+                        v[TWO_HOP_PATHS] = tuple(paths)
                     case _:
                         pass
 
@@ -72,6 +72,7 @@ class RaphtoryContext(BaseContext):
                 .step(TwoHopPathsStep(seeds=set(['Gandalf']))) \
                 .iterate(TwoHopPathsIterate()) \
                 .select([TWO_HOP_PATHS]) \
+                .explode() \
                 .write_to_file("/tmp/pyraphtory_twohops")
         except Exception as e:
             print(str(e))
