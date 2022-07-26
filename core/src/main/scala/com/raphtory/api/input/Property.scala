@@ -14,7 +14,17 @@ sealed trait Property {
 }
 
 /** Vertex/Edge type (this is not a `Property`) */
-case class Type(name: String)
+sealed trait MaybeType {
+  def toOption: Option[Type]
+}
+
+object NoType                 extends MaybeType {
+  override def toOption: Option[Type] = None
+}
+
+case class Type(name: String) extends MaybeType {
+  override def toOption: Option[Type] = Some(this)
+}
 
 /** `Property` with a fixed value (the value should be the same for each update to the entity) */
 case class ImmutableProperty(key: String, value: String) extends Property
