@@ -1,6 +1,8 @@
 import inspect
 import re
 import subprocess
+import json
+import pandas as pd
 from abc import abstractmethod
 from pathlib import Path
 from subprocess import PIPE, Popen
@@ -130,5 +132,31 @@ class PyRaphtory(object):
     def connected_components(self):
         return self.j_gateway.entry_point.connectedComponents()
 
+    def degree(self):
+        return self.j_gateway.entry_point.degree()
+
+    def local_triangle_count(self):
+        return self.j_gateway.entry_point.localTriangleCount()
+
+    def page_rank(self):
+        return self.j_gateway.entry_point.pageRank()
+
+    def two_hops_path(self, seeds: set[str]):
+        return self.j_gateway.entry_point.twoHopPaths(seeds)
+
     def file_sink(self, path: Path):
         return self.j_gateway.entry_point.fileSink(str(path))
+
+    def results_to_dataframe(self,res,cols):
+        newJson = []
+        for r in res:
+            jsonRow = json.loads(r)
+            row = jsonRow['row']
+            for i, item in enumerate(row):
+                if i == 0:
+                    jsonRow['name'] = row[0]
+                    continue
+                jsonRow[cols[i-1]] = row[i]
+            jsonRow.pop('row')
+            newJson.append(jsonRow)
+        return pd.DataFrame(newJson)
