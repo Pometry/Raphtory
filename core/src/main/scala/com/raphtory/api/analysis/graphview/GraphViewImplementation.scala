@@ -223,7 +223,7 @@ private[api] trait GraphViewImplementation[
     }
   }
 
-  private def pythonSelectSupport(columns: Object) = {
+  private def pythonSelectSupport(columns: Object): Table = {
     val cs   = columns match {
       case arr: Array[_]           => arr.iterator
       case list: java.util.List[_] => list.asScala.iterator

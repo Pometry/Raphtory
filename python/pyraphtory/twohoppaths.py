@@ -1,6 +1,8 @@
 import traceback
 
-from pyraphtory.steps import Vertex, Iterate, Step
+from pyraphtory.vertex import Row
+
+from pyraphtory.steps import Vertex, Iterate, Step, Explode
 from pyraphtory.builder import *
 from pyraphtory.context import BaseContext
 from pyraphtory.graph import TemporalGraph
@@ -61,19 +63,32 @@ class TwoHopPathsIterate(Iterate):
                     case _:
                         pass
 
+class TwoHopPathsExplode(Explode):
+    def eval(self, r: Row):
+        # list_of_rows = [r]
+        # for item in r[1]:
+        #     newRow = Row(r[0], item[1][0], item[1][1])
+        #     list_of_rows.append(newRow)
+        return r
+
+
 class RaphtoryContext(BaseContext):
     def __init__(self, rg: TemporalGraph, script):
         super().__init__(rg, script)
 
     def eval(self):
         try:
-            return self.rg.at(32674) \
+            select_table = self.rg.at(32674) \
                 .past() \
                 .step(TwoHopPathsStep(seeds=set(['Gandalf']))) \
                 .iterate(TwoHopPathsIterate()) \
-                .select([TWO_HOP_PATHS]) \
-                .explode() \
+                .select([TWO_HOP_PATHS])
+            return select_table \
+                .explode(TwoHopPathsExplode()) \
                 .write_to_file("/tmp/pyraphtory_twohops")
+                #
+
+
         except Exception as e:
             print(str(e))
             traceback.print_exc()

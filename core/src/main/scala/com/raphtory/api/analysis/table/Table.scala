@@ -8,7 +8,7 @@ sealed private[raphtory] trait TableFunction extends QueryManagement
 
 final private[raphtory] case class TableFilter(f: (Row) => Boolean)     extends TableFunction
 final private[raphtory] case class Explode(f: Row => IterableOnce[Row]) extends TableFunction
-final private[raphtory] case class PythonExplode(pyObj: Array[Byte]) extends TableFunction
+final private[raphtory] case class PythonExplode(pyObj: Array[Byte])    extends TableFunction
 private[raphtory] case object WriteToOutput                             extends TableFunction
 
 /**  Interface for table operations

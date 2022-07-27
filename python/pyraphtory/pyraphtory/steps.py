@@ -58,9 +58,9 @@ class Iterate(object):
         pass
 
 class Explode(object):
-    def eval_from_jvm(self, jvm_row) -> List[Any]:
+    def eval_from_jvm(self, jvm_row):
         self.eval(Row(jvm_row))
 
-    def eval(self, v):
+    def eval(self, r):
         pass
 

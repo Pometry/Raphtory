@@ -4,7 +4,11 @@ import cats.Id
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview._
-import com.raphtory.api.analysis.table.{Explode, PythonExplode, Row, TableFilter, WriteToOutput}
+import com.raphtory.api.analysis.table.Explode
+import com.raphtory.api.analysis.table.PythonExplode
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.TableFilter
+import com.raphtory.api.analysis.table.WriteToOutput
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.output.sink.SinkExecutor
@@ -402,7 +406,7 @@ private[raphtory] class QueryExecutor(
         case Explode(f)                                                               =>
           evalExplode(time, f)
 
-        case PythonExplode(f)                                                            =>
+        case PythonExplode(f)                                                         =>
           evalExplode(time, new PythonExplodeEvaluator[Id](f, py))
 
         case WriteToOutput                                                            =>
@@ -439,15 +443,13 @@ private[raphtory] class QueryExecutor(
     logger.debug(s"Partition $partitionID handled message $msg in ${System.currentTimeMillis() - time}ms")
   }
 
-  private def evalExplode(time: Long, f: Row => IterableOnce[Row])=  {
+  private def evalExplode(time: Long, f: Row => IterableOnce[Row]) =
     graphLens.explodeTable(f) {
       taskManager sendAsync TableFunctionComplete(currentPerspectiveID)
       logger.debug(
-        s"Job '$jobID' at Partition '$partitionID': Table Explode executed on table in ${
-          System.currentTimeMillis() - time}ms."
+              s"Job '$jobID' at Partition '$partitionID': Table Explode executed on table in ${System.currentTimeMillis() - time}ms."
       )
     }
-  }
 
   private def evalExplodeSelect(time: Long, f: Function[_, List[Row]]) = {
     startStep()

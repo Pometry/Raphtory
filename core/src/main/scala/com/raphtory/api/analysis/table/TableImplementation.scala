@@ -32,7 +32,6 @@ private[api] class TableImplementation(val query: Query, private val querySender
             querySender
     )
 
-  override def pythonExplode(pyObj: Array[Byte]): Table = {
+  override def pythonExplode(pyObj: Array[Byte]): Table =
     addFunction(PythonExplode(pyObj))
-  }
 }
