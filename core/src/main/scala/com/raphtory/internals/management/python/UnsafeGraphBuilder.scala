@@ -14,6 +14,8 @@ import com.raphtory.internals.management.PythonEncoder
 class UnsafeGraphBuilder[T](val ref: PyRef, py: EmbeddedPython[Id])(implicit PE: PythonEncoder[T])
         extends GraphBuilder[T] {
 
+  py.invoke(ref, "_set_jvm_builder", Vector(this))
+
   /** Processes raw data message `tuple` from the spout to extract source node, destination node,
     * timestamp info, etc.
     *
@@ -37,6 +39,8 @@ class UnsafeGraphBuilder[T](val ref: PyRef, py: EmbeddedPython[Id])(implicit PE:
     }
   }
 
+  def get_current_index(): Long =
+    index
 }
 
 case class PythonGraphBuilder[T](pyScript: String, pyClass: String)(implicit PE: PythonEncoder[T])

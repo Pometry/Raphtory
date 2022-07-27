@@ -44,7 +44,7 @@ trait GraphBuilder[T] extends Serializable {
 
   /** Logger instance for writing out log messages */
   val logger: Logger                                              = Logger(LoggerFactory.getLogger(this.getClass))
-  private var index: Long                                         = -1L
+  var index: Long                                                 = -1L
   private var partitionIDs: collection.Set[Int]                   = _
   private var writers: collection.Map[Int, EndPoint[GraphUpdate]] = _
   private var builderID: Int                                      = _
