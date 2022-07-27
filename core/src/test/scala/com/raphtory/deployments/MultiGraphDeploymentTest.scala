@@ -15,7 +15,7 @@ import munit.CatsEffectSuite
 
 import java.net.URL
 
-class LocalDeploymentTest extends CatsEffectSuite {
+class MultiGraphDeploymentTest extends CatsEffectSuite {
   val outputDirectory   = "/tmp/raphtoryTest"
   def defaultSink: Sink = FileSink(outputDirectory)
 

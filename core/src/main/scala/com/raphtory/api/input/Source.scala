@@ -26,8 +26,8 @@ trait SourceInstance extends Iterator[GraphUpdate] {
 
 object Source {
 
-  def apply[T](spout: Spout[T], builder: GraphBuilder[T], conf: Config): Source = {
-    val failOnError: Boolean = conf.getBoolean("raphtory.builders.failOnError")
+  def apply[T](spout: Spout[T], builder: GraphBuilder[T]): Source = {
+    val failOnError = true
     new Source { // Avoid defining this as a lambda regardless of IntelliJ advices, that would cause serialization problems
       override def buildSource(deploymentID: String): SourceInstance =
         new SourceInstance {

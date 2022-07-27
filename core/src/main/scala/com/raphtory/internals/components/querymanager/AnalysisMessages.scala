@@ -150,8 +150,11 @@ private[raphtory] case class TableBuilt(perspectiveID: Int)            extends P
 private[raphtory] case class AlgorithmFailure(perspectiveID: Int, exception: Throwable) extends PerspectiveStatus
 
 // Messages for partitionSetup topic
-sealed private[raphtory] trait GraphManagement                               extends QueryManagement
-private[raphtory] case class EstablishGraph(graphID: String, source: Source) extends Submission with GraphManagement
+sealed private[raphtory] trait GraphManagement extends QueryManagement
+
+private[raphtory] case class EstablishGraph(graphID: String, sources: Seq[Source])
+        extends Submission
+        with GraphManagement
 
 private[raphtory] case class EstablishExecutor(_bootstrap: DynamicLoader, graphID: String, jobID: String, sink: Sink)
         extends GraphManagement

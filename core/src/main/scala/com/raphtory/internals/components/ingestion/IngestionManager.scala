@@ -29,11 +29,13 @@ class IngestionManager(
 
   override def handleMessage(msg: EstablishGraph): Unit =
     msg match {
-      case EstablishGraph(graphID, source) =>
+      case EstablishGraph(graphID, sources) =>
         logger.debug(s"Received query to spawn graph: $msg")
-        val ingestionResource    = IngestionExecutor[IO](deploymentID, graphID, source, conf, topics)
-        val (_, ingestionCancel) = ingestionResource.allocated.unsafeRunSync()
-        graphDeployments.put(graphID, Graph(ingestionCancel))
+        sources foreach { source =>
+          val ingestionResource    = IngestionExecutor[IO](deploymentID, graphID, source, conf, topics)
+          val (_, ingestionCancel) = ingestionResource.allocated.unsafeRunSync()
+          graphDeployments.put(graphID, Graph(ingestionCancel))
+        }
     }
 
   override private[raphtory] def run(): Unit = logger.debug(s"Starting IngestionManager")

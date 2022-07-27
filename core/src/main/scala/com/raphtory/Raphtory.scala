@@ -95,7 +95,9 @@ object Raphtory {
       graphBuilder: GraphBuilder[T],
       customConfig: Map[String, Any] = Map()
   ): DeployedTemporalGraph =
-    submitLocalGraph(spout, graphBuilder, customConfig = customConfig)
+    submitLocalGraph(List(Source(spout, graphBuilder)), customConfig = customConfig)
+
+  def stream(sources: Source*): DeployedTemporalGraph = submitLocalGraph(sources)
 
   /** Creates a batch loading version of a `DeployedTemporalGraph` object that can be used to express
     * queries from.
@@ -208,14 +210,13 @@ object Raphtory {
       _                  <- QueryManager(config, topicRepo)
       client             <- Resource.eval(IO.delay(new QuerySender(scheduler, topicRepo, config)))
       _                  <- Resource.eval(IO.delay {
-                              client.submitGraph(Source(spout, graphBuilder, config), "")
+                              client.submitGraph(List(Source(spout, graphBuilder)), "")
                             })
     } yield (client, config, deploymentID)
   }
 
-  private def submitLocalGraph[T](
-      spout: Spout[T],
-      graphBuilder: GraphBuilder[T],
+  private def submitLocalGraph(
+      sources: Seq[Source],
       name: String = "",
       customConfig: Map[String, Any] = Map()
   ): DeployedTemporalGraph = {
@@ -226,7 +227,7 @@ object Raphtory {
     }
     val config  = confBuilder(customConfig, distributed = false)
     val client  = service.client
-    client.submitGraph(Source(spout, graphBuilder, config), graphID)
+    client.submitGraph(sources, graphID)
 
     val unusedService = IO {
       val remainingGraphs = service.graphs - graphID

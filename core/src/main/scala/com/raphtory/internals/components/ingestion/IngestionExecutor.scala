@@ -4,6 +4,7 @@ import cats.effect.Async
 import cats.effect.Resource
 import cats.effect.Spawn
 import com.raphtory.api.input.Source
+import com.raphtory.api.input.SourceInstance
 import com.raphtory.internals.communication.CanonicalTopic
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
@@ -24,8 +25,9 @@ private[raphtory] class IngestionExecutor(
     scheduler: Scheduler
 ) extends Component[Any](conf) {
   private val logger: Logger        = Logger(LoggerFactory.getLogger(this.getClass))
+  private val failOnError           = conf.getBoolean("raphtory.builders.failOnError")
   private val writers               = topics.graphUpdates(graphID).endPoint
-  private val sourceExecutor        = source.buildSource(deploymentID)
+  private val sourceInstance        = source.buildSource(deploymentID)
   private val spoutReschedulesCount = telemetry.spoutReschedules.labels(deploymentID)
   private val fileLinesSent         = telemetry.fileLinesSent.labels(deploymentID)
 
@@ -33,7 +35,7 @@ private[raphtory] class IngestionExecutor(
   private var scheduledRun: Option[() => Future[Unit]] = None
 
   private def rescheduler(): Unit = {
-    sourceExecutor.executeReschedule()
+    sourceInstance.executeReschedule()
     executeSpout()
   }: Unit
 
@@ -51,15 +53,26 @@ private[raphtory] class IngestionExecutor(
 
   private def executeSpout(): Unit = {
     spoutReschedulesCount.inc()
-    while (sourceExecutor.hasNext) {
+    while (sourceInstance.hasNext) {
       fileLinesSent.inc()
       linesProcessed = linesProcessed + 1
       if (linesProcessed % 100_000 == 0)
         logger.debug(s"Spout: sent $linesProcessed messages.")
-      val update = sourceExecutor.next()
-      writers(getWriter(update.srcId)).sendAsync(update)
+      try {
+        val update = sourceInstance.next()
+        writers(getWriter(update.srcId)).sendAsync(update)
+      }
+      catch {
+        case e: Exception =>
+          if (failOnError)
+            throw e
+          else {
+            logger.warn(s"Failed to parse tuple.", e.getMessage)
+            e.printStackTrace()
+          }
+      }
     }
-    if (sourceExecutor.spoutReschedules())
+    if (sourceInstance.spoutReschedules())
       reschedule()
   }
 

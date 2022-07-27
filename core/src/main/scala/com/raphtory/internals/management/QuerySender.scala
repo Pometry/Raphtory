@@ -27,8 +27,8 @@ private[raphtory] class QuerySender(
     tracker
   }
 
-  def submitGraph(source: Source, id: String): Unit =
-    topics.submissions.endPoint sendAsync EstablishGraph(id, source)
+  def submitGraph(sources: Seq[Source], id: String): Unit =
+    topics.submissions.endPoint sendAsync EstablishGraph(id, sources)
 
   private def getDefaultName(query: Query): String =
     if (query.name.nonEmpty) query.name else query.hashCode().abs.toString
