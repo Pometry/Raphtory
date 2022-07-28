@@ -6,7 +6,7 @@ import com.raphtory.internals.management.PyRef
 import com.raphtory.internals.management.PythonEncoder
 import pemja.core.PythonInterpreter
 import pemja.core.PythonInterpreterConfig
-
+import scala.language.postfixOps
 import java.nio.file.Path
 import java.nio.file.Paths
 import scala.util.Try
