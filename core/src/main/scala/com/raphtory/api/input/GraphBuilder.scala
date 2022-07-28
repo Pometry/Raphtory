@@ -117,44 +117,17 @@ trait GraphBuilder[T] extends Serializable {
     totalPartitions = writers.size
   }
 
-  /** Adds a new vertex to the graph or updates an existing vertex
-    *
-    * @param updateTime timestamp for vertex update
-    * @param srcId ID of vertex to add/update
-    */
-  protected def addVertex(updateTime: Long, srcId: Long): Unit = {
-    val update = VertexAdd(updateTime, index, srcId, Properties(), None)
-    handleGraphUpdate(update)
-    updateVertexAddStats()
-  }
-
   protected def updateVertexAddStats(): Unit =
     ComponentTelemetryHandler.vertexAddCounter.labels(deploymentID).inc()
 
   /** Adds a new vertex to the graph or updates an existing vertex
     *
     * @param updateTime timestamp for vertex update
-    * @param srcId ID of vertex to add/update
-    * @param properties vertex properties for the update (see [[com.raphtory.api.input.Properties Properties]] for the
-    *                   available property types)
-    */
-  protected def addVertex(updateTime: Long, srcId: Long, properties: Properties): Unit = {
-    val update = VertexAdd(updateTime, index, srcId, properties, None)
-    handleGraphUpdate(update)
-    updateVertexAddStats()
-  }
-
-  /** Adds a new vertex to the graph or updates an existing vertex
-    *
-    * @param updateTime timestamp for vertex update
     * @param srcId      ID of vertex to add/update
-    * @param vertexType specify a [[Type Type]] for the vertex
+    * @param posTypeArg specify a [[Type Type]] for the vertex
     */
-  protected def addVertex(updateTime: Long, srcId: Long, vertexType: Type): Unit = {
-    val update = VertexAdd(updateTime, index, srcId, Properties(), Some(vertexType))
-    handleGraphUpdate(update)
-    updateVertexAddStats()
-  }
+  protected def addVertex(updateTime: Long, srcId: Long, posTypeArg: Type): Unit =
+    addVertex(updateTime, srcId, vertexType = posTypeArg)
 
   /** Adds a new vertex to the graph or updates an existing vertex
     *
@@ -187,19 +160,18 @@ trait GraphBuilder[T] extends Serializable {
     ComponentTelemetryHandler.vertexDeleteCounter.labels(deploymentID).inc()
   }
 
-  /** Adds a new edge to the graph or updates an existing edge
-    * @param updateTime timestamp for edge update
-    * @param srcId ID of source vertex of the edge
-    * @param dstId ID of destination vertex of the edge
-    */
-  protected def addEdge(updateTime: Long, srcId: Long, dstId: Long): Unit = {
-    val update = EdgeAdd(updateTime, index, srcId, dstId, Properties(), None)
-    handleEdgeAdd(update)
-    updateEdgeAddStats()
-  }
-
   protected def updateEdgeAddStats(): Unit =
     ComponentTelemetryHandler.edgeAddCounter.labels(deploymentID).inc()
+
+  /** Adds a new edge to the graph or updates an existing edge
+    *
+    * @param updateTime timestamp for edge update
+    * @param srcId      ID of source vertex of the edge
+    * @param dstId      ID of destination vertex of the edge
+    * @param posTypeArg   specify a [[Type Type]] for the edge
+    */
+  protected def addEdge(updateTime: Long, srcId: Long, dstId: Long, posTypeArg: Type): Unit =
+    addEdge(updateTime, srcId, dstId, edgeType = posTypeArg)
 
   /** Adds a new edge to the graph or updates an existing edge
     *
@@ -210,39 +182,6 @@ trait GraphBuilder[T] extends Serializable {
     *                   available property types)
     * @param edgeType   specify a [[Type Type]] for the edge
     * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
-    */
-  protected def addEdge(
-      updateTime: Long,
-      srcId: Long,
-      dstId: Long,
-      properties: Properties
-  ): Unit = {
-    val update = EdgeAdd(updateTime, index, srcId, dstId, properties, None)
-    handleEdgeAdd(update)
-    updateEdgeAddStats()
-  }
-
-  /** Adds a new edge to the graph or updates an existing edge
-    *
-    * @param updateTime timestamp for edge update
-    * @param srcId      ID of source vertex of the edge
-    * @param dstId      ID of destination vertex of the edge
-    * @param edgeType   specify a [[Type Type]] for the edge
-    */
-  protected def addEdge(updateTime: Long, srcId: Long, dstId: Long, edgeType: Type): Unit = {
-    val update = EdgeAdd(updateTime, index, srcId, dstId, Properties(), Some(edgeType))
-    handleEdgeAdd(update)
-    updateEdgeAddStats()
-  }
-
-  /** Adds a new edge to the graph or updates an existing edge
-    *
-    * @param updateTime timestamp for edge update
-    * @param srcId      ID of source vertex of the edge
-    * @param dstId      ID of destination vertex of the edge
-    * @param properties edge properties for the update (see [[com.raphtory.api.input.Properties Properties]] for the
-    *                   available property types)
-    * @param edgeType   specify a [[Type Type]] for the edge
     */
   protected def addEdge(
       updateTime: Long,
