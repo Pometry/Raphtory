@@ -82,7 +82,16 @@ class TemporalGraph(object):
 
     def transform(self, algo):
         g = self.jvm_graph.transform(algo)
-        return Table(g)
+        return TemporalGraph(g)
+
+    def clear_messages(self):
+        try:
+            g = self.jvm_graph.clearMessages()
+            return TemporalGraph(g)
+        except Exception as e:
+            print(str(e))
+            traceback.print_exc()
+
 
     def select(self, columns: List[str]):
         try:

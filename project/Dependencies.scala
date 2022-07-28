@@ -34,14 +34,14 @@ object Dependencies {
   lazy val bcel             = "org.apache.bcel"               % "bcel"                 % bcelVersion
   lazy val catsEffect       = "org.typelevel"                %% "cats-effect"          % catsEffectVersion
   lazy val curatorRecipes   = "org.apache.curator"            % "curator-recipes"      % curatorVersion
-  lazy val decline        = "com.monovore"      %% "decline-effect"   % declineVersion
+  lazy val decline          = "com.monovore"                 %% "decline-effect"       % declineVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val jackson          = "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
 
   lazy val log4jApi   = "org.apache.logging.log4j" % "log4j-api"        % log4jVersion
   lazy val log4jCore  = "org.apache.logging.log4j" % "log4j-core"       % log4jVersion
   lazy val log4jSlft4 = "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion
 
-  lazy val magnolia = "com.softwaremill.magnolia1_2" %% "magnolia" % "1.1.2"
+  lazy val magnolia = "com.softwaremill.magnolia1_2" %% "magnolia" % "1.1.2" excludeAll (excludeLog4j, excludeSlf4j)
 
   lazy val openhft =
     "net.openhft" % "zero-allocation-hashing" % openhftVersion excludeAll (excludeLog4j, excludeSlf4j)
@@ -50,7 +50,8 @@ object Dependencies {
   lazy val prometheusHttp    = "io.prometheus" % "simpleclient_httpserver" % prometheusVersion
   lazy val prometheusHotspot = "io.prometheus" % "simpleclient_hotspot"    % prometheusVersion
 
-  lazy val pemja = "com.alibaba" % "pemja" % pemjaVersion
+  lazy val pemja = "com.alibaba" % "pemja" % pemjaVersion excludeAll (excludeLog4j, excludeSlf4j)
+
   lazy val pulsarAdmin =
     "org.apache.pulsar" % "pulsar-client-admin-original" % pulsarVersion excludeAll excludePulsarBinding
   lazy val pulsarApi        = "org.apache.pulsar"           % "pulsar-client-api"              % pulsarVersion
@@ -67,10 +68,12 @@ object Dependencies {
 
   lazy val timeSeries =
     "io.sqooba.oss" %% "scala-timeseries-lib" % timeSeriesVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val twitterChill   = "com.twitter"         %% "chill"               % chillVersion
-  lazy val typesafeConfig = "com.typesafe"         % "config"              % typesafeConfigVersion
-  lazy val zookeeper      = "org.apache.zookeeper" % "zookeeper"           % zookeeperVersion
-  lazy val catsMUnit      = "org.typelevel"       %% "munit-cats-effect-3" % catsMUnitVersion % Test
-  lazy val alleyCats      = "org.typelevel"       %% "alleycats-core"      % catsVersion
+  lazy val twitterChill   = "com.twitter"         %% "chill"     % chillVersion
+  lazy val typesafeConfig = "com.typesafe"         % "config"    % typesafeConfigVersion
+  lazy val zookeeper      = "org.apache.zookeeper" % "zookeeper" % zookeeperVersion
+
+  lazy val catsMUnit      =
+    "org.typelevel" %% "munit-cats-effect-3" % catsMUnitVersion % Test excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val alleyCats = "org.typelevel" %% "alleycats-core" % catsVersion excludeAll (excludeLog4j, excludeSlf4j)
 
 }

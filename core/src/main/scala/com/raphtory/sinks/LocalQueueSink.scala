@@ -3,7 +3,7 @@ package com.raphtory.sinks
 import com.raphtory.api.output.format.Format
 import com.raphtory.api.output.sink.FormatAgnosticSink
 import com.raphtory.api.output.sink.SinkConnector
-import com.raphtory.formats.CsvFormat
+import com.raphtory.formats.JsonFormat
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -12,7 +12,7 @@ import java.util
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.TimeUnit
 
-class LocalQueueSink(format: Format = CsvFormat()) extends FormatAgnosticSink(format) {
+class LocalQueueSink(format: Format = JsonFormat(JsonFormat.ROW)) extends FormatAgnosticSink(format) {
 
   def q: LinkedBlockingDeque[String] = LocalQueueSink.localTransferQueue
 
