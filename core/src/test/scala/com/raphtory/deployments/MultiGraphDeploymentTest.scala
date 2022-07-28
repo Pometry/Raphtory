@@ -14,8 +14,12 @@ import com.raphtory.facebooktest.FacebookGraphBuilder
 import munit.CatsEffectSuite
 
 import java.net.URL
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.DurationInt
 
 class MultiGraphDeploymentTest extends CatsEffectSuite {
+  override val munitTimeout: Duration = 60.seconds
+
   val outputDirectory   = "/tmp/raphtoryTest"
   def defaultSink: Sink = FileSink(outputDirectory)
 

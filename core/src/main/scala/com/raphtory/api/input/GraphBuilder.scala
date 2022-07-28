@@ -58,9 +58,9 @@ trait GraphBuilder[T] {
     *
     * @param uniqueChars Vertex name
     */
-  def assignID(uniqueChars: String): Long = LongHashFunction.xx3().hashChars(uniqueChars)
+  final def assignID(uniqueChars: String): Long = LongHashFunction.xx3().hashChars(uniqueChars)
 
-  def buildInstance(deploymentID: String): GraphBuilderInstance[T] =
+  final def buildInstance(deploymentID: String): GraphBuilderInstance[T] =
     new GraphBuilderInstance[T] {
       override def getDeploymentID: String    = deploymentID
       override def parseTuple(tuple: T): Unit = parse(this, tuple)

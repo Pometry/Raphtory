@@ -25,7 +25,8 @@ private[raphtory] class QueryManager(
   private val ingestion      = topics.ingestSetup.endPoint
 
   //private val watermarkGlobal                           = pulsarController.globalwatermarkPublisher() TODO: turn back on when needed
-  private val watermarks = new TrieMap[(String, Int), WatermarkTime]()
+  private val watermarks =
+    new TrieMap[String, TrieMap[Int, WatermarkTime]].withDefault(graph => new TrieMap[Int, WatermarkTime]())
 
   override def run(): Unit = logger.debug("Starting Query Manager Consumer.")
 
@@ -59,7 +60,12 @@ private[raphtory] class QueryManager(
                   s" for partition '${watermark.partitionID}'" +
                   s" in graph ${watermark.graphID}."
         )
-        watermarks.put((watermark.graphID, watermark.partitionID), watermark)
+        if (watermarks contains watermark.graphID)
+          watermarks(watermark.graphID).put(watermark.partitionID, watermark)
+        else {
+          val graphWatermarks = TrieMap(watermark.partitionID -> watermark)
+          watermarks.put(watermark.graphID, graphWatermarks)
+        }
     }
 
   private def spawnQuery(id: String, query: Query): QueryHandler = {
@@ -76,15 +82,14 @@ private[raphtory] class QueryManager(
     currentQueries += ((jobID, queryHandler))
 
   def latestTime(graphID: String): Long = {
-    val watermark = if (watermarks.size == totalPartitions) {
+    val watermark = if (watermarks(graphID).size == totalPartitions) {
       var safe    = true
       var minTime = Long.MaxValue
       var maxTime = Long.MinValue
 
-      watermarks
-        .filter { case ((id, _), _) => id == graphID } // TODO: we should have a map inside a map instead
+      watermarks(graphID)
         .foreach {
-          case (key, watermark) =>
+          case (partition, watermark) =>
             safe = watermark.safe && safe
             minTime = Math.min(minTime, watermark.latestTime)
             maxTime = Math.max(maxTime, watermark.latestTime)
@@ -99,10 +104,8 @@ private[raphtory] class QueryManager(
   }
 
   def earliestTime(graphID: String): Option[Long] =
-    if (watermarks.size == totalPartitions) {
-      val startTimes = watermarks
-        .filter { case ((id, _), _) => id == graphID } // TODO: we should have a map inside a map instead
-        .map { case (_, watermark) => watermark.oldestTime }
+    if (watermarks(graphID).size == totalPartitions) {
+      val startTimes = watermarks(graphID).map { case (_, watermark) => watermark.oldestTime }
       Some(startTimes.min)
     }
     else

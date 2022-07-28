@@ -223,8 +223,9 @@ object Raphtory {
     val graphID = if (name.isEmpty) UUID.randomUUID().toString else name
     val service = localService match {
       case Some(service) => service.copy(graphs = service.graphs + graphID)
-      case None          => deployLocalService()
+      case None          => deployLocalService().copy(graphs = Set(graphID))
     }
+    localService = Some(service)
     val config  = confBuilder(customConfig, distributed = false)
     val client  = service.client
     client.submitGraph(sources, graphID)
