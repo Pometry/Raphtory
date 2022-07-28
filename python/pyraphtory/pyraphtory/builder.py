@@ -66,11 +66,15 @@ class BaseBuilder(object):
         pass
 
     # TODO: revise these methods to call actual JVM methods not return objects
-    def add_vertex(self, timestamp: int, src_id: int, props: List[Property], tpe: str):
-        self.actions.append(asdict(VertexAdd(timestamp, self._index(), src_id, Properties(props), Type(tpe))))
+    def add_vertex(self, timestamp: int, src_id: int, props: List[Property], tpe: str, index=None):
+        if index is None:
+            index = self._index()
+        self.actions.append(asdict(VertexAdd(timestamp, index, src_id, Properties(props), Type(tpe))))
 
-    def add_edge(self, timestamp: int, src_id: int, tar_id: int, props: List[Property], tpe: str):
-        self.actions.append(asdict(EdgeAdd(timestamp, self._index(), src_id, tar_id, Properties(props), Type(tpe))))
+    def add_edge(self, timestamp: int, src_id: int, tar_id: int, props: List[Property], tpe: str, index=None):
+        if index is None:
+            index = self._index()
+        self.actions.append(asdict(EdgeAdd(timestamp, index, src_id, tar_id, Properties(props), Type(tpe))))
 
     def assign_id(self, s: str):
         return self.interop.assignId(s)
