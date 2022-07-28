@@ -59,7 +59,7 @@ class Iterate(object):
 
 class Explode(object):
     def eval_from_jvm(self, jvm_row):
-        self.eval(Row(jvm_row))
+        return self.eval(Row(jvm_row))
 
     def eval(self, r):
         pass

@@ -65,11 +65,14 @@ class TwoHopPathsIterate(Iterate):
 
 class TwoHopPathsExplode(Explode):
     def eval(self, r: Row):
-        # list_of_rows = [r]
-        # for item in r[1]:
-        #     newRow = Row(r[0], item[1][0], item[1][1])
-        #     list_of_rows.append(newRow)
-        return r
+        return_rows = []
+        if len(r) > 1:
+            if r[1] is not None:
+                for hop_pair in r[1]:
+                    return_rows.append( [r[0]] + list(hop_pair) )
+        else:
+            return_rows = [[r[0]]]
+        return return_rows
 
 
 class RaphtoryContext(BaseContext):

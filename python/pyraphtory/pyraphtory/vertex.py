@@ -63,8 +63,11 @@ class Row(object):
         self.jvm_row = jvm_row
 
     def __getitem__(self, index):
-        print(index)
         return self.jvm_row.get(index)
+
+    def __len__(self):
+        return len(self.jvm_row.getValues())
+
 
 
 
