@@ -6,7 +6,6 @@ from pyraphtory.context import BaseContext
 from pyraphtory.graph import TemporalGraph
 
 
-
 PR_LABEL = 'prlabel'
 
 class PGStep1(Step):
