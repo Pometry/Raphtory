@@ -24,8 +24,8 @@ private[raphtory] class SpoutExecutor[T](
     scheduler: Scheduler
 ) extends Component[T](conf) {
 
+  var index: Long                                      = 0L
   protected val failOnError: Boolean                   = conf.getBoolean("raphtory.spout.failOnError")
-  private var linesProcessed: Int                      = 0
   private var scheduledRun: Option[() => Future[Unit]] = None
   private val logger: Logger                           = Logger(LoggerFactory.getLogger(this.getClass))
 
@@ -37,7 +37,7 @@ private[raphtory] class SpoutExecutor[T](
     executeSpout()
   }: Unit
 
-  private val builders: EndPoint[T] = topics.spout[T].endPoint
+  private val builders: EndPoint[(T, Long)] = topics.spout[T].endPoint
 
   override def stop(): Unit = {
     scheduledRun.foreach(cancelable => cancelable())
@@ -53,10 +53,11 @@ private[raphtory] class SpoutExecutor[T](
     spoutReschedulesCount.inc()
     while (spout.hasNext) {
       fileLinesSent.inc()
-      linesProcessed = linesProcessed + 1
-      if (linesProcessed % 100_000 == 0)
-        logger.debug(s"Spout: sent $linesProcessed messages.")
-      builders sendAsync spout.next()
+
+      builders sendAsync ((spout.next(), index))
+      index += 1L
+      if (index % 100_000 == 0)
+        logger.debug(s"Spout: sent $index messages.")
     }
     if (spout.spoutReschedules())
       reschedule()

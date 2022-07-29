@@ -1,6 +1,7 @@
 package com.raphtory.internals.storage.pojograph.entities.external.vertex
 
 import com.raphtory.api.analysis.visitor.HistoricEvent
+import com.raphtory.api.analysis.visitor.PropertyValue
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 
@@ -9,7 +10,7 @@ import scala.reflect.ClassTag
 abstract private[pojograph] class PojoVertexViewBase(vertex: PojoVertexBase) extends PojoVertexBase {
   override def lens: PojoGraphLens = vertex.lens
 
-  override def Type(): String = vertex.Type()
+  override def Type: String = vertex.Type
 
   override def firstActivityAfter(time: Long, strict: Boolean): Option[HistoricEvent] =
     vertex.firstActivityAfter(time, strict)
@@ -25,7 +26,7 @@ abstract private[pojograph] class PojoVertexViewBase(vertex: PojoVertexBase) ext
 
   override def getPropertyAt[T](key: String, time: Long): Option[T] = vertex.getPropertyAt(key, time)
 
-  override def getPropertyHistory[T](key: String, after: Long, before: Long): Option[List[(Long, T)]] =
+  override def getPropertyHistory[T](key: String, after: Long, before: Long): Option[Iterable[PropertyValue[T]]] =
     vertex.getPropertyHistory(key, after, before)
 
   override def history(): List[HistoricEvent] = vertex.history()

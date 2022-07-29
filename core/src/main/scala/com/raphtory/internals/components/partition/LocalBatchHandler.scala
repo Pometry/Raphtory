@@ -27,6 +27,7 @@ private[raphtory] class LocalBatchHandler[T: ClassTag](
 ) extends Component[GraphAlteration](conf) {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  var index: Long            = 0
 
   graphBuilder.setupBatchIngestion(partitionIDs, batchWriters, totalPartitions)
 
@@ -52,7 +53,8 @@ private[raphtory] class LocalBatchHandler[T: ClassTag](
     while (spout.hasNextIterator()) {
       startIngesting()
       spout.nextIterator().foreach { line =>
-        try graphBuilder.parseTuple(line)
+        index += 1
+        try graphBuilder.sendUpdates(line, index)(failOnError = true)
         catch {
           case e: Exception => logger.info(s"Could not parse: $line. Fails with exception ${e.toString}")
         }

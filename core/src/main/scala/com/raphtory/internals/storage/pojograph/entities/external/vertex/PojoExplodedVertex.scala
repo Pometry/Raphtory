@@ -2,6 +2,7 @@ package com.raphtory.internals.storage.pojograph.entities.external.vertex
 
 import com.raphtory.api.analysis.visitor.ExplodedVertex
 import com.raphtory.api.analysis.visitor.HistoricEvent
+import com.raphtory.api.analysis.visitor.PropertyValue
 import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExMultilayerEdge
 
 import scala.collection.mutable
@@ -23,7 +24,7 @@ private[pojograph] class PojoExplodedVertex(
 
   override def ID: IDType = (vertex.ID, timestamp)
 
-  override def Type(): String = vertex.Type()
+  override def Type: String = vertex.Type
 
   override def firstActivityAfter(time: Long = timestamp, strict: Boolean): Option[HistoricEvent] =
     vertex.firstActivityAfter(time, strict)
@@ -37,7 +38,7 @@ private[pojograph] class PojoExplodedVertex(
       key: String,
       after: Long,
       before: Long = timestamp
-  ): Option[List[(Long, T)]] = vertex.getPropertyHistory[T](key, after, before)
+  ): Option[Iterable[PropertyValue[T]]] = vertex.getPropertyHistory[T](key, after, before)
 
   override def setState(key: String, value: Any): Unit = computationValues += (key -> value)
 

@@ -22,15 +22,17 @@ private[raphtory] class BuilderExecutor[T: ClassTag](
     graphBuilder: GraphBuilder[T],
     conf: Config,
     topics: TopicRepository
-) extends Component[T](conf) {
-  private val safegraphBuilder     = Marshal.deepCopy(graphBuilder)
+) extends Component[(T, Long)](conf) {
+  private val safegraphBuilder = Marshal.deepCopy(graphBuilder)
   safegraphBuilder
     .setBuilderMetaData(
             name,
             deploymentID
     )
+
   private val failOnError: Boolean = conf.getBoolean("raphtory.builders.failOnError")
   private val writers              = topics.graphUpdates.endPoint
+  safegraphBuilder.setupStreamIngestion(writers)
   private val logger: Logger       = Logger(LoggerFactory.getLogger(this.getClass))
 
   private var messagesProcessed = 0
@@ -45,24 +47,9 @@ private[raphtory] class BuilderExecutor[T: ClassTag](
     writers.values.foreach(_.close())
   }
 
-  override def handleMessage(msg: T): Unit =
+  override def handleMessage(msg: (T, Long)): Unit =
     safegraphBuilder
-      .getUpdates(msg)(failOnError = failOnError)
-      .foreach { message =>
-        sendUpdate(message)
-        telemetry.graphBuilderUpdatesCounter.labels(deploymentID).inc()
-      }
-
-  protected def sendUpdate(graphUpdate: GraphUpdate): Unit = {
-    logger.trace(s"Sending graph update: $graphUpdate")
-
-    writers(getWriter(graphUpdate.srcId)).sendAsync(graphUpdate)
-
-    messagesProcessed = messagesProcessed + 1
-
-    if (messagesProcessed % 100_000 == 0)
-      logger.debug(s"Graph builder $name: sent $messagesProcessed messages.")
-  }
+      .sendUpdates(msg._1, msg._2)(failOnError = failOnError)
 }
 
 object BuilderExecutor {

@@ -2,8 +2,10 @@ package com.raphtory.algorithms
 
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.TestQuery
+import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.centrality.Degree
 import com.raphtory.algorithms.generic.centrality.WeightedDegree
+import com.raphtory.algorithms.temporal.TemporalEdgeList
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
 import com.raphtory.spouts.ResourceSpout

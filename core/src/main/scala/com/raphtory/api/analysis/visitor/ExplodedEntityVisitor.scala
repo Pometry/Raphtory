@@ -8,7 +8,6 @@ trait ExplodedEntityVisitor extends EntityVisitor {
 
   /** Timestamp for exploded entity */
   def timestamp: Long
-
   def firstActivityAfter(time: Long = timestamp, strict: Boolean = true): Option[HistoricEvent]
   def lastActivityBefore(time: Long = timestamp, strict: Boolean = true): Option[HistoricEvent]
 
@@ -16,12 +15,12 @@ trait ExplodedEntityVisitor extends EntityVisitor {
       key: String,
       after: Long = Long.MinValue,
       before: Long = timestamp
-  ): Option[List[T]] = super.getPropertyValues[T](key, after, before)
+  ): Option[Iterable[T]] = super.getPropertyValues[T](key, after, before)
 
   override def getPropertyHistory[T](
       key: String,
       after: Long = Long.MinValue,
       before: Long = timestamp
-  ): Option[List[(Long, T)]]
+  ): Option[Iterable[PropertyValue[T]]]
 
 }

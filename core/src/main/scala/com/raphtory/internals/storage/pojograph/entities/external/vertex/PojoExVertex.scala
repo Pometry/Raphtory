@@ -3,6 +3,7 @@ package com.raphtory.internals.storage.pojograph.entities.external.vertex
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.api.analysis.visitor.InterlayerEdge
+import com.raphtory.api.analysis.visitor.PropertyValue
 import com.raphtory.api.analysis.visitor.ReducedVertex
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
@@ -41,8 +42,9 @@ private[raphtory] class PojoExVertex(
   ): Unit = {
     if (exploded.isEmpty) {
       // exploding the view
-      history().foreach {
-        case HistoricEvent(time, event) =>
+
+      historyView.iterateUniqueTimes.foreach {
+        case HistoricEvent(time, index, event) =>
           if (event)
             exploded += (time -> new PojoExplodedVertex(this, time))
       }
@@ -112,7 +114,7 @@ private[raphtory] class PojoExVertex(
       aggregate: Boolean
   ): Unit = {
     if (defaultMergeStrategy.nonEmpty || mergeStrategyMap.nonEmpty) {
-      val states   = mutable.Map.empty[String, mutable.ArrayBuffer[(Long, Any)]]
+      val states   = mutable.Map.empty[String, mutable.ArrayBuffer[PropertyValue[Any]]]
       val collect  = defaultMergeStrategy match {
         case Some(_) => (_: String) => true
         case None    =>
@@ -125,8 +127,8 @@ private[raphtory] class PojoExVertex(
             if (collect(key))
               states.getOrElseUpdate(
                       key,
-                      mutable.ArrayBuffer.empty[(Long, Any)]
-              ) += ((vertex.timestamp, value))
+                      mutable.ArrayBuffer.empty[PropertyValue[Any]]
+              ) += (PropertyValue(vertex.timestamp, 0, value))
         }
       }
       val strategy = defaultMergeStrategy match {
@@ -144,7 +146,7 @@ private[raphtory] class PojoExVertex(
         case (key, history) =>
           val strat = strategy(key)
           strat match {
-            case v: PropertyMerge[Any, Any] => setState(key, v(history.toSeq))
+            case v: PropertyMerge[Any, Any] => setState(key, v(history))
           }
       }
     }
