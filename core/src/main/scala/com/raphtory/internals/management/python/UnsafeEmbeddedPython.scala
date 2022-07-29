@@ -12,6 +12,7 @@ import java.nio.file.Paths
 import scala.util.Try
 import scala.util.Using
 import scala.util.control.NonFatal
+import scala.language.postfixOps
 
 class UnsafeEmbeddedPython(py: PythonInterpreter, private var i: Int = 0)
         extends EmbeddedPython[Id]

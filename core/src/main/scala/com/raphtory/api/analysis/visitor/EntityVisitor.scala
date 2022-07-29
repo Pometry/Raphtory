@@ -5,6 +5,8 @@ import io.sqooba.oss.timeseries.TimeSeries
 import io.sqooba.oss.timeseries.immutable.EmptyTimeSeries
 import io.sqooba.oss.timeseries.immutable.TSEntry
 
+import scala.math.Ordered.orderingToOrdered
+
 /** Common base class for [[Edge]] and [[Vertex]]
   *
   * The `EntityVisitor` class defines the interface for accessing properties (set when the graph is constructed)
@@ -15,7 +17,7 @@ import io.sqooba.oss.timeseries.immutable.TSEntry
 abstract class EntityVisitor {
 
   /** Return the type of the entity */
-  def Type(): String
+  def Type: String
 
   /** Return the next event (addition or deletion) after the given timestamp `time` as an
     * [[com.raphtory.api.analysis.visitor.HistoricEvent HistoricEvent]]. This is wrapped in an option as
@@ -132,7 +134,9 @@ abstract class EntityVisitor {
     *
     * @param time Timestamp for property lookup
     */
-  def getPropertyAt[T](key: String, time: Long): Option[T]
+  //TODO: Add customised merge strategies and figure out how this should work
+  def getPropertyAt[T](key: String, time: Long): Option[T] =
+    getPropertyHistory[T](key, time, time).map(h => PropertyMergeStrategy.latest[T](h))
 
   /** Return values for a property `key`. Returns `None` if no property with name `key` exists.
     * Otherwise returns a list of values (which may be empty).
@@ -150,12 +154,10 @@ abstract class EntityVisitor {
       key: String,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
-  ): Option[List[T]] =
+  ): Option[Iterable[T]] =
     getPropertyHistory[T](key, after, before) match {
       case Some(history) =>
-        Some(history.map({
-          case (timestamp, value) => value
-        }))
+        Some(PropertyMergeStrategy.sequence(history))
       case None          => None
     }
 
@@ -186,7 +188,7 @@ abstract class EntityVisitor {
       key: String,
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
-  ): Option[List[(Long, T)]]
+  ): Option[Iterable[PropertyValue[T]]]
 
   /** Return values for the property `key`. Returns `None` if no property with name `key` exists.
     * Otherwise returns a TimeSeries (from this library: https://github.com/Sqooba/scala-timeseries-lib)
@@ -212,10 +214,10 @@ abstract class EntityVisitor {
             .sliding(2)
             .withPartial(false)
             .map {
-              case List((timestamp1, value1), (timestamp2, value2)) =>
-                TSEntry[T](timestamp1, value1, timestamp2 - timestamp1)
+              case List(propertyValue1, propertyValue2) =>
+                TSEntry[T](propertyValue1.time, propertyValue1.value, propertyValue2.time - propertyValue1.time)
             }
-            .++(Seq(TSEntry[T](timestampList.last._1, timestampList.last._2, before)))
+            .++(Seq(TSEntry[T](timestampList.last.time, timestampList.last.value, before)))
             .toSeq
         }
       else EmptyTimeSeries
@@ -272,4 +274,59 @@ abstract class EntityVisitor {
   *
   * @see [[EntityVisitor]], [[Vertex]], [[Edge]]
   */
-case class HistoricEvent(time: Long, event: Boolean)
+case class HistoricEvent(time: Long, index: Long, event: Boolean = true) extends IndexedValue {
+
+  override def sameValue(that: IndexedValue): Boolean =
+    that match {
+      case HistoricEvent(otime, _, oevent) => otime == time && oevent == event
+      case _                               => false
+    }
+}
+
+//object HistoricEvent {
+//  implicit val ordering: Ordering[IndexedValue] = IndexedValue.ordering[IndexedValue]
+//}
+
+/** Case class for encoding property value updates
+  *
+  * @param time Timestamp of update
+  * @param index Index of update
+  * @param value new property value
+  */
+case class PropertyValue[A](time: Long, index: Long, value: A = null) extends IndexedValue {
+
+  override def sameValue(that: IndexedValue): Boolean =
+    that match {
+      case PropertyValue(otime, _, ovalue) => otime == time && ovalue == value
+      case _                               => false
+    }
+}
+
+trait IndexedValue extends Ordered[IndexedValue] {
+  def time: Long
+  def index: Long
+
+  def next: TimePoint =
+    if (this == TimePoint.last) TimePoint.last
+    else if (index < Long.MaxValue) TimePoint(time, index + 1)
+    else TimePoint(time + 1, Long.MinValue)
+
+  def previous: TimePoint =
+    if (this == TimePoint.first) TimePoint.first
+    else if (index > Long.MinValue) TimePoint(time, index - 1)
+    else TimePoint(time - 1, Long.MaxValue)
+
+  def compare(that: IndexedValue): Int = (time, index) compare (that.time, that.index)
+  def sameValue(that: IndexedValue): Boolean
+}
+
+case class TimePoint(time: Long, index: Long) extends IndexedValue {
+  override def sameValue(that: IndexedValue): Boolean = that.time == time
+}
+
+object TimePoint {
+  val first: TimePoint                  = TimePoint(Long.MinValue, Long.MinValue)
+  def first(timestamp: Long): TimePoint = TimePoint(timestamp, Long.MinValue)
+  val last: TimePoint                   = TimePoint(Long.MaxValue, Long.MaxValue)
+  def last(timestamp: Long): TimePoint  = TimePoint(timestamp, Long.MaxValue)
+}

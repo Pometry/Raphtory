@@ -61,25 +61,27 @@ class LOTRGraphBuilderTest extends CatsEffectSuite {
         IO.blocking {
 
           // first create a local spout and ingest some local data
-          val doneSending = producer.sendAsync(kryo.serialise("Gandalf,Benjamin,400"))
+          val doneSending = producer.sendAsync(kryo.serialise(("Gandalf,Benjamin,400", 0L)))
           doneSending.get(60, TimeUnit.SECONDS)
 
           val srcID          = assignID("Gandalf")
           val tarID          = assignID("Benjamin")
           val messageAddExp  = VertexAdd(
                   400,
+                  0,
                   srcID,
                   Properties(ImmutableProperty("name", "Gandalf")),
                   Some(Type("Character"))
           )
           val messageAddExp2 = VertexAdd(
                   400,
+                  0,
                   tarID,
                   Properties(ImmutableProperty("name", "Benjamin")),
                   Some(Type("Character"))
           )
           val messageEdgeExp =
-            EdgeAdd(400, srcID, tarID, Properties(), Some(Type("Character Co-occurence")))
+            EdgeAdd(400, 0, srcID, tarID, Properties(), Some(Type("Character Co-occurence")))
 
           // finally check that they created the objects
 

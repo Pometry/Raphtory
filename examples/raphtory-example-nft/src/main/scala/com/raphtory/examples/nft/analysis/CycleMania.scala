@@ -26,7 +26,7 @@ class CycleMania(moneyCycles: Boolean = true) extends Generic {
     graph.reducedView
       .step { vertex =>
         // only for vertexes that are of type NFT
-        if (vertex.Type() == "NFT") {
+        if (vertex.Type == "NFT") {
           var allCyclesFound: List[Cycle] = List()
           // get all of my incoming exploded edges and sort them by time
           val allPurchases                = vertex.explodeInEdges().sortBy(e => e.timestamp)
@@ -86,7 +86,7 @@ class CycleMania(moneyCycles: Boolean = true) extends Generic {
   override def tabularise(graph: GraphPerspective): Table =
     graph
       .explodeSelect { vertex =>
-        val vertexType         = vertex.Type()
+        val vertexType         = vertex.Type
         val has_cycle: Boolean = vertex.getStateOrElse(HAS_CYCLE, false)
         if (vertexType == "NFT" & has_cycle) {
           val nftID                    = vertex.getPropertyOrElse("id", "_UNKNOWN_")

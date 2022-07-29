@@ -37,6 +37,8 @@ trait Vertex extends EntityVisitor {
   def name(nameProperty: String = "name"): String =
     getPropertyOrElse[String](nameProperty, ID.toString)
 
+  def name: String = name("name")
+
   //functionality for checking messages
   /** Check if vertex has received messages */
   def hasMessage: Boolean

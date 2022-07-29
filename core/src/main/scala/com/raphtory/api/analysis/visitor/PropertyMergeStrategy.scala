@@ -8,7 +8,7 @@ import com.raphtory.utils.Reduction._
   * Merge strategies are used to control the aggregation semantics for property access in
   * [[EntityVisitor]].
   *
-  * The general signature for a merge strategy is `Seq[(Long, A)] => B`.
+  * The general signature for a merge strategy is `Iterable[PropertyValue[A]] => B`.
   * @see [[EntityVisitor]]
   *      [[Edge]]
   *      [[Vertex]]
@@ -16,33 +16,33 @@ import com.raphtory.utils.Reduction._
 object PropertyMergeStrategy {
 
   /** Type of a merge strategy with return type `B` for a property with value type `A` */
-  type PropertyMerge[A, B] = Seq[(Long, A)] => B
+  type PropertyMerge[A, B] = Iterable[PropertyValue[A]] => B
 
   /** Merge strategy that sums the property values */
-  def sum[T: Numeric]: PropertyMerge[T, T] = (history: Seq[(Long, T)]) => history.map(_._2).sum
+  def sum[T: Numeric]: PropertyMerge[T, T] = (history: Iterable[PropertyValue[T]]) => history.map(_.value).sum
 
   /** Merge strategy that returns the maximum property value */
-  def max[T: Numeric]: PropertyMerge[T, T] = (history: Seq[(Long, T)]) => history.map(_._2).max
+  def max[T: Numeric]: PropertyMerge[T, T] = (history: Iterable[PropertyValue[T]]) => history.map(_.value).max
 
   /** Merge strategy that returns the minimum property value */
-  def min[T: Numeric]: PropertyMerge[T, T] = (history: Seq[(Long, T)]) => history.map(_._2).min
+  def min[T: Numeric]: PropertyMerge[T, T] = (history: Iterable[PropertyValue[T]]) => history.map(_.value).min
 
   /** Merge strategy that returns the product of property values */
   def product[T: Numeric]: PropertyMerge[T, T] =
-    (history: Seq[(Long, T)]) => history.map(_._2).product
+    (history: Iterable[PropertyValue[T]]) => history.map(_.value).product
 
   /** Merge strategy that returns the average of property values */
   def average[T: Numeric]: PropertyMerge[T, Double] =
-    (history: Seq[(Long, T)]) => history.map(_._2).mean
+    (history: Iterable[PropertyValue[T]]) => history.map(_.value).mean
 
   /** Merge strategy that returns the latest property value (i.e. the value corresponding to the largest timestamp)
     * This is the default merge strategy for property access in Raphtory.
     */
-  def latest[T]: PropertyMerge[T, T] = (history: Seq[(Long, T)]) => history.maxBy(_._1)._2
+  def latest[T]: PropertyMerge[T, T] = (history: Iterable[PropertyValue[T]]) => history.max.value
 
   /** Merge startegy that returns the earliest property value (i.e., the value corresponding to the smallest timestamp) */
-  def earliest[T]: PropertyMerge[T, T] = (history: Seq[(Long, T)]) => history.minBy(_._1)._2
+  def earliest[T]: PropertyMerge[T, T] = (history: Iterable[PropertyValue[T]]) => history.min.value
 
   /** Return the sequence of property values */
-  def sequence[T]: PropertyMerge[T, Seq[T]] = (history: Seq[(Long, T)]) => history.map(_._2)
+  def sequence[T]: PropertyMerge[T, Iterable[T]] = (history: Iterable[PropertyValue[T]]) => history.map(_.value)
 }
