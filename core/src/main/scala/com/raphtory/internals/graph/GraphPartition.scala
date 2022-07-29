@@ -21,15 +21,16 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
   def currentyBatchIngesting()       = batchIngesting
 
   // Ingesting Vertices
-  def addVertex(msgTime: Long, srcId: Long, properties: Properties, vertexType: Option[Type]): Unit
+  def addVertex(msgTime: Long, index: Long, srcId: Long, properties: Properties, vertexType: Option[Type]): Unit
 
-  def removeVertex(msgTime: Long, srcId: Long): List[GraphUpdateEffect]
-  def inboundEdgeRemovalViaVertex(msgTime: Long, srcId: Long, dstId: Long): GraphUpdateEffect
-  def outboundEdgeRemovalViaVertex(msgTime: Long, srcId: Long, dstId: Long): GraphUpdateEffect
+  def removeVertex(msgTime: Long, index: Long, srcId: Long): List[GraphUpdateEffect]
+  def inboundEdgeRemovalViaVertex(msgTime: Long, index: Long, srcId: Long, dstId: Long): GraphUpdateEffect
+  def outboundEdgeRemovalViaVertex(msgTime: Long, index: Long, srcId: Long, dstId: Long): GraphUpdateEffect
 
   // Ingesting Edges
   def addEdge(
       msgTime: Long,
+      index: Long,
       srcId: Long,
       dstId: Long,
       properties: Properties,
@@ -38,15 +39,17 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
 
   def syncNewEdgeAdd(
       msgTime: Long,
+      index: Long,
       srcId: Long,
       dstId: Long,
       properties: Properties,
-      srcRemovals: List[Long],
+      srcRemovals: List[(Long, Long)],
       edgeType: Option[Type]
   ): GraphUpdateEffect
 
   def syncExistingEdgeAdd(
       msgTime: Long,
+      index: Long,
       srcId: Long,
       dstId: Long,
       properties: Properties
@@ -54,23 +57,25 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
 
   def batchAddRemoteEdge(
       msgTime: Long,
+      index: Long,
       srcId: Long,
       dstId: Long,
       properties: Properties,
       edgeType: Option[Type]
   ): Unit
 
-  def removeEdge(msgTime: Long, srcId: Long, dstId: Long): Option[GraphUpdateEffect]
+  def removeEdge(msgTime: Long, index: Long, srcId: Long, dstId: Long): Option[GraphUpdateEffect]
 
   def syncNewEdgeRemoval(
       msgTime: Long,
+      index: Long,
       srcId: Long,
       dstId: Long,
-      srcRemovals: List[Long]
+      srcRemovals: List[(Long, Long)]
   ): GraphUpdateEffect
-  def syncExistingEdgeRemoval(msgTime: Long, srcId: Long, dstId: Long): GraphUpdateEffect
+  def syncExistingEdgeRemoval(msgTime: Long, index: Long, srcId: Long, dstId: Long): GraphUpdateEffect
 
-  def syncExistingRemovals(msgTime: Long, srcId: Long, dstId: Long, dstRemovals: List[Long]): Unit
+  def syncExistingRemovals(msgTime: Long, index: Long, srcId: Long, dstId: Long, dstRemovals: List[(Long, Long)]): Unit
 
   // Analysis Functions
   def getVertices(
@@ -83,10 +88,10 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
   private val totalPartitions = conf.getInt("raphtory.partitions.countPerServer") *
     conf.getInt("raphtory.partitions.serverCount")
 
-  def getPartitionID                 = partitionID
+  def getPartitionID: Int            = partitionID
   def checkDst(dstID: Long): Boolean = (dstID.abs % totalPartitions).toInt == partitionID
 
-  def timings(updateTime: Long) = {
+  def timings(updateTime: Long): Unit = {
     if (updateTime < watermarker.oldestTime.get() && updateTime > 0)
       watermarker.oldestTime.set(updateTime)
     if (updateTime > watermarker.latestTime.get())

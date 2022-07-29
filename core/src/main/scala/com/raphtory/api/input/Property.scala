@@ -11,12 +11,20 @@ sealed trait Property {
   /** property name */
   def key: String
 
-  /** value property value */
-  def value: Any
 }
 
 /** Vertex/Edge type (this is not a `Property`) */
-case class Type(name: String)
+sealed trait MaybeType {
+  def toOption: Option[Type]
+}
+
+object NoType                 extends MaybeType {
+  override def toOption: Option[Type] = None
+}
+
+case class Type(name: String) extends MaybeType {
+  override def toOption: Option[Type] = Some(this)
+}
 
 /** `Property` with a fixed value (the value should be the same for each update to the entity) */
 case class ImmutableProperty(key: String, value: String) extends Property
@@ -40,4 +48,8 @@ case class BooleanProperty(key: String, value: Boolean) extends Property
 case class IntegerProperty(key: String, value: Integer) extends Property
 
 /** Wrapper class for properties */
-case class Properties(property: Property*)
+case class Properties(properties: Vector[Property])
+
+object Properties {
+  def apply(property: Property*): Properties = Properties(Vector.from(property))
+}

@@ -9,11 +9,10 @@ private[raphtory] object ComponentTelemetryHandler {
   val fileLinesSent: Counter        = SpoutTelemetry.totalLinesSent
   val fileProcessingErrors: Counter = SpoutTelemetry.totalFileProcessingErrors
 
-  val vertexAddCounter: Counter           = BuilderTelemetry.totalVertexAdds
-  val vertexDeleteCounter: Counter        = BuilderTelemetry.totalVertexDeletes
-  val edgeAddCounter: Counter             = BuilderTelemetry.totalEdgeAdds
-  val edgeDeleteCounter: Counter          = BuilderTelemetry.totalEdgeDeletes
-  val graphBuilderUpdatesCounter: Counter = BuilderTelemetry.totalGraphBuilderUpdates
+  val vertexAddCounter: Counter    = BuilderTelemetry.totalVertexAdds
+  val vertexDeleteCounter: Counter = BuilderTelemetry.totalVertexDeletes
+  val edgeAddCounter: Counter      = BuilderTelemetry.totalEdgeAdds
+  val edgeDeleteCounter: Counter   = BuilderTelemetry.totalEdgeDeletes
 
   val lastWatermarkProcessedCollector: Gauge       = PartitionTelemetry.lastWatermarkProcessed
   val queryExecutorCollector: Gauge                = PartitionTelemetry.queryExecutorCounter

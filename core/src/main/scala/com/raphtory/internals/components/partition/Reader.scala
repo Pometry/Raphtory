@@ -56,7 +56,7 @@ private[raphtory] class Reader(
     logger.trace("Scheduled watermarker to recheck time in 1 second.")
     scheduledWatermark = Option(
             scheduler
-              .scheduleOnce(1.seconds, checkWatermark())
+              .scheduleOnce(100.milliseconds, checkWatermark())
     )
 
   }
@@ -66,7 +66,6 @@ private[raphtory] class Reader(
 object Reader {
 
   def apply[IO[_]: Async: Spawn](
-      graphID: String,
       partitionID: Int,
       storage: GraphPartition,
       scheduler: Scheduler,

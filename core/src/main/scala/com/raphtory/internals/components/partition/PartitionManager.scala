@@ -50,7 +50,7 @@ class PartitionManager(
       case establishGraph: EstablishGraph =>
         val graphID           = establishGraph.graphID
         val storage           = new PojoBasedPartition(graphID, partitionID, conf)
-        val readerResource    = Reader[IO](graphID, partitionID, storage, scheduler, conf, topics)
+        val readerResource    = Reader[IO](partitionID, storage, scheduler, conf, topics)
         val writerResource    = StreamWriter[IO](graphID, partitionID, storage, conf, topics)
         val (_, readerCancel) = readerResource.allocated.unsafeRunSync()
         val (_, writerCancel) = writerResource.allocated.unsafeRunSync()
@@ -84,10 +84,10 @@ class PartitionManager(
 
   private def establishExecutor(request: EstablishExecutor) =
     request match {
-      case EstablishExecutor(_, graphID, jobID, sink) =>
+      case EstablishExecutor(_, graphID, jobID, sink, pyScript) =>
         val storage       = if (batchLoading) batchStorage else partitions(graphID).storage
         val queryExecutor =
-          new QueryExecutor(partitionID, sink, storage, jobID, conf, topics, scheduler)
+          new QueryExecutor(partitionID, sink, storage, jobID, conf, topics, scheduler, pyScript)
         scheduler.execute(queryExecutor)
         //        telemetry.queryExecutorCollector.labels(partitionID.toString, deploymentID).inc()
         executors.put(jobID, queryExecutor)

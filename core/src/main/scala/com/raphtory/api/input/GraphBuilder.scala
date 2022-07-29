@@ -1,6 +1,8 @@
 package com.raphtory.api.input
 
+import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.components.partition.BatchWriter
+import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.management.telemetry.ComponentTelemetryHandler
 import com.typesafe.scalalogging.Logger
@@ -58,7 +60,7 @@ trait GraphBuilder[T] {
     *
     * @param uniqueChars Vertex name
     */
-  final def assignID(uniqueChars: String): Long = LongHashFunction.xx3().hashChars(uniqueChars)
+  final def assignID(uniqueChars: String): Long = GraphBuilder.assignID(uniqueChars)
 
   final def buildInstance(deploymentID: String): GraphBuilderInstance[T] =
     new GraphBuilderInstance[T] {
@@ -70,23 +72,24 @@ trait GraphBuilder[T] {
 trait GraphBuilderInstance[T] extends Serializable with Graph {
 
   /** Logger instance for writing out log messages */
-  val logger: Logger                                         = Logger(LoggerFactory.getLogger(this.getClass))
-  private val deploymentID                                   = getDeploymentID
-  private var updates: ArrayBuffer[GraphUpdate]              = ArrayBuffer()
-  private var partitionIDs: mutable.Set[Int]                 = _
-  private var batchWriters: mutable.Map[Int, BatchWriter[T]] = _
-  private var builderID: Int                                 = 0
-  private var batching: Boolean                              = false
-  private var totalPartitions: Int                           = 1
+  val logger: Logger                                              = Logger(LoggerFactory.getLogger(this.getClass))
+  var index: Long                                                 = -1L
+  private val deploymentID                                        = getDeploymentID
+  private var partitionIDs: collection.Set[Int]                   = _
+  private var writers: collection.Map[Int, EndPoint[GraphUpdate]] = _
+  private var batching: Boolean                                   = false
+  private var totalPartitions: Int                                = 1
 
   def getDeploymentID: String
   def parseTuple(tuple: T): Unit
 
   /** Parses `tuple` and fetches list of updates for the graph This is used internally to retrieve updates. */
-  private[raphtory] def getUpdates(tuple: T)(failOnError: Boolean = true): List[GraphUpdate] = {
-    try
-//      logger.trace(s"Parsing tuple: $tuple")
-    parseTuple(tuple)
+  private[raphtory] def sendUpdates(tuple: T, tupleIndex: Long)(failOnError: Boolean = true): Unit =
+    try {
+      logger.trace(s"Parsing tuple: $tuple with index $tupleIndex")
+      index = tupleIndex
+      parseTuple(tuple)
+    }
     catch {
       case e: Exception =>
         if (failOnError)
@@ -97,97 +100,81 @@ trait GraphBuilderInstance[T] extends Serializable with Graph {
         }
     }
 
-    val toReturn = updates
-    updates = ArrayBuffer()
-
-    toReturn.toList
-  }
-
   private[raphtory] def setupBatchIngestion(
       IDs: mutable.Set[Int],
-      writers: mutable.Map[Int, BatchWriter[T]],
+      batchWriters: collection.Map[Int, BatchWriter[T]],
       partitions: Int
-  ) = {
+  ): Unit = {
     partitionIDs = IDs
-    batchWriters = writers
+    writers = batchWriters
     batching = true
     totalPartitions = partitions
   }
 
-  /** Adds a new vertex to the graph or updates an existing vertex
-    *
-    * @param updateTime timestamp for vertex update
-    * @param srcId ID of vertex to add/update
-    */
-  override def addVertex(updateTime: Long, srcId: Long): Unit = {
-    val update = VertexAdd(updateTime, srcId, Properties(), None)
-    handleVertexAdd(update)
-    ComponentTelemetryHandler.vertexAddCounter.labels(deploymentID).inc()
+  private[raphtory] def setupStreamIngestion(
+      streamWriters: collection.Map[Int, EndPoint[GraphUpdate]]
+  ): Unit = {
+    writers = streamWriters
+    partitionIDs = writers.keySet
+    batching = false
+    totalPartitions = writers.size
   }
 
-  /** Adds a new vertex to the graph or updates an existing vertex
-    *
-    * @param updateTime timestamp for vertex update
-    * @param srcId ID of vertex to add/update
-    * @param properties vertex properties for the update (see [[com.raphtory.api.input.Properties Properties]] for the
-    *                   available property types)
-    */
-  override def addVertex(updateTime: Long, srcId: Long, properties: Properties): Unit = {
-    val update = VertexAdd(updateTime, srcId, properties, None)
-    handleVertexAdd(update)
+  protected def updateVertexAddStats(): Unit =
     ComponentTelemetryHandler.vertexAddCounter.labels(deploymentID).inc()
-  }
 
   /** Adds a new vertex to the graph or updates an existing vertex
     *
     * @param updateTime timestamp for vertex update
     * @param srcId      ID of vertex to add/update
-    * @param vertexType specify a [[Type Type]] for the vertex
+    * @param posTypeArg specify a [[Type Type]] for the vertex
     */
-  override def addVertex(updateTime: Long, srcId: Long, vertexType: Type): Unit = {
-    val update = VertexAdd(updateTime, srcId, Properties(), Some(vertexType))
-    handleVertexAdd(update)
-    ComponentTelemetryHandler.vertexAddCounter.labels(deploymentID).inc()
-  }
+  override def addVertex(updateTime: Long, srcId: Long, posTypeArg: Type): Unit =
+    addVertex(updateTime, srcId, vertexType = posTypeArg)
 
   /** Adds a new vertex to the graph or updates an existing vertex
     *
     * @param updateTime timestamp for vertex update
     * @param srcId      ID of vertex to add/update
-    * @param properties vertex properties for the update (see [[com.raphtory.api.input.Properties Properties]] for the
+    * @param properties Optionally specify vertex properties for the update (see [[com.raphtory.api.input.Properties Properties]] for the
     *                   available property types)
-    * @param vertexType specify a [[Type Type]] for the vertex
+    * @param vertexType Optionally specify a [[Type Type]] for the vertex
+    * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
     */
   override def addVertex(
       updateTime: Long,
       srcId: Long,
-      properties: Properties,
-      vertexType: Type
+      properties: Properties = Properties(),
+      vertexType: MaybeType = NoType,
+      secondaryIndex: Long = index
   ): Unit = {
-    val update = VertexAdd(updateTime, srcId, properties, Some(vertexType))
-    handleVertexAdd(update)
-    ComponentTelemetryHandler.vertexAddCounter.labels(deploymentID).inc()
+    val update = VertexAdd(updateTime, secondaryIndex, srcId, properties, vertexType.toOption)
+    handleGraphUpdate(update)
+    updateVertexAddStats()
   }
 
   /** Marks a vertex as deleted
     * @param updateTime time of deletion (a vertex is considered as no longer present in the graph after this time)
     * @param srcId Id of vertex to delete
+    * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
     */
-  override def deleteVertex(updateTime: Long, srcId: Long): Unit = {
-    updates += VertexDelete(updateTime, srcId)
+  override def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long = index): Unit = {
+    handleGraphUpdate(VertexDelete(updateTime, secondaryIndex, srcId))
     ComponentTelemetryHandler.vertexDeleteCounter.labels(deploymentID).inc()
   }
 
-  /** Adds a new edge to the graph or updates an existing edge
-    * @param updateTime timestamp for edge update
-    * @param srcId ID of source vertex of the edge
-    * @param dstId ID of destination vertex of the edge
-    */
-  override def addEdge(updateTime: Long, srcId: Long, dstId: Long): Unit = {
-    val update = EdgeAdd(updateTime, srcId, dstId, Properties(), None)
-    handleEdgeAdd(update)
+  protected def updateEdgeAddStats(): Unit =
     ComponentTelemetryHandler.edgeAddCounter.labels(deploymentID).inc()
-  }
+
+  /** Adds a new edge to the graph or updates an existing edge
+    *
+    * @param updateTime timestamp for edge update
+    * @param srcId      ID of source vertex of the edge
+    * @param dstId      ID of destination vertex of the edge
+    * @param posTypeArg   specify a [[Type Type]] for the edge
+    */
+  override def addEdge(updateTime: Long, srcId: Long, dstId: Long, posTypeArg: Type): Unit =
+    addEdge(updateTime, srcId, dstId, edgeType = posTypeArg)
 
   /** Adds a new edge to the graph or updates an existing edge
     *
@@ -197,83 +184,51 @@ trait GraphBuilderInstance[T] extends Serializable with Graph {
     * @param properties edge properties for the update (see [[com.raphtory.api.input.Properties Properties]] for the
     *                   available property types)
     * @param edgeType   specify a [[Type Type]] for the edge
+    * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
     */
   override def addEdge(
       updateTime: Long,
       srcId: Long,
       dstId: Long,
-      properties: Properties
+      properties: Properties = Properties(),
+      edgeType: MaybeType = NoType,
+      secondaryIndex: Long = index
   ): Unit = {
-    val update = EdgeAdd(updateTime, srcId, dstId, properties, None)
+    val update = EdgeAdd(updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption)
     handleEdgeAdd(update)
-    ComponentTelemetryHandler.edgeAddCounter.labels(deploymentID).inc()
-  }
-
-  /** Adds a new edge to the graph or updates an existing edge
-    *
-    * @param updateTime timestamp for edge update
-    * @param srcId      ID of source vertex of the edge
-    * @param dstId      ID of destination vertex of the edge
-    * @param edgeType   specify a [[Type Type]] for the edge
-    */
-  override def addEdge(updateTime: Long, srcId: Long, dstId: Long, edgeType: Type): Unit = {
-    val update = EdgeAdd(updateTime, srcId, dstId, Properties(), Some(edgeType))
-    handleEdgeAdd(update)
-    ComponentTelemetryHandler.edgeAddCounter.labels(deploymentID).inc()
-  }
-
-  /** Adds a new edge to the graph or updates an existing edge
-    *
-    * @param updateTime timestamp for edge update
-    * @param srcId      ID of source vertex of the edge
-    * @param dstId      ID of destination vertex of the edge
-    * @param properties edge properties for the update (see [[com.raphtory.api.input.Properties Properties]] for the
-    *                   available property types)
-    * @param edgeType   specify a [[Type Type]] for the edge
-    */
-  override def addEdge(
-      updateTime: Long,
-      srcId: Long,
-      dstId: Long,
-      properties: Properties,
-      edgeType: Type
-  ): Unit = {
-    val update = EdgeAdd(updateTime, srcId, dstId, properties, Some(edgeType))
-    handleEdgeAdd(update)
-    ComponentTelemetryHandler.edgeAddCounter.labels(deploymentID).inc()
+    updateEdgeAddStats()
   }
 
   /** Mark edge as deleted
     * @param updateTime time of deletion (the edge is considered as no longer present in the graph after this time)
     * @param srcId ID of source vertex of the edge
     * @param dstId ID of the destination vertex of the edge
+    * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
     */
-  override def deleteEdge(updateTime: Long, srcId: Long, dstId: Long): Unit = {
-    updates += EdgeDelete(updateTime, srcId, dstId)
+  override def deleteEdge(updateTime: Long, srcId: Long, dstId: Long, secondaryIndex: Long = index): Unit = {
+    handleGraphUpdate(EdgeDelete(updateTime, index, srcId, dstId))
     ComponentTelemetryHandler.edgeDeleteCounter.labels(deploymentID).inc()
   }
 
-  private def handleVertexAdd(update: VertexAdd) =
-    if (batching) {
-      val partitionForTuple = checkPartition(update.srcId)
-      if (partitionIDs contains partitionForTuple)
-        batchWriters(partitionForTuple).handleMessage(update)
-    }
-    else
-      updates += update
+  protected def handleGraphUpdate(update: GraphUpdate): Any = {
+    val partitionForTuple = checkPartition(update.srcId)
+    if (partitionIDs contains partitionForTuple)
+      writers(partitionForTuple).sendAsync(update)
+  }
 
-  private def handleEdgeAdd(update: EdgeAdd) =
+  protected def handleEdgeAdd(update: EdgeAdd): Any = {
+    val partitionForSrc = checkPartition(update.srcId)
+    if (partitionIDs contains partitionForSrc)
+      writers(partitionForSrc).sendAsync(update)
     if (batching) {
-      val partitionForSrc = checkPartition(update.srcId)
       val partitionForDst = checkPartition(update.dstId)
-      if (partitionIDs contains partitionForSrc)
-        batchWriters(partitionForSrc).handleMessage(update)
       if (
               (partitionIDs contains partitionForDst) && (partitionForDst != partitionForSrc)
       ) //TODO doesn't see to currently work
-        batchWriters(partitionForDst).handleMessage(
+        writers(partitionForDst).sendAsync(
                 BatchAddRemoteEdge(
                         update.updateTime,
+                        index,
                         update.srcId,
                         update.dstId,
                         update.properties,
@@ -281,8 +236,7 @@ trait GraphBuilderInstance[T] extends Serializable with Graph {
                 )
         )
     }
-    else
-      updates += update
+  }
 
   private def checkPartition(id: Long): Int =
     (id.abs % totalPartitions).toInt
@@ -295,14 +249,26 @@ object GraphBuilder {
 }
 
 trait Graph {
-  def addVertex(updateTime: Long, srcId: Long): Unit
-  def addVertex(updateTime: Long, srcId: Long, properties: Properties): Unit
-  def addVertex(updateTime: Long, srcId: Long, vertexType: Type): Unit
-  def addVertex(updateTime: Long, srcId: Long, properties: Properties, vertexType: Type): Unit
-  def deleteVertex(updateTime: Long, srcId: Long): Unit
-  def addEdge(updateTime: Long, srcId: Long, dstId: Long): Unit
-  def addEdge(updateTime: Long, srcId: Long, dstId: Long, properties: Properties): Unit
-  def addEdge(updateTime: Long, srcId: Long, dstId: Long, edgeType: Type): Unit
-  def addEdge(updateTime: Long, srcId: Long, dstId: Long, properties: Properties, edgeType: Type): Unit
-  def deleteEdge(updateTime: Long, srcId: Long, dstId: Long): Unit
+
+  def addVertex(updateTime: Long, srcId: Long, posTypeArg: Type): Unit
+
+  def addVertex(
+      updateTime: Long,
+      srcId: Long,
+      properties: Properties,
+      vertexType: MaybeType,
+      secondaryIndex: Long
+  ): Unit
+  def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long): Unit
+  def addEdge(updateTime: Long, srcId: Long, dstId: Long, posTypeArg: Type): Unit
+
+  def addEdge(
+      updateTime: Long,
+      srcId: Long,
+      dstId: Long,
+      properties: Properties,
+      edgeType: MaybeType,
+      secondaryIndex: Long
+  ): Unit
+  def deleteEdge(updateTime: Long, srcId: Long, dstId: Long, secondaryIndex: Long): Unit
 }

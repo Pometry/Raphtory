@@ -1,33 +1,22 @@
 package com.raphtory.internals.components.querymanager
 
-import Stages.SpawnExecutors
-import Stages.Stage
+import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
-import com.raphtory.api.analysis.graphview.ClearChain
-import com.raphtory.api.analysis.graphview.ExplodeSelect
-import com.raphtory.api.analysis.graphview.GlobalGraphFunction
-import com.raphtory.api.analysis.graphview.GlobalSelect
-import com.raphtory.api.analysis.graphview.GraphFunction
-import com.raphtory.api.analysis.graphview.Iterate
-import com.raphtory.api.analysis.graphview.IterateWithGraph
-import com.raphtory.api.analysis.graphview.MultilayerView
-import com.raphtory.api.analysis.graphview.PerspectiveDone
-import com.raphtory.api.analysis.graphview.ReduceView
-import com.raphtory.api.analysis.graphview.Select
-import com.raphtory.api.analysis.graphview.SelectWithGraph
-import com.raphtory.api.analysis.graphview.SetGlobalState
-import com.raphtory.api.analysis.graphview.Step
-import com.raphtory.api.analysis.graphview.StepWithGraph
-import com.raphtory.api.analysis.graphview.TabularisingGraphFunction
+import com.raphtory.api.analysis.graphview._
 import com.raphtory.api.analysis.table.TableFunction
+import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.connectors.PulsarConnector
 import com.raphtory.internals.components.Component
+import com.raphtory.internals.components.querymanager.Stages.SpawnExecutors
+import com.raphtory.internals.components.querymanager.Stages.Stage
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.graph.PerspectiveController
 import com.raphtory.internals.graph.PerspectiveController.DEFAULT_PERSPECTIVE_TIME
 import com.raphtory.internals.graph.PerspectiveController.DEFAULT_PERSPECTIVE_WINDOW
 import com.raphtory.internals.management.Scheduler
+import com.raphtory.internals.management.python.PythonGlobalStateEvaluator
+import com.raphtory.internals.management.python.UnsafeEmbeddedPythonProxy
 import com.raphtory.internals.serialisers.KryoSerialiser
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -47,22 +36,18 @@ private[raphtory] class QueryHandler(
     jobID: String,
     query: Query,
     conf: Config,
-    topics: TopicRepository
+    topics: TopicRepository,
+    pyScript: Option[String]
 ) extends Component[QueryManagement](conf) {
 
+  private val startTime      = System.currentTimeMillis()
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val self           = topics.rechecks(jobID).endPoint
   private val partitions     = topics.partitionSetup.endPoint
   private val tracker        = topics.queryTrack(jobID).endPoint
   private val workerList     = topics.jobOperations(jobID).endPoint
 
-  override def stop(): Unit = {
-    listener.close()
-    self.close()
-    partitions.close()
-    tracker.close()
-    workerList.close()
-  }
+  private lazy val py = UnsafeEmbeddedPythonProxy(pyScript)
 
   private val listener =
     topics.registerListener(
@@ -92,11 +77,21 @@ private[raphtory] class QueryHandler(
 
   private var currentState: Stage = SpawnExecutors
 
+  logger.debug(s"Spawned QueryHandler for $jobID in ${System.currentTimeMillis() - startTime}ms")
+
+  override def stop(): Unit = {
+    listener.close()
+    self.close()
+    partitions.close()
+    tracker.close()
+    workerList.close()
+  }
+
   private def recheckTimer(): Unit         = self sendAsync RecheckTime
   private def recheckEarliestTimer(): Unit = self sendAsync RecheckEarliestTime
 
   override def run(): Unit = {
-    messagePartitions(EstablishExecutor(query._bootstrap, graphID, jobID, query.sink.get))
+    messagePartitions(EstablishExecutor(query._bootstrap, graphID, jobID, query.sink.get, query.pyScript))
     timeTaken = System.currentTimeMillis() //Set time from the point we ask the executors to set up
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
     listener.start()
@@ -225,9 +220,9 @@ private[raphtory] class QueryHandler(
       votedToHalt: Boolean
   ) = {
     sentMessageCount += sentMessages
-    telemetry.totalSentMessageCount.labels(jobID, deploymentID).inc(sentMessages)
+    telemetry.totalSentMessageCount.labels(jobID, deploymentID).inc(sentMessages.toDouble)
     receivedMessageCount += receivedMessages
-    telemetry.receivedMessageCountCollector.labels(jobID, deploymentID).inc(receivedMessages)
+    telemetry.receivedMessageCountCollector.labels(jobID, deploymentID).inc(receivedMessages.toDouble)
     allVoteToHalt = votedToHalt & allVoteToHalt
     readyCount += 1
     logger.debug(
@@ -360,15 +355,16 @@ private[raphtory] class QueryHandler(
     val latestTime = getLatestTime
     val oldestTime = getOptionalEarliestTime
     telemetry.totalPerspectivesProcessed.labels(jobID, deploymentID).inc()
-    if (currentPerspective.timestamp != -1) //ignore initial placeholder
+    if (currentPerspective.timestamp != -1) { //ignore initial placeholder
       tracker sendAsync currentPerspective
+      logTotalTimeTaken()
+    }
     currentPerspectiveID += 1
     perspectiveController.nextPerspective() match {
       case Some(perspective) =>
         logger.trace(
                 s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$latestTime'."
         )
-        logTotalTimeTaken(perspective)
         currentPerspective = perspective
         graphFunctions = null
         tableFunctions = null
@@ -382,22 +378,20 @@ private[raphtory] class QueryHandler(
     }
   }
 
-  private def logTotalTimeTaken(perspective: Perspective): Unit = {
+  private def logTotalTimeTaken(): Unit =
     if (currentPerspective.timestamp != DEFAULT_PERSPECTIVE_TIME)
       currentPerspective.window match {
         case Some(window) =>
-          logger.debug(
+          logger.info(
                   s"Job '$jobID': Perspective at Time '${currentPerspective.timestamp}' with " +
                     s"Window $window took ${System.currentTimeMillis() - lastTime} ms to run."
           )
         case None         =>
-          logger.debug(
+          logger.info(
                   s"Job '$jobID': Perspective at Time '${currentPerspective.timestamp}' " +
                     s"took ${System.currentTimeMillis() - lastTime} ms to run. "
           )
       }
-    lastTime = System.currentTimeMillis()
-  }
 
   private def recheckTime(perspective: Perspective): Stage = {
     val time                 = getLatestTime
@@ -406,12 +400,13 @@ private[raphtory] class QueryHandler(
     timeTaken = System.currentTimeMillis()
     if (perspectiveIsReady(perspective)) {
       logger.debug(s"Job '$jobID': Created perspective at time $time.")
+      lastTime = System.currentTimeMillis()
       messagetoAllJobWorkers(CreatePerspective(currentPerspectiveID, perspective))
       Stages.EstablishPerspective
     }
     else {
       logger.debug(s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$time'.")
-      scheduler.scheduleOnce(1.seconds, recheckTimer())
+      scheduler.scheduleOnce(10.milliseconds, recheckTimer())
       Stages.EstablishPerspective
     }
   }
@@ -433,11 +428,15 @@ private[raphtory] class QueryHandler(
     telemetry.totalGraphOperations.labels(jobID, deploymentID).inc()
 
     currentOperation match {
-      case Iterate(f, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt          =>
+      case Iterate(f: (Vertex => Unit) @unchecked, iterations, executeMessagedOnly)
+          if iterations > 1 && !allVoteToHalt =>
         currentOperation = Iterate(f, iterations - 1, executeMessagedOnly)
-      case IterateWithGraph(f, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt =>
+      case PythonIterate(bytes, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt =>
+        currentOperation = PythonIterate(bytes, iterations - 1, executeMessagedOnly)
+      case IterateWithGraph(f: ((Vertex, GraphState) => Unit) @unchecked, iterations, executeMessagedOnly)
+          if iterations > 1 && !allVoteToHalt =>
         currentOperation = IterateWithGraph(f, iterations - 1, executeMessagedOnly)
-      case _                                                                                        =>
+      case _                                                                                         =>
         currentOperation = getNextGraphOperation(graphFunctions).get
     }
     allVoteToHalt = true
@@ -446,25 +445,30 @@ private[raphtory] class QueryHandler(
             s"Job '$jobID': Executing graph function '${currentOperation.getClass.getSimpleName}'."
     )
     currentOperation match {
-      case PerspectiveDone()      =>
+      case PerspectiveDone()           =>
         logger.debug(
                 s"Job '$jobID': Executing next perspective with windows '${currentPerspective.window}'" +
                   s" and timestamp '${currentPerspective.timestamp}'."
         )
         executeNextPerspective()
 
-      case SetGlobalState(fun)    =>
+      case SetGlobalState(fun)         =>
         fun(graphState)
         nextGraphOperation(vertexCount)
 
-      case f: GlobalGraphFunction =>
+      case PythonSetGlobalState(pyObj) =>
+        val fun = new PythonGlobalStateEvaluator(pyObj, py)
+        fun(graphState)
+        nextGraphOperation(vertexCount)
+
+      case f: GlobalGraphFunction      =>
         messagetoAllJobWorkers(GraphFunctionWithGlobalState(f, graphState))
         if (f.isInstanceOf[TabularisingGraphFunction])
           Stages.ExecuteTable
         else
           Stages.ExecuteGraph
 
-      case f: GraphFunction       =>
+      case f: GraphFunction            =>
         messagetoAllJobWorkers(f)
         if (f.isInstanceOf[TabularisingGraphFunction])
           Stages.ExecuteTable

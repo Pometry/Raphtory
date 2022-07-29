@@ -31,8 +31,10 @@ private[raphtory] class IngestionExecutor(
   private val spoutReschedulesCount = telemetry.spoutReschedules.labels(deploymentID)
   private val fileLinesSent         = telemetry.fileLinesSent.labels(deploymentID)
 
-  private var linesProcessed: Int                      = 0
+  private var index: Int                               = 0
   private var scheduledRun: Option[() => Future[Unit]] = None
+
+  sourceInstance.setupStreamIngestion(writers)
 
   private def rescheduler(): Unit = {
     sourceInstance.executeReschedule()
@@ -53,24 +55,12 @@ private[raphtory] class IngestionExecutor(
 
   private def executeSpout(): Unit = {
     spoutReschedulesCount.inc()
-    while (sourceInstance.hasNext) {
+    while (sourceInstance.hasRemainingUpdates) {
       fileLinesSent.inc()
-      linesProcessed = linesProcessed + 1
-      if (linesProcessed % 100_000 == 0)
-        logger.debug(s"Spout: sent $linesProcessed messages.")
-      try {
-        val update = sourceInstance.next()
-        writers(getWriter(update.srcId)).sendAsync(update)
-      }
-      catch {
-        case e: Exception =>
-          if (failOnError)
-            throw e
-          else {
-            logger.warn(s"Failed to parse tuple.", e.getMessage)
-            e.printStackTrace()
-          }
-      }
+      index = index + 1
+      if (index % 100_000 == 0)
+        logger.debug(s"Spout: sent $index messages.")
+      sourceInstance.sendUpdates(index, failOnError)
     }
     if (sourceInstance.spoutReschedules())
       reschedule()

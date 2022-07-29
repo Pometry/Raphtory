@@ -33,8 +33,8 @@ private[raphtory] class TopicRepository(
   protected def queryTrackConnector: Connector         = defaultControlConnector
   protected def rechecksConnector: Connector           = defaultControlConnector
   protected def jobStatusConnector: Connector          = defaultControlConnector
-  protected def vertexMessagesConnector: Connector     = defaultDataConnector
-  protected def vertexMessagesSyncConnector: Connector = defaultDataConnector
+  protected def vertexMessagesConnector: Connector     = defaultControlConnector
+  protected def vertexMessagesSyncConnector: Connector = defaultControlConnector
   def jobOperationsConnector: Connector                = defaultControlConnector // accessed within the queryHandler
 
   // Configuration
@@ -45,8 +45,8 @@ private[raphtory] class TopicRepository(
   private val numPartitions: Int       = partitionServers * partitionsPerServer
 
   // Global topics
-  final def spout[T]: WorkPullTopic[T] =
-    WorkPullTopic[T](spoutConnector, "spout", customAddress = spoutAddress)
+  final def spout[T]: WorkPullTopic[(T, Long)] =
+    WorkPullTopic[(T, Long)](spoutConnector, "spout", customAddress = spoutAddress)
 
   final def submissions: ExclusiveTopic[Submission] =
     ExclusiveTopic[Submission](submissionsConnector, s"submissions", depId)

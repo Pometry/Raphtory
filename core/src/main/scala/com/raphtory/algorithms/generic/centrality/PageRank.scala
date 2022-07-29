@@ -53,14 +53,13 @@ class PageRank(dampingFactor: Double = 0.85, iterateSteps: Int = 100) extends No
       }
       .iterate(
               { vertex =>
-                val vname        = vertex.name() // for logging purposes
                 val currentLabel = vertex.getState[Double]("prlabel")
-
-                val queue    = vertex.messageQueue[Double]
-                val newLabel = (1 - dampingFactor) + dampingFactor * queue.sum
+                val queue        = vertex.messageQueue[Double]
+                val newLabel     = (1 - dampingFactor) + dampingFactor * queue.sum
                 vertex.setState("prlabel", newLabel)
 
                 val outDegree = vertex.outDegree
+
                 if (outDegree > 0)
                   vertex.messageOutNeighbours(newLabel / outDegree)
 

@@ -6,7 +6,7 @@ package com.raphtory.api.analysis.visitor
   */
 trait ExplodedVertex extends Vertex with ExplodedEntityVisitor {
   override type IDType = (Long, Long)
-  override type Edge <: ConcreteExplodedEdge[IDType]
+  override type Edge <: ConcreteEdge[IDType]
 
   implicit override val IDOrdering: Ordering[(Long, Long)] =
     Ordering.Tuple2(Ordering.Long, Ordering.Long)

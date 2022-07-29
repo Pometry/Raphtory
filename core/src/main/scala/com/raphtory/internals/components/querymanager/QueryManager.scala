@@ -54,7 +54,7 @@ private[raphtory] class QueryManager(
           case None               => //sender ! QueryNotPresent(req.jobID)
         }
       case watermark: WatermarkTime       =>
-        logger.debug(
+        logger.trace(
                 s"Setting watermark to earliest time '${watermark.oldestTime}'" +
                   s" and latest time '${watermark.latestTime}'" +
                   s" for partition '${watermark.partitionID}'" +
@@ -71,7 +71,7 @@ private[raphtory] class QueryManager(
   private def spawnQuery(id: String, query: Query): QueryHandler = {
     logger.info(s"Query '${query.name}' received, your job ID is '$id'.")
 
-    val queryHandler = new QueryHandler(this, scheduler, query.graphID, id, query, conf, topics)
+    val queryHandler = new QueryHandler(this, scheduler, query.graphID, id, query, conf, topics, query.pyScript)
     scheduler.execute(queryHandler)
     telemetry.totalQueriesSpawned.labels(deploymentID).inc()
     queryHandler

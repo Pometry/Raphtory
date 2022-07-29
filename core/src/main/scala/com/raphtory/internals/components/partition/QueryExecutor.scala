@@ -1,51 +1,29 @@
 package com.raphtory.internals.components.partition
 
-import com.raphtory.api.analysis.graphview.ClearChain
-import com.raphtory.api.analysis.graphview.DirectedView
-import com.raphtory.api.analysis.graphview.ExplodeSelect
-import com.raphtory.api.analysis.graphview.GlobalSelect
-import com.raphtory.api.analysis.graphview.Iterate
-import com.raphtory.api.analysis.graphview.IterateWithGraph
-import com.raphtory.api.analysis.graphview.MultilayerView
-import com.raphtory.api.analysis.graphview.ReduceView
-import com.raphtory.api.analysis.graphview.ReversedView
-import com.raphtory.api.analysis.graphview.Select
-import com.raphtory.api.analysis.graphview.SelectWithGraph
-import com.raphtory.api.analysis.graphview.Step
-import com.raphtory.api.analysis.graphview.StepWithGraph
-import com.raphtory.api.analysis.graphview.UndirectedView
+import cats.Id
+import com.raphtory.api.analysis.graphstate.GraphState
+import com.raphtory.api.analysis.graphstate.GraphStateImplementation
+import com.raphtory.api.analysis.graphview._
 import com.raphtory.api.analysis.table.Explode
+import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.TableFilter
 import com.raphtory.api.analysis.table.WriteToOutput
+import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.output.sink.SinkExecutor
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
-import com.raphtory.internals.components.querymanager.AlgorithmFailure
-import com.raphtory.internals.components.querymanager.CheckMessages
-import com.raphtory.internals.components.querymanager.CompleteWrite
-import com.raphtory.internals.components.querymanager.CreatePerspective
-import com.raphtory.internals.components.querymanager.EndQuery
-import com.raphtory.internals.components.querymanager.ExecutorEstablished
-import com.raphtory.internals.components.querymanager.GenericVertexMessage
-import com.raphtory.internals.components.querymanager.GraphFunctionComplete
-import com.raphtory.internals.components.querymanager.GraphFunctionCompleteWithState
-import com.raphtory.internals.components.querymanager.GraphFunctionWithGlobalState
-import com.raphtory.internals.components.querymanager.MetaDataSet
-import com.raphtory.internals.components.querymanager.PerspectiveEstablished
-import com.raphtory.internals.components.querymanager.QueryManagement
-import com.raphtory.internals.components.querymanager.SetMetaData
-import com.raphtory.internals.components.querymanager.TableBuilt
-import com.raphtory.internals.components.querymanager.TableFunctionComplete
-import com.raphtory.internals.components.querymanager.VertexMessageBatch
-import com.raphtory.internals.components.querymanager.VertexMessagesSync
-import com.raphtory.internals.components.querymanager.VertexMessaging
-import com.raphtory.internals.components.querymanager.WriteCompleted
+import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.management.Scheduler
+import com.raphtory.internals.management.python.PythonGlobalSelectEvaluator
+import com.raphtory.internals.management.python.PythonIterateEvaluator
+import com.raphtory.internals.management.python.PythonStateStepEvaluator
+import com.raphtory.internals.management.python.PythonStepEvaluator
+import com.raphtory.internals.management.python.UnsafeEmbeddedPythonProxy
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -64,10 +42,13 @@ private[raphtory] class QueryExecutor(
     jobID: String,
     conf: Config,
     topics: TopicRepository,
-    scheduler: Scheduler
+    scheduler: Scheduler,
+    pyScript: Option[String]
 ) extends Component[QueryManagement](conf) {
 
-  private val logger: Logger                   = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger                   =
+    Logger(LoggerFactory.getLogger(this.getClass))
+  logger.info(logMessage(s"Starting QueryExecutor."))
   private var currentPerspectiveID: Int        = _
   private var currentPerspective: Perspective  = _
   private var graphLens: LensInterface         = _
@@ -79,11 +60,16 @@ private[raphtory] class QueryExecutor(
   private val messageBatch: Boolean = conf.getBoolean(msgBatchPath)
   private val maxBatchSize: Int     = conf.getInt("raphtory.partitions.maxMessageBatchSize")
 
-  private val sync = new QuerySuperstepSync(totalPartitions)
+  private val sync    = new QuerySuperstepSync(totalPartitions)
+  private lazy val py = UnsafeEmbeddedPythonProxy(pyScript)
+
+  private val sinkExecutor: SinkExecutor = sink.executor(jobID, partitionID, conf)
 
   if (messageBatch)
     logger.debug(
-            s"Message batching is set to on. To change this modify '$msgBatchPath' in the application conf."
+            logMessage(
+                    s"Message batching is set to on. To change this modify '$msgBatchPath' in the application conf."
+            )
     )
 
   private val listener = topics.registerListener(
@@ -92,6 +78,7 @@ private[raphtory] class QueryExecutor(
           topics.jobOperations(jobID),
           partitionID
   )
+  logger.debug(logMessage("Component message listener registered."))
 
   private val vertexMessageListener =
     if (totalPartitions > 1)
@@ -104,6 +91,7 @@ private[raphtory] class QueryExecutor(
               )
       )
     else None
+  logger.debug(logMessage("Vertex message listener registered."))
 
   private val vertexControlMessageListener =
     if (totalPartitions > 1)
@@ -117,36 +105,43 @@ private[raphtory] class QueryExecutor(
       )
     else
       None
+  logger.debug(logMessage("Vertex control message listener registered."))
 
   private val taskManager = topics.jobStatus(jobID).endPoint
-
-  private val sinkExecutor: SinkExecutor = sink.executor(jobID, partitionID, conf)
+  logger.debug(logMessage("TaskManager endpoint created"))
 
   private val neighbours: Map[Int, EndPoint[VertexMessaging]] =
     if (totalPartitions > 1)
       topics.vertexMessages(jobID).endPoint
     else
       Map.empty
+  logger.debug(logMessage("Vertex message endpoints created"))
 
-  private val syncNeighbours: Map[Int, EndPoint[VertexMessagesSync]] =
+  private val syncNeighbours: Map[Int, EndPoint[VertexMessagesSync]] = {
     if (totalPartitions > 1)
       topics.vertexMessagesSync(jobID).endPoint
     else
       Map.empty
+  }
+  logger.debug(logMessage("Vertex control message endpoints created."))
 
   override def run(): Unit = {
-    logger.debug(s"Job '$jobID' at Partition '$partitionID': Starting query executor consumer.")
+    logger.debug(logMessage(s"Starting query executor consumer."))
     listener.start()
+    logger.debug(logMessage("Query executor consumer started, starting vertex message listeners."))
     vertexMessageListener.foreach(_.start())
+    logger.debug(logMessage("Vertex message listeners started, starting vertex control message listeners."))
     vertexControlMessageListener.foreach(_.start())
+    logger.debug(logMessage("Vertex control message listeners started."))
     taskManager sendAsync ExecutorEstablished(partitionID)
+    logger.debug(logMessage("QueryExecutor initialised."))
   }
 
   override def stop(): Unit = {
     listener.close()
     vertexMessageListener.foreach(_.close())
     vertexControlMessageListener.foreach(_.close())
-    logger.debug(s"closing query executor consumer for $jobID on partition $partitionID")
+    logger.debug(logMessage(s"closing query executor consumer."))
     taskManager.close()
     neighbours.values.foreach(_.close())
     syncNeighbours.values.foreach(_.close())
@@ -157,8 +152,10 @@ private[raphtory] class QueryExecutor(
 
       case VertexMessageBatch(msgBatch) =>
         logger.trace(
-                s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessageBatch', '[${msgBatch
-                  .mkString(",")}]'."
+                logMessage(
+                        s"Executing 'VertexMessageBatch', '[${msgBatch
+                          .mkString(",")}]'."
+                )
         )
         msgBatch.foreach(message => graphLens.receiveMessage(message))
         receivedMessageCount.addAndGet(msgBatch.size)
@@ -166,7 +163,9 @@ private[raphtory] class QueryExecutor(
 
       case msg: GenericVertexMessage[_] =>
         logger.trace(
-                s"Job '$jobID' at Partition '$partitionID': Executing 'VertexMessage', '$msg'."
+                logMessage(
+                        s"Executing 'VertexMessage', '$msg'."
+                )
         )
         graphLens.receiveMessage(msg)
         receivedMessageCount.incrementAndGet()
@@ -179,7 +178,9 @@ private[raphtory] class QueryExecutor(
 
   def receiveVertexControlMessage(msg: VertexMessagesSync): Unit = {
     logger.debug(
-            s"Partition $partitionID received control message from ${msg.partitionID}, should receive ${msg.count} messages"
+            logMessage(
+                    s"Received control message from ${msg.partitionID}, should receive ${msg.count} messages"
+            )
     )
     sync.updateControlMessageCount(msg.count)
   }
@@ -188,7 +189,7 @@ private[raphtory] class QueryExecutor(
     val time = System.currentTimeMillis()
     try {
       msg match {
-        case CreatePerspective(id, perspective)                            =>
+        case CreatePerspective(id, perspective)                                       =>
           currentPerspectiveID = id
           currentPerspective = perspective
           receivedMessageCount.set(0)
@@ -209,40 +210,28 @@ private[raphtory] class QueryExecutor(
 
           taskManager sendAsync PerspectiveEstablished(currentPerspectiveID, graphLens.localNodeCount)
           logger.debug(
-                  s"Job '$jobID' at Partition '$partitionID': Created perspective at time '${perspective.timestamp}' with window '${perspective.window}'. in ${System
-                    .currentTimeMillis() - time}ms"
+                  logMessage(
+                          s"Created perspective at time '${perspective.timestamp}' with window '${perspective.window}'. in ${System
+                            .currentTimeMillis() - time}ms"
+                  )
           )
 
-        case SetMetaData(vertices)                                         =>
+        case SetMetaData(vertices)                                                    =>
           graphLens.setFullGraphSize(vertices)
           taskManager sendAsync MetaDataSet(currentPerspectiveID)
           logger.debug(
-                  s"Job $jobID at Partition '$partitionID': Meta Data set in ${System.currentTimeMillis() - time}ms"
+                  logMessage(
+                          s"Meta Data set in ${System.currentTimeMillis() - time}ms"
+                  )
           )
 
-        case GraphFunctionWithGlobalState(function, graphState)            =>
+        case GraphFunctionWithGlobalState(function, graphState)                       =>
           function match {
+            case PythonStepWithGraph(pyObj)                           =>
+              evalStepWithGraph(time, graphState, new PythonStateStepEvaluator[Id](pyObj, py))
             case StepWithGraph(f)                                     =>
-              startStep()
-              graphLens.runGraphFunction(f, graphState) {
-                finaliseStep {
-                  val sentMessages     = sentMessageCount.get()
-                  val receivedMessages = receivedMessageCount.get()
-                  taskManager sendAsync
-                    GraphFunctionCompleteWithState(
-                            currentPerspectiveID,
-                            partitionID,
-                            receivedMessages,
-                            sentMessages,
-                            graphState = graphState
-                    )
+              evalStepWithGraph(time, graphState, f)
 
-                  logger.debug(
-                          s"Job '$jobID' at Partition '$partitionID': Step function on graph with accumulators finished in ${System
-                            .currentTimeMillis() - time}ms and sent '$sentMessages' messages."
-                  )
-                }
-              }
             case IterateWithGraph(f, iterations, executeMessagedOnly) =>
               startStep()
               val fun =
@@ -266,8 +255,10 @@ private[raphtory] class QueryExecutor(
                     )
 
                   logger.debug(
-                          s"Job '$jobID' at Partition '$partitionID': Iterate function on graph with accumulators completed  in ${System
-                            .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to $executeMessagedOnly."
+                          logMessage(
+                                  s"Iterate function on graph with accumulators completed  in ${System
+                                    .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to $executeMessagedOnly."
+                          )
                   )
                 }
               }
@@ -278,32 +269,20 @@ private[raphtory] class QueryExecutor(
                 finaliseStep {
                   taskManager sendAsync TableBuilt(currentPerspectiveID)
                   logger.debug(
-                          s"Job '$jobID' at Partition '$partitionID': Select executed on graph with accumulators in ${System
-                            .currentTimeMillis() - time}ms."
+                          logMessage(
+                                  s"Select executed on graph with accumulators in ${System
+                                    .currentTimeMillis() - time}ms."
+                          )
                   )
                 }
               }
-
+            case PythonGlobalSelect(f)                                =>
+              evalGlobalSelect(time, graphState, new PythonGlobalSelectEvaluator[Id](f, py))
             case GlobalSelect(f)                                      =>
-              startStep()
-              if (partitionID == 0)
-                graphLens.executeSelect(f, graphState) {
-                  taskManager sendAsync TableBuilt(currentPerspectiveID)
-                  logger.debug(
-                          s"Job '$jobID' at Partition '$partitionID': Global Select executed on graph with accumulators in ${System
-                            .currentTimeMillis() - time}ms."
-                  )
-                }
-              else {
-                taskManager sendAsync TableBuilt(currentPerspectiveID)
-                logger.debug(
-                        s"Job '$jobID' at Partition '$partitionID': Global Select executed on graph with accumulators in ${System
-                          .currentTimeMillis() - time}ms."
-                )
-              }
+              evalGlobalSelect(time, graphState, f)
           }
 
-        case MultilayerView(interlayerEdgeBuilder)                         =>
+        case MultilayerView(interlayerEdgeBuilder)                                    =>
           startStep()
           graphLens.explodeView(interlayerEdgeBuilder) {
             finaliseStep {
@@ -318,12 +297,12 @@ private[raphtory] class QueryExecutor(
                 )
 
               logger
-                .debug(s"Job '$jobID' at Partition '$partitionID': MultilayerView function finished in ${System
-                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages.")
+                .debug(logMessage(s"MultilayerView function finished in ${System
+                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages."))
             }
           }
 
-        case ReduceView(defaultMergeStrategy, mergeStrategyMap, aggregate) =>
+        case ReduceView(defaultMergeStrategy, mergeStrategyMap, aggregate)            =>
           startStep()
           graphLens.reduceView(defaultMergeStrategy, mergeStrategyMap, aggregate) {
             finaliseStep {
@@ -339,12 +318,17 @@ private[raphtory] class QueryExecutor(
                 )
 
               logger
-                .debug(s"Job '$jobID' at Partition '$partitionID': MultilayerView function finished in ${System
-                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages.")
+                .debug(logMessage(s"MultilayerView function finished in ${System
+                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages."))
             }
           }
+        case PythonStep(p)                                                            =>
+          evaluateStep(time, new PythonStepEvaluator[Id](p, py))
 
-        case UndirectedView()                                              =>
+        case Step(f: (Vertex => Unit) @unchecked)                                     =>
+          evaluateStep(time, f)
+
+        case UndirectedView()                                                         =>
           startStep()
           graphLens.viewUndirected() {
             finaliseStep {
@@ -360,12 +344,12 @@ private[raphtory] class QueryExecutor(
                 )
 
               logger
-                .debug(s"Job '$jobID' at Partition '$partitionID': UndirectedView function finished in ${System
-                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages.")
+                .debug(logMessage(s"UndirectedView function finished in ${System
+                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages."))
             }
           }
 
-        case DirectedView()                                                =>
+        case DirectedView()                                                           =>
           startStep()
           graphLens.viewDirected() {
             finaliseStep {
@@ -381,12 +365,17 @@ private[raphtory] class QueryExecutor(
                 )
 
               logger
-                .debug(s"Job '$jobID' at Partition '$partitionID': DirectedView function finished in ${System
-                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages.")
+                .debug(logMessage(s"DirectedView function finished in ${System
+                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages."))
             }
           }
 
-        case ReversedView()                                                =>
+        case p: PythonIterate                                                         =>
+          evaluateIterate(time, new PythonIterateEvaluator[Id](p.bytes, py), p.executeMessagedOnly)
+        case Iterate(f: (Vertex => Unit) @unchecked, iterations, executeMessagedOnly) =>
+          evaluateIterate(time, f, executeMessagedOnly)
+
+        case ReversedView()                                                           =>
           startStep()
           graphLens.viewReversed() {
             finaliseStep {
@@ -402,143 +391,206 @@ private[raphtory] class QueryExecutor(
                 )
 
               logger
-                .debug(s"Job '$jobID' at Partition '$partitionID': ReversedView function finished in ${System
-                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages.")
+                .debug(logMessage(s"ReversedView function finished in ${System
+                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages."))
             }
           }
 
-        case Step(f)                                                       =>
-          startStep()
-          graphLens.runGraphFunction(f) {
-            finaliseStep {
-              val sentMessages     = sentMessageCount.get()
-              val receivedMessages = receivedMessageCount.get()
-              taskManager sendAsync
-                GraphFunctionComplete(
-                        currentPerspectiveID,
-                        partitionID,
-                        receivedMessages,
-                        sentMessages
-                )
-
-              logger
-                .debug(s"Job '$jobID' at Partition '$partitionID': Step function finished in ${System
-                  .currentTimeMillis() - time}ms and sent '$sentMessages' messages.")
-            }
-          }
-
-        case Iterate(f, iterations, executeMessagedOnly)                   =>
-          startStep()
-          val fun =
-            if (executeMessagedOnly)
-              graphLens.runMessagedGraphFunction(f)(_)
-            else
-              graphLens.runGraphFunction(f)(_)
-          fun {
-            finaliseStep {
-              val sentMessages     = sentMessageCount.get()
-              val receivedMessages = receivedMessageCount.get()
-
-              taskManager sendAsync
-                GraphFunctionComplete(
-                        currentPerspectiveID,
-                        partitionID,
-                        receivedMessages,
-                        sentMessages,
-                        graphLens.checkVotes()
-                )
-
-              votedToHalt = graphLens.checkVotes()
-              logger.debug(
-                      s"Job '$jobID' at Partition '$partitionID': Iterate function completed in ${System
-                        .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to $executeMessagedOnly."
-              )
-            }
-          }
-
-        case ClearChain()                                                  =>
+        case ClearChain()                                                             =>
           graphLens.clearMessages()
           taskManager sendAsync GraphFunctionComplete(currentPerspectiveID, partitionID, 0, 0)
           logger.debug(
-                  s"Job $jobID at Partition '$partitionID': Messages cleared on graph in ${System
-                    .currentTimeMillis() - time}ms."
+                  logMessage(
+                          s"Messages cleared on graph in ${System
+                            .currentTimeMillis() - time}ms."
+                  )
           )
 
-        case Select(f)                                                     =>
+        case Select(f)                                                                =>
           startStep()
           graphLens.executeSelect(f) {
             finaliseStep {
               taskManager sendAsync TableBuilt(currentPerspectiveID)
               logger.debug(
-                      s"Job '$jobID' at Partition '$partitionID': Select executed on graph in ${System
-                        .currentTimeMillis() - time}ms."
+                      logMessage(
+                              s"Select executed on graph in ${System
+                                .currentTimeMillis() - time}ms."
+                      )
               )
             }
           }
 
         //TODO create explode select with accumulators
-        case ExplodeSelect(f)                                              =>
+        case ExplodeSelect(f)                                                         =>
           startStep()
           graphLens.explodeSelect(f) {
             finaliseStep {
               taskManager sendAsync TableBuilt(currentPerspectiveID)
               logger.debug(
-                      s"Job '$jobID' at Partition '$partitionID': Exploded Select executed on graph in ${System
-                        .currentTimeMillis() - time}ms."
+                      logMessage(
+                              s"Exploded Select executed on graph in ${System
+                                .currentTimeMillis() - time}ms."
+                      )
               )
             }
           }
 
-        case TableFilter(f)                                                =>
+        case TableFilter(f)                                                           =>
           graphLens.filteredTable(f) {
             taskManager sendAsync TableFunctionComplete(currentPerspectiveID)
             logger.debug(
-                    s"Job '$jobID' at Partition '$partitionID': Table Filter executed on table in ${System
-                      .currentTimeMillis() - time}ms."
+                    logMessage(
+                            s"Table Filter executed on table in ${System
+                              .currentTimeMillis() - time}ms."
+                    )
             )
           }
 
-        case Explode(f)                                                    =>
+        case Explode(f)                                                               =>
           graphLens.explodeTable(f) {
             taskManager sendAsync TableFunctionComplete(currentPerspectiveID)
             logger.debug(
-                    s"Job '$jobID' at Partition '$partitionID': Table Explode executed on table in ${System
-                      .currentTimeMillis() - time}ms."
+                    logMessage(
+                            s"Table Explode executed on table in ${System
+                              .currentTimeMillis() - time}ms."
+                    )
             )
           }
 
-        case WriteToOutput                                                 =>
+        case WriteToOutput                                                            =>
           sinkExecutor.setupPerspective(currentPerspective)
           val writer = row => sinkExecutor.threadSafeWriteRow(row)
           graphLens.writeDataTable(writer) {
             sinkExecutor.closePerspective()
             taskManager sendAsync TableFunctionComplete(currentPerspectiveID)
             logger.debug(
-                    s"Job '$jobID' at Partition '$partitionID': Writing Results executed on table in ${System
-                      .currentTimeMillis() - time}ms. Results written to '${sink.getClass.getSimpleName}'."
+                    logMessage(
+                            s"Writing Results executed on table in ${System
+                              .currentTimeMillis() - time}ms. Results written to '${sink.getClass.getSimpleName}'."
+                    )
             )
           }
 
-        case CompleteWrite                                                 =>
+        case CompleteWrite                                                            =>
           sinkExecutor.close()
           logger.debug(
-                  s"Job '$jobID' at Partition '$partitionID': Received 'CompleteWrite' message. " +
-                    s"Output writer was successfully closed"
+                  logMessage(
+                          "Received 'CompleteWrite' message. Output writer was successfully closed."
+                  )
           )
           taskManager sendAsync WriteCompleted
 
         //TODO Kill this worker once this is received
-        case EndQuery(jobID)                                               =>
-          logger.debug(
-                  s"Job '$jobID' at Partition '$partitionID': Received 'EndQuery' message. "
-          )
+        case EndQuery(jobID)                                                          =>
+          logger.debug(logMessage("Received 'EndQuery' message. "))
       }
     }
     catch {
       case e: Throwable =>
         errorHandler(e)
     }
-    logger.debug(s"Partition $partitionID handled message $msg in ${System.currentTimeMillis() - time}ms")
+    logger.debug(logMessage(s"Handled message $msg in ${System.currentTimeMillis() - time}ms"))
+  }
+
+  private def evalGlobalSelect(time: Long, graphState: GraphStateImplementation, f: GraphState => Row) = {
+    startStep()
+    if (partitionID == 0)
+      graphLens.executeSelect(f, graphState) {
+        taskManager sendAsync TableBuilt(currentPerspectiveID)
+        logger.debug(
+                logMessage(
+                        s"Global Select executed on graph with accumulators in ${System
+                          .currentTimeMillis() - time}ms."
+                )
+        )
+      }
+    else {
+      taskManager sendAsync TableBuilt(currentPerspectiveID)
+      logger.debug(
+              logMessage(
+                      s"Global Select executed on graph with accumulators in ${System
+                        .currentTimeMillis() - time}ms."
+              )
+      )
+    }
+  }
+
+  private def evalStepWithGraph(time: Long, graphState: GraphStateImplementation, f: (_, GraphState) => Unit): Unit = {
+    startStep()
+    graphLens.runGraphFunction(f, graphState) {
+      finaliseStep {
+        val sentMessages     = sentMessageCount.get()
+        val receivedMessages = receivedMessageCount.get()
+        taskManager sendAsync
+          GraphFunctionCompleteWithState(
+                  currentPerspectiveID,
+                  partitionID,
+                  receivedMessages,
+                  sentMessages,
+                  graphState = graphState
+          )
+
+        logger.debug(
+                logMessage(
+                        s"Step function on graph with accumulators finished in ${System
+                          .currentTimeMillis() - time}ms and sent '$sentMessages' messages."
+                )
+        )
+      }
+    }
+  }
+
+  private def evaluateIterate(time: Long, f: Vertex => Unit, executeMessagedOnly: Boolean): Unit = {
+    startStep()
+    val fun =
+      if (executeMessagedOnly)
+        graphLens.runMessagedGraphFunction(f)(_)
+      else
+        graphLens.runGraphFunction(f)(_)
+    fun {
+      finaliseStep {
+        val sentMessages     = sentMessageCount.get()
+        val receivedMessages = receivedMessageCount.get()
+
+        taskManager sendAsync
+          GraphFunctionComplete(
+                  currentPerspectiveID,
+                  partitionID,
+                  receivedMessages,
+                  sentMessages,
+                  graphLens.checkVotes()
+          )
+
+        votedToHalt = graphLens.checkVotes()
+        logger.debug(
+                logMessage(
+                        s"Iterate function completed in ${System
+                          .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to $executeMessagedOnly."
+                )
+        )
+      }
+    }
+  }
+
+  private def evaluateStep(time: Long, f: Vertex => Unit) = {
+    startStep()
+    graphLens.runGraphFunction(f) {
+      finaliseStep {
+        val sentMessages     = sentMessageCount.get()
+        val receivedMessages = receivedMessageCount.get()
+        taskManager sendAsync
+          GraphFunctionComplete(
+                  currentPerspectiveID,
+                  partitionID,
+                  receivedMessages,
+                  sentMessages
+          )
+
+        logger
+          .debug(logMessage(s"Step function finished in ${System
+            .currentTimeMillis() - time}ms and sent '$sentMessages' messages."))
+      }
+    }
   }
 
   def errorHandler(error: Throwable): Unit = {
@@ -570,7 +622,7 @@ private[raphtory] class QueryExecutor(
           case e: NoSuchElementException =>
             val msg =
               s"Trying to send message to partition $destinationPartition from partition $partitionID but no endPoints were provided"
-            logger.error(msg)
+            logger.error(logMessage(msg))
             throw new IllegalStateException(msg)
         }
       if (messageBatch) {
@@ -596,7 +648,7 @@ private[raphtory] class QueryExecutor(
   }
 
   def flushMessages(): CompletableFuture[Void] = {
-    logger.debug(s"Partition $partitionID flushing messages in vertex handler.")
+    logger.debug(logMessage("Flushing vertex messages."))
 
     if (messageBatch)
       messageCache.keys.foreach(producer => sendCached(producer))
@@ -606,12 +658,12 @@ private[raphtory] class QueryExecutor(
   }
 
   def flushControlMessages(): CompletableFuture[Void] = {
-    logger.debug(s"Partition $partitionID flushing control messages")
+    logger.debug(logMessage("Flushing control messages."))
     CompletableFuture.allOf(syncNeighbours.values.map(_.flushAsync()).toSeq: _*)
   }
 
   private def refreshBuffers(): Unit = {
-    logger.debug("Refreshing messageCache buffers for all Producers.")
+    logger.debug(logMessage("Refreshing messageCache buffers for all Producers."))
     messageCache.values.foreach(_.clear())
   }
 
@@ -625,7 +677,9 @@ private[raphtory] class QueryExecutor(
       case (id, endPoint) =>
         if (id != partitionID) {
           logger.debug(
-                  s"Partition $partitionID finished sending messages, final sent count for target $id is ${perStepSentMessageCounts(id).get()}"
+                  logMessage(
+                          s"Finished sending messages, final sent count for target $id is ${perStepSentMessageCounts(id).get()}"
+                  )
           )
           endPoint.sendAsync(VertexMessagesSync(partitionID, perStepSentMessageCounts(id).get()))
         }
@@ -636,11 +690,13 @@ private[raphtory] class QueryExecutor(
       .thenCompose(_ => sync.awaitSuperstepComplete)
       .thenCompose(_ =>
         scheduler.executeCompletable {
-          logger.debug(s"Partition $partitionID has received all messages, finalising step")
+          logger.debug(logMessage("Received all messages, finalising step"))
           f
         }
       )
   }
+
+  private def logMessage(msg: String): String = s"${jobID}_$partitionID: $msg"
 }
 
 class QuerySuperstepSync(totalPartitions: Int) {

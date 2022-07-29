@@ -12,6 +12,18 @@ import scala.collection.concurrent.Map
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
+case class EdgeUpdate(time: Long, index: Long, src: Long, dst: Long)
+
+object EdgeUpdate {
+  implicit val ordering: Ordering[EdgeUpdate] = Ordering.by(e => (e.time, e.index, e.src, e.dst))
+}
+
+case class VertexUpdate(time: Long, index: Long, id: Long)
+
+object VertexUpdate {
+  implicit val ordering: Ordering[VertexUpdate] = Ordering.by(v => (v.time, v.index, v.id))
+}
+
 private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
@@ -24,17 +36,17 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
     WatermarkTime(graphID, storage.getPartitionID, Long.MaxValue, 0, safe = false)
 
   //Current unsynchronised updates
-  private val edgeAdditions: mutable.TreeSet[(Long, (Long, Long))] = mutable.TreeSet()
-  private val edgeDeletions: mutable.TreeSet[(Long, (Long, Long))] = mutable.TreeSet()
+  private val edgeAdditions: mutable.TreeSet[EdgeUpdate] = mutable.TreeSet()
+  private val edgeDeletions: mutable.TreeSet[EdgeUpdate] = mutable.TreeSet()
 
-  private val vertexDeletions: Map[(Long, Long), AtomicInteger] =
-    new TrieMap[(Long, Long), AtomicInteger]()
+  private val vertexDeletions: Map[VertexUpdate, AtomicInteger] =
+    new TrieMap[VertexUpdate, AtomicInteger]()
 
   def getLatestWatermark: WatermarkTime = latestWatermark
 
-  def trackEdgeAddition(timestamp: Long, src: Long, dst: Long): Unit = {
+  def trackEdgeAddition(timestamp: Long, index: Long, src: Long, dst: Long): Unit = {
     lock.lock()
-    try edgeAdditions += ((timestamp, (src, dst)))
+    try edgeAdditions += EdgeUpdate(timestamp, index, src, dst)
     catch {
       case e: Exception =>
         logger.error(e.getMessage) //shouldn't be any errors here, but just in case
@@ -42,9 +54,9 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
     lock.unlock()
   }
 
-  def trackEdgeDeletion(timestamp: Long, src: Long, dst: Long): Unit = {
+  def trackEdgeDeletion(timestamp: Long, index: Long, src: Long, dst: Long): Unit = {
     lock.lock()
-    try edgeDeletions += ((timestamp, (src, dst)))
+    try edgeDeletions += EdgeUpdate(timestamp, index, src, dst)
     catch {
       case e: Exception =>
         logger.error(e.getMessage)
@@ -52,9 +64,9 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
     lock.unlock()
   }
 
-  def trackVertexDeletion(timestamp: Long, src: Long, size: Int): Unit = {
+  def trackVertexDeletion(timestamp: Long, index: Long, src: Long, size: Int): Unit = {
     lock.lock()
-    try vertexDeletions put ((timestamp, src), new AtomicInteger(size))
+    try vertexDeletions put (VertexUpdate(timestamp, index, src), new AtomicInteger(size))
     catch {
       case e: Exception =>
         logger.error(e.getMessage)
@@ -62,9 +74,9 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
     lock.unlock()
   }
 
-  def untrackEdgeAddition(timestamp: Long, src: Long, dst: Long): Unit = {
+  def untrackEdgeAddition(timestamp: Long, index: Long, src: Long, dst: Long): Unit = {
     lock.lock()
-    try edgeAdditions -= ((timestamp, (src, dst)))
+    try edgeAdditions -= EdgeUpdate(timestamp, index, src, dst)
     catch {
       case e: Exception =>
         logger.error(e.getMessage)
@@ -72,9 +84,9 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
     lock.unlock()
   }
 
-  def untrackEdgeDeletion(timestamp: Long, src: Long, dst: Long): Unit = {
+  def untrackEdgeDeletion(timestamp: Long, index: Long, src: Long, dst: Long): Unit = {
     lock.lock()
-    try edgeDeletions -= ((timestamp, (src, dst)))
+    try edgeDeletions -= EdgeUpdate(timestamp, index, src, dst)
     catch {
       case e: Exception =>
         logger.error(e.getMessage)
@@ -82,12 +94,13 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
     lock.unlock()
   }
 
-  def untrackVertexDeletion(timestamp: Long, src: Long): Unit = {
+  def untrackVertexDeletion(timestamp: Long, index: Long, src: Long): Unit = {
     lock.lock()
-    try vertexDeletions get (timestamp, src) match {
+    val update = VertexUpdate(timestamp, index, src)
+    try vertexDeletions get update match {
       case Some(counter) => //if after we remove this value its now zero we can remove from the tree
         if (counter.decrementAndGet() == 0)
-          vertexDeletions -= ((timestamp, src))
+          vertexDeletions -= update
       case None          =>
     }
     catch {
@@ -104,19 +117,19 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
       if (!storage.currentyBatchIngesting()) {
         val edgeAdditionTime =
           if (edgeAdditions.nonEmpty)
-            edgeAdditions.minBy(_._1)._1
+            edgeAdditions.minBy(_.time).time
           else
             time
 
         val edgeDeletionTime =
           if (edgeDeletions.nonEmpty)
-            edgeDeletions.minBy(_._1)._1
+            edgeDeletions.minBy(_.time).time
           else
             time
 
         val vertexDeletionTime: Long =
           if (vertexDeletions.nonEmpty)
-            vertexDeletions.minBy(_._1._1)._1._1 //find the min and then extract the time
+            vertexDeletions.keys.minBy(_.time).time //find the min and then extract the time
           else
             time
 

@@ -152,8 +152,8 @@ object Raphtory {
 
   }
 
-  private def connectManaged(customConfig: Map[String, Any] = Map()) = {
-    val config         = confBuilder(customConfig, None, true, false)
+  private def connectManaged(customConfig: Map[String, Any] = Map()): Resource[IO, (TopicRepository, Config)] = {
+    val config         = confBuilder(customConfig, distributed = true)
     val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
     for {
       _         <- Py4JServer.fromEntryPoint[IO](this, config)
@@ -174,6 +174,18 @@ object Raphtory {
     val ((topicRepo, config), shutdown) = managed.unsafeRunSync()
     new TemporalGraphConnection(Query(), new QuerySender(new Scheduler(), topicRepo, config), config, shutdown)
   }
+
+  /** Creates a `TemporalGraphConnection` object referencing an already deployed graph that
+    * can be used to submit queries.
+    *
+    * @param customConfig Custom configuration for the deployment being referenced
+    * @return A temporal graph object
+    */
+  def connectIO(customConfig: Map[String, Any] = Map()): Resource[IO, TemporalGraphConnection] =
+    connectManaged(customConfig).map {
+      case (topicRepo, config) =>
+        new TemporalGraphConnection(Query(), new QuerySender(new Scheduler(), topicRepo, config), config, IO.unit)
+    }
 
   /** Returns a default config using `ConfigFactory` for initialising parameters for
     * running Raphtory components. This uses the default application parameters

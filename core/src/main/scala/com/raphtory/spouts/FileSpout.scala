@@ -9,6 +9,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
 import java.util.zip.GZIPInputStream
 import java.util.zip.ZipInputStream
 import scala.collection.mutable
@@ -116,7 +117,7 @@ private class FileSpoutInstance[T](
       if (!reReadFiles)
         if (currentfile != null) {
           val fileName = currentfile.getPath.replace(outputDirectory, "")
-          logger.debug(s"Spout: Adding file $fileName to completed list.")
+          logger.trace(s"Spout: Adding file $fileName to completed list.")
           completedFiles.add(fileName)
         }
       lines = files.headOption match {
@@ -199,7 +200,7 @@ private class FileSpoutInstance[T](
           logger.debug(s"Spout: Attempting to hard link file '$file' -> '${Paths
             .get(sourceSubFolder + "/" + file.getName)}'.")
           try Files
-            .createLink(
+            .createSymbolicLink(
                     Paths.get(sourceSubFolder + "/" + file.getName),
                     file.toPath
             )

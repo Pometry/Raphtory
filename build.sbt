@@ -57,6 +57,7 @@ lazy val root = (project in file("."))
           examplesGab,
           examplesLotr,
           examplesTwitter,
+          examplesNFT,
           deploy
   )
 
@@ -64,7 +65,7 @@ lazy val core = (project in file("core"))
   .settings(
           name := "core",
           assembly / test := {},
-          scalafmtOnCompile := true,
+          scalafmtOnCompile := false,
           Compile / doc / scalacOptions := Seq(
                   "-skip-packages",
                   "com.raphtory.algorithms.generic:com.raphtory.algorithms.temporal:com.raphtory.algorithms.filters",
@@ -78,11 +79,14 @@ lazy val core = (project in file("core"))
                   akkaTyped,
                   bcel,
                   curatorRecipes,
+                  decline,
                   jackson,
                   log4jSlft4,
                   log4jApi,
                   log4jCore,
+                  magnolia,
                   openhft,
+                  pemja,
                   prometheusClient,
                   prometheusHotspot,
                   prometheusHttp,
@@ -143,6 +147,11 @@ lazy val examplesLotr =
 lazy val examplesTwitter =
   (project in file("examples/twitter"))
     .dependsOn(core, connectorsTwitter)
+    .settings(assemblySettings)
+
+lazy val examplesNFT =
+  (project in file("examples/raphtory-example-nft"))
+    .dependsOn(core)
     .settings(assemblySettings)
 
 lazy val deploy =

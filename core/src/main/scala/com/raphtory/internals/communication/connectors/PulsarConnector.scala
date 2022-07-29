@@ -33,7 +33,7 @@ private[raphtory] class PulsarConnector(
   case class PulsarEndPoint[T](producer: Producer[Array[Byte]]) extends EndPoint[T] {
 
     override def sendAsync(message: T): Unit = {
-      logger.debug(s"sending message: '$message' to topic: '${producer.getTopic}'")
+      logger.trace(s"sending message: '$message' to topic: '${producer.getTopic}'")
       try producer.sendAsync(serialise(message))
       catch {
         case NonFatal(t) =>

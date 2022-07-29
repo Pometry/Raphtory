@@ -5,9 +5,7 @@ import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.GlobalGraphFunction
 import com.raphtory.api.analysis.graphview.GraphFunction
 import com.raphtory.api.analysis.table.TableFunction
-import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Source
-import com.raphtory.api.input.Spout
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.time.Interval
 import com.raphtory.api.time.NullInterval
@@ -89,7 +87,8 @@ private[raphtory] case class Query(
     windowAlignment: Alignment.Value = Alignment.START,
     graphFunctions: Queue[GraphFunction] = Queue(),
     tableFunctions: Queue[TableFunction] = Queue(),
-    sink: Option[Sink] = None
+    sink: Option[Sink] = None,
+    pyScript: Option[String] = None
 ) extends Submission
 
 case class DynamicLoader(classes: Set[Class[_]] = Set.empty) {
@@ -156,6 +155,12 @@ private[raphtory] case class EstablishGraph(graphID: String, sources: Seq[Source
         extends Submission
         with GraphManagement
 
-private[raphtory] case class EstablishExecutor(_bootstrap: DynamicLoader, graphID: String, jobID: String, sink: Sink)
-        extends GraphManagement
+private[raphtory] case class EstablishExecutor(
+    _bootstrap: DynamicLoader,
+    graphID: String,
+    jobID: String,
+    sink: Sink,
+    pyScript: Option[String]
+) extends GraphManagement
+
 private[raphtory] case class StopExecutor(jobID: String) extends GraphManagement

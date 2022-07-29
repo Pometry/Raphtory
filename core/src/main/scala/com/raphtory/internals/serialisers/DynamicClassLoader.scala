@@ -16,7 +16,7 @@ private[serialisers] class DynamicClassLoader(parent: ClassLoader, storage: Conc
 
   @throws[ClassNotFoundException]
   override def findClass(name: String): Class[_] =
-    Try(super.findClass(name)) match {
+    Try(parent.loadClass(name)) match {
       case Success(cls)                       => cls
       case Failure(t: ClassNotFoundException) =>
         val clzBytes = storage.get(name)
@@ -41,7 +41,7 @@ object DynamicClassLoader {
   private[serialisers] val classStorage = new ConcurrentHashMap[String, Array[Byte]]()
 
   def injectClass(name: String, clzBytes: Array[Byte], classLoader: DynamicClassLoader): Class[_] = {
-    logger.info(s"Loading dynamic class [$name], size: ${clzBytes.length}")
+    logger.debug(s"Loading dynamic class [$name], size: ${clzBytes.length}")
     classStorage.computeIfAbsent(name, _ => clzBytes)
     classLoader.findClass(name)
   }

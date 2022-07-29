@@ -17,4 +17,9 @@ trait Accumulator[-S, T] {
     * @param newValue Value to add
     */
   def +=(newValue: S): Unit
+
+  /** [Python to Java ] Add new value to accumulator
+    * @param newValue Value to add
+    */
+  def update(newValue: S): Unit = this.+=(newValue)
 }

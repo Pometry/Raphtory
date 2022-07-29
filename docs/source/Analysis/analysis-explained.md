@@ -309,7 +309,7 @@ require knowledge of a vertex's neighbours and the connections between them. Som
 * Average neighbour degree
 
 For an example of this, let's look at a snippet of the
-[{s}`TriangleCount`](com.raphtory.algorithms.generic.motif.TriangleCount) algorithm:
+[{s}`LocalTriangleCount`](com.raphtory.algorithms.generic.motif.TriangleCount) algorithm:
 
 ```scala
 override def apply(graph: GraphPerspective): graph.Graph = {

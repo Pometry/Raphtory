@@ -1,5 +1,6 @@
 package com.raphtory.internals.components.partition
 
+import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphPartition
@@ -7,13 +8,14 @@ import com.raphtory.internals.management.telemetry.ComponentTelemetryHandler
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
+import java.util.concurrent.CompletableFuture
 import scala.language.postfixOps
 import scala.reflect.ClassTag
 
-private[raphtory] class BatchWriter[T: ClassTag](
+private[raphtory] class BatchWriter[T](
     partitionID: Int,
     storage: GraphPartition
-) {
+) extends EndPoint[GraphUpdate] {
   private val telemetry: ComponentTelemetryHandler.type = ComponentTelemetryHandler
 
   def getStorage() = storage
@@ -21,7 +23,7 @@ private[raphtory] class BatchWriter[T: ClassTag](
   private var processedMessages = 0
   private val logger: Logger    = Logger(LoggerFactory.getLogger(this.getClass))
 
-  def handleMessage(msg: GraphAlteration): Unit = {
+  def sendAsync(msg: GraphUpdate): Unit = {
     msg match {
       //Updates from the Graph Builder
       //TODO Make Vertex Deletions batch ingestable
@@ -42,7 +44,7 @@ private[raphtory] class BatchWriter[T: ClassTag](
 
   def processVertexAdd(update: VertexAdd): Unit = {
     logger.trace(s"Partition $partitionID: Received VertexAdd message '$update'.")
-    storage.addVertex(update.updateTime, update.srcId, update.properties, update.vType)
+    storage.addVertex(update.updateTime, update.index, update.srcId, update.properties, update.vType)
     storage.timings(update.updateTime)
     telemetry.batchWriterVertexAdditionsCollector.labels(partitionID.toString).inc()
   }
@@ -52,6 +54,7 @@ private[raphtory] class BatchWriter[T: ClassTag](
     storage.timings(update.updateTime)
     storage.addEdge(
             update.updateTime,
+            update.index,
             update.srcId,
             update.dstId,
             update.properties,
@@ -63,9 +66,9 @@ private[raphtory] class BatchWriter[T: ClassTag](
   def processRemoteEdgeAdd(req: BatchAddRemoteEdge): Unit = {
     logger.trace("A writer has requested a new edge sync for a destination node in this worker.")
 
-    storage.timings(req.msgTime)
+    storage.timings(req.updateTime)
     storage
-      .batchAddRemoteEdge(req.msgTime, req.srcId, req.dstId, req.properties, req.vType)
+      .batchAddRemoteEdge(req.updateTime, req.index, req.srcId, req.dstId, req.properties, req.vType)
     telemetry.batchWriterRemoteEdgeAdditionsCollector.labels(partitionID.toString).inc()
   }
 
@@ -73,15 +76,15 @@ private[raphtory] class BatchWriter[T: ClassTag](
     logger.trace(
             s"Partition '$partitionID': A remote worker is asking for a new edge to be removed for a destination node in this worker."
     )
-    storage.timings(req.msgTime)
-    storage.syncNewEdgeRemoval(req.msgTime, req.srcId, req.dstId, req.removals)
+    storage.timings(req.updateTime)
+    storage.syncNewEdgeRemoval(req.updateTime, req.index, req.srcId, req.dstId, req.removals)
     telemetry.batchWriterRemoteEdgeDeletionsCollector.labels(partitionID.toString).inc()
   }
 
   def processEdgeDelete(update: EdgeDelete): Unit = {
     logger.trace(s"Partition $partitionID: Received EdgeDelete message '$update'.")
     storage.timings(update.updateTime)
-    storage.removeEdge(update.updateTime, update.srcId, update.dstId)
+    storage.removeEdge(update.updateTime, update.index, update.srcId, update.dstId)
     telemetry.batchWriterEdgeDeletionsCollector.labels(partitionID.toString).inc()
   }
 
@@ -96,4 +99,9 @@ private[raphtory] class BatchWriter[T: ClassTag](
       )
   }
 
+  override def flushAsync(): CompletableFuture[Void] = CompletableFuture.completedFuture(null)
+
+  override def close(): Unit = {}
+
+  override def closeWithMessage(message: GraphUpdate): Unit = sendAsync(message)
 }

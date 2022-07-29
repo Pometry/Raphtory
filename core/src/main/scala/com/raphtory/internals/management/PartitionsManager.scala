@@ -54,7 +54,7 @@ object PartitionsManager {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  def batchLoading[IO[_]: Spawn, T: ClassTag](
+  def batchLoading[IO[_]: Spawn, T](
       config: Config,
       partitionIDManager: IDManager,
       topics: TopicRepository,
@@ -87,7 +87,7 @@ object PartitionsManager {
         for {
           a1 <- cats.effect.Resource.eval(pm1)
           (partitionId, pm, storage) = a1
-          reader                    <- Reader("", partitionId, storage, scheduler, config, topics)
+          reader                    <- Reader(partitionId, storage, scheduler, config, topics)
           partitionManager          <- PartitionManager(partitionId, scheduler, config, topics, true, storage)
         } yield pm.copy(readers = reader :: pm.readers)
     }
