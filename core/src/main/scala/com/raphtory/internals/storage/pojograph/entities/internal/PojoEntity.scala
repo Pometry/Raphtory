@@ -48,7 +48,6 @@ abstract private[raphtory] class PojoEntity(
     deletions sortedAppend (msgTime, index)
   }
 
-  // override the apply method so that we can do edge/vertex("key") to easily retrieve properties
   def get(property: String): Option[Property] = properties.get(property)
 
   // Add or update the property from an edge or a vertex based, using the operator vertex + (k,v) to add new properties
