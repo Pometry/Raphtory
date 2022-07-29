@@ -61,7 +61,6 @@ private[raphtory] class QueryExecutor(
     partitionID: Int,
     sink: Sink,
     storage: GraphPartition,
-    graphID: String,
     jobID: String,
     conf: Config,
     topics: TopicRepository,

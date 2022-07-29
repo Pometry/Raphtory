@@ -26,6 +26,7 @@ import scala.reflect.ClassTag
 sealed trait PartitionsManager
 
 case class BatchPartitionManager[T](
+    partitionManagers: List[PartitionManager],
     storages: List[GraphPartition],
     readers: List[Reader],
     writers: List[Component[GraphAlteration]],
@@ -36,7 +37,7 @@ case class BatchPartitionManager[T](
 object BatchPartitionManager {
 
   def empty[T]: BatchPartitionManager[T] =
-    BatchPartitionManager(List.empty, List.empty, List.empty, List.empty, List.empty)
+    BatchPartitionManager(List.empty, List.empty, List.empty, List.empty, List.empty, List.empty)
 }
 
 case class StreamingPartitionManager(
@@ -87,6 +88,7 @@ object PartitionsManager {
           a1 <- cats.effect.Resource.eval(pm1)
           (partitionId, pm, storage) = a1
           reader                    <- Reader("", partitionId, storage, scheduler, config, topics)
+          partitionManager          <- PartitionManager(partitionId, scheduler, config, topics, true, storage)
         } yield pm.copy(readers = reader :: pm.readers)
     }
 
@@ -133,14 +135,9 @@ object PartitionsManager {
 
     val partMResource: Resource[IO, StreamingPartitionManager] = partitions.foldLeftM(StreamingPartitionManager.empty) {
       (pm, i) =>
-        val pm1 = for {
-          partitionId <- nextId(partitionIDManager)
-          storage     <- IO.delay(new PojoBasedPartition("", partitionId, config)) // TODO: remove
-        } yield (partitionId, storage)
         for {
-          a1 <- cats.effect.Resource.eval(pm1)
-          (partitionId, storage) = a1
-          partition             <- PartitionManager(partitionId, scheduler, config, topics)
+          partitionId <- Resource.eval(nextId(partitionIDManager))
+          partition   <- PartitionManager(partitionId, scheduler, config, topics)
         } yield pm.copy(partitions = partition :: pm.partitions)
     }
 

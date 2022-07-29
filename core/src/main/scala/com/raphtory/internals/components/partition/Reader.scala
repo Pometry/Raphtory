@@ -18,7 +18,6 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 private[raphtory] class Reader(
-    graphID: String,
     partitionID: Int,
     storage: GraphPartition,
     scheduler: Scheduler,
@@ -79,6 +78,6 @@ object Reader {
             topics,
             s"reader-$partitionID",
             List[Topic[QueryManagement]](),
-            new Reader(graphID, partitionID, storage, scheduler, conf, topics)
+            new Reader(partitionID, storage, scheduler, conf, topics)
     )
 }

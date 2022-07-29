@@ -19,6 +19,7 @@ import java.io.FileWriter
 import java.net.URL
 import java.nio.file.Files
 import java.nio.file.Paths
+import scala.sys.process._
 
 class MultiSpoutDeploymentTest extends CatsEffectSuite {
   val outputDirectory   = "/tmp/raphtoryTest"
@@ -38,9 +39,7 @@ class MultiSpoutDeploymentTest extends CatsEffectSuite {
     val files = for {
       _        <- fileDownload
       file     <- Resource.fromAutoCloseable(IO(scala.io.Source.fromFile(path)))
-      _        <- Resource.make(IO(Files.createDirectory(Paths.get(splitDir))))(path =>
-                    IO(FileUtils.deleteDirectory(new File(splitDir)))
-                  )
+      _        <- Resource.make(IO(s"mkdir $splitDir" !!))(path => IO(s"rm -r $splitDir" !!))
       oddFile  <- Resource.fromAutoCloseable(IO(new FileWriter(oddPath)))
       evenFile <- Resource.fromAutoCloseable(IO(new FileWriter(evenPath)))
     } yield (file, oddFile, evenFile)
@@ -51,11 +50,9 @@ class MultiSpoutDeploymentTest extends CatsEffectSuite {
           IO.delay {
             file.getLines().grouped(2).foreach { linePair =>
               val oddLine = linePair.head
-              println(s"odd: $oddLine")
               oddFile.write(s"$oddLine\n")
               if (linePair.size == 2) {
                 val evenLine = linePair.last
-                println(s"even: $evenLine")
                 evenFile.write(s"$evenLine\n")
               }
             }

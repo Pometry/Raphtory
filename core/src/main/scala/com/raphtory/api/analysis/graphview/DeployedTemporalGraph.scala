@@ -21,7 +21,6 @@ class DeployedTemporalGraph private[raphtory] (
     override private[api] val query: Query,
     override private[api] val querySender: QuerySender,
     override private[api] val conf: Config,
-    val deploymentId: String,
     private val shutdown: IO[Unit]
 ) extends TemporalGraph(query, querySender, conf)
         with AutoCloseable {

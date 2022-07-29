@@ -196,7 +196,7 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   *
   * @see [[DottedGraph]], [[GraphPerspective]]
   */
-class TemporalGraph private[api] (
+class TemporalGraph private[raphtory] (
     override private[api] val query: Query,
     override private[api] val querySender: QuerySender,
     override private[api] val conf: Config

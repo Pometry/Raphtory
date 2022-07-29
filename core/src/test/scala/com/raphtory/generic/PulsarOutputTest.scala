@@ -3,9 +3,11 @@ package com.raphtory.generic
 import cats.effect.Async
 import cats.effect.IO
 import com.raphtory.BaseRaphtoryAlgoTest
+import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
+import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
 import com.raphtory.internals.communication.connectors.PulsarConnector
@@ -16,13 +18,15 @@ import org.apache.pulsar.client.api.Schema
 import org.scalatest.Ignore
 
 import java.net.URL
+import java.util.UUID
 import scala.language.postfixOps
 
 @Ignore
 class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFinish = false) {
-  withGraph.test("Outputting to Pulsar") { graph: DeployedTemporalGraph =>
-    PulsarConnector[IO](graph.config).use { pulsarConnector =>
-      val deploymentId = graph.deploymentId
+  withGraph.test("Outputting to Pulsar") { graph: TemporalGraph =>
+    val config = Raphtory.getDefaultConfig()
+    PulsarConnector[IO](config).use { pulsarConnector =>
+      val salt = UUID.randomUUID().toString
 
       Async[IO].bracket(
               IO {
@@ -30,12 +34,12 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFin
                   .createSharedConsumer(
                           subscriptionName = "pulsarOutputTest",
                           schema = Schema.BYTES,
-                          topics = "EdgeList" + deploymentId
+                          topics = "EdgeList" + salt
                   )
               }
       ) { consumer =>
         IO {
-          val sink: PulsarSink     = PulsarSink("EdgeList" + deploymentId)
+          val sink: PulsarSink     = PulsarSink("EdgeList" + salt)
           val queryProgressTracker =
             graph
               .range(1, 32674, 10000)

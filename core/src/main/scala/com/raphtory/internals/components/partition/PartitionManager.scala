@@ -26,7 +26,9 @@ class PartitionManager(
     partitionID: Int,
     scheduler: Scheduler,
     conf: Config,
-    topics: TopicRepository
+    topics: TopicRepository,
+    batchLoading: Boolean,
+    batchStorage: GraphPartition
 ) extends Component[GraphManagement](conf) {
 
   case class Partition(readerCancel: IO[Unit], writerCancel: IO[Unit], storage: GraphPartition) {
@@ -58,7 +60,7 @@ class PartitionManager(
           establishExecutor(request)
         }
       case request: EstablishExecutor     =>
-        if (partitions contains request.graphID)
+        if (batchLoading || (partitions contains request.graphID))
           establishExecutor(request)
         else
           pendingExecutors.put(request.graphID, request)
@@ -83,9 +85,9 @@ class PartitionManager(
   private def establishExecutor(request: EstablishExecutor) =
     request match {
       case EstablishExecutor(_, graphID, jobID, sink) =>
-        val storage       = partitions(graphID).storage
+        val storage       = if (batchLoading) batchStorage else partitions(graphID).storage
         val queryExecutor =
-          new QueryExecutor(partitionID, sink, storage, graphID, jobID, conf, topics, scheduler)
+          new QueryExecutor(partitionID, sink, storage, jobID, conf, topics, scheduler)
         scheduler.execute(queryExecutor)
         //        telemetry.queryExecutorCollector.labels(partitionID.toString, deploymentID).inc()
         executors.put(jobID, queryExecutor)
@@ -98,14 +100,16 @@ object PartitionManager {
       partitionID: Int,
       scheduler: Scheduler,
       conf: Config,
-      topics: TopicRepository
+      topics: TopicRepository,
+      batchLoading: Boolean = false,
+      batchStorage: GraphPartition = null // TODO: improve
   ): Resource[IO, PartitionManager] =
     Component.makeAndStartPart(
             partitionID,
             topics,
             s"partition-manager-$partitionID",
             List(topics.partitionSetup),
-            new PartitionManager(partitionID, scheduler, conf, topics)
+            new PartitionManager(partitionID, scheduler, conf, topics, batchLoading, batchStorage)
     )
 
 }

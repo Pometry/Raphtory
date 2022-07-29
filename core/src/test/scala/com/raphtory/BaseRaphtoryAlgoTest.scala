@@ -7,6 +7,7 @@ import com.google.common.hash.Hashing
 import com.raphtory.api.analysis.algorithm.GenericallyApplicable
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
+import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
 import com.raphtory.api.output.sink.Sink
@@ -35,18 +36,18 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   val outputDirectory: String = "/tmp/raphtoryTest"
   def defaultSink: Sink       = FileSink(outputDirectory)
 
-  private def graph: Resource[IO, DeployedTemporalGraph] =
+  private def graph: Resource[IO, TemporalGraph] =
     if (batchLoading()) Raphtory.loadIO[T](setSpout(), setGraphBuilder())
     else Raphtory.streamIO[T](setSpout(), setGraphBuilder())
 
-  val withGraph: SyncIO[FunFixture[DeployedTemporalGraph]] = ResourceFixture(
+  val withGraph: SyncIO[FunFixture[TemporalGraph]] = ResourceFixture(
           for {
             _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
             g <- graph
           } yield g
   )
 
-  val suiteGraph: Fixture[DeployedTemporalGraph] = ResourceSuiteLocalFixture(
+  val suiteGraph: Fixture[TemporalGraph] = ResourceSuiteLocalFixture(
           "graph",
           for {
             _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
@@ -74,7 +75,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
       increment: Long,
       windows: List[Long] = List[Long](),
       sink: Sink = defaultSink
-  )(graph: DeployedTemporalGraph): IO[String] =
+  )(graph: TemporalGraph): IO[String] =
     IO {
       val queryProgressTracker = graph
         .range(start, end, increment)
@@ -96,7 +97,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
       increment: Long,
       windows: List[Long] = List[Long](),
       sink: Sink = defaultSink,
-      graph: DeployedTemporalGraph = graphS
+      graph: TemporalGraph = graphS
   ): IO[String] =
     algorithmTestInternal(algorithm, start, end, increment, windows, sink)(graph)
 
@@ -105,7 +106,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
       timestamp: Long,
       windows: List[Long] = List[Long](),
       sink: Sink = defaultSink,
-      graph: DeployedTemporalGraph = graphS
+      graph: TemporalGraph = graphS
   ): IO[String] =
     IO {
       val queryProgressTracker = graph
