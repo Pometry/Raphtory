@@ -7,8 +7,9 @@ authors = ["Fabian Murariu <murariu.fabian@gmail.com>"]
 include = ["lib/core-*.jar"]
 
 [tool.poetry.dependencies]
-python = ">=3.8 <3.11"
-pemja = ">=0.2.0"
+python = ">=3.10 <3.11"
+# pemja = ">=0.2.0"
+pemja = {git = "https://github.com/alibaba/pemja.git", branch="main"}
 cloudpickle=">=0.4"
 py4j="^0.10"
 
