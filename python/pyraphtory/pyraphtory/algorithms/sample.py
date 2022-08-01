@@ -16,9 +16,9 @@ class LotrGraphBuilder(BaseBuilder):
         src_id = self.assign_id(src_node)
         tar_id = self.assign_id(target_node)
 
-        self.add_vertex(int(timestamp), src_id, [ImmutableProperty("name", src_node)], "Character")
-        self.add_vertex(int(timestamp), tar_id, [ImmutableProperty("name", target_node)], "Character")
-        self.add_edge(int(timestamp), src_id, tar_id, [], "Character Co-occurence")
+        self.add_vertex(int(timestamp), src_id, Properties(ImmutableProperty("name", src_node)), "Character")
+        self.add_vertex(int(timestamp), tar_id, Properties(ImmutableProperty("name", target_node)), "Character")
+        self.add_edge(int(timestamp), src_id, tar_id, Properties(), "Character Co-occurence")
 
 
 class CCStep1(Step):

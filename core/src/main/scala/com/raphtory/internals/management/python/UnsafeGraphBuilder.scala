@@ -14,7 +14,9 @@ import com.raphtory.internals.management.PythonEncoder
 class UnsafeGraphBuilder[T](val ref: PyRef, py: EmbeddedPython[Id])(implicit PE: PythonEncoder[T])
         extends GraphBuilder[T] {
 
+  logger.debug("Started UnsafeGraphBuilder")
   py.invoke(ref, "_set_jvm_builder", Vector(this))
+  logger.debug("Registered proxy in Python")
 
   /** Processes raw data message `tuple` from the spout to extract source node, destination node,
     * timestamp info, etc.
@@ -25,19 +27,8 @@ class UnsafeGraphBuilder[T](val ref: PyRef, py: EmbeddedPython[Id])(implicit PE:
     *
     * @param tuple raw input data
     */
-  override def parseTuple(tuple: T): Unit = {
+  override def parseTuple(tuple: T): Unit =
     py.invoke(ref, "parse_tuple", Vector(PE.encode(tuple)))
-    val actions = py.eval[Vector[GraphUpdate]](s"${ref.name}.get_actions()")
-    py.invoke(ref, "reset_actions", Vector.empty)
-    actions.collect {
-      case m: VertexAdd =>
-        handleGraphUpdate(m)
-        updateVertexAddStats()
-      case m: EdgeAdd   =>
-        handleEdgeAdd(m)
-        updateEdgeAddStats()
-    }
-  }
 
   def get_current_index(): Long =
     index
@@ -47,6 +38,7 @@ case class PythonGraphBuilder[T](pyScript: String, pyClass: String)(implicit PE:
         extends GraphBuilder[T]
         with Serializable {
 
+  logger.debug("Started PythonGraphBuilder")
   @transient lazy val py    = UnsafeEmbeddedPythonProxy(List(pyScript))
   @transient lazy val proxy = py.loadGraphBuilder[T](pyClass, None)
 
