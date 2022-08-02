@@ -5,6 +5,7 @@ import pyraphtory.proxy as proxy
 
 
 _interop = findClass('com.raphtory.internals.management.PythonInterop')
+_method_cache = {}
 logger = _interop.logger()
 
 
@@ -32,7 +33,15 @@ def decode(obj):
 
 
 def get_methods(name: str):
-    return _interop.methods(name)
+    if name in _method_cache:
+        logger.trace(f"Retreiving cached methods for {name!r}")
+        return _method_cache[name]
+    else:
+        logger.trace(f"Finding methods for {name!r}")
+        res = _interop.methods(name)
+        _method_cache[name] = res
+        logger.trace(f"Methods for {name!r} added to cache")
+        return res
 
 
 def to_jvm(value):
