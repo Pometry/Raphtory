@@ -202,16 +202,6 @@ class BaseBuilder(GenericScalaProxy):
     def parse_tuple(self, line: str):
         pass
 
-    def add_vertex(self, timestamp: int, src_id: int, props: Properties, tpe: str, index=None):
-        if index is None:
-            index = self.index()
-        self.jvm.add_vertex(timestamp, src_id, props, Type(tpe))
-
-    def add_edge(self, timestamp: int, src_id: int, tar_id: int, props: Properties, tpe: str, index=None):
-        if index is None:
-            index = self.index()
-        self.jvm.add_edge(timestamp, src_id, tar_id, props, Type(tpe), index)
-
     @staticmethod
     def assign_id(s: str):
         return _Interop._interop.assign_id(s)
