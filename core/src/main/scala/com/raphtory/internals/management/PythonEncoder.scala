@@ -4,6 +4,7 @@ import com.raphtory.api.input.GraphBuilder
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
+import java.lang.reflect
 import java.util
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -186,13 +187,59 @@ object PythonEncoder {
 object PythonInterop {
   val logger: WrappedLogger = new WrappedLogger(Logger(LoggerFactory.getLogger(this.getClass)))
 
-  def assignId(s: String): Long =
+  def assign_id(s: String): Long =
     GraphBuilder.assignID(s)
+
+  def camel_to_snake(s: String): String =
+    PythonEncoder.camelToSnakeCase(s)
 
   def testArgs(args: Any): Unit =
     println(s"testArgs($args)")
 
   def decode(obj: Any): Any = obj
+
+  def methods(name: String): Map[String, Array[Method]] = {
+    val prefixedMethodDict         = mutable.Map.empty[String, mutable.ArrayBuffer[java.lang.reflect.Method]]
+    val prefixedMethodDefaultsDict = mutable.Map.empty[String, mutable.Map[Int, java.lang.reflect.Method]]
+    Class.forName(name.replace("/", ".")).getMethods.foreach { m =>
+      val parts: Array[String] = """\$default\$""".r.split(m.getName)
+      val prefix               = camel_to_snake(parts(0))
+
+      if (parts.length == 1)
+        prefixedMethodDict.getOrElseUpdate(prefix, mutable.ArrayBuffer.empty[java.lang.reflect.Method]).append(m)
+      else {
+        val defaultIndex = parts(1).toInt - 1
+        prefixedMethodDefaultsDict
+          .getOrElseUpdate(prefix, mutable.Map.empty[Int, java.lang.reflect.Method])
+          .addOne(defaultIndex, m)
+      }
+    }
+    val res                        = prefixedMethodDict.map {
+      case (name, methods) =>
+        val defaults = prefixedMethodDefaultsDict.get(name) match {
+          case Some(v) => v.toMap
+          case None    => Map.empty[Int, java.lang.reflect.Method]
+        }
+
+        name -> methods.map { m =>
+          val params = m.getParameters.map(p => camel_to_snake(p.getName))
+          val n      = m.getParameterCount
+          if (
+                  defaults.forall {
+                    case (i, d) =>
+                      val test1       = i < m.getParameterCount
+                      val paramType   = m.getParameterTypes()(i)
+                      val defaultType = d.getReturnType
+                      test1 && (paramType == defaultType)
+                  }
+          )
+            Method(m.getName, n, params, defaults.view.mapValues(_.getName).toMap)
+          else
+            Method(m.getName, n, params, Map.empty[Int, String])
+        }.toArray
+    }.toMap
+    res
+  }
 
   def decode[T](obj: java.util.ArrayList[T]): mutable.Iterable[T] = obj.asScala
 
@@ -208,6 +255,10 @@ class WrappedLogger(logger: Logger) {
   def warn(msg: String): Unit = logger.warn(msg)
 
   def error(msg: String): Unit = logger.error(msg)
+}
+
+case class Method(name: String, n: Int, parameters: Array[String], defaults: Map[Int, String]) {
+  def has_defaults: Boolean = defaults.nonEmpty
 }
 
 /**
