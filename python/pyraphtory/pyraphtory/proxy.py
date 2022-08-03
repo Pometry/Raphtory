@@ -11,15 +11,21 @@ class GenericScalaProxy(object):
         self._jvm_object = jvm_object
         self._methods = None
 
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls._classname is not None:
+            interop.register(cls)
+
     def _get_classname(self):
         if self._classname is None:
             self._classname = self._jvm_object.getClass().getCanonicalName()
+            logger.trace(f"Retrieved name {self._classname!r} from java object")
+        logger.trace(f"Return name {self._classname!r}")
         return self._classname
 
     @property
     def _method_dict(self):
         if self._methods is None:
-            self._methods = defaultdict(list)
             logger.trace(f"Getting methods for {self._jvm_object}")
             self._methods = interop.get_methods(self._get_classname())
         else:
@@ -101,14 +107,16 @@ class ConstructableScalaProxy(GenericScalaProxy):
     @classmethod
     def _constructor(cls):
         logger.trace(f"trying to construct {cls._classname}")
-        c = findClass(cls._classname)
+        c = findClass(cls._classname.replace(".", "/"))
+        logger.trace(f"Classname is now {cls._classname}")
         logger.trace(f"found {c}")
-        obj = GenericScalaProxy(findClass(cls._classname))
+        obj = GenericScalaProxy(c)
         obj._classname = cls._classname
         return obj
 
     @classmethod
     def _construct_from_python(cls, *args, **kwargs):
+        # TODO: This creates a wrapper and then unwraps it again, clean up
         return interop.to_jvm(cls._constructor().apply(*args, **kwargs))
 
     def __init__(self, *args, jvm_object=None, **kwargs):

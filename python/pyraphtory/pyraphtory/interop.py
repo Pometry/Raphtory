@@ -6,7 +6,13 @@ import pyraphtory.proxy as proxy
 
 _interop = findClass('com.raphtory.internals.management.PythonInterop')
 _method_cache = {}
+_wrappers = {}
 logger = _interop.logger()
+
+
+def register(cls):
+    _wrappers[cls._classname] = cls
+    return cls
 
 
 def is_PyJObject(obj):
@@ -64,8 +70,13 @@ def to_jvm(value):
 
 def to_python(obj):
     if is_PyJObject(obj):
-        return proxy.GenericScalaProxy(obj)
+        name = obj.getClass().getCanonicalName()
+        logger.trace(f"Retrieving wrapper for {name!r}")
+        wrapper = _wrappers.get(name, proxy.GenericScalaProxy)
+        logger.trace(f"Wrapper is {wrapper!r}")
+        return wrapper(jvm_object=obj)
     else:
+        logger.trace(f"Primitive object {obj!r} passed to python unchanged")
         return obj
 
 
