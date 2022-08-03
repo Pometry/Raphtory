@@ -1,5 +1,6 @@
 package com.raphtory.internals.management
 
+import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.input.GraphBuilder
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -204,9 +205,10 @@ object PythonInterop {
 
   def get_wrapper_str(obj: Any): String =
     obj match {
-      case _: Iterable[_] => "Iterable"
-      case _: Iterator[_] => "Iterator"
-      case _              => "None"
+      case _: Iterable[_]      => "Iterable"
+      case _: Iterator[_]      => "Iterator"
+      case _: GraphPerspective => "TemporalGraph"
+      case _                   => "None"
     }
 
   def methods(name: String): Map[String, Array[Method]] = {
