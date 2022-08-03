@@ -4,6 +4,9 @@ from typing import List
 import cloudpickle as pickle
 
 from pyraphtory.steps import Iterate, Step, State, StepState, GlobalSelect
+from pyraphtory.proxy import GenericScalaProxy
+from pyraphtory.interop import register
+
 
 class ProgressTracker(object):
     def __init__(self, jvm_tracker):
@@ -95,7 +98,7 @@ class TemporalGraph(object):
 
     def select_state(self, columns: List[str]):
         try:
-            g = self.jvm_graph.pythonSelectState(columns)
+            g = self._jvm_object.pythonSelectState(columns)
             return Table(g)
         except Exception as e:
             print(str(e))
@@ -104,7 +107,7 @@ class TemporalGraph(object):
     def step_state(self, ssb: StepState):
         try:
             step_state_bytes = pickle.dumps(ssb)
-            g = self.jvm_graph.pythonStepState(step_state_bytes)
+            g = self._jvm_object.pythonStepState(step_state_bytes)
             return TemporalGraph(g)
         except Exception as e:
             print(str(e))
@@ -113,7 +116,7 @@ class TemporalGraph(object):
     def global_select(self, gs: GlobalSelect):
         try:
             global_select_bytes = pickle.dumps(gs)
-            g = self.jvm_graph.pythonGlobalSelect(global_select_bytes)
+            g = self._jvm_object.pythonGlobalSelect(global_select_bytes)
             return Table(g)
         except Exception as e:
             print(str(e))
