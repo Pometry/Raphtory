@@ -6,13 +6,22 @@ import pyraphtory.proxy as proxy
 
 _interop = findClass('com.raphtory.internals.management.PythonInterop')
 _method_cache = {}
-_wrappers = {}
 logger = _interop.logger()
 
 
-def register(cls):
-    _wrappers[cls._classname] = cls
-    return cls
+_wrappers = {}
+
+
+def register(cls=None, *, name=None):
+    if cls is None:
+        return lambda x: register(x, name=name)
+    else:
+        if name is None:
+            name = cls._classname
+        if name is None:
+            raise ValueError(f"Missing name during registration of {cls!r}")
+        _wrappers[name] = cls
+        return cls
 
 
 def is_PyJObject(obj):
@@ -50,6 +59,19 @@ def get_methods(name: str):
         return res
 
 
+def get_wrapper(obj):
+    name = obj.getClass().getName()
+    logger.trace(f"Retrieving wrapper for {name!r}")
+    if name in _wrappers:
+        logger.trace(f"Found wrapper for {name!r} based on class name")
+    else:
+        name = _interop.get_wrapper_str(obj)
+        logger.trace(f"Wrapper name is {name!r}")
+    wrapper = _wrappers.get(name, proxy.GenericScalaProxy)
+    logger.trace(f"Wrapper is {wrapper!r}")
+    return wrapper
+
+
 def to_jvm(value):
     if is_PyJObject(value):
         logger.trace(f"Converting value {value!r}, already PyJObject")
@@ -70,10 +92,7 @@ def to_jvm(value):
 
 def to_python(obj):
     if is_PyJObject(obj):
-        name = obj.getClass().getCanonicalName()
-        logger.trace(f"Retrieving wrapper for {name!r}")
-        wrapper = _wrappers.get(name, proxy.GenericScalaProxy)
-        logger.trace(f"Wrapper is {wrapper!r}")
+        wrapper = get_wrapper(obj)
         return wrapper(jvm_object=obj)
     else:
         logger.trace(f"Primitive object {obj!r} passed to python unchanged")

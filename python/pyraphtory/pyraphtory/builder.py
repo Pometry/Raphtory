@@ -1,5 +1,5 @@
 from pyraphtory.proxy import ConstructableScalaProxy, GenericScalaProxy
-from pyraphtory.interop import logger, assign_id, register
+from pyraphtory.interop import logger, assign_id
 
 
 class Type(ConstructableScalaProxy):
