@@ -28,9 +28,6 @@ class CCStep1(Step):
 
 
 class CCIterate1(Iterate):
-    def __init__(self, iterations: int, execute_messaged_only: bool):
-        super().__init__(iterations, execute_messaged_only)
-
     def eval(self, v: Vertex):
         label = min(v.message_queue())
         if label < v['cclabel']:
@@ -41,9 +38,6 @@ class CCIterate1(Iterate):
 
 
 class RaphtoryContext(BaseContext):
-    def __init__(self, rg: TemporalGraph, script):
-        super().__init__(rg, script)
-
     def eval(self):
         try:
             return self.rg.at(32674) \

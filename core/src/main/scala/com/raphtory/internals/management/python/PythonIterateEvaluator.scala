@@ -16,6 +16,6 @@ class PythonIterateEvaluator[IO[_]: Functor](pyObjBytes: Array[Byte], py: Embedd
   py.run(s"del ${eval_name}_bytes")
 
   override def apply(v: Vertex): IO[Unit] =
-    py.invoke(PyRef(eval_name), "eval_from_jvm", Vector(new PythonVertex(v))).map(_ => ())
+    py.invoke(PyRef(eval_name), "eval_from_jvm", Vector(v)).map(_ => ())
 
 }

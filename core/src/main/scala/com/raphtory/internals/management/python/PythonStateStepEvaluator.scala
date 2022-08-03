@@ -18,6 +18,6 @@ class PythonStateStepEvaluator[IO[_]: Functor](pyObjBytes: Array[Byte], py: Embe
   py.run(s"del ${eval_name}_bytes")
 
   override def apply(v: Vertex, gs: GraphState): IO[Unit] =
-    py.invoke(PyRef(eval_name), "eval_from_jvm", Vector(new PythonVertex(v), new PythonGraphState(gs))).map(_ => ())
+    py.invoke(PyRef(eval_name), "eval_from_jvm", Vector(v, new PythonGraphState(gs))).map(_ => ())
 
 }

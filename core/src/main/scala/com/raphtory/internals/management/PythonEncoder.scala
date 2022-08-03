@@ -196,9 +196,21 @@ object PythonInterop {
   def testArgs(args: Any): Unit =
     println(s"testArgs($args)")
 
-  def decode(obj: Any): Any = obj
+  def decode(obj: Any): Any =
+    obj match {
+      case obj: java.util.ArrayList[_] => obj.asScala
+      case obj                         => obj
+    }
+
+  def get_wrapper_str(obj: Any): String =
+    obj match {
+      case _: Iterable[_] => "Iterable"
+      case _: Iterator[_] => "Iterator"
+      case _              => "None"
+    }
 
   def methods(name: String): Map[String, Array[Method]] = {
+    logger.trace(s"Scala 'methods' called with $name")
     val prefixedMethodDict         = mutable.Map.empty[String, mutable.ArrayBuffer[java.lang.reflect.Method]]
     val prefixedMethodDefaultsDict = mutable.Map.empty[String, mutable.Map[Int, java.lang.reflect.Method]]
     Class.forName(name.replace("/", ".")).getMethods.foreach { m =>
@@ -226,11 +238,7 @@ object PythonInterop {
           val n      = m.getParameterCount
           if (
                   defaults.forall {
-                    case (i, d) =>
-                      val test1       = i < m.getParameterCount
-                      val paramType   = m.getParameterTypes()(i)
-                      val defaultType = d.getReturnType
-                      test1 && (paramType == defaultType)
+                    case (i, d) => i < m.getParameterCount && m.getParameterTypes()(i) == d.getReturnType
                   }
           )
             Method(m.getName, n, params, defaults.view.mapValues(_.getName).toMap)
@@ -238,10 +246,9 @@ object PythonInterop {
             Method(m.getName, n, params, Map.empty[Int, String])
         }.toArray
     }.toMap
+    logger.trace(s"Returning found methods for $name")
     res
   }
-
-  def decode[T](obj: java.util.ArrayList[T]): mutable.Iterable[T] = obj.asScala
 
 }
 

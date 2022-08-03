@@ -1,6 +1,7 @@
-from collections import defaultdict
+from collections.abc import Iterable, Iterator
+
 from pyraphtory import interop
-from pyraphtory.interop import logger
+from pyraphtory.interop import logger, register
 from pemja import findClass
 
 
@@ -14,11 +15,11 @@ class GenericScalaProxy(object):
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         if cls._classname is not None:
-            interop.register(cls)
+            register(cls)
 
     def _get_classname(self):
         if self._classname is None:
-            self._classname = self._jvm_object.getClass().getCanonicalName()
+            self._classname = self._jvm_object.getClass().getName()
             logger.trace(f"Retrieved name {self._classname!r} from java object")
         logger.trace(f"Return name {self._classname!r}")
         return self._classname
@@ -123,3 +124,19 @@ class ConstructableScalaProxy(GenericScalaProxy):
         if jvm_object is None:
             jvm_object = self._construct_from_python(*args, **kwargs)
         super().__init__(jvm_object)
+
+
+@register(name="Iterable")
+class IterableScalaProxy(GenericScalaProxy, Iterable):
+    def __iter__(self):
+        return self.iterator()
+
+
+@register(name="Iterator")
+class IteratorScalaProxy(GenericScalaProxy, Iterator):
+
+    def __next__(self):
+        if self.has_next():
+            return self.next()
+        else:
+            raise StopIteration
