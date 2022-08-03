@@ -17,6 +17,6 @@ class PythonGlobalStateEvaluator[IO[_]: Functor](pyObjBytes: Array[Byte], py: Em
   py.run(s"del ${eval_name}_bytes")
 
   override def apply(gs: GraphState): IO[Unit] =
-    py.invoke(PyRef(eval_name), "eval_from_jvm", Vector(new PythonGraphState(gs))).map(_ => ())
+    py.invoke(PyRef(eval_name), "eval_from_jvm", Vector(gs)).map(_ => ())
 
 }

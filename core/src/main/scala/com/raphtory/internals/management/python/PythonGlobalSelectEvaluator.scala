@@ -18,7 +18,7 @@ class PythonGlobalSelectEvaluator[IO[_]: Functor](pyObjBytes: Array[Byte], py: E
   py.run(s"del ${eval_name}_bytes")
 
   override def apply(gs: GraphState): IO[Row] =
-    py.invoke(PyRef(eval_name), "eval_from_jvm", Vector(new PythonGraphState(gs))).map {
+    py.invoke(PyRef(eval_name), "eval_from_jvm", Vector(gs)).map {
       case arr: Array[Any] @unchecked => Row(arr: _*)
     }
 
