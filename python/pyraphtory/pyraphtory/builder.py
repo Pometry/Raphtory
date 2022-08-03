@@ -1,5 +1,5 @@
 from pyraphtory.proxy import ConstructableScalaProxy, GenericScalaProxy
-from pyraphtory.interop import logger, assign_id
+from pyraphtory.interop import logger, assign_id, register
 
 
 class Type(ConstructableScalaProxy):
@@ -17,8 +17,8 @@ class ImmutableProperty(ConstructableScalaProxy):
 class Properties(ConstructableScalaProxy):
     _classname = "com.raphtory.api.input.Properties"
 
-    def __init__(self, *args):
-        super(Properties, self).__init__(args)
+    def __init__(self, *args, jvm_object=None):
+        super(Properties, self).__init__(args, jvm_object=jvm_object)
 
 
 class BaseBuilder(GenericScalaProxy):
