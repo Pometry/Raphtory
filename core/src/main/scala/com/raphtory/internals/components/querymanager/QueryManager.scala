@@ -37,7 +37,6 @@ private[raphtory] class QueryManager(
   override def handleMessage(msg: QueryManagement): Unit =
     msg match {
       case establishGraph: EstablishGraph =>
-        partitions sendAsync establishGraph
         ingestion sendAsync establishGraph
         logger.debug(s"deploying graph with graph ID: ${establishGraph.graphID}")
       case query: Query                   =>

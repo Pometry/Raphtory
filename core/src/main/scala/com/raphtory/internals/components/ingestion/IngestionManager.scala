@@ -32,7 +32,7 @@ class IngestionManager(
       case EstablishGraph(graphID, sources) =>
         logger.debug(s"Received query to spawn graph: $msg")
         sources foreach { source =>
-          val ingestionResource    = IngestionExecutor[IO](deploymentID, graphID, source, conf, topics)
+          val ingestionResource    = IngestionExecutor[IO](graphID, source, conf, topics)
           val (_, ingestionCancel) = ingestionResource.allocated.unsafeRunSync()
           graphDeployments.put(graphID, Graph(ingestionCancel))
         }

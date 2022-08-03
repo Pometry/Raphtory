@@ -62,10 +62,10 @@ private[raphtory] class TopicRepository(
 
   // graph wise topics
   final def graphUpdates(graphID: String): ShardingTopic[GraphUpdate] =
-    ShardingTopic[GraphUpdate](numPartitions, graphUpdatesConnector, s"graph.updates", s"$depId-$graphID")
+    ShardingTopic[GraphUpdate](numPartitions, graphUpdatesConnector, s"graph.updates", s"$depId")
 
   final def graphSync(graphID: String): ShardingTopic[GraphUpdateEffect] =
-    ShardingTopic[GraphUpdateEffect](numPartitions, graphSyncConnector, s"graph.sync", s"$depId-$graphID")
+    ShardingTopic[GraphUpdateEffect](numPartitions, graphSyncConnector, s"graph.sync", s"$depId")
 
   final def watermark: ExclusiveTopic[WatermarkTime] =
     ExclusiveTopic[WatermarkTime](watermarkConnector, "watermark", depId)

@@ -61,11 +61,13 @@ import scala.reflect.ClassTag
 object Raphtory {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  protected case class Service(client: QuerySender, deploymentID: String, shutdown: IO[Unit], graphs: Set[String])
+  case class Service(client: QuerySender, deploymentID: String, shutdown: IO[Unit], graphs: Set[String])
 
   private var localService: Option[Service] = None
 
   private lazy val globalConfHandler = new ConfigHandler()
+
+  def localContext(): RaphtoryContext = new LocalRaphtoryContext()
 
   /** Creates a streaming version of a `DeployedTemporalGraph` object that can be used to express queries from.
     *
@@ -208,9 +210,8 @@ object Raphtory {
       useGlobal: Boolean = false
   ): Config = {
     val confHandler = if (useGlobal) globalConfHandler else new ConfigHandler()
-    salt.foreach(s => confHandler.setSalt(s))
     customConfig.foreach { case (key, value) => confHandler.addCustomConfig(key, value) }
-    confHandler.getConfig(distributed)
+    confHandler.getConfig()
   }
 
   private def generateGraphID(name: String) = if (name.isEmpty) UUID.randomUUID().toString else name

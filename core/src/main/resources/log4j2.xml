@@ -30,6 +30,8 @@
         </Logger>
         <Logger name="org.apache" level="${env:RAPHTORY_APACHE_LOG:-off}">
         </Logger>
+        <Logger name="org.asynchttpclient" level="${env:RAPHTORY_APACHE_LOG:-off}">
+        </Logger>
 
         <!-- LOGGER FOR RAPHTORY CORE -->
         <Logger name="com.raphtory" level="${defaultLogLevel}">

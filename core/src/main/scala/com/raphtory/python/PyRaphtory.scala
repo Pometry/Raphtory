@@ -117,7 +117,7 @@ object PyRaphtory
         val mainRes = for {
           script <- Resource.eval(builderIO)
           graph  <- bootRaphtory(loadingMode, inputPath, PythonGraphBuilder(script, builderClass))
-          _      <- Py4JServer.fromEntryPoint[IO](new PythonEntrypoint(graph), graph.config)
+          _      <- Py4JServer.fromEntryPoint[IO](new PythonEntrypoint(graph), Raphtory.getDefaultConfig())
         } yield (graph, script)
 
         mainRes.use {

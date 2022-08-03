@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap
 import scala.collection.mutable
 
 class PartitionManager(
+    graphID: String,
     partitionID: Int,
     scheduler: Scheduler,
     conf: Config,
@@ -39,35 +40,25 @@ class PartitionManager(
     }
   }
 
-  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val pendingExecutors                   = mutable.Map[String, EstablishExecutor]()
+  private val executors                          = new ConcurrentHashMap[String, QueryExecutor]()
+  val storage                                    = new PojoBasedPartition(graphID, partitionID, conf)
+  val readerResource: Resource[IO, Reader]       = Reader[IO](partitionID, storage, scheduler, conf, topics)
+  val writerResource: Resource[IO, StreamWriter] = StreamWriter[IO](graphID, partitionID, storage, conf, topics)
+  val (_, readerCancel)                          = readerResource.allocated.unsafeRunSync()
+  val (_, writerCancel)                          = writerResource.allocated.unsafeRunSync()
+  val partition: Partition                       = Partition(readerCancel, writerCancel, storage)
 
-  private val partitions       = mutable.Map[String, Partition]()
-  private val pendingExecutors = mutable.Map[String, EstablishExecutor]()
-  private val executors        = new ConcurrentHashMap[String, QueryExecutor]()
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   override def handleMessage(msg: GraphManagement): Unit =
     msg match {
-      case establishGraph: EstablishGraph =>
-        val graphID           = establishGraph.graphID
-        val storage           = new PojoBasedPartition(graphID, partitionID, conf)
-        val readerResource    = Reader[IO](partitionID, storage, scheduler, conf, topics)
-        val writerResource    = StreamWriter[IO](graphID, partitionID, storage, conf, topics)
-        val (_, readerCancel) = readerResource.allocated.unsafeRunSync()
-        val (_, writerCancel) = writerResource.allocated.unsafeRunSync()
-        partitions.put(graphID, Partition(readerCancel, writerCancel, storage))
-        if (pendingExecutors.contains(graphID)) {
-          val request = pendingExecutors(graphID)
-          establishExecutor(request)
-        }
-      case request: EstablishExecutor     =>
-        if (batchLoading || (partitions contains request.graphID))
-          establishExecutor(request)
-        else
-          pendingExecutors.put(request.graphID, request)
-      case StopExecutor(jobID)            =>
+      case request: EstablishExecutor =>
+        establishExecutor(request)
+
+      case StopExecutor(jobID)        =>
         logger.debug(s"Partition manager $partitionID received EndQuery($jobID)")
         try Option(executors.remove(jobID)).foreach(_.stop())
-//            telemetry.queryExecutorCollector.labels(partitionID.toString, deploymentID).dec()
         catch {
           case e: Exception =>
             e.printStackTrace()
@@ -79,17 +70,16 @@ class PartitionManager(
 
   override private[raphtory] def stop(): Unit = {
     executors forEach { (jobID, _) => Option(executors.remove(jobID)).foreach(_.stop()) }
-    partitions foreach { case (graphID, _) => partitions.remove(graphID).foreach(_.stop()) }
+    partition.stop()
   }
 
   private def establishExecutor(request: EstablishExecutor) =
     request match {
       case EstablishExecutor(_, graphID, jobID, sink, pyScript) =>
-        val storage       = if (batchLoading) batchStorage else partitions(graphID).storage
+        val storage       = if (batchLoading) batchStorage else partition.storage
         val queryExecutor =
           new QueryExecutor(partitionID, sink, storage, jobID, conf, topics, scheduler, pyScript)
         scheduler.execute(queryExecutor)
-        //        telemetry.queryExecutorCollector.labels(partitionID.toString, deploymentID).inc()
         executors.put(jobID, queryExecutor)
     }
 }
@@ -97,6 +87,7 @@ class PartitionManager(
 object PartitionManager {
 
   def apply[IO[_]: Async: Spawn](
+      graphID: String,
       partitionID: Int,
       scheduler: Scheduler,
       conf: Config,
@@ -109,7 +100,7 @@ object PartitionManager {
             topics,
             s"partition-manager-$partitionID",
             List(topics.partitionSetup),
-            new PartitionManager(partitionID, scheduler, conf, topics, batchLoading, batchStorage)
+            new PartitionManager(graphID, partitionID, scheduler, conf, topics, batchLoading, batchStorage)
     )
 
 }
