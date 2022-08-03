@@ -17,7 +17,7 @@ trait PythonSupport {
     * @param columns
     * @return
     */
-  def pythonSelect(column: Object): Table
+  def pythonSelect(column: Iterable[String]): Table
 
   def pythonSelectState(column: Object): Table
 

@@ -23,7 +23,7 @@ class BaseContext(object):
 
     @property
     def rg(self):
-        g = self._rg.jvm_graph.loadPythonScript(self.script)
+        g = self._rg._jvm_object.loadPythonScript(self.script)
         return TemporalGraph(g)
 
     @abstractmethod
