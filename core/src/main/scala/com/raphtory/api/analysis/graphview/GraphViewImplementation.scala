@@ -200,7 +200,7 @@ private[api] trait GraphViewImplementation[
   override def pythonIterate(pyObj: Array[Byte], iterations: Long, executeMessagedOnly: Boolean): G =
     addFunction(PythonIterate(pyObj, iterations, executeMessagedOnly))
 
-  override def pythonSelect(columns: Object): Table =
+  override def pythonSelect(columns: Iterable[String]): Table =
     pythonSelectSupport(columns)
 
   override def pythonSelectState(columns: Object): Table =
@@ -223,19 +223,13 @@ private[api] trait GraphViewImplementation[
     }
   }
 
-  private def pythonSelectSupport(columns: Object) = {
-    val cs   = columns match {
-      case arr: Array[_]           => arr.iterator
-      case list: java.util.List[_] => list.asScala.iterator
-    }
-    val cols = cs.collect { case s: String => s }.toVector
+  private def pythonSelectSupport(columns: Iterable[String]) =
     this.select { vertex =>
       val maybeObjects =
-        cols.flatMap(name => Option(vertex.getStateOrElse[Object](name, null, includeProperties = true)))
+        columns.flatMap(name => Option(vertex.getStateOrElse(name, null, includeProperties = true))).toVector
       val row          = vertex.name() +: maybeObjects
       Row(row: _*)
     }
-  }
 
   override def pythonSetGlobalState(pyObj: Array[Byte]): G =
     addFunction(PythonSetGlobalState(pyObj))

@@ -146,9 +146,6 @@ class QueryProgressTracker private[raphtory] (
     catch {
       case e: DoneException =>
     }
-
-  def waitForJobInf(): Unit =
-    waitForJob()
 }
 
 object QueryProgressTracker {

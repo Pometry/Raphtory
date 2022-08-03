@@ -3,11 +3,9 @@ from collections.abc import Iterable, Mapping
 from pemja import findClass
 import pyraphtory.proxy as proxy
 
-
 _interop = findClass('com.raphtory.internals.management.PythonInterop')
 _method_cache = {}
 logger = _interop.logger()
-
 
 _wrappers = {}
 
@@ -82,7 +80,10 @@ def to_jvm(value):
     elif isinstance(value, Mapping):
         logger.trace(f"Converting value {value!r}, decoding as Mapping")
         return decode({to_jvm(k): to_jvm(v) for k, v in value.items()})
-    elif isinstance(value, Iterable) and not isinstance(value, str):
+    elif (isinstance(value, Iterable)
+          and not isinstance(value, str)
+          and not isinstance(value, bytes)
+          and not isinstance(value, bytearray)):
         logger.trace(f"Converting value {value!r}, decoding as Iterable")
         return decode([to_jvm(v) for v in value])
     else:

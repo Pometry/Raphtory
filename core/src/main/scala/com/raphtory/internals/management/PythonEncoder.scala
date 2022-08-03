@@ -1,6 +1,7 @@
 package com.raphtory.internals.management
 
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.input.GraphBuilder
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -208,6 +209,7 @@ object PythonInterop {
       case _: Iterable[_]      => "Iterable"
       case _: Iterator[_]      => "Iterator"
       case _: GraphPerspective => "TemporalGraph"
+      case _: Table            => "Table"
       case _                   => "None"
     }
 
