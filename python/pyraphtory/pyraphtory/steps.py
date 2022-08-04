@@ -3,36 +3,42 @@ from typing import Any, List
 from pyraphtory.vertex import Vertex, GraphState
 
 
-class Step(object):
+class FunctionWrapper(object):
+    def __init__(self, fun):
+        self._fun = fun
+
+
+class Step(FunctionWrapper):
+
     def eval_from_jvm(self, jvm_vertex):
         self.eval(Vertex(jvm_vertex))
 
     def eval(self, v):
-        pass
+        self._fun(v)
 
 
-class StepState(object):
+class StepState(FunctionWrapper):
     def eval_from_jvm(self, jvm_vertex, jvm_graph_state):
         self.eval(Vertex(jvm_vertex), GraphState(jvm_graph_state))
 
     def eval(self, v, s):
-        pass
+        self._fun(v, s)
 
 
-class State(object):
+class State(FunctionWrapper):
     def eval_from_jvm(self, jvm_graph_state):
         self.eval(GraphState(jvm_graph_state))
 
     def eval(self, s):
-        pass
+        self._fun(s)
 
 
-class GlobalSelect(object):
+class GlobalSelect(FunctionWrapper):
     def eval_from_jvm(self, jvm_graph_state) -> List[Any]:
         return self.eval(GraphState(jvm_graph_state))
 
     def eval(self, gs) -> List[Any]:
-        pass
+        self._fun(gs)
 
 
 class NumAdder(State):
