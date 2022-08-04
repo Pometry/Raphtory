@@ -16,9 +16,9 @@ class PythonEntrypoint(graph: GraphPerspective) {
 
   def raphtoryGraph(): GraphPerspective = graph
 
-  def interop = PythonInterop.instance
+  def interop = PythonInterop
 
-  def connectedComponents = new ConnectedComponents
+  def connectedComponents = ConnectedComponents
 
   def degree = new Degree
 

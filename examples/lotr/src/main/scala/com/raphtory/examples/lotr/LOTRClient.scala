@@ -17,7 +17,7 @@ object LOTRClient extends App {
 
   val output = FileSink("/tmp/raphtory")
 
-  val progressTracker = client.execute(ConnectedComponents()).writeTo(PrintSink())
+  val progressTracker = client.execute(ConnectedComponents).writeTo(PrintSink())
 
   progressTracker.waitForJob()
 

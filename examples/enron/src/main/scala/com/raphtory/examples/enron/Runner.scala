@@ -1,7 +1,8 @@
 package com.raphtory.examples.enron
 
 import com.raphtory.Raphtory
-import com.raphtory.algorithms.generic.{ConnectedComponents, EdgeList}
+import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.examples.enron.graphbuilders.EnronGraphBuilder
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.FileSpout
@@ -28,7 +29,7 @@ object Runner extends App {
     graph
       .range(963557940000L, 989858340000L, 1000000000)
       .past()
-      .execute(ConnectedComponents())
+      .execute(ConnectedComponents)
       .writeTo(PulsarSink("ConnectedComponents"))
       .waitForJob()
   }

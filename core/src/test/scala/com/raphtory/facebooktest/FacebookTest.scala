@@ -14,7 +14,7 @@ class FacebookTest extends BaseRaphtoryAlgoTest[String] {
     val sink = FileSink(outputDirectory)
 
     val result = algorithmPointTest(
-            algorithm = ConnectedComponents(),
+            algorithm = ConnectedComponents,
             sink = sink,
             timestamp = 88234
     ).unsafeRunSync()
