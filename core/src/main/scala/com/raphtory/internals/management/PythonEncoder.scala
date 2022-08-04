@@ -213,6 +213,17 @@ object PythonInterop {
       case _                   => "None"
     }
 
+  def find_class(name: String): Any = {
+    import scala.reflect.runtime.universe
+
+    val runtimeMirror = universe.runtimeMirror(getClass.getClassLoader)
+
+    val module = runtimeMirror.staticModule(name)
+
+    val obj = runtimeMirror.reflectModule(module)
+    obj.instance
+  }
+
   def methods(name: String): Map[String, Array[Method]] = {
     logger.trace(s"Scala 'methods' called with $name")
     val prefixedMethodDict         = mutable.Map.empty[String, mutable.ArrayBuffer[java.lang.reflect.Method]]
