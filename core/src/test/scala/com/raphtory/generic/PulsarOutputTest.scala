@@ -9,6 +9,7 @@ import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.internals.communication.connectors.PulsarConnector
 import com.raphtory.lotrtest.LOTRGraphBuilder
@@ -24,6 +25,8 @@ import scala.language.postfixOps
 @Ignore
 class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFinish = false) {
   withGraph.test("Outputting to Pulsar") { graph: TemporalGraph =>
+    graph.ingest(Source(setSpout(), setGraphBuilder()))
+
     val config = Raphtory.getDefaultConfig()
     PulsarConnector[IO](config).use { pulsarConnector =>
       val salt = UUID.randomUUID().toString
@@ -57,8 +60,6 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFin
 
     }
   }
-
-  override def batchLoading(): Boolean = false
 
   def filePath = s"/tmp/lotr.csv"
 

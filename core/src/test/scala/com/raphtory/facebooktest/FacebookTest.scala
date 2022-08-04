@@ -24,8 +24,6 @@ class FacebookTest extends BaseRaphtoryAlgoTest[String] {
     assertEquals(result, expected)
   }
 
-  override def batchLoading(): Boolean = false
-
   def tempFilePath = "/tmp/facebook.csv" // FIXME this is not great should use Files.createTempFile()
 
   override def setSpout(): StaticGraphSpout = StaticGraphSpout(tempFilePath)

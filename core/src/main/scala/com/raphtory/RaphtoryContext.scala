@@ -5,7 +5,6 @@ import cats.effect.IO
 import cats.effect.Resource
 import cats.effect.Sync
 import com.oblac.nomen.Nomen
-import com.raphtory.Raphtory.Service
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.input.Source
 import com.raphtory.internals.communication.repositories.LocalTopicRepository
@@ -22,11 +21,13 @@ import com.raphtory.internals.management.id.LocalIDManager
 import com.raphtory.internals.management.id.ZookeeperIDManager
 import com.typesafe.config.Config
 import cats.effect.unsafe.implicits.global
+import com.raphtory.Raphtory.makePartitionIdManager
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 abstract class RaphtoryContext {
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  case class Service(client: QuerySender, deploymentID: String, shutdown: IO[Unit], graphs: Set[String])
 
   def newGraph(name: String = createName, customConfig: Map[String, Any] = Map()): DeployedTemporalGraph
 
@@ -43,32 +44,6 @@ abstract class RaphtoryContext {
     confHandler.getConfig()
   }
 
-  def makePartitionIdManager[IO[_]: Sync](
-      config: Config,
-      localDeployment: Boolean,
-      graphID: String
-  ): Resource[IO, IDManager] =
-    if (localDeployment)
-      Resource.eval(Sync[IO].delay(new LocalIDManager))
-    else {
-      val zookeeperAddress         = config.getString("raphtory.zookeeper.address")
-      val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
-      val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
-      val totalPartitions: Int     = partitionServers * partitionsPerServer
-      ZookeeperIDManager(zookeeperAddress, graphID, "partitionCount", poolSize = totalPartitions)
-    }
-
-  def makeBuilderIdManager[IO[_]: Sync](
-      config: Config,
-      localDeployment: Boolean,
-      graphID: String
-  ): Resource[IO, IDManager] =
-    if (localDeployment)
-      Resource.eval(Sync[IO].delay(new LocalIDManager))
-    else {
-      val zookeeperAddress = config.getString("raphtory.zookeeper.address")
-      ZookeeperIDManager(zookeeperAddress, graphID, "builderCount")
-    }
 }
 
 class LocalRaphtoryContext() extends RaphtoryContext {
@@ -79,6 +54,12 @@ class LocalRaphtoryContext() extends RaphtoryContext {
       deployLocalGraph[IO](graphID, customConfig).allocated.unsafeRunSync()
     new DeployedTemporalGraph(Query(graphID = graphID), client, config, shutdown)
   }
+
+  def newIOGraph(graphID: String = createName, customConfig: Map[String, Any] = Map()) =
+    deployLocalGraph[IO](graphID, customConfig).map {
+      case (qs, config) =>
+        new DeployedTemporalGraph(Query(), qs, config, shutdown = IO.unit)
+    }
 
   private def deployLocalService(graphID: String, config: Config): Service = {
     val scheduler       = new Scheduler()

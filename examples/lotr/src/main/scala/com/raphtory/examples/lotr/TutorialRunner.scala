@@ -22,10 +22,10 @@ object TutorialRunner extends App {
 
   FileUtils.curlFile(path, url)
 
-  //val source = Source(FileSpout(path), new LOTRGraphBuilder())
-  //graph.ingest(source)
-
   val graph = Raphtory.localContext().newGraph()
+
+  val source = Source(FileSpout(path), new LOTRGraphBuilder())
+  graph.ingest(source)
 
   val line = scala.io.Source.fromFile(path).getLines.foreach { line =>
     val fileLine   = line.split(",").map(_.trim)

@@ -226,6 +226,4 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   override def setGraphBuilder(): GraphBuilder[String] = new LOTRGraphBuilder()
 
-  override def batchLoading(): Boolean = false
-
 }

@@ -8,9 +8,7 @@ import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
-import com.raphtory.internals.components.graphbuilder.BuildExecutorGroup
 import com.raphtory.internals.components.querymanager.QueryManager
-import com.raphtory.internals.components.spout.SpoutExecutor
 import com.raphtory.internals.management.BatchPartitionManager
 import com.raphtory.internals.management.PartitionsManager
 import com.raphtory.internals.management.Prometheus
@@ -52,13 +50,10 @@ abstract class RaphtoryService[T: ClassTag] extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] = {
 
-    val config = Raphtory.confBuilder(distributed = true)
+    val config = Raphtory.confBuilder()
     args.head match {
-      case name @ "spout"                 => useToExitCode(name, spoutDeploy(config))
-      case name @ "builder"               => useToExitCode(name, builderDeploy(config))
-      case name @ "partitionmanager"      => useToExitCode(name, streamingPartitionDeploy(config))
-      case name @ "batchpartitionmanager" => useToExitCode(name, batchPartitionDeploy(config))
-      case name @ "querymanager"          => useToExitCode(name, queryManagerDeploy(config))
+      case name @ "partitionmanager" => useToExitCode(name, streamingPartitionDeploy(config))
+      case name @ "querymanager"     => useToExitCode(name, queryManagerDeploy(config))
     }
   }
 
@@ -67,43 +62,6 @@ abstract class RaphtoryService[T: ClassTag] extends IOApp {
       case Right(_) => IO.never *> IO(ExitCode.Success)
       case Left(t)  => IO(logger.error(s"Failed to start $name", t)) *> IO(ExitCode.Error)
     }
-
-  /**
-    * Creates `Spout` to read or ingest data from resources or files, sending messages to builder
-    * producers for each row.
-    */
-  def spoutDeploy(config: Config): Resource[IO, SpoutExecutor[T]] = {
-    val metricsPort = config.getInt("raphtory.prometheus.metrics.port")
-    for {
-      _         <- Prometheus[IO](metricsPort)
-      topicRepo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config)
-      s         <- SpoutExecutor[IO, T](defineSpout().buildSpout(), config, topicRepo)
-    } yield s
-  }
-
-  def builderDeploy(config: Config, localDeployment: Boolean = false): Resource[IO, BuildExecutorGroup] = {
-    val deploymentID = config.getString("raphtory.deploy.id")
-    val metricsPort  = config.getInt("raphtory.prometheus.metrics.port")
-    for {
-      _                <- Prometheus[IO](metricsPort)
-      topicRepo        <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config)
-      builderIDManager <- Raphtory.makeBuilderIdManager[IO](config, localDeployment, deploymentID)
-      beg              <- BuildExecutorGroup[IO, T](config, "", builderIDManager, topicRepo, defineBuilder)
-    } yield beg
-
-  }
-
-  def batchPartitionDeploy(config: Config): Resource[IO, BatchPartitionManager[T]] = {
-    val deploymentID = config.getString("raphtory.deploy.id")
-    val metricsPort  = config.getInt("raphtory.prometheus.metrics.port")
-    for {
-      _                  <- Prometheus[IO](metricsPort)
-      topicRepo          <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config)
-      partitionIDManager <- Raphtory.makePartitionIdManager[IO](config, localDeployment = false, deploymentID)
-      pm                 <- PartitionsManager
-                              .batchLoading[IO, T](config, partitionIDManager, topicRepo, new Scheduler(), defineSpout(), defineBuilder)
-    } yield pm
-  }
 
   def streamingPartitionDeploy(config: Config): Resource[IO, PartitionsManager] = {
     val deploymentID = config.getString("raphtory.deploy.id")

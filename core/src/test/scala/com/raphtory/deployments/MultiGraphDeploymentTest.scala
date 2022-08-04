@@ -5,6 +5,7 @@ import com.raphtory.Raphtory
 import com.raphtory.TestUtils
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.analysis.graphview.Alignment
+import com.raphtory.api.input.Source
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.sinks.FileSink
@@ -44,14 +45,17 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
     files
       .use { files =>
         IO.delay {
-          val lotrGraph   = Raphtory.stream(lotrSpout, lotrBuilder)
+          val lotrGraph   = Raphtory.quickGraph()
+          lotrGraph.ingest(Source(lotrSpout, lotrBuilder))
           val lotrTracker = lotrGraph
             .range(1, 32674, 10000)
             .window(List(500, 1000, 10000), Alignment.END)
             .execute(ConnectedComponents())
             .writeTo(defaultSink)
 
-          val facebookGraph   = Raphtory.stream(facebookSpout, facebookBuilder)
+          val facebookGraph = Raphtory.quickGraph()
+          facebookGraph.ingest(Source(facebookSpout, facebookBuilder))
+
           val facebookTracker = facebookGraph
             .at(88234)
             .past()
