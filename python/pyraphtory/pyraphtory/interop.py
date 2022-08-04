@@ -1,13 +1,48 @@
 import re
 from collections.abc import Iterable, Mapping
-from pemja import findClass
 import pyraphtory.proxy as proxy
+from py4j.java_gateway import JavaObject, JavaClass
 
-_interop = findClass('com.raphtory.internals.management.PythonInterop')
+_scala_cache = None
+
+
+def _scala():
+    global _scala_cache
+    if _scala_cache is None:
+        from pemja import findClass
+        _scala_cache = findClass('com.raphtory.internals.management.PythonInterop')
+    return _scala_cache
+
+
 _method_cache = {}
-logger = _interop.logger()
-
 _wrappers = {}
+
+
+class logger(object):
+    @staticmethod
+    def error(msg):
+        print("Error: ", msg)
+        _scala().logger().error(msg)
+
+    @staticmethod
+    def warn(msg):
+        print("Warning: ", msg)
+        _scala().logger().warn(msg)
+
+    @staticmethod
+    def info(msg):
+        print("Info: ", msg)
+        _scala().logger().info(msg)
+
+    @staticmethod
+    def debug(msg):
+        print("Debug: ", msg)
+        _scala().logger().debug(msg)
+
+    @staticmethod
+    def trace(msg):
+        print("Trace: ", msg)
+        _scala().logger().trace(msg)
 
 
 def register(cls=None, *, name=None):
@@ -23,7 +58,7 @@ def register(cls=None, *, name=None):
 
 
 def is_PyJObject(obj):
-    return type(obj).__name__ == "PyJObject"
+    return type(obj).__name__ == "PyJObject" or isinstance(obj, JavaObject) or isinstance(obj, JavaClass)
 
 
 def snake_to_camel(name: str):
@@ -38,11 +73,11 @@ def snake_to_camel(name: str):
 
 
 def camel_to_snake(name: str):
-    return _interop.camel_to_snake(name)
+    return _scala().camel_to_snake(name)
 
 
 def decode(obj):
-    return _interop.decode(obj)
+    return _scala().decode(obj)
 
 
 def get_methods(name: str):
@@ -51,7 +86,7 @@ def get_methods(name: str):
         return _method_cache[name]
     else:
         logger.trace(f"Finding methods for {name!r}")
-        res = _interop.methods(name)
+        res = _scala().methods(name)
         _method_cache[name] = res
         logger.trace(f"Methods for {name!r} added to cache")
         return res
@@ -63,7 +98,7 @@ def get_wrapper(obj):
     if name in _wrappers:
         logger.trace(f"Found wrapper for {name!r} based on class name")
     else:
-        name = _interop.get_wrapper_str(obj)
+        name = _scala().get_wrapper_str(obj)
         logger.trace(f"Wrapper name is {name!r}")
     wrapper = _wrappers.get(name, proxy.GenericScalaProxy)
     logger.trace(f"Wrapper is {wrapper!r}")
@@ -101,4 +136,4 @@ def to_python(obj):
 
 
 def assign_id(s: str):
-    return _interop.assign_id(s)
+    return _scala().assign_id(s)
