@@ -58,22 +58,22 @@ if __name__ == "__main__":
     from pyraphtory.steps import Iterate, Step
     import subprocess
     subprocess.run(["curl", "-o", "/tmp/lotr.csv", "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"])
-    with PyRaphtory(spout_input=Path('/tmp/lotr.csv'), builder_script=Path(__file__),  builder_class='LotrGraphBuilder',
-                    mode='batch', logging=False).open() as pr:
-        rg = pr.graph()
-        # local_sink = pr.local_sink()
-        #
-        # cols = ["inDegree", "outDegree", "degree","triangleCount","prlabel","cclabel","twoHopPaths"]
-        #
-        # tracker = rg.at(32674) \
-        #     .past() \
-        #     .transform(pr.page_rank()) \
-        #     .transform(pr.connected_components()) \
-        #     .transform(pr.degree()) \
-        #     .transform(pr.two_hops_path(set([]))) \
-        #     .transform(pr.local_triangle_count()) \
-        #     .select(cols) \
-        #     .write_to_file("/tmp/pyraphtory_output") \
-        #     .wait_for_job()
+    pr = PyRaphtory(spout_input=Path('/tmp/lotr.csv'), builder_script=Path(__file__),  builder_class='LotrGraphBuilder',
+                    mode='batch', logging=False).open()
+    rg = pr.graph()
+    # local_sink = pr.local_sink()
+    #
+    # cols = ["inDegree", "outDegree", "degree","triangleCount","prlabel","cclabel","twoHopPaths"]
+    #
+    # tracker = rg.at(32674) \
+    #     .past() \
+    #     .transform(pr.page_rank()) \
+    #     .transform(pr.connected_components()) \
+    #     .transform(pr.degree()) \
+    #     .transform(pr.two_hops_path(set([]))) \
+    #     .transform(pr.local_triangle_count()) \
+    #     .select(cols) \
+    #     .write_to_file("/tmp/pyraphtory_output") \
+    #     .wait_for_job()
 
-        rg.at(32674).past().execute(pr.algorithms.generic.ConnectedComponents).write_to_file("/tmp/pyraphtory_output").wait_for_job()
+    rg.at(32674).past().execute(pr.algorithms.generic.ConnectedComponents).write_to_file("/tmp/pyraphtory_output").wait_for_job()
