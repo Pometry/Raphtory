@@ -2,7 +2,6 @@ from collections.abc import Iterable, Iterator
 
 from pyraphtory import interop
 from pyraphtory.interop import logger, register
-# from pemja import findClass
 
 
 class GenericScalaProxy(object):

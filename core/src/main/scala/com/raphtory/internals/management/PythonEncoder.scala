@@ -5,14 +5,13 @@ import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.input.GraphBuilder
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-
-import java.lang.reflect
 import java.util
 import scala.collection.mutable
 import scala.reflect.ClassTag
 import scala.util.Success
 import scala.util.Try
 import scala.jdk.CollectionConverters._
+import scala.reflect.runtime.universe
 
 trait PythonEncoder[A] extends Serializable {
   def encode(a: A): Object
@@ -214,13 +213,9 @@ object PythonInterop {
     }
 
   def find_class(name: String): Any = {
-    import scala.reflect.runtime.universe
-
     val runtimeMirror = universe.runtimeMirror(getClass.getClassLoader)
-
-    val module = runtimeMirror.staticModule(name)
-
-    val obj = runtimeMirror.reflectModule(module)
+    val module        = runtimeMirror.staticModule(name)
+    val obj           = runtimeMirror.reflectModule(module)
     obj.instance
   }
 
