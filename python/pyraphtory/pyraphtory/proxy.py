@@ -2,7 +2,7 @@ from collections.abc import Iterable, Iterator
 
 from pyraphtory import interop
 from pyraphtory.interop import logger, register
-from pemja import findClass
+# from pemja import findClass
 
 
 class GenericScalaProxy(object):
@@ -107,6 +107,7 @@ class ConstructableScalaProxy(GenericScalaProxy):
 
     @classmethod
     def _constructor(cls):
+        from pemja import findClass
         logger.trace(f"trying to construct {cls._classname}")
         c = findClass(cls._classname.replace(".", "/"))
         logger.trace(f"Classname is now {cls._classname}")

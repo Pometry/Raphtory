@@ -13,6 +13,7 @@ from py4j.java_gateway import JavaGateway, GatewayParameters
 from py4j.protocol import Py4JJavaError
 
 from pyraphtory.graph import TemporalGraph
+from pyraphtory import interop
 
 
 class BaseContext(object):
@@ -96,6 +97,7 @@ class PyRaphtory(object):
                 auto_field=True,
                 auto_convert=True,
                 eager_load=True))
+        interop._scala_cache = self.j_gateway.entry_point.interop()
         return self
 
     def log_lines(self, logging: bool):

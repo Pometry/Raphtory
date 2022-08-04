@@ -23,7 +23,7 @@ class Properties(ConstructableScalaProxy):
 
 class BaseBuilder(GenericScalaProxy):
     def __init__(self):
-        logger.trace("initialising GraphBuilder")
+        # logger.trace("initialising GraphBuilder")
         super().__init__(None)
 
     # TODO: This should hopefully not be necessary soon and we can construct it normally
