@@ -8,6 +8,7 @@ from pyraphtory.proxy import GenericScalaProxy
 from pyraphtory.interop import register, logger, to_jvm, find_class
 import pandas as pd
 import json
+import inspect
 
 
 class ProgressTracker(GenericScalaProxy):
@@ -41,14 +42,18 @@ class Table(GenericScalaProxy):
 @register(name="TemporalGraph")
 class TemporalGraph(GenericScalaProxy):
 
-    def set_global_state(self, s: State):
-        state_bytes = pickle.dumps(s)
+    def set_global_state(self, fun):
+        state_bytes = pickle.dumps(State(fun))
         return self.python_set_global_state(state_bytes)
 
-    def step(self, s: Step):
-        logger.trace("step called")
-        step_bytes = pickle.dumps(s)
-        return self.python_step(step_bytes)
+    def step(self, fun):
+        spec = inspect.getfullargspec(fun)
+        if len(spec.args) == 1:
+            return self.python_step(pickle.dumps(Step(fun)))
+        elif len(spec.args) == 2:
+            return self.python_step_state(pickle.dumps(StepState(fun)))
+        else:
+            raise ValueError("Expected function with one or two arguments")
 
     def iterate(self, i: Iterate):
         logger.trace("iterate called")
@@ -67,7 +72,13 @@ class TemporalGraph(GenericScalaProxy):
         step_state_bytes = pickle.dumps(ssb)
         return self.python_step_state(step_state_bytes)
 
-    def global_select(self, gs: GlobalSelect):
+    def global_select(self, fun):
         logger.trace("global_select called")
-        global_select_bytes = pickle.dumps(gs)
+        global_select_bytes = pickle.dumps(GlobalSelect(fun))
         return self.python_global_select(global_select_bytes)
+
+
+@register(name="Accumulator")
+class Accumulator(GenericScalaProxy):
+    def __iadd__(self, other):
+        self.__getattr__("+=")(other)
