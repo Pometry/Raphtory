@@ -97,7 +97,8 @@ class PyRaphtory(object):
                 auto_field=True,
                 auto_convert=True,
                 eager_load=True))
-        interop._scala_cache = self.j_gateway.entry_point.interop()
+
+        interop.set_scala_interop(self.j_gateway.entry_point.interop())
         return self
 
     def log_lines(self, logging: bool):

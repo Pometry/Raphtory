@@ -6,6 +6,11 @@ from py4j.java_gateway import JavaObject, JavaClass
 _scala_cache = None
 
 
+def set_scala_interop(obj):
+    global _scala_cache
+    _scala_cache = obj
+
+
 def _scala():
     global _scala_cache
     if _scala_cache is None:
@@ -21,27 +26,22 @@ _wrappers = {}
 class logger(object):
     @staticmethod
     def error(msg):
-        print("Error: ", msg)
         _scala().logger().error(msg)
 
     @staticmethod
     def warn(msg):
-        print("Warning: ", msg)
         _scala().logger().warn(msg)
 
     @staticmethod
     def info(msg):
-        print("Info: ", msg)
         _scala().logger().info(msg)
 
     @staticmethod
     def debug(msg):
-        print("Debug: ", msg)
         _scala().logger().debug(msg)
 
     @staticmethod
     def trace(msg):
-        print("Trace: ", msg)
         _scala().logger().trace(msg)
 
 
