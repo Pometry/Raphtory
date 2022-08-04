@@ -1,7 +1,7 @@
 from collections.abc import Iterable, Iterator
 
 from pyraphtory import interop
-from pyraphtory.interop import logger, register
+from pyraphtory.interop import logger, register, to_jvm
 
 
 class GenericScalaProxy(object):
@@ -62,11 +62,13 @@ class GenericMethodProxy(object):
         self.name = name
         self._jvm_object = jvm_object
         self._methods = methods
+        self._implicits = []
 
     def __call__(self, *args, **kwargs):
         args = [interop.to_jvm(v) for v in args]
         kwargs = {k: interop.to_jvm(v) for k, v in kwargs.items()}
-        logger.trace(f"Trying to call method {self.name} with arguments {args=} and {kwargs=}")
+        logger.trace(f"Trying to call method {self.name} with arguments {args=} and {kwargs=} and implicits {self._implicits!r}")
+        interop._scala().testArgs(args + list(kwargs.values()) + self._implicits)
         for method in self._methods:
             try:
                 extra_args = []
@@ -80,7 +82,7 @@ class GenericMethodProxy(object):
                 if len(args) + len(kwargs) > n:
                     raise ValueError("Too many arguments")
                 if len(args) < n:
-                    for i in range(len(args), n):
+                    for i in range(len(args), n-len(self._implicits)):
                         param = parameters[i]
                         if param in kwargs:
                             extra_args.append(kwargs[param])
@@ -90,12 +92,17 @@ class GenericMethodProxy(object):
                         else:
                             raise ValueError(f"Missing value for parameter {param}")
                 if kwargs_used == len(kwargs):
-                    return interop.to_python(getattr(self._jvm_object, method.name())(*args, *extra_args))
+                    return interop.to_python(getattr(self._jvm_object, method.name())(*args, *extra_args,
+                                                                                      *self._implicits))
                 else:
                     raise ValueError(f"Not all kwargs could be applied")
             except Exception as e:
                 logger.trace(f"Call failed with exception {e}")
-        raise ValueError(f"No matching implementation of method {self.name} with arguments {args=} and {kwargs=}")
+        raise ValueError(f"No matching implementation of method {self.name} with arguments {args=} and {kwargs=} and implicits {self._implicits}")
+
+    def __getitem__(self, item):
+        self._implicits.append(interop.to_jvm(item))
+        return self
 
 
 class ConstructableScalaProxy(GenericScalaProxy):
