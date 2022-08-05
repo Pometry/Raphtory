@@ -1,27 +1,12 @@
 from collections.abc import Iterable, Iterator
+from functools import cached_property
 
 from pyraphtory import interop
 from pyraphtory.interop import logger, register, to_jvm, to_python
 
 
-class GenericScalaProxy(object):
-    _classname = None
-
-    def __init__(self, jvm_object=None):
-        self._jvm_object = jvm_object
-        self._methods = None
-
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        if cls._classname is not None:
-            register(cls)
-
-    def _get_classname(self):
-        if self._classname is None:
-            self._classname = self._jvm_object.getClass().getName()
-            logger.trace(f"Retrieved name {self._classname!r} from java object")
-        logger.trace(f"Return name {self._classname!r}")
-        return self._classname
+class ScalaProxyBase(object):
+    _methods = None
 
     @property
     def _method_dict(self):
@@ -42,6 +27,32 @@ class GenericScalaProxy(object):
         else:
             raise AttributeError(f"{self!r} object has no method {name!r}, available methods are {self._methods.keys().toString()}")
 
+    def __call__(self, *args, **kwargs):
+        logger.trace(f"{self!r} called with {args=} and {kwargs=}")
+        return self.apply(*args, **kwargs)
+
+
+class GenericScalaProxy(ScalaProxyBase):
+    _classname = None
+
+    def __init__(self, jvm_object=None):
+        logger.trace(f"GenericScalaProxy initialized with {jvm_object=}")
+        if jvm_object is not None:
+            self._jvm_object = jvm_object
+        self._methods = None
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls._classname is not None:
+            register(cls)
+
+    def _get_classname(self):
+        if self._classname is None:
+            self._classname = self._jvm_object.getClass().getName()
+            logger.trace(f"Retrieved name {self._classname!r} from java object")
+        logger.trace(f"Return name {self._classname!r}")
+        return self._classname
+
     def __repr__(self):
         try:
             return self._jvm_object.toString()
@@ -55,9 +66,6 @@ class GenericScalaProxy(object):
     @property
     def jvm(self):
         return GenericScalaProxy(self._jvm_object)
-
-    def __call__(self, *args, **kwargs):
-        return self.apply(*args, **kwargs)
 
 
 class GenericMethodProxy(object):
@@ -74,29 +82,34 @@ class GenericMethodProxy(object):
         interop._scala().testArgs(args + list(kwargs.values()) + self._implicits)
         for method in self._methods:
             try:
-                extra_args = []
                 parameters = method.parameters()
                 logger.trace(f"Parmeters for candidate are {parameters}")
                 defaults = method.defaults()
                 logger.trace(f"Defaults for candidate are {defaults}")
                 n = method.n()
                 logger.trace(f"Number of parameters for candidate is {n}")
+                if method.varargs():
+                    logger.trace(f"Method takes varargs")
+                    actual_args = args[:n-len(kwargs)-1]
+                    varargs = [interop.make_varargs(interop.to_jvm(args[n-len(kwargs)-1:]))]
+                else:
+                    actual_args = args[:]
+                    varargs = []
                 kwargs_used = 0
-                if len(args) + len(kwargs) > n:
+                if len(actual_args) + len(kwargs) + len(varargs) > n:
                     raise ValueError("Too many arguments")
-                if len(args) < n:
-                    for i in range(len(args), n-len(self._implicits)):
+                if len(actual_args) + len(varargs) < n:
+                    for i in range(len(actual_args), n-len(self._implicits)-len(varargs)):
                         param = parameters[i]
                         if param in kwargs:
-                            extra_args.append(kwargs[param])
+                            actual_args.append(kwargs[param])
                             kwargs_used += 1
                         elif defaults.contains(i):
-                            extra_args.append(getattr(self._jvm_object, defaults.apply(i))())
+                            actual_args.append(getattr(self._jvm_object, defaults.apply(i))())
                         else:
                             raise ValueError(f"Missing value for parameter {param}")
                 if kwargs_used == len(kwargs):
-                    return interop.to_python(getattr(self._jvm_object, method.name())(*args, *extra_args,
-                                                                                      *self._implicits))
+                    return interop.to_python(getattr(self._jvm_object, method.name())(*actual_args, *varargs, *self._implicits))
                 else:
                     raise ValueError(f"Not all kwargs could be applied")
             except Exception as e:
@@ -108,34 +121,34 @@ class GenericMethodProxy(object):
         return self
 
 
-class ScalaObjectProxy(GenericScalaProxy):
-    def __init__(self, jvm_object=None):
-        if jvm_object is None:
-            jvm_object = interop.find_class(self._classname)
-        super().__init__(jvm_object=jvm_object)
+class ScalaObjectProxy(ScalaProxyBase, type):
+    @property
+    def _jvm_object(cls):
+        if cls._classname is None:
+            raise AttributeError("Cannot find jvm object for proxy without classname set.")
+        return interop.find_class(cls._classname)
+
+    def __call__(cls, *args, jvm_object=None, **kwargs):
+        logger.trace(f"ScalaCompanionObjectProxy called with {args=}, {jvm_object=}, {kwargs=}")
+        if jvm_object is not None:
+            # Construct from existing jvm object
+            logger.trace("calling cls.__new__")
+            self = cls.__new__(cls, jvm_object=jvm_object)
+            logger.trace("object constructed")
+            self.__init__(jvm_object=jvm_object)
+            return self
+        else:
+            # Return the result of calling scala apply method
+            logger.trace("calling super()")
+            return super().__call__(*args, **kwargs)
 
 
-class ConstructableScalaProxy(GenericScalaProxy):
-    _classname: str = ""
+class ScalaClassProxy(GenericScalaProxy, metaclass=ScalaObjectProxy):
+    pass
 
-    @classmethod
-    def _constructor(cls):
-        c = interop.find_class(cls._classname)
-        logger.trace(f"Classname is now {cls._classname}")
-        logger.trace(f"found {c}")
-        obj = GenericScalaProxy(c)
-        obj._classname = cls._classname
-        return obj
 
-    @classmethod
-    def _construct_from_python(cls, *args, **kwargs):
-        # TODO: This creates a wrapper and then unwraps it again, clean up
-        return interop.to_jvm(cls._constructor()(*args, **kwargs))
-
-    def __init__(self, *args, jvm_object=None, **kwargs):
-        if jvm_object is None:
-            jvm_object = self._construct_from_python(*args, **kwargs)
-        super().__init__(jvm_object)
+class Seq(ScalaClassProxy):
+    _classname = "scala.collection.Seq"
 
 
 @register(name="Iterable")

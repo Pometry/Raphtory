@@ -112,10 +112,7 @@ def to_jvm(value):
     elif isinstance(value, proxy.Algorithm):
         logger.trace(f"Converting value {value!r}, finding object based on algorithm path")
         return find_class(value._path)
-    elif isinstance(value, type) and hasattr(value, "_classname"):
-        logger.trace(f"Converting value {value!r}, uninitialised type, trying to look up based on classname")
-        return find_class(value._classname)
-    elif isinstance(value, proxy.GenericScalaProxy):
+    elif isinstance(value, proxy.ScalaProxyBase):
         logger.trace(f"Converting value {value!r}, decoding proxy object")
         return decode(value._jvm_object)
     elif isinstance(value, Mapping):
@@ -135,6 +132,7 @@ def to_jvm(value):
 def to_python(obj):
     if is_PyJObject(obj):
         wrapper = get_wrapper(obj)
+        logger.trace(f"Calling wrapper with jvm_object={obj}")
         return wrapper(jvm_object=obj)
     else:
         logger.trace(f"Primitive object {obj!r} passed to python unchanged")
@@ -148,3 +146,7 @@ def find_class(path: str):
 
 def assign_id(s: str):
     return _scala().assign_id(s)
+
+
+def make_varargs(param):
+    return _scala().make_varargs(param)

@@ -1,5 +1,7 @@
 package com.raphtory.api.input
 
+import scala.annotation.varargs
+
 /** Properties are characteristic attributes like name, etc. assigned to Vertices and Edges by the
   * [[Graph Builder]].
   *
@@ -52,7 +54,7 @@ case class IntegerProperty(key: String, value: Integer) extends Property
 case class Properties(properties: Vector[Property])
 
 object Properties {
-  def apply(property: Property*): Properties = Properties(Vector.from(property))
+  @varargs def apply(property: Property*): Properties = Properties(Vector.from(property))
 
   def apply(properties: IterableOnce[Property]): Properties = Properties(Vector.from(properties))
 }

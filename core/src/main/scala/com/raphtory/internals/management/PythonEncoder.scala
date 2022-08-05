@@ -222,6 +222,9 @@ object PythonInterop {
     obj.instance
   }
 
+  def make_varargs(obj: Iterable[Any]): Array[Object] =
+    obj.toArray.map(_.asInstanceOf[Object])
+
   def methods(obj: Any): Map[String, Array[Method]] = {
     logger.trace(s"Scala 'methods' called with $obj")
     val prefixedMethodDict         = mutable.Map.empty[String, mutable.ArrayBuffer[java.lang.reflect.Method]]
@@ -247,16 +250,18 @@ object PythonInterop {
         }
 
         name -> methods.map { m =>
-          val params = m.getParameters.map(p => camel_to_snake(p.getName))
-          val n      = m.getParameterCount
+          val hasVarArgs  = m.isVarArgs
+          val paramsNames = m.getParameters.map(p => camel_to_snake(p.getName))
+
+          val n = m.getParameterCount
           if (
                   defaults.forall {
                     case (i, d) => i < m.getParameterCount && m.getParameterTypes()(i) == d.getReturnType
                   }
           )
-            Method(m.getName, n, params, defaults.view.mapValues(_.getName).toMap)
+            Method(m.getName, n, paramsNames, defaults.view.mapValues(_.getName).toMap, hasVarArgs)
           else
-            Method(m.getName, n, params, Map.empty[Int, String])
+            Method(m.getName, n, paramsNames, Map.empty[Int, String], hasVarArgs)
         }.toArray
     }.toMap
     logger.trace(s"Returning found methods for $obj")
@@ -277,7 +282,7 @@ class WrappedLogger(logger: Logger) {
   def error(msg: String): Unit = logger.error(msg)
 }
 
-case class Method(name: String, n: Int, parameters: Array[String], defaults: Map[Int, String]) {
+case class Method(name: String, n: Int, parameters: Array[String], defaults: Map[Int, String], varargs: Boolean) {
   def has_defaults: Boolean = defaults.nonEmpty
 }
 
