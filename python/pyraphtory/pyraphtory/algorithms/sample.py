@@ -51,11 +51,15 @@ class RaphtoryContext(BaseContext):
             traceback.print_exc()
 
 
+def total_degree(v, s):
+    deg_sum = s("deg_sum")
+    deg_sum += v.degree()
+
+
 if __name__ == "__main__":
     from pathlib import Path
     from pyraphtory.context import PyRaphtory
-    from pyraphtory.vertex import Vertex
-    from pyraphtory.steps import Iterate, Step
+    from pyraphtory.numeric import Int
     import subprocess
     subprocess.run(["curl", "-o", "/tmp/lotr.csv", "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"])
     pr = PyRaphtory(spout_input=Path('/tmp/lotr.csv'), builder_script=Path(__file__),  builder_class='LotrGraphBuilder',
@@ -76,4 +80,5 @@ if __name__ == "__main__":
     #     .write_to_file("/tmp/pyraphtory_output") \
     #     .wait_for_job()
 
-    rg.at(32674).past().execute(pr.algorithms.generic.ConnectedComponents).write_to_file("/tmp/pyraphtory_output").wait_for_job()
+    # rg.at(32674).past().execute(pr.algorithms.generic.ConnectedComponents).write_to_file("/tmp/pyraphtory_output").wait_for_job()
+    df = rg.set_global_state(lambda s: s.new_adder[Int()]("deg_sum")).step(total_degree).global_select(lambda s: [s("deg_sum").value()]).write_to_dataframe(["deg_sum"])

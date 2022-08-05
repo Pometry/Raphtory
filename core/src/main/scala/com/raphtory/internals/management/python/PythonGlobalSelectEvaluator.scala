@@ -19,7 +19,9 @@ class PythonGlobalSelectEvaluator[IO[_]: Functor](pyObjBytes: Array[Byte], py: E
 
   override def apply(gs: GraphState): IO[Row] =
     py.invoke(PyRef(eval_name), "eval_from_jvm", Vector(gs)).map {
-      case arr: Array[Any] @unchecked => Row(arr: _*)
+      case arr: Iterable[Any] @unchecked =>
+        val row = arr.toSeq
+        Row(row: _*)
     }
 
 }

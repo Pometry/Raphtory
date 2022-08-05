@@ -1,10 +1,12 @@
 package com.raphtory.internals.management
 
+import com.raphtory.api.analysis.graphstate.Accumulator
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.input.GraphBuilder
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
+
 import java.util
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -205,11 +207,12 @@ object PythonInterop {
 
   def get_wrapper_str(obj: Any): String =
     obj match {
-      case _: Iterable[_]      => "Iterable"
-      case _: Iterator[_]      => "Iterator"
-      case _: GraphPerspective => "TemporalGraph"
-      case _: Table            => "Table"
-      case _                   => "None"
+      case _: Iterable[_]       => "Iterable"
+      case _: Iterator[_]       => "Iterator"
+      case _: GraphPerspective  => "TemporalGraph"
+      case _: Table             => "Table"
+      case _: Accumulator[_, _] => "Accumulator"
+      case _                    => "None"
     }
 
   def find_class(name: String): Any = {

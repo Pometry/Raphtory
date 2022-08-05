@@ -1,10 +1,11 @@
 from typing import Any, List
 
 from pyraphtory.vertex import Vertex, GraphState
+from pyraphtory.interop import to_jvm
 
 
 class FunctionWrapper(object):
-    def __init__(self, fun):
+    def __init__(self, fun=None):
         self._fun = fun
 
 
@@ -35,10 +36,10 @@ class State(FunctionWrapper):
 
 class GlobalSelect(FunctionWrapper):
     def eval_from_jvm(self, jvm_graph_state) -> List[Any]:
-        return self.eval(GraphState(jvm_graph_state))
+        return to_jvm(self.eval(GraphState(jvm_graph_state)))
 
     def eval(self, gs) -> List[Any]:
-        self._fun(gs)
+        return self._fun(gs)
 
 
 class NumAdder(State):
