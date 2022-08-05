@@ -1,11 +1,21 @@
 package com.raphtory.api.analysis.graphview
 
+import com.raphtory.api.input.Graph
+import com.raphtory.api.input.MaybeType
+import com.raphtory.api.input.NoType
+import com.raphtory.api.input.Properties
+import com.raphtory.api.input.Source
+import com.raphtory.api.input.Type
 import com.raphtory.api.time.DiscreteInterval
 import com.raphtory.api.time.Interval
 import com.raphtory.api.time.NullInterval
 import com.raphtory.internals.components.querymanager.PointPath
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.SinglePoint
+import com.raphtory.internals.graph.GraphAlteration.EdgeAdd
+import com.raphtory.internals.graph.GraphAlteration.EdgeDelete
+import com.raphtory.internals.graph.GraphAlteration.VertexAdd
+import com.raphtory.internals.graph.GraphAlteration.VertexDelete
 import com.raphtory.internals.management.QuerySender
 import com.raphtory.internals.time.DateTimeParser
 import com.typesafe.config.Config
@@ -13,10 +23,59 @@ import com.raphtory.internals.time.IntervalParser.{parse => parseInterval}
 
 private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <: FixedGraph[
         FixedG
-]] extends GraphBase[G, TemporalGraph, MultilayerTemporalGraph] {
+]] extends GraphBase[G, TemporalGraph, MultilayerTemporalGraph]
+        with Graph {
   private[api] val query: Query
   private[api] val querySender: QuerySender
   private[api] val conf: Config
+
+  private var index = 1
+
+  def ingest(sources: Source*): Unit =
+    querySender.submitGraph(sources, conf.getString("raphtory.deploy.id"))
+
+  override def addVertex(updateTime: Long, srcId: Long, posTypeArg: Type): Unit = {
+    querySender.individualUpdate(VertexAdd(updateTime, index, srcId, Properties(), posTypeArg.toOption))
+    index += 1
+  }
+
+  override def addVertex(
+      updateTime: Long,
+      srcId: Long,
+      properties: Properties = Properties(),
+      vertexType: MaybeType = NoType,
+      secondaryIndex: Long = index
+  ): Unit = {
+    querySender.individualUpdate(VertexAdd(updateTime, secondaryIndex, srcId, Properties(), vertexType.toOption))
+    index += 1
+  }
+
+  override def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long = index): Unit = {
+    querySender.individualUpdate(VertexDelete(updateTime, secondaryIndex, srcId))
+    index += 1
+  }
+
+  override def addEdge(updateTime: Long, srcId: Long, dstId: Long, posTypeArg: Type): Unit = {
+    querySender.individualUpdate(EdgeAdd(updateTime, index, srcId, dstId, Properties(), posTypeArg.toOption))
+    index += 1
+  }
+
+  override def addEdge(
+      updateTime: Long,
+      srcId: Long,
+      dstId: Long,
+      properties: Properties = Properties(),
+      edgeType: MaybeType = NoType,
+      secondaryIndex: Long = index
+  ): Unit = {
+    querySender.individualUpdate(EdgeAdd(updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption))
+    index += 1
+  }
+
+  override def deleteEdge(updateTime: Long, srcId: Long, dstId: Long, secondaryIndex: Long = index): Unit = {
+    querySender.individualUpdate(EdgeDelete(updateTime, secondaryIndex, srcId, dstId))
+    index += 1
+  }
 
   /** Creates a new `TemporalGraph` which includes all activity after startTime (inclusive).
     * @param startTime time interpreted in milliseconds by default

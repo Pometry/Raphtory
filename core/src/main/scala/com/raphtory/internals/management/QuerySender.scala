@@ -5,6 +5,7 @@ import com.raphtory.api.querytracker.QueryProgressTracker
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.querymanager.EstablishGraph
 import com.raphtory.internals.components.querymanager.Query
+import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.typesafe.config.Config
 
 import scala.util.Random
@@ -14,6 +15,13 @@ private[raphtory] class QuerySender(
     private val topics: TopicRepository,
     private val config: Config
 ) {
+
+  private val graphID          = config.getString("raphtory.deploy.id")
+  val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
+  val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
+  val totalPartitions: Int     = partitionServers * partitionsPerServer
+  private lazy val writers     = topics.graphUpdates(graphID).endPoint
+  private lazy val submissions = topics.submissions.endPoint
 
   def submit(query: Query, customJobName: String = ""): QueryProgressTracker = {
     val jobName     = if (customJobName.nonEmpty) customJobName else getDefaultName(query)
@@ -27,8 +35,11 @@ private[raphtory] class QuerySender(
     tracker
   }
 
+  def individualUpdate(update: GraphUpdate)               =
+    writers((update.srcId % totalPartitions).toInt) sendAsync update
+
   def submitGraph(sources: Seq[Source], id: String): Unit =
-    topics.submissions.endPoint sendAsync EstablishGraph(id, sources)
+    submissions sendAsync EstablishGraph(id, sources)
 
   private def getDefaultName(query: Query): String =
     if (query.name.nonEmpty) query.name else query.hashCode().abs.toString

@@ -1,16 +1,17 @@
 package com.raphtory.deployments
 
 import cats.effect.IO
+import com.raphtory.LocalRaphtoryContext
 import com.raphtory.Raphtory
 import com.raphtory.TestUtils
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.analysis.graphview.Alignment
+import com.raphtory.api.input.Source
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.StaticGraphSpout
-import com.raphtory.facebooktest.FacebookGraphBuilder
 import munit.CatsEffectSuite
 
 import java.net.URL
@@ -18,7 +19,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
 
 class MultiGraphDeploymentTest extends CatsEffectSuite {
-  override val munitTimeout: Duration = 60.seconds
+  override val munitTimeout: Duration = 300.seconds
 
   val outputDirectory   = "/tmp/raphtoryTest"
   def defaultSink: Sink = FileSink(outputDirectory)
@@ -44,26 +45,30 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
     files
       .use { files =>
         IO.delay {
-          val lotrGraph   = Raphtory.stream(lotrSpout, lotrBuilder)
+          val context     = new LocalRaphtoryContext()
+          val lotrGraph   = context.newGraph()
+          lotrGraph.ingest(Source(lotrSpout, lotrBuilder))
           val lotrTracker = lotrGraph
             .range(1, 32674, 10000)
             .window(List(500, 1000, 10000), Alignment.END)
             .execute(ConnectedComponents())
             .writeTo(defaultSink)
 
-          val facebookGraph   = Raphtory.stream(facebookSpout, facebookBuilder)
+          val facebookGraph = context.newGraph()
+          facebookGraph.ingest(Source(facebookSpout, facebookBuilder))
+
           val facebookTracker = facebookGraph
             .at(88234)
             .past()
             .execute(ConnectedComponents())
             .writeTo(defaultSink)
 
-          lotrTracker.waitForJob()
-          val lotrHash = TestUtils.generateTestHash(outputDirectory, lotrTracker.getJobId)
-
           facebookTracker.waitForJob()
           val facebookHash = TestUtils.generateTestHash(outputDirectory, facebookTracker.getJobId)
 
+          lotrTracker.waitForJob()
+          val lotrHash = TestUtils.generateTestHash(outputDirectory, lotrTracker.getJobId)
+          context.close()
           (lotrHash, facebookHash)
         }
       }

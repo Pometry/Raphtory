@@ -63,10 +63,10 @@ object PartitionsManager {
       graphBuilder: GraphBuilder[T]
   )(implicit IO: Async[IO]): Resource[IO, BatchPartitionManager[T]] = {
 
-    val deploymentID    = config.getString("raphtory.deploy.id")
+    val graphID         = config.getString("raphtory.deploy.id")
     val totalPartitions = config.getInt("raphtory.partitions.countPerServer")
 
-    logger.info(s"Creating '$totalPartitions' Partition Managers for $deploymentID.")
+    logger.info(s"Creating '$totalPartitions' Partition Managers for $graphID.")
 
     val partitions: Iterable[Int] = 0 until totalPartitions
 
@@ -88,14 +88,14 @@ object PartitionsManager {
           a1 <- cats.effect.Resource.eval(pm1)
           (partitionId, pm, storage) = a1
           reader                    <- Reader(partitionId, storage, scheduler, config, topics)
-          partitionManager          <- PartitionManager(partitionId, scheduler, config, topics, true, storage)
+          partitionManager          <- PartitionManager(graphID, partitionId, scheduler, config, topics, true, storage)
         } yield pm.copy(readers = reader :: pm.readers)
     }
 
     for {
       pm           <- partMResource
       batchHandler <- LocalBatchHandler(
-                              deploymentID,
+                              graphID,
                               mutable.Set(pm.partitionIds: _*),
                               mutable.Map(pm.batchWriters: _*),
                               spout,
@@ -126,10 +126,10 @@ object PartitionsManager {
       IO: Async[IO]
   ): Resource[IO, PartitionsManager] = {
 
-    val deploymentID    = config.getString("raphtory.deploy.id")
+    val graphID         = config.getString("raphtory.deploy.id")
     val totalPartitions = config.getInt("raphtory.partitions.countPerServer")
 
-    logger.info(s"Creating '$totalPartitions' Partition Managers for $deploymentID.")
+    logger.info(s"Creating '$totalPartitions' Partition Managers for $graphID.")
 
     val partitions: Iterable[Int] = 0 until totalPartitions
 
@@ -137,7 +137,7 @@ object PartitionsManager {
       (pm, i) =>
         for {
           partitionId <- Resource.eval(nextId(partitionIDManager))
-          partition   <- PartitionManager(partitionId, scheduler, config, topics)
+          partition   <- PartitionManager(graphID, partitionId, scheduler, config, topics)
         } yield pm.copy(partitions = partition :: pm.partitions)
     }
 

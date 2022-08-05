@@ -32,7 +32,6 @@ import scala.util.Try
 private[raphtory] class QueryHandler(
     queryManager: QueryManager,
     scheduler: Scheduler,
-    graphID: String,
     jobID: String,
     query: Query,
     conf: Config,
@@ -40,6 +39,7 @@ private[raphtory] class QueryHandler(
     pyScript: Option[String]
 ) extends Component[QueryManagement](conf) {
 
+  private val graphID        = conf.getString("raphtory.deploy.id")
   private val startTime      = System.currentTimeMillis()
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val self           = topics.rechecks(jobID).endPoint
@@ -335,9 +335,12 @@ private[raphtory] class QueryHandler(
     getOptionalEarliestTime match {
       case None               =>
         scheduler.scheduleOnce(1.seconds, recheckEarliestTimer())
+        logger.debug(s"Job '$jobID': In First recheck block")
         Stages.SpawnExecutors
       case Some(earliestTime) =>
         if (earliestTime > getLatestTime) {
+          logger.debug(s"Job '$jobID': In second recheck block")
+
           scheduler.scheduleOnce(1.seconds, recheckEarliestTimer())
           Stages.SpawnExecutors
         }

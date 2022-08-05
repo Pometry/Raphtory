@@ -37,7 +37,6 @@ private[raphtory] class QueryManager(
   override def handleMessage(msg: QueryManagement): Unit =
     msg match {
       case establishGraph: EstablishGraph =>
-        partitions sendAsync establishGraph
         ingestion sendAsync establishGraph
         logger.debug(s"deploying graph with graph ID: ${establishGraph.graphID}")
       case query: Query                   =>
@@ -71,7 +70,7 @@ private[raphtory] class QueryManager(
   private def spawnQuery(id: String, query: Query): QueryHandler = {
     logger.info(s"Query '${query.name}' received, your job ID is '$id'.")
 
-    val queryHandler = new QueryHandler(this, scheduler, query.graphID, id, query, conf, topics, query.pyScript)
+    val queryHandler = new QueryHandler(this, scheduler, id, query, conf, topics, query.pyScript)
     scheduler.execute(queryHandler)
     telemetry.totalQueriesSpawned.labels(deploymentID).inc()
     queryHandler

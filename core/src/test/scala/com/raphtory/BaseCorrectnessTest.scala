@@ -6,6 +6,7 @@ import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.spouts.IdentitySpout
 import com.raphtory.spouts.ResourceSpout
@@ -69,8 +70,9 @@ abstract class BaseCorrectnessTest(
       resultsResource: String
   ): IO[Unit] =
     Raphtory
-      .loadIO(ResourceSpout(graphResource), setGraphBuilder())
+      .quickIOGraph()
       .use { g =>
+        g.ingest(Source(ResourceSpout(graphResource), setGraphBuilder()))
         runTest(test, graph = g)
       }
       .map(obtained => assertResultsMatch(obtained, resultsResource))
@@ -81,8 +83,9 @@ abstract class BaseCorrectnessTest(
       results: Seq[String]
   ): IO[Unit] =
     Raphtory
-      .loadIO(SequenceSpout(graphEdges: _*), setGraphBuilder())
+      .quickIOGraph()
       .use { g =>
+        g.ingest(Source(SequenceSpout(graphEdges: _*), setGraphBuilder()))
         runTest(test, g)
       }
       .map(obtained => assertResultsMatch(obtained, results))

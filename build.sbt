@@ -85,6 +85,7 @@ lazy val core = (project in file("core"))
                   log4jApi,
                   log4jCore,
                   magnolia,
+                  nomen,
                   openhft,
                   pemja,
                   prometheusClient,

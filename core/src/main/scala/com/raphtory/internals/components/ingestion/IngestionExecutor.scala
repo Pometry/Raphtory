@@ -17,7 +17,6 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 private[raphtory] class IngestionExecutor(
-    deploymentID: String,
     graphID: String,
     source: Source,
     conf: Config,
@@ -27,9 +26,9 @@ private[raphtory] class IngestionExecutor(
   private val logger: Logger        = Logger(LoggerFactory.getLogger(this.getClass))
   private val failOnError           = conf.getBoolean("raphtory.builders.failOnError")
   private val writers               = topics.graphUpdates(graphID).endPoint
-  private val sourceInstance        = source.buildSource(deploymentID)
-  private val spoutReschedulesCount = telemetry.spoutReschedules.labels(deploymentID)
-  private val fileLinesSent         = telemetry.fileLinesSent.labels(deploymentID)
+  private val sourceInstance        = source.buildSource(graphID)
+  private val spoutReschedulesCount = telemetry.spoutReschedules.labels(graphID)
+  private val fileLinesSent         = telemetry.fileLinesSent.labels(graphID)
 
   private var index: Int                               = 0
   private var scheduledRun: Option[() => Future[Unit]] = None
@@ -68,7 +67,7 @@ private[raphtory] class IngestionExecutor(
 
   private def reschedule(): Unit = {
     // TODO: Parameterise the delay
-    logger.debug("Spout: Scheduling spout to poll again in 10 seconds.")
+    logger.trace("Spout: Scheduling spout to poll again in 10 seconds.")
     scheduledRun = Option(scheduler.scheduleOnce(1.seconds, rescheduler()))
   }
 
@@ -77,7 +76,6 @@ private[raphtory] class IngestionExecutor(
 object IngestionExecutor {
 
   def apply[IO[_]: Spawn](
-      deploymentID: String,
       graphID: String,
       source: Source,
       config: Config,
@@ -88,7 +86,7 @@ object IngestionExecutor {
               topics,
               "spout-executor",
               Seq.empty[CanonicalTopic[Any]],
-              new IngestionExecutor(deploymentID, graphID, source, config, topics, new Scheduler)
+              new IngestionExecutor(graphID, source, config, topics, new Scheduler)
       )
 
 }

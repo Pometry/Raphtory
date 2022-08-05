@@ -39,7 +39,7 @@ private[raphtory] class TopicRepository(
 
   // Configuration
   private val spoutAddress: String     = conf.getString("raphtory.spout.topic")
-  private val depId: String            = conf.getString("raphtory.deploy.id")
+  private val graphID: String          = conf.getString("raphtory.deploy.id")
   private val partitionServers: Int    = conf.getInt("raphtory.partitions.serverCount")
   private val partitionsPerServer: Int = conf.getInt("raphtory.partitions.countPerServer")
   private val numPartitions: Int       = partitionServers * partitionsPerServer
@@ -49,43 +49,43 @@ private[raphtory] class TopicRepository(
     WorkPullTopic[(T, Long)](spoutConnector, "spout", customAddress = spoutAddress)
 
   final def submissions: ExclusiveTopic[Submission] =
-    ExclusiveTopic[Submission](submissionsConnector, s"submissions", depId)
+    ExclusiveTopic[Submission](submissionsConnector, s"submissions", graphID)
 
   final def completedQueries: ExclusiveTopic[EndQuery] =
-    ExclusiveTopic[EndQuery](completedQueriesConnector, "completed.queries", depId)
+    ExclusiveTopic[EndQuery](completedQueriesConnector, "completed.queries", graphID)
 
   final def ingestSetup: ExclusiveTopic[EstablishGraph] =
-    ExclusiveTopic[EstablishGraph](ingestSetupConnector, "ingest.setup", depId)
+    ExclusiveTopic[EstablishGraph](ingestSetupConnector, "ingest.setup", graphID)
 
   final def partitionSetup: BroadcastTopic[GraphManagement] =
-    BroadcastTopic[GraphManagement](numPartitions, partitionSetupConnector, "partition.setup", depId)
+    BroadcastTopic[GraphManagement](numPartitions, partitionSetupConnector, "partition.setup", graphID)
 
   // graph wise topics
   final def graphUpdates(graphID: String): ShardingTopic[GraphUpdate] =
-    ShardingTopic[GraphUpdate](numPartitions, graphUpdatesConnector, s"graph.updates", s"$depId-$graphID")
+    ShardingTopic[GraphUpdate](numPartitions, graphUpdatesConnector, s"graph.updates", s"$graphID")
 
   final def graphSync(graphID: String): ShardingTopic[GraphUpdateEffect] =
-    ShardingTopic[GraphUpdateEffect](numPartitions, graphSyncConnector, s"graph.sync", s"$depId-$graphID")
+    ShardingTopic[GraphUpdateEffect](numPartitions, graphSyncConnector, s"graph.sync", s"$graphID")
 
   final def watermark: ExclusiveTopic[WatermarkTime] =
-    ExclusiveTopic[WatermarkTime](watermarkConnector, "watermark", depId)
+    ExclusiveTopic[WatermarkTime](watermarkConnector, "watermark", graphID)
 
   // Job wise topics
   final def queryTrack(jobId: String): ExclusiveTopic[QueryManagement] =
-    ExclusiveTopic[QueryManagement](queryTrackConnector, "query.track", s"$depId-$jobId")
+    ExclusiveTopic[QueryManagement](queryTrackConnector, "query.track", s"$graphID-$jobId")
 
   final def rechecks(jobId: String): ExclusiveTopic[QueryManagement] =
-    ExclusiveTopic[QueryManagement](rechecksConnector, "rechecks", s"$depId-$jobId")
+    ExclusiveTopic[QueryManagement](rechecksConnector, "rechecks", s"$graphID-$jobId")
 
   final def jobStatus(jobId: String): ExclusiveTopic[QueryManagement] =
-    ExclusiveTopic[QueryManagement](jobStatusConnector, "job.status", s"$depId-$jobId")
+    ExclusiveTopic[QueryManagement](jobStatusConnector, "job.status", s"$graphID-$jobId")
 
   final def vertexMessages(jobId: String): ShardingTopic[VertexMessaging] =
     ShardingTopic[VertexMessaging](
             numPartitions,
             vertexMessagesConnector,
             "vertex.messages",
-            s"$depId-$jobId"
+            s"$graphID-$jobId"
     )
 
   final def vertexMessagesSync(jobId: String): ShardingTopic[VertexMessagesSync] =
@@ -93,7 +93,7 @@ private[raphtory] class TopicRepository(
             numPartitions,
             vertexMessagesSyncConnector,
             "vertex.messages.sync",
-            s"$depId-$jobId"
+            s"$graphID-$jobId"
     )
 
   final def jobOperations(jobId: String): BroadcastTopic[QueryManagement] =
@@ -101,7 +101,7 @@ private[raphtory] class TopicRepository(
             numPartitions,
             jobOperationsConnector,
             s"job.operations",
-            s"$depId-$jobId"
+            s"$graphID-$jobId"
     )
 
   final def registerListener[T](

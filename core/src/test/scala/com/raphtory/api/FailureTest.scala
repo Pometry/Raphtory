@@ -9,6 +9,7 @@ import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.SequenceSpout
 import com.raphtory.BasicGraphBuilder
 import com.raphtory.Raphtory
+import com.raphtory.api.input.Source
 import com.raphtory.internals.communication.EndPoint
 import munit.CatsEffectSuite
 
@@ -21,13 +22,10 @@ class FailingAlgo extends Generic {
 class FailureTest extends CatsEffectSuite {
   test("test failure propagation for failure in algorithm step") {
     Raphtory
-      .streamIO(
-              spout = SequenceSpout("1,1,1"),
-              graphBuilder = BasicGraphBuilder()
-      )
+      .quickIOGraph()
       .use { graph =>
         IO {
-
+          graph.ingest(Source(SequenceSpout("1,1,1"), BasicGraphBuilder()))
           val query = graph
             .at(1)
             .past()

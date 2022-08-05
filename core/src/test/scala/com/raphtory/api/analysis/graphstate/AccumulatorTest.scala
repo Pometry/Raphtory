@@ -13,6 +13,7 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
+import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.spouts.ResourceSpout
 
@@ -86,14 +87,12 @@ class AccumulatorTest extends BaseCorrectnessTest(startGraph = true) {
 
   test("Test nodeCount on graph state is consistent for multiple perspectives") {
     Raphtory
-      .loadIO(
-              ResourceSpout("MotifCount/motiftest.csv"),
-              BasicGraphBuilder(),
-              customConfig =
-                Map("raphtory.prometheus.metrics.port" -> 0) // this makes prometheus start on a random unused port
-      )
+      .quickIOGraph(customConfig =
+        Map("raphtory.prometheus.metrics.port" -> 0)
+      ) // this makes prometheus start on a random unused port
       .use { graph =>
         IO {
+          graph.ingest(Source(ResourceSpout("MotifCount/motiftest.csv"), BasicGraphBuilder()))
           val job = graph
             .range(10, 23, 1)
             .window(10, Alignment.END)

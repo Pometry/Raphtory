@@ -255,20 +255,20 @@ trait Graph {
   def addVertex(
       updateTime: Long,
       srcId: Long,
-      properties: Properties,
-      vertexType: MaybeType,
-      secondaryIndex: Long
+      properties: Properties = Properties(),
+      vertexType: MaybeType = NoType,
+      secondaryIndex: Long = 1 //this is always overwritten its just to make the API happy
   ): Unit
-  def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long): Unit
+  def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long = 1): Unit
   def addEdge(updateTime: Long, srcId: Long, dstId: Long, posTypeArg: Type): Unit
 
   def addEdge(
       updateTime: Long,
       srcId: Long,
       dstId: Long,
-      properties: Properties,
-      edgeType: MaybeType,
-      secondaryIndex: Long
+      properties: Properties = Properties(),
+      edgeType: MaybeType = NoType,
+      secondaryIndex: Long = 1 //this is always overwritten its just to make the API happy
   ): Unit
-  def deleteEdge(updateTime: Long, srcId: Long, dstId: Long, secondaryIndex: Long): Unit
+  def deleteEdge(updateTime: Long, srcId: Long, dstId: Long, secondaryIndex: Long = 1): Unit
 }

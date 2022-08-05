@@ -143,8 +143,8 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
           WatermarkTime(graphID, storage.getPartitionID, oldestTime.get(), finalTime, noBlockingOperations)
 
         if (newWatermark != latestWatermark)
-          logger.debug(
-                  s"Partition ${storage.getPartitionID}: Creating watermark with " +
+          logger.trace(
+                  s"Partition ${storage.getPartitionID} for $graphID: Creating watermark with " +
                     s"earliest time '${oldestTime.get()}' and latest time '$finalTime'."
           )
 

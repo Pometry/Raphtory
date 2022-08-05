@@ -39,7 +39,7 @@ class MultiSpoutDeploymentTest extends CatsEffectSuite {
     val files = for {
       _        <- fileDownload
       file     <- Resource.fromAutoCloseable(IO(scala.io.Source.fromFile(path)))
-      _        <- Resource.make(IO(s"mkdir $splitDir" !!))(path => IO(s"rm -r $splitDir" !!))
+      _        <- Resource.make(IO(s"mkdir -p $splitDir" !!))(path => IO(s"rm -r $splitDir" !!))
       oddFile  <- Resource.fromAutoCloseable(IO(new FileWriter(oddPath)))
       evenFile <- Resource.fromAutoCloseable(IO(new FileWriter(evenPath)))
     } yield (file, oddFile, evenFile)
@@ -58,7 +58,9 @@ class MultiSpoutDeploymentTest extends CatsEffectSuite {
             }
             Seq(oddFile, evenFile).foreach(_.flush())
 
-            val graph   = Raphtory.stream(Source(oddSpout, lotrBuilder), Source(evenSpout, lotrBuilder))
+            val graph   = Raphtory.quickGraph()
+            graph.ingest(Source(oddSpout, lotrBuilder))
+            graph.ingest(Source(evenSpout, lotrBuilder))
             val tracker = graph
               .range(1, 32674, 10000)
               .window(List(500, 1000, 10000), Alignment.END)
@@ -66,6 +68,7 @@ class MultiSpoutDeploymentTest extends CatsEffectSuite {
               .writeTo(defaultSink)
 
             tracker.waitForJob()
+            graph.close()
             TestUtils.generateTestHash(outputDirectory, tracker.getJobId)
           }
       }

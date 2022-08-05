@@ -9,6 +9,7 @@ import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.sinks.FileSink
@@ -37,13 +38,13 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   def defaultSink: Sink       = FileSink(outputDirectory)
 
   private def graph: Resource[IO, TemporalGraph] =
-    if (batchLoading()) Raphtory.loadIO[T](setSpout(), setGraphBuilder())
-    else Raphtory.streamIO[T](setSpout(), setGraphBuilder())
+    Raphtory.quickIOGraph()
 
   val withGraph: SyncIO[FunFixture[TemporalGraph]] = ResourceFixture(
           for {
             _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
             g <- graph
+            _  = g.ingest(Source(setSpout(), setGraphBuilder()))
           } yield g
   )
 
@@ -52,10 +53,11 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           for {
             _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
             g <- graph
+            _  = g.ingest(Source(setSpout(), setGraphBuilder()))
           } yield g
   )
 
-  def graphS = suiteGraph()
+  def graphS: TemporalGraph = suiteGraph()
 
   override def munitFixtures = List(suiteGraph)
 
@@ -63,7 +65,6 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
   def setSpout(): Spout[T]
   def setGraphBuilder(): GraphBuilder[T]
-  def batchLoading(): Boolean = true
 
   def receiveMessage(consumer: Consumer[Array[Byte]]): Message[Array[Byte]] =
     consumer.receive

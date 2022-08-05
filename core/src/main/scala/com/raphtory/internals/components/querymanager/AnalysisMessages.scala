@@ -79,7 +79,6 @@ sealed private[raphtory] trait Submission extends QueryManagement
 private[raphtory] case class Query(
     _bootstrap: DynamicLoader = DynamicLoader(), // leave the `_` this field gets deserialized first
     name: String = "",
-    graphID: String = "",
     points: PointSet = NullPointSet,
     timelineStart: Long = Long.MinValue,         // inclusive
     timelineEnd: Long = Long.MaxValue,           // inclusive

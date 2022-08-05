@@ -3,6 +3,11 @@ package com.raphtory.examples.lotr
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.motif.GlobalTriangleCount
+import com.raphtory.api.input.GraphBuilder.assignID
+import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.Properties
+import com.raphtory.api.input.Source
+import com.raphtory.api.input.Type
 import com.raphtory.examples.lotr.graphbuilders.LOTRGraphBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
@@ -17,17 +22,29 @@ object TutorialRunner extends App {
 
   FileUtils.curlFile(path, url)
 
-  val source  = FileSpout(path)
-  val builder = new LOTRGraphBuilder()
-  val graph   = Raphtory.load(spout = source, graphBuilder = builder)
+  val graph = Raphtory.localContext().newGraph()
 
-  val output = FileSink("/tmp/raphtory")
+  val source = Source(FileSpout(path), new LOTRGraphBuilder())
+  graph.ingest(source)
+
+  val line = scala.io.Source.fromFile(path).getLines.foreach { line =>
+    val fileLine   = line.split(",").map(_.trim)
+    val sourceNode = fileLine(0)
+    val srcID      = assignID(sourceNode)
+    val targetNode = fileLine(1)
+    val tarID      = assignID(targetNode)
+    val timeStamp  = fileLine(2).toLong
+
+    graph.addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)), Type("Character"))
+    graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("Character"))
+    graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurence"))
+  }
 
   graph
     .at(32674)
     .past()
     .execute(GlobalTriangleCount)
-    .writeTo(output)
+    .writeTo(FileSink("/tmp/raphtory"))
     .waitForJob()
 
   graph.close()
