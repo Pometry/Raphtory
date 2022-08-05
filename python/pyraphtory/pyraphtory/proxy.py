@@ -27,10 +27,13 @@ class GenericScalaProxy(object):
     def _method_dict(self):
         if self._methods is None:
             logger.trace(f"Getting methods for {self._jvm_object}")
-            self._methods = interop.get_methods(self._get_classname())
+            self._methods = interop.get_methods(self._jvm_object)
         else:
             logger.trace(f"Retreiving cached methods for {self}")
         return self._methods
+
+    def list_methods(self):
+        return self._method_dict.keys().toString()
 
     def __getattr__(self, name):
         logger.trace(f"__getattr__ called for {self!r} with {name!r}")
@@ -103,6 +106,13 @@ class GenericMethodProxy(object):
     def __getitem__(self, item):
         self._implicits.append(interop.to_jvm(item))
         return self
+
+
+class ScalaObjectProxy(GenericScalaProxy):
+    def __init__(self, jvm_object=None):
+        if jvm_object is None:
+            jvm_object = interop.find_class(self._classname)
+        super().__init__(jvm_object=jvm_object)
 
 
 class ConstructableScalaProxy(GenericScalaProxy):

@@ -112,6 +112,9 @@ def to_jvm(value):
     elif isinstance(value, proxy.Algorithm):
         logger.trace(f"Converting value {value!r}, finding object based on algorithm path")
         return find_class(value._path)
+    elif isinstance(value, type) and hasattr(value, "_classname"):
+        logger.trace(f"Converting value {value!r}, uninitialised type, trying to look up based on classname")
+        return find_class(value._classname)
     elif isinstance(value, proxy.GenericScalaProxy):
         logger.trace(f"Converting value {value!r}, decoding proxy object")
         return decode(value._jvm_object)

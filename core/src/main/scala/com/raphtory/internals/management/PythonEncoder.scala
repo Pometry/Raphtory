@@ -222,11 +222,11 @@ object PythonInterop {
     obj.instance
   }
 
-  def methods(name: String): Map[String, Array[Method]] = {
-    logger.trace(s"Scala 'methods' called with $name")
+  def methods(obj: Any): Map[String, Array[Method]] = {
+    logger.trace(s"Scala 'methods' called with $obj")
     val prefixedMethodDict         = mutable.Map.empty[String, mutable.ArrayBuffer[java.lang.reflect.Method]]
     val prefixedMethodDefaultsDict = mutable.Map.empty[String, mutable.Map[Int, java.lang.reflect.Method]]
-    Class.forName(name.replace("/", ".")).getMethods.foreach { m =>
+    obj.getClass.getMethods.foreach { m =>
       val parts: Array[String] = """\$default\$""".r.split(m.getName)
       val prefix               = camel_to_snake(parts(0))
 
@@ -259,7 +259,7 @@ object PythonInterop {
             Method(m.getName, n, params, Map.empty[Int, String])
         }.toArray
     }.toMap
-    logger.trace(s"Returning found methods for $name")
+    logger.trace(s"Returning found methods for $obj")
     res
   }
 

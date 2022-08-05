@@ -81,4 +81,4 @@ if __name__ == "__main__":
     #     .wait_for_job()
 
     # rg.at(32674).past().execute(pr.algorithms.generic.ConnectedComponents).write_to_file("/tmp/pyraphtory_output").wait_for_job()
-    df = rg.set_global_state(lambda s: s.new_adder[Int()]("deg_sum")).step(total_degree).global_select(lambda s: [s("deg_sum").value()]).write_to_dataframe(["deg_sum"])
+    df = rg.set_global_state(lambda s: s.new_adder[Int]("deg_sum")).step(total_degree).global_select(lambda s: [s("deg_sum").value()]).write_to_dataframe(["deg_sum"])
