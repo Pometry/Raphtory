@@ -25,9 +25,12 @@ import com.raphtory.Raphtory.makePartitionIdManager
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
+
 abstract class RaphtoryContext {
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-  case class Service(client: QuerySender, deploymentID: String, shutdown: IO[Unit], graphs: Set[String])
+  case class Service(client: QuerySender, graphID: String, shutdown: IO[Unit])
 
   def newGraph(name: String = createName, customConfig: Map[String, Any] = Map()): DeployedTemporalGraph
 
@@ -47,12 +50,12 @@ abstract class RaphtoryContext {
 }
 
 class LocalRaphtoryContext() extends RaphtoryContext {
-  private var localService: Option[Service] = None
+  private var localServices: mutable.Map[String, Service] = mutable.Map.empty[String, Service]
 
   def newGraph(graphID: String = createName, customConfig: Map[String, Any] = Map()): DeployedTemporalGraph = {
     val ((client, config), shutdown) =
       deployLocalGraph[IO](graphID, customConfig).allocated.unsafeRunSync()
-    new DeployedTemporalGraph(Query(graphID = graphID), client, config, shutdown)
+    new DeployedTemporalGraph(Query(), client, config, shutdown)
   }
 
   def newIOGraph(graphID: String = createName, customConfig: Map[String, Any] = Map()) =
@@ -74,7 +77,7 @@ class LocalRaphtoryContext() extends RaphtoryContext {
     } yield new QuerySender(scheduler, topicRepo, config)
 
     val (client, shutdown) = serviceResource.allocated.unsafeRunSync()
-    Service(client, graphID, shutdown, Set())
+    Service(client, graphID, shutdown)
   }
 
   private def deployLocalGraph[IO[_]](
@@ -84,35 +87,37 @@ class LocalRaphtoryContext() extends RaphtoryContext {
       IO: Async[IO]
   ): Resource[IO, (QuerySender, Config)] =
     Resource.make {
-      val config = confBuilder(Map("raphtory.deploy.id" -> graphID))
+      val config = confBuilder(Map("raphtory.deploy.id" -> graphID) ++ customConfig)
       IO.delay {
-        localService.synchronized {
-          val service = localService match {
+        localServices.synchronized {
+          localServices.get(graphID) match {
             case Some(service) =>
-              logger.debug("There is an existing service, adding graph")
-              service.copy(graphs = service.graphs + graphID)
+              logger.info(s"Requested Graph $graphID already exists, returning service")
+              (service.client, config)
             case None          =>
-              logger.debug("No local service deployed, deploying it and adding the graph")
-              deployLocalService(graphID, config).copy(graphs = Set(graphID))
+              logger.debug(s"Creating Service for $graphID")
+              val service = deployLocalService(graphID, config)
+              localServices += ((graphID, service))
+              (service.client, config)
+
           }
-          localService = Some(service)
-          val client  = service.client
-          //client.submitGraph(sources, graphID)
-          (client, config)
         }
       }
     } { service =>
       IO.delay {
-        localService.synchronized {
-          val remainingGraphs = localService.get.graphs - graphID
-          localService = localService.map(service => service.copy(graphs = remainingGraphs))
-          if (remainingGraphs.isEmpty) {
-            localService.get.shutdown.unsafeRunSync()
-            logger.debug("Last graph in the service was removed, shutting down")
+        localServices.synchronized {
+          localServices.get(graphID) match {
+            case Some(service) =>
+              service.shutdown.unsafeRunSync()
+              localServices.remove(graphID)
+            case None          => //already closed?
           }
         }
       }
     }
 
-  override def close(): Unit = ???
+  override def close(): Unit = {
+    localServices.foreach(service => service._2.shutdown.unsafeRunSync())
+    localServices = mutable.Map.empty[String, Service]
+  }
 }

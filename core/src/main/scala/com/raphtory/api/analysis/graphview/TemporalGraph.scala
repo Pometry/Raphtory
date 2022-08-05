@@ -32,7 +32,7 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   private var index = 1
 
   def ingest(sources: Source*): Unit =
-    querySender.submitGraph(sources, query.graphID)
+    querySender.submitGraph(sources, conf.getString("raphtory.deploy.id"))
 
   override def addVertex(updateTime: Long, srcId: Long, posTypeArg: Type): Unit = {
     querySender.individualUpdate(VertexAdd(updateTime, index, srcId, Properties(), posTypeArg.toOption))

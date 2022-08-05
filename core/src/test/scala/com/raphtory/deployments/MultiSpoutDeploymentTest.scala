@@ -68,6 +68,7 @@ class MultiSpoutDeploymentTest extends CatsEffectSuite {
               .writeTo(defaultSink)
 
             tracker.waitForJob()
+            graph.close()
             TestUtils.generateTestHash(outputDirectory, tracker.getJobId)
           }
       }

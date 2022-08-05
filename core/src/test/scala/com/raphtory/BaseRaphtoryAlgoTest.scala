@@ -44,6 +44,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           for {
             _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
             g <- graph
+            _  = g.ingest(Source(setSpout(), setGraphBuilder()))
           } yield g
   )
 
@@ -52,14 +53,11 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           for {
             _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
             g <- graph
+            _  = g.ingest(Source(setSpout(), setGraphBuilder()))
           } yield g
   )
 
-  def graphS = {
-    val g = suiteGraph()
-    g.ingest(Source(setSpout(), setGraphBuilder()))
-    g
-  }
+  def graphS: TemporalGraph = suiteGraph()
 
   override def munitFixtures = List(suiteGraph)
 

@@ -40,7 +40,6 @@ class PartitionManager(
     }
   }
 
-  private val pendingExecutors                   = mutable.Map[String, EstablishExecutor]()
   private val executors                          = new ConcurrentHashMap[String, QueryExecutor]()
   val storage                                    = new PojoBasedPartition(graphID, partitionID, conf)
   val readerResource: Resource[IO, Reader]       = Reader[IO](partitionID, storage, scheduler, conf, topics)
@@ -66,7 +65,7 @@ class PartitionManager(
     }
 
   override private[raphtory] def run(): Unit =
-    logger.info(s"Partition $partitionID: Starting partition manager.") // TODO: turn into debug
+    logger.info(s"Partition $partitionID: Starting partition manager for $graphID.") // TODO: turn into debug
 
   override private[raphtory] def stop(): Unit = {
     executors forEach { (jobID, _) => Option(executors.remove(jobID)).foreach(_.stop()) }

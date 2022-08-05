@@ -3,6 +3,7 @@ package com.raphtory.twittertest
 import com.raphtory.BaseRaphtoryAlgoTest
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.spouts.StaticGraphSpout
+import munit.IgnoreSuite
 
 import java.net.URL
 import java.util.concurrent.TimeUnit
@@ -10,6 +11,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 
+@IgnoreSuite
 class TwitterTest extends BaseRaphtoryAlgoTest[String] {
   override val outputDirectory: String = "/tmp/raphtoryTwitterTest"
 
