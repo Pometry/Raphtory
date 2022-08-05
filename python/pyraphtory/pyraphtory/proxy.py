@@ -1,7 +1,7 @@
 from collections.abc import Iterable, Iterator
 
 from pyraphtory import interop
-from pyraphtory.interop import logger, register, to_jvm
+from pyraphtory.interop import logger, register, to_jvm, to_python
 
 
 class GenericScalaProxy(object):
@@ -37,7 +37,7 @@ class GenericScalaProxy(object):
         if self._method_dict.contains(name):
             return GenericMethodProxy(name, self._jvm_object, self._method_dict.apply(name))
         else:
-            raise AttributeError(f"{self!r} object has no method {name!r}")
+            raise AttributeError(f"{self!r} object has no method {name!r}, available methods are {self._methods.keys().toString()}")
 
     def __repr__(self):
         try:
