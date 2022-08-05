@@ -17,19 +17,4 @@ class PythonEntrypoint(graph: GraphPerspective) {
   def raphtoryGraph(): GraphPerspective = graph
 
   def interop = PythonInterop
-
-  def connectedComponents = ConnectedComponents
-
-  def degree = new Degree
-
-  def localTriangleCount = new LocalTriangleCount
-
-  def pageRank = new PageRank
-
-  def twoHopPaths(seeds: java.util.Set[String]) = new TwoHopPaths(seeds.asScala.toSet)
-
-  def fileSink(path: String): FileSink = FileSink(path)
-
-  def localSink(): LocalQueueSink =
-    new LocalQueueSink()
 }
