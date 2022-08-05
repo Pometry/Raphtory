@@ -1,7 +1,9 @@
 package com.raphtory.examples.enron
 
 import com.raphtory.Raphtory
-import com.raphtory.algorithms.generic.{ConnectedComponents, EdgeList}
+import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.algorithms.generic.EdgeList
+import com.raphtory.api.input.Source
 import com.raphtory.examples.enron.graphbuilders.EnronGraphBuilder
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.FileSpout
@@ -14,9 +16,11 @@ object Runner extends App {
   FileUtils.curlFile(path, url)
 
   // Create Graph
-  val source  = FileSpout(path)
+  val spout   = FileSpout(path)
   val builder = new EnronGraphBuilder()
-  val graph   = Raphtory.stream(spout = source, graphBuilder = builder)
+  val source  = Source(spout, builder)
+  val graph   = Raphtory.localContext().newGraph()
+  graph.ingest(source)
   try {
     graph
       .at(989858340000L)

@@ -19,6 +19,8 @@ import com.raphtory.internals.components.ingestion.IngestionManager
 import com.raphtory.internals.components.querymanager.EstablishGraph
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManager
+import com.raphtory.internals.context.LocalRaphtoryContext
+import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.internals.management._
 import com.raphtory.internals.management.id.IDManager
 import com.raphtory.internals.management.id.LocalIDManager
@@ -59,7 +61,7 @@ import scala.reflect.ClassTag
   */
 object Raphtory {
 
-  def localContext(): RaphtoryContext = new LocalRaphtoryContext()
+  def localContext(): LocalRaphtoryContext = new LocalRaphtoryContext()
 
   def quickGraph(graphID: String = createName, customConfig: Map[String, Any] = Map()): DeployedTemporalGraph =
     new LocalRaphtoryContext().newGraph(graphID: String, customConfig: Map[String, Any])

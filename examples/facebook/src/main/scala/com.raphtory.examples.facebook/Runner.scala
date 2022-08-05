@@ -1,14 +1,17 @@
 package com.raphtory.examples.facebook
 
 import com.raphtory.Raphtory
-import com.raphtory.algorithms.generic.{ConnectedComponents, EdgeList}
+import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.graphview.Alignment
+import com.raphtory.api.input.Source
 import com.raphtory.examples.facebook.graphbuilders.FacebookGraphBuilder
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.StaticGraphSpout
 
 import java.io.File
-import java.nio.file.{Files, Paths}
+import java.nio.file.Files
+import java.nio.file.Paths
 import scala.language.postfixOps
 import scala.sys.process._
 import scala.util.Using
@@ -25,10 +28,13 @@ object Runner extends App {
     }
   }
 
-  val source: StaticGraphSpout = StaticGraphSpout("/tmp/facebook.csv")
-  val builder                  = new FacebookGraphBuilder()
+  val spout: StaticGraphSpout = StaticGraphSpout("/tmp/facebook.csv")
+  val builder                 = new FacebookGraphBuilder()
+  val source                  = Source(spout, builder)
+  val graph                   = Raphtory.localContext().newGraph()
+  graph.ingest(source)
 
-  Using(Raphtory.load(spout = source, graphBuilder = builder)) { graph =>
+  Using(graph) { graph =>
     graph
       .at(88234)
       .past()

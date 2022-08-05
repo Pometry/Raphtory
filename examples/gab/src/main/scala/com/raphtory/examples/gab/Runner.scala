@@ -1,8 +1,10 @@
 package com.raphtory.examples.gab;
 
 import com.raphtory.Raphtory
-import com.raphtory.algorithms.generic.{ConnectedComponents, EdgeList}
+import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.graphview.Alignment
+import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.examples.gab.graphbuilders.GabUserGraphBuilder
 import com.raphtory.sinks.PulsarSink
@@ -11,13 +13,14 @@ import com.raphtory.utils.FileUtils
 
 object Runner extends App {
 
-  val path                  = "/tmp/gabNetwork500.csv"
-  val url                   = "https://raw.githubusercontent.com/Raphtory/Data/main/gabNetwork500.csv"
+  val path                 = "/tmp/gabNetwork500.csv"
+  val url                  = "https://raw.githubusercontent.com/Raphtory/Data/main/gabNetwork500.csv"
   FileUtils.curlFile(path, url)
-  val source: Spout[String] = FileSpout(path)
-  val builder               = new GabUserGraphBuilder()
-
-  val rg = Raphtory.stream(spout = source, graphBuilder = builder)
+  val spout: Spout[String] = FileSpout(path)
+  val builder              = new GabUserGraphBuilder()
+  val source               = Source(spout, builder)
+  val rg                   = Raphtory.localContext().newGraph()
+  rg.ingest(source)
 
   try {
 

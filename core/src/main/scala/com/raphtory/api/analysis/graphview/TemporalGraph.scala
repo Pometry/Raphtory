@@ -1,10 +1,12 @@
 package com.raphtory.api.analysis.graphview
 
 import com.raphtory.api.input.Graph
+import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.MaybeType
 import com.raphtory.api.input.NoType
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Source
+import com.raphtory.api.input.Spout
 import com.raphtory.api.input.Type
 import com.raphtory.api.time.DiscreteInterval
 import com.raphtory.api.time.Interval

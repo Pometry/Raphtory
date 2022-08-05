@@ -5,6 +5,7 @@ import cats.effect.IO
 import cats.effect.IOApp
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
+import com.raphtory.api.input.Source
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.twitter.builder.LiveTwitterRetweetGraphBuilder
 import com.raphtory.twitter.builder.LiveTwitterUserGraphBuilder
@@ -32,8 +33,12 @@ object LiveTwitterTest extends IOApp {
       else
         new LiveTwitterUserGraphBuilder()
 
-    Raphtory.streamIO[Tweet](spout, graphBuilder).use { graph =>
+    val source = Source(spout, graphBuilder)
+    val graph  = Raphtory.localContext().newIOGraph()
+
+    graph.use { graph =>
       IO {
+        graph.ingest(source)
         graph
           .walk("5 milliseconds")
           .window("5 milliseconds")

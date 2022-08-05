@@ -1,53 +1,22 @@
-package com.raphtory
+package com.raphtory.internals.context
 
 import cats.effect.Async
 import cats.effect.IO
 import cats.effect.Resource
-import cats.effect.Sync
-import com.oblac.nomen.Nomen
+import com.raphtory.Raphtory.makePartitionIdManager
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
-import com.raphtory.api.input.Source
 import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import com.raphtory.internals.components.ingestion.IngestionManager
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManager
-import com.raphtory.internals.management.ConfigHandler
 import com.raphtory.internals.management.PartitionsManager
 import com.raphtory.internals.management.Prometheus
 import com.raphtory.internals.management.QuerySender
 import com.raphtory.internals.management.Scheduler
-import com.raphtory.internals.management.id.IDManager
-import com.raphtory.internals.management.id.LocalIDManager
-import com.raphtory.internals.management.id.ZookeeperIDManager
 import com.typesafe.config.Config
 import cats.effect.unsafe.implicits.global
-import com.raphtory.Raphtory.makePartitionIdManager
-import com.typesafe.scalalogging.Logger
-import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
-
-abstract class RaphtoryContext {
-  protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-  case class Service(client: QuerySender, graphID: String, shutdown: IO[Unit])
-
-  def newGraph(name: String = createName, customConfig: Map[String, Any] = Map()): DeployedTemporalGraph
-
-  protected def createName: String =
-    Nomen.est().adjective().color().animal().get()
-
-  def close()
-
-  private[raphtory] def confBuilder(
-      customConfig: Map[String, Any] = Map()
-  ): Config = {
-    val confHandler = new ConfigHandler()
-    customConfig.foreach { case (key, value) => confHandler.addCustomConfig(key, value) }
-    confHandler.getConfig()
-  }
-
-}
 
 class LocalRaphtoryContext() extends RaphtoryContext {
   private var localServices: mutable.Map[String, Service] = mutable.Map.empty[String, Service]
@@ -58,7 +27,10 @@ class LocalRaphtoryContext() extends RaphtoryContext {
     new DeployedTemporalGraph(Query(), client, config, shutdown)
   }
 
-  def newIOGraph(graphID: String = createName, customConfig: Map[String, Any] = Map()) =
+  def newIOGraph(
+      graphID: String = createName,
+      customConfig: Map[String, Any] = Map()
+  ): Resource[IO, DeployedTemporalGraph] =
     deployLocalGraph[IO](graphID, customConfig).map {
       case (qs, config) =>
         new DeployedTemporalGraph(Query(), qs, config, shutdown = IO.unit)
