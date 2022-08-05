@@ -6,7 +6,7 @@ import pandas as pd
 from abc import abstractmethod
 from pathlib import Path
 from subprocess import PIPE, Popen
-from threading import Thread
+from weakref import finalize
 from typing import IO, AnyStr
 
 from py4j.java_gateway import JavaGateway, GatewayParameters
@@ -14,6 +14,18 @@ from py4j.protocol import Py4JJavaError
 
 from pyraphtory.graph import TemporalGraph
 from pyraphtory import interop, proxy
+
+
+def _kill_jvm(j_raphtory, j_gateway):
+    interop.logger.info("Shutting down pyraphtory")
+    try:
+        j_raphtory.kill()
+    finally:
+        pass
+    try:
+        j_gateway.close()
+    finally:
+        pass
 
 
 class BaseContext(object):
@@ -100,21 +112,16 @@ class PyRaphtory(object):
                 eager_load=True))
 
         interop.set_scala_interop(self.j_gateway.entry_point.interop())
+
+        # TODO: Best effort shutdown but if python is killed, java processes stay alive forever!
+        self._finalizer = finalize(self, _kill_jvm, self.j_raphtory, self.j_gateway)
         return self
 
     def log_lines(self, logging: bool):
         return join(self.j_raphtory.stderr, self.j_raphtory.stdout, logging)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        try:
-            self.j_raphtory.kill()
-        finally:
-            pass
-
-        try:
-            self.j_gateway.close()
-        finally:
-            pass
+        self._finalizer()
 
     def open(self):
         return self.__enter__()
