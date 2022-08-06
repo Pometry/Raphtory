@@ -39,7 +39,6 @@ private[raphtory] class QueryHandler(
     pyScript: Option[String]
 ) extends Component[QueryManagement](conf) {
 
-  private val graphID        = conf.getString("raphtory.deploy.id")
   private val startTime      = System.currentTimeMillis()
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val self           = topics.rechecks(jobID).endPoint
@@ -51,7 +50,7 @@ private[raphtory] class QueryHandler(
 
   private val listener =
     topics.registerListener(
-            s"$deploymentID-$jobID-query-handler",
+            s"$graphID-$jobID-query-handler",
             handleMessage,
             Seq(topics.rechecks(jobID), topics.jobStatus(jobID))
     )
@@ -113,7 +112,7 @@ private[raphtory] class QueryHandler(
     catch {
       case e: Throwable =>
         logger.error(
-                s"Deployment $deploymentID: Failed to handle message. ${e.getMessage}. Skipping perspective.",
+                s"Deployment $graphID: Failed to handle message. ${e.getMessage}. Skipping perspective.",
                 e
         )
         currentState = executeNextPerspective()
@@ -220,9 +219,9 @@ private[raphtory] class QueryHandler(
       votedToHalt: Boolean
   ) = {
     sentMessageCount += sentMessages
-    telemetry.totalSentMessageCount.labels(jobID, deploymentID).inc(sentMessages.toDouble)
+    telemetry.totalSentMessageCount.labels(jobID, graphID).inc(sentMessages.toDouble)
     receivedMessageCount += receivedMessages
-    telemetry.receivedMessageCountCollector.labels(jobID, deploymentID).inc(receivedMessages.toDouble)
+    telemetry.receivedMessageCountCollector.labels(jobID, graphID).inc(receivedMessages.toDouble)
     allVoteToHalt = votedToHalt & allVoteToHalt
     readyCount += 1
     logger.debug(
@@ -286,7 +285,7 @@ private[raphtory] class QueryHandler(
                   s"Job '$jobID': Table Built in ${tableBuiltTimeTaken}ms Executing next table operation."
           )
           timeTaken = System.currentTimeMillis()
-          telemetry.totalTableOperations.labels(jobID, deploymentID).inc()
+          telemetry.totalTableOperations.labels(jobID, graphID).inc()
           nextTableOperation()
         }
         else
@@ -300,7 +299,7 @@ private[raphtory] class QueryHandler(
                   s"Job '$jobID': Table Function complete in ${tableFuncTimeTaken}ms. Running next table operation."
           )
           timeTaken = System.currentTimeMillis()
-          telemetry.totalTableOperations.labels(jobID, deploymentID).inc()
+          telemetry.totalTableOperations.labels(jobID, graphID).inc()
           nextTableOperation()
         }
         else {
@@ -357,7 +356,7 @@ private[raphtory] class QueryHandler(
   private def executeNextPerspective(): Stage = {
     val latestTime = getLatestTime
     val oldestTime = getOptionalEarliestTime
-    telemetry.totalPerspectivesProcessed.labels(jobID, deploymentID).inc()
+    telemetry.totalPerspectivesProcessed.labels(jobID, graphID).inc()
     if (currentPerspective.timestamp != -1) { //ignore initial placeholder
       tracker sendAsync currentPerspective
       logTotalTimeTaken()
@@ -428,7 +427,7 @@ private[raphtory] class QueryHandler(
     receivedMessageCount = 0
     sentMessageCount = 0
     checkingMessages = false
-    telemetry.totalGraphOperations.labels(jobID, deploymentID).inc()
+    telemetry.totalGraphOperations.labels(jobID, graphID).inc()
 
     currentOperation match {
       case Iterate(f: (Vertex => Unit) @unchecked, iterations, executeMessagedOnly)

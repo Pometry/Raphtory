@@ -63,7 +63,7 @@ object PartitionsManager {
       graphBuilder: GraphBuilder[T]
   )(implicit IO: Async[IO]): Resource[IO, BatchPartitionManager[T]] = {
 
-    val graphID         = config.getString("raphtory.deploy.id")
+    val graphID         = config.getString("raphtory.graph.id")
     val totalPartitions = config.getInt("raphtory.partitions.countPerServer")
 
     logger.info(s"Creating '$totalPartitions' Partition Managers for $graphID.")
@@ -126,7 +126,7 @@ object PartitionsManager {
       IO: Async[IO]
   ): Resource[IO, PartitionsManager] = {
 
-    val graphID         = config.getString("raphtory.deploy.id")
+    val graphID         = config.getString("raphtory.graph.id")
     val totalPartitions = config.getInt("raphtory.partitions.countPerServer")
 
     logger.info(s"Creating '$totalPartitions' Partition Managers for $graphID.")

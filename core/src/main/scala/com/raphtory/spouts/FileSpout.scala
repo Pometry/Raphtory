@@ -236,7 +236,7 @@ private class FileSpoutInstance[T](
 
 //TODO work out how to get the correct deployment ID here
 
-//  val deploymentID: String = conf.getString("raphtory.deploy.id")
+//  val deploymentID: String = conf.getString("raphtory.graph.id")
 // Validate that the path exists and is readable
 // Throws exception or logs error in case of failure
 // FileUtils.validatePath(inputPath) // TODO Change this to cats.Validated

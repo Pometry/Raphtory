@@ -201,7 +201,7 @@ private[raphtory] class PulsarConnector(
     }
     catch {
       case _: PulsarAdminException =>
-        logger.debug(s"Namespace $namespace already exists.")
+        logger.trace(s"Namespace $namespace already exists.")
     }
 
     val protocol = if (!persistence) "non-persistent" else "persistent"

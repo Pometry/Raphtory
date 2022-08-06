@@ -47,19 +47,16 @@ private[raphtory] class Reader(
     val latestWatermark = storage.watermarker.getLatestWatermark
     watermarkPublish sendAsync latestWatermark
     telemetry.lastWatermarkProcessedCollector
-      .labels(partitionID.toString, deploymentID)
+      .labels(partitionID.toString, graphID)
       .set(latestWatermark.oldestTime.toDouble)
     scheduleWatermarker()
   }
 
-  private def scheduleWatermarker(): Unit = {
-    logger.trace("Scheduled watermarker to recheck time in 1 second.")
+  private def scheduleWatermarker(): Unit =
     scheduledWatermark = Option(
             scheduler
               .scheduleOnce(100.milliseconds, checkWatermark())
     )
-
-  }
 
 }
 

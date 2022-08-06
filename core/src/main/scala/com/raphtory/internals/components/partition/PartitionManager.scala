@@ -9,7 +9,7 @@ import com.raphtory.api.output.sink.Sink
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.querymanager.EstablishExecutor
-import com.raphtory.internals.components.querymanager.EstablishGraph
+import com.raphtory.internals.components.querymanager.IngestData
 import com.raphtory.internals.components.querymanager.GraphManagement
 import com.raphtory.internals.components.querymanager.StopExecutor
 import com.raphtory.internals.graph.GraphPartition

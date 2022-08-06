@@ -36,29 +36,29 @@ private[raphtory] class QueryManager(
 
   override def handleMessage(msg: QueryManagement): Unit =
     msg match {
-      case establishGraph: EstablishGraph =>
+      case establishGraph: IngestData =>
         ingestion sendAsync establishGraph
         logger.debug(s"deploying graph with graph ID: ${establishGraph.graphID}")
-      case query: Query                   =>
+      case query: Query               =>
         val jobID        = query.name
         logger.debug(s"Handling query: $query")
         val queryHandler = spawnQuery(jobID, query)
         trackNewQuery(jobID, queryHandler)
 
-      case req: EndQuery                  =>
+      case req: EndQuery              =>
         currentQueries.get(req.jobID) match {
           case Some(queryhandler) =>
             queryhandler.stop()
             currentQueries.remove(req.jobID)
           case None               => //sender ! QueryNotPresent(req.jobID)
         }
-      case watermark: WatermarkTime       =>
-        logger.trace(
-                s"Setting watermark to earliest time '${watermark.oldestTime}'" +
-                  s" and latest time '${watermark.latestTime}'" +
-                  s" for partition '${watermark.partitionID}'" +
-                  s" in graph ${watermark.graphID}."
-        )
+      case watermark: WatermarkTime   =>
+//        logger.trace(
+//                s"Setting watermark to earliest time '${watermark.oldestTime}'" +
+//                  s" and latest time '${watermark.latestTime}'" +
+//                  s" for partition '${watermark.partitionID}'" +
+//                  s" in graph ${watermark.graphID}."
+//        )
         if (watermarks contains watermark.graphID)
           watermarks(watermark.graphID).put(watermark.partitionID, watermark)
         else {
@@ -72,7 +72,7 @@ private[raphtory] class QueryManager(
 
     val queryHandler = new QueryHandler(this, scheduler, id, query, conf, topics, query.pyScript)
     scheduler.execute(queryHandler)
-    telemetry.totalQueriesSpawned.labels(deploymentID).inc()
+    telemetry.totalQueriesSpawned.labels(graphID).inc()
     queryHandler
   }
 
@@ -92,8 +92,8 @@ private[raphtory] class QueryManager(
             safe = watermark.safe && safe
             minTime = Math.min(minTime, watermark.latestTime)
             maxTime = Math.max(maxTime, watermark.latestTime)
-            telemetry.globalWatermarkMin.labels(deploymentID).set(minTime.toDouble)
-            telemetry.globalWatermarkMax.labels(deploymentID).set(maxTime.toDouble)
+            telemetry.globalWatermarkMin.labels(graphID).set(minTime.toDouble)
+            telemetry.globalWatermarkMax.labels(graphID).set(maxTime.toDouble)
         }
       if (safe) maxTime else minTime
     }

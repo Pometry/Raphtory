@@ -7,7 +7,7 @@ import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.input.Source
 import com.raphtory.api.output.sink.Sink
-import com.raphtory.internals.context.LocalRaphtoryContext
+import com.raphtory.internals.context.LocalContext
 import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
@@ -45,7 +45,7 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
     files
       .use { files =>
         IO.delay {
-          val context     = new LocalRaphtoryContext()
+          val context     = new LocalContext()
           val lotrGraph   = context.newGraph()
           lotrGraph.ingest(Source(lotrSpout, lotrBuilder))
           val lotrTracker = lotrGraph

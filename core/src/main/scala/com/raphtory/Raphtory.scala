@@ -16,11 +16,12 @@ import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import com.raphtory.internals.components.ingestion.IngestionManager
-import com.raphtory.internals.components.querymanager.EstablishGraph
+import com.raphtory.internals.components.querymanager.IngestData
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManager
-import com.raphtory.internals.context.LocalRaphtoryContext
+import com.raphtory.internals.context.LocalContext
 import com.raphtory.internals.context.RaphtoryContext
+import com.raphtory.internals.context.RemoteContext
 import com.raphtory.internals.management._
 import com.raphtory.internals.management.id.IDManager
 import com.raphtory.internals.management.id.LocalIDManager
@@ -61,51 +62,17 @@ import scala.reflect.ClassTag
   */
 object Raphtory {
 
-  def localContext(): LocalRaphtoryContext = new LocalRaphtoryContext()
+  def localContext(): LocalContext                       = new LocalContext()
+  def remoteContext(deploymentID: String): RemoteContext = new RemoteContext(deploymentID)
 
   def quickGraph(graphID: String = createName, customConfig: Map[String, Any] = Map()): DeployedTemporalGraph =
-    new LocalRaphtoryContext().newGraph(graphID: String, customConfig: Map[String, Any])
+    new LocalContext().newGraph(graphID: String, customConfig: Map[String, Any])
 
   def quickIOGraph(
       graphID: String = createName,
       customConfig: Map[String, Any] = Map()
   ): Resource[IO, DeployedTemporalGraph] =
-    new LocalRaphtoryContext().newIOGraph(graphID: String, customConfig: Map[String, Any])
-
-  private def connectManaged(customConfig: Map[String, Any] = Map()): Resource[IO, (TopicRepository, Config)] = {
-    val config         = confBuilder(customConfig)
-    val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
-    for {
-      _         <- Py4JServer.fromEntryPoint[IO](this, config)
-      _         <- Prometheus[IO](prometheusPort)
-      topicRepo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config)
-    } yield (topicRepo, config)
-  }
-
-  /** Creates a `TemporalGraphConnection` object referencing an already deployed graph that
-    * can be used to submit queries.
-    *
-    * @param customConfig Custom configuration for the deployment being referenced
-    * @return A temporal graph object
-    */
-  def connect(customConfig: Map[String, Any] = Map()): TemporalGraphConnection = {
-    val managed: IO[((TopicRepository, Config), IO[Unit])] = connectManaged(customConfig).allocated
-
-    val ((topicRepo, config), shutdown) = managed.unsafeRunSync()
-    new TemporalGraphConnection(Query(), new QuerySender(new Scheduler(), topicRepo, config), config, shutdown)
-  }
-
-  /** Creates a `TemporalGraphConnection` object referencing an already deployed graph that
-    * can be used to submit queries.
-    *
-    * @param customConfig Custom configuration for the deployment being referenced
-    * @return A temporal graph object
-    */
-  def connectIO(customConfig: Map[String, Any] = Map()): Resource[IO, TemporalGraphConnection] =
-    connectManaged(customConfig).map {
-      case (topicRepo, config) =>
-        new TemporalGraphConnection(Query(), new QuerySender(new Scheduler(), topicRepo, config), config, IO.unit)
-    }
+    new LocalContext().newIOGraph(graphID: String, customConfig: Map[String, Any])
 
   /** Returns a default config using `ConfigFactory` for initialising parameters for
     * running Raphtory components. This uses the default application parameters
@@ -127,7 +94,7 @@ object Raphtory {
     confHandler.getConfig()
   }
 
-  def makePartitionIdManager[IO[_]: Sync](
+  private[raphtory] def makePartitionIdManager[IO[_]: Sync](
       config: Config,
       localDeployment: Boolean,
       graphID: String
@@ -142,20 +109,7 @@ object Raphtory {
       ZookeeperIDManager(zookeeperAddress, graphID, "partitionCount", poolSize = totalPartitions)
     }
 
-  def makeBuilderIdManager[IO[_]: Sync](
-      config: Config,
-      localDeployment: Boolean,
-      graphID: String
-  ): Resource[IO, IDManager] =
-    if (localDeployment)
-      Resource.eval(Sync[IO].delay(new LocalIDManager))
-    else {
-      val zookeeperAddress = config.getString("raphtory.zookeeper.address")
-      ZookeeperIDManager(zookeeperAddress, graphID, "builderCount")
-    }
-
   protected def createName: String =
     Nomen.est().adjective().color().animal().get()
-//    new DeployedTemporalGraph(Query(graphID = graphID), client, config, service.deploymentID, graphShutdown)
 
 }

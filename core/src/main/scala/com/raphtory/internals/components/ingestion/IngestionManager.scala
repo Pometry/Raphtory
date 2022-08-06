@@ -7,7 +7,7 @@ import cats.effect.Spawn
 import cats.effect.unsafe.implicits.global
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
-import com.raphtory.internals.components.querymanager.EstablishGraph
+import com.raphtory.internals.components.querymanager.IngestData
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -15,10 +15,9 @@ import org.slf4j.LoggerFactory
 import scala.collection.mutable
 
 class IngestionManager(
-    deploymentID: String,
     conf: Config,
     topics: TopicRepository
-) extends Component[EstablishGraph](conf) {
+) extends Component[IngestData](conf) {
 
   case class Graph(ingestionCancel: IO[Unit]) {
     def stop(): Unit = ingestionCancel.unsafeRunSync()
@@ -27,9 +26,9 @@ class IngestionManager(
   private val logger: Logger   = Logger(LoggerFactory.getLogger(this.getClass))
   private val graphDeployments = mutable.Map[String, Graph]()
 
-  override def handleMessage(msg: EstablishGraph): Unit =
+  override def handleMessage(msg: IngestData): Unit =
     msg match {
-      case EstablishGraph(graphID, sources) =>
+      case IngestData(graphID, sources) =>
         logger.debug(s"Received query to spawn graph: $msg")
         sources foreach { source =>
           val ingestionResource    = IngestionExecutor[IO](graphID, source, conf, topics)
@@ -47,7 +46,6 @@ class IngestionManager(
 object IngestionManager {
 
   def apply[IO[_]: Async: Spawn](
-      deploymentID: String,
       conf: Config,
       topics: TopicRepository
   ): Resource[IO, IngestionManager] =
@@ -55,6 +53,6 @@ object IngestionManager {
             topics,
             s"ingestion-manager",
             List(topics.ingestSetup),
-            new IngestionManager(deploymentID, conf, topics)
+            new IngestionManager(conf, topics)
     )
 }

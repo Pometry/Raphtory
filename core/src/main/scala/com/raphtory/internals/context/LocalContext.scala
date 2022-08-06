@@ -18,7 +18,7 @@ import cats.effect.unsafe.implicits.global
 
 import scala.collection.mutable
 
-class LocalRaphtoryContext() extends RaphtoryContext {
+class LocalContext() extends RaphtoryContext {
   private var localServices: mutable.Map[String, Service] = mutable.Map.empty[String, Service]
 
   def newGraph(graphID: String = createName, customConfig: Map[String, Any] = Map()): DeployedTemporalGraph = {
@@ -44,7 +44,7 @@ class LocalRaphtoryContext() extends RaphtoryContext {
       topicRepo          <- LocalTopicRepository[IO](config)
       partitionIdManager <- makePartitionIdManager[IO](config, localDeployment = true, graphID)
       _                  <- PartitionsManager.streaming[IO](config, partitionIdManager, topicRepo, scheduler)
-      _                  <- IngestionManager[IO](graphID, config, topicRepo)
+      _                  <- IngestionManager[IO](config, topicRepo)
       _                  <- QueryManager[IO](config, topicRepo)
     } yield new QuerySender(scheduler, topicRepo, config)
 
@@ -59,7 +59,7 @@ class LocalRaphtoryContext() extends RaphtoryContext {
       IO: Async[IO]
   ): Resource[IO, (QuerySender, Config)] =
     Resource.make {
-      val config = confBuilder(Map("raphtory.deploy.id" -> graphID) ++ customConfig)
+      val config = confBuilder(Map("raphtory.graph.id" -> graphID) ++ customConfig)
       IO.delay {
         localServices.synchronized {
           localServices.get(graphID) match {

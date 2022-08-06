@@ -64,7 +64,7 @@ abstract class RaphtoryService[T: ClassTag] extends IOApp {
     }
 
   def streamingPartitionDeploy(config: Config): Resource[IO, PartitionsManager] = {
-    val deploymentID = config.getString("raphtory.deploy.id")
+    val deploymentID = config.getString("raphtory.graph.id")
     val metricsPort  = config.getInt("raphtory.prometheus.metrics.port")
     for {
       _                  <- Prometheus[IO](metricsPort)

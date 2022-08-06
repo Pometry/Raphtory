@@ -21,11 +21,12 @@ object TutorialRunner extends App {
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
 
   FileUtils.curlFile(path, url)
+  val context = Raphtory.remoteContext("test-for-Naomi")
+  //val context = Raphtory.localContext()
+  val graph   = context.newGraph()
 
-  val graph = Raphtory.localContext().newGraph()
-
-  val source = Source(FileSpout(path), new LOTRGraphBuilder())
-  graph.ingest(source)
+  //val source = Source(FileSpout(path), new LOTRGraphBuilder())
+  //graph.ingest(source)
 
   val line = scala.io.Source.fromFile(path).getLines.foreach { line =>
     val fileLine   = line.split(",").map(_.trim)
@@ -43,9 +44,10 @@ object TutorialRunner extends App {
   graph
     .at(32674)
     .past()
-    .execute(GlobalTriangleCount)
+    .execute(ConnectedComponents())
     .writeTo(FileSink("/tmp/raphtory"))
     .waitForJob()
 
+  context.destroyRemoteGraph(graph.getID)
   graph.close()
 }

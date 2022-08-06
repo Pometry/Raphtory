@@ -3,7 +3,9 @@ package com.raphtory.internals.management
 import com.raphtory.api.input.Source
 import com.raphtory.api.querytracker.QueryProgressTracker
 import com.raphtory.internals.communication.TopicRepository
+import com.raphtory.internals.components.querymanager.DestroyGraph
 import com.raphtory.internals.components.querymanager.EstablishGraph
+import com.raphtory.internals.components.querymanager.IngestData
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.typesafe.config.Config
@@ -16,7 +18,7 @@ private[raphtory] class QuerySender(
     private val config: Config
 ) {
 
-  private val graphID          = config.getString("raphtory.deploy.id")
+  private val graphID          = config.getString("raphtory.graph.id")
   val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
   val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
   val totalPartitions: Int     = partitionServers * partitionsPerServer
@@ -35,11 +37,17 @@ private[raphtory] class QuerySender(
     tracker
   }
 
+  def destroyGraph(): Unit =
+    topics.graphSetup.endPoint sendAsync DestroyGraph(graphID)
+
+  def establishGraph(): Unit =
+    topics.graphSetup.endPoint sendAsync EstablishGraph(graphID)
+
   def individualUpdate(update: GraphUpdate)               =
     writers((update.srcId % totalPartitions).toInt) sendAsync update
 
   def submitGraph(sources: Seq[Source], id: String): Unit =
-    submissions sendAsync EstablishGraph(id, sources)
+    submissions sendAsync IngestData(id, sources)
 
   private def getDefaultName(query: Query): String =
     if (query.name.nonEmpty) query.name else query.hashCode().abs.toString

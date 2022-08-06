@@ -1,9 +1,11 @@
 package com.raphtory.internals.communication
 
 import com.raphtory.Raphtory
+import com.raphtory.internals.components.querymanager.ClusterManagement
 import com.raphtory.internals.components.querymanager.EndQuery
 import com.raphtory.internals.components.querymanager.EstablishGraph
 import com.raphtory.internals.components.querymanager.GraphManagement
+import com.raphtory.internals.components.querymanager.IngestData
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.components.querymanager.Submission
@@ -39,7 +41,7 @@ private[raphtory] class TopicRepository(
 
   // Configuration
   private val spoutAddress: String     = conf.getString("raphtory.spout.topic")
-  private val graphID: String          = conf.getString("raphtory.deploy.id")
+  private val graphID: String          = conf.getString("raphtory.graph.id")
   private val partitionServers: Int    = conf.getInt("raphtory.partitions.serverCount")
   private val partitionsPerServer: Int = conf.getInt("raphtory.partitions.countPerServer")
   private val numPartitions: Int       = partitionServers * partitionsPerServer
@@ -54,8 +56,11 @@ private[raphtory] class TopicRepository(
   final def completedQueries: ExclusiveTopic[EndQuery] =
     ExclusiveTopic[EndQuery](completedQueriesConnector, "completed.queries", graphID)
 
-  final def ingestSetup: ExclusiveTopic[EstablishGraph] =
-    ExclusiveTopic[EstablishGraph](ingestSetupConnector, "ingest.setup", graphID)
+  final def ingestSetup: ExclusiveTopic[IngestData] =
+    ExclusiveTopic[IngestData](ingestSetupConnector, "ingest.setup", graphID)
+
+  final def graphSetup: ExclusiveTopic[ClusterManagement] =
+    ExclusiveTopic[ClusterManagement](ingestSetupConnector, "graph.setup")
 
   final def partitionSetup: BroadcastTopic[GraphManagement] =
     BroadcastTopic[GraphManagement](numPartitions, partitionSetupConnector, "partition.setup", graphID)

@@ -17,7 +17,6 @@ import org.slf4j.LoggerFactory
 
 abstract class RaphtoryContext {
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-  protected case class Service(client: QuerySender, graphID: String, shutdown: IO[Unit])
 
   def newGraph(name: String = createName, customConfig: Map[String, Any] = Map()): DeployedTemporalGraph
 
