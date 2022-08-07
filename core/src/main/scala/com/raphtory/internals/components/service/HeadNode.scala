@@ -50,12 +50,19 @@ class HeadNode(
       case EstablishGraph(graphID: String) =>
         mode match {
           case StandaloneMode =>
-            val graphConf = conf.withValue(
-                    "raphtory.graph.id",
-                    ConfigValueFactory.fromAnyRef(graphID)
-            )
-            val service   = deployStandaloneService(graphID, graphConf)
-            graphDeployments.put(graphID, service)
+            graphDeployments.get(graphID) match {
+              case Some(value) => logger.info(s"New client connecting for graph: $graphID")
+
+              case None =>
+                logger.info(s"Deploying new graph in standalone mode: $graphID")
+
+                val graphConf = conf.withValue(
+                        "raphtory.graph.id",
+                        ConfigValueFactory.fromAnyRef(graphID)
+                )
+                val service   = deployStandaloneService(graphID, graphConf)
+                graphDeployments.put(graphID, service)
+            }
 
           case ClusterMode    =>
         }
@@ -86,7 +93,7 @@ class HeadNode(
     } yield new QuerySender(scheduler, repo, graphConf)
 
     val (client, shutdown) = serviceResource.allocated.unsafeRunSync()
-    Service(client, graphID, shutdown)
+    Service(client, graphID, conf, shutdown)
   }
 }
 

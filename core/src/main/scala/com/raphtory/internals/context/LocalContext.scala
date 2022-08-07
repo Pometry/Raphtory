@@ -49,7 +49,7 @@ class LocalContext() extends RaphtoryContext {
     } yield new QuerySender(scheduler, topicRepo, config)
 
     val (client, shutdown) = serviceResource.allocated.unsafeRunSync()
-    Service(client, graphID, shutdown)
+    Service(client, graphID, config, shutdown)
   }
 
   private def deployLocalGraph[IO[_]](

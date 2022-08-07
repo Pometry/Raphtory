@@ -2,6 +2,7 @@ package com.raphtory.examples.lotr
 
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.algorithms.generic.motif.GlobalTriangleCount
 import com.raphtory.api.input.GraphBuilder.assignID
 import com.raphtory.api.input.ImmutableProperty
@@ -21,9 +22,9 @@ object TutorialRunner extends App {
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
 
   FileUtils.curlFile(path, url)
-  val context = Raphtory.remoteContext("test-for-Naomi")
+  val context = Raphtory.remoteContext("test-for-hamza")
   //val context = Raphtory.localContext()
-  val graph   = context.newGraph()
+  val graph   = context.newGraph("test")
 
   //val source = Source(FileSpout(path), new LOTRGraphBuilder())
   //graph.ingest(source)
@@ -48,6 +49,16 @@ object TutorialRunner extends App {
     .writeTo(FileSink("/tmp/raphtory"))
     .waitForJob()
 
-  context.destroyRemoteGraph(graph.getID)
-  graph.close()
+  val graph2 = context.newGraph("test")
+
+  graph2
+    .at(32674)
+    .past()
+    .execute(PageRank())
+    .writeTo(FileSink("/tmp/raphtory"))
+    .waitForJob()
+
+  context.destroyRemoteGraph("test")
+  graph2.close()
+  context.close()
 }

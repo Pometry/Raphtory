@@ -3,6 +3,7 @@ package com.raphtory.internals.context
 import cats.effect.IO
 import cats.effect.Resource
 import com.raphtory.Raphtory.confBuilder
+import com.raphtory.Raphtory.remoteContext
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraphConnection
 import com.raphtory.internals.communication.TopicRepository
@@ -36,16 +37,19 @@ class RemoteContext(deploymentID: String) extends RaphtoryContext {
     } yield (topicRepo, config)
   }
 
-  override def newGraph(graphID: String, customConfig: Map[String, Any]): DeployedTemporalGraph = {
-    val managed: IO[((TopicRepository, Config), IO[Unit])] = connectManaged(graphID, customConfig).allocated
-    val ((topicRepo, config), shutdown)                    = managed.unsafeRunSync()
-    val querySender                                        = new QuerySender(new Scheduler(), topicRepo, config)
-    val graph                                              =
-      new DeployedTemporalGraph(Query(), querySender, config, shutdown)
-    remoteServices += ((graphID, (graph, querySender)))
-    querySender.establishGraph()
-    graph
-  }
+  override def newGraph(graphID: String, customConfig: Map[String, Any]): DeployedTemporalGraph =
+    remoteServices.get(graphID) match {
+      case Some(graph) => graph._1
+      case None        =>
+        val managed: IO[((TopicRepository, Config), IO[Unit])] = connectManaged(graphID, customConfig).allocated
+        val ((topicRepo, config), shutdown)                    = managed.unsafeRunSync()
+        val querySender                                        = new QuerySender(new Scheduler(), topicRepo, config)
+        val graph                                              =
+          new DeployedTemporalGraph(Query(), querySender, config, shutdown)
+        remoteServices += ((graphID, (graph, querySender)))
+        querySender.establishGraph()
+        graph
+    }
 
   def destroyRemoteGraph(graphID: String): Unit =
     remoteServices.remove(graphID) match {
