@@ -3,14 +3,13 @@ package com.raphtory.service
 import cats.effect.ExitCode
 import cats.effect.IO
 import cats.effect.IOApp
-import cats.effect.Resource
-import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.Raphtory
 import com.raphtory.internals.communication.connectors.AkkaConnector
+import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.components.service.ClusterManager
-import com.raphtory.internals.components.service.StandaloneMode
+import com.raphtory.internals.components.service.ClusterMode
 
-object Standalone extends IOApp {
+object HeadNode extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = {
 
@@ -20,7 +19,7 @@ object Standalone extends IOApp {
 
     val headNode = for {
       repo     <- DistributedTopicRepository[IO](AkkaConnector.SeedMode, config)
-      headNode <- ClusterManager[IO](config, repo, mode = StandaloneMode)
+      headNode <- ClusterManager[IO](config, repo, mode = ClusterMode)
     } yield headNode
     headNode.useForever
 

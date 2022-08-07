@@ -22,7 +22,7 @@ object TutorialRunner extends App {
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
 
   FileUtils.curlFile(path, url)
-  val context = Raphtory.remoteContext("test-for-hamza")
+  val context = Raphtory.remoteContext("raphtory")
   //val context = Raphtory.localContext()
   val graph   = context.newGraph("test")
 

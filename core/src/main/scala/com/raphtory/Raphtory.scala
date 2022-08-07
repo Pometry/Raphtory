@@ -1,39 +1,15 @@
 package com.raphtory
 
-import cats.data.State
-import cats.effect
 import cats.effect._
-import cats.effect.unsafe.implicits.global
 import com.oblac.nomen.Nomen
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
-import com.raphtory.api.analysis.graphview.TemporalGraph
-import com.raphtory.api.analysis.graphview.TemporalGraphConnection
-import com.raphtory.api.input.GraphBuilder
-import com.raphtory.api.input.Source
-import com.raphtory.api.input.Spout
-import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.communication.connectors.AkkaConnector
-import com.raphtory.internals.communication.repositories.DistributedTopicRepository
-import com.raphtory.internals.communication.repositories.LocalTopicRepository
-import com.raphtory.internals.components.ingestion.IngestionManager
-import com.raphtory.internals.components.querymanager.IngestData
-import com.raphtory.internals.components.querymanager.Query
-import com.raphtory.internals.components.querymanager.QueryManager
 import com.raphtory.internals.context.LocalContext
-import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.internals.context.RemoteContext
 import com.raphtory.internals.management._
 import com.raphtory.internals.management.id.IDManager
 import com.raphtory.internals.management.id.LocalIDManager
 import com.raphtory.internals.management.id.ZookeeperIDManager
-import com.raphtory.spouts.IdentitySpout
 import com.typesafe.config.Config
-import com.typesafe.scalalogging.Logger
-import org.slf4j.LoggerFactory
-
-import java.util.UUID
-import java.util.concurrent.atomic.AtomicReference
-import scala.reflect.ClassTag
 
 /**  `Raphtory` object for creating Raphtory Components
   *
