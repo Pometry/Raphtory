@@ -34,7 +34,7 @@ object QueryService {
     Component.makeAndStart(
             topics,
             s"query-node",
-            List(topics.graphSetup),
+            List(topics.clusterComms),
             new QueryService(conf)
     )
 }

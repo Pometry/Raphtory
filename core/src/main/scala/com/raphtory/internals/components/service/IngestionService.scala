@@ -33,7 +33,7 @@ object IngestionService {
     Component.makeAndStart(
             topics,
             s"ingestion-node",
-            List(topics.graphSetup),
+            List(topics.clusterComms),
             new IngestionService(conf)
     )
 }

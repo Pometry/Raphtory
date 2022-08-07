@@ -34,7 +34,7 @@ object PartitionService {
     Component.makeAndStart(
             topics,
             s"partition-node",
-            List(topics.graphSetup),
+            List(topics.clusterComms),
             new PartitionService(conf)
     )
 }
