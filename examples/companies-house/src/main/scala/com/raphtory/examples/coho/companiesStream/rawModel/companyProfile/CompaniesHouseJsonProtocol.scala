@@ -1,6 +1,6 @@
-package com.raphtory.examples.coho.companiesStream.rawModel
+package com.raphtory.examples.coho.companiesStream.rawModel.companyProfile
 
-import spray.json._
+import spray.json.{DefaultJsonProtocol, JsObject, JsString, JsValue, RootJsonFormat}
 
 /**
  * Implicit variables and objects to handle the json objects of the Companies House stream data.
@@ -51,7 +51,7 @@ object CompaniesHouseJsonProtocol extends DefaultJsonProtocol {
   implicit object PreviousCompanyNamesFormat extends RootJsonFormat[PreviousCompanyNames] {
     override def write(obj: PreviousCompanyNames): JsValue = JsString("TODO")
 
-    override def read(json: JsValue): PreviousCompanyNames  = {
+    override def read(json: JsValue): PreviousCompanyNames = {
       implicit val jsObj = json.asJsObject
       PreviousCompanyNames(
         getField("ceased_on"),
@@ -63,7 +63,8 @@ object CompaniesHouseJsonProtocol extends DefaultJsonProtocol {
 
   implicit object DataFormat extends RootJsonFormat[Data] {
 
-    override def write(obj: Data): JsValue =  JsString("TODO")
+    override def write(obj: Data): JsValue = JsString("TODO")
+
     override def read(json: JsValue): Data = {
       implicit val jsObj = json.asJsObject
       Data(
@@ -151,7 +152,8 @@ object CompaniesHouseJsonProtocol extends DefaultJsonProtocol {
 
   implicit object AccountsFormat extends RootJsonFormat[Accounts] {
 
-    override def write(obj: Accounts): JsValue =  JsString("TODO")
+    override def write(obj: Accounts): JsValue = JsString("TODO")
+
     override def read(json: JsValue): Accounts = {
       implicit val jsObj = json.asJsObject
       Accounts(
@@ -188,6 +190,7 @@ object CompaniesHouseJsonProtocol extends DefaultJsonProtocol {
 
   implicit object ForeignCompanyDetailsFormat extends RootJsonFormat[ForeignCompanyDetails] {
     override def write(obj: ForeignCompanyDetails): JsValue = JsString("TODO")
+
     override def read(json: JsValue): ForeignCompanyDetails = {
       implicit val jsObj = json.asJsObject
       ForeignCompanyDetails(

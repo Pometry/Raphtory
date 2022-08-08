@@ -10,7 +10,8 @@ import spray.json._
 
 import java.text.SimpleDateFormat
 import java.util.Date
-import com.raphtory.examples.coho.companiesStream.rawModel.CompaniesHouseJsonProtocol.CompanyFormat
+import com.raphtory.examples.coho.companiesStream.rawModel.companyProfile.CompaniesHouseJsonProtocol.CompanyFormat
+import com.raphtory.examples.coho.companiesStream.rawModel.companyProfile.Company
 
 /**
   * The CompaniesStreamRawGraphBuilder sets each json object as a vertex
