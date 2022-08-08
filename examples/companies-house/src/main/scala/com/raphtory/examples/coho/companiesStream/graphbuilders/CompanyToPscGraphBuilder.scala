@@ -51,41 +51,6 @@ class CompanyToPscGraphBuilder extends GraphBuilder[String] {
               )
 
               tupleIndex += 1
-
-      //      psc.items.get.foreach { item =>
-//        val notifiedOn =
-//          LocalDate.parse(item.notified_on.get.replaceAll("\"", ""), DateTimeFormatter.ofPattern("yyyy-MM-dd")).toEpochSecond(LocalTime.MIDNIGHT, ZoneOffset.MIN) * 1000
-//        val pscId = item.links.get.self.get.split("/")(5)
-//        val companyNumber = item.links.get.self.get.split("/")(2)
-//
-//        addVertex(
-//          updateTime = notifiedOn,
-//          assignID(pscId),
-//          Properties(ImmutableProperty("name", pscId)),
-//          Type("Persons With Significant Control"),
-//          tupleIndex
-//        )
-//
-//        addVertex(
-//          notifiedOn,
-//          assignID(companyNumber),
-//          Properties(ImmutableProperty("name", companyNumber)),
-//          Type("Company"),
-//          tupleIndex
-//        )
-//
-//        addEdge(
-//          notifiedOn,
-//          assignID(pscId),
-//          assignID(companyNumber),
-//          Properties(ImmutableProperty("company name", companyNumber)),
-//          Type("Psc to Company Duration"),
-//          tupleIndex
-//        )
-//
-//        tupleIndex += 1
-//
-//      }
     }
 
   }
