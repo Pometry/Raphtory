@@ -40,6 +40,10 @@ class Row(ScalaClassProxy):
     _classname = "com.raphtory.api.analysis.table.Row"
 
 
+class PropertyMergeStrategy(ScalaClassProxy):
+    _classname = "com.raphtory.api.analysis.visitor.PropertyMergeStrategy"
+
+
 @register(name="TemporalGraph")
 class TemporalGraph(GenericScalaProxy):
     pass
