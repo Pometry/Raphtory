@@ -14,11 +14,11 @@ import scala.collection.mutable
 abstract private[raphtory] class GraphPartition(graphID: String, partitionID: Int, conf: Config) {
 
   protected val failOnError: Boolean = conf.getBoolean("raphtory.partitions.failOnError")
-  private var batchIngesting         = false
+  private var blockIngesting         = false
   val watermarker                    = new Watermarker(graphID, this)
-  def startBatchIngesting()          = batchIngesting = true
-  def stopBatchIngesting()           = batchIngesting = false
-  def currentyBatchIngesting()       = batchIngesting
+  def startBlockIngesting()          = blockIngesting = true
+  def stopBlockIngesting()           = blockIngesting = false
+  def currentyBlockIngesting()       = blockIngesting
 
   // Ingesting Vertices
   def addVertex(msgTime: Long, index: Long, srcId: Long, properties: Properties, vertexType: Option[Type]): Unit

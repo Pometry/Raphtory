@@ -9,12 +9,12 @@ import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import com.raphtory.internals.components.ingestion.IngestionManager
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManager
-import com.raphtory.internals.management.PartitionsManager
 import com.raphtory.internals.management.Prometheus
 import com.raphtory.internals.management.QuerySender
 import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
 import cats.effect.unsafe.implicits.global
+import com.raphtory.internals.components.partition.PartitionOrchestrator
 
 import scala.collection.mutable
 
@@ -43,7 +43,7 @@ class LocalContext() extends RaphtoryContext {
       _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
       topicRepo          <- LocalTopicRepository[IO](config)
       partitionIdManager <- makePartitionIdManager[IO](config, localDeployment = true, graphID)
-      _                  <- PartitionsManager.streaming[IO](config, partitionIdManager, topicRepo, scheduler)
+      _                  <- PartitionOrchestrator.spawn[IO](config, partitionIdManager, topicRepo, scheduler)
       _                  <- IngestionManager[IO](config, topicRepo)
       _                  <- QueryManager[IO](config, topicRepo)
     } yield new QuerySender(scheduler, topicRepo, config)

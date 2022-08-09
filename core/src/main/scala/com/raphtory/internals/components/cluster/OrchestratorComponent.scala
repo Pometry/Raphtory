@@ -7,10 +7,10 @@ import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.ingestion.IngestionManager
+import com.raphtory.internals.components.partition.PartitionOrchestrator
 import com.raphtory.internals.components.querymanager.ClusterManagement
 import com.raphtory.internals.components.querymanager.QueryManager
 import com.raphtory.internals.context.Service
-import com.raphtory.internals.management.PartitionsManager
 import com.raphtory.internals.management.QuerySender
 import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
@@ -55,7 +55,7 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
     val serviceResource = for {
       partitionIdManager <- makePartitionIdManager[IO](graphConf, localDeployment = false, graphID)
       repo               <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf)
-      _                  <- PartitionsManager.streaming[IO](graphConf, partitionIdManager, repo, scheduler)
+      _                  <- PartitionOrchestrator.spawn[IO](graphConf, partitionIdManager, repo, scheduler)
       _                  <- IngestionManager[IO](graphConf, repo)
       _                  <- QueryManager[IO](graphConf, repo)
     } yield new QuerySender(scheduler, repo, graphConf)
@@ -69,7 +69,7 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
     val serviceResource = for {
       partitionIdManager <- makePartitionIdManager[IO](graphConf, localDeployment = false, graphID)
       repo               <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf)
-      _                  <- PartitionsManager.streaming[IO](graphConf, partitionIdManager, repo, scheduler)
+      _                  <- PartitionOrchestrator.spawn[IO](graphConf, partitionIdManager, repo, scheduler)
     } yield new QuerySender(scheduler, repo, graphConf)
 
     val (client, shutdown) = serviceResource.allocated.unsafeRunSync()

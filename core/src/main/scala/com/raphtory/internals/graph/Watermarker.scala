@@ -114,7 +114,7 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
     lock.lock()
     try {
       val time = latestTime.get()
-      if (!storage.currentyBatchIngesting()) {
+      if (!storage.currentyBlockIngesting()) {
         val edgeAdditionTime =
           if (edgeAdditions.nonEmpty)
             edgeAdditions.minBy(_.time).time

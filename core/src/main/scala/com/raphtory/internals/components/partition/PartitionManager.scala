@@ -27,9 +27,7 @@ class PartitionManager(
     partitionID: Int,
     scheduler: Scheduler,
     conf: Config,
-    topics: TopicRepository,
-    batchLoading: Boolean,
-    batchStorage: GraphPartition
+    topics: TopicRepository
 ) extends Component[GraphManagement](conf) {
 
   case class Partition(readerCancel: IO[Unit], writerCancel: IO[Unit], storage: GraphPartition) {
@@ -62,6 +60,8 @@ class PartitionManager(
           case e: Exception =>
             e.printStackTrace()
         }
+
+      case IngestData(_, _, _)        => //this should never happen
     }
 
   override private[raphtory] def run(): Unit =
@@ -75,7 +75,7 @@ class PartitionManager(
   private def establishExecutor(request: EstablishExecutor) =
     request match {
       case EstablishExecutor(_, graphID, jobID, sink, pyScript) =>
-        val storage       = if (batchLoading) batchStorage else partition.storage
+        val storage       = partition.storage
         val queryExecutor =
           new QueryExecutor(partitionID, sink, storage, jobID, conf, topics, scheduler, pyScript)
         scheduler.execute(queryExecutor)
@@ -90,16 +90,14 @@ object PartitionManager {
       partitionID: Int,
       scheduler: Scheduler,
       conf: Config,
-      topics: TopicRepository,
-      batchLoading: Boolean = false,
-      batchStorage: GraphPartition = null // TODO: improve
+      topics: TopicRepository
   ): Resource[IO, PartitionManager] =
     Component.makeAndStartPart(
             partitionID,
             topics,
             s"partition-manager-$partitionID",
             List(topics.partitionSetup),
-            new PartitionManager(graphID, partitionID, scheduler, conf, topics, batchLoading, batchStorage)
+            new PartitionManager(graphID, partitionID, scheduler, conf, topics)
     )
 
 }

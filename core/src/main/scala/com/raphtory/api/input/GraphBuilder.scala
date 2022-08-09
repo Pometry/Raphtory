@@ -1,8 +1,6 @@
 package com.raphtory.api.input
 
 import com.raphtory.internals.communication.EndPoint
-import com.raphtory.internals.components.partition.BatchWriter
-import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.management.telemetry.ComponentTelemetryHandler
 import com.typesafe.scalalogging.Logger
@@ -77,8 +75,8 @@ trait GraphBuilderInstance[T] extends Serializable with Graph {
   private val deploymentID                                        = getDeploymentID
   private var partitionIDs: collection.Set[Int]                   = _
   private var writers: collection.Map[Int, EndPoint[GraphUpdate]] = _
-  private var batching: Boolean                                   = false
   private var totalPartitions: Int                                = 1
+  private val batching: Boolean                                   = false
 
   def getDeploymentID: String
   def parseTuple(tuple: T): Unit
@@ -100,23 +98,11 @@ trait GraphBuilderInstance[T] extends Serializable with Graph {
         }
     }
 
-  private[raphtory] def setupBatchIngestion(
-      IDs: mutable.Set[Int],
-      batchWriters: collection.Map[Int, BatchWriter[T]],
-      partitions: Int
-  ): Unit = {
-    partitionIDs = IDs
-    writers = batchWriters
-    batching = true
-    totalPartitions = partitions
-  }
-
   private[raphtory] def setupStreamIngestion(
       streamWriters: collection.Map[Int, EndPoint[GraphUpdate]]
   ): Unit = {
     writers = streamWriters
     partitionIDs = writers.keySet
-    batching = false
     totalPartitions = writers.size
   }
 
