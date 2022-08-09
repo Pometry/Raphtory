@@ -1,7 +1,7 @@
-from pyraphtory.proxy import GenericScalaProxy
-from collections.abc import Mapping
+from pyraphtory.proxy import GenericScalaProxy, register
 
 
+@register(name="Vertex")
 class Vertex(GenericScalaProxy):
     def __setitem__(self, key, value):
         self.set_state(key, value)
@@ -16,9 +16,7 @@ class Vertex(GenericScalaProxy):
             raise KeyError(f"State with {key=} does not exist.")
 
 
+@register(name="GraphState")
 class GraphState(GenericScalaProxy):
-    def __setitem__(self, key, value):
-        self.set_state_num(key, value)
-
     def __getitem__(self, key):
-        return self.get_state_num(key)
+        return self.apply(key)

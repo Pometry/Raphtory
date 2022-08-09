@@ -7,10 +7,25 @@ from pyraphtory.interop import logger, register, to_jvm, to_python
 
 class ScalaProxyBase(object):
     _methods = None
+    _classname = None
+    _jvm_object = None
+
+    @property
+    def classname(self):
+        if self._classname is None:
+            if self._jvm_object is not None:
+                self._classname = self._jvm_object.getClass().getName()
+                logger.trace(f"Retrieved name {self._classname!r} from java object")
+            else:
+                raise RuntimeError("No classname and no jvm_object initialised")
+        logger.trace(f"Return name {self._classname!r}")
+        return self._classname
 
     @property
     def _method_dict(self):
         if self._methods is None:
+            if self._jvm_object is None:
+                return None
             logger.trace(f"Getting methods for {self._jvm_object}")
             self._methods = interop.get_methods(self._jvm_object)
         else:
@@ -22,6 +37,8 @@ class ScalaProxyBase(object):
 
     def __getattr__(self, name):
         logger.trace(f"__getattr__ called for {self!r} with {name!r}")
+        if self._method_dict is None:
+            raise AttributeError(f"{self!r} object has no attached jvm object")
         if self._method_dict.contains(name):
             return GenericMethodProxy(name, self._jvm_object, self._method_dict.apply(name))
         else:
@@ -45,13 +62,6 @@ class GenericScalaProxy(ScalaProxyBase):
         super().__init_subclass__(**kwargs)
         if cls._classname is not None:
             register(cls)
-
-    def _get_classname(self):
-        if self._classname is None:
-            self._classname = self._jvm_object.getClass().getName()
-            logger.trace(f"Retrieved name {self._classname!r} from java object")
-        logger.trace(f"Return name {self._classname!r}")
-        return self._classname
 
     def __repr__(self):
         try:
@@ -124,8 +134,9 @@ class ScalaObjectProxy(ScalaProxyBase, type):
     @property
     def _jvm_object(cls):
         if cls._classname is None:
-            raise AttributeError("Cannot find jvm object for proxy without classname set.")
-        return interop.find_class(cls._classname)
+            return None
+        else:
+            return interop.find_class(cls._classname)
 
     def __call__(cls, *args, jvm_object=None, **kwargs):
         logger.trace(f"ScalaCompanionObjectProxy called with {args=}, {jvm_object=}, {kwargs=}")
@@ -138,8 +149,8 @@ class ScalaObjectProxy(ScalaProxyBase, type):
             return self
         else:
             # Return the result of calling scala apply method
-            logger.trace("calling super()")
-            return super().__call__(*args, **kwargs)
+            logger.trace("calling scala constructor")
+            return cls.apply(*args, **kwargs)
 
 
 class ScalaClassProxy(GenericScalaProxy, metaclass=ScalaObjectProxy):

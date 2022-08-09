@@ -94,13 +94,14 @@ def decode(obj):
     return _scala().decode(obj)
 
 
-def get_methods(name: str):
+def get_methods(obj):
+    name = obj.getClass().getName()
     if name in _method_cache:
         logger.trace(f"Retreiving cached methods for {name!r}")
         return _method_cache[name]
     else:
         logger.trace(f"Finding methods for {name!r}")
-        res = _scala().methods(name)
+        res = _scala().methods(obj)
         _method_cache[name] = res
         logger.trace(f"Methods for {name!r} added to cache")
         return res

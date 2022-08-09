@@ -1,14 +1,7 @@
-import traceback
-from typing import List
-
-
-
-from pyraphtory.steps import Iterate, Step, State, StepState, GlobalSelect
 from pyraphtory.proxy import GenericScalaProxy, ScalaClassProxy
 from pyraphtory.interop import register, logger, to_jvm, find_class
 import pandas as pd
 import json
-import inspect
 
 
 class ProgressTracker(GenericScalaProxy):
@@ -51,5 +44,7 @@ class TemporalGraph(GenericScalaProxy):
 
 @register(name="Accumulator")
 class Accumulator(GenericScalaProxy):
+
     def __iadd__(self, other):
         getattr(self, "$plus$eq")(other)
+        return self

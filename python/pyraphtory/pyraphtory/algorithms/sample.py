@@ -1,7 +1,5 @@
-import traceback
-
-from pyraphtory.steps import Vertex, Iterate, Step
 from pyraphtory.graph import Row
+from pyraphtory.vertex import Vertex
 from pyraphtory.builder import *
 from pyraphtory.context import BaseContext
 
@@ -47,11 +45,6 @@ class RaphtoryContext(BaseContext):
         return tracker
 
 
-def total_degree(v, s):
-    deg_sum = s("deg_sum")
-    deg_sum += v.degree()
-
-
 if __name__ == "__main__":
     from pathlib import Path
     from pyraphtory.context import PyRaphtory
@@ -62,23 +55,11 @@ if __name__ == "__main__":
     pr = PyRaphtory(spout_input=Path('/tmp/lotr.csv'), builder_script=Path(__file__), builder_class='LotrGraphBuilder',
                     mode='batch', logging=False).open()
     rg = pr.graph()
-    # local_sink = pr.local_sink()
-    #
-    # cols = ["inDegree", "outDegree", "degree","triangleCount","prlabel","cclabel","twoHopPaths"]
-    #
-    # tracker = rg.at(32674) \
-    #     .past() \
-    #     .transform(pr.page_rank()) \
-    #     .transform(pr.connected_components()) \
-    #     .transform(pr.degree()) \
-    #     .transform(pr.two_hops_path(set([]))) \
-    #     .transform(pr.local_triangle_count()) \
-    #     .select(cols) \
-    #     .write_to_file("/tmp/pyraphtory_output") \
-    #     .wait_for_job()
 
-    # rg.at(32674).past().execute(pr.algorithms.generic.ConnectedComponents).write_to_file("/tmp/pyraphtory_output").wait_for_job()
-    df = (rg.set_global_state(lambda s: s.new_adder[Int]("deg_sum"))
-            .step(total_degree)
-            .global_select(lambda s: Row(s("deg_sum").value()))
-            .write_to_dataframe(["deg_sum"]))
+    # df = (rg.set_global_state(lambda s: s.new_adder[Int]("deg_sum"))
+    #         .step(lambda v, s: s["deg_sum"].add(v.degree()))
+    #         .global_select(lambda s: Row(s("deg_sum").value()))
+    #         .write_to_dataframe(["deg_sum"]))
+
+    df = (rg.select(lambda vertex: Row(vertex.name(), vertex.degree()))
+          .write_to_dataframe(["name", "degree"]))

@@ -7,6 +7,7 @@ import com.raphtory.api.analysis.graphstate.Accumulator
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Table
+import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.internals.management.python.EmbeddedPython
 import com.raphtory.internals.management.python.UnsafeEmbeddedPythonProxy
@@ -220,6 +221,8 @@ object PythonInterop {
       case _: GraphPerspective  => "TemporalGraph"
       case _: Table             => "Table"
       case _: Accumulator[_, _] => "Accumulator"
+      case _: Vertex            => "Vertex"
+      case _: GraphState        => "GraphState"
       case _                    => "None"
     }
 
