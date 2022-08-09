@@ -29,11 +29,8 @@ class Table(GenericScalaProxy):
         for r in res:
             jsonRow = json.loads(r)
             row = jsonRow['row']
-            for i, item in enumerate(row):
-                if i == 0:
-                    jsonRow['name'] = row[0]
-                    continue
-                jsonRow[cols[i-1]] = row[i]
+            for name, item in zip(cols, row):
+                jsonRow[name] = item
             jsonRow.pop('row')
             newJson.append(jsonRow)
         return pd.DataFrame(newJson)
