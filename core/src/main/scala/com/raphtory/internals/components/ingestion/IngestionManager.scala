@@ -28,7 +28,7 @@ class IngestionManager(
 
   override def handleMessage(msg: IngestData): Unit =
     msg match {
-      case IngestData(graphID, sources) =>
+      case IngestData(loader, graphID, sources) =>
         logger.debug(s"Received query to spawn graph: $msg")
         sources foreach { source =>
           val ingestionResource    = IngestionExecutor[IO](graphID, source, conf, topics)

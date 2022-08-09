@@ -36,23 +36,22 @@ private[raphtory] class QueryManager(
 
   override def handleMessage(msg: QueryManagement): Unit =
     msg match {
-      case establishGraph: IngestData =>
-        ingestion sendAsync establishGraph
-        logger.debug(s"deploying graph with graph ID: ${establishGraph.graphID}")
-      case query: Query               =>
+      case ingestData: IngestData   =>
+        ingestion sendAsync ingestData
+      case query: Query             =>
         val jobID        = query.name
         logger.debug(s"Handling query: $query")
         val queryHandler = spawnQuery(jobID, query)
         trackNewQuery(jobID, queryHandler)
 
-      case req: EndQuery              =>
+      case req: EndQuery            =>
         currentQueries.get(req.jobID) match {
           case Some(queryhandler) =>
             queryhandler.stop()
             currentQueries.remove(req.jobID)
           case None               => //sender ! QueryNotPresent(req.jobID)
         }
-      case watermark: WatermarkTime   =>
+      case watermark: WatermarkTime =>
 //        logger.trace(
 //                s"Setting watermark to earliest time '${watermark.oldestTime}'" +
 //                  s" and latest time '${watermark.latestTime}'" +

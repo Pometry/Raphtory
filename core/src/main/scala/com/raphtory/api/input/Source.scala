@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory
 
 trait Source {
   def buildSource(deploymentID: String): SourceInstance
+  def getBuilder: GraphBuilder[Any]
 }
 
 trait SourceInstance {
@@ -45,5 +46,7 @@ object Source {
             builderInstance.setupStreamIngestion(streamWriters)
           override def close(): Unit = spoutInstance.close()
         }
+
+      override def getBuilder: GraphBuilder[Any] = builder.asInstanceOf[GraphBuilder[Any]]
     }
 }

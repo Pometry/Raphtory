@@ -19,14 +19,19 @@ import com.raphtory.utils.FileUtils
 import scala.language.postfixOps
 
 object TutorialRunner extends App {
-  System.err.close()
+  //System.err.close()
 
-  val context = Raphtory.remoteContext("raphtory")
+  val context = Raphtory.remoteContext("test")
+  //val context = Raphtory.localContext()
   val graph   = context.newGraph()
+  val path    = "/tmp/lotr.csv"
+  val url     = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
+  val source  = Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder())
+  graph.ingest(source)
   addLOTRData(graph)
-  val graph2  = context.newGraph()
-  addLOTRData(graph2)
-
+  //val graph2  = context.newGraph()
+  //addLOTRData(graph2)
+//
   graph
     .at(32674)
     .past()
@@ -34,38 +39,34 @@ object TutorialRunner extends App {
     .writeTo(FileSink("/tmp/raphtory"))
     .waitForJob()
 
-  graph2
-    .at(32674)
-    .past()
-    .execute(PageRank())
-    .writeTo(FileSink("/tmp/raphtory"))
-    .waitForJob()
+//  graph2
+//    .at(32674)
+//    .past()
+//    .execute(PageRank())
+//    .writeTo(FileSink("/tmp/raphtory"))
+//    .waitForJob()
 
-  context.destroyRemoteGraph(graph.getID)
-  context.destroyRemoteGraph(graph2.getID)
+  //context.destroyRemoteGraph(graph.getID)
+  //context.destroyRemoteGraph(graph2.getID)
   graph.close()
-  graph2.close()
+  //graph2.close()
   context.close()
 
   def addLOTRData(graph: DeployedTemporalGraph) = {
-    //val source = Source(FileSpout(path), new LOTRGraphBuilder())
-    //graph.ingest(source)
 
-    val path = "/tmp/lotr.csv"
-    val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
-
-    FileUtils.curlFile(path, url)
-    val line = scala.io.Source.fromFile(path).getLines.foreach { line =>
-      val fileLine   = line.split(",").map(_.trim)
-      val sourceNode = fileLine(0)
-      val srcID      = assignID(sourceNode)
-      val targetNode = fileLine(1)
-      val tarID      = assignID(targetNode)
-      val timeStamp  = fileLine(2).toLong
-
-      graph.addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)), Type("Character"))
-      graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("Character"))
-      graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurence"))
-    }
+//
+//    FileUtils.curlFile(path, url)
+//    val line = scala.io.Source.fromFile(path).getLines.foreach { line =>
+//      val fileLine   = line.split(",").map(_.trim)
+//      val sourceNode = fileLine(0)
+//      val srcID      = assignID(sourceNode)
+//      val targetNode = fileLine(1)
+//      val tarID      = assignID(targetNode)
+//      val timeStamp  = fileLine(2).toLong
+//
+//      graph.addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)), Type("Character"))
+//      graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("Character"))
+//      graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurence"))
   }
+//  }
 }

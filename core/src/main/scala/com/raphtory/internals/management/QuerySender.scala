@@ -4,6 +4,7 @@ import com.raphtory.api.input.Source
 import com.raphtory.api.querytracker.QueryProgressTracker
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.querymanager.DestroyGraph
+import com.raphtory.internals.components.querymanager.DynamicLoader
 import com.raphtory.internals.components.querymanager.EstablishGraph
 import com.raphtory.internals.components.querymanager.IngestData
 import com.raphtory.internals.components.querymanager.Query
@@ -43,11 +44,20 @@ private[raphtory] class QuerySender(
   def establishGraph(): Unit =
     topics.graphSetup.endPoint sendAsync EstablishGraph(graphID)
 
-  def individualUpdate(update: GraphUpdate)               =
+  def individualUpdate(update: GraphUpdate) =
     writers((update.srcId % totalPartitions).toInt) sendAsync update
 
-  def submitGraph(sources: Seq[Source], id: String): Unit =
-    submissions sendAsync IngestData(id, sources)
+  def submitGraph(sources: Seq[Source], id: String): Unit = {
+
+    val clazzes = sources
+      .map { source =>
+        source.getBuilder.getClass
+      }
+      .toSet
+      .asInstanceOf[Set[Class[_]]]
+
+    submissions sendAsync IngestData(DynamicLoader(clazzes), id, sources)
+  }
 
   private def getDefaultName(query: Query): String =
     if (query.name.nonEmpty) query.name else query.hashCode().abs.toString

@@ -150,7 +150,9 @@ private[raphtory] case class AlgorithmFailure(perspectiveID: Int, exception: Thr
 // Messages for partitionSetup topic
 sealed private[raphtory] trait GraphManagement extends QueryManagement
 
-private[raphtory] case class IngestData(graphID: String, sources: Seq[Source]) extends Submission with GraphManagement
+private[raphtory] case class IngestData(_bootstrap: DynamicLoader, graphID: String, sources: Seq[Source])
+        extends Submission
+        with GraphManagement
 
 private[raphtory] case class EstablishExecutor(
     _bootstrap: DynamicLoader,
