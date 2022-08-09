@@ -79,7 +79,6 @@ class GenericMethodProxy(object):
         args = [interop.to_jvm(v) for v in args]
         kwargs = {k: interop.to_jvm(v) for k, v in kwargs.items()}
         logger.trace(f"Trying to call method {self.name} with arguments {args=} and {kwargs=} and implicits {self._implicits!r}")
-        interop._scala().testArgs(args + list(kwargs.values()) + self._implicits)
         for method in self._methods:
             try:
                 parameters = method.parameters()
@@ -147,10 +146,6 @@ class ScalaClassProxy(GenericScalaProxy, metaclass=ScalaObjectProxy):
     pass
 
 
-class Seq(ScalaClassProxy):
-    _classname = "scala.collection.Seq"
-
-
 @register(name="Iterable")
 class IterableScalaProxy(GenericScalaProxy, Iterable):
     def __iter__(self):
@@ -165,6 +160,14 @@ class IteratorScalaProxy(GenericScalaProxy, Iterator):
             return self.next()
         else:
             raise StopIteration
+
+
+class Function1(ScalaClassProxy):
+    _classname = "com.raphtory.internals.management.PythonFunction1"
+
+
+class Function2(ScalaClassProxy):
+    _classname = "com.raphtory.internals.management.PythonFunction2"
 
 
 class Algorithm(object):

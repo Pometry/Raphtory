@@ -30,8 +30,9 @@ def _kill_jvm(j_raphtory, j_gateway):
 
 class BaseContext(object):
 
-    def __init__(self, rg: TemporalGraph, script: str):
-        self._rg = rg
+    def __init__(self, rg, script: str):
+        interop.logger.trace("Constructing context")
+        self._rg = interop.to_python(rg)
         self.script = script
 
     @property

@@ -1,10 +1,10 @@
 import traceback
 from typing import List
 
-import cloudpickle as pickle
+
 
 from pyraphtory.steps import Iterate, Step, State, StepState, GlobalSelect
-from pyraphtory.proxy import GenericScalaProxy
+from pyraphtory.proxy import GenericScalaProxy, ScalaClassProxy
 from pyraphtory.interop import register, logger, to_jvm, find_class
 import pandas as pd
 import json
@@ -39,43 +39,13 @@ class Table(GenericScalaProxy):
         return pd.DataFrame(newJson)
 
 
+class Row(ScalaClassProxy):
+    _classname = "com.raphtory.api.analysis.table.Row"
+
+
 @register(name="TemporalGraph")
 class TemporalGraph(GenericScalaProxy):
-
-    def set_global_state(self, fun):
-        state_bytes = pickle.dumps(State(fun))
-        return self.python_set_global_state(state_bytes)
-
-    def step(self, fun):
-        spec = inspect.getfullargspec(fun)
-        if len(spec.args) == 1:
-            return self.python_step(pickle.dumps(Step(fun)))
-        elif len(spec.args) == 2:
-            return self.python_step_state(pickle.dumps(StepState(fun)))
-        else:
-            raise ValueError("Expected function with one or two arguments")
-
-    def iterate(self, i: Iterate):
-        logger.trace("iterate called")
-        iterate_bytes = pickle.dumps(i)
-        return self.python_iterate(iterate_bytes, i.iterations, i.execute_messaged_only)
-
-    def select(self, columns: List[str]):
-        logger.trace("select called")
-        return self.python_select(columns)
-
-    def select_state(self, columns: List[str]):
-        return self.python_select_state(columns)
-
-    def step_state(self, ssb: StepState):
-        logger.trace("step_state called")
-        step_state_bytes = pickle.dumps(ssb)
-        return self.python_step_state(step_state_bytes)
-
-    def global_select(self, fun):
-        logger.trace("global_select called")
-        global_select_bytes = pickle.dumps(GlobalSelect(fun))
-        return self.python_global_select(global_select_bytes)
+    pass
 
 
 @register(name="Accumulator")

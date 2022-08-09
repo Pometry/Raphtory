@@ -132,17 +132,10 @@ object PyRaphtory
 
   private def runToPython(evalPy: UnsafeEmbeddedPythonProxy, graph: TemporalGraph, script: String) =
     for {
-      _       <- IO.blocking(evalPy.set("raphtory_graph", graph))
-      _       <- IO.blocking(evalPy.set("py_script", script))
-      _       <- IO.blocking(
-                         evalPy.run(
-                                 "tracker = RaphtoryContext(rg = TemporalGraph(raphtory_graph), script=py_script).eval()"
-                         )
-                 )
-      tracker <- IO.blocking(evalPy.invoke(PyRef("tracker"), "inner_tracker")).map {
-                   case qt: QueryProgressTracker => qt
-                 }
-      _       <- IO.blocking(tracker.waitForJob())
+      _ <- IO.blocking(evalPy.set("raphtory_graph", graph))
+      _ <- IO.blocking(evalPy.set("py_script", script))
+      _ <- IO.blocking(evalPy.run("print('testing')"))
+      _ <- IO.blocking(evalPy.run("RaphtoryContext(rg = raphtory_graph, script=py_script).eval().wait_for_job()"))
     } yield ExitCode.Success
 }
 
