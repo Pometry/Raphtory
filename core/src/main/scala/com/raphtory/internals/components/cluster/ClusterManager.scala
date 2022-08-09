@@ -1,4 +1,4 @@
-package com.raphtory.internals.components.service
+package com.raphtory.internals.components.cluster
 
 import cats.effect.Async
 import cats.effect.Resource
@@ -19,7 +19,7 @@ class ClusterManager(
     conf: Config,
     topics: TopicRepository,
     mode: DeploymentMode
-) extends ServiceComponent(conf) {
+) extends OrchestratorComponent(conf) {
 
   override private[raphtory] def run(): Unit =
     logger.info(s"Starting HeadNode for ${conf.getString("raphtory.deploy.id")}")

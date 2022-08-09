@@ -38,7 +38,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   def defaultSink: Sink       = FileSink(outputDirectory)
 
   private def graph: Resource[IO, TemporalGraph] =
-    Raphtory.quickIOGraph()
+    Raphtory.localContext().newIOGraph()
 
   val withGraph: SyncIO[FunFixture[TemporalGraph]] = ResourceFixture(
           for {

@@ -2,7 +2,6 @@ package com.raphtory.internals.components.partition
 
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.graph.GraphAlteration._
-import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.telemetry.ComponentTelemetryHandler
 import com.typesafe.scalalogging.Logger
@@ -10,7 +9,6 @@ import org.slf4j.LoggerFactory
 
 import java.util.concurrent.CompletableFuture
 import scala.language.postfixOps
-import scala.reflect.ClassTag
 
 private[raphtory] class BatchWriter[T](
     partitionID: Int,

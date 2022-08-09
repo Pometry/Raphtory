@@ -7,8 +7,8 @@ import cats.effect.Resource
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.Raphtory
 import com.raphtory.internals.communication.connectors.AkkaConnector
-import com.raphtory.internals.components.service.ClusterManager
-import com.raphtory.internals.components.service.StandaloneMode
+import com.raphtory.internals.components.cluster.ClusterManager
+import com.raphtory.internals.components.cluster.StandaloneMode
 
 object Standalone extends IOApp {
 

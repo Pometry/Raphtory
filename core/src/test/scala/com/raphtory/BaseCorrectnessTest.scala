@@ -70,7 +70,8 @@ abstract class BaseCorrectnessTest(
       resultsResource: String
   ): IO[Unit] =
     Raphtory
-      .quickIOGraph()
+      .localContext()
+      .newIOGraph()
       .use { g =>
         g.ingest(Source(ResourceSpout(graphResource), setGraphBuilder()))
         runTest(test, graph = g)
@@ -83,7 +84,8 @@ abstract class BaseCorrectnessTest(
       results: Seq[String]
   ): IO[Unit] =
     Raphtory
-      .quickIOGraph()
+      .localContext()
+      .newIOGraph()
       .use { g =>
         g.ingest(Source(SequenceSpout(graphEdges: _*), setGraphBuilder()))
         runTest(test, g)

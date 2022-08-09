@@ -1,4 +1,4 @@
-package com.raphtory.internals.components.service
+package com.raphtory.internals.components.cluster
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 
-abstract class ServiceComponent(conf: Config) extends Component[ClusterManagement](conf) {
+abstract class OrchestratorComponent(conf: Config) extends Component[ClusterManagement](conf) {
   protected val graphDeployments = mutable.Map[String, Service]()
   protected val logger: Logger   = Logger(LoggerFactory.getLogger(this.getClass))
 

@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory
 
 import scala.language.postfixOps
 
-private[raphtory] class StreamWriter(
+private[raphtory] class Writer(
     graphID: String,
     partitionID: Int,
     storage: GraphPartition,
@@ -270,7 +270,7 @@ private[raphtory] class StreamWriter(
 
 }
 
-object StreamWriter {
+object Writer {
 
   def apply[IO[_]: Async: Spawn](
       graphID: String,
@@ -278,13 +278,13 @@ object StreamWriter {
       storage: GraphPartition,
       config: Config,
       topics: TopicRepository
-  ): Resource[IO, StreamWriter] =
+  ): Resource[IO, Writer] =
     Component.makeAndStartPart(
             partitionId,
             topics,
             s"writer-$partitionId",
             List(topics.graphUpdates(graphID), topics.graphSync(graphID)),
-            new StreamWriter(
+            new Writer(
                     graphID = graphID,
                     partitionID = partitionId,
                     storage = storage,

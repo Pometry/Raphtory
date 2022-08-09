@@ -41,15 +41,6 @@ object Raphtory {
   def localContext(): LocalContext                       = new LocalContext()
   def remoteContext(deploymentID: String): RemoteContext = new RemoteContext(deploymentID)
 
-  def quickGraph(graphID: String = createName, customConfig: Map[String, Any] = Map()): DeployedTemporalGraph =
-    new LocalContext().newGraph(graphID: String, customConfig: Map[String, Any])
-
-  def quickIOGraph(
-      graphID: String = createName,
-      customConfig: Map[String, Any] = Map()
-  ): Resource[IO, DeployedTemporalGraph] =
-    new LocalContext().newIOGraph(graphID: String, customConfig: Map[String, Any])
-
   /** Returns a default config using `ConfigFactory` for initialising parameters for
     * running Raphtory components. This uses the default application parameters
     *

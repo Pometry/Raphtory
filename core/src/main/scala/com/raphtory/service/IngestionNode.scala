@@ -6,7 +6,7 @@ import cats.effect.IOApp
 import com.raphtory.Raphtory
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
-import com.raphtory.internals.components.service.IngestionService
+import com.raphtory.internals.components.ingestion.IngestionOrchestrator
 
 object IngestionNode extends IOApp {
 
@@ -18,7 +18,7 @@ object IngestionNode extends IOApp {
 
     val ingestionNode = for {
       repo          <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config)
-      ingestionNode <- IngestionService[IO](config, repo)
+      ingestionNode <- IngestionOrchestrator[IO](config, repo)
     } yield ingestionNode
     ingestionNode.useForever
 

@@ -1,40 +1,40 @@
-package com.raphtory.internals.components.service
+package com.raphtory.internals.components.ingestion
 
 import cats.effect.Async
 import cats.effect.Resource
 import cats.effect.Spawn
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
+import com.raphtory.internals.components.cluster.OrchestratorComponent
 import com.raphtory.internals.components.querymanager.ClusterManagement
 import com.raphtory.internals.components.querymanager.DestroyGraph
 import com.raphtory.internals.components.querymanager.EstablishGraph
 import com.typesafe.config.Config
 
-class QueryService(
+class IngestionOrchestrator(
     conf: Config
-) extends ServiceComponent(conf) {
+) extends OrchestratorComponent(conf) {
 
   override private[raphtory] def run(): Unit =
-    logger.info(s"Starting Query Service for ${conf.getString("raphtory.deploy.id")}")
+    logger.info(s"Starting Ingestion Service for ${conf.getString("raphtory.deploy.id")}")
 
   override def handleMessage(msg: ClusterManagement): Unit =
     msg match {
-      case EstablishGraph(graphID: String) => establishService("Query Manager", graphID, deployQueryService)
+      case EstablishGraph(graphID: String) => establishService("Ingestion Manager", graphID, deployIngestionService)
       case DestroyGraph(graphID)           => destroyGraph(graphID)
     }
-
 }
 
-object QueryService {
+object IngestionOrchestrator {
 
   def apply[IO[_]: Async: Spawn](
       conf: Config,
       topics: TopicRepository
-  ): Resource[IO, QueryService] =
+  ): Resource[IO, IngestionOrchestrator] =
     Component.makeAndStart(
             topics,
-            s"query-node",
+            s"ingestion-node",
             List(topics.clusterComms),
-            new QueryService(conf)
+            new IngestionOrchestrator(conf)
     )
 }

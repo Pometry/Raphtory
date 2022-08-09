@@ -22,7 +22,8 @@ class FailingAlgo extends Generic {
 class FailureTest extends CatsEffectSuite {
   test("test failure propagation for failure in algorithm step") {
     Raphtory
-      .quickIOGraph()
+      .localContext()
+      .newIOGraph()
       .use { graph =>
         IO {
           graph.ingest(Source(SequenceSpout("1,1,1"), BasicGraphBuilder()))

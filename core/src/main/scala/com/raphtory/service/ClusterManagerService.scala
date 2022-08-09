@@ -6,10 +6,10 @@ import cats.effect.IOApp
 import com.raphtory.Raphtory
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
-import com.raphtory.internals.components.service.ClusterManager
-import com.raphtory.internals.components.service.ClusterMode
+import com.raphtory.internals.components.cluster.ClusterManager
+import com.raphtory.internals.components.cluster.ClusterMode
 
-object HeadNode extends IOApp {
+object ClusterManagerService extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = {
 

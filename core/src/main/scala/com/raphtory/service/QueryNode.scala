@@ -6,7 +6,7 @@ import cats.effect.IOApp
 import com.raphtory.Raphtory
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
-import com.raphtory.internals.components.service.QueryService
+import com.raphtory.internals.components.querymanager.QueryOrchestrator
 
 object QueryNode extends IOApp {
 
@@ -18,7 +18,7 @@ object QueryNode extends IOApp {
 
     val queryNode = for {
       repo      <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config)
-      queryNode <- QueryService[IO](config, repo)
+      queryNode <- QueryOrchestrator[IO](config, repo)
     } yield queryNode
     queryNode.useForever
 

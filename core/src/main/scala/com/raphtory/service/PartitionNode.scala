@@ -6,7 +6,7 @@ import cats.effect.IOApp
 import com.raphtory.Raphtory
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
-import com.raphtory.internals.components.service.PartitionService
+import com.raphtory.internals.components.partition.PartitionOrchestrator
 
 object PartitionNode extends IOApp {
 
@@ -18,7 +18,7 @@ object PartitionNode extends IOApp {
 
     val partitionNode = for {
       repo          <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config)
-      partitionNode <- PartitionService[IO](config, repo)
+      partitionNode <- PartitionOrchestrator[IO](config, repo)
     } yield partitionNode
     partitionNode.useForever
 

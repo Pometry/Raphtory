@@ -17,7 +17,6 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
-import scala.reflect.ClassTag
 
 private[raphtory] class LocalBatchHandler[T](
     partitionIDs: mutable.Set[Int],
