@@ -28,8 +28,8 @@ object CompaniesHouseStreamTest extends App {
   val graph               = context.newGraph()
   graph.load(source)
 
-  val output = FileSink("/tmp/cohostream/people")
-  Thread.sleep(10000)
+  val output = FileSink("")
+
   graph
     .climb("2022-12-31", "1 second")
     .past()
