@@ -110,7 +110,10 @@ lazy val core = (project in file("core"))
                   catsMUnit,
                   alleyCats,
                   typesafeConfig,
-                  zookeeper
+                  zookeeper,
+                  arrowMessaging,
+                  shapeless,
+                  curatorDiscovery
           ),
           libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
   )

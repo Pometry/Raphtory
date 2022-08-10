@@ -59,7 +59,7 @@ private[raphtory] class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Com
     override def closeWithMessage(message: T): Unit    = sendAsync(message)
   }
 
-  override def endPoint[T](topic: CanonicalTopic[T]): EndPoint[T] = {
+  override def endPoint[T](srcParId: Int, topic: CanonicalTopic[T]): EndPoint[T] = {
     val (serviceKey, numActors) = topic match {
       case topic: ExclusiveTopic[T] => (getServiceKey(topic), 1)
       case topic: BroadcastTopic[T] => (getServiceKey(topic), topic.numListeners)
@@ -72,6 +72,7 @@ private[raphtory] class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Com
   }
 
   override def register[T](
+      partitionId: Int,
       id: String,
       messageHandler: T => Unit,
       topics: Seq[CanonicalTopic[T]]

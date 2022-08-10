@@ -10,6 +10,7 @@ import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.internals.graph.GraphAlteration.VertexAdd
 import com.raphtory.internals.management.PyRef
 import com.raphtory.internals.management.PythonEncoder
+import com.raphtory.internals.communication.SchemaProviderInstances._
 
 class UnsafeGraphBuilder[T](val ref: PyRef, py: EmbeddedPython[Id])(implicit PE: PythonEncoder[T])
         extends GraphBuilder[T] {

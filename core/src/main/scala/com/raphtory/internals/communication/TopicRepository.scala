@@ -136,15 +136,15 @@ private[raphtory] class TopicRepository(
       id: String,
       messageHandler: T => Unit,
       topics: Seq[Topic[T]],
-      partition: Int
+      partitionId: Int
   ): CancelableListener = {
     val listeners = topics
       .map {
-        case topic: ShardingTopic[T]  => topic.exclusiveTopicForPartition(partition)
+        case topic: ShardingTopic[T]  => topic.exclusiveTopicForPartition(partitionId)
         case topic: CanonicalTopic[T] => topic
       }
       .groupBy(_.connector)
-      .map { case (connector, topics) => connector.register(id, messageHandler, topics) }
+      .map { case (connector, topics) => connector.register(partitionId, id, messageHandler, topics) }
       .toSeq
 
     CancelableListener(listeners)

@@ -58,6 +58,7 @@ private[raphtory] class PulsarConnector(
   def adminClient: PulsarAdmin = pulsarAdmin
 
   override def register[T](
+      partitionId: Int,
       id: String,
       messageHandler: T => Unit,
       topics: Seq[CanonicalTopic[T]]
@@ -99,7 +100,7 @@ private[raphtory] class PulsarConnector(
     }
   }
 
-  override def endPoint[T](topic: CanonicalTopic[T]): EndPoint[T] = {
+  override def endPoint[T](srcParId: Int, topic: CanonicalTopic[T]): EndPoint[T] = {
     val producerTopic = createTopic(topic)
     val producer      = createProducer(Schema.BYTES, producerTopic)
     PulsarEndPoint[T](producer)

@@ -1,14 +1,18 @@
 import sbt._
 
 object Dependencies {
+  private lazy val arrowMessagingVer     = "1.0-SNAPSHOT"
   private lazy val akkaVersion           = "2.6.19"
   private lazy val bcelVersion           = "6.5.0"
   private lazy val catsEffectVersion     = "3.3.12"
+  private lazy val catsVersion           = "2.7.0"
+  private lazy val catsMUnitVersion      = "1.0.7"
   private lazy val chillVersion          = "0.10.0"
   private lazy val curatorVersion        = "5.2.1"
   private lazy val declineVersion        = "2.3.0"
   private lazy val jacksonVersion        = "2.13.3"
   private lazy val log4jVersion          = "2.18.0"
+  private lazy val nomenVersion          = "2.1.0"
   private lazy val openhftVersion        = "0.15"
   private lazy val pemjaVersion          = "0.2.0"
   private lazy val prometheusVersion     = "0.15.0"
@@ -16,15 +20,13 @@ object Dependencies {
   private lazy val py4jVersion           = "0.10.9.5"
   private lazy val scalaLoggingVersion   = "3.9.4"
   private lazy val scalatestVersion      = "3.2.11"
+  private lazy val shapelessVer          = "2.3.3"
   private lazy val slf4jVersion          = "1.7.36"
   private lazy val sprayJsonVersion      = "1.3.6"
   private lazy val testContainersVersion = "0.40.8"
   private lazy val timeSeriesVersion     = "1.7.0"
   private lazy val typesafeConfigVersion = "1.4.2"
   private lazy val zookeeperVersion      = "3.7.0"
-  private lazy val catsVersion           = "2.7.0"
-  private lazy val catsMUnitVersion      = "1.0.7"
-  private lazy val nomenVersion          = "2.1.0"
 
   lazy val excludePulsarBinding = ExclusionRule(organization = "org.apache.pulsar")
   lazy val excludeSlf4j         = ExclusionRule(organization = "org.slf4j")
@@ -32,9 +34,11 @@ object Dependencies {
 
   lazy val akkaClusterTyped =
     "com.typesafe.akka" %% "akka-cluster-typed" % akkaVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val akkaTyped  = "com.typesafe.akka" %% "akka-actor-typed" % akkaVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val bcel       = "org.apache.bcel"    % "bcel"             % bcelVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val catsEffect = "org.typelevel"     %% "cats-effect"      % catsEffectVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val akkaTyped      = "com.typesafe.akka" %% "akka-actor-typed" % akkaVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val arrowMessaging = "com.raphtory"      %% "arrow-messaging"  % arrowMessagingVer
+
+  lazy val bcel       = "org.apache.bcel" % "bcel"        % bcelVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val catsEffect = "org.typelevel"  %% "cats-effect" % catsEffectVersion excludeAll (excludeLog4j, excludeSlf4j)
 
   lazy val curatorRecipes =
     "org.apache.curator" % "curator-recipes" % curatorVersion excludeAll (excludeLog4j, excludeSlf4j)
@@ -81,6 +85,7 @@ object Dependencies {
   lazy val scalaLogging     = "com.typesafe.scala-logging" %% "scala-logging"              % scalaLoggingVersion
   lazy val scalaTest        = "org.scalatest"              %% "scalatest"                  % scalatestVersion      % Test
   lazy val scalaTestCompile = "org.scalatest"              %% "scalatest"                  % scalatestVersion
+  lazy val shapeless        = "com.chuusai"                %% "shapeless"                  % shapelessVer
   lazy val slf4j            = "org.slf4j"                   % "slf4j-api"                  % slf4jVersion
   lazy val sprayJson        = "io.spray"                   %% "spray-json"                 % sprayJsonVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val testContainers   = "com.dimafeng"               %% "testcontainers-scala-munit" % testContainersVersion % "test"
@@ -95,4 +100,5 @@ object Dependencies {
     "org.typelevel" %% "munit-cats-effect-3" % catsMUnitVersion % Test excludeAll (excludeLog4j, excludeSlf4j)
   lazy val alleyCats = "org.typelevel" %% "alleycats-core" % catsVersion excludeAll (excludeLog4j, excludeSlf4j)
 
+  lazy val curatorDiscovery = "org.apache.curator" % "curator-x-discovery" % curatorVersion
 }

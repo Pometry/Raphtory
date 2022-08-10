@@ -12,7 +12,7 @@ import com.raphtory.internals.storage.pojograph.entities.internal.SplitEdge
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-
+import com.raphtory.internals.communication.SchemaProviderInstances._
 import scala.collection.mutable
 
 private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf: Config)

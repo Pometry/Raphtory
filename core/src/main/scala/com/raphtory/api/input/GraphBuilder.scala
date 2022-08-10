@@ -2,6 +2,7 @@ package com.raphtory.api.input
 
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.graph.GraphAlteration._
+import com.raphtory.internals.communication.SchemaProviderInstances._
 import com.raphtory.internals.management.telemetry.ComponentTelemetryHandler
 import com.typesafe.scalalogging.Logger
 import net.openhft.hashing.LongHashFunction

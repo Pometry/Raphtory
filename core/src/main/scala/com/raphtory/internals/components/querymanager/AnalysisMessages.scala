@@ -46,11 +46,17 @@ sealed private[raphtory] trait GenericVertexMessage[VertexID] extends VertexMess
   def vertexId: VertexID
 }
 
-private[raphtory] case class VertexMessage[+T, VertexID](
+trait SchemaProvider[T] {
+  val endpoint: String = ""
+}
+
+trait ArrowFlightSchemaProvider[T] extends SchemaProvider[T]
+
+private[raphtory] case class VertexMessage[T, VertexID](
     superstep: Int,
     vertexId: VertexID,
     data: T
-) extends GenericVertexMessage[VertexID]
+)(implicit val provider: SchemaProvider[T]) extends GenericVertexMessage[VertexID]
 
 private[raphtory] case class VertexMessageBatch(data: Array[GenericVertexMessage[_]]) extends VertexMessaging
 

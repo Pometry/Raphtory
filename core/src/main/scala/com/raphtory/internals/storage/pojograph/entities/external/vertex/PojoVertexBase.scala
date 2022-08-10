@@ -6,7 +6,7 @@ import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExDirectedEdgeBase
 import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExEdgeBase
 import com.raphtory.internals.storage.pojograph.messaging.VertexMultiQueue
-
+import com.raphtory.internals.communication.SchemaProviderInstances._
 import scala.collection.mutable
 
 private[pojograph] trait PojoVertexBase extends Vertex {

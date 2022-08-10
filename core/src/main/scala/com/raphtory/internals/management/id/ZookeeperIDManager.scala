@@ -3,15 +3,13 @@ package com.raphtory.internals.management.id
 import cats.effect.Resource
 import cats.effect.Sync
 import cats.syntax.all._
+import com.raphtory.internals.management.ZookeeperConnector
+
 import com.typesafe.scalalogging.Logger
 import org.apache.curator.framework.CuratorFramework
-import org.apache.curator.framework.CuratorFrameworkFactory
-import org.apache.curator.retry.ExponentialBackoffRetry
 import org.apache.zookeeper.CreateMode
 import org.slf4j.LoggerFactory
-
 import scala.util.Failure
-import scala.util.Success
 import scala.util.Try
 
 private[raphtory] class ZookeeperIDManager(
@@ -53,7 +51,7 @@ private[raphtory] class ZookeeperIDManager(
     }
 }
 
-private[raphtory] object ZookeeperIDManager {
+private[raphtory] object ZookeeperIDManager extends ZookeeperConnector {
 
   def apply[IO[_]: Sync](
       zookeeperAddress: String,
@@ -61,18 +59,8 @@ private[raphtory] object ZookeeperIDManager {
       poolID: String,
       poolSize: Int
   ): Resource[IO, ZookeeperIDManager] =
-    Resource
-      .fromAutoCloseable(
-              Sync[IO]
-                .delay {
-                  CuratorFrameworkFactory
-                    .builder()
-                    .connectString(zookeeperAddress)
-                    .retryPolicy(new ExponentialBackoffRetry(1000, 3))
-                    .build();
-                }
-                .flatTap(c => Sync[IO].blocking(c.start()))
-      )
+    getZkClient(zookeeperAddress)
+      .asInstanceOf[Resource[IO, CuratorFramework]]
       .map(new ZookeeperIDManager(zookeeperAddress, graphId, poolID, poolSize, _))
 
   def apply[IO[_]: Sync](

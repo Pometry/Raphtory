@@ -12,6 +12,7 @@ import com.raphtory.internals.components.querymanager.FilteredOutEdgeMessage
 import com.raphtory.internals.components.querymanager.VertexMessage
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.raphtory.utils.OrderingFunctions._
+import com.raphtory.internals.communication.SchemaProviderInstances._
 
 private[pojograph] trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
   def view: PojoGraphLens
