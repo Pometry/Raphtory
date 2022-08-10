@@ -1,6 +1,6 @@
 package com.raphtory.examples.coho.companiesStream.graphbuilders
 
-import com.raphtory.api.input.{GraphBuilder, ImmutableProperty, IntegerProperty, Properties, Type}
+import com.raphtory.api.input.{GraphBuilder, ImmutableProperty, IntegerProperty, LongProperty, Properties, Type}
 import com.raphtory.examples.coho.companiesStream.rawModel.personsSignificantControl.PersonWithSignificantControlStream
 import com.raphtory.examples.coho.companiesStream.rawModel.personsSignificantControl.PscStreamJsonProtocol.PersonWithSignificantControlStreamFormat
 import spray.json._
@@ -22,7 +22,6 @@ class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
     def sendPscToPartitions(psc: PersonWithSignificantControlStream) = {
 
 
-        var tupleIndex = index * 50
 
         val notifiedOn =
           LocalDate.parse(psc.data.get.notified_on.getOrElse("1800-01-01").replaceAll("\"", ""), DateTimeFormatter.ofPattern("yyyy-MM-dd")).toEpochSecond(LocalTime.MIDNIGHT, ZoneOffset.MIN) * 1000
@@ -44,22 +43,20 @@ class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
 
       val shareOwnership = matchControl(naturesOfControl)
 
-
-
         addVertex(
           notifiedOn,
           assignID(pscId),
           Properties(ImmutableProperty("name", pscId)),
-          Type("Persons With Significant Control"),
-          tupleIndex
+          Type("Persons With Significant Control")
+
         )
 
         addVertex(
           notifiedOn,
           assignID(companyNumber),
           Properties(ImmutableProperty("name", companyNumber)),
-          Type("Company"),
-          tupleIndex
+          Type("Company")
+
         )
 
         addEdge(
@@ -67,11 +64,10 @@ class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
           assignID(pscId),
           assignID(companyNumber),
           Properties(IntegerProperty("weight", shareOwnership)),
-          Type("Psc to Company Duration"),
-          tupleIndex
+          Type("Psc to Company Duration")
         )
 
-        tupleIndex += 1
+
       }
 
 
