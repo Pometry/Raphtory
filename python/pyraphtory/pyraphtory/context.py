@@ -65,7 +65,7 @@ def join(stderr: IO[AnyStr] | None, stdout: IO[AnyStr] | None, logging: bool = F
 
 
 class PyRaphtory(object):
-    algorithms = proxy.Algorithm("com.raphtory.algorithms")
+    algorithms = proxy.BuildinAlgorithm("com.raphtory.algorithms")
 
     def __init__(self, spout_input: Path, builder_script: Path, builder_class: str, mode: str, logging: bool = False):
         jar_location = Path(inspect.getfile(self.__class__)).parent.parent
