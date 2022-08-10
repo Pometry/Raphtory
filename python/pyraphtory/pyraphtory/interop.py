@@ -100,7 +100,7 @@ def to_jvm(value):
     if is_PyJObject(value):
         logger.trace(f"Converting value {value!r}, already PyJObject")
         return decode(value)
-    elif isinstance(value, proxy.Algorithm):
+    elif isinstance(value, proxy.BuildinAlgorithm):
         logger.trace(f"Converting value {value!r}, finding object based on algorithm path")
         return find_class(value._path)
     elif isinstance(value, proxy.ScalaProxyBase):

@@ -181,7 +181,7 @@ class Function2(ScalaClassProxy):
     _classname = "com.raphtory.internals.management.PythonFunction2"
 
 
-class Algorithm(object):
+class BuildinAlgorithm(object):
     def __init__(self, path: str):
         self._path = path
 
@@ -189,4 +189,4 @@ class Algorithm(object):
         return GenericScalaProxy(interop.find_class(self._path)).apply(*args, **kwargs)
 
     def __getattr__(self, item):
-        return Algorithm(".".join((self._path, item)))
+        return BuildinAlgorithm(".".join((self._path, item)))
