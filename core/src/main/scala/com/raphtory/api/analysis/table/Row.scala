@@ -86,7 +86,7 @@ private[raphtory] class RowImplementation extends Row {
   def release(): Unit =
     if (Thread.currentThread().getName != constructedOn)
       // TODO: Row release is currently broken when constructing rows from python as they are created in python thread but released in Akka message handling thread.
-      logger.warn(
+      logger.debug(
               s"Row object moved thread, not putting it back in pool, original: $constructedOn, new ${Thread.currentThread().getName}"
       )
     else if (acquired) {
