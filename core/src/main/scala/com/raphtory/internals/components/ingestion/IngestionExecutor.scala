@@ -4,7 +4,6 @@ import cats.effect.Async
 import cats.effect.Resource
 import cats.effect.Spawn
 import com.raphtory.api.input.Source
-import com.raphtory.api.input.SourceInstance
 import com.raphtory.internals.communication.CanonicalTopic
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component

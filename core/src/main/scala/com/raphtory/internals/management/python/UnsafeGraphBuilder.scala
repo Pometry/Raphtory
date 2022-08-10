@@ -5,7 +5,6 @@ import cats.Id
 import com.raphtory.api.input.Graph
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.internals.communication.EndPoint
-import com.raphtory.internals.components.partition.BatchWriter
 import com.raphtory.internals.graph.GraphAlteration.EdgeAdd
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.internals.graph.GraphAlteration.VertexAdd

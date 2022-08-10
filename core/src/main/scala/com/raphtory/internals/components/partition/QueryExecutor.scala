@@ -19,11 +19,7 @@ import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.management.Scheduler
-import com.raphtory.internals.management.python.PythonGlobalSelectEvaluator
-import com.raphtory.internals.management.python.PythonIterateEvaluator
-import com.raphtory.internals.management.python.PythonStateStepEvaluator
-import com.raphtory.internals.management.python.PythonStepEvaluator
-import com.raphtory.internals.management.python.UnsafeEmbeddedPythonProxy
+import com.raphtory.internals.management.python._
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger

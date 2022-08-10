@@ -9,7 +9,6 @@ import com.raphtory.internals.components.querymanager.ClusterManagement
 import com.raphtory.internals.components.querymanager.DestroyGraph
 import com.raphtory.internals.components.querymanager.EstablishGraph
 import com.typesafe.config.Config
-import com.typesafe.config.ConfigValueFactory
 
 sealed trait DeploymentMode
 case object StandaloneMode extends DeploymentMode
@@ -32,17 +31,7 @@ class ClusterManager(
       case EstablishGraph(graphID: String) =>
         mode match {
           case StandaloneMode =>
-            graphDeployments.get(graphID) match {
-              case Some(value) => logger.info(s"New client connecting for graph: $graphID")
-              case None        =>
-                logger.info(s"Deploying new graph in standalone mode: $graphID")
-                val graphConf = conf.withValue(
-                        "raphtory.graph.id",
-                        ConfigValueFactory.fromAnyRef(graphID)
-                )
-                val service   = deployStandaloneService(graphID, graphConf)
-                graphDeployments.put(graphID, service)
-            }
+            deployStandaloneService(graphID, conf)
           case ClusterMode    =>
             logger.info(s"Forwarding deployment request for graph to cluster: $graphID")
             forwardToCluster(msg)

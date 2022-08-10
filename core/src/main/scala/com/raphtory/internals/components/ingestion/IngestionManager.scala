@@ -19,28 +19,24 @@ class IngestionManager(
     topics: TopicRepository
 ) extends Component[IngestData](conf) {
 
-  case class Graph(ingestionCancel: IO[Unit]) {
-    def stop(): Unit = ingestionCancel.unsafeRunSync()
-  }
-
-  private val logger: Logger   = Logger(LoggerFactory.getLogger(this.getClass))
-  private val graphDeployments = mutable.Map[String, Graph]()
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val executors      = mutable.ArrayBuffer[IO[Unit]]()
 
   override def handleMessage(msg: IngestData): Unit =
-    msg match {
+    msg match { //TODO disconnect/destroy source
       case IngestData(loader, graphID, sources) =>
-        logger.debug(s"Received query to spawn graph: $msg")
+        logger.info(s"Ingestion Manager for $graphID establishing new data source")
         sources foreach { source =>
           val ingestionResource    = IngestionExecutor[IO](graphID, source, conf, topics)
           val (_, ingestionCancel) = ingestionResource.allocated.unsafeRunSync()
-          graphDeployments.put(graphID, Graph(ingestionCancel))
+          executors += ingestionCancel
         }
     }
 
   override private[raphtory] def run(): Unit = logger.debug(s"Starting IngestionManager")
 
   override private[raphtory] def stop(): Unit =
-    graphDeployments.foreach { case (graphID, _) => graphDeployments.remove(graphID).foreach(_.stop()) }
+    executors.foreach(executor => executor.unsafeRunSync())
 }
 
 object IngestionManager {

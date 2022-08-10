@@ -13,7 +13,6 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
-import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 

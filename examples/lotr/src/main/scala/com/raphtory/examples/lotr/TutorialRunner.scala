@@ -21,8 +21,8 @@ import scala.language.postfixOps
 object TutorialRunner extends App {
   //System.err.close()
 
-  val context = Raphtory.remoteContext("test")
-  //val context = Raphtory.localContext()
+  //val context = Raphtory.remoteContext("test")
+  val context = Raphtory.localContext()
   val graph   = context.newGraph()
   val path    = "/tmp/lotr.csv"
   val url     = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"

@@ -10,8 +10,6 @@ import com.raphtory.internals.components.ingestion.IngestionManager
 import com.raphtory.internals.components.partition.PartitionOrchestrator
 import com.raphtory.internals.components.querymanager.ClusterManagement
 import com.raphtory.internals.components.querymanager.QueryManager
-import com.raphtory.internals.context.Service
-import com.raphtory.internals.management.QuerySender
 import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigValueFactory
@@ -21,12 +19,12 @@ import org.slf4j.LoggerFactory
 import scala.collection.mutable
 
 abstract class OrchestratorComponent(conf: Config) extends Component[ClusterManagement](conf) {
-  protected val graphDeployments = mutable.Map[String, Service]()
-  protected val logger: Logger   = Logger(LoggerFactory.getLogger(this.getClass))
+  private val deployments      = mutable.Map[String, IO[Unit]]()
+  protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  protected def establishService(component: String, graphID: String, func: (String, Config) => Service): Unit =
-    graphDeployments.get(graphID) match {
-      case Some(value) =>
+  protected def establishService(component: String, graphID: String, func: (String, Config) => Unit): Unit =
+    deployments.get(graphID) match {
+      case Some(value) => logger.info(s"$component for graph $graphID already exists")
       case None        =>
         logger.info(s"Deploying new $component for graph: $graphID")
         val graphConf = conf.withValue(
@@ -34,65 +32,69 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
                 ConfigValueFactory.fromAnyRef(graphID)
         )
         val service   = func(graphID, graphConf)
-        graphDeployments.put(graphID, service)
     }
 
   protected def destroyGraph(graphID: String): Unit =
-    graphDeployments.remove(graphID) match {
-      case Some(service) =>
+    deployments.remove(graphID) match {
+      case Some(deployment) =>
         logger.info(s"Destroying Graph $graphID")
-        service.shutdown.unsafeRunSync()
-      case None          => logger.warn(s"Graph $graphID requested for destruction, but did not exist")
+        deployment.unsafeRunSync()
+      case None             => logger.warn(s"Graph $graphID requested for destruction, but did not exist")
     }
 
   override private[raphtory] def stop(): Unit =
-    graphDeployments.foreach {
-      case (graphID, _) => graphDeployments.remove(graphID).foreach(_.shutdown.unsafeRunSync())
+    deployments.foreach {
+      case (_, deployment) => deployment.unsafeRunSync()
     }
 
-  protected def deployStandaloneService(graphID: String, graphConf: Config): Service = {
+  protected def deployStandaloneService(graphID: String, graphConf: Config): Unit =
+    deployments.get(graphID) match {
+      case Some(value) => logger.info(s"New client connecting for graph: $graphID")
+      case None        =>
+        logger.info(s"Deploying new graph in standalone mode: $graphID")
+        val graphConf       = conf.withValue(
+                "raphtory.graph.id",
+                ConfigValueFactory.fromAnyRef(graphID)
+        )
+        val scheduler       = new Scheduler()
+        val serviceResource = for {
+          partitionIdManager <- makePartitionIdManager[IO](graphConf, localDeployment = false, graphID)
+          repo               <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf)
+          _                  <- PartitionOrchestrator.spawn[IO](graphConf, partitionIdManager, repo, scheduler)
+          _                  <- IngestionManager[IO](graphConf, repo)
+          _                  <- QueryManager[IO](graphConf, repo)
+        } yield ()
+        val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
+        deployments += ((graphID, shutdown))
+    }
+
+  protected def deployPartitionService(graphID: String, graphConf: Config): Unit = {
     val scheduler       = new Scheduler()
     val serviceResource = for {
       partitionIdManager <- makePartitionIdManager[IO](graphConf, localDeployment = false, graphID)
       repo               <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf)
       _                  <- PartitionOrchestrator.spawn[IO](graphConf, partitionIdManager, repo, scheduler)
-      _                  <- IngestionManager[IO](graphConf, repo)
-      _                  <- QueryManager[IO](graphConf, repo)
-    } yield new QuerySender(scheduler, repo, graphConf)
-
-    val (client, shutdown) = serviceResource.allocated.unsafeRunSync()
-    Service(client, graphID, conf, shutdown)
+    } yield ()
+    val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
+    deployments += ((graphID, shutdown))
   }
 
-  protected def deployPartitionService(graphID: String, graphConf: Config): Service = {
-    val scheduler       = new Scheduler()
-    val serviceResource = for {
-      partitionIdManager <- makePartitionIdManager[IO](graphConf, localDeployment = false, graphID)
-      repo               <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf)
-      _                  <- PartitionOrchestrator.spawn[IO](graphConf, partitionIdManager, repo, scheduler)
-    } yield new QuerySender(scheduler, repo, graphConf)
-
-    val (client, shutdown) = serviceResource.allocated.unsafeRunSync()
-    Service(client, graphID, conf, shutdown)
-  }
-
-  protected def deployIngestionService(graphID: String, graphConf: Config): Service = {
+  protected def deployIngestionService(graphID: String, graphConf: Config): Unit = {
     val serviceResource = for {
       repo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf)
       _    <- IngestionManager[IO](graphConf, repo)
-    } yield new QuerySender(new Scheduler(), repo, graphConf)
-
-    val (client, shutdown) = serviceResource.allocated.unsafeRunSync()
-    Service(client, graphID, conf, shutdown)
+    } yield ()
+    val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
+    deployments += ((graphID, shutdown))
   }
 
-  protected def deployQueryService(graphID: String, graphConf: Config): Service = {
-    val serviceResource    = for {
+  protected def deployQueryService(graphID: String, graphConf: Config): Unit = {
+    val serviceResource = for {
       repo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf)
       _    <- QueryManager[IO](graphConf, repo)
-    } yield new QuerySender(new Scheduler(), repo, graphConf)
-    val (client, shutdown) = serviceResource.allocated.unsafeRunSync()
-    Service(client, graphID, conf, shutdown)
+    } yield ()
+    val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
+    deployments += ((graphID, shutdown))
   }
 
 }
