@@ -1,11 +1,6 @@
-import traceback
-
 from pyraphtory.algorithm import PyAlgorithm
 from pyraphtory.graph import TemporalGraph, Row, Table
 from pyraphtory.vertex import Vertex
-
-
-PR_LABEL = 'prlabel'
 
 
 class PageRank(PyAlgorithm):
@@ -16,18 +11,18 @@ class PageRank(PyAlgorithm):
     def __call__(self, graph: TemporalGraph) -> TemporalGraph:
         def init(v: Vertex):
             initLabel = 1.0
-            v[PR_LABEL] = initLabel
+            v["prlabel"] = initLabel
             out_degree = v.out_degree()
             if out_degree > 0:
                 msg = initLabel / out_degree
                 v.message_out_neighbours(msg)
 
         def iterate(v: Vertex):
-            current_label = v[PR_LABEL]
+            current_label = v["prlabel"]
             queue = v.message_queue()
             summed_queue = sum(queue)
             new_label = (1 - self.damping_factor) + self.damping_factor * summed_queue
-            v[PR_LABEL] = new_label
+            v["prlabel"] = new_label
 
             out_degree = v.out_degree()
 
@@ -40,4 +35,4 @@ class PageRank(PyAlgorithm):
         return graph.step(init).iterate(iterate, self.max_steps, False)
 
     def tabularise(self, graph: TemporalGraph) -> Table:
-        return graph.select(lambda v: Row(v.name(), v[PR_LABEL]))
+        return graph.select(lambda v: Row(v.name(), v["prlabel"]))
