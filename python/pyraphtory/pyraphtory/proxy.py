@@ -2,7 +2,7 @@ from collections.abc import Iterable, Iterator
 from functools import cached_property
 
 from pyraphtory import interop
-from pyraphtory.interop import logger, register, to_jvm, to_python
+from pyraphtory.interop import logger, register
 
 
 class ScalaProxyBase(object):

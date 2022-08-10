@@ -4,59 +4,11 @@ from collections.abc import Iterable, Mapping
 import pyraphtory.proxy as proxy
 from py4j.java_gateway import JavaObject, JavaClass
 import cloudpickle as pickle
-
-_scala_cache = None
-
-
-class FunctionWrapper(object):
-    def __init__(self, fun=None):
-        self._fun = fun
-        self.n_args = len(inspect.getfullargspec(fun).args)
-
-    def eval_from_jvm(self, *args):
-        return to_jvm(self(*(to_python(v) for v in args)))
-
-    def __call__(self, *args, **kwargs):
-        return self._fun(*args, **kwargs)
+from functools import cached_property
 
 
-def set_scala_interop(obj):
-    global _scala_cache
-    _scala_cache = obj
 
 
-def _scala():
-    global _scala_cache
-    if _scala_cache is None:
-        from pemja import findClass
-        _scala_cache = findClass('com.raphtory.internals.management.PythonInterop')
-    return _scala_cache
-
-
-_method_cache = {}
-_wrappers = {}
-
-
-class logger(object):
-    @staticmethod
-    def error(msg):
-        _scala().logger().error(msg)
-
-    @staticmethod
-    def warn(msg):
-        _scala().logger().warn(msg)
-
-    @staticmethod
-    def info(msg):
-        _scala().logger().info(msg)
-
-    @staticmethod
-    def debug(msg):
-        _scala().logger().debug(msg)
-
-    @staticmethod
-    def trace(msg):
-        _scala().logger().trace(msg)
 
 
 def register(cls=None, *, name=None):
@@ -69,6 +21,30 @@ def register(cls=None, *, name=None):
             raise ValueError(f"Missing name during registration of {cls!r}")
         _wrappers[name] = cls
         return cls
+
+
+def set_scala_interop(obj):
+    global _scala
+    _scala.set_interop(obj)
+
+
+_method_cache = {}
+_wrappers = {}
+
+
+class Scala(object):
+    @cached_property
+    def scala(self):
+        from pemja import findClass
+        return findClass('com.raphtory.internals.management.PythonInterop')
+
+    def set_interop(self, obj):
+        self.__dict__["scala"] = obj
+
+
+_scala = Scala()
+
+
 
 
 def is_PyJObject(obj):
@@ -87,11 +63,11 @@ def snake_to_camel(name: str):
 
 
 def camel_to_snake(name: str):
-    return _scala().camel_to_snake(name)
+    return _scala.scala.camel_to_snake(name)
 
 
 def decode(obj):
-    return _scala().decode(obj)
+    return _scala.scala.decode(obj)
 
 
 def get_methods(obj):
@@ -101,7 +77,7 @@ def get_methods(obj):
         return _method_cache[name]
     else:
         logger.trace(f"Finding methods for {name!r}")
-        res = _scala().methods(obj)
+        res = _scala.scala.methods(obj)
         _method_cache[name] = res
         logger.trace(f"Methods for {name!r} added to cache")
         return res
@@ -113,7 +89,7 @@ def get_wrapper(obj):
     if name in _wrappers:
         logger.trace(f"Found wrapper for {name!r} based on class name")
     else:
-        name = _scala().get_wrapper_str(obj)
+        name = _scala.scala.get_wrapper_str(obj)
         logger.trace(f"Wrapper name is {name!r}")
     wrapper = _wrappers.get(name, proxy.GenericScalaProxy)
     logger.trace(f"Wrapper is {wrapper!r}")
@@ -158,16 +134,15 @@ def to_python(obj):
 
 
 def find_class(path: str):
-    c = _scala().find_class(path)
-    return _scala().find_class(path)
+    return _scala.scala.find_class(path)
 
 
 def assign_id(s: str):
-    return _scala().assign_id(s)
+    return _scala.scala.assign_id(s)
 
 
 def make_varargs(param):
-    return _scala().make_varargs(param)
+    return _scala.scala.make_varargs(param)
 
 
 def _wrap_python_function(fun):
@@ -179,3 +154,59 @@ def _wrap_python_function(fun):
         return to_jvm(proxy.Function2(pickle_bytes))
     else:
         raise ValueError("Only functions with 1 or 2 arguments are currently implemented when passing to scala")
+
+
+class Logger(object):
+    @cached_property
+    def logger(self):
+        _logger = _scala.scala.logger()
+        level = _logger.level()
+        if level < 5:
+            self.trace = self.no_op
+
+        if level < 4:
+            self.debug = self.no_op
+
+        if level < 3:
+            self.info = self.no_op
+
+        if level < 2:
+            self.warn = self.no_op
+
+        if level < 1:
+            self.error = self.no_op
+        return _logger
+
+    def error(self, msg):
+        self.logger.error(msg)
+
+    def warn(self, msg):
+        self.logger.warn(msg)
+
+    def info(self, msg):
+        self.logger.info(msg)
+
+    def debug(self, msg):
+        self.logger.debug(msg)
+
+    def trace(self, msg):
+        self.logger.trace(msg)
+
+    def no_op(self, msg):
+        pass
+
+
+logger = Logger()
+
+
+
+class FunctionWrapper(object):
+    def __init__(self, fun=None):
+        self._fun = fun
+        self.n_args = len(inspect.getfullargspec(fun).args)
+
+    def eval_from_jvm(self, *args):
+        return to_jvm(self(*(to_python(v) for v in args)))
+
+    def __call__(self, *args, **kwargs):
+        return self._fun(*args, **kwargs)

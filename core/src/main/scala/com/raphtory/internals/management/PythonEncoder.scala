@@ -282,6 +282,15 @@ object PythonInterop {
 }
 
 class WrappedLogger(logger: Logger) {
+
+  def level: Int =
+    if (logger.underlying.isTraceEnabled) 5
+    else if (logger.underlying.isDebugEnabled) 4
+    else if (logger.underlying.isInfoEnabled) 3
+    else if (logger.underlying.isWarnEnabled) 2
+    else if (logger.underlying.isErrorEnabled) 1
+    else 0
+
   def info(msg: String): Unit = logger.info(msg)
 
   def debug(msg: String): Unit = logger.debug(msg)
