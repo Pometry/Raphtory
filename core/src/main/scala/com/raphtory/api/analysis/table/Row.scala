@@ -83,8 +83,13 @@ private[raphtory] class RowImplementation extends Row {
     exploded = false
   }
 
-  def release(): Unit = {
-    if (acquired) {
+  def release(): Unit =
+    if (Thread.currentThread().getName != constructedOn)
+      // TODO: Row release is currently broken when constructing rows from python as they are created in python thread but released in Akka message handling thread.
+      logger.warn(
+              s"Row object moved thread, not putting it back in pool, original: $constructedOn, new ${Thread.currentThread().getName}"
+      )
+    else if (acquired) {
       Row.pool.get().append(this)
       acquired = false
       values.clear()
@@ -92,11 +97,6 @@ private[raphtory] class RowImplementation extends Row {
     }
     else
       logger.warn("Row object released multiple times")
-    if (Thread.currentThread().getName != constructedOn)
-      logger.error(
-              s"Row object moved thread, this should never happen!, orignal: $constructedOn, new ${Thread.currentThread().getName}"
-      )
-  }
 
 //  This returns an iterator that returns the Row and then releases the Row on the second invocation of hasNext.
 //  This is used together with flatMap below to make sure that the original row is cleaned up in case of a call to explode
