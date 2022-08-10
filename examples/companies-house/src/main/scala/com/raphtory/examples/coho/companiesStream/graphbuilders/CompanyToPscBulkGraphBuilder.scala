@@ -31,16 +31,20 @@ class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
 
         val pscId = psc.data.get.links.get.self.get.split("/")(5)
 
-     val naturesOfControl: List[String] = psc.data.get.natures_of_control.get
+     val naturesOfControl: String = psc.data.get.natures_of_control.get.head
 
-      def processArray(naturesOfControl : List[String]): Int = naturesOfControl match {
-        case "ownership-of-shares-25-to-50-percent" || "ownership-of-shares-25-to-50-percent-as-trust" || "ownership-of-shares-25-to-50-percent-as-firm" => 25
-        case "ownership-of-shares-50-to-75-percent" || "ownership-of-shares-50-to-75-percent-as-trust" || "ownership-of-shares-50-to-75-percent-as-firm" => 50
-        case "ownership-of-shares-75-to-100-percent" || "ownership-of-shares-75-to-100-percent-as-trust" || "ownership-of-shares-75-to-100-percent-as-firm" => 75
-        case _ => 0
+      def matchControl(statement: String): Int = {
+        statement match {
+          case "ownership-of-shares-25-to-50-percent" | "ownership-of-shares-25-to-50-percent-as-trust" | "ownership-of-shares-25-to-50-percent-as-firm" => 25
+          case "ownership-of-shares-50-to-75-percent" | "ownership-of-shares-50-to-75-percent-as-trust" | "ownership-of-shares-50-to-75-percent-as-firm" => 50
+          case "ownership-of-shares-75-to-100-percent" | "ownership-of-shares-75-to-100-percent-as-trust" | "ownership-of-shares-75-to-100-percent-as-firm" =>  75
+          case _ =>  0
+        }
       }
 
-      val shareOwnership: Int = processArray(naturesOfControl)
+      val shareOwnership = matchControl(naturesOfControl)
+
+
 
         addVertex(
           notifiedOn,
