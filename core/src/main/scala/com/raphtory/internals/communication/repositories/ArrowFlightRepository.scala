@@ -1,6 +1,8 @@
 package com.raphtory.internals.communication.repositories
 
 import akka.actor.typed._
+import cats.effect.Async
+import cats.effect.Resource
 import com.raphtory.arrowmessaging.ArrowFlightMessageSignatureRegistry
 import com.raphtory.internals.communication.connectors._
 import com.raphtory.internals.communication._
@@ -232,22 +234,24 @@ object ArrowFlightRepository {
       }
   }
 
-  def apply(config: Config): TopicRepository = {
-    val akkaConnector        = new AkkaConnector(actorSystem)
-    val pulsarConnector      = PulsarConnector.unsafeApply(config)
-    val arrowFlightConnector = new ArrowFlightConnector(config, signatureRegistry)
-    new TopicRepository(pulsarConnector, pulsarConnector, config) {
-      override def jobOperationsConnector: Connector    = akkaConnector
-      override def jobStatusConnector: Connector        = akkaConnector
-      override def queryPrepConnector: Connector        = akkaConnector
-      override def completedQueriesConnector: Connector = akkaConnector
-      override def watermarkConnector: Connector        = akkaConnector
-      override def rechecksConnector: Connector         = akkaConnector
-      override def queryTrackConnector: Connector       = akkaConnector
-      override def submissionsConnector: Connector      = akkaConnector
-      override def graphSyncConnector: Connector        = arrowFlightConnector
-      override def graphUpdatesConnector: Connector     = arrowFlightConnector
-      override def vertexMessagesConnector: Connector   = arrowFlightConnector
+  def apply[IO[_]: Async](config: Config): Resource[IO, TopicRepository] =
+    for {
+      pulsarConnector <- PulsarConnector[IO](config)
+      akkaConnector   <- AkkaConnector[IO](AkkaConnector.StandaloneMode, config)
+    } yield {
+      val arrowFlightConnector = new ArrowFlightConnector(config, signatureRegistry)
+      new TopicRepository(pulsarConnector, pulsarConnector, config) {
+        override def jobOperationsConnector: Connector    = akkaConnector
+        override def jobStatusConnector: Connector        = akkaConnector
+        override def queryPrepConnector: Connector        = akkaConnector
+        override def completedQueriesConnector: Connector = akkaConnector
+        override def watermarkConnector: Connector        = akkaConnector
+        override def rechecksConnector: Connector         = akkaConnector
+        override def queryTrackConnector: Connector       = akkaConnector
+        override def submissionsConnector: Connector      = akkaConnector
+        override def graphSyncConnector: Connector        = arrowFlightConnector
+        override def graphUpdatesConnector: Connector     = arrowFlightConnector
+        override def vertexMessagesConnector: Connector   = arrowFlightConnector
+      }
     }
-  }
 }

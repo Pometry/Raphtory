@@ -1,6 +1,7 @@
 package com.raphtory
 
 import cats.effect._
+import cats.effect.unsafe.implicits.global
 import com.oblac.nomen.Nomen
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.internals.context.LocalContext
@@ -13,6 +14,7 @@ import com.raphtory.internals.management.id.LocalIDManager
 import com.raphtory.internals.management.id.ZookeeperIDManager
 import com.typesafe.config.Config
 
+import scala.reflect.ClassTag
 import scala.collection.mutable.ArrayBuffer
 
 /**  `Raphtory` object for creating Raphtory Components
