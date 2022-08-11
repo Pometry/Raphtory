@@ -52,7 +52,7 @@ trait SchemaProvider[T] {
 
 trait ArrowFlightSchemaProvider[T] extends SchemaProvider[T]
 
-private[raphtory] case class VertexMessage[T, VertexID](
+case class VertexMessage[T, VertexID](
     superstep: Int,
     vertexId: VertexID,
     data: T

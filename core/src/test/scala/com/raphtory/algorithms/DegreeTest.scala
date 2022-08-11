@@ -8,7 +8,6 @@ import com.raphtory.algorithms.generic.centrality.WeightedDegree
 import com.raphtory.algorithms.temporal.TemporalEdgeList
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
-import com.raphtory.spouts.ResourceSpout
 
 class DegreeTest extends BaseCorrectnessTest(startGraph = true) {
   override def setGraphBuilder(): GraphBuilder[String] = WeightedGraphBuilder()
