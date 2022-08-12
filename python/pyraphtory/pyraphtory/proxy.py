@@ -9,6 +9,11 @@ class ScalaProxyBase(object):
     """Base class for wrapping jvm objects"""
     _jvm_object = None
 
+    @property
+    def jvm(self):
+        """Access the wrapped jvm object directly"""
+        return self._jvm_object
+
 
 class GenericScalaProxy(ScalaProxyBase):
     """Base class for proxy objects that are not constructable from python
