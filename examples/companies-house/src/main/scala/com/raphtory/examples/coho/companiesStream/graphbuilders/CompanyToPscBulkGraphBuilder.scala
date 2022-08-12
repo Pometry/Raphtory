@@ -1,10 +1,9 @@
 package com.raphtory.examples.coho.companiesStream.graphbuilders
 
-import com.raphtory.api.input.{GraphBuilder, ImmutableProperty, IntegerProperty, LongProperty, Properties, Type}
+import com.raphtory.api.input.{GraphBuilder, ImmutableProperty, IntegerProperty, Properties, Type}
 import com.raphtory.examples.coho.companiesStream.rawModel.personsSignificantControl.PersonWithSignificantControlStream
 import com.raphtory.examples.coho.companiesStream.rawModel.personsSignificantControl.PscStreamJsonProtocol.PersonWithSignificantControlStreamFormat
 import spray.json._
-
 import java.time.format.DateTimeFormatter
 import java.time.{LocalDate, LocalTime, ZoneOffset}
 
@@ -21,16 +20,22 @@ class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
   }
     def sendPscToPartitions(psc: PersonWithSignificantControlStream) = {
 
-
-
-        val notifiedOn =
+      val notifiedOn =
           LocalDate.parse(psc.data.get.notified_on.getOrElse("1800-01-01").replaceAll("\"", ""), DateTimeFormatter.ofPattern("yyyy-MM-dd")).toEpochSecond(LocalTime.MIDNIGHT, ZoneOffset.MIN) * 1000
+      val companyNumber = psc.company_number.get
+      val name = psc.data.get.name.get.split(" ")
 
-        val companyNumber = psc.company_number.get
+      var dateOfBirth = "00"
+        if (psc.data.get.date_of_birth.nonEmpty) {
+          dateOfBirth = s"${psc.data.get.date_of_birth.get.month.get}-${psc.data.get.date_of_birth.get.year.get}"
+        }
 
-        val pscId = psc.data.get.links.get.self.get.split("/")(5)
+      val hyphenName = name.head match {
+        case "\"Mr" | "\"Mr." | "\"Mrs" | "\"Mrs." | "\"Miss" | "\"Ms" | "\"Ms." | "\"M/S" | "\"Dr." | "\"Dr" | "\"Lord" => name.slice(1, name.length).mkString("-").replaceAll("\"", "")
+        case _ => name.mkString("-").replaceAll("\"", "")
+      }
+      val nameID = s"$hyphenName-${dateOfBirth}"
 
-     val naturesOfControl: String = psc.data.get.natures_of_control.get.head
 
       def matchControl(statement: String): Int = {
         statement match {
@@ -41,14 +46,14 @@ class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
         }
       }
 
+      val naturesOfControl: String = psc.data.get.natures_of_control.get.head
       val shareOwnership = matchControl(naturesOfControl)
 
         addVertex(
           notifiedOn,
-          assignID(pscId),
-          Properties(ImmutableProperty("name", pscId)),
+          assignID(nameID),
+          Properties(ImmutableProperty("name", nameID)),
           Type("Persons With Significant Control")
-
         )
 
         addVertex(
@@ -56,12 +61,11 @@ class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
           assignID(companyNumber),
           Properties(ImmutableProperty("name", companyNumber)),
           Type("Company")
-
         )
 
         addEdge(
           notifiedOn,
-          assignID(pscId),
+          assignID(nameID),
           assignID(companyNumber),
           Properties(IntegerProperty("weight", shareOwnership)),
           Type("Psc to Company Duration")
