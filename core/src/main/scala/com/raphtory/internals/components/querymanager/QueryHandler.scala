@@ -398,7 +398,7 @@ private[raphtory] class QueryHandler(
 
     timeTaken = System.currentTimeMillis()
     if (perspectiveIsReady(perspective)) {
-      logger.debug(s"Job '$jobID': Created perspective at time $time.")
+      logger.debug(s"Job '$jobID': Created perspective at time ${perspective.timestamp}")
       lastTime = System.currentTimeMillis()
       messagetoAllJobWorkers(CreatePerspective(currentPerspectiveID, perspective))
       Stages.EstablishPerspective
