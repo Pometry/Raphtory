@@ -60,14 +60,6 @@ class GenericScalaProxy(ScalaProxyBase):
         except Exception as e:
             return repr(self._jvm_object)
 
-    """
-    Underlying proxy object without any python methods. Use this to call the java method when creating a wrapper 
-    method in python.
-    """
-    @property
-    def jvm(self):
-        return GenericScalaProxy(self._jvm_object)
-
     def __new__(cls, jvm_object=None):
         if jvm_object is not None:
             if not cls._initialised:
@@ -89,7 +81,11 @@ class MethodProxyDescriptor(object):
 
     def __get__(self, instance, owner=None):
         if instance is None:
-            return owner.__class__.__dict__[self.name].__get__(owner, owner.__class__)
+            # May shadow class method of the same name!
+            try:
+                return owner.__class__.__dict__[self.name].__get__(owner, owner.__class__)
+            except KeyError:
+                raise AttributeError()
         return GenericMethodProxy(self.name, instance._jvm_object, self.methods)
 
 
