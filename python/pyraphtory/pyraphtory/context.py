@@ -37,8 +37,7 @@ class BaseContext(object):
 
     @property
     def rg(self):
-        g = self._rg._jvm_object.loadPythonScript(self.script)
-        return TemporalGraph(g)
+        return self._rg.load_python_script(self.script)
 
     @abstractmethod
     def eval(self):
@@ -49,7 +48,7 @@ class BaseContext(object):
 
     @rg.setter
     def rg(self, value):
-        self._rg = value
+        self._rg = interop.to_python(value)
 
 
 def join(stderr: IO[AnyStr] | None, stdout: IO[AnyStr] | None, logging: bool = False):
