@@ -105,7 +105,7 @@ private[raphtory] class History[T <: IndexedValue] extends HistoryOps[T] {
                     s"Mismatched duplicate element: old=${buffer(foundIndex)}, new=$element"
             )
         case InsertionPoint(insertionPoint) =>
-          History.logger.debug(s"inserting element $element out of order at index $insertionPoint of ${buffer.size}")
+          History.logger.trace(s"inserting element $element out of order at index $insertionPoint of ${buffer.size}")
           buffer.insert(insertionPoint, element)
       }
     }
