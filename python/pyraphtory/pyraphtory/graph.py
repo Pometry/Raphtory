@@ -1,4 +1,4 @@
-from pyraphtory.proxy import GenericScalaProxy, ScalaClassProxy, BuildinAlgorithm
+from pyraphtory.proxy import GenericScalaProxy, ScalaClassProxy, BuiltinAlgorithm
 from pyraphtory.interop import register, logger, to_jvm, find_class
 import pandas as pd
 import json
@@ -40,14 +40,14 @@ class PropertyMergeStrategy(ScalaClassProxy):
 @register(name="TemporalGraph")
 class TemporalGraph(GenericScalaProxy):
     def transform(self, algorithm):
-        if isinstance(algorithm, BuildinAlgorithm):
-            return self.jvm.transform(algorithm)
+        if isinstance(algorithm, BuiltinAlgorithm):
+            return super().transform(algorithm)
         else:
-            return algorithm(self)
+            return algorithm(self).with_transformed_name(algorithm.__class__.__name__)
 
     def execute(self, algorithm):
-        if isinstance(algorithm, BuildinAlgorithm):
-            return self.jvm.execute(algorithm)
+        if isinstance(algorithm, BuiltinAlgorithm):
+            return super().execute(algorithm)
         else:
             return algorithm.tabularise(self.transform(algorithm))
 

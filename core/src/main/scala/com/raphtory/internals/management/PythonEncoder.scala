@@ -236,7 +236,7 @@ object PythonInterop {
   def make_varargs(obj: Iterable[Any]): Array[Object] =
     obj.toArray.map(_.asInstanceOf[Object])
 
-  def methods(obj: Any): Map[String, Array[Method]] = {
+  def methods(obj: Any): util.Map[String, Array[Method]] = {
     logger.trace(s"Scala 'methods' called with $obj")
     val prefixedMethodDict         = mutable.Map.empty[String, mutable.ArrayBuffer[java.lang.reflect.Method]]
     val prefixedMethodDefaultsDict = mutable.Map.empty[String, mutable.Map[Int, java.lang.reflect.Method]]
@@ -253,28 +253,31 @@ object PythonInterop {
           .addOne(defaultIndex, m)
       }
     }
-    val res                        = prefixedMethodDict.map {
-      case (name, methods) =>
-        val defaults = prefixedMethodDefaultsDict.get(name) match {
-          case Some(v) => v.toMap
-          case None    => Map.empty[Int, java.lang.reflect.Method]
-        }
+    val res                        = prefixedMethodDict
+      .map {
+        case (name, methods) =>
+          val defaults = prefixedMethodDefaultsDict.get(name) match {
+            case Some(v) => v.toMap
+            case None    => Map.empty[Int, java.lang.reflect.Method]
+          }
 
-        name -> methods.map { m =>
-          val hasVarArgs  = m.isVarArgs
-          val paramsNames = m.getParameters.map(p => camel_to_snake(p.getName))
+          name -> methods.map { m =>
+            val hasVarArgs  = m.isVarArgs
+            val paramsNames = m.getParameters.map(p => camel_to_snake(p.getName))
 
-          val n = m.getParameterCount
-          if (
-                  defaults.forall {
-                    case (i, d) => i < m.getParameterCount && m.getParameterTypes()(i) == d.getReturnType
-                  }
-          )
-            Method(m.getName, n, paramsNames, defaults.view.mapValues(_.getName).toMap, hasVarArgs)
-          else
-            Method(m.getName, n, paramsNames, Map.empty[Int, String], hasVarArgs)
-        }.toArray
-    }.toMap
+            val n = m.getParameterCount
+            if (
+                    defaults.forall {
+                      case (i, d) => i < m.getParameterCount && m.getParameterTypes()(i) == d.getReturnType
+                    }
+            )
+              Method(m.getName, n, paramsNames, defaults.view.mapValues(_.getName).toMap, hasVarArgs)
+            else
+              Method(m.getName, n, paramsNames, Map.empty[Int, String], hasVarArgs)
+          }.toArray
+      }
+      .toMap
+      .asJava
     logger.trace(s"Returning found methods for $obj")
     res
   }

@@ -23,10 +23,6 @@ class Properties(ScalaClassProxy):
 
 
 class BaseBuilder(GenericScalaProxy):
-    def __init__(self):
-        # logger.trace("initialising GraphBuilder")
-        super().__init__(None)
-
     # TODO: This should hopefully not be necessary soon and we can construct it normally
     def _set_jvm_builder(self, jvm_builder):
         self._jvm_object = jvm_builder

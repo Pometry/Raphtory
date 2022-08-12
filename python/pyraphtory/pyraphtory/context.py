@@ -65,7 +65,7 @@ def join(stderr: IO[AnyStr] | None, stdout: IO[AnyStr] | None, logging: bool = F
 
 
 class PyRaphtory(object):
-    algorithms = proxy.BuildinAlgorithm("com.raphtory.algorithms")
+    algorithms = proxy.BuiltinAlgorithm("com.raphtory.algorithms")
 
     def __init__(self, spout_input: Path, builder_script: Path, builder_class: str, mode: str, logging: bool = False):
         jar_location = Path(inspect.getfile(self.__class__)).parent.parent
@@ -132,8 +132,7 @@ class PyRaphtory(object):
 
     def graph(self):
         try:
-            jvm_graph = self.j_gateway.entry_point.raphtoryGraph()
-            return TemporalGraph(jvm_graph)
+            return interop.to_python(self.j_gateway.entry_point.raphtoryGraph())
         except Py4JJavaError as err:
             print(str(err.__str__().encode('utf-8')))
             raise err

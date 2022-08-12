@@ -7,10 +7,6 @@ import cloudpickle as pickle
 from functools import cached_property
 
 
-
-
-
-
 def register(cls=None, *, name=None):
     if cls is None:
         return lambda x: register(x, name=name)
@@ -86,12 +82,18 @@ def get_methods(obj):
 def get_wrapper(obj):
     name = obj.getClass().getName()
     logger.trace(f"Retrieving wrapper for {name!r}")
-    if name in _wrappers:
+    try:
+        wrapper = _wrappers[name]
         logger.trace(f"Found wrapper for {name!r} based on class name")
-    else:
-        name = _scala.scala.get_wrapper_str(obj)
-        logger.trace(f"Wrapper name is {name!r}")
-    wrapper = _wrappers.get(name, proxy.GenericScalaProxy)
+    except KeyError:
+        base = type(name + "_jvm", (proxy.GenericScalaProxy,), {"_classname": name})
+        base._init_methods(obj)
+        wrap_name = _scala.scala.get_wrapper_str(obj)
+        if wrap_name in _wrappers:
+            wrapper = type(name, (_wrappers[wrap_name], base), {"_classname": name})
+        else:
+            wrapper = base
+        logger.trace(f"New wrapper created for {name!r}")
     logger.trace(f"Wrapper is {wrapper!r}")
     return wrapper
 
@@ -100,12 +102,15 @@ def to_jvm(value):
     if is_PyJObject(value):
         logger.trace(f"Converting value {value!r}, already PyJObject")
         return decode(value)
-    elif isinstance(value, proxy.BuildinAlgorithm):
+    elif isinstance(value, proxy.BuiltinAlgorithm):
         logger.trace(f"Converting value {value!r}, finding object based on algorithm path")
         return find_class(value._path)
     elif isinstance(value, proxy.ScalaProxyBase):
         logger.trace(f"Converting value {value!r}, decoding proxy object")
-        return decode(value._jvm_object)
+        if value._jvm_object is None:
+            return find_class(value._classname)
+        else:
+            return value._jvm_object
     elif isinstance(value, Mapping):
         logger.trace(f"Converting value {value!r}, decoding as Mapping")
         return decode({to_jvm(k): to_jvm(v) for k, v in value.items()})
@@ -197,7 +202,6 @@ class Logger(object):
 
 
 logger = Logger()
-
 
 
 class FunctionWrapper(object):
