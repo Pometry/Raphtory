@@ -4,12 +4,16 @@ import cats.effect._
 import com.oblac.nomen.Nomen
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.internals.context.LocalContext
+import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.internals.context.RemoteContext
+import com.raphtory.internals.context.LocalContext.createName
 import com.raphtory.internals.management._
 import com.raphtory.internals.management.id.IDManager
 import com.raphtory.internals.management.id.LocalIDManager
 import com.raphtory.internals.management.id.ZookeeperIDManager
 import com.typesafe.config.Config
+
+import scala.collection.mutable.ArrayBuffer
 
 /**  `Raphtory` object for creating Raphtory Components
   *
@@ -38,8 +42,26 @@ import com.typesafe.config.Config
   */
 object Raphtory {
 
-  def localContext(): LocalContext                       = new LocalContext()
-  def remoteContext(deploymentID: String): RemoteContext = new RemoteContext(deploymentID)
+  private val remoteConnections = ArrayBuffer[RemoteContext]()
+
+  def newGraph(graphID: String = createName, customConfig: Map[String, Any] = Map()): DeployedTemporalGraph =
+    LocalContext.newGraph(graphID, customConfig)
+
+  def newIOGraph(
+      graphID: String = createName,
+      customConfig: Map[String, Any] = Map()
+  ): Resource[IO, DeployedTemporalGraph] = LocalContext.newIOGraph(graphID, customConfig)
+
+  def getGraph(graphID: String): Option[DeployedTemporalGraph] = LocalContext.getGraph(graphID)
+
+  def connect(deploymentID: String): RaphtoryContext = {
+    val context = new RemoteContext(deploymentID)
+    remoteConnections += context
+    context
+  }
+
+  def closeGraphs(): Unit      = LocalContext.close()
+  def closeConnections(): Unit = remoteConnections.foreach(_.close())
 
   /** Returns a default config using `ConfigFactory` for initialising parameters for
     * running Raphtory components. This uses the default application parameters

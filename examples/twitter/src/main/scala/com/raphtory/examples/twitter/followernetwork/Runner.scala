@@ -22,7 +22,7 @@ object Runner extends App {
   val spout   = StaticGraphSpout(path)
   val builder = new TwitterCirclesGraphBuilder()
   val source  = Source(spout, builder)
-  val graph   = Raphtory.localContext().newGraph()
+  val graph   = Raphtory.newGraph()
   graph.ingest(source)
   Using(graph) { graph =>
     graph

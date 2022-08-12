@@ -23,23 +23,27 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   protected def establishService(component: String, graphID: String, func: (String, Config) => Unit): Unit =
-    deployments.get(graphID) match {
-      case Some(value) => logger.info(s"$component for graph $graphID already exists")
-      case None        =>
-        logger.info(s"Deploying new $component for graph: $graphID")
-        val graphConf = conf.withValue(
-                "raphtory.graph.id",
-                ConfigValueFactory.fromAnyRef(graphID)
-        )
-        val service   = func(graphID, graphConf)
+    deployments.synchronized {
+      deployments.get(graphID) match {
+        case Some(_) => logger.info(s"$component for graph $graphID already exists")
+        case None    =>
+          logger.info(s"Deploying new $component for graph: $graphID")
+          val graphConf = conf.withValue(
+                  "raphtory.graph.id",
+                  ConfigValueFactory.fromAnyRef(graphID)
+          )
+          func(graphID, graphConf)
+      }
     }
 
   protected def destroyGraph(graphID: String): Unit =
-    deployments.remove(graphID) match {
-      case Some(deployment) =>
-        logger.info(s"Destroying Graph $graphID")
-        deployment.unsafeRunSync()
-      case None             => logger.warn(s"Graph $graphID requested for destruction, but did not exist")
+    deployments.synchronized {
+      deployments.remove(graphID) match {
+        case Some(deployment) =>
+          logger.info(s"Destroying Graph $graphID")
+          deployment.unsafeRunSync()
+        case None             => logger.warn(s"Graph $graphID requested for destruction, but did not exist")
+      }
     }
 
   override private[raphtory] def stop(): Unit =
@@ -65,7 +69,9 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
           _                  <- QueryManager[IO](graphConf, repo)
         } yield ()
         val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
-        deployments += ((graphID, shutdown))
+        deployments.synchronized {
+          deployments += ((graphID, shutdown))
+        }
     }
 
   protected def deployPartitionService(graphID: String, graphConf: Config): Unit = {
@@ -76,7 +82,9 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
       _                  <- PartitionOrchestrator.spawn[IO](graphConf, partitionIdManager, repo, scheduler)
     } yield ()
     val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
-    deployments += ((graphID, shutdown))
+    deployments.synchronized {
+      deployments += ((graphID, shutdown))
+    }
   }
 
   protected def deployIngestionService(graphID: String, graphConf: Config): Unit = {
@@ -85,7 +93,9 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
       _    <- IngestionManager[IO](graphConf, repo)
     } yield ()
     val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
-    deployments += ((graphID, shutdown))
+    deployments.synchronized {
+      deployments += ((graphID, shutdown))
+    }
   }
 
   protected def deployQueryService(graphID: String, graphConf: Config): Unit = {
@@ -94,7 +104,9 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
       _    <- QueryManager[IO](graphConf, repo)
     } yield ()
     val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
-    deployments += ((graphID, shutdown))
+    deployments.synchronized {
+      deployments += ((graphID, shutdown))
+    }
   }
 
 }

@@ -31,7 +31,7 @@ object Runner extends App {
   val spout: StaticGraphSpout = StaticGraphSpout("/tmp/facebook.csv")
   val builder                 = new FacebookGraphBuilder()
   val source                  = Source(spout, builder)
-  val graph                   = Raphtory.localContext().newGraph()
+  val graph                   = Raphtory.newGraph()
   graph.ingest(source)
 
   Using(graph) { graph =>

@@ -19,7 +19,7 @@ object Runner extends App {
   val spout: Spout[String] = FileSpout(path)
   val builder              = new GabUserGraphBuilder()
   val source               = Source(spout, builder)
-  val rg                   = Raphtory.localContext().newGraph()
+  val rg                   = Raphtory.newGraph()
   rg.ingest(source)
 
   try {

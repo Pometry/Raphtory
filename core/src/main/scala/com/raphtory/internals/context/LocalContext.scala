@@ -18,28 +18,39 @@ import com.raphtory.internals.components.partition.PartitionOrchestrator
 
 import scala.collection.mutable
 
-class LocalContext() extends RaphtoryContext {
-  private var localServices: mutable.Map[String, Service] = mutable.Map.empty[String, Service]
+private[raphtory] object LocalContext extends RaphtoryContext {
 
-  def newGraph(graphID: String = createName, customConfig: Map[String, Any] = Map()): DeployedTemporalGraph = {
-    val ((client, config), shutdown) =
-      deployLocalGraph[IO](graphID, customConfig).allocated.unsafeRunSync()
-    new DeployedTemporalGraph(Query(), client, config, shutdown)
-  }
+  def newGraph(graphID: String = createName, customConfig: Map[String, Any] = Map()): DeployedTemporalGraph =
+    services.synchronized {
+      val config                  = confBuilder(Map("raphtory.graph.id" -> graphID) ++ customConfig)
+      val graph                   = deployService(graphID, config)
+      services.get(graphID) match {
+        case Some(_) =>
+          throw new GraphAlreadyDeployedException(s"The graph $graphID already exists")
+        case None    =>
+          logger.info(s"Creating Service for $graphID")
+      }
+      val (querySender, shutdown) = graph.allocated.unsafeRunSync()
+      val deployed                = new DeployedTemporalGraph(Query(), querySender, config, shutdown)
+      val deployment              = Deployment(Metadata(graphID, config), deployed)
+      services += ((graphID, deployment))
+      deployed
+    }
 
   def newIOGraph(
       graphID: String = createName,
       customConfig: Map[String, Any] = Map()
-  ): Resource[IO, DeployedTemporalGraph] =
-    deployLocalGraph[IO](graphID, customConfig).map {
-      case (qs, config) =>
-        new DeployedTemporalGraph(Query(), qs, config, shutdown = IO.unit)
+  ): Resource[IO, DeployedTemporalGraph] = {
+    val config = confBuilder(Map("raphtory.graph.id" -> graphID) ++ customConfig)
+    deployService(graphID, config).map { qs: QuerySender =>
+      new DeployedTemporalGraph(Query(), qs, config, shutdown = IO.unit)
     }
+  }
 
-  private def deployLocalService(graphID: String, config: Config): Service = {
-    val scheduler       = new Scheduler()
-    val prometheusPort  = config.getInt("raphtory.prometheus.metrics.port")
-    val serviceResource = for {
+  private def deployService(graphID: String, config: Config): Resource[IO, QuerySender] = {
+    val scheduler      = new Scheduler()
+    val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
+    for {
       _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
       topicRepo          <- LocalTopicRepository[IO](config)
       partitionIdManager <- makePartitionIdManager[IO](config, localDeployment = true, graphID)
@@ -47,49 +58,11 @@ class LocalContext() extends RaphtoryContext {
       _                  <- IngestionManager[IO](config, topicRepo)
       _                  <- QueryManager[IO](config, topicRepo)
     } yield new QuerySender(scheduler, topicRepo, config)
-
-    val (client, shutdown) = serviceResource.allocated.unsafeRunSync()
-    Service(client, graphID, config, shutdown)
   }
-
-  private def deployLocalGraph[IO[_]](
-      graphID: String,
-      customConfig: Map[String, Any]
-  )(implicit
-      IO: Async[IO]
-  ): Resource[IO, (QuerySender, Config)] =
-    Resource.make {
-      val config = confBuilder(Map("raphtory.graph.id" -> graphID) ++ customConfig)
-      IO.delay {
-        localServices.synchronized {
-          localServices.get(graphID) match {
-            case Some(service) =>
-              logger.info(s"Requested Graph $graphID already exists, returning service")
-              (service.client, config)
-            case None          =>
-              logger.debug(s"Creating Service for $graphID")
-              val service = deployLocalService(graphID, config)
-              localServices += ((graphID, service))
-              (service.client, config)
-
-          }
-        }
-      }
-    } { service =>
-      IO.delay {
-        localServices.synchronized {
-          localServices.get(graphID) match {
-            case Some(service) =>
-              service.shutdown.unsafeRunSync()
-              localServices.remove(graphID)
-            case None          => //already closed?
-          }
-        }
-      }
-    }
 
   override def close(): Unit = {
-    localServices.foreach(service => service._2.shutdown.unsafeRunSync())
-    localServices = mutable.Map.empty[String, Service]
+    services.values.foreach(deployment => deployment.deployed.close())
+    services = mutable.Map.empty[String, Deployment]
   }
+
 }

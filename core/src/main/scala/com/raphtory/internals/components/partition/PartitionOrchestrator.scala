@@ -58,9 +58,7 @@ object PartitionOrchestrator {
 
     logger.info(s"Creating '$totalPartitions' Partition Managers for $graphID.")
 
-    val partitions: Iterable[Int] = 0 until totalPartitions
-
-    partitions
+    (0 until totalPartitions)
       .map { i =>
         for {
           partitionId <- Resource.eval(nextId(partitionIDManager))

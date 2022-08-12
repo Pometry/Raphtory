@@ -37,8 +37,8 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   val outputDirectory: String = "/tmp/raphtoryTest"
   def defaultSink: Sink       = FileSink(outputDirectory)
 
-  private def graph: Resource[IO, TemporalGraph] =
-    Raphtory.localContext().newIOGraph()
+  private def graph: Resource[IO, DeployedTemporalGraph] =
+    Raphtory.newIOGraph()
 
   val withGraph: SyncIO[FunFixture[TemporalGraph]] = ResourceFixture(
           for {
@@ -48,7 +48,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           } yield g
   )
 
-  val suiteGraph: Fixture[TemporalGraph] = ResourceSuiteLocalFixture(
+  val suiteGraph: Fixture[DeployedTemporalGraph] = ResourceSuiteLocalFixture(
           "graph",
           for {
             _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
@@ -57,7 +57,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           } yield g
   )
 
-  def graphS: TemporalGraph = suiteGraph()
+  def graphS: DeployedTemporalGraph = suiteGraph()
 
   override def munitFixtures = List(suiteGraph)
 

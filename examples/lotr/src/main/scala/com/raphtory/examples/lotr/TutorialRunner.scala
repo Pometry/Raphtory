@@ -22,11 +22,10 @@ object TutorialRunner extends App {
   //System.err.close()
 
   //val context = Raphtory.remoteContext("test")
-  val context = Raphtory.localContext()
-  val graph   = context.newGraph()
-  val path    = "/tmp/lotr.csv"
-  val url     = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
-  val source  = Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder())
+  val graph  = Raphtory.newGraph()
+  val path   = "/tmp/lotr.csv"
+  val url    = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
+  val source = Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder())
   graph.ingest(source)
   addLOTRData(graph)
   //val graph2  = context.newGraph()
@@ -50,7 +49,6 @@ object TutorialRunner extends App {
   //context.destroyRemoteGraph(graph2.getID)
   graph.close()
   //graph2.close()
-  context.close()
 
   def addLOTRData(graph: DeployedTemporalGraph) = {
 

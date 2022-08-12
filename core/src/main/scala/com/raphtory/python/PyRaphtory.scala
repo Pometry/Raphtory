@@ -90,10 +90,10 @@
 //    def bootRaphtory(loadingMode: LoadingMode, path: Path, builder: GraphBuilder[String]) =
 //      loadingMode match {
 //        case Streaming =>
-//          val graph: TemporalGraph = Raphtory.localContext().newGraph()
+//          val graph: TemporalGraph = Raphtory.newGraph()
 //          graph.ingest(com.raphtory.api.input.Source(FileSpout(path.toString), builder))
 //        case Batch     =>
-//          val graph: TemporalGraph = Raphtory.localContext().newGraph()
+//          val graph: TemporalGraph = Raphtory.newGraph()
 //          graph.ingest(com.raphtory.api.input.Source(FileSpout(path.toString), builder))
 //      }
 //

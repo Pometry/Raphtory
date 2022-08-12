@@ -1,29 +1,41 @@
 package com.raphtory.internals.context
 
-import cats.effect.Async
 import cats.effect.IO
-import cats.effect.Resource
 import com.oblac.nomen.Nomen
-import com.raphtory.Raphtory.makePartitionIdManager
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
-import com.raphtory.internals.communication.repositories.LocalTopicRepository
-import com.raphtory.internals.components.ingestion.IngestionManager
-import com.raphtory.internals.components.querymanager.Query
-import com.raphtory.internals.components.querymanager.QueryManager
 import com.raphtory.internals.management._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
-abstract class RaphtoryContext {
-  protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+import scala.collection.mutable
 
-  def newGraph(name: String = createName, customConfig: Map[String, Any] = Map()): DeployedTemporalGraph
+abstract class RaphtoryContext {
+
+  protected case class Metadata(
+      graphID: String,
+      conf: Config
+  )
+
+  protected case class Deployment(metadata: Metadata, deployed: DeployedTemporalGraph)
+
+  private[raphtory] class GraphAlreadyDeployedException(message: String) extends Exception(message)
+
+  protected val logger: Logger                            = Logger(LoggerFactory.getLogger(this.getClass))
+  protected var services: mutable.Map[String, Deployment] = mutable.Map.empty[String, Deployment]
+
+  def newGraph(graphID: String = createName, customConfig: Map[String, Any] = Map()): DeployedTemporalGraph
+
+  def getGraph(graphID: String): Option[DeployedTemporalGraph] =
+    services.synchronized(services.get(graphID) match {
+      case Some(deployment) => Some(deployment.deployed)
+      case None             => None
+    })
 
   protected def createName: String =
     Nomen.est().adjective().color().animal().get()
 
-  def close()
+  def close(): Unit
 
   private[raphtory] def confBuilder(
       customConfig: Map[String, Any] = Map()

@@ -24,19 +24,23 @@ class IngestionManager(
 
   override def handleMessage(msg: IngestData): Unit =
     msg match { //TODO disconnect/destroy source
-      case IngestData(loader, graphID, sources) =>
+      case IngestData(_, graphID, sources) =>
         logger.info(s"Ingestion Manager for $graphID establishing new data source")
-        sources foreach { source =>
-          val ingestionResource    = IngestionExecutor[IO](graphID, source, conf, topics)
-          val (_, ingestionCancel) = ingestionResource.allocated.unsafeRunSync()
-          executors += ingestionCancel
+        executors.synchronized {
+          sources foreach { source =>
+            val ingestionResource    = IngestionExecutor[IO](graphID, source, conf, topics)
+            val (_, ingestionCancel) = ingestionResource.allocated.unsafeRunSync()
+            executors += ingestionCancel
+          }
         }
     }
 
   override private[raphtory] def run(): Unit = logger.debug(s"Starting IngestionManager")
 
   override private[raphtory] def stop(): Unit =
-    executors.foreach(executor => executor.unsafeRunSync())
+    executors.synchronized {
+      executors.foreach(executor => executor.unsafeRunSync())
+    }
 }
 
 object IngestionManager {

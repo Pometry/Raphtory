@@ -19,7 +19,7 @@ object Runner extends App {
   val spout   = FileSpout(path)
   val builder = new EnronGraphBuilder()
   val source  = Source(spout, builder)
-  val graph   = Raphtory.localContext().newGraph()
+  val graph   = Raphtory.newGraph()
   graph.ingest(source)
   try {
     graph

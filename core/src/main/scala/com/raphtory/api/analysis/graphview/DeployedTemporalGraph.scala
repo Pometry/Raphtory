@@ -25,7 +25,10 @@ class DeployedTemporalGraph private[raphtory] (
 ) extends TemporalGraph(query, querySender, conf)
         with AutoCloseable {
 
-  def config: Config         = conf
-  def getID: String          = conf.getString("raphtory.graph.id")
-  override def close(): Unit = shutdown.unsafeRunSync()
+  def config: Config = conf
+  def getID: String  = conf.getString("raphtory.graph.id")
+
+  override def close(): Unit =
+    shutdown.unsafeRunSync()
+
 }

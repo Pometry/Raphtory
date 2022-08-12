@@ -3,9 +3,8 @@ package com.raphtory.internals.context
 import cats.effect.IO
 import cats.effect.Resource
 import com.raphtory.Raphtory.confBuilder
-import com.raphtory.Raphtory.remoteContext
+import com.raphtory.Raphtory.connect
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
-import com.raphtory.api.analysis.graphview.TemporalGraphConnection
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
@@ -21,9 +20,6 @@ import scala.collection.mutable
 
 class RemoteContext(deploymentID: String) extends RaphtoryContext {
 
-  private val remoteServices: mutable.Map[String, (DeployedTemporalGraph, QuerySender)] =
-    mutable.Map.empty[String, (DeployedTemporalGraph, QuerySender)]
-
   private def connectManaged(
       graphID: String,
       customConfig: Map[String, Any] = Map()
@@ -38,33 +34,24 @@ class RemoteContext(deploymentID: String) extends RaphtoryContext {
   }
 
   override def newGraph(graphID: String, customConfig: Map[String, Any]): DeployedTemporalGraph =
-    remoteServices.get(graphID) match {
-      case Some(graph) => graph._1
-      case None        =>
+    services.synchronized(services.get(graphID) match {
+      case Some(_) => throw new GraphAlreadyDeployedException(s"The graph $graphID already exists")
+      case None    =>
         val managed: IO[((TopicRepository, Config), IO[Unit])] = connectManaged(graphID, customConfig).allocated
         val ((topicRepo, config), shutdown)                    = managed.unsafeRunSync()
         val querySender                                        = new QuerySender(new Scheduler(), topicRepo, config)
-        val graph                                              =
-          new DeployedTemporalGraph(Query(), querySender, config, shutdown)
-        remoteServices += ((graphID, (graph, querySender)))
+        val graph                                              = Metadata(graphID, config)
+        val deployed                                           = new DeployedTemporalGraph(Query(), querySender, config, shutdown)
+        val deployment                                         = Deployment(graph, deployed)
+        services += ((graphID, deployment))
         querySender.establishGraph()
-        graph
-    }
-
-  def destroyRemoteGraph(graphID: String): Unit =
-    remoteServices.remove(graphID) match {
-      case Some(graph) =>
-        graph._2.destroyGraph()
-        graph._1.close()
-      case None        => logger.warn(s"Trying to destroy remote graph $graphID, but it does not exist")
-    }
+        deployed
+    })
 
   override def close(): Unit =
-    remoteServices.keys.foreach(graphID =>
-      remoteServices.remove(graphID) match {
-        case Some(graph) => graph._1.close()
-        case None        =>
-      }
-    )
+    services.synchronized {
+      services.values.foreach(_.deployed.close())
+      services = mutable.Map.empty[String, Deployment]
+    }
 
 }

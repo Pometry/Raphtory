@@ -87,7 +87,6 @@ class AccumulatorTest extends BaseCorrectnessTest(startGraph = true) {
 
   test("Test nodeCount on graph state is consistent for multiple perspectives") {
     Raphtory
-      .localContext()
       .newIOGraph(customConfig =
         Map("raphtory.prometheus.metrics.port" -> 0)
       ) // this makes prometheus start on a random unused port

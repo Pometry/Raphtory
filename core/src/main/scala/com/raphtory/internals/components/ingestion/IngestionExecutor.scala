@@ -57,7 +57,7 @@ private[raphtory] class IngestionExecutor(
       fileLinesSent.inc()
       index = index + 1
       if (index % 100_000 == 0)
-        logger.debug(s"Spout: sent $index messages.")
+        logger.debug(s"Source: sent $index messages.")
       sourceInstance.sendUpdates(index, failOnError)
     }
     if (sourceInstance.spoutReschedules())
@@ -66,7 +66,7 @@ private[raphtory] class IngestionExecutor(
 
   private def reschedule(): Unit = {
     // TODO: Parameterise the delay
-    logger.trace("Spout: Scheduling spout to poll again in 10 seconds.")
+    logger.trace("Spout: Scheduling spout to poll again in 1 seconds.")
     scheduledRun = Option(scheduler.scheduleOnce(1.seconds, rescheduler()))
   }
 

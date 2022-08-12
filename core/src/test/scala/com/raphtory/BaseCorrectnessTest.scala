@@ -33,12 +33,6 @@ abstract class BaseCorrectnessTest(
       TestUtils.getResults(outputDirectory, tracker.getJobId)
     }
 
-//  private def normaliseResults(results: IterableOnce[String]): collection.Map[String, Int] = {
-//    val map = mutable.Map.empty[String, Int].withDefaultValue(0)
-//    results.iterator.foreach(result => map(result) += 1)
-//    map
-//  }
-
   private def normaliseResults(value: IterableOnce[String]) =
     value.iterator.toList.sorted.mkString("\n")
 
@@ -70,7 +64,6 @@ abstract class BaseCorrectnessTest(
       resultsResource: String
   ): IO[Unit] =
     Raphtory
-      .localContext()
       .newIOGraph()
       .use { g =>
         g.ingest(Source(ResourceSpout(graphResource), setGraphBuilder()))
@@ -84,7 +77,6 @@ abstract class BaseCorrectnessTest(
       results: Seq[String]
   ): IO[Unit] =
     Raphtory
-      .localContext()
       .newIOGraph()
       .use { g =>
         g.ingest(Source(SequenceSpout(graphEdges: _*), setGraphBuilder()))

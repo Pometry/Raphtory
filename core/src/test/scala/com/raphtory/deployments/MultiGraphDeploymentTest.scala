@@ -45,8 +45,7 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
     files
       .use { files =>
         IO.delay {
-          val context     = new LocalContext()
-          val lotrGraph   = context.newGraph()
+          val lotrGraph   = Raphtory.newGraph()
           lotrGraph.ingest(Source(lotrSpout, lotrBuilder))
           val lotrTracker = lotrGraph
             .range(1, 32674, 10000)
@@ -54,7 +53,7 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
             .execute(ConnectedComponents())
             .writeTo(defaultSink)
 
-          val facebookGraph = context.newGraph()
+          val facebookGraph = Raphtory.newGraph()
           facebookGraph.ingest(Source(facebookSpout, facebookBuilder))
 
           val facebookTracker = facebookGraph
@@ -68,7 +67,8 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
 
           lotrTracker.waitForJob()
           val lotrHash = TestUtils.generateTestHash(outputDirectory, lotrTracker.getJobId)
-          context.close()
+          lotrGraph.close()
+          facebookGraph.close()
           (lotrHash, facebookHash)
         }
       }

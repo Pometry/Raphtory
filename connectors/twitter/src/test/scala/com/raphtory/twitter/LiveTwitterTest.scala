@@ -34,7 +34,7 @@ object LiveTwitterTest extends IOApp {
         new LiveTwitterUserGraphBuilder()
 
     val source = Source(spout, graphBuilder)
-    val graph  = Raphtory.localContext().newIOGraph()
+    val graph  = Raphtory.newIOGraph()
 
     graph.use { graph =>
       IO {

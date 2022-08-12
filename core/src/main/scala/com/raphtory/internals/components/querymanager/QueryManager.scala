@@ -21,7 +21,6 @@ private[raphtory] class QueryManager(
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val currentQueries = mutable.Map[String, QueryHandler]()
-  private val partitions     = topics.partitionSetup.endPoint
   private val ingestion      = topics.ingestSetup.endPoint
 
   //private val watermarkGlobal                           = pulsarController.globalwatermarkPublisher() TODO: turn back on when needed
@@ -31,7 +30,7 @@ private[raphtory] class QueryManager(
   override def run(): Unit = logger.debug("Starting Query Manager Consumer.")
 
   override def stop(): Unit =
-    currentQueries.foreach(_._2.stop())
+    currentQueries.synchronized(currentQueries.foreach(_._2.stop()))
   // watermarkGlobal.close() TODO: turn back on when needed
 
   override def handleMessage(msg: QueryManagement): Unit =
@@ -45,11 +44,13 @@ private[raphtory] class QueryManager(
         trackNewQuery(jobID, queryHandler)
 
       case req: EndQuery            =>
-        currentQueries.get(req.jobID) match {
-          case Some(queryhandler) =>
-            queryhandler.stop()
-            currentQueries.remove(req.jobID)
-          case None               => //sender ! QueryNotPresent(req.jobID)
+        currentQueries.synchronized {
+          currentQueries.get(req.jobID) match {
+            case Some(queryhandler) =>
+              queryhandler.stop()
+              currentQueries.remove(req.jobID)
+            case None               => //sender ! QueryNotPresent(req.jobID)
+          }
         }
       case watermark: WatermarkTime =>
 //        logger.trace(
@@ -77,7 +78,7 @@ private[raphtory] class QueryManager(
 
   private def trackNewQuery(jobID: String, queryHandler: QueryHandler): Unit =
     //sender() ! ManagingTask(queryHandler)
-    currentQueries += ((jobID, queryHandler))
+    currentQueries.synchronized(currentQueries += ((jobID, queryHandler)))
 
   def latestTime(graphID: String): Long = {
     val watermark = if (watermarks(graphID).size == totalPartitions) {

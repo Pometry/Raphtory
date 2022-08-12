@@ -25,7 +25,7 @@ object Runner extends App {
 //  val builder = new CompaniesStreamRawGraphBuilder()
   val builder             = new CompaniesStreamPersonGraphBuilder()
   val source              = Source(spout, builder)
-  val context             = Raphtory.localContext()
+  val context             = Raphtory
   val graph               = context.newGraph()
   graph.ingest(source)
 
