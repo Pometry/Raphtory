@@ -42,6 +42,7 @@ class Scala(object):
         return findClass('com.raphtory.internals.management.PythonInterop')
 
     def set_interop(self, obj):
+        """override the default lookup property for initialisation with py4j"""
         self.__dict__["scala"] = obj
 
 
