@@ -101,10 +101,7 @@ def get_wrapper(obj):
 def to_jvm(value):
     if is_PyJObject(value):
         logger.trace(f"Converting value {value!r}, already PyJObject")
-        return decode(value)
-    elif isinstance(value, proxy.BuiltinAlgorithm):
-        logger.trace(f"Converting value {value!r}, finding object based on algorithm path")
-        return find_class(value._path)
+        return value
     elif isinstance(value, proxy.ScalaProxyBase):
         logger.trace(f"Converting value {value!r}, decoding proxy object")
         if value._jvm_object is None:
