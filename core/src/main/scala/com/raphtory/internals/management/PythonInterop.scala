@@ -19,24 +19,30 @@ import scala.jdk.CollectionConverters._
 import scala.reflect.runtime.universe
 import scala.util.Random
 
+/** Scala-side methods for interfacing with Python */
 object PythonInterop {
   val logger: WrappedLogger = new WrappedLogger(Logger(LoggerFactory.getLogger(this.getClass)))
 
+  /** make assign_id accessible from python */
   def assign_id(s: String): Long =
     GraphBuilder.assignID(s)
 
+  /** convert names from camel to snake case */
   def camel_to_snake(s: String): String =
     PythonEncoder.camelToSnakeCase(s)
 
-  def testArgs(args: Any): Unit =
-    println(s"testArgs($args)")
-
+  /** used to convert java objects to scala objects when passing through python collections
+    * (define more converters as needed)
+    */
   def decode[T](obj: Any): T =
     (obj match {
       case obj: java.util.ArrayList[_] => obj.asScala
       case obj                         => obj
     }).asInstanceOf[T]
 
+  /** Look up name of python wrapper based on input type
+    * (used to provide specialised wrappers for categories of types rather than specific classes)
+    */
   def get_wrapper_str(obj: Any): String =
     obj match {
       case _: Iterable[_]       => "Iterable"
@@ -49,6 +55,9 @@ object PythonInterop {
       case _                    => "None"
     }
 
+  /** Find the singleton instance of a companion object for a class name
+    * (used for constructing objects from python)
+    */
   def find_class(name: String): Any = {
     val runtimeMirror = universe.runtimeMirror(getClass.getClassLoader)
     val module        = runtimeMirror.staticModule(name)
@@ -56,9 +65,11 @@ object PythonInterop {
     obj.instance
   }
 
+  /** Take an iterable of arguments and turn it into a java varargs friendly array */
   def make_varargs(obj: Iterable[Any]): Array[Object] =
     obj.toArray.map(_.asInstanceOf[Object])
 
+  /** Find methods and default values for an object and return in friendly format */
   def methods(obj: Any): util.Map[String, Array[Method]] = {
     logger.trace(s"Scala 'methods' called with $obj")
     val prefixedMethodDict         = mutable.Map.empty[String, mutable.ArrayBuffer[java.lang.reflect.Method]]
@@ -107,6 +118,9 @@ object PythonInterop {
 
 }
 
+/**
+  * wrap the logger class as calling the logger directly from python is broken
+  */
 class WrappedLogger(logger: Logger) {
 
   def level: Int =
@@ -128,6 +142,7 @@ class WrappedLogger(logger: Logger) {
   def error(msg: String): Unit = logger.error(msg)
 }
 
+/** Representation of a method */
 case class Method(name: String, n: Int, parameters: Array[String], defaults: Map[Int, String], varargs: Boolean) {
   def has_defaults: Boolean = defaults.nonEmpty
 }
@@ -139,6 +154,11 @@ case class Method(name: String, n: Int, parameters: Array[String], defaults: Map
   */
 case class PyRef(name: String)
 
+/**
+  * Wrapper for a python function that uses the python interpreter to turn it into a scala function
+  *
+  * (Need to provide specialised implementations for all different numbers of arguments)
+  */
 trait PythonFunction {
   protected val pickleBytes: Array[Byte]
   protected val eval_name = s"_${Random.alphanumeric.take(32).mkString}"
