@@ -96,12 +96,17 @@ def get_wrapper(obj):
         wrapper = _wrappers[name]
         logger.trace(f"Found wrapper for {name!r} based on class name")
     except KeyError:
+        # Create a new base class for the jvm wrapper and add methods
+        # (note this registers the wrapper as _classname is defined)
         base = type(name + "_jvm", (proxy.GenericScalaProxy,), {"_classname": name})
         base._init_methods(obj)
+        # Check if a special wrapper class is registered for the object
         wrap_name = _scala.scala.get_wrapper_str(obj)
         if wrap_name in _wrappers:
+            # Add special wrapper class to the top of the mro such that method overloads work
             wrapper = type(name, (_wrappers[wrap_name], base), {"_classname": name})
         else:
+            # No special wrapper registered, can use base wrapper directly
             wrapper = base
         logger.trace(f"New wrapper created for {name!r}")
     logger.trace(f"Wrapper is {wrapper!r}")
