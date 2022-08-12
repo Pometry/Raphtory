@@ -6,9 +6,26 @@ from pyraphtory.interop import logger, register
 
 
 class ScalaProxyBase(object):
+    _jvm_object = None
+
+
+class GenericScalaProxy(ScalaProxyBase):
     _methods = None
+    _initialised = False
     _classname = None
     _jvm_object = None
+
+    @classmethod
+    def _init_methods(cls, jvm_object):
+        if not cls._initialised:
+            logger.trace(f"uninitialised class {cls.__name__}")
+            if jvm_object is None:
+                raise RuntimeError("Need object to find methods")
+            logger.trace(f"Getting methods for {jvm_object}")
+            methods = interop.get_methods(jvm_object)
+            for (name, method_array) in methods.items():
+                setattr(cls, name, MethodProxyDescriptor(name, method_array))
+            cls._initialised = True
 
     @property
     def classname(self):
@@ -21,47 +38,21 @@ class ScalaProxyBase(object):
         logger.trace(f"Return name {self._classname!r}")
         return self._classname
 
-    @property
-    def _method_dict(self):
-        if self._methods is None:
-            if self._jvm_object is None:
-                return None
-            logger.trace(f"Getting methods for {self._jvm_object}")
-            self._methods = interop.get_methods(self._jvm_object)
-        else:
-            logger.trace(f"Retreiving cached methods for {self}")
-        return self._methods
-
-    def list_methods(self):
-        return self._method_dict.keys().toString()
-
-    def __getattr__(self, name):
-        logger.trace(f"__getattr__ called for {self!r} with {name!r}")
-        if self._method_dict is None:
-            raise AttributeError(f"{self!r} object has no attached jvm object")
-        if self._method_dict.contains(name):
-            return GenericMethodProxy(name, self._jvm_object, self._method_dict.apply(name))
-        else:
-            raise AttributeError(f"{self!r} object has no method {name!r}, available methods are {self._methods.keys().toString()}")
-
     def __call__(self, *args, **kwargs):
         logger.trace(f"{self!r} called with {args=} and {kwargs=}")
         return self.apply(*args, **kwargs)
 
-
-class GenericScalaProxy(ScalaProxyBase):
-    _classname = None
-
-    def __init__(self, jvm_object=None):
-        logger.trace(f"GenericScalaProxy initialized with {jvm_object=}")
-        if jvm_object is not None:
-            self._jvm_object = jvm_object
-        self._methods = None
-
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        if cls._classname is not None:
-            register(cls)
+    def __getattr__(self, item):
+        if self._initialised:
+            raise AttributeError(f"Attribute {item} does not exist for {self!r}")
+        else:
+            if self._jvm_object is None:
+                if self._classname is not None:
+                    self._jvm_object = interop.find_class(self._classname)
+                else:
+                    raise AttributeError("Uninitialised class has no attributes")
+            self._init_methods(self._jvm_object)
+            return getattr(self, item)
 
     def __repr__(self):
         try:
@@ -76,6 +67,30 @@ class GenericScalaProxy(ScalaProxyBase):
     @property
     def jvm(self):
         return GenericScalaProxy(self._jvm_object)
+
+    def __new__(cls, jvm_object=None):
+        if jvm_object is not None:
+            if not cls._initialised:
+                cls._init_methods(jvm_object)
+        self = super().__new__(cls)
+        self._jvm_object = jvm_object
+        return self
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls._classname is not None:
+            register(cls)
+
+
+class MethodProxyDescriptor(object):
+    def __init__(self, name, methods):
+        self.name = name
+        self.methods = methods
+
+    def __get__(self, instance, owner=None):
+        if instance is None:
+            return owner.__class__.__dict__[self.name].__get__(owner, owner.__class__)
+        return GenericMethodProxy(self.name, instance._jvm_object, self.methods)
 
 
 class GenericMethodProxy(object):
@@ -131,12 +146,37 @@ class GenericMethodProxy(object):
 
 
 class ScalaObjectProxy(ScalaProxyBase, type):
-    @property
-    def _jvm_object(cls):
-        if cls._classname is None:
-            return None
+    _base_initialised = False
+
+    def __new__(mcs, name, bases, attrs, **kwargs):
+        if "_classname" not in attrs:
+            actual_mcs = mcs
         else:
-            return interop.find_class(cls._classname)
+            actual_mcs = type.__new__(mcs, name + "_", (mcs,), {"_classname": attrs["_classname"]})
+        return type.__new__(actual_mcs, name, bases, attrs, **kwargs)
+
+    def __getattr__(self, item):
+        if self._base_initialised:
+            raise AttributeError(f"Attribute {item} does not exist for {self!r}")
+        else:
+            if self._jvm_object is None and self._classname is not None:
+                self._jvm_object = interop.find_class(self._classname)
+                self._init_base_methods(self._jvm_object)
+                return getattr(self, item)
+            else:
+                raise AttributeError("Uninitialised class has no attributes")
+
+    @classmethod
+    def _init_base_methods(mcs, jvm_object):
+        if not mcs._base_initialised:
+            logger.trace(f"uninitialised class {mcs.__name__}")
+            if jvm_object is None:
+                raise RuntimeError("Need object to find methods")
+            logger.trace(f"Getting methods for {jvm_object}")
+            methods = interop.get_methods(jvm_object)
+            for (name, method_array) in methods.items():
+                setattr(mcs, name, MethodProxyDescriptor(name, method_array))
+            mcs._base_initialised = True
 
     def __call__(cls, *args, jvm_object=None, **kwargs):
         logger.trace(f"ScalaCompanionObjectProxy called with {args=}, {jvm_object=}, {kwargs=}")
@@ -155,7 +195,6 @@ class ScalaObjectProxy(ScalaProxyBase, type):
 
 class ScalaClassProxy(GenericScalaProxy, metaclass=ScalaObjectProxy):
     pass
-
 
 @register(name="Iterable")
 class IterableScalaProxy(GenericScalaProxy, Iterable):
@@ -181,7 +220,7 @@ class Function2(ScalaClassProxy):
     _classname = "com.raphtory.internals.management.PythonFunction2"
 
 
-class BuildinAlgorithm(object):
+class BuiltinAlgorithm(object):
     def __init__(self, path: str):
         self._path = path
 
@@ -189,4 +228,4 @@ class BuildinAlgorithm(object):
         return GenericScalaProxy(interop.find_class(self._path)).apply(*args, **kwargs)
 
     def __getattr__(self, item):
-        return BuildinAlgorithm(".".join((self._path, item)))
+        return BuiltinAlgorithm(".".join((self._path, item)))

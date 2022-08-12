@@ -311,13 +311,20 @@ private[api] trait GraphViewImplementation[
             querySender
     )
 
-  private[api] def withTransformedName(algorithm: BaseAlgorithm) = {
-    val newName = query.name match {
-      case "" => algorithm.name
-      case _  => query.name + ":" + algorithm.name
+  private[api] def withTransformedName(algorithm: BaseAlgorithm) =
+    newGraph(
+            query.copy(name = transformedName(algorithm.name), _bootstrap = query._bootstrap + algorithm.getClass),
+            querySender
+    )
+
+  def withTransformedName(name: String): G =
+    newGraph(query.copy(name = transformedName(name)), querySender)
+
+  private def transformedName(name: String): String =
+    query.name match {
+      case "" => name
+      case _  => query.name + ":" + name
     }
-    newGraph(query.copy(name = newName, _bootstrap = query._bootstrap + algorithm.getClass), querySender)
-  }
 }
 
 private[api] trait MultilayerGraphViewImplementation[
