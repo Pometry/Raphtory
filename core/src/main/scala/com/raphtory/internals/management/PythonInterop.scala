@@ -79,8 +79,10 @@ object PythonInterop {
       val prefix               = camel_to_snake(parts(0))
 
       if (parts.length == 1)
+        // ordinary method
         prefixedMethodDict.getOrElseUpdate(prefix, mutable.ArrayBuffer.empty[java.lang.reflect.Method]).append(m)
       else {
+        // method encapsulating default argument
         val defaultIndex = parts(1).toInt - 1
         prefixedMethodDefaultsDict
           .getOrElseUpdate(prefix, mutable.Map.empty[Int, java.lang.reflect.Method])
@@ -100,13 +102,16 @@ object PythonInterop {
             val paramsNames = m.getParameters.map(p => camel_to_snake(p.getName))
 
             val n = m.getParameterCount
+            // Only one overloaded implementation can have default arguments, this checks if defaults should apply
             if (
                     defaults.forall {
                       case (i, d) => i < m.getParameterCount && m.getParameterTypes()(i) == d.getReturnType
                     }
             )
+              // All default arguments match parameter types of this method signature
               Method(m.getName, n, paramsNames, defaults.view.mapValues(_.getName).toMap, hasVarArgs)
             else
+              // Defaults do not match or method has no default arguments
               Method(m.getName, n, paramsNames, Map.empty[Int, String], hasVarArgs)
           }.toArray
       }
