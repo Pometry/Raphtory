@@ -8,6 +8,11 @@ from functools import cached_property
 
 
 def register(cls=None, *, name=None):
+    """class decorator for registering wrapper classes.
+
+    Specify a 'name' keyword argument to give the wrapper a name to register it for a range of different types.
+    A corresponding match needs to be added on the scala side for the name to have an effect.
+    """
     if cls is None:
         return lambda x: register(x, name=name)
     else:
@@ -20,6 +25,7 @@ def register(cls=None, *, name=None):
 
 
 def set_scala_interop(obj):
+    """Provide an object for the scala interop interface (used when initialising from py4j)"""
     global _scala
     _scala.set_interop(obj)
 
@@ -29,6 +35,7 @@ _wrappers = {}
 
 
 class Scala(object):
+    """Class used to lazily initialise the scala interop to avoid import errors before the java connection is established"""
     @cached_property
     def scala(self):
         from pemja import findClass
@@ -41,9 +48,8 @@ class Scala(object):
 _scala = Scala()
 
 
-
-
 def is_PyJObject(obj):
+    """Needed because Pemja objects do not support isinstance"""
     return type(obj).__name__ == "PyJObject" or isinstance(obj, JavaObject) or isinstance(obj, JavaClass)
 
 
@@ -59,14 +65,17 @@ def snake_to_camel(name: str):
 
 
 def camel_to_snake(name: str):
+    """Convert scala-style camel-case names to python style snake case"""
     return _scala.scala.camel_to_snake(name)
 
 
 def decode(obj):
+    """call scala decode function to deal with converting java to scala collections"""
     return _scala.scala.decode(obj)
 
 
 def get_methods(obj):
+    """look up methods for a java object"""
     name = obj.getClass().getName()
     if name in _method_cache:
         logger.trace(f"Retreiving cached methods for {name!r}")
@@ -80,6 +89,7 @@ def get_methods(obj):
 
 
 def get_wrapper(obj):
+    """get wrapper class for a java object"""
     name = obj.getClass().getName()
     logger.trace(f"Retrieving wrapper for {name!r}")
     try:
@@ -99,6 +109,7 @@ def get_wrapper(obj):
 
 
 def to_jvm(value):
+    """convert wrapped object to underlying jvm representation"""
     if is_PyJObject(value):
         logger.trace(f"Converting value {value!r}, already PyJObject")
         return value
@@ -126,6 +137,7 @@ def to_jvm(value):
 
 
 def to_python(obj):
+    """convert jvm object to python by wrapping it if needed"""
     if is_PyJObject(obj):
         wrapper = get_wrapper(obj)
         logger.trace(f"Calling wrapper with jvm_object={obj}")
@@ -136,18 +148,22 @@ def to_python(obj):
 
 
 def find_class(path: str):
+    """get the scala companion object instance for a class path"""
     return _scala.scala.find_class(path)
 
 
 def assign_id(s: str):
+    """call the asign_id function (used by graph builder)"""
     return _scala.scala.assign_id(s)
 
 
 def make_varargs(param):
+    """convert parameter list to varargs-friendly array"""
     return _scala.scala.make_varargs(param)
 
 
 def _wrap_python_function(fun):
+    """take a python function and turn it into a scala function"""
     wrapped = FunctionWrapper(fun)
     pickle_bytes = pickle.dumps(wrapped)
     if wrapped.n_args == 1:
@@ -159,6 +175,7 @@ def _wrap_python_function(fun):
 
 
 class Logger(object):
+    """Wrapper for the java logger"""
     @cached_property
     def logger(self):
         _logger = _scala.scala.logger()
@@ -202,6 +219,7 @@ logger = Logger()
 
 
 class FunctionWrapper(object):
+    """class used to interface with python functions from scala"""
     def __init__(self, fun=None):
         self._fun = fun
         self.n_args = len(inspect.getfullargspec(fun).args)
