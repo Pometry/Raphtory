@@ -15,6 +15,7 @@ import com.raphtory.internals.management.QuerySender
 import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
 import cats.effect.unsafe.implicits.global
+import com.raphtory.internals.context.LocalContext.createName
 
 import scala.collection.mutable
 
@@ -39,9 +40,9 @@ class RemoteContext(deploymentID: String) extends RaphtoryContext {
       case None    =>
         val managed: IO[((TopicRepository, Config), IO[Unit])] = connectManaged(graphID, customConfig).allocated
         val ((topicRepo, config), shutdown)                    = managed.unsafeRunSync()
-        val querySender                                        = new QuerySender(new Scheduler(), topicRepo, config)
+        val querySender                                        = new QuerySender(new Scheduler(), topicRepo, config, createName)
         val graph                                              = Metadata(graphID, config)
-        val deployed                                           = new DeployedTemporalGraph(Query(), querySender, config, shutdown)
+        val deployed                                           = new DeployedTemporalGraph(Query(), querySender, config, local = false, shutdown)
         val deployment                                         = Deployment(graph, deployed)
         services += ((graphID, deployment))
         querySender.establishGraph()

@@ -7,6 +7,7 @@ import cats.implicits.toTraverseOps
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.cluster.OrchestratorComponent
+import com.raphtory.internals.components.querymanager.ClientDisconnected
 import com.raphtory.internals.components.querymanager.ClusterManagement
 import com.raphtory.internals.components.querymanager.DestroyGraph
 import com.raphtory.internals.components.querymanager.EstablishGraph
@@ -25,8 +26,11 @@ class PartitionOrchestrator(
 
   override def handleMessage(msg: ClusterManagement): Unit =
     msg match {
-      case EstablishGraph(graphID: String) => establishService("Partition Manager", graphID, deployPartitionService)
-      case DestroyGraph(graphID)           => destroyGraph(graphID)
+      case EstablishGraph(graphID: String, clientID: String) =>
+        establishService("Query Manager", graphID, clientID, deployQueryService)
+      case DestroyGraph(graphID, clientID, force)            => destroyGraph(graphID, clientID, force)
+      case ClientDisconnected(graphID, clientID)             => clientDisconnected(graphID, clientID)
+
     }
 
 }

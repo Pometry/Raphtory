@@ -166,6 +166,12 @@ private[raphtory] case class StopExecutor(jobID: String) extends GraphManagement
 
 sealed private[raphtory] trait ClusterManagement extends QueryManagement
 
-private[raphtory] case class EstablishGraph(graphID: String) extends Submission with ClusterManagement
+private[raphtory] case class EstablishGraph(graphID: String, clientID: String) extends Submission with ClusterManagement
 
-private[raphtory] case class DestroyGraph(graphID: String) extends Submission with ClusterManagement
+private[raphtory] case class DestroyGraph(graphID: String, clientID: String, force: Boolean)
+        extends Submission
+        with ClusterManagement
+
+private[raphtory] case class ClientDisconnected(graphID: String, clientID: String)
+        extends Submission
+        with ClusterManagement

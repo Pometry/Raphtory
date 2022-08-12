@@ -3,6 +3,7 @@ package com.raphtory.internals.management
 import com.raphtory.api.input.Source
 import com.raphtory.api.querytracker.QueryProgressTracker
 import com.raphtory.internals.communication.TopicRepository
+import com.raphtory.internals.components.querymanager.ClientDisconnected
 import com.raphtory.internals.components.querymanager.DestroyGraph
 import com.raphtory.internals.components.querymanager.DynamicLoader
 import com.raphtory.internals.components.querymanager.EstablishGraph
@@ -16,7 +17,8 @@ import scala.util.Random
 private[raphtory] class QuerySender(
     private val scheduler: Scheduler,
     private val topics: TopicRepository,
-    private val config: Config
+    private val config: Config,
+    private val clientID: String
 ) {
 
   private val graphID          = config.getString("raphtory.graph.id")
@@ -38,11 +40,14 @@ private[raphtory] class QuerySender(
     tracker
   }
 
-  def destroyGraph(): Unit =
-    topics.graphSetup.endPoint sendAsync DestroyGraph(graphID)
+  def destroyGraph(force: Boolean): Unit =
+    topics.graphSetup.endPoint sendAsync DestroyGraph(graphID, clientID, force)
+
+  def disconnect(): Unit =
+    topics.graphSetup.endPoint sendAsync ClientDisconnected(graphID, clientID)
 
   def establishGraph(): Unit =
-    topics.graphSetup.endPoint sendAsync EstablishGraph(graphID)
+    topics.graphSetup.endPoint sendAsync EstablishGraph(graphID, clientID)
 
   def individualUpdate(update: GraphUpdate) =
     writers((update.srcId % totalPartitions).toInt) sendAsync update

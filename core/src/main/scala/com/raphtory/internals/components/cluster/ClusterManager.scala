@@ -28,17 +28,17 @@ class ClusterManager(
 
   override def handleMessage(msg: ClusterManagement): Unit =
     msg match {
-      case EstablishGraph(graphID: String) =>
+      case EstablishGraph(graphID: String, clientID: String) =>
         mode match {
           case StandaloneMode =>
-            deployStandaloneService(graphID, conf)
+            deployStandaloneService(graphID, clientID, conf)
           case ClusterMode    =>
             logger.info(s"Forwarding deployment request for graph to cluster: $graphID")
             forwardToCluster(msg)
         }
-      case DestroyGraph(graphID)           =>
+      case DestroyGraph(graphID, clientID, force)            =>
         mode match {
-          case StandaloneMode => destroyGraph(graphID)
+          case StandaloneMode => destroyGraph(graphID, clientID, force)
           case ClusterMode    =>
             logger.info(s"Forwarding request to destroy graph to cluster: $graphID")
             forwardToCluster(msg)
