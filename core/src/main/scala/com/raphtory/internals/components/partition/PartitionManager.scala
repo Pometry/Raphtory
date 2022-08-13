@@ -53,7 +53,7 @@ class PartitionManager(
     }
 
   override private[raphtory] def run(): Unit =
-    logger.info(s"Partition $partitionID: Starting partition manager for $graphID.") // TODO: turn into debug
+    logger.info(s"Partition $partitionID: Starting partition manager for '$graphID'.") // TODO: turn into debug
 
   override private[raphtory] def stop(): Unit = {
     executors forEach { (jobID, _) => Option(executors.remove(jobID)).foreach(_.stop()) }

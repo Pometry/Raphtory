@@ -81,6 +81,7 @@ lazy val core = (project in file("core"))
                   curatorRecipes,
                   decline,
                   jackson,
+                  jfr,
                   log4jSlft4,
                   log4jApi,
                   log4jCore,

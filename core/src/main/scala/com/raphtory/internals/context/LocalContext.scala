@@ -26,9 +26,9 @@ private[raphtory] object LocalContext extends RaphtoryContext {
       val graph                   = deployService(graphID, config)
       services.get(graphID) match {
         case Some(_) =>
-          throw new GraphAlreadyDeployedException(s"The graph $graphID already exists")
+          throw new GraphAlreadyDeployedException(s"The graph '$graphID' already exists")
         case None    =>
-          logger.info(s"Creating Service for $graphID")
+          logger.info(s"Creating Service for '$graphID'")
       }
       val (querySender, shutdown) = graph.allocated.unsafeRunSync()
       val deployed                = new DeployedTemporalGraph(Query(), querySender, config, local = true, shutdown)

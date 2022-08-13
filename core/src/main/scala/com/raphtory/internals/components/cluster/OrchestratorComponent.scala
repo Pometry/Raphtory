@@ -2,7 +2,6 @@ package com.raphtory.internals.components.cluster
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.raphtory.Raphtory.getGraph
 import com.raphtory.Raphtory.makePartitionIdManager
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
@@ -33,10 +32,10 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
     deployments.synchronized {
       deployments.get(graphID) match {
         case Some(deployment) =>
-          logger.info(s"$component for graph $graphID already exists, adding $clientID to registered users")
+          logger.info(s"$component for graph '$graphID' already exists, adding '$clientID' to registered users")
           deployment.clients += clientID
         case None             =>
-          logger.info(s"Deploying new $component for graph $graphID - request by $clientID ")
+          logger.info(s"Deploying new $component for graph '$graphID' - request by '$clientID' ")
           val graphConf = conf.withValue(
                   "raphtory.graph.id",
                   ConfigValueFactory.fromAnyRef(graphID)
@@ -51,13 +50,13 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
         case Some(deployment) =>
           deployment.clients.remove(clientID)
           if (force || deployment.clients.isEmpty) {
-            logger.info(s"Last client $clientID disconnected. Destroying Graph $graphID")
+            logger.info(s"Last client '$clientID' disconnected. Destroying Graph '$graphID'")
             deployments.remove(graphID)
             deployment.shutdown.unsafeRunSync()
           }
           else
-            logger.info(s"Client $clientID disconnected from Graph $graphID")
-        case None             => logger.warn(s"Graph $graphID requested for destruction by $clientID, but did not exist")
+            logger.info(s"Client '$clientID' disconnected from Graph '$graphID'")
+        case None             => logger.warn(s"Graph '$graphID' requested for destruction by '$clientID', but did not exist")
       }
     }
 
@@ -66,8 +65,8 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
       deployments.get(graphID) match {
         case Some(deployment) =>
           deployment.clients.remove(clientID)
-          logger.info(s"Client $clientID disconnected from Graph $graphID")
-        case None             => logger.warn(s"$clientID disconnected from Graph $graphID, but did not exist")
+          logger.info(s"Client '$clientID' disconnected from Graph '$graphID'")
+        case None             => logger.warn(s"'$clientID' disconnected from Graph '$graphID', but did not exist")
       }
     }
 
@@ -80,10 +79,10 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
     deployments.synchronized {
       deployments.get(graphID) match {
         case Some(deployment) =>
-          logger.info(s"New client connecting for graph: $graphID")
+          logger.info(s"New client '$clientID' connecting for graph: '$graphID'")
           deployment.clients += clientID
         case None             =>
-          logger.info(s"Deploying new graph in standalone mode: $graphID")
+          logger.info(s"Deploying new graph '$graphID' in standalone mode, requested by '$clientID' ")
           val graphConf       = conf.withValue(
                   "raphtory.graph.id",
                   ConfigValueFactory.fromAnyRef(graphID)

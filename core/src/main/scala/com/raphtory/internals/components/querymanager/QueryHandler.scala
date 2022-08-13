@@ -112,7 +112,7 @@ private[raphtory] class QueryHandler(
     catch {
       case e: Throwable =>
         logger.error(
-                s"Deployment $graphID: Failed to handle message. ${e.getMessage}. Skipping perspective.",
+                s"Deployment '$graphID': Failed to handle message. ${e.getMessage}. Skipping perspective.",
                 e
         )
         currentState = executeNextPerspective()

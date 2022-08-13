@@ -29,12 +29,11 @@ class DeployedTemporalGraph private[raphtory] (
   def config: Config = conf
   def getID: String  = conf.getString("raphtory.graph.id")
 
-  def destroy(force: Boolean = false): Unit =
-    if (local) close()
-    else {
+  def destroy(force: Boolean = false): Unit = {
+    if (!local)
       querySender.destroyGraph(force)
-      close()
-    }
+    shutdown.unsafeRunSync()
+  }
 
   override def close(): Unit = {
     if (!local)

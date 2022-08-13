@@ -36,7 +36,7 @@ class RemoteContext(deploymentID: String) extends RaphtoryContext {
 
   override def newGraph(graphID: String, customConfig: Map[String, Any]): DeployedTemporalGraph =
     services.synchronized(services.get(graphID) match {
-      case Some(_) => throw new GraphAlreadyDeployedException(s"The graph $graphID already exists")
+      case Some(_) => throw new GraphAlreadyDeployedException(s"The graph '$graphID' already exists")
       case None    =>
         val managed: IO[((TopicRepository, Config), IO[Unit])] = connectManaged(graphID, customConfig).allocated
         val ((topicRepo, config), shutdown)                    = managed.unsafeRunSync()

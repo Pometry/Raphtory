@@ -11,11 +11,11 @@ private[raphtory] object DistributedTopicRepository {
 
   def apply[IO[_]: Async](akkaMode: AkkaConnector.Mode, config: Config): Resource[IO, TopicRepository] =
     config.getString("raphtory.communication.control") match {
-      case "akka"            =>
+      case "auto" | "akka" =>
         for {
           pulsarConnector <- PulsarConnector[IO](config)
           akkaConnector   <- AkkaConnector[IO](akkaMode, config)
         } yield TopicRepository(akkaConnector, pulsarConnector, config)
-      case "auto" | "pulsar" => PulsarConnector[IO](config).map(connector => TopicRepository(connector, config))
+      case "pulsar"        => PulsarConnector[IO](config).map(connector => TopicRepository(connector, config))
     }
 }

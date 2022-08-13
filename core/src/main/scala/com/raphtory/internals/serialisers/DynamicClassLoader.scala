@@ -22,7 +22,7 @@ private[serialisers] class DynamicClassLoader(parent: ClassLoader, storage: Conc
         val clzBytes = storage.get(name)
         if (clzBytes != null) {
           val clz = defineClass(name, clzBytes, 0, clzBytes.length)
-          logger.info(s"Successfully injected class $clz")
+          logger.debug(s"Successfully injected class $clz")
           clz
         }
         else throw t
