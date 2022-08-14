@@ -9,6 +9,7 @@ import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.spouts.IdentitySpout
+import com.raphtory.spouts.ResourceSpout
 import com.raphtory.spouts.SequenceSpout
 
 import scala.collection.mutable

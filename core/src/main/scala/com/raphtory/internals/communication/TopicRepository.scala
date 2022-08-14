@@ -1,6 +1,5 @@
 package com.raphtory.internals.communication
 
-import com.raphtory.Raphtory
 import com.raphtory.internals.components.querymanager.ClusterManagement
 import com.raphtory.internals.components.querymanager.EndQuery
 import com.raphtory.internals.components.querymanager.EstablishGraph
@@ -17,14 +16,15 @@ import com.typesafe.config.Config
 
 private[raphtory] class TopicRepository(
     defaultControlConnector: Connector,
-    defaultDataConnector: Connector,
+    defaultIngestionConnector: Connector,
+    defaultAnalysisConnector: Connector,
     conf: Config
 ) {
 
   // Methods to override:
-  protected def spoutConnector: Connector            = defaultDataConnector
-  protected def graphUpdatesConnector: Connector     = defaultDataConnector
-  protected def graphSyncConnector: Connector        = defaultDataConnector
+  protected def graphUpdatesConnector: Connector = defaultIngestionConnector
+  protected def graphSyncConnector: Connector    = defaultIngestionConnector
+
   protected def submissionsConnector: Connector      = defaultControlConnector
   protected def completedQueriesConnector: Connector = defaultControlConnector
   protected def watermarkConnector: Connector        = defaultControlConnector
@@ -32,12 +32,14 @@ private[raphtory] class TopicRepository(
   protected def ingestSetupConnector: Connector      = defaultControlConnector
   protected def partitionSetupConnector: Connector   = defaultControlConnector
 
-  protected def queryTrackConnector: Connector         = defaultControlConnector
-  protected def rechecksConnector: Connector           = defaultControlConnector
-  protected def jobStatusConnector: Connector          = defaultControlConnector
-  protected def vertexMessagesConnector: Connector     = defaultControlConnector
-  protected def vertexMessagesSyncConnector: Connector = defaultControlConnector
-  def jobOperationsConnector: Connector                = defaultControlConnector // accessed within the queryHandler
+  protected def queryTrackConnector: Connector     = defaultControlConnector
+  protected def rechecksConnector: Connector       = defaultControlConnector
+  protected def jobStatusConnector: Connector      = defaultControlConnector
+  protected def vertexMessagesConnector: Connector = defaultControlConnector
+
+  protected def vertexMessagesSyncConnector: Connector = defaultAnalysisConnector
+
+  def jobOperationsConnector: Connector = defaultControlConnector // accessed within the queryHandler
 
   // Configuration
   private val spoutAddress: String     = conf.getString("raphtory.spout.topic")
@@ -47,8 +49,6 @@ private[raphtory] class TopicRepository(
   private val numPartitions: Int       = partitionServers * partitionsPerServer
 
   // Global topics
-  final def spout[T]: WorkPullTopic[(T, Long)] =
-    WorkPullTopic[(T, Long)](spoutConnector, "spout", customAddress = spoutAddress)
 
   final def submissions: ExclusiveTopic[Submission] =
     ExclusiveTopic[Submission](submissionsConnector, s"submissions", graphID)
@@ -154,8 +154,13 @@ private[raphtory] class TopicRepository(
 object TopicRepository {
 
   def apply(connector: Connector, conf: Config) =
-    new TopicRepository(connector, connector, conf)
+    new TopicRepository(connector, connector, connector, conf)
 
-  def apply(controlConnector: Connector, dataConnector: Connector, conf: Config) =
-    new TopicRepository(controlConnector, dataConnector, conf)
+  def apply(
+      controlConnector: Connector,
+      ingestionConnector: Connector,
+      analysisConnector: Connector,
+      conf: Config
+  ) =
+    new TopicRepository(controlConnector, ingestionConnector, analysisConnector, conf)
 }

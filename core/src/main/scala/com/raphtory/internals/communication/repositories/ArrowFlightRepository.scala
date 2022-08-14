@@ -14,7 +14,6 @@ import com.typesafe.config.Config
 
 /** @DoNotDocument */
 object ArrowFlightRepository {
-  private lazy val actorSystem = ActorSystem(SpawnProtocol(), "spawner")
 
   val signatureRegistry = ArrowFlightMessageSignatureRegistry()
 
@@ -234,24 +233,4 @@ object ArrowFlightRepository {
       }
   }
 
-  def apply[IO[_]: Async](config: Config): Resource[IO, TopicRepository] =
-    for {
-      pulsarConnector <- PulsarConnector[IO](config)
-      akkaConnector   <- AkkaConnector[IO](AkkaConnector.StandaloneMode, config)
-    } yield {
-      val arrowFlightConnector = new ArrowFlightConnector(config, signatureRegistry)
-      new TopicRepository(pulsarConnector, pulsarConnector, config) {
-        override def jobOperationsConnector: Connector    = akkaConnector
-        override def jobStatusConnector: Connector        = akkaConnector
-        override def queryPrepConnector: Connector        = akkaConnector
-        override def completedQueriesConnector: Connector = akkaConnector
-        override def watermarkConnector: Connector        = akkaConnector
-        override def rechecksConnector: Connector         = akkaConnector
-        override def queryTrackConnector: Connector       = akkaConnector
-        override def submissionsConnector: Connector      = akkaConnector
-        override def graphSyncConnector: Connector        = arrowFlightConnector
-        override def graphUpdatesConnector: Connector     = arrowFlightConnector
-        override def vertexMessagesConnector: Connector   = arrowFlightConnector
-      }
-    }
 }

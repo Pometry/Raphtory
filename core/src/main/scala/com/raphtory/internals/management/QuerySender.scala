@@ -25,7 +25,7 @@ private[raphtory] class QuerySender(
   val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
   val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
   val totalPartitions: Int     = partitionServers * partitionsPerServer
-  private lazy val writers     = topics.graphUpdates(graphID).endPoint
+  private lazy val writers     = topics.graphUpdates(graphID).endPoint(-1)
   private lazy val submissions = topics.submissions.endPoint
 
   def submit(query: Query, customJobName: String = ""): QueryProgressTracker = {

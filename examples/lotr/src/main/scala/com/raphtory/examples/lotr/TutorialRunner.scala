@@ -10,7 +10,6 @@ import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Type
-import com.raphtory.examples.lotr.TutorialRunner.graph
 import com.raphtory.examples.lotr.graphbuilders.LOTRGraphBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout

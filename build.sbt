@@ -46,7 +46,9 @@ lazy val root = (project in file("."))
           name := "Raphtory",
           defaultSettings
   )
+  .enablePlugins(OsDetectorPlugin)
   .aggregate(
+          arrowMessaging,
           core,
           connectorsAWS,
           connectorsTwitter,
@@ -60,6 +62,9 @@ lazy val root = (project in file("."))
           examplesNFT,
           deploy
   )
+
+lazy val arrowMessaging =
+  (project in file("arrow-messaging")).settings(assemblySettings)
 
 lazy val core = (project in file("core"))
   .settings(
@@ -111,12 +116,14 @@ lazy val core = (project in file("core"))
                   alleyCats,
                   typesafeConfig,
                   zookeeper,
-                  arrowMessaging,
                   shapeless,
                   curatorDiscovery
           ),
           libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
   )
+  .dependsOn(arrowMessaging)
+
+//core ++
 
 // CONNECTORS
 
