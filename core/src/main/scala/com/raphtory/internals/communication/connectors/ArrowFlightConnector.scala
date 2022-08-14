@@ -8,30 +8,30 @@ import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.management.ZookeeperConnector
+import com.raphtory.internals.management.arrow.ArrowFlightHostAddressProvider
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.apache.arrow.memory._
-import org.apache.curator.x.discovery.details.JsonInstanceSerializer
-import org.apache.curator.x.discovery._
 import org.slf4j.LoggerFactory
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.ExecutionContext.Implicits.global
+
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.Future
 import scala.beans.BeanProperty
-import scala.collection.mutable
-import scala.jdk.CollectionConverters._
+
+case class ArrowFlightHostAddress(interface: String, port: Int)
 
 case class ServiceDetail(@BeanProperty var partitionId: Int) {
   def this() = this(0)
 }
 
-class ArrowFlightConnector(config: Config, signatureRegistry: ArrowFlightMessageSignatureRegistry)
-        extends ZookeeperConnector
+class ArrowFlightConnector(
+    config: Config,
+    signatureRegistry: ArrowFlightMessageSignatureRegistry,
+    addressProvider: ArrowFlightHostAddressProvider
+) extends ZookeeperConnector
         with Connector {
-
-  import ArrowFlightHostAddressProvider._
 
   private val logger               = Logger(LoggerFactory.getLogger(this.getClass))
   private val allocator            = new RootAllocator
@@ -104,7 +104,7 @@ class ArrowFlightConnector(config: Config, signatureRegistry: ArrowFlightMessage
       topics: Seq[CanonicalTopic[T]]
   ): CancelableListener = {
 
-    val (server, reader) = startAndPublishAddress(partitionId, messageHandler)
+    val (server, reader) = addressProvider.startAndPublishAddress(partitionId, messageHandler)
 
     new CancelableListener {
       override def start(): Unit = Future(reader.readMessages(readBusyWait))
@@ -118,7 +118,7 @@ class ArrowFlightConnector(config: Config, signatureRegistry: ArrowFlightMessage
 
   // Starts writer and registers message schema and message handler to a given endpoint
   override def endPoint[T](srcParId: Int, topic: CanonicalTopic[T]): EndPoint[T] = {
-    val addresses                               = getAddressAcrossPartitions
+    val addresses                               = addressProvider.getAddressAcrossPartitions
     val partitionId                             = topic.subTopic.split("-").last.toInt
     val ArrowFlightHostAddress(interface, port) = addresses(partitionId)
 
@@ -126,88 +126,5 @@ class ArrowFlightConnector(config: Config, signatureRegistry: ArrowFlightMessage
   }
 
   override def shutdown(): Unit = {}
-
-  object ArrowFlightHostAddressProvider {
-    case class ArrowFlightHostAddress(interface: String, port: Int)
-    import cats.effect.unsafe.implicits.global
-
-    private val partitionServers           = config.getInt("raphtory.partitions.serverCount")
-    private val partitionsPerServer        = config.getInt("raphtory.partitions.countPerServer")
-    private val numPartitions              = partitionServers * partitionsPerServer
-    private val addresses                  = mutable.HashMap[Int, ArrowFlightHostAddress]()
-    private val serviceDiscoveryAtomicPath = s"/$deploymentId/flightservers"
-    private val zookeeperAddress           = config.getString("raphtory.zookeeper.address")
-    private val zkClient                   = getZkClient(zookeeperAddress).allocated.unsafeRunSync()._1
-
-    private val serviceDiscovery =
-      ServiceDiscoveryBuilder
-        .builder(classOf[ServiceDetail])
-        .client(zkClient)
-        .serializer(new JsonInstanceSerializer[ServiceDetail](classOf[ServiceDetail]))
-        .basePath(serviceDiscoveryAtomicPath)
-        .build()
-
-    serviceDiscovery.start()
-
-    // Closing service discovery as part of shutdown hook because termination of this partition
-    // instance would mean flight server is down as well and pertaining entry must be removed from zk
-    Runtime.getRuntime.addShutdownHook(new Thread() {
-      override def run(): Unit = serviceDiscovery.close()
-    })
-
-    def getAddressAcrossPartitions: Map[Int, ArrowFlightHostAddress] = {
-      if (partitionServers > 1)
-        // Poll zk for the addresses eq to the num of partitionServers and add the same to addresses map before returning the same
-        while (addresses.size < numPartitions) {
-          val serviceInstances = serviceDiscovery.queryForInstances("flightServer").asScala
-          serviceInstances.foreach { i =>
-            addresses
-              .addOne(i.getPayload.partitionId, ArrowFlightHostAddress(i.getAddress, i.getPort))
-          }
-
-          if (addresses.size < numPartitions)
-            TimeUnit.SECONDS.sleep(5)
-        }
-
-      addresses.toMap
-    }
-
-    def startAndPublishAddress[T](
-        partitionId: Int,
-        messageHandler: T => Unit
-    ): (ArrowFlightServer, ArrowFlightReader[T]) = {
-      // This is supposed to be called once server is started to ensure no clients are brought up before servers are started
-      def publishAddress(interface: String, port: Int): Unit =
-        if (partitionServers > 1) {
-          val serviceInstance =
-            ServiceInstance
-              .builder()
-              .address(interface)
-              .port(port)
-              .name("flightServer")
-              .payload(ServiceDetail(partitionId))
-              .build()
-
-          serviceDiscovery.registerService(serviceInstance)
-        }
-        else
-          addresses.addOne(partitionId, ArrowFlightHostAddress(interface, port))
-
-      val server = ArrowFlightServer(allocator)
-      server.waitForServerToStart()
-
-      val interface = server.getInterface
-      val port      = server.getPort
-
-      publishAddress(interface, port)
-
-      // A message handler encapsulates vertices for a given partition. Therefore, in order to read messages destined for vertices belonging to
-      //  a given partition we need specific message handler. This is why flight readers are tied to a given message handler at declaration.
-      val reader = ArrowFlightReader(interface, port, allocator, messageHandler, signatureRegistry)
-
-      (server, reader)
-    }
-
-  }
 
 }

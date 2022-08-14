@@ -7,6 +7,8 @@ import com.raphtory.Raphtory
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.components.partition.PartitionOrchestrator
+import com.raphtory.internals.management.ZookeeperConnector
+import com.raphtory.internals.management.arrow.ArrowFlightHostAddressProvider
 
 object PartitionService extends IOApp {
 
@@ -17,8 +19,10 @@ object PartitionService extends IOApp {
       else Raphtory.getDefaultConfig()
 
     val service = for {
-      repo    <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config)
-      service <- PartitionOrchestrator[IO](config, repo)
+      zkClient      <- ZookeeperConnector.getZkClient(config.getString("raphtory.zookeeper.address"))
+      addressHandler = new ArrowFlightHostAddressProvider(zkClient, config)
+      repo          <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, addressHandler)
+      service       <- PartitionOrchestrator[IO](config, repo)
     } yield service
     service.useForever
 

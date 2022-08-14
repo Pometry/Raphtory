@@ -9,6 +9,8 @@ import com.raphtory.Raphtory
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.components.cluster.ClusterManager
 import com.raphtory.internals.components.cluster.StandaloneMode
+import com.raphtory.internals.management.ZookeeperConnector
+import com.raphtory.internals.management.arrow.ArrowFlightHostAddressProvider
 
 object Standalone extends IOApp {
 
@@ -19,8 +21,10 @@ object Standalone extends IOApp {
       else Raphtory.getDefaultConfig()
 
     val headNode = for {
-      repo     <- DistributedTopicRepository[IO](AkkaConnector.SeedMode, config)
-      headNode <- ClusterManager[IO](config, repo, mode = StandaloneMode)
+      zkClient      <- ZookeeperConnector.getZkClient(config.getString("raphtory.zookeeper.address"))
+      addressHandler = new ArrowFlightHostAddressProvider(zkClient, config)
+      repo          <- DistributedTopicRepository[IO](AkkaConnector.SeedMode, config, addressHandler)
+      headNode      <- ClusterManager[IO](config, repo, mode = StandaloneMode)
     } yield headNode
     headNode.useForever
 

@@ -13,9 +13,11 @@ import com.raphtory.internals.management.Prometheus
 import com.raphtory.internals.management.Py4JServer
 import com.raphtory.internals.management.QuerySender
 import com.raphtory.internals.management.Scheduler
+import com.raphtory.internals.management.ZookeeperConnector
 import com.typesafe.config.Config
 import cats.effect.unsafe.implicits.global
 import com.raphtory.internals.context.LocalContext.createName
+import com.raphtory.internals.management.arrow.ArrowFlightHostAddressProvider
 
 import scala.collection.mutable
 
@@ -28,9 +30,11 @@ class RemoteContext(deploymentID: String) extends RaphtoryContext {
     val config         = confBuilder(Map("raphtory.graph.id" -> graphID, "raphtory.deploy.id" -> deploymentID) ++ customConfig)
     val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
     for {
-      _         <- Py4JServer.fromEntryPoint[IO](this, config)
-      _         <- Prometheus[IO](prometheusPort)
-      topicRepo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config)
+      _             <- Py4JServer.fromEntryPoint[IO](this, config)
+      _             <- Prometheus[IO](prometheusPort)
+      zkClient      <- ZookeeperConnector.getZkClient(config.getString("raphtory.zookeeper.address"))
+      addressHandler = new ArrowFlightHostAddressProvider(zkClient, config)
+      topicRepo     <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, addressHandler)
     } yield (topicRepo, config)
   }
 

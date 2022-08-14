@@ -59,7 +59,8 @@ private[raphtory] object ZookeeperIDManager extends ZookeeperConnector {
       poolID: String,
       poolSize: Int
   ): Resource[IO, ZookeeperIDManager] =
-    getZkClient(zookeeperAddress)
+    ZookeeperConnector
+      .getZkClient(zookeeperAddress)
       .asInstanceOf[Resource[IO, CuratorFramework]]
       .map(new ZookeeperIDManager(zookeeperAddress, graphId, poolID, poolSize, _))
 

@@ -5,6 +5,7 @@ import cats.effect.IO
 import cats.effect.Resource
 import com.raphtory.Raphtory.makePartitionIdManager
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
+import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import com.raphtory.internals.components.ingestion.IngestionManager
 import com.raphtory.internals.components.querymanager.Query
@@ -12,9 +13,12 @@ import com.raphtory.internals.components.querymanager.QueryManager
 import com.raphtory.internals.management.Prometheus
 import com.raphtory.internals.management.QuerySender
 import com.raphtory.internals.management.Scheduler
+import com.raphtory.internals.management.ZookeeperConnector
 import com.typesafe.config.Config
 import cats.effect.unsafe.implicits.global
+import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.components.partition.PartitionOrchestrator
+import com.raphtory.internals.management.arrow.ArrowFlightHostAddressProvider
 
 import scala.collection.mutable
 
@@ -52,7 +56,9 @@ private[raphtory] object LocalContext extends RaphtoryContext {
     val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
     for {
       _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
-      topicRepo          <- LocalTopicRepository[IO](config)
+      zkClient           <- ZookeeperConnector.getZkClient(config.getString("raphtory.zookeeper.address"))
+      addressHandler      = new ArrowFlightHostAddressProvider(zkClient, config)
+      topicRepo          <- LocalTopicRepository[IO](config, addressHandler)
       partitionIdManager <- makePartitionIdManager[IO](config, localDeployment = true, graphID)
       _                  <- PartitionOrchestrator.spawn[IO](config, partitionIdManager, topicRepo, scheduler)
       _                  <- IngestionManager[IO](config, topicRepo)
