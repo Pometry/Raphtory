@@ -189,8 +189,6 @@ object PythonEncoder {
 object PythonInterop {
   val logger: WrappedLogger = new WrappedLogger(Logger(LoggerFactory.getLogger(this.getClass)))
 
-  def instance = this
-
   def assign_id(s: String): Long =
     GraphBuilder.assignID(s)
 
