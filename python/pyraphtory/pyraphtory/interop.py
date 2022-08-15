@@ -1,9 +1,23 @@
+import inspect
 import re
 from collections.abc import Iterable, Mapping
 import pyraphtory.proxy as proxy
 from py4j.java_gateway import JavaObject, JavaClass
+import cloudpickle as pickle
 
 _scala_cache = None
+
+
+class FunctionWrapper(object):
+    def __init__(self, fun=None):
+        self._fun = fun
+        self.n_args = len(inspect.getfullargspec(fun).args)
+
+    def eval_from_jvm(self, *args):
+        return to_jvm(self(*(to_python(v) for v in args)))
+
+    def __call__(self, *args, **kwargs):
+        return self._fun(*args, **kwargs)
 
 
 def set_scala_interop(obj):
@@ -118,6 +132,9 @@ def to_jvm(value):
     elif isinstance(value, Mapping):
         logger.trace(f"Converting value {value!r}, decoding as Mapping")
         return decode({to_jvm(k): to_jvm(v) for k, v in value.items()})
+    elif callable(value):
+        logger.trace(f"Converting value {value!r}, decoding as Function")
+        return _wrap_python_function(value)
     elif (isinstance(value, Iterable)
           and not isinstance(value, str)
           and not isinstance(value, bytes)
@@ -150,3 +167,14 @@ def assign_id(s: str):
 
 def make_varargs(param):
     return _scala().make_varargs(param)
+
+
+def _wrap_python_function(fun):
+    wrapped = FunctionWrapper(fun)
+    pickle_bytes = pickle.dumps(wrapped)
+    if wrapped.n_args == 1:
+        return to_jvm(proxy.Function1(pickle_bytes))
+    elif wrapped.n_args == 2:
+        return to_jvm(proxy.Function2(pickle_bytes))
+    else:
+        raise ValueError("Only functions with 1 or 2 arguments are currently implemented when passing to scala")

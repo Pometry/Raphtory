@@ -1,12 +1,11 @@
+import inspect
 from typing import Any, List
 
 from pyraphtory.vertex import Vertex, GraphState
-from pyraphtory.interop import to_jvm
+from pyraphtory.interop import to_jvm, to_python, FunctionWrapper
 
 
-class FunctionWrapper(object):
-    def __init__(self, fun=None):
-        self._fun = fun
+
 
 
 class Step(FunctionWrapper):

@@ -22,7 +22,13 @@ import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManagement
+import com.raphtory.internals.management.python.EmbeddedPython
+import com.raphtory.internals.management.PyRef
+import com.raphtory.internals.management.PythonEncoder
+import com.raphtory.internals.management.PythonFunction1
 import com.raphtory.internals.management.QuerySender
+import cats.Id
+import com.raphtory.api.input.GraphBuilder
 
 import scala.jdk.CollectionConverters.ListHasAsScala
 
@@ -109,6 +115,18 @@ private[api] trait GraphViewImplementation[
         with GraphBase[G, RG, MG]
         with GraphView { this: G =>
 
+  implicit val noPython = new EmbeddedPython[Id] {
+    override def invoke(ref: PyRef, methodName: String, args: Vector[Object]): Id[Object] = ???
+
+    override def eval[T](expr: String)(implicit PE: PythonEncoder[T]): Id[T] = ???
+
+    override def run(script: String): Id[Unit] = ???
+
+    override def loadGraphBuilder[T: PythonEncoder](cls: String, pkg: Option[String]): Id[GraphBuilder[T]] = ???
+
+    override def set(name: String, obj: Any): Id[Unit] = ???
+  }
+
   private[api] val query: Query
   private[api] val querySender: QuerySender
 
@@ -180,7 +198,7 @@ private[api] trait GraphViewImplementation[
   override def step(f: V => Unit): G = addFunction(Step(f))
 
   override def pythonStep(pickledPyObj: Array[Byte]): G =
-    addFunction(PythonStep(pickledPyObj))
+    addFunction(Step(PythonFunction1[V, Unit](pickledPyObj)))
 
   def loadPythonScript(script: String): G =
     newGraph(query.copy(pyScript = Some(script)), querySender)

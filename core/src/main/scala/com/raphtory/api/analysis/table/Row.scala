@@ -3,6 +3,7 @@ package com.raphtory.api.analysis.table
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
+import scala.annotation.varargs
 import scala.collection.AbstractIterator
 import scala.collection.mutable.ArrayBuffer
 
@@ -120,7 +121,7 @@ object Row {
     ThreadLocal.withInitial[ArrayBuffer[RowImplementation]](() => ArrayBuffer.empty[RowImplementation])
 
   /** Create a new Row object */
-  def apply(values: Any*): Row = {
+  @varargs def apply(values: Any*): Row = {
     val localPool = pool.get()
     val row       =
       if (localPool.isEmpty) {

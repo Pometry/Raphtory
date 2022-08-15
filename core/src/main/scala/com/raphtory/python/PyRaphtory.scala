@@ -90,11 +90,9 @@
 //    def bootRaphtory(loadingMode: LoadingMode, path: Path, builder: GraphBuilder[String]) =
 //      loadingMode match {
 //        case Streaming =>
-//          val graph: TemporalGraph = Raphtory.newGraph()
-//          graph.ingest(com.raphtory.api.input.Source(FileSpout(path.toString), builder))
+//          Raphtory.streamIO(spout = FileSpout(path.toString), graphBuilder = builder)
 //        case Batch     =>
-//          val graph: TemporalGraph = Raphtory.newGraph()
-//          graph.ingest(com.raphtory.api.input.Source(FileSpout(path.toString), builder))
+//          Raphtory.loadIO(spout = FileSpout(path.toString), graphBuilder = builder)
 //      }
 //
 //    (py4j, pyScript, input, res, loading, builder).tupled.map {
@@ -119,7 +117,7 @@
 //        val mainRes = for {
 //          script <- Resource.eval(builderIO)
 //          graph  <- bootRaphtory(loadingMode, inputPath, PythonGraphBuilder(script, builderClass))
-//          _      <- Py4JServer.fromEntryPoint[IO](new PythonEntrypoint(graph), Raphtory.getDefaultConfig())
+//          _      <- Py4JServer.fromEntryPoint[IO](new PythonEntrypoint(graph), graph.config)
 //        } yield (graph, script)
 //
 //        mainRes.use {
@@ -134,17 +132,10 @@
 //
 //  private def runToPython(evalPy: UnsafeEmbeddedPythonProxy, graph: TemporalGraph, script: String) =
 //    for {
-//      _       <- IO.blocking(evalPy.set("raphtory_graph", graph))
-//      _       <- IO.blocking(evalPy.set("py_script", script))
-//      _       <- IO.blocking(
-//                         evalPy.run(
-//                                 "tracker = RaphtoryContext(rg = TemporalGraph(raphtory_graph), script=py_script).eval()"
-//                         )
-//                 )
-//      tracker <- IO.blocking(evalPy.invoke(PyRef("tracker"), "inner_tracker")).map {
-//                   case qt: QueryProgressTracker => qt
-//                 }
-//      _       <- IO.blocking(tracker.waitForJob())
+//      _ <- IO.blocking(evalPy.set("raphtory_graph", graph))
+//      _ <- IO.blocking(evalPy.set("py_script", script))
+//      _ <- IO.blocking(evalPy.run("print('testing')"))
+//      _ <- IO.blocking(evalPy.run("RaphtoryContext(rg = raphtory_graph, script=py_script).eval().wait_for_job()"))
 //    } yield ExitCode.Success
 //}
 //

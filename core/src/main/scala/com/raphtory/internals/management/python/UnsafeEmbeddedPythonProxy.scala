@@ -99,6 +99,8 @@ object UnsafeEmbeddedPythonProxy {
     }
   }
 
+  implicit val global: EmbeddedPython[Id] = apply()
+
   def isDone(done: AtomicBoolean): Boolean =
     done.compareAndSet(true, true)
 }

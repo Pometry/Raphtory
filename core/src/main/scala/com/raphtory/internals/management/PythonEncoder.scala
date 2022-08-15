@@ -1,19 +1,27 @@
 package com.raphtory.internals.management
 
+import cats.Functor
+import cats.Id
+import cats.syntax.all._
 import com.raphtory.api.analysis.graphstate.Accumulator
+import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.input.GraphBuilder
+import com.raphtory.internals.management.python.EmbeddedPython
+import com.raphtory.internals.management.python.UnsafeEmbeddedPythonProxy
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 import java.util
 import scala.collection.mutable
 import scala.reflect.ClassTag
+import scala.util.Random
 import scala.util.Success
 import scala.util.Try
 import scala.jdk.CollectionConverters._
 import scala.reflect.runtime.universe
+import com.raphtory.internals.management.python.UnsafeEmbeddedPythonProxy.global
 
 trait PythonEncoder[A] extends Serializable {
   def encode(a: A): Object
@@ -199,11 +207,11 @@ object PythonInterop {
   def testArgs(args: Any): Unit =
     println(s"testArgs($args)")
 
-  def decode(obj: Any): Any =
-    obj match {
+  def decode[T](obj: Any): T =
+    (obj match {
       case obj: java.util.ArrayList[_] => obj.asScala
       case obj                         => obj
-    }
+    }).asInstanceOf[T]
 
   def get_wrapper_str(obj: Any): String =
     obj match {
@@ -292,3 +300,33 @@ case class Method(name: String, n: Int, parameters: Array[String], defaults: Map
   * name of variable inside the python context
   */
 case class PyRef(name: String)
+
+trait PythonFunction {
+  protected val pickleBytes: Array[Byte]
+  protected val eval_name = s"_${Random.alphanumeric.take(32).mkString}"
+
+  @transient lazy val py: EmbeddedPython[Id] = {
+    val _py = UnsafeEmbeddedPythonProxy.global
+    _py.set(s"${eval_name}_bytes", pickleBytes)
+    _py.run(s"import cloudpickle as pickle; $eval_name = pickle.loads(${eval_name}_bytes)")
+    _py.run(s"del ${eval_name}_bytes")
+    _py
+  }
+
+  def invoke(args: Vector[Object]): Id[Object] =
+    py.invoke(PyRef(eval_name), "eval_from_jvm", args)
+}
+
+case class PythonFunction1[I <: AnyRef, R](pickleBytes: Array[Byte]) extends (I => Id[R]) with PythonFunction {
+
+  override def apply(v1: I): Id[R] =
+    invoke(Vector(v1)).map(v => v.asInstanceOf[R])
+}
+
+case class PythonFunction2[I <: AnyRef, J <: AnyRef, R](pickleBytes: Array[Byte])
+        extends ((I, J) => Id[R])
+        with PythonFunction {
+
+  override def apply(v1: I, v2: J): Id[R] =
+    invoke(Vector(v1, v2)).map(_.asInstanceOf[R])
+}

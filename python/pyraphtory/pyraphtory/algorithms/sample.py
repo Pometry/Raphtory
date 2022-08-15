@@ -1,6 +1,7 @@
 import traceback
 
 from pyraphtory.steps import Vertex, Iterate, Step
+from pyraphtory.graph import Row
 from pyraphtory.builder import *
 from pyraphtory.context import BaseContext
 
@@ -20,34 +21,30 @@ class LotrGraphBuilder(BaseBuilder):
         self.add_edge(int(timestamp), src_id, tar_id, Type("Character Co-occurence"))
 
 
-class CCStep1(Step):
-    def eval(self, v: Vertex):
-        v['cclabel'] = v.id()
-        v.message_all_neighbours(v.id())
+def CCStep1(v: Vertex):
+    v['cclabel'] = v.id()
+    v.message_all_neighbours(v.id())
 
 
-class CCIterate1(Iterate):
-    def eval(self, v: Vertex):
-        label = min(v.message_queue())
-        if label < v['cclabel']:
-            v['cclabel'] = label
-            v.message_all_neighbours(label)
-        else:
-            v.vote_to_halt()
+def CCIterate1(v: Vertex):
+    label = min(v.message_queue())
+    if label < v['cclabel']:
+        v['cclabel'] = label
+        v.message_all_neighbours(label)
+    else:
+        v.vote_to_halt()
 
 
 class RaphtoryContext(BaseContext):
     def eval(self):
-        try:
-            return self.rg.at(32674) \
-                .past() \
-                .step(CCStep1()) \
-                .iterate(CCIterate1(iterations=100, execute_messaged_only=True)) \
-                .select(['cclabel']) \
-                .write_to_file("/tmp/pyraphtory_output")
-        except Exception as e:
-            print(str(e))
-            traceback.print_exc()
+        logger.trace("evaluating")
+        tracker = self.rg.at(32674) \
+            .past() \
+            .step(CCStep1) \
+            .select(['cclabel']) \
+            .write_to_file("/tmp/pyraphtory_output")
+        print(tracker)
+        return tracker
 
 
 def total_degree(v, s):
@@ -83,5 +80,5 @@ if __name__ == "__main__":
     # rg.at(32674).past().execute(pr.algorithms.generic.ConnectedComponents).write_to_file("/tmp/pyraphtory_output").wait_for_job()
     df = (rg.set_global_state(lambda s: s.new_adder[Int]("deg_sum"))
             .step(total_degree)
-            .global_select(lambda s: [s("deg_sum").value()])
+            .global_select(lambda s: Row(s("deg_sum").value()))
             .write_to_dataframe(["deg_sum"]))
