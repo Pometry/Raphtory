@@ -23,13 +23,15 @@ class BotsGraphBuilder extends GraphBuilder[String] {
   override def parseTuple(tuple: String): Unit = {
 //    val line = new String(tuple,"UTF-8")//author_id	created_at	in_reply_to_user_id	lang	retweet_count	like_count	source	text
     val fileLine   = tuple.split(",").map(_.trim)
-    val userID  = fileLine(0).toLong
-    val replyID = fileLine(4)
-    val timestamp  = getTimeStamp(fileLine(2))
-    val sentiment = fileLine(6).toString
+    val userID  = fileLine(1).toLong
+    val replyID = fileLine(2).toLong
+    val timestamp  = getTimeStamp(fileLine(0)).toLong()
+    var sentiment = "None"
+    if (fileLine.length >= 3) :
+      val sentiment = fileLine(3).toString
 //    val timestamp = OffsetDateTime.parse(fileLine(1)).toEpochSecond
     addVertex(timestamp, userID, Type("User"))
-    if (replyID != "") {
+    if (replyID != 0L) {
       addVertex(timestamp, replyID.toFloat.toLong, Type("User"))
       addEdge(timestamp, userID, replyID.toFloat.toLong, Properties(ImmutableProperty("sentiment", sentiment)),Type("Retweeted"))
     }
