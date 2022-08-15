@@ -1,5 +1,5 @@
 from pyraphtory.algorithm import PyAlgorithm
-from pyraphtory.graph import TemporalGraph, Row, Table
+from pyraphtory.graph import TemporalGraph, Row
 from pyraphtory.vertex import Vertex
 
 
