@@ -17,12 +17,12 @@ import graphbuilders.{BotsFromJsonGraphBuilder, BotsGraphBuilder}
 import scala.language.postfixOps
 
 object Runner extends App {
-  val path = "/Users/pometry/Desktop/Features/fulltweetdata.csv"
+  val path = "~/Raphtory/examples/raphtory-example-bots/src/main/python/BotDetection/raphtory.csv"
 
   val source  = FileSpout(path)
   val builder = new BotsGraphBuilder()
   val graph   = Raphtory.load(spout = source, graphBuilder = builder)
-  val output  = FileSink("/tmp/raphtory")
+  val output  = FileSink("~/Raphtory/examples/raphtory-example-bots/src/main/python/RaphtoryOutput")
 
   val queryHandler = graph
     .execute(Influence())
