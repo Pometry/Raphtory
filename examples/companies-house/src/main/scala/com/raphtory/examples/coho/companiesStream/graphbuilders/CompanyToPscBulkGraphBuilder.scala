@@ -21,8 +21,10 @@ class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
 
       val notifiedOn =
           LocalDate.parse(psc.data.get.notified_on.getOrElse("1800-01-01").replaceAll("\"", ""), DateTimeFormatter.ofPattern("yyyy-MM-dd")).toEpochSecond(LocalTime.MIDNIGHT, ZoneOffset.MIN) * 1000
+
       val companyNumber = psc.company_number.get
-      val name = psc.data.get.name.get.split(" ")
+
+      val name = psc.data.get.name.getOrElse("No Name").split(" ")
 
       var dateOfBirth = "00"
         if (psc.data.get.date_of_birth.nonEmpty) {
