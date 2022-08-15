@@ -59,36 +59,53 @@ class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
       val naturesOfControl: String = psc.data.get.natures_of_control.getOrElse(List("None")).head
       val shareOwnership = matchControl(naturesOfControl)
 
-      if (psc.data.get.ceased_on.nonEmpty) {
-        val ceasedOn = LocalDate.parse(psc.data.get.ceased_on.get.replaceAll("\"", ""), DateTimeFormatter.ofPattern("yyyy-MM-dd")).toEpochSecond(LocalTime.MIDNIGHT, ZoneOffset.MIN) * 1000
 
         if (notifiedOn > 0) {
-          val companyDuration = ceasedOn - notifiedOn
-          addVertex(
-            companyDuration,
-            assignID(nameID),
-            Properties(ImmutableProperty("name", nameID)),
-            Type("Persons With Significant Control")
-          )
 
-          addVertex(
-            companyDuration,
-            assignID(companyNumber),
-            Properties(ImmutableProperty("name", companyNumber)),
-            Type("Company")
-          )
+            addVertex(
+                notifiedOn,
+                assignID(nameID),
+                Properties(ImmutableProperty("name", nameID)),
+                Type("Persons With Significant Control")
+            )
+
+            addVertex(
+                notifiedOn,
+                assignID(companyNumber),
+                Properties(ImmutableProperty("name", companyNumber)),
+                Type("Company")
+            )
 
           addEdge(
-            companyDuration,
+            notifiedOn,
             assignID(nameID),
             assignID(companyNumber),
             Properties(IntegerProperty("weight", shareOwnership)),
             Type("Psc to Company Duration")
           )
 
-        }
+          if (psc.data.get.ceased_on.nonEmpty) {
 
-      }
+            val ceasedOn = LocalDate.parse(psc.data.get.ceased_on.get.replaceAll("\"", ""), DateTimeFormatter.ofPattern("yyyy-MM-dd")).toEpochSecond(LocalTime.MIDNIGHT, ZoneOffset.MIN) * 1000
+//
+//            addVertex(
+//              ceasedOn,
+//              assignID(companyNumber),
+//              Properties(ImmutableProperty("name", companyNumber)),
+//              Type("Company")
+//            )
+
+            addEdge(
+              ceasedOn,
+              assignID(nameID),
+              assignID(companyNumber),
+              Properties(IntegerProperty("weight", shareOwnership)),
+              Type("Psc to Ceased Company Duration")
+            )
+          }
+
+
+        }
 
 //        addVertex(
 //          notifiedOn,
