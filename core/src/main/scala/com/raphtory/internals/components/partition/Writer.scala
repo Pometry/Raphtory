@@ -23,8 +23,8 @@ private[raphtory] class Writer(
     topics: TopicRepository
 ) extends Component[GraphAlteration](conf) {
 
-  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-  private val neighbours     = topics.graphSync(graphID).endPoint(partitionID)
+  private val logger: Logger  = Logger(LoggerFactory.getLogger(this.getClass))
+  private lazy val neighbours = topics.graphSync(graphID).endPoint(partitionID)
 
   private var processedMessages = 0
 
@@ -34,6 +34,7 @@ private[raphtory] class Writer(
     neighbours.values.foreach(_.close())
 
   override def handleMessage(msg: GraphAlteration): Unit = {
+    println("received")
     msg match {
       //Updates from the Graph Builder
       case update: VertexAdd                    => processVertexAdd(update)

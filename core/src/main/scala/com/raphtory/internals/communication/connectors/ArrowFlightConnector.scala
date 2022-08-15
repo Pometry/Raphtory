@@ -9,12 +9,13 @@ import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.management.ZookeeperConnector
 import com.raphtory.internals.management.arrow.ArrowFlightHostAddressProvider
+import com.raphtory.internals.management.arrow.ZKHostAddressProvider
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.apache.arrow.memory._
 import org.slf4j.LoggerFactory
-import scala.concurrent.ExecutionContext.Implicits.global
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.Future
@@ -104,6 +105,7 @@ class ArrowFlightConnector(
       topics: Seq[CanonicalTopic[T]]
   ): CancelableListener = {
 
+    println(s"Hello $id $partitionId")
     val (server, reader) = addressProvider.startAndPublishAddress(partitionId, messageHandler)
 
     new CancelableListener {

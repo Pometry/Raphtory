@@ -24,7 +24,7 @@ private[raphtory] class IngestionExecutor(
 ) extends Component[Any](conf) {
   private val logger: Logger        = Logger(LoggerFactory.getLogger(this.getClass))
   private val failOnError           = conf.getBoolean("raphtory.builders.failOnError")
-  private val writers               = topics.graphUpdates(graphID).endPoint(-1)
+  private val writers               = topics.graphUpdates(graphID).endPoint(0)
   private val sourceInstance        = source.buildSource(graphID)
   private val spoutReschedulesCount = telemetry.spoutReschedules.labels(graphID)
   private val fileLinesSent         = telemetry.fileLinesSent.labels(graphID)

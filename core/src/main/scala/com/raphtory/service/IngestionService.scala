@@ -8,7 +8,7 @@ import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.components.ingestion.IngestionOrchestrator
 import com.raphtory.internals.management.ZookeeperConnector
-import com.raphtory.internals.management.arrow.ArrowFlightHostAddressProvider
+import com.raphtory.internals.management.arrow.ZKHostAddressProvider
 
 object IngestionService extends IOApp {
 
@@ -20,7 +20,7 @@ object IngestionService extends IOApp {
 
     val service = for {
       zkClient      <- ZookeeperConnector.getZkClient(config.getString("raphtory.zookeeper.address"))
-      addressHandler = new ArrowFlightHostAddressProvider(zkClient, config)
+      addressHandler = new ZKHostAddressProvider(zkClient, config)
       repo          <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, addressHandler)
       service       <- IngestionOrchestrator[IO](config, repo)
     } yield service

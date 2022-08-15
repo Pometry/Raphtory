@@ -9,7 +9,7 @@ import com.raphtory.internals.communication.repositories.DistributedTopicReposit
 import com.raphtory.internals.components.cluster.ClusterManager
 import com.raphtory.internals.components.cluster.ClusterMode
 import com.raphtory.internals.management.ZookeeperConnector
-import com.raphtory.internals.management.arrow.ArrowFlightHostAddressProvider
+import com.raphtory.internals.management.arrow.ZKHostAddressProvider
 
 object ClusterManagerService extends IOApp {
 
@@ -21,7 +21,7 @@ object ClusterManagerService extends IOApp {
 
     val headNode = for {
       zkClient      <- ZookeeperConnector.getZkClient(config.getString("raphtory.zookeeper.address"))
-      addressHandler = new ArrowFlightHostAddressProvider(zkClient, config)
+      addressHandler = new ZKHostAddressProvider(zkClient, config)
       repo          <- DistributedTopicRepository[IO](AkkaConnector.SeedMode, config, addressHandler)
       headNode      <- ClusterManager[IO](config, repo, mode = ClusterMode)
     } yield headNode

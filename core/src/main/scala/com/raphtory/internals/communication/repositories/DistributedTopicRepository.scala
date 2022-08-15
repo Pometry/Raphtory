@@ -8,7 +8,7 @@ import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.connectors.ArrowFlightConnector
 import com.raphtory.internals.communication.connectors.PulsarConnector
 import com.raphtory.internals.communication.repositories.ArrowFlightRepository.signatureRegistry
-import com.raphtory.internals.management.arrow.ArrowFlightHostAddressProvider
+import com.raphtory.internals.management.arrow.ZKHostAddressProvider
 import com.typesafe.config.Config
 
 private[raphtory] object DistributedTopicRepository {
@@ -16,7 +16,7 @@ private[raphtory] object DistributedTopicRepository {
   def apply[IO[_]: Async](
       akkaMode: AkkaConnector.Mode,
       config: Config,
-      addressProvider: ArrowFlightHostAddressProvider
+      addressProvider: ZKHostAddressProvider
   ): Resource[IO, TopicRepository] =
     config.getString("raphtory.communication.control") match {
       case "auto"   =>
