@@ -90,8 +90,10 @@ trait GraphBuilderInstance[T] extends Serializable with Graph {
     }
     catch {
       case e: Exception =>
-        if (failOnError)
+        if (failOnError) {
+          e.printStackTrace()
           throw e
+        }
         else {
           logger.warn(s"Failed to parse tuple.", e.getMessage)
           e.printStackTrace()
@@ -135,6 +137,7 @@ trait GraphBuilderInstance[T] extends Serializable with Graph {
       secondaryIndex: Long = index
   ): Unit = {
     val update = VertexAdd(updateTime, secondaryIndex, srcId, properties, vertexType.toOption)
+    logger.trace(s"Created update $update")
     handleGraphUpdate(update)
     updateVertexAddStats()
   }
@@ -197,9 +200,12 @@ trait GraphBuilderInstance[T] extends Serializable with Graph {
   }
 
   protected def handleGraphUpdate(update: GraphUpdate): Any = {
+    logger.trace(s"handling $update")
     val partitionForTuple = checkPartition(update.srcId)
-    if (partitionIDs contains partitionForTuple)
+    if (partitionIDs contains partitionForTuple) {
       writers(partitionForTuple).sendAsync(update)
+      logger.trace(s"$update sent")
+    }
   }
 
   protected def handleEdgeAdd(update: EdgeAdd): Any = {

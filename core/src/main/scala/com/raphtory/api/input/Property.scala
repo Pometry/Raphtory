@@ -2,6 +2,7 @@ package com.raphtory.api.input
 
 /** Properties are characteristic attributes like name, etc. assigned to Vertices and Edges by the
   * [[Graph Builder]].
+  *
   * @see [[GraphBuilder]]
   */
 
@@ -18,7 +19,7 @@ sealed trait MaybeType {
   def toOption: Option[Type]
 }
 
-object NoType                 extends MaybeType {
+object NoType extends MaybeType {
   override def toOption: Option[Type] = None
 }
 
@@ -52,4 +53,6 @@ case class Properties(properties: Vector[Property])
 
 object Properties {
   def apply(property: Property*): Properties = Properties(Vector.from(property))
+
+  def apply(properties: IterableOnce[Property]): Properties = Properties(Vector.from(properties))
 }

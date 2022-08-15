@@ -1,12 +1,15 @@
 package com.raphtory.internals.management
 
 import com.raphtory.api.input.GraphBuilder
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
 
 import java.util
 import scala.collection.mutable
 import scala.reflect.ClassTag
 import scala.util.Success
 import scala.util.Try
+import scala.jdk.CollectionConverters._
 
 trait PythonEncoder[A] extends Serializable {
   def encode(a: A): Object
@@ -181,10 +184,30 @@ object PythonEncoder {
 }
 
 object PythonInterop {
+  val logger: WrappedLogger = new WrappedLogger(Logger(LoggerFactory.getLogger(this.getClass)))
 
   def assignId(s: String): Long =
     GraphBuilder.assignID(s)
 
+  def testArgs(args: Any): Unit =
+    println(s"testArgs($args)")
+
+  def decode(obj: Any): Any = obj
+
+  def decode[T](obj: java.util.ArrayList[T]): mutable.Iterable[T] = obj.asScala
+
+}
+
+class WrappedLogger(logger: Logger) {
+  def info(msg: String): Unit = logger.info(msg)
+
+  def debug(msg: String): Unit = logger.debug(msg)
+
+  def trace(msg: String): Unit = logger.trace(msg)
+
+  def warn(msg: String): Unit = logger.warn(msg)
+
+  def error(msg: String): Unit = logger.error(msg)
 }
 
 /**
