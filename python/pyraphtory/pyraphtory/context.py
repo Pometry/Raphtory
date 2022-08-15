@@ -44,6 +44,9 @@ class BaseContext(object):
     def eval(self):
         pass
 
+    def eval_from_jvm(self):
+        return interop.to_jvm(self.eval())
+
     @rg.setter
     def rg(self, value):
         self._rg = value
