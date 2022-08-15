@@ -111,21 +111,8 @@ private[api] trait GraphViewImplementation[
     RG <: ReducedGraphViewImplementation[RG, MG],
     MG <: MultilayerGraphViewImplementation[MG, RG]
 ] extends ConcreteGraphPerspective[V, G, RG, MG]
-        with PythonSupport
         with GraphBase[G, RG, MG]
         with GraphView { this: G =>
-
-  implicit val noPython = new EmbeddedPython[Id] {
-    override def invoke(ref: PyRef, methodName: String, args: Vector[Object]): Id[Object] = ???
-
-    override def eval[T](expr: String)(implicit PE: PythonEncoder[T]): Id[T] = ???
-
-    override def run(script: String): Id[Unit] = ???
-
-    override def loadGraphBuilder[T: PythonEncoder](cls: String, pkg: Option[String]): Id[GraphBuilder[T]] = ???
-
-    override def set(name: String, obj: Any): Id[Unit] = ???
-  }
 
   private[api] val query: Query
   private[api] val querySender: QuerySender
@@ -197,60 +184,17 @@ private[api] trait GraphViewImplementation[
 
   override def step(f: V => Unit): G = addFunction(Step(f))
 
-  override def pythonStep(pickledPyObj: Array[Byte]): G =
-    addFunction(Step(PythonFunction1[V, Unit](pickledPyObj)))
-
   def loadPythonScript(script: String): G =
     newGraph(query.copy(pyScript = Some(script)), querySender)
 
   override def step(f: (V, GraphState) => Unit): G =
     addFunction(StepWithGraph(f))
 
-  override def pythonStepState(pyObj: Array[Byte]): G =
-    addFunction(PythonStepWithGraph(pyObj))
-
   override def iterate(
       f: (V) => Unit,
       iterations: Int,
       executeMessagedOnly: Boolean
   ): G = addFunction(Iterate(f, iterations, executeMessagedOnly))
-
-  override def pythonIterate(pyObj: Array[Byte], iterations: Long, executeMessagedOnly: Boolean): G =
-    addFunction(PythonIterate(pyObj, iterations, executeMessagedOnly))
-
-  override def pythonSelect(columns: Iterable[String]): Table =
-    pythonSelectSupport(columns)
-
-  override def pythonSelectState(columns: Object): Table =
-    pythonSelectStateSupport(columns)
-
-  private def pythonSelectStateSupport(columns: Object) = {
-    val cs   = columns match {
-      case arr: Array[_]           => arr.iterator
-      case list: java.util.List[_] => list.asScala.iterator
-    }
-    val cols = cs.collect { case s: String => s }.toVector
-    globalSelect { state =>
-      print(state(cols(0)))
-      val row: Seq[Any] =
-        cols.map { name =>
-          val name1: Accumulator[Any, Any] = state[Any, Any](name)
-          name1.value
-        }
-      Row(row: _*)
-    }
-  }
-
-  private def pythonSelectSupport(columns: Iterable[String]) =
-    this.select { vertex =>
-      val maybeObjects =
-        columns.flatMap(name => Option(vertex.getStateOrElse(name, null, includeProperties = true))).toVector
-      val row          = vertex.name() +: maybeObjects
-      Row(row: _*)
-    }
-
-  override def pythonSetGlobalState(pyObj: Array[Byte]): G =
-    addFunction(PythonSetGlobalState(pyObj))
 
   override def iterate(
       f: (V, GraphState) => Unit,
@@ -266,9 +210,6 @@ private[api] trait GraphViewImplementation[
 
   override def globalSelect(f: GraphState => Row): Table =
     addSelect(GlobalSelect(f))
-
-  override def pythonGlobalSelect(pyObj: Array[Byte]): Table =
-    addSelect(PythonGlobalSelect(pyObj))
 
   override def explodeSelect(f: V => List[Row]): Table =
     addSelect(ExplodeSelect(f))

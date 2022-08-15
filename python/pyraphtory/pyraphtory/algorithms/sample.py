@@ -64,5 +64,6 @@ if __name__ == "__main__":
             .global_select(lambda s: Row(s("deg_sum").value()))
             .write_to_dataframe(["deg_sum"]))
 
+    print(df)
     # df = (rg.select(lambda vertex: Row(vertex.name(), vertex.degree()))
     #       .write_to_dataframe(["name", "degree"]))
