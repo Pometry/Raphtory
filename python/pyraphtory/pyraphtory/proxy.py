@@ -55,10 +55,7 @@ class GenericScalaProxy(object):
         return GenericScalaProxy(self._jvm_object)
 
     def __call__(self, *args, **kwargs):
-        args = [interop.to_jvm(v) for v in args]
-        kwargs = {k: interop.to_jvm(v) for k, v in kwargs.items()}
-        logger.trace(f"Calling {self!r} with *args={args!r} and **kwargs={kwargs!r}")
-        return interop.to_python(self._jvm_object(*args, **kwargs))
+        return self.apply(*args, **kwargs)
 
 
 class GenericMethodProxy(object):
@@ -107,9 +104,7 @@ class ConstructableScalaProxy(GenericScalaProxy):
 
     @classmethod
     def _constructor(cls):
-        from pemja import findClass
-        logger.trace(f"trying to construct {cls._classname}")
-        c = findClass(cls._classname.replace(".", "/"))
+        c = interop.find_class(cls._classname)
         logger.trace(f"Classname is now {cls._classname}")
         logger.trace(f"found {c}")
         obj = GenericScalaProxy(c)
@@ -119,7 +114,7 @@ class ConstructableScalaProxy(GenericScalaProxy):
     @classmethod
     def _construct_from_python(cls, *args, **kwargs):
         # TODO: This creates a wrapper and then unwraps it again, clean up
-        return interop.to_jvm(cls._constructor().apply(*args, **kwargs))
+        return interop.to_jvm(cls._constructor()(*args, **kwargs))
 
     def __init__(self, *args, jvm_object=None, **kwargs):
         if jvm_object is None:
@@ -141,3 +136,14 @@ class IteratorScalaProxy(GenericScalaProxy, Iterator):
             return self.next()
         else:
             raise StopIteration
+
+
+class Algorithm(object):
+    def __init__(self, path: str):
+        self._path = path
+
+    def __call__(self, *args, **kwargs):
+        return GenericScalaProxy(interop.find_class(self._path)).apply(*args, **kwargs)
+
+    def __getattr__(self, item):
+        return Algorithm(".".join((self._path, item)))

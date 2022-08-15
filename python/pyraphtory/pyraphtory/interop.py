@@ -109,6 +109,9 @@ def to_jvm(value):
     if is_PyJObject(value):
         logger.trace(f"Converting value {value!r}, already PyJObject")
         return decode(value)
+    elif isinstance(value, proxy.Algorithm):
+        logger.trace(f"Converting value {value!r}, finding object based on algorithm path")
+        return find_class(value._path)
     elif isinstance(value, proxy.GenericScalaProxy):
         logger.trace(f"Converting value {value!r}, decoding proxy object")
         return decode(value._jvm_object)
@@ -133,6 +136,11 @@ def to_python(obj):
     else:
         logger.trace(f"Primitive object {obj!r} passed to python unchanged")
         return obj
+
+
+def find_class(path: str):
+    c = _scala().find_class(path)
+    return _scala().find_class(path)
 
 
 def assign_id(s: str):

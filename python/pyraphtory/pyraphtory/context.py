@@ -13,7 +13,7 @@ from py4j.java_gateway import JavaGateway, GatewayParameters
 from py4j.protocol import Py4JJavaError
 
 from pyraphtory.graph import TemporalGraph
-from pyraphtory import interop
+from pyraphtory import interop, proxy
 
 
 class BaseContext(object):
@@ -52,6 +52,7 @@ def join(stderr: IO[AnyStr] | None, stdout: IO[AnyStr] | None, logging: bool = F
 
 
 class PyRaphtory(object):
+    algorithms = proxy.Algorithm("com.raphtory.algorithms")
 
     def __init__(self, spout_input: Path, builder_script: Path, builder_class: str, mode: str, logging: bool = False):
         jar_location = Path(inspect.getfile(self.__class__)).parent.parent
