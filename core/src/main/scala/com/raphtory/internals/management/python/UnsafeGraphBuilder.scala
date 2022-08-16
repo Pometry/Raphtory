@@ -14,9 +14,7 @@ import com.raphtory.internals.management.PythonEncoder
 class UnsafeGraphBuilder[T](val ref: PyRef, py: EmbeddedPython[Id])(implicit PE: PythonEncoder[T])
         extends GraphBuilder[T] {
 
-  logger.debug("Started UnsafeGraphBuilder")
   py.invoke(ref, "_set_jvm_builder", Vector(this))
-  logger.debug("Registered proxy in Python")
 
   /** Processes raw data message `tuple` from the spout to extract source node, destination node,
     * timestamp info, etc.
@@ -49,7 +47,6 @@ case class PythonGraphBuilder[T](pyScript: String, pyClass: String)(implicit PE:
         extends GraphBuilder[T]
         with Serializable {
 
-  logger.debug("Started PythonGraphBuilder")
   @transient lazy val py    = UnsafeEmbeddedPythonProxy(List(pyScript))
   @transient lazy val proxy = py.loadGraphBuilder[T](pyClass, None)
 
