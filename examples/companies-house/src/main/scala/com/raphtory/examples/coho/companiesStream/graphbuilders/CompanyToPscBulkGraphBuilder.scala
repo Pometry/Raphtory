@@ -62,8 +62,38 @@ class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
 
         if (notifiedOn > 0) {
         // Edge for PSC to Company, weight of share ownership
+//            addVertex(
+//              notifiedOn,
+//              assignID(nameID),
+//              Properties(ImmutableProperty("name", nameID)),
+//              Type("Persons With Significant Control"),
+//              tupleIndex
+//            )
+//
+//            addVertex(
+//              notifiedOn,
+//              assignID(companyNumber),
+//              Properties(ImmutableProperty("name", companyNumber)),
+//              Type("Company"),
+//              tupleIndex
+//            )
+
+//            addEdge(
+//              notifiedOn,
+//              assignID(nameID),
+//              assignID(companyNumber),
+//              Properties(IntegerProperty("weight", shareOwnership)),
+//              Type("Psc to Company Duration"),
+//              tupleIndex
+//            )
+
+          if (psc.data.get.ceased_on.nonEmpty) {
+
+            val ceasedOn = LocalDate.parse(psc.data.get.ceased_on.get.replaceAll("\"", ""), DateTimeFormatter.ofPattern("yyyy-MM-dd")).toEpochSecond(LocalTime.MIDNIGHT, ZoneOffset.MIN) * 1000
+
+            // Edge for PSC to Company that has been ceased, weight is shared ownership
             addVertex(
-              notifiedOn,
+              ceasedOn,
               assignID(nameID),
               Properties(ImmutableProperty("name", nameID)),
               Type("Persons With Significant Control"),
@@ -71,27 +101,13 @@ class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
             )
 
             addVertex(
-              notifiedOn,
+              ceasedOn,
               assignID(companyNumber),
               Properties(ImmutableProperty("name", companyNumber)),
               Type("Company"),
               tupleIndex
             )
 
-            addEdge(
-              notifiedOn,
-              assignID(nameID),
-              assignID(companyNumber),
-              Properties(IntegerProperty("weight", shareOwnership)),
-              Type("Psc to Company Duration"),
-              tupleIndex
-            )
-
-          if (psc.data.get.ceased_on.nonEmpty) {
-
-            val ceasedOn = LocalDate.parse(psc.data.get.ceased_on.get.replaceAll("\"", ""), DateTimeFormatter.ofPattern("yyyy-MM-dd")).toEpochSecond(LocalTime.MIDNIGHT, ZoneOffset.MIN) * 1000
-
-            // Edge for PSC to Company that has been ceased, weight is shared ownership
             addEdge(
               ceasedOn,
               assignID(nameID),
