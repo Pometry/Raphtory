@@ -15,7 +15,6 @@ import com.raphtory.internals.graph.PerspectiveController
 import com.raphtory.internals.graph.PerspectiveController.DEFAULT_PERSPECTIVE_TIME
 import com.raphtory.internals.graph.PerspectiveController.DEFAULT_PERSPECTIVE_WINDOW
 import com.raphtory.internals.management.Scheduler
-import com.raphtory.internals.management.python.PythonGlobalStateEvaluator
 import com.raphtory.internals.management.python.UnsafeEmbeddedPythonProxy
 import com.raphtory.internals.serialisers.KryoSerialiser
 import com.typesafe.config.Config
@@ -46,7 +45,7 @@ private[raphtory] class QueryHandler(
   private val tracker        = topics.queryTrack(jobID).endPoint
   private val workerList     = topics.jobOperations(jobID).endPoint
 
-  private lazy val py = UnsafeEmbeddedPythonProxy(pyScript)
+  pyScript.map(s => UnsafeEmbeddedPythonProxy.global.run(s))
 
   private val listener =
     topics.registerListener(
@@ -444,30 +443,25 @@ private[raphtory] class QueryHandler(
             s"Job '$jobID': Executing graph function '${currentOperation.getClass.getSimpleName}'."
     )
     currentOperation match {
-      case PerspectiveDone()           =>
+      case PerspectiveDone()      =>
         logger.debug(
                 s"Job '$jobID': Executing next perspective with windows '${currentPerspective.window}'" +
                   s" and timestamp '${currentPerspective.timestamp}'."
         )
         executeNextPerspective()
 
-      case SetGlobalState(fun)         =>
+      case SetGlobalState(fun)    =>
         fun(graphState)
         nextGraphOperation(vertexCount)
 
-      case PythonSetGlobalState(pyObj) =>
-        val fun = new PythonGlobalStateEvaluator(pyObj, py)
-        fun(graphState)
-        nextGraphOperation(vertexCount)
-
-      case f: GlobalGraphFunction      =>
+      case f: GlobalGraphFunction =>
         messagetoAllJobWorkers(GraphFunctionWithGlobalState(f, graphState))
         if (f.isInstanceOf[TabularisingGraphFunction])
           Stages.ExecuteTable
         else
           Stages.ExecuteGraph
 
-      case f: GraphFunction            =>
+      case f: GraphFunction       =>
         messagetoAllJobWorkers(f)
         if (f.isInstanceOf[TabularisingGraphFunction])
           Stages.ExecuteTable
