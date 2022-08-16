@@ -4,18 +4,17 @@ import csv
 from pyraphtory.builder import BaseBuilder, ImmutableProperty, Properties, Type, StringProperty, DoubleProperty
 
 
-def get_date_price(eth_historic_csv="/tmp/ETH-USD.csv"):
-    date_price_map = {}
-    with open(eth_historic_csv) as csvfile:
-        reader = csv.DictReader(csvfile, delimiter=',')
-        for row in reader:
-            date_price_map[row['Date']] = (float(row['High']) + float(row['Low'])) / 2
-    return date_price_map
-
-
 class NFTGraphBuilder(BaseBuilder):
     def __init__(self):
         super(NFTGraphBuilder, self).__init__()
+
+    def get_date_price(self, eth_historic_csv="/tmp/ETH-USD.csv"):
+        date_price_map = {}
+        with open(eth_historic_csv) as csvfile:
+            reader = csv.DictReader(csvfile, delimiter=',')
+            for row in reader:
+                date_price_map[row['Date']] = (float(row['High']) + float(row['Low'])) / 2
+        return date_price_map
 
     def parse_tuple(self, line: str):
         file_line = list(map(str.strip, line.split(",")))
@@ -30,7 +29,7 @@ class NFTGraphBuilder(BaseBuilder):
         buyer_address_hash = self.assign_id(buyer_address)
         # Transaction details
         datetime_str = file_line[13]
-        timestamp_utc = time.strptime(datetime_str, "%Y-%m-%dT %H:%M:%S")
+        timestamp_utc = time.strptime(datetime_str, "%Y-%m-%d %H:%M:%S")
         timestamp = timegm(timestamp_utc)
         tx_hash = file_line[2]
         token_id_str = file_line[1]
@@ -41,7 +40,7 @@ class NFTGraphBuilder(BaseBuilder):
             return
 
         if file_line[9] == "":
-            price_usd = get_date_price(datetime_str[0:10])
+            price_usd = self.get_date_price(datetime_str[0:10], '/Users/haaroony/Documents/nft/ETH-USD.csv')
         else:
             price_usd = float(file_line[9])
 
