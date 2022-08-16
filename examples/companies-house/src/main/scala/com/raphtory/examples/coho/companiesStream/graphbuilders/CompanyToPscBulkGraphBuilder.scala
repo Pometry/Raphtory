@@ -18,7 +18,7 @@ class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
     }
   }
     def sendPscToPartitions(psc: PersonWithSignificantControlStream) = {
-
+      var tupleIndex = index * 50
       val notifiedOn =
           LocalDate.parse(psc.data.get.notified_on.getOrElse("1800-01-01").replaceAll("\"", ""), DateTimeFormatter.ofPattern("yyyy-MM-dd")).toEpochSecond(LocalTime.MIDNIGHT, ZoneOffset.MIN) * 1000
 
@@ -38,8 +38,8 @@ class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
       val nameID = s"$hyphenName-${dateOfBirth}"
 
 
-      def matchControl(statement: String): Int = {
-        statement match {
+      def matchControl(statement: Option[String]): Int = {
+        statement.get match {
           case "ownership-of-shares-25-to-50-percent" |
                "ownership-of-shares-25-to-50-percent-as-trust" |
                "ownership-of-shares-25-to-50-percent-as-firm" |
@@ -56,80 +56,55 @@ class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
         }
       }
 
-      val naturesOfControl: String = psc.data.get.natures_of_control.getOrElse(List("None")).head
-      val shareOwnership = matchControl(naturesOfControl)
+      val naturesOfControl = psc.data.get.natures_of_control.get
+      val shareOwnership = matchControl(naturesOfControl.headOption)
 
 
         if (notifiedOn > 0) {
-
+        // Edge for PSC to Company, weight of share ownership
             addVertex(
-                notifiedOn,
-                assignID(nameID),
-                Properties(ImmutableProperty("name", nameID)),
-                Type("Persons With Significant Control")
+              notifiedOn,
+              assignID(nameID),
+              Properties(ImmutableProperty("name", nameID)),
+              Type("Persons With Significant Control"),
+              tupleIndex
             )
 
             addVertex(
-                notifiedOn,
-                assignID(companyNumber),
-                Properties(ImmutableProperty("name", companyNumber)),
-                Type("Company")
+              notifiedOn,
+              assignID(companyNumber),
+              Properties(ImmutableProperty("name", companyNumber)),
+              Type("Company"),
+              tupleIndex
             )
 
-          addEdge(
-            notifiedOn,
-            assignID(nameID),
-            assignID(companyNumber),
-            Properties(IntegerProperty("weight", shareOwnership)),
-            Type("Psc to Company Duration")
-          )
+            addEdge(
+              notifiedOn,
+              assignID(nameID),
+              assignID(companyNumber),
+              Properties(IntegerProperty("weight", shareOwnership)),
+              Type("Psc to Company Duration"),
+              tupleIndex
+            )
 
           if (psc.data.get.ceased_on.nonEmpty) {
 
             val ceasedOn = LocalDate.parse(psc.data.get.ceased_on.get.replaceAll("\"", ""), DateTimeFormatter.ofPattern("yyyy-MM-dd")).toEpochSecond(LocalTime.MIDNIGHT, ZoneOffset.MIN) * 1000
-//
-//            addVertex(
-//              ceasedOn,
-//              assignID(companyNumber),
-//              Properties(ImmutableProperty("name", companyNumber)),
-//              Type("Company")
-//            )
 
+            // Edge for PSC to Company that has been ceased, weight is shared ownership
             addEdge(
               ceasedOn,
               assignID(nameID),
               assignID(companyNumber),
               Properties(IntegerProperty("weight", shareOwnership)),
-              Type("Psc to Ceased Company Duration")
+              Type("Psc to Ceased Company Duration"),
+              tupleIndex
             )
           }
 
-
         }
 
-//        addVertex(
-//          notifiedOn,
-//          assignID(nameID),
-//          Properties(ImmutableProperty("name", nameID)),
-//          Type("Persons With Significant Control")
-//        )
-
-
-//      addVertex(
-//          notifiedOn,
-//          assignID(companyNumber),
-//          Properties(ImmutableProperty("name", companyNumber)),
-//          Type("Company")
-//        )
-//
-//        addEdge(
-//          notifiedOn,
-//          assignID(nameID),
-//          assignID(companyNumber),
-//          Properties(IntegerProperty("weight", shareOwnership)),
-//          Type("Psc to Company Duration")
-//        )
-
+          tupleIndex += 1
 
       }
 
