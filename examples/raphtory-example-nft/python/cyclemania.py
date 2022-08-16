@@ -2,6 +2,7 @@ from pyraphtory.algorithm import PyAlgorithm
 from pyraphtory.graph import TemporalGraph, Row, Table
 from pyraphtory.vertex import Vertex
 from dataclasses import dataclass
+import pyraphtory.scala.collection
 
 CYCLES_FOUND: str = "CYCLES_FOUND"
 
@@ -20,6 +21,13 @@ class Cycle:
     sales: list[Sale]
 
 
+@dataclass(frozen=True)
+class CycleData:
+    buyer: str
+    profit_usd: float
+    cycle: Cycle
+
+
 class CycleMania(PyAlgorithm):
     def __init__(self):
         pass
@@ -30,7 +38,7 @@ class CycleMania(PyAlgorithm):
                 v[CYCLES_FOUND] = []
                 return
             all_cycles = []
-            all_purchases = sorted(v.explode_in_edges(), key=lambda e: e.timestamp(), reverse=True)
+            all_purchases = sorted(v.explode_in_edges(), key=lambda e: e.timestamp)
             purchasers = list(map(lambda e:
                                   Sale(
                                       buyer=e.get_property_or_else("buyer_address", "_UNKNOWN_"),
@@ -61,7 +69,7 @@ class CycleMania(PyAlgorithm):
         return graph.step(step)
 
     def tabularise(self, graph: TemporalGraph):
-        def explodeme(v: Vertex):
+        def get_cycles(v: Vertex):
             vertex_type = v.type()
             if vertex_type == "NFT" and len(v[CYCLES_FOUND]):
                 nft_id = v.id()
@@ -69,6 +77,18 @@ class CycleMania(PyAlgorithm):
                 nft_collection = v.get_property_or_else('collection', '_UNKNOWN_')
                 nft_category = v.get_property_or_else('category', '_UNKNOWN_')
                 # for single_cycle in cycles_found:
-
-
-        return graph.select(lambda v: explodeme(v))
+                rows_found = list(map(lambda single_cycle:
+                                      Row(
+                                          nft_id,
+                                          nft_collection,
+                                          nft_category,
+                                          len(single_cycle.sales),
+                                          CycleData(
+                                            buyer=single_cycle.sales[0].buyer,
+                                            profit_usd=single_cycle.sales[-1].price_usd - single_cycle.sales[
+                                                  0].price_usd,
+                                            cycle=single_cycle
+                                          )
+                                      ), cycles_found))
+            return rows_found
+        return graph.select(lambda v: get_cycles(v))
