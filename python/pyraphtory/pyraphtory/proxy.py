@@ -1,6 +1,3 @@
-from collections.abc import Iterable, Iterator
-from functools import cached_property
-
 from pyraphtory import interop
 from pyraphtory.interop import logger, register
 
@@ -224,23 +221,6 @@ class ScalaObjectProxy(ScalaProxyBase, type):
 class ScalaClassProxy(GenericScalaProxy, metaclass=ScalaObjectProxy):
     """Base class for wrapper objects that are constructable from python"""
     pass
-
-@register(name="Iterable")
-class IterableScalaProxy(GenericScalaProxy, Iterable):
-    """Proxy object that converts scala iterables into python iterables"""
-    def __iter__(self):
-        return self.iterator()
-
-
-@register(name="Iterator")
-class IteratorScalaProxy(GenericScalaProxy, Iterator):
-    """Proxy object that converts scala iterators into python iterators"""
-
-    def __next__(self):
-        if self.has_next():
-            return self.next()
-        else:
-            raise StopIteration
 
 
 class Function1(ScalaClassProxy):
