@@ -21,9 +21,9 @@ private[raphtory] object LocalTopicRepository {
     config.getString("raphtory.communication.control") match {
       case "auto" | "akka" =>
         for {
-          pulsarConnector     <- PulsarConnector[IO](config)
-          akkaConnector       <- AkkaConnector[IO](AkkaConnector.StandaloneMode, config)
-          arrowFlightConnector = new ArrowFlightConnector(config, signatureRegistry, addressProvider)
+          arrowFlightConnector <- ArrowFlightConnector(config, signatureRegistry, addressProvider)
+          pulsarConnector      <- PulsarConnector[IO](config)
+          akkaConnector        <- AkkaConnector[IO](AkkaConnector.StandaloneMode, config)
         } yield new TopicRepository(akkaConnector, arrowFlightConnector, pulsarConnector, config)
       case "pulsar"        => PulsarConnector[IO](config).map(connector => TopicRepository(connector, config))
     }

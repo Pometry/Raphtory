@@ -34,10 +34,9 @@ sealed trait ArrowFlightMessageSchemaWriterRegistry extends AutoCloseable {
   def removeSchema(endPoint: String): Unit =
     schemaRegistry.remove(endPoint)
 
-  def close(): Unit = {
-    schemaRegistry.values().forEach(_.close())
+  def close(): Unit =
+    //schemaRegistry.values().forEach(_.close())
     schemaRegistry.clear()
-  }
 }
 
 case class ArrowFlightWriter(
@@ -52,7 +51,6 @@ case class ArrowFlightWriter(
   private val srcPar       = s"par$partitionId"
   private val location     = Location.forGrpcInsecure(interface, port)
   private val flightClient = FlightClient.builder(allocator, location).build()
-
   logger.info("{} is online", this)
 
   private val listeners = mutable.HashMap[String, ClientStreamListener]()

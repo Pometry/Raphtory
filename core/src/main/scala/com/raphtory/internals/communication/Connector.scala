@@ -11,5 +11,4 @@ private[raphtory] trait Connector {
 
   def endPoint[T](srcParId: Int, topic: CanonicalTopic[T]): EndPoint[T]
 
-  def shutdown(): Unit
 }

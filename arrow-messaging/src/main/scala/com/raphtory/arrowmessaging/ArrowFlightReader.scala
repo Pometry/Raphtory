@@ -53,11 +53,11 @@ case class ArrowFlightReader[T](
 
   def readMessages(busyWaitInMilliSeconds: Long): Unit =
     while (true) {
-      try Thread.sleep(busyWaitInMilliSeconds)
-      catch {
-        case e: InterruptedException =>
-          e.printStackTrace()
-      }
+//      try Thread.sleep(busyWaitInMilliSeconds)
+//      catch {
+//        case e: InterruptedException =>
+//          e.printStackTrace()
+//      }
       readMessages()
 
       logger.debug("{}. Total messages read = {}", this, getTotalMessagesRead)
@@ -144,8 +144,7 @@ case class ArrowFlightReader[T](
         case Success(_)         =>
         case Failure(exception) =>
           exception match {
-            case e: java.util.concurrent.RejectedExecutionException =>
-              logger.warn("Arrow Reading rejected, possibly due to shutdown")
+            case e => //e.printStackTrace()
           }
       }
     }

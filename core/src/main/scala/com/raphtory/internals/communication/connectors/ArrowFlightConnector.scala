@@ -1,5 +1,8 @@
 package com.raphtory.internals.communication.connectors
 
+import cats.effect.IO
+import cats.effect.Resource
+import cats.effect.Sync
 import com.raphtory.arrowmessaging._
 import com.raphtory.internals.communication.CancelableListener
 import com.raphtory.internals.communication.CanonicalTopic
@@ -110,10 +113,10 @@ class ArrowFlightConnector(
       override def start(): Unit = Future(reader.readMessages(readBusyWait))
 
       override def close(): Unit = {
-        println("hello")
+        logger.info("hello")
         server.close()
         reader.close()
-        println("hello2")
+        logger.info("hello2")
       }
     }
   }
@@ -127,6 +130,18 @@ class ArrowFlightConnector(
     ArrowFlightEndPoint(ArrowFlightWriter(interface, port, srcParId, allocator, signatureRegistry))
   }
 
-  override def shutdown(): Unit = {}
+}
+
+object ArrowFlightConnector {
+
+  def apply[IO[_]: Sync](
+      config: Config,
+      signatureRegistry: ArrowFlightMessageSignatureRegistry,
+      addressProvider: ArrowFlightHostAddressProvider
+  ): Resource[IO, ArrowFlightConnector] =
+    Resource
+      .make(Sync[IO].delay(new ArrowFlightConnector(config, signatureRegistry, addressProvider)))(connector =>
+        Sync[IO].delay()
+      )
 
 }

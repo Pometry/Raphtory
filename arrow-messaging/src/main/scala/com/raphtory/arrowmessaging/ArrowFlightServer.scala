@@ -45,7 +45,11 @@ case class ArrowFlightServer(allocator: BufferAllocator) extends AutoCloseable {
           e.printStackTrace()
         case e: InterruptedException => e.printStackTrace()
       }
-      finally close()
+      finally {
+        println("I am closing")
+        close()
+        println("I should have closed")
+      }
   })
 
   def waitForServerToStart(): Unit =
@@ -64,14 +68,15 @@ case class ArrowFlightServer(allocator: BufferAllocator) extends AutoCloseable {
 
   override def close(): Unit =
     try {
-      flightServer.shutdown()
-      println("hello3")
+      flightServer.close()
+      logger.info("hello3")
       //flightProducer.close()
     }
     catch {
       case e: Exception =>
         e.printStackTrace()
     }
+    finally {}
 
   override def toString: String = s"ArrowFlightServer($getInterface,$getPort)"
 }
