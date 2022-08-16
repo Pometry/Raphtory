@@ -235,12 +235,16 @@ trait GraphBuilderInstance[T] extends Serializable with Graph {
 }
 
 object GraphBuilder {
+  def apply[T](parse_fun: (Graph, T) => Unit): GraphBuilder[T] = (graph: Graph, tuple: T) => parse_fun(graph, tuple)
 
   def assignID(uniqueChars: String): Long =
     LongHashFunction.xx3().hashChars(uniqueChars)
 }
 
 trait Graph {
+
+  def assignID(uniqueChars: String): Long =
+    GraphBuilder.assignID(uniqueChars)
 
   def addVertex(updateTime: Long, srcId: Long, posTypeArg: Type): Unit
 
