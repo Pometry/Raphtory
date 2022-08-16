@@ -1,4 +1,4 @@
-from pyraphtory.algorithms.degree import Degree
+from cyclemania import CycleMania
 
 if __name__ == "__main__":
     from pathlib import Path
@@ -13,7 +13,7 @@ if __name__ == "__main__":
 
     rg = pr.graph()
 
-    tb = rg.at(1575158373).past().execute(Degree())
-    df = tb.write_to_dataframe(['name', 'in', 'out', 'deg'])
+    tb = rg.at(1575158373).past().execute(CycleMania())
+    df = tb.write_to_dataframe(['name', 'p_count'])
     print(df)
     print("Done")
