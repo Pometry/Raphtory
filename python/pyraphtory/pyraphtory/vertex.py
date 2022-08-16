@@ -1,4 +1,5 @@
-from pyraphtory.proxy import GenericScalaProxy, register
+from pyraphtory.proxy import register
+from pyraphtory.interop import GenericScalaProxy
 
 
 @register(name="Vertex")

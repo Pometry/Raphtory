@@ -1,5 +1,4 @@
-from pyraphtory.proxy import GenericScalaProxy, ScalaClassProxy, ScalaProxyBase
-from pyraphtory.interop import register, logger, to_jvm, find_class
+from pyraphtory.interop import register, logger, to_jvm, find_class, ScalaProxyBase, GenericScalaProxy, ScalaClassProxy
 import pandas as pd
 import json
 

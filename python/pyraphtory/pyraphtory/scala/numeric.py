@@ -1,6 +1,6 @@
 """Wrappers for providing implicit numeric value required by accumulators"""
 
-from pyraphtory.proxy import ScalaClassProxy
+from pyraphtory.interop import ScalaClassProxy
 
 
 class Int(ScalaClassProxy):
