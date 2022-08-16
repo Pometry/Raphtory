@@ -66,7 +66,7 @@ if __name__ == "__main__":
         src_id = graph.assign_id(source_node)
         target_node = parts[1]
         tar_id = graph.assign_id(target_node)
-        time_stamp = parts[2]
+        time_stamp = int(parts[2])
 
         graph.add_vertex(time_stamp, src_id, Properties(ImmutableProperty("name", source_node)), Type("Character"))
         graph.add_vertex(time_stamp, tar_id, Properties(ImmutableProperty("name", target_node)), Type("Character"))

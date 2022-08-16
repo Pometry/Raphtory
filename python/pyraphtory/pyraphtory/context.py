@@ -14,8 +14,11 @@ from py4j.java_gateway import JavaGateway, GatewayParameters
 from py4j.protocol import Py4JJavaError
 
 import pyraphtory.interop
-from pyraphtory.graph import TemporalGraph
-from pyraphtory import interop, proxy
+import pyraphtory.scala.collection
+import pyraphtory.vertex
+import pyraphtory.graph
+from pyraphtory import interop
+import sys
 
 
 def _kill_jvm(j_raphtory, j_gateway):
@@ -87,8 +90,12 @@ class PyRaphtory(object):
         """
         jar_location = Path(inspect.getfile(self.__class__)).parent.parent
         jars = ":".join([str(jar) for jar in jar_location.glob('lib/*.jar')])
+        java_args = os.environ.get("PYRAPTHORY_JVM_ARGS", "")
 
-        self.args = ["java", "-agentlib:jdwp=transport=dt_socket,server=n,address=pom-mbp1.fritz.box:5005,suspend=y", "-cp", jars, "com.raphtory.python.PyRaphtory", "--parentID", str(os.getpid())]
+        if java_args:
+            self.args = ["java", java_args, "-cp", jars, "com.raphtory.python.PyRaphtory", "--parentID", str(os.getpid())]
+        else:
+            self.args = ["java", "-cp", jars, "com.raphtory.python.PyRaphtory", "--parentID", str(os.getpid())]
         self.logging = logging
 
     def __enter__(self):

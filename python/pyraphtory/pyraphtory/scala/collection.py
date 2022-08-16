@@ -2,8 +2,7 @@ from abc import abstractmethod
 from collections import abc
 from typing import overload
 
-from pyraphtory.interop import register
-from pyraphtory.proxy import GenericScalaProxy
+from pyraphtory.interop import register, GenericScalaProxy
 
 
 @register(name="Iterable")

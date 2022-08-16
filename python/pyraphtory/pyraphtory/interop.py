@@ -6,6 +6,10 @@ import cloudpickle as pickle
 from functools import cached_property
 
 
+_method_cache = {}
+_wrappers = {}
+
+
 def register(cls=None, *, name=None):
     """class decorator for registering wrapper classes.
 
@@ -27,10 +31,6 @@ def set_scala_interop(obj):
     """Provide an object for the scala interop interface (used when initialising from py4j)"""
     global _scala
     _scala.set_interop(obj)
-
-
-_method_cache = {}
-_wrappers = {}
 
 
 class Scala(object):
@@ -104,9 +104,11 @@ def get_wrapper(obj):
         wrap_name = _scala.scala.get_wrapper_str(obj)
         if wrap_name in _wrappers:
             # Add special wrapper class to the top of the mro such that method overloads work
+            logger.trace(f"Using wrapper based on name {wrap_name}")
             wrapper = type(name, (_wrappers[wrap_name], base), {"_classname": name})
         else:
             # No special wrapper registered, can use base wrapper directly
+            logger.trace(f"No wrapper found for name {wrap_name}")
             wrapper = base
         logger.trace(f"New wrapper created for {name!r}")
     logger.trace(f"Wrapper is {wrapper!r}")
