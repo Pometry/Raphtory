@@ -242,7 +242,7 @@ trait GraphPerspective {
     *
     * @param f function to extract data from vertex
     */
-  def explodeSelect(f: Vertex => List[Row]): Table
+  def explodeSelect(f: Vertex => Iterable[Row]): Table
 
 //  TODO: Implement GraphState version of explodeSelect
 
@@ -323,7 +323,7 @@ private[api] trait ConcreteGraphPerspective[V <: visitor.Vertex, G <: ConcreteGr
   def select(f: Vertex => Row): Table
   def select(f: (Vertex, GraphState) => Row): Table
   def globalSelect(f: GraphState => Row): Table
-  def explodeSelect(f: Vertex => List[Row]): Table
+  def explodeSelect(f: Vertex => Iterable[Row]): Table
   def clearMessages(): Graph
 }
 

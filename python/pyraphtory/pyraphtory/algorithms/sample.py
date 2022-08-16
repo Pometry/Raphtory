@@ -36,12 +36,12 @@ def CCIterate1(v: Vertex):
 class RaphtoryContext(BaseContext):
     def eval(self):
         logger.trace("evaluating")
-        tracker = self.rg.at(32674) \
-            .past() \
+        tracker = self.rg \
             .step(CCStep1) \
-            .select(['cclabel']) \
+            .iterate(CCIterate1, 100, True) \
+            .select(lambda v: Row(v.name(), v['cclabel'])) \
             .write_to_file("/tmp/pyraphtory_output")
-        print(tracker)
+        logger.trace("query submitted")
         return tracker
 
 
@@ -64,5 +64,6 @@ if __name__ == "__main__":
             .global_select(lambda s: Row(s("deg_sum").value()))
             .write_to_dataframe(["deg_sum"]))
 
+    print(df)
     # df = (rg.select(lambda vertex: Row(vertex.name(), vertex.degree()))
     #       .write_to_dataframe(["name", "degree"]))

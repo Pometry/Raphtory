@@ -37,16 +37,18 @@ class BaseContext(object):
 
     @property
     def rg(self):
-        g = self._rg._jvm_object.loadPythonScript(self.script)
-        return TemporalGraph(g)
+        return self._rg.load_python_script(self.script)
 
     @abstractmethod
     def eval(self):
         pass
 
+    def eval_from_jvm(self):
+        return interop.to_jvm(self.eval())
+
     @rg.setter
     def rg(self, value):
-        self._rg = value
+        self._rg = interop.to_python(value)
 
 
 def join(stderr: IO[AnyStr] | None, stdout: IO[AnyStr] | None, logging: bool = False):
@@ -65,9 +67,22 @@ def join(stderr: IO[AnyStr] | None, stdout: IO[AnyStr] | None, logging: bool = F
 
 
 class PyRaphtory(object):
+    """Main python interface
+
+    Sets up a jvm instance of raphtory and connects to it using py4j. Can be used as a context manager.
+    """
     algorithms = proxy.BuiltinAlgorithm("com.raphtory.algorithms")
 
     def __init__(self, spout_input: Path, builder_script: Path, builder_class: str, mode: str, logging: bool = False):
+        """
+        Create a raphtory instance
+
+        :param spout_input: path for input data file
+        :param builder_script: path to script that contains the graph builder definition
+        :param builder_class: the class name of the graph builder defined in 'builder_script'
+        :param mode: one of 'batch' or 'stream' for changing the ingestion mode
+        :param logging: set to True to enable verbose output during connection phase
+        """
         jar_location = Path(inspect.getfile(self.__class__)).parent.parent
         jars = ":".join([str(jar) for jar in jar_location.glob('lib/*.jar')])
 
@@ -125,12 +140,16 @@ class PyRaphtory(object):
         self._finalizer()
 
     def open(self):
+        """Create the Raphtory instance and connect to it"""
         return self.__enter__()
 
     def shutdown(self):
+        """Shut down the Raphtory instance (this is called automatically on
+        exit if the python interpreter shuts down cleanly)"""
         return self.__exit__(None, None, None)
 
     def graph(self):
+        """Return the graph of the Raphtory instance"""
         try:
             return interop.to_python(self.j_gateway.entry_point.raphtoryGraph())
         except Py4JJavaError as err:

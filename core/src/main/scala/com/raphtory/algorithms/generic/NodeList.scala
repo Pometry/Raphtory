@@ -57,9 +57,9 @@ class NodeList(
 object NodeList {
 
   def apply(
-      properties: Seq[String] = Seq.empty[String],
+      properties: Iterable[String] = Seq.empty[String],
       defaults: Map[String, Any] = Map.empty[String, Any]
-  ) = new NodeList(properties, defaults)
+  ) = new NodeList(properties.toSeq, defaults)
 
   def apply(properties: String*) = new NodeList(properties)
 
