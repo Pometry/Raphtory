@@ -10,6 +10,10 @@ class StringProperty(ScalaClassProxy):
     _classname = "com.raphtory.api.input.StringProperty"
 
 
+class DoubleProperty(ScalaClassProxy):
+    _classname = "com.raphtory.api.input.DoubleProperty"
+
+
 class ImmutableProperty(ScalaClassProxy):
     _classname = "com.raphtory.api.input.ImmutableProperty"
 
