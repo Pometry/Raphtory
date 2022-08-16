@@ -1,7 +1,8 @@
 package com.raphtory.arrowmessaging
 
-import com.raphtory.arrowmessaging.arrowmessaging.allocator
 import com.raphtory.arrowmessaging.arrowmessaging.mixMessage
+import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.memory.RootAllocator
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.nio.charset.StandardCharsets
@@ -10,6 +11,7 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 
 class ArrowFlightMessageSchemaTestSuite extends AnyFunSuite {
+  val allocator: BufferAllocator = new RootAllocator()
 
   private val factory = new MixArrowFlightMessageSchemaFactory()
   private val schema  = factory.getInstance(allocator)

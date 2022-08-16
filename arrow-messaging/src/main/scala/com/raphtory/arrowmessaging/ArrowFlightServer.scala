@@ -1,6 +1,7 @@
 package com.raphtory.arrowmessaging
 
-import org.apache.arrow.flight.{FlightServer, Location}
+import org.apache.arrow.flight.FlightServer
+import org.apache.arrow.flight.Location
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.logging.log4j.LogManager
 
@@ -13,18 +14,22 @@ case class ArrowFlightServer(allocator: BufferAllocator) extends AutoCloseable {
 
   private var started = false
 
-  private val location = Location.forGrpcInsecure(InetAddress.getLocalHost.getHostAddress, 0)
+  private val location       = Location.forGrpcInsecure(InetAddress.getLocalHost.getHostAddress, 0)
   private val flightProducer = new ArrowFlightProducer(allocator, location)
+
   private val flightServer =
-    FlightServer.builder(
-      allocator,
-      location,
-      flightProducer
-    ).build()
+    FlightServer
+      .builder(
+              allocator,
+              location,
+              flightProducer
+      )
+      .build()
 
   private val pool = Executors.newCachedThreadPool()
   pool.submit(new Runnable {
-    override def run(): Unit = {
+
+    override def run(): Unit =
       try {
         flightServer.synchronized {
           flightServer.start()
@@ -33,43 +38,40 @@ case class ArrowFlightServer(allocator: BufferAllocator) extends AutoCloseable {
         }
         logger.info("ArrowFlightServer({},{}) is online", flightServer.getLocation.getUri.getHost, flightServer.getPort)
         flightServer.awaitTermination()
-      } catch {
-        case e: IOException =>
+      }
+      catch {
+        case e: IOException          =>
           logger.error("Failed to start ArrowFlight server! " + e.getMessage)
           e.printStackTrace()
         case e: InterruptedException => e.printStackTrace()
-      } finally {
-        close()
       }
-    }
+      finally close()
   })
 
-  def waitForServerToStart(): Unit = {
+  def waitForServerToStart(): Unit =
     flightServer.synchronized {
-      while (!started) {
-        try {
-          flightServer.wait()
-        } catch {
+      while (!started)
+        try flightServer.wait()
+        catch {
           case e: InterruptedException =>
             e.printStackTrace()
         }
-      }
     }
-  }
 
   def getInterface: String = flightServer.getLocation.getUri.getHost
 
   def getPort: Int = flightServer.getPort
 
-  override def close(): Unit = {
+  override def close(): Unit =
     try {
       flightServer.shutdown()
-      flightProducer.close()
-    } catch {
+      println("hello3")
+      //flightProducer.close()
+    }
+    catch {
       case e: Exception =>
         e.printStackTrace()
     }
-  }
 
   override def toString: String = s"ArrowFlightServer($getInterface,$getPort)"
 }

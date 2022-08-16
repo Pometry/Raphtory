@@ -1,8 +1,9 @@
 package com.raphtory.arrowmessaging
 
-import com.raphtory.arrowmessaging.arrowmessaging.allocator
 import com.raphtory.arrowmessaging.arrowmessaging.mixMessage
 import com.raphtory.arrowmessaging.model.ArrowFlightMessage
+import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.memory.RootAllocator
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -16,6 +17,7 @@ class ArrowFlightCommTestSuite extends AnyFunSuite with BeforeAndAfterAll {
     reader.close()
     server.close()
   }
+  val allocator: BufferAllocator = new RootAllocator()
 
   private val server = ArrowFlightServer(allocator)
   server.waitForServerToStart()
@@ -29,7 +31,7 @@ class ArrowFlightCommTestSuite extends AnyFunSuite with BeforeAndAfterAll {
   signatureRegistry.registerSignature(endPoint, classOf[MixArrowFlightMessage])
   signatureRegistry.registerSignature("messages2", classOf[MixArrowFlightMessage])
 
-  private val reader =
+  private val reader              =
     ArrowFlightReader(
             interface,
             port,
@@ -37,8 +39,9 @@ class ArrowFlightCommTestSuite extends AnyFunSuite with BeforeAndAfterAll {
             (msg: ArrowFlightMessage) => assert(msg == mixMessage),
             signatureRegistry
     )
+  val allocator2: BufferAllocator = new RootAllocator()
 
-  private val writer = ArrowFlightWriter(interface, port, 0, allocator, signatureRegistry)
+  private val writer = ArrowFlightWriter(interface, port, 0, allocator2, signatureRegistry)
 
   test("Reader reads the message sent by the writer") {
     writer.addToBatch(mixMessage)

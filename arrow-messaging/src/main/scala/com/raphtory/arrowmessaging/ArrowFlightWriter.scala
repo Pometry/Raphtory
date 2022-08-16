@@ -16,19 +16,23 @@ sealed trait ArrowFlightMessageSchemaWriterRegistry extends AutoCloseable {
   private val schemaRegistry = new ConcurrentHashMap[String, ArrowFlightMessageSchema[_, _]]()
 
   def getSchema(endPoint: String): ArrowFlightMessageSchema[_, _] = {
-    if (!schemaRegistry.containsKey(endPoint)) {
+    if (!schemaRegistry.containsKey(endPoint))
       try {
         val constructor = signatureRegistry.getSignature(endPoint).schemaFactoryClass.getDeclaredConstructor()
-        val factory = constructor.newInstance().asInstanceOf[ArrowFlightMessageSchemaFactory]
-        val schema = factory.getInstance(allocator)
+        val factory     = constructor.newInstance().asInstanceOf[ArrowFlightMessageSchemaFactory]
+        val schema      = factory.getInstance(allocator)
         schemaRegistry.put(endPoint, schema)
-      } catch {
-        case e@(_: NoSuchMethodException | _: InstantiationException | _: IllegalAccessException | _: InvocationTargetException) =>
+      }
+      catch {
+        case e @ (_: NoSuchMethodException | _: InstantiationException | _: IllegalAccessException |
+            _: InvocationTargetException) =>
           throw new Exception("Failed to create instance of vertex message signature", e);
       }
-    }
     schemaRegistry.get(endPoint)
   }
+
+  def removeSchema(endPoint: String): Unit =
+    schemaRegistry.remove(endPoint)
 
   def close(): Unit = {
     schemaRegistry.values().forEach(_.close())
@@ -37,16 +41,16 @@ sealed trait ArrowFlightMessageSchemaWriterRegistry extends AutoCloseable {
 }
 
 case class ArrowFlightWriter(
-                              interface: String,
-                              port: Int,
-                              partitionId: Int,
-                              allocator: BufferAllocator,
-                              signatureRegistry: ArrowFlightMessageSignatureRegistry
-                            ) extends ArrowFlightMessageSchemaWriterRegistry {
+    interface: String,
+    port: Int,
+    partitionId: Int,
+    allocator: BufferAllocator,
+    signatureRegistry: ArrowFlightMessageSignatureRegistry
+) extends ArrowFlightMessageSchemaWriterRegistry {
 
-  private val logger = LogManager.getLogger(classOf[ArrowFlightWriter])
-  private val srcPar = s"par$partitionId"
-  private val location = Location.forGrpcInsecure(interface, port)
+  private val logger       = LogManager.getLogger(classOf[ArrowFlightWriter])
+  private val srcPar       = s"par$partitionId"
+  private val location     = Location.forGrpcInsecure(interface, port)
   private val flightClient = FlightClient.builder(allocator, location).build()
 
   logger.info("{} is online", this)
@@ -63,12 +67,12 @@ case class ArrowFlightWriter(
     if (!listeners.contains(endPoint)) {
       schema.allocateNew()
       listeners.put(
-        endPoint,
-        flightClient.startPut(
-          FlightDescriptor.path(getAbsoluteEndpoint(endPoint)),
-          schema.vectorSchemaRoot,
-          new AsyncPutListener()
-        )
+              endPoint,
+              flightClient.startPut(
+                      FlightDescriptor.path(getAbsoluteEndpoint(endPoint)),
+                      schema.vectorSchemaRoot,
+                      new AsyncPutListener()
+              )
       )
     }
 
@@ -77,11 +81,14 @@ case class ArrowFlightWriter(
 
   def sendBatch(): Unit = {
     val activeEndpoints = listeners.keys
-    activeEndpoints.foreach(endpoint => getSchema(endpoint).completeAddMessages())
+    activeEndpoints.foreach { endpoint =>
+      getSchema(endpoint).completeAddMessages()
+    }
     listeners.values.foreach(_.putNext())
+
   }
 
-  def completeSend(): Unit = {
+  def completeSend(): Unit =
     try {
       listeners.values.foreach { listener =>
         listener.completed()
@@ -90,18 +97,17 @@ case class ArrowFlightWriter(
       val activeEndpoints = listeners.keys
       activeEndpoints.foreach(endpoint => getSchema(endpoint).clear())
       listeners.clear()
-      logger.info(this + ": Completed Send")
-    } catch {
+      logger.debug(this + ": Completed Send")
+    }
+    catch {
       case e: Exception =>
         e.printStackTrace()
         throw e
     }
-  }
 
-  override def close(): Unit = {
+  override def close(): Unit =
     super.close()
-    flightClient.close()
-  }
+  //flightClient.close()
 
   private def getAbsoluteEndpoint(endPoint: String): String = "messages/" + srcPar + "/" + endPoint
 
@@ -109,5 +115,7 @@ case class ArrowFlightWriter(
 }
 
 // For testing purposes
-case class ArrowFlightMessageSchemaWriterRegistryMock(allocator: BufferAllocator, signatureRegistry: ArrowFlightMessageSignatureRegistry)
-  extends ArrowFlightMessageSchemaWriterRegistry
+case class ArrowFlightMessageSchemaWriterRegistryMock(
+    allocator: BufferAllocator,
+    signatureRegistry: ArrowFlightMessageSignatureRegistry
+) extends ArrowFlightMessageSchemaWriterRegistry

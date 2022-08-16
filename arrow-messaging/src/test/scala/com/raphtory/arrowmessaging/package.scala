@@ -14,7 +14,6 @@ import scala.jdk.CollectionConverters._
 import scala.reflect.ClassTag
 
 package object arrowmessaging {
-  lazy val allocator: BufferAllocator = new RootAllocator()
 
   lazy val schema: Schema =
     new Schema(

@@ -51,7 +51,7 @@ class ArrowFlightConnector(
         writer.synchronized {
           counter.incrementAndGet()
           writer.addToBatch(msg)
-          if (counter.get() == flightBatchSize)
+          if (counter.get() % flightBatchSize == 0)
             writer.sendBatch()
         }
 
@@ -79,8 +79,7 @@ class ArrowFlightConnector(
       CompletableFuture.completedFuture {
         writer.synchronized {
           if (counter.get() > 0) {
-            if (counter.get() < flightBatchSize)
-              writer.sendBatch()
+            writer.sendBatch()
             writer.completeSend()
             counter.set(0)
           }
@@ -105,15 +104,16 @@ class ArrowFlightConnector(
       topics: Seq[CanonicalTopic[T]]
   ): CancelableListener = {
 
-    println(s"Hello $id $partitionId")
     val (server, reader) = addressProvider.startAndPublishAddress(partitionId, messageHandler)
 
     new CancelableListener {
       override def start(): Unit = Future(reader.readMessages(readBusyWait))
 
       override def close(): Unit = {
+        println("hello")
         server.close()
         reader.close()
+        println("hello2")
       }
     }
   }

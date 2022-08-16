@@ -13,6 +13,8 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
+import scala.concurrent.Future
+
 abstract private[raphtory] class Component[T](conf: Config) {
 
   protected val telemetry: ComponentTelemetryHandler.type = ComponentTelemetryHandler
@@ -20,6 +22,8 @@ abstract private[raphtory] class Component[T](conf: Config) {
   private val partitionsPerServer: Int                    = conf.getInt("raphtory.partitions.countPerServer")
   protected val totalPartitions: Int                      = partitionServers * partitionsPerServer
   val graphID: String                                     = conf.getString("raphtory.graph.id")
+
+  protected var processedMessages = 0
 
   def getWriter(srcId: Long): Int = (srcId.abs % totalPartitions).toInt
   def handleMessage(msg: T): Unit

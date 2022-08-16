@@ -1,10 +1,11 @@
 package com.raphtory.arrowmessaging
 
-import com.raphtory.arrowmessaging.arrowmessaging.allocator
 import com.raphtory.arrowmessaging.arrowmessaging.getValueVectors
 import com.raphtory.arrowmessaging.arrowmessaging.mixMessage
 import com.raphtory.arrowmessaging.arrowmessaging.schema
 import com.raphtory.arrowmessaging.shapelessarrow._
+import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.complex.ListVector
 import org.apache.arrow.vector.complex.impl.UnionListWriter
@@ -18,6 +19,7 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 
 class ShapelessArrowTestSuite extends AnyFunSuite with BeforeAndAfterAll {
+  val allocator: BufferAllocator = new RootAllocator()
 
   private val listVectorToWriter = new ConcurrentHashMap[ListVector, UnionListWriter]()
 

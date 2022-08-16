@@ -9,10 +9,13 @@ import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphPartition
+import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
+import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
 private[raphtory] class Writer(
@@ -20,21 +23,31 @@ private[raphtory] class Writer(
     partitionID: Int,
     storage: GraphPartition,
     conf: Config,
-    topics: TopicRepository
+    topics: TopicRepository,
+    scheduler: Scheduler
 ) extends Component[GraphAlteration](conf) {
 
   private val logger: Logger  = Logger(LoggerFactory.getLogger(this.getClass))
   private lazy val neighbours = topics.graphSync(graphID).endPoint(partitionID)
 
-  private var processedMessages = 0
+  protected var scheduledRun: Option[() => Future[Unit]] = None
 
-  override def run(): Unit = {}
+  private def rescheduler(): Unit = {
+    neighbours.values.foreach(_.flushAsync())
+    reschedule()
+  }: Unit
 
-  override def stop(): Unit =
+  private def reschedule(): Unit =
+    scheduledRun = Option(scheduler.scheduleOnce(1.seconds, rescheduler()))
+
+  override def run(): Unit = reschedule()
+
+  override def stop(): Unit = {
+    scheduledRun.foreach(cancelable => cancelable())
     neighbours.values.foreach(_.close())
+  }
 
   override def handleMessage(msg: GraphAlteration): Unit = {
-    println("received")
     msg match {
       //Updates from the Graph Builder
       case update: VertexAdd                    => processVertexAdd(update)
@@ -278,7 +291,8 @@ object Writer {
       partitionId: Int,
       storage: GraphPartition,
       config: Config,
-      topics: TopicRepository
+      topics: TopicRepository,
+      scheduler: Scheduler
   ): Resource[IO, Writer] =
     Component.makeAndStartPart(
             partitionId,
@@ -290,7 +304,8 @@ object Writer {
                     partitionID = partitionId,
                     storage = storage,
                     conf = config,
-                    topics = topics
+                    topics = topics,
+                    scheduler
             )
     )
 

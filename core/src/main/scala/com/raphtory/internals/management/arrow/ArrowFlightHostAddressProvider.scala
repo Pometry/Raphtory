@@ -5,7 +5,6 @@ import com.raphtory.arrowmessaging.ArrowFlightServer
 import com.raphtory.internals.communication.connectors.ArrowFlightHostAddress
 import com.typesafe.config.Config
 import scala.collection.concurrent.TrieMap
-import scala.collection.mutable
 
 abstract class ArrowFlightHostAddressProvider(config: Config) {
   protected val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")

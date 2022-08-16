@@ -16,67 +16,64 @@ sealed trait ArrowFlightMessageSchemaReaderRegistry extends AutoCloseable {
 
   private val factories = new ConcurrentHashMap[String, ArrowFlightMessageSchemaFactory]()
 
-  def getSchema(endPoint: String, vectorSchemaRoot: VectorSchemaRoot): ArrowFlightMessageSchema[_, _] = {
+  def getSchema(endPoint: String, vectorSchemaRoot: VectorSchemaRoot): ArrowFlightMessageSchema[_, _] =
     try {
       if (!factories.containsKey(endPoint)) {
         val constructor = signatureRegistry.getSignature(endPoint).schemaFactoryClass.getDeclaredConstructor()
-        val factory = constructor.newInstance().asInstanceOf[ArrowFlightMessageSchemaFactory]
+        val factory     = constructor.newInstance().asInstanceOf[ArrowFlightMessageSchemaFactory]
         factories.put(endPoint, factory)
       }
       val schema = factories.get(endPoint).getInstance(vectorSchemaRoot)
       schema
-    } catch {
-      case e@(_: NoSuchMethodException | _: InstantiationException | _: IllegalAccessException | _: InvocationTargetException) =>
+    }
+    catch {
+      case e @ (_: NoSuchMethodException | _: InstantiationException | _: IllegalAccessException |
+          _: InvocationTargetException) =>
         throw new Exception("Failed to create schema", e);
     }
-  }
 }
 
 case class ArrowFlightReader[T](
-                                 interface: String,
-                                 port: Int,
-                                 allocator: BufferAllocator,
-                                 messageHandler: T => Unit,
-                                 signatureRegistry: ArrowFlightMessageSignatureRegistry
-                               ) extends ArrowFlightMessageSchemaReaderRegistry {
+    interface: String,
+    port: Int,
+    allocator: BufferAllocator,
+    messageHandler: T => Unit,
+    signatureRegistry: ArrowFlightMessageSignatureRegistry
+) extends ArrowFlightMessageSchemaReaderRegistry {
 
   private val logger = LogManager.getLogger(classOf[ArrowFlightReader[_]])
 
-  private var totalMessagesRead = 0L
+  private var totalMessagesRead     = 0L
   private var lastTotalMessagesRead = 0L
 
   private val location: Location = Location.forGrpcInsecure(interface, port)
-  private val flightClient = FlightClient.builder(allocator, location).build
+  private val flightClient       = FlightClient.builder(allocator, location).build
 
   logger.info("{} is online", this)
 
-  def readMessages(busyWaitInMilliSeconds: Long): Unit = {
+  def readMessages(busyWaitInMilliSeconds: Long): Unit =
     while (true) {
-      try {
-        Thread.sleep(busyWaitInMilliSeconds)
-      } catch {
+      try Thread.sleep(busyWaitInMilliSeconds)
+      catch {
         case e: InterruptedException =>
           e.printStackTrace()
       }
-
       readMessages()
 
-      if (lastTotalMessagesRead != getTotalMessagesRead)
-        logger.info("{}. Total messages read = {}", this, getTotalMessagesRead)
+      logger.debug("{}. Total messages read = {}", this, getTotalMessagesRead)
 
       lastTotalMessagesRead = getTotalMessagesRead
     }
-  }
 
   def readMessages(): Unit = {
     val flightInfoIter = flightClient.listFlights(Criteria.ALL)
-    // if (!flightInfoIter.iterator().hasNext()) System.out.println("No data found against any endpoint!")
+    //if (!flightInfoIter.iterator().hasNext()) System.out.println("No data found against any endpoint!")
 
     // TODO Endpoints could be read in parallel
     // Iterating over endpoints
-    flightInfoIter.forEach(flightInfo => {
-      var streamReadAlready = false
-      val endPoint = flightInfo.getDescriptor.toString
+    flightInfoIter.forEach { flightInfo =>
+      var streamReadAlready    = false
+      val endPoint             = flightInfo.getDescriptor.toString
       val endPointAsByteStream = flightInfo.getDescriptor.getPath.get(0).getBytes(StandardCharsets.UTF_8)
 
       Using(flightClient.getStream(new Ticket(endPointAsByteStream))) { flightStream =>
@@ -88,33 +85,44 @@ case class ArrowFlightReader[T](
           val s = endPoint.substring(endPoint.lastIndexOf("/") + 1)
           if (signatureRegistry.contains(s)) {
             val vms = getSchema(s, vectorSchemaRootReceived)
-            try {
-              // Iterating over batches
-              while (flightStream.next()) {
-                batch = batch + 1
-                // System.out.println("Reader(" + location + "). Received batch #" + batch + ", Data:")
-                var i = 0
-                var rows = vectorSchemaRootReceived.getRowCount
-                while (i < rows) {
-                  if (!vms.isMessageExistsAtRow(i))
-                    logger.warn("Should not happen! location = {}, endpoint = {}, batch = {}, null at {}, row count = {}", location, endPoint, batch, i, rows);
-                  else {
-                     try System.out.printf("location = %s, endpoint = %s, batch = %d, vertex msg = %s, row count = %d\n", location, endPoint, batch, vms.getMessageAtRow(i), rows)
-                     catch {
-                       case e: Exception => logger.error(e.getMessage)
-                         e.printStackTrace()
-                     }
-                    // vms.getVertexMessageAtRow(i)
-                    try messageHandler(vms.decodeMessage(i))
-                    catch {
-                      case e: Exception => logger.error(e.getMessage)
-                    }
+            try
+            // Iterating over batches
+            while (flightStream.next()) {
+              batch = batch + 1
+              // System.out.println("Reader(" + location + "). Received batch #" + batch + ", Data:")
+              var i    = 0
+              var rows = vectorSchemaRootReceived.getRowCount
+              while (i < rows) {
+                if (!vms.isMessageExistsAtRow(i))
+                  logger.warn(
+                          "Should not happen! location = {}, endpoint = {}, batch = {}, null at {}, row count = {}",
+                          location,
+                          endPoint,
+                          batch,
+                          i,
+                          rows
+                  );
+                else {
+                  try logger.trace(
+                          s"location = $location, endpoint = $endPoint, batch = $batch, vertex msg = ${vms
+                            .getMessageAtRow(i)}, row count = $rows\n"
+                  )
+                  catch {
+                    case e: Exception =>
+                      logger.error(e.getMessage)
+                      e.printStackTrace()
                   }
-                  i = i + 1
+                  // vms.getVertexMessageAtRow(i)
+                  try messageHandler(vms.decodeMessage(i))
+                  catch {
+                    case e: Exception => logger.error(e.getMessage)
+                  }
                 }
-                totalMessagesRead += rows
+                i = i + 1
               }
-            } finally if (vms != null) vms.close()
+              totalMessagesRead += rows
+            }
+            finally if (vms != null) vms.close()
 
             streamReadAlready = true
           }
@@ -124,25 +132,34 @@ case class ArrowFlightReader[T](
           val deleteActionResult = flightClient.doAction(new Action("DELETE", endPointAsByteStream))
           while (deleteActionResult.hasNext) {
             val result = deleteActionResult.next()
-            logger.info("Deleting endpoint {} read already at location {}: {}", endPoint, location, new String(result.getBody, StandardCharsets.UTF_8))
+            logger.info(
+                    "Deleting endpoint {} read already at location {}: {}",
+                    endPoint,
+                    location,
+                    new String(result.getBody, StandardCharsets.UTF_8)
+            )
           }
         }
       } match {
-        case Success(_) =>
-        case Failure(exception) => exception.printStackTrace()
+        case Success(_)         =>
+        case Failure(exception) =>
+          exception match {
+            case e: java.util.concurrent.RejectedExecutionException =>
+              logger.warn("Arrow Reading rejected, possibly due to shutdown")
+          }
       }
-    })
+    }
   }
 
   def getTotalMessagesRead: Long = totalMessagesRead
 
-  override def close(): Unit = flightClient.close()
+  override def close(): Unit = {} //flightClient.close() //TODO This seems to hang if interrupted
 
   override def toString: String = s"ArrowFlightReader($interface,$port)"
 }
 
 // For testing purposes
 case class ArrowFlightMessageSchemaReaderRegistryMock(signatureRegistry: ArrowFlightMessageSignatureRegistry)
-  extends ArrowFlightMessageSchemaReaderRegistry {
+        extends ArrowFlightMessageSchemaReaderRegistry {
   override def close(): Unit = {}
 }

@@ -34,6 +34,16 @@ private[raphtory] class IngestionExecutor(
 
   sourceInstance.setupStreamIngestion(writers)
 
+  protected var scheduledRunArrow: Option[() => Future[Unit]] = None
+
+  private def reschedulerArrow(): Unit = {
+    writers.values.foreach(_.flushAsync())
+    rescheduleArrow()
+  }: Unit
+
+  private def rescheduleArrow(): Unit =
+    scheduledRunArrow = Option(scheduler.scheduleOnce(1.seconds, reschedulerArrow()))
+
   private def rescheduler(): Unit = {
     sourceInstance.executeReschedule()
     executeSpout()
@@ -46,6 +56,7 @@ private[raphtory] class IngestionExecutor(
 
   override def run(): Unit = {
     logger.debug("Running ingestion executor")
+    rescheduleArrow()
     executeSpout()
   }
 

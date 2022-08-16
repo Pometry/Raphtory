@@ -1,11 +1,13 @@
 package com.raphtory.arrowmessaging
 
 import com.raphtory.arrowmessaging
-import com.raphtory.arrowmessaging.arrowmessaging.allocator
+import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.memory.RootAllocator
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
 class ArrowFlightMessageSchemaWriterRegistryTestSuite extends AnyFunSuite with BeforeAndAfterAll {
+  val allocator: BufferAllocator = new RootAllocator()
 
   private val registry = ArrowFlightMessageSignatureRegistry()
   registry.registerSignature("messages", classOf[MixArrowFlightMessage])
