@@ -56,7 +56,7 @@ class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
         }
       }
 
-      val naturesOfControl = psc.data.get.natures_of_control.get
+      val naturesOfControl = psc.data.get.natures_of_control.getOrElse(List("None"))
       val shareOwnership = matchControl(naturesOfControl.headOption)
 
 
