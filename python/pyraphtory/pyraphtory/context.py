@@ -1,4 +1,5 @@
 import inspect
+import os
 import re
 import subprocess
 import json
@@ -12,6 +13,7 @@ from typing import IO, AnyStr
 from py4j.java_gateway import JavaGateway, GatewayParameters
 from py4j.protocol import Py4JJavaError
 
+import pyraphtory.interop
 from pyraphtory.graph import TemporalGraph
 from pyraphtory import interop, proxy
 
@@ -71,9 +73,9 @@ class PyRaphtory(object):
 
     Sets up a jvm instance of raphtory and connects to it using py4j. Can be used as a context manager.
     """
-    algorithms = proxy.BuiltinAlgorithm("com.raphtory.algorithms")
+    algorithms = pyraphtory.interop.BuiltinAlgorithm("com.raphtory.algorithms")
 
-    def __init__(self, spout_input: Path, builder_script: Path, builder_class: str, mode: str, logging: bool = False):
+    def __init__(self, logging: bool = False):
         """
         Create a raphtory instance
 
@@ -86,8 +88,7 @@ class PyRaphtory(object):
         jar_location = Path(inspect.getfile(self.__class__)).parent.parent
         jars = ":".join([str(jar) for jar in jar_location.glob('lib/*.jar')])
 
-        self.args = ["java", "-cp", jars, "com.raphtory.python.PyRaphtory", f"--input={spout_input.absolute()}",
-                     f"--py={builder_script.absolute()}", f"--builder={builder_class}", f"--mode={mode}", "--py4j"]
+        self.args = ["java", "-agentlib:jdwp=transport=dt_socket,server=n,address=pom-mbp1.fritz.box:5005,suspend=y", "-cp", jars, "com.raphtory.python.PyRaphtory", "--parentID", str(os.getpid())]
         self.logging = logging
 
     def __enter__(self):
@@ -104,8 +105,8 @@ class PyRaphtory(object):
             if not line:
                 break
             else:
-                port_text = re.search("Started PythonGatewayServer on port ([0-9]+)", str(line))
-                auth_text = re.search("PythonGatewayServer secret - ([0-9a-f]+)", str(line))
+                port_text = re.search("Port: ([0-9]+)", str(line))
+                auth_text = re.search("Secret: ([0-9a-f]+)", str(line))
                 if port_text:
                     self.java_gateway_port = int(port_text.group(1))
                 if auth_text:
@@ -113,6 +114,8 @@ class PyRaphtory(object):
 
                 if self.java_gateway_auth and self.java_gateway_port:
                     break
+        else:
+            raise RuntimeError("Could not find connection details")
 
         # These two are important, if they are not closed the forked JVM will block while writing files
         self.j_raphtory.stdout.close()
@@ -127,9 +130,8 @@ class PyRaphtory(object):
                 auto_convert=True,
                 eager_load=True))
 
-        interop.set_scala_interop(self.j_gateway.entry_point.interop())
+        interop.set_scala_interop(self.j_gateway.entry_point)
 
-        # TODO: Best effort shutdown but if python is killed, java processes stay alive forever!
         self._finalizer = finalize(self, _kill_jvm, self.j_raphtory, self.j_gateway)
         return self
 

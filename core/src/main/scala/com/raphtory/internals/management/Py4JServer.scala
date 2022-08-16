@@ -97,6 +97,8 @@ private[raphtory] class Py4JServer[IO[_]](gatewayServer: GatewayServer)(implicit
     IO.blocking {
       logger.info("Starting PythonGatewayServer...")
       gatewayServer.start()
+      println(s"Port: ${gatewayServer.getListeningPort}")
+      println(s"Secret: ${Py4JServer.secret}")
     }
 
   /** Getter to obtain the gateways listening port */
