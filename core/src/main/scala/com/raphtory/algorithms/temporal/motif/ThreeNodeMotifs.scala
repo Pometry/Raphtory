@@ -34,7 +34,7 @@ class ThreeNodeMotifs(delta:Long=3600) extends GenericReduction {
             nbSet.intersect(neighbours).foreach{
               w =>
                 // largest id node sends to the smallest id node the exploded edges.
-                if (w.max(nb).max(v.ID)==v.ID) {v.messageVertex(w.min(nb),v.explodedEdge(w.min(nb)).getOrElse(List()).map(e => (e.src,e.dst,e.timestamp)).sortBy(_._3))
+                if (w.max(nb).max(v.ID)==v.ID) {v.messageVertex(w.min(nb),v.explodedEdge(w.max(nb)).getOrElse(List()).map(e => (e.src,e.dst,e.timestamp)).sortBy(_._3))
                 }
             }
         }
@@ -55,6 +55,7 @@ class ThreeNodeMotifs(delta:Long=3600) extends GenericReduction {
                 triMap.put((u.min(w),u.max(w)),group)
                 triMap.put((v.ID.min(u),v.ID.max(u)), v.explodedEdge(u).getOrElse(List()).map(e => (e.src,e.dst,e.timestamp)).sortBy(_._3))
                 triMap.put((v.ID.min(w),v.ID.max(w)), v.explodedEdge(w).getOrElse(List()).map(e => (e.src,e.dst,e.timestamp)).sortBy(_._3))
+                println(triMap)
                 val eMax = triMap.maxBy(x => (x._2.size, x._1._1.min(x._1._2)))
                 val triMotifs = new TriadMotifCounter(eMax._1._1,eMax._1._2)
                 val edges = triMap.values.flatten.toList.sortBy(_._3)
@@ -201,7 +202,6 @@ class TriadMotifCounter(uid: Long, vid: Long) {
       finalCounts(0,1,1) += midSum(1-utov,0,1) + postSum(utov,1,0) + preSum(utov,1,0)
       finalCounts(1,1,1) += midSum(1-utov,1,1) + postSum(1-utov,1,0) + preSum(utov,0,0)
     }
-    println(finalCounts)
   }
 
   def getCounts: Array[Int] = {
