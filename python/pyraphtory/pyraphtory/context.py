@@ -14,6 +14,7 @@ from py4j.protocol import Py4JJavaError
 
 from pyraphtory.graph import TemporalGraph
 from pyraphtory import interop, proxy
+import pyraphtory.scala.collection
 
 
 def _kill_jvm(j_raphtory, j_gateway):
