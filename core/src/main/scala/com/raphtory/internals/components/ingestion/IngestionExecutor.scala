@@ -29,22 +29,21 @@ private[raphtory] class IngestionExecutor(
   private val spoutReschedulesCount = telemetry.spoutReschedules.labels(graphID)
   private val fileLinesSent         = telemetry.fileLinesSent.labels(graphID)
 
-  private var index: Int                               = 0
-  private var scheduledRun: Option[() => Future[Unit]] = None
+  private var index: Int                                      = 0
+  private var scheduledRun: Option[() => Future[Unit]]        = None
+  protected var scheduledRunArrow: Option[() => Future[Unit]] = None
 
   sourceInstance.setupStreamIngestion(writers)
 
-  protected var scheduledRunArrow: Option[() => Future[Unit]] = None
-
-  private def reschedulerArrow(): Unit = {
+  private def flushArrow(): Unit = {
     writers.values.foreach(_.flushAsync())
-    rescheduleArrow()
+    runArrow()
   }: Unit
 
-  private def rescheduleArrow(): Unit =
-    scheduledRunArrow = Option(scheduler.scheduleOnce(1.seconds, reschedulerArrow()))
+  private def runArrow(): Unit =
+    scheduledRunArrow = Option(scheduler.scheduleOnce(1.seconds, flushArrow()))
 
-  private def rescheduler(): Unit = {
+  private def runsource(): Unit = {
     sourceInstance.executeReschedule()
     executeSpout()
   }: Unit
@@ -56,7 +55,7 @@ private[raphtory] class IngestionExecutor(
 
   override def run(): Unit = {
     logger.debug("Running ingestion executor")
-    rescheduleArrow()
+    runArrow()
     executeSpout()
   }
 
@@ -78,7 +77,7 @@ private[raphtory] class IngestionExecutor(
   private def reschedule(): Unit = {
     // TODO: Parameterise the delay
     logger.trace("Spout: Scheduling spout to poll again in 1 seconds.")
-    scheduledRun = Option(scheduler.scheduleOnce(1.seconds, rescheduler()))
+    scheduledRun = Option(scheduler.scheduleOnce(1.seconds, runsource()))
   }
 
 }

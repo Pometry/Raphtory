@@ -23,10 +23,10 @@ object TutorialRunner extends App {
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
   FileUtils.curlFile(path, url)
 
-  val graph  = Raphtory.newGraph()
-  //addLOTRData(graph)
-  val source = Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder())
-  graph.ingest(source)
+  val graph = Raphtory.newGraph()
+  addLOTRData(graph)
+  //val source = Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder())
+  //graph.ingest(source)
 
   graph
     .at(32674)
