@@ -98,15 +98,13 @@ class ArrowFlightConnector(
     }
   }
 
-  // Starts flight server and reader
   override def register[T](
-      partitionId: Int,
       id: String,
       messageHandler: T => Unit,
       topics: Seq[CanonicalTopic[T]]
   ): CancelableListener = {
 
-    val (server, reader) = addressProvider.startAndPublishAddress(partitionId, messageHandler)
+    val (server, reader) = addressProvider.startAndPublishAddress(topics, messageHandler)
 
     new CancelableListener {
       override def start(): Unit = Future(reader.readMessages(readBusyWait))
@@ -119,12 +117,11 @@ class ArrowFlightConnector(
   }
 
   // Starts writer and registers message schema and message handler to a given endpoint
-  override def endPoint[T](srcParId: Int, topic: CanonicalTopic[T]): EndPoint[T] = {
+  override def endPoint[T](topic: CanonicalTopic[T]): EndPoint[T] = {
     val addresses                               = addressProvider.getAddressAcrossPartitions
-    val partitionId                             = topic.subTopic.split("-").last.toInt
-    val ArrowFlightHostAddress(interface, port) = addresses(partitionId)
+    val ArrowFlightHostAddress(interface, port) = addresses(topic.toString)
 
-    ArrowFlightEndPoint(ArrowFlightWriter(interface, port, srcParId, allocator, signatureRegistry))
+    ArrowFlightEndPoint(ArrowFlightWriter(interface, port, topic.toString, allocator, signatureRegistry))
   }
 
 }

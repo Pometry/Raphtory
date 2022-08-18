@@ -2,6 +2,7 @@ package com.raphtory.internals.management.arrow
 
 import com.raphtory.arrowmessaging.ArrowFlightReader
 import com.raphtory.arrowmessaging.ArrowFlightServer
+import com.raphtory.internals.communication.CanonicalTopic
 import com.raphtory.internals.communication.connectors.ArrowFlightHostAddress
 import com.raphtory.internals.communication.repositories.ArrowFlightRepository.signatureRegistry
 import com.typesafe.config.Config
@@ -14,14 +15,15 @@ class LocalHostAddressProvider(config: Config) extends ArrowFlightHostAddressPro
   private val interface = server.getInterface
   private val port      = server.getPort
 
-  override def getAddressAcrossPartitions: Map[Int, ArrowFlightHostAddress] = addresses.toMap
+  override def getAddressAcrossPartitions: Map[String, ArrowFlightHostAddress] = addresses.toMap
 
   override def startAndPublishAddress[T](
-      partitionId: Int,
+      topics: Seq[CanonicalTopic[T]],
       messageHandler: T => Unit
   ): (ArrowFlightServer, ArrowFlightReader[T]) = {
-    addresses.addOne(partitionId, ArrowFlightHostAddress(interface, port))
-    val reader = ArrowFlightReader(interface, port, allocator, messageHandler, signatureRegistry)
+    val stringTopics = topics.map(_.toString).toSet
+    stringTopics.foreach(topic => addresses.addOne((topic, ArrowFlightHostAddress(interface, port))))
+    val reader       = ArrowFlightReader(interface, port, allocator, stringTopics, messageHandler, signatureRegistry)
     (server, reader)
   }
 }

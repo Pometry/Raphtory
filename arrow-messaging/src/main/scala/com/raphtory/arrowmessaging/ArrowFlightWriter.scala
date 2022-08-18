@@ -42,13 +42,12 @@ sealed trait ArrowFlightMessageSchemaWriterRegistry extends AutoCloseable {
 case class ArrowFlightWriter(
     interface: String,
     port: Int,
-    partitionId: Int,
+    topic: String,
     allocator: BufferAllocator,
     signatureRegistry: ArrowFlightMessageSignatureRegistry
 ) extends ArrowFlightMessageSchemaWriterRegistry {
 
   private val logger       = LogManager.getLogger(classOf[ArrowFlightWriter])
-  private val srcPar       = s"par$partitionId"
   private val location     = Location.forGrpcInsecure(interface, port)
   private val flightClient = FlightClient.builder(allocator, location).build()
   logger.info("{} is online", this)
@@ -58,7 +57,7 @@ case class ArrowFlightWriter(
   @throws(classOf[Exception])
   def addToBatch[T](message: T)(implicit endPoint: String): Unit = {
     if (!signatureRegistry.contains(endPoint))
-      throw new Exception("No schema register against endpoint = " + getAbsoluteEndpoint(endPoint))
+      throw new Exception("No schema register against endpoint = " + getAbsoluteEndpoint(topic, endPoint))
 
     val schema = getSchema(endPoint)
 
@@ -67,7 +66,7 @@ case class ArrowFlightWriter(
       listeners.put(
               endPoint,
               flightClient.startPut(
-                      FlightDescriptor.path(getAbsoluteEndpoint(endPoint)),
+                      FlightDescriptor.path(getAbsoluteEndpoint(topic, endPoint)),
                       schema.vectorSchemaRoot,
                       new AsyncPutListener()
               )
@@ -107,9 +106,9 @@ case class ArrowFlightWriter(
     super.close()
   //flightClient.close()
 
-  private def getAbsoluteEndpoint(endPoint: String): String = "messages/" + srcPar + "/" + endPoint
+  private def getAbsoluteEndpoint(topic: String, endPoint: String): String = topic + "/" + endPoint
 
-  override def toString: String = s"ArrowFlightWriter($interface,$port,$srcPar)"
+  override def toString: String = s"ArrowFlightWriter($interface,$port,$topic)"
 }
 
 // For testing purposes

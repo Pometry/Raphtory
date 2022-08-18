@@ -36,12 +36,13 @@ class ArrowFlightCommTestSuite extends AnyFunSuite with BeforeAndAfterAll {
             interface,
             port,
             allocator,
+            Set("test/topic"),
             (msg: ArrowFlightMessage) => assert(msg == mixMessage),
             signatureRegistry
     )
   val allocator2: BufferAllocator = new RootAllocator()
 
-  private val writer = ArrowFlightWriter(interface, port, 0, allocator2, signatureRegistry)
+  private val writer = ArrowFlightWriter(interface, port, "test/topic", allocator2, signatureRegistry)
 
   test("Reader reads the message sent by the writer") {
     writer.addToBatch(mixMessage)

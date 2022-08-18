@@ -65,7 +65,7 @@ class UnreliableNetworkTest extends FunSuite with TestContainerForAll {
     val countResultComputation = connectors.use {
       case (listeningConnector, clientConnector) =>
         val listeningTopic = ExclusiveTopic[Request](listeningConnector, "request-topic")
-        val listener       = listeningConnector.register(0, "id", Counter.handleMessage, Seq(listeningTopic))
+        val listener       = listeningConnector.register("id", Counter.handleMessage, Seq(listeningTopic))
         listener.start()
 
         val endPoint = ExclusiveTopic[Request](clientConnector, "request-topic").endPoint

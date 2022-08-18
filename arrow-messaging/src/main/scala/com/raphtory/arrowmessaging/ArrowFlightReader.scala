@@ -37,6 +37,7 @@ case class ArrowFlightReader[T](
     interface: String,
     port: Int,
     allocator: BufferAllocator,
+    topics: Set[String],
     messageHandler: T => Unit,
     signatureRegistry: ArrowFlightMessageSignatureRegistry
 ) extends ArrowFlightMessageSchemaReaderRegistry {
@@ -72,80 +73,69 @@ case class ArrowFlightReader[T](
     // TODO Endpoints could be read in parallel
     // Iterating over endpoints
     flightInfoIter.forEach { flightInfo =>
-      var streamReadAlready    = false
-      val endPoint             = flightInfo.getDescriptor.toString
-      val endPointAsByteStream = flightInfo.getDescriptor.getPath.get(0).getBytes(StandardCharsets.UTF_8)
+      val endPoint = flightInfo.getDescriptor.toString
+      val header   = endPoint.substring(0, endPoint.lastIndexOf("/"))
+      if (topics.contains(header)) {
+        var streamReadAlready    = false
+        val endPointAsByteStream = flightInfo.getDescriptor.getPath.get(0).getBytes(StandardCharsets.UTF_8)
+        Using(flightClient.getStream(new Ticket(endPointAsByteStream))) { flightStream =>
+          var batch = 0
+          logger.debug("Reader(" + location + "). Reading messages for end point: " + flightInfo.getDescriptor)
 
-      Using(flightClient.getStream(new Ticket(endPointAsByteStream))) { flightStream =>
-        var batch = 0
-        logger.debug("Reader(" + location + "). Reading messages for end point: " + flightInfo.getDescriptor)
-
-        Using(flightStream.getRoot) { vectorSchemaRootReceived =>
-          vectorSchemaRootReceived.syncSchema()
-          val s = endPoint.substring(endPoint.lastIndexOf("/") + 1)
-          if (signatureRegistry.contains(s)) {
-            val vms = getSchema(s, vectorSchemaRootReceived)
-            try
-            // Iterating over batches
-            while (flightStream.next()) {
-              batch = batch + 1
-              // System.out.println("Reader(" + location + "). Received batch #" + batch + ", Data:")
-              var i    = 0
-              var rows = vectorSchemaRootReceived.getRowCount
-              while (i < rows) {
-                if (!vms.isMessageExistsAtRow(i))
-                  logger.warn(
-                          "Should not happen! location = {}, endpoint = {}, batch = {}, null at {}, row count = {}",
-                          location,
-                          endPoint,
-                          batch,
-                          i,
-                          rows
-                  );
-                else {
-                  try logger.trace(
-                          s"location = $location, endpoint = $endPoint, batch = $batch, vertex msg = ${vms
-                            .getMessageAtRow(i)}, row count = $rows\n"
-                  )
-                  catch {
-                    case e: Exception =>
-                      logger.error(e.getMessage)
-                      e.printStackTrace()
+          Using(flightStream.getRoot) { vectorSchemaRootReceived =>
+            vectorSchemaRootReceived.syncSchema()
+            val s = endPoint.substring(endPoint.lastIndexOf("/") + 1)
+            if (signatureRegistry.contains(s)) {
+              val vms = getSchema(s, vectorSchemaRootReceived)
+              try
+              // Iterating over batches
+              while (flightStream.next()) {
+                batch = batch + 1
+                // System.out.println("Reader(" + location + "). Received batch #" + batch + ", Data:")
+                var i    = 0
+                var rows = vectorSchemaRootReceived.getRowCount
+                while (i < rows) {
+                  if (!vms.isMessageExistsAtRow(i))
+                    logger.warn(
+                            "Should not happen! location = {}, endpoint = {}, batch = {}, null at {}, row count = {}",
+                            location,
+                            endPoint,
+                            batch,
+                            i,
+                            rows
+                    );
+                  else {
+                    try logger.trace(
+                            s"location = $location, endpoint = $endPoint, batch = $batch, vertex msg = ${vms
+                              .getMessageAtRow(i)}, row count = $rows\n"
+                    )
+                    catch {
+                      case e: Exception =>
+                        logger.error(e.getMessage)
+                        e.printStackTrace()
+                    }
+                    // vms.getVertexMessageAtRow(i)
+                    try messageHandler(vms.decodeMessage(i))
+                    catch {
+                      case e: Exception => logger.error(e.getMessage)
+                    }
                   }
-                  // vms.getVertexMessageAtRow(i)
-                  try messageHandler(vms.decodeMessage(i))
-                  catch {
-                    case e: Exception => logger.error(e.getMessage)
-                  }
+                  i = i + 1
                 }
-                i = i + 1
+                totalMessagesRead += rows
               }
-              totalMessagesRead += rows
+              finally if (vms != null) vms.close()
+
+              streamReadAlready = true
             }
-            finally if (vms != null) vms.close()
-
-            streamReadAlready = true
           }
+        } match {
+          case Success(_)         =>
+          case Failure(exception) =>
+            exception match {
+              case e => //e.printStackTrace()
+            }
         }
-
-        if (streamReadAlready) {
-          val deleteActionResult = flightClient.doAction(new Action("DELETE", endPointAsByteStream))
-          while (deleteActionResult.hasNext) {
-            val result = deleteActionResult.next()
-            logger.info(
-                    "Deleting endpoint {} read already at location {}: {}",
-                    endPoint,
-                    location,
-                    new String(result.getBody, StandardCharsets.UTF_8)
-            )
-          }
-        }
-      } match {
-        case Success(_)         =>
-        case Failure(exception) =>
-          exception match {
-            case e => //e.printStackTrace()
-          }
       }
     }
   }
@@ -154,7 +144,7 @@ case class ArrowFlightReader[T](
 
   override def close(): Unit = {} //flightClient.close() //TODO This seems to hang if interrupted
 
-  override def toString: String = s"ArrowFlightReader($interface,$port)"
+  override def toString: String = s"ArrowFlightReader($interface,$port,${topics.toList})"
 }
 
 // For testing purposes

@@ -11,6 +11,7 @@ import org.apache.curator.x.discovery.ServiceDiscoveryBuilder
 import org.apache.curator.x.discovery.ServiceInstance
 import org.apache.curator.x.discovery.details.JsonInstanceSerializer
 import com.raphtory.arrowmessaging._
+import com.raphtory.internals.communication.CanonicalTopic
 import org.apache.arrow.memory.RootAllocator
 
 import java.util.concurrent.ConcurrentHashMap
@@ -38,14 +39,14 @@ class ZKHostAddressProvider(zkClient: CuratorFramework, config: Config) extends 
     override def run(): Unit = serviceDiscovery.close()
   })
 
-  def getAddressAcrossPartitions: Map[Int, ArrowFlightHostAddress] = {
+  def getAddressAcrossPartitions: Map[String, ArrowFlightHostAddress] = {
     if (numPartitions > 1)
       // Poll zk for the addresses eq to the num of partitionServers and add the same to addresses map before returning the same
       while (addresses.size < numPartitions) {
         val serviceInstances = serviceDiscovery.queryForInstances("flightServer").asScala
         serviceInstances.foreach { i =>
-          addresses
-            .addOne(i.getPayload.partitionId, ArrowFlightHostAddress(i.getAddress, i.getPort))
+//          addresses
+//            .addOne(i.getPayload.partitionId, ArrowFlightHostAddress(i.getAddress, i.getPort))
         }
         if (addresses.size < numPartitions)
           TimeUnit.SECONDS.sleep(5)
@@ -54,12 +55,13 @@ class ZKHostAddressProvider(zkClient: CuratorFramework, config: Config) extends 
     addresses.toMap
   }
 
+  //TODO FIX THIS ONCE LOCAL WORKING
   def startAndPublishAddress[T](
-      partitionId: Int,
+      topics: Seq[CanonicalTopic[T]],
       messageHandler: T => Unit
   ): (ArrowFlightServer, ArrowFlightReader[T]) = {
-    val allocator = new RootAllocator
-
+    val allocator                                          = new RootAllocator
+    val stringTopics                                       = topics.map(_.toString).toSet
     // This is supposed to be called once server is started to ensure no clients are brought up before servers are started
     def publishAddress(interface: String, port: Int): Unit =
       if (numPartitions > 1) {
@@ -69,16 +71,16 @@ class ZKHostAddressProvider(zkClient: CuratorFramework, config: Config) extends 
             .address(interface)
             .port(port)
             .name("flightServer")
-            .payload(ServiceDetail(partitionId))
+            .payload(ServiceDetail(0))
             .build()
         serviceDiscovery.registerService(serviceInstance)
       }
       else
-        addresses.addOne(partitionId, ArrowFlightHostAddress(interface, port))
+        addresses.addOne(("topic", ArrowFlightHostAddress(interface, port)))
 
     val (server, interface, port) =
-      if (serversPerPar.containsKey(partitionId)) {
-        val server = serversPerPar.get(partitionId)
+      if (serversPerPar.containsKey("topic")) {
+        val server = serversPerPar.get("topic")
         (server, server.getInterface, server.getPort)
       }
       else {
@@ -93,7 +95,7 @@ class ZKHostAddressProvider(zkClient: CuratorFramework, config: Config) extends 
 
     // A message handler encapsulates vertices for a given partition. Therefore, in order to read messages destined for vertices belonging to
     //  a given partition we need specific message handler. This is why flight readers are tied to a given message handler at declaration.
-    val reader = ArrowFlightReader(interface, port, allocator, messageHandler, signatureRegistry)
+    val reader = ArrowFlightReader(interface, port, allocator, stringTopics, messageHandler, signatureRegistry)
 
     (server, reader)
   }

@@ -28,7 +28,7 @@ private[raphtory] class Writer(
 ) extends Component[GraphAlteration](conf) {
 
   private val logger: Logger  = Logger(LoggerFactory.getLogger(this.getClass))
-  private lazy val neighbours = topics.graphSync(graphID).endPoint(partitionID)
+  private lazy val neighbours = topics.graphSync(graphID).endPoint()
 
   protected var scheduledRun: Option[() => Future[Unit]] = None
 

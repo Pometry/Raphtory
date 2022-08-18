@@ -8,7 +8,7 @@ sealed private[raphtory] trait Topic[+T] {
 }
 
 sealed private[raphtory] trait CanonicalTopic[+T] extends Topic[T] {
-  def endPoint[E >: T]: EndPoint[E] = connector.endPoint(0, this) // TODO Fix srcParId ??
+  def endPoint[E >: T]: EndPoint[E] = connector.endPoint(this)
 }
 
 private[raphtory] case class ExclusiveTopic[T](
@@ -16,7 +16,20 @@ private[raphtory] case class ExclusiveTopic[T](
     id: String,
     subTopic: String = "",
     customAddress: String = ""
-) extends CanonicalTopic[T]
+) extends CanonicalTopic[T] {
+
+  override def toString: String =
+    if (subTopic.nonEmpty)
+      if (customAddress.nonEmpty)
+        s"$id/$subTopic/$customAddress"
+      else
+        s"$id/$subTopic"
+    else if (customAddress.nonEmpty)
+      s"$id/$customAddress"
+    else
+      id
+
+}
 
 private[raphtory] case class WorkPullTopic[T](
     connector: Connector,
@@ -41,11 +54,11 @@ private[raphtory] case class ShardingTopic[T](
     customAddress: String = ""
 ) extends Topic[T] {
 
-  def endPoint(srcParId: Int): Map[Int, EndPoint[T]] = {
+  def endPoint(): Map[Int, EndPoint[T]] = {
     val partitions = 0 until numPartitions
     val endPoints  = partitions map { partition =>
       val topic = exclusiveTopicForPartition(partition)
-      (partition, connector.endPoint[T](partition, topic))
+      (partition, connector.endPoint[T](topic))
     }
     endPoints.toMap
   }

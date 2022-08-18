@@ -144,7 +144,7 @@ private[raphtory] class TopicRepository(
         case topic: CanonicalTopic[T] => topic
       }
       .groupBy(_.connector)
-      .map { case (connector, topics) => connector.register(partitionId, id, messageHandler, topics) }
+      .map { case (connector, topics) => connector.register(id, messageHandler, topics) }
       .toSeq
 
     CancelableListener(listeners)

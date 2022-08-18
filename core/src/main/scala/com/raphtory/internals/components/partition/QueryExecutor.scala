@@ -108,14 +108,14 @@ private[raphtory] class QueryExecutor(
 
   private val neighbours: Map[Int, EndPoint[VertexMessaging]] =
     if (totalPartitions > 1)
-      topics.vertexMessages(jobID).endPoint(partitionID)
+      topics.vertexMessages(jobID).endPoint()
     else
       Map.empty
   logger.debug(logMessage("Vertex message endpoints created"))
 
   private val syncNeighbours: Map[Int, EndPoint[VertexMessagesSync]] = {
     if (totalPartitions > 1)
-      topics.vertexMessagesSync(jobID).endPoint(partitionID)
+      topics.vertexMessagesSync(jobID).endPoint()
     else
       Map.empty
   }
