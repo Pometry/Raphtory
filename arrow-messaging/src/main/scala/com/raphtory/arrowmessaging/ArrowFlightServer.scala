@@ -63,7 +63,7 @@ case class ArrowFlightServer(allocator: BufferAllocator) extends AutoCloseable {
 
   override def close(): Unit =
     try {
-      flightServer.close()
+      flightServer.shutdown()
       logger.info("Flight server closed")
       flightProducer.close()
       logger.info("Flight producer closed")

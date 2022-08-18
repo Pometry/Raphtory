@@ -15,15 +15,14 @@ class LocalHostAddressProvider(config: Config) extends ArrowFlightHostAddressPro
   private val interface = server.getInterface
   private val port      = server.getPort
 
-  override def getAddressAcrossPartitions: Map[String, ArrowFlightHostAddress] = addresses.toMap
+  override def getAddressAcrossPartitions(topic: String): Map[String, ArrowFlightHostAddress] = addresses.toMap
 
   override def startAndPublishAddress[T](
       topics: Seq[CanonicalTopic[T]],
       messageHandler: T => Unit
-  ): (ArrowFlightServer, ArrowFlightReader[T]) = {
+  ): ArrowFlightReader[T] = {
     val stringTopics = topics.map(_.toString).toSet
     stringTopics.foreach(topic => addresses.addOne((topic, ArrowFlightHostAddress(interface, port))))
-    val reader       = ArrowFlightReader(interface, port, allocator, stringTopics, messageHandler, signatureRegistry)
-    (server, reader)
+    ArrowFlightReader(interface, port, allocator, stringTopics, messageHandler, signatureRegistry)
   }
 }

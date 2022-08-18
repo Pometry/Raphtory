@@ -23,10 +23,10 @@ object TutorialRunner extends App {
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
   FileUtils.curlFile(path, url)
 
-  val graph = Raphtory.newGraph()
-  addLOTRData(graph)
-  //val source = Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder())
-  //graph.ingest(source)
+  val graph  = Raphtory.connect("raphtory").newGraph()
+  //addLOTRData(graph)
+  val source = Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder())
+  graph.ingest(source)
 
   graph
     .at(32674)
@@ -37,9 +37,8 @@ object TutorialRunner extends App {
 
   graph.destroy()
 
-  def addLOTRData(graph: DeployedTemporalGraph) = {
-
-    val line = scala.io.Source.fromFile(path).getLines.foreach { line =>
+  def addLOTRData(graph: DeployedTemporalGraph) =
+    scala.io.Source.fromFile(path).getLines.foreach { line =>
       val fileLine   = line.split(",").map(_.trim)
       val sourceNode = fileLine(0)
       val srcID      = assignID(sourceNode)
@@ -51,5 +50,4 @@ object TutorialRunner extends App {
       graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("Character"))
       graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurence"))
     }
-  }
 }

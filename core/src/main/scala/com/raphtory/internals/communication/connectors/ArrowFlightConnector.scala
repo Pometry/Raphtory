@@ -26,8 +26,8 @@ import scala.beans.BeanProperty
 
 case class ArrowFlightHostAddress(interface: String, port: Int)
 
-case class ServiceDetail(@BeanProperty var partitionId: Int) {
-  def this() = this(0)
+case class ServiceDetail(@BeanProperty var path: String) {
+  def this() = this("")
 }
 
 class ArrowFlightConnector(
@@ -104,21 +104,19 @@ class ArrowFlightConnector(
       topics: Seq[CanonicalTopic[T]]
   ): CancelableListener = {
 
-    val (server, reader) = addressProvider.startAndPublishAddress(topics, messageHandler)
+    val reader = addressProvider.startAndPublishAddress(topics, messageHandler)
 
     new CancelableListener {
       override def start(): Unit = Future(reader.readMessages(readBusyWait))
 
-      override def close(): Unit = {
+      override def close(): Unit =
         reader.close()
-        server.close()
-      }
     }
   }
 
   // Starts writer and registers message schema and message handler to a given endpoint
   override def endPoint[T](topic: CanonicalTopic[T]): EndPoint[T] = {
-    val addresses                               = addressProvider.getAddressAcrossPartitions
+    val addresses                               = addressProvider.getAddressAcrossPartitions(topic.toString)
     val ArrowFlightHostAddress(interface, port) = addresses(topic.toString)
 
     ArrowFlightEndPoint(ArrowFlightWriter(interface, port, topic.toString, allocator, signatureRegistry))

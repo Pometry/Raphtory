@@ -28,7 +28,9 @@ private[raphtory] class Writer(
 ) extends Component[GraphAlteration](conf) {
 
   private val logger: Logger  = Logger(LoggerFactory.getLogger(this.getClass))
-  private lazy val neighbours = topics.graphSync(graphID).endPoint()
+
+  private lazy val neighbours =
+    topics.graphSync(graphID).endPoint() //This needs to be lazy otherwise the zookeeper lookup with deadlock
 
   protected var scheduledRun: Option[() => Future[Unit]] = None
 

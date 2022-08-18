@@ -20,15 +20,19 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class ZKHostAddressProvider(zkClient: CuratorFramework, config: Config) extends ArrowFlightHostAddressProvider(config) {
-
-  private val serversPerPar = new ConcurrentHashMap[Int, ArrowFlightServer]()
+  private val allocator = new RootAllocator
+  private val server    = ArrowFlightServer(allocator)
+  server.waitForServerToStart()
+  private val interface = server.getInterface
+  private val port      = server.getPort
 
   private val serviceDiscovery =
     ServiceDiscoveryBuilder
       .builder(classOf[ServiceDetail])
       .client(zkClient)
       .serializer(new JsonInstanceSerializer[ServiceDetail](classOf[ServiceDetail]))
-      .basePath(serviceDiscoveryAtomicPath)
+      //.basePath(serviceDiscoveryAtomicPath)
+      .basePath("")
       .build()
 
   serviceDiscovery.start()
@@ -36,68 +40,53 @@ class ZKHostAddressProvider(zkClient: CuratorFramework, config: Config) extends 
   // Closing service discovery as part of shutdown hook because termination of this partition
   // instance would mean flight server is down as well and pertaining entry must be removed from zk
   Runtime.getRuntime.addShutdownHook(new Thread() {
-    override def run(): Unit = serviceDiscovery.close()
+
+    override def run(): Unit =
+      server.close()
   })
 
-  def getAddressAcrossPartitions: Map[String, ArrowFlightHostAddress] = {
-    if (numPartitions > 1)
-      // Poll zk for the addresses eq to the num of partitionServers and add the same to addresses map before returning the same
-      while (addresses.size < numPartitions) {
-        val serviceInstances = serviceDiscovery.queryForInstances("flightServer").asScala
-        serviceInstances.foreach { i =>
-//          addresses
-//            .addOne(i.getPayload.partitionId, ArrowFlightHostAddress(i.getAddress, i.getPort))
-        }
-        if (addresses.size < numPartitions)
-          TimeUnit.SECONDS.sleep(5)
+  def getAddressAcrossPartitions(topic: String): Map[String, ArrowFlightHostAddress] = {
+    // Poll zk for the addresses eq to the num of partitionServers and add the same to addresses map before returning the same
+    while (!addresses.contains(topic)) {
+      val serviceInstances = serviceDiscovery.queryForInstances(topic).asScala
+      serviceInstances.foreach { i =>
+        addresses
+          .addOne(topic, ArrowFlightHostAddress(i.getAddress, i.getPort))
       }
+      if (addresses.size < numPartitions)
+        TimeUnit.SECONDS.sleep(1)
+    }
 
     addresses.toMap
   }
 
-  //TODO FIX THIS ONCE LOCAL WORKING
   def startAndPublishAddress[T](
       topics: Seq[CanonicalTopic[T]],
       messageHandler: T => Unit
-  ): (ArrowFlightServer, ArrowFlightReader[T]) = {
-    val allocator                                          = new RootAllocator
-    val stringTopics                                       = topics.map(_.toString).toSet
+  ): ArrowFlightReader[T] = {
+    val stringTopics = topics.map(_.toString).toSet
     // This is supposed to be called once server is started to ensure no clients are brought up before servers are started
-    def publishAddress(interface: String, port: Int): Unit =
-      if (numPartitions > 1) {
-        val serviceInstance =
-          ServiceInstance
-            .builder()
-            .address(interface)
-            .port(port)
-            .name("flightServer")
-            .payload(ServiceDetail(0))
-            .build()
-        serviceDiscovery.registerService(serviceInstance)
-      }
-      else
-        addresses.addOne(("topic", ArrowFlightHostAddress(interface, port)))
+    def publishAddress(topic: String, interface: String, port: Int): Unit = {
+      val serviceInstance =
+        ServiceInstance
+          .builder()
+          .address(interface)
+          .port(port)
+          .name(topic)
+          .payload(ServiceDetail(topic))
+          .build()
+      serviceDiscovery.registerService(serviceInstance)
+    }
 
-    val (server, interface, port) =
-      if (serversPerPar.containsKey("topic")) {
-        val server = serversPerPar.get("topic")
-        (server, server.getInterface, server.getPort)
-      }
-      else {
-        val server    = ArrowFlightServer(allocator)
-        server.waitForServerToStart()
-        val interface = server.getInterface
-        val port      = server.getPort
-
-        publishAddress(interface, port)
-        (server, interface, port)
-      }
+    stringTopics.foreach { topic =>
+      publishAddress(topic, server.getInterface, server.getPort)
+      addresses.addOne((topic, ArrowFlightHostAddress(interface, port)))
+    }
 
     // A message handler encapsulates vertices for a given partition. Therefore, in order to read messages destined for vertices belonging to
     //  a given partition we need specific message handler. This is why flight readers are tied to a given message handler at declaration.
-    val reader = ArrowFlightReader(interface, port, allocator, stringTopics, messageHandler, signatureRegistry)
+    ArrowFlightReader(interface, port, allocator, stringTopics, messageHandler, signatureRegistry)
 
-    (server, reader)
   }
 
 }

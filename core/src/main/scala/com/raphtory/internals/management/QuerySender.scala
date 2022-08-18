@@ -75,6 +75,9 @@ private[raphtory] class QuerySender(
     submissions sendAsync IngestData(DynamicLoader(clazzes), id, sources)
   }
 
+  def closeArrow() =
+    writers
+
   private def getDefaultName(query: Query): String =
     if (query.name.nonEmpty) query.name else query.hashCode().abs.toString
 }

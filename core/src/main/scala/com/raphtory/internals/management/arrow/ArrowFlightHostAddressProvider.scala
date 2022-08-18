@@ -17,10 +17,10 @@ abstract class ArrowFlightHostAddressProvider(config: Config) {
   protected val deploymentID: String                               = config.getString("raphtory.deploy.id")
   protected val serviceDiscoveryAtomicPath: String                 = s"/$deploymentID/flightservers"
 
-  def getAddressAcrossPartitions: Map[String, ArrowFlightHostAddress]
+  def getAddressAcrossPartitions(topic: String): Map[String, ArrowFlightHostAddress]
 
   def startAndPublishAddress[T](
       topics: Seq[CanonicalTopic[T]],
       messageHandler: T => Unit
-  ): (ArrowFlightServer, ArrowFlightReader[T])
+  ): ArrowFlightReader[T]
 }
