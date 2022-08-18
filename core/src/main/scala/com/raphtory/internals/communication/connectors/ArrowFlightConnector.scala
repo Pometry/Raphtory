@@ -113,10 +113,8 @@ class ArrowFlightConnector(
       override def start(): Unit = Future(reader.readMessages(readBusyWait))
 
       override def close(): Unit = {
-        logger.info("hello")
-        server.close()
         reader.close()
-        logger.info("hello2")
+        server.close()
       }
     }
   }
