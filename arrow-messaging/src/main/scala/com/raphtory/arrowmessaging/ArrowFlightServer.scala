@@ -45,11 +45,6 @@ case class ArrowFlightServer(allocator: BufferAllocator) extends AutoCloseable {
           e.printStackTrace()
         case e: InterruptedException => e.printStackTrace()
       }
-//      finally {
-//        println("I am closing")
-//        close()
-//        println("I should have closed")
-//      }
   })
 
   def waitForServerToStart(): Unit =
