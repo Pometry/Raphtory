@@ -37,11 +37,10 @@ class ArrowFlightConnector(
 ) extends ZookeeperConnector
         with Connector {
 
-  private val logger               = Logger(LoggerFactory.getLogger(this.getClass))
-  private val allocator            = new RootAllocator
-  private val flightBatchSize      = config.getInt("raphtory.arrow.flight.batchSize")
-  private val readBusyWait         = config.getInt("raphtory.arrow.flight.readBusyWait")
-  private val deploymentId: String = config.getString("raphtory.deploy.id")
+  private val logger          = Logger(LoggerFactory.getLogger(this.getClass))
+  private val allocator       = new RootAllocator
+  private val flightBatchSize = config.getInt("raphtory.arrow.flight.batchSize")
+  private val readBusyWait    = config.getInt("raphtory.arrow.flight.readBusyWait")
 
   // Endpoint is supposed to encapsulate a writer and knows how to send the message to the flight server
   case class ArrowFlightEndPoint[T](writer: ArrowFlightWriter) extends EndPoint[T] {

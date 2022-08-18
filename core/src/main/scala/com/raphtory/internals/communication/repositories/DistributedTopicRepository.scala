@@ -21,12 +21,10 @@ private[raphtory] object DistributedTopicRepository {
     config.getString("raphtory.communication.control") match {
       case "auto"   =>
         for {
-          pulsarConnector <- PulsarConnector[IO](config)
-          akkaConnector   <- AkkaConnector[IO](akkaMode, config)
-        } yield {
-          val arrowFlightConnector = new ArrowFlightConnector(config, signatureRegistry, addressProvider)
-          new TopicRepository(akkaConnector, arrowFlightConnector, pulsarConnector, config)
-        }
+          arrowFlightConnector <- ArrowFlightConnector[IO](config, signatureRegistry, addressProvider)
+          pulsarConnector      <- PulsarConnector[IO](config)
+          akkaConnector        <- AkkaConnector[IO](akkaMode, config)
+        } yield new TopicRepository(akkaConnector, arrowFlightConnector, pulsarConnector, config)
       case "pulsar" => PulsarConnector[IO](config).map(connector => TopicRepository(connector, config))
     }
 }

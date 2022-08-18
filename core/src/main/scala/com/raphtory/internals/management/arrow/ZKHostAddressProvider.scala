@@ -13,11 +13,14 @@ import org.apache.curator.x.discovery.details.JsonInstanceSerializer
 import com.raphtory.arrowmessaging._
 import org.apache.arrow.memory.RootAllocator
 
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class ZKHostAddressProvider(zkClient: CuratorFramework, config: Config) extends ArrowFlightHostAddressProvider(config) {
+
+  private val serversPerPar = new ConcurrentHashMap[Int, ArrowFlightServer]()
 
   private val serviceDiscovery =
     ServiceDiscoveryBuilder
@@ -73,13 +76,20 @@ class ZKHostAddressProvider(zkClient: CuratorFramework, config: Config) extends 
       else
         addresses.addOne(partitionId, ArrowFlightHostAddress(interface, port))
 
-    val server = ArrowFlightServer(allocator)
-    server.waitForServerToStart()
+    val (server, interface, port) =
+      if (serversPerPar.containsKey(partitionId)) {
+        val server = serversPerPar.get(partitionId)
+        (server, server.getInterface, server.getPort)
+      }
+      else {
+        val server    = ArrowFlightServer(allocator)
+        server.waitForServerToStart()
+        val interface = server.getInterface
+        val port      = server.getPort
 
-    val interface = server.getInterface
-    val port      = server.getPort
-
-    publishAddress(interface, port)
+        publishAddress(interface, port)
+        (server, interface, port)
+      }
 
     // A message handler encapsulates vertices for a given partition. Therefore, in order to read messages destined for vertices belonging to
     //  a given partition we need specific message handler. This is why flight readers are tied to a given message handler at declaration.
