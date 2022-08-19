@@ -1,11 +1,9 @@
 from pyraphtory.graph import Row
-from pyraphtory.interop import to_python, find_class
 from pyraphtory.builder import *
 from pyraphtory.spouts import FileSpout
 
 if __name__ == "__main__":
     from pyraphtory.context import PyRaphtory
-    from pyraphtory.scala.numeric import Int
     import subprocess
 
     subprocess.run(["curl", "-o", "/tmp/lotr.csv", "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"])
@@ -31,6 +29,14 @@ if __name__ == "__main__":
           .select(lambda vertex: Row(vertex.name(), vertex.degree()))
           .write_to_dataframe(["name", "degree"]))
     print(df)
+
+    # TODO: Segfault in Pemja on line 35
+    # df2 = (graph
+    #        .set_global_state(lambda s: s.new_int_max("max_time", 0))
+    #        .step(lambda v, s: s["max_time"].add(v.latest_activity().time()))
+    #        .global_select(lambda s: Row(s["max_time"].value))
+    #        .write_to_dataframe(["max_time"]))
+    # print(df2)
 
     graph.select(lambda vertex: Row(vertex.name(), vertex.degree())).write_to_file("/tmp/test").wait_for_job()
 

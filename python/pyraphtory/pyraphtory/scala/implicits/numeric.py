@@ -3,7 +3,7 @@
 from pyraphtory.interop import ScalaClassProxy
 
 
-class Int(ScalaClassProxy):
+class Long(ScalaClassProxy):
     """Wrapper for Long implicit instance"""
     _classname = "scala.math.Numeric.LongIsIntegral"
 

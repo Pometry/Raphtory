@@ -1,2 +1,2 @@
 import pyraphtory.scala.collection
-import pyraphtory.scala.numeric
+import pyraphtory.scala.implicits.numeric

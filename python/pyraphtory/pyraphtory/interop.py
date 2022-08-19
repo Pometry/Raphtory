@@ -404,7 +404,11 @@ class GenericMethodProxy(object):
 
     def __getitem__(self, item):
         """support specifying implicit arguments with [val] syntax"""
-        self._implicits.append(to_jvm(item))
+        if not isinstance(item, tuple):
+            item = (item,)
+
+        for v in item:
+            self._implicits.append(to_jvm(v))
         return self
 
 

@@ -206,7 +206,8 @@ private[raphtory] class GraphStateImplementation(override val nodeCount: Int) ex
       .asInstanceOf[AccumulatorImplementation[Any, Any]]
 
   override def newMax[T](name: String, initialValue: T, retainState: Boolean)(implicit
-      numeric: Numeric[T]
+      numeric: Numeric[T],
+      bounded: Bounded[T]
   ): Unit =
     accumulatorState(name) = AccumulatorImplementation[T](initialValue, retainState = retainState, numeric.max)
       .asInstanceOf[AccumulatorImplementation[Any, Any]]
