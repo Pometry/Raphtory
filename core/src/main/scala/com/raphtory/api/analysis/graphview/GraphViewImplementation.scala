@@ -302,13 +302,13 @@ private[api] trait ReducedGraphViewImplementation[G <: ReducedGraphViewImplement
     newRGraph(query, querySender)
 }
 
-private[api] trait FixedGraph[G] {
+private[api] trait FixedGraph[G] { this: G =>
   private[api] val query: Query
   private[api] val querySender: QuerySender
   private[api] def newGraph(query: Query, querySender: QuerySender): G
 }
 
-private[api] trait GraphBase[G, RG, MG] extends FixedGraph[G] {
+private[api] trait GraphBase[G, RG, MG] extends FixedGraph[G] { this: G =>
   private[api] def newRGraph(query: Query, querySender: QuerySender): RG
   private[api] def newMGraph(query: Query, querySender: QuerySender): MG
 }

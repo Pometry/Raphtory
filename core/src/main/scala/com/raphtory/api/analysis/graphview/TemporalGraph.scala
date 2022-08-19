@@ -23,18 +23,23 @@ import com.raphtory.internals.time.DateTimeParser
 import com.typesafe.config.Config
 import com.raphtory.internals.time.IntervalParser.{parse => parseInterval}
 
+import scala.annotation.varargs
+
 private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <: FixedGraph[
         FixedG
 ]] extends GraphBase[G, TemporalGraph, MultilayerTemporalGraph]
-        with Graph {
+        with Graph { this: G =>
   private[api] val query: Query
   private[api] val querySender: QuerySender
   private[api] val conf: Config
 
   private var index = 1
 
-  def ingest(sources: Source*): Unit =
+  @varargs // Needed for python support for now (creates appropriate java accessors)
+  def ingest(sources: Source*): G = {
     querySender.submitGraph(sources, conf.getString("raphtory.graph.id"))
+    this
+  }
 
   override def addVertex(updateTime: Long, srcId: Long, posTypeArg: Type): Unit = {
     querySender.individualUpdate(VertexAdd(updateTime, index, srcId, Properties(), posTypeArg.toOption))
