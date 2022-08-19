@@ -12,7 +12,6 @@ if __name__ == "__main__":
     pr = PyRaphtory(logging=True).open()
 
     def parse(graph, tuple: str):
-        print(f"parse called with {graph=} and {tuple=}")
         parts = [v.strip() for v in tuple.split(",")]
         source_node = parts[0]
         src_id = graph.assign_id(source_node)
