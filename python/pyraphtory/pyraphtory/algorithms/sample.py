@@ -1,4 +1,5 @@
 from pyraphtory.graph import Row
+from pyraphtory.interop import to_python, find_class
 from pyraphtory.vertex import Vertex
 from pyraphtory.builder import *
 from pyraphtory.context import BaseContext
@@ -54,9 +55,7 @@ if __name__ == "__main__":
     subprocess.run(["curl", "-o", "/tmp/lotr.csv", "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"])
     pr = PyRaphtory(logging=True).open()
 
-    from pyraphtory.interop import to_python, find_class, logger
-    r = to_python(find_class("com.raphtory.Raphtory"))
-    graph = r.new_graph()
+    graph = pr.new_graph()
     builder = to_python(find_class("com.raphtory.api.input.GraphBuilder"))
 
     def parse(graph, tuple: str):
@@ -80,6 +79,11 @@ if __name__ == "__main__":
     input_args = getattr(scala_list, "from")([source(lotr_spout, lotr_builder)])
     graph.ingest(input_args)
 
+    table = graph.set_global_state(lambda s: s.new_accumulator("max_time", 2**32, True, lambda a, b: max(a, b))).step(lambda v, s: s["max_time"].add(v.latest_activity().time())).global_select(lambda s: Row(s["max_time"].value))
+    table.write_to_dataframe(["max_time"])
+    df = (graph.select(lambda vertex: Row(vertex.name(), vertex.degree())).write_to_dataframe(["name", "degree"]))
+    # print(df)
+    #
     # pr = PyRaphtory(spout_input=Path('/tmp/nodata.csv'), builder_script=Path(__file__), builder_class='LotrGraphBuilder',
     #                 mode='batch', logging=False).open()
     # rg = pr.graph()
