@@ -54,7 +54,7 @@ object Component {
           listenerFib <-
             IO.blocking(listener.start())
               .start
-              .flatTap(_ => IO.delay(log.info(s"Started listener.start() fiber for ${qm.getClass} with name [$name]")))
+              .flatTap(_ => IO.delay(log.debug(s"Started listener.start() fiber for ${qm.getClass} with name [$name]")))
         } yield (qm, listener, listenerFib, runnerFib)
 
       } {
@@ -81,7 +81,7 @@ object Component {
           listenerFib <-
             IO.blocking(listener.start())
               .start
-              .flatTap(_ => IO.delay(log.info(s"Started listener.start() fiber for ${qm.getClass} with name [$name]")))
+              .flatTap(_ => IO.delay(log.debug(s"Started listener.start() fiber for ${qm.getClass} with name [$name]")))
         } yield (qm, listener, listenerFib, runnerFib)
       } {
         case (qm, listener, listenerFib, runner) =>

@@ -35,9 +35,7 @@ class RemoteContext(deploymentID: String) extends RaphtoryContext {
       _             <- Py4JServer.fromEntryPoint[IO](this, config)
       _             <- Prometheus[IO](prometheusPort)
       zkClient      <- ZookeeperConnector.getZkClient(config.getString("raphtory.zookeeper.address"))
-      allocator      = new RootAllocator
-      arrowServer   <- ArrowFlightServer[IO](allocator)
-      addressHandler = new ZKHostAddressProvider(zkClient, config, arrowServer, allocator)
+      addressHandler = new ZKHostAddressProvider(zkClient, config, None)
       topicRepo     <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, addressHandler)
     } yield (topicRepo, config)
   }

@@ -24,9 +24,7 @@ object Standalone extends IOApp {
 
     val headNode = for {
       zkClient      <- ZookeeperConnector.getZkClient(config.getString("raphtory.zookeeper.address"))
-      allocator      = new RootAllocator
-      arrowServer   <- ArrowFlightServer[IO](allocator)
-      addressHandler = new ZKHostAddressProvider(zkClient, config, arrowServer, allocator)
+      addressHandler = new ZKHostAddressProvider(zkClient, config, None)
       repo          <- DistributedTopicRepository[IO](AkkaConnector.SeedMode, config, addressHandler)
       headNode      <- ClusterManager[IO](config, repo, mode = StandaloneMode)
     } yield headNode

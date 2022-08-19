@@ -59,9 +59,8 @@ private[raphtory] object LocalContext extends RaphtoryContext {
     val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
     for {
       _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
-      allocator           = new RootAllocator
-      arrowServer        <- ArrowFlightServer[IO](allocator)
-      addressHandler      = new LocalHostAddressProvider(config, arrowServer, allocator)
+      arrowServer        <- ArrowFlightServer[IO]()
+      addressHandler      = new LocalHostAddressProvider(config, arrowServer)
       topicRepo          <- LocalTopicRepository[IO](config, addressHandler)
       partitionIdManager <- makePartitionIdManager[IO](config, localDeployment = true, graphID)
       _                  <- PartitionOrchestrator.spawn[IO](config, partitionIdManager, topicRepo, scheduler)

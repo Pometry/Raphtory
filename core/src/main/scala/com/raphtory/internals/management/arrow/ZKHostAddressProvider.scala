@@ -19,15 +19,18 @@ import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-class ZKHostAddressProvider(
-    zkClient: CuratorFramework,
-    config: Config,
-    server: ArrowFlightServer,
-    allocator: RootAllocator
-) extends ArrowFlightHostAddressProvider(config) {
+class ZKHostAddressProvider(zkClient: CuratorFramework, config: Config, server: Option[ArrowFlightServer])
+        extends ArrowFlightHostAddressProvider(config) {
 
-  private val interface = server.getInterface
-  private val port      = server.getPort
+  private val interface = server match {
+    case Some(s) => s.getInterface
+    case None    => ""
+  }
+
+  private val port = server match {
+    case Some(s) => s.getPort
+    case None    => 0
+  }
 
   private val serviceDiscovery =
     ServiceDiscoveryBuilder
@@ -45,7 +48,7 @@ class ZKHostAddressProvider(
   Runtime.getRuntime.addShutdownHook(new Thread() {
 
     override def run(): Unit =
-      server.close()
+      serviceDiscovery.close()
   })
 
   def getAddressAcrossPartitions(topic: String): Map[String, ArrowFlightHostAddress] = {
@@ -82,9 +85,10 @@ class ZKHostAddressProvider(
     }
 
     stringTopics.foreach { topic =>
-      publishAddress(topic, server.getInterface, server.getPort)
+      publishAddress(topic, interface, port)
       addresses.addOne((topic, ArrowFlightHostAddress(interface, port)))
     }
+    val allocator = new RootAllocator
 
     // A message handler encapsulates vertices for a given partition. Therefore, in order to read messages destined for vertices belonging to
     //  a given partition we need specific message handler. This is why flight readers are tied to a given message handler at declaration.

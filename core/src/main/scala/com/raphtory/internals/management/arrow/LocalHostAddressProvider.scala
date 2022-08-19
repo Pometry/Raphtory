@@ -8,7 +8,7 @@ import com.raphtory.internals.communication.repositories.ArrowFlightRepository.s
 import com.typesafe.config.Config
 import org.apache.arrow.memory.RootAllocator
 
-class LocalHostAddressProvider(config: Config, server: ArrowFlightServer, allocator: RootAllocator)
+class LocalHostAddressProvider(config: Config, server: ArrowFlightServer)
         extends ArrowFlightHostAddressProvider(config) {
 
   private val interface = server.getInterface
@@ -22,6 +22,7 @@ class LocalHostAddressProvider(config: Config, server: ArrowFlightServer, alloca
   ): ArrowFlightReader[T] = {
     val stringTopics = topics.map(_.toString).toSet
     stringTopics.foreach(topic => addresses.addOne((topic, ArrowFlightHostAddress(interface, port))))
+    val allocator    = new RootAllocator
     ArrowFlightReader(interface, port, allocator, stringTopics, messageHandler, signatureRegistry)
   }
 }

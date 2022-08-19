@@ -22,9 +22,7 @@ object IngestionService extends IOApp {
 
     val service = for {
       zkClient      <- ZookeeperConnector.getZkClient(config.getString("raphtory.zookeeper.address"))
-      allocator      = new RootAllocator
-      arrowServer   <- ArrowFlightServer[IO](allocator)
-      addressHandler = new ZKHostAddressProvider(zkClient, config, arrowServer, allocator)
+      addressHandler = new ZKHostAddressProvider(zkClient, config, None)
       repo          <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, addressHandler)
       service       <- IngestionOrchestrator[IO](config, repo)
     } yield service
