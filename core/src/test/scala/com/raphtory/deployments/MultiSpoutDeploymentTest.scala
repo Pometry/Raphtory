@@ -64,7 +64,7 @@ class MultiSpoutDeploymentTest extends CatsEffectSuite {
             val tracker = graph
               .range(1, 32674, 10000)
               .window(List(500, 1000, 10000), Alignment.END)
-              .execute(ConnectedComponents())
+              .execute(ConnectedComponents)
               .writeTo(defaultSink)
 
             tracker.waitForJob()
