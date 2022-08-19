@@ -2,6 +2,7 @@ package com.raphtory.internals.management
 
 import cats.Id
 import cats.syntax.all._
+import java.lang.reflect.{Array => JArray}
 import com.raphtory.api.analysis.graphstate.Accumulator
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphview.GraphPerspective
@@ -16,12 +17,16 @@ import org.slf4j.LoggerFactory
 import java.util
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
+import scala.reflect.ClassTag
 import scala.reflect.runtime.universe
 import scala.util.Random
 
 /** Scala-side methods for interfacing with Python */
 object PythonInterop {
   val logger: WrappedLogger = new WrappedLogger(Logger(LoggerFactory.getLogger(this.getClass)))
+
+  def print_array(array: Array[_]): String =
+    array.mkString(", ")
 
   /** make assign_id accessible from python */
   def assign_id(s: String): Long =
@@ -67,8 +72,15 @@ object PythonInterop {
   }
 
   /** Take an iterable of arguments and turn it into a java varargs friendly array */
-  def make_varargs(obj: Iterable[Any]): Array[Object] =
-    obj.toArray.map(_.asInstanceOf[Object])
+  def make_varargs[T](obj: Iterable[T], clazz: Class[Array[T]]): Array[T] = {
+    val comp = clazz.getComponentType
+    val arr  = JArray.newInstance(comp, obj.size).asInstanceOf[Array[T]]
+    obj.zipWithIndex.foreach {
+      case (v, i) =>
+        arr(i) = v
+    }
+    arr
+  }
 
   /** Find methods and default values for an object and return in friendly format */
   def methods(obj: Any): util.Map[String, Array[Method]] = {
@@ -101,6 +113,7 @@ object PythonInterop {
           name -> methods.map { m =>
             val hasVarArgs  = m.isVarArgs
             val paramsNames = m.getParameters.map(p => camel_to_snake(p.getName))
+            val paramTypes  = m.getParameterTypes
 
             val n = m.getParameterCount
             // Only one overloaded implementation can have default arguments, this checks if defaults should apply
@@ -110,10 +123,10 @@ object PythonInterop {
                     }
             )
               // All default arguments match parameter types of this method signature
-              Method(m.getName, n, paramsNames, defaults.view.mapValues(_.getName).toMap, hasVarArgs)
+              Method(m.getName, n, paramsNames, paramTypes, defaults.view.mapValues(_.getName).toMap, hasVarArgs)
             else
               // Defaults do not match or method has no default arguments
-              Method(m.getName, n, paramsNames, Map.empty[Int, String], hasVarArgs)
+              Method(m.getName, n, paramsNames, paramTypes, Map.empty[Int, String], hasVarArgs)
           }.toArray
       }
       .toMap
@@ -149,7 +162,14 @@ class WrappedLogger(logger: Logger) {
 }
 
 /** Representation of a method */
-case class Method(name: String, n: Int, parameters: Array[String], defaults: Map[Int, String], varargs: Boolean) {
+case class Method(
+    name: String,
+    n: Int,
+    parameters: Array[String],
+    types: Array[Class[_]],
+    defaults: Map[Int, String],
+    varargs: Boolean
+) {
   def has_defaults: Boolean = defaults.nonEmpty
 }
 

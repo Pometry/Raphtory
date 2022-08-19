@@ -10,6 +10,10 @@ _method_cache = {}
 _wrappers = {}
 
 
+def _print_array(obj):
+    return _scala.scala.print_array(obj)
+
+
 def register(cls=None, *, name=None):
     """class decorator for registering wrapper classes.
 
@@ -164,9 +168,9 @@ def assign_id(s: str):
     return _scala.scala.assign_id(s)
 
 
-def make_varargs(param):
+def make_varargs(param, clazz):
     """convert parameter list to varargs-friendly array"""
-    return _scala.scala.make_varargs(param)
+    return _scala.scala.make_varargs(param, clazz)
 
 
 def _wrap_python_function(fun):
@@ -347,6 +351,7 @@ class MethodProxyDescriptor(object):
 
 
 class GenericMethodProxy(object):
+
     """Proxy object for scala method with support for default arguments and implicits"""
     # TODO: This needs to be optimised
     def __init__(self, name: str, jvm_object, methods):
@@ -362,15 +367,17 @@ class GenericMethodProxy(object):
         for method in self._methods:
             try:
                 parameters = method.parameters()
-                logger.trace(f"Parmeters for candidate are {parameters}")
+                logger.trace(f"Parmeters for candidate are {_print_array(parameters)}")
                 defaults = method.defaults()
                 logger.trace(f"Defaults for candidate are {defaults}")
                 n = method.n()
                 logger.trace(f"Number of parameters for candidate is {n}")
+                types = method.types()
+                logger.trace(f"Types for candidate are {_print_array(types)}")
                 if method.varargs():
                     logger.trace(f"Method takes varargs")
                     actual_args = args[:n-len(kwargs)-1]
-                    varargs = [make_varargs(to_jvm(args[n-len(kwargs)-1:]))]
+                    varargs = [make_varargs(to_jvm(args[n-len(kwargs)-1:]), types[-1])]
                 else:
                     actual_args = args[:]
                     varargs = []
