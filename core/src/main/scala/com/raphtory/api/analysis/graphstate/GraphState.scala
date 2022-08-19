@@ -132,7 +132,7 @@ abstract class GraphState {
     * $name
     * $initialValue
     */
-  def newMax[T: Numeric](name: String, initialValue: T): Unit =
+  def newMax[T: Numeric: Bounded](name: String, initialValue: T): Unit =
     newMax[T](name, initialValue, retainState = false)
 
   /** Create a new accumulator that tracks the maximum value
@@ -151,7 +151,7 @@ abstract class GraphState {
     * $initialValue
     * $retainState
     */
-  def newMax[T: Numeric](
+  def newMax[T: Numeric: Bounded](
       name: String,
       initialValue: T,
       retainState: Boolean
@@ -218,9 +218,9 @@ abstract class GraphState {
     * @tparam T Type of counted values
     */
   def newCounter[T](
-      name: String,
-      retainState: Boolean = true
-  ): Unit
+                                name: String,
+                                retainState: Boolean = true
+                              ): Unit
 
   /** Create new Boolean accumulator that returns `true` if all accumulated values are `true` and `false` otherwise
     *
