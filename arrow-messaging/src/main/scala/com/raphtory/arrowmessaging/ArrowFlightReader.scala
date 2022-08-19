@@ -54,11 +54,11 @@ case class ArrowFlightReader[T](
 
   def readMessages(busyWaitInMilliSeconds: Long): Unit =
     while (true) {
-//      try Thread.sleep(busyWaitInMilliSeconds)
-//      catch {
-//        case e: InterruptedException =>
-//          e.printStackTrace()
-//      }
+      // try Thread.sleep(busyWaitInMilliSeconds)
+      // catch {
+      // case e: InterruptedException =>
+      // e.printStackTrace()
+      // }
       readMessages()
 
       logger.debug("{}. Total messages read = {}", this, getTotalMessagesRead)
@@ -142,7 +142,10 @@ case class ArrowFlightReader[T](
 
   def getTotalMessagesRead: Long = totalMessagesRead
 
-  override def close(): Unit = {} //flightClient.close() //TODO This seems to hang if interrupted
+  override def close(): Unit = {
+    flightClient.close()
+    logger.debug(s"$this is closed")
+  }
 
   override def toString: String = s"ArrowFlightReader($interface,$port,${topics.toList})"
 }

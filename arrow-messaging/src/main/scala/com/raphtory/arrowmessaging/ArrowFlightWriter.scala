@@ -35,7 +35,7 @@ sealed trait ArrowFlightMessageSchemaWriterRegistry extends AutoCloseable {
     schemaRegistry.remove(endPoint)
 
   def close(): Unit =
-    //schemaRegistry.values().forEach(_.close())
+    schemaRegistry.values().forEach(_.close())
     schemaRegistry.clear()
 }
 
@@ -102,9 +102,11 @@ case class ArrowFlightWriter(
         throw e
     }
 
-  override def close(): Unit =
+  override def close(): Unit = {
     super.close()
-  //flightClient.close()
+    flightClient.close()
+    logger.debug(s"$this is closed")
+  }
 
   private def getAbsoluteEndpoint(topic: String, endPoint: String): String = topic + "/" + endPoint
 

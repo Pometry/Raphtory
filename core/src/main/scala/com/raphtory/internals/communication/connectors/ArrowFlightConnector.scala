@@ -53,8 +53,10 @@ class ArrowFlightConnector(
         writer.synchronized {
           counter.incrementAndGet()
           writer.addToBatch(msg)
-          if (counter.get() % flightBatchSize == 0)
+          if (counter.get() == flightBatchSize) {
             writer.sendBatch()
+            counter.set(0)
+          }
         }
 
       message match {
@@ -80,11 +82,10 @@ class ArrowFlightConnector(
     override def flushAsync(): CompletableFuture[Void] =
       CompletableFuture.completedFuture {
         writer.synchronized {
-          if (counter.get() > 0) {
+          if (counter.get() > 0 && counter.get() < flightBatchSize)
             writer.sendBatch()
-            writer.completeSend()
-            counter.set(0)
-          }
+          writer.completeSend()
+          counter.set(0)
           null
         }
       }
@@ -109,8 +110,7 @@ class ArrowFlightConnector(
     new CancelableListener {
       override def start(): Unit = Future(reader.readMessages(readBusyWait))
 
-      override def close(): Unit =
-        reader.close()
+      override def close(): Unit = reader.close()
     }
   }
 
