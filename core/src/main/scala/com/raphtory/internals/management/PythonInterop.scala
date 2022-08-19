@@ -188,17 +188,21 @@ case class PyRef(name: String)
 trait PythonFunction {
   protected val pickleBytes: Array[Byte]
   protected val eval_name = s"_${Random.alphanumeric.take(32).mkString}"
+  private val initialized = mutable.Set.empty[EmbeddedPython[Id]]
 
-  @transient lazy val py: EmbeddedPython[Id] = {
-    val _py = UnsafeEmbeddedPythonProxy.global
-    _py.set(s"${eval_name}_bytes", pickleBytes)
-    _py.run(s"import cloudpickle as pickle; $eval_name = pickle.loads(${eval_name}_bytes)")
-    _py.run(s"del ${eval_name}_bytes")
-    _py
+  private def py: EmbeddedPython[Id] = UnsafeEmbeddedPythonProxy.global
+
+  private def initialize(py: EmbeddedPython[Id]) = {
+    if (initialized.add(py)) {
+      py.set(s"${eval_name}_bytes", pickleBytes)
+      py.run(s"import cloudpickle as pickle; $eval_name = pickle.loads(${eval_name}_bytes)")
+      py.run(s"del ${eval_name}_bytes")
+    }
+    py
   }
 
   def invoke(args: Vector[Object]): Id[Object] =
-    py.invoke(PyRef(eval_name), "eval_from_jvm", args)
+    initialize(py).invoke(PyRef(eval_name), "eval_from_jvm", args)
 }
 
 case class PythonFunction1[I <: AnyRef, R](pickleBytes: Array[Byte]) extends (I => Id[R]) with PythonFunction {
