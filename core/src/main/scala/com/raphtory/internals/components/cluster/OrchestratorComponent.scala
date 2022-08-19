@@ -3,6 +3,7 @@ package com.raphtory.internals.components.cluster
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.raphtory.Raphtory.makePartitionIdManager
+import com.raphtory.arrowmessaging.ArrowFlightServer
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.components.Component
@@ -17,6 +18,7 @@ import com.typesafe.config.ConfigValueFactory
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 import com.raphtory.internals.management.arrow.ZKHostAddressProvider
+import org.apache.arrow.memory.RootAllocator
 
 import scala.collection.mutable
 
@@ -93,7 +95,9 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
           val serviceResource = for {
             partitionIdManager <- makePartitionIdManager[IO](graphConf, localDeployment = false, graphID)
             zkClient           <- ZookeeperConnector.getZkClient(graphConf.getString("raphtory.zookeeper.address"))
-            addressHandler      = new ZKHostAddressProvider(zkClient, conf)
+            allocator           = new RootAllocator
+            arrowServer        <- ArrowFlightServer[IO](allocator)
+            addressHandler      = new ZKHostAddressProvider(zkClient, conf, arrowServer, allocator)
             repo               <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf, addressHandler)
             _                  <- PartitionOrchestrator.spawn[IO](graphConf, partitionIdManager, repo, scheduler)
             _                  <- IngestionManager[IO](graphConf, repo)
@@ -110,7 +114,9 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
       val serviceResource = for {
         partitionIdManager <- makePartitionIdManager[IO](graphConf, localDeployment = false, graphID)
         zkClient           <- ZookeeperConnector.getZkClient(graphConf.getString("raphtory.zookeeper.address"))
-        addressHandler      = new ZKHostAddressProvider(zkClient, conf)
+        allocator           = new RootAllocator
+        arrowServer        <- ArrowFlightServer[IO](allocator)
+        addressHandler      = new ZKHostAddressProvider(zkClient, conf, arrowServer, allocator)
         repo               <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf, addressHandler)
         _                  <- PartitionOrchestrator.spawn[IO](graphConf, partitionIdManager, repo, scheduler)
       } yield ()
@@ -122,7 +128,9 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
     deployments.synchronized {
       val serviceResource = for {
         zkClient      <- ZookeeperConnector.getZkClient(graphConf.getString("raphtory.zookeeper.address"))
-        addressHandler = new ZKHostAddressProvider(zkClient, conf)
+        allocator      = new RootAllocator
+        arrowServer   <- ArrowFlightServer[IO](allocator)
+        addressHandler = new ZKHostAddressProvider(zkClient, conf, arrowServer, allocator)
         repo          <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf, addressHandler)
         _             <- IngestionManager[IO](graphConf, repo)
       } yield ()
@@ -134,7 +142,9 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
     deployments.synchronized {
       val serviceResource = for {
         zkClient      <- ZookeeperConnector.getZkClient(graphConf.getString("raphtory.zookeeper.address"))
-        addressHandler = new ZKHostAddressProvider(zkClient, conf)
+        allocator      = new RootAllocator
+        arrowServer   <- ArrowFlightServer[IO](allocator)
+        addressHandler = new ZKHostAddressProvider(zkClient, conf, arrowServer, allocator)
         repo          <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf, addressHandler)
         _             <- QueryManager[IO](graphConf, repo)
       } yield ()

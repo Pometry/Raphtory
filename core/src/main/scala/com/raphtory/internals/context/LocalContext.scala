@@ -16,10 +16,12 @@ import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.management.ZookeeperConnector
 import com.typesafe.config.Config
 import cats.effect.unsafe.implicits.global
+import com.raphtory.arrowmessaging.ArrowFlightServer
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.components.partition.PartitionOrchestrator
 import com.raphtory.internals.management.arrow.LocalHostAddressProvider
 import com.raphtory.internals.management.arrow.ZKHostAddressProvider
+import org.apache.arrow.memory.RootAllocator
 
 import scala.collection.mutable
 
@@ -57,7 +59,9 @@ private[raphtory] object LocalContext extends RaphtoryContext {
     val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
     for {
       _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
-      addressHandler      = new LocalHostAddressProvider(config)
+      allocator           = new RootAllocator
+      arrowServer        <- ArrowFlightServer[IO](allocator)
+      addressHandler      = new LocalHostAddressProvider(config, arrowServer, allocator)
       topicRepo          <- LocalTopicRepository[IO](config, addressHandler)
       partitionIdManager <- makePartitionIdManager[IO](config, localDeployment = true, graphID)
       _                  <- PartitionOrchestrator.spawn[IO](config, partitionIdManager, topicRepo, scheduler)

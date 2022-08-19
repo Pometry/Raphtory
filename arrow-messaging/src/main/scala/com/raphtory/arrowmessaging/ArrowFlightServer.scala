@@ -1,5 +1,7 @@
 package com.raphtory.arrowmessaging
 
+import cats.effect.Resource
+import cats.effect.Sync
 import org.apache.arrow.flight.FlightServer
 import org.apache.arrow.flight.Location
 import org.apache.arrow.memory.BufferAllocator
@@ -9,7 +11,7 @@ import java.net._
 import java.io.IOException
 import java.util.concurrent.Executors
 
-case class ArrowFlightServer(allocator: BufferAllocator) extends AutoCloseable {
+class ArrowFlightServer(allocator: BufferAllocator) {
   private val logger = LogManager.getLogger(classOf[ArrowFlightServer])
 
   private var started = false
@@ -26,47 +28,34 @@ case class ArrowFlightServer(allocator: BufferAllocator) extends AutoCloseable {
       )
       .build()
 
-  private val pool = Executors.newCachedThreadPool()
-  pool.submit(new Runnable {
+  flightServer.synchronized {
+    flightServer.start()
+    started = true
+    flightServer.notify()
+  }
+  logger.info("ArrowFlightServer({},{}) is online", flightServer.getLocation.getUri.getHost, flightServer.getPort)
+  //flightServer.awaitTermination()
 
-    override def run(): Unit =
-      try {
-        flightServer.synchronized {
-          flightServer.start()
-          started = true
-          flightServer.notify()
-        }
-        logger.info("ArrowFlightServer({},{}) is online", flightServer.getLocation.getUri.getHost, flightServer.getPort)
-        flightServer.awaitTermination()
-      }
-      catch {
-        case e: IOException          =>
-          logger.error("Failed to start ArrowFlight server! " + e.getMessage)
-          e.printStackTrace()
-        case e: InterruptedException => e.printStackTrace()
-      }
-  })
-
-  def waitForServerToStart(): Unit =
-    flightServer.synchronized {
-      while (!started)
-        try flightServer.wait()
-        catch {
-          case e: InterruptedException =>
-            e.printStackTrace()
-        }
-    }
+//  def waitForServerToStart(): Unit =
+//    flightServer.synchronized {
+//      while (!started)
+//        try flightServer.wait()
+//        catch {
+//          case e: InterruptedException =>
+//            e.printStackTrace()
+//        }
+//    }
 
   def getInterface: String = flightServer.getLocation.getUri.getHost
 
   def getPort: Int = flightServer.getPort
 
-  override def close(): Unit =
+  def close(): Unit =
     try {
       flightServer.shutdown()
-      logger.info("Flight server closed")
+      logger.debug("Flight server closed")
       flightProducer.close()
-      logger.info("Flight producer closed")
+      logger.debug("Flight producer closed")
     }
     catch {
       case e: Exception =>
@@ -75,4 +64,13 @@ case class ArrowFlightServer(allocator: BufferAllocator) extends AutoCloseable {
     finally {}
 
   override def toString: String = s"ArrowFlightServer($getInterface,$getPort)"
+}
+
+object ArrowFlightServer {
+
+  def apply[IO[_]](allocator: BufferAllocator)(implicit IO: Sync[IO]): Resource[IO, ArrowFlightServer] =
+    for {
+      arrowServer <- Resource.make(IO.delay(new ArrowFlightServer(allocator)))(server => IO.delay(server.close()))
+    } yield arrowServer
+
 }

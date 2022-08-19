@@ -19,10 +19,13 @@ import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-class ZKHostAddressProvider(zkClient: CuratorFramework, config: Config) extends ArrowFlightHostAddressProvider(config) {
-  private val allocator = new RootAllocator
-  private val server    = ArrowFlightServer(allocator)
-  server.waitForServerToStart()
+class ZKHostAddressProvider(
+    zkClient: CuratorFramework,
+    config: Config,
+    server: ArrowFlightServer,
+    allocator: RootAllocator
+) extends ArrowFlightHostAddressProvider(config) {
+
   private val interface = server.getInterface
   private val port      = server.getPort
 

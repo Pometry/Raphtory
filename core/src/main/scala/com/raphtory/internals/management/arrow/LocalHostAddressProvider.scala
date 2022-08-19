@@ -8,10 +8,9 @@ import com.raphtory.internals.communication.repositories.ArrowFlightRepository.s
 import com.typesafe.config.Config
 import org.apache.arrow.memory.RootAllocator
 
-class LocalHostAddressProvider(config: Config) extends ArrowFlightHostAddressProvider(config) {
-  private val allocator = new RootAllocator
-  private val server    = ArrowFlightServer(allocator)
-  server.waitForServerToStart()
+class LocalHostAddressProvider(config: Config, server: ArrowFlightServer, allocator: RootAllocator)
+        extends ArrowFlightHostAddressProvider(config) {
+
   private val interface = server.getInterface
   private val port      = server.getPort
 

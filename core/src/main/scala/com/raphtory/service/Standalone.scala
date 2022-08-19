@@ -6,11 +6,13 @@ import cats.effect.IOApp
 import cats.effect.Resource
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.Raphtory
+import com.raphtory.arrowmessaging.ArrowFlightServer
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.components.cluster.ClusterManager
 import com.raphtory.internals.components.cluster.StandaloneMode
 import com.raphtory.internals.management.ZookeeperConnector
 import com.raphtory.internals.management.arrow.ZKHostAddressProvider
+import org.apache.arrow.memory.RootAllocator
 
 object Standalone extends IOApp {
 
@@ -22,7 +24,9 @@ object Standalone extends IOApp {
 
     val headNode = for {
       zkClient      <- ZookeeperConnector.getZkClient(config.getString("raphtory.zookeeper.address"))
-      addressHandler = new ZKHostAddressProvider(zkClient, config)
+      allocator      = new RootAllocator
+      arrowServer   <- ArrowFlightServer[IO](allocator)
+      addressHandler = new ZKHostAddressProvider(zkClient, config, arrowServer, allocator)
       repo          <- DistributedTopicRepository[IO](AkkaConnector.SeedMode, config, addressHandler)
       headNode      <- ClusterManager[IO](config, repo, mode = StandaloneMode)
     } yield headNode
