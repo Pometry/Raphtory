@@ -1,6 +1,5 @@
 package com.raphtory.internals.components.partition
 
-import cats.Id
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview._

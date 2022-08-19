@@ -432,12 +432,10 @@ private[raphtory] class QueryHandler(
       case Iterate(f: (Vertex => Unit) @unchecked, iterations, executeMessagedOnly)
           if iterations > 1 && !allVoteToHalt =>
         currentOperation = Iterate(f, iterations - 1, executeMessagedOnly)
-      case PythonIterate(bytes, iterations, executeMessagedOnly) if iterations > 1 && !allVoteToHalt =>
-        currentOperation = PythonIterate(bytes, iterations - 1, executeMessagedOnly)
       case IterateWithGraph(f: ((Vertex, GraphState) => Unit) @unchecked, iterations, executeMessagedOnly)
           if iterations > 1 && !allVoteToHalt =>
         currentOperation = IterateWithGraph(f, iterations - 1, executeMessagedOnly)
-      case _                                                                                         =>
+      case _ =>
         currentOperation = getNextGraphOperation(graphFunctions).get
     }
     allVoteToHalt = true
