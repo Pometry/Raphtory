@@ -196,9 +196,15 @@ trait PythonFunction {
     catch {
       case e: Throwable =>
         py.synchronized {
-          py.set(s"${eval_name}_bytes", pickleBytes)
-          py.run(s"import cloudpickle as pickle; $eval_name = pickle.loads(${eval_name}_bytes)")
-          py.run(s"del ${eval_name}_bytes")
+          // recheck so only initialise once (some other thread may have got here first)
+          try py.run(eval_name)
+          catch {
+            case e: Throwable =>
+              // variable still doesn't exist so unpack the function
+              py.set(s"${eval_name}_bytes", pickleBytes)
+              py.run(s"import cloudpickle as pickle; $eval_name = pickle.loads(${eval_name}_bytes)")
+              py.run(s"del ${eval_name}_bytes")
+          }
         }
     }
     py
