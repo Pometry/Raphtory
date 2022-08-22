@@ -1,5 +1,5 @@
 from pyraphtory.interop import GenericScalaProxy, register
-from pyraphtory.scala.implicits.numeric import Long, Double
+from pyraphtory.scala.implicits.numeric import Long, Double, Float, Int
 from pyraphtory.scala.implicits.bounded import Bounded
 
 
