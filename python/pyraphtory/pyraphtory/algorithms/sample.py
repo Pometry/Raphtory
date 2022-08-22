@@ -30,27 +30,33 @@ if __name__ == "__main__":
           .write_to_dataframe(["name", "degree"]))
     print(df)
 
-    # TODO: Segfault in Pemja on line 35
-    # df2 = (graph
-    #        .set_global_state(lambda s: s.new_int_max("max_time", 0))
-    #        .step(lambda v, s: s["max_time"].add(v.latest_activity().time()))
-    #        .global_select(lambda s: Row(s["max_time"].value))
-    #        .write_to_dataframe(["max_time"]))
-    # print(df2)
+    # TODO: This works but is rather slow
+    #
+    # graph2 = pr.new_graph()
+    # # can just call add_vertex, add_edge on graph directly without spout/builder
+    # with open("/tmp/lotr.csv") as f:
+    #     for line in f:
+    #         parse(graph2, line)
+    # df = (graph
+    #       .select(lambda vertex: Row(vertex.name(), vertex.degree()))
+    #       .write_to_dataframe(["name", "degree"]))
+    # print(df)
+
+    df2 = (graph
+           .select(lambda v: Row(v.name(), v.latest_activity().time()))
+           .write_to_dataframe(["name", "latest_time"]))
+    print(df2)
+
+    def accum_step(v, s):
+        ac = s["max_time"]
+        latest = v.latest_activity().time()
+        ac += latest
+
+    df2 = (graph
+           .set_global_state(lambda s: s.new_int_max("max_time"))
+           .step(accum_step)
+           .global_select(lambda s: Row(s["max_time"].value()))
+           .write_to_dataframe(["max_time"]))
+    print(df2)
 
     graph.select(lambda vertex: Row(vertex.name(), vertex.degree())).write_to_file("/tmp/test").wait_for_job()
-
-    #
-    # pr = PyRaphtory(spout_input=Path('/tmp/nodata.csv'), builder_script=Path(__file__), builder_class='LotrGraphBuilder',
-    #                 mode='batch', logging=False).open()
-    # rg = pr.graph()
-    #
-    # # t = Type("test")
-    # df = (rg.set_global_state(lambda s: s.new_adder[Int]("deg_sum"))
-    #         .step(lambda v, s: s["deg_sum"].add(v.degree()))
-    #         .global_select(lambda s: Row(s("deg_sum").value()))
-    #         .write_to_dataframe(["deg_sum"]))
-
-    # print(df)
-    # # df = (rg.select(lambda vertex: Row(vertex.name(), vertex.degree()))
-    # #       .write_to_dataframe(["name", "degree"]))
