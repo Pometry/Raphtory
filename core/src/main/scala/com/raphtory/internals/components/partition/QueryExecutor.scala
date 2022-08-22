@@ -12,6 +12,7 @@ import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.output.sink.SinkExecutor
 import com.raphtory.internals.communication.EndPoint
+import com.raphtory.internals.communication.SchemaProviderInstances._
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.querymanager._

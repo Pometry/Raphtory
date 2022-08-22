@@ -56,7 +56,8 @@ case class VertexMessage[T, VertexID](
     superstep: Int,
     vertexId: VertexID,
     data: T
-)(implicit val provider: SchemaProvider[T]) extends GenericVertexMessage[VertexID]
+)(implicit val provider: SchemaProvider[T])
+        extends GenericVertexMessage[VertexID]
 
 private[raphtory] case class VertexMessageBatch(data: Array[GenericVertexMessage[_]]) extends VertexMessaging
 
@@ -78,7 +79,9 @@ private[raphtory] case class FilteredOutEdgeMessage[VertexID](
     sourceId: VertexID
 ) extends GenericVertexMessage[VertexID]
 
-private[raphtory] case class VertexMessagesSync(partitionID: Int, count: Long)
+private[raphtory] case class VertexMessagesSync(partitionID: Int, count: Long)(implicit
+    val provider: SchemaProvider[VertexMessagesSync]
+)
 
 sealed private[raphtory] trait Submission extends QueryManagement
 

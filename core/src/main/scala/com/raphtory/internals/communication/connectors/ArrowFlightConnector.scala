@@ -60,7 +60,11 @@ class ArrowFlightConnector(
         }
 
       message match {
+        // Analysis messages
         case msg: VertexMessage[_, _]          => sendMsg(msg)(msg.provider.endpoint)
+        case msg: VertexMessagesSync           => sendMsg(msg)(msg.provider.endpoint)
+
+        // Graph Alterations
         case msg: VertexAdd                    => sendMsg(msg)(msg.provider.endpoint)
         case msg: VertexDelete                 => sendMsg(msg)(msg.provider.endpoint)
         case msg: EdgeAdd                      => sendMsg(msg)(msg.provider.endpoint)
@@ -75,6 +79,7 @@ class ArrowFlightConnector(
         case msg: SyncExistingRemovals         => sendMsg(msg)(msg.provider.endpoint)
         case msg: EdgeSyncAck                  => sendMsg(msg)(msg.provider.endpoint)
         case msg: VertexRemoveSyncAck          => sendMsg(msg)(msg.provider.endpoint)
+
         case _                                 => logger.error("VertexMessage or GraphAlteration expected")
       }
     }

@@ -113,7 +113,9 @@ case class ArrowFlightReader[T](
                     )
                     catch {
                       case e: Exception =>
-                        logger.error(s"location = $location, endpoint = $endPoint, batch = $batch, rowCount = $rows, errMsg = ${e.getMessage}")
+                        logger.error(
+                                s"location = $location, endpoint = $endPoint, batch = $batch, rowCount = $rows, errMsg = ${e.getMessage}"
+                        )
                         e.printStackTrace()
                     }
                     // vms.getVertexMessageAtRow(i)
@@ -136,11 +138,11 @@ case class ArrowFlightReader[T](
             val deleteActionResult = flightClient.doAction(new Action("DELETE", endPointAsByteStream))
             while (deleteActionResult.hasNext) {
               val result = deleteActionResult.next()
-              logger.info(
-                "Deleting endpoint {} read already at location {}: {}",
-                endPoint,
-                location,
-                new String(result.getBody, StandardCharsets.UTF_8)
+              logger.debug(
+                      "Deleting endpoint {} read already at location {}: {}",
+                      endPoint,
+                      location,
+                      new String(result.getBody, StandardCharsets.UTF_8)
               )
             }
           }

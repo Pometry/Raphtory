@@ -2,10 +2,14 @@ package com.raphtory.internals.communication
 
 import com.raphtory.internals.communication.repositories.ArrowFlightRepository.ArrowSchemaProviderInstances._
 import com.raphtory.internals.components.querymanager.SchemaProvider
+import com.raphtory.internals.components.querymanager.VertexMessagesSync
 import com.raphtory.internals.graph.GraphAlteration._
 
 object SchemaProviderInstances {
   implicit def genericSchemaProvider[T]: SchemaProvider[T] = new SchemaProvider[T] {}
+
+  implicit lazy val vertexMessagesSyncSchemaProvider: SchemaProvider[VertexMessagesSync] =
+    vertexMessagesSyncArrowFlightMessageSchemaProvider
 
   implicit lazy val intSchemaProvider: SchemaProvider[Int] =
     intArrowFlightMessageSchemaProvider

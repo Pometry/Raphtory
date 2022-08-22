@@ -1,25 +1,29 @@
 package com.raphtory.internals.communication.repositories
 
-import akka.actor.typed._
-import cats.effect.Async
-import cats.effect.Resource
 import com.raphtory.arrowmessaging.ArrowFlightMessageSignatureRegistry
-import com.raphtory.internals.communication.connectors._
-import com.raphtory.internals.communication._
 import com.raphtory.internals.communication.models._
 import com.raphtory.internals.communication.models.graphalterations._
-import com.raphtory.internals.components.querymanager.ArrowFlightSchemaProvider
+import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.GraphAlteration._
-import com.typesafe.config.Config
 
 /** @DoNotDocument */
 object ArrowFlightRepository {
 
-  val signatureRegistry = ArrowFlightMessageSignatureRegistry()
+  private[raphtory] val signatureRegistry = ArrowFlightMessageSignatureRegistry()
 
   object ArrowSchemaProviderInstances {
 
-    lazy val intArrowFlightMessageSchemaProvider: ArrowFlightSchemaProvider[Int] =
+    private[raphtory] lazy val vertexMessagesSyncArrowFlightMessageSchemaProvider =
+      new ArrowFlightSchemaProvider[VertexMessagesSync] {
+        override val endpoint = "vertexMessagesSync"
+
+        signatureRegistry.registerSignature(
+                endpoint,
+                classOf[VertexMessagesSyncArrowFlightMessage]
+        )
+      }
+
+    private[raphtory] lazy val intArrowFlightMessageSchemaProvider =
       new ArrowFlightSchemaProvider[Int] {
         override val endpoint = "int"
 
@@ -29,7 +33,7 @@ object ArrowFlightRepository {
         )
       }
 
-    lazy val floatArrowFlightMessageSchemaProvider: ArrowFlightSchemaProvider[Float] =
+    private[raphtory] lazy val floatArrowFlightMessageSchemaProvider =
       new ArrowFlightSchemaProvider[Float] {
         override val endpoint = "float"
 
@@ -39,7 +43,7 @@ object ArrowFlightRepository {
         )
       }
 
-    lazy val doubleArrowFlightMessageSchemaProvider: ArrowFlightSchemaProvider[Double] =
+    private[raphtory] lazy val doubleArrowFlightMessageSchemaProvider =
       new ArrowFlightSchemaProvider[Double] {
         override val endpoint = "double"
 
@@ -49,7 +53,7 @@ object ArrowFlightRepository {
         )
       }
 
-    lazy val longArrowFlightMessageSchemaProvider: ArrowFlightSchemaProvider[Long] =
+    private[raphtory] lazy val longArrowFlightMessageSchemaProvider =
       new ArrowFlightSchemaProvider[Long] {
         override val endpoint = "long"
 
@@ -59,7 +63,7 @@ object ArrowFlightRepository {
         )
       }
 
-    lazy val charArrowFlightMessageSchemaProvider: ArrowFlightSchemaProvider[Char] =
+    private[raphtory] lazy val charArrowFlightMessageSchemaProvider =
       new ArrowFlightSchemaProvider[Char] {
         override val endpoint = "char"
 
@@ -69,7 +73,7 @@ object ArrowFlightRepository {
         )
       }
 
-    lazy val stringArrowFlightMessageSchemaProvider: ArrowFlightSchemaProvider[String] =
+    private[raphtory] lazy val stringArrowFlightMessageSchemaProvider =
       new ArrowFlightSchemaProvider[String] {
         override val endpoint = "string"
 
@@ -79,7 +83,7 @@ object ArrowFlightRepository {
         )
       }
 
-    lazy val booleanArrowFlightMessageSchemaProvider: ArrowFlightSchemaProvider[Boolean] =
+    private[raphtory] lazy val booleanArrowFlightMessageSchemaProvider =
       new ArrowFlightSchemaProvider[Boolean] {
         override val endpoint = "boolean"
 
@@ -89,7 +93,7 @@ object ArrowFlightRepository {
         )
       }
 
-    lazy val vertexAddArrowFlightMessageSchemaProvider: ArrowFlightSchemaProvider[VertexAdd] =
+    private[raphtory] lazy val vertexAddArrowFlightMessageSchemaProvider =
       new ArrowFlightSchemaProvider[VertexAdd] {
         override val endpoint = "vertexAdd"
 
@@ -99,7 +103,7 @@ object ArrowFlightRepository {
         )
       }
 
-    lazy val edgeAddArrowFlightMessageSchemaProvider: ArrowFlightSchemaProvider[EdgeAdd] =
+    private[raphtory] lazy val edgeAddArrowFlightMessageSchemaProvider =
       new ArrowFlightSchemaProvider[EdgeAdd] {
         override val endpoint = "edgeAdd"
 
@@ -109,7 +113,7 @@ object ArrowFlightRepository {
         )
       }
 
-    lazy val vertexDeleteArrowFlightMessageSchemaProvider: ArrowFlightSchemaProvider[VertexDelete] =
+    private[raphtory] lazy val vertexDeleteArrowFlightMessageSchemaProvider =
       new ArrowFlightSchemaProvider[VertexDelete] {
         override val endpoint = "vertexDelete"
 
@@ -119,7 +123,7 @@ object ArrowFlightRepository {
         )
       }
 
-    lazy val edgeDeleteArrowFlightMessageSchemaProvider: ArrowFlightSchemaProvider[EdgeDelete] =
+    private[raphtory] lazy val edgeDeleteArrowFlightMessageSchemaProvider =
       new ArrowFlightSchemaProvider[EdgeDelete] {
         override val endpoint = "edgeDelete"
 
@@ -129,7 +133,7 @@ object ArrowFlightRepository {
         )
       }
 
-    lazy val syncNewEdgeAddArrowFlightMessageSchemaProvider: ArrowFlightSchemaProvider[SyncNewEdgeAdd] =
+    private[raphtory] lazy val syncNewEdgeAddArrowFlightMessageSchemaProvider =
       new ArrowFlightSchemaProvider[SyncNewEdgeAdd] {
         override val endpoint = "syncNewEdgeAdd"
 
@@ -139,7 +143,7 @@ object ArrowFlightRepository {
         )
       }
 
-    lazy val batchAddRemoteEdgeArrowFlightMessageSchemaProvider: ArrowFlightSchemaProvider[BatchAddRemoteEdge] =
+    private[raphtory] lazy val batchAddRemoteEdgeArrowFlightMessageSchemaProvider =
       new ArrowFlightSchemaProvider[BatchAddRemoteEdge] {
         override val endpoint = "batchAddRemoteEdge"
 
@@ -149,7 +153,7 @@ object ArrowFlightRepository {
         )
       }
 
-    lazy val syncExistingEdgeAddArrowFlightMessageSchemaProvider: ArrowFlightSchemaProvider[SyncExistingEdgeAdd] =
+    private[raphtory] lazy val syncExistingEdgeAddArrowFlightMessageSchemaProvider =
       new ArrowFlightSchemaProvider[SyncExistingEdgeAdd] {
         override val endpoint = "syncExistingEdgeAdd"
 
@@ -159,8 +163,7 @@ object ArrowFlightRepository {
         )
       }
 
-    lazy val syncExistingEdgeRemovalArrowFlightMessageSchemaProvider
-        : ArrowFlightSchemaProvider[SyncExistingEdgeRemoval] =
+    private[raphtory] lazy val syncExistingEdgeRemovalArrowFlightMessageSchemaProvider =
       new ArrowFlightSchemaProvider[SyncExistingEdgeRemoval] {
         override val endpoint = "syncExistingEdgeRemoval"
 
@@ -170,7 +173,7 @@ object ArrowFlightRepository {
         )
       }
 
-    lazy val syncNewEdgeRemovalArrowFlightMessageSchemaProvider: ArrowFlightSchemaProvider[SyncNewEdgeRemoval] =
+    private[raphtory] lazy val syncNewEdgeRemovalArrowFlightMessageSchemaProvider =
       new ArrowFlightSchemaProvider[SyncNewEdgeRemoval] {
         override val endpoint = "syncNewEdgeRemoval"
 
@@ -180,8 +183,7 @@ object ArrowFlightRepository {
         )
       }
 
-    lazy val outboundEdgeRemovalViaVertexArrowFlightMessageSchemaProvider
-        : ArrowFlightSchemaProvider[OutboundEdgeRemovalViaVertex] =
+    private[raphtory] lazy val outboundEdgeRemovalViaVertexArrowFlightMessageSchemaProvider =
       new ArrowFlightSchemaProvider[OutboundEdgeRemovalViaVertex] {
         override val endpoint = "outboundEdgeRemovalViaVertex"
 
@@ -191,8 +193,7 @@ object ArrowFlightRepository {
         )
       }
 
-    lazy val inboundEdgeRemovalViaVertexArrowFlightMessageSchemaProvider
-        : ArrowFlightSchemaProvider[InboundEdgeRemovalViaVertex] =
+    private[raphtory] lazy val inboundEdgeRemovalViaVertexArrowFlightMessageSchemaProvider =
       new ArrowFlightSchemaProvider[InboundEdgeRemovalViaVertex] {
         override val endpoint = "inboundEdgeRemovalViaVertex"
 
@@ -202,7 +203,7 @@ object ArrowFlightRepository {
         )
       }
 
-    lazy val syncExistingRemovalsArrowFlightMessageSchemaProvider: ArrowFlightSchemaProvider[SyncExistingRemovals] =
+    private[raphtory] lazy val syncExistingRemovalsArrowFlightMessageSchemaProvider =
       new ArrowFlightSchemaProvider[SyncExistingRemovals] {
         override val endpoint = "syncExistingRemovals"
 
@@ -212,7 +213,7 @@ object ArrowFlightRepository {
         )
       }
 
-    lazy val edgeSyncAckArrowFlightMessageSchemaProvider: ArrowFlightSchemaProvider[EdgeSyncAck] =
+    private[raphtory] lazy val edgeSyncAckArrowFlightMessageSchemaProvider =
       new ArrowFlightSchemaProvider[EdgeSyncAck] {
         override val endpoint = "edgeSyncAck"
 
@@ -222,7 +223,7 @@ object ArrowFlightRepository {
         )
       }
 
-    lazy val vertexRemoveSyncAckArrowFlightMessageSchemaProvider: ArrowFlightSchemaProvider[VertexRemoveSyncAck] =
+    private[raphtory] lazy val vertexRemoveSyncAckArrowFlightMessageSchemaProvider =
       new ArrowFlightSchemaProvider[VertexRemoveSyncAck] {
         override val endpoint = "vertexRemoveSyncAck"
 
