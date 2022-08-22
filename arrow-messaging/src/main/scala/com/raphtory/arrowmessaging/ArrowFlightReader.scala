@@ -75,9 +75,11 @@ case class ArrowFlightReader[T](
     flightInfoIter.forEach { flightInfo =>
       val endPoint = flightInfo.getDescriptor.toString
       val header   = endPoint.substring(0, endPoint.lastIndexOf("/"))
+
       if (topics.contains(header)) {
         var streamReadAlready    = false
         val endPointAsByteStream = flightInfo.getDescriptor.getPath.get(0).getBytes(StandardCharsets.UTF_8)
+
         Using(flightClient.getStream(new Ticket(endPointAsByteStream))) { flightStream =>
           var batch = 0
           logger.debug("Reader(" + location + "). Reading messages for end point: " + flightInfo.getDescriptor)
@@ -103,7 +105,7 @@ case class ArrowFlightReader[T](
                             batch,
                             i,
                             rows
-                    );
+                    )
                   else {
                     try logger.trace(
                             s"location = $location, endpoint = $endPoint, batch = $batch, vertex msg = ${vms
@@ -111,7 +113,7 @@ case class ArrowFlightReader[T](
                     )
                     catch {
                       case e: Exception =>
-                        logger.error(e.getMessage)
+                        logger.error(s"location = $location, endpoint = $endPoint, batch = $batch, rowCount = $rows, errMsg = ${e.getMessage}")
                         e.printStackTrace()
                     }
                     // vms.getVertexMessageAtRow(i)
@@ -129,12 +131,22 @@ case class ArrowFlightReader[T](
               streamReadAlready = true
             }
           }
+
+          if (streamReadAlready) {
+            val deleteActionResult = flightClient.doAction(new Action("DELETE", endPointAsByteStream))
+            while (deleteActionResult.hasNext) {
+              val result = deleteActionResult.next()
+              logger.info(
+                "Deleting endpoint {} read already at location {}: {}",
+                endPoint,
+                location,
+                new String(result.getBody, StandardCharsets.UTF_8)
+              )
+            }
+          }
         } match {
           case Success(_)         =>
-          case Failure(exception) =>
-            exception match {
-              case e => //e.printStackTrace()
-            }
+          case Failure(exception) => exception.printStackTrace()
         }
       }
     }
