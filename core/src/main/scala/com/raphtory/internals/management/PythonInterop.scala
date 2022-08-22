@@ -191,17 +191,18 @@ trait PythonFunction {
 
   private def py: EmbeddedPython[Id] = UnsafeEmbeddedPythonProxy.global
 
-  private def initialize(py: EmbeddedPython[Id]) =
-    synchronized {
-      try py.run(eval_name)
-      catch {
-        case e: Throwable =>
+  private def initialize(py: EmbeddedPython[Id]) = {
+    try py.run(eval_name)
+    catch {
+      case e: Throwable =>
+        py.synchronized {
           py.set(s"${eval_name}_bytes", pickleBytes)
           py.run(s"import cloudpickle as pickle; $eval_name = pickle.loads(${eval_name}_bytes)")
           py.run(s"del ${eval_name}_bytes")
-      }
-      py
+        }
     }
+    py
+  }
 
   def invoke(args: Vector[Object]): Id[Object] = {
     val _py = initialize(py)
