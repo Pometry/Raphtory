@@ -8,7 +8,6 @@ import com.raphtory.api.input.Type
 import com.raphtory.internals.components.querymanager.VertexMessage
 import com.raphtory.internals.graph.GraphAlteration.EdgeAdd
 import com.raphtory.internals.graph.GraphAlteration.VertexAdd
-import com.raphtory.internals.management.python.PythonVertex
 import com.raphtory.internals.storage.pojograph.PojoBasedPartition
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoVertex

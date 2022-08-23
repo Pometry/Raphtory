@@ -111,7 +111,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Connected Components Test") {
     algorithmTest(
-            algorithm = ConnectedComponents(),
+            algorithm = ConnectedComponents,
             start = 1,
             end = 32674,
             increment = 10000,
@@ -144,7 +144,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Chain Test") {
     algorithmTest(
-            algorithm = LocalTriangleCount() -> ConnectedComponents(),
+            algorithm = LocalTriangleCount() -> ConnectedComponents,
             start = 1,
             end = 32674,
             increment = 10000,

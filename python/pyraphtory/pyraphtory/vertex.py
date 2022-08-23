@@ -1,51 +1,39 @@
-class Vertex(object):
-    def __init__(self, jvm_v):
-        self.v = jvm_v
+from pyraphtory.interop import GenericScalaProxy, register
+from pyraphtory.scala.implicits.numeric import Long, Double, Float, Int
+from pyraphtory.scala.implicits.bounded import Bounded
 
+
+@register(name="Vertex")
+class Vertex(GenericScalaProxy):
+    """Wrapper for Raphtory vertex with setitem and getitem methods for working with vertex state"""
     def __setitem__(self, key, value):
-        self.v.set_state(key, value)
+        self.set_state(key, value)
+
+    def __contains__(self, item):
+        return self.contains_state(item, True)
 
     def __getitem__(self, key):
-        return self.v.get_state(key, True)
-
-    def id(self):
-        return self.v.ID()
-
-    def message_all_neighbours(self, msg):
-        self.v.message_all_neighbours(msg)
-
-    def message_queue(self):
-        return self.v.message_queue()
-
-    def vote_to_halt(self):
-        self.v.vote_to_halt()
-
-    def in_degree(self):
-        return self.v.in_degree()
-
-    def out_degree(self):
-        return self.v.out_degree()
-
-    def message_outgoing_neighbours(self, msg):
-        self.v.message_outgoing_neighbours(msg)
-
-    def name(self, name_property="name"):
-        return self.v.name(name_property)
-
-    def neighbours(self):
-        return self.v.neighbours()
+        if key in self:
+            return self.get_state(key, True)
+        else:
+            raise KeyError(f"State with {key=} does not exist.")
 
 
-class GraphState(object):
-    def __init__(self, jvm_global_state):
-        self.jvm_global_state = jvm_global_state
-
-    def __setitem__(self, key, value):
-        self.jvm_global_state.set_state_num(key, value)
-
+@register(name="GraphState")
+class GraphState(GenericScalaProxy):
+    """Wrapper for the global GraphState object which enables access to graphstate using getitem syntax"""
     def __getitem__(self, key):
-        return self.jvm_global_state.get_state_num(key)
+        return self.apply(key)
 
-    def numAdder(self, name: str, initial_value: int, retain_state: bool):
-        self.jvm_global_state.numAdder(name, initial_value, retain_state)
+    def new_int_max(self, *args, **kwargs):
+        # TODO: This segfaults in pemja for some reason
+        return super().new_max[Long, Bounded.long_bounds()](*args, **kwargs)
 
+    def new_float_max(self, *args, **kwargs):
+        return super().new_max[Double, Bounded.double_bounds()](*args, **kwargs)
+
+    def new_int_min(self, *args, **kwargs):
+        return super().new_min[Long, Bounded.long_bounds()](*args, **kwargs)
+
+    def new_float_min(self, *args, **kwargs):
+        return super().new_min[Double, Bounded.double_bounds()](*args, **kwargs)

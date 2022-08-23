@@ -33,7 +33,7 @@ object TutorialRunner extends App {
   graph
     .at(32674)
     .past()
-    .execute(ConnectedComponents())
+    .execute(ConnectedComponents)
     .writeTo(FileSink("/tmp/raphtory"))
     .waitForJob()
 

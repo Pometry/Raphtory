@@ -1,7 +1,5 @@
 package com.raphtory.internals.management
 
-import com.raphtory.api.input.GraphBuilder
-
 import java.util
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -179,17 +177,3 @@ object PythonEncoder {
   implicit def gen[T]: PythonEncoder[T] = macro Magnolia.gen[T]
 
 }
-
-object PythonInterop {
-
-  def assignId(s: String): Long =
-    GraphBuilder.assignID(s)
-
-}
-
-/**
-  * Reference of object inside python
-  * @param name
-  * name of variable inside the python context
-  */
-case class PyRef(name: String)

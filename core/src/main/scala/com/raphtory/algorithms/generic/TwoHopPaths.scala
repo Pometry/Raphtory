@@ -91,7 +91,7 @@ class TwoHopPaths(seeds: Set[String] = Set[String]()) extends Generic {
       .select(vertex =>
         Row(
                 vertex.name(),
-                vertex.getStateOrElse("twoHopPaths", ArrayBuffer[Array[String]]())
+                vertex.getStateOrElse[ArrayBuffer[Array[String]]]("twoHopPaths", ArrayBuffer[Array[String]]())
         )
       )
       .explode(row =>

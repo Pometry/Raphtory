@@ -1,122 +1,59 @@
-import traceback
-from typing import List
+from pyraphtory.interop import register, logger, to_jvm, find_class, ScalaProxyBase, GenericScalaProxy, ScalaClassProxy
+import pandas as pd
+import json
 
-import cloudpickle as pickle
 
-from pyraphtory.steps import Iterate, Step, State, StepState, GlobalSelect
-
-class ProgressTracker(object):
-    def __init__(self, jvm_tracker):
-        self.jvm_tracker = jvm_tracker
-
-    def wait_for_job(self):
-        self.jvm_tracker.waitForJobInf()
-
-    def job_id(self):
-        self.jvm_tracker.getJobId()
+class ProgressTracker(GenericScalaProxy):
+    _classname = "com.raphtory.api.querytracker.QueryProgressTracker"
 
     def inner_tracker(self):
-        return self.jvm_tracker
+        logger.trace("Progress tracker inner tracker returned")
+        return to_jvm(self)
 
 
-class Table(object):
-
-    def __init__(self, jvm_table):
-        self.jvm_table = jvm_table
-
-    def write_to_file(self, name: str):
-        g = self.jvm_table.writeToFile(name)
-        return ProgressTracker(g)
-
-    def write_to(self, sink):
-        g = self.jvm_table.writeTo(sink)
-        return ProgressTracker(g)
-
-
-class TemporalGraph(object):
-    def __init__(self, jvm_graph):
-        self.jvm_graph = jvm_graph
-
-    def at(self, time: int):
-        g = self.jvm_graph.at(time)
-        return TemporalGraph(g)
-
-    def past(self):
-        g = self.jvm_graph.past()
-        return TemporalGraph(g)
-
-    def set_global_state(self, s: State):
-        try:
-            state_bytes = pickle.dumps(s)
-            g = self.jvm_graph.pythonSetGlobalState(state_bytes)
-            return TemporalGraph(g)
-        except Exception as e:
-            print(str(e))
-            traceback.print_exc()
-
-    def step(self, s: Step):
-        try:
-            step_bytes = pickle.dumps(s)
-            g = self.jvm_graph.pythonStep(step_bytes)
-            return TemporalGraph(g)
-        except Exception as e:
-            print(str(e))
-            traceback.print_exc()
-
-    def iterate(self, i: Iterate):
-        try:
-            iterate_bytes = pickle.dumps(i)
-            g = self.jvm_graph.pythonIterate(iterate_bytes, int(i.iterations), bool(i.execute_messaged_only))
-            return TemporalGraph(g)
-        except Exception as e:
-            print(str(e))
-            traceback.print_exc()
-
-    def transform(self, algo):
-        g = self.jvm_graph.transform(algo)
-        return TemporalGraph(g)
-
-    def clear_messages(self):
-        try:
-            g = self.jvm_graph.clearMessages()
-            return TemporalGraph(g)
-        except Exception as e:
-            print(str(e))
-            traceback.print_exc()
+@register(name="Table")
+class Table(GenericScalaProxy):
+    def write_to_dataframe(self, cols):
+        sink = find_class("com.raphtory.sinks.LocalQueueSink").apply()
+        self.write_to(sink).wait_for_job()
+        res = sink.results()
+        newJson = []
+        for r in res:
+            jsonRow = json.loads(r)
+            row = jsonRow['row']
+            for name, item in zip(cols, row):
+                jsonRow[name] = item
+            jsonRow.pop('row')
+            newJson.append(jsonRow)
+        return pd.DataFrame(newJson)
 
 
-    def select(self, columns: List[str]):
-        try:
-            g = self.jvm_graph.pythonSelect(columns)
-            return Table(g)
-        except Exception as e:
-            print(str(e))
-            traceback.print_exc()
-
-    def select_state(self, columns: List[str]):
-        try:
-            g = self.jvm_graph.pythonSelectState(columns)
-            return Table(g)
-        except Exception as e:
-            print(str(e))
-            traceback.print_exc()
-
-    def step_state(self, ssb: StepState):
-        try:
-            step_state_bytes = pickle.dumps(ssb)
-            g = self.jvm_graph.pythonStepState(step_state_bytes)
-            return TemporalGraph(g)
-        except Exception as e:
-            print(str(e))
-            traceback.print_exc()
-
-    def global_select(self, gs: GlobalSelect):
-        try:
-            global_select_bytes = pickle.dumps(gs)
-            g = self.jvm_graph.pythonGlobalSelect(global_select_bytes)
-            return Table(g)
-        except Exception as e:
-            print(str(e))
-            traceback.print_exc()
+class Row(ScalaClassProxy):
+    _classname = "com.raphtory.api.analysis.table.Row"
 
 
+class PropertyMergeStrategy(ScalaClassProxy):
+    _classname = "com.raphtory.api.analysis.visitor.PropertyMergeStrategy"
+
+
+@register(name="TemporalGraph")
+class TemporalGraph(GenericScalaProxy):
+    def transform(self, algorithm):
+        if isinstance(algorithm, ScalaProxyBase):
+            return super().transform(algorithm)
+        else:
+            return algorithm(self).with_transformed_name(algorithm.__class__.__name__)
+
+    def execute(self, algorithm):
+        if isinstance(algorithm, ScalaProxyBase):
+            return super().execute(algorithm)
+        else:
+            return algorithm.tabularise(self.transform(algorithm))
+
+
+@register(name="Accumulator")
+class Accumulator(GenericScalaProxy):
+
+    def __iadd__(self, other):
+        getattr(self, "$plus$eq")(other)
+        return self

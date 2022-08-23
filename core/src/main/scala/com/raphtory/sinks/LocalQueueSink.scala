@@ -66,4 +66,6 @@ class LocalQueueSink(format: Format = JsonFormat(JsonFormat.ROW)) extends Format
 object LocalQueueSink {
   // FIXME: this is a cheat so we can transfer data when uwing Raphtory Locally
   @transient val localTransferQueue = new LinkedBlockingDeque[String]()
+
+  def apply() = new LocalQueueSink()
 }

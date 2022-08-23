@@ -30,7 +30,7 @@ class MultilayerRaphtoryGraph private[api] (
         with MultilayerGraphViewImplementation[MultilayerRaphtoryGraph, RaphtoryGraph] {}
 
 private[api] trait RaphtoryGraphBase[G <: RaphtoryGraphBase[G]]
-        extends GraphBase[G, RaphtoryGraph, MultilayerRaphtoryGraph] {
+        extends GraphBase[G, RaphtoryGraph, MultilayerRaphtoryGraph] { this: G =>
 
   override private[api] def newRGraph(query: Query, querySender: QuerySender): RaphtoryGraph =
     new RaphtoryGraph(query, querySender)
