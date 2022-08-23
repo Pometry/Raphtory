@@ -2,7 +2,7 @@ from abc import abstractmethod
 from collections import abc
 from typing import overload
 
-from pyraphtory.interop import register, GenericScalaProxy
+from pyraphtory.interop import register, GenericScalaProxy, ScalaClassProxy
 
 
 @register(name="Iterable")
@@ -52,3 +52,14 @@ class SequenceScalaProxy(IterableScalaProxy, abc.Sequence):
             return self.indexOf(value, start)
         else:
             return self.indexOf(value)
+
+
+class List(ScalaClassProxy, SequenceScalaProxy):
+    _classname = "scala.collection.immutable.List"
+
+    @classmethod
+    def _build_from_python(cls, iterable):
+        builder = cls.new_builder()
+        for element in iterable:
+            builder.append(element)
+        return builder.to_list()

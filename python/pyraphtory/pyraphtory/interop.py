@@ -1,5 +1,6 @@
 import inspect
 import re
+from abc import ABCMeta
 from collections.abc import Iterable, Mapping
 from py4j.java_gateway import JavaObject, JavaClass
 import cloudpickle as pickle
@@ -412,7 +413,7 @@ class GenericMethodProxy(object):
         return self
 
 
-class ScalaObjectProxy(ScalaProxyBase, type):
+class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
     """Metaclass for wrapping Scala companion objects"""
     _base_initialised = False
 
@@ -449,25 +450,23 @@ class ScalaObjectProxy(ScalaProxyBase, type):
                 setattr(mcs, name, MethodProxyDescriptor(name, method_array))
             mcs._base_initialised = True
 
-    def __call__(cls, *args, jvm_object=None, **kwargs):
-        """Calls scala constructor if no 'jvm_object' is given, otherwise initialises the wrapper"""
-        logger.trace(f"ScalaCompanionObjectProxy called with {args=}, {jvm_object=}, {kwargs=}")
-        if jvm_object is not None:
-            # Construct from existing jvm object
-            logger.trace("calling cls.__new__")
-            self = cls.__new__(cls, jvm_object=jvm_object)
-            logger.trace("object constructed")
-            self.__init__(jvm_object=jvm_object)
-            return self
-        else:
-            # Return the result of calling scala apply method
-            logger.trace("calling scala constructor")
-            return cls.apply(*args, **kwargs)
 
 
 class ScalaClassProxy(GenericScalaProxy, metaclass=ScalaObjectProxy):
     """Base class for wrapper objects that are constructable from python"""
-    pass
+    @classmethod
+    def _build_from_python(cls, *args, **kwargs):
+        """Override to control python-side constructor behaviours (e.g., using a builder for sequence construction)"""
+        return cls.apply(*args, **kwargs)
+
+    def __new__(cls, *args, jvm_object=None, **kwargs):
+        if jvm_object is None:
+            # call scala constructor
+            return cls._build_from_python(*args, **kwargs)
+        else:
+            # construct from existing object
+            self = super().__new__(cls, jvm_object=jvm_object)
+            return self
 
 
 class Function1(ScalaClassProxy):
