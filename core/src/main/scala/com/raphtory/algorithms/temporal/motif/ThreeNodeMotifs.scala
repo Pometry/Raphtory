@@ -17,11 +17,9 @@ class ThreeNodeMotifs(delta:Long=3600) extends GenericReduction {
       step {
         v=>
           val neighbours = v.neighbours.toSet
-          neighbours.foreach(nb => v.messageVertex(nb,(v.ID, neighbours)))
+          neighbours.foreach{nb =>
+              v.messageVertex(nb,(v.ID, neighbours))}
           v.setState("triCounts",Array.fill(8)(0))
-          if( v.name() == "Gandalf")
-            println("did step 1")
-
       }
       // this step gets a list of (static) edges that form the opposite edge of a triangle with a node. this is ordered
       // smallest id first.
@@ -30,39 +28,34 @@ class ThreeNodeMotifs(delta:Long=3600) extends GenericReduction {
         val queue      = v.messageQueue[(v.IDType,Set[v.IDType])]
         queue.foreach{
           // Pick a representative node who will hold all the exploded edge info.
-          case (nb, nbSet) =>
-            nbSet.intersect(neighbours).foreach{
+          case (nb, friendsOfFriend) =>
+            friendsOfFriend.intersect(neighbours).foreach{
               w =>
                 // largest id node sends to the smallest id node the exploded edges.
-                if (w.max(nb).max(v.ID)==v.ID) {v.messageVertex(w.min(nb),v.explodedEdge(w.max(nb)).getOrElse(List()).map(e => (e.src,e.dst,e.timestamp)).sortBy(_._3))
+                if (nb < w && w.max(nb).max(v.ID)==v.ID) {
+                  // message the edge and the size of the edge history
+                  v.messageVertex(nb,(v.ID.min(nb), v.ID.max(nb), v.explodedEdge(nb).getOrElse(List()).size))
                 }
             }
         }
-        if( v.name() == "Gandalf")
-          println("did step 2")
       }
+      // in this step only the smallest id node in the triangle is looking after the process of finding emax.
       .step {
         v =>
-          val opEdgeGroups = v.messageQueue[List[(Long,Long,Long)]]
-          opEdgeGroups.foreach {
-            group =>
-              breakable {
-                if (group.isEmpty){
-                  break
-                }
-                val triMap : mutable.Map[(Long, Long),List[(Long,Long,Long)]] = mutable.Map()
-                val (u,w,_) = group.head
-                triMap.put((u.min(w),u.max(w)),group)
-                triMap.put((v.ID.min(u),v.ID.max(u)), v.explodedEdge(u).getOrElse(List()).map(e => (e.src,e.dst,e.timestamp)).sortBy(_._3))
-                triMap.put((v.ID.min(w),v.ID.max(w)), v.explodedEdge(w).getOrElse(List()).map(e => (e.src,e.dst,e.timestamp)).sortBy(_._3))
+
+          val opEdgeSizes = v.messageQueue[(Long,Long,Int)]
+          opEdgeSizes.foreach {
+            edge =>
+                val triMap : mutable.Map[(Long, Long),Int] = mutable.Map()
+                // already ordered in id size from u to w.
+                val (u,w,size) = (edge._1, edge._2, edge._3)
+                triMap.put((u,w),size)
+                triMap.put((v.ID,u), v.explodedEdge(u).getOrElse(List()).size)
+                triMap.put((v.ID,w), v.explodedEdge(w).getOrElse(List()).size)
                 println(triMap)
-                val eMax = triMap.maxBy(x => (x._2.size, x._1._1.min(x._1._2)))
-                val triMotifs = new TriadMotifCounter(eMax._1._1,eMax._1._2)
-                val edges = triMap.values.flatten.toList.sortBy(_._3)
-                triMotifs.execute(edges,delta)
-                val newCounts = (v.getState[Array[Int]]("triCounts"),triMotifs.getCounts).zipped.map(_+_).toArray
-                v.setState("triCounts",newCounts)
-            }
+                // order first by size then by id1 then id2 to ensure uniqueness.
+                val eMax = triMap.maxBy(x => (x._2, x._1._1, x._1._2))._1
+
           }
           if( v.name() == "Gandalf")
             println("did step 3")

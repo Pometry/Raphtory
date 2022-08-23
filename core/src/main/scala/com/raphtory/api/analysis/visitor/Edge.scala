@@ -1,7 +1,9 @@
 package com.raphtory.api.analysis.visitor
 
 import PropertyMergeStrategy.PropertyMerge
-import com.raphtory.utils.ExtendedNumeric.numericFromInt // implicit conversion from int to abstract numeric type
+import com.raphtory.utils.ExtendedNumeric.numericFromInt
+
+import scala.reflect.ClassTag // implicit conversion from int to abstract numeric type
 
 /** Extends [[EntityVisitor]] with edge-specific functionality
   *
@@ -128,5 +130,48 @@ trait Edge extends EntityVisitor {
     * @param data Message data to send
     */
   def send(data: Any): Unit
+
+  def setState(key: String, value: Any): Unit
+
+  /** Retrieve value from algorithmic state
+    * @tparam `T` value type for state
+    * @param key key to use for retrieving state
+    * @param includeProperties set this to `true` to fall-through to vertex properties if `key` is not found
+    */
+  def getState[T](key: String, includeProperties: Boolean = false): T
+
+  /** Retrieve value from algorithmic state if it exists or return a default value otherwise
+    * @tparam `T` value type for state
+    * @param key key to use for retrieving state
+    * @param value default value to return if state does not exist
+    * @param includeProperties set this to `true` to fall-through to vertex properties
+    *                          if `key` is not found in algorithmic state
+    */
+  def getStateOrElse[T](key: String, value: T, includeProperties: Boolean = false): T
+
+  /** Checks if algorithmic state with key `key` exists
+    * @param key state key to check
+    * @param includeProperties Set this to `true` to fall-through to vertex properties if `key` is not found.
+    *         If set, this function only returns `false` if `key` is not included in either algorithmic state
+    *         or vertex properties
+    */
+  def containsState(key: String, includeProperties: Boolean = false): Boolean
+
+  /** Retrieve value from algorithmic state if it exists or set this state to a default value and return otherwise
+    * @tparam `T` value type for state
+    * @param key key to use for retrieving state
+    * @param value default value to set and return if state does not exist
+    * @param includeProperties set this to `true` to fall-through to vertex properties
+    *                          if `key` is not found in algorithmic state. State is only set if this is also not found.
+    */
+  def getOrSetState[T](key: String, value: T, includeProperties: Boolean = false): T
+
+  /** Append new value to existing array or initialise new array if state does not exist
+    * The value type of the state is assumed to be `Array[T]` if the state already exists.
+    * @tparam `T` value type for state (needs to have a `ClassTag` available due to Scala `Array` implementation)
+    * @param key key to use for retrieving state
+    * @param value value to append to state
+    */
+  def appendToState[T: ClassTag](key: String, value: T): Unit
 
 }
