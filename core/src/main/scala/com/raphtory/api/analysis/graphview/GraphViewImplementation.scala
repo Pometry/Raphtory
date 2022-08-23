@@ -179,6 +179,10 @@ private[api] trait GraphViewImplementation[
 
   override def step(f: V => Unit): G = addFunction(Step(f))
 
+  override def edgeStep(f: Edge => Unit): G = {
+    step(vertex => vertex.outEdges.foreach(e => f(e)))
+  }
+
   override def pythonStep(pickledPyObj: Array[Byte]): G =
     addFunction(PythonStep(pickledPyObj))
 
@@ -187,6 +191,10 @@ private[api] trait GraphViewImplementation[
 
   override def step(f: (V, GraphState) => Unit): G =
     addFunction(StepWithGraph(f))
+
+  override def edgeStep(f: (Edge, GraphState) => Unit): G = {
+    step((vertex,state) => vertex.outEdges.foreach(e => f(e,state)))
+  }
 
   override def pythonStepState(pyObj: Array[Byte]): G =
     addFunction(PythonStepWithGraph(pyObj))

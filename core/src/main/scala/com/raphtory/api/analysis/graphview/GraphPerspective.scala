@@ -195,6 +195,19 @@ trait GraphPerspective {
     */
   def step(f: (Vertex, GraphState) => Unit): Graph
 
+  /** Execute algorithm step
+    *
+    * @param f algorithm step (run on each edge)
+    */
+  def edgeStep(f: (Edge) => Unit): Graph
+
+  /** Execute algorithm step with global graph state (has access to accumulated state from
+    * previous steps and allows for accumulation of new values)
+    *
+    * @param f algorithm step (run on each vertex)
+    */
+  def edgeStep(f: (Edge, GraphState) => Unit): Graph
+
   /** Execute algorithm step repeatedly for given number of iterations or until all vertices have voted to halt.
     *
     * @param f algorithm step (run once for each vertex per iteration)
@@ -203,6 +216,7 @@ trait GraphPerspective {
     *
     * @param executeMessagedOnly If `true`, only run step for vertices which received new messages
     */
+
   def iterate(f: (Vertex) => Unit, iterations: Int, executeMessagedOnly: Boolean): Graph
 
   /** Execute algorithm step with global graph state repeatedly for given number of iterations or
