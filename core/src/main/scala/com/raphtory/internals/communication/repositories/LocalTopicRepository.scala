@@ -22,7 +22,7 @@ private[raphtory] object LocalTopicRepository {
           arrowFlightConnector <- ArrowFlightConnector[IO](config, signatureRegistry, addressProvider)
           pulsarConnector      <- PulsarConnector[IO](config)
           akkaConnector        <- AkkaConnector[IO](AkkaConnector.StandaloneMode, config)
-        } yield new TopicRepository(akkaConnector, pulsarConnector, arrowFlightConnector, config)
+        } yield new TopicRepository(akkaConnector, arrowFlightConnector, arrowFlightConnector, config)
       case "pulsar"        => PulsarConnector[IO](config).map(connector => TopicRepository(connector, config))
     }
 

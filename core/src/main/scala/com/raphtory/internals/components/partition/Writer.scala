@@ -40,7 +40,7 @@ private[raphtory] class Writer(
   }: Unit
 
   private def reschedule(): Unit =
-    scheduledRun = Option(scheduler.scheduleOnce(1.seconds, rescheduler()))
+    scheduledRun = Option(scheduler.scheduleOnce(5.seconds, rescheduler()))
 
   override def run(): Unit = reschedule()
 
