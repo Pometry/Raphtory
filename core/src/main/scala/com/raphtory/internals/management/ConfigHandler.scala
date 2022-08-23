@@ -21,21 +21,7 @@ private[raphtory] class ConfigHandler {
   def addCustomConfig(path: String, value: Any) =
     customConfigValues += ((path, ConfigValueFactory.fromAnyRef(value)))
 
-  def getConfig(runningDistributed: Boolean): Config =
-    if (runningDistributed)
-      distributed()
-    else
-      local()
-
-  def updateSalt(): Unit = {
-    this.salt = Random.nextInt().abs
-    logger.info(s"Raphtory deployment salt updated to '$salt'.")
-  }
-
-  def setSalt(salt: Int): Unit = {
-    this.salt = salt
-    logger.info(s"Raphtory deployment salt set to '$salt'.")
-  }
+  def getConfig(): Config = defaults.resolve()
 
   private def createConf(): Config = {
     var tempConf = ConfigFactory
@@ -55,15 +41,4 @@ private[raphtory] class ConfigHandler {
 
     tempConf
   }
-
-  private def local(): Config = {
-    val deploymentID = defaults.resolve().getString("raphtory.deploy.id") + "_" + salt
-    val spoutTopic   = defaults.resolve().getString("raphtory.spout.topic") + "_" + salt
-    defaults
-      .withValue("raphtory.spout.topic", ConfigValueFactory.fromAnyRef(spoutTopic))
-      .withValue("raphtory.deploy.id", ConfigValueFactory.fromAnyRef(deploymentID))
-      .resolve()
-  }
-
-  private def distributed(): Config = defaults.resolve()
 }

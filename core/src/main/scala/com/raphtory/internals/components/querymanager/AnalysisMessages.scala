@@ -5,6 +5,7 @@ import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.GlobalGraphFunction
 import com.raphtory.api.analysis.graphview.GraphFunction
 import com.raphtory.api.analysis.table.TableFunction
+import com.raphtory.api.input.Source
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.time.Interval
 import com.raphtory.api.time.NullInterval
@@ -15,6 +16,7 @@ import scala.collection.immutable.Queue
 private[raphtory] trait QueryManagement extends Serializable
 
 private[raphtory] case class WatermarkTime(
+    graphID: String,
     partitionID: Int,
     oldestTime: Long,
     latestTime: Long,
@@ -22,13 +24,6 @@ private[raphtory] case class WatermarkTime(
 ) extends QueryManagement
 
 private[raphtory] case object StartAnalysis extends QueryManagement
-
-private[raphtory] case class EstablishExecutor(
-    _bootstrap: DynamicLoader,
-    jobID: String,
-    sink: Sink,
-    pyScript: Option[String]
-) extends QueryManagement
 
 private[raphtory] case class SetMetaData(vertices: Int) extends QueryManagement
 
@@ -79,6 +74,8 @@ private[raphtory] case class FilteredOutEdgeMessage[VertexID](
 
 private[raphtory] case class VertexMessagesSync(partitionID: Int, count: Long)
 
+sealed private[raphtory] trait Submission extends QueryManagement
+
 private[raphtory] case class Query(
     _bootstrap: DynamicLoader = DynamicLoader(), // leave the `_` this field gets deserialized first
     name: String = "",
@@ -91,7 +88,7 @@ private[raphtory] case class Query(
     tableFunctions: Queue[TableFunction] = Queue(),
     sink: Option[Sink] = None,
     pyScript: Option[String] = None
-) extends QueryManagement
+) extends Submission
 
 case class DynamicLoader(classes: Set[Class[_]] = Set.empty) {
   def +(cls: Class[_]): DynamicLoader = this.copy(classes = classes + cls)
@@ -149,3 +146,32 @@ private[raphtory] case class TableFunctionComplete(perspectiveID: Int) extends P
 private[raphtory] case class TableBuilt(perspectiveID: Int)            extends PerspectiveStatus
 
 private[raphtory] case class AlgorithmFailure(perspectiveID: Int, exception: Throwable) extends PerspectiveStatus
+
+// Messages for partitionSetup topic
+sealed private[raphtory] trait GraphManagement extends QueryManagement
+
+private[raphtory] case class IngestData(_bootstrap: DynamicLoader, graphID: String, sources: Seq[Source])
+        extends Submission
+        with GraphManagement
+
+private[raphtory] case class EstablishExecutor(
+    _bootstrap: DynamicLoader,
+    graphID: String,
+    jobID: String,
+    sink: Sink,
+    pyScript: Option[String]
+) extends GraphManagement
+
+private[raphtory] case class StopExecutor(jobID: String) extends GraphManagement
+
+sealed private[raphtory] trait ClusterManagement extends QueryManagement
+
+private[raphtory] case class EstablishGraph(graphID: String, clientID: String) extends Submission with ClusterManagement
+
+private[raphtory] case class DestroyGraph(graphID: String, clientID: String, force: Boolean)
+        extends Submission
+        with ClusterManagement
+
+private[raphtory] case class ClientDisconnected(graphID: String, clientID: String)
+        extends Submission
+        with ClusterManagement

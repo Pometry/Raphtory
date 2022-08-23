@@ -1,7 +1,12 @@
 package com.raphtory.twitter.builder
 
-import com.raphtory.api.input.{GraphBuilder, ImmutableProperty, Properties, Type}
+import com.raphtory.api.input.Graph
+import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.Properties
+import com.raphtory.api.input.Type
 import com.raphtory.twitter.spout.LiveTwitterSpout
+import com.raphtory.twitter.spout.LiveTwitterSpoutInstance
 import io.github.redouane59.twitter.dto.tweet.Tweet
 
 import java.time.ZoneOffset
@@ -15,12 +20,12 @@ import scala.util.matching.Regex
 
 class LiveTwitterRetweetGraphBuilder() extends GraphBuilder[Tweet] {
 
-  override def parseTuple(tweet: Tweet): Unit = {
+  override def parse(graph: Graph, tweet: Tweet): Unit = {
     val sourceNode    = tweet.getAuthorId
     val srcID         = sourceNode.toLong
     val timeStamp     = tweet.getCreatedAt.toEpochSecond(ZoneOffset.UTC)
     val pattern       = new Regex("(@[\\w-]+)")
-    val twitterSpout  = new LiveTwitterSpout()
+    val twitterSpout  = LiveTwitterSpout().buildSpout().asInstanceOf[LiveTwitterSpoutInstance]
     val twitterClient = twitterSpout.spout.twitterClient
 
     //finding retweeted username in tweet by matching regex pattern, extracting the ID of that user by dropping the @ sign (substring method)
@@ -29,43 +34,43 @@ class LiveTwitterRetweetGraphBuilder() extends GraphBuilder[Tweet] {
     } yield twitterClient.getUserFromUserName(username.substring(1)).getId
     val targetNode      = retweetedUserId.getOrElse(sourceNode)
     val tarID           = targetNode.toLong
-    addVertex(
+    graph.addVertex(
             timeStamp,
             srcID,
             Properties(ImmutableProperty("user id", sourceNode)),
             Type("User ID")
     )
-    addVertex(
+    graph.addVertex(
             timeStamp,
             tarID,
             Properties(ImmutableProperty("user id", targetNode)),
             Type("Retweeted User ID")
     )
-    addEdge(timeStamp, srcID, tarID, Type("Retweet Relationship"))
+    graph.addEdge(timeStamp, srcID, tarID, Type("Retweet Relationship"))
   }
 }
 
 class LiveTwitterUserGraphBuilder() extends GraphBuilder[Tweet] {
 
-  override def parseTuple(tweet: Tweet): Unit = {
+  override def parse(graph: Graph, tweet: Tweet): Unit = {
     val sourceNode = tweet.getAuthorId
     val srcID      = sourceNode.toLong
     val targetNode = tweet.getId
     val tarID      = targetNode.toLong
     val timeStamp  = tweet.getCreatedAt.toEpochSecond(ZoneOffset.UTC)
 
-    addVertex(
+    graph.addVertex(
             timeStamp,
             srcID,
             Properties(ImmutableProperty("user id", sourceNode)),
             Type("User ID")
     )
-    addVertex(
+    graph.addVertex(
             timeStamp,
             tarID,
             Properties(ImmutableProperty("tweet id", targetNode)),
             Type("Tweet ID")
     )
-    addEdge(timeStamp, srcID, tarID, Type("User to Tweet Relationship"))
+    graph.addEdge(timeStamp, srcID, tarID, Type("User to Tweet Relationship"))
   }
 }
