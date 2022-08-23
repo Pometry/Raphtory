@@ -50,7 +50,7 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
           val lotrTracker = lotrGraph
             .range(1, 32674, 10000)
             .window(List(500, 1000, 10000), Alignment.END)
-            .execute(ConnectedComponents())
+            .execute(ConnectedComponents)
             .writeTo(defaultSink)
 
           val facebookGraph = Raphtory.newGraph()
@@ -59,7 +59,7 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
           val facebookTracker = facebookGraph
             .at(88234)
             .past()
-            .execute(ConnectedComponents())
+            .execute(ConnectedComponents)
             .writeTo(defaultSink)
 
           facebookTracker.waitForJob()

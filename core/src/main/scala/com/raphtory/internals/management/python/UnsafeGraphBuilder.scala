@@ -25,19 +25,8 @@ class UnsafeGraphBuilder[T](val ref: PyRef, py: EmbeddedPython[Id])(implicit PE:
     *
     * @param tuple raw input data
     */
-  def parseTuple(tuple: T): Unit = {
+  def parseTuple(tuple: T): Unit =
     py.invoke(ref, "parse_tuple", Vector(PE.encode(tuple)))
-    val actions = py.eval[Vector[GraphUpdate]](s"${ref.name}.get_actions()")
-    py.invoke(ref, "reset_actions", Vector.empty)
-    actions.collect {
-      case m: VertexAdd =>
-      // handleGraphUpdate(m)
-      //  updateVertexAddStats()
-      case m: EdgeAdd   =>
-      //  handleEdgeAdd(m)
-      //  updateEdgeAddStats()
-    }
-  }
 
   def get_current_index(): Long = 1
   // index
