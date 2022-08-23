@@ -2,6 +2,7 @@ package com.raphtory.twitter.spout
 
 import com.raphtory.Raphtory
 import com.raphtory.api.input.Spout
+import com.raphtory.api.input.SpoutInstance
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import io.github.redouane59.twitter.IAPIEventListener
@@ -29,7 +30,11 @@ import java.util.concurrent.ConcurrentLinkedQueue
   *
   * A filter for hashtag can also be added in application.conf as well.
   */
-class LiveTwitterSpout() extends Spout[Tweet] {
+case class LiveTwitterSpout() extends Spout[Tweet] {
+  override def buildSpout(): SpoutInstance[Tweet] = new LiveTwitterSpoutInstance()
+}
+
+class LiveTwitterSpoutInstance() extends SpoutInstance[Tweet] {
 
   val tweetQueue = new ConcurrentLinkedQueue[Tweet]()
   val spout      = new LiveTwitterAddSpout(tweetQueue)

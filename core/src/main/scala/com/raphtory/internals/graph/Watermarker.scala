@@ -24,7 +24,7 @@ object VertexUpdate {
   implicit val ordering: Ordering[VertexUpdate] = Ordering.by(v => (v.time, v.index, v.id))
 }
 
-private[raphtory] class Watermarker(storage: GraphPartition) {
+private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val lock: Lock     = new ReentrantLock()
@@ -33,7 +33,7 @@ private[raphtory] class Watermarker(storage: GraphPartition) {
   val latestTime: AtomicLong = new AtomicLong(0)
 
   private var latestWatermark =
-    WatermarkTime(storage.getPartitionID, Long.MaxValue, 0, safe = false)
+    WatermarkTime(graphID, storage.getPartitionID, Long.MaxValue, 0, safe = false)
 
   //Current unsynchronised updates
   private val edgeAdditions: mutable.TreeSet[EdgeUpdate] = mutable.TreeSet()
@@ -114,7 +114,7 @@ private[raphtory] class Watermarker(storage: GraphPartition) {
     lock.lock()
     try {
       val time = latestTime.get()
-      if (!storage.currentyBatchIngesting()) {
+      if (!storage.currentyBlockIngesting()) {
         val edgeAdditionTime =
           if (edgeAdditions.nonEmpty)
             edgeAdditions.minBy(_.time).time
@@ -140,11 +140,11 @@ private[raphtory] class Watermarker(storage: GraphPartition) {
           edgeAdditions.isEmpty && edgeDeletions.isEmpty && vertexDeletions.isEmpty
 
         val newWatermark =
-          WatermarkTime(storage.getPartitionID, oldestTime.get(), finalTime, noBlockingOperations)
+          WatermarkTime(graphID, storage.getPartitionID, oldestTime.get(), finalTime, noBlockingOperations)
 
         if (newWatermark != latestWatermark)
-          logger.debug(
-                  s"Partition ${storage.getPartitionID}: Creating watermark with " +
+          logger.trace(
+                  s"Partition ${storage.getPartitionID} for '$graphID': Creating watermark with " +
                     s"earliest time '${oldestTime.get()}' and latest time '$finalTime'."
           )
 

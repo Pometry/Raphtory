@@ -1,10 +1,14 @@
 package com.raphtory.examples.twitter.livetwitterstream.graphbuilders
 
-import com.raphtory.api.input.{GraphBuilder, ImmutableProperty, Properties, Type}
+import com.raphtory.api.input.Graph
+import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.Properties
+import com.raphtory.api.input.Type
 
 class LiveTwitterGraphBuilder extends GraphBuilder[String] {
 
-  override def parseTuple(tuple: String): Unit = {
+  override def parse(graph: Graph, tuple: String): Unit = {
     val fileLine   = tuple.split(" ").map(_.trim)
     val sourceNode = fileLine(0)
     val srcID      = sourceNode.toLong
@@ -12,8 +16,8 @@ class LiveTwitterGraphBuilder extends GraphBuilder[String] {
     val tarID      = targetNode.toLong
     val timeStamp  = fileLine(2).toLong
 
-    addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)), Type("User"))
-    addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("User"))
-    addEdge(timeStamp, srcID, tarID, Type("Follow"))
+    graph.addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)), Type("User"))
+    graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("User"))
+    graph.addEdge(timeStamp, srcID, tarID, Type("Follow"))
   }
 }

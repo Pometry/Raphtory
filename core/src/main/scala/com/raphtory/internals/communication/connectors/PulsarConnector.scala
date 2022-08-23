@@ -12,9 +12,11 @@ import com.typesafe.scalalogging.Logger
 import org.apache.pulsar.client.admin.PulsarAdmin
 import org.apache.pulsar.client.admin.PulsarAdminException
 import org.apache.pulsar.client.api.PulsarClientException.BrokerMetadataException
+import org.apache.pulsar.client.api.PulsarClientException.ConsumerBusyException
 import org.apache.pulsar.client.api._
 import org.apache.pulsar.common.policies.data.RetentionPolicies
 import org.slf4j.LoggerFactory
+
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.math.Ordering.Implicits.infixOrderingOps
@@ -75,7 +77,14 @@ private[raphtory] class PulsarConnector(
 
     new CancelableListener {
       var consumers: Seq[Consumer[Array[Byte]]] = Seq()
-      override def start(): Unit                = consumers = consumerBuilders map (_.subscribe())
+      override def start(): Unit                =
+        try consumers = consumerBuilders map (_.subscribe())
+        catch {
+          case e: ConsumerBusyException =>
+            val msg = s"Impossible to create consumer for some of these topics: $topics"
+            logger.error(msg)
+            throw new IllegalStateException(msg, e)
+        }
       override def close(): Unit                =
         consumers foreach { consumer =>
           try consumer.unsubscribe()
@@ -192,7 +201,7 @@ private[raphtory] class PulsarConnector(
     }
     catch {
       case _: PulsarAdminException =>
-        logger.debug(s"Namespace $namespace already exists.")
+        logger.trace(s"Namespace $namespace already exists.")
     }
 
     val protocol = if (!persistence) "non-persistent" else "persistent"

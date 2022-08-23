@@ -1,5 +1,6 @@
 package com.raphtory.examples.gab.graphbuilders
 
+import com.raphtory.api.input.Graph
 import com.raphtory.api.input.GraphBuilder
 
 import java.text.SimpleDateFormat
@@ -13,7 +14,7 @@ import java.text.SimpleDateFormat
 
 class GabPostGraphBuilder extends GraphBuilder[String] {
 
-  override def parseTuple(tuple: String) = {
+  override def parse(graph: Graph, tuple: String) = {
     val fileLine   = tuple.split(";").map(_.trim)
     //user wise
 //     val sourceNode=fileLine(2).toInt
@@ -24,9 +25,9 @@ class GabPostGraphBuilder extends GraphBuilder[String] {
 
     if (targetNode > 0) {
       val creationDate = dateToUnixTime(timestamp = fileLine(0).slice(0, 19))
-      addVertex(creationDate, sourceNode)
-      addVertex(creationDate, targetNode)
-      addEdge(creationDate, sourceNode, targetNode)
+      graph.addVertex(creationDate, sourceNode)
+      graph.addVertex(creationDate, targetNode)
+      graph.addEdge(creationDate, sourceNode, targetNode)
     }
   }
 

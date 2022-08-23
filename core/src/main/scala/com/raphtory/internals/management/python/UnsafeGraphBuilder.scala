@@ -2,9 +2,9 @@ package com.raphtory.internals.management.python
 
 import scala.collection.mutable
 import cats.Id
+import com.raphtory.api.input.Graph
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.internals.communication.EndPoint
-import com.raphtory.internals.components.partition.BatchWriter
 import com.raphtory.internals.graph.GraphAlteration.EdgeAdd
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.internals.graph.GraphAlteration.VertexAdd
@@ -25,22 +25,33 @@ class UnsafeGraphBuilder[T](val ref: PyRef, py: EmbeddedPython[Id])(implicit PE:
     *
     * @param tuple raw input data
     */
-  override def parseTuple(tuple: T): Unit = {
+  def parseTuple(tuple: T): Unit = {
     py.invoke(ref, "parse_tuple", Vector(PE.encode(tuple)))
     val actions = py.eval[Vector[GraphUpdate]](s"${ref.name}.get_actions()")
     py.invoke(ref, "reset_actions", Vector.empty)
     actions.collect {
       case m: VertexAdd =>
-        handleGraphUpdate(m)
-        updateVertexAddStats()
+      // handleGraphUpdate(m)
+      //  updateVertexAddStats()
       case m: EdgeAdd   =>
-        handleEdgeAdd(m)
-        updateEdgeAddStats()
+      //  handleEdgeAdd(m)
+      //  updateEdgeAddStats()
     }
   }
 
-  def get_current_index(): Long =
-    index
+  def get_current_index(): Long = 1
+  // index
+
+  /** Processes raw data message `tuple` from the spout to extract source node, destination node,
+    * timestamp info, etc.
+    *
+    * A concrete implementation of a `GraphBuilder` needs to override this method to
+    * define the graph updates, calling the `addVertex`/`deleteVertex` and `addEdge`/`deleteEdge`
+    * methods documented below.
+    *
+    * @param tuple raw input data
+    */
+  override def parse(graph: Graph, tuple: T): Unit = {}
 }
 
 case class PythonGraphBuilder[T](pyScript: String, pyClass: String)(implicit PE: PythonEncoder[T])
@@ -59,22 +70,33 @@ case class PythonGraphBuilder[T](pyScript: String, pyClass: String)(implicit PE:
     *
     * @param tuple raw input data
     */
-  override def parseTuple(tuple: T): Unit =
-    proxy.parseTuple(tuple)
+  //override def parseTuple(tuple: T): Unit =
+  //proxy.parseTuple(tuple)
 
-  override def setBuilderMetaData(builderID: Int, deploymentID: String): Unit =
-    proxy.setBuilderMetaData(builderID, deploymentID)
+  //override def setBuilderMetaData(builderID: Int, deploymentID: String): Unit =
+  //  proxy.setBuilderMetaData(builderID, deploymentID)
 
-  override private[raphtory] def setupBatchIngestion(
-      IDs: mutable.Set[Int],
-      batchWriters: collection.Map[Int, BatchWriter[T]],
-      partitions: Int
-  ): Unit = proxy.setupBatchIngestion(IDs, batchWriters, partitions)
+//  override private[raphtory] def setupBatchIngestion(
+//      IDs: mutable.Set[Int],
+//      batchWriters: collection.Map[Int, BatchWriter[T]],
+//      partitions: Int
+//  ): Unit = proxy.setupBatchIngestion(IDs, batchWriters, partitions)
 
-  override private[raphtory] def setupStreamIngestion(
-      streamWriters: collection.Map[Int, EndPoint[GraphUpdate]]
-  ): Unit = proxy.setupStreamIngestion(streamWriters)
+//  override private[raphtory] def setupStreamIngestion(
+//      streamWriters: collection.Map[Int, EndPoint[GraphUpdate]]
+//  ): Unit = proxy.setupStreamIngestion(streamWriters)
 
-  override private[raphtory] def sendUpdates(tuple: T, tupleIndex: Long)(failOnError: Boolean): Unit =
-    proxy.sendUpdates(tuple, tupleIndex)(failOnError)
+//  override private[raphtory] def sendUpdates(tuple: T, tupleIndex: Long)(failOnError: Boolean): Unit =
+//    proxy.sendUpdates(tuple, tupleIndex)(failOnError)
+
+  /** Processes raw data message `tuple` from the spout to extract source node, destination node,
+    * timestamp info, etc.
+    *
+    * A concrete implementation of a `GraphBuilder` needs to override this method to
+    * define the graph updates, calling the `addVertex`/`deleteVertex` and `addEdge`/`deleteEdge`
+    * methods documented below.
+    *
+    * @param tuple raw input data
+    */
+  override def parse(graph: Graph, tuple: T): Unit = {}
 }

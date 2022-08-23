@@ -6,6 +6,8 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.services.s3.model.GetObjectRequest
 import com.amazonaws.services.s3.model.S3Object
 import com.raphtory.api.input.Spout
+import com.raphtory.api.input.SpoutInstance
+
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
@@ -19,22 +21,23 @@ import java.io.InputStreamReader
   * It builds an S3 client using credentials obtained through providing access keys.
   * The data is streamed from AWS S3 until null is reached.
   */
+case class AwsS3Spout(awsS3SpoutBucketName: String, awsS3SpoutBucketPath: String) extends Spout[String] {
+  override def buildSpout(): SpoutInstance[String] = new AwsS3SpoutInstance(awsS3SpoutBucketName, awsS3SpoutBucketPath)
+}
 
-class AwsS3Spout(awsS3SpoutBucketName: String, awsS3SpoutBucketPath: String) extends Spout[String] {
+class AwsS3SpoutInstance(awsS3SpoutBucketName: String, awsS3SpoutBucketPath: String) extends SpoutInstance[String] {
 
   val credentials: AwsCredentials = AwsS3Connector().getAWSCredentials()
 
   private val s3Client: AmazonS3 = AmazonS3ClientBuilder
     .standard()
-    .withCredentials(
-      new AWSStaticCredentialsProvider(credentials)
-    )
+    .withCredentials(new AWSStaticCredentialsProvider(credentials))
     .build()
 
   val s3object: S3Object =
     s3Client.getObject(new GetObjectRequest(awsS3SpoutBucketName, awsS3SpoutBucketPath))
 
-  val s3Reader           = new BufferedReader(new InputStreamReader(s3object.getObjectContent))
+  val s3Reader = new BufferedReader(new InputStreamReader(s3object.getObjectContent))
 
   override def hasNext: Boolean =
     s3Reader.readLine() != null
@@ -51,10 +54,4 @@ class AwsS3Spout(awsS3SpoutBucketName: String, awsS3SpoutBucketPath: String) ext
     logger.debug(s"Spout for AWS '$awsS3SpoutBucketName' finished")
 
   override def spoutReschedules(): Boolean = false
-}
-
-object AwsS3Spout {
-
-  def apply(awsS3SpoutBucketName: String, awsS3SpoutBucketPath: String) =
-    new AwsS3Spout(awsS3SpoutBucketName, awsS3SpoutBucketPath)
 }

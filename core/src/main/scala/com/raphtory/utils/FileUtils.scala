@@ -67,7 +67,7 @@ object FileUtils {
   def getMatchingFiles(path: String, regex: Regex, recurse: Boolean): List[File] = {
     val file = new File(path)
     if (file.isFile) {
-      logger.debug(s"Found single file ${file.getPath} matching criteria.")
+      logger.trace(s"Found single file ${file.getPath} matching criteria.")
       List(file)
     }
     else if (file.isDirectory) {

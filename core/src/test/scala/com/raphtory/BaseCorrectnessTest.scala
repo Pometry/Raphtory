@@ -6,6 +6,7 @@ import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.spouts.IdentitySpout
 import com.raphtory.spouts.ResourceSpout
@@ -29,14 +30,8 @@ abstract class BaseCorrectnessTest(
       val tracker =
         graph.at(test.timestamp).window(test.windows, Alignment.END).execute(test.algorithm).writeTo(defaultSink)
       tracker.waitForJob()
-      getResults(tracker.getJobId)
+      TestUtils.getResults(outputDirectory, tracker.getJobId)
     }
-
-//  private def normaliseResults(results: IterableOnce[String]): collection.Map[String, Int] = {
-//    val map = mutable.Map.empty[String, Int].withDefaultValue(0)
-//    results.iterator.foreach(result => map(result) += 1)
-//    map
-//  }
 
   private def normaliseResults(value: IterableOnce[String]) =
     value.iterator.toList.sorted.mkString("\n")
@@ -47,12 +42,12 @@ abstract class BaseCorrectnessTest(
 
   private def correctResultsHash(resultsResource: String): String = {
     val source = scala.io.Source.fromResource(resultsResource)
-    try resultsHash(source.getLines())
+    try TestUtils.resultsHash(source.getLines())
     finally source.close()
   }
 
   private def correctResultsHash(rows: IterableOnce[String]): String =
-    resultsHash(rows)
+    TestUtils.resultsHash(rows)
 
   def assertResultsMatch(obtained: IterableOnce[String], resultsResource: String): Unit = {
     val source = scala.io.Source.fromResource(resultsResource)
@@ -69,8 +64,9 @@ abstract class BaseCorrectnessTest(
       resultsResource: String
   ): IO[Unit] =
     Raphtory
-      .loadIO(ResourceSpout(graphResource), setGraphBuilder())
+      .newIOGraph()
       .use { g =>
+        g.ingest(Source(ResourceSpout(graphResource), setGraphBuilder()))
         runTest(test, graph = g)
       }
       .map(obtained => assertResultsMatch(obtained, resultsResource))
@@ -81,8 +77,9 @@ abstract class BaseCorrectnessTest(
       results: Seq[String]
   ): IO[Unit] =
     Raphtory
-      .loadIO(SequenceSpout(graphEdges: _*), setGraphBuilder())
+      .newIOGraph()
       .use { g =>
+        g.ingest(Source(SequenceSpout(graphEdges: _*), setGraphBuilder()))
         runTest(test, g)
       }
       .map(obtained => assertResultsMatch(obtained, results))

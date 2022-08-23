@@ -57,7 +57,7 @@ private[raphtory] object ZookeeperIDManager {
 
   def apply[IO[_]: Sync](
       zookeeperAddress: String,
-      deploymentId: String,
+      graphId: String,
       poolID: String,
       poolSize: Int
   ): Resource[IO, ZookeeperIDManager] =
@@ -73,7 +73,7 @@ private[raphtory] object ZookeeperIDManager {
                 }
                 .flatTap(c => Sync[IO].blocking(c.start()))
       )
-      .map(new ZookeeperIDManager(zookeeperAddress, deploymentId, poolID, poolSize, _))
+      .map(new ZookeeperIDManager(zookeeperAddress, graphId, poolID, poolSize, _))
 
   def apply[IO[_]: Sync](
       zookeeperAddress: String,

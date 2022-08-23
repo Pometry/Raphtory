@@ -1,6 +1,8 @@
 package com.raphtory.examples.gab.graphbuilders
 
-import com.raphtory.api.input.{GraphBuilder, Type}
+import com.raphtory.api.input.Graph
+import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Type
 
 import java.text.SimpleDateFormat
 
@@ -13,7 +15,7 @@ import java.text.SimpleDateFormat
 
 class GabUserGraphBuilder extends GraphBuilder[String] {
 
-  override def parseTuple(tuple: String) = {
+  override def parse(graph: Graph, tuple: String) = {
     val fileLine   = tuple.split(";").map(_.trim)
     //user wise
     val sourceNode = fileLine(2).toInt
@@ -23,9 +25,9 @@ class GabUserGraphBuilder extends GraphBuilder[String] {
     //val targetNode=fileLine(4).toInt
     if (targetNode > 0 && targetNode != sourceNode) {
       val creationDate = dateToUnixTime(timestamp = fileLine(0).slice(0, 19))
-      addVertex(creationDate, sourceNode, Type("User"))
-      addVertex(creationDate, targetNode, Type("User"))
-      addEdge(creationDate, sourceNode, targetNode, Type("User to User"))
+      graph.addVertex(creationDate, sourceNode, Type("User"))
+      graph.addVertex(creationDate, targetNode, Type("User"))
+      graph.addEdge(creationDate, sourceNode, targetNode, Type("User to User"))
 //      sendGraphUpdate(VertexAddWithProperties(creationDate, sourceNode, Properties(StringProperty("test1","value1"),StringProperty("test2","Value2")),Type("User")))
 //      sendGraphUpdate(VertexAddWithProperties(creationDate, targetNode, Properties(StringProperty("test1","value1"),StringProperty("test2","Value2")),Type("User")))
 //      sendGraphUpdate(EdgeAddWithProperties(creationDate, sourceNode, targetNode, Properties(StringProperty("test1","value1"),StringProperty("test2","Value2")),Type("User To User")))

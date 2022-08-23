@@ -1,5 +1,6 @@
 package com.raphtory.examples.gab.graphbuilders
 
+import com.raphtory.api.input.Graph
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.StringProperty
@@ -24,11 +25,11 @@ final class GabRawGraphBuilder extends GraphBuilder[String] {
 
   private val nullStr = "null"
 
-  override def parseTuple(tuple: String) = {
+  override def parse(graph: Graph, tuple: String) = {
     try {
       val command = tuple
       val post    = command.parseJson.convertTo[GabPost]
-      sendPostToPartitions(post)
+      sendPostToPartitions(graph, post)
     }
     catch {
       case e: Exception => println("Could not parse post")
@@ -39,13 +40,14 @@ final class GabRawGraphBuilder extends GraphBuilder[String] {
     //mediator ! DistributedPubSubMediator.Send(manager, parsedOBJ.value, false)
 
     def sendPostToPartitions(
+        graph: Graph,
         post: GabPost,
         recursiveCall: Boolean = false,
         parent: Int = 0
     ): Unit = {
       val postUUID  = post.id.get.toInt
       val timestamp = OffsetDateTime.parse(post.created_at.get).toEpochSecond
-      addVertex(
+      graph.addVertex(
               timestamp,
               postUUID,
               Properties(
@@ -84,7 +86,7 @@ final class GabRawGraphBuilder extends GraphBuilder[String] {
       post.user match {
         case Some(user) =>
           val userUUID: Int = "user".hashCode() + user.id //TODO improve in case of clashes
-          addVertex(
+          graph.addVertex(
                   timestamp,
                   userUUID,
                   Properties(
@@ -96,8 +98,8 @@ final class GabRawGraphBuilder extends GraphBuilder[String] {
                   )
           )
 
-          addEdge(timestamp, userUUID, postUUID, Properties((StringProperty("type", "userToPost"))))
-          addEdge(timestamp, postUUID, userUUID, Properties(StringProperty("type", "postToUser")))
+          graph.addEdge(timestamp, userUUID, postUUID, Properties((StringProperty("type", "userToPost"))))
+          graph.addEdge(timestamp, postUUID, userUUID, Properties(StringProperty("type", "postToUser")))
 
         case None       =>
       }
@@ -105,7 +107,7 @@ final class GabRawGraphBuilder extends GraphBuilder[String] {
       post.topic match {
         case Some(topic) =>
           val topicUUID: Int = Math.pow(2, 24).toInt + (topic.id.hashCode())
-          addVertex(
+          graph.addVertex(
                   timestamp,
                   topicUUID,
                   Properties(
@@ -117,18 +119,18 @@ final class GabRawGraphBuilder extends GraphBuilder[String] {
                   )
           )
 
-          addEdge(timestamp, postUUID, topicUUID, Properties(StringProperty("type", "postToTopic")))
+          graph.addEdge(timestamp, postUUID, topicUUID, Properties(StringProperty("type", "postToTopic")))
         case None        =>
       }
 
       // Edge from child to parent post
       if (recursiveCall && parent != 0)
-        addEdge(timestamp, postUUID, parent, Properties(StringProperty("type", "childToParent")))
+        graph.addEdge(timestamp, postUUID, parent, Properties(StringProperty("type", "childToParent")))
       post.parent match {
         case Some(p) =>
           if (!recursiveCall) // Allow only one recursion per post
             //println("Found parent post: Recursion!")
-            sendPostToPartitions(p, true, postUUID)
+            sendPostToPartitions(graph, p, true, postUUID)
         case None    =>
       }
     }

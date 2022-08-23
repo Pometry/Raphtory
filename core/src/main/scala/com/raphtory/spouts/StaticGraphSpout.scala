@@ -1,6 +1,7 @@
 package com.raphtory.spouts
 
 import com.raphtory.api.input.Spout
+import com.raphtory.api.input.SpoutInstance
 
 import scala.io.Source
 
@@ -14,6 +15,10 @@ import scala.io.Source
   *       [[com.raphtory.Raphtory Raphtory]]
   */
 case class StaticGraphSpout(fileDataPath: String) extends Spout[String] {
+  override def buildSpout(): SpoutInstance[String] = new StaticGraphSpoutInstance(fileDataPath)
+}
+
+class StaticGraphSpoutInstance(fileDataPath: String) extends SpoutInstance[String] {
 
   private val source = Source.fromFile(fileDataPath)
   private val lines  = source.getLines()

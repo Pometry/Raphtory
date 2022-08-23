@@ -50,7 +50,7 @@ class QueryProgressTracker private[raphtory] (
 
   private val queryTrackListener                        =
     topics.registerListener(
-            s"$deploymentID-$jobID-query-tracker",
+            s"$graphID-$jobID-query-tracker",
             handleMessage,
             topics.queryTrack(jobID)
     )

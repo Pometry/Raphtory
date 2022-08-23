@@ -61,7 +61,7 @@ To deploy Raphtory, you must set the following parameters
 
 | Java                                                                  | Environment Variable                                                  | Type    | Description                                                                        |
 |-----------------------------------------------------------------------|-----------------------------------------------------------------------|---------|------------------------------------------------------------------------------------|
-| raphtory.deploy.id                                                    | RAPHTORY_DEPLOY_KUBERNETES_ID                                         | String  | Deploy ID for this deployment (string)                                             |
+| raphtory.graph.id                                                    | RAPHTORY_DEPLOY_KUBERNETES_ID                                         | String  | Deploy ID for this deployment (string)                                             |
 | raphtory.deploy.kubernetes.master.url                                 | RAPHTORY_DEPLOY_KUBERNETES_MASTER_URL                                 | String  | Master URL for connection to Kubernetes cluster                                    |
 | raphtory.deploy.kubernetes.secrets.registry.server                    | RAPHTORY_DEPLOY_KUBERNETES_SECRETS_REGISTRY_SERVER                    | String  | Docker image registry server                                                       |
 | raphtory.deploy.kubernetes.secrets.registry.username                  | RAPHTORY_DEPLOY_KUBERNETES_SECRETS_REGISTRY_USERNAME                  | String  | Docker image registry username                                                     |

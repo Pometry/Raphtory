@@ -1,5 +1,6 @@
 package com.raphtory.algorithms
 
+import com.raphtory.api.input.Graph
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.LongProperty
@@ -8,7 +9,7 @@ import com.raphtory.api.input.Properties._
 
 class WeightedGraphBuilder extends GraphBuilder[String] {
 
-  override def parseTuple(tuple: String): Unit = {
+  override def parse(graph: Graph, tuple: String): Unit = {
     val line       = tuple.split(",")
     val sourceNode = line(0)
     val srcID      = sourceNode.toLong
@@ -17,11 +18,11 @@ class WeightedGraphBuilder extends GraphBuilder[String] {
     val timeStamp  = line(2).toLong
     val weight     = line(3).toLong
 
-    addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)))
-    addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)))
-    addEdge(timeStamp, srcID, tarID, Properties(LongProperty("weight", weight)))
+    graph.addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)))
+    graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)))
+    graph.addEdge(timeStamp, srcID, tarID, Properties(LongProperty("weight", weight)))
 
-    logger.debug(s"Finished processing line '$line'.")
+//    logger.debug(s"Finished processing line '$line'.")
   }
 
 }
