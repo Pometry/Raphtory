@@ -108,20 +108,40 @@ case class ArrowFlightReader[T](
                     )
                   else {
                     try logger.trace(
-                            s"location = $location, endpoint = $endPoint, batch = $batch, vertex msg = ${vms
-                              .getMessageAtRow(i)}, row count = $rows\n"
+                            "location = {}, endpoint = {}, batch = {}, vertex msg = {}, index = {}, row count = {}\n",
+                            location,
+                            endPoint,
+                            batch,
+                            i,
+                            vms.getMessageAtRow(i),
+                            rows
                     )
                     catch {
                       case e: Exception =>
                         logger.error(
-                                s"location = $location, endpoint = $endPoint, batch = $batch, rowCount = $rows, errMsg = ${e.getMessage}"
+                                "location = {}, endpoint = {}, batch = {}, index = {}, rowCount = {}, errMsg = {}",
+                                location,
+                                endPoint,
+                                batch,
+                                i,
+                                rows,
+                                e.getMessage
                         )
                         e.printStackTrace()
                     }
                     // vms.getVertexMessageAtRow(i)
                     try messageHandler(vms.decodeMessage(i))
                     catch {
-                      case e: Exception => logger.error(e.getMessage)
+                      case e: Exception =>
+                        logger.error(
+                                "location = {}, endpoint = {}, batch = {}, index = {}, rowCount = {}, errMsg = {}",
+                                location,
+                                endPoint,
+                                batch,
+                                i,
+                                rows,
+                                e.getMessage
+                        )
                     }
                   }
                   i = i + 1

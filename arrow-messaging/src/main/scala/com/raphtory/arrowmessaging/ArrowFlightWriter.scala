@@ -34,9 +34,10 @@ sealed trait ArrowFlightMessageSchemaWriterRegistry extends AutoCloseable {
   def removeSchema(endPoint: String): Unit =
     schemaRegistry.remove(endPoint)
 
-  def close(): Unit =
+  def close(): Unit = {
     schemaRegistry.values().forEach(_.close())
     schemaRegistry.clear()
+  }
 }
 
 case class ArrowFlightWriter(
@@ -78,11 +79,9 @@ case class ArrowFlightWriter(
 
   def sendBatch(): Unit = {
     val activeEndpoints = listeners.keys
-    activeEndpoints.foreach { endpoint =>
-      getSchema(endpoint).completeAddMessages()
-    }
+    activeEndpoints.foreach(endpoint => getSchema(endpoint).completeAddMessages())
     listeners.values.foreach(_.putNext())
-
+    activeEndpoints.foreach(endpoint => getSchema(endpoint).clear())
   }
 
   def completeSend(): Unit =
