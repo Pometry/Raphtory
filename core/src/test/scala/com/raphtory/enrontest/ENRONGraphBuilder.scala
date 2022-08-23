@@ -1,5 +1,6 @@
 package com.raphtory.enrontest
 
+import com.raphtory.api.input.Graph
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
@@ -41,11 +42,10 @@ class ENRONGraphBuilder() extends GraphBuilder[String] {
    * Remove all " and '
    * Add `\n` wherever there is a `sent_mail` : this signifies a new record
    * */
-  override def parseTuple(line: String): Unit = {
-    if ((line.toString.equals(""))) {
-      logger.warn(s"File contained an empty line.")
+  override def parse(graph: Graph, line: String): Unit = {
+    if ((line.toString.equals("")))
+//      logger.warn(s"File contained an empty line.")
       return
-    }
 
     val dateFormat = "EEE, d MMM yyyy HH:mm:ss Z (z)"
     val sParse     = "*Line : " + line.toString
@@ -56,9 +56,9 @@ class ENRONGraphBuilder() extends GraphBuilder[String] {
     val receiver = sParse.split("To:")(1).split("Subject:")(0).trim
     val subject  = Option(sParse.split("Subject:")(1).split("Mime-Version:")(0).trim)
 
-    logger.trace(
-            s"Parsed record.  msgId: '$msgId' date: '$date' sender: '$sender' receiver: '$receiver'."
-    )
+//    logger.trace(
+//            s"Parsed record.  msgId: '$msgId' date: '$date' sender: '$sender' receiver: '$receiver'."
+//    )
 
     //Extract timestamp from second column
     var dateEpochUTC: Long = 0
@@ -66,19 +66,19 @@ class ENRONGraphBuilder() extends GraphBuilder[String] {
     val dateTime           = LocalDateTime.parse(date, parseFormatter)
     dateEpochUTC = dateTime.atOffset(ZoneOffset.UTC).toInstant.toEpochMilli
 
-    logger.trace(s"Parsed date field into epoch '$dateEpochUTC'.")
+//    logger.trace(s"Parsed date field into epoch '$dateEpochUTC'.")
 
     val srcID = assignID(sender)
     val tarID = assignID(receiver)
 
-    addVertex(dateEpochUTC, srcID, Properties(ImmutableProperty("name", sender)), Type("Character"))
-    addVertex(
+    graph.addVertex(dateEpochUTC, srcID, Properties(ImmutableProperty("name", sender)), Type("Character"))
+    graph.addVertex(
             dateEpochUTC,
             tarID,
             Properties(ImmutableProperty("name", receiver)),
             Type("Character")
     )
-    addEdge(
+    graph.addEdge(
             dateEpochUTC,
             srcID,
             tarID,

@@ -4,6 +4,7 @@
         <Property name="defaultLogLevel">${env:RAPHTORY_CORE_LOG:-INFO}</Property>
         <Property name="defaultInternalsLogLevel">${env:RAPHTORY_INTERNALS_LOG:-${defaultLogLevel}}</Property>
         <Property name="defaultInternalsComponentsLogLevel">${env:RAPHTORY_INTERNALS_COMPONENTS_LOG:-${defaultInternalsLogLevel}}</Property>
+        <Property name="defaultPythonLogLevel">${env:RAPHTORY_PYTHON_LOG:-${defaultLogLevel}}</Property>
         <Property name="logFileName">${env:RAPHTORY_LOGFILE:-logs/app.log}</Property>
         <Property name="logFileAppend">${env:RAPHTORY_APPEND_LOGFILE:-false}</Property>
         <Property name="logger">${env:RAPHTORY_LOGGER:-Async}</Property>
@@ -29,6 +30,12 @@
         <Logger name="io.netty" level="${env:RAPHTORY_NETTY_LOG:-off}">
         </Logger>
         <Logger name="org.apache" level="${env:RAPHTORY_APACHE_LOG:-off}">
+        </Logger>
+        <Logger name="com.typesafe.akka" level="${env:RAPHTORY_AKKA_LOG:-WARN}">
+        </Logger>
+        <Logger name="akka" level="${env:RAPHTORY_AKKA_LOG:-ERROR}">
+        </Logger>
+        <Logger name="org.asynchttpclient" level="${env:RAPHTORY_APACHE_LOG:-off}">
         </Logger>
 
         <!-- LOGGER FOR RAPHTORY CORE -->
@@ -79,6 +86,8 @@
         </Logger>
         <Logger name="com.raphtory.internals.components.spout" level="${env:RAPHTORY_INTERNALS_COMPONENTS_SPOUT_LOG:-${defaultInternalsComponentsLogLevel}}">
         </Logger>
+
+        <Logger name="com.raphtory.internals.management.PythonInterop$" level="${defaultPythonLogLevel}"></Logger>
 
         <Root level="${defaultLogLevel}">
             <AppenderRef ref="Console"/>

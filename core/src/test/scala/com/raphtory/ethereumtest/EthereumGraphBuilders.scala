@@ -1,6 +1,7 @@
 package com.raphtory.ethereumtest
 
 import com.raphtory.api.input.DoubleProperty
+import com.raphtory.api.input.Graph
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
@@ -8,7 +9,7 @@ import com.raphtory.api.input.Type
 
 class EthereumTxGraphBuilder() extends GraphBuilder[EthereumTransaction] {
 
-  override def parseTuple(tx: EthereumTransaction): Unit = {
+  override def parse(graph: Graph, tx: EthereumTransaction): Unit = {
     //    if (line contains "block_hash") {
     //      return
     //    }
@@ -26,15 +27,15 @@ class EthereumTxGraphBuilder() extends GraphBuilder[EthereumTransaction] {
             ImmutableProperty("blockNumber", blockNumber),
             DoubleProperty("value", value)
     )
-    addVertex(timeStamp, srcID, Properties(ImmutableProperty("address", sourceNode)), Type("node"))
-    addVertex(timeStamp, tarID, Properties(ImmutableProperty("address", sourceNode)), Type("node"))
-    addEdge(timeStamp, srcID, tarID, edgeProperties, Type("transaction"))
+    graph.addVertex(timeStamp, srcID, Properties(ImmutableProperty("address", sourceNode)), Type("node"))
+    graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("address", sourceNode)), Type("node"))
+    graph.addEdge(timeStamp, srcID, tarID, edgeProperties, Type("transaction"))
   }
 }
 
 class EthereumGraphBuilder() extends GraphBuilder[String] {
 
-  override def parseTuple(tuple: String): Unit = {
+  override def parse(graph: Graph, tuple: String): Unit = {
     val line        = new String(tuple)
     if (line contains "block_hash")
       return
@@ -53,8 +54,8 @@ class EthereumGraphBuilder() extends GraphBuilder[String] {
             ImmutableProperty("blockNumber", blockNumber),
             DoubleProperty("value", value)
     )
-    addVertex(timeStamp, srcID, Properties(ImmutableProperty("address", sourceNode)), Type("node"))
-    addVertex(timeStamp, tarID, Properties(ImmutableProperty("address", sourceNode)), Type("node"))
-    addEdge(timeStamp, srcID, tarID, edgeProperties, Type("transaction"))
+    graph.addVertex(timeStamp, srcID, Properties(ImmutableProperty("address", sourceNode)), Type("node"))
+    graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("address", sourceNode)), Type("node"))
+    graph.addEdge(timeStamp, srcID, tarID, edgeProperties, Type("transaction"))
   }
 }

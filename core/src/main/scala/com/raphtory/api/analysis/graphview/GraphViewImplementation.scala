@@ -22,7 +22,13 @@ import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManagement
+import com.raphtory.internals.management.python.EmbeddedPython
+import com.raphtory.internals.management.PyRef
+import com.raphtory.internals.management.PythonEncoder
+import com.raphtory.internals.management.PythonFunction1
 import com.raphtory.internals.management.QuerySender
+import cats.Id
+import com.raphtory.api.input.GraphBuilder
 
 import scala.jdk.CollectionConverters.ListHasAsScala
 
@@ -61,18 +67,6 @@ final private[raphtory] case class Iterate[V <: Vertex](
     executeMessagedOnly: Boolean
 ) extends GraphFunction
 
-final private[raphtory] case class PythonStep(pyObj: Array[Byte]) extends GraphFunction
-
-final private[raphtory] case class PythonStepWithGraph(pyObj: Array[Byte]) extends GlobalGraphFunction
-
-final private[raphtory] case class PythonIterate(
-    bytes: Array[Byte],
-    iterations: Long,
-    executeMessagedOnly: Boolean
-) extends GraphFunction
-
-final private[raphtory] case class PythonSetGlobalState(pyObj: Array[Byte]) extends GraphFunction
-
 final private[raphtory] case class IterateWithGraph[V <: Vertex](
     f: (V, GraphState) => Unit,
     iterations: Int,
@@ -91,13 +85,9 @@ final private[raphtory] case class GlobalSelect(
 ) extends TabularisingGraphFunction
         with GlobalGraphFunction
 
-final private[raphtory] case class PythonGlobalSelect(pyObj: Array[Byte])
-        extends TabularisingGraphFunction
-        with GlobalGraphFunction
-
-final private[raphtory] case class ExplodeSelect(f: _ => List[Row]) extends TabularisingGraphFunction
-final private[raphtory] case class ClearChain()                     extends GraphFunction
-final private[raphtory] case class PerspectiveDone()                extends GraphFunction
+final private[raphtory] case class ExplodeSelect(f: _ => Iterable[Row]) extends TabularisingGraphFunction
+final private[raphtory] case class ClearChain()                         extends GraphFunction
+final private[raphtory] case class PerspectiveDone()                    extends GraphFunction
 
 private[api] trait GraphViewImplementation[
     V <: Vertex,
@@ -105,7 +95,6 @@ private[api] trait GraphViewImplementation[
     RG <: ReducedGraphViewImplementation[RG, MG],
     MG <: MultilayerGraphViewImplementation[MG, RG]
 ] extends ConcreteGraphPerspective[V, G, RG, MG]
-        with PythonSupport
         with GraphBase[G, RG, MG]
         with GraphView { this: G =>
 
@@ -183,9 +172,6 @@ private[api] trait GraphViewImplementation[
     step(vertex => vertex.outEdges.foreach(e => f(e)))
   }
 
-  override def pythonStep(pickledPyObj: Array[Byte]): G =
-    addFunction(PythonStep(pickledPyObj))
-
   def loadPythonScript(script: String): G =
     newGraph(query.copy(pyScript = Some(script)), querySender)
 
@@ -196,57 +182,11 @@ private[api] trait GraphViewImplementation[
     step((vertex,state) => vertex.outEdges.foreach(e => f(e,state)))
   }
 
-  override def pythonStepState(pyObj: Array[Byte]): G =
-    addFunction(PythonStepWithGraph(pyObj))
-
   override def iterate(
       f: (V) => Unit,
       iterations: Int,
       executeMessagedOnly: Boolean
   ): G = addFunction(Iterate(f, iterations, executeMessagedOnly))
-
-  override def pythonIterate(pyObj: Array[Byte], iterations: Long, executeMessagedOnly: Boolean): G =
-    addFunction(PythonIterate(pyObj, iterations, executeMessagedOnly))
-
-  override def pythonSelect(columns: Object): Table =
-    pythonSelectSupport(columns)
-
-  override def pythonSelectState(columns: Object): Table =
-    pythonSelectStateSupport(columns)
-
-  private def pythonSelectStateSupport(columns: Object) = {
-    val cs   = columns match {
-      case arr: Array[_]           => arr.iterator
-      case list: java.util.List[_] => list.asScala.iterator
-    }
-    val cols = cs.collect { case s: String => s }.toVector
-    globalSelect { state =>
-      print(state(cols(0)))
-      val row: Seq[Any] =
-        cols.map { name =>
-          val name1: Accumulator[Any, Any] = state[Any, Any](name)
-          name1.value
-        }
-      Row(row: _*)
-    }
-  }
-
-  private def pythonSelectSupport(columns: Object) = {
-    val cs   = columns match {
-      case arr: Array[_]           => arr.iterator
-      case list: java.util.List[_] => list.asScala.iterator
-    }
-    val cols = cs.collect { case s: String => s }.toVector
-    this.select { vertex =>
-      val maybeObjects =
-        cols.flatMap(name => Option(vertex.getStateOrElse[Object](name, null, includeProperties = true)))
-      val row          = vertex.name() +: maybeObjects
-      Row(row: _*)
-    }
-  }
-
-  override def pythonSetGlobalState(pyObj: Array[Byte]): G =
-    addFunction(PythonSetGlobalState(pyObj))
 
   override def iterate(
       f: (V, GraphState) => Unit,
@@ -263,10 +203,7 @@ private[api] trait GraphViewImplementation[
   override def globalSelect(f: GraphState => Row): Table =
     addSelect(GlobalSelect(f))
 
-  override def pythonGlobalSelect(pyObj: Array[Byte]): Table =
-    addSelect(PythonGlobalSelect(pyObj))
-
-  override def explodeSelect(f: V => List[Row]): Table =
+  override def explodeSelect(f: V => Iterable[Row]): Table =
     addSelect(ExplodeSelect(f))
 
   override def clearMessages(): G =
@@ -307,13 +244,20 @@ private[api] trait GraphViewImplementation[
             querySender
     )
 
-  private[api] def withTransformedName(algorithm: BaseAlgorithm) = {
-    val newName = query.name match {
-      case "" => algorithm.name
-      case _  => query.name + ":" + algorithm.name
+  private[api] def withTransformedName(algorithm: BaseAlgorithm) =
+    newGraph(
+            query.copy(name = transformedName(algorithm.name), _bootstrap = query._bootstrap + algorithm.getClass),
+            querySender
+    )
+
+  def withTransformedName(name: String): G =
+    newGraph(query.copy(name = transformedName(name)), querySender)
+
+  private def transformedName(name: String): String =
+    query.name match {
+      case "" => name
+      case _  => query.name + ":" + name
     }
-    newGraph(query.copy(name = newName, _bootstrap = query._bootstrap + algorithm.getClass), querySender)
-  }
 }
 
 private[api] trait MultilayerGraphViewImplementation[
@@ -350,13 +294,13 @@ private[api] trait ReducedGraphViewImplementation[G <: ReducedGraphViewImplement
     newRGraph(query, querySender)
 }
 
-private[api] trait FixedGraph[G] {
+private[api] trait FixedGraph[G] { this: G =>
   private[api] val query: Query
   private[api] val querySender: QuerySender
   private[api] def newGraph(query: Query, querySender: QuerySender): G
 }
 
-private[api] trait GraphBase[G, RG, MG] extends FixedGraph[G] {
+private[api] trait GraphBase[G, RG, MG] extends FixedGraph[G] { this: G =>
   private[api] def newRGraph(query: Query, querySender: QuerySender): RG
   private[api] def newMGraph(query: Query, querySender: QuerySender): MG
 }

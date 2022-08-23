@@ -5,6 +5,7 @@ import com.raphtory.BaseCorrectnessTest
 import com.raphtory.BasicGraphBuilder
 import com.raphtory.Raphtory
 import com.raphtory.TestQuery
+import com.raphtory.TestUtils
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphview.Alignment
@@ -12,6 +13,7 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
+import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.spouts.ResourceSpout
 
@@ -85,14 +87,12 @@ class AccumulatorTest extends BaseCorrectnessTest(startGraph = true) {
 
   test("Test nodeCount on graph state is consistent for multiple perspectives") {
     Raphtory
-      .loadIO(
-              ResourceSpout("MotifCount/motiftest.csv"),
-              BasicGraphBuilder(),
-              customConfig =
-                Map("raphtory.prometheus.metrics.port" -> 0) // this makes prometheus start on a random unused port
-      )
+      .newIOGraph(customConfig =
+        Map("raphtory.prometheus.metrics.port" -> 0)
+      ) // this makes prometheus start on a random unused port
       .use { graph =>
         IO {
+          graph.ingest(Source(ResourceSpout("MotifCount/motiftest.csv"), BasicGraphBuilder()))
           val job = graph
             .range(10, 23, 1)
             .window(10, Alignment.END)
@@ -102,7 +102,7 @@ class AccumulatorTest extends BaseCorrectnessTest(startGraph = true) {
           val jobId = job.getJobId
           job.waitForJob()
 
-          getResults(jobId).foreach { res =>
+          TestUtils.getResults(outputDirectory, jobId).foreach { res =>
             if (res.nonEmpty) {
               val t = res.split(",")
               assertEquals(t(t.size - 1), "true")

@@ -31,7 +31,7 @@ class RaphtoryGraphTest extends FunSuite {
       .window(50)
       .vertexFilter(_.getState[String]("name") == "some name")
       .step(_.setState("new", 1))
-      .transform(ConnectedComponents())
+      .transform(ConnectedComponents)
       .select(vertex => Row(vertex.getState("new")))
       .filter(_.getInt(0) == 1)
     val query = table.asInstanceOf[TableImplementation].query

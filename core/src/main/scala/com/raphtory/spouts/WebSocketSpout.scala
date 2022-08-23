@@ -1,10 +1,12 @@
 package com.raphtory.spouts
 
 import com.raphtory.api.input.Spout
+import com.raphtory.api.input.SpoutInstance
 import org.apache.http.HttpHeaders
 import org.apache.http.client.methods.HttpUriRequest
 import org.apache.http.client.methods.RequestBuilder
 import org.apache.http.impl.client.HttpClients
+
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
@@ -33,9 +35,12 @@ import java.io.InputStreamReader
   * @see [[com.raphtory.api.input.Spout Spout]]
   *      [[com.raphtory.Raphtory Raphtory]]
   */
+case class WebSocketSpout(url: String, auth: Option[String], contentType: Option[String]) extends Spout[String] {
+  override def buildSpout(): SpoutInstance[String] = new WebSocketSpoutInstance(url, auth, contentType)
+}
 
-class WebSocketSpout(url: String, auth: Option[String], contentType: Option[String]) extends Spout[String] {
-
+class WebSocketSpoutInstance(url: String, auth: Option[String], contentType: Option[String])
+        extends SpoutInstance[String] {
   val client                  = HttpClients.custom().build()
   var request: HttpUriRequest = _
   if (auth.nonEmpty && contentType.nonEmpty)

@@ -21,12 +21,24 @@ class DeployedTemporalGraph private[raphtory] (
     override private[api] val query: Query,
     override private[api] val querySender: QuerySender,
     override private[api] val conf: Config,
-    val deploymentId: String,
+    private[api] val local: Boolean,
     private val shutdown: IO[Unit]
 ) extends TemporalGraph(query, querySender, conf)
         with AutoCloseable {
 
   def config: Config = conf
+  def getID: String  = conf.getString("raphtory.graph.id")
 
-  override def close(): Unit = shutdown.unsafeRunSync()
+  def destroy(force: Boolean = false): Unit = {
+    if (!local)
+      querySender.destroyGraph(force)
+    shutdown.unsafeRunSync()
+  }
+
+  override def close(): Unit = {
+    if (!local)
+      querySender.disconnect()
+    shutdown.unsafeRunSync()
+  }
+
 }

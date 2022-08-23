@@ -13,6 +13,15 @@ trait Accumulator[-S, T] {
   /** Get last accumulated value */
   def value: T
 
+  /** Add new value to accumulator and return the accumulator object
+    *
+    * @param newValue Value to add
+    */
+  def add(newValue: S): this.type = {
+    this += newValue
+    this
+  }
+
   /** Add new value to accumulator
     * @param newValue Value to add
     */

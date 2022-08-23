@@ -17,7 +17,7 @@ import com.raphtory.api.analysis.table.Table
   * All the operations executed over a `GraphView` get executed individually over every perspective of the graph in the
   * collection. Different perspectives in the collection do not share algorithmic state.
   *
-  * @see [[GraphPerspective]], [[TemporalGraph]], [[RaphtoryGraph]], [[TemporalGraphConnection]], [[DeployedTemporalGraph]]
+  * @see [[GraphPerspective]], [[TemporalGraph]], [[RaphtoryGraph]], [[DeployedTemporalGraph]]
   */
 trait GraphView extends GraphPerspective {
 

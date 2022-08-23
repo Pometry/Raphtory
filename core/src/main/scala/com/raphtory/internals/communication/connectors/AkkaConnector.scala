@@ -83,7 +83,7 @@ private[raphtory] class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Com
         context.system.receptionist ! Receptionist.Register(getServiceKey(topic), context.self)
       }
       Behaviors.receiveMessage[Array[Byte]] { message =>
-        logger.trace(s"Processing message by component $id")
+        //logger.trace(s"Processing message by component $id")
         val nextBehavior =
           try {
             val value = deserialise[Any](message)
@@ -169,15 +169,16 @@ object AkkaConnector {
       .make(Sync[IO].delay(buildActorSystem(mode, config)))(system => Sync[IO].delay(system.terminate()))
       .map(new AkkaConnector(_))
 
-  private def buildActorSystem(mode: Mode, config: Config) =
+  private def buildActorSystem(mode: Mode, config: Config, address: String = "", port: String = "") =
     mode match {
       case AkkaConnector.StandaloneMode => ActorSystem(SpawnProtocol(), systemName)
       case _                            =>
-        val seed                = mode match {
+        val seed = mode match {
           case AkkaConnector.SeedMode   => true
           case AkkaConnector.ClientMode => false
         }
-        val providedSeedAddress = config.getString("raphtory.query.address")
+
+        val providedSeedAddress = config.getString("raphtory.deploy.address")
         val seedAddress         =
           Try(InetAddress.getByName(providedSeedAddress).getHostAddress)
             .getOrElse(providedSeedAddress)

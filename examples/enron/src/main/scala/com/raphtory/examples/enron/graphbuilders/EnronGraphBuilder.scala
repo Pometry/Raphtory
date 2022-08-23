@@ -1,6 +1,10 @@
 package com.raphtory.examples.enron.graphbuilders
 
-import com.raphtory.api.input.{GraphBuilder, ImmutableProperty, Properties, Type}
+import com.raphtory.api.input.Graph
+import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.Properties
+import com.raphtory.api.input.Type
 
 import java.time.format.DateTimeFormatter
 import java.time.LocalDateTime
@@ -38,7 +42,7 @@ class EnronGraphBuilder() extends GraphBuilder[String] {
    * Remove all " and '
    * Add `\n` wherever there is a `sent_mail` : this signifies a new record
    * */
-  override def parseTuple(tuple: String): Unit = {
+  override def parse(graph: Graph, tuple: String): Unit = {
 
     val dateFormat = "EEE, d MMM yyyy HH:mm:ss Z (z)"
     val sParse     = "*Line : " + tuple
@@ -58,14 +62,14 @@ class EnronGraphBuilder() extends GraphBuilder[String] {
     val srcID = assignID(sender)
     val tarID = assignID(receiver)
 
-    addVertex(dateEpochUTC, srcID, Properties(ImmutableProperty("name", sender)), Type("Character"))
-    addVertex(
+    graph.addVertex(dateEpochUTC, srcID, Properties(ImmutableProperty("name", sender)), Type("Character"))
+    graph.addVertex(
             dateEpochUTC,
             tarID,
             Properties(ImmutableProperty("name", receiver)),
             Type("Character")
     )
-    addEdge(
+    graph.addEdge(
             dateEpochUTC,
             srcID,
             tarID,

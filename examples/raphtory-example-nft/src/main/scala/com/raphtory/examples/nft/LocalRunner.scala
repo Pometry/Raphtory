@@ -1,6 +1,7 @@
 package com.raphtory.examples.nft
 
 import com.raphtory.Raphtory
+import com.raphtory.api.input.Source
 import com.raphtory.examples.nft.analysis.CycleMania
 import com.raphtory.examples.nft.graphbuilder.NFTGraphBuilder
 import com.raphtory.formats.JsonFormat
@@ -9,24 +10,25 @@ import com.raphtory.spouts.FileSpout
 
 object LocalRunner extends App {
 
-      val data = "/tmp/Data_API_clean_nfts_ETH_only.csv"
+  val data = "/tmp/Data_API_clean_nfts_ETH_only.csv"
 
-      val source  = FileSpout(data)
-      val builder = new NFTGraphBuilder()
+  val spout   = FileSpout(data)
+  val builder = new NFTGraphBuilder()
+  val source  = Source(spout, builder)
+  val graph   = Raphtory.newGraph()
+  graph.ingest(source)
 
-      val graph   = Raphtory.load(spout = source, graphBuilder = builder)
+  val resultsPath = "/tmp/raphtory_nft"
+  val output      = FileSink(resultsPath, format = JsonFormat())
 
-      val resultsPath = "/tmp/raphtory_nft"
-      val output   = FileSink(resultsPath, format = JsonFormat())
+  val atTime = 1619564391
 
-      val atTime = 1619564391
+  graph
+    .at(atTime)
+    .past()
+    .execute(CycleMania())
+    .writeTo(output)
+    .waitForJob()
 
-      graph
-        .at(atTime)
-        .past()
-        .execute(CycleMania())
-        .writeTo(output)
-        .waitForJob()
-
-      graph.close()
+  graph.close()
 }
