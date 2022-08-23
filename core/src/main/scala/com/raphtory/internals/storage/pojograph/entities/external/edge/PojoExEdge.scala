@@ -28,6 +28,9 @@ private[pojograph] class PojoExEdge(
 
   def dst: Long = edge.getDstId
 
+  private var computationValues: Map[String, Any] =
+    Map.empty //Partial results kept between supersteps in calculation
+
   override def explode(): List[ExplodedEdge]                 =
     historyView.collect { case event if event.event => PojoExplodedEdge.fromEdge(this, event) }.toList
 
