@@ -3,6 +3,7 @@ package com.raphtory.algorithms.generic.motif
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.algorithms.generic.motif
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.internals.communication.SchemaProviderInstances._
 
 /**
   * {s}`LocalTriangleCount()`

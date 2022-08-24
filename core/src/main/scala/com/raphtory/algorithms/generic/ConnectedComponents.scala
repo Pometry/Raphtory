@@ -1,7 +1,6 @@
 package com.raphtory.algorithms.generic
 
 import com.raphtory.api.analysis.graphview.GraphPerspective
-
 import scala.math.Ordering.Implicits._
 
 /**
@@ -46,12 +45,13 @@ class ConnectedComponents extends NodeList(Seq("cclabel")) {
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
+        import vertex._
         vertex.setState("cclabel", vertex.ID)
         vertex.messageAllNeighbours(vertex.ID)
       }
       .iterate(
               { vertex =>
-                import vertex.IDOrdering
+                import vertex._
                 val label = vertex.messageQueue[vertex.IDType].min
                 if (label < vertex.getState[vertex.IDType]("cclabel")) {
                   vertex.setState("cclabel", label)

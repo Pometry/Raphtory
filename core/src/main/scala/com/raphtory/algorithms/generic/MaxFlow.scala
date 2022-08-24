@@ -5,7 +5,7 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.utils.ExtendedNumeric.numericFromInt
-
+import com.raphtory.internals.communication.SchemaProviderInstances._
 import scala.collection.mutable
 import scala.language.existentials
 import scala.math.Numeric.Implicits._

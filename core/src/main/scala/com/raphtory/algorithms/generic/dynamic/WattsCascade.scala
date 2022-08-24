@@ -5,6 +5,7 @@ import com.raphtory.algorithms.generic.dynamic.WattsCascade.Threshold
 import com.raphtory.api.analysis.graphview.GraphPerspective
 
 import scala.util.Random
+import com.raphtory.internals.communication.SchemaProviderInstances._
 
 /**
   * {s}`WattsCascade(infectedSeed:Iterable[String], threshold: T = Threshold.UNIFORM_RANDOM, seed:Long = -1, maxGenerations: Int = 100)`

@@ -2,6 +2,7 @@ package com.raphtory.algorithms.generic.centrality
 
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.internals.communication.SchemaProviderInstances._
 
 /**
   * {s}`PageRank(dampingFactor:Double = 0.85, iterateSteps:Int = 100)`

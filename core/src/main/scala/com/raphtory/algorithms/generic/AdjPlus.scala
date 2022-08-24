@@ -4,7 +4,7 @@ import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
-
+import com.raphtory.internals.communication.SchemaProviderInstances._
 import scala.math.Ordering.Implicits._
 
 /**
@@ -55,6 +55,7 @@ object AdjPlus extends Generic {
 //    return adjPlus as edge list
     graph
       .step { vertex =>
+        import vertex._
         val adj = vertex.getState[Array[vertex.IDType]]("adjPlus")
         adj.foreach(a => vertex.messageVertex(a, vertex.ID))
       }

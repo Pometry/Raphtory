@@ -3,6 +3,7 @@ package com.raphtory.internals.storage.pojograph.entities.external.vertex
 import com.raphtory.api.analysis.visitor.ExplodedVertex
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.api.analysis.visitor.PropertyValue
+import com.raphtory.internals.components.querymanager.SchemaProvider
 import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExMultilayerEdge
 
 import scala.collection.mutable
@@ -82,4 +83,6 @@ private[pojograph] class PojoExplodedVertex(
   override def viewUndirected: PojoUndirectedVertexView[(Long, Long)] = PojoExplodedUndirectedVertexView(this)
 
   override def viewReversed: PojoReversedVertexView[(Long, Long)] = PojoExplodedReversedVertexView(this)
+
+  override implicit val provider: SchemaProvider[(Long, Long)] = ???  // TODO
 }

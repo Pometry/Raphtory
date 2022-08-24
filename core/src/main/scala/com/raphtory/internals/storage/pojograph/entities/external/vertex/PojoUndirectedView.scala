@@ -2,6 +2,7 @@ package com.raphtory.internals.storage.pojograph.entities.external.vertex
 
 import com.raphtory.api.analysis.visitor.ExplodedVertex
 import com.raphtory.api.analysis.visitor.ReducedVertex
+import com.raphtory.internals.components.querymanager.SchemaProvider
 import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExReducedEdgeBase
 
 private[pojograph] class PojoUndirectedVertexView[T](override val vertex: PojoConcreteVertexBase[T])
@@ -53,6 +54,8 @@ private[pojograph] class PojoUndirectedVertexView[T](override val vertex: PojoCo
           case None          => None
         }
     }
+
+  override implicit val provider: SchemaProvider[T] = ???
 }
 
 private[pojograph] class PojoReducedUndirectedVertexView(override val vertex: PojoExVertex)

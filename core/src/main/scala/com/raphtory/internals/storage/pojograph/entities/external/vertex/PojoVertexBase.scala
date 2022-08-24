@@ -6,8 +6,8 @@ import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExDirectedEdgeBase
 import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExEdgeBase
 import com.raphtory.internals.storage.pojograph.messaging.VertexMultiQueue
-import com.raphtory.internals.communication.SchemaProviderInstances._
 import scala.collection.mutable
+import scala.reflect.ClassTag
 
 private[pojograph] trait PojoVertexBase extends Vertex {
   // abstract state
@@ -24,10 +24,9 @@ private[pojograph] trait PojoVertexBase extends Vertex {
   def voteToHalt(): Unit = lens.vertexVoted()
 
   //Send message
-  override def messageSelf(data: Any): Unit =
-    lens.sendMessage(VertexMessage(lens.superStep + 1, ID, data))
 
-  def messageVertex(vertexId: IDType, data: Any): Unit = {
+  def messageVertex[T: ClassTag](vertexId: IDType, data: T)(implicit provider: SchemaProvider[T]): Unit = {
+//    println(s"endpoint = ${provider.endpoint}")
     val message = VertexMessage(lens.superStep + 1, vertexId, data)
     lens.sendMessage(message)
   }

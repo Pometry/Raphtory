@@ -32,11 +32,11 @@ private[raphtory] class TopicRepository(
   protected def ingestSetupConnector: Connector      = defaultControlConnector
   protected def partitionSetupConnector: Connector   = defaultControlConnector
 
-  protected def queryTrackConnector: Connector     = defaultControlConnector
-  protected def rechecksConnector: Connector       = defaultControlConnector
-  protected def jobStatusConnector: Connector      = defaultControlConnector
-  protected def vertexMessagesConnector: Connector = defaultControlConnector
+  protected def queryTrackConnector: Connector = defaultControlConnector
+  protected def rechecksConnector: Connector   = defaultControlConnector
+  protected def jobStatusConnector: Connector  = defaultControlConnector
 
+  protected def vertexMessagesConnector: Connector     = defaultAnalysisConnector
   protected def vertexMessagesSyncConnector: Connector = defaultAnalysisConnector
 
   def jobOperationsConnector: Connector = defaultControlConnector // accessed within the queryHandler

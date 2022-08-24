@@ -2,6 +2,7 @@ package com.raphtory.internals.storage.pojograph.entities.external.vertex
 
 import com.raphtory.api.analysis.visitor.ExplodedVertex
 import com.raphtory.api.analysis.visitor.ReducedVertex
+import com.raphtory.internals.components.querymanager.SchemaProvider
 
 private[pojograph] class PojoReversedVertexView[T](override val vertex: PojoConcreteVertexBase[T])
         extends PojoLocalVertexViewBase(vertex) {
@@ -20,6 +21,8 @@ private[pojograph] class PojoReversedVertexView[T](override val vertex: PojoConc
 
   def getInEdge(id: vertex.IDType): Option[Edge] =
     vertex.getOutEdge(id).map(_.reversed)
+
+  override implicit val provider: SchemaProvider[T] = ??? // TODO
 }
 
 private[pojograph] class PojoReducedReversedVertexView(override val vertex: PojoExVertex)

@@ -6,7 +6,7 @@ import com.raphtory.api.analysis.visitor.InterlayerEdge
 import com.raphtory.api.analysis.visitor.PropertyValue
 import com.raphtory.api.analysis.visitor.ReducedVertex
 import com.raphtory.api.analysis.visitor.Vertex
-import com.raphtory.internals.components.querymanager.GenericVertexMessage
+import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.raphtory.internals.storage.pojograph.entities.external.PojoExEntity
 import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExEdge
@@ -256,4 +256,9 @@ private[raphtory] class PojoExVertex(
   override def viewUndirected: PojoReducedUndirectedVertexView = PojoReducedUndirectedVertexView(this)
 
   override def viewReversed: PojoReversedVertexView[Long] = PojoReducedReversedVertexView(this)
+
+  import com.raphtory.internals.communication.SchemaProviderInstances._
+
+  override implicit val provider: SchemaProvider[Long] = longSchemaProvider
+
 }

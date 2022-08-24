@@ -6,6 +6,7 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
+import com.raphtory.internals.communication.SchemaProviderInstances._
 
 /**
   * Simple algorithm which takes gets the vertices to send their neighbours their name.

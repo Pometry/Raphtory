@@ -4,6 +4,7 @@ import com.raphtory.api.analysis.visitor.Vertex
 
 import java.util
 import scala.jdk.CollectionConverters.SeqHasAsJava
+import com.raphtory.internals.communication.SchemaProviderInstances._
 
 class PythonVertex(v: Vertex) {
   def ID: Any = v.ID
