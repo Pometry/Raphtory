@@ -327,6 +327,8 @@ private[api] trait ConcreteGraphPerspective[V <: visitor.Vertex, G <: ConcreteGr
   def reversedView: Graph
   def step(f: (Vertex) => Unit): Graph
   def step(f: (Vertex, GraphState) => Unit): Graph
+  def edgeStep(f: Edge => Unit): Graph
+  def edgeStep(f: (Edge,GraphState) => Unit): Graph
   def iterate(f: (Vertex) => Unit, iterations: Int, executeMessagedOnly: Boolean): Graph
 
   def iterate(
