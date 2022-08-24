@@ -18,7 +18,7 @@ import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.management.Scheduler
-import com.raphtory.internals.management.python.UnsafeEmbeddedPythonProxy
+import com.raphtory.internals.management.python.EmbeddedPython
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -56,7 +56,7 @@ private[raphtory] class QueryExecutor(
   private val maxBatchSize: Int     = conf.getInt("raphtory.partitions.maxMessageBatchSize")
 
   private val sync = new QuerySuperstepSync(totalPartitions)
-  pyScript.map(s => UnsafeEmbeddedPythonProxy.global.run(s))
+  pyScript.map(s => EmbeddedPython.global.run(s))
 
   private val sinkExecutor: SinkExecutor = sink.executor(jobID, partitionID, conf)
 
