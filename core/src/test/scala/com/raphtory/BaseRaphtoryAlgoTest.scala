@@ -40,20 +40,20 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   private def graph: Resource[IO, DeployedTemporalGraph] =
     Raphtory.newIOGraph()
 
-  val withGraph: SyncIO[FunFixture[TemporalGraph]] = ResourceFixture(
+  lazy val withGraph: SyncIO[FunFixture[TemporalGraph]] = ResourceFixture(
           for {
             _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
             g <- graph
-            _  = g.ingest(Source(setSpout(), setGraphBuilder()))
+            _  = g.blockingIngest(Source(setSpout(), setGraphBuilder()))
           } yield g
   )
 
-  val suiteGraph: Fixture[DeployedTemporalGraph] = ResourceSuiteLocalFixture(
+  lazy val suiteGraph: Fixture[DeployedTemporalGraph] = ResourceSuiteLocalFixture(
           "graph",
           for {
             _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
             g <- graph
-            _  = g.ingest(Source(setSpout(), setGraphBuilder()))
+            _  = g.blockingIngest(Source(setSpout(), setGraphBuilder()))
           } yield g
   )
 

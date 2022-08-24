@@ -58,12 +58,7 @@ private[raphtory] class Reader(
               .scheduleOnce(100.milliseconds, checkWatermark())
     )
 
-  override def handleMessage(msg: QueryManagement): Unit =
-    msg match {
-      case blocking: BlockIngestion     => storage.startBlockIngesting(blocking.sourceID)
-      case unblocking: UnblockIngestion =>
-        storage.stopBlockIngesting(unblocking.sourceID, unblocking.force, unblocking.messageCount)
-    }
+  override def handleMessage(msg: QueryManagement): Unit = {}
 }
 
 object Reader {
@@ -79,7 +74,7 @@ object Reader {
             partitionID,
             topics,
             s"reader-$partitionID",
-            List[Topic[QueryManagement]](topics.blockingIngestion),
+            List[Topic[QueryManagement]](),
             new Reader(partitionID, storage, scheduler, conf, topics)
     )
 }

@@ -56,9 +56,9 @@ private[raphtory] object LocalContext extends RaphtoryContext {
       partitionIdManager <- makeIdManager[IO](config, localDeployment = true, graphID, forPartitions = true)
       sourceIdManager    <- makeIdManager[IO](config, localDeployment = true, graphID, forPartitions = false)
       _                  <- PartitionOrchestrator.spawn[IO](config, partitionIdManager, topicRepo, scheduler)
-      _                  <- IngestionManager[IO](config, topicRepo, sourceIdManager)
+      _                  <- IngestionManager[IO](config, topicRepo)
       _                  <- QueryManager[IO](config, topicRepo)
-    } yield new QuerySender(scheduler, topicRepo, config, createName)
+    } yield new QuerySender(scheduler, topicRepo, config, sourceIdManager, createName)
   }
 
   override def close(): Unit = {

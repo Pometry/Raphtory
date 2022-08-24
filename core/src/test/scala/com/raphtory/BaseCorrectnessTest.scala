@@ -21,8 +21,7 @@ case class TestQuery(
 )
 
 abstract class BaseCorrectnessTest(
-    deleteResultAfterFinish: Boolean = true,
-    startGraph: Boolean = false
+    deleteResultAfterFinish: Boolean = true
 ) extends BaseRaphtoryAlgoTest[String](deleteResultAfterFinish) {
 
   private def runTest(test: TestQuery, graph: TemporalGraph = graphS) =
@@ -39,15 +38,6 @@ abstract class BaseCorrectnessTest(
   override def setGraphBuilder(): GraphBuilder[String] = BasicGraphBuilder()
 
   def setSpout(): Spout[String] = new IdentitySpout
-
-  private def correctResultsHash(resultsResource: String): String = {
-    val source = scala.io.Source.fromResource(resultsResource)
-    try TestUtils.resultsHash(source.getLines())
-    finally source.close()
-  }
-
-  private def correctResultsHash(rows: IterableOnce[String]): String =
-    TestUtils.resultsHash(rows)
 
   def assertResultsMatch(obtained: IterableOnce[String], resultsResource: String): Unit = {
     val source = scala.io.Source.fromResource(resultsResource)
@@ -66,8 +56,8 @@ abstract class BaseCorrectnessTest(
     Raphtory
       .newIOGraph()
       .use { g =>
-        g.ingest(Source(ResourceSpout(graphResource), setGraphBuilder()))
-        runTest(test, graph = g)
+        g.blockingIngest(Source(ResourceSpout(graphResource), setGraphBuilder()))
+        runTest(test, g)
       }
       .map(obtained => assertResultsMatch(obtained, resultsResource))
 
@@ -79,7 +69,7 @@ abstract class BaseCorrectnessTest(
     Raphtory
       .newIOGraph()
       .use { g =>
-        g.ingest(Source(SequenceSpout(graphEdges: _*), setGraphBuilder()))
+        g.blockingIngest(Source(SequenceSpout(graphEdges: _*), setGraphBuilder()))
         runTest(test, g)
       }
       .map(obtained => assertResultsMatch(obtained, results))
@@ -92,8 +82,5 @@ abstract class BaseCorrectnessTest(
 
   def correctnessTest(test: TestQuery, results: String): IO[Unit] =
     runTest(test).map(obtained => assertResultsMatch(obtained, results))
-
-  def correctnessTest(test: TestQuery, graph: TemporalGraph, results: String): IO[Unit] =
-    runTest(test, graph).map(obtained => assertResultsMatch(obtained, results))
 
 }

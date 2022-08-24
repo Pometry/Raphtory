@@ -16,12 +16,11 @@ import scala.collection.immutable.Queue
 private[raphtory] trait QueryManagement extends Serializable
 
 private[raphtory] case class WatermarkTime(
-    graphID: String,
     partitionID: Int,
     oldestTime: Long,
     latestTime: Long,
     safe: Boolean,
-    blocking: Boolean
+    sourceMessages: Array[(Int, Long)]
 ) extends QueryManagement
 
 private[raphtory] case object StartAnalysis extends QueryManagement
@@ -87,6 +86,7 @@ private[raphtory] case class Query(
     windowAlignment: Alignment.Value = Alignment.START,
     graphFunctions: Queue[GraphFunction] = Queue(),
     tableFunctions: Queue[TableFunction] = Queue(),
+    blockedBy: Array[Int] = Array(),
     sink: Option[Sink] = None,
     pyScript: Option[String] = None
 ) extends Submission
@@ -154,7 +154,7 @@ sealed private[raphtory] trait GraphManagement extends QueryManagement
 private[raphtory] case class IngestData(
     _bootstrap: DynamicLoader,
     graphID: String,
-    sources: Seq[Source],
+    sources: Seq[(Int, Source)],
     blocking: Boolean
 ) extends Submission
         with GraphManagement

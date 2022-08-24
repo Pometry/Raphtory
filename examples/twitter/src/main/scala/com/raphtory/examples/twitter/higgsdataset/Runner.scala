@@ -23,7 +23,7 @@ object Runner extends App {
   val builder = new TwitterGraphBuilder()
   val source  = Source(spout, builder)
   val graph   = Raphtory.newGraph()
-  graph.ingest(source)
+  graph.blockingIngest(source)
   Using(graph) { graph =>
     graph
       .range(1341101181, 1341705593, 500000000)

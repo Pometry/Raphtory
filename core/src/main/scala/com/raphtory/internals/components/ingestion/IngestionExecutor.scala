@@ -29,7 +29,7 @@ private[raphtory] class IngestionExecutor(
   private val logger: Logger        = Logger(LoggerFactory.getLogger(this.getClass))
   private val failOnError           = conf.getBoolean("raphtory.builders.failOnError")
   private val writers               = topics.graphUpdates(graphID).endPoint
-  private val readers               = topics.blockingIngestion.endPoint
+  private val queryManager          = topics.blockingIngestion.endPoint
   private val sourceInstance        = source.buildSource(graphID, sourceID)
   private val spoutReschedulesCount = telemetry.spoutReschedules.labels(graphID)
   private val fileLinesSent         = telemetry.fileLinesSent.labels(graphID)
@@ -60,20 +60,18 @@ private[raphtory] class IngestionExecutor(
     spoutReschedulesCount.inc()
     var iBlocked = false
     if (blocking && sourceInstance.hasRemainingUpdates) {
-      readers.sendAsync(BlockIngestion(sourceID = sourceInstance.sourceID, graphID = graphID))
+      queryManager.sendAsync(BlockIngestion(sourceID = sourceInstance.sourceID, graphID = graphID))
       iBlocked = true
     }
     while (sourceInstance.hasRemainingUpdates) {
       fileLinesSent.inc()
       index = index + 1
-      if (index % 100_000 == 0)
-        logger.debug(s"Source: sent $index messages.")
       sourceInstance.sendUpdates(index, failOnError)
     }
     if (sourceInstance.spoutReschedules())
       reschedule()
     if (blocking && iBlocked)
-      readers.sendAsync(
+      queryManager.sendAsync(
               UnblockIngestion(
                       sourceInstance.sourceID,
                       graphID = graphID,

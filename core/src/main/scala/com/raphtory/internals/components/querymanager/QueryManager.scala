@@ -5,6 +5,7 @@ import cats.effect.Resource
 import com.raphtory.internals.communication.CanonicalTopic
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
+import com.raphtory.internals.graph.SourceTracker
 import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -12,6 +13,7 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.concurrent._
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 private[raphtory] class QueryManager(
     scheduler: Scheduler,
@@ -20,12 +22,58 @@ private[raphtory] class QueryManager(
 ) extends Component[QueryManagement](conf) {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val currentQueries = mutable.Map[String, QueryHandler]()
-  private val ingestion      = topics.ingestSetup.endPoint
+  private val currentQueries                   = mutable.Map[String, QueryHandler]()
+  private val ingestion                        = topics.ingestSetup.endPoint
+  val sources: mutable.Map[Int, SourceTracker] = mutable.Map[Int, SourceTracker]()
+  val blockedQueries: ArrayBuffer[Query]       = ArrayBuffer[Query]()
+
+  def startBlockIngesting(ID: Int): Unit = {
+    logger.info(s"Source '$ID' is blocking analysis for Graph '$graphID'")
+    sources.get(ID) match {
+      case Some(tracker) => //already created
+      case None          => sources.put(ID, SourceTracker())
+    }
+  }
+
+  def stopBlockIngesting(ID: Int, force: Boolean, msgCount: Int): Unit =
+    if (force) {
+      logger.info(s"Source '$ID' is forced unblocking analysis for Graph '$graphID' with $msgCount messages sent.")
+      sources.foreach {
+        case (id, tracker) =>
+          tracker.unblock()
+          if (id == ID)
+            tracker.setTotalSent(msgCount)
+          else
+            tracker.setTotalSent(0)
+      }
+    }
+    else {
+      logger.info(s"Source '$ID' is unblocking analysis for Graph '$graphID' with $msgCount messages sent.")
+      sources.get(ID) match {
+        case Some(tracker) =>
+          tracker.unblock()
+          tracker.setTotalSent(msgCount)
+        case None          => //somehow updates unordered
+          logger.error(s"Source Tracker for source $ID was missing")
+
+      }
+    }
+
+  def currentlyBlockIngesting(blockedBy: Array[Int]): Boolean = {
+    val generalBlocking = sources
+      .map({
+        case (id, tracker) => tracker.isBlocking
+      })
+      .fold(false)(_ || _)
+
+    if (!generalBlocking && blockedBy.nonEmpty)
+      !blockedBy.forall(sources.contains)
+    else
+      generalBlocking
+  }
 
   //private val watermarkGlobal                           = pulsarController.globalwatermarkPublisher() TODO: turn back on when needed
-  private val watermarks =
-    new TrieMap[String, TrieMap[Int, WatermarkTime]].withDefault(graph => new TrieMap[Int, WatermarkTime]())
+  private val watermarks = TrieMap[Int, WatermarkTime]()
 
   override def run(): Unit = logger.debug("Starting Query Manager Consumer.")
 
@@ -35,15 +83,37 @@ private[raphtory] class QueryManager(
 
   override def handleMessage(msg: QueryManagement): Unit =
     msg match {
-      case ingestData: IngestData   =>
+      case ingestData: IngestData       =>
         ingestion sendAsync ingestData
-      case query: Query             =>
-        val jobID        = query.name
-        logger.debug(s"Handling query: $query")
-        val queryHandler = spawnQuery(jobID, query)
-        trackNewQuery(jobID, queryHandler)
 
-      case req: EndQuery            =>
+      case blocking: BlockIngestion     =>
+        startBlockIngesting(blocking.sourceID)
+        checkBlockedQueries()
+      case unblocking: UnblockIngestion =>
+        stopBlockIngesting(unblocking.sourceID, unblocking.force, unblocking.messageCount)
+        checkBlockedQueries()
+
+      case query: Query                 =>
+        val jobID = query.name
+        logger.debug(s"Handling query: $query")
+
+        query.blockedBy.foreach(source =>
+          sources.get(source) match {
+            case Some(tracker) => //already created
+            case None          => sources.put(source, SourceTracker())
+          }
+        )
+
+        if (currentlyBlockIngesting(query.blockedBy)) {
+          logger.info(s"Query '${query.name}' currently blocked, waiting for ingestion to complete.")
+          blockedQueries += query
+        }
+        else {
+          val queryHandler = spawnQuery(jobID, query)
+          trackNewQuery(jobID, queryHandler)
+        }
+
+      case req: EndQuery                =>
         currentQueries.synchronized {
           currentQueries.get(req.jobID) match {
             case Some(queryhandler) =>
@@ -52,19 +122,22 @@ private[raphtory] class QueryManager(
             case None               => //sender ! QueryNotPresent(req.jobID)
           }
         }
-      case watermark: WatermarkTime =>
-//        logger.trace(
-//                s"Setting watermark to earliest time '${watermark.oldestTime}'" +
-//                  s" and latest time '${watermark.latestTime}'" +
-//                  s" for partition '${watermark.partitionID}'" +
-//                  s" in graph ${watermark.graphID}."
-//        )
-        if (watermarks contains watermark.graphID)
-          watermarks(watermark.graphID).put(watermark.partitionID, watermark)
-        else {
-          val graphWatermarks = TrieMap(watermark.partitionID -> watermark)
-          watermarks.put(watermark.graphID, graphWatermarks)
+        blockedQueries.filter(q => q.name equals req.jobID)
+
+      case watermark: WatermarkTime     =>
+        watermarks.put(watermark.partitionID, watermark)
+        watermark.sourceMessages.foreach {
+          case (id, count) =>
+            sources.get(id) match {
+              case Some(tracker) => tracker.setReceivedMessage(watermark.partitionID, count)
+              case None          =>
+                val tracker = SourceTracker()
+                tracker.setReceivedMessage(watermark.partitionID, count)
+                sources.put(watermark.partitionID, tracker)
+            }
         }
+        checkBlockedQueries()
+
     }
 
   private def spawnQuery(id: String, query: Query): QueryHandler = {
@@ -76,17 +149,30 @@ private[raphtory] class QueryManager(
     queryHandler
   }
 
+  private def checkBlockedQueries(): Unit = {
+    val activated = ArrayBuffer[Int]()
+    var index     = 0
+    blockedQueries.foreach { query =>
+      if (!currentlyBlockIngesting(query.blockedBy)) {
+        val queryHandler = spawnQuery(query.name, query)
+        trackNewQuery(query.name, queryHandler)
+        activated += index
+      }
+      index += 1
+    }
+    activated.foreach(blockedQueries.remove)
+  }
+
   private def trackNewQuery(jobID: String, queryHandler: QueryHandler): Unit =
     //sender() ! ManagingTask(queryHandler)
     currentQueries.synchronized(currentQueries += ((jobID, queryHandler)))
 
   def latestTime(graphID: String): Long = {
-    val watermark = if (watermarks(graphID).size == totalPartitions) {
+    val watermark = if (watermarks.size == totalPartitions) {
       var safe    = true
       var minTime = Long.MaxValue
       var maxTime = Long.MinValue
-
-      watermarks(graphID)
+      watermarks
         .foreach {
           case (partition, watermark) =>
             safe = watermark.safe && safe
@@ -103,9 +189,9 @@ private[raphtory] class QueryManager(
   }
 
   //TODO if blocking this should return none
-  def earliestTime(graphID: String): Option[Long] =
-    if (watermarks(graphID).size == totalPartitions) {
-      val startTimes = watermarks(graphID).map { case (_, watermark) => watermark.oldestTime }
+  def earliestTime(): Option[Long] =
+    if (watermarks.size == totalPartitions) {
+      val startTimes = watermarks.map { case (_, watermark) => watermark.oldestTime }
       Some(startTimes.min)
     }
     else
@@ -122,7 +208,7 @@ object QueryManager {
       topics: TopicRepository
   ): Resource[IO, QueryManager] = {
     val scheduler = new Scheduler
-    val topicList = List(topics.submissions, topics.watermark, topics.completedQueries)
+    val topicList = List(topics.submissions, topics.watermark, topics.completedQueries, topics.blockingIngestion)
     Component.makeAndStart[IO, QueryManagement, QueryManager](
             topics,
             "query-manager",

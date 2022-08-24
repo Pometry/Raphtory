@@ -20,15 +20,6 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
   protected val failOnError: Boolean = conf.getBoolean("raphtory.partitions.failOnError")
   val watermarker                    = new Watermarker(graphID, this)
 
-  def startBlockIngesting(ID: Int): Unit =
-    watermarker.startBlockIngesting(ID)
-
-  def stopBlockIngesting(ID: Int, force: Boolean, msgCount: Int): Unit =
-    watermarker.stopBlockIngesting(ID, force, msgCount)
-
-  def currentlyBlockIngesting(): Boolean =
-    watermarker.currentlyBlockIngesting()
-
   // Ingesting Vertices
   def addVertex(
       sourceID: Int,

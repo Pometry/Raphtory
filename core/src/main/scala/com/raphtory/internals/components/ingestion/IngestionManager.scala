@@ -17,8 +17,7 @@ import scala.collection.mutable
 
 class IngestionManager(
     conf: Config,
-    topics: TopicRepository,
-    idManager: IDManager
+    topics: TopicRepository
 ) extends Component[IngestData](conf) {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
@@ -29,17 +28,11 @@ class IngestionManager(
       case IngestData(_, graphID, sources, blocking) =>
         logger.info(s"Ingestion Manager for '$graphID' establishing new data source")
         executors.synchronized {
-          sources foreach { source =>
-            idManager.getNextAvailableID() match {
-              case Some(id) =>
-                val ingestionResource    = IngestionExecutor[IO](graphID, source, blocking, id, conf, topics)
-                val (_, ingestionCancel) = ingestionResource.allocated.unsafeRunSync()
-                executors += ingestionCancel
-              case None     =>
-                logger.error(
-                        s"Could not deploy $source as Ingestion Manager for graph '$graphID could not acquire a source ID"
-                )
-            }
+          sources foreach {
+            case (id, source) =>
+              val ingestionResource    = IngestionExecutor[IO](graphID, source, blocking, id, conf, topics)
+              val (_, ingestionCancel) = ingestionResource.allocated.unsafeRunSync()
+              executors += ingestionCancel
 
           }
         }
@@ -57,13 +50,12 @@ object IngestionManager {
 
   def apply[IO[_]: Async: Spawn](
       conf: Config,
-      topics: TopicRepository,
-      idManager: IDManager
+      topics: TopicRepository
   ): Resource[IO, IngestionManager] =
     Component.makeAndStart(
             topics,
             s"ingestion-manager",
             List(topics.ingestSetup),
-            new IngestionManager(conf, topics, idManager)
+            new IngestionManager(conf, topics)
     )
 }

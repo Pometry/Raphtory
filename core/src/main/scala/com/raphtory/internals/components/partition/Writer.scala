@@ -118,7 +118,8 @@ private[raphtory] class Writer(
       case Some(value) =>
         neighbours(getWriter(value.updateId)) sendAsync value
         storage.watermarker.trackEdgeAddition(update.updateTime, update.index, update.srcId, update.dstId)
-      case None        => //Edge is local
+      case None        => storage.watermarker.safeRecordCompletedUpdate(update.sourceID)
+
     }
     telemetry.streamWriterEdgeAdditionsCollector.labels(partitionID.toString, graphID).inc()
   }
@@ -131,7 +132,8 @@ private[raphtory] class Writer(
       case Some(value) =>
         neighbours(getWriter(value.updateId)) sendAsync value
         storage.watermarker.trackEdgeDeletion(update.updateTime, update.index, update.srcId, update.dstId)
-      case None        => //Edge is local
+      case None        => storage.watermarker.safeRecordCompletedUpdate(update.sourceID)
+
     }
     telemetry.streamWriterEdgeDeletionsCollector.labels(partitionID.toString, graphID).inc()
   }

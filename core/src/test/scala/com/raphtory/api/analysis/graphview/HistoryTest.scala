@@ -53,7 +53,7 @@ class WindowedInEdgeHistory(after: Long, before: Long) extends GenericReduction 
     }
 }
 
-class HistoryTest extends BaseCorrectnessTest(startGraph = true) {
+class HistoryTest extends BaseCorrectnessTest {
   val rng = new Random(42) // fixed network
 
   val edges = {

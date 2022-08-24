@@ -6,7 +6,7 @@ import com.raphtory.TimeSeriesGraphState
 import com.raphtory.api.input.Spout
 import com.raphtory.spouts.ResourceSpout
 
-class TimeSeriesTest extends BaseCorrectnessTest(startGraph = true) {
+class TimeSeriesTest extends BaseCorrectnessTest {
   override def setSpout(): Spout[String] = ResourceSpout("TimeSeriesGraphState/timeSeries.csv")
   test("Time Series Test") {
     correctnessTest(

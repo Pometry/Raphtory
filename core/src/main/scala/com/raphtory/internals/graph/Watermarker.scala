@@ -24,65 +24,23 @@ object VertexUpdate {
   implicit val ordering: Ordering[VertexUpdate] = Ordering.by(v => (v.time, v.index, v.id))
 }
 
+case class SourceCounter(var total: Long) {
+  def increment() = total = total + 1;
+  def get(): Long = total
+}
+
 private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
 
-  private val logger: Logger                    = Logger(LoggerFactory.getLogger(this.getClass))
-  private val lock: Lock                        = new ReentrantLock()
-  val blocking: mutable.Map[Int, SourceTracker] = mutable.Map[Int, SourceTracker]()
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val lock: Lock     = new ReentrantLock()
 
-  def startBlockIngesting(ID: Int): Unit = {
-    lock.lock()
-    logger.info(s"Source '$ID' is blocking analysis for Graph '$graphID'")
-    blocking.get(ID) match {
-      case Some(tracker) => //already created by the writer just do nothing
-      case None          => blocking.put(ID, SourceTracker(ID))
-    }
-    lock.unlock()
-  }
-
-  def stopBlockIngesting(ID: Int, force: Boolean, msgCount: Int): Unit = {
-    lock.lock()
-    if (force) {
-      logger.info(s"Source '$ID' is forced unblocking analysis for Graph '$graphID' with $msgCount messages sent.")
-      blocking.foreach {
-        case (id, tracker) =>
-          tracker.unblock()
-          if (id == ID)
-            tracker.setTotalSent(msgCount)
-          else
-            tracker.setTotalSent(0)
-      }
-    }
-    else {
-      logger.info(s"Source '$ID' is unblocking analysis for Graph '$graphID' with $msgCount messages sent.")
-      blocking.get(ID) match {
-        case Some(tracker) =>
-          tracker.unblock()
-          tracker.setTotalSent(msgCount)
-        case None          => //somehow updates unordered
-          logger.error(s"Source Tracker for source $ID was missing")
-
-      }
-    }
-    lock.unlock()
-  }
-
-  def currentlyBlockIngesting(): Boolean = {
-    lock.lock()
-    val blocked = blocking
-      .map({
-        case (id, tracker) => tracker.isBlocking
-      })
-      .fold(false)(_ || _)
-    lock.unlock()
-    blocked
-  }
+  private val sources: mutable.Map[Int, SourceCounter] = mutable.Map[Int, SourceCounter]()
 
   val oldestTime: AtomicLong = new AtomicLong(Long.MaxValue)
   val latestTime: AtomicLong = new AtomicLong(0)
 
   private var latestWatermark =
-    WatermarkTime(graphID, storage.getPartitionID, Long.MaxValue, 0, safe = false, blocking = false)
+    WatermarkTime(storage.getPartitionID, Long.MaxValue, 0, safe = false, Array[(Int, Long)]())
 
   //Current unsynchronised updates
   private val edgeAdditions: mutable.TreeSet[EdgeUpdate] = mutable.TreeSet()
@@ -129,13 +87,10 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
     lock.unlock()
   }
 
-  private def recordCompletedUpdate(sourceID: Int) =
-    blocking.get(sourceID) match {
-      case Some(tracker) => tracker.receiveMessage
-      case None          =>
-        val tracker = SourceTracker(sourceID)
-        tracker.receiveMessage
-        blocking.put(sourceID, tracker)
+  private def recordCompletedUpdate(sourceID: Int): Unit =
+    sources.get(sourceID) match {
+      case Some(tracker) => tracker.increment()
+      case None          => sources.put(sourceID, new SourceCounter(1))
     }
 
   def untrackEdgeAddition(sourceID: Int, timestamp: Long, index: Long, src: Long, dst: Long): Unit = {
@@ -180,50 +135,53 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
   def updateWatermark(): Unit = {
     lock.lock()
     try {
-      val time = latestTime.get()
-      if (!storage.currentlyBlockIngesting()) {
-        val edgeAdditionTime =
-          if (edgeAdditions.nonEmpty)
-            edgeAdditions.minBy(_.time).time
-          else
-            time
+      val time             = latestTime.get()
+      val edgeAdditionTime =
+        if (edgeAdditions.nonEmpty)
+          edgeAdditions.minBy(_.time).time
+        else
+          time
 
-        val edgeDeletionTime =
-          if (edgeDeletions.nonEmpty)
-            edgeDeletions.minBy(_.time).time
-          else
-            time
+      val edgeDeletionTime =
+        if (edgeDeletions.nonEmpty)
+          edgeDeletions.minBy(_.time).time
+        else
+          time
 
-        val vertexDeletionTime: Long =
-          if (vertexDeletions.nonEmpty)
-            vertexDeletions.keys.minBy(_.time).time //find the min and then extract the time
-          else
-            time
+      val vertexDeletionTime: Long =
+        if (vertexDeletions.nonEmpty)
+          vertexDeletions.keys.minBy(_.time).time //find the min and then extract the time
+        else
+          time
 
-        val finalTime =
-          Array(time, edgeAdditionTime, edgeDeletionTime, vertexDeletionTime).min
+      val finalTime =
+        Array(time, edgeAdditionTime, edgeDeletionTime, vertexDeletionTime).min
 
-        val noBlockingOperations =
-          edgeAdditions.isEmpty && edgeDeletions.isEmpty && vertexDeletions.isEmpty
+      val noBlockingOperations =
+        edgeAdditions.isEmpty && edgeDeletions.isEmpty && vertexDeletions.isEmpty
 
-        val newWatermark =
-          WatermarkTime(
-                  graphID,
-                  storage.getPartitionID,
-                  oldestTime.get(),
-                  finalTime,
-                  noBlockingOperations,
-                  storage.currentlyBlockIngesting()
-          )
+      val sourceCount = sources
+        .map({
+          case (key, value) => (key, value.get())
+        })
+        .toArray
 
-        if (newWatermark != latestWatermark)
-          logger.trace(
-                  s"Partition ${storage.getPartitionID} for '$graphID': Creating watermark with " +
-                    s"earliest time '${oldestTime.get()}' and latest time '$finalTime'."
-          )
+      val newWatermark =
+        WatermarkTime(
+                storage.getPartitionID,
+                oldestTime.get(),
+                finalTime,
+                noBlockingOperations,
+                sourceCount
+        )
 
-        latestWatermark = newWatermark
-      }
+      if (newWatermark != latestWatermark)
+        logger.trace(
+                s"Partition ${storage.getPartitionID} for '$graphID': Creating watermark with " +
+                  s"earliest time '${oldestTime.get()}' and latest time '$finalTime'."
+        )
+
+      latestWatermark = newWatermark
     }
     catch {
       case e: Exception =>

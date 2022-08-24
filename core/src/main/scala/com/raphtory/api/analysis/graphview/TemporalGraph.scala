@@ -36,13 +36,13 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   private var index = 1
 
   def ingest(sources: Source*): G = {
-    querySender.submitGraph(blocking = false, sources, conf.getString("raphtory.graph.id"))
+    querySender.submitSource(blocking = false, sources, conf.getString("raphtory.graph.id"))
     this
   }
 
   @varargs // Needed for python support for now (creates appropriate java accessors)
   def blockingIngest(sources: Source*): G = {
-    querySender.submitGraph(blocking = true, sources, conf.getString("raphtory.graph.id"))
+    querySender.submitSource(blocking = true, sources, conf.getString("raphtory.graph.id"))
     this
   }
 

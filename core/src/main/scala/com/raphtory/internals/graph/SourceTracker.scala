@@ -1,19 +1,23 @@
 package com.raphtory.internals.graph
 
-class SourceTracker(sourceID: Int) {
+import scala.collection.mutable
 
-  private var totalSent        = Int.MaxValue
-  private var receivedMessages = 0
+class SourceTracker() {
+
+  private var totalSent        = Long.MaxValue
+  private val receivedMessages = mutable.Map[Int, Long]()
   private var blocking         = true
 
-  def block(): Unit               = blocking = true
-  def unblock(): Unit             = blocking = false
-  def receiveMessage: Unit        = receivedMessages += 1
-  def setTotalSent(newTotal: Int) = totalSent = newTotal
-  def isBlocking                  = blocking || receivedMessages < totalSent
+  def block(): Unit   = blocking = true
+  def unblock(): Unit = blocking = false
+
+  def setReceivedMessage(partitionID: Int, newReceivedMessages: Long): Unit =
+    receivedMessages.put(partitionID, newReceivedMessages)
+  def setTotalSent(newTotal: Long): Unit                                    = totalSent = newTotal
+  def isBlocking: Boolean                                                   = blocking || receivedMessages.values.sum < totalSent
 
 }
 
 object SourceTracker {
-  def apply(sourceID: Int) = new SourceTracker(sourceID)
+  def apply() = new SourceTracker()
 }

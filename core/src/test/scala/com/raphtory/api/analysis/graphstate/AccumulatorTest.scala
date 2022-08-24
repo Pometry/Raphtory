@@ -70,7 +70,7 @@ object CheckNodeCount extends Generic {
     }
 }
 
-class AccumulatorTest extends BaseCorrectnessTest(startGraph = true) {
+class AccumulatorTest extends BaseCorrectnessTest {
   override def setSpout(): Spout[String] = ResourceSpout("MotifCount/motiftest.csv")
 
   test("Test accumulators by counting nodes") {
@@ -92,7 +92,7 @@ class AccumulatorTest extends BaseCorrectnessTest(startGraph = true) {
       ) // this makes prometheus start on a random unused port
       .use { graph =>
         IO {
-          graph.ingest(Source(ResourceSpout("MotifCount/motiftest.csv"), BasicGraphBuilder()))
+          graph.blockingIngest(Source(ResourceSpout("MotifCount/motiftest.csv"), BasicGraphBuilder()))
           val job = graph
             .range(10, 23, 1)
             .window(10, Alignment.END)
