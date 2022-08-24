@@ -10,14 +10,12 @@ import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.internals.management.python.EmbeddedPython
-import com.raphtory.internals.management.python.UnsafeEmbeddedPythonProxy
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 import java.util
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
-import scala.reflect.ClassTag
 import scala.reflect.runtime.universe
 import scala.util.Random
 
@@ -189,7 +187,7 @@ trait PythonFunction {
   protected val pickleBytes: Array[Byte]
   protected val eval_name = s"_${Random.alphanumeric.take(32).mkString}"
 
-  private def py: EmbeddedPython[Id] = UnsafeEmbeddedPythonProxy.global
+  private def py: EmbeddedPython[Id] = EmbeddedPython.global
 
   private def initialize(py: EmbeddedPython[Id]) = {
     try py.run(eval_name)

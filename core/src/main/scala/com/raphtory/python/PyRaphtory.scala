@@ -25,28 +25,19 @@ object PyRaphtory
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  def checkAndWait(parentID: Long): IO[ExitCode] =
-    for {
-      parent <- IO.blocking(ProcessHandle.current().parent().toScala)
-      code   <- parent match {
-                  case None    =>
-                    IO.blocking(
-                            logger
-                              .debug("check and wait but no parent")
-                    ) *> IO.pure(ExitCode.Success)
-                  case Some(p) =>
-                    if (parentID == p.pid())
-                      IO.blocking(
-                              logger
-                                .debug("check and wait with parent alive")
-                      ) *> IO.sleep(10.seconds) *> checkAndWait(parentID)
-                    else
-                      IO.blocking(
-                              logger
-                                .debug("check and wait with parent dead")
-                      ) *> IO.pure(ExitCode.Success)
-                }
-    } yield code
+  def checkParent(parentID: Long): IO[Unit] =
+    IO.blocking(ProcessHandle.current().parent().toScala match {
+      case None    =>
+        logger.error("parent proces not found, shutting down")
+        throw new RuntimeException("parent process not found")
+      case Some(p) =>
+        if (parentID == p.pid())
+          logger.trace("process still alive")
+        else {
+          logger.error("parent process died, shutting down")
+          throw new RuntimeException("parent process died")
+        }
+    }) *> IO.sleep(10.seconds)
 
   override def main: Opts[IO[ExitCode]] = {
     val parentID = Opts.option[Long](long = "parentID", short = "p", help = "Parent process ID").orNone
@@ -55,7 +46,7 @@ object PyRaphtory
     parentID.map {
       case None     => gateway.useForever
       case Some(id) =>
-        gateway.use(_ => IO.println("running PyRaphtory with parent check") *> checkAndWait(id))
+        gateway.use(_ => IO.println("running PyRaphtory with parent check") *> checkParent(id).foreverM)
     }
   }
 }

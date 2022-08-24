@@ -1,5 +1,6 @@
 package com.raphtory.internals.management.python
 
+import cats.Id
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.internals.management.PyRef
 import com.raphtory.internals.management.PythonEncoder
@@ -12,7 +13,10 @@ trait EmbeddedPython[IO[_]] {
 
   def run(script: String): IO[Unit]
 
-  def loadGraphBuilder[T: PythonEncoder](cls: String, pkg: Option[String]): IO[GraphBuilder[T]]
-
   def set(name: String, obj: Any): IO[Unit]
+}
+
+object EmbeddedPython {
+  private val interpreters       = ThreadLocal.withInitial[EmbeddedPython[Id]](() => UnsafeEmbeddedPython.apply())
+  def global: EmbeddedPython[Id] = interpreters.get()
 }

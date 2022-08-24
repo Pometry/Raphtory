@@ -15,7 +15,7 @@ import com.raphtory.internals.graph.PerspectiveController
 import com.raphtory.internals.graph.PerspectiveController.DEFAULT_PERSPECTIVE_TIME
 import com.raphtory.internals.graph.PerspectiveController.DEFAULT_PERSPECTIVE_WINDOW
 import com.raphtory.internals.management.Scheduler
-import com.raphtory.internals.management.python.UnsafeEmbeddedPythonProxy
+import com.raphtory.internals.management.python.EmbeddedPython
 import com.raphtory.internals.serialisers.KryoSerialiser
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -45,7 +45,7 @@ private[raphtory] class QueryHandler(
   private val tracker        = topics.queryTrack(jobID).endPoint
   private val workerList     = topics.jobOperations(jobID).endPoint
 
-  pyScript.map(s => UnsafeEmbeddedPythonProxy.global.run(s))
+  pyScript.map(s => EmbeddedPython.global.run(s))
 
   private val listener =
     topics.registerListener(

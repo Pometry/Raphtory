@@ -1,7 +1,6 @@
 package com.raphtory.internals.management.python
 
 import cats.Id
-import com.raphtory.api.input.GraphBuilder
 import com.raphtory.internals.management.PyRef
 import com.raphtory.internals.management.PythonEncoder
 import pemja.core.PythonInterpreter
@@ -17,13 +16,6 @@ import scala.language.postfixOps
 class UnsafeEmbeddedPython(py: PythonInterpreter, private var i: Int = 0)
         extends EmbeddedPython[Id]
         with AutoCloseable { self =>
-
-  def loadGraphBuilder[T: PythonEncoder](cls: String, pkg: Option[String]): Id[GraphBuilder[T]] = {
-    pkg.foreach(pkg => py.exec(s"from $pkg import $cls")) // import the class if it's in a package
-    val name: String = newVar
-    py.exec(s"$name = $cls()")
-    new UnsafeGraphBuilder[T](PyRef(name), self)
-  }
 
   def invoke(ref: PyRef, methodName: String, args: Vector[Object] = Vector.empty): Id[Object] =
     py.invokeMethod(ref.name, methodName, args: _*)

@@ -53,7 +53,7 @@ if __name__ == "__main__":
         ac += latest
 
     df2 = (graph
-           .set_global_state(lambda s: s.new_int_max("max_time"))
+           .set_global_state(lambda s: s.new_accumulator("max_time", 0, op=lambda a, b: max(a, b)))
            .step(accum_step)
            .global_select(lambda s: Row(s["max_time"].value()))
            .write_to_dataframe(["max_time"]))
