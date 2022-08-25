@@ -5,8 +5,9 @@ from collections.abc import Iterable, Mapping
 from py4j.java_gateway import JavaObject, JavaClass
 import cloudpickle as pickle
 from functools import cached_property
+from threading import Lock
 
-
+_wrapper_lock = Lock()
 _method_cache = {}
 _wrappers = {}
 
@@ -106,20 +107,30 @@ def get_wrapper(obj):
         logger.trace(f"Found wrapper for {name!r} based on class name")
     except KeyError:
         # Create a new base class for the jvm wrapper and add methods
-        # (note this registers the wrapper as _classname is defined)
-        base = type(name + "_jvm", (GenericScalaProxy,), {"_classname": name})
-        base._init_methods(obj)
-        # Check if a special wrapper class is registered for the object
-        wrap_name = _scala.scala.get_wrapper_str(obj)
-        if wrap_name in _wrappers:
-            # Add special wrapper class to the top of the mro such that method overloads work
-            logger.trace(f"Using wrapper based on name {wrap_name}")
-            wrapper = type(name, (_wrappers[wrap_name], base), {"_classname": name})
-        else:
-            # No special wrapper registered, can use base wrapper directly
-            logger.trace(f"No wrapper found for name {wrap_name}")
-            wrapper = base
-        logger.trace(f"New wrapper created for {name!r}")
+        with _wrapper_lock:
+            if name in _wrappers:
+                # a different thread already created the wrapper
+                wrapper = _wrappers[name]
+                logger.trace(f"Found wrapper for {name!r} based on class name after initial wait")
+            else:
+                base = type(name + "_jvm", (GenericScalaProxy,), {})
+                # do not register base wrapper here, or it will get picked up by other threads
+                base._init_methods(obj)
+                # Check if a special wrapper class is registered for the object
+                wrap_name = _scala.scala.get_wrapper_str(obj)
+                if wrap_name in _wrappers:
+                    # Add special wrapper class to the top of the mro such that method overloads work
+                    logger.trace(f"Using wrapper based on name {wrap_name} for {name}")
+                    # Note this wrapper is registered automatically as '_classname' is defined
+                    wrapper = type(name, (_wrappers[wrap_name], base), {"_classname": name})
+                else:
+                    # No special wrapper registered, can use base wrapper directly
+                    logger.trace(f"No wrapper found for name {wrap_name}")
+                    wrapper = base
+                    # register the base wrapper in this case
+                    wrapper._classname = name
+                    register(wrapper)
+                logger.trace(f"New wrapper created for {name!r}")
     logger.trace(f"Wrapper is {wrapper!r}")
     return wrapper
 
@@ -267,6 +278,7 @@ class GenericScalaProxy(ScalaProxyBase):
     _initialised = False
     _classname = None
     _jvm_object = None
+    _init_lock = Lock()
 
     @classmethod
     def _init_methods(cls, jvm_object):
@@ -275,15 +287,17 @@ class GenericScalaProxy(ScalaProxyBase):
 
         :param jvm_object: java object to wrap
         """
-        if not cls._initialised:
-            logger.trace(f"uninitialised class {cls.__name__}")
-            if jvm_object is None:
-                raise RuntimeError("Need object to find methods")
-            logger.trace(f"Getting methods for {jvm_object}")
-            methods = get_methods(jvm_object)
-            for (name, method_array) in methods.items():
-                setattr(cls, name, MethodProxyDescriptor(name, method_array))
-            cls._initialised = True
+        with cls._init_lock:
+            # this should only happen once in the case of multiple threads
+            if not cls._initialised:
+                logger.trace(f"uninitialised class {cls.__name__}")
+                if jvm_object is None:
+                    raise RuntimeError("Need object to find methods")
+                logger.trace(f"Getting methods for {jvm_object}")
+                methods = get_methods(jvm_object)
+                for (name, method_array) in methods.items():
+                    setattr(cls, name, MethodProxyDescriptor(name, method_array))
+                cls._initialised = True
 
     @property
     def classname(self):
@@ -420,6 +434,7 @@ class GenericMethodProxy(object):
 class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
     """Metaclass for wrapping Scala companion objects"""
     _base_initialised = False
+    _init_lock = Lock()
 
     def __new__(mcs, name, bases, attrs, **kwargs):
         """Injects an additional specialised type to avoid interference between different classes"""
@@ -444,15 +459,17 @@ class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
     @classmethod
     def _init_base_methods(mcs, jvm_object):
         """add companion object methods to metaclass"""
-        if not mcs._base_initialised:
-            logger.trace(f"uninitialised class {mcs.__name__}")
-            if jvm_object is None:
-                raise RuntimeError("Need object to find methods")
-            logger.trace(f"Getting methods for {jvm_object}")
-            methods = get_methods(jvm_object)
-            for (name, method_array) in methods.items():
-                setattr(mcs, name, MethodProxyDescriptor(name, method_array))
-            mcs._base_initialised = True
+        with mcs._init_lock:
+            # this should only happen once in case of multiple threads
+            if not mcs._base_initialised:
+                logger.trace(f"uninitialised class {mcs.__name__}")
+                if jvm_object is None:
+                    raise RuntimeError("Need object to find methods")
+                logger.trace(f"Getting methods for {jvm_object}")
+                methods = get_methods(jvm_object)
+                for (name, method_array) in methods.items():
+                    setattr(mcs, name, MethodProxyDescriptor(name, method_array))
+                mcs._base_initialised = True
 
 
 
