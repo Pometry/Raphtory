@@ -188,15 +188,13 @@ private[raphtory] class QueryManager(
     watermark
   }
 
-  //TODO if blocking this should return none
   def earliestTime(): Option[Long] =
-    if (watermarks.size == totalPartitions) {
+    if (!currentlyBlockIngesting(Array()) && watermarks.size == totalPartitions) {
       val startTimes = watermarks.map { case (_, watermark) => watermark.oldestTime }
       Some(startTimes.min)
     }
     else
       None
-  // not received a message from each partition yet
 }
 
 object QueryManager {
