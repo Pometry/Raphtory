@@ -65,19 +65,22 @@ private[raphtory] case class FilteredEdgeMessage[VertexID](
     superstep: Int,
     vertexId: VertexID,
     sourceId: VertexID
-) extends GenericVertexMessage[VertexID]
+)(implicit val provider: SchemaProvider[FilteredEdgeMessage[_]])
+        extends GenericVertexMessage[VertexID]
 
 private[raphtory] case class FilteredInEdgeMessage[VertexID](
     superstep: Int,
     vertexId: VertexID,
     sourceId: VertexID
-) extends GenericVertexMessage[VertexID]
+)(implicit val provider: SchemaProvider[FilteredEdgeMessage[_]])
+        extends GenericVertexMessage[VertexID]
 
 private[raphtory] case class FilteredOutEdgeMessage[VertexID](
     superstep: Int,
     vertexId: VertexID,
     sourceId: VertexID
-) extends GenericVertexMessage[VertexID]
+)(implicit val provider: SchemaProvider[FilteredEdgeMessage[_]])
+        extends GenericVertexMessage[VertexID]
 
 private[raphtory] case class VertexMessagesSync(partitionID: Int, count: Long)(implicit
     val provider: SchemaProvider[VertexMessagesSync]

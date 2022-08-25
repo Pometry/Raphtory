@@ -3,7 +3,7 @@ package com.raphtory.internals.communication.repositories
 import com.raphtory.arrowmessaging.ArrowFlightMessageSignatureRegistry
 import com.raphtory.internals.communication.models._
 import com.raphtory.internals.communication.models.graphalterations._
-import com.raphtory.internals.communication.models.vertexmessaging.{BooleanArrowFlightMessage, CharArrowFlightMessage, DoubleArrowFlightMessage, FloatArrowFlightMessage, IntArrowFlightMessage, LongArrowFlightMessage, StringArrowFlightMessage, VertexMessagesSyncArrowFlightMessage}
+import com.raphtory.internals.communication.models.vertexmessaging._
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.GraphAlteration._
 
@@ -21,6 +21,36 @@ object ArrowFlightRepository {
         signatureRegistry.registerSignature(
                 endpoint,
                 classOf[VertexMessagesSyncArrowFlightMessage]
+        )
+      }
+
+    private[raphtory] lazy val filteredEdgeMessageArrowFlightMessageSchemaProvider =
+      new ArrowFlightSchemaProvider[FilteredEdgeMessage[_]] {
+        override val endpoint = "filteredEdgeMessage"
+
+        signatureRegistry.registerSignature(
+          endpoint,
+          classOf[FilteredEdgeMessageArrowFlightMessage]
+        )
+      }
+
+    private[raphtory] lazy val filteredInEdgeMessageArrowFlightMessageSchemaProvider =
+      new ArrowFlightSchemaProvider[FilteredInEdgeMessage[_]] {
+        override val endpoint = "filteredInEdgeMessage"
+
+        signatureRegistry.registerSignature(
+          endpoint,
+          classOf[FilteredInEdgeMessageArrowFlightMessage]
+        )
+      }
+
+    private[raphtory] lazy val filteredOutEdgeMessageArrowFlightMessageSchemaProvider =
+      new ArrowFlightSchemaProvider[FilteredOutEdgeMessage[_]] {
+        override val endpoint = "filteredOutEdgeMessage"
+
+        signatureRegistry.registerSignature(
+          endpoint,
+          classOf[FilteredOutEdgeMessageArrowFlightMessage]
         )
       }
 
