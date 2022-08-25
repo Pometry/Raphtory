@@ -13,6 +13,9 @@ import com.raphtory.internals.components.querymanager.VertexMessage
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.raphtory.utils.OrderingFunctions._
 
+import scala.collection.mutable.ArrayBuffer
+import scala.reflect.ClassTag
+
 private[pojograph] trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
   def view: PojoGraphLens
 
@@ -28,6 +31,71 @@ private[pojograph] trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
     view.sendMessage(FilteredOutEdgeMessage(view.superStep + 1, src, dst))
     view.sendMessage(FilteredInEdgeMessage(view.superStep + 1, dst, src))
   }
+
+  private var computationValues: Map[String, Any] =
+    Map.empty //Partial results kept between supersteps in calculation
+
+  override def setState(key: String, value: Any): Unit =
+    computationValues += ((key, value))
+
+  override def getState[T](key: String, includeProperties: Boolean): T =
+    if (computationValues.contains(key))
+      computationValues(key).asInstanceOf[T]
+    else if (includeProperties && getPropertySet().contains(key))
+      getProperty[T](key).get
+    else if (includeProperties)
+      throw new Exception(
+        s"$key not found within analytical state or properties within edge {${(src,dst)}."
+      )
+    else
+      throw new Exception(s"$key not found within analytical state within edge {${(src,dst)}")
+
+  override def getStateOrElse[T](key: String, value: T, includeProperties: Boolean): T =
+    if (computationValues contains key)
+      computationValues(key).asInstanceOf[T]
+    else if (includeProperties && getPropertySet().contains(key))
+      getProperty[T](key).get
+    else
+      value
+
+  override def containsState(key: String, includeProperties: Boolean): Boolean =
+    computationValues.contains(key) || (includeProperties && getPropertySet().contains(key))
+
+  /** Retrieve value from algorithmic state if it exists or set this state to a default value and return otherwise
+    *
+    * @tparam `T` value type for state
+    * @param key               key to use for retrieving state
+    * @param value             default value to set and return if state does not exist
+    * @param includeProperties set this to `true` to fall-through to vertex properties
+    *                          if `key` is not found in algorithmic state. State is only set if this is also not found.
+    */
+  override def getOrSetState[T](key: String, value: T, includeProperties: Boolean): T = {
+    var output_value = value
+    if (containsState(key))
+      output_value = getState[T](key)
+    else {
+      if (includeProperties && getPropertySet().contains(key))
+        output_value = getProperty[T](key).get
+      setState(key, output_value)
+    }
+    output_value
+  }
+
+  /** Append new value to existing array or initialise new array if state does not exist
+    * The value type of the state is assumed to be `ArrayBuffer[T]` if the state already exists.
+    *
+    * @tparam `T` value type for state (needs to have a `ClassTag` available due to Scala `Array` implementation)
+    * @param key   key to use for retrieving state
+    * @param value value to append to state
+    */
+  override def appendToState[T: ClassTag](key: String, value: T): Unit = //write function later
+    computationValues.get(key) match {
+      case Some(arr) =>
+        setState(key, arr.asInstanceOf[ArrayBuffer[T]] :+ value)
+      case None      =>
+        setState(key, ArrayBuffer(value))
+    }
+
 }
 
 private[pojograph] trait PojoExplodedEdgeBase[T] extends PojoExEdgeBase[T] with ConcreteExplodedEdge[T] {

@@ -17,6 +17,7 @@ import scala.collection.IndexedSeqView
 import scala.collection.mutable
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
+import scala.reflect.ClassTag
 
 abstract private[pojograph] class PojoExEntity(
     entity: PojoEntity,
