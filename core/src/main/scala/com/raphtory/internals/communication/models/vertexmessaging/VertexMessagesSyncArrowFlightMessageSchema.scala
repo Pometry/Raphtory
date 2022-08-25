@@ -1,13 +1,12 @@
-package com.raphtory.internals.communication.models
+package com.raphtory.internals.communication.models.vertexmessaging
 
+import com.raphtory.arrowmessaging.model._
+import com.raphtory.arrowmessaging.shapelessarrow._
+import com.raphtory.internals.communication.SchemaProviderInstances._
+import com.raphtory.internals.components.querymanager.VertexMessagesSync
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.types.pojo._
-import org.apache.arrow.vector.VectorSchemaRoot
-import com.raphtory.arrowmessaging.model._
-import com.raphtory.arrowmessaging.shapelessarrow._
-import com.raphtory.internals.components.querymanager.VertexMessagesSync
-import com.raphtory.internals.communication.SchemaProviderInstances._
 
 import scala.reflect.ClassTag
 

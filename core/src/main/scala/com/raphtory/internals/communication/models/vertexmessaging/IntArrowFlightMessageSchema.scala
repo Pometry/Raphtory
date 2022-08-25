@@ -1,28 +1,28 @@
-package com.raphtory.internals.communication.models
+package com.raphtory.internals.communication.models.vertexmessaging
 
+import com.raphtory.arrowmessaging.model._
+import com.raphtory.arrowmessaging.shapelessarrow._
+import com.raphtory.internals.communication.SchemaProviderInstances._
+import com.raphtory.internals.components.querymanager.VertexMessage
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.types.pojo._
-import org.apache.arrow.vector.VectorSchemaRoot
-import com.raphtory.arrowmessaging.model._
-import com.raphtory.arrowmessaging.shapelessarrow._
-import com.raphtory.internals.components.querymanager.VertexMessage
-import com.raphtory.internals.communication.SchemaProviderInstances._
+
 import scala.reflect.ClassTag
 
-case class LongArrowFlightMessage(
+case class IntArrowFlightMessage(
     superStep: Int = 0,
     dstVertexId: Long = 0L,
-    vertexId: Long = 0L
+    data: Int = 0
 ) extends ArrowFlightMessage
 
-case class LongArrowFlightMessageVectors(
+case class IntArrowFlightMessageVectors(
     superSteps: IntVector,
     dstVertexIds: BigIntVector,
-    vertexIds: BigIntVector
+    data: IntVector
 ) extends ArrowFlightMessageVectors
 
-case class LongArrowFlightMessageSchema[
+case class IntArrowFlightMessageSchema[
     A <: ArrowFlightMessageVectors,
     B <: ArrowFlightMessage
 ] private (
@@ -39,33 +39,36 @@ case class LongArrowFlightMessageSchema[
 ) extends ArrowFlightMessageSchema[A, B](vectorSchemaRoot, vectors) {
 
   override def decodeMessage[T](row: Int): T = {
-    val msg = getMessageAtRow(row).asInstanceOf[LongArrowFlightMessage]
-    VertexMessage(msg.superStep, msg.dstVertexId, msg.vertexId).asInstanceOf[T]
+    val msg = getMessageAtRow(row).asInstanceOf[IntArrowFlightMessage]
+    VertexMessage(msg.superStep, msg.dstVertexId, msg.data).asInstanceOf[T]
   }
 
   override def encodeMessage[T](msg: T): ArrowFlightMessage = {
     val fmsg = msg.asInstanceOf[VertexMessage[_, _]]
-    LongArrowFlightMessage(
+    IntArrowFlightMessage(
             fmsg.superstep,
             fmsg.vertexId.asInstanceOf[Long],
-            fmsg.data.asInstanceOf[Long]
+            fmsg.data.asInstanceOf[Int]
     )
   }
 }
 
-class LongArrowFlightMessageSchemaFactory extends ArrowFlightMessageSchemaFactory {
+class IntArrowFlightMessageSchemaFactory extends ArrowFlightMessageSchemaFactory {
 
   private def getVectors(vectorSchemaRoot: VectorSchemaRoot) = {
     val superSteps   = vectorSchemaRoot.getVector("superStep").asInstanceOf[IntVector]
     val dstVertexIds = vectorSchemaRoot.getVector("dstVertexId").asInstanceOf[BigIntVector]
-    val vertexIds    = vectorSchemaRoot.getVector("vertexId").asInstanceOf[BigIntVector]
+    val data         = vectorSchemaRoot.getVector("data").asInstanceOf[IntVector]
 
-    (superSteps, dstVertexIds, vertexIds)
+    (superSteps, dstVertexIds, data)
   }
 
   override def getInstance(
       allocator: BufferAllocator
-  ): LongArrowFlightMessageSchema[LongArrowFlightMessageVectors, LongArrowFlightMessage] = {
+  ): IntArrowFlightMessageSchema[
+          IntArrowFlightMessageVectors,
+          IntArrowFlightMessage
+  ] = {
     import scala.jdk.CollectionConverters._
 
     val schema: Schema =
@@ -82,37 +85,40 @@ class LongArrowFlightMessageSchemaFactory extends ArrowFlightMessageSchemaFactor
                               null
                       ),
                       new Field(
-                              "vertexId",
-                              new FieldType(false, new ArrowType.Int(64, true), null),
+                              "data",
+                              new FieldType(false, new ArrowType.Int(32, true), null),
                               null
                       )
               ).asJava
       )
 
-    val vectorSchemaRoot                      = VectorSchemaRoot.create(schema, allocator)
-    val (superSteps, dstVertexIds, vertexIds) = getVectors(vectorSchemaRoot)
+    val vectorSchemaRoot                 = VectorSchemaRoot.create(schema, allocator)
+    val (superSteps, dstVertexIds, data) = getVectors(vectorSchemaRoot)
 
-    LongArrowFlightMessageSchema(
+    IntArrowFlightMessageSchema(
             vectorSchemaRoot,
-            LongArrowFlightMessageVectors(
+            IntArrowFlightMessageVectors(
                     superSteps,
                     dstVertexIds,
-                    vertexIds
+                    data
             )
     )
   }
 
   override def getInstance(
       vectorSchemaRoot: VectorSchemaRoot
-  ): LongArrowFlightMessageSchema[LongArrowFlightMessageVectors, LongArrowFlightMessage] = {
-    val (superSteps, dstVertexIds, vertexIds) = getVectors(vectorSchemaRoot)
+  ): IntArrowFlightMessageSchema[
+          IntArrowFlightMessageVectors,
+          IntArrowFlightMessage
+  ] = {
+    val (superSteps, dstVertexIds, data) = getVectors(vectorSchemaRoot)
 
-    LongArrowFlightMessageSchema(
+    IntArrowFlightMessageSchema(
             vectorSchemaRoot,
-            LongArrowFlightMessageVectors(
+            IntArrowFlightMessageVectors(
                     superSteps,
                     dstVertexIds,
-                    vertexIds
+                    data
             )
     )
   }

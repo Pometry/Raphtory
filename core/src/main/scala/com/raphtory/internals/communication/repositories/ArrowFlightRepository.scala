@@ -3,6 +3,7 @@ package com.raphtory.internals.communication.repositories
 import com.raphtory.arrowmessaging.ArrowFlightMessageSignatureRegistry
 import com.raphtory.internals.communication.models._
 import com.raphtory.internals.communication.models.graphalterations._
+import com.raphtory.internals.communication.models.vertexmessaging.{BooleanArrowFlightMessage, CharArrowFlightMessage, DoubleArrowFlightMessage, FloatArrowFlightMessage, IntArrowFlightMessage, LongArrowFlightMessage, StringArrowFlightMessage, VertexMessagesSyncArrowFlightMessage}
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.GraphAlteration._
 

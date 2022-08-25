@@ -1,28 +1,28 @@
-package com.raphtory.internals.communication.models
+package com.raphtory.internals.communication.models.vertexmessaging
 
+import com.raphtory.arrowmessaging.model._
+import com.raphtory.arrowmessaging.shapelessarrow._
+import com.raphtory.internals.communication.SchemaProviderInstances._
+import com.raphtory.internals.components.querymanager.VertexMessage
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.types.pojo._
-import org.apache.arrow.vector.VectorSchemaRoot
-import com.raphtory.arrowmessaging.model._
-import com.raphtory.arrowmessaging.shapelessarrow._
-import com.raphtory.internals.components.querymanager.VertexMessage
-import com.raphtory.internals.communication.SchemaProviderInstances._
+
 import scala.reflect.ClassTag
 
-case class BooleanArrowFlightMessage(
+case class StringArrowFlightMessage(
     superStep: Int = 0,
     dstVertexId: Long = 0L,
-    data: Boolean = false
+    data: String = ""
 ) extends ArrowFlightMessage
 
-case class BooleanArrowFlightMessageVectors(
+case class StringArrowFlightMessageVectors(
     superSteps: IntVector,
     dstVertexIds: BigIntVector,
-    data: BitVector
+    data: VarCharVector
 ) extends ArrowFlightMessageVectors
 
-case class BooleanArrowFlightMessageSchema[
+case class StringArrowFlightMessageSchema[
     A <: ArrowFlightMessageVectors,
     B <: ArrowFlightMessage
 ] private (
@@ -39,36 +39,33 @@ case class BooleanArrowFlightMessageSchema[
 ) extends ArrowFlightMessageSchema[A, B](vectorSchemaRoot, vectors) {
 
   override def decodeMessage[T](row: Int): T = {
-    val msg = getMessageAtRow(row).asInstanceOf[BooleanArrowFlightMessage]
+    val msg = getMessageAtRow(row).asInstanceOf[StringArrowFlightMessage]
     VertexMessage(msg.superStep, msg.dstVertexId, msg.data).asInstanceOf[T]
   }
 
   override def encodeMessage[T](msg: T): ArrowFlightMessage = {
     val fmsg = msg.asInstanceOf[VertexMessage[_, _]]
-    BooleanArrowFlightMessage(
+    StringArrowFlightMessage(
             fmsg.superstep,
             fmsg.vertexId.asInstanceOf[Long],
-            fmsg.data.asInstanceOf[Boolean]
+            fmsg.data.asInstanceOf[String]
     )
   }
 }
 
-class BooleanArrowFlightMessageSchemaFactory extends ArrowFlightMessageSchemaFactory {
+class StringArrowFlightMessageSchemaFactory extends ArrowFlightMessageSchemaFactory {
 
   private def getVectors(vectorSchemaRoot: VectorSchemaRoot) = {
     val superSteps   = vectorSchemaRoot.getVector("superStep").asInstanceOf[IntVector]
     val dstVertexIds = vectorSchemaRoot.getVector("dstVertexId").asInstanceOf[BigIntVector]
-    val data         = vectorSchemaRoot.getVector("data").asInstanceOf[BitVector]
+    val data         = vectorSchemaRoot.getVector("data").asInstanceOf[VarCharVector]
 
     (superSteps, dstVertexIds, data)
   }
 
   override def getInstance(
       allocator: BufferAllocator
-  ): BooleanArrowFlightMessageSchema[
-          BooleanArrowFlightMessageVectors,
-          BooleanArrowFlightMessage
-  ] = {
+  ): StringArrowFlightMessageSchema[StringArrowFlightMessageVectors, StringArrowFlightMessage] = {
     import scala.jdk.CollectionConverters._
 
     val schema: Schema =
@@ -84,16 +81,16 @@ class BooleanArrowFlightMessageSchemaFactory extends ArrowFlightMessageSchemaFac
                               new FieldType(false, new ArrowType.Int(64, true), null),
                               null
                       ),
-                      new Field("data", new FieldType(false, new ArrowType.Bool(), null), null)
+                      new Field("data", new FieldType(false, new ArrowType.Utf8(), null), null)
               ).asJava
       )
 
     val vectorSchemaRoot                 = VectorSchemaRoot.create(schema, allocator)
     val (superSteps, dstVertexIds, data) = getVectors(vectorSchemaRoot)
 
-    BooleanArrowFlightMessageSchema(
+    StringArrowFlightMessageSchema(
             vectorSchemaRoot,
-            BooleanArrowFlightMessageVectors(
+            StringArrowFlightMessageVectors(
                     superSteps,
                     dstVertexIds,
                     data
@@ -103,15 +100,13 @@ class BooleanArrowFlightMessageSchemaFactory extends ArrowFlightMessageSchemaFac
 
   override def getInstance(
       vectorSchemaRoot: VectorSchemaRoot
-  ): BooleanArrowFlightMessageSchema[
-          BooleanArrowFlightMessageVectors,
-          BooleanArrowFlightMessage
-  ] = {
+  ): StringArrowFlightMessageSchema[StringArrowFlightMessageVectors, StringArrowFlightMessage] = {
+
     val (superSteps, dstVertexIds, data) = getVectors(vectorSchemaRoot)
 
-    BooleanArrowFlightMessageSchema(
+    StringArrowFlightMessageSchema(
             vectorSchemaRoot,
-            BooleanArrowFlightMessageVectors(
+            StringArrowFlightMessageVectors(
                     superSteps,
                     dstVertexIds,
                     data
