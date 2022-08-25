@@ -7,12 +7,63 @@ import com.raphtory.api.analysis.visitor.{ExplodedEdge, ReducedVertex, Vertex}
 
 import scala.collection.mutable
 
+/**
+  *  {s}`ThreeNodeMotifs(delta:Long, graphWide:Boolean=true, prettyPrint:Boolean=true)`
+  *    : Count occurrences of three-edge up-to-three-node temporal motifs in the network. The parmer
+  *
+  *  The algorithm is very based on that in "Motifs in Temporal Networks". An option is given to return results as a hashmap with labels or as an array which is easier for post-processing.
+  *
+  *  ## Motifs
+  *
+  *  ### Stars
+  *
+  *  There are three classes (in the order they are outputted) of star motif on three nodes based on the switching behaviour of the edges between the two leaf nodes.
+  *
+  *   - PRE: Stars of the form i<->j, i<->j, i<->k (ie two interactions with leaf j followed by one with leaf k)
+  *   - MID: Stars of the form i<->j, i<->k, i<->j (ie switching interactions from leaf j to leaf k, back to j again)
+  *   - POST: Stars of the form i<->j, i<->k, i<->k (ie one interaction with leaf j followed by two with leaf k)
+  *
+  *  Within each of these classes is 8 motifs depending on the direction of the first to the last edge -- incoming "I" or outgoing "O".
+  *  These are enumerated in the order III, IIO, IOI, IOO, OII, OIO, OOI, OOO (like binary with "I"-0 and "O"-1).
+  *
+  *  ### Two node motifs
+  *
+  *  Also included are two node motifs, of which there are 8 when counted from the perspective of each vertex. These are characterised by the direction of each edge, enumerated
+  *  in the above order. Note that for the global graph counts, each motif is counted in both directions (a single III motif for one vertex is an OOO motif for the other vertex).
+  *
+  *  ### Triangles
+  *
+  *  There are 8 triangle motifs, below is the order in which they appear in the returned array:
+  *
+  *   1. i --> j, k --> j, i --> k
+  *   2. i --> j, k --> i, j --> k
+  *   3. i --> j, j --> k, i --> k
+  *   4. i --> j, i --> k, j --> k
+  *   5. i --> j, k --> j, k --> i
+  *   6. i --> j, k --> i, k --> j
+  *   7. i --> j, j --> k, k --> i
+  *   8. i --> j, i --> k, k --> j
+  *
+  * ## States
+  *  {s}`starCounts: Array[Int]`
+  *    : Three-node star motif counts stored as an array (see indices above)
+  *  {s}`twoNodeCounts: Array[Int]`
+  *    : Two-node motif counts stored as an array (see indices above)
+  *  {s}`triCounts: Array[Int]`
+  *    : Triangle motif counts stored as an array (see indices above)
+  */
 
-class ThreeNodeMotifs(delta:Long=3600) extends GenericReduction {
+class ThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint:Boolean=true) extends GenericReduction {
 
   override def apply(graph: GraphPerspective): graph.ReducedGraph = {
-    graph.reducedView.
-      step {
+    graph.reducedView
+      .setGlobalState{
+        state =>
+          state.newAccumulator[Array[Int]]("twoNodeCounts",Array.fill(8)(0), retainState = true, (ar1, ar2) => ar1.zip(ar2).map{case (x,y) => x + y})
+          state.newAccumulator[Array[Int]]("triCounts",Array.fill(8)(0), retainState = true, (ar1, ar2) => ar1.zip(ar2).map{case (x,y) => x + y})
+          state.newAccumulator[Array[Int]]("starCounts",Array.fill(24)(0), retainState = true, (ar1, ar2) => ar1.zip(ar2).map{case (x,y) => x + y})
+      }
+      .step {
         v=>
           val neighbours = v.neighbours.toSet
           neighbours.foreach{nb =>
@@ -90,7 +141,7 @@ class ThreeNodeMotifs(delta:Long=3600) extends GenericReduction {
           }
       }
       .step{
-        v=>
+        (v, state) =>
           v.neighbours.filter(_>v.ID).foreach{
             nb =>
               val edge = v.getEdge(nb).minBy(_.src)
@@ -103,13 +154,16 @@ class ThreeNodeMotifs(delta:Long=3600) extends GenericReduction {
                   .toList
                   .sortBy(_._3)
                 mc.execute(inputEdges,delta)
-                val triadCounts = v.getState[Array[Int]]("triCounts")
-                v.setState("triCounts", triadCounts.zip(mc.getCounts).map{ case(x,y)=> x+y})
+                val newVal = v.getState[Array[Int]]("triCounts")
+                  .zip(mc.getCounts)
+                  .map{ case(x,y)=> x+y}
+                v.setState("triCounts", newVal)
+                state("triCounts")+=newVal
               }
           }
       }
       .step({
-        v =>
+        (v, state) =>
           val mc = new StarMotifCounter(v.ID)
           mc.execute(v.explodeAllEdges().map(e=> (e.src,e.dst,e.timestamp)).sortBy(_._3),delta)
           val counts : Array[Int] = mc.getCounts
@@ -125,12 +179,61 @@ class ThreeNodeMotifs(delta:Long=3600) extends GenericReduction {
               twoNodeCounts = twoNodeCounts.zip(twoNC).map{ case (x,y) => x+y}
           }
           v.setState("twoNodeCounts",twoNodeCounts)
+          state("twoNodeCounts")+=twoNodeCounts
           v.setState("starCounts",counts)
+          state("starCounts")+=counts
     })
   }
 
   override def tabularise(graph: ReducedGraphPerspective): Table = {
-    graph.select(vertex => Row(vertex.name, vertex.getState[Array[Int]]("starCounts").toList, vertex.getState[Array[Int]]("twoNodeCounts").toList, vertex.getState[Array[Int]]("triCounts").toList))
+    if (!graphWide) {
+      if (prettyPrint)
+        graph.select(vertex => Row(vertex.name, getStarCountsPretty(vertex.getState[Array[Int]]("starCounts")), get2NodeCountsWithoutRepeats(vertex.getState[Array[Int]]("twoNodeCounts")), getTriCountsPretty(vertex.getState[Array[Int]]("triCounts"))))
+      else
+        graph.select(vertex => Row(vertex.name, (vertex.getState[Array[Int]]("starCounts")++vertex.getState[Array[Int]]("twoNodeCounts")++vertex.getState[Array[Int]]("triCounts")).mkString("(", ";", ")")))
+    } else {
+      if (prettyPrint)
+        graph.globalSelect(state => Row(getStarCountsPretty(state[Array[Int],Array[Int]]("starCounts").value), get2NodeCountsWithoutRepeats(state[Array[Int],Array[Int]]("twoNodeCounts").value), getTriCountsPretty(state[Array[Int],Array[Int]]("triCounts").value)))
+      else
+        graph.globalSelect(state => Row((state[Array[Int],Array[Int]]("starCounts").value++state[Array[Int],Array[Int]]("twoNodeCounts").value++state[Array[Int],Array[Int]]("triCounts").value).mkString("(", ";", ")")))
+    }
+  }
+
+  def getTriCountsPretty(triCounts:Array[Int]): Map[String,Int] = {
+    val prettyCounts = mutable.Map[String,Int]()
+    prettyCounts.put("i --> j, k --> j, i --> k", triCounts(0))
+    prettyCounts.put("i --> j, k --> i, j --> k", triCounts(1))
+    prettyCounts.put("i --> j, j --> k, i --> k", triCounts(2))
+    prettyCounts.put("i --> j, i --> k, j --> k", triCounts(3))
+    prettyCounts.put("i --> j, k --> j, k --> i", triCounts(4))
+    prettyCounts.put("i --> j, k --> i, k --> j", triCounts(5))
+    prettyCounts.put("i --> j, j --> k, k --> i", triCounts(6))
+    prettyCounts.put("i --> j, i --> k, k --> j", triCounts(7))
+    prettyCounts.toMap
+  }
+
+  def get2NodeCountsPretty(counts:Array[Int]): Map[String,Int] = {
+    val prettyCounts = mutable.Map[String,Int]()
+    prettyCounts.put("III",counts(0))
+    prettyCounts.put("IIO",counts(1))
+    prettyCounts.put("IOI",counts(2))
+    prettyCounts.put("IOO",counts(3))
+    prettyCounts.put("OII",counts(4))
+    prettyCounts.put("OIO",counts(5))
+    prettyCounts.put("OOI",counts(6))
+    prettyCounts.put("OOO",counts(7))
+    prettyCounts.toMap
+  }
+
+  def get2NodeCountsWithoutRepeats(counts:Array[Int], local:Boolean=true): Map[String,Int] = {
+    get2NodeCountsPretty(counts).map{case (k,v) => ("2NODE-"+k,v)}.toMap
+  }
+
+  def getStarCountsPretty(counts:Array[Int]): Map[String,Int] = {
+    val preMap = get2NodeCountsPretty(counts.slice(0,8)).map{case (k,v) => ("STAR-PRE-"+k,v)}
+    val midMap = get2NodeCountsPretty(counts.slice(8,16)).map{case (k,v) => ("STAR-MID-"+k,v)}
+    val postMap = get2NodeCountsPretty(counts.slice(16,24)).map{case (k,v) => ("STAR-POST-"+k,v)}
+    preMap++midMap++postMap
   }
 
 }
@@ -140,7 +243,7 @@ abstract class MotifCounter {
   val incoming: Int = 0
   val outgoing: Int = 1
 
-  val dirsToMap = List((0,0),(0,1),(1,0),(1,1)).map { k=> (k,0)}
+  val dirsToMap: Seq[((Int, Int), Int)] = List((0,0),(0,1),(1,0),(1,1)).map { k=> (k,0)}
   val preNodes: mutable.Map[(Int, Long), Int] = mutable.Map[(Int,Long),Int]().withDefaultValue(0)
   val postNodes: mutable.Map[(Int, Long), Int] = mutable.Map[(Int,Long),Int]().withDefaultValue(0)
   val preSum: mutable.Map[(Int, Int), Int] = mutable.Map[(Int,Int),Int]()++=dirsToMap
@@ -247,7 +350,7 @@ class TriadMotifCounter(uid: Long, vid: Long) {
   }
 
   def getCounts: Array[Int] = {
-    finalCounts.values.toArray
+    finalCounts.toSeq.sortBy(_._1).map(_._2).toArray
   }
 }
 
@@ -301,7 +404,7 @@ class StarMotifCounter(vid: Long) extends MotifCounter {
   }
 
   def getCounts: Array[Int] = {
-    (countPre.values++countPost.values++countMid.values).toArray
+    (countPre.toSeq.sortBy(_._1).map(_._2)++countMid.toSeq.sortBy(_._1).map(_._2)++countPost.toSeq.sortBy(_._1).map(_._2)).toArray
   }
 
   }
@@ -349,11 +452,13 @@ class TwoNodeMotifs(vid: Long) {
     count1d(dir)+=1
   }
 
-  def getCounts:Array[Int] = count3d.values.toArray
+  def getCounts:Array[Int] = {
+    count3d.toSeq.sortBy(_._1).map(_._2).toArray
+  }
 }
 
 case class RequestEdges(sendTo:Long, dst:Long)
 
 object ThreeNodeMotifs {
-  def apply(delta:Long=3600) = new ThreeNodeMotifs(delta)
+  def apply(delta:Long=3600, graphWide:Boolean=false, prettyPrint:Boolean=true) = new ThreeNodeMotifs(delta,graphWide,prettyPrint)
 }
