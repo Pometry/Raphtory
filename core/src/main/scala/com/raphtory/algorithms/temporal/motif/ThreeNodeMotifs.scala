@@ -6,6 +6,7 @@ import com.raphtory.api.analysis.table.{Row, Table}
 import com.raphtory.api.analysis.visitor.{ExplodedEdge, ReducedVertex, Vertex}
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 /**
   *  {s}`ThreeNodeMotifs(delta:Long, graphWide:Boolean=true, prettyPrint:Boolean=true)`
@@ -145,7 +146,7 @@ class ThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint:Bool
           v.neighbours.filter(_>v.ID).foreach{
             nb =>
               val edge = v.getEdge(nb).minBy(_.src)
-              val a_e = edge.getStateOrElse[Array[(Long,Long,Long)]]("a_e",Array())
+              val a_e = edge.getStateOrElse[ArrayBuffer[(Long,Long,Long)]]("a_e",ArrayBuffer())
               if (a_e.nonEmpty) {
                 val mc = new TriadMotifCounter(v.ID, nb)
                 val inputEdges = a_e
