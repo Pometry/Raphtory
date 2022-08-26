@@ -31,18 +31,18 @@ if __name__ == "__main__":
     print(df)
 
     # TODO: This works but is rather slow
-    #
-    # graph2 = pr.new_graph()
-    # # can just call add_vertex, add_edge on graph directly without spout/builder
-    # with open("/tmp/lotr.csv") as f:
-    #     for line in f:
-    #         parse(graph2, line)
-    # df = (graph
-    #       .select(lambda vertex: Row(vertex.name(), vertex.degree()))
-    #       .write_to_dataframe(["name", "degree"]))
-    # print(df)
+    graph2 = pr.new_graph()
+    # can just call add_vertex, add_edge on graph directly without spout/builder
+    with open("/tmp/lotr.csv") as f:
+        for line in f:
+            parse(graph2, line)
 
-    df2 = (graph
+    df = (graph2
+          .select(lambda vertex: Row(vertex.name(), vertex.degree()))
+          .write_to_dataframe(["name", "degree"]))
+    print(df)
+
+    df2 = (graph2
            .select(lambda v: Row(v.name(), v.latest_activity().time()))
            .write_to_dataframe(["name", "latest_time"]))
     print(df2)
@@ -60,3 +60,4 @@ if __name__ == "__main__":
     print(df2)
 
     graph.select(lambda vertex: Row(vertex.name(), vertex.degree())).write_to_file("/tmp/test").wait_for_job()
+

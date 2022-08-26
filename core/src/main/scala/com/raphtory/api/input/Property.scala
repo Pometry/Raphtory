@@ -54,7 +54,7 @@ case class IntegerProperty(key: String, value: Integer) extends Property
 case class Properties(properties: Vector[Property])
 
 object Properties {
-  @varargs def apply(property: Property*): Properties = Properties(Vector.from(property))
+  def apply(property: Property*): Properties = Properties(Vector.from(property))
 
   def apply(properties: IterableOnce[Property]): Properties = Properties(Vector.from(properties))
 }
