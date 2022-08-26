@@ -10,7 +10,8 @@ import com.raphtory.internals.context.LocalContext.createName
 import com.raphtory.internals.management._
 import com.raphtory.internals.management.id.IDManager
 import com.raphtory.internals.management.id.LocalIDManager
-import com.raphtory.internals.management.id.ZookeeperIDManager
+import com.raphtory.internals.management.id.ZooKeeperCounter
+import com.raphtory.internals.management.id.ZookeeperLimitedPool
 import com.typesafe.config.Config
 
 import scala.collection.mutable.ArrayBuffer
@@ -97,10 +98,10 @@ object Raphtory {
         val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
         val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
         val totalPartitions: Int     = partitionServers * partitionsPerServer
-        ZookeeperIDManager(zookeeperAddress, graphID, "partitionCount", poolSize = totalPartitions)
+        ZookeeperLimitedPool(zookeeperAddress, graphID, "partitionCount", poolSize = totalPartitions)
       }
       else
-        ZookeeperIDManager(zookeeperAddress, graphID, "sourceCount", poolSize = 100)
+        ZooKeeperCounter(zookeeperAddress, graphID, "sourceCount")
     }
 
   private[raphtory] def createName: String =

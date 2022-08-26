@@ -93,9 +93,9 @@ private[raphtory] class Writer(
   // Graph Updates from the builders
   def processVertexAdd(update: VertexAdd): Unit = {
     logger.trace(s"Partition $partitionID: Received VertexAdd message '$update'.")
-    storage.watermarker.safeRecordCompletedUpdate(update.sourceID)
     storage.addVertex(update.sourceID, update.updateTime, update.index, update.srcId, update.properties, update.vType)
     storage.timings(update.updateTime)
+    storage.watermarker.safeRecordCompletedUpdate(update.sourceID)
     telemetry.vertexAddCollector
       .labels(partitionID.toString, graphID)
       .inc()

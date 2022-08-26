@@ -25,7 +25,7 @@ private[raphtory] class QueryManager(
   private val currentQueries                   = mutable.Map[String, QueryHandler]()
   private val ingestion                        = topics.ingestSetup.endPoint
   val sources: mutable.Map[Int, SourceTracker] = mutable.Map[Int, SourceTracker]()
-  val blockedQueries: ArrayBuffer[Query]       = ArrayBuffer[Query]()
+  var blockedQueries: ArrayBuffer[Query]       = ArrayBuffer[Query]()
 
   def startBlockIngesting(ID: Int): Unit = {
     logger.info(s"Source '$ID' is blocking analysis for Graph '$graphID'")
@@ -64,7 +64,7 @@ private[raphtory] class QueryManager(
       .map({
         case (id, tracker) => tracker.isBlocking
       })
-      .fold(false)(_ || _)
+      .exists(_ == true)
 
     if (!generalBlocking && blockedBy.nonEmpty)
       !blockedBy.forall(sources.contains)
@@ -88,7 +88,7 @@ private[raphtory] class QueryManager(
 
       case blocking: BlockIngestion     =>
         startBlockIngesting(blocking.sourceID)
-        checkBlockedQueries()
+
       case unblocking: UnblockIngestion =>
         stopBlockIngesting(unblocking.sourceID, unblocking.force, unblocking.messageCount)
         checkBlockedQueries()
@@ -149,19 +149,15 @@ private[raphtory] class QueryManager(
     queryHandler
   }
 
-  private def checkBlockedQueries(): Unit = {
-    val activated = ArrayBuffer[Int]()
-    var index     = 0
-    blockedQueries.foreach { query =>
+  private def checkBlockedQueries(): Unit =
+    blockedQueries = blockedQueries.filter { query =>
       if (!currentlyBlockIngesting(query.blockedBy)) {
         val queryHandler = spawnQuery(query.name, query)
         trackNewQuery(query.name, queryHandler)
-        activated += index
+        false
       }
-      index += 1
+      else true
     }
-    activated.foreach(blockedQueries.remove)
-  }
 
   private def trackNewQuery(jobID: String, queryHandler: QueryHandler): Unit =
     //sender() ! ManagingTask(queryHandler)
