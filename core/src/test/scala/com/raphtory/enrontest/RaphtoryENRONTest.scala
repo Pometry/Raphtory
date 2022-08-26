@@ -4,6 +4,7 @@ import com.raphtory.BaseRaphtoryAlgoTest
 import com.raphtory.GraphState
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
@@ -18,6 +19,7 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
   withGraph.test("Graph State Test".ignore) { graph =>
     val sink: FileSink = FileSink(outputDirectory)
+    graph.ingest(Source(setSpout(), setGraphBuilder()))
 
     graph
       .walk(10000)
@@ -41,8 +43,6 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
     )
 
   }
-
-  override def batchLoading(): Boolean = false
 
   override def setSpout(): Spout[String] = FileSpout("/tmp/email_test.csv")
 

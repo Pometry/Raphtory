@@ -31,6 +31,12 @@
         </Logger>
         <Logger name="org.apache" level="${env:RAPHTORY_APACHE_LOG:-off}">
         </Logger>
+        <Logger name="com.typesafe.akka" level="${env:RAPHTORY_AKKA_LOG:-WARN}">
+        </Logger>
+        <Logger name="akka" level="${env:RAPHTORY_AKKA_LOG:-ERROR}">
+        </Logger>
+        <Logger name="org.asynchttpclient" level="${env:RAPHTORY_APACHE_LOG:-off}">
+        </Logger>
 
         <!-- LOGGER FOR RAPHTORY CORE -->
         <Logger name="com.raphtory" level="${defaultLogLevel}">

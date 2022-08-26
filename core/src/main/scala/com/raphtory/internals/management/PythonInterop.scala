@@ -2,6 +2,8 @@ package com.raphtory.internals.management
 
 import cats.Id
 import cats.syntax.all._
+
+import java.lang.reflect.{Array => JArray}
 import com.raphtory.api.analysis.graphstate.Accumulator
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphview.GraphPerspective
@@ -9,12 +11,12 @@ import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.internals.management.python.EmbeddedPython
-import com.raphtory.internals.management.python.UnsafeEmbeddedPythonProxy
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 import java.util
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 import scala.reflect.runtime.universe
 import scala.util.Random
@@ -22,6 +24,9 @@ import scala.util.Random
 /** Scala-side methods for interfacing with Python */
 object PythonInterop {
   val logger: WrappedLogger = new WrappedLogger(Logger(LoggerFactory.getLogger(this.getClass)))
+
+  def print_array(array: Array[_]): String =
+    array.mkString(", ")
 
   /** make assign_id accessible from python */
   def assign_id(s: String): Long =
@@ -67,61 +72,65 @@ object PythonInterop {
   }
 
   /** Take an iterable of arguments and turn it into a java varargs friendly array */
-  def make_varargs(obj: Iterable[Any]): Array[Object] =
-    obj.toArray.map(_.asInstanceOf[Object])
+  def make_varargs[T](obj: Iterable[T]): List[T] =
+    obj.toList
+
+  def public_methods(obj: Any): Map[String, ListBuffer[Method]] = {
+    val clazz         = obj.getClass
+    val runtimeMirror = universe.runtimeMirror(clazz.getClassLoader)
+    val objType       = runtimeMirror.classSymbol(clazz).toType.dealias
+    val methods       = objType.members
+      .collect {
+        case s if s.isTerm && s.isPublic => s.asTerm
+      }
+      .flatMap {
+        case s if s.isMethod     => List(s)
+        case s if s.isOverloaded => s.alternatives.filter(_.isMethod)
+        case _                   => List.empty
+      }
+      .map(_.asMethod)
+      .filterNot(_.isParamWithDefault) // We will deal with default argument providers later
+
+    val methodMap = mutable.Map.empty[String, ListBuffer[Method]]
+
+    methods.foreach { m =>
+      val name       = m.name.toString
+      val params     = m.paramLists.flatten
+      val types      = params.map(p => p.info.toString)
+      val paramNames = params.map(p => camel_to_snake(p.name.toString))
+      val defaults   = params.zipWithIndex.collect {
+        case (p, i) if p.asTerm.isParamWithDefault =>
+          (i, name + "$default$" + s"${i + 1}")
+      }.toMap
+
+      methodMap
+        .getOrElseUpdate(name, ListBuffer.empty[Method])
+        .append(
+                Method(
+                        name,
+                        params.size,
+                        paramNames,
+                        types,
+                        defaults,
+                        m.isVarargs
+                )
+        )
+    }
+    methodMap.toMap
+  }
 
   /** Find methods and default values for an object and return in friendly format */
   def methods(obj: Any): util.Map[String, Array[Method]] = {
     logger.trace(s"Scala 'methods' called with $obj")
-    val prefixedMethodDict         = mutable.Map.empty[String, mutable.ArrayBuffer[java.lang.reflect.Method]]
-    val prefixedMethodDefaultsDict = mutable.Map.empty[String, mutable.Map[Int, java.lang.reflect.Method]]
-    obj.getClass.getMethods.foreach { m =>
-      val parts: Array[String] = """\$default\$""".r.split(m.getName)
-      val prefix               = camel_to_snake(parts(0))
-
-      if (parts.length == 1)
-        // ordinary method
-        prefixedMethodDict.getOrElseUpdate(prefix, mutable.ArrayBuffer.empty[java.lang.reflect.Method]).append(m)
-      else {
-        // method encapsulating default argument
-        val defaultIndex = parts(1).toInt - 1
-        prefixedMethodDefaultsDict
-          .getOrElseUpdate(prefix, mutable.Map.empty[Int, java.lang.reflect.Method])
-          .addOne(defaultIndex, m)
-      }
-    }
-    val res                        = prefixedMethodDict
-      .map {
-        case (name, methods) =>
-          val defaults = prefixedMethodDefaultsDict.get(name) match {
-            case Some(v) => v.toMap
-            case None    => Map.empty[Int, java.lang.reflect.Method]
-          }
-
-          name -> methods.map { m =>
-            val hasVarArgs  = m.isVarArgs
-            val paramsNames = m.getParameters.map(p => camel_to_snake(p.getName))
-
-            val n = m.getParameterCount
-            // Only one overloaded implementation can have default arguments, this checks if defaults should apply
-            if (
-                    defaults.forall {
-                      case (i, d) => i < m.getParameterCount && m.getParameterTypes()(i) == d.getReturnType
-                    }
-            )
-              // All default arguments match parameter types of this method signature
-              Method(m.getName, n, paramsNames, defaults.view.mapValues(_.getName).toMap, hasVarArgs)
-            else
-              // Defaults do not match or method has no default arguments
-              Method(m.getName, n, paramsNames, Map.empty[Int, String], hasVarArgs)
-          }.toArray
-      }
+    val publicMethods = public_methods(obj)
+    val javaMethods   = obj.getClass.getMethods.map(m => m.getName).toSet
+    val actual        = publicMethods.view
+      .filterKeys(m => javaMethods contains m)
+      .map { case (key, value) => camel_to_snake(key) -> value.toArray }
       .toMap
       .asJava
-    logger.trace(s"Returning found methods for $obj")
-    res
+    actual
   }
-
 }
 
 /**
@@ -149,7 +158,15 @@ class WrappedLogger(logger: Logger) {
 }
 
 /** Representation of a method */
-case class Method(name: String, n: Int, parameters: Array[String], defaults: Map[Int, String], varargs: Boolean) {
+case class Method(
+    name: String,
+    n: Int,
+    parameters: Iterable[String],
+    types: Iterable[String],
+    defaults: Map[Int, String],
+    varargs: Boolean,
+    var java: Boolean = false
+) {
   def has_defaults: Boolean = defaults.nonEmpty
 }
 
@@ -169,16 +186,31 @@ trait PythonFunction {
   protected val pickleBytes: Array[Byte]
   protected val eval_name = s"_${Random.alphanumeric.take(32).mkString}"
 
-  @transient lazy val py: EmbeddedPython[Id] = {
-    val _py = UnsafeEmbeddedPythonProxy.global
-    _py.set(s"${eval_name}_bytes", pickleBytes)
-    _py.run(s"import cloudpickle as pickle; $eval_name = pickle.loads(${eval_name}_bytes)")
-    _py.run(s"del ${eval_name}_bytes")
-    _py
+  private def py: EmbeddedPython[Id] = EmbeddedPython.global
+
+  private def initialize(py: EmbeddedPython[Id]) = {
+    try py.run(eval_name)
+    catch {
+      case e: Throwable =>
+        py.synchronized {
+          // recheck so only initialise once (some other thread may have got here first)
+          try py.run(eval_name)
+          catch {
+            case e: Throwable =>
+              // variable still doesn't exist so unpack the function
+              py.set(s"${eval_name}_bytes", pickleBytes)
+              py.run(s"import cloudpickle as pickle; $eval_name = pickle.loads(${eval_name}_bytes)")
+              py.run(s"del ${eval_name}_bytes")
+          }
+        }
+    }
+    py
   }
 
-  def invoke(args: Vector[Object]): Id[Object] =
-    py.invoke(PyRef(eval_name), "eval_from_jvm", args)
+  def invoke(args: Vector[Object]): Id[Object] = {
+    val _py = initialize(py)
+    _py.invoke(PyRef(eval_name), "eval_from_jvm", args)
+  }
 }
 
 case class PythonFunction1[I <: AnyRef, R](pickleBytes: Array[Byte]) extends (I => Id[R]) with PythonFunction {

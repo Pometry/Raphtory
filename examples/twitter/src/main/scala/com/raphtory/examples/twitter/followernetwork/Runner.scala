@@ -4,6 +4,7 @@ import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.graphview.Alignment
+import com.raphtory.api.input.Source
 import com.raphtory.examples.twitter.followernetwork.graphbuilders.TwitterCirclesGraphBuilder
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.StaticGraphSpout
@@ -18,9 +19,12 @@ object Runner extends App {
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/snap-twitter.csv"
   FileUtils.curlFile(path, url)
 
-  val source  = StaticGraphSpout(path)
+  val spout   = StaticGraphSpout(path)
   val builder = new TwitterCirclesGraphBuilder()
-  Using(Raphtory.stream(spout = source, graphBuilder = builder)) { graph =>
+  val source  = Source(spout, builder)
+  val graph   = Raphtory.newGraph()
+  graph.ingest(source)
+  Using(graph) { graph =>
     graph
       .at(88234)
       .past()

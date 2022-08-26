@@ -93,6 +93,14 @@ private[raphtory] class Py4JServer[IO[_]](gatewayServer: GatewayServer)(implicit
       }
     }
 
+  def start(): IO[Unit] =
+    IO.blocking {
+      logger.info("Starting PythonGatewayServer...")
+      gatewayServer.start()
+      println(s"Port: ${gatewayServer.getListeningPort}")
+      println(s"Secret: ${Py4JServer.secret}")
+    }
+
   /** Getter to obtain the gateways listening port */
   def getListeningPort: IO[Int] = IO.blocking(gatewayServer.getListeningPort)
 
@@ -107,6 +115,14 @@ private[raphtory] object Py4JServer {
     for {
       py4jGateway <- makeGatewayServer(entryPoint)
       server      <- Resource.eval(Sync[IO].delay(new Py4JServer[IO](py4jGateway)).flatTap(_.start(config)))
+    } yield server
+
+  def fromEntryPoint[IO[_]: Sync](
+      entryPoint: Object
+  ): Resource[IO, Py4JServer[IO]] =
+    for {
+      py4jGateway <- makeGatewayServer(entryPoint)
+      server      <- Resource.eval(Sync[IO].delay(new Py4JServer[IO](py4jGateway)).flatTap(_.start()))
     } yield server
 
   private def makeGatewayServer[IO[_]](

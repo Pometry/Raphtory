@@ -1,7 +1,10 @@
 import inspect
+import os
 import re
 import subprocess
 import json
+from threading import Thread
+
 import pandas as pd
 from abc import abstractmethod
 from pathlib import Path
@@ -12,8 +15,12 @@ from typing import IO, AnyStr
 from py4j.java_gateway import JavaGateway, GatewayParameters
 from py4j.protocol import Py4JJavaError
 
-from pyraphtory.graph import TemporalGraph
-from pyraphtory import interop, proxy
+import pyraphtory.interop
+import pyraphtory.scala.collection
+import pyraphtory.vertex
+import pyraphtory.graph
+from pyraphtory import interop
+import sys
 
 
 def _kill_jvm(j_raphtory, j_gateway):
@@ -51,107 +58,112 @@ class BaseContext(object):
         self._rg = interop.to_python(value)
 
 
-def join(stderr: IO[AnyStr] | None, stdout: IO[AnyStr] | None, logging: bool = False):
-    if stderr and stdout:
-        out = stdout.readline()
-        while out:
-            if logging:
-                print(out)
+def print_output(input_stream: IO[AnyStr], output_stream=sys.stdout):
+    out = input_stream.readline()
+    while out:
+        output_stream.write(out.decode("utf-8"))
+        out = input_stream.readline()
+
+
+def read_output(stream: IO[AnyStr], logging=False):
+    out = stream.readline()
+    while out:
+        if logging:
+            sys.stdout.write(out.decode("utf-8"))
             yield out
-            out = stdout.readline()
-        err = stderr.readline()
-        while err:
-            print(err)
-            yield err
-            err = stderr.readline()
+            out = stream.readline()
 
 
 class PyRaphtory(object):
+
     """Main python interface
 
     Sets up a jvm instance of raphtory and connects to it using py4j. Can be used as a context manager.
     """
-    algorithms = proxy.BuiltinAlgorithm("com.raphtory.algorithms")
 
-    def __init__(self, spout_input: Path, builder_script: Path, builder_class: str, mode: str, logging: bool = False):
+    def __init__(self, logging: bool = False):
         """
         Create a raphtory instance
 
-        :param spout_input: path for input data file
-        :param builder_script: path to script that contains the graph builder definition
-        :param builder_class: the class name of the graph builder defined in 'builder_script'
-        :param mode: one of 'batch' or 'stream' for changing the ingestion mode
+        To customise jvm startup options use the 'PYRAPHTORY_JVM_ARGS' environment variable.
+
         :param logging: set to True to enable verbose output during connection phase
         """
         jar_location = Path(inspect.getfile(self.__class__)).parent.parent
         jars = ":".join([str(jar) for jar in jar_location.glob('lib/*.jar')])
+        java_args = os.environ.get("PYRAPTHORY_JVM_ARGS", "")
 
-        self.args = ["java", "-cp", jars, "com.raphtory.python.PyRaphtory", f"--input={spout_input.absolute()}",
-                     f"--py={builder_script.absolute()}", f"--builder={builder_class}", f"--mode={mode}", "--py4j"]
+        if java_args:
+            self.args = ["java", java_args, "-cp", jars, "com.raphtory.python.PyRaphtory", "--parentID", str(os.getpid())]
+        else:
+            self.args = ["java", "-cp", jars, "com.raphtory.python.PyRaphtory", "--parentID", str(os.getpid())]
         self.logging = logging
 
     def __enter__(self):
-        self.j_raphtory = Popen(
+        j_raphtory = Popen(
             args=self.args,
             stdout=PIPE,
             stderr=PIPE
         )
 
-        self.java_gateway_port = None
-        self.java_gateway_auth = None
+        stderr_logging = Thread(target=print_output, args=(j_raphtory.stderr, sys.stderr))
+        stderr_logging.daemon = True
+        stderr_logging.start()
 
-        for line in self.log_lines(self.logging):
-            if not line:
-                break
-            else:
-                port_text = re.search("Started PythonGatewayServer on port ([0-9]+)", str(line))
-                auth_text = re.search("PythonGatewayServer secret - ([0-9a-f]+)", str(line))
+        java_gateway_port = None
+        java_gateway_auth = None
+
+        for line in read_output(j_raphtory.stdout, self.logging):
+                port_text = re.search("Port: ([0-9]+)", str(line))
+                auth_text = re.search("Secret: ([0-9a-f]+)", str(line))
                 if port_text:
-                    self.java_gateway_port = int(port_text.group(1))
+                    java_gateway_port = int(port_text.group(1))
                 if auth_text:
-                    self.java_gateway_auth = auth_text.group(1).strip()
+                    java_gateway_auth = auth_text.group(1).strip()
 
-                if self.java_gateway_auth and self.java_gateway_port:
+                if java_gateway_auth and java_gateway_port:
                     break
+        else:
+            raise RuntimeError("Could not find connection details")
 
-        # These two are important, if they are not closed the forked JVM will block while writing files
-        self.j_raphtory.stdout.close()
-        self.j_raphtory.stderr.close()
+        if self.logging:
+            stdout_logging = Thread(target=print_output, args=(j_raphtory.stdout,))
+            stdout_logging.daemon = True
+            stdout_logging.start()
+        else:
+            j_raphtory.stdout.close()
 
-        self.j_gateway = JavaGateway(
+        j_gateway = JavaGateway(
             gateway_parameters=GatewayParameters(
                 address="127.0.0.1",
-                port=self.java_gateway_port,
-                auth_token=self.java_gateway_auth,
+                port=java_gateway_port,
+                auth_token=java_gateway_auth,
                 auto_field=True,
                 auto_convert=True,
                 eager_load=True))
 
-        interop.set_scala_interop(self.j_gateway.entry_point.interop())
-
-        # TODO: Best effort shutdown but if python is killed, java processes stay alive forever!
-        self._finalizer = finalize(self, _kill_jvm, self.j_raphtory, self.j_gateway)
-        return self
-
-    def log_lines(self, logging: bool):
-        return join(self.j_raphtory.stderr, self.j_raphtory.stdout, logging)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self._finalizer()
+        interop.set_scala_interop(j_gateway.entry_point)
+        context = interop.to_python(interop.find_class("com.raphtory.Raphtory"))
+        context._j_raphtory = j_raphtory
+        context._j_gateway = j_gateway
+        context._finalizer = finalize(context, _kill_jvm, j_raphtory, j_gateway)
+        self._finalizer = context._finalizer
+        return context
 
     def open(self):
         """Create the Raphtory instance and connect to it"""
         return self.__enter__()
 
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._finalizer()
+
+
+class Raphtory(interop.GenericScalaProxy):
+    _classname = "com.raphtory.Raphtory$"
+
+    algorithms = pyraphtory.interop.BuiltinAlgorithm("com.raphtory.algorithms")
+
     def shutdown(self):
         """Shut down the Raphtory instance (this is called automatically on
         exit if the python interpreter shuts down cleanly)"""
-        return self.__exit__(None, None, None)
-
-    def graph(self):
-        """Return the graph of the Raphtory instance"""
-        try:
-            return interop.to_python(self.j_gateway.entry_point.raphtoryGraph())
-        except Py4JJavaError as err:
-            print(str(err.__str__().encode('utf-8')))
-            raise err
+        self._finalizer()

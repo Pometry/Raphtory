@@ -4,6 +4,7 @@ import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.graphview.Alignment
+import com.raphtory.api.input.Source
 import com.raphtory.examples.facebook.graphbuilders.FacebookGraphBuilder
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.StaticGraphSpout
@@ -27,10 +28,13 @@ object Runner extends App {
     }
   }
 
-  val source: StaticGraphSpout = StaticGraphSpout("/tmp/facebook.csv")
-  val builder                  = new FacebookGraphBuilder()
+  val spout: StaticGraphSpout = StaticGraphSpout("/tmp/facebook.csv")
+  val builder                 = new FacebookGraphBuilder()
+  val source                  = Source(spout, builder)
+  val graph                   = Raphtory.newGraph()
+  graph.ingest(source)
 
-  Using(Raphtory.load(spout = source, graphBuilder = builder)) { graph =>
+  Using(graph) { graph =>
     graph
       .at(88234)
       .past()

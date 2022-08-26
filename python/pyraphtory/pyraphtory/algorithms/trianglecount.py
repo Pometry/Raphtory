@@ -1,12 +1,7 @@
-import traceback
-
-from typing import Any
-
 from pyraphtory.algorithm import PyAlgorithm
-from pyraphtory.context import BaseContext
 from pyraphtory.graph import TemporalGraph, Row
-from pyraphtory.vertex import GraphState, Vertex
-from pyraphtory.scala.numeric import Int
+from pyraphtory.vertex import Vertex
+from pyraphtory.scala.implicits.numeric import Long
 
 
 class LocalTriangleCount(PyAlgorithm):
@@ -33,7 +28,7 @@ class LocalTriangleCount(PyAlgorithm):
 class GlobalTriangleCount(LocalTriangleCount):
     def __call__(self, graph: TemporalGraph) -> TemporalGraph:
         return (super().__call__(graph)
-                .set_global_state(lambda s: s.new_adder[Int](name="triangles", retain_state=True))
+                .set_global_state(lambda s: s.new_adder[Long](name="triangles", retain_state=True))
                 .step(lambda v, s: s["triangles"].add(v["triangleCount"])))
 
     def tabularise(self, graph: TemporalGraph):

@@ -1,29 +1,19 @@
 package com.raphtory
 
 import cats.effect._
-import cats.effect.unsafe.implicits.global
+import com.oblac.nomen.Nomen
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
-import com.raphtory.api.analysis.graphview.TemporalGraphConnection
-import com.raphtory.api.input.GraphBuilder
-import com.raphtory.api.input.Spout
-import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.communication.connectors.AkkaConnector
-import com.raphtory.internals.communication.repositories.DistributedTopicRepository
-import com.raphtory.internals.communication.repositories.LocalTopicRepository
-import com.raphtory.internals.components.graphbuilder.BuildExecutorGroup
-import com.raphtory.internals.components.querymanager.Query
-import com.raphtory.internals.components.querymanager.QueryManager
-import com.raphtory.internals.components.spout.SpoutExecutor
+import com.raphtory.internals.context.LocalContext
+import com.raphtory.internals.context.RaphtoryContext
+import com.raphtory.internals.context.RemoteContext
+import com.raphtory.internals.context.LocalContext.createName
 import com.raphtory.internals.management._
 import com.raphtory.internals.management.id.IDManager
 import com.raphtory.internals.management.id.LocalIDManager
 import com.raphtory.internals.management.id.ZookeeperIDManager
-import com.raphtory.spouts.IdentitySpout
 import com.typesafe.config.Config
-import com.typesafe.scalalogging.Logger
-import org.slf4j.LoggerFactory
 
-import scala.reflect.ClassTag
+import scala.collection.mutable.ArrayBuffer
 
 /**  `Raphtory` object for creating Raphtory Components
   *
@@ -51,116 +41,27 @@ import scala.reflect.ClassTag
   *      [[api.analysis.graphview.TemporalGraph TemporalGraph]]
   */
 object Raphtory {
-  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  /** Creates a streaming version of a `DeployedTemporalGraph` object that can be used to express queries from.
-    *
-    * @param spout Spout to ingest objects of type `T` into the deployment
-    * @param graphBuilder Graph builder to parse the input objects
-    * @param customConfig Custom configuration for the deployment
-    * @return The graph object for this stream
-    */
-  def streamIO[T: ClassTag](
-      spout: Spout[T] = new IdentitySpout[T](),
-      graphBuilder: GraphBuilder[T],
+  private val remoteConnections = ArrayBuffer[RemoteContext]()
+
+  def newGraph(graphID: String = createName, customConfig: Map[String, Any] = Map()): DeployedTemporalGraph =
+    LocalContext.newGraph(graphID, customConfig)
+
+  def newIOGraph(
+      graphID: String = createName,
       customConfig: Map[String, Any] = Map()
-  ): Resource[IO, DeployedTemporalGraph] =
-    deployLocalGraph[T, IO](spout, graphBuilder, customConfig, batchLoading = false).map {
-      case (qs, config, deploymentId) =>
-        new DeployedTemporalGraph(Query(), qs, config, deploymentId, shutdown = IO.unit)
-    }
+  ): Resource[IO, DeployedTemporalGraph] = LocalContext.newIOGraph(graphID, customConfig)
 
-  /** Creates a streaming version of a `DeployedTemporalGraph` object that can be used to express queries from.
-    *  this is unmanaged and returns [[DeployedTemporalGraph]] which implements [[AutoCloseable]]
-    *
-    * @param spout Spout to ingest objects of type `T` into the deployment
-    * @param graphBuilder Graph builder to parse the input objects
-    * @param customConfig Custom configuration for the deployment
-    * @return The graph object for this stream
-    */
-  def stream[T: ClassTag](
-      spout: Spout[T] = new IdentitySpout[T](),
-      graphBuilder: GraphBuilder[T],
-      customConfig: Map[String, Any] = Map()
-  ): DeployedTemporalGraph = {
-    val ((qs, config, deploymentId), shutdown) =
-      deployLocalGraph[T, IO](spout, graphBuilder, customConfig, batchLoading = false).allocated.unsafeRunSync()
+  def getGraph(graphID: String): Option[DeployedTemporalGraph] = LocalContext.getGraph(graphID)
 
-    new DeployedTemporalGraph(Query(), qs, config, deploymentId, shutdown)
+  def connect(deploymentID: String): RaphtoryContext = {
+    val context = new RemoteContext(deploymentID)
+    remoteConnections += context
+    context
   }
 
-  /** Creates a batch loading version of a `DeployedTemporalGraph` object that can be used to express
-    * queries from.
-    *
-    * @param spout Spout to ingest objects of type `T` into the deployment
-    * @param graphBuilder Graph builder to parse the input objects
-    * @param customConfig Custom configuration for the deployment
-    * @return The graph object created by this batch loader
-    */
-  def loadIO[T: ClassTag](
-      spout: Spout[T] = new IdentitySpout[T](),
-      graphBuilder: GraphBuilder[T],
-      customConfig: Map[String, Any] = Map()
-  ): Resource[IO, DeployedTemporalGraph] =
-    deployLocalGraph[T, IO](spout, graphBuilder, customConfig, batchLoading = true).map {
-      case (qs, config, deploymentId) =>
-        new DeployedTemporalGraph(Query(), qs, config, deploymentId, shutdown = IO.unit)
-    }
-
-  /** Creates a batch loading version of a `DeployedTemporalGraph` object that can be used to express
-    * queries from.
-    *
-    * @param spout Spout to ingest objects of type `T` into the deployment
-    * @param graphBuilder Graph builder to parse the input objects
-    * @param customConfig Custom configuration for the deployment
-    * @return The graph object created by this batch loader
-    */
-  def load[T: ClassTag](
-      spout: Spout[T] = new IdentitySpout[T](),
-      graphBuilder: GraphBuilder[T],
-      customConfig: Map[String, Any] = Map()
-  ): DeployedTemporalGraph = {
-    val ((qs, config, deploymentId), shutdown) =
-      deployLocalGraph[T, IO](spout, graphBuilder, customConfig, batchLoading = true).allocated.unsafeRunSync()
-
-    new DeployedTemporalGraph(Query(), qs, config, deploymentId, shutdown)
-
-  }
-
-  private def connectManaged(customConfig: Map[String, Any] = Map()): Resource[IO, (TopicRepository, Config)] = {
-    val config         = confBuilder(customConfig, distributed = true)
-    val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
-    for {
-      _         <- Py4JServer.fromEntryPoint[IO](this, config)
-      _         <- Prometheus[IO](prometheusPort)
-      topicRepo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config)
-    } yield (topicRepo, config)
-  }
-
-  /** Creates a `TemporalGraphConnection` object referencing an already deployed graph that
-    * can be used to submit queries.
-    *
-    * @param customConfig Custom configuration for the deployment being referenced
-    * @return A temporal graph object
-    */
-  def connect(customConfig: Map[String, Any] = Map()): TemporalGraphConnection = {
-    val managed: IO[((TopicRepository, Config), IO[Unit])] = connectManaged(customConfig).allocated
-
-    val ((topicRepo, config), shutdown) = managed.unsafeRunSync()
-    new TemporalGraphConnection(Query(), new QuerySender(new Scheduler(), topicRepo, config), config, shutdown)
-  }
-
-  /** Creates a `TemporalGraphConnection` object referencing an already deployed graph that
-    * can be used to submit queries.
-    *
-    * @param customConfig Custom configuration for the deployment being referenced
-    * @return A temporal graph object
-    */
-  def connectIO(customConfig: Map[String, Any] = Map()): Resource[IO, TemporalGraphConnection] =
-    connectManaged(customConfig).map {
-      case (topicRepo, config) =>
-        new TemporalGraphConnection(Query(), new QuerySender(new Scheduler(), topicRepo, config), config, IO.unit)
-    }
+  def closeGraphs(): Unit      = LocalContext.close()
+  def closeConnections(): Unit = remoteConnections.foreach(_.close())
 
   /** Returns a default config using `ConfigFactory` for initialising parameters for
     * running Raphtory components. This uses the default application parameters
@@ -170,60 +71,22 @@ object Raphtory {
     * @return An immutable config object
     */
   def getDefaultConfig(
-      customConfig: Map[String, Any] = Map(),
-      distributed: Boolean = false,
-      salt: Option[Int] = None
+      customConfig: Map[String, Any] = Map()
   ): Config =
-    confBuilder(customConfig, salt, distributed)
+    confBuilder(customConfig)
 
   private[raphtory] def confBuilder(
-      customConfig: Map[String, Any] = Map(),
-      salt: Option[Int] = None,
-      distributed: Boolean
+      customConfig: Map[String, Any] = Map()
   ): Config = {
     val confHandler = new ConfigHandler()
-    salt.foreach(s => confHandler.setSalt(s))
     customConfig.foreach { case (key, value) => confHandler.addCustomConfig(key, value) }
-    confHandler.getConfig(distributed)
+    confHandler.getConfig()
   }
 
-  private def deployLocalGraph[T: ClassTag, IO[_]](
-      spout: Spout[T] = new IdentitySpout[T](),
-      graphBuilder: GraphBuilder[T],
-      customConfig: Map[String, Any] = Map(),
-      batchLoading: Boolean
-  )(implicit IO: Async[IO]): Resource[IO, (QuerySender, Config, String)] = {
-    val config         = confBuilder(customConfig, distributed = false)
-    val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
-    val deploymentID   = config.getString("raphtory.deploy.id")
-    val scheduler      = new Scheduler()
-    for {
-      _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
-      topicRepo          <- LocalTopicRepository(config)
-      _                  <- QueryManager(config, topicRepo)
-      _                  <- {
-        if (batchLoading) Resource.eval(IO.unit)
-        else SpoutExecutor(spout, config, topicRepo)
-      }
-      builderIDManager   <- makeBuilderIdManager(config, localDeployment = true, deploymentID)
-      partitionIdManager <- makePartitionIdManager(config, localDeployment = true, deploymentID)
-      _                  <- {
-        if (batchLoading) Resource.eval(IO.unit)
-        else BuildExecutorGroup(config, builderIDManager, topicRepo, graphBuilder)
-      }
-      _                  <- {
-        if (batchLoading)
-          PartitionsManager.batchLoading(config, partitionIdManager, topicRepo, scheduler, spout, graphBuilder)
-        else PartitionsManager.streaming(config, partitionIdManager, topicRepo, scheduler)
-      }
-
-    } yield (new QuerySender(scheduler, topicRepo, config), config, deploymentID)
-  }
-
-  def makePartitionIdManager[IO[_]: Sync](
+  private[raphtory] def makePartitionIdManager[IO[_]: Sync](
       config: Config,
       localDeployment: Boolean,
-      deploymentId: String
+      graphID: String
   ): Resource[IO, IDManager] =
     if (localDeployment)
       Resource.eval(Sync[IO].delay(new LocalIDManager))
@@ -232,19 +95,10 @@ object Raphtory {
       val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
       val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
       val totalPartitions: Int     = partitionServers * partitionsPerServer
-      ZookeeperIDManager(zookeeperAddress, deploymentId, "partitionCount", poolSize = totalPartitions)
+      ZookeeperIDManager(zookeeperAddress, graphID, "partitionCount", poolSize = totalPartitions)
     }
 
-  def makeBuilderIdManager[IO[_]: Sync](
-      config: Config,
-      localDeployment: Boolean,
-      deploymentId: String
-  ): Resource[IO, IDManager] =
-    if (localDeployment)
-      Resource.eval(Sync[IO].delay(new LocalIDManager))
-    else {
-      val zookeeperAddress = config.getString("raphtory.zookeeper.address")
-      ZookeeperIDManager(zookeeperAddress, deploymentId, "builderCount")
-    }
+  protected def createName: String =
+    Nomen.est().adjective().color().animal().get()
 
 }

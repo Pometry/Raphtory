@@ -3,6 +3,8 @@ package com.raphtory.ethereum
 import cats.effect.IO
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.api.input.Source
+import com.raphtory.ethereum.LocalRunner.graph
 import com.raphtory.ethereum.graphbuilder.EthereumGraphBuilder
 import com.raphtory.ethereum.analysis.Taint
 import com.raphtory.sinks.FileSink
@@ -27,9 +29,10 @@ object LocalRunner extends App {
   FileUtils.curlFile(path, url)
 
   // create graph
-  val source  = FileSpout("/tmp/etherscan_tags.csv")
+  val spout   = FileSpout("/tmp/etherscan_tags.csv")
   val builder = new EthereumGraphBuilder()
-  val graph   = Raphtory.loadIO(source, builder)
+  val source  = Source(spout, builder)
+  val graph   = Raphtory.newIOGraph()
 
   // setup ethereum vars
   val startTime = 1574814233
@@ -238,6 +241,7 @@ object LocalRunner extends App {
   val fileOutput   = FileSink("/tmp/ethereum/Taint")
   val pulsarOutput = PulsarSink("TaintTracking")
   graph.use { graph =>
+    graph.ingest(source)
     IO.blocking(
             graph
               .at(1575013446)
@@ -246,6 +250,7 @@ object LocalRunner extends App {
               .writeTo(pulsarOutput)
               .waitForJob()
     )
+
   }
   // graph.pointQuery(ConnectedComponents(), FileOutputFormat("/tmp/ethereum/connected_components"), 1591951621)
 

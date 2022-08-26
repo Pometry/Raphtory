@@ -1,69 +1,63 @@
 from pyraphtory.graph import Row
-from pyraphtory.vertex import Vertex
 from pyraphtory.builder import *
-from pyraphtory.context import BaseContext
-
-
-class LotrGraphBuilder(BaseBuilder):
-    def __init__(self):
-        super(LotrGraphBuilder, self).__init__()
-
-    def parse_tuple(self, line: str):
-        src_node, target_node, timestamp, *_ = line.split(",")
-
-        src_id = self.assign_id(src_node)
-        tar_id = self.assign_id(target_node)
-
-        self.add_vertex(int(timestamp), src_id, Properties(ImmutableProperty("name", src_node)), Type("Character"))
-        self.add_vertex(int(timestamp), tar_id, Properties(ImmutableProperty("name", target_node)), Type("Character"))
-        self.add_edge(int(timestamp), src_id, tar_id, Type("Character Co-occurence"))
-
-
-def CCStep1(v: Vertex):
-    v['cclabel'] = v.id()
-    v.message_all_neighbours(v.id())
-
-
-def CCIterate1(v: Vertex):
-    label = min(v.message_queue())
-    if label < v['cclabel']:
-        v['cclabel'] = label
-        v.message_all_neighbours(label)
-    else:
-        v.vote_to_halt()
-
-
-class RaphtoryContext(BaseContext):
-    def eval(self):
-        logger.trace("evaluating")
-        tracker = self.rg \
-            .step(CCStep1) \
-            .iterate(CCIterate1, 100, True) \
-            .select(lambda v: Row(v.name(), v['cclabel'])) \
-            .write_to_file("/tmp/pyraphtory_output")
-        logger.trace("query submitted")
-        return tracker
-
+from pyraphtory.spouts import FileSpout
 
 if __name__ == "__main__":
-    from pathlib import Path
     from pyraphtory.context import PyRaphtory
-    from pyraphtory.scala.numeric import Int
     import subprocess
 
     subprocess.run(["curl", "-o", "/tmp/lotr.csv", "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"])
-    pr = PyRaphtory(spout_input=Path('/tmp/lotr.csv'), builder_script=Path(__file__), builder_class='LotrGraphBuilder',
-                    mode='batch', logging=False).open()
-    # pr = PyRaphtory(spout_input=Path('/tmp/nodata.csv'), builder_script=Path(__file__), builder_class='LotrGraphBuilder',
-    #                 mode='batch', logging=False).open()
-    rg = pr.graph()
+    pr = PyRaphtory(logging=True).open()
 
-    # t = Type("test")
-    df = (rg.set_global_state(lambda s: s.new_adder[Int]("deg_sum"))
-            .step(lambda v, s: s["deg_sum"].add(v.degree()))
-            .global_select(lambda s: Row(s("deg_sum").value()))
-            .write_to_dataframe(["deg_sum"]))
+    def parse(graph, tuple: str):
+        parts = [v.strip() for v in tuple.split(",")]
+        source_node = parts[0]
+        src_id = graph.assign_id(source_node)
+        target_node = parts[1]
+        tar_id = graph.assign_id(target_node)
+        time_stamp = int(parts[2])
 
+        graph.add_vertex(time_stamp, src_id, Properties(ImmutableProperty("name", source_node)), Type("Character"))
+        graph.add_vertex(time_stamp, tar_id, Properties(ImmutableProperty("name", target_node)), Type("Character"))
+        graph.add_edge(time_stamp, src_id, tar_id, Type("Character_Co-occurence"))
+
+    lotr_builder = GraphBuilder(parse)
+    lotr_spout = FileSpout("/tmp/lotr.csv")
+    graph = pr.new_graph().ingest(Source(lotr_spout, lotr_builder)).at(32674).past()
+
+    df = (graph
+          .select(lambda vertex: Row(vertex.name(), vertex.degree()))
+          .write_to_dataframe(["name", "degree"]))
     print(df)
-    # df = (rg.select(lambda vertex: Row(vertex.name(), vertex.degree()))
-    #       .write_to_dataframe(["name", "degree"]))
+
+    # TODO: This works but is rather slow
+    graph2 = pr.new_graph()
+    # can just call add_vertex, add_edge on graph directly without spout/builder
+    with open("/tmp/lotr.csv") as f:
+        for line in f:
+            parse(graph2, line)
+
+    df = (graph2
+          .select(lambda vertex: Row(vertex.name(), vertex.degree()))
+          .write_to_dataframe(["name", "degree"]))
+    print(df)
+
+    df2 = (graph2
+           .select(lambda v: Row(v.name(), v.latest_activity().time()))
+           .write_to_dataframe(["name", "latest_time"]))
+    print(df2)
+
+    def accum_step(v, s):
+        ac = s["max_time"]
+        latest = v.latest_activity().time()
+        ac += latest
+
+    df2 = (graph
+           .set_global_state(lambda s: s.new_accumulator("max_time", 0, op=lambda a, b: max(a, b)))
+           .step(accum_step)
+           .global_select(lambda s: Row(s["max_time"].value()))
+           .write_to_dataframe(["max_time"]))
+    print(df2)
+
+    graph.select(lambda vertex: Row(vertex.name(), vertex.degree())).write_to_file("/tmp/test").wait_for_job()
+

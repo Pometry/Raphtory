@@ -1,6 +1,7 @@
 package com.raphtory.spouts
 
 import com.raphtory.api.input.Spout
+import com.raphtory.api.input.SpoutInstance
 import com.raphtory.internals.management.telemetry.ComponentTelemetryHandler
 import com.raphtory.utils.FileUtils
 
@@ -46,13 +47,46 @@ import scala.util.matching.Regex
   * @see [[com.raphtory.api.input.Spout Spout]]
   *      [[com.raphtory.Raphtory Raphtory]]
   */
-class FileSpout[T: TypeTag](
+case class FileSpout[T](
+    path: String = "",
+    regexPattern: String = "^.*\\.([cC][sS][vV]??)$",
+    reReadFiles: Boolean = false,
+    recurse: Boolean = false,
+    lineConverter: Option[String => T] = None
+) extends Spout[T] {
+
+  override def buildSpout(): SpoutInstance[T] =
+    new FileSpoutInstance[T](path, regexPattern, reReadFiles, recurse, lineConverter)
+}
+
+object FileSpout {
+
+  def apply(source: String) =
+    new FileSpout[String](source, "^.*\\.([cC][sS][vV]??)$", false, false, None)
+
+  def apply(
+      source: String,
+      regexPattern: String,
+      reReadFiles: Boolean,
+      recurse: Boolean
+  ) = new FileSpout(source, regexPattern, reReadFiles, recurse, None)
+
+  def apply[T](
+      source: String,
+      regexPattern: String,
+      reReadFiles: Boolean,
+      recurse: Boolean,
+      lineConverter: (String => T)
+  ) = new FileSpout[T](source, regexPattern, reReadFiles, recurse, Some(lineConverter))
+}
+
+private class FileSpoutInstance[T](
     val path: String = "",
     val regexPattern: String = "^.*\\.([cC][sS][vV]??)$",
     val reReadFiles: Boolean = false,
     val recurse: Boolean = false,
-    val lineConverter: (String => T)
-) extends Spout[T] {
+    val lineConverter: Option[String => T]
+) extends SpoutInstance[T] {
   private val completedFiles: mutable.Set[String] = mutable.Set.empty[String]
 
   private val outputDirectory = "/tmp/raphtory-file-spout/" + Random.nextLong()
@@ -92,20 +126,19 @@ class FileSpout[T: TypeTag](
           processFile(file)
         case None       => Iterator[String]()
       }
-      if (lines.hasNext)
-        true
-      else
-        false
+      lines.hasNext
     }
 
-  override def next(): T =
-    try lineConverter(lines.next())
+  override def next(): T = {
+    val nextLine = lines.next()
+    try lineConverter.fold(nextLine.asInstanceOf[T])(converter => converter(nextLine))
     catch {
       case ex: Exception =>
         logger.error(s"Spout: Failed to process file, error: ${ex.getMessage}.")
         //processingErrorCount.inc()
         throw ex
     }
+  }
 
   def processFile(file: File) = {
     logger.info(s"Spout: Processing file '${file.toPath.getFileName}' ...")
@@ -197,35 +230,13 @@ class FileSpout[T: TypeTag](
     }
   }
 
-  override def nextIterator(): Iterator[T] =
-    if (typeOf[T] =:= typeOf[String]) lines.asInstanceOf[Iterator[T]]
-    else lines.map(lineConverter)
+  override def nextIterator(): Iterator[T] = lineConverter.fold(lines.asInstanceOf[Iterator[T]])(lines.map(_))
 
-}
-
-object FileSpout {
-
-  def apply[T: TypeTag](
-      source: String,
-      regexPattern: String,
-      reReadFiles: Boolean,
-      recurse: Boolean,
-      lineConverter: (String => T)
-  ) =
-    new FileSpout[T](source, regexPattern, reReadFiles, recurse, lineConverter)
-
-  def apply(
-      source: String = "",
-      regexPattern: String = "^.*\\.([cC][sS][vV]??)$",
-      reReadFiles: Boolean = false,
-      recurse: Boolean = false
-  ) =
-    new FileSpout[String](source, regexPattern, reReadFiles, recurse, lineConverter = s => s)
 }
 
 //TODO work out how to get the correct deployment ID here
 
-//  val deploymentID: String = conf.getString("raphtory.deploy.id")
+//  val deploymentID: String = conf.getString("raphtory.graph.id")
 // Validate that the path exists and is readable
 // Throws exception or logs error in case of failure
 // FileUtils.validatePath(inputPath) // TODO Change this to cats.Validated

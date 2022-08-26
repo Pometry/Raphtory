@@ -2,7 +2,9 @@ package com.raphtory.examples.twitter.higgsdataset
 
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.centrality.PageRank
-import com.raphtory.examples.twitter.higgsdataset.analysis.{MemberRank, TemporalMemberRank}
+import com.raphtory.api.input.Source
+import com.raphtory.examples.twitter.higgsdataset.analysis.MemberRank
+import com.raphtory.examples.twitter.higgsdataset.analysis.TemporalMemberRank
 import com.raphtory.examples.twitter.higgsdataset.graphbuilders.TwitterGraphBuilder
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.FileSpout
@@ -17,9 +19,12 @@ object Runner extends App {
   FileUtils.curlFile(path, url)
 
   // Create Graph
-  val source  = FileSpout(path)
+  val spout   = FileSpout(path)
   val builder = new TwitterGraphBuilder()
-  Using(Raphtory.stream(spout = source, graphBuilder = builder)) { graph =>
+  val source  = Source(spout, builder)
+  val graph   = Raphtory.newGraph()
+  graph.ingest(source)
+  Using(graph) { graph =>
     graph
       .range(1341101181, 1341705593, 500000000)
       .past()

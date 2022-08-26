@@ -1,6 +1,5 @@
 package com.raphtory.internals.components.partition
 
-import cats.Id
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview._
@@ -19,7 +18,7 @@ import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.management.Scheduler
-import com.raphtory.internals.management.python.UnsafeEmbeddedPythonProxy
+import com.raphtory.internals.management.python.EmbeddedPython
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -57,7 +56,7 @@ private[raphtory] class QueryExecutor(
   private val maxBatchSize: Int     = conf.getInt("raphtory.partitions.maxMessageBatchSize")
 
   private val sync = new QuerySuperstepSync(totalPartitions)
-  pyScript.map(s => UnsafeEmbeddedPythonProxy.global.run(s))
+  pyScript.map(s => EmbeddedPython.global.run(s))
 
   private val sinkExecutor: SinkExecutor = sink.executor(jobID, partitionID, conf)
 
@@ -69,7 +68,7 @@ private[raphtory] class QueryExecutor(
     )
 
   private val listener = topics.registerListener(
-          s"$deploymentID-$jobID-query-executor-$partitionID",
+          s"$graphID-$jobID-query-executor-$partitionID",
           handleMessage,
           topics.jobOperations(jobID),
           partitionID
@@ -80,7 +79,7 @@ private[raphtory] class QueryExecutor(
     if (totalPartitions > 1)
       Some(
               topics.registerListener(
-                      s"$deploymentID-$jobID-query-executor-$partitionID",
+                      s"$graphID-$jobID-query-executor-$partitionID",
                       receiveVertexMessage,
                       topics.vertexMessages(jobID),
                       partitionID
@@ -93,7 +92,7 @@ private[raphtory] class QueryExecutor(
     if (totalPartitions > 1)
       Some(
               topics.registerListener(
-                      s"$deploymentID-$jobID-query-executor-$partitionID",
+                      s"$graphID-$jobID-query-executor-$partitionID",
                       receiveVertexControlMessage,
                       topics.vertexMessagesSync(jobID),
                       partitionID
