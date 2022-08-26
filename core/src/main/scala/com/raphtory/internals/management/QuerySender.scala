@@ -3,12 +3,14 @@ package com.raphtory.internals.management
 import com.raphtory.api.input.Source
 import com.raphtory.api.querytracker.QueryProgressTracker
 import com.raphtory.internals.communication.TopicRepository
+import com.raphtory.internals.components.querymanager.BlockIngestion
 import com.raphtory.internals.components.querymanager.ClientDisconnected
 import com.raphtory.internals.components.querymanager.DestroyGraph
 import com.raphtory.internals.components.querymanager.DynamicLoader
 import com.raphtory.internals.components.querymanager.EstablishGraph
 import com.raphtory.internals.components.querymanager.IngestData
 import com.raphtory.internals.components.querymanager.Query
+import com.raphtory.internals.components.querymanager.UnblockIngestion
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.internals.management.id.IDManager
 import com.typesafe.config.Config
@@ -31,13 +33,22 @@ private[raphtory] class QuerySender(
 
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val graphID          = config.getString("raphtory.graph.id")
-  val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
-  val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
-  val totalPartitions: Int     = partitionServers * partitionsPerServer
-  private lazy val writers     = topics.graphUpdates(graphID).endPoint
-  private lazy val submissions = topics.submissions.endPoint
-  private val blockingSources  = ArrayBuffer[Int]()
+  private val graphID           = config.getString("raphtory.graph.id")
+  val partitionServers: Int     = config.getInt("raphtory.partitions.serverCount")
+  val partitionsPerServer: Int  = config.getInt("raphtory.partitions.countPerServer")
+  val totalPartitions: Int      = partitionServers * partitionsPerServer
+  private lazy val writers      = topics.graphUpdates(graphID).endPoint
+  private lazy val queryManager = topics.blockingIngestion.endPoint
+  private lazy val submissions  = topics.submissions.endPoint
+  private val blockingSources   = ArrayBuffer[Int]()
+
+  def getSourceID(): Int =
+    idManager.getNextAvailableID() match {
+      case Some(id) =>
+        id
+      case None     =>
+        throw new NoIDException(s"Client '$clientID' was not able to acquire a source ID")
+    }
 
   def submit(query: Query, customJobName: String = ""): QueryProgressTracker = {
     val jobName     = if (customJobName.nonEmpty) customJobName else getDefaultName(query)
@@ -50,6 +61,21 @@ private[raphtory] class QuerySender(
     scheduler.execute(tracker)
     tracker
   }
+
+  def blockIngestion(sourceID: Int): Unit = {
+    blockingSources += sourceID
+    queryManager.sendAsync(BlockIngestion(sourceID, graphID))
+  }
+
+  def unblockIngestion(sourceID: Int, index: Long, force: Boolean): Unit =
+    queryManager.sendAsync(
+            UnblockIngestion(
+                    sourceID,
+                    graphID = graphID,
+                    index,
+                    force
+            )
+    )
 
   def destroyGraph(force: Boolean): Unit =
     topics.graphSetup.endPoint sendAsync DestroyGraph(graphID, clientID, force)
@@ -77,7 +103,7 @@ private[raphtory] class QuerySender(
           if (blocking) blockingSources += id
           (id, source)
         case None     =>
-          throw new NoIDException(s"Client '$clientID' was not able to aquire a source ID for $source")
+          throw new NoIDException(s"Client '$clientID' was not able to acquire a source ID for $source")
       }
     }
     submissions sendAsync IngestData(DynamicLoader(clazzes), id, sourceWithId, blocking)

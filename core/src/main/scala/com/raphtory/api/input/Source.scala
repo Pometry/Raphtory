@@ -22,6 +22,7 @@ trait SourceInstance {
   def executeReschedule(): Unit
   def setupStreamIngestion(streamWriters: collection.Map[Int, EndPoint[GraphAlteration]]): Unit
   def sourceID: Int
+  def sentMessages(): Long
   def close(): Unit
 }
 
@@ -50,6 +51,7 @@ object Source {
             builderInstance.setupStreamIngestion(streamWriters)
           override def close(): Unit = spoutInstance.close()
 
+          override def sentMessages(): Long = builderInstance.getSentUpdates
         }
 
       override def getBuilder: GraphBuilder[Any] = builder.asInstanceOf[GraphBuilder[Any]]

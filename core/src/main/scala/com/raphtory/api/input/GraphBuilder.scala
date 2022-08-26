@@ -75,11 +75,13 @@ class GraphBuilderInstance[T](graphID: String, sourceID: Int, parse: (Graph, T) 
   private var partitionIDs: collection.Set[Int]                       = _
   private var writers: collection.Map[Int, EndPoint[GraphAlteration]] = _
   private var totalPartitions: Int                                    = 1
-  private val batching: Boolean                                       = false
+  private var sentUpdates: Long                                       = 0
 
   def getGraphID: String         = graphID
   def getSourceID: Int           = sourceID
   def parseTuple(tuple: T): Unit = parse(this, tuple)
+
+  private[raphtory] def getSentUpdates: Long = sentUpdates
 
   /** Parses `tuple` and fetches list of updates for the graph This is used internally to retrieve updates. */
   private[raphtory] def sendUpdates(tuple: T, tupleIndex: Long)(failOnError: Boolean = true): Unit =
@@ -201,6 +203,7 @@ class GraphBuilderInstance[T](graphID: String, sourceID: Int, parse: (Graph, T) 
 
   protected def handleGraphUpdate(update: GraphUpdate): Any = {
     logger.trace(s"handling $update")
+    sentUpdates += 1
     val partitionForTuple = checkPartition(update.srcId)
     if (partitionIDs contains partitionForTuple) {
       writers(partitionForTuple).sendAsync(update)
@@ -212,23 +215,6 @@ class GraphBuilderInstance[T](graphID: String, sourceID: Int, parse: (Graph, T) 
     val partitionForSrc = checkPartition(update.srcId)
     if (partitionIDs contains partitionForSrc)
       writers(partitionForSrc).sendAsync(update)
-    if (batching) {
-      val partitionForDst = checkPartition(update.dstId)
-      if (
-              (partitionIDs contains partitionForDst) && (partitionForDst != partitionForSrc)
-      ) //TODO doesn't see to currently work
-        writers(partitionForDst).sendAsync(
-                BatchAddRemoteEdge(
-                        sourceID,
-                        update.updateTime,
-                        index,
-                        update.srcId,
-                        update.dstId,
-                        update.properties,
-                        update.eType
-                )
-        )
-    }
   }
 
   private def checkPartition(id: Long): Int =

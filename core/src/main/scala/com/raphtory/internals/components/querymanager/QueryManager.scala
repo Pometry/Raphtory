@@ -35,7 +35,7 @@ private[raphtory] class QueryManager(
     }
   }
 
-  def stopBlockIngesting(ID: Int, force: Boolean, msgCount: Int): Unit =
+  def stopBlockIngesting(ID: Int, force: Boolean, msgCount: Long): Unit =
     if (force) {
       logger.info(s"Source '$ID' is forced unblocking analysis for Graph '$graphID' with $msgCount messages sent.")
       sources.foreach {
@@ -129,7 +129,9 @@ private[raphtory] class QueryManager(
         watermark.sourceMessages.foreach {
           case (id, count) =>
             sources.get(id) match {
-              case Some(tracker) => tracker.setReceivedMessage(watermark.partitionID, count)
+              case Some(tracker) =>
+                tracker.setReceivedMessage(watermark.partitionID, count)
+
               case None          =>
                 val tracker = SourceTracker()
                 tracker.setReceivedMessage(watermark.partitionID, count)

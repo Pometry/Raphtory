@@ -34,7 +34,7 @@ private[raphtory] class IngestionExecutor(
   private val spoutReschedulesCount = telemetry.spoutReschedules.labels(graphID)
   private val fileLinesSent         = telemetry.fileLinesSent.labels(graphID)
 
-  private var index: Int                               = 0
+  private var index: Long                              = 0
   private var scheduledRun: Option[() => Future[Unit]] = None
 
   sourceInstance.setupStreamIngestion(writers)
@@ -75,7 +75,7 @@ private[raphtory] class IngestionExecutor(
               UnblockIngestion(
                       sourceInstance.sourceID,
                       graphID = graphID,
-                      index,
+                      sourceInstance.sentMessages(),
                       force = false
               )
       )
