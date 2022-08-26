@@ -46,7 +46,7 @@ object PyRaphtory
     parentID.map {
       case None     => gateway.useForever
       case Some(id) =>
-        gateway.use(_ => IO.println("running PyRaphtory with parent check") *> checkParent(id).foreverM)
+        gateway.use(_ => IO.blocking(logger.trace("running PyRaphtory with parent check")) *> checkParent(id).foreverM)
     }
   }
 }

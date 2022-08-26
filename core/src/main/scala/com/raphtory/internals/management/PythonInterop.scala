@@ -2,6 +2,7 @@ package com.raphtory.internals.management
 
 import cats.Id
 import cats.syntax.all._
+
 import java.lang.reflect.{Array => JArray}
 import com.raphtory.api.analysis.graphstate.Accumulator
 import com.raphtory.api.analysis.graphstate.GraphState
@@ -15,6 +16,7 @@ import org.slf4j.LoggerFactory
 
 import java.util
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 import scala.reflect.runtime.universe
 import scala.util.Random
@@ -70,69 +72,65 @@ object PythonInterop {
   }
 
   /** Take an iterable of arguments and turn it into a java varargs friendly array */
-  def make_varargs[T](obj: Iterable[T], clazz: Class[Array[T]]): Array[T] = {
-    val comp = clazz.getComponentType
-    val arr  = JArray.newInstance(comp, obj.size).asInstanceOf[Array[T]]
-    obj.zipWithIndex.foreach {
-      case (v, i) =>
-        arr(i) = v
+  def make_varargs[T](obj: Iterable[T]): List[T] =
+    obj.toList
+
+  def public_methods(obj: Any): Map[String, ListBuffer[Method]] = {
+    val clazz         = obj.getClass
+    val runtimeMirror = universe.runtimeMirror(clazz.getClassLoader)
+    val objType       = runtimeMirror.classSymbol(clazz).toType.dealias
+    val methods       = objType.members
+      .collect {
+        case s if s.isTerm && s.isPublic => s.asTerm
+      }
+      .flatMap {
+        case s if s.isMethod     => List(s)
+        case s if s.isOverloaded => s.alternatives.filter(_.isMethod)
+        case _                   => List.empty
+      }
+      .map(_.asMethod)
+      .filterNot(_.isParamWithDefault) // We will deal with default argument providers later
+
+    val methodMap = mutable.Map.empty[String, ListBuffer[Method]]
+
+    methods.foreach { m =>
+      val name       = m.name.toString
+      val params     = m.paramLists.flatten
+      val types      = params.map(p => p.info.toString)
+      val paramNames = params.map(p => camel_to_snake(p.name.toString))
+      val defaults   = params.zipWithIndex.collect {
+        case (p, i) if p.asTerm.isParamWithDefault =>
+          (i, name + "$default$" + s"${i + 1}")
+      }.toMap
+
+      methodMap
+        .getOrElseUpdate(name, ListBuffer.empty[Method])
+        .append(
+                Method(
+                        name,
+                        params.size,
+                        paramNames,
+                        types,
+                        defaults,
+                        m.isVarargs
+                )
+        )
     }
-    arr
+    methodMap.toMap
   }
 
   /** Find methods and default values for an object and return in friendly format */
   def methods(obj: Any): util.Map[String, Array[Method]] = {
     logger.trace(s"Scala 'methods' called with $obj")
-    val prefixedMethodDict         = mutable.Map.empty[String, mutable.ArrayBuffer[java.lang.reflect.Method]]
-    val prefixedMethodDefaultsDict = mutable.Map.empty[String, mutable.Map[Int, java.lang.reflect.Method]]
-    obj.getClass.getMethods.foreach { m =>
-      val parts: Array[String] = """\$default\$""".r.split(m.getName)
-      val prefix               = camel_to_snake(parts(0))
-
-      if (parts.length == 1)
-        // ordinary method
-        prefixedMethodDict.getOrElseUpdate(prefix, mutable.ArrayBuffer.empty[java.lang.reflect.Method]).append(m)
-      else {
-        // method encapsulating default argument
-        val defaultIndex = parts(1).toInt - 1
-        prefixedMethodDefaultsDict
-          .getOrElseUpdate(prefix, mutable.Map.empty[Int, java.lang.reflect.Method])
-          .addOne(defaultIndex, m)
-      }
-    }
-    val res                        = prefixedMethodDict
-      .map {
-        case (name, methods) =>
-          val defaults = prefixedMethodDefaultsDict.get(name) match {
-            case Some(v) => v.toMap
-            case None    => Map.empty[Int, java.lang.reflect.Method]
-          }
-
-          name -> methods.map { m =>
-            val hasVarArgs  = m.isVarArgs
-            val paramsNames = m.getParameters.map(p => camel_to_snake(p.getName))
-            val paramTypes  = m.getParameterTypes
-
-            val n = m.getParameterCount
-            // Only one overloaded implementation can have default arguments, this checks if defaults should apply
-            if (
-                    defaults.forall {
-                      case (i, d) => i < m.getParameterCount && m.getParameterTypes()(i) == d.getReturnType
-                    }
-            )
-              // All default arguments match parameter types of this method signature
-              Method(m.getName, n, paramsNames, paramTypes, defaults.view.mapValues(_.getName).toMap, hasVarArgs)
-            else
-              // Defaults do not match or method has no default arguments
-              Method(m.getName, n, paramsNames, paramTypes, Map.empty[Int, String], hasVarArgs)
-          }.toArray
-      }
+    val publicMethods = public_methods(obj)
+    val javaMethods   = obj.getClass.getMethods.map(m => m.getName).toSet
+    val actual        = publicMethods.view
+      .filterKeys(m => javaMethods contains m)
+      .map { case (key, value) => camel_to_snake(key) -> value.toArray }
       .toMap
       .asJava
-    logger.trace(s"Returning found methods for $obj")
-    res
+    actual
   }
-
 }
 
 /**
@@ -163,10 +161,11 @@ class WrappedLogger(logger: Logger) {
 case class Method(
     name: String,
     n: Int,
-    parameters: Array[String],
-    types: Array[Class[_]],
+    parameters: Iterable[String],
+    types: Iterable[String],
     defaults: Map[Int, String],
-    varargs: Boolean
+    varargs: Boolean,
+    var java: Boolean = false
 ) {
   def has_defaults: Boolean = defaults.nonEmpty
 }

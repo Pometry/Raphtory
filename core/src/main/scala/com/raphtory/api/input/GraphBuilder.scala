@@ -61,25 +61,21 @@ trait GraphBuilder[T] {
   final def assignID(uniqueChars: String): Long = GraphBuilder.assignID(uniqueChars)
 
   final def buildInstance(deploymentID: String): GraphBuilderInstance[T] =
-    new GraphBuilderInstance[T] {
-      override def getDeploymentID: String    = deploymentID
-      override def parseTuple(tuple: T): Unit = parse(this, tuple)
-    }
+    new GraphBuilderInstance[T](deploymentID, parse)
 }
 
-trait GraphBuilderInstance[T] extends Serializable with Graph {
+class GraphBuilderInstance[T](deploymentID: String, parse: (Graph, T) => Unit) extends Serializable with Graph {
 
   /** Logger instance for writing out log messages */
   val logger: Logger                                              = Logger(LoggerFactory.getLogger(this.getClass))
   var index: Long                                                 = -1L
-  private val deploymentID                                        = getDeploymentID
   private var partitionIDs: collection.Set[Int]                   = _
   private var writers: collection.Map[Int, EndPoint[GraphUpdate]] = _
   private var totalPartitions: Int                                = 1
   private val batching: Boolean                                   = false
 
-  def getDeploymentID: String
-  def parseTuple(tuple: T): Unit
+  def getDeploymentID: String    = deploymentID
+  def parseTuple(tuple: T): Unit = parse(this, tuple)
 
   /** Parses `tuple` and fetches list of updates for the graph This is used internally to retrieve updates. */
   private[raphtory] def sendUpdates(tuple: T, tupleIndex: Long)(failOnError: Boolean = true): Unit =
@@ -234,8 +230,14 @@ trait GraphBuilderInstance[T] extends Serializable with Graph {
     (id.abs % totalPartitions).toInt
 }
 
+class ConcreteGraphBuilder[T](parseFun: (Graph, T) => Unit) extends GraphBuilder[T] {
+  override def parse(graph: Graph, tuple: T): Unit = parseFun(graph, tuple)
+}
+
 object GraphBuilder {
-  def apply[T](parse_fun: (Graph, T) => Unit): GraphBuilder[T] = (graph: Graph, tuple: T) => parse_fun(graph, tuple)
+
+  def apply[T](parseFun: (Graph, T) => Unit): GraphBuilder[T] =
+    new ConcreteGraphBuilder[T](parseFun)
 
   def assignID(uniqueChars: String): Long =
     LongHashFunction.xx3().hashChars(uniqueChars)

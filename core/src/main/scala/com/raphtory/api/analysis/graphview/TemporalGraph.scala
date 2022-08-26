@@ -35,7 +35,6 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
 
   private var index = 1
 
-  @varargs // Needed for python support for now (creates appropriate java accessors)
   def ingest(sources: Source*): G = {
     querySender.submitGraph(sources, conf.getString("raphtory.graph.id"))
     this

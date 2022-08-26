@@ -121,7 +121,7 @@ object Row {
     ThreadLocal.withInitial[ArrayBuffer[RowImplementation]](() => ArrayBuffer.empty[RowImplementation])
 
   /** Create a new Row object */
-  @varargs def apply(values: Any*): Row = {
+  def apply(values: Any*): Row = {
     val localPool = pool.get()
     val row       =
       if (localPool.isEmpty) {
