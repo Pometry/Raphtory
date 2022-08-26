@@ -267,6 +267,10 @@ class ScalaProxyBase(object):
         """Access the wrapped jvm object directly"""
         return self._jvm_object
 
+    @classmethod
+    def _add_method(cls, name, method_array):
+        setattr(cls, name, MethodProxyDescriptor(name, method_array))
+
 
 class GenericScalaProxy(ScalaProxyBase):
     """Base class for proxy objects that are not constructable from python
@@ -296,7 +300,7 @@ class GenericScalaProxy(ScalaProxyBase):
                 logger.trace(f"Getting methods for {jvm_object}")
                 methods = get_methods(jvm_object)
                 for (name, method_array) in methods.items():
-                    setattr(cls, name, MethodProxyDescriptor(name, method_array))
+                    cls._add_method(name, method_array)
                 cls._initialised = True
 
     @property
@@ -468,7 +472,7 @@ class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
                 logger.trace(f"Getting methods for {jvm_object}")
                 methods = get_methods(jvm_object)
                 for (name, method_array) in methods.items():
-                    setattr(mcs, name, MethodProxyDescriptor(name, method_array))
+                    mcs._add_method(name, method_array)
                 mcs._base_initialised = True
 
 
