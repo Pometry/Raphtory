@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory
 
 import java.util
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 import scala.reflect.runtime.universe
@@ -71,11 +72,11 @@ object PythonInterop {
     obj.instance
   }
 
-  /** Take an iterable of arguments and turn it into a java varargs friendly array */
+  /** Take an iterable of arguments and turn it into a varargs friendly list */
   def make_varargs[T](obj: Iterable[T]): List[T] =
     obj.toList
 
-  def public_methods(obj: Any): Map[String, ListBuffer[Method]] = {
+  def public_methods(obj: Any): Map[String, ArrayBuffer[Method]] = {
     val clazz         = obj.getClass
     val runtimeMirror = universe.runtimeMirror(clazz.getClassLoader)
     val objType       = runtimeMirror.classSymbol(clazz).toType.dealias
@@ -90,21 +91,26 @@ object PythonInterop {
       }
       .map(_.asMethod)
       .filterNot(_.isParamWithDefault) // We will deal with default argument providers later
+      .filterNot(_.isJava) // We don't need the java compiler generated methods
 
-    val methodMap = mutable.Map.empty[String, ListBuffer[Method]]
+    val methodMap = mutable.Map.empty[String, ArrayBuffer[Method]]
 
     methods.foreach { m =>
       val name       = m.name.toString
       val params     = m.paramLists.flatten
-      val types      = params.map(p => p.info.toString)
-      val paramNames = params.map(p => camel_to_snake(p.name.toString))
-      val defaults   = params.zipWithIndex.collect {
-        case (p, i) if p.asTerm.isParamWithDefault =>
-          (i, name + "$default$" + s"${i + 1}")
-      }.toMap
+      val types      = params.map(p => p.info.toString).toArray
+      val implicits  = params.exists(_.isImplicit)
+      val paramNames = params.map(p => camel_to_snake(p.name.toString)).toArray
+      val defaults   = params.zipWithIndex
+        .collect {
+          case (p, i) if p.asTerm.isParamWithDefault =>
+            (i, name + "$default$" + s"${i + 1}")
+        }
+        .toMap
+        .asJava
 
       methodMap
-        .getOrElseUpdate(name, ListBuffer.empty[Method])
+        .getOrElseUpdate(name, ArrayBuffer.empty[Method])
         .append(
                 Method(
                         name,
@@ -112,7 +118,8 @@ object PythonInterop {
                         paramNames,
                         types,
                         defaults,
-                        m.isVarargs
+                        m.isVarargs,
+                        implicits
                 )
         )
     }
@@ -161,13 +168,13 @@ class WrappedLogger(logger: Logger) {
 case class Method(
     name: String,
     n: Int,
-    parameters: Iterable[String],
-    types: Iterable[String],
-    defaults: Map[Int, String],
+    parameters: Array[String],
+    types: Array[String],
+    defaults: java.util.Map[Int, String],
     varargs: Boolean,
-    var java: Boolean = false
+    implicits: Boolean
 ) {
-  def has_defaults: Boolean = defaults.nonEmpty
+  def has_defaults: Boolean = !defaults.isEmpty
 }
 
 /**

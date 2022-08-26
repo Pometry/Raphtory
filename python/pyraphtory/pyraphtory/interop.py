@@ -386,13 +386,13 @@ class GenericMethodProxy(object):
         for method in self._methods:
             try:
                 parameters = method.parameters()
-                logger.trace(f"Parmeters for candidate are {parameters}")
+                logger.trace(f"Parmeters for candidate are {_print_array(parameters)}")
                 defaults = method.defaults()
                 logger.trace(f"Defaults for candidate are {defaults}")
                 n = method.n()
                 logger.trace(f"Number of parameters for candidate is {n}")
                 types = method.types()
-                logger.trace(f"Types for candidate are {types}")
+                logger.trace(f"Types for candidate are {_print_array(types)}")
                 if method.varargs():
                     logger.trace(f"Method takes varargs")
                     actual_args = args[:n-len(kwargs)-1]
@@ -405,12 +405,12 @@ class GenericMethodProxy(object):
                     raise ValueError("Too many arguments")
                 if len(actual_args) + len(varargs) < n:
                     for i in range(len(actual_args), n-len(self._implicits)-len(varargs)):
-                        param = parameters.apply(i)
+                        param = parameters[i]
                         if param in kwargs:
                             actual_args.append(kwargs[param])
                             kwargs_used += 1
-                        elif defaults.contains(i):
-                            actual_args.append(getattr(self._jvm_object, defaults.apply(i))())
+                        elif i in defaults:
+                            actual_args.append(getattr(self._jvm_object, defaults[i])())
                         else:
                             raise ValueError(f"Missing value for parameter {param}")
                 if kwargs_used == len(kwargs):
@@ -470,7 +470,6 @@ class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
                 for (name, method_array) in methods.items():
                     setattr(mcs, name, MethodProxyDescriptor(name, method_array))
                 mcs._base_initialised = True
-
 
 
 class ScalaClassProxy(GenericScalaProxy, metaclass=ScalaObjectProxy):
