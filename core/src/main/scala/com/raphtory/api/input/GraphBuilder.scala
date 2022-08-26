@@ -186,7 +186,7 @@ class GraphBuilderInstance[T](graphID: String, sourceID: Int, parse: (Graph, T) 
       secondaryIndex: Long = index
   ): Unit = {
     val update = EdgeAdd(sourceID, updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption)
-    handleEdgeAdd(update)
+    handleGraphUpdate(update)
     updateEdgeAddStats()
   }
 
@@ -209,12 +209,6 @@ class GraphBuilderInstance[T](graphID: String, sourceID: Int, parse: (Graph, T) 
       writers(partitionForTuple).sendAsync(update)
       logger.trace(s"$update sent")
     }
-  }
-
-  protected def handleEdgeAdd(update: EdgeAdd): Any = {
-    val partitionForSrc = checkPartition(update.srcId)
-    if (partitionIDs contains partitionForSrc)
-      writers(partitionForSrc).sendAsync(update)
   }
 
   private def checkPartition(id: Long): Int =

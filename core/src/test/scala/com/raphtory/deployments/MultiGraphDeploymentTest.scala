@@ -25,7 +25,8 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
   def defaultSink: Sink = FileSink(outputDirectory)
 
   test("Deploy two different graphs and queries work as normally") {
-    val lotrPath    = "/tmp/lotr.csv"
+    val lotrPath = "/tmp/lotr.csv"
+
     val lotrUrl     = new URL("https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv")
     val lotrFile    = TestUtils.manageTestFile(Some(lotrPath, lotrUrl))
     val lotrSpout   = FileSpout(lotrPath)
