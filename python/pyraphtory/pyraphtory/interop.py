@@ -3,6 +3,7 @@ import re
 from abc import ABCMeta
 from collections.abc import Iterable, Mapping
 from py4j.java_gateway import JavaObject, JavaClass
+from py4j.java_collections import JavaArray
 import cloudpickle as pickle
 from functools import cached_property
 from threading import Lock
@@ -12,8 +13,17 @@ _method_cache = {}
 _wrappers = {}
 
 
-def _print_array(obj):
-    return _scala.scala.print_array(obj)
+def repr(obj):
+    return _scala.scala.repr(obj)
+
+
+# stay sane while debugging this code
+JavaArray.__repr__ = repr
+JavaArray.__str__ = repr
+JavaObject.__repr__ = repr
+JavaObject.__str__ = repr
+JavaClass.__repr__ = repr
+JavaClass.__str__ = repr
 
 
 def test_scala_reflection(obj):
@@ -262,6 +272,14 @@ class ScalaProxyBase(object):
     """Base class for wrapping jvm objects"""
     _jvm_object = None
 
+    def __repr__(self):
+        if self._jvm_object is not None:
+            return repr(self._jvm_object)
+        else:
+            return super().__repr__()
+
+    __str__ = __repr__
+
     @property
     def jvm(self):
         """Access the wrapped jvm object directly"""
@@ -269,6 +287,9 @@ class ScalaProxyBase(object):
 
     @classmethod
     def _add_method(cls, name, method_array):
+        if len(method_array) == 1:
+            method = method_array[0]
+
         setattr(cls, name, MethodProxyDescriptor(name, method_array))
 
 
@@ -335,12 +356,6 @@ class GenericScalaProxy(ScalaProxyBase):
             self._init_methods(self._jvm_object)
             return getattr(self, item)
 
-    def __repr__(self):
-        try:
-            return self._jvm_object.toString()
-        except Exception as e:
-            return f"{self.__class__.__name__}({self._jvm_object!r})"
-
     def __new__(cls, jvm_object=None):
         """Create a new instance and trigger method initialisation if needed"""
         if jvm_object is not None:
@@ -390,13 +405,13 @@ class GenericMethodProxy(object):
         for method in self._methods:
             try:
                 parameters = method.parameters()
-                logger.trace(f"Parmeters for candidate are {_print_array(parameters)}")
+                logger.trace(f"Parmeters for candidate are {repr(parameters)}")
                 defaults = method.defaults()
                 logger.trace(f"Defaults for candidate are {defaults}")
                 n = method.n()
                 logger.trace(f"Number of parameters for candidate is {n}")
                 types = method.types()
-                logger.trace(f"Types for candidate are {_print_array(types)}")
+                logger.trace(f"Types for candidate are {repr(types)}")
                 if method.varargs():
                     logger.trace(f"Method takes varargs")
                     actual_args = args[:n-len(kwargs)-1]

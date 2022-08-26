@@ -26,8 +26,19 @@ import scala.util.Random
 object PythonInterop {
   val logger: WrappedLogger = new WrappedLogger(Logger(LoggerFactory.getLogger(this.getClass)))
 
-  def print_array(array: Array[_]): String =
-    array.mkString(", ")
+  def repr(obj: Any): String =
+    obj match {
+      case v: Array[_]    => "[" + v.map(repr).mkString(", ") + "]"
+      case v: Iterable[_] => "[" + v.map(repr).mkString(", ") + "]"
+      case v: Product     =>
+        v.productPrefix + "(" + v.productElementNames
+          .zip(v.productIterator)
+          .map {
+            case (name, value) => s"$name=${repr(value)}"
+          }
+          .mkString(", ") + ")"
+      case v              => v.toString
+    }
 
   /** make assign_id accessible from python */
   def assign_id(s: String): Long =
@@ -99,7 +110,7 @@ object PythonInterop {
       val name       = m.name.toString
       val params     = m.paramLists.flatten
       val types      = params.map(p => p.info.toString).toArray
-      val implicits  = params.exists(_.isImplicit)
+      val implicits  = params.collect { case p if p.isImplicit => camel_to_snake(p.name.toString) }.toArray
       val paramNames = params.map(p => camel_to_snake(p.name.toString)).toArray
       val defaults   = params.zipWithIndex
         .collect {
@@ -172,7 +183,7 @@ case class Method(
     types: Array[String],
     defaults: java.util.Map[Int, String],
     varargs: Boolean,
-    implicits: Boolean
+    implicits: Array[String]
 ) {
   def has_defaults: Boolean = !defaults.isEmpty
 }
