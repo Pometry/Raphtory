@@ -8,7 +8,7 @@ import com.raphtory.algorithms.generic.centrality.Degree
 import com.raphtory.api.input.Spout
 import com.raphtory.spouts.ResourceSpout
 
-class HistogramTest extends BaseCorrectnessTest(startGraph = true) {
+class HistogramTest extends BaseCorrectnessTest {
   override def setSpout(): Spout[String] = ResourceSpout("MotifCount/motiftest.csv")
 
   test("Histogram Test on in-degree") {

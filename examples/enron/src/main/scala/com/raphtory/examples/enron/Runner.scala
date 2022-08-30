@@ -20,7 +20,7 @@ object Runner extends App {
   val builder = new EnronGraphBuilder()
   val source  = Source(spout, builder)
   val graph   = Raphtory.newGraph()
-  graph.ingest(source)
+  graph.load(source)
   try {
     graph
       .at(989858340000L)

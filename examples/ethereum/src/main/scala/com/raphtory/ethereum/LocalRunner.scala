@@ -241,7 +241,7 @@ object LocalRunner extends App {
   val fileOutput   = FileSink("/tmp/ethereum/Taint")
   val pulsarOutput = PulsarSink("TaintTracking")
   graph.use { graph =>
-    graph.ingest(source)
+    graph.load(source)
     IO.blocking(
             graph
               .at(1575013446)
