@@ -53,8 +53,11 @@ private[raphtory] class QueryManager(
         case Some(tracker) =>
           tracker.unblock()
           tracker.setTotalSent(msgCount)
-        case None          => //somehow updates unordered
-          logger.error(s"Source Tracker for source $ID was missing")
+        case None          =>
+          val tracker = SourceTracker()
+          tracker.unblock()
+          tracker.setTotalSent(msgCount)
+          sources.put(ID, tracker)
 
       }
     }

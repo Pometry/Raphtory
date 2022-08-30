@@ -33,8 +33,9 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   private[api] val querySender: QuerySender
   private[api] val conf: Config
 
-  private lazy val sourceID = querySender.getSourceID()
-  private var index         = 0
+  private lazy val sourceID  = querySender.getSourceID()
+  private var index          = 0
+  private var blockingClient = false
 
   def stream(sources: Source*): G = {
     querySender.submitSource(blocking = false, sources, conf.getString("raphtory.graph.id"))
@@ -48,15 +49,17 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
 
   def blockIngestion(): G = {
     querySender.blockIngestion(sourceID)
+    blockingClient = true
     this
   }
 
   def unblockIngestion(force: Boolean = false): G = {
-    querySender.unblockIngestion(sourceID, index, force) //plus one as we index from 0
+    querySender.unblockIngestion(sourceID, index, force)
     this
   }
 
   override def addVertex(updateTime: Long, srcId: Long, posTypeArg: Type): Unit = {
+    checkBlocking()
     querySender.individualUpdate(VertexAdd(sourceID, updateTime, index, srcId, Properties(), posTypeArg.toOption))
     index += 1
   }
@@ -68,6 +71,7 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
       vertexType: MaybeType = NoType,
       secondaryIndex: Long = index
   ): Unit = {
+    checkBlocking()
     querySender.individualUpdate(
             VertexAdd(sourceID, updateTime, secondaryIndex, srcId, Properties(), vertexType.toOption)
     )
@@ -75,11 +79,13 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   }
 
   override def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long = index): Unit = {
+    checkBlocking()
     querySender.individualUpdate(VertexDelete(sourceID, updateTime, secondaryIndex, srcId))
     index += 1
   }
 
   override def addEdge(updateTime: Long, srcId: Long, dstId: Long, posTypeArg: Type): Unit = {
+    checkBlocking()
     querySender.individualUpdate(EdgeAdd(sourceID, updateTime, index, srcId, dstId, Properties(), posTypeArg.toOption))
     index += 1
   }
@@ -92,6 +98,7 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
       edgeType: MaybeType = NoType,
       secondaryIndex: Long = index
   ): Unit = {
+    checkBlocking()
     querySender.individualUpdate(
             EdgeAdd(sourceID, updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption)
     )
@@ -99,9 +106,14 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   }
 
   override def deleteEdge(updateTime: Long, srcId: Long, dstId: Long, secondaryIndex: Long = index): Unit = {
+    checkBlocking()
     querySender.individualUpdate(EdgeDelete(sourceID, updateTime, secondaryIndex, srcId, dstId))
     index += 1
   }
+
+  private def checkBlocking(): Unit =
+    if (index == 0 && !blockingClient)
+      querySender.unblockIngestion(sourceID, 0, force = false)
 
   /** Creates a new `TemporalGraph` which includes all activity after startTime (inclusive).
     * @param startTime time interpreted in milliseconds by default
