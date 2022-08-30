@@ -27,8 +27,8 @@ object TutorialRunner extends App {
   val graph   = Raphtory.connect("raphtory").newGraph()
   val source  = Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder())
   val source2 = Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder())
-  graph.blockingIngest(source)
-  graph.blockingIngest(source2)
+  graph.load(source)
+  graph.load(source2)
 
   graph
     .at(32674)

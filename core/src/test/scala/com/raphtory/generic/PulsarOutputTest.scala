@@ -25,7 +25,7 @@ import scala.language.postfixOps
 @Ignore
 class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFinish = false) {
   withGraph.test("Outputting to Pulsar") { graph: TemporalGraph =>
-    graph.blockingIngest(Source(setSpout(), setGraphBuilder()))
+    graph.load(Source(setSpout(), setGraphBuilder()))
 
     val config = Raphtory.getDefaultConfig()
     PulsarConnector[IO](config).use { pulsarConnector =>

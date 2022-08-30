@@ -29,7 +29,7 @@ object AwsSpoutTest extends IOApp {
 
     graph.use { graph =>
       IO {
-        graph.blockingIngest(source)
+        graph.load(source)
         graph
           .at(32674)
           .past()

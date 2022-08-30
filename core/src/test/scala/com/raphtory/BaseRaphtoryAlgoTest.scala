@@ -44,7 +44,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           for {
             _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
             g <- graph
-            _  = g.blockingIngest(Source(setSpout(), setGraphBuilder()))
+            _  = g.load(Source(setSpout(), setGraphBuilder()))
           } yield g
   )
 
@@ -53,7 +53,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           for {
             _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
             g <- graph
-            _  = g.blockingIngest(Source(setSpout(), setGraphBuilder()))
+            _  = g.load(Source(setSpout(), setGraphBuilder()))
           } yield g
   )
 

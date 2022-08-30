@@ -32,7 +32,7 @@ object Runner extends App {
   val builder                 = new FacebookGraphBuilder()
   val source                  = Source(spout, builder)
   val graph                   = Raphtory.newGraph()
-  graph.blockingIngest(source)
+  graph.load(source)
 
   Using(graph) { graph =>
     graph

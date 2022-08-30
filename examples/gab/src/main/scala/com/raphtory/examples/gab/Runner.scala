@@ -20,7 +20,7 @@ object Runner extends App {
   val builder              = new GabUserGraphBuilder()
   val source               = Source(spout, builder)
   val rg                   = Raphtory.newGraph()
-  rg.blockingIngest(source)
+  rg.load(source)
 
   try {
 

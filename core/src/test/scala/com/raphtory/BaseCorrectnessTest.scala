@@ -56,7 +56,7 @@ abstract class BaseCorrectnessTest(
     Raphtory
       .newIOGraph()
       .use { g =>
-        g.blockingIngest(Source(ResourceSpout(graphResource), setGraphBuilder()))
+        g.load(Source(ResourceSpout(graphResource), setGraphBuilder()))
         runTest(test, g)
       }
       .map(obtained => assertResultsMatch(obtained, resultsResource))
@@ -69,7 +69,7 @@ abstract class BaseCorrectnessTest(
     Raphtory
       .newIOGraph()
       .use { g =>
-        g.blockingIngest(Source(SequenceSpout(graphEdges: _*), setGraphBuilder()))
+        g.load(Source(SequenceSpout(graphEdges: _*), setGraphBuilder()))
         runTest(test, g)
       }
       .map(obtained => assertResultsMatch(obtained, results))

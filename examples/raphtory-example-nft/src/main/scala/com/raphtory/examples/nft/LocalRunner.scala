@@ -16,7 +16,7 @@ object LocalRunner extends App {
   val builder = new NFTGraphBuilder()
   val source  = Source(spout, builder)
   val graph   = Raphtory.newGraph()
-  graph.blockingIngest(source)
+  graph.load(source)
 
   val resultsPath = "/tmp/raphtory_nft"
   val output      = FileSink(resultsPath, format = JsonFormat())
