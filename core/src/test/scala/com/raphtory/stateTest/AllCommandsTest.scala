@@ -12,6 +12,7 @@ import java.net.URL
 import scala.language.postfixOps
 
 // Broken until we have a proper JSON spout
+@munit.IgnoreSuite
 class AllCommandsTest extends BaseRaphtoryAlgoTest[String] {
   test("Graph State Test".ignore) {
     val sink = FileSink(outputDirectory)
