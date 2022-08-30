@@ -10,7 +10,8 @@ import com.raphtory.internals.context.LocalContext.createName
 import com.raphtory.internals.management._
 import com.raphtory.internals.management.id.IDManager
 import com.raphtory.internals.management.id.LocalIDManager
-import com.raphtory.internals.management.id.ZookeeperIDManager
+import com.raphtory.internals.management.id.ZooKeeperCounter
+import com.raphtory.internals.management.id.ZookeeperLimitedPool
 import com.typesafe.config.Config
 
 import scala.collection.mutable.ArrayBuffer
@@ -83,22 +84,27 @@ object Raphtory {
     confHandler.getConfig()
   }
 
-  private[raphtory] def makePartitionIdManager[IO[_]: Sync](
+  private[raphtory] def makeIdManager[IO[_]: Sync](
       config: Config,
       localDeployment: Boolean,
-      graphID: String
+      graphID: String,
+      forPartitions: Boolean
   ): Resource[IO, IDManager] =
     if (localDeployment)
       Resource.eval(Sync[IO].delay(new LocalIDManager))
     else {
-      val zookeeperAddress         = config.getString("raphtory.zookeeper.address")
-      val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
-      val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
-      val totalPartitions: Int     = partitionServers * partitionsPerServer
-      ZookeeperIDManager(zookeeperAddress, graphID, "partitionCount", poolSize = totalPartitions)
+      val zookeeperAddress = config.getString("raphtory.zookeeper.address")
+      if (forPartitions) {
+        val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
+        val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
+        val totalPartitions: Int     = partitionServers * partitionsPerServer
+        ZookeeperLimitedPool(zookeeperAddress, graphID, "partitionCount", poolSize = totalPartitions)
+      }
+      else
+        ZooKeeperCounter(zookeeperAddress, graphID, "sourceCount")
     }
 
-  protected def createName: String =
+  private[raphtory] def createName: String =
     Nomen.est().adjective().color().animal().get()
 
 }

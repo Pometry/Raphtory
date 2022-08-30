@@ -14,7 +14,7 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-private[raphtory] class ZookeeperIDManager(
+private[raphtory] class ZookeeperLimitedPool(
     zookeeperAddress: String,
     deploymentID: String,
     poolID: String,
@@ -53,14 +53,14 @@ private[raphtory] class ZookeeperIDManager(
     }
 }
 
-private[raphtory] object ZookeeperIDManager {
+private[raphtory] object ZookeeperLimitedPool {
 
   def apply[IO[_]: Sync](
       zookeeperAddress: String,
       graphId: String,
       poolID: String,
       poolSize: Int
-  ): Resource[IO, ZookeeperIDManager] =
+  ): Resource[IO, ZookeeperLimitedPool] =
     Resource
       .fromAutoCloseable(
               Sync[IO]
@@ -73,12 +73,12 @@ private[raphtory] object ZookeeperIDManager {
                 }
                 .flatTap(c => Sync[IO].blocking(c.start()))
       )
-      .map(new ZookeeperIDManager(zookeeperAddress, graphId, poolID, poolSize, _))
+      .map(new ZookeeperLimitedPool(zookeeperAddress, graphId, poolID, poolSize, _))
 
   def apply[IO[_]: Sync](
       zookeeperAddress: String,
       deploymentId: String,
       counterId: String
-  ): Resource[IO, ZookeeperIDManager] =
+  ): Resource[IO, ZookeeperLimitedPool] =
     apply(zookeeperAddress, deploymentId, counterId, Int.MaxValue)
 }

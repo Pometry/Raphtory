@@ -10,7 +10,7 @@ import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
 import com.raphtory.spouts.ResourceSpout
 
-class DegreeTest extends BaseCorrectnessTest(startGraph = true) {
+class DegreeTest extends BaseCorrectnessTest {
   override def setGraphBuilder(): GraphBuilder[String] = WeightedGraphBuilder()
 
   override def setSpout(): Spout[String] = ResourceSpout("Degree/degreeTest.csv")

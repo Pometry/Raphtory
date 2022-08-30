@@ -8,6 +8,7 @@ import cats.effect.unsafe.implicits.global
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.querymanager.IngestData
+import com.raphtory.internals.management.id.IDManager
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -24,13 +25,15 @@ class IngestionManager(
 
   override def handleMessage(msg: IngestData): Unit =
     msg match { //TODO disconnect/destroy source
-      case IngestData(_, graphID, sources) =>
+      case IngestData(_, graphID, sources, blocking) =>
         logger.info(s"Ingestion Manager for '$graphID' establishing new data source")
         executors.synchronized {
-          sources foreach { source =>
-            val ingestionResource    = IngestionExecutor[IO](graphID, source, conf, topics)
-            val (_, ingestionCancel) = ingestionResource.allocated.unsafeRunSync()
-            executors += ingestionCancel
+          sources foreach {
+            case (id, source) =>
+              val ingestionResource    = IngestionExecutor[IO](graphID, source, blocking, id, conf, topics)
+              val (_, ingestionCancel) = ingestionResource.allocated.unsafeRunSync()
+              executors += ingestionCancel
+
           }
         }
     }

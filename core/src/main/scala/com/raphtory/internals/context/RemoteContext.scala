@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.Resource
 import com.raphtory.Raphtory.confBuilder
 import com.raphtory.Raphtory.connect
+import com.raphtory.Raphtory.makeIdManager
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.connectors.AkkaConnector
@@ -24,26 +25,27 @@ class RemoteContext(deploymentID: String) extends RaphtoryContext {
   private def connectManaged(
       graphID: String,
       customConfig: Map[String, Any] = Map()
-  ): Resource[IO, (TopicRepository, Config)] = {
+  ): Resource[IO, (QuerySender, Config)] = {
     val config         = confBuilder(Map("raphtory.graph.id" -> graphID, "raphtory.deploy.id" -> deploymentID) ++ customConfig)
     val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
     for {
-      _         <- Py4JServer.fromEntryPoint[IO](this, config)
-      _         <- Prometheus[IO](prometheusPort)
-      topicRepo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config)
-    } yield (topicRepo, config)
+      _               <- Py4JServer.fromEntryPoint[IO](this, config)
+      _               <- Prometheus[IO](prometheusPort)
+      topicRepo       <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config)
+      sourceIdManager <- makeIdManager[IO](config, localDeployment = false, graphID, forPartitions = false)
+      querySender      = new QuerySender(new Scheduler(), topicRepo, config, sourceIdManager, createName)
+    } yield (querySender, config)
   }
 
   override def newGraph(graphID: String, customConfig: Map[String, Any]): DeployedTemporalGraph =
     services.synchronized(services.get(graphID) match {
       case Some(_) => throw new GraphAlreadyDeployedException(s"The graph '$graphID' already exists")
       case None    =>
-        val managed: IO[((TopicRepository, Config), IO[Unit])] = connectManaged(graphID, customConfig).allocated
-        val ((topicRepo, config), shutdown)                    = managed.unsafeRunSync()
-        val querySender                                        = new QuerySender(new Scheduler(), topicRepo, config, createName)
-        val graph                                              = Metadata(graphID, config)
-        val deployed                                           = new DeployedTemporalGraph(Query(), querySender, config, local = false, shutdown)
-        val deployment                                         = Deployment(graph, deployed)
+        val managed: IO[((QuerySender, Config), IO[Unit])] = connectManaged(graphID, customConfig).allocated
+        val ((querySender, config), shutdown)              = managed.unsafeRunSync()
+        val graph                                          = Metadata(graphID, config)
+        val deployed                                       = new DeployedTemporalGraph(Query(), querySender, config, local = false, shutdown)
+        val deployment                                     = Deployment(graph, deployed)
         services += ((graphID, deployment))
         querySender.establishGraph()
         deployed

@@ -7,6 +7,8 @@ import com.raphtory.api.input.Source
 import com.raphtory.internals.communication.CanonicalTopic
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
+import com.raphtory.internals.components.querymanager.BlockIngestion
+import com.raphtory.internals.components.querymanager.UnblockIngestion
 import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -18,6 +20,8 @@ import scala.concurrent.duration.DurationInt
 private[raphtory] class IngestionExecutor(
     graphID: String,
     source: Source,
+    blocking: Boolean,
+    sourceID: Int,
     conf: Config,
     topics: TopicRepository,
     scheduler: Scheduler
@@ -25,11 +29,12 @@ private[raphtory] class IngestionExecutor(
   private val logger: Logger        = Logger(LoggerFactory.getLogger(this.getClass))
   private val failOnError           = conf.getBoolean("raphtory.builders.failOnError")
   private val writers               = topics.graphUpdates(graphID).endPoint
-  private val sourceInstance        = source.buildSource(graphID)
+  private val queryManager          = topics.blockingIngestion.endPoint
+  private val sourceInstance        = source.buildSource(graphID, sourceID)
   private val spoutReschedulesCount = telemetry.spoutReschedules.labels(graphID)
   private val fileLinesSent         = telemetry.fileLinesSent.labels(graphID)
 
-  private var index: Int                               = 0
+  private var index: Long                              = 0
   private var scheduledRun: Option[() => Future[Unit]] = None
 
   sourceInstance.setupStreamIngestion(writers)
@@ -53,15 +58,27 @@ private[raphtory] class IngestionExecutor(
 
   private def executeSpout(): Unit = {
     spoutReschedulesCount.inc()
+    var iBlocked = false
+    if (blocking && sourceInstance.hasRemainingUpdates) {
+      queryManager.sendAsync(BlockIngestion(sourceID = sourceInstance.sourceID, graphID = graphID))
+      iBlocked = true
+    }
     while (sourceInstance.hasRemainingUpdates) {
       fileLinesSent.inc()
       index = index + 1
-      if (index % 100_000 == 0)
-        logger.debug(s"Source: sent $index messages.")
       sourceInstance.sendUpdates(index, failOnError)
     }
     if (sourceInstance.spoutReschedules())
       reschedule()
+    if (blocking && iBlocked)
+      queryManager.sendAsync(
+              UnblockIngestion(
+                      sourceInstance.sourceID,
+                      graphID = graphID,
+                      sourceInstance.sentMessages(),
+                      force = false
+              )
+      )
   }
 
   private def reschedule(): Unit = {
@@ -77,6 +94,8 @@ object IngestionExecutor {
   def apply[IO[_]: Spawn](
       graphID: String,
       source: Source,
+      blocking: Boolean,
+      sourceID: Int,
       config: Config,
       topics: TopicRepository
   )(implicit IO: Async[IO]): Resource[IO, IngestionExecutor] =
@@ -85,7 +104,7 @@ object IngestionExecutor {
               topics,
               "spout-executor",
               Seq.empty[CanonicalTopic[Any]],
-              new IngestionExecutor(graphID, source, config, topics, new Scheduler)
+              new IngestionExecutor(graphID, source, blocking, sourceID, config, topics, new Scheduler)
       )
 
 }

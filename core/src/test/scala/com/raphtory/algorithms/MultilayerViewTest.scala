@@ -27,7 +27,7 @@ object WriteValue {
   def apply() = new WriteValue
 }
 
-class MultilayerViewTest extends BaseCorrectnessTest(startGraph = true) {
+class MultilayerViewTest extends BaseCorrectnessTest {
   val edges = Seq("1,2,1", "2,1,2")
 
   override def setSpout(): Spout[String] = SequenceSpout(edges: _*)

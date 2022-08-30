@@ -11,7 +11,7 @@ import com.raphtory.spouts.SequenceSpout
 
 import scala.util.Random
 
-class RepeatedEdgeTest extends BaseCorrectnessTest(startGraph = true) {
+class RepeatedEdgeTest extends BaseCorrectnessTest {
   val rng = new Random(42) // fixed network
 
   val edges = {

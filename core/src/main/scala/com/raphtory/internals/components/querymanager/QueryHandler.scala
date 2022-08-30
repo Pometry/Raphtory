@@ -517,7 +517,7 @@ private[raphtory] class QueryHandler(
 
   private def getLatestTime: Long = queryManager.latestTime(graphID)
 
-  private def getOptionalEarliestTime: Option[Long] = queryManager.earliestTime(graphID)
+  private def getOptionalEarliestTime: Option[Long] = queryManager.earliestTime()
 }
 
 private[raphtory] object Stages extends Enumeration {
