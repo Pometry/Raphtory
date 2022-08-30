@@ -111,7 +111,7 @@ object PythonInterop {
       val params     = m.paramLists.flatten
       val types      = params.map(p => p.info.toString).toArray
       val implicits  = params.collect { case p if p.isImplicit => camel_to_snake(p.name.toString) }.toArray
-      val paramNames = params.map(p => camel_to_snake(p.name.toString)).toArray
+      val paramNames = params.filterNot(_.isImplicit).map(p => camel_to_snake(p.name.toString)).toArray
       val defaults   = params.zipWithIndex
         .collect {
           case (p, i) if p.asTerm.isParamWithDefault =>
