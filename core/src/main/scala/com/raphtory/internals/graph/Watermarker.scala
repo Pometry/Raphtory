@@ -24,16 +24,23 @@ object VertexUpdate {
   implicit val ordering: Ordering[VertexUpdate] = Ordering.by(v => (v.time, v.index, v.id))
 }
 
+case class SourceCounter(var total: Long) {
+  def increment() = total = total + 1;
+  def get(): Long = total
+}
+
 private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val lock: Lock     = new ReentrantLock()
 
+  private val sources: mutable.Map[Int, SourceCounter] = mutable.Map[Int, SourceCounter]()
+
   val oldestTime: AtomicLong = new AtomicLong(Long.MaxValue)
   val latestTime: AtomicLong = new AtomicLong(0)
 
   private var latestWatermark =
-    WatermarkTime(graphID, storage.getPartitionID, Long.MaxValue, 0, safe = false)
+    WatermarkTime(storage.getPartitionID, Long.MaxValue, 0, safe = false, Array[(Int, Long)]())
 
   //Current unsynchronised updates
   private val edgeAdditions: mutable.TreeSet[EdgeUpdate] = mutable.TreeSet()
@@ -74,8 +81,21 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
     lock.unlock()
   }
 
-  def untrackEdgeAddition(timestamp: Long, index: Long, src: Long, dst: Long): Unit = {
+  def safeRecordCompletedUpdate(sourceID: Int) = {
     lock.lock()
+    recordCompletedUpdate(sourceID)
+    lock.unlock()
+  }
+
+  private def recordCompletedUpdate(sourceID: Int): Unit =
+    sources.get(sourceID) match {
+      case Some(tracker) => tracker.increment()
+      case None          => sources.put(sourceID, new SourceCounter(1))
+    }
+
+  def untrackEdgeAddition(sourceID: Int, timestamp: Long, index: Long, src: Long, dst: Long): Unit = {
+    lock.lock()
+    recordCompletedUpdate(sourceID)
     try edgeAdditions -= EdgeUpdate(timestamp, index, src, dst)
     catch {
       case e: Exception =>
@@ -84,8 +104,9 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
     lock.unlock()
   }
 
-  def untrackEdgeDeletion(timestamp: Long, index: Long, src: Long, dst: Long): Unit = {
+  def untrackEdgeDeletion(sourceID: Int, timestamp: Long, index: Long, src: Long, dst: Long): Unit = {
     lock.lock()
+    recordCompletedUpdate(sourceID)
     try edgeDeletions -= EdgeUpdate(timestamp, index, src, dst)
     catch {
       case e: Exception =>
@@ -94,8 +115,9 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
     lock.unlock()
   }
 
-  def untrackVertexDeletion(timestamp: Long, index: Long, src: Long): Unit = {
+  def untrackVertexDeletion(sourceID: Int, timestamp: Long, index: Long, src: Long): Unit = {
     lock.lock()
+    recordCompletedUpdate(sourceID)
     val update = VertexUpdate(timestamp, index, src)
     try vertexDeletions get update match {
       case Some(counter) => //if after we remove this value its now zero we can remove from the tree
@@ -113,43 +135,53 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
   def updateWatermark(): Unit = {
     lock.lock()
     try {
-      val time = latestTime.get()
-      if (!storage.currentyBlockIngesting()) {
-        val edgeAdditionTime =
-          if (edgeAdditions.nonEmpty)
-            edgeAdditions.minBy(_.time).time
-          else
-            time
+      val time             = latestTime.get()
+      val edgeAdditionTime =
+        if (edgeAdditions.nonEmpty)
+          edgeAdditions.minBy(_.time).time
+        else
+          time
 
-        val edgeDeletionTime =
-          if (edgeDeletions.nonEmpty)
-            edgeDeletions.minBy(_.time).time
-          else
-            time
+      val edgeDeletionTime =
+        if (edgeDeletions.nonEmpty)
+          edgeDeletions.minBy(_.time).time
+        else
+          time
 
-        val vertexDeletionTime: Long =
-          if (vertexDeletions.nonEmpty)
-            vertexDeletions.keys.minBy(_.time).time //find the min and then extract the time
-          else
-            time
+      val vertexDeletionTime: Long =
+        if (vertexDeletions.nonEmpty)
+          vertexDeletions.keys.minBy(_.time).time //find the min and then extract the time
+        else
+          time
 
-        val finalTime =
-          Array(time, edgeAdditionTime, edgeDeletionTime, vertexDeletionTime).min
+      val finalTime =
+        Array(time, edgeAdditionTime, edgeDeletionTime, vertexDeletionTime).min
 
-        val noBlockingOperations =
-          edgeAdditions.isEmpty && edgeDeletions.isEmpty && vertexDeletions.isEmpty
+      val noBlockingOperations =
+        edgeAdditions.isEmpty && edgeDeletions.isEmpty && vertexDeletions.isEmpty
 
-        val newWatermark =
-          WatermarkTime(graphID, storage.getPartitionID, oldestTime.get(), finalTime, noBlockingOperations)
+      val sourceCount = sources
+        .map({
+          case (key, value) => (key, value.get())
+        })
+        .toArray
 
-        if (newWatermark != latestWatermark)
-          logger.trace(
-                  s"Partition ${storage.getPartitionID} for '$graphID': Creating watermark with " +
-                    s"earliest time '${oldestTime.get()}' and latest time '$finalTime'."
-          )
+      val newWatermark =
+        WatermarkTime(
+                storage.getPartitionID,
+                oldestTime.get(),
+                finalTime,
+                noBlockingOperations,
+                sourceCount
+        )
 
-        latestWatermark = newWatermark
-      }
+      if (newWatermark != latestWatermark)
+        logger.trace(
+                s"Partition ${storage.getPartitionID} for '$graphID': Creating watermark with " +
+                  s"earliest time '${oldestTime.get()}' and latest time '$finalTime'."
+        )
+
+      latestWatermark = newWatermark
     }
     catch {
       case e: Exception =>

@@ -59,8 +59,8 @@ class MultiSpoutDeploymentTest extends CatsEffectSuite {
             Seq(oddFile, evenFile).foreach(_.flush())
 
             val graph   = Raphtory.newGraph()
-            graph.ingest(Source(oddSpout, lotrBuilder))
-            graph.ingest(Source(evenSpout, lotrBuilder))
+            graph.load(Source(oddSpout, lotrBuilder))
+            graph.load(Source(evenSpout, lotrBuilder))
             val tracker = graph
               .range(1, 32674, 10000)
               .window(List(500, 1000, 10000), Alignment.END)

@@ -48,8 +48,6 @@ class PartitionManager(
           case e: Exception =>
             e.printStackTrace()
         }
-
-      case IngestData(_, _, _)        => //this should never happen
     }
 
   override private[raphtory] def run(): Unit =

@@ -25,7 +25,8 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
   def defaultSink: Sink = FileSink(outputDirectory)
 
   test("Deploy two different graphs and queries work as normally") {
-    val lotrPath    = "/tmp/lotr.csv"
+    val lotrPath = "/tmp/lotr.csv"
+
     val lotrUrl     = new URL("https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv")
     val lotrFile    = TestUtils.manageTestFile(Some(lotrPath, lotrUrl))
     val lotrSpout   = FileSpout(lotrPath)
@@ -46,7 +47,7 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
       .use { files =>
         IO.delay {
           val lotrGraph   = Raphtory.newGraph()
-          lotrGraph.ingest(Source(lotrSpout, lotrBuilder))
+          lotrGraph.load(Source(lotrSpout, lotrBuilder))
           val lotrTracker = lotrGraph
             .range(1, 32674, 10000)
             .window(List(500, 1000, 10000), Alignment.END)
@@ -54,7 +55,7 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
             .writeTo(defaultSink)
 
           val facebookGraph = Raphtory.newGraph()
-          facebookGraph.ingest(Source(facebookSpout, facebookBuilder))
+          facebookGraph.load(Source(facebookSpout, facebookBuilder))
 
           val facebookTracker = facebookGraph
             .at(88234)

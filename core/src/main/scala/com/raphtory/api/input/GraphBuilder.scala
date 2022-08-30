@@ -1,6 +1,7 @@
 package com.raphtory.api.input
 
 import com.raphtory.internals.communication.EndPoint
+import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.management.telemetry.ComponentTelemetryHandler
 import com.typesafe.scalalogging.Logger
@@ -60,22 +61,27 @@ trait GraphBuilder[T] {
     */
   final def assignID(uniqueChars: String): Long = GraphBuilder.assignID(uniqueChars)
 
-  final def buildInstance(deploymentID: String): GraphBuilderInstance[T] =
-    new GraphBuilderInstance[T](deploymentID, parse)
+  final def buildInstance(graphID: String, sourceID: Int): GraphBuilderInstance[T] =
+    new GraphBuilderInstance[T](graphID, sourceID, parse)
 }
 
-class GraphBuilderInstance[T](deploymentID: String, parse: (Graph, T) => Unit) extends Serializable with Graph {
+class GraphBuilderInstance[T](graphID: String, sourceID: Int, parse: (Graph, T) => Unit)
+        extends Serializable
+        with Graph {
 
   /** Logger instance for writing out log messages */
-  val logger: Logger                                              = Logger(LoggerFactory.getLogger(this.getClass))
-  var index: Long                                                 = -1L
-  private var partitionIDs: collection.Set[Int]                   = _
-  private var writers: collection.Map[Int, EndPoint[GraphUpdate]] = _
-  private var totalPartitions: Int                                = 1
-  private val batching: Boolean                                   = false
+  val logger: Logger                                                  = Logger(LoggerFactory.getLogger(this.getClass))
+  var index: Long                                                     = -1L
+  private var partitionIDs: collection.Set[Int]                       = _
+  private var writers: collection.Map[Int, EndPoint[GraphAlteration]] = _
+  private var totalPartitions: Int                                    = 1
+  private var sentUpdates: Long                                       = 0
 
-  def getDeploymentID: String    = deploymentID
+  def getGraphID: String         = graphID
+  def getSourceID: Int           = sourceID
   def parseTuple(tuple: T): Unit = parse(this, tuple)
+
+  private[raphtory] def getSentUpdates: Long = sentUpdates
 
   /** Parses `tuple` and fetches list of updates for the graph This is used internally to retrieve updates. */
   private[raphtory] def sendUpdates(tuple: T, tupleIndex: Long)(failOnError: Boolean = true): Unit =
@@ -97,7 +103,7 @@ class GraphBuilderInstance[T](deploymentID: String, parse: (Graph, T) => Unit) e
     }
 
   private[raphtory] def setupStreamIngestion(
-      streamWriters: collection.Map[Int, EndPoint[GraphUpdate]]
+      streamWriters: collection.Map[Int, EndPoint[GraphAlteration]]
   ): Unit = {
     writers = streamWriters
     partitionIDs = writers.keySet
@@ -105,7 +111,7 @@ class GraphBuilderInstance[T](deploymentID: String, parse: (Graph, T) => Unit) e
   }
 
   protected def updateVertexAddStats(): Unit =
-    ComponentTelemetryHandler.vertexAddCounter.labels(deploymentID).inc()
+    ComponentTelemetryHandler.vertexAddCounter.labels(graphID).inc()
 
   /** Adds a new vertex to the graph or updates an existing vertex
     *
@@ -132,7 +138,7 @@ class GraphBuilderInstance[T](deploymentID: String, parse: (Graph, T) => Unit) e
       vertexType: MaybeType = NoType,
       secondaryIndex: Long = index
   ): Unit = {
-    val update = VertexAdd(updateTime, secondaryIndex, srcId, properties, vertexType.toOption)
+    val update = VertexAdd(sourceID, updateTime, secondaryIndex, srcId, properties, vertexType.toOption)
     logger.trace(s"Created update $update")
     handleGraphUpdate(update)
     updateVertexAddStats()
@@ -144,12 +150,12 @@ class GraphBuilderInstance[T](deploymentID: String, parse: (Graph, T) => Unit) e
     * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
     */
   override def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long = index): Unit = {
-    handleGraphUpdate(VertexDelete(updateTime, secondaryIndex, srcId))
-    ComponentTelemetryHandler.vertexDeleteCounter.labels(deploymentID).inc()
+    handleGraphUpdate(VertexDelete(sourceID, updateTime, secondaryIndex, srcId))
+    ComponentTelemetryHandler.vertexDeleteCounter.labels(graphID).inc()
   }
 
   protected def updateEdgeAddStats(): Unit =
-    ComponentTelemetryHandler.edgeAddCounter.labels(deploymentID).inc()
+    ComponentTelemetryHandler.edgeAddCounter.labels(graphID).inc()
 
   /** Adds a new edge to the graph or updates an existing edge
     *
@@ -179,8 +185,8 @@ class GraphBuilderInstance[T](deploymentID: String, parse: (Graph, T) => Unit) e
       edgeType: MaybeType = NoType,
       secondaryIndex: Long = index
   ): Unit = {
-    val update = EdgeAdd(updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption)
-    handleEdgeAdd(update)
+    val update = EdgeAdd(sourceID, updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption)
+    handleGraphUpdate(update)
     updateEdgeAddStats()
   }
 
@@ -191,38 +197,17 @@ class GraphBuilderInstance[T](deploymentID: String, parse: (Graph, T) => Unit) e
     * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
     */
   override def deleteEdge(updateTime: Long, srcId: Long, dstId: Long, secondaryIndex: Long = index): Unit = {
-    handleGraphUpdate(EdgeDelete(updateTime, index, srcId, dstId))
-    ComponentTelemetryHandler.edgeDeleteCounter.labels(deploymentID).inc()
+    handleGraphUpdate(EdgeDelete(sourceID, updateTime, index, srcId, dstId))
+    ComponentTelemetryHandler.edgeDeleteCounter.labels(graphID).inc()
   }
 
   protected def handleGraphUpdate(update: GraphUpdate): Any = {
     logger.trace(s"handling $update")
+    sentUpdates += 1
     val partitionForTuple = checkPartition(update.srcId)
     if (partitionIDs contains partitionForTuple) {
       writers(partitionForTuple).sendAsync(update)
       logger.trace(s"$update sent")
-    }
-  }
-
-  protected def handleEdgeAdd(update: EdgeAdd): Any = {
-    val partitionForSrc = checkPartition(update.srcId)
-    if (partitionIDs contains partitionForSrc)
-      writers(partitionForSrc).sendAsync(update)
-    if (batching) {
-      val partitionForDst = checkPartition(update.dstId)
-      if (
-              (partitionIDs contains partitionForDst) && (partitionForDst != partitionForSrc)
-      ) //TODO doesn't see to currently work
-        writers(partitionForDst).sendAsync(
-                BatchAddRemoteEdge(
-                        update.updateTime,
-                        index,
-                        update.srcId,
-                        update.dstId,
-                        update.properties,
-                        update.eType
-                )
-        )
     }
   }
 

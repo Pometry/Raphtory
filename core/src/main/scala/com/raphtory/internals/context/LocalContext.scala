@@ -3,7 +3,7 @@ package com.raphtory.internals.context
 import cats.effect.Async
 import cats.effect.IO
 import cats.effect.Resource
-import com.raphtory.Raphtory.makePartitionIdManager
+import com.raphtory.Raphtory.makeIdManager
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import com.raphtory.internals.components.ingestion.IngestionManager
@@ -53,11 +53,12 @@ private[raphtory] object LocalContext extends RaphtoryContext {
     for {
       _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
       topicRepo          <- LocalTopicRepository[IO](config)
-      partitionIdManager <- makePartitionIdManager[IO](config, localDeployment = true, graphID)
+      partitionIdManager <- makeIdManager[IO](config, localDeployment = true, graphID, forPartitions = true)
+      sourceIdManager    <- makeIdManager[IO](config, localDeployment = true, graphID, forPartitions = false)
       _                  <- PartitionOrchestrator.spawn[IO](config, partitionIdManager, topicRepo, scheduler)
       _                  <- IngestionManager[IO](config, topicRepo)
       _                  <- QueryManager[IO](config, topicRepo)
-    } yield new QuerySender(scheduler, topicRepo, config, createName)
+    } yield new QuerySender(scheduler, topicRepo, config, sourceIdManager, createName)
   }
 
   override def close(): Unit = {

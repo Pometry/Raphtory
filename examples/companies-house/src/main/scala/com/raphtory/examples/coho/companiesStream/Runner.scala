@@ -27,7 +27,7 @@ object Runner extends App {
   val source              = Source(spout, builder)
   val context             = Raphtory
   val graph               = context.newGraph()
-  graph.ingest(source)
+  graph.load(source)
 
   val output = FileSink("/tmp/cohostream/people")
   Thread.sleep(10000)
