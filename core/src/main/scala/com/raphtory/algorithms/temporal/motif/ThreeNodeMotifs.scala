@@ -151,6 +151,8 @@ class ThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint:Bool
               val a_e = edge.getStateOrElse[ArrayBuffer[(Long,Long,Long)]]("a_e",ArrayBuffer())
               if (a_e.nonEmpty) {
                 val mc = new TriadMotifCounter(v.ID, nb)
+                // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
+                // for motif edges with the same timestamp
                 val inputEdges = a_e
                   .appendedAll(v.explodedEdge(nb).getOrElse(List())
                   .map(e=> (e.src,e.dst,e.timestamp)))
@@ -167,13 +169,17 @@ class ThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint:Bool
       .step({
         (v, state) =>
           val mc = new StarMotifCounter(v.ID)
+          // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
+          // for motif edges with the same timestamp
           mc.execute(v.explodeAllEdges().map(e=> (e.src,e.dst,e.timestamp)).sortBy(x => (x._3, x._1, x._2)),delta)
           val counts : Array[Int] = mc.getCounts
           var twoNodeCounts = Array.fill(8)(0)
           v.neighbours.foreach{
             vid =>
               val mc2node = new TwoNodeMotifs(v.ID)
-              mc2node.execute(v.explodedEdge(vid).getOrElse(List()).map(e => (e.src,e.dst,e.timestamp)).sortBy(_._3),delta)
+              // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
+              // for motif edges with the same timestamp
+              mc2node.execute(v.explodedEdge(vid).getOrElse(List()).map(e => (e.src,e.dst,e.timestamp))sortBy(x => (x._3, x._1, x._2)),delta)
               val twoNC = mc2node.getCounts
               for (i <- counts.indices) {
                 counts.update(i, counts(i) - twoNC(i % 8))

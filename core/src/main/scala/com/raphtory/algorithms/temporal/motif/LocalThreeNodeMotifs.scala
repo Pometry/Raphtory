@@ -78,6 +78,8 @@ class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint
         queue.foreach{
           // Pick a representative node who will hold all the exploded edge info.
           case (nb, friendsOfFriend) =>
+            // Here we want to make sure only one node is computing each triangle count as the operation is expensive, pick this
+            // to be the smallest id vertex which receives the exploded edge of the opposite triangle.
             if (v.ID > nb) {
             friendsOfFriend.intersect(neighbours).foreach{
               w =>
@@ -93,6 +95,8 @@ class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint
           v.messageQueue[List[(Long,Long,Long)]].foreach{
             edges =>
               val (u, w, _) = edges.head
+              // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
+              // for motif edges with the same timestamp
               val inputEdges = (v.explodedEdge(u).getOrElse(List()).map(e => (e.src, e.dst, e.timestamp)) ++
                 v.explodedEdge(w).getOrElse(List()).map(e => (e.src, e.dst, e.timestamp)) ++
                 edges)
@@ -119,12 +123,16 @@ class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint
       .step({
         (v, state) =>
           val mc = new StarMotifCounter(v.ID)
+          // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
+          // for motif edges with the same timestamp
           mc.execute(v.explodeAllEdges().map(e=> (e.src,e.dst,e.timestamp)).sortBy(x => (x._3, x._1, x._2)),delta)
           val counts : Array[Int] = mc.getCounts
           var twoNodeCounts = Array.fill(8)(0)
           v.neighbours.foreach{
             vid =>
               val mc2node = new TwoNodeMotifs(v.ID)
+              // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
+              // for motif edges with the same timestamp
               mc2node.execute(v.explodedEdge(vid).getOrElse(List()).map(e => (e.src,e.dst,e.timestamp)).sortBy(x => (x._3, x._1, x._2)),delta)
               val twoNC = mc2node.getCounts
               for (i <- counts.indices) {
