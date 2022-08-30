@@ -4,7 +4,8 @@ import com.raphtory.api.analysis.algorithm.{Generic, GenericReduction}
 import com.raphtory.api.analysis.graphview.{GraphPerspective, ReducedGraphPerspective}
 import com.raphtory.api.analysis.table.{Row, Table}
 
-import scala.collection.mutable
+import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs.{get2NodeCountsWithoutRepeats, getStarCountsPretty, getTriCountsPretty}
+
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -77,12 +78,12 @@ class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint
         queue.foreach{
           // Pick a representative node who will hold all the exploded edge info.
           case (nb, friendsOfFriend) =>
-            if (v.ID < nb) {
+            if (v.ID > nb) {
             friendsOfFriend.intersect(neighbours).foreach{
               w =>
-                // largest id node sends to the smallest id node the exploded edges.
-                  // message the edge history
+                if (nb > w)
                   v.messageVertex(w,v.explodedEdge(nb).getOrElse(List()).map(e=> (e.src, e.dst, e.timestamp)))
+                // largest id node sends to the smallest id node the exploded edges.
                 }
             }
         }
@@ -102,7 +103,17 @@ class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint
               val curVal = v.getState[Array[Int]]("triCounts")
               v.setState("triCounts", curVal.zip(mc.getCounts)
                 .map{ case(x,y)=> x+y})
+              v.messageVertex(u,mc.getCounts)
+              v.messageVertex(w,mc.getCounts)
               state("triCounts")+=mc.getCounts.map(_.toLong)
+          }
+      }
+      .step{
+        v =>
+          v.messageQueue[Array[Int]].foreach{
+            toAdd =>
+              val curVal = v.getState[Array[Int]]("triCounts")
+              v.setState("triCounts",curVal.zip(toAdd).map{ case (x,y) => x+y})
           }
       }
       .step({
@@ -141,44 +152,6 @@ class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint
         graph.globalSelect(state => Row((state[Array[Long],Array[Long]]("starCounts").value++state[Array[Int],Array[Int]]("twoNodeCounts").value++state[Array[Int],Array[Int]]("triCounts").value).mkString("(", ";", ")")))
     }
   }
-
-  def getTriCountsPretty[T:Numeric](triCounts:Array[T]): Map[String,T] = {
-    val prettyCounts = mutable.Map[String,T]()
-    prettyCounts.put("i --> j, k --> j, i --> k", triCounts(0))
-    prettyCounts.put("i --> j, k --> i, j --> k", triCounts(1))
-    prettyCounts.put("i --> j, j --> k, i --> k", triCounts(2))
-    prettyCounts.put("i --> j, i --> k, j --> k", triCounts(3))
-    prettyCounts.put("i --> j, k --> j, k --> i", triCounts(4))
-    prettyCounts.put("i --> j, k --> i, k --> j", triCounts(5))
-    prettyCounts.put("i --> j, j --> k, k --> i", triCounts(6))
-    prettyCounts.put("i --> j, i --> k, k --> j", triCounts(7))
-    prettyCounts.toMap
-  }
-
-  def get2NodeCountsPretty[T:Numeric](counts:Array[T]): Map[String,T] = {
-    val prettyCounts = mutable.Map[String,T]()
-    prettyCounts.put("III",counts(0))
-    prettyCounts.put("IIO",counts(1))
-    prettyCounts.put("IOI",counts(2))
-    prettyCounts.put("IOO",counts(3))
-    prettyCounts.put("OII",counts(4))
-    prettyCounts.put("OIO",counts(5))
-    prettyCounts.put("OOI",counts(6))
-    prettyCounts.put("OOO",counts(7))
-    prettyCounts.toMap
-  }
-
-  def get2NodeCountsWithoutRepeats[T:Numeric](counts:Array[T]): Map[String,T] = {
-    get2NodeCountsPretty(counts).map{case (k,v) => ("2NODE-"+k,v)}
-  }
-
-  def getStarCountsPretty[T:Numeric](counts:Array[T]): Map[String,T] = {
-    val preMap = get2NodeCountsPretty(counts.slice(0,8)).map{case (k,v) => ("STAR-PRE-"+k,v)}
-    val midMap = get2NodeCountsPretty(counts.slice(8,16)).map{case (k,v) => ("STAR-MID-"+k,v)}
-    val postMap = get2NodeCountsPretty(counts.slice(16,24)).map{case (k,v) => ("STAR-POST-"+k,v)}
-    preMap++midMap++postMap
-  }
-
 }
 
 object LocalThreeNodeMotifs {
