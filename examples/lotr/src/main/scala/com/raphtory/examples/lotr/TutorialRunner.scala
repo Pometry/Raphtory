@@ -24,11 +24,11 @@ object TutorialRunner extends App {
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
   FileUtils.curlFile(path, url)
 
-  val graph  = Raphtory.connect("test2").newGraph("test")
-  val source = Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder())
-  graph.ingest(source)
-
-  val graph2 = Raphtory.connect("test2").newGraph("test")
+  val graph   = Raphtory.newGraph("test")
+  val source  = Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder())
+  val source2 = Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder())
+  graph.blockingIngest(source)
+  graph.blockingIngest(source2)
 
   graph
     .at(32674)
@@ -38,15 +38,6 @@ object TutorialRunner extends App {
     .waitForJob()
 
   graph.destroy()
-
-  graph2
-    .at(32674)
-    .past()
-    .execute(PageRank())
-    .writeTo(FileSink("/tmp/raphtory"))
-    .waitForJob()
-
-  graph2.destroy()
 
   def addLOTRData(graph: DeployedTemporalGraph) = {
 

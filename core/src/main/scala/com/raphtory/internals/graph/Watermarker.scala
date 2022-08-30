@@ -33,7 +33,7 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
   val latestTime: AtomicLong = new AtomicLong(0)
 
   private var latestWatermark =
-    WatermarkTime(graphID, storage.getPartitionID, Long.MaxValue, 0, safe = false)
+    WatermarkTime(graphID, storage.getPartitionID, Long.MaxValue, 0, safe = false, blocking = false)
 
   //Current unsynchronised updates
   private val edgeAdditions: mutable.TreeSet[EdgeUpdate] = mutable.TreeSet()
@@ -114,7 +114,7 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
     lock.lock()
     try {
       val time = latestTime.get()
-      if (!storage.currentyBlockIngesting()) {
+      if (!storage.currentlyBlockIngesting()) {
         val edgeAdditionTime =
           if (edgeAdditions.nonEmpty)
             edgeAdditions.minBy(_.time).time
@@ -140,7 +140,14 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
           edgeAdditions.isEmpty && edgeDeletions.isEmpty && vertexDeletions.isEmpty
 
         val newWatermark =
-          WatermarkTime(graphID, storage.getPartitionID, oldestTime.get(), finalTime, noBlockingOperations)
+          WatermarkTime(
+                  graphID,
+                  storage.getPartitionID,
+                  oldestTime.get(),
+                  finalTime,
+                  noBlockingOperations,
+                  storage.currentlyBlockIngesting()
+          )
 
         if (newWatermark != latestWatermark)
           logger.trace(

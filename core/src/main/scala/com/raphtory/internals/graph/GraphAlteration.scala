@@ -2,6 +2,7 @@ package com.raphtory.internals.graph
 
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
+import com.raphtory.internals.components.querymanager.QueryManagement
 
 sealed private[raphtory] trait GraphAlteration
 
@@ -108,3 +109,14 @@ private[raphtory] object GraphAlteration {
   case class VertexRemoveSyncAck(updateTime: Long, index: Long, override val updateId: Long)
           extends GraphUpdateEffect(updateId)
 }
+
+case class BlockIngestion(
+    graphID: String,
+    blockerID: String
+) extends GraphAlteration
+
+case class UnblockIngestion(
+    graphID: String,
+    unBlockerID: String,
+    force: Boolean
+) extends GraphAlteration

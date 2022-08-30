@@ -1,6 +1,7 @@
 package com.raphtory.api.input
 
 import com.raphtory.internals.communication.EndPoint
+import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.management.telemetry.ComponentTelemetryHandler
 import com.typesafe.scalalogging.Logger
@@ -67,12 +68,12 @@ trait GraphBuilder[T] {
 class GraphBuilderInstance[T](deploymentID: String, parse: (Graph, T) => Unit) extends Serializable with Graph {
 
   /** Logger instance for writing out log messages */
-  val logger: Logger                                              = Logger(LoggerFactory.getLogger(this.getClass))
-  var index: Long                                                 = -1L
-  private var partitionIDs: collection.Set[Int]                   = _
-  private var writers: collection.Map[Int, EndPoint[GraphUpdate]] = _
-  private var totalPartitions: Int                                = 1
-  private val batching: Boolean                                   = false
+  val logger: Logger                                                  = Logger(LoggerFactory.getLogger(this.getClass))
+  var index: Long                                                     = -1L
+  private var partitionIDs: collection.Set[Int]                       = _
+  private var writers: collection.Map[Int, EndPoint[GraphAlteration]] = _
+  private var totalPartitions: Int                                    = 1
+  private val batching: Boolean                                       = false
 
   def getDeploymentID: String    = deploymentID
   def parseTuple(tuple: T): Unit = parse(this, tuple)
@@ -97,7 +98,7 @@ class GraphBuilderInstance[T](deploymentID: String, parse: (Graph, T) => Unit) e
     }
 
   private[raphtory] def setupStreamIngestion(
-      streamWriters: collection.Map[Int, EndPoint[GraphUpdate]]
+      streamWriters: collection.Map[Int, EndPoint[GraphAlteration]]
   ): Unit = {
     writers = streamWriters
     partitionIDs = writers.keySet

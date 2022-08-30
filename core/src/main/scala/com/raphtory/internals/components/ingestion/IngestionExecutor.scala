@@ -7,6 +7,8 @@ import com.raphtory.api.input.Source
 import com.raphtory.internals.communication.CanonicalTopic
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
+import com.raphtory.internals.graph.BlockIngestion
+import com.raphtory.internals.graph.UnblockIngestion
 import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -18,6 +20,7 @@ import scala.concurrent.duration.DurationInt
 private[raphtory] class IngestionExecutor(
     graphID: String,
     source: Source,
+    blocking: Boolean,
     conf: Config,
     topics: TopicRepository,
     scheduler: Scheduler
@@ -53,6 +56,15 @@ private[raphtory] class IngestionExecutor(
 
   private def executeSpout(): Unit = {
     spoutReschedulesCount.inc()
+    var iBlocked = false
+    if (blocking && sourceInstance.hasRemainingUpdates) {
+      logger.info(s"Source '${sourceInstance.sourceID}' is blocking analysis for Graph '$graphID'")
+      writers.foreach {
+        case (_, writer) =>
+          writer.sendAsync(BlockIngestion(graphID = graphID, blockerID = sourceInstance.sourceID))
+      }
+      iBlocked = true
+    }
     while (sourceInstance.hasRemainingUpdates) {
       fileLinesSent.inc()
       index = index + 1
@@ -62,6 +74,20 @@ private[raphtory] class IngestionExecutor(
     }
     if (sourceInstance.spoutReschedules())
       reschedule()
+    if (blocking && iBlocked) {
+      logger.info(s"Source '${sourceInstance.sourceID}' is unblocking analysis for Graph '$graphID'")
+      writers.foreach {
+        case (_, writer) =>
+          writer.sendAsync(
+                  UnblockIngestion(
+                          graphID = graphID,
+                          unBlockerID = sourceInstance.sourceID,
+                          force = false
+                  )
+          )
+      }
+
+    }
   }
 
   private def reschedule(): Unit = {
@@ -77,6 +103,7 @@ object IngestionExecutor {
   def apply[IO[_]: Spawn](
       graphID: String,
       source: Source,
+      blocking: Boolean,
       config: Config,
       topics: TopicRepository
   )(implicit IO: Async[IO]): Resource[IO, IngestionExecutor] =
@@ -85,7 +112,7 @@ object IngestionExecutor {
               topics,
               "spout-executor",
               Seq.empty[CanonicalTopic[Any]],
-              new IngestionExecutor(graphID, source, config, topics, new Scheduler)
+              new IngestionExecutor(graphID, source, blocking, config, topics, new Scheduler)
       )
 
 }

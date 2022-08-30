@@ -12,6 +12,7 @@ import com.raphtory.internals.components.querymanager.Submission
 import com.raphtory.internals.components.querymanager.VertexMessagesSync
 import com.raphtory.internals.components.querymanager.VertexMessaging
 import com.raphtory.internals.components.querymanager.WatermarkTime
+import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphAlteration._
 import com.typesafe.config.Config
 
@@ -69,8 +70,8 @@ private[raphtory] class TopicRepository(
     BroadcastTopic[GraphManagement](numPartitions, partitionSetupConnector, "partition.setup", graphID)
 
   // graph wise topics
-  final def graphUpdates(graphID: String): ShardingTopic[GraphUpdate] =
-    ShardingTopic[GraphUpdate](numPartitions, graphUpdatesConnector, s"graph.updates", s"$graphID")
+  final def graphUpdates(graphID: String): ShardingTopic[GraphAlteration] =
+    ShardingTopic[GraphAlteration](numPartitions, graphUpdatesConnector, s"graph.updates", s"$graphID")
 
   final def graphSync(graphID: String): ShardingTopic[GraphUpdateEffect] =
     ShardingTopic[GraphUpdateEffect](numPartitions, graphSyncConnector, s"graph.sync", s"$graphID")

@@ -20,7 +20,8 @@ private[raphtory] case class WatermarkTime(
     partitionID: Int,
     oldestTime: Long,
     latestTime: Long,
-    safe: Boolean
+    safe: Boolean,
+    blocking: Boolean
 ) extends QueryManagement
 
 private[raphtory] case object StartAnalysis extends QueryManagement
@@ -150,8 +151,12 @@ private[raphtory] case class AlgorithmFailure(perspectiveID: Int, exception: Thr
 // Messages for partitionSetup topic
 sealed private[raphtory] trait GraphManagement extends QueryManagement
 
-private[raphtory] case class IngestData(_bootstrap: DynamicLoader, graphID: String, sources: Seq[Source])
-        extends Submission
+private[raphtory] case class IngestData(
+    _bootstrap: DynamicLoader,
+    graphID: String,
+    sources: Seq[Source],
+    blocking: Boolean
+) extends Submission
         with GraphManagement
 
 private[raphtory] case class EstablishExecutor(

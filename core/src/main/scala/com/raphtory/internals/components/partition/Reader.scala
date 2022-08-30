@@ -13,6 +13,7 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
+import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
@@ -26,6 +27,7 @@ private[raphtory] class Reader(
 
   private val logger: Logger   = Logger(LoggerFactory.getLogger(this.getClass))
   private val watermarkPublish = topics.watermark.endPoint
+  private val blockingMap      = mutable.Map[String, Boolean]()
 
   private var scheduledWatermark: Option[() => Future[Unit]] = None
 
@@ -38,8 +40,6 @@ private[raphtory] class Reader(
     scheduledWatermark.foreach(cancelable => cancelable())
     watermarkPublish.close()
   }
-
-  override def handleMessage(msg: QueryManagement): Unit = {}
 
   private def checkWatermark(): Unit = {
     storage.watermarker.updateWatermark()
@@ -57,6 +57,7 @@ private[raphtory] class Reader(
               .scheduleOnce(100.milliseconds, checkWatermark())
     )
 
+  override def handleMessage(msg: QueryManagement): Unit = {}
 }
 
 object Reader {

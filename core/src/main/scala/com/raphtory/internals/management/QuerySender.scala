@@ -52,7 +52,7 @@ private[raphtory] class QuerySender(
   def individualUpdate(update: GraphUpdate) =
     writers((update.srcId % totalPartitions).toInt) sendAsync update
 
-  def submitGraph(sources: Seq[Source], id: String): Unit = {
+  def submitGraph(blocking: Boolean, sources: Seq[Source], id: String): Unit = {
 
     val clazzes = sources
       .map { source =>
@@ -61,7 +61,7 @@ private[raphtory] class QuerySender(
       .toSet
       .asInstanceOf[Set[Class[_]]]
 
-    submissions sendAsync IngestData(DynamicLoader(clazzes), id, sources)
+    submissions sendAsync IngestData(DynamicLoader(clazzes), id, sources, blocking)
   }
 
   private def getDefaultName(query: Query): String =

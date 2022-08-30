@@ -13,12 +13,17 @@ import scala.collection.mutable
   */
 abstract private[raphtory] class GraphPartition(graphID: String, partitionID: Int, conf: Config) {
 
-  protected val failOnError: Boolean = conf.getBoolean("raphtory.partitions.failOnError")
-  private var blockIngesting         = false
-  val watermarker                    = new Watermarker(graphID, this)
-  def startBlockIngesting()          = blockIngesting = true
-  def stopBlockIngesting()           = blockIngesting = false
-  def currentyBlockIngesting()       = blockIngesting
+  protected val failOnError: Boolean         = conf.getBoolean("raphtory.partitions.failOnError")
+  val watermarker                            = new Watermarker(graphID, this)
+  val blocking: mutable.Map[String, Boolean] = mutable.Map[String, Boolean]()
+  def startBlockIngesting(ID: String): Unit  = blocking.put(ID, true)
+
+  def stopBlockIngesting(ID: String, force: Boolean): Unit =
+    if (force)
+      blocking.keys.foreach(blocking.put(_, false))
+    else blocking.put(ID, false)
+
+  def currentlyBlockIngesting(): Boolean = blocking.values.fold(false)(_ || _)
 
   // Ingesting Vertices
   def addVertex(msgTime: Long, index: Long, srcId: Long, properties: Properties, vertexType: Option[Type]): Unit

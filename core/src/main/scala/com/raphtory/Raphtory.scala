@@ -98,7 +98,7 @@ object Raphtory {
       ZookeeperIDManager(zookeeperAddress, graphID, "partitionCount", poolSize = totalPartitions)
     }
 
-  protected def createName: String =
+  private[raphtory] def createName: String =
     Nomen.est().adjective().color().animal().get()
 
 }

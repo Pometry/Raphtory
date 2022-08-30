@@ -7,8 +7,10 @@ import cats.effect.Resource
 import com.raphtory.api.input._
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
+import com.raphtory.internals.graph.BlockIngestion
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphPartition
+import com.raphtory.internals.graph.UnblockIngestion
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -79,6 +81,9 @@ private[raphtory] class Writer(
       case update: EdgeSyncAck          =>
         processEdgeSyncAck(update) //The remote worker acknowledges the completion of an edge sync
       case update: VertexRemoveSyncAck  => processVertexRemoveSyncAck(update)
+
+      case blocking: BlockIngestion   => storage.startBlockIngesting(blocking.blockerID)
+      case blocking: UnblockIngestion => storage.stopBlockIngesting(blocking.unBlockerID, blocking.force)
 
       case other =>
         logger.error(s"Partition '$partitionID': Received unsupported message type '$other'.")
