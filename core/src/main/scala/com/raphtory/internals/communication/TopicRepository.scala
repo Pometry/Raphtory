@@ -79,6 +79,9 @@ private[raphtory] class TopicRepository(
   final def watermark: ExclusiveTopic[WatermarkTime] =
     ExclusiveTopic[WatermarkTime](watermarkConnector, "watermark", graphID)
 
+  final def blockingIngestion: BroadcastTopic[QueryManagement] =
+    BroadcastTopic[QueryManagement](numPartitions, watermarkConnector, "blocking.ingestion", graphID)
+
   // Job wise topics
   final def queryTrack(jobId: String): ExclusiveTopic[QueryManagement] =
     ExclusiveTopic[QueryManagement](queryTrackConnector, "query.track", s"$graphID-$jobId")

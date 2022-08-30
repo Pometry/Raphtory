@@ -8,7 +8,7 @@ import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 trait Source {
-  def buildSource(deploymentID: String): SourceInstance
+  def buildSource(graphID: String, id: Int): SourceInstance
   def getBuilder: GraphBuilder[Any]
 }
 
@@ -21,19 +21,19 @@ trait SourceInstance {
   def spoutReschedules(): Boolean
   def executeReschedule(): Unit
   def setupStreamIngestion(streamWriters: collection.Map[Int, EndPoint[GraphAlteration]]): Unit
-  def sourceID: String
+  def sourceID: Int
   def close(): Unit
 }
 
 object Source {
 
-  def apply[T](spout: Spout[T], builder: GraphBuilder[T], name: String = Raphtory.createName): Source =
+  def apply[T](spout: Spout[T], builder: GraphBuilder[T]): Source =
     new Source { // Avoid defining this as a lambda regardless of IntelliJ advices, that would cause serialization problems
-      override def buildSource(deploymentID: String): SourceInstance =
+      override def buildSource(graphID: String, id: Int): SourceInstance =
         new SourceInstance {
           private val spoutInstance   = spout.buildSpout()
-          private val builderInstance = builder.buildInstance(deploymentID)
-          def sourceID: String        = name
+          private val builderInstance = builder.buildInstance(graphID, sourceID)
+          def sourceID: Int           = id
 
           override def hasRemainingUpdates: Boolean = spoutInstance.hasNext
 

@@ -8,6 +8,7 @@ import cats.effect.unsafe.implicits.global
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.querymanager.IngestData
+import com.raphtory.internals.management.id.IDManager
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -16,7 +17,8 @@ import scala.collection.mutable
 
 class IngestionManager(
     conf: Config,
-    topics: TopicRepository
+    topics: TopicRepository,
+    idManager: IDManager
 ) extends Component[IngestData](conf) {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
@@ -28,9 +30,17 @@ class IngestionManager(
         logger.info(s"Ingestion Manager for '$graphID' establishing new data source")
         executors.synchronized {
           sources foreach { source =>
-            val ingestionResource    = IngestionExecutor[IO](graphID, source, blocking, conf, topics)
-            val (_, ingestionCancel) = ingestionResource.allocated.unsafeRunSync()
-            executors += ingestionCancel
+            idManager.getNextAvailableID() match {
+              case Some(id) =>
+                val ingestionResource    = IngestionExecutor[IO](graphID, source, blocking, id, conf, topics)
+                val (_, ingestionCancel) = ingestionResource.allocated.unsafeRunSync()
+                executors += ingestionCancel
+              case None     =>
+                logger.error(
+                        s"Could not deploy $source as Ingestion Manager for graph '$graphID could not acquire a source ID"
+                )
+            }
+
           }
         }
     }
@@ -47,12 +57,13 @@ object IngestionManager {
 
   def apply[IO[_]: Async: Spawn](
       conf: Config,
-      topics: TopicRepository
+      topics: TopicRepository,
+      idManager: IDManager
   ): Resource[IO, IngestionManager] =
     Component.makeAndStart(
             topics,
             s"ingestion-manager",
             List(topics.ingestSetup),
-            new IngestionManager(conf, topics)
+            new IngestionManager(conf, topics, idManager)
     )
 }

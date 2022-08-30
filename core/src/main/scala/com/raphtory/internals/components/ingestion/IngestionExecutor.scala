@@ -7,8 +7,8 @@ import com.raphtory.api.input.Source
 import com.raphtory.internals.communication.CanonicalTopic
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
-import com.raphtory.internals.graph.BlockIngestion
-import com.raphtory.internals.graph.UnblockIngestion
+import com.raphtory.internals.components.querymanager.BlockIngestion
+import com.raphtory.internals.components.querymanager.UnblockIngestion
 import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -21,6 +21,7 @@ private[raphtory] class IngestionExecutor(
     graphID: String,
     source: Source,
     blocking: Boolean,
+    sourceID: Int,
     conf: Config,
     topics: TopicRepository,
     scheduler: Scheduler
@@ -28,7 +29,8 @@ private[raphtory] class IngestionExecutor(
   private val logger: Logger        = Logger(LoggerFactory.getLogger(this.getClass))
   private val failOnError           = conf.getBoolean("raphtory.builders.failOnError")
   private val writers               = topics.graphUpdates(graphID).endPoint
-  private val sourceInstance        = source.buildSource(graphID)
+  private val readers               = topics.blockingIngestion.endPoint
+  private val sourceInstance        = source.buildSource(graphID, sourceID)
   private val spoutReschedulesCount = telemetry.spoutReschedules.labels(graphID)
   private val fileLinesSent         = telemetry.fileLinesSent.labels(graphID)
 
@@ -58,11 +60,7 @@ private[raphtory] class IngestionExecutor(
     spoutReschedulesCount.inc()
     var iBlocked = false
     if (blocking && sourceInstance.hasRemainingUpdates) {
-      logger.info(s"Source '${sourceInstance.sourceID}' is blocking analysis for Graph '$graphID'")
-      writers.foreach {
-        case (_, writer) =>
-          writer.sendAsync(BlockIngestion(graphID = graphID, blockerID = sourceInstance.sourceID))
-      }
+      readers.sendAsync(BlockIngestion(sourceID = sourceInstance.sourceID, graphID = graphID))
       iBlocked = true
     }
     while (sourceInstance.hasRemainingUpdates) {
@@ -74,20 +72,15 @@ private[raphtory] class IngestionExecutor(
     }
     if (sourceInstance.spoutReschedules())
       reschedule()
-    if (blocking && iBlocked) {
-      logger.info(s"Source '${sourceInstance.sourceID}' is unblocking analysis for Graph '$graphID'")
-      writers.foreach {
-        case (_, writer) =>
-          writer.sendAsync(
-                  UnblockIngestion(
-                          graphID = graphID,
-                          unBlockerID = sourceInstance.sourceID,
-                          force = false
-                  )
-          )
-      }
-
-    }
+    if (blocking && iBlocked)
+      readers.sendAsync(
+              UnblockIngestion(
+                      sourceInstance.sourceID,
+                      graphID = graphID,
+                      index,
+                      force = false
+              )
+      )
   }
 
   private def reschedule(): Unit = {
@@ -104,6 +97,7 @@ object IngestionExecutor {
       graphID: String,
       source: Source,
       blocking: Boolean,
+      sourceID: Int,
       config: Config,
       topics: TopicRepository
   )(implicit IO: Async[IO]): Resource[IO, IngestionExecutor] =
@@ -112,7 +106,7 @@ object IngestionExecutor {
               topics,
               "spout-executor",
               Seq.empty[CanonicalTopic[Any]],
-              new IngestionExecutor(graphID, source, blocking, config, topics, new Scheduler)
+              new IngestionExecutor(graphID, source, blocking, sourceID, config, topics, new Scheduler)
       )
 
 }

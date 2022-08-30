@@ -40,7 +40,6 @@ object TutorialRunner extends App {
   graph.destroy()
 
   def addLOTRData(graph: DeployedTemporalGraph) = {
-
     val line = scala.io.Source.fromFile(path).getLines.foreach { line =>
       val fileLine   = line.split(",").map(_.trim)
       val sourceNode = fileLine(0)

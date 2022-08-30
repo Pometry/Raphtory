@@ -26,8 +26,57 @@ object VertexUpdate {
 
 private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
 
-  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-  private val lock: Lock     = new ReentrantLock()
+  private val logger: Logger                    = Logger(LoggerFactory.getLogger(this.getClass))
+  private val lock: Lock                        = new ReentrantLock()
+  val blocking: mutable.Map[Int, SourceTracker] = mutable.Map[Int, SourceTracker]()
+
+  def startBlockIngesting(ID: Int): Unit = {
+    lock.lock()
+    logger.info(s"Source '$ID' is blocking analysis for Graph '$graphID'")
+    blocking.get(ID) match {
+      case Some(tracker) => //already created by the writer just do nothing
+      case None          => blocking.put(ID, SourceTracker(ID))
+    }
+    lock.unlock()
+  }
+
+  def stopBlockIngesting(ID: Int, force: Boolean, msgCount: Int): Unit = {
+    lock.lock()
+    if (force) {
+      logger.info(s"Source '$ID' is forced unblocking analysis for Graph '$graphID' with $msgCount messages sent.")
+      blocking.foreach {
+        case (id, tracker) =>
+          tracker.unblock()
+          if (id == ID)
+            tracker.setTotalSent(msgCount)
+          else
+            tracker.setTotalSent(0)
+      }
+    }
+    else {
+      logger.info(s"Source '$ID' is unblocking analysis for Graph '$graphID' with $msgCount messages sent.")
+      blocking.get(ID) match {
+        case Some(tracker) =>
+          tracker.unblock()
+          tracker.setTotalSent(msgCount)
+        case None          => //somehow updates unordered
+          logger.error(s"Source Tracker for source $ID was missing")
+
+      }
+    }
+    lock.unlock()
+  }
+
+  def currentlyBlockIngesting(): Boolean = {
+    lock.lock()
+    val blocked = blocking
+      .map({
+        case (id, tracker) => tracker.isBlocking
+      })
+      .fold(false)(_ || _)
+    lock.unlock()
+    blocked
+  }
 
   val oldestTime: AtomicLong = new AtomicLong(Long.MaxValue)
   val latestTime: AtomicLong = new AtomicLong(0)
@@ -74,8 +123,24 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
     lock.unlock()
   }
 
-  def untrackEdgeAddition(timestamp: Long, index: Long, src: Long, dst: Long): Unit = {
+  def safeRecordCompletedUpdate(sourceID: Int) = {
     lock.lock()
+    recordCompletedUpdate(sourceID)
+    lock.unlock()
+  }
+
+  private def recordCompletedUpdate(sourceID: Int) =
+    blocking.get(sourceID) match {
+      case Some(tracker) => tracker.receiveMessage
+      case None          =>
+        val tracker = SourceTracker(sourceID)
+        tracker.receiveMessage
+        blocking.put(sourceID, tracker)
+    }
+
+  def untrackEdgeAddition(sourceID: Int, timestamp: Long, index: Long, src: Long, dst: Long): Unit = {
+    lock.lock()
+    recordCompletedUpdate(sourceID)
     try edgeAdditions -= EdgeUpdate(timestamp, index, src, dst)
     catch {
       case e: Exception =>
@@ -84,8 +149,9 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
     lock.unlock()
   }
 
-  def untrackEdgeDeletion(timestamp: Long, index: Long, src: Long, dst: Long): Unit = {
+  def untrackEdgeDeletion(sourceID: Int, timestamp: Long, index: Long, src: Long, dst: Long): Unit = {
     lock.lock()
+    recordCompletedUpdate(sourceID)
     try edgeDeletions -= EdgeUpdate(timestamp, index, src, dst)
     catch {
       case e: Exception =>
@@ -94,8 +160,9 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
     lock.unlock()
   }
 
-  def untrackVertexDeletion(timestamp: Long, index: Long, src: Long): Unit = {
+  def untrackVertexDeletion(sourceID: Int, timestamp: Long, index: Long, src: Long): Unit = {
     lock.lock()
+    recordCompletedUpdate(sourceID)
     val update = VertexUpdate(timestamp, index, src)
     try vertexDeletions get update match {
       case Some(counter) => //if after we remove this value its now zero we can remove from the tree

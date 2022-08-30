@@ -83,19 +83,24 @@ object Raphtory {
     confHandler.getConfig()
   }
 
-  private[raphtory] def makePartitionIdManager[IO[_]: Sync](
+  private[raphtory] def makeIdManager[IO[_]: Sync](
       config: Config,
       localDeployment: Boolean,
-      graphID: String
+      graphID: String,
+      forPartitions: Boolean
   ): Resource[IO, IDManager] =
     if (localDeployment)
       Resource.eval(Sync[IO].delay(new LocalIDManager))
     else {
-      val zookeeperAddress         = config.getString("raphtory.zookeeper.address")
-      val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
-      val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
-      val totalPartitions: Int     = partitionServers * partitionsPerServer
-      ZookeeperIDManager(zookeeperAddress, graphID, "partitionCount", poolSize = totalPartitions)
+      val zookeeperAddress = config.getString("raphtory.zookeeper.address")
+      if (forPartitions) {
+        val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
+        val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
+        val totalPartitions: Int     = partitionServers * partitionsPerServer
+        ZookeeperIDManager(zookeeperAddress, graphID, "partitionCount", poolSize = totalPartitions)
+      }
+      else
+        ZookeeperIDManager(zookeeperAddress, graphID, "sourceCount", poolSize = 100)
     }
 
   private[raphtory] def createName: String =

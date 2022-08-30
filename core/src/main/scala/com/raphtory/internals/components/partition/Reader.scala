@@ -6,7 +6,9 @@ import cats.effect.Spawn
 import com.raphtory.internals.communication.Topic
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
+import com.raphtory.internals.components.querymanager.BlockIngestion
 import com.raphtory.internals.components.querymanager.QueryManagement
+import com.raphtory.internals.components.querymanager.UnblockIngestion
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
@@ -27,7 +29,6 @@ private[raphtory] class Reader(
 
   private val logger: Logger   = Logger(LoggerFactory.getLogger(this.getClass))
   private val watermarkPublish = topics.watermark.endPoint
-  private val blockingMap      = mutable.Map[String, Boolean]()
 
   private var scheduledWatermark: Option[() => Future[Unit]] = None
 
@@ -57,7 +58,12 @@ private[raphtory] class Reader(
               .scheduleOnce(100.milliseconds, checkWatermark())
     )
 
-  override def handleMessage(msg: QueryManagement): Unit = {}
+  override def handleMessage(msg: QueryManagement): Unit =
+    msg match {
+      case blocking: BlockIngestion     => storage.startBlockIngesting(blocking.sourceID)
+      case unblocking: UnblockIngestion =>
+        storage.stopBlockIngesting(unblocking.sourceID, unblocking.force, unblocking.messageCount)
+    }
 }
 
 object Reader {
@@ -73,7 +79,7 @@ object Reader {
             partitionID,
             topics,
             s"reader-$partitionID",
-            List[Topic[QueryManagement]](),
+            List[Topic[QueryManagement]](topics.blockingIngestion),
             new Reader(partitionID, storage, scheduler, conf, topics)
     )
 }

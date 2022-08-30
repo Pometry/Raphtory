@@ -47,7 +47,7 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   }
 
   override def addVertex(updateTime: Long, srcId: Long, posTypeArg: Type): Unit = {
-    querySender.individualUpdate(VertexAdd(updateTime, index, srcId, Properties(), posTypeArg.toOption))
+    querySender.individualUpdate(VertexAdd(-1, updateTime, index, srcId, Properties(), posTypeArg.toOption))
     index += 1
   }
 
@@ -58,17 +58,17 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
       vertexType: MaybeType = NoType,
       secondaryIndex: Long = index
   ): Unit = {
-    querySender.individualUpdate(VertexAdd(updateTime, secondaryIndex, srcId, Properties(), vertexType.toOption))
+    querySender.individualUpdate(VertexAdd(-1, updateTime, secondaryIndex, srcId, Properties(), vertexType.toOption))
     index += 1
   }
 
   override def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long = index): Unit = {
-    querySender.individualUpdate(VertexDelete(updateTime, secondaryIndex, srcId))
+    querySender.individualUpdate(VertexDelete(-1, updateTime, secondaryIndex, srcId))
     index += 1
   }
 
   override def addEdge(updateTime: Long, srcId: Long, dstId: Long, posTypeArg: Type): Unit = {
-    querySender.individualUpdate(EdgeAdd(updateTime, index, srcId, dstId, Properties(), posTypeArg.toOption))
+    querySender.individualUpdate(EdgeAdd(-1, updateTime, index, srcId, dstId, Properties(), posTypeArg.toOption))
     index += 1
   }
 
@@ -80,12 +80,12 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
       edgeType: MaybeType = NoType,
       secondaryIndex: Long = index
   ): Unit = {
-    querySender.individualUpdate(EdgeAdd(updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption))
+    querySender.individualUpdate(EdgeAdd(-1, updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption))
     index += 1
   }
 
   override def deleteEdge(updateTime: Long, srcId: Long, dstId: Long, secondaryIndex: Long = index): Unit = {
-    querySender.individualUpdate(EdgeDelete(updateTime, secondaryIndex, srcId, dstId))
+    querySender.individualUpdate(EdgeDelete(-1, updateTime, secondaryIndex, srcId, dstId))
     index += 1
   }
 

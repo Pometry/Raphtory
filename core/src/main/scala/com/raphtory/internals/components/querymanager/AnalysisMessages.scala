@@ -180,3 +180,7 @@ private[raphtory] case class DestroyGraph(graphID: String, clientID: String, for
 private[raphtory] case class ClientDisconnected(graphID: String, clientID: String)
         extends Submission
         with ClusterManagement
+
+case class BlockIngestion(sourceID: Int, graphID: String) extends QueryManagement
+
+case class UnblockIngestion(sourceID: Int, graphID: String, messageCount: Int, force: Boolean) extends QueryManagement

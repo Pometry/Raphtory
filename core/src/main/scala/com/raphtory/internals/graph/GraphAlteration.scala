@@ -4,7 +4,9 @@ import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
 import com.raphtory.internals.components.querymanager.QueryManagement
 
-sealed private[raphtory] trait GraphAlteration
+sealed private[raphtory] trait GraphAlteration {
+  val sourceID: Int
+}
 
 private[raphtory] object GraphAlteration {
 
@@ -16,6 +18,7 @@ private[raphtory] object GraphAlteration {
 
   /** basic update types */
   case class VertexAdd(
+      sourceID: Int,
       updateTime: Long,
       index: Long,
       srcId: Long,
@@ -23,9 +26,10 @@ private[raphtory] object GraphAlteration {
       vType: Option[Type]
   ) extends GraphUpdate //add a vertex (or add/update a property to an existing vertex)
 
-  case class VertexDelete(updateTime: Long, index: Long, srcId: Long) extends GraphUpdate
+  case class VertexDelete(sourceID: Int, updateTime: Long, index: Long, srcId: Long) extends GraphUpdate
 
   case class EdgeAdd(
+      sourceID: Int,
       updateTime: Long,
       index: Long,
       srcId: Long,
@@ -34,7 +38,7 @@ private[raphtory] object GraphAlteration {
       eType: Option[Type]
   ) extends GraphUpdate
 
-  case class EdgeDelete(updateTime: Long, index: Long, srcId: Long, dstId: Long) extends GraphUpdate
+  case class EdgeDelete(sourceID: Int, updateTime: Long, index: Long, srcId: Long, dstId: Long) extends GraphUpdate
 
   /** Required sync after an update has been applied to a partition */
   sealed abstract class GraphUpdateEffect(val updateId: Long) extends GraphAlteration {
@@ -43,6 +47,7 @@ private[raphtory] object GraphAlteration {
   }
 
   case class SyncNewEdgeAdd(
+      sourceID: Int,
       updateTime: Long,
       index: Long,
       srcId: Long,
@@ -53,6 +58,7 @@ private[raphtory] object GraphAlteration {
   ) extends GraphUpdateEffect(dstId)
 
   case class BatchAddRemoteEdge(
+      sourceID: Int,
       updateTime: Long,
       index: Long,
       srcId: Long,
@@ -63,6 +69,7 @@ private[raphtory] object GraphAlteration {
           with GraphUpdate
 
   case class SyncExistingEdgeAdd(
+      sourceID: Int,
       updateTime: Long,
       index: Long,
       srcId: Long,
@@ -70,10 +77,11 @@ private[raphtory] object GraphAlteration {
       properties: Properties
   ) extends GraphUpdateEffect(dstId)
 
-  case class SyncExistingEdgeRemoval(updateTime: Long, index: Long, srcId: Long, dstId: Long)
+  case class SyncExistingEdgeRemoval(sourceID: Int, updateTime: Long, index: Long, srcId: Long, dstId: Long)
           extends GraphUpdateEffect(dstId)
 
   case class SyncNewEdgeRemoval(
+      sourceID: Int,
       updateTime: Long,
       index: Long,
       srcId: Long,
@@ -82,14 +90,15 @@ private[raphtory] object GraphAlteration {
   ) extends GraphUpdateEffect(dstId)
 
   /** Edge removals generated via vertex removals */
-  case class OutboundEdgeRemovalViaVertex(updateTime: Long, index: Long, srcId: Long, dstId: Long)
+  case class OutboundEdgeRemovalViaVertex(sourceID: Int, updateTime: Long, index: Long, srcId: Long, dstId: Long)
           extends GraphUpdateEffect(dstId)
 
-  case class InboundEdgeRemovalViaVertex(updateTime: Long, index: Long, srcId: Long, dstId: Long)
+  case class InboundEdgeRemovalViaVertex(sourceID: Int, updateTime: Long, index: Long, srcId: Long, dstId: Long)
           extends GraphUpdateEffect(srcId)
 
   /** Responses from a partition receiving any of the above */
   case class SyncExistingRemovals(
+      sourceID: Int,
       updateTime: Long,
       index: Long,
       srcId: Long,
@@ -98,25 +107,9 @@ private[raphtory] object GraphAlteration {
       fromAddition: Boolean
   ) extends GraphUpdateEffect(srcId)
 
-  case class EdgeSyncAck(
-      updateTime: Long,
-      index: Long,
-      srcId: Long,
-      dstId: Long,
-      fromAddition: Boolean
-  ) extends GraphUpdateEffect(srcId)
+  case class EdgeSyncAck(sourceID: Int, updateTime: Long, index: Long, srcId: Long, dstId: Long, fromAddition: Boolean)
+          extends GraphUpdateEffect(srcId)
 
-  case class VertexRemoveSyncAck(updateTime: Long, index: Long, override val updateId: Long)
+  case class VertexRemoveSyncAck(sourceID: Int, updateTime: Long, index: Long, override val updateId: Long)
           extends GraphUpdateEffect(updateId)
 }
-
-case class BlockIngestion(
-    graphID: String,
-    blockerID: String
-) extends GraphAlteration
-
-case class UnblockIngestion(
-    graphID: String,
-    unBlockerID: String,
-    force: Boolean
-) extends GraphAlteration

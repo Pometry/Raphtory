@@ -2,7 +2,7 @@ package com.raphtory.internals.components.cluster
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.raphtory.Raphtory.makePartitionIdManager
+import com.raphtory.Raphtory.makeIdManager
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.components.Component
@@ -89,10 +89,11 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
           )
           val scheduler       = new Scheduler()
           val serviceResource = for {
-            partitionIdManager <- makePartitionIdManager[IO](graphConf, localDeployment = false, graphID)
+            partitionIdManager <- makeIdManager[IO](graphConf, localDeployment = false, graphID, forPartitions = true)
+            sourceIdManager    <- makeIdManager[IO](graphConf, localDeployment = false, graphID, forPartitions = false)
             repo               <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf)
             _                  <- PartitionOrchestrator.spawn[IO](graphConf, partitionIdManager, repo, scheduler)
-            _                  <- IngestionManager[IO](graphConf, repo)
+            _                  <- IngestionManager[IO](graphConf, repo, sourceIdManager)
             _                  <- QueryManager[IO](graphConf, repo)
           } yield ()
           val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
@@ -104,7 +105,7 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
     deployments.synchronized {
       val scheduler       = new Scheduler()
       val serviceResource = for {
-        partitionIdManager <- makePartitionIdManager[IO](graphConf, localDeployment = false, graphID)
+        partitionIdManager <- makeIdManager[IO](graphConf, localDeployment = false, graphID, forPartitions = true)
         repo               <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf)
         _                  <- PartitionOrchestrator.spawn[IO](graphConf, partitionIdManager, repo, scheduler)
       } yield ()
@@ -115,8 +116,9 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
   protected def deployIngestionService(graphID: String, clientID: String, graphConf: Config): Unit =
     deployments.synchronized {
       val serviceResource = for {
-        repo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf)
-        _    <- IngestionManager[IO](graphConf, repo)
+        repo            <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf)
+        sourceIdManager <- makeIdManager[IO](graphConf, localDeployment = false, graphID, forPartitions = false)
+        _               <- IngestionManager[IO](graphConf, repo, sourceIdManager)
       } yield ()
       val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
       deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))

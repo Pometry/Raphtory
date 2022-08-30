@@ -102,6 +102,7 @@ private[raphtory] class QueryManager(
     watermark
   }
 
+  //TODO if blocking this should return none
   def earliestTime(graphID: String): Option[Long] =
     if (watermarks(graphID).size == totalPartitions) {
       val startTimes = watermarks(graphID).map { case (_, watermark) => watermark.oldestTime }
