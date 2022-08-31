@@ -1,15 +1,34 @@
 [tool.poetry]
 name = "pyraphtory"
-version = "0.1.0"
-description = ""
-authors = ["Fabian Murariu <murariu.fabian@gmail.com>"]
-
-include = ["lib/core-*.jar"]
+version = "0.0.1"
+description = "Raphtory - Temporal Graph Analytics Platform. This is the Python version of the library."
+authors = [
+    "Fabian Murariu <admin@pometry.com>",
+    "Lucas Jeub <admin@pometry.com>",
+    "Ben Steer <admin@pometry.com>",
+    "Haaroon Yousaf <admin@pometry.com>"
+]
+maintainers = [
+    "Pometry <admin@pometry.com>"
+]
+license = "Apache-2.0"
+# include = ["lib/core-*.jar"]
+readme = "README.md"
+homepage = "https://raphtory.com/"
+repository = "https://github.com/rahptory/raphtory"
+documentation = "https://docs.raphtory.com/"
+keywords = ["raphtory", "pyraphtory", "graph", "analytics", "temporal"]
+classifiers = [
+    "Topic :: Scientific/Engineering",
+    "Topic :: Utilities",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: System :: Distributed Computing"
+]
 
 [tool.poetry.dependencies]
 python = ">=3.10 <3.11"
-# pemja = ">=0.2.5"
-pemja = {git = "https://github.com/alibaba/pemja.git", branch="main"}
+pemja =">=0.2.5"
+# pemja = {git = "https://github.com/alibaba/pemja.git", branch="main"}
 cloudpickle=">=0.4"
 pandas=">=1.4.3"
 py4j="^0.10"
