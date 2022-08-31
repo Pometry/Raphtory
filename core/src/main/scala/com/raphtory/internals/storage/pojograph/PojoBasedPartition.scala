@@ -17,6 +17,8 @@ import scala.collection.mutable
 
 private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf: Config)
         extends GraphPartition(graphID, partition, conf) {
+private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf: Config)
+        extends GraphPartition(graphID, partition, conf) {
   private val logger: Logger        = Logger(LoggerFactory.getLogger(this.getClass))
   private val hasDeletionsPath      = "raphtory.data.containsDeletions"
   private val hasDeletions: Boolean = conf.getBoolean(hasDeletionsPath)
@@ -41,6 +43,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
 
   // if the add come with some properties add all passed properties into the entity
   override def addVertex(
+      sourceID: Int,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -87,7 +90,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
         vertex
     }
 
-  def removeVertex(msgTime: Long, index: Long, srcId: Long): List[GraphUpdateEffect] = {
+  def removeVertex(sourceID: Int, msgTime: Long, index: Long, srcId: Long): List[GraphUpdateEffect] = {
     val vertex = vertices.get(srcId) match {
       case Some(v) =>
         v kill (msgTime, index)
@@ -107,7 +110,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
             remoteEdge kill (msgTime, index)
             logger.trace(s"$msgTime killed in $remoteEdge")
             Some[GraphUpdateEffect](
-                    InboundEdgeRemovalViaVertex(msgTime, index, remoteEdge.getSrcId, remoteEdge.getDstId)
+                    InboundEdgeRemovalViaVertex(sourceID, msgTime, index, remoteEdge.getSrcId, remoteEdge.getDstId)
             )
           case edge                  => //if it is a local edge -- operated by the same worker, therefore we can perform an action -- otherwise we must inform the other local worker to handle this
             edge kill (msgTime, index)
@@ -124,7 +127,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
             remoteEdge kill (msgTime, index) //outgoing edge always operated by the same worker, therefore we can perform an action
             logger.trace(s"$msgTime killed in $remoteEdge")
             Some[GraphUpdateEffect](
-                    OutboundEdgeRemovalViaVertex(msgTime, index, remoteEdge.getSrcId, remoteEdge.getDstId)
+                    OutboundEdgeRemovalViaVertex(sourceID, msgTime, index, remoteEdge.getSrcId, remoteEdge.getDstId)
             )
           case edge                  =>
             edge kill (msgTime, index) //outgoing edge always operated by the same worker, therefore we can perform an action
@@ -143,6 +146,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
   // Edge methods
 
   def addEdge(
+      sourceID: Int,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -197,7 +201,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
         }
         else
           Some(
-                  SyncExistingEdgeAdd(msgTime, index, srcId, dstId, properties)
+                  SyncExistingEdgeAdd(sourceID, msgTime, index, srcId, dstId, properties)
           )                          // inform the partition dealing with the destination node*/
       }
       else {
@@ -233,7 +237,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
         else {
           srcVertex
             .incrementEdgesRequiringSync() //if its not fully local and is new then increment the count for edges requiring a watermark count
-          Some(SyncNewEdgeAdd(msgTime, index, srcId, dstId, properties, deaths, edgeType))
+          Some(SyncNewEdgeAdd(sourceID, msgTime, index, srcId, dstId, properties, deaths, edgeType))
         }
       }
     addProperties(msgTime, index, edge, properties)
@@ -241,6 +245,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
   }
 
   def syncNewEdgeAdd(
+      sourceID: Int,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -277,10 +282,11 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
     logger.trace(s"Added properties $properties")
     dstVertex.incrementEdgesRequiringSync()
     edge.setType(edgeType.map(_.name))
-    SyncExistingRemovals(msgTime, index, srcId, dstId, deaths, fromAddition = true)
+    SyncExistingRemovals(sourceID, msgTime, index, srcId, dstId, deaths, fromAddition = true)
   }
 
   def syncExistingEdgeAdd(
+      sourceID: Int,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -305,10 +311,11 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
         dstVertex addIncomingEdge edge
 
     }
-    EdgeSyncAck(msgTime, index, srcId, dstId, fromAddition = true)
+    EdgeSyncAck(sourceID, msgTime, index, srcId, dstId, fromAddition = true)
   }
 
   def batchAddRemoteEdge(
+      sourceID: Int,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -332,7 +339,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
     }
   }
 
-  def removeEdge(msgTime: Long, index: Long, srcId: Long, dstId: Long): Option[GraphUpdateEffect] = {
+  def removeEdge(sourceID: Int, msgTime: Long, index: Long, srcId: Long, dstId: Long): Option[GraphUpdateEffect] = {
     val local                 = checkDst(dstId)
     logger.trace(s"Dst ID exists: $local")
     val srcVertex: PojoVertex = getVertexOrPlaceholder(msgTime, index, srcId)
@@ -359,7 +366,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
         None
       else
         Some(
-                SyncExistingEdgeRemoval(msgTime, index, srcId, dstId)
+                SyncExistingEdgeRemoval(sourceID, msgTime, index, srcId, dstId)
         ) // inform the partition dealing with the destination node
     }
     else {
@@ -384,20 +391,32 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
       else {
         srcVertex
           .incrementEdgesRequiringSync() //if its not fully local and is new then increment the count for edges requireing a watermark count
-        Some(SyncNewEdgeRemoval(msgTime, index, srcId, dstId, deaths))
+        Some(SyncNewEdgeRemoval(sourceID, msgTime, index, srcId, dstId, deaths))
       }
     }
   }
 
-  def inboundEdgeRemovalViaVertex(msgTime: Long, index: Long, srcId: Long, dstId: Long): GraphUpdateEffect = { //for the source getting an update about deletions from a remote worker
+  def inboundEdgeRemovalViaVertex(
+      sourceID: Int,
+      msgTime: Long,
+      index: Long,
+      srcId: Long,
+      dstId: Long
+  ): GraphUpdateEffect = { //for the source getting an update about deletions from a remote worker
     getVertexOrPlaceholder(msgTime, index, srcId).getOutgoingEdge(dstId) match {
       case Some(edge) => edge kill (msgTime, index)
       case None       => logger.error("Remote edge removal with no outgoing edge.")
     }
-    VertexRemoveSyncAck(msgTime, index, dstId)
+    VertexRemoveSyncAck(sourceID, msgTime, index, dstId)
   }
 
-  def syncExistingEdgeRemoval(msgTime: Long, index: Long, srcId: Long, dstId: Long): GraphUpdateEffect = {
+  def syncExistingEdgeRemoval(
+      sourceID: Int,
+      msgTime: Long,
+      index: Long,
+      srcId: Long,
+      dstId: Long
+  ): GraphUpdateEffect = {
     val dstVertex = getVertexOrPlaceholder(msgTime, index, dstId)
     dstVertex.getIncomingEdge(srcId) match {
       case Some(e) => e kill (msgTime, index)
@@ -408,18 +427,25 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
         val edge = new SplitEdge(msgTime, index, srcId, dstId, initialValue = false)
         dstVertex addIncomingEdge edge
     }
-    EdgeSyncAck(msgTime, index, srcId, dstId, fromAddition = false)
+    EdgeSyncAck(sourceID, msgTime, index, srcId, dstId, fromAddition = false)
   }
 
-  def outboundEdgeRemovalViaVertex(msgTime: Long, index: Long, srcId: Long, dstId: Long): GraphUpdateEffect = {
+  def outboundEdgeRemovalViaVertex(
+      sourceID: Int,
+      msgTime: Long,
+      index: Long,
+      srcId: Long,
+      dstId: Long
+  ): GraphUpdateEffect = {
     getVertexOrPlaceholder(msgTime, index, dstId).getIncomingEdge(srcId) match {
       case Some(e) => e kill (msgTime, index)
       case None    => logger.error("Remote edge removal from vertex with no incoming edge.")
     }
-    VertexRemoveSyncAck(msgTime, index, srcId)
+    VertexRemoveSyncAck(sourceID, msgTime, index, srcId)
   }
 
   def syncNewEdgeRemoval(
+      sourceID: Int,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -450,7 +476,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
     }
     else List() //get the destination node deaths
 
-    SyncExistingRemovals(msgTime, index, srcId, dstId, deaths, fromAddition = false)
+    SyncExistingRemovals(sourceID, msgTime, index, srcId, dstId, deaths, fromAddition = false)
   }
 
   def syncExistingRemovals(

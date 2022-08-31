@@ -19,7 +19,7 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
   withGraph.test("Graph State Test".ignore) { graph =>
     val sink: FileSink = FileSink(outputDirectory)
-    graph.ingest(Source(setSpout(), setGraphBuilder()))
+    graph.load(Source(setSpout(), setGraphBuilder()))
 
     graph
       .walk(10000)
@@ -34,7 +34,7 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
     val sink: FileSink = FileSink(outputDirectory)
 
     algorithmTest(
-            algorithm = ConnectedComponents(),
+            algorithm = ConnectedComponents,
             sink = sink,
             start = 1,
             end = 32674,

@@ -1,6 +1,5 @@
 package com.raphtory.internals.components.partition
 
-import cats.Id
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview._
@@ -20,6 +19,7 @@ import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.management.Scheduler
+import com.raphtory.internals.management.python.EmbeddedPython
 import com.raphtory.internals.management.python._
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.typesafe.config.Config
@@ -57,8 +57,8 @@ private[raphtory] class QueryExecutor(
   private val messageBatch: Boolean = conf.getBoolean(msgBatchPath)
   private val maxBatchSize: Int     = conf.getInt("raphtory.partitions.maxMessageBatchSize")
 
-  private val sync    = new QuerySuperstepSync(totalPartitions)
-  private lazy val py = UnsafeEmbeddedPythonProxy(pyScript)
+  private val sync = new QuerySuperstepSync(totalPartitions)
+  pyScript.map(s => EmbeddedPython.global.run(s))
 
   private val sinkExecutor: SinkExecutor = sink.executor(jobID, partitionID, conf)
 
@@ -224,8 +224,6 @@ private[raphtory] class QueryExecutor(
 
         case GraphFunctionWithGlobalState(function, graphState)                       =>
           function match {
-            case PythonStepWithGraph(pyObj)                           =>
-              evalStepWithGraph(time, graphState, new PythonStateStepEvaluator[Id](pyObj, py))
             case StepWithGraph(f)                                     =>
               evalStepWithGraph(time, graphState, f)
 
@@ -273,8 +271,6 @@ private[raphtory] class QueryExecutor(
                   )
                 }
               }
-            case PythonGlobalSelect(f)                                =>
-              evalGlobalSelect(time, graphState, new PythonGlobalSelectEvaluator[Id](f, py))
             case GlobalSelect(f)                                      =>
               evalGlobalSelect(time, graphState, f)
           }
@@ -319,8 +315,6 @@ private[raphtory] class QueryExecutor(
                   .currentTimeMillis() - time}ms and sent '$sentMessages' messages."))
             }
           }
-        case PythonStep(p)                                                            =>
-          evaluateStep(time, new PythonStepEvaluator[Id](p, py))
 
         case Step(f: (Vertex => Unit) @unchecked)                                     =>
           evaluateStep(time, f)
@@ -367,8 +361,6 @@ private[raphtory] class QueryExecutor(
             }
           }
 
-        case p: PythonIterate                                                         =>
-          evaluateIterate(time, new PythonIterateEvaluator[Id](p.bytes, py), p.executeMessagedOnly)
         case Iterate(f: (Vertex => Unit) @unchecked, iterations, executeMessagedOnly) =>
           evaluateIterate(time, f, executeMessagedOnly)
 
@@ -489,7 +481,7 @@ private[raphtory] class QueryExecutor(
     logger.debug(logMessage(s"Handled message $msg in ${System.currentTimeMillis() - time}ms"))
   }
 
-  private def evalGlobalSelect(time: Long, graphState: GraphStateImplementation, f: GraphState => Row) = {
+  private def evalGlobalSelect(time: Long, graphState: GraphStateImplementation, f: GraphState => Row): Unit = {
     startStep()
     if (partitionID == 0)
       graphLens.executeSelect(f, graphState) {
@@ -569,7 +561,7 @@ private[raphtory] class QueryExecutor(
     }
   }
 
-  private def evaluateStep(time: Long, f: Vertex => Unit) = {
+  private def evaluateStep(time: Long, f: Vertex => Unit): Unit = {
     startStep()
     graphLens.runGraphFunction(f) {
       finaliseStep {

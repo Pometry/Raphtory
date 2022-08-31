@@ -6,6 +6,9 @@ import cats.effect.IOApp
 import cats.effect.Resource
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.Raphtory
+import com.raphtory.internals.communication.connectors.AkkaConnector
+import com.raphtory.internals.components.cluster.ClusterManager
+import com.raphtory.internals.components.cluster.StandaloneMode
 import com.raphtory.arrowmessaging.ArrowFlightServer
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.components.cluster.ClusterManager

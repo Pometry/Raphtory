@@ -18,7 +18,7 @@ The query API, execution and results on streaming graphs are exactly the same as
 Whilst the API may be very similar, under the hood things are very different. When deployed as a stream, all of the components which orchestrate ingestion and analysis are actually running as independent services. This includes the `Spout`, `Graph Builder`, `Partition Manager` and `Query Manager`. This is the way Raphtory was designed to run in production, where each service may be multiplied and distributed across many machines allowing us to drastically increase the size of the graphs we analyze.
 
 ```{note}
-We can increase the number of graph builders and partitions we have locally to test how our analysis will run in a distributed environment. This can be set in the application.conf under `raphtory.builders.countPerServer` and `raphtory.partitions.countPerServer` respectfully, or by exporting the `RAPHTORY_BUILDERS_COUNTPERSERVER` and `RAPHTORY_PARTITIONS_COUNTPERSERVER` environment variables.
+We can increase the number of partitions we have locally to test how our analysis will run in a distributed environment. This can be set in the application.conf under `raphtory.partitions.countPerServer` respectfully, or by exporting the `RAPHTORY_PARTITIONS_COUNTPERSERVER` environment variables.
 ```
 
 To support distribution, Raphtory has been rebuilt to utilize [Akka](https://akka.io) for control messages and [Apache Pulsar](https://pulsar.apache.org) as its broker to support communication between components. Using Pulsar means that all data sent within Raphtory is fully backed up and communication can easily scale to millions of messages a second. 

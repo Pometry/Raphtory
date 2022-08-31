@@ -2,9 +2,11 @@ package com.raphtory.internals.graph
 
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
-import com.raphtory.internals.components.querymanager.SchemaProvider
+import com.raphtory.internals.components.querymanager._
 
-sealed private[raphtory] trait GraphAlteration
+sealed private[raphtory] trait GraphAlteration {
+  val sourceID: Int
+}
 
 private[raphtory] object GraphAlteration {
 
@@ -16,6 +18,7 @@ private[raphtory] object GraphAlteration {
 
   /** basic update types */
   case class VertexAdd(
+      sourceID: Int,
       updateTime: Long,
       index: Long,
       srcId: Long,
@@ -24,11 +27,12 @@ private[raphtory] object GraphAlteration {
   )(implicit val provider: SchemaProvider[VertexAdd])
           extends GraphUpdate //add a vertex (or add/update a property to an existing vertex)
 
-  case class VertexDelete(updateTime: Long, index: Long, srcId: Long)(implicit
+  case class VertexDelete(sourceID: Int, updateTime: Long, index: Long, srcId: Long)(implicit
       val provider: SchemaProvider[VertexDelete]
   ) extends GraphUpdate
 
   case class EdgeAdd(
+      sourceID: Int,
       updateTime: Long,
       index: Long,
       srcId: Long,
@@ -38,7 +42,7 @@ private[raphtory] object GraphAlteration {
   )(implicit val provider: SchemaProvider[EdgeAdd])
           extends GraphUpdate
 
-  case class EdgeDelete(updateTime: Long, index: Long, srcId: Long, dstId: Long)(implicit
+  case class EdgeDelete(sourceID: Int, updateTime: Long, index: Long, srcId: Long, dstId: Long)(implicit
       val provider: SchemaProvider[EdgeDelete]
   ) extends GraphUpdate
 
@@ -49,6 +53,7 @@ private[raphtory] object GraphAlteration {
   }
 
   case class SyncNewEdgeAdd(
+      sourceID: Int,
       updateTime: Long,
       index: Long,
       srcId: Long,
@@ -61,6 +66,7 @@ private[raphtory] object GraphAlteration {
   ) extends GraphUpdateEffect(dstId)
 
   case class BatchAddRemoteEdge(
+      sourceID: Int,
       updateTime: Long,
       index: Long,
       srcId: Long,
@@ -73,6 +79,7 @@ private[raphtory] object GraphAlteration {
           with GraphUpdate
 
   case class SyncExistingEdgeAdd(
+      sourceID: Int,
       updateTime: Long,
       index: Long,
       srcId: Long,
@@ -82,11 +89,12 @@ private[raphtory] object GraphAlteration {
       val provider: SchemaProvider[SyncExistingEdgeAdd]
   ) extends GraphUpdateEffect(dstId)
 
-  case class SyncExistingEdgeRemoval(updateTime: Long, index: Long, srcId: Long, dstId: Long)(implicit
+  case class SyncExistingEdgeRemoval(sourceID: Int,updateTime: Long, index: Long, srcId: Long, dstId: Long)(implicit
       val provider: SchemaProvider[SyncExistingEdgeRemoval]
   ) extends GraphUpdateEffect(dstId)
 
   case class SyncNewEdgeRemoval(
+      sourceID: Int,
       updateTime: Long,
       index: Long,
       srcId: Long,
@@ -97,16 +105,17 @@ private[raphtory] object GraphAlteration {
   ) extends GraphUpdateEffect(dstId)
 
   /** Edge removals generated via vertex removals */
-  case class OutboundEdgeRemovalViaVertex(updateTime: Long, index: Long, srcId: Long, dstId: Long)(implicit
+  case class OutboundEdgeRemovalViaVertex(sourceID: Int, updateTime: Long, index: Long, srcId: Long, dstId: Long)(implicit
       val provider: SchemaProvider[OutboundEdgeRemovalViaVertex]
   ) extends GraphUpdateEffect(dstId)
 
-  case class InboundEdgeRemovalViaVertex(updateTime: Long, index: Long, srcId: Long, dstId: Long)(implicit
+  case class InboundEdgeRemovalViaVertex(sourceID: Int, updateTime: Long, index: Long, srcId: Long, dstId: Long)(implicit
       val provider: SchemaProvider[InboundEdgeRemovalViaVertex]
   ) extends GraphUpdateEffect(srcId)
 
   /** Responses from a partition receiving any of the above */
   case class SyncExistingRemovals(
+      sourceID: Int,
       updateTime: Long,
       index: Long,
       srcId: Long,
@@ -118,6 +127,7 @@ private[raphtory] object GraphAlteration {
   ) extends GraphUpdateEffect(srcId)
 
   case class EdgeSyncAck(
+      sourceID: Int,
       updateTime: Long,
       index: Long,
       srcId: Long,
@@ -127,7 +137,7 @@ private[raphtory] object GraphAlteration {
       val provider: SchemaProvider[EdgeSyncAck]
   ) extends GraphUpdateEffect(srcId)
 
-  case class VertexRemoveSyncAck(updateTime: Long, index: Long, override val updateId: Long)(implicit
+  case class VertexRemoveSyncAck(sourceID: Int, updateTime: Long, index: Long, override val updateId: Long)(implicit
       val provider: SchemaProvider[VertexRemoveSyncAck]
   ) extends GraphUpdateEffect(updateId)
 }

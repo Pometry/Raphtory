@@ -12,7 +12,7 @@ import com.raphtory.api.input.SpoutInstance
   *  @see [[com.raphtory.api.input.Spout Spout]]
   *       [[com.raphtory.Raphtory Raphtory]]
   */
-class IdentitySpout[T]() extends Spout[T] {
+case class IdentitySpout[T]() extends Spout[T] {
   override def buildSpout(): SpoutInstance[T] = new IdentitySpoutInstance()
 }
 

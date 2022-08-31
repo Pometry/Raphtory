@@ -6,7 +6,9 @@ import cats.effect.Spawn
 import com.raphtory.internals.communication.Topic
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
+import com.raphtory.internals.components.querymanager.BlockIngestion
 import com.raphtory.internals.components.querymanager.QueryManagement
+import com.raphtory.internals.components.querymanager.UnblockIngestion
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
@@ -39,8 +41,6 @@ private[raphtory] class Reader(
     watermarkPublish.close()
   }
 
-  override def handleMessage(msg: QueryManagement): Unit = {}
-
   private def checkWatermark(): Unit = {
     storage.watermarker.updateWatermark()
     val latestWatermark = storage.watermarker.getLatestWatermark
@@ -57,6 +57,7 @@ private[raphtory] class Reader(
               .scheduleOnce(100.milliseconds, checkWatermark())
     )
 
+  override def handleMessage(msg: QueryManagement): Unit = {}
 }
 
 object Reader {

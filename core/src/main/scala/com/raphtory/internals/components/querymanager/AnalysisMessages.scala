@@ -16,11 +16,11 @@ import scala.collection.immutable.Queue
 private[raphtory] trait QueryManagement extends Serializable
 
 private[raphtory] case class WatermarkTime(
-    graphID: String,
     partitionID: Int,
     oldestTime: Long,
     latestTime: Long,
-    safe: Boolean
+    safe: Boolean,
+    sourceMessages: Array[(Int, Long)]
 ) extends QueryManagement
 
 private[raphtory] case object StartAnalysis extends QueryManagement
@@ -98,6 +98,7 @@ private[raphtory] case class Query(
     windowAlignment: Alignment.Value = Alignment.START,
     graphFunctions: Queue[GraphFunction] = Queue(),
     tableFunctions: Queue[TableFunction] = Queue(),
+    blockedBy: Array[Int] = Array(),
     sink: Option[Sink] = None,
     pyScript: Option[String] = None
 ) extends Submission
@@ -162,8 +163,12 @@ private[raphtory] case class AlgorithmFailure(perspectiveID: Int, exception: Thr
 // Messages for partitionSetup topic
 sealed private[raphtory] trait GraphManagement extends QueryManagement
 
-private[raphtory] case class IngestData(_bootstrap: DynamicLoader, graphID: String, sources: Seq[Source])
-        extends Submission
+private[raphtory] case class IngestData(
+    _bootstrap: DynamicLoader,
+    graphID: String,
+    sources: Seq[(Int, Source)],
+    blocking: Boolean
+) extends Submission
         with GraphManagement
 
 private[raphtory] case class EstablishExecutor(
@@ -187,3 +192,7 @@ private[raphtory] case class DestroyGraph(graphID: String, clientID: String, for
 private[raphtory] case class ClientDisconnected(graphID: String, clientID: String)
         extends Submission
         with ClusterManagement
+
+case class BlockIngestion(sourceID: Int, graphID: String) extends QueryManagement
+
+case class UnblockIngestion(sourceID: Int, graphID: String, messageCount: Long, force: Boolean) extends QueryManagement

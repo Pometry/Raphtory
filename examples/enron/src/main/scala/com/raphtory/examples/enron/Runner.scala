@@ -20,7 +20,7 @@ object Runner extends App {
   val builder = new EnronGraphBuilder()
   val source  = Source(spout, builder)
   val graph   = Raphtory.newGraph()
-  graph.ingest(source)
+  graph.load(source)
   try {
     graph
       .at(989858340000L)
@@ -32,7 +32,7 @@ object Runner extends App {
     graph
       .range(963557940000L, 989858340000L, 1000000000)
       .past()
-      .execute(ConnectedComponents())
+      .execute(ConnectedComponents)
       .writeTo(PulsarSink("ConnectedComponents"))
       .waitForJob()
   }

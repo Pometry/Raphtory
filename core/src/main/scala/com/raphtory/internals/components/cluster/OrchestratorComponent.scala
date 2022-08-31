@@ -2,7 +2,7 @@ package com.raphtory.internals.components.cluster
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.raphtory.Raphtory.makePartitionIdManager
+import com.raphtory.Raphtory.makeIdManager
 import com.raphtory.arrowmessaging.ArrowFlightServer
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
@@ -93,7 +93,7 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
           )
           val scheduler       = new Scheduler()
           val serviceResource = for {
-            partitionIdManager <- makePartitionIdManager[IO](graphConf, localDeployment = false, graphID)
+            partitionIdManager <- makeIdManager[IO](graphConf, localDeployment = false, graphID, forPartitions = true)
             zkClient           <- ZookeeperConnector.getZkClient(graphConf.getString("raphtory.zookeeper.address"))
             arrowServer        <- ArrowFlightServer[IO]()
             addressHandler      = new ZKHostAddressProvider(zkClient, conf, Some(arrowServer))
@@ -111,7 +111,7 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
     deployments.synchronized {
       val scheduler       = new Scheduler()
       val serviceResource = for {
-        partitionIdManager <- makePartitionIdManager[IO](graphConf, localDeployment = false, graphID)
+        partitionIdManager <- makeIdManager[IO](graphConf, localDeployment = false, graphID, forPartitions = true)
         zkClient           <- ZookeeperConnector.getZkClient(graphConf.getString("raphtory.zookeeper.address"))
         arrowServer        <- ArrowFlightServer[IO]()
         addressHandler      = new ZKHostAddressProvider(zkClient, conf, Some(arrowServer))
@@ -125,10 +125,8 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
   protected def deployIngestionService(graphID: String, clientID: String, graphConf: Config): Unit =
     deployments.synchronized {
       val serviceResource = for {
-        zkClient      <- ZookeeperConnector.getZkClient(graphConf.getString("raphtory.zookeeper.address"))
-        addressHandler = new ZKHostAddressProvider(zkClient, conf, None)
-        repo          <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf, addressHandler)
-        _             <- IngestionManager[IO](graphConf, repo)
+        repo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf)
+        _    <- IngestionManager[IO](graphConf, repo)
       } yield ()
       val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
       deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))

@@ -33,7 +33,7 @@ object Runner extends IOApp {
 
     graph.use { graph =>
       IO {
-        graph.ingest(source)
+        graph.load(source)
         graph
           .walk("10 milliseconds")
           .window("10 milliseconds")

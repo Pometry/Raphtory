@@ -3,7 +3,7 @@ package com.raphtory.internals.context
 import cats.effect.Async
 import cats.effect.IO
 import cats.effect.Resource
-import com.raphtory.Raphtory.makePartitionIdManager
+import com.raphtory.Raphtory.makeIdManager
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.communication.repositories.LocalTopicRepository
@@ -13,6 +13,9 @@ import com.raphtory.internals.components.querymanager.QueryManager
 import com.raphtory.internals.management.Prometheus
 import com.raphtory.internals.management.QuerySender
 import com.raphtory.internals.management.Scheduler
+import com.typesafe.config.Config
+import cats.effect.unsafe.implicits.global
+import com.raphtory.internals.components.partition.PartitionOrchestrator
 import com.raphtory.internals.management.ZookeeperConnector
 import com.typesafe.config.Config
 import cats.effect.unsafe.implicits.global
@@ -62,11 +65,12 @@ private[raphtory] object LocalContext extends RaphtoryContext {
       arrowServer        <- ArrowFlightServer[IO]()
       addressHandler      = new LocalHostAddressProvider(config, arrowServer)
       topicRepo          <- LocalTopicRepository[IO](config, addressHandler)
-      partitionIdManager <- makePartitionIdManager[IO](config, localDeployment = true, graphID)
+      partitionIdManager <- makeIdManager[IO](config, localDeployment = true, graphID, forPartitions = true)
+      sourceIdManager    <- makeIdManager[IO](config, localDeployment = true, graphID, forPartitions = false)
       _                  <- PartitionOrchestrator.spawn[IO](config, partitionIdManager, topicRepo, scheduler)
       _                  <- IngestionManager[IO](config, topicRepo)
       _                  <- QueryManager[IO](config, topicRepo)
-    } yield new QuerySender(scheduler, topicRepo, config, createName)
+    } yield new QuerySender(scheduler, topicRepo, config, sourceIdManager, createName)
   }
 
   override def close(): Unit = {

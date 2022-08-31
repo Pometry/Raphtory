@@ -13,18 +13,14 @@ import com.typesafe.config.Config
 
 private[raphtory] object DistributedTopicRepository {
 
-  def apply[IO[_]: Async](
-      akkaMode: AkkaConnector.Mode,
-      config: Config,
-      addressProvider: ZKHostAddressProvider
-  ): Resource[IO, TopicRepository] =
+  def apply[IO[_]: Async](akkaMode: AkkaConnector.Mode, config: Config, addressProvider: ZKHostAddressProvider): Resource[IO, TopicRepository] =
     config.getString("raphtory.communication.control") match {
-      case "auto"   =>
+      case "auto" | "akka" =>
         for {
           arrowFlightConnector <- ArrowFlightConnector[IO](config, signatureRegistry, addressProvider)
           pulsarConnector      <- PulsarConnector[IO](config)
           akkaConnector        <- AkkaConnector[IO](akkaMode, config)
         } yield new TopicRepository(akkaConnector, arrowFlightConnector, pulsarConnector, config)
-      case "pulsar" => PulsarConnector[IO](config).map(connector => TopicRepository(connector, config))
+      case "pulsar"        => PulsarConnector[IO](config).map(connector => TopicRepository(connector, config))
     }
 }

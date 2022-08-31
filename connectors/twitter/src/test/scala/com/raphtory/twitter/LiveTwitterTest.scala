@@ -38,7 +38,7 @@ object LiveTwitterTest extends IOApp {
 
     graph.use { graph =>
       IO {
-        graph.ingest(source)
+        graph.load(source)
         graph
           .walk("5 milliseconds")
           .window("5 milliseconds")

@@ -23,7 +23,7 @@ object Runner extends App {
   val builder = new TwitterCirclesGraphBuilder()
   val source  = Source(spout, builder)
   val graph   = Raphtory.newGraph()
-  graph.ingest(source)
+  graph.load(source)
   Using(graph) { graph =>
     graph
       .at(88234)
@@ -35,7 +35,7 @@ object Runner extends App {
     graph
       .range(10000, 88234, 10000)
       .window(List(500, 1000, 10000), Alignment.END)
-      .execute(ConnectedComponents())
+      .execute(ConnectedComponents)
       .writeTo(PulsarSink("ConnectedComponents"))
       .waitForJob()
   }

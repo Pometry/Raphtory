@@ -26,6 +26,9 @@ object Dependencies {
   private lazy val timeSeriesVersion     = "1.7.0"
   private lazy val typesafeConfigVersion = "1.4.2"
   private lazy val zookeeperVersion      = "3.7.0"
+  private lazy val catsVersion           = "2.7.0"
+  private lazy val catsMUnitVersion      = "1.0.7"
+  private lazy val nomenVersion          = "2.1.0"
 
   lazy val excludePulsarBinding = ExclusionRule(organization = "org.apache.pulsar")
   lazy val excludeSlf4j         = ExclusionRule(organization = "org.slf4j")
@@ -33,10 +36,9 @@ object Dependencies {
 
   lazy val akkaClusterTyped =
     "com.typesafe.akka" %% "akka-cluster-typed" % akkaVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val akkaTyped = "com.typesafe.akka" %% "akka-actor-typed" % akkaVersion excludeAll (excludeLog4j, excludeSlf4j)
-
-  lazy val bcel       = "org.apache.bcel" % "bcel"        % bcelVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val catsEffect = "org.typelevel"  %% "cats-effect" % catsEffectVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val akkaTyped  = "com.typesafe.akka" %% "akka-actor-typed" % akkaVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val bcel       = "org.apache.bcel"    % "bcel"             % bcelVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val catsEffect = "org.typelevel"     %% "cats-effect"      % catsEffectVersion excludeAll (excludeLog4j, excludeSlf4j)
 
   lazy val curatorRecipes =
     "org.apache.curator" % "curator-recipes" % curatorVersion excludeAll (excludeLog4j, excludeSlf4j)

@@ -30,7 +30,7 @@ class PartitionManager(
   private val executors                    = new ConcurrentHashMap[String, QueryExecutor]()
   val storage                              = new PojoBasedPartition(graphID, partitionID, conf)
   val readerResource: Resource[IO, Reader] = Reader[IO](partitionID, storage, scheduler, conf, topics)
-  val writerResource: Resource[IO, Writer] = Writer[IO](graphID, partitionID, storage, conf, topics, scheduler)
+  val writerResource: Resource[IO, Writer] = Writer[IO](graphID, partitionID, storage, conf, topics)
   val (_, readerCancel)                    = readerResource.allocated.unsafeRunSync()
   val (_, writerCancel)                    = writerResource.allocated.unsafeRunSync()
 
@@ -48,8 +48,6 @@ class PartitionManager(
           case e: Exception =>
             e.printStackTrace()
         }
-
-      case IngestData(_, _, _)        => //this should never happen
     }
 
   override private[raphtory] def run(): Unit =

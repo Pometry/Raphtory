@@ -10,6 +10,7 @@ import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Type
+import com.raphtory.examples.lotr.TutorialRunner.graph
 import com.raphtory.examples.lotr.graphbuilders.LOTRGraphBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
@@ -23,31 +24,35 @@ object TutorialRunner extends App {
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
   FileUtils.curlFile(path, url)
 
-  val graph  = Raphtory.newGraph()
-  //addLOTRData(graph)
-  val source = Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder())
-  graph.ingest(source)
+  val graph   = Raphtory.newGraph()
+  val source  = Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder())
+  val source2 = Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder())
+  graph.load(source)
+//  graph.load(source2)
+//  addLOTRData(graph)
 
   graph
     .at(32674)
     .past()
-    .execute(ConnectedComponents())
+    .execute(ConnectedComponents)
     .writeTo(FileSink("/tmp/raphtory"))
     .waitForJob()
 
   graph.destroy()
 
-  def addLOTRData(graph: DeployedTemporalGraph) =
-    scala.io.Source.fromFile(path).getLines.foreach { line =>
+  def addLOTRData(graph: DeployedTemporalGraph) = {
+    graph.blockIngestion()
+    val line = scala.io.Source.fromFile(path).getLines.foreach { line =>
       val fileLine   = line.split(",").map(_.trim)
       val sourceNode = fileLine(0)
       val srcID      = assignID(sourceNode)
       val targetNode = fileLine(1)
       val tarID      = assignID(targetNode)
       val timeStamp  = fileLine(2).toLong
-
       graph.addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)), Type("Character"))
       graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("Character"))
       graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurence"))
     }
+    graph.unblockIngestion()
+  }
 }
