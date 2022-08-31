@@ -178,10 +178,7 @@ object AkkaConnector {
           case AkkaConnector.ClientMode => false
         }
 
-        val providedSeedAddress = config.getString("raphtory.deploy.address")
-        val seedAddress         =
-          Try(InetAddress.getByName(providedSeedAddress).getHostAddress)
-            .getOrElse(providedSeedAddress)
+        val seedAddress = config.getString("raphtory.deploy.address")
         ActorSystem(SpawnProtocol(), systemName, akkaConfig(seedAddress, seed, config))
     }
 
@@ -194,6 +191,7 @@ object AkkaConnector {
       akka.remote.artery.canonical.hostname="$hostname"
       akka.remote.artery.canonical.port=$localCanonicalPort
       akka.remote.artery.bind.port=$localBindPort
+      akka.remote.artery.bind.hostname="0.0.0.0"
       akka.actor.provider=cluster
       akka.cluster.seed-nodes=["akka://$systemName@$seedAddress:${advertisedPort(config)}"]
     """)
