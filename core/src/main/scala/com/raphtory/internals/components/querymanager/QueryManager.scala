@@ -96,7 +96,9 @@ private[raphtory] class QueryManager(
         stopBlockIngesting(unblocking.sourceID, unblocking.force, unblocking.messageCount)
         checkBlockedQueries()
 
-      case query: Query                 =>
+      case nonBlocking: NonBlocking     => stopBlockIngesting(nonBlocking.sourceID, force = false, 0)
+
+      case query: Query             =>
         val jobID = query.name
         logger.debug(s"Handling query: $query")
 
@@ -116,7 +118,7 @@ private[raphtory] class QueryManager(
           trackNewQuery(jobID, queryHandler)
         }
 
-      case req: EndQuery                =>
+      case req: EndQuery            =>
         currentQueries.synchronized {
           currentQueries.get(req.jobID) match {
             case Some(queryhandler) =>
@@ -127,7 +129,7 @@ private[raphtory] class QueryManager(
         }
         blockedQueries.filter(q => q.name equals req.jobID)
 
-      case watermark: WatermarkTime     =>
+      case watermark: WatermarkTime =>
         watermarks.put(watermark.partitionID, watermark)
         watermark.sourceMessages.foreach {
           case (id, count) =>
