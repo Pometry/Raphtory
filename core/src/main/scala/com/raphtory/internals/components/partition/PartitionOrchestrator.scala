@@ -27,7 +27,7 @@ class PartitionOrchestrator(
   override def handleMessage(msg: ClusterManagement): Unit =
     msg match {
       case EstablishGraph(graphID: String, clientID: String) =>
-        establishService("Query Manager", graphID, clientID, deployQueryService)
+        establishService("Partition Manager", graphID, clientID, deployPartitionService)
       case DestroyGraph(graphID, clientID, force)            => destroyGraph(graphID, clientID, force)
       case ClientDisconnected(graphID, clientID)             => clientDisconnected(graphID, clientID)
 
