@@ -102,7 +102,6 @@ object PythonInterop {
       }
       .map(_.asMethod)
       .filterNot(_.isParamWithDefault) // We will deal with default argument providers later
-      .filterNot(_.isJava) // We don't need the java compiler generated methods
 
     val methodMap = mutable.Map.empty[String, ArrayBuffer[Method]]
 
