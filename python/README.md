@@ -55,3 +55,37 @@ java -cp core/target/scala-2.13/*.jar com.raphtory.python.PyRaphtory \
   --py python/pyraphtory/sample.py \
   --connect="raphtory.pulsar.admin.address=http://localhost:8080,raphtory.pulsar.broker.address=pulsar://127.0.0.1:6650,raphtory.zookeeper.address=127.0.0.1:2181"
 ```
+
+## publishing to pypi with poetry 
+
+We must manually comment out (#) the `# include = ["lib/core-*.jar"]` line in the pyproject.toml 
+before  pushing to pypi, otherwise it rejects due to the jar being too large
+
+### Prod 
+
+#### First config poetry
+
+    poetry config repositories.pypi https://pypi.org/
+
+##### with dry run
+    poetry publish -r pypi -u USERNAME -p PASSWORD --dry-run
+
+##### without dry run
+note you must change version name upon each push
+
+    poetry publish -r pypi -u USERNAME -p PASSWORD
+
+### Legacy test env 
+
+#### First config poetry 
+
+    poetry config repositories.testpypi https://test.pypi.org/legacy/
+
+##### with dry run 
+    poetry publish -r testpypi -u USERNAME -p PASSWORD --dry-run
+
+##### without dry run 
+note you must change version name upon each push
+
+    poetry publish -r testpypi -u USERNAME -p PASSWORD
+
