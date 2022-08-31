@@ -2,9 +2,6 @@ package com.raphtory.python
 
 import cats.effect.ExitCode
 import cats.effect.IO
-import cats.effect.Resource
-import cats.effect.Sync
-import cats.syntax.all._
 import com.monovore.decline._
 import com.monovore.decline.effect._
 import com.raphtory.internals.management.Py4JServer
@@ -12,7 +9,6 @@ import com.raphtory.internals.management.PythonInterop
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
-import java.io._
 import scala.concurrent.duration.DurationInt
 import scala.jdk.OptionConverters._
 

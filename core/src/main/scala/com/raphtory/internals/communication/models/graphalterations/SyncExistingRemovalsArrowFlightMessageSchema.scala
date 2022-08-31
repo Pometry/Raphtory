@@ -12,6 +12,7 @@ import com.raphtory.internals.communication.SchemaProviderInstances._
 import scala.reflect.ClassTag
 
 case class SyncExistingRemovalsArrowFlightMessage(
+    sourceID: Int = 0,
     updateTime: Long = 0L,
     index: Long = 0L,
     srcId: Long = 0L,
@@ -22,6 +23,7 @@ case class SyncExistingRemovalsArrowFlightMessage(
 ) extends ArrowFlightMessage
 
 case class SyncExistingRemovalsArrowFlightMessageVectors(
+    sourceIDs: IntVector,
     updateTimes: BigIntVector,
     indexes: BigIntVector,
     srcIds: BigIntVector,
@@ -50,6 +52,7 @@ case class SyncExistingRemovalsArrowFlightMessageSchema[
   override def decodeMessage[T](row: Int): T = {
     val msg = getMessageAtRow(row).asInstanceOf[SyncExistingRemovalsArrowFlightMessage]
     SyncExistingRemovals(
+            msg.sourceID,
             msg.updateTime,
             msg.index,
             msg.srcId,
@@ -64,6 +67,7 @@ case class SyncExistingRemovalsArrowFlightMessageSchema[
     val fmsg     = msg.asInstanceOf[SyncExistingRemovals]
     val (s1, s2) = fmsg.removals.unzip
     SyncExistingRemovalsArrowFlightMessage(
+            fmsg.sourceID,
             fmsg.updateTime,
             fmsg.index,
             fmsg.srcId,
@@ -83,6 +87,7 @@ class SyncExistingRemovalsArrowFlightMessageSchemaFactory extends ArrowFlightMes
           SyncExistingRemovalsArrowFlightMessageVectors,
           SyncExistingRemovalsArrowFlightMessage
   ] = {
+    val sourceIDs     = vectorSchemaRoot.getVector("sourceIDs").asInstanceOf[IntVector]
     val updateTimes   = vectorSchemaRoot.getVector("updateTimes").asInstanceOf[BigIntVector]
     val indexes       = vectorSchemaRoot.getVector("indexes").asInstanceOf[BigIntVector]
     val srcIds        = vectorSchemaRoot.getVector("srcIds").asInstanceOf[BigIntVector]
@@ -94,6 +99,7 @@ class SyncExistingRemovalsArrowFlightMessageSchemaFactory extends ArrowFlightMes
     SyncExistingRemovalsArrowFlightMessageSchema(
             vectorSchemaRoot,
             SyncExistingRemovalsArrowFlightMessageVectors(
+                    sourceIDs,
                     updateTimes,
                     indexes,
                     srcIds,
@@ -116,6 +122,11 @@ class SyncExistingRemovalsArrowFlightMessageSchemaFactory extends ArrowFlightMes
     val schema: Schema =
       new Schema(
               List(
+                      new Field(
+                              "sourceIDs",
+                              new FieldType(false, new ArrowType.Int(64, true), null),
+                              null
+                      ),
                       new Field(
                               "updateTimes",
                               new FieldType(false, new ArrowType.Int(64, true), null),

@@ -15,6 +15,7 @@ import scala.collection.mutable
 import scala.reflect.ClassTag
 
 case class SyncNewEdgeAddArrowFlightMessage(
+    sourceID: Int = 0,
     updateTime: Long = 0L,
     index: Long = 0L,
     srcId: Long = 0L,
@@ -35,6 +36,7 @@ case class SyncNewEdgeAddArrowFlightMessage(
 ) extends ArrowFlightMessage
 
 case class SyncNewEdgeAddArrowFlightMessageVectors(
+    sourceIDs: IntVector,
     updateTimes: BigIntVector,
     indexes: BigIntVector,
     srcIds: BigIntVector,
@@ -109,6 +111,7 @@ case class SyncNewEdgeAddArrowFlightMessageSchema[
       ).flatten
 
       SyncNewEdgeAdd(
+              msg.sourceID,
               msg.updateTime,
               msg.index,
               msg.srcId,
@@ -162,6 +165,7 @@ case class SyncNewEdgeAddArrowFlightMessageSchema[
       }
 
       SyncNewEdgeAddArrowFlightMessage(
+              vadd.sourceID,
               vadd.updateTime,
               vadd.index,
               vadd.srcId,
@@ -195,6 +199,7 @@ class SyncNewEdgeAddArrowFlightMessageSchemaFactory extends ArrowFlightMessageSc
           SyncNewEdgeAddArrowFlightMessageVectors,
           SyncNewEdgeAddArrowFlightMessage
   ] = {
+    val sourceIDs               = vectorSchemaRoot.getVector("sourceIDs").asInstanceOf[IntVector]
     val updateTimes             = vectorSchemaRoot.getVector("updateTimes").asInstanceOf[BigIntVector]
     val indexes                 = vectorSchemaRoot.getVector("indexes").asInstanceOf[BigIntVector]
     val srcIds                  = vectorSchemaRoot.getVector("srcIds").asInstanceOf[BigIntVector]
@@ -224,6 +229,7 @@ class SyncNewEdgeAddArrowFlightMessageSchemaFactory extends ArrowFlightMessageSc
     SyncNewEdgeAddArrowFlightMessageSchema(
             vectorSchemaRoot,
             SyncNewEdgeAddArrowFlightMessageVectors(
+                    sourceIDs,
                     updateTimes,
                     indexes,
                     srcIds,
@@ -256,6 +262,11 @@ class SyncNewEdgeAddArrowFlightMessageSchemaFactory extends ArrowFlightMessageSc
     val schema: Schema =
       new Schema(
               List(
+                      new Field(
+                              "sourceIDs",
+                              new FieldType(false, new ArrowType.Int(32, true), null),
+                              null
+                      ),
                       new Field(
                               "updateTimes",
                               new FieldType(false, new ArrowType.Int(64, true), null),

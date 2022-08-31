@@ -19,6 +19,8 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.util.Random
 
 private[raphtory] class QuerySender(

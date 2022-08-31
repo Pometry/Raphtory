@@ -11,12 +11,14 @@ import com.raphtory.internals.communication.SchemaProviderInstances._
 import scala.reflect.ClassTag
 
 case class VertexRemoveSyncAckArrowFlightMessage(
+    sourceID: Int = 0,
     updateTime: Long = 0L,
     index: Long = 0L,
     updateId: Long = 0L
 ) extends ArrowFlightMessage
 
 case class VertexRemoveSyncAckArrowFlightMessageVectors(
+    sourceIDs: IntVector,
     updateTimes: BigIntVector,
     indexes: BigIntVector,
     updateIds: BigIntVector
@@ -40,12 +42,13 @@ case class VertexRemoveSyncAckArrowFlightMessageSchema[
 
   override def decodeMessage[T](row: Int): T = {
     val msg = getMessageAtRow(row).asInstanceOf[VertexRemoveSyncAckArrowFlightMessage]
-    VertexRemoveSyncAck(msg.updateTime, msg.index, msg.updateId).asInstanceOf[T]
+    VertexRemoveSyncAck(msg.sourceID, msg.updateTime, msg.index, msg.updateId).asInstanceOf[T]
   }
 
   override def encodeMessage[T](msg: T): ArrowFlightMessage = {
     val fmsg = msg.asInstanceOf[VertexRemoveSyncAck]
     VertexRemoveSyncAckArrowFlightMessage(
+            fmsg.sourceID,
             fmsg.updateTime,
             fmsg.index,
             fmsg.updateId
@@ -61,6 +64,7 @@ class VertexRemoveSyncAckArrowFlightMessageSchemaFactory extends ArrowFlightMess
           VertexRemoveSyncAckArrowFlightMessageVectors,
           VertexRemoveSyncAckArrowFlightMessage
   ] = {
+    val sourceIDs   = vectorSchemaRoot.getVector("sourceIDs").asInstanceOf[IntVector]
     val updateTimes = vectorSchemaRoot.getVector("updateTimes").asInstanceOf[BigIntVector]
     val indexes     = vectorSchemaRoot.getVector("indexes").asInstanceOf[BigIntVector]
     val updateIds   = vectorSchemaRoot.getVector("updateIds").asInstanceOf[BigIntVector]
@@ -68,6 +72,7 @@ class VertexRemoveSyncAckArrowFlightMessageSchemaFactory extends ArrowFlightMess
     VertexRemoveSyncAckArrowFlightMessageSchema(
             vectorSchemaRoot,
             VertexRemoveSyncAckArrowFlightMessageVectors(
+                    sourceIDs,
                     updateTimes,
                     indexes,
                     updateIds
@@ -86,6 +91,11 @@ class VertexRemoveSyncAckArrowFlightMessageSchemaFactory extends ArrowFlightMess
     val schema: Schema =
       new Schema(
               List(
+                      new Field(
+                              "sourceIDs",
+                              new FieldType(false, new ArrowType.Int(32, true), null),
+                              null
+                      ),
                       new Field(
                               "updateTimes",
                               new FieldType(false, new ArrowType.Int(64, true), null),

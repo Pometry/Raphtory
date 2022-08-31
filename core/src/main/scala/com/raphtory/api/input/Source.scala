@@ -20,7 +20,7 @@ trait SourceInstance {
   def sendUpdates(index: Long, failOnError: Boolean): Unit
   def spoutReschedules(): Boolean
   def executeReschedule(): Unit
-  def setupStreamIngestion(streamWriters: collection.Map[Int, EndPoint[GraphUpdate]]): Unit
+  def setupStreamIngestion(streamWriters: collection.Map[Int, EndPoint[GraphAlteration]]): Unit
   def sourceID: Int
   def sentMessages(): Long
   def close(): Unit
@@ -46,7 +46,7 @@ object Source {
           override def executeReschedule(): Unit   = spoutInstance.executeReschedule()
 
           override def setupStreamIngestion(
-              streamWriters: collection.Map[Int, EndPoint[GraphUpdate]]
+              streamWriters: collection.Map[Int, EndPoint[GraphAlteration]]
           ): Unit                    =
             builderInstance.setupStreamIngestion(streamWriters)
           override def close(): Unit = spoutInstance.close()

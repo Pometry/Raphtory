@@ -125,8 +125,10 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
   protected def deployIngestionService(graphID: String, clientID: String, graphConf: Config): Unit =
     deployments.synchronized {
       val serviceResource = for {
-        repo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf)
-        _    <- IngestionManager[IO](graphConf, repo)
+        zkClient      <- ZookeeperConnector.getZkClient(graphConf.getString("raphtory.zookeeper.address"))
+        addressHandler = new ZKHostAddressProvider(zkClient, conf, None)
+        repo          <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf, addressHandler)
+        _             <- IngestionManager[IO](graphConf, repo)
       } yield ()
       val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
       deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))

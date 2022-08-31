@@ -15,6 +15,7 @@ import scala.collection.mutable
 import scala.reflect.ClassTag
 
 case class SyncExistingEdgeAddArrowFlightMessage(
+    sourceID: Int = 0,
     updateTime: Long = 0L,
     index: Long = 0L,
     srcId: Long = 0L,
@@ -32,6 +33,7 @@ case class SyncExistingEdgeAddArrowFlightMessage(
 ) extends ArrowFlightMessage
 
 case class SyncExistingEdgeAddArrowFlightMessageVectors(
+    sourceIDs: IntVector,
     updateTimes: BigIntVector,
     indexes: BigIntVector,
     srcIds: BigIntVector,
@@ -102,6 +104,7 @@ case class SyncExistingEdgeAddArrowFlightMessageSchema[
       ).flatten
 
       SyncExistingEdgeAdd(
+              msg.sourceID,
               msg.updateTime,
               msg.index,
               msg.srcId,
@@ -150,6 +153,7 @@ case class SyncExistingEdgeAddArrowFlightMessageSchema[
       }
 
       SyncExistingEdgeAddArrowFlightMessage(
+              vadd.sourceID,
               vadd.updateTime,
               vadd.index,
               vadd.srcId,
@@ -180,6 +184,7 @@ class SyncExistingEdgeAddArrowFlightMessageSchemaFactory extends ArrowFlightMess
           SyncExistingEdgeAddArrowFlightMessageVectors,
           SyncExistingEdgeAddArrowFlightMessage
   ] = {
+    val sourceIDs               = vectorSchemaRoot.getVector("sourceIDs").asInstanceOf[IntVector]
     val updateTimes             = vectorSchemaRoot.getVector("updateTimes").asInstanceOf[BigIntVector]
     val indexes                 = vectorSchemaRoot.getVector("indexes").asInstanceOf[BigIntVector]
     val srcIds                  = vectorSchemaRoot.getVector("srcIds").asInstanceOf[BigIntVector]
@@ -206,6 +211,7 @@ class SyncExistingEdgeAddArrowFlightMessageSchemaFactory extends ArrowFlightMess
     SyncExistingEdgeAddArrowFlightMessageSchema(
             vectorSchemaRoot,
             SyncExistingEdgeAddArrowFlightMessageVectors(
+                    sourceIDs,
                     updateTimes,
                     indexes,
                     srcIds,
@@ -235,6 +241,11 @@ class SyncExistingEdgeAddArrowFlightMessageSchemaFactory extends ArrowFlightMess
     val schema: Schema =
       new Schema(
               List(
+                      new Field(
+                              "sourceIDs",
+                              new FieldType(false, new ArrowType.Int(64, true), null),
+                              null
+                      ),
                       new Field(
                               "updateTimes",
                               new FieldType(false, new ArrowType.Int(64, true), null),

@@ -15,6 +15,7 @@ import scala.collection.mutable
 import scala.reflect.ClassTag
 
 case class EdgeAddArrowFlightMessage(
+    sourceID: Int = 0,
     updateTime: Long = 0L,
     index: Long = 0L,
     srcId: Long = 0L,
@@ -33,6 +34,7 @@ case class EdgeAddArrowFlightMessage(
 ) extends ArrowFlightMessage
 
 case class EdgeAddArrowFlightMessageVectors(
+    sourceIDs: IntVector,
     updateTimes: BigIntVector,
     indexes: BigIntVector,
     srcIds: BigIntVector,
@@ -105,6 +107,7 @@ case class EdgeAddArrowFlightMessageSchema[
       ).flatten
 
       EdgeAdd(
+              msg.sourceID,
               msg.updateTime,
               msg.index,
               msg.srcId,
@@ -156,6 +159,7 @@ case class EdgeAddArrowFlightMessageSchema[
       }
 
       EdgeAddArrowFlightMessage(
+              vadd.sourceID,
               vadd.updateTime,
               vadd.index,
               vadd.srcId,
@@ -185,6 +189,7 @@ class EdgeAddArrowFlightMessageSchemaFactory extends ArrowFlightMessageSchemaFac
           EdgeAddArrowFlightMessageVectors,
           EdgeAddArrowFlightMessage
   ] = {
+    val sourceIDs               = vectorSchemaRoot.getVector("sourceIDs").asInstanceOf[IntVector]
     val updateTimes             = vectorSchemaRoot.getVector("updateTimes").asInstanceOf[BigIntVector]
     val indexes                 = vectorSchemaRoot.getVector("indexes").asInstanceOf[BigIntVector]
     val srcIds                  = vectorSchemaRoot.getVector("srcIds").asInstanceOf[BigIntVector]
@@ -212,6 +217,7 @@ class EdgeAddArrowFlightMessageSchemaFactory extends ArrowFlightMessageSchemaFac
     EdgeAddArrowFlightMessageSchema(
             vectorSchemaRoot,
             EdgeAddArrowFlightMessageVectors(
+                    sourceIDs,
                     updateTimes,
                     indexes,
                     srcIds,
@@ -242,6 +248,11 @@ class EdgeAddArrowFlightMessageSchemaFactory extends ArrowFlightMessageSchemaFac
     val schema: Schema =
       new Schema(
               List(
+                      new Field(
+                              "sourceIDs",
+                              new FieldType(false, new ArrowType.Int(32, true), null),
+                              null
+                      ),
                       new Field(
                               "updateTimes",
                               new FieldType(false, new ArrowType.Int(64, true), null),

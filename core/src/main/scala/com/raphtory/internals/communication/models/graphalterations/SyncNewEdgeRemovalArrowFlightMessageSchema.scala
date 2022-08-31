@@ -12,6 +12,7 @@ import com.raphtory.internals.communication.SchemaProviderInstances._
 import scala.reflect.ClassTag
 
 case class SyncNewEdgeRemovalArrowFlightMessage(
+    sourceID: Int = 0,
     updateTime: Long = 0L,
     index: Long = 0L,
     srcId: Long = 0L,
@@ -21,6 +22,7 @@ case class SyncNewEdgeRemovalArrowFlightMessage(
 ) extends ArrowFlightMessage
 
 case class SyncNewEdgeRemovalArrowFlightMessageVectors(
+    sourceIDs: IntVector,
     updateTimes: BigIntVector,
     indexes: BigIntVector,
     srcIds: BigIntVector,
@@ -47,13 +49,15 @@ case class SyncNewEdgeRemovalArrowFlightMessageSchema[
 
   override def decodeMessage[T](row: Int): T = {
     val msg = getMessageAtRow(row).asInstanceOf[SyncNewEdgeRemovalArrowFlightMessage]
-    SyncNewEdgeRemoval(msg.updateTime, msg.index, msg.srcId, msg.dstId, msg.removals1 zip msg.removals2).asInstanceOf[T]
+    SyncNewEdgeRemoval(msg.sourceID, msg.updateTime, msg.index, msg.srcId, msg.dstId, msg.removals1 zip msg.removals2)
+      .asInstanceOf[T]
   }
 
   override def encodeMessage[T](msg: T): ArrowFlightMessage = {
     val fmsg     = msg.asInstanceOf[SyncNewEdgeRemoval]
     val (s1, s2) = fmsg.removals.unzip
     SyncNewEdgeRemovalArrowFlightMessage(
+            fmsg.sourceID,
             fmsg.updateTime,
             fmsg.index,
             fmsg.srcId,
@@ -72,6 +76,7 @@ class SyncNewEdgeRemovalArrowFlightMessageSchemaFactory extends ArrowFlightMessa
           SyncNewEdgeRemovalArrowFlightMessageVectors,
           SyncNewEdgeRemovalArrowFlightMessage
   ] = {
+    val sourceIDs   = vectorSchemaRoot.getVector("sourceIDs").asInstanceOf[IntVector]
     val updateTimes = vectorSchemaRoot.getVector("updateTimes").asInstanceOf[BigIntVector]
     val indexes     = vectorSchemaRoot.getVector("indexes").asInstanceOf[BigIntVector]
     val srcIds      = vectorSchemaRoot.getVector("srcIds").asInstanceOf[BigIntVector]
@@ -82,6 +87,7 @@ class SyncNewEdgeRemovalArrowFlightMessageSchemaFactory extends ArrowFlightMessa
     SyncNewEdgeRemovalArrowFlightMessageSchema(
             vectorSchemaRoot,
             SyncNewEdgeRemovalArrowFlightMessageVectors(
+                    sourceIDs,
                     updateTimes,
                     indexes,
                     srcIds,
@@ -103,6 +109,11 @@ class SyncNewEdgeRemovalArrowFlightMessageSchemaFactory extends ArrowFlightMessa
     val schema: Schema =
       new Schema(
               List(
+                      new Field(
+                              "sourceIDs",
+                              new FieldType(false, new ArrowType.Int(32, true), null),
+                              null
+                      ),
                       new Field(
                               "updateTimes",
                               new FieldType(false, new ArrowType.Int(64, true), null),

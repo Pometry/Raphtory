@@ -11,12 +11,14 @@ import com.raphtory.internals.graph.GraphAlteration._
 import scala.reflect.ClassTag
 
 case class VertexDeleteArrowFlightMessage(
+    sourceID: Int = 0,
     updateTime: Long = 0L,
     index: Long = 0L,
     srcId: Long = 0L
 ) extends ArrowFlightMessage
 
 case class VertexDeleteArrowFlightMessageVectors(
+    sourceIDs: IntVector,
     updateTimes: BigIntVector,
     indexes: BigIntVector,
     srcIds: BigIntVector
@@ -40,12 +42,13 @@ case class VertexDeleteArrowFlightMessageSchema[
 
   override def decodeMessage[T](row: Int): T = {
     val msg = getMessageAtRow(row).asInstanceOf[VertexDeleteArrowFlightMessage]
-    VertexDelete(msg.updateTime, msg.index, msg.srcId).asInstanceOf[T]
+    VertexDelete(msg.sourceID, msg.updateTime, msg.index, msg.srcId).asInstanceOf[T]
   }
 
   override def encodeMessage[T](msg: T): ArrowFlightMessage = {
     val fmsg = msg.asInstanceOf[VertexDelete]
     VertexDeleteArrowFlightMessage(
+            fmsg.sourceID,
             fmsg.updateTime,
             fmsg.index,
             fmsg.srcId
@@ -59,6 +62,7 @@ class VertexDeleteArrowFlightMessageSchemaFactory extends ArrowFlightMessageSche
           VertexDeleteArrowFlightMessageVectors,
           VertexDeleteArrowFlightMessage
   ] = {
+    val sourceIDs   = vectorSchemaRoot.getVector("sourceIDs").asInstanceOf[IntVector]
     val updateTimes = vectorSchemaRoot.getVector("updateTimes").asInstanceOf[BigIntVector]
     val indexes     = vectorSchemaRoot.getVector("indexes").asInstanceOf[BigIntVector]
     val srcIds      = vectorSchemaRoot.getVector("srcIds").asInstanceOf[BigIntVector]
@@ -66,6 +70,7 @@ class VertexDeleteArrowFlightMessageSchemaFactory extends ArrowFlightMessageSche
     VertexDeleteArrowFlightMessageSchema(
             vectorSchemaRoot,
             VertexDeleteArrowFlightMessageVectors(
+                    sourceIDs,
                     updateTimes,
                     indexes,
                     srcIds
@@ -84,6 +89,11 @@ class VertexDeleteArrowFlightMessageSchemaFactory extends ArrowFlightMessageSche
     val schema: Schema =
       new Schema(
               List(
+                      new Field(
+                              "sourceIDs",
+                              new FieldType(false, new ArrowType.Int(32, true), null),
+                              null
+                      ),
                       new Field(
                               "updateTimes",
                               new FieldType(false, new ArrowType.Int(64, true), null),
