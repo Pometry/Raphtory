@@ -269,6 +269,9 @@ class DefaultValue(object):
     def __call__(self, obj):
         return getattr(obj, self.method)()
 
+    def __repr__(self):
+        return "DefaultValue()"
+
 
 def _check_default(obj, value):
     if isinstance(value, DefaultValue):
@@ -399,28 +402,36 @@ class GenericScalaProxy(ScalaProxyBase):
 
 
 class InstanceOnlyMethod(object):
+    """Instance method that does not shadow class method of the same name"""
     def __init__(self, method):
-        self._method = method
-        self._name = method.__name__
+        self.__func__ = method
+        self.__name__ = method.__name__
+        self.__signature__ = inspect.signature(method)
+        self.__doc__ = f"Instance only method {self.__name__}{self.__signature__}"
 
     def __set_name__(self, owner, name):
-        self._name = name
+        self.__name__ = name
 
     def __get__(self, instance, owner=None):
         if instance is None:
             # May shadow class method of the same name!
             try:
-                return object.__getattribute__(owner.__class__, self._name).__get__(owner, owner.__class__)
+                return object.__getattribute__(owner.__class__, self.__name__).__get__(owner, owner.__class__)
             except Exception as e:
                 logger.trace("InstanceOnlyMethod non-shadowed due to exception {}", e)
-                return self
-        return self._method.__get__(instance, owner)
+                return self.__func__
+        return self.__func__.__get__(instance, owner)
+
+    def __str__(self):
+        return f"{self.__name__}"
 
 
 class OverloadedMethod:
     def __init__(self, methods, name):
         self.__name__ = name
         self._methods = methods
+        self.__doc__ = (f"Overloaded method {self.__name__} with alternatives\n"
+                        + "\n".join(f"{self.__name__}{inspect.signature(m)}" for m in self._methods))
 
     def __call__(self, *args, **kwargs):
         for method in self._methods:
@@ -438,6 +449,8 @@ class OverloadedMethod:
             bound._methods = [m.__get__(instance, owner) for m in bound._methods]
             return bound
 
+    __text_signature__ = "($self, *args, **kwargs)"
+
 
 class WithImplicits:
     """Proxy object for scala method with support for default arguments and implicits"""
@@ -445,6 +458,8 @@ class WithImplicits:
         self.__name__ = method.__name__
         self._method = method
         self._implicits = []
+        self.__signature__ = inspect.signature(method)
+        self.__doc__ = (method.__doc__ + "\n\n" if method.__doc__ is not None else "") + "takes implicit arguments"
 
     def __call__(self, *args, **kwargs):
         return self._method(*args, **kwargs, _implicits=self._implicits)
