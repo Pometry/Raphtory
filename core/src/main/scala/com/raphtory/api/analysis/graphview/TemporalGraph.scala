@@ -33,9 +33,8 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   private[api] val querySender: QuerySender
   private[api] val conf: Config
 
-  private lazy val sourceID  = querySender.sourceID
-  private var index          = 0
-  private var blockingClient = false
+  private lazy val sourceID = querySender.sourceID
+  private var index         = 0
 
   def stream(sources: Source*): G = {
     querySender.submitSource(blocking = false, sources, conf.getString("raphtory.graph.id"))

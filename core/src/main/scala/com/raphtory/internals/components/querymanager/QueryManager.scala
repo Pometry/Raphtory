@@ -40,7 +40,6 @@ private[raphtory] class QueryManager(
       logger.info(s"Source '$ID' is forced unblocking analysis for Graph '$graphID' with $msgCount messages sent.")
       sources.foreach {
         case (id, tracker) =>
-          tracker.unblock()
           if (id == ID)
             tracker.setTotalSent(msgCount)
           else
@@ -51,11 +50,9 @@ private[raphtory] class QueryManager(
       logger.info(s"Source '$ID' is unblocking analysis for Graph '$graphID' with $msgCount messages sent.")
       sources.get(ID) match {
         case Some(tracker) =>
-          tracker.unblock()
           tracker.setTotalSent(msgCount)
         case None          =>
           val tracker = SourceTracker()
-          tracker.unblock()
           tracker.setTotalSent(msgCount)
           sources.put(ID, tracker)
 
@@ -140,7 +137,7 @@ private[raphtory] class QueryManager(
               case None          =>
                 val tracker = SourceTracker()
                 tracker.setReceivedMessage(watermark.partitionID, count)
-                sources.put(watermark.partitionID, tracker)
+                sources.put(id, tracker)
             }
         }
         checkBlockedQueries()

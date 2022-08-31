@@ -30,7 +30,7 @@ object TutorialRunner extends App {
   val source2 = Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder())
   //graph.stream(source)
   graph.load(source2)
-  //addLOTRData(graph)
+  addLOTRData(graph)
 
   graph
     .at(32674)
@@ -41,8 +41,8 @@ object TutorialRunner extends App {
 
   graph.destroy()
 
-  def addLOTRData(graph: DeployedTemporalGraph) = {
-    val line = scala.io.Source.fromFile(path).getLines.foreach { line =>
+  def addLOTRData(graph: DeployedTemporalGraph) =
+    scala.io.Source.fromFile(path).getLines.foreach { line =>
       val fileLine   = line.split(",").map(_.trim)
       val sourceNode = fileLine(0)
       val srcID      = assignID(sourceNode)
@@ -53,6 +53,4 @@ object TutorialRunner extends App {
       graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("Character"))
       graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurence"))
     }
-    //graph.()
-  }
 }
