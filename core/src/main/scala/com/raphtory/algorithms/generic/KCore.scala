@@ -11,17 +11,29 @@ import com.raphtory.api.analysis.table.{Row, Table}
 *
 * */
 
-class KCore(k: Int = 2) extends Generic {
+class KCore(k: Int, resetStates: Boolean = true) extends Generic {
 
-  final val EFFDEGREE = "currKCoreDegree" // effective degree. TODO rename so number specific e.g. 3-core?
+  final val EFFDEGREE = "effectiveDegree" // effective degree
+
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
-        val degree = vertex.degree
-        if (degree < k) { // the node dies, can't be in the k-core
-          vertex.messageAllNeighbours(0) // here messaging 0 means the node has died
+
+        if ((resetStates == false) & (vertex.containsState(EFFDEGREE))) {  // i.e. you're reusing the previous states
+          // we assume here that the previous iteration of KCore was run with a smaller value of k (this allows e.g. Coreness to run)
+          // therefore the effective degree is only going to decrease for each node, so any node with a previous effective degree < current k dies straight away
+          val effDegree = vertex.getStateOrElse(EFFDEGREE, vertex.degree)
+          if (effDegree < k) {
+            vertex.messageAllNeighbours(0)
+          }
+        } else {
+          val degree = vertex.degree
+          if (degree < k) { // the node dies, can't be in the k-core
+            vertex.messageAllNeighbours(0) // here messaging 0 means the node has died
+          }
+          vertex.setState(EFFDEGREE, degree)
         }
-        vertex.setState(EFFDEGREE, degree)
+
       }
       .iterate(
         { vertex =>
@@ -50,5 +62,5 @@ class KCore(k: Int = 2) extends Generic {
 }
 
 object KCore {
-  def apply(k: Int = 2) = new KCore(k)
+  def apply(k: Int, resetStates: Boolean = true) = new KCore(k, resetStates)
 }
