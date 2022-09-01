@@ -50,6 +50,9 @@ import com.raphtory.api.analysis.table.{Row, Table}
   */
 class KCore(k: Int, resetStates: Boolean = true) extends Generic {
 
+  if (k < 0) {
+    throw new IllegalArgumentException(s"k must be non-negative. You entered k=$k")
+  }
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
