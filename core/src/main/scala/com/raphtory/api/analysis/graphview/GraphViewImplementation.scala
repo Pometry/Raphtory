@@ -172,9 +172,6 @@ private[api] trait GraphViewImplementation[
     step(vertex => vertex.outEdges.foreach(e => f(e)))
   }
 
-  override def pythonStep(pickledPyObj: Array[Byte]): G =
-    addFunction(PythonStep(pickledPyObj))
-
   def loadPythonScript(script: String): G =
     newGraph(query.copy(pyScript = Some(script)), querySender)
 
@@ -184,9 +181,6 @@ private[api] trait GraphViewImplementation[
   override def edgeStep(f: (Edge, GraphState) => Unit): G = {
     step((vertex,state) => vertex.outEdges.foreach(e => f(e,state)))
   }
-
-  override def pythonStepState(pyObj: Array[Byte]): G =
-    addFunction(PythonStepWithGraph(pyObj))
 
   override def iterate(
       f: (V) => Unit,
