@@ -7,8 +7,6 @@ import com.raphtory.internals.storage.pojograph.entities.external.PojoExEntity
 import com.raphtory.internals.storage.pojograph.entities.external.vertex._
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoEdge
 
-import scala.reflect.ClassTag
-
 private[pojograph] class PojoExplodedEdge(
     val edge: PojoEdge,
     override val view: PojoGraphLens,
@@ -55,7 +53,6 @@ private[pojograph] class PojoExplodedInOutEdge(
         with PojoExplodedEdgeBase[Long] {
 
   override def timePoint: IndexedValue = in.timePoint
-
 }
 
 private[pojograph] class PojoReversedExplodedEdge(

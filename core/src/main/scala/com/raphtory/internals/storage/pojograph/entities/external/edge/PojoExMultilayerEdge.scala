@@ -7,8 +7,6 @@ import com.raphtory.api.analysis.visitor.PropertyValue
 import com.raphtory.api.analysis.visitor.TimePoint
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 
-import scala.reflect.ClassTag
-
 private[pojograph] class PojoExMultilayerEdge(
     val timestamp: Long,
     override val ID: (Long, Long),
@@ -61,7 +59,6 @@ private[pojograph] class PojoExMultilayerEdge(
   override def start: IndexedValue = TimePoint.first(timestamp)
 
   override def end: IndexedValue = TimePoint.last(timestamp)
-
 }
 
 private[pojograph] class PojoExMultilayerInOutEdge(
@@ -73,5 +70,4 @@ private[pojograph] class PojoExMultilayerInOutEdge(
 
   /** Timestamp for exploded entity */
   def timestamp: Long = in.timestamp
-
 }

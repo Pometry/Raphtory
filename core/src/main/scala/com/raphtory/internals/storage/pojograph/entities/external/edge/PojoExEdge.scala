@@ -43,8 +43,6 @@ private[pojograph] class PojoExEdge(
       new PojoExInOutEdge(this, other, asInEdge)
     else
       new PojoExInOutEdge(other, this, asInEdge)
-
-  override def history(): List[HistoricEvent] = ???
 }
 
 private[pojograph] class PojoExInOutEdge(
@@ -53,11 +51,6 @@ private[pojograph] class PojoExInOutEdge(
     asInEdge: Boolean = false
 ) extends PojoExInOutEdgeBase[PojoExInOutEdge, PojoExEdge, Long](in, out, asInEdge)
         with PojoExReducedEdgeImplementation[PojoExInOutEdge] {
-
-  private var computationValues: Map[String, Any] =
-    Map.empty //Partial results kept between supersteps in calculation
-
-
 
   override def viewBetween(after: IndexedValue, before: IndexedValue): PojoExInOutEdge =
     new PojoExInOutEdge(in.viewBetween(after, before), out.viewBetween(after, before), asInEdge)
