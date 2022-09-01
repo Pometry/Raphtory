@@ -1,6 +1,12 @@
 from pyraphtory.graph import Row
 from pyraphtory.builder import *
 from pyraphtory.spouts import FileSpout
+from time import perf_counter
+from pyraphtory.algorithms.pagerank import PageRank
+from pyraphtory.algorithms.connectedcomponents import ConnectedComponents
+from pyraphtory.algorithms.trianglecount import LocalTriangleCount, GlobalTriangleCount
+from pyraphtory.algorithms.twohoppaths import TwoHopPaths
+from pyraphtory.algorithms.degree import Degree
 
 if __name__ == "__main__":
     from pyraphtory.context import PyRaphtory
@@ -23,19 +29,40 @@ if __name__ == "__main__":
 
     lotr_builder = GraphBuilder(parse)
     lotr_spout = FileSpout("/tmp/lotr.csv")
-    graph = pr.new_graph().ingest(Source(lotr_spout, lotr_builder)).at(32674).past()
+    graph = pr.new_graph().load(Source(lotr_spout, lotr_builder))
 
     df = (graph
           .select(lambda vertex: Row(vertex.name(), vertex.degree()))
           .write_to_dataframe(["name", "degree"]))
     print(df)
 
-    # TODO: This works but is rather slow
+    df = (graph.execute(PageRank()).write_to_dataframe(["name", "pagerank"]))
+    print(df)
+
+    df = (graph.execute(ConnectedComponents()).write_to_dataframe(["name", "component"]))
+    print(df)
+
+    df = (graph.execute(TwoHopPaths()).write_to_dataframe(["start", "middle", "end"]))
+    print(df)
+
+    df = (graph.execute(LocalTriangleCount()).write_to_dataframe(["name", "triangles"]))
+    print(df)
+
+    df = (graph.execute(GlobalTriangleCount()).write_to_dataframe(["triangles"]))
+    print(df)
+
+    df = (graph.execute(Degree()).write_to_dataframe(["name", "in-degree", "out-degree", "degree"]))
+    print(df)
+
     graph2 = pr.new_graph()
     # can just call add_vertex, add_edge on graph directly without spout/builder
+    start = perf_counter()
+    graph2.block_ingestion()
     with open("/tmp/lotr.csv") as f:
         for line in f:
             parse(graph2, line)
+    graph2.unblock_ingestion()
+    print(f"time taken to ingest: {perf_counter()-start}s")
 
     df = (graph2
           .select(lambda vertex: Row(vertex.name(), vertex.degree()))

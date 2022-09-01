@@ -20,7 +20,7 @@ class TwoHopPaths(PyAlgorithm):
 
         def iterate1(v: Vertex):
             new_messages = v.message_queue()
-            if new_messages.size():
+            if new_messages:
                 for msg in new_messages:
                     match msg:
                         case msg if msg['req'] == REQUEST_FIRST_HOP:
@@ -46,11 +46,11 @@ class TwoHopPaths(PyAlgorithm):
     def tabularise(self, graph: TemporalGraph) -> Table:
         def explode(r: Row):
             return_rows = []
-            if r.values().size() > 1:
+            if len(r.get_values()) > 1:
                 if r.get(1) is not None:
                     for hop_pair in r.get(1):
-                        return_rows.append(Row(r.get(0), hop_pair))
+                        return_rows.append(Row(r.get(0), *hop_pair))
             else:
-                return_rows = [Row(r.get(0))]
+                return_rows = []
             return return_rows
         return graph.select(lambda v: Row(v.name(), v[TWO_HOP_PATHS])).explode(explode)

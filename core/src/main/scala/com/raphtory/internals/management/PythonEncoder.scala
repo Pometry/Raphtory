@@ -119,6 +119,7 @@ object PythonEncoder {
     var wasPrevTranslated = false
     for (i <- 0 until length) {
       var c = input.charAt(i)
+      if (c == '$') c = '_'
       if (i > 0 || c != '_') { // skip first starting underscore
         if (Character.isUpperCase(c)) {
           if (!wasPrevTranslated && resultLength > 0 && result.charAt(resultLength - 1) != '_') {

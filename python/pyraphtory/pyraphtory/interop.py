@@ -1,19 +1,33 @@
+import abc
 import inspect
 import re
+import traceback
 from abc import ABCMeta
 from collections.abc import Iterable, Mapping
 from py4j.java_gateway import JavaObject, JavaClass
+from py4j.java_collections import JavaArray
 import cloudpickle as pickle
 from functools import cached_property
 from threading import Lock
+from copy import copy
+
+from pyraphtory import _codegen
 
 _wrapper_lock = Lock()
-_method_cache = {}
 _wrappers = {}
 
 
-def _print_array(obj):
-    return _scala.scala.print_array(obj)
+def repr(obj):
+    return _scala.scala.repr(obj)
+
+
+# stay sane while debugging this code
+JavaArray.__repr__ = repr
+JavaArray.__str__ = repr
+JavaObject.__repr__ = repr
+JavaObject.__str__ = repr
+JavaClass.__repr__ = repr
+JavaClass.__str__ = repr
 
 
 def test_scala_reflection(obj):
@@ -86,32 +100,24 @@ def decode(obj):
 
 def get_methods(obj):
     """look up methods for a java object"""
-    name = obj.getClass().getName()
-    if name in _method_cache:
-        logger.trace(f"Retreiving cached methods for {name!r}")
-        return _method_cache[name]
-    else:
-        logger.trace(f"Finding methods for {name!r}")
-        res = _scala.scala.methods(obj)
-        _method_cache[name] = res
-        logger.trace(f"Methods for {name!r} added to cache")
-        return res
+    logger.trace("Finding methods for {obj!r}", obj=obj)
+    return _scala.scala.methods(obj)
 
 
 def get_wrapper(obj):
     """get wrapper class for a java object"""
     name = obj.getClass().getName()
-    logger.trace(f"Retrieving wrapper for {name!r}")
+    logger.trace("Retrieving wrapper for {name!r}", name=name)
     try:
         wrapper = _wrappers[name]
-        logger.trace(f"Found wrapper for {name!r} based on class name")
+        logger.trace("Found wrapper for {name!r} based on class name", name=name)
     except KeyError:
         # Create a new base class for the jvm wrapper and add methods
         with _wrapper_lock:
             if name in _wrappers:
                 # a different thread already created the wrapper
                 wrapper = _wrappers[name]
-                logger.trace(f"Found wrapper for {name!r} based on class name after initial wait")
+                logger.trace("Found wrapper for {name!r} based on class name after initial wait", name=name)
             else:
                 base = type(name + "_jvm", (GenericScalaProxy,), {})
                 # do not register base wrapper here, or it will get picked up by other threads
@@ -120,46 +126,43 @@ def get_wrapper(obj):
                 wrap_name = _scala.scala.get_wrapper_str(obj)
                 if wrap_name in _wrappers:
                     # Add special wrapper class to the top of the mro such that method overloads work
-                    logger.trace(f"Using wrapper based on name {wrap_name} for {name}")
+                    logger.trace("Using wrapper based on name {wrap_name} for {name}", wrap_name=wrap_name, name=name)
                     # Note this wrapper is registered automatically as '_classname' is defined
                     wrapper = type(name, (_wrappers[wrap_name], base), {"_classname": name})
                 else:
                     # No special wrapper registered, can use base wrapper directly
-                    logger.trace(f"No wrapper found for name {wrap_name}")
+                    logger.trace("No wrapper found for name {}", wrap_name)
                     wrapper = base
                     # register the base wrapper in this case
                     wrapper._classname = name
                     register(wrapper)
-                logger.trace(f"New wrapper created for {name!r}")
-    logger.trace(f"Wrapper is {wrapper!r}")
+                logger.trace("New wrapper created for {name!r}", name=name)
+    logger.trace("Wrapper is {wrapper!r}", wrapper=wrapper)
     return wrapper
 
 
 def to_jvm(value):
     """convert wrapped object to underlying jvm representation"""
     if is_PyJObject(value):
-        logger.trace(f"Converting value {value!r}, already PyJObject")
+        logger.trace("Converting value {value!r}, already PyJObject", value=value)
         return value
     elif isinstance(value, ScalaProxyBase):
-        logger.trace(f"Converting value {value!r}, decoding proxy object")
-        if value._jvm_object is None:
-            return find_class(value._classname)
-        else:
-            return value._jvm_object
+        logger.trace("Converting value {value!r}, decoding proxy object", value=value)
+        return value.jvm
     elif isinstance(value, Mapping):
-        logger.trace(f"Converting value {value!r}, decoding as Mapping")
+        logger.trace("Converting value {value!r}, decoding as Mapping", value=value)
         return decode({to_jvm(k): to_jvm(v) for k, v in value.items()})
     elif callable(value):
-        logger.trace(f"Converting value {value!r}, decoding as Function")
+        logger.trace("Converting value {value!r}, decoding as Function", value=value)
         return _wrap_python_function(value)
     elif (isinstance(value, Iterable)
           and not isinstance(value, str)
           and not isinstance(value, bytes)
           and not isinstance(value, bytearray)):
-        logger.trace(f"Converting value {value!r}, decoding as Iterable")
+        logger.trace("Converting value {value!r}, decoding as Iterable", value=value)
         return decode([to_jvm(v) for v in value])
     else:
-        logger.trace(f"Converting value {value!r}, primitive value returned unchanged")
+        logger.trace("Converting value {value!r}, primitive value returned unchanged", value=value)
         return value
 
 
@@ -167,10 +170,10 @@ def to_python(obj):
     """convert jvm object to python by wrapping it if needed"""
     if is_PyJObject(obj):
         wrapper = get_wrapper(obj)
-        logger.trace(f"Calling wrapper with jvm_object={obj}")
+        logger.trace("Calling wrapper with jvm_object={obj}", obj=obj)
         return wrapper(jvm_object=obj)
     else:
-        logger.trace(f"Primitive object {obj!r} passed to python unchanged")
+        logger.trace("Primitive object {obj!r} passed to python unchanged", obj=obj)
         return obj
 
 
@@ -223,22 +226,22 @@ class Logger(object):
             self.error = self.no_op
         return _logger
 
-    def error(self, msg):
-        self.logger.error(msg)
+    def error(self, msg: str, *args, **kwargs):
+        self.logger.error(msg.format(*args, **kwargs))
 
-    def warn(self, msg):
-        self.logger.warn(msg)
+    def warn(self, msg, *args, **kwargs):
+        self.logger.warn(msg.format(*args, **kwargs))
 
-    def info(self, msg):
-        self.logger.info(msg)
+    def info(self, msg, *args, **kwargs):
+        self.logger.info(msg.format(*args, **kwargs))
 
-    def debug(self, msg):
-        self.logger.debug(msg)
+    def debug(self, msg, *args, **kwargs):
+        self.logger.debug(msg.format(*args, **kwargs))
 
-    def trace(self, msg):
-        self.logger.trace(msg)
+    def trace(self, msg, *args, **kwargs):
+        self.logger.trace(msg.format(*args, **kwargs))
 
-    def no_op(self, msg):
+    def no_op(self, msg, *args, **kwargs):
         pass
 
 
@@ -258,6 +261,25 @@ class FunctionWrapper(object):
         return self._fun(*args, **kwargs)
 
 
+class DefaultValue(object):
+    """Wrap a scala default value accessor"""
+    def __init__(self, method):
+        self.method = method
+
+    def __call__(self, obj):
+        return getattr(obj, self.method)()
+
+    def __repr__(self):
+        return "DefaultValue()"
+
+
+def _check_default(obj, value):
+    if isinstance(value, DefaultValue):
+        return value(obj)
+    else:
+        return to_jvm(value)
+
+
 class ScalaProxyBase(object):
     """Base class for wrapping jvm objects"""
     _jvm_object = None
@@ -268,17 +290,51 @@ class ScalaProxyBase(object):
         return self._jvm_object
 
 
+
+    @classmethod
+    def _add_method(cls, name, method_array):
+        name = _codegen.clean_identifier(name)
+        output = {}
+        if len(method_array) > 1:
+            for i, method in enumerate(sorted(method_array, key=lambda m: m.n())):
+                try:
+                    exec(_codegen.build_method(f"{name}{i}", method), globals(), output)
+                except Exception as e:
+                    traceback.print_exc()
+                    raise e
+            methods = list(output.values())
+            method = OverloadedMethod(methods, name)
+        else:
+            method = method_array[0]
+            try:
+                exec(_codegen.build_method(name, method), globals(), output)
+            except Exception as e:
+                traceback.print_exc()
+                raise e
+            method = output.pop(name)
+        if any(m.implicits() for m in method_array):
+            method = WithImplicits(method)
+        setattr(cls, name, InstanceOnlyMethod(method))
+
+
 class GenericScalaProxy(ScalaProxyBase):
     """Base class for proxy objects that are not constructable from python
 
     If a subclass defines a '_classname' attribute, it will be automatically
     registered as the base class for proxy objects of that java class.
     """
-    _methods = None
     _initialised = False
     _classname = None
     _jvm_object = None
     _init_lock = Lock()
+
+    def __repr__(self):
+        if self._jvm_object is not None:
+            return repr(self._jvm_object)
+        else:
+            return super().__repr__()
+
+    __str__ = __repr__
 
     @classmethod
     def _init_methods(cls, jvm_object):
@@ -296,7 +352,7 @@ class GenericScalaProxy(ScalaProxyBase):
                 logger.trace(f"Getting methods for {jvm_object}")
                 methods = get_methods(jvm_object)
                 for (name, method_array) in methods.items():
-                    setattr(cls, name, MethodProxyDescriptor(name, method_array))
+                    cls._add_method(name, method_array)
                 cls._initialised = True
 
     @property
@@ -306,8 +362,6 @@ class GenericScalaProxy(ScalaProxyBase):
             if self._jvm_object is not None:
                 self._classname = self._jvm_object.getClass().getName()
                 logger.trace(f"Retrieved name {self._classname!r} from java object")
-            else:
-                raise RuntimeError("No classname and no jvm_object initialised")
         logger.trace(f"Return name {self._classname!r}")
         return self._classname
 
@@ -331,12 +385,6 @@ class GenericScalaProxy(ScalaProxyBase):
             self._init_methods(self._jvm_object)
             return getattr(self, item)
 
-    def __repr__(self):
-        try:
-            return self._jvm_object.toString()
-        except Exception as e:
-            return f"{self.__class__.__name__}({self._jvm_object!r})"
-
     def __new__(cls, jvm_object=None):
         """Create a new instance and trigger method initialisation if needed"""
         if jvm_object is not None:
@@ -353,88 +401,98 @@ class GenericScalaProxy(ScalaProxyBase):
             register(cls)
 
 
-class MethodProxyDescriptor(object):
-    """Descriptor object for adding scala methods to class"""
-    def __init__(self, name, methods):
-        self.name = name
-        self.methods = methods
+class InstanceOnlyMethod(object):
+    """Instance method that does not shadow class method of the same name"""
+    def __init__(self, method):
+        self.__func__ = method
+        self.__name__ = method.__name__
+        self.__signature__ = inspect.signature(method)
+        self.__doc__ = f"Instance only method {self.__name__}{self.__signature__}"
+
+    def __set_name__(self, owner, name):
+        self.__name__ = name
 
     def __get__(self, instance, owner=None):
         if instance is None:
             # May shadow class method of the same name!
             try:
-                return owner.__class__.__dict__[self.name].__get__(owner, owner.__class__)
-            except KeyError:
-                raise AttributeError()
-        return GenericMethodProxy(self.name, instance.jvm, self.methods)
+                return object.__getattribute__(owner.__class__, self.__name__).__get__(owner, owner.__class__)
+            except Exception as e:
+                logger.trace("InstanceOnlyMethod non-shadowed due to exception {}", e)
+                return self.__func__
+        return self.__func__.__get__(instance, owner)
+
+    def __str__(self):
+        return f"{self.__name__}"
 
 
-class GenericMethodProxy(object):
-
-    """Proxy object for scala method with support for default arguments and implicits"""
-    # TODO: This needs to be optimised
-    def __init__(self, name: str, jvm_object, methods):
-        self.name = name
-        self._jvm_object = jvm_object
+class OverloadedMethod:
+    def __init__(self, methods, name):
+        self.__name__ = name
         self._methods = methods
-        self._implicits = []
+        self.__doc__ = (f"Overloaded method {self.__name__} with alternatives\n"
+                        + "\n".join(f"{self.__name__}{inspect.signature(m)}" for m in self._methods))
 
     def __call__(self, *args, **kwargs):
-        args = [to_jvm(v) for v in args]
-        kwargs = {k: to_jvm(v) for k, v in kwargs.items()}
-        logger.trace(f"Trying to call method {self.name} with arguments {args=} and {kwargs=} and implicits {self._implicits!r}")
         for method in self._methods:
             try:
-                parameters = method.parameters()
-                logger.trace(f"Parmeters for candidate are {parameters}")
-                defaults = method.defaults()
-                logger.trace(f"Defaults for candidate are {defaults}")
-                n = method.n()
-                logger.trace(f"Number of parameters for candidate is {n}")
-                types = method.types()
-                logger.trace(f"Types for candidate are {types}")
-                if method.varargs():
-                    logger.trace(f"Method takes varargs")
-                    actual_args = args[:n-len(kwargs)-1]
-                    varargs = [make_varargs(to_jvm(args[n-len(kwargs)-1:]))]
-                else:
-                    actual_args = args[:]
-                    varargs = []
-                kwargs_used = 0
-                if len(actual_args) + len(kwargs) + len(varargs) > n:
-                    raise ValueError("Too many arguments")
-                if len(actual_args) + len(varargs) < n:
-                    for i in range(len(actual_args), n-len(self._implicits)-len(varargs)):
-                        param = parameters.apply(i)
-                        if param in kwargs:
-                            actual_args.append(kwargs[param])
-                            kwargs_used += 1
-                        elif defaults.contains(i):
-                            actual_args.append(getattr(self._jvm_object, defaults.apply(i))())
-                        else:
-                            raise ValueError(f"Missing value for parameter {param}")
-                if kwargs_used == len(kwargs):
-                    return to_python(getattr(self._jvm_object, method.name())(*actual_args, *varargs, *self._implicits))
-                else:
-                    raise ValueError(f"Not all kwargs could be applied")
+                return method(*args, **kwargs)
             except Exception as e:
-                logger.trace(f"Call failed with exception {e}")
-        raise ValueError(f"No matching implementation of method {self.name} with arguments {args=} and {kwargs=} and implicits {self._implicits}")
+                logger.trace("call failed for {name} with exception {e}", e=e, name=self.__name__)
+        raise RuntimeError(f"No overloaded implementations matched for {self.__name__} with {args=} and {kwargs=}")
+
+    def __get__(self, instance, owner):
+        if instance is None:
+            return self
+        else:
+            bound = copy(self)
+            bound._methods = [m.__get__(instance, owner) for m in bound._methods]
+            return bound
+
+    __text_signature__ = "($self, *args, **kwargs)"
+
+
+class WithImplicits:
+    """Proxy object for scala method with support for default arguments and implicits"""
+    def __init__(self, method):
+        self.__name__ = method.__name__
+        self._method = method
+        self._implicits = []
+        self.__signature__ = inspect.signature(method)
+        self.__doc__ = (method.__doc__ + "\n\n" if method.__doc__ is not None else "") + "takes implicit arguments"
+
+    def __call__(self, *args, **kwargs):
+        return self._method(*args, **kwargs, _implicits=self._implicits)
 
     def __getitem__(self, item):
         """support specifying implicit arguments with [val] syntax"""
         if not isinstance(item, tuple):
             item = (item,)
-
-        for v in item:
-            self._implicits.append(to_jvm(v))
+        self._implicits = item
         return self
+
+    def __get__(self, instance, owner):
+        if instance is None:
+            return self
+        else:
+            bound = copy(self)
+            bound._method = bound._method.__get__(instance, owner)
+            return bound
 
 
 class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
     """Metaclass for wrapping Scala companion objects"""
     _base_initialised = False
     _init_lock = Lock()
+
+    @property
+    def jvm(self):
+        if self._jvm_object is not None:
+            return self._jvm_object
+        elif self._classname is not None:
+            return find_class(self._classname)
+        else:
+            return None
 
     def __new__(mcs, name, bases, attrs, **kwargs):
         """Injects an additional specialised type to avoid interference between different classes"""
@@ -468,9 +526,8 @@ class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
                 logger.trace(f"Getting methods for {jvm_object}")
                 methods = get_methods(jvm_object)
                 for (name, method_array) in methods.items():
-                    setattr(mcs, name, MethodProxyDescriptor(name, method_array))
+                    mcs._add_method(name, method_array)
                 mcs._base_initialised = True
-
 
 
 class ScalaClassProxy(GenericScalaProxy, metaclass=ScalaObjectProxy):
