@@ -61,14 +61,6 @@ private[pojograph] trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
   override def containsState(key: String, includeProperties: Boolean): Boolean =
     computationValues.contains(key) || (includeProperties && getPropertySet().contains(key))
 
-  /** Retrieve value from algorithmic state if it exists or set this state to a default value and return otherwise
-    *
-    * @tparam `T` value type for state
-    * @param key               key to use for retrieving state
-    * @param value             default value to set and return if state does not exist
-    * @param includeProperties set this to `true` to fall-through to vertex properties
-    *                          if `key` is not found in algorithmic state. State is only set if this is also not found.
-    */
   override def getOrSetState[T](key: String, value: T, includeProperties: Boolean): T = {
     var output_value = value
     if (containsState(key))
@@ -81,13 +73,6 @@ private[pojograph] trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
     output_value
   }
 
-  /** Append new value to existing array or initialise new array if state does not exist
-    * The value type of the state is assumed to be `ArrayBuffer[T]` if the state already exists.
-    *
-    * @tparam `T` value type for state (needs to have a `ClassTag` available due to Scala `Array` implementation)
-    * @param key   key to use for retrieving state
-    * @param value value to append to state
-    */
   override def appendToState[T: ClassTag](key: String, value: T): Unit = //write function later
     computationValues.get(key) match {
       case Some(arr) =>
@@ -95,7 +80,6 @@ private[pojograph] trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
       case None      =>
         setState(key, ArrayBuffer(value))
     }
-
 }
 
 private[pojograph] trait PojoExplodedEdgeBase[T] extends PojoExEdgeBase[T] with ConcreteExplodedEdge[T] {
