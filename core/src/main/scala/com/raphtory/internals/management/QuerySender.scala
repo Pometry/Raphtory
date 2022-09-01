@@ -35,14 +35,14 @@ private[raphtory] class QuerySender(
 
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val graphID           = config.getString("raphtory.graph.id")
-  val partitionServers: Int     = config.getInt("raphtory.partitions.serverCount")
-  val partitionsPerServer: Int  = config.getInt("raphtory.partitions.countPerServer")
-  val totalPartitions: Int      = partitionServers * partitionsPerServer
-  private lazy val writers      = topics.graphUpdates(graphID).endPoint
-  private lazy val queryManager = topics.blockingIngestion.endPoint
-  private lazy val submissions  = topics.submissions.endPoint
-  private val blockingSources   = ArrayBuffer[Int]()
+  private val graphID                                         = config.getString("raphtory.graph.id")
+  val partitionServers: Int                                   = config.getInt("raphtory.partitions.serverCount")
+  val partitionsPerServer: Int                                = config.getInt("raphtory.partitions.countPerServer")
+  val totalPartitions: Int                                    = partitionServers * partitionsPerServer
+  private lazy val writers                                    = topics.graphUpdates(graphID).endPoint()
+  private lazy val queryManager                               = topics.blockingIngestion.endPoint
+  private lazy val submissions                                = topics.submissions.endPoint
+  private val blockingSources                                 = ArrayBuffer[Int]()
   protected var scheduledRunArrow: Option[() => Future[Unit]] = Option(scheduler.scheduleOnce(1.seconds, flushArrow()))
 
   def getSourceID(): Int =

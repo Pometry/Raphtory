@@ -27,12 +27,10 @@ private[raphtory] class Writer(
     scheduler: Scheduler
 ) extends Component[GraphAlteration](conf) {
 
-  private val logger: Logger  = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private lazy val neighbours =
     topics.graphSync(graphID).endPoint() //This needs to be lazy otherwise the zookeeper lookup with deadlock
-
-  private var processedMessages = 0
 
   protected var scheduledRun: Option[() => Future[Unit]] = None
 
@@ -298,13 +296,6 @@ private[raphtory] class Writer(
   def handleUpdateCount() = {
     processedMessages += 1
     telemetry.streamWriterGraphUpdatesCollector.labels(partitionID.toString, graphID).inc()
-
-    // TODO Should this be externalised?
-    //  Do we need it now that we have progress tracker?
-    if (processedMessages % 100_000 == 0)
-      logger.debug(
-              s"Partition '$partitionID': Processed '$processedMessages' messages."
-      )
   }
 
 }
