@@ -39,7 +39,7 @@ TBD
 ####  Running PyRaphtory
 
 1. Start pulsar via `pulsar standalone`
-2. (in a different shell) run pyraphtory examples 
+2. (in a different shell) run pyraphtory examples
 3. TBD once examples are complete
 
 
