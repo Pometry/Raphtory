@@ -1,0 +1,41 @@
+{% set name = "pyraphtory" %}
+{% set version = "0.0.1" %}
+{% set build_number = "0" %}
+
+
+package:
+  name: "{{ name|lower }}"
+  version: "{{ version }}"
+
+source:
+  path: ../../../
+#  git_rev: v0.1.0
+#  git_url: https://github.com/Raphtory/Raphtory.git
+
+build:
+  number: {{ build_number }}
+
+requirements:
+  host:
+    - python>=3.10,<3.11
+    - pip
+    - openjdk==11.0.11
+    - scala==2.13.7
+    - sbt==1.5.5
+  run:
+    - python>=3.10,<3.11
+    - pemja>=0.2.5
+    - cloudpickle>=0.4
+    - pandas>=1.4.3
+    - py4j==0.10
+
+test:
+  imports:
+    -
+
+about:
+  home: https://github.com/raphtory/raphtory/
+  license: Apache License 2.0
+  license_family: APACHE
+  license_file: LICENSE
+  summary: Raphtory python API, Temporal Graph analytics
