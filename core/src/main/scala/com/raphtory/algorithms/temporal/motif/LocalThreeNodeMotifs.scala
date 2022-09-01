@@ -9,8 +9,8 @@ import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs.{get2NodeCountsWit
 import scala.collection.mutable.ArrayBuffer
 
 /**
-  *  {s}`ThreeNodeMotifs(delta:Long, graphWide:Boolean=true, prettyPrint:Boolean=true)`
-  *    : Count occurrences of three-edge up-to-three-node temporal motifs in the network. The parmer
+  *  {s}`LocalThreeNodeMotifs(delta:Long, graphWide:Boolean=true, prettyPrint:Boolean=true)`
+  *    : Count occurrences of three-edge up-to-three-node temporal motifs each node participates in. For an efficient global count, use ThreeNodeMotifs
   *
   *  The algorithm is very based on that in "Motifs in Temporal Networks". An option is given to return results as a hashmap with labels or as an array which is easier for post-processing.
   *
