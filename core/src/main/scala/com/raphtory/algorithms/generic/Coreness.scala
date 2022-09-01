@@ -42,7 +42,6 @@ class Coreness(start: Int, end: Int) extends Generic {
   if (start > end | start < 0) { // out of range
     throw new IllegalArgumentException(s"start and end parameters must be non-negative and start <= end. You inputted start=$start, end=$end.")
   }
-
   override def apply(graph: GraphPerspective): graph.Graph = {
     var g = graph.step { vertex =>
       vertex.setState(CORENESS, 0)
@@ -56,11 +55,12 @@ class Coreness(start: Int, end: Int) extends Generic {
     }
     g
   }
-
   override def tabularise(graph: GraphPerspective): Table =
     graph
       .select(vertex =>
-        Row(vertex.name, vertex.getStateOrElse[Int](CORENESS, throw new IllegalStateException(s"Failed to get '$CORENESS' for vertex '${vertex.name}'.")))
+        {
+        Row(vertex.name, vertex.getStateOrElse[Int](CORENESS, -1)
+        )}
       )
 }
 
