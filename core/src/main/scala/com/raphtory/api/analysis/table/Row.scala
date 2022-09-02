@@ -41,6 +41,8 @@ trait Row {
 
   /** Return Array of values */
   def getValues(): Array[Any] = values.toArray
+
+  override def toString: String = "Row(" + values.mkString(", ") + ")"
 }
 
 private[raphtory] class RowImplementation extends Row {
