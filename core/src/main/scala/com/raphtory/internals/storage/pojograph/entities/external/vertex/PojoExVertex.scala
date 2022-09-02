@@ -14,6 +14,7 @@ import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExMul
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoVertex
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.language.existentials
 import scala.math.Ordering
 import scala.reflect.ClassTag
@@ -31,6 +32,56 @@ private[raphtory] class PojoExVertex(
   implicit override val IDOrdering: Ordering[Long] = Ordering.Long
 
   override def ID: Long = v.vertexId
+
+  private var computationValues: Map[String, Any] =
+    Map.empty //Partial results kept between supersteps in calculation
+
+  // state related
+  def setState(key: String, value: Any): Unit =
+    computationValues += ((key, value))
+
+  def getState[T](key: String, includeProperties: Boolean = false): T =
+    if (computationValues.contains(key))
+      computationValues(key).asInstanceOf[T]
+    else if (includeProperties && v.properties.contains(key))
+      getProperty[T](key).get
+    else if (includeProperties)
+      throw new Exception(
+        s"$key not found within analytical state or properties within vertex {${v.vertexId}."
+      )
+    else
+      throw new Exception(s"$key not found within analytical state within vertex {${v.vertexId}")
+
+  def getStateOrElse[T](key: String, value: T, includeProperties: Boolean = false): T =
+    if (computationValues contains key)
+      computationValues(key).asInstanceOf[T]
+    else if (includeProperties && v.properties.contains(key))
+      getProperty[T](key).get
+    else
+      value
+
+  def containsState(key: String, includeProperties: Boolean = false): Boolean =
+    computationValues.contains(key) || (includeProperties && v.properties.contains(key))
+
+  def getOrSetState[T](key: String, value: T, includeProperties: Boolean = false): T = {
+    var output_value = value
+    if (containsState(key))
+      output_value = getState[T](key)
+    else {
+      if (includeProperties && v.properties.contains(key))
+        output_value = getProperty[T](key).get
+      setState(key, output_value)
+    }
+    output_value
+  }
+
+  def appendToState[T: ClassTag](key: String, value: T): Unit = //write function later
+    computationValues.get(key) match {
+      case Some(arr) =>
+        setState(key, arr.asInstanceOf[ArrayBuffer[T]] :+ value)
+      case None      =>
+        setState(key, ArrayBuffer(value))
+    }
 
   val exploded               = mutable.Map.empty[Long, PojoExplodedVertex]
   var explodedVertices       = Array.empty[PojoExplodedVertex]
@@ -160,56 +211,6 @@ private[raphtory] class PojoExVertex(
     if (explodedNeedsFiltering) {
       explodedVertices.filterNot(_.isFiltered)
       explodedNeedsFiltering = false
-    }
-
-  private var computationValues: Map[String, Any] =
-    Map.empty //Partial results kept between supersteps in calculation
-
-  // state related
-  def setState(key: String, value: Any): Unit =
-    computationValues += ((key, value))
-
-  def getState[T](key: String, includeProperties: Boolean = false): T =
-    if (computationValues.contains(key))
-      computationValues(key).asInstanceOf[T]
-    else if (includeProperties && v.properties.contains(key))
-      getProperty[T](key).get
-    else if (includeProperties)
-      throw new Exception(
-              s"$key not found within analytical state or properties for vertex ${v.vertexId}"
-      )
-    else
-      throw new Exception(s"$key not found within analytical state for vertex ${v.vertexId}")
-
-  def getStateOrElse[T](key: String, value: T, includeProperties: Boolean = false): T =
-    if (computationValues contains key)
-      computationValues(key).asInstanceOf[T]
-    else if (includeProperties && v.properties.contains(key))
-      getProperty[T](key).get
-    else
-      value
-
-  def containsState(key: String, includeProperties: Boolean = false): Boolean =
-    computationValues.contains(key) || (includeProperties && v.properties.contains(key))
-
-  def getOrSetState[T](key: String, value: T, includeProperties: Boolean = false): T = {
-    var output_value = value
-    if (containsState(key))
-      output_value = getState[T](key)
-    else {
-      if (includeProperties && v.properties.contains(key))
-        output_value = getProperty[T](key).get
-      setState(key, output_value)
-    }
-    output_value
-  }
-
-  def appendToState[T: ClassTag](key: String, value: T): Unit = //write function later
-    computationValues.get(key) match {
-      case Some(arr) =>
-        setState(key, arr.asInstanceOf[Array[T]] :+ value)
-      case None      =>
-        setState(key, Array(value))
     }
 
   // implement receive in case of exploded view (normal receive is handled in PojoVertexBase)
