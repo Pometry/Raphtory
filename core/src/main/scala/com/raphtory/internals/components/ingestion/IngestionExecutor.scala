@@ -8,6 +8,7 @@ import com.raphtory.internals.communication.CanonicalTopic
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.querymanager.BlockIngestion
+import com.raphtory.internals.components.querymanager.NonBlocking
 import com.raphtory.internals.components.querymanager.UnblockIngestion
 import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
@@ -59,10 +60,15 @@ private[raphtory] class IngestionExecutor(
   private def executeSpout(): Unit = {
     spoutReschedulesCount.inc()
     var iBlocked = false
-    if (blocking && sourceInstance.hasRemainingUpdates) {
-      queryManager.sendAsync(BlockIngestion(sourceID = sourceInstance.sourceID, graphID = graphID))
-      iBlocked = true
-    }
+
+    if (sourceInstance.hasRemainingUpdates)
+      if (blocking) {
+        queryManager.sendAsync(BlockIngestion(sourceID = sourceInstance.sourceID, graphID = graphID))
+        iBlocked = true
+      }
+      else
+        queryManager.sendAsync(NonBlocking(sourceID = sourceInstance.sourceID, graphID = graphID))
+
     while (sourceInstance.hasRemainingUpdates) {
       fileLinesSent.inc()
       index = index + 1
