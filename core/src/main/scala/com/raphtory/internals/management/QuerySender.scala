@@ -42,7 +42,7 @@ private[raphtory] class QuerySender(
   private lazy val writers                                    = topics.graphUpdates(graphID).endPoint()
   private lazy val queryManager                               = topics.blockingIngestion.endPoint
   private lazy val submissions                                = topics.submissions.endPoint
-  private val blockingSources                                 = ArrayBuffer[Int]()
+  private val blockingSources                                 = ArrayBuffer[Long]()
   protected var scheduledRunArrow: Option[() => Future[Unit]] = Option(scheduler.scheduleOnce(1.seconds, flushArrow()))
 
   def getSourceID(): Int =

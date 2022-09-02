@@ -11,14 +11,14 @@ import com.raphtory.internals.communication.SchemaProviderInstances._
 import scala.reflect.ClassTag
 
 case class VertexRemoveSyncAckArrowFlightMessage(
-    sourceID: Int = 0,
+    sourceID: Long = 0L,
     updateTime: Long = 0L,
     index: Long = 0L,
     updateId: Long = 0L
 ) extends ArrowFlightMessage
 
 case class VertexRemoveSyncAckArrowFlightMessageVectors(
-    sourceIDs: IntVector,
+    sourceIDs: BigIntVector,
     updateTimes: BigIntVector,
     indexes: BigIntVector,
     updateIds: BigIntVector
@@ -64,7 +64,7 @@ class VertexRemoveSyncAckArrowFlightMessageSchemaFactory extends ArrowFlightMess
           VertexRemoveSyncAckArrowFlightMessageVectors,
           VertexRemoveSyncAckArrowFlightMessage
   ] = {
-    val sourceIDs   = vectorSchemaRoot.getVector("sourceIDs").asInstanceOf[IntVector]
+    val sourceIDs   = vectorSchemaRoot.getVector("sourceIDs").asInstanceOf[BigIntVector]
     val updateTimes = vectorSchemaRoot.getVector("updateTimes").asInstanceOf[BigIntVector]
     val indexes     = vectorSchemaRoot.getVector("indexes").asInstanceOf[BigIntVector]
     val updateIds   = vectorSchemaRoot.getVector("updateIds").asInstanceOf[BigIntVector]
@@ -93,7 +93,7 @@ class VertexRemoveSyncAckArrowFlightMessageSchemaFactory extends ArrowFlightMess
               List(
                       new Field(
                               "sourceIDs",
-                              new FieldType(false, new ArrowType.Int(32, true), null),
+                              new FieldType(false, new ArrowType.Int(64, true), null),
                               null
                       ),
                       new Field(

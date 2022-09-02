@@ -12,7 +12,7 @@ import com.raphtory.internals.communication.SchemaProviderInstances._
 import scala.reflect.ClassTag
 
 case class SyncExistingRemovalsArrowFlightMessage(
-    sourceID: Int = 0,
+    sourceID: Long = 0L,
     updateTime: Long = 0L,
     index: Long = 0L,
     srcId: Long = 0L,
@@ -23,7 +23,7 @@ case class SyncExistingRemovalsArrowFlightMessage(
 ) extends ArrowFlightMessage
 
 case class SyncExistingRemovalsArrowFlightMessageVectors(
-    sourceIDs: IntVector,
+    sourceIDs: BigIntVector,
     updateTimes: BigIntVector,
     indexes: BigIntVector,
     srcIds: BigIntVector,
@@ -87,7 +87,7 @@ class SyncExistingRemovalsArrowFlightMessageSchemaFactory extends ArrowFlightMes
           SyncExistingRemovalsArrowFlightMessageVectors,
           SyncExistingRemovalsArrowFlightMessage
   ] = {
-    val sourceIDs     = vectorSchemaRoot.getVector("sourceIDs").asInstanceOf[IntVector]
+    val sourceIDs     = vectorSchemaRoot.getVector("sourceIDs").asInstanceOf[BigIntVector]
     val updateTimes   = vectorSchemaRoot.getVector("updateTimes").asInstanceOf[BigIntVector]
     val indexes       = vectorSchemaRoot.getVector("indexes").asInstanceOf[BigIntVector]
     val srcIds        = vectorSchemaRoot.getVector("srcIds").asInstanceOf[BigIntVector]

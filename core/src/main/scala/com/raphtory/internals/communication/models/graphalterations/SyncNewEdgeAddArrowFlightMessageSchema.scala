@@ -15,7 +15,7 @@ import scala.collection.mutable
 import scala.reflect.ClassTag
 
 case class SyncNewEdgeAddArrowFlightMessage(
-    sourceID: Int = 0,
+    sourceID: Long = 0L,
     updateTime: Long = 0L,
     index: Long = 0L,
     srcId: Long = 0L,
@@ -36,7 +36,7 @@ case class SyncNewEdgeAddArrowFlightMessage(
 ) extends ArrowFlightMessage
 
 case class SyncNewEdgeAddArrowFlightMessageVectors(
-    sourceIDs: IntVector,
+    sourceIDs: BigIntVector,
     updateTimes: BigIntVector,
     indexes: BigIntVector,
     srcIds: BigIntVector,
@@ -199,7 +199,7 @@ class SyncNewEdgeAddArrowFlightMessageSchemaFactory extends ArrowFlightMessageSc
           SyncNewEdgeAddArrowFlightMessageVectors,
           SyncNewEdgeAddArrowFlightMessage
   ] = {
-    val sourceIDs               = vectorSchemaRoot.getVector("sourceIDs").asInstanceOf[IntVector]
+    val sourceIDs               = vectorSchemaRoot.getVector("sourceIDs").asInstanceOf[BigIntVector]
     val updateTimes             = vectorSchemaRoot.getVector("updateTimes").asInstanceOf[BigIntVector]
     val indexes                 = vectorSchemaRoot.getVector("indexes").asInstanceOf[BigIntVector]
     val srcIds                  = vectorSchemaRoot.getVector("srcIds").asInstanceOf[BigIntVector]
@@ -264,7 +264,7 @@ class SyncNewEdgeAddArrowFlightMessageSchemaFactory extends ArrowFlightMessageSc
               List(
                       new Field(
                               "sourceIDs",
-                              new FieldType(false, new ArrowType.Int(32, true), null),
+                              new FieldType(false, new ArrowType.Int(64, true), null),
                               null
                       ),
                       new Field(

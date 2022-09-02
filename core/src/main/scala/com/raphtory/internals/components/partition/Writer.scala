@@ -272,7 +272,7 @@ private[raphtory] class Writer(
   }
 
   private def untrackEdgeUpdate(
-      sourceID: Int,
+      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,

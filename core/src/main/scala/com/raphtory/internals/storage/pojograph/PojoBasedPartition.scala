@@ -40,7 +40,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
 
   // if the add come with some properties add all passed properties into the entity
   override def addVertex(
-      sourceID: Int,
+      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -87,7 +87,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
         vertex
     }
 
-  def removeVertex(sourceID: Int, msgTime: Long, index: Long, srcId: Long): List[GraphUpdateEffect] = {
+  def removeVertex(sourceID: Long, msgTime: Long, index: Long, srcId: Long): List[GraphUpdateEffect] = {
     val vertex = vertices.get(srcId) match {
       case Some(v) =>
         v kill (msgTime, index)
@@ -143,7 +143,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
   // Edge methods
 
   def addEdge(
-      sourceID: Int,
+      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -242,7 +242,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
   }
 
   def syncNewEdgeAdd(
-      sourceID: Int,
+      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -283,7 +283,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
   }
 
   def syncExistingEdgeAdd(
-      sourceID: Int,
+      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -312,7 +312,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
   }
 
   def batchAddRemoteEdge(
-      sourceID: Int,
+      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -336,7 +336,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
     }
   }
 
-  def removeEdge(sourceID: Int, msgTime: Long, index: Long, srcId: Long, dstId: Long): Option[GraphUpdateEffect] = {
+  def removeEdge(sourceID: Long, msgTime: Long, index: Long, srcId: Long, dstId: Long): Option[GraphUpdateEffect] = {
     val local                 = checkDst(dstId)
     logger.trace(s"Dst ID exists: $local")
     val srcVertex: PojoVertex = getVertexOrPlaceholder(msgTime, index, srcId)
@@ -394,7 +394,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
   }
 
   def inboundEdgeRemovalViaVertex(
-      sourceID: Int,
+      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -408,7 +408,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
   }
 
   def syncExistingEdgeRemoval(
-      sourceID: Int,
+      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -428,7 +428,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
   }
 
   def outboundEdgeRemovalViaVertex(
-      sourceID: Int,
+      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -442,7 +442,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
   }
 
   def syncNewEdgeRemoval(
-      sourceID: Int,
+      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,

@@ -24,7 +24,7 @@ private[raphtory] class QueryManager(
 
   private val currentQueries                   = mutable.Map[String, QueryHandler]()
   private val ingestion                        = topics.ingestSetup.endPoint
-  val sources: mutable.Map[Int, SourceTracker] = mutable.Map[Int, SourceTracker]()
+  val sources: mutable.Map[Long, SourceTracker] = mutable.Map[Long, SourceTracker]()
   var blockedQueries: ArrayBuffer[Query]       = ArrayBuffer[Query]()
 
   def startBlockIngesting(ID: Int): Unit = {
@@ -59,7 +59,7 @@ private[raphtory] class QueryManager(
       }
     }
 
-  def currentlyBlockIngesting(blockedBy: Array[Int]): Boolean = {
+  def currentlyBlockIngesting(blockedBy: Array[Long]): Boolean = {
     val generalBlocking = sources
       .map({
         case (id, tracker) => tracker.isBlocking
@@ -128,7 +128,7 @@ private[raphtory] class QueryManager(
         watermarks.put(watermark.partitionID, watermark)
         watermark.sourceMessages.foreach {
           case (id, count) =>
-            sources.get(id) match {
+            sources.get(id.toLong) match {
               case Some(tracker) =>
                 tracker.setReceivedMessage(watermark.partitionID, count)
 

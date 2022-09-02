@@ -20,7 +20,7 @@ private[raphtory] case class WatermarkTime(
     oldestTime: Long,
     latestTime: Long,
     safe: Boolean,
-    sourceMessages: Array[(Int, Long)]
+    sourceMessages: Array[(Long, Long)]
 ) extends QueryManagement
 
 private[raphtory] case object StartAnalysis extends QueryManagement
@@ -98,7 +98,7 @@ private[raphtory] case class Query(
     windowAlignment: Alignment.Value = Alignment.START,
     graphFunctions: Queue[GraphFunction] = Queue(),
     tableFunctions: Queue[TableFunction] = Queue(),
-    blockedBy: Array[Int] = Array(),
+    blockedBy: Array[Long] = Array(),
     sink: Option[Sink] = None,
     pyScript: Option[String] = None
 ) extends Submission
