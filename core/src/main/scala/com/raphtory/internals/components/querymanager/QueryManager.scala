@@ -40,7 +40,6 @@ private[raphtory] class QueryManager(
       logger.info(s"Source '$ID' is forced unblocking analysis for Graph '$graphID' with $msgCount messages sent.")
       sources.foreach {
         case (id, tracker) =>
-          tracker.unblock()
           if (id == ID)
             tracker.setTotalSent(msgCount)
           else
@@ -51,10 +50,11 @@ private[raphtory] class QueryManager(
       logger.info(s"Source '$ID' is unblocking analysis for Graph '$graphID' with $msgCount messages sent.")
       sources.get(ID) match {
         case Some(tracker) =>
-          tracker.unblock()
           tracker.setTotalSent(msgCount)
-        case None          => //somehow updates unordered
-          logger.error(s"Source Tracker for source $ID was missing")
+        case None          =>
+          val tracker = SourceTracker()
+          tracker.setTotalSent(msgCount)
+          sources.put(ID, tracker)
 
       }
     }
@@ -93,7 +93,9 @@ private[raphtory] class QueryManager(
         stopBlockIngesting(unblocking.sourceID, unblocking.force, unblocking.messageCount)
         checkBlockedQueries()
 
-      case query: Query                 =>
+      case nonBlocking: NonBlocking     => stopBlockIngesting(nonBlocking.sourceID, force = false, 0)
+
+      case query: Query             =>
         val jobID = query.name
         logger.debug(s"Handling query: $query")
 
@@ -113,7 +115,7 @@ private[raphtory] class QueryManager(
           trackNewQuery(jobID, queryHandler)
         }
 
-      case req: EndQuery                =>
+      case req: EndQuery            =>
         currentQueries.synchronized {
           currentQueries.get(req.jobID) match {
             case Some(queryhandler) =>
@@ -124,7 +126,7 @@ private[raphtory] class QueryManager(
         }
         blockedQueries.filter(q => q.name equals req.jobID)
 
-      case watermark: WatermarkTime     =>
+      case watermark: WatermarkTime =>
         watermarks.put(watermark.partitionID, watermark)
         watermark.sourceMessages.foreach {
           case (id, count) =>
@@ -135,7 +137,7 @@ private[raphtory] class QueryManager(
               case None          =>
                 val tracker = SourceTracker()
                 tracker.setReceivedMessage(watermark.partitionID, count)
-                sources.put(watermark.partitionID, tracker)
+                sources.put(id, tracker)
             }
         }
         checkBlockedQueries()
