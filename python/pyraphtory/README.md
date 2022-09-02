@@ -22,7 +22,7 @@ TBD
 #### Requirements
 
 - Temurin Java 11 - 11.0.16-tem
-    - Please ensure `JAVA_HOME` environment variable is set and points to a JDK location
+  - Please ensure `JAVA_HOME` environment variable is set and points to a JDK location
 - scala 2.13
 - sbt 1.5.5
 - python 3.10
