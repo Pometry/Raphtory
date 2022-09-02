@@ -22,6 +22,7 @@ class TableOutput(tracker: QueryProgressTracker, topics: TopicRepository, conf: 
         extends Component[OutputMessages](conf) {
   private val outputDonePromise = Promise[Unit]()
   private val outputDoneFuture  = outputDonePromise.future
+  private var jobsDone          = 0
   private val _results          = ArrayBuffer.empty[RowOutput]
   private val logger: Logger    = Logger(LoggerFactory.getLogger(this.getClass))
   def results: Array[RowOutput] = _results.toArray
@@ -37,8 +38,11 @@ class TableOutput(tracker: QueryProgressTracker, topics: TopicRepository, conf: 
     msg match {
       case v: RowOutput => _results.append(v)
       case EndOutput    =>
-        outputDonePromise.success(())
-        stop()
+        jobsDone += 1
+        if (jobsDone == totalPartitions) {
+          outputDonePromise.success(())
+          stop()
+        }
     }
 
   override private[raphtory] def run(): Unit = {
