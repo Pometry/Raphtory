@@ -2,6 +2,9 @@ package com.raphtory.examples.coho.companiesStream.rawModel.personsSignificantCo
 
 import spray.json.{DefaultJsonProtocol, JsObject, JsString, JsValue, RootJsonFormat}
 
+/**
+ * Implicit variables and objects to handle the json objects of the Companies House stream data.
+ */
 object PscJsonProtocol extends DefaultJsonProtocol {
 
   implicit val linksFormat = jsonFormat2(Links)

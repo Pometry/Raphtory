@@ -2,6 +2,9 @@ package com.raphtory.examples.coho.companiesStream.rawModel.officerAppointments
 
 import spray.json.{DefaultJsonProtocol, JsArray, JsObject, JsString, JsValue, RootJsonFormat}
 
+/**
+ * Implicit variables and objects to handle the json objects of the Companies House Officer Appointment List data.
+ */
 object AppointmentListJsonProtocol extends DefaultJsonProtocol {
 
   implicit val dateOfBirthFormat = jsonFormat2(DateOfBirth)

@@ -1,5 +1,8 @@
 package com.raphtory.examples.coho.companiesStream.rawModel.personsSignificantControl
 
+/**
+ * Case class for all the Companies House fields in the PSC single item data (scraped from PSC API).
+ */
 case class PersonWithSignificantControlItem(
                                            address: Option[Address],
                                            ceased: Option[Boolean],

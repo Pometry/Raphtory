@@ -7,7 +7,9 @@ import spray.json._
 import java.time.format.DateTimeFormatter
 import java.time.{LocalDate, LocalTime, ZoneOffset}
 
-
+/**
+ * Graph Builder for Company to PSC using data from Companies House Bulk Data Product
+ */
 class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
   override def parseTuple(tuple: String): Unit = {
     try {
@@ -113,7 +115,7 @@ class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
               assignID(nameID),
               assignID(companyNumber),
               Properties(IntegerProperty("weight", shareOwnership)),
-              Type("Psc to Ceased Company Duration"),
+              Type("Psc to Ceased Company"),
               tupleIndex
             )
           }

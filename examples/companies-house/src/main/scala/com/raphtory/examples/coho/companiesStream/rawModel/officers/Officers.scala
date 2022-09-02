@@ -1,5 +1,8 @@
 package com.raphtory.examples.coho.companiesStream.rawModel.officers
 
+/**
+ * Case classes for all the Companies House fields in the Officers Stream.
+ */
 case class Officers(
                      resource_kind: Option[String],
                      resource_uri: Option[String],

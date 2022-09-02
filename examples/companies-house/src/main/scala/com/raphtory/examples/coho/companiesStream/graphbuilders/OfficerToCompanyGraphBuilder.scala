@@ -7,6 +7,9 @@ import spray.json._
 import java.time.{LocalDate,LocalTime, ZoneOffset}
 import java.time.format.DateTimeFormatter
 
+/**
+ * Graph Builder for graph of officer to company, used data from Officer Appointment API
+ */
 class OfficerToCompanyGraphBuilder extends GraphBuilder[String] {
 
   override def parseTuple(tuple: String): Unit = {

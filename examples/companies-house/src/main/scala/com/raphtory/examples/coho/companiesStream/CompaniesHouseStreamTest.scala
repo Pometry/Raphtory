@@ -3,11 +3,9 @@ package com.raphtory.examples.coho.companiesStream
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.input.Source
-import com.raphtory.examples.coho.companiesStream.graphbuilders.CompaniesStreamPersonGraphBuilder
-import com.raphtory.examples.coho.companiesStream.graphbuilders.CompaniesStreamRawGraphBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.WebSocketSpout
-
+import com.raphtory.examples.coho.companiesStream.graphbuilders.{CompaniesStreamPersonGraphBuilder, CompaniesStreamRawGraphBuilder, CompanyToPscGraphBuilder}
 /**
   * Runner to build a person to company network or raw network for a company.
   * Auth is set in the environment variables. Content Type and URL can be set in app conf of this directory.
@@ -22,13 +20,15 @@ object CompaniesHouseStreamTest extends App {
   private val contentType = raphtoryConfig.getString("raphtory.spout.coho.contentType")
   private val url         = raphtoryConfig.getString("raphtory.spout.coho.url")
   val spout               = new WebSocketSpout(url, Some(auth), Some(contentType))
-//  val builder = new CompaniesStreamRawGraphBuilder()
-  val source              = Source[String](spout, CompaniesStreamPersonGraphBuilder.parse)
+  val rawBuilder          = new CompanyToPscGraphBuilder()
+  val builder             = new CompaniesStreamPersonGraphBuilder()
+  val source              = Source(spout, builder)
   val context             = Raphtory
   val graph               = context.newGraph()
+
   graph.load(source)
 
-  val output = FileSink("")
+  val output = FileSink("/tmp/")
 
   graph
     .climb("2022-12-31", "1 second")

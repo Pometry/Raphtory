@@ -1,5 +1,8 @@
 package com.raphtory.examples.coho.companiesStream.rawModel.officerAppointments
 
+/**
+ * Case classes for all the Companies House fields in the Officer Appointment List data.
+ */
 case class OfficerAppointmentList(
                                    date_of_birth: Option[DateOfBirth],
                                    etag: Option[String],

@@ -1,10 +1,6 @@
 package com.raphtory.examples.coho.companiesStream.graphbuilders
 
-import com.raphtory.api.input.BooleanProperty
-import com.raphtory.api.input.Graph
-import com.raphtory.api.input.IntegerProperty
-import com.raphtory.api.input.Properties
-import com.raphtory.api.input.StringProperty
+import com.raphtory.api.input.{BooleanProperty, Graph, GraphBuilder, IntegerProperty, Properties, StringProperty}
 import com.raphtory.examples.coho.companiesStream.rawModel._
 import spray.json._
 
@@ -19,10 +15,10 @@ import com.raphtory.examples.coho.companiesStream.rawModel.companyProfile.Compan
   * for a companies information.
   */
 
-object CompaniesStreamRawGraphBuilder {
+class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
   private val nullStr = "null"
 
-  def parser(graph: Graph, tuple: String): Unit = {
+  def apply(graph: Graph, tuple: String): Unit = {
     try {
       val command = tuple
       val company = command.parseJson.convertTo[Company]

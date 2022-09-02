@@ -1,5 +1,8 @@
 package com.raphtory.examples.coho.companiesStream.rawModel.personsSignificantControl
 
+/**
+ * Case classes for all the Companies House fields in the PSC Stream.
+ */
 case class PersonWithSignificantControl(
                                        active_count: Option[Int],
                                        ceased_count: Option[Int],

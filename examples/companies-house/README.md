@@ -1,4 +1,4 @@
-# A Series of Unfortunate Directors
+# A Series of Unfortunate Directors 
 
 ## Overview
 This is the code used to analyse the Companies House data in Raphtory and gave us the results in this [blog post](https://www.raphtory.com/A-Series-of-Unfortunate-Directors/).
