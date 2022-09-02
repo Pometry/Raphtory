@@ -27,7 +27,7 @@ private[api] class TableImplementation(val query: Query, private val querySender
   override def writeTo(sink: Sink): QueryProgressTracker =
     writeTo(sink, "")
 
-  override def collect(jobName: String = ""): TableOutput =
+  override def get(jobName: String = ""): TableOutput =
     querySender.outputCollector(writeTo(TableOutputSink, jobName))
 
   private def addFunction(function: TableFunction) =

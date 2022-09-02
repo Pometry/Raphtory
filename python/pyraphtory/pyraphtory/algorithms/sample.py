@@ -32,7 +32,7 @@ if __name__ == "__main__":
     graph = pr.new_graph().load(Source(lotr_spout, lotr_builder))
     result = (graph
               .select(lambda vertex: Row(vertex.name(), vertex.degree()))
-              .collect())
+              .get())
     result.wait_for_job()
 
     # df = (graph

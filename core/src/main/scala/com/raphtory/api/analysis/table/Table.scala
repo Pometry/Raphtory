@@ -56,5 +56,5 @@ trait Table {
   def writeToFile(name: String): QueryProgressTracker =
     writeTo(FileSink(name))
 
-  def collect(jobName: String = ""): TableOutput
+  def get(jobName: String = ""): TableOutput
 }
