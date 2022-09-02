@@ -12,20 +12,20 @@ import java.time.format.DateTimeFormatter
  */
 class OfficerToCompanyGraphBuilder extends GraphBuilder[String] {
 
-  override def parseTuple(tuple: String): Unit = {
+  override def parse(graph: Graph, tuple: String): Unit = {
     try {
       val command = tuple
       val appointmentList = command.parseJson.convertTo[OfficerAppointmentList]
-      sendAppointmentListToPartitions(appointmentList)
+      sendAppointmentListToPartitions(appointmentList, graph)
     } catch {
       case e: Exception => e.printStackTrace()
     }
 
     def sendAppointmentListToPartitions(
-                                         appointmentList: OfficerAppointmentList): Unit = {
+                                         appointmentList: OfficerAppointmentList, graph: Graph): Unit = {
       val officerId = appointmentList.links.get.self.get.split("/")(2)
 
-      var tupleIndex = index * 50
+      var tupleIndex = 1 //index * 50
 
       appointmentList.items.get.foreach { item =>
         if (item.appointed_on.nonEmpty && item.appointed_to.nonEmpty) {
@@ -43,7 +43,7 @@ class OfficerToCompanyGraphBuilder extends GraphBuilder[String] {
 
           val difference = resignedOnParsed - appointedOnParsed
 
-          addVertex(
+          graph.addVertex(
             appointedOnParsed,
             assignID(officerId),
             Properties(ImmutableProperty("name", officerId)),
@@ -59,7 +59,7 @@ class OfficerToCompanyGraphBuilder extends GraphBuilder[String] {
 //            tupleIndex
 //          )
 
-          addVertex(
+          graph.addVertex(
             appointedOnParsed,
             difference,
             Properties(ImmutableProperty("name", difference.toString)),
@@ -67,7 +67,7 @@ class OfficerToCompanyGraphBuilder extends GraphBuilder[String] {
             tupleIndex
           )
 
-          addEdge(
+          graph.addEdge(
             appointedOnParsed,
             assignID(officerId),
             difference,

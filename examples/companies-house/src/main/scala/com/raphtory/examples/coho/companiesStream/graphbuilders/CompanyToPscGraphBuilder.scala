@@ -1,9 +1,10 @@
 package com.raphtory.examples.coho.companiesStream.graphbuilders
 
-import com.raphtory.api.input.{GraphBuilder, ImmutableProperty, IntegerProperty, Properties, Type}
+import com.raphtory.api.input.{Graph, GraphBuilder, ImmutableProperty, IntegerProperty, Properties, Type}
 import spray.json._
 import com.raphtory.examples.coho.companiesStream.rawModel.personsSignificantControl.PersonWithSignificantControlItem
 import com.raphtory.examples.coho.companiesStream.rawModel.personsSignificantControl.PscItemJsonProtocol.ItemsFormat
+
 import java.time.format.DateTimeFormatter
 import java.time.{LocalDate, LocalTime, ZoneOffset}
 
@@ -13,17 +14,17 @@ import java.time.{LocalDate, LocalTime, ZoneOffset}
  * labelled with share ownership and date notified on.
  */
 class CompanyToPscGraphBuilder extends GraphBuilder[String] {
-  override def parseTuple(tuple: String): Unit = {
+  override def parse(graph: Graph, tuple: String): Unit = {
     try {
       val psc = tuple.parseJson.convertTo[PersonWithSignificantControlItem]
-      sendPscToPartitions(psc)
+      sendPscToPartitions(psc, graph)
     } catch {
       case e: Exception => e.printStackTrace()
     }
 
-    def sendPscToPartitions(psc: PersonWithSignificantControlItem) = {
+    def sendPscToPartitions(psc: PersonWithSignificantControlItem, graph: Graph) = {
 
-      var tupleIndex = index * 50
+      var tupleIndex = 1 // index * 50
 
       val notifiedOn =
          LocalDate.parse(psc.notified_on.get.replaceAll("\"", ""), DateTimeFormatter.ofPattern("yyyy-MM-dd")).toEpochSecond(LocalTime.MIDNIGHT, ZoneOffset.MIN) * 1000
@@ -65,7 +66,7 @@ class CompanyToPscGraphBuilder extends GraphBuilder[String] {
       val shareOwnership = matchControl(naturesOfControl.headOption)
       if (notifiedOn > 0) {
 
-          addVertex(
+          graph.addVertex(
           notifiedOn,
           assignID(nameID),
           Properties(ImmutableProperty("name", nameID)),
@@ -73,7 +74,7 @@ class CompanyToPscGraphBuilder extends GraphBuilder[String] {
           tupleIndex
         )
 
-        addVertex(
+        graph.addVertex(
           notifiedOn,
           assignID(companyNumber),
           Properties(ImmutableProperty("name", companyNumber)),
@@ -81,7 +82,7 @@ class CompanyToPscGraphBuilder extends GraphBuilder[String] {
           tupleIndex
         )
 
-        addEdge(
+        graph.addEdge(
           notifiedOn,
           assignID(nameID),
           assignID(companyNumber),

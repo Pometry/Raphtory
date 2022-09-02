@@ -1,9 +1,10 @@
 package com.raphtory.examples.coho.companiesStream.graphbuilders
 
-import com.raphtory.api.input.{GraphBuilder, ImmutableProperty, IntegerProperty, LongProperty, Properties, Type}
+import com.raphtory.api.input.{Graph, GraphBuilder, ImmutableProperty, IntegerProperty, LongProperty, Properties, Type}
 import com.raphtory.examples.coho.companiesStream.rawModel.personsSignificantControl.PersonWithSignificantControlStream
 import com.raphtory.examples.coho.companiesStream.rawModel.personsSignificantControl.PscStreamJsonProtocol.PersonWithSignificantControlStreamFormat
 import spray.json._
+
 import java.time.format.DateTimeFormatter
 import java.time.{LocalDate, LocalTime, ZoneOffset}
 
@@ -11,16 +12,17 @@ import java.time.{LocalDate, LocalTime, ZoneOffset}
  * Graph Builder for Company to PSC using data from Companies House Bulk Data Product
  */
 class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
-  override def parseTuple(tuple: String): Unit = {
+  override def parse(graph: Graph, tuple: String): Unit = {
     try {
       val psc = tuple.parseJson.convertTo[PersonWithSignificantControlStream]
-      sendPscToPartitions(psc)
+      sendPscToPartitions(psc, graph)
     } catch {
       case e: Exception =>  e.printStackTrace()
     }
   }
-    def sendPscToPartitions(psc: PersonWithSignificantControlStream) = {
-      var tupleIndex = index * 50
+    def sendPscToPartitions(psc: PersonWithSignificantControlStream, graph: Graph) = {
+
+      var tupleIndex = 1 // index * 50
       val notifiedOn =
           LocalDate.parse(psc.data.get.notified_on.getOrElse("1800-01-01").replaceAll("\"", ""), DateTimeFormatter.ofPattern("yyyy-MM-dd")).toEpochSecond(LocalTime.MIDNIGHT, ZoneOffset.MIN) * 1000
 
@@ -63,38 +65,13 @@ class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
 
 
         if (notifiedOn > 0) {
-        // Edge for PSC to Company, weight of share ownership
-//            addVertex(
-//              notifiedOn,
-//              assignID(nameID),
-//              Properties(ImmutableProperty("name", nameID)),
-//              Type("Persons With Significant Control"),
-//              tupleIndex
-//            )
-//
-//            addVertex(
-//              notifiedOn,
-//              assignID(companyNumber),
-//              Properties(ImmutableProperty("name", companyNumber)),
-//              Type("Company"),
-//              tupleIndex
-//            )
-
-//            addEdge(
-//              notifiedOn,
-//              assignID(nameID),
-//              assignID(companyNumber),
-//              Properties(IntegerProperty("weight", shareOwnership)),
-//              Type("Psc to Company Duration"),
-//              tupleIndex
-//            )
 
           if (psc.data.get.ceased_on.nonEmpty) {
 
             val ceasedOn = LocalDate.parse(psc.data.get.ceased_on.get.replaceAll("\"", ""), DateTimeFormatter.ofPattern("yyyy-MM-dd")).toEpochSecond(LocalTime.MIDNIGHT, ZoneOffset.MIN) * 1000
 
             // Edge for PSC to Company that has been ceased, weight is shared ownership
-            addVertex(
+            graph.addVertex(
               ceasedOn,
               assignID(nameID),
               Properties(ImmutableProperty("name", nameID)),
@@ -102,7 +79,7 @@ class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
               tupleIndex
             )
 
-            addVertex(
+            graph.addVertex(
               ceasedOn,
               assignID(companyNumber),
               Properties(ImmutableProperty("name", companyNumber)),
@@ -110,7 +87,7 @@ class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
               tupleIndex
             )
 
-            addEdge(
+            graph.addEdge(
               ceasedOn,
               assignID(nameID),
               assignID(companyNumber),

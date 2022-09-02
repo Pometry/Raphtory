@@ -16,11 +16,11 @@ object CompaniesHouseTest {
 
   def main(args: Array[String]) {
 
-    val spout = FileSpout("/Users/rachelchan/Documents/nhsContractsPSCData", regexPattern = "^.*\\.([jJ][sS][oO][nN]??)$", recurse = true)
-    val builder = new CompanyToPscGraphBuilder()
+    val source = Source(FileSpout("/Users/rachelchan/Documents/nhsContractsPSCData", regexPattern = "^.*\\.([jJ][sS][oO][nN]??)$", recurse = true), new CompanyToPscGraphBuilder())
     val output = FileSink("/Users/rachelchan/Downloads/psc",JsonFormat())
-    val source = Source(spout, builder)
-    val graph = Raphtory.newGraph()
+    val graph = {
+      Raphtory.newGraph()
+    }
 
     graph.load(source)
     graph

@@ -21,14 +21,13 @@ object CompaniesHouseStreamTest extends App {
   private val auth = raphtoryConfig.getString("raphtory.spout.coho.authorization")
   private val contentType = raphtoryConfig.getString("raphtory.spout.coho.contentType")
   private val url = raphtoryConfig.getString("raphtory.spout.coho.url")
-  val spout = new WebSocketSpout(url, Some(auth), Some(contentType))
+
   val rawBuilder = new CompaniesStreamRawGraphBuilder()
   val personBuilder = new CompaniesStreamPersonGraphBuilder()
-  val source = Source(spout, rawBuilder)
-  val context = Raphtory
-  val graph = context.newGraph()
-  val output = FileSink("/tmp/")
-  graph.load(source)
+  val source = Source(WebSocketSpout(url, Some(auth), Some(contentType)), personBuilder)
+  val graph = Raphtory.newGraph().stream(source)
+  val output = FileSink("")
+
   graph
     .climb("2022-12-31", "1 second")
     .past()
