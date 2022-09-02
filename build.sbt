@@ -54,8 +54,6 @@ lazy val root = (project in file("."))
           connectorsTwitter,
           examplesCoho,
           connectorsTypeDB,
-          examplesEnron,
-          examplesFacebook,
           examplesGab,
           examplesLotr,
           examplesTwitter,
@@ -141,14 +139,8 @@ lazy val connectorsTypeDB =
 lazy val examplesCoho =
   (project in file("examples/companies-house")).dependsOn(core).settings(assemblySettings)
 
-lazy val examplesEnron =
-  (project in file("examples/enron")).dependsOn(core).settings(assemblySettings)
-
 lazy val examplesEthereum =
   (project in file("examples/ethereum")).dependsOn(core).settings(assemblySettings)
-
-lazy val examplesFacebook =
-  (project in file("examples/facebook")).dependsOn(core).settings(assemblySettings)
 
 lazy val examplesGab =
   (project in file("examples/gab")).dependsOn(core).settings(assemblySettings)

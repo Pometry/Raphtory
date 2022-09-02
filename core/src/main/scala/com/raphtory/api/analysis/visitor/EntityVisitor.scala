@@ -6,6 +6,7 @@ import io.sqooba.oss.timeseries.immutable.EmptyTimeSeries
 import io.sqooba.oss.timeseries.immutable.TSEntry
 
 import scala.math.Ordered.orderingToOrdered
+import scala.reflect.ClassTag
 
 /** Common base class for [[Edge]] and [[Vertex]]
   *
@@ -223,12 +224,62 @@ abstract class EntityVisitor {
       else EmptyTimeSeries
     }
 
-  //functionality to access the history of the edge or vertex + helpers
-
-  /** Return a list of all events (additions or deletions) in the current view. Each event is
-    * returned as an [[com.raphtory.api.analysis.visitor.HistoricEvent HistoricEvent]] which
-    * encodes whether the event is an addition or deletion and the time of the event.
+  /** Set algorithmic state for this entity. Note that for edges, algorithmic state is stored locally to the vertex endpoint
+    * which sets this state (default being the source node when set during an edge step).
+    * @param key key to use for setting value
+    * @param value new value for state
     */
+  def setState(key: String, value: Any): Unit
+
+  /** Retrieve value from algorithmic state. Note that for edges, algorithmic state is stored locally to the vertex endpoint
+    * which sets this state (default being the source node when set during an edge step).
+    * @tparam `T` value type for state
+    * @param key key to use for retrieving state
+    * @param includeProperties set this to `true` to fall-through to vertex properties if `key` is not found
+    */
+  def getState[T](key: String, includeProperties: Boolean = false): T
+
+  /** Retrieve value from algorithmic state if it exists or return a default value otherwise. Note that for edges,
+    * algorithmic state is stored locally to the vertex endpoint which set this state (default being the source node
+    * when set during an edge step).
+    * @tparam `T` value type for state
+    * @param key key to use for retrieving state
+    * @param value default value to return if state does not exist
+    * @param includeProperties set this to `true` to fall-through to entity properties
+    *                          if `key` is not found in algorithmic state
+    */
+  def getStateOrElse[T](key: String, value: T, includeProperties: Boolean = false): T
+
+  /** Checks if algorithmic state with key `key` exists. Note that for edges, algorithmic state is stored locally to
+    * the vertex endpoint which set this state (default being the source node when set during an edge step).
+    * @param key state key to check
+    * @param includeProperties Set this to `true` to fall-through to vertex properties if `key` is not found.
+    *         If set, this function only returns `false` if `key` is not included in either algorithmic state
+    *         or entity properties
+    */
+  def containsState(key: String, includeProperties: Boolean = false): Boolean
+
+  /** Retrieve value from algorithmic state if it exists or set this state to a default value and return otherwise. Note that for edges,
+    * algorithmic state is stored locally to the vertex endpoint which set this state (default being the source node
+    * when set during an edge step).
+    * @tparam `T` value type for state
+    * @param key key to use for retrieving state
+    * @param value default value to set and return if state does not exist
+    * @param includeProperties set this to `true` to fall-through to vertex properties
+    *                          if `key` is not found in algorithmic state. State is only set if this is also not found.
+    */
+  def getOrSetState[T](key: String, value: T, includeProperties: Boolean = false): T
+
+  /** Append new value to existing array or initialise new array if state does not exist. Note that for edges,
+    * algorithmic state is stored locally to the vertex endpoint which set this state (default being the source node
+    * when set during an edge step).
+    * The value type of the state is assumed to be `Array[T]` if the state already exists.
+    * @tparam `T` value type for state (needs to have a `ClassTag` available due to Scala `Array` implementation)
+    * @param key key to use for retrieving state
+    * @param value value to append to state
+    */
+  def appendToState[T: ClassTag](key: String, value: T): Unit
+
   def history(): List[HistoricEvent]
 
   /** Returns a TimeSeries (from this library: https://github.com/Sqooba/scala-timeseries-lib) of the entities [[com.raphtory.api.analysis.visitor.HistoricEvent HistoricEvents]]

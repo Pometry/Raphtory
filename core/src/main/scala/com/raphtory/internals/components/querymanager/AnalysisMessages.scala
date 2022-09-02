@@ -195,4 +195,6 @@ private[raphtory] case class ClientDisconnected(graphID: String, clientID: Strin
 
 case class BlockIngestion(sourceID: Int, graphID: String) extends QueryManagement
 
+case class NonBlocking(sourceID: Int, graphID: String) extends QueryManagement
+
 case class UnblockIngestion(sourceID: Int, graphID: String, messageCount: Long, force: Boolean) extends QueryManagement

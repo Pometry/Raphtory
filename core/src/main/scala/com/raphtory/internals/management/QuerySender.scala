@@ -44,14 +44,24 @@ private[raphtory] class QuerySender(
   private lazy val submissions                                = topics.submissions.endPoint
   private val blockingSources                                 = ArrayBuffer[Long]()
   protected var scheduledRunArrow: Option[() => Future[Unit]] = Option(scheduler.scheduleOnce(1.seconds, flushArrow()))
+  private var totalUpdateIndex                                = 0    //used at the secondary index for the client
+  private var updatesSinceLastIDChange                        = 0    //used to know how many messages to wait for when blocking in the Q manager
+  private var newIDRequiredOnUpdate                           = true // has a query been since the last update and do I need a new ID
+  private var currentSourceID                                 = -1   //this is initialised as soon as the client sends 1 update
 
-  def getSourceID(): Int =
-    idManager.getNextAvailableID() match {
-      case Some(id) =>
-        id
-      case None     =>
-        throw new NoIDException(s"Client '$clientID' was not able to acquire a source ID")
-    }
+  def IDForUpdates(): Int = {
+    if (newIDRequiredOnUpdate)
+      idManager.getNextAvailableID() match {
+        case Some(id) =>
+          currentSourceID = id
+          newIDRequiredOnUpdate = false
+        case None     =>
+          throw new NoIDException(s"Client '$clientID' was not able to acquire a source ID")
+      } //updates the sourceID if we haven't had one yet or if the user has sent a query since the last update block
+    currentSourceID
+  }
+
+  def getIndex: Int = totalUpdateIndex
 
   private def flushArrow(): Unit = {
     writers.values.foreach(_.flushAsync())
@@ -62,6 +72,14 @@ private[raphtory] class QuerySender(
     scheduledRunArrow = Option(scheduler.scheduleOnce(1.seconds, flushArrow()))
 
   def submit(query: Query, customJobName: String = ""): QueryProgressTracker = {
+
+    if (updatesSinceLastIDChange > 0) { //TODO Think this will block multi-client -- not an issue for right now
+      unblockIngestion(sourceID = currentSourceID, updatesSinceLastIDChange, force = false)
+      blockingSources += currentSourceID
+      updatesSinceLastIDChange = 0
+      newIDRequiredOnUpdate = true
+    }
+
     val jobName     = if (customJobName.nonEmpty) customJobName else getDefaultName(query)
     val jobID       = jobName + "_" + Random.nextLong().abs
     val outputQuery = query.copy(name = jobID, blockedBy = blockingSources.toArray)
@@ -73,12 +91,7 @@ private[raphtory] class QuerySender(
     tracker
   }
 
-  def blockIngestion(sourceID: Int): Unit = {
-    blockingSources += sourceID
-    queryManager.sendAsync(BlockIngestion(sourceID, graphID))
-  }
-
-  def unblockIngestion(sourceID: Int, index: Long, force: Boolean): Unit =
+  private def unblockIngestion(sourceID: Int, index: Long, force: Boolean): Unit =
     queryManager.sendAsync(
             UnblockIngestion(
                     sourceID,
@@ -97,8 +110,12 @@ private[raphtory] class QuerySender(
   def establishGraph(): Unit =
     topics.graphSetup.endPoint sendAsync EstablishGraph(graphID, clientID)
 
-  def individualUpdate(update: GraphUpdate) =
+  def individualUpdate(update: GraphUpdate) = {
     writers((update.srcId % totalPartitions).toInt) sendAsync update
+    totalUpdateIndex += 1
+    updatesSinceLastIDChange += 1
+
+  }
 
   def submitSource(blocking: Boolean, sources: Seq[Source], id: String): Unit = {
 
