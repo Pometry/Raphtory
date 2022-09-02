@@ -19,23 +19,26 @@ requirements:
   host:
     - python>=3.10,<3.11
     - pip
-    - openjdk==11.0.11
-    - scala==2.13.7
-    - sbt==1.5.5
+    - openjdk==11.0.13
+    - sbt
   run:
     - python>=3.10,<3.11
-    - pemja>=0.2.5
+    - numpy>=1.21.4
     - cloudpickle>=0.4
     - pandas>=1.4.3
-    - py4j==0.10
+    - py4j==0.10.9
 
 test:
   imports:
-    -
+    - pyraphtory
+  commands:
+    - pip check
+  requires:
+    - pip
 
 about:
   home: https://github.com/raphtory/raphtory/
-  license: Apache License 2.0
+  license: Apache-2.0
   license_family: APACHE
   license_file: LICENSE
   summary: Raphtory python API, Temporal Graph analytics

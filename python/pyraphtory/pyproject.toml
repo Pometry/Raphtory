@@ -27,6 +27,7 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = ">=3.10 <3.11"
+numpy=">=1.21.4"
 pemja =">=0.2.5"
 # pemja = {git = "https://github.com/alibaba/pemja.git", branch="main"}
 cloudpickle=">=0.4"
