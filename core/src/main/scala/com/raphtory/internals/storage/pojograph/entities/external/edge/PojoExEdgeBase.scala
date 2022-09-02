@@ -13,6 +13,9 @@ import com.raphtory.internals.components.querymanager.VertexMessage
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.raphtory.utils.OrderingFunctions._
 
+import scala.collection.mutable.ArrayBuffer
+import scala.reflect.ClassTag
+
 private[pojograph] trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
   def view: PojoGraphLens
 
@@ -28,6 +31,55 @@ private[pojograph] trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
     view.sendMessage(FilteredOutEdgeMessage(view.superStep + 1, src, dst))
     view.sendMessage(FilteredInEdgeMessage(view.superStep + 1, dst, src))
   }
+
+  private var computationValues: Map[String, Any] =
+    Map.empty //Partial results kept between supersteps in calculation
+
+  override def setState(key: String, value: Any): Unit =
+    computationValues += ((key, value))
+
+  override def getState[T](key: String, includeProperties: Boolean): T =
+    if (computationValues.contains(key))
+      computationValues(key).asInstanceOf[T]
+    else if (includeProperties && getPropertySet().contains(key))
+      getProperty[T](key).get
+    else if (includeProperties)
+      throw new Exception(
+        s"$key not found within analytical state or properties within edge {${(src,dst)}."
+      )
+    else
+      throw new Exception(s"$key not found within analytical state within edge {${(src,dst)}")
+
+  override def getStateOrElse[T](key: String, value: T, includeProperties: Boolean): T =
+    if (computationValues contains key)
+      computationValues(key).asInstanceOf[T]
+    else if (includeProperties && getPropertySet().contains(key))
+      getProperty[T](key).get
+    else
+      value
+
+  override def containsState(key: String, includeProperties: Boolean): Boolean =
+    computationValues.contains(key) || (includeProperties && getPropertySet().contains(key))
+
+  override def getOrSetState[T](key: String, value: T, includeProperties: Boolean): T = {
+    var output_value = value
+    if (containsState(key))
+      output_value = getState[T](key)
+    else {
+      if (includeProperties && getPropertySet().contains(key))
+        output_value = getProperty[T](key).get
+      setState(key, output_value)
+    }
+    output_value
+  }
+
+  override def appendToState[T: ClassTag](key: String, value: T): Unit = //write function later
+    computationValues.get(key) match {
+      case Some(arr) =>
+        setState(key, arr.asInstanceOf[ArrayBuffer[T]] :+ value)
+      case None      =>
+        setState(key, ArrayBuffer(value))
+    }
 }
 
 private[pojograph] trait PojoExplodedEdgeBase[T] extends PojoExEdgeBase[T] with ConcreteExplodedEdge[T] {
