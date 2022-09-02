@@ -23,7 +23,7 @@ requirements:
     - sbt
   run:
     - python>=3.10,<3.11
-    - numpy>=1.21.4
+    - numpy
     - cloudpickle>=0.4
     - pandas>=1.4.3
     - py4j==0.10.9

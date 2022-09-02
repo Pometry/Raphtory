@@ -7,4 +7,4 @@ set -e && mkdir -p $SRC_DIR/python/pyraphtory/lib/
 set -e && cp $SRC_DIR/core/target/scala-2.13/core-assembly-0.1.0.jar $SRC_DIR/python/pyraphtory/lib/
 # Install PyRaphtory
 # export RECIPE_DIR="/Users/haaroony/Documents/Raphtory-pyraphtory3" && export PYTHON="/Users/haaroony/opt/anaconda3/envs/pyraphtorytest/bin/python" && set -e && (cd $RECIPE_DIR/python/pyraphtory/ && $PYTHON setup.py install)     # Python command to install the script.
-set -e && (cd $SRC_DIR/python/pyraphtory/ && $PYTHON -m build && )     # Python command to install the script.
+set -e && (cd $SRC_DIR/python/pyraphtory/ && $PYTHON -m pip install --upgrade build && $PYTHON -m build)     # Python command to install the script.
