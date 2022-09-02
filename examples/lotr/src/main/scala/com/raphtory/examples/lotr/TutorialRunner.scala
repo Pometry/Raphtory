@@ -2,6 +2,7 @@ package com.raphtory.examples.lotr
 
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.algorithms.generic.centrality.Degree
 import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.algorithms.generic.motif.GlobalTriangleCount
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
@@ -27,9 +28,9 @@ object TutorialRunner extends App {
   val graph   = Raphtory.newGraph()
   val source  = Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder())
   val source2 = Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder())
-  graph.load(source)
-//  graph.load(source2)
-//  addLOTRData(graph)
+  //graph.stream(source)
+  graph.load(source2)
+  addLOTRData(graph)
 
   graph
     .at(32674)
@@ -40,9 +41,8 @@ object TutorialRunner extends App {
 
   graph.destroy()
 
-  def addLOTRData(graph: DeployedTemporalGraph) = {
-    graph.blockIngestion()
-    val line = scala.io.Source.fromFile(path).getLines.foreach { line =>
+  def addLOTRData(graph: DeployedTemporalGraph) =
+    scala.io.Source.fromFile(path).getLines.foreach { line =>
       val fileLine   = line.split(",").map(_.trim)
       val sourceNode = fileLine(0)
       val srcID      = assignID(sourceNode)
@@ -53,6 +53,4 @@ object TutorialRunner extends App {
       graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("Character"))
       graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurence"))
     }
-    graph.unblockIngestion()
-  }
 }
