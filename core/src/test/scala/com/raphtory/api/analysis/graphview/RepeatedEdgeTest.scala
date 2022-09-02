@@ -5,8 +5,8 @@ import com.raphtory.BasicGraphBuilder
 import com.raphtory.TestQuery
 import com.raphtory.algorithms.WeightedGraphBuilder
 import com.raphtory.algorithms.temporal.TemporalEdgeList
-import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
+import com.raphtory.internals.graph.GraphBuilder
 import com.raphtory.spouts.SequenceSpout
 
 import scala.util.Random

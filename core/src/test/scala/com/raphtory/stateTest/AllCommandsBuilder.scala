@@ -1,10 +1,10 @@
 package com.raphtory.stateTest
 
 import com.raphtory.api.input.FloatProperty
-import com.raphtory.api.input.Graph
-import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Properties._
+import com.raphtory.internals.graph.Graph
+import com.raphtory.internals.graph.GraphBuilder
 import spray.json._
 
 class AllCommandsBuilder extends GraphBuilder[String] {

@@ -1,10 +1,10 @@
 package com.raphtory.examples.twitter.livetwitterstream.graphbuilders
 
-import com.raphtory.api.input.Graph
-import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
+import com.raphtory.internals.graph.Graph
+import com.raphtory.internals.graph.GraphBuilder
 
 class LiveTwitterGraphBuilder extends GraphBuilder[String] {
 

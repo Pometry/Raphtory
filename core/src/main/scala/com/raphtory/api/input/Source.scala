@@ -3,7 +3,7 @@ package com.raphtory.api.input
 import com.raphtory.Raphtory
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.graph.GraphAlteration
-import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
+import com.raphtory.internals.graph.GraphBuilder
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
@@ -27,6 +27,11 @@ trait SourceInstance {
 }
 
 object Source {
+
+  def apply[T](spout: Spout[T], parseFunc: (Graph, T) => Unit): Source = {
+    val concreteGraphBuilder = GraphBuilder(parseFunc)
+    apply(spout, concreteGraphBuilder)
+  }
 
   def apply[T](spout: Spout[T], builder: GraphBuilder[T]): Source =
     new Source { // Avoid defining this as a lambda regardless of IntelliJ advices, that would cause serialization problems

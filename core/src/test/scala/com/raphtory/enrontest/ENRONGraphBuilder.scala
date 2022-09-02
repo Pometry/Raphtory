@@ -1,10 +1,10 @@
 package com.raphtory.enrontest
 
-import com.raphtory.api.input.Graph
-import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
+import com.raphtory.internals.graph.Graph
+import com.raphtory.internals.graph.GraphBuilder
 
 import java.time.format.DateTimeFormatter
 import java.time.LocalDateTime

@@ -5,7 +5,7 @@ import com.raphtory.TestQuery
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.MaxFlow
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.api.input.GraphBuilder
+import com.raphtory.internals.graph.GraphBuilder
 
 class MaxFlowTest extends BaseCorrectnessTest {
   override def setGraphBuilder(): GraphBuilder[String] = WeightedGraphBuilder()

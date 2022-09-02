@@ -1,6 +1,6 @@
 //package com.raphtory
 //
-//import com.raphtory.api.input.GraphBuilder
+//import com.raphtory.internals.graph.GraphBuilder
 //import com.raphtory.api.input.Spout
 //import com.raphtory.internals.management.python.PythonGraphBuilder
 //import com.raphtory.spouts.FileSpout

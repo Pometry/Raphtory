@@ -8,10 +8,10 @@ import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
-import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.internals.communication.connectors.PulsarConnector
+import com.raphtory.internals.graph.GraphBuilder
 import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.FileSpout

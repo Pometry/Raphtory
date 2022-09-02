@@ -14,8 +14,8 @@ import com.raphtory.algorithms.generic.motif.LocalTriangleCount
 import com.raphtory.algorithms.temporal.Ancestors
 import com.raphtory.algorithms.temporal.Descendants
 import com.raphtory.algorithms.temporal.dynamic.GenericTaint
-import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
+import com.raphtory.internals.graph.GraphBuilder
 import com.raphtory.spouts.FileSpout
 
 import java.net.URL

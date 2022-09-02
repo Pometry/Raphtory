@@ -1,7 +1,5 @@
 package com.raphtory.examples.coho.companiesStream.graphbuilders
 
-import com.raphtory.api.input.Graph
-import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.StringProperty
@@ -9,6 +7,8 @@ import com.raphtory.api.input.Type
 import com.raphtory.examples.coho.companiesStream.rawModel.CompaniesHouseJsonProtocol.CompanyFormat
 import com.raphtory.examples.coho.companiesStream.rawModel.CompaniesHouseJsonProtocol.getField
 import com.raphtory.examples.coho.companiesStream.rawModel.Company
+import com.raphtory.internals.graph.Graph
+import com.raphtory.internals.graph.GraphBuilder
 import spray.json._
 
 import java.text.SimpleDateFormat

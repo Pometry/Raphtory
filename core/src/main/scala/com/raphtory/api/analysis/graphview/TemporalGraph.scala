@@ -1,7 +1,6 @@
 package com.raphtory.api.analysis.graphview
 
 import com.raphtory.api.input.Graph
-import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.MaybeType
 import com.raphtory.api.input.NoType
 import com.raphtory.api.input.Properties

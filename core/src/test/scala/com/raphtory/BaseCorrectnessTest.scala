@@ -5,9 +5,9 @@ import com.raphtory.api.analysis.algorithm.GenericallyApplicable
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
-import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
+import com.raphtory.internals.graph.GraphBuilder
 import com.raphtory.spouts.IdentitySpout
 import com.raphtory.spouts.ResourceSpout
 import com.raphtory.spouts.SequenceSpout
