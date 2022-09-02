@@ -1,5 +1,6 @@
 package com.raphtory.internals.storage.pojograph.entities.external.edge
 
+import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.api.analysis.visitor.IndexedValue
 import com.raphtory.api.analysis.visitor.TimePoint
 import com.raphtory.internals.storage.pojograph.PojoGraphLens

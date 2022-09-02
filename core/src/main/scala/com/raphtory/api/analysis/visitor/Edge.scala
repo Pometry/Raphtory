@@ -1,7 +1,7 @@
 package com.raphtory.api.analysis.visitor
 
 import PropertyMergeStrategy.PropertyMerge
-import com.raphtory.utils.ExtendedNumeric.numericFromInt // implicit conversion from int to abstract numeric type
+import com.raphtory.utils.ExtendedNumeric.numericFromInt
 
 /** Extends [[EntityVisitor]] with edge-specific functionality
   *
