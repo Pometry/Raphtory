@@ -4,7 +4,7 @@ import com.raphtory.utils.Bounded
 
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
-import scala.collection.mutable
+import scala.collection.{MapView, mutable}
 
 private trait AccumulatorImplementation[-S, T] extends Accumulator[S, T] {
   def currentValue: T
@@ -47,7 +47,7 @@ private class CounterImplementation[T]() extends Counter[T] {
   var totalCount: Int             = 0
   var counts: mutable.Map[T, Int] = mutable.Map[T, Int]()
 
-  override def getCounts: mutable.Map[T, Int]  = counts
+  override def getCounts: MapView[T, Int]  = counts.view
   override def largest: (T, Int)               = counts.maxBy(_._2)
   override def largest(k: Int): List[(T, Int)] = counts.toList.sortBy(_._2).takeRight(k.min(counts.size))
 
@@ -72,7 +72,7 @@ private class CounterAccumulatorImplementation[T](retainState: Boolean)
 
   override def merge(other: Counter[T]): Unit = {
     currentValue.totalCount += other.totalCount
-    val (map1, map2) = (currentValue.getCounts, other.getCounts)
+    val (map1, map2) = (currentValue.counts, other.getCounts)
     val newCounts    = map1 ++ map2.map { case (k, v) => k -> (v + map1.getOrElse(k, 0)) }
     currentValue.counts = newCounts
   }

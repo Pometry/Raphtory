@@ -1,6 +1,6 @@
 package com.raphtory.api.analysis.graphstate
 
-import scala.collection.mutable
+import scala.collection.MapView
 
 /**
   * Public interface for the Counter API within [[GraphState]].
@@ -21,7 +21,7 @@ abstract class Counter[T] {
   def totalCount : Int
 
   /** Getter function for the map of counts */
-  def getCounts : mutable.Map[T,Int]
+  def getCounts : MapView[T,Int]
 
   /** Returns the id and count of the largest group */
   def largest : (T,Int)
