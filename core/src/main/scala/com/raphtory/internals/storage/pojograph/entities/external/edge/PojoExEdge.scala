@@ -1,12 +1,12 @@
 package com.raphtory.internals.storage.pojograph.entities.external.edge
 
-import com.raphtory.api.analysis.visitor.{HistoricEvent, IndexedValue, TimePoint}
+import com.raphtory.api.analysis.visitor.HistoricEvent
+import com.raphtory.api.analysis.visitor.IndexedValue
+import com.raphtory.api.analysis.visitor.TimePoint
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.raphtory.internals.storage.pojograph.entities.external.PojoExEntity
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoEdge
 import com.raphtory.utils.OrderingFunctions._
-
-import scala.reflect.ClassTag
 
 private[pojograph] class PojoExEdge(
     val edge: PojoEdge,

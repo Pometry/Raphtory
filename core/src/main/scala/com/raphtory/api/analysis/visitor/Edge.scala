@@ -3,8 +3,6 @@ package com.raphtory.api.analysis.visitor
 import PropertyMergeStrategy.PropertyMerge
 import com.raphtory.utils.ExtendedNumeric.numericFromInt
 
-import scala.reflect.ClassTag // implicit conversion from int to abstract numeric type
-
 /** Extends [[EntityVisitor]] with edge-specific functionality
   *
   * The [[Edge]] class exposes the algorithm interface for accessing edge history and properties.
