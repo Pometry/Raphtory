@@ -44,7 +44,7 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   override def addVertex(updateTime: Long, srcId: Long, posTypeArg: Type): Unit =
     querySender.individualUpdate(
             VertexAdd(
-                    querySender.sourceID(true),
+                    querySender.IDForUpdates(),
                     updateTime,
                     querySender.getIndex,
                     srcId,
@@ -61,16 +61,16 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
       secondaryIndex: Long = querySender.getIndex
   ): Unit =
     querySender.individualUpdate(
-            VertexAdd(querySender.sourceID(true), updateTime, secondaryIndex, srcId, Properties(), vertexType.toOption)
+            VertexAdd(querySender.IDForUpdates(), updateTime, secondaryIndex, srcId, Properties(), vertexType.toOption)
     )
 
   override def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long = querySender.getIndex): Unit =
-    querySender.individualUpdate(VertexDelete(querySender.sourceID(true), updateTime, secondaryIndex, srcId))
+    querySender.individualUpdate(VertexDelete(querySender.IDForUpdates(), updateTime, secondaryIndex, srcId))
 
   override def addEdge(updateTime: Long, srcId: Long, dstId: Long, posTypeArg: Type): Unit =
     querySender.individualUpdate(
             EdgeAdd(
-                    querySender.sourceID(true),
+                    querySender.IDForUpdates(),
                     updateTime,
                     querySender.getIndex,
                     srcId,
@@ -89,7 +89,7 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
       secondaryIndex: Long = querySender.getIndex
   ): Unit =
     querySender.individualUpdate(
-            EdgeAdd(querySender.sourceID(true), updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption)
+            EdgeAdd(querySender.IDForUpdates(), updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption)
     )
 
   override def deleteEdge(
@@ -98,7 +98,7 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
       dstId: Long,
       secondaryIndex: Long = querySender.getIndex
   ): Unit =
-    querySender.individualUpdate(EdgeDelete(querySender.sourceID(true), updateTime, secondaryIndex, srcId, dstId))
+    querySender.individualUpdate(EdgeDelete(querySender.IDForUpdates(), updateTime, secondaryIndex, srcId, dstId))
 
   /** Creates a new `TemporalGraph` which includes all activity after startTime (inclusive).
     * @param startTime time interpreted in milliseconds by default

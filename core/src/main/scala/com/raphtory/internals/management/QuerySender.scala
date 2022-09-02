@@ -33,33 +33,28 @@ private[raphtory] class QuerySender(
 
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val graphID                = config.getString("raphtory.graph.id")
-  val partitionServers: Int          = config.getInt("raphtory.partitions.serverCount")
-  val partitionsPerServer: Int       = config.getInt("raphtory.partitions.countPerServer")
-  val totalPartitions: Int           = partitionServers * partitionsPerServer
-  private lazy val writers           = topics.graphUpdates(graphID).endPoint
-  private lazy val queryManager      = topics.blockingIngestion.endPoint
-  private lazy val submissions       = topics.submissions.endPoint
-  private val blockingSources        = ArrayBuffer[Int]()
-  private var totalUpdateIndex       = 0     //used at the secondary index for the client
-  private var indexSinceLastIDChange = 0     //used to know how many messages to wait for when blocking in the Q manager
-  private var lastQueryIndex         = 0     //used to see if a prior query already sent out the unblocking message
-  private var newIDRequiredOnUpdate  = false // has a query been since since the last update and do I need a new ID
-  private var currentSourceID        = -1
+  private val graphID                  = config.getString("raphtory.graph.id")
+  val partitionServers: Int            = config.getInt("raphtory.partitions.serverCount")
+  val partitionsPerServer: Int         = config.getInt("raphtory.partitions.countPerServer")
+  val totalPartitions: Int             = partitionServers * partitionsPerServer
+  private lazy val writers             = topics.graphUpdates(graphID).endPoint
+  private lazy val queryManager        = topics.blockingIngestion.endPoint
+  private lazy val submissions         = topics.submissions.endPoint
+  private val blockingSources          = ArrayBuffer[Int]()
+  private var totalUpdateIndex         = 0    //used at the secondary index for the client
+  private var updatesSinceLastIDChange = 0    //used to know how many messages to wait for when blocking in the Q manager
+  private var newIDRequiredOnUpdate    = true // has a query been since the last update and do I need a new ID
+  private var currentSourceID          = -1   //this is initialised as soon as the client sends 1 update
 
-  def sourceID(update: Boolean): Int = {
-
-    if (
-            currentSourceID == -1 || (update && newIDRequiredOnUpdate)
-    ) //updates the sourceID if we haven't had one yet or if the user has sent a query since the last update block
+  def IDForUpdates(): Int = {
+    if (newIDRequiredOnUpdate)
       idManager.getNextAvailableID() match {
         case Some(id) =>
           currentSourceID = id
           newIDRequiredOnUpdate = false
         case None     =>
           throw new NoIDException(s"Client '$clientID' was not able to acquire a source ID")
-      }
-
+      } //updates the sourceID if we haven't had one yet or if the user has sent a query since the last update block
     currentSourceID
   }
 
@@ -67,12 +62,10 @@ private[raphtory] class QuerySender(
 
   def submit(query: Query, customJobName: String = ""): QueryProgressTracker = {
 
-    if (lastQueryIndex < totalUpdateIndex) {
-      val source = sourceID(false)
-      unblockIngestion(sourceID = source, indexSinceLastIDChange, force = false)
-      lastQueryIndex = totalUpdateIndex
-      blockingSources += source
-      indexSinceLastIDChange = 0
+    if (updatesSinceLastIDChange > 0) { //TODO Think this will block multi-client -- not an issue for right now
+      unblockIngestion(sourceID = currentSourceID, updatesSinceLastIDChange, force = false)
+      blockingSources += currentSourceID
+      updatesSinceLastIDChange = 0
       newIDRequiredOnUpdate = true
     }
 
@@ -109,7 +102,7 @@ private[raphtory] class QuerySender(
   def individualUpdate(update: GraphUpdate) = {
     writers((update.srcId % totalPartitions).toInt) sendAsync update
     totalUpdateIndex += 1
-    indexSinceLastIDChange += 1
+    updatesSinceLastIDChange += 1
 
   }
 
