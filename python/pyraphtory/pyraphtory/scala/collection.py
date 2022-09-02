@@ -2,7 +2,7 @@ from abc import abstractmethod
 from collections import abc
 from typing import overload
 
-from pyraphtory.interop import register, GenericScalaProxy, ScalaClassProxy
+from pyraphtory.interop import register, GenericScalaProxy, ScalaClassProxy, to_python, to_jvm
 
 
 @register(name="Iterable")
@@ -63,3 +63,17 @@ class List(ScalaClassProxy, SequenceScalaProxy):
         for element in iterable:
             builder.append(element)
         return builder.to_list()
+
+
+@register(name="Array")
+class Array(GenericScalaProxy, abc.Sequence):
+    """Proxy object for wrapping java arrays"""
+    def __getitem__(self, item):
+        return to_python(self.jvm[item])
+
+    def __setitem__(self, index, value):
+        self.jvm[index] = to_jvm(value)
+
+    def __len__(self):
+        return len(self.jvm)
+
