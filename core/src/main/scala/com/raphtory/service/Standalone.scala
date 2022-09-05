@@ -7,6 +7,7 @@ import cats.effect.Resource
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.Raphtory
 import com.raphtory.internals.communication.connectors.AkkaConnector
+import com.raphtory.internals.components.WebServer
 import com.raphtory.internals.components.cluster.ClusterManager
 import com.raphtory.internals.components.cluster.StandaloneMode
 
@@ -20,10 +21,9 @@ object Standalone extends IOApp {
 
     val headNode = for {
       repo     <- DistributedTopicRepository[IO](AkkaConnector.SeedMode, config)
+      _        <- WebServer[IO](repo, config)
       headNode <- ClusterManager[IO](config, repo, mode = StandaloneMode)
     } yield headNode
     headNode.useForever
-
   }
-
 }

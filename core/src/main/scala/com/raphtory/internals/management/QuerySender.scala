@@ -68,14 +68,7 @@ private[raphtory] class QuerySender(
   }
 
   def unblockIngestion(sourceID: Int, index: Long, force: Boolean): Unit =
-    queryManager.sendAsync(
-            UnblockIngestion(
-                    sourceID,
-                    graphID = graphID,
-                    index,
-                    force
-            )
-    )
+    queryManager.sendAsync(UnblockIngestion(sourceID, graphID = graphID, index, force))
 
   def destroyGraph(force: Boolean): Unit =
     topics.graphSetup.endPoint sendAsync DestroyGraph(graphID, clientID, force)

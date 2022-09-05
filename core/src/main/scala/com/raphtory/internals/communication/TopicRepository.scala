@@ -1,12 +1,9 @@
 package com.raphtory.internals.communication
 
-import com.raphtory.Raphtory
 import com.raphtory.internals.components.querymanager.ClusterManagement
 import com.raphtory.internals.components.querymanager.EndQuery
-import com.raphtory.internals.components.querymanager.EstablishGraph
 import com.raphtory.internals.components.querymanager.GraphManagement
 import com.raphtory.internals.components.querymanager.IngestData
-import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.components.querymanager.Submission
 import com.raphtory.internals.components.querymanager.VertexMessagesSync

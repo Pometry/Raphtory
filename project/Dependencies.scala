@@ -7,6 +7,8 @@ object Dependencies {
   private lazy val chillVersion          = "0.10.0"
   private lazy val curatorVersion        = "5.2.1"
   private lazy val declineVersion        = "2.3.0"
+  private lazy val fs2Version            = "3.2.12"
+  private lazy val http4sVersion         = "0.23.15"
   private lazy val jacksonVersion        = "2.13.3"
   private lazy val log4jVersion          = "2.18.0"
   private lazy val openhftVersion        = "0.15"
@@ -38,11 +40,14 @@ object Dependencies {
 
   lazy val curatorRecipes =
     "org.apache.curator" % "curator-recipes" % curatorVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val decline = "com.monovore" %% "decline-effect" % declineVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val decline     = "com.monovore" %% "decline-effect"      % declineVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val emberClient = "org.http4s"   %% "http4s-ember-client" % http4sVersion
+  lazy val emberServer = "org.http4s"   %% "http4s-ember-server" % http4sVersion
+  lazy val fs2         = "co.fs2"       %% "fs2-core"            % fs2Version
+  lazy val http4sDsl   = "org.http4s"   %% "http4s-dsl"          % http4sVersion
 
   lazy val jackson =
     "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion excludeAll (excludeLog4j, excludeSlf4j)
-
   lazy val jfr = "org.gradle.jfr.polyfill" % "jfr-polyfill" % "1.0.0"
 
   lazy val log4jApi   = "org.apache.logging.log4j" % "log4j-api"        % log4jVersion

@@ -9,11 +9,13 @@ import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
+import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.management.Prometheus
 import com.raphtory.internals.management.Py4JServer
 import com.raphtory.internals.management.QuerySender
 import com.raphtory.internals.management.Scheduler
+import com.raphtory.internals.management.WebClient
 import com.typesafe.config.Config
 import cats.effect.unsafe.implicits.global
 import com.raphtory.internals.context.LocalContext.createName
@@ -31,8 +33,9 @@ class RemoteContext(deploymentID: String) extends RaphtoryContext {
     for {
       _               <- Py4JServer.fromEntryPoint[IO](this, config)
       _               <- Prometheus[IO](prometheusPort)
-      topicRepo       <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config)
+      topicRepo       <- LocalTopicRepository[IO](config)
       sourceIdManager <- makeIdManager[IO](config, localDeployment = false, graphID, forPartitions = false)
+      _               <- WebClient(topicRepo, config)
       querySender      = new QuerySender(new Scheduler(), topicRepo, config, sourceIdManager, createName)
     } yield (querySender, config)
   }

@@ -153,7 +153,7 @@ sealed private[raphtory] trait GraphManagement extends QueryManagement
 
 private[raphtory] case class IngestData(
     _bootstrap: DynamicLoader,
-    graphID: String,
+    sourceId: String,
     sources: Seq[(Int, Source)],
     blocking: Boolean
 ) extends Submission
