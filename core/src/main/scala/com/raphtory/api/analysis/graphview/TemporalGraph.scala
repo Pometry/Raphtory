@@ -61,7 +61,7 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
       secondaryIndex: Long = querySender.getIndex
   ): Unit =
     querySender.individualUpdate(
-            VertexAdd(querySender.IDForUpdates(), updateTime, secondaryIndex, srcId, Properties(), vertexType.toOption)
+            VertexAdd(querySender.IDForUpdates(), updateTime, secondaryIndex, srcId, properties, vertexType.toOption)
     )
 
   override def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long = querySender.getIndex): Unit =
