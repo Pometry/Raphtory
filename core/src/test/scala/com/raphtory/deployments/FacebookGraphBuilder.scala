@@ -1,7 +1,6 @@
 package com.raphtory.deployments
 
 import com.raphtory.api.input._
-import com.raphtory.internals.graph.Graph
 import com.raphtory.internals.graph.GraphBuilder
 
 /*

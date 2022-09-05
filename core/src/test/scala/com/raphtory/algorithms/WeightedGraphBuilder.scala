@@ -1,15 +1,14 @@
 package com.raphtory.algorithms
 
+import com.raphtory.api.input.Graph
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.LongProperty
 import com.raphtory.api.input.Properties
-import com.raphtory.api.input.Properties._
-import com.raphtory.internals.graph.Graph
 import com.raphtory.internals.graph.GraphBuilder
 
-class WeightedGraphBuilder extends GraphBuilder[String] {
+object WeightedGraphBuilder {
 
-  override def parse(graph: Graph, tuple: String): Unit = {
+  def parse(graph: Graph, tuple: String): Unit = {
     val line       = tuple.split(",")
     val sourceNode = line(0)
     val srcID      = sourceNode.toLong
@@ -25,8 +24,4 @@ class WeightedGraphBuilder extends GraphBuilder[String] {
 //    logger.debug(s"Finished processing line '$line'.")
   }
 
-}
-
-object WeightedGraphBuilder {
-  def apply() = new WeightedGraphBuilder
 }

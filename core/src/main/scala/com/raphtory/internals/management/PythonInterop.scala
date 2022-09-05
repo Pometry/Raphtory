@@ -2,6 +2,7 @@ package com.raphtory.internals.management
 
 import cats.Id
 import cats.syntax.all._
+import com.raphtory.Raphtory
 
 import java.lang.reflect.{Array => JArray}
 import com.raphtory.api.analysis.graphstate.Accumulator
@@ -42,7 +43,7 @@ object PythonInterop {
 
   /** make assign_id accessible from python */
   def assign_id(s: String): Long =
-    GraphBuilder.assignID(s)
+    Raphtory.assignID(s)
 
   /** convert names from camel to snake case */
   def camel_to_snake(s: String): String =

@@ -32,16 +32,6 @@ import com.raphtory.internals.graph.GraphBuilder
   */
 trait Graph {
 
-  /** Convenience method for generating unique IDs based on vertex names
-    *
-    * Use of this method is optional. A `GraphBuilder` is free to assign vertex IDs in different ways, provided
-    * that each vertex is assigned a unique ID of type `Long`.
-    *
-    * @param uniqueChars Vertex name
-    */
-  def assignID(uniqueChars: String): Long =
-    GraphBuilder.assignID(uniqueChars)
-
   /** Adds a new vertex to the graph or updates an existing vertex
     *
     * @param updateTime timestamp for vertex update

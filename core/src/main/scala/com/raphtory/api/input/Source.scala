@@ -29,11 +29,8 @@ trait SourceInstance {
 object Source {
 
   def apply[T](spout: Spout[T], parseFunc: (Graph, T) => Unit): Source = {
-    val concreteGraphBuilder = GraphBuilder(parseFunc)
-    apply(spout, concreteGraphBuilder)
-  }
+    val builder = GraphBuilder(parseFunc)
 
-  def apply[T](spout: Spout[T], builder: GraphBuilder[T]): Source =
     new Source { // Avoid defining this as a lambda regardless of IntelliJ advices, that would cause serialization problems
       override def buildSource(graphID: String, id: Int): SourceInstance =
         new SourceInstance {
@@ -61,4 +58,6 @@ object Source {
 
       override def getBuilder: GraphBuilder[Any] = builder.asInstanceOf[GraphBuilder[Any]]
     }
+  }
+
 }

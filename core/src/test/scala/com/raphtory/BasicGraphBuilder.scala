@@ -1,10 +1,8 @@
 package com.raphtory
 
+import com.raphtory.api.input.Graph
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
-import com.raphtory.api.input.Properties._
-import com.raphtory.internals.graph.Graph
-import com.raphtory.internals.graph.GraphBuilder
 
 /**
   * Basic graph builder object
@@ -13,9 +11,9 @@ import com.raphtory.internals.graph.GraphBuilder
   *
   * Should only be used in tests and not anywhere else.
   */
-class BasicGraphBuilder extends GraphBuilder[String] {
+object BasicGraphBuilder {
 
-  override def parse(graph: Graph, line: String): Unit =
+  def parse(graph: Graph, line: String): Unit =
     if (line.nonEmpty) {
       val fileLine   = line.split(",").map(_.trim)
       val sourceNode = fileLine(0)
@@ -31,8 +29,4 @@ class BasicGraphBuilder extends GraphBuilder[String] {
 //      logger.debug(s"Finished processing line '$line'.")
     }
 
-}
-
-object BasicGraphBuilder {
-  def apply() = new BasicGraphBuilder()
 }

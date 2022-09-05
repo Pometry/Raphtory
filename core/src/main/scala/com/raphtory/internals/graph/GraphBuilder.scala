@@ -20,9 +20,6 @@ private[raphtory] object GraphBuilder {
   def apply[T](parseFun: (Graph, T) => Unit): GraphBuilder[T] =
     new GraphBuilder[T](parseFun)
 
-  def assignID(uniqueChars: String): Long =
-    LongHashFunction.xx3().hashChars(uniqueChars)
-
 }
 
 private[raphtory] class GraphBuilderInstance[T](graphID: String, sourceID: Int, parse: (Graph, T) => Unit)

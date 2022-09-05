@@ -1,15 +1,14 @@
 package com.raphtory.examples.lotr.graphbuilders
 
+import com.raphtory.Raphtory.assignID
+import com.raphtory.api.input.Graph
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
-import com.raphtory.internals.graph.Graph
-import com.raphtory.internals.graph.GraphBuilder
 
-class LOTRGraphBuilder extends GraphBuilder[String] {
+object LOTRGraphBuilder {
 
-  override def parse(graph: Graph, tuple: String): Unit = {
-//    val line = new String(tuple,"UTF-8")
+  def parser(graph: Graph, tuple: String): Unit = {
     val fileLine   = tuple.split(",").map(_.trim)
     val sourceNode = fileLine(0)
     val srcID      = assignID(sourceNode)

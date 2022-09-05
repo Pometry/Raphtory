@@ -14,6 +14,7 @@ import com.raphtory.internals.management.id.LocalIDManager
 import com.raphtory.internals.management.id.ZooKeeperCounter
 import com.raphtory.internals.management.id.ZookeeperLimitedPool
 import com.typesafe.config.Config
+import net.openhft.hashing.LongHashFunction
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -43,6 +44,16 @@ import scala.collection.mutable.ArrayBuffer
   *      [[api.analysis.graphview.TemporalGraph TemporalGraph]]
   */
 object Raphtory {
+
+  /** Convenience method for generating unique IDs based on vertex names
+    *
+    * Use of this method is optional. A `GraphBuilder` is free to assign vertex IDs in different ways, provided
+    * that each vertex is assigned a unique ID of type `Long`.
+    *
+    * @param uniqueChars Vertex name
+    */
+  def assignID(uniqueChars: String): Long =
+    LongHashFunction.xx3().hashChars(uniqueChars)
 
   private val remoteConnections = ArrayBuffer[RemoteContext]()
 
