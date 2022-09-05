@@ -33,9 +33,9 @@ Note that these statistics were compiled by combining the ego-networks, includin
  * Reference: https://snap.stanford.edu/data/ego-Facebook.html
  *
  * */
-class FacebookGraphBuilder() extends GraphBuilder[String] {
+object FacebookGraphBuilder {
 
-  override def parse(graph: Graph, tuple: String): Unit = {
+  def parse(graph: Graph, tuple: String): Unit = {
 
     val fileLine   = tuple.split(" ").map(_.trim)
     val sourceNode = fileLine(0)

@@ -14,6 +14,7 @@ import com.raphtory.algorithms.generic.motif.LocalTriangleCount
 import com.raphtory.algorithms.temporal.Ancestors
 import com.raphtory.algorithms.temporal.Descendants
 import com.raphtory.algorithms.temporal.dynamic.GenericTaint
+import com.raphtory.api.input.Graph
 import com.raphtory.api.input.Spout
 import com.raphtory.internals.graph.GraphBuilder
 import com.raphtory.spouts.FileSpout
@@ -224,6 +225,6 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   override def setSpout(): Spout[String] = FileSpout(tmpFilePath)
 
-  override def setGraphBuilder(): GraphBuilder[String] = new LOTRGraphBuilder()
+  override def setGraphBuilder(): (Graph, String) => Unit = LOTRGraphBuilder.parse
 
 }

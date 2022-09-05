@@ -1,25 +1,26 @@
 package com.raphtory.ethereumtest
 
+import com.raphtory.Raphtory.assignID
 import com.raphtory.api.input.DoubleProperty
+import com.raphtory.api.input.Graph
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.LongProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
-import com.raphtory.internals.graph.Graph
 import com.raphtory.internals.graph.GraphBuilder
 
 import java.time.format.DateTimeFormatter
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
-class OCCRPGraphBuilder extends GraphBuilder[Array[Byte]] {
+object OCCRPGraphBuilder {
 
   def dateTimeStringToEpoch(s: String): Long =
     LocalDateTime
       .parse(s + " 00-00-00", DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss"))
       .toEpochSecond(ZoneOffset.UTC)
 
-  override def parse(graph: Graph, tuple: Array[Byte]): Unit =
+  def parse(graph: Graph, tuple: Array[Byte]): Unit =
     try {
       val line           = new String(tuple)
       if (line contains "payer_name")
