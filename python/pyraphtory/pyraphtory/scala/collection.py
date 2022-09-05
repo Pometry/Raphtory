@@ -77,3 +77,10 @@ class Array(GenericScalaProxy, abc.Sequence):
     def __len__(self):
         return len(self.jvm)
 
+
+class NoneWrapper(GenericScalaProxy):
+    """Convert Scala `None` to python `None`"""
+    _classname = "scala.None$"
+
+    def __new__(cls, jvm_object=None):
+        return None
