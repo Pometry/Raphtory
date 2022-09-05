@@ -111,8 +111,7 @@ private[raphtory] class QuerySender(
     topics.graphSetup.endPoint sendAsync EstablishGraph(graphID, clientID)
 
   def individualUpdate(update: GraphUpdate) = {
-    update
-    writers((update.srcId % totalPartitions).toInt) sendAsync update
+    writers(Math.abs((update.srcId % totalPartitions).toInt)) sendAsync update
     totalUpdateIndex += 1
     updatesSinceLastIDChange += 1
   }
