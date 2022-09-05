@@ -381,7 +381,7 @@ class GenericScalaProxy(ScalaProxyBase):
                 if self._classname is not None:
                     self._jvm_object = find_class(self._classname)
                 else:
-                    raise AttributeError("Uninitialised class has no attributes")
+                    raise AttributeError(f"Uninitialised class {self.__class__.__name__} has no attributes")
             self._init_methods(self._jvm_object)
             return getattr(self, item)
 
