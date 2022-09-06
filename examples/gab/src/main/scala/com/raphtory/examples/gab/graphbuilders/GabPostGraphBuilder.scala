@@ -1,6 +1,6 @@
 package com.raphtory.examples.gab.graphbuilders
 
-import com.raphtory.internals.graph.Graph
+import com.raphtory.api.input.Graph
 import com.raphtory.internals.graph.GraphBuilder
 
 import java.text.SimpleDateFormat
@@ -12,9 +12,9 @@ import java.text.SimpleDateFormat
 // is equal to -1. Columns 1 and 4 correspond to the postId and parentPostid in the file.
 // Then either the vertex or the edge are created accordingly.
 
-class GabPostGraphBuilder extends GraphBuilder[String] {
+object GabPostGraphBuilder {
 
-  override def parse(graph: Graph, tuple: String) = {
+  def parser(graph: Graph, tuple: String) = {
     val fileLine   = tuple.split(";").map(_.trim)
     //user wise
 //     val sourceNode=fileLine(2).toInt

@@ -1,11 +1,12 @@
 package com.raphtory.examples.nft.graphbuilder
 
+import com.raphtory.Raphtory.assignID
 import com.raphtory.api.input.DoubleProperty
+import com.raphtory.api.input.Graph
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.StringProperty
 import com.raphtory.api.input.Type
-import com.raphtory.internals.graph.Graph
 import com.raphtory.internals.graph.GraphBuilder
 
 import java.time.LocalDateTime
@@ -14,7 +15,7 @@ import java.time.format.DateTimeFormatter
 import scala.collection.mutable
 import scala.io.Source
 
-class NFTGraphBuilder extends GraphBuilder[String] {
+object NFTGraphBuilder {
 
   def setupDatePrices(): mutable.HashMap[String, Double] = {
     val eth_historic_csv = "/tmp/ETH-USD.csv"
@@ -31,7 +32,7 @@ class NFTGraphBuilder extends GraphBuilder[String] {
 
   var date_price = setupDatePrices()
 
-  override def parse(graph: Graph, tuple: String): Unit = {
+  def parser(graph: Graph, tuple: String): Unit = {
     val fileLine            = tuple.split(",").map(_.trim)
     // Skip Header
     if (fileLine(0) == "Smart_contract") return

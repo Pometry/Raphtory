@@ -1,7 +1,5 @@
 package com.raphtory.api.input
 
-import com.raphtory.internals.graph.GraphBuilder
-
 /** trait for creating a Graph by adding and deleting vertices and edges.
   *
   * An implementation of `GraphBuilder` needs to override `parseTuple(tuple: T)` to define parsing of input data.

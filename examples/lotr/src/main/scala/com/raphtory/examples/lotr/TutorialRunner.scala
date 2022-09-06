@@ -21,16 +21,25 @@ import scala.language.postfixOps
 
 object TutorialRunner extends App {
 
+  val graph = Raphtory.newGraph()
+
   val path = "/tmp/lotr.csv"
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
   FileUtils.curlFile(path, url)
 
-  val graph  = Raphtory.newGraph()
-  val source = Source(FileSpout("/tmp/lotr.csv"), LOTRGraphBuilder.parser)
+  val file = scala.io.Source.fromFile(path)
+  file.getLines.foreach { line =>
+    val fileLine   = line.split(",").map(_.trim)
+    val sourceNode = fileLine(0)
+    val srcID      = assignID(sourceNode)
+    val targetNode = fileLine(1)
+    val tarID      = assignID(targetNode)
+    val timeStamp  = fileLine(2).toLong
 
-  //graph.stream(source)
-
-  addLOTRData(graph)
+    graph.addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)), Type("Character"))
+    graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("Character"))
+    graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurence"))
+  }
 
   graph
     .at(32674)
@@ -41,16 +50,4 @@ object TutorialRunner extends App {
 
   graph.destroy()
 
-  def addLOTRData(graph: DeployedTemporalGraph) =
-    scala.io.Source.fromFile(path).getLines.foreach { line =>
-      val fileLine   = line.split(",").map(_.trim)
-      val sourceNode = fileLine(0)
-      val srcID      = assignID(sourceNode)
-      val targetNode = fileLine(1)
-      val tarID      = assignID(targetNode)
-      val timeStamp  = fileLine(2).toLong
-      graph.addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)), Type("Character"))
-      graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("Character"))
-      graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurence"))
-    }
 }

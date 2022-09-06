@@ -1,16 +1,16 @@
 package com.raphtory.ethereum.graphbuilder
 
+import com.raphtory.Raphtory.assignID
 import com.raphtory.api.input.DoubleProperty
+import com.raphtory.api.input.Graph
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
 import com.raphtory.ethereum.EthereumTransaction
-import com.raphtory.internals.graph.Graph
-import com.raphtory.internals.graph.GraphBuilder
 
-class EthereumTxGraphBuilder() extends GraphBuilder[EthereumTransaction] {
+object EthereumGraphBuilder {
 
-  override def parse(graph: Graph, tx: EthereumTransaction): Unit = {
+  def txParser(graph: Graph, tx: EthereumTransaction): Unit = {
     //    if (line contains "block_hash") {
     //      return
     //    }
@@ -32,11 +32,8 @@ class EthereumTxGraphBuilder() extends GraphBuilder[EthereumTransaction] {
     graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("address", sourceNode)), Type("node"))
     graph.addEdge(timeStamp, srcID, tarID, edgeProperties, Type("transaction"))
   }
-}
 
-class EthereumGraphBuilder() extends GraphBuilder[String] {
-
-  override def parse(graph: Graph, tuple: String): Unit = {
+  def ethParser(graph: Graph, tuple: String): Unit = {
     val line        = new String(tuple)
     if (line contains "block_hash")
       return
@@ -73,4 +70,5 @@ class EthereumGraphBuilder() extends GraphBuilder[String] {
     )
     graph.addEdge(timeStamp, srcID, tarID, edgeProperties, Type("transaction"))
   }
+
 }
