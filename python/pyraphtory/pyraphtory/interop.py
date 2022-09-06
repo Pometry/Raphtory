@@ -557,20 +557,3 @@ class Function2(ScalaClassProxy):
     _classname = "com.raphtory.internals.management.PythonFunction2"
 
 
-class BuiltinAlgorithm(ScalaProxyBase):
-    """Proxy object for looking up built-in algorithms based on path
-
-    (This actually could be used for looking up other classes as well if needed)
-    """
-    @property
-    def _jvm_object(self):
-        return find_class(self._path)
-
-    def __init__(self, path: str):
-        self._path = path
-
-    def __call__(self, *args, **kwargs):
-        return to_python(self._jvm_object).apply(*args, **kwargs)
-
-    def __getattr__(self, item):
-        return BuiltinAlgorithm(".".join((self._path, item)))
