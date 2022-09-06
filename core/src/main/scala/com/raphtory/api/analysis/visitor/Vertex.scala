@@ -81,14 +81,14 @@ trait Vertex extends EntityVisitor {
 
   /** Get IDs of all out-neighbours of the vertex
     */
-  def outNeighbours: List[IDType] =
+  def outNeighbours: Iterable[IDType] =
     outEdges.map(_.dst)
 
   /** Get IDs fo all in-neighbours of the vertex
     * @param after only return neighbours that are active after time `after`
     * @param before only return neighbours that are active before time `before`
     */
-  def inNeighbours: List[IDType] =
+  def inNeighbours: Iterable[IDType] =
     inEdges.map(_.src)
 
   /** Get IDs of all in- and out-neighbours of the vertex
@@ -118,15 +118,15 @@ trait Vertex extends EntityVisitor {
 
   /** Return all edges starting or ending at this vertex
     */
-  def edges: List[Edge] = inEdges ++ outEdges
+  def edges: Iterable[Edge] = inEdges.view ++ outEdges.view
 
   /** Return all edges starting at this vertex
     */
-  def outEdges: List[Edge]
+  def outEdges: Iterable[Edge]
 
   /** Return all edges ending at this vertex
     */
-  def inEdges: List[Edge]
+  def inEdges: Iterable[Edge]
 
   /** Return specified edge if it is an out-edge of this vertex
     * @param id ID of edge to return

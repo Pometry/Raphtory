@@ -10,7 +10,7 @@ import scala.concurrent.duration.FiniteDuration
 
 private[raphtory] class Scheduler {
   //FIXME: wipe this class out as we move to cats-effect
-  private val threads: Int = 8
+  private val threads: Int = 16
 
   implicit val runtime = IORuntime.global
 
@@ -26,13 +26,13 @@ private[raphtory] class Scheduler {
   }
 
   def executeInParallel(
-      tasks: Iterable[IO[Unit]],
+      tasks: List[IO[Unit]],
       onSuccess: => Unit,
       errorHandler: (Throwable) => Unit
   ): () => Future[Unit] = {
 
     val (_, cancelable) = IO
-      .parSequenceN(threads)(tasks.to(LazyList))
+      .parSequenceN(threads)(tasks)
       .onError(t => IO.blocking(errorHandler(t)))
       .flatMap(_ => IO.blocking(onSuccess))
       .unsafeToFutureCancelable()

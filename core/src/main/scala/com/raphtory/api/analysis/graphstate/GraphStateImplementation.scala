@@ -2,11 +2,13 @@ package com.raphtory.api.analysis.graphstate
 
 import com.raphtory.utils.Bounded
 
+import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
-import scala.collection.{MapView, mutable}
+import scala.collection.MapView
+import scala.collection.mutable
 
-private trait AccumulatorImplementation[-S, T] extends Accumulator[S, T] {
+private trait AccumulatorImplementation[@specialized(Int) -S, T] extends Accumulator[S, T] {
   def currentValue: T
   def merge(other: T): Unit
   def reset(): Unit
@@ -33,12 +35,43 @@ private class SimpleAccumulatorImplementation[T](
 
   override def merge(other: T): Unit = this += other
 }
+import scala.jdk.FunctionConverters._
+private class IntAccumulatorImpl(initialValue: Int, retainState: Boolean = false, op: (Int, Int) => Int)
+        extends AccumulatorImplementation[Int, Int] {
+  private val currentValueA: AtomicInteger = new AtomicInteger(initialValue)
+  private val valueA: AtomicInteger = new AtomicInteger(initialValue)
+  override def currentValue: Int           = currentValueA.get()
+
+  override def merge(other: Int): Unit = this += other
+
+  override def reset(): Unit = {
+    // FIXME: possibly concurrency issues, we'll get back to this
+    if (retainState)
+      valueA.accumulateAndGet(currentValue, op.asJava)
+    else
+      valueA.set(currentValue)
+    currentValueA.set(initialValue)
+  }
+
+  /** Get last accumulated value */
+  override def value: Int = valueA.get()
+
+  /** Add new value to accumulator
+    *
+    * @param newValue Value to add
+    */
+  override def +=(newValue: Int): Unit = {
+    currentValueA.accumulateAndGet(newValue, op.asJava)
+  }
+}
 
 private object AccumulatorImplementation {
 
   def apply[T](initialValue: T, retainState: Boolean = false, op: (T, T) => T) =
     new SimpleAccumulatorImplementation[T](initialValue, retainState, op)
 
+  def concurrentInt(initialValue: Int, retainState: Boolean = false, op: (Int, Int) => Int) =
+    new IntAccumulatorImpl(initialValue = initialValue, retainState = retainState, op = op)
 }
 
 import scala.math.Numeric.Implicits.infixNumericOps
@@ -47,7 +80,7 @@ private class CounterImplementation[T]() extends Counter[T] {
   var totalCount: Int             = 0
   var counts: mutable.Map[T, Int] = mutable.Map[T, Int]()
 
-  override def getCounts: MapView[T, Int]  = counts.view
+  override def getCounts: MapView[T, Int]      = counts.view
   override def largest: (T, Int)               = counts.maxBy(_._2)
   override def largest(k: Int): List[(T, Int)] = counts.toList.sortBy(_._2).takeRight(k.min(counts.size))
 
@@ -199,6 +232,10 @@ private[raphtory] class GraphStateImplementation(override val nodeCount: Int) ex
     accumulatorState(name) = AccumulatorImplementation[T](initialValue, retainState, numeric.plus)
       .asInstanceOf[AccumulatorImplementation[Any, Any]]
 
+  override def newIntAdder(name: String, initalValue: Int, retainState: Boolean): Unit =
+    accumulatorState(name) = new IntAccumulatorImpl(initialValue = initalValue, retainState = retainState, op = _ + _)
+      .asInstanceOf[AccumulatorImplementation[Any, Any]]
+
   def newMultiplier[T](name: String, initialValue: T, retainState: Boolean)(implicit
       numeric: Numeric[T]
   ): Unit =
@@ -258,6 +295,7 @@ private[raphtory] class GraphStateImplementation(override val nodeCount: Int) ex
 
   override def contains(name: String): Boolean =
     accumulatorState.contains(name)
+
 }
 
 private[raphtory] object GraphStateImplementation {

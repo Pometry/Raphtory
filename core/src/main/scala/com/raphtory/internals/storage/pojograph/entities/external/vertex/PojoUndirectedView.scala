@@ -10,7 +10,7 @@ private[pojograph] class PojoUndirectedVertexView[T](override val vertex: PojoCo
   override type IDType = vertex.IDType
   override type Edge   = vertex.Edge#Eundir
 
-  def outEdges: List[Edge] =
+  def outEdges: Iterable[Edge] =
     vertex.inEdges.map { inEdge =>
       vertex.getOutEdge(inEdge.ID) match {
         case Some(outEdge) => inEdge.combineUndirected(outEdge, asInEdge = false)
@@ -18,7 +18,7 @@ private[pojograph] class PojoUndirectedVertexView[T](override val vertex: PojoCo
       }
     } ++ vertex.outEdges.filterNot(outEdge => vertex.getInEdge(outEdge.ID).isDefined)
 
-  def inEdges: List[Edge] =
+  def inEdges: Iterable[Edge] =
     vertex.outEdges.map { outEdge =>
       vertex.getInEdge(outEdge.ID) match {
         case Some(inEdge) => outEdge.combineUndirected(inEdge, asInEdge = true)

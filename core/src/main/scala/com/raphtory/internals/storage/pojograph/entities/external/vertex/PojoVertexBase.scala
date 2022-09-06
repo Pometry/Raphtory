@@ -7,7 +7,7 @@ import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExDir
 import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExEdgeBase
 import com.raphtory.internals.storage.pojograph.messaging.VertexMultiQueue
 
-import scala.collection.mutable
+import scala.collection.{View, mutable}
 
 private[pojograph] trait PojoVertexBase extends Vertex {
   // abstract state
@@ -112,9 +112,9 @@ private[pojograph] trait PojoConcreteVertexBase[T] extends PojoVertexBase {
     internalOutgoingEdges.keys.foreach(k => lens.sendMessage(FilteredInEdgeMessage(lens.superStep + 1, k, ID)))
   }
 
-  def outEdges: List[Edge] = internalOutgoingEdges.values.toList
+  def outEdges: Iterable[Edge] = internalOutgoingEdges.values
 
-  def inEdges: List[Edge] = internalIncomingEdges.values.toList
+  def inEdges: Iterable[Edge] = internalIncomingEdges.values
 
   //out edges individual
   def getOutEdge(
