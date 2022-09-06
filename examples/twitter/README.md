@@ -48,7 +48,7 @@ As of 9th February 2022. This is a guide to run this within IntelliJ.
 ## Running this example
 
 1. This example project is up on Github: [raphtory-example-twitter](https://github.com/Raphtory/Raphtory/tree/development/examples/raphtory-example-twitter). If you have downloaded the Examples folder from the installation guide previously, then the Twitter example will already be set up. If not, please return [there](https://raphtory.readthedocs.io/en/development/Install/installdependencies.html) and complete this step first.
-2 Download the _higgs-retweet-activity.csv_ data from [raphtory-data](https://github.com/Raphtory/Data) repository and place it inside of the resources folder.
+2. Download the _higgs-retweet-activity.csv_ data from [raphtory-data](https://github.com/Raphtory/Data) repository and place it inside of the resources folder.
 3. In the Examples folder, open up the directory `raphtory-example-twitter` to get this example running.
 4. Install all the python libraries necessary for visualising your data via the [Jupyter Notebook Tutorial](https://raphtory.readthedocs.io/en/development/PythonClient/tutorial.html). Once you have Jupyter Notebook up and running on your local machine, you can open up the Jupyter Notebook specific for this project, with all the commands needed to output your graph. This can be found by following the path `src/main/python/TwitterJupyterNotebook.ipynb`.
 5. You are now ready to run this example. The data file is already in the `resources` folder. You can either run this example via Intellij by running the class `Runner.scala` or [via sbt](https://raphtory.readthedocs.io/en/development/Install/installdependencies.html#running-raphtory-via-sbt).
