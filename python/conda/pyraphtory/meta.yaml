@@ -7,11 +7,8 @@ package:
   version: {{ version }}
 
 source:
-  path: ../../../
-#  url: file:///vagrant_data/python/pyraphtory/dist/pyraphtory-0.0.1.tar.gz
-#  sha256: efed2398b378552280591766a2cf06f695f903d24452932afb46d8aa91a465f3
-#  git_rev: v0.1.0
-#  git_url: https://github.com/Raphtory/Raphtory.git
+  git_url: https://github.com/Raphtory/Raphtory.git
+  git_tag: feature/DEV-1144-conda-package
 
 build:
   noarch: python
@@ -32,11 +29,9 @@ requirements:
     - openjdk ==11.0.13
     - python >=3.6,<3.11
     - python-build
+    - pip
     - sbt
 
-test:
-  imports:
-    - pyraphtory
 
 about:
   home: https://github.com/raphtory/raphtory/
