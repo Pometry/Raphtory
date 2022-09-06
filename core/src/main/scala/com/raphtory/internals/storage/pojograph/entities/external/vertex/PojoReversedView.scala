@@ -9,10 +9,10 @@ private[pojograph] class PojoReversedVertexView[T](override val vertex: PojoConc
   override type IDType = vertex.IDType
   override type Edge   = vertex.Edge
 
-  def outEdges: List[Edge] =
+  def outEdges: Iterable[Edge] =
     vertex.inEdges.map(_.reversed)
 
-  def inEdges: List[Edge] =
+  def inEdges: Iterable[Edge] =
     vertex.outEdges.map(_.reversed)
 
   def getOutEdge(id: vertex.IDType): Option[Edge] =
