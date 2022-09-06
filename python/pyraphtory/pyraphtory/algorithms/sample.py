@@ -31,29 +31,29 @@ if __name__ == "__main__":
     lotr_spout = FileSpout("/tmp/lotr.csv")
     graph = pr.new_graph().load(Source(lotr_spout, lotr_builder))
 
-    # df = (graph
-    #       .select(lambda vertex: Row(vertex.name(), vertex.degree()))
-    #       .to_df(["name", "degree"]))
-    # print(df)
-    #
-    # df = (graph.execute(PageRank()).to_df(["name", "pagerank"]))
-    # print(df)
-    #
-    # df = (graph.execute(ConnectedComponents()).to_df(["name", "component"]))
-    # print(df)
-    #
-    # df = (graph.execute(TwoHopPaths()).to_df(["start", "middle", "end"]))
-    # print(df)
-    #
-    # df = (graph.execute(LocalTriangleCount()).to_df(["name", "triangles"]))
-    # print(df)
-    #
-    # df = (graph.execute(GlobalTriangleCount()).to_df(["triangles"]))
-    # print(df)
-    #
-    # df = (graph.execute(Degree()).to_df(["name", "in-degree", "out-degree", "degree"]))
-    # print(df)
-    #
+    df = (graph
+          .select(lambda vertex: Row(vertex.name(), vertex.degree()))
+          .to_df(["name", "degree"]))
+    print(df)
+
+    df = (graph.execute(PageRank()).to_df(["name", "pagerank"]))
+    print(df)
+
+    df = (graph.execute(ConnectedComponents()).to_df(["name", "component"]))
+    print(df)
+
+    df = (graph.execute(TwoHopPaths()).to_df(["start", "middle", "end"]))
+    print(df)
+
+    df = (graph.execute(LocalTriangleCount()).to_df(["name", "triangles"]))
+    print(df)
+
+    df = (graph.execute(GlobalTriangleCount()).to_df(["triangles"]))
+    print(df)
+
+    df = (graph.execute(Degree()).to_df(["name", "in-degree", "out-degree", "degree"]))
+    print(df)
+
     graph2 = pr.new_graph()
     # can just call add_vertex, add_edge on graph directly without spout/builder
     start = perf_counter()
