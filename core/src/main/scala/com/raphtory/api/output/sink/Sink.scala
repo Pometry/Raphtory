@@ -2,6 +2,7 @@ package com.raphtory.api.output.sink
 
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.time.Perspective
+import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.sinks.FileSink
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -24,7 +25,10 @@ trait Sink {
     * @param config the configuration provided by the user
     * @return the `SinkExecutor` to be used for writing out results
     */
-  def executor(jobID: String, partitionID: Int, config: Config): SinkExecutor
+  def executor(jobID: String, partitionID: Int, config: Config): SinkExecutor = ???
+
+  def executor(jobID: String, partitionID: Int, config: Config, topics: TopicRepository): SinkExecutor =
+    executor(jobID, partitionID, config)
 }
 
 /** Base trait for sink executors.

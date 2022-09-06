@@ -47,6 +47,14 @@ trait Table {
     */
   def writeTo(sink: Sink): QueryProgressTracker
 
+  /** Write out data to files and
+    * return [[com.raphtory.api.querytracker.QueryProgressTracker QueryProgressTracker]]
+    * with default job name
+    *
+    * @param name folder path for writing results
+    */
   def writeToFile(name: String): QueryProgressTracker =
     writeTo(FileSink(name))
+
+  def collect(jobName: String = ""): TableOutput
 }
