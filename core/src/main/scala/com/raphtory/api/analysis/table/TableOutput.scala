@@ -42,7 +42,8 @@ case class WriteProgressTracker(jobID: String, perspective: Perspective) extends
   override def waitForJob(timeout: Duration): Unit = {}
 }
 
-case class TableOutput(
+/** Concrete Table with computed results for a perspective */
+case class TableOutput private[raphtory] (
     perspective: Perspective,
     rows: Array[Row],
     jobID: String,

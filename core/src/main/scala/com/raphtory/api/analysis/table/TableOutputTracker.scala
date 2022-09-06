@@ -18,6 +18,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.Duration
 
+/** Iterator over perspective results with additional query tracking functionality */
 case class TableOutputTracker(tracker: QueryProgressTracker, topics: TopicRepository, conf: Config, timeout: Duration)
         extends Component[OutputMessages](conf)
         with Iterator[TableOutput] {
