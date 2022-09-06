@@ -4,6 +4,9 @@ import com.raphtory.api.input.Graph
 import com.raphtory.api.input.MaybeType
 import com.raphtory.api.input.Properties
 import com.raphtory.api.analysis.table.TableOutputTracker
+import com.raphtory.api.input.Graph
+import com.raphtory.api.input.MaybeType
+import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Source
 import com.raphtory.api.querytracker.QueryProgressTracker
 import com.raphtory.internals.communication.ExclusiveTopic
