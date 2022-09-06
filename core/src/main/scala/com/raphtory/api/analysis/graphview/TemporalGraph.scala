@@ -31,6 +31,8 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   private[api] val querySender: QuerySender
   private[api] val conf: Config
 
+  def totalPartitions: Int = querySender.totalPartitions
+
   def stream(sources: Source*): G = {
     querySender.submitSource(blocking = false, sources, conf.getString("raphtory.graph.id"))
     this
@@ -41,44 +43,16 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
     this
   }
 
-  override def addVertex(updateTime: Long, srcId: Long, posTypeArg: Type): Unit =
-    querySender.individualUpdate(
-            VertexAdd(
-                    querySender.IDForUpdates(),
-                    updateTime,
-                    querySender.getIndex,
-                    srcId,
-                    Properties(),
-                    posTypeArg.toOption
-            )
-    )
-
   override def addVertex(
       updateTime: Long,
       srcId: Long,
       properties: Properties = Properties(),
       vertexType: MaybeType = NoType,
       secondaryIndex: Long = querySender.getIndex
-  ): Unit =
-    querySender.individualUpdate(
-            VertexAdd(querySender.IDForUpdates(), updateTime, secondaryIndex, srcId, properties, vertexType.toOption)
-    )
+  ): Unit = querySender.addVertex(updateTime, srcId, properties, vertexType, secondaryIndex)
 
   override def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long = querySender.getIndex): Unit =
-    querySender.individualUpdate(VertexDelete(querySender.IDForUpdates(), updateTime, secondaryIndex, srcId))
-
-  override def addEdge(updateTime: Long, srcId: Long, dstId: Long, posTypeArg: Type): Unit =
-    querySender.individualUpdate(
-            EdgeAdd(
-                    querySender.IDForUpdates(),
-                    updateTime,
-                    querySender.getIndex,
-                    srcId,
-                    dstId,
-                    Properties(),
-                    posTypeArg.toOption
-            )
-    )
+    querySender.deleteVertex(updateTime, srcId, secondaryIndex)
 
   override def addEdge(
       updateTime: Long,
@@ -87,18 +61,14 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
       properties: Properties = Properties(),
       edgeType: MaybeType = NoType,
       secondaryIndex: Long = querySender.getIndex
-  ): Unit =
-    querySender.individualUpdate(
-            EdgeAdd(querySender.IDForUpdates(), updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption)
-    )
+  ): Unit = querySender.addEdge(updateTime, srcId, dstId, properties, edgeType, secondaryIndex)
 
   override def deleteEdge(
       updateTime: Long,
       srcId: Long,
       dstId: Long,
       secondaryIndex: Long = querySender.getIndex
-  ): Unit =
-    querySender.individualUpdate(EdgeDelete(querySender.IDForUpdates(), updateTime, secondaryIndex, srcId, dstId))
+  ): Unit = querySender.deleteEdge(updateTime, srcId, dstId, secondaryIndex)
 
   /** Creates a new `TemporalGraph` which includes all activity after startTime (inclusive).
     * @param startTime time interpreted in milliseconds by default
