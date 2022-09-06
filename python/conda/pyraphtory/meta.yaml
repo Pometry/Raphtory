@@ -16,7 +16,6 @@ source:
 build:
   noarch: python
   number: {{ build_number }}
-#  script: {{ PYTHON }} -m pip install . -vv
 
 requirements:
   build:
@@ -29,17 +28,14 @@ requirements:
     - sbt
     - python-build
     - setuptools
-    - poetry-core
-    - poetry >=1.1.15
   run:
     - python >=3.6,<3.11
     - cloudpickle >=0.4
     - numpy >=1.23
     - pandas >=1.4.3
     - py4j ==0.10.9
-    - poetry-core >=1.0.3
-    - poetry >=1.1.15
-
+    - python-build
+    - setuptools
 
 test:
   imports:
