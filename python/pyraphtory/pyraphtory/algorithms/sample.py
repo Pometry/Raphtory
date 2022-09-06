@@ -57,11 +57,9 @@ if __name__ == "__main__":
     graph2 = pr.new_graph()
     # can just call add_vertex, add_edge on graph directly without spout/builder
     start = perf_counter()
-    graph2.block_ingestion()
     with open("/tmp/lotr.csv") as f:
         for line in f:
             parse(graph2, line)
-    graph2.unblock_ingestion()
     print(f"time taken to ingest: {perf_counter()-start}s")
 
     df = (graph2
