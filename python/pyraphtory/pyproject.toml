@@ -1,15 +1,22 @@
-[project]
+[tool.poetry]
 name = "pyraphtory"
-version = "0.0.1"
-description = "pyRaphtory - Temporal Graph Analytics Platform. This is the Python version of the library."
+version = "0.1.0"
+description = "Raphtory - Temporal Graph Analytics Platform. This is the Python version of the library."
 authors = [
-    { name = "Pometry", email = "admin@pometry.com" }
+    "Fabian Murariu <admin@pometry.com>",
+    "Lucas Jeub <admin@pometry.com>",
+    "Ben Steer <admin@pometry.com>",
+    "Haaroon Yousaf <admin@pometry.com>"
 ]
 maintainers = [
-    { name = "Pometry", email = "admin@pometry.com" }
+    "Pometry <admin@pometry.com>"
 ]
-license = {file = "LICENSE"}
+license = "Apache-2.0"
+include = ["lib/core-*.jar"]
 readme = "README.md"
+homepage = "https://raphtory.com/"
+repository = "https://github.com/rahptory/raphtory"
+documentation = "https://docs.raphtory.com/"
 keywords = ["raphtory", "pyraphtory", "graph", "analytics", "temporal"]
 classifiers = [
     "Topic :: Scientific/Engineering",
@@ -18,31 +25,17 @@ classifiers = [
     "Topic :: System :: Distributed Computing"
 ]
 
-[project.urls]
-repository = "https://github.com/rahptory/raphtory"
-homepage = "https://raphtory.com/"
-documentation = "https://docs.raphtory.com/"
+[tool.poetry.dependencies]
+python = ">=3.10 <3.11"
+pemja =">=0.2.5"
+# pemja = {git = "https://github.com/alibaba/pemja.git", branch="main"}
+cloudpickle=">=0.4"
+pandas=">=1.4.3"
+py4j="^0.10"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
 
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-include-package-data = true
-packages = ["raphtory"]
-
-[tool.setuptools.packages.find]
-where = ["raphtory"]
-
-[tool.setuptools.package-data]
-raphtory = ["core-0.1.22.jar"]
-
-#include = ["lib/core-*.jar"]
-#[tool.poetry.dependencies]
-#python = ">=3.9 <3.11"
-#numpy=">=1.23"
-#pemja =">=0.2.5"
-## pemja = {git = "https://github.com/alibaba/pemja.git", branch="main"}
-#cloudpickle=">=0.4"
-#pandas=">=1.4.3"
-#py4j="^0.10"
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

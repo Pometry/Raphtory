@@ -1,5 +1,5 @@
 {% set name = "pyraphtory" %}
-{% set version = "0.0.1" %}
+{% set version = "0.1.0" %}
 {% set build_number = "0" %}
 
 package:
@@ -18,32 +18,25 @@ build:
   number: {{ build_number }}
 
 requirements:
-  build:
-    - git
-    - setuptools
   host:
-    - python >=3.6,<3.11
-    - pip
+    - gcc
+    - git
     - openjdk ==11.0.13
-    - sbt
+    - python >=3.6,<3.11
     - python-build
+    - poetry
+    - pip
+    - sbt
     - setuptools
   run:
+    - openjdk ==11.0.13
     - python >=3.6,<3.11
-    - cloudpickle >=0.4
-    - numpy >=1.23
-    - pandas >=1.4.3
-    - py4j ==0.10.9
     - python-build
-    - setuptools
+    - sbt
 
 test:
   imports:
     - pyraphtory
-  commands:
-    - pip check
-  requires:
-    - pip
 
 about:
   home: https://github.com/raphtory/raphtory/
@@ -54,4 +47,4 @@ about:
 
 extra:
   recipe-maintainers:
-    - AddYourGitHubIdHere
+    - Pometry-Team
