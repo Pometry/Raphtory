@@ -209,11 +209,11 @@ class BatchAddRemoteEdgeArrowFlightMessageSchemaFactory extends ArrowFlightMessa
     val longPropertyKeys        = vectorSchemaRoot.getVector("longPropertyKeys").asInstanceOf[ListVector]
     val longPropertyValues      =
       vectorSchemaRoot.getVector("longPropertyValues").asInstanceOf[ListVector]
-    val doublePropertykeys      =
+    val doublePropertyKeys      =
       vectorSchemaRoot.getVector("doublePropertyKeys").asInstanceOf[ListVector]
     val doublePropertyValues    =
       vectorSchemaRoot.getVector("doublePropertyValues").asInstanceOf[ListVector]
-    val floatProperyKeys        = vectorSchemaRoot.getVector("floatPropertyKeys").asInstanceOf[ListVector]
+    val floatPropertyKeys       = vectorSchemaRoot.getVector("floatPropertyKeys").asInstanceOf[ListVector]
     val floatPropertyValues     =
       vectorSchemaRoot.getVector("floatPropertyValues").asInstanceOf[ListVector]
 
@@ -232,9 +232,9 @@ class BatchAddRemoteEdgeArrowFlightMessageSchemaFactory extends ArrowFlightMessa
                     stringPropertyValues,
                     longPropertyKeys,
                     longPropertyValues,
-                    doublePropertykeys,
+                    doublePropertyKeys,
                     doublePropertyValues,
-                    floatProperyKeys,
+                    floatPropertyKeys,
                     floatPropertyValues
             )
     )

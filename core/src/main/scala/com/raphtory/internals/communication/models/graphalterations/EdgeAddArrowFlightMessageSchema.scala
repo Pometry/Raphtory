@@ -14,7 +14,6 @@ import com.raphtory.internals.communication.SchemaProviderInstances._
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
-import scala.util.control.NonFatal
 
 case class EdgeAddArrowFlightMessage(
     sourceID: Long = 0L,
@@ -29,9 +28,9 @@ case class EdgeAddArrowFlightMessage(
     stringPropertyValues: List[String] = List.empty[String],
     longPropertyKeys: List[String] = List.empty[String],
     longPropertyValues: List[Long] = List.empty[Long],
-    doublePropertykeys: List[String] = List.empty[String],
+    doublePropertyKeys: List[String] = List.empty[String],
     doublePropertyValues: List[Double] = List.empty[Double],
-    floatProperyKeys: List[String] = List.empty[String],
+    floatPropertyKeys: List[String] = List.empty[String],
     floatPropertyValues: List[Float] = List.empty[Float]
 ) extends ArrowFlightMessage
 
@@ -48,9 +47,9 @@ case class EdgeAddArrowFlightMessageVectors(
     stringPropertyValues: ListVector,
     longPropertyKeys: ListVector,
     longPropertyValues: ListVector,
-    doublePropertykeys: ListVector,
+    doublePropertyKeys: ListVector,
     doublePropertyValues: ListVector,
-    floatProperyKeys: ListVector,
+    floatPropertyKeys: ListVector,
     floatPropertyValues: ListVector
 ) extends ArrowFlightMessageVectors
 
@@ -91,12 +90,12 @@ case class EdgeAddArrowFlightMessageSchema[
         }
 
       val doubleProperties =
-        (msg.doublePropertykeys zip msg.doublePropertyValues).map {
+        (msg.doublePropertyKeys zip msg.doublePropertyValues).map {
           case (k, v) => DoubleProperty(k, v)
         }
 
       val floatProperties =
-        (msg.floatProperyKeys zip msg.floatPropertyValues).map {
+        (msg.floatPropertyKeys zip msg.floatPropertyValues).map {
           case (k, v) => FloatProperty(k, v)
         }
 
@@ -208,11 +207,11 @@ class EdgeAddArrowFlightMessageSchemaFactory extends ArrowFlightMessageSchemaFac
     val longPropertyKeys        = vectorSchemaRoot.getVector("longPropertyKeys").asInstanceOf[ListVector]
     val longPropertyValues      =
       vectorSchemaRoot.getVector("longPropertyValues").asInstanceOf[ListVector]
-    val doublePropertykeys      =
+    val doublePropertyKeys      =
       vectorSchemaRoot.getVector("doublePropertyKeys").asInstanceOf[ListVector]
     val doublePropertyValues    =
       vectorSchemaRoot.getVector("doublePropertyValues").asInstanceOf[ListVector]
-    val floatProperyKeys        = vectorSchemaRoot.getVector("floatPropertyKeys").asInstanceOf[ListVector]
+    val floatPropertyKeys        = vectorSchemaRoot.getVector("floatPropertyKeys").asInstanceOf[ListVector]
     val floatPropertyValues     =
       vectorSchemaRoot.getVector("floatPropertyValues").asInstanceOf[ListVector]
 
@@ -231,9 +230,9 @@ class EdgeAddArrowFlightMessageSchemaFactory extends ArrowFlightMessageSchemaFac
                     stringPropertyValues,
                     longPropertyKeys,
                     longPropertyValues,
-                    doublePropertykeys,
+                    doublePropertyKeys,
                     doublePropertyValues,
-                    floatProperyKeys,
+                    floatPropertyKeys,
                     floatPropertyValues
             )
     )

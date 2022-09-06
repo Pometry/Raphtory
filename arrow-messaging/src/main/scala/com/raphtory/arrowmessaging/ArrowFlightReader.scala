@@ -61,7 +61,8 @@ case class ArrowFlightReader[T](
       // }
       readMessages()
 
-      logger.debug("{}. Total messages read = {}", this, getTotalMessagesRead)
+      if (lastTotalMessagesRead != getTotalMessagesRead)
+        logger.debug("{}. Total messages read = {}", this, getTotalMessagesRead)
 
       lastTotalMessagesRead = getTotalMessagesRead
     }
