@@ -54,8 +54,8 @@ private[raphtory] class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Com
       }
 
     override def close(): Unit = {}
-
     override def flushAsync(): CompletableFuture[Void] = CompletableFuture.completedFuture(null)
+    override def flushAndSendAsync(message: T): Unit   = sendAsync(message)
     override def closeWithMessage(message: T): Unit    = sendAsync(message)
   }
 

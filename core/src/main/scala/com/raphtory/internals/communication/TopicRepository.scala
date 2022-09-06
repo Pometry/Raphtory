@@ -52,7 +52,8 @@ private[raphtory] class TopicRepository(
   final def spout[T]: WorkPullTopic[(T, Long)] =
     WorkPullTopic[(T, Long)](spoutConnector, "spout", customAddress = spoutAddress)
 
-  final def output: ExclusiveTopic[OutputMessages] = ExclusiveTopic[OutputMessages](outputConnector, "output", graphID)
+  final def output(jobID: String): ExclusiveTopic[OutputMessages] =
+    ExclusiveTopic[OutputMessages](outputConnector, "output", s"$graphID-$jobID")
 
   final def submissions: ExclusiveTopic[Submission] =
     ExclusiveTopic[Submission](submissionsConnector, s"submissions", graphID)

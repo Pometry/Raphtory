@@ -6,6 +6,8 @@ import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.management.QuerySender
 import com.raphtory.sinks.TableOutputSink
 
+import scala.concurrent.duration.Duration
+
 private[api] class TableImplementation(val query: Query, private val querySender: QuerySender) extends Table {
 
   override def filter(f: Row => Boolean): Table = {
@@ -27,8 +29,8 @@ private[api] class TableImplementation(val query: Query, private val querySender
   override def writeTo(sink: Sink): QueryProgressTracker =
     writeTo(sink, "")
 
-  override def get(jobName: String = ""): TableOutput =
-    querySender.outputCollector(writeTo(TableOutputSink, jobName))
+  override def get(jobName: String = "", timeout: Duration = Duration.Inf): TableOutputTracker =
+    querySender.outputCollector(writeTo(TableOutputSink, jobName), timeout)
 
   private def addFunction(function: TableFunction) =
     new TableImplementation(

@@ -3,7 +3,7 @@ package com.raphtory.internals.management
 import com.raphtory.api.input.Graph
 import com.raphtory.api.input.MaybeType
 import com.raphtory.api.input.Properties
-import com.raphtory.api.analysis.table.TableOutput
+import com.raphtory.api.analysis.table.TableOutputTracker
 import com.raphtory.api.input.Source
 import com.raphtory.api.querytracker.QueryProgressTracker
 import com.raphtory.internals.communication.ExclusiveTopic
@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.duration.Duration
 import scala.util.Random
 
 private[raphtory] class QuerySender(
@@ -116,8 +117,8 @@ private[raphtory] class QuerySender(
     updatesSinceLastIDChange += 1
   }
 
-  def outputCollector(tracker: QueryProgressTracker): TableOutput = {
-    val collector = new TableOutput(tracker, topics, config)
+  def outputCollector(tracker: QueryProgressTracker, timeout: Duration): TableOutputTracker = {
+    val collector = TableOutputTracker(tracker, topics, config, timeout)
     scheduler.execute(collector)
     collector
   }
