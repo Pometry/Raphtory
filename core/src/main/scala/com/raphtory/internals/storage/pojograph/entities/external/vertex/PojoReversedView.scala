@@ -3,16 +3,18 @@ package com.raphtory.internals.storage.pojograph.entities.external.vertex
 import com.raphtory.api.analysis.visitor.ExplodedVertex
 import com.raphtory.api.analysis.visitor.ReducedVertex
 
+import scala.collection.View
+
 private[pojograph] class PojoReversedVertexView[T](override val vertex: PojoConcreteVertexBase[T])
         extends PojoLocalVertexViewBase(vertex) {
 
   override type IDType = vertex.IDType
   override type Edge   = vertex.Edge
 
-  def outEdges: Iterable[Edge] =
+  def outEdges: View[Edge] =
     vertex.inEdges.map(_.reversed)
 
-  def inEdges: Iterable[Edge] =
+  def inEdges: View[Edge] =
     vertex.outEdges.map(_.reversed)
 
   def getOutEdge(id: vertex.IDType): Option[Edge] =

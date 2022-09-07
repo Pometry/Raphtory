@@ -7,7 +7,9 @@ import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExDir
 import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExEdgeBase
 import com.raphtory.internals.storage.pojograph.messaging.VertexMultiQueue
 
-import scala.collection.{View, mutable}
+import scala.collection.AbstractView
+import scala.collection.View
+import scala.collection.mutable
 
 private[pojograph] trait PojoVertexBase extends Vertex {
   // abstract state
@@ -38,8 +40,9 @@ private[pojograph] trait PojoVertexBase extends Vertex {
 
   def isFiltered: Boolean
 
-  override def getEdge(id: IDType): List[Edge] =
-    List(getInEdge(id), getOutEdge(id)).flatten
+  override def getEdge(id: IDType): View[Edge] = {
+    getInEdge(id).view ++ getOutEdge(id).view
+  }
 }
 
 private[pojograph] trait PojoConcreteVertexBase[T] extends PojoVertexBase {
@@ -112,9 +115,14 @@ private[pojograph] trait PojoConcreteVertexBase[T] extends PojoVertexBase {
     internalOutgoingEdges.keys.foreach(k => lens.sendMessage(FilteredInEdgeMessage(lens.superStep + 1, k, ID)))
   }
 
-  def outEdges: Iterable[Edge] = internalOutgoingEdges.values
+  case class SizedView[+A](as: Iterable[A]) extends AbstractView[A] {
+    override def knownSize: Int = as.knownSize
 
-  def inEdges: Iterable[Edge] = internalIncomingEdges.values
+    override def iterator: Iterator[A] = as.iterator
+  }
+  def outEdges: View[Edge] = SizedView(internalOutgoingEdges.values)
+
+  def inEdges: View[Edge] = SizedView(internalIncomingEdges.values)
 
   //out edges individual
   def getOutEdge(
