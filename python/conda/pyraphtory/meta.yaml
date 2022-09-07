@@ -7,8 +7,9 @@ package:
   version: {{ version }}
 
 source:
-  git_url: https://github.com/Raphtory/Raphtory.git
-  git_tag: feature/DEV-1144-conda-package
+  path: ../../../
+#  git_url: https://github.com/Raphtory/Raphtory.git
+#  git_tag: feature/DEV-1144-conda-package
 
 build:
   noarch: python
@@ -19,7 +20,7 @@ requirements:
     - gcc
     - git
     - openjdk ==11.0.13
-    - python >=3.6,<3.11
+    - python >=3.10,<3.11
     - python-build
     - poetry
     - pip
@@ -27,7 +28,7 @@ requirements:
     - setuptools
   run:
     - openjdk ==11.0.13
-    - python >=3.6,<3.11
+    - python >=3.10,<3.11
     - python-build
     - pip
     - sbt
