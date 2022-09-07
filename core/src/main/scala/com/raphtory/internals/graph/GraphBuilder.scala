@@ -31,7 +31,8 @@ private[raphtory] class GraphBuilderInstance[T](graphID: String, sourceID: Int, 
   var index: Long                                                     = -1L
   private var partitionIDs: collection.Set[Int]                       = _
   private var writers: collection.Map[Int, EndPoint[GraphAlteration]] = _
-  private var totalPartitions: Int                                    = 1
+  private var internalTotalPartitions: Int                            = _
+  def totalPartitions: Int                                            = internalTotalPartitions
   private var sentUpdates: Long                                       = 0
 
   def getGraphID: String         = graphID
@@ -64,7 +65,7 @@ private[raphtory] class GraphBuilderInstance[T](graphID: String, sourceID: Int, 
   ): Unit = {
     writers = streamWriters
     partitionIDs = writers.keySet
-    totalPartitions = writers.size
+    internalTotalPartitions = writers.size
   }
 
   protected def updateVertexAddStats(): Unit =
@@ -118,13 +119,11 @@ private[raphtory] class GraphBuilderInstance[T](graphID: String, sourceID: Int, 
   protected def handleGraphUpdate(update: GraphUpdate): Any = {
     logger.trace(s"handling $update")
     sentUpdates += 1
-    val partitionForTuple = checkPartition(update.srcId)
+    val partitionForTuple = getPartitionForId(update.srcId)
     if (partitionIDs contains partitionForTuple) {
       writers(partitionForTuple).sendAsync(update)
       logger.trace(s"$update sent")
     }
   }
 
-  private def checkPartition(id: Long): Int =
-    (id.abs % totalPartitions).toInt
 }

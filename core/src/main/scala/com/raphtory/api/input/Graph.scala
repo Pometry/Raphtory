@@ -29,6 +29,7 @@ package com.raphtory.api.input
   * @see [[Properties]] [[Spout]]
   */
 trait Graph {
+  def totalPartitions: Int
 
   /** Adds a new vertex to the graph or updates an existing vertex
     *
@@ -36,7 +37,8 @@ trait Graph {
     * @param srcId      ID of vertex to add/update
     * @param posTypeArg specify a [[Type Type]] for the vertex
     */
-  def addVertex(updateTime: Long, srcId: Long, posTypeArg: Type): Unit
+  def addVertex(updateTime: Long, srcId: Long, posTypeArg: Type): Unit =
+    addVertex(updateTime, srcId, vertexType = posTypeArg)
 
   /** Adds a new vertex to the graph or updates an existing vertex
     *
@@ -67,15 +69,6 @@ trait Graph {
     * @param updateTime timestamp for edge update
     * @param srcId      ID of source vertex of the edge
     * @param dstId      ID of destination vertex of the edge
-    * @param posTypeArg   specify a [[Type Type]] for the edge
-    */
-  def addEdge(updateTime: Long, srcId: Long, dstId: Long, posTypeArg: Type): Unit
-
-  /** Adds a new edge to the graph or updates an existing edge
-    *
-    * @param updateTime timestamp for edge update
-    * @param srcId      ID of source vertex of the edge
-    * @param dstId      ID of destination vertex of the edge
     * @param properties edge properties for the update (see [[com.raphtory.api.input.Properties Properties]] for the
     *                   available property types)
     * @param edgeType   specify a [[Type Type]] for the edge
@@ -90,6 +83,16 @@ trait Graph {
       secondaryIndex: Long = 1 //this is always overwritten its just to make the API happy
   ): Unit
 
+  /** Adds a new edge to the graph or updates an existing edge
+    *
+    * @param updateTime timestamp for edge update
+    * @param srcId      ID of source vertex of the edge
+    * @param dstId      ID of destination vertex of the edge
+    * @param posTypeArg   specify a [[Type Type]] for the edge
+    */
+  def addEdge(updateTime: Long, srcId: Long, dstId: Long, posTypeArg: Type): Unit =
+    addEdge(updateTime, srcId, dstId, edgeType = posTypeArg)
+
   /** Mark edge as deleted
     * @param updateTime time of deletion (the edge is considered as no longer present in the graph after this time)
     * @param srcId ID of source vertex of the edge
@@ -97,4 +100,7 @@ trait Graph {
     * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
     */
   def deleteEdge(updateTime: Long, srcId: Long, dstId: Long, secondaryIndex: Long = 1): Unit
+
+  private[raphtory] def getPartitionForId(id: Long): Int =
+    (id.abs % totalPartitions).toInt
 }
