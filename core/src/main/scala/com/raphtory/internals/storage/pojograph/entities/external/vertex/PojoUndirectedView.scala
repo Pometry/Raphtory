@@ -4,13 +4,15 @@ import com.raphtory.api.analysis.visitor.ExplodedVertex
 import com.raphtory.api.analysis.visitor.ReducedVertex
 import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExReducedEdgeBase
 
+import scala.collection.View
+
 private[pojograph] class PojoUndirectedVertexView[T](override val vertex: PojoConcreteVertexBase[T])
         extends PojoLocalVertexViewBase(vertex) {
 
   override type IDType = vertex.IDType
   override type Edge   = vertex.Edge#Eundir
 
-  def outEdges: Iterable[Edge] =
+  def outEdges: View[Edge] =
     vertex.inEdges.map { inEdge =>
       vertex.getOutEdge(inEdge.ID) match {
         case Some(outEdge) => inEdge.combineUndirected(outEdge, asInEdge = false)
@@ -18,7 +20,7 @@ private[pojograph] class PojoUndirectedVertexView[T](override val vertex: PojoCo
       }
     } ++ vertex.outEdges.filterNot(outEdge => vertex.getInEdge(outEdge.ID).isDefined)
 
-  def inEdges: Iterable[Edge] =
+  def inEdges: View[Edge] =
     vertex.outEdges.map { outEdge =>
       vertex.getInEdge(outEdge.ID) match {
         case Some(inEdge) => outEdge.combineUndirected(inEdge, asInEdge = true)
