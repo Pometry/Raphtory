@@ -41,7 +41,7 @@ class TableOutputSinkExecutor(endPoint: EndPoint[OutputMessages]) extends SinkEx
     * this `SinkExecutor` can handle it if needed.
     */
   override def closePerspective(): Unit =
-    endPoint.flushAndSendAsync(EndPerspective(currentPerspective))
+    endPoint.flushAndSendAsync(EndPerspective(currentPerspective)).get()
 
   /** Closes this `SinkExecutor` after writing the complete table.
     *
