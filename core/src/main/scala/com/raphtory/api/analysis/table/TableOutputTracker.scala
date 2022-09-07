@@ -22,13 +22,13 @@ import scala.concurrent.duration.Duration
 case class TableOutputTracker(tracker: QueryProgressTracker, topics: TopicRepository, conf: Config, timeout: Duration)
         extends Component[OutputMessages](conf)
         with Iterator[TableOutput] {
-  @volatile private var outputDone: Boolean   = false
+  private var outputDone: Boolean             = false
   private var jobsDone                        = 0
   private var nextResult: Option[TableOutput] = None
   private val resultsInProgress               = mutable.Map.empty[Perspective, ArrayBuffer[Row]]
   private val perspectiveDoneCounts           = mutable.Map.empty[Perspective, Int]
   private val logger: Logger                  = Logger(LoggerFactory.getLogger(this.getClass))
-  private val completedResults                = new LinkedBlockingQueue[TableOutput]
+  private val completedResults                = new LinkedBlockingQueue[Any]
 
   private val outputListener =
     topics.registerListener(
@@ -55,7 +55,7 @@ case class TableOutputTracker(tracker: QueryProgressTracker, topics: TopicReposi
       case EndOutput                   =>
         jobsDone += 1
         if (jobsDone == totalPartitions) {
-          outputDone = true
+          completedResults.add(EndOutput)
           stop()
         }
     }
@@ -98,21 +98,28 @@ case class TableOutputTracker(tracker: QueryProgressTracker, topics: TopicReposi
   def isJobDone: Boolean =
     outputDone
 
-  private def waitForNextResult(): Unit =
+  private def waitForNextResult(): Any =
     if (timeout.isFinite)
-      nextResult = Option(completedResults.poll(timeout.length, timeout.unit))
+      Option(completedResults.poll(timeout.length, timeout.unit))
     else
-      nextResult = Option(completedResults.take())
+      Option(completedResults.take())
 
   override def hasNext: Boolean =
     if (nextResult.isDefined)
       true
-    else if (outputDone && completedResults.isEmpty)
+    else if (outputDone)
       false
-    else {
-      waitForNextResult()
-      nextResult.isDefined
-    }
+    else
+      waitForNextResult() match {
+        case Some(EndOutput)      =>
+          outputDone = true
+          false
+        case v: Some[TableOutput] =>
+          nextResult = v
+          true
+        case None                 =>
+          false
+      }
 
   override def next(): TableOutput =
     if (hasNext) {
