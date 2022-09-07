@@ -30,7 +30,7 @@ object TutorialRunner extends App {
   val source2 = Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder())
   //graph.stream(source)
   graph.load(source2)
-  addLOTRData(graph)
+//  addLOTRData(graph)
 
   graph
     .at(32674)

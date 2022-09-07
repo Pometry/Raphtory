@@ -5,8 +5,8 @@ import cats.effect.kernel.Spawn
 import cats.effect.Async
 import cats.effect.Resource
 import com.raphtory.api.input._
-import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.components.Component
+import com.raphtory.internals.communication.{EndPoint, TopicRepository}
+import com.raphtory.internals.components.{Component, FlushToFlight}
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.Scheduler
@@ -24,32 +24,25 @@ private[raphtory] class Writer(
     storage: GraphPartition,
     conf: Config,
     topics: TopicRepository,
-    scheduler: Scheduler
-) extends Component[GraphAlteration](conf) {
+    override val scheduler: Scheduler
+) extends Component[GraphAlteration](conf) with FlushToFlight {
 
-  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  override val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private lazy val neighbours =
     topics.graphSync(graphID).endPoint() //This needs to be lazy otherwise the zookeeper lookup with deadlock
 
-  protected var scheduledRun: Option[() => Future[Unit]] = None
+  override lazy val writers: Map[Int, EndPoint[GraphUpdateEffect]] = neighbours
 
-  private def rescheduler(): Unit = {
-    neighbours.values.foreach(_.flushAsync())
-    reschedule()
-  }: Unit
-
-  private def reschedule(): Unit =
-    scheduledRun = Option(scheduler.scheduleOnce(5.seconds, rescheduler()))
-
-  override def run(): Unit = reschedule()
+  override def run(): Unit = {}
 
   override def stop(): Unit = {
-    scheduledRun.foreach(cancelable => cancelable())
+    close()
     neighbours.values.foreach(_.close())
   }
 
   override def handleMessage(msg: GraphAlteration): Unit = {
+    latestMsgTimeToFlushToFlight = System.currentTimeMillis()
     msg match {
       //Updates from the Graph Builder
       case update: VertexAdd                    => processVertexAdd(update)
@@ -278,7 +271,7 @@ private[raphtory] class Writer(
       srcId: Long,
       dstId: Long,
       fromAddition: Boolean
-  ) =
+  ): Unit =
     if (fromAddition)
       storage.watermarker.untrackEdgeAddition(sourceID, msgTime, index, srcId, dstId)
     else
@@ -293,7 +286,7 @@ private[raphtory] class Writer(
     telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, graphID)
   }
 
-  def handleUpdateCount() = {
+  def handleUpdateCount(): Unit = {
     processedMessages += 1
     telemetry.streamWriterGraphUpdatesCollector.labels(partitionID.toString, graphID).inc()
   }

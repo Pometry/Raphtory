@@ -5,11 +5,14 @@ import cats.effect.Resource
 import cats.effect.Spawn
 import com.raphtory.api.input.Source
 import com.raphtory.internals.communication.CanonicalTopic
+import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
+import com.raphtory.internals.components.FlushToFlight
 import com.raphtory.internals.components.querymanager.BlockIngestion
 import com.raphtory.internals.components.querymanager.NonBlocking
 import com.raphtory.internals.components.querymanager.UnblockIngestion
+import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -25,29 +28,21 @@ private[raphtory] class IngestionExecutor(
     sourceID: Int,
     conf: Config,
     topics: TopicRepository,
-    scheduler: Scheduler
-) extends Component[Any](conf) {
-  private val logger: Logger        = Logger(LoggerFactory.getLogger(this.getClass))
-  private val failOnError           = conf.getBoolean("raphtory.builders.failOnError")
-  private val writers               = topics.graphUpdates(graphID).endPoint()
-  private val queryManager          = topics.blockingIngestion.endPoint
-  private val sourceInstance        = source.buildSource(graphID, sourceID)
-  private val spoutReschedulesCount = telemetry.spoutReschedules.labels(graphID)
-  private val fileLinesSent         = telemetry.fileLinesSent.labels(graphID)
+    override val scheduler: Scheduler
+) extends Component[Any](conf)
+        with FlushToFlight {
+  override val logger: Logger                               = Logger(LoggerFactory.getLogger(this.getClass))
+  private val failOnError                                   = conf.getBoolean("raphtory.builders.failOnError")
+  override val writers: Map[Int, EndPoint[GraphAlteration]] = topics.graphUpdates(graphID).endPoint()
+  private val queryManager                                  = topics.blockingIngestion.endPoint
+  private val sourceInstance                                = source.buildSource(graphID, sourceID)
+  private val spoutReschedulesCount                         = telemetry.spoutReschedules.labels(graphID)
+  private val fileLinesSent                                 = telemetry.fileLinesSent.labels(graphID)
 
   private var index: Long                                     = 0
   private var scheduledRun: Option[() => Future[Unit]]        = None
-  protected var scheduledRunArrow: Option[() => Future[Unit]] = None
 
   sourceInstance.setupStreamIngestion(writers)
-
-  private def flushArrow(): Unit = {
-    writers.values.foreach(_.flushAsync())
-    runArrow()
-  }: Unit
-
-  private def runArrow(): Unit =
-    scheduledRunArrow = Option(scheduler.scheduleOnce(1.seconds, flushArrow()))
 
   private def rescheduler(): Unit = {
     sourceInstance.executeReschedule()
@@ -56,12 +51,12 @@ private[raphtory] class IngestionExecutor(
 
   override def stop(): Unit = {
     scheduledRun.foreach(cancelable => cancelable())
+    close()
     writers.values.foreach(_.close())
   }
 
   override def run(): Unit = {
     logger.debug("Running ingestion executor")
-    runArrow()
     executeSpout()
   }
 
@@ -80,6 +75,7 @@ private[raphtory] class IngestionExecutor(
         queryManager.sendAsync(NonBlocking(sourceID = sourceInstance.sourceID, graphID = graphID))
 
     while (sourceInstance.hasRemainingUpdates) {
+      latestMsgTimeToFlushToFlight = System.currentTimeMillis()
       fileLinesSent.inc()
       index = index + 1
       sourceInstance.sendUpdates(index, failOnError)
