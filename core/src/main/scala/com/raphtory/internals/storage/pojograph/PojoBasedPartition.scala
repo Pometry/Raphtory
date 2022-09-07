@@ -10,8 +10,6 @@ import com.raphtory.internals.storage.pojograph.entities.internal.PojoEntity
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoVertex
 import com.raphtory.internals.storage.pojograph.entities.internal.SplitEdge
 import com.typesafe.config.Config
-import com.typesafe.scalalogging.Logger
-import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 
@@ -498,11 +496,33 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
       end: Long
   ): mutable.Map[Long, PojoExVertex] = {
     val lenz = lens.asInstanceOf[PojoGraphLens]
-    val x    = vertices.collect {
+    import scala.collection.parallel.CollectionConverters._
+
+    val parx: mutable.Map[Long, PojoExVertex] = vertices.par.collect {
       case (id, vertex) if vertex.aliveBetween(start, end) =>
         (id, vertex.viewBetween(start, end, lenz))
-    }
-    x
+    }.seq
+
+//    val x2 = vertices.grouped(60000).map{
+//      vertices => IO{
+//        vertices
+//          .filterInPlace((_, vertex) => vertex.aliveBetween(start, end))
+//          .view.mapValues(vertex => vertex.viewBetween(start, end, lenz))
+//          .to(mutable.HashMap)
+//      }
+//    }.toVector
+//
+//    IO.parSequenceN(16)(x2).map(chunks => chunks.reduce(
+//      (c1, c2) =>
+//        c1.merged()
+//    ))
+
+//    val x    = vertices.collect {
+//      case (id, vertex) if vertex.aliveBetween(start, end) =>
+//        (id, vertex.viewBetween(start, end, lenz))
+//    }
+//
+    parx
   }
 
 }

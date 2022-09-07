@@ -108,7 +108,8 @@ lazy val core = (project in file("core"))
                   catsMUnit,
                   alleyCats,
                   typesafeConfig,
-                  zookeeper
+                  zookeeper,
+                  "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4"
           ),
           libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
   )
@@ -196,6 +197,6 @@ Test / parallelExecution := false
 Global / concurrentRestrictions := Seq(
         Tags.limit(Tags.Test, 1)
 )
-
+core / Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 // Scaladocs parameters
 // doc / scalacOptions ++= Seq("-skip-packages", "com.raphtory.algorithms.generic:com.raphtory.algorithms.temporal", "-private")
