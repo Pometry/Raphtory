@@ -74,8 +74,10 @@ class GraphBuilderInstance[T](graphID: String, sourceID: Int, parse: (Graph, T) 
   var index: Long                                                     = -1L
   private var partitionIDs: collection.Set[Int]                       = _
   private var writers: collection.Map[Int, EndPoint[GraphAlteration]] = _
-  private var totalPartitions: Int                                    = 1
-  private var sentUpdates: Long                                       = 0
+  private var internalTotalPartitions: Int                            = _
+
+  override def totalPartitions: Int = internalTotalPartitions
+  private var sentUpdates: Long     = 0
 
   def getGraphID: String         = graphID
   def getSourceID: Int           = sourceID
@@ -107,30 +109,12 @@ class GraphBuilderInstance[T](graphID: String, sourceID: Int, parse: (Graph, T) 
   ): Unit = {
     writers = streamWriters
     partitionIDs = writers.keySet
-    totalPartitions = writers.size
+    internalTotalPartitions = writers.size
   }
 
   protected def updateVertexAddStats(): Unit =
     ComponentTelemetryHandler.vertexAddCounter.labels(graphID).inc()
 
-  /** Adds a new vertex to the graph or updates an existing vertex
-    *
-    * @param updateTime timestamp for vertex update
-    * @param srcId      ID of vertex to add/update
-    * @param posTypeArg specify a [[Type Type]] for the vertex
-    */
-  override def addVertex(updateTime: Long, srcId: Long, posTypeArg: Type): Unit =
-    addVertex(updateTime, srcId, vertexType = posTypeArg)
-
-  /** Adds a new vertex to the graph or updates an existing vertex
-    *
-    * @param updateTime timestamp for vertex update
-    * @param srcId      ID of vertex to add/update
-    * @param properties Optionally specify vertex properties for the update (see [[com.raphtory.api.input.Properties Properties]] for the
-    *                   available property types)
-    * @param vertexType Optionally specify a [[Type Type]] for the vertex
-    * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
-    */
   override def addVertex(
       updateTime: Long,
       srcId: Long,
@@ -144,11 +128,6 @@ class GraphBuilderInstance[T](graphID: String, sourceID: Int, parse: (Graph, T) 
     updateVertexAddStats()
   }
 
-  /** Marks a vertex as deleted
-    * @param updateTime time of deletion (a vertex is considered as no longer present in the graph after this time)
-    * @param srcId Id of vertex to delete
-    * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
-    */
   override def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long = index): Unit = {
     handleGraphUpdate(VertexDelete(sourceID, updateTime, secondaryIndex, srcId))
     ComponentTelemetryHandler.vertexDeleteCounter.labels(graphID).inc()
@@ -157,26 +136,6 @@ class GraphBuilderInstance[T](graphID: String, sourceID: Int, parse: (Graph, T) 
   protected def updateEdgeAddStats(): Unit =
     ComponentTelemetryHandler.edgeAddCounter.labels(graphID).inc()
 
-  /** Adds a new edge to the graph or updates an existing edge
-    *
-    * @param updateTime timestamp for edge update
-    * @param srcId      ID of source vertex of the edge
-    * @param dstId      ID of destination vertex of the edge
-    * @param posTypeArg   specify a [[Type Type]] for the edge
-    */
-  override def addEdge(updateTime: Long, srcId: Long, dstId: Long, posTypeArg: Type): Unit =
-    addEdge(updateTime, srcId, dstId, edgeType = posTypeArg)
-
-  /** Adds a new edge to the graph or updates an existing edge
-    *
-    * @param updateTime timestamp for edge update
-    * @param srcId      ID of source vertex of the edge
-    * @param dstId      ID of destination vertex of the edge
-    * @param properties edge properties for the update (see [[com.raphtory.api.input.Properties Properties]] for the
-    *                   available property types)
-    * @param edgeType   specify a [[Type Type]] for the edge
-    * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
-    */
   override def addEdge(
       updateTime: Long,
       srcId: Long,
@@ -190,12 +149,6 @@ class GraphBuilderInstance[T](graphID: String, sourceID: Int, parse: (Graph, T) 
     updateEdgeAddStats()
   }
 
-  /** Mark edge as deleted
-    * @param updateTime time of deletion (the edge is considered as no longer present in the graph after this time)
-    * @param srcId ID of source vertex of the edge
-    * @param dstId ID of the destination vertex of the edge
-    * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
-    */
   override def deleteEdge(updateTime: Long, srcId: Long, dstId: Long, secondaryIndex: Long = index): Unit = {
     handleGraphUpdate(EdgeDelete(sourceID, updateTime, index, srcId, dstId))
     ComponentTelemetryHandler.edgeDeleteCounter.labels(graphID).inc()
@@ -204,15 +157,12 @@ class GraphBuilderInstance[T](graphID: String, sourceID: Int, parse: (Graph, T) 
   protected def handleGraphUpdate(update: GraphUpdate): Any = {
     logger.trace(s"handling $update")
     sentUpdates += 1
-    val partitionForTuple = checkPartition(update.srcId)
+    val partitionForTuple = getPartitionForId(update.srcId)
     if (partitionIDs contains partitionForTuple) {
       writers(partitionForTuple).sendAsync(update)
       logger.trace(s"$update sent")
     }
   }
-
-  private def checkPartition(id: Long): Int =
-    (id.abs % totalPartitions).toInt
 }
 
 class ConcreteGraphBuilder[T](parseFun: (Graph, T) => Unit) extends GraphBuilder[T] {
@@ -229,12 +179,29 @@ object GraphBuilder {
 }
 
 trait Graph {
+  def totalPartitions: Int
 
   def assignID(uniqueChars: String): Long =
     GraphBuilder.assignID(uniqueChars)
 
-  def addVertex(updateTime: Long, srcId: Long, posTypeArg: Type): Unit
+  /** Adds a new vertex to the graph or updates an existing vertex
+    *
+    * @param updateTime timestamp for vertex update
+    * @param srcId      ID of vertex to add/update
+    * @param posTypeArg specify a [[Type Type]] for the vertex
+    */
+  def addVertex(updateTime: Long, srcId: Long, posTypeArg: Type): Unit =
+    addVertex(updateTime, srcId, vertexType = posTypeArg)
 
+  /** Adds a new vertex to the graph or updates an existing vertex
+    *
+    * @param updateTime timestamp for vertex update
+    * @param srcId      ID of vertex to add/update
+    * @param properties Optionally specify vertex properties for the update (see [[com.raphtory.api.input.Properties Properties]] for the
+    *                   available property types)
+    * @param vertexType Optionally specify a [[Type Type]] for the vertex
+    * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
+    */
   def addVertex(
       updateTime: Long,
       srcId: Long,
@@ -242,9 +209,24 @@ trait Graph {
       vertexType: MaybeType = NoType,
       secondaryIndex: Long = 1 //this is always overwritten its just to make the API happy
   ): Unit
-  def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long = 1): Unit
-  def addEdge(updateTime: Long, srcId: Long, dstId: Long, posTypeArg: Type): Unit
 
+  /** Marks a vertex as deleted
+    * @param updateTime time of deletion (a vertex is considered as no longer present in the graph after this time)
+    * @param srcId Id of vertex to delete
+    * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
+    */
+  def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long = 1): Unit
+
+  /** Adds a new edge to the graph or updates an existing edge
+    *
+    * @param updateTime timestamp for edge update
+    * @param srcId      ID of source vertex of the edge
+    * @param dstId      ID of destination vertex of the edge
+    * @param properties edge properties for the update (see [[com.raphtory.api.input.Properties Properties]] for the
+    *                   available property types)
+    * @param edgeType   specify a [[Type Type]] for the edge
+    * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
+    */
   def addEdge(
       updateTime: Long,
       srcId: Long,
@@ -253,5 +235,25 @@ trait Graph {
       edgeType: MaybeType = NoType,
       secondaryIndex: Long = 1 //this is always overwritten its just to make the API happy
   ): Unit
+
+  /** Adds a new edge to the graph or updates an existing edge
+    *
+    * @param updateTime timestamp for edge update
+    * @param srcId      ID of source vertex of the edge
+    * @param dstId      ID of destination vertex of the edge
+    * @param posTypeArg   specify a [[Type Type]] for the edge
+    */
+  def addEdge(updateTime: Long, srcId: Long, dstId: Long, posTypeArg: Type): Unit =
+    addEdge(updateTime, srcId, dstId, edgeType = posTypeArg)
+
+  /** Mark edge as deleted
+    * @param updateTime time of deletion (the edge is considered as no longer present in the graph after this time)
+    * @param srcId ID of source vertex of the edge
+    * @param dstId ID of the destination vertex of the edge
+    * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
+    */
   def deleteEdge(updateTime: Long, srcId: Long, dstId: Long, secondaryIndex: Long = 1): Unit
+
+  private[raphtory] def getPartitionForId(id: Long): Int =
+    (id.abs % totalPartitions).toInt
 }
