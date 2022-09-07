@@ -47,7 +47,7 @@ object NodeEdgeCount extends Generic {
   override def tabularise(graph: GraphPerspective): Table =
     graph.globalSelect{
       state =>
-        Row(state.nodeCount, state("directedEdges").value, state[Int]("undirectedEdges").value/2)
+        Row(state.nodeCount, state("directedEdges").value, state[Int,Int]("undirectedEdges").value/2)
     }
 }
 
