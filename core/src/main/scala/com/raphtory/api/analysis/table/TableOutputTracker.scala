@@ -111,13 +111,16 @@ case class TableOutputTracker(tracker: QueryProgressTracker, topics: TopicReposi
       false
     else
       waitForNextResult() match {
-        case Some(EndOutput)      =>
-          outputDone = true
-          false
-        case v: Some[TableOutput] =>
-          nextResult = v
-          true
-        case None                 =>
+        case Some(res) =>
+          res match {
+            case EndOutput      =>
+              outputDone = true
+              false
+            case v: TableOutput =>
+              nextResult = Some(v)
+              true
+          }
+        case None      =>
           false
       }
 
