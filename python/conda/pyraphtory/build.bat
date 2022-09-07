@@ -7,7 +7,6 @@ echo "Getting Raphtory version"
 cd "%SRC_DIR%" && sbt "-Dsbt.supershell=false" "-error" "print core\version" > "%SRC_DIR%\raphtory_version"
 set /p RAPHTORY_VERSION=<"%SRC_DIR%\raphtory_version"
 
-
 echo "Creating a directory for the jar..."
 mkdir "-p" "%SRC_DIR%\python\pyraphtory\lib\"
 

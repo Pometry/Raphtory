@@ -20,17 +20,19 @@ requirements:
     - gcc
     - git
     - openjdk ==11.0.13
-    - python >=3.10,<3.11
+    - python ==3.10.4
     - python-build
     - poetry
     - pip
     - sbt
     - setuptools
   run:
+    - gcc
     - openjdk ==11.0.13
-    - python >=3.10,<3.11
-    - python-build
-    - pip
+    - python ==3.10.4
+    - numpy
+    - pandas >=1.4.3
+    - py4j ==0.10.9
     - sbt
 
 

@@ -16,8 +16,8 @@ set -e && (cd $SRC_DIR/python/pyraphtory/ && poetry build)
 echo "Installing via poetry..."
 set -e && (cd $SRC_DIR/python/pyraphtory/ && poetry install)
 
-echo "Installing package via pip..."
-set -e && (pip install $SRC_DIR/python/pyraphtory/dist/pyraphtory-$(cat $SRC_DIR/raphtory_version).tar.gz)
+#echo "Installing package via pip..."
+#set -e && (pip install $SRC_DIR/python/pyraphtory/dist/pyraphtory-$(cat $SRC_DIR/raphtory_version).tar.gz)
 
 echo "Clean-up"
 rm -r $SRC_DIR/raphtory_version
