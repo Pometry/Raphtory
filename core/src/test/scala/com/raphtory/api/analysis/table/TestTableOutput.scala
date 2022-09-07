@@ -25,19 +25,14 @@ class TestTableOutput extends CatsEffectSuite {
   override def munitFixtures                          = List(suiteGraph)
 
   test("test table get()") {
-    val correctResult = mutable.Map[Perspective, Set[Row]](
+    val correctResult = Map[Perspective, Set[Row]](
             graph.Perspective(0, None, Long.MinValue, 0) -> Set(Row("0", "1")),
             graph.Perspective(1, None, Long.MinValue, 1) -> Set(Row("0", "1"), Row("1", "2"))
     )
     val g             = suiteGraph()
     val perspectives  = g.range(0, 1, 1).past().execute(EdgeList()).get()
-    perspectives.foreach { output =>
-      assert(correctResult contains output.perspective)
-      val expected = correctResult.remove(output.perspective).get
-      val result   = Set.from(output.rows)
-      assertEquals(result, expected)
-    }
-    assert(correctResult.isEmpty)
+    val result        = perspectives.map(out => out.perspective -> Set.from(out.rows)).toMap
+    assertEquals(result, correctResult)
   }
 
 }
