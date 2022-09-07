@@ -43,6 +43,15 @@ trait Row {
   def getValues(): Array[Any] = values.toArray
 
   override def toString: String = "Row(" + values.mkString(", ") + ")"
+
+  override def equals(obj: Any): Boolean =
+    obj match {
+      case that: Row =>
+        that.values.toSeq == this.values.toSeq
+      case _         => false
+    }
+
+  override def hashCode(): Int = values.toSeq.hashCode()
 }
 
 private[raphtory] class RowImplementation extends Row {
