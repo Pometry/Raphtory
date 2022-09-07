@@ -1,13 +1,13 @@
 package com.raphtory.examples.lotr
 
 import com.raphtory.Raphtory
-import com.raphtory.Raphtory.assignID
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.centrality.Degree
 import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.algorithms.generic.motif.GlobalTriangleCount
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.input.Graph
+import com.raphtory.api.input.Graph.assignID
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Source

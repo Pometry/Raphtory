@@ -1,7 +1,7 @@
 package com.raphtory.enrontest
 
-import com.raphtory.Raphtory.assignID
 import com.raphtory.api.input.Graph
+import com.raphtory.api.input.Graph.assignID
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type

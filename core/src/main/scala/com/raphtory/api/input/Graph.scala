@@ -1,5 +1,7 @@
 package com.raphtory.api.input
 
+import net.openhft.hashing.LongHashFunction
+
 /** trait for creating a Graph by adding and deleting vertices and edges.
   *
   * An implementation of `GraphBuilder` needs to override `parseTuple(tuple: T)` to define parsing of input data.
@@ -25,7 +27,6 @@ package com.raphtory.api.input
   *   }
   * }
   * }}}
-  *
   * @see [[Properties]] [[Spout]]
   */
 trait Graph {
@@ -101,6 +102,31 @@ trait Graph {
     */
   def deleteEdge(updateTime: Long, srcId: Long, dstId: Long, secondaryIndex: Long = 1): Unit
 
+  /** Convenience method for generating unique IDs based on vertex names
+    *
+    * Use of this method is optional. A `GraphBuilder` is free to assign vertex IDs in different ways, provided
+    * that each vertex is assigned a unique ID of type `Long`.
+    *
+    * @param uniqueChars Vertex name
+    */
+  def assignID(uniqueChars: String): Long =
+    Graph.assignID(uniqueChars)
+
   private[raphtory] def getPartitionForId(id: Long): Int =
     (id.abs % totalPartitions).toInt
+
+}
+
+object Graph {
+
+  /** Convenience method for generating unique IDs based on vertex names
+    *
+    * Use of this method is optional. A `GraphBuilder` is free to assign vertex IDs in different ways, provided
+    * that each vertex is assigned a unique ID of type `Long`.
+    *
+    * @param uniqueChars Vertex name
+    */
+  def assignID(uniqueChars: String): Long =
+    LongHashFunction.xx3().hashChars(uniqueChars)
+
 }
