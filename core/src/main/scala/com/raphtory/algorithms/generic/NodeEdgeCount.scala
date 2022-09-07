@@ -40,14 +40,14 @@ object NodeEdgeCount extends Generic {
       val acc1: Accumulator[Int, Int] = state("directedEdges")
       acc1+=vertex.outEdges.size
       val acc2: Accumulator[Int, Int] = state("undirectedEdges")
-      acc2+=vertex.neighbours.count(_ > vertex.ID)
+      acc2+=vertex.degree
     }
   }
 
   override def tabularise(graph: GraphPerspective): Table =
     graph.globalSelect{
       state =>
-        Row(state.nodeCount, state("directedEdges").value, state("undirectedEdges").value)
+        Row(state.nodeCount, state("directedEdges").value, state[Int]("undirectedEdges").value/2)
     }
 }
 
