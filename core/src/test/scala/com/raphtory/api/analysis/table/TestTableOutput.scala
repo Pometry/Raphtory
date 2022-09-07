@@ -2,14 +2,10 @@ package com.raphtory.api.analysis.table
 
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.Raphtory
-import com.raphtory.TestUtils
-import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
-import com.raphtory.api.input.Source
 import com.raphtory.api.time.Perspective
 import com.raphtory.internals.graph
 import munit.CatsEffectSuite
-import munit.FunSuite
 
 import scala.collection.mutable
 
