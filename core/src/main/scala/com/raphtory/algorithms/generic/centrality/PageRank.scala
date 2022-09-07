@@ -40,30 +40,37 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
   * [](com.raphtory.algorithms.generic.centrality.WeightedPageRank
   * ```
   */
-class PageRank(dampingFactor: Double = 0.85, iterateSteps: Int = 100) extends NodeList(Seq("prlabel")) {
+class PageRank(dampingFactor: Double = 0.85, iterateSteps: Int = 100, tol: Double = 0.00001)
+        extends NodeList(Seq("prlabel")) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
-      .step { vertex =>
+      .setGlobalState { state =>
+        state.newAdder[Double]("dangling")
+      }
+      .step { (vertex, state) =>
         val initLabel = 1.0
         vertex.setState("prlabel", initLabel)
         val outDegree = vertex.outDegree
         if (outDegree > 0.0)
           vertex.messageOutNeighbours(initLabel / outDegree)
+        else state("dangling") += initLabel / state.nodeCount
       }
       .iterate(
-              { vertex =>
-                val currentLabel = vertex.getState[Double]("prlabel")
-                val queue        = vertex.messageQueue[Double]
-                val newLabel     = (1 - dampingFactor) + dampingFactor * queue.sum
+              { (vertex, state) =>
+                val currentLabel     = vertex.getState[Double]("prlabel")
+                val dangling: Double = state("dangling").value
+                val queue            = vertex.messageQueue[Double]
+                val newLabel         = (1 - dampingFactor) + dampingFactor * (queue.sum + dangling)
                 vertex.setState("prlabel", newLabel)
-
-                val outDegree = vertex.outDegree
+                val outDegree        = vertex.outDegree
 
                 if (outDegree > 0)
                   vertex.messageOutNeighbours(newLabel / outDegree)
+                else
+                  state("dangling") += newLabel / state.nodeCount
 
-                if (Math.abs(newLabel - currentLabel) < 0.00001)
+                if (Math.abs(newLabel - currentLabel) < tol)
                   vertex.voteToHalt()
               },
               iterateSteps,
@@ -73,6 +80,6 @@ class PageRank(dampingFactor: Double = 0.85, iterateSteps: Int = 100) extends No
 
 object PageRank {
 
-  def apply(dampingFactor: Double = 0.85, iterateSteps: Int = 100) =
-    new PageRank(dampingFactor, iterateSteps)
+  def apply(dampingFactor: Double = 0.85, iterateSteps: Int = 100, tol: Double = 0.00001) =
+    new PageRank(dampingFactor, iterateSteps, tol)
 }
