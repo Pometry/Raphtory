@@ -130,6 +130,8 @@ case class TableOutputTracker(tracker: QueryProgressTracker, topics: TopicReposi
       nextResult = None
       out
     }
-    else
+    else if (outputDone)
       throw new NoSuchElementException("All perspectives already processed")
+    else
+      throw new NoSuchElementException("Timed out while waiting for next perspective")
 }
