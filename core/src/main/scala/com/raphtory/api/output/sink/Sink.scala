@@ -2,6 +2,7 @@ package com.raphtory.api.output.sink
 
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.time.Perspective
+import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.sinks.FileSink
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -22,9 +23,10 @@ trait Sink {
     * @param jobID the ID of the job that generated the table
     * @param partitionID the ID of the partition of the table
     * @param config the configuration provided by the user
+    * @param topics the topic repository of the deployment
     * @return the `SinkExecutor` to be used for writing out results
     */
-  def executor(jobID: String, partitionID: Int, config: Config): SinkExecutor
+  def executor(jobID: String, partitionID: Int, config: Config, topics: TopicRepository): SinkExecutor
 }
 
 /** Base trait for sink executors.
@@ -65,6 +67,8 @@ trait SinkExecutor {
     */
   def close(): Unit
 
-  /** Thread safe version of `writeRow` used internally by Raphtory to write a `row`. */
-  final private[raphtory] def threadSafeWriteRow(row: Row): Unit = synchronized(writeRow(row))
+  /** Thread safe version of `writeRow` used internally by Raphtory to write a `row`.
+    * Override this method to provide a more efficient thread-safe implementation.
+    */
+  def threadSafeWriteRow(row: Row): Unit = synchronized(writeRow(row))
 }

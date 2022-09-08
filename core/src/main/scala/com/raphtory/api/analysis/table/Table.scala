@@ -4,6 +4,8 @@ import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.querytracker.QueryProgressTracker
 import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.sinks.FileSink
+
+import scala.concurrent.duration.Duration
 sealed private[raphtory] trait TableFunction extends QueryManagement
 
 final private[raphtory] case class TableFilter(f: (Row) => Boolean)     extends TableFunction
@@ -14,7 +16,7 @@ private[raphtory] case object WriteToOutput                             extends 
   *
   * @see [[Row]], [[com.raphtory.api.output.sink.Sink Sink]], [[com.raphtory.api.querytracker.QueryProgressTracker QueryProgressTracker]]
   */
-trait Table {
+trait Table extends TableBase {
 
   /** Add a filter operation to table
     * @param f function that runs once for each row (only rows for which `f ` returns `true` are kept)
@@ -47,6 +49,5 @@ trait Table {
     */
   def writeTo(sink: Sink): QueryProgressTracker
 
-  def writeToFile(name: String): QueryProgressTracker =
-    writeTo(FileSink(name))
+  def get(jobName: String = "", timeout: Duration = Duration.Inf): TableOutputTracker
 }

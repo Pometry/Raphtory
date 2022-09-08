@@ -1,6 +1,6 @@
 package com.raphtory.internals.communication
 
-import com.raphtory.Raphtory
+import com.raphtory.internals.components.output.OutputMessages
 import com.raphtory.internals.components.querymanager.ClusterManagement
 import com.raphtory.internals.components.querymanager.EndQuery
 import com.raphtory.internals.components.querymanager.EstablishGraph
@@ -26,6 +26,7 @@ private[raphtory] class TopicRepository(
   protected def spoutConnector: Connector            = defaultDataConnector
   protected def graphUpdatesConnector: Connector     = defaultDataConnector
   protected def graphSyncConnector: Connector        = defaultDataConnector
+  protected def outputConnector: Connector           = defaultDataConnector
   protected def submissionsConnector: Connector      = defaultControlConnector
   protected def completedQueriesConnector: Connector = defaultControlConnector
   protected def watermarkConnector: Connector        = defaultControlConnector
@@ -50,6 +51,9 @@ private[raphtory] class TopicRepository(
   // Global topics
   final def spout[T]: WorkPullTopic[(T, Long)] =
     WorkPullTopic[(T, Long)](spoutConnector, "spout", customAddress = spoutAddress)
+
+  final def output(jobID: String): ExclusiveTopic[OutputMessages] =
+    ExclusiveTopic[OutputMessages](outputConnector, "output", s"$graphID-$jobID")
 
   final def submissions: ExclusiveTopic[Submission] =
     ExclusiveTopic[Submission](submissionsConnector, s"submissions", graphID)

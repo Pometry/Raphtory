@@ -58,7 +58,7 @@ private[raphtory] class QueryExecutor(
   private val sync = new QuerySuperstepSync(totalPartitions)
   pyScript.map(s => EmbeddedPython.global.run(s))
 
-  private val sinkExecutor: SinkExecutor = sink.executor(jobID, partitionID, conf)
+  private val sinkExecutor: SinkExecutor = sink.executor(jobID, partitionID, conf, topics)
 
   if (messageBatch)
     logger.debug(

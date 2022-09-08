@@ -4,7 +4,7 @@ import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.querymanager.JobDone
 import com.raphtory.internals.components.querymanager.QueryManagement
-import com.raphtory.internals.graph.Perspective
+import com.raphtory.api.time.Perspective
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -17,6 +17,35 @@ import scala.concurrent.duration.Duration
 import scala.util.Success
 
 private class DoneException extends Exception
+
+trait QueryProgressTrackerBase {
+
+  /** Returns job identifier for the query
+    * @return job identifier
+    */
+  def getJobId: String
+
+  /** Returns the latest `Perspective` processed by the query
+    * @return latest perspective
+    */
+  def getLatestPerspectiveProcessed: Option[Perspective]
+
+  /** Returns list of perspectives processed for the query so far
+    * @return a list of perspectives
+    */
+  def getPerspectivesProcessed: List[Perspective]
+
+  /** Returns the time taken to process each perspective in milliseconds */
+  def getPerspectiveDurations: List[Long]
+
+  /** Checks if job is complete
+    * @return job status
+    */
+  def isJobDone: Boolean
+
+  /** Block until job is complete */
+  def waitForJob(timeout: Duration = Duration.Inf): Unit
+}
 
 /** Tracks the progress of Raphtory queries in terms of number of perspectives processed and duration taken to process each perspective.
   * Queries in Raphtory run on a series of `Perspectives` which are how the graph would have looked at specific timestamps with given windows.
@@ -43,7 +72,8 @@ class QueryProgressTracker private[raphtory] (
     jobID: String,
     conf: Config,
     topics: TopicRepository
-) extends Component[QueryManagement](conf) {
+) extends Component[QueryManagement](conf)
+        with QueryProgressTrackerBase {
   private var perspectivesProcessed: Long = 0
   private var jobDone: Boolean            = false
   private val logger: Logger              = Logger(LoggerFactory.getLogger(this.getClass))

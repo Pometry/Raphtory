@@ -13,19 +13,15 @@ class ProgressTracker(GenericScalaProxy):
 
 @register(name="Table")
 class Table(GenericScalaProxy):
-    def write_to_dataframe(self, cols):
-        sink = find_class("com.raphtory.sinks.LocalQueueSink").apply()
-        self.write_to(sink).wait_for_job()
-        res = sink.results()
-        newJson = []
-        for r in res:
-            jsonRow = json.loads(r)
-            row = jsonRow['row']
-            for name, item in zip(cols, row):
-                jsonRow[name] = item
-            jsonRow.pop('row')
-            newJson.append(jsonRow)
-        return pd.DataFrame(newJson)
+    def to_df(self, cols):
+        rows = []
+        for res in self.get():
+            timestamp = res.perspective().timestamp()
+            window = res.perspective().window()
+
+            for r in res.rows():
+                rows.append((timestamp, window, *r.get_values()))
+        return pd.DataFrame.from_records(rows, columns=('timestamp', 'window', *cols))
 
 
 class Row(ScalaClassProxy):

@@ -1,6 +1,7 @@
 package com.raphtory.api.output.sink
 
 import com.raphtory.api.output.format.Format
+import com.raphtory.internals.communication.TopicRepository
 import com.typesafe.config.Config
 
 /** Base trait for sinks that use a generic [[com.raphtory.api.output.format.Format Format]] to write the data.
@@ -32,7 +33,8 @@ abstract class FormatAgnosticSink(format: Format) extends Sink {
   final override def executor(
       jobID: String,
       partitionID: Int,
-      config: Config
+      config: Config,
+      topics: TopicRepository
   ): SinkExecutor = {
     val connector =
       buildConnector(jobID, partitionID, config, format.defaultDelimiter, format.defaultExtension)
