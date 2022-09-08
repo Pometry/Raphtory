@@ -15,6 +15,7 @@ from typing import IO, AnyStr
 from py4j.java_gateway import JavaGateway, GatewayParameters
 from py4j.protocol import Py4JJavaError
 
+import pyraphtory.algorithm
 import pyraphtory.interop
 import pyraphtory.scala.collection
 import pyraphtory.vertex
@@ -161,7 +162,7 @@ class PyRaphtory(object):
 class Raphtory(interop.GenericScalaProxy):
     _classname = "com.raphtory.Raphtory$"
 
-    algorithms = pyraphtory.interop.BuiltinAlgorithm("com.raphtory.algorithms")
+    algorithms = pyraphtory.algorithm.BuiltinAlgorithm("com.raphtory.algorithms")
 
     def shutdown(self):
         """Shut down the Raphtory instance (this is called automatically on
