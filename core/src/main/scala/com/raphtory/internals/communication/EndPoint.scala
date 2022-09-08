@@ -8,6 +8,7 @@ private[raphtory] trait EndPoint[T] {
 
   def flushAndSendAsync(message: T): CompletableFuture[Unit] =
     flushAsync().thenApply(_ => sendAsync(message))
+  def sendSync(message: T): Unit
   def close(): Unit
   def closeWithMessage(message: T): Unit
 }

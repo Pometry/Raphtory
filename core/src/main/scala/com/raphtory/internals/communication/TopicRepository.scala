@@ -1,5 +1,6 @@
 package com.raphtory.internals.communication
 
+import com.raphtory.internals.components.output.OutputMessages
 import com.raphtory.internals.components.querymanager.ClusterManagement
 import com.raphtory.internals.components.querymanager.EndQuery
 import com.raphtory.internals.components.querymanager.EstablishGraph
@@ -13,7 +14,6 @@ import com.raphtory.internals.components.querymanager.VertexMessaging
 import com.raphtory.internals.components.querymanager.WatermarkTime
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphAlteration._
-import com.raphtory.sinks.OutputMessages
 import com.typesafe.config.Config
 
 private[raphtory] class TopicRepository(

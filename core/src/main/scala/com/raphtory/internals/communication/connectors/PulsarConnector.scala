@@ -41,6 +41,12 @@ private[raphtory] class PulsarConnector(
           throw t
       }
     }
+
+    override def sendSync(message: T): Unit = {
+      producer.flush()
+      producer.send(serialise(message))
+    }
+
     override def close(): Unit = producer.flushAsync().thenApply(_ => producer.closeAsync())
 
     override def flushAsync(): CompletableFuture[Void] = producer.flushAsync()

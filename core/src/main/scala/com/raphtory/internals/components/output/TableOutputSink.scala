@@ -1,22 +1,19 @@
-package com.raphtory.sinks
+package com.raphtory.internals.components.output
 
 import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.output.sink.SinkExecutor
-import com.raphtory.api.time.Interval
 import com.raphtory.api.time.Perspective
 import com.raphtory.internals.communication.EndPoint
-import com.raphtory.internals.communication.ExclusiveTopic
 import com.raphtory.internals.communication.TopicRepository
 import com.typesafe.config.Config
 
-sealed trait OutputMessages
-final case class RowOutput(perspective: Perspective, row: Row) extends OutputMessages
-final case class EndPerspective(perspective: Perspective)      extends OutputMessages
-final case object EndOutput                                    extends OutputMessages
+sealed private[raphtory] trait OutputMessages
+final private[raphtory] case class RowOutput(perspective: Perspective, row: Row) extends OutputMessages
+final private[raphtory] case class EndPerspective(perspective: Perspective)      extends OutputMessages
+private[raphtory] case object EndOutput                                          extends OutputMessages
 
-class TableOutputSinkExecutor(endPoint: EndPoint[OutputMessages]) extends SinkExecutor {
+private[raphtory] class TableOutputSinkExecutor(endPoint: EndPoint[OutputMessages]) extends SinkExecutor {
   private var currentPerspective: Perspective = _
 
   /** Sets up the perspective to be written out.
@@ -36,12 +33,14 @@ class TableOutputSinkExecutor(endPoint: EndPoint[OutputMessages]) extends SinkEx
     */
   override protected def writeRow(row: Row): Unit = endPoint.sendAsync(RowOutput(currentPerspective, row))
 
+  override protected def threadSafeWriteRow(row: Row): Unit = writeRow(row)
+
   /** Closes the writing of the current graph perspective.
     * This method gets called every time all the rows from one graph perspective have been successfully written out so
     * this `SinkExecutor` can handle it if needed.
     */
   override def closePerspective(): Unit =
-    endPoint.flushAndSendAsync(EndPerspective(currentPerspective)).get()
+    endPoint.sendSync(EndPerspective(currentPerspective))
 
   /** Closes this `SinkExecutor` after writing the complete table.
     *
@@ -50,7 +49,7 @@ class TableOutputSinkExecutor(endPoint: EndPoint[OutputMessages]) extends SinkEx
   override def close(): Unit = endPoint.closeWithMessage(EndOutput)
 }
 
-case object TableOutputSink extends Sink {
+private[raphtory] case object TableOutputSink extends Sink {
 
   /**
     * @param jobID       the ID of the job that generated the table

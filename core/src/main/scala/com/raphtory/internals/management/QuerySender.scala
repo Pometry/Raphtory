@@ -11,6 +11,8 @@ import com.raphtory.api.input.Source
 import com.raphtory.api.querytracker.QueryProgressTracker
 import com.raphtory.internals.communication.ExclusiveTopic
 import com.raphtory.internals.communication.TopicRepository
+import com.raphtory.internals.components.output.RowOutput
+import com.raphtory.internals.components.output.TableOutputSink
 import com.raphtory.internals.components.querymanager.BlockIngestion
 import com.raphtory.internals.components.querymanager.ClientDisconnected
 import com.raphtory.internals.components.querymanager.DestroyGraph
@@ -25,8 +27,6 @@ import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.internals.graph.GraphAlteration.VertexAdd
 import com.raphtory.internals.graph.GraphAlteration.VertexDelete
 import com.raphtory.internals.management.id.IDManager
-import com.raphtory.sinks.RowOutput
-import com.raphtory.sinks.TableOutputSink
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory

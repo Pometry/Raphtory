@@ -4,10 +4,10 @@ import com.raphtory.api.querytracker.QueryProgressTracker
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.api.time.Perspective
-import com.raphtory.sinks.EndOutput
-import com.raphtory.sinks.EndPerspective
-import com.raphtory.sinks.OutputMessages
-import com.raphtory.sinks.RowOutput
+import com.raphtory.internals.components.output.EndOutput
+import com.raphtory.internals.components.output.EndPerspective
+import com.raphtory.internals.components.output.OutputMessages
+import com.raphtory.internals.components.output.RowOutput
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory

@@ -43,7 +43,7 @@ private[raphtory] class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Com
   case class AkkaEndPoint[T](actorRefs: Future[Set[ActorRef[Array[Byte]]]], topic: String) extends EndPoint[T] {
     private val endPointResolutionTimeout: Duration = 60.seconds
 
-    override def sendAsync(message: T): Unit           =
+    override def sendAsync(message: T): Unit =
       try Await.result(actorRefs, endPointResolutionTimeout) foreach (_ ! serialise(message))
       catch {
         case e: concurrent.TimeoutException =>
@@ -53,6 +53,7 @@ private[raphtory] class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Com
           throw new Exception(msg, e)
       }
 
+    override def sendSync(message: T): Unit            = sendAsync(message)
     override def close(): Unit = {}
     override def flushAsync(): CompletableFuture[Void] = CompletableFuture.completedFuture(null)
 
@@ -60,7 +61,7 @@ private[raphtory] class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Com
       sendAsync(message)
       CompletableFuture.completedFuture(())
     }
-    override def closeWithMessage(message: T): Unit    = sendAsync(message)
+    override def closeWithMessage(message: T): Unit = sendAsync(message)
   }
 
   override def endPoint[T](topic: CanonicalTopic[T]): EndPoint[T] = {

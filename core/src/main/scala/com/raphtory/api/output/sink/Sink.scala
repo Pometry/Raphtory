@@ -69,6 +69,8 @@ trait SinkExecutor {
     */
   def close(): Unit
 
-  /** Thread safe version of `writeRow` used internally by Raphtory to write a `row`. */
-  final private[raphtory] def threadSafeWriteRow(row: Row): Unit = synchronized(writeRow(row))
+  /** Thread safe version of `writeRow` used internally by Raphtory to write a `row`.
+    * Override this method to provide a more efficient thread-safe implementation.
+    */
+  protected def threadSafeWriteRow(row: Row): Unit = synchronized(writeRow(row))
 }
