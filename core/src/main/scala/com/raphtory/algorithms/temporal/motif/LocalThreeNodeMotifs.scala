@@ -102,7 +102,7 @@ class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint
                 edges)
                 .sortBy(x => (x._3, x._1, x._2))
               val ids = List(v.ID,u,w).sortWith(_<_)
-              val mc = new TriadMotifCounter(ids(0),ids(1))
+              val mc = new TriadMotifCounter(ids(0),ids(1), List(ids(2)))
               mc.execute(inputEdges,delta)
               val curVal = v.getState[Array[Int]]("triCounts")
               v.setState("triCounts", curVal.zip(mc.getCounts)
@@ -122,7 +122,7 @@ class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint
       }
       .step({
         (v, state) =>
-          val mc = new StarMotifCounter(v.ID)
+          val mc = new StarMotifCounter(v.ID, v.neighbours.filter(_!=v.ID))
           // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
           // for motif edges with the same timestamp
           mc.execute(v.explodeAllEdges().map(e=> (e.src,e.dst,e.timestamp)).sortBy(x => (x._3, x._1, x._2)),delta)
