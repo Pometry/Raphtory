@@ -30,6 +30,9 @@ requirements:
     - python ==3.10.4
     - sbt
 
+test:
+  imports:
+    - pyraphtory
 
 about:
   home: https://github.com/raphtory/raphtory/
