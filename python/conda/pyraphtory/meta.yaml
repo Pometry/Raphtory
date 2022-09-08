@@ -27,10 +27,7 @@ requirements:
     - openjdk ==11.0.13
     - python ==3.10.4
     - sbt
-    - cloudpickle >=0.4
-    - pandas >=1.4.3
-    - py4j ==0.10.9
-    - six ==1.16.0
+
 
 about:
   home: https://github.com/raphtory/raphtory/
