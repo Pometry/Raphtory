@@ -90,7 +90,7 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
         neighbours.foreach { nb =>
           v.messageVertex(nb, (v.ID, neighbours))
         }
-        v("triCounts") = Array.fill(8)(0)
+        v("triCounts") = Array.fill(8)(0L)
       }
       // this step gets a list of (static) edges that form the opposite edge of a triangle with a node. this is ordered
       // smallest id first.
@@ -176,7 +176,7 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
             val opNeighbours = inputEdges.foldRight[Set[Long]](Set())((edge, nbset) => nbset.union(Set(edge._1,edge._2))).removedAll(List(v.ID,nb))
             val mc         = new TriadMotifCounter(v.ID, nb, opNeighbours)
             mc.execute(inputEdges, delta)
-            val curVal     = v.getState[Array[Int]]("triCounts")
+            val curVal     = v.getState[Array[Long]]("triCounts")
             v("triCounts") = arrayOp(curVal,mc.getCounts)(_+_)
             state("triCounts") += mc.getCounts.map(_.toLong)
           }
@@ -187,7 +187,7 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
         // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
         // for motif edges with the same timestamp
         mc.execute(v.explodeAllEdges().map(e => (e.src, e.dst, e.timestamp)).sortBy(x => (x._3, x._1, x._2)), delta)
-        val counts: Array[Int] = mc.getCounts
+        val counts: Array[Long] = mc.getCounts
         var twoNodeCounts      = Array.fill(8)(0)
         v.getState[Set[Long]]("nbs").foreach { vid =>
           val mc2node = new TwoNodeMotifs(v.ID)
@@ -261,21 +261,21 @@ abstract class MotifCounter {
 
   val dirsToMap: Seq[((Int, Int), Int)]        = List((0, 0), (0, 1), (1, 0), (1, 1)).map(k => (k, 0))
 
-  val preNodes:Array[Int]
-  val postNodes:Array[Int]
-  val preSum:Array[Int]
-  val midSum:Array[Int]
-  val postSum:Array[Int]
+  val preNodes:Array[Long]
+  val postNodes:Array[Long]
+  val preSum:Array[Long]
+  val midSum:Array[Long]
+  val postSum:Array[Long]
 
   def push(
-      curNodes: Array[Int],
-      curSum: Array[Int],
+      curNodes: Array[Long],
+      curSum: Array[Long],
       curEdge: (Long, Long, Long)
   ): Unit
 
   def pop(
-           curNodes: Array[Int],
-           curSum: Array[Int],
+           curNodes: Array[Long],
+           curSum: Array[Long],
            curEdge: (Long, Long, Long)
   ): Unit
   def processCurrent(curEdge: (Long, Long, Long)): Unit
@@ -310,16 +310,16 @@ import ThreeNodeMotifs.{map2D,map3D}
   val neighMap: Map[Long,Int] = neighbours.zip(0 until neighbours.size).toMap
   val N: Int = neighbours.size
 
-  val preNodes:Array[Int] = Array.fill(4*N)(0)
-  val postNodes:Array[Int] = Array.fill(4*N)(0)
-  val preSum:Array[Int] = Array.fill(8)(0)
-  val midSum:Array[Int] = Array.fill(8)(0)
-  val postSum:Array[Int] = Array.fill(8)(0)
-  val finalCounts:Array[Int] = Array.fill(8)(0)
+  val preNodes:Array[Long] = Array.fill(4*N)(0)
+  val postNodes:Array[Long] = Array.fill(4*N)(0)
+  val preSum:Array[Long] = Array.fill(8)(0)
+  val midSum:Array[Long] = Array.fill(8)(0)
+  val postSum:Array[Long] = Array.fill(8)(0)
+  val finalCounts:Array[Long] = Array.fill(8)(0)
 
   def push(
-      curNodes: Array[Int],
-      curSum: Array[Int],
+      curNodes: Array[Long],
+      curSum: Array[Long],
       curEdge: (Long, Long, Long)
   ): Unit = {
     if ((curEdge._1.min(curEdge._2), curEdge._1.max(curEdge._2)) == (uid, vid))
@@ -333,8 +333,8 @@ import ThreeNodeMotifs.{map2D,map3D}
   }
 
   def pop(
-           curNodes: Array[Int],
-           curSum: Array[Int],
+           curNodes: Array[Long],
+           curSum: Array[Long],
            curEdge: (Long, Long, Long)
          ): Unit = {
     if ((curEdge._1.min(curEdge._2), curEdge._1.max(curEdge._2)) == (uid, vid))
@@ -369,7 +369,7 @@ import ThreeNodeMotifs.{map2D,map3D}
       finalCounts(map3D(1, 1, 1)) += midSum(map3D(1 - utov, 1, 1)) + postSum(map3D(1 - utov, 1, 0)) + preSum(map3D(utov, 0, 0))
     }
 
-  def getCounts: Array[Int] =
+  def getCounts: Array[Long] =
     finalCounts
 }
 
@@ -379,20 +379,20 @@ class StarMotifCounter(vid: Long, neighbours:Iterable[Long]) extends MotifCounte
   val neighMap: Map[Long,Int] = neighbours.zip(0 until neighbours.size).toMap
   val N: Int = neighbours.size
 
-  val preNodes:Array[Int] = Array.fill(2*neighbours.size)(0)
-  val postNodes:Array[Int] = Array.fill(2*neighbours.size)(0)
+  val preNodes:Array[Long] = Array.fill(2*neighbours.size)(0)
+  val postNodes:Array[Long] = Array.fill(2*neighbours.size)(0)
 
-  val preSum:Array[Int] = Array.fill(8)(0)
-  val midSum:Array[Int] = Array.fill(8)(0)
-  val postSum:Array[Int] = Array.fill(8)(0)
+  val preSum:Array[Long] = Array.fill(8)(0)
+  val midSum:Array[Long] = Array.fill(8)(0)
+  val postSum:Array[Long] = Array.fill(8)(0)
 
-  val countPre: Array[Int] = Array.fill(8)(0)
-  val countMid: Array[Int] = Array.fill(8)(0)
-  val countPost: Array[Int] = Array.fill(8)(0)
+  val countPre: Array[Long] = Array.fill(8)(0)
+  val countMid: Array[Long] = Array.fill(8)(0)
+  val countPost: Array[Long] = Array.fill(8)(0)
 
   override def push(
-      curNodes: Array[Int],
-      curSum: Array[Int],
+      curNodes: Array[Long],
+      curSum: Array[Long],
       curEdge: (Long, Long, Long)
   ): Unit = {
     val (nb, dir) = if (curEdge._2 == vid) (curEdge._1, incoming) else (curEdge._2, outgoing)
@@ -402,8 +402,8 @@ class StarMotifCounter(vid: Long, neighbours:Iterable[Long]) extends MotifCounte
   }
 
   override def pop(
-                    curNodes: Array[Int],
-                    curSum: Array[Int],
+                    curNodes: Array[Long],
+                    curSum: Array[Long],
                     curEdge: (Long, Long, Long)
   ): Unit = {
     val (nb, dir) = if (curEdge._2 == vid) (curEdge._1, incoming) else (curEdge._2, outgoing)
@@ -429,7 +429,7 @@ class StarMotifCounter(vid: Long, neighbours:Iterable[Long]) extends MotifCounte
     midSum(map2D(dir,outgoing)) += postNodes(outgoing*N + neighMap(nb))
   }
 
-  def getCounts: Array[Int] = countPre++countMid++countPost
+  def getCounts: Array[Long] = countPre++countMid++countPost
 }
 
 class TwoNodeMotifs(vid: Long) {
