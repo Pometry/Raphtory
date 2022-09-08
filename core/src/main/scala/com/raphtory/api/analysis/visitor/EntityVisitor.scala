@@ -231,6 +231,9 @@ abstract class EntityVisitor {
     */
   def setState(key: String, value: Any): Unit
 
+  def update(i: String, x: Any): Unit =
+    setState(i, x)
+
   /** Retrieve value from algorithmic state. Note that for edges, algorithmic state is stored locally to the vertex endpoint
     * which sets this state (default being the source node when set during an edge step).
     * @tparam `T` value type for state

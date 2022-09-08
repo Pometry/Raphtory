@@ -3,6 +3,7 @@ package com.raphtory.api.analysis.graphstate
 import com.raphtory.utils.Bounded
 
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.Searching.Found
 import scala.collection.Searching.InsertionPoint
 import scala.collection.MapView
@@ -36,10 +37,39 @@ private class SimpleAccumulatorImplementation[T](
   override def merge(other: T): Unit = this += other
 }
 import scala.jdk.FunctionConverters._
+
+private class ConcurrentAccumulatorImpl[T](initialValue: T, retainState: Boolean = false, op: (T, T) => T)
+        extends AccumulatorImplementation[T, T] {
+  val currentValueA            = new AtomicReference[T](initialValue)
+  val valueA                   = new AtomicReference[T](initialValue)
+  override def currentValue: T = currentValueA.get()
+
+  override def merge(other: T): Unit = this.+=(other)
+
+  override def reset(): Unit = {
+    // FIXME: possibly concurrency issues, we'll get back to this
+    if (retainState)
+      valueA.accumulateAndGet(currentValue, op.asJava)
+    else
+      valueA.set(currentValue)
+    currentValueA.set(initialValue)
+  }
+
+  /** Get last accumulated value */
+  override def value: T = valueA.get()
+
+  /** Add new value to accumulator
+    *
+    * @param newValue Value to add
+    */
+  override def +=(newValue: T): Unit =
+    this.currentValueA.accumulateAndGet(newValue, op.asJava)
+}
+
 private class IntAccumulatorImpl(initialValue: Int, retainState: Boolean = false, op: (Int, Int) => Int)
         extends AccumulatorImplementation[Int, Int] {
   private val currentValueA: AtomicInteger = new AtomicInteger(initialValue)
-  private val valueA: AtomicInteger = new AtomicInteger(initialValue)
+  private val valueA: AtomicInteger        = new AtomicInteger(initialValue)
   override def currentValue: Int           = currentValueA.get()
 
   override def merge(other: Int): Unit = this += other
@@ -60,9 +90,8 @@ private class IntAccumulatorImpl(initialValue: Int, retainState: Boolean = false
     *
     * @param newValue Value to add
     */
-  override def +=(newValue: Int): Unit = {
+  override def +=(newValue: Int): Unit =
     currentValueA.accumulateAndGet(newValue, op.asJava)
-  }
 }
 
 private object AccumulatorImplementation {
@@ -296,6 +325,9 @@ private[raphtory] class GraphStateImplementation(override val nodeCount: Int) ex
   override def contains(name: String): Boolean =
     accumulatorState.contains(name)
 
+  override def newConcurrentAccumulator[T](name: String, initialValue: T, retainState: Boolean, op: (T, T) => T): Unit =
+    accumulatorState(name) =
+      new ConcurrentAccumulatorImpl[T](initialValue, retainState, op).asInstanceOf[AccumulatorImplementation[Any, Any]]
 }
 
 private[raphtory] object GraphStateImplementation {
