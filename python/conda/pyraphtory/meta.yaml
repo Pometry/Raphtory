@@ -1,26 +1,17 @@
 {% set name = "pyraphtory" %}
 {% set version = "0.1.0" %}
 {% set build_number = "0" %}
-{% set md5 = "26ff436b4abb28487e69de5fc957339d" %}
-{% set sha1 = "340d50024644b310300b4cd9abe449aed0f28df9" %}
-{% set sha256 = "39a88086833387e37751d8dbe68a23dc4e1ecd62338ca686555083e749beb4f2" %}
 
 package:
   name: {{ name|lower }}
   version: {{ version }}
 
 source:
-#  url: https://github.com/Raphtory/Raphtory/releases/download/v{{ version }}/core-assembly-{{ version }}.jar
-#  md5: {{ md5 }}
-#  sha1: {{ sha1 }}
-#  sha256: {{ sha256 }}
-  path: ../../../
-#  git_url: https://github.com/Raphtory/Raphtory.git
-#  git_tag: feature/DEV-1144-conda-package
+  git_url: https://github.com/Raphtory/Raphtory.git
+  git_tag: feature/DEV-1144-conda-package
 
 build:
   number: {{ build_number }}
-#  script: mkdir -p $PREFIX/jars && cp *.jar $PREFIX/
 
 requirements:
   host:
@@ -39,7 +30,7 @@ requirements:
     - cloudpickle >=0.4
     - pandas >=1.4.3
     - py4j ==0.10.9
-    - poetry
+    - six ==1.16.0
 
 about:
   home: https://github.com/raphtory/raphtory/
