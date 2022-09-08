@@ -126,7 +126,7 @@ class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint
           // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
           // for motif edges with the same timestamp
           mc.execute(v.explodeAllEdges().map(e=> (e.src,e.dst,e.timestamp)).sortBy(x => (x._3, x._1, x._2)),delta)
-          val counts : Array[Int] = mc.getCounts
+          val counts : Array[Long] = mc.getCounts
           var twoNodeCounts = Array.fill(8)(0)
           v.neighbours.foreach{
             vid =>
