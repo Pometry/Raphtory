@@ -33,7 +33,7 @@ private[raphtory] class TableOutputSinkExecutor(endPoint: EndPoint[OutputMessage
     */
   override protected def writeRow(row: Row): Unit = endPoint.sendAsync(RowOutput(currentPerspective, row))
 
-  override protected def threadSafeWriteRow(row: Row): Unit = writeRow(row)
+  override def threadSafeWriteRow(row: Row): Unit = writeRow(row)
 
   /** Closes the writing of the current graph perspective.
     * This method gets called every time all the rows from one graph perspective have been successfully written out so
