@@ -25,6 +25,7 @@ requirements:
     - sbt
     - setuptools
   run:
+    - make
     - openjdk ==11.0.13
     - python ==3.10.4
     - sbt
