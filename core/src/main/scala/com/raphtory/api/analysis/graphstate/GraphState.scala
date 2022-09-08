@@ -43,6 +43,7 @@ abstract class GraphState {
       op: (T, T) => T
   ): Unit
 
+  def newConcurrentAccumulator[T]( name: String, initialValue: T, retainState: Boolean = false, op: (T, T) => T ): Unit
   /** Create a new constant that stores an immutable value
     *
     * @tparam T Value type of the constant

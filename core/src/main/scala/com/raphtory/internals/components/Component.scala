@@ -120,7 +120,7 @@ object Component {
     catch {
       case ex: Exception =>
         log.warn("Failed to disable Java 10 access warning:")
-        ex.printStackTrace()
+//        ex.printStackTrace()
     }
   }
 
