@@ -15,6 +15,7 @@ build:
 
 requirements:
   host:
+    - make
     - git
     - openjdk ==11.0.13
     - python ==3.10.4
