@@ -16,7 +16,7 @@ sbt-build: version
 python-build: version
 	cd python/pyraphtory/ && mkdir -p lib && \
 		poetry build && \
-		poetry install && \
+		poetry install
 	pip3 install python/pyraphtory/dist/pyraphtory-$$(cat version).tar.gz
 
 .PHONY pyraphtory-local:
