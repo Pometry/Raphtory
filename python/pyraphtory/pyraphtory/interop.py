@@ -1,4 +1,3 @@
-import abc
 import inspect
 import re
 import traceback
@@ -8,7 +7,7 @@ from py4j.java_gateway import JavaObject, JavaClass
 from py4j.java_collections import JavaArray
 import cloudpickle as pickle
 from functools import cached_property
-from threading import Lock
+from threading import Lock, RLock
 from copy import copy
 
 from pyraphtory import _codegen
@@ -325,8 +324,7 @@ class GenericScalaProxy(ScalaProxyBase):
     """
     _initialised = False
     _classname = None
-    _jvm_object = None
-    _init_lock = Lock()
+    _init_lock = RLock()
 
     def __repr__(self):
         if self._jvm_object is not None:
@@ -353,6 +351,7 @@ class GenericScalaProxy(ScalaProxyBase):
                 methods = get_methods(jvm_object)
                 for (name, method_array) in methods.items():
                     cls._add_method(name, method_array)
+                cls.__getattr__ = cls._getattr_initialised
                 cls._initialised = True
 
     @property
@@ -372,18 +371,22 @@ class GenericScalaProxy(ScalaProxyBase):
         logger.trace(f"{self!r} called with {args=} and {kwargs=}")
         return self.apply(*args, **kwargs)
 
+    def _getattr_initialised(self, item):
+        raise AttributeError(f"{self.__class__.__name__} has no attribute {item}")
+
     def __getattr__(self, item):
-        """Triggers method initialisation if the class is uninitialised, otherwise just raises AttributeError"""
-        if self._initialised:
-            raise AttributeError(f"Attribute {item} does not exist for {self!r}")
-        else:
-            if self._jvm_object is None:
-                if self._classname is not None:
-                    self._jvm_object = find_class(self._classname)
-                else:
-                    raise AttributeError("Uninitialised class has no attributes")
-            self._init_methods(self._jvm_object)
-            return getattr(self, item)
+        with self._init_lock:
+            """Triggers method initialisation if the class is uninitialised, otherwise just raises AttributeError"""
+            if self._initialised:
+                return getattr(self, item)  # a different thread already initialised the object
+            else:
+                if self._jvm_object is None:
+                    if self._classname is not None:
+                        self._jvm_object = find_class(self._classname)
+                    else:
+                        raise AttributeError(f"Uninitialised class {self.__class__.__name__} has no attributes")
+                self._init_methods(self._jvm_object)
+                return getattr(self, item)
 
     def __new__(cls, jvm_object=None):
         """Create a new instance and trigger method initialisation if needed"""
@@ -480,10 +483,24 @@ class WithImplicits:
             return bound
 
 
+def _lazy_load_base(self, item):
+    """Lazy initialisation of class attributes to avoid import errors due to missing java connection"""
+    with self._base_init_lock:
+        if self._base_initialised:
+            return getattr(self, item)  # a different thread already initialised the object
+        else:
+            if self._jvm_object is None and self._classname is not None:
+                self._jvm_object = find_class(self._classname)
+                self._init_base_methods(self._jvm_object)
+                return getattr(self, item)
+            else:
+                raise AttributeError("Uninitialisable class has no attributes")
+
+
 class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
     """Metaclass for wrapping Scala companion objects"""
     _base_initialised = False
-    _init_lock = Lock()
+    _base_init_lock = RLock()
 
     @property
     def jvm(self):
@@ -494,30 +511,34 @@ class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
         else:
             return None
 
+    def _from_jvm(cls, jvm_object):
+        if cls._base_initialised:
+            return cls
+        else:
+            with cls._base_init_lock:
+                cls._init_base_methods(jvm_object)
+                cls._jvm_object = jvm_object
+            return cls
+
     def __new__(mcs, name, bases, attrs, **kwargs):
         """Injects an additional specialised type to avoid interference between different classes"""
-        if "_classname" not in attrs:
+        concrete = "_classname" in attrs
+        if not concrete:
             actual_mcs = mcs
         else:
-            actual_mcs = type.__new__(mcs, name + "_", (mcs,), {"_classname": attrs["_classname"]})
-        return type.__new__(actual_mcs, name, bases, attrs, **kwargs)
+            actual_mcs = type.__new__(mcs, name + "_", (mcs,), {"_classname": attrs["_classname"],
+                                                                "__getattr__": _lazy_load_base})
 
-    def __getattr__(self, item):
-        """Lazy initialisation of class attributes to avoid import errors due to missing java connection"""
-        if self._base_initialised:
-            raise AttributeError(f"Attribute {item} does not exist for {self!r}")
-        else:
-            if self._jvm_object is None and self._classname is not None:
-                self._jvm_object = find_class(self._classname)
-                self._init_base_methods(self._jvm_object)
-                return getattr(self, item)
-            else:
-                raise AttributeError("Uninitialised class has no attributes")
+        cls = type.__new__(actual_mcs, name, bases, attrs, **kwargs)
+        if concrete:
+            register(cls._from_jvm, name=cls._classname + "$")
+
+        return cls
 
     @classmethod
     def _init_base_methods(mcs, jvm_object):
         """add companion object methods to metaclass"""
-        with mcs._init_lock:
+        with mcs._base_init_lock:
             # this should only happen once in case of multiple threads
             if not mcs._base_initialised:
                 logger.trace(f"uninitialised class {mcs.__name__}")
@@ -527,6 +548,7 @@ class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
                 methods = get_methods(jvm_object)
                 for (name, method_array) in methods.items():
                     mcs._add_method(name, method_array)
+                del mcs.__getattr__
                 mcs._base_initialised = True
 
 
@@ -557,20 +579,3 @@ class Function2(ScalaClassProxy):
     _classname = "com.raphtory.internals.management.PythonFunction2"
 
 
-class BuiltinAlgorithm(ScalaProxyBase):
-    """Proxy object for looking up built-in algorithms based on path
-
-    (This actually could be used for looking up other classes as well if needed)
-    """
-    @property
-    def _jvm_object(self):
-        return find_class(self._path)
-
-    def __init__(self, path: str):
-        self._path = path
-
-    def __call__(self, *args, **kwargs):
-        return to_python(self._jvm_object).apply(*args, **kwargs)
-
-    def __getattr__(self, item):
-        return BuiltinAlgorithm(".".join((self._path, item)))
