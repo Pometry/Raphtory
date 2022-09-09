@@ -55,5 +55,5 @@ class TemporalGraph(GenericScalaProxy):
 class Accumulator(GenericScalaProxy):
 
     def __iadd__(self, other):
-        getattr(self, "$plus$eq")(other)
+        self.plus_eq(other)
         return self

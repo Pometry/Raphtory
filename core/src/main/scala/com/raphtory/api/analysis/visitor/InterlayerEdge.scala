@@ -1,4 +1,5 @@
 package com.raphtory.api.analysis.visitor
+import scala.reflect.ClassTag
 
 /** Class for representing interlayer edges
   *
@@ -58,6 +59,13 @@ case class InterlayerEdge(
 
   override def aliveAt(time: Long, window: Long = Long.MaxValue): Boolean =
     time < latestActivity().time && time > earliestActivity().time
+
+  override def setState(key: String, value: Any): Unit = ???
+  override def getState[T](key: String, includeProperties: Boolean): T = ???
+  override def getStateOrElse[T](key: String, value: T, includeProperties: Boolean): T = ???
+  override def containsState(key: String, includeProperties: Boolean): Boolean = ???
+  override def getOrSetState[T](key: String, value: T, includeProperties: Boolean): T = ???
+  override def appendToState[T: ClassTag](key: String, value: T): Unit = ???
 }
 
 /** Default builders for constructing interlayer edges
