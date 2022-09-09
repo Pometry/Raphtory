@@ -1,14 +1,14 @@
 package com.raphtory.algorithms.temporal.motif
 
-import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs.{get2NodeCountsWithoutRepeats, getStarCountsPretty, getTriCountsPretty, map2D, map3D}
+import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs.{dirs2D, get2NodeCountsWithoutRepeats, getStarCountsPretty, getTriCountsPretty, map2D, map3D}
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
-import scala.collection.mutable.LongMap
 
+import scala.collection.mutable.LongMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
@@ -87,17 +87,15 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
       .step { v =>
         // Ensure no self loops are counted within motifs
         val neighbours = v.neighbours.filter(_ != v.ID).toSet
-        v.setState("nbs",neighbours)
         neighbours.foreach { nb =>
           v.messageVertex(nb, (v.ID, neighbours))
         }
-        v("triCounts") = Array.fill(8)(0L)
       }
       // this step gets a list of (static) edges that form the opposite edge of a triangle with a node. this is ordered
       // smallest id first.
       .step { v =>
         // Ensure no self loops are counted within motifs
-        val neighbours = v.getState[Set[Long]]("nbs")
+        val neighbours = v.neighbours.filter(_ != v.ID).toSet
         val queue      = v.messageQueue[(v.IDType, Set[v.IDType])]
         queue.foreach {
           // Pick a representative node who will hold all the exploded edge info.
@@ -160,7 +158,8 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
         }
       }
       .step { (v, state) =>
-        v.getState[Set[Long]]("nbs").foreach { nb =>
+        v("triCounts") = Array.fill(8)(0L)
+        v.neighbours.filter(_ != v.ID).foreach { nb =>
           val edge = v.getEdge(nb).minBy(_.src)
           val a_e  = edge.getStateOrElse[ArrayBuffer[(Long, Long, Long)]]("a_e", ArrayBuffer())
           if (a_e.nonEmpty) {
@@ -184,13 +183,13 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
         }
       }
       .step { (v, state) =>
-        val mc                 = new StarMotifCounter(v.ID, v.getState[Set[Long]]("nbs"))
+        val mc                 = new StarMotifCounter(v.ID, v.neighbours.filter(_ != v.ID))
         // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
         // for motif edges with the same timestamp
         mc.execute(v.explodeAllEdges().map(e => (e.src, e.dst, e.timestamp)).sortBy(x => (x._3, x._1, x._2)), delta)
         val counts: Array[Long] = mc.getCounts
         var twoNodeCounts      = Array.fill(8)(0)
-        v.getState[Set[Long]]("nbs").foreach { vid =>
+        v.neighbours.filter(_ != v.ID).foreach { vid =>
           val mc2node = new TwoNodeMotifs(v.ID)
           // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
           // for motif edges with the same timestamp
@@ -361,14 +360,14 @@ import ThreeNodeMotifs.{map2D,map3D}
     }
     else {
       val (utov, dir) = if (curEdge._1 == uid) (1, outgoing) else (0, incoming)
-      finalCounts(map3D(0, 0, 0)) += midSum(map3D(utov, 0, 0)) + postSum(map3D(utov, 0, 1)) + preSum(map3D(1 - utov, 1, 1))
-      finalCounts(map3D(1, 0, 0)) += midSum(map3D(utov, 1, 0)) + postSum(map3D(1 - utov, 0, 1)) + preSum(map3D(1 - utov, 0, 1))
-      finalCounts(map3D(0, 1, 0)) += midSum(map3D(1 - utov, 0, 0)) + postSum(map3D(utov, 1, 1)) + preSum(map3D(1 - utov, 1, 0))
-      finalCounts(map3D(1, 1, 0)) += midSum(map3D(1 - utov, 1, 0)) + postSum(map3D(1 - utov, 1, 1)) + preSum(map3D(1 - utov, 0, 0))
-      finalCounts(map3D(0, 0, 1)) += midSum(map3D(utov, 0, 1)) + postSum(map3D(utov, 0, 0)) + preSum(map3D(utov, 1, 1))
-      finalCounts(map3D(1, 0, 1)) += midSum(map3D(utov, 1, 1)) + postSum(map3D(1 - utov, 0, 0)) + preSum(map3D(utov, 0, 1))
-      finalCounts(map3D(0, 1, 1)) += midSum(map3D(1 - utov, 0, 1)) + postSum(map3D(utov, 1, 0)) + preSum(map3D(utov, 1, 0))
-      finalCounts(map3D(1, 1, 1)) += midSum(map3D(1 - utov, 1, 1)) + postSum(map3D(1 - utov, 1, 0)) + preSum(map3D(utov, 0, 0))
+      finalCounts(0) += midSum(map3D(utov, 0, 0)) + postSum(map3D(utov, 0, 1)) + preSum(map3D(1 - utov, 1, 1))
+      finalCounts(4) += midSum(map3D(utov, 1, 0)) + postSum(map3D(1 - utov, 0, 1)) + preSum(map3D(1 - utov, 0, 1))
+      finalCounts(2) += midSum(map3D(1 - utov, 0, 0)) + postSum(map3D(utov, 1, 1)) + preSum(map3D(1 - utov, 1, 0))
+      finalCounts(6) += midSum(map3D(1 - utov, 1, 0)) + postSum(map3D(1 - utov, 1, 1)) + preSum(map3D(1 - utov, 0, 0))
+      finalCounts(1) += midSum(map3D(utov, 0, 1)) + postSum(map3D(utov, 0, 0)) + preSum(map3D(utov, 1, 1))
+      finalCounts(5) += midSum(map3D(utov, 1, 1)) + postSum(map3D(1 - utov, 0, 0)) + preSum(map3D(utov, 0, 1))
+      finalCounts(3) += midSum(map3D(1 - utov, 0, 1)) + postSum(map3D(utov, 1, 0)) + preSum(map3D(utov, 1, 0))
+      finalCounts(7) += midSum(map3D(1 - utov, 1, 1)) + postSum(map3D(1 - utov, 1, 0)) + preSum(map3D(utov, 0, 0))
     }
 
   def getCounts: Array[Long] =
@@ -422,7 +421,7 @@ class StarMotifCounter(vid: Long, neighbours:Iterable[Long]) extends MotifCounte
     midSum(map2D(incoming,dir)) -= preNodes(incoming*N + neighMap(nb))
     midSum(map2D(outgoing,dir)) -= preNodes(outgoing*N + neighMap(nb))
 
-    for ((dir1,dir2) <- List((0,0),(0,1),(1,0),(1,1))) {
+    for ((dir1,dir2) <- dirs2D) {
       countPre(map3D(dir1,dir2,dir)) += preSum(map2D(dir1,dir2))
       countPost(map3D(dir,dir1,dir2)) += postSum(map2D(dir1,dir2))
       countMid(map3D(dir1,dir,dir2)) += midSum(map2D(dir1,dir2))
@@ -465,7 +464,7 @@ class TwoNodeMotifs(vid: Long) {
   def incrementCounts(edge: (Long, Long, Long)): Unit = {
     val dir = if (edge._2 == vid) incoming else outgoing
 
-    for ((dir1, dir2) <- List((0,0),(0,1),(1,0),(1,1))) {
+    for ((dir1, dir2) <- dirs2D) {
       count3d(map3D(dir1,dir2,dir)) += count2d(map2D(dir1,dir2))
     }
 
@@ -488,6 +487,8 @@ object ThreeNodeMotifs {
 
   def map2D(d1:Int,d2:Int) : Int = 2*d1 + d2
   def map3D(d1:Int,d2:Int,d3:Int) : Int = 4*d1 + 2*d2 + d3
+
+  val dirs2D : List[(Int,Int)] = List((0,0),(0,1),(1,0),(1,1))
 
   def getTriCountsPretty[T: Numeric](triCounts: Array[T]): Map[String, T] = {
     val prettyCounts = mutable.Map[String, T]()
