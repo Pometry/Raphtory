@@ -1,8 +1,18 @@
 package com.raphtory.internals.management
 
+import com.raphtory.api.input.Graph
+import com.raphtory.api.input.MaybeType
+import com.raphtory.api.input.Properties
+import com.raphtory.api.analysis.table.TableOutputTracker
+import com.raphtory.api.input.Graph
+import com.raphtory.api.input.MaybeType
+import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Source
 import com.raphtory.api.querytracker.QueryProgressTracker
+import com.raphtory.internals.communication.ExclusiveTopic
 import com.raphtory.internals.communication.TopicRepository
+import com.raphtory.internals.components.output.RowOutput
+import com.raphtory.internals.components.output.TableOutputSink
 import com.raphtory.internals.components.querymanager.BlockIngestion
 import com.raphtory.internals.components.querymanager.ClientDisconnected
 import com.raphtory.internals.components.querymanager.DestroyGraph
@@ -11,7 +21,11 @@ import com.raphtory.internals.components.querymanager.EstablishGraph
 import com.raphtory.internals.components.querymanager.IngestData
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.UnblockIngestion
+import com.raphtory.internals.graph.GraphAlteration.EdgeAdd
+import com.raphtory.internals.graph.GraphAlteration.EdgeDelete
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
+import com.raphtory.internals.graph.GraphAlteration.VertexAdd
+import com.raphtory.internals.graph.GraphAlteration.VertexDelete
 import com.raphtory.internals.management.id.IDManager
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -19,6 +33,7 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.duration.Duration
 import scala.util.Random
 
 private[raphtory] class QuerySender(
@@ -27,7 +42,7 @@ private[raphtory] class QuerySender(
     private val config: Config,
     private val idManager: IDManager,
     private val clientID: String
-) {
+) extends Graph {
 
   class NoIDException(message: String) extends Exception(message)
 
@@ -46,7 +61,7 @@ private[raphtory] class QuerySender(
   private var newIDRequiredOnUpdate    = true // has a query been since the last update and do I need a new ID
   private var currentSourceID          = -1   //this is initialised as soon as the client sends 1 update
 
-  def IDForUpdates(): Int = {
+  private def IDForUpdates(): Int = {
     if (newIDRequiredOnUpdate)
       idManager.getNextAvailableID() match {
         case Some(id) =>
@@ -99,11 +114,16 @@ private[raphtory] class QuerySender(
   def establishGraph(): Unit =
     topics.graphSetup.endPoint sendAsync EstablishGraph(graphID, clientID)
 
-  def individualUpdate(update: GraphUpdate) = {
-    writers((update.srcId % totalPartitions).toInt) sendAsync update
+  private def individualUpdate(update: GraphUpdate): Unit = {
+    writers(getPartitionForId(update.srcId)) sendAsync update
     totalUpdateIndex += 1
     updatesSinceLastIDChange += 1
+  }
 
+  def outputCollector(tracker: QueryProgressTracker, timeout: Duration): TableOutputTracker = {
+    val collector = TableOutputTracker(tracker, topics, config, timeout)
+    scheduler.execute(collector)
+    collector
   }
 
   def submitSource(blocking: Boolean, sources: Seq[Source], id: String): Unit = {
@@ -128,4 +148,33 @@ private[raphtory] class QuerySender(
 
   private def getDefaultName(query: Query): String =
     if (query.name.nonEmpty) query.name else query.hashCode().abs.toString
+
+  override def addVertex(
+      updateTime: Long,
+      srcId: Long,
+      properties: Properties,
+      vertexType: MaybeType,
+      secondaryIndex: Long
+  ): Unit =
+    individualUpdate(
+            VertexAdd(IDForUpdates(), updateTime, secondaryIndex, srcId, properties, vertexType.toOption)
+    )
+
+  override def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long): Unit =
+    individualUpdate(VertexDelete(IDForUpdates(), updateTime, secondaryIndex, srcId))
+
+  override def addEdge(
+      updateTime: Long,
+      srcId: Long,
+      dstId: Long,
+      properties: Properties,
+      edgeType: MaybeType,
+      secondaryIndex: Long
+  ): Unit =
+    individualUpdate(
+            EdgeAdd(IDForUpdates(), updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption)
+    )
+
+  override def deleteEdge(updateTime: Long, srcId: Long, dstId: Long, secondaryIndex: Long): Unit =
+    individualUpdate(EdgeDelete(IDForUpdates(), updateTime, secondaryIndex, srcId, dstId))
 }
