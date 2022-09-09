@@ -7,9 +7,9 @@ package:
   version: {{ version }}
 
 source:
-#  git_url: https://github.com/Raphtory/Raphtory.git
-#  git_tag: {{ environ.get('RAPHTORY_GIT_TAG', version) }}
-  path: ../../../
+  git_url: https://github.com/Raphtory/Raphtory.git
+  git_tag: {{ environ.get('RAPHTORY_GIT_TAG', version) }}
+
 
 build:
   number: {{ build_number }}
