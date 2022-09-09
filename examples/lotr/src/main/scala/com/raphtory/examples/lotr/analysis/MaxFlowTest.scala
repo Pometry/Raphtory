@@ -96,14 +96,14 @@ class MaxFlowTest[T](
                   vertex.getOrSetState("neighbourLabels", mutable.Map.empty[vertex.IDType, Int])
                 var excess: T = vertex.getOrSetState[T]("excess", 0)
                 vertex.messageQueue[Message[vertex.IDType]].foreach {
-                  case FlowAdded(source, value) =>
+                  case FlowAdded(source, value: T) =>
                     flow(source) = flow.getOrElse[T](source, 0) - value
                     excess += value
 
-                  case NewLabel(source, label)  =>
+                  case NewLabel(source, label)     =>
                     labels(source) = label
 
-                  case Recheck()                =>
+                  case Recheck()                   =>
                 }
                 if ((excess equiv 0) || vertex.name() == target || vertex.name() == source)
                   vertex.voteToHalt()
@@ -174,11 +174,12 @@ class MaxFlowTest[T](
       else List.empty[Row]
     )
 
-  sealed trait Message[VertexID] {}
-  case class FlowAdded[VertexID](source: VertexID, value: T)  extends Message[VertexID]
-  case class NewLabel[VertexID](source: VertexID, label: Int) extends Message[VertexID]
-  case class Recheck[VertexID]()                              extends Message[VertexID]
 }
+
+sealed trait Message[VertexID] {}
+case class FlowAdded[VertexID, T](source: VertexID, value: T) extends Message[VertexID]
+case class NewLabel[VertexID](source: VertexID, label: Int)   extends Message[VertexID]
+case class Recheck[VertexID]()                                extends Message[VertexID]
 
 object MaxFlowTest {
 
