@@ -7,6 +7,7 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
+import scala.collection.mutable.LongMap
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -307,8 +308,9 @@ import ThreeNodeMotifs.{map2D,map3D}
 
   val uorv: Map[Long, Int] = Map(uid -> 0, vid -> 1)
 
-  val neighMap: Map[Long,Int] = neighbours.zip(0 until neighbours.size).toMap
   val N: Int = neighbours.size
+  val neighMap = new mutable.LongMap[Int](N)
+  neighbours.zipWithIndex.foreach{case (nb, i) => neighMap.put(nb,i)}
 
   val preNodes:Array[Long] = Array.fill(4*N)(0)
   val postNodes:Array[Long] = Array.fill(4*N)(0)
@@ -376,8 +378,9 @@ import ThreeNodeMotifs.{map2D,map3D}
 class StarMotifCounter(vid: Long, neighbours:Iterable[Long]) extends MotifCounter {
   import ThreeNodeMotifs.{map2D,map3D}
 
-  val neighMap: Map[Long,Int] = neighbours.zip(0 until neighbours.size).toMap
   val N: Int = neighbours.size
+  val neighMap = new mutable.LongMap[Int](N)
+  neighbours.zipWithIndex.foreach{case (nb, i) => neighMap.put(nb,i)}
 
   val preNodes:Array[Long] = Array.fill(2*neighbours.size)(0)
   val postNodes:Array[Long] = Array.fill(2*neighbours.size)(0)
@@ -419,7 +422,7 @@ class StarMotifCounter(vid: Long, neighbours:Iterable[Long]) extends MotifCounte
     midSum(map2D(incoming,dir)) -= preNodes(incoming*N + neighMap(nb))
     midSum(map2D(outgoing,dir)) -= preNodes(outgoing*N + neighMap(nb))
 
-    for ((dir1,dir2) <- map2D.keys) {
+    for ((dir1,dir2) <- List((0,0),(0,1),(1,0),(1,1))) {
       countPre(map3D(dir1,dir2,dir)) += preSum(map2D(dir1,dir2))
       countPost(map3D(dir,dir1,dir2)) += postSum(map2D(dir1,dir2))
       countMid(map3D(dir1,dir,dir2)) += midSum(map2D(dir1,dir2))
@@ -462,7 +465,7 @@ class TwoNodeMotifs(vid: Long) {
   def incrementCounts(edge: (Long, Long, Long)): Unit = {
     val dir = if (edge._2 == vid) incoming else outgoing
 
-    for ((dir1, dir2) <- map2D.keys) {
+    for ((dir1, dir2) <- List((0,0),(0,1),(1,0),(1,1))) {
       count3d(map3D(dir1,dir2,dir)) += count2d(map2D(dir1,dir2))
     }
 
@@ -483,8 +486,8 @@ object ThreeNodeMotifs {
   def apply(delta: Long = 3600, graphWide: Boolean = false, prettyPrint: Boolean = true) =
     new ThreeNodeMotifs(delta, graphWide, prettyPrint)
 
-  val map2D: Map[(Int,Int),Int] = List((0,0),(0,1),(1,0),(1,1)).zip(0 until 4).toMap
-  val map3D: Map[(Int,Int,Int),Int] = List((0, 0, 0), (0, 0, 1), (0, 1, 0), (0, 1, 1), (1, 0, 0), (1, 0, 1), (1, 1, 0), (1, 1, 1)).zip(0 until 8).toMap
+  def map2D(d1:Int,d2:Int) : Int = 2*d1 + d2
+  def map3D(d1:Int,d2:Int,d3:Int) : Int = 4*d1 + 2*d2 + d3
 
   def getTriCountsPretty[T: Numeric](triCounts: Array[T]): Map[String, T] = {
     val prettyCounts = mutable.Map[String, T]()
