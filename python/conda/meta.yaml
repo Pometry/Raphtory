@@ -43,6 +43,9 @@ about:
   license_family: APACHE
   license_file: LICENSE
   summary: Raphtory python API, Temporal Graph analytics
+  doc_url: https://docs.raphtory.com/
+  dev_url: https://github.com/raphtory/raphtory
+
 
 extra:
   recipe-maintainers:
