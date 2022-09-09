@@ -7,9 +7,8 @@ package:
   version: {{ version }}
 
 source:
-  path: ../../../
-#  git_url: https://github.com/Raphtory/Raphtory.git
-#  git_tag: {{ environ.get('RAPHTORY_GIT_TAG', version) }}
+  git_url: https://github.com/Raphtory/Raphtory.git
+  git_tag: {{ environ.get('RAPHTORY_GIT_TAG', version) }}
 
 build:
   number: {{ build_number }}
@@ -47,3 +46,7 @@ about:
 extra:
   recipe-maintainers:
     - Pometry-Team
+    - haaroon
+    - ljeub-pometry
+    - miratepuffin
+    - jamesalford
