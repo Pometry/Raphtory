@@ -1,5 +1,5 @@
 {% set name = "pyraphtory" %}
-{% set version = "0.1.0" %}
+{% set version = "development" %}
 {% set build_number = "0" %}
 
 package:
@@ -8,7 +8,7 @@ package:
 
 source:
   git_url: https://github.com/Raphtory/Raphtory.git
-  git_tag: feature/DEV-1144-conda-package
+  git_tag: {{ environ.get('RAPHTORY_GIT_TAG', version) }}
 
 build:
   number: {{ build_number }}
