@@ -10,7 +10,9 @@ with python support or connect to an existing Raphtory Cluster.
 ### Pre-requisites 
 
 Raphtory has a dependency on [Apache Pulsar](https://pulsar.apache.org/).
+
 Please download Apache Pulsar from the official website. 
+
 This is required for both conda and from source
 
 ### Guide
@@ -25,7 +27,13 @@ B. From Source - Will build everything from scratch.
 
 ### A. Conda
 
-This guide will install  Conda will install java, scala, sbt, raphtory and pyraphtory
+#### Requirements 
+
+- [Anaconda or Miniconda](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) 
+
+#### Instructions
+
+Using Conda this guide will install java, scala, sbt, raphtory and pyraphtory into the conda environment
 
 1. Create a conda environment, change ENV to an environment name of your choice
 ```bash
@@ -42,6 +50,16 @@ This guide will install  Conda will install java, scala, sbt, raphtory and pyrap
   conda install pyraphtory -c conda-forge
 ```
 
+Note: If you want to build a specific branch or release of raphtory, 
+you can change the build conda chooses by setting the environment variable `RAPHTORY_GIT_TAG`
+
+This will set conda to build and install the `development` branch 
+
+    export RAPHTORY_GIT_TAG=development
+
+This will set conda to build and install a `feature` branch
+
+    export RAPHTORY_GIT_TAG=feature/XYZ
 
 
 ### B. From Source
@@ -57,12 +75,13 @@ This guide will install  Conda will install java, scala, sbt, raphtory and pyrap
 - [poetry](https://python-poetry.org/)
 - [Apache Pulsar](https://pulsar.apache.org/)
 
+#### Instructions
 
 1. Clone Raphtory `git clone https://github.com/Raphtory/Raphtory.git` and `cd` into the root
 2. Build Raphtory via `make sbt-build`
 3. Build and install pyraphtory via `make python-build`. This will install pyraphtory into your current python environment 
 
-###  Running PyRaphtory
+##  Running PyRaphtory
 
 1. Start pulsar via `pulsar standalone`
 2. (in a different shell) run pyraphtory examples
