@@ -29,7 +29,7 @@ This guide will install  Conda will install java, scala, sbt, raphtory and pyrap
 
 1. Create a conda environment, change ENV to an environment name of your choice
 ```bash
-  conda create --name ENV python=3.10.4 -c conda-forge --strict-channel-priority
+  conda create --name ENV python=3.9.13 -c conda-forge --strict-channel-priority
 ```
 
 2. Activate this environment
@@ -52,7 +52,7 @@ This guide will install  Conda will install java, scala, sbt, raphtory and pyrap
   - Please ensure `JAVA_HOME` environment variable is set and points to a JDK location
 - scala 2.13
 - sbt 1.5.5
-- python 3.10.4
+- python 3.9.13
 - make
 - [poetry](https://python-poetry.org/)
 - [Apache Pulsar](https://pulsar.apache.org/)

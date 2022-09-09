@@ -7,8 +7,9 @@ package:
   version: {{ version }}
 
 source:
-  git_url: https://github.com/Raphtory/Raphtory.git
-  git_tag: {{ environ.get('RAPHTORY_GIT_TAG', version) }}
+#  git_url: https://github.com/Raphtory/Raphtory.git
+#  git_tag: {{ environ.get('RAPHTORY_GIT_TAG', version) }}
+  path: ../../../
 
 build:
   number: {{ build_number }}
@@ -18,7 +19,7 @@ requirements:
     - make
     - git
     - openjdk ==11.0.13
-    - python ==3.10.4
+    - python ==3.9.13
     - python-build
     - poetry
     - pip
@@ -28,7 +29,7 @@ requirements:
   run:
     - make
     - openjdk ==11.0.13
-    - python ==3.10.4
+    - python ==3.9.13
     - sbt
     - six
 
