@@ -168,9 +168,8 @@ private[api] trait GraphViewImplementation[
 
   override def step(f: V => Unit): G = addFunction(Step(f))
 
-  override def edgeStep(f: Edge => Unit): G = {
+  override def edgeStep(f: Edge => Unit): G =
     step(vertex => vertex.outEdges.foreach(e => f(e)))
-  }
 
   def loadPythonScript(script: String): G =
     newGraph(query.copy(pyScript = Some(script)), querySender)
@@ -178,9 +177,8 @@ private[api] trait GraphViewImplementation[
   override def step(f: (V, GraphState) => Unit): G =
     addFunction(StepWithGraph(f))
 
-  override def edgeStep(f: (Edge, GraphState) => Unit): G = {
-    step((vertex,state) => vertex.outEdges.foreach(e => f(e,state)))
-  }
+  override def edgeStep(f: (Edge, GraphState) => Unit): G =
+    step((vertex, state) => vertex.outEdges.foreach(e => f(e, state)))
 
   override def iterate(
       f: (V) => Unit,
@@ -228,6 +226,13 @@ private[api] trait GraphViewImplementation[
     */
   def execute(algorithm: GenericallyApplicable): Table =
     algorithm.run(withTransformedName(algorithm))
+
+  /** Inject class dependency */
+  override def addClass(clazz: Class[_]): G = {
+    val bootstrap = query._bootstrap + clazz
+    val newQuery  = query.copy(_bootstrap = bootstrap)
+    newGraph(newQuery, querySender)
+  }
 
   private def addFunction(function: GraphFunction) =
     newGraph(query.copy(graphFunctions = query.graphFunctions.enqueue(function)), querySender)

@@ -127,12 +127,9 @@ private[raphtory] class QuerySender(
 
   def submitSource(blocking: Boolean, sources: Seq[Source], id: String): Unit = {
 
-    val clazzes      = sources
-      .map { source =>
-        source.getBuilder.getClass
-      }
-      .toSet
-      .asInstanceOf[Set[Class[_]]]
+    val clazzes      = sources.map { source =>
+      source.getBuilder.getClass
+    }.toList
     val sourceWithId = sources.map { source =>
       idManager.getNextAvailableID() match {
         case Some(id) =>

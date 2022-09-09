@@ -94,8 +94,8 @@ private[raphtory] case class Query(
     pyScript: Option[String] = None
 ) extends Submission
 
-case class DynamicLoader(classes: Set[Class[_]] = Set.empty) {
-  def +(cls: Class[_]): DynamicLoader = this.copy(classes = classes + cls)
+case class DynamicLoader(classes: List[Class[_]] = List.empty) {
+  def +(cls: Class[_]): DynamicLoader = this.copy(classes = cls :: classes)
 }
 
 sealed private[raphtory] trait PointSet
