@@ -18,7 +18,8 @@ sealed trait ArrowFlightMessageSchemaWriterRegistry extends AutoCloseable {
   def getSchema(endPoint: String): ArrowFlightMessageSchema[_, _] = {
     if (!schemaRegistry.containsKey(endPoint))
       try {
-        val constructor = signatureRegistry.getSignature(endPoint).schemaFactoryClass.getDeclaredConstructor()
+        val signatureEndPoint = endPoint.substring(0, endPoint.lastIndexOf('/'))
+        val constructor = signatureRegistry.getSignature(signatureEndPoint).schemaFactoryClass.getDeclaredConstructor()
         val factory     = constructor.newInstance().asInstanceOf[ArrowFlightMessageSchemaFactory]
         val schema      = factory.getInstance(allocator)
         schemaRegistry.put(endPoint, schema)
@@ -56,10 +57,11 @@ case class ArrowFlightWriter(
   private val listeners = mutable.HashMap[String, ClientStreamListener]()
 
   @throws(classOf[Exception])
-  def addToBatch[T](message: T)(implicit endPoint: String): Unit = {
-    if (!signatureRegistry.contains(endPoint))
-      throw new Exception("No schema register against endpoint = " + getAbsoluteEndpoint(topic, endPoint))
+  def addToBatch[T](message: T)(implicit signatureEndPoint: String): Unit = {
+    if (!signatureRegistry.contains(signatureEndPoint))
+      throw new Exception("No schema register against endpoint = " + getAbsoluteEndpoint(topic, signatureEndPoint))
 
+    val endPoint = s"$signatureEndPoint/${java.util.UUID.randomUUID.toString}"
     val schema = getSchema(endPoint)
 
     if (!listeners.contains(endPoint)) {
@@ -81,10 +83,10 @@ case class ArrowFlightWriter(
     val activeEndpoints = listeners.keys
     activeEndpoints.foreach(endpoint => getSchema(endpoint).completeAddMessages())
     listeners.values.foreach(_.putNext())
-    activeEndpoints.foreach(endpoint => getSchema(endpoint).clear())
+    completeSend()
   }
 
-  def completeSend(): Unit =
+  private def completeSend(): Unit =
     try {
       listeners.values.foreach { listener =>
         listener.completed()
@@ -93,7 +95,7 @@ case class ArrowFlightWriter(
       val activeEndpoints = listeners.keys
       activeEndpoints.foreach(endpoint => getSchema(endpoint).clear())
       listeners.clear()
-      logger.debug(this + ": Completed Send")
+      logger.debug(this + ": Completed Sending Batch")
     }
     catch {
       case e: Exception =>

@@ -19,8 +19,9 @@ sealed trait ArrowFlightMessageSchemaReaderRegistry extends AutoCloseable {
   def getSchema(endPoint: String, vectorSchemaRoot: VectorSchemaRoot): ArrowFlightMessageSchema[_, _] =
     try {
       if (!factories.containsKey(endPoint)) {
-        val constructor = signatureRegistry.getSignature(endPoint).schemaFactoryClass.getDeclaredConstructor()
-        val factory     = constructor.newInstance().asInstanceOf[ArrowFlightMessageSchemaFactory]
+        val signatureEndPoint = endPoint.substring(0, endPoint.lastIndexOf('/'))
+        val constructor       = signatureRegistry.getSignature(signatureEndPoint).schemaFactoryClass.getDeclaredConstructor()
+        val factory           = constructor.newInstance().asInstanceOf[ArrowFlightMessageSchemaFactory]
         factories.put(endPoint, factory)
       }
       val schema = factories.get(endPoint).getInstance(vectorSchemaRoot)
@@ -75,7 +76,9 @@ case class ArrowFlightReader[T](
     // Iterating over endpoints
     flightInfoIter.forEach { flightInfo =>
       val endPoint = flightInfo.getDescriptor.toString
-      val header   = endPoint.substring(0, endPoint.lastIndexOf("/"))
+      val start    = 0
+      val end      = endPoint.lastIndexOf('/', endPoint.lastIndexOf('/') - 1)
+      val header   = endPoint.substring(start, end)
 
       if (topics.contains(header)) {
         var streamReadAlready    = false
@@ -87,9 +90,11 @@ case class ArrowFlightReader[T](
 
           Using(flightStream.getRoot) { vectorSchemaRootReceived =>
             vectorSchemaRootReceived.syncSchema()
-            val s = endPoint.substring(endPoint.lastIndexOf("/") + 1)
-            if (signatureRegistry.contains(s)) {
-              val vms = getSchema(s, vectorSchemaRootReceived)
+            val start             = endPoint.lastIndexOf('/', endPoint.lastIndexOf('/') - 1) + 1
+            val end               = endPoint.lastIndexOf('/')
+            val signatureEndPoint = endPoint.substring(start, end)
+            if (signatureRegistry.contains(signatureEndPoint)) {
+              val vms = getSchema(endPoint.substring(start), vectorSchemaRootReceived)
               try
               // Iterating over batches
               while (flightStream.next()) {
