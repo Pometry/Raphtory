@@ -22,13 +22,17 @@ private[raphtory] object GraphBuilder {
 
 }
 
-private[raphtory] class GraphBuilderInstance[T](graphID: String, sourceID: Int, parse: (Graph, T) => Unit)
+private[raphtory] class GraphBuilderInstance[T](graphId: String, sourceId: Int, parse: (Graph, T) => Unit)
         extends Serializable
         with Graph {
 
+  override protected def sourceID: Int = sourceId
+
+  override protected def graphID: String = graphId
+
   /** Logger instance for writing out log messages */
-  val logger: Logger                                                  = Logger(LoggerFactory.getLogger(this.getClass))
-  var index: Long                                                     = -1L
+  var internalIndex: Long                                             = -1L
+  override def index: Long                                            = internalIndex
   private var partitionIDs: collection.Set[Int]                       = _
   private var writers: collection.Map[Int, EndPoint[GraphAlteration]] = _
   private var internalTotalPartitions: Int                            = _
@@ -45,7 +49,7 @@ private[raphtory] class GraphBuilderInstance[T](graphID: String, sourceID: Int, 
   private[raphtory] def sendUpdates(tuple: T, tupleIndex: Long)(failOnError: Boolean = true): Unit =
     try {
       logger.trace(s"Parsing tuple: $tuple with index $tupleIndex")
-      index = tupleIndex
+      internalIndex = tupleIndex
       parseTuple(tuple)
     }
     catch {
@@ -68,55 +72,7 @@ private[raphtory] class GraphBuilderInstance[T](graphID: String, sourceID: Int, 
     internalTotalPartitions = writers.size
   }
 
-  protected def updateVertexAddStats(): Unit =
-    ComponentTelemetryHandler.vertexAddCounter.labels(graphID).inc()
-
-  override def addVertex(updateTime: Long, srcId: Long, posTypeArg: Type): Unit =
-    addVertex(updateTime, srcId, vertexType = posTypeArg)
-
-  override def addVertex(
-      updateTime: Long,
-      srcId: Long,
-      properties: Properties = Properties(),
-      vertexType: MaybeType = NoType,
-      secondaryIndex: Long = index
-  ): Unit = {
-    val update = VertexAdd(sourceID, updateTime, secondaryIndex, srcId, properties, vertexType.toOption)
-    logger.trace(s"Created update $update")
-    handleGraphUpdate(update)
-    updateVertexAddStats()
-  }
-
-  override def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long = index): Unit = {
-    handleGraphUpdate(VertexDelete(sourceID, updateTime, secondaryIndex, srcId))
-    ComponentTelemetryHandler.vertexDeleteCounter.labels(graphID).inc()
-  }
-
-  protected def updateEdgeAddStats(): Unit =
-    ComponentTelemetryHandler.edgeAddCounter.labels(graphID).inc()
-
-  override def addEdge(updateTime: Long, srcId: Long, dstId: Long, posTypeArg: Type): Unit =
-    addEdge(updateTime, srcId, dstId, edgeType = posTypeArg)
-
-  override def addEdge(
-      updateTime: Long,
-      srcId: Long,
-      dstId: Long,
-      properties: Properties = Properties(),
-      edgeType: MaybeType = NoType,
-      secondaryIndex: Long = index
-  ): Unit = {
-    val update = EdgeAdd(sourceID, updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption)
-    handleGraphUpdate(update)
-    updateEdgeAddStats()
-  }
-
-  override def deleteEdge(updateTime: Long, srcId: Long, dstId: Long, secondaryIndex: Long = index): Unit = {
-    handleGraphUpdate(EdgeDelete(sourceID, updateTime, index, srcId, dstId))
-    ComponentTelemetryHandler.edgeDeleteCounter.labels(graphID).inc()
-  }
-
-  protected def handleGraphUpdate(update: GraphUpdate): Any = {
+  override protected def handleGraphUpdate(update: GraphUpdate): Unit = {
     logger.trace(s"handling $update")
     sentUpdates += 1
     val partitionForTuple = getPartitionForId(update.srcId)
@@ -125,5 +81,4 @@ private[raphtory] class GraphBuilderInstance[T](graphID: String, sourceID: Int, 
       logger.trace(s"$update sent")
     }
   }
-
 }

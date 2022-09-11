@@ -13,8 +13,10 @@ import com.raphtory.api.time.NullInterval
 import com.raphtory.internals.components.querymanager.PointPath
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.SinglePoint
+import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphAlteration.EdgeAdd
 import com.raphtory.internals.graph.GraphAlteration.EdgeDelete
+import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.internals.graph.GraphAlteration.VertexAdd
 import com.raphtory.internals.graph.GraphAlteration.VertexDelete
 import com.raphtory.internals.management.QuerySender
@@ -30,6 +32,15 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   private[api] val querySender: QuerySender
   private[api] val conf: Config
 
+  override protected def handleGraphUpdate(update: GraphUpdate): Unit =
+    querySender.handleInternal(update)
+
+  override protected def sourceID: Int = querySender.IDForUpdates()
+
+  override def index: Long = querySender.index
+
+  override protected def graphID: String = querySender.internalGraphID
+
   def totalPartitions: Int = querySender.totalPartitions
 
   def stream(sources: Source*): G = {
@@ -41,33 +52,6 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
     querySender.submitSource(blocking = true, sources, conf.getString("raphtory.graph.id"))
     this
   }
-
-  override def addVertex(
-      updateTime: Long,
-      srcId: Long,
-      properties: Properties = Properties(),
-      vertexType: MaybeType = NoType,
-      secondaryIndex: Long = querySender.getIndex
-  ): Unit = querySender.addVertex(updateTime, srcId, properties, vertexType, secondaryIndex)
-
-  override def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long = querySender.getIndex): Unit =
-    querySender.deleteVertex(updateTime, srcId, secondaryIndex)
-
-  override def addEdge(
-      updateTime: Long,
-      srcId: Long,
-      dstId: Long,
-      properties: Properties = Properties(),
-      edgeType: MaybeType = NoType,
-      secondaryIndex: Long = querySender.getIndex
-  ): Unit = querySender.addEdge(updateTime, srcId, dstId, properties, edgeType, secondaryIndex)
-
-  override def deleteEdge(
-      updateTime: Long,
-      srcId: Long,
-      dstId: Long,
-      secondaryIndex: Long = querySender.getIndex
-  ): Unit = querySender.deleteEdge(updateTime, srcId, dstId, secondaryIndex)
 
   /** Creates a new `TemporalGraph` which includes all activity after startTime (inclusive).
     * @param startTime time interpreted in milliseconds by default

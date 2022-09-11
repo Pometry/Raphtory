@@ -1,6 +1,15 @@
 package com.raphtory.api.input
 
+import com.raphtory.internals.graph.GraphAlteration
+import com.raphtory.internals.graph.GraphAlteration.EdgeAdd
+import com.raphtory.internals.graph.GraphAlteration.EdgeDelete
+import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
+import com.raphtory.internals.graph.GraphAlteration.VertexAdd
+import com.raphtory.internals.graph.GraphAlteration.VertexDelete
+import com.raphtory.internals.management.telemetry.ComponentTelemetryHandler
+import com.typesafe.scalalogging.Logger
 import net.openhft.hashing.LongHashFunction
+import org.slf4j.LoggerFactory
 
 /** trait for creating a Graph by adding and deleting vertices and edges.
   *
@@ -30,7 +39,13 @@ import net.openhft.hashing.LongHashFunction
   * @see [[Properties]] [[Spout]]
   */
 trait Graph {
+  protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+
   def totalPartitions: Int
+  protected def handleGraphUpdate(update: GraphUpdate): Unit
+  protected def sourceID: Int
+  def index: Long
+  protected def graphID: String
 
   /** Adds a new vertex to the graph or updates an existing vertex
     *
@@ -55,15 +70,23 @@ trait Graph {
       srcId: Long,
       properties: Properties = Properties(),
       vertexType: MaybeType = NoType,
-      secondaryIndex: Long = 1 //this is always overwritten its just to make the API happy
-  ): Unit
+      secondaryIndex: Long = index
+  ): Unit = {
+    val update = VertexAdd(sourceID, updateTime, secondaryIndex, srcId, properties, vertexType.toOption)
+    logger.trace(s"Created update $update")
+    handleGraphUpdate(update)
+    updateVertexAddStats()
+  }
 
   /** Marks a vertex as deleted
     * @param updateTime time of deletion (a vertex is considered as no longer present in the graph after this time)
     * @param srcId Id of vertex to delete
     * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
     */
-  def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long = 1): Unit
+  def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long = index): Unit = {
+    handleGraphUpdate(VertexDelete(sourceID, updateTime, secondaryIndex, srcId))
+    ComponentTelemetryHandler.vertexDeleteCounter.labels(graphID).inc()
+  }
 
   /** Adds a new edge to the graph or updates an existing edge
     *
@@ -81,8 +104,12 @@ trait Graph {
       dstId: Long,
       properties: Properties = Properties(),
       edgeType: MaybeType = NoType,
-      secondaryIndex: Long = 1 //this is always overwritten its just to make the API happy
-  ): Unit
+      secondaryIndex: Long = index
+  ): Unit = {
+    val update = EdgeAdd(sourceID, updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption)
+    handleGraphUpdate(update)
+    updateEdgeAddStats()
+  }
 
   /** Adds a new edge to the graph or updates an existing edge
     *
@@ -100,7 +127,10 @@ trait Graph {
     * @param dstId ID of the destination vertex of the edge
     * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
     */
-  def deleteEdge(updateTime: Long, srcId: Long, dstId: Long, secondaryIndex: Long = 1): Unit
+  def deleteEdge(updateTime: Long, srcId: Long, dstId: Long, secondaryIndex: Long = index): Unit = {
+    handleGraphUpdate(EdgeDelete(sourceID, updateTime, index, srcId, dstId))
+    ComponentTelemetryHandler.edgeDeleteCounter.labels(graphID).inc()
+  }
 
   /** Convenience method for generating unique IDs based on vertex names
     *
@@ -114,6 +144,12 @@ trait Graph {
 
   private[raphtory] def getPartitionForId(id: Long): Int =
     (id.abs % totalPartitions).toInt
+
+  protected def updateVertexAddStats(): Unit =
+    ComponentTelemetryHandler.vertexAddCounter.labels(graphID).inc()
+
+  protected def updateEdgeAddStats(): Unit =
+    ComponentTelemetryHandler.edgeAddCounter.labels(graphID).inc()
 
 }
 
