@@ -31,6 +31,7 @@ private[raphtory] class GraphBuilderInstance[T](graphId: String, sourceId: Int, 
   override protected def graphID: String = graphId
 
   /** Logger instance for writing out log messages */
+  var highestTimeSeen: Long                                           = Long.MinValue
   var internalIndex: Long                                             = -1L
   override def index: Long                                            = internalIndex
   private var partitionIDs: collection.Set[Int]                       = _
@@ -75,6 +76,7 @@ private[raphtory] class GraphBuilderInstance[T](graphId: String, sourceId: Int, 
   override protected def handleGraphUpdate(update: GraphUpdate): Unit = {
     logger.trace(s"handling $update")
     sentUpdates += 1
+    highestTimeSeen = highestTimeSeen max update.updateTime
     val partitionForTuple = getPartitionForId(update.srcId)
     if (partitionIDs contains partitionForTuple) {
       writers(partitionForTuple).sendAsync(update)

@@ -16,6 +16,7 @@ trait SourceInstance {
 
   /** Logger instance for writing out log messages */
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  def highestTimeSeen(): Long
   def hasRemainingUpdates: Boolean
   def sendUpdates(index: Long, failOnError: Boolean): Unit
   def spoutReschedules(): Boolean
@@ -54,6 +55,8 @@ object Source {
           override def close(): Unit = spoutInstance.close()
 
           override def sentMessages(): Long = builderInstance.getSentUpdates
+
+          override def highestTimeSeen(): Long = builderInstance.highestTimeSeen
         }
 
       override def getBuilder: GraphBuilder[Any] = builder.asInstanceOf[GraphBuilder[Any]]

@@ -38,14 +38,18 @@ private[raphtory] class QuerySender(
 
   class NoIDException(message: String) extends Exception(message)
 
-  val internalGraphID: String          = config.getString("raphtory.graph.id")
-  val partitionServers: Int            = config.getInt("raphtory.partitions.serverCount")
-  val partitionsPerServer: Int         = config.getInt("raphtory.partitions.countPerServer")
-  val totalPartitions: Int             = partitionServers * partitionsPerServer
-  private lazy val writers             = topics.graphUpdates(graphID).endPoint
-  private lazy val queryManager        = topics.blockingIngestion.endPoint
-  private lazy val submissions         = topics.submissions.endPoint
-  private val blockingSources          = ArrayBuffer[Int]()
+  val internalGraphID: String  = config.getString("raphtory.graph.id")
+  val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
+  val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
+  val totalPartitions: Int     = partitionServers * partitionsPerServer
+
+  private lazy val writers      = topics.graphUpdates(graphID).endPoint
+  private lazy val queryManager = topics.blockingIngestion.endPoint
+  private lazy val submissions  = topics.submissions.endPoint
+  private val blockingSources   = ArrayBuffer[Int]()
+
+  private var highestTimeSeen = Long.MinValue
+
   private var totalUpdateIndex         = 0    //used at the secondary index for the client
   private var updatesSinceLastIDChange = 0    //used to know how many messages to wait for when blocking in the Q manager
   private var newIDRequiredOnUpdate    = true // has a query been since the last update and do I need a new ID
@@ -71,6 +75,7 @@ private[raphtory] class QuerySender(
     handleGraphUpdate(update) //Required so the Temporal Graph obj can call the below func
 
   override protected def handleGraphUpdate(update: GraphUpdate): Unit = {
+    highestTimeSeen = highestTimeSeen max update.updateTime
     writers(getPartitionForId(update.srcId)) sendAsync update
     totalUpdateIndex += 1
     updatesSinceLastIDChange += 1
@@ -103,6 +108,7 @@ private[raphtory] class QuerySender(
                     sourceID,
                     graphID = graphID,
                     index,
+                    highestTimeSeen,
                     force
             )
     )
