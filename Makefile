@@ -4,6 +4,7 @@ DOCKER_TMP:=$(DOCKER_RAP)/tmp
 MODE:=batch
 
 version:
+	sbt -Dsbt.supershell=false -error "exit" && \
 	sbt -Dsbt.supershell=false -error "print core/version" > version
 
 .PHONY sbt-build:
@@ -16,8 +17,7 @@ sbt-build: version
 python-build: version
 	cd python/pyraphtory/ && mkdir -p lib && \
 		poetry build && \
-		poetry install && \
-		pip3 install --upgrade pip
+		poetry install
 	pip3 install python/pyraphtory/dist/pyraphtory-$$(cat version).tar.gz
 
 .PHONY pyraphtory-local:
