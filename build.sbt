@@ -3,7 +3,7 @@ import sbt.Keys.baseDirectory
 import Dependencies._
 
 ThisBuild / scalaVersion := "2.13.7"
-ThisBuild / version := "0.2.0-alpha"
+ThisBuild / version := "0.2.0.alpha"
 ThisBuild / organization := "com.raphtory"
 ThisBuild / organizationName := "raphtory"
 ThisBuild / organizationHomepage := Some(url("https://raphtory.readthedocs.io/"))
