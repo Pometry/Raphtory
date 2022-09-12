@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pyraphtory"
-version = "0.0.1"
+version = "0.1.0"
 description = "Raphtory - Temporal Graph Analytics Platform. This is the Python version of the library."
 authors = [
     "Fabian Murariu <admin@pometry.com>",
@@ -26,7 +26,7 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.10 <3.11"
+python = "==3.9.13"
 pemja =">=0.2.5"
 # pemja = {git = "https://github.com/alibaba/pemja.git", branch="main"}
 cloudpickle=">=0.4"
