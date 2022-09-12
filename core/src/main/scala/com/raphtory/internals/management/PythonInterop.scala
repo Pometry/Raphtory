@@ -64,6 +64,7 @@ object PythonInterop {
     */
   def get_wrapper_str(obj: Any): String =
     obj match {
+      case _: Array[_]          => "Array"
       case _: collection.Seq[_] => "Sequence"
       case _: Iterable[_]       => "Iterable"
       case _: Iterator[_]       => "Iterator"

@@ -3,9 +3,16 @@ package com.raphtory.internals.management
 import com.raphtory.api.input.Graph
 import com.raphtory.api.input.MaybeType
 import com.raphtory.api.input.Properties
+import com.raphtory.api.analysis.table.TableOutputTracker
+import com.raphtory.api.input.Graph
+import com.raphtory.api.input.MaybeType
+import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Source
 import com.raphtory.api.querytracker.QueryProgressTracker
+import com.raphtory.internals.communication.ExclusiveTopic
 import com.raphtory.internals.communication.TopicRepository
+import com.raphtory.internals.components.output.RowOutput
+import com.raphtory.internals.components.output.TableOutputSink
 import com.raphtory.internals.components.querymanager.BlockIngestion
 import com.raphtory.internals.components.querymanager.ClientDisconnected
 import com.raphtory.internals.components.querymanager.DestroyGraph
@@ -26,6 +33,7 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.duration.Duration
 import scala.util.Random
 
 private[raphtory] class QuerySender(
@@ -121,6 +129,12 @@ private[raphtory] class QuerySender(
 
   def establishGraph(): Unit =
     topics.graphSetup.endPoint sendAsync EstablishGraph(graphID, clientID)
+
+  def outputCollector(tracker: QueryProgressTracker, timeout: Duration): TableOutputTracker = {
+    val collector = TableOutputTracker(tracker, topics, config, timeout)
+    scheduler.execute(collector)
+    collector
+  }
 
   def submitSource(blocking: Boolean, sources: Seq[Source], id: String): Unit = {
 
