@@ -35,7 +35,7 @@ class AccumulatorImplementationTest extends FunSuite {
     assertEquals(acc.currentValue, 0L)
   }
 
-  test("histogram counter can sum up things and return top 5 elems".only) {
+  test("histogram counter can sum up things and return top 5 elems") {
     val c = new CounterImplementation[String]
 
     def powers(of: Int) =
