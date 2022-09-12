@@ -4,6 +4,7 @@ DOCKER_TMP:=$(DOCKER_RAP)/tmp
 MODE:=batch
 
 version:
+	sbt -Dsbt.supershell=false -error "print " && \
 	sbt -Dsbt.supershell=false -error "print core/version" > version
 
 .PHONY sbt-build:
