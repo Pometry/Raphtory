@@ -88,10 +88,17 @@ class PyRaphtory(object):
 
         To customise jvm startup options use the 'PYRAPHTORY_JVM_ARGS' environment variable.
 
+        PYRAPTHORY_JAR_LOCATION is the absolute path to a Raphtory jar file
+
         :param logging: set to True to enable verbose output during connection phase
         """
-        jar_location = Path(inspect.getfile(self.__class__)).parent.parent
-        jars = ":".join([str(jar) for jar in jar_location.glob('lib/*.jar')])
+        env_jar_location = os.environ.get("PYRAPTHORY_JAR_LOCATION", "")
+        env_jar_glob_lookup = os.environ.get("PYRAPTHORY_JAR_GLOB_LOOKUP", '*.jar')
+        if env_jar_location != "":
+            jar_location = Path(env_jar_location)
+        else:
+            jar_location = Path(inspect.getfile(self.__class__)).parent.parent / 'lib'
+        jars = ":".join([str(jar) for jar in jar_location.glob(env_jar_glob_lookup)])
         java_args = os.environ.get("PYRAPTHORY_JVM_ARGS", "")
 
         if java_args:
