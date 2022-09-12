@@ -1,5 +1,5 @@
 {% set name = "pyraphtory" %}
-{% set version = "v0.2.0-alpha" %}
+{% set version = "v0.2.0.alpha" %}
 {% set build_number = "0" %}
 
 package:
