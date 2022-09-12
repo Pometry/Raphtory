@@ -78,7 +78,6 @@ case class ArrowFlightReader[T](
       val header   = endPoint.substring(0, endPoint.lastIndexOf("/"))
 
       if (topics.contains(header)) {
-        var streamReadAlready    = false
         val endPointAsByteStream = flightInfo.getDescriptor.getPath.get(0).getBytes(StandardCharsets.UTF_8)
 
         Using(flightClient.getStream(new Ticket(endPointAsByteStream))) { flightStream =>
@@ -150,21 +149,6 @@ case class ArrowFlightReader[T](
                 totalMessagesRead += rows
               }
               finally if (vms != null) vms.close()
-
-              streamReadAlready = true
-            }
-          }
-
-          if (streamReadAlready) {
-            val deleteActionResult = flightClient.doAction(new Action("DELETE", endPointAsByteStream))
-            while (deleteActionResult.hasNext) {
-              val result = deleteActionResult.next()
-              logger.debug(
-                      "Deleting endpoint {} read already at location {}: {}",
-                      endPoint,
-                      location,
-                      new String(result.getBody, StandardCharsets.UTF_8)
-              )
             }
           }
         } match {
