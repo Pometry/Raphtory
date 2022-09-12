@@ -4,7 +4,7 @@ import Dependencies._
 
 import scala.io.Source
 
-val raphtoryVersion = Source.fromFile("version.txt").getLines.next()
+val raphtoryVersion = Source.fromFile("version").getLines.next()
 ThisBuild / scalaVersion := "2.13.7"
 ThisBuild / version := raphtoryVersion
 ThisBuild / organization := "com.raphtory"
