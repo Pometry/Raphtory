@@ -18,7 +18,7 @@ python-build: version
 	cd python/pyraphtory/ && mkdir -p lib && \
 		poetry build && \
 		poetry install
-	pip3 install python/pyraphtory/dist/pyraphtory-$$(cat version.txt).tar.gz
+	pip3 install python/pyraphtory/dist/pyraphtory-$$(cat version).tar.gz
 
 .PHONY pyraphtory-local:
 pyraphtory-local: version
@@ -27,8 +27,8 @@ pyraphtory-local: version
 .PHONY: docker-build
 docker-build: version
 	docker build \
-		--build-arg VERSION="$$(cat version.txt)" \
-		-t raphtory-os:$$(cat version.txt) \
+		--build-arg VERSION="$$(cat version)" \
+		-t raphtory-os:$$(cat version) \
 		-f $(DOCKER_RAP)/DockerfileV2 . --compress
 
 
@@ -48,7 +48,6 @@ clean-local-cluster:
 	rm -Rf $(DOCKER_TMP)/*
 
 clean:
-	rm version
 	sbt clean
 
 local-pulsar: version
