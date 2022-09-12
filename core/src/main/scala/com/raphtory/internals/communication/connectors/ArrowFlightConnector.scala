@@ -92,7 +92,6 @@ class ArrowFlightConnector(
         writer.synchronized {
           if (counter.get() > 0 && counter.get() < flightBatchSize)
             writer.sendBatch()
-          writer.completeSend()
           counter.set(0)
           null
         }
