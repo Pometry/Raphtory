@@ -55,6 +55,8 @@ abstract private[pojograph] class PojoLocalVertexViewBase(val vertex: PojoVertex
 
   override def appendToState[T: ClassTag](key: String, value: T): Unit = vertex.appendToState(key, value)
 
+  override def clearState(key: String): Unit = vertex.clearState(key)
+
   override def remove(): Unit = vertex.remove()
 
   override def isFiltered: Boolean = vertex.isFiltered

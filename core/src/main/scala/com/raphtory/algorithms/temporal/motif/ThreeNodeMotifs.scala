@@ -162,6 +162,7 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
         v.neighbours.filter(_ != v.ID).foreach { nb =>
           val edge = v.getEdge(nb).minBy(_.src)
           val a_e  = edge.getStateOrElse[ArrayBuffer[(Long, Long, Long)]]("a_e", ArrayBuffer())
+          edge.clearState("a_e")
           if (a_e.nonEmpty) {
             // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
             // for motif edges with the same timestamp
@@ -385,8 +386,6 @@ class StarMotifCounter(vid: Long, neighbours:Iterable[Long]) extends MotifCounte
   import ThreeNodeMotifs.{map2D,map3D}
 
   val N: Int = neighbours.size
-  val neighMap = new mutable.LongMap[Int](N)
-  neighbours.zipWithIndex.foreach{case (nb, i) => neighMap.put(nb,i)}
 
   val preNodes:Array[Long] = Array.fill(2*neighbours.size)(0)
   val postNodes:Array[Long] = Array.fill(2*neighbours.size)(0)
@@ -404,9 +403,10 @@ class StarMotifCounter(vid: Long, neighbours:Iterable[Long]) extends MotifCounte
       curSum: Array[Long],
       curEdge: EdgeEvent
   ): Unit = {
-    curSum(map2D(incoming,curEdge.dir)) += curNodes(incoming*N + curEdge.nb)
-    curSum(map2D(outgoing,curEdge.dir)) += curNodes(outgoing*N + curEdge.nb)
-    curNodes(curEdge.dir*N + curEdge.nb) += 1
+    val dir = curEdge.dir; val nb = curEdge.nb
+    curSum(map2D(incoming,dir)) += curNodes(incoming*N + nb)
+    curSum(map2D(outgoing,dir)) += curNodes(outgoing*N + nb)
+    curNodes(dir*N + nb) += 1
   }
 
   override def pop(
@@ -414,8 +414,7 @@ class StarMotifCounter(vid: Long, neighbours:Iterable[Long]) extends MotifCounte
                     curSum: Array[Long],
                     curEdge: EdgeEvent
   ): Unit = {
-    val dir = curEdge.dir
-    val nb = curEdge.nb
+    val dir = curEdge.dir; val nb = curEdge.nb
     curNodes(dir*N + nb) -= 1
     curSum(map2D(dir,incoming)) -= curNodes(incoming*N + nb)
     curSum(map2D(dir,outgoing)) -= curNodes(outgoing*N + nb)

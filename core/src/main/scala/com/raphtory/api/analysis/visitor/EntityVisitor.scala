@@ -283,6 +283,9 @@ abstract class EntityVisitor {
     */
   def appendToState[T: ClassTag](key: String, value: T): Unit
 
+  /** Remove an entry in the entity's algorithmic state.  */
+  def clearState(key:String): Unit
+
   def history(): List[HistoricEvent]
 
   /** Returns a TimeSeries (from this library: https://github.com/Sqooba/scala-timeseries-lib) of the entities [[com.raphtory.api.analysis.visitor.HistoricEvent HistoricEvents]]
