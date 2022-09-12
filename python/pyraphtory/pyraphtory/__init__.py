@@ -1,4 +1,4 @@
-__version__ = '0.1.0'
+__version__ = '0.2.0.alpha'
 
 import pyraphtory.vertex
 import pyraphtory.builder
