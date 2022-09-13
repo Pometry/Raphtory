@@ -1,4 +1,4 @@
-package com.raphtory.internals.components
+package com.raphtory.internals
 
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.management.Scheduler
@@ -21,7 +21,7 @@ trait FlushToFlight {
   @volatile private var flushed                                  = false
   @volatile private var nTimes                                   = 0
   @volatile private var lastFlushedTime                          = -1L
-  @volatile private[components] var latestMsgTimeToFlushToFlight = -1L
+  @volatile private[internals] var latestMsgTimeToFlushToFlight = -1L
   private var flushTask: Option[() => Future[Unit]]              = None
 
   // Flush data to flight from the time no graph updates have been seen
@@ -30,8 +30,8 @@ trait FlushToFlight {
       if (!flushed) {
         nTimes += 1
         if (nTimes == 4) {
-            writers.values.foreach(_.flushAsync())
-            flushed = true
+          writers.values.foreach(_.flushAsync())
+          flushed = true
           nTimes = 0
         }
       }

@@ -2,6 +2,8 @@ package com.raphtory.internals.management
 
 import com.raphtory.api.input.Source
 import com.raphtory.api.querytracker.QueryProgressTracker
+import com.raphtory.internals.FlushToFlight
+import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.querymanager.BlockIngestion
 import com.raphtory.internals.components.querymanager.ClientDisconnected
@@ -11,6 +13,7 @@ import com.raphtory.internals.components.querymanager.EstablishGraph
 import com.raphtory.internals.components.querymanager.IngestData
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.UnblockIngestion
+import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.internals.management.id.IDManager
 import com.typesafe.config.Config
@@ -24,30 +27,29 @@ import scala.concurrent.duration._
 import scala.util.Random
 
 private[raphtory] class QuerySender(
-    private val scheduler: Scheduler,
+    override val scheduler: Scheduler,
     private val topics: TopicRepository,
     private val config: Config,
     private val idManager: IDManager,
     private val clientID: String
-) {
+) extends FlushToFlight {
 
   class NoIDException(message: String) extends Exception(message)
 
-  protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  override val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val graphID                                         = config.getString("raphtory.graph.id")
-  val partitionServers: Int                                   = config.getInt("raphtory.partitions.serverCount")
-  val partitionsPerServer: Int                                = config.getInt("raphtory.partitions.countPerServer")
-  val totalPartitions: Int                                    = partitionServers * partitionsPerServer
-  private lazy val writers                                    = topics.graphUpdates(graphID).endPoint()
-  private lazy val queryManager                               = topics.blockingIngestion.endPoint
-  private lazy val submissions                                = topics.submissions.endPoint
-  private val blockingSources                                 = ArrayBuffer[Long]()
-  protected var scheduledRunArrow: Option[() => Future[Unit]] = Option(scheduler.scheduleOnce(1.seconds, flushArrow()))
-  private var totalUpdateIndex                                = 0    //used at the secondary index for the client
-  private var updatesSinceLastIDChange                        = 0    //used to know how many messages to wait for when blocking in the Q manager
-  private var newIDRequiredOnUpdate                           = true // has a query been since the last update and do I need a new ID
-  private var currentSourceID                                 = -1   //this is initialised as soon as the client sends 1 update
+  private val graphID                                            = config.getString("raphtory.graph.id")
+  val partitionServers: Int                                      = config.getInt("raphtory.partitions.serverCount")
+  val partitionsPerServer: Int                                   = config.getInt("raphtory.partitions.countPerServer")
+  val totalPartitions: Int                                       = partitionServers * partitionsPerServer
+  override lazy val writers: Map[Int, EndPoint[GraphAlteration]] = topics.graphUpdates(graphID).endPoint()
+  private lazy val queryManager                                  = topics.blockingIngestion.endPoint
+  private lazy val submissions                                   = topics.submissions.endPoint
+  private val blockingSources                                    = ArrayBuffer[Long]()
+  private var totalUpdateIndex                                   = 0    //used at the secondary index for the client
+  private var updatesSinceLastIDChange                           = 0    //used to know how many messages to wait for when blocking in the Q manager
+  private var newIDRequiredOnUpdate                              = true // has a query been since the last update and do I need a new ID
+  private var currentSourceID                                    = -1   //this is initialised as soon as the client sends 1 update
 
   def IDForUpdates(): Int = {
     if (newIDRequiredOnUpdate)
@@ -62,14 +64,6 @@ private[raphtory] class QuerySender(
   }
 
   def getIndex: Int = totalUpdateIndex
-
-  private def flushArrow(): Unit = {
-    writers.values.foreach(_.flushAsync())
-    runArrow()
-  }: Unit
-
-  private def runArrow(): Unit =
-    scheduledRunArrow = Option(scheduler.scheduleOnce(1.seconds, flushArrow()))
 
   def submit(query: Query, customJobName: String = ""): QueryProgressTracker = {
 
@@ -110,14 +104,14 @@ private[raphtory] class QuerySender(
   def establishGraph(): Unit =
     topics.graphSetup.endPoint sendAsync EstablishGraph(graphID, clientID)
 
-  def individualUpdate(update: GraphUpdate) = {
+  def individualUpdate(update: GraphUpdate): Unit = {
+    latestMsgTimeToFlushToFlight = System.currentTimeMillis()
     writers(Math.abs((update.srcId % totalPartitions).toInt)) sendAsync update
     totalUpdateIndex += 1
     updatesSinceLastIDChange += 1
   }
 
   def submitSource(blocking: Boolean, sources: Seq[Source], id: String): Unit = {
-
     val clazzes      = sources
       .map { source =>
         source.getBuilder.getClass
@@ -136,8 +130,7 @@ private[raphtory] class QuerySender(
     submissions sendAsync IngestData(DynamicLoader(clazzes), id, sourceWithId, blocking)
   }
 
-  def closeArrow() =
-    writers
+  def closeArrow(): Unit = writers.values.foreach(_.close())
 
   private def getDefaultName(query: Query): String =
     if (query.name.nonEmpty) query.name else query.hashCode().abs.toString

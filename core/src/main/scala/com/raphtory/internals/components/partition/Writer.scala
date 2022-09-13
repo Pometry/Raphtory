@@ -5,8 +5,9 @@ import cats.effect.kernel.Spawn
 import cats.effect.Async
 import cats.effect.Resource
 import com.raphtory.api.input._
+import com.raphtory.internals.FlushToFlight
 import com.raphtory.internals.communication.{EndPoint, TopicRepository}
-import com.raphtory.internals.components.{Component, FlushToFlight}
+import com.raphtory.internals.components.Component
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.Scheduler
