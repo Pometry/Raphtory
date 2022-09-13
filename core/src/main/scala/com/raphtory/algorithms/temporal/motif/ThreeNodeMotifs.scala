@@ -179,11 +179,10 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
             mc.execute(inputEdges, delta)
             val curVal     = v.getState[Array[Long]]("triCounts")
             v("triCounts") = arrayOp(curVal,mc.getCounts)(_+_)
-            state("triCounts") += mc.getCounts.map(_.toLong)
+            state("triCounts") += mc.getCounts
           }
         }
-      }
-      .step { (v, state) =>
+        // Star Motifs
         val mc                 = new StarMotifCounter(v.ID, v.neighbours.filter(_ != v.ID))
         // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
         // for motif edges with the same timestamp
@@ -208,7 +207,7 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
         v("twoNodeCounts") = twoNodeCounts
         state("twoNodeCounts") += twoNodeCounts.map(_.toLong)
         v("starCounts") = counts
-        state("starCounts") += counts.map(_.toLong)
+        state("starCounts") += counts
       }
   }
 
@@ -499,7 +498,10 @@ object ThreeNodeMotifs {
   def apply(delta: Long = 3600, graphWide: Boolean = false, prettyPrint: Boolean = true) =
     new ThreeNodeMotifs(delta, graphWide, prettyPrint)
 
+  @inline
   def map2D(d1:Int,d2:Int) : Int = 2*d1 + d2
+
+  @inline
   def map3D(d1:Int,d2:Int,d3:Int) : Int = 4*d1 + 2*d2 + d3
 
   val dirs2D : List[(Int,Int)] = List((0,0),(0,1),(1,0),(1,1))
