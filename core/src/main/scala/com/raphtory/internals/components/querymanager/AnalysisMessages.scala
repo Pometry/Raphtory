@@ -116,15 +116,19 @@ case class DynamicLoader(classes: List[Class[_]] = List.empty) {
   private def recursiveResolveDependencies(cls: Class[_], searchPath: List[String])(
       knownDeps: Set[Class[_]] = Set(cls)
   ): List[Class[_]] = {
-    val dependencies = DependencyFinder
-      .getDependencies(cls)
-      .asScala
-      .filter { d =>
-        val packageName = d.getPackageName
-        searchPath.exists(path => packageName.startsWith(path))
-      }
-      .diff(knownDeps)
-      .toList
+    val dependencies =
+      if (searchPath.isEmpty)
+        Nil
+      else
+        DependencyFinder
+          .getDependencies(cls)
+          .asScala
+          .filter { d =>
+            val packageName = d.getPackageName
+            searchPath.exists(path => packageName.startsWith(path))
+          }
+          .diff(knownDeps)
+          .toList
     cls :: dependencies.flatMap(d => recursiveResolveDependencies(d, searchPath)(knownDeps + d)).distinct
   }
 }
