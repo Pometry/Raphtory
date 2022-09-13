@@ -215,7 +215,7 @@ object QueryManager {
       topics: TopicRepository
   ): Resource[IO, QueryManager] = {
     val scheduler = new Scheduler
-    val topicList = List(topics.submissions, topics.watermark, topics.completedQueries, topics.blockingIngestion)
+    val topicList = List(topics.submissions(), topics.watermark, topics.completedQueries, topics.blockingIngestion())
     Component.makeAndStart[IO, QueryManagement, QueryManager](
             topics,
             "query-manager",

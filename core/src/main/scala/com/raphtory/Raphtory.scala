@@ -57,8 +57,8 @@ object Raphtory {
 
   def getGraph(graphID: String): Option[DeployedTemporalGraph] = LocalContext.getGraph(graphID)
 
-  def connect(deploymentID: String): RaphtoryContext = {
-    val context = new RemoteContext(deploymentID)
+  def connect(address: String = "", port: Int = 0): RaphtoryContext = {
+    val context = new RemoteContext(address, port)
     remoteConnections += context
     context
   }
