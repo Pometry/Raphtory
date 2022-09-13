@@ -25,7 +25,7 @@ class IngestionManager(
 
   override def handleMessage(msg: IngestData): Unit =
     msg match { //TODO disconnect/destroy source
-      case IngestData(_, graphID, sources, blocking) =>
+      case IngestData(_, graphID, sourceID, sources, blocking) =>
         logger.info(s"Ingestion Manager for '$graphID' establishing new data source")
         executors.synchronized {
           sources foreach {
