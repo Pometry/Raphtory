@@ -3,6 +3,7 @@ package com.raphtory.api.analysis.graphview
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.raphtory.internals.components.querymanager.Query
+import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.management.QuerySender
 import com.typesafe.config.Config
 

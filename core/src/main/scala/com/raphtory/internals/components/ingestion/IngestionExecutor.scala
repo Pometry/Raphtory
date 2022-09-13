@@ -82,6 +82,7 @@ private[raphtory] class IngestionExecutor(
                       sourceInstance.sourceID,
                       graphID = graphID,
                       sourceInstance.sentMessages(),
+                      sourceInstance.highestTimeSeen(),
                       force = false
               )
       )

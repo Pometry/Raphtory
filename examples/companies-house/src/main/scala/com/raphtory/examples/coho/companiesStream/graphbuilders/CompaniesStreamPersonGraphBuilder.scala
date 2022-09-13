@@ -1,7 +1,7 @@
 package com.raphtory.examples.coho.companiesStream.graphbuilders
 
 import com.raphtory.api.input.Graph
-import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Graph.assignID
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.StringProperty
@@ -9,6 +9,7 @@ import com.raphtory.api.input.Type
 import com.raphtory.examples.coho.companiesStream.rawModel.CompaniesHouseJsonProtocol.CompanyFormat
 import com.raphtory.examples.coho.companiesStream.rawModel.CompaniesHouseJsonProtocol.getField
 import com.raphtory.examples.coho.companiesStream.rawModel.Company
+import com.raphtory.internals.graph.GraphBuilder
 import spray.json._
 
 import java.text.SimpleDateFormat
@@ -20,10 +21,10 @@ import java.util.Date
   * companies linked to a specific person.
   */
 
-class CompaniesStreamPersonGraphBuilder extends GraphBuilder[String] {
+object CompaniesStreamPersonGraphBuilder {
   private val nullStr = "null"
 
-  override def parse(graph: Graph, tuple: String): Unit = {
+  def parser(graph: Graph, tuple: String): Unit = {
     try {
       val command = tuple
       val company = command.parseJson.convertTo[Company]

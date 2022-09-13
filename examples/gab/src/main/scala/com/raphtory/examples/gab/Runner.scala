@@ -17,8 +17,7 @@ object Runner extends App {
   val url                  = "https://raw.githubusercontent.com/Raphtory/Data/main/gabNetwork500.csv"
   FileUtils.curlFile(path, url)
   val spout: Spout[String] = FileSpout(path)
-  val builder              = new GabUserGraphBuilder()
-  val source               = Source(spout, builder)
+  val source               = Source(spout, GabUserGraphBuilder.parser)
   val rg                   = Raphtory.newGraph()
   rg.load(source)
 

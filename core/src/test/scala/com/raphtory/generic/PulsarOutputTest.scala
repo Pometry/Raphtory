@@ -8,10 +8,11 @@ import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
-import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Graph
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.internals.communication.connectors.PulsarConnector
+import com.raphtory.internals.graph.GraphBuilder
 import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.FileSpout
@@ -65,7 +66,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFin
 
   override def setSpout(): Spout[String] = FileSpout(filePath)
 
-  override def setGraphBuilder(): GraphBuilder[String] = new LOTRGraphBuilder()
+  override def setGraphBuilder(): (Graph, String) => Unit = LOTRGraphBuilder.parse
 
   override def liftFileIfNotPresent: Option[(String, URL)] =
     Some(filePath -> new URL("https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"))

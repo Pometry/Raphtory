@@ -1,12 +1,12 @@
 package com.raphtory.examples.gab.graphbuilders
 
 import com.raphtory.api.input.Graph
-import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.StringProperty
 
 import java.time.OffsetDateTime
 import com.raphtory.examples.gab.rawgraphmodel.GabPost
+import com.raphtory.internals.graph.GraphBuilder
 import spray.json._
 
 /**
@@ -19,13 +19,13 @@ import spray.json._
   * the correct case Class which can then be passed to the graph manager
   * which will then pass it to the graph partition dealing with the associated vertex
   */
-final class GabRawGraphBuilder extends GraphBuilder[String] {
+object GabRawGraphBuilder {
 
   import com.raphtory.examples.gab.rawgraphmodel.GabJsonProtocol._
 
   private val nullStr = "null"
 
-  override def parse(graph: Graph, tuple: String) = {
+  def parser(graph: Graph, tuple: String) = {
     try {
       val command = tuple
       val post    = command.parseJson.convertTo[GabPost]

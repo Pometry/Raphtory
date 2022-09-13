@@ -23,8 +23,7 @@ object Runner extends App {
   private val url         = raphtoryConfig.getString("raphtory.spout.coho.url")
   val spout               = new WebSocketSpout(url, Some(auth), Some(contentType))
 //  val builder = new CompaniesStreamRawGraphBuilder()
-  val builder             = new CompaniesStreamPersonGraphBuilder()
-  val source              = Source(spout, builder)
+  val source              = Source(spout, CompaniesStreamPersonGraphBuilder.parser)
   val context             = Raphtory
   val graph               = context.newGraph()
   graph.load(source)

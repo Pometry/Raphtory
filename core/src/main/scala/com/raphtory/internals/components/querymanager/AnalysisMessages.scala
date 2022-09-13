@@ -185,4 +185,5 @@ case class BlockIngestion(sourceID: Int, graphID: String) extends QueryManagemen
 
 case class NonBlocking(sourceID: Int, graphID: String) extends QueryManagement
 
-case class UnblockIngestion(sourceID: Int, graphID: String, messageCount: Long, force: Boolean) extends QueryManagement
+case class UnblockIngestion(sourceID: Int, graphID: String, messageCount: Long, highestTimeSeen: Long, force: Boolean)
+        extends QueryManagement
