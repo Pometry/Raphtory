@@ -22,7 +22,7 @@ import com.raphtory.internals.context.LocalContext.createName
 
 import scala.collection.mutable
 
-class RemoteContext(address: String, port: Int, deploymentID: String) extends RaphtoryContext {
+class RemoteContext(address: String, port: Int) extends RaphtoryContext {
 
   private def connectManaged(
       graphID: String,
@@ -31,8 +31,7 @@ class RemoteContext(address: String, port: Int, deploymentID: String) extends Ra
     val userParameters = List(
             Some("raphtory.graph.id" -> graphID),
             if (address.isEmpty) None else Some("raphtory.deploy.address", address),
-            if (port == 0) None else Some("raphtory.deploy.port", port),
-            if (deploymentID.isEmpty) None else Some("raphtory.deploy.id", deploymentID)
+            if (port == 0) None else Some("raphtory.deploy.port", port)
     ).collect {
       case Some(tuple) => tuple
     }.toMap
