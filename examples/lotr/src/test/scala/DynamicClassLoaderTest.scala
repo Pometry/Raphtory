@@ -1,76 +1,163 @@
-import munit.FunSuite
-
-import scala.sys.process._
+import cats.effect.kernel.Resource
+import cats.effect.IO
+import cats.effect.SyncIO
 import com.raphtory.Raphtory
+import com.raphtory.TestUtils
+import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input.Source
+import com.raphtory.examples.lotr.analysis.ArbitraryMessage
 import com.raphtory.examples.lotr.analysis.DegreesSeparation
 import com.raphtory.examples.lotr.analysis.FlowAdded
 import com.raphtory.examples.lotr.analysis.MaxFlowTest
+import com.raphtory.examples.lotr.analysis.Message
+import com.raphtory.examples.lotr.analysis.MinimalTestAlgorithm
 import com.raphtory.examples.lotr.analysis.NewLabel
 import com.raphtory.examples.lotr.analysis.Recheck
-import com.raphtory.examples.lotr.analysis.Message
 import com.raphtory.examples.lotr.graphbuilders.LOTRGraphBuilder
+import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
+import munit.CatsEffectSuite
 
-class DynamicClassLoaderTest extends FunSuite {
+import java.net.URL
+import scala.reflect.runtime.universe
+import scala.reflect.runtime.universe._
+import scala.sys.process._
+import scala.tools.reflect.ToolBox
 
-  val source: Fixture[Source] = new Fixture[Source]("lotr") {
+class DynamicClassLoaderTest extends CatsEffectSuite {
 
-    override def beforeAll(): Unit = {
-      val path = "/tmp/lotr.csv"
-      val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
-      FileUtils.curlFile(path, url)
-    }
+  val minimalTestCode: String =
+    """
+      |import com.raphtory.api.analysis.algorithm.Generic
+      |import com.raphtory.api.analysis.graphview.GraphPerspective
+      |
+      |
+      |
+      |object MinimalTestAlgorithm extends Generic {
+      |  case class ArbitraryMessage()
+      |  override def apply(graph: GraphPerspective): graph.Graph =
+      |    graph.step(vertex => vertex.messageAllNeighbours(ArbitraryMessage()))
+      |}
+      |MinimalTestAlgorithm
+      |""".stripMargin
 
-    override def apply(): Source = Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder())
-  }
+  private val tb: ToolBox[universe.type] = runtimeMirror(getClass.getClassLoader).mkToolBox()
 
-  val standalone = new Fixture[Unit]("standalone") {
-    def apply(): Unit = {}
-    private var raphtory: Process = _
+  private val compiledAlgo: Generic = tb.compile(tb.parse(minimalTestCode))().asInstanceOf[Generic]
 
-    override def beforeAll(): Unit = {
-      println("testing")
-      raphtory = Process(
+  val remoteGraphResource =
+    Resource.make(IO(remote().newGraph()))(graph => IO(graph.destroy())).evalMap(g => IO(g.load(source())))
+
+  val remoteProcess: Resource[IO, Process] = Resource.make {
+    IO {
+      println("starting remote process")
+      Process(
               Seq(
                       "sbt",
-                      "core/runMain com.raphtory.service.Standalone",
-                      "testLOTR"
+                      //                      "-J-agentlib:jdwp=transport=dt_socket,server=n,address=pom-mbp1.fritz.box:5005,suspend=y",
+                      "core/runMain com.raphtory.service.Standalone testLOTR"
               )
       ).run()
     }
+  }(process =>
+    IO {
+      println("destroying remote process")
+      process.destroy()
+    }
+  )
 
-    override def afterAll(): Unit = raphtory.destroy()
-  }
+  lazy val remoteGraph = ResourceFixture(remoteGraphResource)
 
-  override def munitFixtures = List(standalone, source)
+  lazy val remoteGraphWithPath: SyncIO[FunFixture[TemporalGraph]] = ResourceFixture(
+          remoteGraphResource.evalMap(g => IO(g.addDynamicPath("com.raphtory.examples.lotr")))
+  )
+
+  lazy val source: Fixture[Source] = ResourceSuiteLocalFixture[Source](
+          "lotr",
+          for {
+            _      <- TestUtils.manageTestFile(
+                              Some("/tmp/lotr.csv", new URL("https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"))
+                      )
+            source <- Resource.pure(Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder()))
+          } yield source
+  )
+
+  lazy val localGraph: Fixture[DeployedTemporalGraph] = ResourceSuiteLocalFixture(
+          "local",
+          for {
+            g <- Raphtory.newIOGraph()
+            _  = g.load(source())
+            _  = g.addDynamicPath("com.raphtory.examples.lotr")
+          } yield g
+  )
+
+  lazy val remote: Fixture[RaphtoryContext] = ResourceSuiteLocalFixture(
+          "standalone",
+          for {
+            _          <- remoteProcess
+            connection <- Resource.make {
+                            IO {
+                              println("connecting to remote")
+                              Raphtory.connect("testLOTR")
+                            }
+                          } { g =>
+                            IO {
+                              println("closing remote connection")
+//                              g.close() TODO: this currently falls over if any graphs were closed before
+                            }
+                          }
+          } yield connection
+  )
+
+  override def munitFixtures = List(remote, source, localGraph)
 
   test("test algorithm locally") {
-    val g = Raphtory.newGraph()
-    g.load(source())
-    g.execute(MaxFlowTest[Int]("Gandalf", "Gandalf")).get().foreach(println)
-    println(g.getID)
+    val res = localGraph().execute(MaxFlowTest[Int]("Gandalf", "Gandalf")).get().toList
+    assert(res.nonEmpty)
+    println(res)
   }
-  test("simple algorithm should work") {
-    val c = Raphtory.connect("testLOTR")
 
-    var g: TemporalGraph = c.newGraph()
-    g.load(source())
-    val tracker          = g.execute(DegreesSeparation()).get()
+  test("test locally compiled algo") {
+    val res = localGraph().execute(compiledAlgo).get().toList
+    assert(res.nonEmpty)
+    println(res)
+  }
+
+  remoteGraphWithPath.test("simple algorithm should work") { g =>
+    val res = g.execute(DegreesSeparation()).get().toList
+    assert(res.nonEmpty)
+    println(res)
 
   }
-  test("test algorithm class injection") {
-    val c = Raphtory.connect("testLOTR")
+  remoteGraphWithPath.test("test algorithm class injection") { g =>
+//    val algo             = MaxFlowTest[Int]("Gandalf", "Gandalf")
+//    g = g.addClass(Class.forName("com.raphtory.examples.lotr.analysis.Message"))
+//    g = g.addClass(classOf[FlowAdded[_, _]])
+//    g = g.addClass(classOf[Recheck[_]])
+//    g = g.addClass(classOf[NewLabel[_]])
+//    g = g.addClass(classOf[ArbitraryMessage])
+    val res = g.execute(MinimalTestAlgorithm).get().toList
+    assert(res.nonEmpty)
+    println(res)
+  }
 
-    var g: TemporalGraph = c.newGraph()
-    g.load(source())
-    val algo             = MaxFlowTest[Int]("Gandalf", "Gandalf")
+  remoteGraph.test("test manual class injection with MaxFlow") { gIn =>
+    var g: TemporalGraph = gIn
     g = g.addClass(Class.forName("com.raphtory.examples.lotr.analysis.Message"))
     g = g.addClass(classOf[FlowAdded[_, _]])
     g = g.addClass(classOf[Recheck[_]])
     g = g.addClass(classOf[NewLabel[_]])
-    val tracker          = g.execute(algo).get()
+    val res              = g.execute(MaxFlowTest[Int]("Gandalf", "Gandalf")).get().toList
+    println(res)
+    assert(res.nonEmpty)
+  }
+
+  remoteGraphWithPath.test("test algorithm class injection with MaxFlow") { g =>
+    val res = g.execute(MaxFlowTest[Int]("Gandalf", "Gandalf")).get().toList
+    println(res)
+    assert(res.nonEmpty)
   }
 }
