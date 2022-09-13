@@ -83,10 +83,9 @@ case class ArrowFlightWriter(
     val activeEndpoints = listeners.keys
     activeEndpoints.foreach(endpoint => getSchema(endpoint).completeAddMessages())
     listeners.values.foreach(_.putNext())
-    completeSend()
   }
 
-  private def completeSend(): Unit =
+  def completeSend(): Unit =
     try {
       listeners.values.foreach { listener =>
         listener.completed()
