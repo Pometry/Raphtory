@@ -67,8 +67,12 @@ private[raphtory] class TopicRepository(
   final def graphSetup: ExclusiveTopic[ClusterManagement] =
     ExclusiveTopic[ClusterManagement](ingestSetupConnector, "graph.setup")
 
-  final def clusterComms: ExclusiveTopic[ClusterManagement] =
-    ExclusiveTopic[ClusterManagement](ingestSetupConnector, "cluster.comms")
+  final def clusterComms(partitionCount: Int): BroadcastTopic[ClusterManagement] =
+    BroadcastTopic[ClusterManagement](
+            partitionCount + 2, // the number of ingestors, partitions and query managers
+            ingestSetupConnector,
+            "cluster.comms"
+    )
 
   final def partitionSetup: BroadcastTopic[GraphManagement] =
     BroadcastTopic[GraphManagement](numPartitions, partitionSetupConnector, "partition.setup", graphID)
