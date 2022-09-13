@@ -1,7 +1,6 @@
 package com.raphtory.twitter.builder
 
 import com.raphtory.api.input.Graph
-import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
@@ -18,9 +17,9 @@ import scala.util.matching.Regex
  * the retweet relationship.
  */
 
-class LiveTwitterRetweetGraphBuilder() extends GraphBuilder[Tweet] {
+object TwitterGraphBuilder {
 
-  override def parse(graph: Graph, tweet: Tweet): Unit = {
+  def retweetParser(graph: Graph, tweet: Tweet): Unit = {
     val sourceNode    = tweet.getAuthorId
     val srcID         = sourceNode.toLong
     val timeStamp     = tweet.getCreatedAt.toEpochSecond(ZoneOffset.UTC)
@@ -48,11 +47,8 @@ class LiveTwitterRetweetGraphBuilder() extends GraphBuilder[Tweet] {
     )
     graph.addEdge(timeStamp, srcID, tarID, Type("Retweet Relationship"))
   }
-}
 
-class LiveTwitterUserGraphBuilder() extends GraphBuilder[Tweet] {
-
-  override def parse(graph: Graph, tweet: Tweet): Unit = {
+  def userParser(graph: Graph, tweet: Tweet): Unit = {
     val sourceNode = tweet.getAuthorId
     val srcID      = sourceNode.toLong
     val targetNode = tweet.getId
@@ -73,4 +69,5 @@ class LiveTwitterUserGraphBuilder() extends GraphBuilder[Tweet] {
     )
     graph.addEdge(timeStamp, srcID, tarID, Type("User to Tweet Relationship"))
   }
+
 }

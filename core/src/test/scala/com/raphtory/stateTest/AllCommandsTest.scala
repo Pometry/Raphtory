@@ -3,8 +3,9 @@ package com.raphtory.stateTest
 import com.raphtory.BaseRaphtoryAlgoTest
 import com.raphtory.GraphState
 import com.raphtory.algorithms.generic.ConnectedComponents
-import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Graph
 import com.raphtory.api.input.Spout
+import com.raphtory.internals.graph.GraphBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 
@@ -48,7 +49,7 @@ class AllCommandsTest extends BaseRaphtoryAlgoTest[String] {
   }
   override def setSpout(): Spout[String] = FileSpout("/tmp/testupdates.csv")
 
-  override def setGraphBuilder(): GraphBuilder[String] = new AllCommandsBuilder()
+  override def setGraphBuilder(): (Graph, String) => Unit = AllCommandsBuilder.parse
 
   override def liftFileIfNotPresent: Option[(String, URL)] =
     Some(("/tmp/testupdates.csv", new URL("https://raw.githubusercontent.com/Raphtory/Data/main/testupdates.txt")))

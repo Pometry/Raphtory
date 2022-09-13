@@ -19,10 +19,9 @@ object Runner extends App {
   FileUtils.curlFile(path, url)
 
   // Create Graph
-  val spout   = FileSpout(path)
-  val builder = new TwitterGraphBuilder()
-  val source  = Source(spout, builder)
-  val graph   = Raphtory.newGraph()
+  val spout  = FileSpout(path)
+  val source = Source(spout, TwitterGraphBuilder.parser)
+  val graph  = Raphtory.newGraph()
   graph.load(source)
   Using(graph) { graph =>
     graph

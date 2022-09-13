@@ -1,8 +1,8 @@
 package com.raphtory.examples.gab.graphbuilders
 
 import com.raphtory.api.input.Graph
-import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Type
+import com.raphtory.internals.graph.GraphBuilder
 
 import java.text.SimpleDateFormat
 
@@ -13,9 +13,9 @@ import java.text.SimpleDateFormat
 // is equal to -1. Columns 2 and 5 correspond to the userid and parentUserid in the file.
 // Then either the vertex or the edge are created accordingly.
 
-class GabUserGraphBuilder extends GraphBuilder[String] {
+object GabUserGraphBuilder {
 
-  override def parse(graph: Graph, tuple: String) = {
+  def parser(graph: Graph, tuple: String) = {
     val fileLine   = tuple.split(";").map(_.trim)
     //user wise
     val sourceNode = fileLine(2).toInt

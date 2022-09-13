@@ -28,7 +28,7 @@ import com.raphtory.internals.management.PythonEncoder
 import com.raphtory.internals.management.PythonFunction1
 import com.raphtory.internals.management.QuerySender
 import cats.Id
-import com.raphtory.api.input.GraphBuilder
+import com.raphtory.internals.graph.GraphBuilder
 
 import scala.jdk.CollectionConverters.ListHasAsScala
 

@@ -1,11 +1,11 @@
 package com.raphtory.api.input
 
-import scala.annotation.varargs
+import com.raphtory.internals.graph.GraphBuilder
 
 /** Properties are characteristic attributes like name, etc. assigned to Vertices and Edges by the
-  * [[Graph Builder]].
+  * [[Graph]].
   *
-  * @see [[GraphBuilder]]
+  * @see [[Graph]]
   */
 
 /** Sealed trait defining different types of properties */

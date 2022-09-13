@@ -21,11 +21,10 @@ object AwsSpoutTest extends IOApp {
     val awsS3SpoutBucketKey         = config.getString("raphtory.spout.aws.local.spoutBucketPath")
     val awsS3OutputFormatBucketName = config.getString("raphtory.spout.aws.local.outputBucketName")
 
-    val spout   = AwsS3Spout(awsS3SpoutBucketName, awsS3SpoutBucketKey)
-    val builder = new LotrGraphBuilder()
-    val output  = AwsS3Sink(awsS3OutputFormatBucketName)
-    val source  = Source(spout, builder)
-    val graph   = Raphtory.newIOGraph()
+    val spout  = AwsS3Spout(awsS3SpoutBucketName, awsS3SpoutBucketKey)
+    val output = AwsS3Sink(awsS3OutputFormatBucketName)
+    val source = Source(spout, LotrGraphBuilder.parse)
+    val graph  = Raphtory.newIOGraph()
 
     graph.use { graph =>
       IO {

@@ -1,10 +1,10 @@
 package com.raphtory.twittertest
 
 import com.raphtory.api.input.Graph
-import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
+import com.raphtory.internals.graph.GraphBuilder
 
 /*
  * The Twitter dataset consists of 'circles' (or 'lists') from Twitter crawled from public sources.
@@ -26,9 +26,9 @@ import com.raphtory.api.input.Type
  * Reference: https://snap.stanford.edu/data/ego-Twitter.html
  *
  * */
-class TwitterGraphBuilder() extends GraphBuilder[String] {
+object TwitterGraphBuilder {
 
-  override def parse(graph: Graph, tuple: String): Unit = {
+  def parse(graph: Graph, tuple: String): Unit = {
     val fileLine   = tuple.split(" ").map(_.trim)
     val sourceNode = fileLine(0)
     val srcID      = sourceNode.toLong
