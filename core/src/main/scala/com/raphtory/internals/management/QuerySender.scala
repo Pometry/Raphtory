@@ -46,23 +46,28 @@ private[raphtory] class QuerySender(
 
   class NoIDException(message: String) extends Exception(message)
 
-  protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  val internalGraphID: String  = config.getString("raphtory.graph.id")
+  val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
+  val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
+  val totalPartitions: Int     = partitionServers * partitionsPerServer
 
-  private val graphID                  = config.getString("raphtory.graph.id")
-  val partitionServers: Int            = config.getInt("raphtory.partitions.serverCount")
-  val partitionsPerServer: Int         = config.getInt("raphtory.partitions.countPerServer")
-  val totalPartitions: Int             = partitionServers * partitionsPerServer
-  private lazy val writers             = topics.graphUpdates(graphID).endPoint
-  private lazy val queryManager        = topics.blockingIngestion().endPoint
-  private lazy val graphSetup          = topics.graphSetup.endPoint
-  private lazy val submissions         = topics.submissions().endPoint
-  private val blockingSources          = ArrayBuffer[Int]()
+  private lazy val writers      = topics.graphUpdates(graphID).endPoint
+  private lazy val queryManager = topics.blockingIngestion().endPoint
+  private lazy val graphSetup   = topics.graphSetup.endPoint
+  private lazy val submissions  = topics.submissions().endPoint
+  private val blockingSources   = ArrayBuffer[Int]()
+
+  private var highestTimeSeen          = Long.MinValue
   private var totalUpdateIndex         = 0    //used at the secondary index for the client
   private var updatesSinceLastIDChange = 0    //used to know how many messages to wait for when blocking in the Q manager
   private var newIDRequiredOnUpdate    = true // has a query been since the last update and do I need a new ID
   private var currentSourceID          = -1   //this is initialised as soon as the client sends 1 update
 
-  private def IDForUpdates(): Int = {
+  override protected def sourceID: Int   = IDForUpdates()
+  override def index: Long               = totalUpdateIndex
+  override protected def graphID: String = internalGraphID
+
+  def IDForUpdates(): Int = {
     if (newIDRequiredOnUpdate)
       idManager.getNextAvailableID() match {
         case Some(id) =>
@@ -74,7 +79,16 @@ private[raphtory] class QuerySender(
     currentSourceID
   }
 
-  def getIndex: Int = totalUpdateIndex
+  def handleInternal(update: GraphUpdate): Unit =
+    handleGraphUpdate(update) //Required so the Temporal Graph obj can call the below func
+
+  override protected def handleGraphUpdate(update: GraphUpdate): Unit = {
+    highestTimeSeen = highestTimeSeen max update.updateTime
+    writers(getPartitionForId(update.srcId)) sendAsync update
+    totalUpdateIndex += 1
+    updatesSinceLastIDChange += 1
+
+  }
 
   def submit(query: Query, customJobName: String = ""): QueryProgressTracker = {
 
@@ -97,19 +111,13 @@ private[raphtory] class QuerySender(
   }
 
   private def unblockIngestion(sourceID: Int, index: Long, force: Boolean): Unit =
-    queryManager.sendAsync(UnblockIngestion(sourceID, graphID = graphID, index, force))
+    queryManager.sendAsync(UnblockIngestion(sourceID, graphID = graphID, index, highestTimeSeen, force))
 
   def destroyGraph(force: Boolean): Unit = graphSetup sendAsync DestroyGraph(graphID, clientID, force)
 
   def disconnect(): Unit = graphSetup sendAsync ClientDisconnected(graphID, clientID)
 
   def establishGraph(): Unit = graphSetup sendAsync EstablishGraph(graphID, clientID)
-
-  private def individualUpdate(update: GraphUpdate): Unit = {
-    writers(getPartitionForId(update.srcId)) sendAsync update
-    totalUpdateIndex += 1
-    updatesSinceLastIDChange += 1
-  }
 
   def outputCollector(tracker: QueryProgressTracker, timeout: Duration): TableOutputTracker = {
     val collector = TableOutputTracker(tracker, topics, config, timeout)
@@ -140,32 +148,4 @@ private[raphtory] class QuerySender(
   private def getDefaultName(query: Query): String =
     if (query.name.nonEmpty) query.name else query.hashCode().abs.toString
 
-  override def addVertex(
-      updateTime: Long,
-      srcId: Long,
-      properties: Properties,
-      vertexType: MaybeType,
-      secondaryIndex: Long
-  ): Unit =
-    individualUpdate(
-            VertexAdd(IDForUpdates(), updateTime, secondaryIndex, srcId, properties, vertexType.toOption)
-    )
-
-  override def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long): Unit =
-    individualUpdate(VertexDelete(IDForUpdates(), updateTime, secondaryIndex, srcId))
-
-  override def addEdge(
-      updateTime: Long,
-      srcId: Long,
-      dstId: Long,
-      properties: Properties,
-      edgeType: MaybeType,
-      secondaryIndex: Long
-  ): Unit =
-    individualUpdate(
-            EdgeAdd(IDForUpdates(), updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption)
-    )
-
-  override def deleteEdge(updateTime: Long, srcId: Long, dstId: Long, secondaryIndex: Long): Unit =
-    individualUpdate(EdgeDelete(IDForUpdates(), updateTime, secondaryIndex, srcId, dstId))
 }

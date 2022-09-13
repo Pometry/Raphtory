@@ -185,5 +185,5 @@ sealed private[raphtory] trait IngestionBlockingCommand   extends QueryManagemen
 case class NonBlocking(sourceID: Int, graphID: String)    extends IngestionBlockingCommand
 case class BlockIngestion(sourceID: Int, graphID: String) extends IngestionBlockingCommand
 
-case class UnblockIngestion(sourceID: Int, graphID: String, messageCount: Long, force: Boolean)
+case class UnblockIngestion(sourceID: Int, graphID: String, messageCount: Long, highestTimeSeen: Long, force: Boolean)
         extends IngestionBlockingCommand
