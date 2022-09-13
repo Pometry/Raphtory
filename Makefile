@@ -20,13 +20,6 @@ python-build: version
 		poetry install
 	pip3 install python/pyraphtory/dist/pyraphtory-$$(cat version).tar.gz
 
-.PHONY python-build-no-jar:
-python-build-no-jar: version
-	cd python/pyraphtory/ && \
-		poetry build && \
-		poetry install
-	pip3 install python/pyraphtory/dist/pyraphtory-$$(cat version).tar.gz
-
 .PHONY pyraphtory-local:
 pyraphtory-local: version
 	java -cp core/target/scala-2.13/*.jar com.raphtory.python.PyRaphtory --input=$(INPUT) --py=$(PYFILE) --builder=$(BUILDER) --mode=$(MODE)
