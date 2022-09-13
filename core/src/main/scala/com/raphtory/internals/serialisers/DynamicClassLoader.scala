@@ -7,25 +7,32 @@ import org.slf4j.LoggerFactory
 import java.io.InputStream
 import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicReference
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
 private[serialisers] class DynamicClassLoader(parent: ClassLoader, storage: ConcurrentHashMap[String, Array[Byte]])
         extends ClassLoader(parent) {
+  val loaded = new ConcurrentHashMap[String, Class[_]]()
 
   @throws[ClassNotFoundException]
   override def findClass(name: String): Class[_] =
     Try(parent.loadClass(name)) match {
       case Success(cls)                       => cls
       case Failure(t: ClassNotFoundException) =>
-        val clzBytes = storage.get(name)
-        if (clzBytes != null) {
-          val clz = defineClass(name, clzBytes, 0, clzBytes.length)
-          logger.debug(s"Successfully injected class $clz")
-          clz
-        }
-        else throw t
+        loaded.computeIfAbsent(
+                name,
+                { _ =>
+                  val clzBytes = storage.get(name)
+                  if (clzBytes != null) {
+                    val clz = defineClass(name, clzBytes, 0, clzBytes.length)
+                    logger.debug(s"Successfully injected class $clz")
+                    clz
+                  }
+                  else throw t
+                }
+        )
     }
 
   override def findResource(name: String): URL = super.findResource(name)
@@ -45,9 +52,12 @@ object DynamicClassLoader {
     classStorage.computeIfAbsent(name, _ => clzBytes)
     classLoader.findClass(name)
   }
+  val loader = new DynamicClassLoader(this.getClass.getClassLoader, classStorage)
 
   def lookupClass(name: String): Option[Array[Byte]] = Option(classStorage.get(name))
 
+  private val ref = new AtomicReference[Option[DynamicClassLoader]](None)
+
   def apply(classLoader: ClassLoader): DynamicClassLoader =
-    new DynamicClassLoader(classLoader, classStorage)
+    loader
 }

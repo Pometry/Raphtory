@@ -63,11 +63,12 @@ class DynamicLoaderSerializer(default: Serializer[DynamicLoader]) extends Serial
     // read how many classes are setup for Dynamic loading
     try {
       val n       = input.readInt()
+      val loader  = DynamicClassLoader(kryo.getClassLoader)
       val classes = (0 until n).map { _ =>
         val name   = input.readString()
         val length = input.readInt()
         val bytes  = input.readBytes(length)
-        DynamicClassLoader.injectClass(name, bytes, DynamicClassLoader(kryo.getClassLoader))
+        DynamicClassLoader.injectClass(name, bytes, loader)
       }.toList
       logger.debug(s"Loaded $n classes: $classes")
       kryo.readObject(input, tpe, default).copy(classes = classes) // read the empty dummy obj
