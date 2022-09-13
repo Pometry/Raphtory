@@ -78,16 +78,6 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
       properties: Properties
   ): GraphUpdateEffect
 
-  def batchAddRemoteEdge(
-      sourceID: Long,
-      msgTime: Long,
-      index: Long,
-      srcId: Long,
-      dstId: Long,
-      properties: Properties,
-      edgeType: Option[Type]
-  ): Unit
-
   def removeEdge(sourceID: Long, msgTime: Long, index: Long, srcId: Long, dstId: Long): Option[GraphUpdateEffect]
 
   def syncNewEdgeRemoval(
@@ -120,7 +110,8 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
     conf.getInt("raphtory.partitions.serverCount")
 
   def getPartitionID: Int            = partitionID
-  def checkDst(dstID: Long): Boolean = (dstID.abs % totalPartitions).toInt == partitionID
+  def checkDst(dstID: Long): Boolean =
+    GraphPartition.checkDst(dstID, totalPartitions, partitionID)
 
   def timings(updateTime: Long): Unit = {
     if (updateTime < watermarker.oldestTime.get() && updateTime > 0)
@@ -129,4 +120,10 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
       watermarker.latestTime.set(updateTime)
   }
 
+}
+
+object GraphPartition {
+
+  def checkDst(dstID: Long, totalPartitions: Int, partitionID: Int): Boolean =
+    (dstID.abs % totalPartitions).toInt == partitionID
 }

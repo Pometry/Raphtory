@@ -16,14 +16,14 @@ private[raphtory] trait LensInterface {
   def getFullGraphSize: Int
   def setFullGraphSize(size: Int): Unit
 
-  def executeSelect(f: _ => Row)(onComplete: => Unit): Unit
+  def executeSelect(f: Vertex => Row)(onComplete: => Unit): Unit
 
   def executeSelect(
       f: (_, GraphState) => Row,
       graphState: GraphState
   )(onComplete: => Unit): Unit
   def executeSelect(f: GraphState => Row, graphState: GraphState)(onComplete: => Unit): Unit
-  def explodeSelect(f: _ => IterableOnce[Row])(onComplete: => Unit): Unit
+  def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: => Unit): Unit
   def filteredTable(f: Row => Boolean)(onComplete: => Unit): Unit
   def explodeTable(f: Row => IterableOnce[Row])(onComplete: => Unit): Unit
   def writeDataTable(f: Row => Unit)(onComplete: => Unit): Unit
@@ -50,7 +50,7 @@ private[raphtory] trait LensInterface {
       f: (_, GraphState) => Unit,
       graphState: GraphState
   )(onComplete: => Unit): Unit
-  def runMessagedGraphFunction(f: _ => Unit)(onComplete: => Unit): Unit
+  def runMessagedGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit
 
   def runMessagedGraphFunction(
       f: (_, GraphState) => Unit,
@@ -58,7 +58,6 @@ private[raphtory] trait LensInterface {
   )(onComplete: => Unit): Unit
   def checkVotes(): Boolean
   def sendMessage(msg: GenericVertexMessage[_]): Unit
-  def vertexVoted(): Unit
   def nextStep(): Unit
   def receiveMessage(msg: GenericVertexMessage[_]): Unit
 

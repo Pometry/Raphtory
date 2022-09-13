@@ -47,7 +47,7 @@ class RaphtoryGraphTest extends FunSuite {
     assert(query.graphFunctions(2).isInstanceOf[Step[Vertex]])
     assert(query.graphFunctions(3).isInstanceOf[Iterate[Vertex]])
     assert(query.graphFunctions(4).isInstanceOf[ClearChain])
-    assert(query.graphFunctions(5).isInstanceOf[Select])
+    assert(query.graphFunctions(5).isInstanceOf[Select[Vertex]])
 
     assertEquals(query.tableFunctions.length, 1)
     assert(query.tableFunctions.head.isInstanceOf[TableFilter])

@@ -17,6 +17,7 @@ import com.raphtory.algorithms.temporal.dynamic.GenericTaint
 import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.api.input._
 import java.net.URL
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.language.postfixOps
 
 class LotrTest extends BaseRaphtoryAlgoTest[String] {
@@ -41,6 +42,8 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
             windows = List(500, 1000, 10000)
     ).map(assertEquals(_, "206d686bb8c5c119980d1743e4ec2aceb1dc62895d0931b5608f521e4da5c334"))
   }
+
+  override def munitTimeout: Duration = FiniteDuration(12, "hours")
 
   test("Degree Test") {
     algorithmTest(

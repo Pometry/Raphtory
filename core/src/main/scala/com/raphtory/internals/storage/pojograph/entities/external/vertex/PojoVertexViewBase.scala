@@ -5,6 +5,7 @@ import com.raphtory.api.analysis.visitor.PropertyValue
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 
+import scala.collection.View
 import scala.reflect.ClassTag
 
 abstract private[pojograph] class PojoVertexViewBase(vertex: PojoVertexBase) extends PojoVertexBase {
@@ -67,7 +68,7 @@ abstract private[pojograph] class PojoLocalVertexViewBase(val vertex: PojoVertex
 
   override def hasMessage: Boolean = vertex.hasMessage
 
-  override def messageQueue[T]: List[T] = vertex.messageQueue
+  override def messageQueue[T]: Seq[T] = vertex.messageQueue
 
   override def clearMessageQueue(): Unit = vertex.clearMessageQueue()
 

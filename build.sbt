@@ -44,6 +44,7 @@ ThisBuild / publishTo := {
   else Some("releases" at nexus + "service/local/staging/deploy/maven2")
 }
 ThisBuild / publishMavenStyle.withRank(KeyRanks.Invisible) := true
+ThisBuild / resolvers += Resolver.mavenLocal
 
 ThisBuild / scalacOptions += "-language:higherKinds"
 
@@ -157,6 +158,9 @@ lazy val core = (project in file("core"))
                   alleyCats,
                   typesafeConfig,
                   zookeeper,
+                  "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4",
+                  "pometry" % "arrow-core" % "1.0.4-SNAPSHOT",
+                  "com.softwaremill.magnolia1_2" %% "magnolia" % "1.1.2",
                   shapeless,
                   curatorDiscovery,
                   scalaDocReader

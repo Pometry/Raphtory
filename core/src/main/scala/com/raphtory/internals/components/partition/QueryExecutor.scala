@@ -21,6 +21,8 @@ import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.management.python.EmbeddedPython
 import com.raphtory.internals.management.python._
+import com.raphtory.internals.storage.arrow.ArrowGraphLens
+import com.raphtory.internals.storage.arrow.ArrowPartition
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -183,17 +185,27 @@ private[raphtory] class QueryExecutor(
           sentMessageCount.set(0)
           sync.reset()
           refreshBuffers()
-          graphLens = PojoGraphLens(
+          graphLens = ArrowGraphLens(
                   jobID,
                   perspective.actualStart,
                   perspective.actualEnd,
-                  superStep = 0,
-                  storage,
-                  conf,
+                  0,
+                  storage.asInstanceOf[ArrowPartition],
                   sendMessage,
                   errorHandler,
                   scheduler
           )
+//          graphLens = PojoGraphLens(
+//                  jobID,
+//                  perspective.actualStart,
+//                  perspective.actualEnd,
+//                  superStep = 0,
+//                  storage,
+//                  conf,
+//                  sendMessage,
+//                  errorHandler,
+//                  scheduler
+//          )
 
           taskManager sendAsync PerspectiveEstablished(currentPerspectiveID, graphLens.localNodeCount)
           logger.debug(
@@ -385,9 +397,9 @@ private[raphtory] class QueryExecutor(
                   )
           )
 
-        case Select(f)                                                                =>
+        case s: Select[Vertex] @unchecked                                             =>
           startStep()
-          graphLens.executeSelect(f) {
+          graphLens.executeSelect(s.f) {
             finaliseStep {
               taskManager sendAsync TableBuilt(currentPerspectiveID)
               logger.debug(
@@ -400,9 +412,9 @@ private[raphtory] class QueryExecutor(
           }
 
         //TODO create explode select with accumulators
-        case ExplodeSelect(f)                                                         =>
+        case es: ExplodeSelect[Vertex] @unchecked                                     =>
           startStep()
-          graphLens.explodeSelect(f) {
+          graphLens.explodeSelect(es.f) {
             finaliseStep {
               taskManager sendAsync TableBuilt(currentPerspectiveID)
               logger.debug(
