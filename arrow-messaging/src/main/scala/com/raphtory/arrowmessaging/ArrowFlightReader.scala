@@ -73,103 +73,105 @@ case class ArrowFlightReader[T](
 
     // TODO Endpoints could be read in parallel
     // Iterating over endpoints
-    flightInfoIter.forEach { flightInfo =>
-      val endPoint = flightInfo.getDescriptor.toString
-      val header   = endPoint.substring(0, endPoint.lastIndexOf("/"))
+    if (flightInfoIter.iterator().hasNext) {
+      flightInfoIter.forEach { flightInfo =>
+        val endPoint = flightInfo.getDescriptor.toString
+        val header = endPoint.substring(0, endPoint.lastIndexOf("/"))
 
-      if (topics.contains(header)) {
-        var streamReadAlready    = false
-        val endPointAsByteStream = flightInfo.getDescriptor.getPath.get(0).getBytes(StandardCharsets.UTF_8)
+        if (topics.contains(header)) {
+          var streamReadAlready = false
+          val endPointAsByteStream = flightInfo.getDescriptor.getPath.get(0).getBytes(StandardCharsets.UTF_8)
 
-        Using(flightClient.getStream(new Ticket(endPointAsByteStream))) { flightStream =>
-          var batch = 0
-          logger.debug("Reader(" + location + "). Reading messages for end point: " + flightInfo.getDescriptor)
+          Using(flightClient.getStream(new Ticket(endPointAsByteStream))) { flightStream =>
+            var batch = 0
+            logger.debug("Reader(" + location + "). Reading messages for end point: " + flightInfo.getDescriptor)
 
-          Using(flightStream.getRoot) { vectorSchemaRootReceived =>
-            vectorSchemaRootReceived.syncSchema()
-            val s = endPoint.substring(endPoint.lastIndexOf("/") + 1)
-            if (signatureRegistry.contains(s)) {
-              val vms = getSchema(s, vectorSchemaRootReceived)
-              try
-              // Iterating over batches
-              while (flightStream.next()) {
-                batch = batch + 1
-                // System.out.println("Reader(" + location + "). Received batch #" + batch + ", Data:")
-                var i    = 0
-                var rows = vectorSchemaRootReceived.getRowCount
-                while (i < rows) {
-                  if (!vms.isMessageExistsAtRow(i))
-                    logger.warn(
-                            "Should not happen! location = {}, endpoint = {}, batch = {}, null at {}, row count = {}",
-                            location,
-                            endPoint,
-                            batch,
-                            i,
-                            rows
-                    )
-                  else {
-                    try logger.trace(
-                            "location = {}, endpoint = {}, batch = {}, vertex msg = {}, index = {}, row count = {}\n",
-                            location,
-                            endPoint,
-                            batch,
-                            i,
-                            vms.getMessageAtRow(i),
-                            rows
-                    )
-                    catch {
-                      case e: Exception =>
-                        logger.error(
-                                "location = {}, endpoint = {}, batch = {}, index = {}, rowCount = {}, errMsg = {}",
-                                location,
-                                endPoint,
-                                batch,
-                                i,
-                                rows,
-                                e.getMessage
+            Using(flightStream.getRoot) { vectorSchemaRootReceived =>
+              vectorSchemaRootReceived.syncSchema()
+              val s = endPoint.substring(endPoint.lastIndexOf("/") + 1)
+              if (signatureRegistry.contains(s)) {
+                val vms = getSchema(s, vectorSchemaRootReceived)
+                try
+                  // Iterating over batches
+                  while (flightStream.next()) {
+                    batch = batch + 1
+                    // System.out.println("Reader(" + location + "). Received batch #" + batch + ", Data:")
+                    var i = 0
+                    var rows = vectorSchemaRootReceived.getRowCount
+                    while (i < rows) {
+                      if (!vms.isMessageExistsAtRow(i))
+                        logger.warn(
+                          "Should not happen! location = {}, endpoint = {}, batch = {}, null at {}, row count = {}",
+                          location,
+                          endPoint,
+                          batch,
+                          i,
+                          rows
                         )
-                        e.printStackTrace()
-                    }
-                    // vms.getVertexMessageAtRow(i)
-                    try messageHandler(vms.decodeMessage(i))
-                    catch {
-                      case e: Exception =>
-                        logger.error(
-                                "location = {}, endpoint = {}, batch = {}, index = {}, rowCount = {}, errMsg = {}",
-                                location,
-                                endPoint,
-                                batch,
-                                i,
-                                rows,
-                                e.getMessage
+                      else {
+                        try logger.trace(
+                          "location = {}, endpoint = {}, batch = {}, vertex msg = {}, index = {}, row count = {}\n",
+                          location,
+                          endPoint,
+                          batch,
+                          i,
+                          vms.getMessageAtRow(i),
+                          rows
                         )
+                        catch {
+                          case e: Exception =>
+                            logger.error(
+                              "location = {}, endpoint = {}, batch = {}, index = {}, rowCount = {}, errMsg = {}",
+                              location,
+                              endPoint,
+                              batch,
+                              i,
+                              rows,
+                              e.getMessage
+                            )
+                            e.printStackTrace()
+                        }
+                        // vms.getVertexMessageAtRow(i)
+                        try messageHandler(vms.decodeMessage(i))
+                        catch {
+                          case e: Exception =>
+                            logger.error(
+                              "location = {}, endpoint = {}, batch = {}, index = {}, rowCount = {}, errMsg = {}",
+                              location,
+                              endPoint,
+                              batch,
+                              i,
+                              rows,
+                              e.getMessage
+                            )
+                        }
+                      }
+                      i = i + 1
                     }
+                    totalMessagesRead += rows
                   }
-                  i = i + 1
-                }
-                totalMessagesRead += rows
+                finally if (vms != null) vms.close()
+
+                streamReadAlready = true
               }
-              finally if (vms != null) vms.close()
-
-              streamReadAlready = true
             }
-          }
 
-          if (streamReadAlready) {
-            val deleteActionResult = flightClient.doAction(new Action("DELETE", endPointAsByteStream))
-            while (deleteActionResult.hasNext) {
-              val result = deleteActionResult.next()
-              logger.debug(
-                      "Deleting endpoint {} read already at location {}: {}",
-                      endPoint,
-                      location,
-                      new String(result.getBody, StandardCharsets.UTF_8)
-              )
+            if (streamReadAlready) {
+              val deleteActionResult = flightClient.doAction(new Action("DELETE", endPointAsByteStream))
+              while (deleteActionResult.hasNext) {
+                val result = deleteActionResult.next()
+                logger.debug(
+                  "Deleting endpoint {} read already at location {}: {}",
+                  endPoint,
+                  location,
+                  new String(result.getBody, StandardCharsets.UTF_8)
+                )
+              }
             }
+          } match {
+            case Success(_) =>
+            case Failure(exception) => exception.printStackTrace()
           }
-        } match {
-          case Success(_)         =>
-          case Failure(exception) => exception.printStackTrace()
         }
       }
     }
