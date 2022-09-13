@@ -5,6 +5,7 @@ import cats.effect.Resource
 import cats.effect.std.Dispatcher
 import cats.effect.std.Queue
 import cats.syntax.all._
+import com.google.protobuf.ByteString
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.cluster.QueryTrackerForwarder.log
@@ -32,7 +33,7 @@ class RpcServer[F[_]](repo: TopicRepository, config: Config)(implicit F: Async[F
   override def processRequest(req: RpcRequest): F[RpcStatus] = {
     log.debug(s"Processing request: $req")
     for {
-      message <- F.delay(kryo.deserialise[QueryManagement](req.message))
+      message <- F.delay(kryo.deserialise[QueryManagement](req.message.toByteArray))
       _       <- F.delay {
                    message match {
                      case message: Submission               => repo.submissions(message.graphID).endPoint sendAsync message
@@ -47,7 +48,7 @@ class RpcServer[F[_]](repo: TopicRepository, config: Config)(implicit F: Async[F
 
   override def submitQuery(req: RpcRequest): F[fs2.Stream[F, RpcResponse]] = {
     log.debug(s"Submitting query: $req")
-    val query = kryo.deserialise[Query](req.message)
+    val query = kryo.deserialise[Query](req.message.toByteArray)
     for {
       _          <- F.delay(repo.submissions(query.graphID).endPoint sendAsync query)
       queue      <- Queue.unbounded[F, Option[QueryManagement]]
@@ -56,7 +57,7 @@ class RpcServer[F[_]](repo: TopicRepository, config: Config)(implicit F: Async[F
       stream     <- F.delay(
                             fs2.Stream
                               .fromQueueNoneTerminated(queue, 1000)
-                              .map(message => RpcResponse(kryo.serialise(message)))
+                              .map(message => RpcResponse(ByteString.copyFrom(kryo.serialise(message))))
                               .onFinalize {
                                 listener._2 >> dispatcher._2 // release resources
                               }
