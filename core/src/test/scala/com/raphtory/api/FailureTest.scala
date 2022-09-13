@@ -25,7 +25,7 @@ class FailureTest extends CatsEffectSuite {
       .newIOGraph()
       .use { graph =>
         IO {
-          graph.load(Source(SequenceSpout("1,1,1"), BasicGraphBuilder()))
+          graph.load(Source(SequenceSpout("1,1,1"), BasicGraphBuilder.parse))
           val query = graph
             .at(1)
             .past()

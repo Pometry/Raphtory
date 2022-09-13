@@ -5,7 +5,7 @@ from time import perf_counter
 from pyraphtory.algorithms.pagerank import PageRank
 from pyraphtory.algorithms.connectedcomponents import ConnectedComponents
 from pyraphtory.algorithms.trianglecount import LocalTriangleCount, GlobalTriangleCount
-from pyraphtory.algorithms.twohoppaths import TwoHopPaths
+#from pyraphtory.algorithms.twohoppaths import TwoHopPaths
 from pyraphtory.algorithms.degree import Degree
 
 if __name__ == "__main__":
@@ -27,9 +27,8 @@ if __name__ == "__main__":
         graph.add_vertex(time_stamp, tar_id, Properties(ImmutableProperty("name", target_node)), Type("Character"))
         graph.add_edge(time_stamp, src_id, tar_id, Type("Character_Co-occurence"))
 
-    lotr_builder = GraphBuilder(parse)
     lotr_spout = FileSpout("/tmp/lotr.csv")
-    graph = pr.new_graph().load(Source(lotr_spout, lotr_builder))
+    graph = pr.new_graph().load(Source(lotr_spout, parse))
 
     df = (graph
           .select(lambda vertex: Row(vertex.name(), vertex.degree()))
@@ -42,8 +41,8 @@ if __name__ == "__main__":
     df = (graph.execute(ConnectedComponents()).to_df(["name", "component"]))
     print(df)
 
-    df = (graph.execute(TwoHopPaths()).to_df(["start", "middle", "end"]))
-    print(df)
+  #  df = (graph.execute(TwoHopPaths()).to_df(["start", "middle", "end"]))
+  #  print(df)
 
     df = (graph.execute(LocalTriangleCount()).to_df(["name", "triangles"]))
     print(df)
