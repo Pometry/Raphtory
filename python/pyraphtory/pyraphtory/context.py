@@ -1,28 +1,22 @@
 import inspect
 import os
 import re
-import subprocess
-import json
-from threading import Thread
-
-import pandas as pd
+import sys
 from abc import abstractmethod
 from pathlib import Path
 from subprocess import PIPE, Popen
+from threading import Thread
 from weakref import finalize
-from typing import IO, AnyStr
+import pyraphtory.fileutils as fileutils
 
 from py4j.java_gateway import JavaGateway, GatewayParameters
-from py4j.protocol import Py4JJavaError
+from typing import IO, AnyStr
 
 import pyraphtory.algorithm
-import pyraphtory.interop
-import pyraphtory.scala.collection
-import pyraphtory.vertex
 import pyraphtory.graph
 from pyraphtory import interop
-import sys
 
+VERSION = '0.2.0a0'
 
 def _kill_jvm(j_raphtory, j_gateway):
     interop.logger.info("Shutting down pyraphtory")
@@ -100,6 +94,10 @@ class PyRaphtory(object):
             jar_location = Path(inspect.getfile(self.__class__)).parent.parent / 'lib'
         jars = ":".join([str(jar) for jar in jar_location.glob(env_jar_glob_lookup)])
         java_args = os.environ.get("PYRAPTHORY_JVM_ARGS", "")
+
+        # if jars is empty, then download it
+        # if not jars:
+        #     jars = fileutils.download_raphtory(VERSION, str(Path(inspect.getfile(self.__class__)).parent.parent / 'lib'))
 
         if java_args:
             self.args = ["java", java_args, "-cp", jars, "com.raphtory.python.PyRaphtory", "--parentID", str(os.getpid())]
