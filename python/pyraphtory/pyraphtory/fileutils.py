@@ -9,7 +9,7 @@ _SHA256 = 'sha256'
 
 RAPHTORY_JARS_HASH = {
     '0.2.0a0': {
-        _URL: 'https://github.com/Haaroon/Raphtory/releases/download/v0.2.0a0/0.2.0a0.jar',
+        _URL: 'https://github.com/Raphtory/Raphtory/releases/download/v0.2.0a0/core-0.2.0a0.jar',
         _SHA256: 'e3f85e40825916c3f0f7395204c95869f65b6330d12abcc9f2f5f8d8b83a3f26'
     }
 }

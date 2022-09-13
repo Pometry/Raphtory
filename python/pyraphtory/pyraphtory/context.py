@@ -102,14 +102,14 @@ class PyRaphtory(object):
         if env_jar_location != "":
             jar_location = Path(env_jar_location)
         else:
-            jar_location = Path(inspect.getfile(self.__class__)).parent / 'lib'
+            jar_location = Path(inspect.getfile(self.__class__)).parent.parent / 'lib'
         jars = ":".join([str(jar) for jar in jar_location.glob(env_jar_glob_lookup)])
         java_args = os.environ.get("PYRAPTHORY_JVM_ARGS", "")
 
         # if jars is empty, then download it
         if not jars:
             jars = fileutils.download_raphtory(VERSION,
-                                               str(Path(inspect.getfile(self.__class__)).parent / 'lib'))
+                                               str(Path(inspect.getfile(self.__class__)).parent.parent / 'lib'))
 
         if java_args:
             self.args = ["java", java_args, "-cp", jars, "com.raphtory.python.PyRaphtory", "--parentID", str(os.getpid())]
