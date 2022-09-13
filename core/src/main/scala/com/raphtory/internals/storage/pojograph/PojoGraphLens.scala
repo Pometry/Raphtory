@@ -47,8 +47,8 @@ final private[raphtory] case class PojoGraphLens(
   private lazy val vertexMap: mutable.Map[Long, PojoExVertex] =
     storage.getVertices(this, start, end)
 
-  private var vertices: Array[PojoExVertex] =
-    vertexMap.values.toArray
+  private var vertices: Iterable[PojoExVertex] =
+    vertexMap.values
 
   private var unDir: Boolean = false
 
@@ -79,7 +79,7 @@ final private[raphtory] case class PojoGraphLens(
     logger.trace(s"Set Graph Size to '$fullGraphSize'.")
   }
 
-  def localNodeCount: Int = vertices.length
+  def localNodeCount: Int = vertices.size
 
   private var dataTable: Iterator[RowImplementation] = Iterator()
 

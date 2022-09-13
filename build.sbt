@@ -40,6 +40,7 @@ ThisBuild / publishTo := {
   else Some("releases" at nexus + "service/local/staging/deploy/maven2")
 }
 ThisBuild / publishMavenStyle.withRank(KeyRanks.Invisible) := true
+ThisBuild / resolvers += Resolver.mavenLocal
 
 lazy val root = (project in file("."))
   .settings(
@@ -109,7 +110,8 @@ lazy val core = (project in file("core"))
                   alleyCats,
                   typesafeConfig,
                   zookeeper,
-                  "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4"
+                  "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4",
+                  "pometry" % "arrow-core" % "1.0-SNAPSHOT"
           ),
           libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
   )
