@@ -20,7 +20,7 @@ import munit.FunSuite
 class RaphtoryGraphTest extends FunSuite {
 
   private def createMockGraph(config: Map[String, String] = Map()) =
-    new TemporalGraph(Query(), null, Raphtory.getDefaultConfig(config))
+    new TemporalGraph(Query(graphID = ""), null, Raphtory.getDefaultConfig(config))
 
   test("Test overall pipeline syntax for RaphtoryGraph class and related hierarchy") {
     val graph = createMockGraph()

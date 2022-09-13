@@ -52,12 +52,12 @@ private[raphtory] class QuerySender(
   val totalPartitions: Int     = partitionServers * partitionsPerServer
 
   private lazy val writers      = topics.graphUpdates(graphID).endPoint
-  private lazy val queryManager = topics.blockingIngestion.endPoint
-  private lazy val submissions  = topics.submissions.endPoint
+  private lazy val queryManager = topics.blockingIngestion().endPoint
+  private lazy val graphSetup   = topics.graphSetup.endPoint
+  private lazy val submissions  = topics.submissions().endPoint
   private val blockingSources   = ArrayBuffer[Int]()
 
-  private var highestTimeSeen = Long.MinValue
-
+  private var highestTimeSeen          = Long.MinValue
   private var totalUpdateIndex         = 0    //used at the secondary index for the client
   private var updatesSinceLastIDChange = 0    //used to know how many messages to wait for when blocking in the Q manager
   private var newIDRequiredOnUpdate    = true // has a query been since the last update and do I need a new ID
@@ -103,7 +103,7 @@ private[raphtory] class QuerySender(
     val jobID       = jobName + "_" + Random.nextLong().abs
     val outputQuery = query.copy(name = jobID, blockedBy = blockingSources.toArray)
 
-    topics.submissions.endPoint sendAsync outputQuery
+    submissions sendAsync outputQuery
 
     val tracker = QueryProgressTracker.unsafeApply(jobID, config, topics)
     scheduler.execute(tracker)
@@ -111,24 +111,13 @@ private[raphtory] class QuerySender(
   }
 
   private def unblockIngestion(sourceID: Int, index: Long, force: Boolean): Unit =
-    queryManager.sendAsync(
-            UnblockIngestion(
-                    sourceID,
-                    graphID = graphID,
-                    index,
-                    highestTimeSeen,
-                    force
-            )
-    )
+    queryManager.sendAsync(UnblockIngestion(sourceID, graphID = graphID, index, highestTimeSeen, force))
 
-  def destroyGraph(force: Boolean): Unit =
-    topics.graphSetup.endPoint sendAsync DestroyGraph(graphID, clientID, force)
+  def destroyGraph(force: Boolean): Unit = graphSetup sendAsync DestroyGraph(graphID, clientID, force)
 
-  def disconnect(): Unit =
-    topics.graphSetup.endPoint sendAsync ClientDisconnected(graphID, clientID)
+  def disconnect(): Unit = graphSetup sendAsync ClientDisconnected(graphID, clientID)
 
-  def establishGraph(): Unit =
-    topics.graphSetup.endPoint sendAsync EstablishGraph(graphID, clientID)
+  def establishGraph(): Unit = graphSetup sendAsync EstablishGraph(graphID, clientID)
 
   def outputCollector(tracker: QueryProgressTracker, timeout: Duration): TableOutputTracker = {
     val collector = TableOutputTracker(tracker, topics, config, timeout)
@@ -153,7 +142,7 @@ private[raphtory] class QuerySender(
           throw new NoIDException(s"Client '$clientID' was not able to acquire a source ID for $source")
       }
     }
-    submissions sendAsync IngestData(DynamicLoader(clazzes), id, sourceWithId, blocking)
+    submissions sendAsync IngestData(DynamicLoader(clazzes), graphID, id, sourceWithId, blocking)
   }
 
   private def getDefaultName(query: Query): String =
