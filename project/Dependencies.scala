@@ -10,7 +10,7 @@ object Dependencies {
   private lazy val fs2Version            = "3.2.12"
   private lazy val jacksonVersion        = "2.13.3"
   private lazy val log4jVersion          = "2.18.0"
-  private lazy val muVersion             = "0.28.0"
+  private lazy val muVersion             = "0.29.0"
   private lazy val openhftVersion        = "0.15"
   private lazy val pemjaVersion          = "0.2.0"
   private lazy val prometheusVersion     = "0.15.0"
@@ -21,7 +21,6 @@ object Dependencies {
   private lazy val slf4jVersion          = "1.7.36"
   private lazy val sprayJsonVersion      = "1.3.6"
   private lazy val testContainersVersion = "0.40.8"
-  private lazy val timeSeriesVersion     = "1.7.0"
   private lazy val typesafeConfigVersion = "1.4.2"
   private lazy val zookeeperVersion      = "3.7.0"
   private lazy val catsVersion           = "2.7.0"
@@ -40,8 +39,9 @@ object Dependencies {
 
   lazy val curatorRecipes =
     "org.apache.curator" % "curator-recipes" % curatorVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val decline = "com.monovore" %% "decline-effect" % declineVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val fs2     = "co.fs2"       %% "fs2-core"       % fs2Version
+  lazy val decline    = "com.monovore"             %% "decline-effect" % declineVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val fs2        = "co.fs2"                   %% "fs2-core"       % fs2Version
+  lazy val apacheHttp = "org.apache.httpcomponents" % "httpclient"     % "4.5.13"
 
   lazy val jackson =
     "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion excludeAll (excludeLog4j, excludeSlf4j)
@@ -93,8 +93,6 @@ object Dependencies {
   lazy val sprayJson        = "io.spray"                   %% "spray-json"                 % sprayJsonVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val testContainers   = "com.dimafeng"               %% "testcontainers-scala-munit" % testContainersVersion % "test"
 
-  lazy val timeSeries =
-    "io.sqooba.oss" %% "scala-timeseries-lib" % timeSeriesVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val twitterChill   = "com.twitter"         %% "chill"     % chillVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val typesafeConfig = "com.typesafe"         % "config"    % typesafeConfigVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val zookeeper      = "org.apache.zookeeper" % "zookeeper" % zookeeperVersion excludeAll (excludeLog4j, excludeSlf4j)
