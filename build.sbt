@@ -185,8 +185,8 @@ lazy val examplesEthereum =
 lazy val examplesGab =
   (project in file("examples/gab")).dependsOn(core).settings(assemblySettings)
 
-lazy val examplesLotr =
-  (project in file("examples/lotr")).dependsOn(core).settings(assemblySettings)
+lazy val examplesLotr    =
+  (project in file("examples/lotr")).dependsOn(core % "compile->compile;test->test").settings(assemblySettings)
 
 lazy val examplesTwitter =
   (project in file("examples/twitter"))

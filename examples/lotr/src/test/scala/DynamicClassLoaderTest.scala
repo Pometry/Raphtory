@@ -22,6 +22,9 @@ import com.raphtory.utils.FileUtils
 import munit.CatsEffectSuite
 
 import java.net.URL
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 import scala.sys.process._
@@ -44,6 +47,8 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
       |MinimalTestAlgorithm
       |""".stripMargin
 
+  override def munitTimeout: Duration = FiniteDuration(2, "min")
+
   private val tb: ToolBox[universe.type] = runtimeMirror(getClass.getClassLoader).mkToolBox()
 
   private val compiledAlgo: Generic = tb.compile(tb.parse(minimalTestCode))().asInstanceOf[Generic]
@@ -57,16 +62,16 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
       Process(
               Seq(
                       "sbt",
-                      //                      "-J-agentlib:jdwp=transport=dt_socket,server=n,address=pom-mbp1.fritz.box:5005,suspend=y",
                       "core/runMain com.raphtory.service.Standalone testLOTR"
               )
       ).run()
     }
   }(process =>
-    IO {
-      println("destroying remote process")
-      process.destroy()
-    }
+    IO.sleep(1.seconds) *> // chance to get output across
+      IO {
+        println("destroying remote process")
+        process.destroy()
+      }
   )
 
   lazy val remoteGraph = ResourceFixture(remoteGraphResource)
@@ -90,7 +95,6 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
           for {
             g <- Raphtory.newIOGraph()
             _  = g.load(source())
-            _  = g.addDynamicPath("com.raphtory.examples.lotr")
           } yield g
   )
 
@@ -103,10 +107,10 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
                               println("connecting to remote")
                               Raphtory.connect("testLOTR")
                             }
-                          } { g =>
+                          } { c =>
                             IO {
                               println("closing remote connection")
-//                              g.close() TODO: this currently falls over if any graphs were closed before
+//                              c.close() TODO: this currently falls over if any graphs were closed before
                             }
                           }
           } yield connection
@@ -133,12 +137,6 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   }
   remoteGraphWithPath.test("test algorithm class injection") { g =>
-//    val algo             = MaxFlowTest[Int]("Gandalf", "Gandalf")
-//    g = g.addClass(Class.forName("com.raphtory.examples.lotr.analysis.Message"))
-//    g = g.addClass(classOf[FlowAdded[_, _]])
-//    g = g.addClass(classOf[Recheck[_]])
-//    g = g.addClass(classOf[NewLabel[_]])
-//    g = g.addClass(classOf[ArbitraryMessage])
     val res = g.execute(MinimalTestAlgorithm).get().toList
     assert(res.nonEmpty)
     println(res)
