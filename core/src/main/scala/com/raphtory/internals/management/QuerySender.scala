@@ -108,7 +108,7 @@ private[raphtory] class QuerySender(
       .copy(
               name = jobID,
               blockedBy = blockingSources.toArray,
-              _bootstrap = query._bootstrap.resolvedDependencies(searchPath)
+              _bootstrap = query._bootstrap.resolve(searchPath)
       )
 
     submissions sendAsync outputQuery
@@ -148,7 +148,7 @@ private[raphtory] class QuerySender(
       }
     }
     submissions sendAsync IngestData(
-            DynamicLoader(clazzes).resolvedDependencies(searchPath),
+            DynamicLoader(clazzes).resolve(searchPath),
             graphID,
             id,
             sourceWithId,

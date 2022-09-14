@@ -98,19 +98,22 @@ private[raphtory] case class Query(
     pyScript: Option[String] = None
 ) extends Submission
 
-case class DynamicLoader(classes: List[Class[_]] = List.empty) {
+case class DynamicLoader(classes: List[Class[_]] = List.empty, resolved: Boolean = false) {
   def +(cls: Class[_]): DynamicLoader = this.copy(classes = cls :: classes)
 
-  def resolvedDependencies(searchPath: List[String]): DynamicLoader = {
+  def resolve(searchPath: List[String]): DynamicLoader = {
     var knownDeps: Set[Class[_]] = Set.empty
-    copy(classes = classes.reverse.flatMap { cls =>
-      knownDeps += cls
-      val actualSearchPath =
-        if (cls.getPackageName.startsWith("com.raphtory")) searchPath else cls.getPackageName :: searchPath
-      val deps             = recursiveResolveDependencies(cls, actualSearchPath)(knownDeps)
-      knownDeps = knownDeps ++ deps
-      deps.reverse
-    }.distinct)
+    copy(
+            classes = classes.reverse.flatMap { cls =>
+              knownDeps += cls
+              val actualSearchPath =
+                if (cls.getPackageName.startsWith("com.raphtory")) searchPath else cls.getPackageName :: searchPath
+              val deps             = recursiveResolveDependencies(cls, actualSearchPath)(knownDeps)
+              knownDeps = knownDeps ++ deps
+              deps.reverse
+            }.distinct,
+            resolved = true
+    )
   }
 
   private def recursiveResolveDependencies(cls: Class[_], searchPath: List[String])(
