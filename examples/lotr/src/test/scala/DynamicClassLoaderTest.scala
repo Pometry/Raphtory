@@ -29,6 +29,7 @@ import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 import scala.sys.process._
 import scala.tools.reflect.ToolBox
+import scala.util.Using
 
 class DynamicClassLoaderTest extends CatsEffectSuite {
 
@@ -59,10 +60,23 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
   val remoteProcess: Resource[IO, Process] = Resource.make {
     IO {
       println("starting remote process")
+//      This is how to get the full class path for running core using sbt, however, the command is really slow as it resolves everything from scratch
+//
+//        val classPath = Seq("sbt", "--error", "export core/runtime:fullClasspath").!!
+//
+//      It seems like the file below is where sbt actually stores that info so we can just read it directly
+      val classPath =
+        Using(scala.io.Source.fromFile("core/target/streams/runtime/fullClasspath/_global/streams/export")) { source =>
+          source.mkString
+        }.get
+
       Process(
               Seq(
-                      "sbt",
-                      "core/runMain com.raphtory.service.Standalone testLOTR"
+                      "java",
+                      "-cp",
+                      classPath,
+                      "com.raphtory.service.Standalone",
+                      "testLOTR"
               )
       ).run()
     }
