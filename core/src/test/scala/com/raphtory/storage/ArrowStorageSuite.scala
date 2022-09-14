@@ -154,8 +154,8 @@ class ArrowStorageSuite extends munit.FunSuite {
     }
 
     if (dst.isLocal) {
-      val p = vmgr.getPartition(vmgr.getPartitionId(dst.id))
-      val prevListPtr = p.synchronized{
+      val p           = vmgr.getPartition(vmgr.getPartitionId(dst.id))
+      val prevListPtr = p.synchronized {
         val ptr = p.addIncomingEdgeToList(dst.id, e.getLocalId)
         p.addHistory(dst.id, timestamp, true, e.getLocalId, false)
         ptr
@@ -168,7 +168,7 @@ class ArrowStorageSuite extends munit.FunSuite {
 
     assertEquals(emgr.getTotalNumberOfEdges, 1L)
 
-    val eIter = partition.getNewAllEdgesIterator
+    val eIter      = partition.getNewAllEdgesIterator
     assert(eIter.hasNext)
     val actualEdge = eIter.getEdge
     assert(actualEdge != null)
@@ -179,10 +179,19 @@ class ArrowStorageSuite extends munit.FunSuite {
     val vs2: VertexIterator.AllVerticesIterator = partition.getNewAllVerticesIterator
     // this should be bob
     vs2.hasNext
-    val v1 = vs2.getVertex
+    val v1                                      = vs2.getVertex
     assertEquals(v1.getField(NAME_FIELD_ID).getString.toString, "Bob")
-    assertEquals(v1.getIncomingEdges.size(), 0)
-    assertEquals(v1.getOutgoingEdges.size(), 1)
+
+    // bob's edges
+    val bobIterE = partition.getNewAllEdgesIterator
+    bobIterE.reset(v1.getOutgoingEdgePtr)
+    assert(bobIterE.hasNext)
+    val bobOutE  = bobIterE.getEdge
+    assert(bobOutE != null)
+    assertEquals(bobIterE.getDstVertexId, alice.getLocalId)
+    assertEquals(bobIterE.isDstVertexLocal, true)
+    assert(!bobIterE.hasNext) // BOOM! this overrides the edge if you move this 2 lines up the test blows up
+
 
     // this should be alice
     vs2.hasNext
