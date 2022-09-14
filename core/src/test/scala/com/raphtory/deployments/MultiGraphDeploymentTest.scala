@@ -27,16 +27,14 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
   test("Deploy two different graphs and queries work as normally") {
     val lotrPath = "/tmp/lotr.csv"
 
-    val lotrUrl     = new URL("https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv")
-    val lotrFile    = TestUtils.manageTestFile(Some(lotrPath, lotrUrl))
-    val lotrSpout   = FileSpout(lotrPath)
-    val lotrBuilder = new LOTRGraphBuilder()
+    val lotrUrl   = new URL("https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv")
+    val lotrFile  = TestUtils.manageTestFile(Some(lotrPath, lotrUrl))
+    val lotrSpout = FileSpout(lotrPath)
 
-    val facebookPath    = "/tmp/facebook.csv"
-    val facebookUrl     = new URL("https://raw.githubusercontent.com/Raphtory/Data/main/facebook.csv")
-    val facebookFile    = TestUtils.manageTestFile(Some(facebookPath, facebookUrl))
-    val facebookSpout   = StaticGraphSpout(facebookPath)
-    val facebookBuilder = new FacebookGraphBuilder()
+    val facebookPath  = "/tmp/facebook.csv"
+    val facebookUrl   = new URL("https://raw.githubusercontent.com/Raphtory/Data/main/facebook.csv")
+    val facebookFile  = TestUtils.manageTestFile(Some(facebookPath, facebookUrl))
+    val facebookSpout = StaticGraphSpout(facebookPath)
 
     val files = for {
       _ <- lotrFile
@@ -47,7 +45,7 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
       .use { files =>
         IO.delay {
           val lotrGraph   = Raphtory.newGraph()
-          lotrGraph.load(Source(lotrSpout, lotrBuilder))
+          lotrGraph.load(Source(lotrSpout, LOTRGraphBuilder.parse))
           val lotrTracker = lotrGraph
             .range(1, 32674, 10000)
             .window(List(500, 1000, 10000), Alignment.END)
@@ -55,7 +53,7 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
             .writeTo(defaultSink)
 
           val facebookGraph = Raphtory.newGraph()
-          facebookGraph.load(Source(facebookSpout, facebookBuilder))
+          facebookGraph.load(Source(facebookSpout, FacebookGraphBuilder.parse))
 
           val facebookTracker = facebookGraph
             .at(88234)

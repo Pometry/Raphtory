@@ -74,10 +74,13 @@ private[raphtory] case class FilteredOutEdgeMessage[VertexID](
 
 private[raphtory] case class VertexMessagesSync(partitionID: Int, count: Long)
 
-sealed private[raphtory] trait Submission extends QueryManagement
+sealed private[raphtory] trait Submission extends QueryManagement {
+  def graphID: String
+}
 
 private[raphtory] case class Query(
     _bootstrap: DynamicLoader = DynamicLoader(), // leave the `_` this field gets deserialized first
+    graphID: String,
     name: String = "",
     points: PointSet = NullPointSet,
     timelineStart: Long = Long.MinValue,         // inclusive
@@ -154,6 +157,7 @@ sealed private[raphtory] trait GraphManagement extends QueryManagement
 private[raphtory] case class IngestData(
     _bootstrap: DynamicLoader,
     graphID: String,
+    sourceId: String,
     sources: Seq[(Int, Source)],
     blocking: Boolean
 ) extends Submission
@@ -171,18 +175,15 @@ private[raphtory] case class StopExecutor(jobID: String) extends GraphManagement
 
 sealed private[raphtory] trait ClusterManagement extends QueryManagement
 
-private[raphtory] case class EstablishGraph(graphID: String, clientID: String) extends Submission with ClusterManagement
+private[raphtory] case class EstablishGraph(graphID: String, clientID: String)               extends ClusterManagement
+private[raphtory] case class DestroyGraph(graphID: String, clientID: String, force: Boolean) extends ClusterManagement
+private[raphtory] case class ClientDisconnected(graphID: String, clientID: String)           extends ClusterManagement
 
-private[raphtory] case class DestroyGraph(graphID: String, clientID: String, force: Boolean)
-        extends Submission
-        with ClusterManagement
+sealed private[raphtory] trait IngestionBlockingCommand   extends QueryManagement {
+  def graphID: String
+}
+case class NonBlocking(sourceID: Int, graphID: String)    extends IngestionBlockingCommand
+case class BlockIngestion(sourceID: Int, graphID: String) extends IngestionBlockingCommand
 
-private[raphtory] case class ClientDisconnected(graphID: String, clientID: String)
-        extends Submission
-        with ClusterManagement
-
-case class BlockIngestion(sourceID: Int, graphID: String) extends QueryManagement
-
-case class NonBlocking(sourceID: Int, graphID: String) extends QueryManagement
-
-case class UnblockIngestion(sourceID: Int, graphID: String, messageCount: Long, force: Boolean) extends QueryManagement
+case class UnblockIngestion(sourceID: Int, graphID: String, messageCount: Long, highestTimeSeen: Long, force: Boolean)
+        extends IngestionBlockingCommand

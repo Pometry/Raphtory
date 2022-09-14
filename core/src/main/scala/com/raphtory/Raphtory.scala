@@ -7,12 +7,14 @@ import com.raphtory.internals.context.LocalContext
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.internals.context.RemoteContext
 import com.raphtory.internals.context.LocalContext.createName
+import com.raphtory.internals.graph.GraphBuilder
 import com.raphtory.internals.management._
 import com.raphtory.internals.management.id.IDManager
 import com.raphtory.internals.management.id.LocalIDManager
 import com.raphtory.internals.management.id.ZooKeeperCounter
 import com.raphtory.internals.management.id.ZookeeperLimitedPool
 import com.typesafe.config.Config
+import net.openhft.hashing.LongHashFunction
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -36,7 +38,7 @@ import scala.collection.mutable.ArrayBuffer
   * graph.deployment.stop()
   * }}}
   *
-  * @see [[api.input.GraphBuilder GraphBuilder]]
+  * @see [[GraphBuilder GraphBuilder]]
   *      [[api.input.Spout Spout]]
   *      [[api.analysis.graphview.DeployedTemporalGraph DeployedTemporalGraph]]
   *      [[api.analysis.graphview.TemporalGraph TemporalGraph]]
@@ -55,8 +57,8 @@ object Raphtory {
 
   def getGraph(graphID: String): Option[DeployedTemporalGraph] = LocalContext.getGraph(graphID)
 
-  def connect(deploymentID: String): RaphtoryContext = {
-    val context = new RemoteContext(deploymentID)
+  def connect(address: String = "", port: Int = 0): RaphtoryContext = {
+    val context = new RemoteContext(address, port)
     remoteConnections += context
     context
   }

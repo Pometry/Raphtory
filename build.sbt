@@ -1,9 +1,13 @@
 import sbt.Compile
 import sbt.Keys.baseDirectory
 import Dependencies._
+import higherkindness.mu.rpc.srcgen.Model._
 
+import scala.io.Source
+
+val raphtoryVersion = Source.fromFile("version").getLines.next()
 ThisBuild / scalaVersion := "2.13.7"
-ThisBuild / version := "0.2.0.alpha"
+ThisBuild / version := raphtoryVersion
 ThisBuild / organization := "com.raphtory"
 ThisBuild / organizationName := "raphtory"
 ThisBuild / organizationHomepage := Some(url("https://raphtory.readthedocs.io/"))
@@ -41,12 +45,33 @@ ThisBuild / publishTo := {
 }
 ThisBuild / publishMavenStyle.withRank(KeyRanks.Invisible) := true
 
+ThisBuild / scalacOptions += "-language:higherKinds"
+
+def on[A](major: Int, minor: Int)(a: A): Def.Initialize[Seq[A]] =
+  Def.setting {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some(v) if v == (major, minor) => Seq(a)
+      case _                              => Nil
+    }
+  }
+
+lazy val macroSettings: Seq[Setting[_]] = Seq(
+        libraryDependencies ++= Seq(
+                scalaOrganization.value % "scala-compiler" % scalaVersion.value % Provided
+        ),
+        libraryDependencies ++= on(2, 12)(
+                compilerPlugin("org.scalamacros" %% "paradise" % "2.1.1" cross CrossVersion.full)
+        ).value,
+        scalacOptions ++= on(2, 13)("-Ymacro-annotations").value
+)
+
 lazy val root = (project in file("."))
   .settings(
           name := "Raphtory",
           defaultSettings
   )
   .aggregate(
+          protocol,
           core,
           connectorsAWS,
           connectorsTwitter,
@@ -59,7 +84,27 @@ lazy val root = (project in file("."))
           deploy
   )
 
+lazy val protocol = project
+  .settings(
+          name := "mu-scala-protocol",
+          libraryDependencies ++= Seq(
+                  // Needed for the generated code to compile
+                  muFs2,
+                  muService
+          ),
+          // Needed to expand the @service macro annotation
+          macroSettings,
+          // Generate sources from .proto files
+          muSrcGenIdlType := IdlType.Proto,
+          // Make it easy for 3rd-party clients to communicate with us via gRPC
+          muSrcGenIdiomaticEndpoints := true
+  )
+  // The sbt-mu-srcgen plugin isn't on by default after version v0.23.x
+  // so we need to manually enable the plugin to generate mu-scala code
+  .enablePlugins(SrcGenPlugin)
+
 lazy val core = (project in file("core"))
+  .dependsOn(protocol)
   .settings(
           name := "core",
           assembly / test := {},
@@ -78,12 +123,17 @@ lazy val core = (project in file("core"))
                   bcel,
                   curatorRecipes,
                   decline,
+                  fs2,
+                  apacheHttp,
                   jackson,
                   jfr,
                   log4jSlft4,
                   log4jApi,
                   log4jCore,
                   magnolia,
+                  muClient,
+                  muFs2,
+                  muServer,
                   nomen,
                   openhft,
                   pemja,
@@ -103,7 +153,6 @@ lazy val core = (project in file("core"))
                   slf4j,
                   sprayJson,
                   testContainers,
-                  timeSeries,
                   twitterChill,
                   catsEffect,
                   catsMUnit,

@@ -8,10 +8,11 @@ import com.raphtory.api.analysis.algorithm.GenericallyApplicable
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
-import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Graph
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.api.output.sink.Sink
+import com.raphtory.internals.graph.GraphBuilder
 import com.raphtory.sinks.FileSink
 import com.typesafe.scalalogging.Logger
 import munit.CatsEffectSuite
@@ -64,7 +65,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   def liftFileIfNotPresent: Option[(String, URL)] = None
 
   def setSpout(): Spout[T]
-  def setGraphBuilder(): GraphBuilder[T]
+  def setGraphBuilder(): (Graph, T) => Unit
 
   def receiveMessage(consumer: Consumer[Array[Byte]]): Message[Array[Byte]] =
     consumer.receive

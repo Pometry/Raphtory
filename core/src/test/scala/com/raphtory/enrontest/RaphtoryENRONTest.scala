@@ -3,9 +3,10 @@ package com.raphtory.enrontest
 import com.raphtory.BaseRaphtoryAlgoTest
 import com.raphtory.GraphState
 import com.raphtory.algorithms.generic.ConnectedComponents
-import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Graph
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
+import com.raphtory.internals.graph.GraphBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 
@@ -46,7 +47,7 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
   override def setSpout(): Spout[String] = FileSpout("/tmp/email_test.csv")
 
-  override def setGraphBuilder(): GraphBuilder[String] = new ENRONGraphBuilder()
+  override def setGraphBuilder(): (Graph, String) => Unit = ENRONGraphBuilder.parse
 
   override def liftFileIfNotPresent: Option[(String, URL)] =
     Some("/tmp/email_test.csv" -> new URL("https://raw.githubusercontent.com/Raphtory/Data/main/email_test.csv"))
