@@ -79,7 +79,7 @@ case class ArrowFlightReader[T](
         val header = endPoint.substring(0, endPoint.lastIndexOf("/"))
 
         if (topics.contains(header)) {
-          var streamReadAlready = false
+//          var streamReadAlready = false
           val endPointAsByteStream = flightInfo.getDescriptor.getPath.get(0).getBytes(StandardCharsets.UTF_8)
 
           Using(flightClient.getStream(new Ticket(endPointAsByteStream))) { flightStream =>
@@ -152,7 +152,7 @@ case class ArrowFlightReader[T](
                   }
                 finally if (vms != null) vms.close()
 
-                streamReadAlready = true
+//                streamReadAlready = true
               }
             }
 
