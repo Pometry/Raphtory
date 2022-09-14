@@ -13,6 +13,8 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
+import scala.util.control.NonFatal
+
 abstract private[raphtory] class Component[T](conf: Config) {
 
   protected val telemetry: ComponentTelemetryHandler.type = ComponentTelemetryHandler
@@ -117,11 +119,7 @@ object Component {
         .getMethod("putObjectVolatile", classOf[Object], classOf[Long], classOf[Object])
         .invoke(unsafe, loggerClass, offset, null)
     }
-    catch {
-      case ex: Exception =>
-        log.warn("Failed to disable Java 10 access warning:")
-        ex.printStackTrace()
-    }
+    catch { case NonFatal(_) => }
   }
 
 }

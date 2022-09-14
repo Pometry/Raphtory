@@ -74,6 +74,9 @@ private[pojograph] class PojoExplodedVertex(
         setState(key, Array(value))
     }
 
+  override def clearState(key: String): Unit =
+    computationValues -= key
+
   override def remove(): Unit = {
     super.remove()
     vertex.explodedNeedsFiltering = true

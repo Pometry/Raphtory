@@ -88,6 +88,9 @@ private[raphtory] class PojoExVertex(
   var explodedNeedsFiltering = false
   var interlayerEdges        = Seq.empty[InterlayerEdge]
 
+  override def clearState(key: String): Unit =
+    computationValues -= key
+
   def explode(
       interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]]
   ): Unit = {
