@@ -42,17 +42,16 @@ private[serialisers] class DynamicClassLoader(parent: ClassLoader, storage: Conc
 }
 
 object DynamicClassLoader {
+  private[serialisers] val classStorage = new ConcurrentHashMap[String, Array[Byte]]()
+  private val loader                    = new DynamicClassLoader(this.getClass.getClassLoader, classStorage)
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private[serialisers] val classStorage = new ConcurrentHashMap[String, Array[Byte]]()
-
-  def injectClass(name: String, clzBytes: Array[Byte], classLoader: DynamicClassLoader): Class[_] = {
+  def injectClass(name: String, clzBytes: Array[Byte]): Class[_] = {
     logger.debug(s"Loading dynamic class [$name], size: ${clzBytes.length}")
     classStorage.computeIfAbsent(name, _ => clzBytes)
-    classLoader.findClass(name)
+    loader.findClass(name)
   }
-  val loader = new DynamicClassLoader(this.getClass.getClassLoader, classStorage)
 
   def lookupClass(name: String): Option[Array[Byte]] = Option(classStorage.get(name))
 
