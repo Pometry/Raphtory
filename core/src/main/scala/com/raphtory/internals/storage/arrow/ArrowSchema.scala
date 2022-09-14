@@ -13,7 +13,9 @@ object ArrowSchema {
       versionedVertexProperties: util.ArrayList[VersionedProperty],
       nonversionedEdgeProperties: util.ArrayList[NonversionedField],
       versionedEdgeProperties: util.ArrayList[VersionedProperty]
-  ) extends PropertySchema
+  ) extends PropertySchema {
+
+  }
 
   def apply[V, E](implicit V: VertexSchema[V], E: EdgeSchema[E]): PropertySchema =
     ScalaPropertySchema(
