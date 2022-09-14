@@ -62,11 +62,11 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
       println("starting remote process")
 //      This is how to get the full class path for running core using sbt, however, the command is really slow as it resolves everything from scratch
 //
-//        val classPath = Seq("sbt", "--error", "export core/runtime:fullClasspath").!!
+//        val classPath = Seq("sbt", "--error", "export core/test:fullClasspath").!!
 //
 //      It seems like the file below is where sbt actually stores that info so we can just read it directly
       val classPath =
-        Using(scala.io.Source.fromFile("core/target/streams/runtime/fullClasspath/_global/streams/export")) { source =>
+        Using(scala.io.Source.fromFile("core/target/streams/test/fullClasspath/_global/streams/export")) { source =>
           source.mkString
         }.get
 
