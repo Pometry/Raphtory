@@ -23,17 +23,19 @@ private[serialisers] class DynamicClassLoader(parent: ClassLoader, storage: Conc
       case Failure(t: ClassNotFoundException) =>
         loaded.computeIfAbsent(
                 name,
-                { _ =>
-                  val clzBytes = storage.get(name)
-                  if (clzBytes != null) {
-                    val clz = defineClass(name, clzBytes, 0, clzBytes.length)
-                    logger.debug(s"Successfully injected class $clz")
-                    clz
-                  }
-                  else throw t
-                }
+                buildFromStorage(exception = t)(_)
         )
     }
+
+  private def buildFromStorage(exception: ClassNotFoundException)(name: String): Class[_] = {
+    val clzBytes = storage.get(name)
+    if (clzBytes != null) {
+      val clz = defineClass(name, clzBytes, 0, clzBytes.length)
+      logger.debug(s"Successfully injected class $clz")
+      clz
+    }
+    else throw exception
+  }
 
   override def findResource(name: String): URL = super.findResource(name)
 
