@@ -111,7 +111,8 @@ lazy val core = (project in file("core"))
                   typesafeConfig,
                   zookeeper,
                   "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4",
-                  "pometry" % "arrow-core" % "1.0-SNAPSHOT"
+                  "pometry" % "arrow-core" % "1.0-SNAPSHOT",
+                  "com.softwaremill.magnolia1_2" %% "magnolia" % "1.1.2"
           ),
           libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
   )
