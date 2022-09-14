@@ -17,6 +17,7 @@ object Dependencies {
   private lazy val pulsarVersion         = "2.9.1"
   private lazy val py4jVersion           = "0.10.9.5"
   private lazy val scalaLoggingVersion   = "3.9.4"
+  private lazy val scalaParallelCollectionsVersion = "1.0.4"
   private lazy val scalatestVersion      = "3.2.11"
   private lazy val slf4jVersion          = "1.7.36"
   private lazy val sprayJsonVersion      = "1.3.6"
@@ -85,13 +86,16 @@ object Dependencies {
 
   lazy val pulsarOriginal =
     "org.apache.pulsar" % "pulsar-client-original" % pulsarVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val py4j             = "net.sf.py4j"                 % "py4j"                       % py4jVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val scalaLogging     = "com.typesafe.scala-logging" %% "scala-logging"              % scalaLoggingVersion
-  lazy val scalaTest        = "org.scalatest"              %% "scalatest"                  % scalatestVersion      % Test
-  lazy val scalaTestCompile = "org.scalatest"              %% "scalatest"                  % scalatestVersion
-  lazy val slf4j            = "org.slf4j"                   % "slf4j-api"                  % slf4jVersion
-  lazy val sprayJson        = "io.spray"                   %% "spray-json"                 % sprayJsonVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val testContainers   = "com.dimafeng"               %% "testcontainers-scala-munit" % testContainersVersion % "test"
+  lazy val py4j                     = "net.sf.py4j"                 % "py4j"          % py4jVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val scalaLogging             = "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion
+
+  lazy val scalaParallelCollections =
+    "org.scala-lang.modules" %% "scala-parallel-collections" % scalaParallelCollectionsVersion
+  lazy val scalaTest        = "org.scalatest" %% "scalatest"                  % scalatestVersion      % Test
+  lazy val scalaTestCompile = "org.scalatest" %% "scalatest"                  % scalatestVersion
+  lazy val slf4j            = "org.slf4j"      % "slf4j-api"                  % slf4jVersion
+  lazy val sprayJson        = "io.spray"      %% "spray-json"                 % sprayJsonVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val testContainers   = "com.dimafeng"  %% "testcontainers-scala-munit" % testContainersVersion % "test"
 
   lazy val twitterChill   = "com.twitter"         %% "chill"     % chillVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val typesafeConfig = "com.typesafe"         % "config"    % typesafeConfigVersion excludeAll (excludeLog4j, excludeSlf4j)
