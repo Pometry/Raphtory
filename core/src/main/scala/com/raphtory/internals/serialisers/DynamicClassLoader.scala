@@ -55,8 +55,6 @@ object DynamicClassLoader {
 
   def lookupClass(name: String): Option[Array[Byte]] = Option(classStorage.get(name))
 
-  private val ref = new AtomicReference[Option[DynamicClassLoader]](None)
-
-  def apply(classLoader: ClassLoader): DynamicClassLoader =
+  def apply(): DynamicClassLoader =
     loader
 }
