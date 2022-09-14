@@ -147,6 +147,7 @@ lazy val core = (project in file("core"))
                   pulsarOriginal,
                   py4j,
                   scalaLogging,
+                  scalaParallelCollections,
                   scalaTest,
                   scalaTestCompile,
                   slf4j,
@@ -245,6 +246,6 @@ Test / parallelExecution := false
 Global / concurrentRestrictions := Seq(
         Tags.limit(Tags.Test, 1)
 )
-
+core / Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 // Scaladocs parameters
 // doc / scalacOptions ++= Seq("-skip-packages", "com.raphtory.algorithms.generic:com.raphtory.algorithms.temporal", "-private")

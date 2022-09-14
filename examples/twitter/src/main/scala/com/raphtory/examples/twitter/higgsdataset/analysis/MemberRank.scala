@@ -6,6 +6,8 @@ import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Edge
 
+import scala.collection.View
+
 /**
   * Description
   * This algorithm takes the Page Rank Score from the vertices neighbour's and multiplies
@@ -42,7 +44,7 @@ class MemberRank() extends Generic {
         val inDegree = vertex.inDegree.toDouble
 
         //makes list of all the raw scores from data
-        val rawScoreList: List[Score] = vertex.inEdges.map {
+        val rawScoreList: View[Score] = vertex.inEdges.map {
           case edge: Edge =>
             if (inDegree < 0) Score(negativeScore = inDegree)
             else Score(positiveScore = inDegree)

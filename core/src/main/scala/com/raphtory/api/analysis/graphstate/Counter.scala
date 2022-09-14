@@ -27,6 +27,6 @@ abstract class Counter[T] {
   def largest : (T,Int)
 
   /** Returns the id and count of the k largest groups */
-  def largest(k: Int): List[(T,Int)]
+  def largest(k: Int): Iterable[(T,Int)]
 
 }

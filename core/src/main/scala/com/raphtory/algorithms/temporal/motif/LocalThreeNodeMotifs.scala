@@ -70,7 +70,7 @@ class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint
           neighbours.foreach{nb =>
             v.messageVertex(nb,(v.ID, neighbours))
           }
-          v.setState("triCounts",Array.fill(8)(0))
+          v.setState("triCounts",Array.fill(8)(0L))
       }
       .step { v =>
         val neighbours = v.neighbours.filter(_!=v.ID).toSet
@@ -102,9 +102,9 @@ class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint
                 edges)
                 .sortBy(x => (x._3, x._1, x._2))
               val ids = List(v.ID,u,w).sortWith(_<_)
-              val mc = new TriadMotifCounter(ids(0),ids(1))
+              val mc = new TriadMotifCounter(ids(0),ids(1), List(ids(2)))
               mc.execute(inputEdges,delta)
-              val curVal = v.getState[Array[Int]]("triCounts")
+              val curVal = v.getState[Array[Long]]("triCounts")
               v.setState("triCounts", curVal.zip(mc.getCounts)
                 .map{ case(x,y)=> x+y})
               v.messageVertex(u,mc.getCounts)
@@ -114,19 +114,19 @@ class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint
       }
       .step{
         v =>
-          v.messageQueue[Array[Int]].foreach{
+          v.messageQueue[Array[Long]].foreach{
             toAdd =>
-              val curVal = v.getState[Array[Int]]("triCounts")
+              val curVal = v.getState[Array[Long]]("triCounts")
               v.setState("triCounts",curVal.zip(toAdd).map{ case (x,y) => x+y})
           }
       }
       .step({
         (v, state) =>
-          val mc = new StarMotifCounter(v.ID)
+          val mc = new StarMotifCounter(v.ID, v.neighbours.filter(_!=v.ID))
           // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
           // for motif edges with the same timestamp
           mc.execute(v.explodeAllEdges().map(e=> (e.src,e.dst,e.timestamp)).sortBy(x => (x._3, x._1, x._2)),delta)
-          val counts : Array[Int] = mc.getCounts
+          val counts : Array[Long] = mc.getCounts
           var twoNodeCounts = Array.fill(8)(0)
           v.neighbours.foreach{
             vid =>
@@ -150,14 +150,14 @@ class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint
   override def tabularise(graph: ReducedGraphPerspective): Table = {
     if (!graphWide) {
       if (prettyPrint)
-        graph.select(vertex => Row(vertex.name, getStarCountsPretty(vertex.getState[Array[Int]]("starCounts")), get2NodeCountsWithoutRepeats(vertex.getState[Array[Int]]("twoNodeCounts")), getTriCountsPretty(vertex.getState[Array[Int]]("triCounts"))))
+        graph.select(vertex => Row(vertex.name, getStarCountsPretty(vertex.getState[Array[Long]]("starCounts")), get2NodeCountsWithoutRepeats(vertex.getState[Array[Long]]("twoNodeCounts")), getTriCountsPretty(vertex.getState[Array[Long]]("triCounts"))))
       else
-        graph.select(vertex => Row(vertex.name, (vertex.getState[Array[Int]]("starCounts")++vertex.getState[Array[Int]]("twoNodeCounts")++vertex.getState[Array[Int]]("triCounts")).mkString("(", ";", ")")))
+        graph.select(vertex => Row(vertex.name, (vertex.getState[Array[Long]]("starCounts")++vertex.getState[Array[Int]]("twoNodeCounts")++vertex.getState[Array[Long]]("triCounts")).mkString("(", ";", ")")))
     } else {
       if (prettyPrint)
-        graph.globalSelect(state => Row(getStarCountsPretty(state[Array[Long],Array[Long]]("starCounts").value), get2NodeCountsWithoutRepeats(state[Array[Int],Array[Int]]("twoNodeCounts").value), getTriCountsPretty(state[Array[Int],Array[Int]]("triCounts").value)))
+        graph.globalSelect(state => Row(getStarCountsPretty(state[Array[Long],Array[Long]]("starCounts").value), get2NodeCountsWithoutRepeats(state[Array[Long],Array[Long]]("twoNodeCounts").value), getTriCountsPretty(state[Array[Long],Array[Long]]("triCounts").value)))
       else
-        graph.globalSelect(state => Row((state[Array[Long],Array[Long]]("starCounts").value++state[Array[Int],Array[Int]]("twoNodeCounts").value++state[Array[Int],Array[Int]]("triCounts").value).mkString("(", ";", ")")))
+        graph.globalSelect(state => Row((state[Array[Long],Array[Long]]("starCounts").value++state[Array[Long],Array[Long]]("twoNodeCounts").value++state[Array[Long],Array[Long]]("triCounts").value).mkString("(", ";", ")")))
     }
   }
 }

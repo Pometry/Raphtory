@@ -54,8 +54,10 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends Generi
     val neighbours = vertex.outNeighbours
     if (neighbours.isEmpty)
       vertex.ID
-    else
-      neighbours(rnd.nextInt(neighbours.length))
+    else {
+      val i = rnd.nextInt(neighbours.size)
+      neighbours.zipWithIndex.find(_._2 == i).get._1 //FIXME: scala.collection.View is less than ideal
+    }
   }
 
   override def apply(graph: GraphPerspective): graph.Graph =
