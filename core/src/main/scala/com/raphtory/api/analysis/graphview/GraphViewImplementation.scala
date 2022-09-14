@@ -227,6 +227,11 @@ private[api] trait GraphViewImplementation[
   def execute(algorithm: GenericallyApplicable): Table =
     algorithm.run(withTransformedName(algorithm))
 
+  def addDynamicPath(name: String*): G = {
+    name.foreach(querySender.addToDynamicPath)
+    this
+  }
+
   /** Inject class dependency */
   override def addClass(clazz: Class[_]): G = {
     val bootstrap = query._bootstrap + clazz
@@ -249,11 +254,8 @@ private[api] trait GraphViewImplementation[
             querySender
     )
 
-  private[api] def withTransformedName(algorithm: BaseAlgorithm) =
-    newGraph(
-            query.copy(name = transformedName(algorithm.name), _bootstrap = query._bootstrap + algorithm.getClass),
-            querySender
-    )
+  private[api] def withTransformedName(algorithm: BaseAlgorithm): G =
+    withTransformedName(algorithm.name).addClass(algorithm.getClass)
 
   def withTransformedName(name: String): G =
     newGraph(query.copy(name = transformedName(name)), querySender)

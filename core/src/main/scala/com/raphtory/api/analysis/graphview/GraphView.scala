@@ -54,6 +54,9 @@ trait GraphView extends GraphPerspective {
   def execute(algorithm: GenericallyApplicable): Table
 
   def addClass(clazz: Class[_]): Graph
+
+  def addDynamicPath(name: String*): Graph
+
 }
 
 /** Extends [[GraphView]] with variants of the `transform` and `execute` methods specific to multilayer graphs

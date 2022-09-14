@@ -12,6 +12,9 @@ import com.raphtory.api.time.NullInterval
 import com.raphtory.internals.graph.Perspective
 
 import scala.collection.immutable.Queue
+import com.raphtory.internals.serialisers.DependencyFinder
+
+import scala.jdk.CollectionConverters._
 
 private[raphtory] trait QueryManagement extends Serializable
 
@@ -27,7 +30,8 @@ private[raphtory] case object StartAnalysis extends QueryManagement
 
 private[raphtory] case class SetMetaData(vertices: Int) extends QueryManagement
 
-private[raphtory] case object JobDone extends QueryManagement
+private[raphtory] case object JobDone                    extends QueryManagement
+private[raphtory] case class JobFailed(error: Throwable) extends QueryManagement
 
 private[raphtory] case class CreatePerspective(id: Int, perspective: Perspective) extends QueryManagement
 
@@ -96,6 +100,33 @@ private[raphtory] case class Query(
 
 case class DynamicLoader(classes: List[Class[_]] = List.empty) {
   def +(cls: Class[_]): DynamicLoader = this.copy(classes = cls :: classes)
+
+  def resolvedDependencies(searchPath: List[String]): DynamicLoader = {
+    var knownDeps: Set[Class[_]] = Set.empty
+    copy(classes = classes.reverse.flatMap { cls =>
+      knownDeps += cls
+      val actualSearchPath =
+        if (cls.getPackageName.startsWith("com.raphtory")) searchPath else cls.getPackageName :: searchPath
+      val deps             = recursiveResolveDependencies(cls, actualSearchPath)(knownDeps)
+      knownDeps = knownDeps ++ deps
+      deps.reverse
+    }.distinct)
+  }
+
+  private def recursiveResolveDependencies(cls: Class[_], searchPath: List[String])(
+      knownDeps: Set[Class[_]] = Set(cls)
+  ): List[Class[_]] = {
+    val dependencies = DependencyFinder
+      .getDependencies(cls)
+      .asScala
+      .filter { d =>
+        val packageName = d.getPackageName
+        searchPath.exists(path => packageName.startsWith(path))
+      }
+      .diff(knownDeps)
+      .toList
+    cls :: dependencies.flatMap(d => recursiveResolveDependencies(d, searchPath)(knownDeps + d)).distinct
+  }
 }
 
 sealed private[raphtory] trait PointSet

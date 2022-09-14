@@ -49,7 +49,7 @@ class DynamicLoaderSerializer(default: Serializer[DynamicLoader]) extends Serial
   override def write(kryo: Kryo, output: Output, q: DynamicLoader): Unit = {
     logger.debug(s"Writing down ${q.classes.size} classes for dynamic loading ${q.classes}")
     output.writeInt(q.classes.size)
-    q.classes.reverse.foreach { c =>
+    q.classes.foreach { c =>
       val (bytes, name) = class2Bytecode(c)
       output.writeString(name)
       output.writeInt(bytes.length)
