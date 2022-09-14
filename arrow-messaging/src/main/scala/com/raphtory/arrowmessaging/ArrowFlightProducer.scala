@@ -82,7 +82,7 @@ private[arrowmessaging] class ArrowFlightProducer(
     val flightDescriptor = FlightDescriptor.path(new String(action.getBody, StandardCharsets.UTF_8))
     action.getType match {
       case "DELETE" =>
-        val removed: ArrowFlightDataset = datasets.remove(flightDescriptor);
+        val removed: ArrowFlightDataset = datasets.remove(flightDescriptor)
         if (removed != null) {
           try {
             removed.close()
