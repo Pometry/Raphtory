@@ -4,7 +4,6 @@ import com.raphtory.utils.Bounded
 
 import scala.collection.mutable
 
-
 private[raphtory] class GraphStateImplementation(override val nodeCount: Int) extends GraphState {
   private val accumulatorState = mutable.Map.empty[String, AccumulatorImplementation[Any, Any]]
   private val histogramState   = mutable.Map.empty[String, HistogramImplementation[Any]]
@@ -25,7 +24,7 @@ private[raphtory] class GraphStateImplementation(override val nodeCount: Int) ex
     accumulatorState(name) = AccumulatorImplementation[T](value, retainState = false, (x, _) => x)
       .asInstanceOf[AccumulatorImplementation[Any, Any]]
 
-  def newAdder[T](name: String, initialValue: T, retainState: Boolean)(implicit
+  def newAdder[@specialized(Long, Double) T](name: String, initialValue: T, retainState: Boolean)(implicit
       numeric: Numeric[T]
   ): Unit =
     accumulatorState(name) = AccumulatorImplementation[T](initialValue, retainState, numeric.plus)

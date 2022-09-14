@@ -97,6 +97,7 @@ lazy val core = (project in file("core"))
                   pulsarOriginal,
                   py4j,
                   scalaLogging,
+                  scalaParallelCollections,
                   scalaTest,
                   scalaTestCompile,
                   slf4j,
@@ -108,8 +109,7 @@ lazy val core = (project in file("core"))
                   catsMUnit,
                   alleyCats,
                   typesafeConfig,
-                  zookeeper,
-                  "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4"
+                  zookeeper
           ),
           libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
   )

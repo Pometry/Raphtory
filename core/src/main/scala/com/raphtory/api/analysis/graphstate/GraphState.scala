@@ -83,7 +83,7 @@ abstract class GraphState {
     * $initialValue
     * $retainState
     */
-  def newAdder[T: Numeric](name: String, initialValue: T, retainState: Boolean): Unit
+  def newAdder[@specialized(Long, Double) T: Numeric](name: String, initialValue: T, retainState: Boolean): Unit
 
   def newIntAdder(str: String): Unit =
     newIntAdder(str, 0, retainState = false)
