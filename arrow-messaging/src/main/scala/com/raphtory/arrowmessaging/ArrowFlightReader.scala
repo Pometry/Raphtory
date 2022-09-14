@@ -156,18 +156,18 @@ case class ArrowFlightReader[T](
               }
             }
 
-            if (streamReadAlready) {
-              val deleteActionResult = flightClient.doAction(new Action("DELETE", endPointAsByteStream))
-              while (deleteActionResult.hasNext) {
-                val result = deleteActionResult.next()
-                logger.debug(
-                  "Deleting endpoint {} read already at location {}: {}",
-                  endPoint,
-                  location,
-                  new String(result.getBody, StandardCharsets.UTF_8)
-                )
-              }
-            }
+//            if (streamReadAlready) {
+//              val deleteActionResult = flightClient.doAction(new Action("DELETE", endPointAsByteStream))
+//              while (deleteActionResult.hasNext) {
+//                val result = deleteActionResult.next()
+//                logger.debug(
+//                  "Deleting endpoint {} read already at location {}: {}",
+//                  endPoint,
+//                  location,
+//                  new String(result.getBody, StandardCharsets.UTF_8)
+//                )
+//              }
+//            }
           } match {
             case Success(_) =>
             case Failure(exception) => exception.printStackTrace()

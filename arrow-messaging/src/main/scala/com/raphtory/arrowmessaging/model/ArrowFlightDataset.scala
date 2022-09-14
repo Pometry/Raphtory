@@ -7,10 +7,10 @@ import org.apache.arrow.vector.types.pojo.Schema
 import java.util
 
 private[arrowmessaging] case class ArrowFlightDataset(
-                                                       batches: util.List[ArrowRecordBatch],
+                                                       arrowRecordBatch: ArrowRecordBatch,
                                                        schema: Schema,
                                                        rows: Long
                                                      ) extends AutoCloseable {
 
-  override def close(): Unit = AutoCloseables.close(batches)
+  override def close(): Unit = AutoCloseables.close(arrowRecordBatch)
 }
