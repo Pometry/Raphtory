@@ -129,7 +129,7 @@ case class DynamicLoader(classes: List[Class[_]] = List.empty) {
           }
           .diff(knownDeps)
           .toList
-    cls :: dependencies.flatMap(d => recursiveResolveDependencies(d, searchPath)(knownDeps + d)).distinct
+    cls :: dependencies.flatMap(d => recursiveResolveDependencies(d, searchPath)(knownDeps + d))
   }
 }
 
