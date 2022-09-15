@@ -7,7 +7,8 @@ import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.input.Source
 import com.raphtory.sinks.PulsarSink
-import com.raphtory.twitter.builder.TwitterGraphBuilder
+import com.raphtory.twitter.builder.TwitterRetweetGraphBuilder
+import com.raphtory.twitter.builder.TwitterUserGraphBuilder
 import com.raphtory.twitter.spout.LiveTwitterSpout
 import com.typesafe.config.Config
 import io.github.redouane59.twitter.dto.tweet.Tweet
@@ -28,9 +29,9 @@ object LiveTwitterTest extends IOApp {
     val spout        = LiveTwitterSpout()
     val graphBuilder =
       if (enableRetweetGraphBuilder)
-        TwitterGraphBuilder.userParser _
+        TwitterUserGraphBuilder
       else
-        TwitterGraphBuilder.retweetParser _
+        TwitterRetweetGraphBuilder
 
     val source = Source(spout, graphBuilder)
     val graph  = Raphtory.newIOGraph()

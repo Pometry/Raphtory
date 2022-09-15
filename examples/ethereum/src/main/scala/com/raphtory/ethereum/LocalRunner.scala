@@ -30,7 +30,7 @@ object LocalRunner extends App {
 
   // create graph
   val spout  = FileSpout("/tmp/etherscan_tags.csv")
-  val source = Source(spout, EthereumGraphBuilder.ethParser)
+  val source = Source[String](spout, EthereumGraphBuilder.ethParser)
   val graph  = Raphtory.newIOGraph()
 
   // setup ethereum vars

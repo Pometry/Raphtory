@@ -7,9 +7,7 @@ import com.raphtory.api.analysis.algorithm.GenericallyApplicable
 import com.raphtory.api.analysis.algorithm.Multilayer
 import com.raphtory.api.analysis.algorithm.MultilayerProjection
 import com.raphtory.api.analysis.algorithm.MultilayerReduction
-import com.raphtory.api.analysis.graphstate.Accumulator
 import com.raphtory.api.analysis.graphstate.GraphState
-import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.table.TableImplementation
@@ -22,15 +20,7 @@ import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManagement
-import com.raphtory.internals.management.python.EmbeddedPython
-import com.raphtory.internals.management.PyRef
-import com.raphtory.internals.management.PythonEncoder
-import com.raphtory.internals.management.PythonFunction1
 import com.raphtory.internals.management.QuerySender
-import cats.Id
-import com.raphtory.internals.graph.GraphBuilder
-
-import scala.jdk.CollectionConverters.ListHasAsScala
 
 sealed private[raphtory] trait GraphFunction                             extends QueryManagement
 final private[raphtory] case class SetGlobalState(f: GraphState => Unit) extends GraphFunction

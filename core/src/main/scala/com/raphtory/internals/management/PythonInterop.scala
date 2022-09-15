@@ -11,7 +11,6 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.input.Graph
-import com.raphtory.internals.graph.GraphBuilder
 import com.raphtory.internals.management.python.EmbeddedPython
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
