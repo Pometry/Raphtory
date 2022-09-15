@@ -2,3 +2,4 @@ myst-parser
 sphinx-rtd-theme
 sphinx>=4.4.0
 docutils>=0.17.1
+sphinx-tabs
