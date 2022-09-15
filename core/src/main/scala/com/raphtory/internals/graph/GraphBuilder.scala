@@ -8,21 +8,7 @@ import com.typesafe.scalalogging.Logger
 import net.openhft.hashing.LongHashFunction
 import org.slf4j.LoggerFactory
 
-private[raphtory] class GraphBuilder[T](parseFun: (Graph, T) => Unit) {
-  def parse(graph: Graph, tuple: T): Unit = parseFun(graph, tuple)
-
-  final def buildInstance(graphID: String, sourceID: Int): GraphBuilderInstance[T] =
-    new GraphBuilderInstance[T](graphID, sourceID, parse)
-}
-
-private[raphtory] object GraphBuilder {
-
-  def apply[T](parseFun: (Graph, T) => Unit): GraphBuilder[T] =
-    new GraphBuilder[T](parseFun)
-
-}
-
-private[raphtory] class GraphBuilderInstance[T](graphId: String, sourceId: Int, parse: (Graph, T) => Unit)
+private[raphtory] class GraphBuilderInstance[T](graphId: String, sourceId: Int, parse: GraphBuilder[T])
         extends Serializable
         with Graph {
 
