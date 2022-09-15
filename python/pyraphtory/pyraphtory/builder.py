@@ -16,11 +16,6 @@ class ImmutableProperty(ScalaClassProxy):
 class Properties(ScalaClassProxy):
     _classname = "com.raphtory.api.input.Properties"
 
-
-class GraphBuilder(ScalaClassProxy):
-    _classname = "com.raphtory.api.input.GraphBuilder"
-
-
 class Source(ScalaClassProxy):
     _classname = "com.raphtory.api.input.Source"
 
