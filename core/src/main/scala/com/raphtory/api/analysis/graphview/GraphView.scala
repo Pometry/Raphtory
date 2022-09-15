@@ -53,8 +53,6 @@ trait GraphView extends GraphPerspective {
     */
   def execute(algorithm: GenericallyApplicable): Table
 
-  def addClass(clazz: Class[_]): Graph
-
   def addDynamicPath(name: String*): Graph
 
 }

@@ -106,21 +106,21 @@ case class DynamicLoader(classes: List[Class[_]] = List.empty, resolved: Boolean
 
   def resolve(searchPath: List[String]): DynamicLoader = {
     var knownDeps: Set[Class[_]] = Set.empty
+    val distinctClasses          = classes.distinct
+    val actualSearchPath         = resolveSearchPath(distinctClasses, searchPath)
     copy(
             classes = classes.reverse.flatMap { cls =>
               knownDeps += cls
-              val actualSearchPath =
-                cls.getPackageName match {
-                  case name if name.startsWith("com.raphtory") || name == "" => searchPath
-                  case name                                                  => name :: searchPath
-                }
-              val deps             = recursiveResolveDependencies(cls, actualSearchPath)(knownDeps)
+              val deps = recursiveResolveDependencies(cls, actualSearchPath)(knownDeps)
               knownDeps = knownDeps ++ deps
               deps.reverse
             }.distinct,
             resolved = true
     )
   }
+
+  private def resolveSearchPath(classes: List[Class[_]], searchPath: List[String]): List[String] =
+    classes.map(_.getPackageName).filterNot(name => name.startsWith("com.raphtory") || name == "") ::: searchPath
 
   private def getByteCode(cls: Class[_]): Array[Byte] = {
     val jc = Repository.lookupClass(cls)

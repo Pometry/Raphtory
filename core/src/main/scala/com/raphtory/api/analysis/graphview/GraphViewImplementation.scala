@@ -223,7 +223,7 @@ private[api] trait GraphViewImplementation[
   }
 
   /** Inject class dependency */
-  override def addClass(clazz: Class[_]): G = {
+  private def addClass(clazz: Class[_]): G = {
     val bootstrap = query._bootstrap + clazz
     val newQuery  = query.copy(_bootstrap = bootstrap)
     newGraph(newQuery, querySender)
