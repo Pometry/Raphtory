@@ -57,8 +57,6 @@ import scala.language.postfixOps
 
 ```{code-tab} py
 !curl -o /tmp/lotr.csv https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv
-# preview data
-!head /tmp/lotr.csv
 ```
 ```{code-tab} scala
 val path = "/tmp/lotr.csv"

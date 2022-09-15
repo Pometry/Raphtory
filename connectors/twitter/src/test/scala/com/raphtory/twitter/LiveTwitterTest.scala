@@ -17,9 +17,7 @@ import io.github.redouane59.twitter.dto.tweet.Tweet
   * To utilise this test, you must add your Twitter API credentials in application.conf under Raphtory.spout.twitter.local
   * If you would like to filter a hashtag, you can add this under Raphtory.spout.twitter.local.hashtag in application.conf
   */
-object LiveTwitterTest extends IOApp {
-
-  override def run(args: List[String]): IO[ExitCode] = {
+object Runner extends App {
 
     val raphtoryConfig: Config = Raphtory.getDefaultConfig()
 
@@ -32,23 +30,17 @@ object LiveTwitterTest extends IOApp {
         TwitterUserGraphBuilder
       else
         TwitterRetweetGraphBuilder
+  val source = Source(spout, graphBuilder)
+  val graph  = Raphtory.newGraph()
+  graph.load(source)
 
-    val source = Source(spout, graphBuilder)
-    val graph  = Raphtory.newIOGraph()
+  graph
+    .walk("10 milliseconds")
+    .window("10 milliseconds")
+    .execute(EdgeList())
+    .writeTo(output)
+    .waitForJob()
 
-    graph.use { graph =>
-      IO {
-        graph.load(source)
-        graph
-          .walk("5 milliseconds")
-          .window("5 milliseconds")
-          .execute(EdgeList())
-          .writeTo(PulsarSink("EdgeList1"))
-          .waitForJob()
-
-        ExitCode.Success
-      }
-    }
-  }
+  graph.close()
 
 }
