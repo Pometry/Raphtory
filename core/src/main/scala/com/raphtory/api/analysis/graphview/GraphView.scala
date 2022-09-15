@@ -52,6 +52,9 @@ trait GraphView extends GraphPerspective {
     *  @note `execute` keeps track of the name of the applied algorithm
     */
   def execute(algorithm: GenericallyApplicable): Table
+
+  def addDynamicPath(name: String*): Graph
+
 }
 
 /** Extends [[GraphView]] with variants of the `transform` and `execute` methods specific to multilayer graphs

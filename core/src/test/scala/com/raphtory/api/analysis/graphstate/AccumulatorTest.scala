@@ -92,7 +92,7 @@ class AccumulatorTest extends BaseCorrectnessTest {
       ) // this makes prometheus start on a random unused port
       .use { graph =>
         IO {
-          graph.load(Source(ResourceSpout("MotifCount/motiftest.csv"), BasicGraphBuilder.parse))
+          graph.load(Source(ResourceSpout("MotifCount/motiftest.csv"), BasicGraphBuilder))
           val job = graph
             .range(10, 23, 1)
             .window(10, Alignment.END)

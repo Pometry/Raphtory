@@ -2,14 +2,15 @@ package com.raphtory.stateTest
 
 import com.raphtory.api.input.FloatProperty
 import com.raphtory.api.input.Graph
+import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Properties._
-import com.raphtory.internals.graph.GraphBuilder
+
 import spray.json._
 
-object AllCommandsBuilder {
+object AllCommandsBuilder extends GraphBuilder[String] {
 
-  def parse(graph: Graph, command: String) = {
+  def apply(graph: Graph, command: String) = {
     val parsedOBJ  = command.parseJson.asJsObject //get the json object
     val commandKey = parsedOBJ.fields             //get the command type
     if (commandKey.contains("VertexAdd"))

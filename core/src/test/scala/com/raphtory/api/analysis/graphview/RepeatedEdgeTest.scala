@@ -6,8 +6,8 @@ import com.raphtory.TestQuery
 import com.raphtory.algorithms.WeightedGraphBuilder
 import com.raphtory.algorithms.temporal.TemporalEdgeList
 import com.raphtory.api.input.Graph
+import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
-import com.raphtory.internals.graph.GraphBuilder
 import com.raphtory.spouts.SequenceSpout
 
 import scala.util.Random
@@ -23,7 +23,7 @@ class RepeatedEdgeTest extends BaseCorrectnessTest {
 
   override def setSpout(): Spout[String] = SequenceSpout(repeatedInput: _*)
 
-  override def setGraphBuilder(): (Graph, String) => Unit = WeightedGraphBuilder.parse
+  override def setGraphBuilder(): GraphBuilder[String] = WeightedGraphBuilder
 
   test("Multilayer edgelist test with repeated edges") {
     val res = repeatedInput.map(s => s"${edges.size - 1},$s")

@@ -9,7 +9,6 @@ import com.raphtory.api.input.Type
 import com.raphtory.examples.coho.companiesStream.rawModel.CompaniesHouseJsonProtocol.CompanyFormat
 import com.raphtory.examples.coho.companiesStream.rawModel.CompaniesHouseJsonProtocol.getField
 import com.raphtory.examples.coho.companiesStream.rawModel.Company
-import com.raphtory.internals.graph.GraphBuilder
 import spray.json._
 
 import java.text.SimpleDateFormat

@@ -13,7 +13,7 @@ object LocalRunner extends App {
   val data = "/tmp/Data_API_clean_nfts_ETH_only.csv"
 
   val spout  = FileSpout(data)
-  val source = Source(spout, NFTGraphBuilder.parser)
+  val source = Source(spout, NFTGraphBuilder)
   val graph  = Raphtory.newGraph()
   graph.load(source)
 

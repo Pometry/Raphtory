@@ -20,7 +20,7 @@ object Runner extends App {
 
   // Create Graph
   val spout  = FileSpout(path)
-  val source = Source(spout, TwitterGraphBuilder.parser)
+  val source = Source(spout, TwitterGraphBuilder)
   val graph  = Raphtory.newGraph()
   graph.load(source)
   Using(graph) { graph =>

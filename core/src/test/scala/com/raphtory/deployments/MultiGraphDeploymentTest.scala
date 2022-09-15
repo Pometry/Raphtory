@@ -45,7 +45,7 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
       .use { files =>
         IO.delay {
           val lotrGraph   = Raphtory.newGraph()
-          lotrGraph.load(Source(lotrSpout, LOTRGraphBuilder.parse))
+          lotrGraph.load(Source(lotrSpout, LOTRGraphBuilder))
           val lotrTracker = lotrGraph
             .range(1, 32674, 10000)
             .window(List(500, 1000, 10000), Alignment.END)
@@ -53,7 +53,7 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
             .writeTo(defaultSink)
 
           val facebookGraph = Raphtory.newGraph()
-          facebookGraph.load(Source(facebookSpout, FacebookGraphBuilder.parse))
+          facebookGraph.load(Source(facebookSpout, FacebookGraphBuilder))
 
           val facebookTracker = facebookGraph
             .at(88234)

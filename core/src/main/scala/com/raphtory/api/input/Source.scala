@@ -3,64 +3,59 @@ package com.raphtory.api.input
 import com.raphtory.Raphtory
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.graph.GraphAlteration
-import com.raphtory.internals.graph.GraphBuilder
+import com.raphtory.internals.graph.GraphBuilderInstance
+import com.twitter.chill.ClosureCleaner
+//import com.raphtory.internals.graph.GraphBuilder
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 trait Source {
-  def buildSource(graphID: String, id: Int): SourceInstance
-  def getBuilder: GraphBuilder[Any]
+  type MessageType
+  def spout: Spout[MessageType]
+  def builder: GraphBuilder[MessageType]
+
+  def buildSource(graphID: String, id: Int): SourceInstance[MessageType]
+  def getBuilderClass: Class[_] = builder.getClass
 }
 
-trait SourceInstance {
+class ConcreteSource[T](override val spout: Spout[T], override val builder: GraphBuilder[T]) extends Source {
+  override type MessageType = T
+
+  def buildSource(graphID: String, id: Int): SourceInstance[T] =
+    new SourceInstance[T](id, spout.buildSpout(), builder.buildInstance(graphID, id))
+}
+
+class SourceInstance[T](id: Int, spoutInstance: SpoutInstance[T], builderInstance: GraphBuilderInstance[T]) {
 
   /** Logger instance for writing out log messages */
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-  def highestTimeSeen(): Long
-  def hasRemainingUpdates: Boolean
-  def sendUpdates(index: Long, failOnError: Boolean): Unit
-  def spoutReschedules(): Boolean
-  def executeReschedule(): Unit
-  def setupStreamIngestion(streamWriters: collection.Map[Int, EndPoint[GraphAlteration]]): Unit
-  def sourceID: Int
-  def sentMessages(): Long
-  def close(): Unit
+  def sourceID: Int  = id
+
+  def hasRemainingUpdates: Boolean = spoutInstance.hasNext
+
+  def sendUpdates(index: Long, failOnError: Boolean): Unit = {
+    val element = spoutInstance.next()
+    builderInstance.sendUpdates(element, index)(failOnError)
+  }
+
+  def spoutReschedules(): Boolean = spoutInstance.spoutReschedules()
+
+  def executeReschedule(): Unit = spoutInstance.executeReschedule()
+
+  def setupStreamIngestion(
+      streamWriters: collection.Map[Int, EndPoint[GraphAlteration]]
+  ): Unit =
+    builderInstance.setupStreamIngestion(streamWriters)
+
+  def close(): Unit = spoutInstance.close()
+
+  def sentMessages(): Long = builderInstance.getSentUpdates
+
+  def highestTimeSeen(): Long = builderInstance.highestTimeSeen
 }
 
 object Source {
 
-  def apply[T](spout: Spout[T], parseFunc: (Graph, T) => Unit): Source = {
-    val builder = GraphBuilder(parseFunc)
-
-    new Source { // Avoid defining this as a lambda regardless of IntelliJ advices, that would cause serialization problems
-      override def buildSource(graphID: String, id: Int): SourceInstance =
-        new SourceInstance {
-          private val spoutInstance   = spout.buildSpout()
-          private val builderInstance = builder.buildInstance(graphID, sourceID)
-          def sourceID: Int           = id
-
-          override def hasRemainingUpdates: Boolean = spoutInstance.hasNext
-
-          override def sendUpdates(index: Long, failOnError: Boolean): Unit = {
-            val element = spoutInstance.next()
-            builderInstance.sendUpdates(element, index)(failOnError)
-          }
-          override def spoutReschedules(): Boolean = spoutInstance.spoutReschedules()
-          override def executeReschedule(): Unit   = spoutInstance.executeReschedule()
-
-          override def setupStreamIngestion(
-              streamWriters: collection.Map[Int, EndPoint[GraphAlteration]]
-          ): Unit                    =
-            builderInstance.setupStreamIngestion(streamWriters)
-          override def close(): Unit = spoutInstance.close()
-
-          override def sentMessages(): Long = builderInstance.getSentUpdates
-
-          override def highestTimeSeen(): Long = builderInstance.highestTimeSeen
-        }
-
-      override def getBuilder: GraphBuilder[Any] = builder.asInstanceOf[GraphBuilder[Any]]
-    }
-  }
-
+  def apply[T](spout: Spout[T], builder: GraphBuilder[T]): Source =
+    new ConcreteSource(spout, ClosureCleaner.clean(builder))
 }

@@ -48,6 +48,8 @@ class DynamicLoaderSerializer(default: Serializer[DynamicLoader]) extends Serial
 
   override def write(kryo: Kryo, output: Output, q: DynamicLoader): Unit = {
     logger.debug(s"Writing down ${q.classes.size} classes for dynamic loading ${q.classes}")
+    if (!q.resolved)
+      throw new IllegalArgumentException("DynamicLoader object needs to be resolved before serialising")
     output.writeInt(q.classes.size)
     q.classes.foreach { c =>
       val (bytes, name) = class2Bytecode(c)
@@ -67,10 +69,10 @@ class DynamicLoaderSerializer(default: Serializer[DynamicLoader]) extends Serial
         val name   = input.readString()
         val length = input.readInt()
         val bytes  = input.readBytes(length)
-        DynamicClassLoader.injectClass(name, bytes, DynamicClassLoader(kryo.getClassLoader))
-      }.toSet
+        DynamicClassLoader.injectClass(name, bytes)
+      }.toList
       logger.debug(s"Loaded $n classes: $classes")
-      kryo.readObject(input, tpe, default).copy(classes = classes) // read the empty dummy obj
+      kryo.readObject(input, tpe, default).copy(classes = classes, resolved = true) // read the empty dummy obj
     }
     catch {
       case t: Throwable =>
