@@ -3,16 +3,13 @@ import os
 import re
 import subprocess
 import json
-from threading import Thread
 
 import pandas as pd
-import sys
 from abc import abstractmethod
 from pathlib import Path
 from subprocess import PIPE, Popen
 from threading import Thread
 from weakref import finalize
-from typing import IO, AnyStr
 import pyraphtory.fileutils as fileutils
 
 from py4j.java_gateway import JavaGateway, GatewayParameters
