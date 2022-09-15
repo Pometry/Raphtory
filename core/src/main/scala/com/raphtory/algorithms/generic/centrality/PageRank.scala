@@ -10,7 +10,7 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
   * Page Rank algorithm ranks nodes depending on their connections to determine how important
   * the node is. This assumes a node is more important if it receives more connections from others.
   * Each vertex begins with an initial state. If it has any neighbours, it sends them a message
-  * which is the inital label / the number of neighbours.
+  * which is the initial label / the number of neighbours.
   * Each vertex, checks its messages and computes a new label based on: the total value of
   * messages received and the damping factor. This new value is propogated to all outgoing neighbours.
   * A vertex will stop propogating messages if its value becomes stagnant (i.e. has a change of less

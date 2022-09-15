@@ -6,7 +6,7 @@ import cats.effect.IOApp
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.input.Source
-import com.raphtory.sinks.PulsarSink
+import com.raphtory.sinks.{FileSink, PulsarSink}
 import com.raphtory.twitter.builder.TwitterGraphBuilder
 import com.raphtory.twitter.spout.LiveTwitterSpout
 import com.typesafe.config.Config
@@ -16,38 +16,31 @@ import io.github.redouane59.twitter.dto.tweet.Tweet
   * To utilise this test, you must add your Twitter API credentials in application.conf under Raphtory.spout.twitter.local
   * If you would like to filter a hashtag, you can add this under Raphtory.spout.twitter.local.hashtag in application.conf
   */
-object LiveTwitterTest extends IOApp {
+object Runner extends App {
 
-  override def run(args: List[String]): IO[ExitCode] = {
+  val raphtoryConfig: Config = Raphtory.getDefaultConfig()
+  val enableRetweetGraphBuilder: Boolean =
+    raphtoryConfig.getBoolean("raphtory.spout.twitter.local.enableRetweetFilter")
 
-    val raphtoryConfig: Config = Raphtory.getDefaultConfig()
-
-    val enableRetweetGraphBuilder: Boolean =
-      raphtoryConfig.getBoolean("raphtory.spout.twitter.local.enableRetweetFilter")
-
-    val spout        = LiveTwitterSpout()
-    val graphBuilder =
-      if (enableRetweetGraphBuilder)
-        TwitterGraphBuilder.userParser _
-      else
-        TwitterGraphBuilder.retweetParser _
-
-    val source = Source(spout, graphBuilder)
-    val graph  = Raphtory.newIOGraph()
-
-    graph.use { graph =>
-      IO {
-        graph.load(source)
-        graph
-          .walk("5 milliseconds")
-          .window("5 milliseconds")
-          .execute(EdgeList())
-          .writeTo(PulsarSink("EdgeList1"))
-          .waitForJob()
-
-        ExitCode.Success
-      }
-    }
+  val spout   = LiveTwitterSpout()
+  val output  = FileSink("/tmp/liveTwitterStream")
+  val builder = TwitterGraphBuilder
+  val source = {
+    if (enableRetweetGraphBuilder)
+      Source(spout, builder.retweetParse)
+    else Source(spout, builder.userParse)
   }
+  val graph  = Raphtory.newGraph()
+
+  graph.load(source)
+
+  graph
+    .walk("10 milliseconds")
+    .window("10 milliseconds")
+    .execute(EdgeList())
+    .writeTo(output)
+    .waitForJob()
+
+  graph.close()
 
 }

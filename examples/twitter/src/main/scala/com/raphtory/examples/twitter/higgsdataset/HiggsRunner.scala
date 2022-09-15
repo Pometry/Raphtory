@@ -6,13 +6,12 @@ import com.raphtory.api.input.Source
 import com.raphtory.examples.twitter.higgsdataset.analysis.MemberRank
 import com.raphtory.examples.twitter.higgsdataset.analysis.TemporalMemberRank
 import com.raphtory.examples.twitter.higgsdataset.graphbuilders.TwitterGraphBuilder
-import com.raphtory.examples.twitter.livetwitterstream.Runner.enableRetweetGraphBuilder
-import com.raphtory.sinks.{FileSink, PulsarSink}
+import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
 
 
-object Runner extends App {
+object HiggsRunner extends App {
 
   val path = "/tmp/higgs-retweet-activity.csv"
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/higgs-retweet-activity.csv"
@@ -22,18 +21,15 @@ object Runner extends App {
   val spout  = FileSpout(path)
   val graph  = Raphtory.newGraph()
   val output = FileSink("/tmp/higgsoutput")
-  val builder = TwitterGraphBuilder
-  val source = {
-    if (enableRetweetGraphBuilder)
-      Source(spout, builder.retweetParse)
-    else Source(spout, builder.userParse)
-  }
-  graph.load(source)
+  val source = Source(spout, TwitterGraphBuilder.parse)
+
+    graph.load(source)
 
     graph
       .at(1341705593)
       .past()
-      .execute(PageRank)
+      .transform(PageRank())
+      .execute(MemberRank() -> TemporalMemberRank())
       .writeTo(output)
       .waitForJob()
 
