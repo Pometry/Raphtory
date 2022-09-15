@@ -12,8 +12,9 @@ import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.spouts.FileSpout
 import munit.CatsEffectSuite
-import test.raphtory.algorithms.MinimalTestAlgorithm
 import test.raphtory.algorithms.MaxFlowTest
+import test.raphtory.algorithms.MinimalTestAlgorithm
+import test.raphtory.algorithms.TestAlgorithmWithExternalDependency
 
 import java.net.URL
 import scala.concurrent.duration.Duration
@@ -83,13 +84,7 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   lazy val remoteGraph = ResourceFixture(remoteGraphResource.evalMap(g => IO(g.load(source()))))
 
-  lazy val remoteGraphWithPath: SyncIO[FunFixture[TemporalGraph]] = ResourceFixture(
-          remoteGraphResource
-            .evalMap(g => IO(g.addDynamicPath("com.raphtory.examples.lotr")))
-            .evalMap(g => IO(g.load(source())))
-  )
-
-  lazy val remoteGraphWithPathInline: SyncIO[FunFixture[TemporalGraph]] = ResourceFixture(
+  lazy val remoteGraphInline: SyncIO[FunFixture[TemporalGraph]] = ResourceFixture(
           remoteGraphResource
             .evalMap(g => IO(g.addDynamicPath("com.raphtory.examples.lotr")))
             .evalMap(g => IO(g.load(sourceInline())))
@@ -172,30 +167,30 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
   test("test algorithm locally") {
     val res = localGraph().execute(MaxFlowTest[Int]("Gandalf", "Gandalf")).get().toList
     assert(res.nonEmpty)
-    println(res)
   }
 
   test("test locally compiled algo") {
     val res = localGraph().execute(compiledAlgo).get().toList
     assert(res.nonEmpty)
-    println(res)
   }
 
-  remoteGraphWithPath.test("test algorithm class injection") { g =>
+  remoteGraph.test("test algorithm class injection") { g =>
     val res = g.execute(MinimalTestAlgorithm).get().toList
     assert(res.nonEmpty)
-    println(res)
   }
 
-  remoteGraphWithPathInline.test("test inline graphbuilder definition") { g =>
+  remoteGraph.test("test manual dynamic path") { g =>
+    val res = g.addDynamicPath("dependency").execute(TestAlgorithmWithExternalDependency).get().toList
+    assert(res.nonEmpty)
+  }
+
+  remoteGraphInline.test("test inline graphbuilder definition") { g =>
     val res = g.execute(EdgeList()).get().toList
     assert(res.nonEmpty)
-    println(res)
   }
 
-  remoteGraphWithPath.test("test algorithm class injection with MaxFlow") { g =>
+  remoteGraph.test("test algorithm class injection with MaxFlow") { g =>
     val res = g.execute(MaxFlowTest[Int]("Gandalf", "Gandalf")).get().toList
-    println(res)
     assert(res.nonEmpty)
   }
 }
