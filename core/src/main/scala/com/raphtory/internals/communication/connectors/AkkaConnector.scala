@@ -5,6 +5,7 @@ import akka.actor.typed.receptionist.Receptionist
 import akka.actor.typed.receptionist.ServiceKey
 import akka.actor.typed.scaladsl.AskPattern.Askable
 import akka.actor.typed.scaladsl.Behaviors
+import akka.remote.RemoteTransportException
 import akka.util.Timeout
 import cats.effect.Resource
 import cats.effect.Sync
@@ -22,6 +23,7 @@ import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
+import java.net.BindException
 import java.net.InetAddress
 import java.util.concurrent.CompletableFuture
 import scala.annotation.tailrec
@@ -167,16 +169,24 @@ object AkkaConnector {
   case object ClientMode     extends Mode
   case object SeedMode       extends Mode
 
-  private val systemName = "spawner"
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val systemName     = "spawner"
 
-  def apply[IO[_]: Sync](mode: Mode, config: Config): Resource[IO, AkkaConnector] =
-    Resource
-      .make(Sync[IO].delay(buildActorSystem(mode, config)))(system => Sync[IO].delay(system.terminate()))
-      .map(new AkkaConnector(_))
+  def apply[IO[_]](mode: Mode, config: Config)(implicit IO: Sync[IO]): Resource[IO, AkkaConnector] =
+    for {
+      system    <- Resource.make(Sync[IO].delay(buildActorSystem(mode, config)))(system =>
+                     Sync[IO].delay(system.foreach(_.terminate()))
+                   )
+      _         <- system match {
+                     case Some(system) => Resource.unit[IO]
+                     case None         => Resource.canceled[IO]
+                   }
+      connector <- Resource.eval(IO.delay(new AkkaConnector(system.get)))
+    } yield connector
 
-  private def buildActorSystem(mode: Mode, config: Config, address: String = "", port: String = "") =
+  private def buildActorSystem(mode: Mode, config: Config): Option[ActorSystem[SpawnProtocol.Command]] =
     mode match {
-      case AkkaConnector.StandaloneMode => ActorSystem(SpawnProtocol(), systemName)
+      case AkkaConnector.StandaloneMode => Some(ActorSystem(SpawnProtocol(), systemName))
       case _                            =>
         val seed = mode match {
           case AkkaConnector.SeedMode   => true
@@ -187,7 +197,16 @@ object AkkaConnector {
         val seedAddress         =
           Try(InetAddress.getByName(providedSeedAddress).getHostAddress)
             .getOrElse(providedSeedAddress)
-        ActorSystem(SpawnProtocol(), systemName, akkaConfig(seedAddress, seed, config))
+        try Some(ActorSystem(SpawnProtocol(), systemName, akkaConfig(seedAddress, seed, config)))
+        catch {
+          case e: RemoteTransportException =>
+            e.getCause.getCause match {
+              case cause: BindException =>
+                logger.error(s"Something is already running on port ${bindPort(config)}")
+                None
+              case _                    => throw e
+            }
+        }
     }
 
   private def akkaConfig(seedAddress: String, seed: Boolean, config: Config) = {
