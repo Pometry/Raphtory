@@ -21,10 +21,8 @@ import pyraphtory.interop
 import pyraphtory.scala.collection
 import pyraphtory.vertex
 import pyraphtory.graph
-from pyraphtory import interop
+from pyraphtory import interop, __version__
 import sys
-
-VERSION = '0.2.0a0'
 
 def _kill_jvm(j_raphtory, j_gateway):
     interop.logger.info("Shutting down pyraphtory")
@@ -105,7 +103,7 @@ class PyRaphtory(object):
 
         # if jars is empty, then download it
         if not jars:
-            jars = fileutils.download_raphtory(VERSION,
+            jars = fileutils.download_raphtory(__version__,
                                                str(Path(inspect.getfile(self.__class__)).parent.parent / 'lib'))
 
         if java_args:
