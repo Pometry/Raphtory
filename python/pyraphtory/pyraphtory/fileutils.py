@@ -3,6 +3,8 @@ from requests.adapters import HTTPAdapter, Retry
 import shutil
 import os.path
 import hashlib
+import zipfile
+from pyraphtory import __version__
 
 _URL = 'url'
 _SHA256 = 'sha256'
@@ -30,11 +32,80 @@ def checksum(filepath, expected_sha_hash):
 
 
 def delete_jar(filename):
+    print(f"Delete jar file {filename}")
     if os.path.exists(filename):
         shutil.rmtree(filename)
 
 
-def download_raphtory(version, download_dir):
+# Jar to the dark side
+def is_raphtory_jar_found(jar_path):
+    is_raph_spec_vendor = False
+    is_spec_title_core = False
+    with zipfile.ZipFile(jar_path, 'r') as jar_file_handler:
+        files_found = jar_file_handler.infolist()
+        for file_handler in files_found:
+            is_raph_spec_vendor = False
+            is_spec_title_core = False
+            if file_handler.filename == 'META-INF/MANIFEST.MF':
+                manifest_txt = str(jar_file_handler.read(file_handler.filename), encoding='utf8')
+                lines = manifest_txt.split('\n')
+                SPEC_VENDOR = 'Specification-Vendor: '
+                SPEC_TITLE = 'Specification-Title: '
+                for line in lines:
+                    if SPEC_VENDOR in line:
+                        vendor = line.split(SPEC_VENDOR)[1].replace('\r', '')
+                        if vendor == 'raphtory':
+                            is_raph_spec_vendor = True
+                    elif SPEC_TITLE in line:
+                        title = line.split(SPEC_TITLE)[1].replace('\r', '')
+                        if title == 'core':
+                            is_spec_title_core = True
+                break
+    return is_raph_spec_vendor & is_spec_title_core
+
+
+def does_jar_version_match(jar_path):
+    jar_version = None
+    with zipfile.ZipFile(jar_path, 'r') as jar_file_handler:
+        files_found = jar_file_handler.infolist()
+        for file_handler in files_found:
+            if file_handler.filename == 'META-INF/MANIFEST.MF':
+                manifest_txt = str(jar_file_handler.read(file_handler.filename), encoding='utf8')
+                lines = manifest_txt.split('\n')
+                VERSION = 'Implementation-Version: '
+                for line in lines:
+                    if VERSION in line:
+                        jar_version = line.split(VERSION)[1].replace('\r', '')
+                        break
+                break
+    return __version__ == jar_version
+
+
+def check_download_update_jar(pyraphtory_jar_download_loc, jars):
+    if not jars:
+        jars = download_raphtory_jar(__version__, pyraphtory_jar_download_loc)
+    else:
+        # otherwise, check if we have a raphtory jar
+        has_raphtory_jar = False
+        for jar in jars.split(':'):
+            has_raphtory_jar = is_raphtory_jar_found(jar)
+        # if we do not have a raphtory jar then we download it
+        new_jar_location = ''
+        if not has_raphtory_jar:
+            new_jar_location = download_raphtory_jar(__version__)
+        else:
+            # if we have a raphtory jar, we check version
+            # if version doesnt match python, we download the correct
+            if not does_jar_version_match(jar):
+                delete_jar(jar)
+                new_jar_location = download_raphtory_jar(__version__, pyraphtory_jar_download_loc)
+        # we add the new jar to the jars path
+        if new_jar_location:
+            jars += ':' + new_jar_location
+    return jars
+
+
+def download_raphtory_jar(version, download_dir):
     # get the version and sha which is stored locally
     if version not in RAPHTORY_JARS_HASH:
         msg = f'Error: Version {version} not found in Python dictionary.\nNot downloading.'
@@ -75,3 +146,10 @@ def download_raphtory(version, download_dir):
         delete_jar(file_location)
         raise SystemExit(err)
     return file_location
+
+
+def test():
+    jar_file = '/Users/haaroony/Documents/dev/Raphtory-pyraphtory3/python/pyraphtory/lib/core-assembly-0.2.0a0.jar'
+    print(is_raphtory_jar_found(jar_file))
+    print(does_jar_version_match(jar_file))
+    print(check_download_update_jar(jar_file))

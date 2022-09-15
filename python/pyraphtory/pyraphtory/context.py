@@ -24,6 +24,7 @@ import pyraphtory.graph
 from pyraphtory import interop, __version__
 import sys
 
+
 def _kill_jvm(j_raphtory, j_gateway):
     interop.logger.info("Shutting down pyraphtory")
     try:
@@ -76,7 +77,6 @@ def read_output(stream: IO[AnyStr], logging=False):
 
 
 class PyRaphtory(object):
-
     """Main python interface
 
     Sets up a jvm instance of raphtory and connects to it using py4j. Can be used as a context manager.
@@ -92,6 +92,7 @@ class PyRaphtory(object):
 
         :param logging: set to True to enable verbose output during connection phase
         """
+        self.logging = logging
         env_jar_location = os.environ.get("PYRAPTHORY_JAR_LOCATION", "")
         env_jar_glob_lookup = os.environ.get("PYRAPTHORY_JAR_GLOB_LOOKUP", '*.jar')
         if env_jar_location != "":
@@ -101,16 +102,15 @@ class PyRaphtory(object):
         jars = ":".join([str(jar) for jar in jar_location.glob(env_jar_glob_lookup)])
         java_args = os.environ.get("PYRAPTHORY_JVM_ARGS", "")
 
-        # if jars is empty, then download it
-        if not jars:
-            jars = fileutils.download_raphtory(__version__,
-                                               str(Path(inspect.getfile(self.__class__)).parent.parent / 'lib'))
+        # if jars is empty, then download matching version from github
+        pyraphtory_jar_download_loc = str(Path(inspect.getfile(self.__class__)).parent.parent / 'lib')
+        jars = fileutils.check_download_update_jar(pyraphtory_jar_download_loc, jars)
 
         if java_args:
-            self.args = ["java", java_args, "-cp", jars, "com.raphtory.python.PyRaphtory", "--parentID", str(os.getpid())]
+            self.args = ["java", java_args, "-cp", jars, "com.raphtory.python.PyRaphtory", "--parentID",
+                         str(os.getpid())]
         else:
             self.args = ["java", "-cp", jars, "com.raphtory.python.PyRaphtory", "--parentID", str(os.getpid())]
-        self.logging = logging
 
     def __enter__(self):
         j_raphtory = Popen(
@@ -127,15 +127,15 @@ class PyRaphtory(object):
         java_gateway_auth = None
 
         for line in read_output(j_raphtory.stdout, self.logging):
-                port_text = re.search("Port: ([0-9]+)", str(line))
-                auth_text = re.search("Secret: ([0-9a-f]+)", str(line))
-                if port_text:
-                    java_gateway_port = int(port_text.group(1))
-                if auth_text:
-                    java_gateway_auth = auth_text.group(1).strip()
+            port_text = re.search("Port: ([0-9]+)", str(line))
+            auth_text = re.search("Secret: ([0-9a-f]+)", str(line))
+            if port_text:
+                java_gateway_port = int(port_text.group(1))
+            if auth_text:
+                java_gateway_auth = auth_text.group(1).strip()
 
-                if java_gateway_auth and java_gateway_port:
-                    break
+            if java_gateway_auth and java_gateway_port:
+                break
         else:
             raise RuntimeError("Could not find connection details")
 
