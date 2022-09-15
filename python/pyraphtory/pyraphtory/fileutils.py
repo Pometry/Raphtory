@@ -32,9 +32,9 @@ def checksum(filepath, expected_sha_hash):
 
 
 def delete_jar(filename):
-    print(f"Delete jar file {filename}")
+    print(f"Deleting jar file {filename}...")
     if os.path.exists(filename):
-        shutil.rmtree(filename)
+        os.remove(filename)
 
 
 # Jar to the dark side
@@ -117,7 +117,7 @@ def download_raphtory_jar(version, download_dir):
     req_session = requests.Session()
     retries = Retry(total=5, backoff_factor=1, status_forcelist=[502, 503, 504])
     req_session.mount('https://', HTTPAdapter(max_retries=retries))
-    print(f"Downloading Raphtory {version} jar from {url}")
+    print(f"Downloading Raphtory {version} jar from {url}. Please wait...")
     filename = url.split('/')[-1]
     file_location = str(download_dir + '/' + filename)
     # stream file to reduce mem footprint
