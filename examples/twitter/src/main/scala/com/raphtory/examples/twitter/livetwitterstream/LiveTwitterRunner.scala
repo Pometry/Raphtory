@@ -8,7 +8,7 @@ import com.raphtory.twitter.builder.TwitterGraphBuilder
 import com.raphtory.twitter.spout.LiveTwitterSpout
 import com.typesafe.config.Config
 
-object Runner extends App {
+object LiveTwitterRunner extends App {
 
     val raphtoryConfig: Config = Raphtory.getDefaultConfig()
     val enableRetweetGraphBuilder: Boolean =

@@ -8,7 +8,7 @@ import com.raphtory.internals.graph.GraphBuilder
 
 object TwitterGraphBuilder {
 
-  def parser(graph: Graph, tuple: String): Unit = {
+  def parse(graph: Graph, tuple: String): Unit = {
     val fileLine   = tuple.split(",").map(_.trim)
     val sourceNode = fileLine(0).trim
     val srcID      = sourceNode.toLong

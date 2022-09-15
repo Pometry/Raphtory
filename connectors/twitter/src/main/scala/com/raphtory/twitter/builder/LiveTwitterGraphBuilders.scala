@@ -19,7 +19,7 @@ import scala.util.matching.Regex
 
 object TwitterGraphBuilder {
 
-  def retweetParser(graph: Graph, tweet: Tweet): Unit = {
+  def retweetParse(graph: Graph, tweet: Tweet): Unit = {
     val sourceNode    = tweet.getAuthorId
     val srcID         = sourceNode.toLong
     val timeStamp     = tweet.getCreatedAt.toEpochSecond(ZoneOffset.UTC)
@@ -48,7 +48,7 @@ object TwitterGraphBuilder {
     graph.addEdge(timeStamp, srcID, tarID, Type("Retweet Relationship"))
   }
 
-  def userParser(graph: Graph, tweet: Tweet): Unit = {
+  def userParse(graph: Graph, tweet: Tweet): Unit = {
     val sourceNode = tweet.getAuthorId
     val srcID      = sourceNode.toLong
     val targetNode = tweet.getId
