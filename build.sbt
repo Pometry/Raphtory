@@ -104,6 +104,7 @@ lazy val core = (project in file("core"))
                   sprayJson,
                   testContainers,
                   timeSeries,
+                  "com.chuusai" %% "shapeless" % "2.3.3",
                   twitterChill,
                   catsEffect,
                   catsMUnit,

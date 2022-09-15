@@ -1,22 +1,31 @@
 package com.raphtory.storage
 
+import com.raphtory.Raphtory
+import com.raphtory.api.input.LongProperty
+import com.raphtory.api.input.Properties
+import com.raphtory.api.input.StringProperty
 import com.raphtory.arrowcore.implementation.LocalEntityIdStore
 import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
 import com.raphtory.arrowcore.implementation.VertexIterator
+import com.raphtory.arrowcore.model.Vertex
+import com.raphtory.internals.storage.arrow
 import com.raphtory.internals.storage.arrow.ArrowPartition
 import com.raphtory.internals.storage.arrow.ArrowPartitionConfig
 import com.raphtory.internals.storage.arrow.ArrowSchema
 import com.raphtory.internals.storage.arrow.EdgeSchema
 import com.raphtory.internals.storage.arrow.LocalEntityRepo
+import com.raphtory.internals.storage.arrow.RichVertex
 import com.raphtory.internals.storage.arrow.VertexSchema
 import com.raphtory.internals.storage.arrow.versioned
 
 import java.nio.file.Files
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 class ArrowStorageSuite extends munit.FunSuite {
 
-  private val bobGlobalId = 7L
-
+  private val bobGlobalId   = 7L
+  private val aliceGlobalId = 9L
   test("one can create a partition manager, add a vertex then get it back") {
     val cfg = new RaphtoryArrowPartition.RaphtoryArrowPartitionConfig()
     cfg._propertySchema = ArrowSchema[VertexProp, EdgeProp]
@@ -64,7 +73,6 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   }
 
-  val aliceGlobalId = 9L
   test("add Bob and Alice and make an edge") {
     val cfg = new RaphtoryArrowPartition.RaphtoryArrowPartitionConfig()
     cfg._propertySchema = ArrowSchema[VertexProp, EdgeProp]
@@ -117,7 +125,11 @@ class ArrowStorageSuite extends munit.FunSuite {
 
     val vs: VertexIterator.AllVerticesIterator = partition.getNewAllVerticesIterator
     vs.hasNext // this has to be called before getVertex
-    val bob = vs.getVertex
+    val bob: Vertex = vs.getVertex
+
+    val richBob = arrow.RichVertex[VertexProp, EdgeProp](bob)
+
+//    richBob.prop[Long]("age")
 
     assertEquals(bob.getField(NAME_FIELD_ID).getString.toString, "Bob")
     assertEquals(bob.getProperty(AGE_FIELD_ID).getLong, 45L)
@@ -181,6 +193,8 @@ class ArrowStorageSuite extends munit.FunSuite {
     vs2.hasNext
     val v1                                      = vs2.getVertex
     assertEquals(v1.getField(NAME_FIELD_ID).getString.toString, "Bob")
+    assertEquals(v1.nOutgoingEdges(), 1)
+    assertEquals(v1.nIncomingEdges(), 0)
 
     // bob's edges
     val bobIterE = partition.getNewAllEdgesIterator
@@ -188,22 +202,22 @@ class ArrowStorageSuite extends munit.FunSuite {
     assert(bobIterE.hasNext)
     val bobOutE  = bobIterE.getEdge
     assert(bobOutE != null)
-    assertEquals(bobIterE.getDstVertexId, alice.getLocalId)
-    assertEquals(bobIterE.isDstVertexLocal, true)
-    assert(!bobIterE.hasNext) // BOOM! this overrides the edge if you move this 2 lines up the test blows up
-
+    assert(!bobIterE.hasNext) // idempotent
+    assertEquals(bobOutE.getDstVertex, alice.getLocalId)
+    assertEquals(bobOutE.getSrcVertex, bob.getLocalId)
+    assertEquals(bobOutE.isDstGlobal, false)
 
     // this should be alice
     vs2.hasNext
     val v2 = vs2.getVertex
 
     assertEquals(v2.getField(NAME_FIELD_ID).getString.toString, "Alice")
-    assertEquals(v2.getIncomingEdges.size(), 1)
-    assertEquals(v2.getOutgoingEdges.size(), 0)
+    assertEquals(v2.nOutgoingEdges(), 0)
+    assertEquals(v2.nIncomingEdges(), 1)
 
   }
 
-  test("I want to iterate over all vertices") {
+  test("add vertex into partition".only) {
 
     val cfg = ArrowPartitionConfig(
             partitionId = 0,
@@ -212,9 +226,48 @@ class ArrowStorageSuite extends munit.FunSuite {
             arrowDir = Files.createTempDirectory("arrow-storage-test")
     )
 
-    val par = ArrowPartition(cfg)
+    val rConfig = Raphtory.getDefaultConfig()
 
-//    par.addVertex(msgTime, nodeId, properties, None)
+    val par = ArrowPartition(cfg, rConfig)
+
+    val timestamp = System.currentTimeMillis()
+    // add bob
+    par.addVertex(
+            sourceID = 3,
+            msgTime = timestamp,
+            -1,
+            srcId = 7,
+            Properties(
+                    StringProperty("name", "Bob"),
+                    LongProperty("age", 31)
+            ),
+            None
+    )
+    // add alice
+    par.addVertex(
+            sourceID = 3,
+            msgTime = timestamp,
+            -1,
+            srcId = 9,
+            Properties(
+                    StringProperty("name", "Alice"),
+                    LongProperty("age", 27)
+            ),
+            None
+    )
+
+    val vs = par.vertices
+    assertEquals(vs.size, 2)
+
+    val vsIter = vs.iterator
+    vsIter.hasNext
+    val bob    = vsIter.next()
+    vsIter.hasNext
+    val alice  = vsIter.next()
+
+    assertEquals(bob.prop[String]("name").get, "Bob")
+    assertEquals(alice.prop[String]("name").get, "Alice")
+
   }
 
   test("can generate Vertex schema from case class") {
