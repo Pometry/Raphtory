@@ -10,9 +10,9 @@ _URL = 'url'
 _SHA256 = 'sha256'
 
 RAPHTORY_JARS_HASH = {
-    '0.2.0a0': {
-        _URL: 'https://github.com/Raphtory/Raphtory/releases/download/v0.2.0a0/core-assembly-0.2.0a0.jar',
-        _SHA256: '8259fae76c741b6637cb538f73ba217263bab0b28e9dfaf4198804e6bd3a3448'
+    '0.2.0a1': {
+        _URL: 'https://github.com/Raphtory/Raphtory/releases/download/v0.2.0a1/core-assembly-0.2.0a1.jar',
+        _SHA256: '0005912de03d6d05db290f371f8bfcdec31ce376c6125e7aec9905bc16591b6e'
     }
 }
 
