@@ -129,8 +129,6 @@ class ArrowStorageSuite extends munit.FunSuite {
 
     val richBob = arrow.RichVertex[VertexProp, EdgeProp](bob)
 
-//    richBob.prop[Long]("age")
-
     assertEquals(bob.getField(NAME_FIELD_ID).getString.toString, "Bob")
     assertEquals(bob.getProperty(AGE_FIELD_ID).getLong, 45L)
 

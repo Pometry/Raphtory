@@ -1,9 +1,13 @@
 package com.raphtory.internals.storage
 
-import com.raphtory.arrowcore.implementation.{EntityFieldAccessor, VersionedEntityPropertyAccessor}
+import com.raphtory.arrowcore.implementation.EntityFieldAccessor
+import com.raphtory.arrowcore.implementation.VersionedEntityPropertyAccessor
+import com.raphtory.arrowcore.model.Edge
 import com.raphtory.arrowcore.model.Vertex
 
 import scala.annotation.implicitNotFound
+import scala.collection.AbstractView
+import scala.collection.View
 package object arrow {
 
   implicit class RichVertex[V, E](val v: Vertex) extends AnyVal {
@@ -21,6 +25,26 @@ package object arrow {
           implicitly[Prop[P]].get(v.getField(FIELD))
         }
       }
+
+    def outgoingEdges: View[Edge] = {
+      val edgesIter = v.getPartition.getNewAllEdgesIterator
+      edgesIter.reset(v.getOutgoingEdgePtr)
+      new AbstractView[Edge] {
+        override def iterator: Iterator[Edge] = new ArrowPartition.EdgesIterator(edgesIter)
+
+        override def knownSize: Int = v.nOutgoingEdges()
+      }
+    }
+
+    def incomingEdges: View[Edge] = {
+      val edgesIter = v.getPartition.getNewAllEdgesIterator
+      edgesIter.reset(v.getIncomingEdgePtr)
+      new AbstractView[Edge] {
+        override def iterator: Iterator[Edge] = new ArrowPartition.EdgesIterator(edgesIter)
+
+        override def knownSize: Int = v.nIncomingEdges()
+      }
+    }
   }
 }
 
