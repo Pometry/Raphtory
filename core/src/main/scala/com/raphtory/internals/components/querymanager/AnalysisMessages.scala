@@ -84,7 +84,7 @@ private[raphtory] case class FilteredOutEdgeMessage[VertexID](
 
 private[raphtory] case class VertexMessagesSync(partitionID: Int, count: Long)(implicit
     val provider: SchemaProvider[VertexMessagesSync]
-)
+) extends QueryManagement
 
 sealed private[raphtory] trait Submission extends QueryManagement
 
