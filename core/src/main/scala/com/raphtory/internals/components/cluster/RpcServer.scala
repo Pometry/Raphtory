@@ -12,6 +12,7 @@ import com.raphtory.internals.components.cluster.QueryTrackerForwarder.log
 import com.raphtory.internals.components.querymanager.ClusterManagement
 import com.raphtory.internals.components.querymanager.IngestionBlockingCommand
 import com.raphtory.internals.components.querymanager.JobDone
+import com.raphtory.internals.components.querymanager.JobFailed
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.components.querymanager.Submission
@@ -52,21 +53,27 @@ class RpcServer[F[_]](idManger: IDManager, repo: TopicRepository, config: Config
 
   override def submitQuery(req: RpcRequest): F[fs2.Stream[F, RpcResponse]] = {
     log.debug(s"Submitting query: $req")
-    val query = kryo.deserialise[Query](req.message.toByteArray)
-    for {
-      _          <- F.delay(repo.submissions(query.graphID).endPoint sendAsync query)
-      queue      <- Queue.unbounded[F, Option[QueryManagement]]
-      dispatcher <- Dispatcher[F].allocated
-      listener   <- QueryTrackerForwarder[F](query.name, repo, queue, dispatcher._1, config).allocated
-      stream     <- F.delay(
-                            fs2.Stream
-                              .fromQueueNoneTerminated(queue, 1000)
-                              .map(message => RpcResponse(ByteString.copyFrom(kryo.serialise(message))))
-                              .onFinalize {
-                                listener._2 >> dispatcher._2 // release resources
-                              }
-                    )
-    } yield stream
+    try {
+      val query = kryo.deserialise[Query](req.message.toByteArray)
+      for {
+        _          <- F.delay(repo.submissions(query.graphID).endPoint sendAsync query)
+        queue      <- Queue.unbounded[F, Option[QueryManagement]]
+        dispatcher <- Dispatcher[F].allocated
+        listener   <- QueryTrackerForwarder[F](query.name, repo, queue, dispatcher._1, config).allocated
+        stream     <- F.delay(
+                              fs2.Stream
+                                .fromQueueNoneTerminated(queue, 1000)
+                                .map(message => RpcResponse(ByteString.copyFrom(kryo.serialise(message))))
+                                .onFinalize {
+                                  listener._2 >> dispatcher._2 // release resources
+                                }
+                      )
+      } yield stream
+    }
+    catch {
+      case exception: Exception =>
+        F.delay(fs2.Stream(RpcResponse(ByteString.copyFrom(kryo.serialise(JobFailed(exception))))))
+    }
   }
 
   override def requestID(req: IDRequest): F[IDResponse] =
