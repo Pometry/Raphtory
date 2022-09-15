@@ -3,7 +3,7 @@ package com.raphtory.api.input
 import com.raphtory.Raphtory
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.graph.GraphAlteration
-import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
+import com.raphtory.internals.graph.GraphBuilder
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
@@ -16,6 +16,7 @@ trait SourceInstance {
 
   /** Logger instance for writing out log messages */
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  def highestTimeSeen(): Long
   def hasRemainingUpdates: Boolean
   def sendUpdates(index: Long, failOnError: Boolean): Unit
   def spoutReschedules(): Boolean
@@ -28,7 +29,9 @@ trait SourceInstance {
 
 object Source {
 
-  def apply[T](spout: Spout[T], builder: GraphBuilder[T]): Source =
+  def apply[T](spout: Spout[T], parseFunc: (Graph, T) => Unit): Source = {
+    val builder = GraphBuilder(parseFunc)
+
     new Source { // Avoid defining this as a lambda regardless of IntelliJ advices, that would cause serialization problems
       override def buildSource(graphID: String, id: Int): SourceInstance =
         new SourceInstance {
@@ -52,8 +55,12 @@ object Source {
           override def close(): Unit = spoutInstance.close()
 
           override def sentMessages(): Long = builderInstance.getSentUpdates
+
+          override def highestTimeSeen(): Long = builderInstance.highestTimeSeen
         }
 
       override def getBuilder: GraphBuilder[Any] = builder.asInstanceOf[GraphBuilder[Any]]
     }
+  }
+
 }
