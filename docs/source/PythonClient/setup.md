@@ -1,13 +1,36 @@
 # Setup the Python Client 
 
-In order to run the example notebook you must first:
+## Easy installer (Conda)
 
-* Install and run Apache Pulsar
-* Get the LOTR example running from [raphtory-example-lotr](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-lotr)
-* Set up a python environment
+An easy way to install pyraphtory is via conda. 
 
-To run Raphtory and Pulsar, please view the prior Raphtory setup/installation guide.
+1. First install conda from [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#regular-installation)
 
+2. Install a conda environment via 
+
+    conda create --name raphtoryenv python=3.9.13 -c conda-forge
+
+3. Activate the conda environment
+
+   conda activate raphtoryenv
+
+4. Install java and jupyter  
+
+    conda install -y openjdk==11.0.15 jupyterlab -c conda-forge
+
+5. Download and run Apache Pulsar in a seperate terminal window
+
+    conda activate raphtoryenv
+    wget "https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-2.10.1/apache-pulsar-2.10.1-bin.tar.gz" -O pulsar.tar.gz
+    tar -xf pulsar.tar.gz
+    ./apache-pulsar-2.10.1/bin/pulsar standalone
+
+7. Install deps and pyraphtory 
+    
+    pip install pandas pemja cloudpickle
+    pip install -i https://test.pypi.org/simple/ pyraphtory==0.2.0a0
+
+   
 ##  Data for the Python Demo
 
 Once you have Pulsar running and Raphtory setup, we can now run the [raphtory-example-lotr](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-lotr) Runner.
@@ -16,24 +39,3 @@ Then will run the `EdgeList` and `PageRank` algorithms. The `EdgeList` algorithm
 
 **You must set the environment variable `RAPHTORY_PYTHON_ACTIVE` to `true` to ensure Raphtory launches 
 the python gateway server, it is set to `false` by default.** 
-
-## Setup Python Environment
-
-- Install `python3.8` and `pip`
-- Either
-    - Install the requirements file via
-        - `pip install -r requirements.txt`
-        - This will include Jupyter if you do not have it
-    - `pip install raphtory-client`  and `pip install jupyter`
-- install the addons for pymotif
-```
-  # Jupyter Lab
-  jupyter labextension install @jupyter-widgets/jupyterlab-manager
-
-  # For Jupyter Lab <= 2, you may need to install the extension manually
-  jupyter labextension install @cylynx/pymotif
-
-  # For Jupyter Notebook <= 5.2, you may need to enable nbextensions
-  jupyter nbextension enable --py [--sys-prefix|--user|--system] pymotif
-```
-- then run jupyter via `jupyter notebook`
