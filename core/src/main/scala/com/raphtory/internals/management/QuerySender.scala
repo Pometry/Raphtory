@@ -62,6 +62,9 @@ private[raphtory] class QuerySender(
   private var updatesSinceLastIDChange = 0    //used to know how many messages to wait for when blocking in the Q manager
   private var newIDRequiredOnUpdate    = true // has a query been since the last update and do I need a new ID
   private var currentSourceID          = -1   //this is initialised as soon as the client sends 1 update
+  private var searchPath               = List.empty[String]
+
+  def addToDynamicPath(name: String): Unit = searchPath = name :: searchPath
 
   override protected def sourceID: Int   = IDForUpdates()
   override def index: Long               = totalUpdateIndex
@@ -101,7 +104,12 @@ private[raphtory] class QuerySender(
 
     val jobName     = if (customJobName.nonEmpty) customJobName else getDefaultName(query)
     val jobID       = jobName + "_" + Random.nextLong().abs
-    val outputQuery = query.copy(name = jobID, blockedBy = blockingSources.toArray)
+    val outputQuery = query
+      .copy(
+              name = jobID,
+              blockedBy = blockingSources.toArray,
+              _bootstrap = query._bootstrap.resolve(searchPath)
+      )
 
     submissions sendAsync outputQuery
 
@@ -127,12 +135,9 @@ private[raphtory] class QuerySender(
 
   def submitSource(blocking: Boolean, sources: Seq[Source], id: String): Unit = {
 
-    val clazzes      = sources
-      .map { source =>
-        source.getBuilder.getClass
-      }
-      .toSet
-      .asInstanceOf[Set[Class[_]]]
+    val clazzes      = sources.map { source =>
+      source.getBuilderClass
+    }.toList
     val sourceWithId = sources.map { source =>
       idManager.getNextAvailableID() match {
         case Some(id) =>
@@ -142,7 +147,13 @@ private[raphtory] class QuerySender(
           throw new NoIDException(s"Client '$clientID' was not able to acquire a source ID for $source")
       }
     }
-    submissions sendAsync IngestData(DynamicLoader(clazzes), graphID, id, sourceWithId, blocking)
+    submissions sendAsync IngestData(
+            DynamicLoader(clazzes).resolve(searchPath),
+            graphID,
+            id,
+            sourceWithId,
+            blocking
+    )
   }
 
   private def getDefaultName(query: Query): String =

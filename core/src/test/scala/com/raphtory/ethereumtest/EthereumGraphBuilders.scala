@@ -6,7 +6,6 @@ import com.raphtory.api.input.Graph.assignID
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
-import com.raphtory.internals.graph.GraphBuilder
 
 object EthereumTxGraphBuilder {
 

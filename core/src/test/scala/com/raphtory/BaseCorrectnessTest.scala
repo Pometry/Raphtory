@@ -6,9 +6,9 @@ import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input.Graph
+import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
-import com.raphtory.internals.graph.GraphBuilder
 import com.raphtory.spouts.IdentitySpout
 import com.raphtory.spouts.ResourceSpout
 import com.raphtory.spouts.SequenceSpout
@@ -36,7 +36,7 @@ abstract class BaseCorrectnessTest(
   private def normaliseResults(value: IterableOnce[String]) =
     value.iterator.toList.sorted.mkString("\n")
 
-  override def setGraphBuilder(): (Graph, String) => Unit = BasicGraphBuilder.parse
+  override def setGraphBuilder(): GraphBuilder[String] = BasicGraphBuilder
 
   def setSpout(): Spout[String] = new IdentitySpout
 

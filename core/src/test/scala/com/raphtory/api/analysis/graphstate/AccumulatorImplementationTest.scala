@@ -6,20 +6,6 @@ import scala.collection.parallel.CollectionConverters._
 
 class AccumulatorImplementationTest extends FunSuite {
 
-  test("bad accumulator will eventually fail") {
-    val n   = 500_000
-    val accMatches = (0 until 10).map{ _ =>
-      var acc = 0
-      (1 to n).par.foreach { i =>
-        acc += i
-      }
-      val exp = (n * (n + 1)) / 2
-      acc == exp
-    }.reduce(_ && _)
-
-   assert(!accMatches)
-  }
-
   test("int accumulator over multiple threads should be the same as sequential") {
     val n   = 500_000
     val acc = new IntAccumulatorImpl(0, false, _ + _)
