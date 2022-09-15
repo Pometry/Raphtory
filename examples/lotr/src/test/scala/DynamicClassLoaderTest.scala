@@ -100,7 +100,7 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
             _      <- TestUtils.manageTestFile(
                               Some("/tmp/lotr.csv", new URL("https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"))
                       )
-            source <- Resource.pure(Source(FileSpout("/tmp/lotr.csv"), new LOTRGraphBuilder()))
+            source <- Resource.pure(Source(FileSpout("/tmp/lotr.csv"), LOTRGraphBuilder.parser))
           } yield source
   )
 
