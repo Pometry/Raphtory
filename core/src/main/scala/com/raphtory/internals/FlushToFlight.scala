@@ -18,18 +18,19 @@ trait FlushToFlight {
     writers.values.foreach(_.flushAsync())
   }
 
-  @volatile private var flushed                                  = false
-  @volatile private var nTimes                                   = 0
-  @volatile private var lastFlushedTime                          = -1L
+  @volatile private var flushed                                 = false
+  @volatile private var nTimes                                  = 0
+  @volatile private var lastFlushedTime                         = -1L
   @volatile private[internals] var latestMsgTimeToFlushToFlight = -1L
-  private var flushTask: Option[() => Future[Unit]]              = None
+  private var flushTask: Option[() => Future[Unit]]             = None
+  private val skipTimesForFlushing                              = 1
 
   // Flush data to flight from the time no graph updates have been seen
   def flushArrow(): Unit = {
     if (lastFlushedTime == latestMsgTimeToFlushToFlight && lastFlushedTime != -1L) {
       if (!flushed) {
         nTimes += 1
-        if (nTimes == 4) {
+        if (nTimes == skipTimesForFlushing) {
           writers.values.foreach(_.flushAsync())
           flushed = true
           nTimes = 0
