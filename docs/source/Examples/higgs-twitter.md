@@ -1,4 +1,4 @@
-# Detecting bot activity on Twitter
+# Detecting bot activity on Twitter 🤖
 
 ## Overview
 
@@ -10,7 +10,7 @@ A Twitter bot typically uses the Twitter API to interact and engage with Twitter
 In our example, we took the retweet network dataset from SNAP to see whether Raphtory could detect bot activity during and after the announcement of the elusive Higgs boson.
 
 <p>
- <img src="../_static/higgs-boson.jpeg" width="400px" style="padding: 15px" alt="Higgs Boson"/>
+ <img src="../_static/higgstwittergraph.png" width="1000px" style="padding: 15px" alt="Retweet Network Graph"/>
 </p>
 
 ## Pre-requisites
@@ -21,15 +21,6 @@ Follow our Installation guide: [Scala](../Install/installdependencies.md) or [Py
 
 The data is a `csv` file (comma-separated values) and can be found in [Raphtory's data repo](https://github.com/Raphtory/Data/blob/main/higgs-retweet-activity.csv). 
 Each line contains user A and user B, where user B is being retweeted by user A. The last value in the line is the time of the retweet in Unix epoch time.
-
-````{tabs}
-
-```{tab} Python
-
-
-
-```
-```{tab} Scala
 
 # Running and writing custom algorithms in Raphtory
 
@@ -46,9 +37,15 @@ MemberRank is an algorithm that takes the PageRank score from the vertex neighbo
 
 TemporalMemberRank is an algorithm that filters users with big differences in their raw dataset scores and MemberRank scores (potential bots) and checks their in-edge creations over time. Bot activity usually occurs in a very short timeframe (spamming) or at regular intervals. This algorithm will be able to give more evidence on whether a particular user is a bot or not. 
 
-## Project Overview
 
-Also, in the Twitter examples folder you will find `HiggsRunner.scala`.
+````{tabs}
+
+```{tab} Python
+
+```
+```{tab} Scala
+
+In the Twitter examples folder you will find `HiggsRunner.scala`.
 
 * `HiggsRunner.scala` runs the data in Raphtory, performing all the algorithms and analysis.
 

@@ -23,7 +23,7 @@ import java.util.Date
 object CompaniesStreamPersonGraphBuilder {
   private val nullStr = "null"
 
-  def parser(graph: Graph, tuple: String): Unit = {
+  def parse(graph: Graph, tuple: String): Unit = {
     try {
       val command = tuple
       val company = command.parseJson.convertTo[Company]
