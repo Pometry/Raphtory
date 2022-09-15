@@ -71,10 +71,10 @@ def print_output(input_stream: IO[AnyStr], output_stream=sys.stdout):
 def read_output(stream: IO[AnyStr], logging=False):
     out = stream.readline()
     while out:
+        yield out
+        out = stream.readline()
         if logging:
             sys.stdout.write(out.decode("utf-8"))
-            yield out
-            out = stream.readline()
 
 
 class PyRaphtory(object):
