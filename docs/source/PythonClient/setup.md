@@ -28,7 +28,7 @@ An easy way to install pyraphtory is via conda.
 7. Install deps and pyraphtory 
     
     pip install pandas pemja cloudpickle
-    pip install -i https://test.pypi.org/simple/ pyraphtory==0.2.0a0
+    pip install -i https://test.pypi.org/simple/ pyraphtory==0.2.0a1
 
    
 ##  Data for the Python Demo
