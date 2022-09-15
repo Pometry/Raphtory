@@ -81,7 +81,8 @@ lazy val root = (project in file("."))
           examplesLotr,
           examplesTwitter,
           examplesNFT,
-          deploy
+          deploy,
+          integrationTest
   )
 
 lazy val protocol = project
