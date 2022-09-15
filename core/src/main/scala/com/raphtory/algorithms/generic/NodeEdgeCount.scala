@@ -1,6 +1,7 @@
 package com.raphtory.algorithms.generic
 
 import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.graphstate.Accumulator
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.{Row, Table}
 
@@ -32,19 +33,21 @@ object NodeEdgeCount extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph = {
     graph.setGlobalState({state =>
-      state.newAdder[Int]("directedEdges")
-      state.newAdder[Int]("undirectedEdges")
+      state.newIntAdder("directedEdges")
+      state.newIntAdder("undirectedEdges")
     }).step{ (vertex, state) =>
       import vertex._
-      state("directedEdges")+=vertex.outEdges.size
-      state("undirectedEdges")+=vertex.neighbours.count(_ > vertex.ID)
+      val acc1: Accumulator[Int, Int] = state("directedEdges")
+      acc1+=vertex.outEdges.size
+      val acc2: Accumulator[Int, Int] = state("undirectedEdges")
+      acc2+=vertex.degree
     }
   }
 
   override def tabularise(graph: GraphPerspective): Table =
     graph.globalSelect{
       state =>
-        Row(state.nodeCount, state("directedEdges").value, state("undirectedEdges").value)
+        Row(state.nodeCount, state("directedEdges").value, state[Int,Int]("undirectedEdges").value/2)
     }
 }
 
