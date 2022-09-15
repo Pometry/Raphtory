@@ -136,7 +136,7 @@ private[raphtory] class QuerySender(
   def submitSource(blocking: Boolean, sources: Seq[Source], id: String): Unit = {
 
     val clazzes      = sources.map { source =>
-      source.getBuilder.getClass
+      source.getBuilderClass
     }.toList
     val sourceWithId = sources.map { source =>
       idManager.getNextAvailableID() match {

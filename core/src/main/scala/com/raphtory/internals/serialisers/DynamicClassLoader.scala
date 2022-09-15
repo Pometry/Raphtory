@@ -45,7 +45,7 @@ private[serialisers] class DynamicClassLoader(parent: ClassLoader, storage: Conc
 
 object DynamicClassLoader {
   private[serialisers] val classStorage = new ConcurrentHashMap[String, Array[Byte]]()
-  private val loader                    = new DynamicClassLoader(this.getClass.getClassLoader, classStorage)
+  private val loader                    = new DynamicClassLoader(Thread.currentThread.getContextClassLoader, classStorage)
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 

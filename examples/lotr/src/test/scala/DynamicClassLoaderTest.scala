@@ -3,10 +3,15 @@ import cats.effect.IO
 import cats.effect.SyncIO
 import com.raphtory.Raphtory
 import com.raphtory.TestUtils
+import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
+import com.raphtory.api.input.Graph
+import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Source
+import com.raphtory.api.input.Type
 import com.raphtory.examples.lotr.analysis.ArbitraryMessage
 import com.raphtory.examples.lotr.analysis.DegreesSeparation
 import com.raphtory.examples.lotr.analysis.FlowAdded
@@ -16,6 +21,7 @@ import com.raphtory.examples.lotr.analysis.MinimalTestAlgorithm
 import com.raphtory.examples.lotr.analysis.NewLabel
 import com.raphtory.examples.lotr.analysis.Recheck
 import com.raphtory.examples.lotr.graphbuilders.LOTRGraphBuilder
+import com.twitter.chill.ClosureCleaner.clean
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
@@ -55,7 +61,7 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
   private val compiledAlgo: Generic = tb.compile(tb.parse(minimalTestCode))().asInstanceOf[Generic]
 
   val remoteGraphResource =
-    Resource.make(IO(remote().newGraph()))(graph => IO(graph.destroy())).evalMap(g => IO(g.load(source())))
+    Resource.make(IO(remote().newGraph()))(graph => IO(graph.destroy()))
 
   val remoteProcess: Resource[IO, Process] = Resource.make {
     IO {
@@ -75,8 +81,7 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
                       "java",
                       "-cp",
                       classPath,
-                      "com.raphtory.service.Standalone",
-                      "testLOTR"
+                      "com.raphtory.service.Standalone"
               )
       ).run()
     }
@@ -88,10 +93,18 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
       }
   )
 
-  lazy val remoteGraph = ResourceFixture(remoteGraphResource)
+  lazy val remoteGraph = ResourceFixture(remoteGraphResource.evalMap(g => IO(g.load(source()))))
 
   lazy val remoteGraphWithPath: SyncIO[FunFixture[TemporalGraph]] = ResourceFixture(
-          remoteGraphResource.evalMap(g => IO(g.addDynamicPath("com.raphtory.examples.lotr")))
+          remoteGraphResource
+            .evalMap(g => IO(g.addDynamicPath("com.raphtory.examples.lotr")))
+            .evalMap(g => IO(g.load(source())))
+  )
+
+  lazy val remoteGraphWithPathInline: SyncIO[FunFixture[TemporalGraph]] = ResourceFixture(
+          remoteGraphResource
+            .evalMap(g => IO(g.addDynamicPath("com.raphtory.examples.lotr")))
+            .evalMap(g => IO(g.load(sourceInline())))
   )
 
   lazy val source: Fixture[Source] = ResourceSuiteLocalFixture[Source](
@@ -100,7 +113,43 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
             _      <- TestUtils.manageTestFile(
                               Some("/tmp/lotr.csv", new URL("https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"))
                       )
-            source <- Resource.pure(Source(FileSpout("/tmp/lotr.csv"), LOTRGraphBuilder.parser))
+            source <- Resource.pure(Source(FileSpout("/tmp/lotr.csv"), LOTRGraphBuilder))
+          } yield source
+  )
+
+  lazy val sourceInline: Fixture[Source] = ResourceSuiteLocalFixture[Source](
+          "lotr-inline",
+          for {
+            _      <- TestUtils.manageTestFile(
+                              Some("/tmp/lotr.csv", new URL("https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"))
+                      )
+            source <- Resource.pure(
+                              Source[String](
+                                      FileSpout("/tmp/lotr.csv"),
+                                      (graph: Graph, tuple: String) => {
+                                        val fileLine   = tuple.split(",").map(_.trim)
+                                        val sourceNode = fileLine(0)
+                                        val srcID      = graph.assignID(sourceNode)
+                                        val targetNode = fileLine(1)
+                                        val tarID      = graph.assignID(targetNode)
+                                        val timeStamp  = fileLine(2).toLong
+
+                                        graph.addVertex(
+                                                timeStamp,
+                                                srcID,
+                                                Properties(ImmutableProperty("name", sourceNode)),
+                                                Type("Character")
+                                        )
+                                        graph.addVertex(
+                                                timeStamp,
+                                                tarID,
+                                                Properties(ImmutableProperty("name", targetNode)),
+                                                Type("Character")
+                                        )
+                                        graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurence"))
+                                      }
+                              )
+                      )
           } yield source
   )
 
@@ -119,7 +168,7 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
             connection <- Resource.make {
                             IO {
                               println("connecting to remote")
-                              Raphtory.connect("testLOTR")
+                              Raphtory.connect()
                             }
                           } { c =>
                             IO {
@@ -130,7 +179,7 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
           } yield connection
   )
 
-  override def munitFixtures = List(remote, source, localGraph)
+  override def munitFixtures = List(remote, source, localGraph, sourceInline)
 
   test("test algorithm locally") {
     val res = localGraph().execute(MaxFlowTest[Int]("Gandalf", "Gandalf")).get().toList
@@ -152,6 +201,12 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
   }
   remoteGraphWithPath.test("test algorithm class injection") { g =>
     val res = g.execute(MinimalTestAlgorithm).get().toList
+    assert(res.nonEmpty)
+    println(res)
+  }
+
+  remoteGraphWithPathInline.test("test inline graphbuilder definition") { g =>
+    val res = g.execute(EdgeList()).get().toList
     assert(res.nonEmpty)
     println(res)
   }

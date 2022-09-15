@@ -13,8 +13,11 @@ import com.raphtory.internals.graph.Perspective
 
 import scala.collection.immutable.Queue
 import com.raphtory.internals.serialisers.DependencyFinder
+import org.apache.bcel.Repository
 
+import java.io.ByteArrayOutputStream
 import scala.jdk.CollectionConverters._
+import scala.util.Using
 
 private[raphtory] trait QueryManagement extends Serializable
 
@@ -107,7 +110,10 @@ case class DynamicLoader(classes: List[Class[_]] = List.empty, resolved: Boolean
             classes = classes.reverse.flatMap { cls =>
               knownDeps += cls
               val actualSearchPath =
-                if (cls.getPackageName.startsWith("com.raphtory")) searchPath else cls.getPackageName :: searchPath
+                cls.getPackageName match {
+                  case name if name.startsWith("com.raphtory") || name == "" => searchPath
+                  case name                                                  => name :: searchPath
+                }
               val deps             = recursiveResolveDependencies(cls, actualSearchPath)(knownDeps)
               knownDeps = knownDeps ++ deps
               deps.reverse
@@ -116,23 +122,37 @@ case class DynamicLoader(classes: List[Class[_]] = List.empty, resolved: Boolean
     )
   }
 
+  private def getByteCode(cls: Class[_]): Array[Byte] = {
+    val jc = Repository.lookupClass(cls)
+
+    Using(new ByteArrayOutputStream()) { bos =>
+      jc.dump(bos)
+      bos.flush()
+      bos.toByteArray
+    }.get
+  }
+
   private def recursiveResolveDependencies(cls: Class[_], searchPath: List[String])(
       knownDeps: Set[Class[_]] = Set(cls)
   ): List[Class[_]] = {
-    val dependencies =
-      if (searchPath.isEmpty)
-        Nil
-      else
-        DependencyFinder
-          .getDependencies(cls)
-          .asScala
-          .filter { d =>
-            val packageName = d.getPackageName
-            searchPath.exists(path => packageName.startsWith(path))
-          }
-          .diff(knownDeps)
-          .toList
-    cls :: dependencies.flatMap(d => recursiveResolveDependencies(d, searchPath)(knownDeps + d))
+    val packageName = cls.getPackageName
+    if (packageName == "" || searchPath.exists(p => cls.getPackageName.startsWith(p))) {
+      val dependencies =
+        if (searchPath.isEmpty)
+          Nil
+        else
+          DependencyFinder
+            .getDependencies(cls, getByteCode(cls))
+            .asScala
+            .filter { d =>
+              val depPackageName = d.getPackageName
+              depPackageName == "" || searchPath.exists(path => depPackageName.startsWith(path))
+            }
+            .diff(knownDeps)
+            .toList
+      cls :: dependencies.flatMap(d => recursiveResolveDependencies(d, searchPath)(knownDeps + d))
+    }
+    else Nil
   }
 }
 

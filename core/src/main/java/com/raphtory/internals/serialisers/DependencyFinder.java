@@ -12,23 +12,9 @@ import java.util.Set;
 
 // https://stackoverflow.com/questions/19862866/find-java-class-dependencies-at-runtime
 public class DependencyFinder {
-    public static Set<Class<?>> getDependencies(Class<?> from)
+    public static Set<Class<?>> getDependencies(Class<?> from, byte[] buf)
             throws IOException, ClassNotFoundException {
 
-        while (from.isArray()) from = from.getComponentType();
-        if (from.isPrimitive()) return Collections.emptySet();
-        byte[] buf = null;
-        int read = 0;
-        try (InputStream is = from.getResourceAsStream('/' + from.getName().replace('.', '/') + ".class")) {
-            for (int r; ; read += r) {
-                int num = Math.max(is.available() + 100, 100);
-                if (buf == null) buf = new byte[num];
-                else if (buf.length - read < num)
-                    System.arraycopy(buf, 0, buf = new byte[read + num], 0, read);
-                r = is.read(buf, read, buf.length - read);
-                if (r <= 0) break;
-            }
-        }
         Set<String> names = getDependencies(ByteBuffer.wrap(buf));
         Set<Class<?>> classes = new HashSet<>(names.size());
         ClassLoader cl = from.getClassLoader();
