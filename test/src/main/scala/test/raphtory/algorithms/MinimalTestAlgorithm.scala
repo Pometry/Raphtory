@@ -1,4 +1,4 @@
-package com.raphtory.examples.lotr.analysis
+package test.raphtory.algorithms
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective

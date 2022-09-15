@@ -202,6 +202,11 @@ lazy val deploy =
   (project in file("deploy"))
     .settings(assemblySettings)
 
+lazy val integrationTest =
+  (project in file("test"))
+    .dependsOn(core % "compile->compile;test->test")
+    .settings(assemblySettings)
+
 // SETTINGS
 
 lazy val defaultSettings = Seq(

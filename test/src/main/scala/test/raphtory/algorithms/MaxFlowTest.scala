@@ -1,5 +1,6 @@
-package com.raphtory.examples.lotr.analysis
+package test.raphtory.algorithms
 
+// make this not part of com.raphtory to test automatic dependency loading
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row

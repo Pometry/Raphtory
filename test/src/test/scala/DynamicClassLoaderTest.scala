@@ -1,31 +1,19 @@
-import cats.effect.kernel.Resource
 import cats.effect.IO
 import cats.effect.SyncIO
+import cats.effect.kernel.Resource
 import com.raphtory.Raphtory
 import com.raphtory.TestUtils
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
-import com.raphtory.api.input.Graph
-import com.raphtory.api.input.ImmutableProperty
-import com.raphtory.api.input.Properties
-import com.raphtory.api.input.Source
-import com.raphtory.api.input.Type
-import com.raphtory.examples.lotr.analysis.ArbitraryMessage
-import com.raphtory.examples.lotr.analysis.DegreesSeparation
-import com.raphtory.examples.lotr.analysis.FlowAdded
-import com.raphtory.examples.lotr.analysis.MaxFlowTest
-import com.raphtory.examples.lotr.analysis.Message
-import com.raphtory.examples.lotr.analysis.MinimalTestAlgorithm
-import com.raphtory.examples.lotr.analysis.NewLabel
-import com.raphtory.examples.lotr.analysis.Recheck
-import com.raphtory.examples.lotr.graphbuilders.LOTRGraphBuilder
-import com.twitter.chill.ClosureCleaner.clean
+import com.raphtory.api.input._
 import com.raphtory.internals.context.RaphtoryContext
+import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.spouts.FileSpout
-import com.raphtory.utils.FileUtils
 import munit.CatsEffectSuite
+import test.raphtory.algorithms.MinimalTestAlgorithm
+import test.raphtory.algorithms.MaxFlowTest
 
 import java.net.URL
 import scala.concurrent.duration.Duration
@@ -193,12 +181,6 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
     println(res)
   }
 
-  remoteGraphWithPath.test("simple algorithm should work") { g =>
-    val res = g.execute(DegreesSeparation()).get().toList
-    assert(res.nonEmpty)
-    println(res)
-
-  }
   remoteGraphWithPath.test("test algorithm class injection") { g =>
     val res = g.execute(MinimalTestAlgorithm).get().toList
     assert(res.nonEmpty)
@@ -209,17 +191,6 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
     val res = g.execute(EdgeList()).get().toList
     assert(res.nonEmpty)
     println(res)
-  }
-
-  remoteGraph.test("test manual class injection with MaxFlow") { gIn =>
-    var g: TemporalGraph = gIn
-    g = g.addClass(Class.forName("com.raphtory.examples.lotr.analysis.Message"))
-    g = g.addClass(classOf[FlowAdded[_, _]])
-    g = g.addClass(classOf[Recheck[_]])
-    g = g.addClass(classOf[NewLabel[_]])
-    val res              = g.execute(MaxFlowTest[Int]("Gandalf", "Gandalf")).get().toList
-    println(res)
-    assert(res.nonEmpty)
   }
 
   remoteGraphWithPath.test("test algorithm class injection with MaxFlow") { g =>
