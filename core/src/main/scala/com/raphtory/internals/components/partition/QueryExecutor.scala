@@ -90,20 +90,6 @@ private[raphtory] class QueryExecutor(
     else None
   logger.debug(logMessage("Vertex message listener registered."))
 
-//  private val vertexControlMessageListener =
-//    if (totalPartitions > 1)
-//      Some(
-//              topics.registerListener(
-//                      s"$graphID-$jobID-query-executor-$partitionID",
-//                      receiveVertexControlMessage,
-//                      topics.vertexMessagesSync(jobID),
-//                      partitionID
-//              )
-//      )
-//    else
-//      None
-//  logger.debug(logMessage("Vertex control message listener registered."))
-
   private val taskManager = topics.jobStatus(jobID).endPoint
   logger.debug(logMessage("TaskManager endpoint created"))
 
@@ -128,8 +114,6 @@ private[raphtory] class QueryExecutor(
     logger.debug(logMessage("Query executor consumer started, starting vertex message listeners."))
     vertexMessageListener.foreach(_.start())
     logger.debug(logMessage("Vertex message and vertex control message listeners started."))
-//    vertexControlMessageListener.foreach(_.start())
-//    logger.debug(logMessage("Vertex control message listeners started."))
     taskManager sendAsync ExecutorEstablished(partitionID)
     logger.debug(logMessage("QueryExecutor initialised."))
   }
@@ -137,7 +121,6 @@ private[raphtory] class QueryExecutor(
   override def stop(): Unit = {
     listener.close()
     vertexMessageListener.foreach(_.close())
-//    vertexControlMessageListener.foreach(_.close())
     logger.debug(logMessage(s"closing query executor consumer."))
     taskManager.close()
     neighbours.values.foreach(_.close())
