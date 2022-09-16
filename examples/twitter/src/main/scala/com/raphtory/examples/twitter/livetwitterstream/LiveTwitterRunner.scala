@@ -3,8 +3,9 @@ package com.raphtory.examples.twitter.livetwitterstream
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.input.Source
+import com.raphtory.twitter.builder.TwitterRetweetGraphBuilder
+import com.raphtory.twitter.builder.TwitterUserGraphBuilder
 import com.raphtory.sinks.FileSink
-import com.raphtory.twitter.builder.TwitterGraphBuilder
 import com.raphtory.twitter.spout.LiveTwitterSpout
 import com.typesafe.config.Config
 
@@ -16,11 +17,11 @@ object LiveTwitterRunner extends App {
 
     val spout   = LiveTwitterSpout()
     val output  = FileSink("/tmp/liveTwitterStream")
-    val builder = TwitterGraphBuilder
+
     val source = {
       if (enableRetweetGraphBuilder)
-      Source(spout, builder.retweetParse)
-      else Source(spout, builder.userParse)
+      Source(spout, TwitterRetweetGraphBuilder)
+      else Source(spout, TwitterUserGraphBuilder)
     }
     val graph  = Raphtory.newGraph()
 
