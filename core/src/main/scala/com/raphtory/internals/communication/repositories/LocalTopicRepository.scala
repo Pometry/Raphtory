@@ -14,9 +14,8 @@ private[raphtory] object LocalTopicRepository {
     config.getString("raphtory.communication.control") match {
       case "auto" | "akka" =>
         for {
-          pulsarConnector <- PulsarConnector[IO](config)
-          akkaConnector   <- AkkaConnector[IO](AkkaConnector.StandaloneMode, config)
-        } yield TopicRepository(akkaConnector, pulsarConnector, config)
+          akkaConnector <- AkkaConnector[IO](AkkaConnector.StandaloneMode, config)
+        } yield TopicRepository(akkaConnector, akkaConnector, config)
       case "pulsar"        => PulsarConnector[IO](config).map(connector => TopicRepository(connector, config))
     }
 }
