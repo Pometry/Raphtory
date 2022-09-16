@@ -6,8 +6,7 @@ import com.raphtory.api.input.Source
 import com.raphtory.examples.twitter.higgsdataset.analysis.MemberRank
 import com.raphtory.examples.twitter.higgsdataset.analysis.TemporalMemberRank
 import com.raphtory.examples.twitter.higgsdataset.graphbuilders.TwitterGraphBuilder
-import com.raphtory.internals.graph.GraphBuilder
-import com.raphtory.sinks.FileSink
+import com.raphtory.sinks.{FileSink, PulsarSink}
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
 
@@ -20,22 +19,23 @@ object HiggsRunner extends App {
 
   // Create Graph
   val spout  = FileSpout(path)
+  val source = Source(spout, TwitterGraphBuilder)
   val graph  = Raphtory.newGraph()
   val output = FileSink("/tmp/higgsoutput")
-  val source = Source(spout, TwitterGraphBuilder.parse)
 
     graph.load(source)
 
   //get simple metrics
-//    graph
-//      .execute(Degree())
-//      .writeTo(FileSink("tmp/raphtory"))
-//      .waitForJob()
+    graph
+      .execute(Degree())
+      .writeTo(output)
+      .waitForJob()
 
     graph
-      .at(1341705593)
+      .range(1341101181, 1341705593, 500000000)
       .past()
-      .execute(PageRank() -> MemberRank())
+      .transform(PageRank())
+      .execute(MemberRank() -> TemporalMemberRank())
       .writeTo(output)
       .waitForJob()
 

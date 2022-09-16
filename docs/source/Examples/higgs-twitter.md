@@ -19,7 +19,7 @@ Follow our Installation guide: [Scala](../Install/installdependencies.md) or [Py
 
 ## Data
 
-The data is a `csv` file (comma-separated values) and can be found in [Raphtory's data repo](https://github.com/Raphtory/Data/blob/main/higgs-retweet-activity.csv). 
+The data is a `csv` file (comma-separated values) and can be found in <a href="https://github.com/Raphtory/Data/blob/main/higgs-retweet-activity.csv" target="_blank">Raphtory's data repo</a>. 
 Each line contains user A and user B, where user B is being retweeted by user A. The last value in the line is the time of the retweet in Unix epoch time.
 
 ## Higgs Boson Retweet Example 💥
@@ -68,6 +68,13 @@ FileUtils.curlFile(path, url)
 ```
 ````
 
+#### Terminal output
+
+```bash
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 8022k  100 8022k    0     0  4745k      0  0:00:01  0:00:01 --:--:-- 4758k
+```
 ## Preview data 👀
 
 Preview the retweet twitter data: each line includes the source user A (the retweeter), the destination user B (the user being retweeted) and the time at which the retweet occurs.
@@ -106,6 +113,15 @@ val graph = Raphtory.newGraph()
 ```
 ````
 
+### Terminal Output
+```bash
+WARNING: sun.reflect.Reflection.getCallerClass is not supported. This will impact performance.
+15:13:01.077 [io-compute-1] INFO  com.raphtory.internals.management.Py4JServer - Starting PythonGatewayServer...
+15:13:01.696 [Thread-12] INFO  com.raphtory.internals.context.LocalContext$ - Creating Service for 'nervous_gold_finch'
+15:13:01.711 [io-compute-2] INFO  com.raphtory.internals.management.Prometheus$ - Prometheus started on port /0:0:0:0:0:0:0:0:9999
+15:13:02.328 [io-compute-2] INFO  com.raphtory.internals.components.partition.PartitionOrchestrator$ - Creating '1' Partition Managers for 'nervous_gold_finch'.
+15:13:04.340 [io-compute-5] INFO  com.raphtory.internals.components.partition.PartitionManager - Partition 0: Starting partition manager for 'nervous_gold_finch'.
+```
 ### Ingest the data into a graph 😋
 
 Write a parsing method to parse your csv file and ultimately create a graph. This example is slightly different to the LOTR example. We insert a parse method into a GraphBuilder() object. Then we create a spout object to ingest the data from the csv file. We load both the spout and graph builder into Source() and load the source into the graph.
@@ -130,8 +146,9 @@ twitter_spout = FileSpout("/tmp/twitter.csv")
 rg.load(Source(twitter_spout, twitter_builder))
 ```
 ```{code-tab} scala
-object TwitterGraphBuilder {
-  def parse(graph: Graph, tuple: String): Unit = {
+object TwitterGraphBuilder extends GraphBuilder[String] {
+
+  def apply(graph: Graph, tuple: String): Unit = {
     val fileLine   = tuple.split(",").map(_.trim)
     val sourceNode = fileLine(0).trim
     val srcID      = sourceNode.toLong
@@ -147,10 +164,18 @@ object TwitterGraphBuilder {
 }
 
   val spout  = FileSpout(path)
-  val source = Source(spout, TwitterGraphBuilder.parse)
+  val source = Source(spout, TwitterGraphBuilder)
   graph.load(source)
 ```
 ````
+
+#### Terminal Output
+```bash 
+15:13:47.923 [spawner-akka.actor.default-dispatcher-3] INFO  com.raphtory.internals.components.ingestion.IngestionManager - Ingestion Manager for 'nervous_gold_finch' establishing new data source
+com.raphtory.api.analysis.graphview.DeployedTemporalGraph@51790aa0
+15:13:48.521 [io-compute-3] INFO  com.raphtory.spouts.FileSpoutInstance - Spout: Processing file 'twitter.csv' ...
+15:13:48.532 [spawner-akka.actor.default-dispatcher-3] INFO  com.raphtory.internals.components.querymanager.QueryManager - Source '0' is blocking analysis for Graph 'nervous_gold_finch'
+```
 
 ### Collect simple metrics 📈
 
@@ -162,17 +187,28 @@ Select certain metrics to show in your output dataframe. Here we have selected v
 from pyraphtory.graph import Row
 df = rg \
       .select(lambda vertex: Row(vertex.name(), vertex.degree(), vertex.out_degree(), vertex.in_degree())) \
-      .write_to_dataframe(["name", "degree", "out_degree", "in_degree"])
+      .write_to_dataframe(["twitter_id", "degree", "out_degree", "in_degree"])
 ```
 ```{code-tab} scala
 val graph = Raphtory.newGraph()
   graph
     .execute(Degree())
-    .writeTo(FileSink("/tmp/raphtory"))
+    .writeTo(FileSink("/tmp/higgsoutput"))
     .waitForJob()
 ```
 ````
 
+```bash
+15:14:52.623 [io-compute-1] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job 60798274_5254107002656625895: Starting query progress tracker.
+15:14:52.625 [spawner-akka.actor.default-dispatcher-3] INFO  com.raphtory.internals.components.querymanager.QueryManager - Query '60798274_5254107002656625895' currently blocked, waiting for ingestion to complete.
+15:19:00.751 [spawner-akka.actor.default-dispatcher-3] INFO  com.raphtory.internals.components.querymanager.QueryManager - Source '0' is unblocking analysis for Graph 'nervous_gold_finch' with 1064790 messages sent.
+15:19:01.181 [spawner-akka.actor.default-dispatcher-3] INFO  com.raphtory.internals.components.querymanager.QueryManager - Query '60798274_5254107002656625895' received, your job ID is '60798274_5254107002656625895'.
+15:19:01.192 [spawner-akka.actor.default-dispatcher-9] INFO  com.raphtory.internals.components.partition.QueryExecutor - 60798274_5254107002656625895_0: Starting QueryExecutor.
+15:19:15.365 [spawner-akka.actor.default-dispatcher-3] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job '60798274_5254107002656625895': Perspective '1341705593' finished in 262742 ms.
+15:19:15.365 [spawner-akka.actor.default-dispatcher-7] INFO  com.raphtory.internals.components.querymanager.QueryHandler - Job '60798274_5254107002656625895': Perspective at Time '1341705593' took 14163 ms to run. 
+15:19:15.365 [spawner-akka.actor.default-dispatcher-3] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job 60798274_5254107002656625895: Running query, processed 1 perspectives.
+15:19:15.368 [spawner-akka.actor.default-dispatcher-10] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job 60798274_5254107002656625895: Query completed with 1 perspectives and finished in 262745 ms.
+```
 ### Clean dataframe 🧹 and preview 👀
 
 In Python, we need to clean the dataframe and we can preview it. In Scala, we can preview the saved csv file in the /tmp directory, which we set in the .writeTo method, this can be done in the bash terminal.
@@ -189,125 +225,21 @@ cd Degree_JOBID
 cat partition-0.csv
 ```
 ````
-
-<div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>timestamp</th>
-      <th>name</th>
-      <th>degree</th>
-      <th>out_degree</th>
-      <th>in_degree</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>0</th>
-      <td>1341705593</td>
-      <td>247216</td>
-      <td>1</td>
-      <td>1</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>1</th>
-      <td>1341705593</td>
-      <td>61013</td>
-      <td>4</td>
-      <td>3</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>2</th>
-      <td>1341705593</td>
-      <td>161960</td>
-      <td>1</td>
-      <td>1</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>3</th>
-      <td>1341705593</td>
-      <td>422612</td>
-      <td>1</td>
-      <td>1</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>4</th>
-      <td>1341705593</td>
-      <td>396362</td>
-      <td>1</td>
-      <td>1</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>...</th>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-    </tr>
-    <tr>
-      <th>256486</th>
-      <td>1341705593</td>
-      <td>293395</td>
-      <td>1</td>
-      <td>1</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>256487</th>
-      <td>1341705593</td>
-      <td>30364</td>
-      <td>5</td>
-      <td>5</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>256488</th>
-      <td>1341705593</td>
-      <td>84292</td>
-      <td>1</td>
-      <td>1</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>256489</th>
-      <td>1341705593</td>
-      <td>324348</td>
-      <td>2</td>
-      <td>0</td>
-      <td>2</td>
-    </tr>
-    <tr>
-      <th>256490</th>
-      <td>1341705593</td>
-      <td>283130</td>
-      <td>1</td>
-      <td>1</td>
-      <td>0</td>
-    </tr>
-  </tbody>
-</table>
-<p>256491 rows × 5 columns</p>
-</div>
+```{table} Preview simple metrics dataframe
+|        |  timestamp | twitter_id | degree | out_degree | in_degree |
+|-------:|-----------:|-----------:|-------:|-----------:|-----------|
+|    0   | 1341705593 | 247216     | 1      | 1          | 0         |
+|    1   | 1341705593 | 61013      | 4      | 3          | 1         |
+|    2   | 1341705593 | 161960     | 1      | 1          | 0         |
+|    3   | 1341705593 | 422612     | 1      | 1          | 0         |
+|    4   | 1341705593 | 396362     | 1      | 1          | 0         |
+|   ...  | ...        | ...        | ...    | ...        | ...       |
+| 256486 | 1341705593 | 293395     | 1      | 1          | 0         |
+| 256487 | 1341705593 | 30364      | 5      | 5          | 0         |
+| 256488 | 1341705593 | 84292      | 1      | 1          | 0         |
+| 256489 | 1341705593 | 324348     | 2      | 0          | 2         |
+| 256490 | 1341705593 | 283130     | 1      | 1          | 0         |
+```
 
 **Sort by highest degree, top 10**
 
@@ -317,117 +249,21 @@ cat partition-0.csv
 df.sort_values(['degree'], ascending=False)[:10]
 ```
 ````
-<div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
 
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>timestamp</th>
-      <th>name</th>
-      <th>degree</th>
-      <th>out_degree</th>
-      <th>in_degree</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>77232</th>
-      <td>1341705593</td>
-      <td>88</td>
-      <td>14061</td>
-      <td>3</td>
-      <td>14060</td>
-    </tr>
-    <tr>
-      <th>95981</th>
-      <td>1341705593</td>
-      <td>14454</td>
-      <td>6190</td>
-      <td>0</td>
-      <td>6190</td>
-    </tr>
-    <tr>
-      <th>120807</th>
-      <td>1341705593</td>
-      <td>677</td>
-      <td>5621</td>
-      <td>8</td>
-      <td>5613</td>
-    </tr>
-    <tr>
-      <th>142755</th>
-      <td>1341705593</td>
-      <td>1988</td>
-      <td>4336</td>
-      <td>2</td>
-      <td>4335</td>
-    </tr>
-    <tr>
-      <th>237149</th>
-      <td>1341705593</td>
-      <td>349</td>
-      <td>2803</td>
-      <td>1</td>
-      <td>2802</td>
-    </tr>
-    <tr>
-      <th>95879</th>
-      <td>1341705593</td>
-      <td>283</td>
-      <td>2039</td>
-      <td>0</td>
-      <td>2039</td>
-    </tr>
-    <tr>
-      <th>83229</th>
-      <td>1341705593</td>
-      <td>3571</td>
-      <td>1981</td>
-      <td>1</td>
-      <td>1980</td>
-    </tr>
-    <tr>
-      <th>32393</th>
-      <td>1341705593</td>
-      <td>6948</td>
-      <td>1959</td>
-      <td>0</td>
-      <td>1959</td>
-    </tr>
-    <tr>
-      <th>240523</th>
-      <td>1341705593</td>
-      <td>14572</td>
-      <td>1692</td>
-      <td>0</td>
-      <td>1692</td>
-    </tr>
-    <tr>
-      <th>138723</th>
-      <td>1341705593</td>
-      <td>68278</td>
-      <td>1689</td>
-      <td>0</td>
-      <td>1689</td>
-    </tr>
-  </tbody>
-</table>
-</div>
-
-
+```{table} Top 10 Highest Degree Output
+|        |  timestamp | twitter_id | degree | out_degree | in_degree |
+|-------:|-----------:|-----------:|-------:|-----------:|-----------|
+|  77232 | 1341705593 |         88 |  14061 |          3 |     14060 |
+|  95981 | 1341705593 |      14454 |   6190 |          0 |      6190 |
+| 120807 | 1341705593 |        677 |   5621 |          8 |      5613 |
+| 142755 | 1341705593 |       1988 |   4336 |          2 |      4335 |
+| 237149 | 1341705593 |        349 |   2803 |          1 |      2802 |
+|  95879 | 1341705593 |        283 |   2039 |          0 |      2039 |
+|  83229 | 1341705593 |       3571 |   1981 |          1 |      1980 |
+|  32393 | 1341705593 |       6948 |   1959 |          0 |      1959 |
+| 240523 | 1341705593 |      14572 |   1692 |          0 |      1692 |
+| 138723 | 1341705593 |      68278 |   1689 |          0 |      1689 |
+```
 
 **Sort by highest in-degree, top 10**
 
@@ -437,116 +273,20 @@ df.sort_values(['degree'], ascending=False)[:10]
 df.sort_values(['in_degree'], ascending=False)[:10]
 ```
 ````
-
-<div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>timestamp</th>
-      <th>name</th>
-      <th>degree</th>
-      <th>out_degree</th>
-      <th>in_degree</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>77232</th>
-      <td>1341705593</td>
-      <td>88</td>
-      <td>14061</td>
-      <td>3</td>
-      <td>14060</td>
-    </tr>
-    <tr>
-      <th>95981</th>
-      <td>1341705593</td>
-      <td>14454</td>
-      <td>6190</td>
-      <td>0</td>
-      <td>6190</td>
-    </tr>
-    <tr>
-      <th>120807</th>
-      <td>1341705593</td>
-      <td>677</td>
-      <td>5621</td>
-      <td>8</td>
-      <td>5613</td>
-    </tr>
-    <tr>
-      <th>142755</th>
-      <td>1341705593</td>
-      <td>1988</td>
-      <td>4336</td>
-      <td>2</td>
-      <td>4335</td>
-    </tr>
-    <tr>
-      <th>237149</th>
-      <td>1341705593</td>
-      <td>349</td>
-      <td>2803</td>
-      <td>1</td>
-      <td>2802</td>
-    </tr>
-    <tr>
-      <th>95879</th>
-      <td>1341705593</td>
-      <td>283</td>
-      <td>2039</td>
-      <td>0</td>
-      <td>2039</td>
-    </tr>
-    <tr>
-      <th>83229</th>
-      <td>1341705593</td>
-      <td>3571</td>
-      <td>1981</td>
-      <td>1</td>
-      <td>1980</td>
-    </tr>
-    <tr>
-      <th>32393</th>
-      <td>1341705593</td>
-      <td>6948</td>
-      <td>1959</td>
-      <td>0</td>
-      <td>1959</td>
-    </tr>
-    <tr>
-      <th>240523</th>
-      <td>1341705593</td>
-      <td>14572</td>
-      <td>1692</td>
-      <td>0</td>
-      <td>1692</td>
-    </tr>
-    <tr>
-      <th>138723</th>
-      <td>1341705593</td>
-      <td>68278</td>
-      <td>1689</td>
-      <td>0</td>
-      <td>1689</td>
-    </tr>
-  </tbody>
-</table>
-</div>
+```{table} Top 10 Highest In Degree Output
+|        |  timestamp | twitter_id | degree | out_degree | in_degree |
+|-------:|-----------:|-----------:|-------:|-----------:|-----------|
+|  77232 | 1341705593 |         88 |  14061 |          3 |     14060 |
+|  95981 | 1341705593 |      14454 |   6190 |          0 |      6190 |
+| 120807 | 1341705593 |        677 |   5621 |          8 |      5613 |
+| 142755 | 1341705593 |       1988 |   4336 |          2 |      4335 |
+| 237149 | 1341705593 |        349 |   2803 |          1 |      2802 |
+|  95879 | 1341705593 |        283 |   2039 |          0 |      2039 |
+|  83229 | 1341705593 |       3571 |   1981 |          1 |      1980 |
+|  32393 | 1341705593 |       6948 |   1959 |          0 |      1959 |
+| 240523 | 1341705593 |      14572 |   1692 |          0 |      1692 |
+| 138723 | 1341705593 |      68278 |   1689 |          0 |      1689 |
+```
 
 ### Sort by highest out-degree, top 10
 
@@ -556,117 +296,20 @@ df.sort_values(['in_degree'], ascending=False)[:10]
 df.sort_values(['out_degree'], ascending=False)[:10]
 ```
 ````
-
-<div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>timestamp</th>
-      <th>name</th>
-      <th>degree</th>
-      <th>out_degree</th>
-      <th>in_degree</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>27504</th>
-      <td>1341705593</td>
-      <td>38535</td>
-      <td>134</td>
-      <td>134</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>151314</th>
-      <td>1341705593</td>
-      <td>181190</td>
-      <td>84</td>
-      <td>84</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>199289</th>
-      <td>1341705593</td>
-      <td>81405</td>
-      <td>67</td>
-      <td>66</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>191563</th>
-      <td>1341705593</td>
-      <td>64911</td>
-      <td>230</td>
-      <td>49</td>
-      <td>192</td>
-    </tr>
-    <tr>
-      <th>188514</th>
-      <td>1341705593</td>
-      <td>54301</td>
-      <td>49</td>
-      <td>49</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>156270</th>
-      <td>1341705593</td>
-      <td>27705</td>
-      <td>57</td>
-      <td>48</td>
-      <td>11</td>
-    </tr>
-    <tr>
-      <th>78066</th>
-      <td>1341705593</td>
-      <td>53508</td>
-      <td>43</td>
-      <td>42</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>123157</th>
-      <td>1341705593</td>
-      <td>232850</td>
-      <td>41</td>
-      <td>41</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>6841</th>
-      <td>1341705593</td>
-      <td>62391</td>
-      <td>38</td>
-      <td>38</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <th>92951</th>
-      <td>1341705593</td>
-      <td>2237</td>
-      <td>38</td>
-      <td>38</td>
-      <td>0</td>
-    </tr>
-  </tbody>
-</table>
-</div>
-
+```{table} Top 10 Highest Out Degree Output
+|        |  timestamp | twitter_id | degree | out_degree | in_degree |
+|-------:|-----------:|-----------:|-------:|-----------:|----------:|
+|  27504 | 1341705593 |      38535 |    134 |        134 |         0 |
+| 151314 | 1341705593 |     181190 |     84 |         84 |         0 |
+| 199289 | 1341705593 |      81405 |     67 |         66 |         1 |
+| 191563 | 1341705593 |      64911 |    230 |         49 |       192 |
+| 188514 | 1341705593 |      54301 |     49 |         49 |         0 |
+| 156270 | 1341705593 |      27705 |     57 |         48 |        11 |
+|  78066 | 1341705593 |      53508 |     43 |         42 |         1 |
+| 123157 | 1341705593 |     232850 |     41 |         41 |         0 |
+|   6841 | 1341705593 |      62391 |     38 |         38 |         0 |
+|  92951 | 1341705593 |       2237 |     38 |         38 |         0 |
+```
 
 ### Run a PageRank algorithm 📑
 
@@ -692,7 +335,8 @@ df_pagerank = rg.at(32674) \
     .waitForJob()
 ```
 ````
-
+#### Terminal Output
+```bash
     11:41:58.681 [io-compute-1] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job PageRank_3498013686461469106: Starting query progress tracker.
     11:41:58.697 [spawner-akka.actor.default-dispatcher-6] INFO  com.raphtory.internals.components.querymanager.QueryManager - Query 'PageRank_3498013686461469106' received, your job ID is 'PageRank_3498013686461469106'.
     11:41:58.699 [spawner-akka.actor.default-dispatcher-6] INFO  com.raphtory.internals.components.partition.QueryExecutor - PageRank_3498013686461469106_0: Starting QueryExecutor.
@@ -700,114 +344,8 @@ df_pagerank = rg.at(32674) \
     11:45:49.953 [spawner-akka.actor.default-dispatcher-9] INFO  com.raphtory.internals.components.querymanager.QueryHandler - Job 'PageRank_3498013686461469106': Perspective at Time '1341705593' took 231251 ms to run. 
     11:45:49.954 [spawner-akka.actor.default-dispatcher-6] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job PageRank_3498013686461469106: Running query, processed 1 perspectives.
     11:45:49.956 [spawner-akka.actor.default-dispatcher-9] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job PageRank_3498013686461469106: Query completed with 1 perspectives and finished in 231275 ms.
+```
 
-<div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-
-</style>
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>timestamp</th>
-      <th>window</th>
-      <th>name</th>
-      <th>prlabel</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>0</th>
-      <td>1341705593</td>
-      <td>None</td>
-      <td>247216</td>
-      <td>0.410038</td>
-    </tr>
-    <tr>
-      <th>1</th>
-      <td>1341705593</td>
-      <td>None</td>
-      <td>61013</td>
-      <td>0.758570</td>
-    </tr>
-    <tr>
-      <th>2</th>
-      <td>1341705593</td>
-      <td>None</td>
-      <td>161960</td>
-      <td>0.410038</td>
-    </tr>
-    <tr>
-      <th>3</th>
-      <td>1341705593</td>
-      <td>None</td>
-      <td>422612</td>
-      <td>0.410038</td>
-    </tr>
-    <tr>
-      <th>4</th>
-      <td>1341705593</td>
-      <td>None</td>
-      <td>396362</td>
-      <td>0.410038</td>
-    </tr>
-    <tr>
-      <th>...</th>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-    </tr>
-    <tr>
-      <th>256486</th>
-      <td>1341705593</td>
-      <td>None</td>
-      <td>293395</td>
-      <td>0.410038</td>
-    </tr>
-    <tr>
-      <th>256487</th>
-      <td>1341705593</td>
-      <td>None</td>
-      <td>30364</td>
-      <td>0.410038</td>
-    </tr>
-    <tr>
-      <th>256488</th>
-      <td>1341705593</td>
-      <td>None</td>
-      <td>84292</td>
-      <td>0.410038</td>
-    </tr>
-    <tr>
-      <th>256489</th>
-      <td>1341705593</td>
-      <td>None</td>
-      <td>324348</td>
-      <td>1.107102</td>
-    </tr>
-    <tr>
-      <th>256490</th>
-      <td>1341705593</td>
-      <td>None</td>
-      <td>283130</td>
-      <td>0.410038</td>
-    </tr>
-  </tbody>
-</table>
-<p>256491 rows × 4 columns</p>
-</div>
 
 ### Clean dataframe 🧹 and preview 👀
 
@@ -823,200 +361,44 @@ cd PageRank:NodeList_JOBID
 cat partition-0.csv
 ```
 ````
+```{table} Preview PageRank Results
+|        |  timestamp | twitter_id | prlabel  |
+|-------:|-----------:|-----------:|----------|
+|      0 | 1341705593 |     247216 | 0.410038 |
+|      1 | 1341705593 |      61013 | 0.758570 |
+|      2 | 1341705593 |     161960 | 0.410038 |
+|      3 | 1341705593 |     422612 | 0.410038 |
+|      4 | 1341705593 |     396362 | 0.410038 |
+|    ... |        ... |        ... |      ... |
+| 256486 | 1341705593 |     293395 | 0.410038 |
+| 256487 | 1341705593 |      30364 | 0.410038 |
+| 256488 | 1341705593 |      84292 | 0.410038 |
+| 256489 | 1341705593 |     324348 | 1.107102 |
+| 256490 | 1341705593 |     283130 | 0.410038 |
+```
 
-<div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>timestamp</th>
-      <th>name</th>
-      <th>prlabel</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>0</th>
-      <td>1341705593</td>
-      <td>247216</td>
-      <td>0.410038</td>
-    </tr>
-    <tr>
-      <th>1</th>
-      <td>1341705593</td>
-      <td>61013</td>
-      <td>0.758570</td>
-    </tr>
-    <tr>
-      <th>2</th>
-      <td>1341705593</td>
-      <td>161960</td>
-      <td>0.410038</td>
-    </tr>
-    <tr>
-      <th>3</th>
-      <td>1341705593</td>
-      <td>422612</td>
-      <td>0.410038</td>
-    </tr>
-    <tr>
-      <th>4</th>
-      <td>1341705593</td>
-      <td>396362</td>
-      <td>0.410038</td>
-    </tr>
-    <tr>
-      <th>...</th>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-    </tr>
-    <tr>
-      <th>256486</th>
-      <td>1341705593</td>
-      <td>293395</td>
-      <td>0.410038</td>
-    </tr>
-    <tr>
-      <th>256487</th>
-      <td>1341705593</td>
-      <td>30364</td>
-      <td>0.410038</td>
-    </tr>
-    <tr>
-      <th>256488</th>
-      <td>1341705593</td>
-      <td>84292</td>
-      <td>0.410038</td>
-    </tr>
-    <tr>
-      <th>256489</th>
-      <td>1341705593</td>
-      <td>324348</td>
-      <td>1.107102</td>
-    </tr>
-    <tr>
-      <th>256490</th>
-      <td>1341705593</td>
-      <td>283130</td>
-      <td>0.410038</td>
-    </tr>
-  </tbody>
-</table>
-<p>256491 rows × 3 columns</p>
-</div>
-
-
-
-**The top ten most ranked users**
+**The top ten highest Page Rank users**
 
 ````{tabs}
 ```{code-tab} py
 df_pagerank.sort_values(['prlabel'], ascending=False)[:10]
 ```
 ````
-
-<div>
-<style scoped>
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>timestamp</th>
-      <th>name</th>
-      <th>prlabel</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>77232</th>
-      <td>1341705593</td>
-      <td>88</td>
-      <td>6512.050333</td>
-    </tr>
-    <tr>
-      <th>93521</th>
-      <td>1341705593</td>
-      <td>2342</td>
-      <td>3746.267274</td>
-    </tr>
-    <tr>
-      <th>191563</th>
-      <td>1341705593</td>
-      <td>64911</td>
-      <td>2335.452547</td>
-    </tr>
-    <tr>
-      <th>2955</th>
-      <td>1341705593</td>
-      <td>39420</td>
-      <td>1885.321866</td>
-    </tr>
-    <tr>
-      <th>95981</th>
-      <td>1341705593</td>
-      <td>14454</td>
-      <td>1828.696595</td>
-    </tr>
-    <tr>
-      <th>120807</th>
-      <td>1341705593</td>
-      <td>677</td>
-      <td>1790.105521</td>
-    </tr>
-    <tr>
-      <th>73101</th>
-      <td>1341705593</td>
-      <td>2567</td>
-      <td>1649.711162</td>
-    </tr>
-    <tr>
-      <th>62742</th>
-      <td>1341705593</td>
-      <td>134095</td>
-      <td>1599.569856</td>
-    </tr>
-    <tr>
-      <th>116004</th>
-      <td>1341705593</td>
-      <td>169287</td>
-      <td>1593.242617</td>
-    </tr>
-    <tr>
-      <th>142755</th>
-      <td>1341705593</td>
-      <td>1988</td>
-      <td>1473.269535</td>
-    </tr>
-  </tbody>
-</table>
-</div>
-
+```{table} Preview Top 10 Highest Page Rank Results
+|        |  timestamp | twitter_id | prlabel  |
+|-------:|-----------:|-----------:|----------|
+|      0 | 1341705593 |     247216 | 0.410038 |
+|      1 | 1341705593 |      61013 | 0.758570 |
+|      2 | 1341705593 |     161960 | 0.410038 |
+|      3 | 1341705593 |     422612 | 0.410038 |
+|      4 | 1341705593 |     396362 | 0.410038 |
+|    ... |        ... |        ... |      ... |
+| 256486 | 1341705593 |     293395 | 0.410038 |
+| 256487 | 1341705593 |      30364 | 0.410038 |
+| 256488 | 1341705593 |      84292 | 0.410038 |
+| 256489 | 1341705593 |     324348 | 1.107102 |
+| 256490 | 1341705593 |     283130 | 0.410038 |
+```
 
 
 ### Run chained algorithms at once
@@ -1038,7 +420,15 @@ Coming soon...
       .waitForJob()
 ```
 ````
-
+```bash
+15:31:09.205 [io-compute-8] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job PageRank:ConnectedComponents:Degree:NodeList_4333300725965970191: Starting query progress tracker.
+15:31:09.223 [spawner-akka.actor.default-dispatcher-9] INFO  com.raphtory.internals.components.querymanager.QueryManager - Query 'PageRank:ConnectedComponents:Degree:NodeList_4333300725965970191' received, your job ID is 'PageRank:ConnectedComponents:Degree:NodeList_4333300725965970191'.
+15:31:09.228 [spawner-akka.actor.default-dispatcher-9] INFO  com.raphtory.internals.components.partition.QueryExecutor - PageRank:ConnectedComponents:Degree:NodeList_4333300725965970191_0: Starting QueryExecutor.
+15:35:34.030 [spawner-akka.actor.default-dispatcher-11] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job 'PageRank:ConnectedComponents:Degree:NodeList_4333300725965970191': Perspective '1341705593' finished in 264826 ms.
+15:35:34.030 [spawner-akka.actor.default-dispatcher-11] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job PageRank:ConnectedComponents:Degree:NodeList_4333300725965970191: Running query, processed 1 perspectives.
+15:35:34.030 [spawner-akka.actor.default-dispatcher-8] INFO  com.raphtory.internals.components.querymanager.QueryHandler - Job 'PageRank:ConnectedComponents:Degree:NodeList_4333300725965970191': Perspective at Time '1341705593' took 264800 ms to run. 
+15:35:34.031 [spawner-akka.actor.default-dispatcher-8] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job PageRank:ConnectedComponents:Degree:NodeList_4333300725965970191: Query completed with 1 perspectives and finished in 264827 ms.
+```
 ## Create visualisation by adding nodes 🔎
 
 ```python
@@ -1119,16 +509,3 @@ In Raphtory, you can run multiple algorithms by chaining them together with an a
 You can also write your own algorithms to output your desired analysis/results.
 
 We have also included python scripts in the directory `src/main/python` to output the results from Raphtory into a Jupyter notebook.
-
-## Output
-
-When you start `Runner.scala` you should see logs in your terminal like this:
-
-
-Output for Vertex 4 (potential bot): 
-
-We singled out vertex 4 as an example user that may show bot activity since after the final step of the chaining: `TemporalMemberRank.scala`, the score that vertex 4 originally had in the raw dataset significantly decreased after running PageRank and MemberRank. The output shows retweet activity happening within minutes and seconds of each other, this could be an indication of suspicious activity and further analysis on this data can be performed.
-
-Feel free to play around with the example code and Jupyter notebook analysis. For example, in `TemporalMemberRank.scala`, you can change line 32:
-`val difference: Boolean = (positiveRaw > (positiveNew * 4))`
-`4` is the multiplication factor to see if the raw scores and new scores are significantly different. This can be increased or decreased depending on your desired analysis. 
