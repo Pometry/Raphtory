@@ -1,7 +1,5 @@
 package com.raphtory.api.input
 
-import com.raphtory.internals.graph.GraphBuilder
-
 /** Properties are characteristic attributes like name, etc. assigned to Vertices and Edges by the
   * [[Graph]].
   *

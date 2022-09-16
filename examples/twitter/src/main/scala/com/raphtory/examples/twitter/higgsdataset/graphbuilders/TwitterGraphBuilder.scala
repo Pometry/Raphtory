@@ -1,14 +1,14 @@
 package com.raphtory.examples.twitter.higgsdataset.graphbuilders
 
 import com.raphtory.api.input.Graph
+import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
-import com.raphtory.internals.graph.GraphBuilder
 
-object TwitterGraphBuilder {
+object TwitterGraphBuilder extends GraphBuilder[String] {
 
-  def parse(graph: Graph, tuple: String): Unit = {
+  def apply(graph: Graph, tuple: String): Unit = {
     val fileLine   = tuple.split(",").map(_.trim)
     val sourceNode = fileLine(0).trim
     val srcID      = sourceNode.toLong

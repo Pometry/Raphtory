@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package com.raphtory;
+
+message RpcRequest {
+  bytes message = 1;
+}
+
+message RpcStatus {
+  bool success = 1;
+}
+
+message RpcResponse {
+  bytes message = 1;
+}
+
+service RaphtoryService {
+  rpc processRequest (RpcRequest) returns (RpcStatus);
+  rpc submitQuery (RpcRequest) returns (stream RpcResponse);
+}

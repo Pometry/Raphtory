@@ -43,6 +43,7 @@ private[pojograph] class PojoExEdge(
       new PojoExInOutEdge(this, other, asInEdge)
     else
       new PojoExInOutEdge(other, this, asInEdge)
+
 }
 
 private[pojograph] class PojoExInOutEdge(
