@@ -57,6 +57,7 @@ jobs:
       - name: Run SBT tests
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH
+          export RAPHTORY_CORE_LOG=-ERROR
           sbt test
         timeout-minutes: 10
     if: needs.configure.outputs.type == 'regular'
