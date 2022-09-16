@@ -1,9 +1,9 @@
 package com.raphtory.storage
 
 import com.raphtory.Raphtory
-import com.raphtory.api.input.LongProperty
+import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.Property
 import com.raphtory.api.input.Properties
-import com.raphtory.api.input.StringProperty
 import com.raphtory.arrowcore.implementation.LocalEntityIdStore
 import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
 import com.raphtory.arrowcore.implementation.VertexIterator
@@ -89,7 +89,7 @@ class ArrowStorageSuite extends munit.FunSuite {
     val vmgr                         = partition.getVertexMgr
     val globalIds                    = partition.getGlobalEntityIdStore
     val localIds: LocalEntityIdStore = partition.getLocalEntityIdStore
-    val idsRepo                      = new LocalEntityRepo(localIds)
+    val idsRepo                      = new LocalEntityRepo(localIds, 1, 0)
 
     val partitionId = vmgr.getNewPartitionId
 
@@ -215,58 +215,79 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   }
 
-  test("add vertex into partition".only) {
+  test("add two vertices into partition".only) {
 
-    val cfg = ArrowPartitionConfig(
-            partitionId = 0,
-            nPartitions = 1,
-            propertySchema = ArrowSchema[VertexProp, EdgeProp],
-            arrowDir = Files.createTempDirectory("arrow-storage-test")
-    )
+    val par: ArrowPartition = mkPartition
+    val timestamp           = System.currentTimeMillis()
 
-    val rConfig = Raphtory.getDefaultConfig()
-
-    val par = ArrowPartition(cfg, rConfig)
-
-    val timestamp = System.currentTimeMillis()
     // add bob
-    par.addVertex(
-            sourceID = 3,
-            msgTime = timestamp,
-            -1,
-            srcId = 7,
-            Properties(
-                    StringProperty("name", "Bob"),
-                    LongProperty("age", 31)
-            ),
-            None
-    )
+    addVertex(3, timestamp, ImmutableProperty("name", "Bob"))(par)
     // add alice
-    par.addVertex(
-            sourceID = 3,
-            msgTime = timestamp,
-            -1,
-            srcId = 9,
-            Properties(
-                    StringProperty("name", "Alice"),
-                    LongProperty("age", 27)
-            ),
-            None
-    )
+    addVertex(7, timestamp, ImmutableProperty("name", "Alice"))(par)
 
     val vs = par.vertices
     assertEquals(vs.size, 2)
 
-    val vsIter = vs.iterator
-    vsIter.hasNext
-    val bob    = vsIter.next()
-    vsIter.hasNext
-    val alice  = vsIter.next()
+    val names = vs.iterator.toList.map(v => v.getGlobalId -> v.prop[String]("name").get)
 
-    assertEquals(bob.prop[String]("name").get, "Bob")
-    assertEquals(alice.prop[String]("name").get, "Alice")
+    assertEquals(names, List(3L -> "Bob", 7L -> "Alice"))
 
   }
+
+  test("add edge between two vertices".only) {
+
+    val par: ArrowPartition = mkPartition
+    val timestamp           = System.currentTimeMillis()
+
+    // add bob
+    addVertex(3, timestamp, ImmutableProperty("name", "Bob"))(par)
+    // add alice
+    addVertex(7, timestamp, ImmutableProperty("name", "Alice"))(par)
+    // add edge
+
+    par.addEdge(3, timestamp, -1, 3, 7, Properties(), None)
+
+    val vs = par.vertices.toList
+    assertEquals(vs.size, 2)
+
+    val names                  = vs.map(v => v.getGlobalId -> v.prop[String]("name").get)
+    assertEquals(names, List(3L -> "Bob", 7L -> "Alice"))
+
+    val neighbours: List[Long] = vs.collect {
+      case v if v.prop[String]("name").get == "Bob"   =>
+        v.outgoingEdges.map(_.getDstVertex).toList // FIXME: without toList this fails
+      case v if v.prop[String]("name").get == "Alice" =>
+        v.incomingEdges.map(_.getSrcVertex).toList // FIXME: without toList this fails
+    }.flatten
+
+    assertEquals(neighbours, List(1L, 0L)) // local ids are returned
+
+  }
+
+  private def mkPartition = {
+    val rConfig =
+      Raphtory.getDefaultConfig(Map("raphtory.partitions.serverCount" -> 1, "raphtory.partitions.countPerServer" -> 1))
+
+    val cfg     = ArrowPartitionConfig(
+            config = rConfig,
+            partitionId = 0,
+            propertySchema = ArrowSchema[VertexProp, EdgeProp],
+            arrowDir = Files.createTempDirectory("arrow-storage-test")
+    )
+
+    val par = ArrowPartition(cfg, rConfig)
+    par
+  }
+
+  private def addVertex(globalId: Long, timestamp: Long, props: Property*)(par: ArrowPartition): Unit =
+    par.addVertex(
+            sourceID = 3,
+            msgTime = timestamp,
+            -1,
+            srcId = globalId,
+            Properties(props: _*),
+            None
+    )
 
   test("can generate Vertex schema from case class") {
     val actual  = VertexSchema.gen[VertexProp].nonVersionedVertexProps(None).map(f => f.name()).toList
