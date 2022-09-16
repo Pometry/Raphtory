@@ -1023,7 +1023,6 @@ df_pagerank.sort_values(['prlabel'], ascending=False)[:10]
 
 In this example, we chain PageRank and two custom algorithms - MemberRank() and TemporalMemberRank(), running them one after another on the graph. Specify all the columns in the output dataframe, including an output column for each algorithm in the chain. **Time to finish: ~4 minutes**
 
-
 ````{tabs}
 
 ```{code-tab} py
@@ -1040,9 +1039,7 @@ Coming soon...
 ```
 ````
 
-
 ## Create visualisation by adding nodes 🔎
-
 
 ```python
 def visualise(rg, df_chained):
@@ -1095,17 +1092,9 @@ net = visualise(rg, df_chained)
 net.show('preview.html')
 ```
 
-
 ```python
 pr.shutdown()
 ```
-
-
-```python
-
-```
-
-
 ## Running and writing custom algorithms in Raphtory
 
 We used the PageRank algorithm, which is already readily available in Raphtory. We wrote two more algorithms which we've named: MemberRank and TemporalMemberRank, to further our investigations.
