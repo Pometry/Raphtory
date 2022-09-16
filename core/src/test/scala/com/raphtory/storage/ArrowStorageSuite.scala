@@ -14,6 +14,7 @@ import com.raphtory.internals.storage.arrow.ArrowPartitionConfig
 import com.raphtory.internals.storage.arrow.ArrowSchema
 import com.raphtory.internals.storage.arrow.EdgeSchema
 import com.raphtory.internals.storage.arrow.LocalEntityRepo
+import com.raphtory.internals.storage.arrow.RichEdge
 import com.raphtory.internals.storage.arrow.RichVertex
 import com.raphtory.internals.storage.arrow.VertexSchema
 import com.raphtory.internals.storage.arrow.versioned
@@ -128,8 +129,6 @@ class ArrowStorageSuite extends munit.FunSuite {
     vs.hasNext // this has to be called before getVertex
     val bob: Vertex = vs.getVertex
 
-    val richBob = arrow.RichVertex[VertexProp, EdgeProp](bob)
-
     assertEquals(bob.getField(NAME_FIELD_ID).getString.toString, "Bob")
     assertEquals(bob.getProperty(AGE_FIELD_ID).getLong, 45L)
 
@@ -235,7 +234,7 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   }
 
-  class Blerg[T](it :Iterator[T]) extends Iterator[T] {
+  class Blerg[T](it: Iterator[T]) extends Iterator[T] {
     override def hasNext: Boolean = it.hasNext
 
     override def next(): T = it.next()
@@ -250,7 +249,6 @@ class ArrowStorageSuite extends munit.FunSuite {
     }
   }
 
-
   test("add edge between two vertices".only) {
 
     val par: ArrowPartition = mkPartition
@@ -261,24 +259,34 @@ class ArrowStorageSuite extends munit.FunSuite {
     // add alice
     addVertex(7, timestamp, ImmutableProperty("name", "Alice"))(par)
     // add edge
-    val action = par.addEdge(3, timestamp, -1, 3, 7, Properties(), None)
+    val action = par.addEdge(
+            3,
+            timestamp,
+            -1,
+            3,
+            7,
+            Properties(
+                    ImmutableProperty("name", "friends")
+            ),
+            None
+    )
     // nothing to do both nodes are on the same partition
     assert(action.isEmpty)
 
     val vs = par.vertices.toList
     assertEquals(vs.size, 2)
 
-    val names                  = vs.map(v => v.getGlobalId -> v.prop[String]("name").get)
+    val names      = vs.map(v => v.getGlobalId -> v.prop[String]("name").get)
     assertEquals(names, List(3L -> "Bob", 7L -> "Alice"))
 
     val neighbours = vs.flatMap {
-      case v if v.prop[String]("name").get == "Bob" =>
-        v.outgoingEdges.map(_.getDstVertex)
+      case v if v.prop[String]("name").get == "Bob"   =>
+        v.outgoingEdges.map(e => e.getDstVertex -> e.prop[String]("name").get)
       case v if v.prop[String]("name").get == "Alice" =>
-        v.incomingEdges.map(_.getSrcVertex)
+        v.incomingEdges.map(e => e.getSrcVertex -> e.prop[String]("name").get)
     }
 
-    assertEquals(neighbours, List(1L, 0L)) // local ids are returned
+    assertEquals(neighbours, List(1L -> "friends", 0L -> "friends")) // local ids are returned
 
   }
 

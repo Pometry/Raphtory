@@ -144,6 +144,11 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
 
     // finally add the edge
     e.resetEdgeData(src.getLocalId, dst.id, -1L, -1L, false, dst.isGlobal)
+    properties.properties.foreach {
+      case ImmutableProperty(key, value) =>
+        val FIELD = par.getEdgeFieldId(key)
+        e.getField(FIELD).set(new java.lang.StringBuilder(value))
+    }
     emgr.addEdge(e, -1L, -1L)
     emgr.addHistory(e.getLocalId, msgTime, true)
 

@@ -6,11 +6,10 @@ import com.raphtory.arrowcore.model.Edge
 import com.raphtory.arrowcore.model.Vertex
 
 import scala.annotation.implicitNotFound
-import scala.collection.AbstractView
 import scala.collection.View
 package object arrow {
 
-  implicit class RichVertex[V, E](val v: Vertex) extends AnyVal {
+  implicit class RichVertex(val v: Vertex) extends AnyVal {
 
     def prop[P: Prop](name: String): PropAccess[P] =
       new PropAccess[P] {
@@ -38,6 +37,24 @@ package object arrow {
       edgesIter.reset(v.getIncomingEdgePtr)
       View.from(new ArrowPartition.EdgesIterator(edgesIter))
     }
+
+  }
+
+  implicit class RichEdge(val v: Edge) extends AnyVal {
+
+    def prop[P: Prop](name: String): PropAccess[P] =
+      new PropAccess[P] {
+
+        override def set(p: P): Unit = {
+          val FIELD = v.getPartition.getEdgeFieldId(name)
+          implicitly[Prop[P]].set(v.getField(FIELD), p)
+        }
+
+        override def get: P = {
+          val FIELD = v.getPartition.getEdgeFieldId(name)
+          implicitly[Prop[P]].get(v.getField(FIELD))
+        }
+      }
 
   }
 }
