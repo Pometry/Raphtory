@@ -47,24 +47,29 @@ class TemporalMemberRank() extends GenericReduction {
     }
 
   override def tabularise(graph: ReducedGraphPerspective): Table =
-    graph
-      .select { vertex =>
-        Row(
-                vertex.ID,
-                vertex.getState("times")
-        )
-      }
-      .filter { row =>
-        val times = row.getAs[Seq[NeighbourAndTime[_]]](1)
-        times.nonEmpty
-      }
-      .explode { row =>
-        val rowId = row.getLong(0)
-        val times = row.getAs[Seq[NeighbourAndTime[_]]](1)
-        times.map { neighbourAndTime =>
-          Row(rowId, neighbourAndTime.id, neighbourAndTime.time)
-        }.toList
-      }
+    graph.select { vertex =>
+      val name = vertex.name()
+      val times = vertex.getStateOrElse[Seq[NeighbourAndTime[vertex.IDType]]]("times", Nil)
+      Row(name, times)
+    }
+//    graph
+//      .select { vertex =>
+//        Row(
+//                vertex.ID,
+//                vertex.getState("times")
+//        )
+//      }
+//      .filter { row =>
+//        val times = row.getAs[Seq[NeighbourAndTime[_]]](1)
+//        times.nonEmpty
+//      }
+//      .explode { row =>
+//        val rowId = row.getLong(0)
+//        val times = row.getAs[Seq[NeighbourAndTime[_]]](1)
+//        times.map { neighbourAndTime =>
+//          Row(rowId, neighbourAndTime.id, neighbourAndTime.time)
+//        }.toList
+//      }
 
 }
 
