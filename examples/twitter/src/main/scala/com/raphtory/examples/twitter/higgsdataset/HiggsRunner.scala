@@ -1,11 +1,12 @@
 package com.raphtory.examples.twitter.higgsdataset
 
 import com.raphtory.Raphtory
-import com.raphtory.algorithms.generic.centrality.PageRank
+import com.raphtory.algorithms.generic.centrality.{Degree, PageRank}
 import com.raphtory.api.input.Source
 import com.raphtory.examples.twitter.higgsdataset.analysis.MemberRank
 import com.raphtory.examples.twitter.higgsdataset.analysis.TemporalMemberRank
 import com.raphtory.examples.twitter.higgsdataset.graphbuilders.TwitterGraphBuilder
+import com.raphtory.internals.graph.GraphBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
@@ -25,11 +26,16 @@ object HiggsRunner extends App {
 
     graph.load(source)
 
+  //get simple metrics
+//    graph
+//      .execute(Degree())
+//      .writeTo(FileSink("tmp/raphtory"))
+//      .waitForJob()
+
     graph
       .at(1341705593)
       .past()
-      .transform(PageRank())
-      .execute(MemberRank() -> TemporalMemberRank())
+      .execute(PageRank() -> MemberRank())
       .writeTo(output)
       .waitForJob()
 
