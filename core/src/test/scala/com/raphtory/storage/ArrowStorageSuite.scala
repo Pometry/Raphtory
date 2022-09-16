@@ -8,6 +8,7 @@ import com.raphtory.arrowcore.implementation.LocalEntityIdStore
 import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
 import com.raphtory.arrowcore.implementation.VertexIterator
 import com.raphtory.arrowcore.model.Vertex
+import com.raphtory.internals.graph.GraphAlteration.SyncNewEdgeAdd
 import com.raphtory.internals.storage.arrow
 import com.raphtory.internals.storage.arrow.ArrowPartition
 import com.raphtory.internals.storage.arrow.ArrowPartitionConfig
@@ -28,6 +29,7 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   private val bobGlobalId   = 7L
   private val aliceGlobalId = 9L
+
   test("one can create a partition manager, add a vertex then get it back") {
     val cfg = new RaphtoryArrowPartition.RaphtoryArrowPartitionConfig()
     cfg._propertySchema = ArrowSchema[VertexProp, EdgeProp]
@@ -215,9 +217,9 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   }
 
-  test("add two vertices into partition".only) {
+  test("add two vertices into partition") {
 
-    val par: ArrowPartition = mkPartition
+    val par: ArrowPartition = mkPartition(1, 0)
     val timestamp           = System.currentTimeMillis()
 
     // add bob
@@ -234,24 +236,9 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   }
 
-  class Blerg[T](it: Iterator[T]) extends Iterator[T] {
-    override def hasNext: Boolean = it.hasNext
+  test("add edge between two vertices locally") {
 
-    override def next(): T = it.next()
-  }
-
-  def someView[T](v: Vector[T]): AbstractView[T] = {
-    val it = v.iterator
-    new AbstractView[T] {
-      override def iterator: Iterator[T] = new Blerg(it)
-
-      override def knownSize: Int = v.knownSize
-    }
-  }
-
-  test("add edge between two vertices".only) {
-
-    val par: ArrowPartition = mkPartition
+    val par: ArrowPartition = mkPartition(1, 0)
     val timestamp           = System.currentTimeMillis()
 
     // add bob
@@ -290,13 +277,68 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   }
 
-  private def mkPartition = {
-    val rConfig =
-      Raphtory.getDefaultConfig(Map("raphtory.partitions.serverCount" -> 1, "raphtory.partitions.countPerServer" -> 1))
+  test("add edge between two vertices on separate partitions") {
 
-    val cfg     = ArrowPartitionConfig(
+    val par1: ArrowPartition = mkPartition(2, 0)
+    val par2: ArrowPartition = mkPartition(2, 1)
+    val timestamp            = System.currentTimeMillis()
+
+    // add bob
+    addVertex(2, timestamp, ImmutableProperty("name", "Bob"))(par1)
+    // add alice
+    addVertex(7, timestamp, ImmutableProperty("name", "Alice"))(par2)
+    // add edge
+    val action = par1.addEdge(
+            3,
+            timestamp,
+            -1,
+            2,
+            7,
+            Properties(
+                    ImmutableProperty("name", "friends")
+            ),
+            None
+    ).collect{case a:SyncNewEdgeAdd => a}
+
+    // nothing to do both nodes are on the same partition
+    assert(action.isDefined)
+    val act = action.get
+
+    val vs = par1.vertices.toList
+    assertEquals(vs.size, 1)
+
+    val names      = vs.map(v => v.getGlobalId -> v.prop[String]("name").get)
+    assertEquals(names, List(3L -> "Bob"))
+
+    val vs2 = par2.vertices.toList
+    assertEquals(vs2.size, 1)
+    val names2      = vs2.map(v => v.getGlobalId -> v.prop[String]("name").get)
+    assertEquals(names, List(8L -> "Alice"))
+
+
+
+    val neighbours = vs.flatMap {
+      case v if v.prop[String]("name").get == "Bob"   =>
+        v.outgoingEdges.map(e => e.getDstVertex -> e.prop[String]("name").get)
+      case v if v.prop[String]("name").get == "Alice" =>
+        v.incomingEdges.map(e => e.getSrcVertex -> e.prop[String]("name").get)
+    }
+
+    assertEquals(neighbours, List(1L -> "friends", 0L -> "friends")) // local ids are returned
+
+  }
+
+  test("add edge between to partitions") {}
+
+  private def mkPartition(nPartitions: Int, partitionId: Int) = {
+    val rConfig =
+      Raphtory.getDefaultConfig(
+              Map("raphtory.partitions.serverCount" -> 1, "raphtory.partitions.countPerServer" -> nPartitions)
+      )
+
+    val cfg = ArrowPartitionConfig(
             config = rConfig,
-            partitionId = 0,
+            partitionId = partitionId,
             propertySchema = ArrowSchema[VertexProp, EdgeProp],
             arrowDir = Files.createTempDirectory("arrow-storage-test")
     )
