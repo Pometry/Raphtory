@@ -23,12 +23,18 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
 .. toctree::
    :maxdepth: 4
    :hidden:
-   :caption: Raphtory Install
+   :caption: Install
 
    Install/start.md
    Install/python/install_conda.md
    Install/python/install_no_conda.md
    Install/scala/install.md
+   Install/scala/compile_run_example.md
+
+.. toctree::
+   :maxdepth: 4
+   :hidden:
+   :caption: Run
 
    Ingestion/sprouter.md
 
