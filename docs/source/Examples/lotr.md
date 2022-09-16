@@ -5,7 +5,7 @@ This example takes a dataset that tells us when two characters have some type of
 
 ## Pre-requisites
 
-Follow our Installation guide: [Scala](../Install/installdependencies.md) or [Python](../PythonClient/setup.md).
+Follow our Installation guide: [Scala](../Install/start.md) or [Python](../Install/setup.md).
 
 ## Data
 
