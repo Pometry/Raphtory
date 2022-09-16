@@ -12,6 +12,7 @@ import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.spouts.FileSpout
 import munit.CatsEffectSuite
+import munit.IgnoreSuite
 import test.raphtory.algorithms.MaxFlowTest
 import test.raphtory.algorithms.MinimalTestAlgorithm
 import test.raphtory.algorithms.TestAlgorithmWithExternalDependency
@@ -26,6 +27,7 @@ import scala.sys.process._
 import scala.tools.reflect.ToolBox
 import scala.util.Using
 
+@IgnoreSuite
 class DynamicClassLoaderTest extends CatsEffectSuite {
 
   val minimalTestCode: String =
