@@ -51,6 +51,7 @@ dependencies:
     - sphinxcontrib-jsmath==1.0.1
     - sphinxcontrib-qthelp==1.0.3
     - sphinxcontrib-serializinghtml==1.1.5
+    - sphinx-tabs==3.4.0
     - typing-extensions==4.2.0
     - urllib3==1.26.9
     - zipp==3.8.0
