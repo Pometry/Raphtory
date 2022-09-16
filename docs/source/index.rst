@@ -21,11 +21,20 @@ out our latest talks on Raphtory at `AIUK 2022 <https://www.youtube.com/watch?v=
 Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/installdependencies>`. Alternatively, if you want to dive headfirst into the API's you can visit the :doc:`ScalaDocs <Scaladoc/index>`.
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 4
    :hidden:
-   :caption: Raphtory
+   :caption: Install
 
-   Install/installdependencies.md
+   Install/start.md
+   Install/python/install_conda.md
+   Install/python/install_no_conda.md
+   Install/scala/install.md
+   Install/scala/compile_run_example.md
+
+.. toctree::
+   :maxdepth: 4
+   :hidden:
+   :caption: Run
 
    Ingestion/sprouter.md
 
@@ -51,23 +60,11 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
    _autodoc/com/raphtory/algorithms/temporal/index.rst
    _autodoc/com/raphtory/algorithms/filters/index.rst
 
-
 .. toctree::
    :hidden:
    :caption: API (Scaladoc)
 
-   Scaladoc/index.md   
-
-
-.. toctree::
-   :maxdepth: 2
-   :hidden:
-   :caption: Python Library (Alpha)
-
-   PythonClient/setup.md
-   PythonClient/tutorial_py_raphtory.md
-   PythonClient/tutorial_algorithms.md
-   PythonClient/RaphtoryClient.md
+   Scaladoc/index.md
 
 
 .. toctree::
