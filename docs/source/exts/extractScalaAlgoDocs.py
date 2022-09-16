@@ -71,8 +71,7 @@ def handle_config_init(app: Sphinx, config: Config):
             write_index(doc_root / rel_path, package)
             discover_files(doc_root / rel_path, src_root, scala_src_root)
         # build scala doc
-        if not os.environ['SKIP_SCALA_DOCS']:
-            compile_move_scaladoc(config, source_root)
+        compile_move_scaladoc(config, source_root)
 
 def discover_files(doc_root: Path, scala_root: Path, base_path: Path):
     """Recursively search for files to include and copy doc strings"""
