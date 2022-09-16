@@ -21,12 +21,14 @@ out our latest talks on Raphtory at `AIUK 2022 <https://www.youtube.com/watch?v=
 Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/installdependencies>`. Alternatively, if you want to dive headfirst into the API's you can visit the :doc:`ScalaDocs <Scaladoc/index>`.
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 4
    :hidden:
-   :caption: Raphtory
+   :caption: Raphtory Install
 
-   Install/installdependencies.md
-   Install/install_python.md
+   Install/start.md
+   Install/python/install_conda.md
+   Install/python/install_no_conda.md
+   Install/scala/install.md
 
    Ingestion/sprouter.md
 
