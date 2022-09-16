@@ -6,73 +6,17 @@ The Scala library is called Raphtory.
 
 The Python library is called PyRaphtory. 
 
-## Python (PyRaphtory) Install 
+## Python (PyRaphtory)
 
 Pyraphtory is the python client for Raphtory.
 
-It can be installed in two ways, with and without conda
+[Install with conda](python/install_conda.md)
 
-##  Core Developer 
+[Install without conda](python/install_no_conda.md)
 
-TODO
+## Scala (Raphtory)
 
-
-## Installing Java, Scala and SBT (Scala Build Tool)
-Raphtory is a framework written in the [Scala](https://www.scala-lang.org) programming language, which runs on the JVM (Java virtual machine). As such both Java and Scala are required to run Raphtory. We additionally require SBT, the scala build tool, to compile and run your first Raphtory project. 
-
-### Using SDK Man
-Java, Scala and SBT are all very easy to install, but we must make sure that the correct versions are installed. To manage this we recommend the Software Development Kit Manager [SDK Man](https://sdkman.io/). This allows you to install and switch between versions of all these libraries. SDK Man is available for Mac, Linux and Windows and can be installed by following their simple tutorial [here](https://sdkman.io/install). 
-
-Once you have this installed we will need to install a distribution of Java 11, Scala 13 and the latest version of SBT. Starting with java we can list the versions available via:
-
-```bash
-sdk list java
-```
-
-This will look something like the following:
-<p align="center">
-	<img src="../_static/install/sdkmanjava.png" alt="Sdk Man java lists"/>
-</p>
-
-The Vendor here (i.e. Corretto, GrallVM) doesn't matter really, we just need to make sure that the major version (the first number) is 11. You can then copy the Identifier into the following command. 
-
-```bash
-sdk install java IDENTIFIER
-```
-
-For instance: ```sdk install java 11.0.11.hs-adpt``` is the version I use
-
-Once this is installed it should set this version as your default. You can then do the same for Scala and SBT  - which only have one distributor and hence only version numbers. I have picked the latest version of Scala 13 and SBT below at the time of writing.  
-
-```bash 
-sdk install scala 2.13.7
-sdk install sbt 1.6.2
-```
-
-To test that these are installed and working correctly you can run them with the  `--version` argument to see if they are available on your class path and the correct version prints out. 
-
-```bash 
-java --version
-scala -version
-```
-
-If the correct version hasn't been set as default you can do this explicitly via sdkman. This is also how you can change back to another version of these libraries for other projects.
-
-```bash 
-sdk use java 11.0.11.hs-adpt
-sdk use scala 2.13.7
-sdk use sbt 1.6.2
-```
-
-Everything should now be installed and ready for us to get your first Raphtory Job underway!
-
-## Running the latest Raphtory example projects via SBT
-All example projects can be found in the [Raphtory repo](https://github.com/Raphtory/Raphtory). 
-
-```bash
-git clone https://github.com/Raphtory/Raphtory.git
-git checkout THE_BRANCH_YOU_ARE_WORKING_ON
-```
+[Install with scala](scala/install.md)
 
 For this tutorial we are using the Lord of the Rings example, so we should now move into this directory - this is a totally independent sbt project. 
 
