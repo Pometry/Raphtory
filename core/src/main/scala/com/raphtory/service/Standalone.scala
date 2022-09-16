@@ -9,6 +9,7 @@ import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.components.cluster.ClusterManager
 import com.raphtory.internals.components.cluster.RpcServer
 import com.raphtory.internals.components.cluster.StandaloneMode
+import com.raphtory.internals.management.id.LocalIDManager
 
 object Standalone extends IOApp {
 
@@ -20,8 +21,9 @@ object Standalone extends IOApp {
 
     val headNode = for {
       repo     <- DistributedTopicRepository[IO](AkkaConnector.SeedMode, config)
-      _        <- RpcServer[IO](repo, config)
+      idManager = new LocalIDManager()
       headNode <- ClusterManager[IO](config, repo, mode = StandaloneMode)
+      _        <- RpcServer[IO](idManager, repo, config)
     } yield headNode
     headNode.useForever
   }

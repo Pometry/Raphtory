@@ -8,7 +8,6 @@ import cats.effect.unsafe.implicits.global
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.querymanager.IngestData
-import com.raphtory.internals.management.id.IDManager
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory

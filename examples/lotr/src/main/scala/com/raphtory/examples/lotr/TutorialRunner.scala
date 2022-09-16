@@ -42,7 +42,7 @@ object TutorialRunner extends App {
   }
 
   graph
-    .at(32674)
+    .range("1/1/2020", "1/1/2021", "1 month 1 week and 1 day")
     .past()
     .execute(ConnectedComponents)
     .writeTo(FileSink("/tmp/raphtory"))

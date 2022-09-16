@@ -10,8 +10,9 @@ import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.serialisers.KryoSerialiser
-import com.raphtory.protocol.RpcRequest
+import com.raphtory.protocol.IDRequest
 import com.raphtory.protocol.RaphtoryService
+import com.raphtory.protocol.RpcRequest
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import higherkindness.mu.rpc.ChannelFor
@@ -51,8 +52,21 @@ class RpcClient[F[_]](dispatcher: Dispatcher[F], repo: TopicRepository, config: 
               .map(_ => log.debug(s"Message: '$msg' successfully processed by the server"))
         }
       }
-
     dispatcher.unsafeRunAndForget(requestProcessing)
+  }
+
+  def requestID(): Option[Int] = {
+    val channelFor: ChannelFor                          = ChannelForAddress(address, portNumber)
+    val clientResource: Resource[F, RaphtoryService[F]] = RaphtoryService.client[F](channelFor)
+    val requestProcessing                               = clientResource
+      .use { service =>
+        for {
+          responses <- service.requestID(IDRequest())
+          id         = responses.id
+        } yield id
+      }
+    val id                                              = dispatcher.unsafeRunSync(requestProcessing)
+    if (id == -1) None else Some(id)
   }
 
   private def deserialise(bytes: Array[Byte]): QueryManagement = kryo.deserialise[QueryManagement](bytes)
@@ -67,4 +81,5 @@ object RpcClient {
       client     <- Component.makeAndStart(repo, "rpc-client", topics, new RpcClient(dispatcher, repo, config))
     } yield client
   }
+
 }
