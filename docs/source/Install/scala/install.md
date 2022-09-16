@@ -58,8 +58,25 @@ Let's clone the Raphtory repository using Git and checkout into the latest devel
 
 ```bash
 git clone https://github.com/Raphtory/Raphtory.git
-git checkout 
+cd Raphtory
+git checkout v0.2.0a1
 ```
 
+Now compile raphtory by running
+
+```bash
+make sbt-build
+```
+
+It should end with a success
+
+```sbt
+[success] Total time: 103 s (01:43), completed 16 Sep 2022, 15:36:37
+mkdir -p python/pyraphtory/lib/
++ mkdir -p python/pyraphtory/lib/
+cp core/target/scala-2.13/core-assembly-$(cat version).jar python/pyraphtory/lib/
+++ cat version
++ cp core/target/scala-2.13/core-assembly-0.2.0a0.jar python/pyraphtory/lib/
+```
 
 Everything should now be installed and ready for us to get your first Raphtory Job underway!
