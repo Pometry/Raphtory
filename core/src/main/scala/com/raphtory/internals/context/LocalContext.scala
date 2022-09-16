@@ -31,7 +31,7 @@ private[raphtory] object LocalContext extends RaphtoryContext {
           logger.info(s"Creating Service for '$graphID'")
       }
       val (querySender, shutdown) = graph.allocated.unsafeRunSync()
-      val deployed                = new DeployedTemporalGraph(Query(), querySender, config, local = true, shutdown)
+      val deployed                = new DeployedTemporalGraph(Query(graphID = graphID), querySender, config, local = true, shutdown)
       val deployment              = Deployment(Metadata(graphID, config), deployed)
       services += ((graphID, deployment))
       deployed
@@ -43,7 +43,7 @@ private[raphtory] object LocalContext extends RaphtoryContext {
   ): Resource[IO, DeployedTemporalGraph] = {
     val config = confBuilder(Map("raphtory.graph.id" -> graphID) ++ customConfig)
     deployService(graphID, config).map { qs: QuerySender =>
-      new DeployedTemporalGraph(Query(), qs, config, local = true, shutdown = IO.unit)
+      new DeployedTemporalGraph(Query(graphID = graphID), qs, config, local = true, shutdown = IO.unit)
     }
   }
 

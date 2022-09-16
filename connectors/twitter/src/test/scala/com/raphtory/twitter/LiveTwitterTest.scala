@@ -6,8 +6,9 @@ import cats.effect.IOApp
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.input.Source
-import com.raphtory.sinks.{FileSink, PulsarSink}
-import com.raphtory.twitter.builder.TwitterGraphBuilder
+import com.raphtory.sinks.PulsarSink
+import com.raphtory.twitter.builder.TwitterRetweetGraphBuilder
+import com.raphtory.twitter.builder.TwitterUserGraphBuilder
 import com.raphtory.twitter.spout.LiveTwitterSpout
 import com.typesafe.config.Config
 import io.github.redouane59.twitter.dto.tweet.Tweet
@@ -18,20 +19,19 @@ import io.github.redouane59.twitter.dto.tweet.Tweet
   */
 object Runner extends App {
 
-  val raphtoryConfig: Config = Raphtory.getDefaultConfig()
-  val enableRetweetGraphBuilder: Boolean =
-    raphtoryConfig.getBoolean("raphtory.spout.twitter.local.enableRetweetFilter")
+    val raphtoryConfig: Config = Raphtory.getDefaultConfig()
 
-  val spout   = LiveTwitterSpout()
-  val output  = FileSink("/tmp/liveTwitterStream")
-  val builder = TwitterGraphBuilder
-  val source = {
-    if (enableRetweetGraphBuilder)
-      Source(spout, builder.retweetParse)
-    else Source(spout, builder.userParse)
-  }
+    val enableRetweetGraphBuilder: Boolean =
+      raphtoryConfig.getBoolean("raphtory.spout.twitter.local.enableRetweetFilter")
+
+    val spout        = LiveTwitterSpout()
+    val graphBuilder =
+      if (enableRetweetGraphBuilder)
+        TwitterUserGraphBuilder
+      else
+        TwitterRetweetGraphBuilder
+  val source = Source(spout, graphBuilder)
   val graph  = Raphtory.newGraph()
-
   graph.load(source)
 
   graph

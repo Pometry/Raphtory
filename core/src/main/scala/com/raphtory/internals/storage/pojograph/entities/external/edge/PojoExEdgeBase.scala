@@ -80,6 +80,9 @@ private[pojograph] trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
       case None      =>
         setState(key, ArrayBuffer(value))
     }
+
+  override def clearState(key:String) : Unit =
+    computationValues -= key
 }
 
 private[pojograph] trait PojoExplodedEdgeBase[T] extends PojoExEdgeBase[T] with ConcreteExplodedEdge[T] {

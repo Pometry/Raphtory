@@ -1,7 +1,6 @@
 package com.raphtory.deployments
 
 import com.raphtory.api.input._
-import com.raphtory.internals.graph.GraphBuilder
 
 /*
  *
@@ -33,9 +32,9 @@ Note that these statistics were compiled by combining the ego-networks, includin
  * Reference: https://snap.stanford.edu/data/ego-Facebook.html
  *
  * */
-object FacebookGraphBuilder {
+object FacebookGraphBuilder extends GraphBuilder[String] {
 
-  def parse(graph: Graph, tuple: String): Unit = {
+  def apply(graph: Graph, tuple: String): Unit = {
 
     val fileLine   = tuple.split(" ").map(_.trim)
     val sourceNode = fileLine(0)
