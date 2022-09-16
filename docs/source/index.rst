@@ -21,7 +21,7 @@ out our latest talks on Raphtory at `AIUK 2022 <https://www.youtube.com/watch?v=
 Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/start>`. Alternatively, if you want to dive headfirst into the API's you can visit the :doc:`ScalaDocs <Scaladoc/index>`.
 
 .. toctree::
-   :maxdepth: 5
+   :maxdepth: 2
    :hidden:
    :caption: Install
 
