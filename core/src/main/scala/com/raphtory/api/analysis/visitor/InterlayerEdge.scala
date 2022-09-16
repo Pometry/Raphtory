@@ -66,6 +66,7 @@ case class InterlayerEdge(
   override def containsState(key: String, includeProperties: Boolean): Boolean = ???
   override def getOrSetState[T](key: String, value: T, includeProperties: Boolean): T = ???
   override def appendToState[T: ClassTag](key: String, value: T): Unit = ???
+  override def clearState(key: String): Unit = ???
 }
 
 /** Default builders for constructing interlayer edges

@@ -12,6 +12,12 @@ import com.raphtory.api.time.NullInterval
 import com.raphtory.internals.graph.Perspective
 
 import scala.collection.immutable.Queue
+import com.raphtory.internals.serialisers.DependencyFinder
+import org.apache.bcel.Repository
+
+import java.io.ByteArrayOutputStream
+import scala.jdk.CollectionConverters._
+import scala.util.Using
 
 private[raphtory] trait QueryManagement extends Serializable
 
@@ -27,7 +33,8 @@ private[raphtory] case object StartAnalysis extends QueryManagement
 
 private[raphtory] case class SetMetaData(vertices: Int) extends QueryManagement
 
-private[raphtory] case object JobDone extends QueryManagement
+private[raphtory] case object JobDone                    extends QueryManagement
+private[raphtory] case class JobFailed(error: Throwable) extends QueryManagement
 
 private[raphtory] case class CreatePerspective(id: Int, perspective: Perspective) extends QueryManagement
 
@@ -74,10 +81,13 @@ private[raphtory] case class FilteredOutEdgeMessage[VertexID](
 
 private[raphtory] case class VertexMessagesSync(partitionID: Int, count: Long)
 
-sealed private[raphtory] trait Submission extends QueryManagement
+sealed private[raphtory] trait Submission extends QueryManagement {
+  def graphID: String
+}
 
 private[raphtory] case class Query(
     _bootstrap: DynamicLoader = DynamicLoader(), // leave the `_` this field gets deserialized first
+    graphID: String,
     name: String = "",
     points: PointSet = NullPointSet,
     timelineStart: Long = Long.MinValue,         // inclusive
@@ -91,8 +101,59 @@ private[raphtory] case class Query(
     pyScript: Option[String] = None
 ) extends Submission
 
-case class DynamicLoader(classes: Set[Class[_]] = Set.empty) {
-  def +(cls: Class[_]): DynamicLoader = this.copy(classes = classes + cls)
+case class DynamicLoader(classes: List[Class[_]] = List.empty, resolved: Boolean = false) {
+  def +(cls: Class[_]): DynamicLoader = this.copy(classes = cls :: classes)
+
+  def resolve(searchPath: List[String]): DynamicLoader = {
+    var knownDeps: Set[Class[_]] = Set.empty
+    val distinctClasses          = classes.distinct
+    val actualSearchPath         = resolveSearchPath(distinctClasses, searchPath)
+    copy(
+            classes = classes.reverse.flatMap { cls =>
+              knownDeps += cls
+              val deps = recursiveResolveDependencies(cls, actualSearchPath)(knownDeps)
+              knownDeps = knownDeps ++ deps
+              deps.reverse
+            }.distinct,
+            resolved = true
+    )
+  }
+
+  private def resolveSearchPath(classes: List[Class[_]], searchPath: List[String]): List[String] =
+    classes.map(_.getPackageName).filterNot(name => name.startsWith("com.raphtory") || name == "") ::: searchPath
+
+  private def getByteCode(cls: Class[_]): Array[Byte] = {
+    val jc = Repository.lookupClass(cls)
+
+    Using(new ByteArrayOutputStream()) { bos =>
+      jc.dump(bos)
+      bos.flush()
+      bos.toByteArray
+    }.get
+  }
+
+  private def recursiveResolveDependencies(cls: Class[_], searchPath: List[String])(
+      knownDeps: Set[Class[_]] = Set(cls)
+  ): List[Class[_]] = {
+    val packageName = cls.getPackageName
+    if (packageName == "" || searchPath.exists(p => cls.getPackageName.startsWith(p))) {
+      val dependencies =
+        if (searchPath.isEmpty)
+          Nil
+        else
+          DependencyFinder
+            .getDependencies(cls, getByteCode(cls))
+            .asScala
+            .filter { d =>
+              val depPackageName = d.getPackageName
+              depPackageName == "" || searchPath.exists(path => depPackageName.startsWith(path))
+            }
+            .diff(knownDeps)
+            .toList
+      cls :: dependencies.flatMap(d => recursiveResolveDependencies(d, searchPath)(knownDeps + d))
+    }
+    else Nil
+  }
 }
 
 sealed private[raphtory] trait PointSet
@@ -154,6 +215,7 @@ sealed private[raphtory] trait GraphManagement extends QueryManagement
 private[raphtory] case class IngestData(
     _bootstrap: DynamicLoader,
     graphID: String,
+    sourceId: String,
     sources: Seq[(Int, Source)],
     blocking: Boolean
 ) extends Submission
@@ -171,19 +233,15 @@ private[raphtory] case class StopExecutor(jobID: String) extends GraphManagement
 
 sealed private[raphtory] trait ClusterManagement extends QueryManagement
 
-private[raphtory] case class EstablishGraph(graphID: String, clientID: String) extends Submission with ClusterManagement
+private[raphtory] case class EstablishGraph(graphID: String, clientID: String)               extends ClusterManagement
+private[raphtory] case class DestroyGraph(graphID: String, clientID: String, force: Boolean) extends ClusterManagement
+private[raphtory] case class ClientDisconnected(graphID: String, clientID: String)           extends ClusterManagement
 
-private[raphtory] case class DestroyGraph(graphID: String, clientID: String, force: Boolean)
-        extends Submission
-        with ClusterManagement
-
-private[raphtory] case class ClientDisconnected(graphID: String, clientID: String)
-        extends Submission
-        with ClusterManagement
-
-case class BlockIngestion(sourceID: Int, graphID: String) extends QueryManagement
-
-case class NonBlocking(sourceID: Int, graphID: String) extends QueryManagement
+sealed private[raphtory] trait IngestionBlockingCommand   extends QueryManagement {
+  def graphID: String
+}
+case class NonBlocking(sourceID: Int, graphID: String)    extends IngestionBlockingCommand
+case class BlockIngestion(sourceID: Int, graphID: String) extends IngestionBlockingCommand
 
 case class UnblockIngestion(sourceID: Int, graphID: String, messageCount: Long, highestTimeSeen: Long, force: Boolean)
-        extends QueryManagement
+        extends IngestionBlockingCommand

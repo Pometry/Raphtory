@@ -1,16 +1,17 @@
 package com.raphtory.enrontest
 
 import com.raphtory.api.input.Graph
-import com.raphtory.api.input.Graph.assignID
+import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
+import com.raphtory.api.input.Graph.assignID
 
 import java.time.format.DateTimeFormatter
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
-object ENRONGraphBuilder {
+object ENRONGraphBuilder extends GraphBuilder[String] {
 
   /*
    * Data has structure (2 fields):
@@ -42,7 +43,7 @@ object ENRONGraphBuilder {
    * Remove all " and '
    * Add `\n` wherever there is a `sent_mail` : this signifies a new record
    * */
-  def parse(graph: Graph, line: String): Unit = {
+  def apply(graph: Graph, line: String): Unit = {
     if ((line.toString.equals("")))
 //      logger.warn(s"File contained an empty line.")
       return

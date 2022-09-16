@@ -6,7 +6,6 @@ import com.raphtory.api.input.StringProperty
 
 import java.time.OffsetDateTime
 import com.raphtory.examples.gab.rawgraphmodel.GabPost
-import com.raphtory.internals.graph.GraphBuilder
 import spray.json._
 
 /**

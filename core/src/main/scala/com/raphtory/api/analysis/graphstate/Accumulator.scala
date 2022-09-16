@@ -8,7 +8,7 @@ package com.raphtory.api.analysis.graphstate
   *
   * @see [[GraphState]]
   */
-trait Accumulator[-S, T] {
+trait Accumulator[@specialized(Int) -S, T] {
 
   /** Get last accumulated value */
   def value: T

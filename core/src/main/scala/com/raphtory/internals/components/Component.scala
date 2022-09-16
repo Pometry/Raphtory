@@ -13,6 +13,8 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
+import scala.util.control.NonFatal
+
 abstract private[raphtory] class Component[T](conf: Config) {
 
   protected val telemetry: ComponentTelemetryHandler.type = ComponentTelemetryHandler
@@ -33,7 +35,7 @@ object Component {
   import cats.effect.syntax.spawn._
   import cats.syntax.all._
 
-  def makeAndStart[IO[_]: Spawn, T, C <: Component[T]](
+  def makeAndStart[IO[_], T, C <: Component[T]](
       repo: TopicRepository,
       name: String,
       ts: Seq[CanonicalTopic[T]],
@@ -59,7 +61,7 @@ object Component {
       }
       .map { case (qm, _, _, _) => qm }
 
-  def makeAndStartPart[IO[_]: Spawn, T, C <: Component[T]](
+  def makeAndStartPart[IO[_], T, C <: Component[T]](
       partitionId: Int,
       repo: TopicRepository,
       name: String,
@@ -117,11 +119,7 @@ object Component {
         .getMethod("putObjectVolatile", classOf[Object], classOf[Long], classOf[Object])
         .invoke(unsafe, loggerClass, offset, null)
     }
-    catch {
-      case ex: Exception =>
-        log.warn("Failed to disable Java 10 access warning:")
-        ex.printStackTrace()
-    }
+    catch { case NonFatal(_) => }
   }
 
 }

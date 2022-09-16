@@ -17,8 +17,9 @@ class WeightedRandomWalk[T: Numeric](
     if (neighbours.isEmpty)
       vertex.ID
     else {
-      val weights = vertex.outEdges.map(e => e.weight[T](weight).toDouble)
-      neighbours(rnd.sample(weights))
+      val weights = vertex.outEdges.map(e => e.weight[T](weight).toDouble).toVector
+      val i = rnd.sample(weights)
+      neighbours.zipWithIndex.find{case (_, j) => i == j}.get._1
     }
   }
 }

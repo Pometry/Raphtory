@@ -37,7 +37,8 @@ case class TableOutputTracker(tracker: QueryProgressTracker, topics: TopicReposi
             topics.output(getJobId)
     )
 
-  override def handleMessage(msg: OutputMessages): Unit =
+  override def handleMessage(msg: OutputMessages): Unit = {
+    logger.debug(s"received message $msg")
     msg match {
       case RowOutput(perspective, row) =>
         resultsInProgress.getOrElseUpdate(perspective, ArrayBuffer.empty[Row]).append(row)
@@ -47,9 +48,9 @@ case class TableOutputTracker(tracker: QueryProgressTracker, topics: TopicReposi
           perspectiveDoneCounts.remove(perspective)
           resultsInProgress.remove(perspective).map(_.toArray) match {
             case Some(rows) =>
-              completedResults.add(TableOutput(perspective, rows, getJobId, conf, topics))
+              completedResults.add(TableOutput(getJobId, perspective, rows, conf, topics))
             case None       =>
-              completedResults.add(TableOutput(perspective, Array.empty, getJobId, conf, topics))
+              completedResults.add(TableOutput(getJobId, perspective, Array.empty, conf, topics))
           }
         }
       case EndOutput                   =>
@@ -59,6 +60,7 @@ case class TableOutputTracker(tracker: QueryProgressTracker, topics: TopicReposi
           stop()
         }
     }
+  }
 
   override private[raphtory] def run(): Unit = {
     logger.info(s"Job $getJobId: Starting output collector.")
@@ -98,26 +100,34 @@ case class TableOutputTracker(tracker: QueryProgressTracker, topics: TopicReposi
   def isJobDone: Boolean =
     outputDone
 
-  private def waitForNextResult(): Any =
+  private def waitForNextResult(): Any = {
+    logger.debug("waiting for result")
     if (timeout.isFinite)
       Option(completedResults.poll(timeout.length, timeout.unit))
     else
       Option(completedResults.take())
+  }
 
   override def hasNext: Boolean =
-    if (nextResult.isDefined)
+    if (nextResult.isDefined) {
+      logger.debug("hasNext true as result already present")
       true
-    else if (outputDone)
+    }
+    else if (outputDone) {
+      logger.debug("hasNext false as output complete")
       false
+    }
     else
       waitForNextResult() match {
         case Some(res) =>
           res match {
             case EndOutput      =>
               outputDone = true
+              logger.debug("hasNext false as output complete after waiting for result")
               false
             case v: TableOutput =>
               nextResult = Some(v)
+              logger.debug("hasNext true as new result available after waiting")
               true
           }
         case None      =>

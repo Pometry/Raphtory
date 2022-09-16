@@ -1,6 +1,5 @@
 package com.raphtory.api.input
 
-import com.raphtory.internals.graph.GraphBuilder
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 

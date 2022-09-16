@@ -25,7 +25,7 @@ class ClusterManager(
     logger.info(s"Starting HeadNode for ${conf.getString("raphtory.deploy.id")}")
 
   private def forwardToCluster(msg: ClusterManagement) =
-    topics.clusterComms.endPoint sendAsync msg
+    topics.clusterComms(conf.getInt("raphtory.partitions.serverCount")).endPoint sendAsync msg
 
   override def handleMessage(msg: ClusterManagement): Unit =
     msg match {

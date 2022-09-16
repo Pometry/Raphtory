@@ -4,6 +4,7 @@ import com.raphtory.api.analysis.visitor
 import EdgeDirection.Direction
 import PropertyMergeStrategy.PropertyMerge
 
+import scala.collection.View
 import scala.reflect.ClassTag
 
 /** Extends [[EntityVisitor]] with vertex-specific functionality
@@ -81,30 +82,30 @@ trait Vertex extends EntityVisitor {
 
   /** Get IDs of all out-neighbours of the vertex
     */
-  def outNeighbours: List[IDType] =
+  def outNeighbours: View[IDType] =
     outEdges.map(_.dst)
 
   /** Get IDs fo all in-neighbours of the vertex
     * @param after only return neighbours that are active after time `after`
     * @param before only return neighbours that are active before time `before`
     */
-  def inNeighbours: List[IDType] =
+  def inNeighbours: View[IDType] =
     inEdges.map(_.src)
 
   /** Get IDs of all in- and out-neighbours of the vertex
     */
-  def neighbours: List[IDType] =
-    (inNeighbours ++ outNeighbours).distinct
+  def neighbours: View[IDType] =
+    new View.DistinctBy((inNeighbours ++ outNeighbours), (x: IDType) => x)
 
   /** Check if the vertex with ID `id` is an in- or out-neighbour of this vertex */
   def isNeighbour(id: IDType): Boolean =
     isInNeighbour(id) || isOutNeighbour(id)
 
   /** Check if the vertex with ID `id` is an in-neighbour of this vertex */
-  def isInNeighbour(id: IDType): Boolean = inNeighbours.contains(id)
+  def isInNeighbour(id: IDType): Boolean = inNeighbours.exists(_ == id)
 
   /** Check if the vertex with ID `id` is an out-neighbour of this vertex */
-  def isOutNeighbour(id: IDType): Boolean = outNeighbours.contains(id)
+  def isOutNeighbour(id: IDType): Boolean = outNeighbours.exists(_ == id)
 
   //Degree
   /** Total number of neighbours (including in-neighbours and out-neighbours) of the vertex */
@@ -118,15 +119,15 @@ trait Vertex extends EntityVisitor {
 
   /** Return all edges starting or ending at this vertex
     */
-  def edges: List[Edge] = inEdges ++ outEdges
+  def edges: View[Edge] = inEdges ++ outEdges
 
   /** Return all edges starting at this vertex
     */
-  def outEdges: List[Edge]
+  def outEdges: View[Edge]
 
   /** Return all edges ending at this vertex
     */
-  def inEdges: List[Edge]
+  def inEdges: View[Edge]
 
   /** Return specified edge if it is an out-edge of this vertex
     * @param id ID of edge to return
@@ -152,7 +153,7 @@ trait Vertex extends EntityVisitor {
     */
   def getEdge(
       id: IDType
-  ): List[Edge]
+  ): View[Edge]
 
   // weight
   private def directedEdgeWeight[A, B: Numeric](

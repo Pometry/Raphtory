@@ -49,10 +49,11 @@ private[raphtory] class PulsarConnector(
 
     override def flushAsync(): CompletableFuture[Void] = producer.flushAsync()
 
-    override def closeWithMessage(message: T): Unit =
+    override def closeWithMessage(message: T) =
       producer
         .flushAsync()
         .thenApply(_ => producer.sendAsync(serialise(message)).thenApply(_ => producer.closeAsync()))
+        .get()
   }
 
   private val kryo: KryoSerialiser = KryoSerialiser()
@@ -75,6 +76,7 @@ private[raphtory] class PulsarConnector(
       .mapValues(_ map createTopic)
       .map {
         case (subscriptionType, addresses) =>
+          logger.debug(s"registering pulsar listener for address $addresses")
           registerListener(id, messageHandler, addresses, subscriptionType)
       }
       .toSeq
@@ -82,7 +84,10 @@ private[raphtory] class PulsarConnector(
     new CancelableListener {
       var consumers: Seq[Consumer[Array[Byte]]] = Seq()
       override def start(): Unit                =
-        try consumers = consumerBuilders map (_.subscribe())
+        try {
+          consumers = consumerBuilders map (_.subscribe())
+          logger.debug(s"consumer created for topics $topics")
+        }
         catch {
           case e: ConsumerBusyException =>
             val msg = s"Impossible to create consumer for some of these topics: $topics"
@@ -105,6 +110,7 @@ private[raphtory] class PulsarConnector(
 
   override def endPoint[T](topic: CanonicalTopic[T]): EndPoint[T] = {
     val producerTopic = createTopic(topic)
+    logger.debug(s"creating pulsar producer for $producerTopic")
     val producer      = createProducer(Schema.BYTES, producerTopic)
     PulsarEndPoint[T](producer)
   }

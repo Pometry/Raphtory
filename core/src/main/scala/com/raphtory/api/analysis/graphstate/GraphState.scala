@@ -26,13 +26,15 @@ import com.raphtory.utils.ExtendedNumeric._
   */
 abstract class GraphState {
 
+
   /**  Create a new general Accumulator
     *
     * $vType
     * $name
     * $initialValue
     * $retainState
-    * @param op Reduction function for the accumulator.
+   *
+   * @param op Reduction function for the accumulator.
     */
   def newAccumulator[T](
       name: String,
@@ -41,6 +43,7 @@ abstract class GraphState {
       op: (T, T) => T
   ): Unit
 
+  def newConcurrentAccumulator[T]( name: String, initialValue: T, retainState: Boolean = false, op: (T, T) => T ): Unit
   /** Create a new constant that stores an immutable value
     *
     * @tparam T Value type of the constant
@@ -80,8 +83,12 @@ abstract class GraphState {
     * $initialValue
     * $retainState
     */
-  def newAdder[T: Numeric](name: String, initialValue: T, retainState: Boolean): Unit
+  def newAdder[@specialized(Long, Double) T: Numeric](name: String, initialValue: T, retainState: Boolean): Unit
 
+  def newIntAdder(str: String): Unit =
+    newIntAdder(str, 0, retainState = false)
+
+  def newIntAdder(str: String, initalValue: Int, retainState: Boolean): Unit
   /** Create a new one-initialised accumulator that multiplies values and resets after each step
     *
     * $vType

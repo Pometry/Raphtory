@@ -1,7 +1,6 @@
 package com.raphtory.internals.management.python
 
 import cats.Id
-import com.raphtory.internals.graph.GraphBuilder
 import com.raphtory.internals.management.PyRef
 import com.raphtory.internals.management.PythonEncoder
 
