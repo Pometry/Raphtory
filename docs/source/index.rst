@@ -60,22 +60,11 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
    _autodoc/com/raphtory/algorithms/temporal/index.rst
    _autodoc/com/raphtory/algorithms/filters/index.rst
 
-
 .. toctree::
    :hidden:
    :caption: API (Scaladoc)
 
-   Scaladoc/index.md   
-
-
-.. toctree::
-   :maxdepth: 2
-   :hidden:
-   :caption: Python Library (Alpha)
-
-   PythonClient/tutorial_py_raphtory.md
-   PythonClient/tutorial_algorithms.md
-   PythonClient/RaphtoryClient.md
+   Scaladoc/index.md
 
 
 .. toctree::
