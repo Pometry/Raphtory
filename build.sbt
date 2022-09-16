@@ -71,7 +71,6 @@ lazy val root = (project in file("."))
           defaultSettings
   )
   .aggregate(
-          protocol,
           core,
           connectorsAWS,
           connectorsTwitter,
@@ -86,27 +85,13 @@ lazy val root = (project in file("."))
           integrationTest
   )
 
-lazy val protocol = project
-  .settings(
-          name := "mu-scala-protocol",
-          libraryDependencies ++= Seq(
-                  // Needed for the generated code to compile
-                  muFs2,
-                  muService
-          ),
-          // Needed to expand the @service macro annotation
-          macroSettings,
-          // Generate sources from .proto files
-          muSrcGenIdlType := IdlType.Proto,
-          // Make it easy for 3rd-party clients to communicate with us via gRPC
-          muSrcGenIdiomaticEndpoints := true
-  )
-  // The sbt-mu-srcgen plugin isn't on by default after version v0.23.x
-  // so we need to manually enable the plugin to generate mu-scala code
-  .enablePlugins(SrcGenPlugin)
+//lazy val protocol = project
+//  .settings(
+//          // Needed to expand the @service macro annotation
+//          macroSettings
+//  )
 
 lazy val core = (project in file("core"))
-  .dependsOn(protocol)
   .settings(
           name := "core",
           assembly / test := {},
@@ -136,6 +121,7 @@ lazy val core = (project in file("core"))
                   muClient,
                   muFs2,
                   muServer,
+                  muService,
                   nomen,
                   openhft,
                   pemja,
@@ -157,8 +143,15 @@ lazy val core = (project in file("core"))
                   typesafeConfig,
                   zookeeper
           ),
-          libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
+          libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) },
+          // Needed to expand the @service macro annotation
+          macroSettings,
+          // Generate sources from .proto files
+          muSrcGenIdlType := IdlType.Proto,
+          // Make it easy for 3rd-party clients to communicate with us via gRPC
+          muSrcGenIdiomaticEndpoints := true
   )
+  .enablePlugins(SrcGenPlugin)
 
 // CONNECTORS
 

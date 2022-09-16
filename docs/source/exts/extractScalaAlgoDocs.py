@@ -7,6 +7,7 @@ import shutil
 from docutils import nodes
 from docutils.parsers.rst.roles import set_classes, Lexer, utils, LexerError
 import subprocess
+import os
 
 """
 Minimal Sphinx extension to extract Algorithm documentation from Raphtory.

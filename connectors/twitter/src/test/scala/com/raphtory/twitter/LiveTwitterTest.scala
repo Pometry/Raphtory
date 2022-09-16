@@ -17,38 +17,32 @@ import io.github.redouane59.twitter.dto.tweet.Tweet
   * To utilise this test, you must add your Twitter API credentials in application.conf under Raphtory.spout.twitter.local
   * If you would like to filter a hashtag, you can add this under Raphtory.spout.twitter.local.hashtag in application.conf
   */
-object LiveTwitterTest extends IOApp {
+object Runner extends App {
 
-  override def run(args: List[String]): IO[ExitCode] = {
+  val raphtoryConfig: Config = Raphtory.getDefaultConfig()
 
-    val raphtoryConfig: Config = Raphtory.getDefaultConfig()
+  val enableRetweetGraphBuilder: Boolean =
+    raphtoryConfig.getBoolean("raphtory.spout.twitter.local.enableRetweetFilter")
 
-    val enableRetweetGraphBuilder: Boolean =
-      raphtoryConfig.getBoolean("raphtory.spout.twitter.local.enableRetweetFilter")
+  val spout        = LiveTwitterSpout()
 
-    val spout        = LiveTwitterSpout()
-    val graphBuilder =
-      if (enableRetweetGraphBuilder)
-        TwitterUserGraphBuilder
-      else
-        TwitterRetweetGraphBuilder
+  val graphBuilder =
+    if (enableRetweetGraphBuilder)
+      TwitterUserGraphBuilder
+    else
+      TwitterRetweetGraphBuilder
+  val source       = Source(spout, graphBuilder)
+  val graph        = Raphtory.newGraph()
+  val output       = FileSink("/tmp/output")
+  graph.load(source)
 
-    val source = Source(spout, graphBuilder)
-    val graph  = Raphtory.newIOGraph()
+  graph
+    .walk("10 milliseconds")
+    .window("10 milliseconds")
+    .execute(EdgeList())
+    .writeTo(output)
+    .waitForJob()
 
-    graph.use { graph =>
-      IO {
-        graph.load(source)
-        graph
-          .walk("5 milliseconds")
-          .window("5 milliseconds")
-          .execute(EdgeList())
-          .writeTo(FileSink("/tmp/EdgeList1"))
-          .waitForJob()
-
-        ExitCode.Success
-      }
-    }
-  }
+  graph.close()
 
 }
