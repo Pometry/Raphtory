@@ -16,6 +16,7 @@ import com.raphtory.internals.communication.connectors.PulsarConnector
 import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.FileSpout
+import munit.IgnoreSuite
 import org.apache.pulsar.client.api.Schema
 import org.scalatest.Ignore
 
@@ -23,7 +24,7 @@ import java.net.URL
 import java.util.UUID
 import scala.language.postfixOps
 
-@Ignore
+@IgnoreSuite
 class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFinish = false) {
   withGraph.test("Outputting to Pulsar") { graph: TemporalGraph =>
     graph.load(Source(setSpout(), setGraphBuilder()))
