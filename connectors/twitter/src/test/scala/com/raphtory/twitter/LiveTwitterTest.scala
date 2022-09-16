@@ -6,7 +6,7 @@ import cats.effect.IOApp
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.input.Source
-import com.raphtory.sinks.PulsarSink
+import com.raphtory.sinks.{FileSink, PulsarSink}
 import com.raphtory.twitter.builder.TwitterRetweetGraphBuilder
 import com.raphtory.twitter.builder.TwitterUserGraphBuilder
 import com.raphtory.twitter.spout.LiveTwitterSpout
@@ -32,6 +32,7 @@ object Runner extends App {
         TwitterRetweetGraphBuilder
   val source = Source(spout, graphBuilder)
   val graph  = Raphtory.newGraph()
+  val output = FileSink("/tmp/output")
   graph.load(source)
 
   graph
