@@ -14,7 +14,6 @@ import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.pulsar.connector.PulsarConnector
 import com.raphtory.pulsar.sink.PulsarSink
 import com.raphtory.spouts.FileSpout
-import munit.IgnoreSuite
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema

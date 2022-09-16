@@ -165,7 +165,9 @@ lazy val connectorsTypeDB =
   (project in file("connectors/typedb")).dependsOn(core).settings(assemblySettings)
 
 lazy val connectorsPulsar =
-  (project in file("connectors/pulsar")).dependsOn(core).settings(assemblySettings)
+  (project in file("connectors/pulsar"))
+    .dependsOn(core % "compile->compile;test->test")
+    .settings(assemblySettings)
 
 // EXAMPLE PROJECTS
 
