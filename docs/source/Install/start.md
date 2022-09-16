@@ -8,13 +8,13 @@ The Python library is called PyRaphtory.
 
 ## Python (PyRaphtory)
 
-Pyraphtory is the python client for Raphtory.
+Pyraphtory is the Python client for Raphtory.
 
-[Install with conda](python/install_conda.md)
+[Install with Conda](python/install_conda.md)
 
-[Install without conda](python/install_no_conda.md)
+[Install without Conda](python/install_no_conda.md)
 
 ## Scala (Raphtory)
 
-[Install with scala](scala/install.md)
+[Install with Scala](scala/install.md)
 

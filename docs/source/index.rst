@@ -18,10 +18,10 @@ and built by `Pometry <http://pometry.com>`_, The `QMUL Networks Group  <http://
 If you would like a brief summary of what its used for before fully diving into the getting start guide please check
 out our latest talks on Raphtory at `AIUK 2022 <https://www.youtube.com/watch?v=7S9Ymnih-YM&list=PLuD_SqLtxSdVEUsCYlb5XjWm9D6WuNKEz&index=8>`_ , `KGC 2022 <https://www.youtube.com/watch?v=37S4bSN5EaU>`_ and `NetSciX <https://www.youtube.com/watch?v=QxhrONca4FE>`_ !
 
-Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/installdependencies>`. Alternatively, if you want to dive headfirst into the API's you can visit the :doc:`ScalaDocs <Scaladoc/index>`.
+Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/start>`. Alternatively, if you want to dive headfirst into the API's you can visit the :doc:`ScalaDocs <Scaladoc/index>`.
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 5
    :hidden:
    :caption: Install
 
@@ -42,6 +42,16 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
    Analysis/queries.md
    Analysis/analysis-explained.md
 
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+   :caption: Examples Projects
+
+   Examples/lotr.md
+   Examples/community-of-cheese.md
+   Examples/gab.md
+   Examples/higgs-twitter.md
+
 .. toctree:: 
    :maxdepth: 2
    :hidden:
@@ -51,7 +61,6 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
    Deployment/baremetalsingle.md
    Deployment/kubernetes.md
   
-
 .. toctree::
    :hidden:
    :caption: Algorithms
@@ -67,16 +76,4 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
    Scaladoc/index.md
 
 
-.. toctree::
-   :maxdepth: 2
-   :hidden:
-   :caption: Examples Projects
-
-   Examples/lotr.md
-   Examples/community-of-cheese.md
-   Examples/gab.md
-   Examples/higgs-twitter.md
-   Examples/twitter-social-circles.md
-   Examples/facebook-social-circles.md
-   Examples/enron.md
 

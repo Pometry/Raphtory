@@ -1,4 +1,4 @@
-# Running a scala example
+# Running a Scala example
 
 ## Compiling
 
@@ -32,7 +32,7 @@ From this you should get a request to select a main class (as can be seen below)
 We want to select the `TutorialRunner`.
 
 <p align="center">
-	<img src="../_static/install/sbtrunselect.png" alt="Main Classes within the LOTR example"/>
+	<img src="../../_static/install/sbtrunselect.png" alt="Main Classes within the LOTR example"/>
 </p>
 
 And you're done!  This will run the Lord of the Rings example that we will come back to in the next few tutorials.
@@ -55,18 +55,18 @@ Enter number: 1
 ```
 
 Next, we should see that our query has been submitted:
-``` 
+``` bash
 23:11:35.043 [run-main-0] INFO  com.raphtory.internals.management.ComponentFactory - Creating new Query Progress Tracker for 'DegreesSeparation_8822143620455242909'.
 23:11:35.080 [spawner-akka.actor.default-dispatcher-3] INFO  com.raphtory.internals.components.querymanager.QueryManager - Query 'DegreesSeparation_8822143620455242909' received, your job ID is 'DegreesSeparation_8822143620455242909'.
 23:11:35.157 [monix-computation-138] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job DegreesSeparation_8822143620455242909: Starting query progress tracker.
 ```
 
 Finally, once the data has completed ingesting, the query can run. The logs for this contain information about the Job ID, topics, perspectives, windows and the time it has taken to run.
-```
+```bash
 23:11:37.247 [spawner-akka.actor.default-dispatcher-9] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job 'DegreesSeparation_8822143620455242909': Perspective '32674' finished in 2202 ms.
 23:11:37.247 [spawner-akka.actor.default-dispatcher-9] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job DegreesSeparation_8822143620455242909: Running query, processed 1 perspectives.
 23:11:37.255 [spawner-akka.actor.default-dispatcher-3] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job DegreesSeparation_8822143620455242909: Query completed with 1 perspectives and finished in 2210 ms.
-````
+```
 
 ### Checking your output
 Once the query has finished executing Raphtory will not stop running. This is because we may submit more queries to the running instance, now that it has ingested the graph. However, you may now kill the Raphtory job and check out the output. For the example, results will be saved to `/tmp/raphtory` or the directory specified in the `TutorialRunner` class if you have changed it. Below is an example of the CSV file that has been output. This means that Raphtory is working as it should and you can move onto creating your first graph for analysis. The meaning of this output is only a couple pages away, so don't threat if it looks a little odd right now!
@@ -91,7 +91,7 @@ Once the query has finished executing Raphtory will not stop running. This is be
 32674,Gil-galad,2
 ````
 
-# Editing Raphtory core
+### Editing Raphtory core
 
 ```{note}
 If you are just building applications on top of Raphtory this section can be skipped as it discusses how to publish a new local version of Raphtory-core which can be used by your apps. 
