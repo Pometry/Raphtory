@@ -6,7 +6,7 @@ import com.raphtory.api.input.Source
 import com.raphtory.examples.twitter.higgsdataset.analysis.MemberRank
 import com.raphtory.examples.twitter.higgsdataset.analysis.TemporalMemberRank
 import com.raphtory.examples.twitter.higgsdataset.graphbuilders.TwitterGraphBuilder
-import com.raphtory.sinks.PulsarSink
+import com.raphtory.pulsar.sink.PulsarSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
 

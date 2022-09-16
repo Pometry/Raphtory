@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory
   * In order to do this, concrete implementations need to override the `executor` method creating their own `SinkExecutor`.
   * This is the class holding the actual code required to connect and output to the sink.
   *
-  * @see [[com.raphtory.sinks.FileSink FileSink]], [[com.raphtory.sinks.PulsarSink PulsarSink]],
+  * @see [[com.raphtory.sinks.FileSink FileSink]], [[PulsarSink PulsarSink]],
   *      [[com.raphtory.api.analysis.table.Table Table]]
   */
 trait Sink {

@@ -1,4 +1,4 @@
-package com.raphtory.generic
+package com.raphtory.pulsar
 
 import cats.effect.Async
 import cats.effect.IO
@@ -6,25 +6,22 @@ import com.raphtory.BaseRaphtoryAlgoTest
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.graphview.Alignment
-import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
-import com.raphtory.api.input.Graph
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
-import com.raphtory.internals.communication.connectors.PulsarConnector
 import com.raphtory.lotrtest.LOTRGraphBuilder
-import com.raphtory.sinks.PulsarSink
+import com.raphtory.pulsar.connector.PulsarConnector
+import com.raphtory.pulsar.sink.PulsarSink
 import com.raphtory.spouts.FileSpout
-import munit.IgnoreSuite
+import org.apache.pulsar.client.api.Consumer
+import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema
-import org.scalatest.Ignore
 
 import java.net.URL
 import java.util.UUID
 import scala.language.postfixOps
 
-@IgnoreSuite
 class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFinish = false) {
   withGraph.test("Outputting to Pulsar") { graph: TemporalGraph =>
     graph.load(Source(setSpout(), setGraphBuilder()))
@@ -64,6 +61,9 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFin
   }
 
   def filePath = s"/tmp/lotr.csv"
+
+  def receiveMessage(consumer: Consumer[Array[Byte]]): Message[Array[Byte]] =
+    consumer.receive
 
   override def setSpout(): Spout[String] = FileSpout(filePath)
 

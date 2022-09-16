@@ -1,4 +1,4 @@
-package com.raphtory.internals.communication.connectors
+package com.raphtory.pulsar.connector
 
 import java.io.Closeable
 import java.util.concurrent.CompletableFuture

@@ -76,6 +76,7 @@ lazy val root = (project in file("."))
           connectorsAWS,
           connectorsTwitter,
           examplesCoho,
+          connectorsPulsar,
           connectorsTypeDB,
           examplesGab,
           examplesLotr,
@@ -141,11 +142,6 @@ lazy val core = (project in file("core"))
                   prometheusClient,
                   prometheusHotspot,
                   prometheusHttp,
-                  pulsarAdmin,
-                  pulsarApi,
-                  pulsarCommon,
-                  pulsarCrypto,
-                  pulsarOriginal,
                   py4j,
                   scalaLogging,
                   scalaParallelCollections,
@@ -175,23 +171,28 @@ lazy val connectorsTwitter =
 lazy val connectorsTypeDB =
   (project in file("connectors/typedb")).dependsOn(core).settings(assemblySettings)
 
+lazy val connectorsPulsar =
+  (project in file("connectors/pulsar")).dependsOn(core).settings(assemblySettings)
+
 // EXAMPLE PROJECTS
 
 lazy val examplesCoho =
   (project in file("examples/companies-house")).dependsOn(core).settings(assemblySettings)
 
 lazy val examplesEthereum =
-  (project in file("examples/ethereum")).dependsOn(core).settings(assemblySettings)
+  (project in file("examples/ethereum")).dependsOn(core, connectorsPulsar).settings(assemblySettings)
 
 lazy val examplesGab =
-  (project in file("examples/gab")).dependsOn(core).settings(assemblySettings)
+  (project in file("examples/gab")).dependsOn(core, connectorsPulsar).settings(assemblySettings)
 
-lazy val examplesLotr    =
-  (project in file("examples/lotr")).dependsOn(core % "compile->compile;test->test").settings(assemblySettings)
+lazy val examplesLotr =
+  (project in file("examples/lotr"))
+    .dependsOn(core % "compile->compile;test->test", connectorsPulsar)
+    .settings(assemblySettings)
 
 lazy val examplesTwitter =
   (project in file("examples/twitter"))
-    .dependsOn(core, connectorsTwitter)
+    .dependsOn(core, connectorsTwitter, connectorsPulsar)
     .settings(assemblySettings)
 
 lazy val examplesNFT =

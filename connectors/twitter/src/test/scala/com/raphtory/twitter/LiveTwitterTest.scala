@@ -6,7 +6,7 @@ import cats.effect.IOApp
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.input.Source
-import com.raphtory.sinks.PulsarSink
+import com.raphtory.sinks.FileSink
 import com.raphtory.twitter.builder.TwitterRetweetGraphBuilder
 import com.raphtory.twitter.builder.TwitterUserGraphBuilder
 import com.raphtory.twitter.spout.LiveTwitterSpout
@@ -43,7 +43,7 @@ object LiveTwitterTest extends IOApp {
           .walk("5 milliseconds")
           .window("5 milliseconds")
           .execute(EdgeList())
-          .writeTo(PulsarSink("EdgeList1"))
+          .writeTo(FileSink("/tmp/EdgeList1"))
           .waitForJob()
 
         ExitCode.Success
