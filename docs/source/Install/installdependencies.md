@@ -1,6 +1,104 @@
 # Installation
 
-Getting started with Raphtory only takes a few steps. We will first go through the different ways to install the packages required to run Raphtory.  We will then download the Raphtory library and attach this to an example project to check that everything is working correctly. This quick start tutorial is based around a Lord of the Rings example, but there are several other examples available that it will work for, all of which are explored in the *Examples Projects* section of this tutorial.
+Raphtory has support for graph analytics in both Scala and Python. 
+
+Getting started with Raphtory only takes a few steps.
+
+It can be installed in two ways, with and without conda. 
+
+## Python (PyRaphtory) Install 
+
+Pyraphtory is the python client for Raphtory.
+
+It can be installed in two ways, with and without conda
+
+### Via Conda
+
+An easy way to install pyraphtory is via conda. 
+
+1. First install conda from [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html#regular-installation)
+
+2. Create a conda environment
+
+```bash
+conda create --name raphtoryenv python=3.9.13 -c conda-forge
+```
+
+3. Activate the environment
+
+```bash
+conda activate raphtoryenv
+```
+
+4. Install java and jupyter
+
+```bash
+conda install -y openjdk==11.0.15 jupyterlab -c conda-forge
+ ```
+
+5. In a seperate terminal window, download and run Apache Pulsar
+
+````{tabs}
+
+```{code-tab} bash
+conda activate raphtoryenv
+wget "https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-2.10.1/apache-pulsar-2.10.1-bin.tar.gz" -O pulsar.tar.gz
+tar -xf pulsar.tar.gz
+./apache-pulsar-2.10.1/bin/pulsar standalone
+```
+
+```{tab} Docker
+```bash
+mkdir pulsardata
+docker run -it -p 6650:6650  -p 8080:8080 --mount source=pulsardata,target=/pulsar/data --mount source=pulsarconf,target=/pulsar/conf apachepulsar/pulsar:2.9.1 bin/pulsar standalone
+```
+```
+````
+7. Install dependencies and pyraphtory
+```bash
+pip install pandas pemja cloudpickle
+pip install -i https://test.pypi.org/simple/ pyraphtory==0.2.0a1
+```
+
+### Without Conda
+
+#### Pre-requisites
+
+- Java 11
+- Python 3.9.13
+
+#### Guide
+
+1. Download and run apache pulsar in a seperate terminal
+
+````{tabs}
+
+```{code-tab} bash
+conda activate raphtoryenv
+wget "https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-2.10.1/apache-pulsar-2.10.1-bin.tar.gz" -O pulsar.tar.gz
+tar -xf pulsar.tar.gz
+./apache-pulsar-2.10.1/bin/pulsar standalone
+```
+
+```{tab} Docker
+```bash
+mkdir pulsardata
+docker run -it -p 6650:6650  -p 8080:8080 --mount source=pulsardata,target=/pulsar/data --mount source=pulsarconf,target=/pulsar/conf apachepulsar/pulsar:2.9.1 bin/pulsar standalone
+```
+```
+````
+
+2. Install pyraphtory and dependencies 
+
+```bash
+pip install pandas pemja cloudpickle
+pip install -i https://test.pypi.org/simple/ pyraphtory==0.2.0a1
+```
+
+##  Core Developer 
+
+
+
 
 ## Installing Java, Scala and SBT (Scala Build Tool)
 Raphtory is a framework written in the [Scala](https://www.scala-lang.org) programming language, which runs on the JVM (Java virtual machine). As such both Java and Scala are required to run Raphtory. We additionally require SBT, the scala build tool, to compile and run your first Raphtory project. 

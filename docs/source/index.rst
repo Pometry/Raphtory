@@ -26,6 +26,7 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
    :caption: Raphtory
 
    Install/installdependencies.md
+   Install/install_python.md
 
    Ingestion/sprouter.md
 
@@ -64,7 +65,6 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
    :hidden:
    :caption: Python Library (Alpha)
 
-   PythonClient/setup.md
    PythonClient/tutorial_py_raphtory.md
    PythonClient/tutorial_algorithms.md
    PythonClient/RaphtoryClient.md
