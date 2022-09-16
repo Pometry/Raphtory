@@ -29,22 +29,16 @@ package object arrow {
     def outgoingEdges: View[Edge] = {
       val edgesIter = v.getPartition.getNewAllEdgesIterator
       edgesIter.reset(v.getOutgoingEdgePtr)
-      new AbstractView[Edge] {
-        override def iterator: Iterator[Edge] = new ArrowPartition.EdgesIterator(edgesIter)
+      View.from(new ArrowPartition.EdgesIterator(edgesIter))
 
-        override def knownSize: Int = v.nOutgoingEdges()
-      }
     }
 
-    def incomingEdges: View[Edge] = {
+    def incomingEdges: Iterable[Edge] = {
       val edgesIter = v.getPartition.getNewAllEdgesIterator
       edgesIter.reset(v.getIncomingEdgePtr)
-      new AbstractView[Edge] {
-        override def iterator: Iterator[Edge] = new ArrowPartition.EdgesIterator(edgesIter)
-
-        override def knownSize: Int = v.nIncomingEdges()
-      }
+      View.from(new ArrowPartition.EdgesIterator(edgesIter))
     }
+
   }
 }
 

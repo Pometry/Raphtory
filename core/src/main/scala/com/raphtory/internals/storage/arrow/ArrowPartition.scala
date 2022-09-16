@@ -252,6 +252,7 @@ object ArrowPartition {
     override def hasNext: Boolean = es.hasNext
 
     override def next(): Edge = es.getEdge
+
   }
 
   def apply(cfg: ArrowPartitionConfig, config: Config): ArrowPartition = {

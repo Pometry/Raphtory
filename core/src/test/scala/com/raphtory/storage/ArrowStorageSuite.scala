@@ -21,6 +21,7 @@ import com.raphtory.internals.storage.arrow.versioned
 import java.nio.file.Files
 import java.time.LocalDate
 import java.time.ZoneOffset
+import scala.collection.AbstractView
 
 class ArrowStorageSuite extends munit.FunSuite {
 
@@ -234,6 +235,22 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   }
 
+  class Blerg[T](it :Iterator[T]) extends Iterator[T] {
+    override def hasNext: Boolean = it.hasNext
+
+    override def next(): T = it.next()
+  }
+
+  def someView[T](v: Vector[T]): AbstractView[T] = {
+    val it = v.iterator
+    new AbstractView[T] {
+      override def iterator: Iterator[T] = new Blerg(it)
+
+      override def knownSize: Int = v.knownSize
+    }
+  }
+
+
   test("add edge between two vertices".only) {
 
     val par: ArrowPartition = mkPartition
@@ -244,8 +261,9 @@ class ArrowStorageSuite extends munit.FunSuite {
     // add alice
     addVertex(7, timestamp, ImmutableProperty("name", "Alice"))(par)
     // add edge
-
-    par.addEdge(3, timestamp, -1, 3, 7, Properties(), None)
+    val action = par.addEdge(3, timestamp, -1, 3, 7, Properties(), None)
+    // nothing to do both nodes are on the same partition
+    assert(action.isEmpty)
 
     val vs = par.vertices.toList
     assertEquals(vs.size, 2)
@@ -253,12 +271,12 @@ class ArrowStorageSuite extends munit.FunSuite {
     val names                  = vs.map(v => v.getGlobalId -> v.prop[String]("name").get)
     assertEquals(names, List(3L -> "Bob", 7L -> "Alice"))
 
-    val neighbours: List[Long] = vs.collect {
-      case v if v.prop[String]("name").get == "Bob"   =>
-        v.outgoingEdges.map(_.getDstVertex).toList // FIXME: without toList this fails
+    val neighbours = vs.flatMap {
+      case v if v.prop[String]("name").get == "Bob" =>
+        v.outgoingEdges.map(_.getDstVertex)
       case v if v.prop[String]("name").get == "Alice" =>
-        v.incomingEdges.map(_.getSrcVertex).toList // FIXME: without toList this fails
-    }.flatten
+        v.incomingEdges.map(_.getSrcVertex)
+    }
 
     assertEquals(neighbours, List(1L, 0L)) // local ids are returned
 
