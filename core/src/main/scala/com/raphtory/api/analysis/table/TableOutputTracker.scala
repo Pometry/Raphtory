@@ -48,9 +48,9 @@ case class TableOutputTracker(tracker: QueryProgressTracker, topics: TopicReposi
           perspectiveDoneCounts.remove(perspective)
           resultsInProgress.remove(perspective).map(_.toArray) match {
             case Some(rows) =>
-              completedResults.add(TableOutput(perspective, rows, getJobId, conf, topics))
+              completedResults.add(TableOutput(getJobId, perspective, rows, conf, topics))
             case None       =>
-              completedResults.add(TableOutput(perspective, Array.empty, getJobId, conf, topics))
+              completedResults.add(TableOutput(getJobId, perspective, Array.empty, conf, topics))
           }
         }
       case EndOutput                   =>
