@@ -1,8 +1,8 @@
+package com.raphtory
+
 import cats.effect.IO
 import cats.effect.SyncIO
 import cats.effect.kernel.Resource
-import com.raphtory.Raphtory
-import com.raphtory.TestUtils
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
@@ -27,7 +27,6 @@ import scala.sys.process._
 import scala.tools.reflect.ToolBox
 import scala.util.Using
 
-@IgnoreSuite
 class DynamicClassLoaderTest extends CatsEffectSuite {
 
   val minimalTestCode: String =

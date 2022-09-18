@@ -1,13 +1,12 @@
-package com.raphtory.internals.management.id
+package com.raphtory
 
 import cats.effect.IO
-import com.raphtory.Raphtory
+import com.raphtory.internals.management.id.ZookeeperLimitedPool
 import munit.CatsEffectSuite
 import munit.IgnoreSuite
 
 import scala.util.Random
 
-@IgnoreSuite
 class ZookeeperIDManagerTest extends CatsEffectSuite {
 
   private val deploymentID     = s"raphtory-test-${Random.nextLong().abs}"
