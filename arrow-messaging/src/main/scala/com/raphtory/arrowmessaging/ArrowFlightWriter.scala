@@ -8,6 +8,7 @@ import org.apache.logging.log4j._
 import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.ConcurrentHashMap
 import scala.collection.mutable
+import ArrowFlightClientProvider._
 
 sealed trait ArrowFlightMessageSchemaWriterRegistry extends AutoCloseable {
   val allocator: BufferAllocator
@@ -49,11 +50,10 @@ case class ArrowFlightWriter(
 ) extends ArrowFlightMessageSchemaWriterRegistry {
 
   private val logger       = LogManager.getLogger(classOf[ArrowFlightWriter])
-  private val location     = Location.forGrpcInsecure(interface, port)
-  private val flightClient = FlightClient.builder(allocator, location).build()
-  logger.info("{} is online", this)
+  private val flightClient = getFlightClient(interface, port, allocator)
+  private val listeners    = mutable.HashMap[String, ClientStreamListener]()
 
-  private val listeners = mutable.HashMap[String, ClientStreamListener]()
+  logger.debug("{} is online", this)
 
   @throws(classOf[Exception])
   def addToBatch[T](message: T)(implicit endPoint: String): Unit = {
@@ -103,7 +103,6 @@ case class ArrowFlightWriter(
 
   override def close(): Unit = {
     super.close()
-    flightClient.close()
     logger.debug(s"$this is closed")
   }
 

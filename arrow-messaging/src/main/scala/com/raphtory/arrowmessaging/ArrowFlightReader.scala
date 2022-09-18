@@ -5,7 +5,7 @@ import org.apache.arrow.flight._
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.logging.log4j.LogManager
-
+import ArrowFlightClientProvider._
 import java.lang.reflect.InvocationTargetException
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.ConcurrentHashMap
@@ -42,15 +42,12 @@ case class ArrowFlightReader[T](
     signatureRegistry: ArrowFlightMessageSignatureRegistry
 ) extends ArrowFlightMessageSchemaReaderRegistry {
 
-  private val logger = LogManager.getLogger(classOf[ArrowFlightReader[_]])
-
+  private val logger                = LogManager.getLogger(classOf[ArrowFlightReader[_]])
   private var totalMessagesRead     = 0L
   private var lastTotalMessagesRead = 0L
+  private val flightClient          = getFlightClient(interface, port, allocator)
 
-  private val location: Location = Location.forGrpcInsecure(interface, port)
-  private val flightClient       = FlightClient.builder(allocator, location).build
-
-  logger.info("{} is online", this)
+  logger.debug("{} is online", this)
 
   def readMessages(busyWaitInMilliSeconds: Long): Unit =
     while (true) {
@@ -73,17 +70,17 @@ case class ArrowFlightReader[T](
 
     // TODO Endpoints could be read in parallel
     // Iterating over endpoints
-    if (flightInfoIter.iterator().hasNext) {
+    if (flightInfoIter.iterator().hasNext)
       flightInfoIter.forEach { flightInfo =>
         val endPoint = flightInfo.getDescriptor.toString
-        val header = endPoint.substring(0, endPoint.lastIndexOf("/"))
+        val header   = endPoint.substring(0, endPoint.lastIndexOf("/"))
 
         if (topics.contains(header)) {
           val endPointAsByteStream = flightInfo.getDescriptor.getPath.get(0).getBytes(StandardCharsets.UTF_8)
 
           Using(flightClient.getStream(new Ticket(endPointAsByteStream))) { flightStream =>
             var batch = 0
-            logger.debug("Reader(" + location + "). Reading messages for end point: " + flightInfo.getDescriptor)
+            logger.debug(s"$this. Reading messages for end point: ${flightInfo.getDescriptor}")
 
             Using(flightStream.getRoot) { vectorSchemaRootReceived =>
               vectorSchemaRootReceived.syncSchema()
@@ -91,81 +88,80 @@ case class ArrowFlightReader[T](
               if (signatureRegistry.contains(s)) {
                 val vms = getSchema(s, vectorSchemaRootReceived)
                 try
-                  // Iterating over batches
-                  while (flightStream.next()) {
-                    batch = batch + 1
-                    // System.out.println("Reader(" + location + "). Received batch #" + batch + ", Data:")
-                    var i = 0
-                    var rows = vectorSchemaRootReceived.getRowCount
-                    while (i < rows) {
-                      if (!vms.isMessageExistsAtRow(i))
-                        logger.warn(
-                          "Should not happen! location = {}, endpoint = {}, batch = {}, null at {}, row count = {}",
-                          location,
-                          endPoint,
-                          batch,
-                          i,
-                          rows
-                        )
-                      else {
-                        try logger.trace(
-                          "location = {}, endpoint = {}, batch = {}, vertex msg = {}, index = {}, row count = {}\n",
-                          location,
-                          endPoint,
-                          batch,
-                          i,
-                          vms.getMessageAtRow(i),
-                          rows
-                        )
-                        catch {
-                          case e: Exception =>
-                            logger.error(
-                              "location = {}, endpoint = {}, batch = {}, index = {}, rowCount = {}, errMsg = {}",
-                              location,
+                // Iterating over batches
+                while (flightStream.next()) {
+                  batch = batch + 1
+                  // System.out.println("Reader(" + location + "). Received batch #" + batch + ", Data:")
+                  var i    = 0
+                  var rows = vectorSchemaRootReceived.getRowCount
+                  while (i < rows) {
+                    if (!vms.isMessageExistsAtRow(i))
+                      logger.warn(
+                              "Should not happen! location = {}, endpoint = {}, batch = {}, null at {}, row count = {}",
+                              s"$interface+$port",
                               endPoint,
                               batch,
                               i,
-                              rows,
-                              e.getMessage
-                            )
-                            e.printStackTrace()
-                        }
-                        // vms.getVertexMessageAtRow(i)
-                        try messageHandler(vms.decodeMessage(i))
-                        catch {
-                          case e: Exception =>
-                            logger.error(
-                              "location = {}, endpoint = {}, batch = {}, index = {}, rowCount = {}, errMsg = {}",
-                              location,
+                              rows
+                      )
+                    else {
+                      try logger.trace(
+                              "location = {}, endpoint = {}, batch = {}, vertex msg = {}, index = {}, row count = {}\n",
+                              s"$interface+$port",
                               endPoint,
                               batch,
                               i,
-                              rows,
-                              e.getMessage
-                            )
-                        }
+                              vms.getMessageAtRow(i),
+                              rows
+                      )
+                      catch {
+                        case e: Exception =>
+                          logger.error(
+                                  "location = {}, endpoint = {}, batch = {}, index = {}, rowCount = {}, errMsg = {}",
+                                  s"$interface+$port",
+                                  endPoint,
+                                  batch,
+                                  i,
+                                  rows,
+                                  e.getMessage
+                          )
+                          e.printStackTrace()
                       }
-                      i = i + 1
+                      // vms.getVertexMessageAtRow(i)
+                      try messageHandler(vms.decodeMessage(i))
+                      catch {
+                        case e: Exception =>
+                          logger.error(
+                                  "location = {}, endpoint = {}, batch = {}, index = {}, rowCount = {}, errMsg = {}",
+                                  s"$interface+$port",
+                                  endPoint,
+                                  batch,
+                                  i,
+                                  rows,
+                                  e.getMessage
+                          )
+                      }
                     }
-                    totalMessagesRead += rows
+                    i = i + 1
                   }
+                  totalMessagesRead += rows
+                }
                 finally if (vms != null) vms.close()
 
               }
             }
           } match {
-            case Success(_) =>
+            case Success(_)         =>
             case Failure(exception) => exception.printStackTrace()
           }
         }
       }
-    }
   }
 
   def getTotalMessagesRead: Long = totalMessagesRead
 
   override def close(): Unit = {
-    flightClient.close()
+    super.close()
     logger.debug(s"$this is closed")
   }
 
