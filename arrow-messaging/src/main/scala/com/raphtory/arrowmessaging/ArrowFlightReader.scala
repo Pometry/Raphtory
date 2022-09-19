@@ -31,6 +31,8 @@ sealed trait ArrowFlightMessageSchemaReaderRegistry extends AutoCloseable {
           _: InvocationTargetException) =>
         throw new Exception("Failed to create schema", e);
     }
+
+  def close(): Unit = {}
 }
 
 case class ArrowFlightReader[T](

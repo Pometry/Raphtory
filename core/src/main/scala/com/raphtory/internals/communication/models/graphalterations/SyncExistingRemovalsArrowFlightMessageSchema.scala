@@ -22,6 +22,11 @@ case class SyncExistingRemovalsArrowFlightMessage(
     fromAddition: Boolean = false
 ) extends ArrowFlightMessage
 
+object SyncExistingRemovalsArrowFlightMessage {
+  // Should be used instead of creating new objects with default values
+  val default: SyncExistingRemovalsArrowFlightMessage = SyncExistingRemovalsArrowFlightMessage()
+}
+
 case class SyncExistingRemovalsArrowFlightMessageVectors(
     sourceIDs: BigIntVector,
     updateTimes: BigIntVector,

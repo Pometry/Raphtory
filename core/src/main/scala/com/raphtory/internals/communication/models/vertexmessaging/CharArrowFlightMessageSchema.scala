@@ -16,6 +16,11 @@ case class CharArrowFlightMessage(
     data: Char = ' '
 ) extends ArrowFlightMessage
 
+object CharArrowFlightMessage {
+  // Should be used instead of creating new objects with default values
+  val default: CharArrowFlightMessage = CharArrowFlightMessage()
+}
+
 case class CharArrowFlightMessageVectors(
     superSteps: IntVector,
     dstVertexIds: BigIntVector,

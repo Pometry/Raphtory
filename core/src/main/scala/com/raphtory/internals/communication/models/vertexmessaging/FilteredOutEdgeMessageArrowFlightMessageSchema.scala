@@ -15,6 +15,11 @@ case class FilteredOutEdgeMessageArrowFlightMessage(
     srcId: Long = 0L
 ) extends ArrowFlightMessage
 
+object FilteredOutEdgeMessageArrowFlightMessage {
+  // Should be used instead of creating new objects with default values
+  val default: FilteredOutEdgeMessageArrowFlightMessage = FilteredOutEdgeMessageArrowFlightMessage()
+}
+
 case class FilteredOutEdgeMessageArrowFlightMessageVectors(
     superSteps: IntVector,
     vertexIds: BigIntVector,

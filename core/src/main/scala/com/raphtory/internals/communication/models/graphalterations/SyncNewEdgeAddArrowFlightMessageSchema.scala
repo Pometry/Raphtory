@@ -35,6 +35,11 @@ case class SyncNewEdgeAddArrowFlightMessage(
     floatPropertyValues: List[Float] = List.empty[Float]
 ) extends ArrowFlightMessage
 
+object SyncNewEdgeAddArrowFlightMessage {
+  // Should be used instead of creating new objects with default values
+  val default: SyncNewEdgeAddArrowFlightMessage = SyncNewEdgeAddArrowFlightMessage()
+}
+
 case class SyncNewEdgeAddArrowFlightMessageVectors(
     sourceIDs: BigIntVector,
     updateTimes: BigIntVector,

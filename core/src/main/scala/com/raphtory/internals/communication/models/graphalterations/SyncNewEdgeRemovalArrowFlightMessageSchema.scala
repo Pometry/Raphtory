@@ -21,6 +21,11 @@ case class SyncNewEdgeRemovalArrowFlightMessage(
     removals2: List[Long] = List.empty[Long]
 ) extends ArrowFlightMessage
 
+object SyncNewEdgeRemovalArrowFlightMessage {
+  // Should be used instead of creating new objects with default values
+  val default: SyncNewEdgeRemovalArrowFlightMessage = SyncNewEdgeRemovalArrowFlightMessage()
+}
+
 case class SyncNewEdgeRemovalArrowFlightMessageVectors(
     sourceIDs: BigIntVector,
     updateTimes: BigIntVector,

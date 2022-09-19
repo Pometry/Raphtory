@@ -17,6 +17,11 @@ case class DoubleArrowFlightMessage(
     data: Double = 0D
 ) extends ArrowFlightMessage
 
+object DoubleArrowFlightMessage {
+  // Should be used instead of creating new objects with default values
+  val default: DoubleArrowFlightMessage = DoubleArrowFlightMessage()
+}
+
 case class DoubleArrowFlightMessageVectors(
     superSteps: IntVector,
     dstVertexIds: BigIntVector,

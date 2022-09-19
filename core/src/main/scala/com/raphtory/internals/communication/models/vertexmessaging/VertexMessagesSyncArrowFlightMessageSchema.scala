@@ -15,6 +15,11 @@ case class VertexMessagesSyncArrowFlightMessage(
     count: Long = 0L
 ) extends ArrowFlightMessage
 
+object VertexMessagesSyncArrowFlightMessage {
+  // Should be used instead of creating new objects with default values
+  val default: VertexMessagesSyncArrowFlightMessage = VertexMessagesSyncArrowFlightMessage()
+}
+
 case class VertexMessagesSyncArrowFlightMessageVectors(
     partitionIDs: IntVector,
     counts: BigIntVector

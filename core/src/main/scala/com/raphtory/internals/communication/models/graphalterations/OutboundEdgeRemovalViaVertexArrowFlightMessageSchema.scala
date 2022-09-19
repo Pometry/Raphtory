@@ -19,6 +19,11 @@ case class OutboundEdgeRemovalViaVertexArrowFlightMessage(
     dstId: Long = 0L
 ) extends ArrowFlightMessage
 
+object OutboundEdgeRemovalViaVertexArrowFlightMessage {
+  // Should be used instead of creating new objects with default values
+  val default: OutboundEdgeRemovalViaVertexArrowFlightMessage = OutboundEdgeRemovalViaVertexArrowFlightMessage()
+}
+
 case class OutboundEdgeRemovalViaVertexArrowFlightMessageVectors(
     sourceIDs: BigIntVector,
     updateTimes: BigIntVector,

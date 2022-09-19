@@ -16,6 +16,11 @@ case class BooleanArrowFlightMessage(
     data: Boolean = false
 ) extends ArrowFlightMessage
 
+object BooleanArrowFlightMessage {
+  // Should be used instead of creating new objects with default values
+  val default: BooleanArrowFlightMessage = BooleanArrowFlightMessage()
+}
+
 case class BooleanArrowFlightMessageVectors(
     superSteps: IntVector,
     dstVertexIds: BigIntVector,

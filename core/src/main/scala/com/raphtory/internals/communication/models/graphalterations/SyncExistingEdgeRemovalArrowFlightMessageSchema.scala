@@ -19,6 +19,11 @@ case class SyncExistingEdgeRemovalArrowFlightMessage(
     dstId: Long = 0L
 ) extends ArrowFlightMessage
 
+object SyncExistingEdgeRemovalArrowFlightMessage {
+  // Should be used instead of creating new objects with default values
+  val default: SyncExistingEdgeRemovalArrowFlightMessage = SyncExistingEdgeRemovalArrowFlightMessage()
+}
+
 case class SyncExistingEdgeRemovalArrowFlightMessageVectors(
     sourceIDs: BigIntVector,
     updateTimes: BigIntVector,

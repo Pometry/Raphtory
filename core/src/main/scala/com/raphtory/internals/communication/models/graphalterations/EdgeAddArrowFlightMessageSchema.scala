@@ -34,6 +34,11 @@ case class EdgeAddArrowFlightMessage(
     floatPropertyValues: List[Float] = List.empty[Float]
 ) extends ArrowFlightMessage
 
+object EdgeAddArrowFlightMessage {
+  // Should be used instead of creating new objects with default values
+  val default: EdgeAddArrowFlightMessage = EdgeAddArrowFlightMessage()
+}
+
 case class EdgeAddArrowFlightMessageVectors(
     sourceIDs: BigIntVector,
     updateTimes: BigIntVector,

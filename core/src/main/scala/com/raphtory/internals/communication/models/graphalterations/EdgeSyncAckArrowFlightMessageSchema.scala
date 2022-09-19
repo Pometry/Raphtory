@@ -20,6 +20,11 @@ case class EdgeSyncAckArrowFlightMessage(
     fromAddition: Boolean = false
 ) extends ArrowFlightMessage
 
+object EdgeSyncAckArrowFlightMessage {
+  // Should be used instead of creating new objects with default values
+  val default: EdgeSyncAckArrowFlightMessage = EdgeSyncAckArrowFlightMessage()
+}
+
 case class EdgeSyncAckArrowFlightMessageVectors(
     sourceIDs: BigIntVector,
     updateTimes: BigIntVector,

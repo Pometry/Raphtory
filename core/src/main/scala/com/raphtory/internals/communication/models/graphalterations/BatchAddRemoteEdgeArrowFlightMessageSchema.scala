@@ -34,6 +34,11 @@ case class BatchAddRemoteEdgeArrowFlightMessage(
     floatPropertyValues: List[Float] = List.empty[Float]
 ) extends ArrowFlightMessage
 
+object BatchAddRemoteEdgeArrowFlightMessage {
+  // Should be used instead of creating new objects with default values
+  val default: BatchAddRemoteEdgeArrowFlightMessage = BatchAddRemoteEdgeArrowFlightMessage()
+}
+
 case class BatchAddRemoteEdgeArrowFlightMessageVectors(
     sourceIDs: BigIntVector,
     updateTimes: BigIntVector,

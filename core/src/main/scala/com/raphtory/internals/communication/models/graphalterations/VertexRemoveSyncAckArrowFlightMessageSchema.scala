@@ -17,6 +17,11 @@ case class VertexRemoveSyncAckArrowFlightMessage(
     updateId: Long = 0L
 ) extends ArrowFlightMessage
 
+object VertexRemoveSyncAckArrowFlightMessage {
+  // Should be used instead of creating new objects with default values
+  val default: VertexRemoveSyncAckArrowFlightMessage = VertexRemoveSyncAckArrowFlightMessage()
+}
+
 case class VertexRemoveSyncAckArrowFlightMessageVectors(
     sourceIDs: BigIntVector,
     updateTimes: BigIntVector,
