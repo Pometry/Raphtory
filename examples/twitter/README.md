@@ -5,7 +5,7 @@
 Raphtory implements a chain of algorithms to analyse a Twitter dataset from [SNAP](https://snap.stanford.edu/data/higgs-twitter.html), collected during and after the announcement of the discovery of a new particle with the features of the elusive Higgs boson on 4th July 2012. In our example, we have taken the retweet network data. We wanted to see whether Raphtory could detect bot retweet activity in the Higgs dataset.
 
 <p>
- <img src="../_static/higgs-boson.jpeg" width="400px" style="padding: 15px" alt="Higgs Boson"/>
+ <img src="../docs/source/images/higgstwittergraph.png" width="400px" alt="Higgs Boson"/>
 </p>
 
 We used three algorithms in this example: PageRank, MemberRank and TemporalMemberRank.
