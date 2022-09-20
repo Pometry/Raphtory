@@ -164,7 +164,9 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
       properties: Properties,
       srcRemovals: List[(Long, Long)],
       edgeType: Option[Type]
-  ): GraphAlteration.GraphUpdateEffect = ???
+  ): GraphAlteration.GraphUpdateEffect = {
+???
+  }
 
   override def syncExistingEdgeAdd(
       sourceID: Int,

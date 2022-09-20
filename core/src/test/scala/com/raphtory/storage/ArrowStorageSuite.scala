@@ -287,45 +287,67 @@ class ArrowStorageSuite extends munit.FunSuite {
     addVertex(2, timestamp, ImmutableProperty("name", "Bob"))(par1)
     // add alice
     addVertex(7, timestamp, ImmutableProperty("name", "Alice"))(par2)
-    // add edge
-    val action = par1.addEdge(
-            3,
-            timestamp,
-            -1,
-            2,
-            7,
-            Properties(
-                    ImmutableProperty("name", "friends")
-            ),
-            None
-    ).collect{case a:SyncNewEdgeAdd => a}
+    // add edge on par1
+    val action                                                                        = par1
+      .addEdge(
+              3,
+              timestamp,
+              -1,
+              2,
+              7,
+              Properties(
+                      ImmutableProperty("name", "friends")
+              ),
+              None
+      )
+      .collect { case a: SyncNewEdgeAdd => a }
 
     // nothing to do both nodes are on the same partition
     assert(action.isDefined)
-    val act = action.get
+    val SyncNewEdgeAdd(sourceID, updateTime, index, dstId, srcId, properties, _, tpe) = action.get
 
-    val vs = par1.vertices.toList
+    //add the second edge onto partition2
+    par2.addEdge(sourceID, updateTime, index, srcId, dstId, properties, tpe)
+
+    val (vs, names)   = partitionVertices(par1)
     assertEquals(vs.size, 1)
+    assertEquals(names, List(2L -> "Bob"))
 
-    val names      = vs.map(v => v.getGlobalId -> v.prop[String]("name").get)
-    assertEquals(names, List(3L -> "Bob"))
+    val (vs2, names2) = partitionVertices(par2)
+    assertEquals(vs.size, 1)
+    assertEquals(names2, List(7L -> "Alice"))
 
-    val vs2 = par2.vertices.toList
-    assertEquals(vs2.size, 1)
-    val names2      = vs2.map(v => v.getGlobalId -> v.prop[String]("name").get)
-    assertEquals(names, List(8L -> "Alice"))
+    val neighbours    = allNeighbours(vs)
 
+    assertEquals(neighbours, List((0L, 7L, "friends", false, true)))
 
+    val neighbours2 = allNeighbours(vs2)
 
+    assertEquals(
+            neighbours2,
+            List((2L, 0L, "friends", true, false))
+    ) // FIXME this fails the source vertex is on the other partition
+
+  }
+
+  private def allNeighbours(vs: List[Vertex]) = {
     val neighbours = vs.flatMap {
       case v if v.prop[String]("name").get == "Bob"   =>
-        v.outgoingEdges.map(e => e.getDstVertex -> e.prop[String]("name").get)
+        v.outgoingEdges.map(e =>
+          (e.getSrcVertex, e.getDstVertex, e.prop[String]("name").get, e.isSrcGlobal, e.isDstGlobal)
+        )
       case v if v.prop[String]("name").get == "Alice" =>
-        v.incomingEdges.map(e => e.getSrcVertex -> e.prop[String]("name").get)
+        v.incomingEdges.map(e =>
+          (e.getSrcVertex, e.getDstVertex, e.prop[String]("name").get, e.isSrcGlobal, e.isDstGlobal)
+        )
     }
+    neighbours
+  }
 
-    assertEquals(neighbours, List(1L -> "friends", 0L -> "friends")) // local ids are returned
-
+  private def partitionVertices(par2: ArrowPartition) = {
+    val vs2    = par2.vertices.toList
+    val names2 = vs2.map(v => v.getGlobalId -> v.prop[String]("name").get)
+    (vs2, names2)
   }
 
   test("add edge between to partitions") {}
