@@ -1,4 +1,4 @@
-package com.raphtory
+package test.raphtory
 
 import cats.effect.IO
 import cats.effect.SyncIO
@@ -11,8 +11,9 @@ import com.raphtory.api.input._
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.spouts.FileSpout
+import com.raphtory.Raphtory
+import com.raphtory.TestUtils
 import munit.CatsEffectSuite
-import munit.IgnoreSuite
 import test.raphtory.algorithms.MaxFlowTest
 import test.raphtory.algorithms.MinimalTestAlgorithm
 import test.raphtory.algorithms.TestAlgorithmWithExternalDependency
@@ -54,27 +55,31 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
     Resource.make(IO(remote().newGraph()))(graph => IO(graph.destroy()))
 
   val remoteProcess: Resource[IO, Process] = Resource.make {
-    IO {
-      println("starting remote process")
-//      This is how to get the full class path for running core using sbt, however, the command is really slow as it resolves everything from scratch
-//
-//        val classPath = Seq("sbt", "--error", "export core/test:fullClasspath").!!
-//
-//      It seems like the file below is where sbt actually stores that info so we can just read it directly
-      val classPath =
-        Using(scala.io.Source.fromFile("core/target/streams/test/fullClasspath/_global/streams/export")) { source =>
-          source.mkString
-        }.get
+    for {
+      process <- IO {
+                   println("starting remote process")
+                   //      This is how to get the full class path for running core using sbt, however, the command is really slow as it resolves everything from scratch
+                   //
+                   //        val classPath = Seq("sbt", "--error", "export core/test:fullClasspath").!!
+                   //
+                   //      It seems like the file below is where sbt actually stores that info so we can just read it directly
+                   val classPath =
+                     Using(scala.io.Source.fromFile("core/target/streams/test/fullClasspath/_global/streams/export")) {
+                       source =>
+                         source.mkString
+                     }.get
 
-      Process(
-              Seq(
-                      "java",
-                      "-cp",
-                      classPath,
-                      "com.raphtory.service.Standalone"
-              )
-      ).run()
-    }
+                   Process(
+                           Seq(
+                                   "java",
+                                   "-cp",
+                                   classPath,
+                                   "com.raphtory.service.Standalone"
+                           )
+                   ).run()
+                 }
+      _       <- IO.sleep(2.seconds)
+    } yield process
   }(process =>
     IO.sleep(1.seconds) *> // chance to get output across
       IO {
@@ -83,7 +88,9 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
       }
   )
 
-  lazy val remoteGraph = ResourceFixture(remoteGraphResource.evalMap(g => IO(g.load(source()))))
+  lazy val remoteGraph = ResourceFixture(
+          remoteGraphResource.evalMap(g => IO(g.addDynamicPath("com.raphtory.lotrtest").load(source())))
+  )
 
   lazy val remoteGraphInline: SyncIO[FunFixture[TemporalGraph]] = ResourceFixture(
           remoteGraphResource
