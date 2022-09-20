@@ -9,6 +9,7 @@ import cloudpickle as pickle
 from functools import cached_property
 from threading import Lock, RLock
 from copy import copy
+from textwrap import indent
 
 from pyraphtory import _codegen
 
@@ -298,7 +299,7 @@ class ScalaProxyBase(object):
             for i, method in enumerate(sorted(method_array, key=lambda m: m.n())):
                 try:
                     exec(_codegen.build_method(f"{name}{i}", method), globals(), output)
-                    output[f"{name}{i}"].__doc__ = method.docs()
+                    # output[f"{name}{i}"].__doc__ = method.docs()
                 except Exception as e:
                     traceback.print_exc()
                     raise e
@@ -308,7 +309,7 @@ class ScalaProxyBase(object):
             method = method_array[0]
             try:
                 exec(_codegen.build_method(name, method), globals(), output)
-                output[name].__doc__ = method.docs()
+                # output[name].__doc__ = method.docs()
             except Exception as e:
                 traceback.print_exc()
                 raise e
@@ -436,8 +437,9 @@ class OverloadedMethod:
         self.__name__ = name
         self._methods = methods
         self.__doc__ = (f"Overloaded method {self.__name__} with alternatives\n\n"
-                        + "\n\n".join("\n".join([f"{self.__name__}{inspect.signature(m)}",
-                                                 m.__doc__]) for m in self._methods))
+                        + "\n\n".join(f"{self.__name__}{inspect.signature(m)}" +
+                                      ("\n" + indent(m.__doc__, "    ") if m.__doc__ else "")
+                                      for m in self._methods))
 
     def __call__(self, *args, **kwargs):
         for method in self._methods:
