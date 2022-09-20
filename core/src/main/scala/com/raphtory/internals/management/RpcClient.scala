@@ -7,6 +7,7 @@ import cats.syntax.all._
 import com.google.protobuf.ByteString
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
+import com.raphtory.internals.components.output.OutputMessages
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.serialisers.KryoSerialiser
@@ -38,11 +39,17 @@ class RpcClient[F[_]](dispatcher: Dispatcher[F], repo: TopicRepository, config: 
         val encodedMessage = ByteString.copyFrom(kryo.serialise(msg))
         msg match {
           case query: Query =>
-            val queryTrack = repo.queryTrack(query.name).endPoint
+            lazy val queryTrack     = repo.queryTrack(query.name).endPoint
+            lazy val outputMessages = repo.output(query.name).endPoint
             for {
               responses <- service.submitQuery(RpcRequest(encodedMessage))
               _         <- responses
-                             .evalTap(response => F.delay(queryTrack sendAsync deserialise(response.message.toByteArray)))
+                             .evalTap(response =>
+                               F.delay(deserialise(response.message.toByteArray) match {
+                                 case msg: OutputMessages => outputMessages sendAsync msg
+                                 case msg                 => queryTrack sendAsync msg
+                               })
+                             )
                              .compile
                              .drain
             } yield ()

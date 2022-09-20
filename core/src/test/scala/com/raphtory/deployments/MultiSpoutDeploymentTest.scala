@@ -12,7 +12,6 @@ import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import munit.CatsEffectSuite
-import org.apache.commons.io.FileUtils
 
 import java.io.File
 import java.io.FileWriter
@@ -58,8 +57,8 @@ class MultiSpoutDeploymentTest extends CatsEffectSuite {
             Seq(oddFile, evenFile).foreach(_.flush())
 
             val graph   = Raphtory.newGraph()
-            graph.load(Source(oddSpout, LOTRGraphBuilder.parse))
-            graph.load(Source(evenSpout, LOTRGraphBuilder.parse))
+            graph.load(Source(oddSpout, LOTRGraphBuilder))
+            graph.load(Source(evenSpout, LOTRGraphBuilder))
             val tracker = graph
               .range(1, 32674, 10000)
               .window(List(500, 1000, 10000), Alignment.END)

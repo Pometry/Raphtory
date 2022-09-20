@@ -18,57 +18,29 @@ and built by `Pometry <http://pometry.com>`_, The `QMUL Networks Group  <http://
 If you would like a brief summary of what its used for before fully diving into the getting start guide please check
 out our latest talks on Raphtory at `AIUK 2022 <https://www.youtube.com/watch?v=7S9Ymnih-YM&list=PLuD_SqLtxSdVEUsCYlb5XjWm9D6WuNKEz&index=8>`_ , `KGC 2022 <https://www.youtube.com/watch?v=37S4bSN5EaU>`_ and `NetSciX <https://www.youtube.com/watch?v=QxhrONca4FE>`_ !
 
-Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/installdependencies>`. Alternatively, if you want to dive headfirst into the API's you can visit the :doc:`ScalaDocs <Scaladoc/index>`.
+Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/start>`. Alternatively, if you want to dive headfirst into the API's you can visit the :doc:`ScalaDocs <Scaladoc/index>`.
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 2
    :hidden:
-   :caption: Raphtory
+   :caption: Install
 
-   Install/installdependencies.md
+   Install/start.md
+   Install/python/install_conda.md
+   Install/python/install_no_conda.md
+   Install/scala/install.md
+   Install/scala/compile_run_example.md
+
+.. toctree::
+   :maxdepth: 4
+   :hidden:
+   :caption: Run
 
    Ingestion/sprouter.md
 
    Analysis/LOTR_six_degrees.md
    Analysis/queries.md
    Analysis/analysis-explained.md
-
-.. toctree:: 
-   :maxdepth: 2
-   :hidden:
-   :caption: Deployment
-
-   Deployment/pulsarlocal.md
-   Deployment/baremetalsingle.md
-   Deployment/kubernetes.md
-  
-
-.. toctree::
-   :hidden:
-   :caption: Algorithms
-
-   _autodoc/com/raphtory/algorithms/generic/index.rst
-   _autodoc/com/raphtory/algorithms/temporal/index.rst
-   _autodoc/com/raphtory/algorithms/filters/index.rst
-
-
-.. toctree::
-   :hidden:
-   :caption: API (Scaladoc)
-
-   Scaladoc/index.md   
-
-
-.. toctree::
-   :maxdepth: 2
-   :hidden:
-   :caption: Python Library (Alpha)
-
-   PythonClient/setup.md
-   PythonClient/tutorial_py_raphtory.md
-   PythonClient/tutorial_algorithms.md
-   PythonClient/RaphtoryClient.md
-
 
 .. toctree::
    :maxdepth: 2
@@ -79,7 +51,29 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/inst
    Examples/community-of-cheese.md
    Examples/gab.md
    Examples/higgs-twitter.md
-   Examples/twitter-social-circles.md
-   Examples/facebook-social-circles.md
-   Examples/enron.md
+
+.. toctree:: 
+   :maxdepth: 2
+   :hidden:
+   :caption: Deployment
+
+   Deployment/pulsarlocal.md
+   Deployment/baremetalsingle.md
+   Deployment/kubernetes.md
+  
+.. toctree::
+   :hidden:
+   :caption: Algorithms
+
+   _autodoc/com/raphtory/algorithms/generic/index.rst
+   _autodoc/com/raphtory/algorithms/temporal/index.rst
+   _autodoc/com/raphtory/algorithms/filters/index.rst
+
+.. toctree::
+   :hidden:
+   :caption: API (Scaladoc)
+
+   Scaladoc/index.md
+
+
 

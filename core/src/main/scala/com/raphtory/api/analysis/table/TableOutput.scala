@@ -43,10 +43,10 @@ case class WriteProgressTracker(jobID: String, perspective: Perspective) extends
 }
 
 /** Concrete Table with computed results for a perspective */
-case class TableOutput private[raphtory] (
+case class TableOutput private (
+    jobID: String,
     perspective: Perspective,
     rows: Array[Row],
-    jobID: String,
     private val conf: Config,
     private val topics: TopicRepository
 ) extends TableBase {
@@ -90,4 +90,14 @@ case class TableOutput private[raphtory] (
     * @param sink [[com.raphtory.api.output.sink.Sink Sink]] for writing results
     */
   override def writeTo(sink: Sink): WriteProgressTracker = writeTo(sink, jobID)
+
+  override def toString: String = {
+    val printedRows =
+      if (rows.size > 10)
+        rows.take(10).mkString(", ") + ", ... "
+      else
+        rows.mkString(", ")
+
+    s"TableOutput($jobID, $perspective, [$printedRows])"
+  }
 }

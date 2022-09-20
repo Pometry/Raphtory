@@ -71,40 +71,27 @@ lazy val root = (project in file("."))
           defaultSettings
   )
   .aggregate(
-          protocol,
           core,
           connectorsAWS,
           connectorsTwitter,
           examplesCoho,
+          connectorsPulsar,
           connectorsTypeDB,
           examplesGab,
           examplesLotr,
           examplesTwitter,
           examplesNFT,
-          deploy
+          deploy,
+          integrationTest
   )
 
-lazy val protocol = project
-  .settings(
-          name := "mu-scala-protocol",
-          libraryDependencies ++= Seq(
-                  // Needed for the generated code to compile
-                  muFs2,
-                  muService
-          ),
-          // Needed to expand the @service macro annotation
-          macroSettings,
-          // Generate sources from .proto files
-          muSrcGenIdlType := IdlType.Proto,
-          // Make it easy for 3rd-party clients to communicate with us via gRPC
-          muSrcGenIdiomaticEndpoints := true
-  )
-  // The sbt-mu-srcgen plugin isn't on by default after version v0.23.x
-  // so we need to manually enable the plugin to generate mu-scala code
-  .enablePlugins(SrcGenPlugin)
+//lazy val protocol = project
+//  .settings(
+//          // Needed to expand the @service macro annotation
+//          macroSettings
+//  )
 
 lazy val core = (project in file("core"))
-  .dependsOn(protocol)
   .settings(
           name := "core",
           assembly / test := {},
@@ -134,17 +121,13 @@ lazy val core = (project in file("core"))
                   muClient,
                   muFs2,
                   muServer,
+                  muService,
                   nomen,
                   openhft,
                   pemja,
                   prometheusClient,
                   prometheusHotspot,
                   prometheusHttp,
-                  pulsarAdmin,
-                  pulsarApi,
-                  pulsarCommon,
-                  pulsarCrypto,
-                  pulsarOriginal,
                   py4j,
                   scalaLogging,
                   scalaParallelCollections,
@@ -160,8 +143,15 @@ lazy val core = (project in file("core"))
                   typesafeConfig,
                   zookeeper
           ),
-          libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
+          libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) },
+          // Needed to expand the @service macro annotation
+          macroSettings,
+          // Generate sources from .proto files
+          muSrcGenIdlType := IdlType.Proto,
+          // Make it easy for 3rd-party clients to communicate with us via gRPC
+          muSrcGenIdiomaticEndpoints := true
   )
+  .enablePlugins(SrcGenPlugin)
 
 // CONNECTORS
 
@@ -174,23 +164,30 @@ lazy val connectorsTwitter =
 lazy val connectorsTypeDB =
   (project in file("connectors/typedb")).dependsOn(core).settings(assemblySettings)
 
+lazy val connectorsPulsar =
+  (project in file("connectors/pulsar"))
+    .dependsOn(core % "compile->compile;test->test")
+    .settings(assemblySettings)
+
 // EXAMPLE PROJECTS
 
 lazy val examplesCoho =
   (project in file("examples/companies-house")).dependsOn(core).settings(assemblySettings)
 
 lazy val examplesEthereum =
-  (project in file("examples/ethereum")).dependsOn(core).settings(assemblySettings)
+  (project in file("examples/ethereum")).dependsOn(core, connectorsPulsar).settings(assemblySettings)
 
 lazy val examplesGab =
-  (project in file("examples/gab")).dependsOn(core).settings(assemblySettings)
+  (project in file("examples/gab")).dependsOn(core, connectorsPulsar).settings(assemblySettings)
 
 lazy val examplesLotr =
-  (project in file("examples/lotr")).dependsOn(core).settings(assemblySettings)
+  (project in file("examples/lotr"))
+    .dependsOn(core % "compile->compile;test->test", connectorsPulsar)
+    .settings(assemblySettings)
 
 lazy val examplesTwitter =
   (project in file("examples/twitter"))
-    .dependsOn(core, connectorsTwitter)
+    .dependsOn(core, connectorsTwitter, connectorsPulsar)
     .settings(assemblySettings)
 
 lazy val examplesNFT =
@@ -200,6 +197,11 @@ lazy val examplesNFT =
 
 lazy val deploy =
   (project in file("deploy"))
+    .settings(assemblySettings)
+
+lazy val integrationTest =
+  (project in file("test"))
+    .dependsOn(core % "compile->compile;test->test")
     .settings(assemblySettings)
 
 // SETTINGS

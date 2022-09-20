@@ -39,7 +39,6 @@ class RemoteContext(address: String, port: Int) extends RaphtoryContext {
     val config         = confBuilder(userParameters ++ customConfig)
     val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
     for {
-      _               <- Py4JServer.fromEntryPoint[IO](this, config)
       _               <- Prometheus[IO](prometheusPort)
       topicRepo       <- LocalTopicRepository[IO](config)
       sourceIdManager <- makeIdManager[IO](config, localDeployment = false, graphID, forPartitions = false)

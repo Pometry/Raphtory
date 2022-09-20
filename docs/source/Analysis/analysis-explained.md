@@ -229,9 +229,9 @@ graph
   .writeTo(sink)
 ```
 
-Similarly the {scaladoc}`com.raphtory.sinks.PulsarSink` can be used to write results directly to
+Similarly the {scaladoc}`com.raphtory.pulsar.sink.PulsarSink` can be used to write results directly to
 [Pulsar](https://pulsar.apache.org) topics. The user gives the Topic as an argument when creating the
-{scaladoc}`com.raphtory.sinks.PulsarSink` object:
+{scaladoc}`com.raphtory.pulsar.sink.PulsarSink` object:
 
 ```scala
 val sink = PulsarSink("components")

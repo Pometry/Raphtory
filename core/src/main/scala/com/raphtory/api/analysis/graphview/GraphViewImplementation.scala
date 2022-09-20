@@ -7,9 +7,7 @@ import com.raphtory.api.analysis.algorithm.GenericallyApplicable
 import com.raphtory.api.analysis.algorithm.Multilayer
 import com.raphtory.api.analysis.algorithm.MultilayerProjection
 import com.raphtory.api.analysis.algorithm.MultilayerReduction
-import com.raphtory.api.analysis.graphstate.Accumulator
 import com.raphtory.api.analysis.graphstate.GraphState
-import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.table.TableImplementation
@@ -22,15 +20,7 @@ import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManagement
-import com.raphtory.internals.management.python.EmbeddedPython
-import com.raphtory.internals.management.PyRef
-import com.raphtory.internals.management.PythonEncoder
-import com.raphtory.internals.management.PythonFunction1
 import com.raphtory.internals.management.QuerySender
-import cats.Id
-import com.raphtory.internals.graph.GraphBuilder
-
-import scala.jdk.CollectionConverters.ListHasAsScala
 
 sealed private[raphtory] trait GraphFunction                             extends QueryManagement
 final private[raphtory] case class SetGlobalState(f: GraphState => Unit) extends GraphFunction
@@ -168,9 +158,8 @@ private[api] trait GraphViewImplementation[
 
   override def step(f: V => Unit): G = addFunction(Step(f))
 
-  override def edgeStep(f: Edge => Unit): G = {
+  override def edgeStep(f: Edge => Unit): G =
     step(vertex => vertex.outEdges.foreach(e => f(e)))
-  }
 
   def loadPythonScript(script: String): G =
     newGraph(query.copy(pyScript = Some(script)), querySender)
@@ -178,9 +167,8 @@ private[api] trait GraphViewImplementation[
   override def step(f: (V, GraphState) => Unit): G =
     addFunction(StepWithGraph(f))
 
-  override def edgeStep(f: (Edge, GraphState) => Unit): G = {
-    step((vertex,state) => vertex.outEdges.foreach(e => f(e,state)))
-  }
+  override def edgeStep(f: (Edge, GraphState) => Unit): G =
+    step((vertex, state) => vertex.outEdges.foreach(e => f(e, state)))
 
   override def iterate(
       f: (V) => Unit,
@@ -229,6 +217,18 @@ private[api] trait GraphViewImplementation[
   def execute(algorithm: GenericallyApplicable): Table =
     algorithm.run(withTransformedName(algorithm))
 
+  def addDynamicPath(name: String*): G = {
+    name.foreach(querySender.addToDynamicPath)
+    this
+  }
+
+  /** Inject class dependency */
+  private def addClass(clazz: Class[_]): G = {
+    val bootstrap = query._bootstrap + clazz
+    val newQuery  = query.copy(_bootstrap = bootstrap)
+    newGraph(newQuery, querySender)
+  }
+
   private def addFunction(function: GraphFunction) =
     newGraph(query.copy(graphFunctions = query.graphFunctions.enqueue(function)), querySender)
 
@@ -244,11 +244,8 @@ private[api] trait GraphViewImplementation[
             querySender
     )
 
-  private[api] def withTransformedName(algorithm: BaseAlgorithm) =
-    newGraph(
-            query.copy(name = transformedName(algorithm.name), _bootstrap = query._bootstrap + algorithm.getClass),
-            querySender
-    )
+  private[api] def withTransformedName(algorithm: BaseAlgorithm): G =
+    withTransformedName(algorithm.name).addClass(algorithm.getClass)
 
   def withTransformedName(name: String): G =
     newGraph(query.copy(name = transformedName(name)), querySender)

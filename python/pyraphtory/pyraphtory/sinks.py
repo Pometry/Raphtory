@@ -10,4 +10,4 @@ class PrintSink(ScalaClassProxy):
 
 
 class PulsarSink(ScalaClassProxy):
-    _classname = "com.raphtory.sinks.PulsarSink"
+    _classname = "com.raphtory.pulsar.sink.PulsarSink"
