@@ -87,8 +87,9 @@ class QueryTrackerForwarder[F[_]](queue: Queue[F, Option[QueryManagement]], disp
   override def handleMessage(msg: QueryManagement): Unit = {
     log.trace(s"Putting message $msg into the queue")
     dispatcher.unsafeRunSync(queue.offer(Some(msg)))
-    if (msg == JobDone)
-      dispatcher.unsafeRunSync(queue.offer(None))
+//    if (msg == JobDone)
+//      dispatcher.unsafeRunSync(queue.offer(None))
+    // TODO: Merge output and querytracking topics and turn back on
   }
   override private[raphtory] def stop(): Unit = log.debug("QueryTrackerListener stopping")
 }
@@ -110,7 +111,7 @@ object QueryTrackerForwarder {
       .makeAndStart(
               repo,
               s"query-tracker-listener-$jobId",
-              Seq(repo.queryTrack(jobId)),
+              Seq(repo.queryTrack(jobId), repo.output(jobId)),
               new QueryTrackerForwarder(queue, dispatcher, config)
       )
       .map { component =>
