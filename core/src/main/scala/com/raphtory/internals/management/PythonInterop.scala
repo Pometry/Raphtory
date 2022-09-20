@@ -21,7 +21,9 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 import scala.reflect.runtime.universe
+import universe._
 import scala.util.Random
+import com.github.takezoe.scaladoc.Scaladoc
 
 /** Scala-side methods for interfacing with Python */
 object PythonInterop {
@@ -40,6 +42,11 @@ object PythonInterop {
           .mkString(", ") + ")"
       case v              => v.toString
     }
+
+  /** Get scaladoc string from annotation for class
+    */
+  def docstring_for_class(obj: Any): String =
+    Option(obj.getClass.getAnnotation(classOf[Scaladoc]).value()).getOrElse("")
 
   /** make assign_id accessible from python */
   def assign_id(s: String): Long =
@@ -89,7 +96,29 @@ object PythonInterop {
   def make_varargs[T](obj: Iterable[T]): List[T] =
     obj.toList
 
-  def public_methods(obj: Any): Map[String, ArrayBuffer[Method]] = {
+  private def getMethodDocString(method: MethodSymbol): String =
+    getDocStringFromAnnotations(method.annotations).getOrElse {
+      method.overrides.iterator
+        .map(m => getDocStringFromAnnotations(m.annotations))
+        .collectFirst {
+          case Some(docs) => docs
+        }
+        .getOrElse("")
+    }
+
+  private def getDocStringFromAnnotations(annotations: Seq[universe.Annotation]): Option[String] =
+    annotations.flatMap { annotation =>
+      if (annotation.tree.tpe =:= typeOf[Scaladoc]) {
+        val doc = annotation.tree.children(1).children(1) match {
+          case Literal(Constant(doc: String)) => doc
+        }
+        Some(doc)
+      }
+      else
+        None
+    }.headOption
+
+  private def public_methods(obj: Any): Map[String, ArrayBuffer[Method]] = {
     val clazz         = obj.getClass
     val runtimeMirror = universe.runtimeMirror(clazz.getClassLoader)
     val objType       = runtimeMirror.classSymbol(clazz).toType.dealias
@@ -108,11 +137,13 @@ object PythonInterop {
     val methodMap = mutable.Map.empty[String, ArrayBuffer[Method]]
 
     methods.foreach { m =>
+      m.overrides
       val name       = m.name.toString
       val params     = m.paramLists.flatten
       val types      = params.map(p => p.info.toString).toArray
       val implicits  = params.collect { case p if p.isImplicit => camel_to_snake(p.name.toString) }.toArray
       val paramNames = params.filterNot(_.isImplicit).map(p => camel_to_snake(p.name.toString)).toArray
+      val docs       = getMethodDocString(m)
       val defaults   = params.zipWithIndex
         .collect {
           case (p, i) if p.asTerm.isParamWithDefault =>
@@ -120,7 +151,6 @@ object PythonInterop {
         }
         .toMap
         .asJava
-
       methodMap
         .getOrElseUpdate(name, ArrayBuffer.empty[Method])
         .append(
@@ -131,7 +161,8 @@ object PythonInterop {
                         types,
                         defaults,
                         m.isVarargs,
-                        implicits
+                        implicits,
+                        docs
                 )
         )
     }
@@ -184,7 +215,8 @@ case class Method(
     types: Array[String],
     defaults: java.util.Map[Int, String],
     varargs: Boolean,
-    implicits: Array[String]
+    implicits: Array[String],
+    docs: String = ""
 ) {
   def has_defaults: Boolean = !defaults.isEmpty
 }
