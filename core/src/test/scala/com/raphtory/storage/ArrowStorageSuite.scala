@@ -340,7 +340,7 @@ class ArrowStorageSuite extends munit.FunSuite {
     assertEquals(
             neighbours2,
             List((2L, 0L, "friends", true, false))
-    ) // FIXME this fails the source vertex is on the other partition
+    )
 
   }
 

@@ -1,17 +1,18 @@
 package com.raphtory.internals.storage.arrow
 
 import com.raphtory.api.input.ImmutableProperty
-import com.raphtory.api.input.LongProperty
 import com.raphtory.api.input.Properties
-import com.raphtory.api.input.StringProperty
 import com.raphtory.api.input.Type
-import com.raphtory.arrowcore.implementation.EdgeIterator.AllEdgesIterator
 import com.raphtory.arrowcore.implementation.VertexIterator.AllVerticesIterator
-import com.raphtory.arrowcore.implementation.{EdgeIterator, EdgePartitionManager, RaphtoryArrowPartition, VertexPartitionManager, VertexIterator => ArrVertexIter}
+import com.raphtory.arrowcore.implementation.EdgeIterator
+import com.raphtory.arrowcore.implementation.EdgePartitionManager
+import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
+import com.raphtory.arrowcore.implementation.VertexPartitionManager
 import com.raphtory.arrowcore.model.Edge
 import com.raphtory.arrowcore.model.Vertex
-import com.raphtory.internals.graph.GraphAlteration
+import com.raphtory.internals.graph.GraphAlteration.SyncExistingRemovals
 import com.raphtory.internals.graph.GraphAlteration.SyncNewEdgeAdd
+import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExVertex
@@ -79,13 +80,11 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
         vmgr.addHistory(v.getLocalId, msgTime, true, false, -1, false)
         v
       case ExistsOnPartition(id) => // we've seen you before but are there any differences?
-        val v = vmgr.getVertex(id)
-
         // TODO: need a way to merge properties into existing vertex
         // TODO: we can't just overwrite a vertex that already exists
         // we make sure the vertex is active at this point
 //        vmgr.addHistory(v.getLocalId, msgTime, true, true, -1, false)
-        v
+        vmgr.getVertex(id)
       case _                     => throw new IllegalStateException(s"Node $srcId does not belong to partition $getPartitionID")
     }
 
@@ -120,7 +119,7 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
       None
     }
     else
-    // otherwise sync new edge
+      // otherwise sync new edge
       Some(SyncNewEdgeAdd(sourceID, msgTime, index, srcId, dstId, properties, Nil, edgeType))
 
     // add the edge properties
@@ -130,13 +129,13 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
         e.getField(FIELD).set(new java.lang.StringBuilder(value))
     }
 
-     // add the actual edge
+    // add the actual edge
     e.resetEdgeData(src.getLocalId, dst.id, -1L, -1L, false, dst.isGlobal)
     emgr.addEdge(e, -1L, -1L)
     emgr.addHistory(e.getLocalId, msgTime, true)
 
     //link the edge to the source
-    val p   = vmgr.getPartition(vmgr.getPartitionId(src.getLocalId))
+    val p = vmgr.getPartition(vmgr.getPartitionId(src.getLocalId))
 
     val prevListPtr = p.synchronized {
       val ptr = p.addOutgoingEdgeToList(src.getLocalId, e.getLocalId)
@@ -169,8 +168,60 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
       srcRemovals: List[(Long, Long)],
       edgeType: Option[Type]
   ): GraphAlteration.GraphUpdateEffect = {
-???
+
+    val dst = addVertexInternal(dstId, msgTime, properties)
+
+    getIncomingEdge(srcId, dst) match {
+      case Some(_) =>
+        // nothing to do, edge exists
+        // FIXME: what about the msgTime?
+        ???
+      case None    =>
+        // init the edge
+        val eId = emgr.getNextFreeEdgeId
+        val e   = par.getEdge
+        e.init(eId, true, msgTime)
+
+        // handle src
+        val src = idsRepo.resolve(srcId)
+
+        assert(src.isGlobal)
+
+        // add the edge properties
+        properties.properties.foreach {
+          case ImmutableProperty(key, value) =>
+            val FIELD = par.getEdgeFieldId(key)
+            e.getField(FIELD).set(value)
+        }
+
+        // add the actual edge
+        e.resetEdgeData(src.id, dst.getLocalId, -1L, -1L, src.isGlobal, false)
+        emgr.addEdge(e, -1L, -1L)
+        emgr.addHistory(e.getLocalId, msgTime, true)
+
+        // link edge to the destination
+        val p           = vmgr.getPartition(vmgr.getPartitionId(dst.getLocalId))
+        val prevListPtr = p.synchronized {
+          val ptr = p.addIncomingEdgeToList(dst.getLocalId, e.getLocalId)
+          p.addHistory(dst.getLocalId, msgTime, true, false, e.getLocalId, false)
+          ptr
+        }
+        emgr.setIncomingEdgePtr(e.getLocalId, prevListPtr)
+    }
+
+    SyncExistingRemovals(
+            sourceID = sourceID,
+            updateTime = msgTime,
+            index = index,
+            srcId = srcId,
+            dstId = dstId,
+            removals = Nil,
+            fromAddition = true
+    )
   }
+
+  private def getIncomingEdge(srcId: Long, dst: Vertex) =
+    dst.incomingEdges.find(e => e.getSrcVertex == srcId && e.isSrcGlobal)
 
   override def syncExistingEdgeAdd(
       sourceID: Int,
@@ -254,9 +305,9 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
 object ArrowPartition {
 
   class VertexIterator(vs: AllVerticesIterator) extends Iterator[Vertex] {
-    override def hasNext: Boolean = {
+
+    override def hasNext: Boolean =
       vs.hasNext
-    }
 
     override def next(): Vertex = {
       vs.next()
