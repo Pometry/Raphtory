@@ -1,36 +1,34 @@
 import sbt._
 
 object Dependencies {
-  private lazy val akkaVersion           = "2.6.19"
-  private lazy val bcelVersion           = "6.5.0"
-  private lazy val catsEffectVersion     = "3.3.12"
-  private lazy val chillVersion          = "0.10.0"
-  private lazy val curatorVersion        = "5.2.1"
-  private lazy val declineVersion        = "2.3.0"
-  private lazy val fs2Version            = "3.2.12"
-  private lazy val jacksonVersion        = "2.13.3"
-  private lazy val log4jVersion          = "2.18.0"
-  private lazy val muVersion             = "0.29.0"
-  private lazy val openhftVersion        = "0.15"
-  private lazy val pemjaVersion          = "0.2.0"
-  private lazy val prometheusVersion     = "0.15.0"
-  private lazy val pulsarVersion         = "2.9.1"
-  private lazy val py4jVersion           = "0.10.9.5"
-  private lazy val scalaLoggingVersion   = "3.9.4"
+  private lazy val akkaVersion                     = "2.6.19"
+  private lazy val bcelVersion                     = "6.5.0"
+  private lazy val catsEffectVersion               = "3.3.12"
+  private lazy val chillVersion                    = "0.10.0"
+  private lazy val curatorVersion                  = "5.2.1"
+  private lazy val declineVersion                  = "2.3.0"
+  private lazy val fs2Version                      = "3.2.12"
+  private lazy val jacksonVersion                  = "2.13.3"
+  private lazy val log4jVersion                    = "2.18.0"
+  private lazy val muVersion                       = "0.29.0"
+  private lazy val openhftVersion                  = "0.15"
+  private lazy val pemjaVersion                    = "0.2.0"
+  private lazy val prometheusVersion               = "0.15.0"
+  private lazy val py4jVersion                     = "0.10.9.5"
+  private lazy val scalaLoggingVersion             = "3.9.4"
   private lazy val scalaParallelCollectionsVersion = "1.0.4"
-  private lazy val scalatestVersion      = "3.2.11"
-  private lazy val slf4jVersion          = "1.7.36"
-  private lazy val sprayJsonVersion      = "1.3.6"
-  private lazy val testContainersVersion = "0.40.8"
-  private lazy val typesafeConfigVersion = "1.4.2"
-  private lazy val zookeeperVersion      = "3.7.0"
-  private lazy val catsVersion           = "2.7.0"
-  private lazy val catsMUnitVersion      = "1.0.7"
-  private lazy val nomenVersion          = "2.1.0"
+  private lazy val scalatestVersion                = "3.2.11"
+  private lazy val slf4jVersion                    = "1.7.36"
+  private lazy val sprayJsonVersion                = "1.3.6"
+  private lazy val testContainersVersion           = "0.40.8"
+  private lazy val typesafeConfigVersion           = "1.4.2"
+  private lazy val zookeeperVersion                = "3.7.0"
+  private lazy val catsVersion                     = "2.7.0"
+  private lazy val catsMUnitVersion                = "1.0.7"
+  private lazy val nomenVersion                    = "2.1.0"
 
-  lazy val excludePulsarBinding = ExclusionRule(organization = "org.apache.pulsar")
-  lazy val excludeSlf4j         = ExclusionRule(organization = "org.slf4j")
-  lazy val excludeLog4j         = ExclusionRule(organization = "log4j")
+  lazy val excludeSlf4j = ExclusionRule(organization = "org.slf4j")
+  lazy val excludeLog4j = ExclusionRule(organization = "log4j")
 
   lazy val akkaClusterTyped =
     "com.typesafe.akka" %% "akka-cluster-typed" % akkaVersion excludeAll (excludeLog4j, excludeSlf4j)
@@ -76,18 +74,8 @@ object Dependencies {
 
   lazy val pemja = "com.alibaba" % "pemja" % pemjaVersion excludeAll (excludeLog4j, excludeSlf4j)
 
-  lazy val pulsarAdmin =
-    "org.apache.pulsar" % "pulsar-client-admin-original" % pulsarVersion excludeAll excludePulsarBinding
-  lazy val pulsarApi    = "org.apache.pulsar" % "pulsar-client-api" % pulsarVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val pulsarCommon = "org.apache.pulsar" % "pulsar-common"     % pulsarVersion excludeAll (excludeLog4j, excludeSlf4j)
-
-  lazy val pulsarCrypto =
-    "org.apache.pulsar" % "pulsar-client-messagecrypto-bc" % pulsarVersion excludeAll (excludeLog4j, excludeSlf4j)
-
-  lazy val pulsarOriginal =
-    "org.apache.pulsar" % "pulsar-client-original" % pulsarVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val py4j                     = "net.sf.py4j"                 % "py4j"          % py4jVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val scalaLogging             = "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion
+  lazy val py4j         = "net.sf.py4j"                 % "py4j"          % py4jVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val scalaLogging = "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion
 
   lazy val scalaParallelCollections =
     "org.scala-lang.modules" %% "scala-parallel-collections" % scalaParallelCollectionsVersion

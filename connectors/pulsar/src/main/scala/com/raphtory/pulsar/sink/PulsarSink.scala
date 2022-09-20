@@ -1,13 +1,11 @@
-package com.raphtory.sinks
+package com.raphtory.pulsar.sink
 
-import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.output.format.Format
 import com.raphtory.api.output.sink.FormatAgnosticSink
 import com.raphtory.api.output.sink.MessageSinkConnector
-import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.output.sink.SinkConnector
 import com.raphtory.formats.CsvFormat
-import com.raphtory.internals.communication.connectors.PulsarConnector
+import com.raphtory.pulsar.connector.PulsarConnector
 import com.typesafe.config.Config
 import org.apache.pulsar.client.api.Schema
 
@@ -15,7 +13,6 @@ import org.apache.pulsar.client.api.Schema
   *
   * @param topic the name of the Pulsar topic to send the table to
   * @param format the format to be used by this sink (`CsvFormat` by default)
-  *
   * @example
   * {{{
   * import com.raphtory.algorithms.generic.EdgeList
