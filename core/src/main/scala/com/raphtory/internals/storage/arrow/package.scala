@@ -12,17 +12,31 @@ package object arrow {
 
   implicit class RichVertex(val v: Vertex) extends AnyVal {
 
-    def prop[P: Prop](name: String): PropAccess[P] =
-      new PropAccess[P] {
+    def field[P: Field](name: String): FieldAccess[P] =
+      new FieldAccess[P] {
 
         override def set(p: P): Unit = {
-          val FIELD = v.getRaphtory.getVertexFieldId(name)
-          implicitly[Prop[P]].set(v.getField(FIELD), p)
+          val FIELD = v.getRaphtory.getVertexFieldId(name.toLowerCase())
+          implicitly[Field[P]].set(v.getField(FIELD), p)
         }
 
         override def get: P = {
-          val FIELD = v.getRaphtory.getVertexFieldId(name)
-          implicitly[Prop[P]].get(v.getField(FIELD))
+          val FIELD = v.getRaphtory.getVertexFieldId(name.toLowerCase())
+          implicitly[Field[P]].get(v.getField(FIELD))
+        }
+      }
+
+    def prop[P: Prop](name: String): PropAccess[P] =
+      new PropAccess[P] {
+
+        override def set(p: P, at: Long): Unit = {
+          val FIELD = v.getRaphtory.getVertexPropertyId(name.toLowerCase())
+          implicitly[Prop[P]].set(v.getProperty(FIELD), p, at)
+        }
+
+        override def get: P = {
+          val FIELD = v.getRaphtory.getVertexPropertyId(name.toLowerCase())
+          implicitly[Prop[P]].get(v.getProperty(FIELD))
         }
       }
 
@@ -41,48 +55,19 @@ package object arrow {
 
   implicit class RichEdge(val v: Edge) extends AnyVal {
 
-    def prop[P: Prop](name: String): PropAccess[P] =
-      new PropAccess[P] {
+    def prop[P: Field](name: String): FieldAccess[P] =
+      new FieldAccess[P] {
 
         override def set(p: P): Unit = {
           val FIELD = v.getRaphtory.getEdgeFieldId(name)
-          implicitly[Prop[P]].set(v.getField(FIELD), p)
+          implicitly[Field[P]].set(v.getField(FIELD), p)
         }
 
         override def get: P = {
           val FIELD = v.getRaphtory.getEdgeFieldId(name)
-          implicitly[Prop[P]].get(v.getField(FIELD))
+          implicitly[Field[P]].get(v.getField(FIELD))
         }
       }
 
   }
-}
-
-@implicitNotFound("Could not find arrow property accessor for C[${P}]")
-sealed trait Prop[P] {
-  def set(efa: EntityFieldAccessor, v: P): Unit
-  def get(efa: EntityFieldAccessor): P
-}
-
-@implicitNotFound("Could not find arrow property accessor for C[${P}]")
-sealed trait Field[P] {
-  def set(acc: VersionedEntityPropertyAccessor, v: P): Unit
-  def get(acc: VersionedEntityPropertyAccessor): P
-}
-
-object Prop {
-
-  implicit val strProp: Prop[String] = new Prop[String] {
-
-    override def set(efa: EntityFieldAccessor, p: String): Unit =
-      efa.set(new java.lang.StringBuilder(p))
-
-    override def get(efa: EntityFieldAccessor): String =
-      efa.getString.toString
-  }
-}
-
-trait PropAccess[P] {
-  def set(p: P): Unit
-  def get: P
 }

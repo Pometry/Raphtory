@@ -48,7 +48,7 @@ case class FloatProperty(key: String, value: Float) extends Property
 case class BooleanProperty(key: String, value: Boolean) extends Property
 
 /** `Property` with a `Integer` value */
-case class IntegerProperty(key: String, value: Integer) extends Property
+case class IntegerProperty(key: String, value: Int) extends Property
 
 /** Wrapper class for properties */
 case class Properties(properties: Property*)

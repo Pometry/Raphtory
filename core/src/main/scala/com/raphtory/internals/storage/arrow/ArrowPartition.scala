@@ -1,7 +1,9 @@
 package com.raphtory.internals.storage.arrow
 
 import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.LongProperty
 import com.raphtory.api.input.Properties
+import com.raphtory.api.input.StringProperty
 import com.raphtory.api.input.Type
 import com.raphtory.arrowcore.implementation.VertexIterator.AllVerticesIterator
 import com.raphtory.arrowcore.implementation.EdgeIterator
@@ -68,11 +70,14 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
 
         properties.properties.foreach {
           case ImmutableProperty(key, value) =>
-            val FIELD = par.getVertexFieldId(key)
+            val FIELD = par.getVertexFieldId(key.toLowerCase())
             v.getField(FIELD).set(new lang.StringBuilder(value))
-          //      case LongProperty(key, value)   =>
-          //        val FIELD = par.getVertexFieldId(key)
-          //        v.getField(FIELD).set(value)
+//          case StringProperty(key, value)    =>
+//            val FIELD = par.getVertexPropertyId(key.toLowerCase())
+//            v.getProperty(FIELD).setHistory(true, msgTime).set(new lang.StringBuilder(value))
+          case LongProperty(key, value)      =>
+            val FIELD = par.getVertexPropertyId(key.toLowerCase())
+            v.getProperty(FIELD).setHistory(true, msgTime).set(value)
           case _                             =>
         }
 
@@ -231,16 +236,6 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
       dstId: Long,
       properties: Properties
   ): GraphAlteration.GraphUpdateEffect = ???
-
-  override def batchAddRemoteEdge(
-      sourceID: Int,
-      msgTime: Long,
-      index: Long,
-      srcId: Long,
-      dstId: Long,
-      properties: Properties,
-      edgeType: Option[Type]
-  ): Unit = ???
 
   override def removeEdge(
       sourceID: Int,

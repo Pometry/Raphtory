@@ -1,15 +1,13 @@
 package com.raphtory.storage
 
 import com.raphtory.Raphtory
-import com.raphtory.api.input.ImmutableProperty
-import com.raphtory.api.input.Property
-import com.raphtory.api.input.Properties
+import com.raphtory.api.input.{BooleanProperty, DoubleProperty, FloatProperty, ImmutableProperty, IntegerProperty, LongProperty, Properties, Property, StringProperty, Type}
 import com.raphtory.arrowcore.implementation.LocalEntityIdStore
 import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
 import com.raphtory.arrowcore.implementation.VertexIterator
+import com.raphtory.arrowcore.model.PropertySchema
 import com.raphtory.arrowcore.model.Vertex
 import com.raphtory.internals.graph.GraphAlteration.SyncNewEdgeAdd
-import com.raphtory.internals.storage.arrow
 import com.raphtory.internals.storage.arrow.ArrowPartition
 import com.raphtory.internals.storage.arrow.ArrowPartitionConfig
 import com.raphtory.internals.storage.arrow.ArrowSchema
@@ -18,17 +16,16 @@ import com.raphtory.internals.storage.arrow.LocalEntityRepo
 import com.raphtory.internals.storage.arrow.RichEdge
 import com.raphtory.internals.storage.arrow.RichVertex
 import com.raphtory.internals.storage.arrow.VertexSchema
-import com.raphtory.internals.storage.arrow.versioned
+import com.raphtory.internals.storage.arrow.immutable
 
 import java.nio.file.Files
-import java.time.LocalDate
-import java.time.ZoneOffset
-import scala.collection.AbstractView
 
 class ArrowStorageSuite extends munit.FunSuite {
 
   private val bobGlobalId   = 7L
   private val aliceGlobalId = 9L
+
+  private val defaultPropSchema = ArrowSchema[VertexProp, EdgeProp]
 
   test("one can create a partition manager, add a vertex then get it back") {
     val cfg = new RaphtoryArrowPartition.RaphtoryArrowPartitionConfig()
@@ -65,6 +62,7 @@ class ArrowStorageSuite extends munit.FunSuite {
     bobV.reset(localId, bobGlobalId, true, System.currentTimeMillis())
     bobV.getField(NAME_FIELD_ID).set(new java.lang.StringBuilder("Bob"))
     bobV.getProperty(AGE_FIELD_ID).setHistory(true, System.currentTimeMillis()).set(45L)
+
     vmgr.addVertex(bobV)
     assertEquals(localIds.getLocalNodeId(bobGlobalId), 0L)
 
@@ -160,7 +158,7 @@ class ArrowStorageSuite extends munit.FunSuite {
 
       val prevListPtr = p.synchronized {
         val ptr = p.addOutgoingEdgeToList(src.id, e.getLocalId)
-        p.addHistory(src.id, timestamp, true,false, e.getLocalId, true)
+        p.addHistory(src.id, timestamp, true, false, e.getLocalId, true)
         ptr
       }
 
@@ -205,7 +203,7 @@ class ArrowStorageSuite extends munit.FunSuite {
 
     assert(bobIterE.hasNext)
     bobIterE.next()
-    val bobOutE  = bobIterE.getEdge
+    val bobOutE = bobIterE.getEdge
 
     assert(bobOutE != null)
     assert(!bobIterE.hasNext) // idempotent
@@ -231,20 +229,46 @@ class ArrowStorageSuite extends munit.FunSuite {
     assert(!aliceIterE.hasNext)
   }
 
+  test("add vertex with all types of properties and vertex type".only) {
+    val par: ArrowPartition = mkPartition(1, 0, ArrowSchema[AllProps, EdgeProp])
+    val timestamp           = System.currentTimeMillis()
+
+    // add bob
+    val now = System.currentTimeMillis()
+    addVertex(
+            3,
+            timestamp,
+            Some(Type("Person")),
+            LongProperty("pLong", now),
+            DoubleProperty("pDouble", 1.234d),
+            FloatProperty("pFloat", 4.321f),
+            BooleanProperty("pBool", value = true),
+            StringProperty("pString", "blerg"),
+            IntegerProperty("pInteger", 12345789),
+            ImmutableProperty("name", "Bob")
+    )(par)
+
+    val actual = par.vertices.head
+
+    assertEquals(actual.field[String]("name").get, "Bob")
+    assertEquals(actual.prop[Long]("pLong").get, now)
+
+  }
+
   test("add two vertices into partition") {
 
     val par: ArrowPartition = mkPartition(1, 0)
     val timestamp           = System.currentTimeMillis()
 
     // add bob
-    addVertex(3, timestamp, ImmutableProperty("name", "Bob"))(par)
+    addVertex(3, timestamp, None, ImmutableProperty("name", "Bob"))(par)
     // add alice
-    addVertex(7, timestamp, ImmutableProperty("name", "Alice"))(par)
+    addVertex(7, timestamp, None, ImmutableProperty("name", "Alice"))(par)
 
     val vs = par.vertices
     assertEquals(vs.size, 2)
 
-    val names = vs.iterator.toList.map(v => v.getGlobalId -> v.prop[String]("name").get)
+    val names = vs.iterator.toList.map(v => v.getGlobalId -> v.field[String]("name").get)
 
     assertEquals(names, List(3L -> "Bob", 7L -> "Alice"))
 
@@ -256,9 +280,9 @@ class ArrowStorageSuite extends munit.FunSuite {
     val timestamp           = System.currentTimeMillis()
 
     // add bob
-    addVertex(3, timestamp, ImmutableProperty("name", "Bob"))(par)
+    addVertex(3, timestamp, None, ImmutableProperty("name", "Bob"))(par)
     // add alice
-    addVertex(7, timestamp, ImmutableProperty("name", "Alice"))(par)
+    addVertex(7, timestamp, None, ImmutableProperty("name", "Alice"))(par)
     // add edge
     val action = par.addEdge(
             3,
@@ -277,13 +301,13 @@ class ArrowStorageSuite extends munit.FunSuite {
     val vs = par.vertices.toList
     assertEquals(vs.size, 2)
 
-    val names      = vs.map(v => v.getGlobalId -> v.prop[String]("name").get)
+    val names      = vs.map(v => v.getGlobalId -> v.field[String]("name").get)
     assertEquals(names, List(3L -> "Bob", 7L -> "Alice"))
 
     val neighbours = vs.flatMap {
-      case v if v.prop[String]("name").get == "Bob"   =>
+      case v if v.field[String]("name").get == "Bob"   =>
         v.outgoingEdges.map(e => e.getDstVertex -> e.prop[String]("name").get)
-      case v if v.prop[String]("name").get == "Alice" =>
+      case v if v.field[String]("name").get == "Alice" =>
         v.incomingEdges.map(e => e.getSrcVertex -> e.prop[String]("name").get)
     }
 
@@ -298,9 +322,9 @@ class ArrowStorageSuite extends munit.FunSuite {
     val timestamp            = System.currentTimeMillis()
 
     // add bob
-    addVertex(2, timestamp, ImmutableProperty("name", "Bob"))(par1)
+    addVertex(2, timestamp, None, ImmutableProperty("name", "Bob"))(par1)
     // add alice
-    addVertex(7, timestamp, ImmutableProperty("name", "Alice"))(par2)
+    addVertex(7, timestamp, None, ImmutableProperty("name", "Alice"))(par2)
     // add edge on par1
     val action                                                                        = par1
       .addEdge(
@@ -346,11 +370,11 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   private def allNeighbours(vs: List[Vertex]) = {
     val neighbours = vs.flatMap {
-      case v if v.prop[String]("name").get == "Bob"   =>
+      case v if v.field[String]("name").get == "Bob"   =>
         v.outgoingEdges.map(e =>
           (e.getSrcVertex, e.getDstVertex, e.prop[String]("name").get, e.isSrcGlobal, e.isDstGlobal)
         )
-      case v if v.prop[String]("name").get == "Alice" =>
+      case v if v.field[String]("name").get == "Alice" =>
         v.incomingEdges.map(e =>
           (e.getSrcVertex, e.getDstVertex, e.prop[String]("name").get, e.isSrcGlobal, e.isDstGlobal)
         )
@@ -360,13 +384,11 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   private def partitionVertices(par2: ArrowPartition) = {
     val vs2    = par2.vertices.toList
-    val names2 = vs2.map(v => v.getGlobalId -> v.prop[String]("name").get)
+    val names2 = vs2.map(v => v.getGlobalId -> v.field[String]("name").get)
     (vs2, names2)
   }
 
-  test("add edge between to partitions") {}
-
-  private def mkPartition(nPartitions: Int, partitionId: Int) = {
+  private def mkPartition(nPartitions: Int, partitionId: Int, propSchema: PropertySchema = defaultPropSchema) = {
     val rConfig =
       Raphtory.getDefaultConfig(
               Map("raphtory.partitions.serverCount" -> 1, "raphtory.partitions.countPerServer" -> nPartitions)
@@ -375,7 +397,7 @@ class ArrowStorageSuite extends munit.FunSuite {
     val cfg = ArrowPartitionConfig(
             config = rConfig,
             partitionId = partitionId,
-            propertySchema = ArrowSchema[VertexProp, EdgeProp],
+            propertySchema = propSchema,
             arrowDir = Files.createTempDirectory("arrow-storage-test")
     )
 
@@ -383,14 +405,16 @@ class ArrowStorageSuite extends munit.FunSuite {
     par
   }
 
-  private def addVertex(globalId: Long, timestamp: Long, props: Property*)(par: ArrowPartition): Unit =
+  private def addVertex(globalId: Long, timestamp: Long, tpe: Option[Type], props: Property*)(
+      par: ArrowPartition
+  ): Unit =
     par.addVertex(
             sourceID = 3,
             msgTime = timestamp,
             -1,
             srcId = globalId,
             Properties(props: _*),
-            None
+            tpe
     )
 
   test("can generate Vertex schema from case class") {
@@ -409,5 +433,15 @@ class ArrowStorageSuite extends munit.FunSuite {
 
 }
 
-case class VertexProp(@versioned age: Long, name: String)
-case class EdgeProp(name: String, @versioned friends: Boolean)
+case class VertexProp(age: Long, @immutable name: String)
+case class EdgeProp(@immutable name: String, friends: Boolean)
+
+case class AllProps(
+    @immutable name: String,
+    pLong: Long,
+    pDouble: Double,
+    pFloat: Float,
+    pBool: Boolean,
+    pInteger: Int,
+    pString: String
+)

@@ -79,16 +79,6 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
       properties: Properties
   ): GraphUpdateEffect
 
-  def batchAddRemoteEdge(
-      sourceID: Int,
-      msgTime: Long,
-      index: Long,
-      srcId: Long,
-      dstId: Long,
-      properties: Properties,
-      edgeType: Option[Type]
-  ): Unit
-
   def removeEdge(sourceID: Int, msgTime: Long, index: Long, srcId: Long, dstId: Long): Option[GraphUpdateEffect]
 
   def syncNewEdgeRemoval(

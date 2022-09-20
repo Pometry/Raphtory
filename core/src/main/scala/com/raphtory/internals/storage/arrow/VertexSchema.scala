@@ -1,6 +1,7 @@
 package com.raphtory.internals.storage.arrow
 
-import com.raphtory.arrowcore.implementation.{NonversionedField, VersionedProperty}
+import com.raphtory.arrowcore.implementation.NonversionedField
+import com.raphtory.arrowcore.implementation.VersionedProperty
 
 trait VertexSchema[T] {
   def nonVersionedVertexProps(name: Option[String]): Iterable[NonversionedField]
@@ -10,8 +11,8 @@ trait VertexSchema[T] {
 object VertexSchema {
   import magnolia1._
 
-  import scala.reflect.ClassTag
   import language.experimental.macros
+  import scala.reflect.ClassTag
 
   type Typeclass[T] = VertexSchema[T]
 
@@ -20,21 +21,21 @@ object VertexSchema {
 
       override def nonVersionedVertexProps(name: Option[String]): Iterable[NonversionedField] =
         ctx.parameters
-          .filterNot(_.annotations.exists(_.isInstanceOf[versioned]))
+          .filter(_.annotations.exists(_.isInstanceOf[immutable]))
           .map { p =>
             p.typeclass.nonVersionedVertexProps(Some(p.label))
           }
-          .reduce(_ ++ _)
-          .toList
+          .reduceOption(_ ++ _)
+          .getOrElse(List.empty)
 
       override def versionedVertexProps(name: Option[String]): Iterable[VersionedProperty] =
         ctx.parameters
-          .filter(_.annotations.exists(_.isInstanceOf[versioned]))
+          .filterNot(_.annotations.exists(_.isInstanceOf[immutable]))
           .map { p =>
             p.typeclass.versionedVertexProps(Some(p.label))
           }
-          .reduce(_ ++ _)
-          .toList
+          .reduceOption(_ ++ _)
+          .getOrElse(List.empty)
 
     }
 
@@ -43,6 +44,9 @@ object VertexSchema {
   implicit val longArrowSchema: Typeclass[Long]       = baseTypeClass[Long, Long]
   implicit val booleanArrowSchema: Typeclass[Boolean] = baseTypeClass[Boolean, Boolean]
   implicit val stringArrowSchema: Typeclass[String]   = baseTypeClass[String, java.lang.StringBuilder]
+  implicit val floatArrowSchema: Typeclass[Float]     = baseTypeClass[Float, Float]
+  implicit val doubleArrowSchema: Typeclass[Double]   = baseTypeClass[Double, Double]
+  implicit val intArrowSchema: Typeclass[Int]         = baseTypeClass[Int, Int]
 
   def baseTypeClass[T, Arr](implicit ct: ClassTag[Arr]): Typeclass[T] =
     new Typeclass[T] {
