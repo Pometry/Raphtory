@@ -16,8 +16,6 @@ import com.raphtory.api.output.sink.Sink
 import com.raphtory.sinks.FileSink
 import com.typesafe.scalalogging.Logger
 import munit.CatsEffectSuite
-import org.apache.pulsar.client.api.Consumer
-import org.apache.pulsar.client.api.Message
 import org.slf4j.LoggerFactory
 
 import java.io.File
@@ -66,9 +64,6 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
   def setSpout(): Spout[T]
   def setGraphBuilder(): GraphBuilder[T]
-
-  def receiveMessage(consumer: Consumer[Array[Byte]]): Message[Array[Byte]] =
-    consumer.receive
 
   private def algorithmTestInternal(
       algorithm: GenericallyApplicable,

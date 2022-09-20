@@ -6,7 +6,6 @@ import com.raphtory.api.analysis.graphview._
 import com.raphtory.api.analysis.table.TableFunction
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.communication.connectors.PulsarConnector
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.querymanager.Stages.SpawnExecutors
 import com.raphtory.internals.components.querymanager.Stages.Stage
@@ -19,7 +18,6 @@ import com.raphtory.internals.management.python.EmbeddedPython
 import com.raphtory.internals.serialisers.KryoSerialiser
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import org.apache.pulsar.client.api.Schema
 import org.slf4j.LoggerFactory
 
 import java.util.concurrent.TimeUnit
@@ -239,34 +237,7 @@ private[raphtory] class QueryHandler(
         logger.error(
                 s"Message check failed: Total received messages: $receivedMessageCount, total sent messages: $sentMessageCount"
         )
-        topics.jobOperationsConnector match {
-          case pulsarConnector: PulsarConnector => // TODO: clean up later this section
-
-            val pulsarEndPoint =
-              workerList.asInstanceOf[pulsarConnector.PulsarEndPoint[QueryManagement]]
-            val topic          = pulsarEndPoint.producer.getTopic
-            logger.debug(s"Checking messages for topic $topic")
-            val consumer       = pulsarConnector.createExclusiveConsumer("dumping", Schema.BYTES, topic)
-            var has_message    = true
-            while (has_message) {
-              val msg =
-                consumer.receive(
-                        10,
-                        TimeUnit.SECONDS
-                ) // add some timeout to see if new messages come in
-              if (msg == null)
-                has_message = false
-              else {
-                val message = KryoSerialiser().deserialise[QueryManagement](msg.getValue)
-                consumer.acknowledge(msg)
-                msg.release()
-                logger.debug(s"Read message $message")
-              }
-            }
-          case _ =>
-        }
         throw new RuntimeException("Message check failed")
-        Stages.ExecuteGraph
       }
     else
       Stages.ExecuteGraph

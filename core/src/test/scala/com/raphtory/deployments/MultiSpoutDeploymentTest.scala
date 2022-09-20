@@ -12,7 +12,6 @@ import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import munit.CatsEffectSuite
-import org.apache.commons.io.FileUtils
 
 import java.io.File
 import java.io.FileWriter

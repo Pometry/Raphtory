@@ -7,7 +7,7 @@ import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.api.input.Source
-import com.raphtory.sinks.PulsarSink
+import com.raphtory.pulsar.sink.PulsarSink
 import com.raphtory.twitter.builder.TwitterRetweetGraphBuilder
 import com.raphtory.twitter.builder.TwitterUserGraphBuilder
 import com.raphtory.twitter.spout.LiveTwitterSpout

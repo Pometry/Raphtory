@@ -7,7 +7,7 @@ import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.examples.gab.graphbuilders.GabUserGraphBuilder
-import com.raphtory.sinks.PulsarSink
+import com.raphtory.pulsar.sink.PulsarSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
 
