@@ -85,6 +85,7 @@ class ArrowStorageSuite extends munit.FunSuite {
     cfg._nRaphtoryPartitions = 1
     cfg._nLocalEntityIdMaps = 128
     cfg._localEntityIdMapSize = 64
+    cfg._vertexPartitionSize = 128
     cfg._syncIDMap = true
 
     val partition = new RaphtoryArrowPartition(cfg)
@@ -129,12 +130,14 @@ class ArrowStorageSuite extends munit.FunSuite {
 
     val vs: VertexIterator.AllVerticesIterator = partition.getNewAllVerticesIterator
     vs.hasNext // this has to be called before getVertex
+    vs.next()
     val bob: Vertex = vs.getVertex
 
     assertEquals(bob.getField(NAME_FIELD_ID).getString.toString, "Bob")
     assertEquals(bob.getProperty(AGE_FIELD_ID).getLong, 45L)
 
     vs.hasNext // this has to be called before getVertex
+    vs.next()
     val alice = vs.getVertex
     assertEquals(alice.getField(NAME_FIELD_ID).getString.toString, "Alice")
     assertEquals(alice.getProperty(AGE_FIELD_ID).getLong, 47L)
@@ -157,7 +160,7 @@ class ArrowStorageSuite extends munit.FunSuite {
 
       val prevListPtr = p.synchronized {
         val ptr = p.addOutgoingEdgeToList(src.id, e.getLocalId)
-        p.addHistory(src.id, timestamp, true, e.getLocalId, true)
+        p.addHistory(src.id, timestamp, true,false, e.getLocalId, true)
         ptr
       }
 
@@ -169,7 +172,7 @@ class ArrowStorageSuite extends munit.FunSuite {
       val p           = vmgr.getPartition(vmgr.getPartitionId(dst.id))
       val prevListPtr = p.synchronized {
         val ptr = p.addIncomingEdgeToList(dst.id, e.getLocalId)
-        p.addHistory(dst.id, timestamp, true, e.getLocalId, false)
+        p.addHistory(dst.id, timestamp, true, false, e.getLocalId, false)
         ptr
       }
 
@@ -191,16 +194,19 @@ class ArrowStorageSuite extends munit.FunSuite {
     val vs2: VertexIterator.AllVerticesIterator = partition.getNewAllVerticesIterator
     // this should be bob
     vs2.hasNext
+    vs2.next()
     val v1                                      = vs2.getVertex
     assertEquals(v1.getField(NAME_FIELD_ID).getString.toString, "Bob")
     assertEquals(v1.nOutgoingEdges(), 1)
     assertEquals(v1.nIncomingEdges(), 0)
 
     // bob's edges
-    val bobIterE = partition.getNewAllEdgesIterator
-    bobIterE.reset(v1.getOutgoingEdgePtr)
+    val bobIterE = v1.getOutgoingEdges
+
     assert(bobIterE.hasNext)
+    bobIterE.next()
     val bobOutE  = bobIterE.getEdge
+
     assert(bobOutE != null)
     assert(!bobIterE.hasNext) // idempotent
     assertEquals(bobOutE.getDstVertex, alice.getLocalId)
@@ -209,12 +215,20 @@ class ArrowStorageSuite extends munit.FunSuite {
 
     // this should be alice
     vs2.hasNext
+    vs2.next()
     val v2 = vs2.getVertex
 
     assertEquals(v2.getField(NAME_FIELD_ID).getString.toString, "Alice")
     assertEquals(v2.nOutgoingEdges(), 0)
     assertEquals(v2.nIncomingEdges(), 1)
 
+    val aliceIterE = v2.getIncomingEdges
+    assert(aliceIterE.hasNext)
+
+    aliceIterE.next()
+    val aliceInE = aliceIterE.getEdge
+    assert(aliceInE != null)
+    assert(!aliceIterE.hasNext)
   }
 
   test("add two vertices into partition") {
@@ -304,10 +318,10 @@ class ArrowStorageSuite extends munit.FunSuite {
 
     // nothing to do both nodes are on the same partition
     assert(action.isDefined)
-    val SyncNewEdgeAdd(sourceID, updateTime, index, dstId, srcId, properties, _, tpe) = action.get
+    val SyncNewEdgeAdd(sourceID, updateTime, index, srcId, dstId, properties, _, tpe) = action.get
 
     //add the second edge onto partition2
-    par2.addEdge(sourceID, updateTime, index, srcId, dstId, properties, tpe)
+    par2.syncNewEdgeAdd(sourceID, updateTime, index, srcId, dstId, properties, List.empty, tpe)
 
     val (vs, names)   = partitionVertices(par1)
     assertEquals(vs.size, 1)

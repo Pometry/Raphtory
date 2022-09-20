@@ -1,5 +1,6 @@
 package com.raphtory.internals.storage
 
+import com.raphtory.arrowcore.implementation.EdgeIterator
 import com.raphtory.arrowcore.implementation.EntityFieldAccessor
 import com.raphtory.arrowcore.implementation.VersionedEntityPropertyAccessor
 import com.raphtory.arrowcore.model.Edge
@@ -15,26 +16,24 @@ package object arrow {
       new PropAccess[P] {
 
         override def set(p: P): Unit = {
-          val FIELD = v.getPartition.getVertexFieldId(name)
+          val FIELD = v.getRaphtory.getVertexFieldId(name)
           implicitly[Prop[P]].set(v.getField(FIELD), p)
         }
 
         override def get: P = {
-          val FIELD = v.getPartition.getVertexFieldId(name)
+          val FIELD = v.getRaphtory.getVertexFieldId(name)
           implicitly[Prop[P]].get(v.getField(FIELD))
         }
       }
 
     def outgoingEdges: View[Edge] = {
-      val edgesIter = v.getPartition.getNewAllEdgesIterator
-      edgesIter.reset(v.getOutgoingEdgePtr)
+      val edgesIter: EdgeIterator = v.getOutgoingEdges
       View.from(new ArrowPartition.EdgesIterator(edgesIter))
 
     }
 
-    def incomingEdges: Iterable[Edge] = {
-      val edgesIter = v.getPartition.getNewAllEdgesIterator
-      edgesIter.reset(v.getIncomingEdgePtr)
+    def incomingEdges: View[Edge] = {
+      val edgesIter = v.getIncomingEdges
       View.from(new ArrowPartition.EdgesIterator(edgesIter))
     }
 
@@ -46,12 +45,12 @@ package object arrow {
       new PropAccess[P] {
 
         override def set(p: P): Unit = {
-          val FIELD = v.getPartition.getEdgeFieldId(name)
+          val FIELD = v.getRaphtory.getEdgeFieldId(name)
           implicitly[Prop[P]].set(v.getField(FIELD), p)
         }
 
         override def get: P = {
-          val FIELD = v.getPartition.getEdgeFieldId(name)
+          val FIELD = v.getRaphtory.getEdgeFieldId(name)
           implicitly[Prop[P]].get(v.getField(FIELD))
         }
       }
