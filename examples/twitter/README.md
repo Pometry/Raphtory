@@ -36,10 +36,14 @@ In `HiggsRunner.scala` we have chained the three algorithms together, but you ar
 
 We have also included Python scripts in directory`src/main/python` to output the dataframes straight into Jupyter notebook.
 
+### Live Twitter Stream
+
+We have included the LiveTwitterRunner in the `livetwitterstream` package which uses the LiveTwitterSpout in the Twitter `connectors` package. 
+You can also find the two different graph builders in the connectors package. This pulls tweets live from the Twitter API.
 
 ## Installation Guide
 
-Scala Installation Guide: https://docs.raphtory.com/en/development/Install/scala/install.html,
+Scala Installation Guide: https://docs.raphtory.com/en/development/Install/scala/install.html
 
 Python Installation Guide: [With Conda](https://docs.raphtory.com/en/development/Install/python/install_conda.html) and [Without Conda](https://docs.raphtory.com/en/development/Install/python/install_no_conda.html)
 
