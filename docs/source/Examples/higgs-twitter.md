@@ -10,7 +10,7 @@ A Twitter bot 🤖 typically uses the Twitter API to interact and engage with Tw
 In our example, we took the retweet network dataset from SNAP to see whether Raphtory could detect bot activity during and after the announcement of the elusive Higgs boson.
 
 <p>
- <img src="../_static/higgstwittergraph.png" width="1000px" style="padding: 15px" alt="Retweet Network Graph"/>
+ <img src="../../_static/higgstwittergraph.png" width="1000px" style="padding: 15px" alt="Retweet Network Graph"/>
 </p>
 
 ## Pre-requisites
