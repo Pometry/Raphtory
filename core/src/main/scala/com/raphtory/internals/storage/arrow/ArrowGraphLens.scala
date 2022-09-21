@@ -1,11 +1,81 @@
 package com.raphtory.internals.storage.arrow
 
-import com.raphtory.internals.graph.{GraphPartition, LensInterface}
+import com.raphtory.api.analysis.graphstate.GraphState
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
+import com.raphtory.api.analysis.visitor.InterlayerEdge
+import com.raphtory.api.analysis.visitor.Vertex
+import com.raphtory.internals.components.querymanager.GenericVertexMessage
+import com.raphtory.internals.management.Scheduler
+import com.raphtory.internals.storage.arrow.entities.ArrowExVertex
+
+import scala.collection.View
 
 final case class ArrowGraphLens(
     jobId: String,
     start: Long,
     end: Long,
-    var superStep: Int,
-    private val storage: GraphPartition
-) //extends LensInterface {}
+    superStep0: Int,
+    private val par: ArrowPartition,
+    private val messageSender: GenericVertexMessage[_] => Unit,
+    private val errorHandler: Throwable => Unit,
+    scheduler: Scheduler
+) extends AbstractGraphLens(jobId, start, end, superStep0, par, messageSender, errorHandler, scheduler) {
+
+  override def localNodeCount: Int = ???
+
+  override def executeSelect(f: Function[_, Row])(onComplete: => Unit): Unit = ???
+
+  override def executeSelect(f: Function2[_, GraphState, Row], graphState: GraphState)(onComplete: => Unit): Unit = ???
+
+  override def executeSelect(f: GraphState => Row, graphState: GraphState)(onComplete: => Unit): Unit = ???
+
+  override def explodeSelect(f: Function[_, IterableOnce[Row]])(onComplete: => Unit): Unit = ???
+
+  override def filteredTable(f: Row => Boolean)(onComplete: => Unit): Unit = ???
+
+  override def explodeTable(f: Row => IterableOnce[Row])(onComplete: => Unit): Unit = ???
+
+  override def writeDataTable(f: Row => Unit)(onComplete: => Unit): Unit = ???
+
+  override def explodeView(interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]])(onComplete: => Unit): Unit =
+    ???
+
+  override def viewUndirected()(onComplete: => Unit): Unit = ???
+
+  override def viewDirected()(onComplete: => Unit): Unit = ???
+
+  override def viewReversed()(onComplete: => Unit): Unit = ???
+
+  override def reduceView(
+      defaultMergeStrategy: Option[PropertyMerge[_, _]],
+      mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
+      aggregate: Boolean
+  )(onComplete: => Unit): Unit = ???
+
+  override def runGraphFunction(f: (_, GraphState) => Unit, graphState: GraphState)(onComplete: => Unit): Unit =
+    ???
+
+  override def runMessagedGraphFunction(f: _ => Unit)(onComplete: => Unit): Unit = ???
+
+  override def runMessagedGraphFunction(f: (_, GraphState) => Unit, graphState: GraphState)(
+      onComplete: => Unit
+  ): Unit = ???
+
+  override def nextStep(): Unit = ???
+
+  override def clearMessages(): Unit = ???
+
+  /**
+    * Give me the vertices alive at this point
+    * use the [[GraphState.isAlive]] to check
+    * in the arrow case we'll be passing the local vertex id
+    * these also must take into account the [[start]] and [[end]] limits
+    *
+    * @return
+    */
+  override def vertices: View[Vertex] =
+    par.vertices
+      .filter(v => graphState.isAlive(v.getLocalId))
+      .map(new ArrowExVertex(graphState, _))
+}

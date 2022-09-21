@@ -1,6 +1,14 @@
 package com.raphtory.internals.storage.arrow
 
-import com.raphtory.api.input.{BooleanProperty, DoubleProperty, FloatProperty, ImmutableProperty, IntegerProperty, LongProperty, Properties, StringProperty, Type}
+import com.raphtory.api.input.BooleanProperty
+import com.raphtory.api.input.DoubleProperty
+import com.raphtory.api.input.FloatProperty
+import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.IntegerProperty
+import com.raphtory.api.input.LongProperty
+import com.raphtory.api.input.Properties
+import com.raphtory.api.input.StringProperty
+import com.raphtory.api.input.Type
 import com.raphtory.arrowcore.implementation.VertexIterator.AllVerticesIterator
 import com.raphtory.arrowcore.implementation.EdgeIterator
 import com.raphtory.arrowcore.implementation.EdgePartitionManager
@@ -18,6 +26,7 @@ import com.typesafe.config.Config
 
 import java.lang
 import scala.collection.AbstractView
+import scala.collection.View
 import scala.collection.mutable
 
 class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition: Int, conf: Config)
@@ -29,7 +38,7 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
 
   private val idsRepo = new LocalEntityRepo(par.getLocalEntityIdStore, totalPartitions, partition)
 
-  def vertices: AbstractView[Vertex] =
+  def vertices: View[Vertex] =
     new AbstractView[Vertex] {
       override def iterator: Iterator[Vertex] = new ArrowPartition.VertexIterator(par.getNewAllVerticesIterator)
 
@@ -37,12 +46,12 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
       override def knownSize: Int = par.getVertexMgr.getTotalNumberOfVertices.toInt
     }
 
-//  def windowVertices(start: Long, end: Long): AbstractView[Vertex] =
-//    new AbstractView[Vertex] {
-//
-//      override def iterator: Iterator[Vertex] =
-//        new ArrowPartition.VertexIterator(par.getNewWindowedVertexIterator(start, end))
-//    }
+  def windowVertices(start: Long, end: Long): AbstractView[Vertex] =
+    new AbstractView[Vertex] {
+
+      override def iterator: Iterator[Vertex] =
+        new ArrowPartition.VertexIterator(par.getNewWindowedVertexIterator(start, end))
+    }
 
   private def vmgr: VertexPartitionManager = par.getVertexMgr
   private def emgr: EdgePartitionManager   = par.getEdgeMgr
@@ -74,16 +83,16 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
           case LongProperty(key, value)      =>
             val FIELD = par.getVertexPropertyId(key.toLowerCase())
             v.getProperty(FIELD).setHistory(true, msgTime).set(value)
-          case IntegerProperty(key, value) =>
+          case IntegerProperty(key, value)   =>
             val FIELD = par.getVertexPropertyId(key.toLowerCase())
             v.getProperty(FIELD).setHistory(true, msgTime).set(value)
-          case DoubleProperty(key, value) =>
+          case DoubleProperty(key, value)    =>
             val FIELD = par.getVertexPropertyId(key.toLowerCase())
             v.getProperty(FIELD).setHistory(true, msgTime).set(value)
-          case FloatProperty(key, value) =>
+          case FloatProperty(key, value)     =>
             val FIELD = par.getVertexPropertyId(key.toLowerCase())
             v.getProperty(FIELD).setHistory(true, msgTime).set(value)
-          case BooleanProperty(key, value) =>
+          case BooleanProperty(key, value)   =>
             val FIELD = par.getVertexPropertyId(key.toLowerCase())
             v.getProperty(FIELD).setHistory(true, msgTime).set(value)
           case _                             =>
@@ -307,7 +316,7 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
 
 object ArrowPartition {
 
-  class VertexIterator(vs: AllVerticesIterator) extends Iterator[Vertex] {
+  class VertexIterator(vs: com.raphtory.arrowcore.implementation.VertexIterator) extends Iterator[Vertex] {
 
     override def hasNext: Boolean =
       vs.hasNext

@@ -329,6 +329,31 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   }
 
+  test("removed edge should be visible depending on iterator time window".ignore) {
+
+    val par: ArrowPartition = mkPartition(1, 0)
+    val timestamp           = System.currentTimeMillis()
+
+    // add bob
+    addVertex(3, timestamp, None, ImmutableProperty("name", "Bob"))(par)
+    // add alice
+    addVertex(7, timestamp, None, ImmutableProperty("name", "Alice"))(par)
+    // add edge
+    val action = par.addEdge(
+            3,
+            timestamp,
+            -1,
+            3,
+            7,
+            Properties(
+                    ImmutableProperty("name", "friends")
+            ),
+            None
+    )
+
+    par.removeEdge(3, timestamp + 1, -1, 3, 7)
+  }
+
   test("add edge between two vertices on separate partitions") {
 
     val par1: ArrowPartition = mkPartition(2, 0)

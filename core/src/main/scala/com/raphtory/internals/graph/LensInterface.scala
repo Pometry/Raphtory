@@ -58,7 +58,6 @@ private[raphtory] trait LensInterface {
   )(onComplete: => Unit): Unit
   def checkVotes(): Boolean
   def sendMessage(msg: GenericVertexMessage[_]): Unit
-  def vertexVoted(): Unit
   def nextStep(): Unit
   def receiveMessage(msg: GenericVertexMessage[_]): Unit
 
