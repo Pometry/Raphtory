@@ -43,3 +43,7 @@ def test_link_conversion():
 
 def test_link_conversion_with_target():
     assert convert_docstring("[[visitor.Vertex Vertex]]") == "`Vertex`"
+
+
+def test_weird_link():
+    assert convert_docstring("see\n*          [[PropertyMergeStrategy]] for predefined options") == "see\n         `PropertyMergeStrategy` for predefined options"

@@ -80,11 +80,19 @@ code = string("`") + code_expr + string("`")
 code_unparsed = (string("`") + any_char.until(string("`"), consume_other=True).concat()).map(report_unparsed)
 
 # find links (only extracts text for now)
-link = string("[[") >> ((token >> whitespace >> (class_name | method_or_variable_name).map(as_code)) |
-                        (class_name | method_or_variable_name).map(as_code)) << string("]]")
+link = string("[[") >> any_char.until(string("]]")).concat() << string("]]")
 
+link_value = ((token >> whitespace >> (class_name | method_or_variable_name).map(as_code)) |
+               (class_name | method_or_variable_name).map(as_code))
+# link = string("[[").map(ignore) >> ((token >> whitespace >> (class_name | method_or_variable_name).map(as_code)) |
+#                         (class_name | method_or_variable_name).map(as_code)) << string("]]").map(ignore)
 
-doc_converter = alt(start, end, linestart, whitespace, link,
+@generate("link")
+def link_parser():
+    link_str = yield link
+    return link_value.parse(link_str)
+
+doc_converter = alt(start, end, linestart, whitespace, link_parser,
                     code, code_unparsed,
                     param, return_id,
                     token).many().map(join_tokens)
