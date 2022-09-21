@@ -38,8 +38,8 @@ def test_direct_conversion():
 
 
 def test_link_conversion():
-    assert convert_docstring("[[Vertex]]") == "Vertex"
+    assert convert_docstring("[[Vertex]]") == "`Vertex`"
 
 
 def test_link_conversion_with_target():
-    assert convert_docstring("[[visitor.Vertex Vertex]]") == "Vertex"
+    assert convert_docstring("[[visitor.Vertex Vertex]]") == "`Vertex`"

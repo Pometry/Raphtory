@@ -50,6 +50,9 @@ def linestart_clean(s: str):
     return "\n"
 
 
+def as_code(s: str):
+    return "`" + s + "`"
+
 non_newline_whitespace = regex(r"[^\S\r\n]+")
 
 
@@ -77,7 +80,8 @@ code = string("`") + code_expr + string("`")
 code_unparsed = (string("`") + any_char.until(string("`"), consume_other=True).concat()).map(report_unparsed)
 
 # find links (only extracts text for now)
-link = string("[[") >>((token >> whitespace >> (class_name | method_or_variable_name)) | (class_name | method_or_variable_name)) << string("]]")
+link = string("[[") >> ((token >> whitespace >> (class_name | method_or_variable_name).map(as_code)) |
+                        (class_name | method_or_variable_name).map(as_code)) << string("]]")
 
 
 doc_converter = alt(start, end, linestart, whitespace, link,
