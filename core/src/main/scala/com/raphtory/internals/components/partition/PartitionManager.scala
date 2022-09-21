@@ -12,11 +12,16 @@ import com.raphtory.internals.components.querymanager.GraphManagement
 import com.raphtory.internals.components.querymanager.IngestData
 import com.raphtory.internals.components.querymanager.StopExecutor
 import com.raphtory.internals.management.Scheduler
+import com.raphtory.internals.storage.arrow.ArrowPartition
+import com.raphtory.internals.storage.arrow.ArrowPartitionConfig
+import com.raphtory.internals.storage.arrow.ArrowSchema
+import com.raphtory.internals.storage.arrow.immutable
 import com.raphtory.internals.storage.pojograph.PojoBasedPartition
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
+import java.nio.file.Files
 import java.util.concurrent.ConcurrentHashMap
 
 class PartitionManager(
@@ -27,8 +32,15 @@ class PartitionManager(
     topics: TopicRepository
 ) extends Component[GraphManagement](conf) {
 
-  private val executors                    = new ConcurrentHashMap[String, QueryExecutor]()
-  val storage                              = new PojoBasedPartition(graphID, partitionID, conf)
+  private val executors = new ConcurrentHashMap[String, QueryExecutor]()
+
+  val storage           = ArrowPartition(
+          ArrowPartitionConfig(
+                  conf,
+                  partitionID,
+                  ArrowSchema[TestSchema, TestSchema],
+                  Files.createTempDirectory("random-blerg")
+          ), conf)
   val readerResource: Resource[IO, Reader] = Reader[IO](partitionID, storage, scheduler, conf, topics)
   val writerResource: Resource[IO, Writer] = Writer[IO](graphID, partitionID, storage, conf, topics)
   val (_, readerCancel)                    = readerResource.allocated.unsafeRunSync()
@@ -87,3 +99,5 @@ object PartitionManager {
     )
 
 }
+
+case class TestSchema(@immutable name: String)

@@ -22,20 +22,16 @@ object VertexSchema {
       override def nonVersionedVertexProps(name: Option[String]): Iterable[NonversionedField] =
         ctx.parameters
           .filter(_.annotations.exists(_.isInstanceOf[immutable]))
-          .map { p =>
+          .flatMap { p =>
             p.typeclass.nonVersionedVertexProps(Some(p.label))
           }
-          .reduceOption(_ ++ _)
-          .getOrElse(List.empty)
 
       override def versionedVertexProps(name: Option[String]): Iterable[VersionedProperty] =
         ctx.parameters
           .filterNot(_.annotations.exists(_.isInstanceOf[immutable]))
-          .map { p =>
+          .flatMap { p =>
             p.typeclass.versionedVertexProps(Some(p.label))
           }
-          .reduceOption(_ ++ _)
-          .getOrElse(List.empty)
 
     }
 

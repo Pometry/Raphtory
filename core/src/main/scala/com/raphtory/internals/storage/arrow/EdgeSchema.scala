@@ -22,21 +22,16 @@ object EdgeSchema {
 
       override def nonVersionedEdgeProps(name: Option[String]): Iterable[NonversionedField] =
         ctx.parameters
-          .filter(_.annotations.exists(_.isInstanceOf[immutable]))
-          .map { p =>
-            p.typeclass.nonVersionedEdgeProps(Some(p.label))
-          }
-          .reduce(_ ++ _)
-          .toList
+          .filter(_.annotations.exists(_.isInstanceOf[immutable])).flatMap { p =>
+          p.typeclass.nonVersionedEdgeProps(Some(p.label))
+        }
 
       override def versionedEdgeProps(name: Option[String]): Iterable[VersionedProperty] =
         ctx.parameters
           .filterNot(_.annotations.exists(_.isInstanceOf[immutable]))
-          .map { p =>
+          .flatMap { p =>
             p.typeclass.versionedEdgeProps(Some(p.label))
           }
-          .reduce(_ ++ _)
-          .toList
 
     }
 
