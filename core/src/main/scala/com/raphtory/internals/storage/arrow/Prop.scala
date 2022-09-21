@@ -12,29 +12,32 @@ sealed trait Prop[P] {
 
 object Prop {
 
-  implicit val strProp: Prop[String] = new Prop[String] {
-    override def set(acc: VersionedEntityPropertyAccessor, v: String, at: Long): Unit = {
-      acc.setHistory(false, at).set(v)
-    }
+  implicit val intProp: Prop[Int]   = makeProp[Int]((acc, v, at) => acc.setHistory(false, at).set(v))(_.getInt)
+  implicit val longProp: Prop[Long] = makeProp[Long]((acc, v, at) => acc.setHistory(false, at).set(v))(_.getLong)
 
-    override def get(acc: VersionedEntityPropertyAccessor): String = {
-     acc.getString.toString
-    }
+  implicit val doubleProp: Prop[Double] =
+    makeProp[Double]((acc, v, at) => acc.setHistory(false, at).set(v))(_.getDouble)
 
-  }
+  implicit val floatProp: Prop[Float] =
+    makeProp[Float]((acc, v, at) => acc.setHistory(false, at).set(v))(_.getFloat)
 
-  implicit val longProp: Prop[Long] = new Prop[Long]{
-    override def set(acc: VersionedEntityPropertyAccessor, v: Long, at: Long): Unit = {
-      acc.setHistory(false, at).set(v)
-    }
+  implicit val booleanProp: Prop[Boolean] =
+    makeProp[Boolean]((acc, v, at) => acc.setHistory(false, at).set(v))(_.getBoolean)
 
-    override def get(acc: VersionedEntityPropertyAccessor): Long = {
-      acc.getLong
+  implicit val stringProp: Prop[String]   =
+    makeProp[String]((acc, v, at) => acc.setHistory(false, at).set(v))(_.getString.toString)
+
+  private def makeProp[V](
+      setF: (VersionedEntityPropertyAccessor, V, Long) => Unit
+  )(getF: VersionedEntityPropertyAccessor => V) =
+    new Prop[V] {
+      override def set(acc: VersionedEntityPropertyAccessor, v: V, at: Long): Unit = setF(acc, v, at)
+
+      override def get(acc: VersionedEntityPropertyAccessor): V = getF(acc)
     }
-  }
 }
 
 trait PropAccess[P] {
-  def set(p: P, at:Long): Unit
+  def set(p: P, at: Long): Unit
   def get: P
 }

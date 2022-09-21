@@ -1,7 +1,16 @@
 package com.raphtory.storage
 
 import com.raphtory.Raphtory
-import com.raphtory.api.input.{BooleanProperty, DoubleProperty, FloatProperty, ImmutableProperty, IntegerProperty, LongProperty, Properties, Property, StringProperty, Type}
+import com.raphtory.api.input.BooleanProperty
+import com.raphtory.api.input.DoubleProperty
+import com.raphtory.api.input.FloatProperty
+import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.IntegerProperty
+import com.raphtory.api.input.LongProperty
+import com.raphtory.api.input.Properties
+import com.raphtory.api.input.Property
+import com.raphtory.api.input.StringProperty
+import com.raphtory.api.input.Type
 import com.raphtory.arrowcore.implementation.LocalEntityIdStore
 import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
 import com.raphtory.arrowcore.implementation.VertexIterator
@@ -229,7 +238,7 @@ class ArrowStorageSuite extends munit.FunSuite {
     assert(!aliceIterE.hasNext)
   }
 
-  test("add vertex with all types of properties and vertex type".only) {
+  test("add vertex with all types of properties and vertex type") {
     val par: ArrowPartition = mkPartition(1, 0, ArrowSchema[AllProps, EdgeProp])
     val timestamp           = System.currentTimeMillis()
 
@@ -244,7 +253,7 @@ class ArrowStorageSuite extends munit.FunSuite {
             FloatProperty("pFloat", 4.321f),
             BooleanProperty("pBool", value = true),
             StringProperty("pString", "blerg"),
-            IntegerProperty("pInteger", 12345789),
+            IntegerProperty("pInt", 12345789),
             ImmutableProperty("name", "Bob")
     )(par)
 
@@ -252,6 +261,11 @@ class ArrowStorageSuite extends munit.FunSuite {
 
     assertEquals(actual.field[String]("name").get, "Bob")
     assertEquals(actual.prop[Long]("pLong").get, now)
+    assertEquals(actual.prop[Double]("pDouble").get, 1.234d)
+    assertEquals(actual.prop[Float]("pFloat").get, 4.321f)
+    assertEquals(actual.prop[Boolean]("pBool").get, true)
+    assertEquals(actual.prop[Int]("pInt").get, 12345789)
+    assertEquals(actual.prop[String]("pString").get, "blerg")
 
   }
 
@@ -442,6 +456,6 @@ case class AllProps(
     pDouble: Double,
     pFloat: Float,
     pBool: Boolean,
-    pInteger: Int,
+    pInt: Int,
     pString: String
 )

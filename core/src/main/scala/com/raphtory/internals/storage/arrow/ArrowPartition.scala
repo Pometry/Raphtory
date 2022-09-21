@@ -1,10 +1,6 @@
 package com.raphtory.internals.storage.arrow
 
-import com.raphtory.api.input.ImmutableProperty
-import com.raphtory.api.input.LongProperty
-import com.raphtory.api.input.Properties
-import com.raphtory.api.input.StringProperty
-import com.raphtory.api.input.Type
+import com.raphtory.api.input.{BooleanProperty, DoubleProperty, FloatProperty, ImmutableProperty, IntegerProperty, LongProperty, Properties, StringProperty, Type}
 import com.raphtory.arrowcore.implementation.VertexIterator.AllVerticesIterator
 import com.raphtory.arrowcore.implementation.EdgeIterator
 import com.raphtory.arrowcore.implementation.EdgePartitionManager
@@ -72,10 +68,22 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
           case ImmutableProperty(key, value) =>
             val FIELD = par.getVertexFieldId(key.toLowerCase())
             v.getField(FIELD).set(new lang.StringBuilder(value))
-//          case StringProperty(key, value)    =>
-//            val FIELD = par.getVertexPropertyId(key.toLowerCase())
-//            v.getProperty(FIELD).setHistory(true, msgTime).set(new lang.StringBuilder(value))
+          case StringProperty(key, value)    =>
+            val FIELD = par.getVertexPropertyId(key.toLowerCase())
+            v.getProperty(FIELD).setHistory(true, msgTime).set(new lang.StringBuilder(value))
           case LongProperty(key, value)      =>
+            val FIELD = par.getVertexPropertyId(key.toLowerCase())
+            v.getProperty(FIELD).setHistory(true, msgTime).set(value)
+          case IntegerProperty(key, value) =>
+            val FIELD = par.getVertexPropertyId(key.toLowerCase())
+            v.getProperty(FIELD).setHistory(true, msgTime).set(value)
+          case DoubleProperty(key, value) =>
+            val FIELD = par.getVertexPropertyId(key.toLowerCase())
+            v.getProperty(FIELD).setHistory(true, msgTime).set(value)
+          case FloatProperty(key, value) =>
+            val FIELD = par.getVertexPropertyId(key.toLowerCase())
+            v.getProperty(FIELD).setHistory(true, msgTime).set(value)
+          case BooleanProperty(key, value) =>
             val FIELD = par.getVertexPropertyId(key.toLowerCase())
             v.getProperty(FIELD).setHistory(true, msgTime).set(value)
           case _                             =>
