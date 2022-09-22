@@ -9,7 +9,7 @@ Follow our Installation guide: [Scala](../Install/scala/install.md) or [Python (
 
 ## Data
 
-The data is a `csv` file (comma-separated values) and is pulled from our Github data repository. 
+The data is a `csv` file (comma-separated values) and is pulled from our <a href="https://github.com/Raphtory/Data/blob/main/lotr.csv" target="_blank">Github data repository</a>. 
 Each line contains two characters that appeared in the same sentence in the 
 book, along with which sentence they appeared as indicated by a number. 
 In the example, the first line of the file is `Gandalf,Elrond,33` which tells
@@ -20,6 +20,8 @@ us that Gandalf and Elrond appears together in sentence 33.
 </p>
 
 ## Lord Of The Rings Example 🧝🏻‍♀️🧙🏻‍♂️💍
+
+We have detailed each step of our Scala and Python example code below. You can find the code on Github here: <a href="https://github.com/Raphtory/Raphtory/tree/development/examples/lotr/src/main/scala/com/raphtory/examples/lotr" target="_blank">Scala</a> and <a href="https://github.com/Raphtory/Raphtory/blob/development/examples/lotr/src/main/python/LOTR-PyRaphtory.ipynb" target="_blank">Python</a>.
 
 ### Setup environment 🌍
 
