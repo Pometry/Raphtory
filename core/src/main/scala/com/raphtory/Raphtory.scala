@@ -7,11 +7,13 @@ import com.raphtory.internals.context.LocalContext
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.internals.context.RemoteContext
 import com.raphtory.internals.management._
+import com.raphtory.internals.management.id.ClientIDManager
 import com.raphtory.internals.management.id.IDManager
 import com.raphtory.internals.management.id.LocalIDManager
 import com.raphtory.internals.management.id.ZooKeeperCounter
 import com.raphtory.internals.management.id.ZookeeperLimitedPool
 import com.typesafe.config.Config
+
 import scala.collection.mutable.ArrayBuffer
 
 /**  `Raphtory` object for creating Raphtory Components
@@ -82,25 +84,24 @@ object Raphtory {
     confHandler.getConfig()
   }
 
-  private[raphtory] def makeIdManager[IO[_]: Sync](
-      config: Config,
-      localDeployment: Boolean,
-      graphID: String,
-      forPartitions: Boolean
-  ): Resource[IO, IDManager] =
-    if (localDeployment)
-      Resource.eval(Sync[IO].delay(new LocalIDManager))
-    else {
-      val zookeeperAddress = config.getString("raphtory.zookeeper.address")
-      if (forPartitions) {
-        val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
-        val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
-        val totalPartitions: Int     = partitionServers * partitionsPerServer
-        ZookeeperLimitedPool(zookeeperAddress, graphID, "partitionCount", poolSize = totalPartitions)
-      }
-      else
-        ZooKeeperCounter(zookeeperAddress, graphID, "sourceCount")
-    }
+  private[raphtory] def makeLocalIdManager[IO[_]: Sync] =
+    Resource.eval(Sync[IO].delay(new LocalIDManager))
+
+  private[raphtory] def makeClientIdManager[IO[_]: Sync](rpcClient: RpcClient[IO]) =
+    Resource.eval(Sync[IO].delay(new ClientIDManager(rpcClient)))
+
+  private[raphtory] def makePartitionIDManager[IO[_]: Sync](config: Config) = {
+    val zookeeperAddress         = config.getString("raphtory.zookeeper.address")
+    val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
+    val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
+    val totalPartitions: Int     = partitionServers * partitionsPerServer
+    ZookeeperLimitedPool(zookeeperAddress, "partitionCount", poolSize = totalPartitions)
+  }
+
+  private[raphtory] def makeSourceIDManager[IO[_]: Sync](config: Config) = { //Currently no reason to use as the head node is the authority
+    val zookeeperAddress = config.getString("raphtory.zookeeper.address")
+    ZooKeeperCounter(zookeeperAddress, "sourceCount")
+  }
 
   private[raphtory] def createName: String =
     Nomen.est().adjective().color().animal().get()

@@ -14,7 +14,16 @@ message RpcResponse {
   bytes message = 1;
 }
 
+message IDRequest {
+  string graphID = 1;
+}
+
+message IDResponse{
+  int32 id = 1;
+}
+
 service RaphtoryService {
   rpc processRequest (RpcRequest) returns (RpcStatus);
   rpc submitQuery (RpcRequest) returns (stream RpcResponse);
+  rpc requestID (IDRequest) returns (IDResponse);
 }

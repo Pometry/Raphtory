@@ -4,10 +4,13 @@ import cats.effect.ExitCode
 import cats.effect.IO
 import cats.effect.IOApp
 import com.raphtory.Raphtory
+import com.raphtory.Raphtory.makeLocalIdManager
+import com.raphtory.Raphtory.makeSourceIDManager
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.components.cluster.ClusterManager
 import com.raphtory.internals.components.cluster.ClusterMode
+import com.raphtory.internals.components.cluster.RpcServer
 
 object ClusterManagerService extends IOApp {
 
@@ -18,8 +21,11 @@ object ClusterManagerService extends IOApp {
       else Raphtory.getDefaultConfig()
 
     val headNode = for {
-      repo     <- DistributedTopicRepository[IO](AkkaConnector.SeedMode, config)
-      headNode <- ClusterManager[IO](config, repo, mode = ClusterMode)
+      repo      <- DistributedTopicRepository[IO](AkkaConnector.SeedMode, config)
+      idManager <- makeLocalIdManager[IO]
+      headNode  <- ClusterManager[IO](config, repo, mode = ClusterMode, idManager)
+      _         <- RpcServer[IO](idManager, repo, config)
+
     } yield headNode
     headNode.useForever
 
