@@ -97,13 +97,11 @@ private[pojograph] trait PojoConcreteVertexBase[T] extends PojoVertexBase {
     val outgoingDeletes = outgoingEdgeDeleteMultiQueue
       .getMessageQueue(lens.superStep)
       .map(_.asInstanceOf[IDType])
-    println(s"vertex $name has outgoing deletes $outgoingDeletes")
     internalOutgoingEdges --= outgoingDeletes
     val incomingDeletes = incomingEdgeDeleteMultiQueue
       .getMessageQueue(lens.superStep)
       .map(_.asInstanceOf[IDType])
     internalIncomingEdges --= incomingDeletes
-    println(s"vertex $name has incoming deletes $incomingDeletes")
     outgoingEdgeDeleteMultiQueue.clearQueue(lens.superStep)
     incomingEdgeDeleteMultiQueue.clearQueue(lens.superStep)
   }
