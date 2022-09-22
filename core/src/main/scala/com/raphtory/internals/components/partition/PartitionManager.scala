@@ -34,13 +34,15 @@ class PartitionManager(
 
   private val executors = new ConcurrentHashMap[String, QueryExecutor]()
 
-  val storage           = ArrowPartition(
+  val storage                              = ArrowPartition(
           ArrowPartitionConfig(
                   conf,
                   partitionID,
                   ArrowSchema[TestSchema, TestSchema],
                   Files.createTempDirectory("random-blerg")
-          ), conf)
+          ),
+          conf
+  )
   val readerResource: Resource[IO, Reader] = Reader[IO](partitionID, storage, scheduler, conf, topics)
   val writerResource: Resource[IO, Writer] = Writer[IO](graphID, partitionID, storage, conf, topics)
   val (_, readerCancel)                    = readerResource.allocated.unsafeRunSync()

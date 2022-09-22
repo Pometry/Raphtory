@@ -14,6 +14,7 @@ import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 import scala.language.postfixOps
+import scala.util.control.NonFatal
 
 private[raphtory] class Writer(
     graphID: String,
@@ -34,6 +35,8 @@ private[raphtory] class Writer(
     neighbours.values.foreach(_.close())
 
   override def handleMessage(msg: GraphAlteration): Unit = {
+
+    try {
     msg match {
       //Updates from the Graph Builder
       case update: VertexAdd                    => processVertexAdd(update)
@@ -85,6 +88,10 @@ private[raphtory] class Writer(
         throw new IllegalStateException(
                 s"Partition '$partitionID': Received unsupported message '$other'."
         )
+    }
+    } catch {
+      case NonFatal(e) =>
+        logger.error(s"Failed to handle message ${msg}", e)
     }
 
     handleUpdateCount()

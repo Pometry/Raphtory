@@ -19,6 +19,7 @@ import com.raphtory.api.input.Spout
 import com.raphtory.spouts.FileSpout
 
 import java.net.URL
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.language.postfixOps
 
 class LotrTest extends BaseRaphtoryAlgoTest[String] {
@@ -44,7 +45,9 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
     ).map(assertEquals(_, "206d686bb8c5c119980d1743e4ec2aceb1dc62895d0931b5608f521e4da5c334"))
   }
 
-  test("Degree Test") {
+  override def munitTimeout: Duration = FiniteDuration(12, "hours")
+
+  test("Degree Test".only) {
     algorithmTest(
             algorithm = Degree(),
             start = 1,
