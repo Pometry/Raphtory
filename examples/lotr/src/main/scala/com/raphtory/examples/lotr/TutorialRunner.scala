@@ -1,7 +1,8 @@
 package com.raphtory.examples.lotr
 
 import com.raphtory.Raphtory
-import com.raphtory.algorithms.generic.{ConnectedComponents, NodeList}
+import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.algorithms.generic.centrality.Degree
 import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.algorithms.generic.motif.GlobalTriangleCount
@@ -68,7 +69,7 @@ object TutorialRunner extends App {
     .transform(PageRank())
     .transform(ConnectedComponents)
     .transform(Degree())
-    .execute(NodeList(Seq("prlabel","cclabel", "inDegree", "outDegree", "degree")))
+    .execute(NodeList(Seq("prlabel", "cclabel", "inDegree", "outDegree", "degree")))
     .writeTo(FileSink("/tmp/raphtory"))
     .waitForJob()
 

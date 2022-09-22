@@ -18,7 +18,8 @@ import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 class PartitionOrchestrator(
-    conf: Config
+    conf: Config,
+    idManager: IDManager
 ) extends OrchestratorComponent(conf) {
 
   override private[raphtory] def run(): Unit =
@@ -27,7 +28,7 @@ class PartitionOrchestrator(
   override def handleMessage(msg: ClusterManagement): Unit =
     msg match {
       case EstablishGraph(graphID: String, clientID: String) =>
-        establishService("Partition Manager", graphID, clientID, deployPartitionService)
+        establishPartition("Partition Manager", graphID, clientID, idManager, deployPartitionService)
       case DestroyGraph(graphID, clientID, force)            => destroyGraph(graphID, clientID, force)
       case ClientDisconnected(graphID, clientID)             => clientDisconnected(graphID, clientID)
 
@@ -39,9 +40,9 @@ object PartitionOrchestrator {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  def nextId[IO[_]: Async](partitionIDManager: IDManager): IO[Int] =
+  def nextId[IO[_]: Async](partitionIDManager: IDManager, graphID: String): IO[Int] =
     Async[IO].blocking {
-      partitionIDManager.getNextAvailableID() match {
+      partitionIDManager.getNextAvailableID(graphID) match {
         case Some(id) => id
         case None     =>
           throw new Exception(s"Failed to retrieve Partition ID")
@@ -51,6 +52,7 @@ object PartitionOrchestrator {
   def spawn[IO[_]: Spawn](
       config: Config,
       partitionIDManager: IDManager,
+      graphID: String,
       topics: TopicRepository,
       scheduler: Scheduler
   )(implicit
@@ -65,7 +67,7 @@ object PartitionOrchestrator {
     (0 until totalPartitions)
       .map { i =>
         for {
-          partitionId <- Resource.eval(nextId(partitionIDManager))
+          partitionId <- Resource.eval(nextId(partitionIDManager, graphID))
           partition   <- PartitionManager(graphID, partitionId, scheduler, config, topics)
         } yield partition
       }
@@ -75,12 +77,13 @@ object PartitionOrchestrator {
 
   def apply[IO[_]: Async: Spawn](
       conf: Config,
-      topics: TopicRepository
+      topics: TopicRepository,
+      idManager: IDManager
   ): Resource[IO, PartitionOrchestrator] =
     Component.makeAndStart(
             topics,
             s"partition-node",
             List(topics.clusterComms(conf.getInt("raphtory.partitions.serverCount"))),
-            new PartitionOrchestrator(conf)
+            new PartitionOrchestrator(conf, idManager)
     )
 }

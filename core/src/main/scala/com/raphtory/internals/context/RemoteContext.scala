@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.Resource
 import com.raphtory.Raphtory.confBuilder
 import com.raphtory.Raphtory.connect
-import com.raphtory.Raphtory.makeIdManager
+import com.raphtory.Raphtory.makeClientIdManager
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.connectors.AkkaConnector
@@ -41,8 +41,8 @@ class RemoteContext(address: String, port: Int) extends RaphtoryContext {
     for {
       _               <- Prometheus[IO](prometheusPort)
       topicRepo       <- LocalTopicRepository[IO](config)
-      sourceIdManager <- makeIdManager[IO](config, localDeployment = false, graphID, forPartitions = false)
-      _               <- RpcClient[IO](topicRepo, config)
+      rpc             <- RpcClient[IO](topicRepo, config)
+      sourceIdManager <- makeClientIdManager[IO](rpc)
       querySender      = new QuerySender(new Scheduler(), topicRepo, config, sourceIdManager, createName)
     } yield (querySender, config)
   }

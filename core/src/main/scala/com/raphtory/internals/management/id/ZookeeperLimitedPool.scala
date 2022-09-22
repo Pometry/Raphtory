@@ -16,17 +16,15 @@ import scala.util.Try
 
 private[raphtory] class ZookeeperLimitedPool(
     zookeeperAddress: String,
-    deploymentID: String,
     poolID: String,
     poolSize: Int,
     client: CuratorFramework
 ) extends IDManager {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-  private val idSetPath      = s"/$deploymentID/$poolID"
 
-  def getNextAvailableID(): Option[Int] = {
-    val candidateIds = LazyList.from(0 until poolSize)
-
+  override def getNextAvailableID(graphID: String): Option[Int] = {
+    val candidateIds   = LazyList.from(0 until poolSize)
+    val idSetPath      = s"/$graphID/$poolID"
     val attempts       = candidateIds.map(id => allocateId(client, idSetPath, id))
     val failedAttempts = attempts.takeWhile(_.isInstanceOf[Failure[Int]])
 
@@ -57,7 +55,6 @@ private[raphtory] object ZookeeperLimitedPool {
 
   def apply[IO[_]: Sync](
       zookeeperAddress: String,
-      graphId: String,
       poolID: String,
       poolSize: Int
   ): Resource[IO, ZookeeperLimitedPool] =
@@ -73,12 +70,11 @@ private[raphtory] object ZookeeperLimitedPool {
                 }
                 .flatTap(c => Sync[IO].blocking(c.start()))
       )
-      .map(new ZookeeperLimitedPool(zookeeperAddress, graphId, poolID, poolSize, _))
+      .map(new ZookeeperLimitedPool(zookeeperAddress, poolID, poolSize, _))
 
   def apply[IO[_]: Sync](
       zookeeperAddress: String,
-      deploymentId: String,
       counterId: String
   ): Resource[IO, ZookeeperLimitedPool] =
-    apply(zookeeperAddress, deploymentId, counterId, Int.MaxValue)
+    apply(zookeeperAddress, counterId, Int.MaxValue)
 }

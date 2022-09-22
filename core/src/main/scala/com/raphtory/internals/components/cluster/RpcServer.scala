@@ -15,17 +15,21 @@ import com.raphtory.internals.components.querymanager.JobDone
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.components.querymanager.Submission
+import com.raphtory.internals.management.id.IDManager
 import com.raphtory.internals.serialisers.KryoSerialiser
+import com.raphtory.protocol.IDRequest
+import com.raphtory.protocol.IDResponse
+import com.raphtory.protocol.RaphtoryService
 import com.raphtory.protocol.RpcRequest
 import com.raphtory.protocol.RpcResponse
-import com.raphtory.protocol.RaphtoryService
 import com.raphtory.protocol.RpcStatus
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import higherkindness.mu.rpc.server._
 import org.slf4j.LoggerFactory
 
-class RpcServer[F[_]](repo: TopicRepository, config: Config)(implicit F: Async[F]) extends RaphtoryService[F] {
+class RpcServer[F[_]](idManger: IDManager, repo: TopicRepository, config: Config)(implicit F: Async[F])
+        extends RaphtoryService[F] {
   private lazy val kryo       = KryoSerialiser()
   private lazy val graphSetup = repo.graphSetup.endPoint
   private val log: Logger     = Logger(LoggerFactory.getLogger(this.getClass))
@@ -64,12 +68,24 @@ class RpcServer[F[_]](repo: TopicRepository, config: Config)(implicit F: Async[F
                     )
     } yield stream
   }
+
+  override def requestID(req: IDRequest): F[IDResponse] =
+    for {
+      response <- F.delay {
+                    idManger.getNextAvailableID(req.graphID) match {
+                      case Some(id) => IDResponse(id)
+                      case None     => IDResponse(-1)
+                    }
+                  }
+    } yield response
 }
 
 object RpcServer {
 
-  def apply[F[_]](repo: TopicRepository, config: Config)(implicit F: Async[F]): Resource[F, Unit] = {
-    implicit val rpcServer: RpcServer[F] = new RpcServer(repo, config)
+  def apply[F[_]](idManger: IDManager, repo: TopicRepository, config: Config)(implicit
+      F: Async[F]
+  ): Resource[F, Unit] = {
+    implicit val rpcServer: RpcServer[F] = new RpcServer(idManger, repo, config)
     val portNumber                       = config.getInt("raphtory.deploy.port")
     for {
       serviceDef <- RaphtoryService.bindService[F]
