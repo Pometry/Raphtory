@@ -5,6 +5,9 @@ This is the code used to analyse the Companies House data in Raphtory, written u
 
 ## Installation Guide
 
+Scala Installation Guide: https://docs.raphtory.com/en/development/Install/scala/install.html
+
+Python Installation Guide: [With Conda](https://docs.raphtory.com/en/development/Install/python/install_conda.html) and [Without Conda](https://docs.raphtory.com/en/development/Install/python/install_no_conda.html)
 
 ## Data
 
