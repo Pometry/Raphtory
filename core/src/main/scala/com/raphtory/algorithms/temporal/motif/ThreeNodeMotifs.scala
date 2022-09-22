@@ -84,7 +84,35 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
                 arrayOp(_, _)(_ + _)
         )
       }
-      .step { v =>
+      .step { (v, state) =>
+
+        // Star Motifs
+        val mc                 = new StarMotifCounter(v.ID, v.neighbours.filter(_ != v.ID))
+        // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
+        // for motif edges with the same timestamp
+        mc.execute(v.explodeAllEdges().map(e => (e.src, e.dst, e.timestamp)).sortBy(x => (x._3, x._1, x._2)), delta)
+        val counts: Array[Long] = mc.getCounts
+        var twoNodeCounts      = Array.fill(8)(0)
+        v.neighbours.filter(_ != v.ID).foreach { vid =>
+          val mc2node = new TwoNodeMotifs(v.ID)
+          // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
+          // for motif edges with the same timestamp
+          mc2node.execute(
+            v.explodedEdge(vid).getOrElse(List()).map(e => (e.src, e.dst, e.timestamp)).sortBy (x =>
+              (x._3, x._1, x._2)
+              ).toArray,
+            delta
+          )
+          val twoNC   = mc2node.getCounts
+          for (i <- counts.indices)
+            counts.update(i, counts(i) - twoNC(i % 8))
+          twoNodeCounts = arrayOp(twoNodeCounts,twoNC)(_+_)
+        }
+        v("twoNodeCounts") = twoNodeCounts
+        state("twoNodeCounts") += twoNodeCounts.map(_.toLong)
+        v("starCounts") = counts
+        state("starCounts") += counts
+
         // Ensure no self loops are counted within motifs
         val neighbours = v.neighbours.filter(_ != v.ID).toSet
         neighbours.foreach { nb =>
@@ -182,32 +210,6 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
             state("triCounts") += mc.getCounts
           }
         }
-        // Star Motifs
-        val mc                 = new StarMotifCounter(v.ID, v.neighbours.filter(_ != v.ID))
-        // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
-        // for motif edges with the same timestamp
-        mc.execute(v.explodeAllEdges().map(e => (e.src, e.dst, e.timestamp)).sortBy(x => (x._3, x._1, x._2)), delta)
-        val counts: Array[Long] = mc.getCounts
-        var twoNodeCounts      = Array.fill(8)(0)
-        v.neighbours.filter(_ != v.ID).foreach { vid =>
-          val mc2node = new TwoNodeMotifs(v.ID)
-          // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
-          // for motif edges with the same timestamp
-          mc2node.execute(
-                  v.explodedEdge(vid).getOrElse(List()).map(e => (e.src, e.dst, e.timestamp)) sortBy (x =>
-                    (x._3, x._1, x._2)
-                  ),
-                  delta
-          )
-          val twoNC   = mc2node.getCounts
-          for (i <- counts.indices)
-            counts.update(i, counts(i) - twoNC(i % 8))
-          twoNodeCounts = arrayOp(twoNodeCounts,twoNC)(_+_)
-        }
-        v("twoNodeCounts") = twoNodeCounts
-        state("twoNodeCounts") += twoNodeCounts.map(_.toLong)
-        v("starCounts") = counts
-        state("starCounts") += counts
       }
   }
 
@@ -280,7 +282,7 @@ abstract class MotifCounter {
   ): Unit
   def processCurrent(curEdge: EdgeEvent): Unit
 
-  def generateEvents(edges: List[(Long,Long,Long)]) : List[EdgeEvent]
+  def generateEvents(edges: List[(Long,Long,Long)]) : Array[EdgeEvent]
 
   def execute(inputEdges: List[(Long, Long, Long)], delta: Long): Unit = {
     val L     = inputEdges.size
@@ -367,14 +369,14 @@ import ThreeNodeMotifs.{map2D,map3D}
       finalCounts(7) += midSum(map3D(1 - utov, 1, 1)) + postSum(map3D(1 - utov, 1, 0)) + preSum(map3D(utov, 0, 0))
     } }
 
-  def generateEvents(edges: List[(Long, Long, Long)]) : List[EdgeEvent] = {
+  def generateEvents(edges: List[(Long, Long, Long)]) : Array[EdgeEvent] = {
     val neighMap = new mutable.LongMap[Int](N+2)
     neighbours.zipWithIndex.foreach{case (nb, i) => neighMap.put(nb,i)}
     neighMap.put(uid,-1)
     neighMap.put(vid,-1)
     edges.map{ e =>
       if (e._2 == uid || e._2 == vid) EdgeEvent(neighMap(e._1),incoming,uorv(e._2),  e._3) else EdgeEvent(neighMap(e._2),outgoing,uorv(e._1), e._3)
-    }
+    }.toArray
   }
 
   def getCounts: Array[Long] =
@@ -435,12 +437,12 @@ class StarMotifCounter(vid: Long, neighbours:Iterable[Long]) extends MotifCounte
     midSum(map2D(dir,outgoing)) += postNodes(outgoing*N + nb)
   }
 
-  def generateEvents(edges: List[(Long, Long, Long)]) : List[EdgeEvent] = {
+  def generateEvents(edges: List[(Long, Long, Long)]) : Array[EdgeEvent] = {
     val neighMap = new mutable.LongMap[Int](N)
     neighbours.zipWithIndex.foreach{case (nb, i) => neighMap.put(nb,i)}
     edges.map{ e =>
       if (e._2 == vid) EdgeEvent(neighMap(e._1),incoming, -1, e._3) else EdgeEvent(neighMap(e._2),outgoing,-1, e._3)
-    }
+    }.toArray
   }
 
   def getCounts: Array[Long] = countPre++countMid++countPost
@@ -455,8 +457,9 @@ class TwoNodeMotifs(vid: Long) {
   val count2d: Array[Int] = Array.fill(4)(0)
   val count3d: Array[Int] = Array.fill(8)(0)
 
-  def execute(edges: List[(Long, Long, Long)], delta: Long): Unit = {
+  def execute(inputEdges: Array[(Long, Long, Long)], delta: Long): Unit = {
     var start = 0
+    val edges = inputEdges.toArray
     for (end <- edges.indices) {
       while (edges(start)._3 + delta < edges(end)._3) {
         decrementCounts(edges(start))
