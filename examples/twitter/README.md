@@ -5,7 +5,7 @@
 Raphtory implements a chain of algorithms to analyse a Twitter dataset from [SNAP](https://snap.stanford.edu/data/higgs-twitter.html), collected during and after the announcement of the discovery of a new particle with the features of the elusive Higgs boson on 4th July 2012. In our example, we have taken the retweet network data. We wanted to see whether Raphtory could detect bot retweet activity in the Higgs dataset.
 
 <p>
- <img src="../_static/higgs-boson.jpeg" width="400px" style="padding: 15px" alt="Higgs Boson"/>
+ <img src="../../docs/source/images/higgstwittergraph.png" width="400px" alt="Higgs Boson"/>
 </p>
 
 We used three algorithms in this example: PageRank, MemberRank and TemporalMemberRank.
@@ -20,62 +20,52 @@ TemporalMemberRank is an algorithm that filters users with big differences in th
 
 This example builds a temporal graph from the [Higgs Twitter Dataset](https://snap.stanford.edu/data/higgs-twitter.html) and runs a query to tell us potential bot retweet activity.
 
-The data is a `csv` file (comma-separated values) and is located in the `resources` folder. Each line contains user A and user B, where user B is being retweeted by user A. The last value in the line is the time of the retweet in Unix epoch time.
+The data is a `csv` file (comma-separated values) and is located in the Raphtory Data folder. Each line contains user A and user B, where user B is being retweeted by user A. The last value in the line is the time of the retweet in Unix epoch time.
 
-Also, in the examples folder you will find `TwitterGraphBuilder.scala` and `Runner.scala`.
+Also, in the examples folder you will find `TwitterGraphBuilder.scala` and `HiggsRunner.scala`.
 
 * `TwitterGraphBuilder.scala` builds the graph
-* `Runner.scala` runs the application including the analysis
+* `HiggsRunner.scala` runs the application including the analysis
 
 There are three algorithm files to run the analysis: `PageRank.scala`, `MemberRank.scala` and `TemporalMemberRank.scala`.
 * `PageRank.scala`  based on the Google Pagerank algorithm, ranks nodes (Twitter Users) depending on their connections to determine how important the node is. 
 * `MemberRank.scala` takes the Page Rank score and ranks users further by taking into account the number of retweets they received.
 * `TemporalMemberRank.scala` filters nodes with big differences in the number of retweets they received on Twitter and the final rank given to them by MemberRank, outputting the suspected retweet bot IDs, along with the user ID they retweeted and the time of the retweet. The first element in each line is the Pulsar Output Timestamp, this can be dropped or ignored as it is irrelevant to the bot activity results.
 
-In `Runner.scala` we have chained the three algorithms together, but you are able to alter the algorithms you would like to run to get your desired results. e.g. `PageRank() -> MemberRank()`
+In `HiggsRunner.scala` we have chained the three algorithms together, but you are able to alter the algorithms you would like to run to get your desired results. e.g. `PageRank() -> MemberRank()`
 
-We have also included python scripts in directory`src/main/python` to output the dataframes straight into Jupyter notebook.
+We have also included Python scripts in directory`src/main/python` to output the dataframes straight into Jupyter notebook.
 
+### Live Twitter Stream
 
-## IntelliJ setup guide
+We have included the LiveTwitterRunner in the `livetwitterstream` package which uses the LiveTwitterSpout in the Twitter `connectors` package. 
+You can also find the two different graph builders in the connectors package. This pulls tweets live from the Twitter API.
 
-As of 9th February 2022. This is a guide to run this within IntelliJ.
+## Installation Guide
 
-1. From https://adoptopenjdk.net/index.html download OpenJDK 11 (LTS) with the HotSpot VM.
-2. Enable this as the project SDK under File > Project Structure > Project Settings > Project > Project SDK.
-3. Create a new configuration as an `Application` , select Java 11 as the build, and `com.raphtory.examples.twitter.Runner` as the class, add the Environment Variables too.
+Scala Installation Guide: https://docs.raphtory.com/en/development/Install/scala/install.html
 
-## Running this example
-
-1. This example project is up on Github: [raphtory-example-twitter](https://github.com/Raphtory/Raphtory/tree/development/examples/raphtory-example-twitter). If you have downloaded the Examples folder from the installation guide previously, then the Twitter example will already be set up. If not, please return [there](https://raphtory.readthedocs.io/en/development/Install/installdependencies.html) and complete this step first.
-2. Download the _higgs-retweet-activity.csv_ data from [raphtory-data](https://github.com/Raphtory/Data) repository and place it inside of the resources folder.
-3. In the Examples folder, open up the directory `raphtory-example-twitter` to get this example running.
-4. Install all the python libraries necessary for visualising your data via the [Jupyter Notebook Tutorial](https://raphtory.readthedocs.io/en/development/PythonClient/tutorial.html). Once you have Jupyter Notebook up and running on your local machine, you can open up the Jupyter Notebook specific for this project, with all the commands needed to output your graph. This can be found by following the path `src/main/python/TwitterJupyterNotebook.ipynb`.
-5. You are now ready to run this example. The data file is already in the `resources` folder. You can either run this example via Intellij by running the class `Runner.scala` or [via sbt](https://raphtory.readthedocs.io/en/development/Install/installdependencies.html#running-raphtory-via-sbt).
-6. Once your job has finished (this may take a while and seem like it is stuck, but since this example chains together 3 algorithms, it takes a while to get through all the data - around 4-5 minutes as shown below.), you can go onto Jupyter notebook to run your analyses and output. 
+Python Installation Guide: [With Conda](https://docs.raphtory.com/en/development/Install/python/install_conda.html) and [Without Conda](https://docs.raphtory.com/en/development/Install/python/install_no_conda.html)
 
 ## Output
 
-When you start `Runner.scala` you should see logs in your terminal like this:
+When you start `HiggsRunner.scala` you should see logs in your terminal like this:
 ```json
-15:59:37.753 [main] INFO  com.raphtory.config.ComponentFactory - Creating '2' Partition Managers.
-15:59:40.884 [main] INFO  com.raphtory.config.ComponentFactory - Creating new Query Manager.
-15:59:41.257 [main] INFO  com.raphtory.config.ComponentFactory - Creating new Spout 'raphtory_data_raw_1844626742'.
-15:59:41.257 [main] INFO  com.raphtory.config.ComponentFactory - Creating '2' Graph Builders.
-15:59:42.397 [main] INFO  com.raphtory.client.RaphtoryGraph - Created Graph object with deployment ID 'raphtory_1844626742'.
-15:59:42.397 [main] INFO  com.raphtory.client.RaphtoryGraph - Created Graph Spout topic with name 'raphtory_data_raw_1844626742'.
-16:00:02.677 [main] INFO  com.raphtory.config.ComponentFactory - Creating new Query Progress Tracker for deployment 'raphtory_1844626742' and job 'Chain_1646064002404' at topic 'raphtory_1844626742_Chain_1646064002404'.
-16:00:02.678 [main] INFO  com.raphtory.components.querytracker.QueryProgressTracker - Starting query progress tracker.
-16:00:02.775 [pulsar-external-listener-9-1] INFO  com.raphtory.components.querymanager.QueryManager - Range Query 'Chain_1646064002404' received, your job ID is 'Chain_1646064002404'.
-16:00:10.949 [pulsar-external-listener-9-1] INFO  com.raphtory.components.querytracker.QueryProgressTracker - Job 'Chain_1646064002404': Perspective '1341101181' finished in 8271 ms.
-16:00:10.949 [pulsar-external-listener-9-1] INFO  com.raphtory.components.querytracker.QueryProgressTracker - Job Chain_1646064002404: Running query, processed 1 perspectives.
-16:04:42.174 [pulsar-external-listener-9-1] INFO  com.raphtory.components.querytracker.QueryProgressTracker - Job 'Chain_1646064002404': Perspective '1341705593' finished in 271225 ms.
-16:04:42.174 [pulsar-external-listener-9-1] INFO  com.raphtory.components.querytracker.QueryProgressTracker - Job Chain_1646064002404: Running query, processed 2 perspectives.
-16:04:42.331 [pulsar-external-listener-9-1] INFO  com.raphtory.components.querytracker.QueryProgressTracker - Job Chain_1646064002404: Query completed with 2 perspectives and finished in 279653 ms.
+15:01:51.382 [io-compute-1] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job 567016506_547334920456690000: Starting query progress tracker.
+15:01:51.385 [spawner-akka.actor.default-dispatcher-8] INFO  com.raphtory.internals.components.querymanager.QueryManager - Query '567016506_547334920456690000' currently blocked, waiting for ingestion to complete.
+15:04:38.239 [spawner-akka.actor.default-dispatcher-8] INFO  com.raphtory.internals.components.querymanager.QueryManager - Source '0' is unblocking analysis for Graph 'prime_moccasin_mouse' with 1064790 messages sent.
+15:04:38.369 [spawner-akka.actor.default-dispatcher-8] INFO  com.raphtory.internals.components.querymanager.QueryManager - Query '567016506_547334920456690000' received, your job ID is '567016506_547334920456690000'.
+15:04:38.379 [spawner-akka.actor.default-dispatcher-6] INFO  com.raphtory.internals.components.partition.QueryExecutor - 567016506_547334920456690000_0: Starting QueryExecutor.
+15:04:52.122 [spawner-akka.actor.default-dispatcher-3] INFO  com.raphtory.internals.components.querymanager.QueryHandler - Job '567016506_547334920456690000': Perspective at Time '1341705593' took 13723 ms to run.
+15:04:52.122 [spawner-akka.actor.default-dispatcher-11] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job '567016506_547334920456690000': Perspective '1341705593' finished in 180740 ms.
+15:04:52.122 [spawner-akka.actor.default-dispatcher-11] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job 567016506_547334920456690000: Running query, processed 1 perspectives.
+15:04:52.124 [spawner-akka.actor.default-dispatcher-3] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job 567016506_547334920456690000: Query completed with 1 perspectives and finished in 180742 ms.
 ```
 This indicates that the job has finished and your data should be ready to be analysed in Jupyter Notebook.
 ```json
-Job Chain_1646064002404: Query completed with 2 perspectives and finished in 279653 ms.
+15:04:52.122 [spawner-akka.actor.default-dispatcher-11] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job '567016506_547334920456690000': Perspective '1341705593' finished in 180740 ms.
+15:04:52.122 [spawner-akka.actor.default-dispatcher-11] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job 567016506_547334920456690000: Running query, processed 1 perspectives.
+15:04:52.124 [spawner-akka.actor.default-dispatcher-3] INFO  com.raphtory.api.querytracker.QueryProgressTracker - Job 567016506_547334920456690000: Query completed with 1 perspectives and finished in 180742 ms.
 ```
 
 Output for Vertex 4 (potential bot): 
