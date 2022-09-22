@@ -119,6 +119,8 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
           v.messageVertex(nb, (v.ID, neighbours))
         }
       }
+      // Triangle counts
+
       // this step gets a list of (static) edges that form the opposite edge of a triangle with a node. this is ordered
       // smallest id first.
       .step { v =>
