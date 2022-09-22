@@ -1,16 +1,12 @@
-package com.raphtory.examples.coho.companiesStream.graphbuilders
+package com.raphtory.examples.coho.companiesStream.graphbuilders.streamapidata
 
-import com.raphtory.api.input.BooleanProperty
-import com.raphtory.api.input.Graph
-import com.raphtory.api.input.IntegerProperty
-import com.raphtory.api.input.Properties
-import com.raphtory.api.input.StringProperty
-import com.raphtory.examples.coho.companiesStream.rawModel._
+import com.raphtory.api.input._
+import com.raphtory.examples.coho.companiesStream.jsonparsers.company.CompaniesHouseJsonProtocol.CompanyFormat
+import com.raphtory.examples.coho.companiesStream.jsonparsers.company.Company
 import spray.json._
 
 import java.text.SimpleDateFormat
 import java.util.Date
-import com.raphtory.examples.coho.companiesStream.rawModel.CompaniesHouseJsonProtocol.CompanyFormat
 
 /**
   * The CompaniesStreamRawGraphBuilder sets each json object as a vertex
@@ -18,10 +14,10 @@ import com.raphtory.examples.coho.companiesStream.rawModel.CompaniesHouseJsonPro
   * for a companies information.
   */
 
-object CompaniesStreamRawGraphBuilder {
+class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
   private val nullStr = "null"
 
-  def parser(graph: Graph, tuple: String): Unit = {
+  def apply(graph: Graph, tuple: String): Unit = {
     try {
       val command = tuple
       val company = command.parseJson.convertTo[Company]
