@@ -1,4 +1,4 @@
-package com.raphtory.examples.coho.companiesStream.rawModel.personsSignificantControl
+package com.raphtory.examples.coho.companiesStream.jsonparsers.personssignificantcontrol
 
 /**
  * Case classes for all the Companies House fields in the PSC Stream.

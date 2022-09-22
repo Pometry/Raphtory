@@ -1,4 +1,4 @@
-package com.raphtory.examples.coho.companiesStream.rawModel.officerAppointments
+package com.raphtory.examples.coho.companiesStream.jsonparsers.officerappointments
 
 /**
  * Case classes for all the Companies House fields in the Officer Appointment List data.

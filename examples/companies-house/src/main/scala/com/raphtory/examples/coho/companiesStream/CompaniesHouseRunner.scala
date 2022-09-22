@@ -5,19 +5,20 @@ import com.raphtory.api.input.Source
 import com.raphtory.spouts.FileSpout
 import com.raphtory.sinks.FileSink
 import com.raphtory.examples.coho.companiesStream.algorithms.CompanyDirectorGraph
-import com.raphtory.examples.coho.companiesStream.graphbuilders.{CompanyToPscBulkGraphBuilder, CompanyToPscGraphBuilder}
+import com.raphtory.examples.coho.companiesStream.graphbuilders.apidata.CompanyToPscGraphBuilder
+import com.raphtory.examples.coho.companiesStream.graphbuilders.bulkdata.CompanyToPscBulkGraphBuilder
 import com.raphtory.formats.JsonFormat
 
 /**
  * Runner to build Company to PSC Graph, in addition to PSC to PSC graph,
  * with edges weighted by share ownership and labelled with date PSC notified on.
  */
-object CompaniesHouseTest {
+object CompaniesHouseRunner {
 
   def main(args: Array[String]) {
 
-    val source = Source(FileSpout("/Users/rachelchan/Documents/nhsContractsPSCData", regexPattern = "^.*\\.([jJ][sS][oO][nN]??)$", recurse = true), new CompanyToPscGraphBuilder())
-    val output = FileSink("/Users/rachelchan/Downloads/psc",JsonFormat())
+    val source = Source(FileSpout("/", regexPattern = "^.*\\.([jJ][sS][oO][nN]??)$", recurse = true), new CompanyToPscGraphBuilder())
+    val output = FileSink("/", JsonFormat())
     val graph = {
       Raphtory.newGraph()
     }

@@ -4,6 +4,8 @@ import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.{Row, Table}
 
+import scala.collection.View
+
 /**
  * Algorithm to obtain PSCs of companies and all the people they control companies with, creates edges between PSCs.
  * Also creates edges between companies and PSCs. Edge weights show percentage of share ownership that PSC has in the company
@@ -18,8 +20,8 @@ class CompanyDirectorGraph extends Generic {
         vertex =>
           if (vertex.Type == "Company") {
             val edges = vertex.inEdges
-            val directorIDs: List[String] = for (edge <- edges) yield edge.getPropertyOrElse("psc", "")
-            vertex.messageInNeighbours((vertex.name, directorIDs))
+            val directorIDs: View[String] = for (edge <- edges) yield edge.getPropertyOrElse("psc", "")
+            vertex.messageInNeighbours((vertex.name, directorIDs.toList))
           }
       }
       .step {

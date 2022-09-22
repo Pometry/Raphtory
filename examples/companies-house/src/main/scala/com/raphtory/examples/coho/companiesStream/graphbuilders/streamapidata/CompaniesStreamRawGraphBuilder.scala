@@ -1,13 +1,12 @@
-package com.raphtory.examples.coho.companiesStream.graphbuilders
+package com.raphtory.examples.coho.companiesStream.graphbuilders.streamapidata
 
-import com.raphtory.api.input.{BooleanProperty, Graph, GraphBuilder, IntegerProperty, Properties, StringProperty}
-import com.raphtory.examples.coho.companiesStream.rawModel._
+import com.raphtory.api.input._
+import com.raphtory.examples.coho.companiesStream.jsonparsers.company.CompaniesHouseJsonProtocol.CompanyFormat
+import com.raphtory.examples.coho.companiesStream.jsonparsers.company.Company
 import spray.json._
 
 import java.text.SimpleDateFormat
 import java.util.Date
-import com.raphtory.examples.coho.companiesStream.rawModel.companyProfile.CompaniesHouseJsonProtocol.CompanyFormat
-import com.raphtory.examples.coho.companiesStream.rawModel.companyProfile.Company
 
 /**
   * The CompaniesStreamRawGraphBuilder sets each json object as a vertex

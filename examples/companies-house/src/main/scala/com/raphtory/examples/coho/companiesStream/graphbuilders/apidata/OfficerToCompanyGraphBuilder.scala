@@ -1,18 +1,20 @@
-package com.raphtory.examples.coho.companiesStream.graphbuilders
+package com.raphtory.examples.coho.companiesStream.graphbuilders.apidata
 
+import com.raphtory.api.input.Graph.assignID
 import com.raphtory.api.input._
-import com.raphtory.examples.coho.companiesStream.rawModel.officerAppointments.AppointmentListJsonProtocol.OfficerAppointmentListFormat
-import com.raphtory.examples.coho.companiesStream.rawModel.officerAppointments.OfficerAppointmentList
+import com.raphtory.examples.coho.companiesStream.jsonparsers.officerappointments.AppointmentListJsonProtocol.OfficerAppointmentListFormat
+import com.raphtory.examples.coho.companiesStream.jsonparsers.officerappointments.OfficerAppointmentList
 import spray.json._
-import java.time.{LocalDate,LocalTime, ZoneOffset}
+
 import java.time.format.DateTimeFormatter
+import java.time.{LocalDate, LocalTime, ZoneOffset}
 
 /**
  * Graph Builder for graph of officer to company, used data from Officer Appointment API
  */
 class OfficerToCompanyGraphBuilder extends GraphBuilder[String] {
 
-  override def parse(graph: Graph, tuple: String): Unit = {
+  override def apply(graph: Graph, tuple: String): Unit = {
     try {
       val command = tuple
       val appointmentList = command.parseJson.convertTo[OfficerAppointmentList]
@@ -25,7 +27,7 @@ class OfficerToCompanyGraphBuilder extends GraphBuilder[String] {
                                          appointmentList: OfficerAppointmentList, graph: Graph): Unit = {
       val officerId = appointmentList.links.get.self.get.split("/")(2)
 
-      var tupleIndex = 1 //index * 50
+      var tupleIndex = graph.index * 50
 
       appointmentList.items.get.foreach { item =>
         if (item.appointed_on.nonEmpty && item.appointed_to.nonEmpty) {

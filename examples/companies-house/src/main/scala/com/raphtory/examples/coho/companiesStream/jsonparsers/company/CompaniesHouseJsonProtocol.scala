@@ -1,4 +1,4 @@
-package com.raphtory.examples.coho.companiesStream.rawModel.companyProfile
+package com.raphtory.examples.coho.companiesStream.jsonparsers.company
 
 import spray.json.{DefaultJsonProtocol, JsObject, JsString, JsValue, RootJsonFormat}
 

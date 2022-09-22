@@ -1,4 +1,4 @@
-package com.raphtory.examples.coho.companiesStream.rawModel.personsSignificantControl
+package com.raphtory.examples.coho.companiesStream.jsonparsers.personssignificantcontrol
 
 import spray.json.{DefaultJsonProtocol, JsObject, JsString, JsValue, RootJsonFormat}
 

@@ -1,4 +1,4 @@
-package com.raphtory.examples.coho.companiesStream.rawModel.officerAppointments
+package com.raphtory.examples.coho.companiesStream.jsonparsers.officerappointments
 
 import spray.json.{DefaultJsonProtocol, JsArray, JsObject, JsString, JsValue, RootJsonFormat}
 

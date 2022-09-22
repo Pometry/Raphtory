@@ -1,10 +1,11 @@
-package com.raphtory.examples.coho.companiesStream.graphbuilders
+package com.raphtory.examples.coho.companiesStream.graphbuilders.apidata
 
-import com.raphtory.api.input.{Graph, GraphBuilder, ImmutableProperty, IntegerProperty, Properties, Type}
+import com.raphtory.api.input.Graph.assignID
+import com.raphtory.api.input._
+import com.raphtory.examples.coho.companiesStream.jsonparsers.personssignificantcontrol.PersonWithSignificantControlItem
+import com.raphtory.examples.coho.companiesStream.jsonparsers.personssignificantcontrol.PscItemJsonProtocol.ItemsFormat
 import spray.json._
-import com.raphtory.examples.coho.companiesStream.rawModel.personsSignificantControl.PersonWithSignificantControlItem
-import com.raphtory.examples.coho.companiesStream.rawModel.personsSignificantControl.PscItemJsonProtocol.ItemsFormat
-
+import com.raphtory.api.input.{GraphBuilder, ImmutableProperty, Properties, Type}
 import java.time.format.DateTimeFormatter
 import java.time.{LocalDate, LocalTime, ZoneOffset}
 
@@ -14,7 +15,7 @@ import java.time.{LocalDate, LocalTime, ZoneOffset}
  * labelled with share ownership and date notified on.
  */
 class CompanyToPscGraphBuilder extends GraphBuilder[String] {
-  override def parse(graph: Graph, tuple: String): Unit = {
+  override def apply(graph: Graph, tuple: String): Unit = {
     try {
       val psc = tuple.parseJson.convertTo[PersonWithSignificantControlItem]
       sendPscToPartitions(psc, graph)
@@ -24,7 +25,7 @@ class CompanyToPscGraphBuilder extends GraphBuilder[String] {
 
     def sendPscToPartitions(psc: PersonWithSignificantControlItem, graph: Graph) = {
 
-      var tupleIndex = 1 // index * 50
+      var tupleIndex = graph.index * 50
 
       val notifiedOn =
          LocalDate.parse(psc.notified_on.get.replaceAll("\"", ""), DateTimeFormatter.ofPattern("yyyy-MM-dd")).toEpochSecond(LocalTime.MIDNIGHT, ZoneOffset.MIN) * 1000
@@ -71,7 +72,7 @@ class CompanyToPscGraphBuilder extends GraphBuilder[String] {
           assignID(nameID),
           Properties(ImmutableProperty("name", nameID)),
           Type("Persons With Significant Control"),
-          tupleIndex
+            tupleIndex
         )
 
         graph.addVertex(

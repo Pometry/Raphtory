@@ -1,8 +1,9 @@
-package com.raphtory.examples.coho.companiesStream.graphbuilders
+package com.raphtory.examples.coho.companiesStream.graphbuilders.bulkdata
 
-import com.raphtory.api.input.{Graph, GraphBuilder, ImmutableProperty, IntegerProperty, LongProperty, Properties, Type}
-import com.raphtory.examples.coho.companiesStream.rawModel.personsSignificantControl.PersonWithSignificantControlStream
-import com.raphtory.examples.coho.companiesStream.rawModel.personsSignificantControl.PscStreamJsonProtocol.PersonWithSignificantControlStreamFormat
+import com.raphtory.api.input.Graph.assignID
+import com.raphtory.api.input._
+import com.raphtory.examples.coho.companiesStream.jsonparsers.personssignificantcontrol.PersonWithSignificantControlStream
+import com.raphtory.examples.coho.companiesStream.jsonparsers.personssignificantcontrol.PscStreamJsonProtocol.PersonWithSignificantControlStreamFormat
 import spray.json._
 
 import java.time.format.DateTimeFormatter
@@ -12,7 +13,7 @@ import java.time.{LocalDate, LocalTime, ZoneOffset}
  * Graph Builder for Company to PSC using data from Companies House Bulk Data Product
  */
 class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
-  override def parse(graph: Graph, tuple: String): Unit = {
+  override def apply(graph: Graph, tuple: String): Unit = {
     try {
       val psc = tuple.parseJson.convertTo[PersonWithSignificantControlStream]
       sendPscToPartitions(psc, graph)
@@ -22,7 +23,7 @@ class CompanyToPscBulkGraphBuilder extends GraphBuilder[String] {
   }
     def sendPscToPartitions(psc: PersonWithSignificantControlStream, graph: Graph) = {
 
-      var tupleIndex = 1 // index * 50
+      var tupleIndex = graph.index * 50
       val notifiedOn =
           LocalDate.parse(psc.data.get.notified_on.getOrElse("1800-01-01").replaceAll("\"", ""), DateTimeFormatter.ofPattern("yyyy-MM-dd")).toEpochSecond(LocalTime.MIDNIGHT, ZoneOffset.MIN) * 1000
 

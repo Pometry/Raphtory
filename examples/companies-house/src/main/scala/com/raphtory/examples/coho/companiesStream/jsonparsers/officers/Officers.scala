@@ -1,4 +1,4 @@
-package com.raphtory.examples.coho.companiesStream.rawModel.officers
+package com.raphtory.examples.coho.companiesStream.jsonparsers.officers
 
 /**
  * Case classes for all the Companies House fields in the Officers Stream.

@@ -3,7 +3,7 @@ package com.raphtory.examples.coho.companiesStream
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.input.Source
-import com.raphtory.examples.coho.companiesStream.graphbuilders.{CompaniesStreamPersonGraphBuilder, CompaniesStreamRawGraphBuilder}
+import com.raphtory.examples.coho.companiesStream.graphbuilders.streamapidata.{CompaniesStreamPersonGraphBuilder, CompaniesStreamRawGraphBuilder}
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.WebSocketSpout
 
