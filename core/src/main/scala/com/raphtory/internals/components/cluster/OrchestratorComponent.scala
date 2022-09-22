@@ -48,7 +48,7 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
       component: String,
       graphID: String,
       clientID: String,
-      IDManager: IDManager,
+      idManager: IDManager,
       func: (String, String, Config, IDManager) => Unit
   ): Unit =
     deployments.synchronized {
@@ -62,7 +62,7 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
                   "raphtory.graph.id",
                   ConfigValueFactory.fromAnyRef(graphID)
           )
-          func(graphID, clientID, graphConf, IDManager)
+          func(graphID, clientID, graphConf, idManager)
       }
     }
 
@@ -100,7 +100,7 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
   protected def deployStandaloneService(
       graphID: String,
       clientID: String,
-      IDManager: IDManager
+      idManager: IDManager
   ): Unit =
     deployments.synchronized {
       deployments.get(graphID) match {
@@ -116,7 +116,7 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
           val scheduler       = new Scheduler()
           val serviceResource = for {
             repo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf)
-            _    <- PartitionOrchestrator.spawn[IO](graphConf, IDManager, graphID, repo, scheduler)
+            _    <- PartitionOrchestrator.spawn[IO](graphConf, idManager, graphID, repo, scheduler)
             _    <- IngestionManager[IO](graphConf, repo)
             _    <- QueryManager[IO](graphConf, repo)
           } yield ()
@@ -129,13 +129,13 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
       graphID: String,
       clientID: String,
       graphConf: Config,
-      IDManager: IDManager
+      idManager: IDManager
   ): Unit =
     deployments.synchronized {
       val scheduler       = new Scheduler()
       val serviceResource = for {
         repo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf)
-        _    <- PartitionOrchestrator.spawn[IO](graphConf, IDManager, graphID, repo, scheduler)
+        _    <- PartitionOrchestrator.spawn[IO](graphConf, idManager, graphID, repo, scheduler)
       } yield ()
       val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
       deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))
