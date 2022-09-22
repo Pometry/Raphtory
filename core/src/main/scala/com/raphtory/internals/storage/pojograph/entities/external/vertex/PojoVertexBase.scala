@@ -40,9 +40,8 @@ private[pojograph] trait PojoVertexBase extends Vertex {
 
   def isFiltered: Boolean
 
-  override def getEdge(id: IDType): View[Edge] = {
+  override def getEdge(id: IDType): View[Edge] =
     getInEdge(id).view ++ getOutEdge(id).view
-  }
 }
 
 private[pojograph] trait PojoConcreteVertexBase[T] extends PojoVertexBase {
@@ -80,27 +79,31 @@ private[pojograph] trait PojoConcreteVertexBase[T] extends PojoVertexBase {
     msg match {
       case msg: VertexMessage[_, _]       => multiQueue.receiveMessage(msg.superstep, msg.data)
       case msg: FilteredOutEdgeMessage[_] =>
-        lens.needsFiltering = true
+        lens.needsFiltering.set(msg.superstep)
         outgoingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
       case msg: FilteredInEdgeMessage[_]  =>
-        lens.needsFiltering = true
+        lens.needsFiltering.set(msg.superstep)
         incomingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
       case msg: FilteredEdgeMessage[_]    =>
-        lens.needsFiltering = true
+        lens.needsFiltering.set(msg.superstep)
         outgoingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
         incomingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
     }
 
   //filtering
-  private var filtered = false
+  @volatile private var filtered = false
 
   def executeEdgeDelete(): Unit = {
-    internalOutgoingEdges --= outgoingEdgeDeleteMultiQueue
+    val outgoingDeletes = outgoingEdgeDeleteMultiQueue
       .getMessageQueue(lens.superStep)
       .map(_.asInstanceOf[IDType])
-    internalIncomingEdges --= incomingEdgeDeleteMultiQueue
+    println(s"vertex $name has outgoing deletes $outgoingDeletes")
+    internalOutgoingEdges --= outgoingDeletes
+    val incomingDeletes = incomingEdgeDeleteMultiQueue
       .getMessageQueue(lens.superStep)
       .map(_.asInstanceOf[IDType])
+    internalIncomingEdges --= incomingDeletes
+    println(s"vertex $name has incoming deletes $incomingDeletes")
     outgoingEdgeDeleteMultiQueue.clearQueue(lens.superStep)
     incomingEdgeDeleteMultiQueue.clearQueue(lens.superStep)
   }
@@ -110,9 +113,14 @@ private[pojograph] trait PojoConcreteVertexBase[T] extends PojoVertexBase {
   def remove(): Unit = {
     // key is the vertex of the other side of edge
     filtered = true
-    lens.needsFiltering = true
-    internalIncomingEdges.keys.foreach(k => lens.sendMessage(FilteredOutEdgeMessage(lens.superStep + 1, k, ID)))
-    internalOutgoingEdges.keys.foreach(k => lens.sendMessage(FilteredInEdgeMessage(lens.superStep + 1, k, ID)))
+
+    lens.needsFiltering.set(lens.superStep + 1)
+    internalIncomingEdges.keys.foreach { k =>
+      lens.sendMessage(FilteredOutEdgeMessage(lens.superStep + 1, k, ID))
+    }
+    internalOutgoingEdges.keys.foreach { k =>
+      lens.sendMessage(FilteredInEdgeMessage(lens.superStep + 1, k, ID))
+    }
   }
 
   case class SizedView[+A](as: Iterable[A]) extends AbstractView[A] {

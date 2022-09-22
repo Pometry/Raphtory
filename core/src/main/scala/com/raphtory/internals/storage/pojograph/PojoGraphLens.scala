@@ -20,11 +20,38 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 
+private[raphtory] class SuperstepFlag {
+  @volatile var evenFlag: Boolean = false
+  @volatile var oddFlag: Boolean  = false
+
+  def isSet(superStep: Int): Boolean =
+    if (superStep % 2 == 0)
+      evenFlag
+    else
+      oddFlag
+
+  def set(superStep: Int): Unit =
+    if (superStep % 2 == 0)
+      evenFlag = true
+    else
+      oddFlag = true
+
+  def clear(superStep: Int): Unit =
+    if (superStep % 2 == 0)
+      evenFlag = false
+    else
+      oddFlag = false
+}
+
+object SuperstepFlag {
+  def apply() = new SuperstepFlag
+}
+
 final private[raphtory] case class PojoGraphLens(
     jobId: String,
     start: Long,
     end: Long,
-    var superStep: Int,
+    @volatile var superStep: Int,
     private val storage: GraphPartition,
     private val conf: Config,
     private val messageSender: GenericVertexMessage[_] => Unit,
@@ -40,7 +67,7 @@ final private[raphtory] case class PojoGraphLens(
 
   val chunkSize = 128
 
-  var needsFiltering = false //used in PojoExEdge
+  val needsFiltering: SuperstepFlag = SuperstepFlag()
 
   val partitionID: Int = storage.getPartitionID
 
@@ -139,11 +166,15 @@ final private[raphtory] case class PojoGraphLens(
     val tasks = {
       if (exploded)
         if (interlayerEdgeBuilder.nonEmpty)
-          prepareRun(vertexMap.valuesIterator, chunkSize, includeAllVs = true)(vertex => vertex.explode(interlayerEdgeBuilder))._2
+          prepareRun(vertexMap.valuesIterator, chunkSize, includeAllVs = true)(vertex =>
+            vertex.explode(interlayerEdgeBuilder)
+          )._2
         else List.empty
       else {
         exploded = true
-        prepareRun(vertexMap.valuesIterator, chunkSize, includeAllVs = true)(vertex => vertex.explode(interlayerEdgeBuilder))._2
+        prepareRun(vertexMap.valuesIterator, chunkSize, includeAllVs = true)(vertex =>
+          vertex.explode(interlayerEdgeBuilder)
+        )._2
       }
     }
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
@@ -212,7 +243,8 @@ final private[raphtory] case class PojoGraphLens(
 
   override def runMessagedGraphFunction(f: _ => Unit)(onComplete: => Unit): Unit = {
 
-    val (count, tasks) = prepareRun(vertexIterator, chunkSize, includeAllVs = false)(f.asInstanceOf[PojoVertexBase => Unit])
+    val (count, tasks) =
+      prepareRun(vertexIterator, chunkSize, includeAllVs = false)(f.asInstanceOf[PojoVertexBase => Unit])
 
     vertexCount.set(count)
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
@@ -240,11 +272,13 @@ final private[raphtory] case class PojoGraphLens(
   def nextStep(): Unit = {
     voteCount.set(0)
     vertexCount.set(0)
+    logger.debug(s"nextStep called at $superStep on partition $partitionID")
     superStep += 1
-    if (needsFiltering) {
+    if (needsFiltering.isSet(superStep)) {
+      logger.debug(s"filtering triggered at step $superStep on partition $partitionID")
       vertexIterator.foreach(_.executeEdgeDelete())
       deleteVertices()
-      needsFiltering = false
+      needsFiltering.clear(superStep)
     }
   }
 
@@ -263,10 +297,11 @@ final private[raphtory] case class PojoGraphLens(
     try vertexMap(vertexId).receiveMessage(msg)
     catch {
       case e: java.util.NoSuchElementException =>
-        logger.warn(
+        logger.error(
                 s"Job '$jobId': Vertex '${msg.vertexId}' is yet to be created in " +
                   s"Partition '${storage.getPartitionID}'. Please consider rerunning computation on this perspective."
         )
+        throw e
     }
   }
 
