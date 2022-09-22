@@ -72,7 +72,7 @@ private[raphtory] class QuerySender(
 
   def IDForUpdates(): Int = {
     if (newIDRequiredOnUpdate)
-      idManager.getNextAvailableID() match {
+      idManager.getNextAvailableID(graphID) match {
         case Some(id) =>
           currentSourceID = id
           newIDRequiredOnUpdate = false
@@ -139,7 +139,7 @@ private[raphtory] class QuerySender(
       source.getBuilderClass
     }.toList
     val sourceWithId = sources.map { source =>
-      idManager.getNextAvailableID() match {
+      idManager.getNextAvailableID(graphID) match {
         case Some(id) =>
           if (blocking) blockingSources += id
           (id, source)
