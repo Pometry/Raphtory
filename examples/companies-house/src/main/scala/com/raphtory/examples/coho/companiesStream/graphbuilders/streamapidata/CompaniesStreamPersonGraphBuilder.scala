@@ -1,14 +1,9 @@
-package com.raphtory.examples.coho.companiesStream.graphbuilders
+package com.raphtory.examples.coho.companiesStream.graphbuilders.streamapidata
 
-import com.raphtory.api.input.Graph
 import com.raphtory.api.input.Graph.assignID
-import com.raphtory.api.input.ImmutableProperty
-import com.raphtory.api.input.Properties
-import com.raphtory.api.input.StringProperty
-import com.raphtory.api.input.Type
-import com.raphtory.examples.coho.companiesStream.rawModel.CompaniesHouseJsonProtocol.CompanyFormat
-import com.raphtory.examples.coho.companiesStream.rawModel.CompaniesHouseJsonProtocol.getField
-import com.raphtory.examples.coho.companiesStream.rawModel.Company
+import com.raphtory.api.input._
+import com.raphtory.examples.coho.companiesStream.jsonparsers.company.CompaniesHouseJsonProtocol.CompanyFormat
+import com.raphtory.examples.coho.companiesStream.jsonparsers.company.Company
 import spray.json._
 
 import java.text.SimpleDateFormat
@@ -20,10 +15,10 @@ import java.util.Date
   * companies linked to a specific person.
   */
 
-object CompaniesStreamPersonGraphBuilder {
+class CompaniesStreamPersonGraphBuilder extends GraphBuilder[String] {
   private val nullStr = "null"
 
-  def parse(graph: Graph, tuple: String): Unit = {
+  def apply(graph: Graph, tuple: String): Unit = {
     try {
       val command = tuple
       val company = command.parseJson.convertTo[Company]
