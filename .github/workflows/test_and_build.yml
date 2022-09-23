@@ -69,6 +69,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install poetry
+      - name: Install make
+        run: |
+          sudo apt-get update && sudo apt-get install make
       - name: Install pyraphtory
         run: |
           make sbt-build
