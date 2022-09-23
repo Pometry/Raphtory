@@ -9,6 +9,7 @@ import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.storage.arrow.entities.ArrowExVertex
 
+import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.View
 
 final case class ArrowGraphLens(
@@ -20,11 +21,23 @@ final case class ArrowGraphLens(
     private val messageSender: GenericVertexMessage[_] => Unit,
     private val errorHandler: Throwable => Unit,
     scheduler: Scheduler
-) extends AbstractGraphLens(jobId, start, end, superStep0, par, messageSender, errorHandler, scheduler) {
+) extends AbstractGraphLens(
+                jobId,
+                start,
+                end,
+                new AtomicInteger(superStep0),
+                par,
+                messageSender,
+                errorHandler,
+                scheduler
+        ) {
 
-  override def localNodeCount: Int = ???
+  override def localNodeCount: Int = {
+    val size = par.vertexCount
+    assert(size >= 0) // this kind of view knows the size
+    size
+  }
 
-  override def executeSelect(f: Function[_, Row])(onComplete: => Unit): Unit = ???
 
   override def executeSelect(f: Function2[_, GraphState, Row], graphState: GraphState)(onComplete: => Unit): Unit = ???
 
@@ -35,8 +48,6 @@ final case class ArrowGraphLens(
   override def filteredTable(f: Row => Boolean)(onComplete: => Unit): Unit = ???
 
   override def explodeTable(f: Row => IterableOnce[Row])(onComplete: => Unit): Unit = ???
-
-  override def writeDataTable(f: Row => Unit)(onComplete: => Unit): Unit = ???
 
   override def explodeView(interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]])(onComplete: => Unit): Unit =
     ???
@@ -53,18 +64,14 @@ final case class ArrowGraphLens(
       aggregate: Boolean
   )(onComplete: => Unit): Unit = ???
 
-  override def runGraphFunction(f: (_, GraphState) => Unit, graphState: GraphState)(onComplete: => Unit): Unit =
-    ???
+//  override def runGraphFunction(f: (_, GraphState) => Unit, graphState: GraphState)(onComplete: => Unit): Unit =
+//    ???
 
   override def runMessagedGraphFunction(f: _ => Unit)(onComplete: => Unit): Unit = ???
 
   override def runMessagedGraphFunction(f: (_, GraphState) => Unit, graphState: GraphState)(
       onComplete: => Unit
   ): Unit = ???
-
-  override def nextStep(): Unit = ???
-
-  override def clearMessages(): Unit = ???
 
   /**
     * Give me the vertices alive at this point
@@ -74,8 +81,10 @@ final case class ArrowGraphLens(
     *
     * @return
     */
-  override def vertices: View[Vertex] =
-    par.vertices
-      .filter(v => graphState.isAlive(v.getLocalId))
-      .map(new ArrowExVertex(graphState, _))
+  override def vertices: View[Vertex] = par.vertices.map(new ArrowExVertex(graphState, _))
+//    par.windowVertices(start, end)
+//      .filter(v => graphState.isAlive(v.getLocalId, partitionID()))
+//      .map(new ArrowExVertex(graphState, _))
+
+
 }

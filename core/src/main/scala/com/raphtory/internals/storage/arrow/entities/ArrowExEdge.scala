@@ -2,8 +2,9 @@ package com.raphtory.internals.storage.arrow.entities
 
 import com.raphtory.api.analysis.visitor.{ConcreteEdge, Edge => REdge}
 import com.raphtory.arrowcore.model.{Edge, Entity}
+import com.raphtory.internals.storage.arrow.{ArrowGraphLens, ArrowPartition, ArrowEntityStateRepository}
 
-class ArrowExEdge(edge:Edge) extends ConcreteEdge[Long] with ArrowExEntity {
+class ArrowExEdge(edge:Edge, protected val repo: ArrowEntityStateRepository) extends ConcreteEdge[Long] with ArrowExEntity {
   /** type of vertex IDs for this edge */
   override type IDType = Long
 
@@ -17,7 +18,9 @@ class ArrowExEdge(edge:Edge) extends ConcreteEdge[Long] with ArrowExEntity {
   override def dst: Long = edge.getDstVertex //TODO: global or local?
 
   /** Filter the edge from the `GraphPerspective`. */
-  override def remove(): Unit = ???
+  override def remove(): Unit = {
+    repo.removeEdge(edge.getLocalId)
+  }
 
   /** Send a message to the vertex connected on the other side of the edge
    *

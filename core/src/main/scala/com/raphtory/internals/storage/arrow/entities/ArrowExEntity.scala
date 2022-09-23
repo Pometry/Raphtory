@@ -1,12 +1,19 @@
 package com.raphtory.internals.storage.arrow.entities
 
-import com.raphtory.api.analysis.visitor.{EntityVisitor, HistoricEvent, PropertyValue}
+import com.raphtory.api.analysis.visitor.EntityVisitor
+import com.raphtory.api.analysis.visitor.HistoricEvent
+import com.raphtory.api.analysis.visitor.PropertyValue
+import com.raphtory.api.analysis.visitor.Vertex
+import com.raphtory.api.input.StringProperty
 import com.raphtory.arrowcore.model.Entity
+import com.raphtory.internals.storage.arrow.ArrowEntityStateRepository
+import com.raphtory.internals.storage.arrow.RichVertex
 
 import scala.reflect.ClassTag
 
 trait ArrowExEntity extends EntityVisitor {
 
+  protected def repo: ArrowEntityStateRepository
 
   protected def entity: Entity
 
@@ -70,7 +77,10 @@ trait ArrowExEntity extends EntityVisitor {
     * @param after  Only consider addition events in the current view that happened no earlier than time `after`
     * @param before Only consider addition events in the current view that happened no later than time `before`
     */
-  override def getPropertyHistory[T](key: String, after: Long, before: Long): Option[Iterable[PropertyValue[T]]] = ???
+  override def getPropertyHistory[T](key: String, after: Long, before: Long): Option[Iterable[PropertyValue[T]]] = {
+    val prop: String = new RichVertex(entity.asInstanceOf[com.raphtory.arrowcore.model.Vertex]).prop[String](key).get
+    Some(List(PropertyValue(after, before, prop)))
+  }
 
   /** Set algorithmic state for this entity. Note that for edges, algorithmic state is stored locally to the vertex endpoint
     * which sets this state (default being the source node when set during an edge step).
@@ -78,7 +88,8 @@ trait ArrowExEntity extends EntityVisitor {
     * @param key   key to use for setting value
     * @param value new value for state
     */
-  override def setState(key: String, value: Any): Unit = ???
+  override def setState(key: String, value: Any): Unit =
+    repo.setState(entity.getLocalId, key, value)
 
   /** Retrieve value from algorithmic state. Note that for edges, algorithmic state is stored locally to the vertex endpoint
     * which sets this state (default being the source node when set during an edge step).
@@ -87,7 +98,8 @@ trait ArrowExEntity extends EntityVisitor {
     * @param key               key to use for retrieving state
     * @param includeProperties set this to `true` to fall-through to vertex properties if `key` is not found
     */
-  override def getState[T](key: String, includeProperties: Boolean): T = ???
+  override def getState[T](key: String, includeProperties: Boolean): T =
+    repo.getState(entity.getLocalId, key)
 
   /** Retrieve value from algorithmic state if it exists or return a default value otherwise. Note that for edges,
     * algorithmic state is stored locally to the vertex endpoint which set this state (default being the source node
@@ -99,7 +111,7 @@ trait ArrowExEntity extends EntityVisitor {
     * @param includeProperties set this to `true` to fall-through to entity properties
     *                          if `key` is not found in algorithmic state
     */
-  override def getStateOrElse[T](key: String, value: T, includeProperties: Boolean): T = ???
+  override def getStateOrElse[T](key: String, value: T, includeProperties: Boolean): T = {}
 
   /** Checks if algorithmic state with key `key` exists. Note that for edges, algorithmic state is stored locally to
     * the vertex endpoint which set this state (default being the source node when set during an edge step).

@@ -16,7 +16,10 @@ import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
 import com.raphtory.arrowcore.implementation.VertexPartitionManager
 import com.raphtory.arrowcore.model.Edge
 import com.raphtory.arrowcore.model.Vertex
-import com.raphtory.internals.graph.GraphAlteration.{EdgeSyncAck, SyncExistingEdgeAdd, SyncExistingRemovals, SyncNewEdgeAdd}
+import com.raphtory.internals.graph.GraphAlteration.EdgeSyncAck
+import com.raphtory.internals.graph.GraphAlteration.SyncExistingEdgeAdd
+import com.raphtory.internals.graph.GraphAlteration.SyncExistingRemovals
+import com.raphtory.internals.graph.GraphAlteration.SyncNewEdgeAdd
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
@@ -24,12 +27,18 @@ import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExV
 import com.typesafe.config.Config
 
 import java.lang
+import java.util.concurrent.atomic.LongAccumulator
+import java.util.concurrent.atomic.LongAdder
 import scala.collection.AbstractView
 import scala.collection.View
 import scala.collection.mutable
 
 class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition: Int, conf: Config)
         extends GraphPartition(graphID, partition, conf) {
+  def vertexCount: Int = par.getVertexMgr.getTotalNumberOfVertices.toInt
+
+  val min: LongAccumulator = new LongAccumulator(Math.min(_, _), Long.MaxValue)
+  val max: LongAccumulator = new LongAccumulator(Math.max(_, _), Long.MinValue)
 
   val partitionServers: Int    = conf.getInt("raphtory.partitions.serverCount")
   val partitionsPerServer: Int = conf.getInt("raphtory.partitions.countPerServer")
@@ -45,12 +54,14 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
       override def knownSize: Int = par.getVertexMgr.getTotalNumberOfVertices.toInt
     }
 
-  def windowVertices(start: Long, end: Long): AbstractView[Vertex] =
-    new AbstractView[Vertex] {
+  def windowVertices(start: Long, end: Long): View[Vertex] =
+    if (start <= min.longValue() && end >= max.longValue()) vertices // don't bother filtering if the interval is greater than min and max
+    else
+      new AbstractView[Vertex] {
 
-      override def iterator: Iterator[Vertex] =
-        new ArrowPartition.VertexIterator(par.getNewWindowedVertexIterator(start, end))
-    }
+        override def iterator: Iterator[Vertex] =
+          new ArrowPartition.VertexIterator(par.getNewWindowedVertexIterator(start, end))
+      }
 
   private def vmgr: VertexPartitionManager = par.getVertexMgr
   private def emgr: EdgePartitionManager   = par.getEdgeMgr
@@ -65,7 +76,15 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
   ): Unit =
     addVertexInternal(srcId, msgTime, properties)
 
+  private def updateAdders(msgTime: Long): Unit = {
+    min.accumulate(msgTime)
+    max.accumulate(msgTime)
+  }
+
   private def addVertexInternal(srcId: Long, msgTime: Long, properties: Properties): Vertex = {
+
+    updateAdders(msgTime)
+
     val vertex = idsRepo.resolve(srcId) match {
       case NotFound(id)          => // it's not present on this partition .. yet
         val srcLocalId = vmgr.getNextFreeVertexId
@@ -127,6 +146,7 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
       edgeType: Option[Type]
   ): Option[GraphAlteration.GraphUpdateEffect] = {
 
+    updateAdders(msgTime)
     // add source vertex
     val src = addVertexInternal(srcId, msgTime, Properties())
     // handle dst
@@ -214,13 +234,15 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
       edgeType: Option[Type]
   ): GraphAlteration.GraphUpdateEffect = {
 
+    updateAdders(msgTime)
+
     val dst = addVertexInternal(dstId, msgTime, properties)
 
     getIncomingEdge(srcId, dst) match {
       case Some(e) =>
         // activate edge
         // FIXME: what about properties?
-       emgr.addHistory(e.getLocalId, msgTime, true)
+        emgr.addHistory(e.getLocalId, msgTime, true)
       case None    =>
         addRemoteEdgeInternal(msgTime, srcId, dst, properties)
     }
@@ -237,9 +259,10 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
   }
 
   private def addRemoteEdgeInternal(msgTime: Long, srcId: Long, dst: Vertex, properties: Properties): Unit = {
+    updateAdders(msgTime)
     // init the edge
     val eId = emgr.getNextFreeEdgeId
-    val e = par.getEdge
+    val e   = par.getEdge
     e.init(eId, true, msgTime)
 
     // handle src
@@ -260,7 +283,7 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
     emgr.addHistory(e.getLocalId, msgTime, true)
 
     // link edge to the destination
-    val p = vmgr.getPartition(vmgr.getPartitionId(dst.getLocalId))
+    val p           = vmgr.getPartition(vmgr.getPartitionId(dst.getLocalId))
     val prevListPtr = p.synchronized {
       val ptr = p.addIncomingEdgeToList(dst.getLocalId, e.getLocalId)
       p.addHistory(dst.getLocalId, msgTime, true, false, e.getLocalId, false)
@@ -280,12 +303,15 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
       dstId: Long,
       properties: Properties
   ): GraphAlteration.GraphUpdateEffect = {
+
+    updateAdders(msgTime)
+
     val dst = addVertexInternal(dstId, msgTime, properties)
 
     getIncomingEdge(srcId, dst) match {
       case Some(e) =>
         emgr.addHistory(e.getLocalId, msgTime, true)
-      case None =>
+      case None    =>
         addRemoteEdgeInternal(msgTime, srcId, dst, properties)
     }
 

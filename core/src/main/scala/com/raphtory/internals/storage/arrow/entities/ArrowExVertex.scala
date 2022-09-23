@@ -1,12 +1,14 @@
 package com.raphtory.internals.storage.arrow.entities
 
 import com.raphtory.api.analysis.visitor.Vertex
-import com.raphtory.arrowcore.model.{Entity, Vertex => ArrVertex}
+import com.raphtory.arrowcore.model.Entity
+import com.raphtory.arrowcore.model.{Vertex => ArrVertex}
 import com.raphtory.internals.storage.GraphExecutionState
 
 import scala.collection.View
+import com.raphtory.internals.storage.arrow.{ArrowEntityStateRepository, RichVertex}
 
-class ArrowExVertex(state: GraphExecutionState, vertex: ArrVertex) extends Vertex with ArrowExEntity {
+class ArrowExVertex(val repo: ArrowEntityStateRepository, vertex: ArrVertex) extends Vertex with ArrowExEntity {
 
   def entity: Entity = vertex
 
@@ -23,7 +25,7 @@ class ArrowExVertex(state: GraphExecutionState, vertex: ArrVertex) extends Verte
   override def ID: Long = entity.getGlobalId
 
   /** Check if vertex has received messages */
-  override def hasMessage: Boolean = state.hasMessage(entity.getLocalId)
+  override def hasMessage: Boolean = repo.hasMessage(entity.getLocalId)
 
   /** Queue of received messages
     *
@@ -43,11 +45,11 @@ class ArrowExVertex(state: GraphExecutionState, vertex: ArrVertex) extends Verte
 
   /** Return all edges starting at this vertex
     */
-  override def outEdges: View[ArrowExEdge] = ???
+  override def outEdges: View[ArrowExEdge] = vertex.outgoingEdges.map(new ArrowExEdge(_, repo))
 
   /** Return all edges ending at this vertex
     */
-  override def inEdges: View[ArrowExEdge] = ???
+  override def inEdges: View[ArrowExEdge] = vertex.incomingEdges.map(new ArrowExEdge(_, repo))
 
   /** Return specified edge if it is an out-edge of this vertex
     *

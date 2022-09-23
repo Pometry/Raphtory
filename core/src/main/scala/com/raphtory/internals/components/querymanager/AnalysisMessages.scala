@@ -57,19 +57,22 @@ private[raphtory] case class VertexMessageBatch(data: Array[GenericVertexMessage
 private[raphtory] case class FilteredEdgeMessage[VertexID](
     superstep: Int,
     vertexId: VertexID,
-    sourceId: VertexID
+    sourceId: VertexID,
+    edgeId: Option[Long] = None// if we know exactly the edgeId
 ) extends GenericVertexMessage[VertexID]
 
 private[raphtory] case class FilteredInEdgeMessage[VertexID](
     superstep: Int,
     vertexId: VertexID,
-    sourceId: VertexID
+    sourceId: VertexID,
+    edgeId: Option[Long] = None// if we know exactly the edgeId
 ) extends GenericVertexMessage[VertexID]
 
 private[raphtory] case class FilteredOutEdgeMessage[VertexID](
     superstep: Int,
     vertexId: VertexID,
-    sourceId: VertexID
+    sourceId: VertexID,
+    edgeId: Option[Long] = None// if we know exactly the edgeId
 ) extends GenericVertexMessage[VertexID]
 
 private[raphtory] case class VertexMessagesSync(partitionID: Int, count: Long)
