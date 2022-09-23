@@ -10,6 +10,7 @@ import com.raphtory.internals.storage.arrow.ArrowEntityStateRepository
 import com.raphtory.internals.storage.arrow.RichVertex
 
 import scala.reflect.ClassTag
+import scala.util.Try
 
 trait ArrowExEntity extends EntityVisitor {
 
@@ -78,8 +79,7 @@ trait ArrowExEntity extends EntityVisitor {
     * @param before Only consider addition events in the current view that happened no later than time `before`
     */
   override def getPropertyHistory[T](key: String, after: Long, before: Long): Option[Iterable[PropertyValue[T]]] = {
-    val prop: String = new RichVertex(entity.asInstanceOf[com.raphtory.arrowcore.model.Vertex]).prop[String](key).get
-    Some(List(PropertyValue(after, before, prop)))
+    None
   }
 
   /** Set algorithmic state for this entity. Note that for edges, algorithmic state is stored locally to the vertex endpoint
@@ -111,7 +111,9 @@ trait ArrowExEntity extends EntityVisitor {
     * @param includeProperties set this to `true` to fall-through to entity properties
     *                          if `key` is not found in algorithmic state
     */
-  override def getStateOrElse[T](key: String, value: T, includeProperties: Boolean): T = {}
+  override def getStateOrElse[T](key: String, value: T, includeProperties: Boolean): T = {
+    Try{repo.getState[T](entity.getLocalId, key)}.getOrElse(value)
+  }
 
   /** Checks if algorithmic state with key `key` exists. Note that for edges, algorithmic state is stored locally to
     * the vertex endpoint which set this state (default being the source node when set during an edge step).

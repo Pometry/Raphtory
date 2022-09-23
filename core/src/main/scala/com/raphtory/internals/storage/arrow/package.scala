@@ -3,15 +3,15 @@ package com.raphtory.internals.storage
 import com.raphtory.arrowcore.implementation.EdgeIterator
 import com.raphtory.arrowcore.implementation.EntityFieldAccessor
 import com.raphtory.arrowcore.implementation.VersionedEntityPropertyAccessor
-import com.raphtory.arrowcore.model.{Edge, Entity, Vertex}
+import com.raphtory.arrowcore.model.Edge
+import com.raphtory.arrowcore.model.Entity
+import com.raphtory.arrowcore.model.Vertex
 
 import scala.annotation.implicitNotFound
 import scala.collection.View
 package object arrow {
 
-
-  trait RichEntityLike {
-    def v: Entity
+  implicit class RichVertex(val v: Vertex) extends AnyVal {
 
     def field[P: Field](name: String): FieldAccess[P] =
       new FieldAccess[P] {
@@ -40,12 +40,6 @@ package object arrow {
           implicitly[Prop[P]].get(v.getProperty(FIELD))
         }
       }
-  }
-
-//  implicit class Rich
-
-  implicit class RichVertex(val v: Vertex) extends AnyVal with RichEntityLike {
-
 
     def outgoingEdges: View[Edge] = {
       val edgesIter: EdgeIterator = v.getOutgoingEdges
@@ -60,7 +54,7 @@ package object arrow {
 
   }
 
-  implicit class RichEdge(val v: Edge) extends AnyVal{
+  implicit class RichEdge(val v: Edge) extends AnyVal {
 
     def prop[P: Field](name: String): FieldAccess[P] =
       new FieldAccess[P] {

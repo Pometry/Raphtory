@@ -288,6 +288,28 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   }
 
+  test("add two vertices into partition, at t1 and t2 test window iterator".only) {
+
+    val par: ArrowPartition = mkPartition(1, 0)
+    val t1           = System.currentTimeMillis()
+    val t2           = t1 + 1
+
+    // add bob
+    addVertex(3, t1, None, ImmutableProperty("name", "Bob"))(par)
+    // add alice
+    addVertex(7, t2, None, ImmutableProperty("name", "Alice"))(par)
+
+    val vs = par.vertices
+    assertEquals(vs.size, 2)
+    val vs1 = par.windowVertices(t1, t2) // inclusive window
+    assertEquals(vs1.size, 2)
+    val vs2 = par.windowVertices(t1, t1) // exclude t2
+    assertEquals(vs2.size, 1)
+    val vs3 = par.windowVertices(t2, t2+1) // exclude t2
+    assertEquals(vs3.size, 1)
+
+  }
+
   test("add edge between two vertices locally") {
 
     val par: ArrowPartition = mkPartition(1, 0)

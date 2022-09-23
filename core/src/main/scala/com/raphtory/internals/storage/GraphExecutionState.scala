@@ -37,7 +37,8 @@ class GraphExecutionState(superStep: AtomicInteger) extends ArrowEntityStateRepo
               }
     )
 
-  def hasMessage(getLocalId: Long): Boolean = messagesPerVertex(getLocalId).getMessageQueue(superStep.get).nonEmpty
+  def hasMessage(getLocalId: Long): Boolean =
+    messagesPerVertex(getLocalId).getMessageQueue(superStep.get).nonEmpty
 
   def removeOutEdge(vertexId: Long, sourceId: Long, edgeId: Option[Long]): Unit = ???
 
