@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 
-private class SuperStepFlag {
+private[raphtory] class SuperStepFlag {
   @volatile var evenFlag: Boolean = false
   @volatile var oddFlag: Boolean  = false
 
