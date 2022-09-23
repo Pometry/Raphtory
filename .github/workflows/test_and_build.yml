@@ -34,6 +34,7 @@ jobs:
       matrix:
         runners: [ubuntu-latest]
         containers: ["eclipse-temurin:11.0.12_7-jdk"]
+        python-version: ["3.9"]
         sbt: [1.5.5]
     runs-on: ${{ matrix.runners }}
     container:
@@ -60,6 +61,22 @@ jobs:
           export RAPHTORY_CORE_LOG="INFO"
           sbt test
         timeout-minutes: 10
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install poetry
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+      - name: Install pyraphtory
+        run: |
+          cd python/pyraphtory
+          poetry install
+      - name: Run pyraphtory tests
+        run: |
+          cd python/pyraphtory
+          poetry run pytest
     if: needs.configure.outputs.type == 'regular'
 
   build:
