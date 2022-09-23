@@ -71,6 +71,7 @@ jobs:
           python -m pip install poetry
       - name: Install pyraphtory
         run: |
+          make sbt-build
           cd python/pyraphtory
           poetry install
       - name: Run pyraphtory tests
