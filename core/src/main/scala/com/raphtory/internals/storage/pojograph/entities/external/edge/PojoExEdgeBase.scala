@@ -27,7 +27,7 @@ private[pojograph] trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
     view.sendMessage(VertexMessage(view.superStep + 1, ID, data))
 
   override def remove(): Unit = {
-    view.needsFiltering.set(view.superStep + 1)
+    view.filterAtStep(view.superStep + 1)
     view.sendMessage(FilteredOutEdgeMessage(view.superStep + 1, src, dst))
     view.sendMessage(FilteredInEdgeMessage(view.superStep + 1, dst, src))
   }

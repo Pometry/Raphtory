@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 
-private[raphtory] class SuperstepFlag {
+private class SuperStepFlag {
   @volatile var evenFlag: Boolean = false
   @volatile var oddFlag: Boolean  = false
 
@@ -43,8 +43,8 @@ private[raphtory] class SuperstepFlag {
       oddFlag = false
 }
 
-object SuperstepFlag {
-  def apply() = new SuperstepFlag
+object SuperStepFlag {
+  def apply() = new SuperStepFlag
 }
 
 final private[raphtory] case class PojoGraphLens(
@@ -67,7 +67,7 @@ final private[raphtory] case class PojoGraphLens(
 
   val chunkSize = 128
 
-  val needsFiltering: SuperstepFlag = SuperstepFlag()
+  private val needsFiltering: SuperStepFlag = SuperStepFlag()
 
   val partitionID: Int = storage.getPartitionID
 
@@ -109,6 +109,9 @@ final private[raphtory] case class PojoGraphLens(
   def localNodeCount: Int = vertices.length
 
   private var dataTable: Iterator[RowImplementation] = Iterator()
+
+  def filterAtStep(superStep: Int): Unit =
+    needsFiltering.set(superStep)
 
   def executeSelect(f: _ => Row)(onComplete: => Unit): Unit = {
     dataTable = vertexIterator.flatMap { vertex =>

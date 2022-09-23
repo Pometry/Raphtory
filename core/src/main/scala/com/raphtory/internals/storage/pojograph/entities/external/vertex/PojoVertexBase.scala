@@ -79,13 +79,13 @@ private[pojograph] trait PojoConcreteVertexBase[T] extends PojoVertexBase {
     msg match {
       case msg: VertexMessage[_, _]       => multiQueue.receiveMessage(msg.superstep, msg.data)
       case msg: FilteredOutEdgeMessage[_] =>
-        lens.needsFiltering.set(msg.superstep)
+        lens.filterAtStep(msg.superstep)
         outgoingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
       case msg: FilteredInEdgeMessage[_]  =>
-        lens.needsFiltering.set(msg.superstep)
+        lens.filterAtStep(msg.superstep)
         incomingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
       case msg: FilteredEdgeMessage[_]    =>
-        lens.needsFiltering.set(msg.superstep)
+        lens.filterAtStep(msg.superstep)
         outgoingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
         incomingEdgeDeleteMultiQueue.receiveMessage(msg.superstep, msg.sourceId)
     }
@@ -112,7 +112,7 @@ private[pojograph] trait PojoConcreteVertexBase[T] extends PojoVertexBase {
     // key is the vertex of the other side of edge
     filtered = true
 
-    lens.needsFiltering.set(lens.superStep + 1)
+    lens.filterAtStep(lens.superStep + 1)
     internalIncomingEdges.keys.foreach { k =>
       lens.sendMessage(FilteredOutEdgeMessage(lens.superStep + 1, k, ID))
     }
