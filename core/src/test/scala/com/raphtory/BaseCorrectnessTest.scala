@@ -17,9 +17,18 @@ import scala.collection.mutable
 
 case class TestQuery(
     algorithm: GenericallyApplicable,
-    timestamp: Long,
+    timestamp: Long = -1,
     windows: List[Long] = List.empty[Long]
 )
+
+trait Edges extends Spout[String]
+
+object Edges {
+  implicit def edgesFromResource(resource: String)  = new ResourceSpout(resource) with Edges
+  implicit def edgesFromEdgeSeq(edges: Seq[String]) = new SequenceSpout(edges) with Edges
+}
+
+trait Result
 
 abstract class BaseCorrectnessTest(
     deleteResultAfterFinish: Boolean = true
@@ -27,8 +36,12 @@ abstract class BaseCorrectnessTest(
 
   private def runTest(test: TestQuery, graph: TemporalGraph = graphS) =
     IO {
-      val tracker =
-        graph.at(test.timestamp).window(test.windows, Alignment.END).execute(test.algorithm).writeTo(defaultSink)
+      val tracker = (if (test.timestamp >= 0)
+                       graph.at(test.timestamp).window(test.windows, Alignment.END)
+                     else
+                       graph)
+        .execute(test.algorithm)
+        .writeTo(defaultSink)
       tracker.waitForJob()
       TestUtils.getResults(outputDirectory, tracker.getJobId)
     }
@@ -51,26 +64,26 @@ abstract class BaseCorrectnessTest(
 
   def correctnessTest(
       test: TestQuery,
-      graphResource: String,
+      graphEdges: Edges,
       resultsResource: String
   ): IO[Unit] =
     Raphtory
       .newIOGraph()
       .use { g =>
-        g.load(Source(ResourceSpout(graphResource), setGraphBuilder()))
+        g.load(Source(graphEdges, setGraphBuilder()))
         runTest(test, g)
       }
       .map(obtained => assertResultsMatch(obtained, resultsResource))
 
   def correctnessTest(
       test: TestQuery,
-      graphEdges: Seq[String],
+      graphEdges: Edges,
       results: Seq[String]
   ): IO[Unit] =
     Raphtory
       .newIOGraph()
       .use { g =>
-        g.load(Source(SequenceSpout(graphEdges: _*), setGraphBuilder()))
+        g.load(Source(graphEdges, setGraphBuilder()))
         runTest(test, g)
       }
       .map(obtained => assertResultsMatch(obtained, results))

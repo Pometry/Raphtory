@@ -58,11 +58,14 @@ object CheckHistory {
 
 class OrderingTest extends BaseCorrectnessTest {
   test("test history is sorted") {
+    val edges    =
+      for (i <- 0 until 100)
+        yield s"${Random.nextInt(10)},${Random.nextInt(10)},${Random.nextInt(100)}"
+    val max_time = edges.map(_.split(",").apply(2).toInt).max
     correctnessTest(
-            TestQuery(CheckHistory(), 23),
-            for (i <- 0 until 100)
-              yield s"${Random.nextInt(10)},${Random.nextInt(10)},${Random.nextInt(100)}",
-            Seq("23,true,true")
+            TestQuery(CheckHistory(), max_time),
+            edges,
+            Seq(s"$max_time,true,true")
     )
   }
 }
