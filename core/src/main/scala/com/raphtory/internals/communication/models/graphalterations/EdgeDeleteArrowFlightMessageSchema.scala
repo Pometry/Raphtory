@@ -17,11 +17,8 @@ case class EdgeDeleteArrowFlightMessage(
     index: Long = 0L,
     srcId: Long = 0L,
     dstId: Long = 0L
-) extends ArrowFlightMessage
-
-object EdgeDeleteArrowFlightMessage {
-  // Should be used instead of creating new objects with default values
-  val default: EdgeDeleteArrowFlightMessage = EdgeDeleteArrowFlightMessage()
+) extends ArrowFlightMessage {
+  override def withDefaults(): ArrowFlightMessage = EdgeDeleteArrowFlightMessage()
 }
 
 case class EdgeDeleteArrowFlightMessageVectors(

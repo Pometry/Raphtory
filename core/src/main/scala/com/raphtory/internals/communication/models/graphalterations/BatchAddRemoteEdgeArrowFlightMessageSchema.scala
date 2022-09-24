@@ -32,11 +32,8 @@ case class BatchAddRemoteEdgeArrowFlightMessage(
     doublePropertyValues: List[Double] = List.empty[Double],
     floatProperyKeys: List[String] = List.empty[String],
     floatPropertyValues: List[Float] = List.empty[Float]
-) extends ArrowFlightMessage
-
-object BatchAddRemoteEdgeArrowFlightMessage {
-  // Should be used instead of creating new objects with default values
-  val default: BatchAddRemoteEdgeArrowFlightMessage = BatchAddRemoteEdgeArrowFlightMessage()
+) extends ArrowFlightMessage {
+  override def withDefaults(): ArrowFlightMessage = BatchAddRemoteEdgeArrowFlightMessage()
 }
 
 case class BatchAddRemoteEdgeArrowFlightMessageVectors(

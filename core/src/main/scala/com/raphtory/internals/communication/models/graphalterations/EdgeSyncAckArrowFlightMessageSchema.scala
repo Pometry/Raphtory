@@ -18,11 +18,8 @@ case class EdgeSyncAckArrowFlightMessage(
     srcId: Long = 0L,
     dstId: Long = 0L,
     fromAddition: Boolean = false
-) extends ArrowFlightMessage
-
-object EdgeSyncAckArrowFlightMessage {
-  // Should be used instead of creating new objects with default values
-  val default: EdgeSyncAckArrowFlightMessage = EdgeSyncAckArrowFlightMessage()
+) extends ArrowFlightMessage {
+  override def withDefaults(): ArrowFlightMessage = EdgeSyncAckArrowFlightMessage()
 }
 
 case class EdgeSyncAckArrowFlightMessageVectors(

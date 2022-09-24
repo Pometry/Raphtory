@@ -17,7 +17,8 @@ libraryDependencies ++= Seq(
         "org.scoverage"           %% "scalac-scoverage-runtime"           % "2.0.0",
         "org.typelevel"           %% "cats-effect"                        % catsEffectVersion,
         "org.typelevel"           %% "alleycats-core"                     % catsVersion,
-        "org.typelevel"           %% "munit-cats-effect-3"                % catsMUnitVersion % Test
+        "org.typelevel"           %% "munit-cats-effect-3"                % catsMUnitVersion % Test,
+        "org.objenesis"            % "objenesis"                          % "3.3"
 )
 
 //lazy val root = (project in file("."))

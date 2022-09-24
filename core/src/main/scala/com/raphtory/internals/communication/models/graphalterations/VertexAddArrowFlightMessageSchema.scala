@@ -30,7 +30,9 @@ case class VertexAddArrowFlightMessage(
                                         doublePropertyValues: List[Double] = List.empty[Double],
                                         floatPropertyKeys: List[String] = List.empty[String],
                                         floatPropertyValues: List[Float] = List.empty[Float]
-                                      ) extends ArrowFlightMessage
+                                      ) extends ArrowFlightMessage {
+  override def withDefaults(): ArrowFlightMessage = VertexAddArrowFlightMessage()
+}
 
 object VertexAddArrowFlightMessage {
   // Should be used instead of creating new objects with default values

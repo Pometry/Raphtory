@@ -33,11 +33,8 @@ case class SyncNewEdgeAddArrowFlightMessage(
     doublePropertyValues: List[Double] = List.empty[Double],
     floatProperyKeys: List[String] = List.empty[String],
     floatPropertyValues: List[Float] = List.empty[Float]
-) extends ArrowFlightMessage
-
-object SyncNewEdgeAddArrowFlightMessage {
-  // Should be used instead of creating new objects with default values
-  val default: SyncNewEdgeAddArrowFlightMessage = SyncNewEdgeAddArrowFlightMessage()
+) extends ArrowFlightMessage {
+  override def withDefaults(): ArrowFlightMessage = SyncNewEdgeAddArrowFlightMessage()
 }
 
 case class SyncNewEdgeAddArrowFlightMessageVectors(

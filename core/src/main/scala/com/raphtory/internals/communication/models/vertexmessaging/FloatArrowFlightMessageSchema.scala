@@ -15,11 +15,8 @@ case class FloatArrowFlightMessage(
     superStep: Int = 0,
     dstVertexId: Long = 0L,
     data: Float = 0f
-) extends ArrowFlightMessage
-
-object FloatArrowFlightMessage {
-  // Should be used instead of creating new objects with default values
-  val default: FloatArrowFlightMessage = FloatArrowFlightMessage()
+) extends ArrowFlightMessage {
+  override def withDefaults(): ArrowFlightMessage = FloatArrowFlightMessage()
 }
 
 case class FloatArrowFlightMessageVectors(

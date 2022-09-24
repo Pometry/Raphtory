@@ -15,11 +15,8 @@ case class VertexDeleteArrowFlightMessage(
     updateTime: Long = 0L,
     index: Long = 0L,
     srcId: Long = 0L
-) extends ArrowFlightMessage
-
-object VertexDeleteArrowFlightMessage {
-  // Should be used instead of creating new objects with default values
-  val default: VertexDeleteArrowFlightMessage = VertexDeleteArrowFlightMessage()
+) extends ArrowFlightMessage {
+  override def withDefaults(): ArrowFlightMessage = VertexDeleteArrowFlightMessage()
 }
 
 case class VertexDeleteArrowFlightMessageVectors(

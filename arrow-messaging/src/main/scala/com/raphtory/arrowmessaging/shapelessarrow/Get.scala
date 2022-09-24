@@ -3,6 +3,7 @@ package com.raphtory.arrowmessaging.shapelessarrow
 import com.raphtory.arrowmessaging.model.ArrowFlightMessage
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.complex.ListVector
+import org.objenesis.ObjenesisStd
 import shapeless.::
 import shapeless.Generic
 import shapeless.HList
@@ -13,29 +14,23 @@ import java.nio.charset.StandardCharsets
 import java.util.concurrent.ConcurrentHashMap
 import scala.collection.mutable
 import scala.reflect.ClassTag
-import scala.reflect.runtime.universe
 
 trait Get[T, R] {
-
-  val cache = new ConcurrentHashMap[universe.Type, ArrowFlightMessage]()
+  import Get._
 
   def get(vector: T, row: Int, value: R): R
 
   def invokeGet(vector: T, row: Int)(implicit ct: ClassTag[R]): R = {
-    def newDefault[A](implicit t: reflect.ClassTag[A]): A = {
-      import reflect.runtime.{currentMirror => cm}
+    def newDefault[A](implicit t: ClassTag[A]): A = {
+      val clazz = t.runtimeClass
+      val name  = clazz.getName
 
-      val clazz   = cm.classSymbol(t.runtimeClass)
-      val mod     = clazz.companion.asModule
-      val im      = cm.reflect(cm.reflectModule(mod).instance)
-      val ts      = im.symbol.typeSignature
-
-      if (!cache.contains(ts)) {
-        val default = ts.members.filter(_.isMethod).filter(d => d.name.toString == "default").head.asMethod
-        cache.put(ts, im.reflectMethod(default).apply().asInstanceOf[ArrowFlightMessage])
+      if (!cache.containsKey(name)) {
+        val instantiator = objenesis.getInstantiatorOf(clazz)
+        val newInstance  = instantiator.newInstance().asInstanceOf[ArrowFlightMessage].withDefaults()
+        cache.putIfAbsent(name, newInstance)
       }
-
-      cache.get(ts).asInstanceOf[A]
+      cache.get(name).asInstanceOf[A]
     }
 
     get(vector, row, newDefault[R])
@@ -43,6 +38,9 @@ trait Get[T, R] {
 }
 
 object Get {
+
+  val cache     = new ConcurrentHashMap[String, ArrowFlightMessage]()
+  val objenesis = new ObjenesisStd()
 
   def apply[T, R](implicit derivative: Get[T, R]): Get[T, R] =
     derivative

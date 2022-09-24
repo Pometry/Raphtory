@@ -14,11 +14,8 @@ case class LongArrowFlightMessage(
     superStep: Int = 0,
     dstVertexId: Long = 0L,
     vertexId: Long = 0L
-) extends ArrowFlightMessage
-
-object LongArrowFlightMessage {
-  // Should be used instead of creating new objects with default values
-  val default: LongArrowFlightMessage = LongArrowFlightMessage()
+) extends ArrowFlightMessage {
+  override def withDefaults(): ArrowFlightMessage = LongArrowFlightMessage()
 }
 
 case class LongArrowFlightMessageVectors(

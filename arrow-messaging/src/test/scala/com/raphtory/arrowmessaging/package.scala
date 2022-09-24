@@ -157,7 +157,9 @@ case class MixArrowFlightMessage(
     longlist: List[Long] = List.empty[Long],
     doublelist: List[Double] = List.empty[Double],
     floatlist: List[Float] = List.empty[Float]
-) extends ArrowFlightMessage
+) extends ArrowFlightMessage {
+  override def withDefaults(): ArrowFlightMessage = MixArrowFlightMessage()
+}
 
 case class MixArrowFlightMessageVectors(
     ints: IntVector,

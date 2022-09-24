@@ -20,11 +20,8 @@ case class SyncExistingRemovalsArrowFlightMessage(
     removals1: List[Long] = List.empty[Long],
     removals2: List[Long] = List.empty[Long],
     fromAddition: Boolean = false
-) extends ArrowFlightMessage
-
-object SyncExistingRemovalsArrowFlightMessage {
-  // Should be used instead of creating new objects with default values
-  val default: SyncExistingRemovalsArrowFlightMessage = SyncExistingRemovalsArrowFlightMessage()
+) extends ArrowFlightMessage {
+  override def withDefaults(): ArrowFlightMessage = SyncExistingRemovalsArrowFlightMessage()
 }
 
 case class SyncExistingRemovalsArrowFlightMessageVectors(

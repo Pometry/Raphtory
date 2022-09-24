@@ -9,7 +9,11 @@ import org.apache.arrow.vector.complex.impl.UnionListWriter
 import java.util.concurrent.ConcurrentHashMap
 import scala.reflect.ClassTag
 
-trait ArrowFlightMessage
+trait
+ArrowFlightMessage {
+  // Should be used instead of creating new objects with default values in `com.raphtory.arrowmessaging.shapelessarrow.Get`
+  def withDefaults(): ArrowFlightMessage
+}
 
 trait ArrowFlightMessageVectors
 

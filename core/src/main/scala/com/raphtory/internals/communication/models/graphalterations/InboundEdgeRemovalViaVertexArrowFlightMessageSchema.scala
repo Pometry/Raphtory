@@ -17,11 +17,8 @@ case class InboundEdgeRemovalViaVertexArrowFlightMessage(
     index: Long = 0L,
     srcId: Long = 0L,
     dstId: Long = 0L
-) extends ArrowFlightMessage
-
-object InboundEdgeRemovalViaVertexArrowFlightMessage {
-  // Should be used instead of creating new objects with default values
-  val default: InboundEdgeRemovalViaVertexArrowFlightMessage = InboundEdgeRemovalViaVertexArrowFlightMessage()
+) extends ArrowFlightMessage {
+  override def withDefaults(): ArrowFlightMessage = InboundEdgeRemovalViaVertexArrowFlightMessage()
 }
 
 case class InboundEdgeRemovalViaVertexArrowFlightMessageVectors(

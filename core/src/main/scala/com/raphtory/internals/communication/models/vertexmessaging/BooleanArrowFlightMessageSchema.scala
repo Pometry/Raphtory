@@ -14,11 +14,8 @@ case class BooleanArrowFlightMessage(
     superStep: Int = 0,
     dstVertexId: Long = 0L,
     data: Boolean = false
-) extends ArrowFlightMessage
-
-object BooleanArrowFlightMessage {
-  // Should be used instead of creating new objects with default values
-  val default: BooleanArrowFlightMessage = BooleanArrowFlightMessage()
+) extends ArrowFlightMessage {
+  override def withDefaults(): ArrowFlightMessage = BooleanArrowFlightMessage()
 }
 
 case class BooleanArrowFlightMessageVectors(
