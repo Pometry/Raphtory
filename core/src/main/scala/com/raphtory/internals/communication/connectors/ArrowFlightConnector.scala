@@ -1,6 +1,5 @@
 package com.raphtory.internals.communication.connectors
 
-import cats.effect.IO
 import cats.effect.Resource
 import cats.effect.Sync
 import com.raphtory.arrowmessaging._
@@ -12,7 +11,6 @@ import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.management.ZookeeperConnector
 import com.raphtory.internals.management.arrow.ArrowFlightHostAddressProvider
-import com.raphtory.internals.management.arrow.ZKHostAddressProvider
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.apache.arrow.memory._
