@@ -79,7 +79,7 @@ trait ArrowExEntity extends EntityVisitor {
     * @param before Only consider addition events in the current view that happened no later than time `before`
     */
   override def getPropertyHistory[T](key: String, after: Long, before: Long): Option[Iterable[PropertyValue[T]]] = {
-    None
+    Some(List.empty)
   }
 
   /** Set algorithmic state for this entity. Note that for edges, algorithmic state is stored locally to the vertex endpoint
@@ -112,7 +112,7 @@ trait ArrowExEntity extends EntityVisitor {
     *                          if `key` is not found in algorithmic state
     */
   override def getStateOrElse[T](key: String, value: T, includeProperties: Boolean): T = {
-    Try{repo.getState[T](entity.getLocalId, key)}.getOrElse(value)
+    repo.getStateOrElse(entity.getLocalId, key, value)
   }
 
   /** Checks if algorithmic state with key `key` exists. Note that for edges, algorithmic state is stored locally to
@@ -148,7 +148,7 @@ trait ArrowExEntity extends EntityVisitor {
     */
   override def appendToState[T: ClassTag](key: String, value: T): Unit = ???
 
-  override def history(): List[HistoricEvent] = ???
+  override def history(): List[HistoricEvent] = List.empty
 
   /** Return `true` if any event (addition or deletion) occurred during the time window starting at
     * `after` and ending at `before`. Otherwise returns `false`.

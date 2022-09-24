@@ -10,6 +10,8 @@ import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Spout
 import com.raphtory.spouts.ResourceSpout
 
+import scala.concurrent.duration.{Duration, FiniteDuration}
+
 class DegreeTest extends BaseCorrectnessTest {
   override def setGraphBuilder(): GraphBuilder[String] = WeightedGraphBuilder()
 
@@ -26,7 +28,9 @@ class DegreeTest extends BaseCorrectnessTest {
     )
   }
 
-  test("unweighted Degree") {
+  override def munitTimeout: Duration = FiniteDuration(15, "min")
+
+  test("unweighted Degree".only) {
     correctnessTest(TestQuery(Degree(), 6), "Degree/unweightedResult.csv")
   }
 }

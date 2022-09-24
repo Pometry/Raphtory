@@ -8,6 +8,7 @@ import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.storage.GraphExecutionState
+import com.raphtory.internals.storage.arrow.entities.ArrowExVertex
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
@@ -16,20 +17,20 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.collection.View
 
 abstract class AbstractGraphLens(
-    jobId: String,
-    start: Long,
-    end: Long,
-    superStep: AtomicInteger,
-    protected val storage: ArrowPartition,
-    private val messageSender: GenericVertexMessage[_] => Unit,
-    private val errorHandler: Throwable => Unit,
-    private val scheduler: Scheduler
-) extends LensInterface {
+                                  jobId: String,
+                                  start: Long,
+                                  end: Long,
+                                  superStep: AtomicInteger,
+                                  protected val storage: ArrowPartition,
+                                  private val messageSender: GenericVertexMessage[_] => Unit,
+                                  private val errorHandler: Throwable => Unit,
+                                  private val scheduler: Scheduler
+                                ) extends LensInterface {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val voteCount                         = new AtomicInteger(0)
-  private val vertexCount                       = new AtomicInteger(0)
-  private var fullGraphSize                     = 0
+  private val voteCount = new AtomicInteger(0)
+  private val vertexCount = new AtomicInteger(0)
+  private var fullGraphSize = 0
   protected val graphState: GraphExecutionState = GraphExecutionState(superStep)
 
   private var dataTable: View[RowImplementation] = View.empty[RowImplementation]
@@ -62,15 +63,15 @@ abstract class AbstractGraphLens(
 
   override def receiveMessage(msg: GenericVertexMessage[_]): Unit =
     msg match {
-      case msg: VertexMessage[_, _]                     =>
+      case msg: VertexMessage[_, _] =>
         graphState.receiveMessage(msg.vertexId, msg.superstep, msg.data)
-      case msg: FilteredEdgeMessage[Long] @unchecked    =>
+      case msg: FilteredEdgeMessage[Long]@unchecked =>
         graphState.removeEdge(msg.vertexId, msg.sourceId, msg.edgeId)
-      case msg: FilteredInEdgeMessage[Long] @unchecked  =>
+      case msg: FilteredInEdgeMessage[Long]@unchecked =>
         graphState.removeInEdge(msg.sourceId, msg.vertexId, msg.edgeId)
-      case msg: FilteredOutEdgeMessage[Long] @unchecked =>
+      case msg: FilteredOutEdgeMessage[Long]@unchecked =>
         graphState.removeOutEdge(msg.vertexId, msg.sourceId, msg.edgeId)
-      case _                                            =>
+      case _ =>
     }
 
   /**
@@ -83,6 +84,10 @@ abstract class AbstractGraphLens(
     */
   def vertices: View[Vertex]
 
+  def currentVertices: View[Vertex] = graphState.currentStepVertices.map {
+    id => new ArrowExVertex(graphState, storage.getVertex(id))
+  }
+
   override def runGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit = {
     vertexCount.set(0)
     val count = vertices.foldLeft(0) { (c, v) => f(v); c + 1 }
@@ -91,7 +96,7 @@ abstract class AbstractGraphLens(
   }
 
   override def runGraphFunction(f: (_, GraphState) => Unit, graphState: GraphState)(
-      onComplete: => Unit
+    onComplete: => Unit
   ): Unit = {
     vertexCount.set(0)
     val count = vertices.foldLeft(0) { (c, v) => f.asInstanceOf[(Vertex, GraphState) => Unit](v, graphState); c + 1 }
@@ -100,10 +105,9 @@ abstract class AbstractGraphLens(
   }
 
   override def executeSelect(f: _ => Row)(onComplete: => Unit): Unit = {
-    dataTable = vertices.flatMap(v => f.asInstanceOf[Vertex => RowImplementation](v).yieldAndRelease)
+    dataTable = currentVertices.flatMap(v => f.asInstanceOf[Vertex => RowImplementation](v).yieldAndRelease)
     onComplete
   }
-
 
   override def writeDataTable(writer: Row => Unit)(onComplete: => Unit): Unit = {
     dataTable.foreach(row => writer(row))

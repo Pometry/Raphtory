@@ -1,5 +1,6 @@
 package com.raphtory.internals.storage.arrow
 
+import com.raphtory.api.analysis.visitor
 import com.raphtory.api.input.BooleanProperty
 import com.raphtory.api.input.DoubleProperty
 import com.raphtory.api.input.FloatProperty
@@ -35,6 +36,10 @@ import scala.collection.mutable
 
 class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition: Int, conf: Config)
         extends GraphPartition(graphID, partition, conf) {
+  def getVertex(id: Long): Vertex = {
+    par.getVertexMgr.getVertex(id)
+  }
+
   def vertexCount: Int = par.getVertexMgr.getTotalNumberOfVertices.toInt
 
   val min: LongAccumulator = new LongAccumulator(Math.min(_, _), Long.MaxValue)
@@ -190,6 +195,9 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
           case ImmutableProperty(key, value) =>
             val FIELD = par.getEdgeFieldId(key)
             e.getField(FIELD).set(new java.lang.StringBuilder(value))
+          case LongProperty(key, value) =>
+            val FIELD = par.getEdgePropertyId(key)
+            e.getProperty(FIELD).setHistory(true, msgTime).set(value)
         }
 
         // add the actual edge
@@ -275,6 +283,9 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
       case ImmutableProperty(key, value) =>
         val FIELD = par.getEdgeFieldId(key)
         e.getField(FIELD).set(value)
+      case LongProperty(key, value) =>
+        val FIELD = par.getEdgePropertyId(key)
+        e.getProperty(FIELD).setHistory(true, msgTime).set(value)
     }
 
     // add the actual edge

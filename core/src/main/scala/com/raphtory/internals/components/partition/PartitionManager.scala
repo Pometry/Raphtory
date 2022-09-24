@@ -38,7 +38,7 @@ class PartitionManager(
           ArrowPartitionConfig(
                   conf,
                   partitionID,
-                  ArrowSchema[TestSchema, TestSchema],
+                  ArrowSchema[NodeSchema, EdgeSchema],
                   Files.createTempDirectory("random-blerg")
           ),
           conf
@@ -102,4 +102,5 @@ object PartitionManager {
 
 }
 
-case class TestSchema(@immutable name: String)
+case class NodeSchema(@immutable name: String)
+case class EdgeSchema(weight: Long)

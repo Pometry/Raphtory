@@ -6,36 +6,47 @@ import com.raphtory.internals.storage.pojograph.messaging.VertexMultiQueue
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.concurrent.TrieMap
-import scala.collection.mutable
+import scala.collection.{View, mutable}
 import scala.collection.mutable.ArrayBuffer
+import scala.jdk.CollectionConverters.EnumerationHasAsScala
 
 class GraphExecutionState(superStep: AtomicInteger) extends ArrowEntityStateRepository {
 
-  private val filteredEdges                = mutable.Set.empty[Any]
+  private val filteredEdges = mutable.Set.empty[Any]
   private val filteredVerticesPerPartition = Array.fill(4)(mutable.Set.empty[Any])
 
   private val newFilteredVerticesPerPartition = Array.fill(4)(new ArrayBuffer[Any])
-  private val newFilteredEdges                = new VertexMultiQueue
+  private val newFilteredEdges = new VertexMultiQueue
 
   private val messagesPerVertex = TrieMap.empty[Any, VertexMultiQueue]
 
   private val state = new ConcurrentHashMap[Long, mutable.Map[String, Any]]()
 
+  def currentStepVertices: View[Long] = View.fromIteratorProvider(() => state.keys().asScala)
+
   override def getState[T](getLocalId: Long, key: String): T = {
-    val innerMap = state.get(key)
-    innerMap(key).asInstanceOf[T] // this can blow up obviously
+    val innerMap = state.get(getLocalId)
+    // this can blow up obviously
+    innerMap(key).asInstanceOf[T]
   }
 
-  override def setState(vertexId: Long, key: String, value: Any): Unit =
+  override def getStateOrElse[T](getLocalId: Long, key: String, orElse: => T): T = {
+    val innerMap = state.get(getLocalId)
+    if (innerMap == null) orElse
+    else innerMap(key).asInstanceOf[T]
+  }
+
+  override def setState(vertexId: Long, key: String, value: Any): Unit = {
     state.compute(
-            vertexId,
-            (_, oldv) =>
-              if (oldv == null) mutable.Map(key -> value)
-              else {
-                oldv.update(key, value)
-                oldv
-              }
+      vertexId,
+      (_, oldv) =>
+        if (oldv == null) mutable.Map(key -> value)
+        else {
+          oldv.update(key, value)
+          oldv
+        }
     )
+  }
 
   def hasMessage(getLocalId: Long): Boolean =
     messagesPerVertex(getLocalId).getMessageQueue(superStep.get).nonEmpty

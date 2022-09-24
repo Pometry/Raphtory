@@ -38,7 +38,6 @@ final case class ArrowGraphLens(
     size
   }
 
-
   override def executeSelect(f: Function2[_, GraphState, Row], graphState: GraphState)(onComplete: => Unit): Unit = ???
 
   override def executeSelect(f: GraphState => Row, graphState: GraphState)(onComplete: => Unit): Unit = ???
@@ -81,9 +80,7 @@ final case class ArrowGraphLens(
     *
     * @return
     */
-  override def vertices: View[Vertex] = //par.vertices.map(new ArrowExVertex(graphState, _))
-  {
-    println(s" window view for [${start}:${end}]")
+  override def vertices: View[Vertex] = {
     par.windowVertices(start, end)
       .filter(v => graphState.isAlive(v.getLocalId, partitionID()))
       .map(new ArrowExVertex(graphState, _))
