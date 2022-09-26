@@ -118,8 +118,7 @@ object PythonInterop {
         None
     }.headOption
 
-  private def public_methods(obj: Any): Map[String, ArrayBuffer[Method]] = {
-    val clazz         = obj.getClass
+  private def public_methods(clazz: Class[_]): Map[String, ArrayBuffer[Method]] = {
     val runtimeMirror = universe.runtimeMirror(clazz.getClassLoader)
     val objType       = runtimeMirror.classSymbol(clazz).toType.dealias
     val methods       = objType.members
@@ -169,17 +168,27 @@ object PythonInterop {
     methodMap.toMap
   }
 
-  /** Find methods and default values for an object and return in friendly format */
-  def methods(obj: Any): util.Map[String, Array[Method]] = {
-    logger.trace(s"Scala 'methods' called with $obj")
-    val publicMethods = public_methods(obj)
-    val javaMethods   = obj.getClass.getMethods.map(m => m.getName).toSet
+  private def methodsForClass(clazz: Class[_]): util.Map[String, Array[Method]] = {
+    val publicMethods = public_methods(clazz)
+    val javaMethods   = clazz.getMethods.map(m => m.getName).toSet
     val actual        = publicMethods.view
       .filterKeys(m => javaMethods contains m)
       .map { case (key, value) => camel_to_snake(key) -> value.toArray }
       .toMap
       .asJava
     actual
+  }
+
+  def methods_from_name(name: String): util.Map[String, Array[Method]] = {
+    val clazz = Class.forName(name)
+    methodsForClass(clazz)
+  }
+
+  /** Find methods and default values for an object and return in friendly format */
+  def methods(obj: Any): util.Map[String, Array[Method]] = {
+    val clazz = obj.getClass
+    logger.trace(s"Scala 'methods' called with $obj")
+    methodsForClass(clazz)
   }
 }
 

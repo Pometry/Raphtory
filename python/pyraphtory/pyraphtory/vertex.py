@@ -5,6 +5,7 @@ from pyraphtory.scala.implicits.bounded import Bounded
 
 @register(name="Vertex")
 class Vertex(GenericScalaProxy):
+    _classname = "com.raphtory.api.analysis.visitor.Vertex"
     """Wrapper for Raphtory vertex with setitem and getitem methods for working with vertex state"""
     def __setitem__(self, key, value):
         self.set_state(key, value)

@@ -59,14 +59,19 @@ def set_scala_interop(obj):
 
 class Scala(object):
     """Class used to lazily initialise the scala interop to avoid import errors before the java connection is established"""
+
+    initialised = False
+
     @cached_property
     def scala(self):
         from pemja import findClass
+        self.initialised = True
         return findClass('com.raphtory.internals.management.PythonInterop')
 
     def set_interop(self, obj):
         """override the default lookup property for initialisation with py4j"""
         self.__dict__["scala"] = obj
+        self.initialised = True
 
 
 _scala = Scala()
@@ -102,6 +107,11 @@ def get_methods(obj):
     """look up methods for a java object"""
     logger.trace("Finding methods for {obj!r}", obj=obj)
     return _scala.scala.methods(obj)
+
+
+def get_methods_from_name(name):
+    logger.trace("Finding methods for {name} based on name", name=name)
+    return _scala.scala.methods_from_name(name)
 
 
 def get_wrapper(obj):
@@ -349,9 +359,13 @@ class GenericScalaProxy(ScalaProxyBase):
             if not cls._initialised:
                 logger.trace(f"uninitialised class {cls.__name__}")
                 if jvm_object is None:
-                    raise RuntimeError("Need object to find methods")
-                logger.trace(f"Getting methods for {jvm_object}")
-                methods = get_methods(jvm_object)
+                    if cls._classname is not None:
+                        methods = get_methods_from_name(cls._classname)
+                    else:
+                        raise RuntimeError("Cannot initialise methods for class without object or classname")
+                else:
+                    logger.trace(f"Getting methods for {jvm_object}")
+                    methods = get_methods(jvm_object)
                 for (name, method_array) in methods.items():
                     cls._add_method(name, method_array)
                 cls.__getattr__ = cls._getattr_initialised
@@ -383,11 +397,6 @@ class GenericScalaProxy(ScalaProxyBase):
             if self._initialised:
                 return getattr(self, item)  # a different thread already initialised the object
             else:
-                if self._jvm_object is None:
-                    if self._classname is not None:
-                        self._jvm_object = find_class(self._classname)
-                    else:
-                        raise AttributeError(f"Uninitialised class {self.__class__.__name__} has no attributes")
                 self._init_methods(self._jvm_object)
                 return getattr(self, item)
 
@@ -405,6 +414,8 @@ class GenericScalaProxy(ScalaProxyBase):
         super().__init_subclass__(**kwargs)
         if cls._classname is not None:
             register(cls)
+            if _scala.initialised:
+                cls._init_methods(None)
 
 
 class InstanceOnlyMethod(object):
