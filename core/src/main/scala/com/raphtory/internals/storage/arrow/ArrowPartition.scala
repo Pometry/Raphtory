@@ -36,9 +36,9 @@ import scala.collection.mutable
 
 class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition: Int, conf: Config)
         extends GraphPartition(graphID, partition, conf) {
-  def getVertex(id: Long): Vertex = {
+
+  def getVertex(id: Long): Vertex =
     par.getVertexMgr.getVertex(id)
-  }
 
   def vertexCount: Int = par.getVertexMgr.getTotalNumberOfVertices.toInt
 
@@ -60,7 +60,8 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
     }
 
   def windowVertices(start: Long, end: Long): View[Vertex] =
-    if (start <= min.longValue() && end >= max.longValue()) vertices // don't bother filtering if the interval is greater than min and max
+    if (start <= min.longValue() && end >= max.longValue())
+      vertices // don't bother filtering if the interval is greater than min and max
     else
       new AbstractView[Vertex] {
 
@@ -195,7 +196,7 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
           case ImmutableProperty(key, value) =>
             val FIELD = par.getEdgeFieldId(key)
             e.getField(FIELD).set(new java.lang.StringBuilder(value))
-          case LongProperty(key, value) =>
+          case LongProperty(key, value)      =>
             val FIELD = par.getEdgePropertyId(key)
             e.getProperty(FIELD).setHistory(true, msgTime).set(value)
         }
@@ -283,7 +284,7 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
       case ImmutableProperty(key, value) =>
         val FIELD = par.getEdgeFieldId(key)
         e.getField(FIELD).set(value)
-      case LongProperty(key, value) =>
+      case LongProperty(key, value)      =>
         val FIELD = par.getEdgePropertyId(key)
         e.getProperty(FIELD).setHistory(true, msgTime).set(value)
     }

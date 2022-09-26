@@ -3,6 +3,7 @@ package com.raphtory.internals.storage.arrow.entities
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.arrowcore.model.Entity
 import com.raphtory.arrowcore.model.{Vertex => ArrVertex}
+import com.raphtory.internals.components.querymanager.VertexMessage
 import com.raphtory.internals.storage.GraphExecutionState
 
 import scala.collection.View
@@ -31,7 +32,9 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, vertex: ArrVertex) ext
     *
     * @tparam `T` message data type
     */
-  override def messageQueue[T]: List[T] = ???
+  override def messageQueue[T]: View[T] = {
+    repo.queue(entity.getLocalId)
+  }
 
   /** Vote to stop iterating (iteration stops if all vertices voted to halt) */
   override def voteToHalt(): Unit = ???
@@ -41,7 +44,9 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, vertex: ArrVertex) ext
     * @param vertexId Vertex Id of target vertex for the message
     * @param data     message data to send
     */
-  override def messageVertex(vertexId: Long, data: Any): Unit = ???
+  override def messageVertex(vertexId: IDType, data: Any): Unit = {
+    repo.sendMessage(VertexMessage(repo.superStep, vertexId, data))
+  }
 
   /** Return all edges starting at this vertex
     */
@@ -74,6 +79,8 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, vertex: ArrVertex) ext
   override def getEdge(id: Long): View[Edge] = ???
 
   /** Filter this vertex and remove it and all its edges from the GraphPerspective */
-  override def remove(): Unit = ???
+  override def remove(): Unit = {
+    repo.removeVertex(entity.getLocalId)
+  }
 
 }

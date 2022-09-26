@@ -59,7 +59,7 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
         vertex.messageAllNeighbours(vertex.ID, degree, weight, nodeWeight)
       }
       .step { (vertex, graphState) =>
-        val messages = vertex.messageQueue[(vertex.IDType, Int, Double, Double)]
+        val messages = vertex.messageQueue[(vertex.IDType, Int, Double, Double)].toList
         val N        = graphState.nodeCount
         vertex.setState("D1", D1(vertex)(messages, N, alpha))
         vertex.setState("D2", D2(vertex)(messages, N, alpha))

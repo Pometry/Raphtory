@@ -6,16 +6,18 @@ import org.slf4j.LoggerFactory
 import scala.collection.mutable.ArrayBuffer
 import VertexMultiQueue.logger
 
+import scala.collection.View
+
 final private[raphtory] class VertexMultiQueue {
 
   private val evenMessageQueue: ArrayBuffer[Any] = ArrayBuffer.empty
   private val oddMessageQueue: ArrayBuffer[Any]  = ArrayBuffer.empty
 
-  def getMessageQueue(superStep: Int): List[Any] =
+  def getMessageQueue(superStep: Int): View[Any] =
     if (superStep % 2 == 0)
-      evenMessageQueue.toList
+      evenMessageQueue.view
     else
-      oddMessageQueue.toList
+      oddMessageQueue.view
 
   def clearQueue(superStep: Int): Unit =
     if (superStep % 2 == 0) {

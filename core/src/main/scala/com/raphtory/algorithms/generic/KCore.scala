@@ -79,7 +79,7 @@ class KCore(k: Int, resetStates: Boolean = true) extends Generic {
           val effDegree = vertex.getStateOrElse[Int](EFFDEGREE, vertex.degree) // todo is vertex.degree right as default?
 
           if (effDegree >= k) { // i.e. the node isn't already dead, in which case no updates needed
-            val newlyDeadNeighbours = vertex.messageQueue[Int].length
+            val newlyDeadNeighbours = vertex.messageQueue[Int].size
             val newEffDegree = effDegree - newlyDeadNeighbours
 
             vertex.setState(EFFDEGREE, newEffDegree)

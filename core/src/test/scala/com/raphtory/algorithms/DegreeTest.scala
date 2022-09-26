@@ -21,16 +21,16 @@ class DegreeTest extends BaseCorrectnessTest {
     correctnessTest(TestQuery(WeightedDegree[Long](), 6), "Degree/weightedResult.csv")
   }
 
-  test("weighted Degree with edge count") {
+  test("weighted Degree with edge count".only) {
     correctnessTest(
-            TestQuery(WeightedDegree[Long](""), 6),
+            TestQuery(WeightedDegree[Long](), 6),
             "Degree/countedResult.csv"
     )
   }
 
   override def munitTimeout: Duration = FiniteDuration(15, "min")
 
-  test("unweighted Degree".only) {
+  test("unweighted Degree") {
     correctnessTest(TestQuery(Degree(), 6), "Degree/unweightedResult.csv")
   }
 }

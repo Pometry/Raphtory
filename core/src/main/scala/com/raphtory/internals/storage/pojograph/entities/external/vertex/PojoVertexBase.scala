@@ -19,7 +19,7 @@ private[pojograph] trait PojoVertexBase extends Vertex {
   // messaging
   def hasMessage: Boolean
 
-  def messageQueue[T]: List[T]
+  def messageQueue[T]: View[T]
 
   def clearMessageQueue(): Unit
 
@@ -67,7 +67,7 @@ private[pojograph] trait PojoConcreteVertexBase[T] extends PojoVertexBase {
   def hasMessage: Boolean =
     multiQueue.getMessageQueue(lens.superStep).nonEmpty
 
-  def messageQueue[T]: List[T] = { //clears queue after getting it to make sure not there for next iteration
+  def messageQueue[T]: View[T] = { //clears queue after getting it to make sure not there for next iteration
     val queue = multiQueue.getMessageQueue(lens.superStep).map(_.asInstanceOf[T])
     multiQueue.clearQueue(lens.superStep)
     queue

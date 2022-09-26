@@ -1,13 +1,8 @@
 package com.raphtory.internals.storage
 
-import com.raphtory.arrowcore.implementation.EdgeIterator
-import com.raphtory.arrowcore.implementation.EntityFieldAccessor
-import com.raphtory.arrowcore.implementation.VersionedEntityPropertyAccessor
-import com.raphtory.arrowcore.model.Edge
-import com.raphtory.arrowcore.model.Entity
-import com.raphtory.arrowcore.model.Vertex
+import com.raphtory.arrowcore.implementation.{EdgeIterator, EntityFieldAccessor, NonversionedEnumField, VersionedEntityPropertyAccessor}
+import com.raphtory.arrowcore.model.{Edge, Vertex}
 
-import scala.annotation.implicitNotFound
 import scala.collection.View
 package object arrow {
 
@@ -70,5 +65,32 @@ package object arrow {
         }
       }
 
+  }
+
+  implicit class RichFieldAccessor(val acc: EntityFieldAccessor) extends AnyVal {
+
+    def getAny: Any =
+      acc match {
+        case accessor: EntityFieldAccessor.IntFieldAccessor          => accessor.getInt
+        case accessor: EntityFieldAccessor.ByteFieldAccessor         => accessor.getByte
+        case accessor: EntityFieldAccessor.LongFieldAccessor         => accessor.getLong
+        case accessor: EntityFieldAccessor.FloatFieldAccessor        => accessor.getFloat
+        case accessor: EntityFieldAccessor.ShortFieldAccessor        => accessor.getShort
+        case accessor: EntityFieldAccessor.DoubleFieldAccessor       => accessor.getDouble
+        case accessor: EntityFieldAccessor.StringFieldAccessor       => accessor.getString.toString
+        case accessor: EntityFieldAccessor.BooleanFieldAccessor      => accessor.getBoolean
+        case accessor: NonversionedEnumField.EnumEntityFieldAccessor => accessor.getEnum
+      }
+  }
+
+  implicit class RichPropertyAccessor(val acc: VersionedEntityPropertyAccessor) extends AnyVal {
+    def getAny: Any = acc match {
+      case accessor: VersionedEntityPropertyAccessor.IntPropertyAccessor => accessor.getInt
+      case accessor: VersionedEntityPropertyAccessor.LongPropertyAccessor => accessor.getLong
+      case accessor: VersionedEntityPropertyAccessor.FloatPropertyAccessor => accessor.getFloat
+      case accessor: VersionedEntityPropertyAccessor.DoublePropertyAccessor => accessor.getDouble
+      case accessor: VersionedEntityPropertyAccessor.StringPropertyAccessor => accessor.getString.toString
+      case accessor: VersionedEntityPropertyAccessor.BooleanPropertyAccessor => accessor.getBoolean
+    }
   }
 }

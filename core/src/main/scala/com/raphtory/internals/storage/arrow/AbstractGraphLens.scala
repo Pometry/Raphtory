@@ -1,8 +1,7 @@
 package com.raphtory.internals.storage.arrow
 
 import com.raphtory.api.analysis.graphstate.GraphState
-import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.RowImplementation
+import com.raphtory.api.analysis.table.{Row, RowImplementation}
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.LensInterface
@@ -13,7 +12,6 @@ import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicReference
 import scala.collection.View
 
 abstract class AbstractGraphLens(
@@ -31,7 +29,7 @@ abstract class AbstractGraphLens(
   private val voteCount = new AtomicInteger(0)
   private val vertexCount = new AtomicInteger(0)
   private var fullGraphSize = 0
-  protected val graphState: GraphExecutionState = GraphExecutionState(superStep)
+  protected val graphState: GraphExecutionState = GraphExecutionState(superStep, messageSender)
 
   private var dataTable: View[RowImplementation] = View.empty[RowImplementation]
 
@@ -56,7 +54,7 @@ abstract class AbstractGraphLens(
     t1 = System.currentTimeMillis()
     voteCount.set(0)
     vertexCount.set(0)
-    graphState.nextStep(superStep.incrementAndGet())
+    graphState.nextStep(superStep.getAndIncrement())
   }
 
   override def clearMessages(): Unit = graphState.clearMessages()

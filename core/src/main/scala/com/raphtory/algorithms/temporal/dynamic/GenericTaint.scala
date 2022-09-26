@@ -85,7 +85,7 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
                 // check if any node has received a message
                 // obtain the messages as a set
                 val newMessages   =
-                  vertex.messageQueue[(String, Long, Long, Long)].map(item => item).distinct
+                  vertex.messageQueue[(String, Long, Long, Long)].map(item => item).toList.distinct
                 // obtain the min time it was infected
                 val infectionTime = newMessages.map(item => item._3).min
                 val status        = newMessages.map(item => item._1).distinct

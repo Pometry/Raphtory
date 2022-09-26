@@ -1,22 +1,25 @@
 package com.raphtory.internals.storage
 
+import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import com.raphtory.internals.storage.arrow.ArrowEntityStateRepository
 import com.raphtory.internals.storage.pojograph.messaging.VertexMultiQueue
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.concurrent.TrieMap
-import scala.collection.{View, mutable}
+import scala.collection.View
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.EnumerationHasAsScala
 
-class GraphExecutionState(superStep: AtomicInteger) extends ArrowEntityStateRepository {
+class GraphExecutionState(superStep0: AtomicInteger, messageSender: GenericVertexMessage[_] => Unit)
+        extends ArrowEntityStateRepository {
 
-  private val filteredEdges = mutable.Set.empty[Any]
-  private val filteredVerticesPerPartition = Array.fill(4)(mutable.Set.empty[Any])
+  private val filteredEdges    = mutable.Set.empty[Any]
+  private val filteredVertices = mutable.Set.empty[Any]
 
-  private val newFilteredVerticesPerPartition = Array.fill(4)(new ArrayBuffer[Any])
-  private val newFilteredEdges = new VertexMultiQueue
+  private val newFilteredVertices = new ArrayBuffer[Any]
+  private val newFilteredEdges    = new VertexMultiQueue
 
   private val messagesPerVertex = TrieMap.empty[Any, VertexMultiQueue]
 
@@ -36,27 +39,26 @@ class GraphExecutionState(superStep: AtomicInteger) extends ArrowEntityStateRepo
     else innerMap(key).asInstanceOf[T]
   }
 
-  override def setState(vertexId: Long, key: String, value: Any): Unit = {
+  override def setState(vertexId: Long, key: String, value: Any): Unit =
     state.compute(
-      vertexId,
-      (_, oldv) =>
-        if (oldv == null) mutable.Map(key -> value)
-        else {
-          oldv.update(key, value)
-          oldv
-        }
+            vertexId,
+            (_, oldv) =>
+              if (oldv == null) mutable.Map(key -> value)
+              else {
+                oldv.update(key, value)
+                oldv
+              }
     )
-  }
 
   def hasMessage(getLocalId: Long): Boolean =
-    messagesPerVertex(getLocalId).getMessageQueue(superStep.get).nonEmpty
+    messagesPerVertex(getLocalId).getMessageQueue(superStep).nonEmpty
 
   def removeOutEdge(vertexId: Long, sourceId: Long, edgeId: Option[Long]): Unit = ???
 
   def removeInEdge(sourceId: Long, vertexId: Long, edgeId: Option[Long]): Unit = ???
 
   def removeEdge(vertexId: Long, sourceId: Long, edgeId: Option[Long]): Unit =
-    newFilteredEdges.receiveMessage(superStep.get, edgeId.get)
+    newFilteredEdges.receiveMessage(superStep, edgeId.get)
 
   def removeEdge(edgeId: Long): Unit =
     removeEdge(-1L, -1L, Option(edgeId))
@@ -66,25 +68,41 @@ class GraphExecutionState(superStep: AtomicInteger) extends ArrowEntityStateRepo
       .getOrElseUpdate(vertexId, new VertexMultiQueue)
       .receiveMessage(superstep, data)
 
-  def clearMessages(): Unit =
-    messagesPerVertex.values.foreach(_.clearAll())
+  def clearMessages(): Unit = messagesPerVertex.values.foreach(_.clearAll())
 
-  def nextStep(superStep: Int): Unit = {
-    newFilteredEdges.getMessageQueue(superStep + 1).foreach { v =>
+  def nextStep(superStepLocal: Int): Unit = {
+    newFilteredEdges.getMessageQueue(superStepLocal + 1).foreach { v =>
       filteredEdges.add(v)
     }
-    newFilteredEdges.clearQueue(superStep + 1)
-    filteredVerticesPerPartition.indices.foreach { i =>
-      val filtered = filteredVerticesPerPartition(i)
-      newFilteredVerticesPerPartition(i).foreach(v => filtered.add(v))
-      newFilteredVerticesPerPartition(i).clear()
-    }
+    newFilteredEdges.clearQueue(superStepLocal + 1)
+
+    newFilteredVertices.foldLeft(filteredVertices)(_ += _)
+    newFilteredVertices.clear()
   }
 
   def isAlive(vertexId: Long, partitionId: Int): Boolean =
-    !filteredVerticesPerPartition(partitionId).contains(vertexId)
+    !filteredVertices(vertexId)
+
+  override def removeVertex(vertexId: Long): Unit =
+    newFilteredVertices.synchronized(newFilteredVertices.addOne(vertexId))
+
+  override def sendMessage(msg: GenericVertexMessage[_]): Unit =
+    messageSender(msg)
+
+  override def superStep: Int = superStep0.get
+
+  override def queue[T](vertexId: Long): View[T] =
+    messagesPerVertex.get(vertexId) match {
+      case None    => View.empty[T]
+      case Some(q) =>
+        val value = q.getMessageQueue(superStep).toVector
+        println(s"$vertexId $value")
+        value.view.map(_.asInstanceOf[T])
+    }
 }
 
 object GraphExecutionState {
-  def apply(superStep: AtomicInteger): GraphExecutionState = new GraphExecutionState(superStep)
+
+  def apply(superStep: AtomicInteger, messageSender: GenericVertexMessage[_] => Unit): GraphExecutionState =
+    new GraphExecutionState(superStep, messageSender)
 }

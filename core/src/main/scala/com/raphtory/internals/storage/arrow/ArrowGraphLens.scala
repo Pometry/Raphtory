@@ -83,7 +83,9 @@ final case class ArrowGraphLens(
   override def vertices: View[Vertex] = {
     par.windowVertices(start, end)
       .filter(v => graphState.isAlive(v.getLocalId, partitionID()))
-      .map(new ArrowExVertex(graphState, _))
+      .map{ v =>
+        new ArrowExVertex(graphState, v)
+      }
   }
 
 
