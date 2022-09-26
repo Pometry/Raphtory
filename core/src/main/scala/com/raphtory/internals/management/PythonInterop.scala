@@ -179,10 +179,15 @@ object PythonInterop {
     actual
   }
 
-  def methods_from_name(name: String): util.Map[String, Array[Method]] = {
-    val clazz = Class.forName(name)
-    methodsForClass(clazz)
-  }
+  def methods_from_name(name: String): util.Map[String, Array[Method]] =
+    try {
+      val clazz = Class.forName(name)
+      methodsForClass(clazz)
+    }
+    catch {
+      case _: ClassNotFoundException => new util.HashMap[String, Array[Method]]()
+      case e                         => throw e
+    }
 
   /** Find methods and default values for an object and return in friendly format */
   def methods(obj: Any): util.Map[String, Array[Method]] = {

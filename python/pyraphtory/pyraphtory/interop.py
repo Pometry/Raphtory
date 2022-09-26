@@ -3,6 +3,7 @@ import re
 import traceback
 from abc import ABCMeta
 from collections.abc import Iterable, Mapping
+
 from py4j.java_gateway import JavaObject, JavaClass
 from py4j.java_collections import JavaArray
 import cloudpickle as pickle
@@ -10,15 +11,15 @@ from functools import cached_property
 from threading import Lock, RLock
 from copy import copy
 from textwrap import indent
-
 from pyraphtory import _codegen
+from pyraphtory._py4jgateway import Py4JConnection
 
 _wrapper_lock = Lock()
 _wrappers = {}
 
 
 def repr(obj):
-    return _scala.scala.repr(obj)
+    return _scala.repr(obj)
 
 
 # stay sane while debugging this code
@@ -30,8 +31,16 @@ JavaClass.__repr__ = repr
 JavaClass.__str__ = repr
 
 
+try:
+    from pemja import findClass
+    _scala = findClass('com.raphtory.internals.management.PythonInterop')
+except ImportError:
+    _py4j = Py4JConnection()
+    _scala = _py4j.j_gateway.entry_point
+
+
 def test_scala_reflection(obj):
-    return _scala.scala.methods2(obj)
+    return _scala.methods2(obj)
 
 
 def register(cls=None, *, name=None):
@@ -49,32 +58,6 @@ def register(cls=None, *, name=None):
             raise ValueError(f"Missing name during registration of {cls!r}")
         _wrappers[name] = cls
         return cls
-
-
-def set_scala_interop(obj):
-    """Provide an object for the scala interop interface (used when initialising from py4j)"""
-    global _scala
-    _scala.set_interop(obj)
-
-
-class Scala(object):
-    """Class used to lazily initialise the scala interop to avoid import errors before the java connection is established"""
-
-    initialised = False
-
-    @cached_property
-    def scala(self):
-        from pemja import findClass
-        self.initialised = True
-        return findClass('com.raphtory.internals.management.PythonInterop')
-
-    def set_interop(self, obj):
-        """override the default lookup property for initialisation with py4j"""
-        self.__dict__["scala"] = obj
-        self.initialised = True
-
-
-_scala = Scala()
 
 
 def is_PyJObject(obj):
@@ -95,23 +78,23 @@ def snake_to_camel(name: str):
 
 def camel_to_snake(name: str):
     """Convert scala-style camel-case names to python style snake case"""
-    return _scala.scala.camel_to_snake(name)
+    return _scala.camel_to_snake(name)
 
 
 def decode(obj):
     """call scala decode function to deal with converting java to scala collections"""
-    return _scala.scala.decode(obj)
+    return _scala.decode(obj)
 
 
 def get_methods(obj):
     """look up methods for a java object"""
     logger.trace("Finding methods for {obj!r}", obj=obj)
-    return _scala.scala.methods(obj)
+    return _scala.methods(obj)
 
 
 def get_methods_from_name(name):
     logger.trace("Finding methods for {name} based on name", name=name)
-    return _scala.scala.methods_from_name(name)
+    return _scala.methods_from_name(name)
 
 
 def get_wrapper(obj):
@@ -133,7 +116,7 @@ def get_wrapper(obj):
                 # do not register base wrapper here, or it will get picked up by other threads
                 base._init_methods(obj)
                 # Check if a special wrapper class is registered for the object
-                wrap_name = _scala.scala.get_wrapper_str(obj)
+                wrap_name = _scala.get_wrapper_str(obj)
                 if wrap_name in _wrappers:
                     # Add special wrapper class to the top of the mro such that method overloads work
                     logger.trace("Using wrapper based on name {wrap_name} for {name}", wrap_name=wrap_name, name=name)
@@ -189,17 +172,17 @@ def to_python(obj):
 
 def find_class(path: str):
     """get the scala companion object instance for a class path"""
-    return _scala.scala.find_class(path)
+    return _scala.find_class(path)
 
 
 def assign_id(s: str):
     """call the asign_id function (used by graph builder)"""
-    return _scala.scala.assign_id(s)
+    return _scala.assign_id(s)
 
 
 def make_varargs(param):
     """convert parameter list to varargs-friendly array"""
-    return _scala.scala.make_varargs(param)
+    return _scala.make_varargs(param)
 
 
 def _wrap_python_function(fun):
@@ -218,7 +201,7 @@ class Logger(object):
     """Wrapper for the java logger"""
     @cached_property
     def logger(self):
-        _logger = _scala.scala.logger()
+        _logger = _scala.logger()
         level = _logger.level()
         if level < 5:
             self.trace = self.no_op
@@ -414,8 +397,7 @@ class GenericScalaProxy(ScalaProxyBase):
         super().__init_subclass__(**kwargs)
         if cls._classname is not None:
             register(cls)
-            if _scala.initialised:
-                cls._init_methods(None)
+            cls._init_methods(None)
 
 
 class InstanceOnlyMethod(object):
@@ -544,9 +526,11 @@ class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
         else:
             actual_mcs = type.__new__(mcs, name + "_", (mcs,), {"_classname": attrs["_classname"],
                                                                 "__getattr__": _lazy_load_base})
+            actual_mcs._init_base_methods(_scala.find_class(actual_mcs._classname))
 
         cls = type.__new__(actual_mcs, name, bases, attrs, **kwargs)
         if concrete:
+            cls._jvm_object = _scala.find_class(actual_mcs._classname)
             register(cls._from_jvm, name=cls._classname + "$")
 
         return cls

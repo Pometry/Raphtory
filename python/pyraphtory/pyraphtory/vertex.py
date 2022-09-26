@@ -22,6 +22,7 @@ class Vertex(GenericScalaProxy):
 
 @register(name="GraphState")
 class GraphState(GenericScalaProxy):
+    _classname = "com.raphtory.api.analysis.graphstate.GraphState"
     """Wrapper for the global GraphState object which enables access to graphstate using getitem syntax"""
     def __getitem__(self, key):
         return self.apply(key)
