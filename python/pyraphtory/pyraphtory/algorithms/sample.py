@@ -35,6 +35,12 @@ if __name__ == "__main__":
           .to_df(["name", "degree"]))
     print(df)
 
+    df = (graph
+          .execute(Raphtory.algorithms.generic.community.LPA[Long]())
+          .to_df(["name", "lpa_label"])
+          )
+    print(df)
+
     df = (graph.execute(PageRank()).to_df(["name", "pagerank"]))
     print(df)
 
