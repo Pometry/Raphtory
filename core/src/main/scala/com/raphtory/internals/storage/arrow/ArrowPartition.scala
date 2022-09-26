@@ -37,6 +37,9 @@ import scala.collection.mutable
 class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition: Int, conf: Config)
         extends GraphPartition(graphID, partition, conf) {
 
+  def asGlobal(vertexId: Long): Long =
+    par.getVertexMgr.getVertex(vertexId).getGlobalId
+
   def getVertex(id: Long): Vertex =
     par.getVertexMgr.getVertex(id)
 

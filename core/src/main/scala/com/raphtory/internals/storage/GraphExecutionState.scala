@@ -12,8 +12,11 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.EnumerationHasAsScala
 
-class GraphExecutionState(superStep0: AtomicInteger, messageSender: GenericVertexMessage[_] => Unit)
-        extends ArrowEntityStateRepository {
+class GraphExecutionState(
+    superStep0: AtomicInteger,
+    messageSender: GenericVertexMessage[_] => Unit,
+    makeGlobalFn: Long => Long
+) extends ArrowEntityStateRepository {
 
   private val filteredEdges    = mutable.Set.empty[Any]
   private val filteredVertices = mutable.Set.empty[Any]
@@ -63,10 +66,11 @@ class GraphExecutionState(superStep0: AtomicInteger, messageSender: GenericVerte
   def removeEdge(edgeId: Long): Unit =
     removeEdge(-1L, -1L, Option(edgeId))
 
-  def receiveMessage(vertexId: Any, superstep: Int, data: Any): Unit =
+  def receiveMessage(vertexId: Any, localSuperStep: Int, data: Any): Unit = {
     messagesPerVertex
       .getOrElseUpdate(vertexId, new VertexMultiQueue)
-      .receiveMessage(superstep, data)
+      .receiveMessage(localSuperStep, data)
+  }
 
   def clearMessages(): Unit = messagesPerVertex.values.foreach(_.clearAll())
 
@@ -86,23 +90,30 @@ class GraphExecutionState(superStep0: AtomicInteger, messageSender: GenericVerte
   override def removeVertex(vertexId: Long): Unit =
     newFilteredVertices.synchronized(newFilteredVertices.addOne(vertexId))
 
-  override def sendMessage(msg: GenericVertexMessage[_]): Unit =
+  override def sendMessage(msg: GenericVertexMessage[_]): Unit = {
     messageSender(msg)
+  }
 
   override def superStep: Int = superStep0.get
 
-  override def queue[T](vertexId: Long): View[T] =
+  override def releaseQueue[T](vertexId: Long): View[T] =
     messagesPerVertex.get(vertexId) match {
       case None    => View.empty[T]
       case Some(q) =>
-        val value = q.getMessageQueue(superStep).toVector
-        println(s"$vertexId $value")
+        val value = q.getMessageQueue(superStep) // copies the queue
+        q.clearQueue(superStep)
         value.view.map(_.asInstanceOf[T])
     }
+
+  override def asGlobal(localVertexId: Long): Long = makeGlobalFn(localVertexId)
 }
 
 object GraphExecutionState {
 
-  def apply(superStep: AtomicInteger, messageSender: GenericVertexMessage[_] => Unit): GraphExecutionState =
-    new GraphExecutionState(superStep, messageSender)
+  def apply(
+      superStep: AtomicInteger,
+      messageSender: GenericVertexMessage[_] => Unit,
+      makeGlobal: Long => Long
+  ): GraphExecutionState =
+    new GraphExecutionState(superStep, messageSender, makeGlobal)
 }

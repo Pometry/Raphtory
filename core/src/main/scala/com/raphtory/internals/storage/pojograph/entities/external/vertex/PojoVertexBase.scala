@@ -40,9 +40,8 @@ private[pojograph] trait PojoVertexBase extends Vertex {
 
   def isFiltered: Boolean
 
-  override def getEdge(id: IDType): View[Edge] = {
+  override def getEdge(id: IDType): View[Edge] =
     getInEdge(id).view ++ getOutEdge(id).view
-  }
 }
 
 private[pojograph] trait PojoConcreteVertexBase[T] extends PojoVertexBase {
@@ -68,9 +67,9 @@ private[pojograph] trait PojoConcreteVertexBase[T] extends PojoVertexBase {
     multiQueue.getMessageQueue(lens.superStep).nonEmpty
 
   def messageQueue[T]: View[T] = { //clears queue after getting it to make sure not there for next iteration
-    val queue = multiQueue.getMessageQueue(lens.superStep).map(_.asInstanceOf[T])
+    val queue = multiQueue.getMessageQueue(lens.superStep)
     multiQueue.clearQueue(lens.superStep)
-    queue
+    queue.view.map(_.asInstanceOf[T])
   }
 
   def clearMessageQueue(): Unit =

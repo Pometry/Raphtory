@@ -46,8 +46,6 @@ final case class ArrowGraphLens(
 
   override def filteredTable(f: Row => Boolean)(onComplete: => Unit): Unit = ???
 
-  override def explodeTable(f: Row => IterableOnce[Row])(onComplete: => Unit): Unit = ???
-
   override def explodeView(interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]])(onComplete: => Unit): Unit =
     ???
 

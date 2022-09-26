@@ -13,11 +13,11 @@ final private[raphtory] class VertexMultiQueue {
   private val evenMessageQueue: ArrayBuffer[Any] = ArrayBuffer.empty
   private val oddMessageQueue: ArrayBuffer[Any]  = ArrayBuffer.empty
 
-  def getMessageQueue(superStep: Int): View[Any] =
+  def getMessageQueue(superStep: Int): Vector[Any] =
     if (superStep % 2 == 0)
-      evenMessageQueue.view
+      evenMessageQueue.toVector
     else
-      oddMessageQueue.view
+      oddMessageQueue.toVector
 
   def clearQueue(superStep: Int): Unit =
     if (superStep % 2 == 0) {

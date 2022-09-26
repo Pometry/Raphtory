@@ -4,10 +4,10 @@ import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.arrowcore.model.Entity
 import com.raphtory.arrowcore.model.{Vertex => ArrVertex}
 import com.raphtory.internals.components.querymanager.VertexMessage
-import com.raphtory.internals.storage.GraphExecutionState
 
 import scala.collection.View
-import com.raphtory.internals.storage.arrow.{ArrowEntityStateRepository, RichVertex}
+import com.raphtory.internals.storage.arrow.ArrowEntityStateRepository
+import com.raphtory.internals.storage.arrow.RichVertex
 
 class ArrowExVertex(val repo: ArrowEntityStateRepository, vertex: ArrVertex) extends Vertex with ArrowExEntity {
 
@@ -32,9 +32,8 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, vertex: ArrVertex) ext
     *
     * @tparam `T` message data type
     */
-  override def messageQueue[T]: View[T] = {
-    repo.queue(entity.getLocalId)
-  }
+  override def messageQueue[T]: View[T] =
+    repo.releaseQueue(ID)
 
   /** Vote to stop iterating (iteration stops if all vertices voted to halt) */
   override def voteToHalt(): Unit = ???
@@ -44,17 +43,18 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, vertex: ArrVertex) ext
     * @param vertexId Vertex Id of target vertex for the message
     * @param data     message data to send
     */
-  override def messageVertex(vertexId: IDType, data: Any): Unit = {
-    repo.sendMessage(VertexMessage(repo.superStep, vertexId, data))
-  }
+  override def messageVertex(vertexId: IDType, data: Any): Unit =
+    repo.sendMessage(VertexMessage(repo.superStep + 1, vertexId, data))
 
   /** Return all edges starting at this vertex
     */
-  override def outEdges: View[ArrowExEdge] = vertex.outgoingEdges.map(new ArrowExEdge(_, repo))
+  override def outEdges: View[ArrowExEdge] =
+    vertex.outgoingEdges.map(new ArrowExEdge(_, repo))
 
   /** Return all edges ending at this vertex
     */
-  override def inEdges: View[ArrowExEdge] = vertex.incomingEdges.map(new ArrowExEdge(_, repo))
+  override def inEdges: View[ArrowExEdge] =
+    vertex.incomingEdges.map(new ArrowExEdge(_, repo))
 
   /** Return specified edge if it is an out-edge of this vertex
     *
@@ -79,8 +79,7 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, vertex: ArrVertex) ext
   override def getEdge(id: Long): View[Edge] = ???
 
   /** Filter this vertex and remove it and all its edges from the GraphPerspective */
-  override def remove(): Unit = {
+  override def remove(): Unit =
     repo.removeVertex(entity.getLocalId)
-  }
 
 }

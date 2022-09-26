@@ -5,7 +5,16 @@ import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import scala.collection.View
 
 trait ArrowEntityStateRepository {
-  def queue[T](getLocalId: Long): View[T]
+  def asGlobal(getDstVertex: Long): Long
+
+  /**
+   * copy and and empty the queue on the repository side
+   *
+   * @param vertexId
+   * @tparam T
+   * @return
+   */
+  def releaseQueue[T](vertexId: Long): View[T]
 
   def superStep: Int
 

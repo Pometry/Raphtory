@@ -29,9 +29,9 @@ abstract class AbstractGraphLens(
   private val voteCount = new AtomicInteger(0)
   private val vertexCount = new AtomicInteger(0)
   private var fullGraphSize = 0
-  protected val graphState: GraphExecutionState = GraphExecutionState(superStep, messageSender)
+  protected val graphState: GraphExecutionState = GraphExecutionState(superStep, messageSender, storage.asGlobal)
 
-  private var dataTable: View[RowImplementation] = View.empty[RowImplementation]
+  private var dataTable: View[Row] = View.empty[RowImplementation]
 
   var t1: Long = System.currentTimeMillis()
 
@@ -108,7 +108,21 @@ abstract class AbstractGraphLens(
   }
 
   override def writeDataTable(writer: Row => Unit)(onComplete: => Unit): Unit = {
-    dataTable.foreach(row => writer(row))
+    dataTable.foreach{
+      row =>
+        println(row)
+        writer(row)
+    }
+    onComplete
+  }
+
+
+  def explodeTable(f: Row => IterableOnce[Row])(onComplete: => Unit): Unit = {
+    dataTable = dataTable.flatMap{
+      row =>
+        val value =  f(row) //FIXME: this doesn't work -> row.asInstanceOf[RowImplementation].explode(f).toVector
+        value
+    }
     onComplete
   }
 }
