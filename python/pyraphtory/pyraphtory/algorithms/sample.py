@@ -28,7 +28,7 @@ if __name__ == "__main__":
         graph.add_edge(time_stamp, src_id, tar_id, Type("Character_Co-occurence"))
 
     lotr_spout = FileSpout("/tmp/lotr.csv")
-    graph = pr.new_graph().load(Source(lotr_spout, parse))
+    graph = pr.new_graph().load(Source(lotr_spout, GraphBuilder(parse)))
 
     df = (graph
           .select(lambda vertex: Row(vertex.name(), vertex.degree()))
