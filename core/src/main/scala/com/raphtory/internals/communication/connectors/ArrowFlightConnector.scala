@@ -85,6 +85,8 @@ class ArrowFlightConnector(
       }
     }
 
+    override def sendSync(message: T): Unit            = sendAsync(message)
+
     override def flushAsync(): CompletableFuture[Void] =
       CompletableFuture.completedFuture {
         writer.synchronized {

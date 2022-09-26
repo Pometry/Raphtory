@@ -33,7 +33,8 @@ release = '0.1.0'
 # ones.
 extensions = [
     'extractScalaAlgoDocs',
-    'myst_parser'
+    'myst_parser',
+    'sphinx_tabs.tabs'
 ]
 
 # Extension options
@@ -47,6 +48,8 @@ autodoc_packages = [
     "com.raphtory.algorithms.temporal",
     "com.raphtory.algorithms.filters"
 ]
+
+sphinx_tabs_valid_builders = ['linkcheck']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

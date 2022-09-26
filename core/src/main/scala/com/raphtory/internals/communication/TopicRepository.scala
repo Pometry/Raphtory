@@ -1,5 +1,16 @@
 package com.raphtory.internals.communication
 
+import com.raphtory.internals.components.output.OutputMessages
+import com.raphtory.internals.components.querymanager.ClusterManagement
+import com.raphtory.internals.components.querymanager.EndQuery
+import com.raphtory.internals.components.querymanager.GraphManagement
+import com.raphtory.internals.components.querymanager.IngestData
+import com.raphtory.internals.components.querymanager.IngestionBlockingCommand
+import com.raphtory.internals.components.querymanager.QueryManagement
+import com.raphtory.internals.components.querymanager.Submission
+import com.raphtory.internals.components.querymanager.VertexMessagesSync
+import com.raphtory.internals.components.querymanager.VertexMessaging
+import com.raphtory.internals.components.querymanager.WatermarkTime
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphAlteration._
@@ -13,24 +24,25 @@ private[raphtory] class TopicRepository(
 ) {
 
   // Methods to override:
-  protected def graphUpdatesConnector: Connector = defaultIngestionConnector
-  protected def graphSyncConnector: Connector    = defaultIngestionConnector
+  protected def spoutConnector: Connector              = defaultIngestionConnector
+  protected def graphUpdatesConnector: Connector       = defaultIngestionConnector
+  protected def graphSyncConnector: Connector          = defaultIngestionConnector
+  protected def outputConnector: Connector             = defaultIngestionConnector
 
-  protected def submissionsConnector: Connector      = defaultControlConnector
-  protected def completedQueriesConnector: Connector = defaultControlConnector
-  protected def watermarkConnector: Connector        = defaultControlConnector
-  protected def queryPrepConnector: Connector        = defaultControlConnector
-  protected def ingestSetupConnector: Connector      = defaultControlConnector
-  protected def partitionSetupConnector: Connector   = defaultControlConnector
-
-  protected def queryTrackConnector: Connector = defaultControlConnector
-  protected def rechecksConnector: Connector   = defaultControlConnector
-  protected def jobStatusConnector: Connector  = defaultControlConnector
+  protected def submissionsConnector: Connector        = defaultControlConnector
+  protected def completedQueriesConnector: Connector   = defaultControlConnector
+  protected def watermarkConnector: Connector          = defaultControlConnector
+  protected def blockingIngestionConnector: Connector  = defaultControlConnector
+  protected def queryPrepConnector: Connector          = defaultControlConnector
+  protected def ingestSetupConnector: Connector        = defaultControlConnector
+  protected def partitionSetupConnector: Connector     = defaultControlConnector
+  protected def queryTrackConnector: Connector         = defaultControlConnector
+  protected def rechecksConnector: Connector           = defaultControlConnector
+  protected def jobStatusConnector: Connector          = defaultControlConnector
+  def jobOperationsConnector: Connector                = defaultControlConnector // accessed within the queryHandler
 
   protected def vertexMessagesConnector: Connector     = defaultAnalysisConnector
   protected def vertexMessagesSyncConnector: Connector = defaultAnalysisConnector
-
-  def jobOperationsConnector: Connector = defaultControlConnector // accessed within the queryHandler
 
   // Configuration
   private val spoutAddress: String     = conf.getString("raphtory.spout.topic")
@@ -40,8 +52,13 @@ private[raphtory] class TopicRepository(
   private val numPartitions: Int       = partitionServers * partitionsPerServer
 
   // Global topics
+  final def spout[T]: WorkPullTopic[(T, Long)] =
+    WorkPullTopic[(T, Long)](spoutConnector, "spout", customAddress = spoutAddress)
 
-  final def submissions: ExclusiveTopic[Submission] =
+  final def output(jobID: String): ExclusiveTopic[OutputMessages] =
+    ExclusiveTopic[OutputMessages](outputConnector, "output", s"$jobID")
+
+  final def submissions(graphID: String = graphID): ExclusiveTopic[Submission] =
     ExclusiveTopic[Submission](submissionsConnector, s"submissions", graphID)
 
   final def completedQueries: ExclusiveTopic[EndQuery] =
@@ -53,8 +70,12 @@ private[raphtory] class TopicRepository(
   final def graphSetup: ExclusiveTopic[ClusterManagement] =
     ExclusiveTopic[ClusterManagement](ingestSetupConnector, "graph.setup")
 
-  final def clusterComms: ExclusiveTopic[ClusterManagement] =
-    ExclusiveTopic[ClusterManagement](ingestSetupConnector, "cluster.comms")
+  final def clusterComms(partitionCount: Int): BroadcastTopic[ClusterManagement] =
+    BroadcastTopic[ClusterManagement](
+            partitionCount + 2, // the number of ingestors, partitions and query managers
+            ingestSetupConnector,
+            "cluster.comms"
+    )
 
   final def partitionSetup: BroadcastTopic[GraphManagement] =
     BroadcastTopic[GraphManagement](numPartitions, partitionSetupConnector, "partition.setup", graphID)
@@ -69,12 +90,13 @@ private[raphtory] class TopicRepository(
   final def watermark: ExclusiveTopic[WatermarkTime] =
     ExclusiveTopic[WatermarkTime](watermarkConnector, "watermark", graphID)
 
-  final def blockingIngestion: ExclusiveTopic[QueryManagement] =
-    ExclusiveTopic[QueryManagement](watermarkConnector, "blocking.ingestion", graphID)
+  final def blockingIngestion(graphID: String = graphID): ExclusiveTopic[IngestionBlockingCommand] =
+    ExclusiveTopic[IngestionBlockingCommand](blockingIngestionConnector, "blocking.ingestion", graphID)
 
   // Job wise topics
   final def queryTrack(jobId: String): ExclusiveTopic[QueryManagement] =
-    ExclusiveTopic[QueryManagement](queryTrackConnector, "query.track", s"$graphID-$jobId")
+    ExclusiveTopic[QueryManagement](queryTrackConnector, "query.track", s"$jobId")
+  // Removed graphID from queryTrack because it is not necessary and complicates using on the webServer as it is not set
 
   final def rechecks(jobId: String): ExclusiveTopic[QueryManagement] =
     ExclusiveTopic[QueryManagement](rechecksConnector, "rechecks", s"$graphID-$jobId")

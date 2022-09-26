@@ -15,6 +15,7 @@ class PerspectiveControllerTest extends FunSuite {
     val middle     = parseDateTime("2021-03-01 00:00:00")
     val end        = parseDateTime("2021-05-01 00:00:00")
     val query      = Query(
+            graphID = "",
             timelineStart = start,
             timelineEnd = end - 1,
             points = PointPath(increment),

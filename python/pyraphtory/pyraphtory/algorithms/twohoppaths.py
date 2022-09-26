@@ -22,24 +22,23 @@ class TwoHopPaths(PyAlgorithm):
             new_messages = v.message_queue()
             if new_messages:
                 for msg in new_messages:
-                    match msg:
-                        case msg if msg['req'] == REQUEST_FIRST_HOP:
-                            source = msg['source']
-                            neighbours = v.out_neighbours()
-                            for neighbour in neighbours:
-                                if neighbour != source:
-                                    v.message_vertex(neighbour, {'req': REQUEST_SECOND_HOP, 'source': source, 'first_hop': v.name()})
-                        case msg if msg['req'] == REQUEST_SECOND_HOP:
-                            first_hop = msg['first_hop']
-                            source = msg['source']
-                            v.message_vertex(source, {'req': RESPONSE, 'first_hop': first_hop, 'second_hop': v.name()})
-                        case msg if msg['req'] == RESPONSE:
-                            paths = set(v[TWO_HOP_PATHS])
-                            newPath = (msg['first_hop'], msg['second_hop'])
-                            paths.add(newPath)
-                            v[TWO_HOP_PATHS] = tuple(paths)
-                        case _:
-                            pass
+                    if msg['req'] == REQUEST_FIRST_HOP:
+                        source = msg['source']
+                        neighbours = v.out_neighbours()
+                        for neighbour in neighbours:
+                            if neighbour != source:
+                                v.message_vertex(neighbour, {'req': REQUEST_SECOND_HOP, 'source': source, 'first_hop': v.name()})
+                    elif msg['req'] == REQUEST_SECOND_HOP:
+                        first_hop = msg['first_hop']
+                        source = msg['source']
+                        v.message_vertex(source, {'req': RESPONSE, 'first_hop': first_hop, 'second_hop': v.name()})
+                    elif msg['req'] == RESPONSE:
+                        paths = set(v[TWO_HOP_PATHS])
+                        newPath = (msg['first_hop'], msg['second_hop'])
+                        paths.add(newPath)
+                        v[TWO_HOP_PATHS] = tuple(paths)
+                    else:
+                        pass
 
         return graph.step(step1).iterate(iterate1, 3, True)
 

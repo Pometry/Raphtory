@@ -13,9 +13,9 @@ import java.text.SimpleDateFormat
 // is equal to -1. Columns 2 and 5 correspond to the userid and parentUserid in the file.
 // Then either the vertex or the edge are created accordingly.
 
-class GabUserGraphBuilder extends GraphBuilder[String] {
+object GabUserGraphBuilder extends GraphBuilder[String] {
 
-  override def parse(graph: Graph, tuple: String) = {
+  def apply(graph: Graph, tuple: String) = {
     val fileLine   = tuple.split(";").map(_.trim)
     //user wise
     val sourceNode = fileLine(2).toInt

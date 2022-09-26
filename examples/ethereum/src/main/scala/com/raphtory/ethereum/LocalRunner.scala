@@ -7,8 +7,8 @@ import com.raphtory.api.input.Source
 import com.raphtory.ethereum.LocalRunner.graph
 import com.raphtory.ethereum.graphbuilder.EthereumGraphBuilder
 import com.raphtory.ethereum.analysis.Taint
+import com.raphtory.pulsar.sink.PulsarSink
 import com.raphtory.sinks.FileSink
-import com.raphtory.sinks.PulsarSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
 import com.typesafe.config.ConfigFactory
@@ -29,10 +29,9 @@ object LocalRunner extends App {
   FileUtils.curlFile(path, url)
 
   // create graph
-  val spout   = FileSpout("/tmp/etherscan_tags.csv")
-  val builder = new EthereumGraphBuilder()
-  val source  = Source(spout, builder)
-  val graph   = Raphtory.newIOGraph()
+  val spout  = FileSpout("/tmp/etherscan_tags.csv")
+  val source = Source[String](spout, EthereumGraphBuilder.ethParser)
+  val graph  = Raphtory.newIOGraph()
 
   // setup ethereum vars
   val startTime = 1574814233

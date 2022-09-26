@@ -7,7 +7,7 @@ import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.examples.gab.graphbuilders.GabUserGraphBuilder
-import com.raphtory.sinks.PulsarSink
+import com.raphtory.pulsar.sink.PulsarSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
 
@@ -17,8 +17,7 @@ object Runner extends App {
   val url                  = "https://raw.githubusercontent.com/Raphtory/Data/main/gabNetwork500.csv"
   FileUtils.curlFile(path, url)
   val spout: Spout[String] = FileSpout(path)
-  val builder              = new GabUserGraphBuilder()
-  val source               = Source(spout, builder)
+  val source               = Source(spout, GabUserGraphBuilder)
   val rg                   = Raphtory.newGraph()
   rg.load(source)
 

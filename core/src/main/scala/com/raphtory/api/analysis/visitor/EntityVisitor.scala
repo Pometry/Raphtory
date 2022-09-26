@@ -1,9 +1,6 @@
 package com.raphtory.api.analysis.visitor
 
 import PropertyMergeStrategy.PropertyMerge
-import io.sqooba.oss.timeseries.TimeSeries
-import io.sqooba.oss.timeseries.immutable.EmptyTimeSeries
-import io.sqooba.oss.timeseries.immutable.TSEntry
 
 import scala.math.Ordered.orderingToOrdered
 import scala.reflect.ClassTag
@@ -191,45 +188,15 @@ abstract class EntityVisitor {
       before: Long = Long.MaxValue
   ): Option[Iterable[PropertyValue[T]]]
 
-  /** Return values for the property `key`. Returns `None` if no property with name `key` exists.
-    * Otherwise returns a TimeSeries (from this library: https://github.com/Sqooba/scala-timeseries-lib)
-    * which may be empty.
-    * This function utilises the getPropertyHistory function and maps over the list of tuples,
-    * retrieving the timestamps to work out the individual TimeSeries entries.
-    *
-    * @param key name of property
-    *
-    * @param after Only consider addition events in the current view that happened after time `after`
-    *
-    * @param before Only consider addition events in the current view that happened before time `before`
-    */
-  def getTimeSeriesPropertyHistory[T](
-      key: String,
-      after: Long = Long.MinValue,
-      before: Long = Long.MaxValue
-  ): Option[TimeSeries[T]] =
-    getPropertyHistory[T](key, after, before).map { timestampList =>
-      if (timestampList.nonEmpty)
-        TimeSeries.ofOrderedEntriesUnsafe {
-          timestampList.iterator
-            .sliding(2)
-            .withPartial(false)
-            .map {
-              case List(propertyValue1, propertyValue2) =>
-                TSEntry[T](propertyValue1.time, propertyValue1.value, propertyValue2.time - propertyValue1.time)
-            }
-            .++(Seq(TSEntry[T](timestampList.last.time, timestampList.last.value, before)))
-            .toSeq
-        }
-      else EmptyTimeSeries
-    }
-
   /** Set algorithmic state for this entity. Note that for edges, algorithmic state is stored locally to the vertex endpoint
     * which sets this state (default being the source node when set during an edge step).
     * @param key key to use for setting value
     * @param value new value for state
     */
   def setState(key: String, value: Any): Unit
+
+  def update(i: String, x: Any): Unit =
+    setState(i, x)
 
   /** Retrieve value from algorithmic state. Note that for edges, algorithmic state is stored locally to the vertex endpoint
     * which sets this state (default being the source node when set during an edge step).
@@ -280,17 +247,10 @@ abstract class EntityVisitor {
     */
   def appendToState[T: ClassTag](key: String, value: T): Unit
 
-  def history(): List[HistoricEvent]
+  /** Remove an entry in the entity's algorithmic state.  */
+  def clearState(key:String): Unit
 
-  /** Returns a TimeSeries (from this library: https://github.com/Sqooba/scala-timeseries-lib) of the entities [[com.raphtory.api.analysis.visitor.HistoricEvent HistoricEvents]]
-    * within the current view by mapping over the `history` function.
-    */
-  def timeSeriesHistory(): TimeSeries[Boolean] = {
-    val tsSeq: List[TSEntry[Boolean]] =
-      history().map(history => TSEntry(history.time, history.event, 1) //1 as the history is already in order
-      )
-    TimeSeries.ofOrderedEntriesUnsafe(tsSeq)
-  }
+  def history(): List[HistoricEvent]
 
   /** Return `true` if any event (addition or deletion) occurred during the time window starting at
     * `after` and ending at `before`. Otherwise returns `false`.

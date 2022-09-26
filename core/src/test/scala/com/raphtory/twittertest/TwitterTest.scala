@@ -2,6 +2,8 @@ package com.raphtory.twittertest
 
 import com.raphtory.BaseRaphtoryAlgoTest
 import com.raphtory.algorithms.generic.ConnectedComponents
+import com.raphtory.api.input.Graph
+import com.raphtory.api.input.GraphBuilder
 import com.raphtory.spouts.StaticGraphSpout
 import munit.IgnoreSuite
 
@@ -22,7 +24,7 @@ class TwitterTest extends BaseRaphtoryAlgoTest[String] {
 
   override def setSpout(): StaticGraphSpout = StaticGraphSpout("/tmp/twitter.csv")
 
-  override def setGraphBuilder() = new TwitterGraphBuilder()
+  override def setGraphBuilder(): GraphBuilder[String] = TwitterGraphBuilder
 
   def tmpFilePath = "/tmp/twitter.csv"
 

@@ -34,7 +34,7 @@ private[raphtory] class IngestionExecutor(
   override val logger: Logger                               = Logger(LoggerFactory.getLogger(this.getClass))
   private val failOnError                                   = conf.getBoolean("raphtory.builders.failOnError")
   override val writers: Map[Int, EndPoint[GraphAlteration]] = topics.graphUpdates(graphID).endPoint()
-  private val queryManager                                  = topics.blockingIngestion.endPoint
+  private val queryManager                                  = topics.blockingIngestion().endPoint
   private val sourceInstance                                = source.buildSource(graphID, sourceID)
   private val spoutReschedulesCount                         = telemetry.spoutReschedules.labels(graphID)
   private val fileLinesSent                                 = telemetry.fileLinesSent.labels(graphID)
@@ -88,6 +88,7 @@ private[raphtory] class IngestionExecutor(
                       sourceInstance.sourceID,
                       graphID = graphID,
                       sourceInstance.sentMessages(),
+                      sourceInstance.highestTimeSeen(),
                       force = false
               )
       )

@@ -28,7 +28,7 @@ private[pojograph] trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
     view.sendMessage(VertexMessage(view.superStep + 1, ID, data))
 
   override def remove(): Unit = {
-    view.needsFiltering = true
+    view.filterAtStep(view.superStep + 1)
     view.sendMessage(FilteredOutEdgeMessage(view.superStep + 1, src, dst))
     view.sendMessage(FilteredInEdgeMessage(view.superStep + 1, dst, src))
   }
@@ -46,10 +46,10 @@ private[pojograph] trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
       getProperty[T](key).get
     else if (includeProperties)
       throw new Exception(
-        s"$key not found within analytical state or properties within edge {${(src,dst)}."
+              s"$key not found within analytical state or properties within edge {${(src, dst)}."
       )
     else
-      throw new Exception(s"$key not found within analytical state within edge {${(src,dst)}")
+      throw new Exception(s"$key not found within analytical state within edge {${(src, dst)}")
 
   override def getStateOrElse[T](key: String, value: T, includeProperties: Boolean): T =
     if (computationValues contains key)
@@ -81,6 +81,9 @@ private[pojograph] trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
       case None      =>
         setState(key, ArrayBuffer(value))
     }
+
+  override def clearState(key: String): Unit =
+    computationValues -= key
 }
 
 private[pojograph] trait PojoExplodedEdgeBase[T] extends PojoExEdgeBase[T] with ConcreteExplodedEdge[T] {

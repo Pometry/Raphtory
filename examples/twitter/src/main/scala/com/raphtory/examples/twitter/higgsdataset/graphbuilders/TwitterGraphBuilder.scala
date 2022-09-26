@@ -6,9 +6,9 @@ import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
 
-class TwitterGraphBuilder() extends GraphBuilder[String] {
+object TwitterGraphBuilder extends GraphBuilder[String] {
 
-  override def parse(graph: Graph, tuple: String): Unit = {
+  def apply(graph: Graph, tuple: String): Unit = {
     val fileLine   = tuple.split(",").map(_.trim)
     val sourceNode = fileLine(0).trim
     val srcID      = sourceNode.toLong

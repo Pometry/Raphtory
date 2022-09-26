@@ -2,6 +2,7 @@ package com.raphtory.internals.management
 
 import cats.Id
 import cats.syntax.all._
+import com.raphtory.Raphtory
 
 import java.lang.reflect.{Array => JArray}
 import com.raphtory.api.analysis.graphstate.Accumulator
@@ -9,7 +10,7 @@ import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
-import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Graph
 import com.raphtory.internals.management.python.EmbeddedPython
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -42,7 +43,7 @@ object PythonInterop {
 
   /** make assign_id accessible from python */
   def assign_id(s: String): Long =
-    GraphBuilder.assignID(s)
+    Graph.assignID(s)
 
   /** convert names from camel to snake case */
   def camel_to_snake(s: String): String =
@@ -62,6 +63,7 @@ object PythonInterop {
     */
   def get_wrapper_str(obj: Any): String =
     obj match {
+      case _: Array[_]          => "Array"
       case _: collection.Seq[_] => "Sequence"
       case _: Iterable[_]       => "Iterable"
       case _: Iterator[_]       => "Iterator"

@@ -3,12 +3,14 @@ package com.raphtory.service
 import cats.effect.ExitCode
 import cats.effect.IO
 import cats.effect.IOApp
-import cats.effect.Resource
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.Raphtory
+import com.raphtory.Raphtory.makeLocalIdManager
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.components.cluster.ClusterManager
+import com.raphtory.internals.components.cluster.RpcServer
 import com.raphtory.internals.components.cluster.StandaloneMode
+import com.raphtory.internals.management.id.LocalIDManager
 import com.raphtory.arrowmessaging.ArrowFlightServer
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.components.cluster.ClusterManager
@@ -29,10 +31,11 @@ object Standalone extends IOApp {
       zkClient      <- ZookeeperConnector.getZkClient(config.getString("raphtory.zookeeper.address"))
       addressHandler = new ZKHostAddressProvider(zkClient, config, None)
       repo          <- DistributedTopicRepository[IO](AkkaConnector.SeedMode, config, addressHandler)
-      headNode      <- ClusterManager[IO](config, repo, mode = StandaloneMode)
+      sourceIDManager    <- makeLocalIdManager[IO]
+      partitionIdManager <- makeLocalIdManager[IO]
+      headNode           <- ClusterManager[IO](config, repo, mode = StandaloneMode, partitionIdManager)
+      _                  <- RpcServer[IO](sourceIDManager, repo, config)
     } yield headNode
     headNode.useForever
-
   }
-
 }

@@ -12,7 +12,8 @@ The class we are creating extends {scaladoc}`com.raphtory.api.analysis.algorithm
 ```scala
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.{Row, Table}
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 
 class DegreesSeparation(name: String = "Gandalf") extends Generic {
 ```
@@ -40,7 +41,7 @@ view see the {scaladoc}`com.raphtory.api.analysis.algorithm` package.
 
 
 ### Step
-In the `DegreeSeperation` algorithm we first create a property to store the state of _separation_ and initialize it in {s}`step()`. 
+In the `DegreeSeparation` algorithm we first create a property to store the state of _separation_ and initialize it in {s}`step()`. 
 Here we are finding the node which is the starting point, in this case we are looking for Gandalf. 
 Once found we set his state to `0` and then message all of his neighbours. If a node is not Gandalf, 
 their state is initialised to `-1`, which will be used later to work out nodes which are unreachable from Gandalf. 

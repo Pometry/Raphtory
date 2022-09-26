@@ -2,7 +2,6 @@ package com.raphtory.internals.components.cluster
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.raphtory.Raphtory.makeIdManager
 import com.raphtory.arrowmessaging.ArrowFlightServer
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
@@ -13,6 +12,7 @@ import com.raphtory.internals.components.querymanager.ClusterManagement
 import com.raphtory.internals.components.querymanager.QueryManager
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.management.ZookeeperConnector
+import com.raphtory.internals.management.id.IDManager
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigValueFactory
 import com.typesafe.scalalogging.Logger
@@ -48,6 +48,28 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
       }
     }
 
+  protected def establishPartition(
+      component: String,
+      graphID: String,
+      clientID: String,
+      idManager: IDManager,
+      func: (String, String, Config, IDManager) => Unit
+  ): Unit =
+    deployments.synchronized {
+      deployments.get(graphID) match {
+        case Some(deployment) =>
+          logger.info(s"$component for graph '$graphID' already exists, adding '$clientID' to registered users")
+          deployment.clients += clientID
+        case None             =>
+          logger.info(s"Deploying new $component for graph '$graphID' - request by '$clientID' ")
+          val graphConf = conf.withValue(
+                  "raphtory.graph.id",
+                  ConfigValueFactory.fromAnyRef(graphID)
+          )
+          func(graphID, clientID, graphConf, idManager)
+      }
+    }
+
   protected def destroyGraph(graphID: String, clientID: String, force: Boolean): Unit =
     deployments.synchronized {
       deployments.get(graphID) match {
@@ -79,7 +101,11 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
       case (_, deployment) => deployment.shutdown.unsafeRunSync()
     }
 
-  protected def deployStandaloneService(graphID: String, clientID: String, graphConf: Config): Unit =
+  protected def deployStandaloneService(
+      graphID: String,
+      clientID: String,
+      idManager: IDManager
+  ): Unit =
     deployments.synchronized {
       deployments.get(graphID) match {
         case Some(deployment) =>
@@ -93,12 +119,11 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
           )
           val scheduler       = new Scheduler()
           val serviceResource = for {
-            partitionIdManager <- makeIdManager[IO](graphConf, localDeployment = false, graphID, forPartitions = true)
             zkClient           <- ZookeeperConnector.getZkClient(graphConf.getString("raphtory.zookeeper.address"))
             arrowServer        <- ArrowFlightServer[IO]()
             addressHandler      = new ZKHostAddressProvider(zkClient, conf, Some(arrowServer))
             repo               <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf, addressHandler)
-            _                  <- PartitionOrchestrator.spawn[IO](graphConf, partitionIdManager, repo, scheduler)
+            _                  <- PartitionOrchestrator.spawn[IO](graphConf, idManager, graphID, repo, scheduler)
             _                  <- IngestionManager[IO](graphConf, repo)
             _                  <- QueryManager[IO](graphConf, repo)
           } yield ()
@@ -107,16 +132,20 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
       }
     }
 
-  protected def deployPartitionService(graphID: String, clientID: String, graphConf: Config): Unit =
+  protected def deployPartitionService(
+      graphID: String,
+      clientID: String,
+      graphConf: Config,
+      idManager: IDManager
+  ): Unit =
     deployments.synchronized {
       val scheduler       = new Scheduler()
       val serviceResource = for {
-        partitionIdManager <- makeIdManager[IO](graphConf, localDeployment = false, graphID, forPartitions = true)
         zkClient           <- ZookeeperConnector.getZkClient(graphConf.getString("raphtory.zookeeper.address"))
         arrowServer        <- ArrowFlightServer[IO]()
         addressHandler      = new ZKHostAddressProvider(zkClient, conf, Some(arrowServer))
         repo               <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf, addressHandler)
-        _                  <- PartitionOrchestrator.spawn[IO](graphConf, partitionIdManager, repo, scheduler)
+        _    <- PartitionOrchestrator.spawn[IO](graphConf, idManager, graphID, repo, scheduler)
       } yield ()
       val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
       deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))

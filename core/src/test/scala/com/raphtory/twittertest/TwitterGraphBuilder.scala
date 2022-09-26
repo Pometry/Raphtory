@@ -26,9 +26,9 @@ import com.raphtory.api.input.Type
  * Reference: https://snap.stanford.edu/data/ego-Twitter.html
  *
  * */
-class TwitterGraphBuilder() extends GraphBuilder[String] {
+object TwitterGraphBuilder extends GraphBuilder[String] {
 
-  override def parse(graph: Graph, tuple: String): Unit = {
+  def apply(graph: Graph, tuple: String): Unit = {
     val fileLine   = tuple.split(" ").map(_.trim)
     val sourceNode = fileLine(0)
     val srcID      = sourceNode.toLong

@@ -30,10 +30,8 @@ class TemporalMemberRank() extends GenericReduction {
 
       val negativeNew = Math.abs(vertex.getState[Double]("negativeNewScore"))
       val positiveNew = Math.abs(vertex.getState[Double]("positiveNewScore"))
-
-      //is the raw value significantly different to the new score (factor = 4 but this can be changed)
-      val difference: Boolean = positiveRaw > (positiveNew * 4)
-
+      //is the raw value significantly different to the new score (factor = 2 but this can be changed)
+      val difference: Boolean = (positiveRaw > (positiveNew * 2))
       /**
         *  if difference between raw and new is greater than zero
         *  return list of times of in edge creation for each vertex
@@ -43,9 +41,11 @@ class TemporalMemberRank() extends GenericReduction {
         case edge if difference => NeighbourAndTime(edge.src, edge.timestamp)
       }
 
+
       vertex.setState("times", times)
     }
 
+  // Tabularises results to Row(Raphtory Timestamp, suspected bot ID, ID of retweeted user, timestamp of retweet)
   override def tabularise(graph: ReducedGraphPerspective): Table =
     graph
       .select { vertex =>
