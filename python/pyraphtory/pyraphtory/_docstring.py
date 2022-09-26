@@ -1,5 +1,5 @@
 from parsy import string, whitespace, any_char, seq, peek, alt, eof, string_from, Parser, regex, letter, decimal_digit, \
-    generate
+    generate, ParseError
 
 code_conversions = {}
 
@@ -113,7 +113,10 @@ link_value = ((token >> whitespace >> (class_name | method_or_variable_name).map
 @generate("link")
 def link():
     link_str = yield link_string
-    return link_value.parse(link_str)
+    try:
+        return link_value.parse(link_str)
+    except ParseError:
+        return link_str
 
 
 # inline markup
@@ -163,7 +166,10 @@ doc_converter = alt(directive("note"), directive("see", "seealso"),
 
 def convert_docstring(docs):
     if docs:
-        cleaned = doc_converter.parse(docs)
-        return cleaned.rstrip("\n")
+        try:
+            cleaned = doc_converter.parse(docs)
+            return cleaned.rstrip("\n")
+        except ParseError:
+            return docs
     else:
         return docs
