@@ -24,7 +24,7 @@ private[pojograph] class PojoReversedVertexView[T](override val vertex: PojoConc
   def getInEdge(id: vertex.IDType): Option[Edge] =
     vertex.getOutEdge(id).map(_.reversed)
 
-  override implicit val provider: SchemaProvider[T] = ??? // TODO
+  override implicit val provider: SchemaProvider[T] = com.raphtory.internals.communication.SchemaProviderInstances.genericSchemaProvider  // TODO
 }
 
 private[pojograph] class PojoReducedReversedVertexView(override val vertex: PojoExVertex)

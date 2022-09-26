@@ -87,5 +87,5 @@ private[pojograph] class PojoExplodedVertex(
 
   override def viewReversed: PojoReversedVertexView[(Long, Long)] = PojoExplodedReversedVertexView(this)
 
-  override implicit val provider: SchemaProvider[(Long, Long)] = ???  // TODO
+  override implicit val provider: SchemaProvider[(Long, Long)] = com.raphtory.internals.communication.SchemaProviderInstances.genericSchemaProvider  // TODO
 }
