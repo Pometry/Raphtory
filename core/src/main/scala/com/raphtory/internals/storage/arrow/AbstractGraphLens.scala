@@ -110,7 +110,7 @@ abstract class AbstractGraphLens(
   override def writeDataTable(writer: Row => Unit)(onComplete: => Unit): Unit = {
     dataTable.foreach{
       row =>
-        println(row)
+//        println(row)
         writer(row)
     }
     onComplete

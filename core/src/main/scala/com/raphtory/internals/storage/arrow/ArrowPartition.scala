@@ -220,7 +220,7 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
         emgr.setOutgoingEdgePtr(e.getLocalId, prevListPtr)
 
         // link the edge to the destination
-        if (dst.isLocal && checkDst(dst.id)) {
+        if (dst.isLocal) {
           val p           = vmgr.getPartition(vmgr.getPartitionId(dst.id))
           val prevListPtr = p.synchronized {
             val ptr = p.addIncomingEdgeToList(dst.id, e.getLocalId)
