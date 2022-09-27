@@ -38,6 +38,12 @@ private[raphtory] case class JobFailed(error: Throwable) extends QueryManagement
 
 private[raphtory] case class CreatePerspective(id: Int, perspective: Perspective) extends QueryManagement
 
+sealed private[raphtory] trait PerspectiveReport                                         extends QueryManagement {
+  def perspective: Perspective
+}
+private[raphtory] case class PerspectiveCompleted(perspective: Perspective)              extends PerspectiveReport
+private[raphtory] case class PerspectiveFailed(perspective: Perspective, reason: String) extends PerspectiveReport
+
 private[raphtory] case object StartGraph extends QueryManagement
 
 private[raphtory] case object CompleteWrite extends QueryManagement

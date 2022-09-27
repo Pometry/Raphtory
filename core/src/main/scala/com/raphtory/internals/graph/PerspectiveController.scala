@@ -24,8 +24,7 @@ private[raphtory] case class Perspective(
     window: Option[Interval],
     actualStart: Long,
     actualEnd: Long
-) extends QueryManagement
-        with time.Perspective
+) extends time.Perspective
 
 private[raphtory] class PerspectiveController(
     private var perspectiveStreams: Array[LazyList[Perspective]]

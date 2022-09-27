@@ -59,7 +59,12 @@ class RpcClient[F[_]](dispatcher: Dispatcher[F], repo: TopicRepository, config: 
               .map(_ => log.debug(s"Message: '$msg' successfully processed by the server"))
         }
       }
-    dispatcher.unsafeRunAndForget(requestProcessing)
+
+    try dispatcher.unsafeRunAndForget(requestProcessing)
+    catch {
+      case e: Exception => // Akka actor system is going to be shutdown shortly
+    }
+
   }
 
   def requestID(): Option[Int] = {
