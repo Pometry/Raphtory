@@ -93,7 +93,7 @@ private[raphtory] class QuerySender(
 
   }
 
-  def submit(query: Query, customJobName: String = ""): QueryProgressTracker = {
+  def submit(query: Query, customJobName: String = ""): String = {
 
     if (updatesSinceLastIDChange > 0) { //TODO Think this will block multi-client -- not an issue for right now
       unblockIngestion(sourceID = currentSourceID, updatesSinceLastIDChange, force = false)
@@ -112,7 +112,10 @@ private[raphtory] class QuerySender(
       )
 
     submissions sendAsync outputQuery
+    jobID
+  }
 
+  def createTracker(jobID: String): QueryProgressTracker = {
     val tracker = QueryProgressTracker.unsafeApply(jobID, config, topics)
     scheduler.execute(tracker)
     tracker
@@ -127,8 +130,8 @@ private[raphtory] class QuerySender(
 
   def establishGraph(): Unit = graphSetup sendAsync EstablishGraph(graphID, clientID)
 
-  def outputCollector(tracker: QueryProgressTracker, timeout: Duration): TableOutputTracker = {
-    val collector = TableOutputTracker(tracker, topics, config, timeout)
+  def outputCollector(jobID: String, timeout: Duration): TableOutputTracker = {
+    val collector = TableOutputTracker(jobID, topics, config, timeout)
     scheduler.execute(collector)
     collector
   }
