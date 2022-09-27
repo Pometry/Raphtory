@@ -133,7 +133,7 @@ class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint
               val mc2node = new TwoNodeMotifs(v.ID)
               // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
               // for motif edges with the same timestamp
-              mc2node.execute(v.explodedEdge(vid).getOrElse(List()).map(e => (e.src,e.dst,e.timestamp)).sortBy(x => (x._3, x._1, x._2)),delta)
+              mc2node.execute(v.explodedEdge(vid).getOrElse(List()).map(e => (e.src,e.dst,e.timestamp)).sortBy(x => (x._3, x._1, x._2)).toArray,delta)
               val twoNC = mc2node.getCounts
               for (i <- counts.indices) {
                 counts.update(i, counts(i) - twoNC(i % 8))
