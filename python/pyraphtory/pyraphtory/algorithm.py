@@ -44,3 +44,6 @@ class BuiltinAlgorithm(ScalaProxyBase):
 
     def __getattr__(self, item):
         return BuiltinAlgorithm(".".join((self._path, item)))
+
+    def __getitem__(self, item):
+        return to_python(self._jvm_object).apply[item]

@@ -1,4 +1,5 @@
 from keyword import iskeyword
+from pyraphtory._docstring import convert_docstring
 
 
 def clean_identifier(name: str):
@@ -31,6 +32,7 @@ def build_method(name, method):
     args = ", ".join(args)
 
     lines = [f"def {name}({args}):"]
+    lines.append(f'    """{convert_docstring(method.docs())}"""')
     if implicits:
         lines.append(f"    if len(_implicits) < {len(implicits)}:")
         lines.append(f"        raise RuntimeError('missing implicit arguments')")

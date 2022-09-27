@@ -4,7 +4,9 @@ import shutil
 import os.path
 import hashlib
 import zipfile
-from pyraphtory import __version__
+import pyraphtory._version
+
+__version__ = pyraphtory._version.__version__
 
 _URL = 'url'
 _SHA256 = 'sha256'

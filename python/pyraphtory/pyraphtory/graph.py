@@ -13,6 +13,7 @@ class ProgressTracker(GenericScalaProxy):
 
 @register(name="Table")
 class Table(GenericScalaProxy):
+    _classname = "com.raphtory.api.analysis.table.Table"
     def to_df(self, cols):
         rows = []
         for res in self.get():
@@ -34,6 +35,7 @@ class PropertyMergeStrategy(ScalaClassProxy):
 
 @register(name="TemporalGraph")
 class TemporalGraph(GenericScalaProxy):
+    _classname = "com.raphtory.api.analysis.graphview.TemporalGraph"
     def transform(self, algorithm):
         if isinstance(algorithm, ScalaProxyBase):
             return super().transform(algorithm)
@@ -49,6 +51,7 @@ class TemporalGraph(GenericScalaProxy):
 
 @register(name="Accumulator")
 class Accumulator(GenericScalaProxy):
+    _classname = "com.raphtory.api.analysis.graphstate.Accumulator"
 
     def __iadd__(self, other):
         self.plus_eq(other)
