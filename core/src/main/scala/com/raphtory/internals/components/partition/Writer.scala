@@ -5,14 +5,18 @@ import cats.effect.kernel.Spawn
 import cats.effect.Async
 import cats.effect.Resource
 import com.raphtory.api.input._
-import com.raphtory.internals.communication.TopicRepository
+import com.raphtory.internals.FlushToFlight
+import com.raphtory.internals.communication.{EndPoint, TopicRepository}
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphPartition
+import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
+import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
 private[raphtory] class Writer(
@@ -20,20 +24,26 @@ private[raphtory] class Writer(
     partitionID: Int,
     storage: GraphPartition,
     conf: Config,
-    topics: TopicRepository
-) extends Component[GraphAlteration](conf) {
+    topics: TopicRepository,
+    override val scheduler: Scheduler
+) extends Component[GraphAlteration](conf) with FlushToFlight {
 
-  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-  private val neighbours     = topics.graphSync(graphID).endPoint
+  override val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private var processedMessages = 0
+  private lazy val neighbours =
+    topics.graphSync(graphID).endPoint() //This needs to be lazy otherwise the zookeeper lookup with deadlock
+
+  override lazy val writers: Map[Int, EndPoint[GraphUpdateEffect]] = neighbours
 
   override def run(): Unit = {}
 
-  override def stop(): Unit =
+  override def stop(): Unit = {
+    close()
     neighbours.values.foreach(_.close())
+  }
 
   override def handleMessage(msg: GraphAlteration): Unit = {
+    latestMsgTimeToFlushToFlight = System.currentTimeMillis()
     msg match {
       //Updates from the Graph Builder
       case update: VertexAdd                    => processVertexAdd(update)
@@ -256,13 +266,13 @@ private[raphtory] class Writer(
   }
 
   private def untrackEdgeUpdate(
-      sourceID: Int,
+      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
       dstId: Long,
       fromAddition: Boolean
-  ) =
+  ): Unit =
     if (fromAddition)
       storage.watermarker.untrackEdgeAddition(sourceID, msgTime, index, srcId, dstId)
     else
@@ -277,16 +287,9 @@ private[raphtory] class Writer(
     telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, graphID)
   }
 
-  def handleUpdateCount() = {
+  def handleUpdateCount(): Unit = {
     processedMessages += 1
     telemetry.streamWriterGraphUpdatesCollector.labels(partitionID.toString, graphID).inc()
-
-    // TODO Should this be externalised?
-    //  Do we need it now that we have progress tracker?
-    if (processedMessages % 100_000 == 0)
-      logger.debug(
-              s"Partition '$partitionID': Processed '$processedMessages' messages."
-      )
   }
 
 }
@@ -298,7 +301,8 @@ object Writer {
       partitionId: Int,
       storage: GraphPartition,
       config: Config,
-      topics: TopicRepository
+      topics: TopicRepository,
+      scheduler: Scheduler
   ): Resource[IO, Writer] =
     Component.makeAndStartPart(
             partitionId,
@@ -310,7 +314,8 @@ object Writer {
                     partitionID = partitionId,
                     storage = storage,
                     conf = config,
-                    topics = topics
+                    topics = topics,
+                    scheduler
             )
     )
 

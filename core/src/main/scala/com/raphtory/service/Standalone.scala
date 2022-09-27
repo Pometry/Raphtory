@@ -11,6 +11,13 @@ import com.raphtory.internals.components.cluster.ClusterManager
 import com.raphtory.internals.components.cluster.RpcServer
 import com.raphtory.internals.components.cluster.StandaloneMode
 import com.raphtory.internals.management.id.LocalIDManager
+import com.raphtory.arrowmessaging.ArrowFlightServer
+import com.raphtory.internals.communication.connectors.AkkaConnector
+import com.raphtory.internals.components.cluster.ClusterManager
+import com.raphtory.internals.components.cluster.StandaloneMode
+import com.raphtory.internals.management.ZookeeperConnector
+import com.raphtory.internals.management.arrow.ZKHostAddressProvider
+import org.apache.arrow.memory.RootAllocator
 
 object Standalone extends IOApp {
 
@@ -21,7 +28,9 @@ object Standalone extends IOApp {
       else Raphtory.getDefaultConfig()
 
     val headNode = for {
-      repo               <- DistributedTopicRepository[IO](AkkaConnector.SeedMode, config)
+      zkClient      <- ZookeeperConnector.getZkClient(config.getString("raphtory.zookeeper.address"))
+      addressHandler = new ZKHostAddressProvider(zkClient, config, None)
+      repo          <- DistributedTopicRepository[IO](AkkaConnector.SeedMode, config, addressHandler)
       sourceIDManager    <- makeLocalIdManager[IO]
       partitionIdManager <- makeLocalIdManager[IO]
       headNode           <- ClusterManager[IO](config, repo, mode = StandaloneMode, partitionIdManager)

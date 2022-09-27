@@ -1,14 +1,12 @@
 package com.raphtory.algorithms.temporal.motif
 
-import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs.{dirs2D, get2NodeCountsWithoutRepeats, getStarCountsPretty, getTriCountsPretty, map2D, map3D}
-import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs._
 import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
-
-import scala.collection.mutable.LongMap
+import com.raphtory.internals.communication.SchemaProviderInstances._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag

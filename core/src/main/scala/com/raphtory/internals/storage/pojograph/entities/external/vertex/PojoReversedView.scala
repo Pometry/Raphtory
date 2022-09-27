@@ -2,6 +2,7 @@ package com.raphtory.internals.storage.pojograph.entities.external.vertex
 
 import com.raphtory.api.analysis.visitor.ExplodedVertex
 import com.raphtory.api.analysis.visitor.ReducedVertex
+import com.raphtory.internals.components.querymanager.SchemaProvider
 
 import scala.collection.View
 
@@ -22,6 +23,8 @@ private[pojograph] class PojoReversedVertexView[T](override val vertex: PojoConc
 
   def getInEdge(id: vertex.IDType): Option[Edge] =
     vertex.getOutEdge(id).map(_.reversed)
+
+  override implicit val provider: SchemaProvider[T] = com.raphtory.internals.communication.SchemaProviderInstances.genericSchemaProvider  // TODO
 }
 
 private[pojograph] class PojoReducedReversedVertexView(override val vertex: PojoExVertex)
