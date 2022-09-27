@@ -3,7 +3,7 @@ package com.raphtory.examples.coho.companiesStream.algorithms
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.{Row, Table}
-
+import com.raphtory.internals.communication.SchemaProviderInstances._
 import scala.collection.View
 
 /**

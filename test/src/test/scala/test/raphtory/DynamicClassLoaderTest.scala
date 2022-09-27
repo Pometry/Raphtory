@@ -34,13 +34,15 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
     """
       |import com.raphtory.api.analysis.algorithm.Generic
       |import com.raphtory.api.analysis.graphview.GraphPerspective
-      |
-      |
+      |import com.raphtory.internals.communication.SchemaProviderInstances._
       |
       |object MinimalTestAlgorithm extends Generic {
       |  case class ArbitraryMessage()
       |  override def apply(graph: GraphPerspective): graph.Graph =
-      |    graph.step(vertex => vertex.messageAllNeighbours(ArbitraryMessage()))
+      |    graph.step{ vertex =>
+      |    import vertex._
+      |     vertex.messageAllNeighbours(ArbitraryMessage())
+      |    }
       |}
       |MinimalTestAlgorithm
       |""".stripMargin
