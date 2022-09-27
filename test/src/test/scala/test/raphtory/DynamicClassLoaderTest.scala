@@ -211,7 +211,6 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   remoteGraphInline.test("test inline graphbuilder definition") { g =>
     val res = g.execute(EdgeList()).get().toList
-    println(res)
     assert(res.nonEmpty)
   }
 
