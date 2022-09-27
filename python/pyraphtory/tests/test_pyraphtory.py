@@ -1,5 +1,10 @@
 from pyraphtory import __version__
+from pathlib import Path
+
+version_file = Path(__file__).parent.parent.parent.parent / "version"
 
 
 def test_version():
-    assert __version__ == '0.2.0a1'
+    with open(version_file) as f:
+        version = f.readline()
+    assert __version__ == version
