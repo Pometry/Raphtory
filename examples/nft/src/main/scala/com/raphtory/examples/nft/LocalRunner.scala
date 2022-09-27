@@ -130,7 +130,7 @@ object LocalRunner extends App {
     .at(atTime)
     .past()
     .execute(CycleMania())
-    .writeTo(FileSink("/tmp/raphtory_nft", format = JsonFormat()))
+    .writeTo(FileSink("/tmp/raphtory_nft_scala", format = JsonFormat()))
     .waitForJob()
 
   graph.destroy()

@@ -1,4 +1,4 @@
-from cyclemania import CycleMania
+# from cyclemaniaj import CycleMania
 import time
 from calendar import timegm
 from pyraphtory.graph import Row
@@ -97,7 +97,8 @@ def parse_graph(graph, line):
 
 def main():
     pr = PyRaphtory(logging=True).open()
-    graph = pr.new_graph()
+    ri = pr.connect()
+    graph = ri.new_graph("nft")
 
     # filename = '/Users/haaroony/Documents/nft/Data_API_clean_nfts_ETH_only_1k.csv'
     # at_time = 1575147060
@@ -121,12 +122,17 @@ def main():
             'nft_category',
             'num_sales',
             'cycle_data']
-    graph\
+
+
+    pr = PyRaphtory(logging=True).open()
+    graph = pr.connect()
+
+
+    qp = graph\
         .at(at_time)\
         .past()\
-        .execute(CycleMania()) \
+        .execute(CycleManiaj()) \
         .write_to(FileSink('/tmp/raphtory_nft_python', format = JsonFormat()))
-        .wait_for_job()
 
     # .to_df(cols)
     print("done complex")

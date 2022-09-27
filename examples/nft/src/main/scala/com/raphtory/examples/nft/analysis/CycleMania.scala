@@ -61,6 +61,7 @@ class CycleMania(moneyCycles: Boolean = true) extends Generic {
                 if (moneyCycles) {
                   // ISSUE: If user is the same and at a loss, then the cycle keeps going.
                   buyersSeen.update(buyerId, position)
+                  println(f"prev $previousPrice : current: $currentPrice")
                   if (previousPrice < currentPrice)
                     // println(f"Money Cycle found, item $buyerId, from ${buyersSeen.get(buyerId)} to $position ")
                     allCyclesFound =
