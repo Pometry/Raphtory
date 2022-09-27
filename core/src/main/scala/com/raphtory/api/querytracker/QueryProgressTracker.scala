@@ -132,7 +132,7 @@ class QueryProgressTracker private[raphtory] (
         jobDone = true
         isJobFinishedPromise.complete(Success(()))
       case JobFailed(error)                     =>
-        isJobFinishedPromise.complete(Success())
+        isJobFinishedPromise.failure(error)
         logger.error(s"The execution of the query '$jobID' failed. Cause: '$error'")
     }
 
