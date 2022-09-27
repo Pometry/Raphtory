@@ -170,7 +170,7 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
                           } { c =>
                             IO {
                               println("closing remote connection")
-                              //                              c.close() TODO: this currently falls over if any graphs were closed before
+                              c.close() // TODO: this currently falls over if any graphs were closed before
                             }
                           }
           } yield connection
@@ -195,7 +195,7 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   test("When an algo crashes waitForJob returns and isJobDone is false") {
     val query = remoteGraph().select(vertex => Row(1)).filter(row => false).writeTo(PrintSink())
-    query.waitForJob()
+    intercept[java.lang.RuntimeException](query.waitForJob())
     assert(!query.isJobDone)
   }
 
@@ -211,6 +211,7 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   remoteGraphInline.test("test inline graphbuilder definition") { g =>
     val res = g.execute(EdgeList()).get().toList
+    println(res)
     assert(res.nonEmpty)
   }
 
