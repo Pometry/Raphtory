@@ -10,7 +10,7 @@ from pyraphtory.algorithms.trianglecount import LocalTriangleCount, GlobalTriang
 from pyraphtory.algorithms.degree import Degree
 
 if __name__ == "__main__":
-    from pyraphtory.context import Raphtory
+    from pyraphtory.context import PyRaphtory
     import subprocess
 
     subprocess.run(["curl", "-o", "/tmp/lotr.csv", "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"])
@@ -30,7 +30,7 @@ if __name__ == "__main__":
 
 
     lotr_spout = FileSpout("/tmp/lotr.csv")
-    graph = Raphtory.new_graph().load(Source(lotr_spout, GraphBuilder(parse)))
+    graph = PyRaphtory.new_graph().load(Source(lotr_spout, GraphBuilder(parse)))
 
     df = (graph
           .select(lambda vertex: Row(vertex.name(), vertex.degree()))
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     print(df)
 
     df = (graph
-          .execute(Raphtory.algorithms.generic.community.LPA[Long]())
+          .execute(PyRaphtory.algorithms.generic.community.LPA[Long]())
           .to_df(["name", "lpa_label"])
           )
     print(df)
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     df = (graph.execute(Degree()).to_df(["name", "in-degree", "out-degree", "degree"]))
     print(df)
 
-    graph2 = Raphtory.new_graph()
+    graph2 = PyRaphtory.new_graph()
     # can just call add_vertex, add_edge on graph directly without spout/builder
     start = perf_counter()
     with open("/tmp/lotr.csv") as f:
