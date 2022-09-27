@@ -282,8 +282,6 @@ class ScalaProxyBase(object):
         """Access the wrapped jvm object directly"""
         return self._jvm_object
 
-
-
     @classmethod
     def _add_method(cls, name, method_array):
         name = _codegen.clean_identifier(name)
@@ -351,7 +349,6 @@ class GenericScalaProxy(ScalaProxyBase):
                     methods = get_methods(jvm_object)
                 for (name, method_array) in methods.items():
                     cls._add_method(name, method_array)
-                cls.__getattr__ = cls._getattr_initialised
                 cls._initialised = True
 
     @property
@@ -370,18 +367,6 @@ class GenericScalaProxy(ScalaProxyBase):
         """
         logger.trace(f"{self!r} called with {args=} and {kwargs=}")
         return self.apply(*args, **kwargs)
-
-    def _getattr_initialised(self, item):
-        raise AttributeError(f"{self.__class__.__name__} has no attribute {item}")
-
-    def __getattr__(self, item):
-        with self._init_lock:
-            """Triggers method initialisation if the class is uninitialised, otherwise just raises AttributeError"""
-            if self._initialised:
-                return getattr(self, item)  # a different thread already initialised the object
-            else:
-                self._init_methods(self._jvm_object)
-                return getattr(self, item)
 
     def __new__(cls, jvm_object=None):
         """Create a new instance and trigger method initialisation if needed"""
@@ -481,20 +466,6 @@ class WithImplicits:
             return bound
 
 
-def _lazy_load_base(self, item):
-    """Lazy initialisation of class attributes to avoid import errors due to missing java connection"""
-    with self._base_init_lock:
-        if self._base_initialised:
-            return getattr(self, item)  # a different thread already initialised the object
-        else:
-            if self._jvm_object is None and self._classname is not None:
-                self._jvm_object = find_class(self._classname)
-                self._init_base_methods(self._jvm_object)
-                return getattr(self, item)
-            else:
-                raise AttributeError("Uninitialisable class has no attributes")
-
-
 class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
     """Metaclass for wrapping Scala companion objects"""
     _base_initialised = False
@@ -524,8 +495,7 @@ class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
         if not concrete:
             actual_mcs = mcs
         else:
-            actual_mcs = type.__new__(mcs, name + "_", (mcs,), {"_classname": attrs["_classname"],
-                                                                "__getattr__": _lazy_load_base})
+            actual_mcs = type.__new__(mcs, name + "_", (mcs,), {"_classname": attrs["_classname"]})
             actual_mcs._init_base_methods(_scala.find_class(actual_mcs._classname))
 
         cls = type.__new__(actual_mcs, name, bases, attrs, **kwargs)
@@ -548,7 +518,6 @@ class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
                 methods = get_methods(jvm_object)
                 for (name, method_array) in methods.items():
                     mcs._add_method(name, method_array)
-                del mcs.__getattr__
                 mcs._base_initialised = True
 
 
