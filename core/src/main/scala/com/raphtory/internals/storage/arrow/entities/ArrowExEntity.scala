@@ -95,7 +95,7 @@ trait ArrowExEntity extends EntityVisitor {
           Some(List(PropertyValue(after, -1, prop)))
         }
         catch {
-          case _:IllegalArgumentException => // let's try a field instead
+          case _: IllegalArgumentException => // let's try a field instead
             val FIELD                    = entity.getRaphtory.getVertexFieldId(key)
             val acc: EntityFieldAccessor = entity.getField(FIELD)
             val field                    = acc.getAny.asInstanceOf[T]
@@ -109,7 +109,7 @@ trait ArrowExEntity extends EntityVisitor {
           Some(List(PropertyValue(acc.getCreationTime, -1, prop)))
         }
         catch {
-          case _:IllegalArgumentException => // let's try a field instead
+          case _: IllegalArgumentException => // let's try a field instead
             val FIELD                    = entity.getRaphtory.getEdgeFieldId(key)
             val acc: EntityFieldAccessor = entity.getField(FIELD)
             val field                    = acc.getAny.asInstanceOf[T]
@@ -159,9 +159,8 @@ trait ArrowExEntity extends EntityVisitor {
     *                          If set, this function only returns `false` if `key` is not included in either algorithmic state
     *                          or entity properties
     */
-  override def containsState(key: String, includeProperties: Boolean): Boolean = {
+  override def containsState(key: String, includeProperties: Boolean): Boolean =
     repo.getState(entity.getLocalId, key).isDefined || (includeProperties && getProperty(key).isDefined)
-  }
 
   /** Retrieve value from algorithmic state if it exists or set this state to a default value and return otherwise. Note that for edges,
     * algorithmic state is stored locally to the vertex endpoint which set this state (default being the source node
@@ -173,7 +172,8 @@ trait ArrowExEntity extends EntityVisitor {
     * @param includeProperties set this to `true` to fall-through to vertex properties
     *                          if `key` is not found in algorithmic state. State is only set if this is also not found.
     */
-  override def getOrSetState[T](key: String, value: T, includeProperties: Boolean): T = ???
+  override def getOrSetState[T](key: String, value: T, includeProperties: Boolean): T =
+    repo.getOrSetState(entity.getLocalId, key, value)
 
   /** Append new value to existing array or initialise new array if state does not exist. Note that for edges,
     * algorithmic state is stored locally to the vertex endpoint which set this state (default being the source node

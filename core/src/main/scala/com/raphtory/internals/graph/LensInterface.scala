@@ -16,14 +16,14 @@ private[raphtory] trait LensInterface {
   def getFullGraphSize: Int
   def setFullGraphSize(size: Int): Unit
 
-  def executeSelect(f: _ => Row)(onComplete: => Unit): Unit
+  def executeSelect(f: Vertex => Row)(onComplete: => Unit): Unit
 
   def executeSelect(
       f: (_, GraphState) => Row,
       graphState: GraphState
   )(onComplete: => Unit): Unit
   def executeSelect(f: GraphState => Row, graphState: GraphState)(onComplete: => Unit): Unit
-  def explodeSelect(f: _ => IterableOnce[Row])(onComplete: => Unit): Unit
+  def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: => Unit): Unit
   def filteredTable(f: Row => Boolean)(onComplete: => Unit): Unit
   def explodeTable(f: Row => IterableOnce[Row])(onComplete: => Unit): Unit
   def writeDataTable(f: Row => Unit)(onComplete: => Unit): Unit

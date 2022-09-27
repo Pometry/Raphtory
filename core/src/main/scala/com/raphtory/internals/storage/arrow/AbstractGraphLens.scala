@@ -112,11 +112,6 @@ abstract class AbstractGraphLens(
     onComplete
   }
 
-  override def executeSelect(f: _ => Row)(onComplete: => Unit): Unit = {
-    dataTable = currentVertices.flatMap(v => f.asInstanceOf[Vertex => RowImplementation](v).yieldAndRelease)
-    onComplete
-  }
-
   override def writeDataTable(writer: Row => Unit)(onComplete: => Unit): Unit = {
     dataTable.foreach(writer)
     onComplete
@@ -129,11 +124,24 @@ abstract class AbstractGraphLens(
   }
 
   override def executeSelect(f: GraphState => Row, graphState: GraphState)(onComplete: => Unit): Unit = {
-    if (partitionID == 0) {
+    if (partitionID == 0)
       dataTable = View
         .fromIteratorProvider(() => Iterator.fill(1)(f(graphState).asInstanceOf[RowImplementation]))
         .flatMap(_.yieldAndRelease)
-    }
     onComplete
+  }
+
+  override def filteredTable(f: Row => Boolean)(onComplete: => Unit): Unit = {
+    dataTable = dataTable.filter(f)
+    onComplete
+  }
+
+  override def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: => Unit): Unit = {
+    dataTable = currentVertices.flatMap(f).flatMap(row => row.asInstanceOf[RowImplementation].yieldAndRelease)
+    onComplete
+  }
+
+  override def executeSelect(f: Vertex => Row)(onComplete: => Unit): Unit = {
+    explodeSelect(v => List(f(v)))(onComplete)
   }
 }

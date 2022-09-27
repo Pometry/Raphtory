@@ -106,6 +106,7 @@ class GraphExecutionState(
   override def asGlobal(localVertexId: Long): Long = makeGlobalFn(localVertexId)
 
   override def vertexVoted(): Unit = votingMachine.vote()
+
 }
 
 object GraphExecutionState {

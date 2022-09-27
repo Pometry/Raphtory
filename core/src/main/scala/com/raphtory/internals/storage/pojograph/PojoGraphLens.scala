@@ -83,7 +83,7 @@ final private[raphtory] case class PojoGraphLens(
 
   private var dataTable: Iterator[RowImplementation] = Iterator()
 
-  def executeSelect(f: _ => Row)(onComplete: => Unit): Unit = {
+  def executeSelect(f: Vertex => Row)(onComplete: => Unit): Unit = {
     dataTable = vertexIterator.flatMap { vertex =>
       f.asInstanceOf[PojoVertexBase => RowImplementation](vertex).yieldAndRelease
     }
@@ -111,7 +111,7 @@ final private[raphtory] case class PojoGraphLens(
     onComplete
   }
 
-  def explodeSelect(f: _ => IterableOnce[Row])(onComplete: => Unit): Unit = {
+  def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: => Unit): Unit = {
     dataTable = vertexIterator
       .flatMap(f.asInstanceOf[PojoVertexBase => IterableOnce[RowImplementation]])
       .flatMap(_.yieldAndRelease)

@@ -405,9 +405,9 @@ private[raphtory] class QueryExecutor(
                   )
           )
 
-        case Select(f)                                                                =>
+        case s: Select[Vertex] @unchecked                                             =>
           startStep()
-          graphLens.executeSelect(f) {
+          graphLens.executeSelect(s.f) {
             finaliseStep {
               taskManager sendAsync TableBuilt(currentPerspectiveID)
               logger.debug(
@@ -420,9 +420,9 @@ private[raphtory] class QueryExecutor(
           }
 
         //TODO create explode select with accumulators
-        case ExplodeSelect(f)                                                         =>
+        case es: ExplodeSelect[Vertex] @unchecked                                     =>
           startStep()
-          graphLens.explodeSelect(f) {
+          graphLens.explodeSelect(es.f) {
             finaliseStep {
               taskManager sendAsync TableBuilt(currentPerspectiveID)
               logger.debug(

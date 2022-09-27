@@ -73,7 +73,7 @@ final private[raphtory] case class IterateWithGraph[V <: Vertex](
     executeMessagedOnly: Boolean
 ) extends GlobalGraphFunction
 
-final private[raphtory] case class Select(f: _ => Row) extends TabularisingGraphFunction
+final private[raphtory] case class Select[V <: Vertex](f: V => Row) extends TabularisingGraphFunction
 
 final private[raphtory] case class SelectWithGraph(
     f: (_, GraphState) => Row
@@ -85,7 +85,7 @@ final private[raphtory] case class GlobalSelect(
 ) extends TabularisingGraphFunction
         with GlobalGraphFunction
 
-final private[raphtory] case class ExplodeSelect(f: _ => Iterable[Row]) extends TabularisingGraphFunction
+final private[raphtory] case class ExplodeSelect[V <: Vertex](f: V => Iterable[Row]) extends TabularisingGraphFunction
 final private[raphtory] case class ClearChain()                         extends GraphFunction
 final private[raphtory] case class PerspectiveDone()                    extends GraphFunction
 

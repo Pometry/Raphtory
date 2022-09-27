@@ -6,17 +6,25 @@ import scala.collection.View
 
 trait ArrowEntityStateRepository {
 
+  def getOrSetState[T](vertexId: Long, key: String, value: T): T =
+    getState[T](vertexId, key) match {
+      case None    =>
+        setState(vertexId, key, value)
+        value
+      case Some(s) => s
+    }
+
   def vertexVoted(): Unit
 
   def asGlobal(getDstVertex: Long): Long
 
   /**
-   * copy and and empty the queue on the repository side
-   *
-   * @param vertexId
-   * @tparam T
-   * @return
-   */
+    * copy and and empty the queue on the repository side
+    *
+    * @param vertexId
+    * @tparam T
+    * @return
+    */
   def releaseQueue[T](vertexId: Long): View[T]
 
   def superStep: Int
