@@ -1,14 +1,4 @@
-import pytest
-
 from pyraphtory._docstring import convert_docstring, string_expr, code
-from pyraphtory.context import PyRaphtory
-
-
-@pytest.fixture(scope="module", autouse=True)
-def pyraphtory():
-    pr = PyRaphtory().open()
-    yield pr
-    pr.shutdown()
 
 
 def test_class_name_conversion():
