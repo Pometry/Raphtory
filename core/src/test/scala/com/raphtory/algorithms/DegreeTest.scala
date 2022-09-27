@@ -1,13 +1,8 @@
 package com.raphtory.algorithms
 
-import com.raphtory.BaseCorrectnessTest
-import com.raphtory.TestQuery
-import com.raphtory.algorithms.generic.EdgeList
-import com.raphtory.algorithms.generic.centrality.Degree
-import com.raphtory.algorithms.generic.centrality.WeightedDegree
-import com.raphtory.algorithms.temporal.TemporalEdgeList
-import com.raphtory.api.input.GraphBuilder
-import com.raphtory.api.input.Spout
+import com.raphtory.{BaseCorrectnessTest, TestQuery}
+import com.raphtory.algorithms.generic.centrality.{Degree, WeightedDegree}
+import com.raphtory.api.input.{GraphBuilder, Spout}
 import com.raphtory.spouts.ResourceSpout
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -21,7 +16,7 @@ class DegreeTest extends BaseCorrectnessTest {
     correctnessTest(TestQuery(WeightedDegree[Long](), 6), "Degree/weightedResult.csv")
   }
 
-  test("weighted Degree with edge count".only) {
+  test("weighted Degree with edge count") {
     correctnessTest(
             TestQuery(WeightedDegree[Long](), 6),
             "Degree/countedResult.csv"

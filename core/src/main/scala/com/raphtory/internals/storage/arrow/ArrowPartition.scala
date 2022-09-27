@@ -1,38 +1,16 @@
 package com.raphtory.internals.storage.arrow
 
-import com.raphtory.api.analysis.visitor
-import com.raphtory.api.input.BooleanProperty
-import com.raphtory.api.input.DoubleProperty
-import com.raphtory.api.input.FloatProperty
-import com.raphtory.api.input.ImmutableProperty
-import com.raphtory.api.input.IntegerProperty
-import com.raphtory.api.input.LongProperty
-import com.raphtory.api.input.Properties
-import com.raphtory.api.input.StringProperty
-import com.raphtory.api.input.Type
-import com.raphtory.arrowcore.implementation.VertexIterator.AllVerticesIterator
-import com.raphtory.arrowcore.implementation.EdgeIterator
-import com.raphtory.arrowcore.implementation.EdgePartitionManager
-import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
-import com.raphtory.arrowcore.implementation.VertexPartitionManager
-import com.raphtory.arrowcore.model.Edge
-import com.raphtory.arrowcore.model.Vertex
-import com.raphtory.internals.graph.GraphAlteration.EdgeSyncAck
-import com.raphtory.internals.graph.GraphAlteration.SyncExistingEdgeAdd
-import com.raphtory.internals.graph.GraphAlteration.SyncExistingRemovals
-import com.raphtory.internals.graph.GraphAlteration.SyncNewEdgeAdd
-import com.raphtory.internals.graph.GraphAlteration
-import com.raphtory.internals.graph.GraphPartition
-import com.raphtory.internals.graph.LensInterface
+import com.raphtory.api.input._
+import com.raphtory.arrowcore.implementation.{EdgeIterator, EdgePartitionManager, RaphtoryArrowPartition, VertexPartitionManager}
+import com.raphtory.arrowcore.model.{Edge, Vertex}
+import com.raphtory.internals.graph.GraphAlteration.{EdgeSyncAck, SyncExistingEdgeAdd, SyncExistingRemovals, SyncNewEdgeAdd}
+import com.raphtory.internals.graph.{GraphAlteration, GraphPartition, LensInterface}
 import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExVertex
 import com.typesafe.config.Config
 
 import java.lang
 import java.util.concurrent.atomic.LongAccumulator
-import java.util.concurrent.atomic.LongAdder
-import scala.collection.AbstractView
-import scala.collection.View
-import scala.collection.mutable
+import scala.collection.{AbstractView, View, mutable}
 
 class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition: Int, conf: Config)
         extends GraphPartition(graphID, partition, conf) {
@@ -164,8 +142,8 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
     src.outgoingEdges.find { e =>
       dst match {
         case NotFound(_)           => false
-        case GlobalId(id)          => id == e.getDstVertex
-        case ExistsOnPartition(id) => id == e.getDstVertex
+        case GlobalId(id)          => id == e.getDstVertex && e.isDstGlobal
+        case ExistsOnPartition(id) => id == e.getDstVertex && !e.isDstGlobal
       }
     } match {
       case Some(e) =>
@@ -173,11 +151,11 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
         par.getEdgeMgr.addHistory(e.getLocalId, msgTime, true)
         // if destination is local add it
         if (dst.isLocal) {
-          addVertexInternal(dstId, msgTime, Properties())
+          val d = addVertexInternal(dstId, msgTime, Properties())
+          linkIncomingToLocalNode(msgTime, dst, e)
           None
         }
-        else
-          // send sync
+        else // send sync
           Some(SyncExistingEdgeAdd(sourceID, msgTime, index, srcId, dstId, properties))
       case None    =>
         // init the edge
@@ -221,18 +199,22 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
 
         // link the edge to the destination
         if (dst.isLocal) {
-          val p           = vmgr.getPartition(vmgr.getPartitionId(dst.id))
-          val prevListPtr = p.synchronized {
-            val ptr = p.addIncomingEdgeToList(dst.id, e.getLocalId)
-            p.addHistory(dst.id, msgTime, true, false, e.getLocalId, false)
-            ptr
-          }
-
-          emgr.setIncomingEdgePtr(e.getLocalId, prevListPtr)
+          linkIncomingToLocalNode(msgTime, dst, e)
         }
         out
       // no edge here
     }
+  }
+
+  private def linkIncomingToLocalNode(msgTime: Long, dst: EntityId, e: Edge): Unit = {
+    val p = vmgr.getPartition(vmgr.getPartitionId(dst.id))
+    val prevListPtr = p.synchronized {
+      val ptr = p.addIncomingEdgeToList(dst.id, e.getLocalId)
+      p.addHistory(dst.id, msgTime, true, false, e.getLocalId, false)
+      ptr
+    }
+
+    emgr.setIncomingEdgePtr(e.getLocalId, prevListPtr)
   }
 
   override def syncNewEdgeAdd(

@@ -57,7 +57,7 @@ class KCore(k: Int, resetStates: Boolean = true) extends Generic {
     graph
       .step { vertex =>
 
-        if ((resetStates == false) & (vertex.containsState(EFFDEGREE))) {  // i.e. you're reusing the previous states
+        if (!resetStates & (vertex.containsState(EFFDEGREE))) {  // i.e. you're reusing the previous states
           // we assume here that the previous iteration of KCore was run with a smaller value of k (this allows e.g. Coreness to run)
           // therefore the effective degree is only going to decrease for each node, so any node with a previous effective degree = k-1
           // (so this node was alive last time i.e. is counted in other nodes' effective degree, but can't be in the current k core: dies straight )

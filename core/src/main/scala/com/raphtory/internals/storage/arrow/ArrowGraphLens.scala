@@ -38,9 +38,8 @@ final case class ArrowGraphLens(
     size
   }
 
-  override def executeSelect(f: Function2[_, GraphState, Row], graphState: GraphState)(onComplete: => Unit): Unit = ???
+  override def executeSelect(f: (_, GraphState) => Row, graphState: GraphState)(onComplete: => Unit): Unit = ???
 
-  override def executeSelect(f: GraphState => Row, graphState: GraphState)(onComplete: => Unit): Unit = ???
 
   override def explodeSelect(f: Function[_, IterableOnce[Row]])(onComplete: => Unit): Unit = ???
 

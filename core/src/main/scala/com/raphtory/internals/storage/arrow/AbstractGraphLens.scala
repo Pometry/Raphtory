@@ -127,4 +127,13 @@ abstract class AbstractGraphLens(
     dataTable = dataTable.flatMap(f)
     onComplete
   }
+
+  override def executeSelect(f: GraphState => Row, graphState: GraphState)(onComplete: => Unit): Unit = {
+    if (partitionID == 0) {
+      dataTable = View
+        .fromIteratorProvider(() => Iterator.fill(1)(f(graphState).asInstanceOf[RowImplementation]))
+        .flatMap(_.yieldAndRelease)
+    }
+    onComplete
+  }
 }
