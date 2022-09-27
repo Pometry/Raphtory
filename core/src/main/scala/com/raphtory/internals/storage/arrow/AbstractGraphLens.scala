@@ -1,12 +1,14 @@
 package com.raphtory.internals.storage.arrow
 
 import com.raphtory.api.analysis.graphstate.GraphState
-import com.raphtory.api.analysis.table.{Row, RowImplementation}
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.RowImplementation
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.storage.GraphExecutionState
+import com.raphtory.internals.storage.VotingMachine
 import com.raphtory.internals.storage.arrow.entities.ArrowExVertex
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -15,21 +17,23 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.View
 
 abstract class AbstractGraphLens(
-                                  jobId: String,
-                                  start: Long,
-                                  end: Long,
-                                  superStep: AtomicInteger,
-                                  protected val storage: ArrowPartition,
-                                  private val messageSender: GenericVertexMessage[_] => Unit,
-                                  private val errorHandler: Throwable => Unit,
-                                  private val scheduler: Scheduler
-                                ) extends LensInterface {
+    jobId: String,
+    start: Long,
+    end: Long,
+    superStep: AtomicInteger,
+    protected val storage: ArrowPartition,
+    private val messageSender: GenericVertexMessage[_] => Unit,
+    private val errorHandler: Throwable => Unit,
+    private val scheduler: Scheduler
+) extends LensInterface {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val voteCount = new AtomicInteger(0)
-  private val vertexCount = new AtomicInteger(0)
+  private val vertexCount   = new AtomicInteger(0)
   private var fullGraphSize = 0
-  protected val graphState: GraphExecutionState = GraphExecutionState(superStep, messageSender, storage.asGlobal)
+  private val votingMachine = VotingMachine()
+
+  protected val graphState: GraphExecutionState =
+    GraphExecutionState(superStep, messageSender, storage.asGlobal, votingMachine)
 
   private var dataTable: View[Row] = View.empty[RowImplementation]
 
@@ -37,9 +41,7 @@ abstract class AbstractGraphLens(
 
   override def partitionID(): Int = storage.getPartitionID
 
-  def checkVotes(): Boolean = vertexCount.get() == voteCount.get()
-
-  def vertexVoted(): Unit = voteCount.incrementAndGet()
+  def checkVotes(): Boolean = votingMachine.checkVotes(vertexCount.get)
 
   def setFullGraphSize(size: Int): Unit = {
     fullGraphSize = size
@@ -51,8 +53,8 @@ abstract class AbstractGraphLens(
   override def getFullGraphSize: Int = fullGraphSize
 
   override def nextStep(): Unit = {
+    votingMachine.reset()
     t1 = System.currentTimeMillis()
-    voteCount.set(0)
     vertexCount.set(0)
     graphState.nextStep(superStep.getAndIncrement())
   }
@@ -61,15 +63,15 @@ abstract class AbstractGraphLens(
 
   override def receiveMessage(msg: GenericVertexMessage[_]): Unit =
     msg match {
-      case msg: VertexMessage[_, _] =>
+      case msg: VertexMessage[_, _]                     =>
         graphState.receiveMessage(msg.vertexId, msg.superstep, msg.data)
-      case msg: FilteredEdgeMessage[Long]@unchecked =>
+      case msg: FilteredEdgeMessage[Long] @unchecked    =>
         graphState.removeEdge(msg.vertexId, msg.sourceId, msg.edgeId)
-      case msg: FilteredInEdgeMessage[Long]@unchecked =>
+      case msg: FilteredInEdgeMessage[Long] @unchecked  =>
         graphState.removeInEdge(msg.sourceId, msg.vertexId, msg.edgeId)
-      case msg: FilteredOutEdgeMessage[Long]@unchecked =>
+      case msg: FilteredOutEdgeMessage[Long] @unchecked =>
         graphState.removeOutEdge(msg.vertexId, msg.sourceId, msg.edgeId)
-      case _ =>
+      case _                                            =>
     }
 
   /**
@@ -82,9 +84,10 @@ abstract class AbstractGraphLens(
     */
   def vertices: View[Vertex]
 
-  def currentVertices: View[Vertex] = graphState.currentStepVertices.map {
-    id => new ArrowExVertex(graphState, storage.getVertex(id))
-  }
+  def currentVertices: View[Vertex] =
+    graphState.currentStepVertices.map { id =>
+      new ArrowExVertex(graphState, storage.getVertex(id))
+    }
 
   override def runGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit = {
     vertexCount.set(0)
@@ -94,10 +97,17 @@ abstract class AbstractGraphLens(
   }
 
   override def runGraphFunction(f: (_, GraphState) => Unit, graphState: GraphState)(
-    onComplete: => Unit
+      onComplete: => Unit
   ): Unit = {
     vertexCount.set(0)
     val count = vertices.foldLeft(0) { (c, v) => f.asInstanceOf[(Vertex, GraphState) => Unit](v, graphState); c + 1 }
+    vertexCount.set(count)
+    onComplete
+  }
+
+  override def runMessagedGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit = {
+    vertexCount.set(0)
+    val count = vertices.filter(_.hasMessage).foldLeft(0) { (c, v) => f(v); c + 1 }
     vertexCount.set(count)
     onComplete
   }
@@ -108,21 +118,13 @@ abstract class AbstractGraphLens(
   }
 
   override def writeDataTable(writer: Row => Unit)(onComplete: => Unit): Unit = {
-    dataTable.foreach{
-      row =>
-//        println(row)
-        writer(row)
-    }
+    dataTable.foreach(writer)
     onComplete
   }
 
-
   def explodeTable(f: Row => IterableOnce[Row])(onComplete: => Unit): Unit = {
-    dataTable = dataTable.flatMap{
-      row =>
-        val value =  f(row) //FIXME: this doesn't work -> row.asInstanceOf[RowImplementation].explode(f).toVector
-        value
-    }
+    //FIXME: this doesn't work -> row.asInstanceOf[RowImplementation].explode(f).toVector
+    dataTable = dataTable.flatMap(f)
     onComplete
   }
 }

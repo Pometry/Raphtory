@@ -26,7 +26,7 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, vertex: ArrVertex) ext
   override def ID: Long = entity.getGlobalId
 
   /** Check if vertex has received messages */
-  override def hasMessage: Boolean = repo.hasMessage(entity.getLocalId)
+  override def hasMessage: Boolean = repo.hasMessage(ID)
 
   /** Queue of received messages
     *
@@ -36,7 +36,7 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, vertex: ArrVertex) ext
     repo.releaseQueue(ID)
 
   /** Vote to stop iterating (iteration stops if all vertices voted to halt) */
-  override def voteToHalt(): Unit = ???
+  override def voteToHalt(): Unit = repo.vertexVoted()
 
   /** Send data to another vertex at next Step/Iteration
     *

@@ -5,6 +5,8 @@ import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import scala.collection.View
 
 trait ArrowEntityStateRepository {
+  def vertexVoted(): Unit
+
   def asGlobal(getDstVertex: Long): Long
 
   /**

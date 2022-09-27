@@ -14,6 +14,7 @@ import scala.jdk.CollectionConverters.EnumerationHasAsScala
 
 class GraphExecutionState(
     superStep0: AtomicInteger,
+    votingMachine: VotingMachine,
     messageSender: GenericVertexMessage[_] => Unit,
     makeGlobalFn: Long => Long
 ) extends ArrowEntityStateRepository {
@@ -53,8 +54,8 @@ class GraphExecutionState(
               }
     )
 
-  def hasMessage(getLocalId: Long): Boolean =
-    messagesPerVertex(getLocalId).getMessageQueue(superStep).nonEmpty
+  def hasMessage(vertexId: Long): Boolean =
+    messagesPerVertex.get(vertexId).exists(_.getMessageQueue(superStep).nonEmpty)
 
   def removeOutEdge(vertexId: Long, sourceId: Long, edgeId: Option[Long]): Unit = ???
 
@@ -66,11 +67,10 @@ class GraphExecutionState(
   def removeEdge(edgeId: Long): Unit =
     removeEdge(-1L, -1L, Option(edgeId))
 
-  def receiveMessage(vertexId: Any, localSuperStep: Int, data: Any): Unit = {
+  def receiveMessage(vertexId: Any, localSuperStep: Int, data: Any): Unit =
     messagesPerVertex
       .getOrElseUpdate(vertexId, new VertexMultiQueue)
       .receiveMessage(localSuperStep, data)
-  }
 
   def clearMessages(): Unit = messagesPerVertex.values.foreach(_.clearAll())
 
@@ -90,9 +90,8 @@ class GraphExecutionState(
   override def removeVertex(vertexId: Long): Unit =
     newFilteredVertices.synchronized(newFilteredVertices.addOne(vertexId))
 
-  override def sendMessage(msg: GenericVertexMessage[_]): Unit = {
+  override def sendMessage(msg: GenericVertexMessage[_]): Unit =
     messageSender(msg)
-  }
 
   override def superStep: Int = superStep0.get
 
@@ -106,6 +105,8 @@ class GraphExecutionState(
     }
 
   override def asGlobal(localVertexId: Long): Long = makeGlobalFn(localVertexId)
+
+  override def vertexVoted(): Unit = votingMachine.vote()
 }
 
 object GraphExecutionState {
@@ -113,7 +114,8 @@ object GraphExecutionState {
   def apply(
       superStep: AtomicInteger,
       messageSender: GenericVertexMessage[_] => Unit,
-      makeGlobal: Long => Long
+      makeGlobal: Long => Long,
+      votingMachine: VotingMachine
   ): GraphExecutionState =
-    new GraphExecutionState(superStep, messageSender, makeGlobal)
+    new GraphExecutionState(superStep, votingMachine, messageSender, makeGlobal)
 }

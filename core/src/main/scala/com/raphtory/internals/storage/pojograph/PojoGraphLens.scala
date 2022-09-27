@@ -210,9 +210,9 @@ final private[raphtory] case class PojoGraphLens(
           (count + chunkSize, io :: ll)
       }
 
-  override def runMessagedGraphFunction(f: _ => Unit)(onComplete: => Unit): Unit = {
+  override def runMessagedGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit = {
 
-    val (count, tasks) = prepareRun(vertexIterator, chunkSize, includeAllVs = false)(f.asInstanceOf[PojoVertexBase => Unit])
+    val (count, tasks) = prepareRun(vertexIterator, chunkSize, includeAllVs = false)(f)
 
     vertexCount.set(count)
     scheduler.executeInParallel(tasks, onComplete, errorHandler)

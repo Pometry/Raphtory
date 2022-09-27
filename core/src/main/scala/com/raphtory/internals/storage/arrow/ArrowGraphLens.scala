@@ -61,10 +61,6 @@ final case class ArrowGraphLens(
                            aggregate: Boolean
                          )(onComplete: => Unit): Unit = ???
 
-  //  override def runGraphFunction(f: (_, GraphState) => Unit, graphState: GraphState)(onComplete: => Unit): Unit =
-  //    ???
-
-  override def runMessagedGraphFunction(f: _ => Unit)(onComplete: => Unit): Unit = ???
 
   override def runMessagedGraphFunction(f: (_, GraphState) => Unit, graphState: GraphState)(
     onComplete: => Unit
