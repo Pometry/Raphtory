@@ -5,6 +5,7 @@ import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import scala.collection.View
 
 trait ArrowEntityStateRepository {
+
   def vertexVoted(): Unit
 
   def asGlobal(getDstVertex: Long): Long
@@ -20,7 +21,7 @@ trait ArrowEntityStateRepository {
 
   def superStep: Int
 
-  def getState[T](getLocalId: Long, key: String): T
+  def getState[T](getLocalId: Long, key: String): Option[T]
 
   def getStateOrElse[T](getLocalId: Long, key: String, orElse: => T): T
 

@@ -31,10 +31,9 @@ class GraphExecutionState(
 
   def currentStepVertices: View[Long] = View.fromIteratorProvider(() => state.keys().asScala)
 
-  override def getState[T](getLocalId: Long, key: String): T = {
+  override def getState[T](getLocalId: Long, key: String): Option[T] = {
     val innerMap = state.get(getLocalId)
-    // this can blow up obviously
-    innerMap(key).asInstanceOf[T]
+    Option(innerMap).flatMap(_.get(key)).asInstanceOf[Option[T]]
   }
 
   override def getStateOrElse[T](getLocalId: Long, key: String, orElse: => T): T = {

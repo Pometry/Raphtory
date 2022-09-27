@@ -136,7 +136,7 @@ trait ArrowExEntity extends EntityVisitor {
     * @param includeProperties set this to `true` to fall-through to vertex properties if `key` is not found
     */
   override def getState[T](key: String, includeProperties: Boolean): T =
-    repo.getState(entity.getLocalId, key)
+    repo.getState(entity.getLocalId, key).get
 
   /** Retrieve value from algorithmic state if it exists or return a default value otherwise. Note that for edges,
     * algorithmic state is stored locally to the vertex endpoint which set this state (default being the source node
@@ -149,7 +149,7 @@ trait ArrowExEntity extends EntityVisitor {
     *                          if `key` is not found in algorithmic state
     */
   override def getStateOrElse[T](key: String, value: T, includeProperties: Boolean): T =
-    repo.getStateOrElse(entity.getLocalId, key, value)
+    repo.getStateOrElse(entity.getLocalId, key, value) // TODO: implement include properties
 
   /** Checks if algorithmic state with key `key` exists. Note that for edges, algorithmic state is stored locally to
     * the vertex endpoint which set this state (default being the source node when set during an edge step).
@@ -159,7 +159,9 @@ trait ArrowExEntity extends EntityVisitor {
     *                          If set, this function only returns `false` if `key` is not included in either algorithmic state
     *                          or entity properties
     */
-  override def containsState(key: String, includeProperties: Boolean): Boolean = ???
+  override def containsState(key: String, includeProperties: Boolean): Boolean = {
+    repo.getState(entity.getLocalId, key).isDefined || (includeProperties && getProperty(key).isDefined)
+  }
 
   /** Retrieve value from algorithmic state if it exists or set this state to a default value and return otherwise. Note that for edges,
     * algorithmic state is stored locally to the vertex endpoint which set this state (default being the source node
