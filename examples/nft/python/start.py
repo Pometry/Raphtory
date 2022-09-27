@@ -1,4 +1,4 @@
-# from cyclemaniaj import CycleMania
+from cyclemania import CycleMania
 import time
 from calendar import timegm
 from pyraphtory.graph import Row
@@ -97,42 +97,22 @@ def parse_graph(graph, line):
 
 def main():
     pr = PyRaphtory(logging=True).open()
-    ri = pr.connect()
-    graph = ri.new_graph("nft")
+    graph = pr.new_graph()
+    # graph = ri.new_graph("nft")
 
     # filename = '/Users/haaroony/Documents/nft/Data_API_clean_nfts_ETH_only_1k.csv'
     # at_time = 1575147060
 
     filename = "/Users/haaroony/OneDrive - Pometry Ltd/nft_andrea/sample/Data_API_250k.csv"
     at_time = 1619560520
-    # load the data into a graph
     graph.load(Source(FileSpout(filename), GraphBuilder(parse_graph)))
-
-    # print("loaded data??")
-    # print("Running simple algo")
-    # df = graph \
-    #     .select(lambda vertex: Row(vertex.name(), vertex.degree(), vertex.out_degree(), vertex.in_degree())) \
-    #     .to_df(["name", "degree", "out_degree", "in_degree"])
-    # print(df)
-    # print("Done Simple")
-
-    print("Running complex algo")
-    cols = ['nft_id',
-            'nft_collection',
-            'nft_category',
-            'num_sales',
-            'cycle_data']
-
-
-    pr = PyRaphtory(logging=True).open()
-    graph = pr.connect()
-
 
     qp = graph\
         .at(at_time)\
         .past()\
-        .execute(CycleManiaj()) \
-        .write_to(FileSink('/tmp/raphtory_nft_python', format = JsonFormat()))
+        .execute(CycleMania()) \
+        .write_to(FileSink('/tmp/raphtory_nft_python', format = JsonFormat())) \
+        .wait_for_job()
 
     # .to_df(cols)
     print("done complex")

@@ -1,7 +1,6 @@
 from pyraphtory.algorithm import PyAlgorithm
 from pyraphtory.graph import TemporalGraph, Row, Table
 from pyraphtory.vertex import Vertex
-from dataclasses import dataclass
 import pyraphtory.scala.collection
 
 CYCLES_FOUND: str = "CYCLES_FOUND"
@@ -14,7 +13,6 @@ class CycleMania(PyAlgorithm):
                 return
             all_cycles = []
             all_purchases = sorted(v.explode_in_edges(), key=lambda e: e.timestamp())
-
             purchasers = list(map(lambda e:
                                   dict(buyer=e.get_property_or_else("buyer_address", "_UNKNOWN_"),
                                        price_usd=float(e.get_property_or_else("price_usd", 0.0)),
@@ -33,9 +31,7 @@ class CycleMania(PyAlgorithm):
                         prev_price = purchasers[prev_pos]['price_usd']
                         current_price = item_sale['price_usd']
                         buyers_seen[buyer_id] = pos
-                        # print(f"prev {prev_price} : current: {current_price}")
                         if prev_price < current_price:
-                            # print(f"Money Cycle found, item from {buyer_id} to {pos}")
                             all_cycles.append(purchasers[prev_pos:pos + 1])
             if len(all_cycles):
                 v[CYCLES_FOUND] = all_cycles
@@ -67,5 +63,3 @@ class CycleMania(PyAlgorithm):
             return rows_found
 
         return graph.explode_select(lambda v: get_cycles(v)).filter(lambda row: len(row.get_values()) > 0)
-
-
