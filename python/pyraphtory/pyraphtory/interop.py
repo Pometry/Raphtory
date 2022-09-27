@@ -30,9 +30,9 @@ JavaObject.__str__ = repr
 JavaClass.__repr__ = repr
 JavaClass.__str__ = repr
 
-
 try:
     from pemja import findClass
+
     _scala = findClass('com.raphtory.internals.management.PythonInterop')
 except ImportError:
     _py4j = Py4JConnection()
@@ -112,23 +112,17 @@ def get_wrapper(obj):
                 wrapper = _wrappers[name]
                 logger.trace("Found wrapper for {name!r} based on class name after initial wait", name=name)
             else:
-                base = type(name + "_jvm", (GenericScalaProxy,), {})
-                # do not register base wrapper here, or it will get picked up by other threads
-                base._init_methods(obj)
                 # Check if a special wrapper class is registered for the object
                 wrap_name = _scala.get_wrapper_str(obj)
                 if wrap_name in _wrappers:
                     # Add special wrapper class to the top of the mro such that method overloads work
-                    logger.trace("Using wrapper based on name {wrap_name} for {name}", wrap_name=wrap_name, name=name)
+                    logger.debug("Using wrapper based on name {wrap_name} for {name}", wrap_name=wrap_name, name=name)
                     # Note this wrapper is registered automatically as '_classname' is defined
-                    wrapper = type(name, (_wrappers[wrap_name], base), {"_classname": name})
+                    wrapper = type(name, (_wrappers[wrap_name],), {"_classname": name, "_initialised": False})
                 else:
                     # No special wrapper registered, can use base wrapper directly
-                    logger.trace("No wrapper found for name {}", wrap_name)
-                    wrapper = base
-                    # register the base wrapper in this case
-                    wrapper._classname = name
-                    register(wrapper)
+                    logger.debug("No wrapper found for name {}, using GenericScalaProxy", name)
+                    wrapper = type(name, (GenericScalaProxy,), {"_classname": name, "_initialised": False})
                 logger.trace("New wrapper created for {name!r}", name=name)
     logger.trace("Wrapper is {wrapper!r}", wrapper=wrapper)
     return wrapper
@@ -199,6 +193,7 @@ def _wrap_python_function(fun):
 
 class Logger(object):
     """Wrapper for the java logger"""
+
     @cached_property
     def logger(self):
         _logger = _scala.logger()
@@ -243,6 +238,7 @@ logger = Logger()
 
 class FunctionWrapper(object):
     """class used to interface with python functions from scala"""
+
     def __init__(self, fun=None):
         self._fun = fun
         self.n_args = len(inspect.getfullargspec(fun).args)
@@ -256,6 +252,7 @@ class FunctionWrapper(object):
 
 class DefaultValue(object):
     """Wrap a scala default value accessor"""
+
     def __init__(self, method):
         self.method = method
 
@@ -310,23 +307,10 @@ class ScalaProxyBase(object):
         setattr(cls, name, InstanceOnlyMethod(method))
 
 
-class GenericScalaProxy(ScalaProxyBase):
-    """Base class for proxy objects that are not constructable from python
-
-    If a subclass defines a '_classname' attribute, it will be automatically
-    registered as the base class for proxy objects of that java class.
-    """
+class JVMBase(ScalaProxyBase):
     _initialised = False
     _classname = None
     _init_lock = RLock()
-
-    def __repr__(self):
-        if self._jvm_object is not None:
-            return repr(self._jvm_object)
-        else:
-            return super().__repr__()
-
-    __str__ = __repr__
 
     @classmethod
     def _init_methods(cls, jvm_object):
@@ -338,18 +322,45 @@ class GenericScalaProxy(ScalaProxyBase):
         with cls._init_lock:
             # this should only happen once in the case of multiple threads
             if not cls._initialised:
-                logger.trace(f"uninitialised class {cls.__name__}")
+                logger.debug(f"Initialising uninitialised class {cls.__name__}")
                 if jvm_object is None:
                     if cls._classname is not None:
                         methods = get_methods_from_name(cls._classname)
                     else:
                         raise RuntimeError("Cannot initialise methods for class without object or classname")
                 else:
+                    if cls._classname is None:
+                        cls._classname = jvm_object.getClass().getName()
                     logger.trace(f"Getting methods for {jvm_object}")
                     methods = get_methods(jvm_object)
+                try:
+                    jvm_base_index = next(i for i, b in enumerate(cls.__bases__) if issubclass(b, JVMBase)
+                                          and not issubclass(b, GenericScalaProxy))
+                except StopIteration:
+                    jvm_base_index = len(cls.__bases__)
+                base = type(cls.__name__ + "_jvm", (JVMBase,), {"_classname": cls._classname})
                 for (name, method_array) in methods.items():
-                    cls._add_method(name, method_array)
+                    base._add_method(name, method_array)
+                cls.__bases__ = (*cls.__bases__[:jvm_base_index], base, *cls.__bases__[jvm_base_index + 1:])
                 cls._initialised = True
+            else:
+                logger.trace("_init_method called for initialised class {}", cls.__name__)
+
+
+class GenericScalaProxy(JVMBase):
+    """Base class for proxy objects that are not constructable from python
+
+    If a subclass defines a '_classname' attribute, it will be automatically
+    registered as the base class for proxy objects of that java class.
+    """
+
+    def __repr__(self):
+        if self._jvm_object is not None:
+            return repr(self._jvm_object)
+        else:
+            return super().__repr__()
+
+    __str__ = __repr__
 
     @property
     def classname(self):
@@ -387,6 +398,7 @@ class GenericScalaProxy(ScalaProxyBase):
 
 class InstanceOnlyMethod(object):
     """Instance method that does not shadow class method of the same name"""
+
     def __init__(self, method):
         self.__func__ = method
         self.__name__ = method.__name__
@@ -440,6 +452,7 @@ class OverloadedMethod:
 
 class WithImplicits:
     """Proxy object for scala method with support for default arguments and implicits"""
+
     def __init__(self, method):
         self.__name__ = method.__name__
         self._method = method
@@ -523,6 +536,7 @@ class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
 
 class ScalaClassProxy(GenericScalaProxy, metaclass=ScalaObjectProxy):
     """Base class for wrapper objects that are constructable from python"""
+
     @classmethod
     def _build_from_python(cls, *args, **kwargs):
         """Override to control python-side constructor behaviours (e.g., using a builder for sequence construction)"""
@@ -546,5 +560,3 @@ class Function1(ScalaClassProxy):
 class Function2(ScalaClassProxy):
     """Proxy object for wrapping python functions with 2 arguments"""
     _classname = "com.raphtory.internals.management.PythonFunction2"
-
-
