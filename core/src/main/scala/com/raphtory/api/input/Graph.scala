@@ -44,7 +44,7 @@ trait Graph {
   protected def graphID: String
 
   def addVertex(updateTime: Long, srcId: String): Unit =
-    addVertex(updateTime, srcId)
+    addVertex(updateTime, assignID(srcId))
 
   /** Adds a new vertex to the graph or updates an existing vertex
     *
@@ -121,7 +121,7 @@ trait Graph {
     addEdge(updateTime, srcId, dstId, edgeType = posTypeArg)
 
   def addEdge(updateTime: Long, srcId: String, dstId: String): Unit =
-    addEdge(updateTime, srcId, dstId)
+    addEdge(updateTime, assignID(srcId), assignID(dstId))
 
   /** Mark edge as deleted
     * @param updateTime time of deletion (the edge is considered as no longer present in the graph after this time)

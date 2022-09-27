@@ -31,16 +31,23 @@ class EdgeListSource(override val spout: Spout[String]) extends Source {
   override type MessageType = String
   override def builder: GraphBuilder[String] =
     (graph: Graph, tuple: String) => {
+
       val fileLine = tuple.split(",").map(_.trim)
       val source = fileLine(0)
       val target = fileLine(1)
       val rawTime = fileLine(2)
 
-      val isDateTime: Boolean = rawTime.toLong match {
-        case _: Long => false
-        case java.lang.NumberFormatException => true
-        case _ =>
-          throw new RuntimeException("Timestamp not in DateTime or Epoch format, please check format.")
+      def isDateTime: Boolean = {
+        rawTime.toLong match {
+          case _: Long => false
+          case java.lang.NumberFormatException => true
+          case _ =>
+            throw new RuntimeException("Timestamp not in DateTime or Epoch format, please check format.")
+        }
+      }
+
+      if (graph.index == 0) {
+       isDateTime
       }
 
       def buildDateTimeGraph(time: Long) = {
