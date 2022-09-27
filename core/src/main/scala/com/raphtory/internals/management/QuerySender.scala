@@ -103,8 +103,8 @@ private[raphtory] class QuerySender(
     tracker
   }
 
-  private def unblockIngestion(sourceID: Int, index: Long, force: Boolean): Unit =
-    queryManager.sendAsync(UnblockIngestion(sourceID, graphID = graphID, index, highestTimeSeen, force))
+  private def unblockIngestion(sourceID: Int, messageCount: Long, force: Boolean): Unit =
+    queryManager.sendAsync(UnblockIngestion(sourceID, graphID = graphID, messageCount, highestTimeSeen, force))
 
   def destroyGraph(force: Boolean): Unit = graphSetup sendAsync DestroyGraph(graphID, clientID, force)
 

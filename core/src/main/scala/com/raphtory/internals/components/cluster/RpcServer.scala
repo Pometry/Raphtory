@@ -55,6 +55,7 @@ class RpcServer[F[_]](idManger: IDManager, repo: TopicRepository, config: Config
     log.debug(s"Submitting query: $req")
     try {
       val query = kryo.deserialise[Query](req.message.toByteArray)
+
       for {
         _          <- F.delay(repo.submissions(query.graphID).endPoint sendAsync query)
         queue      <- Queue.unbounded[F, Option[QueryManagement]]
