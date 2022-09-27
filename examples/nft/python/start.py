@@ -9,13 +9,17 @@ from pyraphtory.sinks import FileSink
 from pyraphtory.formats import JsonFormat
 import csv
 
-def get_date_price(self, eth_historic_csv="/tmp/ETH-USD.csv"):
+
+def setup_date_prices(eth_historic_csv="/tmp/ETH-USD.csv"):
     date_price_map = {}
     with open(eth_historic_csv) as csvfile:
         reader = csv.DictReader(csvfile, delimiter=',')
         for row in reader:
             date_price_map[row['Date']] = (float(row['High']) + float(row['Low'])) / 2
     return date_price_map
+
+eth_price_csv = '/Users/haaroony/Documents/nft/ETH-USD.csv'
+date_price = setup_date_prices(eth_price_csv)
 
 def parse_graph(graph, line):
     file_line = line.split(',')
@@ -40,7 +44,7 @@ def parse_graph(graph, line):
         return
 
     if file_line[9] == "":
-        price_usd = get_date_price(datetime_str[0:10], '/Users/haaroony/Documents/nft/ETH-USD.csv')
+        price_usd = date_price[datetime_str[0:10]]
     else:
         price_usd = float(file_line[9])
 
@@ -107,15 +111,16 @@ def main():
     at_time = 1619560520
     graph.load(Source(FileSpout(filename), GraphBuilder(parse_graph)))
 
-    qp = graph\
-        .at(at_time)\
-        .past()\
+    qp = graph \
+        .at(at_time) \
+        .past() \
         .execute(CycleMania()) \
-        .write_to(FileSink('/tmp/raphtory_nft_python', format = JsonFormat())) \
+        .write_to(FileSink('/tmp/raphtory_nft_python', format=JsonFormat())) \
         .wait_for_job()
 
     # .to_df(cols)
     print("done complex")
+
 
 if __name__ == "__main__":
     main()
