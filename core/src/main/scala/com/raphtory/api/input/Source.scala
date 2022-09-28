@@ -36,18 +36,18 @@ class EdgeListSource(override val spout: Spout[String]) extends Source {
       val source = fileLine(0)
       val target = fileLine(1)
       val rawTime = fileLine(2)
-
-      def isDateTime: Boolean = {
-        rawTime.toLong match {
-          case _: Long => false
-          case java.lang.NumberFormatException => true
-          case _ =>
-            throw new RuntimeException("Timestamp not in DateTime or Epoch format, please check format.")
-        }
-      }
+      var isDateTime = false
 
       if (graph.index == 0) {
-       isDateTime
+        try {
+          rawTime.toLong match {
+            case _: Long => isDateTime = false
+          }
+        }
+        catch {
+          case e: java.lang.NumberFormatException => isDateTime = true
+          case _: Throwable => throw new RuntimeException("Check format.")
+        }
       }
 
       def buildDateTimeGraph(time: Long) = {
@@ -57,8 +57,12 @@ class EdgeListSource(override val spout: Spout[String]) extends Source {
       }
 
       if (isDateTime) {
-        val time = parseDateTime(rawTime)
-        buildDateTimeGraph(time)
+        try {
+          val time = parseDateTime(rawTime)
+          buildDateTimeGraph(time)
+        } catch {
+          case _: Throwable => throw new RuntimeException("Timestamp not in DateTime or Epoch format, please check format.")
+        }
       } else {
         val time = rawTime.toLong
         buildDateTimeGraph(time)
