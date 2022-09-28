@@ -9,6 +9,7 @@ import com.raphtory.internals.components.cluster.OrchestratorComponent
 import com.typesafe.config.Config
 
 class QueryOrchestrator(
+    repo: TopicRepository,
     conf: Config
 ) extends OrchestratorComponent(conf) {
 
@@ -18,7 +19,7 @@ class QueryOrchestrator(
   override def handleMessage(msg: ClusterManagement): Unit =
     msg match {
       case EstablishGraph(graphID: String, clientID: String) =>
-        establishService("Query Manager", graphID, clientID, deployQueryService)
+        establishService("Query Manager", graphID, clientID, repo, deployQueryService)
       case DestroyGraph(graphID, clientID, force)            => destroyGraph(graphID, clientID, force)
       case ClientDisconnected(graphID, clientID)             => clientDisconnected(graphID, clientID)
     }
@@ -35,6 +36,6 @@ object QueryOrchestrator {
             topics,
             s"query-node",
             List(topics.clusterComms(conf.getInt("raphtory.partitions.serverCount"))),
-            new QueryOrchestrator(conf)
+            new QueryOrchestrator(topics, conf)
     )
 }

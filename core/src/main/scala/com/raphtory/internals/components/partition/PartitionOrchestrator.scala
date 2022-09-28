@@ -18,6 +18,7 @@ import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 class PartitionOrchestrator(
+    repo: TopicRepository,
     conf: Config,
     idManager: IDManager
 ) extends OrchestratorComponent(conf) {
@@ -28,7 +29,7 @@ class PartitionOrchestrator(
   override def handleMessage(msg: ClusterManagement): Unit =
     msg match {
       case EstablishGraph(graphID: String, clientID: String) =>
-        establishPartition("Partition Manager", graphID, clientID, idManager, deployPartitionService)
+        establishPartition("Partition Manager", graphID, clientID, idManager, repo, deployPartitionService)
       case DestroyGraph(graphID, clientID, force)            => destroyGraph(graphID, clientID, force)
       case ClientDisconnected(graphID, clientID)             => clientDisconnected(graphID, clientID)
 
@@ -81,6 +82,6 @@ object PartitionOrchestrator {
             topics,
             s"partition-node",
             List(topics.clusterComms(conf.getInt("raphtory.partitions.serverCount"))),
-            new PartitionOrchestrator(conf, idManager)
+            new PartitionOrchestrator(topics, conf, idManager)
     )
 }

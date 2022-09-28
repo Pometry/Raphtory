@@ -4,6 +4,7 @@ import cats.effect.ExitCode
 import cats.effect.IO
 import cats.effect.IOApp
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
+import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import com.raphtory.Raphtory
 import com.raphtory.Raphtory.makeLocalIdManager
 import com.raphtory.internals.communication.connectors.AkkaConnector
@@ -21,7 +22,7 @@ object Standalone extends IOApp {
       else Raphtory.getDefaultConfig()
 
     val headNode = for {
-      repo               <- DistributedTopicRepository[IO](AkkaConnector.SeedMode, config)
+      repo               <- LocalTopicRepository[IO](config)
       sourceIDManager    <- makeLocalIdManager[IO]
       partitionIdManager <- makeLocalIdManager[IO]
       headNode           <- ClusterManager[IO](config, repo, mode = StandaloneMode, partitionIdManager)

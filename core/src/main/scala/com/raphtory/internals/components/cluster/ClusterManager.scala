@@ -34,7 +34,7 @@ class ClusterManager(
       case EstablishGraph(graphID: String, clientID: String) =>
         mode match {
           case StandaloneMode =>
-            deployStandaloneService(graphID, clientID, idManager)
+            deployStandaloneService(graphID, clientID, idManager, topics)
           case ClusterMode    =>
             logger.info(s"Forwarding deployment request for graph to cluster: '$graphID'")
             forwardToCluster(msg)
