@@ -29,7 +29,7 @@ class PartitionManager(
 
   private val executors                    = new ConcurrentHashMap[String, QueryExecutor]()
   val storage                              = new PojoBasedPartition(graphID, partitionID, conf)
-  val readerResource: Resource[IO, Reader] = Reader[IO](partitionID, storage, scheduler, conf, topics)
+  val readerResource: Resource[IO, Reader] = Reader[IO](graphID, partitionID, storage, scheduler, conf, topics)
   val writerResource: Resource[IO, Writer] = Writer[IO](graphID, partitionID, storage, conf, topics)
   val (_, readerCancel)                    = readerResource.allocated.unsafeRunSync()
   val (_, writerCancel)                    = writerResource.allocated.unsafeRunSync()
@@ -63,7 +63,7 @@ class PartitionManager(
     request match {
       case EstablishExecutor(_, graphID, jobID, sink, pyScript) =>
         val queryExecutor =
-          new QueryExecutor(partitionID, sink, storage, jobID, conf, topics, scheduler, pyScript)
+          new QueryExecutor(graphID, partitionID, sink, storage, jobID, conf, topics, scheduler, pyScript)
         scheduler.execute(queryExecutor)
         executors.put(jobID, queryExecutor)
     }
@@ -82,7 +82,7 @@ object PartitionManager {
             partitionID,
             topics,
             s"partition-manager-$partitionID",
-            List(topics.partitionSetup),
+            List(topics.partitionSetup(graphID)),
             new PartitionManager(graphID, partitionID, scheduler, conf, topics)
     )
 

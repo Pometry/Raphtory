@@ -43,7 +43,6 @@ private[raphtory] class TopicRepository(
 
   // Configuration
   private val spoutAddress: String     = conf.getString("raphtory.spout.topic")
-  private val graphID: String          = conf.getString("raphtory.graph.id")
   private val partitionServers: Int    = conf.getInt("raphtory.partitions.serverCount")
   private val partitionsPerServer: Int = conf.getInt("raphtory.partitions.countPerServer")
   private val numPartitions: Int       = partitionServers * partitionsPerServer
@@ -52,16 +51,16 @@ private[raphtory] class TopicRepository(
   final def spout[T]: WorkPullTopic[(T, Long)] =
     WorkPullTopic[(T, Long)](spoutConnector, "spout", customAddress = spoutAddress)
 
-  final def output(jobID: String): ExclusiveTopic[OutputMessages] =
-    ExclusiveTopic[OutputMessages](outputConnector, "output", s"$jobID")
+  final def output(graphID: String, jobId: String): ExclusiveTopic[OutputMessages] =
+    ExclusiveTopic[OutputMessages](outputConnector, "output", s"$graphID-$jobId")
 
-  final def submissions(graphID: String = graphID): ExclusiveTopic[Submission] =
+  final def submissions(graphID: String): ExclusiveTopic[Submission] =
     ExclusiveTopic[Submission](submissionsConnector, s"submissions", graphID)
 
-  final def completedQueries: ExclusiveTopic[EndQuery] =
+  final def completedQueries(graphID: String): ExclusiveTopic[EndQuery] =
     ExclusiveTopic[EndQuery](completedQueriesConnector, "completed.queries", graphID)
 
-  final def ingestSetup: ExclusiveTopic[IngestData] =
+  final def ingestSetup(graphID: String): ExclusiveTopic[IngestData] =
     ExclusiveTopic[IngestData](ingestSetupConnector, "ingest.setup", graphID)
 
   final def graphSetup: ExclusiveTopic[ClusterManagement] =
@@ -74,34 +73,34 @@ private[raphtory] class TopicRepository(
             "cluster.comms"
     )
 
-  final def partitionSetup: BroadcastTopic[GraphManagement] =
+  final def partitionSetup(graphID: String): BroadcastTopic[GraphManagement] =
     BroadcastTopic[GraphManagement](numPartitions, partitionSetupConnector, "partition.setup", graphID)
 
   // graph wise topics
   final def graphUpdates(graphID: String): ShardingTopic[GraphAlteration] =
-    ShardingTopic[GraphAlteration](numPartitions, graphUpdatesConnector, s"graph.updates", s"$graphID")
+    ShardingTopic[GraphAlteration](numPartitions, graphUpdatesConnector, s"graph.updates", graphID)
 
   final def graphSync(graphID: String): ShardingTopic[GraphUpdateEffect] =
-    ShardingTopic[GraphUpdateEffect](numPartitions, graphSyncConnector, s"graph.sync", s"$graphID")
+    ShardingTopic[GraphUpdateEffect](numPartitions, graphSyncConnector, s"graph.sync", graphID)
 
-  final def watermark: ExclusiveTopic[WatermarkTime] =
+  final def watermark(graphID: String): ExclusiveTopic[WatermarkTime] =
     ExclusiveTopic[WatermarkTime](watermarkConnector, "watermark", graphID)
 
-  final def blockingIngestion(graphID: String = graphID): ExclusiveTopic[IngestionBlockingCommand] =
+  final def blockingIngestion(graphID: String): ExclusiveTopic[IngestionBlockingCommand] =
     ExclusiveTopic[IngestionBlockingCommand](blockingIngestionConnector, "blocking.ingestion", graphID)
 
   // Job wise topics
-  final def queryTrack(jobId: String): ExclusiveTopic[QueryManagement] =
-    ExclusiveTopic[QueryManagement](queryTrackConnector, "query.track", s"$jobId")
+  final def queryTrack(graphID: String, jobId: String): ExclusiveTopic[QueryManagement] =
+    ExclusiveTopic[QueryManagement](queryTrackConnector, "query.track", s"$graphID-$jobId")
   // Removed graphID from queryTrack because it is not necessary and complicates using on the webServer as it is not set
 
-  final def rechecks(jobId: String): ExclusiveTopic[QueryManagement] =
+  final def rechecks(graphID: String, jobId: String): ExclusiveTopic[QueryManagement] =
     ExclusiveTopic[QueryManagement](rechecksConnector, "rechecks", s"$graphID-$jobId")
 
-  final def jobStatus(jobId: String): ExclusiveTopic[QueryManagement] =
+  final def jobStatus(graphID: String, jobId: String): ExclusiveTopic[QueryManagement] =
     ExclusiveTopic[QueryManagement](jobStatusConnector, "job.status", s"$graphID-$jobId")
 
-  final def vertexMessages(jobId: String): ShardingTopic[VertexMessaging] =
+  final def vertexMessages(graphID: String, jobId: String): ShardingTopic[VertexMessaging] =
     ShardingTopic[VertexMessaging](
             numPartitions,
             vertexMessagesConnector,
@@ -109,7 +108,7 @@ private[raphtory] class TopicRepository(
             s"$graphID-$jobId"
     )
 
-  final def vertexMessagesSync(jobId: String): ShardingTopic[VertexMessagesSync] =
+  final def vertexMessagesSync(graphID: String, jobId: String): ShardingTopic[VertexMessagesSync] =
     ShardingTopic[VertexMessagesSync](
             numPartitions,
             vertexMessagesSyncConnector,
@@ -117,7 +116,7 @@ private[raphtory] class TopicRepository(
             s"$graphID-$jobId"
     )
 
-  final def jobOperations(jobId: String): BroadcastTopic[QueryManagement] =
+  final def jobOperations(graphID: String, jobId: String): BroadcastTopic[QueryManagement] =
     BroadcastTopic[QueryManagement](
             numPartitions,
             jobOperationsConnector,

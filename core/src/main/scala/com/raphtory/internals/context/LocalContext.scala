@@ -21,7 +21,7 @@ private[raphtory] object LocalContext extends RaphtoryContext {
 
   def newGraph(graphID: String = createName, customConfig: Map[String, Any] = Map()): DeployedTemporalGraph =
     services.synchronized {
-      val config                  = confBuilder(Map("raphtory.graph.id" -> graphID) ++ customConfig)
+      val config                  = confBuilder(customConfig)
       val graph                   = deployService(graphID, config)
       services.get(graphID) match {
         case Some(_) =>
@@ -40,7 +40,7 @@ private[raphtory] object LocalContext extends RaphtoryContext {
       graphID: String = createName,
       customConfig: Map[String, Any] = Map()
   ): Resource[IO, DeployedTemporalGraph] = {
-    val config = confBuilder(Map("raphtory.graph.id" -> graphID) ++ customConfig)
+    val config = confBuilder(customConfig)
     deployService(graphID, config).map { qs: QuerySender =>
       new DeployedTemporalGraph(Query(graphID = graphID), qs, config, local = true, shutdown = IO.unit)
     }
@@ -55,9 +55,9 @@ private[raphtory] object LocalContext extends RaphtoryContext {
       partitionIdManager <- makeLocalIdManager[IO]
       sourceIdManager    <- makeLocalIdManager[IO]
       _                  <- PartitionOrchestrator.spawn[IO](config, partitionIdManager, graphID, topicRepo, scheduler)
-      _                  <- IngestionManager[IO](config, topicRepo)
-      _                  <- QueryManager[IO](config, topicRepo)
-    } yield new QuerySender(scheduler, topicRepo, config, sourceIdManager, createName)
+      _                  <- IngestionManager[IO](graphID, config, topicRepo)
+      _                  <- QueryManager[IO](graphID, config, topicRepo)
+    } yield new QuerySender(graphID, scheduler, topicRepo, config, sourceIdManager, createName)
   }
 
   override def close(): Unit = {

@@ -58,10 +58,7 @@ object PartitionOrchestrator {
   )(implicit
       IO: Async[IO]
   ): Resource[IO, List[PartitionManager]] = {
-
-    val graphID         = config.getString("raphtory.graph.id")
     val totalPartitions = config.getInt("raphtory.partitions.countPerServer")
-
     logger.info(s"Creating '$totalPartitions' Partition Managers for '$graphID'.")
 
     (0 until totalPartitions)

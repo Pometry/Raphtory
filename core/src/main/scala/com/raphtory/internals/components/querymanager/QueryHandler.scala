@@ -27,6 +27,7 @@ import scala.concurrent.duration.DurationInt
 import scala.util.Try
 
 private[raphtory] class QueryHandler(
+    graphID: String,
     queryManager: QueryManager,
     scheduler: Scheduler,
     jobID: String,
@@ -38,10 +39,10 @@ private[raphtory] class QueryHandler(
 
   private val startTime      = System.currentTimeMillis()
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-  private val self           = topics.rechecks(jobID).endPoint
-  private val partitions     = topics.partitionSetup.endPoint
-  private val tracker        = topics.queryTrack(jobID).endPoint
-  private val workerList     = topics.jobOperations(jobID).endPoint
+  private val self           = topics.rechecks(graphID, jobID).endPoint
+  private val partitions     = topics.partitionSetup(graphID).endPoint
+  private val tracker        = topics.queryTrack(graphID, jobID).endPoint
+  private val workerList     = topics.jobOperations(graphID, jobID).endPoint
 
   pyScript.map(s => EmbeddedPython.global.run(s))
 
@@ -49,7 +50,7 @@ private[raphtory] class QueryHandler(
     topics.registerListener(
             s"$graphID-$jobID-query-handler",
             handleMessage,
-            Seq(topics.rechecks(jobID), topics.jobStatus(jobID))
+            Seq(topics.rechecks(graphID, jobID), topics.jobStatus(graphID, jobID))
     )
 
   private var perspectiveController: PerspectiveController = _
@@ -476,7 +477,7 @@ private[raphtory] class QueryHandler(
     messagePartitions(StopExecutor(jobID))
     partitions.close()
 
-    val queryManager = topics.completedQueries.endPoint
+    val queryManager = topics.completedQueries(graphID).endPoint
     queryManager closeWithMessage EndQuery(jobID)
     logger.debug(s"Job '$jobID': No more perspectives available. Ending Query Handler execution.")
 

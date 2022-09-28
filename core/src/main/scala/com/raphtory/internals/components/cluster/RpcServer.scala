@@ -59,7 +59,7 @@ class RpcServer[F[_]](idManger: IDManager, repo: TopicRepository, config: Config
         _          <- F.delay(repo.submissions(query.graphID).endPoint sendAsync query)
         queue      <- Queue.unbounded[F, Option[QueryManagement]]
         dispatcher <- Dispatcher[F].allocated
-        listener   <- QueryTrackerForwarder[F](query.name, repo, queue, dispatcher._1, config).allocated
+        listener   <- QueryTrackerForwarder[F](query.graphID, query.name, repo, queue, dispatcher._1, config).allocated
         stream     <- F.delay(
                               fs2.Stream
                                 .fromQueueNoneTerminated(queue, 1000)
@@ -122,6 +122,7 @@ object QueryTrackerForwarder {
   private val log: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   def apply[F[_]](
+      graphID: String,
       jobId: String,
       repo: TopicRepository,
       queue: Queue[F, Option[QueryManagement]],
@@ -134,7 +135,7 @@ object QueryTrackerForwarder {
       .makeAndStart(
               repo,
               s"query-tracker-listener-$jobId",
-              Seq(repo.queryTrack(jobId), repo.output(jobId)),
+              Seq(repo.queryTrack(graphID, jobId), repo.output(graphID, jobId)),
               new QueryTrackerForwarder(queue, dispatcher, config)
       )
       .map { component =>

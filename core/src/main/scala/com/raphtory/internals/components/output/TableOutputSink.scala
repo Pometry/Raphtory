@@ -42,8 +42,8 @@ private[raphtory] class TableOutputSinkExecutor(endPoint: EndPoint[OutputMessage
   }
 }
 
-private[raphtory] case object TableOutputSink extends Sink {
+private[raphtory] case class TableOutputSink(graphID: String) extends Sink {
 
   override def executor(jobID: String, partitionID: Int, config: Config, topics: TopicRepository): SinkExecutor =
-    new TableOutputSinkExecutor(topics.output(jobID).endPoint)
+    new TableOutputSinkExecutor(topics.output(graphID, jobID).endPoint)
 }

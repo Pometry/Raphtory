@@ -36,11 +36,7 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
           deployment.clients += clientID
         case None             =>
           logger.info(s"Deploying new $component for graph '$graphID' - request by '$clientID' ")
-          val graphConf = conf.withValue(
-                  "raphtory.graph.id",
-                  ConfigValueFactory.fromAnyRef(graphID)
-          )
-          func(graphID, clientID, graphConf)
+          func(graphID, clientID, conf)
       }
     }
 
@@ -58,11 +54,7 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
           deployment.clients += clientID
         case None             =>
           logger.info(s"Deploying new $component for graph '$graphID' - request by '$clientID' ")
-          val graphConf = conf.withValue(
-                  "raphtory.graph.id",
-                  ConfigValueFactory.fromAnyRef(graphID)
-          )
-          func(graphID, clientID, graphConf, idManager)
+          func(graphID, clientID, conf, idManager)
       }
     }
 
@@ -109,53 +101,44 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
           deployment.clients += clientID
         case None             =>
           logger.info(s"Deploying new graph '$graphID' in standalone mode, requested by '$clientID' ")
-          val graphConf       = conf.withValue(
-                  "raphtory.graph.id",
-                  ConfigValueFactory.fromAnyRef(graphID)
-          )
           val scheduler       = new Scheduler()
           val serviceResource = for {
-            repo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf)
-            _    <- PartitionOrchestrator.spawn[IO](graphConf, idManager, graphID, repo, scheduler)
-            _    <- IngestionManager[IO](graphConf, repo)
-            _    <- QueryManager[IO](graphConf, repo)
+            repo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, conf)
+            _    <- PartitionOrchestrator.spawn[IO](conf, idManager, graphID, repo, scheduler)
+            _    <- IngestionManager[IO](graphID, conf, repo)
+            _    <- QueryManager[IO](graphID, conf, repo)
           } yield ()
           val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
           deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))
       }
     }
 
-  protected def deployPartitionService(
-      graphID: String,
-      clientID: String,
-      graphConf: Config,
-      idManager: IDManager
-  ): Unit =
+  protected def deployPartitionService(graphID: String, clientID: String, conf: Config, idManager: IDManager): Unit =
     deployments.synchronized {
       val scheduler       = new Scheduler()
       val serviceResource = for {
-        repo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf)
-        _    <- PartitionOrchestrator.spawn[IO](graphConf, idManager, graphID, repo, scheduler)
+        repo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, conf)
+        _    <- PartitionOrchestrator.spawn[IO](conf, idManager, graphID, repo, scheduler)
       } yield ()
       val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
       deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))
     }
 
-  protected def deployIngestionService(graphID: String, clientID: String, graphConf: Config): Unit =
+  protected def deployIngestionService(graphID: String, clientID: String, conf: Config): Unit =
     deployments.synchronized {
       val serviceResource = for {
-        repo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf)
-        _    <- IngestionManager[IO](graphConf, repo)
+        repo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, conf)
+        _    <- IngestionManager[IO](graphID, conf, repo)
       } yield ()
       val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
       deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))
     }
 
-  protected def deployQueryService(graphID: String, clientID: String, graphConf: Config): Unit =
+  protected def deployQueryService(graphID: String, clientID: String, conf: Config): Unit =
     deployments.synchronized {
       val serviceResource = for {
-        repo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf)
-        _    <- QueryManager[IO](graphConf, repo)
+        repo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, conf)
+        _    <- QueryManager[IO](graphID, conf, repo)
       } yield ()
       val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
       deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))

@@ -39,17 +39,17 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
 
   override def index: Long = querySender.index
 
-  override protected def graphID: String = querySender.internalGraphID
+  override protected def graphID: String = querySender.graphID
 
   def totalPartitions: Int = querySender.totalPartitions
 
   def stream(sources: Source*): G = {
-    querySender.submitSource(blocking = false, sources, conf.getString("raphtory.graph.id"))
+    querySender.submitSource(blocking = false, sources, graphID)
     this
   }
 
   def load(sources: Source*): G = {
-    querySender.submitSource(blocking = true, sources, conf.getString("raphtory.graph.id"))
+    querySender.submitSource(blocking = true, sources, graphID)
     this
   }
 

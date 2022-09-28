@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable
 
 private[raphtory] class QueryExecutor(
+    graphID: String,
     partitionID: Int,
     sink: Sink,
     storage: GraphPartition,
@@ -70,7 +71,7 @@ private[raphtory] class QueryExecutor(
   private val listener = topics.registerListener(
           s"$graphID-$jobID-query-executor-$partitionID",
           handleMessage,
-          topics.jobOperations(jobID),
+          topics.jobOperations(graphID, jobID),
           partitionID
   )
   logger.debug(logMessage("Component message listener registered."))
@@ -81,7 +82,7 @@ private[raphtory] class QueryExecutor(
               topics.registerListener(
                       s"$graphID-$jobID-query-executor-$partitionID",
                       receiveVertexMessage,
-                      topics.vertexMessages(jobID),
+                      topics.vertexMessages(graphID, jobID),
                       partitionID
               )
       )
@@ -94,7 +95,7 @@ private[raphtory] class QueryExecutor(
               topics.registerListener(
                       s"$graphID-$jobID-query-executor-$partitionID",
                       receiveVertexControlMessage,
-                      topics.vertexMessagesSync(jobID),
+                      topics.vertexMessagesSync(graphID, jobID),
                       partitionID
               )
       )
@@ -102,19 +103,19 @@ private[raphtory] class QueryExecutor(
       None
   logger.debug(logMessage("Vertex control message listener registered."))
 
-  private val taskManager = topics.jobStatus(jobID).endPoint
+  private val taskManager = topics.jobStatus(graphID, jobID).endPoint
   logger.debug(logMessage("TaskManager endpoint created"))
 
   private val neighbours: Map[Int, EndPoint[VertexMessaging]] =
     if (totalPartitions > 1)
-      topics.vertexMessages(jobID).endPoint
+      topics.vertexMessages(graphID, jobID).endPoint
     else
       Map.empty
   logger.debug(logMessage("Vertex message endpoints created"))
 
   private val syncNeighbours: Map[Int, EndPoint[VertexMessagesSync]] = {
     if (totalPartitions > 1)
-      topics.vertexMessagesSync(jobID).endPoint
+      topics.vertexMessagesSync(graphID, jobID).endPoint
     else
       Map.empty
   }

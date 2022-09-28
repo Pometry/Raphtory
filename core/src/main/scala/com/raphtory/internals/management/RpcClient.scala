@@ -39,8 +39,8 @@ class RpcClient[F[_]](dispatcher: Dispatcher[F], repo: TopicRepository, config: 
         val encodedMessage = ByteString.copyFrom(kryo.serialise(msg))
         msg match {
           case query: Query =>
-            lazy val queryTrack     = repo.queryTrack(query.name).endPoint
-            lazy val outputMessages = repo.output(query.name).endPoint
+            lazy val queryTrack     = repo.queryTrack(query.graphID, query.name).endPoint
+            lazy val outputMessages = repo.output(query.graphID, query.name).endPoint
             for {
               responses <- service.submitQuery(RpcRequest(encodedMessage))
               _         <- responses
@@ -86,8 +86,10 @@ class RpcClient[F[_]](dispatcher: Dispatcher[F], repo: TopicRepository, config: 
 
 object RpcClient {
 
-  def apply[F[_]](repo: TopicRepository, config: Config)(implicit F: Async[F]): Resource[F, RpcClient[F]] = {
-    val topics = List(repo.graphSetup, repo.submissions(), repo.blockingIngestion())
+  def apply[F[_]](graphID: String, repo: TopicRepository, config: Config)(implicit
+      F: Async[F]
+  ): Resource[F, RpcClient[F]] = {
+    val topics = List(repo.graphSetup, repo.submissions(graphID), repo.blockingIngestion(graphID))
     for {
       dispatcher <- Dispatcher[F]
       client     <- Component.makeAndStart(repo, "rpc-client", topics, new RpcClient(dispatcher, repo, config))
