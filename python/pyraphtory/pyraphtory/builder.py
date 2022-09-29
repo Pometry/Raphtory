@@ -24,4 +24,8 @@ class Source(ScalaClassProxy):
     _classname = "com.raphtory.api.input.Source"
 
 
+class GraphBuilder(ScalaClassProxy):
+    _classname = "com.raphtory.api.input.GraphBuilder"
+
+
 
