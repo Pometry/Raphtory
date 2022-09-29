@@ -86,7 +86,7 @@ except all the code is written completely in Python. In addition, this notebook 
 and we find a numerous of wallets suspiciously trading NFTs between each other. 
 - `nft_helper.py` are some helper functions containing code to load our results, draw graphs and read the data file. 
 
-Please read the notebook for more informatin or follow the guide in the docs. 
+Please read the notebook for more information or follow the guide in the docs. 
 
 ## IntelliJ setup guide
 
