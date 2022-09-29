@@ -186,7 +186,6 @@ object PythonInterop {
     }
     catch {
       case _: ClassNotFoundException => new util.HashMap[String, Array[Method]]()
-      case e                         => throw e
     }
 
   /** Find methods and default values for an object and return in friendly format */

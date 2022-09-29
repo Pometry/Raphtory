@@ -270,6 +270,13 @@ def _check_default(obj, value):
         return to_jvm(value)
 
 
+def _nargs(method):
+    if method.varargs():
+        return float("inf")
+    else:
+        return method.n()
+
+
 class ScalaProxyBase(object):
     """Base class for wrapping jvm objects"""
     _jvm_object = None
@@ -284,15 +291,17 @@ class ScalaProxyBase(object):
         name = _codegen.clean_identifier(name)
         output = {}
         if len(method_array) > 1:
-            for i, method in enumerate(sorted(method_array, key=lambda m: m.n())):
+            nargs = []
+            for i, method in enumerate(sorted(method_array, key=_nargs)):
                 try:
                     exec(_codegen.build_method(f"{name}{i}", method), globals(), output)
                     # output[f"{name}{i}"].__doc__ = method.docs()
+                    nargs.append(_nargs(method))
                 except Exception as e:
                     traceback.print_exc()
                     raise e
             methods = list(output.values())
-            method = OverloadedMethod(methods, name)
+            method = OverloadedMethod(methods, nargs, name)
         else:
             method = method_array[0]
             try:
@@ -423,20 +432,22 @@ class InstanceOnlyMethod(object):
 
 
 class OverloadedMethod:
-    def __init__(self, methods, name):
+    def __init__(self, methods, nargs, name):
         self.__name__ = name
         self._methods = methods
+        self._nargs = nargs
         self.__doc__ = (f"Overloaded method {self.__name__} with alternatives\n\n"
                         + "\n\n".join(f"{self.__name__}{inspect.signature(m)}" +
                                       ("\n" + indent(m.__doc__, "    ") if m.__doc__ else "")
                                       for m in self._methods))
 
     def __call__(self, *args, **kwargs):
-        for method in self._methods:
-            try:
-                return method(*args, **kwargs)
-            except Exception as e:
-                logger.trace("call failed for {name} with exception {e}", e=e, name=self.__name__)
+        for method, nargs in zip(self._methods, self._nargs):
+            if (len(args) + len(kwargs)) <= nargs:
+                try:
+                    return method(*args, **kwargs)
+                except Exception as e:
+                    logger.debug("call failed for {name} with exception {e}", e=e, name=self.__name__)
         raise RuntimeError(f"No overloaded implementations matched for {self.__name__} with {args=} and {kwargs=}")
 
     def __get__(self, instance, owner):
