@@ -8,9 +8,7 @@ re-purchased by a previous owner. For more information and our results, please s
 ## Data
 
 Data for this code can be found at the [OSF.IO here](https://osf.io/32zec/)
-
-#### TODO FILL THE OSF DATA LINK ONCE ACCOUNT IS UNBLOCKED 
-
+ 
 The data consists of 
 
 1. `Data_API_reduced.csv` - A CSV file containing the Ethereum Transactions of NFT sales. Download and extract this file. 
