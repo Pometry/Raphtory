@@ -16,9 +16,6 @@ import org.slf4j.LoggerFactory
 trait Generic extends GenericallyApplicable {
   override type Out = GraphPerspective
 
-  /** Logger instance for writing out log messages */
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-
   /** Main algorithm
     *
     * Default implementation returns the graph unchanged.
