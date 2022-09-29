@@ -28,8 +28,8 @@ import scala.io.Source
 
 object LocalRunner extends App {
 
-  val eth_historic_csv = "/Users/haaroony/OneDrive - Pometry Ltd/nft_andrea/ETH-USD.csv"
-  val path = "/Users/haaroony/OneDrive - Pometry Ltd/nft_andrea/results/Data_API_reduced.csv"
+  val eth_historic_csv = "/Users/haaroony/Documents/nft/ETH-USD.csv"
+  val path = "/Users/haaroony/Documents/nft/Data_API_reduced.csv"
 
   def setupDatePrices(eth_historic_csv: String): mutable.HashMap[String, Double] = {
     val src              = scala.io.Source.fromFile(eth_historic_csv)

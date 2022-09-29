@@ -102,23 +102,18 @@ def parse_graph(graph, line):
 def main():
     pr = PyRaphtory(logging=True).open()
     graph = pr.new_graph()
-    # graph = ri.new_graph("nft")
 
-    # filename = '/Users/haaroony/Documents/nft/Data_API_clean_nfts_ETH_only_1k.csv'
-    # at_time = 1575147060
-
-    filename = "/Users/haaroony/OneDrive - Pometry Ltd/nft_andrea/sample/Data_API_250k.csv"
-    at_time = 1619560520
+    filename = '/Users/haaroony/Documents/nft/Data_API_reduced.csv'
+    at_time = 1561661534
     graph.load(Source(FileSpout(filename), GraphBuilder(parse_graph)))
 
-    qp = graph \
+    graph \
         .at(at_time) \
         .past() \
         .execute(CycleMania()) \
         .write_to(FileSink('/tmp/raphtory_nft_python', format=JsonFormat())) \
         .wait_for_job()
 
-    # .to_df(cols)
     print("done complex")
 
 
