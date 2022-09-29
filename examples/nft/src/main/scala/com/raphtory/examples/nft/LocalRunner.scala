@@ -4,20 +4,11 @@ import com.raphtory.Raphtory
 import com.raphtory.api.input.Graph.assignID
 import com.raphtory.api.input.{DoubleProperty, Graph, ImmutableProperty, Properties, Source, StringProperty, Type}
 import com.raphtory.examples.nft.analysis.CycleMania
-import com.raphtory.examples.nft.graphbuilder.NFTGraphBuilder
 import com.raphtory.formats.JsonFormat
 import com.raphtory.sinks.FileSink
-import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
-import com.raphtory.api.input.DoubleProperty
-import com.raphtory.api.input.Graph
 import com.raphtory.api.input.GraphBuilder
-import com.raphtory.api.input.ImmutableProperty
-import com.raphtory.api.input.Properties
-import com.raphtory.api.input.StringProperty
 import com.raphtory.api.input.Type
-import com.raphtory.api.input.Graph.assignID
-import com.raphtory.examples.nft.LocalRunner.graph
 
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -28,8 +19,14 @@ import scala.io.Source
 
 object LocalRunner extends App {
 
-  val eth_historic_csv = "/Users/haaroony/Documents/nft/ETH-USD.csv"
-  val path = "/Users/haaroony/Documents/nft/Data_API_reduced.csv"
+
+  val path = "/tmp/Data_API_reduced.csv"
+  val url  = "https://osf.io/download/kaumt/"
+  FileUtils.curlFile(path, url)
+
+  val eth_historic_csv = "/tmp/ETH-USD.csv"
+  val url_eth  = "https://osf.io/download/mw3vh/"
+  FileUtils.curlFile(eth_historic_csv, url_eth)
 
   def setupDatePrices(eth_historic_csv: String): mutable.HashMap[String, Double] = {
     val src              = scala.io.Source.fromFile(eth_historic_csv)
@@ -41,6 +38,7 @@ object LocalRunner extends App {
     src.close()
     date_price_map
   }
+
   var date_price = setupDatePrices(eth_historic_csv = eth_historic_csv)
   def addToGraph(graph: Graph, tuple: String): Unit = {
     val fileLine            = tuple.split(",").map(_.trim)
@@ -79,13 +77,6 @@ object LocalRunner extends App {
       timeStamp,
       buyer_address_hash,
       Properties(ImmutableProperty("address", buyer_address)),
-      Type("Wallet")
-    )
-    // add seller node
-    graph.addVertex(
-      timeStamp,
-      seller_address_hash,
-      Properties(ImmutableProperty("address", seller_address)),
       Type("Wallet")
     )
 

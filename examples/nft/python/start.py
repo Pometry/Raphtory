@@ -61,14 +61,6 @@ def parse_graph(graph, line):
         Type("Wallet")
     )
 
-    # add seller node
-    graph.add_vertex(
-        timestamp,
-        seller_address_hash,
-        Properties(ImmutableProperty("address", seller_address)),
-        Type("Wallet")
-    )
-
     # Add node for NFT
     graph.add_vertex(
         timestamp,
@@ -105,6 +97,7 @@ def main():
 
     filename = '/Users/haaroony/Documents/nft/Data_API_reduced.csv'
     at_time = 1561661534
+
     graph.load(Source(FileSpout(filename), GraphBuilder(parse_graph)))
 
     graph \

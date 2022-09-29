@@ -5,6 +5,7 @@ import pyraphtory.scala.collection
 
 CYCLES_FOUND: str = "CYCLES_FOUND"
 
+
 class CycleMania(PyAlgorithm):
     def __call__(self, graph: TemporalGraph) -> TemporalGraph:
         def step(v: Vertex):
@@ -14,11 +15,11 @@ class CycleMania(PyAlgorithm):
             all_cycles = []
             all_purchases = sorted(v.explode_in_edges(), key=lambda e: e.timestamp())
             purchasers = list(map(lambda e:
-                                  dict(buyer=e.get_property_or_else("buyer_address", "_UNKNOWN_"),
-                                       price_usd=float(e.get_property_or_else("price_usd", 0.0)),
-                                       time=e.timestamp(),
+                                  dict(price_usd=float(e.get_property_or_else("price_usd", 0.0)),
+                                       nft_id=e.get_property_or_else("token_id", "_UNKNOWN_"),
                                        tx_hash=e.get_property_or_else("transaction_hash", ""),
-                                       nft_id=e.get_property_or_else("token_id", "_UNKNOWN_")),
+                                       time=e.timestamp(),
+                                       buyer=e.get_property_or_else("buyer_address", "_UNKNOWN_")),
                                   all_purchases))
             if len(purchasers) > 2:
                 buyers_seen = {}
@@ -45,7 +46,7 @@ class CycleMania(PyAlgorithm):
             vertex_type = v.type()
             rows_found = [Row()]
             if vertex_type == "NFT" and len(v[CYCLES_FOUND]):
-                nft_id = str(v.id())
+                nft_id = v.get_property_or_else('id', '_UNKNOWN_')
                 cycles_found = v[CYCLES_FOUND]
                 nft_collection = v.get_property_or_else('collection', '_UNKNOWN_')
                 nft_category = v.get_property_or_else('category', '_UNKNOWN_')
@@ -55,10 +56,10 @@ class CycleMania(PyAlgorithm):
                                           nft_collection,
                                           nft_category,
                                           len(single_cycle),
-                                          dict(buyer=str(single_cycle[0]['buyer']),
+                                          dict(cycle={'sales': single_cycle},
                                                profit_usd=float(single_cycle[len(single_cycle) - 1]['price_usd']) -
                                                           float(single_cycle[0]['price_usd']),
-                                               cycle=single_cycle)
+                                               buyer=str(single_cycle[0]['buyer']))
                                       ), cycles_found))
             return rows_found
 
