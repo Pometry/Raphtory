@@ -47,7 +47,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   override def munitTimeout: Duration = FiniteDuration(12, "hours")
 
-  test("Degree Test".only) {
+  test("Degree Test") {
     algorithmTest(
             algorithm = Degree(),
             start = 1,

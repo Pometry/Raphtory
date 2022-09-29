@@ -36,6 +36,12 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   private val defaultPropSchema = ArrowSchema[VertexProp, EdgeProp]
 
+// crashes the storage
+//  1, 4, 3
+//  3, 4, 5
+//  4, 5, 7
+//  4, 8, 15
+
   test("one can create a partition manager, add a vertex then get it back") {
     val cfg = new RaphtoryArrowPartition.RaphtoryArrowPartitionConfig()
     cfg._propertySchema = ArrowSchema[VertexProp, EdgeProp]
@@ -166,7 +172,7 @@ class ArrowStorageSuite extends munit.FunSuite {
       val p = vmgr.getPartition(vmgr.getPartitionId(src.id))
 
       val prevListPtr = p.synchronized {
-        val ptr = p.addOutgoingEdgeToList(src.id, e.getLocalId)
+        val ptr = p.addOutgoingEdgeToList(src.id, e.getLocalId, dst.id)
         p.addHistory(src.id, timestamp, true, false, e.getLocalId, true)
         ptr
       }
@@ -288,7 +294,7 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   }
 
-  test("add two vertices into partition, at t1 and t2 test window iterator".only) {
+  test("add two vertices into partition, at t1 and t2 test window iterator") {
 
     val par: ArrowPartition = mkPartition(1, 0)
     val t1           = System.currentTimeMillis()

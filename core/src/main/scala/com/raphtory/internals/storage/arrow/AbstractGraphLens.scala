@@ -3,7 +3,7 @@ package com.raphtory.internals.storage.arrow
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.RowImplementation
-import com.raphtory.api.analysis.visitor.Vertex
+import com.raphtory.api.analysis.visitor.{InterlayerEdge, Vertex}
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.management.Scheduler
@@ -33,7 +33,7 @@ abstract class AbstractGraphLens(
   private val votingMachine = VotingMachine()
 
   protected val graphState: GraphExecutionState =
-    GraphExecutionState(superStep, messageSender, storage.asGlobal, votingMachine)
+    GraphExecutionState(partitionID(), superStep, messageSender, storage.asGlobal, votingMachine)
 
   private var dataTable: View[Row] = View.empty[RowImplementation]
 
@@ -66,11 +66,12 @@ abstract class AbstractGraphLens(
       case msg: VertexMessage[_, _]                     =>
         graphState.receiveMessage(msg.vertexId, msg.superstep, msg.data)
       case msg: FilteredEdgeMessage[Long] @unchecked    =>
+        println(s"Filtered edge ${msg.edgeId} from ${partitionID()}")
         graphState.removeEdge(msg.vertexId, msg.sourceId, msg.edgeId)
       case msg: FilteredInEdgeMessage[Long] @unchecked  =>
-        graphState.removeInEdge(msg.sourceId, msg.vertexId, msg.edgeId)
+        graphState.removeInEdge(msg.sourceId, msg.vertexId)
       case msg: FilteredOutEdgeMessage[Long] @unchecked =>
-        graphState.removeOutEdge(msg.vertexId, msg.sourceId, msg.edgeId)
+        graphState.removeOutEdge(msg.sourceId, msg.vertexId)
       case _                                            =>
     }
 
@@ -144,4 +145,9 @@ abstract class AbstractGraphLens(
   override def executeSelect(f: Vertex => Row)(onComplete: => Unit): Unit = {
     explodeSelect(v => List(f(v)))(onComplete)
   }
+
+
+  override def explodeView(interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]])(onComplete: => Unit): Unit =
+    ???
+
 }

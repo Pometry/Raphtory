@@ -5,6 +5,9 @@ import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import scala.collection.View
 
 trait ArrowEntityStateRepository {
+  def isAlive(dst: Long):Boolean
+
+  def isEdgeAlive(sourceId: Long, vertexId: Long): Boolean
 
   def getOrSetState[T](vertexId: Long, key: String, value: T): T =
     getState[T](vertexId, key) match {

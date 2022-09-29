@@ -1,8 +1,12 @@
 package com.raphtory.internals.storage.arrow.entities
 
+import com.raphtory.api.analysis.visitor.InterlayerEdge
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.arrowcore.model.Entity
 import com.raphtory.arrowcore.model.{Vertex => ArrVertex}
+import com.raphtory.internals.components.querymanager.FilteredEdgeMessage
+import com.raphtory.internals.components.querymanager.FilteredInEdgeMessage
+import com.raphtory.internals.components.querymanager.FilteredOutEdgeMessage
 import com.raphtory.internals.components.querymanager.VertexMessage
 
 import scala.collection.View
@@ -49,12 +53,16 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, vertex: ArrVertex) ext
   /** Return all edges starting at this vertex
     */
   override def outEdges: View[ArrowExEdge] =
-    vertex.outgoingEdges.map(new ArrowExEdge(_, repo))
+    vertex.outgoingEdges
+      .map(new ArrowExEdge(_, repo))
+      .filter(e => repo.isEdgeAlive(e.src, e.dst))
 
   /** Return all edges ending at this vertex
     */
   override def inEdges: View[ArrowExEdge] =
-    vertex.incomingEdges.map(new ArrowExEdge(_, repo))
+    vertex.incomingEdges
+      .map(new ArrowExEdge(_, repo))
+      .filter(e => repo.isEdgeAlive(e.src, e.dst))
 
   /** Return specified edge if it is an out-edge of this vertex
     *
@@ -79,7 +87,23 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, vertex: ArrVertex) ext
   override def getEdge(id: Long): View[Edge] = ???
 
   /** Filter this vertex and remove it and all its edges from the GraphPerspective */
-  override def remove(): Unit =
-    repo.removeVertex(entity.getLocalId)
+  override def remove(): Unit = {
+    repo.removeVertex(ID)
+    // all outgoing edges are present here on this node where the vertex is removed from
+    outEdges.foreach { edge =>
+      val other = if (edge.src == ID) edge.dst else edge.src
+      repo.sendMessage(FilteredOutEdgeMessage(repo.superStep, other, ID))
+    }
+    inEdges.foreach { edge =>
+      val other = if (edge.src == ID) edge.dst else edge.src
+      repo.sendMessage(FilteredInEdgeMessage(repo.superStep, other, ID))
+    }
+  }
 
+  def explode(
+      interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]]
+  ): Vertex = {
+    vertex
+    ???
+  }
 }

@@ -191,7 +191,7 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
         val p = vmgr.getPartition(vmgr.getPartitionId(src.getLocalId))
 
         val prevListPtr = p.synchronized {
-          val ptr = p.addOutgoingEdgeToList(src.getLocalId, e.getLocalId)
+          val ptr = p.addOutgoingEdgeToList(src.getLocalId, e.getLocalId, dst.id)
           p.addHistory(src.getLocalId, msgTime, true, false, e.getLocalId, true)
           ptr
         }

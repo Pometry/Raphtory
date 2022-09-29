@@ -32,7 +32,7 @@ class ArrowExEdge(edge: Edge, protected val repo: ArrowEntityStateRepository)
 
   /** Filter the edge from the `GraphPerspective`. */
   override def remove(): Unit =
-    repo.removeEdge(edge.getLocalId)
+    repo.removeEdge(edge.getGlobalId)
 
   /** Send a message to the vertex connected on the other side of the edge
     *

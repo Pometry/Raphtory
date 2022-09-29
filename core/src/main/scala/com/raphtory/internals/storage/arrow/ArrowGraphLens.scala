@@ -13,24 +13,24 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.View
 
 final case class ArrowGraphLens(
-                                 jobId: String,
-                                 start: Long,
-                                 end: Long,
-                                 superStep0: Int,
-                                 private val par: ArrowPartition,
-                                 private val messageSender: GenericVertexMessage[_] => Unit,
-                                 private val errorHandler: Throwable => Unit,
-                                 scheduler: Scheduler
-                               ) extends AbstractGraphLens(
-  jobId,
-  start,
-  end,
-  new AtomicInteger(superStep0),
-  par,
-  messageSender,
-  errorHandler,
-  scheduler
-) {
+    jobId: String,
+    start: Long,
+    end: Long,
+    superStep0: Int,
+    private val par: ArrowPartition,
+    private val messageSender: GenericVertexMessage[_] => Unit,
+    private val errorHandler: Throwable => Unit,
+    scheduler: Scheduler
+) extends AbstractGraphLens(
+                jobId,
+                start,
+                end,
+                new AtomicInteger(superStep0),
+                par,
+                messageSender,
+                errorHandler,
+                scheduler
+        ) {
 
   override def localNodeCount: Int = {
     val size = par.vertexCount
@@ -40,12 +40,6 @@ final case class ArrowGraphLens(
 
   override def executeSelect(f: (_, GraphState) => Row, graphState: GraphState)(onComplete: => Unit): Unit = ???
 
-
-
-
-  override def explodeView(interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]])(onComplete: => Unit): Unit =
-    ???
-
   override def viewUndirected()(onComplete: => Unit): Unit = ???
 
   override def viewDirected()(onComplete: => Unit): Unit = ???
@@ -53,14 +47,13 @@ final case class ArrowGraphLens(
   override def viewReversed()(onComplete: => Unit): Unit = ???
 
   override def reduceView(
-                           defaultMergeStrategy: Option[PropertyMerge[_, _]],
-                           mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
-                           aggregate: Boolean
-                         )(onComplete: => Unit): Unit = ???
-
+      defaultMergeStrategy: Option[PropertyMerge[_, _]],
+      mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
+      aggregate: Boolean
+  )(onComplete: => Unit): Unit = ???
 
   override def runMessagedGraphFunction(f: (_, GraphState) => Unit, graphState: GraphState)(
-    onComplete: => Unit
+      onComplete: => Unit
   ): Unit = ???
 
   /**
@@ -71,13 +64,10 @@ final case class ArrowGraphLens(
     *
     * @return
     */
-  override def vertices: View[Vertex] = {
-    par.windowVertices(start, end)
-      .filter(v => graphState.isAlive(v.getLocalId, partitionID()))
-      .map{ v =>
-        new ArrowExVertex(graphState, v)
-      }
-  }
-
+  override def vertices: View[Vertex] =
+    par
+      .windowVertices(start, end)
+      .filter(v => graphState.isAlive(v.getGlobalId))
+      .map(new ArrowExVertex(graphState, _))
 
 }

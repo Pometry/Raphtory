@@ -8,6 +8,8 @@ import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.visitor.Vertex
 
+import scala.concurrent.duration.{Duration, FiniteDuration}
+
 class VertexFilterTest extends BaseCorrectnessTest {
 
   test("Vertex is being filtered") {
@@ -17,4 +19,6 @@ class VertexFilterTest extends BaseCorrectnessTest {
             "VertexFilter/motifFilterTest.csv"
     )
   }
+
+  override def munitTimeout: Duration = FiniteDuration(15, "min")
 }
