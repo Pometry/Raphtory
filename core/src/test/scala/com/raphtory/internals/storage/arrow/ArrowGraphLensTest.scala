@@ -16,9 +16,15 @@ import scala.collection.View
 
 class ArrowGraphLensTest extends FunSuite {
 
-  val mockCluster = MockCluster(Raphtory.getDefaultConfig())
+  private val mockCluster = MockCluster(Raphtory.getDefaultConfig())
 
-  val data = Vector(
+  private val data0 = Vector(
+          (4, 8, 15),
+          (4, 8, 15),
+          (10, 8, 19)
+  )
+
+  private val data = Vector(
           (1, 2, 1),
           (1, 3, 2),
           (1, 4, 3),
@@ -44,6 +50,14 @@ class ArrowGraphLensTest extends FunSuite {
           (11, 9, 23)
   )
 
+  test("please break!".only) {
+    data0.foreach {
+      case t@(src, dst, time) =>
+        println(t)
+        mockCluster.addTriplet(src, dst, time)
+    }
+  }
+
   test("filter one edge should result in it missing from the next step") {
     data.foreach {
       case (src, dst, time) =>
@@ -53,10 +67,7 @@ class ArrowGraphLensTest extends FunSuite {
     assertEquals(mockCluster.vertices.toList.sorted, (1L to 11L).toList.sorted)
     assertEquals(
             mockCluster.verticesPerPartition,
-            Vector(Vector[Long](4, 8),
-            Vector[Long](1, 5, 9),
-            Vector[Long](2, 6, 10),
-            Vector[Long](3, 7, 11))
+            Vector(Vector[Long](4, 8), Vector[Long](1, 5, 9), Vector[Long](2, 6, 10), Vector[Long](3, 7, 11))
     )
   }
 

@@ -113,7 +113,7 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
         // we make sure the vertex is active at this point
 //        vmgr.addHistory(v.getLocalId, msgTime, true, true, -1, false)
         val v = vmgr.getVertex(id)
-        if (v.getOldestPoint != msgTime) // weak check to avoid adding multiple duplicated timestamps
+        if (v.getOldestPoint != msgTime) // FIXME: weak check to avoid adding multiple duplicated timestamps
           vmgr.addHistory(v.getLocalId, msgTime, true, false, -1, false)
 
         v
@@ -150,9 +150,10 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
         // edge exists so we activate the history
         par.getEdgeMgr.addHistory(e.getLocalId, msgTime, true)
         // if destination is local add it
+        emgr.addHistory(e.getLocalId, msgTime, true)
         if (dst.isLocal) {
           val d = addVertexInternal(dstId, msgTime, Properties())
-          linkIncomingToLocalNode(msgTime, dst, e)
+//          linkIncomingToLocalNode(msgTime, dst, e)
           None
         }
         else // send sync
@@ -389,11 +390,15 @@ object ArrowPartition {
   }
 
   class EdgesIterator(es: EdgeIterator) extends Iterator[Edge] {
-    override def hasNext: Boolean = es.hasNext
+    override def hasNext: Boolean = {
+      val next1 = es.hasNext
+      next1
+    }
 
     override def next(): Edge = {
       es.next()
-      es.getEdge
+      val edge = es.getEdge
+      edge
     }
 
   }

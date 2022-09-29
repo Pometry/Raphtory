@@ -3,11 +3,10 @@ package com.raphtory.internals.storage.arrow.entities
 import com.raphtory.api.analysis.visitor.EntityVisitor
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.api.analysis.visitor.PropertyValue
-import com.raphtory.api.analysis.visitor.Vertex
-import com.raphtory.api.input.StringProperty
 import com.raphtory.arrowcore.implementation.EntityFieldAccessor
 import com.raphtory.arrowcore.implementation.VersionedEntityPropertyAccessor
 import com.raphtory.arrowcore.model.Entity
+import com.raphtory.arrowcore.model.{Vertex => ArrVertex}
 import com.raphtory.internals.storage.arrow.ArrowEntityStateRepository
 import com.raphtory.internals.storage.arrow.RichFieldAccessor
 import com.raphtory.internals.storage.arrow.RichPropertyAccessor
@@ -84,40 +83,42 @@ trait ArrowExEntity extends EntityVisitor {
     */
   override def getPropertyHistory[T](key: String, after: Long, before: Long): Option[Iterable[PropertyValue[T]]] =
     // reverse lookup of property?
-    this match {
-      case v: ArrowExVertex =>
-        // FIXME: this is horrid, we need
-        try {
-          val PROP                                 = entity.getRaphtory.getVertexPropertyId(key)
-          val acc: VersionedEntityPropertyAccessor = entity.getProperty(PROP)
-          acc.setHistory(true, after)
-          val prop                                 = acc.getAny.asInstanceOf[T]
-          Some(List(PropertyValue(after, -1, prop)))
-        }
-        catch {
-          case _: IllegalArgumentException => // let's try a field instead
-            val FIELD                    = entity.getRaphtory.getVertexFieldId(key)
-            val acc: EntityFieldAccessor = entity.getField(FIELD)
-            val field                    = acc.getAny.asInstanceOf[T]
-            Some(List(PropertyValue(after, -1, field)))
-        }
-      case e: ArrowExEdge   =>
-        try {
-          val FIELD                                = entity.getRaphtory.getEdgePropertyId(key)
-          val acc: VersionedEntityPropertyAccessor = entity.getProperty(FIELD)
-          val prop                                 = acc.getLong.asInstanceOf[T]
-          Some(List(PropertyValue(acc.getCreationTime, -1, prop)))
-        }
-        catch {
-          case _: IllegalArgumentException => // let's try a field instead
-            val FIELD                    = entity.getRaphtory.getEdgeFieldId(key)
-            val acc: EntityFieldAccessor = entity.getField(FIELD)
-            val field                    = acc.getAny.asInstanceOf[T]
-            Some(List(PropertyValue(after, -1, field)))
-        }
-      case _                =>
-        Some(List.empty)
-    }
+    None
+//    this match {
+//      case v: ArrowExVertex =>
+//        // FIXME: this is horrid, we need to do better
+//        try {
+//          val PROP                                 = entity.getRaphtory.getVertexPropertyId(key)
+////          v.entity.asInstanceOf[ArrVertex].getPropertyHistory(PROP)
+//          val acc: VersionedEntityPropertyAccessor = entity.getProperty(PROP)
+//          acc.setHistory(true, after)
+//          val prop                                 = acc.getAny.asInstanceOf[T]
+//          Some(List(PropertyValue(after, -1, prop)))
+//        }
+//        catch {
+//          case _: IllegalArgumentException => // let's try a field instead
+//            val FIELD                    = entity.getRaphtory.getVertexFieldId(key)
+//            val acc: EntityFieldAccessor = entity.getField(FIELD)
+//            val field                    = acc.getAny.asInstanceOf[T]
+//            Some(List(PropertyValue(after, -1, field)))
+//        }
+//      case e: ArrowExEdge   =>
+//        try {
+//          val FIELD                                = entity.getRaphtory.getEdgePropertyId(key)
+//          val acc: VersionedEntityPropertyAccessor = entity.getProperty(FIELD)
+//          val prop                                 = acc.getLong.asInstanceOf[T]
+//          Some(List(PropertyValue(acc.getCreationTime, -1, prop)))
+//        }
+//        catch {
+//          case _: IllegalArgumentException => // let's try a field instead
+//            val FIELD                    = entity.getRaphtory.getEdgeFieldId(key)
+//            val acc: EntityFieldAccessor = entity.getField(FIELD)
+//            val field                    = acc.getAny.asInstanceOf[T]
+//            Some(List(PropertyValue(after, -1, field)))
+//        }
+//      case _                =>
+//        Some(List.empty)
+//    }
 
   /** Set algorithmic state for this entity. Note that for edges, algorithmic state is stored locally to the vertex endpoint
     * which sets this state (default being the source node when set during an edge step).

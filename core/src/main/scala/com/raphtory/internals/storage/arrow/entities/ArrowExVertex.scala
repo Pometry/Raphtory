@@ -13,7 +13,7 @@ import scala.collection.View
 import com.raphtory.internals.storage.arrow.ArrowEntityStateRepository
 import com.raphtory.internals.storage.arrow.RichVertex
 
-class ArrowExVertex(val repo: ArrowEntityStateRepository, vertex: ArrVertex) extends Vertex with ArrowExEntity {
+class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex) extends Vertex with ArrowExEntity {
 
   def entity: Entity = vertex
 
