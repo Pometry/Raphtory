@@ -14,7 +14,7 @@ class QueryOrchestrator(
 ) extends OrchestratorComponent(conf) {
 
   override private[raphtory] def run(): Unit =
-    logger.info(s"Starting Query Service for ${conf.getString("raphtory.deploy.id")}")
+    logger.info(s"Starting Query Service")
 
   override def handleMessage(msg: ClusterManagement): Unit =
     msg match {

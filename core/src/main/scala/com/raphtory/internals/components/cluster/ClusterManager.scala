@@ -24,7 +24,7 @@ class ClusterManager(
 ) extends OrchestratorComponent(conf) {
 
   override private[raphtory] def run(): Unit =
-    logger.info(s"Starting HeadNode for ${conf.getString("raphtory.deploy.id")}")
+    logger.info(s"Starting HeadNode")
 
   private def forwardToCluster(msg: ClusterManagement) =
     topics.clusterComms(conf.getInt("raphtory.partitions.serverCount")).endPoint sendAsync msg

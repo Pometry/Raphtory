@@ -15,7 +15,7 @@ import com.typesafe.config.Config
 class IngestionOrchestrator(repo: TopicRepository, conf: Config) extends OrchestratorComponent(conf) {
 
   override private[raphtory] def run(): Unit =
-    logger.info(s"Starting Ingestion Service for ${conf.getString("raphtory.deploy.id")}")
+    logger.info(s"Starting Ingestion Service")
 
   override def handleMessage(msg: ClusterManagement): Unit =
     msg match {

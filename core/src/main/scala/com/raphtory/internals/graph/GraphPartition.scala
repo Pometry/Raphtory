@@ -17,8 +17,7 @@ import scala.collection.mutable.ArrayBuffer
 abstract private[raphtory] class GraphPartition(graphID: String, partitionID: Int, conf: Config) {
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  protected val failOnError: Boolean = conf.getBoolean("raphtory.partitions.failOnError")
-  val watermarker                    = new Watermarker(graphID, this)
+  val watermarker = new Watermarker(graphID, this)
 
   // Ingesting Vertices
   def addVertex(

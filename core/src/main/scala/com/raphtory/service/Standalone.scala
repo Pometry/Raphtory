@@ -16,11 +16,7 @@ import com.raphtory.internals.management.id.LocalIDManager
 object Standalone extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = {
-
-    val config =
-      if (args.nonEmpty) Raphtory.getDefaultConfig(Map("raphtory.deploy.id" -> args.head))
-      else Raphtory.getDefaultConfig()
-
+    val config   = Raphtory.getDefaultConfig()
     val headNode = for {
       repo               <- LocalTopicRepository[IO](config)
       sourceIDManager    <- makeLocalIdManager[IO]

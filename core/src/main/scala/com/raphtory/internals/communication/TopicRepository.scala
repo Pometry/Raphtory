@@ -22,7 +22,6 @@ private[raphtory] class TopicRepository(
 ) {
 
   // Methods to override:
-  protected def spoutConnector: Connector        = defaultDataConnector
   protected def graphUpdatesConnector: Connector = defaultDataConnector
   protected def graphSyncConnector: Connector    = defaultDataConnector
   protected def outputConnector: Connector       = defaultDataConnector
@@ -42,15 +41,11 @@ private[raphtory] class TopicRepository(
   def jobOperationsConnector: Connector                = defaultControlConnector // accessed within the queryHandler
 
   // Configuration
-  private val spoutAddress: String     = conf.getString("raphtory.spout.topic")
   private val partitionServers: Int    = conf.getInt("raphtory.partitions.serverCount")
   private val partitionsPerServer: Int = conf.getInt("raphtory.partitions.countPerServer")
   private val numPartitions: Int       = partitionServers * partitionsPerServer
 
   // Global topics
-  final def spout[T]: WorkPullTopic[(T, Long)] =
-    WorkPullTopic[(T, Long)](spoutConnector, "spout", customAddress = spoutAddress)
-
   final def output(graphID: String, jobId: String): ExclusiveTopic[OutputMessages] =
     ExclusiveTopic[OutputMessages](outputConnector, "output", s"$graphID-$jobId")
 
