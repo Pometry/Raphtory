@@ -119,13 +119,10 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
           )
           val scheduler       = new Scheduler()
           val serviceResource = for {
-            zkClient           <- ZookeeperConnector.getZkClient(graphConf.getString("raphtory.zookeeper.address"))
-            arrowServer        <- ArrowFlightServer[IO]()
-            addressHandler      = new ZKHostAddressProvider(zkClient, conf, Some(arrowServer))
-            repo               <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf, addressHandler)
-            _                  <- PartitionOrchestrator.spawn[IO](graphConf, idManager, graphID, repo, scheduler)
-            _                  <- IngestionManager[IO](graphConf, repo)
-            _                  <- QueryManager[IO](graphConf, repo)
+            repo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf, None)
+            _    <- PartitionOrchestrator.spawn[IO](graphConf, idManager, graphID, repo, scheduler)
+            _    <- IngestionManager[IO](graphConf, repo)
+            _    <- QueryManager[IO](graphConf, repo)
           } yield ()
           val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
           deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))
@@ -141,10 +138,7 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
     deployments.synchronized {
       val scheduler       = new Scheduler()
       val serviceResource = for {
-        zkClient           <- ZookeeperConnector.getZkClient(graphConf.getString("raphtory.zookeeper.address"))
-        arrowServer        <- ArrowFlightServer[IO]()
-        addressHandler      = new ZKHostAddressProvider(zkClient, conf, Some(arrowServer))
-        repo               <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf, addressHandler)
+        repo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf, None)
         _    <- PartitionOrchestrator.spawn[IO](graphConf, idManager, graphID, repo, scheduler)
       } yield ()
       val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
@@ -154,24 +148,20 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
   protected def deployIngestionService(graphID: String, clientID: String, graphConf: Config): Unit =
     deployments.synchronized {
       val serviceResource = for {
-        zkClient      <- ZookeeperConnector.getZkClient(graphConf.getString("raphtory.zookeeper.address"))
-        addressHandler = new ZKHostAddressProvider(zkClient, conf, None)
-        repo          <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf, addressHandler)
-        _             <- IngestionManager[IO](graphConf, repo)
+        repo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf, None)
+        _    <- IngestionManager[IO](graphConf, repo)
       } yield ()
-      val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
+      val (_, shutdown) = serviceResource.allocated.unsafeRunSync()
       deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))
     }
 
   protected def deployQueryService(graphID: String, clientID: String, graphConf: Config): Unit =
     deployments.synchronized {
       val serviceResource = for {
-        zkClient      <- ZookeeperConnector.getZkClient(graphConf.getString("raphtory.zookeeper.address"))
-        addressHandler = new ZKHostAddressProvider(zkClient, conf, None)
-        repo          <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf, addressHandler)
-        _             <- QueryManager[IO](graphConf, repo)
+        repo <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, graphConf, None)
+        _    <- QueryManager[IO](graphConf, repo)
       } yield ()
-      val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
+      val (_, shutdown) = serviceResource.allocated.unsafeRunSync()
       deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))
     }
 

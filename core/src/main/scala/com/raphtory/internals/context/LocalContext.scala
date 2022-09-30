@@ -3,8 +3,7 @@ package com.raphtory.internals.context
 import cats.effect.IO
 import cats.effect.Resource
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
-import com.raphtory.internals.communication.repositories.DistributedTopicRepository
-import com.raphtory.internals.communication.repositories.LocalTopicRepository
+import com.raphtory.internals.communication.repositories.{ArrowFlightRepository, DistributedTopicRepository, LocalTopicRepository}
 import com.raphtory.internals.components.ingestion.IngestionManager
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManager
@@ -64,7 +63,7 @@ private[raphtory] object LocalContext extends RaphtoryContext {
       _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
       arrowServer        <- ArrowFlightServer[IO]()
       addressHandler      = new LocalHostAddressProvider(config, arrowServer)
-      topicRepo          <- LocalTopicRepository[IO](config, addressHandler)
+      topicRepo          <- ArrowFlightRepository[IO](config, addressHandler)
       partitionIdManager <- makeLocalIdManager[IO]
       sourceIdManager    <- makeLocalIdManager[IO]
       _                  <- PartitionOrchestrator.spawn[IO](config, partitionIdManager, graphID, topicRepo, scheduler)

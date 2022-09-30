@@ -22,9 +22,7 @@ object ClusterManagerService extends IOApp {
       else Raphtory.getDefaultConfig()
 
     val headNode = for {
-      zkClient      <- ZookeeperConnector.getZkClient(config.getString("raphtory.zookeeper.address"))
-      addressHandler = new ZKHostAddressProvider(zkClient, config, None)
-      repo          <- DistributedTopicRepository[IO](AkkaConnector.SeedMode, config, addressHandler)
+      repo      <- DistributedTopicRepository[IO](AkkaConnector.SeedMode, config, None)
       idManager <- makeLocalIdManager[IO]
       headNode  <- ClusterManager[IO](config, repo, mode = ClusterMode, idManager)
       _         <- RpcServer[IO](idManager, repo, config)

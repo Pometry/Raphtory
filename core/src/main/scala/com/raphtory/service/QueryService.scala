@@ -24,10 +24,8 @@ object QueryService extends IOApp {
       else Raphtory.getDefaultConfig()
 
     val service = for {
-      zkClient      <- ZookeeperConnector.getZkClient(config.getString("raphtory.zookeeper.address"))
-      addressHandler = new ZKHostAddressProvider(zkClient, config, None)
-      repo          <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, addressHandler)
-      service       <- QueryOrchestrator[IO](config, repo)
+      repo    <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, None)
+      service <- QueryOrchestrator[IO](config, repo)
     } yield service
     service.useForever
 

@@ -47,9 +47,7 @@ class RemoteContext(address: String, port: Int) extends RaphtoryContext {
     val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
     for {
       _               <- Prometheus[IO](prometheusPort)
-      zkClient      <- ZookeeperConnector.getZkClient(config.getString("raphtory.zookeeper.address"))
-      addressHandler = new ZKHostAddressProvider(zkClient, config, None)
-      topicRepo     <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, addressHandler)
+      topicRepo       <- LocalTopicRepository[IO](config, None)
       rpc             <- RpcClient[IO](topicRepo, config)
       sourceIdManager <- makeClientIdManager[IO](rpc)
       querySender      = new QuerySender(new Scheduler(), topicRepo, config, sourceIdManager, createName)

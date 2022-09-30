@@ -24,9 +24,7 @@ object IngestionService extends IOApp {
       else Raphtory.getDefaultConfig()
 
     val service = for {
-      zkClient      <- ZookeeperConnector.getZkClient(config.getString("raphtory.zookeeper.address"))
-      addressHandler = new ZKHostAddressProvider(zkClient, config, None)
-      repo          <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, addressHandler)
+      repo          <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, None)
       service       <- IngestionOrchestrator[IO](config, repo)
     } yield service
     service.useForever

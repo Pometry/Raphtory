@@ -25,9 +25,7 @@ object PartitionService extends IOApp {
       else Raphtory.getDefaultConfig()
 
     val service = for {
-      zkClient           <- ZookeeperConnector.getZkClient(config.getString("raphtory.zookeeper.address"))
-      addressHandler      = new ZKHostAddressProvider(zkClient, config, None)
-      repo               <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, addressHandler)
+      repo               <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, None)
       partitionIDManager <- makePartitionIDManager[IO](config)
       service            <- PartitionOrchestrator[IO](config, repo, partitionIDManager)
     } yield service
