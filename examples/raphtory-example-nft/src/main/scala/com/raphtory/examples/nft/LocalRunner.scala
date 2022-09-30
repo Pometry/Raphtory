@@ -10,7 +10,7 @@ import com.raphtory.spouts.FileSpout
 
 object LocalRunner extends App {
 
-  val data = "/tmp/Data_API_clean_nfts_ETH_only.csv"
+      val data = "/tmp/Data_API_clean_nfts_ETH_only.csv"
 
   val spout  = FileSpout(data)
   val source = Source(spout, NFTGraphBuilder)

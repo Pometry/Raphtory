@@ -4,7 +4,7 @@ import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.algorithm.NodeListOutput
 import com.raphtory.api.analysis.graphview.GraphPerspective
-
+import com.raphtory.internals.communication.SchemaProviderInstances._
 /**
   * {s}`AverageNeighbourDegree()`
   *  : Compute the average degree of a vertex's neighbours

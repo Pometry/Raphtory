@@ -11,34 +11,37 @@ import com.raphtory.internals.components.querymanager.Submission
 import com.raphtory.internals.components.querymanager.VertexMessagesSync
 import com.raphtory.internals.components.querymanager.VertexMessaging
 import com.raphtory.internals.components.querymanager.WatermarkTime
+import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphAlteration._
 import com.typesafe.config.Config
 
 private[raphtory] class TopicRepository(
     defaultControlConnector: Connector,
-    defaultDataConnector: Connector,
+    defaultIngestionConnector: Connector,
+    defaultAnalysisConnector: Connector,
     conf: Config
 ) {
 
   // Methods to override:
-  protected def graphUpdatesConnector: Connector = defaultDataConnector
-  protected def graphSyncConnector: Connector    = defaultDataConnector
-  protected def outputConnector: Connector       = defaultDataConnector
+  protected def graphUpdatesConnector: Connector = defaultIngestionConnector
+  protected def graphSyncConnector: Connector    = defaultIngestionConnector
+  protected def outputConnector: Connector       = defaultIngestionConnector
 
-  protected def submissionsConnector: Connector        = defaultControlConnector
-  protected def completedQueriesConnector: Connector   = defaultControlConnector
-  protected def watermarkConnector: Connector          = defaultControlConnector
-  protected def blockingIngestionConnector: Connector  = defaultControlConnector
-  protected def queryPrepConnector: Connector          = defaultControlConnector
-  protected def ingestSetupConnector: Connector        = defaultControlConnector
-  protected def partitionSetupConnector: Connector     = defaultControlConnector
-  protected def queryTrackConnector: Connector         = defaultControlConnector
-  protected def rechecksConnector: Connector           = defaultControlConnector
-  protected def jobStatusConnector: Connector          = defaultControlConnector
-  protected def vertexMessagesConnector: Connector     = defaultControlConnector
-  protected def vertexMessagesSyncConnector: Connector = defaultControlConnector
-  def jobOperationsConnector: Connector                = defaultControlConnector // accessed within the queryHandler
+  protected def submissionsConnector: Connector       = defaultControlConnector
+  protected def completedQueriesConnector: Connector  = defaultControlConnector
+  protected def watermarkConnector: Connector         = defaultControlConnector
+  protected def blockingIngestionConnector: Connector = defaultControlConnector
+  protected def queryPrepConnector: Connector         = defaultControlConnector
+  protected def ingestSetupConnector: Connector       = defaultControlConnector
+  protected def partitionSetupConnector: Connector    = defaultControlConnector
+  protected def queryTrackConnector: Connector        = defaultControlConnector
+  protected def rechecksConnector: Connector          = defaultControlConnector
+  protected def jobStatusConnector: Connector         = defaultControlConnector
+  def jobOperationsConnector: Connector               = defaultControlConnector // accessed within the queryHandler
+
+  protected def vertexMessagesConnector: Connector     = defaultAnalysisConnector
+  protected def vertexMessagesSyncConnector: Connector = defaultAnalysisConnector
 
   // Configuration
   private val partitionServers: Int    = conf.getInt("raphtory.partitions.serverCount")
@@ -143,11 +146,11 @@ private[raphtory] class TopicRepository(
       id: String,
       messageHandler: T => Unit,
       topics: Seq[Topic[T]],
-      partition: Int
+      partitionId: Int
   ): CancelableListener = {
     val listeners = topics
       .map {
-        case topic: ShardingTopic[T]  => topic.exclusiveTopicForPartition(partition)
+        case topic: ShardingTopic[T]  => topic.exclusiveTopicForPartition(partitionId)
         case topic: CanonicalTopic[T] => topic
       }
       .groupBy(_.connector)
@@ -161,8 +164,13 @@ private[raphtory] class TopicRepository(
 object TopicRepository {
 
   def apply(connector: Connector, conf: Config) =
-    new TopicRepository(connector, connector, conf)
+    new TopicRepository(connector, connector, connector, conf)
 
-  def apply(controlConnector: Connector, dataConnector: Connector, conf: Config) =
-    new TopicRepository(controlConnector, dataConnector, conf)
+  def apply(
+      controlConnector: Connector,
+      ingestionConnector: Connector,
+      analysisConnector: Connector,
+      conf: Config
+  ) =
+    new TopicRepository(controlConnector, ingestionConnector, analysisConnector, conf)
 }

@@ -2,11 +2,9 @@ package com.raphtory.algorithms
 
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.TestQuery
-import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.MaxFlow
-import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.api.input.Graph
 import com.raphtory.api.input.GraphBuilder
+import com.raphtory.internals.communication.SchemaProviderInstances._
 
 class MaxFlowTest extends BaseCorrectnessTest {
   override def setGraphBuilder(): GraphBuilder[String] = WeightedGraphBuilder

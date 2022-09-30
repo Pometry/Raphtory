@@ -23,10 +23,10 @@ private[raphtory] class QueryManager(
 ) extends Component[QueryManagement](conf) {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val currentQueries                   = mutable.Map[String, QueryHandler]()
-  private val ingestion                        = topics.ingestSetup(graphID).endPoint
-  val sources: mutable.Map[Int, SourceTracker] = mutable.Map[Int, SourceTracker]()
-  var blockedQueries: ArrayBuffer[Query]       = ArrayBuffer[Query]()
+  private val currentQueries                    = mutable.Map[String, QueryHandler]()
+  private val ingestion                         = topics.ingestSetup(graphID).endPoint
+  val sources: mutable.Map[Long, SourceTracker] = mutable.Map[Long, SourceTracker]()
+  var blockedQueries: ArrayBuffer[Query]        = ArrayBuffer[Query]()
 
   def startBlockIngesting(ID: Int): Unit = {
     logger.info(s"Source '$ID' is blocking analysis for Graph '$graphID'")
@@ -64,7 +64,7 @@ private[raphtory] class QueryManager(
       }
     }
 
-  def currentlyBlockIngesting(blockedBy: Array[Int]): Boolean = {
+  def currentlyBlockIngesting(blockedBy: Array[Long]): Boolean = {
     val generalBlocking = sources
       .map({
         case (id, tracker) =>
@@ -140,7 +140,7 @@ private[raphtory] class QueryManager(
         watermarks.put(watermark.partitionID, watermark)
         watermark.sourceMessages.foreach {
           case (id, count) =>
-            sources.get(id) match {
+            sources.get(id.toLong) match {
               case Some(tracker) =>
                 tracker.setReceivedMessage(watermark.partitionID, count)
 

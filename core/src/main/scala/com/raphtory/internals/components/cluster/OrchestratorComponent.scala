@@ -2,6 +2,7 @@ package com.raphtory.internals.components.cluster
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.raphtory.arrowmessaging.ArrowFlightServer
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
@@ -11,11 +12,14 @@ import com.raphtory.internals.components.partition.PartitionOrchestrator
 import com.raphtory.internals.components.querymanager.ClusterManagement
 import com.raphtory.internals.components.querymanager.QueryManager
 import com.raphtory.internals.management.Scheduler
+import com.raphtory.internals.management.ZookeeperConnector
 import com.raphtory.internals.management.id.IDManager
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigValueFactory
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
+import com.raphtory.internals.management.arrow.ZKHostAddressProvider
+import org.apache.arrow.memory.RootAllocator
 
 import scala.collection.mutable
 

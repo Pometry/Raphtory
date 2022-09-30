@@ -1,62 +1,44 @@
 package com.raphtory.internals.management
 
 import com.raphtory.api.input.Graph
-import com.raphtory.api.input.MaybeType
-import com.raphtory.api.input.Properties
 import com.raphtory.api.analysis.table.TableOutputTracker
-import com.raphtory.api.input.Graph
-import com.raphtory.api.input.MaybeType
-import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Source
 import com.raphtory.api.querytracker.QueryProgressTracker
-import com.raphtory.internals.communication.ExclusiveTopic
+import com.raphtory.internals.FlushToFlight
 import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.components.output.RowOutput
-import com.raphtory.internals.components.output.TableOutputSink
-import com.raphtory.internals.components.querymanager.BlockIngestion
-import com.raphtory.internals.components.querymanager.ClientDisconnected
-import com.raphtory.internals.components.querymanager.DestroyGraph
-import com.raphtory.internals.components.querymanager.DynamicLoader
-import com.raphtory.internals.components.querymanager.EstablishGraph
-import com.raphtory.internals.components.querymanager.IngestData
-import com.raphtory.internals.components.querymanager.Query
-import com.raphtory.internals.components.querymanager.UnblockIngestion
-import com.raphtory.internals.graph.GraphAlteration.EdgeAdd
-import com.raphtory.internals.graph.GraphAlteration.EdgeDelete
+import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
-import com.raphtory.internals.graph.GraphAlteration.VertexAdd
-import com.raphtory.internals.graph.GraphAlteration.VertexDelete
 import com.raphtory.internals.management.id.IDManager
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.Duration
 import scala.util.Random
 
 private[raphtory] class QuerySender(
     val graphID: String,
-    private val scheduler: Scheduler,
+    override val scheduler: Scheduler,
     private val topics: TopicRepository,
     private val config: Config,
     private val idManager: IDManager,
     private val clientID: String
-) extends Graph {
+) extends Graph
+        with FlushToFlight {
 
   class NoIDException(message: String) extends Exception(message)
+
+  override val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
   val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
   val totalPartitions: Int     = partitionServers * partitionsPerServer
 
-  private lazy val writers      = topics.graphUpdates(graphID).endPoint
-  private lazy val queryManager = topics.blockingIngestion(graphID).endPoint
-  private lazy val graphSetup   = topics.graphSetup.endPoint
-  private lazy val submissions  = topics.submissions(graphID).endPoint
-  private val blockingSources   = ArrayBuffer[Int]()
-
+  override lazy val writers            = topics.graphUpdates(graphID).endPoint
+  private lazy val queryManager        = topics.blockingIngestion(graphID).endPoint
+  private lazy val graphSetup          = topics.graphSetup.endPoint
+  private lazy val submissions         = topics.submissions(graphID).endPoint
+  private val blockingSources          = ArrayBuffer[Long]()
   private var highestTimeSeen          = Long.MinValue
   private var totalUpdateIndex         = 0    //used at the secondary index for the client
   private var updatesSinceLastIDChange = 0    //used to know how many messages to wait for when blocking in the Q manager
@@ -85,6 +67,7 @@ private[raphtory] class QuerySender(
     handleGraphUpdate(update) //Required so the Temporal Graph obj can call the below func
 
   override protected def handleGraphUpdate(update: GraphUpdate): Unit = {
+    latestMsgTimeToFlushToFlight = System.currentTimeMillis()
     highestTimeSeen = highestTimeSeen max update.updateTime
     writers(getPartitionForId(update.srcId)) sendAsync update
     totalUpdateIndex += 1
@@ -158,7 +141,8 @@ private[raphtory] class QuerySender(
     )
   }
 
+  def closeArrow(): Unit = writers.values.foreach(_.close())
+
   private def getDefaultName(query: Query): String =
     if (query.name.nonEmpty) query.name else query.hashCode().abs.toString
-
 }

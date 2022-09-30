@@ -54,9 +54,9 @@ case class TableOutputTracker(graphID: String, jobID: String, topics: TopicRepos
   private def handleOutputMessage(msg: OutputMessages): Unit = {
     logger.debug(s"received message $msg")
     msg match {
-      case RowOutput(perspective, row) =>
+      case RowOutput(perspective, row)                  =>
         resultsInProgress.getOrElseUpdate(perspective, ArrayBuffer.empty[Row]).append(row)
-      case EndPerspective(perspective) =>
+      case EndPerspective(perspective, totalPartitions) =>
         perspectiveDoneCounts(perspective) = perspectiveDoneCounts.getOrElse(perspective, 0) + 1
         if (perspectiveDoneCounts(perspective) == totalPartitions) {
           perspectiveDoneCounts.remove(perspective)
@@ -67,7 +67,7 @@ case class TableOutputTracker(graphID: String, jobID: String, topics: TopicRepos
               completedResults.add(TableOutput(getJobId, perspective, Array.empty, conf, topics))
           }
         }
-      case EndOutput                   =>
+      case EndOutput(totalPartitions)                   =>
         jobsDone += 1
         if (jobsDone == totalPartitions) {
           completedResults.add(EndOutput)

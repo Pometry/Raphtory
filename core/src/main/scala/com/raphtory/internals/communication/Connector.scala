@@ -10,5 +10,4 @@ private[raphtory] trait Connector {
 
   def endPoint[T](topic: CanonicalTopic[T]): EndPoint[T]
 
-  def shutdown(): Unit
 }

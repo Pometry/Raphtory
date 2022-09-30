@@ -3,7 +3,7 @@ package com.raphtory.internals.context
 import cats.effect.IO
 import cats.effect.Resource
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
-import com.raphtory.internals.communication.repositories.LocalTopicRepository
+import com.raphtory.internals.communication.repositories.{ArrowFlightRepository, DistributedTopicRepository, LocalTopicRepository}
 import com.raphtory.internals.components.ingestion.IngestionManager
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManager
@@ -13,7 +13,17 @@ import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
 import cats.effect.unsafe.implicits.global
 import com.raphtory.Raphtory.makeLocalIdManager
+import com.raphtory.arrowmessaging.ArrowFlightServer
 import com.raphtory.internals.components.partition.PartitionOrchestrator
+import com.raphtory.internals.management.ZookeeperConnector
+import com.typesafe.config.Config
+import cats.effect.unsafe.implicits.global
+import com.raphtory.arrowmessaging.ArrowFlightServer
+import com.raphtory.internals.communication.connectors.AkkaConnector
+import com.raphtory.internals.components.partition.PartitionOrchestrator
+import com.raphtory.internals.management.arrow.LocalHostAddressProvider
+import com.raphtory.internals.management.arrow.ZKHostAddressProvider
+import org.apache.arrow.memory.RootAllocator
 
 import scala.collection.mutable
 
@@ -51,7 +61,9 @@ private[raphtory] object LocalContext extends RaphtoryContext {
     val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
     for {
       _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
-      topicRepo          <- LocalTopicRepository[IO](config)
+      arrowServer        <- ArrowFlightServer[IO]()
+      addressHandler      = new LocalHostAddressProvider(config, arrowServer)
+      topicRepo          <- ArrowFlightRepository[IO](config, addressHandler)
       partitionIdManager <- makeLocalIdManager[IO]
       sourceIdManager    <- makeLocalIdManager[IO]
       _                  <- PartitionOrchestrator.spawn[IO](config, partitionIdManager, graphID, topicRepo, scheduler)
