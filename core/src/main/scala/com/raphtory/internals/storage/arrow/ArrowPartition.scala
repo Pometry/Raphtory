@@ -148,7 +148,14 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
         else {
           val accessor = v.getProperty(FIELD)
           accessor.setHistory(false, msgTime).set(value)
-          par.getVertexMgr.addProperty(v.getLocalId, FIELD, accessor)
+
+          v match {
+            case _: Edge   =>
+              par.getEdgeMgr.addProperty(v.getLocalId, FIELD, accessor)
+            case _: Vertex =>
+              par.getVertexMgr.addProperty(v.getLocalId, FIELD, accessor)
+            case _         => ???
+          }
         }
       case IntegerProperty(key, value)   =>
         val FIELD = lookupProp(key)
@@ -193,6 +200,8 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
         par.getEdgeMgr.addHistory(e.getLocalId, msgTime, true)
         // if destination is local add it
         emgr.addHistory(e.getLocalId, msgTime, true)
+        // add the edge properties
+        addOrUpdateEdgeProps(msgTime, properties, e)
         if (dst.isLocal) {
           val d = addVertexInternal(dstId, msgTime, Properties())
 //          linkIncomingToLocalNode(msgTime, dst, e)

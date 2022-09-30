@@ -1,6 +1,7 @@
 package com.raphtory.storage
 
 import com.raphtory.Raphtory
+import com.raphtory.api.input
 import com.raphtory.api.input._
 import com.raphtory.arrowcore.implementation.LocalEntityIdStore
 import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
@@ -319,7 +320,7 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   }
 
-  test("add edge between two vertices locally") {
+  test("add edge between two vertices locally".only) {
 
     val par: ArrowPartition = mkPartition(1, 0)
     val timestamp           = System.currentTimeMillis()
@@ -336,7 +337,8 @@ class ArrowStorageSuite extends munit.FunSuite {
             3,
             7,
             Properties(
-                    ImmutableProperty("name", "friends")
+                    ImmutableProperty("name", "friends"),
+                    LongProperty("weight", 7)
             ),
             None
     )
@@ -357,6 +359,23 @@ class ArrowStorageSuite extends munit.FunSuite {
     }
 
     assertEquals(neighbours, List(1L -> "friends", 0L -> "friends")) // local ids are returned
+
+    // add the edge again with a different time and different payload
+    par.addEdge(
+            3,
+            timestamp + 1,
+            -1,
+            3,
+            7,
+            Properties(
+                    ImmutableProperty("name", "friends"),
+                    LongProperty("weight", 9)
+            ),
+            None
+    )
+
+    val edges = par.vertices.flatMap(v => v.outgoingEdges.flatMap(e => e.prop[Long]("weight").list)).map(_._1).toSet
+    assertEquals(edges, Set(7L, 9L))
 
   }
 
@@ -504,7 +523,7 @@ class ArrowStorageSuite extends munit.FunSuite {
 }
 
 case class VertexProp(age: Long, @immutable name: String)
-case class EdgeProp(@immutable name: String, friends: Boolean)
+case class EdgeProp(@immutable name: String, friends: Boolean, weight: Long)
 
 case class AllProps(
     @immutable name: String,
