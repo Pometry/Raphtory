@@ -3,8 +3,8 @@ package com.raphtory.algorithms.temporal.motif
 import com.raphtory.api.analysis.algorithm.{Generic, GenericReduction}
 import com.raphtory.api.analysis.graphview.{GraphPerspective, ReducedGraphPerspective}
 import com.raphtory.api.analysis.table.{Row, Table}
-
 import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs.{get2NodeCountsWithoutRepeats, getStarCountsPretty, getTriCountsPretty}
+import com.raphtory.internals.communication.SchemaProviderInstances._
 
 import scala.collection.mutable.ArrayBuffer
 

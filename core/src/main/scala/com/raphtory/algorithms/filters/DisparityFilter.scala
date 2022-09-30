@@ -2,10 +2,10 @@ package com.raphtory.algorithms.filters
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.internals.communication.SchemaProviderInstances._
 import com.raphtory.utils.Bounded
 
 import scala.reflect.ClassTag
-
 import scala.language.implicitConversions
 import scala.math.Numeric.Implicits.infixNumericOps
 
