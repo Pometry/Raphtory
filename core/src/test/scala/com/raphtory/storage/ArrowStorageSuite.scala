@@ -1,16 +1,7 @@
 package com.raphtory.storage
 
 import com.raphtory.Raphtory
-import com.raphtory.api.input.BooleanProperty
-import com.raphtory.api.input.DoubleProperty
-import com.raphtory.api.input.FloatProperty
-import com.raphtory.api.input.ImmutableProperty
-import com.raphtory.api.input.IntegerProperty
-import com.raphtory.api.input.LongProperty
-import com.raphtory.api.input.Properties
-import com.raphtory.api.input.Property
-import com.raphtory.api.input.StringProperty
-import com.raphtory.api.input.Type
+import com.raphtory.api.input._
 import com.raphtory.arrowcore.implementation.LocalEntityIdStore
 import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
 import com.raphtory.arrowcore.implementation.VertexIterator
@@ -273,6 +264,18 @@ class ArrowStorageSuite extends munit.FunSuite {
     assertEquals(actual.prop[Int]("pInt").get, 12345789)
     assertEquals(actual.prop[String]("pString").get, "blerg")
 
+    // one can iterate these values
+    assertEquals(actual.prop[Long]("pLong").list.toList, List(now -> timestamp))
+    // add one extra property
+    addVertex(
+            3,
+            timestamp + 1,
+            None,
+            LongProperty("pLong", now + 1)
+    )(par)
+
+    val actual2 = par.vertices.head
+    assertEquals(actual2.prop[Long]("pLong").list.toSet, Set(now -> timestamp, (now + 1, timestamp + 1)))
   }
 
   test("add two vertices into partition") {
@@ -297,21 +300,21 @@ class ArrowStorageSuite extends munit.FunSuite {
   test("add two vertices into partition, at t1 and t2 test window iterator") {
 
     val par: ArrowPartition = mkPartition(1, 0)
-    val t1           = System.currentTimeMillis()
-    val t2           = t1 + 1
+    val t1                  = System.currentTimeMillis()
+    val t2                  = t1 + 1
 
     // add bob
     addVertex(3, t1, None, ImmutableProperty("name", "Bob"))(par)
     // add alice
     addVertex(7, t2, None, ImmutableProperty("name", "Alice"))(par)
 
-    val vs = par.vertices
+    val vs  = par.vertices
     assertEquals(vs.size, 2)
-    val vs1 = par.windowVertices(t1, t2) // inclusive window
+    val vs1 = par.windowVertices(t1, t2)     // inclusive window
     assertEquals(vs1.size, 2)
-    val vs2 = par.windowVertices(t1, t1) // exclude t2
+    val vs2 = par.windowVertices(t1, t1)     // exclude t2
     assertEquals(vs2.size, 1)
-    val vs3 = par.windowVertices(t2, t2+1) // exclude t2
+    val vs3 = par.windowVertices(t2, t2 + 1) // exclude t2
     assertEquals(vs3.size, 1)
 
   }
@@ -348,9 +351,9 @@ class ArrowStorageSuite extends munit.FunSuite {
 
     val neighbours = vs.flatMap {
       case v if v.field[String]("name").get == "Bob"   =>
-        v.outgoingEdges.map(e => e.getDstVertex -> e.prop[String]("name").get)
+        v.outgoingEdges.map(e => e.getDstVertex -> e.field[String]("name").get)
       case v if v.field[String]("name").get == "Alice" =>
-        v.incomingEdges.map(e => e.getSrcVertex -> e.prop[String]("name").get)
+        v.incomingEdges.map(e => e.getSrcVertex -> e.field[String]("name").get)
     }
 
     assertEquals(neighbours, List(1L -> "friends", 0L -> "friends")) // local ids are returned
@@ -439,11 +442,11 @@ class ArrowStorageSuite extends munit.FunSuite {
     val neighbours = vs.flatMap {
       case v if v.field[String]("name").get == "Bob"   =>
         v.outgoingEdges.map(e =>
-          (e.getSrcVertex, e.getDstVertex, e.prop[String]("name").get, e.isSrcGlobal, e.isDstGlobal)
+          (e.getSrcVertex, e.getDstVertex, e.field[String]("name").get, e.isSrcGlobal, e.isDstGlobal)
         )
       case v if v.field[String]("name").get == "Alice" =>
         v.incomingEdges.map(e =>
-          (e.getSrcVertex, e.getDstVertex, e.prop[String]("name").get, e.isSrcGlobal, e.isDstGlobal)
+          (e.getSrcVertex, e.getDstVertex, e.field[String]("name").get, e.isSrcGlobal, e.isDstGlobal)
         )
     }
     neighbours

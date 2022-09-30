@@ -1,7 +1,13 @@
 package com.raphtory.internals.storage
 
-import com.raphtory.arrowcore.implementation.{EdgeIterator, EntityFieldAccessor, NonversionedEnumField, VersionedEntityPropertyAccessor}
-import com.raphtory.arrowcore.model.{Edge, Vertex}
+import com.raphtory.arrowcore.implementation.ArrowPropertyIterator
+import com.raphtory.arrowcore.implementation.EdgeIterator
+import com.raphtory.arrowcore.implementation.EntityFieldAccessor
+import com.raphtory.arrowcore.implementation.NonversionedEnumField
+import com.raphtory.arrowcore.implementation.VersionedEntityPropertyAccessor
+import com.raphtory.arrowcore.model.Edge
+import com.raphtory.arrowcore.model.Vertex
+import com.raphtory.internals.storage.arrow.ArrowPartition.PropertyIterator
 
 import scala.collection.View
 package object arrow {
@@ -20,6 +26,7 @@ package object arrow {
           val FIELD = v.getRaphtory.getVertexFieldId(name.toLowerCase())
           implicitly[Field[P]].get(v.getField(FIELD))
         }
+
       }
 
     def prop[P: Prop](name: String): PropAccess[P] =
@@ -34,6 +41,16 @@ package object arrow {
           val FIELD = v.getRaphtory.getVertexPropertyId(name.toLowerCase())
           implicitly[Prop[P]].get(v.getProperty(FIELD))
         }
+
+        override def list: View[(P, Long)] =
+          try {
+            val FIELD = v.getRaphtory.getVertexPropertyId(name.toLowerCase())
+            View.fromIteratorProvider(() => new PropertyIterator(v.getPropertyHistory(FIELD)))
+          }
+          catch {
+            case _: IllegalArgumentException =>
+              View.empty
+          }
       }
 
     def outgoingEdges: View[Edge] = {
@@ -51,7 +68,7 @@ package object arrow {
 
   implicit class RichEdge(val v: Edge) extends AnyVal {
 
-    def prop[P: Field](name: String): FieldAccess[P] =
+    def field[P: Field](name: String): FieldAccess[P] =
       new FieldAccess[P] {
 
         override def set(p: P): Unit = {
@@ -65,6 +82,29 @@ package object arrow {
         }
       }
 
+    def prop[P: Prop](name: String): PropAccess[P] =
+      new PropAccess[P] {
+
+        override def set(p: P, at: Long): Unit = {
+          val FIELD = v.getRaphtory.getEdgePropertyId(name.toLowerCase())
+          implicitly[Prop[P]].set(v.getProperty(FIELD), p, at)
+        }
+
+        override def get: P = {
+          val FIELD = v.getRaphtory.getEdgePropertyId(name.toLowerCase())
+          implicitly[Prop[P]].get(v.getProperty(FIELD))
+        }
+
+        override def list: View[(P, Long)] =
+          try {
+            val FIELD = v.getRaphtory.getEdgePropertyId(name.toLowerCase())
+            View.fromIteratorProvider(() => new PropertyIterator(v.getPropertyHistory(FIELD)))
+          }
+          catch {
+            case _: IllegalArgumentException =>
+              View.empty
+          }
+      }
   }
 
   implicit class RichFieldAccessor(val acc: EntityFieldAccessor) extends AnyVal {
@@ -84,13 +124,15 @@ package object arrow {
   }
 
   implicit class RichPropertyAccessor(val acc: VersionedEntityPropertyAccessor) extends AnyVal {
-    def getAny: Any = acc match {
-      case accessor: VersionedEntityPropertyAccessor.IntPropertyAccessor => accessor.getInt
-      case accessor: VersionedEntityPropertyAccessor.LongPropertyAccessor => accessor.getLong
-      case accessor: VersionedEntityPropertyAccessor.FloatPropertyAccessor => accessor.getFloat
-      case accessor: VersionedEntityPropertyAccessor.DoublePropertyAccessor => accessor.getDouble
-      case accessor: VersionedEntityPropertyAccessor.StringPropertyAccessor => accessor.getString.toString
-      case accessor: VersionedEntityPropertyAccessor.BooleanPropertyAccessor => accessor.getBoolean
-    }
+
+    def getAny: Any =
+      acc match {
+        case accessor: VersionedEntityPropertyAccessor.IntPropertyAccessor     => accessor.getInt
+        case accessor: VersionedEntityPropertyAccessor.LongPropertyAccessor    => accessor.getLong
+        case accessor: VersionedEntityPropertyAccessor.FloatPropertyAccessor   => accessor.getFloat
+        case accessor: VersionedEntityPropertyAccessor.DoublePropertyAccessor  => accessor.getDouble
+        case accessor: VersionedEntityPropertyAccessor.StringPropertyAccessor  => accessor.getString.toString
+        case accessor: VersionedEntityPropertyAccessor.BooleanPropertyAccessor => accessor.getBoolean
+      }
   }
 }

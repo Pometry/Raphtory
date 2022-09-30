@@ -6,6 +6,8 @@ import com.raphtory.arrowcore.implementation.VersionedProperty
 trait VertexSchema[T] {
   def nonVersionedVertexProps(name: Option[String]): Iterable[NonversionedField]
   def versionedVertexProps(name: Option[String]): Iterable[VersionedProperty]
+
+  def propertyNames: Vector[String]
 }
 
 object VertexSchema {
@@ -33,6 +35,12 @@ object VertexSchema {
             p.typeclass.versionedVertexProps(Some(p.label))
           }
 
+      override def propertyNames: Vector[String] =
+        ctx.parameters
+          .filter(_.annotations.exists(_.isInstanceOf[immutable]))
+          .map(_.label)
+          .toVector
+
     }
 
   implicit def gen[T]: VertexSchema[T] = macro Magnolia.gen[T]
@@ -52,5 +60,7 @@ object VertexSchema {
 
       override def versionedVertexProps(name: Option[String]): Iterable[VersionedProperty] =
         List(new VersionedProperty(name.get, ct.runtimeClass))
+
+      override def propertyNames: Vector[String] = Vector.empty
     }
 }

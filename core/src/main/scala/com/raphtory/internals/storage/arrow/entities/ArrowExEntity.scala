@@ -3,17 +3,16 @@ package com.raphtory.internals.storage.arrow.entities
 import com.raphtory.api.analysis.visitor.EntityVisitor
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.api.analysis.visitor.PropertyValue
-import com.raphtory.arrowcore.implementation.EntityFieldAccessor
-import com.raphtory.arrowcore.implementation.VersionedEntityPropertyAccessor
 import com.raphtory.arrowcore.model.Entity
+import com.raphtory.arrowcore.model.{Edge => ArrEdge}
 import com.raphtory.arrowcore.model.{Vertex => ArrVertex}
 import com.raphtory.internals.storage.arrow.ArrowEntityStateRepository
-import com.raphtory.internals.storage.arrow.RichFieldAccessor
-import com.raphtory.internals.storage.arrow.RichPropertyAccessor
+import com.raphtory.internals.storage.arrow.Prop
+import com.raphtory.internals.storage.arrow.PropAccess
+import com.raphtory.internals.storage.arrow.RichEdge
 import com.raphtory.internals.storage.arrow.RichVertex
 
 import scala.reflect.ClassTag
-import scala.util.Try
 
 trait ArrowExEntity extends EntityVisitor {
 
@@ -82,9 +81,18 @@ trait ArrowExEntity extends EntityVisitor {
     * @param before Only consider addition events in the current view that happened no later than time `before`
     */
   override def getPropertyHistory[T](key: String, after: Long, before: Long): Option[Iterable[PropertyValue[T]]] =
-    // reverse lookup of property?
-    None
-//    this match {
+    this match {
+      case vertex: ArrowExVertex =>
+        implicit val PROP: Prop[T] = Prop.runtime[T](vertex.entity)
+        val arrV                   = vertex.entity.asInstanceOf[ArrVertex]
+        historyProps(arrV.prop[T](key), after, before)
+      case edge: ArrowExEdge     =>
+        implicit val PROP: Prop[T] = Prop.runtime[T](edge.entity)
+        val arrE                   = edge.entity.asInstanceOf[ArrEdge]
+        historyProps(arrE.prop[T](key), after, before)
+    }
+
+  //    this match {
 //      case v: ArrowExVertex =>
 //        // FIXME: this is horrid, we need to do better
 //        try {
@@ -119,6 +127,13 @@ trait ArrowExEntity extends EntityVisitor {
 //      case _                =>
 //        Some(List.empty)
 //    }
+
+  private def historyProps[T](addVertexProps: PropAccess[T], after: Long, before: Long) = {
+    val hist = addVertexProps.list.filter { case (_, t) => t >= after && t <= before }.map {
+      case (v, t) => PropertyValue(t, -1, v)
+    }
+    Some(hist)
+  }
 
   /** Set algorithmic state for this entity. Note that for edges, algorithmic state is stored locally to the vertex endpoint
     * which sets this state (default being the source node when set during an edge step).

@@ -1,16 +1,31 @@
 package com.raphtory.internals.storage.arrow
 
 import com.raphtory.api.input._
-import com.raphtory.arrowcore.implementation.{EdgeIterator, EdgePartitionManager, RaphtoryArrowPartition, VertexPartitionManager}
-import com.raphtory.arrowcore.model.{Edge, Vertex}
-import com.raphtory.internals.graph.GraphAlteration.{EdgeSyncAck, SyncExistingEdgeAdd, SyncExistingRemovals, SyncNewEdgeAdd}
-import com.raphtory.internals.graph.{GraphAlteration, GraphPartition, LensInterface}
+import com.raphtory.arrowcore.implementation.ArrowPropertyIterator
+import com.raphtory.arrowcore.implementation.EdgeIterator
+import com.raphtory.arrowcore.implementation.EdgePartitionManager
+import com.raphtory.arrowcore.implementation.EntityFieldAccessor
+import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
+import com.raphtory.arrowcore.implementation.VertexPartitionManager
+import com.raphtory.arrowcore.model.Edge
+import com.raphtory.arrowcore.model.Entity
+import com.raphtory.arrowcore.model.Vertex
+import com.raphtory.internals.graph.GraphAlteration.EdgeSyncAck
+import com.raphtory.internals.graph.GraphAlteration.SyncExistingEdgeAdd
+import com.raphtory.internals.graph.GraphAlteration.SyncExistingRemovals
+import com.raphtory.internals.graph.GraphAlteration.SyncNewEdgeAdd
+import com.raphtory.internals.graph.GraphAlteration
+import com.raphtory.internals.graph.GraphPartition
+import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExVertex
 import com.typesafe.config.Config
 
 import java.lang
 import java.util.concurrent.atomic.LongAccumulator
-import scala.collection.{AbstractView, View, mutable}
+import scala.collection.AbstractView
+import scala.collection.View
+import scala.collection.mutable
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition: Int, conf: Config)
         extends GraphPartition(graphID, partition, conf) {
@@ -78,30 +93,7 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
         val v          = par.getVertex
         v.reset(srcLocalId, id, true, msgTime)
 
-        properties.properties.foreach {
-          case ImmutableProperty(key, value) =>
-            val FIELD = par.getVertexFieldId(key.toLowerCase())
-            v.getField(FIELD).set(new lang.StringBuilder(value))
-          case StringProperty(key, value)    =>
-            val FIELD = par.getVertexPropertyId(key.toLowerCase())
-            v.getProperty(FIELD).setHistory(true, msgTime).set(new lang.StringBuilder(value))
-          case LongProperty(key, value)      =>
-            val FIELD = par.getVertexPropertyId(key.toLowerCase())
-            v.getProperty(FIELD).setHistory(true, msgTime).set(value)
-          case IntegerProperty(key, value)   =>
-            val FIELD = par.getVertexPropertyId(key.toLowerCase())
-            v.getProperty(FIELD).setHistory(true, msgTime).set(value)
-          case DoubleProperty(key, value)    =>
-            val FIELD = par.getVertexPropertyId(key.toLowerCase())
-            v.getProperty(FIELD).setHistory(true, msgTime).set(value)
-          case FloatProperty(key, value)     =>
-            val FIELD = par.getVertexPropertyId(key.toLowerCase())
-            v.getProperty(FIELD).setHistory(true, msgTime).set(value)
-          case BooleanProperty(key, value)   =>
-            val FIELD = par.getVertexPropertyId(key.toLowerCase())
-            v.getProperty(FIELD).setHistory(true, msgTime).set(value)
-          case _                             =>
-        }
+        addOrUpdateVertexProperties(msgTime, v, properties)
 
         vmgr.addVertex(v)
         // update is true or false?
@@ -111,8 +103,19 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
         // TODO: need a way to merge properties into existing vertex
         // TODO: we can't just overwrite a vertex that already exists
         // we make sure the vertex is active at this point
-//        vmgr.addHistory(v.getLocalId, msgTime, true, true, -1, false)
         val v = vmgr.getVertex(id)
+
+        val props: Set[String] =
+          par.getPropertySchema.versionedVertexProperties().asScala.map(_.name()).toSet intersect properties.properties
+            .map(_.key.toLowerCase())
+            .toSet
+
+        addOrUpdateVertexProperties(
+                msgTime,
+                v,
+                Properties(properties.properties.filter(p => props(p.key.toLowerCase())): _*)
+        )
+
         if (v.getOldestPoint != msgTime) // FIXME: weak check to avoid adding multiple duplicated timestamps
           vmgr.addHistory(v.getLocalId, msgTime, true, false, -1, false)
 
@@ -122,6 +125,45 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
 
     vertex
   }
+
+  private def addOrUpdateVertexProperties(msgTime: Long, v: Vertex, properties: Properties): Unit =
+    setProps(v, msgTime, properties)(key => par.getVertexPropertyId(key.toLowerCase()))(key =>
+      par.getVertexFieldId(key.toLowerCase())
+    )
+
+  private def setProps(v: Entity, msgTime: Long, properties: Properties)(
+      lookupProp: String => Int
+  )(lookupField: String => Int): Unit =
+    properties.properties.foreach {
+      case ImmutableProperty(key, value) =>
+        val FIELD = lookupField(key.toLowerCase())
+        v.getField(FIELD).set(new lang.StringBuilder(value))
+      case StringProperty(key, value)    =>
+        val FIELD = lookupProp(key)
+        v.getProperty(FIELD).setHistory(true, msgTime).set(new lang.StringBuilder(value))
+      case LongProperty(key, value)      =>
+        val FIELD = lookupProp(key)
+        if (!v.getProperty(FIELD).isSet)
+          v.getProperty(FIELD).setHistory(true, msgTime).set(value)
+        else {
+          val accessor = v.getProperty(FIELD)
+          accessor.setHistory(false, msgTime).set(value)
+          par.getVertexMgr.addProperty(v.getLocalId, FIELD, accessor)
+        }
+      case IntegerProperty(key, value)   =>
+        val FIELD = lookupProp(key)
+        v.getProperty(FIELD).setHistory(true, msgTime).set(value)
+      case DoubleProperty(key, value)    =>
+        val FIELD = lookupProp(key)
+        v.getProperty(FIELD).setHistory(true, msgTime).set(value)
+      case FloatProperty(key, value)     =>
+        val FIELD = lookupProp(key)
+        v.getProperty(FIELD).setHistory(true, msgTime).set(value)
+      case BooleanProperty(key, value)   =>
+        val FIELD = lookupProp(key)
+        v.getProperty(FIELD).setHistory(true, msgTime).set(value)
+      case _                             =>
+    }
 
   override def addEdge(
       sourceID: Int,
@@ -174,14 +216,7 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
           Some(SyncNewEdgeAdd(sourceID, msgTime, index, srcId, dstId, properties, Nil, edgeType))
 
         // add the edge properties
-        properties.properties.foreach {
-          case ImmutableProperty(key, value) =>
-            val FIELD = par.getEdgeFieldId(key)
-            e.getField(FIELD).set(new java.lang.StringBuilder(value))
-          case LongProperty(key, value)      =>
-            val FIELD = par.getEdgePropertyId(key)
-            e.getProperty(FIELD).setHistory(true, msgTime).set(value)
-        }
+        addOrUpdateEdgeProps(msgTime, properties, e)
 
         // add the actual edge
         e.resetEdgeData(src.getLocalId, dst.id, -1L, -1L, false, dst.isGlobal)
@@ -199,16 +234,18 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
         emgr.setOutgoingEdgePtr(e.getLocalId, prevListPtr)
 
         // link the edge to the destination
-        if (dst.isLocal) {
+        if (dst.isLocal)
           linkIncomingToLocalNode(msgTime, dst, e)
-        }
         out
       // no edge here
     }
   }
 
+  private def addOrUpdateEdgeProps(msgTime: Long, properties: Properties, e: Edge): Unit =
+    setProps(e, msgTime, properties)(key => par.getEdgePropertyId(key.toLowerCase()))(key => par.getEdgeFieldId(key))
+
   private def linkIncomingToLocalNode(msgTime: Long, dst: EntityId, e: Edge): Unit = {
-    val p = vmgr.getPartition(vmgr.getPartitionId(dst.id))
+    val p           = vmgr.getPartition(vmgr.getPartitionId(dst.id))
     val prevListPtr = p.synchronized {
       val ptr = p.addIncomingEdgeToList(dst.id, e.getLocalId)
       p.addHistory(dst.id, msgTime, true, false, e.getLocalId, false)
@@ -266,14 +303,7 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
     assert(src.isGlobal)
 
     // add the edge properties
-    properties.properties.foreach {
-      case ImmutableProperty(key, value) =>
-        val FIELD = par.getEdgeFieldId(key)
-        e.getField(FIELD).set(value)
-      case LongProperty(key, value)      =>
-        val FIELD = par.getEdgePropertyId(key)
-        e.getProperty(FIELD).setHistory(true, msgTime).set(value)
-    }
+    addOrUpdateEdgeProps(msgTime, properties, e)
 
     // add the actual edge
     e.resetEdgeData(src.id, dst.getLocalId, -1L, -1L, src.isGlobal, false)
@@ -378,6 +408,15 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
 
 object ArrowPartition {
 
+  class PropertyIterator[P](iter: ArrowPropertyIterator)(implicit P: Prop[P]) extends Iterator[(P, Long)] {
+    override def hasNext: Boolean = iter.hasNext
+
+    override def next(): (P, Long) = {
+      val acc = iter.next()
+      P.get(acc) -> acc.getCreationTime
+    }
+  }
+
   class VertexIterator(vs: com.raphtory.arrowcore.implementation.VertexIterator) extends Iterator[Vertex] {
 
     override def hasNext: Boolean =
@@ -390,6 +429,7 @@ object ArrowPartition {
   }
 
   class EdgesIterator(es: EdgeIterator) extends Iterator[Edge] {
+
     override def hasNext: Boolean = {
       val next1 = es.hasNext
       next1
