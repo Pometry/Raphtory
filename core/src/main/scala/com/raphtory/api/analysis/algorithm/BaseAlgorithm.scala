@@ -3,8 +3,21 @@ package com.raphtory.api.analysis.algorithm
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
 
 private[api] trait BaseAlgorithm extends Serializable {
+
+  /** Logger instance for writing out log messages */
+
+  private var internalLogger: Logger = _
+
+  def logger =
+    if (internalLogger == null) {
+      internalLogger = Logger(LoggerFactory.getLogger(this.getClass))
+      internalLogger
+    }
+    else internalLogger
 
   /** Input graph type */
   type In <: GraphPerspective
