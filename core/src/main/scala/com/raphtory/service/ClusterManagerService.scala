@@ -19,7 +19,7 @@ object ClusterManagerService extends IOApp {
     val headNode = for {
       repo      <- DistributedTopicRepository[IO](AkkaConnector.SeedMode, config)
       idManager <- makeLocalIdManager[IO]
-      headNode  <- ClusterManager[IO](config, repo, mode = ClusterMode, idManager)
+      headNode  <- ClusterManager[IO](config, repo)
       _         <- RpcServer[IO](idManager, repo, config)
     } yield headNode
     headNode.useForever

@@ -11,6 +11,9 @@ import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.components.cluster.ClusterManager
 import com.raphtory.internals.components.cluster.RpcServer
 import com.raphtory.internals.components.cluster.StandaloneMode
+import com.raphtory.internals.components.ingestion.IngestionOrchestrator
+import com.raphtory.internals.components.partition.PartitionOrchestrator
+import com.raphtory.internals.components.querymanager.QueryOrchestrator
 import com.raphtory.internals.management.id.LocalIDManager
 
 object Standalone extends IOApp {
@@ -21,7 +24,10 @@ object Standalone extends IOApp {
       repo               <- LocalTopicRepository[IO](config)
       sourceIDManager    <- makeLocalIdManager[IO]
       partitionIdManager <- makeLocalIdManager[IO]
-      headNode           <- ClusterManager[IO](config, repo, mode = StandaloneMode, partitionIdManager)
+      _                  <- IngestionOrchestrator[IO](config, repo)
+      _                  <- PartitionOrchestrator[IO](config, repo, partitionIdManager)
+      _                  <- QueryOrchestrator[IO](config, repo)
+      headNode           <- ClusterManager[IO](config, repo)
       _                  <- RpcServer[IO](sourceIDManager, repo, config)
     } yield headNode
     headNode.useForever

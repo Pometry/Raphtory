@@ -81,7 +81,7 @@ object PartitionOrchestrator {
     Component.makeAndStart(
             topics,
             s"partition-node",
-            List(topics.clusterComms(conf.getInt("raphtory.partitions.serverCount"))),
+            List(topics.clusterComms),
             new PartitionOrchestrator(topics, conf, idManager)
     )
 }

@@ -35,7 +35,7 @@ object IngestionOrchestrator {
     Component.makeAndStart(
             topics,
             s"ingestion-node",
-            List(topics.clusterComms(conf.getInt("raphtory.partitions.serverCount"))),
+            List(topics.clusterComms),
             new IngestionOrchestrator(topics, conf)
     )
 }

@@ -35,7 +35,7 @@ object QueryOrchestrator {
     Component.makeAndStart(
             topics,
             s"query-node",
-            List(topics.clusterComms(conf.getInt("raphtory.partitions.serverCount"))),
+            List(topics.clusterComms),
             new QueryOrchestrator(topics, conf)
     )
 }
