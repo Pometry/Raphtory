@@ -108,6 +108,7 @@ lazy val core = (project in file("core"))
           ),
           assemblySettings,
           defaultSettings,
+          addCompilerPlugin(scalaDocReader),
           libraryDependencies ++= Seq(
                   //please keep in alphabetical order
                   akkaClusterTyped,
@@ -148,7 +149,8 @@ lazy val core = (project in file("core"))
                   typesafeConfig,
                   zookeeper,
                   shapeless,
-                  curatorDiscovery
+                  curatorDiscovery,
+                  scalaDocReader
           ),
           libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) },
           // Needed to expand the @service macro annotation

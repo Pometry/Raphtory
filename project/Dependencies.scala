@@ -94,7 +94,8 @@ object Dependencies {
 
   lazy val catsMUnit =
     "org.typelevel" %% "munit-cats-effect-3" % catsMUnitVersion % Test excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val alleyCats = "org.typelevel" %% "alleycats-core" % catsVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val alleyCats      = "org.typelevel"      %% "alleycats-core"          % catsVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val scalaDocReader = "com.github.takezoe" %% "runtime-scaladoc-reader" % "1.0.3"
 
   lazy val curatorDiscovery = "org.apache.curator" % "curator-x-discovery" % curatorVersion
 }
