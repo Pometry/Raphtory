@@ -7,7 +7,6 @@ import com.raphtory.api.input.GraphBuilder
 import com.raphtory.internals.communication.SchemaProviderInstances._
 
 class MaxFlowTest extends BaseCorrectnessTest {
-  override def setGraphBuilder(): GraphBuilder[String] = WeightedGraphBuilder
   test("test on line graph") {
     correctnessTest(
             TestQuery(MaxFlow[Long]("1", "3"), 2),

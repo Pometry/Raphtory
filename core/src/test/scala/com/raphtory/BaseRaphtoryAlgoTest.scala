@@ -8,10 +8,7 @@ import com.raphtory.api.analysis.algorithm.GenericallyApplicable
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
-import com.raphtory.api.input.Graph
-import com.raphtory.api.input.GraphBuilder
-import com.raphtory.api.input.Source
-import com.raphtory.api.input.Spout
+import com.raphtory.api.input.{CSVEdgeListSource, Graph, GraphBuilder, Source, Spout}
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.sinks.FileSink
 import com.typesafe.scalalogging.Logger
@@ -43,7 +40,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           for {
             _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
             g <- graph
-            _  = g.load(Source(setSpout(), setGraphBuilder()))
+            _  = g.load(CSVEdgeListSource(setSpout(), 2,0,1))
           } yield g
   )
 
@@ -52,7 +49,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           for {
             _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
             g <- graph
-            _  = g.load(Source(setSpout(), setGraphBuilder()))
+            _  = g.load(CSVEdgeListSource(setSpout(), 2,0,1))
           } yield g
   )
 
@@ -62,8 +59,8 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
   def liftFileIfNotPresent: Option[(String, URL)] = None
 
-  def setSpout(): Spout[T]
-  def setGraphBuilder(): GraphBuilder[T]
+  def setSpout(): Spout[String]
+//  def setGraphBuilder(): GraphBuilder[T]
 
   private def algorithmTestInternal(
       algorithm: GenericallyApplicable,

@@ -24,8 +24,6 @@ class TwitterTest extends BaseRaphtoryAlgoTest[String] {
 
   override def setSpout(): StaticGraphSpout = StaticGraphSpout("/tmp/twitter.csv")
 
-  override def setGraphBuilder(): GraphBuilder[String] = TwitterGraphBuilder
-
   def tmpFilePath = "/tmp/twitter.csv"
 
   override def liftFileIfNotPresent: Option[(String, URL)] =

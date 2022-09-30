@@ -6,7 +6,7 @@ import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
-import com.raphtory.examples.lotr.graphbuilders.LOTRGraphBuilder
+import com.raphtory.api.input.CSVEdgeListSource
 import com.raphtory.pulsar.sink.PulsarSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
@@ -23,7 +23,7 @@ object PulsarOutputRunner extends App {
   // Create Graph
   val source                       = FileSpout(path)
   val graph: DeployedTemporalGraph = Raphtory.newGraph()
-  graph.load(com.raphtory.api.input.Source(FileSpout(path.toString), LOTRGraphBuilder))
+  graph.load(CSVEdgeListSource(path, 2,0,1))
   Using(graph) { graph =>
     graph
       .at(30000)

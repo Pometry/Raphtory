@@ -5,10 +5,7 @@ import com.raphtory.api.analysis.algorithm.GenericallyApplicable
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
-import com.raphtory.api.input.Graph
-import com.raphtory.api.input.GraphBuilder
-import com.raphtory.api.input.Source
-import com.raphtory.api.input.Spout
+import com.raphtory.api.input.{CSVEdgeListSource, Graph, GraphBuilder, Source, Spout}
 import com.raphtory.spouts.IdentitySpout
 import com.raphtory.spouts.ResourceSpout
 import com.raphtory.spouts.SequenceSpout
@@ -49,7 +46,7 @@ abstract class BaseCorrectnessTest(
   private def normaliseResults(value: IterableOnce[String]) =
     value.iterator.toList.sorted.mkString("\n")
 
-  override def setGraphBuilder(): GraphBuilder[String] = BasicGraphBuilder
+//  override def setGraphBuilder(): GraphBuilder[String] = BasicGraphBuilder
 
   def setSpout(): Spout[String] = new IdentitySpout
 
@@ -70,7 +67,7 @@ abstract class BaseCorrectnessTest(
     Raphtory
       .newIOGraph()
       .use { g =>
-        g.load(Source(graphEdges, setGraphBuilder()))
+        g.load(CSVEdgeListSource(setSpout(), 2,0,1))
         runTest(test, g)
       }
       .map(obtained => assertResultsMatch(obtained, resultsResource))
@@ -83,7 +80,7 @@ abstract class BaseCorrectnessTest(
     Raphtory
       .newIOGraph()
       .use { g =>
-        g.load(Source(graphEdges, setGraphBuilder()))
+        g.load(CSVEdgeListSource(setSpout(), 2,0,1))
         runTest(test, g)
       }
       .map(obtained => assertResultsMatch(obtained, results))

@@ -49,7 +49,6 @@ class AllCommandsTest extends BaseRaphtoryAlgoTest[String] {
   }
   override def setSpout(): Spout[String] = FileSpout("/tmp/testupdates.csv")
 
-  override def setGraphBuilder(): GraphBuilder[String] = AllCommandsBuilder
 
   override def liftFileIfNotPresent: Option[(String, URL)] =
     Some(("/tmp/testupdates.csv", new URL("https://raw.githubusercontent.com/Raphtory/Data/main/testupdates.txt")))

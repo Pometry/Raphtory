@@ -225,6 +225,5 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 
   override def setSpout(): Spout[String] = FileSpout(tmpFilePath)
 
-  override def setGraphBuilder(): GraphBuilder[String] = LOTRGraphBuilder
 
 }

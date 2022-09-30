@@ -5,10 +5,9 @@ import com.raphtory.Raphtory
 import com.raphtory.TestUtils
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.analysis.graphview.Alignment
-import com.raphtory.api.input.Source
+import com.raphtory.api.input.{CSVEdgeListSource, Source}
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.internals.context.LocalContext
-import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.StaticGraphSpout
@@ -45,7 +44,7 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
       .use { files =>
         IO.delay {
           val lotrGraph   = Raphtory.newGraph()
-          lotrGraph.load(Source(lotrSpout, LOTRGraphBuilder))
+          lotrGraph.load(CSVEdgeListSource(lotrSpout,2,0,1))
           val lotrTracker = lotrGraph
             .range(1, 32674, 10000)
             .window(List(500, 1000, 10000), Alignment.END)

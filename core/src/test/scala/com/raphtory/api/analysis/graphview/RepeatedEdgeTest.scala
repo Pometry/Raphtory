@@ -23,7 +23,6 @@ class RepeatedEdgeTest extends BaseCorrectnessTest {
 
   override def setSpout(): Spout[String] = SequenceSpout(repeatedInput: _*)
 
-  override def setGraphBuilder(): GraphBuilder[String] = WeightedGraphBuilder
 
   test("Multilayer edgelist test with repeated edges") {
     val res = repeatedInput.map(s => s"${edges.size - 1},$s")

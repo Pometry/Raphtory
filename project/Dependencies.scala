@@ -5,6 +5,7 @@ object Dependencies {
   private lazy val bcelVersion                     = "6.5.0"
   private lazy val catsEffectVersion               = "3.3.12"
   private lazy val chillVersion                    = "0.10.0"
+  private lazy val circeVersion                    = "0.14.3"
   private lazy val curatorVersion                  = "5.2.1"
   private lazy val declineVersion                  = "2.3.0"
   private lazy val fs2Version                      = "3.2.12"
@@ -39,7 +40,10 @@ object Dependencies {
   lazy val akkaTyped  = "com.typesafe.akka" %% "akka-actor-typed" % akkaVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val bcel       = "org.apache.bcel"    % "bcel"             % bcelVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val catsEffect = "org.typelevel"     %% "cats-effect"      % catsEffectVersion excludeAll (excludeLog4j, excludeSlf4j)
-
+  lazy val circeCore = "io.circe" %% "circe-core" % circeVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val circeGeneric = "io.circe" %% "circe-generic" % circeVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val circeOptics = "io.circe" %% "circe-optics" % circeVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val circeParser = "io.circe" %% "circe-parser" % circeVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val curatorRecipes =
     "org.apache.curator" % "curator-recipes" % curatorVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val decline    = "com.monovore"             %% "decline-effect" % declineVersion excludeAll (excludeLog4j, excludeSlf4j)

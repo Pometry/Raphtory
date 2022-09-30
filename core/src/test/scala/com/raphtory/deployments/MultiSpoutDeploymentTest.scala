@@ -4,11 +4,10 @@ import cats.effect.IO
 import cats.effect.Resource
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.analysis.graphview.Alignment
-import com.raphtory.api.input.Source
+import com.raphtory.api.input.{CSVEdgeListSource, Source}
 import com.raphtory.Raphtory
 import com.raphtory.TestUtils
 import com.raphtory.api.output.sink.Sink
-import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import munit.CatsEffectSuite
@@ -57,8 +56,8 @@ class MultiSpoutDeploymentTest extends CatsEffectSuite {
             Seq(oddFile, evenFile).foreach(_.flush())
 
             val graph   = Raphtory.newGraph()
-            graph.load(Source(oddSpout, LOTRGraphBuilder))
-            graph.load(Source(evenSpout, LOTRGraphBuilder))
+            graph.load(CSVEdgeListSource(oddSpout, 2,0,1))
+            graph.load(CSVEdgeListSource(evenSpout, 2,0,1))
             val tracker = graph
               .range(1, 32674, 10000)
               .window(List(500, 1000, 10000), Alignment.END)
