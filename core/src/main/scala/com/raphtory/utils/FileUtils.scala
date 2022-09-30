@@ -103,7 +103,7 @@ object FileUtils {
 
   def curlFile(path: String, url: String) =
     if (!new File(path).exists())
-      try s"curl -o $path $url" !!
+      try s"curl -L -o $path $url" !!
       catch {
         case ex: Exception =>
           logger.error(s"Failed to download $path due to ${ex.getMessage}.", ex)

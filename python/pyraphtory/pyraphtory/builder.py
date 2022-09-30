@@ -5,6 +5,10 @@ class Type(ScalaClassProxy):
     _classname = "com.raphtory.api.input.Type"
 
 
+class GraphBuilder(ScalaClassProxy):
+    _classname = "com.raphtory.api.input.GraphBuilder"
+
+
 class StringProperty(ScalaClassProxy):
     _classname = "com.raphtory.api.input.StringProperty"
 
