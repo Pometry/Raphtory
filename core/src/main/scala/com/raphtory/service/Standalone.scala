@@ -14,6 +14,7 @@ import com.raphtory.internals.components.cluster.StandaloneMode
 import com.raphtory.internals.components.ingestion.IngestionOrchestrator
 import com.raphtory.internals.components.partition.PartitionOrchestrator
 import com.raphtory.internals.components.querymanager.QueryOrchestrator
+import com.raphtory.internals.management.Prometheus
 import com.raphtory.internals.management.id.LocalIDManager
 import com.raphtory.arrowmessaging.ArrowFlightServer
 import com.raphtory.internals.communication.connectors.AkkaConnector
@@ -27,8 +28,12 @@ import org.apache.arrow.memory.RootAllocator
 object Standalone extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = {
-    val config   = Raphtory.getDefaultConfig()
+
+    val config         = Raphtory.getDefaultConfig()
+    val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
+
     val headNode = for {
+      _                  <- Prometheus[IO](prometheusPort)
       repo               <- LocalTopicRepository[IO](config, None)
       partitionIdManager <- makeLocalIdManager[IO]
       _                  <- IngestionOrchestrator[IO](config, repo)
