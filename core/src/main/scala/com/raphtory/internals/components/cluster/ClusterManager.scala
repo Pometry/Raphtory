@@ -23,7 +23,7 @@ class ClusterManager(
   private lazy val cluster = topics.clusterComms.endPoint
 
   override private[raphtory] def run(): Unit =
-    logger.info(s"Starting HeadNode")
+    println(s"HeadNode started")
 
   override def handleMessage(msg: ClusterManagement): Unit =
     msg match {
