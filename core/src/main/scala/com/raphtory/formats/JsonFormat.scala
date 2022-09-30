@@ -156,6 +156,9 @@ case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
 
 object JsonFormat {
 
+  /** Python companion object */
+  def apply() = new JsonFormat()
+
   /** The level to use for creating JSON objects */
   sealed trait Level
 

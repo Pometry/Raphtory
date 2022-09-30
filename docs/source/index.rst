@@ -49,6 +49,7 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/star
 
    Examples/lotr.md
    Examples/community-of-cheese.md
+   Examples/nft.md
    Examples/gab.md
    Examples/higgs-twitter.md
 

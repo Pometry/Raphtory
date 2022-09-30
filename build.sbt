@@ -201,7 +201,7 @@ lazy val examplesTwitter =
     .settings(assemblySettings)
 
 lazy val examplesNFT =
-  (project in file("examples/raphtory-example-nft"))
+  (project in file("examples/nft"))
     .dependsOn(core)
     .settings(assemblySettings)
 
