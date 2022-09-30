@@ -3,7 +3,9 @@ package com.raphtory.internals.context
 import cats.effect.IO
 import cats.effect.Resource
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
-import com.raphtory.internals.communication.repositories.{ArrowFlightRepository, DistributedTopicRepository, LocalTopicRepository}
+import com.raphtory.internals.communication.repositories.ArrowFlightRepository
+import com.raphtory.internals.communication.repositories.DistributedTopicRepository
+import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import com.raphtory.internals.components.ingestion.IngestionManager
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManager
@@ -57,10 +59,8 @@ private[raphtory] object LocalContext extends RaphtoryContext {
   }
 
   private def deployService(graphID: String, config: Config): Resource[IO, QuerySender] = {
-    val scheduler      = new Scheduler()
-    val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
+    val scheduler = new Scheduler()
     for {
-      _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
       arrowServer        <- ArrowFlightServer[IO]()
       addressHandler      = new LocalHostAddressProvider(config, arrowServer)
       topicRepo          <- ArrowFlightRepository[IO](config, addressHandler)

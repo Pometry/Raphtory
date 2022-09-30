@@ -12,12 +12,17 @@ import com.raphtory.internals.components.cluster.ClusterMode
 import com.raphtory.internals.management.ZookeeperConnector
 import com.raphtory.internals.management.arrow.ZKHostAddressProvider
 import com.raphtory.internals.components.cluster.RpcServer
+import com.raphtory.internals.management.Prometheus
 
 object ClusterManagerService extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = {
-    val config   = Raphtory.getDefaultConfig()
+
+    val config         = Raphtory.getDefaultConfig()
+    val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
+
     val headNode = for {
+      _         <- Prometheus[IO](prometheusPort)
       repo      <- DistributedTopicRepository[IO](AkkaConnector.SeedMode, config, None)
       idManager <- makeLocalIdManager[IO]
       headNode  <- ClusterManager[IO](config, repo)
@@ -25,4 +30,5 @@ object ClusterManagerService extends IOApp {
     } yield headNode
     headNode.useForever
   }
+
 }
