@@ -44,7 +44,7 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
       .use { files =>
         IO.delay {
           val lotrGraph   = Raphtory.newGraph()
-          lotrGraph.load(CSVEdgeListSource(lotrSpout,2,0,1))
+          lotrGraph.load(CSVEdgeListSource(lotrSpout))
           val lotrTracker = lotrGraph
             .range(1, 32674, 10000)
             .window(List(500, 1000, 10000), Alignment.END)

@@ -67,7 +67,7 @@ abstract class BaseCorrectnessTest(
     Raphtory
       .newIOGraph()
       .use { g =>
-        g.load(CSVEdgeListSource(setSpout(), 2,0,1))
+        g.load(CSVEdgeListSource(setSpout()).setIndexPositions(0,1,2))
         runTest(test, g)
       }
       .map(obtained => assertResultsMatch(obtained, resultsResource))
@@ -80,7 +80,7 @@ abstract class BaseCorrectnessTest(
     Raphtory
       .newIOGraph()
       .use { g =>
-        g.load(CSVEdgeListSource(setSpout(), 2,0,1))
+        g.load(CSVEdgeListSource(setSpout()).setIndexPositions(0,1,2))
         runTest(test, g)
       }
       .map(obtained => assertResultsMatch(obtained, results))

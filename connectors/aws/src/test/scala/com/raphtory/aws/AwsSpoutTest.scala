@@ -25,7 +25,7 @@ object AwsSpoutTest extends IOApp {
 
     val spout  = AwsS3Spout(awsS3SpoutBucketName, awsS3SpoutBucketKey)
     val output = AwsS3Sink(awsS3OutputFormatBucketName)
-    val source = CSVEdgeListSource(spout, 2,0,1)
+    val source = CSVEdgeListSource(spout)
     val graph  = Raphtory.newIOGraph()
 
     graph.use { graph =>

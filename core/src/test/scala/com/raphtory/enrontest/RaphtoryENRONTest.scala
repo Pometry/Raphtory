@@ -20,7 +20,7 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
   withGraph.test("Graph State Test".ignore) { graph =>
     val sink: FileSink = FileSink(outputDirectory)
-//    graph.load(Source(setSpout(), setGraphBuilder()))
+    graph.load(Source(setSpout(), setGraphBuilder()))
 
     graph
       .walk(10000)
@@ -47,7 +47,7 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
   override def setSpout(): Spout[String] = FileSpout("/tmp/email_test.csv")
 
-//  override def setGraphBuilder(): GraphBuilder[String] = ENRONGraphBuilder
+   def setGraphBuilder(): GraphBuilder[String] = ENRONGraphBuilder
 
   override def liftFileIfNotPresent: Option[(String, URL)] =
     Some("/tmp/email_test.csv" -> new URL("https://raw.githubusercontent.com/Raphtory/Data/main/email_test.csv"))

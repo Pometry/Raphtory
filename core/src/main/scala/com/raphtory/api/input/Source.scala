@@ -28,18 +28,28 @@ class ConcreteSource[T](override val spout: Spout[T], override val builder: Grap
     new SourceInstance[T](id, spout.buildSpout(), builder.buildInstance(graphID, id))
 }
 
-class CSVEdgeListSource(override val spout: Spout[String], timeIndex: Int, sourceIndex: Int, targetIndex: Int) extends Source {
+class CSVEdgeListSource(override val spout: Spout[String]) extends Source {
   override type MessageType = String
 
   var dateTimeFormat: Boolean = _
   var epochFormat: Boolean = _
-  var timestamp: Long = _
 
+  private var timeIndex = 2
+  private var sourceIndex = 0
+  private var targetIndex = 1
+
+  def setIndexPositions(timeIndex: Int = 2, sourceIndex: Int = 0, targetIndex: Int = 1) = {
+    this.timeIndex = timeIndex
+    this.sourceIndex = sourceIndex
+    this.targetIndex = targetIndex
+    this
+  }
   def buildCSVEdgeListGraph(graph: Graph, rawTime: String, source: String, target: String) = {
+    val timestamp =
     if (dateTimeFormat) {
-      timestamp = parseDateTime(rawTime)
+      parseDateTime(rawTime)
     } else if (epochFormat) {
-      timestamp = rawTime.toLong
+      rawTime.toLong
     } else {
       throw new RuntimeException("Check timestamp is in Epoch or DateTime Format")
     }
@@ -79,8 +89,8 @@ class CSVEdgeListSource(override val spout: Spout[String], timeIndex: Int, sourc
 }
 
 object CSVEdgeListSource {
-  def apply(path: String, timeIndex: Int, sourceIndex: Int, targetIndex: Int) = new CSVEdgeListSource(FileSpout(path), timeIndex, sourceIndex, targetIndex)
-  def apply(spout: Spout[String], timeIndex: Int, sourceIndex: Int, targetIndex: Int) = new CSVEdgeListSource(spout, timeIndex, sourceIndex, targetIndex)
+  def apply(path: String) = new CSVEdgeListSource(FileSpout(path))
+  def apply(spout: Spout[String]) = new CSVEdgeListSource(spout)
 }
 
 class JSONEdgeListSource(override val spout: Spout[String], time: String, src: String, dst: String) extends Source {
@@ -224,6 +234,4 @@ object Source {
   def apply[T](spout: Spout[T], builder: GraphBuilder[T]): Source =
     new ConcreteSource(spout, ClosureCleaner.clean(builder))
 
-  def apply(spout: Spout[String], timeIndex: Int, sourceIndex: Int, targetIndex: Int): Source =
-    new CSVEdgeListSource(spout, timeIndex, sourceIndex, targetIndex)
 }

@@ -40,7 +40,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           for {
             _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
             g <- graph
-            _  = g.load(CSVEdgeListSource(setSpout(), 2,0,1))
+            _  = g.load(CSVEdgeListSource(setSpout()))
           } yield g
   )
 
@@ -49,7 +49,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           for {
             _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
             g <- graph
-            _  = g.load(CSVEdgeListSource(setSpout(), 2,0,1))
+            _  = g.load(CSVEdgeListSource(setSpout()))
           } yield g
   )
 
