@@ -1,11 +1,13 @@
 package com.raphtory
 
 import cats.effect._
+import cats.effect.unsafe.implicits.global
 import com.oblac.nomen.Nomen
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.internals.context.LocalContext
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.internals.context.RemoteContext
+import com.raphtory.internals.management.Prometheus
 import com.raphtory.internals.management._
 import com.raphtory.internals.management.id.ClientIDManager
 import com.raphtory.internals.management.id.IDManager
@@ -36,7 +38,7 @@ import scala.collection.mutable.ArrayBuffer
   * graph.deployment.stop()
   * }}}
   *
-  * @see [[GraphBuilder GraphBuilder]]
+  * @see
   *      [[api.input.Spout Spout]]
   *      [[api.analysis.graphview.DeployedTemporalGraph DeployedTemporalGraph]]
   *      [[api.analysis.graphview.TemporalGraph TemporalGraph]]
@@ -44,6 +46,7 @@ import scala.collection.mutable.ArrayBuffer
 object Raphtory {
 
   private val remoteConnections = ArrayBuffer[RemoteContext]()
+  startPrometheus()
 
   def newGraph(graphID: String = createName, customConfig: Map[String, Any] = Map()): DeployedTemporalGraph =
     LocalContext.newGraph(graphID, customConfig)
@@ -105,5 +108,13 @@ object Raphtory {
 
   private[raphtory] def createName: String =
     Nomen.est().adjective().color().animal().get()
+
+  private def startPrometheus() = {
+    val prometheusPort = getDefaultConfig().getInt("raphtory.prometheus.metrics.port")
+    val (_, shutdown)  = Prometheus[IO](prometheusPort).allocated.unsafeRunSync()
+    Runtime.getRuntime.addShutdownHook(new Thread {
+      override def run(): Unit = shutdown.unsafeRunAndForget()
+    })
+  }
 
 }
