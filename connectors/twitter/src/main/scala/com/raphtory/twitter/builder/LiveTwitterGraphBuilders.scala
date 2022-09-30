@@ -18,9 +18,9 @@ import scala.util.matching.Regex
  * the retweet relationship.
  */
 
-class LiveTwitterRetweetGraphBuilder() extends GraphBuilder[Tweet] {
+object TwitterRetweetGraphBuilder extends GraphBuilder[Tweet] {
 
-  override def parse(graph: Graph, tweet: Tweet): Unit = {
+  def apply(graph: Graph, tweet: Tweet): Unit = {
     val sourceNode    = tweet.getAuthorId
     val srcID         = sourceNode.toLong
     val timeStamp     = tweet.getCreatedAt.toEpochSecond(ZoneOffset.UTC)
@@ -50,9 +50,9 @@ class LiveTwitterRetweetGraphBuilder() extends GraphBuilder[Tweet] {
   }
 }
 
-class LiveTwitterUserGraphBuilder() extends GraphBuilder[Tweet] {
+object TwitterUserGraphBuilder extends GraphBuilder[Tweet] {
 
-  override def parse(graph: Graph, tweet: Tweet): Unit = {
+  def apply(graph: Graph, tweet: Tweet): Unit = {
     val sourceNode = tweet.getAuthorId
     val srcID      = sourceNode.toLong
     val targetNode = tweet.getId
@@ -73,4 +73,5 @@ class LiveTwitterUserGraphBuilder() extends GraphBuilder[Tweet] {
     )
     graph.addEdge(timeStamp, srcID, tarID, Type("User to Tweet Relationship"))
   }
+
 }

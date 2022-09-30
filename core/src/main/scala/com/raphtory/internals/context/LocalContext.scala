@@ -1,9 +1,7 @@
 package com.raphtory.internals.context
 
-import cats.effect.Async
 import cats.effect.IO
 import cats.effect.Resource
-import com.raphtory.Raphtory.makeIdManager
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import com.raphtory.internals.components.ingestion.IngestionManager
@@ -14,6 +12,7 @@ import com.raphtory.internals.management.QuerySender
 import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
 import cats.effect.unsafe.implicits.global
+import com.raphtory.Raphtory.makeLocalIdManager
 import com.raphtory.internals.components.partition.PartitionOrchestrator
 
 import scala.collection.mutable
@@ -31,7 +30,7 @@ private[raphtory] object LocalContext extends RaphtoryContext {
           logger.info(s"Creating Service for '$graphID'")
       }
       val (querySender, shutdown) = graph.allocated.unsafeRunSync()
-      val deployed                = new DeployedTemporalGraph(Query(), querySender, config, local = true, shutdown)
+      val deployed                = new DeployedTemporalGraph(Query(graphID = graphID), querySender, config, local = true, shutdown)
       val deployment              = Deployment(Metadata(graphID, config), deployed)
       services += ((graphID, deployment))
       deployed
@@ -43,7 +42,7 @@ private[raphtory] object LocalContext extends RaphtoryContext {
   ): Resource[IO, DeployedTemporalGraph] = {
     val config = confBuilder(Map("raphtory.graph.id" -> graphID) ++ customConfig)
     deployService(graphID, config).map { qs: QuerySender =>
-      new DeployedTemporalGraph(Query(), qs, config, local = true, shutdown = IO.unit)
+      new DeployedTemporalGraph(Query(graphID = graphID), qs, config, local = true, shutdown = IO.unit)
     }
   }
 
@@ -53,9 +52,9 @@ private[raphtory] object LocalContext extends RaphtoryContext {
     for {
       _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
       topicRepo          <- LocalTopicRepository[IO](config)
-      partitionIdManager <- makeIdManager[IO](config, localDeployment = true, graphID, forPartitions = true)
-      sourceIdManager    <- makeIdManager[IO](config, localDeployment = true, graphID, forPartitions = false)
-      _                  <- PartitionOrchestrator.spawn[IO](config, partitionIdManager, topicRepo, scheduler)
+      partitionIdManager <- makeLocalIdManager[IO]
+      sourceIdManager    <- makeLocalIdManager[IO]
+      _                  <- PartitionOrchestrator.spawn[IO](config, partitionIdManager, graphID, topicRepo, scheduler)
       _                  <- IngestionManager[IO](config, topicRepo)
       _                  <- QueryManager[IO](config, topicRepo)
     } yield new QuerySender(scheduler, topicRepo, config, sourceIdManager, createName)

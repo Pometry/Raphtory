@@ -13,19 +13,16 @@ class ProgressTracker(GenericScalaProxy):
 
 @register(name="Table")
 class Table(GenericScalaProxy):
-    def write_to_dataframe(self, cols):
-        sink = find_class("com.raphtory.sinks.LocalQueueSink").apply()
-        self.write_to(sink).wait_for_job()
-        res = sink.results()
-        newJson = []
-        for r in res:
-            jsonRow = json.loads(r)
-            row = jsonRow['row']
-            for name, item in zip(cols, row):
-                jsonRow[name] = item
-            jsonRow.pop('row')
-            newJson.append(jsonRow)
-        return pd.DataFrame(newJson)
+    _classname = "com.raphtory.api.analysis.table.Table"
+    def to_df(self, cols):
+        rows = []
+        for res in self.get():
+            timestamp = res.perspective().timestamp()
+            window = res.perspective().window()
+
+            for r in res.rows():
+                rows.append((timestamp, window, *r.get_values()))
+        return pd.DataFrame.from_records(rows, columns=('timestamp', 'window', *cols))
 
 
 class Row(ScalaClassProxy):
@@ -38,6 +35,7 @@ class PropertyMergeStrategy(ScalaClassProxy):
 
 @register(name="TemporalGraph")
 class TemporalGraph(GenericScalaProxy):
+    _classname = "com.raphtory.api.analysis.graphview.TemporalGraph"
     def transform(self, algorithm):
         if isinstance(algorithm, ScalaProxyBase):
             return super().transform(algorithm)
@@ -53,6 +51,7 @@ class TemporalGraph(GenericScalaProxy):
 
 @register(name="Accumulator")
 class Accumulator(GenericScalaProxy):
+    _classname = "com.raphtory.api.analysis.graphstate.Accumulator"
 
     def __iadd__(self, other):
         self.plus_eq(other)

@@ -31,16 +31,17 @@ private[raphtory] class QueryManager(
     logger.info(s"Source '$ID' is blocking analysis for Graph '$graphID'")
     sources.get(ID) match {
       case Some(tracker) => //already created
-      case None          => sources.put(ID, SourceTracker())
+      case None          => sources.put(ID, SourceTracker(ID))
     }
   }
 
-  def stopBlockIngesting(ID: Int, force: Boolean, msgCount: Long): Unit =
+  def stopBlockIngesting(ID: Int, force: Boolean, msgCount: Long, highestTimeSeen: Long): Unit =
     if (force) {
-      logger.info(s"Source '$ID' is forced unblocking analysis for Graph '$graphID' with $msgCount messages sent.")
+      logger.info(
+              s"Source '$ID' is forced unblocking analysis for Graph '$graphID' with $msgCount messages sent. Latest update time was $highestTimeSeen"
+      )
       sources.foreach {
         case (id, tracker) =>
-          tracker.unblock()
           if (id == ID)
             tracker.setTotalSent(msgCount)
           else
@@ -48,13 +49,16 @@ private[raphtory] class QueryManager(
       }
     }
     else {
-      logger.info(s"Source '$ID' is unblocking analysis for Graph '$graphID' with $msgCount messages sent.")
+      logger.info(
+              s"Source '$ID' is unblocking analysis for Graph '$graphID' with $msgCount messages sent. Latest update time was $highestTimeSeen"
+      )
       sources.get(ID) match {
         case Some(tracker) =>
-          tracker.unblock()
           tracker.setTotalSent(msgCount)
-        case None          => //somehow updates unordered
-          logger.error(s"Source Tracker for source $ID was missing")
+        case None          =>
+          val tracker = SourceTracker(ID)
+          tracker.setTotalSent(msgCount)
+          sources.put(ID, tracker)
 
       }
     }
@@ -62,7 +66,12 @@ private[raphtory] class QueryManager(
   def currentlyBlockIngesting(blockedBy: Array[Int]): Boolean = {
     val generalBlocking = sources
       .map({
-        case (id, tracker) => tracker.isBlocking
+        case (id, tracker) =>
+          tracker.whatPercent() match {
+            case Some(msg) => logger.info(msg)
+            case None      =>
+          }
+          tracker.isBlocking
       })
       .exists(_ == true)
 
@@ -90,17 +99,19 @@ private[raphtory] class QueryManager(
         startBlockIngesting(blocking.sourceID)
 
       case unblocking: UnblockIngestion =>
-        stopBlockIngesting(unblocking.sourceID, unblocking.force, unblocking.messageCount)
+        stopBlockIngesting(unblocking.sourceID, unblocking.force, unblocking.messageCount, unblocking.highestTimeSeen)
         checkBlockedQueries()
 
-      case query: Query                 =>
+      case nonBlocking: NonBlocking     => stopBlockIngesting(nonBlocking.sourceID, force = false, 0, 0)
+
+      case query: Query             =>
         val jobID = query.name
         logger.debug(s"Handling query: $query")
 
         query.blockedBy.foreach(source =>
           sources.get(source) match {
             case Some(tracker) => //already created
-            case None          => sources.put(source, SourceTracker())
+            case None          => sources.put(source, SourceTracker(source))
           }
         )
 
@@ -113,7 +124,7 @@ private[raphtory] class QueryManager(
           trackNewQuery(jobID, queryHandler)
         }
 
-      case req: EndQuery                =>
+      case req: EndQuery            =>
         currentQueries.synchronized {
           currentQueries.get(req.jobID) match {
             case Some(queryhandler) =>
@@ -124,7 +135,7 @@ private[raphtory] class QueryManager(
         }
         blockedQueries.filter(q => q.name equals req.jobID)
 
-      case watermark: WatermarkTime     =>
+      case watermark: WatermarkTime =>
         watermarks.put(watermark.partitionID, watermark)
         watermark.sourceMessages.foreach {
           case (id, count) =>
@@ -133,9 +144,9 @@ private[raphtory] class QueryManager(
                 tracker.setReceivedMessage(watermark.partitionID, count)
 
               case None          =>
-                val tracker = SourceTracker()
+                val tracker = SourceTracker(id)
                 tracker.setReceivedMessage(watermark.partitionID, count)
-                sources.put(watermark.partitionID, tracker)
+                sources.put(id, tracker)
             }
         }
         checkBlockedQueries()
@@ -204,7 +215,7 @@ object QueryManager {
       topics: TopicRepository
   ): Resource[IO, QueryManager] = {
     val scheduler = new Scheduler
-    val topicList = List(topics.submissions, topics.watermark, topics.completedQueries, topics.blockingIngestion)
+    val topicList = List(topics.submissions(), topics.watermark, topics.completedQueries, topics.blockingIngestion())
     Component.makeAndStart[IO, QueryManagement, QueryManager](
             topics,
             "query-manager",

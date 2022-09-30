@@ -72,7 +72,7 @@ class CustomScalaKryoInstantiator extends EmptyScalaKryoInstantiator {
 
   override def newKryo: KryoBase = {
     val k       = super.newKryo
-    k.setClassLoader(DynamicClassLoader(k.getClassLoader))
+    k.setClassLoader(DynamicClassLoader())
     val reg     = new AllScalaRegistrar
     reg(k)
     val default = k.getDefaultSerializer(classOf[DynamicLoader]).asInstanceOf[Serializer[DynamicLoader]]

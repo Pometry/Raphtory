@@ -3,8 +3,9 @@ DOCKER_RAP:=bin/docker/raphtory
 DOCKER_TMP:=$(DOCKER_RAP)/tmp
 MODE:=batch
 
-version:
-	sbt -Dsbt.supershell=false -error "print core/version" > version
+# version:
+# 	sbt -Dsbt.supershell=false -error "exit" && \
+# 	sbt -Dsbt.supershell=false -error "print core/version" | tr -d "[:cntrl:]"  > version
 
 .PHONY sbt-build:
 sbt-build: version
@@ -16,8 +17,7 @@ sbt-build: version
 python-build: version
 	cd python/pyraphtory/ && mkdir -p lib && \
 		poetry build && \
-		poetry install && \
-		pip3 install --upgrade pip
+		poetry install
 	pip3 install python/pyraphtory/dist/pyraphtory-$$(cat version).tar.gz
 
 .PHONY pyraphtory-local:
@@ -48,7 +48,6 @@ clean-local-cluster:
 	rm -Rf $(DOCKER_TMP)/*
 
 clean:
-	rm version
 	sbt clean
 
 local-pulsar: version

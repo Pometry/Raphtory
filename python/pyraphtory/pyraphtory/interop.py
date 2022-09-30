@@ -1,24 +1,25 @@
-import abc
 import inspect
 import re
 import traceback
 from abc import ABCMeta
 from collections.abc import Iterable, Mapping
+
 from py4j.java_gateway import JavaObject, JavaClass
 from py4j.java_collections import JavaArray
 import cloudpickle as pickle
 from functools import cached_property
-from threading import Lock
+from threading import Lock, RLock
 from copy import copy
-
+from textwrap import indent
 from pyraphtory import _codegen
+from pyraphtory._py4jgateway import Py4JConnection
 
 _wrapper_lock = Lock()
 _wrappers = {}
 
 
 def repr(obj):
-    return _scala.scala.repr(obj)
+    return _scala.repr(obj)
 
 
 # stay sane while debugging this code
@@ -29,9 +30,17 @@ JavaObject.__str__ = repr
 JavaClass.__repr__ = repr
 JavaClass.__str__ = repr
 
+try:
+    from pemja import findClass
+
+    _scala = findClass('com.raphtory.internals.management.PythonInterop')
+except ImportError:
+    _py4j = Py4JConnection()
+    _scala = _py4j.j_gateway.entry_point
+
 
 def test_scala_reflection(obj):
-    return _scala.scala.methods2(obj)
+    return _scala.methods2(obj)
 
 
 def register(cls=None, *, name=None):
@@ -49,27 +58,6 @@ def register(cls=None, *, name=None):
             raise ValueError(f"Missing name during registration of {cls!r}")
         _wrappers[name] = cls
         return cls
-
-
-def set_scala_interop(obj):
-    """Provide an object for the scala interop interface (used when initialising from py4j)"""
-    global _scala
-    _scala.set_interop(obj)
-
-
-class Scala(object):
-    """Class used to lazily initialise the scala interop to avoid import errors before the java connection is established"""
-    @cached_property
-    def scala(self):
-        from pemja import findClass
-        return findClass('com.raphtory.internals.management.PythonInterop')
-
-    def set_interop(self, obj):
-        """override the default lookup property for initialisation with py4j"""
-        self.__dict__["scala"] = obj
-
-
-_scala = Scala()
 
 
 def is_PyJObject(obj):
@@ -90,18 +78,23 @@ def snake_to_camel(name: str):
 
 def camel_to_snake(name: str):
     """Convert scala-style camel-case names to python style snake case"""
-    return _scala.scala.camel_to_snake(name)
+    return _scala.camel_to_snake(name)
 
 
 def decode(obj):
     """call scala decode function to deal with converting java to scala collections"""
-    return _scala.scala.decode(obj)
+    return _scala.decode(obj)
 
 
 def get_methods(obj):
     """look up methods for a java object"""
     logger.trace("Finding methods for {obj!r}", obj=obj)
-    return _scala.scala.methods(obj)
+    return _scala.methods(obj)
+
+
+def get_methods_from_name(name):
+    logger.trace("Finding methods for {name} based on name", name=name)
+    return _scala.methods_from_name(name)
 
 
 def get_wrapper(obj):
@@ -119,23 +112,17 @@ def get_wrapper(obj):
                 wrapper = _wrappers[name]
                 logger.trace("Found wrapper for {name!r} based on class name after initial wait", name=name)
             else:
-                base = type(name + "_jvm", (GenericScalaProxy,), {})
-                # do not register base wrapper here, or it will get picked up by other threads
-                base._init_methods(obj)
                 # Check if a special wrapper class is registered for the object
-                wrap_name = _scala.scala.get_wrapper_str(obj)
+                wrap_name = _scala.get_wrapper_str(obj)
                 if wrap_name in _wrappers:
                     # Add special wrapper class to the top of the mro such that method overloads work
-                    logger.trace("Using wrapper based on name {wrap_name} for {name}", wrap_name=wrap_name, name=name)
+                    logger.debug("Using wrapper based on name {wrap_name} for {name}", wrap_name=wrap_name, name=name)
                     # Note this wrapper is registered automatically as '_classname' is defined
-                    wrapper = type(name, (_wrappers[wrap_name], base), {"_classname": name})
+                    wrapper = type(name, (_wrappers[wrap_name],), {"_classname": name, "_initialised": False})
                 else:
                     # No special wrapper registered, can use base wrapper directly
-                    logger.trace("No wrapper found for name {}", wrap_name)
-                    wrapper = base
-                    # register the base wrapper in this case
-                    wrapper._classname = name
-                    register(wrapper)
+                    logger.debug("No wrapper found for name {}, using GenericScalaProxy", name)
+                    wrapper = type(name, (GenericScalaProxy,), {"_classname": name, "_initialised": False})
                 logger.trace("New wrapper created for {name!r}", name=name)
     logger.trace("Wrapper is {wrapper!r}", wrapper=wrapper)
     return wrapper
@@ -179,17 +166,17 @@ def to_python(obj):
 
 def find_class(path: str):
     """get the scala companion object instance for a class path"""
-    return _scala.scala.find_class(path)
+    return _scala.find_class(path)
 
 
 def assign_id(s: str):
     """call the asign_id function (used by graph builder)"""
-    return _scala.scala.assign_id(s)
+    return _scala.assign_id(s)
 
 
 def make_varargs(param):
     """convert parameter list to varargs-friendly array"""
-    return _scala.scala.make_varargs(param)
+    return _scala.make_varargs(param)
 
 
 def _wrap_python_function(fun):
@@ -206,9 +193,10 @@ def _wrap_python_function(fun):
 
 class Logger(object):
     """Wrapper for the java logger"""
+
     @cached_property
     def logger(self):
-        _logger = _scala.scala.logger()
+        _logger = _scala.logger()
         level = _logger.level()
         if level < 5:
             self.trace = self.no_op
@@ -250,6 +238,7 @@ logger = Logger()
 
 class FunctionWrapper(object):
     """class used to interface with python functions from scala"""
+
     def __init__(self, fun=None):
         self._fun = fun
         self.n_args = len(inspect.getfullargspec(fun).args)
@@ -263,6 +252,7 @@ class FunctionWrapper(object):
 
 class DefaultValue(object):
     """Wrap a scala default value accessor"""
+
     def __init__(self, method):
         self.method = method
 
@@ -289,8 +279,6 @@ class ScalaProxyBase(object):
         """Access the wrapped jvm object directly"""
         return self._jvm_object
 
-
-
     @classmethod
     def _add_method(cls, name, method_array):
         name = _codegen.clean_identifier(name)
@@ -299,6 +287,7 @@ class ScalaProxyBase(object):
             for i, method in enumerate(sorted(method_array, key=lambda m: m.n())):
                 try:
                     exec(_codegen.build_method(f"{name}{i}", method), globals(), output)
+                    # output[f"{name}{i}"].__doc__ = method.docs()
                 except Exception as e:
                     traceback.print_exc()
                     raise e
@@ -308,6 +297,7 @@ class ScalaProxyBase(object):
             method = method_array[0]
             try:
                 exec(_codegen.build_method(name, method), globals(), output)
+                # output[name].__doc__ = method.docs()
             except Exception as e:
                 traceback.print_exc()
                 raise e
@@ -317,24 +307,10 @@ class ScalaProxyBase(object):
         setattr(cls, name, InstanceOnlyMethod(method))
 
 
-class GenericScalaProxy(ScalaProxyBase):
-    """Base class for proxy objects that are not constructable from python
-
-    If a subclass defines a '_classname' attribute, it will be automatically
-    registered as the base class for proxy objects of that java class.
-    """
+class JVMBase(ScalaProxyBase):
     _initialised = False
     _classname = None
-    _jvm_object = None
-    _init_lock = Lock()
-
-    def __repr__(self):
-        if self._jvm_object is not None:
-            return repr(self._jvm_object)
-        else:
-            return super().__repr__()
-
-    __str__ = __repr__
+    _init_lock = RLock()
 
     @classmethod
     def _init_methods(cls, jvm_object):
@@ -346,14 +322,45 @@ class GenericScalaProxy(ScalaProxyBase):
         with cls._init_lock:
             # this should only happen once in the case of multiple threads
             if not cls._initialised:
-                logger.trace(f"uninitialised class {cls.__name__}")
+                logger.debug(f"Initialising uninitialised class {cls.__name__}")
                 if jvm_object is None:
-                    raise RuntimeError("Need object to find methods")
-                logger.trace(f"Getting methods for {jvm_object}")
-                methods = get_methods(jvm_object)
+                    if cls._classname is not None:
+                        methods = get_methods_from_name(cls._classname)
+                    else:
+                        raise RuntimeError("Cannot initialise methods for class without object or classname")
+                else:
+                    if cls._classname is None:
+                        cls._classname = jvm_object.getClass().getName()
+                    logger.trace(f"Getting methods for {jvm_object}")
+                    methods = get_methods(jvm_object)
+                try:
+                    jvm_base_index = next(i for i, b in enumerate(cls.__bases__) if issubclass(b, JVMBase)
+                                          and not issubclass(b, GenericScalaProxy))
+                except StopIteration:
+                    jvm_base_index = len(cls.__bases__)
+                base = type(cls.__name__ + "_jvm", (JVMBase,), {"_classname": cls._classname})
                 for (name, method_array) in methods.items():
-                    cls._add_method(name, method_array)
+                    base._add_method(name, method_array)
+                cls.__bases__ = (*cls.__bases__[:jvm_base_index], base, *cls.__bases__[jvm_base_index + 1:])
                 cls._initialised = True
+            else:
+                logger.trace("_init_method called for initialised class {}", cls.__name__)
+
+
+class GenericScalaProxy(JVMBase):
+    """Base class for proxy objects that are not constructable from python
+
+    If a subclass defines a '_classname' attribute, it will be automatically
+    registered as the base class for proxy objects of that java class.
+    """
+
+    def __repr__(self):
+        if self._jvm_object is not None:
+            return repr(self._jvm_object)
+        else:
+            return super().__repr__()
+
+    __str__ = __repr__
 
     @property
     def classname(self):
@@ -372,19 +379,6 @@ class GenericScalaProxy(ScalaProxyBase):
         logger.trace(f"{self!r} called with {args=} and {kwargs=}")
         return self.apply(*args, **kwargs)
 
-    def __getattr__(self, item):
-        """Triggers method initialisation if the class is uninitialised, otherwise just raises AttributeError"""
-        if self._initialised:
-            raise AttributeError(f"Attribute {item} does not exist for {self!r}")
-        else:
-            if self._jvm_object is None:
-                if self._classname is not None:
-                    self._jvm_object = find_class(self._classname)
-                else:
-                    raise AttributeError("Uninitialised class has no attributes")
-            self._init_methods(self._jvm_object)
-            return getattr(self, item)
-
     def __new__(cls, jvm_object=None):
         """Create a new instance and trigger method initialisation if needed"""
         if jvm_object is not None:
@@ -399,10 +393,12 @@ class GenericScalaProxy(ScalaProxyBase):
         super().__init_subclass__(**kwargs)
         if cls._classname is not None:
             register(cls)
+            cls._init_methods(None)
 
 
 class InstanceOnlyMethod(object):
     """Instance method that does not shadow class method of the same name"""
+
     def __init__(self, method):
         self.__func__ = method
         self.__name__ = method.__name__
@@ -430,8 +426,10 @@ class OverloadedMethod:
     def __init__(self, methods, name):
         self.__name__ = name
         self._methods = methods
-        self.__doc__ = (f"Overloaded method {self.__name__} with alternatives\n"
-                        + "\n".join(f"{self.__name__}{inspect.signature(m)}" for m in self._methods))
+        self.__doc__ = (f"Overloaded method {self.__name__} with alternatives\n\n"
+                        + "\n\n".join(f"{self.__name__}{inspect.signature(m)}" +
+                                      ("\n" + indent(m.__doc__, "    ") if m.__doc__ else "")
+                                      for m in self._methods))
 
     def __call__(self, *args, **kwargs):
         for method in self._methods:
@@ -454,6 +452,7 @@ class OverloadedMethod:
 
 class WithImplicits:
     """Proxy object for scala method with support for default arguments and implicits"""
+
     def __init__(self, method):
         self.__name__ = method.__name__
         self._method = method
@@ -483,7 +482,7 @@ class WithImplicits:
 class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
     """Metaclass for wrapping Scala companion objects"""
     _base_initialised = False
-    _init_lock = Lock()
+    _base_init_lock = RLock()
 
     @property
     def jvm(self):
@@ -494,30 +493,35 @@ class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
         else:
             return None
 
+    def _from_jvm(cls, jvm_object):
+        if cls._base_initialised:
+            return cls
+        else:
+            with cls._base_init_lock:
+                cls._init_base_methods(jvm_object)
+                cls._jvm_object = jvm_object
+            return cls
+
     def __new__(mcs, name, bases, attrs, **kwargs):
         """Injects an additional specialised type to avoid interference between different classes"""
-        if "_classname" not in attrs:
+        concrete = "_classname" in attrs
+        if not concrete:
             actual_mcs = mcs
         else:
             actual_mcs = type.__new__(mcs, name + "_", (mcs,), {"_classname": attrs["_classname"]})
-        return type.__new__(actual_mcs, name, bases, attrs, **kwargs)
+            actual_mcs._init_base_methods(_scala.find_class(actual_mcs._classname))
 
-    def __getattr__(self, item):
-        """Lazy initialisation of class attributes to avoid import errors due to missing java connection"""
-        if self._base_initialised:
-            raise AttributeError(f"Attribute {item} does not exist for {self!r}")
-        else:
-            if self._jvm_object is None and self._classname is not None:
-                self._jvm_object = find_class(self._classname)
-                self._init_base_methods(self._jvm_object)
-                return getattr(self, item)
-            else:
-                raise AttributeError("Uninitialised class has no attributes")
+        cls = type.__new__(actual_mcs, name, bases, attrs, **kwargs)
+        if concrete:
+            cls._jvm_object = _scala.find_class(actual_mcs._classname)
+            register(cls._from_jvm, name=cls._classname + "$")
+
+        return cls
 
     @classmethod
     def _init_base_methods(mcs, jvm_object):
         """add companion object methods to metaclass"""
-        with mcs._init_lock:
+        with mcs._base_init_lock:
             # this should only happen once in case of multiple threads
             if not mcs._base_initialised:
                 logger.trace(f"uninitialised class {mcs.__name__}")
@@ -532,6 +536,7 @@ class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
 
 class ScalaClassProxy(GenericScalaProxy, metaclass=ScalaObjectProxy):
     """Base class for wrapper objects that are constructable from python"""
+
     @classmethod
     def _build_from_python(cls, *args, **kwargs):
         """Override to control python-side constructor behaviours (e.g., using a builder for sequence construction)"""
@@ -555,22 +560,3 @@ class Function1(ScalaClassProxy):
 class Function2(ScalaClassProxy):
     """Proxy object for wrapping python functions with 2 arguments"""
     _classname = "com.raphtory.internals.management.PythonFunction2"
-
-
-class BuiltinAlgorithm(ScalaProxyBase):
-    """Proxy object for looking up built-in algorithms based on path
-
-    (This actually could be used for looking up other classes as well if needed)
-    """
-    @property
-    def _jvm_object(self):
-        return find_class(self._path)
-
-    def __init__(self, path: str):
-        self._path = path
-
-    def __call__(self, *args, **kwargs):
-        return to_python(self._jvm_object).apply(*args, **kwargs)
-
-    def __getattr__(self, item):
-        return BuiltinAlgorithm(".".join((self._path, item)))

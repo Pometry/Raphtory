@@ -1,7 +1,6 @@
 package com.raphtory.api.analysis.graphview
 
 import com.raphtory.api.input.Graph
-import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.MaybeType
 import com.raphtory.api.input.NoType
 import com.raphtory.api.input.Properties
@@ -14,16 +13,16 @@ import com.raphtory.api.time.NullInterval
 import com.raphtory.internals.components.querymanager.PointPath
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.SinglePoint
+import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphAlteration.EdgeAdd
 import com.raphtory.internals.graph.GraphAlteration.EdgeDelete
+import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.internals.graph.GraphAlteration.VertexAdd
 import com.raphtory.internals.graph.GraphAlteration.VertexDelete
 import com.raphtory.internals.management.QuerySender
 import com.raphtory.internals.time.DateTimeParser
 import com.typesafe.config.Config
 import com.raphtory.internals.time.IntervalParser.{parse => parseInterval}
-
-import scala.annotation.varargs
 
 private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <: FixedGraph[
         FixedG
@@ -33,8 +32,16 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   private[api] val querySender: QuerySender
   private[api] val conf: Config
 
-  private lazy val sourceID = querySender.getSourceID()
-  private var index         = 0
+  override protected def handleGraphUpdate(update: GraphUpdate): Unit =
+    querySender.handleInternal(update)
+
+  override protected def sourceID: Int = querySender.IDForUpdates()
+
+  override def index: Long = querySender.index
+
+  override protected def graphID: String = querySender.internalGraphID
+
+  def totalPartitions: Int = querySender.totalPartitions
 
   def stream(sources: Source*): G = {
     querySender.submitSource(blocking = false, sources, conf.getString("raphtory.graph.id"))
@@ -44,63 +51,6 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   def load(sources: Source*): G = {
     querySender.submitSource(blocking = true, sources, conf.getString("raphtory.graph.id"))
     this
-  }
-
-  def blockIngestion(): G = {
-    querySender.blockIngestion(sourceID)
-    this
-  }
-
-  def unblockIngestion(force: Boolean = false): G = {
-    querySender.unblockIngestion(sourceID, index, force) //plus one as we index from 0
-    this
-  }
-
-  override def addVertex(updateTime: Long, srcId: Long, posTypeArg: Type): Unit = {
-    querySender.individualUpdate(VertexAdd(sourceID, updateTime, index, srcId, Properties(), posTypeArg.toOption))
-    index += 1
-  }
-
-  override def addVertex(
-      updateTime: Long,
-      srcId: Long,
-      properties: Properties = Properties(),
-      vertexType: MaybeType = NoType,
-      secondaryIndex: Long = index
-  ): Unit = {
-    querySender.individualUpdate(
-            VertexAdd(sourceID, updateTime, secondaryIndex, srcId, Properties(), vertexType.toOption)
-    )
-    index += 1
-  }
-
-  override def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long = index): Unit = {
-    querySender.individualUpdate(VertexDelete(sourceID, updateTime, secondaryIndex, srcId))
-    index += 1
-  }
-
-  override def addEdge(updateTime: Long, srcId: Long, dstId: Long, posTypeArg: Type): Unit = {
-    querySender.individualUpdate(EdgeAdd(sourceID, updateTime, index, srcId, dstId, Properties(), posTypeArg.toOption))
-    index += 1
-  }
-
-  override def addEdge(
-      updateTime: Long,
-      srcId: Long,
-      dstId: Long,
-      properties: Properties = Properties(),
-      edgeType: MaybeType = NoType,
-      secondaryIndex: Long = index
-  ): Unit = {
-    querySender.individualUpdate(
-            EdgeAdd(sourceID, updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption)
-    )
-    index += 1
-  }
-
-  override def deleteEdge(updateTime: Long, srcId: Long, dstId: Long, secondaryIndex: Long = index): Unit = {
-    querySender.individualUpdate(EdgeDelete(sourceID, updateTime, secondaryIndex, srcId, dstId))
-    index += 1
   }
 
   /** Creates a new `TemporalGraph` which includes all activity after startTime (inclusive).

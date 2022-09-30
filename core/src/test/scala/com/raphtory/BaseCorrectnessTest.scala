@@ -5,6 +5,7 @@ import com.raphtory.api.analysis.algorithm.GenericallyApplicable
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
+import com.raphtory.api.input.Graph
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
@@ -16,9 +17,18 @@ import scala.collection.mutable
 
 case class TestQuery(
     algorithm: GenericallyApplicable,
-    timestamp: Long,
+    timestamp: Long = -1,
     windows: List[Long] = List.empty[Long]
 )
+
+trait Edges extends Spout[String]
+
+object Edges {
+  implicit def edgesFromResource(resource: String)  = new ResourceSpout(resource) with Edges
+  implicit def edgesFromEdgeSeq(edges: Seq[String]) = new SequenceSpout(edges) with Edges
+}
+
+trait Result
 
 abstract class BaseCorrectnessTest(
     deleteResultAfterFinish: Boolean = true
@@ -26,8 +36,12 @@ abstract class BaseCorrectnessTest(
 
   private def runTest(test: TestQuery, graph: TemporalGraph = graphS) =
     IO {
-      val tracker =
-        graph.at(test.timestamp).window(test.windows, Alignment.END).execute(test.algorithm).writeTo(defaultSink)
+      val tracker = (if (test.timestamp >= 0)
+                       graph.at(test.timestamp).window(test.windows, Alignment.END)
+                     else
+                       graph)
+        .execute(test.algorithm)
+        .writeTo(defaultSink)
       tracker.waitForJob()
       TestUtils.getResults(outputDirectory, tracker.getJobId)
     }
@@ -35,7 +49,7 @@ abstract class BaseCorrectnessTest(
   private def normaliseResults(value: IterableOnce[String]) =
     value.iterator.toList.sorted.mkString("\n")
 
-  override def setGraphBuilder(): GraphBuilder[String] = BasicGraphBuilder()
+  override def setGraphBuilder(): GraphBuilder[String] = BasicGraphBuilder
 
   def setSpout(): Spout[String] = new IdentitySpout
 
@@ -50,26 +64,26 @@ abstract class BaseCorrectnessTest(
 
   def correctnessTest(
       test: TestQuery,
-      graphResource: String,
+      graphEdges: Edges,
       resultsResource: String
   ): IO[Unit] =
     Raphtory
       .newIOGraph()
       .use { g =>
-        g.load(Source(ResourceSpout(graphResource), setGraphBuilder()))
+        g.load(Source(graphEdges, setGraphBuilder()))
         runTest(test, g)
       }
       .map(obtained => assertResultsMatch(obtained, resultsResource))
 
   def correctnessTest(
       test: TestQuery,
-      graphEdges: Seq[String],
+      graphEdges: Edges,
       results: Seq[String]
   ): IO[Unit] =
     Raphtory
       .newIOGraph()
       .use { g =>
-        g.load(Source(SequenceSpout(graphEdges: _*), setGraphBuilder()))
+        g.load(Source(graphEdges, setGraphBuilder()))
         runTest(test, g)
       }
       .map(obtained => assertResultsMatch(obtained, results))

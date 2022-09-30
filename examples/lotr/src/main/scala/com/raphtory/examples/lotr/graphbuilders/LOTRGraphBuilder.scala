@@ -6,15 +6,14 @@ import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
 
-class LOTRGraphBuilder extends GraphBuilder[String] {
+object LOTRGraphBuilder extends GraphBuilder[String] {
 
-  override def parse(graph: Graph, tuple: String): Unit = {
-//    val line = new String(tuple,"UTF-8")
+  def apply(graph: Graph, tuple: String): Unit = {
     val fileLine   = tuple.split(",").map(_.trim)
     val sourceNode = fileLine(0)
-    val srcID      = assignID(sourceNode)
+    val srcID      = graph.assignID(sourceNode)
     val targetNode = fileLine(1)
-    val tarID      = assignID(targetNode)
+    val tarID      = graph.assignID(targetNode)
     val timeStamp  = fileLine(2).toLong
 
     graph.addVertex(
@@ -31,5 +30,4 @@ class LOTRGraphBuilder extends GraphBuilder[String] {
     )
     graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurence"))
   }
-
 }

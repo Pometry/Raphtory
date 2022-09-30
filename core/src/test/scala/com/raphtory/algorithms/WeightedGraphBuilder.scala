@@ -5,11 +5,10 @@ import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.LongProperty
 import com.raphtory.api.input.Properties
-import com.raphtory.api.input.Properties._
 
-class WeightedGraphBuilder extends GraphBuilder[String] {
+object WeightedGraphBuilder extends GraphBuilder[String] {
 
-  override def parse(graph: Graph, tuple: String): Unit = {
+  def apply(graph: Graph, tuple: String): Unit = {
     val line       = tuple.split(",")
     val sourceNode = line(0)
     val srcID      = sourceNode.toLong
@@ -25,8 +24,4 @@ class WeightedGraphBuilder extends GraphBuilder[String] {
 //    logger.debug(s"Finished processing line '$line'.")
   }
 
-}
-
-object WeightedGraphBuilder {
-  def apply() = new WeightedGraphBuilder
 }

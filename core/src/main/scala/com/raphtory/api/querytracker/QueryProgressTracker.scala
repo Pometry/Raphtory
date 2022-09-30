@@ -3,8 +3,12 @@ package com.raphtory.api.querytracker
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.querymanager.JobDone
+import com.raphtory.internals.components.querymanager.JobFailed
+import com.raphtory.internals.components.querymanager.PerspectiveCompleted
+import com.raphtory.internals.components.querymanager.PerspectiveFailed
+import com.raphtory.internals.components.querymanager.PerspectiveReport
 import com.raphtory.internals.components.querymanager.QueryManagement
-import com.raphtory.internals.graph.Perspective
+import com.raphtory.api.time.Perspective
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -14,9 +18,39 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 import scala.concurrent.Promise
 import scala.concurrent.duration.Duration
+import scala.util.Failure
 import scala.util.Success
 
 private class DoneException extends Exception
+
+trait QueryProgressTrackerBase {
+
+  /** Returns job identifier for the query
+    * @return job identifier
+    */
+  def getJobId: String
+
+  /** Returns the latest `Perspective` processed by the query
+    * @return latest perspective
+    */
+  def getLatestPerspectiveProcessed: Option[Perspective]
+
+  /** Returns list of perspectives processed for the query so far
+    * @return a list of perspectives
+    */
+  def getPerspectivesProcessed: List[Perspective]
+
+  /** Returns the time taken to process each perspective in milliseconds */
+  def getPerspectiveDurations: List[Long]
+
+  /** Checks if job is complete
+    * @return job status
+    */
+  def isJobDone: Boolean
+
+  /** Block until job is complete */
+  def waitForJob(timeout: Duration = Duration.Inf): Unit
+}
 
 /** Tracks the progress of Raphtory queries in terms of number of perspectives processed and duration taken to process each perspective.
   * Queries in Raphtory run on a series of `Perspectives` which are how the graph would have looked at specific timestamps with given windows.
@@ -43,7 +77,8 @@ class QueryProgressTracker private[raphtory] (
     jobID: String,
     conf: Config,
     topics: TopicRepository
-) extends Component[QueryManagement](conf) {
+) extends Component[QueryManagement](conf)
+        with QueryProgressTrackerBase {
   private var perspectivesProcessed: Long = 0
   private var jobDone: Boolean            = false
   private val logger: Logger              = Logger(LoggerFactory.getLogger(this.getClass))
@@ -61,24 +96,23 @@ class QueryProgressTracker private[raphtory] (
   private val startTime: Long       = System.currentTimeMillis
   private var perspectiveTime: Long = startTime
 
-  private val isJobDonePromise = Promise[Unit]()
+  protected val isJobFinishedPromise: Promise[Unit] = Promise()
 
   // Handles message to process the `Perspective` received in case
   // the query is in progress, or `JobDone` if the query is complete
   override def handleMessage(msg: QueryManagement): Unit =
     msg match {
-      case perspective: Perspective =>
-        val perspectiveDuration = System.currentTimeMillis() - perspectiveTime
-
-        if (perspective.window.nonEmpty)
-          logger.info(
-                  s"Job '$jobID': Perspective '${perspective.timestamp}' with window '${perspective.window.get}' " +
-                    s"finished in $perspectiveDuration ms."
-          )
-        else
-          logger.info(
-                  s"Job '$jobID': Perspective '${perspective.timestamp}' finished in $perspectiveDuration ms."
-          )
+      case perspectiveReport: PerspectiveReport =>
+        val perspective           = perspectiveReport.perspective
+        val perspectiveDuration   = System.currentTimeMillis() - perspectiveTime
+        val windowInfo            = if (perspective.window.nonEmpty) s" with window '${perspective.window.get}'" else ""
+        val (result, logFunction) = msg match {
+          case _: PerspectiveCompleted      => ("finished", logger.info(_: String))
+          case PerspectiveFailed(_, reason) => (s"failed (reason: '$reason')", logger.error(_: String))
+        }
+        val logMsg                =
+          s"Job '$jobID': Perspective '${perspective.timestamp}'$windowInfo $result after $perspectiveDuration ms."
+        logFunction(logMsg)
 
         perspectiveTime = System.currentTimeMillis
         perspectivesProcessed = perspectivesProcessed + 1
@@ -89,14 +123,17 @@ class QueryProgressTracker private[raphtory] (
 
         logger.info(s"Job $jobID: Running query, processed $perspectivesProcessed perspectives.")
 
-      case JobDone                  =>
+      case JobDone                              =>
         logger.info(
                 s"Job $jobID: Query completed with $perspectivesProcessed perspectives " +
                   s"and finished in ${System.currentTimeMillis() - startTime} ms."
         )
 
         jobDone = true
-        isJobDonePromise.complete(Success(()))
+        isJobFinishedPromise.complete(Success(()))
+      case JobFailed(error)                     =>
+        isJobFinishedPromise.failure(error)
+        logger.error(s"The execution of the query '$jobID' failed. Cause: '$error'")
     }
 
   override private[raphtory] def run(): Unit = {
@@ -140,7 +177,7 @@ class QueryProgressTracker private[raphtory] (
   /** Block until job is complete */
   def waitForJob(timeout: Duration = Duration.Inf): Unit =
     try {
-      Await.result[Unit](isJobDonePromise.future, timeout)
+      Await.result[Unit](isJobFinishedPromise.future, timeout)
       if (isJobDone) stop()
     }
     catch {

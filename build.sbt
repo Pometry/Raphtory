@@ -1,9 +1,13 @@
 import sbt.Compile
 import sbt.Keys.baseDirectory
 import Dependencies._
+import higherkindness.mu.rpc.srcgen.Model._
 
+import scala.io.Source
+
+val raphtoryVersion = Source.fromFile("version").getLines.next()
 ThisBuild / scalaVersion := "2.13.7"
-ThisBuild / version := "0.1.0"
+ThisBuild / version := raphtoryVersion
 ThisBuild / organization := "com.raphtory"
 ThisBuild / organizationName := "raphtory"
 ThisBuild / organizationHomepage := Some(url("https://raphtory.readthedocs.io/"))
@@ -41,6 +45,26 @@ ThisBuild / publishTo := {
 }
 ThisBuild / publishMavenStyle.withRank(KeyRanks.Invisible) := true
 
+ThisBuild / scalacOptions += "-language:higherKinds"
+
+def on[A](major: Int, minor: Int)(a: A): Def.Initialize[Seq[A]] =
+  Def.setting {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some(v) if v == (major, minor) => Seq(a)
+      case _                              => Nil
+    }
+  }
+
+lazy val macroSettings: Seq[Setting[_]] = Seq(
+        libraryDependencies ++= Seq(
+                scalaOrganization.value % "scala-compiler" % scalaVersion.value % Provided
+        ),
+        libraryDependencies ++= on(2, 12)(
+                compilerPlugin("org.scalamacros" %% "paradise" % "2.1.1" cross CrossVersion.full)
+        ).value,
+        scalacOptions ++= on(2, 13)("-Ymacro-annotations").value
+)
+
 lazy val root = (project in file("."))
   .settings(
           name := "Raphtory",
@@ -51,15 +75,21 @@ lazy val root = (project in file("."))
           connectorsAWS,
           connectorsTwitter,
           examplesCoho,
+          connectorsPulsar,
           connectorsTypeDB,
-          examplesEnron,
-          examplesFacebook,
           examplesGab,
           examplesLotr,
           examplesTwitter,
           examplesNFT,
-          deploy
+          deploy,
+          integrationTest
   )
+
+//lazy val protocol = project
+//  .settings(
+//          // Needed to expand the @service macro annotation
+//          macroSettings
+//  )
 
 lazy val core = (project in file("core"))
   .settings(
@@ -73,6 +103,7 @@ lazy val core = (project in file("core"))
           ),
           assemblySettings,
           defaultSettings,
+          addCompilerPlugin(scalaDocReader),
           libraryDependencies ++= Seq(
                   //please keep in alphabetical order
                   akkaClusterTyped,
@@ -80,40 +111,49 @@ lazy val core = (project in file("core"))
                   bcel,
                   curatorRecipes,
                   decline,
+                  fs2,
+                  apacheHttp,
                   jackson,
                   jfr,
                   log4jSlft4,
                   log4jApi,
                   log4jCore,
                   magnolia,
+                  muClient,
+                  muFs2,
+                  muServer,
+                  muService,
                   nomen,
                   openhft,
                   pemja,
                   prometheusClient,
                   prometheusHotspot,
                   prometheusHttp,
-                  pulsarAdmin,
-                  pulsarApi,
-                  pulsarCommon,
-                  pulsarCrypto,
-                  pulsarOriginal,
                   py4j,
                   scalaLogging,
+                  scalaParallelCollections,
                   scalaTest,
                   scalaTestCompile,
                   slf4j,
                   sprayJson,
                   testContainers,
-                  timeSeries,
                   twitterChill,
                   catsEffect,
                   catsMUnit,
                   alleyCats,
                   typesafeConfig,
-                  zookeeper
+                  zookeeper,
+                  scalaDocReader
           ),
-          libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
+          libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) },
+          // Needed to expand the @service macro annotation
+          macroSettings,
+          // Generate sources from .proto files
+          muSrcGenIdlType := IdlType.Proto,
+          // Make it easy for 3rd-party clients to communicate with us via gRPC
+          muSrcGenIdiomaticEndpoints := true
   )
+  .enablePlugins(SrcGenPlugin)
 
 // CONNECTORS
 
@@ -126,29 +166,30 @@ lazy val connectorsTwitter =
 lazy val connectorsTypeDB =
   (project in file("connectors/typedb")).dependsOn(core).settings(assemblySettings)
 
+lazy val connectorsPulsar =
+  (project in file("connectors/pulsar"))
+    .dependsOn(core % "compile->compile;test->test")
+    .settings(assemblySettings)
+
 // EXAMPLE PROJECTS
 
 lazy val examplesCoho =
   (project in file("examples/companies-house")).dependsOn(core).settings(assemblySettings)
 
-lazy val examplesEnron =
-  (project in file("examples/enron")).dependsOn(core).settings(assemblySettings)
-
 lazy val examplesEthereum =
-  (project in file("examples/ethereum")).dependsOn(core).settings(assemblySettings)
-
-lazy val examplesFacebook =
-  (project in file("examples/facebook")).dependsOn(core).settings(assemblySettings)
+  (project in file("examples/ethereum")).dependsOn(core, connectorsPulsar).settings(assemblySettings)
 
 lazy val examplesGab =
-  (project in file("examples/gab")).dependsOn(core).settings(assemblySettings)
+  (project in file("examples/gab")).dependsOn(core, connectorsPulsar).settings(assemblySettings)
 
 lazy val examplesLotr =
-  (project in file("examples/lotr")).dependsOn(core).settings(assemblySettings)
+  (project in file("examples/lotr"))
+    .dependsOn(core % "compile->compile;test->test", connectorsPulsar)
+    .settings(assemblySettings)
 
 lazy val examplesTwitter =
   (project in file("examples/twitter"))
-    .dependsOn(core, connectorsTwitter)
+    .dependsOn(core, connectorsTwitter, connectorsPulsar)
     .settings(assemblySettings)
 
 lazy val examplesNFT =
@@ -158,6 +199,11 @@ lazy val examplesNFT =
 
 lazy val deploy =
   (project in file("deploy"))
+    .settings(assemblySettings)
+
+lazy val integrationTest =
+  (project in file("test"))
+    .dependsOn(core % "compile->compile;test->test")
     .settings(assemblySettings)
 
 // SETTINGS
@@ -204,6 +250,6 @@ Test / parallelExecution := false
 Global / concurrentRestrictions := Seq(
         Tags.limit(Tags.Test, 1)
 )
-
+core / Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 // Scaladocs parameters
 // doc / scalacOptions ++= Seq("-skip-packages", "com.raphtory.algorithms.generic:com.raphtory.algorithms.temporal", "-private")

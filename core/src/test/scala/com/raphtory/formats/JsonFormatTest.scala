@@ -6,8 +6,23 @@ import com.raphtory.Raphtory
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.output.format.Format
 import com.raphtory.api.time.DiscreteInterval
+import com.raphtory.internals.communication.CancelableListener
+import com.raphtory.internals.communication.CanonicalTopic
+import com.raphtory.internals.communication.Connector
+import com.raphtory.internals.communication.EndPoint
+import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.graph.Perspective
 import munit.FunSuite
+
+object NoConnector extends Connector {
+
+  override def register[T](id: String, messageHandler: T => Unit, topics: Seq[CanonicalTopic[T]]): CancelableListener =
+    ???
+
+  override def endPoint[T](topic: CanonicalTopic[T]): EndPoint[T] = ???
+
+  override def shutdown(): Unit = ???
+}
 
 class JsonFormatTest extends FunSuite {
   private val jobID       = "job-id"
@@ -83,7 +98,12 @@ class JsonFormatTest extends FunSuite {
       partitionID: Int
   ): String = {
     val sink     = StringSink(format = format)
-    val executor = sink.executor(jobID, partitionID, Raphtory.getDefaultConfig())
+    val executor = sink.executor(
+            jobID,
+            partitionID,
+            Raphtory.getDefaultConfig(),
+            TopicRepository(NoConnector, Raphtory.getDefaultConfig())
+    )
 
     table foreach {
       case (perspective, rows) =>

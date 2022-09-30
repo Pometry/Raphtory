@@ -2,6 +2,7 @@ package com.raphtory.internals.management
 
 import cats.Id
 import cats.syntax.all._
+import com.raphtory.Raphtory
 
 import java.lang.reflect.{Array => JArray}
 import com.raphtory.api.analysis.graphstate.Accumulator
@@ -9,7 +10,7 @@ import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
-import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Graph
 import com.raphtory.internals.management.python.EmbeddedPython
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -20,7 +21,9 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 import scala.reflect.runtime.universe
+import universe._
 import scala.util.Random
+import com.github.takezoe.scaladoc.Scaladoc
 
 /** Scala-side methods for interfacing with Python */
 object PythonInterop {
@@ -40,9 +43,14 @@ object PythonInterop {
       case v              => v.toString
     }
 
+  /** Get scaladoc string from annotation for class
+    */
+  def docstring_for_class(obj: Any): String =
+    Option(obj.getClass.getAnnotation(classOf[Scaladoc]).value()).getOrElse("")
+
   /** make assign_id accessible from python */
   def assign_id(s: String): Long =
-    GraphBuilder.assignID(s)
+    Graph.assignID(s)
 
   /** convert names from camel to snake case */
   def camel_to_snake(s: String): String =
@@ -62,6 +70,7 @@ object PythonInterop {
     */
   def get_wrapper_str(obj: Any): String =
     obj match {
+      case _: Array[_]          => "Array"
       case _: collection.Seq[_] => "Sequence"
       case _: Iterable[_]       => "Iterable"
       case _: Iterator[_]       => "Iterator"
@@ -87,8 +96,29 @@ object PythonInterop {
   def make_varargs[T](obj: Iterable[T]): List[T] =
     obj.toList
 
-  def public_methods(obj: Any): Map[String, ArrayBuffer[Method]] = {
-    val clazz         = obj.getClass
+  private def getMethodDocString(method: MethodSymbol): String =
+    getDocStringFromAnnotations(method.annotations).getOrElse {
+      method.overrides.iterator
+        .map(m => getDocStringFromAnnotations(m.annotations))
+        .collectFirst {
+          case Some(docs) => docs
+        }
+        .getOrElse("")
+    }
+
+  private def getDocStringFromAnnotations(annotations: Seq[universe.Annotation]): Option[String] =
+    annotations.flatMap { annotation =>
+      if (annotation.tree.tpe =:= typeOf[Scaladoc]) {
+        val doc = annotation.tree.children(1).children(1) match {
+          case Literal(Constant(doc: String)) => doc
+        }
+        Some(doc)
+      }
+      else
+        None
+    }.headOption
+
+  private def public_methods(clazz: Class[_]): Map[String, ArrayBuffer[Method]] = {
     val runtimeMirror = universe.runtimeMirror(clazz.getClassLoader)
     val objType       = runtimeMirror.classSymbol(clazz).toType.dealias
     val methods       = objType.members
@@ -106,11 +136,13 @@ object PythonInterop {
     val methodMap = mutable.Map.empty[String, ArrayBuffer[Method]]
 
     methods.foreach { m =>
+      m.overrides
       val name       = m.name.toString
       val params     = m.paramLists.flatten
       val types      = params.map(p => p.info.toString).toArray
       val implicits  = params.collect { case p if p.isImplicit => camel_to_snake(p.name.toString) }.toArray
       val paramNames = params.filterNot(_.isImplicit).map(p => camel_to_snake(p.name.toString)).toArray
+      val docs       = getMethodDocString(m)
       val defaults   = params.zipWithIndex
         .collect {
           case (p, i) if p.asTerm.isParamWithDefault =>
@@ -118,7 +150,6 @@ object PythonInterop {
         }
         .toMap
         .asJava
-
       methodMap
         .getOrElseUpdate(name, ArrayBuffer.empty[Method])
         .append(
@@ -129,24 +160,40 @@ object PythonInterop {
                         types,
                         defaults,
                         m.isVarargs,
-                        implicits
+                        implicits,
+                        docs
                 )
         )
     }
     methodMap.toMap
   }
 
-  /** Find methods and default values for an object and return in friendly format */
-  def methods(obj: Any): util.Map[String, Array[Method]] = {
-    logger.trace(s"Scala 'methods' called with $obj")
-    val publicMethods = public_methods(obj)
-    val javaMethods   = obj.getClass.getMethods.map(m => m.getName).toSet
+  private def methodsForClass(clazz: Class[_]): util.Map[String, Array[Method]] = {
+    val publicMethods = public_methods(clazz)
+    val javaMethods   = clazz.getMethods.map(m => m.getName).toSet
     val actual        = publicMethods.view
       .filterKeys(m => javaMethods contains m)
       .map { case (key, value) => camel_to_snake(key) -> value.toArray }
       .toMap
       .asJava
     actual
+  }
+
+  def methods_from_name(name: String): util.Map[String, Array[Method]] =
+    try {
+      val clazz = Class.forName(name)
+      methodsForClass(clazz)
+    }
+    catch {
+      case _: ClassNotFoundException => new util.HashMap[String, Array[Method]]()
+      case e                         => throw e
+    }
+
+  /** Find methods and default values for an object and return in friendly format */
+  def methods(obj: Any): util.Map[String, Array[Method]] = {
+    val clazz = obj.getClass
+    logger.trace(s"Scala 'methods' called with $obj")
+    methodsForClass(clazz)
   }
 }
 
@@ -182,7 +229,8 @@ case class Method(
     types: Array[String],
     defaults: java.util.Map[Int, String],
     varargs: Boolean,
-    implicits: Array[String]
+    implicits: Array[String],
+    docs: String = ""
 ) {
   def has_defaults: Boolean = !defaults.isEmpty
 }
