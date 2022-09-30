@@ -16,7 +16,8 @@ final private[raphtory] case class RowOutput(perspective: Perspective, row: Row)
 final private[raphtory] case class EndPerspective(perspective: Perspective, totalPartitions: Int) extends OutputMessages
 private[raphtory] case class EndOutput(totalPartitions: Int)                                      extends OutputMessages
 
-private[raphtory] class TableOutputSinkExecutor(endPoint: EndPoint[OutputMessages], totalPartitions: Int) extends SinkExecutor {
+private[raphtory] class TableOutputSinkExecutor(endPoint: EndPoint[OutputMessages], totalPartitions: Int)
+        extends SinkExecutor {
   private var currentPerspective: Perspective = _
 
   override def setupPerspective(perspective: Perspective): Unit = {
@@ -43,6 +44,7 @@ private[raphtory] class TableOutputSinkExecutor(endPoint: EndPoint[OutputMessage
 }
 
 private[raphtory] case object TableOutputSink extends Sink {
+
   override def executor(jobID: String, partitionID: Int, config: Config, topics: TopicRepository): SinkExecutor = {
     val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
     val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
