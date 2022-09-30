@@ -19,6 +19,13 @@ import com.raphtory.internals.management.RpcClient
 import com.typesafe.config.Config
 import cats.effect.unsafe.implicits.global
 import com.raphtory.internals.context.LocalContext.createName
+import com.raphtory.internals.management.ZookeeperConnector
+import com.typesafe.config.Config
+import cats.effect.unsafe.implicits.global
+import com.raphtory.arrowmessaging.ArrowFlightServer
+import com.raphtory.internals.context.LocalContext.createName
+import com.raphtory.internals.management.arrow.ZKHostAddressProvider
+import org.apache.arrow.memory.RootAllocator
 
 import scala.collection.mutable
 
@@ -40,7 +47,7 @@ class RemoteContext(address: String, port: Int) extends RaphtoryContext {
     val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
     for {
       _               <- Prometheus[IO](prometheusPort)
-      topicRepo       <- LocalTopicRepository[IO](config)
+      topicRepo       <- LocalTopicRepository[IO](config, None)
       rpc             <- RpcClient[IO](topicRepo, config)
       sourceIdManager <- makeClientIdManager[IO](rpc)
       querySender      = new QuerySender(new Scheduler(), topicRepo, config, sourceIdManager, createName)

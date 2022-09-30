@@ -3,6 +3,8 @@ package com.raphtory.internals.management.id
 import cats.effect.Resource
 import cats.effect.Sync
 import cats.syntax.all._
+import com.raphtory.internals.management.ZookeeperConnector
+
 import com.typesafe.scalalogging.Logger
 import org.apache.curator.framework.CuratorFramework
 import org.apache.curator.framework.CuratorFrameworkFactory
@@ -51,25 +53,16 @@ private[raphtory] class ZookeeperLimitedPool(
     }
 }
 
-private[raphtory] object ZookeeperLimitedPool {
+private[raphtory] object ZookeeperLimitedPool extends ZookeeperConnector {
 
   def apply[IO[_]: Sync](
       zookeeperAddress: String,
       poolID: String,
       poolSize: Int
   ): Resource[IO, ZookeeperLimitedPool] =
-    Resource
-      .fromAutoCloseable(
-              Sync[IO]
-                .delay {
-                  CuratorFrameworkFactory
-                    .builder()
-                    .connectString(zookeeperAddress)
-                    .retryPolicy(new ExponentialBackoffRetry(1000, 3))
-                    .build();
-                }
-                .flatTap(c => Sync[IO].blocking(c.start()))
-      )
+    ZookeeperConnector
+      .getZkClient(zookeeperAddress)
+      .asInstanceOf[Resource[IO, CuratorFramework]]
       .map(new ZookeeperLimitedPool(zookeeperAddress, poolID, poolSize, _))
 
   def apply[IO[_]: Sync](

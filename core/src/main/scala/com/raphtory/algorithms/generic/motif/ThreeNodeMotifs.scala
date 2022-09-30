@@ -7,6 +7,7 @@ import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 
 import scala.collection.mutable.ArrayBuffer
+import com.raphtory.internals.communication.SchemaProviderInstances._
 
 /**
   *  {s}`ThreeNodeMotifs()`
