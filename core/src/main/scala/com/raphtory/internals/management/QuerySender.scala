@@ -17,26 +17,27 @@ import scala.concurrent.duration.Duration
 import scala.util.Random
 
 private[raphtory] class QuerySender(
+    val graphID: String,
     override val scheduler: Scheduler,
     private val topics: TopicRepository,
     private val config: Config,
     private val idManager: IDManager,
     private val clientID: String
-) extends Graph with FlushToFlight {
+) extends Graph
+        with FlushToFlight {
 
   class NoIDException(message: String) extends Exception(message)
 
   override val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  val internalGraphID: String  = config.getString("raphtory.graph.id")
-  val partitionServers: Int            = config.getInt("raphtory.partitions.serverCount")
-  val partitionsPerServer: Int         = config.getInt("raphtory.partitions.countPerServer")
-  val totalPartitions: Int             = partitionServers * partitionsPerServer
+  val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
+  val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
+  val totalPartitions: Int     = partitionServers * partitionsPerServer
 
   override lazy val writers            = topics.graphUpdates(graphID).endPoint
-  private lazy val queryManager        = topics.blockingIngestion().endPoint
+  private lazy val queryManager        = topics.blockingIngestion(graphID).endPoint
   private lazy val graphSetup          = topics.graphSetup.endPoint
-  private lazy val submissions         = topics.submissions().endPoint
+  private lazy val submissions         = topics.submissions(graphID).endPoint
   private val blockingSources          = ArrayBuffer[Long]()
   private var highestTimeSeen          = Long.MinValue
   private var totalUpdateIndex         = 0    //used at the secondary index for the client
@@ -47,9 +48,8 @@ private[raphtory] class QuerySender(
 
   def addToDynamicPath(name: String): Unit = searchPath = name :: searchPath
 
-  override protected def sourceID: Int   = IDForUpdates()
-  override def index: Long               = totalUpdateIndex
-  override protected def graphID: String = internalGraphID
+  override protected def sourceID: Int = IDForUpdates()
+  override def index: Long             = totalUpdateIndex
 
   def IDForUpdates(): Int = {
     if (newIDRequiredOnUpdate)
@@ -98,7 +98,7 @@ private[raphtory] class QuerySender(
   }
 
   def createTracker(jobID: String): QueryProgressTracker = {
-    val tracker = QueryProgressTracker.unsafeApply(jobID, config, topics)
+    val tracker = QueryProgressTracker.unsafeApply(graphID, jobID, config, topics)
     scheduler.execute(tracker)
     tracker
   }
@@ -113,7 +113,7 @@ private[raphtory] class QuerySender(
   def establishGraph(): Unit = graphSetup sendAsync EstablishGraph(graphID, clientID)
 
   def outputCollector(jobID: String, timeout: Duration): TableOutputTracker = {
-    val collector = TableOutputTracker(jobID, topics, config, timeout)
+    val collector = TableOutputTracker(graphID, jobID, topics, config, timeout)
     scheduler.execute(collector)
     collector
   }

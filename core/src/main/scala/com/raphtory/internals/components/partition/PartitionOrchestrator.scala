@@ -18,17 +18,18 @@ import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 class PartitionOrchestrator(
+    repo: TopicRepository,
     conf: Config,
     idManager: IDManager
 ) extends OrchestratorComponent(conf) {
 
   override private[raphtory] def run(): Unit =
-    logger.info(s"Starting Partition Service for ${conf.getString("raphtory.deploy.id")}")
+    logger.info(s"Starting Partition Service")
 
   override def handleMessage(msg: ClusterManagement): Unit =
     msg match {
       case EstablishGraph(graphID: String, clientID: String) =>
-        establishPartition("Partition Manager", graphID, clientID, idManager, deployPartitionService)
+        establishPartition("Partition Manager", graphID, clientID, idManager, repo, deployPartitionService)
       case DestroyGraph(graphID, clientID, force)            => destroyGraph(graphID, clientID, force)
       case ClientDisconnected(graphID, clientID)             => clientDisconnected(graphID, clientID)
 
@@ -58,10 +59,7 @@ object PartitionOrchestrator {
   )(implicit
       IO: Async[IO]
   ): Resource[IO, List[PartitionManager]] = {
-
-    val graphID         = config.getString("raphtory.graph.id")
     val totalPartitions = config.getInt("raphtory.partitions.countPerServer")
-
     logger.info(s"Creating '$totalPartitions' Partition Managers for '$graphID'.")
 
     (0 until totalPartitions)
@@ -83,7 +81,7 @@ object PartitionOrchestrator {
     Component.makeAndStart(
             topics,
             s"partition-node",
-            List(topics.clusterComms(conf.getInt("raphtory.partitions.serverCount"))),
-            new PartitionOrchestrator(conf, idManager)
+            List(topics.clusterComms),
+            new PartitionOrchestrator(topics, conf, idManager)
     )
 }

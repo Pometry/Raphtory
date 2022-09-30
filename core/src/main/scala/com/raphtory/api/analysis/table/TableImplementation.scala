@@ -29,7 +29,7 @@ private[api] class TableImplementation(val query: Query, private[raphtory] val q
     writeTo(sink, "")
 
   override def get(jobName: String = "", timeout: Duration = Duration.Inf): TableOutputTracker =
-    querySender.outputCollector(submitQueryWithSink(TableOutputSink, jobName), timeout)
+    querySender.outputCollector(submitQueryWithSink(TableOutputSink(querySender.graphID), jobName), timeout)
 
   private def addFunction(function: TableFunction) =
     new TableImplementation(

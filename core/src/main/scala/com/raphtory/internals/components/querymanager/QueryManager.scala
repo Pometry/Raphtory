@@ -16,16 +16,17 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 private[raphtory] class QueryManager(
+    graphID: String,
     scheduler: Scheduler,
     conf: Config,
     topics: TopicRepository
 ) extends Component[QueryManagement](conf) {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val currentQueries                   = mutable.Map[String, QueryHandler]()
-  private val ingestion                        = topics.ingestSetup.endPoint
+  private val currentQueries                    = mutable.Map[String, QueryHandler]()
+  private val ingestion                         = topics.ingestSetup(graphID).endPoint
   val sources: mutable.Map[Long, SourceTracker] = mutable.Map[Long, SourceTracker]()
-  var blockedQueries: ArrayBuffer[Query]       = ArrayBuffer[Query]()
+  var blockedQueries: ArrayBuffer[Query]        = ArrayBuffer[Query]()
 
   def startBlockIngesting(ID: Int): Unit = {
     logger.info(s"Source '$ID' is blocking analysis for Graph '$graphID'")
@@ -156,7 +157,7 @@ private[raphtory] class QueryManager(
   private def spawnQuery(id: String, query: Query): QueryHandler = {
     logger.info(s"Query '${query.name}' received, your job ID is '$id'.")
 
-    val queryHandler = new QueryHandler(this, scheduler, id, query, conf, topics, query.pyScript)
+    val queryHandler = new QueryHandler(query.graphID, this, scheduler, id, query, conf, topics, query.pyScript)
     scheduler.execute(queryHandler)
     telemetry.totalQueriesSpawned.labels(graphID).inc()
     queryHandler
@@ -211,16 +212,22 @@ object QueryManager {
   import cats.effect.Spawn
 
   def apply[IO[_]: Async: Spawn](
+      graphID: String,
       config: Config,
       topics: TopicRepository
   ): Resource[IO, QueryManager] = {
     val scheduler = new Scheduler
-    val topicList = List(topics.submissions(), topics.watermark, topics.completedQueries, topics.blockingIngestion())
+    val topicList = List(
+            topics.submissions(graphID),
+            topics.watermark(graphID),
+            topics.completedQueries(graphID),
+            topics.blockingIngestion(graphID)
+    )
     Component.makeAndStart[IO, QueryManagement, QueryManager](
             topics,
             "query-manager",
             topicList,
-            new QueryManager(scheduler, config, topics)
+            new QueryManager(graphID, scheduler, config, topics)
     )
   }
 

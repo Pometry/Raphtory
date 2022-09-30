@@ -36,7 +36,6 @@ class RemoteContext(address: String, port: Int) extends RaphtoryContext {
       customConfig: Map[String, Any] = Map()
   ): Resource[IO, (QuerySender, Config)] = {
     val userParameters = List(
-            Some("raphtory.graph.id" -> graphID),
             if (address.isEmpty) None else Some("raphtory.deploy.address", address),
             if (port == 0) None else Some("raphtory.deploy.port", port)
     ).collect {
@@ -48,9 +47,9 @@ class RemoteContext(address: String, port: Int) extends RaphtoryContext {
     for {
       _               <- Prometheus[IO](prometheusPort)
       topicRepo       <- LocalTopicRepository[IO](config, None)
-      rpc             <- RpcClient[IO](topicRepo, config)
+      rpc             <- RpcClient[IO](graphID, topicRepo, config)
       sourceIdManager <- makeClientIdManager[IO](rpc)
-      querySender      = new QuerySender(new Scheduler(), topicRepo, config, sourceIdManager, createName)
+      querySender      = new QuerySender(graphID, new Scheduler(), topicRepo, config, sourceIdManager, createName)
     } yield (querySender, config)
   }
 

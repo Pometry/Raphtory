@@ -18,36 +18,22 @@ case object ClusterMode    extends DeploymentMode
 
 class ClusterManager(
     conf: Config,
-    topics: TopicRepository,
-    mode: DeploymentMode,
-    idManager: IDManager
+    topics: TopicRepository
 ) extends OrchestratorComponent(conf) {
+  private lazy val cluster = topics.clusterComms.endPoint
 
   override private[raphtory] def run(): Unit =
-    logger.info(s"Starting HeadNode for ${conf.getString("raphtory.deploy.id")}")
-
-  private def forwardToCluster(msg: ClusterManagement) =
-    topics.clusterComms(conf.getInt("raphtory.partitions.serverCount")).endPoint sendAsync msg
+    logger.info(s"Starting HeadNode")
 
   override def handleMessage(msg: ClusterManagement): Unit =
     msg match {
       case EstablishGraph(graphID: String, clientID: String) =>
-        mode match {
-          case StandaloneMode =>
-            deployStandaloneService(graphID, clientID, idManager)
-          case ClusterMode    =>
-            logger.info(s"Forwarding deployment request for graph to cluster: '$graphID'")
-            forwardToCluster(msg)
-        }
+        logger.info(s"Forwarding deployment request for graph to cluster: '$graphID'")
+        cluster sendAsync msg
       case DestroyGraph(graphID, clientID, force)            =>
-        mode match {
-          case StandaloneMode => destroyGraph(graphID, clientID, force)
-          case ClusterMode    =>
-            logger.info(s"Forwarding request to destroy graph to cluster: '$graphID'")
-            forwardToCluster(msg)
-        }
+        logger.info(s"Forwarding request to destroy graph to cluster: '$graphID'")
+        cluster sendAsync msg
       case ClientDisconnected(graphID, clientID)             => clientDisconnected(graphID, clientID)
-
     }
 }
 
@@ -55,14 +41,12 @@ object ClusterManager {
 
   def apply[IO[_]: Async: Spawn](
       conf: Config,
-      topics: TopicRepository,
-      mode: DeploymentMode,
-      idManager: IDManager
+      topics: TopicRepository
   ): Resource[IO, ClusterManager] =
     Component.makeAndStart(
             topics,
             s"head-node",
             List(topics.graphSetup),
-            new ClusterManager(conf, topics, mode, idManager)
+            new ClusterManager(conf, topics)
     )
 }

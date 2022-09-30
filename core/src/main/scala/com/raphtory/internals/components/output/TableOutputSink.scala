@@ -43,12 +43,12 @@ private[raphtory] class TableOutputSinkExecutor(endPoint: EndPoint[OutputMessage
   }
 }
 
-private[raphtory] case object TableOutputSink extends Sink {
+private[raphtory] case class TableOutputSink(graphID: String) extends Sink {
 
   override def executor(jobID: String, partitionID: Int, config: Config, topics: TopicRepository): SinkExecutor = {
     val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
     val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
     val totalPartitions: Int     = partitionServers * partitionsPerServer
-    new TableOutputSinkExecutor(topics.output(jobID).endPoint, totalPartitions)
+    new TableOutputSinkExecutor(topics.output(graphID, jobID).endPoint, totalPartitions)
   }
 }

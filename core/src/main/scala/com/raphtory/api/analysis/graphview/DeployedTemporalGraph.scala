@@ -28,7 +28,6 @@ class DeployedTemporalGraph private[raphtory] (
         with AutoCloseable {
 
   def config: Config = conf
-  def getID: String  = conf.getString("raphtory.graph.id")
 
   def destroy(force: Boolean = false): Unit = {
     if (!local)

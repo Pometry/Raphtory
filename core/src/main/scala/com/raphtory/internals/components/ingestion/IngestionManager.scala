@@ -48,13 +48,14 @@ class IngestionManager(
 object IngestionManager {
 
   def apply[IO[_]: Async: Spawn](
+      graphID: String,
       conf: Config,
       topics: TopicRepository
   ): Resource[IO, IngestionManager] =
     Component.makeAndStart(
             topics,
             s"ingestion-manager",
-            List(topics.ingestSetup),
+            List(topics.ingestSetup(graphID)),
             new IngestionManager(conf, topics)
     )
 }

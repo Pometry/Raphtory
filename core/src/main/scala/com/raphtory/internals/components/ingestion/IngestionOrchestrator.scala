@@ -12,17 +12,15 @@ import com.raphtory.internals.components.querymanager.DestroyGraph
 import com.raphtory.internals.components.querymanager.EstablishGraph
 import com.typesafe.config.Config
 
-class IngestionOrchestrator(
-    conf: Config
-) extends OrchestratorComponent(conf) {
+class IngestionOrchestrator(repo: TopicRepository, conf: Config) extends OrchestratorComponent(conf) {
 
   override private[raphtory] def run(): Unit =
-    logger.info(s"Starting Ingestion Service for ${conf.getString("raphtory.deploy.id")}")
+    logger.info(s"Starting Ingestion Service")
 
   override def handleMessage(msg: ClusterManagement): Unit =
     msg match {
       case EstablishGraph(graphID: String, clientID: String) =>
-        establishService("Ingestion Manager", graphID, clientID, deployIngestionService)
+        establishService("Ingestion Manager", graphID, clientID, repo, deployIngestionService)
       case DestroyGraph(graphID, clientID, force)            => destroyGraph(graphID, clientID, force)
       case ClientDisconnected(graphID, clientID)             => clientDisconnected(graphID, clientID)
     }
@@ -37,7 +35,7 @@ object IngestionOrchestrator {
     Component.makeAndStart(
             topics,
             s"ingestion-node",
-            List(topics.clusterComms(conf.getInt("raphtory.partitions.serverCount"))),
-            new IngestionOrchestrator(conf)
+            List(topics.clusterComms),
+            new IngestionOrchestrator(topics, conf)
     )
 }
