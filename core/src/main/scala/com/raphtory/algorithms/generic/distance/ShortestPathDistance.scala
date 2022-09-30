@@ -56,7 +56,6 @@ class ShortestPathDistance[T: Bounded: Numeric](src_name: String,
         if (vertex.name() == src_name) {
           vertex.setState(DISTANCE, 0)
           vertex.getOutEdges().foreach { edge => edge.send(edge.weight[T]())}
-          graphState("minDistance") += MAX[T]
         }
         else {
           vertex.setState(DISTANCE, MAX[T])
