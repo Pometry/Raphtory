@@ -2,7 +2,7 @@ package com.raphtory.algorithms.generic
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-
+import com.raphtory.internals.communication.SchemaProviderInstances._
 /**
   * {s}`NeighbourNames()`
   *  : Get name of all neighbours and store the map from vertexID to name in state "neighbourNames".

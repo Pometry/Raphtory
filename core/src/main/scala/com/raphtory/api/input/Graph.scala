@@ -1,11 +1,7 @@
 package com.raphtory.api.input
 
-import com.raphtory.internals.graph.GraphAlteration
-import com.raphtory.internals.graph.GraphAlteration.EdgeAdd
-import com.raphtory.internals.graph.GraphAlteration.EdgeDelete
-import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
-import com.raphtory.internals.graph.GraphAlteration.VertexAdd
-import com.raphtory.internals.graph.GraphAlteration.VertexDelete
+import com.raphtory.internals.communication.SchemaProviderInstances._
+import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.management.telemetry.ComponentTelemetryHandler
 import com.typesafe.scalalogging.Logger
 import net.openhft.hashing.LongHashFunction

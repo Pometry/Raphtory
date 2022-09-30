@@ -70,7 +70,9 @@ lazy val root = (project in file("."))
           name := "Raphtory",
           defaultSettings
   )
+  .enablePlugins(OsDetectorPlugin)
   .aggregate(
+          arrowMessaging,
           core,
           connectorsAWS,
           connectorsTwitter,
@@ -90,6 +92,9 @@ lazy val root = (project in file("."))
 //          // Needed to expand the @service macro annotation
 //          macroSettings
 //  )
+
+lazy val arrowMessaging =
+  (project in file("arrow-messaging")).settings(assemblySettings)
 
 lazy val core = (project in file("core"))
   .settings(
@@ -143,6 +148,8 @@ lazy val core = (project in file("core"))
                   alleyCats,
                   typesafeConfig,
                   zookeeper,
+                  shapeless,
+                  curatorDiscovery,
                   scalaDocReader
           ),
           libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) },
@@ -153,6 +160,7 @@ lazy val core = (project in file("core"))
           // Make it easy for 3rd-party clients to communicate with us via gRPC
           muSrcGenIdiomaticEndpoints := true
   )
+  .dependsOn(arrowMessaging)
   .enablePlugins(SrcGenPlugin)
 
 // CONNECTORS

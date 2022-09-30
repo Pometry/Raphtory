@@ -5,7 +5,7 @@ import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
-
+import com.raphtory.internals.communication.SchemaProviderInstances._
 import scala.collection.mutable
 import scala.util.Random
 
@@ -66,6 +66,7 @@ class SLPA(iterNumber: Int = 50, speakerRule: Rule, listenerRule: Rule) extends 
       .step {
         // Initialise vertex memory
         vertex =>
+          import vertex._
           val memory = mutable.Queue(vertex.ID)
           vertex.setState("memory", memory)
 
@@ -74,6 +75,7 @@ class SLPA(iterNumber: Int = 50, speakerRule: Rule, listenerRule: Rule) extends 
       }
       .iterate(
               { vertex =>
+                import vertex._
                 val newlab =
                   listenerRule.chooseLabel(mutable.Queue(vertex.messageQueue[vertex.IDType]: _*))
                 val memory = vertex.getState[mutable.Queue[vertex.IDType]]("memory")

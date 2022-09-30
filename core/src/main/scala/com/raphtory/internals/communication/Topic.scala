@@ -16,7 +16,20 @@ private[raphtory] case class ExclusiveTopic[T](
     id: String,
     subTopic: String = "",
     customAddress: String = ""
-) extends CanonicalTopic[T]
+) extends CanonicalTopic[T] {
+
+  override def toString: String =
+    if (subTopic.nonEmpty)
+      if (customAddress.nonEmpty)
+        s"$id/$subTopic/$customAddress"
+      else
+        s"$id/$subTopic"
+    else if (customAddress.nonEmpty)
+      s"$id/$customAddress"
+    else
+      id
+
+}
 
 private[raphtory] case class WorkPullTopic[T](
     connector: Connector,
@@ -41,7 +54,7 @@ private[raphtory] case class ShardingTopic[T](
     customAddress: String = ""
 ) extends Topic[T] {
 
-  def endPoint: Map[Int, EndPoint[T]] = {
+  def endPoint(): Map[Int, EndPoint[T]] = {
     val partitions = 0 until numPartitions
     val endPoints  = partitions map { partition =>
       val topic = exclusiveTopicForPartition(partition)

@@ -26,7 +26,7 @@ private[raphtory] case class WatermarkTime(
     oldestTime: Long,
     latestTime: Long,
     safe: Boolean,
-    sourceMessages: Array[(Int, Long)]
+    sourceMessages: Array[(Long, Long)]
 ) extends QueryManagement
 
 private[raphtory] case object StartAnalysis extends QueryManagement
@@ -59,11 +59,18 @@ sealed private[raphtory] trait GenericVertexMessage[VertexID] extends VertexMess
   def vertexId: VertexID
 }
 
-private[raphtory] case class VertexMessage[+T, VertexID](
+trait SchemaProvider[T] {
+  val endpoint: String = ""
+}
+
+trait ArrowFlightSchemaProvider[T] extends SchemaProvider[T]
+
+case class VertexMessage[T, VertexID](
     superstep: Int,
     vertexId: VertexID,
     data: T
-) extends GenericVertexMessage[VertexID]
+)(implicit val provider: SchemaProvider[T])
+        extends GenericVertexMessage[VertexID]
 
 private[raphtory] case class VertexMessageBatch(data: Array[GenericVertexMessage[_]]) extends VertexMessaging
 
@@ -71,21 +78,26 @@ private[raphtory] case class FilteredEdgeMessage[VertexID](
     superstep: Int,
     vertexId: VertexID,
     sourceId: VertexID
-) extends GenericVertexMessage[VertexID]
+)(implicit val provider: SchemaProvider[FilteredEdgeMessage[_]])
+        extends GenericVertexMessage[VertexID]
 
 private[raphtory] case class FilteredInEdgeMessage[VertexID](
     superstep: Int,
     vertexId: VertexID,
     sourceId: VertexID
-) extends GenericVertexMessage[VertexID]
+)(implicit val provider: SchemaProvider[FilteredEdgeMessage[_]])
+        extends GenericVertexMessage[VertexID]
 
 private[raphtory] case class FilteredOutEdgeMessage[VertexID](
     superstep: Int,
     vertexId: VertexID,
     sourceId: VertexID
-) extends GenericVertexMessage[VertexID]
+)(implicit val provider: SchemaProvider[FilteredEdgeMessage[_]])
+        extends GenericVertexMessage[VertexID]
 
-private[raphtory] case class VertexMessagesSync(partitionID: Int, count: Long)
+private[raphtory] case class VertexMessagesSync(partitionID: Int, count: Long)(implicit
+    val provider: SchemaProvider[VertexMessagesSync]
+) extends QueryManagement
 
 sealed private[raphtory] trait Submission extends QueryManagement {
   def graphID: String
@@ -102,7 +114,7 @@ private[raphtory] case class Query(
     windowAlignment: Alignment.Value = Alignment.START,
     graphFunctions: Queue[GraphFunction] = Queue(),
     tableFunctions: Queue[TableFunction] = Queue(),
-    blockedBy: Array[Int] = Array(),
+    blockedBy: Array[Long] = Array(),
     sink: Option[Sink] = None,
     pyScript: Option[String] = None
 ) extends Submission

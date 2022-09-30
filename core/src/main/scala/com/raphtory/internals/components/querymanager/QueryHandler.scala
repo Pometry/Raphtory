@@ -7,20 +7,19 @@ import com.raphtory.api.analysis.table.TableFunction
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
-import com.raphtory.internals.components.querymanager.Stages.SpawnExecutors
-import com.raphtory.internals.components.querymanager.Stages.Stage
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.graph.PerspectiveController
-import com.raphtory.internals.graph.PerspectiveController.DEFAULT_PERSPECTIVE_TIME
-import com.raphtory.internals.graph.PerspectiveController.DEFAULT_PERSPECTIVE_WINDOW
+import com.raphtory.internals.graph.PerspectiveController._
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.management.python.EmbeddedPython
 import com.raphtory.internals.serialisers.KryoSerialiser
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-
 import java.util.concurrent.TimeUnit
+
+import com.raphtory.internals.components.querymanager.Stages.{SpawnExecutors, Stage}
+
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt

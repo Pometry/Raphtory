@@ -3,7 +3,7 @@ package com.raphtory.algorithms.generic.centrality
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.visitor.Vertex
-
+import com.raphtory.internals.communication.SchemaProviderInstances._
 import scala.math.log10
 import scala.math.pow
 import math.Numeric.Implicits._

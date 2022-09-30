@@ -4,6 +4,7 @@ import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
+import com.raphtory.internals.communication.SchemaProviderInstances._
 
 class DegreesSeparation(name: String = "Gandalf") extends Generic {
 

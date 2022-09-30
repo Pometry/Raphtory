@@ -10,6 +10,7 @@ import com.raphtory.api.analysis.visitor.ReducedVertex
 import com.raphtory.api.analysis.visitor.Vertex
 
 import scala.util.Random
+import com.raphtory.internals.communication.SchemaProviderInstances._
 
 /**
   * {s}`MultilayerLPA(weight: String = "", maxIter: Int = 500, layers: List[Long], layerSize: Long, omega: Double = 1.0, seed: Long = -1)`

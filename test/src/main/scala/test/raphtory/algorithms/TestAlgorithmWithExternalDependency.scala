@@ -3,6 +3,7 @@ package test.raphtory.algorithms
 import dependency.DependentMessage
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.internals.communication.SchemaProviderInstances._
 
 object TestAlgorithmWithExternalDependency extends Generic {
 

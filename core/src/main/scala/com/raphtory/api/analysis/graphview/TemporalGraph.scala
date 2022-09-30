@@ -8,6 +8,7 @@ import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.api.input.Type
 import com.raphtory.api.time.DiscreteInterval
+import com.raphtory.internals.communication.SchemaProviderInstances._
 import com.raphtory.api.time.Interval
 import com.raphtory.api.time.NullInterval
 import com.raphtory.internals.components.querymanager.PointPath

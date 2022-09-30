@@ -267,7 +267,6 @@ private[raphtory] class PulsarConnector(
     pulsarAdmin.close()
   }
 
-  override def shutdown(): Unit = {}
 }
 
 object PulsarConnector {

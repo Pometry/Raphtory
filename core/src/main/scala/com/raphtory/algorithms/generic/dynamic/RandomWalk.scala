@@ -11,6 +11,7 @@ import com.raphtory.api.analysis.visitor.Vertex
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
+import com.raphtory.internals.communication.SchemaProviderInstances._
 
 /**
   * {s}`RandomWalk(walkLength: Int = 10, numWalks: Int = 1, seed: Long = -1)`

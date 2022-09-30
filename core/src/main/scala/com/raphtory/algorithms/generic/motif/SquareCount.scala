@@ -6,6 +6,7 @@ import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
 
 import scala.collection.mutable
+import com.raphtory.internals.communication.SchemaProviderInstances._
 
 case class FirstStep[VertexID](p: VertexID, adj: Array[VertexID])
 case class SecondStep[VertexID](p: VertexID, q: VertexID, adj: Array[VertexID])

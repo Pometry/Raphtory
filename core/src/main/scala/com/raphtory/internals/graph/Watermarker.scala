@@ -34,13 +34,13 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val lock: Lock     = new ReentrantLock()
 
-  private val sources: mutable.Map[Int, SourceCounter] = mutable.Map[Int, SourceCounter]()
+  private val sources: mutable.Map[Long, SourceCounter] = mutable.Map[Long, SourceCounter]()
 
   val oldestTime: AtomicLong = new AtomicLong(Long.MaxValue)
   val latestTime: AtomicLong = new AtomicLong(0)
 
   private var latestWatermark =
-    WatermarkTime(storage.getPartitionID, Long.MaxValue, 0, safe = false, Array[(Int, Long)]())
+    WatermarkTime(storage.getPartitionID, Long.MaxValue, 0, safe = false, Array[(Long, Long)]())
 
   //Current unsynchronised updates
   private val edgeAdditions: mutable.TreeSet[EdgeUpdate] = mutable.TreeSet()
@@ -81,19 +81,19 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
     lock.unlock()
   }
 
-  def safeRecordCompletedUpdate(sourceID: Int) = {
+  def safeRecordCompletedUpdate(sourceID: Long) = {
     lock.lock()
     recordCompletedUpdate(sourceID)
     lock.unlock()
   }
 
-  private def recordCompletedUpdate(sourceID: Int): Unit =
+  private def recordCompletedUpdate(sourceID: Long): Unit =
     sources.get(sourceID) match {
       case Some(tracker) => tracker.increment()
       case None          => sources.put(sourceID, new SourceCounter(1))
     }
 
-  def untrackEdgeAddition(sourceID: Int, timestamp: Long, index: Long, src: Long, dst: Long): Unit = {
+  def untrackEdgeAddition(sourceID: Long, timestamp: Long, index: Long, src: Long, dst: Long): Unit = {
     lock.lock()
     recordCompletedUpdate(sourceID)
     try edgeAdditions -= EdgeUpdate(timestamp, index, src, dst)
@@ -104,7 +104,7 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
     lock.unlock()
   }
 
-  def untrackEdgeDeletion(sourceID: Int, timestamp: Long, index: Long, src: Long, dst: Long): Unit = {
+  def untrackEdgeDeletion(sourceID: Long, timestamp: Long, index: Long, src: Long, dst: Long): Unit = {
     lock.lock()
     recordCompletedUpdate(sourceID)
     try edgeDeletions -= EdgeUpdate(timestamp, index, src, dst)
@@ -115,7 +115,7 @@ private[raphtory] class Watermarker(graphID: String, storage: GraphPartition) {
     lock.unlock()
   }
 
-  def untrackVertexDeletion(sourceID: Int, timestamp: Long, index: Long, src: Long): Unit = {
+  def untrackVertexDeletion(sourceID: Long, timestamp: Long, index: Long, src: Long): Unit = {
     lock.lock()
     recordCompletedUpdate(sourceID)
     val update = VertexUpdate(timestamp, index, src)

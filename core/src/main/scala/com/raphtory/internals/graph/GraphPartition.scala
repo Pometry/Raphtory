@@ -22,7 +22,7 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
 
   // Ingesting Vertices
   def addVertex(
-      sourceID: Int,
+      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -30,10 +30,10 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
       vertexType: Option[Type]
   ): Unit
 
-  def removeVertex(sourceID: Int, msgTime: Long, index: Long, srcId: Long): List[GraphUpdateEffect]
+  def removeVertex(sourceID: Long, msgTime: Long, index: Long, srcId: Long): List[GraphUpdateEffect]
 
   def inboundEdgeRemovalViaVertex(
-      sourceID: Int,
+      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -41,7 +41,7 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
   ): GraphUpdateEffect
 
   def outboundEdgeRemovalViaVertex(
-      sourceID: Int,
+      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -50,7 +50,7 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
 
   // Ingesting Edges
   def addEdge(
-      sourceID: Int,
+      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -60,7 +60,7 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
   ): Option[GraphUpdateEffect]
 
   def syncNewEdgeAdd(
-      sourceID: Int,
+      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -71,7 +71,7 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
   ): GraphUpdateEffect
 
   def syncExistingEdgeAdd(
-      sourceID: Int,
+      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -80,7 +80,7 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
   ): GraphUpdateEffect
 
   def batchAddRemoteEdge(
-      sourceID: Int,
+      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -89,17 +89,17 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
       edgeType: Option[Type]
   ): Unit
 
-  def removeEdge(sourceID: Int, msgTime: Long, index: Long, srcId: Long, dstId: Long): Option[GraphUpdateEffect]
+  def removeEdge(sourceID: Long, msgTime: Long, index: Long, srcId: Long, dstId: Long): Option[GraphUpdateEffect]
 
   def syncNewEdgeRemoval(
-      sourceID: Int,
+      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
       dstId: Long,
       srcRemovals: List[(Long, Long)]
   ): GraphUpdateEffect
-  def syncExistingEdgeRemoval(sourceID: Int, msgTime: Long, index: Long, srcId: Long, dstId: Long): GraphUpdateEffect
+  def syncExistingEdgeRemoval(sourceID: Long, msgTime: Long, index: Long, srcId: Long, dstId: Long): GraphUpdateEffect
 
   def syncExistingRemovals(
       msgTime: Long,
