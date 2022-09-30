@@ -12,6 +12,7 @@ import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.input.Graph
 import com.raphtory.internals.management.python.EmbeddedPython
+import com.raphtory.internals.management.python.UnsafeEmbeddedPython
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
@@ -250,31 +251,21 @@ trait PythonFunction {
   protected val pickleBytes: Array[Byte]
   protected val eval_name = s"_${Random.alphanumeric.take(32).mkString}"
 
-  private def py: EmbeddedPython[Id] = EmbeddedPython.global
+  @transient private lazy val interpreter =
+    ThreadLocal.withInitial[EmbeddedPython[Id]](() => initialize(UnsafeEmbeddedPython.apply()))
+
+  private def py: EmbeddedPython[Id] = interpreter.get()
 
   private def initialize(py: EmbeddedPython[Id]) = {
-    try py.run(eval_name)
-    catch {
-      case e: Throwable =>
-        py.synchronized {
-          // recheck so only initialise once (some other thread may have got here first)
-          try py.run(eval_name)
-          catch {
-            case e: Throwable =>
-              // variable still doesn't exist so unpack the function
-              py.set(s"${eval_name}_bytes", pickleBytes)
-              py.run(s"import cloudpickle as pickle; $eval_name = pickle.loads(${eval_name}_bytes)")
-              py.run(s"del ${eval_name}_bytes")
-          }
-        }
-    }
+    // unpack the function
+    py.set(s"${eval_name}_bytes", pickleBytes)
+    py.run(s"import cloudpickle as pickle; $eval_name = pickle.loads(${eval_name}_bytes)")
+    py.run(s"del ${eval_name}_bytes")
     py
   }
 
-  def invoke(args: Vector[Object]): Id[Object] = {
-    val _py = initialize(py)
-    _py.invoke(PyRef(eval_name), "eval_from_jvm", args)
-  }
+  def invoke(args: Vector[Object]): Id[Object] =
+    py.invoke(PyRef(eval_name), "eval_from_jvm", args)
 }
 
 case class PythonFunction1[I <: AnyRef, R](pickleBytes: Array[Byte]) extends (I => Id[R]) with PythonFunction {
