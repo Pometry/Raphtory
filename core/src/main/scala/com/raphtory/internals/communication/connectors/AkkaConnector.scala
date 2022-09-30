@@ -43,7 +43,7 @@ private[raphtory] class AkkaConnector(actorSystem: ActorSystem[SpawnProtocol.Com
   private val kryo: KryoSerialiser                        = KryoSerialiser()
 
   case class AkkaEndPoint[T](actorRefs: Future[Set[ActorRef[Array[Byte]]]], topic: String) extends EndPoint[T] {
-    private val endPointResolutionTimeout: Duration = 60.seconds
+    private val endPointResolutionTimeout: Duration = 10.seconds
 
     override def sendAsync(message: T): Unit =
       try Await.result(actorRefs, endPointResolutionTimeout) foreach (_ ! serialise(message))

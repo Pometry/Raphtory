@@ -8,6 +8,8 @@ import com.raphtory.internals.components.output.EndOutput
 import com.raphtory.internals.components.output.EndPerspective
 import com.raphtory.internals.components.output.OutputMessages
 import com.raphtory.internals.components.output.RowOutput
+import com.raphtory.internals.components.querymanager.JobFailed
+import com.raphtory.internals.components.querymanager.QueryManagement
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -19,9 +21,13 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.Duration
 
 /** Iterator over perspective results with additional query tracking functionality */
-case class TableOutputTracker(tracker: QueryProgressTracker, topics: TopicRepository, conf: Config, timeout: Duration)
-        extends Component[OutputMessages](conf)
+case class TableOutputTracker(jobID: String, topics: TopicRepository, conf: Config, timeout: Duration)
+        extends QueryProgressTracker(jobID, conf, topics)
         with Iterator[TableOutput] {
+
+  class JobFailedException(jobID: String, cause: Throwable)
+          extends RuntimeException(s"The execution of the query '$jobID' failed", cause)
+
   private var outputDone: Boolean             = false
   private var jobsDone                        = 0
   private var nextResult: Option[TableOutput] = None
@@ -33,16 +39,24 @@ case class TableOutputTracker(tracker: QueryProgressTracker, topics: TopicReposi
   private val outputListener =
     topics.registerListener(
             s"$graphID-$getJobId-output",
-            handleMessage,
+            handleOutputMessage,
             topics.output(getJobId)
     )
 
-  override def handleMessage(msg: OutputMessages): Unit = {
+  override def handleMessage(msg: QueryManagement): Unit =
+    msg match {
+      case _: JobFailed =>
+        completedResults.add(msg)
+        super.handleMessage(msg)
+      case _            => super.handleMessage(msg)
+    }
+
+  private def handleOutputMessage(msg: OutputMessages): Unit = {
     logger.debug(s"received message $msg")
     msg match {
-      case RowOutput(perspective, row) =>
+      case RowOutput(perspective, row)                  =>
         resultsInProgress.getOrElseUpdate(perspective, ArrayBuffer.empty[Row]).append(row)
-      case EndPerspective(perspective) =>
+      case EndPerspective(perspective, totalPartitions) =>
         perspectiveDoneCounts(perspective) = perspectiveDoneCounts.getOrElse(perspective, 0) + 1
         if (perspectiveDoneCounts(perspective) == totalPartitions) {
           perspectiveDoneCounts.remove(perspective)
@@ -53,7 +67,7 @@ case class TableOutputTracker(tracker: QueryProgressTracker, topics: TopicReposi
               completedResults.add(TableOutput(getJobId, perspective, Array.empty, conf, topics))
           }
         }
-      case EndOutput                   =>
+      case EndOutput(totalPartitions)                   =>
         jobsDone += 1
         if (jobsDone == totalPartitions) {
           completedResults.add(EndOutput)
@@ -63,42 +77,21 @@ case class TableOutputTracker(tracker: QueryProgressTracker, topics: TopicReposi
   }
 
   override private[raphtory] def run(): Unit = {
+    super.run()
     logger.info(s"Job $getJobId: Starting output collector.")
     outputListener.start()
   }
 
   override private[raphtory] def stop(): Unit = {
-    logger.debug(s"Stopping QueryProgressTracker for $getJobId")
+    super.stop()
+    logger.debug(s"Stopping output collector for $getJobId")
     outputListener.close()
   }
-
-  /** Returns job identifier for the query
-    * @return job identifier
-    */
-  def getJobId: String =
-    tracker.getJobId
-
-  /** Returns the latest `Perspective` processed by the query
-    * @return latest perspective
-    */
-  def getLatestPerspectiveProcessed: Option[Perspective] =
-    tracker.getLatestPerspectiveProcessed
-
-  /** Returns list of perspectives processed for the query so far
-    * @return a list of perspectives
-    */
-  def getPerspectivesProcessed: List[Perspective] =
-    tracker.getPerspectivesProcessed
-
-  /** Returns the time taken to process each perspective in milliseconds */
-  def getPerspectiveDurations: List[Long] =
-    tracker.getPerspectiveDurations
 
   /** Checks if job is complete
     * @return job status
     */
-  def isJobDone: Boolean =
-    outputDone
+  override def isJobDone: Boolean = outputDone
 
   private def waitForNextResult(): Any = {
     logger.debug("waiting for result")
@@ -121,11 +114,13 @@ case class TableOutputTracker(tracker: QueryProgressTracker, topics: TopicReposi
       waitForNextResult() match {
         case Some(res) =>
           res match {
-            case EndOutput      =>
+            case JobFailed(error) =>
+              throw new JobFailedException(jobID, error)
+            case EndOutput        =>
               outputDone = true
               logger.debug("hasNext false as output complete after waiting for result")
               false
-            case v: TableOutput =>
+            case v: TableOutput   =>
               nextResult = Some(v)
               logger.debug("hasNext true as new result available after waiting")
               true

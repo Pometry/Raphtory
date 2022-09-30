@@ -111,7 +111,7 @@ private[raphtory] class QueryHandler(
                 s"Deployment '$graphID': Failed to handle message. ${e.getMessage}. Skipping perspective.",
                 e
         )
-        currentState = executeNextPerspective()
+        currentState = executeNextPerspective(previousFailing = true, e.getMessage)
     }
 
   ////OPERATION STATES
@@ -322,12 +322,15 @@ private[raphtory] class QueryHandler(
         }
     }
 
-  private def executeNextPerspective(): Stage = {
+  private def executeNextPerspective(previousFailing: Boolean = false, failureReason: String = ""): Stage = {
     val latestTime = getLatestTime
     val oldestTime = getOptionalEarliestTime
     telemetry.totalPerspectivesProcessed.labels(jobID, graphID).inc()
     if (currentPerspective.timestamp != -1) { //ignore initial placeholder
-      tracker sendAsync currentPerspective
+      val report =
+        if (previousFailing) PerspectiveFailed(currentPerspective, failureReason)
+        else PerspectiveCompleted(currentPerspective)
+      tracker sendAsync report
       logTotalTimeTaken()
     }
     currentPerspectiveID += 1
