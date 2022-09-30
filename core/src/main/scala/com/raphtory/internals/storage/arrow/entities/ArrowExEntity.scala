@@ -89,53 +89,14 @@ trait ArrowExEntity extends EntityVisitor {
       case edge: ArrowExEdge     =>
         implicit val PROP: Prop[T] = Prop.runtime[T](edge.entity)
         val arrE                   = edge.entity.asInstanceOf[ArrEdge]
-        val hist = historyProps(arrE.prop[T](key), after, before).map(_.toVector)
-
-        val aa = (edge.src -> edge.dst)
-        println(s"getPropertyHistory  $aa $key  $hist")
-        hist
+        historyProps(arrE.prop[T](key), after, before).map(_.toVector)
     }
 
-  //    this match {
-//      case v: ArrowExVertex =>
-//        // FIXME: this is horrid, we need to do better
-//        try {
-//          val PROP                                 = entity.getRaphtory.getVertexPropertyId(key)
-////          v.entity.asInstanceOf[ArrVertex].getPropertyHistory(PROP)
-//          val acc: VersionedEntityPropertyAccessor = entity.getProperty(PROP)
-//          acc.setHistory(true, after)
-//          val prop                                 = acc.getAny.asInstanceOf[T]
-//          Some(List(PropertyValue(after, -1, prop)))
-//        }
-//        catch {
-//          case _: IllegalArgumentException => // let's try a field instead
-//            val FIELD                    = entity.getRaphtory.getVertexFieldId(key)
-//            val acc: EntityFieldAccessor = entity.getField(FIELD)
-//            val field                    = acc.getAny.asInstanceOf[T]
-//            Some(List(PropertyValue(after, -1, field)))
-//        }
-//      case e: ArrowExEdge   =>
-//        try {
-//          val FIELD                                = entity.getRaphtory.getEdgePropertyId(key)
-//          val acc: VersionedEntityPropertyAccessor = entity.getProperty(FIELD)
-//          val prop                                 = acc.getLong.asInstanceOf[T]
-//          Some(List(PropertyValue(acc.getCreationTime, -1, prop)))
-//        }
-//        catch {
-//          case _: IllegalArgumentException => // let's try a field instead
-//            val FIELD                    = entity.getRaphtory.getEdgeFieldId(key)
-//            val acc: EntityFieldAccessor = entity.getField(FIELD)
-//            val field                    = acc.getAny.asInstanceOf[T]
-//            Some(List(PropertyValue(after, -1, field)))
-//        }
-//      case _                =>
-//        Some(List.empty)
-//    }
 
   private def historyProps[T](addVertexProps: PropAccess[T], after: Long, before: Long) = {
     val hist = addVertexProps
       .list
-//      .filter { case (_, t) => t >= after && t <= before }
+      .filter { case (_, t) => t >= after && t <= before }
       .map { case (v, t) => PropertyValue(t, t, v) }
 
     Some(hist)

@@ -66,7 +66,6 @@ abstract class AbstractGraphLens(
       case msg: VertexMessage[_, _]                     =>
         graphState.receiveMessage(msg.vertexId, msg.superstep, msg.data)
       case msg: FilteredEdgeMessage[Long] @unchecked    =>
-        println(s"Filtered edge ${msg.edgeId} from ${partitionID()}")
         graphState.removeEdge(msg.vertexId, msg.sourceId, msg.edgeId)
       case msg: FilteredInEdgeMessage[Long] @unchecked  =>
         graphState.removeInEdge(msg.sourceId, msg.vertexId)
