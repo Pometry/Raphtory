@@ -21,8 +21,8 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.Duration
 
 /** Iterator over perspective results with additional query tracking functionality */
-case class TableOutputTracker(jobID: String, topics: TopicRepository, conf: Config, timeout: Duration)
-        extends QueryProgressTracker(jobID, conf, topics)
+case class TableOutputTracker(graphID: String, jobID: String, topics: TopicRepository, conf: Config, timeout: Duration)
+        extends QueryProgressTracker(graphID, jobID, conf, topics)
         with Iterator[TableOutput] {
 
   class JobFailedException(jobID: String, cause: Throwable)
@@ -40,7 +40,7 @@ case class TableOutputTracker(jobID: String, topics: TopicRepository, conf: Conf
     topics.registerListener(
             s"$graphID-$getJobId-output",
             handleOutputMessage,
-            topics.output(getJobId)
+            topics.output(graphID, getJobId)
     )
 
   override def handleMessage(msg: QueryManagement): Unit =

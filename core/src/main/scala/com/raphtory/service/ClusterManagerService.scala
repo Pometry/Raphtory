@@ -16,20 +16,13 @@ import com.raphtory.internals.components.cluster.RpcServer
 object ClusterManagerService extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = {
-
-    val config =
-      if (args.nonEmpty) Raphtory.getDefaultConfig(Map("raphtory.deploy.id" -> args.head))
-      else Raphtory.getDefaultConfig()
-
+    val config   = Raphtory.getDefaultConfig()
     val headNode = for {
       repo      <- DistributedTopicRepository[IO](AkkaConnector.SeedMode, config, None)
       idManager <- makeLocalIdManager[IO]
-      headNode  <- ClusterManager[IO](config, repo, mode = ClusterMode, idManager)
+      headNode  <- ClusterManager[IO](config, repo)
       _         <- RpcServer[IO](idManager, repo, config)
-
     } yield headNode
     headNode.useForever
-
   }
-
 }

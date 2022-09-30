@@ -74,6 +74,7 @@ trait QueryProgressTrackerBase {
   * }}}
   */
 class QueryProgressTracker private[raphtory] (
+    graphID: String,
     jobID: String,
     conf: Config,
     topics: TopicRepository
@@ -87,7 +88,7 @@ class QueryProgressTracker private[raphtory] (
     topics.registerListener(
             s"$graphID-$jobID-query-tracker",
             handleMessage,
-            topics.queryTrack(jobID)
+            topics.queryTrack(graphID, jobID)
     )
   private var latestPerspective: Option[Perspective]    = None
   private val perspectivesList: ListBuffer[Perspective] = new ListBuffer[Perspective]()
@@ -187,6 +188,6 @@ class QueryProgressTracker private[raphtory] (
 
 object QueryProgressTracker {
 
-  def unsafeApply(jobId: String, config: Config, topics: TopicRepository): QueryProgressTracker =
-    new QueryProgressTracker(jobId, config, topics)
+  def unsafeApply(graphID: String, jobId: String, config: Config, topics: TopicRepository): QueryProgressTracker =
+    new QueryProgressTracker(graphID, jobId, config, topics)
 }

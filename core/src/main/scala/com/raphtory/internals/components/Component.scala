@@ -23,7 +23,6 @@ abstract private[raphtory] class Component[T](conf: Config) {
   private val partitionServers: Int                       = conf.getInt("raphtory.partitions.serverCount")
   private val partitionsPerServer: Int                    = conf.getInt("raphtory.partitions.countPerServer")
   protected val totalPartitions: Int                      = partitionServers * partitionsPerServer
-  val graphID: String                                     = conf.getString("raphtory.graph.id")
 
   protected var processedMessages = 0
 
@@ -52,7 +51,7 @@ object Component {
           runnerFib   <- IO.blocking(qm.run())
                            .start
                            .flatTap(_ => IO.delay(log.debug(s"Started run() fiber for ${qm.getClass} with name [$name]")))
-          listener    <- IO.delay(repo.registerListener(s"${qm.graphID}-$name", qm.handleMessage, ts))
+          listener    <- IO.delay(repo.registerListener(name, qm.handleMessage, ts))
           listenerFib <-
             IO.blocking(listener.start())
               .start
@@ -79,7 +78,7 @@ object Component {
           runnerFib   <- IO.blocking(qm.run())
                            .start
                            .flatTap(_ => IO.delay(log.debug(s"Started run() fiber for ${qm.getClass} with name [$name]")))
-          listener    <- IO.delay(repo.registerListener(s"${qm.graphID}-$name", qm.handleMessage, ts, partitionId))
+          listener    <- IO.delay(repo.registerListener(name, qm.handleMessage, ts, partitionId))
           listenerFib <-
             IO.blocking(listener.start())
               .start

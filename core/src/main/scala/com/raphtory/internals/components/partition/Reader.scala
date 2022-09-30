@@ -19,6 +19,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 private[raphtory] class Reader(
+    graphID: String,
     partitionID: Int,
     storage: GraphPartition,
     scheduler: Scheduler,
@@ -27,7 +28,7 @@ private[raphtory] class Reader(
 ) extends Component[QueryManagement](conf) {
 
   private val logger: Logger   = Logger(LoggerFactory.getLogger(this.getClass))
-  private val watermarkPublish = topics.watermark.endPoint
+  private val watermarkPublish = topics.watermark(graphID).endPoint
 
   private var scheduledWatermark: Option[() => Future[Unit]] = None
 
@@ -63,6 +64,7 @@ private[raphtory] class Reader(
 object Reader {
 
   def apply[IO[_]: Async: Spawn](
+      graphID: String,
       partitionID: Int,
       storage: GraphPartition,
       scheduler: Scheduler,
@@ -74,6 +76,6 @@ object Reader {
             topics,
             s"reader-$partitionID",
             List[Topic[QueryManagement]](),
-            new Reader(partitionID, storage, scheduler, conf, topics)
+            new Reader(graphID, partitionID, storage, scheduler, conf, topics)
     )
 }
