@@ -126,10 +126,6 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
     vertex
   }
 
-  private def addOrUpdateVertexProperties(msgTime: Long, v: Vertex, properties: Properties): Unit =
-    setProps(v, msgTime, properties)(key => par.getVertexPropertyId(key.toLowerCase()))(key =>
-      par.getVertexFieldId(key.toLowerCase())
-    )
 
   private def setProps(v: Entity, msgTime: Long, properties: Properties)(
       lookupProp: String => Int
@@ -201,7 +197,7 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
         // if destination is local add it
         emgr.addHistory(e.getLocalId, msgTime, true)
         // add the edge properties
-        addOrUpdateEdgeProps(msgTime, properties, e)
+        addOrUpdateEdgeProps(msgTime, e, properties)
         if (dst.isLocal) {
           val d = addVertexInternal(dstId, msgTime, Properties())
 //          linkIncomingToLocalNode(msgTime, dst, e)
@@ -225,7 +221,7 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
           Some(SyncNewEdgeAdd(sourceID, msgTime, index, srcId, dstId, properties, Nil, edgeType))
 
         // add the edge properties
-        addOrUpdateEdgeProps(msgTime, properties, e)
+        addOrUpdateEdgeProps(msgTime, e, properties)
 
         // add the actual edge
         e.resetEdgeData(src.getLocalId, dst.id, -1L, -1L, false, dst.isGlobal)
@@ -250,8 +246,13 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
     }
   }
 
-  private def addOrUpdateEdgeProps(msgTime: Long, properties: Properties, e: Edge): Unit =
+  private def addOrUpdateEdgeProps(msgTime: Long, e: Edge, properties: Properties): Unit =
     setProps(e, msgTime, properties)(key => par.getEdgePropertyId(key.toLowerCase()))(key => par.getEdgeFieldId(key))
+
+  private def addOrUpdateVertexProperties(msgTime: Long, v: Vertex, properties: Properties): Unit =
+    setProps(v, msgTime, properties)(key => par.getVertexPropertyId(key.toLowerCase()))(key =>
+      par.getVertexFieldId(key.toLowerCase())
+    )
 
   private def linkIncomingToLocalNode(msgTime: Long, dst: EntityId, e: Edge): Unit = {
     val p           = vmgr.getPartition(vmgr.getPartitionId(dst.id))
@@ -283,6 +284,18 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
       case Some(e) =>
         // activate edge
         // FIXME: what about properties?
+
+        val props: Set[String] =
+          par.getPropertySchema.versionedEdgeProperties().asScala.map(_.name()).toSet intersect properties.properties
+            .map(_.key.toLowerCase())
+            .toSet
+
+        addOrUpdateEdgeProps(
+          msgTime,
+          e,
+          Properties(properties.properties.filter(p => props(p.key.toLowerCase())): _*)
+        )
+
         emgr.addHistory(e.getLocalId, msgTime, true)
       case None    =>
         addRemoteEdgeInternal(msgTime, srcId, dst, properties)
@@ -312,7 +325,7 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
     assert(src.isGlobal)
 
     // add the edge properties
-    addOrUpdateEdgeProps(msgTime, properties, e)
+    addOrUpdateEdgeProps(msgTime, e, properties)
 
     // add the actual edge
     e.resetEdgeData(src.id, dst.getLocalId, -1L, -1L, src.isGlobal, false)
@@ -347,6 +360,18 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
 
     getIncomingEdge(srcId, dst) match {
       case Some(e) =>
+
+        val props: Set[String] =
+          par.getPropertySchema.versionedEdgeProperties().asScala.map(_.name()).toSet intersect properties.properties
+            .map(_.key.toLowerCase())
+            .toSet
+
+        addOrUpdateEdgeProps(
+          msgTime,
+          e,
+          Properties(properties.properties.filter(p => props(p.key.toLowerCase())): _*)
+        )
+
         emgr.addHistory(e.getLocalId, msgTime, true)
       case None    =>
         addRemoteEdgeInternal(msgTime, srcId, dst, properties)

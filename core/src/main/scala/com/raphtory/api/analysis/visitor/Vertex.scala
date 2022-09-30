@@ -164,7 +164,9 @@ trait Vertex extends EntityVisitor {
   ): B =
     (dir match {
       case EdgeDirection.Incoming =>
-        inEdges
+        val es = inEdges.toVector
+        println(ID -> es.map(e => e.src -> e.weight(weightProperty, edgeMergeStrategy, defaultWeight)))
+       es
       case EdgeDirection.Outgoing =>
         outEdges
       case EdgeDirection.Both     =>

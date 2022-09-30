@@ -49,9 +49,13 @@ private[raphtory] object LocalContext extends RaphtoryContext {
 
   private def deployService(graphID: String, config: Config): Resource[IO, QuerySender] = {
     val scheduler      = new Scheduler()
+
     val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
+
+
+
+
     for {
-      _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
       topicRepo          <- LocalTopicRepository[IO](config)
       partitionIdManager <- makeIdManager[IO](config, localDeployment = true, graphID, forPartitions = true)
       sourceIdManager    <- makeIdManager[IO](config, localDeployment = true, graphID, forPartitions = false)

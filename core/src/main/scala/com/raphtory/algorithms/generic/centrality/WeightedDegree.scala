@@ -51,8 +51,9 @@ class WeightedDegree[T: Numeric](weightProperty: String = "weight")
       vertex.setState("inStrength", inWeight)
       val outWeight: T = vertex.weightedOutDegree(weightProperty = weightProperty)
       vertex.setState("outStrength", outWeight)
-      val totWeight: T = inWeight + outWeight
-      vertex.setState("totStrength", vertex.weightedTotalDegree(weightProperty))
+      val t = vertex.weightedTotalDegree(weightProperty)
+      vertex.setState("totStrength", t)
+      println(s" ${vertex.ID} $inWeight $outWeight $t")
     }
 }
 

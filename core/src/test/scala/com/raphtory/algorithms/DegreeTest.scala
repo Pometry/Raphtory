@@ -12,7 +12,7 @@ class DegreeTest extends BaseCorrectnessTest {
 
   override def setSpout(): Spout[String] = ResourceSpout("Degree/degreeTest.csv")
 
-  test("weighted Degree with weighted edges") {
+  test("weighted Degree with weighted edges".only) {
     correctnessTest(TestQuery(WeightedDegree[Long](), 6), "Degree/weightedResult.csv")
   }
 

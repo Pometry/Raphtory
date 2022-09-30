@@ -89,7 +89,11 @@ trait ArrowExEntity extends EntityVisitor {
       case edge: ArrowExEdge     =>
         implicit val PROP: Prop[T] = Prop.runtime[T](edge.entity)
         val arrE                   = edge.entity.asInstanceOf[ArrEdge]
-        historyProps(arrE.prop[T](key), after, before)
+        val hist = historyProps(arrE.prop[T](key), after, before).map(_.toVector)
+
+        val aa = (edge.src -> edge.dst)
+        println(s"getPropertyHistory  $aa $key  $hist")
+        hist
     }
 
   //    this match {
@@ -129,9 +133,11 @@ trait ArrowExEntity extends EntityVisitor {
 //    }
 
   private def historyProps[T](addVertexProps: PropAccess[T], after: Long, before: Long) = {
-    val hist = addVertexProps.list.filter { case (_, t) => t >= after && t <= before }.map {
-      case (v, t) => PropertyValue(t, -1, v)
-    }
+    val hist = addVertexProps
+      .list
+//      .filter { case (_, t) => t >= after && t <= before }
+      .map { case (v, t) => PropertyValue(t, t, v) }
+
     Some(hist)
   }
 
