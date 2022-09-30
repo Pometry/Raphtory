@@ -21,11 +21,8 @@ object PartitionService extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = {
 
-    val config         = Raphtory.getDefaultConfig()
-    val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
-
+    val config  = Raphtory.getDefaultConfig()
     val service = for {
-      _                  <- Prometheus[IO](prometheusPort)
       repo               <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, None)
       partitionIDManager <- makePartitionIDManager[IO](config)
       service            <- PartitionOrchestrator[IO](config, repo, partitionIDManager)
