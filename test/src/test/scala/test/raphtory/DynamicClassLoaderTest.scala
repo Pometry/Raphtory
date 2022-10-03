@@ -16,7 +16,9 @@ import com.raphtory.Raphtory
 import com.raphtory.TestUtils
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.sinks.PrintSink
+import com.typesafe.scalalogging.Logger
 import munit.CatsEffectSuite
+import org.slf4j.LoggerFactory
 import test.raphtory.algorithms.MaxFlowTest
 import test.raphtory.algorithms.MinimalTestAlgorithm
 import test.raphtory.algorithms.TestAlgorithmWithExternalDependency
@@ -62,6 +64,7 @@ object Parent {
 }
 
 class DynamicClassLoaderTest extends CatsEffectSuite {
+  val logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   val minimalTestCode: String =
     """
@@ -92,27 +95,31 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
       for {
         started   <- Semaphore[IO](0)
 //         get classpath from sbt
+        _         <- IO(logger.info("retrieving class path from sbt"))
         classPath <- IO.blocking(Seq("sbt", "--error", "export core/test:fullClasspath").!!)
         process   <- IO {
-                       println("starting remote process")
+                       logger.info("starting remote process")
                        Process(Seq("java", "-cp", classPath, "com.raphtory.service.Standalone")).run(
                                ProcessLogger { line =>
-                                 println(line)
                                  if (line == "HeadNode started") {
-                                   println("releasing")
+                                   logger.info("HeadNode started")
                                    started.release.unsafeRunSync()
                                  }
+                                 else
+                                   println(line) // forward output
                                }
                        )
                      }
 //         start tests if there is already a standalone instance
-        _         <- (IO.blocking(process.exitValue()) *> started.release).start
+        _         <- (IO.blocking(process.exitValue()) *> started.release *> IO(
+                               logger.info("Failed to start remote process, a standalone instance is likely already running")
+                       )).start
 //        head node is started, proceed
         _         <- started.acquire
       } yield process
     }(process =>
       IO {
-        println("destroying remote process")
+        logger.info("destroying remote process")
         process.destroy()
       }
     )
@@ -166,12 +173,12 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
             _          <- remoteProcess
             connection <- Resource.make {
                             IO {
-                              println("connecting to remote")
+                              logger.info("connecting to remote")
                               Raphtory.connect()
                             }
                           } { c =>
                             IO {
-                              println("closing remote connection")
+                              logger.info("closing remote connection")
                               c.close() // TODO: this currently falls over if any graphs were closed before
                             }
                           }
