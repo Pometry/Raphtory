@@ -28,6 +28,7 @@ object WriteValue {
 }
 
 class MultilayerViewTest extends BaseCorrectnessTest {
+  override def munitIgnore: Boolean = true
   val edges = Seq("1,2,1", "2,1,2")
 
   override def setSpout(): Spout[String] = SequenceSpout(edges: _*)

@@ -41,7 +41,9 @@ class GraphExecutionState(
   override def getStateOrElse[T](getLocalId: Long, key: String, orElse: => T): T = {
     val innerMap = state.get(getLocalId)
     if (innerMap == null) orElse
-    else innerMap(key).asInstanceOf[T]
+    else {
+      innerMap.getOrElse(key, orElse).asInstanceOf[T]
+    }
   }
 
   override def setState(vertexId: Long, key: String, value: Any): Unit =

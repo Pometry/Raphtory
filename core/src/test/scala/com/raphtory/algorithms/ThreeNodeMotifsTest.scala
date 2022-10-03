@@ -5,6 +5,7 @@ import com.raphtory.TestQuery
 import com.raphtory.algorithms.generic.motif.ThreeNodeMotifs
 
 class ThreeNodeMotifsTest extends BaseCorrectnessTest {
+  override def munitIgnore: Boolean = true
   test("test motif counting") {
     correctnessTest(
             TestQuery(ThreeNodeMotifs, 23),

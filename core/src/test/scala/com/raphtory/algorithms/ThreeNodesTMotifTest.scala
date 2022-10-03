@@ -4,6 +4,7 @@ import com.raphtory.algorithms.temporal.motif.{LocalThreeNodeMotifs, ThreeNodeMo
 import com.raphtory.{BaseCorrectnessTest, TestQuery}
 
 class ThreeNodesTMotifTest extends BaseCorrectnessTest {
+  override def munitIgnore: Boolean = true
   test("test temporal motif counting") {
     correctnessTest(
       TestQuery(ThreeNodeMotifs(graphWide = true, prettyPrint = false,delta = 10),23),
