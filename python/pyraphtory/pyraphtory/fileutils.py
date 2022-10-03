@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import requests
 from requests.adapters import HTTPAdapter, Retry
 import shutil
@@ -5,6 +7,7 @@ import os.path
 import hashlib
 import zipfile
 import pyraphtory._version
+
 
 __version__ = pyraphtory._version.__version__
 
@@ -88,23 +91,33 @@ def check_download_update_jar(pyraphtory_jar_download_loc, jars):
         jars = download_raphtory_jar(__version__, pyraphtory_jar_download_loc)
     else:
         # otherwise, check if we have a raphtory jar
-        has_raphtory_jar = False
-        for jar in jars.split(':'):
-            has_raphtory_jar = is_raphtory_jar_found(jar)
+        jars = jars.split(':')
+        raphtory_jars = []
+        for jar in jars:
+            jar_file = Path(jar)
+            if jar_file.suffix == ".jar":
+                if is_raphtory_jar_found(jar):
+                    raphtory_jars.append(jar)
         # if we do not have a raphtory jar then we download it
         new_jar_location = ''
-        if not has_raphtory_jar:
+        if not raphtory_jars:
             new_jar_location = download_raphtory_jar(__version__)
         else:
             # if we have a raphtory jar, we check version
             # if version doesnt match python, we download the correct
-            if not does_jar_version_match(jar):
-                delete_jar(jar)
+            needs_download = True
+            for jar in raphtory_jars:
+                if not does_jar_version_match(jar):
+                    delete_jar(jar)
+                    jars.remove()
+                else:
+                    needs_download = False
+            if needs_download:
                 new_jar_location = download_raphtory_jar(__version__, pyraphtory_jar_download_loc)
         # we add the new jar to the jars path
         if new_jar_location:
-            jars += ':' + new_jar_location
-    return jars
+            jars.append(new_jar_location)
+    return ":".join(jars)
 
 
 def download_raphtory_jar(version, download_dir):
@@ -151,7 +164,8 @@ def download_raphtory_jar(version, download_dir):
 
 
 def test():
-    jar_file = '/Users/haaroony/Documents/dev/Raphtory-pyraphtory3/python/pyraphtory/lib/core-assembly-0.2.0a0.jar'
+    from pyraphtory._config import jar_location, jars
+    jar_file = jar_location / f'core-assembly-{__version__}.jar'
     print(is_raphtory_jar_found(jar_file))
     print(does_jar_version_match(jar_file))
-    print(check_download_update_jar(jar_file))
+    print(check_download_update_jar(jar_file, jars))
