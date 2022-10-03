@@ -28,7 +28,7 @@ trait ArrowEntityStateRepository {
     * @tparam T
     * @return
     */
-  def releaseQueue[T](vertexId: Long): View[T]
+  def releaseQueue[T](vertexId: Long): Seq[T]
 
   def superStep: Int
 

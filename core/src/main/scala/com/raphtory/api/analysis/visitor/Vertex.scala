@@ -47,7 +47,7 @@ trait Vertex extends EntityVisitor {
   /** Queue of received messages
     * @tparam `T`  message data type
     */
-  def messageQueue[T]: View[T]
+  def messageQueue[T]: Seq[T]
 
   /** Vote to stop iterating (iteration stops if all vertices voted to halt) */
   def voteToHalt(): Unit

@@ -74,8 +74,7 @@ class SLPA(iterNumber: Int = 50, speakerRule: Rule, listenerRule: Rule) extends 
       }
       .iterate(
               { vertex =>
-                val newlab =
-                  listenerRule.chooseLabel(vertex.messageQueue[vertex.IDType].to(mutable.Queue))
+                val newlab = listenerRule.chooseLabel(mutable.Queue(vertex.messageQueue[vertex.IDType]: _*))
                 val memory = vertex.getState[mutable.Queue[vertex.IDType]]("memory")
                 memory += newlab
 

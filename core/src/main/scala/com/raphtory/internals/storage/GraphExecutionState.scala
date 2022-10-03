@@ -108,13 +108,13 @@ class GraphExecutionState(
 
   override def superStep: Int = superStep0.get
 
-  override def releaseQueue[T](vertexId: Long): View[T] =
+  override def releaseQueue[T](vertexId: Long): Seq[T] =
     messagesPerVertex.get(vertexId) match {
-      case None    => View.empty[T]
+      case None    => Vector.empty[T]
       case Some(q) =>
         val value = q.getMessageQueue(superStep) // copies the queue
         q.clearQueue(superStep)
-        value.view.map(_.asInstanceOf[T])
+        value.asInstanceOf[Vector[T]]
     }
 
   override def asGlobal(localVertexId: Long): Long = makeGlobalFn(localVertexId)

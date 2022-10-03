@@ -33,7 +33,7 @@ class BinaryDiffusion(
       }
       .iterate(
               { vertex =>
-                val messages = vertex.messageQueue.toVector.distinct
+                val messages = vertex.messageQueue.distinct
                 if (messages.contains(infectedStatus))
                   // never been infected, then set infected and randomly infect others
                   if (!vertex.getStateOrElse[Boolean](infectedStatus, false)) {

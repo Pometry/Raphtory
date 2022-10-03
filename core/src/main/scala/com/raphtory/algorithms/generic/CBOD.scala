@@ -60,7 +60,7 @@ class CBOD(
       .step { v => // Get outlier score
         val vlabel         = v.getState[Long](key = label, includeProperties = true)
         val neighborLabels = v.messageQueue[Long]
-        val outlierScore   = 1 - (neighborLabels.count(_ == vlabel) / neighborLabels.size.toDouble)
+        val outlierScore   = 1 - (neighborLabels.count(_ == vlabel) / neighborLabels.length.toDouble)
         v.setState("outlierscore", outlierScore)
       }
 

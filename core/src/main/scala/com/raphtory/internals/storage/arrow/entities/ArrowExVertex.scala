@@ -36,7 +36,7 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
     *
     * @tparam `T` message data type
     */
-  override def messageQueue[T]: View[T] =
+  override def messageQueue[T]: Seq[T] =
     repo.releaseQueue(ID)
 
   /** Vote to stop iterating (iteration stops if all vertices voted to halt) */

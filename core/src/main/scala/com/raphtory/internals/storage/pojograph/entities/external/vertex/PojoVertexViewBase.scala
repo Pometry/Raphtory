@@ -66,7 +66,7 @@ abstract private[pojograph] class PojoLocalVertexViewBase(val vertex: PojoVertex
 
   override def hasMessage: Boolean = vertex.hasMessage
 
-  override def messageQueue[T]: View[T] = vertex.messageQueue
+  override def messageQueue[T]: Seq[T] = vertex.messageQueue
 
   override def clearMessageQueue(): Unit = vertex.clearMessageQueue()
 
