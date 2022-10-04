@@ -3,10 +3,7 @@ package com.raphtory.enrontest
 import com.raphtory.BaseRaphtoryAlgoTest
 import com.raphtory.GraphState
 import com.raphtory.algorithms.generic.ConnectedComponents
-import com.raphtory.api.input.Graph
-import com.raphtory.api.input.GraphBuilder
-import com.raphtory.api.input.Source
-import com.raphtory.api.input.Spout
+import com.raphtory.api.input.{Graph, GraphBuilder, Source, Spout}
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 
@@ -18,9 +15,9 @@ import scala.language.postfixOps
 
 class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
-  withGraph.test("Graph State Test".ignore) { graph =>
+  withEnronGraph.test("Graph State Test".ignore) { graph =>
+    graph.load(ENRONSource(setSpout()))
     val sink: FileSink = FileSink(outputDirectory)
-    graph.load(Source(setSpout(), setGraphBuilder()))
 
     graph
       .walk(10000)
@@ -31,23 +28,21 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
   }
 
-  test("Connected Components Test") {
-    val sink: FileSink = FileSink(outputDirectory)
+  withEnronGraph.test("Connected Components Test") { graph =>
+      graph.load(ENRONSource(setSpout()))
+      val sink: FileSink = FileSink(outputDirectory)
 
-    algorithmTest(
-            algorithm = ConnectedComponents,
-            sink = sink,
-            start = 1,
-            end = 32674,
-            increment = 10000,
-            windows = List(500, 1000, 10000)
-    )
+      graph
+        .range(1, 32674, 10000)
+        .window(List(500, 1000, 10000))
+        .execute(GraphState())
+        .writeTo(sink)
+        .waitForJob()
+//    }
 
   }
 
   override def setSpout(): Spout[String] = FileSpout("/tmp/email_test.csv")
-
-   def setGraphBuilder(): GraphBuilder[String] = ENRONGraphBuilder
 
   override def liftFileIfNotPresent: Option[(String, URL)] =
     Some("/tmp/email_test.csv" -> new URL("https://raw.githubusercontent.com/Raphtory/Data/main/email_test.csv"))

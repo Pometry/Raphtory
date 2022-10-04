@@ -5,7 +5,8 @@ import com.raphtory.api.analysis.algorithm.GenericallyApplicable
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
-import com.raphtory.api.input.{CSVEdgeListSource, Graph, GraphBuilder, Source, Spout}
+import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.api.input.{Graph, GraphBuilder, Source, Spout}
 import com.raphtory.spouts.IdentitySpout
 import com.raphtory.spouts.ResourceSpout
 import com.raphtory.spouts.SequenceSpout
@@ -80,7 +81,7 @@ abstract class BaseCorrectnessTest(
     Raphtory
       .newIOGraph()
       .use { g =>
-        g.load(CSVEdgeListSource(graphEdges).setIndexPositions(0,1,2))
+        g.load(CSVEdgeListSource(graphEdges))
         runTest(test, g)
       }
       .map(obtained => assertResultsMatch(obtained, results))

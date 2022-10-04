@@ -18,6 +18,7 @@ import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.sinks.PrintSink
 import com.typesafe.scalalogging.Logger
+import com.raphtory.api.input.sources.CSVEdgeListSource
 import munit.CatsEffectSuite
 import org.slf4j.LoggerFactory
 import test.raphtory.algorithms.MaxFlowTest

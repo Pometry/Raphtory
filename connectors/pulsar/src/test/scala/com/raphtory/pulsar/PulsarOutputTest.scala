@@ -7,7 +7,8 @@ import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.TemporalGraph
-import com.raphtory.api.input.{CSVEdgeListSource, GraphBuilder, Source, Spout}
+import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.api.input.{GraphBuilder, Source, Spout}
 import com.raphtory.pulsar.connector.PulsarConnector
 import com.raphtory.pulsar.sink.PulsarSink
 import com.raphtory.spouts.FileSpout

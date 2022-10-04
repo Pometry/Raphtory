@@ -5,7 +5,8 @@ import com.raphtory.Raphtory
 import com.raphtory.TestUtils
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.analysis.graphview.Alignment
-import com.raphtory.api.input.{CSVEdgeListSource, Source}
+import com.raphtory.api.input.Source
+import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.internals.context.LocalContext
 import com.raphtory.sinks.FileSink

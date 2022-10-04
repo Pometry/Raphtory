@@ -8,8 +8,10 @@ import com.raphtory.api.analysis.algorithm.GenericallyApplicable
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
-import com.raphtory.api.input.{CSVEdgeListSource, Graph, GraphBuilder, Source, Spout}
+import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.api.input.{Graph, GraphBuilder, Source, Spout}
 import com.raphtory.api.output.sink.Sink
+import com.raphtory.enrontest.ENRONSource
 import com.raphtory.sinks.FileSink
 import com.typesafe.scalalogging.Logger
 import munit.CatsEffectSuite
@@ -36,12 +38,20 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   private def graph: Resource[IO, DeployedTemporalGraph] =
     Raphtory.newIOGraph()
 
-  lazy val withGraph: SyncIO[FunFixture[TemporalGraph]] = ResourceFixture(
+  lazy val withEnronGraph: SyncIO[FunFixture[TemporalGraph]] = ResourceFixture(
           for {
             _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
             g <- graph
-            _  = g.load(CSVEdgeListSource(setSpout()))
+            _  = g.load(ENRONSource(setSpout()))
           } yield g
+  )
+
+  lazy val withGraph: SyncIO[FunFixture[TemporalGraph]] = ResourceFixture(
+    for {
+      _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
+      g <- graph
+      _ = g.load(CSVEdgeListSource(setSpout()))
+    } yield g
   )
 
   lazy val suiteGraph: Fixture[DeployedTemporalGraph] = ResourceSuiteLocalFixture(
