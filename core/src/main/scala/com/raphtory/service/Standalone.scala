@@ -9,8 +9,6 @@ import com.raphtory.Raphtory
 import com.raphtory.Raphtory.makeLocalIdManager
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.components.cluster.ClusterManager
-import com.raphtory.internals.components.cluster.RpcServer
-import com.raphtory.internals.components.cluster.StandaloneMode
 import com.raphtory.internals.components.ingestion.IngestionOrchestrator
 import com.raphtory.internals.components.partition.PartitionOrchestrator
 import com.raphtory.internals.components.querymanager.QueryOrchestrator
@@ -36,7 +34,6 @@ object Standalone extends IOApp {
       _                  <- QueryOrchestrator[IO](config, repo)
       headNode           <- ClusterManager[IO](config, repo)
       sourceIDManager    <- makeLocalIdManager[IO]
-      _                  <- RpcServer[IO](sourceIDManager, repo, config)
     } yield headNode
     headNode.useForever
   }

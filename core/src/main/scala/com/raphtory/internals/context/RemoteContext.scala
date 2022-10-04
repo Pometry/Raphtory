@@ -45,11 +45,9 @@ class RemoteContext(address: String, port: Int) extends RaphtoryContext {
     val config         = confBuilder(userParameters ++ customConfig)
     val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
     for {
-      _               <- Prometheus[IO](prometheusPort)
-      topicRepo       <- LocalTopicRepository[IO](config, None)
-      rpc             <- RpcClient[IO](graphID, topicRepo, config)
-      sourceIdManager <- makeClientIdManager[IO](rpc)
-      querySender      = new QuerySender(graphID, new Scheduler(), topicRepo, config, sourceIdManager, createName)
+      _          <- Prometheus[IO](prometheusPort)
+      topicRepo  <- LocalTopicRepository[IO](config, None)
+      querySender = new QuerySender(graphID, new Scheduler(), topicRepo, config, createName)
     } yield (querySender, config)
   }
 

@@ -141,6 +141,7 @@ lazy val core = (project in file("core"))
                   py4j,
                   scalaLogging,
                   scalaParallelCollections,
+                  scalaPb,
                   scalaTest,
                   scalaTestCompile,
                   slf4j,

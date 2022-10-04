@@ -1,27 +1,33 @@
 package com.raphtory.internals.management
 
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import com.raphtory.api.input.Graph
 import com.raphtory.api.analysis.table.TableOutputTracker
 import com.raphtory.api.input.Source
 import com.raphtory.api.querytracker.QueryProgressTracker
 import com.raphtory.internals.FlushToFlight
+import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.communication.TopicRepository
+import com.raphtory.internals.components.RService
+import com.raphtory.internals.components.output.OutputMessages
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.internals.management.id.IDManager
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
+
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.Duration
 import scala.util.Random
 
 private[raphtory] class QuerySender(
     val graphID: String,
+    private val service: RService[IO],
     override val scheduler: Scheduler,
     private val topics: TopicRepository,
     private val config: Config,
-    private val idManager: IDManager,
     private val clientID: String
 ) extends Graph
         with FlushToFlight {
@@ -35,9 +41,6 @@ private[raphtory] class QuerySender(
   val totalPartitions: Int     = partitionServers * partitionsPerServer
 
   override lazy val writers            = topics.graphUpdates(graphID).endPoint
-  private lazy val queryManager        = topics.blockingIngestion(graphID).endPoint
-  private lazy val graphSetup          = topics.graphSetup.endPoint
-  private lazy val submissions         = topics.submissions(graphID).endPoint
   private val blockingSources          = ArrayBuffer[Long]()
   private var highestTimeSeen          = Long.MinValue
   private var totalUpdateIndex         = 0    //used at the secondary index for the client
@@ -53,7 +56,7 @@ private[raphtory] class QuerySender(
 
   def IDForUpdates(): Int = {
     if (newIDRequiredOnUpdate)
-      idManager.getNextAvailableID(graphID) match {
+      service.getNextAvailableId(graphID).unsafeRunSync() match {
         case Some(id) =>
           currentSourceID = id
           newIDRequiredOnUpdate = false
@@ -69,7 +72,7 @@ private[raphtory] class QuerySender(
   override protected def handleGraphUpdate(update: GraphUpdate): Unit = {
     latestMsgTimeToFlushToFlight = System.currentTimeMillis()
     highestTimeSeen = highestTimeSeen max update.updateTime
-    writers(getPartitionForId(update.srcId)) sendAsync update
+    service.processUpdate(graphID, update)
     totalUpdateIndex += 1
     updatesSinceLastIDChange += 1
 
@@ -93,7 +96,18 @@ private[raphtory] class QuerySender(
               _bootstrap = query._bootstrap.resolve(searchPath)
       )
 
-    submissions sendAsync outputQuery
+    val responses           = service.submitQuery(outputQuery)
+    lazy val queryTrack     = topics.queryTrack(graphID, jobID).endPoint
+    lazy val outputMessages = topics.output(graphID, jobID).endPoint
+    responses
+      .foreach {
+        case message: OutputMessages => IO(outputMessages sendAsync message)
+        case response                => IO(queryTrack sendAsync response)
+      }
+      .compile
+      .drain
+      .unsafeRunAndForget()
+
     jobID
   }
 
@@ -104,13 +118,13 @@ private[raphtory] class QuerySender(
   }
 
   private def unblockIngestion(sourceID: Int, messageCount: Long, force: Boolean): Unit =
-    queryManager.sendAsync(UnblockIngestion(sourceID, graphID = graphID, messageCount, highestTimeSeen, force))
+    service.unblockIngestion(graphID, sourceID, messageCount, highestTimeSeen, force).unsafeRunSync()
 
-  def destroyGraph(force: Boolean): Unit = graphSetup sendAsync DestroyGraph(graphID, clientID, force)
+  def destroyGraph(force: Boolean): Unit = service.destroyGraph(clientID, graphID, force).unsafeRunSync()
 
-  def disconnect(): Unit = graphSetup sendAsync ClientDisconnected(graphID, clientID)
+  def disconnect(): Unit = service.disconnect(clientID, graphID).unsafeRunSync()
 
-  def establishGraph(): Unit = graphSetup sendAsync EstablishGraph(graphID, clientID)
+  def establishGraph(): Unit = service.establishGraph(clientID, graphID).unsafeRunSync()
 
   def outputCollector(jobID: String, timeout: Duration): TableOutputTracker = {
     val collector = TableOutputTracker(graphID, jobID, topics, config, timeout)
@@ -124,7 +138,7 @@ private[raphtory] class QuerySender(
       source.getBuilderClass
     }.toList
     val sourceWithId = sources.map { source =>
-      idManager.getNextAvailableID(graphID) match {
+      service.getNextAvailableId(graphID).unsafeRunSync() match {
         case Some(id) =>
           if (blocking) blockingSources += id
           (id, source)
@@ -132,13 +146,9 @@ private[raphtory] class QuerySender(
           throw new NoIDException(s"Client '$clientID' was not able to acquire a source ID for $source")
       }
     }
-    submissions sendAsync IngestData(
-            DynamicLoader(clazzes).resolve(searchPath),
-            graphID,
-            id,
-            sourceWithId,
-            blocking
-    )
+    service
+      .submitSource(IngestData(DynamicLoader(clazzes).resolve(searchPath), graphID, id, sourceWithId, blocking))
+      .unsafeRunSync()
   }
 
   def closeArrow(): Unit = writers.values.foreach(_.close())

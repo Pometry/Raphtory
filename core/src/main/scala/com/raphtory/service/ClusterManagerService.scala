@@ -11,7 +11,6 @@ import com.raphtory.internals.components.cluster.ClusterManager
 import com.raphtory.internals.components.cluster.ClusterMode
 import com.raphtory.internals.management.ZookeeperConnector
 import com.raphtory.internals.management.arrow.ZKHostAddressProvider
-import com.raphtory.internals.components.cluster.RpcServer
 
 object ClusterManagerService extends IOApp {
 
@@ -21,7 +20,6 @@ object ClusterManagerService extends IOApp {
       repo      <- DistributedTopicRepository[IO](AkkaConnector.SeedMode, config, None)
       idManager <- makeLocalIdManager[IO]
       headNode  <- ClusterManager[IO](config, repo)
-      _         <- RpcServer[IO](idManager, repo, config)
     } yield headNode
     headNode.useForever
   }
