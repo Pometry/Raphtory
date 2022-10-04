@@ -1,16 +1,12 @@
 package com.raphtory.internals.storage.arrow.entities
 
-import com.raphtory.api.analysis.visitor.ConcreteEdge
-import com.raphtory.api.analysis.visitor.{Edge => REdge}
-import com.raphtory.arrowcore.model.Edge
-import com.raphtory.arrowcore.model.Entity
-import com.raphtory.internals.storage.arrow.ArrowGraphLens
-import com.raphtory.internals.storage.arrow.ArrowPartition
+import com.raphtory.api.analysis.visitor.{ConcreteExplodedEdge, ReducedEdge}
+import com.raphtory.arrowcore.model.{Edge, Entity}
+import com.raphtory.internals.communication.SchemaProviderInstances._
+import com.raphtory.internals.components.querymanager.VertexMessage
 import com.raphtory.internals.storage.arrow.ArrowEntityStateRepository
 
-class ArrowExEdge(edge: Edge, protected val repo: ArrowEntityStateRepository)
-        extends ConcreteEdge[Long]
-        with ArrowExEntity {
+class ArrowExEdge(edge: Edge, protected val repo: ArrowEntityStateRepository) extends ReducedEdge with ArrowExEntity {
 
   /** type of vertex IDs for this edge */
   override type IDType = Long
@@ -38,7 +34,23 @@ class ArrowExEdge(edge: Edge, protected val repo: ArrowEntityStateRepository)
     *
     * @param data Message data to send
     */
-  override def send(data: Any): Unit = ???
+  override def send(data: Any): Unit = {
+    val vertexId = if (isIncoming) src else dst
+    repo.sendMessage(VertexMessage(repo.superStep, vertexId, data))
+  }
 
   override def entity: Entity = edge
+
+  /** Remove an entry in the entity's algorithmic state. */
+  override def clearState(key: String): Unit = ???
+
+  /** concrete type for exploded edge views of this edge which implements
+    * [[ExplodedEdge]] with same `IDType`
+    */
+  override type ExplodedEdge = ConcreteExplodedEdge[Long]
+
+  /** Return an [[ExplodedEdge]] instance for each time the edge is
+    * active in the current view.
+    */
+  override def explode(): List[ExplodedEdge] = List.empty
 }

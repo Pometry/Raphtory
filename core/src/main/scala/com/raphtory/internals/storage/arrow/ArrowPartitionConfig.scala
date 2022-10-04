@@ -9,7 +9,6 @@ import java.nio.file.Path
 class ArrowPartitionConfig(
     partitionId: Int,
     nPartitions: Int,
-    graphId: String,
     propertySchema: PropertySchema,
     arrowDir: Path,
     nLocalEntityIdMaps: Int = Runtime.getRuntime.availableProcessors(),
@@ -37,7 +36,6 @@ class ArrowPartitionConfig(
 object ArrowPartitionConfig {
 
   def apply(config: Config, partitionId: Int, propertySchema: PropertySchema, arrowDir: Path): ArrowPartitionConfig = {
-    val graphID                  = config.getString("raphtory.graph.id")
     val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
     val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
     val totalPartitions: Int     = partitionServers * partitionsPerServer
@@ -45,7 +43,6 @@ object ArrowPartitionConfig {
     new ArrowPartitionConfig(
             partitionId = partitionId,
             nPartitions = totalPartitions,
-            graphId = graphID,
             propertySchema = propertySchema,
             arrowDir = arrowDir
     )

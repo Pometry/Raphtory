@@ -50,7 +50,7 @@ final case class ArrowGraphLens(
       defaultMergeStrategy: Option[PropertyMerge[_, _]],
       mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
       aggregate: Boolean
-  )(onComplete: => Unit): Unit = ???
+  )(onComplete: => Unit): Unit = {onComplete}
 
   override def runMessagedGraphFunction(f: (_, GraphState) => Unit, graphState: GraphState)(
       onComplete: => Unit

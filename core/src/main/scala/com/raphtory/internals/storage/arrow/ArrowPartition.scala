@@ -29,7 +29,7 @@ import scala.collection.View
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition: Int, conf: Config)
+class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition: Int, conf: Config)
         extends GraphPartition(graphID, partition, conf) {
 
   def asGlobal(vertexId: Long): Long =
@@ -127,7 +127,6 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
 
     vertex
   }
-
 
   private def setProps(v: Entity, msgTime: Long, properties: Properties)(
       lookupProp: String => Int
@@ -293,9 +292,9 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
             .toSet
 
         addOrUpdateEdgeProps(
-          msgTime,
-          e,
-          Properties(properties.properties.filter(p => props(p.key.toLowerCase())): _*)
+                msgTime,
+                e,
+                Properties(properties.properties.filter(p => props(p.key.toLowerCase())): _*)
         )
 
         emgr.addHistory(e.getLocalId, msgTime, true)
@@ -362,16 +361,15 @@ class ArrowPartition(val par: RaphtoryArrowPartition, graphID: String, partition
 
     getIncomingEdge(srcId, dst) match {
       case Some(e) =>
-
         val props: Set[String] =
           par.getPropertySchema.versionedEdgeProperties().asScala.map(_.name()).toSet intersect properties.properties
             .map(_.key.toLowerCase())
             .toSet
 
         addOrUpdateEdgeProps(
-          msgTime,
-          e,
-          Properties(properties.properties.filter(p => props(p.key.toLowerCase())): _*)
+                msgTime,
+                e,
+                Properties(properties.properties.filter(p => props(p.key.toLowerCase())): _*)
         )
 
         emgr.addHistory(e.getLocalId, msgTime, true)
@@ -479,10 +477,9 @@ object ArrowPartition {
 
   }
 
-  def apply(cfg: ArrowPartitionConfig, config: Config): ArrowPartition = {
-    val graphID     = config.getString("raphtory.graph.id")
+  def apply(graphId: String, cfg: ArrowPartitionConfig, config: Config): ArrowPartition = {
     val arrowConfig = new RaphtoryArrowPartition(cfg.toRaphtoryPartitionConfig)
 
-    new ArrowPartition(arrowConfig, graphID, arrowConfig.getRaphtoryPartitionId, config)
+    new ArrowPartition(graphId, arrowConfig, arrowConfig.getRaphtoryPartitionId, config)
   }
 }

@@ -1,12 +1,19 @@
 package com.raphtory.internals.components.partition
 
-import cats.effect.{Async, Resource}
+import cats.effect.Async
+import cats.effect.Resource
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
-import com.raphtory.internals.components.querymanager.{EstablishExecutor, GraphManagement, StopExecutor}
+import com.raphtory.internals.components.querymanager.EstablishExecutor
+import com.raphtory.internals.components.querymanager.GraphManagement
+import com.raphtory.internals.components.querymanager.StopExecutor
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.Scheduler
-import com.raphtory.internals.storage.arrow.{ArrowPartition, ArrowPartitionConfig, ArrowSchema, immutable}
+import com.raphtory.internals.storage.arrow.ArrowPartition
+import com.raphtory.internals.storage.arrow.ArrowPartitionConfig
+import com.raphtory.internals.storage.arrow.ArrowSchema
+import com.raphtory.internals.storage.arrow.immutable
+import com.raphtory.internals.storage.pojograph.PojoBasedPartition
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -59,7 +66,15 @@ class PartitionManager(
 
 object PartitionManager {
 
-  def apply[IO[_]](
+  def apply[IO[_]](graphID: String, partitionID: Int, scheduler: Scheduler, conf: Config, topics: TopicRepository)(
+      implicit IO: Async[IO]
+  ): Resource[IO, PartitionManager] =
+    Resource.eval(IO.delay(new PojoBasedPartition(graphID, partitionID, conf))).flatMap { storage =>
+      fromStorage(storage, graphID, partitionID, scheduler, conf, topics)
+    }
+
+  def fromStorage[IO[_]](
+      storage: GraphPartition,
       graphID: String,
       partitionID: Int,
       scheduler: Scheduler,
@@ -68,25 +83,8 @@ object PartitionManager {
   )(implicit IO: Async[IO]): Resource[IO, PartitionManager] =
     for {
 
-      storage        <- Resource.eval(
-//                                IO.delay(new PojoBasedPartition(graphID, partitionID, conf))
-                                IO.blocking(
-                                        ArrowPartition(
-                                                ArrowPartitionConfig(
-                                                        conf,
-                                                        partitionID,
-                                                        ArrowSchema[NodeSchema, EdgeSchema],
-                                                        Files.createTempDirectory("random-blerg")
-                                                ),
-                                                conf
-                                        )
-                                )
-                        )
-
-      readerResource <- Reader[IO](graphID, partitionID, storage, scheduler, conf, topics)
-
-      writerResource <- Writer[IO](graphID, partitionID, storage, conf, topics, scheduler)
-
+      _  <- Reader[IO](graphID, partitionID, storage, scheduler, conf, topics)
+      _  <- Writer[IO](graphID, partitionID, storage, conf, topics, scheduler)
       pm <- Component.makeAndStartPart(
                     partitionID,
                     topics,
@@ -103,6 +101,39 @@ object PartitionManager {
             )
     } yield pm
 
+  def arrow[IO[_]](
+      graphID: String,
+      partitionID: Int,
+      scheduler: Scheduler,
+      conf: Config,
+      topics: TopicRepository
+  )(implicit IO: Async[IO]): Resource[IO, PartitionManager] =
+    Resource
+      .eval(arrowPartition(graphID, partitionID, conf))
+      .flatMap(storage => fromStorage(storage, graphID, partitionID, scheduler, conf, topics))
+
+  /**
+    * Creates an arrow partition
+    * @param graphID
+    * @param partitionID
+    * @param conf
+    * @param IO
+    * @tparam IO
+    * @return
+    */
+  private def arrowPartition[IO[_]](graphID: String, partitionID: Int, conf: Config)(implicit IO: Async[IO]) =
+    IO.blocking(
+            ArrowPartition(
+                    graphID,
+                    ArrowPartitionConfig(
+                            conf,
+                            partitionID,
+                            ArrowSchema[NodeSchema, EdgeSchema],
+                            Files.createTempDirectory("experimental")
+                    ),
+                    conf
+            )
+    )
 }
 
 case class NodeSchema(@immutable name: String)

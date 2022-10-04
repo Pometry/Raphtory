@@ -1,20 +1,18 @@
 package com.raphtory.internals.storage.arrow.entities
 
-import com.raphtory.api.analysis.visitor.InterlayerEdge
-import com.raphtory.api.analysis.visitor.Vertex
-import com.raphtory.arrowcore.model.Entity
-import com.raphtory.arrowcore.model.{Vertex => ArrVertex}
+import com.raphtory.api.analysis.visitor.ReducedVertex
+import com.raphtory.arrowcore.model.{Entity, Vertex => ArrVertex}
 import com.raphtory.internals.communication.SchemaProviderInstances
 import com.raphtory.internals.communication.SchemaProviderInstances._
-import com.raphtory.internals.components.querymanager.{FilteredEdgeMessage, FilteredInEdgeMessage, FilteredOutEdgeMessage, SchemaProvider, VertexMessage}
+import com.raphtory.internals.components.querymanager.{FilteredInEdgeMessage, FilteredOutEdgeMessage, SchemaProvider, VertexMessage}
+import com.raphtory.internals.storage.arrow.{ArrowEntityStateRepository, RichVertex}
 
 import scala.collection.View
-import com.raphtory.internals.storage.arrow.ArrowEntityStateRepository
-import com.raphtory.internals.storage.arrow.RichVertex
-
 import scala.reflect.ClassTag
 
-class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex) extends Vertex with ArrowExEntity {
+class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
+        extends ReducedVertex
+        with ArrowExEntity {
 
   def entity: Entity = vertex
 
@@ -48,15 +46,15 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
     * @param vertexId Vertex Id of target vertex for the message
     * @param data     message data to send
     */
-  override def messageVertex[T:ClassTag](vertexId: IDType, data: T)(implicit provider: SchemaProvider[T]): Unit =
+  override def messageVertex[T: ClassTag](vertexId: IDType, data: T)(implicit provider: SchemaProvider[T]): Unit =
     repo.sendMessage(VertexMessage(repo.superStep + 1, vertexId, data))
 
-  override def name(nameProperty: String): String = {
+  override def name(nameProperty: String): String =
     entity match {
-      case v:ArrVertex =>
+      case v: ArrVertex =>
         v.field[String](nameProperty).get
     }
-  }
+
   /** Return all edges starting at this vertex
     */
   override def outEdges: View[ArrowExEdge] =
@@ -107,15 +105,56 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
     }
   }
 
-  def explode(
-      interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]]
-  ): Vertex = {
-    vertex
-    ???
-  }
-
   /** Remove an entry in the entity's algorithmic state. */
   override def clearState(key: String): Unit = ???
 
-  override implicit val provider: SchemaProvider[Long] = SchemaProviderInstances.longSchemaProvider
+  implicit override val provider: SchemaProvider[Long] = SchemaProviderInstances.longSchemaProvider
+
+  /** Return all edges starting at this vertex
+    *
+    * @param after  only return edges that are active after time `after`
+    * @param before only return edges that are active before time `before`
+    *
+    *               The `after` and `before` parameters also restrict the history of the returned edges such that it only
+    *               contains events within the window.
+    */
+  override def getOutEdges(after: Long, before: Long): View[ArrowExEdge] =
+    vertex.outgoingEdges.map(new ArrowExEdge(_, repo))
+
+  /** Return all edges ending at this vertex
+    *
+    * @param after  only return edges that are active after time `after`
+    * @param before only return edges that are active before time `before`
+    *
+    *               The `after` and `before` parameters also restrict the history of the returned edges such that it only
+    *               contains events within the window.
+    */
+  override def getInEdges(after: Long, before: Long): View[ArrowExEdge] =
+    vertex.incomingEdges.map(new ArrowExEdge(_, repo))
+
+  /** Return specified edge if it is an out-edge of this vertex
+    *
+    * @param id     ID of edge to return
+    * @param after  only return edge if it is active after time `after`
+    * @param before only return edge if it is active before time `before`
+    *
+    *               The `after` and `before` parameters also restrict the history of the returned edge such that it only
+    *               contains events within the window.
+    */
+  override def getOutEdge(id: Long, after: Long, before: Long): Option[ArrowExEdge] = {
+    getOutEdges(after, before).find(e => e.dst == id)
+  }
+
+  /** Return specified edge if it is an in-edge of this vertex
+    *
+    * @param id     ID of edge to return
+    * @param after  only return edge if it is active after time `after`
+    * @param before only return edge if it is active before time `before`
+    *
+    *               The `after` and `before` parameters also restrict the history of the returned edge such that it only
+    *               contains events within the window.
+    */
+  override def getInEdge(id: Long, after: Long, before: Long): Option[ArrowExEdge] = {
+    getInEdges(after, before).find(e => e.src == id)
+  }
 }

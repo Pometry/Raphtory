@@ -126,7 +126,7 @@ object MockCluster {
               defaultPropSchema,
               Files.createTempDirectory(s"part-$partId")
       )
-      ArrowPartition(cfg, config)
+      ArrowPartition("test-graph-1", cfg, config)
     }.toVector
     new MockCluster(parts)
   }

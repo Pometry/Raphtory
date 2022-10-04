@@ -1,12 +1,7 @@
 package com.raphtory.internals.storage
 
-import com.raphtory.arrowcore.implementation.ArrowPropertyIterator
-import com.raphtory.arrowcore.implementation.EdgeIterator
-import com.raphtory.arrowcore.implementation.EntityFieldAccessor
-import com.raphtory.arrowcore.implementation.NonversionedEnumField
-import com.raphtory.arrowcore.implementation.VersionedEntityPropertyAccessor
-import com.raphtory.arrowcore.model.Edge
-import com.raphtory.arrowcore.model.Vertex
+import com.raphtory.arrowcore.implementation.{EdgeIterator, EntityFieldAccessor, NonversionedEnumField, VersionedEntityPropertyAccessor}
+import com.raphtory.arrowcore.model.{Edge, Vertex}
 import com.raphtory.internals.storage.arrow.ArrowPartition.PropertyIterator
 
 import scala.collection.View
@@ -56,12 +51,33 @@ package object arrow {
     def outgoingEdges: View[Edge] = {
       val edgesIter: EdgeIterator = v.getOutgoingEdges
       View.from(new ArrowPartition.EdgesIterator(edgesIter))
-
     }
+
+    def outgoingEdges(start: Long, end: Long): View[Edge] =
+      View.fromIteratorProvider { () =>
+        val iter = v.getRaphtory.getNewWindowedVertexIterator(start, end)
+        iter.reset(v.getLocalId)
+        new ArrowPartition.EdgesIterator(iter.getOutgoingEdges)
+      }
+
+    def incomingEdges(start: Long, end: Long): View[Edge] =
+      View.fromIteratorProvider { () =>
+        val iter = v.getRaphtory.getNewWindowedVertexIterator(start, end)
+        iter.reset(v.getLocalId)
+        new ArrowPartition.EdgesIterator(iter.getIncomingEdges)
+      }
 
     def incomingEdges: View[Edge] = {
       val edgesIter = v.getIncomingEdges
       View.from(new ArrowPartition.EdgesIterator(edgesIter))
+    }
+
+    def outgoingEdge(dst: Long): Option[Edge] = {
+      val iter = v.findAllOutgoingEdges(dst)
+      if (iter.hasNext)
+        Some(iter.getEdge)
+      else
+        None
     }
 
   }

@@ -25,7 +25,6 @@ class GraphExecutionState(
 
   private val newFilteredVertices = new ArrayBuffer[Any]
   private val newFilteredEdges    = new ArrayBuffer[(Any, Any)]
-//  private val newFilteredEdges    = new VertexMultiQueue
 
   private val messagesPerVertex = TrieMap.empty[Any, VertexMultiQueue]
 
@@ -96,8 +95,9 @@ class GraphExecutionState(
     newFilteredEdges.clear()
   }
 
-  def isAlive(vertexId: Long): Boolean =
+  def isAlive(vertexId: Long): Boolean = {
     !filteredVertices(vertexId)
+  }
 
   override def removeVertex(vertexId: Long): Unit =
     newFilteredVertices.synchronized(newFilteredVertices.addOne(vertexId))

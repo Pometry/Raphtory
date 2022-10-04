@@ -1,15 +1,13 @@
 package com.raphtory.internals.storage.arrow
 
 import com.raphtory.api.analysis.graphstate.GraphState
-import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.RowImplementation
+import com.raphtory.api.analysis.table.{Row, RowImplementation}
 import com.raphtory.api.analysis.visitor.{InterlayerEdge, Vertex}
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.management.Scheduler
-import com.raphtory.internals.storage.GraphExecutionState
-import com.raphtory.internals.storage.VotingMachine
 import com.raphtory.internals.storage.arrow.entities.ArrowExVertex
+import com.raphtory.internals.storage.{GraphExecutionState, VotingMachine}
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
@@ -137,7 +135,7 @@ abstract class AbstractGraphLens(
   }
 
   override def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: => Unit): Unit = {
-    dataTable = currentVertices.flatMap(f).flatMap(row => row.asInstanceOf[RowImplementation].yieldAndRelease)
+    dataTable = vertices.flatMap(f).flatMap(row => row.asInstanceOf[RowImplementation].yieldAndRelease)
     onComplete
   }
 

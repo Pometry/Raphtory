@@ -185,28 +185,8 @@ private[raphtory] class QueryExecutor(
           sentMessageCount.set(0)
           sync.reset()
           refreshBuffers()
-          graphLens = ArrowGraphLens(
-                  jobID,
-                  perspective.actualStart,
-                  perspective.actualEnd,
-                  0,
-                  storage.asInstanceOf[ArrowPartition],
-                  sendMessage,
-                  errorHandler,
-                  scheduler
-          )
-//          graphLens = PojoGraphLens(
-//                  jobID,
-//                  perspective.actualStart,
-//                  perspective.actualEnd,
-//                  superStep = 0,
-//                  storage,
-//                  conf,
-//                  sendMessage,
-//                  errorHandler,
-//                  scheduler
-//          )
-
+          graphLens =
+            storage.lens(jobID, perspective.actualStart, perspective.actualEnd, 0, sendMessage, errorHandler, scheduler)
           taskManager sendAsync PerspectiveEstablished(currentPerspectiveID, graphLens.localNodeCount)
           logger.debug(
                   logMessage(
