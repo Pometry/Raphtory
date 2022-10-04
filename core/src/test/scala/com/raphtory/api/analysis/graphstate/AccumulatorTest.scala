@@ -2,7 +2,6 @@ package com.raphtory.api.analysis.graphstate
 
 import cats.effect.IO
 import com.raphtory.BaseCorrectnessTest
-import com.raphtory.BasicGraphBuilder
 import com.raphtory.Raphtory
 import com.raphtory.TestQuery
 import com.raphtory.TestUtils

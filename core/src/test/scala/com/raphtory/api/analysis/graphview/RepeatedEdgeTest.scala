@@ -1,7 +1,6 @@
 package com.raphtory.api.analysis.graphview
 
 import com.raphtory.BaseCorrectnessTest
-import com.raphtory.BasicGraphBuilder
 import com.raphtory.TestQuery
 import com.raphtory.algorithms.WeightedGraphBuilder
 import com.raphtory.algorithms.temporal.TemporalEdgeList

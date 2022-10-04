@@ -1,7 +1,6 @@
 package com.raphtory.generic
 
 import com.raphtory.BaseCorrectnessTest
-import com.raphtory.BasicGraphBuilder
 import com.raphtory.Raphtory
 import com.raphtory.TestQuery
 import com.raphtory.algorithms.generic.NodeList

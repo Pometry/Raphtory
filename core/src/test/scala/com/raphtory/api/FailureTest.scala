@@ -7,9 +7,9 @@ import com.raphtory.internals.components.querymanager.GraphFunctionComplete
 import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.SequenceSpout
-import com.raphtory.BasicGraphBuilder
 import com.raphtory.Raphtory
 import com.raphtory.api.input.Source
+import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.internals.communication.EndPoint
 import munit.CatsEffectSuite
 
@@ -25,7 +25,7 @@ class FailureTest extends CatsEffectSuite {
       .newIOGraph()
       .use { graph =>
         IO {
-          graph.load(Source(SequenceSpout("1,1,1"), BasicGraphBuilder))
+          graph.load(CSVEdgeListSource(SequenceSpout("1,1,1")))
           val query = graph
             .at(1)
             .past()
