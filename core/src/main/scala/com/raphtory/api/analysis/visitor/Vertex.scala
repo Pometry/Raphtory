@@ -71,19 +71,19 @@ trait Vertex extends EntityVisitor {
     * @param message message data to sent
     */
   def messageOutNeighbours[T](message: T)(implicit provider: SchemaProvider[T]): Unit =
-    outNeighbours.foreach(messageVertex(_, message)(provider))
+    outNeighbours.foreach(messageVertex(_, message))
 
   /** Send the same message data to all in- and out-neighbours of this vertex
     * @param message message data to sent
     */
   def messageAllNeighbours[T](message: T)(implicit provider: SchemaProvider[T]): Unit =
-    neighbours.foreach(messageVertex(_, message)(provider))
+    neighbours.foreach(messageVertex(_, message))
 
   /** Send the same message data to all in-neighbours of this vertex
     * @param message message data to sent
     */
   def messageInNeighbours[T](message: T)(implicit provider: SchemaProvider[T]): Unit =
-    inNeighbours.foreach(messageVertex(_, message)(provider))
+    inNeighbours.foreach(messageVertex(_, message))
 
   /** Get IDs of all out-neighbours of the vertex
     */
