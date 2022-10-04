@@ -11,7 +11,6 @@ import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.api.input.{Graph, GraphBuilder, Source, Spout}
 import com.raphtory.api.output.sink.Sink
-import com.raphtory.enrontest.ENRONSource
 import com.raphtory.sinks.FileSink
 import com.typesafe.scalalogging.Logger
 import munit.CatsEffectSuite
@@ -38,19 +37,11 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   private def graph: Resource[IO, DeployedTemporalGraph] =
     Raphtory.newIOGraph()
 
-  lazy val withEnronGraph: SyncIO[FunFixture[TemporalGraph]] = ResourceFixture(
-          for {
-            _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
-            g <- graph
-            _  = g.load(ENRONSource(setSpout()))
-          } yield g
-  )
-
   lazy val withGraph: SyncIO[FunFixture[TemporalGraph]] = ResourceFixture(
     for {
       _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
       g <- graph
-      _ = g.load(CSVEdgeListSource(setSpout()))
+      _ = g.load(setSource())
     } yield g
   )
 
@@ -59,7 +50,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           for {
             _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
             g <- graph
-            _  = g.load(CSVEdgeListSource(setSpout()))
+            _  = g.load(setSource())
           } yield g
   )
 
@@ -68,9 +59,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   override def munitFixtures = List(suiteGraph)
 
   def liftFileIfNotPresent: Option[(String, URL)] = None
-
-  def setSpout(): Spout[String]
-//  def setGraphBuilder(): GraphBuilder[T]
+  def setSource(): Source
 
   private def algorithmTestInternal(
       algorithm: GenericallyApplicable,

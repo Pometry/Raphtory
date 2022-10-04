@@ -35,8 +35,7 @@ class ENRONSource(override val spout: Spout[String]) extends Source {
       val parseFormatter = DateTimeFormatter.ofPattern(dateFormat)
       val dateTime = LocalDateTime.parse(date, parseFormatter)
       dateEpochUTC = dateTime.atOffset(ZoneOffset.UTC).toInstant.toEpochMilli
-
-      //    logger.trace(s"Parsed date field into epoch '$dateEpochUTC'.")
+//          logger.trace(s"Parsed date field into epoch '$dateEpochUTC'.")
 
       val srcID = assignID(sender)
       val tarID = assignID(receiver)

@@ -47,7 +47,6 @@ abstract class BaseCorrectnessTest(
   private def normaliseResults(value: IterableOnce[String]) =
     value.iterator.toList.sorted.mkString("\n")
 
-//  override def setGraphBuilder(): GraphBuilder[String] = BasicGraphBuilder
 
   def setSpout(): Spout[String] = new IdentitySpout
 
@@ -64,7 +63,7 @@ abstract class BaseCorrectnessTest(
       test: TestQuery,
       graphEdges: Edges,
       resultsResource: String
-  ): IO[Unit] =
+  ): IO[Unit] = {
     Raphtory
       .newIOGraph()
       .use { g =>
@@ -72,6 +71,7 @@ abstract class BaseCorrectnessTest(
         runTest(test, g)
       }
       .map(obtained => assertResultsMatch(obtained, resultsResource))
+  }
 
   def correctnessTest(
       test: TestQuery,

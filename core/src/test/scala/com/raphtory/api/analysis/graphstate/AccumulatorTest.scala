@@ -15,6 +15,7 @@ import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
+import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceSpout
 
 object CountNodes extends Generic {
@@ -71,7 +72,6 @@ object CheckNodeCount extends Generic {
 }
 
 class AccumulatorTest extends BaseCorrectnessTest {
-  override def setSpout(): Spout[String] = ResourceSpout("MotifCount/motiftest.csv")
 
   test("Test accumulators by counting nodes") {
     correctnessTest(TestQuery(CountNodes, 23), "Accumulator/results.csv")
@@ -92,7 +92,7 @@ class AccumulatorTest extends BaseCorrectnessTest {
       ) // this makes prometheus start on a random unused port
       .use { graph =>
         IO {
-          graph.load(Source(ResourceSpout("MotifCount/motiftest.csv"), BasicGraphBuilder))
+          graph.load(setSource())
           val job = graph
             .range(10, 23, 1)
             .window(10, Alignment.END)
@@ -111,4 +111,6 @@ class AccumulatorTest extends BaseCorrectnessTest {
         }
       }
   }
+
+  override def setSource(): Source = CSVEdgeListSource(ResourceSpout("MotifCount/motiftest.csv"))
 }

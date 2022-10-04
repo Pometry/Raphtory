@@ -2,7 +2,7 @@ package com.raphtory.api.input.sources
 
 import com.raphtory.api.input.Graph.assignID
 import com.raphtory.api.input.{Graph, GraphBuilder, ImmutableProperty, Properties, Source, SourceInstance, Spout}
-import com.raphtory.spouts.FileSpout
+import com.raphtory.spouts.{FileSpout, IdentitySpout}
 import com.raphtory.internals.time.DateTimeParser.{defaultParse => parseDateTime}
 
 

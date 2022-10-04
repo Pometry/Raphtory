@@ -2,8 +2,8 @@ package com.raphtory.twittertest
 
 import com.raphtory.BaseRaphtoryAlgoTest
 import com.raphtory.algorithms.generic.ConnectedComponents
-import com.raphtory.api.input.Graph
-import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.api.input.{Graph, GraphBuilder, Source}
 import com.raphtory.spouts.StaticGraphSpout
 import munit.IgnoreSuite
 
@@ -22,7 +22,7 @@ class TwitterTest extends BaseRaphtoryAlgoTest[String] {
       .map(assertEquals(_, "59ca85238e0c43ed8cdb4afe3a8a9248ea2c5497c945de6f4007ac4ed31946eb"))
   }
 
-  override def setSpout(): StaticGraphSpout = StaticGraphSpout("/tmp/twitter.csv")
+  override def setSource(): Source = CSVEdgeListSource(StaticGraphSpout("/tmp/twitter.csv"))
 
   def tmpFilePath = "/tmp/twitter.csv"
 

@@ -3,8 +3,9 @@ package com.raphtory.algorithms
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.TestQuery
 import com.raphtory.algorithms.generic.MaxFlow
-import com.raphtory.api.input.GraphBuilder
-import com.raphtory.internals.communication.SchemaProviderInstances._
+import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.api.input.Source
+import com.raphtory.spouts.ResourceSpout
 
 class MaxFlowTest extends BaseCorrectnessTest {
   test("test on line graph") {
@@ -17,8 +18,9 @@ class MaxFlowTest extends BaseCorrectnessTest {
   test("test on two connected cliques") {
     correctnessTest(
             TestQuery(MaxFlow[Long]("2", "101", maxIterations = 10000), 9899),
-            "MaxFlow/bottleneck.csv",
             "MaxFlow/bottleneckResult.csv"
     )
   }
+
+  override def setSource(): Source = CSVEdgeListSource(ResourceSpout("MaxFlow/bottleneck.csv"))
 }

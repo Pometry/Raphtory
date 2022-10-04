@@ -11,7 +11,8 @@ import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy
-import com.raphtory.api.input.Spout
+import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.api.input.{Source, Spout}
 import com.raphtory.spouts.SequenceSpout
 
 class WriteValue extends GenericReduction {
@@ -56,4 +57,6 @@ class MultilayerViewTest extends BaseCorrectnessTest {
             Seq("2,1,2", "2,2,2")
     )
   }
+
+  override def setSource(): Source = CSVEdgeListSource(setSpout())
 }
