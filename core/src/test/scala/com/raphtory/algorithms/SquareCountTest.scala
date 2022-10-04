@@ -5,6 +5,7 @@ import com.raphtory.TestQuery
 import com.raphtory.algorithms.generic.motif.SquareCount
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.spouts.ResourceSpout
 
 class SquareCountTest extends BaseCorrectnessTest {
   test("test PQ square") {
@@ -39,5 +40,6 @@ class SquareCountTest extends BaseCorrectnessTest {
     )
   }
 
-  def setSource(): Source = CSVEdgeListSource("")
+
+  override def setSource(): Source = CSVEdgeListSource(ResourceSpout("SquareCount/squareTest.csv"))
 }
