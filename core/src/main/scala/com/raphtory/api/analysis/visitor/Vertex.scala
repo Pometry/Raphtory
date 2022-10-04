@@ -3,6 +3,7 @@ package com.raphtory.api.analysis.visitor
 import com.raphtory.api.analysis.visitor
 import EdgeDirection.Direction
 import PropertyMergeStrategy.PropertyMerge
+import com.raphtory.internals.communication.SchemaProviderInstances
 import com.raphtory.internals.components.querymanager.SchemaProvider
 
 import scala.collection.View
@@ -58,31 +59,31 @@ trait Vertex extends EntityVisitor {
   /** Send data to this vertex at the next Step/Iteration
     * @param data message data to send
     */
-  def messageSelf[T:ClassTag](data: T)(implicit provider: SchemaProvider[T]): Unit = this.messageVertex(ID, data)
+  def messageSelf[T](data: T)(implicit provider: SchemaProvider[T]): Unit = this.messageVertex(ID, data)
 
   /** Send data to another vertex at next Step/Iteration
     * @param vertexId Vertex Id of target vertex for the message
     * @param data message data to send
     */
-  def messageVertex[T: ClassTag](vertexId: IDType, data: T)(implicit provider: SchemaProvider[T]): Unit
+  def messageVertex[T](vertexId: IDType, data: T)(implicit provider: SchemaProvider[T]): Unit
 
   /** Send the same message data to all out-neighbours of this vertex
     * @param message message data to sent
     */
-  def messageOutNeighbours[T:ClassTag](message: T)(implicit provider: SchemaProvider[T]): Unit =
-    outNeighbours.foreach(messageVertex(_, message))
+  def messageOutNeighbours[T](message: T)(implicit provider: SchemaProvider[T]): Unit =
+    outNeighbours.foreach(messageVertex(_, message)(provider))
 
   /** Send the same message data to all in- and out-neighbours of this vertex
     * @param message message data to sent
     */
-  def messageAllNeighbours[T: ClassTag](message: T)(implicit provider: SchemaProvider[T]): Unit =
-    neighbours.foreach(messageVertex(_, message))
+  def messageAllNeighbours[T](message: T)(implicit provider: SchemaProvider[T]): Unit =
+    neighbours.foreach(messageVertex(_, message)(provider))
 
   /** Send the same message data to all in-neighbours of this vertex
     * @param message message data to sent
     */
-  def messageInNeighbours[T:ClassTag](message: T)(implicit provider: SchemaProvider[T]): Unit =
-    inNeighbours.foreach(messageVertex(_, message))
+  def messageInNeighbours[T](message: T)(implicit provider: SchemaProvider[T]): Unit =
+    inNeighbours.foreach(messageVertex(_, message)(provider))
 
   /** Get IDs of all out-neighbours of the vertex
     */
