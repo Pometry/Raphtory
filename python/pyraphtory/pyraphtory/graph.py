@@ -14,6 +14,7 @@ class ProgressTracker(GenericScalaProxy):
 @register(name="Table")
 class Table(GenericScalaProxy):
     _classname = "com.raphtory.api.analysis.table.Table"
+
     def to_df(self, cols):
         rows = []
         for res in self.get():

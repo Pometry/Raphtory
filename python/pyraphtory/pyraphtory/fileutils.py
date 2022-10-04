@@ -83,7 +83,10 @@ def does_jar_version_match(jar_path):
                         jar_version = line.split(VERSION)[1].replace('\r', '')
                         break
                 break
-    return __version__ == jar_version
+    if jar_version.endswith("-SNAPSHOT"):
+        return __version__ == jar_version[:-9], True
+    else:
+        return __version__ == jar_version, False
 
 
 def check_download_update_jar(pyraphtory_jar_download_loc, jars):
@@ -106,10 +109,16 @@ def check_download_update_jar(pyraphtory_jar_download_loc, jars):
             # if we have a raphtory jar, we check version
             # if version doesnt match python, we download the correct
             needs_download = True
-            for jar in raphtory_jars:
-                if not does_jar_version_match(jar):
+            version_checks = [does_jar_version_match(jar) for jar in raphtory_jars]
+            if any(valid and is_snapshot for valid, is_snapshot in version_checks):
+                version_checks = [valid and is_snapshot for valid, is_snapshot in version_checks]
+            else:
+                version_checks = [valid for valid, _ in version_checks]
+
+            for jar, matches in zip(raphtory_jars, version_checks):
+                if not matches:
                     delete_jar(jar)
-                    jars.remove()
+                    jars.remove(jar)
                 else:
                     needs_download = False
             if needs_download:
