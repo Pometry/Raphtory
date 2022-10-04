@@ -1,0 +1,13 @@
+FROM grafana/grafana-enterprise:8.2.0
+
+# Disable Login form
+ENV GF_AUTH_DISABLE_LOGIN_FORM "true"
+# Allow anonymous authentication
+ENV GF_AUTH_ANONYMOUS_ENABLED "true"
+# Role of anonymous user
+ENV GF_AUTH_ANONYMOUS_ORG_ROLE "Admin"
+
+# Add provisioning
+ADD ./provisioning /etc/grafana/provisioning
+# Add configuration file
+ADD ./grafana.ini /etc/grafana/grafana.ini
