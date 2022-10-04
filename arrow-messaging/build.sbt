@@ -1,6 +1,8 @@
+import Version._
+
 name := "arrow-messaging"
-version := "0.1.0"
-scalaVersion := "2.13.7"
+version := raphtoryVersion
+scalaVersion := raphtoryScalaVersion
 organization := "com.raphtory"
 val catsEffectVersion = "3.3.12"
 val catsVersion       = "2.7.0"
