@@ -2,12 +2,9 @@ package com.raphtory.internals.storage.arrow
 
 import com.raphtory.Raphtory
 import com.raphtory.api.input.Properties
-import com.raphtory.arrowcore.model.Vertex
-import com.raphtory.internals.graph.GraphAlteration.SyncExistingEdgeAdd
-import com.raphtory.internals.graph.GraphAlteration.SyncNewEdgeAdd
+import com.raphtory.internals.graph.GraphAlteration.{SyncExistingEdgeAdd, SyncNewEdgeAdd}
 import com.raphtory.internals.graph.GraphPartition
-import com.raphtory.storage.EdgeProp
-import com.raphtory.storage.VertexProp
+import com.raphtory.storage.{EdgeProp, VertexProp}
 import com.typesafe.config.Config
 import munit.FunSuite
 
@@ -17,12 +14,6 @@ import scala.collection.View
 class ArrowGraphLensTest extends FunSuite {
 
   private val mockCluster = MockCluster(Raphtory.getDefaultConfig())
-
-  private val data0 = Vector(
-          (4, 8, 15),
-          (4, 8, 15),
-          (10, 8, 19)
-  )
 
   private val data = Vector(
           (1, 2, 1),
@@ -49,14 +40,6 @@ class ArrowGraphLensTest extends FunSuite {
           (9, 11, 22),
           (11, 9, 23)
   )
-
-  test("please break!".only) {
-    data0.foreach {
-      case t@(src, dst, time) =>
-        println(t)
-        mockCluster.addTriplet(src, dst, time)
-    }
-  }
 
   test("filter one edge should result in it missing from the next step") {
     data.foreach {

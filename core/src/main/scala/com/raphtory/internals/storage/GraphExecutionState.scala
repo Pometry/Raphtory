@@ -61,16 +61,16 @@ class GraphExecutionState(
 
   def removeOutEdge(sourceId: Long, vertexId: Long): Unit = {
     newFilteredEdges += (sourceId -> vertexId)
-    newFilteredEdges += (vertexId -> sourceId)
   }
 
   def removeInEdge(sourceId: Long, vertexId: Long): Unit = {
-    newFilteredEdges += (sourceId -> vertexId)
     newFilteredEdges += (vertexId -> sourceId)
   }
 
-  def removeEdge(vertexId: Long, sourceId: Long, edgeId: Option[Long]): Unit = ???
-//    newFilteredEdges += edgeId.get
+  def removeEdge(vertexId: Long, sourceId: Long, edgeId: Option[Long]): Unit = {
+    removeInEdge(sourceId, vertexId)
+    removeOutEdge(vertexId, sourceId)
+  }
 
   def removeEdge(edgeId: Long): Unit =
     removeEdge(-1L, -1L, Option(edgeId))
@@ -122,11 +122,7 @@ class GraphExecutionState(
   override def vertexVoted(): Unit = votingMachine.vote()
 
   override def isEdgeAlive(sourceId: Long, vertexId: Long): Boolean = {
-    val bool = !filteredEdges.get(sourceId).exists(removed => removed(vertexId))
-//    if (sourceId == 1 || vertexId == 1) {
-//      println(s"is edge $sourceId - $vertexId alive? ${bool}")
-//    }
-    bool
+    !filteredEdges.get(sourceId).exists(removed => removed(vertexId))
   }
 }
 

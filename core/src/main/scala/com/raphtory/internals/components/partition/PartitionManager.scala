@@ -73,6 +73,18 @@ object PartitionManager {
       fromStorage(storage, graphID, partitionID, scheduler, conf, topics)
     }
 
+  // rename this to apply and the one above to blerg to enable arrow
+  def arrow[IO[_]](
+                    graphID: String,
+                    partitionID: Int,
+                    scheduler: Scheduler,
+                    conf: Config,
+                    topics: TopicRepository
+                  )(implicit IO: Async[IO]): Resource[IO, PartitionManager] =
+    Resource
+      .eval(arrowPartition(graphID, partitionID, conf))
+      .flatMap(storage => fromStorage(storage, graphID, partitionID, scheduler, conf, topics))
+
   def fromStorage[IO[_]](
       storage: GraphPartition,
       graphID: String,
@@ -101,16 +113,6 @@ object PartitionManager {
             )
     } yield pm
 
-  def arrow[IO[_]](
-      graphID: String,
-      partitionID: Int,
-      scheduler: Scheduler,
-      conf: Config,
-      topics: TopicRepository
-  )(implicit IO: Async[IO]): Resource[IO, PartitionManager] =
-    Resource
-      .eval(arrowPartition(graphID, partitionID, conf))
-      .flatMap(storage => fromStorage(storage, graphID, partitionID, scheduler, conf, topics))
 
   /**
     * Creates an arrow partition

@@ -2,6 +2,7 @@ package com.raphtory.internals.storage.arrow
 
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.table.{Row, RowImplementation}
+import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.api.analysis.visitor.{InterlayerEdge, Vertex}
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.LensInterface
@@ -147,4 +148,22 @@ abstract class AbstractGraphLens(
   override def explodeView(interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]])(onComplete: => Unit): Unit =
     ???
 
+
+  override def executeSelect(f: (_, GraphState) => Row, graphState: GraphState)(onComplete: => Unit): Unit = ???
+
+  override def viewUndirected()(onComplete: => Unit): Unit = ???
+
+  override def viewDirected()(onComplete: => Unit): Unit = ???
+
+  override def viewReversed()(onComplete: => Unit): Unit = ???
+
+  override def reduceView(
+                           defaultMergeStrategy: Option[PropertyMerge[_, _]],
+                           mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
+                           aggregate: Boolean
+                         )(onComplete: => Unit): Unit = {onComplete}
+
+  override def runMessagedGraphFunction(f: (_, GraphState) => Unit, graphState: GraphState)(
+    onComplete: => Unit
+  ): Unit = ???
 }

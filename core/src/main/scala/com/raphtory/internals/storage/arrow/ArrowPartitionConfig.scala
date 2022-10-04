@@ -12,7 +12,6 @@ class ArrowPartitionConfig(
     propertySchema: PropertySchema,
     arrowDir: Path,
     nLocalEntityIdMaps: Int = Runtime.getRuntime.availableProcessors(),
-    localEntityIdMapSize: Int = 64
 ) {
 
   def toRaphtoryPartitionConfig: RaphtoryArrowPartitionConfig = {
@@ -24,9 +23,9 @@ class ArrowPartitionConfig(
     cfg._raphtoryPartitionId = partitionId
     cfg._nRaphtoryPartitions = nPartitions
     cfg._nLocalEntityIdMaps = nLocalEntityIdMaps
-    cfg._localEntityIdMapSize = localEntityIdMapSize
-    cfg._vertexPartitionSize = 32
-    cfg._edgePartitionSize = 256
+//    cfg._localEntityIdMapSize = localEntityIdMapSize
+//    cfg._vertexPartitionSize = 32
+//    cfg._edgePartitionSize = 256
     cfg._syncIDMap = true
 
     cfg

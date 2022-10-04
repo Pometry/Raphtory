@@ -85,12 +85,12 @@ object Dependencies {
   lazy val scalaParallelCollections =
     "org.scala-lang.modules" %% "scala-parallel-collections" % scalaParallelCollectionsVersion
   lazy val scalaPb          = "com.thesamet.scalapb" %% "scalapb-runtime"            % scalaPbVersion        % "protobuf"
-  lazy val scalaTest        = "org.scalatest"        %% "scalatest"                  % scalatestVersion      % Test
-  lazy val scalaTestCompile = "org.scalatest"        %% "scalatest"                  % scalatestVersion
-  lazy val shapeless        = "com.chuusai"          %% "shapeless"                  % shapelessVer
-  lazy val slf4j            = "org.slf4j"             % "slf4j-api"                  % slf4jVersion
-  lazy val sprayJson        = "io.spray"             %% "spray-json"                 % sprayJsonVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val testContainers   = "com.dimafeng"         %% "testcontainers-scala-munit" % testContainersVersion % "test"
+  lazy val scalaTest        = "org.scalatest"              %% "scalatest"                  % scalatestVersion      % Test
+  lazy val scalaTestCompile = "org.scalatest"              %% "scalatest"                  % scalatestVersion
+  lazy val shapeless        = "com.chuusai"                %% "shapeless"                  % shapelessVer
+  lazy val slf4j            = "org.slf4j"                   % "slf4j-api"                  % slf4jVersion
+  lazy val sprayJson        = "io.spray"                   %% "spray-json"                 % sprayJsonVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val testContainers   = "com.dimafeng"               %% "testcontainers-scala-munit" % testContainersVersion % "test"
 
   lazy val twitterChill   = "com.twitter"         %% "chill"     % chillVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val typesafeConfig = "com.typesafe"         % "config"    % typesafeConfigVersion excludeAll (excludeLog4j, excludeSlf4j)

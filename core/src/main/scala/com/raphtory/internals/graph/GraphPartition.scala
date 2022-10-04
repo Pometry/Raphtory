@@ -5,8 +5,8 @@ import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdateEffect
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.storage.arrow.{ArrowGraphLens, ArrowPartition}
-import com.raphtory.internals.storage.pojograph.{PojoBasedPartition, PojoGraphLens}
 import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExVertex
+import com.raphtory.internals.storage.pojograph.{PojoBasedPartition, PojoGraphLens}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory

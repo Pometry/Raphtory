@@ -1,9 +1,6 @@
 package com.raphtory.internals.storage.arrow
 
 import com.raphtory.api.analysis.graphstate.GraphState
-import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
-import com.raphtory.api.analysis.visitor.InterlayerEdge
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import com.raphtory.internals.management.Scheduler
@@ -38,27 +35,9 @@ final case class ArrowGraphLens(
     size
   }
 
-  override def executeSelect(f: (_, GraphState) => Row, graphState: GraphState)(onComplete: => Unit): Unit = ???
-
-  override def viewUndirected()(onComplete: => Unit): Unit = ???
-
-  override def viewDirected()(onComplete: => Unit): Unit = ???
-
-  override def viewReversed()(onComplete: => Unit): Unit = ???
-
-  override def reduceView(
-      defaultMergeStrategy: Option[PropertyMerge[_, _]],
-      mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
-      aggregate: Boolean
-  )(onComplete: => Unit): Unit = {onComplete}
-
-  override def runMessagedGraphFunction(f: (_, GraphState) => Unit, graphState: GraphState)(
-      onComplete: => Unit
-  ): Unit = ???
-
   /**
     * Give me the vertices alive at this point
-    * use the [[GraphState.isAlive]] to check
+    * use the [[GraphState]] to check
     * in the arrow case we'll be passing the local vertex id
     * these also must take into account the [[start]] and [[end]] limits
     *
