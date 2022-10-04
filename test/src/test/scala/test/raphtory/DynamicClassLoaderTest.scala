@@ -3,6 +3,7 @@ package test.raphtory
 import cats.effect.IO
 import cats.effect.SyncIO
 import cats.effect.kernel.Resource
+import cats.effect.std.Semaphore
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
@@ -15,7 +16,9 @@ import com.raphtory.Raphtory
 import com.raphtory.TestUtils
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.sinks.PrintSink
+import com.typesafe.scalalogging.Logger
 import munit.CatsEffectSuite
+import org.slf4j.LoggerFactory
 import test.raphtory.algorithms.MaxFlowTest
 import test.raphtory.algorithms.MinimalTestAlgorithm
 import test.raphtory.algorithms.TestAlgorithmWithExternalDependency
@@ -29,9 +32,39 @@ import scala.reflect.runtime.universe._
 import scala.sys.process._
 import scala.tools.reflect.ToolBox
 import scala.util.Try
-import scala.util.Using
+
+object Parent {
+
+  //  this is here to avoid serialising the entire test class
+  val sourceInstance: Source = Source[String](
+          FileSpout("/tmp/lotr.csv"),
+          (graph: Graph, tuple: String) => {
+            val fileLine   = tuple.split(",").map(_.trim)
+            val sourceNode = fileLine(0)
+            val srcID      = graph.assignID(sourceNode)
+            val targetNode = fileLine(1)
+            val tarID      = graph.assignID(targetNode)
+            val timeStamp  = fileLine(2).toLong
+
+            graph.addVertex(
+                    timeStamp,
+                    srcID,
+                    Properties(ImmutableProperty("name", sourceNode)),
+                    Type("Character")
+            )
+            graph.addVertex(
+                    timeStamp,
+                    tarID,
+                    Properties(ImmutableProperty("name", targetNode)),
+                    Type("Character")
+            )
+            graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurence"))
+          }
+  )
+}
 
 class DynamicClassLoaderTest extends CatsEffectSuite {
+  val logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   val minimalTestCode: String =
     """
@@ -50,54 +83,52 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
       |MinimalTestAlgorithm
       |""".stripMargin
 
-  override def munitTimeout: Duration = FiniteDuration(2, "min")
-
   private val tb: ToolBox[universe.type] = runtimeMirror(getClass.getClassLoader).mkToolBox()
 
   private val compiledAlgo: Generic = tb.compile(tb.parse(minimalTestCode))().asInstanceOf[Generic]
 
-  val remoteGraphResource =
+  val remoteGraphResource: Resource[IO, DeployedTemporalGraph] =
     Resource.make(IO(remote().newGraph()))(graph => IO(graph.destroy()))
 
-  val remoteProcess: Resource[IO, Process] = Resource.make {
-    for {
-      process <- IO {
-                   println("starting remote process")
-                   val classPath =
-                     try
-                     // It seems like the file below is where sbt actually stores that info so we can just read it directly
-                     Using(scala.io.Source.fromFile("core/target/streams/test/fullClasspath/_global/streams/export")) {
-                       source =>
-                         source.mkString
-                     }.get
-                     catch {
-                       case _: Exception =>
-                         // This is how to get the full class path for running core using sbt, however, the command is really slow as it resolves everything from scratch
-                         Seq("sbt", "--error", "export core/test:fullClasspath").!!
+  val remoteProcess =
+    Resource.make {
+      for {
+        started   <- Semaphore[IO](0)
+//         get classpath from sbt
+        _         <- IO(logger.info("retrieving class path from sbt"))
+        classPath <- IO.blocking(Seq("sbt", "--error", "export core/test:fullClasspath").!!)
+        process   <- IO {
+                       logger.info("starting remote process")
+                       Process(Seq("java", "-cp", classPath, "com.raphtory.service.Standalone")).run(
+                               ProcessLogger { line =>
+                                 if (line == "HeadNode started") {
+                                   logger.info("HeadNode started")
+                                   started.release.unsafeRunSync()
+                                 }
+                                 else
+                                   println(line) // forward output
+                               }
+                       )
                      }
-
-                   Process(
-                           Seq(
-                                   "java",
-                                   "-cp",
-                                   classPath,
-                                   "com.raphtory.service.Standalone"
-                           )
-                   ).run()
-                 }
-      _       <- IO.sleep(2.seconds)
-    } yield process
-  }(process =>
-    IO.sleep(1.seconds) *> // chance to get output across
+//         start tests if there is already a standalone instance
+        _         <- (IO.blocking(process.exitValue()) *> started.release *> IO(
+                               logger.info("Failed to start remote process, a standalone instance is likely already running")
+                       )).start
+//        head node is started, proceed
+        _         <- started.acquire
+      } yield process
+    }(process =>
       IO {
-        println("destroying remote process")
+        logger.info("destroying remote process")
         process.destroy()
       }
-  )
+    )
 
   lazy val remoteGraph = ResourceSuiteLocalFixture(
           "remote-graph",
-          remoteGraphResource.evalMap(g => IO(g.addDynamicPath("com.raphtory.lotrtest").load(source())))
+          remoteGraphResource
+            .evalMap(g => IO(g.addDynamicPath("com.raphtory.lotrtest")))
+            .evalMap(g => IO(g.load(source())))
   )
 
   lazy val remoteGraphInline: SyncIO[FunFixture[TemporalGraph]] = ResourceFixture(
@@ -123,31 +154,7 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
                               Some("/tmp/lotr.csv", new URL("https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"))
                       )
             source <- Resource.pure(
-                              Source[String](
-                                      FileSpout("/tmp/lotr.csv"),
-                                      (graph: Graph, tuple: String) => {
-                                        val fileLine   = tuple.split(",").map(_.trim)
-                                        val sourceNode = fileLine(0)
-                                        val srcID      = graph.assignID(sourceNode)
-                                        val targetNode = fileLine(1)
-                                        val tarID      = graph.assignID(targetNode)
-                                        val timeStamp  = fileLine(2).toLong
-
-                                        graph.addVertex(
-                                                timeStamp,
-                                                srcID,
-                                                Properties(ImmutableProperty("name", sourceNode)),
-                                                Type("Character")
-                                        )
-                                        graph.addVertex(
-                                                timeStamp,
-                                                tarID,
-                                                Properties(ImmutableProperty("name", targetNode)),
-                                                Type("Character")
-                                        )
-                                        graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurence"))
-                                      }
-                              )
+                              Parent.sourceInstance
                       )
           } yield source
   )
@@ -166,12 +173,12 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
             _          <- remoteProcess
             connection <- Resource.make {
                             IO {
-                              println("connecting to remote")
+                              logger.info("connecting to remote")
                               Raphtory.connect()
                             }
                           } { c =>
                             IO {
-                              println("closing remote connection")
+                              logger.info("closing remote connection")
                               c.close() // TODO: this currently falls over if any graphs were closed before
                             }
                           }
