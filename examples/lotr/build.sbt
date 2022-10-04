@@ -1,11 +1,9 @@
-import Dependencies.catsMUnit
+import Version._
 
 name := "example-lotr"
-version := "0.1.0"
+version := raphtoryVersion
 organization := "com.raphtory"
-scalaVersion := "2.13.8"
+scalaVersion := raphtoryScalaVersion
 resolvers += Resolver.mavenLocal
-libraryDependencies += "com.raphtory"  %% "core"           % "0.2.0a1"
+libraryDependencies += "com.raphtory" %% "core" % raphtoryVersion
 Compile / resourceDirectory := baseDirectory.value / "resources"
-libraryDependencies += catsMUnit
-libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.13.8"

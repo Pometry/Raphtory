@@ -3,7 +3,6 @@ package com.raphtory.api.analysis.visitor
 import com.raphtory.api.analysis.visitor
 import EdgeDirection.Direction
 import PropertyMergeStrategy.PropertyMerge
-import com.raphtory.internals.communication.SchemaProviderInstances
 import com.raphtory.internals.components.querymanager.SchemaProvider
 
 import scala.collection.View

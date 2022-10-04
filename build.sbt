@@ -1,12 +1,12 @@
 import sbt.Compile
 import sbt.Keys.baseDirectory
 import Dependencies._
+import Version._
 import higherkindness.mu.rpc.srcgen.Model._
 
 import scala.io.Source
 
-val raphtoryVersion = Source.fromFile("version").getLines.next()
-ThisBuild / scalaVersion := "2.13.7"
+ThisBuild / scalaVersion := raphtoryScalaVersion
 ThisBuild / version := raphtoryVersion
 ThisBuild / organization := "com.raphtory"
 ThisBuild / organizationName := "raphtory"
