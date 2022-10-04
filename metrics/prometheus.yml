@@ -30,3 +30,7 @@ scrape_configs:
     - host.docker.internal:1741
     - host.docker.internal:1742
     - host.docker.internal:1743
+    - host.docker.internal:1744
+    - host.docker.internal:1745
+    - host.docker.internal:1746
+    - host.docker.internal:1747
