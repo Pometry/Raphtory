@@ -43,6 +43,11 @@ trait Graph {
   def index: Long
   protected def graphID: String
 
+  private val vertexAddCounter    = ComponentTelemetryHandler.vertexAddCounter.labels(s"$sourceID", graphID)
+  private val vertexDeleteCounter = ComponentTelemetryHandler.vertexDeleteCounter.labels(s"$sourceID", graphID)
+  private val edgeAddCounter      = ComponentTelemetryHandler.edgeAddCounter.labels(s"$sourceID", graphID)
+  private val edgeDeleteCounter   = ComponentTelemetryHandler.edgeDeleteCounter.labels(s"$sourceID", graphID)
+
   /** Adds a new vertex to the graph or updates an existing vertex
     *
     * @param updateTime timestamp for vertex update
@@ -71,7 +76,7 @@ trait Graph {
     val update = VertexAdd(sourceID, updateTime, secondaryIndex, srcId, properties, vertexType.toOption)
     logger.trace(s"Created update $update")
     handleGraphUpdate(update)
-    updateVertexAddStats()
+    vertexAddCounter.inc()
   }
 
   /** Marks a vertex as deleted
@@ -81,7 +86,7 @@ trait Graph {
     */
   def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long = index): Unit = {
     handleGraphUpdate(VertexDelete(sourceID, updateTime, secondaryIndex, srcId))
-    ComponentTelemetryHandler.vertexDeleteCounter.labels(graphID).inc()
+    vertexDeleteCounter.inc()
   }
 
   /** Adds a new edge to the graph or updates an existing edge
@@ -104,7 +109,7 @@ trait Graph {
   ): Unit = {
     val update = EdgeAdd(sourceID, updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption)
     handleGraphUpdate(update)
-    updateEdgeAddStats()
+    edgeAddCounter.inc()
   }
 
   /** Adds a new edge to the graph or updates an existing edge
@@ -125,7 +130,7 @@ trait Graph {
     */
   def deleteEdge(updateTime: Long, srcId: Long, dstId: Long, secondaryIndex: Long = index): Unit = {
     handleGraphUpdate(EdgeDelete(sourceID, updateTime, index, srcId, dstId))
-    ComponentTelemetryHandler.edgeDeleteCounter.labels(graphID).inc()
+    edgeDeleteCounter.inc()
   }
 
   /** Convenience method for generating unique IDs based on vertex names
@@ -140,12 +145,6 @@ trait Graph {
 
   private[raphtory] def getPartitionForId(id: Long): Int =
     (id.abs % totalPartitions).toInt
-
-  protected def updateVertexAddStats(): Unit =
-    ComponentTelemetryHandler.vertexAddCounter.labels(graphID).inc()
-
-  protected def updateEdgeAddStats(): Unit =
-    ComponentTelemetryHandler.edgeAddCounter.labels(graphID).inc()
 
 }
 
