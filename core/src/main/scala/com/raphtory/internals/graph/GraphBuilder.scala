@@ -25,6 +25,7 @@ private[raphtory] class GraphBuilderInstance[T](graphId: String, sourceId: Int, 
   private var internalTotalPartitions: Int                            = _
   def totalPartitions: Int                                            = internalTotalPartitions
   private var sentUpdates: Long                                       = 0
+  private val totalSourceErrors                                       = ComponentTelemetryHandler.totalSourceErrors.labels(s"$sourceID", graphID)
 
   def getGraphID: String         = graphID
   def getSourceID: Int           = sourceID
@@ -43,10 +44,12 @@ private[raphtory] class GraphBuilderInstance[T](graphId: String, sourceId: Int, 
       case e: Exception =>
         if (failOnError) {
           e.printStackTrace()
+          totalSourceErrors.inc()
           throw e
         }
         else {
           logger.warn(s"Failed to parse tuple.", e.getMessage)
+          totalSourceErrors.inc()
           e.printStackTrace()
         }
     }

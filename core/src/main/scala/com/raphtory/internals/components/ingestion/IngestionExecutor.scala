@@ -36,8 +36,7 @@ private[raphtory] class IngestionExecutor(
   override val writers: Map[Int, EndPoint[GraphAlteration]] = topics.graphUpdates(graphID).endPoint()
   private val queryManager                                  = topics.blockingIngestion(graphID).endPoint
   private val sourceInstance                                = source.buildSource(graphID, sourceID)
-  private val spoutReschedulesCount                         = telemetry.spoutReschedules.labels(graphID)
-  private val fileLinesSent                                 = telemetry.fileLinesSent.labels(graphID)
+  private val totalTuplesProcessed                          = telemetry.totalTuplesProcessed.labels(s"$sourceID", graphID)
 
   private var index: Long                              = 0
   private var scheduledRun: Option[() => Future[Unit]] = None
@@ -63,7 +62,6 @@ private[raphtory] class IngestionExecutor(
   override def handleMessage(msg: Any): Unit = {} //No messages received by this component
 
   private def executeSpout(): Unit = {
-    spoutReschedulesCount.inc()
     var iBlocked = false
 
     if (sourceInstance.hasRemainingUpdates)
@@ -76,7 +74,7 @@ private[raphtory] class IngestionExecutor(
 
     while (sourceInstance.hasRemainingUpdates) {
       latestMsgTimeToFlushToFlight = System.currentTimeMillis()
-      fileLinesSent.inc()
+      totalTuplesProcessed.inc()
       index = index + 1
       sourceInstance.sendUpdates(index, failOnError)
     }
