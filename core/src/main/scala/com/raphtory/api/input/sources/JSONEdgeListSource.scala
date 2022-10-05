@@ -24,7 +24,8 @@ class JSONEdgeListSource(override val spout: Spout[String], time: String, src: S
     if (epochFormat) {
       timestamp = timeCursor.as[Long].toString.toLong
     } else if (dateTimeFormat) {
-      timestamp = parseDateTime(timeCursor.toString)
+      timestamp = parseDateTime(timeCursor.as[String].toString)
+      println(timestamp)
     } else {
       throw new RuntimeException("Cannot create timestamp")
     }
@@ -54,16 +55,17 @@ class JSONEdgeListSource(override val spout: Spout[String], time: String, src: S
     // Get JSON and cursor
     val json: Json = parse(tuple).getOrElse(Json.Null)
     val cursor: HCursor = json.hcursor
-
     //Check Time
-    val timeCursor = cursor.downField(time)
-
+    val timeCursor = cursor.downField("items")
+    val test= timeCursor.downArray.downField("appointed_on")
+    println(test.as[String])
     try {
-      timeCursor.as[Long]
+      test.as[Long]
       epochFormat = true
     } catch {
       case e: NumberFormatException =>
-        parseDateTime(timeCursor.as[String].toString)
+        parseDateTime(test.as[String].toString)
+        println("dateformat")
         dateTimeFormat = true
       case _: Throwable => throw new RuntimeException("Make sure timestamp is in Epoch or DateTime format.")
     }
@@ -89,7 +91,7 @@ class JSONEdgeListSource(override val spout: Spout[String], time: String, src: S
     }
 
     //Build Graph
-    buildEdgeListGraphFromJSON(graph, timeCursor, sourceCursor, targetCursor)
+    buildEdgeListGraphFromJSON(graph, test, sourceCursor, targetCursor)
   }
   override def builder: GraphBuilder[String] =
     (graph: Graph, tuple: String) => {
@@ -98,10 +100,11 @@ class JSONEdgeListSource(override val spout: Spout[String], time: String, src: S
       } else {
         val json: Json = parse(tuple).getOrElse(Json.Null)
         val cursor: HCursor = json.hcursor
-        val timeCursor = cursor.downField(time)
+        val timeCursor = cursor.downField("items")
+        val test = timeCursor.downArray.downField("appointed_on")
         val sourceCursor = cursor.downField(src)
         val targetCursor = cursor.downField(dst)
-        buildEdgeListGraphFromJSON(graph, timeCursor, sourceCursor, targetCursor)
+        buildEdgeListGraphFromJSON(graph, test, sourceCursor, targetCursor)
       }
     }
 
