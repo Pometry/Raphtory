@@ -258,12 +258,12 @@ class ArrowStorageSuite extends munit.FunSuite {
     val actual = par.vertices.head
 
     assertEquals(actual.field[String]("name").get, "Bob")
-    assertEquals(actual.prop[Long]("pLong").get, now)
-    assertEquals(actual.prop[Double]("pDouble").get, 1.234d)
-    assertEquals(actual.prop[Float]("pFloat").get, 4.321f)
-    assertEquals(actual.prop[Boolean]("pBool").get, true)
-    assertEquals(actual.prop[Int]("pInt").get, 12345789)
-    assertEquals(actual.prop[String]("pString").get, "blerg")
+    assertEquals(actual.prop[Long]("pLong").get, Some(now))
+    assertEquals(actual.prop[Double]("pDouble").get, Some(1.234d))
+    assertEquals(actual.prop[Float]("pFloat").get, Some(4.321f))
+    assertEquals(actual.prop[Boolean]("pBool").get, Some(true))
+    assertEquals(actual.prop[Int]("pInt").get, Some(12345789))
+    assertEquals(actual.prop[String]("pString").get, Some("blerg"))
 
     // one can iterate these values
     assertEquals(actual.prop[Long]("pLong").list.toList, List(now -> timestamp))

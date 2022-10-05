@@ -36,8 +36,7 @@ class ArrowExEdge(val ID: Long, val edge: Edge, protected val repo: ArrowEntityS
     * @param data Message data to send
     */
   override def send(data: Any): Unit = {
-    val vertexId = if (isIncoming) src else dst
-    repo.sendMessage(VertexMessage(repo.superStep, vertexId, data))
+    repo.sendMessage(VertexMessage(repo.superStep, ID, data))
   }
 
   override def entity: Entity = edge

@@ -210,7 +210,8 @@ trait ArrowExEntity extends EntityVisitor {
     */
   override def appendToState[T: ClassTag](key: String, value: T): Unit = ???
 
-  override def history(): List[HistoricEvent] = List.empty
+  override def history(): List[HistoricEvent] =
+    List(HistoricEvent(entity.getCreationTime, entity.getCreationTime))
 
   /** Return `true` if any event (addition or deletion) occurred during the time window starting at
     * `after` and ending at `before`. Otherwise returns `false`.

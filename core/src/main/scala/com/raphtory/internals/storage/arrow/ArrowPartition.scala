@@ -442,12 +442,12 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
 
 object ArrowPartition {
 
-  class PropertyIterator[P](iter: ArrowPropertyIterator)(implicit P: Prop[P]) extends Iterator[(P, Long)] {
+  class PropertyIterator[P](iter: ArrowPropertyIterator)(implicit P: Prop[P]) extends Iterator[Option[(P, Long)]] {
     override def hasNext: Boolean = iter.hasNext
 
-    override def next(): (P, Long) = {
+    override def next(): Option[(P, Long)] = {
       val acc = iter.next()
-      P.get(acc) -> acc.getCreationTime
+      P.get(acc).map(p => p -> acc.getCreationTime)
     }
   }
 

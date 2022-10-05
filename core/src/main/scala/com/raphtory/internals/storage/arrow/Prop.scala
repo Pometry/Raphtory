@@ -10,7 +10,7 @@ import scala.collection.View
 @implicitNotFound("Could not find arrow property accessor for C[${P}]")
 sealed trait Prop[P] {
   def set(acc: VersionedEntityPropertyAccessor, v: P, at: Long): Unit
-  def get(acc: VersionedEntityPropertyAccessor): P
+  def get(acc: VersionedEntityPropertyAccessor): Option[P]
 
 }
 
@@ -37,7 +37,9 @@ object Prop {
     new Prop[V] {
       override def set(acc: VersionedEntityPropertyAccessor, v: V, at: Long): Unit = setF(acc, v, at)
 
-      override def get(acc: VersionedEntityPropertyAccessor): V = getF(acc)
+      override def get(acc: VersionedEntityPropertyAccessor): Option[V] =
+        if (acc.isSet) Some(getF(acc))
+        else None
     }
 
   /**
@@ -48,24 +50,24 @@ object Prop {
   def runtime[T](e: Entity): Prop[T] =
     new Prop[T] {
 
-      override def set(acc: VersionedEntityPropertyAccessor, v: T, at: Long): Unit = {}
+      override def set(acc: VersionedEntityPropertyAccessor, v: T, at: Long): Unit = ???
 
-      override def get(acc: VersionedEntityPropertyAccessor): T = {
+      override def get(acc: VersionedEntityPropertyAccessor): Option[T] = {
         val out = acc match {
           case accessor: VersionedEntityPropertyAccessor.IntPropertyAccessor     =>
-            accessor.getInt
+            if (accessor.isSet) Some(accessor.getInt) else None
           case accessor: VersionedEntityPropertyAccessor.LongPropertyAccessor    =>
-            accessor.getLong
+            if (accessor.isSet) Some(accessor.getLong) else None
           case accessor: VersionedEntityPropertyAccessor.StringPropertyAccessor  =>
-            accessor.getString.toString
+            if (accessor.isSet) Some(accessor.getString.toString) else None
           case accessor: VersionedEntityPropertyAccessor.FloatPropertyAccessor   =>
-            accessor.getFloat
+            if (accessor.isSet) Some(accessor.getFloat) else None
           case accessor: VersionedEntityPropertyAccessor.DoublePropertyAccessor  =>
-            accessor.getDouble
+            if (accessor.isSet) Some(accessor.getDouble) else None
           case accessor: VersionedEntityPropertyAccessor.BooleanPropertyAccessor =>
-            accessor.getBoolean
+            if (accessor.isSet) Some(accessor.getBoolean) else None
         }
-        out.asInstanceOf[T]
+        out.asInstanceOf[Option[T]]
       }
 
     }
@@ -73,7 +75,7 @@ object Prop {
 
 trait PropAccess[P] {
   def set(p: P, at: Long): Unit
-  def get: P
+  def get: Option[P]
 
   def list: View[(P, Long)]
 }

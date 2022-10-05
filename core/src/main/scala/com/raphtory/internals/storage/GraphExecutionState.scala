@@ -40,9 +40,8 @@ class GraphExecutionState(
   override def getStateOrElse[T](getLocalId: Long, key: String, orElse: => T): T = {
     val innerMap = state.get(getLocalId)
     if (innerMap == null) orElse
-    else {
+    else
       innerMap.getOrElse(key, orElse).asInstanceOf[T]
-    }
   }
 
   override def setState(vertexId: Long, key: String, value: Any): Unit =
@@ -56,16 +55,16 @@ class GraphExecutionState(
               }
     )
 
-  def hasMessage(vertexId: Long): Boolean =
-    messagesPerVertex.get(vertexId).exists(_.getMessageQueue(superStep).nonEmpty)
+  def hasMessage(vertexId: Long): Boolean = {
+    val bool = messagesPerVertex.get(vertexId).exists(_.getMessageQueue(superStep).nonEmpty)
+    bool
+  }
 
-  def removeOutEdge(sourceId: Long, vertexId: Long): Unit = {
+  def removeOutEdge(sourceId: Long, vertexId: Long): Unit =
     newFilteredEdges += (sourceId -> vertexId)
-  }
 
-  def removeInEdge(sourceId: Long, vertexId: Long): Unit = {
+  def removeInEdge(sourceId: Long, vertexId: Long): Unit =
     newFilteredEdges += (vertexId -> sourceId)
-  }
 
   def removeEdge(vertexId: Long, sourceId: Long, edgeId: Option[Long]): Unit = {
     removeInEdge(sourceId, vertexId)
@@ -95,35 +94,34 @@ class GraphExecutionState(
     newFilteredEdges.clear()
   }
 
-  def isAlive(vertexId: Long): Boolean = {
+  def isAlive(vertexId: Long): Boolean =
     !filteredVertices(vertexId)
-  }
 
   override def removeVertex(vertexId: Long): Unit =
     newFilteredVertices.synchronized(newFilteredVertices.addOne(vertexId))
 
-  override def sendMessage(msg: GenericVertexMessage[_]): Unit = {
+  override def sendMessage(msg: GenericVertexMessage[_]): Unit =
     messageSender(msg)
-  }
 
   override def superStep: Int = superStep0.get
 
-  override def releaseQueue[T](vertexId: Long): Seq[T] =
-    messagesPerVertex.get(vertexId) match {
+  override def releaseQueue[T](vertexId: Long): Seq[T] = {
+    val value1 = messagesPerVertex.get(vertexId) match {
       case None    => Vector.empty[T]
       case Some(q) =>
         val value = q.getMessageQueue(superStep) // copies the queue
         q.clearQueue(superStep)
         value.asInstanceOf[Vector[T]]
     }
+    value1
+  }
 
   override def asGlobal(localVertexId: Long): Long = makeGlobalFn(localVertexId)
 
   override def vertexVoted(): Unit = votingMachine.vote()
 
-  override def isEdgeAlive(sourceId: Long, vertexId: Long): Boolean = {
+  override def isEdgeAlive(sourceId: Long, vertexId: Long): Boolean =
     !filteredEdges.get(sourceId).exists(removed => removed(vertexId))
-  }
 }
 
 object GraphExecutionState {

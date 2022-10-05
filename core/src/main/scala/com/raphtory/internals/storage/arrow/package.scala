@@ -32,7 +32,7 @@ package object arrow {
           implicitly[Prop[P]].set(v.getProperty(FIELD), p, at)
         }
 
-        override def get: P = {
+        override def get: Option[P] = {
           val FIELD = v.getRaphtory.getVertexPropertyId(name.toLowerCase())
           implicitly[Prop[P]].get(v.getProperty(FIELD))
         }
@@ -40,7 +40,7 @@ package object arrow {
         override def list: View[(P, Long)] =
           try {
             val FIELD = v.getRaphtory.getVertexPropertyId(name.toLowerCase())
-            View.fromIteratorProvider(() => new PropertyIterator(v.getPropertyHistory(FIELD)))
+            View.fromIteratorProvider(() => new PropertyIterator(v.getPropertyHistory(FIELD))).flatten
           }
           catch {
             case _: IllegalArgumentException =>
@@ -106,7 +106,7 @@ package object arrow {
           implicitly[Prop[P]].set(v.getProperty(FIELD), p, at)
         }
 
-        override def get: P = {
+        override def get: Option[P] = {
           val FIELD = v.getRaphtory.getEdgePropertyId(name.toLowerCase())
           implicitly[Prop[P]].get(v.getProperty(FIELD))
         }
@@ -116,7 +116,7 @@ package object arrow {
             val FIELD = v.getRaphtory.getEdgePropertyId(name.toLowerCase())
             val iterator = v.getPropertyHistory(FIELD)
 
-            View.fromIteratorProvider(() => new PropertyIterator(iterator))
+            View.fromIteratorProvider(() => new PropertyIterator(iterator)).flatten
           }
           catch {
             case _: IllegalArgumentException =>
