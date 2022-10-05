@@ -74,10 +74,11 @@ class GraphExecutionState(
   def removeEdge(edgeId: Long): Unit =
     removeEdge(-1L, -1L, Option(edgeId))
 
-  def receiveMessage(vertexId: Any, localSuperStep: Int, data: Any): Unit =
+  def receiveMessage(vertexId: Any, localSuperStep: Int, data: Any): Unit = {
     messagesPerVertex
       .getOrElseUpdate(vertexId, new VertexMultiQueue)
       .receiveMessage(localSuperStep, data)
+  }
 
   def clearMessages(): Unit = messagesPerVertex.values.foreach(_.clearAll())
 

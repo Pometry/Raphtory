@@ -59,9 +59,7 @@ class ShortestPathDistance[T: Bounded: Numeric](src_name: String, tgt_name: Stri
       }
       .iterate(
               { (vertex, graphState) =>
-                val value = vertex.messageQueue[T].toVector
-                println(vertex.ID -> value)
-                val candidate_distance = value.min
+                val candidate_distance = vertex.messageQueue[T].min
                 if (candidate_distance <= vertex.getState[T](DISTANCE)) {
                   vertex.setState(DISTANCE, candidate_distance)
                   if (vertex.name() == tgt_name)
