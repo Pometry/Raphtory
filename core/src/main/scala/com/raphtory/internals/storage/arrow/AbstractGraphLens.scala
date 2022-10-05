@@ -1,14 +1,17 @@
 package com.raphtory.internals.storage.arrow
 
 import com.raphtory.api.analysis.graphstate.GraphState
-import com.raphtory.api.analysis.table.{Row, RowImplementation}
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.RowImplementation
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
-import com.raphtory.api.analysis.visitor.{InterlayerEdge, Vertex}
+import com.raphtory.api.analysis.visitor.InterlayerEdge
+import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.storage.arrow.entities.ArrowExVertex
-import com.raphtory.internals.storage.{GraphExecutionState, VotingMachine}
+import com.raphtory.internals.storage.GraphExecutionState
+import com.raphtory.internals.storage.VotingMachine
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
@@ -111,6 +114,16 @@ abstract class AbstractGraphLens(
     onComplete
   }
 
+  override def runMessagedGraphFunction(f: (Vertex, GraphState) => Unit, graphState: GraphState)(
+      onComplete: => Unit
+  ): Unit = {
+
+    vertexCount.set(0)
+    val count = vertices.filter(_.hasMessage).foldLeft(0) { (c, v) => f(v, graphState); c + 1 }
+    vertexCount.set(count)
+    onComplete
+  }
+
   override def writeDataTable(writer: Row => Unit)(onComplete: => Unit): Unit = {
     dataTable.foreach(writer)
     onComplete
@@ -140,14 +153,17 @@ abstract class AbstractGraphLens(
     onComplete
   }
 
-  override def executeSelect(f: Vertex => Row)(onComplete: => Unit): Unit = {
+  override def executeSelect(f: Vertex => Row)(onComplete: => Unit): Unit =
     explodeSelect(v => List(f(v)))(onComplete)
-  }
 
+  override def reduceView(
+      defaultMergeStrategy: Option[PropertyMerge[_, _]],
+      mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
+      aggregate: Boolean
+  )(onComplete: => Unit): Unit = onComplete
 
   override def explodeView(interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]])(onComplete: => Unit): Unit =
     ???
-
 
   override def executeSelect(f: (_, GraphState) => Row, graphState: GraphState)(onComplete: => Unit): Unit = ???
 
@@ -156,14 +172,4 @@ abstract class AbstractGraphLens(
   override def viewDirected()(onComplete: => Unit): Unit = ???
 
   override def viewReversed()(onComplete: => Unit): Unit = ???
-
-  override def reduceView(
-                           defaultMergeStrategy: Option[PropertyMerge[_, _]],
-                           mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
-                           aggregate: Boolean
-                         )(onComplete: => Unit): Unit = {onComplete}
-
-  override def runMessagedGraphFunction(f: (_, GraphState) => Unit, graphState: GraphState)(
-    onComplete: => Unit
-  ): Unit = ???
 }

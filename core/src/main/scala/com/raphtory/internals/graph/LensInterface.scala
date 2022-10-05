@@ -53,7 +53,7 @@ private[raphtory] trait LensInterface {
   def runMessagedGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit
 
   def runMessagedGraphFunction(
-      f: (_, GraphState) => Unit,
+      f: (Vertex, GraphState) => Unit,
       graphState: GraphState
   )(onComplete: => Unit): Unit
   def checkVotes(): Boolean

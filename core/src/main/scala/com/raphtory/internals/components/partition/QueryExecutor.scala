@@ -206,16 +206,16 @@ private[raphtory] class QueryExecutor(
 
         case GraphFunctionWithGlobalState(function, graphState)                       =>
           function match {
-            case StepWithGraph(f)                                     =>
+            case StepWithGraph(f)                         =>
               evalStepWithGraph(time, graphState, f)
 
-            case IterateWithGraph(f, iterations, executeMessagedOnly) =>
+            case iwg: IterateWithGraph[Vertex] @unchecked =>
               startStep()
               val fun =
-                if (executeMessagedOnly)
-                  graphLens.runMessagedGraphFunction(f, graphState)(_)
+                if (iwg.executeMessagedOnly)
+                  graphLens.runMessagedGraphFunction(iwg.f, graphState)(_)
                 else
-                  graphLens.runGraphFunction(f, graphState)(_)
+                  graphLens.runGraphFunction(iwg.f, graphState)(_)
               fun {
                 finaliseStep {
                   val sentMessages     = sentMessageCount.get()
@@ -234,13 +234,13 @@ private[raphtory] class QueryExecutor(
                   logger.debug(
                           logMessage(
                                   s"Iterate function on graph with accumulators completed  in ${System
-                                    .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to $executeMessagedOnly."
+                                    .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to ${iwg.executeMessagedOnly}."
                           )
                   )
                 }
               }
 
-            case SelectWithGraph(f)                                   =>
+            case SelectWithGraph(f)                       =>
               startStep()
               graphLens.executeSelect(f, graphState) {
                 finaliseStep {
@@ -253,7 +253,7 @@ private[raphtory] class QueryExecutor(
                   )
                 }
               }
-            case GlobalSelect(f)                                      =>
+            case GlobalSelect(f)                          =>
               evalGlobalSelect(time, graphState, f)
           }
 

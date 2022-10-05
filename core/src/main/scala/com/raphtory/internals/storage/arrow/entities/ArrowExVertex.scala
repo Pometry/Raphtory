@@ -1,13 +1,20 @@
 package com.raphtory.internals.storage.arrow.entities
 
 import com.raphtory.api.analysis.visitor.ReducedVertex
-import com.raphtory.arrowcore.model.{Entity, Vertex => ArrVertex}
+import com.raphtory.arrowcore.model
+import com.raphtory.arrowcore.model.Entity
+import com.raphtory.arrowcore.model.{Vertex => ArrVertex}
 import com.raphtory.internals.communication.SchemaProviderInstances
 import com.raphtory.internals.communication.SchemaProviderInstances._
-import com.raphtory.internals.components.querymanager.{FilteredInEdgeMessage, FilteredOutEdgeMessage, SchemaProvider, VertexMessage}
-import com.raphtory.internals.storage.arrow.{ArrowEntityStateRepository, RichVertex}
+import com.raphtory.internals.components.querymanager.FilteredInEdgeMessage
+import com.raphtory.internals.components.querymanager.FilteredOutEdgeMessage
+import com.raphtory.internals.components.querymanager.SchemaProvider
+import com.raphtory.internals.components.querymanager.VertexMessage
+import com.raphtory.internals.storage.arrow.ArrowEntityStateRepository
+import com.raphtory.internals.storage.arrow.RichVertex
 
 import scala.collection.View
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.reflect.ClassTag
 
 class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
@@ -59,15 +66,29 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
     */
   override def outEdges: View[ArrowExEdge] =
     vertex.outgoingEdges
-      .map(new ArrowExEdge(_, repo))
+      .map(mkArrOutEdge)
       .filter(e => repo.isEdgeAlive(e.src, e.dst))
+
+  private def mkArrOutEdge(e: model.Edge) = {
+    val dst =
+      if (!e.isDstGlobal) repo.asGlobal(e.getDstVertex)
+      else e.getDstVertex
+    new ArrowExEdge(dst, e, repo)
+  }
 
   /** Return all edges ending at this vertex
     */
   override def inEdges: View[ArrowExEdge] =
     vertex.incomingEdges
-      .map(new ArrowExEdge(_, repo))
+      .map(mkArrInEdge)
       .filter(e => repo.isEdgeAlive(e.src, e.dst))
+
+  private def mkArrInEdge(e: model.Edge) = {
+    val src =
+      if (!e.isSrcGlobal) repo.asGlobal(e.getSrcVertex)
+      else e.getSrcVertex
+    new ArrowExEdge(src, e, repo)
+  }
 
   /** Return specified edge if it is an out-edge of this vertex
     *
@@ -119,7 +140,7 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
     *               contains events within the window.
     */
   override def getOutEdges(after: Long, before: Long): View[ArrowExEdge] =
-    vertex.outgoingEdges.map(new ArrowExEdge(_, repo))
+    vertex.outgoingEdges.map(mkArrOutEdge)
 
   /** Return all edges ending at this vertex
     *
@@ -130,7 +151,7 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
     *               contains events within the window.
     */
   override def getInEdges(after: Long, before: Long): View[ArrowExEdge] =
-    vertex.incomingEdges.map(new ArrowExEdge(_, repo))
+    vertex.incomingEdges.map(mkArrInEdge)
 
   /** Return specified edge if it is an out-edge of this vertex
     *
@@ -141,9 +162,8 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
     *               The `after` and `before` parameters also restrict the history of the returned edge such that it only
     *               contains events within the window.
     */
-  override def getOutEdge(id: Long, after: Long, before: Long): Option[ArrowExEdge] = {
+  override def getOutEdge(id: Long, after: Long, before: Long): Option[ArrowExEdge] =
     getOutEdges(after, before).find(e => e.dst == id)
-  }
 
   /** Return specified edge if it is an in-edge of this vertex
     *
@@ -154,7 +174,14 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
     *               The `after` and `before` parameters also restrict the history of the returned edge such that it only
     *               contains events within the window.
     */
-  override def getInEdge(id: Long, after: Long, before: Long): Option[ArrowExEdge] = {
+  override def getInEdge(id: Long, after: Long, before: Long): Option[ArrowExEdge] =
     getInEdges(after, before).find(e => e.src == id)
+
+  /** Return a list of keys for available properties for the entity */
+  override def getPropertySet(): List[String] = {
+    val schema       = vertex.getRaphtory.getPropertySchema
+    val versioned    = schema.versionedVertexProperties().asScala.map(_.name())
+    val nonVersioned = schema.nonversionedVertexProperties().asScala.map(_.name())
+    (versioned ++ nonVersioned).toList
   }
 }

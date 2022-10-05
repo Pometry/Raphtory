@@ -254,12 +254,12 @@ final private[raphtory] case class PojoGraphLens(
   }
 
   override def runMessagedGraphFunction(
-      f: (_, GraphState) => Unit,
+      f: (Vertex, GraphState) => Unit,
       graphState: GraphState
   )(onComplete: => Unit): Unit = {
 
     val (count, tasks) = prepareRun(vertexIterator, chunkSize, includeAllVs = false) { vertex =>
-      f.asInstanceOf[(PojoVertexBase, GraphState) => Unit](vertex, graphState)
+      f(vertex, graphState)
     }
 
     vertexCount.set(count)

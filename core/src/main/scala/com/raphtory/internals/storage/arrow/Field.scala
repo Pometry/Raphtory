@@ -1,6 +1,7 @@
 package com.raphtory.internals.storage.arrow
 
 import com.raphtory.arrowcore.implementation.EntityFieldAccessor
+import com.raphtory.arrowcore.model.Entity
 
 import scala.annotation.implicitNotFound
 
@@ -20,6 +21,20 @@ object Field {
     override def get(efa: EntityFieldAccessor): String =
       efa.getString.toString
   }
+
+  def runtime[T]: Field[T] =
+    new Field[T] {
+
+      override def set(efa: EntityFieldAccessor, v: T): Unit =
+        efa match {
+          case _: EntityFieldAccessor.StringFieldAccessor => efa.set(v.asInstanceOf[String])
+        }
+
+      override def get(efa: EntityFieldAccessor): T =
+        efa match {
+          case _: EntityFieldAccessor.StringFieldAccessor => efa.getString.toString.asInstanceOf[T]
+        }
+    }
 }
 
 trait FieldAccess[P] {

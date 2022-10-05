@@ -1,18 +1,19 @@
 package com.raphtory.internals.storage.arrow.entities
 
-import com.raphtory.api.analysis.visitor.{ConcreteExplodedEdge, ReducedEdge}
-import com.raphtory.arrowcore.model.{Edge, Entity}
+import com.raphtory.api.analysis.visitor.ConcreteExplodedEdge
+import com.raphtory.api.analysis.visitor.ReducedEdge
+import com.raphtory.arrowcore.model.Edge
+import com.raphtory.arrowcore.model.Entity
 import com.raphtory.internals.communication.SchemaProviderInstances._
 import com.raphtory.internals.components.querymanager.VertexMessage
 import com.raphtory.internals.storage.arrow.ArrowEntityStateRepository
 
-class ArrowExEdge(edge: Edge, protected val repo: ArrowEntityStateRepository) extends ReducedEdge with ArrowExEntity {
+import scala.jdk.CollectionConverters.CollectionHasAsScala
+
+class ArrowExEdge(val ID: Long, val edge: Edge, protected val repo: ArrowEntityStateRepository) extends ReducedEdge with ArrowExEntity {
 
   /** type of vertex IDs for this edge */
   override type IDType = Long
-
-  /** Edge ID */
-  override def ID: Long = entity.getGlobalId
 
   /** ID of the source vertex of the edge */
   override def src: Long =
@@ -53,4 +54,12 @@ class ArrowExEdge(edge: Edge, protected val repo: ArrowEntityStateRepository) ex
     * active in the current view.
     */
   override def explode(): List[ExplodedEdge] = List.empty
+
+  /** Return a list of keys for available properties for the entity */
+  override def getPropertySet(): List[String] = {
+    val schema       = edge.getRaphtory.getPropertySchema
+    val versioned    = schema.versionedEdgeProperties().asScala.map(_.name())
+    val nonVersioned = schema.nonversionedEdgeProperties().asScala.map(_.name())
+    (versioned ++ nonVersioned).toList
+  }
 }

@@ -66,7 +66,7 @@ class PartitionManager(
 
 object PartitionManager {
 
-  def apply[IO[_]](graphID: String, partitionID: Int, scheduler: Scheduler, conf: Config, topics: TopicRepository)(
+  def apply2[IO[_]](graphID: String, partitionID: Int, scheduler: Scheduler, conf: Config, topics: TopicRepository)(
       implicit IO: Async[IO]
   ): Resource[IO, PartitionManager] =
     Resource.eval(IO.delay(new PojoBasedPartition(graphID, partitionID, conf))).flatMap { storage =>
@@ -74,7 +74,7 @@ object PartitionManager {
     }
 
   // rename this to apply and the one above to blerg to enable arrow
-  def arrow[IO[_]](
+  def apply[IO[_]](
                     graphID: String,
                     partitionID: Int,
                     scheduler: Scheduler,

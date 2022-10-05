@@ -7,16 +7,16 @@ import com.raphtory.arrowcore.model.Entity
 import com.raphtory.arrowcore.model.{Edge => ArrEdge}
 import com.raphtory.arrowcore.model.{Vertex => ArrVertex}
 import com.raphtory.internals.storage.arrow.ArrowEntityStateRepository
+import com.raphtory.internals.storage.arrow.Field
 import com.raphtory.internals.storage.arrow.Prop
 import com.raphtory.internals.storage.arrow.PropAccess
 import com.raphtory.internals.storage.arrow.RichEdge
 import com.raphtory.internals.storage.arrow.RichVertex
 
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.reflect.ClassTag
 
 trait ArrowExEntity extends EntityVisitor {
-
-
 
   protected def repo: ArrowEntityStateRepository
 
@@ -58,7 +58,7 @@ trait ArrowExEntity extends EntityVisitor {
   override def earliestActivity(): HistoricEvent = ???
 
   /** Return a list of keys for available properties for the entity */
-  override def getPropertySet(): List[String] = ???
+  override def getPropertySet(): List[String]
 
   /** Returns a history of values for the property `key`. Returns `None` if no property with name `key` exists.
     * Otherwise returns a list of `(timestamp, value)` tuples (which may be empty).
@@ -85,19 +85,58 @@ trait ArrowExEntity extends EntityVisitor {
   override def getPropertyHistory[T](key: String, after: Long, before: Long): Option[Iterable[PropertyValue[T]]] =
     this match {
       case vertex: ArrowExVertex =>
-        implicit val PROP: Prop[T] = Prop.runtime[T](vertex.entity)
-        val arrV                   = vertex.entity.asInstanceOf[ArrVertex]
-        historyProps(arrV.prop[T](key), after, before)
+        if (!isField(key)) {
+          implicit val PROP: Prop[T] = Prop.runtime[T](vertex.entity)
+          val arrV                   = vertex.vertex
+          historyProps(arrV.prop[T](key), after, before)
+        }
+        else {
+          implicit val FIELD: Field[T] = com.raphtory.internals.storage.arrow.Field.runtime[T]
+          Some(
+                  List(
+                          PropertyValue(
+                                  vertex.vertex.getCreationTime,
+                                  vertex.vertex.getCreationTime,
+                                  vertex.vertex.field[T](key).get
+                          )
+                  )
+          )
+        }
       case edge: ArrowExEdge     =>
-        implicit val PROP: Prop[T] = Prop.runtime[T](edge.entity)
-        val arrE                   = edge.entity.asInstanceOf[ArrEdge]
-        historyProps(arrE.prop[T](key), after, before).map(_.toVector)
+        if (!isField(key)) {
+          implicit val PROP: Prop[T] = Prop.runtime[T](edge.entity)
+          val arrE                   = edge.entity.asInstanceOf[ArrEdge]
+          historyProps(arrE.prop[T](key), after, before).map(_.toVector)
+        }
+        else {
+          implicit val FIELD: Field[T] = com.raphtory.internals.storage.arrow.Field.runtime[T]
+          Some(
+                  List(
+                          PropertyValue(
+                                  edge.edge.getCreationTime,
+                                  edge.edge.getCreationTime,
+                                  edge.edge.field[T](key).get
+                          )
+                  )
+          )
+        }
     }
 
+  /**
+    * check if the property is field or versioned property
+    * @param key
+    * @return
+    */
+  def isField(key: String): Boolean =
+    this match {
+      case edge: ArrowExEdge     =>
+        entity.getRaphtory.getPropertySchema.nonversionedEdgeProperties().asScala.map(_.name()).exists(_ == key)
+      case vertex: ArrowExVertex =>
+        entity.getRaphtory.getPropertySchema.nonversionedVertexProperties().asScala.map(_.name()).exists(_ == key)
+    }
 
   private def historyProps[T](addVertexProps: PropAccess[T], after: Long, before: Long) = {
-    val hist = addVertexProps
-      .list
+    val hist = addVertexProps.list
       .filter { case (_, t) => t >= after && t <= before }
       .map { case (v, t) => PropertyValue(t, t, v) }
 

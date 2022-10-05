@@ -114,41 +114,17 @@ package object arrow {
         override def list: View[(P, Long)] =
           try {
             val FIELD = v.getRaphtory.getEdgePropertyId(name.toLowerCase())
-            View.fromIteratorProvider(() => new PropertyIterator(v.getPropertyHistory(FIELD)))
+            val iterator = v.getPropertyHistory(FIELD)
+
+            View.fromIteratorProvider(() => new PropertyIterator(iterator))
           }
           catch {
             case _: IllegalArgumentException =>
+              View.empty
+            case _: IllegalStateException => // FIXME: this should not be the case!
               View.empty
           }
       }
   }
 
-  implicit class RichFieldAccessor(val acc: EntityFieldAccessor) extends AnyVal {
-
-    def getAny: Any =
-      acc match {
-        case accessor: EntityFieldAccessor.IntFieldAccessor          => accessor.getInt
-        case accessor: EntityFieldAccessor.ByteFieldAccessor         => accessor.getByte
-        case accessor: EntityFieldAccessor.LongFieldAccessor         => accessor.getLong
-        case accessor: EntityFieldAccessor.FloatFieldAccessor        => accessor.getFloat
-        case accessor: EntityFieldAccessor.ShortFieldAccessor        => accessor.getShort
-        case accessor: EntityFieldAccessor.DoubleFieldAccessor       => accessor.getDouble
-        case accessor: EntityFieldAccessor.StringFieldAccessor       => accessor.getString.toString
-        case accessor: EntityFieldAccessor.BooleanFieldAccessor      => accessor.getBoolean
-        case accessor: NonversionedEnumField.EnumEntityFieldAccessor => accessor.getEnum
-      }
-  }
-
-  implicit class RichPropertyAccessor(val acc: VersionedEntityPropertyAccessor) extends AnyVal {
-
-    def getAny: Any =
-      acc match {
-        case accessor: VersionedEntityPropertyAccessor.IntPropertyAccessor     => accessor.getInt
-        case accessor: VersionedEntityPropertyAccessor.LongPropertyAccessor    => accessor.getLong
-        case accessor: VersionedEntityPropertyAccessor.FloatPropertyAccessor   => accessor.getFloat
-        case accessor: VersionedEntityPropertyAccessor.DoublePropertyAccessor  => accessor.getDouble
-        case accessor: VersionedEntityPropertyAccessor.StringPropertyAccessor  => accessor.getString.toString
-        case accessor: VersionedEntityPropertyAccessor.BooleanPropertyAccessor => accessor.getBoolean
-      }
-  }
 }
