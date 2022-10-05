@@ -73,6 +73,7 @@ lazy val root = (project in file("."))
   .enablePlugins(OsDetectorPlugin)
   .aggregate(
           arrowMessaging,
+          arrowCore,
           core,
           connectorsAWS,
           connectorsTwitter,
@@ -95,6 +96,9 @@ lazy val root = (project in file("."))
 
 lazy val arrowMessaging =
   (project in file("arrow-messaging")).settings(assemblySettings)
+
+lazy val arrowCore =
+  (project in file("arrow-core")).settings(assemblySettings)
 
 lazy val core = (project in file("core"))
   .settings(
@@ -160,7 +164,7 @@ lazy val core = (project in file("core"))
           // Make it easy for 3rd-party clients to communicate with us via gRPC
           muSrcGenIdiomaticEndpoints := true
   )
-  .dependsOn(arrowMessaging)
+  .dependsOn(arrowMessaging,arrowCore)
   .enablePlugins(SrcGenPlugin)
 
 // CONNECTORS
