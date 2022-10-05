@@ -165,7 +165,7 @@ lazy val core = (project in file("core"))
           // Make it easy for 3rd-party clients to communicate with us via gRPC
           muSrcGenIdiomaticEndpoints := true
   )
-  .dependsOn(arrowMessaging,arrowCore)
+  .dependsOn(arrowMessaging, arrowCore)
   .enablePlugins(SrcGenPlugin)
 
 // CONNECTORS

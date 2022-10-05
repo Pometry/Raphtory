@@ -3,6 +3,7 @@ package com.raphtory.internals.graph
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
 import com.raphtory.internals.components.querymanager._
+import com.raphtory.protocol
 
 sealed private[raphtory] trait GraphAlteration {
   val sourceID: Long
@@ -16,7 +17,7 @@ private[raphtory] object GraphAlteration {
     val srcId: Long
   }
 
-  object GraphUpdate extends ProtoMessage[GraphUpdate]
+  object GraphUpdate extends ProtoField[GraphUpdate]
 
   /** basic update types */
   case class VertexAdd(

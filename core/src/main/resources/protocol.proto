@@ -8,11 +8,13 @@ import "scalapb/scalapb.proto";
 
 // Responses
 message Status {
-  bool status = 1;
+  bool success = 1;
 }
 
 message QueryManagement {
-  bytes queryManagement = 1 [(scalapb.field).type = "com.raphtory.internals.components.querymanager.QueryManagement"];
+//  option (scalapb.message).extends = "com.raphtory.internals.components.querymanager.ProtoDef";
+//  option (scalapb.message).type = "com.raphtory.internals.components.querymanager.QueryManagement";
+  bytes bytes = 1 [(scalapb.field).type = "com.raphtory.internals.components.querymanager.QueryManagement"];
 }
 
 message OptionalId {
@@ -26,17 +28,15 @@ message ClientGraphId {
 }
 
 message Query {
-  bytes query = 1 [(scalapb.field).type = "com.raphtory.internals.components.querymanager.Query"];
-}
-
-//message RpcQuery {
 //  option (scalapb.message).extends = "com.raphtory.internals.components.querymanager.ProtoDef";
 //  option (scalapb.message).type = "com.raphtory.internals.components.querymanager.Query";
-//  bytes bytes = 1;
-//}
+  bytes bytes = 1 [(scalapb.field).type = "com.raphtory.internals.components.querymanager.TryQuery"];
+}
 
 message IngestData {
-  bytes ingestData = 1 [(scalapb.field).type = "com.raphtory.internals.components.querymanager.IngestData"];
+  //  option (scalapb.message).extends = "com.raphtory.internals.components.querymanager.ProtoDef";
+  //  option (scalapb.message).type = "com.raphtory.internals.components.querymanager.IngestData";
+  bytes bytes = 1 [(scalapb.field).type = "com.raphtory.internals.components.querymanager.TryIngestData"];
 }
 
 message IdPool {
@@ -63,7 +63,7 @@ message DestroyGraph {
 }
 
 // Service
-service ProtoRaphtoryService {
+service RaphtoryService {
   rpc establishGraph(ClientGraphId) returns (Status);
   rpc submitQuery(Query) returns (stream QueryManagement);
   rpc submitSource(IngestData) returns (Status);

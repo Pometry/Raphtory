@@ -12,6 +12,7 @@ import com.raphtory.internals.components.querymanager.QueryManager
 import com.raphtory.internals.management.Prometheus
 import com.raphtory.internals.management.QuerySender
 import com.raphtory.internals.management.Scheduler
+import com.raphtory.protocol
 import com.typesafe.config.Config
 import cats.effect.unsafe.implicits.global
 import com.raphtory.Raphtory.makeLocalIdManager
@@ -22,7 +23,7 @@ import com.typesafe.config.Config
 import cats.effect.unsafe.implicits.global
 import com.raphtory.arrowmessaging.ArrowFlightServer
 import com.raphtory.internals.communication.connectors.AkkaConnector
-import com.raphtory.internals.components.RService
+import com.raphtory.internals.components.RaphtoryServiceBuilder
 import com.raphtory.internals.components.partition.PartitionOrchestrator
 import com.raphtory.internals.management.arrow.LocalHostAddressProvider
 import com.raphtory.internals.management.arrow.ZKHostAddressProvider
@@ -67,9 +68,9 @@ private[raphtory] object LocalContext extends RaphtoryContext {
       arrowServer   <- ArrowFlightServer[IO]()
       addressHandler = new LocalHostAddressProvider(config, arrowServer)
       topicRepo     <- ArrowFlightRepository[IO](config, addressHandler)
-      service       <- RService[IO](config)
+      service       <- RaphtoryServiceBuilder.standalone[IO](config)
       clientId      <- Resource.eval(IO(createName))
-      _             <- Resource.eval(service.establishGraph(clientId, graphID))
+      _             <- Resource.eval(service.establishGraph(protocol.ClientGraphId(clientId, graphID)))
     } yield new QuerySender(graphID, service, scheduler, topicRepo, config, clientId)
   }
 
