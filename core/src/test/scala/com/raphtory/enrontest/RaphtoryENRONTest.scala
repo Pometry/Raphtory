@@ -16,7 +16,7 @@ import scala.language.postfixOps
 class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
   withGraph.test("Graph State Test".ignore) { graph =>
-//    graph.load(setSource())
+
     val sink: FileSink = FileSink(outputDirectory)
 
     graph
@@ -29,13 +29,13 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
   }
 
   withGraph.test("Connected Components Test") { graph =>
-//      graph.load(setSource())
+
       val sink: FileSink = FileSink(outputDirectory)
 
       graph
         .range(1, 32674, 10000)
         .window(List(500, 1000, 10000))
-        .execute(GraphState())
+        .execute(ConnectedComponents)
         .writeTo(sink)
         .waitForJob()
 
@@ -47,5 +47,5 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
   override def munitTimeout: Duration                      = new FiniteDuration(Int.MaxValue, TimeUnit.SECONDS)
 
-  override def setSource(): Source = Source(FileSpout("/tmp/email_test.csv"), ENRONGraphBuilder)
+  override def setSource(): Source = ENRONSource(FileSpout("/tmp/email_test.csv"))
 }

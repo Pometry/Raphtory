@@ -65,7 +65,7 @@ class JSONEdgeListSource(override val spout: Spout[String], time: String, src: S
     } catch {
       case e: NumberFormatException =>
         parseDateTime(test.as[String].toString)
-        println("dateformat")
+
         dateTimeFormat = true
       case _: Throwable => throw new RuntimeException("Make sure timestamp is in Epoch or DateTime format.")
     }

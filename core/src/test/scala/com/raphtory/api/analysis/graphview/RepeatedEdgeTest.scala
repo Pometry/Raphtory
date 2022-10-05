@@ -20,12 +20,11 @@ class RepeatedEdgeTest extends BaseCorrectnessTest {
   val repeatedInput: Seq[String] = (0 until 4).flatMap(j => input.map(s => s"$s,$j"))
 
   override def setSpout(): Spout[String] = SequenceSpout(repeatedInput: _*)
-  def setGraphBuilder(): GraphBuilder[String] = WeightedGraphBuilder
 
   test("Multilayer edgelist test with repeated edges") {
     val res = repeatedInput.map(s => s"${edges.size - 1},$s")
     correctnessTest(TestQuery(TemporalEdgeList("weight"), edges.size - 1), res)
   }
 
-  override def setSource(): Source = Source(setSpout(), setGraphBuilder())
+  override def setSource(): Source = Source(setSpout(), WeightedGraphBuilder)
 }

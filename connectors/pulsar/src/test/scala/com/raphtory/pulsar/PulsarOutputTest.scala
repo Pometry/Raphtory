@@ -64,7 +64,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFin
 
    def setSpout(): Spout[String] = FileSpout(filePath)
 
-  override def setSource(): Source = CSVEdgeListSource(setSpout())
+  override def setSource(): Source = CSVEdgeListSource.convert(filePath)
 
   override def liftFileIfNotPresent: Option[(String, URL)] =
     Some(filePath -> new URL("https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"))

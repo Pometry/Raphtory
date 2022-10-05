@@ -127,6 +127,7 @@ lazy val core = (project in file("core"))
                   apacheHttp,
                   jackson,
                   jfr,
+                  jsonpath,
                   log4jSlft4,
                   log4jApi,
                   log4jCore,

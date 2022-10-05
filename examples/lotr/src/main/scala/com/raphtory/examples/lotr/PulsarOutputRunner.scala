@@ -23,7 +23,7 @@ object PulsarOutputRunner extends App {
   // Create Graph
   val source                       = FileSpout(path)
   val graph: DeployedTemporalGraph = Raphtory.newGraph()
-  graph.load(CSVEdgeListSource(path))
+  graph.load(CSVEdgeListSource.convert(path))
   Using(graph) { graph =>
     graph
       .at(30000)

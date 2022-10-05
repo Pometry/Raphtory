@@ -1,30 +1,23 @@
 package com.raphtory.api.input.sources
 
 import com.raphtory.api.input.Graph.assignID
-import com.raphtory.api.input.{Graph, GraphBuilder, ImmutableProperty, Properties, Source, SourceInstance, Spout}
+import com.raphtory.api.input.{Graph, GraphBuilder, ImmutableProperty, Properties, Source, SourceInstance, Spout, SpoutInstance}
+import com.raphtory.internals.graph.GraphBuilderInstance
 import com.raphtory.spouts.{FileSpout, IdentitySpout}
 import com.raphtory.internals.time.DateTimeParser.{defaultParse => parseDateTime}
 
+import scala.language.implicitConversions
 
-class CSVEdgeListSource(override val spout: Spout[String]) extends Source {
+class CSVEdgeListSource(override val spout: Spout[String], timeIndex: Int, sourceIndex: Int, targetIndex: Int) extends Source {
   override type MessageType = String
 
-  var dateTimeFormat: Boolean = _
-  var epochFormat: Boolean = _
+  private var dateTimeFormat: Boolean = _
+  private var epochFormat: Boolean = _
 
-  var longFormat: Boolean = _
-  var stringFormat: Boolean = _
+  private var longFormat: Boolean = _
+  private var stringFormat: Boolean = _
 
-  private var timeIndex = 2
-  private var sourceIndex = 0
-  private var targetIndex = 1
 
-  def setIndexPositions(timeIndex: Int = 2, sourceIndex: Int = 0, targetIndex: Int = 1) = {
-    this.timeIndex = timeIndex
-    this.sourceIndex = sourceIndex
-    this.targetIndex = targetIndex
-    this
-  }
   def buildCSVEdgeListGraph(graph: Graph, rawTime: String, source: String, target: String) = {
     val timestamp = {
       if (dateTimeFormat) {
@@ -69,7 +62,7 @@ class CSVEdgeListSource(override val spout: Spout[String]) extends Source {
       case e: NumberFormatException =>
         parseDateTime(rawTime)
         dateTimeFormat = true
-      case _: Throwable => throw new RuntimeException("Check format")
+      case e: Throwable => throw new RuntimeException(s"$e")
     }
 
     try {
@@ -79,7 +72,7 @@ class CSVEdgeListSource(override val spout: Spout[String]) extends Source {
     } catch {
       case e: NumberFormatException =>
         stringFormat = true
-      case _: Throwable => throw new RuntimeException("Check format of source and target")
+      case e: Throwable => throw new RuntimeException(s"$e: Check format of source and target")
     }
     //    Build Graph
     buildCSVEdgeListGraph(graph, rawTime, source, target)
@@ -96,12 +89,13 @@ class CSVEdgeListSource(override val spout: Spout[String]) extends Source {
         buildCSVEdgeListGraph(graph, rawTime, source, target)
       }
     }
+
   def buildSource(graphID: String, id: Int): SourceInstance[String] =
-    new SourceInstance[String](id, spout.buildSpout(), builder.buildInstance(graphID, id))
+    new SourceInstance[String](id, spout.buildSpout(), new GraphBuilderInstance(graphID, id, builder))
 
 }
 
 object CSVEdgeListSource {
-  def apply(path: String) = new CSVEdgeListSource(FileSpout(path))
-  def apply(spout: Spout[String]) = new CSVEdgeListSource(spout)
+  def apply(spout: Spout[String], timeIndex: Int = 2, sourceIndex: Int = 0, targetIndex: Int = 1) = new CSVEdgeListSource(spout, timeIndex, sourceIndex, targetIndex)
+  implicit def convert(fromFile: String, timeIndex: Int = 2, sourceIndex: Int = 0, targetIndex: Int = 1) =  new CSVEdgeListSource(FileSpout(fromFile), timeIndex, sourceIndex, targetIndex)
 }

@@ -6,6 +6,7 @@ import cats.effect.IOApp
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.spouts.FileSpout
 
 import java.net.URL
 

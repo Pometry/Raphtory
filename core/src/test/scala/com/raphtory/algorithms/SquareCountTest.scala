@@ -35,7 +35,6 @@ class SquareCountTest extends BaseCorrectnessTest {
   test("test combined example") {
     correctnessTest(
             TestQuery(SquareCount, 19),
-            "SquareCount/squareTest.csv",
             "SquareCount/squareTestCorrectResult.csv"
     )
   }
