@@ -3,6 +3,10 @@ package com.raphtory.internals.storage.arrow
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
 
 trait ArrowEntityStateRepository {
+
+  def start: Long
+
+  def end: Long
   def isAlive(dst: Long):Boolean
 
   def isEdgeAlive(sourceId: Long, vertexId: Long): Boolean

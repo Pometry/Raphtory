@@ -35,7 +35,7 @@ abstract class AbstractGraphLens(
   private val votingMachine = VotingMachine()
 
   protected val graphState: GraphExecutionState =
-    GraphExecutionState(partitionID(), superStep, messageSender, storage.asGlobal, votingMachine)
+    GraphExecutionState(partitionID(), superStep, messageSender, storage.asGlobal, votingMachine, start, end)
 
   private var dataTable: View[Row] = View.empty[RowImplementation]
 

@@ -17,7 +17,9 @@ class GraphExecutionState(
     superStep0: AtomicInteger,
     votingMachine: VotingMachine,
     messageSender: GenericVertexMessage[_] => Unit,
-    makeGlobalFn: Long => Long
+    makeGlobalFn: Long => Long,
+    val start: Long,
+    val end: Long
 ) extends ArrowEntityStateRepository {
 
   private val filteredEdges    = mutable.HashMap.empty[Long, mutable.Set[Long]]
@@ -55,10 +57,8 @@ class GraphExecutionState(
               }
     )
 
-  def hasMessage(vertexId: Long): Boolean = {
-    val bool = messagesPerVertex.get(vertexId).exists(_.getMessageQueue(superStep).nonEmpty)
-    bool
-  }
+  def hasMessage(vertexId: Long): Boolean =
+    messagesPerVertex.get(vertexId).exists(_.getMessageQueue(superStep).nonEmpty)
 
   def removeOutEdge(sourceId: Long, vertexId: Long): Unit =
     newFilteredEdges += (sourceId -> vertexId)
@@ -74,11 +74,10 @@ class GraphExecutionState(
   def removeEdge(edgeId: Long): Unit =
     removeEdge(-1L, -1L, Option(edgeId))
 
-  def receiveMessage(vertexId: Any, localSuperStep: Int, data: Any): Unit = {
+  def receiveMessage(vertexId: Any, localSuperStep: Int, data: Any): Unit =
     messagesPerVertex
       .getOrElseUpdate(vertexId, new VertexMultiQueue)
       .receiveMessage(localSuperStep, data)
-  }
 
   def clearMessages(): Unit = messagesPerVertex.values.foreach(_.clearAll())
 
@@ -106,16 +105,14 @@ class GraphExecutionState(
 
   override def superStep: Int = superStep0.get
 
-  override def releaseQueue[T](vertexId: Long): Seq[T] = {
-    val value1 = messagesPerVertex.get(vertexId) match {
+  override def releaseQueue[T](vertexId: Long): Seq[T] =
+    messagesPerVertex.get(vertexId) match {
       case None    => Vector.empty[T]
       case Some(q) =>
         val value = q.getMessageQueue(superStep) // copies the queue
         q.clearQueue(superStep)
         value.asInstanceOf[Vector[T]]
     }
-    value1
-  }
 
   override def asGlobal(localVertexId: Long): Long = makeGlobalFn(localVertexId)
 
@@ -132,7 +129,9 @@ object GraphExecutionState {
       superStep: AtomicInteger,
       messageSender: GenericVertexMessage[_] => Unit,
       makeGlobal: Long => Long,
-      votingMachine: VotingMachine
+      votingMachine: VotingMachine,
+      start: Long,
+      end: Long
   ): GraphExecutionState =
-    new GraphExecutionState(partitionId, superStep, votingMachine, messageSender, makeGlobal)
+    new GraphExecutionState(partitionId, superStep, votingMachine, messageSender, makeGlobal, start, end)
 }

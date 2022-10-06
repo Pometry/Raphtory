@@ -13,7 +13,7 @@ import scala.collection.View
 
 class ArrowGraphLensTest extends FunSuite {
 
-  private val mockCluster = MockCluster(Raphtory.getDefaultConfig())
+  private val mockCluster = MockCluster(Raphtory.getDefaultConfig(Map("raphtory.partitions.countPerServer" -> "4", "raphtory.partitions.serverCount" -> "1")))
 
   private val data = Vector(
           (1, 2, 1),

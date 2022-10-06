@@ -65,7 +65,7 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
   /** Return all edges starting at this vertex
     */
   override def outEdges: View[ArrowExEdge] =
-    vertex.outgoingEdges
+    vertex.outgoingEdges(repo.start, repo.end)
       .map(mkArrOutEdge)
       .filter(e => repo.isEdgeAlive(e.src, e.dst))
 
@@ -79,7 +79,7 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
   /** Return all edges ending at this vertex
     */
   override def inEdges: View[ArrowExEdge] =
-    vertex.incomingEdges
+    vertex.incomingEdges(repo.start, repo.end)
       .map(mkArrInEdge)
       .filter(e => repo.isEdgeAlive(e.src, e.dst))
 
