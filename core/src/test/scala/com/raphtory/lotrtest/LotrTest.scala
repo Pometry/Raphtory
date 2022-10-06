@@ -222,7 +222,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
   override def liftFileIfNotPresent: Option[(String, URL)] =
     Some(tmpFilePath, new URL("https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"))
 
-  override def setSource(): Source = CSVEdgeListSource(FileSpout(tmpFilePath))
+  override def setSource(): Source = CSVEdgeListSource.fromFile(tmpFilePath)
 
 
 }

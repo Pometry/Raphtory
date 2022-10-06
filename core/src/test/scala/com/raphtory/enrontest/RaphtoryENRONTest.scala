@@ -15,11 +15,11 @@ import scala.language.postfixOps
 
 class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
-  withGraph.test("Graph State Test".ignore) { graph =>
+  test("Graph State Test".ignore) {
 
     val sink: FileSink = FileSink(outputDirectory)
 
-    graph
+    graphS
       .walk(10000)
       .past()
       .execute(GraphState())
@@ -28,11 +28,11 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
   }
 
-  withGraph.test("Connected Components Test") { graph =>
+  test("Connected Components Test") {
 
       val sink: FileSink = FileSink(outputDirectory)
 
-      graph
+      graphS
         .range(1, 32674, 10000)
         .window(List(500, 1000, 10000))
         .execute(ConnectedComponents)

@@ -10,7 +10,7 @@ class MaxFlowTest extends BaseCorrectnessTest {
   test("test on line graph") {
     correctnessTest(
             TestQuery(MaxFlow[Long]("1", "3"), 2),
-            "MaxFlow/minimalTest.csv",
+            Source(ResourceSpout("MaxFlow/minimalTest.csv"), WeightedGraphBuilder),
             "MaxFlow/minimalResult.csv"
     )
   }

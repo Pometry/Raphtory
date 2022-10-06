@@ -21,7 +21,7 @@ import java.util.UUID
 import scala.language.postfixOps
 
 class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFinish = false) {
-  withGraph.test("Outputting to Pulsar") { graph: TemporalGraph =>
+  test("Outputting to Pulsar") {
 
     val config = Raphtory.getDefaultConfig()
     PulsarConnector[IO](config).use { pulsarConnector =>
@@ -40,7 +40,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFin
         IO {
           val sink: PulsarSink     = PulsarSink("EdgeList" + salt)
           val queryProgressTracker =
-            graph
+            graphS
               .range(1, 32674, 10000)
               .window(List(500, 1000, 10000), Alignment.END)
               .execute(EdgeList())
@@ -62,9 +62,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFin
   def receiveMessage(consumer: Consumer[Array[Byte]]): Message[Array[Byte]] =
     consumer.receive
 
-   def setSpout(): Spout[String] = FileSpout(filePath)
-
-  override def setSource(): Source = CSVEdgeListSource.convert(filePath)
+  override def setSource(): Source = CSVEdgeListSource.fromFile(filePath)
 
   override def liftFileIfNotPresent: Option[(String, URL)] =
     Some(filePath -> new URL("https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"))

@@ -44,14 +44,6 @@ trait Graph {
   protected def graphID: String
 
   /** Adds a new vertex to the graph or updates an existing vertex
-   *
-   * @param updateTime timestamp for vertex update
-   * @param srcId      ID of vertex in String format to add/update - assigns ID to String
-   */
-  def addVertex(updateTime: Long, srcId: String, properties: Properties): Unit =
-    addVertex(updateTime, assignID(srcId), properties)
-
-  /** Adds a new vertex to the graph or updates an existing vertex
     *
     * @param updateTime timestamp for vertex update
     * @param srcId      ID of vertex to add/update
@@ -124,15 +116,6 @@ trait Graph {
     */
   def addEdge(updateTime: Long, srcId: Long, dstId: Long, posTypeArg: Type): Unit =
     addEdge(updateTime, srcId, dstId, edgeType = posTypeArg)
-
-  /** Adds a new edge to the graph or updates an existing edge
-   *
-   * @param updateTime timestamp for edge update
-   * @param srcId      ID of source vertex in String format of the edge - assigns ID to String
-   * @param dstId      ID of destination vertex in String format of the edge - assigns ID to String
-   */
-  def addEdge(updateTime: Long, srcId: String, dstId: String): Unit =
-    addEdge(updateTime, assignID(srcId), assignID(dstId))
 
   /** Mark edge as deleted
     * @param updateTime time of deletion (the edge is considered as no longer present in the graph after this time)

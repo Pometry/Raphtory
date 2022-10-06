@@ -19,11 +19,14 @@ case class TestQuery(
     windows: List[Long] = List.empty[Long]
 )
 
-trait Edges extends Spout[String]
+case class Edges(source: Source)
 
 object Edges {
-  implicit def edgesFromResource(resource: String)  = new ResourceSpout(resource) with Edges
-  implicit def edgesFromEdgeSeq(edges: Seq[String]) = new SequenceSpout(edges) with Edges
+  implicit def edgesFromResource(resource: String): Edges  = Edges(CSVEdgeListSource.fromResource(resource))
+  implicit def edgesFromSource(source: Source): Edges  = Edges(source)
+  implicit def sourceFromEdges(edges: Edges): Source  = edges.source
+
+  implicit def edgesFromEdgeSeq(edges: Seq[String]): Edges = Edges(CSVEdgeListSource(SequenceSpout(edges: _*)))
 }
 
 trait Result
@@ -67,7 +70,7 @@ abstract class BaseCorrectnessTest(
     Raphtory
       .newIOGraph()
       .use { g =>
-        g.load(CSVEdgeListSource(graphEdges))
+        g.load(graphEdges)
         runTest(test, g)
       }
       .map(obtained => assertResultsMatch(obtained, resultsResource))
@@ -81,7 +84,7 @@ abstract class BaseCorrectnessTest(
     Raphtory
       .newIOGraph()
       .use { g =>
-        g.load(CSVEdgeListSource(graphEdges))
+        g.load(graphEdges)
         runTest(test, g)
       }
       .map(obtained => assertResultsMatch(obtained, results))

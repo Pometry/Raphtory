@@ -40,5 +40,5 @@ class SquareCountTest extends BaseCorrectnessTest {
   }
 
 
-  override def setSource(): Source = CSVEdgeListSource(ResourceSpout("SquareCount/squareTest.csv"))
+  override def setSource(): Source = CSVEdgeListSource.fromResource("SquareCount/squareTest.csv")
 }
