@@ -1,19 +1,30 @@
 package com.raphtory.internals.storage.arrow
 
 import com.raphtory.Raphtory
+import com.raphtory.api.analysis.visitor
 import com.raphtory.api.input.Properties
-import com.raphtory.internals.graph.GraphAlteration.{SyncExistingEdgeAdd, SyncNewEdgeAdd}
+import com.raphtory.arrowcore.model.Vertex
+import com.raphtory.internals.graph.GraphAlteration.SyncExistingEdgeAdd
+import com.raphtory.internals.graph.GraphAlteration.SyncNewEdgeAdd
 import com.raphtory.internals.graph.GraphPartition
-import com.raphtory.storage.{EdgeProp, VertexProp}
+import com.raphtory.internals.management.Scheduler
+import com.raphtory.storage.EdgeProp
+import com.raphtory.storage.VertexProp
 import com.typesafe.config.Config
 import munit.FunSuite
 
 import java.nio.file.Files
 import scala.collection.View
+import scala.util.Using
 
 class ArrowGraphLensTest extends FunSuite {
 
-  private val mockCluster = MockCluster(Raphtory.getDefaultConfig(Map("raphtory.partitions.countPerServer" -> "4", "raphtory.partitions.serverCount" -> "1")))
+  private def mockCluster() =
+    MockCluster(
+            Raphtory.getDefaultConfig(
+                    Map("raphtory.partitions.countPerServer" -> "4", "raphtory.partitions.serverCount" -> "1")
+            )
+    )
 
   private val data = Vector(
           (1, 2, 1),
@@ -42,21 +53,61 @@ class ArrowGraphLensTest extends FunSuite {
   )
 
   test("filter one edge should result in it missing from the next step") {
-    data.foreach {
-      case (src, dst, time) =>
-        mockCluster.addTriplet(src, dst, time)
-    }
+    Using(mockCluster()) { cluster =>
+      data.foreach {
+        case (src, dst, time) =>
+          cluster.addTriplet(src, dst, time)
+      }
 
-    assertEquals(mockCluster.vertices.toList.sorted, (1L to 11L).toList.sorted)
-    assertEquals(
-            mockCluster.verticesPerPartition,
-            Vector(Vector[Long](4, 8), Vector[Long](1, 5, 9), Vector[Long](2, 6, 10), Vector[Long](3, 7, 11))
-    )
+      assertEquals(cluster.vertices.toList.sorted, (1L to 11L).toList.sorted)
+      assertEquals(
+              cluster.verticesPerPartition,
+              Vector(Vector[Long](4, 8), Vector[Long](1, 5, 9), Vector[Long](2, 6, 10), Vector[Long](3, 7, 11))
+      )
+    }
+  }
+
+  test("vertices over windowed iterator with Long.Min Long.Max should be the same as min(t),max(t) iterator") {
+
+    Using(mockCluster()) { cluster =>
+      data.foreach {
+        case (src, dst, time) =>
+          cluster.addTriplet(src, dst, time)
+      }
+
+      val maximalWindowVertices = cluster.vertices(1L, 23L).map(_.ID).toVector
+      val allVertices           = cluster.vertices(Long.MinValue, Long.MaxValue).map(_.ID).toVector
+      assertEquals(maximalWindowVertices, allVertices)
+    }
+  }
+
+  test("edges over windowed iterator with Long.Min Long.Max should be the same as min(t),max(t) iterator".only) {
+
+    Using(mockCluster()) { cluster =>
+      data.foreach {
+        case (src, dst, time) =>
+          cluster.addTriplet(src, dst, time)
+      }
+
+      val maximalWindowVertices: Map[Any, Vector[Any]] =
+        cluster.vertices(1L, 23L).map(v => v.ID -> v.neighbours.toVector.sorted(v.IDOrdering)).toMap
+
+      val allVertices: Map[Any, Vector[Any]]           = cluster
+        .vertices(Long.MinValue, Long.MaxValue)
+        .map(v => v.ID -> v.neighbours.toVector.sorted(v.IDOrdering))
+        .toMap
+
+      assertEquals(maximalWindowVertices, allVertices)
+
+      assertEquals(maximalWindowVertices.getOrElse(1L, Vector.empty), Vector(2, 3, 4, 9, 11))
+      assertEquals(maximalWindowVertices.getOrElse(6L, Vector.empty), Vector(3, 5))
+      assertEquals(maximalWindowVertices.getOrElse(8L, Vector.empty), Vector(3, 4, 5, 10))
+    }.get
   }
 
 }
 
-class MockCluster(parts: Vector[ArrowPartition]) {
+class MockCluster(parts: Vector[ArrowPartition]) extends AutoCloseable {
 
   def vertices: View[Long] = parts.view.flatMap(_.vertices).map(_.getGlobalId)
 
@@ -95,6 +146,19 @@ class MockCluster(parts: Vector[ArrowPartition]) {
       }
       .map(_._1)
       .get
+
+  override def close(): Unit =
+    parts.foreach(_.close())
+
+  def vertices(start: Long, end: Long): View[visitor.Vertex] =
+    parts.view
+      .map(par => par.lens("a", start, end, 1, _ => (), t => (), new Scheduler()))
+      .collect {
+        case lens: ArrowGraphLens =>
+          lens
+      }
+      .flatMap(_.vertices)
+
 }
 
 object MockCluster {

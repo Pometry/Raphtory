@@ -53,12 +53,13 @@ package object arrow {
       View.from(new ArrowPartition.EdgesIterator(edgesIter))
     }
 
-    def outgoingEdges(start: Long, end: Long): View[Edge] =
+    def outgoingEdges(start: Long, end: Long): View[Edge] = {
       View.fromIteratorProvider { () =>
         val iter = v.getRaphtory.getNewWindowedVertexIterator(start, end)
         iter.reset(v.getLocalId)
         new ArrowPartition.EdgesIterator(iter.getOutgoingEdges)
       }
+    }
 
     def incomingEdges(start: Long, end: Long): View[Edge] =
       View.fromIteratorProvider { () =>
@@ -70,14 +71,6 @@ package object arrow {
     def incomingEdges: View[Edge] = {
       val edgesIter = v.getIncomingEdges
       View.from(new ArrowPartition.EdgesIterator(edgesIter))
-    }
-
-    def outgoingEdge(dst: Long): Option[Edge] = {
-      val iter = v.findAllOutgoingEdges(dst)
-      if (iter.hasNext)
-        Some(iter.getEdge)
-      else
-        None
     }
 
   }

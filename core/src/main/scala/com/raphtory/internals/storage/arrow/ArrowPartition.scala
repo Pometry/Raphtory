@@ -30,7 +30,7 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition: Int, conf: Config)
-        extends GraphPartition(graphID, partition, conf) {
+        extends GraphPartition(graphID, partition, conf) with AutoCloseable{
 
   def asGlobal(vertexId: Long): Long =
     par.getVertexMgr.getVertex(vertexId).getGlobalId
@@ -86,6 +86,8 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   }
 
   private def addVertexInternal(srcId: Long, msgTime: Long, properties: Properties): Vertex = {
+
+    logger.trace(s"Adding vertex: ${srcId} to partition: ${partition} @ t:${msgTime}")
 
     updateAdders(msgTime)
 
@@ -178,6 +180,8 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       properties: Properties,
       edgeType: Option[Type]
   ): Option[GraphAlteration.GraphUpdateEffect] = {
+
+    logger.trace(s"Adding edge: ${srcId} -> ${dstId} to partition: ${partition} @ t:${msgTime}")
 
     updateAdders(msgTime)
     // add source vertex
@@ -281,6 +285,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
 
     getIncomingEdge(srcId, dst) match {
       case Some(e) =>
+        logger.trace(s"Updating existing edge: ${srcId} -> ${dstId} to partition: ${partition} @ t:${msgTime}")
         // activate edge
         // FIXME: what about properties?
 
@@ -297,6 +302,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
 
         emgr.addHistory(e.getLocalId, msgTime, true, properties.properties.nonEmpty)
       case None    =>
+        logger.trace(s"Adding inbound edge: ${srcId} -> ${dstId} to partition: ${partition} @ t:${msgTime}")
         addRemoteEdgeInternal(msgTime, srcId, dst, properties)
     }
 
@@ -436,6 +442,8 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       srcId: Long,
       dstId: Long
   ): GraphAlteration.GraphUpdateEffect = ???
+
+  override def close(): Unit = par.close()
 }
 
 object ArrowPartition {
@@ -463,14 +471,12 @@ object ArrowPartition {
   class EdgesIterator(es: EdgeIterator) extends Iterator[Edge] {
 
     override def hasNext: Boolean = {
-      val next1 = es.hasNext
-      next1
+      es.hasNext
     }
 
     override def next(): Edge = {
       es.next()
-      val edge = es.getEdge
-      edge
+      es.getEdge
     }
 
   }

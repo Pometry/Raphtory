@@ -64,10 +64,11 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
 
   /** Return all edges starting at this vertex
     */
-  override def outEdges: View[ArrowExEdge] =
-    vertex.outgoingEdges//(repo.start, repo.end)
+  override def outEdges: View[ArrowExEdge] = {
+    vertex.outgoingEdges//FIXME: this doesn't work and it needs to (repo.start, repo.end)
       .map(mkArrOutEdge)
       .filter(e => repo.isEdgeAlive(e.src, e.dst))
+  }
 
   private def mkArrOutEdge(e: model.Edge) = {
     val dst =
@@ -79,7 +80,7 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
   /** Return all edges ending at this vertex
     */
   override def inEdges: View[ArrowExEdge] =
-    vertex.incomingEdges//(repo.start, repo.end)
+    vertex.incomingEdges//FIXME: this doesn't work and it needs to (repo.start, repo.end)
       .map(mkArrInEdge)
       .filter(e => repo.isEdgeAlive(e.src, e.dst))
 
