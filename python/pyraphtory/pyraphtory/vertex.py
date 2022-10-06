@@ -43,7 +43,6 @@ class GraphState(GenericScalaProxy):
         return self.apply(key)
 
     def new_int_max(self, *args, **kwargs):
-        # TODO: This segfaults in pemja for some reason
         return super().new_max[Long, Bounded.long_bounds()](*args, **kwargs)
 
     def new_float_max(self, *args, **kwargs):
