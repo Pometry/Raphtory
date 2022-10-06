@@ -39,7 +39,11 @@ object Prop {
 
       override def get(acc: VersionedEntityPropertyAccessor): Option[V] =
         if (acc.isSet) Some(getF(acc))
-        else None
+        else
+          getF(acc) match { //FIXME this is a bug with
+            case text: String if text.nonEmpty => Some(text.asInstanceOf[V])
+            case _                             => None
+          }
     }
 
   /**

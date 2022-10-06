@@ -158,7 +158,7 @@ class ArrowStorageSuite extends munit.FunSuite {
     val dst       = idsRepo.resolve(aliceGlobalId)
     e.resetEdgeData(src.id, dst.id, -1L, -1L, src.isGlobal, dst.isGlobal)
     emgr.addEdge(e, -1L, -1L)
-    emgr.addHistory(e.getLocalId, timestamp, true)
+    emgr.addHistory(e.getLocalId, timestamp, true, false)
 
     if (src.isLocal) {
       val p = vmgr.getPartition(vmgr.getPartitionId(src.id))
@@ -236,7 +236,7 @@ class ArrowStorageSuite extends munit.FunSuite {
     assert(!aliceIterE.hasNext)
   }
 
-  test("add vertex with all types of properties and vertex type") {
+  test("add vertex with all types of properties and vertex type".only) {
     val par: ArrowPartition = mkPartition(1, 0, ArrowSchema[AllProps, EdgeProp])
     val timestamp           = System.currentTimeMillis()
 
@@ -320,7 +320,7 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   }
 
-  test("add edge between two vertices locally".only) {
+  test("add edge between two vertices locally") {
 
     val par: ArrowPartition = mkPartition(1, 0)
     val timestamp           = System.currentTimeMillis()
@@ -517,7 +517,7 @@ class ArrowStorageSuite extends munit.FunSuite {
     val actual  = EdgeSchema.gen[EdgeProp].nonVersionedEdgeProps(None).map(f => f.name()).toList
     assertEquals(actual, List("name"))
     val actual2 = EdgeSchema.gen[EdgeProp].versionedEdgeProps(None).map(f => f.name()).toList
-    assertEquals(actual2, List("friends"))
+    assertEquals(actual2, List("friends", "weight"))
   }
 
 }

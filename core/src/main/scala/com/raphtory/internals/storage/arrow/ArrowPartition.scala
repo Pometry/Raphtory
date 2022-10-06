@@ -99,7 +99,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
 
         vmgr.addVertex(v)
         // update is true or false?
-        vmgr.addHistory(v.getLocalId, msgTime, true, false, -1, false)
+        vmgr.addHistory(v.getLocalId, msgTime, true, properties.properties.nonEmpty, -1, false)
         v
       case ExistsOnPartition(id) => // we've seen you before but are there any differences?
         // TODO: need a way to merge properties into existing vertex
@@ -119,7 +119,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
         )
 
         if (v.getOldestPoint != msgTime) // FIXME: weak check to avoid adding multiple duplicated timestamps
-          vmgr.addHistory(v.getLocalId, msgTime, true, false, -1, false)
+          vmgr.addHistory(v.getLocalId, msgTime, true, properties.properties.nonEmpty, -1, false)
 
         v
       case _                     => throw new IllegalStateException(s"Node $srcId does not belong to partition $getPartitionID")
@@ -193,15 +193,13 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       }
     } match {
       case Some(e) =>
-        // edge exists so we activate the history
-        par.getEdgeMgr.addHistory(e.getLocalId, msgTime, true)
         // if destination is local add it
-        emgr.addHistory(e.getLocalId, msgTime, true)
         // add the edge properties
         addOrUpdateEdgeProps(msgTime, e, properties)
+        emgr.addHistory(e.getLocalId, msgTime, true, properties.properties.nonEmpty)
         if (dst.isLocal) {
-          val d = addVertexInternal(dstId, msgTime, Properties())
-//          linkIncomingToLocalNode(msgTime, dst, e)
+          // if destination is local add it
+          addVertexInternal(dstId, msgTime, Properties())
           None
         }
         else // send sync
@@ -227,7 +225,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
         // add the actual edge
         e.resetEdgeData(src.getLocalId, dst.id, -1L, -1L, false, dst.isGlobal)
         emgr.addEdge(e, -1L, -1L)
-        emgr.addHistory(e.getLocalId, msgTime, true)
+        emgr.addHistory(e.getLocalId, msgTime, true, properties.properties.nonEmpty)
 
         //link the edge to the source
         val p = vmgr.getPartition(vmgr.getPartitionId(src.getLocalId))
@@ -297,7 +295,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
                 Properties(properties.properties.filter(p => props(p.key.toLowerCase())): _*)
         )
 
-        emgr.addHistory(e.getLocalId, msgTime, true)
+        emgr.addHistory(e.getLocalId, msgTime, true, properties.properties.nonEmpty)
       case None    =>
         addRemoteEdgeInternal(msgTime, srcId, dst, properties)
     }
@@ -331,7 +329,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     // add the actual edge
     e.resetEdgeData(src.id, dst.getLocalId, -1L, -1L, src.isGlobal, false)
     emgr.addEdge(e, -1L, -1L)
-    emgr.addHistory(e.getLocalId, msgTime, true)
+    emgr.addHistory(e.getLocalId, msgTime, true, properties.properties.nonEmpty)
 
     // link edge to the destination
     val p           = vmgr.getPartition(vmgr.getPartitionId(dst.getLocalId))
@@ -372,7 +370,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
                 Properties(properties.properties.filter(p => props(p.key.toLowerCase())): _*)
         )
 
-        emgr.addHistory(e.getLocalId, msgTime, true)
+        emgr.addHistory(e.getLocalId, msgTime, true, properties.properties.nonEmpty)
       case None    =>
         addRemoteEdgeInternal(msgTime, srcId, dst, properties)
     }

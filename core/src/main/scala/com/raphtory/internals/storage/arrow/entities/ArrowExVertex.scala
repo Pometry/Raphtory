@@ -53,7 +53,7 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
     * @param vertexId Vertex Id of target vertex for the message
     * @param data     message data to send
     */
-  override def messageVertex[T: ClassTag](vertexId: IDType, data: T)(implicit provider: SchemaProvider[T]): Unit =
+  override def messageVertex[T](vertexId: IDType, data: T)(implicit provider: SchemaProvider[T]): Unit =
     repo.sendMessage(VertexMessage(repo.superStep + 1, vertexId, data))
 
   override def name(nameProperty: String): String =
@@ -65,7 +65,7 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
   /** Return all edges starting at this vertex
     */
   override def outEdges: View[ArrowExEdge] =
-    vertex.outgoingEdges(repo.start, repo.end)
+    vertex.outgoingEdges//(repo.start, repo.end)
       .map(mkArrOutEdge)
       .filter(e => repo.isEdgeAlive(e.src, e.dst))
 
@@ -79,7 +79,7 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
   /** Return all edges ending at this vertex
     */
   override def inEdges: View[ArrowExEdge] =
-    vertex.incomingEdges(repo.start, repo.end)
+    vertex.incomingEdges//(repo.start, repo.end)
       .map(mkArrInEdge)
       .filter(e => repo.isEdgeAlive(e.src, e.dst))
 
