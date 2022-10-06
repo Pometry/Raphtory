@@ -2,7 +2,6 @@ package com.raphtory.examples.coho.companiesStream
 
 import com.raphtory.Raphtory
 import com.raphtory.api.input.Source
-import com.raphtory.api.input.sources.JSONEdgeListSource
 import com.raphtory.spouts.FileSpout
 import com.raphtory.sinks.FileSink
 import com.raphtory.examples.coho.companiesStream.algorithms.CompanyDirectorGraph
