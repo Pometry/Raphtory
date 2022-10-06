@@ -47,5 +47,5 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
   override def munitTimeout: Duration                      = new FiniteDuration(Int.MaxValue, TimeUnit.SECONDS)
 
-  override def setSource(): Source = ENRONSource(FileSpout("/tmp/email_test.csv"))
+  override def setSource(): Source = Source(FileSpout("/tmp/email_test.csv"), ENRONGraphBuilder)
 }
