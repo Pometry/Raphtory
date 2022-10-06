@@ -12,6 +12,8 @@ import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.storage.arrow.ArrowPartition
 import com.raphtory.internals.storage.arrow.ArrowPartitionConfig
 import com.raphtory.internals.storage.arrow.ArrowSchema
+import com.raphtory.internals.storage.arrow.EdgeSchema
+import com.raphtory.internals.storage.arrow.VertexSchema
 import com.raphtory.internals.storage.arrow.immutable
 import com.raphtory.internals.storage.pojograph.PojoBasedPartition
 import com.typesafe.config.Config
@@ -66,7 +68,7 @@ class PartitionManager(
 
 object PartitionManager {
 
-  def pojo[IO[_]](graphID: String, partitionID: Int, scheduler: Scheduler, conf: Config, topics: TopicRepository)(
+  def apply[IO[_]](graphID: String, partitionID: Int, scheduler: Scheduler, conf: Config, topics: TopicRepository)(
       implicit IO: Async[IO]
   ): Resource[IO, PartitionManager] =
     Resource.eval(IO.delay(new PojoBasedPartition(graphID, partitionID, conf))).flatMap { storage =>
@@ -74,13 +76,13 @@ object PartitionManager {
     }
 
   // rename this to apply and the one above to blerg to enable arrow
-  def apply[IO[_]](
-                    graphID: String,
-                    partitionID: Int,
-                    scheduler: Scheduler,
-                    conf: Config,
-                    topics: TopicRepository
-                  )(implicit IO: Async[IO]): Resource[IO, PartitionManager] =
+  def arrow[V: VertexSchema, E: EdgeSchema, IO[_]](
+      graphID: String,
+      partitionID: Int,
+      scheduler: Scheduler,
+      conf: Config,
+      topics: TopicRepository
+  )(implicit IO: Async[IO]): Resource[IO, PartitionManager] =
     Resource
       .eval(arrowPartition(graphID, partitionID, conf))
       .flatMap(storage => fromStorage(storage, graphID, partitionID, scheduler, conf, topics))
@@ -113,7 +115,6 @@ object PartitionManager {
             )
     } yield pm
 
-
   /**
     * Creates an arrow partition
     * @param graphID
@@ -123,20 +124,20 @@ object PartitionManager {
     * @tparam IO
     * @return
     */
-  private def arrowPartition[IO[_]](graphID: String, partitionID: Int, conf: Config)(implicit IO: Async[IO]) =
-    IO.blocking(
-            ArrowPartition(
-                    graphID,
-                    ArrowPartitionConfig(
-                            conf,
-                            partitionID,
-                            ArrowSchema[NodeSchema, EdgeSchema],
-                            Files.createTempDirectory("experimental")
-                    ),
-                    conf
-            )
-    )
+  private def arrowPartition[V: VertexSchema, E: EdgeSchema, IO[_]](graphID: String, partitionID: Int, conf: Config)(
+      implicit IO: Async[IO]
+  ) =
+    IO.blocking {
+      ArrowPartition(
+              graphID,
+              ArrowPartitionConfig(
+                      conf,
+                      partitionID,
+                      ArrowSchema[V, E],
+                      Files.createTempDirectory("experimental")
+              ),
+              conf
+      )
+    }
 }
 
-case class NodeSchema(@immutable name: String)
-case class EdgeSchema(weight: Long, @immutable msgId: String, @immutable subject: String)

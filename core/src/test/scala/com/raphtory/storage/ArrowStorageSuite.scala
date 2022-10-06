@@ -534,3 +534,6 @@ case class AllProps(
     pInt: Int,
     pString: String
 )
+
+//case class NodeSchema(@immutable name: String)
+//case class EdgeSchema(weight: Long, @immutable msgId: String, @immutable subject: String)

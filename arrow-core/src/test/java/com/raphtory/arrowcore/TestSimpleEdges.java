@@ -89,18 +89,27 @@ public class TestSimpleEdges {
         _aepm.addEdge(e, -1L, -1L);
         _aepm.addHistory(e.getLocalId(), time, true, false);
 
-        VertexPartition p = _rap.getVertexMgr().getPartition(_rap.getVertexMgr().getPartitionId(bob.getLocalId()));
-        _aepm.setOutgoingEdgePtr(e.getLocalId(), p.addOutgoingEdgeToList(e.getSrcVertex(), e.getLocalId(), e.getDstVertex()));
-        p.addHistory(bob.getLocalId(), System.currentTimeMillis(), true, false, e.getLocalId(), true);
+        linkOutgoingEdge(bob, e);
 
-        p = _rap.getVertexMgr().getPartition(_rap.getVertexMgr().getPartitionId(alice.getLocalId()));
-        _aepm.setIncomingEdgePtr(e.getLocalId(), p.addIncomingEdgeToList(alice.getLocalId(), e.getLocalId()));
-        p.addHistory(alice.getLocalId(), System.currentTimeMillis(), true, false, e.getLocalId(), false);
+        linkIncomingEdge(alice, e);
 
         VertexIterator vi = _rap.getNewAllVerticesIterator();
         while (vi.hasNext()) {
             System.out.println("VERTEX: " + vi.next() + " -> " + vi.getField(VFIELD_NAME).getString());
         }
+    }
+
+    private static void linkOutgoingEdge(Vertex bob, Edge e) {
+        VertexPartition p = _rap.getVertexMgr().getPartition(_rap.getVertexMgr().getPartitionId(bob.getLocalId()));
+        _aepm.setOutgoingEdgePtr(e.getLocalId(), p.addOutgoingEdgeToList(e.getSrcVertex(), e.getLocalId(), e.getDstVertex()));
+        p.addHistory(bob.getLocalId(), System.currentTimeMillis(), true, false, e.getLocalId(), true);
+    }
+
+    private static void linkIncomingEdge(Vertex dst, Edge e) {
+        VertexPartition p;
+        p = _rap.getVertexMgr().getPartition(_rap.getVertexMgr().getPartitionId(dst.getLocalId()));
+        _aepm.setIncomingEdgePtr(e.getLocalId(), p.addIncomingEdgeToList(dst.getLocalId(), e.getLocalId()));
+        p.addHistory(dst.getLocalId(), System.currentTimeMillis(), true, false, e.getLocalId(), false);
     }
 
 

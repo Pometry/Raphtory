@@ -43,9 +43,7 @@ class EdgeList(
       .explodeSelect { vertex =>
         val neighbourMap = vertex.getState[Map[vertex.IDType, String]]("neighbourNames")
         val name         = vertex.name()
-        val edges        = vertex.outEdges.toVector
-        println(s"${vertex.ID} $neighbourMap ${edges.map(e => (e.src, e.dst))}")
-        edges
+        vertex.outEdges
           .map { edge =>
             val row = name +:
               neighbourMap(edge.dst) +: // get name of neighbour

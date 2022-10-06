@@ -13,6 +13,8 @@ import com.raphtory.internals.components.querymanager.DestroyGraph
 import com.raphtory.internals.components.querymanager.EstablishGraph
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.management.id.IDManager
+import com.raphtory.internals.storage.arrow.EdgeSchema
+import com.raphtory.internals.storage.arrow.VertexSchema
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -67,6 +69,29 @@ object PartitionOrchestrator {
         for {
           partitionId <- Resource.eval(nextId(partitionIDManager, graphID))
           partition   <- PartitionManager(graphID, partitionId, scheduler, config, topics)
+        } yield partition
+      }
+      .toList
+      .sequence
+  }
+
+  def spawnArrow[V: VertexSchema, E: EdgeSchema, IO[_]: Spawn](
+      config: Config,
+      partitionIDManager: IDManager,
+      graphID: String,
+      topics: TopicRepository,
+      scheduler: Scheduler
+  )(implicit
+      IO: Async[IO]
+  ): Resource[IO, List[PartitionManager]] = {
+    val totalPartitions = config.getInt("raphtory.partitions.countPerServer")
+    logger.info(s"Creating '$totalPartitions' Partition Managers for '$graphID'.")
+
+    (0 until totalPartitions)
+      .map { i =>
+        for {
+          partitionId <- Resource.eval(nextId(partitionIDManager, graphID))
+          partition   <- PartitionManager.arrow[V, E, IO](graphID, partitionId, scheduler, config, topics)
         } yield partition
       }
       .toList
