@@ -12,6 +12,7 @@ import com.raphtory.internals.components.querymanager.SchemaProvider
 import com.raphtory.internals.components.querymanager.VertexMessage
 import com.raphtory.internals.storage.arrow.ArrowEntityStateRepository
 import com.raphtory.internals.storage.arrow.RichVertex
+import com.raphtory.test.FabianTest
 
 import scala.collection.View
 import scala.jdk.CollectionConverters.CollectionHasAsScala
@@ -64,11 +65,11 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
 
   /** Return all edges starting at this vertex
     */
-  override def outEdges: View[ArrowExEdge] = {
-    vertex.outgoingEdges//FIXME: this doesn't work and it needs to (repo.start, repo.end)
+  override def outEdges: View[ArrowExEdge] =
+    vertex
+      .outgoingEdges(repo.start, repo.end)
       .map(mkArrOutEdge)
       .filter(e => repo.isEdgeAlive(e.src, e.dst))
-  }
 
   private def mkArrOutEdge(e: model.Edge) = {
     val dst =
@@ -79,10 +80,39 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
 
   /** Return all edges ending at this vertex
     */
-  override def inEdges: View[ArrowExEdge] =
-    vertex.incomingEdges//FIXME: this doesn't work and it needs to (repo.start, repo.end)
-      .map(mkArrInEdge)
-      .filter(e => repo.isEdgeAlive(e.src, e.dst))
+  override def inEdges: View[ArrowExEdge] = {
+
+    val it = new FabianTest(vertex.getRaphtory)
+
+//    it.allVerticesIterator();
+//    it.allEdgesIterator();
+//    it.allWindowedVerticesIterator();
+//    it.allWindowedEdgesIterator();
+    if (vertex.getGlobalId == 6L)
+      it.fabianTest(Long.MinValue, Long.MaxValue);
+
+    val b    = Vector.newBuilder[model.Edge]
+    val iter = vertex.getRaphtory.getNewWindowedVertexIterator(repo.start, repo.end)
+    iter.reset(vertex.getLocalId)
+    iter.next()
+    val v    = iter.getVertex
+
+    val eIter = iter.getIncomingEdges
+    while (eIter.hasNext) {
+      eIter.next()
+      val edge: model.Edge = eIter.getEdge
+      b += edge
+    }
+
+    b.result()
+      .map(e => mkArrInEdge(e))
+      .view
+//      .filter(e => repo.isEdgeAlive(e.src, e.dst))
+
+//    vertex.incomingEdges(repo.start, repo.end)
+//      .map(mkArrInEdge)
+//      .filter(e => repo.isEdgeAlive(e.src, e.dst))
+  }
 
   private def mkArrInEdge(e: model.Edge) = {
     val src =

@@ -112,9 +112,11 @@ public class FabianTest {
         it.allWindowedVerticesIterator();
         it.allWindowedEdgesIterator();
 
-        it.fabianTest(0, 5);
-        it.fabianTest(0, 10);
-        it.fabianTest(0, 16);
+//        it.fabianTest(0, 5);
+//        it.fabianTest(0, 10);
+//        it.fabianTest(0, 16);
+
+        it.fabianTest(Long.MIN_VALUE, Long.MAX_VALUE);
 
         System.exit(0);
     }
@@ -131,30 +133,38 @@ public class FabianTest {
 
 
     public void setData() throws Exception {
-        Vertex three = createVertex(_rap.getVertexMgr().getNextFreeVertexId(), 3, 1);
-        Vertex five = createVertex(_rap.getVertexMgr().getNextFreeVertexId(), 5, 1);
-        Vertex six = createVertex(_rap.getVertexMgr().getNextFreeVertexId(), 6, 1);
+        Vertex five = createVertex(_rap.getVertexMgr().getNextFreeVertexId(), 5, 8);
+        Vertex six = createVertex(_rap.getVertexMgr().getNextFreeVertexId(), 6, 8);
+        Vertex three = createVertex(_rap.getVertexMgr().getNextFreeVertexId(), 3, 14);
 
-        addRemoteSourceEdge(5, six, 8);
-
-        addVerticesToEdge(six, three, 14);
+        addRemoteIncomingEdge(5, six, 8);
+        addRemoteOutgoingEdge(six, 3, 14);
     }
 
 
-    private void addRemoteSourceEdge(long globalSrcId, Vertex dst, long time) {
+    private void addRemoteIncomingEdge(long globalSrcId, Vertex dst, long time) {
         Edge e = _rap.getEdge();
         e.init(_rap.getEdgeMgr().getNextFreeEdgeId(), true, time);
         e.resetEdgeData(globalSrcId, dst.getLocalId(), -1L, -1L, true, false);
         _rap.getEdgeMgr().addEdge(e, -1L, -1L);
         _rap.getEdgeMgr().addHistory(e.getLocalId(), time, true, true);
 
-        //VertexPartition p = _rap.getVertexMgr().getPartition(_rap.getVertexMgr().getPartitionId(src.getLocalId()));
-        //_rap.getEdgeMgr().setOutgoingEdgePtr(e.getLocalId(), p.addOutgoingEdgeToList(e.getSrcVertex(), e.getLocalId(), e.getDstVertex()));
-        //p.addHistory(src.getLocalId(), time, true, false, e.getLocalId(), true);
-
         VertexPartition  p = _rap.getVertexMgr().getPartition(_rap.getVertexMgr().getPartitionId(dst.getLocalId()));
         _rap.getEdgeMgr().setIncomingEdgePtr(e.getLocalId(), p.addIncomingEdgeToList(e.getDstVertex(), e.getLocalId()));
         p.addHistory(dst.getLocalId(), time, true, false, e.getLocalId(), false);
+    }
+
+
+    private void addRemoteOutgoingEdge(Vertex src, long globalDstId, long time) {
+        Edge e = _rap.getEdge();
+        e.init(_rap.getEdgeMgr().getNextFreeEdgeId(), true, time);
+        e.resetEdgeData(src.getLocalId(), globalDstId, -1L, -1L,false, true);
+        _rap.getEdgeMgr().addEdge(e, -1L, -1L);
+        _rap.getEdgeMgr().addHistory(e.getLocalId(), time, true, true);
+
+        VertexPartition  p = _rap.getVertexMgr().getPartition(_rap.getVertexMgr().getPartitionId(src.getLocalId()));
+        _rap.getEdgeMgr().setOutgoingEdgePtr(e.getLocalId(), p.addOutgoingEdgeToList(e.getSrcVertex(), e.getLocalId(), e.getDstVertex()));
+        p.addHistory(src.getLocalId(), time, true, false, e.getLocalId(), true);
     }
 
 

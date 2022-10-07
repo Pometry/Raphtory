@@ -522,7 +522,7 @@ class ArrowStorageSuite extends munit.FunSuite {
 
 }
 
-case class VertexProp(age: Long, @immutable name: String)
+case class VertexProp(age: Long, @immutable name: String, @immutable address_chain:String, @immutable transaction_hash:String)
 case class EdgeProp(@immutable name: String, friends: Boolean, weight: Long)
 
 case class AllProps(

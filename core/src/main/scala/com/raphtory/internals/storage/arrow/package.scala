@@ -54,19 +54,53 @@ package object arrow {
     }
 
     def outgoingEdges(start: Long, end: Long): View[Edge] = {
-      View.fromIteratorProvider { () =>
-        val iter = v.getRaphtory.getNewWindowedVertexIterator(start, end)
-        iter.reset(v.getLocalId)
-        new ArrowPartition.EdgesIterator(iter.getOutgoingEdges)
+      val b    = Vector.newBuilder[Edge]
+      val iter = v.getRaphtory.getNewWindowedVertexIterator(start, end)
+      iter.reset(v.getLocalId)
+      iter.next()
+      iter.getVertex
+
+      val eIter = iter.getOutgoingEdges
+      while (eIter.hasNext) {
+        eIter.next()
+        val edge = eIter.getEdge
+        b += edge
       }
+
+      b.result().view
+//      View.fromIteratorProvider { () =>
+//        val iter = v.getRaphtory.getNewWindowedVertexIterator(start, end)
+//        iter.reset(v.getLocalId)
+//        iter.next()
+//        val v0 = iter.getVertex
+//        new ArrowPartition.EdgesIterator(iter.getOutgoingEdges)
+//      }
     }
 
-    def incomingEdges(start: Long, end: Long): View[Edge] =
-      View.fromIteratorProvider { () =>
-        val iter = v.getRaphtory.getNewWindowedVertexIterator(start, end)
-        iter.reset(v.getLocalId)
-        new ArrowPartition.EdgesIterator(iter.getIncomingEdges)
-      }
+    def incomingEdges(start: Long, end: Long): View[Edge] = {
+
+          val b    = Vector.newBuilder[Edge]
+          val iter = v.getRaphtory.getNewWindowedVertexIterator(start, end)
+          iter.reset(v.getLocalId)
+          iter.next()
+          iter.getVertex
+
+          val eIter = iter.getIncomingEdges
+          while (eIter.hasNext) {
+            eIter.next()
+            val edge = eIter.getEdge
+            b += edge
+          }
+
+          b.result().view
+//      View.fromIteratorProvider { () =>
+//        val iter = v.getRaphtory.getNewWindowedVertexIterator(start, end)
+//        iter.reset(v.getLocalId)
+//        iter.next()
+//        val v0 = iter.getVertex
+//        new ArrowPartition.EdgesIterator(iter.getIncomingEdges)
+//      }
+    }
 
     def incomingEdges: View[Edge] = {
       val edgesIter = v.getIncomingEdges
