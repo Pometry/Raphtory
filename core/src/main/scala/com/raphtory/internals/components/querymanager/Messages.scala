@@ -1,5 +1,6 @@
 package com.raphtory.internals.components.querymanager
 
+import com.google.protobuf.ByteString
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.GlobalGraphFunction
@@ -13,13 +14,18 @@ import com.raphtory.internals.graph.Perspective
 
 import scala.collection.immutable.Queue
 import com.raphtory.internals.serialisers.DependencyFinder
+import com.raphtory.protocol
 import org.apache.bcel.Repository
+import scalapb.TypeMapper
 
 import java.io.ByteArrayOutputStream
 import scala.jdk.CollectionConverters._
+import scala.util.Try
 import scala.util.Using
 
 private[raphtory] trait QueryManagement extends Serializable
+
+object QueryManagement extends ProtoField[QueryManagement]
 
 private[raphtory] case class WatermarkTime(
     partitionID: Int,
@@ -118,6 +124,13 @@ private[raphtory] case class Query(
     sink: Option[Sink] = None,
     pyScript: Option[String] = None
 ) extends Submission
+
+case class TryQuery(query: Try[Query])
+
+object TryQuery extends TryProtoField[TryQuery, Query] {
+  override def buildScala(value: Try[Query]): TryQuery = TryQuery(value)
+  override def getTry(wrapper: TryQuery): Try[Query]   = wrapper.query
+}
 
 case class DynamicLoader(classes: List[Class[_]] = List.empty, resolved: Boolean = false) {
   def +(cls: Class[_]): DynamicLoader = this.copy(classes = cls :: classes)
@@ -238,6 +251,13 @@ private[raphtory] case class IngestData(
     blocking: Boolean
 ) extends Submission
         with GraphManagement
+
+case class TryIngestData(ingestData: Try[IngestData])
+
+object TryIngestData extends TryProtoField[TryIngestData, IngestData] {
+  override def buildScala(value: Try[IngestData]): TryIngestData = TryIngestData(value)
+  override def getTry(wrapper: TryIngestData): Try[IngestData]   = wrapper.ingestData
+}
 
 private[raphtory] case class EstablishExecutor(
     _bootstrap: DynamicLoader,

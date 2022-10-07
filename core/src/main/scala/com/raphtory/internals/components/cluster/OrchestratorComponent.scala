@@ -96,30 +96,6 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
       case (_, deployment) => deployment.shutdown.unsafeRunSync()
     }
 
-  protected def deployStandaloneService(
-      graphID: String,
-      clientID: String,
-      idManager: IDManager,
-      repo: TopicRepository
-  ): Unit =
-    deployments.synchronized {
-      deployments.get(graphID) match {
-        case Some(deployment) =>
-          logger.info(s"New client '$clientID' connecting for graph: '$graphID'")
-          deployment.clients += clientID
-        case None             =>
-          logger.info(s"Deploying new graph '$graphID' in standalone mode, requested by '$clientID' ")
-          val scheduler       = new Scheduler()
-          val serviceResource = for {
-            _ <- PartitionOrchestrator.spawn[IO](conf, idManager, graphID, repo, scheduler)
-            _ <- IngestionManager[IO](graphID, conf, repo)
-            _ <- QueryManager[IO](graphID, conf, repo)
-          } yield ()
-          val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
-          deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))
-      }
-    }
-
   protected def deployPartitionService(
       graphID: String,
       clientID: String,

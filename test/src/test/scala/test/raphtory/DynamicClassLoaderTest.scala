@@ -10,6 +10,7 @@ import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input._
 import com.raphtory.internals.context.RaphtoryContext
+import com.raphtory.internals.context.RemoteContext
 import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.spouts.FileSpout
 import com.raphtory.Raphtory
@@ -87,10 +88,10 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   private val compiledAlgo: Generic = tb.compile(tb.parse(minimalTestCode))().asInstanceOf[Generic]
 
-  val remoteGraphResource: Resource[IO, DeployedTemporalGraph] =
+  lazy val remoteGraphResource: Resource[IO, DeployedTemporalGraph] =
     Resource.make(IO(remote().newGraph()))(graph => IO(graph.destroy()))
 
-  val remoteProcess =
+  lazy val remoteProcess =
     Resource.make {
       for {
         started   <- Semaphore[IO](0)
@@ -101,12 +102,9 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
                        logger.info("starting remote process")
                        Process(Seq("java", "-cp", classPath, "com.raphtory.service.Standalone")).run(
                                ProcessLogger { line =>
-                                 if (line == "HeadNode started") {
-                                   logger.info("HeadNode started")
+                                 if (line == "Raphtory service started")
                                    started.release.unsafeRunSync()
-                                 }
-                                 else
-                                   println(line) // forward output
+                                 println(line) // forward output
                                }
                        )
                      }
@@ -124,8 +122,7 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
       }
     )
 
-  lazy val remoteGraph = ResourceSuiteLocalFixture(
-          "remote-graph",
+  lazy val remoteGraph = ResourceFixture(
           remoteGraphResource
             .evalMap(g => IO(g.addDynamicPath("com.raphtory.lotrtest")))
             .evalMap(g => IO(g.load(source())))
@@ -168,7 +165,7 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
   )
 
   lazy val remote: Fixture[RaphtoryContext] = ResourceSuiteLocalFixture(
-          "standalone",
+          "remote",
           for {
             _          <- remoteProcess
             connection <- Resource.make {
@@ -179,13 +176,13 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
                           } { c =>
                             IO {
                               logger.info("closing remote connection")
-                              c.close() // TODO: this currently falls over if any graphs were closed before
+                              // c.close() // TODO: this currently falls over if any graphs were closed before
                             }
                           }
           } yield connection
   )
 
-  override def munitFixtures = List(remote, source, localGraph, sourceInline, remoteGraph)
+  override def munitFixtures = List(remote, source, localGraph, sourceInline)
 
   test("test algorithm locally") {
     val res = localGraph().execute(MaxFlowTest[Int]("Gandalf", "Gandalf")).get().toList
@@ -197,24 +194,24 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
     assert(res.nonEmpty)
   }
 
-  test("When an algo crashes and we try to iterate over the result we get an exception") {
-    val res = Try(remoteGraph().select(vertex => Row(1)).get().toList)
+  remoteGraph.test("When an algo crashes and we try to iterate over the result we get an exception") { g =>
+    val res = Try(g.select(vertex => Row(1)).get().toList)
     assert(res.isFailure)
   }
 
-  test("When an algo crashes waitForJob returns and isJobDone is false") {
-    val query = remoteGraph().select(vertex => Row(1)).filter(row => false).writeTo(PrintSink())
+  remoteGraph.test("When an algo crashes waitForJob returns and isJobDone is false") { g =>
+    val query = g.select(vertex => Row(1)).filter(row => false).writeTo(PrintSink())
     intercept[java.lang.RuntimeException](query.waitForJob())
     assert(!query.isJobDone)
   }
 
-  test("test algorithm class injection") {
-    val res = remoteGraph().execute(MinimalTestAlgorithm).get().toList
+  remoteGraph.test("test algorithm class injection") { g =>
+    val res = g.execute(MinimalTestAlgorithm).get().toList
     assert(res.nonEmpty)
   }
 
-  test("test manual dynamic path") {
-    val res = remoteGraph().addDynamicPath("dependency").execute(TestAlgorithmWithExternalDependency).get().toList
+  remoteGraph.test("test manual dynamic path") { g =>
+    val res = g.addDynamicPath("dependency").execute(TestAlgorithmWithExternalDependency).get().toList
     assert(res.nonEmpty)
   }
 
@@ -223,8 +220,8 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
     assert(res.nonEmpty)
   }
 
-  test("test algorithm class injection with MaxFlow") {
-    val res = remoteGraph().execute(MaxFlowTest[Int]("Gandalf", "Gandalf")).get().toList
+  remoteGraph.test("test algorithm class injection with MaxFlow") { g =>
+    val res = g.execute(MaxFlowTest[Int]("Gandalf", "Gandalf")).get().toList
     assert(res.nonEmpty)
   }
 }

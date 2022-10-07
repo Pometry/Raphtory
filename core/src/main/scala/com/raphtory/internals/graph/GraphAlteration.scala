@@ -3,6 +3,7 @@ package com.raphtory.internals.graph
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
 import com.raphtory.internals.components.querymanager._
+import com.raphtory.protocol
 
 sealed private[raphtory] trait GraphAlteration {
   val sourceID: Long
@@ -15,6 +16,8 @@ private[raphtory] object GraphAlteration {
     val index: Long
     val srcId: Long
   }
+
+  object GraphUpdate extends ProtoField[GraphUpdate]
 
   /** basic update types */
   case class VertexAdd(
@@ -105,12 +108,12 @@ private[raphtory] object GraphAlteration {
   ) extends GraphUpdateEffect(dstId)
 
   /** Edge removals generated via vertex removals */
-  case class OutboundEdgeRemovalViaVertex(sourceID: Long, updateTime: Long, index: Long, srcId: Long, dstId: Long)(implicit
-      val provider: SchemaProvider[OutboundEdgeRemovalViaVertex]
+  case class OutboundEdgeRemovalViaVertex(sourceID: Long, updateTime: Long, index: Long, srcId: Long, dstId: Long)(
+      implicit val provider: SchemaProvider[OutboundEdgeRemovalViaVertex]
   ) extends GraphUpdateEffect(dstId)
 
-  case class InboundEdgeRemovalViaVertex(sourceID: Long, updateTime: Long, index: Long, srcId: Long, dstId: Long)(implicit
-      val provider: SchemaProvider[InboundEdgeRemovalViaVertex]
+  case class InboundEdgeRemovalViaVertex(sourceID: Long, updateTime: Long, index: Long, srcId: Long, dstId: Long)(
+      implicit val provider: SchemaProvider[InboundEdgeRemovalViaVertex]
   ) extends GraphUpdateEffect(srcId)
 
   /** Responses from a partition receiving any of the above */

@@ -2,28 +2,74 @@ syntax = "proto3";
 
 package com.raphtory;
 
-message RpcRequest {
-  bytes message = 1;
-}
+import "google/protobuf/wrappers.proto";
+import "scalapb/scalapb.proto";
 
-message RpcStatus {
+
+// Responses
+message Status {
   bool success = 1;
 }
 
-message RpcResponse {
-  bytes message = 1;
+message QueryManagement {
+//  option (scalapb.message).extends = "com.raphtory.internals.components.querymanager.ProtoDef";
+//  option (scalapb.message).type = "com.raphtory.internals.components.querymanager.QueryManagement";
+  bytes bytes = 1 [(scalapb.field).type = "com.raphtory.internals.components.querymanager.QueryManagement"];
 }
 
-message IDRequest {
+message OptionalId {
+  google.protobuf.Int32Value id = 1;
+}
+
+// Requests
+message ClientGraphId {
+  string clientId = 1;
+  string graphId = 2;
+}
+
+message Query {
+//  option (scalapb.message).extends = "com.raphtory.internals.components.querymanager.ProtoDef";
+//  option (scalapb.message).type = "com.raphtory.internals.components.querymanager.Query";
+  bytes bytes = 1 [(scalapb.field).type = "com.raphtory.internals.components.querymanager.TryQuery"];
+}
+
+message IngestData {
+  //  option (scalapb.message).extends = "com.raphtory.internals.components.querymanager.ProtoDef";
+  //  option (scalapb.message).type = "com.raphtory.internals.components.querymanager.IngestData";
+  bytes bytes = 1 [(scalapb.field).type = "com.raphtory.internals.components.querymanager.TryIngestData"];
+}
+
+message IdPool {
+  string pool = 1;
+}
+
+message UnblockIngestion {
   string graphID = 1;
+  int32 sourceID = 2;
+  int64 messageCount = 3;
+  int64 highestTimeSeen = 4;
+  bool force = 5;
 }
 
-message IDResponse{
-  int32 id = 1;
+message GraphUpdate {
+  string graphId = 1;
+  bytes update = 2 [(scalapb.field).type = "com.raphtory.internals.graph.GraphAlteration.GraphUpdate"];
 }
 
+message DestroyGraph {
+  string clientId = 1;
+  string graphId = 2;
+  bool force = 3;
+}
+
+// Service
 service RaphtoryService {
-  rpc processRequest (RpcRequest) returns (RpcStatus);
-  rpc submitQuery (RpcRequest) returns (stream RpcResponse);
-  rpc requestID (IDRequest) returns (IDResponse);
+  rpc establishGraph(ClientGraphId) returns (Status);
+  rpc submitQuery(Query) returns (stream QueryManagement);
+  rpc submitSource(IngestData) returns (Status);
+  rpc disconnect(ClientGraphId) returns (Status);
+  rpc destroyGraph(DestroyGraph) returns (Status);
+  rpc getNextAvailableId(IdPool) returns (OptionalId);
+  rpc processUpdate(GraphUpdate) returns (Status);
+  rpc unblockIngestion(UnblockIngestion) returns (Status);
 }
