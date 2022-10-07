@@ -3,13 +3,16 @@ package com.raphtory.internals.context
 import cats.effect.IO
 import cats.effect.Resource
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
-import com.raphtory.internals.communication.repositories.{ArrowFlightRepository, DistributedTopicRepository, LocalTopicRepository}
+import com.raphtory.internals.communication.repositories.ArrowFlightRepository
+import com.raphtory.internals.communication.repositories.DistributedTopicRepository
+import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import com.raphtory.internals.components.ingestion.IngestionManager
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManager
 import com.raphtory.internals.management.Prometheus
 import com.raphtory.internals.management.QuerySender
 import com.raphtory.internals.management.Scheduler
+import com.raphtory.protocol
 import com.typesafe.config.Config
 import cats.effect.unsafe.implicits.global
 import com.raphtory.Raphtory.makeLocalIdManager
@@ -20,6 +23,7 @@ import com.typesafe.config.Config
 import cats.effect.unsafe.implicits.global
 import com.raphtory.arrowmessaging.ArrowFlightServer
 import com.raphtory.internals.communication.connectors.AkkaConnector
+import com.raphtory.internals.components.RaphtoryServiceBuilder
 import com.raphtory.internals.components.partition.PartitionOrchestrator
 import com.raphtory.internals.management.arrow.LocalHostAddressProvider
 import com.raphtory.internals.management.arrow.ZKHostAddressProvider
@@ -60,16 +64,14 @@ private[raphtory] object LocalContext extends RaphtoryContext {
     val scheduler      = new Scheduler()
     val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
     for {
-      _                  <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
-      arrowServer        <- ArrowFlightServer[IO]()
-      addressHandler      = new LocalHostAddressProvider(config, arrowServer)
-      topicRepo          <- ArrowFlightRepository[IO](config, addressHandler)
-      partitionIdManager <- makeLocalIdManager[IO]
-      sourceIdManager    <- makeLocalIdManager[IO]
-      _                  <- PartitionOrchestrator.spawn[IO](config, partitionIdManager, graphID, topicRepo, scheduler)
-      _                  <- IngestionManager[IO](graphID, config, topicRepo)
-      _                  <- QueryManager[IO](graphID, config, topicRepo)
-    } yield new QuerySender(graphID, scheduler, topicRepo, config, sourceIdManager, createName)
+      _             <- Prometheus[IO](prometheusPort) //FIXME: need some sync because this thing does not stop
+      arrowServer   <- ArrowFlightServer[IO]()
+      addressHandler = new LocalHostAddressProvider(config, arrowServer)
+      topicRepo     <- ArrowFlightRepository[IO](config, addressHandler)
+      service       <- RaphtoryServiceBuilder.standalone[IO](config)
+      clientId      <- Resource.eval(IO(createName))
+      _             <- Resource.eval(service.establishGraph(protocol.ClientGraphId(clientId, graphID)))
+    } yield new QuerySender(graphID, service, scheduler, topicRepo, config, clientId)
   }
 
   override def close(): Unit = {
