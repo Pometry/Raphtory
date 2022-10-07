@@ -79,27 +79,27 @@ package object arrow {
 
     def incomingEdges(start: Long, end: Long): View[Edge] = {
 
-          val b    = Vector.newBuilder[Edge]
-          val iter = v.getRaphtory.getNewWindowedVertexIterator(start, end)
-          iter.reset(v.getLocalId)
-          iter.next()
-          iter.getVertex
-
-          val eIter = iter.getIncomingEdges
-          while (eIter.hasNext) {
-            eIter.next()
-            val edge = eIter.getEdge
-            b += edge
-          }
-
-          b.result().view
-//      View.fromIteratorProvider { () =>
-//        val iter = v.getRaphtory.getNewWindowedVertexIterator(start, end)
-//        iter.reset(v.getLocalId)
-//        iter.next()
-//        val v0 = iter.getVertex
-//        new ArrowPartition.EdgesIterator(iter.getIncomingEdges)
-//      }
+//          val b    = Vector.newBuilder[Edge]
+//          val iter = v.getRaphtory.getNewWindowedVertexIterator(start, end)
+//          iter.reset(v.getLocalId)
+//          iter.next()
+//          iter.getVertex
+//
+//          val eIter = iter.getIncomingEdges
+//          while (eIter.hasNext) {
+//            eIter.next()
+//            val edge = eIter.getEdge
+//            b += edge
+//          }
+//
+//          b.result().view
+      View.fromIteratorProvider { () =>
+        val iter = v.getRaphtory.getNewWindowedVertexIterator(start, end)
+        iter.reset(v.getLocalId)
+        iter.next()
+        val v0 = iter.getVertex
+        new ArrowPartition.EdgesIterator(iter.getIncomingEdges)
+      }
     }
 
     def incomingEdges: View[Edge] = {
