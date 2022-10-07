@@ -3,6 +3,7 @@ package com.raphtory.service
 import cats.effect.ExitCode
 import cats.effect.IO
 import cats.effect.IOApp
+import cats.effect.Resource
 import com.raphtory.Raphtory
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
@@ -20,8 +21,8 @@ object IngestionService extends IOApp {
   def run(args: List[String]): IO[ExitCode] = {
     val config  = Raphtory.getDefaultConfig()
     val service = for {
-      repo          <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, None)
-      service       <- IngestionOrchestrator[IO](config, repo)
+      repo    <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, None)
+      service <- Resource.pure(1) //IngestionOrchestrator[IO](config, repo)
     } yield service
     service.useForever
   }

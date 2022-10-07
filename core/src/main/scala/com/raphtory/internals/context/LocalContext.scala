@@ -6,7 +6,6 @@ import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.internals.communication.repositories.ArrowFlightRepository
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.communication.repositories.LocalTopicRepository
-import com.raphtory.internals.components.ingestion.IngestionManager
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManager
 import com.raphtory.internals.management.Prometheus
