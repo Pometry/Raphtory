@@ -5,7 +5,6 @@ import com.raphtory.Raphtory
 import com.raphtory.TestUtils
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.analysis.graphview.Alignment
-import com.raphtory.api.input.Source
 import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.internals.context.LocalContext
@@ -34,7 +33,7 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
     val facebookPath  = "/tmp/facebook.csv"
     val facebookUrl   = new URL("https://raw.githubusercontent.com/Raphtory/Data/main/facebook.csv")
     val facebookFile  = TestUtils.manageTestFile(Some(facebookPath, facebookUrl))
-    val facebookSpout = StaticGraphSpout(facebookPath)
+
 
     val files = for {
       _ <- lotrFile
@@ -53,7 +52,7 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
             .writeTo(defaultSink)
 
           val facebookGraph = Raphtory.newGraph()
-          facebookGraph.load(Source(facebookSpout, FacebookGraphBuilder))
+          facebookGraph.load(CSVEdgeListSource(StaticGraphSpout(facebookPath),delimiter = " "))
 
           val facebookTracker = facebookGraph
             .at(88234)

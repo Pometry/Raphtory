@@ -62,7 +62,6 @@ class HistoryTest extends BaseCorrectnessTest {
   }
   val input: Seq[String] = edges.zipWithIndex.map { case (s, i) => s"$s,$i" }
 
-  override def setSpout(): Spout[String] = SequenceSpout(input: _*)
 
   val res: Seq[String] = edges.distinct.map(e => s"${edges.size - 1},$e")
 
@@ -351,5 +350,5 @@ class HistoryTest extends BaseCorrectnessTest {
       (List(parts(0), parts(1), parts(3), parts(2)) ++ parts.slice(4, parts.size)).mkString(",")
     }
 
-  override def setSource(): Source = CSVEdgeListSource(setSpout())
+  override def setSource(): Source = CSVEdgeListSource(SequenceSpout(input: _*))
 }

@@ -31,7 +31,7 @@ object WriteValue {
 class MultilayerViewTest extends BaseCorrectnessTest {
   val edges = Seq("1,2,1", "2,1,2")
 
-  override def setSpout(): Spout[String] = SequenceSpout(edges: _*)
+
 
   test("test multilayer view") {
     correctnessTest(
@@ -58,5 +58,5 @@ class MultilayerViewTest extends BaseCorrectnessTest {
     )
   }
 
-  override def setSource(): Source = CSVEdgeListSource(setSpout())
+  override def setSource(): Source = CSVEdgeListSource(SequenceSpout(edges: _*))
 }
