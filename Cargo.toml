@@ -1,0 +1,11 @@
+[package]
+name = "docbrown"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+roaring="0.10"
+arrow2="0.14"
+dashmap="5"
