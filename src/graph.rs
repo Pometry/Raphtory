@@ -1,6 +1,6 @@
 use std::{
     collections::BTreeMap,
-    ops::Range,
+    ops::{Range, RangeBounds},
     sync::{Arc, RwLock},
 };
 
@@ -9,6 +9,7 @@ use roaring::{RoaringBitmap, RoaringTreemap};
 
 use crate::TemporalGraphStorage;
 
+#[derive(Debug)]
 enum Adj {
     Empty,
     List { out: Vec<u64>, into: Vec<u64> },
@@ -49,7 +50,10 @@ impl TemporalGraphStorage for TemporalGraph {
         self.gs
             .entry(v)
             .and_modify(|adj| update_adj_list_and_ts_index(adj, t, v, self.t_index.clone()))
-            .or_insert(Adj::Empty);
+            .or_insert_with(|| {
+                update_adj_list_and_ts_index(&mut Adj::Empty, t, v, self.t_index.clone());
+                Adj::Empty
+            });
         self
     }
 
@@ -57,9 +61,11 @@ impl TemporalGraphStorage for TemporalGraph {
         self.gs.iter().map(|entry| *entry.key()).collect()
     }
 
-    fn enumerate_vs_at(&self, t: Range<u64>) -> Vec<u64> {
+    fn enumerate_vs_at<R>(&self, t: R) -> Vec<u64> 
+    where R: RangeBounds<u64>
+    {
         if let Ok(index) = self.t_index.read() {
-            index.range(t).flat_map(|(_, vs)| vs.into_iter()).collect()
+            index.range(t).flat_map(|(_, vs)| vs.iter()).collect()
         } else {
             vec![]
         }
