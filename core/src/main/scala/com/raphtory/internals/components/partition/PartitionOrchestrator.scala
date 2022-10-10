@@ -67,7 +67,7 @@ object PartitionOrchestrator {
       .map { i =>
         for {
           partitionId <- Resource.eval(nextId(partitionIDManager, graphID))
-          partition   <- PartitionManager[VertexProp, EdgeProp, IO](graphID, partitionId, scheduler, config, topics)
+          partition   <- PartitionManager(graphID, partitionId, scheduler, config, topics)
         } yield partition
       }
       .toList
@@ -90,7 +90,7 @@ object PartitionOrchestrator {
       .map { i =>
         for {
           partitionId <- Resource.eval(nextId(partitionIDManager, graphID))
-          partition   <- PartitionManager[V, E, IO](graphID, partitionId, scheduler, config, topics)
+          partition   <- PartitionManager(graphID, partitionId, scheduler, config, topics)
         } yield partition
       }
       .toList
@@ -109,5 +109,3 @@ object PartitionOrchestrator {
             new PartitionOrchestrator(topics, conf, idManager)
     )
 }
-case class VertexProp(age: Long, @immutable name: String, @immutable address_chain:String, @immutable transaction_hash:String)
-case class EdgeProp(@immutable name: String, friends: Boolean, weight: Long)

@@ -18,9 +18,9 @@ object Field {
     override def set(efa: EntityFieldAccessor, p: String): Unit =
       efa.set(p)
 
-    override def get(efa: EntityFieldAccessor): Option[String] =
-      if (efa.isSet) Some(efa.getString.toString)
-      else None
+    override def get(efa: EntityFieldAccessor): Option[String] = {
+      Option(efa.getString).map(_.toString).filter(_.nonEmpty)
+    }
   }
 
   def runtime[T]: Field[T] =

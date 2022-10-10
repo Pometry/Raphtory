@@ -68,7 +68,7 @@ class PartitionManager(
 
 object PartitionManager {
 
-  def pojo[IO[_]](graphID: String, partitionID: Int, scheduler: Scheduler, conf: Config, topics: TopicRepository)(
+  def apply[IO[_]](graphID: String, partitionID: Int, scheduler: Scheduler, conf: Config, topics: TopicRepository)(
       implicit IO: Async[IO]
   ): Resource[IO, PartitionManager] =
     Resource.eval(IO.delay(new PojoBasedPartition(graphID, partitionID, conf))).flatMap { storage =>
@@ -76,7 +76,7 @@ object PartitionManager {
     }
 
   // rename this to apply and the one above to blerg to enable arrow
-  def apply[V: VertexSchema, E: EdgeSchema, IO[_]](
+  def arrow[V: VertexSchema, E: EdgeSchema, IO[_]](
       graphID: String,
       partitionID: Int,
       scheduler: Scheduler,
@@ -140,4 +140,3 @@ object PartitionManager {
       )
     }
 }
-
