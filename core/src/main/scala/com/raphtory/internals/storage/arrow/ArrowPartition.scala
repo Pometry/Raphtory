@@ -95,7 +95,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     val vertex = idsRepo.resolve(srcId) match {
       case NotFound(id)          => // it's not present on this partition .. yet
         val srcLocalId = vmgr.getNextFreeVertexId
-      val v = createVertex(srcLocalId, srcId, msgTime )
+        val v          = createVertex(srcLocalId, srcId, msgTime)
 //        val v          = par.getVertex
 //        v.reset(srcLocalId, id, true, msgTime)
 //
@@ -104,7 +104,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
 //        vmgr.addVertex(v)
 //        // update is true or false?
 //        vmgr.addHistory(v.getLocalId, msgTime, true, properties.properties.nonEmpty, -1, false)
-//        v
+        v
       case ExistsOnPartition(id) => // we've seen you before but are there any differences?
         // TODO: need a way to merge properties into existing vertex
         // TODO: we can't just overwrite a vertex that already exists
@@ -123,6 +123,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
 //        )
 //
 //        if (v.getOldestPoint != msgTime) // FIXME: weak check to avoid adding multiple duplicated timestamps
+//        val vPar = partitionFromVertex(v)
 //          vmgr.addHistory(v.getLocalId, msgTime, true, properties.properties.nonEmpty, -1, false)
 //
         v
@@ -131,6 +132,9 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
 
     vertex
   }
+
+  private def partitionFromVertex(v: Vertex) =
+    par.getVertexMgr.getPartition(par.getVertexMgr.getPartitionId(v.getLocalId))
 
   private def setProps(e: Entity, msgTime: Long, properties: Properties)(
       lookupProp: String => Int
@@ -290,7 +294,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     addOrUpdateEdgeProps(time, e, properties)
     par.getEdgeMgr.addEdge(e, -1L, -1L)
     par.getEdgeMgr.addHistory(e.getLocalId, time, true, true)
-    val p = par.getVertexMgr.getPartition(par.getVertexMgr.getPartitionId(dst.getLocalId))
+    val p = partitionFromVertex(dst)
     par.getEdgeMgr.setIncomingEdgePtr(e.getLocalId, p.addIncomingEdgeToList(e.getDstVertex, e.getLocalId))
     p.addHistory(dst.getLocalId, time, true, false, e.getLocalId, false)
   }
@@ -305,7 +309,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     addOrUpdateEdgeProps(time, e, properties)
     par.getEdgeMgr.addEdge(e, -1L, -1L)
     par.getEdgeMgr.addHistory(e.getLocalId, time, true, true)
-    val p = par.getVertexMgr.getPartition(par.getVertexMgr.getPartitionId(src.getLocalId))
+    val p = partitionFromVertex(src)
     par.getEdgeMgr
       .setOutgoingEdgePtr(e.getLocalId, p.addOutgoingEdgeToList(e.getSrcVertex, e.getLocalId, e.getDstVertex))
     p.addHistory(src.getLocalId, time, true, false, e.getLocalId, true)
@@ -319,11 +323,11 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     addOrUpdateEdgeProps(time, e, properties)
     par.getEdgeMgr.addEdge(e, -1L, -1L)
     par.getEdgeMgr.addHistory(e.getLocalId, time, true, true)
-    var p = par.getVertexMgr.getPartition(par.getVertexMgr.getPartitionId(src.getLocalId))
+    var p = partitionFromVertex(src)
     par.getEdgeMgr
       .setOutgoingEdgePtr(e.getLocalId, p.addOutgoingEdgeToList(e.getSrcVertex, e.getLocalId, e.getDstVertex))
     p.addHistory(src.getLocalId, time, true, false, e.getLocalId, true)
-    p = par.getVertexMgr.getPartition(par.getVertexMgr.getPartitionId(dst.getLocalId))
+    p = partitionFromVertex(dst)
     par.getEdgeMgr.setIncomingEdgePtr(e.getLocalId, p.addIncomingEdgeToList(e.getDstVertex, e.getLocalId))
     p.addHistory(dst.getLocalId, time, true, false, e.getLocalId, false)
   }

@@ -137,7 +137,9 @@ public class FabianTest {
         Vertex six = createVertex(_rap.getVertexMgr().getNextFreeVertexId(), 6, 8);
         Vertex three = createVertex(_rap.getVertexMgr().getNextFreeVertexId(), 3, 14);
 
+//        _rap.getVertexMgr().addHistory(six.getLocalId(), 8, true, false, -1, false);
         addRemoteIncomingEdge(5, six, 8);
+//        _rap.getVertexMgr().addHistory(six.getLocalId(), 14, true, false, -1, false);
         addRemoteOutgoingEdge(six, 3, 14);
     }
 
