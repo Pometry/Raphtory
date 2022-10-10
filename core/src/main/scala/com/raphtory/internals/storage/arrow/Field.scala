@@ -8,7 +8,7 @@ import scala.annotation.implicitNotFound
 @implicitNotFound("Could not find arrow property accessor for C[${P}]")
 sealed trait Field[P] {
   def set(efa: EntityFieldAccessor, v: P): Unit
-  def get(efa: EntityFieldAccessor): P
+  def get(efa: EntityFieldAccessor): Option[P]
 }
 
 object Field {
@@ -18,8 +18,9 @@ object Field {
     override def set(efa: EntityFieldAccessor, p: String): Unit =
       efa.set(p)
 
-    override def get(efa: EntityFieldAccessor): String =
-      efa.getString.toString
+    override def get(efa: EntityFieldAccessor): Option[String] =
+      if (efa.isSet) Some(efa.getString.toString)
+      else None
   }
 
   def runtime[T]: Field[T] =
@@ -30,14 +31,16 @@ object Field {
           case _: EntityFieldAccessor.StringFieldAccessor => efa.set(v.asInstanceOf[String])
         }
 
-      override def get(efa: EntityFieldAccessor): T =
+      override def get(efa: EntityFieldAccessor): Option[T] =
         efa match {
-          case _: EntityFieldAccessor.StringFieldAccessor => efa.getString.toString.asInstanceOf[T]
+          case _: EntityFieldAccessor.StringFieldAccessor =>
+            if (efa.isSet) Some(efa.getString.toString.asInstanceOf[T])
+            else None
         }
     }
 }
 
 trait FieldAccess[P] {
   def set(p: P): Unit
-  def get: P
+  def get: Option[P]
 }

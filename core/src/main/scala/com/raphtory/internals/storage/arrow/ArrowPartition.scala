@@ -88,23 +88,12 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
 
   private def addVertexInternal(srcId: Long, msgTime: Long, properties: Properties): Vertex = {
 
-    logger.trace(s"Adding vertex: $srcId to partition: $partition @ t:$msgTime")
-
     updateAdders(msgTime)
 
-    val vertex = idsRepo.resolve(srcId) match {
+    idsRepo.resolve(srcId) match {
       case NotFound(id)          => // it's not present on this partition .. yet
         val srcLocalId = vmgr.getNextFreeVertexId
-        val v          = createVertex(srcLocalId, srcId, msgTime)
-//        val v          = par.getVertex
-//        v.reset(srcLocalId, id, true, msgTime)
-//
-        addOrUpdateVertexProperties(msgTime, v, properties)
-//
-//        vmgr.addVertex(v)
-//        // update is true or false?
-//        vmgr.addHistory(v.getLocalId, msgTime, true, properties.properties.nonEmpty, -1, false)
-        v
+        createVertex(srcLocalId, srcId, msgTime, properties)
       case ExistsOnPartition(id) => // we've seen you before but are there any differences?
         // TODO: need a way to merge properties into existing vertex
         // TODO: we can't just overwrite a vertex that already exists
@@ -124,13 +113,13 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
 //
 //        if (v.getOldestPoint != msgTime) // FIXME: weak check to avoid adding multiple duplicated timestamps
 //        val vPar = partitionFromVertex(v)
-//          vmgr.addHistory(v.getLocalId, msgTime, true, properties.properties.nonEmpty, -1, false)
+//          FIXME: this breaks history
+//           vmgr.addHistory(v.getLocalId, msgTime, true, properties.properties.nonEmpty, -1, false)
 //
         v
       case _                     => throw new IllegalStateException(s"Node $srcId does not belong to partition $getPartitionID")
     }
 
-    vertex
   }
 
   private def partitionFromVertex(v: Vertex) =
@@ -153,13 +142,11 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
         else {
           val accessor = e.getProperty(FIELD)
           accessor.setHistory(false, msgTime).set(value)
-
           e match {
             case _: Edge   =>
               par.getEdgeMgr.addProperty(e.getLocalId, FIELD, accessor)
             case _: Vertex =>
               par.getVertexMgr.addProperty(e.getLocalId, FIELD, accessor)
-            case _         => ???
           }
         }
       case IntegerProperty(key, value)   =>
@@ -279,15 +266,17 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       Some(SyncExistingEdgeAdd(sourceID, msgTime, index, srcId, dstId, properties))
   }
 
-  private def createVertex(localId: Long, globalId: Long, time: Long): Vertex = {
+  private def createVertex(localId: Long, globalId: Long, time: Long, properties: Properties): Vertex = {
     val v = par.getVertex
     v.reset(localId, globalId, true, time)
+    addOrUpdateVertexProperties(time, v, properties)
     par.getVertexMgr.addVertex(v)
+    vmgr.addHistory(v.getLocalId, time, true, properties.properties.nonEmpty, -1, false)
     v
   }
 
   private def addRemoteIncomingEdge(globalSrcId: Long, dst: Vertex, time: Long, properties: Properties): Unit = {
-    logger.info(s"PAR $partition ADD Remote incoming G($globalSrcId) -> (${dst.getGlobalId}:${dst.getLocalId}) @ $time")
+    logger.trace(s"PAR $partition ADD Remote incoming G($globalSrcId) -> (${dst.getGlobalId}:${dst.getLocalId}) @ $time")
     val e = par.getEdge
     e.init(par.getEdgeMgr.getNextFreeEdgeId, true, time)
     e.resetEdgeData(globalSrcId, dst.getLocalId, -1L, -1L, true, false)
@@ -300,7 +289,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   }
 
   private def addRemoteOutgoingEdge(src: Vertex, globalDstId: Long, time: Long, properties: Properties): Unit = {
-    logger.info(
+    logger.trace(
             s"PAR $partition ADD Remote Outgoing -> (${src.getGlobalId}:${src.getLocalId}) -> G($globalDstId)  @ $time"
     )
     val e = par.getEdge
@@ -316,7 +305,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   }
 
   private def addLocalVerticesToEdge(src: Vertex, dst: Vertex, time: Long, properties: Properties): Unit = {
-    logger.info(s"PAR $partition ADD Local Edge -> ${src.getLocalId} -> ${dst.getLocalId}  @ $time")
+    logger.trace(s"PAR $partition ADD Local Edge -> ${src.getLocalId} -> ${dst.getLocalId}  @ $time")
     val e = par.getEdge
     e.init(par.getEdgeMgr.getNextFreeEdgeId, true, time)
     e.resetEdgeData(src.getLocalId, dst.getLocalId, -1L, -1L, false, false)

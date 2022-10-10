@@ -17,7 +17,7 @@ package object arrow {
           implicitly[Field[P]].set(v.getField(FIELD), p)
         }
 
-        override def get: P = {
+        override def get: Option[P] = {
           val FIELD = v.getRaphtory.getVertexFieldId(name.toLowerCase())
           implicitly[Field[P]].get(v.getField(FIELD))
         }
@@ -119,7 +119,7 @@ package object arrow {
           implicitly[Field[P]].set(v.getField(FIELD), p)
         }
 
-        override def get: P = {
+        override def get: Option[P] = {
           val FIELD = v.getRaphtory.getEdgeFieldId(name)
           implicitly[Field[P]].get(v.getField(FIELD))
         }

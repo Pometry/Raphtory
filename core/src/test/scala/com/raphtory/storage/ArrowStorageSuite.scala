@@ -257,7 +257,7 @@ class ArrowStorageSuite extends munit.FunSuite {
 
     val actual = par.vertices.head
 
-    assertEquals(actual.field[String]("name").get, "Bob")
+    assertEquals(actual.field[String]("name").get, Some(" Bob"))
     assertEquals(actual.prop[Long]("pLong").get, Some(now))
     assertEquals(actual.prop[Double]("pDouble").get, Some(1.234d))
     assertEquals(actual.prop[Float]("pFloat").get, Some(4.321f))
@@ -292,7 +292,7 @@ class ArrowStorageSuite extends munit.FunSuite {
     val vs = par.vertices
     assertEquals(vs.size, 2)
 
-    val names = vs.iterator.toList.map(v => v.getGlobalId -> v.field[String]("name").get)
+    val names = vs.iterator.toList.flatMap(v => v.field[String]("name").get.map(name => v.getGlobalId -> name))
 
     assertEquals(names, List(3L -> "Bob", 7L -> "Alice"))
 
@@ -348,14 +348,14 @@ class ArrowStorageSuite extends munit.FunSuite {
     val vs = par.vertices.toList
     assertEquals(vs.size, 2)
 
-    val names      = vs.map(v => v.getGlobalId -> v.field[String]("name").get)
+    val names      = vs.flatMap(v => v.field[String]("name").get.map(name => v.getGlobalId -> name))
     assertEquals(names, List(3L -> "Bob", 7L -> "Alice"))
 
     val neighbours = vs.flatMap {
-      case v if v.field[String]("name").get == "Bob"   =>
-        v.outgoingEdges.map(e => e.getDstVertex -> e.field[String]("name").get)
-      case v if v.field[String]("name").get == "Alice" =>
-        v.incomingEdges.map(e => e.getSrcVertex -> e.field[String]("name").get)
+      case v if v.field[String]("name").get.contains("Bob")   =>
+        v.outgoingEdges.flatMap(e => e.field[String]("name").get.map(name => e.getDstVertex -> name))
+      case v if v.field[String]("name").get.contains("Alice") =>
+        v.incomingEdges.flatMap(e => e.field[String]("name").get.map(name => e.getDstVertex -> name))
     }
 
     assertEquals(neighbours, List(1L -> "friends", 0L -> "friends")) // local ids are returned
@@ -459,13 +459,13 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   private def allNeighbours(vs: List[Vertex]) = {
     val neighbours = vs.flatMap {
-      case v if v.field[String]("name").get == "Bob"   =>
-        v.outgoingEdges.map(e =>
-          (e.getSrcVertex, e.getDstVertex, e.field[String]("name").get, e.isSrcGlobal, e.isDstGlobal)
+      case v if v.field[String]("name").get.contains("Bob")   =>
+        v.outgoingEdges.flatMap(e =>
+          e.field[String]("name").get.map(name => (e.getSrcVertex, e.getDstVertex, name, e.isSrcGlobal, e.isDstGlobal))
         )
-      case v if v.field[String]("name").get == "Alice" =>
-        v.incomingEdges.map(e =>
-          (e.getSrcVertex, e.getDstVertex, e.field[String]("name").get, e.isSrcGlobal, e.isDstGlobal)
+      case v if v.field[String]("name").get.contains("Alice") =>
+        v.incomingEdges.flatMap(e =>
+          e.field[String]("name").get.map(name => (e.getSrcVertex, e.getDstVertex, name, e.isSrcGlobal, e.isDstGlobal))
         )
     }
     neighbours
@@ -473,7 +473,7 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   private def partitionVertices(par2: ArrowPartition) = {
     val vs2    = par2.vertices.toList
-    val names2 = vs2.map(v => v.getGlobalId -> v.field[String]("name").get)
+    val names2 = vs2.flatMap(v => v.field[String]("name").get.map(name => v.getGlobalId -> name))
     (vs2, names2)
   }
 
@@ -522,7 +522,12 @@ class ArrowStorageSuite extends munit.FunSuite {
 
 }
 
-case class VertexProp(age: Long, @immutable name: String, @immutable address_chain:String, @immutable transaction_hash:String)
+case class VertexProp(
+    age: Long,
+    @immutable name: String,
+    @immutable address_chain: String,
+    @immutable transaction_hash: String
+)
 case class EdgeProp(@immutable name: String, friends: Boolean, weight: Long)
 
 case class AllProps(

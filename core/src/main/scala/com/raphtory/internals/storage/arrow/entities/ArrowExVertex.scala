@@ -57,12 +57,6 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
   override def messageVertex[T](vertexId: IDType, data: T)(implicit provider: SchemaProvider[T]): Unit =
     repo.sendMessage(VertexMessage(repo.superStep + 1, vertexId, data))
 
-  override def name(nameProperty: String): String =
-    entity match {
-      case v: ArrVertex =>
-        v.field[String](nameProperty).get
-    }
-
   /** Return all edges starting at this vertex
     */
   override def outEdges: View[ArrowExEdge] =
