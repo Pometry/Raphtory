@@ -11,14 +11,14 @@ import com.raphtory.arrowmessaging.ArrowFlightServer
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.components.ingestion.IngestionOrchestrator
-import com.raphtory.internals.management.ZookeeperConnector
+import com.raphtory.internals.management.{ConfigBuilder, ZookeeperConnector}
 import com.raphtory.internals.management.arrow.ZKHostAddressProvider
 import org.apache.arrow.memory.RootAllocator
 
 object IngestionService extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = {
-    val config  = Raphtory.getDefaultConfig()
+    val config  = ConfigBuilder.build().getConfig
     val service = for {
       repo          <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, None)
       service       <- IngestionOrchestrator[IO](config, repo)

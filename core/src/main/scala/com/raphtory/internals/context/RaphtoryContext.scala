@@ -2,7 +2,6 @@ package com.raphtory.internals.context
 
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.createName
-import com.raphtory.internals.management._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -32,7 +31,4 @@ abstract class RaphtoryContext {
     })
 
   def close(): Unit
-
-  val configbuilder = ConfigBuilder.build()
-
 }
