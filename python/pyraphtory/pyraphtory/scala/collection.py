@@ -37,7 +37,11 @@ class SequenceScalaProxy(IterableScalaProxy, abc.Sequence):
                 return [self.apply(i) for i in range(*indices)]
             return self.slice(indices[0], indices[1])
         else:
-            return self.apply(item)
+            if item < 0:
+                # Scala does not support negative index
+                return self.apply(len(self)+item)
+            else:
+                return self.apply(item)
 
     def __contains__(self, item):
         return self.contains(item)
