@@ -1,11 +1,14 @@
 package com.raphtory.internals.storage.arrow
 
+import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.api.input._
 import com.raphtory.arrowcore.implementation.ArrowPropertyIterator
+import com.raphtory.arrowcore.implementation.EdgeHistoryIterator
 import com.raphtory.arrowcore.implementation.EdgeIterator
 import com.raphtory.arrowcore.implementation.EdgePartitionManager
 import com.raphtory.arrowcore.implementation.EntityFieldAccessor
 import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
+import com.raphtory.arrowcore.implementation.VertexHistoryIterator
 import com.raphtory.arrowcore.implementation.VertexPartition
 import com.raphtory.arrowcore.implementation.VertexPartitionManager
 import com.raphtory.arrowcore.model.Edge
@@ -13,6 +16,7 @@ import com.raphtory.arrowcore.model.Entity
 import com.raphtory.arrowcore.model.Vertex
 import com.raphtory.internals.graph.GraphAlteration.EdgeSyncAck
 import com.raphtory.internals.graph.GraphAlteration.SyncExistingEdgeAdd
+import com.raphtory.internals.graph.GraphAlteration.SyncExistingEdgeRemoval
 import com.raphtory.internals.graph.GraphAlteration.SyncExistingRemovals
 import com.raphtory.internals.graph.GraphAlteration.SyncNewEdgeAdd
 import com.raphtory.internals.graph.GraphAlteration
@@ -98,24 +102,24 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
         // TODO: need a way to merge properties into existing vertex
         // TODO: we can't just overwrite a vertex that already exists
         // we make sure the vertex is active at this point
-        val v = vmgr.getVertex(id)
+        val v                  = vmgr.getVertex(id)
 //
-//        val props: Set[String] =
-//          par.getPropertySchema.versionedVertexProperties().asScala.map(_.name()).toSet intersect properties.properties
-//            .map(_.key.toLowerCase())
-//            .toSet
-//
-//        addOrUpdateVertexProperties(
-//                msgTime,
-//                v,
-//                Properties(properties.properties.filter(p => props(p.key.toLowerCase())): _*)
-//        )
+        val props: Set[String] =
+          par.getPropertySchema.versionedVertexProperties().asScala.map(_.name()).toSet intersect properties.properties
+            .map(_.key.toLowerCase())
+            .toSet
+
+        addOrUpdateVertexProperties(
+                msgTime,
+                v,
+                Properties(properties.properties.filter(p => props(p.key.toLowerCase())): _*)
+        )
 //
 //        if (v.getOldestPoint != msgTime) // FIXME: weak check to avoid adding multiple duplicated timestamps
 //        val vPar = partitionFromVertex(v)
 //          FIXME: this breaks history
-//           vmgr.addHistory(v.getLocalId, msgTime, true, properties.properties.nonEmpty, -1, false)
-//
+
+        vmgr.addHistory(v.getLocalId, msgTime, true, properties.properties.nonEmpty, -1, false)
         v
       case _                     => throw new IllegalStateException(s"Node $srcId does not belong to partition $getPartitionID")
     }
@@ -130,8 +134,9 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   )(lookupField: String => Int): Unit =
     properties.properties.foreach {
       case ImmutableProperty(key, value) =>
-        val FIELD = lookupField(key.toLowerCase())
-        e.getField(FIELD).set(new lang.StringBuilder(value))
+        val FIELD    = lookupField(key.toLowerCase())
+        val accessor = e.getField(FIELD)
+        accessor.set(new lang.StringBuilder(value))
       case StringProperty(key, value)    =>
         val FIELD = lookupProp(key)
         e.getProperty(FIELD).setHistory(true, msgTime).set(new lang.StringBuilder(value))
@@ -276,7 +281,9 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   }
 
   private def addRemoteIncomingEdge(globalSrcId: Long, dst: Vertex, time: Long, properties: Properties): Unit = {
-    logger.trace(s"PAR $partition ADD Remote incoming G($globalSrcId) -> (${dst.getGlobalId}:${dst.getLocalId}) @ $time")
+    logger.trace(
+            s"PAR $partition ADD Remote incoming G($globalSrcId) -> (${dst.getGlobalId}:${dst.getLocalId}) @ $time"
+    )
     val e = par.getEdge
     e.init(par.getEdgeMgr.getNextFreeEdgeId, true, time)
     e.resetEdgeData(globalSrcId, dst.getLocalId, -1L, -1L, true, false)
@@ -435,7 +442,25 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       index: Long,
       srcId: Long,
       dstId: Long
-  ): Option[GraphAlteration.GraphUpdateEffect] = ???
+  ): Option[GraphAlteration.GraphUpdateEffect] = {
+
+    val src = idsRepo.resolve(srcId)
+    val dst = idsRepo.resolve(dstId)
+
+    val v = vmgr.getVertex(src.id)
+
+    val edgeFound = v.outgoingEdges(dst.id).foldLeft(false) { (updated, e) =>
+      emgr.addHistory(e.getLocalId, msgTime, false, false)
+      true // we found at least one edge and changed it
+    }
+
+    if (edgeFound)
+      if (dst.isLocal)
+        None
+      else
+        Some(SyncExistingEdgeRemoval(sourceID, msgTime, index, srcId, dstId))
+    else None
+  }
 
   override def syncNewEdgeRemoval(
       sourceID: Long,
@@ -523,6 +548,36 @@ object ArrowPartition {
       es.getEdge
     }
 
+  }
+
+  class VertexHistoryIterator(vhi: VertexHistoryIterator.WindowedVertexHistoryIterator)
+          extends Iterator[HistoricEvent] {
+    override def hasNext: Boolean = vhi.hasNext
+
+    override def next(): HistoricEvent = {
+      vhi.next()
+      HistoricEvent(vhi.getModificationTime, vhi.getModificationTime, vhi.wasActive())
+    }
+
+  }
+
+  class EdgeHistoryIterator(vhi: EdgeHistoryIterator.WindowedEdgeHistoryIterator) extends Iterator[HistoricEvent] {
+    override def hasNext: Boolean = vhi.hasNext
+
+    override def next(): HistoricEvent = {
+      vhi.next()
+      HistoricEvent(vhi.getModificationTime, vhi.getModificationTime, vhi.wasActive())
+    }
+
+  }
+
+  class MatchingEdgesIterator(mei: EdgeIterator.MatchingEdgesIterator) extends Iterator[Edge] {
+    override def hasNext: Boolean = mei.hasNext
+
+    override def next(): Edge = {
+      mei.next()
+      mei.getEdge
+    }
   }
 
   def apply(graphId: String, cfg: ArrowPartitionConfig, config: Config): ArrowPartition = {

@@ -1,6 +1,7 @@
 package com.raphtory.storage
 
 import com.raphtory.Raphtory
+import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.api.input
 import com.raphtory.api.input._
 import com.raphtory.arrowcore.implementation.LocalEntityIdStore
@@ -8,6 +9,8 @@ import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
 import com.raphtory.arrowcore.implementation.VertexIterator
 import com.raphtory.arrowcore.model.PropertySchema
 import com.raphtory.arrowcore.model.Vertex
+import com.raphtory.internals.components.partition.EdgeProp
+import com.raphtory.internals.components.partition.VertexProp
 import com.raphtory.internals.graph.GraphAlteration.SyncNewEdgeAdd
 import com.raphtory.internals.storage.arrow.ArrowPartition
 import com.raphtory.internals.storage.arrow.ArrowPartitionConfig
@@ -27,12 +30,6 @@ class ArrowStorageSuite extends munit.FunSuite {
   private val aliceGlobalId = 9L
 
   private val defaultPropSchema = ArrowSchema[VertexProp, EdgeProp]
-
-// crashes the storage
-//  1, 4, 3
-//  3, 4, 5
-//  4, 5, 7
-//  4, 8, 15
 
   test("one can create a partition manager, add a vertex then get it back") {
     val cfg = new RaphtoryArrowPartition.RaphtoryArrowPartitionConfig()
@@ -276,7 +273,7 @@ class ArrowStorageSuite extends munit.FunSuite {
     )(par)
 
     val actual2 = par.vertices.head
-    //FIXME: assertEquals(actual2.prop[Long]("pLong").list.toSet, Set(now -> timestamp, (now + 1, timestamp + 1)))
+    assertEquals(actual2.prop[Long]("pLong").list.toSet, Set(now -> timestamp, (now + 1, timestamp + 1)))
   }
 
   test("add two vertices into partition") {
@@ -295,6 +292,39 @@ class ArrowStorageSuite extends munit.FunSuite {
     val names = vs.iterator.toList.flatMap(v => v.field[String]("name").get.map(name => v.getGlobalId -> name))
 
     assertEquals(names, List(3L -> "Bob", 7L -> "Alice"))
+
+  }
+
+  test("add a vertex 3 times and explore the history") {
+
+    val par: ArrowPartition = mkPartition(1, 0)
+    val timestamp           = System.currentTimeMillis()
+
+    // add bob at t1
+    val property = ImmutableProperty("name", "Bob")
+    addVertex(3, timestamp, None, property)(par)
+    // add bob at t3
+    addVertex(3, timestamp + 2, None, property)(par)
+    // add bob at t2
+    addVertex(3, timestamp + 1, None, property)(par)
+
+    val vs = par.vertices
+    assertEquals(vs.size, 1)
+
+    val names = vs.iterator.toList.flatMap(v => v.field[String]("name").get.map(name => v.getGlobalId -> name))
+
+    assertEquals(names, List(3L -> "Bob"))
+
+    val bob = par.vertices.head
+
+    assertEquals(
+            bob.history(Long.MinValue, Long.MaxValue).toVector,
+            Vector(
+                    HistoricEvent(timestamp + 2, timestamp + 2),
+                    HistoricEvent(timestamp + 1, timestamp + 1),
+                    HistoricEvent(timestamp, timestamp)
+            )
+    )
 
   }
 
@@ -376,6 +406,63 @@ class ArrowStorageSuite extends munit.FunSuite {
 
     val edges = par.vertices.flatMap(v => v.outgoingEdges.flatMap(e => e.prop[Long]("weight").list)).map(_._1).toSet
     assertEquals(edges, Set(7L, 9L))
+
+  }
+
+  test("add edge between two vertices locally, 3 times and track history".only) {
+
+    val par: ArrowPartition = mkPartition(1, 0)
+    val timestamp           = System.currentTimeMillis()
+
+    // add bob
+    addVertex(3, timestamp, None, ImmutableProperty("name", "Bob"))(par)
+    // add alice
+    addVertex(7, timestamp, None, ImmutableProperty("name", "Alice"))(par)
+    // add edge
+    for (i <- 0 until 3)
+      par.addEdge(
+              3,
+              timestamp + i,
+              -1,
+              3,
+              7,
+              Properties(
+                      ImmutableProperty("name", "friends"),
+                      LongProperty("weight", 7)
+              ),
+              None
+      )
+
+    val bob  = par.vertices.head
+    val edge = bob.outgoingEdges.head
+    assertEquals(
+            edge.history(timestamp, timestamp + 1).toVector,
+            Vector(
+                    HistoricEvent(timestamp + 1, timestamp + 1),
+                    HistoricEvent(timestamp, timestamp)
+            )
+    )
+    assertEquals(
+            edge.history(Long.MinValue, Long.MaxValue).toVector,
+            Vector(
+                    HistoricEvent(timestamp + 2, timestamp + 2),
+                    HistoricEvent(timestamp + 1, timestamp + 1),
+                    HistoricEvent(timestamp, timestamp)
+            )
+    )
+
+    // now remove it
+    par.removeEdge(3, timestamp + 3, -1, 3, 7)
+
+    assertEquals(
+            edge.history(Long.MinValue, Long.MaxValue).toVector,
+            Vector(
+                    HistoricEvent(timestamp + 3, timestamp + 3, event = false),
+                    HistoricEvent(timestamp + 2, timestamp + 2),
+                    HistoricEvent(timestamp + 1, timestamp + 1),
+                    HistoricEvent(timestamp, timestamp)
+            )
+    )
 
   }
 
@@ -515,20 +602,12 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   test("can generate Edge schema from case class") {
     val actual  = EdgeSchema.gen[EdgeProp].nonVersionedEdgeProps(None).map(f => f.name()).toList
-    assertEquals(actual, List("name"))
+    assertEquals(actual, List("name", "msgid", "subject"))
     val actual2 = EdgeSchema.gen[EdgeProp].versionedEdgeProps(None).map(f => f.name()).toList
     assertEquals(actual2, List("friends", "weight"))
   }
 
 }
-
-case class VertexProp(
-    age: Long,
-    @immutable name: String,
-    @immutable address_chain: String,
-    @immutable transaction_hash: String
-)
-case class EdgeProp(@immutable name: String, friends: Boolean, weight: Long)
 
 case class AllProps(
     @immutable name: String,
@@ -540,7 +619,5 @@ case class AllProps(
     pString: String
 )
 
-//case class VertexProp(age: Long, @immutable name: String, @immutable address_chain:String, @immutable transaction_hash:String)
-//case class EdgeProp(@immutable name: String, friends: Boolean, weight: Long, @immutable msgId: String, @immutable subject: String)
 //case class NodeSchema(@immutable name: String)
 //case class EdgeSchema(weight: Long, @immutable msgId: String, @immutable subject: String)
