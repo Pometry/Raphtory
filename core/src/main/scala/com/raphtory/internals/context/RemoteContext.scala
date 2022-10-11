@@ -2,29 +2,14 @@ package com.raphtory.internals.context
 
 import cats.effect.IO
 import cats.effect.Resource
-import com.raphtory.Raphtory.confBuilder
-import com.raphtory.Raphtory.connect
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
-import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.communication.connectors.AkkaConnector
-import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import com.raphtory.internals.components.querymanager.Query
-import com.raphtory.internals.management.Prometheus
-import com.raphtory.internals.management.Py4JServer
-import com.raphtory.internals.management.QuerySender
-import com.raphtory.internals.management.Scheduler
+import com.raphtory.internals.management.{ConfigBuilder, Prometheus, QuerySender, Scheduler}
 import com.typesafe.config.Config
 import cats.effect.unsafe.implicits.global
-import com.raphtory.internals.context.LocalContext.createName
-import com.raphtory.internals.management.ZookeeperConnector
-import com.typesafe.config.Config
-import cats.effect.unsafe.implicits.global
-import com.raphtory.arrowmessaging.ArrowFlightServer
+import com.raphtory.createName
 import com.raphtory.internals.components.RaphtoryServiceBuilder
-import com.raphtory.internals.context.LocalContext.createName
-import com.raphtory.internals.management.arrow.ZKHostAddressProvider
-import org.apache.arrow.memory.RootAllocator
 
 import scala.collection.mutable
 
@@ -41,7 +26,7 @@ class RemoteContext(address: String, port: Int) extends RaphtoryContext {
       case Some(tuple) => tuple
     }.toMap
 
-    val config         = confBuilder(userParameters ++ customConfig)
+    val config         = ConfigBuilder.build(userParameters ++ customConfig).getConfig
     val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
     for {
       _          <- Prometheus[IO](prometheusPort)

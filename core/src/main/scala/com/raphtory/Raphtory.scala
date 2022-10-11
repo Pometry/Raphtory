@@ -1,13 +1,11 @@
 package com.raphtory
 
 import cats.effect._
-import com.oblac.nomen.Nomen
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.internals.context.LocalContext
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.internals.context.RemoteContext
 import com.raphtory.internals.management._
-import com.raphtory.internals.management.id.IDManager
 import com.raphtory.internals.management.id.LocalIDManager
 import com.raphtory.internals.management.id.ZooKeeperCounter
 import com.raphtory.internals.management.id.ZookeeperLimitedPool
@@ -42,6 +40,14 @@ import scala.collection.mutable.ArrayBuffer
   */
 object Raphtory {
 
+  def local() = {
+
+  }
+
+  def remote() = {
+
+  }
+
   private val remoteConnections = ArrayBuffer[RemoteContext]()
 
   def newGraph(graphID: String = createName, customConfig: Map[String, Any] = Map()): DeployedTemporalGraph =
@@ -72,16 +78,7 @@ object Raphtory {
     */
   def getDefaultConfig(
       customConfig: Map[String, Any] = Map()
-  ): Config =
-    confBuilder(customConfig)
-
-  private[raphtory] def confBuilder(
-      customConfig: Map[String, Any] = Map()
-  ): Config = {
-    val confHandler = new ConfigHandler()
-    customConfig.foreach { case (key, value) => confHandler.addCustomConfig(key, value) }
-    confHandler.getConfig()
-  }
+  ): Config = ConfigBuilder.build().getConfig
 
   private[raphtory] def makeLocalIdManager[IO[_]: Sync] =
     Resource.eval(Sync[IO].delay(new LocalIDManager))
@@ -98,8 +95,5 @@ object Raphtory {
     val zookeeperAddress = config.getString("raphtory.zookeeper.address")
     ZooKeeperCounter(zookeeperAddress, "sourceCount")
   }
-
-  private[raphtory] def createName: String =
-    Nomen.est().adjective().color().animal().get()
 
 }
