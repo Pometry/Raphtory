@@ -208,43 +208,6 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
           Some(SyncNewEdgeAdd(sourceID, msgTime, index, srcId, dstId, properties, Nil, edgeType))
         }
 
-//        // init the edge
-//        val eId = emgr.getNextFreeEdgeId
-//        val e   = par.getEdge
-//        e.init(eId, true, msgTime)
-//
-//        val out = if (dst.isLocal) { // do we belong here?
-//          // add dst vertex if local
-//          addVertexInternal(dstId, msgTime, Properties())
-//          None
-//        }
-//        else
-//          // otherwise sync new edge
-//          Some(SyncNewEdgeAdd(sourceID, msgTime, index, srcId, dstId, properties, Nil, edgeType))
-//
-//        // add the edge properties
-//        addOrUpdateEdgeProps(msgTime, e, properties)
-//
-//        // add the actual edge
-//        e.resetEdgeData(src.getLocalId, dst.id, -1L, -1L, false, dst.isGlobal)
-//        emgr.addEdge(e, -1L, -1L)
-//        emgr.addHistory(e.getLocalId, msgTime, true, properties.properties.nonEmpty)
-//
-//        //link the edge to the source
-//        val p = vmgr.getPartition(vmgr.getPartitionId(src.getLocalId))
-//
-//        val prevListPtr = p.synchronized {
-//          val ptr = p.addOutgoingEdgeToList(src.getLocalId, e.getLocalId, dst.id)
-//          p.addHistory(src.getLocalId, msgTime, true, false, e.getLocalId, true)
-//          ptr
-//        }
-//        emgr.setOutgoingEdgePtr(e.getLocalId, prevListPtr)
-//
-//        // link the edge to the destination
-//        if (dst.isLocal)
-//          linkIncomingToLocalNode(msgTime, dst, e)
-//        out
-//      // no edge here
     }
   }
 

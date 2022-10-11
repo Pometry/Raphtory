@@ -409,7 +409,7 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   }
 
-  test("add edge between two vertices locally, 3 times and track history".only) {
+  test("add edge between two vertices locally, 3 times and track history") {
 
     val par: ArrowPartition = mkPartition(1, 0)
     val timestamp           = System.currentTimeMillis()
@@ -450,6 +450,37 @@ class ArrowStorageSuite extends munit.FunSuite {
                     HistoricEvent(timestamp, timestamp)
             )
     )
+
+    test("add edge between the same vertex".only) {
+
+      val par: ArrowPartition = mkPartition(1, 0)
+      val timestamp           = System.currentTimeMillis()
+
+      // add bob
+      addVertex(3, timestamp, None, ImmutableProperty("name", "Bob"))(par)
+      // add alice
+      addVertex(3, timestamp, None)(par)
+      // add edge
+      par.addEdge(
+              3,
+              timestamp,
+              -1,
+              3,
+              3,
+              Properties(
+                      ImmutableProperty("name", "friends"),
+                      LongProperty("weight", 7)
+              ),
+              None
+      )
+
+      val bob = par.vertices.head
+      assertEquals(bob.outgoingEdges.toVector.size, 1)
+      val outEdges = bob.outgoingEdges(timestamp, timestamp+1).map(e => e.getSrcVertex -> e.getDstVertex).toVector
+      val inEdges = bob.incomingEdges(timestamp, timestamp+1).map(e => e.getSrcVertex -> e.getDstVertex).toVector
+
+      assertEquals(outEdges, inEdges)
+    }
 
     // now remove it
     par.removeEdge(3, timestamp + 3, -1, 3, 7)
