@@ -621,7 +621,7 @@ public abstract class VertexIterator {
                         long edgeId = _vertexPartition._history.getEdgeIdByHistoryRowId(historyRowId);
 
                         //System.out.println("INDEX=" + _index + ", ROW=" + historyRowId + ", EDGE: " + edgeId);
-                        if (!_processedEdges.contains(edgeId)) {
+                        if (edgeId!=-1L && !_processedEdges.contains(edgeId)) {
                             _processedEdges.add(edgeId);
                             boolean alive = _vertexPartition._history.getIsAliveByHistoryRowId(historyRowId);
                             boolean isInteresting = isInteresting(historyRowId);
