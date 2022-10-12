@@ -5,21 +5,17 @@ import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.algorithms.generic.centrality.Degree
 import com.raphtory.algorithms.generic.centrality.PageRank
-import com.raphtory.algorithms.generic.motif.GlobalTriangleCount
-import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
-import com.raphtory.api.input.Graph
 import com.raphtory.api.input.Graph.assignID
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
 import com.raphtory.sinks.FileSink
 import com.raphtory.utils.FileUtils
-
 import scala.language.postfixOps
 
 object TutorialRunner extends App {
 
-  val graph = Raphtory.connect().newGraph()
+  val graph = Raphtory.remote("127.0.0.1", 1736).newGraph()
 
   val path = "/tmp/lotr.csv"
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"

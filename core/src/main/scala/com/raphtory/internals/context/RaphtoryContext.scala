@@ -1,34 +1,45 @@
 package com.raphtory.internals.context
 
+import cats.effect.IO
+import cats.effect.Resource
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.createName
+import com.raphtory.internals.communication.repositories.LocalTopicRepository
+import cats.effect.unsafe.implicits.global
+import com.raphtory.internals.management.Prometheus
+import com.raphtory.internals.management.QuerySender
+import com.raphtory.internals.management.Scheduler
+import com.raphtory.protocol.RaphtoryService
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
+import com.raphtory.internals.components.querymanager.Query
 
-import scala.collection.mutable
+class RaphtoryContext(serviceResource: Resource[IO, RaphtoryService[IO]], config: Config, local: Boolean = true) {
+  protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-abstract class RaphtoryContext {
+  def newGraph(graphID: String = createName): DeployedTemporalGraph = {
+    val qs = for {
+      _          <- Prometheus[IO](config.getInt("raphtory.prometheus.metrics.port"))
+      service    <- serviceResource
+      topicRepo  <- LocalTopicRepository[IO](config, None)
+      querySender = new QuerySender(graphID, service, new Scheduler(), topicRepo, config, createName)
+      _          <- Resource.eval(IO(querySender.establishGraph()))
+    } yield querySender
 
-  protected case class Metadata(
-      graphID: String,
-      conf: Config
-  )
+    val (querySender, shutdown) = qs.allocated.unsafeRunSync()
+    new DeployedTemporalGraph(Query(graphID = graphID), querySender, config, local, shutdown)
+  }
 
-  protected case class Deployment(metadata: Metadata, deployed: DeployedTemporalGraph)
+  def getGraph(graphID: String): DeployedTemporalGraph = {
+    val qs = for {
+      _          <- Prometheus[IO](config.getInt("raphtory.prometheus.metrics.port"))
+      service    <- serviceResource
+      topicRepo  <- LocalTopicRepository[IO](config, None)
+      querySender = new QuerySender(graphID, service, new Scheduler(), topicRepo, config, createName)
+    } yield querySender
 
-  private[raphtory] class GraphAlreadyDeployedException(message: String) extends Exception(message)
-
-  protected val logger: Logger                            = Logger(LoggerFactory.getLogger(this.getClass))
-  protected var services: mutable.Map[String, Deployment] = mutable.Map.empty[String, Deployment]
-
-  def newGraph(graphID: String = createName, customConfig: Map[String, Any] = Map()): DeployedTemporalGraph
-
-  def getGraph(graphID: String): Option[DeployedTemporalGraph] =
-    services.synchronized(services.get(graphID) match {
-      case Some(deployment) => Some(deployment.deployed)
-      case None             => None
-    })
-
-  def close(): Unit
+    val (querySender, shutdown) = qs.allocated.unsafeRunSync()
+    new DeployedTemporalGraph(Query(graphID = graphID), querySender, config, local, shutdown)
+  }
 }

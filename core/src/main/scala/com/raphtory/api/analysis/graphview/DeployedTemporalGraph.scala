@@ -30,14 +30,12 @@ class DeployedTemporalGraph private[raphtory] (
   def config: Config = conf
 
   def destroy(force: Boolean = false): Unit = {
-    if (!local)
-      querySender.destroyGraph(force)
+    querySender.destroyGraph(force)
     shutdown.unsafeRunSync()
   }
 
   override def close(): Unit = {
-    if (!local)
-      querySender.disconnect()
+    querySender.disconnect()
     shutdown.unsafeRunSync()
   }
 

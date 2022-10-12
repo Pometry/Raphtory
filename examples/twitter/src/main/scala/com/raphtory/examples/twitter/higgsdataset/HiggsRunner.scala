@@ -25,7 +25,7 @@ object HiggsRunner extends App {
   // Create Graph
   val spout  = FileSpout(path)
   val source = Source(spout, TwitterGraphBuilder)
-  val graph  = Raphtory.newGraph()
+  val graph  = Raphtory.local().newGraph()
   val output = FileSink("/tmp/higgsoutput")
 
   graph.load(source)

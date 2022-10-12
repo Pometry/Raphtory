@@ -3,6 +3,7 @@ package com.raphtory.examples.twitter.livetwitterstream
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.input.Source
+import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.raphtory.twitter.builder.TwitterRetweetGraphBuilder
 import com.raphtory.twitter.builder.TwitterUserGraphBuilder
 import com.raphtory.sinks.FileSink
@@ -11,7 +12,7 @@ import com.typesafe.config.Config
 
 object LiveTwitterRunner extends App {
 
-    val raphtoryConfig: Config = Raphtory.getDefaultConfig()
+    val raphtoryConfig: Config = ConfigBuilder().build().getConfig
     val enableRetweetGraphBuilder: Boolean =
       raphtoryConfig.getBoolean("raphtory.spout.twitter.local.enableRetweetFilter")
 
@@ -23,7 +24,7 @@ object LiveTwitterRunner extends App {
       Source(spout, TwitterRetweetGraphBuilder)
       else Source(spout, TwitterUserGraphBuilder)
     }
-    val graph  = Raphtory.newGraph()
+    val graph  = Raphtory.local().newGraph()
 
         graph.load(source)
 

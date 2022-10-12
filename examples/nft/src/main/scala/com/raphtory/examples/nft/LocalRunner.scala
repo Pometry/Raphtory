@@ -110,7 +110,7 @@ object LocalRunner extends App {
     )
   }
 
-  val graph = Raphtory.newGraph()
+  val graph = Raphtory.local().newGraph()
   val file = scala.io.Source.fromFile(path)
 
   file.getLines.foreach { line => addToGraph(graph, line) }

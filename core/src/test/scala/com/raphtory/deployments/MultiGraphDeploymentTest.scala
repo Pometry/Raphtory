@@ -7,7 +7,6 @@ import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.input.Source
 import com.raphtory.api.output.sink.Sink
-import com.raphtory.internals.context.LocalContext
 import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout

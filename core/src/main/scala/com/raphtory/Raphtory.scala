@@ -1,18 +1,10 @@
 package com.raphtory
 
 import cats.effect._
-import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.internals.components.RaphtoryServiceBuilder
-import com.raphtory.internals.context.LocalContext
 import com.raphtory.internals.context.RaphtoryContext
-import com.raphtory.internals.context.RemoteContext
-import com.raphtory.internals.management._
-import com.raphtory.internals.management.id.LocalIDManager
-import com.raphtory.internals.management.id.ZooKeeperCounter
-import com.raphtory.internals.management.id.ZookeeperLimitedPool
-import com.typesafe.config.Config
-
-import scala.collection.mutable.ArrayBuffer
+import com.raphtory.internals.management.GraphConfig.ConfigBuilder
+import cats.effect.unsafe.implicits.global
 
 /**  `Raphtory` object for creating Raphtory Components
   *
@@ -41,54 +33,32 @@ import scala.collection.mutable.ArrayBuffer
   */
 object Raphtory {
 
-//  def local(): RaphtoryContext = {
-//
-//  }
-//
-//  def remote(
-//              interface: String = defaultConfig.getString("raphtory.deploy.address"),
-//              port: Int = defaultConfig.getInt("raphtory.deploy.port")
-//            ): RaphtoryContext = {
-//
-//    val service =  RaphtoryServiceBuilder.client[IO](defaultConfig)
-//    new RaphtoryContext(service)
-//  }
+  private lazy val deployInterface = defaultConf.getString("raphtory.deploy.address")
+  private lazy val deployPort      = defaultConf.getInt("raphtory.deploy.port")
 
-  private val remoteConnections = ArrayBuffer[RemoteContext]()
+  private lazy val serviceLocal = {
+    val (serviceLocal, shutdown) = RaphtoryServiceBuilder.standalone[IO](defaultConf).allocated.unsafeRunSync()
 
-  def newGraph(graphID: String = createName, customConfig: Map[String, Any] = Map()): DeployedTemporalGraph =
-    LocalContext.newGraph(graphID, customConfig)
+    Runtime.getRuntime.addShutdownHook(new Thread() {
+      override def run(): Unit =
+        shutdown.unsafeRunSync()
+    })
 
-  def newIOGraph(
-      graphID: String = createName,
-      customConfig: Map[String, Any] = Map()
-  ): Resource[IO, DeployedTemporalGraph] = LocalContext.newIOGraph(graphID, customConfig)
-
-  def getGraph(graphID: String): Option[DeployedTemporalGraph] = LocalContext.getGraph(graphID)
-
-  def connect(address: String = "", port: Int = 0): RaphtoryContext = {
-    val context = new RemoteContext(address, port)
-    remoteConnections += context
-    context
+    serviceLocal
   }
 
-  def closeGraphs(): Unit      = LocalContext.close()
-  def closeConnections(): Unit = remoteConnections.foreach(_.close())
+  def local(): RaphtoryContext =
+    new RaphtoryContext(Resource.pure(serviceLocal), defaultConf, true)
 
-  private[raphtory] def makeLocalIdManager[IO[_]: Sync] =
-    Resource.eval(Sync[IO].delay(new LocalIDManager))
+  def remote(interface: String = deployInterface, port: Int = deployPort): RaphtoryContext = {
+    val config =
+      ConfigBuilder()
+        .addConfig("raphtory.deploy.address", interface)
+        .addConfig("raphtory.deploy.port", port)
+        .build()
+        .getConfig
 
-  private[raphtory] def makePartitionIDManager[IO[_]: Sync](config: Config) = {
-    val zookeeperAddress         = config.getString("raphtory.zookeeper.address")
-    val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
-    val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
-    val totalPartitions: Int     = partitionServers * partitionsPerServer
-    ZookeeperLimitedPool(zookeeperAddress, "partitionCount", poolSize = totalPartitions)
+    val service = RaphtoryServiceBuilder.client[IO](config)
+    new RaphtoryContext(service, config, false)
   }
-
-  private[raphtory] def makeSourceIDManager[IO[_]: Sync](config: Config) = { //Currently no reason to use as the head node is the authority
-    val zookeeperAddress = config.getString("raphtory.zookeeper.address")
-    ZooKeeperCounter(zookeeperAddress, "sourceCount")
-  }
-
 }

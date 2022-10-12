@@ -10,7 +10,6 @@ import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input._
 import com.raphtory.internals.context.RaphtoryContext
-import com.raphtory.internals.context.RemoteContext
 import com.raphtory.lotrtest.LOTRGraphBuilder
 import com.raphtory.spouts.FileSpout
 import com.raphtory.Raphtory

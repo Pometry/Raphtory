@@ -3,6 +3,7 @@ package com.raphtory.twitter.spout
 import com.raphtory.Raphtory
 import com.raphtory.api.input.Spout
 import com.raphtory.api.input.SpoutInstance
+import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import io.github.redouane59.twitter.IAPIEventListener
@@ -51,7 +52,7 @@ class LiveTwitterSpoutInstance() extends SpoutInstance[Tweet] {
 
 class LiveTwitterAddSpout(tweetQueue: ConcurrentLinkedQueue[Tweet]) {
   private val logger: Logger         = Logger(LoggerFactory.getLogger(this.getClass))
-  private val raphtoryConfig: Config = Raphtory.getDefaultConfig()
+  private val raphtoryConfig: Config = ConfigBuilder().build().getConfig
   private val hashtag: String        = raphtoryConfig.getString("raphtory.spout.twitter.local.hashtag")
   private val tag: String            = raphtoryConfig.getString("raphtory.spout.twitter.local.tag")
 

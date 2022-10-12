@@ -3,19 +3,11 @@ package com.raphtory.service
 import cats.effect.ExitCode
 import cats.effect.IO
 import cats.effect.IOApp
-import com.raphtory.Raphtory
-import com.raphtory.Raphtory.makePartitionIDManager
-import com.raphtory.internals.communication.connectors.AkkaConnector
-import com.raphtory.internals.communication.repositories.DistributedTopicRepository
-import com.raphtory.internals.components.partition.PartitionOrchestrator
-import com.raphtory.arrowmessaging.ArrowFlightServer
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.components.partition.PartitionOrchestrator
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
-import com.raphtory.internals.management._
-import com.raphtory.internals.management.arrow.ZKHostAddressProvider
-import org.apache.arrow.memory.RootAllocator
+import com.raphtory.makePartitionIDManager
 
 object PartitionService extends IOApp {
 

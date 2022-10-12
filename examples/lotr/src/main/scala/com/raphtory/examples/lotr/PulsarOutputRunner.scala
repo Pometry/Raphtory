@@ -22,7 +22,7 @@ object PulsarOutputRunner extends App {
 
   // Create Graph
   val source                       = FileSpout(path)
-  val graph: DeployedTemporalGraph = Raphtory.newGraph()
+  val graph: DeployedTemporalGraph = Raphtory.local().newGraph()
   graph.load(com.raphtory.api.input.Source(FileSpout(path.toString), LOTRGraphBuilder))
   Using(graph) { graph =>
     graph

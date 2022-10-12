@@ -18,7 +18,7 @@ object Runner extends App {
   FileUtils.curlFile(path, url)
   val spout: Spout[String] = FileSpout(path)
   val source               = Source(spout, GabUserGraphBuilder)
-  val rg                   = Raphtory.newGraph()
+  val rg                   = Raphtory.local().newGraph()
   rg.load(source)
 
   try {

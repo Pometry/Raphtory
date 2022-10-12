@@ -20,7 +20,7 @@ object CompaniesHouseRunner {
     val source = Source(FileSpout("/", regexPattern = "^.*\\.([jJ][sS][oO][nN]??)$", recurse = true), new CompanyToPscGraphBuilder())
     val output = FileSink("/", JsonFormat())
     val graph = {
-      Raphtory.newGraph()
+      Raphtory.local().newGraph()
     }
 
     graph.load(source)
