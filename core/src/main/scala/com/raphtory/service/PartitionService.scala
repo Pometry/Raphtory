@@ -12,14 +12,15 @@ import com.raphtory.arrowmessaging.ArrowFlightServer
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.components.partition.PartitionOrchestrator
-import com.raphtory.internals.management.{ConfigBuilder, ZookeeperConnector}
+import com.raphtory.internals.management.GraphConfig.ConfigBuilder
+import com.raphtory.internals.management._
 import com.raphtory.internals.management.arrow.ZKHostAddressProvider
 import org.apache.arrow.memory.RootAllocator
 
 object PartitionService extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = {
-    val config  = ConfigBuilder.build().getConfig
+    val config  = ConfigBuilder().build().getConfig
     val service = for {
       repo               <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, None)
       partitionIDManager <- makePartitionIDManager[IO](config)

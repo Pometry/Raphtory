@@ -9,7 +9,7 @@ import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import com.raphtory.internals.components.ingestion.IngestionManager
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManager
-import com.raphtory.internals.management.{ConfigBuilder, Prometheus, QuerySender, Scheduler, ZookeeperConnector}
+import com.raphtory.internals.management._
 import com.raphtory.{createName, protocol}
 import com.typesafe.config.Config
 import cats.effect.unsafe.implicits.global
@@ -22,6 +22,7 @@ import com.raphtory.arrowmessaging.ArrowFlightServer
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.components.RaphtoryServiceBuilder
 import com.raphtory.internals.components.partition.PartitionOrchestrator
+import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.raphtory.internals.management.arrow.LocalHostAddressProvider
 import com.raphtory.internals.management.arrow.ZKHostAddressProvider
 import org.apache.arrow.memory.RootAllocator
@@ -32,7 +33,7 @@ private[raphtory] object LocalContext extends RaphtoryContext {
 
   def newGraph(graphID: String = createName, customConfig: Map[String, Any] = Map()): DeployedTemporalGraph =
     services.synchronized {
-      val config                  = ConfigBuilder.build(customConfig).getConfig
+      val config                  = ConfigBuilder().build().getConfig
       val graph                   = deployService(graphID, config)
       services.get(graphID) match {
         case Some(_) =>
@@ -51,7 +52,7 @@ private[raphtory] object LocalContext extends RaphtoryContext {
       graphID: String = createName,
       customConfig: Map[String, Any] = Map()
   ): Resource[IO, DeployedTemporalGraph] = {
-    val config = ConfigBuilder.build(customConfig).getConfig
+    val config = ConfigBuilder().build().getConfig
     deployService(graphID, config).map { qs: QuerySender =>
       new DeployedTemporalGraph(Query(graphID = graphID), qs, config, local = true, shutdown = IO.unit)
     }

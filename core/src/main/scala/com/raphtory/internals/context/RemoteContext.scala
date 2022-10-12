@@ -5,28 +5,23 @@ import cats.effect.Resource
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import com.raphtory.internals.components.querymanager.Query
-import com.raphtory.internals.management.{ConfigBuilder, Prometheus, QuerySender, Scheduler}
+import com.raphtory.internals.management._
 import com.typesafe.config.Config
 import cats.effect.unsafe.implicits.global
 import com.raphtory.createName
 import com.raphtory.internals.components.RaphtoryServiceBuilder
+import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 
 import scala.collection.mutable
 
 class RemoteContext(address: String, port: Int) extends RaphtoryContext {
 
-  private def connectManaged(
-      graphID: String,
-      customConfig: Map[String, Any] = Map()
-  ): Resource[IO, (QuerySender, Config)] = {
-    val userParameters = List(
-            if (address.isEmpty) None else Some("raphtory.deploy.address", address),
-            if (port == 0) None else Some("raphtory.deploy.port", port)
-    ).collect {
-      case Some(tuple) => tuple
-    }.toMap
+  private def connectManaged(graphID: String): Resource[IO, (QuerySender, Config)] = {
+    val configBuilder = ConfigBuilder()
+    if (address.nonEmpty) configBuilder.addConfig("raphtory.deploy.address", address)
+    if (port != 0) configBuilder.addConfig("raphtory.deploy.port", port)
 
-    val config         = ConfigBuilder.build(userParameters ++ customConfig).getConfig
+    val config         = configBuilder.build().getConfig
     val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
     for {
       _          <- Prometheus[IO](prometheusPort)
@@ -40,7 +35,7 @@ class RemoteContext(address: String, port: Int) extends RaphtoryContext {
     services.synchronized(services.get(graphID) match {
       case Some(_) => throw new GraphAlreadyDeployedException(s"The graph '$graphID' already exists")
       case None    =>
-        val managed: IO[((QuerySender, Config), IO[Unit])] = connectManaged(graphID, customConfig).allocated
+        val managed: IO[((QuerySender, Config), IO[Unit])] = connectManaged(graphID).allocated
         val ((querySender, config), shutdown)              = managed.unsafeRunSync()
         val graph                                          = Metadata(graphID, config)
         val deployed                                       = new DeployedTemporalGraph(Query(graphID = graphID), querySender, config, local = false, shutdown)

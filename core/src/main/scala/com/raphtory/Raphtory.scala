@@ -2,6 +2,7 @@ package com.raphtory
 
 import cats.effect._
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
+import com.raphtory.internals.components.RaphtoryServiceBuilder
 import com.raphtory.internals.context.LocalContext
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.internals.context.RemoteContext
@@ -40,13 +41,18 @@ import scala.collection.mutable.ArrayBuffer
   */
 object Raphtory {
 
-  def local() = {
-
-  }
-
-  def remote() = {
-
-  }
+//  def local(): RaphtoryContext = {
+//
+//  }
+//
+//  def remote(
+//              interface: String = defaultConfig.getString("raphtory.deploy.address"),
+//              port: Int = defaultConfig.getInt("raphtory.deploy.port")
+//            ): RaphtoryContext = {
+//
+//    val service =  RaphtoryServiceBuilder.client[IO](defaultConfig)
+//    new RaphtoryContext(service)
+//  }
 
   private val remoteConnections = ArrayBuffer[RemoteContext]()
 
@@ -68,17 +74,6 @@ object Raphtory {
 
   def closeGraphs(): Unit      = LocalContext.close()
   def closeConnections(): Unit = remoteConnections.foreach(_.close())
-
-  /** Returns a default config using `ConfigFactory` for initialising parameters for
-    * running Raphtory components. This uses the default application parameters
-    *
-    * @param customConfig Custom configuration for the deployment
-    * @param distributed Whether the deployment is distributed or not
-    * @return An immutable config object
-    */
-  def getDefaultConfig(
-      customConfig: Map[String, Any] = Map()
-  ): Config = ConfigBuilder.build().getConfig
 
   private[raphtory] def makeLocalIdManager[IO[_]: Sync] =
     Resource.eval(Sync[IO].delay(new LocalIDManager))
