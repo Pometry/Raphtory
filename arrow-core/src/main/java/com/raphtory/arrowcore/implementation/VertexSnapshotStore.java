@@ -1,3 +1,9 @@
+/* Copyright (C) Pometry Ltd - All Rights Reserved.
+ *
+ * This file is proprietary and confidential. Unauthorised
+ * copying of this file, via any medium is strictly prohibited.
+ *
+ */
 package com.raphtory.arrowcore.implementation;
 
 import org.apache.arrow.vector.BigIntVector;

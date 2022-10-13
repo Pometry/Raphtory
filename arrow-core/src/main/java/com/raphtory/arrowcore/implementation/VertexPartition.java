@@ -485,15 +485,16 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
      * @param srcVertexId the vertex in question
      * @param edgeId the new edge to add
      * @param dstVertexId the dst vertex for this edge
+     * @param dstIsGlobal true if the dest vertex id is global, false otherwise
      *
      * @return the previous head of the outgoing list of edges
      */
-    public synchronized long addOutgoingEdgeToList(long srcVertexId, long edgeId, long dstVertexId) {
+    public synchronized long addOutgoingEdgeToList(long srcVertexId, long edgeId, long dstVertexId, boolean dstIsGlobal) {
         int row = _apm.getRowId(srcVertexId);
         long prev = _store._outgoingEdges.get(row);
         _store._outgoingEdges.set(row, edgeId);
         _store._nOutgoingEdges.set(row, _store._nOutgoingEdges.get(row)+1);
-        _edgeIndex.addEdgeIndexRecord(row, dstVertexId, edgeId);
+        _edgeIndex.addEdgeIndexRecord(row, dstVertexId, edgeId, dstIsGlobal);
         _modified = true;
         return prev;
     }
