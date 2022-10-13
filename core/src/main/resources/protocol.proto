@@ -62,9 +62,14 @@ message DestroyGraph {
   bool force = 3;
 }
 
+message GetGraph {
+  string graphID = 1;
+}
+
 // Service
 service RaphtoryService {
   rpc establishGraph(ClientGraphId) returns (Status);
+  rpc getGraph(GetGraph) returns (Status);
   rpc submitQuery(Query) returns (stream QueryManagement);
   rpc submitSource(IngestData) returns (Status);
   rpc disconnect(ClientGraphId) returns (Status);

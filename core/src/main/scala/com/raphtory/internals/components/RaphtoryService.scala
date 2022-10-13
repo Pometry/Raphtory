@@ -17,11 +17,7 @@ import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.management.Partitioner
 import com.raphtory.internals.management.id.IDManager
 import com.raphtory.{makeLocalIdManager, protocol}
-import com.raphtory.protocol.ClientGraphId
-import com.raphtory.protocol.IdPool
-import com.raphtory.protocol.OptionalId
-import com.raphtory.protocol.RaphtoryService
-import com.raphtory.protocol.Status
+import com.raphtory.protocol.{ClientGraphId, GetGraph, IdPool, OptionalId, RaphtoryService, Status}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import fs2.Stream
@@ -116,6 +112,8 @@ class DefaultRaphtoryService[F[_]](idManager: IDManager, repo: TopicRepository, 
           _       <- F.delay(blockingIngestion(graphId) sendAsync message)
         } yield success
     }
+
+  override def getGraph(req: GetGraph): F[Status] = Async[F].pure(Status(success = true))
 }
 
 object RaphtoryServiceBuilder {
