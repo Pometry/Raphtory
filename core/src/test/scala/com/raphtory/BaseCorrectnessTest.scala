@@ -5,10 +5,8 @@ import com.raphtory.api.analysis.algorithm.GenericallyApplicable
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
-import com.raphtory.api.input.Graph
-import com.raphtory.api.input.GraphBuilder
-import com.raphtory.api.input.Source
-import com.raphtory.api.input.Spout
+import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.api.input.{Graph, GraphBuilder, Source, Spout}
 import com.raphtory.spouts.IdentitySpout
 import com.raphtory.spouts.ResourceSpout
 import com.raphtory.spouts.SequenceSpout
@@ -21,11 +19,14 @@ case class TestQuery(
     windows: List[Long] = List.empty[Long]
 )
 
-trait Edges extends Spout[String]
+case class Edges(source: Source)
 
 object Edges {
-  implicit def edgesFromResource(resource: String)  = new ResourceSpout(resource) with Edges
-  implicit def edgesFromEdgeSeq(edges: Seq[String]) = new SequenceSpout(edges) with Edges
+  implicit def edgesFromResource(resource: String): Edges  = Edges(CSVEdgeListSource.fromResource(resource))
+  implicit def edgesFromSource(source: Source): Edges  = Edges(source)
+  implicit def sourceFromEdges(edges: Edges): Source  = edges.source
+
+  implicit def edgesFromEdgeSeq(edges: Seq[String]): Edges = Edges(CSVEdgeListSource(SequenceSpout(edges: _*)))
 }
 
 trait Result
@@ -49,7 +50,6 @@ abstract class BaseCorrectnessTest(
   private def normaliseResults(value: IterableOnce[String]) =
     value.iterator.toList.sorted.mkString("\n")
 
-  override def setGraphBuilder(): GraphBuilder[String] = BasicGraphBuilder
 
   def setSpout(): Spout[String] = new IdentitySpout
 
@@ -66,14 +66,15 @@ abstract class BaseCorrectnessTest(
       test: TestQuery,
       graphEdges: Edges,
       resultsResource: String
-  ): IO[Unit] =
+  ): IO[Unit] = {
     Raphtory
       .newIOGraph()
       .use { g =>
-        g.load(Source(graphEdges, setGraphBuilder()))
+        g.load(graphEdges)
         runTest(test, g)
       }
       .map(obtained => assertResultsMatch(obtained, resultsResource))
+  }
 
   def correctnessTest(
       test: TestQuery,
@@ -83,7 +84,7 @@ abstract class BaseCorrectnessTest(
     Raphtory
       .newIOGraph()
       .use { g =>
-        g.load(Source(graphEdges, setGraphBuilder()))
+        g.load(graphEdges)
         runTest(test, g)
       }
       .map(obtained => assertResultsMatch(obtained, results))

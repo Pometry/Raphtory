@@ -1,11 +1,9 @@
 package com.raphtory.api.input
 
-import com.raphtory.Raphtory
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphBuilderInstance
 import com.twitter.chill.ClosureCleaner
-//import com.raphtory.internals.graph.GraphBuilder
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
@@ -14,15 +12,15 @@ trait Source {
   def spout: Spout[MessageType]
   def builder: GraphBuilder[MessageType]
 
-  def buildSource(graphID: String, id: Int): SourceInstance[MessageType]
   def getBuilderClass: Class[_] = builder.getClass
+
+  def buildSource(graphID: String, id: Int): SourceInstance[MessageType] =
+    new SourceInstance[MessageType](id, spout.buildSpout(), builder.buildInstance(graphID, id))
 }
 
 class ConcreteSource[T](override val spout: Spout[T], override val builder: GraphBuilder[T]) extends Source {
   override type MessageType = T
 
-  def buildSource(graphID: String, id: Int): SourceInstance[T] =
-    new SourceInstance[T](id, spout.buildSpout(), builder.buildInstance(graphID, id))
 }
 
 class SourceInstance[T](id: Int, spoutInstance: SpoutInstance[T], builderInstance: GraphBuilderInstance[T]) {
@@ -58,4 +56,5 @@ object Source {
 
   def apply[T](spout: Spout[T], builder: GraphBuilder[T]): Source =
     new ConcreteSource(spout, ClosureCleaner.clean(builder))
+
 }

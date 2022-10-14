@@ -14,9 +14,8 @@ import com.raphtory.algorithms.generic.motif.LocalTriangleCount
 import com.raphtory.algorithms.temporal.Ancestors
 import com.raphtory.algorithms.temporal.Descendants
 import com.raphtory.algorithms.temporal.dynamic.GenericTaint
-import com.raphtory.api.input.Graph
-import com.raphtory.api.input.Spout
-import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.api.input.{Graph, GraphBuilder, Source, Spout}
 import com.raphtory.spouts.FileSpout
 
 import java.net.URL
@@ -223,8 +222,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
   override def liftFileIfNotPresent: Option[(String, URL)] =
     Some(tmpFilePath, new URL("https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"))
 
-  override def setSpout(): Spout[String] = FileSpout(tmpFilePath)
+  override def setSource(): Source = CSVEdgeListSource.fromFile(tmpFilePath)
 
-  override def setGraphBuilder(): GraphBuilder[String] = LOTRGraphBuilder
 
 }

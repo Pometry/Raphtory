@@ -5,7 +5,10 @@ import cats.effect.IO
 import cats.effect.IOApp
 import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
-import com.raphtory.api.input.Source
+import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.spouts.FileSpout
+
+import java.net.URL
 
 /**
   * Tests the AWS S3 Spout and Sink, requires bucket name and bucket path that you would like to ingest.
@@ -23,7 +26,7 @@ object AwsSpoutTest extends IOApp {
 
     val spout  = AwsS3Spout(awsS3SpoutBucketName, awsS3SpoutBucketKey)
     val output = AwsS3Sink(awsS3OutputFormatBucketName)
-    val source = Source(spout, LotrGraphBuilder)
+    val source = CSVEdgeListSource(spout)
     val graph  = Raphtory.newIOGraph()
 
     graph.use { graph =>
