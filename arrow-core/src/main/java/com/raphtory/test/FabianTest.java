@@ -166,7 +166,8 @@ public class FabianTest {
         _rap.getEdgeMgr().addHistory(e.getLocalId(), time, true, true);
 
         VertexPartition  p = _rap.getVertexMgr().getPartition(_rap.getVertexMgr().getPartitionId(src.getLocalId()));
-        _rap.getEdgeMgr().setOutgoingEdgePtr(e.getLocalId(), p.addOutgoingEdgeToList(e.getSrcVertex(), e.getLocalId(), e.getDstVertex()));
+        _rap.getEdgeMgr().setOutgoingEdgePtr(e.getLocalId(), p.addOutgoingEdgeToList(e.getSrcVertex(), e.getLocalId(), e.getDstVertex(), e.isDstGlobal()));
+//        _rap.getEdgeMgr().setOutgoingEdgePtr(e.getLocalId(), p.addOutgoingEdgeToList(e.getSrcVertex(), e.getLocalId(), e.getDstVertex()));
         p.addHistory(src.getLocalId(), time, true, false, e.getLocalId(), true);
     }
 
@@ -179,7 +180,8 @@ public class FabianTest {
         _rap.getEdgeMgr().addHistory(e.getLocalId(), time, true, true);
 
         VertexPartition p = _rap.getVertexMgr().getPartition(_rap.getVertexMgr().getPartitionId(src.getLocalId()));
-        _rap.getEdgeMgr().setOutgoingEdgePtr(e.getLocalId(), p.addOutgoingEdgeToList(e.getSrcVertex(), e.getLocalId(), e.getDstVertex()));
+        _rap.getEdgeMgr().setOutgoingEdgePtr(e.getLocalId(), p.addOutgoingEdgeToList(e.getSrcVertex(), e.getLocalId(), e.getDstVertex(), e.isDstGlobal()));
+//        _rap.getEdgeMgr().setOutgoingEdgePtr(e.getLocalId(), p.addOutgoingEdgeToList(e.getSrcVertex(), e.getLocalId(), e.getDstVertex()));
         p.addHistory(src.getLocalId(), time, true, false, e.getLocalId(), true);
 
         p = _rap.getVertexMgr().getPartition(_rap.getVertexMgr().getPartitionId(dst.getLocalId()));

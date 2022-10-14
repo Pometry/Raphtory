@@ -106,9 +106,9 @@ package object arrow {
         new ArrowPartition.EdgesIterator(edgesIter)
       }
 
-    def outgoingEdges(dst: Long): View[Edge] =
+    def outgoingEdges(dst: Long, isDstGlobal: Boolean): View[Edge] =
       View.fromIteratorProvider { () =>
-        new ArrowPartition.MatchingEdgesIterator(v.findAllOutgoingEdges(dst))
+        new ArrowPartition.MatchingEdgesIterator(v.findAllOutgoingEdges(dst, isDstGlobal))
       }
   }
 

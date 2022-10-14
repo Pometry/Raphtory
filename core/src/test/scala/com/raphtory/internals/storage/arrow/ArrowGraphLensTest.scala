@@ -81,7 +81,7 @@ class ArrowGraphLensTest extends FunSuite {
     }
   }
 
-  test("edges over windowed iterator with Long.Min Long.Max should be the same as min(t),max(t) iterator".only) {
+  test("edges over windowed iterator with Long.Min Long.Max should be the same as min(t),max(t) iterator") {
 
     Using(mockCluster()) { cluster =>
       data.foreach {

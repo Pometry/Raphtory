@@ -270,7 +270,8 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     par.getEdgeMgr.addHistory(e.getLocalId, time, true, true)
     val p = partitionFromVertex(src)
     par.getEdgeMgr
-      .setOutgoingEdgePtr(e.getLocalId, p.addOutgoingEdgeToList(e.getSrcVertex, e.getLocalId, e.getDstVertex))
+      .setOutgoingEdgePtr(e.getLocalId, p.addOutgoingEdgeToList(e.getSrcVertex, e.getLocalId, e.getDstVertex, e.isDstGlobal))
+//      .setOutgoingEdgePtr(e.getLocalId, p.addOutgoingEdgeToList(e.getSrcVertex, e.getLocalId, e.getDstVertex))
     p.addHistory(src.getLocalId, time, true, false, e.getLocalId, true)
   }
 
@@ -284,7 +285,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     par.getEdgeMgr.addHistory(e.getLocalId, time, true, true)
     var p = partitionFromVertex(src)
     par.getEdgeMgr
-      .setOutgoingEdgePtr(e.getLocalId, p.addOutgoingEdgeToList(e.getSrcVertex, e.getLocalId, e.getDstVertex))
+      .setOutgoingEdgePtr(e.getLocalId, p.addOutgoingEdgeToList(e.getSrcVertex, e.getLocalId, e.getDstVertex, e.isDstGlobal))
     p.addHistory(src.getLocalId, time, true, false, e.getLocalId, true)
     p = partitionFromVertex(dst)
     par.getEdgeMgr.setIncomingEdgePtr(e.getLocalId, p.addIncomingEdgeToList(e.getDstVertex, e.getLocalId))
@@ -412,7 +413,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
 
     val v = vmgr.getVertex(src.id)
 
-    val edgeFound = v.outgoingEdges(dst.id).foldLeft(false) { (updated, e) =>
+    val edgeFound = v.outgoingEdges(dst.id, dst.isGlobal).foldLeft(false) { (updated, e) =>
       emgr.addHistory(e.getLocalId, msgTime, false, false)
       true // we found at least one edge and changed it
     }

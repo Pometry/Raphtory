@@ -161,7 +161,7 @@ class ArrowStorageSuite extends munit.FunSuite {
       val p = vmgr.getPartition(vmgr.getPartitionId(src.id))
 
       val prevListPtr = p.synchronized {
-        val ptr = p.addOutgoingEdgeToList(src.id, e.getLocalId, dst.id)
+        val ptr = p.addOutgoingEdgeToList(src.id, e.getLocalId, dst.id, dst.isGlobal)
         p.addHistory(src.id, timestamp, true, false, e.getLocalId, true)
         ptr
       }
@@ -466,7 +466,7 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   }
 
-  test("add edge between the same vertex".only) {
+  test("add edge between the same vertex") {
 
     val par: ArrowPartition = mkPartition(1, 0)
     val timestamp           = System.currentTimeMillis()
