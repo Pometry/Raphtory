@@ -5,11 +5,11 @@ import com.raphtory.TestQuery
 import com.raphtory.algorithms.filters.VertexFilter
 import com.raphtory.algorithms.generic.VertexHistogram
 import com.raphtory.algorithms.generic.centrality.Degree
-import com.raphtory.api.input.Spout
+import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.api.input.{Source, Spout}
 import com.raphtory.spouts.ResourceSpout
 
 class HistogramTest extends BaseCorrectnessTest {
-  override def setSpout(): Spout[String] = ResourceSpout("MotifCount/motiftest.csv")
 
   test("Histogram Test on in-degree") {
     correctnessTest(
@@ -32,4 +32,5 @@ class HistogramTest extends BaseCorrectnessTest {
     )
   }
 
+  override def setSource(): Source = CSVEdgeListSource(ResourceSpout("MotifCount/motiftest.csv"))
 }

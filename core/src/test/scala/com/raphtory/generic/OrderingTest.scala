@@ -1,7 +1,6 @@
 package com.raphtory.generic
 
 import com.raphtory.BaseCorrectnessTest
-import com.raphtory.BasicGraphBuilder
 import com.raphtory.Raphtory
 import com.raphtory.TestQuery
 import com.raphtory.algorithms.generic.NodeList
@@ -10,12 +9,13 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.HistoricEvent
+import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.api.input.{Source, Spout}
 import com.raphtory.generic.CheckHistory.isSortedIncreasing
 import com.raphtory.internals.storage.pojograph.OrderedBuffer
 import com.raphtory.spouts.SequenceSpout
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.io.Source
 import scala.util.Random
 import scala.math.Ordering.Implicits._
 import scala.reflect.ClassTag
@@ -57,15 +57,19 @@ object CheckHistory {
 }
 
 class OrderingTest extends BaseCorrectnessTest {
+  val edges: IndexedSeq[String] =
+    for (i <- 0 until 100)
+      yield s"${Random.nextInt(10)},${Random.nextInt(10)},${Random.nextInt(100)}"
+
+  val max_time = edges.map(_.split(",").apply(2).toInt).max
+
   test("test history is sorted") {
-    val edges    =
-      for (i <- 0 until 100)
-        yield s"${Random.nextInt(10)},${Random.nextInt(10)},${Random.nextInt(100)}"
-    val max_time = edges.map(_.split(",").apply(2).toInt).max
     correctnessTest(
-            TestQuery(CheckHistory(), max_time),
-            edges,
-            Seq(s"$max_time,true,true")
+    TestQuery(CheckHistory(), max_time),
+    Seq(s"$max_time,true,true")
     )
   }
+
+
+  override def setSource(): Source = CSVEdgeListSource(SequenceSpout(edges: _*))
 }

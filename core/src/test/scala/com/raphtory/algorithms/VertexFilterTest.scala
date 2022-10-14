@@ -9,6 +9,9 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
+import com.raphtory.api.input
+import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.spouts.ResourceSpout
 
 import scala.io.Source
 import scala.util.Using
@@ -43,4 +46,6 @@ class VertexFilterTest extends BaseCorrectnessTest {
             res
     )
   }
+
+  override def setSource() = CSVEdgeListSource(ResourceSpout("MotifCount/motiftest.csv"))
 }

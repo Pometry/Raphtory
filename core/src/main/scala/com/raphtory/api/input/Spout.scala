@@ -1,5 +1,6 @@
 package com.raphtory.api.input
 
+import com.raphtory.spouts.FileSpout
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
