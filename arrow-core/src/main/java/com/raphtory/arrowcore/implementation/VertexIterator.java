@@ -149,13 +149,17 @@ public abstract class VertexIterator {
      * Resets this iterator - repositioning it at the specified vertex.
      *
      * @param vertexId the vertex-id to move to
+     *
+     * @return true if the specified vertex exists, false otherwise
      */
-    public void reset(long vertexId) {
+    public boolean reset(long vertexId) {
         _vertexId = vertexId;
         _vertexRowId = _avpm.getRowId(vertexId);
         _p = _avpm.getPartition(_avpm.getPartitionId(vertexId));
-        _hasNext = _vertexId!=-1L && _p!=null;
+        _hasNext = _vertexId!=-1L && _p!=null && _p.isValidRow(_vertexRowId);
         _getNext = false;
+
+        return _hasNext;
     }
 
 
@@ -388,12 +392,6 @@ public abstract class VertexIterator {
             _getNextPartition = true;
         }
 
-
-
-        @Override
-        public void reset(long id) {
-            super.reset(id);
-        }
 
 
         /**

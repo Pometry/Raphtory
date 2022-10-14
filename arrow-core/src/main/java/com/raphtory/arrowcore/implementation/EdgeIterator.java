@@ -97,13 +97,17 @@ public abstract class EdgeIterator {
      * Resets this iterator - repositioning it at the specified edge.
      *
      * @param edgeId the edge-id to move to
+     *
+     * @return true if the specified edge exists, false otherwise
      */
-    public void reset(long edgeId) {
+    public boolean reset(long edgeId) {
         _edgeId = edgeId;
         _edgeRowId = _aepm.getRowId(edgeId);
         _edgePartition = _aepm.getPartition(_aepm.getPartitionId(edgeId));
-        _hasNext = _edgeId!=-1L && _edgePartition!=null;
+        _hasNext = _edgeId!=-1L && _edgePartition!=null && _edgePartition.isValidRow(_edgeRowId);
         _getNext = false;
+
+        return _hasNext;
     }
 
 
@@ -550,11 +554,19 @@ public abstract class EdgeIterator {
          * Resets this iterator - repositioning it at the specified edge.
          *
          * @param edgeId the edge-id to move to
+         *
+         * @return true if the specified edge exists, false otherwise
          */
         @Override
-        public void reset(long edgeId) {
-            super.reset(edgeId);
-            _partitionId = _edgePartition!=null ? _edgePartition._partitionId : -1;
+        public boolean reset(long edgeId) {
+            if (super.reset(edgeId)) {
+                _partitionId = _edgePartition._partitionId;
+                return true;
+            }
+            else {
+                _partitionId = -1;
+                return false;
+            }
         }
 
 
