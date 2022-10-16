@@ -15,7 +15,7 @@ import scala.language.postfixOps
 
 object TutorialRunner extends App {
 
-  Raphtory.local().runWithGraph() {
+  Raphtory.local().runWithNewGraph(destory = true) {
     graph =>
 
     val path = "/tmp/lotr.csv"

@@ -16,26 +16,22 @@ object Runner extends App {
   val path                 = "/tmp/gabNetwork500.csv"
   val url                  = "https://raw.githubusercontent.com/Raphtory/Data/main/gabNetwork500.csv"
   FileUtils.curlFile(path, url)
-  val spout: Spout[String] = FileSpout(path)
-  val source               = Source(spout, GabUserGraphBuilder)
-  val rg                   = Raphtory.local().newGraph()
-  rg.load(source)
 
-  try {
-
-    rg.at(1476113856000L)
+  Raphtory.local().runWithNewGraph() { graph =>
+    val source = Source(FileSpout(path), GabUserGraphBuilder)
+    graph.load(source)
+    graph
+      .at(1476113856000L)
       .past()
       .execute(EdgeList())
       .writeTo(PulsarSink("EdgeList"))
       .waitForJob()
 
-    rg.range(1470797917000L, 1476113856000L, 86400000L)
+    graph
+      .range(1470797917000L, 1476113856000L, 86400000L)
       .window(List(3600000L, 86400000L, 604800000L, 2592000000L, 31536000000L), Alignment.END)
       .execute(ConnectedComponents)
       .writeTo(PulsarSink("Gab"))
       .waitForJob()
-
   }
-  finally rg.close()
-
 }

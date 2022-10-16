@@ -12,31 +12,28 @@ import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
 
 /**
- * This Runner runs PageRank, chained with MemberRank and TemporalMemberRank which are two custom written algorithms
- * to find potential bot activity in the Higgs Twitter data.
- *
- */
+  * This Runner runs PageRank, chained with MemberRank and TemporalMemberRank which are two custom written algorithms
+  * to find potential bot activity in the Higgs Twitter data.
+  */
 object HiggsRunner extends App {
 
   val path = "/tmp/higgs-retweet-activity.csv"
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/higgs-retweet-activity.csv"
   FileUtils.curlFile(path, url)
 
-  // Create Graph
-  val spout  = FileSpout(path)
-  val source = Source(spout, TwitterGraphBuilder)
-  val graph  = Raphtory.local().newGraph()
-  val output = FileSink("/tmp/higgsoutput")
+  Raphtory.local().runWithNewGraph() { graph =>
+    val spout  = FileSpout(path)
+    val source = Source(spout, TwitterGraphBuilder)
+    val output = FileSink("/tmp/higgsoutput")
 
-  graph.load(source)
-
-  //get simple metrics
+    graph.load(source)
+    //get simple metrics
     graph
       .execute(Degree())
       .writeTo(output)
       .waitForJob()
 
-  //Chained Algorithm Example
+    //Chained Algorithm Example
     graph
       .at(1341705593)
       .past()
@@ -45,6 +42,5 @@ object HiggsRunner extends App {
       .execute(TemporalMemberRank())
       .writeTo(output)
       .waitForJob()
-
-  graph.close()
+  }
 }

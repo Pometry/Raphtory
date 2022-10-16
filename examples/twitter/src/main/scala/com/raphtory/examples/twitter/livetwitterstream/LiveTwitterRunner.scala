@@ -12,28 +12,27 @@ import com.typesafe.config.Config
 
 object LiveTwitterRunner extends App {
 
-    val raphtoryConfig: Config = ConfigBuilder().build().getConfig
+  Raphtory.local().runWithNewGraph() { graph =>
+    val raphtoryConfig: Config             = ConfigBuilder().build().getConfig
     val enableRetweetGraphBuilder: Boolean =
       raphtoryConfig.getBoolean("raphtory.spout.twitter.local.enableRetweetFilter")
 
-    val spout   = LiveTwitterSpout()
-    val output  = FileSink("/tmp/liveTwitterStream")
+    val spout  = LiveTwitterSpout()
+    val output = FileSink("/tmp/liveTwitterStream")
 
     val source = {
       if (enableRetweetGraphBuilder)
-      Source(spout, TwitterRetweetGraphBuilder)
+        Source(spout, TwitterRetweetGraphBuilder)
       else Source(spout, TwitterUserGraphBuilder)
     }
-    val graph  = Raphtory.local().newGraph()
 
-        graph.load(source)
+    graph.load(source)
 
-        graph
-          .walk("10 milliseconds")
-          .window("10 milliseconds")
-          .execute(EdgeList())
-          .writeTo(output)
-          .waitForJob()
-
-        graph.close()
+    graph
+      .walk("10 milliseconds")
+      .window("10 milliseconds")
+      .execute(EdgeList())
+      .writeTo(output)
+      .waitForJob()
+  }
 }

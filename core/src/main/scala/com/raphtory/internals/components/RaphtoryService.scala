@@ -114,7 +114,7 @@ class DefaultRaphtoryService[F[_]](idManager: IDManager, repo: TopicRepository, 
     }
 
   // TODO: Needs to be fixed after Pedros ingestion changes
-  override def getGraph(req: GetGraph): F[Status] = Async[F].pure(Status(success = true))
+  override def getGraph(req: GetGraph): F[Status] = Async[F].pure(Status(success = false))
 }
 
 object RaphtoryServiceBuilder {
