@@ -3,9 +3,10 @@ package com.raphtory.internals.context
 import cats.effect.IO
 import cats.effect.Resource
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
-import com.raphtory.createName
+import com.raphtory._
 import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import cats.effect.unsafe.implicits.global
+import com.raphtory.internals.components.RaphtoryServiceBuilder
 import com.raphtory.internals.management.Prometheus
 import com.raphtory.internals.management.QuerySender
 import com.raphtory.internals.management.Scheduler
@@ -15,7 +16,7 @@ import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.context.GraphException._
-import com.raphtory.protocol
+import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 
 class RaphtoryContext(serviceResource: Resource[IO, RaphtoryService[IO]], config: Config, local: Boolean = true) {
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
@@ -74,6 +75,40 @@ class RaphtoryContext(serviceResource: Resource[IO, RaphtoryService[IO]], config
   }
 
   def destroyGraph(graphID: String): Unit = runWithGraph(graphID, destory = true) { _ => }
+}
+
+object RaphtoryContext {
+  private lazy val deployInterface = defaultConf.getString("raphtory.deploy.address")
+  private lazy val deployPort      = defaultConf.getInt("raphtory.deploy.port")
+
+  class RaphtoryContextBuilder {
+
+    final def local(): (Resource[IO, RaphtoryService[IO]], RaphtoryContext) = {
+      val service = RaphtoryServiceBuilder.standalone[IO](defaultConf)
+      val ctx     = new RaphtoryContext(service, defaultConf, true)
+      (service, ctx)
+    }
+
+    final def remote(
+        interface: String = deployInterface,
+        port: Int = deployPort
+    ): (Resource[IO, RaphtoryService[IO]], RaphtoryContext) = {
+      val config =
+        ConfigBuilder()
+          .addConfig("raphtory.deploy.address", interface)
+          .addConfig("raphtory.deploy.port", port)
+          .build()
+          .getConfig
+
+      val service = RaphtoryServiceBuilder.client[IO](config)
+      val ctx     = new RaphtoryContext(service, config, false)
+      (service, ctx)
+    }
+  }
+
+  object RaphtoryContextBuilder {
+    def apply(): RaphtoryContextBuilder = new RaphtoryContextBuilder()
+  }
 }
 
 object GraphException {
