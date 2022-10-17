@@ -11,12 +11,15 @@ import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input._
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.lotrtest.LOTRGraphBuilder
+import com.raphtory.internals.context.RemoteContext
 import com.raphtory.spouts.FileSpout
 import com.raphtory.Raphtory
 import com.raphtory.TestUtils
 import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.sinks.PrintSink
 import com.typesafe.scalalogging.Logger
+import com.raphtory.api.input.sources.CSVEdgeListSource
 import munit.CatsEffectSuite
 import org.slf4j.LoggerFactory
 import test.raphtory.algorithms.MaxFlowTest
@@ -139,7 +142,7 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
             _      <- TestUtils.manageTestFile(
                               Some("/tmp/lotr.csv", new URL("https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"))
                       )
-            source <- Resource.pure(Source(FileSpout("/tmp/lotr.csv"), LOTRGraphBuilder))
+            source <- Resource.pure(CSVEdgeListSource(FileSpout("/tmp/lotr.csv")))
           } yield source
   )
 
