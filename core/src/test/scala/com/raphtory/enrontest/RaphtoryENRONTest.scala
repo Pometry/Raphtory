@@ -12,9 +12,10 @@ import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 
 class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
+  val sink: FileSink = FileSink(outputDirectory)
   test("Graph State Test".ignore) {
     run { graph =>
-      val sink: FileSink = FileSink(outputDirectory)
+      graph.load(setSource())
       graph
         .walk(10000)
         .past()
@@ -25,8 +26,9 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
   }
 
   test("Connected Components Test") {
+    val sink: FileSink = FileSink(outputDirectory)
     run { graph =>
-      val sink: FileSink = FileSink(outputDirectory)
+      graph.load(setSource())
       graph
         .range(1, 32674, 10000)
         .window(List(500, 1000, 10000))

@@ -90,7 +90,7 @@ class AccumulatorTest extends BaseCorrectnessTest {
     ).map { res =>
       if (res.nonEmpty) {
         val t = res.split(",")
-        assertEquals(t(t.size - 1), "true")
+        assertEquals(t(t.size - 1), "a953f8b23595e09361306f8f938b6107bf602d265e305af009d97b410c2ac6eb")
       }
     }
   }

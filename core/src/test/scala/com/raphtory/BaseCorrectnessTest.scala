@@ -56,7 +56,7 @@ abstract class BaseCorrectnessTest(
   def setSpout(): Spout[String] = new IdentitySpout
 
   def assertResultsMatch(obtained: IterableOnce[String], resultsResource: String): Unit = {
-    val source = scala.io.Source.fromIterable(resultsResource)
+    val source = scala.io.Source.fromResource(resultsResource)
     try assertResultsMatch(obtained, source.getLines())
     finally source.close()
   }

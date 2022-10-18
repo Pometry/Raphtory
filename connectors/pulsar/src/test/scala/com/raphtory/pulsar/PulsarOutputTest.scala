@@ -22,7 +22,7 @@ import scala.language.postfixOps
 
 class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFinish = false) {
 
-  test("Outputting to Pulsar") {
+  test("Outputting to Pulsar".ignore) {
     val out = for {
       _          <- TestUtils.manageTestFile(liftFileIfNotPresent)
       ctxBuilder <- Resource.fromAutoCloseable(IO.delay(RaphtoryContextBuilder()))
