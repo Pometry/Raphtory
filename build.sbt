@@ -1,12 +1,12 @@
 import sbt.Compile
 import sbt.Keys.baseDirectory
 import Dependencies._
+import Version._
 import higherkindness.mu.rpc.srcgen.Model._
 
 import scala.io.Source
 
-val raphtoryVersion = Source.fromFile("version").getLines.next()
-ThisBuild / scalaVersion := "2.13.7"
+ThisBuild / scalaVersion := raphtoryScalaVersion
 ThisBuild / version := raphtoryVersion
 ThisBuild / organization := "com.raphtory"
 ThisBuild / organizationName := "raphtory"
@@ -73,6 +73,7 @@ lazy val root = (project in file("."))
   .enablePlugins(OsDetectorPlugin)
   .aggregate(
           arrowMessaging,
+          arrowCore,
           core,
           connectorsAWS,
           connectorsTwitter,
@@ -95,6 +96,9 @@ lazy val root = (project in file("."))
 
 lazy val arrowMessaging =
   (project in file("arrow-messaging")).settings(assemblySettings)
+
+lazy val arrowCore =
+  (project in file("arrow-core")).settings(assemblySettings)
 
 lazy val core = (project in file("core"))
   .settings(
@@ -137,6 +141,7 @@ lazy val core = (project in file("core"))
                   py4j,
                   scalaLogging,
                   scalaParallelCollections,
+                  scalaPb,
                   scalaTest,
                   scalaTestCompile,
                   slf4j,
@@ -160,7 +165,7 @@ lazy val core = (project in file("core"))
           // Make it easy for 3rd-party clients to communicate with us via gRPC
           muSrcGenIdiomaticEndpoints := true
   )
-  .dependsOn(arrowMessaging)
+  .dependsOn(arrowMessaging, arrowCore)
   .enablePlugins(SrcGenPlugin)
 
 // CONNECTORS

@@ -9,7 +9,6 @@ import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.internals.context.RemoteContext
 import com.raphtory.internals.management.Prometheus
 import com.raphtory.internals.management._
-import com.raphtory.internals.management.id.ClientIDManager
 import com.raphtory.internals.management.id.IDManager
 import com.raphtory.internals.management.id.LocalIDManager
 import com.raphtory.internals.management.id.ZooKeeperCounter
@@ -89,9 +88,6 @@ object Raphtory {
 
   private[raphtory] def makeLocalIdManager[IO[_]: Sync] =
     Resource.eval(Sync[IO].delay(new LocalIDManager))
-
-  private[raphtory] def makeClientIdManager[IO[_]: Sync](rpcClient: RpcClient[IO]) =
-    Resource.eval(Sync[IO].delay(new ClientIDManager(rpcClient)))
 
   private[raphtory] def makePartitionIDManager[IO[_]: Sync](config: Config) = {
     val zookeeperAddress         = config.getString("raphtory.zookeeper.address")

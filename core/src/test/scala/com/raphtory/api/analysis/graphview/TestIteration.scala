@@ -6,6 +6,9 @@ import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
+import com.raphtory.api.input.Source
+import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.spouts.ResourceSpout
 
 class CountIterations(num_iters_before_vote: Int, num_iters: Int) extends Generic {
 
@@ -42,8 +45,9 @@ class TestIteration extends BaseCorrectnessTest {
   test("Testing vote-to-halt works") {
     correctnessTest(
             TestQuery(CountIterations(10, 100), 23),
-            "MotifCount/motiftest.csv",
             "Iterations/results.csv"
     )
   }
+
+  override def setSource(): Source = CSVEdgeListSource(ResourceSpout("MotifCount/motiftest.csv"))
 }

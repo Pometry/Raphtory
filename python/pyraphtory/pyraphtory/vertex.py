@@ -1,12 +1,27 @@
-from pyraphtory.interop import GenericScalaProxy, register
+from pyraphtory.interop import GenericScalaProxy, register, is_PyJObject
 from pyraphtory.scala.implicits.numeric import Long, Double, Float, Int
 from pyraphtory.scala.implicits.bounded import Bounded
+from pyraphtory.scala.implicits.schemas import SchemaProviders
 
 
 @register(name="Vertex")
 class Vertex(GenericScalaProxy):
-    _classname = "com.raphtory.api.analysis.visitor.Vertex"
     """Wrapper for Raphtory vertex with setitem and getitem methods for working with vertex state"""
+
+    _classname = "com.raphtory.api.analysis.visitor.Vertex"
+
+    def message_vertex(self, message):
+        super().message_vertex[SchemaProviders.get_schema(message)](message)
+
+    def message_out_neighbours(self, message):
+        super().message_out_neighbours[SchemaProviders.get_schema(message)](message)
+
+    def message_in_neighbours(self, message):
+        super().message_in_neighbours[SchemaProviders.get_schema(message)](message)
+
+    def message_all_neighbours(self, message):
+        super().message_all_neighbours[SchemaProviders.get_schema(message)](message)
+          
     def __setitem__(self, key, value):
         self.set_state(key, value)
 
@@ -28,7 +43,6 @@ class GraphState(GenericScalaProxy):
         return self.apply(key)
 
     def new_int_max(self, *args, **kwargs):
-        # TODO: This segfaults in pemja for some reason
         return super().new_max[Long, Bounded.long_bounds()](*args, **kwargs)
 
     def new_float_max(self, *args, **kwargs):
