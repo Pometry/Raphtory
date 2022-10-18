@@ -26,6 +26,7 @@ object Dependencies {
   private lazy val testContainersVersion           = "0.40.8"
   private lazy val timeSeriesVersion               = "1.7.0"
   private lazy val typesafeConfigVersion           = "1.4.2"
+  private lazy val ujsonVersion                    = "2.0.0"
   private lazy val zookeeperVersion                = "3.7.0"
   private lazy val catsVersion                     = "2.7.0"
   private lazy val catsMUnitVersion                = "1.0.7"
@@ -48,6 +49,7 @@ object Dependencies {
   lazy val jackson =
     "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val jfr = "org.gradle.jfr.polyfill" % "jfr-polyfill" % "1.0.0"
+  lazy val jsonpath =  "com.jayway.jsonpath" % "json-path" % "0.5.5"
   lazy val log4jApi   = "org.apache.logging.log4j" % "log4j-api"        % log4jVersion
   lazy val log4jCore  = "org.apache.logging.log4j" % "log4j-core"       % log4jVersion
   lazy val log4jSlft4 = "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion
@@ -91,6 +93,7 @@ object Dependencies {
 
   lazy val twitterChill   = "com.twitter"         %% "chill"     % chillVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val typesafeConfig = "com.typesafe"         % "config"    % typesafeConfigVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val ujson = "com.lihaoyi"        %% "upickle"  % ujsonVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val zookeeper      = "org.apache.zookeeper" % "zookeeper" % zookeeperVersion excludeAll (excludeLog4j, excludeSlf4j)
 
   lazy val catsMUnit =
