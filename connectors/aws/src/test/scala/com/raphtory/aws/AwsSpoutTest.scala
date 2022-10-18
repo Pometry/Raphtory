@@ -1,11 +1,11 @@
 package com.raphtory.aws
 
-import cats.effect.ExitCode
-import cats.effect.IO
-import cats.effect.IOApp
-import com.raphtory.Raphtory
+import com.raphtory.RaphtoryApp
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.internals.context.RaphtoryContext
+import com.raphtory.internals.context.RaphtoryContext.RaphtoryContextBuilder
+import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.raphtory.spouts.FileSpout
 
 import java.net.URL
@@ -15,31 +15,29 @@ import java.net.URL
   * Also requires bucket to output results into. Both set in application.conf.
   */
 
-object AwsSpoutTest extends IOApp {
+object AwsSpoutTest extends RaphtoryApp {
 
-  override def run(args: List[String]): IO[ExitCode] = {
+  override def buildContext(ctxBuilder: RaphtoryContextBuilder): RaphtoryContext =
+    ctxBuilder.local()
 
-    val config                      = Raphtory.getDefaultConfig()
-    val awsS3SpoutBucketName        = config.getString("raphtory.spout.aws.local.spoutBucketName")
-    val awsS3SpoutBucketKey         = config.getString("raphtory.spout.aws.local.spoutBucketPath")
-    val awsS3OutputFormatBucketName = config.getString("raphtory.spout.aws.local.outputBucketName")
+  override def run(ctx: RaphtoryContext): Unit =
+    ctx.runWithNewGraph() { graph =>
+      val config                      = ConfigBuilder().build().getConfig
+      val awsS3SpoutBucketName        = config.getString("raphtory.spout.aws.local.spoutBucketName")
+      val awsS3SpoutBucketKey         = config.getString("raphtory.spout.aws.local.spoutBucketPath")
+      val awsS3OutputFormatBucketName = config.getString("raphtory.spout.aws.local.outputBucketName")
 
-    val spout  = AwsS3Spout(awsS3SpoutBucketName, awsS3SpoutBucketKey)
-    val output = AwsS3Sink(awsS3OutputFormatBucketName)
-    val source = CSVEdgeListSource(spout)
-    val graph  = Raphtory.newIOGraph()
+      val spout  = AwsS3Spout(awsS3SpoutBucketName, awsS3SpoutBucketKey)
+      val output = AwsS3Sink(awsS3OutputFormatBucketName)
+      val source = CSVEdgeListSource(spout)
 
-    graph.use { graph =>
-      IO {
-        graph.load(source)
-        graph
-          .at(32674)
-          .past()
-          .execute(EdgeList())
-          .writeTo(output)
-          .waitForJob()
-        ExitCode.Success
-      }
+      graph.load(source)
+
+      graph
+        .at(32674)
+        .past()
+        .execute(EdgeList())
+        .writeTo(output)
+        .waitForJob()
     }
-  }
 }

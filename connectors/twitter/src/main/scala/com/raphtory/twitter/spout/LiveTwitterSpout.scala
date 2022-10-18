@@ -1,6 +1,5 @@
 package com.raphtory.twitter.spout
 
-import com.raphtory.Raphtory
 import com.raphtory.api.input.Spout
 import com.raphtory.api.input.SpoutInstance
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder

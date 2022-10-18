@@ -1,23 +1,26 @@
 package com.raphtory.examples.coho.companiesStream
 
-import com.raphtory.Raphtory
+import com.raphtory.RaphtoryApp
 import com.raphtory.api.input.Source
 import com.raphtory.spouts.FileSpout
 import com.raphtory.sinks.FileSink
 import com.raphtory.examples.coho.companiesStream.algorithms.CompanyDirectorGraph
 import com.raphtory.examples.coho.companiesStream.graphbuilders.apidata.CompanyToPscGraphBuilder
-import com.raphtory.examples.coho.companiesStream.graphbuilders.bulkdata.CompanyToPscBulkGraphBuilder
 import com.raphtory.formats.JsonFormat
+import com.raphtory.internals.context.RaphtoryContext
+import com.raphtory.internals.context.RaphtoryContext.RaphtoryContextBuilder
 
 /**
   * Runner to build Company to PSC Graph, in addition to PSC to PSC graph,
   * with edges weighted by share ownership and labelled with date PSC notified on.
   */
-object CompaniesHouseRunner {
+object CompaniesHouseRunner extends RaphtoryApp {
 
-  def main(args: Array[String]) {
+  override def buildContext(ctxBuilder: RaphtoryContextBuilder): RaphtoryContext =
+    ctxBuilder.local()
 
-    Raphtory.local().runWithNewGraph() { graph =>
+  override def run(ctx: RaphtoryContext): Unit =
+    ctx.runWithNewGraph() { graph =>
       val source = Source(
               FileSpout("/", regexPattern = "^.*\\.([jJ][sS][oO][nN]??)$", recurse = true),
               new CompanyToPscGraphBuilder()
@@ -32,6 +35,4 @@ object CompaniesHouseRunner {
         .writeTo(output)
         .waitForJob()
     }
-  }
-
 }

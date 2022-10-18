@@ -1,18 +1,17 @@
 package com.raphtory.deployments
 
 import cats.effect.IO
-import com.raphtory.Raphtory
+import cats.effect.Resource
 import com.raphtory.TestUtils
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.api.output.sink.Sink
-import com.raphtory.internals.context.LocalContext
+import com.raphtory.internals.context.RaphtoryContext.RaphtoryContextBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.StaticGraphSpout
 import munit.CatsEffectSuite
-
 import java.net.URL
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
@@ -59,10 +58,9 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
     val lotrFile  = TestUtils.manageTestFile(Some(lotrPath, lotrUrl))
     val lotrSpout = FileSpout(lotrPath)
 
-    val facebookPath  = "/tmp/facebook.csv"
-    val facebookUrl   = new URL("https://raw.githubusercontent.com/Raphtory/Data/main/facebook.csv")
-    val facebookFile  = TestUtils.manageTestFile(Some(facebookPath, facebookUrl))
-
+    val facebookPath = "/tmp/facebook.csv"
+    val facebookUrl  = new URL("https://raw.githubusercontent.com/Raphtory/Data/main/facebook.csv")
+    val facebookFile = TestUtils.manageTestFile(Some(facebookPath, facebookUrl))
 
     val files = for {
       _ <- lotrFile
@@ -72,30 +70,48 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
     files
       .use { files =>
         IO.delay {
-          val lotrGraph   = Raphtory.newGraph()
-          lotrGraph.load(CSVEdgeListSource(lotrSpout))
-          val lotrTracker = lotrGraph
-            .range(1, 32674, 10000)
-            .window(List(500, 1000, 10000), Alignment.END)
-            .execute(ConnectedComponents)
-            .writeTo(defaultSink)
+          val out = for {
+            ctxBuilder <- Resource.fromAutoCloseable(IO.delay(RaphtoryContextBuilder()))
+          } yield ctxBuilder.local()
 
-          val facebookGraph = Raphtory.newGraph()
-          facebookGraph.load(CSVEdgeListSource(StaticGraphSpout(facebookPath),delimiter = " "))
+          val lotrJobId = out
+            .use(ctx =>
+              IO.blocking {
+                ctx.runWithNewGraph() { lotrGraph =>
+                  lotrGraph.load(CSVEdgeListSource(lotrSpout))
+                  val lotrTracker = lotrGraph
+                    .range(1, 32674, 10000)
+                    .window(List(500, 1000, 10000), Alignment.END)
+                    .execute(ConnectedComponents)
+                    .writeTo(defaultSink)
+                  lotrTracker.waitForJob()
+                  lotrTracker.getJobId
+                }
+              }
+            )
+            .unsafeRunSync()
 
-          val facebookTracker = facebookGraph
-            .at(88234)
-            .past()
-            .execute(ConnectedComponents)
-            .writeTo(defaultSink)
+          val facebookJobId = out
+            .use(ctx =>
+              IO.blocking {
+                ctx.runWithNewGraph() { facebookGraph =>
+                  facebookGraph.load(CSVEdgeListSource(StaticGraphSpout(facebookPath), delimiter = " "))
+                  val facebookTracker = facebookGraph
+                    .at(88234)
+                    .past()
+                    .execute(ConnectedComponents)
+                    .writeTo(defaultSink)
 
-          facebookTracker.waitForJob()
-          val facebookHash = TestUtils.generateTestHash(outputDirectory, facebookTracker.getJobId)
+                  facebookTracker.waitForJob()
+                  facebookTracker.getJobId
+                }
+              }
+            )
+            .unsafeRunSync()
 
-          lotrTracker.waitForJob()
-          val lotrHash = TestUtils.generateTestHash(outputDirectory, lotrTracker.getJobId)
-          lotrGraph.close()
-          facebookGraph.close()
+          val lotrHash     = TestUtils.generateTestHash(outputDirectory, lotrJobId)
+          val facebookHash = TestUtils.generateTestHash(outputDirectory, facebookJobId)
+
           (lotrHash, facebookHash)
         }
       }

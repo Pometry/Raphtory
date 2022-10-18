@@ -1,37 +1,44 @@
 package com.raphtory.examples.gab;
 
-import com.raphtory.Raphtory
+import com.raphtory.RaphtoryApp
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.input.Source
-import com.raphtory.api.input.Spout
 import com.raphtory.examples.gab.graphbuilders.GabUserGraphBuilder
+import com.raphtory.internals.context.RaphtoryContext
+import com.raphtory.internals.context.RaphtoryContext.RaphtoryContextBuilder
 import com.raphtory.pulsar.sink.PulsarSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
 
-object Runner extends App {
+object Runner extends RaphtoryApp {
 
-  val path                 = "/tmp/gabNetwork500.csv"
-  val url                  = "https://raw.githubusercontent.com/Raphtory/Data/main/gabNetwork500.csv"
+  val path = "/tmp/gabNetwork500.csv"
+  val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/gabNetwork500.csv"
   FileUtils.curlFile(path, url)
 
-  Raphtory.local().runWithNewGraph() { graph =>
-    val source = Source(FileSpout(path), GabUserGraphBuilder)
-    graph.load(source)
-    graph
-      .at(1476113856000L)
-      .past()
-      .execute(EdgeList())
-      .writeTo(PulsarSink("EdgeList"))
-      .waitForJob()
+  override def buildContext(ctxBuilder: RaphtoryContextBuilder): RaphtoryContext =
+    ctxBuilder.local()
 
-    graph
-      .range(1470797917000L, 1476113856000L, 86400000L)
-      .window(List(3600000L, 86400000L, 604800000L, 2592000000L, 31536000000L), Alignment.END)
-      .execute(ConnectedComponents)
-      .writeTo(PulsarSink("Gab"))
-      .waitForJob()
-  }
+  override def run(ctx: RaphtoryContext): Unit =
+    ctx.runWithNewGraph() { graph =>
+      val source = Source(FileSpout(path), GabUserGraphBuilder)
+
+      graph.load(source)
+
+      graph
+        .at(1476113856000L)
+        .past()
+        .execute(EdgeList())
+        .writeTo(PulsarSink("EdgeList"))
+        .waitForJob()
+
+      graph
+        .range(1470797917000L, 1476113856000L, 86400000L)
+        .window(List(3600000L, 86400000L, 604800000L, 2592000000L, 31536000000L), Alignment.END)
+        .execute(ConnectedComponents)
+        .writeTo(PulsarSink("Gab"))
+        .waitForJob()
+    }
 }

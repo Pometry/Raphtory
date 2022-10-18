@@ -81,22 +81,18 @@ class AccumulatorTest extends BaseCorrectnessTest {
   }
 
   test("Test nodeCount on graph state is consistent for multiple perspectives") {
-
-          val job = graphS
-            .range(10, 23, 1)
-            .window(10, Alignment.END)
-            .execute(CheckNodeCount)
-            .writeTo(defaultSink)
-
-          val jobId = job.getJobId
-          job.waitForJob()
-
-          TestUtils.getResults(outputDirectory, jobId).foreach { res =>
-            if (res.nonEmpty) {
-              val t = res.split(",")
-              assertEquals(t(t.size - 1), "true")
-        }
+    algorithmTest(
+            CheckNodeCount,
+            10,
+            23,
+            1,
+            List(10)
+    ).map { res =>
+      if (res.nonEmpty) {
+        val t = res.split(",")
+        assertEquals(t(t.size - 1), "true")
       }
+    }
   }
 
   override def setSource(): Source = CSVEdgeListSource(ResourceSpout("MotifCount/motiftest.csv"))

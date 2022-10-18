@@ -1,6 +1,6 @@
 package com.raphtory.examples.nft
 
-import com.raphtory.Raphtory
+import com.raphtory.RaphtoryApp
 import com.raphtory.api.input.Graph.assignID
 import com.raphtory.api.input.DoubleProperty
 import com.raphtory.api.input.Graph
@@ -10,6 +10,8 @@ import com.raphtory.api.input.StringProperty
 import com.raphtory.api.input.Type
 import com.raphtory.examples.nft.analysis.CycleMania
 import com.raphtory.formats.JsonFormat
+import com.raphtory.internals.context.RaphtoryContext
+import com.raphtory.internals.context.RaphtoryContext.RaphtoryContextBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.utils.FileUtils
 
@@ -18,7 +20,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import scala.collection.mutable
 
-object LocalRunner extends App {
+object LocalRunner extends RaphtoryApp {
 
   val path = "/tmp/Data_API_reduced.csv"
   val url  = "https://osf.io/download/kaumt/"
@@ -111,16 +113,20 @@ object LocalRunner extends App {
     )
   }
 
-  Raphtory.local().runWithNewGraph() { graph =>
-    val file   = scala.io.Source.fromFile(path)
-    file.getLines.foreach(line => addToGraph(graph, line))
-    val atTime = 1561661534
+  override def buildContext(ctxBuilder: RaphtoryContextBuilder): RaphtoryContext =
+    ctxBuilder.local()
 
-    graph
-      .at(atTime)
-      .past()
-      .execute(CycleMania())
-      .writeTo(FileSink("/tmp/raphtory_nft_scala", format = JsonFormat()))
-      .waitForJob()
-  }
+  override def run(ctx: RaphtoryContext): Unit =
+    ctx.runWithNewGraph() { graph =>
+      val file   = scala.io.Source.fromFile(path)
+      file.getLines.foreach(line => addToGraph(graph, line))
+      val atTime = 1561661534
+
+      graph
+        .at(atTime)
+        .past()
+        .execute(CycleMania())
+        .writeTo(FileSink("/tmp/raphtory_nft_scala", format = JsonFormat()))
+        .waitForJob()
+    }
 }
