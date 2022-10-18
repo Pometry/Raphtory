@@ -46,8 +46,7 @@ private[raphtory] class Reader(
     storage.watermarker.updateWatermark()
     val latestWatermark = storage.watermarker.getLatestWatermark
     watermarkPublish sendAsync latestWatermark
-    telemetry.lastWatermarkProcessedCollector
-      .labels(partitionID.toString, graphID)
+    lastWatermarkProcessed
       .set(latestWatermark.oldestTime.toDouble)
     scheduleWatermarker()
   }

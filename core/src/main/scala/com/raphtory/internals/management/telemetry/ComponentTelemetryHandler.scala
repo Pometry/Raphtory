@@ -12,28 +12,10 @@ private[raphtory] object ComponentTelemetryHandler {
   val edgeAddCounter: Counter       = SourceTelemetry.totalEdgeAdds
   val edgeDeleteCounter: Counter    = SourceTelemetry.totalEdgeDeletes
 
-  val lastWatermarkProcessedCollector: Gauge       = PartitionTelemetry.lastWatermarkProcessed
-  val queryExecutorCollector: Gauge                = PartitionTelemetry.queryExecutorCounter
-  val batchWriterVertexAdditionsCollector: Counter = PartitionTelemetry.batchWriterVertexAdditions
-  val batchWriterEdgeAdditionsCollector: Counter   = PartitionTelemetry.batchWriterEdgeAdditions
-  val batchWriterEdgeDeletionsCollector: Counter   = PartitionTelemetry.batchWriterEdgeDeletions
-
-  val batchWriterRemoteEdgeAdditionsCollector: Counter =
-    PartitionTelemetry.batchWriterRemoteEdgeAdditions
-
-  val batchWriterRemoteEdgeDeletionsCollector: Counter =
-    PartitionTelemetry.batchWriterRemoteEdgeDeletions
-
-  val vertexAddCollector: Counter                 = PartitionTelemetry.streamWriterVertexAdditions
-  val streamWriterGraphUpdatesCollector: Counter  = PartitionTelemetry.streamWriterGraphUpdates
-  val streamWriterEdgeAdditionsCollector: Counter = PartitionTelemetry.streamWriterEdgeAdditions
-  val streamWriterEdgeDeletionsCollector: Counter = PartitionTelemetry.streamWriterEdgeDeletions
-
-  val streamWriterVertexDeletionsCollector: Counter =
-    PartitionTelemetry.streamWriterVertexDeletions
-
-  val totalSyncedStreamWriterUpdatesCollector: Counter =
-    PartitionTelemetry.totalSyncedStreamWriterUpdates
+  val writerVertexAdditions: Counter = PartitionTelemetry.writerVertexAdditions
+  val writerEdgeAdditions: Counter   = PartitionTelemetry.writerEdgeAdditions
+  val writerEdgeDeletions: Counter   = PartitionTelemetry.writerEdgeDeletions
+  val writerVertexDeletions: Counter = PartitionTelemetry.writerVertexDeletions
 
   val receivedMessageCountCollector: Counter = QueryTelemetry.receivedMessageCount
   val totalSentMessageCount: Counter         = QueryTelemetry.sentMessageCount
