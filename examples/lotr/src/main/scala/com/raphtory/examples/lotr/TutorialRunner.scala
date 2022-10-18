@@ -13,7 +13,6 @@ import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Type
 import com.raphtory.api.input.Graph.assignID
-import com.raphtory.examples.lotr.graphbuilders.LOTRGraphBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
@@ -41,12 +40,6 @@ object TutorialRunner extends App {
     graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("Character"))
     graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurrence"))
   }
-
-  graph.load(Source(FileSpout("/tmp/data"), LOTRGraphBuilder))
-  graph.load(Source(FileSpout("/tmp/data"), LOTRGraphBuilder))
-  graph.load(Source(FileSpout("/tmp/data"), LOTRGraphBuilder))
-  graph.load(Source(FileSpout("/tmp/data"), LOTRGraphBuilder))
-  graph.load(Source(FileSpout("/tmp/data"), LOTRGraphBuilder))
 
   //Get simple metrics
   graph
