@@ -4,26 +4,20 @@ import cats.effect._
 import cats.effect.unsafe.implicits.global
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.internals.context.RaphtoryContext.RaphtoryContextBuilder
-import com.raphtory.protocol.RaphtoryService
 
 trait RaphtoryApp {
 
   final def main(args: Array[String]): Unit = {
-    val (serviceAsResource, ctx) = buildContext(RaphtoryContextBuilder())
-
     val out = for {
-      service <- serviceAsResource
-    } yield (service, ctx)
+      ctxBuilder <- Resource.fromAutoCloseable(IO.delay(RaphtoryContextBuilder()))
+    } yield buildContext(ctxBuilder)
 
     out
-      .use {
-        case (_, ctx) => IO.blocking(run(ctx))
-      }
+      .use(ctx => IO.blocking(run(ctx)))
       .unsafeRunSync()
   }
 
-  def buildContext(ctxBuilder: RaphtoryContextBuilder): (Resource[IO, RaphtoryService[IO]], RaphtoryContext)
+  def buildContext(ctxBuilder: RaphtoryContextBuilder): RaphtoryContext
 
   def run(ctx: RaphtoryContext): Unit
-
 }

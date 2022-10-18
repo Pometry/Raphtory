@@ -1,7 +1,5 @@
 package com.raphtory.examples.lotr
 
-import cats.effect.IO
-import cats.effect.Resource
 import com.raphtory.RaphtoryApp
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.algorithms.generic.NodeList
@@ -13,17 +11,14 @@ import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.internals.context.RaphtoryContext.RaphtoryContextBuilder
-import com.raphtory.protocol.RaphtoryService
 import com.raphtory.sinks.FileSink
 import com.raphtory.utils.FileUtils
 import scala.language.postfixOps
 
 object TutorialRunner extends RaphtoryApp {
 
-  override def buildContext(
-      ctxBuilder: RaphtoryContextBuilder
-  ): (Resource[IO, RaphtoryService[IO]], RaphtoryContext) =
-    ctxBuilder.remote("127.0.0.1", 1736)
+  override def buildContext(ctxBuilder: RaphtoryContextBuilder): RaphtoryContext =
+    ctxBuilder.local()
 
   override def run(ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph(destory = true) { graph =>

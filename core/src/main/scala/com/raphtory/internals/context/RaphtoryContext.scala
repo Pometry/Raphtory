@@ -18,7 +18,7 @@ import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.context.GraphException._
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 
-class RaphtoryContext(serviceResource: Resource[IO, RaphtoryService[IO]], config: Config, local: Boolean = true) {
+class RaphtoryContext(serviceAsResource: Resource[IO, RaphtoryService[IO]], config: Config, local: Boolean = true) {
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   // With this API user is trying to connect to an existing graph with following expectations:
@@ -26,7 +26,7 @@ class RaphtoryContext(serviceResource: Resource[IO, RaphtoryService[IO]], config
   def runWithGraph[T](graphID: String, destory: Boolean = false)(f: DeployedTemporalGraph => T): T = {
     def newIOGraph(graphID: String = createName): Resource[IO, DeployedTemporalGraph] =
       for {
-        service       <- serviceResource
+        service       <- serviceAsResource
         ifGraphExists <- Resource.eval(service.getGraph(protocol.GetGraph(graphID)))
         _              = if (!ifGraphExists.success) throw NoGraphFound(graphID)
         _             <- Prometheus[IO](config.getInt("raphtory.prometheus.metrics.port"))
@@ -52,7 +52,7 @@ class RaphtoryContext(serviceResource: Resource[IO, RaphtoryService[IO]], config
   def runWithNewGraph[T](graphID: String = createName, destory: Boolean = false)(f: DeployedTemporalGraph => T): T = {
     def newIOGraph(graphID: String = createName): Resource[IO, DeployedTemporalGraph] =
       for {
-        service       <- serviceResource
+        service       <- serviceAsResource
         ifGraphExists <- Resource.eval(service.getGraph(protocol.GetGraph(graphID)))
         _              = if (ifGraphExists.success) throw GraphAlreadyDeployed(graphID)
         _             <- Prometheus[IO](config.getInt("raphtory.prometheus.metrics.port"))
@@ -81,18 +81,17 @@ object RaphtoryContext {
   private lazy val deployInterface = defaultConf.getString("raphtory.deploy.address")
   private lazy val deployPort      = defaultConf.getInt("raphtory.deploy.port")
 
-  class RaphtoryContextBuilder {
+  class RaphtoryContextBuilder extends AutoCloseable {
 
-    final def local(): (Resource[IO, RaphtoryService[IO]], RaphtoryContext) = {
-      val service = RaphtoryServiceBuilder.standalone[IO](defaultConf)
-      val ctx     = new RaphtoryContext(service, defaultConf, true)
-      (service, ctx)
-    }
+    lazy val (serviceLocal, shutdown) = RaphtoryServiceBuilder.standalone[IO](defaultConf).allocated.unsafeRunSync()
+
+    final def local(): RaphtoryContext =
+      new RaphtoryContext(Resource.pure(serviceLocal), defaultConf, true)
 
     final def remote(
         interface: String = deployInterface,
         port: Int = deployPort
-    ): (Resource[IO, RaphtoryService[IO]], RaphtoryContext) = {
+    ): RaphtoryContext = {
       val config =
         ConfigBuilder()
           .addConfig("raphtory.deploy.address", interface)
@@ -101,9 +100,10 @@ object RaphtoryContext {
           .getConfig
 
       val service = RaphtoryServiceBuilder.client[IO](config)
-      val ctx     = new RaphtoryContext(service, config, false)
-      (service, ctx)
+      new RaphtoryContext(service, config, false)
     }
+
+    override def close(): Unit = shutdown.unsafeRunSync()
   }
 
   object RaphtoryContextBuilder {
