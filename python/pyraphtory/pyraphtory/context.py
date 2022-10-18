@@ -1,7 +1,8 @@
-from pyraphtory import interop, algorithm
+import pyraphtory.interop
+from pyraphtory import interop
 
 
 class PyRaphtory(interop.ScalaClassProxy):
     _classname = "com.raphtory.Raphtory$"
 
-    algorithms = algorithm.BuiltinAlgorithm("com.raphtory.algorithms")
+    algorithms = interop.ScalaPackage("com.raphtory.algorithms")

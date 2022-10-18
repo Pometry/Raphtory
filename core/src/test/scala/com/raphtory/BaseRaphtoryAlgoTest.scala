@@ -8,10 +8,8 @@ import com.raphtory.api.analysis.algorithm.GenericallyApplicable
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
-import com.raphtory.api.input.Graph
-import com.raphtory.api.input.GraphBuilder
-import com.raphtory.api.input.Source
-import com.raphtory.api.input.Spout
+import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.api.input.{Graph, GraphBuilder, Source, Spout}
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.sinks.FileSink
 import com.typesafe.scalalogging.Logger
@@ -40,11 +38,11 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
     Raphtory.newIOGraph()
 
   lazy val withGraph: SyncIO[FunFixture[TemporalGraph]] = ResourceFixture(
-          for {
-            _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
-            g <- graph
-            _  = g.load(Source(setSpout(), setGraphBuilder()))
-          } yield g
+    for {
+      _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
+      g <- graph
+      _ = g.load(setSource())
+    } yield g
   )
 
   lazy val suiteGraph: Fixture[DeployedTemporalGraph] = ResourceSuiteLocalFixture(
@@ -52,7 +50,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           for {
             _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
             g <- graph
-            _  = g.load(Source(setSpout(), setGraphBuilder()))
+            _  = g.load(setSource())
           } yield g
   )
 
@@ -61,9 +59,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   override def munitFixtures = List(suiteGraph)
 
   def liftFileIfNotPresent: Option[(String, URL)] = None
-
-  def setSpout(): Spout[T]
-  def setGraphBuilder(): GraphBuilder[T]
+  def setSource(): Source
 
   private def algorithmTestInternal(
       algorithm: GenericallyApplicable,

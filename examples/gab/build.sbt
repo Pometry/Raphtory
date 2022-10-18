@@ -1,7 +1,8 @@
+import Version._
 name := "example-gab"
-version := "0.1.0"
+version := raphtoryVersion
 organization := "com.raphtory"
-scalaVersion := "2.13.7"
-libraryDependencies += "com.raphtory" %% "core" % "0.1.0"
+scalaVersion := raphtoryScalaVersion
+libraryDependencies += "com.raphtory" %% "core" % raphtoryVersion
 resolvers += Resolver.mavenLocal
 Compile / resourceDirectory := baseDirectory.value / "resources"

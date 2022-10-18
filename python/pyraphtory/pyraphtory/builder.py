@@ -1,12 +1,12 @@
-from pyraphtory.interop import logger, assign_id, GenericScalaProxy, ScalaClassProxy
-
-
-class Type(ScalaClassProxy):
-    _classname = "com.raphtory.api.input.Type"
+from pyraphtory.interop import ScalaClassProxy
 
 
 class GraphBuilder(ScalaClassProxy):
     _classname = "com.raphtory.api.input.GraphBuilder"
+
+
+class Type(ScalaClassProxy):
+    _classname = "com.raphtory.api.input.Type"
 
 
 class StringProperty(ScalaClassProxy):
@@ -20,12 +20,6 @@ class ImmutableProperty(ScalaClassProxy):
 class Properties(ScalaClassProxy):
     _classname = "com.raphtory.api.input.Properties"
 
+
 class Source(ScalaClassProxy):
     _classname = "com.raphtory.api.input.Source"
-
-
-class GraphBuilder(ScalaClassProxy):
-    _classname = "com.raphtory.api.input.GraphBuilder"
-
-
-

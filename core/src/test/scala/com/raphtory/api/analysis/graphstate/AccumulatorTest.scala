@@ -1,20 +1,16 @@
 package com.raphtory.api.analysis.graphstate
 
-import cats.effect.IO
 import com.raphtory.BaseCorrectnessTest
-import com.raphtory.BasicGraphBuilder
-import com.raphtory.Raphtory
 import com.raphtory.TestQuery
 import com.raphtory.TestUtils
 import com.raphtory.api.analysis.algorithm.Generic
-import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.input.Source
-import com.raphtory.api.input.Spout
+import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceSpout
 
 object CountNodes extends Generic {
@@ -71,7 +67,6 @@ object CheckNodeCount extends Generic {
 }
 
 class AccumulatorTest extends BaseCorrectnessTest {
-  override def setSpout(): Spout[String] = ResourceSpout("MotifCount/motiftest.csv")
 
   test("Test accumulators by counting nodes") {
     correctnessTest(TestQuery(CountNodes, 23), "Accumulator/results.csv")
@@ -86,14 +81,8 @@ class AccumulatorTest extends BaseCorrectnessTest {
   }
 
   test("Test nodeCount on graph state is consistent for multiple perspectives") {
-    Raphtory
-      .newIOGraph(customConfig =
-        Map("raphtory.prometheus.metrics.port" -> 0)
-      ) // this makes prometheus start on a random unused port
-      .use { graph =>
-        IO {
-          graph.load(Source(ResourceSpout("MotifCount/motiftest.csv"), BasicGraphBuilder))
-          val job = graph
+
+          val job = graphS
             .range(10, 23, 1)
             .window(10, Alignment.END)
             .execute(CheckNodeCount)
@@ -106,9 +95,9 @@ class AccumulatorTest extends BaseCorrectnessTest {
             if (res.nonEmpty) {
               val t = res.split(",")
               assertEquals(t(t.size - 1), "true")
-            }
-          }
         }
       }
   }
+
+  override def setSource(): Source = CSVEdgeListSource(ResourceSpout("MotifCount/motiftest.csv"))
 }

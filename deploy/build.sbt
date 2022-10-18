@@ -1,8 +1,9 @@
+import Version._
 import sbt.Keys.libraryDependencies
 name := "deploy"
-version := "0.1.0"
+version := raphtoryVersion
 organization := "com.raphtory"
-scalaVersion := "2.13.7"
+scalaVersion := raphtoryScalaVersion
 libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) }
 libraryDependencies += "io.fabric8"                  % "kubernetes-client" % "5.12.2"
 libraryDependencies += "com.typesafe"                % "config"            % "1.4.2"

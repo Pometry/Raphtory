@@ -4,7 +4,6 @@ import cats.effect.IO
 import cats.effect.Resource
 import com.raphtory.Raphtory.confBuilder
 import com.raphtory.Raphtory.connect
-import com.raphtory.Raphtory.makeClientIdManager
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.connectors.AkkaConnector
@@ -15,7 +14,6 @@ import com.raphtory.internals.management.Prometheus
 import com.raphtory.internals.management.Py4JServer
 import com.raphtory.internals.management.QuerySender
 import com.raphtory.internals.management.Scheduler
-import com.raphtory.internals.management.RpcClient
 import com.typesafe.config.Config
 import cats.effect.unsafe.implicits.global
 import com.raphtory.internals.context.LocalContext.createName
@@ -23,6 +21,7 @@ import com.raphtory.internals.management.ZookeeperConnector
 import com.typesafe.config.Config
 import cats.effect.unsafe.implicits.global
 import com.raphtory.arrowmessaging.ArrowFlightServer
+import com.raphtory.internals.components.RaphtoryServiceBuilder
 import com.raphtory.internals.context.LocalContext.createName
 import com.raphtory.internals.management.arrow.ZKHostAddressProvider
 import org.apache.arrow.memory.RootAllocator
@@ -45,10 +44,9 @@ class RemoteContext(address: String, port: Int) extends RaphtoryContext {
     val config         = confBuilder(userParameters ++ customConfig)
     val prometheusPort = config.getInt("raphtory.prometheus.metrics.port")
     for {
-      topicRepo       <- LocalTopicRepository[IO](config, None)
-      rpc             <- RpcClient[IO](graphID, topicRepo, config)
-      sourceIdManager <- makeClientIdManager[IO](rpc)
-      querySender      = new QuerySender(graphID, new Scheduler(), topicRepo, config, sourceIdManager, createName)
+      service    <- RaphtoryServiceBuilder.client[IO](config)
+      topicRepo  <- LocalTopicRepository[IO](config, None)
+      querySender = new QuerySender(graphID, service, new Scheduler(), topicRepo, config, createName)
     } yield (querySender, config)
   }
 
