@@ -4,7 +4,9 @@ import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.api.analysis.graphview.Alignment
-import com.raphtory.examples.lotr.graphbuilders.LOTRGraphBuilder
+import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
+import com.raphtory.api.analysis.graphview.TemporalGraph
+import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.pulsar.sink.PulsarSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
@@ -17,11 +19,10 @@ object PulsarOutputRunner extends App {
   FileUtils.curlFile(path, url)
 
   // Create Graph
-  val source = FileSpout(path)
-
-  Raphtory.local().runWithNewGraph() { graph =>
-    graph.load(com.raphtory.api.input.Source(FileSpout(path), LOTRGraphBuilder))
-
+  val source                       = FileSpout(path)
+  val graph: DeployedTemporalGraph = Raphtory.newGraph()
+  graph.load(CSVEdgeListSource.fromFile(path))
+  Using(graph) { graph =>
     graph
       .at(30000)
       .past()
