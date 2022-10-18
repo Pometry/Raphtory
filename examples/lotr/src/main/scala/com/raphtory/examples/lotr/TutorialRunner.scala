@@ -8,11 +8,14 @@ import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.algorithms.generic.motif.GlobalTriangleCount
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.input.Graph
-import com.raphtory.api.input.Graph.assignID
 import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
+import com.raphtory.api.input.Source
 import com.raphtory.api.input.Type
+import com.raphtory.api.input.Graph.assignID
+import com.raphtory.examples.lotr.graphbuilders.LOTRGraphBuilder
 import com.raphtory.sinks.FileSink
+import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
 
 import scala.language.postfixOps
@@ -39,6 +42,12 @@ object TutorialRunner extends App {
     graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurrence"))
   }
 
+  graph.load(Source(FileSpout("/tmp/data"), LOTRGraphBuilder))
+  graph.load(Source(FileSpout("/tmp/data"), LOTRGraphBuilder))
+  graph.load(Source(FileSpout("/tmp/data"), LOTRGraphBuilder))
+  graph.load(Source(FileSpout("/tmp/data"), LOTRGraphBuilder))
+  graph.load(Source(FileSpout("/tmp/data"), LOTRGraphBuilder))
+
   //Get simple metrics
   graph
     .execute(Degree())
@@ -64,8 +73,8 @@ object TutorialRunner extends App {
 
   //Chained Example
   graph
-    .at(32674)
-    .past()
+    .range("1/1/2021", "1/1/2022", "1 day")
+    .window(List("1 year", "1 month", "1 day"))
     .transform(PageRank())
     .transform(ConnectedComponents)
     .transform(Degree())

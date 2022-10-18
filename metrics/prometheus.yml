@@ -1,7 +1,3 @@
-global:
-  scrape_interval: 1s
-  scrape_timeout: 1s
-  evaluation_interval: 1s
 alerting:
   alertmanagers:
   - follow_redirects: true
@@ -14,8 +10,6 @@ alerting:
 scrape_configs:
 - job_name: prometheus
   honor_timestamps: true
-  scrape_interval: 1s
-  scrape_timeout: 1s
   metrics_path: /metrics
   scheme: http
   follow_redirects: true
