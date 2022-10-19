@@ -11,13 +11,11 @@ import com.raphtory.pulsar.sink.PulsarSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
 
-object Runner extends RaphtoryApp {
+object Runner extends RaphtoryApp.Local {
 
   val path = "/tmp/gabNetwork500.csv"
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/gabNetwork500.csv"
   FileUtils.curlFile(path, url)
-
-  override def buildContext(): RaphtoryContextType = LocalContext()
 
   override def run(args: Array[String], ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph() { graph =>

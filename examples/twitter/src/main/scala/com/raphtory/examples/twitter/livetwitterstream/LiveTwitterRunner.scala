@@ -11,9 +11,7 @@ import com.raphtory.sinks.FileSink
 import com.raphtory.twitter.spout.LiveTwitterSpout
 import com.typesafe.config.Config
 
-object LiveTwitterRunner extends RaphtoryApp {
-
-  override def buildContext(): RaphtoryContextType = LocalContext()
+object LiveTwitterRunner extends RaphtoryApp.Local {
 
   override def run(args: Array[String], ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph() { graph =>

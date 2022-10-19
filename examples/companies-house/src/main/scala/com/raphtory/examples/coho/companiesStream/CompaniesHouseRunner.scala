@@ -13,9 +13,7 @@ import com.raphtory.internals.context.RaphtoryContext
   * Runner to build Company to PSC Graph, in addition to PSC to PSC graph,
   * with edges weighted by share ownership and labelled with date PSC notified on.
   */
-object CompaniesHouseRunner extends RaphtoryApp {
-
-  override def buildContext(): RaphtoryContextType = LocalContext()
+object CompaniesHouseRunner extends RaphtoryApp.Local {
 
   override def run(args: Array[String], ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph() { graph =>

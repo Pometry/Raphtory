@@ -9,9 +9,7 @@ import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.pulsar.sink.PulsarSink
 import com.raphtory.utils.FileUtils
 
-object PulsarOutputRunner extends RaphtoryApp {
-
-  override def buildContext(): RaphtoryContextType = LocalContext()
+object PulsarOutputRunner extends RaphtoryApp.Local {
 
   override def run(args: Array[String], ctx: RaphtoryContext): Unit = {
     val path = "/tmp/lotr.csv"

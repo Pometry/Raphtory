@@ -19,7 +19,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import scala.collection.mutable
 
-object LocalRunner extends RaphtoryApp {
+object LocalRunner extends RaphtoryApp.Local {
 
   val path = "/tmp/Data_API_reduced.csv"
   val url  = "https://osf.io/download/kaumt/"
@@ -111,8 +111,6 @@ object LocalRunner extends RaphtoryApp {
             Type("Purchase")
     )
   }
-
-  override def buildContext(): RaphtoryContextType = LocalContext()
 
   override def run(args: Array[String], ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph() { graph =>

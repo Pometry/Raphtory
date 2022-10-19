@@ -15,9 +15,7 @@ import com.typesafe.config.Config
   * To utilise this test, you must add your Twitter API credentials in application.conf under Raphtory.spout.twitter.local
   * If you would like to filter a hashtag, you can add this under Raphtory.spout.twitter.local.hashtag in application.conf
   */
-object LiveTwitterTest extends RaphtoryApp {
-
-  override def buildContext(): RaphtoryContextType = LocalContext()
+object LiveTwitterTest extends RaphtoryApp.Local {
 
   override def run(args: Array[String], ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph() { graph =>

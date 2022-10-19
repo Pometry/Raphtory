@@ -11,9 +11,7 @@ import com.raphtory.internals.management.GraphConfig.ConfigBuilder
   * Also requires bucket to output results into. Both set in application.conf.
   */
 
-object AwsSpoutTest extends RaphtoryApp {
-
-  override def buildContext(): RaphtoryContextType = LocalContext()
+object AwsSpoutTest extends RaphtoryApp.Local {
 
   override def run(args: Array[String], ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph() { graph =>

@@ -18,7 +18,7 @@ import com.raphtory.spouts.WebSocketSpout
   * To do this, you will need to create a Companies House Developer account: https://developer.company-information.service.gov.uk/
   */
 
-object CompaniesHouseStreamTest extends RaphtoryApp {
+object CompaniesHouseStreamTest extends RaphtoryApp.Local {
 
   private val raphtoryConfig = ConfigBuilder().build().getConfig
   private val auth           = raphtoryConfig.getString("raphtory.spout.coho.authorization")
@@ -29,8 +29,6 @@ object CompaniesHouseStreamTest extends RaphtoryApp {
   val personBuilder = new CompaniesStreamPersonGraphBuilder()
   val source        = Source(WebSocketSpout(url, Some(auth), Some(contentType)), personBuilder)
   val output        = FileSink("")
-
-  override def buildContext(): RaphtoryContextType = LocalContext()
 
   override def run(args: Array[String], ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph() { graph =>

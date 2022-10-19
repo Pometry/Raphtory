@@ -16,13 +16,11 @@ import com.raphtory.utils.FileUtils
   * This Runner runs PageRank, chained with MemberRank and TemporalMemberRank which are two custom written algorithms
   * to find potential bot activity in the Higgs Twitter data.
   */
-object HiggsRunner extends RaphtoryApp {
+object HiggsRunner extends RaphtoryApp.Local {
 
   val path = "/tmp/higgs-retweet-activity.csv"
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/higgs-retweet-activity.csv"
   FileUtils.curlFile(path, url)
-
-  override def buildContext(): RaphtoryContextType = LocalContext()
 
   override def run(args: Array[String], ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph() { graph =>
