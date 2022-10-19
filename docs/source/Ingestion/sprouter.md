@@ -14,9 +14,9 @@ the {scaladoc}`com.raphtory.Raphtory` object, which will use both components to 
 launch the full pipeline on top of [Apache Pulsar](https://pulsar.apache.org) (which you will see later in the tutorial) 
 and assume new data can continuously arrive. `load()` on the other hand will compress the Spout and Graph Builder functions together, running as fast as possible, but only on a static dataset which does not change. For these initial examples we will only run `load()` as the data is static and we can set it going out of the box!
 
-If you have the LOTR example already set up from the installation guide previously (<a href="https://github.com/Raphtory/Raphtory/tree/development/examples/lotr" target="_blank">raphtory-example-lotr</a>) then please continue. If not, YOU SHALL NOT PASS! Please return there and complete this step first.  
+If you have the LOTR example already set up from the installation guide previously (<a href="https://github.com/Raphtory/Raphtory/tree/development/examples/lotr" target="_blank">examples/lotr</a>) then please continue. If not, YOU SHALL NOT PASS! Please return there and complete this step first.  
 
-For this tutorial section we will be using the `development` branch and use the `lotr` project, in the `examples` folder and the dataset of interactions between characters in the Lord of the Rings trilogy. The `csv` file (comma-separated values) in the examples folder can be found [here](https://github.com/Raphtory/Data/blob/main/lotr.csv). Each line contains two characters that appear in the same sentence, along with which sentence they appeared in, indicated by a number (sentence count). In the example, the first line of the file is `Gandalf,Elrond,33` which tells us that Gandalf and Elrond appear together in sentence 33.  
+For this tutorial section we will be using the `development` branch and use the `lotr` project located in the `examples` folder. We will be using the dataset of interactions between characters in the Lord of the Rings trilogy. The `csv` file (comma-separated values) in the examples folder can be found [here](https://github.com/Raphtory/Data/blob/main/lotr.csv). Each line contains two characters that appear in the same sentence, along with which sentence they appeared in, indicated by a number (sentence count). In the example, the first line of the file is `Gandalf,Elrond,33` which tells us that Gandalf and Elrond appear together in sentence 33.  
 
 ```
 Gandalf,Elrond,33
@@ -89,10 +89,10 @@ val spout  = FileSpout("YOUR_FILE_HERE")
 Raphtory includes different types of Source's to reduce the need of writing a graph builder. You also have the option of creating your own graph builder (this is explained in the next section). If your data is in CSV format, non-nested JSON format or NetworkX JSON format, it is likely you will not need to write your own graph builder. Simply wrap your spout in the Source object you would like to use: `CSVEdgeListSource`, `JSONEdgeListSource` or `JSONSource` (NetworkX JSON). The Source takes each ingested line of data and converts it into one or more graph updates.
 
 ```scala
-val source = CSVEdgeListSource(FileSpout("YOUR_FILE_HERE"))
+val source = CSVEdgeListSource(spout)
 ```
 
-## Graph Builder
+## Graph Builder (Optional)
 
 For more complicated graphs, we may need to create our own graph builder class.  Here is an example of a graph builder for the LOTR CSV data:
 
