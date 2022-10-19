@@ -77,40 +77,6 @@ class RaphtoryContext(serviceAsResource: Resource[IO, RaphtoryService[IO]], conf
   def destroyGraph(graphID: String): Unit = runWithGraph(graphID, destory = true) { _ => }
 }
 
-object RaphtoryContext {
-  private lazy val deployInterface = defaultConf.getString("raphtory.deploy.address")
-  private lazy val deployPort      = defaultConf.getInt("raphtory.deploy.port")
-
-  class RaphtoryContextBuilder extends AutoCloseable {
-
-    lazy val (serviceLocal, shutdown) = RaphtoryServiceBuilder.standalone[IO](defaultConf).allocated.unsafeRunSync()
-
-    final def local(): RaphtoryContext =
-      new RaphtoryContext(Resource.pure(serviceLocal), defaultConf, true)
-
-    final def remote(
-        interface: String = deployInterface,
-        port: Int = deployPort
-    ): RaphtoryContext = {
-      val config =
-        ConfigBuilder()
-          .addConfig("raphtory.deploy.address", interface)
-          .addConfig("raphtory.deploy.port", port)
-          .build()
-          .getConfig
-
-      val service = RaphtoryServiceBuilder.client[IO](config)
-      new RaphtoryContext(service, config, false)
-    }
-
-    override def close(): Unit = shutdown.unsafeRunSync()
-  }
-
-  object RaphtoryContextBuilder {
-    def apply(): RaphtoryContextBuilder = new RaphtoryContextBuilder()
-  }
-}
-
 object GraphException {
   final case class GraphAlreadyDeployed private (message: String) extends Exception(message)
 

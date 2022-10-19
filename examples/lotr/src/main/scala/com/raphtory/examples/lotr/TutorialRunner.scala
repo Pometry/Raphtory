@@ -10,17 +10,15 @@ import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
 import com.raphtory.internals.context.RaphtoryContext
-import com.raphtory.internals.context.RaphtoryContext.RaphtoryContextBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.utils.FileUtils
 import scala.language.postfixOps
 
 object TutorialRunner extends RaphtoryApp {
 
-  override def buildContext(ctxBuilder: RaphtoryContextBuilder): RaphtoryContext =
-    ctxBuilder.local()
+  override def buildContext(): RaphtoryContextType = LocalContext()
 
-  override def run(ctx: RaphtoryContext): Unit =
+  override def run(args: Array[String], ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph(destory = true) { graph =>
       val path = "/tmp/lotr.csv"
       val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"

@@ -14,6 +14,8 @@ package object raphtory {
   private[raphtory] def createName: String = Nomen.est().adjective().color().animal().get()
 
   private[raphtory] val defaultConf: Config = ConfigBuilder().build().getConfig
+  private[raphtory] lazy val deployInterface = defaultConf.getString("raphtory.deploy.address")
+  private[raphtory] lazy val deployPort      = defaultConf.getInt("raphtory.deploy.port")
 
   private[raphtory] def makeLocalIdManager[IO[_]: Sync]: Resource[IO, LocalIDManager] =
     Resource.eval(Sync[IO].delay(new LocalIDManager))
