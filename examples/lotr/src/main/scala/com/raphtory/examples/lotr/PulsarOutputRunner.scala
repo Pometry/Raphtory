@@ -6,16 +6,14 @@ import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.internals.context.RaphtoryContext
-import com.raphtory.internals.context.RaphtoryContext.RaphtoryContextBuilder
 import com.raphtory.pulsar.sink.PulsarSink
 import com.raphtory.utils.FileUtils
 
 object PulsarOutputRunner extends RaphtoryApp {
 
-  override def buildContext(ctxBuilder: RaphtoryContextBuilder): RaphtoryContext =
-    ctxBuilder.local()
+  override def buildContext(): RaphtoryContextType = LocalContext()
 
-  override def run(ctx: RaphtoryContext): Unit = {
+  override def run(args: Array[String], ctx: RaphtoryContext): Unit = {
     val path = "/tmp/lotr.csv"
     val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
 

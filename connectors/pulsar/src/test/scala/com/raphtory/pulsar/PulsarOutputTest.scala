@@ -2,14 +2,14 @@ package com.raphtory.pulsar
 
 import cats.effect.Async
 import cats.effect.IO
-import cats.effect.Resource
 import com.raphtory.BaseRaphtoryAlgoTest
-import com.raphtory.TestUtils
+import com.raphtory.defaultConf
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.api.input.Source
-import com.raphtory.internals.context.RaphtoryContext.RaphtoryContextBuilder
+import com.raphtory.internals.components.RaphtoryServiceBuilder
+import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.raphtory.pulsar.connector.PulsarConnector
 import com.raphtory.pulsar.sink.PulsarSink
@@ -23,49 +23,39 @@ import scala.language.postfixOps
 class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFinish = false) {
 
   test("Outputting to Pulsar".ignore) {
-    val out = for {
-      _          <- TestUtils.manageTestFile(liftFileIfNotPresent)
-      ctxBuilder <- Resource.fromAutoCloseable(IO.delay(RaphtoryContextBuilder()))
-    } yield ctxBuilder.local()
-
-    out
-      .use { ctx =>
-        val config = ConfigBuilder().build().getConfig
-        PulsarConnector[IO](config).use { pulsarConnector =>
-          val salt = UUID.randomUUID().toString
-
-          Async[IO].bracket(
-                  IO {
-                    pulsarConnector
-                      .createSharedConsumer(
-                              subscriptionName = "pulsarOutputTest",
-                              schema = Schema.BYTES,
-                              topics = "EdgeList" + salt
-                      )
-                  }
-          ) { consumer =>
-            IO {
-              ctx.runWithNewGraph() { graph =>
-                val sink: PulsarSink     = PulsarSink("EdgeList" + salt)
-                val queryProgressTracker =
-                  graph
-                    .range(1, 32674, 10000)
-                    .window(List(500, 1000, 10000), Alignment.END)
-                    .execute(EdgeList())
-                    .writeTo(sink, "EdgeList")
-                jobId = queryProgressTracker.getJobId
-                queryProgressTracker.waitForJob()
-                val firstResult          = new String(receiveMessage(consumer).getValue)
-                logger.info(s"Output to Pulsar complete. First result is: '$firstResult'.")
-
-                assert(firstResult.nonEmpty)
+    val ctx    = new RaphtoryContext(RaphtoryServiceBuilder.standalone[IO](defaultConf), defaultConf)
+    val config = ConfigBuilder().build().getConfig
+    PulsarConnector[IO](config).use { pulsarConnector =>
+      val salt = UUID.randomUUID().toString
+      Async[IO].bracket(
+              IO {
+                pulsarConnector
+                  .createSharedConsumer(
+                          subscriptionName = "pulsarOutputTest",
+                          schema = Schema.BYTES,
+                          topics = "EdgeList" + salt
+                  )
               }
-            }
-          }(c => IO(c.unsubscribe()))
+      ) { consumer =>
+        IO {
+          ctx.runWithNewGraph() { graph =>
+            val sink: PulsarSink     = PulsarSink("EdgeList" + salt)
+            val queryProgressTracker =
+              graph
+                .range(1, 32674, 10000)
+                .window(List(500, 1000, 10000), Alignment.END)
+                .execute(EdgeList())
+                .writeTo(sink, "EdgeList")
+            jobId = queryProgressTracker.getJobId
+            queryProgressTracker.waitForJob()
+            val firstResult          = new String(receiveMessage(consumer).getValue)
+            logger.info(s"Output to Pulsar complete. First result is: '$firstResult'.")
 
+            assert(firstResult.nonEmpty)
+          }
         }
-      }
-      .unsafeRunSync()
+      }(c => IO(c.unsubscribe()))
+    }
   }
 
   def filePath = s"/tmp/lotr.csv"

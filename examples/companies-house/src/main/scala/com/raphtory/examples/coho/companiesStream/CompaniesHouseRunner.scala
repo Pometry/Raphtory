@@ -8,7 +8,6 @@ import com.raphtory.examples.coho.companiesStream.algorithms.CompanyDirectorGrap
 import com.raphtory.examples.coho.companiesStream.graphbuilders.apidata.CompanyToPscGraphBuilder
 import com.raphtory.formats.JsonFormat
 import com.raphtory.internals.context.RaphtoryContext
-import com.raphtory.internals.context.RaphtoryContext.RaphtoryContextBuilder
 
 /**
   * Runner to build Company to PSC Graph, in addition to PSC to PSC graph,
@@ -16,10 +15,9 @@ import com.raphtory.internals.context.RaphtoryContext.RaphtoryContextBuilder
   */
 object CompaniesHouseRunner extends RaphtoryApp {
 
-  override def buildContext(ctxBuilder: RaphtoryContextBuilder): RaphtoryContext =
-    ctxBuilder.local()
+  override def buildContext(): RaphtoryContextType = LocalContext()
 
-  override def run(ctx: RaphtoryContext): Unit =
+  override def run(args: Array[String], ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph() { graph =>
       val source = Source(
               FileSpout("/", regexPattern = "^.*\\.([jJ][sS][oO][nN]??)$", recurse = true),

@@ -7,7 +7,6 @@ import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.input.Source
 import com.raphtory.examples.gab.graphbuilders.GabUserGraphBuilder
 import com.raphtory.internals.context.RaphtoryContext
-import com.raphtory.internals.context.RaphtoryContext.RaphtoryContextBuilder
 import com.raphtory.pulsar.sink.PulsarSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
@@ -18,10 +17,9 @@ object Runner extends RaphtoryApp {
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/gabNetwork500.csv"
   FileUtils.curlFile(path, url)
 
-  override def buildContext(ctxBuilder: RaphtoryContextBuilder): RaphtoryContext =
-    ctxBuilder.local()
+  override def buildContext(): RaphtoryContextType = LocalContext()
 
-  override def run(ctx: RaphtoryContext): Unit =
+  override def run(args: Array[String], ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph() { graph =>
       val source = Source(FileSpout(path), GabUserGraphBuilder)
 

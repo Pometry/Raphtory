@@ -17,10 +17,9 @@ import com.typesafe.config.Config
   */
 object LiveTwitterTest extends RaphtoryApp {
 
-  override def buildContext(ctxBuilder: RaphtoryContext.RaphtoryContextBuilder): RaphtoryContext =
-    ctxBuilder.local()
+  override def buildContext(): RaphtoryContextType = LocalContext()
 
-  override def run(ctx: RaphtoryContext): Unit =
+  override def run(args: Array[String], ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph() { graph =>
       val raphtoryConfig: Config = ConfigBuilder().build().getConfig
 

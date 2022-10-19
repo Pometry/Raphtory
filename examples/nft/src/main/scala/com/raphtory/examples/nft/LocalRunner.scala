@@ -11,7 +11,6 @@ import com.raphtory.api.input.Type
 import com.raphtory.examples.nft.analysis.CycleMania
 import com.raphtory.formats.JsonFormat
 import com.raphtory.internals.context.RaphtoryContext
-import com.raphtory.internals.context.RaphtoryContext.RaphtoryContextBuilder
 import com.raphtory.sinks.FileSink
 import com.raphtory.utils.FileUtils
 
@@ -113,10 +112,9 @@ object LocalRunner extends RaphtoryApp {
     )
   }
 
-  override def buildContext(ctxBuilder: RaphtoryContextBuilder): RaphtoryContext =
-    ctxBuilder.local()
+  override def buildContext(): RaphtoryContextType = LocalContext()
 
-  override def run(ctx: RaphtoryContext): Unit =
+  override def run(args: Array[String], ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph() { graph =>
       val file   = scala.io.Source.fromFile(path)
       file.getLines.foreach(line => addToGraph(graph, line))

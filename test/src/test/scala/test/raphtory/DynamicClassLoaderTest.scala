@@ -12,9 +12,11 @@ import com.raphtory.spouts.FileSpout
 import com.raphtory.TestUtils
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.internals.components.RaphtoryServiceBuilder
+import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.raphtory.sinks.PrintSink
+import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import com.raphtory.internals.context.RaphtoryContext.RaphtoryContextBuilder
 import munit.CatsEffectSuite
 import org.slf4j.LoggerFactory
 import test.raphtory.algorithms.MaxFlowTest
@@ -140,19 +142,18 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   case object RemoteContext extends Context
 
-  lazy val localContextFixture = ResourceSuiteLocalFixture(
+  val defaultConf: Config = ConfigBuilder().build().getConfig
+
+  lazy val localContextFixture: Fixture[RaphtoryContext] = ResourceSuiteLocalFixture(
           "local",
-          for {
-            connection <- Resource.fromAutoCloseable(IO(RaphtoryContextBuilder()))
-          } yield connection.local()
+          Resource.eval(IO(new RaphtoryContext(RaphtoryServiceBuilder.standalone[IO](defaultConf), defaultConf)))
   )
 
-  lazy val remoteContextFixture = ResourceSuiteLocalFixture(
+  lazy val remoteContextFixture: Fixture[RaphtoryContext] = ResourceSuiteLocalFixture(
           "remote",
-          for {
-            _          <- remoteProcess
-            connection <- Resource.fromAutoCloseable(IO(RaphtoryContextBuilder()))
-          } yield connection.remote()
+    for {
+      _          <- remoteProcess
+    } yield new RaphtoryContext(RaphtoryServiceBuilder.client[IO](defaultConf), defaultConf)
   )
 
   def fetchContext(context: Context): Fixture[RaphtoryContext] =
@@ -160,14 +161,6 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
       case LocalContext  => localContextFixture
       case RemoteContext => remoteContextFixture
     }
-
-  lazy val contextBuilder: Fixture[RaphtoryContextBuilder] = ResourceSuiteLocalFixture(
-          "remote",
-          for {
-            _          <- remoteProcess
-            connection <- Resource.fromAutoCloseable(IO(RaphtoryContextBuilder()))
-          } yield connection
-  )
 
   override def munitFixtures = List(localContextFixture, remoteContextFixture, source, sourceInline)
 

@@ -4,11 +4,7 @@ import com.raphtory.RaphtoryApp
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.internals.context.RaphtoryContext
-import com.raphtory.internals.context.RaphtoryContext.RaphtoryContextBuilder
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
-import com.raphtory.spouts.FileSpout
-
-import java.net.URL
 
 /**
   * Tests the AWS S3 Spout and Sink, requires bucket name and bucket path that you would like to ingest.
@@ -17,10 +13,9 @@ import java.net.URL
 
 object AwsSpoutTest extends RaphtoryApp {
 
-  override def buildContext(ctxBuilder: RaphtoryContextBuilder): RaphtoryContext =
-    ctxBuilder.local()
+  override def buildContext(): RaphtoryContextType = LocalContext()
 
-  override def run(ctx: RaphtoryContext): Unit =
+  override def run(args: Array[String], ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph() { graph =>
       val config                      = ConfigBuilder().build().getConfig
       val awsS3SpoutBucketName        = config.getString("raphtory.spout.aws.local.spoutBucketName")

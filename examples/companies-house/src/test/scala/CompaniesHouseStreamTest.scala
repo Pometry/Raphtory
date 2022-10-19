@@ -30,10 +30,9 @@ object CompaniesHouseStreamTest extends RaphtoryApp {
   val source        = Source(WebSocketSpout(url, Some(auth), Some(contentType)), personBuilder)
   val output        = FileSink("")
 
-  override def buildContext(ctxBuilder: RaphtoryContext.RaphtoryContextBuilder): RaphtoryContext =
-    ctxBuilder.local()
+  override def buildContext(): RaphtoryContextType = LocalContext()
 
-  override def run(ctx: RaphtoryContext): Unit =
+  override def run(args: Array[String], ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph() { graph =>
       graph.stream(source)
       graph

@@ -28,19 +28,22 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   def liftFileIfNotPresent: Option[(String, URL)] = None
   def setSource(): Source
 
-  def run[R](f: DeployedTemporalGraph => R): R =
-    RaphtoryServiceBuilder
-      .standalone[IO](defaultConf)
-      .use { standalone =>
+  def run[R](f: DeployedTemporalGraph => R): R = {
+    (for {
+      _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
+    } yield {
+
+    })
+      .use { _ =>
         IO {
-          TestUtils.manageTestFile(liftFileIfNotPresent)
-          val ctx = new RaphtoryContext(Resource.eval(IO(standalone)), defaultConf)
+          val ctx = new RaphtoryContext(RaphtoryServiceBuilder.standalone[IO](defaultConf), defaultConf)
           ctx.runWithNewGraph() { graph =>
             f(graph)
           }
         }
       }
       .unsafeRunSync()
+  }
 
   def algorithmTest(
       algorithm: GenericallyApplicable,
