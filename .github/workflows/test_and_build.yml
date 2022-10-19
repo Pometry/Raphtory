@@ -67,10 +67,10 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install poetry
+      - name: Install poetry and nbmake
         run: |
           python -m pip install --upgrade pip
-          python -m pip install poetry
+          python -m pip install poetry nbmake
       - name: Install pyraphtory
         run: |
           cd python/pyraphtory
@@ -79,6 +79,9 @@ jobs:
         run: |
           cd python/pyraphtory
           poetry run pytest
+      - name: Run notebook tests
+        run: |
+          cd examples && pytest --nbmake
     if: needs.configure.outputs.type == 'regular'
 
   build:
