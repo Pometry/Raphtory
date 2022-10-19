@@ -6,7 +6,6 @@ import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory._
 import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import cats.effect.unsafe.implicits.global
-import com.raphtory.internals.components.RaphtoryServiceBuilder
 import com.raphtory.internals.management.Prometheus
 import com.raphtory.internals.management.QuerySender
 import com.raphtory.internals.management.Scheduler
@@ -16,14 +15,13 @@ import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.context.GraphException._
-import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 
-class RaphtoryContext(serviceAsResource: Resource[IO, RaphtoryService[IO]], config: Config, local: Boolean = true) {
+class RaphtoryContext(serviceAsResource: Resource[IO, RaphtoryService[IO]], config: Config) {
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   // With this API user is trying to connect to an existing graph with following expectations:
   // - if the graph is not available with the provided graph id, throw an exception otherwise fetch the graph to work with
-  def runWithGraph[T](graphID: String, destory: Boolean = false)(f: DeployedTemporalGraph => T): T = {
+  def runWithGraph[T](graphID: String, destroy: Boolean = false)(f: DeployedTemporalGraph => T): T = {
     def newIOGraph(graphID: String = createName): Resource[IO, DeployedTemporalGraph] =
       for {
         service       <- serviceAsResource
@@ -35,10 +33,10 @@ class RaphtoryContext(serviceAsResource: Resource[IO, RaphtoryService[IO]], conf
           Resource.make(IO.delay(new QuerySender(graphID, service, new Scheduler(), topicRepo, config, createName))) {
             qs =>
               IO.blocking {
-                if (destory) qs.destroyGraph(true) else qs.disconnect()
+                if (destroy) qs.destroyGraph(true) else qs.disconnect()
               }
           }
-      } yield new DeployedTemporalGraph(Query(graphID = graphID), querySender, config, local, IO.unit)
+      } yield new DeployedTemporalGraph(Query(graphID = graphID), querySender, config, IO.unit)
 
     newIOGraph(graphID)
       .use { graph =>
@@ -49,7 +47,7 @@ class RaphtoryContext(serviceAsResource: Resource[IO, RaphtoryService[IO]], conf
 
   // With this API user is trying to create a fresh graph with following expectations:
   // - if no graph is available with the provided graph id, create a new graph, otherwise throw an exception
-  def runWithNewGraph[T](graphID: String = createName, destory: Boolean = false)(f: DeployedTemporalGraph => T): T = {
+  def runWithNewGraph[T](graphID: String = createName, destroy: Boolean = false)(f: DeployedTemporalGraph => T): T = {
     def newIOGraph(graphID: String = createName): Resource[IO, DeployedTemporalGraph] =
       for {
         service       <- serviceAsResource
@@ -61,11 +59,11 @@ class RaphtoryContext(serviceAsResource: Resource[IO, RaphtoryService[IO]], conf
           Resource.make(IO.delay(new QuerySender(graphID, service, new Scheduler(), topicRepo, config, createName))) {
             qs =>
               IO.blocking {
-                if (destory) qs.destroyGraph(true) else qs.disconnect()
+                if (destroy) qs.destroyGraph(true) else qs.disconnect()
               }
           }
         _             <- Resource.eval(IO(querySender.establishGraph()))
-      } yield new DeployedTemporalGraph(Query(graphID = graphID), querySender, config, local, IO.unit)
+      } yield new DeployedTemporalGraph(Query(graphID = graphID), querySender, config, IO.unit)
 
     newIOGraph(graphID)
       .use { graph =>
@@ -74,7 +72,7 @@ class RaphtoryContext(serviceAsResource: Resource[IO, RaphtoryService[IO]], conf
       .unsafeRunSync()
   }
 
-  def destroyGraph(graphID: String): Unit = runWithGraph(graphID, destory = true) { _ => }
+  def destroyGraph(graphID: String): Unit = runWithGraph(graphID, destroy = true) { _ => }
 }
 
 object GraphException {

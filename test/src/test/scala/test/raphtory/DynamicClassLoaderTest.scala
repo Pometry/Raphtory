@@ -230,7 +230,7 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
   }
 
   private def runWithGraph[T](context: Context, source: Fixture[Source])(graphHandling: TemporalGraph => T): T =
-    fetchContext(context)().runWithNewGraph(destory = true) { graph =>
+    fetchContext(context)().runWithNewGraph(destroy = true) { graph =>
       val graphWithLoad = graph.addDynamicPath("com.raphtory.lotrtest").load(source())
       graphHandling(graphWithLoad)
     }

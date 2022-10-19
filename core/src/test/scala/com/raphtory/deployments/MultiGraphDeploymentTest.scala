@@ -1,13 +1,14 @@
 package com.raphtory.deployments
 
 import cats.effect.IO
-import cats.effect.Resource
 import com.raphtory.TestUtils
+import com.raphtory.defaultConf
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.api.output.sink.Sink
-import com.raphtory.internals.context.RaphtoryContext.RaphtoryContextBuilder
+import com.raphtory.internals.components.RaphtoryServiceBuilder
+import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.StaticGraphSpout
@@ -70,44 +71,29 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
     files
       .use { files =>
         IO.delay {
-          val out = for {
-            ctxBuilder <- Resource.fromAutoCloseable(IO.delay(RaphtoryContextBuilder()))
-          } yield ctxBuilder.local()
+          val ctx       = new RaphtoryContext(RaphtoryServiceBuilder.standalone[IO](defaultConf), defaultConf)
+          val lotrJobId = ctx.runWithNewGraph() { lotrGraph =>
+            lotrGraph.load(CSVEdgeListSource(lotrSpout))
+            val lotrTracker = lotrGraph
+              .range(1, 32674, 10000)
+              .window(List(500, 1000, 10000), Alignment.END)
+              .execute(ConnectedComponents)
+              .writeTo(defaultSink)
+            lotrTracker.waitForJob()
+            lotrTracker.getJobId
+          }
 
-          val lotrJobId = out
-            .use(ctx =>
-              IO.blocking {
-                ctx.runWithNewGraph() { lotrGraph =>
-                  lotrGraph.load(CSVEdgeListSource(lotrSpout))
-                  val lotrTracker = lotrGraph
-                    .range(1, 32674, 10000)
-                    .window(List(500, 1000, 10000), Alignment.END)
-                    .execute(ConnectedComponents)
-                    .writeTo(defaultSink)
-                  lotrTracker.waitForJob()
-                  lotrTracker.getJobId
-                }
-              }
-            )
-            .unsafeRunSync()
+          val facebookJobId = ctx.runWithNewGraph() { facebookGraph =>
+            facebookGraph.load(CSVEdgeListSource(StaticGraphSpout(facebookPath), delimiter = " "))
+            val facebookTracker = facebookGraph
+              .at(88234)
+              .past()
+              .execute(ConnectedComponents)
+              .writeTo(defaultSink)
 
-          val facebookJobId = out
-            .use(ctx =>
-              IO.blocking {
-                ctx.runWithNewGraph() { facebookGraph =>
-                  facebookGraph.load(CSVEdgeListSource(StaticGraphSpout(facebookPath), delimiter = " "))
-                  val facebookTracker = facebookGraph
-                    .at(88234)
-                    .past()
-                    .execute(ConnectedComponents)
-                    .writeTo(defaultSink)
-
-                  facebookTracker.waitForJob()
-                  facebookTracker.getJobId
-                }
-              }
-            )
-            .unsafeRunSync()
+            facebookTracker.waitForJob()
+            facebookTracker.getJobId
+          }
 
           val lotrHash     = TestUtils.generateTestHash(outputDirectory, lotrJobId)
           val facebookHash = TestUtils.generateTestHash(outputDirectory, facebookJobId)

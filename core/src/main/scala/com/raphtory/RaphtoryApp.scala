@@ -16,7 +16,7 @@ trait RaphtoryApp {
     buildContext() match {
       case LocalContext() =>
         RaphtoryServiceBuilder.standalone[IO](defaultConf).use { standalone =>
-          IO(run(args, new RaphtoryContext(Resource.eval(IO(standalone)), defaultConf, true)))
+          IO(run(args, new RaphtoryContext(Resource.eval(IO(standalone)), defaultConf)))
         }.unsafeRunSync()
 
       case RemoteContext(host, port) =>
@@ -28,7 +28,7 @@ trait RaphtoryApp {
             .getConfig
 
         val service = RaphtoryServiceBuilder.client[IO](config)
-        run(args, new RaphtoryContext(service, config, false))
+        run(args, new RaphtoryContext(service, config))
     }
   }
 

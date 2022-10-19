@@ -4,12 +4,10 @@ import cats.effect.IO
 import cats.effect.Resource
 import com.raphtory.api.analysis.algorithm.GenericallyApplicable
 import com.raphtory.api.analysis.graphview.Alignment
-import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
-import com.raphtory.internals.context.RaphtoryContext.RaphtoryContextBuilder
 import com.raphtory.spouts.IdentitySpout
 import com.raphtory.spouts.SequenceSpout
 

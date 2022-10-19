@@ -19,7 +19,7 @@ object TutorialRunner extends RaphtoryApp {
   override def buildContext(): RaphtoryContextType = LocalContext()
 
   override def run(args: Array[String], ctx: RaphtoryContext): Unit =
-    ctx.runWithNewGraph(destory = true) { graph =>
+    ctx.runWithNewGraph(destroy = true) { graph =>
       val path = "/tmp/lotr.csv"
       val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
       FileUtils.curlFile(path, url)

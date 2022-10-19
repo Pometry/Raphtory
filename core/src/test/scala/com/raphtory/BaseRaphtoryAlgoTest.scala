@@ -6,7 +6,8 @@ import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.input._
 import com.raphtory.api.output.sink.Sink
-import com.raphtory.internals.context.RaphtoryContext.RaphtoryContextBuilder
+import com.raphtory.internals.components.RaphtoryServiceBuilder
+import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.sinks.FileSink
 import com.typesafe.scalalogging.Logger
 import munit.CatsEffectSuite
@@ -27,22 +28,19 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   def liftFileIfNotPresent: Option[(String, URL)] = None
   def setSource(): Source
 
-  def run[R](f: DeployedTemporalGraph => R): R = {
-    val out = for {
-      _          <- TestUtils.manageTestFile(liftFileIfNotPresent)
-      ctxBuilder <- Resource.fromAutoCloseable(IO.delay(RaphtoryContextBuilder()))
-    } yield ctxBuilder.local()
-
-    out
-      .use(ctx =>
-        IO.blocking {
+  def run[R](f: DeployedTemporalGraph => R): R =
+    RaphtoryServiceBuilder
+      .standalone[IO](defaultConf)
+      .use { standalone =>
+        IO {
+          TestUtils.manageTestFile(liftFileIfNotPresent)
+          val ctx = new RaphtoryContext(Resource.eval(IO(standalone)), defaultConf)
           ctx.runWithNewGraph() { graph =>
             f(graph)
           }
         }
-      )
+      }
       .unsafeRunSync()
-  }
 
   def algorithmTest(
       algorithm: GenericallyApplicable,
