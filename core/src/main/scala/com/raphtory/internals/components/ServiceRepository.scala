@@ -3,21 +3,13 @@ package com.raphtory.internals.components
 import cats.effect.Async
 import cats.effect.Resource
 import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.components.RaphtoryServiceBuilder.port
-import com.raphtory.internals.components.ingestion.IngestionOrchestrator
-import com.raphtory.internals.components.ingestion.IngestionOrchestratorBuilder
-import com.raphtory.protocol.RaphtoryService
-import com.typesafe.config.Config
-import higherkindness.mu.rpc.ChannelForAddress
-import higherkindness.mu.rpc.server.AddService
-import higherkindness.mu.rpc.server.GrpcServer
+import com.raphtory.internals.components.ingestion.IngestionServiceInstance
+import com.raphtory.protocol.IngestionService
 
-case class ServiceRepository[F[_]](ingestion: IngestionOrchestrator[F], repo: TopicRepository)
+abstract class ServiceRepository[F[_]: Async](val topics: TopicRepository) {
+  def registered[T](instance: T, descriptor: ServiceDescriptor[F, T]): Resource[F, Unit]
+  protected def getService[T](descriptor: ServiceDescriptor[F, T]): Resource[F, T]
 
-object ServiceRepository {
-
-  def apply[F[_]: Async](repo: TopicRepository, config: Config): Resource[F, ServiceRepository[F]] =
-    for {
-      ingestion <- IngestionOrchestratorBuilder[F](repo, config)
-    } yield ServiceRepository(ingestion = ingestion, repo = repo)
+  final def ingestion: Resource[F, IngestionService[F]] =
+    getService[IngestionService[F]](IngestionServiceInstance.descriptor)
 }
