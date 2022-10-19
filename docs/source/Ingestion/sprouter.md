@@ -2,20 +2,21 @@
 
 The initial step to getting your first temporal graph analysis up and running is to tell Raphtory how to read your data source and how to build it into a graph. 
 
-Two classes help with this:
+Three classes help with this:
 
 - `Spouts` connect to the outside world, reading the data files and outputting individual tuples.
-- `Graph builders`, as the name suggests, convert these tuples into updates, building the graph.
+- `Builders` are used to define how your graph is built from the individual tuples.
+- `Sources` wrap the Spout and Builder together. It is necessary to define a Spout in the Source so that Raphtory knows where to pull the data from. However, it is not mandatory to state a builder if your data fits certain formats including CSV files, JSON files (with no nesting) and Network X JSON graph files.
 
-Once these classes are defined, they can be passed to the `stream()` or `load()` methods on 
+Once the Source is defined along with the Spout and optionally a graph builder, they can be passed to the `stream()` or `load()` methods on 
 the {scaladoc}`com.raphtory.Raphtory` object, which will use both components to build the 
 {scaladoc}`com.raphtory.api.analysis.graphview.TemporalGraph`. The difference here is that `stream()` will 
 launch the full pipeline on top of [Apache Pulsar](https://pulsar.apache.org) (which you will see later in the tutorial) 
 and assume new data can continuously arrive. `load()` on the other hand will compress the Spout and Graph Builder functions together, running as fast as possible, but only on a static dataset which does not change. For these initial examples we will only run `load()` as the data is static and we can set it going out of the box!
 
-If you have the LOTR example already set up from the installation guide previously ([raphtory-example-lotr](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-lotr)) then please continue. If not, YOU SHALL NOT PASS! Please return there and complete this step first.  
+If you have the LOTR example already set up from the installation guide previously (<a href="https://github.com/Raphtory/Raphtory/tree/development/examples/lotr" target="_blank">raphtory-example-lotr</a>) then please continue. If not, YOU SHALL NOT PASS! Please return there and complete this step first.  
 
-For this tutorial section we will continue to use the `raphtory-example-lotr` project and the dataset of interactions between characters in the Lord of the Rings trilogy. The `csv` file (comma-separated values) in the examples folder can be found [here](https://github.com/Raphtory/Data/blob/main/lotr.csv). Each line contains two characters that appear in the same sentence, along with which sentence they appeared in, indicated by a number (sentence count). In the example, the first line of the file is `Gandalf,Elrond,33` which tells us that Gandalf and Elrond appear together in sentence 33.  
+For this tutorial section we will be using the `development` branch and use the `lotr` project, in the `examples` folder and the dataset of interactions between characters in the Lord of the Rings trilogy. The `csv` file (comma-separated values) in the examples folder can be found [here](https://github.com/Raphtory/Data/blob/main/lotr.csv). Each line contains two characters that appear in the same sentence, along with which sentence they appeared in, indicated by a number (sentence count). In the example, the first line of the file is `Gandalf,Elrond,33` which tells us that Gandalf and Elrond appear together in sentence 33.  
 
 ```
 Gandalf,Elrond,33
@@ -30,26 +31,38 @@ Gollum,Bilbo,306
 Gollum,Bilbo,308
 ```
 
-Also, in the examples folder you will find `LOTRGraphBuilder.scala`, `DegreesSeparation.scala` and `TutorialRunner.scala` which we will go through in detail. 
+Also, in the examples folder you will find `DegreesSeparation.scala` and `TutorialRunner.scala` which we will go through in detail. 
 
 ## Local Deployment
 First lets open `TutorialRunner.scala`, which is our `main` class i.e. the file which we actually run. 
-To do this we have made our class a scala app via `extends App`. 
+To do this we have made our class a Scala app via `extends App`. 
 This is a short hand for creating your runnable main class (if you come from a Java background) or can be viewed as a script if you are more comfortable with Python. 
-Inside of this we can create spout and graphbuilder objects and combine them into a 
-{scaladoc}`com.raphtory.api.analysis.graphview.TemporalGraph` (via `load()`), which can be used to make queries:
+
+Inside of this we first create a new graph object in Raphtory by calling `val graph = Raphtory.newGraph()`. We then pull data from our data source defined in the `url` variable, this is where the Lord of the Rings CSV file is located. A `foreach` function is called which basically reads each line of the CSV file - this is essentially what the Spout does in Raphtory. For each file line, we split the line into its respective variables: source, target and timestamp. These variables are then added as nodes and edges on the graph object we created at the start - this is essentially what the Graph Builder does in Raphtory. 
+
+The graph object can then be used to run analysis on the graph you have built.
 
 ````scala
 object TutorialRunner extends App {
+
+  val graph = Raphtory.newGraph()
   val path = "/tmp/lotr.csv"
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
-
   FileUtils.curlFile(path, url)
 
-  val source  = FileSpout(path)
-  val builder = new LOTRGraphBuilder()
-  val graph   = Raphtory.load(spout = source, graphBuilder = builder)
-  val output  = FileSink("/tmp/raphtory")
+  val file = scala.io.Source.fromFile(path)
+  file.getLines.foreach { line =>
+    val fileLine   = line.split(",").map(_.trim)
+    val sourceNode = fileLine(0)
+    val srcID      = assignID(sourceNode)
+    val targetNode = fileLine(1)
+    val tarID      = assignID(targetNode)
+    val timeStamp  = fileLine(2).toLong
+
+    graph.addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)), Type("Character"))
+    graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("Character"))
+    graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurrence"))
+  }
 
   val queryHandler = graph
     .at(32674)
@@ -63,26 +76,30 @@ object TutorialRunner extends App {
 }
 ````
 
-```{note} 
-Once `Raphtory.load` is called, we can start submitting queries to it - which can be seen in the snippet above. Don't worry about this yet as we will dive into it in the next section.
-```
-
 ## Spout 
 
-There are many data sources that may be used to feed graphs in Raphtory, for this example we will make use of the `FileSpout`. This takes a file on your machine and pushes it into our graph builders to parse. We automatically download the lotr.csv file from the [Raphtory data repository](https://github.com/Raphtory/Data) (hence why it run in the last tutorial), so you shouldn't have to set anything if using it. If you want to swap this file out for your own data, simply remove this download and change the `FileSpout` path to point to where your files are.
+Instead of iterating over the file with a for loop, Raphtory has a Spout function that can be used to read lines of data, this enables you to feed graphs from many different data sources into Raphtory, including real time streaming. For this example, we will make use of the `FileSpout`. This takes a file on your machine and pushes it into our Sources to parse. We automatically download the lotr.csv file from the [Raphtory data repository](https://github.com/Raphtory/Data) (hence why it run in the last tutorial), so you shouldn't have to set anything if using it. If you want to swap this file out for your own data, simply remove this download and change the `FileSpout` path to point to where your files are.
 
 ```scala 
-val source  = FileSpout("YOUR_FILE_HERE")
+val spout  = FileSpout("YOUR_FILE_HERE")
+```
+
+## Source
+
+Raphtory includes different types of Source's to reduce the need of writing a graph builder. You also have the option of creating your own graph builder (this is explained in the next section). If your data is in CSV format, non-nested JSON format or NetworkX JSON format, it is likely you will not need to write your own graph builder. Simply wrap your spout in the Source object you would like to use: `CSVEdgeListSource`, `JSONEdgeListSource` or `JSONSource` (NetworkX JSON). The Source takes each ingested line of data and converts it into one or more graph updates.
+
+```scala
+val source = CSVEdgeListSource(FileSpout("YOUR_FILE_HERE"))
 ```
 
 ## Graph Builder
 
-Now that our data is flowing in we can have a look at the graph builder class. This takes each ingested line of data and converts it into one or more graph updates. The function which does this (and in this case is the only part we need to define in this class) is `parseTuple`. Let's look at the code:
+For more complicated graphs, we may need to create our own graph builder class.  Here is an example of a graph builder for the LOTR CSV data:
 
 ```scala
 class LOTRGraphBuilder extends GraphBuilder[String]{
 
-  override def parseTuple(tuple: String): Unit = {
+  def apply(graph: Graph, tuple: String): Unit = {
     val fileLine   = tuple.split(",").map(_.trim)
     val sourceNode = fileLine(0)
     val srcID      = assignID(sourceNode)
