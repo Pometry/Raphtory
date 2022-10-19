@@ -36,7 +36,7 @@ class RaphtoryContext(serviceAsResource: Resource[IO, RaphtoryService[IO]], conf
                 if (destroy) qs.destroyGraph(true) else qs.disconnect()
               }
           }
-      } yield new DeployedTemporalGraph(Query(graphID = graphID), querySender, config, IO.unit)
+      } yield new DeployedTemporalGraph(Query(graphID = graphID), querySender, config)
 
     newIOGraph(graphID)
       .use { graph =>
@@ -63,7 +63,7 @@ class RaphtoryContext(serviceAsResource: Resource[IO, RaphtoryService[IO]], conf
               }
           }
         _             <- Resource.eval(IO(querySender.establishGraph()))
-      } yield new DeployedTemporalGraph(Query(graphID = graphID), querySender, config, IO.unit)
+      } yield new DeployedTemporalGraph(Query(graphID = graphID), querySender, config)
 
     newIOGraph(graphID)
       .use { graph =>

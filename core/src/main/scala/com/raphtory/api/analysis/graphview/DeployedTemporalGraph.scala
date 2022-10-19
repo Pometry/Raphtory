@@ -1,7 +1,5 @@
 package com.raphtory.api.analysis.graphview
 
-import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.management.QuerySender
 import com.typesafe.config.Config
@@ -18,21 +16,7 @@ import com.typesafe.config.Config
 class DeployedTemporalGraph private[raphtory] (
     override private[api] val query: Query,
     override private[api] val querySender: QuerySender,
-    override private[api] val conf: Config,
-    private val shutdown: IO[Unit]
-) extends TemporalGraph(query, querySender, conf)
-        with AutoCloseable {
-
+    override private[api] val conf: Config
+) extends TemporalGraph(query, querySender, conf) {
   def config: Config = conf
-
-  def destroy(force: Boolean = false): Unit = {
-    querySender.destroyGraph(force)
-    shutdown.unsafeRunSync()
-  }
-
-  override def close(): Unit = {
-    querySender.disconnect()
-    shutdown.unsafeRunSync()
-  }
-
 }
