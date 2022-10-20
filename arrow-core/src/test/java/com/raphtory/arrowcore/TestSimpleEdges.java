@@ -101,7 +101,7 @@ public class TestSimpleEdges {
 
     private static void linkOutgoingEdge(Vertex bob, Edge e) {
         VertexPartition p = _rap.getVertexMgr().getPartition(_rap.getVertexMgr().getPartitionId(bob.getLocalId()));
-        _aepm.setOutgoingEdgePtr(e.getLocalId(), p.addOutgoingEdgeToList(e.getSrcVertex(), e.getLocalId(), e.getDstVertex()));
+        _aepm.setOutgoingEdgePtr(e.getLocalId(), p.addOutgoingEdgeToList(e.getSrcVertex(), e.getLocalId(), e.getDstVertex(), e.isDstGlobal()));
         p.addHistory(bob.getLocalId(), System.currentTimeMillis(), true, false, e.getLocalId(), true);
     }
 
