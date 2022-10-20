@@ -9,10 +9,11 @@ import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 
 object Standalone extends IOApp {
 
-  def run(args: List[String]): IO[ExitCode] =
+  def run(args: List[String]): IO[ExitCode] = {
+    val config = ConfigBuilder().getDefaultConfig
     (for {
-      config  <- Resource.pure(ConfigBuilder().getDefaultConfig)
       service <- RaphtoryServiceBuilder.standalone[IO](config)
       _       <- RaphtoryServiceBuilder.server(service, config)
     } yield ()).useForever
+  }
 }
