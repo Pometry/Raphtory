@@ -51,7 +51,7 @@ class LiveTwitterSpoutInstance() extends SpoutInstance[Tweet] {
 
 class LiveTwitterAddSpout(tweetQueue: ConcurrentLinkedQueue[Tweet]) {
   private val logger: Logger         = Logger(LoggerFactory.getLogger(this.getClass))
-  private val raphtoryConfig: Config = ConfigBuilder().build().getConfig
+  private val raphtoryConfig: Config = ConfigBuilder().getDefaultConfig
   private val hashtag: String        = raphtoryConfig.getString("raphtory.spout.twitter.local.hashtag")
   private val tag: String            = raphtoryConfig.getString("raphtory.spout.twitter.local.tag")
 

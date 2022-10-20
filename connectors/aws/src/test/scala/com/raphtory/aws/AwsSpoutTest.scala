@@ -15,7 +15,7 @@ object AwsSpoutTest extends RaphtoryApp.Local {
 
   override def run(args: Array[String], ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph() { graph =>
-      val config                      = ConfigBuilder().build().getConfig
+      val config                      = ConfigBuilder().getDefaultConfig
       val awsS3SpoutBucketName        = config.getString("raphtory.spout.aws.local.spoutBucketName")
       val awsS3SpoutBucketKey         = config.getString("raphtory.spout.aws.local.spoutBucketPath")
       val awsS3OutputFormatBucketName = config.getString("raphtory.spout.aws.local.outputBucketName")

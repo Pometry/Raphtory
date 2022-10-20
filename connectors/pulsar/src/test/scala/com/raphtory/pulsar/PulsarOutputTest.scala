@@ -24,7 +24,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFin
 
   test("Outputting to Pulsar".ignore) {
     val ctx    = new RaphtoryContext(RaphtoryServiceBuilder.standalone[IO](defaultConf), defaultConf)
-    val config = ConfigBuilder().build().getConfig
+    val config = ConfigBuilder().getDefaultConfig
     PulsarConnector[IO](config).use { pulsarConnector =>
       val salt = UUID.randomUUID().toString
       Async[IO].bracket(

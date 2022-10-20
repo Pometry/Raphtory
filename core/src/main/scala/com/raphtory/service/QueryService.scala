@@ -11,7 +11,7 @@ import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 object QueryService extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = {
-    val config  = ConfigBuilder().build().getConfig
+    val config  = ConfigBuilder().getDefaultConfig
     val service = for {
       repo    <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, None)
       service <- QueryOrchestrator[IO](config, repo)

@@ -19,7 +19,7 @@ import munit.FunSuite
   */
 class RaphtoryGraphTest extends FunSuite {
 
-  private def createMockGraph(config: Config = ConfigBuilder().build().getConfig) =
+  private def createMockGraph(config: Config = ConfigBuilder().getDefaultConfig) =
     new TemporalGraph(Query(graphID = ""), null, config)
 
   test("Test overall pipeline syntax for RaphtoryGraph class and related hierarchy") {

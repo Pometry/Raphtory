@@ -11,7 +11,7 @@ object Standalone extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] =
     (for {
-      config  <- Resource.pure(ConfigBuilder().build().getConfig)
+      config  <- Resource.pure(ConfigBuilder().getDefaultConfig)
       service <- RaphtoryServiceBuilder.standalone[IO](config)
       _       <- RaphtoryServiceBuilder.server(service, config)
     } yield ()).useForever

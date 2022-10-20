@@ -4,13 +4,13 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import com.typesafe.config.ConfigValueFactory
 
-private[raphtory] class GraphConfig private(config: Config) {
+private[raphtory] class GraphConfig private (config: Config) {
   def getConfig: Config = config
 }
 
 object GraphConfig {
 
-  case class ConfigBuilder() {
+  class ConfigBuilder() {
     var tempConf: Config =
       ConfigFactory
         .defaultOverrides()
@@ -26,5 +26,11 @@ object GraphConfig {
     }
 
     def build(): GraphConfig = new GraphConfig(tempConf.resolve())
+
+    def getDefaultConfig: Config = ConfigBuilder().build().getConfig
+  }
+
+  object ConfigBuilder {
+    def apply(): ConfigBuilder = new ConfigBuilder()
   }
 }
