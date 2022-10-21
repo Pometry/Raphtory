@@ -20,7 +20,7 @@ import com.raphtory.spouts.WebSocketSpout
 
 object CompaniesHouseStreamTest extends RaphtoryApp.Local {
 
-  private val raphtoryConfig = ConfigBuilder().getDefaultConfig
+  private val raphtoryConfig = ConfigBuilder.getDefaultConfig
   private val auth           = raphtoryConfig.getString("raphtory.spout.coho.authorization")
   private val contentType    = raphtoryConfig.getString("raphtory.spout.coho.contentType")
   private val url            = raphtoryConfig.getString("raphtory.spout.coho.url")

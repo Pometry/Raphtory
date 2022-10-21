@@ -10,7 +10,7 @@ import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 object ClusterManagerService extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = {
-    val config = ConfigBuilder().getDefaultConfig
+    val config = ConfigBuilder.getDefaultConfig
     (for {
       service <- RaphtoryServiceBuilder.manager[IO](config)
       _       <- RaphtoryServiceBuilder.server(service, config)

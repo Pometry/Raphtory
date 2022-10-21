@@ -3,9 +3,11 @@ package com.raphtory.internals.context
 import cats.effect.IO
 import cats.effect.Resource
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
+import com.raphtory.api.analysis.graphview.PyDeployedTemporalGraph
 import com.raphtory._
 import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import cats.effect.unsafe.implicits.global
+import com.raphtory.internals.components.RaphtoryServiceBuilder
 import com.raphtory.internals.management.Prometheus
 import com.raphtory.internals.management.QuerySender
 import com.raphtory.internals.management.Scheduler
@@ -15,62 +17,102 @@ import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.context.GraphException._
+import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 
-class RaphtoryContext(serviceAsResource: Resource[IO, RaphtoryService[IO]], config: Config) {
+abstract class Context(serviceAsResource: Resource[IO, RaphtoryService[IO]], config: Config) {
+  protected def newIOGraphParams(
+      failOnNotFound: Boolean,
+      graphID: String = createName,
+      destroy: Boolean
+  ): Resource[IO, (Query, QuerySender, Config)] =
+    for {
+      service       <- serviceAsResource
+      ifGraphExists <- Resource.eval(service.getGraph(protocol.GetGraph(graphID)))
+      _              = if (!ifGraphExists.success && failOnNotFound) throw NoGraphFound(graphID)
+                       else if (!failOnNotFound && ifGraphExists.success) throw GraphAlreadyDeployed(graphID)
+      _             <- Prometheus[IO](config.getInt("raphtory.prometheus.metrics.port"))
+      topicRepo     <- LocalTopicRepository[IO](config, None)
+      querySender   <-
+        Resource.make(IO.delay(new QuerySender(graphID, service, new Scheduler(), topicRepo, config, createName))) {
+          qs =>
+            IO.blocking {
+              if (destroy) qs.destroyGraph(true) else qs.disconnect()
+            }
+        }
+      _             <- { if (!failOnNotFound) Resource.eval(IO(querySender.establishGraph())) else Resource.eval(IO.unit) }
+    } yield (Query(graphID = graphID), querySender, config)
+}
+
+class PyRaphtoryContext(serviceAsResource: Resource[IO, RaphtoryService[IO]], config: Config, shutdown: IO[Unit])
+        extends Context(serviceAsResource, config)
+        with AutoCloseable {
+
+  def newGraph(graphID: String = createName): PyDeployedTemporalGraph = {
+    val ((q, qs, c), shutdown) =
+      newIOGraphParams(failOnNotFound = false, graphID, destroy = false).allocated.unsafeRunSync()
+    new PyDeployedTemporalGraph(q, qs, c, shutdown)
+  }
+
+  def getGraph(graphID: String): PyDeployedTemporalGraph = {
+    val ((q, qs, c), shutdown) =
+      newIOGraphParams(failOnNotFound = true, graphID, destroy = false).allocated.unsafeRunSync()
+    new PyDeployedTemporalGraph(q, qs, c, shutdown)
+  }
+
+  def close(): Unit = shutdown.unsafeRunSync()
+}
+
+object PyRaphtoryContext {
+
+  private lazy val (standalone, shutdown): (RaphtoryService[IO], IO[Unit]) =
+    RaphtoryServiceBuilder.standalone[IO](defaultConf).allocated.unsafeRunSync()
+
+  def local(): PyRaphtoryContext = new PyRaphtoryContext(Resource.pure(standalone), defaultConf, shutdown)
+
+  def remote(host: String, port: Int): PyRaphtoryContext = {
+    val config =
+      ConfigBuilder()
+        .addConfig("raphtory.deploy.address", host)
+        .addConfig("raphtory.deploy.port", port)
+        .build()
+        .getConfig
+
+    val service = RaphtoryServiceBuilder.client[IO](config)
+    new PyRaphtoryContext(service, config, IO.unit)
+  }
+}
+
+class RaphtoryContext(serviceAsResource: Resource[IO, RaphtoryService[IO]], config: Config)
+        extends Context(serviceAsResource, config) {
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+
+  def newIOGraph(
+      failOnNotFound: Boolean,
+      graphID: String = createName,
+      destroy: Boolean
+  ): Resource[IO, DeployedTemporalGraph] =
+    newIOGraphParams(failOnNotFound, graphID, destroy).map {
+      case (query, querySender, conf) =>
+        new DeployedTemporalGraph(query, querySender, conf)
+    }
 
   // With this API user is trying to connect to an existing graph with following expectations:
   // - if the graph is not available with the provided graph id, throw an exception otherwise fetch the graph to work with
-  def runWithGraph[T](graphID: String, destroy: Boolean = false)(f: DeployedTemporalGraph => T): T = {
-    def newIOGraph(graphID: String = createName): Resource[IO, DeployedTemporalGraph] =
-      for {
-        service       <- serviceAsResource
-        ifGraphExists <- Resource.eval(service.getGraph(protocol.GetGraph(graphID)))
-        _              = if (!ifGraphExists.success) throw NoGraphFound(graphID)
-        _             <- Prometheus[IO](config.getInt("raphtory.prometheus.metrics.port"))
-        topicRepo     <- LocalTopicRepository[IO](config, None)
-        querySender   <-
-          Resource.make(IO.delay(new QuerySender(graphID, service, new Scheduler(), topicRepo, config, createName))) {
-            qs =>
-              IO.blocking {
-                if (destroy) qs.destroyGraph(true) else qs.disconnect()
-              }
-          }
-      } yield new DeployedTemporalGraph(Query(graphID = graphID), querySender, config)
-
-    newIOGraph(graphID)
+  def runWithGraph[T](graphID: String, destroy: Boolean = false)(f: DeployedTemporalGraph => T): T =
+    newIOGraph(failOnNotFound = true, graphID, destroy)
       .use { graph =>
         IO.blocking(f(graph))
       }
       .unsafeRunSync()
-  }
 
   // With this API user is trying to create a fresh graph with following expectations:
   // - if no graph is available with the provided graph id, create a new graph, otherwise throw an exception
-  def runWithNewGraph[T](graphID: String = createName, destroy: Boolean = false)(f: DeployedTemporalGraph => T): T = {
-    def newIOGraph(graphID: String = createName): Resource[IO, DeployedTemporalGraph] =
-      for {
-        service       <- serviceAsResource
-        ifGraphExists <- Resource.eval(service.getGraph(protocol.GetGraph(graphID)))
-        _              = if (ifGraphExists.success) throw GraphAlreadyDeployed(graphID)
-        _             <- Prometheus[IO](config.getInt("raphtory.prometheus.metrics.port"))
-        topicRepo     <- LocalTopicRepository[IO](config, None)
-        querySender   <-
-          Resource.make(IO.delay(new QuerySender(graphID, service, new Scheduler(), topicRepo, config, createName))) {
-            qs =>
-              IO.blocking {
-                if (destroy) qs.destroyGraph(true) else qs.disconnect()
-              }
-          }
-        _             <- Resource.eval(IO(querySender.establishGraph()))
-      } yield new DeployedTemporalGraph(Query(graphID = graphID), querySender, config)
-
-    newIOGraph(graphID)
+  def runWithNewGraph[T](graphID: String = createName, destroy: Boolean = false)(f: DeployedTemporalGraph => T): T =
+    newIOGraph(failOnNotFound = false, graphID, destroy)
       .use { graph =>
         IO.blocking(f(graph))
       }
       .unsafeRunSync()
-  }
 
   def destroyGraph(graphID: String): Unit = runWithGraph(graphID, destroy = true) { _ => }
 }

@@ -13,7 +13,7 @@ package object raphtory {
 
   private[raphtory] def createName: String = Nomen.est().adjective().color().animal().get()
 
-  private[raphtory] val defaultConf: Config  = ConfigBuilder().getDefaultConfig
+  private[raphtory] val defaultConf: Config  = ConfigBuilder.getDefaultConfig
   private[raphtory] lazy val deployInterface = defaultConf.getString("raphtory.deploy.address")
   private[raphtory] lazy val deployPort      = defaultConf.getInt("raphtory.deploy.port")
 

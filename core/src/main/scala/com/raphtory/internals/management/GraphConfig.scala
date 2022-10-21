@@ -26,11 +26,12 @@ object GraphConfig {
     }
 
     def build(): GraphConfig = new GraphConfig(tempConf.resolve())
-
-    def getDefaultConfig: Config = ConfigBuilder().build().getConfig
   }
 
   object ConfigBuilder {
     def apply(): ConfigBuilder = new ConfigBuilder()
+
+    private lazy val defaultConfig = ConfigFactory.defaultOverrides().withFallback(ConfigFactory.defaultApplication()).resolve()
+    def getDefaultConfig: Config = defaultConfig
   }
 }

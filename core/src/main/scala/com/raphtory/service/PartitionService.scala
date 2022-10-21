@@ -12,7 +12,7 @@ import com.raphtory.makePartitionIDManager
 object PartitionService extends IOApp {
 
   def run(args: List[String]): IO[ExitCode] = {
-    val config  = ConfigBuilder().getDefaultConfig
+    val config  = ConfigBuilder.getDefaultConfig
     val service = for {
       repo               <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, None)
       partitionIDManager <- makePartitionIDManager[IO](config)

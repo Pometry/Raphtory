@@ -11,7 +11,7 @@ import scala.util.Random
 class ZookeeperIDManagerTest extends CatsEffectSuite {
 
   private val deploymentID     = s"raphtory-test-${Random.nextLong().abs}"
-  private val config           = ConfigBuilder().getDefaultConfig
+  private val config           = ConfigBuilder.getDefaultConfig
   private val zookeeperAddress = config.getString("raphtory.zookeeper.address")
 
   private val manager =

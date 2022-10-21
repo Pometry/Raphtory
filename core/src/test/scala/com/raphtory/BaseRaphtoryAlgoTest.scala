@@ -28,22 +28,23 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   def liftFileIfNotPresent: Option[(String, URL)] = None
   def setSource(): Source
 
-  def run[R](f: DeployedTemporalGraph => R): R = {
-    (for {
-      _ <- TestUtils.manageTestFile(liftFileIfNotPresent)
-    } yield {
+  lazy val withGraph: SyncIO[FunFixture[DeployedTemporalGraph]] = ResourceFixture(
+          new RaphtoryContext(RaphtoryServiceBuilder.standalone[IO](defaultConf), defaultConf)
+            .newIOGraph(failOnNotFound = false, destroy = true)
+  )
 
-    })
-      .use { _ =>
-        IO {
-          val ctx = new RaphtoryContext(RaphtoryServiceBuilder.standalone[IO](defaultConf), defaultConf)
-          ctx.runWithNewGraph() { graph =>
-            f(graph)
-          }
-        }
-      }
-      .unsafeRunSync()
-  }
+  lazy val f: Fixture[DeployedTemporalGraph] = ResourceSuiteLocalFixture(
+          "graph",
+          for {
+            _   <- TestUtils.manageTestFile(liftFileIfNotPresent)
+            ctx <- new RaphtoryContext(RaphtoryServiceBuilder.standalone[IO](defaultConf), defaultConf)
+                     .newIOGraph(failOnNotFound = false, destroy = true)
+          } yield ctx
+  )
+
+  def graph: DeployedTemporalGraph = f()
+
+  override def munitFixtures: Seq[Fixture[_]] = List(f)
 
   def algorithmTest(
       algorithm: GenericallyApplicable,
@@ -51,9 +52,10 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
       end: Long,
       increment: Long,
       windows: List[Long] = List[Long](),
-      sink: Sink = defaultSink
+      sink: Sink = defaultSink,
+      graph: DeployedTemporalGraph = graph
   ): IO[String] =
-    run { graph =>
+    IO {
       graph.load(setSource())
 
       val queryProgressTracker = graph
@@ -66,16 +68,17 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
       queryProgressTracker.waitForJob()
 
-      IO(TestUtils.generateTestHash(outputDirectory, jobId))
+      TestUtils.generateTestHash(outputDirectory, jobId)
     }
 
   def algorithmPointTest(
       algorithm: GenericallyApplicable,
       timestamp: Long,
       windows: List[Long] = List[Long](),
-      sink: Sink = defaultSink
+      sink: Sink = defaultSink,
+      graph: DeployedTemporalGraph = graph
   ): IO[String] =
-    run { graph =>
+    IO {
       graph.load(setSource())
 
       val queryProgressTracker = graph
@@ -88,6 +91,6 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
       queryProgressTracker.waitForJob()
 
-      IO(TestUtils.generateTestHash(outputDirectory, jobId))
+      TestUtils.generateTestHash(outputDirectory, jobId)
     }
 }

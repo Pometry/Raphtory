@@ -93,7 +93,7 @@ class JsonFormatTest extends FunSuite {
       partitionID: Int
   ): String = {
     val sink     = StringSink(format = format)
-    val config   = ConfigBuilder().getDefaultConfig
+    val config   = ConfigBuilder.getDefaultConfig
     val executor = sink.executor(
             jobID,
             partitionID,

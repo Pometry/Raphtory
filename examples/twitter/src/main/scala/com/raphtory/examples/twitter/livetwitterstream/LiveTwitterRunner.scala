@@ -15,7 +15,7 @@ object LiveTwitterRunner extends RaphtoryApp.Local {
 
   override def run(args: Array[String], ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph() { graph =>
-      val raphtoryConfig: Config             = ConfigBuilder().getDefaultConfig
+      val raphtoryConfig: Config             = ConfigBuilder.getDefaultConfig
       val enableRetweetGraphBuilder: Boolean =
         raphtoryConfig.getBoolean("raphtory.spout.twitter.local.enableRetweetFilter")
 

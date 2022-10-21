@@ -5,6 +5,7 @@ import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.input._
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
+
 import java.net.URL
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.Duration
@@ -13,21 +14,21 @@ import scala.language.postfixOps
 
 class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
   val sink: FileSink = FileSink(outputDirectory)
+
   test("Graph State Test".ignore) {
-    run { graph =>
-      graph.load(setSource())
-      graph
-        .walk(10000)
-        .past()
-        .execute(GraphState())
-        .writeTo(sink)
-        .waitForJob()
-    }
+    val graph = f()
+    graph.load(setSource())
+    graph
+      .walk(10000)
+      .past()
+      .execute(GraphState())
+      .writeTo(sink)
+      .waitForJob()
   }
 
   test("Connected Components Test") {
     val sink: FileSink = FileSink(outputDirectory)
-    run { graph =>
+    val graph = f()
       graph.load(setSource())
       graph
         .range(1, 32674, 10000)
@@ -35,7 +36,6 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
         .execute(ConnectedComponents)
         .writeTo(sink)
         .waitForJob()
-    }
   }
 
   override def liftFileIfNotPresent: Option[(String, URL)] =

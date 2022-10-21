@@ -142,7 +142,7 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   case object RemoteContext extends Context
 
-  val defaultConf: Config = ConfigBuilder().getDefaultConfig
+  val defaultConf: Config = ConfigBuilder.getDefaultConfig
 
   lazy val localContextFixture: Fixture[RaphtoryContext] = ResourceSuiteLocalFixture(
           "local",

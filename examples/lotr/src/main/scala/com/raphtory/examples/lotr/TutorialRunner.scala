@@ -16,7 +16,7 @@ import scala.language.postfixOps
 
 object LocalRunner extends RaphtoryApp.Local {
 
-  override def run(args: Array[String], ctx: RaphtoryContext): Unit =
+  override def run(args: Array[String], ctx: RaphtoryContext): Unit = {
     ctx.runWithNewGraph(destroy = true) { graph =>
       val path = "/tmp/lotr.csv"
       val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
@@ -71,6 +71,7 @@ object LocalRunner extends RaphtoryApp.Local {
         .waitForJob()
 
     }
+  }
 }
 
 object RemoteRunner extends RaphtoryApp.Remote("localhost", 1736) {

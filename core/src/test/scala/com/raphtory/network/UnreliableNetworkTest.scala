@@ -22,7 +22,7 @@ case class Result(value: Int)
 
 @IgnoreSuite
 class UnreliableNetworkTest extends FunSuite with TestContainerForAll {
-  private val virtualPort = ConfigBuilder().getDefaultConfig.getInt("raphtory.akka.port")
+  private val virtualPort = ConfigBuilder.getDefaultConfig.getInt("raphtory.akka.port")
   private val actualPort  = virtualPort + 1
   private val env         = Map("INPUT_PORT" -> s"$virtualPort", "OUTPUT_PORT" -> s"$actualPort")
   private val config      = ConfigBuilder().addConfig("raphtory.akka.bindPort", s"$actualPort").build().getConfig

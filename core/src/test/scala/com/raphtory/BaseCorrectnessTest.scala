@@ -1,13 +1,14 @@
 package com.raphtory
 
 import cats.effect.IO
-import cats.effect.Resource
 import com.raphtory.api.analysis.algorithm.GenericallyApplicable
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
+import com.raphtory.internals.components.RaphtoryServiceBuilder
+import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.spouts.IdentitySpout
 import com.raphtory.spouts.SequenceSpout
 
@@ -67,9 +68,11 @@ abstract class BaseCorrectnessTest(
       graphEdges: Edges,
       resultsResource: String
   ): Unit = {
-    val obtained = run { graph =>
-      graph.load(graphEdges)
-      runTest(test, graph)
+    val obtained = {
+      val graph = new RaphtoryContext(RaphtoryServiceBuilder.standalone[IO](defaultConf), defaultConf)
+        .newIOGraph(failOnNotFound = false, destroy = true).allocated.unsafeRunSync()
+      graph._1.load(graphEdges)
+      runTest(test, graph._1)
     }
     assertResultsMatch(obtained, resultsResource)
   }
@@ -79,23 +82,35 @@ abstract class BaseCorrectnessTest(
       graphEdges: Edges,
       results: Seq[String]
   ): Unit = {
-    val obtained = run { graph =>
-      graph.load(graphEdges)
-      runTest(test, graph)
+    val obtained = {
+      val graph = new RaphtoryContext(RaphtoryServiceBuilder.standalone[IO](defaultConf), defaultConf)
+        .newIOGraph(failOnNotFound = false, destroy = true).allocated.unsafeRunSync()
+      graph._1.load(graphEdges)
+      runTest(test, graph._1)
     }
     assertResultsMatch(obtained, results)
   }
 
-  def correctnessTest(test: TestQuery, results: Seq[String]): Unit = {
-    val obtained = run { graph =>
-      graph.load(setSource())
-      runTest(test, graph)
+  def correctnessTest(
+      test: TestQuery,
+      results: Seq[String]
+  ): Unit = {
+    val obtained = {
+      val graph = new RaphtoryContext(RaphtoryServiceBuilder.standalone[IO](defaultConf), defaultConf)
+        .newIOGraph(failOnNotFound = false, destroy = true).allocated.unsafeRunSync()
+      graph._1.load(setSource())
+      runTest(test, graph._1)
     }
     assertResultsMatch(obtained, results)
   }
 
-  def correctnessTest(test: TestQuery, view: View, results: Seq[String]): Unit = {
-    val obtained = run { graph =>
+  def correctnessTest(
+      test: TestQuery,
+      view: View,
+      results: Seq[String]
+  ): Unit = {
+    val obtained = {
+      val graph = f()
       graph.load(setSource())
       view match {
         case Undirected => runTest(test, graph.undirectedView)
@@ -105,10 +120,15 @@ abstract class BaseCorrectnessTest(
     assertResultsMatch(obtained, results)
   }
 
-  def correctnessTest(test: TestQuery, results: String): Unit = {
-    val obtained = run { graph =>
-      graph.load(setSource())
-      runTest(test, graph)
+  def correctnessTest(
+      test: TestQuery,
+      results: String
+  ): Unit = {
+    val obtained = {
+      val graph = new RaphtoryContext(RaphtoryServiceBuilder.standalone[IO](defaultConf), defaultConf)
+        .newIOGraph(failOnNotFound = false, destroy = true).allocated.unsafeRunSync()
+      graph._1.load(setSource())
+      runTest(test, graph._1)
     }
     assertResultsMatch(obtained, results)
   }
