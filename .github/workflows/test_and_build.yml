@@ -81,7 +81,7 @@ jobs:
           poetry run pytest
       - name: Run notebook tests
         run: |
-          cd examples && pytest --nbmake --execution-timeout 1000
+          cd examples && pytest --nbmake
     if: needs.configure.outputs.type == 'regular'
 
   build:
