@@ -12,7 +12,8 @@ import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy
 import com.raphtory.api.input.sources.CSVEdgeListSource
-import com.raphtory.api.input.{Source, Spout}
+import com.raphtory.api.input.Source
+import com.raphtory.api.input.Spout
 import com.raphtory.spouts.SequenceSpout
 
 class WriteValue extends GenericReduction {
@@ -29,32 +30,33 @@ object WriteValue {
 }
 
 class MultilayerViewTest extends BaseCorrectnessTest {
-  val edges = Seq("1,2,1", "2,1,2")
+  val edges: Seq[String] = Seq("1,2,1", "2,1,2")
 
-
-
-  test("test multilayer view") {
+  withGraph.test("test multilayer view") { graph =>
     correctnessTest(
             TestQuery(MultilayerView() -> EdgeList(), 2),
-            Seq("2,1_1,2_1", "2,2_2,1_2")
+            Seq("2,1_1,2_1", "2,2_2,1_2"),
+            graph
     )
   }
 
-  test("test temporal node list") {
+  withGraph.test("test temporal node list") { graph =>
     correctnessTest(
             TestQuery(TemporalNodeList(), 2),
-            Seq("2,1,1", "2,1,2", "2,2,1", "2,2,2")
+            Seq[String]("2,1,1", "2,1,2", "2,2,1", "2,2,2"),
+            graph
     )
   }
 
-  test("test temporal edge list") {
-    correctnessTest(TestQuery(TemporalEdgeList(), 2), Seq("2,1,2,1", "2,2,1,2"))
+  withGraph.test("test temporal edge list") { graph =>
+    correctnessTest(TestQuery(TemporalEdgeList(), 2), Seq("2,1,2,1", "2,2,1,2"), graph)
   }
 
-  test("test property merging") {
+  withGraph.test("test property merging") { graph =>
     correctnessTest(
             TestQuery(WriteValue() -> NodeList("testing"), 2),
-            Seq("2,1,2", "2,2,2")
+            Seq("2,1,2", "2,2,2"),
+            graph
     )
   }
 

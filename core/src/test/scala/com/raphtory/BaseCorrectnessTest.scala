@@ -67,22 +67,6 @@ abstract class BaseCorrectnessTest(
   def correctnessTest(
       test: TestQuery,
       graphEdges: Edges,
-      resultsResource: String
-  ): Unit = {
-    val obtained = {
-      val graph = new RaphtoryContext(RaphtoryServiceBuilder.standalone[IO](defaultConf), defaultConf)
-        .newIOGraph(failOnNotFound = false, destroy = true)
-        .allocated
-        .unsafeRunSync()
-      graph._1.load(graphEdges)
-      runTest(test, graph._1)
-    }
-    assertResultsMatch(obtained, resultsResource)
-  }
-
-  def correctnessTest(
-      test: TestQuery,
-      graphEdges: Edges,
       resultsResource: String,
       graph: DeployedTemporalGraph
   ): Unit = {
@@ -104,16 +88,11 @@ abstract class BaseCorrectnessTest(
 
   def correctnessTest(
       test: TestQuery,
-      results: Seq[String]
+      results: Seq[String],
+      graph: DeployedTemporalGraph
   ): Unit = {
-    val obtained = {
-      val graph = new RaphtoryContext(RaphtoryServiceBuilder.standalone[IO](defaultConf), defaultConf)
-        .newIOGraph(failOnNotFound = false, destroy = true)
-        .allocated
-        .unsafeRunSync()
-      graph._1.load(setSource())
-      runTest(test, graph._1)
-    }
+    graph.load(setSource())
+    val obtained = runTest(test, graph)
     assertResultsMatch(obtained, results)
   }
 
@@ -122,13 +101,11 @@ abstract class BaseCorrectnessTest(
       view: View,
       results: Seq[String]
   ): Unit = {
-    val obtained = {
-      val graph = f()
-      graph.load(setSource())
-      view match {
-        case Undirected => runTest(test, graph.undirectedView)
-        case Reverse    => runTest(test, graph.reversedView)
-      }
+    val graph    = f()
+    graph.load(setSource())
+    val obtained = view match {
+      case Undirected => runTest(test, graph.undirectedView)
+      case Reverse    => runTest(test, graph.reversedView)
     }
     assertResultsMatch(obtained, results)
   }
