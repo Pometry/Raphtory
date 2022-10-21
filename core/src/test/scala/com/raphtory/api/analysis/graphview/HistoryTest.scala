@@ -8,7 +8,8 @@ import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
-import com.raphtory.api.input.{Source, Spout}
+import com.raphtory.api.input.Source
+import com.raphtory.api.input.Spout
 import com.raphtory.spouts.SequenceSpout
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.TestQuery
@@ -61,7 +62,6 @@ class HistoryTest extends BaseCorrectnessTest {
     for (i <- 0 until 100) yield s"${rng.nextInt(20)},${rng.nextInt(20)}"
   }
   val input: Seq[String] = edges.zipWithIndex.map { case (s, i) => s"$s,$i" }
-
 
   val res: Seq[String] = edges.distinct.map(e => s"${edges.size - 1},$e")
 
@@ -350,5 +350,5 @@ class HistoryTest extends BaseCorrectnessTest {
       (List(parts(0), parts(1), parts(3), parts(2)) ++ parts.slice(4, parts.size)).mkString(",")
     }
 
-  override def setSource(): Source = CSVEdgeListSource(SequenceSpout(input: _*))
+  override def setSource(): Source = CSVEdgeListSource(SequenceSpout(input))
 }

@@ -10,7 +10,8 @@ import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.api.input.sources.CSVEdgeListSource
-import com.raphtory.api.input.{Source, Spout}
+import com.raphtory.api.input.Source
+import com.raphtory.api.input.Spout
 import com.raphtory.generic.CheckHistory.isSortedIncreasing
 import com.raphtory.internals.storage.pojograph.OrderedBuffer
 import com.raphtory.spouts.SequenceSpout
@@ -57,6 +58,7 @@ object CheckHistory {
 }
 
 class OrderingTest extends BaseCorrectnessTest {
+
   val edges: IndexedSeq[String] =
     for (i <- 0 until 100)
       yield s"${Random.nextInt(10)},${Random.nextInt(10)},${Random.nextInt(100)}"
@@ -65,11 +67,10 @@ class OrderingTest extends BaseCorrectnessTest {
 
   test("test history is sorted") {
     correctnessTest(
-    TestQuery(CheckHistory(), max_time),
-    Seq(s"$max_time,true,true")
+            TestQuery(CheckHistory(), max_time),
+            Seq(s"$max_time,true,true")
     )
   }
 
-
-  override def setSource(): Source = CSVEdgeListSource(SequenceSpout(edges: _*))
+  override def setSource(): Source = CSVEdgeListSource(SequenceSpout(edges))
 }
