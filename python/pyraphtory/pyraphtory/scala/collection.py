@@ -53,6 +53,10 @@ class SequenceScalaProxy(IterableScalaProxy, abc.Sequence):
         return self.reverseIterator()
 
     def index(self, value, start: int = None, stop: int = None):
+        if start < 0:
+            start = len(self) + start
+        if stop < 0:
+            stop = len(self) + stop
         if stop is not None:
             return self.take(stop).index(value, start)
         elif start is not None:
