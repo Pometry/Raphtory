@@ -42,6 +42,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+      - name: Install grpc-health-probe
+        run: curl -L https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.4.14/grpc_health_probe-linux-amd64 -o /usr/local/bin/grpc-health-probe && chmod u+x /usr/local/bin/grpc-health-probe
       - name: Install Pulsar
         run: |
           export PULSAR_VERSION=2.9.0 && \

@@ -130,6 +130,7 @@ lazy val core = (project in file("core"))
                   magnolia,
                   muClient,
                   muFs2,
+                  muHealth,
                   muServer,
                   muService,
                   nomen,

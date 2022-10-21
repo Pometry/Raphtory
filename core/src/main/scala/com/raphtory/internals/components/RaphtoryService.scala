@@ -30,7 +30,9 @@ import com.raphtory.protocol.success
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import fs2.Stream
+import grpc.health.v1.health.Health
 import higherkindness.mu.rpc.ChannelForAddress
+import higherkindness.mu.rpc.healthcheck.HealthService
 import higherkindness.mu.rpc.server.AddService
 import higherkindness.mu.rpc.server.GrpcServer
 import org.slf4j.LoggerFactory
@@ -148,11 +150,13 @@ object RaphtoryServiceBuilder {
   def server[F[_]: Async](service: RaphtoryService[F], config: Config): Resource[F, Unit] = {
     implicit val implicitService: RaphtoryService[F] = service
     for {
-      port       <- port(config)
-      serviceDef <- RaphtoryService.bindService[F]
-      server     <- Resource.eval(GrpcServer.default[F](port, List(AddService(serviceDef))))
-      _          <- GrpcServer.serverResource[F](server)
-      _          <- Resource.eval(Async[F].delay(println("Raphtory service started")))
+      port          <- port(config)
+      healthService <- Resource.eval(HealthService.build[F])
+      healthDef     <- Health.bindService[F](Async[F], healthService)
+      serviceDef    <- RaphtoryService.bindService[F]
+      server        <- Resource.eval(GrpcServer.default[F](port, List(AddService(serviceDef), AddService(healthDef))))
+      _             <- GrpcServer.serverResource[F](server)
+      _             <- Resource.eval(Async[F].delay(logger.info("Raphtory service started")))
     } yield ()
   }
 
