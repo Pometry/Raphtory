@@ -42,10 +42,11 @@ object CountIterations {
 }
 
 class TestIteration extends BaseCorrectnessTest {
-  test("Testing vote-to-halt works") {
+  withGraph.test("Testing vote-to-halt works") { graph =>
     correctnessTest(
             TestQuery(CountIterations(10, 100), 23),
-            "Iterations/results.csv"
+            "Iterations/results.csv",
+            graph
     )
   }
 

@@ -8,8 +8,8 @@ import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceSpout
 
 class PageRankTest extends FPCorrectnessTest(tol = 1e-4) {
-  test("test PageRank") {
-    correctnessTest(TestQuery(PageRank(0.85, 1000), 23), "PageRank/pagerankresult.csv")
+  withGraph.test("test PageRank") { graph =>
+    correctnessTest(TestQuery(PageRank(0.85, 1000), 23), "PageRank/pagerankresult.csv", graph)
   }
 
   override def setSource(): Source = CSVEdgeListSource(ResourceSpout("MotifCount/motiftest.csv"))

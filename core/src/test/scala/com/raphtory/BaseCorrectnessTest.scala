@@ -135,21 +135,6 @@ abstract class BaseCorrectnessTest(
 
   def correctnessTest(
       test: TestQuery,
-      results: String
-  ): Unit = {
-    val obtained = {
-      val graph = new RaphtoryContext(RaphtoryServiceBuilder.standalone[IO](defaultConf), defaultConf)
-        .newIOGraph(failOnNotFound = false, destroy = true)
-        .allocated
-        .unsafeRunSync()
-      graph._1.load(setSource())
-      runTest(test, graph._1)
-    }
-    assertResultsMatch(obtained, results)
-  }
-
-  def correctnessTest(
-      test: TestQuery,
       results: String,
       graph: DeployedTemporalGraph
   ): Unit = {

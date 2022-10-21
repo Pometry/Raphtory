@@ -68,16 +68,16 @@ object CheckNodeCount extends Generic {
 
 class AccumulatorTest extends BaseCorrectnessTest {
 
-  test("Test accumulators by counting nodes") {
-    correctnessTest(TestQuery(CountNodes, 23), "Accumulator/results.csv")
+  withGraph.test("Test accumulators by counting nodes") { graph =>
+    correctnessTest(TestQuery(CountNodes, 23), "Accumulator/results.csv", graph)
   }
 
-  test("Test resetting of accumulators by running CountNodes twice (should not change result)") {
-    correctnessTest(TestQuery(CountNodes -> CountNodes, 23), "Accumulator/results.csv")
+  withGraph.test("Test resetting of accumulators by running CountNodes twice (should not change result)") { graph =>
+    correctnessTest(TestQuery(CountNodes -> CountNodes, 23), "Accumulator/results.csv", graph)
   }
 
-  test("Test rotation of accumulators and state retention by running counting nodes twice") {
-    correctnessTest(TestQuery(CountNodesTwice, 23), "Accumulator/results2.csv")
+  withGraph.test("Test rotation of accumulators and state retention by running counting nodes twice") { graph =>
+    correctnessTest(TestQuery(CountNodesTwice, 23), "Accumulator/results2.csv", graph)
   }
 
   test("Test nodeCount on graph state is consistent for multiple perspectives") {
