@@ -12,7 +12,7 @@ object Dependencies {
   private lazy val log4jVersion                    = "2.18.0"
   private lazy val muVersion                       = "0.29.0"
   private lazy val openhftVersion                  = "0.15"
-  private lazy val pemjaVersion                    = "0.2.0"
+  private lazy val pemjaVersion                    = "0.2.6"
   private lazy val prometheusVersion               = "0.15.0"
   private lazy val pulsarVersion                   = "2.9.1"
   private lazy val py4jVersion                     = "0.10.9.5"
