@@ -11,6 +11,9 @@ class IterableScalaProxy(GenericScalaProxy, abc.Iterable):
     def __iter__(self):
         return self.iterator()
 
+    def __len__(self):
+        return self.size()
+
 
 @register(name="Iterator")
 class IteratorScalaProxy(GenericScalaProxy, abc.Iterator):
