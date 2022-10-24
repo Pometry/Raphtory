@@ -35,7 +35,7 @@ jobs:
         runners: [ubuntu-latest]
         containers: ["eclipse-temurin:11.0.12_7-jdk"]
         python-version: ["3.9"]
-        sbt: [1.5.5]
+        sbt: [1.6.2]
     runs-on: ${{ matrix.runners }}
     container:
       image: ${{ matrix.containers }}
