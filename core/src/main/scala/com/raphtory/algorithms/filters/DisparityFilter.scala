@@ -31,6 +31,7 @@ import scala.math.Numeric.Implicits.infixNumericOps
   * ```
   */
 
+// problem
 class DisparityFilter[T: Numeric: Bounded: ClassTag](
     alpha: Double = 0.05,
     weightProperty: String = "weight"
