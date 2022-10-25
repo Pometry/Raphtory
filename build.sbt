@@ -85,7 +85,8 @@ lazy val root = (project in file("."))
           examplesTwitter,
           examplesNFT,
           deploy,
-          integrationTest
+          integrationTest,
+          docTests
   )
 
 //lazy val protocol = project
@@ -190,9 +191,6 @@ lazy val connectorsPulsar =
 lazy val examplesCoho =
   (project in file("examples/companies-house")).dependsOn(core).settings(assemblySettings)
 
-lazy val examplesEthereum =
-  (project in file("examples/ethereum")).dependsOn(core, connectorsPulsar).settings(assemblySettings)
-
 lazy val examplesGab =
   (project in file("examples/gab")).dependsOn(core, connectorsPulsar).settings(assemblySettings)
 
@@ -218,6 +216,11 @@ lazy val deploy =
 lazy val integrationTest =
   (project in file("test"))
     .dependsOn(core % "compile->compile;test->test")
+    .settings(assemblySettings)
+
+lazy val docTests =
+  (project in file("doc-tests"))
+    .dependsOn(core % "compile->compile;test->test", examplesLotr)
     .settings(assemblySettings)
 
 // SETTINGS
