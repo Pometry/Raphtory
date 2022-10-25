@@ -38,7 +38,7 @@ case class Data(
                registered_office_is_in_dispute: Option[Boolean],
                service_address: Option[ServiceAddress],
                sic_codes: Option[String],
-               _type: Option[String],
+               `type`: Option[String],
                undeliverable_registered_office_address: Option[Boolean]
                )
 
@@ -61,7 +61,7 @@ case class AccountingReferenceDate(
 
 case class LastAccounts(
                        made_up_to: Option[String],
-                       _type: Option[String]
+                       `type`: Option[String]
                        )
 
 case class NextAccounts(
@@ -100,7 +100,7 @@ case class Event(
                 fields_changed: Option[Array[String]],
                 timepoint: Option[Int],
                 published_at: Option[String],
-                _type: Option[String]
+                `type`: Option[String]
                 )
 
 case class AnnualReturn(
