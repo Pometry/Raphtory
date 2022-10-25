@@ -13,11 +13,11 @@ import com.raphtory.spouts.{FileSpout, ResourceSpout}
  * @param sourceType : state what type of value the source is (default = "Name")
  * @param targetKey : state the key of the target ID in your JSON data (default = "target")
  * @param targetType : state what type of value the target is (default = "Name")
- * @param edgeRelationship : state what the edge relationship is (default = "Person to Person")
+ * @param edgeRelationship : state what the edge relationship is (default = None)
  * @param timeKey : state the key of the timestamp in your JSON data, timestamp must be in datetime format (default = "time")
  */
 
-class JSONEdgeListSource(override val spout: Spout[String], sourceKey: String = "source", sourceType: String = "Name", targetKey: String = "target", targetType: String = "Name", edgeRelationship: String = "Person to Person", timeKey: String = "time") extends Source {
+class JSONEdgeListSource(override val spout: Spout[String], sourceKey: String = "source", sourceType: String = "Name", targetKey: String = "target", targetType: String = "Name", edgeRelationship: String = "", timeKey: String = "time") extends Source {
   override type MessageType = String
   override def builder: GraphBuilder[String] =
     (graph: Graph, jsonString: String) => {
@@ -44,7 +44,7 @@ class JSONEdgeListSource(override val spout: Spout[String], sourceKey: String = 
 }
 
 object JSONEdgeListSource {
-  def apply(spout: Spout[String], sourceKey: String = "source", sourceType: String = "Name", targetKey: String = "target", targetType: String = "Name", edgeRelationship: String = "Person to Person", timeKey: String = "time") = new JSONEdgeListSource(spout, sourceKey, sourceType, targetKey, targetType, edgeRelationship, timeKey)
-  def fromFile(path: String, sourceKey: String = "source", sourceType: String = "Name", targetKey: String = "target", targetType: String = "Name", edgeRelationship: String = "Person to Person", timeKey: String = "time") = new JSONEdgeListSource(FileSpout(path), sourceKey, sourceType, targetKey, targetType, edgeRelationship, timeKey)
-  def fromResource(path: String, sourceKey: String = "source", sourceType: String = "Name", targetKey: String = "target", targetType: String = "Name", edgeRelationship: String = "Person to Person", timeKey: String = "time") = new JSONEdgeListSource(ResourceSpout(path), sourceKey, sourceType, targetKey, targetType, edgeRelationship, timeKey)
+  def apply(spout: Spout[String], sourceKey: String = "source", sourceType: String = "Name", targetKey: String = "target", targetType: String = "Name", edgeRelationship: String = "", timeKey: String = "time") = new JSONEdgeListSource(spout, sourceKey, sourceType, targetKey, targetType, edgeRelationship, timeKey)
+  def fromFile(path: String, sourceKey: String = "source", sourceType: String = "Name", targetKey: String = "target", targetType: String = "Name", edgeRelationship: String = "", timeKey: String = "time") = new JSONEdgeListSource(FileSpout(path), sourceKey, sourceType, targetKey, targetType, edgeRelationship, timeKey)
+  def fromResource(path: String, sourceKey: String = "source", sourceType: String = "Name", targetKey: String = "target", targetType: String = "Name", edgeRelationship: String = "", timeKey: String = "time") = new JSONEdgeListSource(ResourceSpout(path), sourceKey, sourceType, targetKey, targetType, edgeRelationship, timeKey)
 }

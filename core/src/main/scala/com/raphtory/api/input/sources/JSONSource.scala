@@ -20,7 +20,7 @@ import com.raphtory.spouts.{FileSpout, ResourceSpout}
  * @param sourceType : state what type of value the source is (default = "Name")
  * @param targetKey : state the key of the target ID in your JSON data (default = "target")
  * @param targetType : state what type of value the target is (default = "Name")
- * @param edgeKey : state the key of the edge type/relationship in your JSON data (default = "Person to Person")
+ * @param edgeKey : state the key of the edge type/relationship in your JSON data (default = None)
  * @param timeKey : state the key of the timestamp in your JSON data (default = 1)
  */
 
@@ -59,7 +59,7 @@ class JSONSource(override val spout: Spout[String], sourceKey: String = "source"
         }
 
         if(source.nonEmpty && target.nonEmpty)
-          graph.addEdge(time.getOrElse(1), srcID, dstID, Type(_type.getOrElse("Person to Person")))
+          graph.addEdge(time.getOrElse(1), srcID, dstID, Type(_type.getOrElse("")))
       }
     }
 }
