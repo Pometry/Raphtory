@@ -50,6 +50,7 @@ object Dependencies {
   lazy val jackson =
     "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val jfr = "org.gradle.jfr.polyfill" % "jfr-polyfill" % "1.0.0"
+  lazy val jsonpath = "com.jayway.jsonpath" % "json-path" % jsonpathVersion
   lazy val log4jApi   = "org.apache.logging.log4j" % "log4j-api"        % log4jVersion
   lazy val log4jCore  = "org.apache.logging.log4j" % "log4j-core"       % log4jVersion
   lazy val log4jSlft4 = "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion
