@@ -6,7 +6,10 @@ import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input.sources.CSVEdgeListSource
-import com.raphtory.api.input.{Graph, GraphBuilder, Source, Spout}
+import com.raphtory.api.input.Graph
+import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Source
+import com.raphtory.api.input.Spout
 import com.raphtory.spouts.IdentitySpout
 import com.raphtory.spouts.ResourceSpout
 import com.raphtory.spouts.SequenceSpout
@@ -22,11 +25,11 @@ case class TestQuery(
 case class Edges(source: Source)
 
 object Edges {
-  implicit def edgesFromResource(resource: String): Edges  = Edges(CSVEdgeListSource.fromResource(resource))
-  implicit def edgesFromSource(source: Source): Edges  = Edges(source)
-  implicit def sourceFromEdges(edges: Edges): Source  = edges.source
+  implicit def edgesFromResource(resource: String): Edges = Edges(CSVEdgeListSource.fromResource(resource))
+  implicit def edgesFromSource(source: Source): Edges     = Edges(source)
+  implicit def sourceFromEdges(edges: Edges): Source      = edges.source
 
-  implicit def edgesFromEdgeSeq(edges: Seq[String]): Edges = Edges(CSVEdgeListSource(SequenceSpout(edges: _*)))
+  implicit def edgesFromEdgeSeq(edges: Seq[String]): Edges = Edges(CSVEdgeListSource(SequenceSpout(edges)))
 }
 
 trait Result
@@ -50,7 +53,6 @@ abstract class BaseCorrectnessTest(
   private def normaliseResults(value: IterableOnce[String]) =
     value.iterator.toList.sorted.mkString("\n")
 
-
   def setSpout(): Spout[String] = new IdentitySpout
 
   def assertResultsMatch(obtained: IterableOnce[String], resultsResource: String): Unit = {
@@ -66,7 +68,7 @@ abstract class BaseCorrectnessTest(
       test: TestQuery,
       graphEdges: Edges,
       resultsResource: String
-  ): IO[Unit] = {
+  ): IO[Unit] =
     Raphtory
       .newIOGraph()
       .use { g =>
@@ -74,7 +76,6 @@ abstract class BaseCorrectnessTest(
         runTest(test, g)
       }
       .map(obtained => assertResultsMatch(obtained, resultsResource))
-  }
 
   def correctnessTest(
       test: TestQuery,
