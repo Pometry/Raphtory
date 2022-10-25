@@ -1,19 +1,19 @@
 package com.raphtory.service
 
-import cats.effect.ExitCode
 import cats.effect.IO
-import cats.effect.IOApp
 import cats.effect.Resource
+import cats.effect.ResourceApp
 import com.raphtory.internals.components.RaphtoryServiceBuilder
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 
-object Standalone extends IOApp {
+object Standalone extends ResourceApp.Forever {
 
-  def run(args: List[String]): IO[ExitCode] = {
+  def run(args: List[String]): Resource[IO, Unit] = {
     val config = ConfigBuilder.getDefaultConfig
-    (for {
+    for {
       service <- RaphtoryServiceBuilder.standalone[IO](config)
       _       <- RaphtoryServiceBuilder.server(service, config)
-    } yield ()).useForever
+    } yield ()
   }
+
 }

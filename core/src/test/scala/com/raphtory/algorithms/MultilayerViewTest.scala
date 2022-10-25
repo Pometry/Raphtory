@@ -7,13 +7,11 @@ import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.algorithms.temporal.TemporalEdgeList
 import com.raphtory.algorithms.temporal.TemporalNodeList
 import com.raphtory.algorithms.temporal.views.MultilayerView
-import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy
 import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.api.input.Source
-import com.raphtory.api.input.Spout
 import com.raphtory.spouts.SequenceSpout
 
 class WriteValue extends GenericReduction {
@@ -60,5 +58,5 @@ class MultilayerViewTest extends BaseCorrectnessTest {
     )
   }
 
-  override def setSource(): Source = CSVEdgeListSource(SequenceSpout(edges: _*))
+  override def setSource(): Source = CSVEdgeListSource(SequenceSpout(edges))
 }

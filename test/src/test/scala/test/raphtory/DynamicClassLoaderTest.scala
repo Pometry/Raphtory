@@ -86,26 +86,19 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
   lazy val remoteProcess =
     Resource.make {
       for {
-        started   <- Semaphore[IO](0)
 //         get classpath from sbt
         _         <- IO(logger.info("retrieving class path from sbt"))
         classPath <- IO.blocking(Seq("sbt", "--error", "export core/test:fullClasspath").!!)
-        process   <- IO {
-                       logger.info("starting remote process")
-                       Process(Seq("java", "-cp", classPath, "com.raphtory.service.Standalone")).run(
-                               ProcessLogger { line =>
-                                 if (line == "Raphtory service started")
-                                   started.release.unsafeRunSync()
-                                 println(line) // forward output
-                               }
-                       )
-                     }
+        _         <- IO(logger.info("starting remote process"))
+        process   <- IO(Process(Seq("java", "-cp", classPath, "com.raphtory.service.Standalone")).run())
 //         start tests if there is already a standalone instance
-        _         <- (IO.blocking(process.exitValue()) *> started.release *> IO(
+        _         <- (IO.blocking(process.exitValue()) *> IO(
                                logger.info("Failed to start remote process, a standalone instance is likely already running")
                        )).start
-//        head node is started, proceed
-        _         <- started.acquire
+        exit      <- IO(Process(Seq("grpc-health-probe", "-addr=:1736", "-connect-timeout=60s")).!)
+        msg        = "Please install grpc-health-probe (https://github.com/grpc-ecosystem/grpc-health-probe/tree/v0.4.14)"
+        _         <- if (exit == 127) IO.println(msg) else IO.unit
+        _         <- if (exit == 0) IO.unit else IO.canceled
       } yield process
     }(process =>
       IO {

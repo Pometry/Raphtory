@@ -354,5 +354,5 @@ class HistoryTest extends BaseCorrectnessTest {
       (List(parts(0), parts(1), parts(3), parts(2)) ++ parts.slice(4, parts.size)).mkString(",")
     }
 
-  override def setSource(): Source = CSVEdgeListSource(SequenceSpout(input: _*))
+  override def setSource(): Source = CSVEdgeListSource(SequenceSpout(input))
 }

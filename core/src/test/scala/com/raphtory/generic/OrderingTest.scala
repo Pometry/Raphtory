@@ -72,5 +72,5 @@ class OrderingTest extends BaseCorrectnessTest {
     )
   }
 
-  override def setSource(): Source = CSVEdgeListSource(SequenceSpout(edges: _*))
+  override def setSource(): Source = CSVEdgeListSource(SequenceSpout(edges.head, edges.tail:_*))
 }

@@ -7,6 +7,8 @@ import com.twitter.chill.ClosureCleaner
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
+import scala.concurrent.duration._
+
 trait Source {
   type MessageType
   def spout: Spout[MessageType]
@@ -28,6 +30,8 @@ class SourceInstance[T](id: Int, spoutInstance: SpoutInstance[T], builderInstanc
   /** Logger instance for writing out log messages */
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   def sourceID: Int  = id
+
+  def pollInterval: FiniteDuration = 1.seconds
 
   def hasRemainingUpdates: Boolean = spoutInstance.hasNext
 
