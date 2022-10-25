@@ -62,7 +62,7 @@ message DestroyGraph {
   bool force = 3;
 }
 
-// Service
+// Services
 service RaphtoryService {
   rpc establishGraph(ClientGraphId) returns (Status);
   rpc submitQuery(Query) returns (stream QueryManagement);
@@ -72,4 +72,11 @@ service RaphtoryService {
   rpc getNextAvailableId(IdPool) returns (OptionalId);
   rpc processUpdate(GraphUpdate) returns (Status);
   rpc unblockIngestion(UnblockIngestion) returns (Status);
+}
+
+service IngestionService {
+  rpc establishGraph(ClientGraphId) returns (Status);
+  rpc destroyGraph(DestroyGraph) returns (Status);
+  rpc disconnectClient(ClientGraphId) returns (Status);
+  rpc ingestData(IngestData) returns (Status);
 }

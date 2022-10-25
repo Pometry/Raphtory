@@ -24,7 +24,7 @@ private[raphtory] class QueryManager(
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val currentQueries                    = mutable.Map[String, QueryHandler]()
-  private val ingestion                         = topics.ingestSetup(graphID).endPoint
+//  private val ingestion                         = topics.ingestSetup(graphID).endPoint
   val sources: mutable.Map[Long, SourceTracker] = mutable.Map[Long, SourceTracker]()
   var blockedQueries: ArrayBuffer[Query]        = ArrayBuffer[Query]()
 
@@ -93,9 +93,6 @@ private[raphtory] class QueryManager(
 
   override def handleMessage(msg: QueryManagement): Unit =
     msg match {
-      case ingestData: IngestData       =>
-        ingestion sendAsync ingestData
-
       case blocking: BlockIngestion     =>
         startBlockIngesting(blocking.sourceID)
 
