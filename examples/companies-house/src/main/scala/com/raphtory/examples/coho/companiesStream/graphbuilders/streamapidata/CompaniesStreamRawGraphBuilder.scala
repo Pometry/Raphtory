@@ -200,7 +200,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                         ),
                         StringProperty(
                                 "type",
-                                data._type match {
+                                data.`type` match {
                                   case Some(_type) => _type
                                   case None        => nullStr
                                 }
@@ -250,7 +250,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                             ),
                             StringProperty(
                                     "last_accounts_type",
-                                    lastAccounts._type match {
+                                    lastAccounts.`type` match {
                                       case Some(_type) => _type
                                       case None        => nullStr
                                     }

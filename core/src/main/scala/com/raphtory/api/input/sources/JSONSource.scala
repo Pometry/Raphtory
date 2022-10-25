@@ -29,7 +29,7 @@ class JSONSource(override val spout: Spout[String], sourceKey: String = "source"
 
   private var source: String = _
   private var target: String = _
-  private var _type: Option[String] = None
+  private var `type`: Option[String] = None
   private var time: Option[Long] = None
 
   override def builder: GraphBuilder[String] =
@@ -44,7 +44,7 @@ class JSONSource(override val spout: Spout[String], sourceKey: String = "source"
           time = JsonPath.read[Any](json.toString(), "$." + timeKey).toString.toLongOption
         }
         if (edgeKey.nonEmpty) {
-          _type = Option(JsonPath.read[Any](json.toString(), "$." + edgeKey).toString)
+          `type` = Option(JsonPath.read[Any](json.toString(), "$." + edgeKey).toString)
         }
 
         val srcID = assignID(source)
@@ -59,7 +59,7 @@ class JSONSource(override val spout: Spout[String], sourceKey: String = "source"
         }
 
         if(source.nonEmpty && target.nonEmpty)
-          graph.addEdge(time.getOrElse(1), srcID, dstID, Type(_type.getOrElse("")))
+          graph.addEdge(time.getOrElse(1), srcID, dstID, Type(`type`.getOrElse("")))
       }
     }
 }
