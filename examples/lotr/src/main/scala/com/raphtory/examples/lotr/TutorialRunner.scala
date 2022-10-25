@@ -19,7 +19,7 @@ import scala.language.postfixOps
 
 object TutorialRunner extends App {
 
-  val graph = Raphtory.connect().newGraph()
+  val graph = Raphtory.newGraph()
 
   val path = "/tmp/lotr.csv"
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"

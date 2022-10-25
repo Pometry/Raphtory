@@ -93,9 +93,6 @@ private[raphtory] class QueryManager(
 
   override def handleMessage(msg: QueryManagement): Unit =
     msg match {
-//      case ingestData: IngestData       => TODO: turn back on this?
-//        ingestion sendAsync ingestData
-
       case blocking: BlockIngestion     =>
         startBlockIngesting(blocking.sourceID)
 

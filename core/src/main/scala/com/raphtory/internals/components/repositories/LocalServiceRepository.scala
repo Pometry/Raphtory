@@ -17,7 +17,7 @@ class LocalServiceRepository[F[_]: Async](topics: TopicRepository, services: Ref
     )
 
   override def getService[T](descriptor: ServiceDescriptor[F, T]): Resource[F, T] =
-    Resource.eval(services.get.map(serviceList => serviceList(descriptor.name).asInstanceOf[T])) // TODO: this can fail
+    Resource.eval(services.get.map(serviceList => serviceList(descriptor.name).asInstanceOf[T]))
 }
 
 object LocalServiceRepository {
