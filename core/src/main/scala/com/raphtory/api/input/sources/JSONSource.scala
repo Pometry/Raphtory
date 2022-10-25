@@ -17,14 +17,14 @@ import com.raphtory.spouts.{FileSpout, ResourceSpout}
  *
  * @param spout : state where to ingest your data from (Mandatory field)
  * @param sourceKey : state the key of the source ID in your JSON data (default = "source")
- * @param sourceType : state what type of value the source is (default = "Name")
+ * @param sourceType : state what type of value the source is (default = None)
  * @param targetKey : state the key of the target ID in your JSON data (default = "target")
- * @param targetType : state what type of value the target is (default = "Name")
+ * @param targetType : state what type of value the target is (default = None)
  * @param edgeKey : state the key of the edge type/relationship in your JSON data (default = None)
  * @param timeKey : state the key of the timestamp in your JSON data (default = 1)
  */
 
-class JSONSource(override val spout: Spout[String], sourceKey: String = "source", sourceType: String = "Name", targetKey: String = "target", targetType: String = "Name", edgeKey: Option[String] = None, timeKey: Option[String] = None) extends Source {
+class JSONSource(override val spout: Spout[String], sourceKey: String = "source", sourceType: String = "", targetKey: String = "target", targetType: String = "", edgeKey: Option[String] = None, timeKey: Option[String] = None) extends Source {
   override type MessageType = String
 
   private var source: String = _
@@ -64,7 +64,7 @@ class JSONSource(override val spout: Spout[String], sourceKey: String = "source"
     }
 }
 object JSONSource {
-  def apply(spout: Spout[String], sourceKey: String = "source", sourceType: String = "Name", targetKey: String = "target", targetType: String = "Name", edgeKey: Option[String] = None, timeKey: Option[String] = None) = new JSONSource(spout, sourceKey, sourceType, targetKey, targetType, edgeKey, timeKey)
-  def fromFile(path: String,  sourceKey: String = "source", sourceType: String = "Name", targetKey: String = "target", targetType: String = "Name", edgeKey: Option[String] = None, timeKey: Option[String] = None) = new JSONSource(FileSpout(path),sourceKey, sourceType, targetKey, targetType, edgeKey, timeKey)
-  def fromResource(path: String,sourceKey: String = "source", sourceType: String = "Name", targetKey: String = "target", targetType: String = "Name", edgeKey: Option[String] = None, timeKey: Option[String] = None) = new JSONSource(ResourceSpout(path), sourceKey, sourceType, targetKey, targetType, edgeKey, timeKey)
+  def apply(spout: Spout[String], sourceKey: String = "source", sourceType: String = "", targetKey: String = "target", targetType: String = "", edgeKey: Option[String] = None, timeKey: Option[String] = None) = new JSONSource(spout, sourceKey, sourceType, targetKey, targetType, edgeKey, timeKey)
+  def fromFile(path: String,  sourceKey: String = "source", sourceType: String = "", targetKey: String = "target", targetType: String = "", edgeKey: Option[String] = None, timeKey: Option[String] = None) = new JSONSource(FileSpout(path),sourceKey, sourceType, targetKey, targetType, edgeKey, timeKey)
+  def fromResource(path: String,sourceKey: String = "source", sourceType: String = "", targetKey: String = "target", targetType: String = "", edgeKey: Option[String] = None, timeKey: Option[String] = None) = new JSONSource(ResourceSpout(path), sourceKey, sourceType, targetKey, targetType, edgeKey, timeKey)
 }
