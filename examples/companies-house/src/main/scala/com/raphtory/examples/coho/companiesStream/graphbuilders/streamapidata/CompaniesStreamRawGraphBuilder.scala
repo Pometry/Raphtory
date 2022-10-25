@@ -884,7 +884,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                         ),
                         StringProperty(
                                 "_type",
-                                event._type match {
+                                event.`type` match {
                                   case Some(_type) => _type
                                   case None        => nullStr
                                 }
