@@ -58,15 +58,12 @@ private[raphtory] class TopicRepository(
   final def completedQueries(graphID: String): ExclusiveTopic[EndQuery] =
     ExclusiveTopic[EndQuery](completedQueriesConnector, "completed.queries", graphID)
 
-  final def ingestSetup(graphID: String): ExclusiveTopic[IngestData] =
-    ExclusiveTopic[IngestData](ingestSetupConnector, "ingest.setup", graphID)
-
   final def graphSetup: ExclusiveTopic[ClusterManagement] =
     ExclusiveTopic[ClusterManagement](ingestSetupConnector, "graph.setup")
 
   final def clusterComms: BroadcastTopic[ClusterManagement] =
     BroadcastTopic[ClusterManagement](
-            partitionServers + 2, // the number of ingestors, partitions and query managers
+            partitionServers + 1, // the number of partitions + 1 query orchestrator
             ingestSetupConnector,
             "cluster.comms"
     )

@@ -138,7 +138,7 @@ private[raphtory] class QuerySender(
     collector
   }
 
-  def submitSource(blocking: Boolean, sources: Seq[Source], id: String): Unit = {
+  def submitSources(blocking: Boolean, sources: Seq[Source]): Unit = {
 
     val clazzes      = sources.map { source =>
       source.getBuilderClass
@@ -152,8 +152,12 @@ private[raphtory] class QuerySender(
           throw new NoIDException(s"Client '$clientID' was not able to acquire a source ID for $source")
       }
     }
-    val ingestData   = IngestData(DynamicLoader(clazzes).resolve(searchPath), graphID, id, sourceWithId, blocking)
-    service.submitSource(protocol.IngestData(TryIngestData(Success(ingestData)))).unsafeRunSync()
+
+    sourceWithId foreach {
+      case (id, source) =>
+        val ingestData = IngestData(DynamicLoader(clazzes).resolve(searchPath), graphID, id, source, blocking)
+        service.submitSource(protocol.IngestData(TryIngestData(Success(ingestData)))).unsafeRunSync()
+    }
   }
 
   def closeArrow(): Unit = writers.values.foreach(_.close())

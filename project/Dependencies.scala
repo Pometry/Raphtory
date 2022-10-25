@@ -39,6 +39,7 @@ object Dependencies {
   lazy val akkaTyped  = "com.typesafe.akka" %% "akka-actor-typed" % akkaVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val bcel       = "org.apache.bcel"    % "bcel"             % bcelVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val catsEffect = "org.typelevel"     %% "cats-effect"      % catsEffectVersion excludeAll (excludeLog4j, excludeSlf4j)
+
   lazy val curatorRecipes =
     "org.apache.curator" % "curator-recipes" % curatorVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val decline    = "com.monovore"             %% "decline-effect" % declineVersion excludeAll (excludeLog4j, excludeSlf4j)
@@ -47,7 +48,7 @@ object Dependencies {
 
   lazy val jackson =
     "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val jfr = "org.gradle.jfr.polyfill" % "jfr-polyfill" % "1.0.0"
+  lazy val jfr        = "org.gradle.jfr.polyfill"  % "jfr-polyfill"     % "1.0.0"
   lazy val log4jApi   = "org.apache.logging.log4j" % "log4j-api"        % log4jVersion
   lazy val log4jCore  = "org.apache.logging.log4j" % "log4j-core"       % log4jVersion
   lazy val log4jSlft4 = "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion
@@ -56,7 +57,7 @@ object Dependencies {
 
   lazy val muClient  = "io.higherkindness" %% "mu-rpc-client-netty" % muVersion
   lazy val muFs2     = "io.higherkindness" %% "mu-rpc-fs2"          % muVersion
-//  lazy val muInternalFs2 = "io.higherkindness" %% "mu-rpc-internal-fs2" % "0.21.3"
+  lazy val muHealth  = "io.higherkindness" %% "mu-rpc-health-check" % muVersion
   lazy val muServer  = "io.higherkindness" %% "mu-rpc-server"       % muVersion
   lazy val muService = "io.higherkindness" %% "mu-rpc-service"      % muVersion
 
