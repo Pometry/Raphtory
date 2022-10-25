@@ -11,6 +11,9 @@ class IterableScalaProxy(GenericScalaProxy, abc.Iterable):
     def __iter__(self):
         return self.iterator()
 
+    def __len__(self):
+        return self.size()
+
 
 @register(name="Iterator")
 class IteratorScalaProxy(GenericScalaProxy, abc.Iterator):
@@ -37,7 +40,11 @@ class SequenceScalaProxy(IterableScalaProxy, abc.Sequence):
                 return [self.apply(i) for i in range(*indices)]
             return self.slice(indices[0], indices[1])
         else:
-            return self.apply(item)
+            if item < 0:
+                # Scala does not support negative index
+                return self.apply(len(self)+item)
+            else:
+                return self.apply(item)
 
     def __contains__(self, item):
         return self.contains(item)
@@ -46,6 +53,10 @@ class SequenceScalaProxy(IterableScalaProxy, abc.Sequence):
         return self.reverseIterator()
 
     def index(self, value, start: int = None, stop: int = None):
+        if start < 0:
+            start = len(self) + start
+        if stop < 0:
+            stop = len(self) + stop
         if stop is not None:
             return self.take(stop).index(value, start)
         elif start is not None:
