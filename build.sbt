@@ -44,6 +44,7 @@ ThisBuild / publishTo := {
   else Some("releases" at nexus + "service/local/staging/deploy/maven2")
 }
 ThisBuild / publishMavenStyle.withRank(KeyRanks.Invisible) := true
+ThisBuild / resolvers += Resolver.mavenLocal
 
 ThisBuild / scalacOptions += "-language:higherKinds"
 
@@ -157,9 +158,11 @@ lazy val core = (project in file("core"))
                   alleyCats,
                   typesafeConfig,
                   zookeeper,
+                  magnolia,
                   shapeless,
                   curatorDiscovery,
-                  scalaDocReader
+                  scalaDocReader,
+                  "junit" % "junit" % "4.13.2" % Test
           ),
           libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) },
           // Needed to expand the @service macro annotation

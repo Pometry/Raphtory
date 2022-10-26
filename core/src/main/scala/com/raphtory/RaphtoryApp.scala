@@ -5,6 +5,8 @@ import cats.effect.unsafe.implicits.global
 import com.raphtory.internals.components.RaphtoryServiceBuilder
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
+import com.raphtory.internals.storage.arrow.EdgeSchema
+import com.raphtory.internals.storage.arrow.VertexSchema
 
 sealed trait RaphtoryApp {
   def main(args: Array[String]): Unit
@@ -18,6 +20,17 @@ object RaphtoryApp {
     final def main(args: Array[String]): Unit =
       RaphtoryServiceBuilder
         .standalone[IO](defaultConf)
+        .use { standalone =>
+          IO(run(args, new RaphtoryContext(Resource.eval(IO(standalone)), defaultConf)))
+        }
+        .unsafeRunSync()
+  }
+
+  abstract class ArrowLocal[V: VertexSchema, E: EdgeSchema] extends RaphtoryApp {
+
+    final def main(args: Array[String]): Unit =
+      RaphtoryServiceBuilder
+        .arrowStandalone[V, E, IO](defaultConf)
         .use { standalone =>
           IO(run(args, new RaphtoryContext(Resource.eval(IO(standalone)), defaultConf)))
         }

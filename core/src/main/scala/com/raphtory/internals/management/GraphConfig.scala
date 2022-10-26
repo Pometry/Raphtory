@@ -11,6 +11,7 @@ private[raphtory] class GraphConfig private (config: Config) {
 object GraphConfig {
 
   class ConfigBuilder() {
+
     var tempConf: Config =
       ConfigFactory
         .defaultOverrides()
@@ -25,13 +26,16 @@ object GraphConfig {
       this
     }
 
-    def build(): GraphConfig = new GraphConfig(tempConf.resolve())
+    def config: Config = tempConf.resolve()
+
+    def build(): GraphConfig = new GraphConfig(config)
   }
 
   object ConfigBuilder {
     def apply(): ConfigBuilder = new ConfigBuilder()
 
-    private lazy val defaultConfig = ConfigFactory.defaultOverrides().withFallback(ConfigFactory.defaultApplication()).resolve()
-    def getDefaultConfig: Config = defaultConfig
+    private lazy val defaultConfig =
+      ConfigFactory.defaultOverrides().withFallback(ConfigFactory.defaultApplication()).resolve()
+    def getDefaultConfig: Config   = defaultConfig
   }
 }

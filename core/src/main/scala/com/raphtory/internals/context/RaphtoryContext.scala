@@ -18,8 +18,11 @@ import org.slf4j.LoggerFactory
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.context.GraphException._
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
+import com.raphtory.internals.storage.arrow.EdgeSchema
+import com.raphtory.internals.storage.arrow.VertexSchema
 
 abstract class Context(serviceAsResource: Resource[IO, RaphtoryService[IO]], config: Config) {
+
   protected def newIOGraphParams(
       failOnNotFound: Boolean,
       graphID: String = createName,
@@ -91,6 +94,16 @@ class RaphtoryContext(serviceAsResource: Resource[IO, RaphtoryService[IO]], conf
       graphID: String = createName,
       destroy: Boolean
   ): Resource[IO, DeployedTemporalGraph] =
+    newIOGraphParams(failOnNotFound, graphID, destroy).map {
+      case (query, querySender, conf) =>
+        new DeployedTemporalGraph(query, querySender, conf)
+    }
+
+  def newArrowIOGraph[V: VertexSchema, E: EdgeSchema](
+      failOnNotFound: Boolean,
+      graphID: String = createName,
+      destroy: Boolean
+  ): Resource[IO, DeployedTemporalGraph]                                                           =
     newIOGraphParams(failOnNotFound, graphID, destroy).map {
       case (query, querySender, conf) =>
         new DeployedTemporalGraph(query, querySender, conf)

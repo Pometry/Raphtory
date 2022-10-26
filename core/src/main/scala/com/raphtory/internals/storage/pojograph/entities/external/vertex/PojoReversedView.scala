@@ -31,10 +31,10 @@ private[pojograph] class PojoReducedReversedVertexView(override val vertex: Pojo
         extends PojoReversedVertexView(vertex)
         with ReducedVertex {
 
-  override def getOutEdges(after: Long, before: Long): List[Edge] =
+  override def getOutEdges(after: Long, before: Long): View[Edge] =
     vertex.getInEdges(after, before).map(_.reversed)
 
-  override def getInEdges(after: Long, before: Long): List[Edge] =
+  override def getInEdges(after: Long, before: Long): View[Edge] =
     vertex.getOutEdges(after, before).map(_.reversed)
 
   override def getOutEdge(id: Long, after: Long, before: Long): Option[Edge] =

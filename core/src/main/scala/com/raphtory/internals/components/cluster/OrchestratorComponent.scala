@@ -18,6 +18,7 @@ import com.typesafe.config.ConfigValueFactory
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 import com.raphtory.internals.management.arrow.ZKHostAddressProvider
+import com.raphtory.internals.storage.arrow.{EdgeSchema, VertexSchema}
 import org.apache.arrow.memory.RootAllocator
 
 import scala.collection.mutable
@@ -105,6 +106,20 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
     deployments.synchronized {
       val scheduler       = new Scheduler()
       val serviceResource = PartitionOrchestrator.spawn[IO](conf, idManager, graphID, repo, scheduler)
+      val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
+      deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))
+    }
+
+  protected def deployArrowPartitionService[V:VertexSchema, E:EdgeSchema](
+                                        graphID: String,
+                                        clientID: String,
+                                        idManager: IDManager,
+                                        repo: TopicRepository,
+                                        conf: Config
+                                      ): Unit =
+    deployments.synchronized {
+      val scheduler       = new Scheduler()
+      val serviceResource = PartitionOrchestrator.spawnArrow[V, E, IO](conf, idManager, graphID, repo, scheduler)
       val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
       deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))
     }

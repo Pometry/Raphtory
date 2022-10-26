@@ -58,7 +58,7 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
           // check if it is one of our infected nodes
           if (infectedNodes contains vertex.name()) {
             // set its state to tainted
-            val result = List(("tainted", -1, startTime, "startPoint"))
+            val result = Vector(("tainted", -1, startTime, "startPoint"))
             // set this node as the beginning state
             vertex.setState("taintStatus", true)
             vertex.setState("taintHistory", result)
@@ -99,9 +99,9 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
                   }
                   else {
                     // otherwise set a brand new state, first get the old txs it was tainted by
-                    val oldState: List[(String, Long, Long, Long)] = vertex.getState("taintHistory")
+                    val oldState: Vector[(String, Long, Long, Long)] = vertex.getState("taintHistory")
                     // add the new transactions and old ones together
-                    val newState                                   = List.concat(newMessages, oldState).distinct
+                    val newState                                   = Vector.concat(newMessages, oldState).distinct
                     // set this as the new state
                     vertex.setState("taintHistory", newState)
                   }
@@ -154,7 +154,7 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
       .explode(row =>
         row
           .get(2)
-          .asInstanceOf[List[(String, Long, Long, String)]]
+          .asInstanceOf[Vector[(String, Long, Long, String)]]
           .map(tx => Row(row(0), tx._2, tx._3, tx._4))
       )
 }

@@ -56,11 +56,15 @@ trait Edge extends EntityVisitor {
       weightProperty: String = "weight",
       mergeStrategy: PropertyMerge[A, B],
       default: A
-  ): B =
-    getProperty(weightProperty, mergeStrategy) match {
+  ): B = {
+    val maybeB = getProperty(weightProperty, mergeStrategy)
+    maybeB match {
       case Some(value) => value
-      case None        => mergeStrategy(history().filter(_.event).map(h => PropertyValue(h.time, h.index, default)))
+      case None        =>
+        val b = mergeStrategy(history().filter(_.event).map(h => PropertyValue(h.time, h.index, default)))
+        b
     }
+  }
 
   /** Compute the weight of the edge using a custom merge strategy
     *

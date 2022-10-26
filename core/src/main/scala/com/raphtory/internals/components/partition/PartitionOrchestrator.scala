@@ -13,6 +13,9 @@ import com.raphtory.internals.components.querymanager.DestroyGraph
 import com.raphtory.internals.components.querymanager.EstablishGraph
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.management.id.IDManager
+import com.raphtory.internals.storage.arrow.EdgeSchema
+import com.raphtory.internals.storage.arrow.VertexSchema
+import com.raphtory.internals.storage.arrow.immutable
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -37,6 +40,28 @@ class PartitionOrchestrator(
 
 }
 
+class ArrowPartitionOrchestrator[V: VertexSchema, E: EdgeSchema](
+    repo: TopicRepository,
+    conf: Config,
+    idManager: IDManager
+) extends PartitionOrchestrator(repo, conf, idManager) {
+
+  override def deployPartitionService(
+      graphID: String,
+      clientID: String,
+      idManager: IDManager,
+      repo: TopicRepository,
+      conf: Config
+  ): Unit =
+    deployArrowPartitionService[V, E](
+            graphID: String,
+            clientID: String,
+            idManager: IDManager,
+            repo: TopicRepository,
+            conf: Config
+    )
+}
+
 object PartitionOrchestrator {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
@@ -50,7 +75,7 @@ object PartitionOrchestrator {
       }
     }
 
-  def spawn[IO[_]: Spawn](
+  def spawn[IO[_]](
       config: Config,
       partitionIDManager: IDManager,
       graphID: String,
@@ -73,7 +98,30 @@ object PartitionOrchestrator {
       .sequence
   }
 
-  def apply[IO[_]: Async: Spawn](
+  def spawnArrow[V: VertexSchema, E: EdgeSchema, IO[_]](
+      config: Config,
+      partitionIDManager: IDManager,
+      graphID: String,
+      topics: TopicRepository,
+      scheduler: Scheduler
+  )(implicit
+      IO: Async[IO]
+  ): Resource[IO, List[PartitionManager]] = {
+    val totalPartitions = config.getInt("raphtory.partitions.countPerServer")
+    logger.info(s"Creating '$totalPartitions' Partition Managers for '$graphID'.")
+
+    (0 until totalPartitions)
+      .map { i =>
+        for {
+          partitionId <- Resource.eval(nextId(partitionIDManager, graphID))
+          partition   <- PartitionManager.arrow(graphID, partitionId, scheduler, config, topics)
+        } yield partition
+      }
+      .toList
+      .sequence
+  }
+
+  def apply[IO[_]: Async](
       conf: Config,
       topics: TopicRepository,
       idManager: IDManager
@@ -84,4 +132,17 @@ object PartitionOrchestrator {
             List(topics.clusterComms),
             new PartitionOrchestrator(topics, conf, idManager)
     )
+
+  def applyArrow[V: VertexSchema, E: EdgeSchema, IO[_]: Async](
+      conf: Config,
+      topics: TopicRepository,
+      idManager: IDManager
+  ): Resource[IO, PartitionOrchestrator] =
+    Component.makeAndStart(
+            topics,
+            s"partition-node",
+            List(topics.clusterComms),
+            new ArrowPartitionOrchestrator(topics, conf, idManager)
+    )
 }
+
