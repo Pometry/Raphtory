@@ -10,11 +10,16 @@ import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
 import com.raphtory.internals.context.RaphtoryContext
+import com.raphtory.internals.storage.arrow.immutable
 import com.raphtory.sinks.FileSink
 import com.raphtory.utils.FileUtils
+
 import scala.language.postfixOps
 
-object LocalRunner extends RaphtoryApp.Local {
+object TutorialRunner extends RaphtoryApp.Local with LocalRunner
+object ArrowTutorialRunner extends RaphtoryApp.ArrowLocal[VertexProp, EdgeProp] with LocalRunner
+
+trait LocalRunner { self: RaphtoryApp =>
 
   override def run(args: Array[String], ctx: RaphtoryContext): Unit = {
     ctx.runWithNewGraph(destroy = true) { graph =>
@@ -73,6 +78,22 @@ object LocalRunner extends RaphtoryApp.Local {
     }
   }
 }
+
+
+case class VertexProp(
+                       age: Long,
+                       @immutable name: String,
+                       @immutable address_chain: String,
+                       @immutable transaction_hash: String
+                     )
+
+case class EdgeProp(
+                     @immutable name: String,
+                     friends: Boolean,
+                     weight: Long,
+                     @immutable msgId: String,
+                     @immutable subject: String
+                   )
 
 object RemoteRunner extends RaphtoryApp.Remote("localhost", 1736) {
 

@@ -1,7 +1,9 @@
--Xmx4g
+-Xmx2g
 -Xms512m
 -Xss2M
 -XX:MaxMetaspaceSize=1024M
 --add-opens=java.base/java.util=ALL-UNNAMED
 --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
+--add-opens=java.base/java.lang=ALL-UNNAMED
 --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
+--add-opens=java.base/java.nio=ALL-UNNAMED
