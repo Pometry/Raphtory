@@ -19,8 +19,11 @@ class RaphtoryServiceTestSuite extends CatsEffectSuite {
 
   test("Validate that a graph gets established successfully with a given graphId") {
     val standalone = f()
+    val clientId   = createName
+    val graphId    = createName
+
     standalone
-      .establishGraph(ClientGraphId("raphtory-client-1", "raphtory-graph-1"))
+      .establishGraph(ClientGraphId(clientId, graphId))
       .map { status =>
         assertEquals(status.success, true)
       }
@@ -28,15 +31,18 @@ class RaphtoryServiceTestSuite extends CatsEffectSuite {
 
   test("Validate that a graph doesn't exists with a given graphId if the graph is not established already") {
     val standalone = f()
-    standalone.getGraph(GetGraph("raphtory-graph-1")).map(res => assertEquals(res, Status()))
+    val graphId    = createName
+    standalone.getGraph(GetGraph(graphId)).map(res => assertEquals(res, Status()))
   }
 
   test("Validate that a graph exists with a given graphId if the graph is established already") {
     val standalone = f()
+    val clientId   = createName
+    val graphId    = createName
     standalone
-      .establishGraph(ClientGraphId("raphtory-client-1", "raphtory-graph-1"))
+      .establishGraph(ClientGraphId(clientId, graphId))
       .flatMap { status =>
-        if (status.success) standalone.getGraph(GetGraph("raphtory-graph-1")) else IO(Status())
+        if (status.success) standalone.getGraph(GetGraph(graphId)) else IO(Status())
       }
       .map { status =>
         assertEquals(status.success, true)
