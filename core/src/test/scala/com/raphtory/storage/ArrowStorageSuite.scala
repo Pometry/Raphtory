@@ -1,8 +1,6 @@
 package com.raphtory.storage
 
-import com.raphtory.Raphtory
 import com.raphtory.api.analysis.visitor.HistoricEvent
-import com.raphtory.api.input
 import com.raphtory.api.input._
 import com.raphtory.arrowcore.implementation.LocalEntityIdStore
 import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
@@ -12,6 +10,7 @@ import com.raphtory.arrowcore.model.Vertex
 import com.raphtory.internals.components.partition.EdgeProp
 import com.raphtory.internals.components.partition.VertexProp
 import com.raphtory.internals.graph.GraphAlteration.SyncNewEdgeAdd
+import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.raphtory.internals.storage.arrow.ArrowPartition
 import com.raphtory.internals.storage.arrow.ArrowPartitionConfig
 import com.raphtory.internals.storage.arrow.ArrowSchema
@@ -598,9 +597,10 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   private def mkPartition(nPartitions: Int, partitionId: Int, propSchema: PropertySchema = defaultPropSchema) = {
     val rConfig =
-      Raphtory.getDefaultConfig(
-              Map("raphtory.partitions.serverCount" -> 1, "raphtory.partitions.countPerServer" -> nPartitions)
-      )
+      ConfigBuilder()
+        .addConfig("raphtory.partitions.countPerServer", s"$nPartitions")
+        .addConfig("raphtory.partitions.serverCount", "1")
+        .config
 
     val cfg = ArrowPartitionConfig(
             config = rConfig,

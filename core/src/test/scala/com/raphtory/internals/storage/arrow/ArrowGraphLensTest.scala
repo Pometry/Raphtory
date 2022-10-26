@@ -1,6 +1,5 @@
 package com.raphtory.internals.storage.arrow
 
-import com.raphtory.Raphtory
 import com.raphtory.api.analysis.visitor
 import com.raphtory.api.input.Properties
 import com.raphtory.arrowcore.model.Vertex
@@ -9,6 +8,7 @@ import com.raphtory.internals.components.partition.VertexProp
 import com.raphtory.internals.graph.GraphAlteration.SyncExistingEdgeAdd
 import com.raphtory.internals.graph.GraphAlteration.SyncNewEdgeAdd
 import com.raphtory.internals.graph.GraphPartition
+import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.raphtory.internals.management.Scheduler
 import com.typesafe.config.Config
 import munit.FunSuite
@@ -21,9 +21,10 @@ class ArrowGraphLensTest extends FunSuite {
 
   private def mockCluster() =
     MockCluster(
-            Raphtory.getDefaultConfig(
-                    Map("raphtory.partitions.countPerServer" -> "4", "raphtory.partitions.serverCount" -> "1")
-            )
+            ConfigBuilder()
+              .addConfig("raphtory.partitions.countPerServer", "4")
+              .addConfig("raphtory.partitions.serverCount", "1")
+              .config
     )
 
   private val data = Vector(
@@ -171,7 +172,7 @@ object MockCluster {
     val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
     val parts                    = (0 until partitionsPerServer).map { partId =>
       val cfg = ArrowPartitionConfig(
-              Raphtory.getDefaultConfig(),
+              config,
               partId,
               defaultPropSchema,
               Files.createTempDirectory(s"part-$partId")
