@@ -147,7 +147,7 @@ def get_and_run_ivy(JAVA_BIN):
     download_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     file_location = safe_download_file(str(download_dir), IVY_BIN[CHECKSUM_SHA256], IVY_BIN[LINK])
     shutil.unpack_archive(file_location, extract_dir=download_dir)
-    subprocess.call([JAVA_BIN, "-jar", download_dir+"/apache-ivy-2.5.0/ivy-2.5.0.jar", "-ivy", download_dir+"/ivy.xml"])
+    subprocess.call([JAVA_BIN, "-jar", download_dir+"/apache-ivy-2.5.0/ivy-2.5.0.jar", "-ivy", download_dir+"/pyraphtory/ivy.xml"])
     # Clean up and delete downloaded ivy files
     shutil.rmtree(download_dir+"/apache-ivy-2.5.0")
     delete_source(download_dir+"/apache-ivy-2.5.0-bin.zip")
@@ -215,4 +215,3 @@ def check_dl_java_ivy():
     else:
         java_bin = check_system_dl_java()
     get_and_run_ivy(java_bin)
-

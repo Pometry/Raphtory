@@ -12,7 +12,7 @@ maintainers = [
     "Pometry <admin@pometry.com>"
 ]
 license = "Apache-2.0"
-include = ["lib/core-*.jar"]
+include = ["lib/*.jar"]
 readme = "README.md"
 homepage = "https://raphtory.com/"
 repository = "https://github.com/rahptory/raphtory"
@@ -28,7 +28,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = ">=3.9.13,<3.11"
 pemja =">=0.2.6"
-# pemja = {git = "https://github.com/alibaba/pemja.git", branch="main"}
+#pemja = {git = "https://github.com/alibaba/pemja.git", branch="main"}
 cloudpickle=">=0.4"
 pandas=">=1.4.3"
 py4j="^0.10"

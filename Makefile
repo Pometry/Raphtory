@@ -11,7 +11,7 @@ MODE:=batch
 sbt-build: version
 	sbt "core/assembly"
 	sed -i.bak '/org="com.raphtory"/d' ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/ivys/ivy.xml
-	cp ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/ivys/ivy.xml python/pyraphtory/
+	cp ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/ivys/ivy.xml python/pyraphtory/pyraphtory/
 	cd python/pyraphtory/ && mkdir -p lib
 	cp ~/.ivy2/local/com.raphtory/arrow-core_2.13/$$(cat version)/jars/arrow-core_2.13.jar python/pyraphtory/lib
 	cp ~/.ivy2/local/com.raphtory/arrow-messaging_2.13/$$(cat version)/jars/arrow-messaging_2.13.jar python/pyraphtory/lib
