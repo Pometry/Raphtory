@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-import pyraphtory.fileutils
 
 
 env_jar_location = os.environ.get("PYRAPTHORY_JAR_LOCATION", "")
@@ -14,7 +13,4 @@ jars = ":".join([str(jar) for jar in jar_location.glob(env_jar_glob_lookup)])
 if custom_jar_path:
     jars += ":" + custom_jar_path
 
-# if jars is empty, then download matching version from github
-jar_download_loc = str(Path(__file__).parent.parent / 'lib')
-jars = pyraphtory.fileutils.check_download_update_jar(jar_download_loc, jars)
 java_args = os.environ.get("PYRAPTHORY_JVM_ARGS", "")
