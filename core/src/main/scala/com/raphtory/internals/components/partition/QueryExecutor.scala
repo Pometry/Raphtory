@@ -21,6 +21,8 @@ import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.management.python.EmbeddedPython
 import com.raphtory.internals.management.python._
+import com.raphtory.internals.storage.arrow.ArrowGraphLens
+import com.raphtory.internals.storage.arrow.ArrowPartition
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -183,18 +185,8 @@ private[raphtory] class QueryExecutor(
           sentMessageCount.set(0)
           sync.reset()
           refreshBuffers()
-          graphLens = PojoGraphLens(
-                  jobID,
-                  perspective.actualStart,
-                  perspective.actualEnd,
-                  superStep = 0,
-                  storage,
-                  conf,
-                  sendMessage,
-                  errorHandler,
-                  scheduler
-          )
-
+          graphLens =
+            storage.lens(jobID, perspective.actualStart, perspective.actualEnd, 0, sendMessage, errorHandler, scheduler)
           taskManager sendAsync PerspectiveEstablished(currentPerspectiveID, graphLens.localNodeCount)
           logger.debug(
                   logMessage(
@@ -214,16 +206,16 @@ private[raphtory] class QueryExecutor(
 
         case GraphFunctionWithGlobalState(function, graphState)                       =>
           function match {
-            case StepWithGraph(f)                                     =>
+            case StepWithGraph(f)                         =>
               evalStepWithGraph(time, graphState, f)
 
-            case IterateWithGraph(f, iterations, executeMessagedOnly) =>
+            case iwg: IterateWithGraph[Vertex] @unchecked =>
               startStep()
               val fun =
-                if (executeMessagedOnly)
-                  graphLens.runMessagedGraphFunction(f, graphState)(_)
+                if (iwg.executeMessagedOnly)
+                  graphLens.runMessagedGraphFunction(iwg.f, graphState)(_)
                 else
-                  graphLens.runGraphFunction(f, graphState)(_)
+                  graphLens.runGraphFunction(iwg.f, graphState)(_)
               fun {
                 finaliseStep {
                   val sentMessages     = sentMessageCount.get()
@@ -242,13 +234,13 @@ private[raphtory] class QueryExecutor(
                   logger.debug(
                           logMessage(
                                   s"Iterate function on graph with accumulators completed  in ${System
-                                    .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to $executeMessagedOnly."
+                                    .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to ${iwg.executeMessagedOnly}."
                           )
                   )
                 }
               }
 
-            case SelectWithGraph(f)                                   =>
+            case SelectWithGraph(f)                       =>
               startStep()
               graphLens.executeSelect(f, graphState) {
                 finaliseStep {
@@ -261,7 +253,7 @@ private[raphtory] class QueryExecutor(
                   )
                 }
               }
-            case GlobalSelect(f)                                      =>
+            case GlobalSelect(f)                          =>
               evalGlobalSelect(time, graphState, f)
           }
 
@@ -385,9 +377,9 @@ private[raphtory] class QueryExecutor(
                   )
           )
 
-        case Select(f)                                                                =>
+        case s: Select[Vertex] @unchecked                                             =>
           startStep()
-          graphLens.executeSelect(f) {
+          graphLens.executeSelect(s.f) {
             finaliseStep {
               taskManager sendAsync TableBuilt(currentPerspectiveID)
               logger.debug(
@@ -400,9 +392,9 @@ private[raphtory] class QueryExecutor(
           }
 
         //TODO create explode select with accumulators
-        case ExplodeSelect(f)                                                         =>
+        case es: ExplodeSelect[Vertex] @unchecked                                     =>
           startStep()
-          graphLens.explodeSelect(f) {
+          graphLens.explodeSelect(es.f) {
             finaliseStep {
               taskManager sendAsync TableBuilt(currentPerspectiveID)
               logger.debug(

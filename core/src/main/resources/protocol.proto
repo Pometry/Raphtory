@@ -84,4 +84,5 @@ service IngestionService {
   rpc destroyGraph(DestroyGraph) returns (Status);
   rpc disconnectClient(ClientGraphId) returns (Status);
   rpc ingestData(IngestData) returns (Status);
+  rpc getGraph(GetGraph) returns (Status);
 }

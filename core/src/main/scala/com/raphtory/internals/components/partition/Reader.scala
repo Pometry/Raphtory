@@ -63,7 +63,7 @@ private[raphtory] class Reader(
 
 object Reader {
 
-  def apply[IO[_]: Async: Spawn](
+  def apply[IO[_]: Async](
       graphID: String,
       partitionID: Int,
       storage: GraphPartition,

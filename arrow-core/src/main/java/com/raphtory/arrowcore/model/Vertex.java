@@ -236,16 +236,31 @@ public class Vertex extends Entity {
      * equal to the specified dst-vertex-id
      *
      * @param dstVertexId the dst vertex id in question
+     * @param dstIsGlobal true if the dest vertex id is global, false otherwise
      *
-     * @return the configured dedge iterator
+     * @return the configured edge iterator
      */
-    public EdgeIterator.MatchingEdgesIterator findAllOutgoingEdges(long dstVertexId) {
+    public EdgeIterator.MatchingEdgesIterator findAllOutgoingEdges(long dstVertexId, boolean dstIsGlobal) {
         if (_vertexIterator == null) {
             _vertexIterator = _rap.getNewAllVerticesIterator();
         }
 
         _vertexIterator.reset(_localId);
 
-        return _vertexIterator.findAllOutgoingEdges(dstVertexId);
+        return _vertexIterator.findAllOutgoingEdges(dstVertexId, dstIsGlobal);
+    }
+
+
+    /**
+     * @return A vertex history iterator, configured for the entire history of this vertex
+     */
+    public VertexHistoryIterator getVertexHistory() {
+        if (_vertexIterator == null) {
+            _vertexIterator = _rap.getNewAllVerticesIterator();
+        }
+
+        _vertexIterator.reset(_localId);
+
+        return _vertexIterator.getVertexHistory();
     }
 }

@@ -8,6 +8,7 @@
 package com.raphtory.arrowcore.implementation;
 
 import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -36,6 +37,7 @@ public class VertexEdgeIndexArrowStore {
         fields.add(new Field("vertex_row", new FieldType(false, new ArrowType.Int(32, true), null), null));
         fields.add(new Field("dst_vertex_id", new FieldType(false, new ArrowType.Int(64, true), null), null));
         fields.add(new Field("edge_id", new FieldType(false, new ArrowType.Int(64, true), null), null));
+        fields.add(new Field("dst_is_global", new FieldType(false, new ArrowType.Bool(), null), null));
 
         fields.add(new Field("sorted_vertex_dst_index", new FieldType(false, new ArrowType.Int(32, true), null), null));
 
@@ -51,6 +53,7 @@ public class VertexEdgeIndexArrowStore {
     protected IntVector _vertexRowIds;
     protected BigIntVector _dstVertexIds;
     protected BigIntVector _edgeIds;
+    protected BitVector _isGlobals;
     protected IntVector _sortedIndex;
 
 
@@ -69,12 +72,14 @@ public class VertexEdgeIndexArrowStore {
             _dstVertexIds = (BigIntVector) _indexRoot.getVector("dst_vertex_id");
             _edgeIds = (BigIntVector) _indexRoot.getVector("edge_id");
             _sortedIndex = (IntVector) _indexRoot.getVector("sorted_vertex_dst_index");
+            _isGlobals = (BitVector) _indexRoot.getVector("dst_is_global");
         }
         else {
             _vertexRowIds = null;
             _dstVertexIds = null;
             _edgeIds = null;
             _sortedIndex = null;
+            _isGlobals = null;
         }
     }
 
@@ -85,14 +90,16 @@ public class VertexEdgeIndexArrowStore {
      * @param vertexRowId the row id of the source vertex
      * @param dstId the destination vertex id
      * @poram edgeId the relevant edge id
+     * @param dstIsGlobal true if the dst vertex is global, false otherwise
      */
-    public void addIndexRecord(int vertexRowId, long dstId, long edgeId) {
+    public void addIndexRecord(int vertexRowId, long dstId, long edgeId, boolean dstIsGlobal) {
         int row = _maxRow++;
 
         _vertexRowIds.setSafe(row, vertexRowId);
         _dstVertexIds.setSafe(row, dstId);
         _edgeIds.setSafe(row, edgeId);
         _sortedIndex.setSafe(row, row);
+        _isGlobals.setSafe(row, dstIsGlobal ? 1 : 0);
     }
 
 
