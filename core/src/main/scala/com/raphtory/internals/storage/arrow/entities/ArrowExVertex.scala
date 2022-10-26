@@ -12,11 +12,9 @@ import com.raphtory.internals.components.querymanager.SchemaProvider
 import com.raphtory.internals.components.querymanager.VertexMessage
 import com.raphtory.internals.storage.arrow.ArrowEntityStateRepository
 import com.raphtory.internals.storage.arrow.RichVertex
-import com.raphtory.test.FabianTest
 
 import scala.collection.View
 import scala.jdk.CollectionConverters.CollectionHasAsScala
-import scala.reflect.ClassTag
 
 class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
         extends ReducedVertex
