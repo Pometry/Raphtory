@@ -19,7 +19,7 @@ import scala.util.Using
 
 class ArrowGraphLensTest extends FunSuite {
 
-  override def munitIgnore: Boolean = true
+//  override def munitIgnore: Boolean = true
   private def mockCluster() =
     MockCluster(
             ConfigBuilder()
