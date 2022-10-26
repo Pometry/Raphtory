@@ -80,7 +80,7 @@ jobs:
       - name: Run notebook tests
         run: cd examples && pytest --nbmake
       - name: Run doc compile check
-        run: cd docs && python -m pip install -r requirements.txt && apt-get update && apt-get install python3-sphinx && make html
+        run: cd docs && python -m pip install -r requirements.txt && apt-get update && apt-get -y install python3-sphinx && make html
     if: needs.configure.outputs.type == 'regular'
 
   build:
