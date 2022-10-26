@@ -12,6 +12,8 @@ class ArrowPartitionConfig(
     propertySchema: PropertySchema,
     arrowDir: Path,
     nLocalEntityIdMaps: Int = Runtime.getRuntime.availableProcessors(),
+    vertexPartitionSize: Option[Int] = None,
+    edgePartitionSize: Option[Int] = None
 ) {
 
   def toRaphtoryPartitionConfig: RaphtoryArrowPartitionConfig = {
@@ -24,8 +26,8 @@ class ArrowPartitionConfig(
     cfg._nRaphtoryPartitions = nPartitions
     cfg._nLocalEntityIdMaps = nLocalEntityIdMaps
     cfg._localEntityIdMapSize = nLocalEntityIdMaps
-    cfg._vertexPartitionSize = 32
-    cfg._edgePartitionSize = 256
+    vertexPartitionSize.foldLeft(cfg) { (cfg, n) => cfg._vertexPartitionSize = n; cfg }
+    edgePartitionSize.foldLeft(cfg) { (cfg, n) => cfg._edgePartitionSize = n; cfg }
     cfg._syncIDMap = true
 
     cfg
@@ -34,7 +36,14 @@ class ArrowPartitionConfig(
 
 object ArrowPartitionConfig {
 
-  def apply(config: Config, partitionId: Int, propertySchema: PropertySchema, arrowDir: Path): ArrowPartitionConfig = {
+  def apply(
+      config: Config,
+      partitionId: Int,
+      propertySchema: PropertySchema,
+      arrowDir: Path,
+      vertexPartitionSize: Option[Int] = None,
+      edgePartitionSize: Option[Int] = None
+  ): ArrowPartitionConfig = {
     val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
     val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
     val totalPartitions: Int     = partitionServers * partitionsPerServer
@@ -43,7 +52,9 @@ object ArrowPartitionConfig {
             partitionId = partitionId,
             nPartitions = totalPartitions,
             propertySchema = propertySchema,
-            arrowDir = arrowDir
+            arrowDir = arrowDir,
+            vertexPartitionSize = vertexPartitionSize,
+            edgePartitionSize = edgePartitionSize
     )
   }
 }

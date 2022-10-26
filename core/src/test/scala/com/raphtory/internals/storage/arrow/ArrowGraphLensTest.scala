@@ -19,7 +19,6 @@ import scala.util.Using
 
 class ArrowGraphLensTest extends FunSuite {
 
-//  override def munitIgnore: Boolean = true
   private def mockCluster() =
     MockCluster(
             ConfigBuilder()
@@ -176,7 +175,9 @@ object MockCluster {
               config,
               partId,
               defaultPropSchema,
-              Files.createTempDirectory(s"part-$partId")
+              Files.createTempDirectory(s"part-$partId"),
+              Some(32),
+              Some(32)
       )
       ArrowPartition("test-graph-1", cfg, config)
     }.toVector

@@ -606,7 +606,9 @@ class ArrowStorageSuite extends munit.FunSuite {
             config = rConfig,
             partitionId = partitionId,
             propertySchema = propSchema,
-            arrowDir = Files.createTempDirectory("arrow-storage-test")
+            arrowDir = Files.createTempDirectory("arrow-storage-test"),
+            Some(32),
+            Some(32)
     )
 
     val par = ArrowPartition("test-graph-1", cfg, rConfig)
