@@ -18,8 +18,16 @@ import com.raphtory.internals.components.repositories.LocalServiceRepository
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.management.Partitioner
 import com.raphtory.internals.management.id.IDManager
-import com.raphtory.{makeLocalIdManager, protocol}
-import com.raphtory.protocol.{ClientGraphId, GetGraph, IdPool, OptionalId, RaphtoryService, Status}
+import com.raphtory.internals.storage.arrow.EdgeSchema
+import com.raphtory.internals.storage.arrow.VertexSchema
+import com.raphtory.makeLocalIdManager
+import com.raphtory.protocol
+import com.raphtory.protocol.ClientGraphId
+import com.raphtory.protocol.GetGraph
+import com.raphtory.protocol.IdPool
+import com.raphtory.protocol.OptionalId
+import com.raphtory.protocol.RaphtoryService
+import com.raphtory.protocol.Status
 import com.raphtory.protocol
 import com.raphtory.protocol.ClientGraphId
 import com.raphtory.protocol.IdPool
@@ -140,6 +148,11 @@ object RaphtoryServiceBuilder {
   def standalone[F[_]](config: Config)(implicit F: Async[F]): Resource[F, RaphtoryService[F]] =
     createService(localCluster(config), config)
 
+  def arrowStandalone[V: VertexSchema, E: EdgeSchema, F[_]](
+      config: Config
+  )(implicit F: Async[F]): Resource[F, RaphtoryService[F]] =
+    createService(localArrowCluster(config), config)
+
   def manager[F[_]: Async](config: Config): Resource[F, RaphtoryService[F]] =
     createService(remoteCluster(config), config)
 
@@ -179,6 +192,18 @@ object RaphtoryServiceBuilder {
       serviceRepo        <- LocalServiceRepository(topics)
       _                  <- IngestionServiceInstance(serviceRepo, config)
       _                  <- PartitionOrchestrator[F](config, topics, partitionIdManager)
+      _                  <- QueryOrchestrator[F](config, topics)
+    } yield serviceRepo
+
+  private def localArrowCluster[F[_]: Async, V: VertexSchema, E: EdgeSchema](
+      config: Config
+  ): Resource[F, ServiceRepository[F]] =
+    for {
+      topics             <- LocalTopicRepository[F](config, None)
+      partitionIdManager <- makeLocalIdManager[F]
+      serviceRepo        <- LocalServiceRepository(topics)
+      _                  <- IngestionServiceInstance(serviceRepo, config)
+      _                  <- PartitionOrchestrator.applyArrow[V, E, F](config, topics, partitionIdManager)
       _                  <- QueryOrchestrator[F](config, topics)
     } yield serviceRepo
 

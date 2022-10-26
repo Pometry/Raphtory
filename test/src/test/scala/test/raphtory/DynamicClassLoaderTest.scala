@@ -22,12 +22,14 @@ import org.slf4j.LoggerFactory
 import test.raphtory.algorithms.MaxFlowTest
 import test.raphtory.algorithms.MinimalTestAlgorithm
 import test.raphtory.algorithms.TestAlgorithmWithExternalDependency
+
 import java.net.URL
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 import scala.sys.process._
 import scala.tools.reflect.ToolBox
 import scala.util.Try
+import scala.util.control.NonFatal
 
 object Parent {
 
@@ -85,6 +87,17 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   lazy val remoteProcess =
     Resource.make {
+      def runHealthCheck =
+        IO.delay(Process(Seq("grpc_health_probe", "-addr=:1736", "-connect-timeout=60s")).!).onError {
+          case NonFatal(e) =>
+            IO.raiseError(
+                    new IllegalStateException(
+                            "Please install grpc_health_probe (https://github.com/grpc-ecosystem/grpc-health-probe/tree/v0.4.14)",
+                            e
+                    )
+            )
+        }
+
       for {
 //         get classpath from sbt
         _         <- IO(logger.info("retrieving class path from sbt"))
@@ -95,10 +108,7 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
         _         <- (IO.blocking(process.exitValue()) *> IO(
                                logger.info("Failed to start remote process, a standalone instance is likely already running")
                        )).start
-        exit      <- IO(Process(Seq("grpc-health-probe", "-addr=:1736", "-connect-timeout=60s")).!)
-        msg        = "Please install grpc-health-probe (https://github.com/grpc-ecosystem/grpc-health-probe/tree/v0.4.14)"
-        _         <- if (exit == 127) IO.println(msg) else IO.unit
-        _         <- if (exit == 0) IO.unit else IO.canceled
+        _         <- runHealthCheck
       } yield process
     }(process =>
       IO {
@@ -144,9 +154,9 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   lazy val remoteContextFixture: Fixture[RaphtoryContext] = ResourceSuiteLocalFixture(
           "remote",
-    for {
-      _          <- remoteProcess
-    } yield new RaphtoryContext(RaphtoryServiceBuilder.client[IO](defaultConf), defaultConf)
+          for {
+            _ <- remoteProcess
+          } yield new RaphtoryContext(RaphtoryServiceBuilder.client[IO](defaultConf), defaultConf)
   )
 
   def fetchContext(context: Context): Fixture[RaphtoryContext] =

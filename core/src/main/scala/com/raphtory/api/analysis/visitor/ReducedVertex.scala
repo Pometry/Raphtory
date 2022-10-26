@@ -1,5 +1,7 @@
 package com.raphtory.api.analysis.visitor
 
+import scala.collection.View
+
 /** Vertex with concrete `Long` `IDType` (i.e. a non-exploded Vertex) */
 trait ReducedVertex extends Vertex {
   override type IDType = Long
@@ -17,7 +19,7 @@ trait ReducedVertex extends Vertex {
     * The `after` and `before` parameters also restrict the history of the returned edges such that it only
     * contains events within the window.
     */
-  def getAllEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge] =
+  def getAllEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): View[Edge] =
     getInEdges(after, before) ++ getOutEdges(after, before)
 
   /** Return all edges starting at this vertex
@@ -27,7 +29,7 @@ trait ReducedVertex extends Vertex {
     * The `after` and `before` parameters also restrict the history of the returned edges such that it only
     * contains events within the window.
     */
-  def getOutEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]
+  def getOutEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): View[Edge]
 
   /** Return all edges ending at this vertex
     * @param after  only return edges that are active after time `after`
@@ -36,7 +38,7 @@ trait ReducedVertex extends Vertex {
     * The `after` and `before` parameters also restrict the history of the returned edges such that it only
     * contains events within the window.
     */
-  def getInEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): List[Edge]
+  def getInEdges(after: Long = Long.MinValue, before: Long = Long.MaxValue): View[Edge]
 
   /** Return specified edge if it is an out-edge of this vertex
     * @param id ID of edge to return
@@ -95,7 +97,7 @@ trait ReducedVertex extends Vertex {
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): List[ExplodedEdge] =
-    getAllEdges(after, before).flatMap(_.explode())
+    getAllEdges(after, before).flatMap(_.explode()).toList
 
   /** Return all exploded [[com.raphtory.api.analysis.visitor.ExplodedEdge ExplodedEdge]] views for each time point
     * that an out-edge of this vertex is active
@@ -107,7 +109,7 @@ trait ReducedVertex extends Vertex {
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): List[ExplodedEdge] =
-    getOutEdges(after, before).flatMap(_.explode())
+    getOutEdges(after, before).flatMap(_.explode()).toList
 
   /** Return all exploded [[com.raphtory.api.analysis.visitor.ExplodedEdge ExplodedEdge]] views for each time point
     * that an in-edge of this vertex is active
@@ -119,7 +121,7 @@ trait ReducedVertex extends Vertex {
       after: Long = Long.MinValue,
       before: Long = Long.MaxValue
   ): List[ExplodedEdge] =
-    getInEdges(after, before).flatMap(_.explode())
+    getInEdges(after, before).flatMap(_.explode()).toList
 
   /** Return an individual exploded [[com.raphtory.api.analysis.visitor.ExplodedEdge ExplodedEdge]] views for an individual edge
     * if it is an out-edge of this vertex
