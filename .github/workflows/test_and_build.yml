@@ -74,19 +74,13 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install poetry nbmake
       - name: Install pyraphtory
-        run: |
-          cd python/pyraphtory
-          poetry install
+        run: cd python/pyraphtory && poetry install
       - name: Run pyraphtory tests
-        run: |
-          cd python/pyraphtory
-          poetry run pytest
+        run: cd python/pyraphtory && poetry run pytest
       - name: Run notebook tests
-        run: |
-          cd examples && pytest --nbmake
+        run: cd examples && pytest --nbmake
       - name: Run doc compile check
-        run: |
-          cd docs && python -m pip install -r requirements.txt && apt-get install python3-sphinx && make html
+        run: cd docs && python -m pip install -r requirements.txt && apt-get update && apt-get install python3-sphinx && make html
     if: needs.configure.outputs.type == 'regular'
 
   build:
