@@ -5,6 +5,8 @@ version := raphtoryVersion
 scalaVersion := raphtoryScalaVersion
 organization := "com.raphtory"
 
+Compile / packageDoc / publishArtifact := false
+
 libraryDependencies ++= Seq(
         "org.apache.arrow"   % "arrow-memory-unsafe"     % "7.0.0",
         "org.apache.arrow"   % "arrow-vector"            % "7.0.0",
