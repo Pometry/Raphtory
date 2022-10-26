@@ -8,11 +8,10 @@ import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceSpout
 
 class LargestConnectedComponentsFilterTest extends BaseCorrectnessTest {
-  withGraph.test("Test largest connected components filter") { graph =>
+  test("Test largest connected components filter") {
     correctnessTest(
             TestQuery(LargestConnectedComponentFilter(), 7),
-            "ConnectedComponents/filterComponentsResults.csv",
-            graph
+            "ConnectedComponents/filterComponentsResults.csv"
     )
   }
 
