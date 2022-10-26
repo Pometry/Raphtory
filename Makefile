@@ -10,12 +10,20 @@ MODE:=batch
 .PHONY sbt-build:
 sbt-build: version
 	sbt "core/assembly"
-	mkdir -p python/pyraphtory/lib/
-	cp core/target/scala-2.13/core-assembly-$$(cat version).jar python/pyraphtory/lib/
+	sed -i.bak '/org="com.raphtory"/d' ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/ivys/ivy.xml
+	cp ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/ivys/ivy.xml python/pyraphtory/
+	cd python/pyraphtory/ && mkdir -p lib
+	cp ~/.ivy2/local/com.raphtory/arrow-core_2.13/$$(cat version)/jars/arrow-core_2.13.jar python/pyraphtory/lib
+	cp ~/.ivy2/local/com.raphtory/arrow-messaging_2.13/$$(cat version)/jars/arrow-messaging_2.13.jar python/pyraphtory/lib
+	cp ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/jars/core_2.13.jar python/pyraphtory/lib
+
+.PHONY sbt-skip-build:
+sbt-skip-build: version
+	ivy-clean-copy-jars
 
 .PHONY python-build:
 python-build: version
-	cd python/pyraphtory/ && mkdir -p lib && \
+	cd python/pyraphtory/ && \
 		poetry build && \
 		poetry install
 	pip3 install python/pyraphtory/dist/pyraphtory-$$(cat version).tar.gz
@@ -46,15 +54,6 @@ run-local-cluster: version
 clean-local-cluster:
 	docker-compose -f $(DOCKER_RAP)/docker-compose.yml down --remove-orphans
 	rm -Rf $(DOCKER_TMP)/*
-
-.PHONY: ivy-clean
-ivy-clean-copy: version
-	sed -i.bak '/org="com.raphtory"/d' ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/ivys/ivy.xml
-	cp ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/ivys/ivy.xml python/pyraphtory/
-	cd python/pyraphtory/ && mkdir -p lib
-	cp ~/.ivy2/local/com.raphtory/arrow-core_2.13/$$(cat version)/jars/arrow-core_2.13.jar python/pyraphtory/lib
-	cp ~/.ivy2/local/com.raphtory/arrow-messaging_2.13/$$(cat version)/jars/arrow-messaging_2.13.jar python/pyraphtory/lib
-	cp ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/jars/core_2.13.jar python/pyraphtory/lib
 
 clean:
 	sbt clean

@@ -142,7 +142,7 @@ def safe_download_file(download_dir, expected_sha, url):
     return file_location
 
 
-def get_ivy(JAVA_BIN, download_dir='./'):
+def get_and_run_ivy(JAVA_BIN, download_dir='./'):
     file_location = safe_download_file(download_dir, IVY_BIN[CHECKSUM_SHA256], IVY_BIN[LINK])
     shutil.unpack_archive(file_location)
     subprocess.call([JAVA_BIN, "-jar", "./apache-ivy-2.5.0/ivy-2.5.0.jar", "-ivy", "./ivy.xml"])
@@ -211,6 +211,6 @@ def check_dl_java_ivy():
         java_bin = get_java_home()
     else:
         java_bin = check_system_dl_java()
-    get_ivy(java_bin)
+    get_and_run_ivy(java_bin)
 
 
