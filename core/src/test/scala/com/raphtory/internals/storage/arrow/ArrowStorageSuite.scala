@@ -1,25 +1,11 @@
-package com.raphtory.storage
+package com.raphtory.internals.storage.arrow
 
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.api.input._
-import com.raphtory.arrowcore.implementation.LocalEntityIdStore
-import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
-import com.raphtory.arrowcore.implementation.VertexIterator
-import com.raphtory.arrowcore.model.PropertySchema
-import com.raphtory.arrowcore.model.Vertex
-import com.raphtory.internals.components.partition.EdgeProp
-import com.raphtory.internals.components.partition.VertexProp
+import com.raphtory.arrowcore.implementation.{LocalEntityIdStore, RaphtoryArrowPartition, VertexIterator}
+import com.raphtory.arrowcore.model.{PropertySchema, Vertex}
 import com.raphtory.internals.graph.GraphAlteration.SyncNewEdgeAdd
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
-import com.raphtory.internals.storage.arrow.ArrowPartition
-import com.raphtory.internals.storage.arrow.ArrowPartitionConfig
-import com.raphtory.internals.storage.arrow.ArrowSchema
-import com.raphtory.internals.storage.arrow.EdgeSchema
-import com.raphtory.internals.storage.arrow.LocalEntityRepo
-import com.raphtory.internals.storage.arrow.RichEdge
-import com.raphtory.internals.storage.arrow.RichVertex
-import com.raphtory.internals.storage.arrow.VertexSchema
-import com.raphtory.internals.storage.arrow.immutable
 
 import java.nio.file.Files
 
@@ -652,6 +638,3 @@ case class AllProps(
     pInt: Int,
     pString: String
 )
-
-//case class NodeSchema(@immutable name: String)
-//case class EdgeSchema(weight: Long, @immutable msgId: String, @immutable subject: String)

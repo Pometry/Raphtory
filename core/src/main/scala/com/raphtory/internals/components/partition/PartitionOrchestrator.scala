@@ -13,7 +13,9 @@ import com.raphtory.internals.components.querymanager.DestroyGraph
 import com.raphtory.internals.components.querymanager.EstablishGraph
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.management.id.IDManager
-import com.raphtory.internals.storage.arrow.{EdgeSchema, VertexSchema, immutable}
+import com.raphtory.internals.storage.arrow.EdgeSchema
+import com.raphtory.internals.storage.arrow.VertexSchema
+import com.raphtory.internals.storage.arrow.immutable
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -36,6 +38,28 @@ class PartitionOrchestrator(
 
     }
 
+}
+
+class ArrowPartitionOrchestrator[V: VertexSchema, E: EdgeSchema](
+    repo: TopicRepository,
+    conf: Config,
+    idManager: IDManager
+) extends PartitionOrchestrator(repo, conf, idManager) {
+
+  override def deployPartitionService(
+      graphID: String,
+      clientID: String,
+      idManager: IDManager,
+      repo: TopicRepository,
+      conf: Config
+  ): Unit =
+    deployArrowPartitionService[V, E](
+            graphID: String,
+            clientID: String,
+            idManager: IDManager,
+            repo: TopicRepository,
+            conf: Config
+    )
 }
 
 object PartitionOrchestrator {
@@ -97,7 +121,7 @@ object PartitionOrchestrator {
       .sequence
   }
 
-  def apply[IO[_]: Async: Spawn](
+  def apply[IO[_]: Async](
       conf: Config,
       topics: TopicRepository,
       idManager: IDManager
@@ -108,18 +132,17 @@ object PartitionOrchestrator {
             List(topics.clusterComms),
             new PartitionOrchestrator(topics, conf, idManager)
     )
-}
-case class VertexProp(
-                       age: Long,
-                       @immutable name: String,
-                       @immutable address_chain: String,
-                       @immutable transaction_hash: String
-                     )
 
-case class EdgeProp(
-                     @immutable name: String,
-                     friends: Boolean,
-                     weight: Long,
-                     @immutable msgId: String,
-                     @immutable subject: String
-                   )
+  def applyArrow[V: VertexSchema, E: EdgeSchema, IO[_]: Async](
+      conf: Config,
+      topics: TopicRepository,
+      idManager: IDManager
+  ): Resource[IO, PartitionOrchestrator] =
+    Component.makeAndStart(
+            topics,
+            s"partition-node",
+            List(topics.clusterComms),
+            new ArrowPartitionOrchestrator(topics, conf, idManager)
+    )
+}
+

@@ -3,8 +3,6 @@ package com.raphtory.internals.storage.arrow
 import com.raphtory.api.analysis.visitor
 import com.raphtory.api.input.Properties
 import com.raphtory.arrowcore.model.Vertex
-import com.raphtory.internals.components.partition.EdgeProp
-import com.raphtory.internals.components.partition.VertexProp
 import com.raphtory.internals.graph.GraphAlteration.SyncExistingEdgeAdd
 import com.raphtory.internals.graph.GraphAlteration.SyncNewEdgeAdd
 import com.raphtory.internals.graph.GraphPartition
