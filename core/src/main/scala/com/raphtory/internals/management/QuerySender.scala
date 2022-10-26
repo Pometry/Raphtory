@@ -14,6 +14,7 @@ import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.internals.management.id.IDManager
 import com.raphtory.protocol
+import com.raphtory.protocol.GraphInfo
 import com.raphtory.protocol.RaphtoryService
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -128,9 +129,9 @@ private[raphtory] class QuerySender(
   def destroyGraph(force: Boolean): Unit =
     service.destroyGraph(protocol.DestroyGraph(clientID, graphID, force)).unsafeRunSync()
 
-  def disconnect(): Unit = service.disconnect(protocol.ClientGraphId(clientID, graphID)).unsafeRunSync()
+  def disconnect(): Unit = service.disconnect(GraphInfo(clientID, graphID)).unsafeRunSync()
 
-  def establishGraph(): Unit = service.establishGraph(protocol.ClientGraphId(clientID, graphID)).unsafeRunSync()
+  def establishGraph(): Unit = service.establishGraph(GraphInfo(clientID, graphID)).unsafeRunSync()
 
   def outputCollector(jobID: String, timeout: Duration): TableOutputTracker = {
     val collector = TableOutputTracker(graphID, jobID, topics, config, timeout)
