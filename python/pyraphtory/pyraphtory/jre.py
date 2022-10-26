@@ -109,6 +109,7 @@ def download_java(system_os, architecture, download_dir):
 
 
 def safe_download_file(download_dir, expected_sha, url):
+    print(f"Downloading {url} to {download_dir}")
     req_session = requests.Session()
     retries = Retry(total=5, backoff_factor=1, status_forcelist=[502, 503, 504])
     req_session.mount('https://', HTTPAdapter(max_retries=retries))
@@ -142,13 +143,14 @@ def safe_download_file(download_dir, expected_sha, url):
     return file_location
 
 
-def get_and_run_ivy(JAVA_BIN, download_dir='./'):
-    file_location = safe_download_file(download_dir, IVY_BIN[CHECKSUM_SHA256], IVY_BIN[LINK])
-    shutil.unpack_archive(file_location)
-    subprocess.call([JAVA_BIN, "-jar", "./apache-ivy-2.5.0/ivy-2.5.0.jar", "-ivy", "./ivy.xml"])
+def get_and_run_ivy(JAVA_BIN):
+    download_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    file_location = safe_download_file(str(download_dir), IVY_BIN[CHECKSUM_SHA256], IVY_BIN[LINK])
+    shutil.unpack_archive(file_location, extract_dir=download_dir)
+    subprocess.call([JAVA_BIN, "-jar", download_dir+"/apache-ivy-2.5.0/ivy-2.5.0.jar", "-ivy", download_dir+"/ivy.xml"])
     # Clean up and delete downloaded ivy files
-    shutil.rmtree("apache-ivy-2.5.0")
-    delete_source("apache-ivy-2.5.0-bin.zip")
+    shutil.rmtree(download_dir+"/apache-ivy-2.5.0")
+    delete_source(download_dir+"/apache-ivy-2.5.0-bin.zip")
 
 
 def unpack_jre(filename, jre_loc):
@@ -175,7 +177,8 @@ def check_system_dl_java():
     print(f"- Operating system: {system_os} ")
     architecture = getArch()
     print(f"- Architecture: {architecture}")
-    download_dir = str(pathlib.Path().resolve())
+    download_dir = str(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+    print(f"Downloading to {download_dir}")
     jre_loc = download_dir + '/jre'
     if not os.path.exists(jre_loc):
         os.makedirs(jre_loc)
@@ -212,5 +215,4 @@ def check_dl_java_ivy():
     else:
         java_bin = check_system_dl_java()
     get_and_run_ivy(java_bin)
-
 
