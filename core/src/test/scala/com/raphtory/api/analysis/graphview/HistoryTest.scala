@@ -4,7 +4,6 @@ import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.NeighbourNames
 import com.raphtory.algorithms.temporal.TemporalEdgeList
 import com.raphtory.algorithms.temporal.TemporalNodeList
-import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
@@ -12,9 +11,10 @@ import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.spouts.SequenceSpout
 import com.raphtory.BaseCorrectnessTest
+import com.raphtory.Reverse
 import com.raphtory.TestQuery
+import com.raphtory.Undirected
 import com.raphtory.api.input.sources.CSVEdgeListSource
-
 import scala.util.Random
 
 class WindowedOutEdgeHistory(after: Long, before: Long) extends GenericReduction {
@@ -67,14 +67,14 @@ class HistoryTest extends BaseCorrectnessTest {
 
   val resExploded: Seq[String] = input.map(e => s"${edges.size - 1},$e")
 
-  test("test edge ingestion and output") {
-    correctnessTest(TestQuery(EdgeList(), edges.size - 1), res)
+  withGraph.test("test edge ingestion and output") { graph =>
+    correctnessTest(TestQuery(EdgeList(), edges.size - 1), res, graph)
   }
 
   test("test edge ingestion and output on undirected view") {
     correctnessTest(
             TestQuery(EdgeList(), edges.size - 1),
-            graphS.undirectedView,
+            Undirected,
             (res ++ reverseEdges(res)).distinct
     )
   }
@@ -82,19 +82,19 @@ class HistoryTest extends BaseCorrectnessTest {
   test("test edge ingestion and output on reversed view") {
     correctnessTest(
             TestQuery(EdgeList(), edges.size - 1),
-            graphS.reversedView,
+            Reverse,
             reverseEdges(res)
     )
   }
 
-  test("test exploded edge output") {
-    correctnessTest(TestQuery(TemporalEdgeList(), edges.size - 1), resExploded)
+  withGraph.test("test exploded edge output") { graph =>
+    correctnessTest(TestQuery(TemporalEdgeList(), edges.size - 1), resExploded, graph)
   }
 
   test("test exploded edge output on undirected view") {
     correctnessTest(
             TestQuery(TemporalEdgeList(), edges.size - 1),
-            graphS.undirectedView,
+            Undirected,
             (resExploded ++ reverseEdges(resExploded)).distinct
     )
   }
@@ -102,12 +102,12 @@ class HistoryTest extends BaseCorrectnessTest {
   test("test exploded edge output on reversed view") {
     correctnessTest(
             TestQuery(TemporalEdgeList(), edges.size - 1),
-            graphS.reversedView,
+            Reverse,
             reverseEdges(resExploded)
     )
   }
 
-  test("test exploded edge output with window") {
+  withGraph.test("test exploded edge output with window") { graph =>
     val query = TestQuery(TemporalEdgeList(), 70, List(30))
     val res   = input
       .filter { e =>
@@ -115,7 +115,7 @@ class HistoryTest extends BaseCorrectnessTest {
         t > query.timestamp - query.windows.head && t <= query.timestamp
       }
       .map(e => s"${query.timestamp},${query.windows.head},$e")
-    correctnessTest(query, res)
+    correctnessTest(query, res, graph)
   }
 
   test("test exploded edge output with window on undirected view") {
@@ -126,7 +126,7 @@ class HistoryTest extends BaseCorrectnessTest {
         t > query.timestamp - query.windows.head && t <= query.timestamp
       }
       .map(e => s"${query.timestamp},${query.windows.head},$e")
-    correctnessTest(query, graphS.undirectedView, (res ++ reverseEdgesWithWindow(res)).distinct)
+    correctnessTest(query, Undirected, (res ++ reverseEdgesWithWindow(res)).distinct)
   }
 
   test("test exploded edge output with window on reversed view") {
@@ -137,10 +137,10 @@ class HistoryTest extends BaseCorrectnessTest {
         t > query.timestamp - query.windows.head && t <= query.timestamp
       }
       .map(e => s"${query.timestamp},${query.windows.head},$e")
-    correctnessTest(query, graphS.reversedView, reverseEdgesWithWindow(res))
+    correctnessTest(query, Reverse, reverseEdgesWithWindow(res))
   }
 
-  test("test windowing functionality") {
+  withGraph.test("test windowing functionality") { graph =>
     correctnessTest(
             TestQuery(EdgeList(), edges.size - 2, List(edges.size - 4)),
             edges
@@ -149,7 +149,8 @@ class HistoryTest extends BaseCorrectnessTest {
                       edges.size - 1
               ) // slice has exclusive end but our window is inclusive
               .distinct
-              .map(e => s"${edges.size - 2},${edges.size - 4},$e")
+              .map(e => s"${edges.size - 2},${edges.size - 4},$e"),
+            graph
     )
   }
 
@@ -163,7 +164,7 @@ class HistoryTest extends BaseCorrectnessTest {
       .map(e => s"${edges.size - 2},${edges.size - 4},$e")
     correctnessTest(
             TestQuery(EdgeList(), edges.size - 2, List(edges.size - 4)),
-            graphS.undirectedView,
+            Undirected,
             (res ++ reverseEdgesWithWindow(res)).distinct
     )
   }
@@ -178,12 +179,12 @@ class HistoryTest extends BaseCorrectnessTest {
       .map(e => s"${edges.size - 2},${edges.size - 4},$e")
     correctnessTest(
             TestQuery(EdgeList(), edges.size - 2, List(edges.size - 4)),
-            graphS.reversedView,
+            Reverse,
             reverseEdgesWithWindow(res)
     )
   }
 
-  test("test out-edge history access with time window") {
+  withGraph.test("test out-edge history access with time window") { graph =>
     val after  = 10
     val before = 40
     val res    = resExploded.filter { e =>
@@ -192,7 +193,8 @@ class HistoryTest extends BaseCorrectnessTest {
     }
     correctnessTest(
             TestQuery(new WindowedOutEdgeHistory(after, before), edges.size - 1),
-            res
+            res,
+            graph
     )
   }
 
@@ -205,7 +207,7 @@ class HistoryTest extends BaseCorrectnessTest {
     }
     correctnessTest(
             TestQuery(new WindowedOutEdgeHistory(after, before), edges.size - 1),
-            graphS.undirectedView,
+            Undirected,
             (res ++ reverseEdges(res)).distinct
     )
   }
@@ -219,12 +221,12 @@ class HistoryTest extends BaseCorrectnessTest {
     }
     correctnessTest(
             TestQuery(new WindowedOutEdgeHistory(after, before), edges.size - 1),
-            graphS.reversedView,
+            Reverse,
             reverseEdges(res)
     )
   }
 
-  test("test out-edge history access with time window and restricted view") {
+  withGraph.test("test out-edge history access with time window and restricted view") { graph =>
     val after     = 10
     val before    = 40
     val timestamp = 30
@@ -237,7 +239,8 @@ class HistoryTest extends BaseCorrectnessTest {
       .map(e => s"$timestamp,$window,$e")
     correctnessTest(
             TestQuery(new WindowedOutEdgeHistory(after, before), timestamp, List(window)),
-            res
+            res,
+            graph
     )
   }
 
@@ -254,7 +257,7 @@ class HistoryTest extends BaseCorrectnessTest {
       .map(e => s"$timestamp,$window,$e")
     correctnessTest(
             TestQuery(new WindowedOutEdgeHistory(after, before), timestamp, List(window)),
-            graphS.undirectedView,
+            Undirected,
             (res ++ reverseEdgesWithWindow(res)).distinct
     )
   }
@@ -272,12 +275,12 @@ class HistoryTest extends BaseCorrectnessTest {
       .map(e => s"$timestamp,$window,$e")
     correctnessTest(
             TestQuery(new WindowedOutEdgeHistory(after, before), timestamp, List(window)),
-            graphS.reversedView,
+            Reverse,
             reverseEdgesWithWindow(res)
     )
   }
 
-  test("test in-edge history access with time window") {
+  withGraph.test("test in-edge history access with time window") { graph =>
     val after  = 10
     val before = 40
     val res    = resExploded.filter { e =>
@@ -286,7 +289,8 @@ class HistoryTest extends BaseCorrectnessTest {
     }
     correctnessTest(
             TestQuery(new WindowedInEdgeHistory(after, before), edges.size - 1),
-            res
+            res,
+            graph
     )
   }
 
@@ -300,7 +304,7 @@ class HistoryTest extends BaseCorrectnessTest {
 
     correctnessTest(
             TestQuery(new WindowedInEdgeHistory(after, before), edges.size - 1),
-            graphS.undirectedView,
+            Undirected,
             (res ++ reverseEdges(res)).distinct
     )
   }
@@ -315,12 +319,12 @@ class HistoryTest extends BaseCorrectnessTest {
 
     correctnessTest(
             TestQuery(new WindowedInEdgeHistory(after, before), edges.size - 1),
-            graphS.reversedView,
+            Reverse,
             reverseEdges(res)
     )
   }
 
-  test("test temporal node-list output with window") {
+  withGraph.test("test temporal node-list output with window") { graph =>
     val query = TestQuery(TemporalNodeList(), 70, List(30))
     val res   = input
       .filter { e =>
@@ -335,7 +339,7 @@ class HistoryTest extends BaseCorrectnessTest {
         )
       }
       .distinct
-    correctnessTest(query, res)
+    correctnessTest(query, res, graph)
   }
 
   def reverseEdges(edges: Seq[String]): Seq[String] =

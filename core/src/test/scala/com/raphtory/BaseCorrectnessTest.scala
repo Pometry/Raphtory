@@ -1,20 +1,18 @@
 package com.raphtory
 
-import cats.effect.IO
 import com.raphtory.api.analysis.algorithm.GenericallyApplicable
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input.sources.CSVEdgeListSource
-import com.raphtory.api.input.Graph
-import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.spouts.IdentitySpout
-import com.raphtory.spouts.ResourceSpout
 import com.raphtory.spouts.SequenceSpout
 
-import scala.collection.mutable
+sealed trait View
+case object Undirected extends View
+case object Reverse    extends View
 
 case class TestQuery(
     algorithm: GenericallyApplicable,
@@ -25,10 +23,9 @@ case class TestQuery(
 case class Edges(source: Source)
 
 object Edges {
-  implicit def edgesFromResource(resource: String): Edges = Edges(CSVEdgeListSource.fromResource(resource))
-  implicit def edgesFromSource(source: Source): Edges     = Edges(source)
-  implicit def sourceFromEdges(edges: Edges): Source      = edges.source
-
+  implicit def edgesFromResource(resource: String): Edges  = Edges(CSVEdgeListSource.fromResource(resource))
+  implicit def edgesFromSource(source: Source): Edges      = Edges(source)
+  implicit def sourceFromEdges(edges: Edges): Source       = edges.source
   implicit def edgesFromEdgeSeq(edges: Seq[String]): Edges = Edges(CSVEdgeListSource(SequenceSpout(edges)))
 }
 
@@ -38,17 +35,16 @@ abstract class BaseCorrectnessTest(
     deleteResultAfterFinish: Boolean = true
 ) extends BaseRaphtoryAlgoTest[String](deleteResultAfterFinish) {
 
-  private def runTest(test: TestQuery, graph: TemporalGraph = graphS) =
-    IO {
-      val tracker = (if (test.timestamp >= 0)
-                       graph.at(test.timestamp).window(test.windows, Alignment.END)
-                     else
-                       graph)
-        .execute(test.algorithm)
-        .writeTo(defaultSink)
-      tracker.waitForJob()
-      TestUtils.getResults(outputDirectory, tracker.getJobId)
-    }
+  private def runTest(test: TestQuery, graph: TemporalGraph): Iterator[String] = {
+    val tracker = (if (test.timestamp >= 0)
+                     graph.at(test.timestamp).window(test.windows, Alignment.END)
+                   else
+                     graph)
+      .execute(test.algorithm)
+      .writeTo(defaultSink)
+    tracker.waitForJob()
+    TestUtils.getResults(outputDirectory, tracker.getJobId)
+  }
 
   private def normaliseResults(value: IterableOnce[String]) =
     value.iterator.toList.sorted.mkString("\n")
@@ -67,36 +63,57 @@ abstract class BaseCorrectnessTest(
   def correctnessTest(
       test: TestQuery,
       graphEdges: Edges,
-      resultsResource: String
-  ): IO[Unit] =
-    Raphtory
-      .newIOGraph()
-      .use { g =>
-        g.load(graphEdges)
-        runTest(test, g)
-      }
-      .map(obtained => assertResultsMatch(obtained, resultsResource))
+      resultsResource: String,
+      graph: DeployedTemporalGraph
+  ): Unit = {
+    graph.load(graphEdges)
+    val obtained = runTest(test, graph)
+    assertResultsMatch(obtained, resultsResource)
+  }
 
   def correctnessTest(
       test: TestQuery,
       graphEdges: Edges,
+      results: Seq[String],
+      graph: DeployedTemporalGraph
+  ): Unit = {
+    graph.load(graphEdges)
+    val obtained = runTest(test, graph)
+    assertResultsMatch(obtained, results)
+  }
+
+  def correctnessTest(
+      test: TestQuery,
+      results: Seq[String],
+      graph: DeployedTemporalGraph
+  ): Unit = {
+    graph.load(setSource())
+    val obtained = runTest(test, graph)
+    assertResultsMatch(obtained, results)
+  }
+
+  def correctnessTest(
+      test: TestQuery,
+      view: View,
       results: Seq[String]
-  ): IO[Unit] =
-    Raphtory
-      .newIOGraph()
-      .use { g =>
-        g.load(graphEdges)
-        runTest(test, g)
-      }
-      .map(obtained => assertResultsMatch(obtained, results))
+  ): Unit = {
+    val graph    = f()
+    graph.load(setSource())
+    val obtained = view match {
+      case Undirected => runTest(test, graph.undirectedView)
+      case Reverse    => runTest(test, graph.reversedView)
+    }
+    assertResultsMatch(obtained, results)
+  }
 
-  def correctnessTest(test: TestQuery, results: Seq[String]): IO[Unit] =
-    runTest(test).map(obtained => assertResultsMatch(obtained, results))
-
-  def correctnessTest(test: TestQuery, graph: TemporalGraph, results: Seq[String]): IO[Unit] =
-    runTest(test, graph).map(obtained => assertResultsMatch(obtained, results))
-
-  def correctnessTest(test: TestQuery, results: String): IO[Unit] =
-    runTest(test).map(obtained => assertResultsMatch(obtained, results))
+  def correctnessTest(
+      test: TestQuery,
+      results: String,
+      graph: DeployedTemporalGraph
+  ): Unit = {
+    graph.load(setSource())
+    val obtained = runTest(test, graph)
+    assertResultsMatch(obtained, results)
+  }
 
 }

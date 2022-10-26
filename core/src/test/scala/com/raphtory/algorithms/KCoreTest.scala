@@ -8,10 +8,11 @@ import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceSpout
 
 class KCoreTest extends BaseCorrectnessTest {
-  test("Test with K-Core = 3") {
+  withGraph.test("Test with K-Core = 3") { graph =>
     correctnessTest(
-      TestQuery(KCore(3), 17),
-      "KCore/kCore3Results.csv"
+            TestQuery(KCore(3), 17),
+            "KCore/kCore3Results.csv",
+            graph
     )
   }
 

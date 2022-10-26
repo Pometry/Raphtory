@@ -26,7 +26,7 @@ object AllNeighbours extends Generic {
 
 class VertexFilterTest extends BaseCorrectnessTest {
 
-  test("Vertex is being filtered") {
+  withGraph.test("Vertex is being filtered") { graph =>
     val res = Using(Source.fromResource("MotifCount/motiftest.csv")) { source =>
       source
         .getLines()
@@ -43,7 +43,8 @@ class VertexFilterTest extends BaseCorrectnessTest {
     correctnessTest(
             TestQuery(VertexFilter(_.ID != 1) -> AllNeighbours, 23),
             "MotifCount/motiftest.csv",
-            res
+            res,
+            graph
     )
   }
 

@@ -1,7 +1,6 @@
 package com.raphtory.generic
 
 import com.raphtory.BaseCorrectnessTest
-import com.raphtory.Raphtory
 import com.raphtory.TestQuery
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.analysis.algorithm.Generic
@@ -65,12 +64,13 @@ class OrderingTest extends BaseCorrectnessTest {
 
   val max_time = edges.map(_.split(",").apply(2).toInt).max
 
-  test("test history is sorted") {
+  withGraph.test("test history is sorted") { graph =>
     correctnessTest(
             TestQuery(CheckHistory(), max_time),
-            Seq(s"$max_time,true,true")
+            Seq(s"$max_time,true,true"),
+            graph
     )
   }
 
-  override def setSource(): Source = CSVEdgeListSource(SequenceSpout(edges))
+  override def setSource(): Source = CSVEdgeListSource(SequenceSpout(edges.head, edges.tail:_*))
 }

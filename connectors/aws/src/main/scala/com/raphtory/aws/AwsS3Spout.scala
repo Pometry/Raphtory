@@ -27,7 +27,7 @@ case class AwsS3Spout(awsS3SpoutBucketName: String, awsS3SpoutBucketPath: String
 
 class AwsS3SpoutInstance(awsS3SpoutBucketName: String, awsS3SpoutBucketPath: String) extends SpoutInstance[String] {
 
-  val credentials: AwsCredentials = AwsS3Connector().getAWSCredentials()
+  val credentials: AwsCredentials = AwsS3Connector().getAWSCredentials
 
   private val s3Client: AmazonS3 = AmazonS3ClientBuilder
     .standard()

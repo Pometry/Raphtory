@@ -68,35 +68,31 @@ object CheckNodeCount extends Generic {
 
 class AccumulatorTest extends BaseCorrectnessTest {
 
-  test("Test accumulators by counting nodes") {
-    correctnessTest(TestQuery(CountNodes, 23), "Accumulator/results.csv")
+  withGraph.test("Test accumulators by counting nodes") { graph =>
+    correctnessTest(TestQuery(CountNodes, 23), "Accumulator/results.csv", graph)
   }
 
-  test("Test resetting of accumulators by running CountNodes twice (should not change result)") {
-    correctnessTest(TestQuery(CountNodes -> CountNodes, 23), "Accumulator/results.csv")
+  withGraph.test("Test resetting of accumulators by running CountNodes twice (should not change result)") { graph =>
+    correctnessTest(TestQuery(CountNodes -> CountNodes, 23), "Accumulator/results.csv", graph)
   }
 
-  test("Test rotation of accumulators and state retention by running counting nodes twice") {
-    correctnessTest(TestQuery(CountNodesTwice, 23), "Accumulator/results2.csv")
+  withGraph.test("Test rotation of accumulators and state retention by running counting nodes twice") { graph =>
+    correctnessTest(TestQuery(CountNodesTwice, 23), "Accumulator/results2.csv", graph)
   }
 
   test("Test nodeCount on graph state is consistent for multiple perspectives") {
-
-          val job = graphS
-            .range(10, 23, 1)
-            .window(10, Alignment.END)
-            .execute(CheckNodeCount)
-            .writeTo(defaultSink)
-
-          val jobId = job.getJobId
-          job.waitForJob()
-
-          TestUtils.getResults(outputDirectory, jobId).foreach { res =>
-            if (res.nonEmpty) {
-              val t = res.split(",")
-              assertEquals(t(t.size - 1), "true")
-        }
+    algorithmTest(
+            CheckNodeCount,
+            10,
+            23,
+            1,
+            List(10)
+    ).map { res =>
+      if (res.nonEmpty) {
+        val t = res.split(",")
+        assertEquals(t(t.size - 1), "a953f8b23595e09361306f8f938b6107bf602d265e305af009d97b410c2ac6eb")
       }
+    }
   }
 
   override def setSource(): Source = CSVEdgeListSource(ResourceSpout("MotifCount/motiftest.csv"))
