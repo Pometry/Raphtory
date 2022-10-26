@@ -131,8 +131,7 @@ class DefaultRaphtoryService[F[_]](
         } yield success
     }
 
-  // TODO: Needs to be fixed after Pedros ingestion changes
-  override def getGraph(req: GetGraph): F[Status] = Async[F].pure(Status(success = false))
+  override def getGraph(req: GetGraph): F[Status] = ingestion.getGraph(req)
 }
 
 object RaphtoryServiceBuilder {
