@@ -12,12 +12,7 @@ import com.raphtory.internals.components.ServiceRepository
 import com.raphtory.internals.components.querymanager.IngestData
 import com.raphtory.internals.components.querymanager.TryIngestData
 import com.raphtory.protocol
-import com.raphtory.protocol.ClientGraphId
-import com.raphtory.protocol.DestroyGraph
-import com.raphtory.protocol.IngestionService
-import com.raphtory.protocol.Status
-import com.raphtory.protocol.failure
-import com.raphtory.protocol.success
+import com.raphtory.protocol.{ClientGraphId, DestroyGraph, GetGraph, IngestionService, Status, failure, success}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -91,6 +86,9 @@ class IngestionServiceInstance[F[_]: Async](
         } yield status
       case _                                                                     => failure[F]
     }
+
+  override def getGraph(req: GetGraph): F[Status] =
+    graphs.get.map(i => Status(i.contains(req.graphID)))
 
   private def executeIfGraphDefined(ingestData: IngestData, graph: Option[Graph[F]]) =
     graph.map(graph => spawnExecutor(ingestData, graph).as(success)).getOrElse(failure[F])
