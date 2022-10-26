@@ -86,7 +86,7 @@ jobs:
           cd examples && pytest --nbmake
       - name: Run doc compile check
         run: |
-          cd docs && pip install -r requirements.txt && apt-get install python3-sphinx && make html
+          cd docs && python -m pip install -r requirements.txt && apt-get install python3-sphinx && make html
     if: needs.configure.outputs.type == 'regular'
 
   build:
