@@ -1,8 +1,8 @@
 package com.raphtory.typedb
 
-import com.raphtory.Raphtory
 import com.raphtory.api.input.Spout
 import com.raphtory.api.input.SpoutInstance
+import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.typesafe.config.Config
 import com.vaticle.typedb.client.TypeDB
 import com.vaticle.typedb.client.api.answer.ConceptMap
@@ -33,7 +33,6 @@ import java.util.stream
   * graph.execute(EdgeList()).writeTo(sink)
   * }}}
   * @see [[com.raphtory.api.input.Spout Spout]]
-  *      [[com.raphtory.Raphtory Raphtory]]
   */
 case class TypeDBSpout(database: String) extends Spout[String] {
   override def buildSpout(): SpoutInstance[String] = new TypeDBSpoutInstance(database)
@@ -41,7 +40,6 @@ case class TypeDBSpout(database: String) extends Spout[String] {
 
 class TypeDBSpoutInstance(database: String) extends SpoutInstance[String] {
 
-  val raphtoryConfig: Config = Raphtory.getDefaultConfig()
   // 1. Connect to TypeDB server using client
   private val client         = TypeDB.coreClient("localhost:1729")
   // 2. Connect to particular database via a session to carry out transactions

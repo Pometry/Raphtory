@@ -2,7 +2,6 @@ package com.raphtory.formats
 
 import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import com.raphtory.Raphtory
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.output.format.Format
 import com.raphtory.api.time.DiscreteInterval
@@ -12,6 +11,7 @@ import com.raphtory.internals.communication.Connector
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.graph.Perspective
+import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import munit.FunSuite
 
 object NoConnector extends Connector {
@@ -81,9 +81,7 @@ class JsonFormatTest extends FunSuite {
 
   test("Print json example on the docs") {
     val docRows   = List(Row("id1", 12), Row("id2", 13), Row("id3", 24))
-    val docsTable = List(
-            (Perspective(10, None, 0, 10), docRows)
-    )
+    val docsTable = List((Perspective(10, None, 0, 10), docRows))
     val output    = formatTable(JsonFormat(JsonFormat.GLOBAL), docsTable, "EdgeCount", 0)
     reader.createParser(output).readValueAs(classOf[Any])
   }
@@ -95,11 +93,12 @@ class JsonFormatTest extends FunSuite {
       partitionID: Int
   ): String = {
     val sink     = StringSink(format = format)
+    val config   = ConfigBuilder.getDefaultConfig
     val executor = sink.executor(
             jobID,
             partitionID,
-            Raphtory.getDefaultConfig(),
-            TopicRepository(NoConnector, Raphtory.getDefaultConfig())
+            config,
+            TopicRepository(NoConnector, config)
     )
 
     table foreach {

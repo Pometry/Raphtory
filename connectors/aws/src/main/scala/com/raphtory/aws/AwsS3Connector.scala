@@ -1,6 +1,6 @@
 package com.raphtory.aws
 
-import com.raphtory.Raphtory
+import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 
 /*
 To use AwsS3Connector(), you must provide an access key, secret access key and session token in application.conf.
@@ -24,13 +24,13 @@ which should return:
 
 case class AwsS3Connector() {
 
-  val raphtoryConfig               = Raphtory.getDefaultConfig()
+  private val raphtoryConfig  = ConfigBuilder.getDefaultConfig
   private val accessKey       = raphtoryConfig.getString("raphtory.spout.aws.local.accessKey")
   private val secretAccessKey = raphtoryConfig.getString("raphtory.spout.aws.local.secretAccessKey")
-  private val sessionToken       = raphtoryConfig.getString("raphtory.spout.aws.local.sessionToken")
+  private val sessionToken    = raphtoryConfig.getString("raphtory.spout.aws.local.sessionToken")
 
   private val credentials: AwsCredentials =
     AwsCredentials(accessKey, secretAccessKey, sessionToken)
 
-  def getAWSCredentials(): AwsCredentials = credentials
+  def getAWSCredentials: AwsCredentials = credentials
 }

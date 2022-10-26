@@ -13,10 +13,11 @@ class JSONEdgeListSourceTest extends BaseCorrectnessTest {
   override def setSource() = JSONEdgeListSource(FileSpout(path),sourceKey="name", targetKey = "favourite-game", timeKey = "date")
 
 
-  test("JSON Edge List Source Test") {
+  withGraph.test("JSON Edge List Source Test") { graph =>
     correctnessTest(
       TestQuery(EdgeList()),
-      "SourceTest/jsontestresults.csv"
+      "SourceTest/jsontestresults.csv",
+      graph
     )
   }
 }

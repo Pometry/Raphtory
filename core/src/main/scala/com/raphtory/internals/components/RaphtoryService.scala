@@ -5,7 +5,6 @@ import cats.effect.Resource
 import cats.effect.std.Dispatcher
 import cats.effect.std.Queue
 import cats.syntax.all._
-import com.raphtory.Raphtory.makeLocalIdManager
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.connectors.AkkaConnector
@@ -19,6 +18,8 @@ import com.raphtory.internals.components.repositories.LocalServiceRepository
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.management.Partitioner
 import com.raphtory.internals.management.id.IDManager
+import com.raphtory.{makeLocalIdManager, protocol}
+import com.raphtory.protocol.{ClientGraphId, GetGraph, IdPool, OptionalId, RaphtoryService, Status}
 import com.raphtory.protocol
 import com.raphtory.protocol.ClientGraphId
 import com.raphtory.protocol.IdPool
@@ -129,6 +130,9 @@ class DefaultRaphtoryService[F[_]](
           _       <- F.delay(blockingIngestion(graphId) sendAsync message)
         } yield success
     }
+
+  // TODO: Needs to be fixed after Pedros ingestion changes
+  override def getGraph(req: GetGraph): F[Status] = Async[F].pure(Status(success = false))
 }
 
 object RaphtoryServiceBuilder {

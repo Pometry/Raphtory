@@ -52,7 +52,7 @@ case class AwsS3Sink(awsS3OutputFormatBucketName: String, format: Format = CsvFo
        * AWS Credentials needed to connect to AWS and build an S3 client.
        * Access Key, Secret Access Key and Session Token is needed in application.conf.
        */
-      private val credentials: AwsCredentials = AwsS3Connector().getAWSCredentials()
+      private val credentials: AwsCredentials = AwsS3Connector().getAWSCredentials
       private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
       private val s3Client: AmazonS3 = AmazonS3ClientBuilder

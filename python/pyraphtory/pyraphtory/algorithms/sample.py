@@ -30,7 +30,8 @@ if __name__ == "__main__":
 
 
     lotr_spout = FileSpout("/tmp/lotr.csv")
-    graph = PyRaphtory.new_graph().load(Source(lotr_spout, GraphBuilder(parse)))
+    ctx = PyRaphtory.local()
+    graph = ctx.new_graph().load(Source(lotr_spout, GraphBuilder(parse)))
 
     df = (graph
           .select(lambda vertex: Row(vertex.name(), vertex.degree()))
@@ -61,7 +62,7 @@ if __name__ == "__main__":
     df = (graph.execute(Degree()).to_df(["name", "in-degree", "out-degree", "degree"]))
     print(df)
 
-    graph2 = PyRaphtory.new_graph()
+    graph2 = ctx.new_graph()
     # can just call add_vertex, add_edge on graph directly without spout/builder
     start = perf_counter()
     with open("/tmp/lotr.csv") as f:

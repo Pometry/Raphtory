@@ -8,10 +8,11 @@ import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceSpout
 
 class ThreeNodeMotifsTest extends BaseCorrectnessTest {
-  test("test motif counting") {
+  withGraph.test("test motif counting") { graph =>
     correctnessTest(
             TestQuery(ThreeNodeMotifs, 23),
-            "MotifCount/motiftestCorrectResults.csv"
+            "MotifCount/motiftestCorrectResults.csv",
+            graph
     )
   }
 

@@ -7,25 +7,28 @@ import com.raphtory.algorithms.generic.centrality.Degree
 import com.raphtory.algorithms.generic.centrality.WeightedDegree
 import com.raphtory.algorithms.temporal.TemporalEdgeList
 import com.raphtory.api.input.sources.CSVEdgeListSource
-import com.raphtory.api.input.{Graph, GraphBuilder, Source, Spout}
+import com.raphtory.api.input.Graph
+import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Source
+import com.raphtory.api.input.Spout
 import com.raphtory.spouts.ResourceSpout
 
 class DegreeTest extends BaseCorrectnessTest {
 
-
-  test("weighted Degree with weighted edges") {
-    correctnessTest(TestQuery(WeightedDegree[Long](), 6), "Degree/weightedResult.csv")
+  withGraph.test("weighted Degree with weighted edges") { graph =>
+    correctnessTest(TestQuery(WeightedDegree[Long](), 6), "Degree/weightedResult.csv", graph)
   }
 
-  test("weighted Degree with edge count") {
+  withGraph.test("weighted Degree with edge count") { graph =>
     correctnessTest(
             TestQuery(WeightedDegree[Long](""), 6),
-            "Degree/countedResult.csv"
+            "Degree/countedResult.csv",
+            graph
     )
   }
 
-  test("unweighted Degree") {
-    correctnessTest(TestQuery(Degree(), 6), "Degree/unweightedResult.csv")
+  withGraph.test("unweighted Degree") { graph =>
+    correctnessTest(TestQuery(Degree(), 6), "Degree/unweightedResult.csv", graph)
   }
 
   override def setSource(): Source = Source(ResourceSpout("Degree/degreeTest.csv"), WeightedGraphBuilder)

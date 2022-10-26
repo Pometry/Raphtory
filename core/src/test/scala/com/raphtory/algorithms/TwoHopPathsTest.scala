@@ -8,10 +8,11 @@ import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceSpout
 
 class TwoHopPathsTest extends BaseCorrectnessTest {
-  test("Test two-hop Paths") {
+  withGraph.test("Test two-hop Paths") { graph =>
     correctnessTest(
             TestQuery(TwoHopPaths("1", "7"), 23),
-            "TwoHopPaths/twohopResults.csv"
+            "TwoHopPaths/twohopResults.csv",
+            graph
     )
   }
 

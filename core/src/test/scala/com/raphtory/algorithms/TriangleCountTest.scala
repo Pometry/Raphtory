@@ -8,10 +8,11 @@ import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceSpout
 
 class TriangleCountTest extends BaseCorrectnessTest {
-  test("test triangle counting") {
+  withGraph.test("test triangle counting") { graph =>
     correctnessTest(
             TestQuery(LocalTriangleCount(), 23),
-            "TriangleCount/triangleCorrectResult.csv"
+            "TriangleCount/triangleCorrectResult.csv",
+            graph
     )
   }
 

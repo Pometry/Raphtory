@@ -8,13 +8,13 @@ import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceSpout
 
 class ShortestPathDistanceTest extends BaseCorrectnessTest {
-  test("Test shortest path distances") {
+  withGraph.test("Test shortest path distances") { graph =>
     correctnessTest(
-      TestQuery(new ShortestPathDistance[Int]("1", "8", 100), 23),
-      "ShortestPathDistance/shortestpathdistancetestCorrectResults.csv"
+            TestQuery(new ShortestPathDistance[Int]("1", "8", 100), 23),
+            "ShortestPathDistance/shortestpathdistancetestCorrectResults.csv",
+            graph
     )
   }
 
   override def setSource(): Source = CSVEdgeListSource(ResourceSpout("MotifCount/motiftest.csv"))
-
 }

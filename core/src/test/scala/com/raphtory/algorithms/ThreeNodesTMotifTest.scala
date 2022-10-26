@@ -1,22 +1,26 @@
 package com.raphtory.algorithms
 
-import com.raphtory.algorithms.temporal.motif.{LocalThreeNodeMotifs, ThreeNodeMotifs}
+import com.raphtory.algorithms.temporal.motif.LocalThreeNodeMotifs
+import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceSpout
-import com.raphtory.{BaseCorrectnessTest, TestQuery}
+import com.raphtory.BaseCorrectnessTest
+import com.raphtory.TestQuery
 
 class ThreeNodesTMotifTest extends BaseCorrectnessTest {
-  test("test temporal motif counting") {
+  withGraph.test("test temporal motif counting") { graph =>
     correctnessTest(
-      TestQuery(ThreeNodeMotifs(graphWide = true, prettyPrint = false,delta = 10),23),
-      "MotifCount/tMotifCorrectResults.csv"
+            TestQuery(ThreeNodeMotifs(graphWide = true, prettyPrint = false, delta = 10), 23),
+            "MotifCount/tMotifCorrectResults.csv",
+            graph
     )
   }
-  test("test local temporal motif counting") {
+  withGraph.test("test local temporal motif counting") { graph =>
     correctnessTest(
-      TestQuery(LocalThreeNodeMotifs(prettyPrint = false,delta = 10),23),
-      "MotifCount/tMotifLocalResults.csv"
+            TestQuery(LocalThreeNodeMotifs(prettyPrint = false, delta = 10), 23),
+            "MotifCount/tMotifLocalResults.csv",
+            graph
     )
   }
 
