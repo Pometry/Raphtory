@@ -6,51 +6,13 @@ import com.raphtory.internals.components.querymanager.PerspectiveCompleted
 import com.raphtory.internals.components.querymanager.PerspectiveFailed
 import com.raphtory.internals.components.querymanager.PerspectiveReport
 import com.raphtory.internals.components.querymanager.QueryManagement
-import com.raphtory.api.time.Perspective
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 import scala.concurrent.Promise
 import scala.concurrent.duration.Duration
 import scala.util.Success
-
-abstract class ProgressTracker(jobID: String) {
-
-  var jobDone: Boolean                          = false
-  var latestPerspective: Option[Perspective]    = None
-  val perspectivesList: ListBuffer[Perspective] = new ListBuffer[Perspective]()
-  val perspectivesDurations: ListBuffer[Long]   = new ListBuffer[Long]()
-
-  /** Returns job identifier for the query
-    * @return job identifier
-    */
-  final def getJobId: String = jobID
-
-  /** Returns the latest `Perspective` processed by the query
-    * @return latest perspective
-    */
-  final def getLatestPerspectiveProcessed: Option[Perspective] = latestPerspective
-
-  /** Returns list of perspectives processed for the query so far
-    * @return a list of perspectives
-    */
-  final def getPerspectivesProcessed: List[Perspective] = perspectivesList.toList
-
-  /** Returns the time taken to process each perspective in milliseconds */
-  final def getPerspectiveDurations: List[Long] = perspectivesDurations.toList
-
-  /** Checks if job is complete
-    * @return job status
-    */
-  def isJobDone: Boolean = jobDone
-
-  /** Block until job is complete */
-  def waitForJob(timeout: Duration = Duration.Inf): Unit
-
-  def handleMessage(msg: QueryManagement): Unit = {}
-}
 
 /** Tracks the progress of Raphtory queries in terms of number of perspectives processed and duration taken to process each perspective.
   * Queries in Raphtory run on a series of `Perspectives` which are how the graph would have looked at specific timestamps with given windows.

@@ -3,9 +3,8 @@ package com.raphtory.internals.management
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.raphtory.api.input.Graph
-import com.raphtory.api.analysis.table.TableOutputTracker
 import com.raphtory.api.input.Source
-import com.raphtory.api.querytracker.{ProgressTracker, QueryProgressTracker}
+import com.raphtory.api.querytracker.{ProgressTracker, QueryProgressTracker, TableOutputTracker}
 import com.raphtory.internals.FlushToFlight
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.communication.TopicRepository

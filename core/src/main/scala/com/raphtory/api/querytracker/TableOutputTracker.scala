@@ -1,17 +1,14 @@
-package com.raphtory.api.analysis.table
+package com.raphtory.api.querytracker
 
-import com.raphtory.api.querytracker._
-import com.raphtory.internals.communication.TopicRepository
+import com.raphtory.api.analysis.table.{Row, TableOutput}
 import com.raphtory.api.time.Perspective
-import com.raphtory.internals.components.output.EndOutput
-import com.raphtory.internals.components.output.EndPerspective
-import com.raphtory.internals.components.output.OutputMessages
-import com.raphtory.internals.components.output.RowOutput
-import com.raphtory.internals.components.querymanager.JobFailed
-import com.raphtory.internals.components.querymanager.QueryManagement
+import com.raphtory.internals.communication.TopicRepository
+import com.raphtory.internals.components.output.{EndOutput, EndPerspective, OutputMessages, RowOutput}
+import com.raphtory.internals.components.querymanager.{JobFailed, QueryManagement}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
+
 import java.util.concurrent.LinkedBlockingQueue
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

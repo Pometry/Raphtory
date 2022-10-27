@@ -1,7 +1,7 @@
 package com.raphtory.api.analysis.table
 
 import com.raphtory.api.output.sink.Sink
-import com.raphtory.api.querytracker.QueryProgressTracker
+import com.raphtory.api.querytracker.{QueryProgressTracker, TableOutputTracker}
 import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.sinks.FileSink
 
