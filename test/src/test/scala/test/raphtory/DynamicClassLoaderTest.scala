@@ -17,6 +17,11 @@ import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.raphtory.sinks.PrintSink
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
+import grpc.health.v1.health.Health
+import grpc.health.v1.health.HealthCheckRequest
+import grpc.health.v1.health.HealthCheckResponse
+import higherkindness.mu.rpc.ChannelForAddress
+import higherkindness.mu.rpc.healthcheck.HealthService
 import munit.CatsEffectSuite
 import org.slf4j.LoggerFactory
 import test.raphtory.algorithms.MaxFlowTest
@@ -24,6 +29,7 @@ import test.raphtory.algorithms.MinimalTestAlgorithm
 import test.raphtory.algorithms.TestAlgorithmWithExternalDependency
 
 import java.net.URL
+import scala.concurrent.duration.DurationInt
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 import scala.sys.process._
@@ -85,19 +91,18 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   private val compiledAlgo: Generic = tb.compile(tb.parse(minimalTestCode))().asInstanceOf[Generic]
 
+  private val defaultConf: Config = ConfigBuilder.getDefaultConfig
+
+  private val waitForRaphtoryService: IO[Unit] =
+    Health.client[IO](ChannelForAddress("localhost", defaultConf.getInt("raphtory.deploy.port"))).use { client =>
+      for {
+        serving <- client.Check(HealthCheckRequest()).map(response => response.status.isServing).handleError(_ => false)
+        _       <- if (serving) IO.unit else IO.sleep(1.seconds) *> waitForRaphtoryService
+      } yield ()
+    }
+
   lazy val remoteProcess =
     Resource.make {
-      def runHealthCheck =
-        IO.delay(Process(Seq("grpc_health_probe", "-addr=:1736", "-connect-timeout=60s")).!).onError {
-          case NonFatal(e) =>
-            IO.raiseError(
-                    new IllegalStateException(
-                            "Please install grpc_health_probe (https://github.com/grpc-ecosystem/grpc-health-probe/tree/v0.4.14)",
-                            e
-                    )
-            )
-        }
-
       for {
 //         get classpath from sbt
         _         <- IO(logger.info("retrieving class path from sbt"))
@@ -108,7 +113,7 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
         _         <- (IO.blocking(process.exitValue()) *> IO(
                                logger.info("Failed to start remote process, a standalone instance is likely already running")
                        )).start
-        _         <- runHealthCheck
+        _         <- waitForRaphtoryService
       } yield process
     }(process =>
       IO {
@@ -144,8 +149,6 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
   case object LocalContext extends Context
 
   case object RemoteContext extends Context
-
-  val defaultConf: Config = ConfigBuilder.getDefaultConfig
 
   lazy val localContextFixture: Fixture[RaphtoryContext] = ResourceSuiteLocalFixture(
           "local",
