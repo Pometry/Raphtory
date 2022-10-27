@@ -8,6 +8,7 @@ import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input._
 import com.raphtory.internals.context.RaphtoryContext
+import com.raphtory.internals.context.RaphtoryIOContext
 import com.raphtory.spouts.FileSpout
 import com.raphtory.TestUtils
 import com.raphtory.api.analysis.table.Row
@@ -152,14 +153,15 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   lazy val localContextFixture: Fixture[RaphtoryContext] = ResourceSuiteLocalFixture(
           "local",
-          Resource.eval(IO(new RaphtoryContext(RaphtoryServiceBuilder.standalone[IO](defaultConf), defaultConf)))
+          RaphtoryIOContext.localIO()
   )
 
   lazy val remoteContextFixture: Fixture[RaphtoryContext] = ResourceSuiteLocalFixture(
           "remote",
           for {
-            _ <- remoteProcess
-          } yield new RaphtoryContext(RaphtoryServiceBuilder.client[IO](defaultConf), defaultConf)
+            _       <- remoteProcess
+            context <- RaphtoryIOContext.remoteIO()
+          } yield context
   )
 
   def fetchContext(context: Context): Fixture[RaphtoryContext] =
