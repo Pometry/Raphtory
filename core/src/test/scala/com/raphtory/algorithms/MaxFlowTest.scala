@@ -7,20 +7,18 @@ import com.raphtory.api.input.Source
 import com.raphtory.spouts.ResourceSpout
 
 class MaxFlowTest extends BaseCorrectnessTest {
-  withGraph.test("test on line graph") { graph =>
+  test("test on line graph") {
     correctnessTest(
             TestQuery(MaxFlow[Long]("1", "3"), 2),
             Source(ResourceSpout("MaxFlow/minimalTest.csv"), WeightedGraphBuilder),
-            "MaxFlow/minimalResult.csv",
-            graph
+            "MaxFlow/minimalResult.csv"
     )
   }
 
-  withGraph.test("test on two connected cliques") { graph =>
+  test("test on two connected cliques") {
     correctnessTest(
             TestQuery(MaxFlow[Long]("2", "101", maxIterations = 10000), 9899),
-            "MaxFlow/bottleneckResult.csv",
-            graph
+            "MaxFlow/bottleneckResult.csv"
     )
   }
 

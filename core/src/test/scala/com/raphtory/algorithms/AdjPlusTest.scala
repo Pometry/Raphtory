@@ -10,8 +10,8 @@ import com.raphtory.spouts.ResourceSpout
 
 class AdjPlusTest extends BaseCorrectnessTest {
 
-  withGraph.test("Test AdjPlus projection on small example") { graph =>
-    correctnessTest(TestQuery(AdjPlus, 23), "AdjPlus/adjPlusResults.csv", graph)
+  test("Test AdjPlus projection on small example") {
+    correctnessTest(TestQuery(AdjPlus, 23), "AdjPlus/adjPlusResults.csv")
   }
 
   override def setSource(): Source = CSVEdgeListSource(ResourceSpout("MotifCount/motiftest.csv"))

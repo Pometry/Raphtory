@@ -13,11 +13,10 @@ class JSONNetworkXSourceTest extends BaseCorrectnessTest {
 
   override def setSource(): Source = JSONSource(FileSpout(path))
 
-  withGraph.test("LOTR NetworkX JSON Test") { graph =>
+  test("LOTR NetworkX JSON Test") {
     correctnessTest(
             TestQuery(EdgeList()),
-            "SourceTest/lotrnetworkxresults.csv",
-            graph
+            "SourceTest/lotrnetworkxresults.csv"
     )
   }
 }

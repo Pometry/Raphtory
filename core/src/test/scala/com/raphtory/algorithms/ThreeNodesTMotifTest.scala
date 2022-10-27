@@ -9,18 +9,16 @@ import com.raphtory.BaseCorrectnessTest
 import com.raphtory.TestQuery
 
 class ThreeNodesTMotifTest extends BaseCorrectnessTest {
-  withGraph.test("test temporal motif counting") { graph =>
+  test("test temporal motif counting") {
     correctnessTest(
             TestQuery(ThreeNodeMotifs(graphWide = true, prettyPrint = false, delta = 10), 23),
-            "MotifCount/tMotifCorrectResults.csv",
-            graph
+            "MotifCount/tMotifCorrectResults.csv"
     )
   }
-  withGraph.test("test local temporal motif counting") { graph =>
+  test("test local temporal motif counting") {
     correctnessTest(
             TestQuery(LocalThreeNodeMotifs(prettyPrint = false, delta = 10), 23),
-            "MotifCount/tMotifLocalResults.csv",
-            graph
+            "MotifCount/tMotifLocalResults.csv"
     )
   }
 

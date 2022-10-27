@@ -130,6 +130,26 @@ class RaphtoryContext(serviceAsResource: Resource[IO, RaphtoryService[IO]], conf
   def destroyGraph(graphID: String): Unit = runWithGraph(graphID, destroy = true) { _ => }
 }
 
+object RaphtoryIOContext {
+
+  def localIO(): Resource[IO, RaphtoryContext] =
+    RaphtoryServiceBuilder
+      .standalone[IO](defaultConf)
+      .evalMap(service => IO(new RaphtoryContext(Resource.pure(service), defaultConf)))
+
+  def remoteIO(host: String = deployInterface, port: Int = deployPort): Resource[IO, RaphtoryContext] = {
+    val config =
+      ConfigBuilder()
+        .addConfig("raphtory.deploy.address", host)
+        .addConfig("raphtory.deploy.port", port)
+        .build()
+        .getConfig
+
+    val service = RaphtoryServiceBuilder.client[IO](config)
+    Resource.pure(new RaphtoryContext(service, config))
+  }
+}
+
 object GraphException {
   final case class GraphAlreadyDeployed private (message: String) extends Exception(message)
 

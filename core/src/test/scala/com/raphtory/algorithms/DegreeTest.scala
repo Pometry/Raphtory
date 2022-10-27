@@ -15,20 +15,19 @@ import com.raphtory.spouts.ResourceSpout
 
 class DegreeTest extends BaseCorrectnessTest {
 
-  withGraph.test("weighted Degree with weighted edges") { graph =>
-    correctnessTest(TestQuery(WeightedDegree[Long](), 6), "Degree/weightedResult.csv", graph)
+  test("weighted Degree with weighted edges") {
+    correctnessTest(TestQuery(WeightedDegree[Long](), 6), "Degree/weightedResult.csv")
   }
 
-  withGraph.test("weighted Degree with edge count") { graph =>
+  test("weighted Degree with edge count") {
     correctnessTest(
             TestQuery(WeightedDegree[Long](""), 6),
-            "Degree/countedResult.csv",
-            graph
+            "Degree/countedResult.csv"
     )
   }
 
-  withGraph.test("unweighted Degree") { graph =>
-    correctnessTest(TestQuery(Degree(), 6), "Degree/unweightedResult.csv", graph)
+  test("unweighted Degree") {
+    correctnessTest(TestQuery(Degree(), 6), "Degree/unweightedResult.csv")
   }
 
   override def setSource(): Source = Source(ResourceSpout("Degree/degreeTest.csv"), WeightedGraphBuilder)

@@ -30,31 +30,28 @@ object WriteValue {
 class MultilayerViewTest extends BaseCorrectnessTest {
   val edges: Seq[String] = Seq("1,2,1", "2,1,2")
 
-  withGraph.test("test multilayer view") { graph =>
+  test("test multilayer view") {
     correctnessTest(
             TestQuery(MultilayerView() -> EdgeList(), 2),
-            Seq("2,1_1,2_1", "2,2_2,1_2"),
-            graph
+            Seq("2,1_1,2_1", "2,2_2,1_2")
     )
   }
 
-  withGraph.test("test temporal node list") { graph =>
+  test("test temporal node list") {
     correctnessTest(
             TestQuery(TemporalNodeList(), 2),
-            Seq[String]("2,1,1", "2,1,2", "2,2,1", "2,2,2"),
-            graph
+            Seq[String]("2,1,1", "2,1,2", "2,2,1", "2,2,2")
     )
   }
 
-  withGraph.test("test temporal edge list") { graph =>
-    correctnessTest(TestQuery(TemporalEdgeList(), 2), Seq("2,1,2,1", "2,2,1,2"), graph)
+  test("test temporal edge list") {
+    correctnessTest(TestQuery(TemporalEdgeList(), 2), Seq("2,1,2,1", "2,2,1,2"))
   }
 
-  withGraph.test("test property merging") { graph =>
+  test("test property merging") {
     correctnessTest(
             TestQuery(WriteValue() -> NodeList("testing"), 2),
-            Seq("2,1,2", "2,2,2"),
-            graph
+            Seq("2,1,2", "2,2,2")
     )
   }
 

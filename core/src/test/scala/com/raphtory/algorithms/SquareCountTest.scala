@@ -7,38 +7,34 @@ import com.raphtory.api.input.Source
 import com.raphtory.api.input.sources.CSVEdgeListSource
 
 class SquareCountTest extends BaseCorrectnessTest {
-  withGraph.test("test PQ square") { graph =>
+  test("test PQ square") {
     correctnessTest(
             TestQuery(SquareCount, 4),
             "SquareCount/squarePQ.csv",
-            "SquareCount/singleSquareResult.csv",
-            graph
+            "SquareCount/singleSquareResult.csv"
     )
   }
 
-  withGraph.test("test PR square") { graph =>
+  test("test PR square") {
     correctnessTest(
             TestQuery(SquareCount, 4),
             "SquareCount/squarePR.csv",
-            "SquareCount/singleSquareResult.csv",
-            graph
+            "SquareCount/singleSquareResult.csv"
     )
   }
 
-  withGraph.test("test QR square") { graph =>
+  test("test QR square") {
     correctnessTest(
             TestQuery(SquareCount, 4),
             "SquareCount/squareQR.csv",
-            "SquareCount/singleSquareResult.csv",
-            graph
+            "SquareCount/singleSquareResult.csv"
     )
   }
 
-  withGraph.test("test combined example") { graph =>
+  test("test combined example") {
     correctnessTest(
             TestQuery(SquareCount, 19),
-            "SquareCount/squareTestCorrectResult.csv",
-            graph
+            "SquareCount/squareTestCorrectResult.csv"
     )
   }
 

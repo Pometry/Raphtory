@@ -12,27 +12,24 @@ import com.raphtory.spouts.ResourceSpout
 
 class HistogramTest extends BaseCorrectnessTest {
 
-  withGraph.test("Histogram Test on in-degree") { graph =>
+  test("Histogram Test on in-degree") {
     correctnessTest(
             TestQuery(Degree() -> VertexHistogram[Int]("inDegree", noBins = 5), 23),
-            "Histogram/inHistogramResult.csv",
-            graph
+            "Histogram/inHistogramResult.csv"
     )
   }
 
-  withGraph.test("Histogram Test on out-degree") { graph =>
+  test("Histogram Test on out-degree") {
     correctnessTest(
             TestQuery(Degree() -> VertexHistogram[Int]("outDegree", noBins = 5), 23),
-            "Histogram/outHistogramResult.csv",
-            graph
+            "Histogram/outHistogramResult.csv"
     )
   }
 
-  withGraph.test("Histogram Test on total degree") { graph =>
+  test("Histogram Test on total degree") {
     correctnessTest(
             TestQuery(Degree() -> VertexHistogram[Int]("degree", noBins = 5), 23),
-            "Histogram/totalHistogramResult.csv",
-            graph
+            "Histogram/totalHistogramResult.csv"
     )
   }
 

@@ -8,11 +8,10 @@ import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceSpout
 
 class ConnectedComponentsTest extends BaseCorrectnessTest {
-  withGraph.test("Test two components") { graph =>
+  test("Test two components") {
     correctnessTest(
             TestQuery(ConnectedComponents, 7),
-            "ConnectedComponents/twoComponentsResults.csv",
-            graph
+            "ConnectedComponents/twoComponentsResults.csv"
     )
   }
 

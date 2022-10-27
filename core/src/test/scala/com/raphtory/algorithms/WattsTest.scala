@@ -10,11 +10,10 @@ import com.raphtory.spouts.ResourceSpout
 import scala.::
 
 class WattsTest extends BaseCorrectnessTest {
-  withGraph.test("Test Watts cascade on small example") { graph =>
+  test("Test Watts cascade on small example") {
     correctnessTest(
             TestQuery(WattsCascade(threshold = 0.5, infectedSeed = Set("1")), 23),
-            "WattsCascade/wattsResults.csv",
-            graph
+            "WattsCascade/wattsResults.csv"
     )
   }
   override def setSource(): Source = CSVEdgeListSource(ResourceSpout("MotifCount/motiftest.csv"))
