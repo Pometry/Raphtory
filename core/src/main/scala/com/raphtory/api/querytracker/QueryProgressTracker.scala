@@ -1,7 +1,5 @@
 package com.raphtory.api.querytracker
 
-import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.querymanager.JobDone
 import com.raphtory.internals.components.querymanager.JobFailed
 import com.raphtory.internals.components.querymanager.PerspectiveCompleted
@@ -12,44 +10,46 @@ import com.raphtory.api.time.Perspective
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-
-import java.util.concurrent.SynchronousQueue
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 import scala.concurrent.Promise
 import scala.concurrent.duration.Duration
-import scala.util.Failure
 import scala.util.Success
 
-private class DoneException extends Exception
+abstract class ProgressTracker(jobID: String) {
 
-trait QueryProgressTrackerBase {
+  var jobDone: Boolean                          = false
+  var latestPerspective: Option[Perspective]    = None
+  val perspectivesList: ListBuffer[Perspective] = new ListBuffer[Perspective]()
+  val perspectivesDurations: ListBuffer[Long]   = new ListBuffer[Long]()
 
   /** Returns job identifier for the query
     * @return job identifier
     */
-  def getJobId: String
+  final def getJobId: String = jobID
 
   /** Returns the latest `Perspective` processed by the query
     * @return latest perspective
     */
-  def getLatestPerspectiveProcessed: Option[Perspective]
+  final def getLatestPerspectiveProcessed: Option[Perspective] = latestPerspective
 
   /** Returns list of perspectives processed for the query so far
     * @return a list of perspectives
     */
-  def getPerspectivesProcessed: List[Perspective]
+  final def getPerspectivesProcessed: List[Perspective] = perspectivesList.toList
 
   /** Returns the time taken to process each perspective in milliseconds */
-  def getPerspectiveDurations: List[Long]
+  final def getPerspectiveDurations: List[Long] = perspectivesDurations.toList
 
   /** Checks if job is complete
     * @return job status
     */
-  def isJobDone: Boolean
+  def isJobDone: Boolean = jobDone
 
   /** Block until job is complete */
   def waitForJob(timeout: Duration = Duration.Inf): Unit
+
+  def handleMessage(msg: QueryManagement): Unit = {}
 }
 
 /** Tracks the progress of Raphtory queries in terms of number of perspectives processed and duration taken to process each perspective.
@@ -76,27 +76,14 @@ trait QueryProgressTrackerBase {
 class QueryProgressTracker private[raphtory] (
     graphID: String,
     jobID: String,
-    conf: Config,
-    topics: TopicRepository
-) extends Component[QueryManagement](conf)
-        with QueryProgressTrackerBase {
-  private var perspectivesProcessed: Long = 0
-  private var jobDone: Boolean            = false
-  private val logger: Logger              = Logger(LoggerFactory.getLogger(this.getClass))
+    conf: Config
+) extends ProgressTracker(jobID) {
+  import QueryProgressTracker.QueryProgressTrackerException._
 
-  private val queryTrackListener                        =
-    topics.registerListener(
-            s"$graphID-$jobID-query-tracker",
-            handleMessage,
-            topics.queryTrack(graphID, jobID)
-    )
-  private var latestPerspective: Option[Perspective]    = None
-  private val perspectivesList: ListBuffer[Perspective] = new ListBuffer[Perspective]()
-  private val perspectivesDurations: ListBuffer[Long]   = new ListBuffer[Long]()
-
-  private val startTime: Long       = System.currentTimeMillis
-  private var perspectiveTime: Long = startTime
-
+  private val logger: Logger                        = Logger(LoggerFactory.getLogger(this.getClass))
+  private var perspectivesProcessed: Long           = 0
+  private val startTime: Long                       = System.currentTimeMillis
+  private var perspectiveTime: Long                 = startTime
   protected val isJobFinishedPromise: Promise[Unit] = Promise()
 
   // Handles message to process the `Perspective` received in case
@@ -132,55 +119,15 @@ class QueryProgressTracker private[raphtory] (
 
         jobDone = true
         isJobFinishedPromise.complete(Success(()))
+
       case JobFailed(error)                     =>
         isJobFinishedPromise.failure(error)
         logger.error(s"The execution of the query '$jobID' failed. Cause: '$error'")
     }
 
-  override private[raphtory] def run(): Unit = {
-    logger.info(s"Job $jobID: Starting query progress tracker.")
-    queryTrackListener.start()
-  }
-
-  override private[raphtory] def stop(): Unit = {
-    logger.debug(s"Stopping QueryProgressTracker for $jobID")
-    queryTrackListener.close()
-  }
-
-  /** Returns job identifier for the query
-    * @return job identifier
-    */
-  def getJobId: String =
-    jobID
-
-  /** Returns the latest `Perspective` processed by the query
-    * @return latest perspective
-    */
-  def getLatestPerspectiveProcessed: Option[Perspective] =
-    latestPerspective
-
-  /** Returns list of perspectives processed for the query so far
-    * @return a list of perspectives
-    */
-  def getPerspectivesProcessed: List[Perspective] =
-    perspectivesList.toList
-
-  /** Returns the time taken to process each perspective in milliseconds */
-  def getPerspectiveDurations: List[Long] =
-    perspectivesDurations.toList
-
-  /** Checks if job is complete
-    * @return job status
-    */
-  def isJobDone: Boolean =
-    jobDone
-
   /** Block until job is complete */
   def waitForJob(timeout: Duration = Duration.Inf): Unit =
-    try {
-      Await.result[Unit](isJobFinishedPromise.future, timeout)
-      if (isJobDone) stop()
-    }
+    try Await.result[Unit](isJobFinishedPromise.future, timeout)
     catch {
       case e: DoneException =>
     }
@@ -188,6 +135,10 @@ class QueryProgressTracker private[raphtory] (
 
 object QueryProgressTracker {
 
-  def unsafeApply(graphID: String, jobId: String, config: Config, topics: TopicRepository): QueryProgressTracker =
-    new QueryProgressTracker(graphID, jobId, config, topics)
+  def apply(graphID: String, jobId: String, config: Config): QueryProgressTracker =
+    new QueryProgressTracker(graphID, jobId, config)
+
+  private object QueryProgressTrackerException {
+    class DoneException extends Exception
+  }
 }

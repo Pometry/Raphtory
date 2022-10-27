@@ -1,8 +1,7 @@
 package com.raphtory.api.analysis.table
 
-import com.raphtory.api.querytracker.QueryProgressTracker
+import com.raphtory.api.querytracker._
 import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.components.Component
 import com.raphtory.api.time.Perspective
 import com.raphtory.internals.components.output.EndOutput
 import com.raphtory.internals.components.output.EndPerspective
@@ -13,35 +12,26 @@ import com.raphtory.internals.components.querymanager.QueryManagement
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-
 import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.Duration
 
-/** Iterator over perspective results with additional query tracking functionality */
-case class TableOutputTracker(graphID: String, jobID: String, topics: TopicRepository, conf: Config, timeout: Duration)
-        extends QueryProgressTracker(graphID, jobID, conf, topics)
+/**
+  * Iterator over perspective results with additional query tracking functionality.
+  */
+class TableOutputTracker(graphID: String, jobID: String, topics: TopicRepository, conf: Config, timeout: Duration)
+        extends QueryProgressTracker(graphID, jobID, conf)
         with Iterator[TableOutput] {
+  import TableOutputTracker.TableOutputTrackerException._
 
-  class JobFailedException(jobID: String, cause: Throwable)
-          extends RuntimeException(s"The execution of the query '$jobID' failed", cause)
-
+  private val logger: Logger                  = Logger(LoggerFactory.getLogger(this.getClass))
   private var outputDone: Boolean             = false
   private var jobsDone                        = 0
   private var nextResult: Option[TableOutput] = None
   private val resultsInProgress               = mutable.Map.empty[Perspective, ArrayBuffer[Row]]
   private val perspectiveDoneCounts           = mutable.Map.empty[Perspective, Int]
-  private val logger: Logger                  = Logger(LoggerFactory.getLogger(this.getClass))
   private val completedResults                = new LinkedBlockingQueue[Any]
-
-  private val outputListener =
-    topics.registerListener(
-            s"$graphID-$getJobId-output",
-            handleOutputMessage,
-            topics.output(graphID, getJobId)
-    )
 
   override def handleMessage(msg: QueryManagement): Unit =
     msg match {
@@ -51,7 +41,7 @@ case class TableOutputTracker(graphID: String, jobID: String, topics: TopicRepos
       case _            => super.handleMessage(msg)
     }
 
-  private def handleOutputMessage(msg: OutputMessages): Unit = {
+  def handleOutputMessage(msg: OutputMessages): Unit = {
     logger.debug(s"received message $msg")
     msg match {
       case RowOutput(perspective, row)                  =>
@@ -69,28 +59,11 @@ case class TableOutputTracker(graphID: String, jobID: String, topics: TopicRepos
         }
       case EndOutput(totalPartitions)                   =>
         jobsDone += 1
-        if (jobsDone == totalPartitions) {
+        if (jobsDone == totalPartitions)
           completedResults.add(EndOutput)
-          stop()
-        }
     }
   }
 
-  override private[raphtory] def run(): Unit = {
-    super.run()
-    logger.info(s"Job $getJobId: Starting output collector.")
-    outputListener.start()
-  }
-
-  override private[raphtory] def stop(): Unit = {
-    super.stop()
-    logger.debug(s"Stopping output collector for $getJobId")
-    outputListener.close()
-  }
-
-  /** Checks if job is complete
-    * @return job status
-    */
   override def isJobDone: Boolean = outputDone
 
   private def waitForNextResult(): Any = {
@@ -139,4 +112,22 @@ case class TableOutputTracker(graphID: String, jobID: String, topics: TopicRepos
       throw new NoSuchElementException("All perspectives already processed")
     else
       throw new NoSuchElementException("Timed out while waiting for next perspective")
+}
+
+object TableOutputTracker {
+
+  def apply(
+      graphID: String,
+      jobID: String,
+      topics: TopicRepository,
+      conf: Config,
+      timeout: Duration
+  ): TableOutputTracker =
+    new TableOutputTracker(graphID, jobID, topics, conf, timeout)
+
+  private object TableOutputTrackerException {
+
+    class JobFailedException(jobID: String, cause: Throwable)
+            extends RuntimeException(s"The execution of the query '$jobID' failed", cause)
+  }
 }
