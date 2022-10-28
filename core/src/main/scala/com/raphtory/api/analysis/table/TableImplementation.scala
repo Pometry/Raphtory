@@ -21,13 +21,13 @@ private[api] class TableImplementation(val query: Query, private[raphtory] val q
   }
 
   override def writeTo(sink: Sink, jobName: String): QueryProgressTracker =
-    submitQueryWithSink(sink, jobName, CreateQueryProgressTracker).asInstanceOf[QueryProgressTracker]
+    submitQueryWithSink(sink, jobName, jobID => querySender.createQueryProgressTracker(jobID)).asInstanceOf[QueryProgressTracker]
 
   override def writeTo(sink: Sink): QueryProgressTracker =
     writeTo(sink, "")
 
   override def get(jobName: String = "", timeout: Duration = Duration.Inf): TableOutputTracker =
-    submitQueryWithSink(TableOutputSink(querySender.graphID), jobName, CreateTableOutputTracker(timeout))
+    submitQueryWithSink(TableOutputSink(querySender.graphID), jobName, jobID => querySender.createTableOutputTracker(jobID, timeout))
       .asInstanceOf[TableOutputTracker]
 
   private def addFunction(function: TableFunction) =
@@ -39,7 +39,7 @@ private[api] class TableImplementation(val query: Query, private[raphtory] val q
   private def submitQueryWithSink(
       sink: Sink,
       jobName: String,
-      createProgressTracker: CreateProgressTracker
+      createProgressTracker: String => ProgressTracker
   ): ProgressTracker = {
     val closedQuery     = addFunction(WriteToOutput).query
     val queryWithFormat = closedQuery.copy(sink = Some(sink))

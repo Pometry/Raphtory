@@ -4,7 +4,9 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.raphtory.api.input.Graph
 import com.raphtory.api.input.Source
-import com.raphtory.api.querytracker.{ProgressTracker, QueryProgressTracker, TableOutputTracker}
+import com.raphtory.api.querytracker.ProgressTracker
+import com.raphtory.api.querytracker.QueryProgressTracker
+import com.raphtory.api.querytracker.TableOutputTracker
 import com.raphtory.internals.FlushToFlight
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.communication.TopicRepository
@@ -82,17 +84,13 @@ private[raphtory] class QuerySender(
   def submit(
       query: Query,
       customJobName: String = "",
-      createProgressTracker: CreateProgressTracker
+      createProgressTracker: String => ProgressTracker
   ): ProgressTracker = {
 
     val jobName = if (customJobName.nonEmpty) customJobName else getDefaultName(query)
     val jobID   = jobName + "_" + Random.nextLong().abs
 
-    val progressTracker: ProgressTracker =
-      createProgressTracker match {
-        case CreateQueryProgressTracker        => createQueryProgressTracker(jobID)
-        case CreateTableOutputTracker(timeout) => createTableOutputTracker(jobID, timeout)
-      }
+    val progressTracker: ProgressTracker = createProgressTracker(jobID)
 
     if (updatesSinceLastIDChange > 0) { // TODO Think this will block multi-client -- not an issue for right now
       unblockIngestion(sourceID = currentSourceID, updatesSinceLastIDChange, force = false)
@@ -168,7 +166,3 @@ private[raphtory] class QuerySender(
   private def getDefaultName(query: Query): String =
     if (query.name.nonEmpty) query.name else query.hashCode().abs.toString
 }
-
-sealed trait CreateProgressTracker
-case object CreateQueryProgressTracker                 extends CreateProgressTracker
-case class CreateTableOutputTracker(timeout: Duration) extends CreateProgressTracker
