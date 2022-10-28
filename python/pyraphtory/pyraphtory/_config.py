@@ -1,12 +1,11 @@
 import os
-import pathlib
 from pathlib import Path
-from pyraphtory_bootstrap import ivy_file
+from pyraphtory_jvm import ivy_file
 from bs4 import BeautifulSoup
 
 
-def get_ivy_jars():
-    with open(os.path.dirname(os.path.realpath(__file__)) + '/ivy.xml', 'r') as f:
+def get_ivy_jars_from_cache():
+    with open(ivy_file, 'r') as f:
         raw_xml = f.read()
     data = BeautifulSoup(raw_xml, "xml")
     ivy_base_dir = os.path.expanduser("~/.ivy2/cache")
@@ -14,8 +13,17 @@ def get_ivy_jars():
     for item in data.find_all('dependency'):
         org, name, rev = item.get('org'), item.get('name'), item.get('rev')
         jars_found = ivy_base_dir + '/' + org + '/' + name
-        for file in pathlib.Path(jars_found).rglob("*-" + rev + ".jar"):
+        for file in Path(jars_found).rglob("*-" + rev + ".jar"):
             jars_to_get.append(str(file))
+    jars_to_get = ':'.join(set(jars_to_get))
+    return jars_to_get
+
+
+def get_ivy_jars_from_local_lib():
+    ivy_lib_dir = os.path.dirname(os.path.realpath(ivy_file))+'/lib/compile'
+    jars_to_get = []
+    for file in Path(ivy_lib_dir).rglob("*.jar"):
+        jars_to_get.append(str(file))
     jars_to_get = ':'.join(set(jars_to_get))
     return jars_to_get
 
@@ -32,7 +40,8 @@ def setup_raphtory_jars():
     jars_found = ":".join([str(jar) for jar in jar_location.glob(env_jar_glob_lookup)])
     if custom_jar_path:
         jars_found += ":" + custom_jar_path
-    jars_found =  get_ivy_jars() + ':' + jars_found
+    jars_found = get_ivy_jars_from_local_lib() + ':' + jars_found
+    print(jars_found)
     return jars_found, java_args_env
 
 
