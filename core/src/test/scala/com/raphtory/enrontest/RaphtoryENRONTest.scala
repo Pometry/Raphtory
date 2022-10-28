@@ -16,7 +16,6 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
   val sink: FileSink = FileSink(outputDirectory)
 
   test("Graph State Test".ignore) {
-    val graph = f()
     graph.load(setSource())
     graph
       .walk(10000)
@@ -28,14 +27,13 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
 
   test("Connected Components Test") {
     val sink: FileSink = FileSink(outputDirectory)
-    val graph = f()
-      graph.load(setSource())
-      graph
-        .range(1, 32674, 10000)
-        .window(List(500, 1000, 10000))
-        .execute(ConnectedComponents)
-        .writeTo(sink)
-        .waitForJob()
+    graph.load(setSource())
+    graph
+      .range(1, 32674, 10000)
+      .window(List(500, 1000, 10000))
+      .execute(ConnectedComponents)
+      .writeTo(sink)
+      .waitForJob()
   }
 
   override def liftFileIfNotPresent: Option[(String, URL)] =

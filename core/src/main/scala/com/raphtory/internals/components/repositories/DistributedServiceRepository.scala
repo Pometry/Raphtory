@@ -2,6 +2,7 @@ package com.raphtory.internals.components.repositories
 
 import cats.effect.Async
 import cats.effect.Resource
+import cats.syntax.all._
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.ServiceDescriptor
 import com.raphtory.internals.components.ServiceRepository
@@ -14,40 +15,34 @@ import org.apache.curator.x.discovery.ServiceDiscoveryBuilder
 import org.apache.curator.x.discovery.ServiceInstance
 
 import java.net.InetAddress
-import scala.jdk.CollectionConverters._
 
 class DistributedServiceRepository[F[_]: Async](topics: TopicRepository, serviceDiscovery: ServiceDiscovery[Void])
         extends ServiceRepository[F](topics) {
 
-  def registered[T](instance: T, descriptor: ServiceDescriptor[F, T]): Resource[F, Unit] =
-    for {
-      port <- descriptor.makeServer(instance)
-      _    <- Resource.make(register(descriptor, port))(_ => unregister(descriptor, port))
-    } yield ()
-
-  override protected def getService[T](descriptor: ServiceDescriptor[F, T]): Resource[F, T] = {
-    val instance = serviceDiscovery.queryForInstances(descriptor.name).asScala.head // TODO: this can fail
+  override protected def getService[T](descriptor: ServiceDescriptor[F, T], id: Int): Resource[F, T] = {
+    val instance = serviceDiscovery.queryForInstance(descriptor.name, id.toString)
     descriptor.makeClient(instance.getAddress, instance.getPort)
   }
 
-  private def register[T](descriptor: ServiceDescriptor[F, T], port: Int): F[Unit] =
-    Async[F].blocking {
-      val instance = serviceInstance(descriptor.name, port)
-      serviceDiscovery.registerService(instance)
-    }
+  override protected def register[T](instance: T, descriptor: ServiceDescriptor[F, T], id: Int): F[F[Unit]] =
+    for {
+      serverResource    <- descriptor.makeServer(instance).allocated
+      (port, stopServer) = serverResource
+      zkInstance         = serviceInstance(descriptor.name, id, port)
+      _                 <- Async[F].blocking(serviceDiscovery.registerService(zkInstance))
+      unregister        <- Async[F].pure(for {
+                             _ <- Async[F].blocking(serviceDiscovery.unregisterService(zkInstance))
+                             _ <- stopServer
+                           } yield ())
+    } yield unregister
 
-  private def unregister[T](descriptor: ServiceDescriptor[F, T], port: Int): F[Unit] =
-    Async[F].blocking {
-      val instance = serviceInstance(descriptor.name, port)
-      serviceDiscovery.unregisterService(instance)
-    }
-
-  private def serviceInstance(name: String, port: Int): ServiceInstance[Void] =
+  private def serviceInstance(name: String, id: Int, port: Int): ServiceInstance[Void] =
     ServiceInstance
       .builder()
       .address(InetAddress.getLocalHost.getHostAddress)
       .port(port)
-      .name(name)
+      .name("service")
+      .id(s"$name-${id.toString}") // The id needs to be unique among different service names, so we include 'name'
       .build()
 }
 

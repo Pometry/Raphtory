@@ -22,7 +22,7 @@ message OptionalId {
 }
 
 // Requests
-message ClientGraphId {
+message GraphInfo {
   string clientId = 1;
   string graphId = 2;
 }
@@ -68,11 +68,11 @@ message GetGraph {
 
 // Services
 service RaphtoryService {
-  rpc establishGraph(ClientGraphId) returns (Status);
+  rpc establishGraph(GraphInfo) returns (Status);
   rpc getGraph(GetGraph) returns (Status);
   rpc submitQuery(Query) returns (stream QueryManagement);
   rpc submitSource(IngestData) returns (Status);
-  rpc disconnect(ClientGraphId) returns (Status);
+  rpc disconnect(GraphInfo) returns (Status);
   rpc destroyGraph(DestroyGraph) returns (Status);
   rpc getNextAvailableId(IdPool) returns (OptionalId);
   rpc processUpdate(GraphUpdate) returns (Status);
@@ -80,9 +80,13 @@ service RaphtoryService {
 }
 
 service IngestionService {
-  rpc establishGraph(ClientGraphId) returns (Status);
-  rpc destroyGraph(DestroyGraph) returns (Status);
-  rpc disconnectClient(ClientGraphId) returns (Status);
+  rpc establishGraph(GraphInfo) returns (Status);
+  rpc destroyGraph(GraphInfo) returns (Status);
   rpc ingestData(IngestData) returns (Status);
-  rpc getGraph(GetGraph) returns (Status);
+}
+
+service PartitionService {
+  rpc establishGraph(GraphInfo) returns (Status);
+  rpc destroyGraph(GraphInfo) returns (Status);
+  rpc establishExecutor(Query) returns (Status);
 }

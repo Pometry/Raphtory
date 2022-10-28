@@ -10,3 +10,7 @@ class Partitioner(config: Config) {
   def getPartitionForId(id: Long): Int =
     (id.abs % totalPartitions).toInt
 }
+
+object Partitioner {
+  def apply(config: Config) = new Partitioner(config)
+}

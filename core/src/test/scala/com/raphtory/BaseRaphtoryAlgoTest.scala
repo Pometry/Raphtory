@@ -31,21 +31,22 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   def liftFileIfNotPresent: Option[(String, URL)] = None
   def setSource(): Source
 
-  lazy val ctx: Fixture[RaphtoryContext] = ResourceSuiteLocalFixture("context", RaphtoryIOContext.localIO())
-
-  lazy val f: Fixture[DeployedTemporalGraph] = ResourceSuiteLocalFixture(
-          "graph",
+  // The context and the graph have been merged on the same fixture to prevent munit from releasing the context before the graph
+  lazy val ctxAndGraph: Fixture[(RaphtoryContext, DeployedTemporalGraph)] = ResourceSuiteLocalFixture(
+          "context-and-graph",
           for {
             _     <- TestUtils.manageTestFile(liftFileIfNotPresent)
-            graph <- ctx()
-                       .newIOGraph(failOnNotFound = false, destroy = true)
+            ctx   <- RaphtoryIOContext.localIO()
+            graph <- ctx.newIOGraph(failOnNotFound = false, destroy = true)
             _     <- Resource.pure(graph.load(setSource()))
-          } yield graph
+          } yield (ctx, graph)
   )
 
-  def graph: DeployedTemporalGraph = f()
+  def ctx: RaphtoryContext = ctxAndGraph()._1
 
-  override def munitFixtures: Seq[Fixture[_]] = List(ctx, f)
+  def graph: DeployedTemporalGraph = ctxAndGraph()._2
+
+  override def munitFixtures: Seq[Fixture[_]] = List(ctxAndGraph)
 
   def algorithmTest(
       algorithm: GenericallyApplicable,
