@@ -31,6 +31,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   def liftFileIfNotPresent: Option[(String, URL)] = None
   def setSource(): Source
 
+  // The context and the graph have been merged on the same fixture to prevent munit from releasing the context before the graph
   lazy val ctxAndGraph: Fixture[(RaphtoryContext, DeployedTemporalGraph)] = ResourceSuiteLocalFixture(
           "context-and-graph",
           for {
