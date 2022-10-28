@@ -65,7 +65,7 @@ abstract class BaseCorrectnessTest(
       graphEdges: Edges,
       resultsResource: String
   ): Unit =
-    ctx().runWithNewGraph(destroy = true) { graph =>
+    ctx.runWithNewGraph(destroy = true) { graph =>
       graph.load(graphEdges)
       val obtained = runTest(test, graph)
       assertResultsMatch(obtained, resultsResource)
@@ -76,7 +76,7 @@ abstract class BaseCorrectnessTest(
       graphEdges: Edges,
       results: Seq[String]
   ): Unit =
-    ctx().runWithNewGraph(destroy = true) { graph =>
+    ctx.runWithNewGraph(destroy = true) { graph =>
       graph.load(graphEdges)
       val obtained = runTest(test, graph)
       assertResultsMatch(obtained, results)
