@@ -63,55 +63,52 @@ abstract class BaseCorrectnessTest(
   def correctnessTest(
       test: TestQuery,
       graphEdges: Edges,
-      resultsResource: String,
-      graph: DeployedTemporalGraph
-  ): Unit = {
-    graph.load(graphEdges)
-    val obtained = runTest(test, graph)
-    assertResultsMatch(obtained, resultsResource)
-  }
+      resultsResource: String
+  ): Unit =
+    ctx.runWithNewGraph(destroy = true) { graph =>
+      graph.load(graphEdges)
+      val obtained = runTest(test, graph)
+      assertResultsMatch(obtained, resultsResource)
+    }
 
   def correctnessTest(
       test: TestQuery,
       graphEdges: Edges,
-      results: Seq[String],
-      graph: DeployedTemporalGraph
+      results: Seq[String]
+  ): Unit =
+    ctx.runWithNewGraph(destroy = true) { graph =>
+      graph.load(graphEdges)
+      val obtained = runTest(test, graph)
+      assertResultsMatch(obtained, results)
+    }
+
+  def correctnessTest(
+      test: TestQuery,
+      graph: TemporalGraph,
+      results: String
   ): Unit = {
-    graph.load(graphEdges)
     val obtained = runTest(test, graph)
     assertResultsMatch(obtained, results)
   }
 
   def correctnessTest(
       test: TestQuery,
-      results: Seq[String],
-      graph: DeployedTemporalGraph
-  ): Unit = {
-    graph.load(setSource())
-    val obtained = runTest(test, graph)
-    assertResultsMatch(obtained, results)
-  }
-
-  def correctnessTest(
-      test: TestQuery,
-      view: View,
+      graph: TemporalGraph,
       results: Seq[String]
   ): Unit = {
-    val graph    = f()
-    graph.load(setSource())
-    val obtained = view match {
-      case Undirected => runTest(test, graph.undirectedView)
-      case Reverse    => runTest(test, graph.reversedView)
-    }
+    val obtained = runTest(test, graph)
+    assertResultsMatch(obtained, results)
+  }
+
+  def correctnessTest(test: TestQuery, results: String): Unit = {
+    val obtained = runTest(test, graph)
     assertResultsMatch(obtained, results)
   }
 
   def correctnessTest(
       test: TestQuery,
-      results: String,
-      graph: DeployedTemporalGraph
+      results: Seq[String]
   ): Unit = {
-    graph.load(setSource())
     val obtained = runTest(test, graph)
     assertResultsMatch(obtained, results)
   }

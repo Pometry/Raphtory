@@ -1,46 +1,10 @@
 package com.raphtory.api.analysis.table
 
 import com.raphtory.api.output.sink.Sink
-import com.raphtory.api.querytracker.QueryProgressTracker
-import com.raphtory.api.querytracker.QueryProgressTrackerBase
+import com.raphtory.api.progresstracker._
 import com.raphtory.api.time.Perspective
 import com.raphtory.internals.communication.TopicRepository
 import com.typesafe.config.Config
-
-import scala.concurrent.duration.Duration
-
-case class WriteProgressTracker(jobID: String, perspective: Perspective) extends QueryProgressTrackerBase {
-
-  /** Returns job identifier for the query
-    *
-    * @return job identifier
-    */
-  override def getJobId: String = jobID
-
-  /** Returns the latest `Perspective` processed by the query
-    *
-    * @return latest perspective
-    */
-  override def getLatestPerspectiveProcessed: Option[Perspective] = Some(perspective)
-
-  /** Returns list of perspectives processed for the query so far
-    *
-    * @return a list of perspectives
-    */
-  override def getPerspectivesProcessed: List[Perspective] = List(perspective)
-
-  /** Returns the time taken to process each perspective in milliseconds */
-  override def getPerspectiveDurations: List[Long] = List(0)
-
-  /** Checks if job is complete
-    *
-    * @return job status
-    */
-  override def isJobDone: Boolean = true
-
-  /** Block until job is complete */
-  override def waitForJob(timeout: Duration): Unit = {}
-}
 
 /** Concrete Table with computed results for a perspective */
 case class TableOutput private (
@@ -67,7 +31,7 @@ case class TableOutput private (
   override def explode(f: Row => IterableOnce[Row]): TableOutput = copy(rows = rows.flatMap(f))
 
   /** Write out data and
-    * return [[com.raphtory.api.querytracker.QueryProgressTracker QueryProgressTracker]]
+    * return [[com.raphtory.api.progresstracker.QueryProgressTracker QueryProgressTracker]]
     * with custom job name
     *
     * @param sink    [[com.raphtory.api.output.sink.Sink Sink]] for writing results
@@ -84,7 +48,7 @@ case class TableOutput private (
   }
 
   /** Write out data and
-    * return [[com.raphtory.api.querytracker.QueryProgressTracker QueryProgressTracker]]
+    * return [[com.raphtory.api.progresstracker.QueryProgressTracker QueryProgressTracker]]
     * with default job name
     *
     * @param sink [[com.raphtory.api.output.sink.Sink Sink]] for writing results
@@ -93,7 +57,7 @@ case class TableOutput private (
 
   override def toString: String = {
     val printedRows =
-      if (rows.size > 10)
+      if (rows.length > 10)
         rows.take(10).mkString(", ") + ", ... "
       else
         rows.mkString(", ")
