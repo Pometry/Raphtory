@@ -11,7 +11,7 @@ MODE:=batch
 sbt-build: version
 	sbt "core/assembly"
 	sed -i.bak '/org="com.raphtory"/d' ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/ivys/ivy.xml
-	cp ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/ivys/ivy.xml python/pyraphtory/pyraphtory/
+	cp ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/ivys/ivy.xml python/pyraphtory_jvm/pyraphtory_jvm/
 	cd python/pyraphtory/ && mkdir -p lib
 	cp ~/.ivy2/local/com.raphtory/arrow-core_2.13/$$(cat version)/jars/arrow-core_2.13.jar python/pyraphtory/lib
 	cp ~/.ivy2/local/com.raphtory/arrow-messaging_2.13/$$(cat version)/jars/arrow-messaging_2.13.jar python/pyraphtory/lib
@@ -20,6 +20,16 @@ sbt-build: version
 .PHONY sbt-skip-build:
 sbt-skip-build: version
 	ivy-clean-copy-jars
+
+.PHONY sbt-thin-build:
+sbt-thin-build: version
+    sbt clean compile package
+    rm -rf python/pyraphtory/lib/
+    mkdir -p python/pyraphtory/lib/
+    cp core/target/scala-2.13/core_2.13-$$(cat version).jar python/pyraphtory/lib/
+    cp arrow-core/target/scala-2.13/arrow-core_2.13-$$(cat version).jar python/pyraphtory/lib/
+    cp arrow-messaging/target/scala-2.13/arrow-messaging_2.13-$$(cat version).jar python/pyraphtory/lib/
+
 
 .PHONY python-build:
 python-build: version

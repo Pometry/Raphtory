@@ -118,14 +118,15 @@ def safe_download_file(download_dir, expected_sha, url):
     file_location = str(download_dir + '/' + filename)
     # stream file to reduce mem footprint
     try:
-        with req_session.get(url, stream=True) as r:
-            # raise an exception if http issue occurs
-            r.raise_for_status()
-            if not os.path.exists(download_dir):
-                os.mkdir(download_dir)
-            with open(file_location, 'wb') as f:
-                shutil.copyfileobj(r.raw, f)
+        r = req_session.get(url, stream=True)
+        # raise an exception if http issue occurs
+        r.raise_for_status()
+        if not os.path.exists(download_dir):
+            os.mkdir(download_dir)
+        with open(file_location, 'wb') as f:
+            shutil.copyfileobj(r.raw, f)
         status = checksum(file_location, expected_sha)
+        r.close()
         if not status:
             delete_source(file_location)
             raise SystemExit(f"Downloaded Jar {file_location} has incorrect checksum")
@@ -150,11 +151,11 @@ def get_and_run_ivy(JAVA_BIN, download_dir=os.path.dirname(os.path.realpath(__fi
     working_dir = os.getcwd()
     os.chdir(download_dir)
     subprocess.call(
-        [JAVA_BIN, "-jar", download_dir + "/apache-ivy-2.5.0/ivy-2.5.0.jar", "-ivy", download_dir + "/ivy.xml",
+        [JAVA_BIN, "-jar", download_dir + "/apache-ivy-2.5.0/ivy-2.5.0.jar", "-ivy", str(os.path.dirname(os.path.realpath(__file__))) + "/ivy.xml",
          "-retrieve", "."])
     os.chdir(working_dir)
     # Clean up and delete downloaded ivy files
-    shutil.rmtree(download_dir + "/apache-ivy-2.5.0")
+    shutil.rmtree(download_dir + "/apache-ivy-2.5.0", ignore_errors=True)
     delete_source(download_dir + "/apache-ivy-2.5.0-bin.zip")
     # Keep only compile directory
     rm_dirs = os.listdir(download_dir + '/lib')
@@ -163,12 +164,27 @@ def get_and_run_ivy(JAVA_BIN, download_dir=os.path.dirname(os.path.realpath(__fi
         shutil.rmtree(download_dir + '/lib/' + d, ignore_errors=True)
 
 
+def empty_folder(folder):
+    for filename in os.listdir(folder):
+        file_path = os.path.join(folder, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path, ignore_errors=True)
+        except Exception:
+            # silent continue
+            continue
+
+
 def unpack_jre(filename, jre_loc):
     unpack_dir = tempfile.mkdtemp(dir=pathlib.Path().resolve())
     system_os = getOS()
     print(f'Unpacking JRE for {system_os}...')
     shutil.unpack_archive(filename, unpack_dir)
     result_dir = unpack_dir + '/' + os.listdir(unpack_dir)[0]
+    # Empty jre folder
+    empty_folder(jre_loc)
     if system_os == OS_MAC:
         move_dir = '/Contents/Home'
     else:  # if system_os == OS_LINUX:
@@ -177,7 +193,7 @@ def unpack_jre(filename, jre_loc):
     for file_name in file_names:
         shutil.move(os.path.join(result_dir + move_dir, file_name), jre_loc)
     print('Cleaning up...')
-    shutil.rmtree(unpack_dir)
+    shutil.rmtree(unpack_dir, ignore_errors=True)
     os.remove(filename)
 
 
@@ -197,14 +213,12 @@ def check_system_dl_java(download_dir=str(os.path.dirname(os.path.realpath(__fil
 
 
 def has_java():
-    print("Checking if java is installed...")
     try:
         res = subprocess.run(["java", "-version"], stdout=subprocess.PIPE)
         if res.returncode == 0:
             print("Java found!")
             return True
     except FileNotFoundError:
-        print("Java not found!")
         return False
 
 

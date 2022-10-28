@@ -24,11 +24,11 @@ package_data = \
     {'': ['*']}
 
 install_requires = \
-    ['requests>=2.28.1,<3.0.0']
+    ['requests']
 
 setup_kwargs = {
     'name': 'pyraphtory_jvm',
-    'version': '0.0.1',
+    'version': '0.0.9',
     'description': 'Bootstrap JRE and IVY installer for Pyraphtory',
     'url': 'https://github.com/raphtory/raphtory',
     'author': 'Haaroon Yousaf',
