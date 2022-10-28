@@ -33,6 +33,7 @@ release = '0.1.0'
 # ones.
 extensions = [
     'extractScalaAlgoDocs',
+    'sphinx.ext.autodoc',
     'myst_parser',
     'sphinx_tabs.tabs'
 ]
