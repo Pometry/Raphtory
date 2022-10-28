@@ -13,10 +13,10 @@ abstract class ServiceRepository[F[_]: Async](val topics: TopicRepository) {
   final def registered[T](
       instance: T,
       descriptor: ServiceDescriptor[F, T],
-      candidateIds: List[Int] = List(0)
+      candidateIds: Seq[Int] = Seq(0)
   ): Resource[F, Int] =
     Resource.apply {
-      def firstSuccess(attempts: List[(Int, F[F[Unit]])]): F[(Int, F[Unit])] =
+      def firstSuccess(attempts: Seq[(Int, F[F[Unit]])]): F[(Int, F[Unit])] =
         attempts match {
           case (id, register) :: tail =>
             register.map(unregister => (id, unregister)).recoverWith(_ => firstSuccess(tail))

@@ -17,14 +17,15 @@ import com.raphtory.internals.components.ServiceRepository
 class LocalServiceRepository[F[_]: Async](topics: TopicRepository, services: Ref[F, Map[(String, Int), Any]])
         extends ServiceRepository[F](topics) {
 
-  override protected def register[T](instance: T, descriptor: ServiceDescriptor[F, T], id: Int): F[F[Unit]] =
+  override protected def register[T](instance: T, descriptor: ServiceDescriptor[F, T], id: Int): F[F[Unit]] = {
+    val key = (descriptor.name, id)
     services
       .update { services =>
-        val key = (descriptor.name, id)
         if (services.contains(key)) throw new RuntimeException("Service already registered")
         else services + (key -> instance)
       }
-      .as(services.update(services => services - (descriptor.name, id)))
+      .as(services.update(services => services - key))
+  }
 
   override def getService[T](descriptor: ServiceDescriptor[F, T], id: Int = 0): Resource[F, T] =
     Resource.eval(services.get.map(serviceList => serviceList((descriptor.name, id)).asInstanceOf[T]))

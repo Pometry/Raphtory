@@ -21,11 +21,31 @@ import com.raphtory.protocol.failure
 import com.raphtory.protocol.success
 import com.typesafe.config.Config
 
+class IngestionServiceInstance[F[_]: Async](graphs: GraphList[F, Unit], repo: TopicRepository, config: Config)
+        extends OrchestratorService(graphs)
+        with IngestionService[F] {
+
+  override def makeGraphData(graphId: String): F[Unit] = Async[F].unit
+
+  override def ingestData(request: protocol.IngestData): F[Status] =
+    request match {
+      case protocol.IngestData(TryIngestData(scala.util.Success(req)), _) =>
+        attachExecutionToGraph(req.graphID, _ => processSource(req).onError(_ => destroyGraph(req.graphID))).as(success)
+      case _                                                              => failure[F]
+    }
+
+  private def processSource(req: IngestData): F[Unit] =
+    req match {
+      case IngestData(_, graphID, sourceId, source, blocking) =>
+        IngestionExecutor(graphID, source, blocking, sourceId, config, repo)
+    }
+}
+
 object IngestionServiceInstance extends OrchestratorServiceBuilder {
 
   def apply[F[_]: Async](repo: ServiceRepository[F], config: Config): Resource[F, Unit] =
     for {
-      graphs  <- makeGraphList
+      graphs  <- makeGraphList[F, Unit]
       _       <- Resource.eval(Async[F].delay(logger.info(s"Starting Ingestion Service")))
       service <- Resource.eval(Async[F].delay(new IngestionServiceInstance[F](graphs, repo.topics, config)))
       _       <- repo.registered(service, IngestionServiceInstance.descriptor)
@@ -37,22 +57,4 @@ object IngestionServiceInstance extends OrchestratorServiceBuilder {
             IngestionService.client(_),
             IngestionService.bindService(Async[F], _)
     )
-}
-
-class IngestionServiceInstance[F[_]: Async](graphs: GraphList[F], repo: TopicRepository, config: Config)
-        extends OrchestratorService[F](graphs)
-        with IngestionService[F] {
-
-  override def ingestData(request: protocol.IngestData): F[Status] =
-    request match {
-      case protocol.IngestData(TryIngestData(scala.util.Success(req)), _) =>
-        attachExecutionToGraph(req.graphID, processSource(req).onError(_ => destroyGraph(req.graphID))).as(success)
-      case _                                                              => failure[F]
-    }
-
-  private def processSource(req: IngestData): F[Unit] =
-    req match {
-      case IngestData(_, graphID, sourceId, source, blocking) =>
-        IngestionExecutor(graphID, source, blocking, sourceId, config, repo)
-    }
 }

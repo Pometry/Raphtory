@@ -91,6 +91,7 @@ class DefaultRaphtoryService[F[_]](
       status     <- if (!canDestroy) failure[F]
                     else
                       for {
+                        _      <- F.delay(logger.debug(s"Destroying graph ${req.graphId}"))
                         _      <- F.delay(cluster sendAsync DestroyGraph(req.graphId, req.clientId, req.force))
                         status <- ingestion.destroyGraph(GraphInfo(req.clientId, req.graphId))
                         _      <- existingGraphs.update(graphs => graphs - req.graphId)

@@ -84,3 +84,9 @@ service IngestionService {
   rpc destroyGraph(GraphInfo) returns (Status);
   rpc ingestData(IngestData) returns (Status);
 }
+
+service PartitionService {
+  rpc establishGraph(GraphInfo) returns (Status);
+  rpc destroyGraph(GraphInfo) returns (Status);
+  rpc establishExecutor(Query) returns (Status);
+}
