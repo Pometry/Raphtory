@@ -1,4 +1,4 @@
-package com.raphtory.api.querytracker
+package com.raphtory.api.progresstracker
 
 import com.raphtory.internals.components.querymanager.JobDone
 import com.raphtory.internals.components.querymanager.JobFailed

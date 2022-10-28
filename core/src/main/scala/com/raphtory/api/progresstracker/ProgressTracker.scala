@@ -1,4 +1,4 @@
-package com.raphtory.api.querytracker
+package com.raphtory.api.progresstracker
 
 import com.raphtory.api.time.Perspective
 import com.raphtory.internals.components.querymanager.QueryManagement
@@ -35,9 +35,6 @@ abstract class ProgressTracker(jobID: String) {
     * @return job status
     */
   def isJobDone: Boolean = jobDone
-
-  /** Block until job is complete */
-  def waitForJob(timeout: Duration = Duration.Inf): Unit
 
   def handleMessage(msg: QueryManagement): Unit = {}
 }

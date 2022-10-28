@@ -4,23 +4,20 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.raphtory.api.input.Graph
 import com.raphtory.api.input.Source
-import com.raphtory.api.querytracker.ProgressTracker
-import com.raphtory.api.querytracker.QueryProgressTracker
-import com.raphtory.api.querytracker.TableOutputTracker
+import com.raphtory.api.progresstracker.ProgressTracker
+import com.raphtory.api.progresstracker.QueryProgressTracker
+import com.raphtory.api.progresstracker.QueryProgressTrackerWithIterator
 import com.raphtory.internals.FlushToFlight
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.output.OutputMessages
 import com.raphtory.internals.components.querymanager._
-import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
-import com.raphtory.internals.management.id.IDManager
 import com.raphtory.protocol
 import com.raphtory.protocol.RaphtoryService
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.Duration
 import scala.util.Random
@@ -44,7 +41,7 @@ private[raphtory] class QuerySender(
   val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
   val totalPartitions: Int     = partitionServers * partitionsPerServer
 
-  override lazy val writers: Map[Int, EndPoint[_]] = topics.graphUpdates(graphID).endPoint()
+  override lazy val writers: Map[Int, EndPoint[_]] = topics.graphUpdates(graphID).endPoint()  // TODO Rid this when topic repository is thrashed
   private val blockingSources                      = ArrayBuffer[Long]()
   private var highestTimeSeen                      = Long.MinValue
   private var totalUpdateIndex                     = 0    //used at the secondary index for the client
@@ -111,7 +108,7 @@ private[raphtory] class QuerySender(
       .map(_.bytes)
       .foreach {
         case message: OutputMessages =>
-          IO(progressTracker.asInstanceOf[TableOutputTracker].handleOutputMessage(message))
+          IO(progressTracker.asInstanceOf[QueryProgressTrackerWithIterator].handleOutputMessage(message))
         case message                 =>
           IO(progressTracker.handleMessage(message))
       }
@@ -125,8 +122,8 @@ private[raphtory] class QuerySender(
   def createQueryProgressTracker(jobID: String): QueryProgressTracker =
     QueryProgressTracker(graphID, jobID, config)
 
-  def createTableOutputTracker(jobID: String, timeout: Duration): TableOutputTracker =
-    TableOutputTracker(graphID, jobID, topics, config, timeout)
+  def createTableOutputTracker(jobID: String, timeout: Duration): QueryProgressTrackerWithIterator =
+    QueryProgressTrackerWithIterator(graphID, jobID, topics, config, timeout)
 
   private def unblockIngestion(sourceID: Int, messageCount: Long, force: Boolean): Unit =
     service

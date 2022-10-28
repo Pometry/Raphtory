@@ -1,14 +1,13 @@
-package com.raphtory.api.querytracker
+package com.raphtory.api.progresstracker
 
-import com.raphtory.api.analysis.table.{Row, TableOutput}
+import com.raphtory.api.analysis.table._
 import com.raphtory.api.time.Perspective
 import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.components.output.{EndOutput, EndPerspective, OutputMessages, RowOutput}
-import com.raphtory.internals.components.querymanager.{JobFailed, QueryManagement}
+import com.raphtory.internals.components.output._
+import com.raphtory.internals.components.querymanager._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-
 import java.util.concurrent.LinkedBlockingQueue
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -17,10 +16,13 @@ import scala.concurrent.duration.Duration
 /**
   * Iterator over perspective results with additional query tracking functionality.
   */
-class TableOutputTracker(graphID: String, jobID: String, topics: TopicRepository, conf: Config, timeout: Duration)
-        extends QueryProgressTracker(graphID, jobID, conf)
-        with Iterator[TableOutput] {
-  import TableOutputTracker.TableOutputTrackerException._
+class QueryProgressTrackerWithIterator(
+    graphID: String,
+    jobID: String,
+    topics: TopicRepository,
+    conf: Config,
+    timeout: Duration
+) extends QueryProgressTracker(graphID, jobID, conf) {
 
   private val logger: Logger                  = Logger(LoggerFactory.getLogger(this.getClass))
   private var outputDone: Boolean             = false
@@ -71,47 +73,57 @@ class TableOutputTracker(graphID: String, jobID: String, topics: TopicRepository
       Option(completedResults.take())
   }
 
-  override def hasNext: Boolean =
-    if (nextResult.isDefined) {
-      logger.debug("hasNext true as result already present")
-      true
-    }
-    else if (outputDone) {
-      logger.debug("hasNext false as output complete")
-      false
-    }
-    else
-      waitForNextResult() match {
-        case Some(res) =>
-          res match {
-            case JobFailed(error) =>
-              throw new JobFailedException(jobID, error)
-            case EndOutput        =>
-              outputDone = true
-              logger.debug("hasNext false as output complete after waiting for result")
-              false
-            case v: TableOutput   =>
-              nextResult = Some(v)
-              logger.debug("hasNext true as new result available after waiting")
-              true
-          }
-        case None      =>
-          false
-      }
+  object TableOutputIterator extends Iterator[TableOutput] {
+    import TableOutputIterator.TableOutputIteratorException._
 
-  override def next(): TableOutput =
-    if (hasNext) {
-      val out = nextResult.get
-      nextResult = None
-      out
+    override def hasNext: Boolean =
+      if (nextResult.isDefined) {
+        logger.debug("hasNext true as result already present")
+        true
+      }
+      else if (outputDone) {
+        logger.debug("hasNext false as output complete")
+        false
+      }
+      else
+        waitForNextResult() match {
+          case Some(res) =>
+            res match {
+              case JobFailed(error) =>
+                throw new JobFailedException(jobID, error)
+              case EndOutput        =>
+                outputDone = true
+                logger.debug("hasNext false as output complete after waiting for result")
+                false
+              case v: TableOutput   =>
+                nextResult = Some(v)
+                logger.debug("hasNext true as new result available after waiting")
+                true
+            }
+          case None      =>
+            false
+        }
+
+    override def next(): TableOutput =
+      if (hasNext) {
+        val out = nextResult.get
+        nextResult = None
+        out
+      }
+      else if (outputDone)
+        throw new NoSuchElementException("All perspectives already processed")
+      else
+        throw new NoSuchElementException("Timed out while waiting for next perspective")
+
+    private object TableOutputIteratorException {
+
+      class JobFailedException(jobID: String, cause: Throwable)
+              extends RuntimeException(s"The execution of the query '$jobID' failed", cause)
     }
-    else if (outputDone)
-      throw new NoSuchElementException("All perspectives already processed")
-    else
-      throw new NoSuchElementException("Timed out while waiting for next perspective")
+  }
 }
 
-object TableOutputTracker {
+object QueryProgressTrackerWithIterator {
 
   def apply(
       graphID: String,
@@ -119,12 +131,6 @@ object TableOutputTracker {
       topics: TopicRepository,
       conf: Config,
       timeout: Duration
-  ): TableOutputTracker =
-    new TableOutputTracker(graphID, jobID, topics, conf, timeout)
-
-  private object TableOutputTrackerException {
-
-    class JobFailedException(jobID: String, cause: Throwable)
-            extends RuntimeException(s"The execution of the query '$jobID' failed", cause)
-  }
+  ): QueryProgressTrackerWithIterator =
+    new QueryProgressTrackerWithIterator(graphID, jobID, topics, conf, timeout)
 }

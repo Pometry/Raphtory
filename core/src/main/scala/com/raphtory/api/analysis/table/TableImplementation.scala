@@ -1,7 +1,7 @@
 package com.raphtory.api.analysis.table
 
 import com.raphtory.api.output.sink.Sink
-import com.raphtory.api.querytracker.{ProgressTracker, QueryProgressTracker, TableOutputTracker}
+import com.raphtory.api.progresstracker.{ProgressTracker, QueryProgressTracker, QueryProgressTrackerWithIterator}
 import com.raphtory.internals.components.output.TableOutputSink
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.management._
@@ -26,9 +26,9 @@ private[api] class TableImplementation(val query: Query, private[raphtory] val q
   override def writeTo(sink: Sink): QueryProgressTracker =
     writeTo(sink, "")
 
-  override def get(jobName: String = "", timeout: Duration = Duration.Inf): TableOutputTracker =
+  override def get(jobName: String = "", timeout: Duration = Duration.Inf): Iterator[TableOutput] =
     submitQueryWithSink(TableOutputSink(querySender.graphID), jobName, jobID => querySender.createTableOutputTracker(jobID, timeout))
-      .asInstanceOf[TableOutputTracker]
+      .asInstanceOf[QueryProgressTrackerWithIterator].TableOutputIterator
 
   private def addFunction(function: TableFunction) =
     new TableImplementation(
