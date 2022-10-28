@@ -48,7 +48,7 @@ jobs:
           cd /usr/local/bin && \
           curl -L "https://dlcdn.apache.org/zookeeper/zookeeper-${ZK_VERSION}/apache-zookeeper-${ZK_VERSION}-bin.tar.gz" -o apache-zookeeper-${ZK_VERSION}-bin.tar.gz && \
           tar xf apache-zookeeper-${ZK_VERSION}-bin.tar.gz && \
-          rm -rf apache-zookeeper-${ZK_VERSION}-bin.tar.gz && \
+          rm -rf apache-zookeeper-${ZK_VERSION}-bin.tar.gz && 
       - name: Start Zookeeper in standalone mode
         run: /usr/local/bin/$(ls /usr/local/bin|grep apache-zookeeper|grep -v "tar.gz"|sort|tail -1)/bin/zkServer.sh start &
       - name: Get sbt package
