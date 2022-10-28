@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
-from pyraphtory_jvm import ivy_file
 from bs4 import BeautifulSoup
+from pyraphtory_jvm import ivy_file
 
 
 def get_ivy_jars_from_cache():

@@ -149,17 +149,18 @@ def get_and_run_ivy(JAVA_BIN, download_dir=os.path.dirname(os.path.realpath(__fi
     shutil.unpack_archive(file_location, extract_dir=download_dir)
     working_dir = os.getcwd()
     os.chdir(download_dir)
-    subprocess.call([JAVA_BIN, "-jar", download_dir+"/apache-ivy-2.5.0/ivy-2.5.0.jar", "-ivy", download_dir+"/ivy.xml",
-                     "-retrieve", "."])
+    subprocess.call(
+        [JAVA_BIN, "-jar", download_dir + "/apache-ivy-2.5.0/ivy-2.5.0.jar", "-ivy", download_dir + "/ivy.xml",
+         "-retrieve", "."])
     os.chdir(working_dir)
     # Clean up and delete downloaded ivy files
-    shutil.rmtree(download_dir+"/apache-ivy-2.5.0")
-    delete_source(download_dir+"/apache-ivy-2.5.0-bin.zip")
+    shutil.rmtree(download_dir + "/apache-ivy-2.5.0")
+    delete_source(download_dir + "/apache-ivy-2.5.0-bin.zip")
     # Keep only compile directory
-    rm_dirs = os.listdir(download_dir+'/lib')
+    rm_dirs = os.listdir(download_dir + '/lib')
     rm_dirs.remove('compile')
     for d in rm_dirs:
-        shutil.rmtree(download_dir+'/lib/'+d, ignore_errors=True)
+        shutil.rmtree(download_dir + '/lib/' + d, ignore_errors=True)
 
 
 def unpack_jre(filename, jre_loc):
@@ -214,7 +215,17 @@ def get_java_home():
         print(f"JAVA_HOME found = {home}/bin/java")
         return home + '/bin/java'
     else:
-        raise Exception("JAVA_HOME not found...")
+        raise Exception("JAVA HOME not found")
+
+
+def get_local_java_loc():
+    if has_java():
+        return get_java_home()
+    else:
+        java_loc = site.getsitepackages()[0] + '/pyraphtory_jvm/jre/bin/java'
+    if os.path.isfile(java_loc):
+        return java_loc
+    raise Exception("JAVA not home.")
 
 
 def check_dl_java_ivy():
