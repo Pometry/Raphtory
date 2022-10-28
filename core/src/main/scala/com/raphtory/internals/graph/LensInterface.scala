@@ -6,10 +6,12 @@ import com.raphtory.api.analysis.visitor.InterlayerEdge
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
+import com.raphtory.internals.storage.pojograph.messaging.MessageAggregation
 
 /** Abstract interface for the GraphLens, responsible for executing algorithms
   */
 private[raphtory] trait LensInterface {
+  var messageAggregator: Vertex => Unit = MessageAggregation.noAggregation
 
   def partitionID(): Int
   def localNodeCount: Int
@@ -61,6 +63,7 @@ private[raphtory] trait LensInterface {
   def nextStep(): Unit
   def receiveMessage(msg: GenericVertexMessage[_]): Unit
 
+  def performMessageAggregation(): Unit
   def clearMessages(): Unit
 
   def start: Long

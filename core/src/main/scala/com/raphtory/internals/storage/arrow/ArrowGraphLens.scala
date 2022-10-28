@@ -49,4 +49,5 @@ final case class ArrowGraphLens(
       .filter(v => graphState.isAlive(v.getGlobalId))
       .map(new ArrowExVertex(graphState, _))
 
+  override def performMessageAggregation(): Unit = ???
 }

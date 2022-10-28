@@ -76,6 +76,7 @@ final private[raphtory] case class GlobalSelect(
         with GlobalGraphFunction
 
 final private[raphtory] case class ExplodeSelect[V <: Vertex](f: V => Iterable[Row]) extends TabularisingGraphFunction
+final private[raphtory] case class setMessageAggregator(aggregator: Vertex => Unit)          extends GraphFunction
 final private[raphtory] case class ClearChain()                         extends GraphFunction
 final private[raphtory] case class PerspectiveDone()                    extends GraphFunction
 
@@ -193,6 +194,9 @@ private[api] trait GraphViewImplementation[
 
   override def explodeSelect(f: V => Iterable[Row]): Table =
     addSelect(ExplodeSelect(f))
+
+  override def aggregateMessages(aggregator: visitor.Vertex => Unit): G =
+    addFunction(setMessageAggregator(aggregator))
 
   override def clearMessages(): G =
     addFunction(ClearChain())

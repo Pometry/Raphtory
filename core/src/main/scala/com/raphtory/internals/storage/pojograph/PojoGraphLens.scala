@@ -15,6 +15,7 @@ import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExV
 import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoVertexBase
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
+import com.raphtory.internals.storage.pojograph.messaging.MessageAggregation
 import org.slf4j.LoggerFactory
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -70,6 +71,8 @@ final private[raphtory] case class PojoGraphLens(
   private val needsFiltering: SuperStepFlag = SuperStepFlag()
 
   val partitionID: Int = storage.getPartitionID
+
+//  var aggregator: Vertex => Unit = MessageAggregation.noAggregation
 
   private lazy val vertexMap: mutable.Map[Long, PojoExVertex] =
     storage.getVertices(this, start, end)
@@ -307,6 +310,12 @@ final private[raphtory] case class PojoGraphLens(
         throw e
     }
   }
+  def performMessageAggregation(): Unit = {
+      vertexMap.foreach { case (key, vertex) =>
+        messageAggregator(vertex)
+      }
+  }
+
 
   def clearMessages(): Unit =
     vertexMap.foreach {

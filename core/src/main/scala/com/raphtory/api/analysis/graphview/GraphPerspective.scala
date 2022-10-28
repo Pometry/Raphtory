@@ -259,6 +259,7 @@ trait GraphPerspective {
   def explodeSelect(f: Vertex => Iterable[Row]): Table
 
 //  TODO: Implement GraphState version of explodeSelect
+  def aggregateMessages(aggregator: visitor.Vertex => Unit): Graph
 
   /** Clear messages from previous operations. This function is predominantly used internally and shouldn't be called by the user unless they know what they are doing. */
   def clearMessages(): Graph
@@ -340,6 +341,7 @@ private[api] trait ConcreteGraphPerspective[V <: visitor.Vertex, G <: ConcreteGr
   def select(f: (Vertex, GraphState) => Row): Table
   def globalSelect(f: GraphState => Row): Table
   def explodeSelect(f: Vertex => Iterable[Row]): Table
+  def aggregateMessages(aggregator: visitor.Vertex => Unit): Graph
   def clearMessages(): Graph
 }
 

@@ -24,6 +24,7 @@ import com.raphtory.internals.management.python._
 import com.raphtory.internals.storage.arrow.ArrowGraphLens
 import com.raphtory.internals.storage.arrow.ArrowPartition
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
+import com.raphtory.internals.storage.pojograph.messaging.MessageAggregation
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -367,6 +368,16 @@ private[raphtory] class QueryExecutor(
             }
           }
 
+        case setMessageAggregator(aggregator)                                          =>
+          graphLens.messageAggregator = aggregator
+          taskManager sendAsync GraphFunctionComplete(currentPerspectiveID, partitionID, 0, 0)
+          logger.info(
+            logMessage(
+              s"Message aggregation method set to ${graphLens.messageAggregator} on graph in ${System
+                .currentTimeMillis() - time}ms."
+            )
+          )
+
         case ClearChain()                                                             =>
           graphLens.clearMessages()
           taskManager sendAsync GraphFunctionComplete(currentPerspectiveID, partitionID, 0, 0)
@@ -641,6 +652,7 @@ private[raphtory] class QueryExecutor(
   private def startStep(): Unit = {
     graphLens.nextStep()
     perStepSentMessageCounts.values.foreach(_.set(0))
+    graphLens.performMessageAggregation()
   }
 
   private def finaliseStep(f: => Unit): Unit = {
@@ -656,6 +668,7 @@ private[raphtory] class QueryExecutor(
         }
     }
     perStepSentMessageCounts.values.foreach(_.set(0))
+    setMessageAggregator(MessageAggregation.noAggregation)
     flushMessages()
       .thenCompose(_ => flushControlMessages())
       .thenCompose(_ => sync.awaitSuperstepComplete)
