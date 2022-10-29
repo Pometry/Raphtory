@@ -42,17 +42,15 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Install Pulsar
+      - name: Install Zookeeper
         run: |
-          export PULSAR_VERSION=2.9.0 && \
+          export ZK_VERSION=3.8.0 && \
           cd /usr/local/bin && \
-          curl -L "https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-${PULSAR_VERSION}/apache-pulsar-${PULSAR_VERSION}-bin.tar.gz" -o apache-pulsar-${PULSAR_VERSION}-bin.tar.gz && \
-          tar xf apache-pulsar-${PULSAR_VERSION}-bin.tar.gz && \
-          rm -rf apache-pulsar-${PULSAR_VERSION}-bin.tar.gz && \
-          cd apache-pulsar-${PULSAR_VERSION} && mkdir connectors && cd connectors && \
-          curl -L "https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-${PULSAR_VERSION}/connectors/pulsar-io-file-${PULSAR_VERSION}.nar" -o pulsar-io-file-${PULSAR_VERSION}.nar
-      - name: Start pulsar in standalone mode
-        run: /usr/local/bin/$(ls /usr/local/bin|grep apache-pulsar|grep -v "tar.gz"|sort|tail -1)/bin/pulsar standalone &
+          curl -L "https://dlcdn.apache.org/zookeeper/zookeeper-${ZK_VERSION}/apache-zookeeper-${ZK_VERSION}-bin.tar.gz" -o apache-zookeeper-${ZK_VERSION}-bin.tar.gz && \
+          tar xf apache-zookeeper-${ZK_VERSION}-bin.tar.gz && \
+          rm -rf apache-zookeeper-${ZK_VERSION}-bin.tar.gz
+      - name: Start Zookeeper
+        run: /usr/local/bin/$(ls /usr/local/bin|grep apache-zookeeper|grep -v "tar.gz"|sort|tail -1)/bin/zkServer.sh start &
       - name: Get sbt package
         run: apt-get update && apt-get install unzip && curl -L "https://github.com/sbt/sbt/releases/download/v${{ matrix.sbt }}/sbt-${{ matrix.sbt }}.zip" -o sbt-${{ matrix.sbt }}.zip && unzip sbt-${{ matrix.sbt }}.zip
       - name: Run SBT tests
