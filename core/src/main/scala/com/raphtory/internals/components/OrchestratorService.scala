@@ -10,8 +10,12 @@ import com.raphtory.internals.components.OrchestratorService.GraphList
 import com.raphtory.protocol.GraphInfo
 import com.raphtory.protocol.Status
 import com.raphtory.protocol.success
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
 
 abstract class OrchestratorService[F[_]: Concurrent, T](graphs: GraphList[F, T]) {
+
+  protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   // Methods to override by instances of this class
   protected def makeGraphData(graphId: String): F[T]
