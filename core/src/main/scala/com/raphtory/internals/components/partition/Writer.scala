@@ -12,6 +12,7 @@ import com.raphtory.internals.components.Component
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.Scheduler
+import com.raphtory.internals.management.telemetry.TelemetryReporter
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -31,10 +32,10 @@ private[raphtory] class Writer(
 ) extends Component[GraphAlteration](conf)
         with FlushToFlight {
 
-  private val vertexAdditionCount = telemetry.writerVertexAdditions.labels(partitionID.toString, graphID)
-  private val edgeAddCount        = telemetry.writerEdgeAdditions.labels(partitionID.toString, graphID)
-  private val edgeRemovalCount    = telemetry.writerEdgeDeletions.labels(partitionID.toString, graphID)
-  private val vertexRemoveCount   = telemetry.writerVertexDeletions.labels(partitionID.toString, graphID)
+  private val vertexAdditionCount = TelemetryReporter.writerVertexAdditions.labels(partitionID.toString, graphID)
+  private val edgeAddCount        = TelemetryReporter.writerEdgeAdditions.labels(partitionID.toString, graphID)
+  private val edgeRemovalCount    = TelemetryReporter.writerEdgeDeletions.labels(partitionID.toString, graphID)
+  private val vertexRemoveCount   = TelemetryReporter.writerVertexDeletions.labels(partitionID.toString, graphID)
 
   override val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 

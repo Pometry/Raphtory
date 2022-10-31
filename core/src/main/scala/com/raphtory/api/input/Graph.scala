@@ -2,7 +2,7 @@ package com.raphtory.api.input
 
 import com.raphtory.internals.communication.SchemaProviderInstances._
 import com.raphtory.internals.graph.GraphAlteration._
-import com.raphtory.internals.management.telemetry.ComponentTelemetryHandler
+import com.raphtory.internals.management.telemetry.TelemetryReporter
 import com.typesafe.scalalogging.Logger
 import net.openhft.hashing.LongHashFunction
 import org.slf4j.LoggerFactory
@@ -43,10 +43,10 @@ trait Graph {
   def index: Long
   protected def graphID: String
 
-  private val vertexAddCounter    = ComponentTelemetryHandler.vertexAddCounter.labels(s"$sourceID", graphID)
-  private val vertexDeleteCounter = ComponentTelemetryHandler.vertexDeleteCounter.labels(s"$sourceID", graphID)
-  private val edgeAddCounter      = ComponentTelemetryHandler.edgeAddCounter.labels(s"$sourceID", graphID)
-  private val edgeDeleteCounter   = ComponentTelemetryHandler.edgeDeleteCounter.labels(s"$sourceID", graphID)
+  private val vertexAddCounter    = TelemetryReporter.vertexAddCounter.labels(s"$sourceID", graphID)
+  private val vertexDeleteCounter = TelemetryReporter.vertexDeleteCounter.labels(s"$sourceID", graphID)
+  private val edgeAddCounter      = TelemetryReporter.edgeAddCounter.labels(s"$sourceID", graphID)
+  private val edgeDeleteCounter   = TelemetryReporter.edgeDeleteCounter.labels(s"$sourceID", graphID)
 
   /** Adds a new vertex to the graph or updates an existing vertex
     *

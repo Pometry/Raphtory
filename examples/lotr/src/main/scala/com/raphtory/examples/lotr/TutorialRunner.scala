@@ -16,12 +16,12 @@ import com.raphtory.utils.FileUtils
 
 import scala.language.postfixOps
 
-object TutorialRunner extends RaphtoryApp.Local with LocalRunner
+object TutorialRunner      extends RaphtoryApp.Local with LocalRunner
 object ArrowTutorialRunner extends RaphtoryApp.ArrowLocal[VertexProp, EdgeProp] with LocalRunner
 
 trait LocalRunner { self: RaphtoryApp =>
 
-  override def run(args: Array[String], ctx: RaphtoryContext): Unit = {
+  override def run(args: Array[String], ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph(destroy = true) { graph =>
       val path = "/tmp/lotr.csv"
       val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
@@ -76,24 +76,22 @@ trait LocalRunner { self: RaphtoryApp =>
         .waitForJob()
 
     }
-  }
 }
 
-
 case class VertexProp(
-                       age: Long,
-                       @immutable name: String,
-                       @immutable address_chain: String,
-                       @immutable transaction_hash: String
-                     )
+    age: Long,
+    @immutable name: String,
+    @immutable address_chain: String,
+    @immutable transaction_hash: String
+)
 
 case class EdgeProp(
-                     @immutable name: String,
-                     friends: Boolean,
-                     weight: Long,
-                     @immutable msgId: String,
-                     @immutable subject: String
-                   )
+    @immutable name: String,
+    friends: Boolean,
+    weight: Long,
+    @immutable msgId: String,
+    @immutable subject: String
+)
 
 object RemoteRunner extends RaphtoryApp.Remote("localhost", 1736) {
 
