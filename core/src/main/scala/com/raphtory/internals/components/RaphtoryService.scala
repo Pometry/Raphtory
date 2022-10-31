@@ -1,26 +1,43 @@
 package com.raphtory.internals.components
 
 import cats.effect.Async
+import cats.effect.Ref
 import cats.effect.Resource
 import cats.effect.std.Dispatcher
 import cats.effect.std.Queue
 import cats.syntax.all._
-import com.raphtory.Raphtory.makeLocalIdManager
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.communication.repositories.LocalTopicRepository
+import com.raphtory.internals.components.ingestion.IngestionServiceInstance
+import com.raphtory.internals.components.partition.PartitionOrchestrator
 import com.raphtory.internals.components.querymanager._
+import com.raphtory.internals.components.repositories.DistributedServiceRepository
+import com.raphtory.internals.components.repositories.LocalServiceRepository
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.management.Partitioner
 import com.raphtory.internals.management.id.IDManager
+import com.raphtory.internals.storage.arrow.EdgeSchema
+import com.raphtory.internals.storage.arrow.VertexSchema
+import com.raphtory.makeLocalIdManager
 import com.raphtory.protocol
+import com.raphtory.protocol.GetGraph
+import com.raphtory.protocol.GraphInfo
+import com.raphtory.protocol.IdPool
+import com.raphtory.protocol.IngestionService
+import com.raphtory.protocol.OptionalId
 import com.raphtory.protocol.RaphtoryService
+import com.raphtory.protocol.Status
+import com.raphtory.protocol.failure
+import com.raphtory.protocol.success
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import fs2.Stream
+import grpc.health.v1.health.Health
 import higherkindness.mu.rpc.ChannelForAddress
+import higherkindness.mu.rpc.healthcheck.HealthService
 import higherkindness.mu.rpc.server.AddService
 import higherkindness.mu.rpc.server.GrpcServer
 import org.slf4j.LoggerFactory
@@ -28,29 +45,64 @@ import org.slf4j.LoggerFactory
 import scala.util.Failure
 import scala.util.Success
 
-class DefaultRaphtoryService[F[_]](idManager: IDManager, repo: TopicRepository, config: Config)(implicit F: Async[F])
-        extends RaphtoryService[F] {
+class DefaultRaphtoryService[F[_]](
+    runningGraphs: Ref[F, Map[String, Set[String]]],
+    existingGraphs: Ref[F, Set[String]],
+    ingestion: IngestionService[F],
+    idManager: IDManager,
+    topics: TopicRepository,
+    config: Config
+)(implicit
+    F: Async[F]
+) extends RaphtoryService[F] {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val partitioner    = new Partitioner(config)
-  private val success        = protocol.Status(success = true)
-  private val failure        = protocol.Status(success = false)
 
-  private lazy val cluster = repo.clusterComms.endPoint
+  private lazy val cluster = topics.clusterComms.endPoint
 
   // This is to cache endpoints instead of creating one for every message we send
-  private lazy val submissions = Map[String, EndPoint[Submission]]().withDefault(repo.submissions(_).endPoint)
-  private lazy val ingestion   = Map[String, EndPoint[IngestData]]().withDefault(repo.ingestSetup(_).endPoint)
+  private lazy val submissions = Map[String, EndPoint[Submission]]().withDefault(topics.submissions(_).endPoint)
 
   private lazy val blockingIngestion =
-    Map[String, EndPoint[IngestionBlockingCommand]]().withDefault(repo.blockingIngestion(_).endPoint)
+    Map[String, EndPoint[IngestionBlockingCommand]]().withDefault(topics.blockingIngestion(_).endPoint)
 
   private lazy val writers =
-    Map[String, Map[Int, EndPoint[GraphAlteration]]]().withDefault(repo.graphUpdates(_).endPoint())
+    Map[String, Map[Int, EndPoint[GraphAlteration]]]().withDefault(topics.graphUpdates(_).endPoint())
 
-  override def establishGraph(req: ClientGraphId): F[Status] =
-    req match {
-      case ClientGraphId(clientId, graphId, _) =>
-        F.delay(cluster sendAsync EstablishGraph(graphId, clientId)).as(success)
+  override def establishGraph(req: GraphInfo): F[Status] =
+    for {
+      alreadyCreating <- existingGraphs.modify(graphs =>
+                           if (graphs contains req.graphId) (graphs, true) else (graphs + req.graphId, false)
+                         )
+      status          <- if (alreadyCreating) failure[F]
+                         else
+                           for {
+                             _ <- F.delay(cluster sendAsync EstablishGraph(req.graphId, req.clientId))
+                             _ <- ingestion.establishGraph(req)
+                             _ <- runningGraphs.update(graphs =>
+                                    if (graphs contains req.graphId) graphs else (graphs + (req.graphId -> Set()))
+                                  )
+                           } yield success
+    } yield status
+
+  override def destroyGraph(req: protocol.DestroyGraph): F[Status] =
+    for {
+      canDestroy <- if (req.force) forcedRemoval(req.graphId) else safeRemoval(req.graphId, req.clientId)
+      status     <- if (!canDestroy) failure[F]
+                    else
+                      for {
+                        _      <- F.delay(logger.debug(s"Destroying graph ${req.graphId}"))
+                        _      <- F.delay(cluster sendAsync DestroyGraph(req.graphId, req.clientId, req.force))
+                        status <- ingestion.destroyGraph(GraphInfo(req.clientId, req.graphId))
+                        _      <- existingGraphs.update(graphs => graphs - req.graphId)
+                      } yield status
+    } yield status
+
+  override def disconnect(req: GraphInfo): F[Status] =
+    runningGraphs.modify { graphs =>
+      val updatedGraphs = removeClientFromGraphs(graphs, req.graphId, req.clientId)
+      val status        = if (graphs contains req.graphId) success else failure
+      (updatedGraphs, status)
     }
 
   override def submitQuery(req: protocol.Query): F[Stream[F, protocol.QueryManagement]] =
@@ -64,29 +116,11 @@ class DefaultRaphtoryService[F[_]](idManager: IDManager, repo: TopicRepository, 
       _          <- Stream.eval(F.blocking(submissions(query.graphID) sendAsync query))
       queue      <- Stream.eval(Queue.unbounded[F, Option[QueryManagement]])
       dispatcher <- Stream.resource(Dispatcher[F])
-      _          <- Stream.resource(QueryTrackerForwarder[F](query.graphID, query.name, repo, queue, dispatcher, config))
+      _          <- Stream.resource(QueryTrackerForwarder[F](query.graphID, query.name, topics, queue, dispatcher, config))
       response   <- Stream.fromQueueNoneTerminated(queue, 1000)
     } yield response
 
-  override def submitSource(req: protocol.IngestData): F[Status] =
-    req match {
-      case protocol.IngestData(TryIngestData(Success(ingestData)), _) =>
-        F.delay(ingestion(ingestData.graphID) sendAsync ingestData).as(success)
-      case protocol.IngestData(TryIngestData(Success(ingestData)), _) =>
-        F.pure(failure)
-    }
-
-  override def disconnect(req: ClientGraphId): F[Status] =
-    req match {
-      case ClientGraphId(clientId, graphId, _) =>
-        F.delay(cluster sendAsync ClientDisconnected(graphId, clientId)).as(success)
-    }
-
-  override def destroyGraph(req: protocol.DestroyGraph): F[Status] =
-    req match {
-      case protocol.DestroyGraph(clientId, graphId, force, _) =>
-        F.delay(cluster sendAsync DestroyGraph(graphId, clientId, force)).as(success)
-    }
+  override def submitSource(req: protocol.IngestData): F[Status] = ingestion.ingestData(req)
 
   override def getNextAvailableId(req: IdPool): F[OptionalId] =
     req match {
@@ -111,6 +145,31 @@ class DefaultRaphtoryService[F[_]](idManager: IDManager, repo: TopicRepository, 
           _       <- F.delay(blockingIngestion(graphId) sendAsync message)
         } yield success
     }
+
+  override def getGraph(req: GetGraph): F[Status] = runningGraphs.get.map(i => Status(i.contains(req.graphID)))
+
+  /** Returns true if we can destroy the graph */
+  private def forcedRemoval(graphId: String): F[Boolean] =
+    runningGraphs.modify(graphs => (graphs.removed(graphId), graphs contains graphId))
+
+  /** Returns true if we can destroy the graph */
+  private def safeRemoval(graphId: String, clientId: String): F[Boolean] =
+    runningGraphs.modify { graphs =>
+      val graphsWithClientRemoved       = removeClientFromGraphs(graphs, graphId, clientId)
+      lazy val graphsWithGraphRemoved   = graphs - graphId
+      val (updatedGraphs, safeToRemove) = graphsWithClientRemoved.get(graphId) match {
+        case Some(clients) =>
+          if (clients.isEmpty) (graphsWithGraphRemoved, true) else (graphsWithClientRemoved, false)
+        case None          => (graphs, false)
+      }
+      (updatedGraphs, safeToRemove)
+    }
+
+  private def removeClientFromGraphs(graphs: Map[String, Set[String]], graphId: String, clientId: String) =
+    graphs map {
+      case (`graphId`, clients) => graphId -> (clients - clientId)
+      case tuple                => tuple
+    }
 }
 
 object RaphtoryServiceBuilder {
@@ -118,6 +177,11 @@ object RaphtoryServiceBuilder {
 
   def standalone[F[_]](config: Config)(implicit F: Async[F]): Resource[F, RaphtoryService[F]] =
     createService(localCluster(config), config)
+
+  def arrowStandalone[V: VertexSchema, E: EdgeSchema, F[_]](
+      config: Config
+  )(implicit F: Async[F]): Resource[F, RaphtoryService[F]] =
+    createService(localArrowCluster(config), config)
 
   def manager[F[_]: Async](config: Config): Resource[F, RaphtoryService[F]] =
     createService(remoteCluster(config), config)
@@ -132,34 +196,64 @@ object RaphtoryServiceBuilder {
   def server[F[_]: Async](service: RaphtoryService[F], config: Config): Resource[F, Unit] = {
     implicit val implicitService: RaphtoryService[F] = service
     for {
-      port       <- port(config)
-      serviceDef <- RaphtoryService.bindService[F]
-      server     <- Resource.eval(GrpcServer.default[F](port, List(AddService(serviceDef))))
-      _          <- GrpcServer.serverResource[F](server)
-      _          <- Resource.eval(Async[F].delay(println("Raphtory service started")))
+      port          <- port(config)
+      healthService <- Resource.eval(HealthService.build[F])
+      healthDef     <- Health.bindService[F](Async[F], healthService)
+      serviceDef    <- RaphtoryService.bindService[F]
+      server        <- Resource.eval(GrpcServer.default[F](port, List(AddService(serviceDef), AddService(healthDef))))
+      _             <- GrpcServer.serverResource[F](server)
+      _             <- Resource.eval(Async[F].delay(logger.info("Raphtory service started")))
     } yield ()
   }
 
-  private def createService[F[_]](cluster: Resource[F, TopicRepository], config: Config)(implicit
-      F: Async[F]
-  ) =
+  private def createService[F[_]](cluster: Resource[F, ServiceRepository[F]], config: Config)(implicit F: Async[F]) =
     for {
       repo            <- cluster
       sourceIDManager <- makeLocalIdManager[F]
-      service         <- Resource.eval(Async[F].delay(new DefaultRaphtoryService(sourceIDManager, repo, config)))
+      ingestion       <- repo.ingestion
+      runningGraphs   <- Resource.eval(Ref.of(Map[String, Set[String]]()))
+      existingGraphs  <- Resource.eval(Ref.of(Set[String]()))
+      service         <- Resource.eval(
+                                 Async[F].delay(
+                                         new DefaultRaphtoryService(
+                                                 runningGraphs,
+                                                 existingGraphs,
+                                                 ingestion,
+                                                 sourceIDManager,
+                                                 repo.topics,
+                                                 config
+                                         )
+                                 )
+                         )
     } yield service
 
-  private def localCluster[F[_]: Async](config: Config): Resource[F, TopicRepository] =
+  private def localCluster[F[_]: Async](config: Config): Resource[F, ServiceRepository[F]] =
     for {
-      repo               <- LocalTopicRepository[F](config, None)
+      topics             <- LocalTopicRepository[F](config, None)
       partitionIdManager <- makeLocalIdManager[F]
-      _                  <- IngestionOrchestrator[F](config, repo)
-      _                  <- PartitionOrchestrator[F](config, repo, partitionIdManager)
-      _                  <- QueryOrchestrator[F](config, repo)
-    } yield repo
+      serviceRepo        <- LocalServiceRepository(topics)
+      _                  <- IngestionServiceInstance(serviceRepo, config)
+      _                  <- PartitionOrchestrator[F](config, topics, partitionIdManager)
+      _                  <- QueryOrchestrator[F](config, topics)
+    } yield serviceRepo
 
-  private def remoteCluster[F[_]: Async](config: Config): Resource[F, TopicRepository] =
-    DistributedTopicRepository[F](AkkaConnector.SeedMode, config, None)
+  private def localArrowCluster[F[_]: Async, V: VertexSchema, E: EdgeSchema](
+      config: Config
+  ): Resource[F, ServiceRepository[F]] =
+    for {
+      topics             <- LocalTopicRepository[F](config, None)
+      partitionIdManager <- makeLocalIdManager[F]
+      serviceRepo        <- LocalServiceRepository(topics)
+      _                  <- IngestionServiceInstance(serviceRepo, config)
+      _                  <- PartitionOrchestrator.applyArrow[V, E, F](config, topics, partitionIdManager)
+      _                  <- QueryOrchestrator[F](config, topics)
+    } yield serviceRepo
+
+  private def remoteCluster[F[_]: Async](config: Config): Resource[F, ServiceRepository[F]] =
+    for {
+      topics <- DistributedTopicRepository[F](AkkaConnector.SeedMode, config, None)
+      repo   <- DistributedServiceRepository(topics, config)
+    } yield repo
 
   private def port[F[_]](config: Config): Resource[F, Int] = Resource.pure(config.getInt("raphtory.deploy.port"))
 }

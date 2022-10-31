@@ -87,7 +87,7 @@ public abstract class VertexHistoryIterator {
         protected boolean _getNextPartition = false;
         protected boolean _vertexIdSupplied = false;
 
-        private WindowedVertexHistoryIterator() {}
+        protected WindowedVertexHistoryIterator() {}
 
 
         protected WindowedVertexHistoryIterator(VertexPartitionManager avpm, long minTime, long maxTime) {

@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
+import scala.util.control.NonFatal
 
 private[raphtory] class Writer(
     graphID: String,
@@ -51,7 +52,8 @@ private[raphtory] class Writer(
 
   override def handleMessage(msg: GraphAlteration): Unit = {
     latestMsgTimeToFlushToFlight = System.currentTimeMillis()
-    msg match {
+
+    try msg match {
       //Updates from the Graph Builder
       case update: VertexAdd                    => processVertexAdd(update)
       case update: EdgeAdd                      => processEdgeAdd(update)
@@ -102,6 +104,10 @@ private[raphtory] class Writer(
         throw new IllegalStateException(
                 s"Partition '$partitionID': Received unsupported message '$other'."
         )
+    }
+    catch {
+      case NonFatal(e) =>
+        logger.error(s"Failed to handle message $msg", e)
     }
 
     handleUpdateCount()
@@ -288,7 +294,7 @@ private[raphtory] class Writer(
 
 object Writer {
 
-  def apply[IO[_]: Async: Spawn](
+  def apply[IO[_]: Async](
       graphID: String,
       partitionId: Int,
       storage: GraphPartition,

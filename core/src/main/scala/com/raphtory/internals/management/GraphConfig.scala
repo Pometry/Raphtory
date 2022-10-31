@@ -1,0 +1,41 @@
+package com.raphtory.internals.management
+
+import com.typesafe.config.Config
+import com.typesafe.config.ConfigFactory
+import com.typesafe.config.ConfigValueFactory
+
+private[raphtory] class GraphConfig private (config: Config) {
+  def getConfig: Config = config
+}
+
+object GraphConfig {
+
+  class ConfigBuilder() {
+
+    var tempConf: Config =
+      ConfigFactory
+        .defaultOverrides()
+        .withFallback(ConfigFactory.defaultApplication())
+
+    def addConfig(key: String, value: Any): ConfigBuilder = {
+      tempConf = tempConf
+        .withValue(
+                key,
+                ConfigValueFactory.fromAnyRef(value)
+        )
+      this
+    }
+
+    def config: Config = tempConf.resolve()
+
+    def build(): GraphConfig = new GraphConfig(config)
+  }
+
+  object ConfigBuilder {
+    def apply(): ConfigBuilder = new ConfigBuilder()
+
+    private lazy val defaultConfig =
+      ConfigFactory.defaultOverrides().withFallback(ConfigFactory.defaultApplication()).resolve()
+    def getDefaultConfig: Config   = defaultConfig
+  }
+}

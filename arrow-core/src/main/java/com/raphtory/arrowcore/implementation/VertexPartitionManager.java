@@ -368,14 +368,15 @@ public class VertexPartitionManager {
      * @param vertexId the vertex in question
      * @param edgeId the new edge to add
      * @param dstVertexId the dst vertex for this edge
+     * @param dstIsGlobal true if the dest vertex id is global, false otherwise
      *
      * @return the previous head of the outgoing list of edges
      */
-    public long addOutgoingEdgeToList(long vertexId, long edgeId, long dstVertexId) {
+    public long addOutgoingEdgeToList(long vertexId, long edgeId, long dstVertexId, boolean dstIsGlobal) {
         int partId = getPartitionId(vertexId);
         VertexPartition p = getPartitionAndLoad(partId);
 
-        return p.addOutgoingEdgeToList(vertexId, edgeId, dstVertexId);
+        return p.addOutgoingEdgeToList(vertexId, edgeId, dstVertexId, dstIsGlobal);
     }
 
 

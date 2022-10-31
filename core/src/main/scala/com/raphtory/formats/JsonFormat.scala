@@ -29,12 +29,13 @@ import java.io.StringWriter
   *   "jobID" : "EdgeCount",
   *   "partitionID" : 0,
   *   "perspectives" : [ {
-  *     "timestamp" : 10,
-  *     "window" : null,
+  *     "timestamp" : 10
   *     "rows" : [ [ "id1", 12 ], [ "id2", 13 ], [ "id3", 24 ] ]
   *   } ]
   * }
   * }}}
+  *
+  * If the above query is run with a window, then additionally a field `window` with the window size is returned at the same level as `timestamp`.
   *
   * On the other hand, if `level` is not set or is set to `JsonFormat.ROW`, the output might look as follows:
   *
@@ -63,11 +64,14 @@ case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
 
   private def printPerspectiveProperties(generator: JsonGenerator, perspective: Perspective): Unit = {
     generator.writeNumberField("timestamp", perspective.timestamp)
-    generator.writeFieldName("window")
     perspective.window match {
-      case Some(DiscreteInterval(interval)) => generator.writeNumber(interval)
-      case Some(TimeInterval(interval))     => generator.writeString(interval.toString)
-      case _                                => generator.writeNull()
+      case Some(DiscreteInterval(interval)) =>
+        generator.writeFieldName("window")
+        generator.writeNumber(interval)
+      case Some(TimeInterval(interval))     =>
+        generator.writeFieldName("window")
+        generator.writeString(interval.toString)
+      case _                                =>
     }
   }
 

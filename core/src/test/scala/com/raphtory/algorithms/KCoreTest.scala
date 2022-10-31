@@ -10,8 +10,8 @@ import com.raphtory.spouts.ResourceSpout
 class KCoreTest extends BaseCorrectnessTest {
   test("Test with K-Core = 3") {
     correctnessTest(
-      TestQuery(KCore(3), 17),
-      "KCore/kCore3Results.csv"
+            TestQuery(KCore(3), 17),
+            "KCore/kCore3Results.csv"
     )
   }
 

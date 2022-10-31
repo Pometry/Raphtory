@@ -97,13 +97,17 @@ public abstract class EdgeIterator {
      * Resets this iterator - repositioning it at the specified edge.
      *
      * @param edgeId the edge-id to move to
+     *
+     * @return true if the specified edge exists, false otherwise
      */
-    public void reset(long edgeId) {
+    public boolean reset(long edgeId) {
         _edgeId = edgeId;
         _edgeRowId = _aepm.getRowId(edgeId);
         _edgePartition = _aepm.getPartition(_aepm.getPartitionId(edgeId));
-        _hasNext = _edgeId!=-1L && _edgePartition!=null;
+        _hasNext = _edgeId!=-1L && _edgePartition!=null && _edgePartition.isValidRow(_edgeRowId);
         _getNext = false;
+
+        return _hasNext;
     }
 
 
@@ -550,11 +554,19 @@ public abstract class EdgeIterator {
          * Resets this iterator - repositioning it at the specified edge.
          *
          * @param edgeId the edge-id to move to
+         *
+         * @return true if the specified edge exists, false otherwise
          */
         @Override
-        public void reset(long edgeId) {
-            super.reset(edgeId);
-            _partitionId = _edgePartition!=null ? _edgePartition._partitionId : -1;
+        public boolean reset(long edgeId) {
+            if (super.reset(edgeId)) {
+                _partitionId = _edgePartition._partitionId;
+                return true;
+            }
+            else {
+                _partitionId = -1;
+                return false;
+            }
         }
 
 
@@ -742,6 +754,7 @@ public abstract class EdgeIterator {
         protected VertexPartition _vp;
         protected long _srcVertexId;
         protected long _dstVertexId;
+        protected boolean _dstIsGlobal;
         protected int _nOutgoingEdges;
         protected VertexEdgeIndexPartition _veip;
 
@@ -757,12 +770,14 @@ public abstract class EdgeIterator {
          * @param vp the vertex partition that the src-vertex is within
          * @param srcVertexId the src-vertex id
          * @param dstVertexId the dst-vertex id to use for searching
+         * @param dstIsGlobal true
          * @param nOutgoingEdges the number of outgoing edges for the src-vertex
          */
-        protected void findEdgesViaVertex(VertexPartition vp, long srcVertexId, long dstVertexId, int nOutgoingEdges) {
+        protected void findEdgesViaVertex(VertexPartition vp, long srcVertexId, long dstVertexId, boolean dstIsGlobal, int nOutgoingEdges) {
             _vp = vp;
             _srcVertexId = srcVertexId;
             _dstVertexId = dstVertexId;
+            _dstIsGlobal = dstIsGlobal;
             _nOutgoingEdges = nOutgoingEdges;
 
             if (nOutgoingEdges>0) {
@@ -782,18 +797,24 @@ public abstract class EdgeIterator {
          */
         @Override
         protected boolean moveToNext() {
-            if (_index==-1 || _index<_firstIndex) {
-                return false;
+            for (; ; ) {
+                if (_index==-1 || _index<_firstIndex) {
+                    return false;
+                }
+
+                int rowId = _veip.getVertexRowIdByIndexRowId(_index);
+
+                boolean isDstGlobal = _veip.getDstIsGlobalByRowId(rowId);
+                if (isDstGlobal == _dstIsGlobal) {
+                    long edgeId = _veip.getEdgeIdByRowId(rowId);
+                    reset(edgeId);
+                    --_index;
+                    return true;
+                }
+                else {
+                    --_index;
+                }
             }
-
-            int rowId = _veip.getVertexRowIdByIndexRowId(_index);
-            long edgeId = _veip.getEdgeIdByRowId(rowId);
-
-            reset(edgeId);
-
-            --_index;
-
-            return true;
         }
     }
 }

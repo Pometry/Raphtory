@@ -6,7 +6,8 @@ import com.raphtory.algorithms.filters.VertexFilter
 import com.raphtory.algorithms.generic.VertexHistogram
 import com.raphtory.algorithms.generic.centrality.Degree
 import com.raphtory.api.input.sources.CSVEdgeListSource
-import com.raphtory.api.input.{Source, Spout}
+import com.raphtory.api.input.Source
+import com.raphtory.api.input.Spout
 import com.raphtory.spouts.ResourceSpout
 
 class HistogramTest extends BaseCorrectnessTest {

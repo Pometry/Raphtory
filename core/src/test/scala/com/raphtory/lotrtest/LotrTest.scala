@@ -15,9 +15,7 @@ import com.raphtory.algorithms.temporal.Ancestors
 import com.raphtory.algorithms.temporal.Descendants
 import com.raphtory.algorithms.temporal.dynamic.GenericTaint
 import com.raphtory.api.input.sources.CSVEdgeListSource
-import com.raphtory.api.input.{Graph, GraphBuilder, Source, Spout}
-import com.raphtory.spouts.FileSpout
-
+import com.raphtory.api.input._
 import java.net.URL
 import scala.language.postfixOps
 
@@ -223,6 +221,4 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
     Some(tmpFilePath, new URL("https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"))
 
   override def setSource(): Source = CSVEdgeListSource.fromFile(tmpFilePath)
-
-
 }

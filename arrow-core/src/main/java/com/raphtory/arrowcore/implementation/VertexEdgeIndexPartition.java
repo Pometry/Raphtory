@@ -137,12 +137,13 @@ public class VertexEdgeIndexPartition {
      * @param localRowId the row-id of the src vertex (in the vertex partition)
      * @param dstVertexId the dst vertex id
      * @param edgeId the edge id of this edge
+     * @param dstIsGlobal true if the dst-vertex is remote, false otherwise
      */
-    public void addEdgeIndexRecord(int localRowId, long dstVertexId, long edgeId) {
+    public void addEdgeIndexRecord(int localRowId, long dstVertexId, long edgeId, boolean dstIsGlobal) {
         _modified = true;
         _sorted = false;
 
-        _index.addIndexRecord(localRowId, dstVertexId, edgeId);
+        _index.addIndexRecord(localRowId, dstVertexId, edgeId, dstIsGlobal);
     }
 
 
@@ -170,6 +171,16 @@ public class VertexEdgeIndexPartition {
     public long getEdgeIdByRowId(int rowId) {
         return _index._edgeIds.get(rowId);
     }
+
+
+    /**
+     * Returns true if the destination vertex at this row is a remote edge
+     *
+     * @param rowId the row-id in question
+     *
+     * @return true, if the dst vertex is remote, false otherwise
+     */
+    public boolean getDstIsGlobalByRowId(int rowId) { return _index._isGlobals.get(rowId) != 0; }
 
 
     /**

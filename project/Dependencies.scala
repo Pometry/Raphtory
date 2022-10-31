@@ -9,10 +9,11 @@ object Dependencies {
   private lazy val declineVersion                  = "2.3.0"
   private lazy val fs2Version                      = "3.2.12"
   private lazy val jacksonVersion                  = "2.13.3"
+  private lazy val jsonpathVersion                  = "0.5.5"
   private lazy val log4jVersion                    = "2.18.0"
   private lazy val muVersion                       = "0.29.0"
   private lazy val openhftVersion                  = "0.15"
-  private lazy val pemjaVersion                    = "0.2.0"
+  private lazy val pemjaVersion                    = "0.2.6"
   private lazy val prometheusVersion               = "0.15.0"
   private lazy val pulsarVersion                   = "2.9.1"
   private lazy val py4jVersion                     = "0.10.9.5"
@@ -26,6 +27,7 @@ object Dependencies {
   private lazy val testContainersVersion           = "0.40.8"
   private lazy val timeSeriesVersion               = "1.7.0"
   private lazy val typesafeConfigVersion           = "1.4.2"
+  private lazy val ujsonVersion                    = "2.0.0"
   private lazy val zookeeperVersion                = "3.7.0"
   private lazy val catsVersion                     = "2.7.0"
   private lazy val catsMUnitVersion                = "1.0.7"
@@ -48,6 +50,7 @@ object Dependencies {
   lazy val jackson =
     "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val jfr = "org.gradle.jfr.polyfill" % "jfr-polyfill" % "1.0.0"
+  lazy val jsonpath = "com.jayway.jsonpath" % "json-path" % jsonpathVersion
   lazy val log4jApi   = "org.apache.logging.log4j" % "log4j-api"        % log4jVersion
   lazy val log4jCore  = "org.apache.logging.log4j" % "log4j-core"       % log4jVersion
   lazy val log4jSlft4 = "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion
@@ -56,7 +59,7 @@ object Dependencies {
 
   lazy val muClient  = "io.higherkindness" %% "mu-rpc-client-netty" % muVersion
   lazy val muFs2     = "io.higherkindness" %% "mu-rpc-fs2"          % muVersion
-//  lazy val muInternalFs2 = "io.higherkindness" %% "mu-rpc-internal-fs2" % "0.21.3"
+  lazy val muHealth  = "io.higherkindness" %% "mu-rpc-health-check" % muVersion
   lazy val muServer  = "io.higherkindness" %% "mu-rpc-server"       % muVersion
   lazy val muService = "io.higherkindness" %% "mu-rpc-service"      % muVersion
 
@@ -82,15 +85,16 @@ object Dependencies {
   lazy val scalaParallelCollections =
     "org.scala-lang.modules" %% "scala-parallel-collections" % scalaParallelCollectionsVersion
   lazy val scalaPb          = "com.thesamet.scalapb" %% "scalapb-runtime"            % scalaPbVersion        % "protobuf"
-  lazy val scalaTest        = "org.scalatest"        %% "scalatest"                  % scalatestVersion      % Test
-  lazy val scalaTestCompile = "org.scalatest"        %% "scalatest"                  % scalatestVersion
-  lazy val shapeless        = "com.chuusai"          %% "shapeless"                  % shapelessVer
-  lazy val slf4j            = "org.slf4j"             % "slf4j-api"                  % slf4jVersion
-  lazy val sprayJson        = "io.spray"             %% "spray-json"                 % sprayJsonVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val testContainers   = "com.dimafeng"         %% "testcontainers-scala-munit" % testContainersVersion % "test"
+  lazy val scalaTest        = "org.scalatest"              %% "scalatest"                  % scalatestVersion      % Test
+  lazy val scalaTestCompile = "org.scalatest"              %% "scalatest"                  % scalatestVersion
+  lazy val shapeless        = "com.chuusai"                %% "shapeless"                  % shapelessVer
+  lazy val slf4j            = "org.slf4j"                   % "slf4j-api"                  % slf4jVersion
+  lazy val sprayJson        = "io.spray"                   %% "spray-json"                 % sprayJsonVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val testContainers   = "com.dimafeng"               %% "testcontainers-scala-munit" % testContainersVersion % "test"
 
   lazy val twitterChill   = "com.twitter"         %% "chill"     % chillVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val typesafeConfig = "com.typesafe"         % "config"    % typesafeConfigVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val ujson = "com.lihaoyi"        %% "upickle"  % ujsonVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val zookeeper      = "org.apache.zookeeper" % "zookeeper" % zookeeperVersion excludeAll (excludeLog4j, excludeSlf4j)
 
   lazy val catsMUnit =

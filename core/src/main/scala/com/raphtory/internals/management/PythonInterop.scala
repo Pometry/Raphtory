@@ -2,7 +2,6 @@ package com.raphtory.internals.management
 
 import cats.Id
 import cats.syntax.all._
-import com.raphtory.Raphtory
 
 import java.lang.reflect.{Array => JArray}
 import com.raphtory.api.analysis.graphstate.Accumulator

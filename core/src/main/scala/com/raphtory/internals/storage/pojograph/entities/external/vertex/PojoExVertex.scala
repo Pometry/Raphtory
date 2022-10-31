@@ -13,7 +13,7 @@ import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExEdg
 import com.raphtory.internals.storage.pojograph.entities.external.edge.PojoExMultilayerEdge
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoVertex
 
-import scala.collection.mutable
+import scala.collection.{View, mutable}
 import scala.collection.mutable.ArrayBuffer
 import scala.language.existentials
 import scala.math.Ordering
@@ -241,15 +241,14 @@ private[raphtory] class PojoExVertex(
       edges: mutable.Map[Long, PojoExEdge],
       after: Long,
       before: Long
-  ): List[PojoExEdge] =
-    edges
+  ): View[PojoExEdge] =
+    edges.view
       .collect { case (_, edge) if edge.active(after, before) => edge }
       .map(edge => edge.viewBetween(after, before))
-      .toList
 
-  def getOutEdges(after: Long, before: Long): List[PojoExEdge] = allEdge(internalOutgoingEdges, after, before)
+  def getOutEdges(after: Long, before: Long): View[PojoExEdge] = allEdge(internalOutgoingEdges, after, before)
 
-  def getInEdges(after: Long, before: Long): List[PojoExEdge] = allEdge(internalIncomingEdges, after, before)
+  def getInEdges(after: Long, before: Long): View[PojoExEdge] = allEdge(internalIncomingEdges, after, before)
 
   override def getOutEdge(id: Long, after: Long, before: Long): Option[PojoExEdge] =
     individualEdge(internalOutgoingEdges, after, before, id)
