@@ -34,7 +34,6 @@ private[raphtory] class TopicRepository(
   protected def blockingIngestionConnector: Connector = defaultControlConnector
   protected def queryPrepConnector: Connector         = defaultControlConnector
   protected def ingestSetupConnector: Connector       = defaultControlConnector
-  protected def partitionSetupConnector: Connector    = defaultControlConnector
   protected def queryTrackConnector: Connector        = defaultControlConnector
   protected def rechecksConnector: Connector          = defaultControlConnector
   protected def jobStatusConnector: Connector         = defaultControlConnector
@@ -67,9 +66,6 @@ private[raphtory] class TopicRepository(
             ingestSetupConnector,
             "cluster.comms"
     )
-
-  final def partitionSetup(graphID: String): BroadcastTopic[GraphManagement] =
-    BroadcastTopic[GraphManagement](numPartitions, partitionSetupConnector, "partition.setup", graphID)
 
   // graph wise topics
   final def graphUpdates(graphID: String): ShardingTopic[GraphAlteration] =

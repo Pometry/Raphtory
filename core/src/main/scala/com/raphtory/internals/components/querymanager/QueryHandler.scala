@@ -1,5 +1,6 @@
 package com.raphtory.internals.components.querymanager
 
+import cats.effect.std.Dispatcher
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview._
@@ -18,7 +19,8 @@ import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
 
-import com.raphtory.internals.components.querymanager.Stages.{SpawnExecutors, Stage}
+import com.raphtory.internals.components.querymanager.Stages.SpawnExecutors
+import com.raphtory.internals.components.querymanager.Stages.Stage
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -39,7 +41,6 @@ private[raphtory] class QueryHandler(
   private val startTime      = System.currentTimeMillis()
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val self           = topics.rechecks(graphID, jobID).endPoint
-  private val partitions     = topics.partitionSetup(graphID).endPoint
   private val tracker        = topics.queryTrack(graphID, jobID).endPoint
   private val workerList     = topics.jobOperations(graphID, jobID).endPoint
 
@@ -78,7 +79,6 @@ private[raphtory] class QueryHandler(
   override def stop(): Unit = {
     listener.close()
     self.close()
-    partitions.close()
     tracker.close()
     workerList.close()
   }
@@ -87,7 +87,6 @@ private[raphtory] class QueryHandler(
   private def recheckEarliestTimer(): Unit = self sendAsync RecheckEarliestTime
 
   override def run(): Unit = {
-    messagePartitions(EstablishExecutor(query._bootstrap, graphID, jobID, query.sink.get, query.pyScript))
     timeTaken = System.currentTimeMillis() //Set time from the point we ask the executors to set up
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
     listener.start()
@@ -467,14 +466,9 @@ private[raphtory] class QueryHandler(
   private def messagetoAllJobWorkers(msg: QueryManagement): Unit =
     workerList sendAsync msg
 
-  private def messagePartitions(msg: GraphManagement): Unit =
-    partitions sendAsync msg
-
   private def killJob() = {
     messagetoAllJobWorkers(EndQuery(jobID))
     workerList.close()
-    messagePartitions(StopExecutor(jobID))
-    partitions.close()
 
     val queryManager = topics.completedQueries(graphID).endPoint
     queryManager closeWithMessage EndQuery(jobID)

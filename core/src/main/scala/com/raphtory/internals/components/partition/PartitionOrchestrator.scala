@@ -1,24 +1,48 @@
 package com.raphtory.internals.components.partition
 
 import cats.effect.Async
+import cats.effect.Deferred
 import cats.effect.Resource
-import cats.effect.Spawn
+import cats.syntax.all._
 import cats.implicits.toTraverseOps
 import com.raphtory.internals.communication.TopicRepository
+import com.raphtory.internals.components.OrchestratorService.Graph
+import com.raphtory.internals.components.OrchestratorService.GraphList
 import com.raphtory.internals.components.Component
+import com.raphtory.internals.components.GrpcServiceDescriptor
+import com.raphtory.internals.components.OrchestratorService
+import com.raphtory.internals.components.OrchestratorServiceBuilder
+import com.raphtory.internals.components.ServiceDescriptor
+import com.raphtory.internals.components.ServiceRepository
 import com.raphtory.internals.components.cluster.OrchestratorComponent
+import com.raphtory.internals.components.querymanager
 import com.raphtory.internals.components.querymanager.ClientDisconnected
 import com.raphtory.internals.components.querymanager.ClusterManagement
 import com.raphtory.internals.components.querymanager.DestroyGraph
 import com.raphtory.internals.components.querymanager.EstablishGraph
+import com.raphtory.internals.components.querymanager.TryQuery
+import com.raphtory.internals.graph.GraphPartition
+import com.raphtory.internals.management.Partitioner
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.management.id.IDManager
+import com.raphtory.internals.storage.arrow.ArrowPartition
+import com.raphtory.internals.storage.arrow.ArrowPartitionConfig
+import com.raphtory.internals.storage.arrow.ArrowSchema
 import com.raphtory.internals.storage.arrow.EdgeSchema
 import com.raphtory.internals.storage.arrow.VertexSchema
 import com.raphtory.internals.storage.arrow.immutable
+import com.raphtory.internals.storage.pojograph.PojoBasedPartition
+import com.raphtory.protocol.PartitionService
+import com.raphtory.protocol.Query
+import com.raphtory.protocol.Status
+import com.raphtory.protocol.failure
+import com.raphtory.protocol.success
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
+
+import java.nio.file.Files
+import scala.util.Success
 
 class PartitionOrchestrator(
     repo: TopicRepository,
@@ -37,7 +61,6 @@ class PartitionOrchestrator(
       case ClientDisconnected(graphID, clientID)             => clientDisconnected(graphID, clientID)
 
     }
-
 }
 
 class ArrowPartitionOrchestrator[V: VertexSchema, E: EdgeSchema](
@@ -146,3 +169,119 @@ object PartitionOrchestrator {
     )
 }
 
+abstract class PartitionServiceInstance[F[_]: Async](
+    id: Deferred[F, Int],
+    graphs: GraphList[F, GraphPartition],
+    topics: TopicRepository,
+    config: Config
+) extends OrchestratorService(graphs)
+        with PartitionService[F] {
+
+  override protected def graphExecution(graph: Graph[F, GraphPartition]): F[Unit] =
+    (for {
+      id <- Resource.eval(id.get)
+      _  <- Reader[F](graph.id, id, graph.data, new Scheduler, config, topics)
+      _  <- Writer[F](graph.id, id, graph.data, config, topics, new Scheduler)
+    } yield ()).use(_ => Async[F].never)
+
+  override def establishExecutor(req: Query): F[Status] =
+    req match {
+      case Query(TryQuery(Success(query)), unknownFields) => queryExecutor(query).as(success)
+      case _                                              => failure[F]
+    }
+
+  private def queryExecutor(query: querymanager.Query) =
+    for {
+      id <- id.get
+      _  <- attachExecutionToGraph(
+                    query.graphID,
+                    graph => QueryExecutor(query, id, graph.data, config, topics, new Scheduler)
+            )
+    } yield ()
+}
+
+class PojoPartitionServerInstance[F[_]: Async](
+    id: Deferred[F, Int],
+    graphs: GraphList[F, GraphPartition],
+    topics: TopicRepository,
+    config: Config
+) extends PartitionServiceInstance[F](id, graphs, topics, config) {
+
+  override def makeGraphData(graphId: String): F[GraphPartition] =
+    id.get.map(id => new PojoBasedPartition(graphId, id, config))
+}
+
+class ArrowPartitionServerInstance[F[_]: Async, V: VertexSchema, E: EdgeSchema](
+    id: Deferred[F, Int],
+    graphs: GraphList[F, GraphPartition],
+    topics: TopicRepository,
+    config: Config
+) extends PartitionServiceInstance[F](id, graphs, topics, config) {
+
+  override def makeGraphData(graphId: String): F[GraphPartition] =
+    for {
+      id      <- id.get
+      storage <-
+        Async[F].blocking(
+                ArrowPartition(
+                        graphId,
+                        ArrowPartitionConfig(config, id, ArrowSchema[V, E], Files.createTempDirectory("experimental")),
+                        config
+                )
+        )
+    } yield storage
+}
+
+object PartitionServiceInstance extends OrchestratorServiceBuilder {
+
+  def makeN[F[_]: Async](
+      repo: ServiceRepository[F],
+      config: Config
+  ): Resource[F, Unit] =
+    makeNWithStorage((id, graphs) => new PojoPartitionServerInstance[F](id, graphs, repo.topics, config), repo, config)
+
+  def makeNArrow[F[_]: Async, V: VertexSchema, E: EdgeSchema](
+      repo: ServiceRepository[F],
+      config: Config
+  ): Resource[F, Unit] =
+    makeNWithStorage(
+            (id, graphs) => new ArrowPartitionServerInstance[F, V, E](id, graphs, repo.topics, config),
+            repo,
+            config
+    )
+
+  def descriptor[F[_]: Async]: ServiceDescriptor[F, PartitionService[F]] =
+    GrpcServiceDescriptor[F, PartitionService[F]](
+            "partition",
+            PartitionService.client(_),
+            PartitionService.bindService[F](Async[F], _)
+    )
+
+  private def makeNWithStorage[F[_]: Async](
+      service: (Deferred[F, Int], GraphList[F, GraphPartition]) => PartitionServiceInstance[F],
+      repo: ServiceRepository[F],
+      config: Config
+  ): Resource[F, Unit] = {
+    val partitioner      = Partitioner(config)
+    val candidateIds     = 0 until partitioner.totalPartitions
+    val partitionsToMake = 0 until partitioner.partitionsPerServer
+    partitionsToMake
+      .map(_ => makePartition(candidateIds, service, repo, config))
+      .reduce((p1, p2) => p1 flatMap (_ => p2))
+  }
+
+  private def makePartition[F[_]: Async](
+      candidateIds: Seq[Int],
+      service: (Deferred[F, Int], GraphList[F, GraphPartition]) => PartitionServiceInstance[F],
+      repo: ServiceRepository[F],
+      conf: Config
+  ): Resource[F, Unit] =
+    for {
+      graphs   <- makeGraphList[F, GraphPartition]
+      id       <- Resource.eval(Deferred[F, Int])
+      _        <- Resource.eval(Async[F].delay(logger.info(s"Starting Ingestion Service")))
+      service  <- Resource.eval(Async[F].delay(service(id, graphs)))
+      idNumber <- repo.registered(service, PartitionServiceInstance.descriptor, candidateIds)
+      _        <- Resource.eval(id.complete(idNumber))
+    } yield ()
+}
