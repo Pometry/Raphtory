@@ -31,13 +31,13 @@ private[raphtory] class IngestionExecutor[F[_]: Async](
     sourceID: Int,
     conf: Config,
     topics: TopicRepository
-) extends TelemetryReporter {
+) {
   private val logger: Logger                               = Logger(LoggerFactory.getLogger(this.getClass))
   private val failOnError                                  = conf.getBoolean("raphtory.builders.failOnError")
   private val writers: Map[Int, EndPoint[GraphAlteration]] = topics.graphUpdates(graphID).endPoint()
   private val queryManager                                 = topics.blockingIngestion(graphID).endPoint
   private val sourceInstance                               = source.buildSource(graphID, sourceID)
-  private val totalTuplesProcessed                         = telemetry.totalTuplesProcessed.labels(s"$sourceID", graphID)
+  private val totalTuplesProcessed                         = TelemetryReporter.totalTuplesProcessed.labels(s"$sourceID", graphID)
 
   private var index: Long = 0
 

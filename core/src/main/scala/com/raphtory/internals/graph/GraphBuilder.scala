@@ -3,10 +3,7 @@ package com.raphtory.internals.graph
 import com.raphtory.api.input._
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.graph.GraphAlteration._
-import com.raphtory.internals.management.telemetry.ComponentTelemetryHandler
-import com.typesafe.scalalogging.Logger
-import net.openhft.hashing.LongHashFunction
-import org.slf4j.LoggerFactory
+import com.raphtory.internals.management.telemetry.TelemetryReporter
 
 private[raphtory] class GraphBuilderInstance[T](graphId: String, sourceId: Int, parse: GraphBuilder[T])
         extends Serializable
@@ -25,7 +22,7 @@ private[raphtory] class GraphBuilderInstance[T](graphId: String, sourceId: Int, 
   private var internalTotalPartitions: Int                            = _
   def totalPartitions: Int                                            = internalTotalPartitions
   private var sentUpdates: Long                                       = 0
-  private val totalSourceErrors                                       = ComponentTelemetryHandler.totalSourceErrors.labels(s"$sourceID", graphID)
+  private val totalSourceErrors                                       = TelemetryReporter.totalSourceErrors.labels(s"$sourceID", graphID)
 
   def getGraphID: String         = graphID
   def getSourceID: Int           = sourceID

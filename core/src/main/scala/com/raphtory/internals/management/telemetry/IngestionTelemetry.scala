@@ -2,12 +2,7 @@ package com.raphtory.internals.management.telemetry
 
 import io.prometheus.client.Counter
 
-/** Adds metrics for `GraphBuilder` using Prometheus Client
-  * Exposes Counter stats for tracking number of vertices and edges added and deleted, total partitions created
-  * by the graph builder
-  * Statistics are made available on http://localhost:9999 on running tests and can be visualised using Grafana dashboards
-  */
-private[raphtory] object SourceTelemetry {
+private[raphtory] object IngestionTelemetry {
 
   def totalTuplesProcessed: Counter =
     Counter.build

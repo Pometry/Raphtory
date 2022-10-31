@@ -8,7 +8,6 @@ import com.raphtory.internals.communication.CancelableListener
 import com.raphtory.internals.communication.CanonicalTopic
 import com.raphtory.internals.communication.Topic
 import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.management.telemetry.ComponentTelemetryHandler
 import com.raphtory.internals.management.telemetry.TelemetryReporter
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -17,7 +16,7 @@ import org.slf4j.LoggerFactory
 import scala.util.control.NonFatal
 import scala.concurrent.Future
 
-abstract private[raphtory] class Component[T](conf: Config) extends TelemetryReporter {
+abstract private[raphtory] class Component[T](conf: Config) {
 
   private val partitionServers: Int    = conf.getInt("raphtory.partitions.serverCount")
   private val partitionsPerServer: Int = conf.getInt("raphtory.partitions.countPerServer")

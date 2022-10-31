@@ -6,12 +6,9 @@ import cats.effect.Spawn
 import com.raphtory.internals.communication.Topic
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
-import com.raphtory.internals.components.querymanager.BlockIngestion
 import com.raphtory.internals.components.querymanager.QueryManagement
-import com.raphtory.internals.components.querymanager.UnblockIngestion
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.Scheduler
-import com.raphtory.internals.management.telemetry.PartitionTelemetry.lastWatermarkProcessed
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -28,9 +25,8 @@ private[raphtory] class Reader(
     topics: TopicRepository
 ) extends Component[QueryManagement](conf) {
 
-  private val logger: Logger   = Logger(LoggerFactory.getLogger(this.getClass))
-  private val watermarkPublish = topics.watermark(graphID).endPoint
-
+  private val logger: Logger                                 = Logger(LoggerFactory.getLogger(this.getClass))
+  private val watermarkPublish                               = topics.watermark(graphID).endPoint
   private var scheduledWatermark: Option[() => Future[Unit]] = None
 
   override def run(): Unit = {
@@ -47,8 +43,6 @@ private[raphtory] class Reader(
     storage.watermarker.updateWatermark()
     val latestWatermark = storage.watermarker.getLatestWatermark
     watermarkPublish sendAsync latestWatermark
-    lastWatermarkProcessed
-      .set(latestWatermark.oldestTime.toDouble)
     scheduleWatermarker()
   }
 
