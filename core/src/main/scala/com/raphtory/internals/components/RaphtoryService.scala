@@ -11,7 +11,7 @@ import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.communication.repositories.LocalTopicRepository
-import com.raphtory.internals.components.ingestion.IngestionServiceInstance
+import com.raphtory.internals.components.ingestion.IngestionServiceImpl
 import com.raphtory.internals.components.partition.PartitionOrchestrator
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.components.repositories.DistributedServiceRepository
@@ -232,7 +232,7 @@ object RaphtoryServiceBuilder {
       topics             <- LocalTopicRepository[F](config, None)
       partitionIdManager <- makeLocalIdManager[F]
       serviceRepo        <- LocalServiceRepository(topics)
-      _                  <- IngestionServiceInstance(serviceRepo, config)
+      _                  <- IngestionServiceImpl(serviceRepo, config)
       _                  <- PartitionOrchestrator[F](config, topics, partitionIdManager)
       _                  <- QueryOrchestrator[F](config, topics)
     } yield serviceRepo
@@ -244,7 +244,7 @@ object RaphtoryServiceBuilder {
       topics             <- LocalTopicRepository[F](config, None)
       partitionIdManager <- makeLocalIdManager[F]
       serviceRepo        <- LocalServiceRepository(topics)
-      _                  <- IngestionServiceInstance(serviceRepo, config)
+      _                  <- IngestionServiceImpl(serviceRepo, config)
       _                  <- PartitionOrchestrator.applyArrow[V, E, F](config, topics, partitionIdManager)
       _                  <- QueryOrchestrator[F](config, topics)
     } yield serviceRepo

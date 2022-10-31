@@ -4,7 +4,7 @@ import cats.effect.Async
 import cats.effect.Resource
 import cats.syntax.all._
 import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.components.ingestion.IngestionServiceInstance
+import com.raphtory.internals.components.ingestion.IngestionServiceImpl
 import com.raphtory.protocol.IngestionService
 
 abstract class ServiceRepository[F[_]: Async](val topics: TopicRepository) {
@@ -30,7 +30,7 @@ abstract class ServiceRepository[F[_]: Async](val topics: TopicRepository) {
     }
 
   final def ingestion: Resource[F, IngestionService[F]] =
-    getService[IngestionService[F]](IngestionServiceInstance.descriptor)
+    getService[IngestionService[F]](IngestionServiceImpl.descriptor)
 
   /** Register the instance and returns an IO to unregister it */
   protected def register[T](instance: T, descriptor: ServiceDescriptor[F, T], id: Int): F[F[Unit]]

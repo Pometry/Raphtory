@@ -16,7 +16,7 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
-class IngestionServiceInstance[F[_]: Async](graphs: GraphList[F, Unit], repo: TopicRepository, config: Config)
+class IngestionServiceImpl[F[_]: Async](graphs: GraphList[F, Unit], repo: TopicRepository, config: Config)
         extends NoGraphDataOrchestratorService(graphs)
         with IngestionService[F] {
 
@@ -33,7 +33,7 @@ class IngestionServiceInstance[F[_]: Async](graphs: GraphList[F, Unit], repo: To
     }
 }
 
-object IngestionServiceInstance {
+object IngestionServiceImpl {
   import OrchestratorService._
 
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
@@ -42,8 +42,8 @@ object IngestionServiceInstance {
     for {
       graphs  <- makeGraphList[F, Unit]
       _       <- Resource.eval(Async[F].delay(logger.info(s"Starting Ingestion Service")))
-      service <- Resource.eval(Async[F].delay(new IngestionServiceInstance[F](graphs, repo.topics, config)))
-      _       <- repo.registered(service, IngestionServiceInstance.descriptor)
+      service <- Resource.eval(Async[F].delay(new IngestionServiceImpl[F](graphs, repo.topics, config)))
+      _       <- repo.registered(service, IngestionServiceImpl.descriptor)
     } yield ()
 
   def descriptor[F[_]: Async]: ServiceDescriptor[F, IngestionService[F]] =
