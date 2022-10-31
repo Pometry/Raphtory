@@ -18,6 +18,7 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.io.File;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -864,5 +865,68 @@ public class RaphtoryArrowPartition {
 
     public RaphtoryStatistics getStatistics() {
         return _stats;
+    }
+
+
+    /**
+     * Dumps the graph for debugging purposes only!
+     */
+    public void dump() {
+        PrintStream out = System.out;
+
+        out.println("Raphtory Arrow Partition " + _raphtoryPartitionId);
+
+        VertexIterator iter = getNewAllVerticesIterator();
+        while (iter.hasNext()) {
+            iter.next();
+            out.println(iter.getGlobalVertexId());
+        }
+        out.println("\n");
+
+
+        iter = getNewAllVerticesIterator();
+        while (iter.hasNext()) {
+            iter.next();
+
+            out.println(iter.getGlobalVertexId() + " -> nEdges=" + (iter.getNOutgoingEdges() + iter.getNIncomingEdges()));
+
+            EdgeIterator edges = iter.getIncomingEdges();
+
+            int edgeNum = 0;
+            while (edges.hasNext()) {
+                long edgeId = edges.next();
+
+                out.println("    I " + edgeNum + " -> " + edgeId +
+                            ", f=" + getGlobalId(edges.getSrcVertexId(), edges.isSrcVertexLocal()) +
+                            ", t=" + getGlobalId(edges.getDstVertexId(), edges.isDstVertexLocal()));
+
+                ++edgeNum;
+            }
+
+            edges = iter.getOutgoingEdges();
+            while (edges.hasNext()) {
+                long edgeId = edges.next();
+
+                out.println("    O " + edgeNum + " -> " + edgeId +
+                            ", f=" + getGlobalId(edges.getSrcVertexId(), edges.isSrcVertexLocal()) +
+                            ", t=" + getGlobalId(edges.getDstVertexId(), edges.isDstVertexLocal()));
+
+                ++edgeNum;
+            }
+
+            out.println();
+        }
+
+        out.flush();
+        System.out.println(new Date() + ": allVerticesIterator finished");
+    }
+
+
+    private long getGlobalId(long id, boolean isLocal) {
+        if (!isLocal) {
+            return id;
+        }
+
+        return _vmgr.getGlobalVertexId(id);
     }
 }

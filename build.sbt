@@ -44,6 +44,7 @@ ThisBuild / publishTo := {
   else Some("releases" at nexus + "service/local/staging/deploy/maven2")
 }
 ThisBuild / publishMavenStyle.withRank(KeyRanks.Invisible) := true
+ThisBuild / resolvers += Resolver.mavenLocal
 
 ThisBuild / scalacOptions += "-language:higherKinds"
 
@@ -85,7 +86,8 @@ lazy val root = (project in file("."))
           examplesTwitter,
           examplesNFT,
           deploy,
-          integrationTest
+          integrationTest,
+          docTests
   )
 
 //lazy val protocol = project
@@ -124,12 +126,14 @@ lazy val core = (project in file("core"))
                   apacheHttp,
                   jackson,
                   jfr,
+                  jsonpath,
                   log4jSlft4,
                   log4jApi,
                   log4jCore,
                   magnolia,
                   muClient,
                   muFs2,
+                  muHealth,
                   muServer,
                   muService,
                   nomen,
@@ -148,14 +152,17 @@ lazy val core = (project in file("core"))
                   sprayJson,
                   testContainers,
                   twitterChill,
+                  ujson,
                   catsEffect,
                   catsMUnit,
                   alleyCats,
                   typesafeConfig,
                   zookeeper,
+                  magnolia,
                   shapeless,
                   curatorDiscovery,
-                  scalaDocReader
+                  scalaDocReader,
+                  "junit" % "junit" % "4.13.2" % Test
           ),
           libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) },
           // Needed to expand the @service macro annotation
@@ -189,9 +196,6 @@ lazy val connectorsPulsar =
 lazy val examplesCoho =
   (project in file("examples/companies-house")).dependsOn(core).settings(assemblySettings)
 
-lazy val examplesEthereum =
-  (project in file("examples/ethereum")).dependsOn(core, connectorsPulsar).settings(assemblySettings)
-
 lazy val examplesGab =
   (project in file("examples/gab")).dependsOn(core, connectorsPulsar).settings(assemblySettings)
 
@@ -217,6 +221,11 @@ lazy val deploy =
 lazy val integrationTest =
   (project in file("test"))
     .dependsOn(core % "compile->compile;test->test")
+    .settings(assemblySettings)
+
+lazy val docTests =
+  (project in file("doc-tests"))
+    .dependsOn(core % "compile->compile;test->test", examplesLotr)
     .settings(assemblySettings)
 
 // SETTINGS

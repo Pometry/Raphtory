@@ -68,6 +68,7 @@ public abstract class VertexIterator {
     protected ArrowPropertyIterator[] _propertyIterators = null;
     protected VersionedEntityPropertyAccessor[] _propertyIteratorAccessors = null;
     protected EdgeIterator.MatchingEdgesIterator _matchingEdgesIterator = null;
+    protected VertexHistoryIterator.WindowedVertexHistoryIterator _vertexHistoryIterator = null;
 
 
     /**
@@ -148,13 +149,17 @@ public abstract class VertexIterator {
      * Resets this iterator - repositioning it at the specified vertex.
      *
      * @param vertexId the vertex-id to move to
+     *
+     * @return true if the specified vertex exists, false otherwise
      */
-    public void reset(long vertexId) {
+    public boolean reset(long vertexId) {
         _vertexId = vertexId;
         _vertexRowId = _avpm.getRowId(vertexId);
         _p = _avpm.getPartition(_avpm.getPartitionId(vertexId));
-        _hasNext = _vertexId!=-1L && _p!=null;
+        _hasNext = _vertexId!=-1L && _p!=null && _p.isValidRow(_vertexRowId);
         _getNext = false;
+
+        return _hasNext;
     }
 
 
@@ -275,16 +280,17 @@ public abstract class VertexIterator {
      * destination vertex id.
      *
      * @param dstVertexId the destination vertex id in question
+     * @param isDstGlobal true if the dst-vertex-id is global, false otherwise
      *
      * @return an edge iterator configured to retrieve those edges
      * */
-    public EdgeIterator.MatchingEdgesIterator findAllOutgoingEdges(long dstVertexId) {
+    public EdgeIterator.MatchingEdgesIterator findAllOutgoingEdges(long dstVertexId, boolean isDstGlobal) {
         if (_matchingEdgesIterator==null) {
             _matchingEdgesIterator = new EdgeIterator.MatchingEdgesIterator();
         }
 
         _matchingEdgesIterator.init(_avpm._aepm);
-        _matchingEdgesIterator.findEdgesViaVertex(_p, _vertexId, dstVertexId, getNOutgoingEdges());
+        _matchingEdgesIterator.findEdgesViaVertex(_p, _vertexId, dstVertexId, isDstGlobal, getNOutgoingEdges());
 
         return _matchingEdgesIterator;
     }
@@ -312,6 +318,20 @@ public abstract class VertexIterator {
         _propertyIterators[property].init(_p._propertyStores[property]._store, _p._propertyStores[property]._accessor, _propertyIteratorAccessors[property], _p.getPropertyPrevPtrByRow(property, _vertexRowId));
 
         return _propertyIterators[property];
+    }
+
+
+    /**
+     * @return A vertex history iterator, configured for the entire history of this vertex
+     */
+    public VertexHistoryIterator.WindowedVertexHistoryIterator getVertexHistory() {
+        if (_vertexHistoryIterator==null) {
+            _vertexHistoryIterator = new VertexHistoryIterator.WindowedVertexHistoryIterator();
+        }
+
+        _vertexHistoryIterator.init(_avpm, _vertexId, Long.MIN_VALUE, Long.MAX_VALUE);
+
+        return _vertexHistoryIterator;
     }
 
 
@@ -371,6 +391,7 @@ public abstract class VertexIterator {
             _index = -1;
             _getNextPartition = true;
         }
+
 
 
         /**
@@ -517,6 +538,21 @@ public abstract class VertexIterator {
             _allEdges.init(this);
             return _allEdges;
         }
+
+
+        /**
+         * @return A vertex history iterator, configured for this time frame
+         */
+        @Override
+        public VertexHistoryIterator.WindowedVertexHistoryIterator getVertexHistory() {
+            if (_vertexHistoryIterator==null) {
+                _vertexHistoryIterator = new VertexHistoryIterator.WindowedVertexHistoryIterator();
+            }
+
+            _vertexHistoryIterator.init(_avpm, _vertexId, _minTime, _maxTime);
+
+            return _vertexHistoryIterator;
+        }
     }
 
 
@@ -621,13 +657,13 @@ public abstract class VertexIterator {
                         long edgeId = _vertexPartition._history.getEdgeIdByHistoryRowId(historyRowId);
 
                         //System.out.println("INDEX=" + _index + ", ROW=" + historyRowId + ", EDGE: " + edgeId);
-                        if (!_processedEdges.contains(edgeId)) {
-                            _processedEdges.add(edgeId);
+                        if (edgeId!=-1L && !_processedEdges.contains(edgeId)) {
                             boolean alive = _vertexPartition._history.getIsAliveByHistoryRowId(historyRowId);
                             boolean isInteresting = isInteresting(historyRowId);
 
                             if (isInteresting) {
                                 ++_nEdgesFound;
+                                _processedEdges.add(edgeId);
                             }
 
                             if (alive && isInteresting) {

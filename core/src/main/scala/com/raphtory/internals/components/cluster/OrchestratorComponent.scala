@@ -7,7 +7,6 @@ import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.components.Component
-import com.raphtory.internals.components.ingestion.IngestionManager
 import com.raphtory.internals.components.partition.PartitionOrchestrator
 import com.raphtory.internals.components.querymanager.ClusterManagement
 import com.raphtory.internals.components.querymanager.QueryManager
@@ -19,6 +18,7 @@ import com.typesafe.config.ConfigValueFactory
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 import com.raphtory.internals.management.arrow.ZKHostAddressProvider
+import com.raphtory.internals.storage.arrow.{EdgeSchema, VertexSchema}
 import org.apache.arrow.memory.RootAllocator
 
 import scala.collection.mutable
@@ -110,9 +110,16 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
       deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))
     }
 
-  protected def deployIngestionService(graphID: String, clientID: String, repo: TopicRepository, conf: Config): Unit =
+  protected def deployArrowPartitionService[V:VertexSchema, E:EdgeSchema](
+                                        graphID: String,
+                                        clientID: String,
+                                        idManager: IDManager,
+                                        repo: TopicRepository,
+                                        conf: Config
+                                      ): Unit =
     deployments.synchronized {
-      val serviceResource = IngestionManager[IO](graphID, conf, repo)
+      val scheduler       = new Scheduler()
+      val serviceResource = PartitionOrchestrator.spawnArrow[V, E, IO](conf, idManager, graphID, repo, scheduler)
       val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
       deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))
     }

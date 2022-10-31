@@ -1,24 +1,28 @@
 package test.raphtory
 
 import cats.effect.IO
-import cats.effect.SyncIO
 import cats.effect.kernel.Resource
 import cats.effect.std.Semaphore
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.algorithm.Generic
-import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input._
 import com.raphtory.internals.context.RaphtoryContext
-import com.raphtory.internals.context.RemoteContext
+import com.raphtory.internals.context.RaphtoryIOContext
 import com.raphtory.spouts.FileSpout
-import com.raphtory.Raphtory
 import com.raphtory.TestUtils
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.internals.components.RaphtoryServiceBuilder
+import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.raphtory.sinks.PrintSink
+import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import com.raphtory.api.input.sources.CSVEdgeListSource
+import grpc.health.v1.health.Health
+import grpc.health.v1.health.HealthCheckRequest
+import grpc.health.v1.health.HealthCheckResponse
+import higherkindness.mu.rpc.ChannelForAddress
+import higherkindness.mu.rpc.healthcheck.HealthService
 import munit.CatsEffectSuite
 import org.slf4j.LoggerFactory
 import test.raphtory.algorithms.MaxFlowTest
@@ -26,14 +30,13 @@ import test.raphtory.algorithms.MinimalTestAlgorithm
 import test.raphtory.algorithms.TestAlgorithmWithExternalDependency
 
 import java.net.URL
-import scala.concurrent.duration.Duration
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
 import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe._
 import scala.sys.process._
 import scala.tools.reflect.ToolBox
 import scala.util.Try
+import scala.util.control.NonFatal
 
 object Parent {
 
@@ -89,32 +92,29 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   private val compiledAlgo: Generic = tb.compile(tb.parse(minimalTestCode))().asInstanceOf[Generic]
 
-  lazy val remoteGraphResource: Resource[IO, DeployedTemporalGraph] =
-    Resource.make(IO(remote().newGraph()))(graph => IO(graph.destroy()))
+  private val defaultConf: Config = ConfigBuilder.getDefaultConfig
+
+  private val waitForRaphtoryService: IO[Unit] =
+    Health.client[IO](ChannelForAddress("localhost", defaultConf.getInt("raphtory.deploy.port"))).use { client =>
+      for {
+        serving <- client.Check(HealthCheckRequest()).map(response => response.status.isServing).handleError(_ => false)
+        _       <- if (serving) IO.unit else IO.sleep(1.seconds) *> waitForRaphtoryService
+      } yield ()
+    }
 
   lazy val remoteProcess =
     Resource.make {
       for {
-        started   <- Semaphore[IO](0)
 //         get classpath from sbt
         _         <- IO(logger.info("retrieving class path from sbt"))
         classPath <- IO.blocking(Seq("sbt", "--error", "export core/test:fullClasspath").!!)
-        process   <- IO {
-                       logger.info("starting remote process")
-                       Process(Seq("java", "-cp", classPath, "com.raphtory.service.Standalone")).run(
-                               ProcessLogger { line =>
-                                 if (line == "Raphtory service started")
-                                   started.release.unsafeRunSync()
-                                 println(line) // forward output
-                               }
-                       )
-                     }
+        _         <- IO(logger.info("starting remote process"))
+        process   <- IO(Process(Seq("java", "-cp", classPath, "com.raphtory.service.Standalone")).run())
 //         start tests if there is already a standalone instance
-        _         <- (IO.blocking(process.exitValue()) *> started.release *> IO(
+        _         <- (IO.blocking(process.exitValue()) *> IO(
                                logger.info("Failed to start remote process, a standalone instance is likely already running")
                        )).start
-//        head node is started, proceed
-        _         <- started.acquire
+        _         <- waitForRaphtoryService
       } yield process
     }(process =>
       IO {
@@ -122,18 +122,6 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
         process.destroy()
       }
     )
-
-  lazy val remoteGraph = ResourceFixture(
-          remoteGraphResource
-            .evalMap(g => IO(g.addDynamicPath("com.raphtory.lotrtest")))
-            .evalMap(g => IO(g.load(source())))
-  )
-
-  lazy val remoteGraphInline: SyncIO[FunFixture[TemporalGraph]] = ResourceFixture(
-          remoteGraphResource
-            .evalMap(g => IO(g.addDynamicPath("com.raphtory.examples.lotr")))
-            .evalMap(g => IO(g.load(sourceInline())))
-  )
 
   lazy val source: Fixture[Source] = ResourceSuiteLocalFixture[Source](
           "lotr",
@@ -157,72 +145,94 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
           } yield source
   )
 
-  lazy val localGraph: Fixture[DeployedTemporalGraph] = ResourceSuiteLocalFixture(
+  sealed trait Context
+
+  case object LocalContext extends Context
+
+  case object RemoteContext extends Context
+
+  lazy val localContextFixture: Fixture[RaphtoryContext] = ResourceSuiteLocalFixture(
           "local",
-          for {
-            g <- Raphtory.newIOGraph()
-            _  = g.load(source())
-          } yield g
+          RaphtoryIOContext.localIO()
   )
 
-  lazy val remote: Fixture[RaphtoryContext] = ResourceSuiteLocalFixture(
+  lazy val remoteContextFixture: Fixture[RaphtoryContext] = ResourceSuiteLocalFixture(
           "remote",
           for {
-            _          <- remoteProcess
-            connection <- Resource.make {
-                            IO {
-                              logger.info("connecting to remote")
-                              Raphtory.connect()
-                            }
-                          } { c =>
-                            IO {
-                              logger.info("closing remote connection")
-                              // c.close() // TODO: this currently falls over if any graphs were closed before
-                            }
-                          }
-          } yield connection
+            _       <- remoteProcess
+            context <- RaphtoryIOContext.remoteIO()
+          } yield context
   )
 
-  override def munitFixtures = List(remote, source, localGraph, sourceInline)
+  def fetchContext(context: Context): Fixture[RaphtoryContext] =
+    context match {
+      case LocalContext  => localContextFixture
+      case RemoteContext => remoteContextFixture
+    }
+
+  override def munitFixtures = List(localContextFixture, remoteContextFixture, source, sourceInline)
 
   test("test algorithm locally") {
-    val res = localGraph().execute(MaxFlowTest[Int]("Gandalf", "Gandalf")).get().toList
+    val res = runWithGraph(LocalContext, source) { graph =>
+      graph.execute(MaxFlowTest[Int]("Gandalf", "Gandalf")).get().toList
+    }
     assert(res.nonEmpty)
   }
 
   test("test locally compiled algo") {
-    val res = localGraph().execute(compiledAlgo).get().toList
+    val res = runWithGraph(LocalContext, source) { graph =>
+      graph.execute(compiledAlgo).get().toList
+    }
     assert(res.nonEmpty)
   }
 
-  remoteGraph.test("When an algo crashes and we try to iterate over the result we get an exception") { g =>
-    val res = Try(g.select(vertex => Row(1)).get().toList)
+  test("When an algo crashes and we try to iterate over the result we get an exception") {
+    val res = runWithGraph(RemoteContext, source) { graph =>
+      Try(graph.select(vertex => Row(1)).get().toList)
+    }
     assert(res.isFailure)
   }
 
-  remoteGraph.test("When an algo crashes waitForJob returns and isJobDone is false") { g =>
-    val query = g.select(vertex => Row(1)).filter(row => false).writeTo(PrintSink())
-    intercept[java.lang.RuntimeException](query.waitForJob())
-    assert(!query.isJobDone)
+  test("When an algo crashes waitForJob returns and isJobDone is false") {
+    val res = runWithGraph(RemoteContext, source) { graph =>
+      val query = graph.select(vertex => Row(1)).filter(row => false).writeTo(PrintSink())
+      intercept[java.lang.RuntimeException](query.waitForJob())
+      !query.isJobDone
+    }
+    assert(res)
   }
 
-  remoteGraph.test("test algorithm class injection") { g =>
-    val res = g.execute(MinimalTestAlgorithm).get().toList
+  test("test algorithm class injection") {
+    val res = runWithGraph(RemoteContext, source) { graph =>
+      graph.execute(MinimalTestAlgorithm).get().toList
+    }
     assert(res.nonEmpty)
   }
 
-  remoteGraph.test("test manual dynamic path") { g =>
-    val res = g.addDynamicPath("dependency").execute(TestAlgorithmWithExternalDependency).get().toList
+  test("test manual dynamic path") {
+    val res = runWithGraph(RemoteContext, source) { graph =>
+      graph.addDynamicPath("dependency").execute(TestAlgorithmWithExternalDependency).get().toList
+    }
     assert(res.nonEmpty)
   }
 
-  remoteGraphInline.test("test inline graphbuilder definition") { g =>
-    val res = g.execute(EdgeList()).get().toList
+  test("test inline graphbuilder definition") {
+    val res = runWithGraph(RemoteContext, sourceInline) { graph =>
+      graph.execute(EdgeList()).get().toList
+    }
     assert(res.nonEmpty)
   }
 
-  remoteGraph.test("test algorithm class injection with MaxFlow") { g =>
-    val res = g.execute(MaxFlowTest[Int]("Gandalf", "Gandalf")).get().toList
+  test("test algorithm class injection with MaxFlow") {
+    val res = runWithGraph(RemoteContext, source) { graph =>
+      graph.execute(MaxFlowTest[Int]("Gandalf", "Gandalf")).get().toList
+    }
     assert(res.nonEmpty)
   }
+
+  private def runWithGraph[T](context: Context, source: Fixture[Source])(graphHandling: TemporalGraph => T): T =
+    fetchContext(context)().runWithNewGraph(destroy = true) { graph =>
+      val graphWithLoad = graph.addDynamicPath("com.raphtory.lotrtest").load(source())
+      graphHandling(graphWithLoad)
+    }
 }

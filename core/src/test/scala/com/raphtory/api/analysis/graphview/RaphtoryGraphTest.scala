@@ -1,6 +1,5 @@
 package com.raphtory.api.analysis.graphview
 
-import com.raphtory.Raphtory
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.TableFilter
@@ -9,6 +8,7 @@ import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.time.DiscreteInterval
 import com.raphtory.internals.components.querymanager.PointPath
 import com.raphtory.internals.components.querymanager.Query
+import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.typesafe.config.Config
 import org.scalatest.BeforeAndAfterAll
 import munit.FunSuite
@@ -19,8 +19,8 @@ import munit.FunSuite
   */
 class RaphtoryGraphTest extends FunSuite {
 
-  private def createMockGraph(config: Map[String, String] = Map()) =
-    new TemporalGraph(Query(graphID = ""), null, Raphtory.getDefaultConfig(config))
+  private def createMockGraph(config: Config = ConfigBuilder.getDefaultConfig) =
+    new TemporalGraph(Query(graphID = ""), null, config)
 
   test("Test overall pipeline syntax for RaphtoryGraph class and related hierarchy") {
     val graph = createMockGraph()
@@ -47,7 +47,7 @@ class RaphtoryGraphTest extends FunSuite {
     assert(query.graphFunctions(2).isInstanceOf[Step[Vertex]])
     assert(query.graphFunctions(3).isInstanceOf[Iterate[Vertex]])
     assert(query.graphFunctions(4).isInstanceOf[ClearChain])
-    assert(query.graphFunctions(5).isInstanceOf[Select])
+    assert(query.graphFunctions(5).isInstanceOf[Select[Vertex]])
 
     assertEquals(query.tableFunctions.length, 1)
     assert(query.tableFunctions.head.isInstanceOf[TableFilter])
@@ -55,48 +55,43 @@ class RaphtoryGraphTest extends FunSuite {
 
   test("Test timestamp format without milliseconds") {
     val graph = createMockGraph()
-    val query = graph
-      .from("2020-02-25 23:12:08")
-      .query
-
+    val query = graph.from("2020-02-25 23:12:08").query
     assert(query.timelineStart != Long.MinValue)
   }
 
   test("Test timestamp format with milliseconds") {
     val graph = createMockGraph()
-    val query = graph
-      .from("2020-02-25 23:12:08.567")
-      .query
-
+    val query = graph.from("2020-02-25 23:12:08.567").query
     assert(query.timelineStart != Long.MinValue)
   }
 
   test("Test timestamp format with date") {
     val graph = createMockGraph()
-    val query = graph
-      .from("2020-02-25")
-      .query
-
+    val query = graph.from("2020-02-25").query
     assert(query.timelineStart != Long.MinValue)
   }
 
   test("Test timestamp format with custom configuration for 2 digit milliseconds") {
-    val conf  = Map("raphtory.query.timeFormat" -> "yyyy-MM-dd HH:mm:ss[.SS]")
-    val graph = createMockGraph(conf)
-    val query = graph
-      .from("2020-02-25 23:12:08.56")
-      .query
-
+    val graph =
+      createMockGraph(
+              ConfigBuilder()
+                .addConfig("raphtory.query.timeFormat", "yyyy-MM-dd HH:mm:ss[.SS]")
+                .build()
+                .getConfig
+      )
+    val query = graph.from("2020-02-25 23:12:08.56").query
     assert(query.timelineStart != Long.MinValue)
   }
 
   test("Test timestamp format with custom configuration for hours and minutes") {
-    val conf  = Map("raphtory.query.timeFormat" -> "yyyy-MM-dd HH:mm")
-    val graph = createMockGraph(conf)
-    val query = graph
-      .from("2020-02-25 12:23")
-      .query
-
+    val graph =
+      createMockGraph(
+              ConfigBuilder()
+                .addConfig("raphtory.query.timeFormat", "yyyy-MM-dd HH:mm")
+                .build()
+                .getConfig
+      )
+    val query = graph.from("2020-02-25 12:23").query
     assert(query.timelineStart != Long.MinValue)
   }
 }

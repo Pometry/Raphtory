@@ -4,10 +4,10 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.dimafeng.testcontainers.DockerComposeContainer
 import com.dimafeng.testcontainers.munit.TestContainerForAll
-import com.raphtory.Raphtory
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.communication.ExclusiveTopic
 import com.raphtory.internals.communication.connectors.AkkaConnector
+import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import munit.FunSuite
 import munit.IgnoreSuite
 
@@ -22,10 +22,10 @@ case class Result(value: Int)
 
 @IgnoreSuite
 class UnreliableNetworkTest extends FunSuite with TestContainerForAll {
-  private val virtualPort = Raphtory.getDefaultConfig().getInt("raphtory.akka.port")
+  private val virtualPort = ConfigBuilder.getDefaultConfig.getInt("raphtory.akka.port")
   private val actualPort  = virtualPort + 1
   private val env         = Map("INPUT_PORT" -> s"$virtualPort", "OUTPUT_PORT" -> s"$actualPort")
-  private val config      = Raphtory.getDefaultConfig(Map("raphtory.akka.bindPort" -> s"$actualPort"))
+  private val config      = ConfigBuilder().addConfig("raphtory.akka.bindPort", s"$actualPort").build().getConfig
   private val composeFile = new File("core/src/test/scala/com/raphtory/network/docker-compose.yml")
 
   override val containerDef: DockerComposeContainer.Def = DockerComposeContainer.Def(composeFile, env = env)
