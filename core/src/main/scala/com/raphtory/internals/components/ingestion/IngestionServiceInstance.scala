@@ -3,6 +3,7 @@ package com.raphtory.internals.components.ingestion
 import cats.effect.Async
 import cats.effect.Ref
 import cats.effect.Resource
+import cats.effect.std.Semaphore
 import cats.syntax.all._
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.OrchestratorService.Graph
@@ -30,15 +31,21 @@ class IngestionServiceInstance[F[_]: Async](graphs: GraphList[F, Unit], repo: To
   override def ingestData(request: protocol.IngestData): F[Status] =
     request match {
       case protocol.IngestData(TryIngestData(scala.util.Success(req)), _) =>
-        attachExecutionToGraph(req.graphID, _ => processSource(req).onError(_ => destroyGraph(req.graphID))).as(success)
-      case _                                                              => failure[F]
+        val executor = IngestionExecutor(req.graphID, req.source, req.blocking, req.sourceId, config, repo)
+        for {
+          executorResource           <- executor.allocated
+          (executor, releaseExecutor) = executorResource
+          _                          <- attachExecutionToGraph(req.graphID, _ => runExecutor(req.graphID, executor, releaseExecutor))
+        } yield success
     }
 
-  private def processSource(req: IngestData): F[Unit] =
-    req match {
-      case IngestData(_, graphID, sourceId, source, blocking) =>
-        IngestionExecutor(graphID, source, blocking, sourceId, config, repo)
-    }
+  private def runExecutor(graphId: String, executor: IngestionExecutor[F], release: F[Unit]) = {
+    def logError(e: Throwable): Unit = logger.error(s"Exception while executing source: $e")
+    for {
+      _ <- executor.run().handleErrorWith(e => Async[F].delay(logError(e)) *> destroyGraph(graphId))
+      _ <- release
+    } yield ()
+  }
 }
 
 object IngestionServiceInstance extends OrchestratorServiceBuilder {

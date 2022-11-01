@@ -105,10 +105,9 @@ object IngestionExecutor {
       sourceID: Int,
       config: Config,
       topics: TopicRepository
-  ): F[Unit] = {
+  ): Resource[F, IngestionExecutor[F]] = {
     val createExecutor =
       Async[F].delay(new IngestionExecutor(graphID, source, blocking, sourceID, config, topics))
-    val executor       = Resource.make(createExecutor)(executor => executor.release())
-    executor.use(executor => executor.run())
+    Resource.make(createExecutor)(executor => executor.release())
   }
 }
