@@ -10,7 +10,6 @@ import com.raphtory.internals.components.querymanager._
 import com.raphtory.protocol
 import com.raphtory.protocol.IngestionService
 import com.raphtory.protocol.Status
-import com.raphtory.protocol.failure
 import com.raphtory.protocol.success
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -23,14 +22,21 @@ class IngestionServiceImpl[F[_]: Async](graphs: GraphList[F, Unit], repo: TopicR
   override def ingestData(request: protocol.IngestData): F[Status] =
     request match {
       case protocol.IngestData(TryIngestData(scala.util.Success(req)), _) =>
-        attachExecutionToGraph(
-                req.graphID,
-                _ =>
-                  IngestionExecutor(req.graphID, req.source, req.blocking, req.sourceId, config, repo)
-                    .onError(_ => destroyGraph(req.graphID))
-        ).as(success)
-      case _                                                              => failure[F]
+        val executor = IngestionExecutor(req.graphID, req.source, req.blocking, req.sourceId, config, repo)
+        for {
+          executorResource           <- executor.allocated
+          (executor, releaseExecutor) = executorResource
+          _                          <- attachExecutionToGraph(req.graphID, _ => runExecutor(req.graphID, executor, releaseExecutor))
+        } yield success
     }
+
+  private def runExecutor(graphId: String, executor: IngestionExecutor[F], release: F[Unit]): F[Unit] = {
+    def logError(e: Throwable): Unit = logger.error(s"Exception while executing source: $e")
+    for {
+      _ <- executor.run().handleErrorWith(e => Async[F].delay(logError(e)) *> destroyGraph(graphId))
+      _ <- release
+    } yield ()
+  }
 }
 
 object IngestionServiceImpl {
