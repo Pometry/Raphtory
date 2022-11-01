@@ -14,8 +14,8 @@ import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import com.raphtory.internals.components.ingestion.IngestionServiceImpl
 import com.raphtory.internals.components.partition.PartitionOrchestrator
 import com.raphtory.internals.components.querymanager._
-import com.raphtory.internals.components.repositories.DistributedServiceRepository
-import com.raphtory.internals.components.repositories.LocalServiceRepository
+import com.raphtory.internals.components.repositories.DistributedServiceRegistry
+import com.raphtory.internals.components.repositories.LocalServiceRegistry
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.management.Partitioner
 import com.raphtory.internals.management.id.IDManager
@@ -206,7 +206,7 @@ object RaphtoryServiceBuilder {
     } yield ()
   }
 
-  private def createService[F[_]](cluster: Resource[F, ServiceRepository[F]], config: Config)(implicit F: Async[F]) =
+  private def createService[F[_]](cluster: Resource[F, ServiceRegistry[F]], config: Config)(implicit F: Async[F]) =
     for {
       repo            <- cluster
       sourceIDManager <- makeLocalIdManager[F]
@@ -227,11 +227,11 @@ object RaphtoryServiceBuilder {
                          )
     } yield service
 
-  private def localCluster[F[_]: Async](config: Config): Resource[F, ServiceRepository[F]] =
+  private def localCluster[F[_]: Async](config: Config): Resource[F, ServiceRegistry[F]] =
     for {
       topics             <- LocalTopicRepository[F](config, None)
       partitionIdManager <- makeLocalIdManager[F]
-      serviceRepo        <- LocalServiceRepository(topics)
+      serviceRepo        <- LocalServiceRegistry(topics)
       _                  <- IngestionServiceImpl(serviceRepo, config)
       _                  <- PartitionOrchestrator[F](config, topics, partitionIdManager)
       _                  <- QueryOrchestrator[F](config, topics)
@@ -239,20 +239,20 @@ object RaphtoryServiceBuilder {
 
   private def localArrowCluster[F[_]: Async, V: VertexSchema, E: EdgeSchema](
       config: Config
-  ): Resource[F, ServiceRepository[F]] =
+  ): Resource[F, ServiceRegistry[F]] =
     for {
       topics             <- LocalTopicRepository[F](config, None)
       partitionIdManager <- makeLocalIdManager[F]
-      serviceRepo        <- LocalServiceRepository(topics)
+      serviceRepo        <- LocalServiceRegistry(topics)
       _                  <- IngestionServiceImpl(serviceRepo, config)
       _                  <- PartitionOrchestrator.applyArrow[V, E, F](config, topics, partitionIdManager)
       _                  <- QueryOrchestrator[F](config, topics)
     } yield serviceRepo
 
-  private def remoteCluster[F[_]: Async](config: Config): Resource[F, ServiceRepository[F]] =
+  private def remoteCluster[F[_]: Async](config: Config): Resource[F, ServiceRegistry[F]] =
     for {
       topics <- DistributedTopicRepository[F](AkkaConnector.SeedMode, config, None)
-      repo   <- DistributedServiceRepository(topics, config)
+      repo   <- DistributedServiceRegistry(topics, config)
     } yield repo
 
   private def port[F[_]](config: Config): Resource[F, Int] = Resource.pure(config.getInt("raphtory.deploy.port"))

@@ -6,7 +6,7 @@ import cats.effect.Resource
 import cats.syntax.all._
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.ServiceDescriptor
-import com.raphtory.internals.components.ServiceRepository
+import com.raphtory.internals.components.ServiceRegistry
 
 /** Local implementation of the ServiceRepository
   * @param topics the legacy TopicRepository to be removed soon
@@ -14,8 +14,8 @@ import com.raphtory.internals.components.ServiceRepository
   * @param async$F$0 the implicit Async type class for F
   * @tparam F the effect type
   */
-class LocalServiceRepository[F[_]: Async](topics: TopicRepository, services: Ref[F, Map[(String, Int), Any]])
-        extends ServiceRepository[F](topics) {
+class LocalServiceRegistry[F[_]: Async](topics: TopicRepository, services: Ref[F, Map[(String, Int), Any]])
+        extends ServiceRegistry[F](topics) {
 
   override protected def register[T](instance: T, descriptor: ServiceDescriptor[F, T], id: Int): F[F[Unit]] = {
     val key = (descriptor.name, id)
@@ -31,11 +31,11 @@ class LocalServiceRepository[F[_]: Async](topics: TopicRepository, services: Ref
     Resource.eval(services.get.map(serviceList => serviceList((descriptor.name, id)).asInstanceOf[T]))
 }
 
-object LocalServiceRepository {
+object LocalServiceRegistry {
 
-  def apply[F[_]: Async](topics: TopicRepository): Resource[F, ServiceRepository[F]] =
+  def apply[F[_]: Async](topics: TopicRepository): Resource[F, ServiceRegistry[F]] =
     for {
       services <- Resource.eval(Ref.of(Map[(String, Int), Any]()))
-      repo     <- Resource.eval(Async[F].delay(new LocalServiceRepository[F](topics, services)))
+      repo     <- Resource.eval(Async[F].delay(new LocalServiceRegistry[F](topics, services)))
     } yield repo
 }

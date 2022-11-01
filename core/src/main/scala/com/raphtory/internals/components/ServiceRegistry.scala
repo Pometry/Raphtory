@@ -7,7 +7,7 @@ import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.ingestion.IngestionServiceImpl
 import com.raphtory.protocol.IngestionService
 
-abstract class ServiceRepository[F[_]: Async](val topics: TopicRepository) {
+abstract class ServiceRegistry[F[_]: Async](val topics: TopicRepository) {
 
   /** Returns a resource containing the id allocated for the instance of the service */
   final def registered[T](

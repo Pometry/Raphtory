@@ -38,7 +38,7 @@ object IngestionServiceImpl {
 
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  def apply[F[_]: Async](repo: ServiceRepository[F], config: Config): Resource[F, Unit] =
+  def apply[F[_]: Async](repo: ServiceRegistry[F], config: Config): Resource[F, Unit] =
     for {
       graphs  <- makeGraphList[F, Unit]
       _       <- Resource.eval(Async[F].delay(logger.info(s"Starting Ingestion Service")))
