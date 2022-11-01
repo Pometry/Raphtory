@@ -35,12 +35,15 @@ private[raphtory] class GraphBuilderInstance[T](graphId: String, sourceId: Int, 
     try {
       logger.trace(s"Parsing tuple: $tuple with index $tupleIndex")
       internalIndex = tupleIndex
+      println("test")
       parseTuple(tuple)
+
     }
     catch {
       case e: Exception =>
         if (failOnError) {
           e.printStackTrace()
+          println(e)
           totalSourceErrors.inc()
           throw e
         }
