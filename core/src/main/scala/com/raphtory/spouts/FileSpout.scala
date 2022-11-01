@@ -2,7 +2,6 @@ package com.raphtory.spouts
 
 import com.raphtory.api.input.Spout
 import com.raphtory.api.input.SpoutInstance
-import com.raphtory.internals.management.telemetry.ComponentTelemetryHandler
 import com.raphtory.utils.FileUtils
 
 import java.io.File
@@ -45,7 +44,6 @@ import scala.util.matching.Regex
   * graph.execute(EdgeList()).writeTo(sink)
   * }}}
   * @see [[com.raphtory.api.input.Spout Spout]]
-  *      [[com.raphtory.Raphtory Raphtory]]
   */
 case class FileSpout[T](
     path: String = "",

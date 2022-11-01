@@ -8,10 +8,11 @@ import com.raphtory.api.input.Source
 import com.raphtory.examples.gab.graphbuilders.GabUserGraphBuilder
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.pulsar.sink.PulsarSink
+import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
 
-object Runner extends RaphtoryApp.Local {
+object Runner extends RaphtoryApp.Remote("localhost", 1736) {
 
   val path = "/tmp/gabNetwork500.csv"
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/gabNetwork500.csv"
@@ -27,14 +28,14 @@ object Runner extends RaphtoryApp.Local {
         .at(1476113856000L)
         .past()
         .execute(EdgeList())
-        .writeTo(PulsarSink("EdgeList"))
+        .writeTo(FileSink("Gab"))
         .waitForJob()
 
       graph
         .range(1470797917000L, 1476113856000L, 86400000L)
         .window(List(3600000L, 86400000L, 604800000L, 2592000000L, 31536000000L), Alignment.END)
         .execute(ConnectedComponents)
-        .writeTo(PulsarSink("Gab"))
+        .writeTo(FileSink("Gab"))
         .waitForJob()
     }
 }
