@@ -5,18 +5,18 @@ import cats.effect.Resource
 import cats.effect.ResourceApp
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
-import com.raphtory.internals.components.partition.PartitionOrchestrator
+import com.raphtory.internals.components.partition.PartitionServiceImpl
+import com.raphtory.internals.components.repositories.DistributedServiceRepository
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
-import com.raphtory.makePartitionIDManager
 
 object Partition extends ResourceApp.Forever {
 
   def run(args: List[String]): Resource[IO, Unit] = {
     val config = ConfigBuilder.getDefaultConfig
     for {
-      repo               <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, None)
-      partitionIDManager <- makePartitionIDManager[IO](config)
-      _                  <- PartitionOrchestrator[IO](config, repo, partitionIDManager)
+      topics <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, None)
+      repo   <- DistributedServiceRepository[IO](topics, config)
+      _      <- PartitionServiceImpl.makeN(repo, config)
     } yield ()
   }
 }

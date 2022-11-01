@@ -11,4 +11,10 @@ class DefaultConfigTest extends CatsEffectSuite {
     assertEquals(config.getInt("raphtory.partitions.countPerServer"), 1)
     assertEquals(config.getInt("raphtory.partitions.serverCount"), 1)
   }
+
+  test("Default application.conf arguments for testing remain unchanged") {
+    val config = ConfigFactory.parseFile(new File("core/src/test/resources/application.conf")).resolve()
+    assertEquals(config.getInt("raphtory.partitions.countPerServer"), 3)
+    assertEquals(config.getInt("raphtory.partitions.serverCount"), 1)
+  }
 }
