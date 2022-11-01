@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pyraphtory"
-version = "0.2.0a4"
+version = "0.2.0a5"
 description = "Raphtory - Temporal Graph Analytics Platform. This is the Python version of the library."
 authors = [
     "Fabian Murariu <admin@pometry.com>",
@@ -36,8 +36,7 @@ requests = "^2.28.1"
 parsy = ">=2.0,<3"
 beautifulsoup4 = "^4.11.1"
 lxml = "^4.9.1"
-#pyraphtory_jvm = { path = "/Users/haaroony/Documents/dev/Raphtory-pyraphtory3/python/pyraphtory_jvm", develop = true }
-pyraphtory_jvm = ">=0.0.10"
+pyraphtory_jvm = ">=0.2.0a5"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.1.3"
