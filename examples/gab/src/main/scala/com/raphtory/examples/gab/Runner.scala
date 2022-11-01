@@ -29,14 +29,14 @@ object Runner extends RaphtoryApp.Remote("localhost", 1736) {
         .at(1476113856000L)
         .past()
         .execute(EdgeList())
-        .writeTo(FileSink("Gab"))
+        .writeTo(FileSink("/tmp/raphtory/Gab"))
         .waitForJob()
 
       graph
         .range(1470797917000L, 1476113856000L, 86400000L)
         .window(List(3600000L, 86400000L, 604800000L, 2592000000L, 31536000000L), Alignment.END)
         .execute(ConnectedComponents)
-        .writeTo(FileSink("Gab"))
+        .writeTo(FileSink("/tmp/raphtory/Gab"))
         .waitForJob()
     }
 }

@@ -5,14 +5,6 @@ import io.prometheus.client.Gauge
 
 private[raphtory] object QueryTelemetry {
 
-  def perspectiveGraphSize: Counter =
-    Counter.build
-      .namespace("partition")
-      .name("graph_size")
-      .help("Total vertices")
-      .labelNames("jobID", "graphID", "timestamp", "window")
-      .register
-
   def sentMessageCount: Counter =
     Counter.build
       .namespace("query")

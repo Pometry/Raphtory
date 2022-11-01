@@ -15,7 +15,6 @@ object TelemetryReporter {
   val writerEdgeDeletions: Counter   = PartitionTelemetry.writerEdgeDeletions
   val writerVertexDeletions: Counter = PartitionTelemetry.writerVertexDeletions
 
-  val perspectiveSize: Counter            = QueryTelemetry.perspectiveGraphSize
   val totalSentMessageCount: Counter      = QueryTelemetry.sentMessageCount
   val totalPerspectivesProcessed: Counter = QueryTelemetry.totalPerspectivesProcessed
   val totalGraphOperations: Counter       = QueryTelemetry.totalGraphOperations
