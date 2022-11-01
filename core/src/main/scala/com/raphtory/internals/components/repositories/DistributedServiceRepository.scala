@@ -23,7 +23,7 @@ class DistributedServiceRepository[F[_]: Async](
 ) extends ServiceRepository[F](topics, config) {
 
   override protected def getService[T](descriptor: ServiceDescriptor[F, T], id: Int): Resource[F, T] = {
-    val instance = serviceDiscovery.queryForInstance(descriptor.name, id.toString)
+    val instance = serviceDiscovery.queryForInstance(serviceName, serviceId(descriptor.name, id))
     descriptor.makeClient(instance.getAddress, instance.getPort)
   }
 
@@ -44,9 +44,12 @@ class DistributedServiceRepository[F[_]: Async](
       .builder()
       .address(InetAddress.getLocalHost.getHostAddress)
       .port(port)
-      .name("service")
-      .id(s"$name-${id.toString}") // The id needs to be unique among different service names, so we include 'name'
+      .name(serviceName)
+      .id(serviceId(name, id)) // The id needs to be unique among different service names, so we include 'name'
       .build()
+
+  private def serviceId(name: String, id: Int) = s"$name-${id.toString}"
+  private def serviceName                      = "service"
 }
 
 object DistributedServiceRepository {
