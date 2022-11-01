@@ -23,7 +23,7 @@ packages = find_packages()
 package_data = \
     {'': ['*']}
 
-install_requires = \
+requires = \
     ['requests']
 
 setup_kwargs = {
@@ -37,7 +37,8 @@ setup_kwargs = {
     'maintainer_email': 'admin@pometry.com',
     'license': 'Apache 2.0',
     'packages': packages,
-    'install_requires': install_requires,
+    'setup_requires': requires,
+    'install_requires': requires,
     'include_package_data' : True,
     'package_data': package_data,
     'cmdclass': {
