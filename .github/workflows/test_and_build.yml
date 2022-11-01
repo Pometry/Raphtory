@@ -60,7 +60,7 @@ jobs:
           apt-get update && apt-get install make
           sbt "arrowCore/test"
           sbt "core/test"
-          make sbt-build
+          make gh-sbt-build
         timeout-minutes: 10
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
