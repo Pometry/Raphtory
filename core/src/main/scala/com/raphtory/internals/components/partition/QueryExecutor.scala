@@ -1,5 +1,9 @@
 package com.raphtory.internals.components.partition
 
+import cats.effect.Async
+import cats.effect.Resource
+import cats.effect.std.Dispatcher
+import cats.syntax.all._
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview._
@@ -11,8 +15,9 @@ import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.output.sink.SinkExecutor
 import com.raphtory.internals.communication.EndPoint
-import com.raphtory.internals.communication.SchemaProviderInstances._
+import com.raphtory.internals.communication.Topic
 import com.raphtory.internals.communication.TopicRepository
+import com.raphtory.internals.communication.SchemaProviderInstances._
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.GraphPartition
@@ -34,17 +39,20 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable
 
-private[raphtory] class QueryExecutor(
-    graphID: String,
+private[raphtory] class QueryExecutor[F[_]](
+    query: Query, // TODO we could use this directly instead of sending operations in every step
     partitionID: Int,
-    sink: Sink,
     storage: GraphPartition,
-    jobID: String,
     conf: Config,
     topics: TopicRepository,
     scheduler: Scheduler,
-    pyScript: Option[String]
+    dispatcher: Dispatcher[F],
+    finish: cats.effect.std.Semaphore[F]
 ) extends Component[QueryManagement](conf) {
+  private val graphID  = query.graphID
+  private val sink     = query.sink.get
+  private val jobID    = query.name
+  private val pyScript = query.pyScript
 
   private val logger: Logger                   =
     Logger(LoggerFactory.getLogger(this.getClass))
@@ -451,9 +459,9 @@ private[raphtory] class QueryExecutor(
           )
           taskManager sendAsync WriteCompleted
 
-        //TODO Kill this worker once this is received
         case EndQuery(jobID)                                                          =>
           logger.debug(logMessage("Received 'EndQuery' message. "))
+          dispatcher.unsafeRunSync(finish.release)
       }
     }
     catch {
@@ -668,6 +676,44 @@ private[raphtory] class QueryExecutor(
   }
 
   private def logMessage(msg: String): String = s"${jobID}_$partitionID: $msg"
+}
+
+object QueryExecutor {
+
+  def apply[F[_]: Async](
+      query: Query,
+      partitionID: Int,
+      storage: GraphPartition,
+      conf: Config,
+      topics: TopicRepository,
+      scheduler: Scheduler
+  ): F[Unit] =
+    (for {
+      dispatcher <- Dispatcher[F]
+      finish     <- Resource.eval(cats.effect.std.Semaphore[F](0))
+      _          <- makeExecutor(query, partitionID, storage, conf, topics, scheduler, dispatcher, finish)
+    } yield finish).use(finish => finish.acquire) // I assume the finish.acquire implementation is defined as blocking
+
+  private def makeExecutor[F[_]: Async](
+      query: Query,
+      partitionID: Int,
+      storage: GraphPartition,
+      conf: Config,
+      topics: TopicRepository,
+      scheduler: Scheduler,
+      dispatcher: Dispatcher[F],
+      finish: cats.effect.std.Semaphore[F]
+  ) =
+    Resource
+      .make(
+              for {
+                executor <-
+                  Async[F].delay(
+                          new QueryExecutor(query, partitionID, storage, conf, topics, scheduler, dispatcher, finish)
+                  )
+                _        <- Async[F].blocking(executor.run())
+              } yield executor
+      )(executor => Async[F].blocking(executor.stop()))
 }
 
 class QuerySuperstepSync(totalPartitions: Int) {

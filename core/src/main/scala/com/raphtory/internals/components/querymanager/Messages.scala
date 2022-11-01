@@ -259,16 +259,6 @@ object TryIngestData extends TryProtoField[TryIngestData, IngestData] {
   override def getTry(wrapper: TryIngestData): Try[IngestData]   = wrapper.ingestData
 }
 
-private[raphtory] case class EstablishExecutor(
-    _bootstrap: DynamicLoader,
-    graphID: String,
-    jobID: String,
-    sink: Sink,
-    pyScript: Option[String]
-) extends GraphManagement
-
-private[raphtory] case class StopExecutor(jobID: String) extends GraphManagement
-
 sealed private[raphtory] trait ClusterManagement extends QueryManagement
 
 private[raphtory] case class EstablishGraph(graphID: String, clientID: String)               extends ClusterManagement
