@@ -73,7 +73,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install poetry nbmake tox
       - name: Install pyraphtory_jvm
-        run: cd python/pyraphtory_jvm && python setup.py sdist && pip install dist/pyraphtory_jvm-*.tar.gz
+        run: cd python/pyraphtory_jvm && python setup.py sdist && python -m pip install dist/pyraphtory_jvm-*.tar.gz
       - name: Run pyraphtory_jvm test fam
         run: cd python/pyraphtory_jvm && tox
       - name: Install pyraphtory
