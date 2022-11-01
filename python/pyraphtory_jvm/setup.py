@@ -1,5 +1,4 @@
 from setuptools import setup, find_packages
-from setuptools.command.install import install
 from distutils.command.build import build
 import os
 
@@ -10,13 +9,6 @@ class BuildCommand(build):
         pyraphtory_jvm.jre.check_dl_java_ivy(download_dir=os.getcwd()+'/pyraphtory_jvm/data/')
         build.run(self)
 
-class PostInstallCommand(install):
-    """Post-installation for installation mode."""
-    def run(self):
-        install.run(self)
-        # PUT YOUR POST-INSTALL SCRIPT HERE or CALL A FUNCTION
-        # import pyraphtory_jvm
-        # pyraphtory_jvm.jre.check_dl_java_ivy()
 
 packages = find_packages()
 
@@ -43,7 +35,6 @@ setup_kwargs = {
     'package_data': package_data,
     'cmdclass': {
         'build': BuildCommand,
-        # 'install': PostInstallCommand,
     },
     'python_requires': '>=3.9.13,<3.11',
     'classifiers': [
