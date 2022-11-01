@@ -18,6 +18,8 @@ abstract class OrchestratorService[F[_]: Async, T](graphs: GraphList[F, T]) {
 
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
+  protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+
   // Methods to override by instances of this class
   protected def makeGraphData(graphId: String): F[T]
 

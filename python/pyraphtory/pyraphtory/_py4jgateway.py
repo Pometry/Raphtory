@@ -6,6 +6,7 @@ from threading import Thread
 from typing import AnyStr
 from weakref import finalize
 
+import pyraphtory_jvm.jre
 from py4j.java_gateway import JavaGateway, GatewayParameters
 from typing.io import IO
 
@@ -41,11 +42,13 @@ def read_output(stream: IO[AnyStr]):
 class Py4JConnection:
     def __init__(self):
 
+        java = pyraphtory_jvm.jre.get_local_java_loc()
+
         if pyraphtory._config.java_args:
-            args = ["java", pyraphtory._config.java_args, "-cp", pyraphtory._config.jars,
+            args = [java, pyraphtory._config.java_args, "-cp", pyraphtory._config.jars,
                     "com.raphtory.python.PyRaphtory", "--parentID", str(os.getpid())]
         else:
-            args = ["java", "-cp", pyraphtory._config.jars, "com.raphtory.python.PyRaphtory",
+            args = [java, "-cp", pyraphtory._config.jars, "com.raphtory.python.PyRaphtory",
                     "--parentID", str(os.getpid())]
         j_raphtory = Popen(
             args=args,

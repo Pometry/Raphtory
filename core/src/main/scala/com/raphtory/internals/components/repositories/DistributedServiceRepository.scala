@@ -16,11 +16,14 @@ import org.apache.curator.x.discovery.ServiceInstance
 
 import java.net.InetAddress
 
-class DistributedServiceRepository[F[_]: Async](topics: TopicRepository, serviceDiscovery: ServiceDiscovery[Void])
-        extends ServiceRepository[F](topics) {
+class DistributedServiceRepository[F[_]: Async](
+    topics: TopicRepository,
+    serviceDiscovery: ServiceDiscovery[Void],
+    config: Config
+) extends ServiceRepository[F](topics, config) {
 
   override protected def getService[T](descriptor: ServiceDescriptor[F, T], id: Int): Resource[F, T] = {
-    val instance = serviceDiscovery.queryForInstance(descriptor.name, id.toString)
+    val instance = serviceDiscovery.queryForInstance(serviceName, serviceId(descriptor.name, id))
     descriptor.makeClient(instance.getAddress, instance.getPort)
   }
 
@@ -41,9 +44,12 @@ class DistributedServiceRepository[F[_]: Async](topics: TopicRepository, service
       .builder()
       .address(InetAddress.getLocalHost.getHostAddress)
       .port(port)
-      .name("service")
-      .id(s"$name-${id.toString}") // The id needs to be unique among different service names, so we include 'name'
+      .name(serviceName)
+      .id(serviceId(name, id)) // The id needs to be unique among different service names, so we include 'name'
       .build()
+
+  private def serviceId(name: String, id: Int) = s"$name-${id.toString}"
+  private def serviceName                      = "service"
 }
 
 object DistributedServiceRepository {
@@ -55,7 +61,8 @@ object DistributedServiceRepository {
       _                <- Resource.eval(Async[F].blocking(client.start()))
       serviceDiscovery <- Resource.fromAutoCloseable(Async[F].delay(buildServiceDiscovery(client)))
       _                <- Resource.eval(Async[F].blocking(serviceDiscovery.start()))
-      serviceRepo      <- Resource.eval(Async[F].delay(new DistributedServiceRepository[F](topics, serviceDiscovery)))
+      serviceRepo      <-
+        Resource.eval(Async[F].delay(new DistributedServiceRepository[F](topics, serviceDiscovery, config)))
     } yield serviceRepo
 
   private def buildServiceDiscovery(zkClient: CuratorFramework) =
