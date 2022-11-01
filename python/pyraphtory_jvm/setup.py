@@ -44,7 +44,8 @@ setup_kwargs = {
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.9',
-    ]
+    ],
+    'test_suite': "tests.test_pyraphtory_jvm"
 }
 
 setup(**setup_kwargs)
