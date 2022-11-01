@@ -10,7 +10,7 @@ private[raphtory] object QueryTelemetry {
       .namespace("partition")
       .name("graph_size")
       .help("Total vertices")
-      .labelNames("jobID", "graphID")
+      .labelNames("jobID", "graphID", "timestamp", "window")
       .register
 
   def sentMessageCount: Counter =

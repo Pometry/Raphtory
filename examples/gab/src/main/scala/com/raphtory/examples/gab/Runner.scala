@@ -13,6 +13,7 @@ import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
 
 object Runner extends RaphtoryApp.Remote("localhost", 1736) {
+//object Runner extends RaphtoryApp.Local {
 
   val path = "/tmp/gabNetwork500.csv"
   val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/gabNetwork500.csv"
@@ -21,7 +22,7 @@ object Runner extends RaphtoryApp.Remote("localhost", 1736) {
   override def run(args: Array[String], ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph() { graph =>
       val source = Source(FileSpout(path), GabUserGraphBuilder)
-
+      graph.addDynamicPath("com.raphtory.examples")
       graph.load(source)
 
       graph
