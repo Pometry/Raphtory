@@ -147,7 +147,6 @@ private[raphtory] class QueryHandler(
         readyCount += 1
         if (readyCount == totalPartitions) {
           readyCount = 0
-          TelemetryReporter.perspectiveSize.labels(jobID, graphID).inc(vertexCount)
           messagetoAllJobWorkers(SetMetaData(vertexCount))
           val establishingPerspectiveTimeTaken = System.currentTimeMillis() - timeTaken
           logger.debug(
