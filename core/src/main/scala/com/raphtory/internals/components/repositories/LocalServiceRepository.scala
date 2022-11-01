@@ -7,6 +7,7 @@ import cats.syntax.all._
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.ServiceDescriptor
 import com.raphtory.internals.components.ServiceRepository
+import com.typesafe.config.Config
 
 /** Local implementation of the ServiceRepository
   * @param topics the legacy TopicRepository to be removed soon
@@ -14,17 +15,24 @@ import com.raphtory.internals.components.ServiceRepository
   * @param async$F$0 the implicit Async type class for F
   * @tparam F the effect type
   */
-class LocalServiceRepository[F[_]: Async](topics: TopicRepository, services: Ref[F, Map[(String, Int), Any]])
-        extends ServiceRepository[F](topics) {
+class LocalServiceRepository[F[_]: Async](
+    topics: TopicRepository,
+    services: Ref[F, Map[(String, Int), Any]],
+    config: Config
+) extends ServiceRepository[F](topics, config) {
 
   override protected def register[T](instance: T, descriptor: ServiceDescriptor[F, T], id: Int): F[F[Unit]] = {
     val key = (descriptor.name, id)
-    services
-      .update { services =>
-        if (services.contains(key)) throw new RuntimeException("Service already registered")
-        else services + (key -> instance)
-      }
-      .as(services.update(services => services - key))
+    for {
+      _ <- services
+             .update { services =>
+               if (services.contains(key)) throw new IllegalStateException("Service already registered")
+               else services + (key -> instance)
+             }
+      _ <- services.get.map(services =>
+             logger.debug(s"Successfully registered '$instance' for id '$id' among services '$services'")
+           )
+    } yield services.update(services => services - key)
   }
 
   override def getService[T](descriptor: ServiceDescriptor[F, T], id: Int = 0): Resource[F, T] =
@@ -33,9 +41,9 @@ class LocalServiceRepository[F[_]: Async](topics: TopicRepository, services: Ref
 
 object LocalServiceRepository {
 
-  def apply[F[_]: Async](topics: TopicRepository): Resource[F, ServiceRepository[F]] =
+  def apply[F[_]: Async](topics: TopicRepository, config: Config): Resource[F, ServiceRepository[F]] =
     for {
       services <- Resource.eval(Ref.of(Map[(String, Int), Any]()))
-      repo     <- Resource.eval(Async[F].delay(new LocalServiceRepository[F](topics, services)))
+      repo     <- Resource.eval(Async[F].delay(new LocalServiceRepository[F](topics, services, config)))
     } yield repo
 }

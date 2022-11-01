@@ -1,0 +1,15 @@
+<project name="pyraphtory" default="resolve" xmlns:ivy="antlib:org.apache.ivy.ant">
+    <!-- =================================
+          target: resolve
+         ================================= -->
+    <target name="resolve" description="--> retreive dependencies with ivy">
+        <ivy:retrieve/>
+    </target>
+
+    <!-- =================================
+          target: clean-cache
+         ================================= -->
+    <target name="clean-cache" description="--> clean the ivy cache">
+        <ivy:cleancache/>
+    </target>
+</project>
