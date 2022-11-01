@@ -8,20 +8,18 @@ import com.raphtory.api.input.Source
 
 class CSVEdgeListSourceTest extends BaseCorrectnessTest {
 
-  withGraph.test("CSV Edge List Source Test without headers") { graph =>
+  test("CSV Edge List Source Test without headers") {
     correctnessTest(
             TestQuery(EdgeList()),
             "SourceTest/csvtestdata.csv",
-            "SourceTest/csvtestdataresults.csv",
-            graph
+            "SourceTest/csvtestdataresults.csv"
     )
   }
 
-  withGraph.test("CSV Edge List Source Test with headers") { graph =>
+  test("CSV Edge List Source Test with headers") {
     correctnessTest(
             TestQuery(EdgeList()),
-            "SourceTest/csvtestdataresults.csv",
-            graph
+            "SourceTest/csvtestdataresults.csv"
     )
   }
 

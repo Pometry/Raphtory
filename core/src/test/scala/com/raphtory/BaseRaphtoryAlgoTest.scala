@@ -4,14 +4,17 @@ import cats.effect._
 import com.raphtory.api.analysis.algorithm.GenericallyApplicable
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
+import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input._
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.internals.components.RaphtoryServiceBuilder
 import com.raphtory.internals.context.RaphtoryContext
+import com.raphtory.internals.context.RaphtoryIOContext
 import com.raphtory.sinks.FileSink
 import com.typesafe.scalalogging.Logger
 import munit.CatsEffectSuite
 import org.slf4j.LoggerFactory
+
 import java.net.URL
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
@@ -28,23 +31,22 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   def liftFileIfNotPresent: Option[(String, URL)] = None
   def setSource(): Source
 
-  lazy val withGraph: SyncIO[FunFixture[DeployedTemporalGraph]] = ResourceFixture(
-          new RaphtoryContext(RaphtoryServiceBuilder.standalone[IO](defaultConf), defaultConf)
-            .newIOGraph(failOnNotFound = false, destroy = true)
-  )
-
-  lazy val f: Fixture[DeployedTemporalGraph] = ResourceSuiteLocalFixture(
-          "graph",
+  // The context and the graph have been merged on the same fixture to prevent munit from releasing the context before the graph
+  lazy val ctxAndGraph: Fixture[(RaphtoryContext, DeployedTemporalGraph)] = ResourceSuiteLocalFixture(
+          "context-and-graph",
           for {
-            _   <- TestUtils.manageTestFile(liftFileIfNotPresent)
-            ctx <- new RaphtoryContext(RaphtoryServiceBuilder.standalone[IO](defaultConf), defaultConf)
-                     .newIOGraph(failOnNotFound = false, destroy = true)
-          } yield ctx
+            _     <- TestUtils.manageTestFile(liftFileIfNotPresent)
+            ctx   <- RaphtoryIOContext.localIO()
+            graph <- ctx.newIOGraph(failOnNotFound = false, destroy = true)
+            _     <- Resource.pure(graph.load(setSource()))
+          } yield (ctx, graph)
   )
 
-  def graph: DeployedTemporalGraph = f()
+  def ctx: RaphtoryContext = ctxAndGraph()._1
 
-  override def munitFixtures: Seq[Fixture[_]] = List(f)
+  def graph: DeployedTemporalGraph = ctxAndGraph()._2
+
+  override def munitFixtures: Seq[Fixture[_]] = List(ctxAndGraph)
 
   def algorithmTest(
       algorithm: GenericallyApplicable,

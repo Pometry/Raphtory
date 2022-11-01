@@ -64,13 +64,12 @@ class OrderingTest extends BaseCorrectnessTest {
 
   val max_time = edges.map(_.split(",").apply(2).toInt).max
 
-  withGraph.test("test history is sorted") { graph =>
+  test("test history is sorted") {
     correctnessTest(
             TestQuery(CheckHistory(), max_time),
-            Seq(s"$max_time,true,true"),
-            graph
+            Seq(s"$max_time,true,true")
     )
   }
 
-  override def setSource(): Source = CSVEdgeListSource(SequenceSpout(edges.head, edges.tail:_*))
+  override def setSource(): Source = CSVEdgeListSource(SequenceSpout(edges))
 }

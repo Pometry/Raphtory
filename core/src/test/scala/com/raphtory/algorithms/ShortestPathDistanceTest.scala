@@ -8,11 +8,10 @@ import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceSpout
 
 class ShortestPathDistanceTest extends BaseCorrectnessTest {
-  withGraph.test("Test shortest path distances") { graph =>
+  test("Test shortest path distances") {
     correctnessTest(
             TestQuery(new ShortestPathDistance[Int]("1", "8", 100), 23),
-            "ShortestPathDistance/shortestpathdistancetestCorrectResults.csv",
-            graph
+            "ShortestPathDistance/shortestpathdistancetestCorrectResults.csv"
     )
   }
 
