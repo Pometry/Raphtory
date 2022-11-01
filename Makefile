@@ -23,19 +23,19 @@ sbt-skip-build: version
 
 .PHONY sbt-thin-build:
 sbt-thin-build: version
-    sbt clean compile package
-    rm -rf python/pyraphtory/lib/
-    mkdir -p python/pyraphtory/lib/
-    cp core/target/scala-2.13/core_2.13-$$(cat version).jar python/pyraphtory/lib/
-    cp arrow-core/target/scala-2.13/arrow-core_2.13-$$(cat version).jar python/pyraphtory/lib/
-    cp arrow-messaging/target/scala-2.13/arrow-messaging_2.13-$$(cat version).jar python/pyraphtory/lib/
+	sbt clean compile package
+	rm -rf python/pyraphtory/lib/
+	mkdir -p python/pyraphtory/lib/
+	cp core/target/scala-2.13/core_2.13-$$(cat version).jar python/pyraphtory/lib/
+	cp arrow-core/target/scala-2.13/arrow-core_2.13-$$(cat version).jar python/pyraphtory/lib/
+	cp arrow-messaging/target/scala-2.13/arrow-messaging_2.13-$$(cat version).jar python/pyraphtory/lib/
 
 
 .PHONY python-build:
 python-build: version
-    cd python/pyraphtory_jvm/ && \
-    python setup.py sdist && \
-    pip3 install pyraphtory_jvm/dist/pyraphtory_jvm-$$(cat version).tar.gz
+	cd python/pyraphtory_jvm/ && \
+	python setup.py sdist
+	pip3 install pyraphtory_jvm/dist/pyraphtory_jvm-$$(cat version).tar.gz
 	cd python/pyraphtory/ && \
 		poetry build && \
 		poetry install
