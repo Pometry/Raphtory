@@ -20,7 +20,7 @@ def get_ivy_jars_from_cache():
 
 
 def get_ivy_jars_from_local_lib():
-    ivy_lib_dir = os.path.dirname(os.path.realpath(ivy_file))+'/lib/compile'
+    ivy_lib_dir = os.path.dirname(os.path.realpath(ivy_file))+'/data/lib/compile'
     jars_to_get = []
     for file in Path(ivy_lib_dir).rglob("*.jar"):
         jars_to_get.append(str(file))
@@ -41,7 +41,6 @@ def setup_raphtory_jars():
     if custom_jar_path:
         jars_found += ":" + custom_jar_path
     jars_found = get_ivy_jars_from_local_lib() + ':' + jars_found
-    print(jars_found)
     return jars_found, java_args_env
 
 
