@@ -1,22 +1,22 @@
-# -*- coding: utf-8 -*-
 from setuptools import setup, find_packages
 from setuptools.command.install import install
+from distutils.command.build import build
+import os
 
-
-def post_install():
-    import pyraphtory_jvm
-    import pyraphtory_jvm as _;
-    print(_.__file__)
-    pyraphtory_jvm.jre.check_dl_java_ivy()
-
+class BuildCommand(build):
+    def run(self):
+        print("Build_wheel")
+        import pyraphtory_jvm
+        pyraphtory_jvm.jre.check_dl_java_ivy(download_dir=os.getcwd()+'/pyraphtory_jvm/data/')
+        build.run(self)
 
 class PostInstallCommand(install):
     """Post-installation for installation mode."""
     def run(self):
         install.run(self)
         # PUT YOUR POST-INSTALL SCRIPT HERE or CALL A FUNCTION
-        post_install()
-
+        # import pyraphtory_jvm
+        # pyraphtory_jvm.jre.check_dl_java_ivy()
 
 packages = find_packages()
 
@@ -38,9 +38,11 @@ setup_kwargs = {
     'license': 'Apache 2.0',
     'packages': packages,
     'install_requires': install_requires,
+    'include_package_data' : True,
     'package_data': package_data,
     'cmdclass': {
-        'install': PostInstallCommand,
+        'build': BuildCommand,
+        # 'install': PostInstallCommand,
     },
     'python_requires': '>=3.9.13,<3.11',
     'classifiers': [

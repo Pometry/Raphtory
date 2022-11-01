@@ -1,0 +1,3 @@
+recursive-include pyraphtory_jvm/data *
+include pyraphtory_jvm/ivy.xml
+include pyraphtory_jvm/build.xml

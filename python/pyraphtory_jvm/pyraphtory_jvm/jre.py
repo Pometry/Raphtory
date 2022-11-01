@@ -12,6 +12,13 @@ import subprocess
 import os
 import site
 
+
+IVY_LIB = '/lib'
+PYRAPHTORY_DATA = '/pyraphtory_jvm/pyraphtory_jvm/data'
+
+ivy_file = os.path.dirname(os.path.realpath(__file__)) + '/ivy.xml'
+build_file = os.path.dirname(os.path.realpath(__file__)) + '/build.xml'
+
 LINK = 'link'
 CHECKSUM_SHA256 = 'checksum'
 
@@ -149,7 +156,10 @@ def get_and_run_ivy(JAVA_BIN, download_dir=os.path.dirname(os.path.realpath(__fi
     file_location = safe_download_file(str(download_dir), IVY_BIN[CHECKSUM_SHA256], IVY_BIN[LINK])
     shutil.unpack_archive(file_location, extract_dir=download_dir)
     working_dir = os.getcwd()
+    print("IVY")
+    print(f"working dir {working_dir}, dl dir: {download_dir} REAL PATH {str(os.path.dirname(os.path.realpath(__file__)))}")
     os.chdir(download_dir)
+    print(os.listdir('.'))
     subprocess.call(
         [JAVA_BIN, "-jar", download_dir + "/apache-ivy-2.5.0/ivy-2.5.0.jar", "-ivy", str(os.path.dirname(os.path.realpath(__file__))) + "/ivy.xml",
          "-retrieve", "."])
@@ -158,10 +168,10 @@ def get_and_run_ivy(JAVA_BIN, download_dir=os.path.dirname(os.path.realpath(__fi
     shutil.rmtree(download_dir + "/apache-ivy-2.5.0", ignore_errors=True)
     delete_source(download_dir + "/apache-ivy-2.5.0-bin.zip")
     # Keep only compile directory
-    rm_dirs = os.listdir(download_dir + '/lib')
+    rm_dirs = os.listdir(download_dir + IVY_LIB)
     rm_dirs.remove('compile')
     for d in rm_dirs:
-        shutil.rmtree(download_dir + '/lib/' + d, ignore_errors=True)
+        shutil.rmtree(download_dir + IVY_LIB + '/' + d, ignore_errors=True)
 
 
 def empty_folder(folder):
@@ -236,14 +246,15 @@ def get_local_java_loc():
     if has_java():
         return get_java_home()
     else:
-        java_loc = site.getsitepackages()[0] + '/pyraphtory_jvm/jre/bin/java'
+        java_loc = site.getsitepackages()[0] + PYRAPHTORY_DATA + '/jre/bin/java'
     if os.path.isfile(java_loc):
         return java_loc
     raise Exception("JAVA not home.")
 
+def get_local_ivy_loc():
+    return site.getsitepackages()[0] + PYRAPHTORY_DATA + '/lib/'
 
-def check_dl_java_ivy():
-    download_dir = site.getsitepackages()[0] + '/pyraphtory_jvm'
+def check_dl_java_ivy(download_dir = site.getsitepackages()[0] + PYRAPHTORY_DATA):
     if has_java():
         java_bin = get_java_home()
     else:
