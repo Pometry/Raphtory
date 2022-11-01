@@ -7,6 +7,16 @@ MODE:=batch
 # 	sbt -Dsbt.supershell=false -error "exit" && \
 # 	sbt -Dsbt.supershell=false -error "print core/version" | tr -d "[:cntrl:]"  > version
 
+.PHONY gh-sbt-build:
+gh-sbt-build: version
+	sbt publishLocal
+	cp /root/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/ivys/ivy.xml python/pyraphtory_jvm/pyraphtory_jvm/ivy.xml
+	sed -i.bak '/org="com.raphtory"/d' python/pyraphtory_jvm/pyraphtory_jvm/ivy.xml
+	cd python/pyraphtory/ && mkdir -p lib
+	cp /root/.ivy2/local/com.raphtory/arrow-core_2.13/$$(cat version)/jars/arrow-core_2.13.jar python/pyraphtory/lib
+	cp /root/.ivy2/local/com.raphtory/arrow-messaging_2.13/$$(cat version)/jars/arrow-messaging_2.13.jar python/pyraphtory/lib
+	cp /root/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/jars/core_2.13.jar python/pyraphtory/lib
+
 .PHONY sbt-build:
 sbt-build: version
 	sbt publishLocal
