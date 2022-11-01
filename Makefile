@@ -10,8 +10,9 @@ MODE:=batch
 .PHONY sbt-build:
 sbt-build: version
 	sbt "core/assembly"
-	sed -i.bak '/org="com.raphtory"/d' ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/ivys/ivy.xml
-	cp ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/ivys/ivy.xml python/pyraphtory_jvm/pyraphtory_jvm/
+	cp ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/ivys/ivy.xml ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/ivys/ivy2.xml
+	sed -i.bak '/org="com.raphtory"/d' ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/ivys/ivy2.xml
+	cp ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/ivys/ivy2.xml python/pyraphtory_jvm/pyraphtory_jvm/ivy.xml
 	cd python/pyraphtory/ && mkdir -p lib
 	cp ~/.ivy2/local/com.raphtory/arrow-core_2.13/$$(cat version)/jars/arrow-core_2.13.jar python/pyraphtory/lib
 	cp ~/.ivy2/local/com.raphtory/arrow-messaging_2.13/$$(cat version)/jars/arrow-messaging_2.13.jar python/pyraphtory/lib
