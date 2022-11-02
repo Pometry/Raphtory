@@ -7,6 +7,7 @@ import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.graph.SourceTracker
 import com.raphtory.internals.management.Scheduler
+import com.raphtory.internals.management.telemetry.TelemetryReporter
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -155,7 +156,7 @@ private[raphtory] class QueryManager(
 
     val queryHandler = new QueryHandler(query.graphID, this, scheduler, id, query, conf, topics, query.pyScript)
     scheduler.execute(queryHandler)
-    telemetry.totalQueriesSpawned.labels(graphID).inc()
+    TelemetryReporter.totalQueriesSpawned.labels(graphID).inc()
     queryHandler
   }
 
@@ -184,8 +185,6 @@ private[raphtory] class QueryManager(
             safe = watermark.safe && safe
             minTime = Math.min(minTime, watermark.latestTime)
             maxTime = Math.max(maxTime, watermark.latestTime)
-            telemetry.globalWatermarkMin.labels(graphID).set(minTime.toDouble)
-            telemetry.globalWatermarkMax.labels(graphID).set(maxTime.toDouble)
         }
       if (safe) maxTime else minTime
     }
