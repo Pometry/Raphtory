@@ -1,8 +1,10 @@
 package com.raphtory.internals.management
 
+import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.typesafe.config.Config
 
-class Partitioner(config: Config) {
+class Partitioner {
+  val config: Config = ConfigBuilder.getDefaultConfig
   val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
   val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
   val totalPartitions: Int     = partitionServers * partitionsPerServer
@@ -12,5 +14,5 @@ class Partitioner(config: Config) {
 }
 
 object Partitioner {
-  def apply(config: Config) = new Partitioner(config)
+  def apply() = new Partitioner()
 }

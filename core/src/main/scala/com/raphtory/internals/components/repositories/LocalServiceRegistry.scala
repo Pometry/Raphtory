@@ -19,12 +19,16 @@ class LocalServiceRegistry[F[_]: Async](topics: TopicRepository, services: Ref[F
 
   override protected def register[T](instance: T, descriptor: ServiceDescriptor[F, T], id: Int): F[F[Unit]] = {
     val key = (descriptor.name, id)
-    services
-      .update { services =>
-        if (services.contains(key)) throw new RuntimeException("Service already registered")
-        else services + (key -> instance)
-      }
-      .as(services.update(services => services - key))
+    for {
+      _ <- services
+             .update { services =>
+               if (services.contains(key)) throw new IllegalStateException("Service already registered")
+               else services + (key -> instance)
+             }
+      _ <- services.get.map(services =>
+             logger.debug(s"Successfully registered '$instance' for id '$id' among services '$services'")
+           )
+    } yield services.update(services => services - key)
   }
 
   override def getService[T](descriptor: ServiceDescriptor[F, T], id: Int = 0): Resource[F, T] =

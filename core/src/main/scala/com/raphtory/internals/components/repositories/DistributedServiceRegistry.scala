@@ -13,14 +13,16 @@ import org.apache.curator.retry.ExponentialBackoffRetry
 import org.apache.curator.x.discovery.ServiceDiscovery
 import org.apache.curator.x.discovery.ServiceDiscoveryBuilder
 import org.apache.curator.x.discovery.ServiceInstance
-
 import java.net.InetAddress
 
 class DistributedServiceRegistry[F[_]: Async](topics: TopicRepository, serviceDiscovery: ServiceDiscovery[Void])
         extends ServiceRegistry[F](topics) {
 
+  private def serviceId(name: String, id: Int) = s"$name-${id.toString}"
+  private def serviceName                      = "service"
+
   override protected def getService[T](descriptor: ServiceDescriptor[F, T], id: Int): Resource[F, T] = {
-    val instance = serviceDiscovery.queryForInstance(descriptor.name, id.toString)
+    val instance = serviceDiscovery.queryForInstance(serviceName, serviceId(descriptor.name, id))
     descriptor.makeClient(instance.getAddress, instance.getPort)
   }
 
@@ -30,8 +32,8 @@ class DistributedServiceRegistry[F[_]: Async](topics: TopicRepository, serviceDi
         .builder()
         .address(InetAddress.getLocalHost.getHostAddress)
         .port(port)
-        .name("service")
-        .id(s"$name-${id.toString}") // The id needs to be unique among different service names, so we include 'name'
+        .name(serviceName)
+        .id(serviceId(name, id)) // The id needs to be unique among different service names, so we include 'name'
         .build()
 
     for {

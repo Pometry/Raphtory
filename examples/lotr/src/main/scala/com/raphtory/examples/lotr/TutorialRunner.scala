@@ -6,7 +6,10 @@ import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.algorithms.generic.centrality.Degree
 import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.api.input.Graph.assignID
-import com.raphtory.api.input.{ImmutableProperty, Properties, Source, Type}
+import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.Properties
+import com.raphtory.api.input.Source
+import com.raphtory.api.input.Type
 import com.raphtory.examples.lotr.graphbuilder.LotrGraphBuilder
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.internals.storage.arrow.immutable
@@ -16,12 +19,12 @@ import com.raphtory.utils.FileUtils
 
 import scala.language.postfixOps
 
-object TutorialRunner extends RaphtoryApp.Local with LocalRunner
+object TutorialRunner      extends RaphtoryApp.Local with LocalRunner
 object ArrowTutorialRunner extends RaphtoryApp.ArrowLocal[VertexProp, EdgeProp] with LocalRunner
 
 trait LocalRunner { self: RaphtoryApp =>
 
-  override def run(args: Array[String], ctx: RaphtoryContext): Unit = {
+  override def run(args: Array[String], ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph(destroy = true) { graph =>
       val path = "/tmp/lotr.csv"
       val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
@@ -44,13 +47,13 @@ trait LocalRunner { self: RaphtoryApp =>
 //        graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurrence"))
 //      }
 
-      //Get simple metrics
+      // Get simple metrics
       graph
         .execute(Degree())
         .writeTo(FileSink("/tmp/raphtory"))
         .waitForJob()
 
-      //PageRank
+      // PageRank
       graph
         .at(32674)
         .past()
@@ -59,7 +62,7 @@ trait LocalRunner { self: RaphtoryApp =>
         .writeTo(FileSink("/tmp/raphtory"))
         .waitForJob()
 
-      //Connected Components
+      // Connected Components
       graph
         .at(32674)
         .past()
@@ -67,7 +70,7 @@ trait LocalRunner { self: RaphtoryApp =>
         .writeTo(FileSink("/tmp/raphtory"))
         .waitForJob()
 
-      //Chained Example
+      // Chained Example
       graph
         .at(32674)
         .past()
@@ -79,29 +82,27 @@ trait LocalRunner { self: RaphtoryApp =>
         .waitForJob()
 
     }
-  }
 }
 
-
 case class VertexProp(
-                       age: Long,
-                       @immutable name: String,
-                       @immutable address_chain: String,
-                       @immutable transaction_hash: String
-                     )
+    age: Long,
+    @immutable name: String,
+    @immutable address_chain: String,
+    @immutable transaction_hash: String
+)
 
 case class EdgeProp(
-                     @immutable name: String,
-                     friends: Boolean,
-                     weight: Long,
-                     @immutable msgId: String,
-                     @immutable subject: String
-                   )
+    @immutable name: String,
+    friends: Boolean,
+    weight: Long,
+    @immutable msgId: String,
+    @immutable subject: String
+)
 
 object RemoteRunner extends RaphtoryApp.Remote("localhost", 1736) {
 
   override def run(args: Array[String], ctx: RaphtoryContext): Unit =
-    ctx.runWithNewGraph(destroy = true) { graph =>
+    ctx.runWithNewGraph(destroy = false) { graph =>
       val path = "/tmp/lotr.csv"
       val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
       FileUtils.curlFile(path, url)

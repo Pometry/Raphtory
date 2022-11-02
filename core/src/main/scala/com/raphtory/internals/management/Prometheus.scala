@@ -38,10 +38,14 @@ object Prometheus {
     def innerStart(port: Int) =
       IO.blocking(HttpServer.create(new InetSocketAddress(port), 3))
         .flatTap(s => IO.blocking(logger.info(s"Prometheus started on port ${s.getAddress}")))
-    innerStart(port).handleErrorWith {
-      case _: BindException =>
-        IO.blocking(logger.error(s"Failed to start Prometheus on port $port")) *> innerStart(0)
-      case t                => Sync[IO].raiseError(t)
-    }
+
+    def tryPort(port: Int): IO[HttpServer] =
+      innerStart(port).handleErrorWith {
+        case _: BindException =>
+          IO.blocking(logger.info(s"Failed to start Prometheus on port $port")) *> tryPort(port + 1)
+        case t                => Sync[IO].raiseError(t)
+      }
+
+    tryPort(port)
   }
 }
