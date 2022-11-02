@@ -1,0 +1,14 @@
+# config file version
+apiVersion: 1
+
+providers:
+  - name: raphtory
+    folder: ''
+    type: 'file'
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 1
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/
+      foldersFromFilesStructure: true

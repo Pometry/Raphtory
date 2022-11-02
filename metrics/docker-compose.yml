@@ -1,0 +1,16 @@
+version: '3'
+
+services:
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+      build:
+          context: ./grafana
+      ports:
+        - "3000:3000"
+

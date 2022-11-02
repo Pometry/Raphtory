@@ -9,6 +9,7 @@ import com.raphtory.api.time.DiscreteInterval
 import com.raphtory.internals.components.querymanager.PointPath
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
+import com.raphtory.internals.management.QuerySender
 import com.typesafe.config.Config
 import org.scalatest.BeforeAndAfterAll
 import munit.FunSuite
@@ -19,8 +20,23 @@ import munit.FunSuite
   */
 class RaphtoryGraphTest extends FunSuite {
 
+  class DummyQuerySender(config: Config)
+          extends QuerySender(
+                  graphID = "",
+                  service = null,
+                  scheduler = null,
+                  topics = null,
+                  config = config,
+                  clientID = ""
+          ) {
+    override def IDForUpdates(): Int = 1
+
+    override def flushArrow(): Unit = {}
+    override def runFlushArrow(): Unit = {}
+  }
+
   private def createMockGraph(config: Config = ConfigBuilder.getDefaultConfig) =
-    new TemporalGraph(Query(graphID = ""), null, config)
+    new TemporalGraph(Query(graphID = ""), new DummyQuerySender(config), config)
 
   test("Test overall pipeline syntax for RaphtoryGraph class and related hierarchy") {
     val graph = createMockGraph()
