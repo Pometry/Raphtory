@@ -30,9 +30,6 @@ trait LocalRunner { self: RaphtoryApp =>
       val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
       FileUtils.curlFile(path, url)
 
-//      val source = Source(FileSpout(path), LotrGraphBuilder)
-//      graph.load(source)
-
       val file = scala.io.Source.fromFile(path)
       file.getLines.foreach { line =>
         val fileLine   = line.split(",").map(_.trim)
@@ -46,6 +43,10 @@ trait LocalRunner { self: RaphtoryApp =>
         graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("Character"))
         graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurrence"))
       }
+
+      //The ingestion of data into a graph (line 33-45) can also be pushed into Raphtory via a Source and load function:
+      //      val source = Source(FileSpout(path), LotrGraphBuilder)
+      //      graph.load(source)
 
       // Get simple metrics
       graph
