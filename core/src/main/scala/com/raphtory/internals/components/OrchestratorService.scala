@@ -1,7 +1,7 @@
 package com.raphtory.internals.components
 
-import cats.effect.Async
-import cats.effect.Ref
+import cats.Monad
+import cats.effect._
 import cats.effect.std.Supervisor
 import cats.syntax.all._
 import com.raphtory.internals.components.OrchestratorService.Graph
@@ -18,7 +18,8 @@ abstract class OrchestratorService[F[_]: Async, T](graphs: GraphList[F, T]) {
 
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  // Methods to override by instances of this class
+  private def logError(e: Throwable) = Async[F].delay(logger.error(s"Exception found in Orchestrator service: '$e'"))
+
   protected def makeGraphData(graphId: String): F[T]
 
   protected def graphExecution(graph: Graph[F, T]): F[Unit] = Async[F].unit
@@ -35,22 +36,35 @@ abstract class OrchestratorService[F[_]: Async, T](graphs: GraphList[F, T]) {
 
   final def destroyGraph(req: GraphInfo): F[Status] = destroyGraph(req.graphId).as(success)
 
-  final protected def attachExecutionToGraph(graphId: String, execution: Graph[F, T] => F[Unit]): F[Unit] =
-    for {
-      graph <- graphs.get.map(graphs => graphs(graphId))
-      _     <- graph.supervisor.supervise(execution(graph).onError { case NonFatal(e) => logError(e) })
-    } yield ()
-
-  private def logError(e: Throwable) = Async[F].delay(logger.error(s"Exception found in orchestrator service: '$e'"))
-
   final protected def destroyGraph(graphId: String): F[Unit] =
     for {
       graph <- graphs.modify(graphs => (graphs - graphId, graphs(graphId)))
       _     <- graph.release
+    } yield ()
+
+  final protected def attachExecutionToGraph(graphId: String, execution: Graph[F, T] => F[Unit]): F[Unit] =
+    for {
+      graph <- graphs.get.map(graphs => graphs(graphId))
+      _     <- graph.supervisor.supervise(execution(graph).onError { case NonFatal(e) => logError(e) })
     } yield ()
 }
 
 object OrchestratorService {
   case class Graph[F[_], T](id: String, supervisor: Supervisor[F], release: F[Unit], data: T)
   type GraphList[F[_], T] = Ref[F, Map[String, Graph[F, T]]]
+
+  private[components] def makeGraphList[F[_]: Concurrent, T]: Resource[F, GraphList[F, T]] = {
+    def releaseAllGraphs[C[_]: Monad, R](graphs: GraphList[C, R]): C[Unit] =
+      for {
+        graphs <- graphs.modify(graphs => (Map(), graphs)) // Empty the list and retrieve the graphs on it
+        _      <- graphs.values.map(graph => graph.release).toList.sequence // Sequence the releasing
+      } yield ()
+
+    Resource.make(Ref.of(Map[String, Graph[F, T]]()))(graphs => releaseAllGraphs(graphs))
+  }
+}
+
+abstract class NoGraphDataOrchestratorService[F[_]: Async](graphs: GraphList[F, Unit])
+        extends OrchestratorService(graphs) {
+  protected def makeGraphData(graphId: String): F[Unit] = Async[F].unit
 }
