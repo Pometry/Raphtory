@@ -9,7 +9,6 @@ def get_ivy_jars_from_local_lib():
     for file in Path(ivy_lib_dir).rglob("*.jar"):
         jars_to_get.append(str(file))
     jars_to_get = ':'.join(set(jars_to_get))
-    print(jars_to_get)
     return jars_to_get
 
 
