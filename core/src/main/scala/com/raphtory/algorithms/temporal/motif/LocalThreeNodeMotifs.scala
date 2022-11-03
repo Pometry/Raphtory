@@ -127,7 +127,7 @@ class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint
           // for motif edges with the same timestamp
           mc.execute(v.explodeAllEdges().map(e=> (e.src,e.dst,e.timestamp)).sortBy(x => (x._3, x._1, x._2)),delta)
           val counts : Array[Long] = mc.getCounts
-          var twoNodeCounts = Array.fill(8)(0)
+          var twoNodeCounts = Array.fill(8)(0L)
           v.neighbours.foreach{
             vid =>
               val mc2node = new TwoNodeMotifs(v.ID)
@@ -152,7 +152,7 @@ class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint
       if (prettyPrint)
         graph.select(vertex => Row(vertex.name, getStarCountsPretty(vertex.getState[Array[Long]]("starCounts")), get2NodeCountsWithoutRepeats(vertex.getState[Array[Long]]("twoNodeCounts")), getTriCountsPretty(vertex.getState[Array[Long]]("triCounts"))))
       else
-        graph.select(vertex => Row(vertex.name, (vertex.getState[Array[Long]]("starCounts")++vertex.getState[Array[Int]]("twoNodeCounts")++vertex.getState[Array[Long]]("triCounts")).mkString("(", ";", ")")))
+        graph.select(vertex => Row(vertex.name, (vertex.getState[Array[Long]]("starCounts")++vertex.getState[Array[Long]]("twoNodeCounts")++vertex.getState[Array[Long]]("triCounts")).mkString("(", ";", ")")))
     } else {
       if (prettyPrint)
         graph.globalSelect(state => Row(getStarCountsPretty(state[Array[Long],Array[Long]]("starCounts").value), get2NodeCountsWithoutRepeats(state[Array[Long],Array[Long]]("twoNodeCounts").value), getTriCountsPretty(state[Array[Long],Array[Long]]("triCounts").value)))

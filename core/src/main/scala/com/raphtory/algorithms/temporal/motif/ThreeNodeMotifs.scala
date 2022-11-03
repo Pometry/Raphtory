@@ -90,7 +90,7 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
         // for motif edges with the same timestamp
         mc.execute(v.explodeAllEdges().map(e => (e.src, e.dst, e.timestamp)).sortBy(x => (x._3, x._1, x._2)), delta)
         val counts: Array[Long] = mc.getCounts
-        var twoNodeCounts      = Array.fill(8)(0)
+        var twoNodeCounts      = Array.fill(8)(0L)
         v.neighbours.filter(_ != v.ID).foreach { vid =>
           val mc2node = new TwoNodeMotifs(v.ID)
           // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
@@ -453,9 +453,9 @@ class TwoNodeMotifs(vid: Long) {
   val incoming: Int = 0
   val outgoing: Int = 1
 
-  val count1d: Array[Int] = Array.fill(2)(0)
-  val count2d: Array[Int] = Array.fill(4)(0)
-  val count3d: Array[Int] = Array.fill(8)(0)
+  val count1d: Array[Long] = Array.fill(2)(0)
+  val count2d: Array[Long] = Array.fill(4)(0)
+  val count3d: Array[Long] = Array.fill(8)(0)
 
   def execute(inputEdges: Array[(Long, Long, Long)], delta: Long): Unit = {
     var start = 0
@@ -489,7 +489,7 @@ class TwoNodeMotifs(vid: Long) {
     count1d(dir) += 1
   }
 
-  def getCounts: Array[Int] =
+  def getCounts: Array[Long] =
     count3d
 }
 
