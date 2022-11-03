@@ -20,7 +20,7 @@ requires = \
 
 setup_kwargs = {
     'name': 'pyraphtory_jvm',
-    'version': '0.2.0a5',
+    'version': '0.2.0a6',
     'description': 'Bootstrap JRE and IVY installer for Pyraphtory',
     'url': 'https://github.com/raphtory/raphtory',
     'author': 'Haaroon Yousaf',
