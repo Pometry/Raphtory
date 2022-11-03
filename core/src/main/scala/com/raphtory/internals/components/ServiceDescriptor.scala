@@ -14,21 +14,22 @@ trait ServiceDescriptor[F[_], T] {
 
   /** Create a server resource for the service instance
     * @param service the service to put behind the server
-    * @return the number of the port allocated
+    * @return allocated port number
     */
   def makeServer(service: T): Resource[F, Int]
 }
 
-abstract class GrpcServiceDescriptor[F[_]: Async, T] extends ServiceDescriptor[F, T] {
-  protected def buildGrpcClient(channelFor: ChannelFor): Resource[F, T]
-  protected def buildGrpcServer(service: T): Resource[F, ServerServiceDefinition]
+abstract class GrpcServiceDescriptor[F[_]: Async, T](
+    grpcClient: ChannelFor => Resource[F, T],
+    grpcServer: T => Resource[F, ServerServiceDefinition]
+) extends ServiceDescriptor[F, T] {
 
   final override def makeClient(address: String, port: Int): Resource[F, T] =
-    buildGrpcClient(ChannelForAddress(address, port))
+    grpcClient(ChannelForAddress(address, port))
 
   final override def makeServer(service: T): Resource[F, Int] =
     for {
-      serviceDef <- buildGrpcServer(service)
+      serviceDef <- grpcServer(service)
       server     <- Resource.eval(GrpcServer.default[F](0, List(AddService(serviceDef))))
       _          <- GrpcServer.serverResource[F](server)
       port       <- Resource.eval(server.getPort)
@@ -42,9 +43,7 @@ object GrpcServiceDescriptor {
       grpcClient: ChannelFor => Resource[F, T],
       grpcServer: T => Resource[F, ServerServiceDefinition]
   ): GrpcServiceDescriptor[F, T] =
-    new GrpcServiceDescriptor[F, T] {
-      override def name: String                                                                = serviceName
-      override protected def buildGrpcClient(channelFor: ChannelFor): Resource[F, T]           = grpcClient(channelFor)
-      override protected def buildGrpcServer(service: T): Resource[F, ServerServiceDefinition] = grpcServer(service)
+    new GrpcServiceDescriptor[F, T](grpcClient, grpcServer) {
+      override def name: String = serviceName
     }
 }

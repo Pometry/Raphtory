@@ -1,32 +1,23 @@
 package com.raphtory.internals.components.ingestion
 
 import cats.effect.Async
-import cats.effect.Ref
 import cats.effect.Resource
-import cats.effect.std.Semaphore
 import cats.syntax.all._
 import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.components.OrchestratorService.Graph
 import com.raphtory.internals.components.OrchestratorService.GraphList
-import com.raphtory.internals.components.GrpcServiceDescriptor
-import com.raphtory.internals.components.OrchestratorService
-import com.raphtory.internals.components.OrchestratorServiceBuilder
-import com.raphtory.internals.components.ServiceDescriptor
-import com.raphtory.internals.components.ServiceRepository
-import com.raphtory.internals.components.querymanager.IngestData
-import com.raphtory.internals.components.querymanager.TryIngestData
+import com.raphtory.internals.components._
+import com.raphtory.internals.components.querymanager._
 import com.raphtory.protocol
 import com.raphtory.protocol.IngestionService
 import com.raphtory.protocol.Status
-import com.raphtory.protocol.failure
 import com.raphtory.protocol.success
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.Logger
+import org.slf4j.LoggerFactory
 
-class IngestionServiceInstance[F[_]: Async](graphs: GraphList[F, Unit], repo: TopicRepository, config: Config)
-        extends OrchestratorService(graphs)
+class IngestionServiceImpl[F[_]: Async](graphs: GraphList[F, Unit], repo: TopicRepository, config: Config)
+        extends NoGraphDataOrchestratorService(graphs)
         with IngestionService[F] {
-
-  override def makeGraphData(graphId: String): F[Unit] = Async[F].unit
 
   override def ingestData(request: protocol.IngestData): F[Status] =
     request match {
@@ -39,7 +30,7 @@ class IngestionServiceInstance[F[_]: Async](graphs: GraphList[F, Unit], repo: To
         } yield success
     }
 
-  private def runExecutor(graphId: String, executor: IngestionExecutor[F], release: F[Unit]) = {
+  private def runExecutor(graphId: String, executor: IngestionExecutor[F], release: F[Unit]): F[Unit] = {
     def logError(e: Throwable): Unit = logger.error(s"Exception while executing source: $e")
     for {
       _ <- executor.run().handleErrorWith(e => Async[F].delay(logError(e)) *> destroyGraph(graphId))
@@ -48,14 +39,17 @@ class IngestionServiceInstance[F[_]: Async](graphs: GraphList[F, Unit], repo: To
   }
 }
 
-object IngestionServiceInstance extends OrchestratorServiceBuilder {
+object IngestionServiceImpl {
+  import OrchestratorService._
 
-  def apply[F[_]: Async](repo: ServiceRepository[F], config: Config): Resource[F, Unit] =
+  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+
+  def apply[F[_]: Async](repo: ServiceRegistry[F], config: Config): Resource[F, Unit] =
     for {
       graphs  <- makeGraphList[F, Unit]
       _       <- Resource.eval(Async[F].delay(logger.info(s"Starting Ingestion Service")))
-      service <- Resource.eval(Async[F].delay(new IngestionServiceInstance[F](graphs, repo.topics, config)))
-      _       <- repo.registered(service, IngestionServiceInstance.descriptor)
+      service <- Resource.eval(Async[F].delay(new IngestionServiceImpl[F](graphs, repo.topics, config)))
+      _       <- repo.registered(service, IngestionServiceImpl.descriptor)
     } yield ()
 
   def descriptor[F[_]: Async]: ServiceDescriptor[F, IngestionService[F]] =

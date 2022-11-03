@@ -5,7 +5,7 @@ import cats.effect.Resource
 import cats.syntax.all._
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.ServiceDescriptor
-import com.raphtory.internals.components.ServiceRepository
+import com.raphtory.internals.components.ServiceRegistry
 import com.typesafe.config.Config
 import org.apache.curator.framework.CuratorFramework
 import org.apache.curator.framework.CuratorFrameworkFactory
@@ -13,21 +13,29 @@ import org.apache.curator.retry.ExponentialBackoffRetry
 import org.apache.curator.x.discovery.ServiceDiscovery
 import org.apache.curator.x.discovery.ServiceDiscoveryBuilder
 import org.apache.curator.x.discovery.ServiceInstance
-
 import java.net.InetAddress
 
-class DistributedServiceRepository[F[_]: Async](
-    topics: TopicRepository,
-    serviceDiscovery: ServiceDiscovery[Void],
-    config: Config
-) extends ServiceRepository[F](topics, config) {
+class DistributedServiceRegistry[F[_]: Async](topics: TopicRepository, serviceDiscovery: ServiceDiscovery[Void])
+        extends ServiceRegistry[F](topics) {
+
+  private def serviceId(name: String, id: Int) = s"$name-${id.toString}"
+  private def serviceName                      = "service"
 
   override protected def getService[T](descriptor: ServiceDescriptor[F, T], id: Int): Resource[F, T] = {
     val instance = serviceDiscovery.queryForInstance(serviceName, serviceId(descriptor.name, id))
     descriptor.makeClient(instance.getAddress, instance.getPort)
   }
 
-  override protected def register[T](instance: T, descriptor: ServiceDescriptor[F, T], id: Int): F[F[Unit]] =
+  override protected def register[T](instance: T, descriptor: ServiceDescriptor[F, T], id: Int): F[F[Unit]] = {
+    def serviceInstance(name: String, id: Int, port: Int): ServiceInstance[Void] =
+      ServiceInstance
+        .builder()
+        .address(InetAddress.getLocalHost.getHostAddress)
+        .port(port)
+        .name(serviceName)
+        .id(serviceId(name, id)) // The id needs to be unique among different service names, so we include 'name'
+        .build()
+
     for {
       serverResource    <- descriptor.makeServer(instance).allocated
       (port, stopServer) = serverResource
@@ -38,31 +46,19 @@ class DistributedServiceRepository[F[_]: Async](
                              _ <- stopServer
                            } yield ())
     } yield unregister
-
-  private def serviceInstance(name: String, id: Int, port: Int): ServiceInstance[Void] =
-    ServiceInstance
-      .builder()
-      .address(InetAddress.getLocalHost.getHostAddress)
-      .port(port)
-      .name(serviceName)
-      .id(serviceId(name, id)) // The id needs to be unique among different service names, so we include 'name'
-      .build()
-
-  private def serviceId(name: String, id: Int) = s"$name-${id.toString}"
-  private def serviceName                      = "service"
+  }
 }
 
-object DistributedServiceRepository {
+object DistributedServiceRegistry {
 
-  def apply[F[_]: Async](topics: TopicRepository, config: Config): Resource[F, ServiceRepository[F]] =
+  def apply[F[_]: Async](topics: TopicRepository, config: Config): Resource[F, ServiceRegistry[F]] =
     for {
       address          <- Resource.pure(config.getString("raphtory.zookeeper.address"))
       client           <- Resource.fromAutoCloseable(Async[F].delay(buildZkClient(address)))
       _                <- Resource.eval(Async[F].blocking(client.start()))
       serviceDiscovery <- Resource.fromAutoCloseable(Async[F].delay(buildServiceDiscovery(client)))
       _                <- Resource.eval(Async[F].blocking(serviceDiscovery.start()))
-      serviceRepo      <-
-        Resource.eval(Async[F].delay(new DistributedServiceRepository[F](topics, serviceDiscovery, config)))
+      serviceRepo      <- Resource.eval(Async[F].delay(new DistributedServiceRegistry[F](topics, serviceDiscovery)))
     } yield serviceRepo
 
   private def buildServiceDiscovery(zkClient: CuratorFramework) =

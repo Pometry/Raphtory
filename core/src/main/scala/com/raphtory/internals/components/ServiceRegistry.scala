@@ -1,24 +1,22 @@
 package com.raphtory.internals.components
 
 import cats.effect.Async
-import cats.effect.Concurrent
 import cats.effect.Resource
 import cats.syntax.all._
 import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.components.ingestion.IngestionServiceInstance
+import com.raphtory.internals.components.ingestion.IngestionServiceImpl
 import com.raphtory.internals.components.partition.PartitionServiceImpl
 import com.raphtory.internals.management.Partitioner
 import com.raphtory.protocol.IngestionService
 import com.raphtory.protocol.PartitionService
-import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
-abstract class ServiceRepository[F[_]: Async](val topics: TopicRepository, config: Config) {
+abstract class ServiceRegistry[F[_]: Async](val topics: TopicRepository) {
 
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val partitioner = Partitioner(config)
+  private val partitioner = Partitioner()
 
   /** Returns a resource containing the id allocated for the instance of the service */
   final def registered[T](
@@ -46,7 +44,8 @@ abstract class ServiceRepository[F[_]: Async](val topics: TopicRepository, confi
       firstSuccess(attempts)
     }
 
-  final def ingestion: Resource[F, IngestionService[F]] = getService(IngestionServiceInstance.descriptor)
+  final def ingestion: Resource[F, IngestionService[F]] =
+    getService[IngestionService[F]](IngestionServiceImpl.descriptor)
 
   final def partitions: Resource[F, Seq[PartitionService[F]]] =
     getServices(PartitionServiceImpl.descriptor, 0 until partitioner.totalPartitions)
