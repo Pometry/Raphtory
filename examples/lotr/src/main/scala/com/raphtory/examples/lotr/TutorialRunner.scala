@@ -30,22 +30,22 @@ trait LocalRunner { self: RaphtoryApp =>
       val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
       FileUtils.curlFile(path, url)
 
-      val source = Source(FileSpout(path), LotrGraphBuilder)
-      graph.load(source)
+//      val source = Source(FileSpout(path), LotrGraphBuilder)
+//      graph.load(source)
 
-//      val file = scala.io.Source.fromFile(path)
-//      file.getLines.foreach { line =>
-//        val fileLine   = line.split(",").map(_.trim)
-//        val sourceNode = fileLine(0)
-//        val srcID      = assignID(sourceNode)
-//        val targetNode = fileLine(1)
-//        val tarID      = assignID(targetNode)
-//        val timeStamp  = fileLine(2).toLong
-//
-//        graph.addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)), Type("Character"))
-//        graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("Character"))
-//        graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurrence"))
-//      }
+      val file = scala.io.Source.fromFile(path)
+      file.getLines.foreach { line =>
+        val fileLine   = line.split(",").map(_.trim)
+        val sourceNode = fileLine(0)
+        val srcID      = assignID(sourceNode)
+        val targetNode = fileLine(1)
+        val tarID      = assignID(targetNode)
+        val timeStamp  = fileLine(2).toLong
+
+        graph.addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)), Type("Character"))
+        graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("Character"))
+        graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurrence"))
+      }
 
       // Get simple metrics
       graph
