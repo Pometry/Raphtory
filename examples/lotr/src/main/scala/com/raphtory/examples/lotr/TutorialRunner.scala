@@ -25,7 +25,7 @@ object ArrowTutorialRunner extends RaphtoryApp.ArrowLocal[VertexProp, EdgeProp] 
 trait LocalRunner { self: RaphtoryApp =>
 
   override def run(args: Array[String], ctx: RaphtoryContext): Unit =
-    ctx.runWithNewGraph(destroy = true) { graph =>
+    ctx.runWithNewGraph() { graph =>
       val path = "/tmp/lotr.csv"
       val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
       FileUtils.curlFile(path, url)
@@ -103,7 +103,7 @@ case class EdgeProp(
 object RemoteRunner extends RaphtoryApp.Remote("localhost", 1736) {
 
   override def run(args: Array[String], ctx: RaphtoryContext): Unit =
-    ctx.runWithNewGraph(destroy = false) { graph =>
+    ctx.runWithNewGraph() { graph =>
       val path = "/tmp/lotr.csv"
       val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
       FileUtils.curlFile(path, url)
