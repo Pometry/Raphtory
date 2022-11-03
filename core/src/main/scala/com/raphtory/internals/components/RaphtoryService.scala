@@ -112,11 +112,7 @@ class DefaultRaphtoryService[F[_]](
 
   override def submitQuery(req: protocol.Query): F[Stream[F, protocol.QueryManagement]] =
     req match {
-      case protocol.Query(TryQuery(Success(query)), _) =>
-        for {
-          _         <- partitions.map(partition => partition.establishExecutor(req)).sequence // TODO: in parallel?
-          responses <- submitDeserializedQuery(query)
-        } yield responses
+      case protocol.Query(TryQuery(Success(query)), _) => submitDeserializedQuery(query)
       case protocol.Query(TryQuery(Failure(error)), _) =>
         Stream[F, protocol.QueryManagement](protocol.QueryManagement(JobFailed(error))).pure[F]
     }
@@ -245,7 +241,7 @@ object RaphtoryServiceBuilder {
       serviceRepo <- LocalServiceRegistry(topics)
       _           <- IngestionServiceImpl(serviceRepo, config)
       _           <- PartitionServiceImpl.makeN(serviceRepo, config)
-      _           <- QueryOrchestrator[F](config, topics)
+      _           <- QueryOrchestrator[F](config, serviceRepo)
     } yield serviceRepo
 
   private def localArrowCluster[F[_]: Async, V: VertexSchema, E: EdgeSchema](
@@ -256,7 +252,7 @@ object RaphtoryServiceBuilder {
       serviceRepo <- LocalServiceRegistry(topics)
       _           <- IngestionServiceImpl(serviceRepo, config)
       _           <- PartitionServiceImpl.makeNArrow[F, V, E](serviceRepo, config)
-      _           <- QueryOrchestrator[F](config, topics)
+      _           <- QueryOrchestrator[F](config, serviceRepo)
     } yield serviceRepo
 
   private def remoteCluster[F[_]: Async](config: Config): Resource[F, ServiceRegistry[F]] =

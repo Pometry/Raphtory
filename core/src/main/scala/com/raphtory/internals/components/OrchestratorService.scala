@@ -18,7 +18,8 @@ abstract class OrchestratorService[F[_]: Async, T](graphs: GraphList[F, T]) {
 
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private def logError(e: Throwable) = Async[F].delay(logger.error(s"Exception found in Orchestrator service: '$e'"))
+  private def logError(e: Throwable) =
+    Async[F].delay(logger.error(s"Exception found in Orchestrator service: '${e.getMessage}'"))
 
   protected def makeGraphData(graphId: String): F[T]
 

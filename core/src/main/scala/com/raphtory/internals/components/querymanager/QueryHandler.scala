@@ -31,9 +31,9 @@ import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
 import scala.util.Try
 
-private[raphtory] class QueryHandler(
+private[raphtory] class QueryHandler[F[_]](
     graphID: String,
-    queryManager: QueryManager,
+    queryManager: QueryManager[F],
     scheduler: Scheduler,
     jobID: String,
     query: Query,

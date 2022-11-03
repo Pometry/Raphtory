@@ -3,15 +3,20 @@ package com.raphtory.internals.components.querymanager
 import cats.effect.Async
 import cats.effect.Resource
 import cats.effect.Spawn
+import cats.effect.std.Dispatcher
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
+import com.raphtory.internals.components.ServiceRegistry
 import com.raphtory.internals.components.cluster.OrchestratorComponent
+import com.raphtory.protocol.PartitionService
 import com.typesafe.config.Config
 
-class QueryOrchestrator(
-    repo: TopicRepository,
+class QueryOrchestrator[F[_]: Async](
+    dispatcher: Dispatcher[F],
+    partitions: Seq[PartitionService[F]],
+    registry: ServiceRegistry[F],
     conf: Config
-) extends OrchestratorComponent(conf) {
+) extends OrchestratorComponent(dispatcher, partitions, conf) {
 
   override private[raphtory] def run(): Unit =
     logger.info(s"Starting Query Service")
@@ -19,7 +24,7 @@ class QueryOrchestrator(
   override def handleMessage(msg: ClusterManagement): Unit =
     msg match {
       case EstablishGraph(graphID: String, clientID: String) =>
-        establishService("Query Manager", graphID, clientID, repo, deployQueryService)
+        establishService("Query Manager", graphID, clientID, registry.topics, deployQueryService)
       case DestroyGraph(graphID, clientID, force)            => destroyGraph(graphID, clientID, force)
       case ClientDisconnected(graphID, clientID)             => clientDisconnected(graphID, clientID)
     }
@@ -28,14 +33,19 @@ class QueryOrchestrator(
 
 object QueryOrchestrator {
 
-  def apply[IO[_]: Async: Spawn](
+  def apply[F[_]: Async](
       conf: Config,
-      topics: TopicRepository
-  ): Resource[IO, QueryOrchestrator] =
-    Component.makeAndStart(
-            topics,
-            s"query-node",
-            List(topics.clusterComms),
-            new QueryOrchestrator(topics, conf)
-    )
+      registry: ServiceRegistry[F]
+  ): Resource[F, QueryOrchestrator[F]] =
+    for {
+      dispatcher   <- Dispatcher[F]
+      partitions   <- registry.partitions
+      orchestrator <- Component.makeAndStart(
+                              registry.topics,
+                              s"query-node",
+                              List(registry.topics.clusterComms),
+                              new QueryOrchestrator(dispatcher, partitions, registry, conf)
+                      )
+    } yield orchestrator
+
 }

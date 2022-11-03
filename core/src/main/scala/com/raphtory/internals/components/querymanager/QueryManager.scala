@@ -2,12 +2,17 @@ package com.raphtory.internals.components.querymanager
 
 import cats.effect.Async
 import cats.effect.Resource
+import cats.effect.std.Dispatcher
+import cats.syntax.all._
 import com.raphtory.internals.communication.CanonicalTopic
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
+import com.raphtory.internals.components.ServiceRegistry
 import com.raphtory.internals.graph.SourceTracker
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.management.telemetry.TelemetryReporter
+import com.raphtory.protocol
+import com.raphtory.protocol.PartitionService
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -15,16 +20,19 @@ import org.slf4j.LoggerFactory
 import scala.collection.concurrent._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.util.Success
 
-private[raphtory] class QueryManager(
+private[raphtory] class QueryManager[F[_]: Async](
     graphID: String,
     scheduler: Scheduler,
+    partitions: Seq[PartitionService[F]],
+    dispatcher: Dispatcher[F],
     conf: Config,
     topics: TopicRepository
 ) extends Component[QueryManagement](conf) {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val currentQueries                    = mutable.Map[String, QueryHandler]()
+  private val currentQueries                    = mutable.Map[String, QueryHandler[F]]()
   val sources: mutable.Map[Long, SourceTracker] = mutable.Map[Long, SourceTracker]()
   var blockedQueries: ArrayBuffer[Query]        = ArrayBuffer[Query]()
 
@@ -151,11 +159,13 @@ private[raphtory] class QueryManager(
 
     }
 
-  private def spawnQuery(id: String, query: Query): QueryHandler = {
+  private def spawnQuery(id: String, query: Query): QueryHandler[F] = {
     logger.info(s"Query '${query.name}' received, your job ID is '$id'.")
 
     val queryHandler = new QueryHandler(query.graphID, this, scheduler, id, query, conf, topics, query.pyScript)
     scheduler.execute(queryHandler)
+    val msg          = protocol.Query(TryQuery(Success(query)))
+    dispatcher.unsafeRunSync(partitions.map(partition => partition.establishExecutor(msg)).sequence)
     TelemetryReporter.totalQueriesSpawned.labels(graphID).inc()
     queryHandler
   }
@@ -170,7 +180,7 @@ private[raphtory] class QueryManager(
       else true
     }
 
-  private def trackNewQuery(jobID: String, queryHandler: QueryHandler): Unit =
+  private def trackNewQuery(jobID: String, queryHandler: QueryHandler[F]): Unit =
     //sender() ! ManagingTask(queryHandler)
     currentQueries.synchronized(currentQueries += ((jobID, queryHandler)))
 
@@ -204,13 +214,13 @@ private[raphtory] class QueryManager(
 
 object QueryManager {
 
-  import cats.effect.Spawn
-
-  def apply[IO[_]: Async: Spawn](
+  def apply[F[_]: Async](
       graphID: String,
+      dispatcher: Dispatcher[F],
+      partitions: Seq[PartitionService[F]],
       config: Config,
       topics: TopicRepository
-  ): Resource[IO, QueryManager] = {
+  ): Resource[F, QueryManager[F]] = {
     val scheduler = new Scheduler
     val topicList = List(
             topics.submissions(graphID),
@@ -218,11 +228,11 @@ object QueryManager {
             topics.completedQueries(graphID),
             topics.blockingIngestion(graphID)
     )
-    Component.makeAndStart[IO, QueryManagement, QueryManager](
+    Component.makeAndStart[F, QueryManagement, QueryManager[F]](
             topics,
             "query-manager",
             topicList,
-            new QueryManager(graphID, scheduler, config, topics)
+            new QueryManager(graphID, scheduler, partitions, dispatcher, config, topics)
     )
   }
 
