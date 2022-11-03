@@ -13,10 +13,9 @@ import com.typesafe.config.Config
 
 class QueryOrchestrator[F[_]: Async](
     dispatcher: Dispatcher[F],
-    partitions: Seq[PartitionService[F]],
     registry: ServiceRegistry[F],
     conf: Config
-) extends OrchestratorComponent(dispatcher, partitions, conf) {
+) extends OrchestratorComponent(dispatcher, registry, conf) {
 
   override private[raphtory] def run(): Unit =
     logger.info(s"Starting Query Service")
@@ -34,18 +33,14 @@ class QueryOrchestrator[F[_]: Async](
 object QueryOrchestrator {
 
   def apply[F[_]: Async](
+      dispatcher: Dispatcher[F],
       conf: Config,
       registry: ServiceRegistry[F]
   ): Resource[F, QueryOrchestrator[F]] =
-    for {
-      dispatcher   <- Dispatcher[F]
-      partitions   <- registry.partitions
-      orchestrator <- Component.makeAndStart(
-                              registry.topics,
-                              s"query-node",
-                              List(registry.topics.clusterComms),
-                              new QueryOrchestrator(dispatcher, partitions, registry, conf)
-                      )
-    } yield orchestrator
-
+    Component.makeAndStart(
+            registry.topics,
+            s"query-node",
+            List(registry.topics.clusterComms),
+            new QueryOrchestrator(dispatcher, registry, conf)
+    )
 }

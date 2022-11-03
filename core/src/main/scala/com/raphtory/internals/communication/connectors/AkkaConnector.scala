@@ -174,7 +174,7 @@ object AkkaConnector {
   def apply[IO[_]](mode: Mode, config: Config)(implicit IO: Sync[IO]): Resource[IO, AkkaConnector] =
     for {
       system    <- Resource.make(Sync[IO].delay(buildActorSystem(mode, config)))(system =>
-                     Sync[IO].delay(system.foreach(_.terminate()))
+                     Sync[IO].blocking(system.foreach(terminateSystem))
                    )
       _         <- system match {
                      case Some(system) => Resource.unit[IO]
@@ -182,6 +182,11 @@ object AkkaConnector {
                    }
       connector <- Resource.eval(IO.delay(new AkkaConnector(system.get)))
     } yield connector
+
+  private def terminateSystem(system: ActorSystem[_]) = { // This guarantees the termination of the system
+    system.terminate()
+    Await.ready(system.whenTerminated, 60.seconds)
+  }
 
   private def buildActorSystem(mode: Mode, config: Config): Option[ActorSystem[SpawnProtocol.Command]] =
     mode match {

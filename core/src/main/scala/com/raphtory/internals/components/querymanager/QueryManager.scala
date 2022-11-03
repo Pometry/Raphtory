@@ -217,7 +217,7 @@ object QueryManager {
   def apply[F[_]: Async](
       graphID: String,
       dispatcher: Dispatcher[F],
-      partitions: Seq[PartitionService[F]],
+      registry: ServiceRegistry[F],
       config: Config,
       topics: TopicRepository
   ): Resource[F, QueryManager[F]] = {
@@ -228,12 +228,14 @@ object QueryManager {
             topics.completedQueries(graphID),
             topics.blockingIngestion(graphID)
     )
-    Component.makeAndStart[F, QueryManagement, QueryManager[F]](
-            topics,
-            "query-manager",
-            topicList,
-            new QueryManager(graphID, scheduler, partitions, dispatcher, config, topics)
-    )
+    for {
+      partitions <- registry.partitions
+      manager    <- Component.makeAndStart[F, QueryManagement, QueryManager[F]](
+                            topics,
+                            "query-manager",
+                            topicList,
+                            new QueryManager(graphID, scheduler, partitions, dispatcher, config, topics)
+                    )
+    } yield manager
   }
-
 }

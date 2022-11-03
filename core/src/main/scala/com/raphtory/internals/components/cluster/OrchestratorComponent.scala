@@ -28,7 +28,7 @@ import scala.collection.mutable
 
 abstract class OrchestratorComponent[F[_]: Async](
     dispatcher: Dispatcher[F],
-    partitions: Seq[PartitionService[F]],
+    registry: ServiceRegistry[F],
     conf: Config
 ) extends Component[ClusterManagement](conf) {
   private case class Deployment(shutdown: F[Unit], clients: mutable.Set[String])
@@ -87,11 +87,11 @@ abstract class OrchestratorComponent[F[_]: Async](
   protected def deployQueryService(
       graphID: String,
       clientID: String,
-      topics: TopicRepository,
+      repo: TopicRepository,
       conf: Config
   ): Unit =
     deployments.synchronized {
-      val serviceResource = QueryManager[F](graphID, dispatcher, partitions, conf, topics)
+      val serviceResource = QueryManager[F](graphID, dispatcher, registry, conf, repo)
       val (_, shutdown)   = dispatcher.unsafeRunSync(serviceResource.allocated)
       deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))
     }

@@ -35,7 +35,6 @@ import scala.language.postfixOps
  * Reference: https://snap.stanford.edu/data/ego-Twitter.html
  *
  * */
-//@IgnoreSuite
 class TwitterTest extends BaseRaphtoryAlgoTest[String] {
   override val outputDirectory: String = "/tmp/raphtoryTwitterTest"
 
