@@ -77,7 +77,7 @@ jobs:
       - name: Run pyraphtory_jvm test fam
         run: cd python/pyraphtory_jvm && tox
       - name: Install pyraphtory
-        run: cd python/pyraphtory && poetry install
+        run: cd python/pyraphtory && poetry build && poetry install
       - name: Run pyraphtory tests
         run: cd python/pyraphtory && poetry run pytest
 #      - name: Run notebook tests

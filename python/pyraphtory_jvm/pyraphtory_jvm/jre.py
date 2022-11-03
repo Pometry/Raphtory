@@ -16,7 +16,7 @@ import site
 IVY_LIB = '/lib'
 PYRAPHTORY_DATA = '/pyraphtory_jvm/data'
 
-ivy_file = os.path.dirname(os.path.realpath(__file__)) + '/ivy.xml'
+ivy_folder = os.path.dirname(os.path.realpath(__file__)) + '/data/ivys/'
 build_file = os.path.dirname(os.path.realpath(__file__)) + '/build.xml'
 
 LINK = 'link'
@@ -160,9 +160,12 @@ def get_and_run_ivy(JAVA_BIN, download_dir=os.path.dirname(os.path.realpath(__fi
     print(f"working dir {working_dir}, dl dir: {download_dir} REAL PATH {str(os.path.dirname(os.path.realpath(__file__)))}")
     os.chdir(download_dir)
     print(os.listdir('.'))
-    subprocess.call(
-        [JAVA_BIN, "-jar", download_dir + "/apache-ivy-2.5.0/ivy-2.5.0.jar", "-ivy", str(os.path.dirname(os.path.realpath(__file__))) + "/ivy.xml",
-         "-retrieve", "."])
+    files = os.listdir(ivy_folder)
+    for fname in files:
+        if fname.endswith('.xml'):
+            subprocess.call(
+                [JAVA_BIN, "-jar", download_dir + "/apache-ivy-2.5.0/ivy-2.5.0.jar", "-ivy",
+                 str(ivy_folder) + "/" + fname, "-retrieve", "."])
     os.chdir(working_dir)
     # Clean up and delete downloaded ivy files
     shutil.rmtree(download_dir + "/apache-ivy-2.5.0", ignore_errors=True)
