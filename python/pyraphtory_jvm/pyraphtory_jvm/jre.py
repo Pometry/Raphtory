@@ -60,7 +60,7 @@ SOURCES = {
 }
 
 IVY_BIN = {
-    LINK: 'https://dlcdn.apache.org//ant/ivy/2.5.0/apache-ivy-2.5.0-bin.zip',
+    LINK: 'https://github.com/Raphtory/Data/raw/main/apache-ivy-2.5.0-bin.zip',
     CHECKSUM_SHA256: '7c6f467e33c28d82f4f8c3c10575bb461498ad8dcabf57770f481bfea59b1e59'
 }
 
