@@ -4,29 +4,22 @@ import cats.effect.Async
 import cats.effect.Deferred
 import cats.effect.Resource
 import cats.syntax.all._
-import cats.implicits.toTraverseOps
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.OrchestratorService.Graph
 import com.raphtory.internals.components.OrchestratorService.GraphList
-import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.GrpcServiceDescriptor
 import com.raphtory.internals.components.OrchestratorService
-import com.raphtory.internals.components.OrchestratorServiceBuilder
 import com.raphtory.internals.components.ServiceDescriptor
-import com.raphtory.internals.components.ServiceRepository
-import com.raphtory.internals.components.cluster.OrchestratorComponent
+import com.raphtory.internals.components.ServiceRegistry
 import com.raphtory.internals.components.querymanager
 import com.raphtory.internals.components.querymanager.TryQuery
 import com.raphtory.internals.graph.GraphPartition
-import com.raphtory.internals.management.Partitioner
-import com.raphtory.internals.management.Scheduler
-import com.raphtory.internals.management.id.IDManager
+import com.raphtory.internals.management.{Partitioner, Scheduler}
 import com.raphtory.internals.storage.arrow.ArrowPartition
 import com.raphtory.internals.storage.arrow.ArrowPartitionConfig
 import com.raphtory.internals.storage.arrow.ArrowSchema
 import com.raphtory.internals.storage.arrow.EdgeSchema
 import com.raphtory.internals.storage.arrow.VertexSchema
-import com.raphtory.internals.storage.arrow.immutable
 import com.raphtory.internals.storage.pojograph.PojoBasedPartition
 import com.raphtory.protocol.PartitionService
 import com.raphtory.protocol.Query
@@ -103,16 +96,19 @@ class ArrowPartitionServerImpl[F[_]: Async, V: VertexSchema, E: EdgeSchema](
     } yield storage
 }
 
-object PartitionServiceImpl extends OrchestratorServiceBuilder {
+object PartitionServiceImpl {
+  import OrchestratorService._
+
+  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   def makeN[F[_]: Async](
-      repo: ServiceRepository[F],
+      repo: ServiceRegistry[F],
       config: Config
   ): Resource[F, Unit] =
     makeNWithStorage((id, graphs) => new PojoPartitionServerImpl[F](id, graphs, repo.topics, config), repo, config)
 
   def makeNArrow[F[_]: Async, V: VertexSchema, E: EdgeSchema](
-      repo: ServiceRepository[F],
+      repo: ServiceRegistry[F],
       config: Config
   ): Resource[F, Unit] =
     makeNWithStorage(
@@ -130,10 +126,10 @@ object PartitionServiceImpl extends OrchestratorServiceBuilder {
 
   private def makeNWithStorage[F[_]: Async](
       service: (Deferred[F, Int], GraphList[F, GraphPartition]) => PartitionServiceImpl[F],
-      repo: ServiceRepository[F],
+      repo: ServiceRegistry[F],
       config: Config
   ): Resource[F, Unit] = {
-    val partitioner      = Partitioner(config)
+    val partitioner      = Partitioner()
     val candidateIds     = 0 until partitioner.totalPartitions
     val partitionsToMake = 0 until partitioner.partitionsPerServer
     partitionsToMake
@@ -144,7 +140,7 @@ object PartitionServiceImpl extends OrchestratorServiceBuilder {
   private def makePartition[F[_]: Async](
       candidateIds: Seq[Int],
       service: (Deferred[F, Int], GraphList[F, GraphPartition]) => PartitionServiceImpl[F],
-      repo: ServiceRepository[F],
+      repo: ServiceRegistry[F],
       conf: Config
   ): Resource[F, Unit] =
     for {
