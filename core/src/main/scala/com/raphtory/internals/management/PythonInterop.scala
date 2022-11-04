@@ -30,16 +30,23 @@ object PythonInterop {
 
   def repr(obj: Any): String =
     obj match {
-      case v: Array[_]    => "[" + v.map(repr).mkString(", ") + "]"
-      case v: Iterable[_] => "[" + v.map(repr).mkString(", ") + "]"
-      case v: Product     =>
+      case v: Array[_]                                       =>
+        "[" + v.map(repr).mkString(", ") + "]"
+      case v: Map[_, _]                                      =>
+        "{" + v.map(t => repr(t._1) + ": " + repr(t._2)).mkString(", ") + "}"
+      case v: Iterable[_]                                    =>
+        "[" + v.map(repr).mkString(", ") + "]"
+      case v: Product if v.productPrefix.startsWith("Tuple") =>
+        "(" + v.productIterator.map(repr).mkString(", ") + ")"
+
+      case v: Product                                        =>
         v.productPrefix + "(" + v.productElementNames
           .zip(v.productIterator)
           .map {
             case (name, value) => s"$name=${repr(value)}"
           }
           .mkString(", ") + ")"
-      case v              => v.toString
+      case v                                                 => v.toString
     }
 
   /** Get scaladoc string from annotation for class
