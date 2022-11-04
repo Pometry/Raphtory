@@ -31,14 +31,13 @@ private[raphtory] class IngestionExecutor[F[_]: Async](
     sourceID: Int,
     conf: Config,
     topics: TopicRepository
-) extends TelemetryReporter {
+) {
   private val logger: Logger                               = Logger(LoggerFactory.getLogger(this.getClass))
   private val failOnError                                  = conf.getBoolean("raphtory.builders.failOnError")
   private val writers: Map[Int, EndPoint[GraphAlteration]] = topics.graphUpdates(graphID).endPoint()
   private val queryManager                                 = topics.blockingIngestion(graphID).endPoint
   private val sourceInstance                               = source.buildSource(graphID, sourceID)
-  private val spoutReschedulesCount                        = telemetry.spoutReschedules.labels(graphID)
-  private val fileLinesSent                                = telemetry.fileLinesSent.labels(graphID)
+  private val totalTuplesProcessed                         = TelemetryReporter.totalTuplesProcessed.labels(s"$sourceID", graphID)
 
   private var index: Long = 0
 
@@ -72,7 +71,6 @@ private[raphtory] class IngestionExecutor[F[_]: Async](
   private def uniquePoll: F[Unit] = Async[F].blocking(executePoll())
 
   private def executePoll(): Unit = {
-    spoutReschedulesCount.inc()
     var iBlocked = false
 
     if (sourceInstance.hasRemainingUpdates)
@@ -85,7 +83,7 @@ private[raphtory] class IngestionExecutor[F[_]: Async](
 
     while (sourceInstance.hasRemainingUpdates) {
 //      latestMsgTimeToFlushToFlight = System.currentTimeMillis() -> Needed if this class extends FlushToFlight
-      fileLinesSent.inc()
+      totalTuplesProcessed.inc()
       index = index + 1
       sourceInstance.sendUpdates(index, failOnError)
     }
@@ -107,10 +105,9 @@ object IngestionExecutor {
       sourceID: Int,
       config: Config,
       topics: TopicRepository
-  ): F[Unit] = {
+  ): Resource[F, IngestionExecutor[F]] = {
     val createExecutor =
       Async[F].delay(new IngestionExecutor(graphID, source, blocking, sourceID, config, topics))
-    val executor       = Resource.make(createExecutor)(executor => executor.release())
-    executor.use(executor => executor.run())
+    Resource.make(createExecutor)(executor => executor.release())
   }
 }

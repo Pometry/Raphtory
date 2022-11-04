@@ -24,8 +24,7 @@ object ArrowFlightRepository {
     config.getString("raphtory.communication.control") match {
       case "auto" | "akka" =>
         for {
-          arrowFlightConnector <- ArrowFlightConnector[IO](config, signatureRegistry, addressProvider)
-          akkaConnector        <- AkkaConnector[IO](AkkaConnector.StandaloneMode, config)
+          akkaConnector <- AkkaConnector[IO](AkkaConnector.StandaloneMode, config)
         } yield new TopicRepository(akkaConnector, akkaConnector, akkaConnector, config)
     }
 

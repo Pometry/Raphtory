@@ -2,8 +2,8 @@ package com.raphtory.internals.components
 
 import cats.effect.IO
 import com.raphtory._
-import com.raphtory.protocol.ClientGraphId
 import com.raphtory.protocol.GetGraph
+import com.raphtory.protocol.GraphInfo
 import com.raphtory.protocol.RaphtoryService
 import com.raphtory.protocol.Status
 import munit.CatsEffectSuite
@@ -23,7 +23,7 @@ class RaphtoryServiceTestSuite extends CatsEffectSuite {
     val graphId    = createName
 
     standalone
-      .establishGraph(ClientGraphId(clientId, graphId))
+      .establishGraph(GraphInfo(clientId, graphId))
       .map { status =>
         assertEquals(status.success, true)
       }
@@ -40,7 +40,7 @@ class RaphtoryServiceTestSuite extends CatsEffectSuite {
     val clientId   = createName
     val graphId    = createName
     standalone
-      .establishGraph(ClientGraphId(clientId, graphId))
+      .establishGraph(GraphInfo(clientId, graphId))
       .flatMap { status =>
         if (status.success) standalone.getGraph(GetGraph(graphId)) else IO(Status())
       }
