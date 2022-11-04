@@ -88,8 +88,8 @@
         </Logger>
         <Logger name="com.raphtory.internals.components.spout" level="${env:RAPHTORY_INTERNALS_COMPONENTS_SPOUT_LOG:-${defaultInternalsComponentsLogLevel}}">
         </Logger>
-
-        <Logger name="com.raphtory.internals.management.PythonInterop$" level="${defaultPythonLogLevel}"></Logger>
+        <Logger name="com.raphtory.internals.management.PythonInterop$" level="${defaultPythonLogLevel}">
+        </Logger>
 
         <Root level="${defaultLogLevel}">
             <AppenderRef ref="Console"/>
