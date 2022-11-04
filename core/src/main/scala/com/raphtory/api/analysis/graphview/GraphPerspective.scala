@@ -256,9 +256,14 @@ trait GraphPerspective {
     *
     * @param f function to extract data from vertex
     */
-  def explodeSelect(f: Vertex => Iterable[Row]): Table
+  def explodeSelect(f: Vertex => IterableOnce[Row]): Table
 
-//  TODO: Implement GraphState version of explodeSelect
+  /** Write output to table with multiple rows per vertex
+    * using global graph state
+    *
+    * @param f function to extract data from vertex and graph state
+    */
+  def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row]): Table
 
   /** Clear messages from previous operations. This function is predominantly used internally and shouldn't be called by the user unless they know what they are doing. */
   def clearMessages(): Graph
@@ -339,7 +344,8 @@ private[api] trait ConcreteGraphPerspective[V <: visitor.Vertex, G <: ConcreteGr
   def select(f: Vertex => Row): Table
   def select(f: (Vertex, GraphState) => Row): Table
   def globalSelect(f: GraphState => Row): Table
-  def explodeSelect(f: Vertex => Iterable[Row]): Table
+  def explodeSelect(f: Vertex => IterableOnce[Row]): Table
+  def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row]): Table
   def clearMessages(): Graph
 }
 

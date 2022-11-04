@@ -24,6 +24,7 @@ private[raphtory] trait LensInterface {
   )(onComplete: => Unit): Unit
   def executeSelect(f: GraphState => Row, graphState: GraphState)(onComplete: => Unit): Unit
   def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: => Unit): Unit
+  def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row], graphState: GraphState)(onComplete: => Unit): Unit
   def filteredTable(f: Row => Boolean)(onComplete: => Unit): Unit
   def explodeTable(f: Row => IterableOnce[Row])(onComplete: => Unit): Unit
   def writeDataTable(f: Row => Unit)(onComplete: => Unit): Unit
