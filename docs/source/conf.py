@@ -33,9 +33,16 @@ release = '0.1.0'
 # ones.
 extensions = [
     'extractScalaAlgoDocs',
+    'sphinx.ext.autodoc',
     'myst_parser',
     'sphinx_tabs.tabs'
 ]
+
+autodoc_default_options = {
+    'members': True,
+    'undoc-members': True,
+    'inherited-members': True
+}
 
 # Extension options
 myst_enable_extensions = ["deflist", "dollarmath"]
