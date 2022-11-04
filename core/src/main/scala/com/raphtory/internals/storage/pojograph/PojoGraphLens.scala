@@ -65,7 +65,7 @@ final private[raphtory] case class PojoGraphLens(
   private var fullGraphSize     = 0
   private var exploded: Boolean = false
 
-  val chunkSize = 128
+  val chunkSize = 1
 
   private val needsFiltering: SuperStepFlag = SuperStepFlag()
 
@@ -144,6 +144,13 @@ final private[raphtory] case class PojoGraphLens(
   def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: => Unit): Unit = {
     dataTable = vertexIterator
       .flatMap(f.asInstanceOf[PojoVertexBase => IterableOnce[RowImplementation]])
+      .flatMap(_.yieldAndRelease)
+    onComplete
+  }
+
+  def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row], graphState: GraphState)(onComplete: => Unit): Unit = {
+    dataTable = vertexIterator
+      .flatMap(v => f.asInstanceOf[(PojoVertexBase, GraphState) => IterableOnce[RowImplementation]](v, graphState))
       .flatMap(_.yieldAndRelease)
     onComplete
   }
@@ -235,7 +242,7 @@ final private[raphtory] case class PojoGraphLens(
     vs.filter(v => v.hasMessage || includeAllVs)
       .grouped(chunkSize)
       .map { chunk =>
-        chunk.size -> IO.blocking {
+        chunk.size -> IO {
           chunk.foreach(f)
         }
       }

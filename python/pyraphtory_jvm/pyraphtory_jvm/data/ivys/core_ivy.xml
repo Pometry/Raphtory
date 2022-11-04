@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ivy-module version="2.0" xmlns:e="http://ant.apache.org/ivy/extra">
-  <info organisation="com.raphtory" module="core_2.13" revision="0.2.0a1" status="release" publication="20221026160837">
+  <info organisation="com.raphtory" module="core_2.13" revision="0.2.0a5" status="release" publication="20221103121651">
     <description homepage="https://github.com/Raphtory/Raphtory">A Distributed Temporal Graph Processing System</description>
   </info>
   <configurations>
@@ -209,6 +209,11 @@
       <exclude org="org.slf4j" module="*" name="*" type="*" ext="*" conf="" matcher="exact"/>
       <exclude org="org.slf4j" module="slf4j-log4j12" name="*" type="*" ext="*" conf="" matcher="exact"/>
     </dependency>
+    <dependency org="com.softwaremill.magnolia1_2" name="magnolia_2.13" rev="1.1.2" conf="compile->default(compile)">
+      <exclude org="log4j" module="*" name="*" type="*" ext="*" conf="" matcher="exact"/>
+      <exclude org="org.slf4j" module="*" name="*" type="*" ext="*" conf="" matcher="exact"/>
+      <exclude org="org.slf4j" module="slf4j-log4j12" name="*" type="*" ext="*" conf="" matcher="exact"/>
+    </dependency>
     <dependency org="com.chuusai" name="shapeless_2.13" rev="2.3.3" conf="compile->default(compile)">
       <exclude org="org.slf4j" module="slf4j-log4j12" name="*" type="*" ext="*" conf="" matcher="exact"/>
     </dependency>
@@ -216,6 +221,9 @@
       <exclude org="org.slf4j" module="slf4j-log4j12" name="*" type="*" ext="*" conf="" matcher="exact"/>
     </dependency>
     <dependency org="com.github.takezoe" name="runtime-scaladoc-reader_2.13" rev="1.0.3" conf="compile->default(compile)">
+      <exclude org="org.slf4j" module="slf4j-log4j12" name="*" type="*" ext="*" conf="" matcher="exact"/>
+    </dependency>
+    <dependency org="junit" name="junit" rev="4.13.2" conf="test->default(compile)">
       <exclude org="org.slf4j" module="slf4j-log4j12" name="*" type="*" ext="*" conf="" matcher="exact"/>
     </dependency>
     <dependency org="org.scala-lang" name="scala-compiler" rev="2.13.7" conf="provided->default(compile)"> </dependency>
