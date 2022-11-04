@@ -125,7 +125,7 @@ private[raphtory] class QueryExecutor[F[_]](
     logger.debug(logMessage("Query executor consumer started, starting vertex message listeners."))
     vertexMessageListener.foreach(_.start())
     logger.debug(logMessage("Vertex message and vertex control message listeners started."))
-    taskManager sendAsync ExecutorEstablished(partitionID)
+//    taskManager sendAsync ExecutorEstablished(partitionID)
     logger.debug(logMessage("QueryExecutor initialised."))
   }
 
