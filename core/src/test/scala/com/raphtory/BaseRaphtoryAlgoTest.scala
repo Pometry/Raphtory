@@ -57,9 +57,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
       sink: Sink = defaultSink,
       graph: DeployedTemporalGraph = graph
   ): IO[String] =
-    IO {
-      graph.load(setSource())
-
+    IO.blocking {
       val queryProgressTracker = graph
         .range(start, end, increment)
         .window(windows, Alignment.END)
@@ -80,9 +78,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
       sink: Sink = defaultSink,
       graph: DeployedTemporalGraph = graph
   ): IO[String] =
-    IO {
-      graph.load(setSource())
-
+    IO.blocking {
       val queryProgressTracker = graph
         .at(timestamp)
         .window(windows, Alignment.END)
