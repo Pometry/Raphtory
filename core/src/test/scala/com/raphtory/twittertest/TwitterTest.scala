@@ -3,7 +3,9 @@ package com.raphtory.twittertest
 import com.raphtory.BaseRaphtoryAlgoTest
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.input.sources.CSVEdgeListSource
-import com.raphtory.api.input.{Graph, GraphBuilder, Source}
+import com.raphtory.api.input.Graph
+import com.raphtory.api.input.GraphBuilder
+import com.raphtory.api.input.Source
 import com.raphtory.spouts.StaticGraphSpout
 import munit.IgnoreSuite
 
