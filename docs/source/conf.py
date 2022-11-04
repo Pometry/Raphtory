@@ -38,6 +38,12 @@ extensions = [
     'sphinx_tabs.tabs'
 ]
 
+autodoc_default_options = {
+    'members': True,
+    'undoc-members': True,
+    'inherited-members': True
+}
+
 # Extension options
 myst_enable_extensions = ["deflist", "dollarmath"]
 myst_heading_anchors = 3
