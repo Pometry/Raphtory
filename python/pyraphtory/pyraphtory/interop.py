@@ -392,6 +392,7 @@ class GenericScalaProxy(JVMBase):
         """automatically register wrappers that have a '_classname' defined"""
         super().__init_subclass__(**kwargs)
         if cls._classname is not None:
+            cls._initialised = False
             register(cls)
             cls._init_methods(None)
 

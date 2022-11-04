@@ -153,6 +153,14 @@ abstract class AbstractGraphLens(
     onComplete
   }
 
+  override def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row], graphState: GraphState)(
+      onComplete: => Unit
+  ): Unit = {
+    dataTable =
+      vertices.flatMap(v => f(v, graphState)).flatMap(row => row.asInstanceOf[RowImplementation].yieldAndRelease)
+    onComplete
+  }
+
   override def executeSelect(f: Vertex => Row)(onComplete: => Unit): Unit =
     explodeSelect(v => List(f(v)))(onComplete)
 

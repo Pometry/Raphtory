@@ -214,10 +214,10 @@ private[raphtory] class QueryExecutor[F[_]](
 
         case GraphFunctionWithGlobalState(function, graphState)                       =>
           function match {
-            case StepWithGraph(f)                         =>
+            case StepWithGraph(f)                               =>
               evalStepWithGraph(time, graphState, f)
 
-            case iwg: IterateWithGraph[Vertex] @unchecked =>
+            case iwg: IterateWithGraph[Vertex] @unchecked       =>
               startStep()
               val fun =
                 if (iwg.executeMessagedOnly)
@@ -248,7 +248,7 @@ private[raphtory] class QueryExecutor[F[_]](
                 }
               }
 
-            case SelectWithGraph(f)                       =>
+            case SelectWithGraph(f)                             =>
               startStep()
               graphLens.executeSelect(f, graphState) {
                 finaliseStep {
@@ -261,7 +261,21 @@ private[raphtory] class QueryExecutor[F[_]](
                   )
                 }
               }
-            case GlobalSelect(f)                          =>
+
+            case esf: ExplodeSelectWithGraph[Vertex] @unchecked =>
+              startStep()
+              graphLens.explodeSelect(esf.f, graphState) {
+                finaliseStep {
+                  taskManager sendAsync TableBuilt(currentPerspectiveID)
+                  logger.debug(
+                          logMessage(
+                                  s"ExplodeSelect executed on graph with accumulators in ${System
+                                    .currentTimeMillis() - time}ms."
+                          )
+                  )
+                }
+              }
+            case GlobalSelect(f)                                =>
               evalGlobalSelect(time, graphState, f)
           }
 
