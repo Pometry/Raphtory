@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ivy-module version="2.0" xmlns:e="http://ant.apache.org/ivy/extra">
+  <info organisation="com.raphtory" module="arrow-messaging_2.13" revision="0.2.0a5" status="release" publication="20221103121647">
+    <description homepage="https://github.com/Raphtory/Raphtory">A Distributed Temporal Graph Processing System</description>
+  </info>
+  <configurations>
+    <conf name="plugin" visibility="public" description=""/>
+    <conf name="pom" visibility="public" description=""/>
+    <conf extends="runtime" name="test" visibility="public" description=""/>
+    <conf name="provided" visibility="public" description=""/>
+    <conf extends="compile,optional,provided" name="compile-internal" visibility="public" description=""/>
+    <conf name="docs" visibility="public" description=""/>
+    <conf name="scoveragePlugin" visibility="public" description=""/>
+    <conf name="optional" visibility="public" description=""/>
+    <conf name="protobuf" visibility="public" description=""/>
+    <conf name="protobuf-src" visibility="public" description=""/>
+    <conf name="compile" visibility="public" description=""/>
+    <conf extends="test,optional,provided" name="test-internal" visibility="public" description=""/>
+    <conf name="scala-tool" visibility="public" description=""/>
+    <conf name="scala-doc-tool" visibility="public" description=""/>
+    <conf name="sources" visibility="public" description=""/>
+    <conf extends="compile" name="runtime" visibility="public" description=""/>
+    <conf extends="runtime,optional" name="runtime-internal" visibility="public" description=""/>
+  </configurations>
+  <publications>
+    <artifact name="arrow-messaging_2.13" type="jar" ext="jar" conf="compile"/>
+    <artifact e:classifier="sources" name="arrow-messaging_2.13" type="src" ext="jar" conf="sources"/>
+    <artifact e:classifier="javadoc" name="arrow-messaging_2.13" type="doc" ext="jar" conf="docs"/>
+    <artifact name="arrow-messaging_2.13" type="pom" ext="pom" conf="pom"/>
+  </publications>
+  <dependencies>
+    <dependency org="org.scala-lang" name="scala-compiler" rev="2.13.7" conf="scala-tool->default"> </dependency>
+    <dependency org="org.scala-lang" name="scala-compiler" rev="2.13.7" conf="scala-tool->optional(default)"> </dependency>
+    <dependency org="org.scala-lang" name="scala-library" rev="2.13.7" conf="scala-tool->default"> </dependency>
+    <dependency org="org.scala-lang" name="scala-library" rev="2.13.7" conf="scala-tool->optional(default)"> </dependency>
+    <dependency org="org.scala-lang" name="scala-library" rev="2.13.7" conf="compile->default(compile)"> </dependency>
+    <dependency org="io.netty" name="netty-transport-native-unix-common" rev="4.1.72.Final" conf="compile->default(compile)">
+      <artifact name="netty-transport-native-unix-common" type="jar" ext="jar" conf="*" e:classifier="osx-x86_64"/>
+    </dependency>
+    <dependency org="org.apache.arrow" name="flight-core" rev="8.0.0" conf="compile->default(compile)">
+      <exclude org="io.netty" module="netty-transport-native-unix-common" name="*" type="*" ext="*" conf="" matcher="exact"/>
+    </dependency>
+    <dependency org="org.apache.logging.log4j" name="log4j-api" rev="2.17.2" conf="compile->default(compile)"> </dependency>
+    <dependency org="org.apache.logging.log4j" name="log4j-core" rev="2.17.2" conf="compile->default(compile)"> </dependency>
+    <dependency org="org.scala-lang" name="scala-reflect" rev="2.13.8" conf="compile->default(compile)"> </dependency>
+    <dependency org="com.chuusai" name="shapeless_2.13" rev="2.3.3" conf="compile->default(compile)"> </dependency>
+    <dependency org="org.scalatest" name="scalatest-funsuite_2.13" rev="3.2.12" conf="test->default(compile)"> </dependency>
+    <dependency org="org.scoverage" name="scalac-scoverage-runtime_2.13" rev="2.0.0" conf="compile->default(compile)"> </dependency>
+    <dependency org="org.typelevel" name="cats-effect_2.13" rev="3.3.12" conf="compile->default(compile)"> </dependency>
+    <dependency org="org.typelevel" name="alleycats-core_2.13" rev="2.7.0" conf="compile->default(compile)"> </dependency>
+    <dependency org="org.typelevel" name="munit-cats-effect-3_2.13" rev="1.0.7" conf="test->default(compile)"> </dependency>
+    <dependency org="org.objenesis" name="objenesis" rev="3.3" conf="compile->default(compile)"> </dependency>
+  </dependencies>
+</ivy-module>
