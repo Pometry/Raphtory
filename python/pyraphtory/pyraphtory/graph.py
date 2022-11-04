@@ -50,6 +50,17 @@ class TemporalGraph(GenericScalaProxy):
             return algorithm.tabularise(self.transform(algorithm))
 
 
+class DeployedTemporalGraph(TemporalGraph):
+    _classname = "com.raphtory.api.analysis.graphview.PyDeployedTemporalGraph"
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        logger.debug("Graph closed using context manager")
+        self.close()
+
+
 @register(name="Accumulator")
 class Accumulator(GenericScalaProxy):
     _classname = "com.raphtory.api.analysis.graphstate.Accumulator"

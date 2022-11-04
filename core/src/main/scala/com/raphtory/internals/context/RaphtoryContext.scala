@@ -50,9 +50,9 @@ class PyRaphtoryContext(serviceAsResource: Resource[IO, RaphtoryService[IO]], co
         extends Context(serviceAsResource, config)
         with AutoCloseable {
 
-  def newGraph(graphID: String = createName): PyDeployedTemporalGraph = {
+  def newGraph(graphID: String = createName, persist: Boolean = false): PyDeployedTemporalGraph = {
     val ((q, qs, c), shutdown) =
-      newIOGraphParams(failOnNotFound = false, graphID, destroy = false).allocated.unsafeRunSync()
+      newIOGraphParams(failOnNotFound = false, graphID, destroy = !persist).allocated.unsafeRunSync()
     new PyDeployedTemporalGraph(q, qs, c, shutdown)
   }
 
@@ -103,7 +103,7 @@ class RaphtoryContext(serviceAsResource: Resource[IO, RaphtoryService[IO]], conf
       failOnNotFound: Boolean,
       graphID: String = createName,
       destroy: Boolean
-  ): Resource[IO, DeployedTemporalGraph]                                                           =
+  ): Resource[IO, DeployedTemporalGraph] =
     newIOGraphParams(failOnNotFound, graphID, destroy).map {
       case (query, querySender, conf) =>
         new DeployedTemporalGraph(query, querySender, conf)
@@ -120,8 +120,8 @@ class RaphtoryContext(serviceAsResource: Resource[IO, RaphtoryService[IO]], conf
 
   // With this API user is trying to create a fresh graph with following expectations:
   // - if no graph is available with the provided graph id, create a new graph, otherwise throw an exception
-  def runWithNewGraph[T](graphID: String = createName, destroy: Boolean = false)(f: DeployedTemporalGraph => T): T =
-    newIOGraph(failOnNotFound = false, graphID, destroy)
+  def runWithNewGraph[T](graphID: String = createName, persist: Boolean = false)(f: DeployedTemporalGraph => T): T =
+    newIOGraph(failOnNotFound = false, graphID, !persist)
       .use { graph =>
         IO.blocking(f(graph))
       }

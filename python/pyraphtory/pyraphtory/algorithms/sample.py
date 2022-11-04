@@ -29,69 +29,75 @@ if __name__ == "__main__":
         graph.add_edge(time_stamp, src_id, tar_id, Type("Character_Co-occurence"))
 
 
-    lotr_spout = FileSpout("/tmp/lotr.csv")
-    ctx = PyRaphtory.local()
-    graph = ctx.new_graph().load(Source(lotr_spout, GraphBuilder(parse)))
+    with PyRaphtory.local() as ctx:
+        lotr_spout = FileSpout("/tmp/lotr.csv")
 
-    df = (graph
-          .select(lambda vertex: Row(vertex.name(), vertex.degree()))
-          .to_df(["name", "degree"]))
-    print(df)
+        with ctx.new_graph() as graph:
+            graph.load(Source(lotr_spout, GraphBuilder(parse)))
 
-    df = (graph
-          .execute(PyRaphtory.algorithms.generic.community.LPA[Long]())
-          .to_df(["name", "lpa_label"])
-          )
-    print(df)
+            df = (graph
+                  .select(lambda vertex: Row(vertex.name(), vertex.degree()))
+                  .to_df(["name", "degree"]))
+            print(df)
 
-    df = (graph.execute(PageRank()).to_df(["name", "pagerank"]))
-    print(df)
+            df = (graph
+                  .execute(PyRaphtory.algorithms.generic.community.LPA[Long]())
+                  .to_df(["name", "lpa_label"])
+                  )
+            print(df)
 
-    df = (graph.execute(ConnectedComponents()).to_df(["name", "component"]))
-    print(df)
+            df = (graph.execute(PageRank()).to_df(["name", "pagerank"]))
+            print(df)
 
-    #  df = (graph.execute(TwoHopPaths()).to_df(["start", "middle", "end"]))
-    #  print(df)
+            df = (graph.execute(ConnectedComponents()).to_df(["name", "component"]))
+            print(df)
 
-    df = (graph.execute(LocalTriangleCount()).to_df(["name", "triangles"]))
-    print(df)
+            #  df = (graph.execute(TwoHopPaths()).to_df(["start", "middle", "end"]))
+            #  print(df)
 
-    df = (graph.execute(GlobalTriangleCount()).to_df(["triangles"]))
-    print(df)
+            df = (graph.execute(LocalTriangleCount()).to_df(["name", "triangles"]))
+            print(df)
 
-    df = (graph.execute(Degree()).to_df(["name", "in-degree", "out-degree", "degree"]))
-    print(df)
+            df = (graph.execute(GlobalTriangleCount()).to_df(["triangles"]))
+            print(df)
 
-    graph2 = ctx.new_graph()
-    # can just call add_vertex, add_edge on graph directly without spout/builder
-    start = perf_counter()
-    with open("/tmp/lotr.csv") as f:
-        for line in f:
-            parse(graph2, line)
-    print(f"time taken to ingest: {perf_counter() - start}s")
+            df = (graph.execute(Degree()).to_df(["name", "in-degree", "out-degree", "degree"]))
+            print(df)
 
-    df = (graph2
-          .select(lambda vertex: Row(vertex.name(), vertex.degree()))
-          .to_df(["name", "degree"]))
-    print(df)
+            graph.select(lambda vertex: Row(vertex.name(), vertex.degree())).write_to_file("/tmp/test").wait_for_job()
 
-    df2 = (graph2
-           .select(lambda v: Row(v.name(), v.latest_activity().time()))
-           .to_df(["name", "latest_time"]))
-    print(df2)
+            def accum_step(v, s):
+                ac = s["max_time"]
+                latest = v.latest_activity().time()
+                ac += latest
 
 
-    def accum_step(v, s):
-        ac = s["max_time"]
-        latest = v.latest_activity().time()
-        ac += latest
+            df2 = (graph
+                   .set_global_state(lambda s: s.new_accumulator("max_time", 0, op=lambda a, b: max(a, b)))
+                   .step(accum_step)
+                   .global_select(lambda s: Row(s["max_time"].value()))
+                   .to_df(["max_time"]))
+            print(df2)
+
+        with ctx.new_graph() as graph2:
+            # can just call add_vertex, add_edge on graph directly without spout/builder
+            start = perf_counter()
+            with open("/tmp/lotr.csv") as f:
+                for line in f:
+                    parse(graph2, line)
+            print(f"time taken to ingest: {perf_counter() - start}s")
+
+            df = (graph2
+                  .select(lambda vertex: Row(vertex.name(), vertex.degree()))
+                  .to_df(["name", "degree"]))
+            print(df)
+
+            df2 = (graph2
+                   .select(lambda v: Row(v.name(), v.latest_activity().time()))
+                   .to_df(["name", "latest_time"]))
+            print(df2)
 
 
-    df2 = (graph
-           .set_global_state(lambda s: s.new_accumulator("max_time", 0, op=lambda a, b: max(a, b)))
-           .step(accum_step)
-           .global_select(lambda s: Row(s["max_time"].value()))
-           .to_df(["max_time"]))
-    print(df2)
 
-    graph.select(lambda vertex: Row(vertex.name(), vertex.degree())).write_to_file("/tmp/test").wait_for_job()
+
+
