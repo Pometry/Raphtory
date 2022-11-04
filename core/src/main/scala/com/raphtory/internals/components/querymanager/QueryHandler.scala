@@ -68,7 +68,7 @@ private[raphtory] class QueryHandler(
     Perspective(DEFAULT_PERSPECTIVE_TIME, DEFAULT_PERSPECTIVE_WINDOW, 0, 0)
 
   private var lastTime: Long             = 0L
-  private var readyCount: Int            = 0
+  private var readyCount: Int            = 4
   private var vertexCount: Int           = 0
   private var receivedMessageCount: Long = 0
   private var sentMessageCount: Long     = 0
@@ -94,6 +94,7 @@ private[raphtory] class QueryHandler(
     timeTaken = System.currentTimeMillis() //Set time from the point we ask the executors to set up
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
     listener.start()
+    currentState = safelyStartPerspectives()
   }
 
   override def handleMessage(msg: QueryManagement): Unit =
