@@ -82,6 +82,7 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/star
    :maxdepth: 2
    :caption: API (Python)
 
+   PythonDocs/setup.md
    PythonDocs/algorithm.rst
    PythonDocs/builder.rst
    PythonDocs/formats.rst
