@@ -4,7 +4,7 @@ package com.raphtory;
 
 import "google/protobuf/wrappers.proto";
 import "scalapb/scalapb.proto";
-
+import "google/protobuf/empty.proto";
 
 // Responses
 message Status {
@@ -41,14 +41,6 @@ message IngestData {
 
 message IdPool {
   string pool = 1;
-}
-
-message UnblockIngestion {
-  string graphID = 1;
-  int32 sourceID = 2;
-  int64 messageCount = 3;
-  int64 highestTimeSeen = 4;
-  bool force = 5;
 }
 
 message GraphUpdate {
@@ -89,4 +81,30 @@ service PartitionService {
   rpc establishGraph(GraphInfo) returns (Status);
   rpc destroyGraph(GraphInfo) returns (Status);
   rpc establishExecutor(Query) returns (Status);
+}
+
+message BlockIngestion {
+  int32 sourceID = 1;
+  string graphID = 2;
+}
+
+message UnblockIngestion {
+  string graphID = 1;
+  int32 sourceID = 2;
+  int64 earliestTimeSeen = 3;
+  int64 latestTimeSeen = 4;
+  bool force = 5;
+}
+
+message JobID {
+  string JobID = 1;
+}
+
+service QueryService {
+  rpc establishGraph(GraphInfo) returns (Status);
+  rpc destroyGraph(GraphInfo) returns (Status);
+  rpc blockIngestion(BlockIngestion) returns (google.protobuf.Empty);
+  rpc unblockIngestion(UnblockIngestion) returns (google.protobuf.Empty);
+  rpc submitQuery(Query) returns (google.protobuf.Empty);
+  rpc endQuery(JobID) returns (google.protobuf.Empty);
 }

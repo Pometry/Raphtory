@@ -6,9 +6,9 @@ import cats.syntax.all._
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.ingestion.IngestionServiceImpl
 import com.raphtory.internals.components.partition.PartitionServiceImpl
+import com.raphtory.internals.components.querymanager.QueryServiceImpl
 import com.raphtory.internals.management.Partitioner
-import com.raphtory.protocol.IngestionService
-import com.raphtory.protocol.PartitionService
+import com.raphtory.protocol.{IngestionService, PartitionService, QueryService}
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
@@ -49,6 +49,9 @@ abstract class ServiceRegistry[F[_]: Async](val topics: TopicRepository) {
 
   final def partitions: Resource[F, Seq[PartitionService[F]]] =
     getServices(PartitionServiceImpl.descriptor, 0 until partitioner.totalPartitions)
+
+  final def query: Resource[F, QueryService[F]] =
+    getService[QueryService[F]](QueryServiceImpl.descriptor)
 
   private def getServices[T](descriptor: ServiceDescriptor[F, T], ids: Seq[Int]): Resource[F, Seq[T]] =
     ids.foldLeft(Resource.pure[F, Seq[T]](Seq()))((seq, id) => addServiceToSeq(seq, descriptor, id))

@@ -2,27 +2,18 @@ package com.raphtory.internals.components.ingestion
 
 import cats.effect.Async
 import cats.effect.Resource
-import cats.effect.Spawn
 import cats.syntax.all._
 import com.raphtory.api.input.Source
-import com.raphtory.internals.FlushToFlight
-import com.raphtory.internals.communication.CanonicalTopic
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.querymanager.BlockIngestion
 import com.raphtory.internals.components.querymanager.NonBlocking
 import com.raphtory.internals.components.querymanager.UnblockIngestion
 import com.raphtory.internals.graph.GraphAlteration
-import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.management.telemetry.TelemetryReporter
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-
-import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
 
 private[raphtory] class IngestionExecutor[F[_]: Async](
     graphID: String,
@@ -87,6 +78,10 @@ private[raphtory] class IngestionExecutor[F[_]: Async](
       index = index + 1
       sourceInstance.sendUpdates(index, failOnError)
     }
+    // TODO
+    // here it already knows that it has consumed all the gu from the source
+    // after pedro changes it will also know that writers have seen all the gus
+    // now IE can let queryService know that all the GUs are processed
     if (blocking && iBlocked) {
       val id  = sourceInstance.sourceID
       val msg =

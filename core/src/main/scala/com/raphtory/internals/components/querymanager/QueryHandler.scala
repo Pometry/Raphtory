@@ -1,6 +1,5 @@
 package com.raphtory.internals.components.querymanager
 
-import cats.effect.std.Dispatcher
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview._
@@ -13,19 +12,10 @@ import com.raphtory.internals.graph.PerspectiveController
 import com.raphtory.internals.graph.PerspectiveController._
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.management.python.EmbeddedPython
-import com.raphtory.internals.serialisers.KryoSerialiser
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-
-import java.util.concurrent.TimeUnit
-
-import com.raphtory.internals.components.querymanager.Stages.SpawnExecutors
-import com.raphtory.internals.components.querymanager.Stages.Stage
-import com.raphtory.internals.components.querymanager.Stages.SpawnExecutors
-import com.raphtory.internals.components.querymanager.Stages.Stage
 import com.raphtory.internals.management.telemetry.TelemetryReporter
-
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
@@ -33,14 +23,17 @@ import scala.util.Try
 
 private[raphtory] class QueryHandler(
     graphID: String,
-    queryManager: QueryManager,
+    querySupervisor: QuerySupervisor,
     scheduler: Scheduler,
     jobID: String,
     query: Query,
     conf: Config,
     topics: TopicRepository,
-    pyScript: Option[String]
+    pyScript: Option[String],
+    earliestTime: Long,
+    latestTime: Long
 ) extends Component[QueryManagement](conf) {
+  import com.raphtory.internals.components.querymanager.Stages._
 
   private val startTime      = System.currentTimeMillis()
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
@@ -301,32 +294,24 @@ private[raphtory] class QueryHandler(
   ////END OPERATION STATES
 
   ///HELPER FUNCTIONS
-  private def safelyStartPerspectives(): Stage =
-    getOptionalEarliestTime match {
-      case None               =>
-        scheduler.scheduleOnce(1.seconds, recheckEarliestTimer())
-        logger.debug(s"Job '$jobID': In First recheck block")
-        Stages.SpawnExecutors
-      case Some(earliestTime) =>
-        if (earliestTime > getLatestTime) {
-          logger.debug(s"Job '$jobID': In second recheck block")
+  private def safelyStartPerspectives(): Stage = {
+    if (earliestTime > latestTime) {
+      logger.debug(s"Job '$jobID': In second recheck block")
 
-          scheduler.scheduleOnce(1.seconds, recheckEarliestTimer())
-          Stages.SpawnExecutors
-        }
-        else {
-          perspectiveController = PerspectiveController(earliestTime, getLatestTime, query)
-          val schedulingTimeTaken = System.currentTimeMillis() - timeTaken
-          logger.debug(s"Job '$jobID': Spawned all executors in ${schedulingTimeTaken}ms.")
-          timeTaken = System.currentTimeMillis()
-          readyCount = 0
-          executeNextPerspective()
-        }
+      scheduler.scheduleOnce(1.seconds, recheckEarliestTimer())
+      Stages.SpawnExecutors
     }
+    else {
+      perspectiveController = PerspectiveController(earliestTime, latestTime, query)
+      val schedulingTimeTaken = System.currentTimeMillis() - timeTaken
+      logger.debug(s"Job '$jobID': Spawned all executors in ${schedulingTimeTaken}ms.")
+      timeTaken = System.currentTimeMillis()
+      readyCount = 0
+      executeNextPerspective()
+    }
+  }
 
   private def executeNextPerspective(previousFailing: Boolean = false, failureReason: String = ""): Stage = {
-    val latestTime = getLatestTime
-    val oldestTime = getOptionalEarliestTime
     TelemetryReporter.totalPerspectivesProcessed.labels(jobID, graphID).inc()
     if (currentPerspective.timestamp != -1) { //ignore initial placeholder
       val report =
@@ -370,9 +355,6 @@ private[raphtory] class QueryHandler(
       }
 
   private def recheckTime(perspective: Perspective): Stage = {
-    val time                 = getLatestTime
-    val optionalEarliestTime = getOptionalEarliestTime
-
     timeTaken = System.currentTimeMillis()
     if (perspectiveIsReady(perspective)) {
       logger.debug(s"Job '$jobID': Created perspective at time ${perspective.timestamp}.")
@@ -381,17 +363,16 @@ private[raphtory] class QueryHandler(
       Stages.EstablishPerspective
     }
     else {
-      logger.debug(s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$time'.")
+      logger.debug(s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$latestTime'.")
       scheduler.scheduleOnce(10.milliseconds, recheckTimer())
       Stages.EstablishPerspective
     }
   }
 
   def perspectiveIsReady(perspective: Perspective): Boolean = {
-    val time = getLatestTime
     perspective.window match {
-      case Some(_) => perspective.actualEnd <= time
-      case None    => perspective.timestamp <= time
+      case Some(_) => perspective.actualEnd <= latestTime
+      case None    => perspective.timestamp <= latestTime
     }
   }
 
@@ -468,12 +449,11 @@ private[raphtory] class QueryHandler(
   private def messagetoAllJobWorkers(msg: QueryManagement): Unit =
     workerList sendAsync msg
 
-  private def killJob() = {
+  private def killJob(): Unit = {
     messagetoAllJobWorkers(EndQuery(jobID))
     workerList.close()
 
-    val queryManager = topics.completedQueries(graphID).endPoint
-    queryManager closeWithMessage EndQuery(jobID)
+    querySupervisor.endQuery(jobID)
     logger.debug(s"Job '$jobID': No more perspectives available. Ending Query Handler execution.")
 
     tracker closeWithMessage JobDone
@@ -484,10 +464,11 @@ private[raphtory] class QueryHandler(
 
   private def getNextTableOperation(queue: mutable.Queue[TableFunction]) =
     Try(queue.dequeue()).toOption
+}
 
-  private def getLatestTime: Long = queryManager.latestTime(graphID)
-
-  private def getOptionalEarliestTime: Option[Long] = queryManager.earliestTime()
+object QueryHandler {
+  def apply(querySupervisor: QuerySupervisor, scheduler: Scheduler, query: Query, conf: Config, topics: TopicRepository, earliestTime: Long, latestTime: Long): QueryHandler =
+    new QueryHandler(query.graphID, querySupervisor, scheduler, query.name, query, conf, topics, query.pyScript, earliestTime, latestTime)
 }
 
 private[raphtory] object Stages extends Enumeration {

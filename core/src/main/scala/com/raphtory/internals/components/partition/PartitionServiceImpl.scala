@@ -29,7 +29,6 @@ import com.raphtory.protocol.success
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-
 import java.nio.file.Files
 import scala.util.Success
 
@@ -44,7 +43,6 @@ abstract class PartitionServiceImpl[F[_]: Async](
   override protected def graphExecution(graph: Graph[F, GraphPartition]): F[Unit] =
     (for {
       id <- Resource.eval(id.get)
-      _  <- Reader[F](graph.id, id, graph.data, new Scheduler, config, topics)
       _  <- Writer[F](graph.id, id, graph.data, config, topics, new Scheduler)
     } yield ()).use(_ => Async[F].never)
 
