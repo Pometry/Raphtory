@@ -90,9 +90,9 @@ To publish `pyraphtory` or `pyraphtory_jvm` please follow the build process abov
 
 Install [twine](https://twine.readthedocs.io/en/stable/)
 
-**Note all uploads to twine must have a new version.
+**Note all uploads to twine must have a new version.**
 
-You cannot overwrite previous versions.**
+**You cannot overwrite previous versions.**
 
 To upload to test pypi
 
