@@ -16,7 +16,6 @@ import com.raphtory.internals.storage.arrow.immutable
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
-
 import scala.language.postfixOps
 
 object TutorialRunner      extends RaphtoryApp.Local with LocalRunner
@@ -25,27 +24,28 @@ object ArrowTutorialRunner extends RaphtoryApp.ArrowLocal[VertexProp, EdgeProp] 
 trait LocalRunner { self: RaphtoryApp =>
 
   override def run(args: Array[String], ctx: RaphtoryContext): Unit =
-    ctx.runWithNewGraph(destroy = true) { graph =>
+    ctx.runWithNewGraph() { graph =>
       val path = "/tmp/lotr.csv"
       val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
       FileUtils.curlFile(path, url)
 
-      val source = Source(FileSpout(path), LotrGraphBuilder)
-      graph.load(source)
+      val file = scala.io.Source.fromFile(path)
+      file.getLines.foreach { line =>
+        val fileLine   = line.split(",").map(_.trim)
+        val sourceNode = fileLine(0)
+        val srcID      = assignID(sourceNode)
+        val targetNode = fileLine(1)
+        val tarID      = assignID(targetNode)
+        val timeStamp  = fileLine(2).toLong
 
-//      val file = scala.io.Source.fromFile(path)
-//      file.getLines.foreach { line =>
-//        val fileLine   = line.split(",").map(_.trim)
-//        val sourceNode = fileLine(0)
-//        val srcID      = assignID(sourceNode)
-//        val targetNode = fileLine(1)
-//        val tarID      = assignID(targetNode)
-//        val timeStamp  = fileLine(2).toLong
-//
-//        graph.addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)), Type("Character"))
-//        graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("Character"))
-//        graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurrence"))
-//      }
+        graph.addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)), Type("Character"))
+        graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("Character"))
+        graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurrence"))
+      }
+
+      //The ingestion of data into a graph (line 33-45) can also be pushed into Raphtory via a Source and load function:
+      //      val source = Source(FileSpout(path), LotrGraphBuilder)
+      //      graph.load(source)
 
       // Get simple metrics
       graph
@@ -102,7 +102,7 @@ case class EdgeProp(
 object RemoteRunner extends RaphtoryApp.Remote("localhost", 1736) {
 
   override def run(args: Array[String], ctx: RaphtoryContext): Unit =
-    ctx.runWithNewGraph(destroy = false) { graph =>
+    ctx.runWithNewGraph() { graph =>
       val path = "/tmp/lotr.csv"
       val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
       FileUtils.curlFile(path, url)

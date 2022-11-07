@@ -61,7 +61,7 @@ private[raphtory] class QueryHandler(
     Perspective(DEFAULT_PERSPECTIVE_TIME, DEFAULT_PERSPECTIVE_WINDOW, 0, 0)
 
   private var lastTime: Long             = 0L
-  private var readyCount: Int            = 0
+  private var readyCount: Int            = 4
   private var vertexCount: Int           = 0
   private var receivedMessageCount: Long = 0
   private var sentMessageCount: Long     = 0
@@ -87,6 +87,7 @@ private[raphtory] class QueryHandler(
     timeTaken = System.currentTimeMillis() //Set time from the point we ask the executors to set up
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
     listener.start()
+    currentState = safelyStartPerspectives()
   }
 
   override def handleMessage(msg: QueryManagement): Unit =
@@ -294,7 +295,7 @@ private[raphtory] class QueryHandler(
   ////END OPERATION STATES
 
   ///HELPER FUNCTIONS
-  private def safelyStartPerspectives(): Stage = {
+  private def safelyStartPerspectives(): Stage =
     if (earliestTime > latestTime) {
       logger.debug(s"Job '$jobID': In second recheck block")
 
@@ -309,7 +310,6 @@ private[raphtory] class QueryHandler(
       readyCount = 0
       executeNextPerspective()
     }
-  }
 
   private def executeNextPerspective(previousFailing: Boolean = false, failureReason: String = ""): Stage = {
     TelemetryReporter.totalPerspectivesProcessed.labels(jobID, graphID).inc()
@@ -369,12 +369,11 @@ private[raphtory] class QueryHandler(
     }
   }
 
-  def perspectiveIsReady(perspective: Perspective): Boolean = {
+  def perspectiveIsReady(perspective: Perspective): Boolean =
     perspective.window match {
       case Some(_) => perspective.actualEnd <= latestTime
       case None    => perspective.timestamp <= latestTime
     }
-  }
 
   @tailrec
   private def nextGraphOperation(vertexCount: Int): Stage = {
@@ -467,8 +466,28 @@ private[raphtory] class QueryHandler(
 }
 
 object QueryHandler {
-  def apply(querySupervisor: QuerySupervisor, scheduler: Scheduler, query: Query, conf: Config, topics: TopicRepository, earliestTime: Long, latestTime: Long): QueryHandler =
-    new QueryHandler(query.graphID, querySupervisor, scheduler, query.name, query, conf, topics, query.pyScript, earliestTime, latestTime)
+
+  def apply(
+      querySupervisor: QuerySupervisor,
+      scheduler: Scheduler,
+      query: Query,
+      conf: Config,
+      topics: TopicRepository,
+      earliestTime: Long,
+      latestTime: Long
+  ): QueryHandler =
+    new QueryHandler(
+            query.graphID,
+            querySupervisor,
+            scheduler,
+            query.name,
+            query,
+            conf,
+            topics,
+            query.pyScript,
+            earliestTime,
+            latestTime
+    )
 }
 
 private[raphtory] object Stages extends Enumeration {

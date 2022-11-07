@@ -6,17 +6,11 @@ import com.google.protobuf.empty.Empty
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.OrchestratorService.GraphList
 import com.raphtory.internals.components._
-import com.raphtory.internals.components.querymanager.QuerySupervisor._
-import com.raphtory.internals.management.Scheduler
-import com.raphtory.internals.management.telemetry.TelemetryReporter
 import com.raphtory.protocol
 import com.raphtory.protocol.QueryService
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-
-import javax.annotation.concurrent.NotThreadSafe
-import scala.collection.mutable
 import scala.util.Failure
 import scala.util.Success
 

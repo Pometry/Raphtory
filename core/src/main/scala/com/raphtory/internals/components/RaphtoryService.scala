@@ -118,13 +118,20 @@ class DefaultRaphtoryService[F[_]](
     req match {
       case protocol.Query(TryQuery(Success(query)), _) =>
         for {
-          _         <- partitions.map(partition => partition.establishExecutor(req)).sequence // TODO: in parallel?
-          _         <- queryService.submitQuery(req)
-          responses <- submitDeserializedQuery(query)
+          graphRunning <- runningGraphs.get.map(graphs => graphs.isDefinedAt(query.graphID))
+          responses    <- if (graphRunning)
+                            establishExecutors(req) *> queryService.submitQuery(req) *> submitDeserializedQuery(query)
+                          else Stream[F, protocol.QueryManagement](graphNotRunningMessage(query.graphID)).pure[F]
         } yield responses
       case protocol.Query(TryQuery(Failure(error)), _) =>
         Stream[F, protocol.QueryManagement](protocol.QueryManagement(JobFailed(error))).pure[F]
     }
+
+  private def graphNotRunningMessage(graphId: String) =
+    protocol.QueryManagement(JobFailed(new IllegalStateException(s"Graph $graphId is not running")))
+
+  private def establishExecutors(query: protocol.Query) =
+    partitions.map(partition => partition.establishExecutor(query)).sequence // TODO: in parallel?
 
   private def submitDeserializedQuery(query: Query): F[Stream[F, protocol.QueryManagement]] =
     (for {

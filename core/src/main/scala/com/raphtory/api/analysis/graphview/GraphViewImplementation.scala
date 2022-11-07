@@ -75,9 +75,14 @@ final private[raphtory] case class GlobalSelect(
 ) extends TabularisingGraphFunction
         with GlobalGraphFunction
 
-final private[raphtory] case class ExplodeSelect[V <: Vertex](f: V => Iterable[Row]) extends TabularisingGraphFunction
-final private[raphtory] case class ClearChain()                         extends GraphFunction
-final private[raphtory] case class PerspectiveDone()                    extends GraphFunction
+final private[raphtory] case class ExplodeSelect[V <: Vertex](f: V => IterableOnce[Row])
+        extends TabularisingGraphFunction
+
+final private[raphtory] case class ExplodeSelectWithGraph[V <: Vertex](f: (V, GraphState) => IterableOnce[Row])
+        extends TabularisingGraphFunction
+        with GlobalGraphFunction
+final private[raphtory] case class ClearChain()      extends GraphFunction
+final private[raphtory] case class PerspectiveDone() extends GraphFunction
 
 private[api] trait GraphViewImplementation[
     V <: Vertex,
@@ -191,8 +196,11 @@ private[api] trait GraphViewImplementation[
   override def globalSelect(f: GraphState => Row): Table =
     addSelect(GlobalSelect(f))
 
-  override def explodeSelect(f: V => Iterable[Row]): Table =
+  override def explodeSelect(f: V => IterableOnce[Row]): Table =
     addSelect(ExplodeSelect(f))
+
+  override def explodeSelect(f: (V, GraphState) => IterableOnce[Row]): Table =
+    addSelect(ExplodeSelectWithGraph(f))
 
   override def clearMessages(): G =
     addFunction(ClearChain())

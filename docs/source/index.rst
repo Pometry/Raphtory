@@ -72,9 +72,21 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/star
 
 .. toctree::
    :hidden:
-   :caption: API (Scaladoc)
+   :maxdepth: 2
+   :caption: API (Scala)
 
    Scaladoc/index.md
 
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+   :caption: API (Python)
 
-
+   PythonDocs/setup.md
+   PythonDocs/algorithm.rst
+   PythonDocs/builder.rst
+   PythonDocs/formats.rst
+   PythonDocs/graph.rst
+   PythonDocs/sinks.rst
+   PythonDocs/spouts.rst
+   PythonDocs/vertex.rst

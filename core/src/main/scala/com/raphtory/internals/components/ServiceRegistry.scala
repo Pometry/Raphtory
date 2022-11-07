@@ -8,7 +8,7 @@ import com.raphtory.internals.components.ingestion.IngestionServiceImpl
 import com.raphtory.internals.components.partition.PartitionServiceImpl
 import com.raphtory.internals.components.querymanager.QueryServiceImpl
 import com.raphtory.internals.management.Partitioner
-import com.raphtory.protocol.{IngestionService, PartitionService, QueryService}
+import com.raphtory.protocol._
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
