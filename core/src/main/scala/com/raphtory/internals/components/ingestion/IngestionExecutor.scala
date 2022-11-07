@@ -3,50 +3,49 @@ package com.raphtory.internals.components.ingestion
 import cats.effect.Async
 import cats.effect.Resource
 import cats.effect.Spawn
+import cats.effect.std.Dispatcher
 import cats.syntax.all._
 import com.raphtory.api.input.Source
+import com.raphtory.api.input.SourceInstance
 import com.raphtory.internals.FlushToFlight
 import com.raphtory.internals.communication.CanonicalTopic
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.components.Component
+import com.raphtory.internals.components.ServiceRegistry
 import com.raphtory.internals.components.querymanager.BlockIngestion
 import com.raphtory.internals.components.querymanager.NonBlocking
 import com.raphtory.internals.components.querymanager.UnblockIngestion
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.management.telemetry.TelemetryReporter
+import com.raphtory.protocol.WriterService
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
+import fs2.Stream
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 
-private[raphtory] class IngestionExecutor[F[_]: Async](
+private[raphtory] class IngestionExecutor[F[_]: Async, T](
     graphID: String,
-    source: Source,
+    source: SourceInstance[F, T],
     blocking: Boolean,
     sourceID: Int,
     conf: Config,
     topics: TopicRepository
 ) {
-  private val logger: Logger                               = Logger(LoggerFactory.getLogger(this.getClass))
-  private val failOnError                                  = conf.getBoolean("raphtory.builders.failOnError")
-  private val writers: Map[Int, EndPoint[GraphAlteration]] = topics.graphUpdates(graphID).endPoint()
-  private val queryManager                                 = topics.blockingIngestion(graphID).endPoint
-  private val sourceInstance                               = source.buildSource(graphID, sourceID)
-  private val totalTuplesProcessed                         = TelemetryReporter.totalTuplesProcessed.labels(s"$sourceID", graphID)
+  private val logger: Logger       = Logger(LoggerFactory.getLogger(this.getClass))
+  private val failOnError          = conf.getBoolean("raphtory.builders.failOnError")
+  private val queryManager         = topics.blockingIngestion(graphID).endPoint
+  private val totalTuplesProcessed = TelemetryReporter.totalTuplesProcessed.labels(s"$sourceID", graphID)
 
   private var index: Long = 0
-
-  sourceInstance.setupStreamIngestion(writers)
 
   def release(): F[Unit] =
     for {
 //      _ <- Async[F].delay(close()) -> Needed if this class extends FlushToFlight
-      _ <- Async[F].delay(writers.values.foreach(_.close()))
       _ <- Async[F].delay(queryManager.close())
     } yield ()
 
@@ -59,13 +58,13 @@ private[raphtory] class IngestionExecutor[F[_]: Async](
   private def iterativePolls: F[Unit] =
     for {
       _ <- uniquePoll
-      _ <- if (sourceInstance.spoutReschedules()) waitForNextPoll *> iterativePolls else Async[F].unit
+      _ <- if (source.spoutReschedules()) waitForNextPoll *> iterativePolls else Async[F].unit
     } yield ()
 
   private def waitForNextPoll: F[Unit] =
     for {
-      _ <- Async[F].delay(logger.trace(s"Spout: Scheduling spout to poll again in ${sourceInstance.pollInterval}."))
-      _ <- Async[F].sleep(sourceInstance.pollInterval)
+      _ <- Async[F].delay(logger.trace(s"Spout: Scheduling spout to poll again in ${source.pollInterval}."))
+      _ <- Async[F].sleep(source.pollInterval)
     } yield ()
 
   private def uniquePoll: F[Unit] = Async[F].blocking(executePoll())
@@ -73,24 +72,25 @@ private[raphtory] class IngestionExecutor[F[_]: Async](
   private def executePoll(): Unit = {
     var iBlocked = false
 
-    if (sourceInstance.hasRemainingUpdates)
+    if (source.hasRemainingUpdates)
       if (blocking) {
-        queryManager.sendAsync(BlockIngestion(sourceID = sourceInstance.sourceID, graphID = graphID))
+        queryManager.sendAsync(BlockIngestion(sourceID = source.sourceID, graphID = graphID))
         iBlocked = true
       }
       else
-        queryManager.sendAsync(NonBlocking(sourceID = sourceInstance.sourceID, graphID = graphID))
+        queryManager.sendAsync(NonBlocking(sourceID = source.sourceID, graphID = graphID))
 
-    while (sourceInstance.hasRemainingUpdates) {
+    while (source.hasRemainingUpdates) {
 //      latestMsgTimeToFlushToFlight = System.currentTimeMillis() -> Needed if this class extends FlushToFlight
       totalTuplesProcessed.inc()
       index = index + 1
-      sourceInstance.sendUpdates(index, failOnError)
+      source.sendUpdates(index, failOnError)
+      val iterator: Stream.PartiallyAppliedFromIterator[Nothing] = fs2.Stream.fromIterator
     }
     if (blocking && iBlocked) {
-      val id  = sourceInstance.sourceID
+      val id  = source.sourceID
       val msg =
-        UnblockIngestion(id, graphID, sourceInstance.sentMessages(), sourceInstance.highestTimeSeen(), force = false)
+        UnblockIngestion(id, graphID, source.sentMessages(), source.highestTimeSeen(), force = false)
       queryManager sendAsync msg
     }
   }
@@ -104,10 +104,14 @@ object IngestionExecutor {
       blocking: Boolean,
       sourceID: Int,
       config: Config,
-      topics: TopicRepository
-  ): Resource[F, IngestionExecutor[F]] = {
-    val createExecutor =
-      Async[F].delay(new IngestionExecutor(graphID, source, blocking, sourceID, config, topics))
-    Resource.make(createExecutor)(executor => executor.release())
+      registry: ServiceRegistry[F]
+  ): Resource[F, IngestionExecutor[F, _]] = {
+    def createExecutor(sourceInstance: SourceInstance[F, _]) =
+      Async[F].delay(new IngestionExecutor(graphID, sourceInstance, blocking, sourceID, config, registry.topics))
+    for {
+      writers        <- registry.writers(graphID)
+      sourceInstance <- source.make(graphID, sourceID, writers)
+      executor       <- Resource.make(createExecutor(sourceInstance))(executor => executor.release())
+    } yield executor
   }
 }

@@ -52,6 +52,7 @@ class DefaultRaphtoryService[F[_]](
     ingestion: IngestionService[F],
     partitions: Seq[PartitionService[F]],
     idManager: IDManager,
+    registry: ServiceRegistry[F],
     topics: TopicRepository,
     config: Config
 )(implicit
@@ -67,9 +68,6 @@ class DefaultRaphtoryService[F[_]](
 
   private lazy val blockingIngestion =
     Map[String, EndPoint[IngestionBlockingCommand]]().withDefault(topics.blockingIngestion(_).endPoint)
-
-  private lazy val writers =
-    Map[String, Map[Int, EndPoint[GraphAlteration]]]().withDefault(topics.graphUpdates(_).endPoint())
 
   override def establishGraph(req: GraphInfo): F[Status] =
     for {
@@ -148,8 +146,11 @@ class DefaultRaphtoryService[F[_]](
     req match {
       case protocol.GraphUpdate(graphId, update, _) =>
         for {
-          _ <- F.delay(logger.debug(s"Processing graph update $update"))
-          _ <- F.delay(writers(graphId)(partitioner.getPartitionForId(update.srcId)) sendAsync update)
+          _ <- F.delay(logger.trace(s"Processing graph update $update"))
+          _ <-
+            registry // TODO: the performance of this is terrible, but this interface is not meant for big loads anyway
+              .writer(graphId, partitioner.getPartitionForId(update.srcId))
+              .use(_.processAlteration(protocol.GraphAlteration(update)))
         } yield success
     }
 
@@ -239,6 +240,7 @@ object RaphtoryServiceBuilder {
                                                  ingestion,
                                                  partitions,
                                                  sourceIDManager,
+                                                 repo,
                                                  repo.topics,
                                                  config
                                          )

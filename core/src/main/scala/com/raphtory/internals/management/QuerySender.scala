@@ -27,12 +27,10 @@ import scala.util.Success
 private[raphtory] class QuerySender(
     val graphID: String,
     private val service: RaphtoryService[IO],
-    override val scheduler: Scheduler,
     private val topics: TopicRepository,
     private val config: Config,
     private val clientID: String
-) extends Graph
-        with FlushToFlight {
+) extends Graph {
 
   class NoIDException(message: String) extends Exception(message)
 
@@ -42,14 +40,13 @@ private[raphtory] class QuerySender(
   val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
   val totalPartitions: Int     = partitionServers * partitionsPerServer
 
-  override lazy val writers: Map[Int, EndPoint[_]] = topics.graphUpdates(graphID).endPoint()  // TODO Rid this when topic repository is thrashed
-  private val blockingSources                      = ArrayBuffer[Long]()
-  private var highestTimeSeen                      = Long.MinValue
-  private var totalUpdateIndex                     = 0    //used at the secondary index for the client
-  private var updatesSinceLastIDChange             = 0    //used to know how many messages to wait for when blocking in the Q manager
-  private var newIDRequiredOnUpdate                = true // has a query been since the last update and do I need a new ID
-  private var currentSourceID                      = -1   //this is initialised as soon as the client sends 1 update
-  private var searchPath                           = List.empty[String]
+  private val blockingSources          = ArrayBuffer[Long]()
+  private var highestTimeSeen          = Long.MinValue
+  private var totalUpdateIndex         = 0    //used at the secondary index for the client
+  private var updatesSinceLastIDChange = 0    //used to know how many messages to wait for when blocking in the Q manager
+  private var newIDRequiredOnUpdate    = true // has a query been since the last update and do I need a new ID
+  private var currentSourceID          = -1   //this is initialised as soon as the client sends 1 update
+  private var searchPath               = List.empty[String]
 
   def addToDynamicPath(name: String): Unit = searchPath = name :: searchPath
 
@@ -72,7 +69,6 @@ private[raphtory] class QuerySender(
     handleGraphUpdate(update) // Required so the Temporal Graph obj can call the below func
 
   override protected def handleGraphUpdate(update: GraphUpdate): Unit = {
-    latestMsgTimeToFlushToFlight = System.currentTimeMillis()
     highestTimeSeen = highestTimeSeen max update.updateTime
     service.processUpdate(protocol.GraphUpdate(graphID, update)).unsafeRunSync()
     totalUpdateIndex += 1
@@ -158,8 +154,6 @@ private[raphtory] class QuerySender(
         service.submitSource(protocol.IngestData(TryIngestData(Success(ingestData)))).unsafeRunSync()
     }
   }
-
-  def closeArrow(): Unit = writers.values.foreach(_.close())
 
   private def getDefaultName(query: Query): String =
     if (query.name.nonEmpty) query.name else query.hashCode().abs.toString

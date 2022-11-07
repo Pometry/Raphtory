@@ -1,12 +1,20 @@
 package com.raphtory.internals.graph
 
+import cats.effect.std.Dispatcher
 import com.raphtory.api.input._
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.management.telemetry.TelemetryReporter
+import com.raphtory.protocol
+import com.raphtory.protocol.WriterService
 
-private[raphtory] class GraphBuilderInstance[T](graphId: String, sourceId: Int, parse: GraphBuilder[T])
-        extends Serializable
+private[raphtory] class GraphBuilderInstance[F[_], T](
+    graphId: String,
+    sourceId: Int,
+    parse: GraphBuilder[T],
+    dispatcher: Dispatcher[F],
+    writers: Map[Int, WriterService[F]]
+) extends Serializable
         with Graph {
 
   override protected def sourceID: Int = sourceId
@@ -14,15 +22,14 @@ private[raphtory] class GraphBuilderInstance[T](graphId: String, sourceId: Int, 
   override protected def graphID: String = graphId
 
   /** Logger instance for writing out log messages */
-  var highestTimeSeen: Long                                           = Long.MinValue
-  var internalIndex: Long                                             = -1L
-  override def index: Long                                            = internalIndex
-  private var partitionIDs: collection.Set[Int]                       = _
-  private var writers: collection.Map[Int, EndPoint[GraphAlteration]] = _
-  private var internalTotalPartitions: Int                            = _
-  def totalPartitions: Int                                            = internalTotalPartitions
-  private var sentUpdates: Long                                       = 0
-  private val totalSourceErrors                                       = TelemetryReporter.totalSourceErrors.labels(s"$sourceID", graphID)
+  var highestTimeSeen: Long           = Long.MinValue
+  var internalIndex: Long             = -1L
+  override def index: Long            = internalIndex
+  private val partitionIDs            = writers.keySet
+  private val internalTotalPartitions = writers.size
+  def totalPartitions: Int            = internalTotalPartitions
+  private var sentUpdates: Long       = 0
+  private val totalSourceErrors       = TelemetryReporter.totalSourceErrors.labels(s"$sourceID", graphID)
 
   def getGraphID: String         = graphID
   def getSourceID: Int           = sourceID
@@ -53,21 +60,13 @@ private[raphtory] class GraphBuilderInstance[T](graphId: String, sourceId: Int, 
         }
     }
 
-  private[raphtory] def setupStreamIngestion(
-      streamWriters: collection.Map[Int, EndPoint[GraphAlteration]]
-  ): Unit = {
-    writers = streamWriters
-    partitionIDs = writers.keySet
-    internalTotalPartitions = writers.size
-  }
-
   override protected def handleGraphUpdate(update: GraphUpdate): Unit = {
     logger.trace(s"handling $update")
     sentUpdates += 1
     highestTimeSeen = highestTimeSeen max update.updateTime
     val partitionForTuple = getPartitionForId(update.srcId)
     if (partitionIDs contains partitionForTuple) {
-      writers(partitionForTuple).sendAsync(update)
+      dispatcher.unsafeRunSync(writers(partitionForTuple).processAlteration(protocol.GraphAlteration(update)))
       logger.trace(s"$update sent")
     }
   }

@@ -1,8 +1,11 @@
 package com.raphtory.api.input
 
+import cats.effect.Async
+import cats.effect.Resource
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphBuilderInstance
+import com.raphtory.protocol.WriterService
 import com.twitter.chill.ClosureCleaner
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -16,8 +19,14 @@ trait Source {
 
   def getBuilderClass: Class[_] = builder.getClass
 
-  def buildSource(graphID: String, id: Int): SourceInstance[MessageType] =
-    new SourceInstance[MessageType](id, spout.buildSpout(), builder.buildInstance(graphID, id))
+  def make[F[_]: Async](
+      graphID: String,
+      id: Int,
+      writers: Map[Int, WriterService[F]]
+  ): Resource[F, SourceInstance[F, MessageType]] =
+    builder
+      .make(graphID, id, writers)
+      .map(builder => new SourceInstance[F, MessageType](id, spout.buildSpout(), builder))
 }
 
 class ConcreteSource[T](override val spout: Spout[T], override val builder: GraphBuilder[T]) extends Source {
@@ -25,7 +34,7 @@ class ConcreteSource[T](override val spout: Spout[T], override val builder: Grap
 
 }
 
-class SourceInstance[T](id: Int, spoutInstance: SpoutInstance[T], builderInstance: GraphBuilderInstance[T]) {
+class SourceInstance[F[_], T](id: Int, spoutInstance: SpoutInstance[T], builderInstance: GraphBuilderInstance[F, T]) {
 
   /** Logger instance for writing out log messages */
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
@@ -43,11 +52,6 @@ class SourceInstance[T](id: Int, spoutInstance: SpoutInstance[T], builderInstanc
   def spoutReschedules(): Boolean = spoutInstance.spoutReschedules()
 
   def executeReschedule(): Unit = spoutInstance.executeReschedule()
-
-  def setupStreamIngestion(
-      streamWriters: collection.Map[Int, EndPoint[GraphAlteration]]
-  ): Unit =
-    builderInstance.setupStreamIngestion(streamWriters)
 
   def close(): Unit = spoutInstance.close()
 

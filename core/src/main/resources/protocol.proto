@@ -56,6 +56,10 @@ message GraphUpdate {
   bytes update = 2 [(scalapb.field).type = "com.raphtory.internals.graph.GraphAlteration.GraphUpdate"];
 }
 
+message GraphAlteration {
+  bytes alteration = 2 [(scalapb.field).type = "com.raphtory.internals.graph.GraphAlteration"];
+}
+
 message DestroyGraph {
   string clientId = 1;
   string graphId = 2;
@@ -65,6 +69,8 @@ message DestroyGraph {
 message GetGraph {
   string graphID = 1;
 }
+
+message Empty {}
 
 // Services
 service RaphtoryService {
@@ -89,4 +95,8 @@ service PartitionService {
   rpc establishGraph(GraphInfo) returns (Status);
   rpc destroyGraph(GraphInfo) returns (Status);
   rpc establishExecutor(Query) returns (Status);
+}
+
+service WriterService {
+  rpc processAlteration(GraphAlteration) returns (Empty);
 }

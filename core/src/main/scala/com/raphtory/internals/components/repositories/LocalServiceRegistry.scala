@@ -8,6 +8,8 @@ import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.ServiceDescriptor
 import com.raphtory.internals.components.ServiceRegistry
 
+import scala.concurrent.duration.DurationInt
+
 /** Local implementation of the ServiceRepository
   * @param topics the legacy TopicRepository to be removed soon
   * @param services Map from (service name, instance ID) to instance
@@ -32,7 +34,12 @@ class LocalServiceRegistry[F[_]: Async](topics: TopicRepository, services: Ref[F
   }
 
   override def getService[T](descriptor: ServiceDescriptor[F, T], id: Int = 0): Resource[F, T] =
-    Resource.eval(services.get.map(serviceList => serviceList((descriptor.name, id)).asInstanceOf[T]))
+    Resource.eval(Async[F].timeout(getServiceOrRetry(descriptor, id), 30.seconds))
+
+  private def getServiceOrRetry[T](descriptor: ServiceDescriptor[F, T], id: Int): F[T] =
+    services.get
+      .map(serviceList => serviceList((descriptor.name, id)).asInstanceOf[T])
+      .handleErrorWith(_ => Async[F].delayBy(getServiceOrRetry(descriptor, id), 10.millis))
 }
 
 object LocalServiceRegistry {
