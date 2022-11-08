@@ -37,7 +37,7 @@ Both libraries can be installed from their binaries or from source.
   - Please ensure `JAVA_HOME` environment variable is set and points to a JDK location
 - sbt
 
-[Click here for the guide to install java and sbt](LINK ME)
+[Click here for the guide to install java and sbt](../Install/install_java.md)
 
 ```
 ````
