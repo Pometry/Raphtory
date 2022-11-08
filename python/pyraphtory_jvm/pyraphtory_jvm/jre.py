@@ -241,6 +241,9 @@ def get_java_home():
     if home is not None:
         print(f"JAVA_HOME found = {home}/bin/java")
         return home + '/bin/java'
+    elif shutil.which('java') is not None:
+        print(f'JAVA_HOME not found. But java found. Detecting home...')
+        return shutil.which('java')
     else:
         raise Exception("JAVA HOME not found")
 
