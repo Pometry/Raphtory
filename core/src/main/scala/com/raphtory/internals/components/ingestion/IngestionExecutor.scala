@@ -8,12 +8,14 @@ import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.management.telemetry.TelemetryReporter
+import com.raphtory.protocol.QueryService
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 private[raphtory] class IngestionExecutor[F[_]: Async](
     graphID: String,
+    queryService: Resource[F, QueryService[F]],
     source: Source,
     blocking: Boolean,
     sourceID: Int,
@@ -88,6 +90,7 @@ object IngestionExecutor {
 
   def apply[F[_]: Async](
       graphID: String,
+      queryService: Resource[F, QueryService[F]],
       source: Source,
       blocking: Boolean,
       sourceID: Int,
@@ -95,7 +98,7 @@ object IngestionExecutor {
       topics: TopicRepository
   ): Resource[F, IngestionExecutor[F]] = {
     val createExecutor =
-      Async[F].delay(new IngestionExecutor(graphID, source, blocking, sourceID, config, topics))
+      Async[F].delay(new IngestionExecutor(graphID, queryService, source, blocking, sourceID, config, topics))
     Resource.make(createExecutor)(executor => executor.release())
   }
 }

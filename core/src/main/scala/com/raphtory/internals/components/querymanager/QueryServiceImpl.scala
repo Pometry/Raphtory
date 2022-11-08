@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory
 import scala.util.Failure
 import scala.util.Success
 
-class QueryServiceImpl[F[_]: Async](
+class QueryServiceImpl[F[_]: Async] private (
     graphs: GraphList[F, QuerySupervisor],
     topics: TopicRepository,
     config: Config
