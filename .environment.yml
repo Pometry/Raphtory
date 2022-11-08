@@ -6,7 +6,7 @@ dependencies:
   - ca-certificates=2021.10.8
   - certifi=2021.10.8
   - libcxx=12.0.0
-  - libffi>=3.4.2
+  - libffi>=3.3
   - ncurses=6.3
   - make=4.3
   - openjdk=11.0.9.1
@@ -17,8 +17,8 @@ dependencies:
   - readline=8.1.2
   - sbt=1.6.2
   - setuptools=61.2.0
-  - sqlite=3.38.3
-  - tk=8.6.11
+  - sqlite>=3.38.3
+  - tk>=8.6.11
   - tzdata=2022a
   - wheel=0.37.1
   - xz=5.2.5
