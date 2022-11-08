@@ -10,7 +10,7 @@ dependencies:
   - ncurses=6.3
   - make=4.3
   - openjdk=11.0.9.1
-  - openssl=1.1.1o
+  - openssl=1.1.1q
   - pip=21.2.4
   - python=3.9.13
   - python_abi=3.9
