@@ -10,10 +10,11 @@ build:
   os: ubuntu-20.04
   tools:
     python: "mambaforge-4.10"
+    make: "4.10"
   jobs:
-    post_create_environment:
-      - bash make sbt-build
-      - bash make python-build
+    pre_build:
+      - make sbt-build
+      - make python-build
 
 conda:
   environment: .environment.yml
