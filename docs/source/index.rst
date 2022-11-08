@@ -26,9 +26,8 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/star
    :caption: Install
 
    Install/start.md
-   Install/python/install_conda.md
-   Install/python/install_no_conda.md
-   Install/scala/install.md
+   Install/install_java.md
+   Install/publishing.md
    Install/scala/compile_run_example.md
 
 .. toctree::
@@ -82,7 +81,6 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/star
    :maxdepth: 2
    :caption: API (Python)
 
-   PythonDocs/setup.md
    PythonDocs/algorithm.rst
    PythonDocs/builder.rst
    PythonDocs/formats.rst
