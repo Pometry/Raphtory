@@ -67,9 +67,6 @@ private[raphtory] class TopicRepository(
   final def graphSync(graphID: String): ShardingTopic[GraphUpdateEffect] =
     ShardingTopic[GraphUpdateEffect](numPartitions, graphSyncConnector, s"graph.sync", graphID)
 
-  final def watermark(graphID: String): ExclusiveTopic[WatermarkTime] =
-    ExclusiveTopic[WatermarkTime](watermarkConnector, "watermark", graphID)
-
   final def blockingIngestion(graphID: String): ExclusiveTopic[IngestionBlockingCommand] =
     ExclusiveTopic[IngestionBlockingCommand](blockingIngestionConnector, "blocking.ingestion", graphID)
 
