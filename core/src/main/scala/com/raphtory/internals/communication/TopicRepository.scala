@@ -85,9 +85,6 @@ private[raphtory] class TopicRepository(
     ExclusiveTopic[QueryManagement](queryTrackConnector, "query.track", s"$graphID-$jobId")
   // Removed graphID from queryTrack because it is not necessary and complicates using on the webServer as it is not set
 
-  final def rechecks(graphID: String, jobId: String): ExclusiveTopic[QueryManagement] =
-    ExclusiveTopic[QueryManagement](rechecksConnector, "rechecks", s"$graphID-$jobId")
-
   final def jobStatus(graphID: String, jobId: String): ExclusiveTopic[QueryManagement] =
     ExclusiveTopic[QueryManagement](jobStatusConnector, "job.status", s"$graphID-$jobId")
 

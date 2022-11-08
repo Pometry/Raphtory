@@ -18,7 +18,6 @@ import org.slf4j.LoggerFactory
 import com.raphtory.internals.management.telemetry.TelemetryReporter
 import scala.annotation.tailrec
 import scala.collection.mutable
-import scala.concurrent.duration.DurationInt
 import scala.util.Try
 
 private[raphtory] class QueryHandler(
@@ -37,7 +36,6 @@ private[raphtory] class QueryHandler(
 
   private val startTime      = System.currentTimeMillis()
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-  private val self           = topics.rechecks(graphID, jobID).endPoint
   private val tracker        = topics.queryTrack(graphID, jobID).endPoint
   private val workerList     = topics.jobOperations(graphID, jobID).endPoint
 
@@ -47,7 +45,7 @@ private[raphtory] class QueryHandler(
     topics.registerListener(
             s"$graphID-$jobID-query-handler",
             handleMessage,
-            Seq(topics.rechecks(graphID, jobID), topics.jobStatus(graphID, jobID))
+            Seq(topics.jobStatus(graphID, jobID))
     )
 
   private var perspectiveController: PerspectiveController = _
@@ -75,13 +73,9 @@ private[raphtory] class QueryHandler(
 
   override def stop(): Unit = {
     listener.close()
-    self.close()
     tracker.close()
     workerList.close()
   }
-
-  private def recheckTimer(): Unit         = self sendAsync RecheckTime
-  private def recheckEarliestTimer(): Unit = self sendAsync RecheckEarliestTime
 
   override def run(): Unit = {
     timeTaken = System.currentTimeMillis() //Set time from the point we ask the executors to set up
@@ -96,7 +90,6 @@ private[raphtory] class QueryHandler(
       case AlgorithmFailure(_, exception)                                      => throw exception
       case _                                                                   =>
         currentState match {
-          case Stages.SpawnExecutors       => currentState = spawnExecutors(msg)
           case Stages.EstablishPerspective => currentState = establishPerspective(msg)
           case Stages.ExecuteGraph         => currentState = executeGraph(msg)
           case Stages.ExecuteTable         => currentState = executeTable(msg)
@@ -112,30 +105,10 @@ private[raphtory] class QueryHandler(
         currentState = executeNextPerspective(previousFailing = true, e.getMessage)
     }
 
-  ////OPERATION STATES
-  //Communicate with all readers and get them to spawn a QueryExecutor for their partition
-  private def spawnExecutors(msg: QueryManagement): Stage =
-    msg match {
-      case msg: ExecutorEstablished =>
-        val workerID = msg.worker
-        logger.trace(s"Job '$jobID': Deserialized worker '$workerID'.")
-
-        if (readyCount + 1 == totalPartitions)
-          safelyStartPerspectives()
-        else {
-          readyCount += 1
-          Stages.SpawnExecutors
-        }
-      case RecheckEarliestTime      => safelyStartPerspectives()
-    }
-
-  //build the perspective within the QueryExecutor for each partition -- the view to be analysed
+  // OPERATION STATES
+  // Build the perspective within the QueryExecutor for each partition -- the view to be analysed
   private def establishPerspective(msg: QueryManagement): Stage =
     msg match {
-      case RecheckTime               =>
-        logger.trace(s"Job '$jobID': Rechecking time of $currentPerspective.")
-        recheckTime(currentPerspective)
-
       case p: PerspectiveEstablished =>
         vertexCount += p.vertices
         readyCount += 1
@@ -152,7 +125,7 @@ private[raphtory] class QueryHandler(
 
       case MetaDataSet(_)            =>
         if (readyCount + 1 == totalPartitions) {
-          self sendAsync StartGraph
+          executeGraph(StartGraph)
           readyCount = 0
           receivedMessageCount = 0
           sentMessageCount = 0
@@ -292,16 +265,12 @@ private[raphtory] class QueryHandler(
         else
           Stages.EndTask
     }
-  ////END OPERATION STATES
+  // END OPERATION STATES
 
-  ///HELPER FUNCTIONS
+  // HELPER FUNCTIONS
   private def safelyStartPerspectives(): Stage =
-    if (earliestTime > latestTime) {
-      logger.debug(s"Job '$jobID': In second recheck block")
-
-      scheduler.scheduleOnce(1.seconds, recheckEarliestTimer())
-      Stages.SpawnExecutors
-    }
+    if (earliestTime > latestTime)
+      throw new Exception(s"Latest time (= $latestTime) seen can't be smaller than earliest time seen (= $earliestTime)")
     else {
       perspectiveController = PerspectiveController(earliestTime, latestTime, query)
       val schedulingTimeTaken = System.currentTimeMillis() - timeTaken
@@ -331,7 +300,11 @@ private[raphtory] class QueryHandler(
         tableFunctions = null
         vertexCount = 0
         graphState = GraphStateImplementation.empty
-        recheckTime(currentPerspective)
+        timeTaken = System.currentTimeMillis()
+        logger.debug(s"Job '$jobID': Created perspective at time ${perspective.timestamp}.")
+        lastTime = System.currentTimeMillis()
+        messagetoAllJobWorkers(CreatePerspective(currentPerspectiveID, perspective))
+        Stages.EstablishPerspective
       case None              =>
         logger.debug(s"Job '$jobID': No more perspectives to run.")
         messagetoAllJobWorkers(CompleteWrite)
@@ -353,27 +326,6 @@ private[raphtory] class QueryHandler(
                     s"took ${System.currentTimeMillis() - lastTime} ms to run. "
           )
       }
-
-  private def recheckTime(perspective: Perspective): Stage = {
-    timeTaken = System.currentTimeMillis()
-    if (perspectiveIsReady(perspective)) {
-      logger.debug(s"Job '$jobID': Created perspective at time ${perspective.timestamp}.")
-      lastTime = System.currentTimeMillis()
-      messagetoAllJobWorkers(CreatePerspective(currentPerspectiveID, perspective))
-      Stages.EstablishPerspective
-    }
-    else {
-      logger.debug(s"Job '$jobID': Perspective '$perspective' is not ready, currently at '$latestTime'.")
-      scheduler.scheduleOnce(10.milliseconds, recheckTimer())
-      Stages.EstablishPerspective
-    }
-  }
-
-  def perspectiveIsReady(perspective: Perspective): Boolean =
-    perspective.window match {
-      case Some(_) => perspective.actualEnd <= latestTime
-      case None    => perspective.timestamp <= latestTime
-    }
 
   @tailrec
   private def nextGraphOperation(vertexCount: Int): Stage = {
