@@ -7,4 +7,5 @@ version_file = Path(__file__).parent.parent.parent.parent / "version"
 def test_version():
     with open(version_file) as f:
         version = f.readline()
+    version = version.replace('\n', '')
     assert __version__ == version
