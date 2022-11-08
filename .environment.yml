@@ -12,7 +12,7 @@ dependencies:
   - openjdk=11.0.9.1
   - openssl=1.1.1o
   - pip=21.2.4
-  - python=3.9.12
+  - python=3.9.13
   - python_abi=3.9
   - readline=8.1.2
   - sbt=1.6.2
