@@ -62,8 +62,6 @@ class DefaultRaphtoryService[F[_]](
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val partitioner    = new Partitioner()
 
-  private lazy val cluster = topics.clusterComms.endPoint
-
   // This is to cache endpoints instead of creating one for every message we send
   private lazy val submissions = Map[String, EndPoint[Submission]]().withDefault(topics.submissions(_).endPoint)
 
@@ -81,7 +79,6 @@ class DefaultRaphtoryService[F[_]](
       status          <- if (alreadyCreating) failure[F]
                          else
                            for {
-                             _ <- F.delay(cluster sendAsync EstablishGraph(req.graphId, req.clientId))
                              _ <- ingestion.establishGraph(req)
                              _ <- partitions.map(partition => partition.establishGraph(req)).sequence
                              _ <- queryService.establishGraph(req)
@@ -98,7 +95,6 @@ class DefaultRaphtoryService[F[_]](
                     else
                       for {
                         _      <- F.delay(logger.debug(s"Destroying graph ${req.graphId}"))
-                        _      <- F.delay(cluster sendAsync DestroyGraph(req.graphId, req.clientId, req.force))
                         _      <- ingestion.destroyGraph(GraphInfo(req.clientId, req.graphId))
                         _      <-
                           partitions.map(partition => partition.destroyGraph(GraphInfo(req.clientId, req.graphId))).sequence

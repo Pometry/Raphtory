@@ -60,13 +60,6 @@ private[raphtory] class TopicRepository(
   final def graphSetup: ExclusiveTopic[ClusterManagement] =
     ExclusiveTopic[ClusterManagement](ingestSetupConnector, "graph.setup")
 
-  final def clusterComms: BroadcastTopic[ClusterManagement] =
-    BroadcastTopic[ClusterManagement](
-            1, // 1 query orchestrator
-            ingestSetupConnector,
-            "cluster.comms"
-    )
-
   // graph wise topics
   final def graphUpdates(graphID: String): ShardingTopic[GraphAlteration] =
     ShardingTopic[GraphAlteration](numPartitions, graphUpdatesConnector, s"graph.updates", graphID)
