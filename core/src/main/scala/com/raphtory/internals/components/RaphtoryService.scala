@@ -62,9 +62,6 @@ class DefaultRaphtoryService[F[_]](
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val partitioner    = new Partitioner()
 
-  private lazy val blockingIngestion =
-    Map[String, EndPoint[IngestionBlockingCommand]]().withDefault(topics.blockingIngestion(_).endPoint)
-
   private lazy val writers =
     Map[String, Map[Int, EndPoint[GraphAlteration]]]().withDefault(topics.graphUpdates(_).endPoint())
 
@@ -150,15 +147,10 @@ class DefaultRaphtoryService[F[_]](
         } yield success
     }
 
-  override def unblockIngestion(req: protocol.UnblockIngestion): F[Status] =
-    req match {
-      case protocol.UnblockIngestion(graphId, sourceId, messageCount, highestTimeSeen, force, _) =>
-        for {
-          _       <- F.delay(logger.debug(s"Unblocking ingestion for source id: '$sourceId' and graph id '$graphId'"))
-          message <- F.pure(UnblockIngestion(sourceId, graphID = graphId, messageCount, highestTimeSeen, force))
-          _       <- F.delay(blockingIngestion(graphId) sendAsync message)
-        } yield success
-    }
+  override def unblockIngestion(req: protocol.UnblockIngestion): F[Status] = {
+    logger.debug(s"Unblocking ingestion for source id: '${req.sourceID}' and graph id '${req.graphID}'")
+    queryService.unblockIngestion(req).map(_ => success)
+  }
 
   override def getGraph(req: GetGraph): F[Status] = runningGraphs.get.map(i => Status(i.contains(req.graphID)))
 

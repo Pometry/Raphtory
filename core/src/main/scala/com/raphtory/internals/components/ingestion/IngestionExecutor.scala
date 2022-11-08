@@ -6,9 +6,6 @@ import cats.syntax.all._
 import com.raphtory.api.input.Source
 import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.components.querymanager.BlockIngestion
-import com.raphtory.internals.components.querymanager.NonBlocking
-import com.raphtory.internals.components.querymanager.UnblockIngestion
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.management.telemetry.TelemetryReporter
 import com.typesafe.config.Config
@@ -26,7 +23,6 @@ private[raphtory] class IngestionExecutor[F[_]: Async](
   private val logger: Logger                               = Logger(LoggerFactory.getLogger(this.getClass))
   private val failOnError                                  = conf.getBoolean("raphtory.builders.failOnError")
   private val writers: Map[Int, EndPoint[GraphAlteration]] = topics.graphUpdates(graphID).endPoint()
-  private val queryManager                                 = topics.blockingIngestion(graphID).endPoint
   private val sourceInstance                               = source.buildSource(graphID, sourceID)
   private val totalTuplesProcessed                         = TelemetryReporter.totalTuplesProcessed.labels(s"$sourceID", graphID)
 
@@ -38,7 +34,6 @@ private[raphtory] class IngestionExecutor[F[_]: Async](
     for {
 //      _ <- Async[F].delay(close()) -> Needed if this class extends FlushToFlight
       _ <- Async[F].delay(writers.values.foreach(_.close()))
-      _ <- Async[F].delay(queryManager.close())
     } yield ()
 
   def run(): F[Unit] =
@@ -66,11 +61,12 @@ private[raphtory] class IngestionExecutor[F[_]: Async](
 
     if (sourceInstance.hasRemainingUpdates)
       if (blocking) {
-        queryManager.sendAsync(BlockIngestion(sourceID = sourceInstance.sourceID, graphID = graphID))
+        // ask query service to block ingestion for sourceInstance.sourceID
         iBlocked = true
       }
-      else
-        queryManager.sendAsync(NonBlocking(sourceID = sourceInstance.sourceID, graphID = graphID))
+      else {
+        // ask query service for non-blocking ingestion for sourceInstance.sourceID
+      }
 
     while (sourceInstance.hasRemainingUpdates) {
 //      latestMsgTimeToFlushToFlight = System.currentTimeMillis() -> Needed if this class extends FlushToFlight
@@ -83,10 +79,7 @@ private[raphtory] class IngestionExecutor[F[_]: Async](
     // after pedro changes it will also know that writers have seen all the gus
     // now IE can let queryService know that all the GUs are processed
     if (blocking && iBlocked) {
-      val id  = sourceInstance.sourceID
-      val msg =
-        UnblockIngestion(id, graphID, sourceInstance.sentMessages(), sourceInstance.highestTimeSeen(), force = false)
-      queryManager sendAsync msg
+      // ask query service to unblock ingestion sourceInstance.sourceID
     }
   }
 }

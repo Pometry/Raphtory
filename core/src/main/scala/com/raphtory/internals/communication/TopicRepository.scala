@@ -1,17 +1,9 @@
 package com.raphtory.internals.communication
 
 import com.raphtory.internals.components.output.OutputMessages
-import com.raphtory.internals.components.querymanager.ClusterManagement
-import com.raphtory.internals.components.querymanager.EndQuery
-import com.raphtory.internals.components.querymanager.GraphManagement
-import com.raphtory.internals.components.querymanager.IngestData
-import com.raphtory.internals.components.querymanager.IngestionBlockingCommand
 import com.raphtory.internals.components.querymanager.QueryManagement
-import com.raphtory.internals.components.querymanager.Submission
 import com.raphtory.internals.components.querymanager.VertexMessagesSync
 import com.raphtory.internals.components.querymanager.VertexMessaging
-import com.raphtory.internals.components.querymanager.WatermarkTime
-import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphAlteration._
 import com.typesafe.config.Config
@@ -51,21 +43,12 @@ private[raphtory] class TopicRepository(
   final def output(graphID: String, jobId: String): ExclusiveTopic[OutputMessages] =
     ExclusiveTopic[OutputMessages](outputConnector, "output", s"$graphID-$jobId")
 
-  final def completedQueries(graphID: String): ExclusiveTopic[EndQuery] =
-    ExclusiveTopic[EndQuery](completedQueriesConnector, "completed.queries", graphID)
-
-  final def graphSetup: ExclusiveTopic[ClusterManagement] =
-    ExclusiveTopic[ClusterManagement](ingestSetupConnector, "graph.setup")
-
   // graph wise topics
   final def graphUpdates(graphID: String): ShardingTopic[GraphAlteration] =
     ShardingTopic[GraphAlteration](numPartitions, graphUpdatesConnector, s"graph.updates", graphID)
 
   final def graphSync(graphID: String): ShardingTopic[GraphUpdateEffect] =
     ShardingTopic[GraphUpdateEffect](numPartitions, graphSyncConnector, s"graph.sync", graphID)
-
-  final def blockingIngestion(graphID: String): ExclusiveTopic[IngestionBlockingCommand] =
-    ExclusiveTopic[IngestionBlockingCommand](blockingIngestionConnector, "blocking.ingestion", graphID)
 
   // Job wise topics
   final def queryTrack(graphID: String, jobId: String): ExclusiveTopic[QueryManagement] =
