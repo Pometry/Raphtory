@@ -71,13 +71,12 @@ For all other users please follow instructions above to install from pip.
 
 - Temurin Java 11 - 11.0.16-tem
   - Please ensure `JAVA_HOME` environment variable is set and points to a JDK location
+  - [Click here for the guide to install java and sbt](../Install/install_java.md)
 - scala 2.13
 - sbt
 - python 3.9.13
 - make
 - [poetry](https://python-poetry.org/)
-
-[Click here for the guide to install java and sbt](../Install/install_java.md)
 
 
 ### Guide
