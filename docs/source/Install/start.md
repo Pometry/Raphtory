@@ -57,7 +57,7 @@ pip install -i https://test.pypi.org/simple/ pyraphtory==0.2.0a7
 ```{group-tab} scala
 Download the jar file below and add as a library into your code editor  
 
-https://github.com/Raphtory/Raphtory/releases/download/v0.2.0a7/core-assembly-0.2.0a7.jar 
+[https://github.com/Raphtory/Raphtory/releases/download/v0.2.0a7/core-assembly-0.2.0a7.jar](https://github.com/Raphtory/Raphtory/releases/download/v0.2.0a7/core-assembly-0.2.0a7.jar) 
 
 ```
 ````
