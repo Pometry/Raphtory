@@ -62,9 +62,6 @@ class DefaultRaphtoryService[F[_]](
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val partitioner    = new Partitioner()
 
-  // This is to cache endpoints instead of creating one for every message we send
-  private lazy val submissions = Map[String, EndPoint[Submission]]().withDefault(topics.submissions(_).endPoint)
-
   private lazy val blockingIngestion =
     Map[String, EndPoint[IngestionBlockingCommand]]().withDefault(topics.blockingIngestion(_).endPoint)
 
@@ -131,7 +128,6 @@ class DefaultRaphtoryService[F[_]](
 
   private def submitDeserializedQuery(query: Query): F[Stream[F, protocol.QueryManagement]] =
     (for {
-      _          <- Stream.eval(F.blocking(submissions(query.graphID) sendAsync query))
       queue      <- Stream.eval(Queue.unbounded[F, Option[QueryManagement]])
       dispatcher <- Stream.resource(Dispatcher[F])
       _          <- Stream.resource(QueryTrackerForwarder[F](query.graphID, query.name, topics, queue, dispatcher, config))

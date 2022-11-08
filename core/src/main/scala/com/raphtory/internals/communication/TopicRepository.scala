@@ -51,9 +51,6 @@ private[raphtory] class TopicRepository(
   final def output(graphID: String, jobId: String): ExclusiveTopic[OutputMessages] =
     ExclusiveTopic[OutputMessages](outputConnector, "output", s"$graphID-$jobId")
 
-  final def submissions(graphID: String): ExclusiveTopic[Submission] =
-    ExclusiveTopic[Submission](submissionsConnector, s"submissions", graphID)
-
   final def completedQueries(graphID: String): ExclusiveTopic[EndQuery] =
     ExclusiveTopic[EndQuery](completedQueriesConnector, "completed.queries", graphID)
 
