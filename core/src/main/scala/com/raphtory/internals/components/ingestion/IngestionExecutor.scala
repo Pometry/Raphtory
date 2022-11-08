@@ -8,7 +8,9 @@ import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.management.telemetry.TelemetryReporter
+import com.raphtory.protocol.BlockIngestion
 import com.raphtory.protocol.QueryService
+import com.raphtory.protocol.UnblockIngestion
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -63,12 +65,10 @@ private[raphtory] class IngestionExecutor[F[_]: Async](
 
     if (sourceInstance.hasRemainingUpdates)
       if (blocking) {
-        // ask query service to block ingestion for sourceInstance.sourceID
+        queryService.map(qs => qs.blockIngestion(BlockIngestion(sourceID = sourceInstance.sourceID, graphID = graphID)))
         iBlocked = true
       }
-      else {
-        // ask query service for non-blocking ingestion for sourceInstance.sourceID
-      }
+    // else block is not needed ??
 
     while (sourceInstance.hasRemainingUpdates) {
 //      latestMsgTimeToFlushToFlight = System.currentTimeMillis() -> Needed if this class extends FlushToFlight
@@ -76,13 +76,10 @@ private[raphtory] class IngestionExecutor[F[_]: Async](
       index = index + 1
       sourceInstance.sendUpdates(index, failOnError)
     }
-    // TODO
-    // here it already knows that it has consumed all the gu from the source
-    // after pedro changes it will also know that writers have seen all the gus
-    // now IE can let queryService know that all the GUs are processed
-    if (blocking && iBlocked) {
-      // ask query service to unblock ingestion sourceInstance.sourceID
-    }
+    if (blocking && iBlocked)
+      queryService.map(qs =>
+        qs.unblockIngestion(UnblockIngestion(graphID, sourceInstance.sourceID, 0, sourceInstance.highestTimeSeen()))
+      )
   }
 }
 

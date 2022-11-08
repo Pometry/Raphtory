@@ -128,7 +128,7 @@ private[raphtory] class QuerySender(
 
   private def unblockIngestion(sourceID: Int, messageCount: Long, force: Boolean): Unit =
     service
-      .unblockIngestion(protocol.UnblockIngestion(graphID, sourceID, messageCount, highestTimeSeen, force))
+      .unblockIngestion(protocol.UnblockIngestion(graphID, sourceID, messageCount, highestTimeSeen))
       .unsafeRunSync()
 
   def destroyGraph(force: Boolean): Unit =

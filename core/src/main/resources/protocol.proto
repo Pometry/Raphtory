@@ -93,7 +93,6 @@ message UnblockIngestion {
   int32 sourceID = 2;
   int64 earliestTimeSeen = 3;
   int64 latestTimeSeen = 4;
-  bool force = 5;
 }
 
 message JobID {
