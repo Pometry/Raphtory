@@ -6,7 +6,7 @@ dependencies:
   - ca-certificates=2021.10.8
   - certifi=2021.10.8
   - libcxx=12.0.0
-  - libffi=3.3
+  - libffi>=3.4.2
   - ncurses=6.3
   - make=4.3
   - openjdk=11.0.9.1
