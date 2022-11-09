@@ -1,9 +1,11 @@
 package com.raphtory.internals.components.partition
 
+import cats.Parallel
 import com.raphtory.internals.graph.GraphAlteration._
 import cats.effect.Async
 import cats.effect.Deferred
 import cats.effect.Resource
+import cats.effect.std.Queue
 import cats.syntax.all._
 import com.raphtory.api.input._
 import com.raphtory.internals.FlushToFlight
@@ -30,13 +32,13 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.control.NonFatal
 
-private[raphtory] class Writer[F[_]: Async](
+private[raphtory] class Writer[F[_]](
     graphID: String,
     partitionID: Int,
     storage: GraphPartition,
     conf: Config,
     writers: Deferred[F, Map[Int, WriterService[F]]]
-) extends WriterService[F] {
+)(implicit F:Async[F]) extends WriterService[F] {
 
   private val vertexAdditionCount = TelemetryReporter.writerVertexAdditions.labels(partitionID.toString, graphID)
   private val edgeAddCount        = TelemetryReporter.writerEdgeAdditions.labels(partitionID.toString, graphID)
@@ -47,12 +49,21 @@ private[raphtory] class Writer[F[_]: Async](
 
   private val partitioner = Partitioner()
 
+//  def withGraphPartition[B](f: GraphPartition => F[B]): F[B] = {
+//   F.bracket(storage.take)(f)(storage.offer)
+//
+//  }
+
   override def processAlteration(req: protocol.GraphAlteration): F[Empty] =
     for {
       effects <- Async[F].blocking(handleLocalAlteration(req.alteration))
       writers <- writers.get
       delivery = effects map (effect => (writers(partitioner.getPartitionForId(effect.updateId)), effect))
-      _       <- delivery map { case (writer, effect) => writer.processAlteration(protocol.GraphAlteration(effect)) } sequence
+      _       <- Async[F]
+                   .parSequenceN(79)(delivery map {
+                     case (writer, effect) => writer.processAlteration(protocol.GraphAlteration(effect))
+                   })
+                   .void
     } yield Empty()
 
   private def handleLocalAlteration(msg: GraphAlteration): List[GraphUpdateEffect] =
