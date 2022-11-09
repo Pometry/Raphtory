@@ -57,25 +57,15 @@ def test_safe_download():
     os.unlink(file_loc)
     os.rmdir(temporary_folder)
 
-
-@mock.patch("subprocess.run")
-def test_has_java(mock_subproc_popen):
-    process_mock = mock.Mock()
-    attrs = {"communicate.return_value": ("returncode", 0)}
-    process_mock.configure_mock(**attrs)
-    mock_subproc_popen.return_value = process_mock
-    jre.has_java()  # this calls run_script somewhere, is that right?
-    assert mock_subproc_popen.called
+def test_has_java_normal():
     assert jre.has_java() is True
 
-
-@mock.patch("subprocess.run")
-def test_has_java_fail(mock_subproc_popen):
-    process_mock = mock.Mock()
-    attrs = {"communicate.return_value": ("returncode", 1)}
-    process_mock.configure_mock(**attrs)
-    mock_subproc_popen.return_value = process_mock
-    jre.has_java()  # this calls run_script somewhere, is that right?
-    assert mock_subproc_popen.called
-    assert jre.has_java() is False
-
+# mock the subprocess.run function
+def test_mock_suprocess2():
+    with mock.patch("subprocess.run") as mock_subproc_run:
+        process_mock = mock.Mock()
+        attrs = {"run.return_value": ("output", 'error'), 'run.returncode': 0}
+        process_mock.configure_mock(**attrs)
+        mock_subproc_run.return_value = process_mock
+        assert mock_subproc_run.called
+        assert jre.has_java() is True
