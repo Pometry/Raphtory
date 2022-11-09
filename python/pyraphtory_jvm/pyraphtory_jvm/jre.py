@@ -12,7 +12,6 @@ import subprocess
 import os
 import site
 
-
 IVY_LIB = '/lib'
 PYRAPHTORY_DATA = '/pyraphtory_jvm/data'
 
@@ -93,7 +92,6 @@ def delete_source(filename):
             pass
 
 
-
 def checksum(filepath, expected_sha_hash):
     sha256_hash = hashlib.sha256()
     with open(filepath, "rb") as f:
@@ -142,15 +140,8 @@ def safe_download_file(download_dir, expected_sha, url):
         r.close()
         if not status:
             delete_source(file_location)
-            raise SystemExit(f"Downloaded Jar {file_location} has incorrect checksum")
-    except requests.exceptions.TooManyRedirects as err:
-        print(f"Bad URL, Too Many Redirects: {err}")
-        delete_source(file_location)
-        raise SystemExit(err)
-    except requests.exceptions.HTTPError as err:
-        print(f"HTTP Error: {err}")
-        delete_source(file_location)
-        raise SystemExit(err)
+            print(f"Downloaded Jar {file_location} has incorrect checksum")
+            raise SystemExit()
     except requests.exceptions.RequestException as err:
         print(f"Major exception: {err}")
         delete_source(file_location)
@@ -162,7 +153,8 @@ def get_and_run_ivy(JAVA_BIN, download_dir=os.path.dirname(os.path.realpath(__fi
     file_location = safe_download_file(str(download_dir), IVY_BIN[CHECKSUM_SHA256], IVY_BIN[LINK])
     shutil.unpack_archive(file_location, extract_dir=download_dir)
     working_dir = os.getcwd()
-    print(f"IVY working dir {working_dir}, dl dir: {download_dir} REAL PATH {str(os.path.dirname(os.path.realpath(__file__)))}")
+    print(
+        f"IVY working dir {working_dir}, dl dir: {download_dir} REAL PATH {str(os.path.dirname(os.path.realpath(__file__)))}")
     os.chdir(download_dir)
     print(os.listdir('.'))
     files = os.listdir(ivy_folder)
@@ -198,24 +190,29 @@ def empty_folder(folder):
             continue
 
 
-def unpack_jre(filename, jre_loc):
-    unpack_dir = tempfile.mkdtemp(dir=pathlib.Path().resolve())
+def unpack_jre(filename, jre_loc, unpack_dir=tempfile.mkdtemp(dir=pathlib.Path().resolve())):
     system_os = getOS()
     print(f'Unpacking JRE for {system_os}...')
     shutil.unpack_archive(filename, unpack_dir)
-    result_dir = unpack_dir + '/' + os.listdir(unpack_dir)[0]
-    # Empty jre folder
-    empty_folder(jre_loc)
-    if system_os == OS_MAC:
-        move_dir = '/Contents/Home'
-    else:  # if system_os == OS_LINUX:
-        move_dir = ''
-    file_names = os.listdir(result_dir + move_dir)
-    for file_name in file_names:
-        shutil.move(os.path.join(result_dir + move_dir, file_name), jre_loc)
-    print('Cleaning up...')
-    shutil.rmtree(unpack_dir, ignore_errors=True)
-    os.remove(filename)
+    if os.listdir(unpack_dir):
+        result_dir = unpack_dir + '/' + os.listdir(unpack_dir)[0]
+        # Empty jre folder
+        empty_folder(jre_loc)
+        if system_os == OS_MAC:
+            move_dir = '/Contents/Home'
+        else:  # if system_os == OS_LINUX:
+            move_dir = ''
+        file_names = os.listdir(result_dir + move_dir)
+        for file_name in file_names:
+            shutil.move(os.path.join(result_dir + move_dir, file_name), jre_loc)
+        print('Cleaning up...')
+        shutil.rmtree(unpack_dir, ignore_errors=True)
+        try:
+            os.remove(filename)
+        except OSError:
+            pass
+    else:
+        raise Exception('Error: JRE unpacking failed.')
 
 
 def check_system_dl_java(download_dir=str(os.path.dirname(os.path.realpath(__file__)))):
@@ -253,7 +250,7 @@ def get_java_home():
         print(f'JAVA_HOME not found. But java found. Detecting home...')
         return shutil.which('java')
     else:
-        raise Exception("JAVA HOME not found")
+        raise FileNotFoundError("JAVA_HOME has not been set, java was also not found")
 
 
 def get_local_java_loc():
@@ -265,10 +262,12 @@ def get_local_java_loc():
         return java_loc
     raise Exception("JAVA not home.")
 
+
 def get_local_ivy_loc():
     return site.getsitepackages()[0] + PYRAPHTORY_DATA + '/lib/'
 
-def check_dl_java_ivy(download_dir = site.getsitepackages()[0] + PYRAPHTORY_DATA):
+
+def check_dl_java_ivy(download_dir=site.getsitepackages()[0] + PYRAPHTORY_DATA):
     if has_java():
         java_bin = get_java_home()
     else:
