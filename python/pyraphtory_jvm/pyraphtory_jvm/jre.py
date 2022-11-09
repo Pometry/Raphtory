@@ -24,34 +24,36 @@ CHECKSUM_SHA256 = 'checksum'
 
 OS_MAC = 'Darwin'
 OS_LINUX = 'Linux'
+OS_X64 = 'x64'
+OS_AARCH64 = 'aarch64'
 
 SOURCES = {
     OS_MAC: {
-        'x64':
+        OS_X64:
             {
                 LINK: 'https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.16.1%2B1/OpenJDK11U-jre_x64_mac_hotspot_11.0.16.1_1.tar.gz',
                 CHECKSUM_SHA256: '10be61a8dd3766f7c12e2e823a6eca48cc6361d97e1b76310c752bd39770c7fe'
             },
-        'aarch64':
+        OS_AARCH64:
             {
                 LINK: 'https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.16.1%2B1/OpenJDK11U-jre_aarch64_mac_hotspot_11.0.16.1_1.tar.gz',
                 CHECKSUM_SHA256: 'c84f38a7d87d50649ffc1f625facb4398fa54885371336a2cbf6ae2b435cbd10'
             }
     },
     OS_LINUX: {
-        'x64':
+        OS_X64:
             {
                 LINK: 'https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.17%2B8/OpenJDK11U-jre_x64_linux_hotspot_11.0.17_8.tar.gz',
                 CHECKSUM_SHA256: '752616097e09d7f60a3ad8bd312f90eaf50ac72577e55df229fe6e8091148f79'
             },
-        'aarch64':
+        OS_AARCH64:
             {
                 LINK: 'https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.17%2B8/OpenJDK11U-jre_aarch64_linux_hotspot_11.0.17_8.tar.gz',
                 CHECKSUM_SHA256: 'bd6efe3290c8b5a42f695a55a26f3e3c9c284288574879d4b7089f31f5114177'
             }
     },
     # 'Windows': {
-    #     'x64':
+    #     OS_X64:
     #         {
     #             LINK: 'https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.17%2B8/OpenJDK11U-jre_x64_windows_hotspot_11.0.17_8.zip',
     #             CHECKSUM_SHA256: '814a731f92dd67ad6cfb11a8b06dfad5f629f67be88ae5ae37d34e6eea6be6f4'
@@ -75,9 +77,9 @@ def getOS():
 
 def getArch():
     if platform.machine() == "x86_64":
-        return 'x64'
+        return OS_X64
     elif platform.machine() == 'arm64':
-        return 'aarch64'
+        return OS_AARCH64
     else:
         raise Exception("Unsupported Architecture. Cannot install.")
 
@@ -85,7 +87,11 @@ def getArch():
 def delete_source(filename):
     print(f"Deleting source file {filename}...")
     if os.path.exists(filename):
-        os.remove(filename)
+        try:
+            os.remove(filename)
+        except OSError:
+            pass
+
 
 
 def checksum(filepath, expected_sha_hash):
@@ -156,8 +162,7 @@ def get_and_run_ivy(JAVA_BIN, download_dir=os.path.dirname(os.path.realpath(__fi
     file_location = safe_download_file(str(download_dir), IVY_BIN[CHECKSUM_SHA256], IVY_BIN[LINK])
     shutil.unpack_archive(file_location, extract_dir=download_dir)
     working_dir = os.getcwd()
-    print("IVY")
-    print(f"working dir {working_dir}, dl dir: {download_dir} REAL PATH {str(os.path.dirname(os.path.realpath(__file__)))}")
+    print(f"IVY working dir {working_dir}, dl dir: {download_dir} REAL PATH {str(os.path.dirname(os.path.realpath(__file__)))}")
     os.chdir(download_dir)
     print(os.listdir('.'))
     files = os.listdir(ivy_folder)
@@ -172,7 +177,10 @@ def get_and_run_ivy(JAVA_BIN, download_dir=os.path.dirname(os.path.realpath(__fi
     delete_source(download_dir + "/apache-ivy-2.5.0-bin.zip")
     # Keep only compile directory
     rm_dirs = os.listdir(download_dir + IVY_LIB)
-    rm_dirs.remove('compile')
+    try:
+        rm_dirs.remove('compile')
+    except ValueError:
+        pass
     for d in rm_dirs:
         shutil.rmtree(download_dir + IVY_LIB + '/' + d, ignore_errors=True)
 
