@@ -31,10 +31,10 @@ trait Source {
       graphID: String,
       id: Int,
       writers: Map[Int, WriterService[F]]
-  ): Resource[F, SourceInstance[F, MessageType]] =
+  ): Resource[F, StreamSource[F, MessageType]] =
     builder
       .make(graphID, id, writers)
-      .map(builder => new SourceInstance[F, MessageType](id, spout.buildSpout(), builder))
+      .map(builder => new StreamSource[F, MessageType](id, spout.buildSpout(), builder))
 }
 
 class ConcreteSource[T](override val spout: Spout[T], override val builder: GraphBuilder[T]) extends Source {
@@ -74,23 +74,26 @@ class StreamSource[F[_], T](id: Int, spoutInstance: SpoutInstance[T], builderIns
 
   def elements =
     for {
-      index <- fs2.Stream.eval(Ref.of[F, Long](0L))
+      index <- fs2.Stream.eval(Ref.of[F, Long](1L))
 //      d     <- fs2.Stream.resource(Dispatcher[F])
 //      q     <- fs2.Stream.eval(Queue.unbounded[F, GraphUpdate])
-
-      _ <- fs2.Stream
-             .fromBlockingIterator[F](spoutInstance, 1024)
-             .parEvalMapUnordered(4) { t =>
-               for {
-                 i <- index.getAndUpdate(_ + 1)
-                 _ <- builderInstance.buildGraphFromT(t, i)
-               } yield ()
-             }
+      tuples = fs2.Stream.fromBlockingIterator[F](spoutInstance, 1024)
+      _     <- tuples.take(2).evalMap(processTuple(_, index)) ++ tuples
+                 .drop(2)
+                 .parEvalMapUnordered(4)(
+                         processTuple(_, index)
+                 ) // some sources need the first two elements to be read in order
     } yield ()
 
-  def sentMessages: F[Long] = F.delay(builderInstance.getSentUpdates)
+  private def processTuple(tuple: T, index: Ref[F, Long]) =
+    for {
+      i <- index.getAndUpdate(_ + 1)
+      _ <- builderInstance.buildGraphFromT(tuple, i)
+    } yield ()
 
-  def highestTimeSeen(): F[Long]     = F.delay(builderInstance.highestTimeSeen)
+  def sentMessages: F[Long] = builderInstance.getSentUpdates
+
+  def highestTimeSeen(): F[Long]     = builderInstance.highestTimeSeen
   def spoutReschedules(): F[Boolean] = F.delay(spoutInstance.spoutReschedules())
   def pollInterval: FiniteDuration   = 1.seconds
   def sourceID: Int                  = id

@@ -140,12 +140,12 @@ object IngestionExecutor {
       config: Config,
       registry: ServiceRegistry[F]
   ): Resource[F, IngestionExecutor[F, _]] = {
-    def createExecutor(sourceInstance: SourceInstance[F, _]) =
-      Async[F].delay(new IngestionExecutor(graphID, sourceInstance, blocking, sourceID, config, registry.topics))
+    def createExecutor(streamSource: StreamSource[F, _]) =
+      Async[F].delay(new IngestionExecutor(graphID, streamSource, blocking, sourceID, config, registry.topics))
     for {
-      writers        <- registry.writers(graphID)
-      sourceInstance <- source.make(graphID, sourceID, writers)
-      executor       <- Resource.make(createExecutor(sourceInstance))(executor => executor.release())
+      writers      <- registry.writers(graphID)
+      streamSource <- source.make(graphID, sourceID, writers)
+      executor     <- Resource.make(createExecutor(streamSource))(executor => executor.release())
     } yield executor
   }
 }

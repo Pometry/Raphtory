@@ -40,6 +40,7 @@ class CSVEdgeListSource(
   private var stringFormat: Boolean   = _
 
   def buildCSVEdgeListGraph(graph: Graph, tuple: String, rawTime: String, source: String, target: String) = {
+    println("tuple: ", tuple)
     val timestamp = {
       if (dateTimeFormat)
         parseDateTime(rawTime)
@@ -47,7 +48,8 @@ class CSVEdgeListSource(
         rawTime.toLong
       else
         throw new RuntimeException(
-                s"Timestamp does not conform to what was seen in first line of data in tuple: $tuple"
+                s"Timestamp in tuple '$tuple' does not conform to what was seen in first" +
+                  s" line of data (${if (dateTimeFormat) "datetime format" else "epoch format"})"
         )
     }
 

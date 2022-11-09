@@ -24,7 +24,7 @@ class GraphBuilderF[F[_], T](
     sentUpdates: Ref[F, Long]
 )(implicit F: Async[F]) {
 
-  private val totalSourceErrors = TelemetryReporter.totalSourceErrors.labels(s"$sourceId", graphId)
+  private val totalSourceErrors = TelemetryReporter.totalSourceErrors.labels(s"$sourceId", graphId) // TODO
 
   def buildGraphFromT(t: T, index: Long): F[Unit] =
     Dispatcher[F].use { d =>
@@ -39,13 +39,16 @@ class GraphBuilderF[F[_], T](
                    _ <- (writers(partitionForTuple).processAlteration(protocol.GraphAlteration(update)))
                    _ <- highestSeen.update(Math.max(_, update.updateTime))
                    _ <- sentUpdates.update(_ + 1L)
-                 } yield ()).handleError{case NonFatal(t) => }
+                 } yield ()).handleError { case NonFatal(t) => }
                }
                .void
                .compile
                .drain
       } yield ()
     }
+
+  def getSentUpdates: F[Long]  = sentUpdates.get
+  def highestTimeSeen: F[Long] = highestSeen.get
 }
 
 private[raphtory] class GraphBuilderInstance[F[_], T](
