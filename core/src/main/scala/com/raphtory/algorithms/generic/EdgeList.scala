@@ -48,9 +48,9 @@ class EdgeList(
             val row = name +:
               neighbourMap(edge.dst) +: // get name of neighbour
               properties // get property values
-                .map(key =>
+                .map(key => //TODO have hacked this to work for test, needs to be properly updated with getStateOrElse function
                   edge
-                    .getPropertyOrElse(key, defaults.getOrElse(key, None))
+                    .getState[Double](key,true)
                 )
             Row(row: _*)
           }

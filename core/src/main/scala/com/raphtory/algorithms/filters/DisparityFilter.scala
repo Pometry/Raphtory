@@ -15,12 +15,12 @@ import scala.math.Numeric.Implicits.infixNumericOps
   *
   *  This creates a filtered view of a weighted graph where only "statistically significant" edges remain. For a description of this method,
   *  please refer to: Serrano, M. Ángeles, Marián Boguná, and Alessandro Vespignani. "Extracting the multiscale backbone of complex weighted networks."
-  *  Proceedings of the National Academy of Sciences 106.16 (2009): 6483-6488. Note that this implementation is aimed at undirected networks.
+  *  Proceedings of the National Academy of Sciences 106.16 (2009): 6483-6488. Note that this implementation is aimed for directed networks.
   *
   * ## Parameters
   *
   *  {s}`alpha: Double = 0.05`
-  *  : Significance level to use. A smaller {s}`alpha` value means more edges will be removed
+  *  : Significance level to use. Edges with a p-values larger than {s}`alpha` are rmoved. A smaller {s}`alpha` value means more edges will be removed.
   *
   *  {s}`weightString: String = "weight"`
   *  : String name of the property/state, defaulting to "weight". As with other weighted algorithms in Raphtory, if no weight property
@@ -40,32 +40,47 @@ class DisparityFilter[T: Numeric: Bounded: ClassTag](
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
-        // out neighbours means no need to send double messages
-        vertex.messageOutNeighbours(
-                vertex.ID,
-                vertex.degree,
-                vertex.weightedTotalDegree[T](weightProperty = weightProperty)
-        )
-      }
-      .step { vertex =>
-        val messages  = vertex.messageQueue[(vertex.IDType, Int, T)]
-        val degreeMap = messages.groupBy(_._1).view.mapValues(_.head._2)
-        val weightMap = messages.groupBy(_._1).view.mapValues(_.head._3)
+        val s = vertex.weightedOutDegree[T](weightProperty = weightProperty).toDouble
+        val k = vertex.outDegree
 
-        val k1 = vertex.degree
-        val s1 = vertex.weightedTotalDegree[T](weightProperty = weightProperty).toDouble
-        vertex.inEdges.foreach { edge =>
-          val k2  = degreeMap(edge.src)
-          val s2  = weightMap(edge.src).toDouble
-          val wgt = edge.weight[T](weightProperty = weightProperty)
+        vertex.outEdges.foreach { edge =>
+          val w   = edge.weight[T](weightProperty = weightProperty).toDouble
+          val pij = w / s
 
-          val (pij, pji) = (wgt.toDouble / s1, wgt.toDouble / s2)
-          val (aij, aji) = (Math.pow(1.0 - pij, k1 - 1), Math.pow(1.0 - pji, k2 - 1))
-          if (aij < alpha || aji < alpha)
+          val p_value = Math.pow(1.0 - pij, k - 1)
+          if (p_value > alpha)
             edge.remove()
         }
       }
 
+}
+
+class DisparityPValues[T: Numeric: Bounded: ClassTag](weightProperty: String = "weight", pvalueLabel: String = "pvalue")
+        extends Generic {
+
+  override def apply(graph: GraphPerspective): graph.Graph =
+    graph
+      .step { vertex =>
+        val s = vertex.weightedOutDegree[T](weightProperty = weightProperty).toDouble
+        val k = vertex.outDegree
+
+        vertex.outEdges.foreach { edge =>
+          val w   = edge.weight[T](weightProperty = weightProperty).toDouble
+          val pij = w / s
+
+          val p_value = Math.pow(1.0 - pij, k - 1)
+
+          edge.setState(pvalueLabel, p_value)
+        }
+      }
+
+}
+
+object DisparityPValues {
+
+  def apply[T: Numeric: Bounded: ClassTag](
+      weightProperty: String = "weight"
+  ) = new DisparityPValues[T](weightProperty)
 }
 
 object DisparityFilter {
