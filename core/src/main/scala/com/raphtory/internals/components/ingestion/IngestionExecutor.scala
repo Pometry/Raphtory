@@ -24,6 +24,7 @@ import com.raphtory.protocol.WriterService
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import fs2.Stream
+import io.prometheus.client.Counter
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.Future
@@ -41,7 +42,7 @@ private[raphtory] class IngestionExecutor[F[_], T](
   private val logger: Logger       = Logger(LoggerFactory.getLogger(this.getClass))
   private val failOnError          = conf.getBoolean("raphtory.builders.failOnError")
   private val queryManager         = topics.blockingIngestion(graphID).endPoint
-  private val totalTuplesProcessed = TelemetryReporter.totalTuplesProcessed.labels(s"$sourceID", graphID)
+  private val totalTuplesProcessed: Counter.Child = TelemetryReporter.totalTuplesProcessed.labels(s"$sourceID", graphID)
 
   private var index: Long = 0
 
@@ -73,6 +74,7 @@ private[raphtory] class IngestionExecutor[F[_], T](
   private def uniquePoll: F[Unit] = executePoll()
 
   private def executePoll(): F[Unit] = {
+
     val s = for {
       iBlocked <- fs2.Stream.eval(Ref.of(false))
       _        <- if (blocking)
@@ -87,46 +89,31 @@ private[raphtory] class IngestionExecutor[F[_], T](
                                     queryManager.sendAsync(NonBlocking(sourceID = source.sourceID, graphID = graphID))
                             ) *> iBlocked.set(false)
                     )
-      _        <- source.elements // process elements here
-      _        <- fs2.Stream.eval {
-                    for {
-                      blocked         <- iBlocked.get
-                      sentMessages    <- source.sentMessages
-                      highestTimeSeen <- source.highestTimeSeen()
-                      _               <- if (blocked && blocking)
-                                           F.delay {
-                                             val id  = source.sourceID
-                                             val msg =
-                                               UnblockIngestion(id, graphID, sentMessages, highestTimeSeen, force = false)
-                                             queryManager sendAsync msg
-                                           }
-                                         else F.unit
-                    } yield ()
-                  }
+      _       <- source.elements(totalTuplesProcessed) // process elements here
+      _        <- finaliseIngestion(iBlocked)
     } yield ()
 
-//    if (source.hasRemainingUpdates)
-//      if (blocking) {
-//        queryManager.sendAsync(BlockIngestion(sourceID = source.sourceID, graphID = graphID))
-//        iBlocked = true
-//      }
-//      else
-//        queryManager.sendAsync(NonBlocking(sourceID = source.sourceID, graphID = graphID))
-
-//    while (source.hasRemainingUpdates) {
-//      latestMsgTimeToFlushToFlight = System.currentTimeMillis() -> Needed if this class extends FlushToFlight
     totalTuplesProcessed.inc()
-//    index = index + 1
-//      source.sendUpdates(index, failOnError)
-//      val iterator: Stream.PartiallyAppliedFromIterator[Nothing] = fs2.Stream.fromIterator
-//    }
-//    if (blocking && iBlocked) {
-//      val id  = source.sourceID
-//      val msg =
-//        UnblockIngestion(id, graphID, source.sentMessages(), source.highestTimeSeen(), force = false)
-//      queryManager sendAsync msg
-//    }
     s.void.compile.drain
+  }
+
+  private def finaliseIngestion(iBlocked: Ref[F, Boolean]) = {
+    fs2.Stream.eval {
+      for {
+        blocked <- iBlocked.get
+        sentMessages <- source.sentMessages
+        highestTimeSeen <- source.highestTimeSeen()
+        _ <- if (blocked && blocking)
+          F.delay {
+            println("HOW MANY TIMES ARE YOU HAPPENING!?")
+            val id = source.sourceID
+            val msg =
+              UnblockIngestion(id, graphID, sentMessages, highestTimeSeen, force = false)
+            queryManager sendAsync msg
+          }
+        else F.unit
+      } yield ()
+    }
   }
 }
 

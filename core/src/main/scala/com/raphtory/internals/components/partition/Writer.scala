@@ -60,7 +60,7 @@ private[raphtory] class Writer[F[_]](
       writers <- writers.get
       delivery = effects map (effect => (writers(partitioner.getPartitionForId(effect.updateId)), effect))
       _       <- Async[F]
-                   .parSequenceN(79)(delivery map {
+                   .parSequenceN(4)(delivery map {
                      case (writer, effect) => writer.processAlteration(protocol.GraphAlteration(effect))
                    })
                    .void

@@ -16,6 +16,8 @@ import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.protocol.WriterService
 import com.twitter.chill.ClosureCleaner
 import com.typesafe.scalalogging.Logger
+import fs2.Chunk
+import io.prometheus.client.Counter
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration._
@@ -72,23 +74,15 @@ class StreamSource[F[_], T](id: Int, spoutInstance: SpoutInstance[T], builderIns
     F: Async[F]
 ) {
 
-  def elements =
+  def elements(counter: Counter.Child ): fs2.Stream[F, Unit] =
     for {
       index <- fs2.Stream.eval(Ref.of[F, Long](1L))
-//      d     <- fs2.Stream.resource(Dispatcher[F])
-//      q     <- fs2.Stream.eval(Queue.unbounded[F, GraphUpdate])
       tuples = fs2.Stream.fromBlockingIterator[F](spoutInstance, 1024)
-      _     <- tuples.take(2).evalMap(processTuple(_, index)) ++ tuples
-                 .drop(2)
-                 .parEvalMapUnordered(4)(
-                         processTuple(_, index)
-                 ) // some sources need the first two elements to be read in order
-    } yield ()
-
-  private def processTuple(tuple: T, index: Ref[F, Long]) =
-    for {
-      i <- index.getAndUpdate(_ + 1)
-      _ <- builderInstance.buildGraphFromT(tuple, i)
+      _ <- (tuples.chunks.head.evalMap( chunk =>
+                       builderInstance.buildGraphFromT(chunk, index) *> F.delay(counter.inc(chunk.size))
+               ) ++ tuples.chunks.tail.parEvalMapUnordered(32)( chunk =>
+                       builderInstance.buildGraphFromT(chunk, index) *> F.delay(counter.inc(chunk.size))
+               )).last
     } yield ()
 
   def sentMessages: F[Long] = builderInstance.getSentUpdates

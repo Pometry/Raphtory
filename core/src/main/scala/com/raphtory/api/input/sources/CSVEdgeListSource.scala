@@ -39,8 +39,7 @@ class CSVEdgeListSource(
   private var longFormat: Boolean     = _
   private var stringFormat: Boolean   = _
 
-  def buildCSVEdgeListGraph(graph: Graph, tuple: String, rawTime: String, source: String, target: String) = {
-    println("tuple: ", tuple)
+  def buildCSVEdgeListGraph(graph: Graph, tuple: String, rawTime: String, source: String, target: String): Unit = {
     val timestamp = {
       if (dateTimeFormat)
         parseDateTime(rawTime)

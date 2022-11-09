@@ -12,6 +12,7 @@ import com.raphtory.internals.management.telemetry.TelemetryReporter
 import com.raphtory.protocol
 import com.raphtory.protocol.Empty
 import com.raphtory.protocol.WriterService
+import fs2.Chunk
 
 import scala.util.control.NonFatal
 
@@ -26,24 +27,36 @@ class GraphBuilderF[F[_], T](
 
   private val totalSourceErrors = TelemetryReporter.totalSourceErrors.labels(s"$sourceId", graphId) // TODO
 
-  def buildGraphFromT(t: T, index: Long): F[Unit] =
+  def buildGraphFromT(t: Chunk[T], index: Ref[F, Long]): F[Unit] =
     Dispatcher[F].use { d =>
       for {
         q <- Queue.unbounded[F, Option[GraphUpdate]]
-        cb = UnsafeGraphCallback(writers.size, sourceId, index, graphId, d, q)
-        _ <- F.delay(builder(cb, t)) *> q.offer(None)
-        _ <- cb.updates
+        cb = UnsafeGraphCallback(writers.size, sourceId, -1, graphId, d, q)
+        _ <- t.foldLeftM(index) { (i, t) =>
+               i.getAndUpdate(_ + 1)
+                 .map { index =>
+                   builder(cb.copy(index = index), t)
+                 }
+                 .map(_ => i)
+             } *> q.offer(None)
+        _ <- fs2.Stream
+               .fromQueueNoneTerminated(q)
                .parEvalMapUnordered(8) { update =>
                  val partitionForTuple = cb.getPartitionForId(update.srcId)
                  (for {
                    _ <- (writers(partitionForTuple).processAlteration(protocol.GraphAlteration(update)))
                    _ <- highestSeen.update(Math.max(_, update.updateTime))
                    _ <- sentUpdates.update(_ + 1L)
-                 } yield ()).handleError { case NonFatal(t) => }
+                 } yield ()).handleError {
+                   case NonFatal(t) =>
+                     F.delay {
+                       totalSourceErrors.inc()
+                     } *> F.raiseError(t)
+                 }
                }
-               .void
+               .last
                .compile
-               .drain
+               .toList
       } yield ()
     }
 
