@@ -147,10 +147,9 @@ class DefaultRaphtoryService[F[_]](
         } yield success
     }
 
-  override def unblockIngestion(req: protocol.UnblockIngestion): F[Status] = {
-    logger.debug(s"Unblocking ingestion for source id: '${req.sourceID}' and graph id '${req.graphID}'")
-    queryService.unblockIngestion(req).map(_ => success)
-  }
+  override def unblockIngestion(req: protocol.UnblockIngestion): F[Status] =
+    F.delay(logger.debug(s"Unblocking ingestion for source id: '${req.sourceID}' and graph id '${req.graphID}'")) *>
+      queryService.unblockIngestion(req).as(success)
 
   override def getGraph(req: GetGraph): F[Status] = runningGraphs.get.map(i => Status(i.contains(req.graphID)))
 
