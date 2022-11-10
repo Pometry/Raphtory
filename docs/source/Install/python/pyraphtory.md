@@ -1,4 +1,4 @@
-# Installing PyRaphtory (python)
+# Installing PyRaphtory
 
 PyRaphtory comes in two parts, `pyraphtory_jvm` and `pyraphtory`.
 
@@ -12,7 +12,7 @@ PyRaphtory comes in two parts, `pyraphtory_jvm` and `pyraphtory`.
 
   It is in experimental stage, so everything may change. 
 
-## Install (from binary)
+## Install
 
 ### Requirements
 

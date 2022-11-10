@@ -1,4 +1,4 @@
-# Installing Raphtory (scala)
+# Installing Raphtory
 
 ## Install
 

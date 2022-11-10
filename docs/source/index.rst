@@ -30,7 +30,7 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/star
 .. toctree::
    :maxdepth: 2
    :hidden:
-   :caption: Raphtory
+   :caption: Raphtory (Scala)
 
    Install/scala/raphtory.md
    Install/scala/install_java.md
@@ -39,7 +39,7 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/star
 .. toctree::
    :maxdepth: 2
    :hidden:
-   :caption: PyRaphtory
+   :caption: PyRaphtory (python)
 
    Install/python/pyraphtory.md
    Examples/lotr.md
