@@ -1,12 +1,12 @@
    <p align="center"><img src="../_static/raphtory-banner.png" alt="Raphtory Banner"/></p>
 
-# (Developer notes) Publishing to pypi
+# Publishing to pypi
 
 ## Pyraphtory_jvm  - Publishing to pypi with twine 
 
 `pyraphtory_jvm` is published to pypi using twine. 
 
-First follow the [build process](start.md) to create the tar files. 
+First follow the [build process](../Install/start.md) to create the tar files. 
 
 ### Requirements
 

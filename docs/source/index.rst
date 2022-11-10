@@ -23,12 +23,26 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/star
 .. toctree::
    :maxdepth: 2
    :hidden:
-   :caption: Install
+   :caption: Start
 
    Install/start.md
-   Install/install_java.md
-   Install/publishing.md
+
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+   :caption: Raphtory
+
+   Install/scala/raphtory.md
+   Install/scala/install_java.md
    Install/scala/compile_run_example.md
+
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+   :caption: PyRaphtory
+
+   Install/python/pyraphtory.md
+   Examples/lotr.md
 
 .. toctree::
    :maxdepth: 4
@@ -44,9 +58,8 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/star
 .. toctree::
    :maxdepth: 2
    :hidden:
-   :caption: Examples Projects
+   :caption: Example Projects (Scala & Python)
 
-   Examples/lotr.md
    Examples/community-of-cheese.md
    Examples/nft.md
    Examples/gab.md
@@ -60,6 +73,14 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/star
    Deployment/pulsarlocal.md
    Deployment/baremetalsingle.md
    Deployment/kubernetes.md
+
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+   :caption: Development
+
+   Dev/building.md
+   Dev/publishing.md
   
 .. toctree::
    :hidden:
