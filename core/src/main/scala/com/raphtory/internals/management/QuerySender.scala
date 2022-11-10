@@ -154,7 +154,7 @@ private[raphtory] class QuerySender(
 
     sourceWithId foreach {
       case (id, source) =>
-        val ingestData = IngestData(DynamicLoader(clazzes).resolve(searchPath), graphID, id, source, blocking)
+        val ingestData = IngestData(DynamicLoader(clazzes).resolve(searchPath), graphID, id, source)
         service.submitSource(protocol.IngestData(TryIngestData(Success(ingestData)))).unsafeRunSync()
     }
   }

@@ -1,5 +1,9 @@
 package com.raphtory.internals.components.querymanager
 
+import cats.effect.std.Dispatcher
+import cats.effect.Async
+import cats.effect.Resource
+import cats.syntax.all._
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview._
@@ -7,6 +11,8 @@ import com.raphtory.api.analysis.table.TableFunction
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
+import com.raphtory.internals.components.partition.QueryExecutor.makeExecutor
+import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.graph.PerspectiveController
 import com.raphtory.internals.graph.PerspectiveController._
@@ -16,13 +22,14 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 import com.raphtory.internals.management.telemetry.TelemetryReporter
+
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.util.Try
 
-private[raphtory] class QueryHandler(
+private[raphtory] class QueryHandler[F[_]: Async] private(
     graphID: String,
-    querySupervisor: QuerySupervisor,
+    querySupervisor: QuerySupervisor[F],
     scheduler: Scheduler,
     jobID: String,
     query: Query,
@@ -30,8 +37,11 @@ private[raphtory] class QueryHandler(
     topics: TopicRepository,
     pyScript: Option[String],
     earliestTime: Long,
-    latestTime: Long
+    latestTime: Long,
+    dispatcher: Dispatcher[F],
+    finish: cats.effect.std.Semaphore[F]
 ) extends Component[QueryManagement](conf) {
+  println(s"Creating QueryHandler")
   import com.raphtory.internals.components.querymanager.Stages._
 
   private val startTime      = System.currentTimeMillis()
@@ -270,7 +280,9 @@ private[raphtory] class QueryHandler(
   // HELPER FUNCTIONS
   private def safelyStartPerspectives(): Stage =
     if (earliestTime > latestTime)
-      throw new Exception(s"Latest time (= $latestTime) seen can't be smaller than earliest time seen (= $earliestTime)")
+      throw new Exception(
+              s"Latest time (= $latestTime) seen can't be smaller than earliest time seen (= $earliestTime)"
+      )
     else {
       perspectiveController = PerspectiveController(earliestTime, latestTime, query)
       val schedulingTimeTaken = System.currentTimeMillis() - timeTaken
@@ -403,11 +415,10 @@ private[raphtory] class QueryHandler(
   private def killJob(): Unit = {
     messagetoAllJobWorkers(EndQuery(jobID))
     workerList.close()
-
     querySupervisor.endQuery(jobID)
     logger.debug(s"Job '$jobID': No more perspectives available. Ending Query Handler execution.")
-
     tracker closeWithMessage JobDone
+    finish.release
   }
 
   private def getNextGraphOperation(queue: mutable.Queue[GraphFunction]) =
@@ -419,27 +430,64 @@ private[raphtory] class QueryHandler(
 
 object QueryHandler {
 
-  def apply(
-      querySupervisor: QuerySupervisor,
+  def apply[F[_]: Async](
+      querySupervisor: QuerySupervisor[F],
       scheduler: Scheduler,
       query: Query,
       conf: Config,
       topics: TopicRepository,
       earliestTime: Long,
       latestTime: Long
-  ): QueryHandler =
-    new QueryHandler(
-            query.graphID,
-            querySupervisor,
-            scheduler,
-            query.name,
-            query,
-            conf,
-            topics,
-            query.pyScript,
-            earliestTime,
-            latestTime
-    )
+  ): F[Unit] =
+    (for {
+      dispatcher <- Dispatcher[F]
+      finish     <- Resource.eval(cats.effect.std.Semaphore[F](0))
+      _          <- QueryHandler[F](
+                            querySupervisor,
+                            scheduler,
+                            query,
+                            conf,
+                            topics,
+                            earliestTime,
+                            latestTime,
+                            dispatcher,
+                            finish
+                    )
+    } yield finish).use(finish => finish.acquire)
+
+  private def apply[F[_]: Async](
+      querySupervisor: QuerySupervisor[F],
+      scheduler: Scheduler,
+      query: Query,
+      conf: Config,
+      topics: TopicRepository,
+      earliestTime: Long,
+      latestTime: Long,
+      dispatcher: Dispatcher[F],
+      finish: cats.effect.std.Semaphore[F]
+  ): Resource[F, QueryHandler[F]] =
+    Resource
+      .make(
+              for {
+                handler <- Async[F].delay(
+                                   new QueryHandler(
+                                           query.graphID,
+                                           querySupervisor,
+                                           scheduler,
+                                           query.name,
+                                           query,
+                                           conf,
+                                           topics,
+                                           query.pyScript,
+                                           earliestTime,
+                                           latestTime,
+                                           dispatcher,
+                                           finish
+                                   )
+                           )
+                _       <- Async[F].blocking(handler.run())
+              } yield handler
+      )(handler => Async[F].blocking(handler.stop()))
 }
 
 private[raphtory] object Stages extends Enumeration {

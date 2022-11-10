@@ -12,10 +12,8 @@ import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.TableFilter
 import com.raphtory.api.analysis.table.WriteToOutput
 import com.raphtory.api.analysis.visitor.Vertex
-import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.output.sink.SinkExecutor
 import com.raphtory.internals.communication.EndPoint
-import com.raphtory.internals.communication.Topic
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.SchemaProviderInstances._
 import com.raphtory.internals.components.Component
@@ -25,14 +23,9 @@ import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.management.python.EmbeddedPython
-import com.raphtory.internals.management.python._
-import com.raphtory.internals.storage.arrow.ArrowGraphLens
-import com.raphtory.internals.storage.arrow.ArrowPartition
-import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicInteger
@@ -49,14 +42,15 @@ private[raphtory] class QueryExecutor[F[_]](
     dispatcher: Dispatcher[F],
     finish: cats.effect.std.Semaphore[F]
 ) extends Component[QueryManagement](conf) {
-  private val graphID  = query.graphID
-  private val sink     = query.sink.get
-  private val jobID    = query.name
-  private val pyScript = query.pyScript
 
-  private val logger: Logger                   =
-    Logger(LoggerFactory.getLogger(this.getClass))
+  private val graphID        = query.graphID
+  private val sink           = query.sink.get
+  private val jobID          = query.name
+  private val pyScript       = query.pyScript
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+
   logger.info(logMessage(s"Starting QueryExecutor."))
+
   private var currentPerspectiveID: Int        = _
   private var currentPerspective: Perspective  = _
   private var graphLens: LensInterface         = _

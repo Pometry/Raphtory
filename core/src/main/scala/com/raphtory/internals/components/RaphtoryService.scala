@@ -241,9 +241,9 @@ object RaphtoryServiceBuilder {
     for {
       topics      <- LocalTopicRepository[F](config, None)
       serviceRepo <- LocalServiceRegistry(topics)
+      _           <- QueryServiceImpl(serviceRepo, config)
       _           <- IngestionServiceImpl(serviceRepo, config)
       _           <- PartitionServiceImpl.makeN(serviceRepo, config)
-      _           <- QueryServiceImpl(serviceRepo, config)
     } yield serviceRepo
 
   private def localArrowCluster[F[_]: Async, V: VertexSchema, E: EdgeSchema](
@@ -252,9 +252,9 @@ object RaphtoryServiceBuilder {
     for {
       topics      <- LocalTopicRepository[F](config, None)
       serviceRepo <- LocalServiceRegistry(topics)
+      _           <- QueryServiceImpl(serviceRepo, config)
       _           <- IngestionServiceImpl(serviceRepo, config)
       _           <- PartitionServiceImpl.makeNArrow[F, V, E](serviceRepo, config)
-      _           <- QueryServiceImpl(serviceRepo, config)
     } yield serviceRepo
 
   private def remoteCluster[F[_]: Async](config: Config): Resource[F, ServiceRegistry[F]] =

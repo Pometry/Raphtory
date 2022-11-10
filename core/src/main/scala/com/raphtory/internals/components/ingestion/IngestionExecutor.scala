@@ -1,6 +1,7 @@
 package com.raphtory.internals.components.ingestion
 
 import cats.effect.Async
+import cats.effect.Ref
 import cats.effect.Resource
 import cats.syntax.all._
 import com.raphtory.api.input.Source
@@ -17,9 +18,8 @@ import org.slf4j.LoggerFactory
 
 private[raphtory] class IngestionExecutor[F[_]: Async](
     graphID: String,
-    queryService: Resource[F, QueryService[F]],
+    queryService: QueryService[F],
     source: Source,
-    blocking: Boolean,
     sourceID: Int,
     conf: Config,
     topics: TopicRepository
@@ -48,7 +48,7 @@ private[raphtory] class IngestionExecutor[F[_]: Async](
 
   private def iterativePolls: F[Unit] =
     for {
-      _ <- uniquePoll
+      _ <- executePoll()
       _ <- if (sourceInstance.spoutReschedules()) waitForNextPoll *> iterativePolls else Async[F].unit
     } yield ()
 
@@ -58,28 +58,31 @@ private[raphtory] class IngestionExecutor[F[_]: Async](
       _ <- Async[F].sleep(sourceInstance.pollInterval)
     } yield ()
 
-  private def uniquePoll: F[Unit] = Async[F].blocking(executePoll())
+  private def executePoll(): F[Unit] = {
+    def sendUpdatesR(): F[Unit] =
+      for {
+        _ <- Async[F].blocking {
+               totalTuplesProcessed.inc()
+               index = index + 1
+               sourceInstance.sendUpdates(index, failOnError)
+             }
+        _ <- if (sourceInstance.hasRemainingUpdates) sendUpdatesR() else Async[F].unit
+      } yield ()
 
-  private def executePoll(): Unit = {
-    var iBlocked = false
-
-    if (sourceInstance.hasRemainingUpdates)
-      if (blocking) {
-        queryService.map(qs => qs.blockIngestion(BlockIngestion(sourceID = sourceInstance.sourceID, graphID = graphID)))
-        iBlocked = true
-      }
-    // else block is not needed ??
-
-    while (sourceInstance.hasRemainingUpdates) {
-//      latestMsgTimeToFlushToFlight = System.currentTimeMillis() -> Needed if this class extends FlushToFlight
-      totalTuplesProcessed.inc()
-      index = index + 1
-      sourceInstance.sendUpdates(index, failOnError)
-    }
-    if (blocking && iBlocked)
-      queryService.map(qs =>
-        qs.unblockIngestion(UnblockIngestion(graphID, sourceInstance.sourceID, 0, sourceInstance.highestTimeSeen()))
-      )
+    for {
+      isBlocked <- Ref.of(false)
+      _         <- if (sourceInstance.hasRemainingUpdates)
+                     queryService.blockIngestion(
+                             BlockIngestion(sourceID = sourceInstance.sourceID, graphID = graphID)
+                     ) *> isBlocked.set(true) *> sendUpdatesR()
+                   else Async[F].unit
+      blocked   <- isBlocked.get
+      _         <- if (blocked)
+                     queryService.unblockIngestion(
+                             UnblockIngestion(graphID, sourceInstance.sourceID, 0, sourceInstance.highestTimeSeen())
+                     )
+                   else Async[F].unit
+    } yield ()
   }
 }
 
@@ -87,15 +90,14 @@ object IngestionExecutor {
 
   def apply[F[_]: Async](
       graphID: String,
-      queryService: Resource[F, QueryService[F]],
+      queryService: QueryService[F],
       source: Source,
-      blocking: Boolean,
       sourceID: Int,
       config: Config,
       topics: TopicRepository
   ): Resource[F, IngestionExecutor[F]] = {
     val createExecutor =
-      Async[F].delay(new IngestionExecutor(graphID, queryService, source, blocking, sourceID, config, topics))
+      Async[F].delay(new IngestionExecutor(graphID, queryService, source, sourceID, config, topics))
     Resource.make(createExecutor)(executor => executor.release())
   }
 }

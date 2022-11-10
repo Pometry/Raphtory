@@ -15,28 +15,28 @@ import scala.util.Failure
 import scala.util.Success
 
 class QueryServiceImpl[F[_]: Async] private (
-    graphs: GraphList[F, QuerySupervisor],
+    graphs: GraphList[F, QuerySupervisor[F]],
     topics: TopicRepository,
     config: Config
 ) extends OrchestratorService(graphs)
         with protocol.QueryService[F] {
 
-  override protected def makeGraphData(graphID: String): F[QuerySupervisor] =
+  override protected def makeGraphData(graphID: String): F[QuerySupervisor[F]] =
     Async[F].delay(QuerySupervisor(graphID, topics, config))
 
-  private def getQuerySupervisor(graphID: String): F[QuerySupervisor] =
+  private def getQuerySupervisor(graphID: String): F[QuerySupervisor[F]] =
     for (m <- graphs.get) yield m(graphID).data
 
   override def blockIngestion(req: protocol.BlockIngestion): F[Empty] =
     for {
       querySupervisor <- getQuerySupervisor(req.graphID)
-      _                = querySupervisor.startBlockingIngestion(req.sourceID)
+      _               <- querySupervisor.startBlockingIngestion(req.sourceID)
     } yield Empty()
 
   override def unblockIngestion(req: protocol.UnblockIngestion): F[Empty] =
     for {
       querySupervisor <- getQuerySupervisor(req.graphID)
-      _                = querySupervisor.endBlockingIngestion(req.sourceID, req.earliestTimeSeen, req.latestTimeSeen)
+      _               <- querySupervisor.endBlockingIngestion(req.sourceID, req.earliestTimeSeen, req.latestTimeSeen)
     } yield Empty()
 
   override def submitQuery(req: protocol.Query): F[Empty] =
@@ -44,7 +44,7 @@ class QueryServiceImpl[F[_]: Async] private (
       case protocol.Query(TryQuery(Success(query)), _) =>
         for {
           querySupervisor <- getQuerySupervisor(query.graphID)
-          _                = querySupervisor.submitQuery(query)
+          _               <- querySupervisor.submitQuery(query)
         } yield Empty()
       case protocol.Query(TryQuery(Failure(error)), _) =>
         throw new Exception(s"Error interpreting request $req").initCause(error)
@@ -53,7 +53,7 @@ class QueryServiceImpl[F[_]: Async] private (
   override def endQuery(req: protocol.JobID): F[Empty] =
     for {
       querySupervisor <- getQuerySupervisor(req.jobID)
-      _                = querySupervisor.endQuery(req.jobID)
+      _               <- querySupervisor.endQuery(req.jobID)
     } yield Empty()
 }
 
@@ -64,7 +64,7 @@ object QueryServiceImpl {
 
   def apply[F[_]: Async](repo: ServiceRegistry[F], config: Config): Resource[F, Unit] =
     for {
-      graphs  <- makeGraphList[F, QuerySupervisor]
+      graphs  <- makeGraphList[F, QuerySupervisor[F]]
       _       <- Resource.eval(Async[F].delay(logger.info(s"Starting Query Service")))
       service <- Resource.eval(Async[F].delay(new QueryServiceImpl[F](graphs, repo.topics, config)))
       _       <- repo.registered(service, QueryServiceImpl.descriptor)

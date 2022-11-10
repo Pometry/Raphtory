@@ -1,5 +1,7 @@
 package com.raphtory.internals.components.querymanager
 
+import cats.syntax.all._
+import cats.effect._
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.querymanager.QuerySupervisor._
 import com.raphtory.internals.management.Scheduler
@@ -11,73 +13,76 @@ import javax.annotation.concurrent.NotThreadSafe
 import scala.collection.mutable
 
 @NotThreadSafe
-class QuerySupervisor private (
+class QuerySupervisor[F[_]] private (
     graphID: GraphID,
     topics: TopicRepository,
     config: Config,
     private val blockingSources: mutable.Set[SourceID],
     private val blockedQueries: mutable.Set[Query],
-    private val currentQueries: mutable.Map[String, QueryHandler]
-) {
-  private val logger           = Logger(LoggerFactory.getLogger(this.getClass))
-  private var earliestTimeSeen = -1L
-  private var latestTimeSeen   = -1L
+    private val currentQueries: mutable.Set[JobID]
+)(implicit F: Async[F]) {
+  private val logger       = Logger(LoggerFactory.getLogger(this.getClass))
+  private var earliestTime = -1L
+  private var latestTime   = -1L
 
-  def startBlockingIngestion(sourceID: Int): Unit = {
-    if (!blockingSources.contains(sourceID))
-      blockingSources.add(sourceID)
-    logger.info(s"Source '$sourceID' is blocking analysis for Graph '$graphID'")
-  }
+  def startBlockingIngestion(sourceID: Int): F[Unit] =
+    F.delay {
+      if (!blockingSources.contains(sourceID))
+        blockingSources.add(sourceID)
+      logger.info(s"Source '$sourceID' is blocking analysis for Graph '$graphID'")
+    }
 
-  def endBlockingIngestion(sourceID: Int, _earliestTimeSeen: Long, _latestTimeSeen: Long): Unit = {
-    earliestTimeSeen = _earliestTimeSeen
-    latestTimeSeen = _latestTimeSeen
+  private def isBlockIngesting(blockedBy: Array[Long]): F[Boolean] =
+    F.delay(blockedBy.forall(blockingSources.contains))
 
-    blockingSources.remove(sourceID)
-
-    blockedQueries.filterInPlace { query =>
-      if (!isBlockIngesting(query.blockedBy)) {
-        spawnQueryHandler(query)
-        false
+  private def spawnQueryHandler(query: Query): F[Unit] =
+    QueryHandler(this, new Scheduler, query, config, topics, earliestTime, latestTime) *>
+      F.delay {
+        currentQueries.addOne(query.name)
+        TelemetryReporter.totalQueriesSpawned.labels(graphID).inc()
       }
-      else true
+
+  def endBlockingIngestion(sourceID: Int, _earliestTime: Long, _latestTime: Long): F[Unit] =
+    for {
+      _        <- F.delay {
+                    earliestTime = _earliestTime
+                    latestTime = _latestTime
+                  }
+      blockedQ <- blockedQueries.toList.filterA { query =>
+                    for {
+                      blockingIngestion <- isBlockIngesting(query.blockedBy)
+                      _                 <- if (blockingIngestion) spawnQueryHandler(query) else F.unit
+                    } yield blockingIngestion
+                  }
+      _        <- F.blocking {
+                    blockedQ.foreach(blockedQueries.remove)
+                    blockingSources.remove(sourceID)
+                    logger.info(
+                            s"Source '$sourceID' is unblocking analysis for Graph '$graphID' with earliest time seen as $earliestTime and latest time seen as $latestTime"
+                    )
+                  }
+    } yield ()
+
+  def submitQuery(query: Query): F[Unit] =
+    for {
+      _                 <- F.delay {
+                             logger.info(s"Handling query: $query")
+                             query.blockedBy.foreach(blockingSources.add)
+                           }
+      blockingIngestion <- isBlockIngesting(query.blockedBy)
+      _                 <- if (blockingIngestion)
+                             F.delay {
+                               blockedQueries.addOne(query)
+                               logger.info(s"Query '${query.name}' currently blocked, waiting for ingestion to complete.")
+                             }
+                           else spawnQueryHandler(query)
+    } yield ()
+
+  def endQuery(jobID: JobID): F[Unit] =
+    F.delay {
+      currentQueries.remove(jobID)
+      blockedQueries.filterInPlace(q => q.name != jobID)
     }
-
-    logger.info(
-            s"Source '$sourceID' is unblocking analysis for Graph '$graphID' with earliest time seen as $earliestTimeSeen and latest time seen as $latestTimeSeen"
-    )
-  }
-
-  def submitQuery(query: Query): Unit = {
-    logger.debug(s"Handling query: $query")
-
-    query.blockedBy.foreach(blockingSources.add)
-
-    if (isBlockIngesting(query.blockedBy)) {
-      blockedQueries.addOne(query)
-      logger.info(s"Query '${query.name}' currently blocked, waiting for ingestion to complete.")
-    }
-    else spawnQueryHandler(query)
-  }
-
-  def endQuery(jobID: JobID): Unit = {
-    currentQueries.get(jobID) match {
-      case Some(queryhandler) =>
-        queryhandler.stop()
-        currentQueries.remove(jobID)
-      case None               =>
-    }
-    blockedQueries.filterInPlace(q => q.name != jobID)
-  }
-
-  private def spawnQueryHandler(query: Query): Unit = {
-    val qh = QueryHandler(this, new Scheduler, query, config, topics, earliestTimeSeen, latestTimeSeen)
-    currentQueries.addOne(query.name, qh)
-    TelemetryReporter.totalQueriesSpawned.labels(graphID).inc()
-  }
-
-  private def isBlockIngesting(blockedBy: Array[Long]): Boolean =
-    blockedBy.forall(blockingSources.contains)
 }
 
 object QuerySupervisor {
@@ -85,13 +90,13 @@ object QuerySupervisor {
   type SourceID = Long
   type JobID    = String
 
-  def apply(graphID: GraphID, topics: TopicRepository, config: Config): QuerySupervisor =
+  def apply[F[_]: Async](graphID: GraphID, topics: TopicRepository, config: Config): QuerySupervisor[F] =
     new QuerySupervisor(
             graphID,
             topics,
             config,
-            mutable.Set[Long](),
+            mutable.Set[SourceID](),
             mutable.Set[Query](),
-            mutable.Map[String, QueryHandler]()
+            mutable.Set[JobID]()
     )
 }

@@ -241,8 +241,7 @@ private[raphtory] case class IngestData(
     _bootstrap: DynamicLoader,
     graphID: String,
     sourceId: Int,
-    source: Source,
-    blocking: Boolean
+    source: Source
 ) extends Submission
         with GraphManagement
 
