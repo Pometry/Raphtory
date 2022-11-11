@@ -5,7 +5,7 @@ This example takes a dataset that tells us when two characters have some type of
 
 ## Pre-requisites
 
-Follow our Installation guide: [Scala](../Install/scala/install.md) or [Python (with Conda)](../Install/python/install_conda.md), [Python (without Conda)](../Install/python/install_no_conda.md).
+Follow our Installation guide: [Install](../Install/start.md)
 
 ## Data
 
@@ -81,8 +81,8 @@ Turn on logs to see what is going on in PyRaphtory. Initialise Raphtory by creat
 ````{tabs}
 
 ```{code-tab} py
-pr = PyRaphtory(logging=True).open()
-rg = pr.new_graph()
+ctx = PyRaphtory.local()
+graph = ctx.new_graph()
 ```
 ```{code-tab} scala
 val graph = Raphtory.newGraph()

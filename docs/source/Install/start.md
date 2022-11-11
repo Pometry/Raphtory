@@ -1,20 +1,20 @@
-# Installation
+# Libraries
 
 Raphtory has support for graph analytics in both Scala and Python.
+The core analytics platform is written in [Scala](https://www.scala-lang.org).
 
-The Scala library is called Raphtory. 
+As such both Java and Scala are required to run either `Raphtory` or `PyRaphtory`.
 
-The Python library is called PyRaphtory. 
+* `Raphtory` - Scala library
+* `PyRaphtory` - Python library
+  * `pyraphtory_jvm` - Installs java if not present and downloads the ivy dependencies. 
+  * `pyraphtory` - New version of the Raphtory python API.
+    This contains all the functions to create a graph, run algorithms and analyse results.
+    At the core of this iteration is the `com.raphtory.python.PyRaphtory` class that is
+    able to start a Raphtory instance with python support or connect to an existing Raphtory Cluster.
 
-## Python (PyRaphtory)
+    It is in experimental stage, so everything may change. 
 
-Pyraphtory is the Python client for Raphtory.
-
-[Install with Conda](python/install_conda.md)
-
-[Install without Conda](python/install_no_conda.md)
-
-## Scala (Raphtory)
-
-[Install with Scala](scala/install.md)
+Both libraries can be installed from their binaries or from source. 
+**We recommend installing from the binaries.**
 
