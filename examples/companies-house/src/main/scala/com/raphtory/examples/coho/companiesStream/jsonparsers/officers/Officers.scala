@@ -89,5 +89,5 @@ case class Event(
                   fields_changed: Option[Array[String]],
                   published_at: Option[String],
                   timepoint: Option[String],
-                  _type: Option[String]
+                  `type`: Option[String]
                 )

@@ -7,8 +7,6 @@ import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.components.Component
-import com.raphtory.internals.components.ingestion.IngestionManager
-import com.raphtory.internals.components.partition.PartitionOrchestrator
 import com.raphtory.internals.components.querymanager.ClusterManagement
 import com.raphtory.internals.components.querymanager.QueryManager
 import com.raphtory.internals.management.Scheduler
@@ -19,6 +17,8 @@ import com.typesafe.config.ConfigValueFactory
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 import com.raphtory.internals.management.arrow.ZKHostAddressProvider
+import com.raphtory.internals.storage.arrow.EdgeSchema
+import com.raphtory.internals.storage.arrow.VertexSchema
 import org.apache.arrow.memory.RootAllocator
 
 import scala.collection.mutable
@@ -96,56 +96,10 @@ abstract class OrchestratorComponent(conf: Config) extends Component[ClusterMana
       case (_, deployment) => deployment.shutdown.unsafeRunSync()
     }
 
-  protected def deployStandaloneService(
-      graphID: String,
-      clientID: String,
-      idManager: IDManager,
-      repo: TopicRepository
-  ): Unit =
-    deployments.synchronized {
-      deployments.get(graphID) match {
-        case Some(deployment) =>
-          logger.info(s"New client '$clientID' connecting for graph: '$graphID'")
-          deployment.clients += clientID
-        case None             =>
-          logger.info(s"Deploying new graph '$graphID' in standalone mode, requested by '$clientID' ")
-          val scheduler       = new Scheduler()
-          val serviceResource = for {
-            _ <- PartitionOrchestrator.spawn[IO](conf, idManager, graphID, repo, scheduler)
-            _ <- IngestionManager[IO](graphID, conf, repo)
-            _ <- QueryManager[IO](graphID, conf, repo)
-          } yield ()
-          val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
-          deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))
-      }
-    }
-
-  protected def deployPartitionService(
-      graphID: String,
-      clientID: String,
-      idManager: IDManager,
-      repo: TopicRepository,
-      conf: Config
-  ): Unit =
-    deployments.synchronized {
-      val scheduler       = new Scheduler()
-      val serviceResource = PartitionOrchestrator.spawn[IO](conf, idManager, graphID, repo, scheduler)
-      val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
-      deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))
-    }
-
-  protected def deployIngestionService(graphID: String, clientID: String, repo: TopicRepository, conf: Config): Unit =
-    deployments.synchronized {
-      val serviceResource = IngestionManager[IO](graphID, conf, repo)
-      val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
-      deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))
-    }
-
   protected def deployQueryService(graphID: String, clientID: String, repo: TopicRepository, conf: Config): Unit =
     deployments.synchronized {
       val serviceResource = QueryManager[IO](graphID, conf, repo)
       val (_, shutdown)   = serviceResource.allocated.unsafeRunSync()
       deployments += ((graphID, Deployment(shutdown, clients = mutable.Set(clientID))))
     }
-
 }

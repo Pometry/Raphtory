@@ -4,20 +4,18 @@ import cats.effect.IO
 import cats.effect.Resource
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.analysis.graphview.Alignment
-import com.raphtory.api.input.Source
-import com.raphtory.Raphtory
 import com.raphtory.TestUtils
+import com.raphtory.defaultConf
+import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.api.output.sink.Sink
-import com.raphtory.lotrtest.LOTRGraphBuilder
+import com.raphtory.internals.components.RaphtoryServiceBuilder
+import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import munit.CatsEffectSuite
 
-import java.io.File
 import java.io.FileWriter
 import java.net.URL
-import java.nio.file.Files
-import java.nio.file.Paths
 import scala.sys.process._
 
 class MultiSpoutDeploymentTest extends CatsEffectSuite {
@@ -56,18 +54,19 @@ class MultiSpoutDeploymentTest extends CatsEffectSuite {
             }
             Seq(oddFile, evenFile).foreach(_.flush())
 
-            val graph   = Raphtory.newGraph()
-            graph.load(Source(oddSpout, LOTRGraphBuilder))
-            graph.load(Source(evenSpout, LOTRGraphBuilder))
-            val tracker = graph
-              .range(1, 32674, 10000)
-              .window(List(500, 1000, 10000), Alignment.END)
-              .execute(ConnectedComponents)
-              .writeTo(defaultSink)
+            val ctx = new RaphtoryContext(RaphtoryServiceBuilder.standalone[IO](defaultConf), defaultConf)
+            ctx.runWithNewGraph() { graph =>
+              graph.load(CSVEdgeListSource(oddSpout))
+              graph.load(CSVEdgeListSource(evenSpout))
+              val tracker = graph
+                .range(1, 32674, 10000)
+                .window(List(500, 1000, 10000), Alignment.END)
+                .execute(ConnectedComponents)
+                .writeTo(defaultSink)
 
-            tracker.waitForJob()
-            graph.close()
-            TestUtils.generateTestHash(outputDirectory, tracker.getJobId)
+              tracker.waitForJob()
+              TestUtils.generateTestHash(outputDirectory, tracker.getJobId)
+            }
           }
       }
       .map(hash => assertEquals(hash, "c6c26df04212ac7c0ba352d3acd79fb2c38f2c2943079bbe48dde9ea2b399410"))

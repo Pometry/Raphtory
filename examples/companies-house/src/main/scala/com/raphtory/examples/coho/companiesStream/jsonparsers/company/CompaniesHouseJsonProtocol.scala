@@ -120,7 +120,7 @@ object CompaniesHouseJsonProtocol extends DefaultJsonProtocol {
           case None => None
         },
         getField("sic_codes"),
-        getField("_type"),
+        getField("`type`"),
         getBoolean("undeliverable_registered_office_address")
       )
     }

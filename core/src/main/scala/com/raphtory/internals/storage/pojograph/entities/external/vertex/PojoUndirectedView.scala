@@ -65,7 +65,7 @@ private[pojograph] class PojoReducedUndirectedVertexView(override val vertex: Po
         with ReducedVertex {
   override type Edge = PojoExReducedEdgeBase
 
-  override def getOutEdges(after: Long, before: Long): List[Edge] =
+  override def getOutEdges(after: Long, before: Long): View[Edge] =
     vertex.getInEdges(after, before).map { inEdge =>
       vertex.getOutEdge(inEdge.ID, after, before) match {
         case Some(outEdge) => inEdge.combineUndirected(outEdge, asInEdge = false)
@@ -73,7 +73,7 @@ private[pojograph] class PojoReducedUndirectedVertexView(override val vertex: Po
       }
     } ++ vertex.getOutEdges(after, before).filterNot(outEdge => vertex.getInEdge(outEdge.ID, after, before).isDefined)
 
-  override def getInEdges(after: Long, before: Long): List[Edge] =
+  override def getInEdges(after: Long, before: Long): View[Edge] =
     vertex.getOutEdges(after, before).map { outEdge =>
       vertex.getInEdge(outEdge.ID, after, before) match {
         case Some(inEdge) => outEdge.combineUndirected(inEdge, asInEdge = true)

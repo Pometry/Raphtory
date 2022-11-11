@@ -6,11 +6,13 @@ import cats.effect.Async
 import cats.effect.Resource
 import com.raphtory.api.input._
 import com.raphtory.internals.FlushToFlight
-import com.raphtory.internals.communication.{EndPoint, TopicRepository}
+import com.raphtory.internals.communication.EndPoint
+import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.Scheduler
+import com.raphtory.internals.management.telemetry.TelemetryReporter
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -18,6 +20,7 @@ import org.slf4j.LoggerFactory
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
+import scala.util.control.NonFatal
 
 private[raphtory] class Writer(
     graphID: String,
@@ -26,7 +29,13 @@ private[raphtory] class Writer(
     conf: Config,
     topics: TopicRepository,
     override val scheduler: Scheduler
-) extends Component[GraphAlteration](conf) with FlushToFlight {
+) extends Component[GraphAlteration](conf)
+        with FlushToFlight {
+
+  private val vertexAdditionCount = TelemetryReporter.writerVertexAdditions.labels(partitionID.toString, graphID)
+  private val edgeAddCount        = TelemetryReporter.writerEdgeAdditions.labels(partitionID.toString, graphID)
+  private val edgeRemovalCount    = TelemetryReporter.writerEdgeDeletions.labels(partitionID.toString, graphID)
+  private val vertexRemoveCount   = TelemetryReporter.writerVertexDeletions.labels(partitionID.toString, graphID)
 
   override val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
@@ -44,7 +53,8 @@ private[raphtory] class Writer(
 
   override def handleMessage(msg: GraphAlteration): Unit = {
     latestMsgTimeToFlushToFlight = System.currentTimeMillis()
-    msg match {
+
+    try msg match {
       //Updates from the Graph Builder
       case update: VertexAdd                    => processVertexAdd(update)
       case update: EdgeAdd                      => processEdgeAdd(update)
@@ -96,6 +106,10 @@ private[raphtory] class Writer(
                 s"Partition '$partitionID': Received unsupported message '$other'."
         )
     }
+    catch {
+      case NonFatal(e) =>
+        logger.error(s"Failed to handle message $msg", e)
+    }
 
     handleUpdateCount()
   }
@@ -106,9 +120,7 @@ private[raphtory] class Writer(
     storage.addVertex(update.sourceID, update.updateTime, update.index, update.srcId, update.properties, update.vType)
     storage.timings(update.updateTime)
     storage.watermarker.safeRecordCompletedUpdate(update.sourceID)
-    telemetry.vertexAddCollector
-      .labels(partitionID.toString, graphID)
-      .inc()
+    vertexAdditionCount.inc()
 
   }
 
@@ -131,7 +143,7 @@ private[raphtory] class Writer(
       case None        => storage.watermarker.safeRecordCompletedUpdate(update.sourceID)
 
     }
-    telemetry.streamWriterEdgeAdditionsCollector.labels(partitionID.toString, graphID).inc()
+    edgeAddCount.inc()
   }
 
   def processEdgeDelete(update: EdgeDelete): Unit = {
@@ -145,7 +157,7 @@ private[raphtory] class Writer(
       case None        => storage.watermarker.safeRecordCompletedUpdate(update.sourceID)
 
     }
-    telemetry.streamWriterEdgeDeletionsCollector.labels(partitionID.toString, graphID).inc()
+    edgeRemovalCount.inc()
   }
 
   def processVertexDelete(update: VertexDelete): Unit = {
@@ -156,9 +168,7 @@ private[raphtory] class Writer(
       edgeRemovals.foreach(effect => neighbours(getWriter(effect.updateId)) sendAsync effect)
       storage.watermarker.trackVertexDeletion(update.updateTime, update.index, update.srcId, edgeRemovals.size)
     }
-    telemetry.streamWriterVertexDeletionsCollector
-      .labels(partitionID.toString, graphID)
-      .inc()
+    vertexRemoveCount.inc()
   }
 
   // Graph Effects for syncing edge adds
@@ -178,7 +188,6 @@ private[raphtory] class Writer(
               req.vType
       )
     neighbours(getWriter(effect.updateId)) sendAsync effect
-    telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, graphID)
   }
 
   def processSyncExistingEdgeAdd(req: SyncExistingEdgeAdd): Unit = {
@@ -190,7 +199,6 @@ private[raphtory] class Writer(
     val effect =
       storage.syncExistingEdgeAdd(req.sourceID, req.updateTime, req.index, req.srcId, req.dstId, req.properties)
     neighbours(getWriter(effect.updateId)) sendAsync effect
-    telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, graphID)
   }
 
   // Graph Effects for syncing edge deletions
@@ -202,7 +210,6 @@ private[raphtory] class Writer(
     storage.timings(req.updateTime)
     val effect = storage.syncNewEdgeRemoval(req.sourceID, req.updateTime, req.index, req.srcId, req.dstId, req.removals)
     neighbours(getWriter(effect.updateId)) sendAsync effect
-    telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, graphID)
   }
 
   def processSyncExistingEdgeRemoval(req: SyncExistingEdgeRemoval): Unit = {
@@ -213,7 +220,6 @@ private[raphtory] class Writer(
     storage.timings(req.updateTime)
     val effect = storage.syncExistingEdgeRemoval(req.sourceID, req.updateTime, req.index, req.srcId, req.dstId)
     neighbours(getWriter(effect.updateId)) sendAsync effect
-    telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, graphID)
   }
 
   // Graph Effects for syncing vertex deletions
@@ -225,7 +231,6 @@ private[raphtory] class Writer(
     storage.timings(req.updateTime)
     val effect = storage.outboundEdgeRemovalViaVertex(req.sourceID, req.updateTime, req.index, req.srcId, req.dstId)
     neighbours(getWriter(effect.updateId)) sendAsync effect
-    telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, graphID)
   }
 
   def processInboundEdgeRemovalViaVertex(req: InboundEdgeRemovalViaVertex): Unit = { //remote worker same as above
@@ -235,7 +240,6 @@ private[raphtory] class Writer(
 
     val effect = storage.inboundEdgeRemovalViaVertex(req.sourceID, req.updateTime, req.index, req.srcId, req.dstId)
     neighbours(getWriter(effect.updateId)) sendAsync effect
-    telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, graphID)
   }
 
   // Responses from the secondary server
@@ -246,7 +250,6 @@ private[raphtory] class Writer(
 
     storage.syncExistingRemovals(req.updateTime, req.index, req.srcId, req.dstId, req.removals)
     untrackEdgeUpdate(req.sourceID, req.updateTime, req.index, req.srcId, req.dstId, req.fromAddition)
-    telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, graphID)
   }
 
   def processEdgeSyncAck(req: EdgeSyncAck): Unit = {
@@ -262,7 +265,6 @@ private[raphtory] class Writer(
             req.dstId,
             req.fromAddition
     ) //when the edge isn't new we will get this response instead
-    telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, graphID)
   }
 
   private def untrackEdgeUpdate(
@@ -284,19 +286,16 @@ private[raphtory] class Writer(
     )
 
     storage.watermarker.untrackVertexDeletion(req.sourceID, req.updateTime, req.index, req.updateId)
-    telemetry.totalSyncedStreamWriterUpdatesCollector.labels(partitionID.toString, graphID)
   }
 
-  def handleUpdateCount(): Unit = {
+  def handleUpdateCount(): Unit =
     processedMessages += 1
-    telemetry.streamWriterGraphUpdatesCollector.labels(partitionID.toString, graphID).inc()
-  }
 
 }
 
 object Writer {
 
-  def apply[IO[_]: Async: Spawn](
+  def apply[IO[_]: Async](
       graphID: String,
       partitionId: Int,
       storage: GraphPartition,

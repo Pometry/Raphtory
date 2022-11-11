@@ -392,6 +392,7 @@ class GenericScalaProxy(JVMBase):
         """automatically register wrappers that have a '_classname' defined"""
         super().__init_subclass__(**kwargs)
         if cls._classname is not None:
+            cls._initialised = False
             register(cls)
             cls._init_methods(None)
 
@@ -560,3 +561,23 @@ class Function1(ScalaClassProxy):
 class Function2(ScalaClassProxy):
     """Proxy object for wrapping python functions with 2 arguments"""
     _classname = "com.raphtory.internals.management.PythonFunction2"
+
+
+class ScalaPackage(ScalaProxyBase):
+    """Proxy object for looking up scala classes based on path
+    """
+    @property
+    def _jvm_object(self):
+        return find_class(self._path)
+
+    def __init__(self, path: str):
+        self._path = path
+
+    def __call__(self, *args, **kwargs):
+        return to_python(self._jvm_object).apply(*args, **kwargs)
+
+    def __getattr__(self, item):
+        return ScalaPackage(".".join((self._path, item)))
+
+    def __getitem__(self, item):
+        return to_python(self._jvm_object).apply[item]

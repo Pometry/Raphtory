@@ -1,5 +1,9 @@
 package com.raphtory.internals.components.partition
 
+import cats.effect.Async
+import cats.effect.Resource
+import cats.effect.std.Dispatcher
+import cats.syntax.all._
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview._
@@ -11,8 +15,9 @@ import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.output.sink.SinkExecutor
 import com.raphtory.internals.communication.EndPoint
-import com.raphtory.internals.communication.SchemaProviderInstances._
+import com.raphtory.internals.communication.Topic
 import com.raphtory.internals.communication.TopicRepository
+import com.raphtory.internals.communication.SchemaProviderInstances._
 import com.raphtory.internals.components.Component
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.GraphPartition
@@ -21,6 +26,8 @@ import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.management.python.EmbeddedPython
 import com.raphtory.internals.management.python._
+import com.raphtory.internals.storage.arrow.ArrowGraphLens
+import com.raphtory.internals.storage.arrow.ArrowPartition
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -32,17 +39,20 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable
 
-private[raphtory] class QueryExecutor(
-    graphID: String,
+private[raphtory] class QueryExecutor[F[_]](
+    query: Query, // TODO we could use this directly instead of sending operations in every step
     partitionID: Int,
-    sink: Sink,
     storage: GraphPartition,
-    jobID: String,
     conf: Config,
     topics: TopicRepository,
     scheduler: Scheduler,
-    pyScript: Option[String]
+    dispatcher: Dispatcher[F],
+    finish: cats.effect.std.Semaphore[F]
 ) extends Component[QueryManagement](conf) {
+  private val graphID  = query.graphID
+  private val sink     = query.sink.get
+  private val jobID    = query.name
+  private val pyScript = query.pyScript
 
   private val logger: Logger                   =
     Logger(LoggerFactory.getLogger(this.getClass))
@@ -115,7 +125,7 @@ private[raphtory] class QueryExecutor(
     logger.debug(logMessage("Query executor consumer started, starting vertex message listeners."))
     vertexMessageListener.foreach(_.start())
     logger.debug(logMessage("Vertex message and vertex control message listeners started."))
-    taskManager sendAsync ExecutorEstablished(partitionID)
+//    taskManager sendAsync ExecutorEstablished(partitionID)
     logger.debug(logMessage("QueryExecutor initialised."))
   }
 
@@ -183,18 +193,8 @@ private[raphtory] class QueryExecutor(
           sentMessageCount.set(0)
           sync.reset()
           refreshBuffers()
-          graphLens = PojoGraphLens(
-                  jobID,
-                  perspective.actualStart,
-                  perspective.actualEnd,
-                  superStep = 0,
-                  storage,
-                  conf,
-                  sendMessage,
-                  errorHandler,
-                  scheduler
-          )
-
+          graphLens =
+            storage.lens(jobID, perspective.actualStart, perspective.actualEnd, 0, sendMessage, errorHandler, scheduler)
           taskManager sendAsync PerspectiveEstablished(currentPerspectiveID, graphLens.localNodeCount)
           logger.debug(
                   logMessage(
@@ -214,16 +214,16 @@ private[raphtory] class QueryExecutor(
 
         case GraphFunctionWithGlobalState(function, graphState)                       =>
           function match {
-            case StepWithGraph(f)                                     =>
+            case StepWithGraph(f)                               =>
               evalStepWithGraph(time, graphState, f)
 
-            case IterateWithGraph(f, iterations, executeMessagedOnly) =>
+            case iwg: IterateWithGraph[Vertex] @unchecked       =>
               startStep()
               val fun =
-                if (executeMessagedOnly)
-                  graphLens.runMessagedGraphFunction(f, graphState)(_)
+                if (iwg.executeMessagedOnly)
+                  graphLens.runMessagedGraphFunction(iwg.f, graphState)(_)
                 else
-                  graphLens.runGraphFunction(f, graphState)(_)
+                  graphLens.runGraphFunction(iwg.f, graphState)(_)
               fun {
                 finaliseStep {
                   val sentMessages     = sentMessageCount.get()
@@ -242,13 +242,13 @@ private[raphtory] class QueryExecutor(
                   logger.debug(
                           logMessage(
                                   s"Iterate function on graph with accumulators completed  in ${System
-                                    .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to $executeMessagedOnly."
+                                    .currentTimeMillis() - time}ms and sent '$sentMessages' messages with `executeMessageOnly` flag set to ${iwg.executeMessagedOnly}."
                           )
                   )
                 }
               }
 
-            case SelectWithGraph(f)                                   =>
+            case SelectWithGraph(f)                             =>
               startStep()
               graphLens.executeSelect(f, graphState) {
                 finaliseStep {
@@ -261,7 +261,21 @@ private[raphtory] class QueryExecutor(
                   )
                 }
               }
-            case GlobalSelect(f)                                      =>
+
+            case esf: ExplodeSelectWithGraph[Vertex] @unchecked =>
+              startStep()
+              graphLens.explodeSelect(esf.f, graphState) {
+                finaliseStep {
+                  taskManager sendAsync TableBuilt(currentPerspectiveID)
+                  logger.debug(
+                          logMessage(
+                                  s"ExplodeSelect executed on graph with accumulators in ${System
+                                    .currentTimeMillis() - time}ms."
+                          )
+                  )
+                }
+              }
+            case GlobalSelect(f)                                =>
               evalGlobalSelect(time, graphState, f)
           }
 
@@ -385,9 +399,9 @@ private[raphtory] class QueryExecutor(
                   )
           )
 
-        case Select(f)                                                                =>
+        case s: Select[Vertex] @unchecked                                             =>
           startStep()
-          graphLens.executeSelect(f) {
+          graphLens.executeSelect(s.f) {
             finaliseStep {
               taskManager sendAsync TableBuilt(currentPerspectiveID)
               logger.debug(
@@ -400,9 +414,9 @@ private[raphtory] class QueryExecutor(
           }
 
         //TODO create explode select with accumulators
-        case ExplodeSelect(f)                                                         =>
+        case es: ExplodeSelect[Vertex] @unchecked                                     =>
           startStep()
-          graphLens.explodeSelect(f) {
+          graphLens.explodeSelect(es.f) {
             finaliseStep {
               taskManager sendAsync TableBuilt(currentPerspectiveID)
               logger.debug(
@@ -459,9 +473,9 @@ private[raphtory] class QueryExecutor(
           )
           taskManager sendAsync WriteCompleted
 
-        //TODO Kill this worker once this is received
         case EndQuery(jobID)                                                          =>
           logger.debug(logMessage("Received 'EndQuery' message. "))
+          dispatcher.unsafeRunSync(finish.release)
       }
     }
     catch {
@@ -676,6 +690,44 @@ private[raphtory] class QueryExecutor(
   }
 
   private def logMessage(msg: String): String = s"${jobID}_$partitionID: $msg"
+}
+
+object QueryExecutor {
+
+  def apply[F[_]: Async](
+      query: Query,
+      partitionID: Int,
+      storage: GraphPartition,
+      conf: Config,
+      topics: TopicRepository,
+      scheduler: Scheduler
+  ): F[Unit] =
+    (for {
+      dispatcher <- Dispatcher[F]
+      finish     <- Resource.eval(cats.effect.std.Semaphore[F](0))
+      _          <- makeExecutor(query, partitionID, storage, conf, topics, scheduler, dispatcher, finish)
+    } yield finish).use(finish => finish.acquire) // I assume the finish.acquire implementation is defined as blocking
+
+  private def makeExecutor[F[_]: Async](
+      query: Query,
+      partitionID: Int,
+      storage: GraphPartition,
+      conf: Config,
+      topics: TopicRepository,
+      scheduler: Scheduler,
+      dispatcher: Dispatcher[F],
+      finish: cats.effect.std.Semaphore[F]
+  ) =
+    Resource
+      .make(
+              for {
+                executor <-
+                  Async[F].delay(
+                          new QueryExecutor(query, partitionID, storage, conf, topics, scheduler, dispatcher, finish)
+                  )
+                _        <- Async[F].blocking(executor.run())
+              } yield executor
+      )(executor => Async[F].blocking(executor.stop()))
 }
 
 class QuerySuperstepSync(totalPartitions: Int) {
