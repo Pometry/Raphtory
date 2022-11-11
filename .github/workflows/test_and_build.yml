@@ -75,7 +75,7 @@ jobs:
       - name: Install pyraphtory_jvm
         run: cd python/pyraphtory_jvm && python setup.py sdist && python -m pip install dist/pyraphtory_jvm-*.tar.gz
       - name: Run pyraphtory_jvm test fam
-        run: cd python/pyraphtory_jvm && tox
+        run: cd python/pyraphtory_jvm && tox -p -o
       - name: Install pyraphtory
         run: cd python/pyraphtory && poetry build && poetry install
       - name: Run pyraphtory tests

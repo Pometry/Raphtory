@@ -12,7 +12,6 @@ import subprocess
 import os
 import site
 
-
 IVY_LIB = '/lib'
 PYRAPHTORY_DATA = '/pyraphtory_jvm/data'
 
@@ -24,34 +23,36 @@ CHECKSUM_SHA256 = 'checksum'
 
 OS_MAC = 'Darwin'
 OS_LINUX = 'Linux'
+OS_X64 = 'x64'
+OS_AARCH64 = 'aarch64'
 
 SOURCES = {
     OS_MAC: {
-        'x64':
+        OS_X64:
             {
                 LINK: 'https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.16.1%2B1/OpenJDK11U-jre_x64_mac_hotspot_11.0.16.1_1.tar.gz',
                 CHECKSUM_SHA256: '10be61a8dd3766f7c12e2e823a6eca48cc6361d97e1b76310c752bd39770c7fe'
             },
-        'aarch64':
+        OS_AARCH64:
             {
                 LINK: 'https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.16.1%2B1/OpenJDK11U-jre_aarch64_mac_hotspot_11.0.16.1_1.tar.gz',
                 CHECKSUM_SHA256: 'c84f38a7d87d50649ffc1f625facb4398fa54885371336a2cbf6ae2b435cbd10'
             }
     },
     OS_LINUX: {
-        'x64':
+        OS_X64:
             {
                 LINK: 'https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.17%2B8/OpenJDK11U-jre_x64_linux_hotspot_11.0.17_8.tar.gz',
                 CHECKSUM_SHA256: '752616097e09d7f60a3ad8bd312f90eaf50ac72577e55df229fe6e8091148f79'
             },
-        'aarch64':
+        OS_AARCH64:
             {
                 LINK: 'https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.17%2B8/OpenJDK11U-jre_aarch64_linux_hotspot_11.0.17_8.tar.gz',
                 CHECKSUM_SHA256: 'bd6efe3290c8b5a42f695a55a26f3e3c9c284288574879d4b7089f31f5114177'
             }
     },
     # 'Windows': {
-    #     'x64':
+    #     OS_X64:
     #         {
     #             LINK: 'https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.17%2B8/OpenJDK11U-jre_x64_windows_hotspot_11.0.17_8.zip',
     #             CHECKSUM_SHA256: '814a731f92dd67ad6cfb11a8b06dfad5f629f67be88ae5ae37d34e6eea6be6f4'
@@ -75,9 +76,9 @@ def getOS():
 
 def getArch():
     if platform.machine() == "x86_64":
-        return 'x64'
+        return OS_X64
     elif platform.machine() == 'arm64':
-        return 'aarch64'
+        return OS_AARCH64
     else:
         raise Exception("Unsupported Architecture. Cannot install.")
 
@@ -85,7 +86,10 @@ def getArch():
 def delete_source(filename):
     print(f"Deleting source file {filename}...")
     if os.path.exists(filename):
-        os.remove(filename)
+        try:
+            os.remove(filename)
+        except OSError:
+            pass
 
 
 def checksum(filepath, expected_sha_hash):
@@ -136,15 +140,8 @@ def safe_download_file(download_dir, expected_sha, url):
         r.close()
         if not status:
             delete_source(file_location)
-            raise SystemExit(f"Downloaded Jar {file_location} has incorrect checksum")
-    except requests.exceptions.TooManyRedirects as err:
-        print(f"Bad URL, Too Many Redirects: {err}")
-        delete_source(file_location)
-        raise SystemExit(err)
-    except requests.exceptions.HTTPError as err:
-        print(f"HTTP Error: {err}")
-        delete_source(file_location)
-        raise SystemExit(err)
+            print(f"Downloaded Jar {file_location} has incorrect checksum")
+            raise SystemExit()
     except requests.exceptions.RequestException as err:
         print(f"Major exception: {err}")
         delete_source(file_location)
@@ -156,8 +153,8 @@ def get_and_run_ivy(JAVA_BIN, download_dir=os.path.dirname(os.path.realpath(__fi
     file_location = safe_download_file(str(download_dir), IVY_BIN[CHECKSUM_SHA256], IVY_BIN[LINK])
     shutil.unpack_archive(file_location, extract_dir=download_dir)
     working_dir = os.getcwd()
-    print("IVY")
-    print(f"working dir {working_dir}, dl dir: {download_dir} REAL PATH {str(os.path.dirname(os.path.realpath(__file__)))}")
+    print(
+        f"IVY working dir {working_dir}, dl dir: {download_dir} REAL PATH {str(os.path.dirname(os.path.realpath(__file__)))}")
     os.chdir(download_dir)
     print(os.listdir('.'))
     files = os.listdir(ivy_folder)
@@ -172,7 +169,10 @@ def get_and_run_ivy(JAVA_BIN, download_dir=os.path.dirname(os.path.realpath(__fi
     delete_source(download_dir + "/apache-ivy-2.5.0-bin.zip")
     # Keep only compile directory
     rm_dirs = os.listdir(download_dir + IVY_LIB)
-    rm_dirs.remove('compile')
+    try:
+        rm_dirs.remove('compile')
+    except ValueError:
+        pass
     for d in rm_dirs:
         shutil.rmtree(download_dir + IVY_LIB + '/' + d, ignore_errors=True)
 
@@ -190,24 +190,29 @@ def empty_folder(folder):
             continue
 
 
-def unpack_jre(filename, jre_loc):
-    unpack_dir = tempfile.mkdtemp(dir=pathlib.Path().resolve())
+def unpack_jre(filename, jre_loc, unpack_dir=tempfile.mkdtemp(dir=pathlib.Path().resolve())):
     system_os = getOS()
     print(f'Unpacking JRE for {system_os}...')
     shutil.unpack_archive(filename, unpack_dir)
-    result_dir = unpack_dir + '/' + os.listdir(unpack_dir)[0]
-    # Empty jre folder
-    empty_folder(jre_loc)
-    if system_os == OS_MAC:
-        move_dir = '/Contents/Home'
-    else:  # if system_os == OS_LINUX:
-        move_dir = ''
-    file_names = os.listdir(result_dir + move_dir)
-    for file_name in file_names:
-        shutil.move(os.path.join(result_dir + move_dir, file_name), jre_loc)
-    print('Cleaning up...')
-    shutil.rmtree(unpack_dir, ignore_errors=True)
-    os.remove(filename)
+    if os.listdir(unpack_dir):
+        result_dir = unpack_dir + '/' + os.listdir(unpack_dir)[0]
+        # Empty jre folder
+        empty_folder(jre_loc)
+        if system_os == OS_MAC:
+            move_dir = '/Contents/Home'
+        else:  # if system_os == OS_LINUX:
+            move_dir = ''
+        file_names = os.listdir(result_dir + move_dir)
+        for file_name in file_names:
+            shutil.move(os.path.join(result_dir + move_dir, file_name), jre_loc)
+        print('Cleaning up...')
+        shutil.rmtree(unpack_dir, ignore_errors=True)
+        try:
+            os.remove(filename)
+        except OSError:
+            pass
+    else:
+        raise Exception('Error: JRE unpacking failed.')
 
 
 def check_system_dl_java(download_dir=str(os.path.dirname(os.path.realpath(__file__)))):
@@ -245,7 +250,7 @@ def get_java_home():
         print(f'JAVA_HOME not found. But java found. Detecting home...')
         return shutil.which('java')
     else:
-        raise Exception("JAVA HOME not found")
+        raise FileNotFoundError("JAVA_HOME has not been set, java was also not found")
 
 
 def get_local_java_loc():
@@ -257,10 +262,12 @@ def get_local_java_loc():
         return java_loc
     raise Exception("JAVA not home.")
 
+
 def get_local_ivy_loc():
     return site.getsitepackages()[0] + PYRAPHTORY_DATA + '/lib/'
 
-def check_dl_java_ivy(download_dir = site.getsitepackages()[0] + PYRAPHTORY_DATA):
+
+def check_dl_java_ivy(download_dir=site.getsitepackages()[0] + PYRAPHTORY_DATA):
     if has_java():
         java_bin = get_java_home()
     else:
