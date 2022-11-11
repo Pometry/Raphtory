@@ -42,7 +42,7 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/star
    :caption: PyRaphtory (python)
 
    Install/python/pyraphtory.md
-   Examples/lotr.md
+   Install/python/run.md
 
 .. toctree::
    :maxdepth: 4
@@ -60,6 +60,7 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/star
    :hidden:
    :caption: Example Projects (Scala & Python)
 
+   Examples/lotr.md
    Examples/community-of-cheese.md
    Examples/nft.md
    Examples/gab.md
