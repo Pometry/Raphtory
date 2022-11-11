@@ -129,10 +129,23 @@ blank_line = non_newline_whitespace.until(newline).map(join_tokens)
 
 def directive_line(indent, output_indent):
     """Identify an indented line of a block and return it with converted indent
+
     :param indent: indent in scaladoc block
     :param output_indent: indent in python docstring block
     """
     return linestart + (blank_line | ((space * indent).result(" " * output_indent) + line))
+
+
+@generate("indented_block")
+def indented_block(leading_spaces, output_indent):
+    result = []
+    blanks = yield (linestart + blank_line).many().concat()
+    result.append(blanks)
+    first_indent = yield peek(linestart >> counted_spaces)
+    if first_indent > leading_spaces:
+        output = yield directive_line(first_indent, leading_spaces + output_indent).many().concat()
+        result.append(output)
+    return join_tokens(result)
 
 
 def directive(name, pythonname=None):
@@ -145,12 +158,8 @@ def directive(name, pythonname=None):
         leading_spaces = yield (start | linestart) >> counted_spaces
         directive_start = yield string("@" + name).result(" " * leading_spaces + f".. {pythonname}::") + line
         result.append(directive_start)  # this picks up any remaining text in the first line
-        blanks = yield (linestart + blank_line).many().concat()  # blank lines don't matter in terms of indentation
-        result.append(blanks)
-        first_indent = yield peek(linestart >> counted_spaces)
-        if first_indent > leading_spaces:
-            output = yield directive_line(first_indent, leading_spaces + 3).many().concat()
-            result.append(output)
+        block = yield indented_block(leading_spaces, 3)
+        result.append(block)
         return join_tokens(result)
 
     return directive_parser
