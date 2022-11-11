@@ -56,7 +56,7 @@ python-build: version sbt-build
 
 .PHONY docs:
 docs: version sbt-build python-build
-	pip install -y myst-parser sphinx-rtd-theme sphinx docutils sphinx-tabs
+	pip install myst-parser sphinx-rtd-theme sphinx docutils sphinx-tabs
 	cd docs && make html
 
 .PHONY pyraphtory-local:
