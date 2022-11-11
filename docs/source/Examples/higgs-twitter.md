@@ -15,7 +15,7 @@ In our example, we took the retweet network dataset from SNAP to see whether Rap
 
 ## Pre-requisites
 
-Follow our Installation guide: [Scala](../Install/scala/install.md), [Python (with Conda)](../Install/python/install_conda.md), [Python (without Conda)](../Install/python/install_no_conda.md).
+Follow our Installation guide: [Install](../Install/start.md)
 
 ## Data
 

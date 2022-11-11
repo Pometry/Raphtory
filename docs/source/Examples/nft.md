@@ -8,11 +8,11 @@ In this example we will use Raphtory to find users that have been trading NFTs i
 - Analyse the results to find a list of suspicious NFT traders
 
 The example is presented in both in Scala and Python.
-This is the code used to obtain the insights from the Raphtory [NFT blogpost](raphtory.com/nfts/) .
+This is the code used to obtain the insights from the Raphtory [NFT blogpost](https://raphtory.com/nfts/) .
 
 ## Pre-requisites
 
-Follow our Installation guide: [Scala](../Install/scala/install.md) or [Python (with Conda)](../Install/python/install_conda.md), [Python (without Conda)](../Install/python/install_no_conda.md).
+Follow our Installation guide: [Install](../Install/start.md)
 
 ## Background
 
