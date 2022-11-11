@@ -5,7 +5,9 @@ from sphinx.util import logging
 from pathlib import Path
 import shutil
 from docutils import nodes
-from docutils.parsers.rst.roles import set_classes, Lexer, utils, LexerError
+from docutils import utils
+from docutils.utils.code_analyzer import Lexer, LexerError
+from docutils.parsers.rst.roles import set_classes
 import subprocess
 import os
 
@@ -236,8 +238,6 @@ def scaladoc_link(role, rawtext, text: str, lineno, inliner, options={}, content
     else:
         target = parts[-1]
         package = "/".join(parts)
-
-
 
     source_dir = Path(inliner.document.settings.env.srcdir)
     current_source = Path(inliner.document.current_source)
