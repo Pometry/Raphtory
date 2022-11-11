@@ -1,4 +1,4 @@
-# Example: Lord of the Rings Character Interactions
+# Lord of the Rings Character Interactions
 
 ## Overview
 This example takes a dataset that tells us when two characters have some type of interaction in the Lord of the Rings trilogy books and builds a graph of these interactions in Raphtory. It's a great dataset to test different algorithms or even your own written algorithms. You can run this example using either our Python or Scala client.
