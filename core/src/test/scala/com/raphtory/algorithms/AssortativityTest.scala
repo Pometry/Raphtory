@@ -7,7 +7,7 @@ import com.raphtory.api.input.Source
 import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceSpout
 
-class AssortativityTest extends FPCorrectnessTest(Set(2,3),tol = 1e-4) {
+class AssortativityTest extends FPCorrectnessTest(Set(0,1),tol = 1e-4) {
   test("Assortativity"){
     correctnessTest(
       TestQuery(Assortativity(), 1),
