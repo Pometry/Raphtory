@@ -5,7 +5,7 @@ For all other users please follow instructions above to install from pip.
 
 ### Requirements
 
-- Temurin Java 11 - 11.0.16-tem
+- Java 11
     - Please ensure `JAVA_HOME` environment variable is set and points to a JDK location
     - [Click here for the guide to install java and sbt](/Install/scala/install_java.md)
 - scala 2.13

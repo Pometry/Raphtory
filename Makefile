@@ -50,9 +50,14 @@ sbt-thin-build: version
 
 
 .PHONY python-build:
-python-build: version
+python-build: version sbt-build
 	pip install python/pyraphtory_jvm
 	pip install python/pyraphtory
+
+.PHONY docs:
+docs: version sbt-build python-build
+	pip install -y myst-parser sphinx-rtd-theme sphinx docutils sphinx-tabs
+	cd docs && make html
 
 .PHONY pyraphtory-local:
 pyraphtory-local: version

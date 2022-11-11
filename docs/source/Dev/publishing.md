@@ -21,11 +21,13 @@ First follow the [build process](../Install/start.md) to create the tar files.
 ### pypi test environment
 
     cd python/pyraphtory_jvm
+    python setup.py sdist
     twine upload -r testpypi dist/*
 
 ### pypi production environment
 
     cd python/pyraphtory_jvm 
+    python setup.py sdist
     twine upload dist/* 
 
 ## Pyraphtory - Publishing to pypi with poetry
