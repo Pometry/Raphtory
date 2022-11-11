@@ -106,7 +106,7 @@ class Assortativity extends Generic {
   override def tabularise(graph: GraphPerspective): Table = {
     graph.globalSelect(
       graphState =>
-        Row("Assortativity = " + calculation(graphState("linkCounter").value, graphState("nodeDegrees").value, graphState("sumOfDegrees").value))
+        Row(calculation(graphState("linkCounter").value, graphState("nodeDegrees").value, graphState("sumOfDegrees").value))
     )
   }
 }
