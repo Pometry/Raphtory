@@ -52,10 +52,7 @@ sbt-thin-build: version
 .PHONY python-build:
 python-build: version
 	pip install python/pyraphtory_jvm
-	cd python/pyraphtory/ && \
-		poetry build && \
-		poetry install
-	pip install python/pyraphtory/dist/pyraphtory-$$(cat version).tar.gz
+	pip install python/pyraphtory
 
 .PHONY pyraphtory-local:
 pyraphtory-local: version
