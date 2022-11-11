@@ -68,12 +68,47 @@ linestart = (non_newline_whitespace.optional("")
              + space.optional("")).map(linestart_clean)
 end = (whitespace.optional("") + string("*").at_least(1).concat() + string("/")).map(ignore)
 
+blank_remaining_line = non_newline_whitespace.until(newline | end).map(join_tokens)
+blank_line = (start | newline) + blank_remaining_line
+
+
 # convert tags
 token = any_char.until(whitespace | eof, min=1).map(join_tokens)  # consume non-whitespace characters
 name = token.map(parse_name)
+
 param_id = string("@param").map(convert_param)
-param = (param_id + whitespace + name).map(finalise_param)
+param_label = (param_id + whitespace + name).map(finalise_param)
+
+
+@generate("param")
+def param():
+    leading_spaces = yield (start | linestart) >> counted_spaces
+    first_line = yield param_label + line
+    body = yield indented_block(leading_spaces)
+    return " " * leading_spaces + first_line + body
+
+
+@generate("tparam")
+def tparam():
+    leading_spaces = yield (start | linestart) >> counted_spaces
+    yield string("@tparam") + line
+    yield indented_block(leading_spaces)
+    return ""
+
+
 return_id = string("@return").map(convert_returns)
+
+@generate("return")
+def return_():
+    leading_spaces = yield (start | linestart) >> counted_spaces
+    first_line = yield return_id + line
+    body = yield indented_block(leading_spaces)
+    return " " * leading_spaces + first_line + body
+
+
+field_list_item = param | tparam | return_
+
+field_list = blank_line.optional("\n\n") + field_list_item.at_least(1).concat() + blank_line.optional("\n\n")
 
 # convert code expressions
 code_others = string("`").should_fail(
@@ -124,7 +159,6 @@ inline = link | code | code_unparsed | non_newline_whitespace | token
 
 # lines
 line = inline.until((end | eof | newline)).map(join_tokens)
-blank_line = non_newline_whitespace.until(newline).map(join_tokens)
 
 
 def directive_line(indent, output_indent):
@@ -133,19 +167,24 @@ def directive_line(indent, output_indent):
     :param indent: indent in scaladoc block
     :param output_indent: indent in python docstring block
     """
-    return linestart + (blank_line | ((space * indent).result(" " * output_indent) + line))
+    return linestart + (blank_remaining_line | ((space * indent).result(" " * output_indent) + line))
 
 
-@generate("indented_block")
-def indented_block(leading_spaces, output_indent):
-    result = []
-    blanks = yield (linestart + blank_line).many().concat()
-    result.append(blanks)
-    first_indent = yield peek(linestart >> counted_spaces)
-    if first_indent > leading_spaces:
-        output = yield directive_line(first_indent, leading_spaces + output_indent).many().concat()
-        result.append(output)
-    return join_tokens(result)
+def indented_block(leading_spaces, output_indent=None):
+    @generate("indented_block")
+    def indented_block_parser():
+        result = []
+        blanks = yield (linestart + blank_remaining_line).many().concat()
+        result.append(blanks)
+        first_indent = yield peek(linestart >> counted_spaces)
+        nonlocal output_indent
+        if output_indent is None:
+            output_indent = first_indent
+        if first_indent > leading_spaces:
+            output = yield directive_line(first_indent, leading_spaces + output_indent).many().concat()
+            result.append(output)
+        return join_tokens(result)
+    return indented_block_parser
 
 
 def directive(name, pythonname=None):
@@ -166,9 +205,9 @@ def directive(name, pythonname=None):
 
 
 doc_converter = alt(directive("note"), directive("see", "seealso"),
+                    field_list,
                     # multiline blocks first as they handle new lines specially
                     start, end, linestart,  # strip out scaladoc newline formatting
-                    param, return_id,  # handle simple tags
                     inline  # handle inline markup
                     ).many().map(join_tokens)
 
