@@ -27,10 +27,10 @@ A conceptual example of the stages for creating perspectives from a temporal gra
 
 Instead of going through this whole process, we can just start executing algorithms from the same graph object we saw in the last section:
 
-```scala
-graph
-  .execute(DegreesSeparation())
-  .writeTo(output)
+```{literalinclude} ../../../doc-tests/src/test/scala/Queries.scala
+:language: scala
+:start-after: "[everything]"
+:end-before: "[everything]"
 ```
 
 In this case, Raphtory runs the algorithm using all the information it has about the graph, from the earliest to the 
@@ -43,9 +43,10 @@ However, maybe we are just interested in a portion of the data. Let's say that y
 between characters before sentence 1000 or between sentences 4000 and 5000. We need different versions 
 ({scaladoc}`com.raphtory.api.analysis.graphview.GraphPerspective`) of the graph for both cases:
 
-```scala
-val first1000sentences = graph.until(1000)
-val sentencesFrom4000To5000 = graph.slice(4000, 5000)
+```{literalinclude} ../../../doc-tests/src/test/scala/Queries.scala
+:language: scala
+:start-after: "[sentence-filtering]"
+:end-before: "[sentence-filtering]"
 ```
 
 Here, `first1000sentences` holds all the interactions before sentence 1000
@@ -66,11 +67,10 @@ This means that you can provide just dates (`"2020-01-01"`), or timestamps with 
 
 For instance, let's say that you are only interested in the activity of your graph within the year 2020. In order to apply an algorithm over only that interval, we can do the following:
 
-```scala
-graph
-  .slice("2020-01-01", "2021-01-01")
-  .execute(ConnectedComponents())
-  .writeTo(output)
+```{literalinclude} ../../../doc-tests/src/test/scala/Queries.scala
+:language: scala
+:start-after: "[year-slice]"
+:end-before: "[year-slice]"
 ```
 
 As a third option, you can mix both styles. In such a case, Raphtory interprets numbers as __milliseconds since the linux epoch__ to interoperate with timestamps.
@@ -80,13 +80,12 @@ As a third option, you can mix both styles. In such a case, Raphtory interprets 
 We have only executed algorithms over monolithic views of graphs so far. However, the nice part about Raphtory is that you can run them over sequences of perspectives to discover dynamic changes.
 A quick example to do so is:
 
-```scala
-graph
-  .depart("2020-01-01", "1 day") // departing from Jan 1, 2020 with steps of one day
-  .window("1 day") // creates a window of one day for each increment
-  .execute(ConnectedComponents())
-  .writeTo(output)
+```{literalinclude} ../../../doc-tests/src/test/scala/Queries.scala
+:language: scala
+:start-after: "[depart-window]"
+:end-before: "[depart-window]"
 ```
+
 In this example, starting from January 1 2020 we move forward one day at a time, looking forward over the next day of data. At each of these stopping points (`perspectives`) we execute the algorithm and write the results to the file. If we set up a spout from a streaming source which continues to ingest data, Raphtory will continue to create a new `windowed perspective` every day as the new information arrives.
 
 As can be seen in the example, the process to create perspectives has two steps. The first of these is setting the times you are interested in, which can be a singular point (using `at()`) or, alternatively, a sequence of points with a given increment. For sequences, four different methods are available:
@@ -115,13 +114,10 @@ The second step is to specify which direction we are looking in at each time poi
 
 Coming back to our first example, we can execute a `walk` along a year of data with increments of one day, and a window of one week into the future as follows:
 
-```scala
-graph
-  .slice("2020-01-01", "2021-01-01")
-  .walk("1 day")
-  .window("1 week",Alignment.START)
-  .execute(ConnectedComponents())
-  .writeTo(output)
+```{literalinclude} ../../../doc-tests/src/test/scala/Queries.scala
+:language: scala
+:start-after: "[walk-window]"
+:end-before: "[walk-window]"
 ```
 
 The `walk` function doesn't take a start or end time as it explores all available perspectives (given the other filters applied). For the above instance this generates a sequence of perspectives where the first contains data between `Dec 26, 2019` to `Jan 1, 2020`, the second one from `Dec 27, 2019` to `Jan 2, 2020`, etc. The last perspective of the sequence is then going to be from `Dec 31, 2020` to `Jan 6, 2021`. 
@@ -137,27 +133,18 @@ to them all. The operations available are described in the documentation for the
 {scaladoc}`com.raphtory.api.analysis.graphview.GraphPerspective` trait. In addition to using already defined graph algorithms 
 (as we have done so far), you can also apply operations directly to the graph object, for instance:
 
-```scala
-graph
-  .slice("2020-01-01", "2021-01-01")
-  .walk("1 day")
-  .window("1 day")
-  .filter(vertex => vertex.outDegree > 10)
-  .step(vertex => vertex.messageOutNeighbours(vertex.name()))
-  .select(vertex => Row(vertex.messageQueue))
-  .writeTo(FileSink("path/to/your/file"))
+```{literalinclude} ../../../doc-tests/src/test/scala/Queries.scala
+:language: scala
+:start-after: "[direct-style]"
+:end-before: "[direct-style]"
 ```
 
 Or a combination of both:
 
-```scala
-graph
-  .slice("2020-01-01", "2021-01-01")
-  .walk("1 day")
-  .window("1 day")
-  .filter(vertex => vertex.outDegree > 10)
-  .execute(ConnectedComponents())
-  .writeTo(FileSink("path/to/your/file"))
+```{literalinclude} ../../../doc-tests/src/test/scala/Queries.scala
+:language: scala
+:start-after: "[mixed-style]"
+:end-before: "[mixed-style]"
 ```
 
 This is especially useful when you want to preprocess the graph before applying an already defined algorithm. For instance, above we only keep nodes with an out degree greater than 10.

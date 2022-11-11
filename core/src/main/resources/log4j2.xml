@@ -12,10 +12,10 @@
 
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n" />
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{short.classname} - %msg%n" />
         </Console>
         <File name="LogFile" fileName="${logFileName}" append="${logFileAppend}">
-            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n" />
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{short.classname} - %msg%n" />
         </File>
         <Async name="Async">
             <AppenderRef ref="LogFile"/>
@@ -88,8 +88,8 @@
         </Logger>
         <Logger name="com.raphtory.internals.components.spout" level="${env:RAPHTORY_INTERNALS_COMPONENTS_SPOUT_LOG:-${defaultInternalsComponentsLogLevel}}">
         </Logger>
-
-        <Logger name="com.raphtory.internals.management.PythonInterop$" level="${defaultPythonLogLevel}"></Logger>
+        <Logger name="com.raphtory.internals.management.PythonInterop$" level="${defaultPythonLogLevel}">
+        </Logger>
 
         <Root level="${defaultLogLevel}">
             <AppenderRef ref="Console"/>

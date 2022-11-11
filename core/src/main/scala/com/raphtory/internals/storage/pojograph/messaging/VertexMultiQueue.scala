@@ -12,14 +12,14 @@ final private[raphtory] class VertexMultiQueue {
   private val evenMessageQueue = new ConcurrentLinkedQueue[Any]()
   private val oddMessageQueue  = new ConcurrentLinkedQueue[Any]()
 
-  def getMessageQueue(superStep: Int): List[Any] =
+  def getMessageQueue(superStep: Int): Vector[Any] =
     if (superStep % 2 == 0) {
       logger.debug(s"retreived even message queue at step $superStep")
-      evenMessageQueue.asScala.toList //TODO: No real reason to convert to List
+      evenMessageQueue.asScala.toVector
     }
     else {
       logger.debug(s"retreived odd message queue at step $superStep")
-      oddMessageQueue.asScala.toList //TODO: No real reason to convert to List
+      oddMessageQueue.asScala.toVector
     }
 
   def clearQueue(superStep: Int): Unit =

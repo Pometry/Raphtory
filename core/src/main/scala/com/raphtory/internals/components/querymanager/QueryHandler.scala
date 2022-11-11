@@ -1,5 +1,6 @@
 package com.raphtory.internals.components.querymanager
 
+import cats.effect.std.Dispatcher
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview._
@@ -16,9 +17,14 @@ import com.raphtory.internals.serialisers.KryoSerialiser
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
+
 import java.util.concurrent.TimeUnit
 
-import com.raphtory.internals.components.querymanager.Stages.{SpawnExecutors, Stage}
+import com.raphtory.internals.components.querymanager.Stages.SpawnExecutors
+import com.raphtory.internals.components.querymanager.Stages.Stage
+import com.raphtory.internals.components.querymanager.Stages.SpawnExecutors
+import com.raphtory.internals.components.querymanager.Stages.Stage
+import com.raphtory.internals.management.telemetry.TelemetryReporter
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -39,7 +45,6 @@ private[raphtory] class QueryHandler(
   private val startTime      = System.currentTimeMillis()
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val self           = topics.rechecks(graphID, jobID).endPoint
-  private val partitions     = topics.partitionSetup(graphID).endPoint
   private val tracker        = topics.queryTrack(graphID, jobID).endPoint
   private val workerList     = topics.jobOperations(graphID, jobID).endPoint
 
@@ -63,7 +68,7 @@ private[raphtory] class QueryHandler(
     Perspective(DEFAULT_PERSPECTIVE_TIME, DEFAULT_PERSPECTIVE_WINDOW, 0, 0)
 
   private var lastTime: Long             = 0L
-  private var readyCount: Int            = 0
+  private var readyCount: Int            = 4
   private var vertexCount: Int           = 0
   private var receivedMessageCount: Long = 0
   private var sentMessageCount: Long     = 0
@@ -78,7 +83,6 @@ private[raphtory] class QueryHandler(
   override def stop(): Unit = {
     listener.close()
     self.close()
-    partitions.close()
     tracker.close()
     workerList.close()
   }
@@ -87,10 +91,10 @@ private[raphtory] class QueryHandler(
   private def recheckEarliestTimer(): Unit = self sendAsync RecheckEarliestTime
 
   override def run(): Unit = {
-    messagePartitions(EstablishExecutor(query._bootstrap, graphID, jobID, query.sink.get, query.pyScript))
     timeTaken = System.currentTimeMillis() //Set time from the point we ask the executors to set up
     logger.debug(s"Job '$jobID': Starting query handler consumer.")
     listener.start()
+    currentState = safelyStartPerspectives()
   }
 
   override def handleMessage(msg: QueryManagement): Unit =
@@ -144,7 +148,6 @@ private[raphtory] class QueryHandler(
         readyCount += 1
         if (readyCount == totalPartitions) {
           readyCount = 0
-          telemetry.graphSizeCollector.labels(jobID).inc(vertexCount)
           messagetoAllJobWorkers(SetMetaData(vertexCount))
           val establishingPerspectiveTimeTaken = System.currentTimeMillis() - timeTaken
           logger.debug(
@@ -216,9 +219,8 @@ private[raphtory] class QueryHandler(
       votedToHalt: Boolean
   ) = {
     sentMessageCount += sentMessages
-    telemetry.totalSentMessageCount.labels(jobID, graphID).inc(sentMessages.toDouble)
+    TelemetryReporter.totalSentMessageCount.labels(jobID, graphID).inc(sentMessages.toDouble)
     receivedMessageCount += receivedMessages
-    telemetry.receivedMessageCountCollector.labels(jobID, graphID).inc(receivedMessages.toDouble)
     allVoteToHalt = votedToHalt & allVoteToHalt
     readyCount += 1
     logger.debug(
@@ -255,7 +257,7 @@ private[raphtory] class QueryHandler(
                   s"Job '$jobID': Table Built in ${tableBuiltTimeTaken}ms Executing next table operation."
           )
           timeTaken = System.currentTimeMillis()
-          telemetry.totalTableOperations.labels(jobID, graphID).inc()
+          TelemetryReporter.totalTableOperations.labels(jobID, graphID).inc()
           nextTableOperation()
         }
         else
@@ -269,7 +271,7 @@ private[raphtory] class QueryHandler(
                   s"Job '$jobID': Table Function complete in ${tableFuncTimeTaken}ms. Running next table operation."
           )
           timeTaken = System.currentTimeMillis()
-          telemetry.totalTableOperations.labels(jobID, graphID).inc()
+          TelemetryReporter.totalTableOperations.labels(jobID, graphID).inc()
           nextTableOperation()
         }
         else {
@@ -326,7 +328,7 @@ private[raphtory] class QueryHandler(
   private def executeNextPerspective(previousFailing: Boolean = false, failureReason: String = ""): Stage = {
     val latestTime = getLatestTime
     val oldestTime = getOptionalEarliestTime
-    telemetry.totalPerspectivesProcessed.labels(jobID, graphID).inc()
+    TelemetryReporter.totalPerspectivesProcessed.labels(jobID, graphID).inc()
     if (currentPerspective.timestamp != -1) { //ignore initial placeholder
       val report =
         if (previousFailing) PerspectiveFailed(currentPerspective, failureReason)
@@ -400,7 +402,7 @@ private[raphtory] class QueryHandler(
     receivedMessageCount = 0
     sentMessageCount = 0
     checkingMessages = false
-    telemetry.totalGraphOperations.labels(jobID, graphID).inc()
+    TelemetryReporter.totalGraphOperations.labels(jobID, graphID).inc()
 
     currentOperation match {
       case Iterate(f: (Vertex => Unit) @unchecked, iterations, executeMessagedOnly)
@@ -467,14 +469,9 @@ private[raphtory] class QueryHandler(
   private def messagetoAllJobWorkers(msg: QueryManagement): Unit =
     workerList sendAsync msg
 
-  private def messagePartitions(msg: GraphManagement): Unit =
-    partitions sendAsync msg
-
   private def killJob() = {
     messagetoAllJobWorkers(EndQuery(jobID))
     workerList.close()
-    messagePartitions(StopExecutor(jobID))
-    partitions.close()
 
     val queryManager = topics.completedQueries(graphID).endPoint
     queryManager closeWithMessage EndQuery(jobID)

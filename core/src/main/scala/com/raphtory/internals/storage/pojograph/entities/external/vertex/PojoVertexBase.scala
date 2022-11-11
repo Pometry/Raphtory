@@ -1,6 +1,7 @@
 package com.raphtory.internals.storage.pojograph.entities.external.vertex
 
 import com.raphtory.api.analysis.visitor.Vertex
+import com.raphtory.internals.communication.SchemaProviderInstances
 import com.raphtory.internals.communication.SchemaProviderInstances._
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.storage.pojograph.PojoGraphLens
@@ -21,15 +22,13 @@ private[pojograph] trait PojoVertexBase extends Vertex {
   // messaging
   def hasMessage: Boolean
 
-  def messageQueue[T]: List[T]
-
   def clearMessageQueue(): Unit
 
   def voteToHalt(): Unit = lens.vertexVoted()
 
   //Send message
 
-  def messageVertex[T: ClassTag](vertexId: IDType, data: T)(implicit provider: SchemaProvider[T]): Unit = {
+  def messageVertex[T](vertexId: IDType, data: T)(implicit provider: SchemaProvider[T]): Unit = {
 //    println(s"endpoint = ${provider.endpoint}")
     val message = VertexMessage(lens.superStep + 1, vertexId, data)
     lens.sendMessage(message)
@@ -67,10 +66,10 @@ private[pojograph] trait PojoConcreteVertexBase[T] extends PojoVertexBase {
   def hasMessage: Boolean =
     multiQueue.getMessageQueue(lens.superStep).nonEmpty
 
-  def messageQueue[T]: List[T] = { //clears queue after getting it to make sure not there for next iteration
-    val queue = multiQueue.getMessageQueue(lens.superStep).map(_.asInstanceOf[T])
+  def messageQueue[T]: Seq[T] = { //clears queue after getting it to make sure not there for next iteration
+    val queue = multiQueue.getMessageQueue(lens.superStep)
     multiQueue.clearQueue(lens.superStep)
-    queue
+    queue.map(_.asInstanceOf[T])
   }
 
   def clearMessageQueue(): Unit =

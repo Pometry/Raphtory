@@ -65,7 +65,7 @@ final private[raphtory] case class PojoGraphLens(
   private var fullGraphSize     = 0
   private var exploded: Boolean = false
 
-  val chunkSize = 128
+  val chunkSize = 1
 
   private val needsFiltering: SuperStepFlag = SuperStepFlag()
 
@@ -74,8 +74,8 @@ final private[raphtory] case class PojoGraphLens(
   private lazy val vertexMap: mutable.Map[Long, PojoExVertex] =
     storage.getVertices(this, start, end)
 
-  private var vertices: Array[PojoExVertex] =
-    vertexMap.values.toArray
+  private var vertices: Iterable[PojoExVertex] =
+    vertexMap.values
 
   private var unDir: Boolean = false
 
@@ -106,14 +106,14 @@ final private[raphtory] case class PojoGraphLens(
     logger.trace(s"Set Graph Size to '$fullGraphSize'.")
   }
 
-  def localNodeCount: Int = vertices.length
+  def localNodeCount: Int = vertices.size
 
   private var dataTable: Iterator[RowImplementation] = Iterator()
 
   def filterAtStep(superStep: Int): Unit =
     needsFiltering.set(superStep)
 
-  def executeSelect(f: _ => Row)(onComplete: => Unit): Unit = {
+  def executeSelect(f: Vertex => Row)(onComplete: => Unit): Unit = {
     dataTable = vertexIterator.flatMap { vertex =>
       f.asInstanceOf[PojoVertexBase => RowImplementation](vertex).yieldAndRelease
     }
@@ -141,9 +141,16 @@ final private[raphtory] case class PojoGraphLens(
     onComplete
   }
 
-  def explodeSelect(f: _ => IterableOnce[Row])(onComplete: => Unit): Unit = {
+  def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: => Unit): Unit = {
     dataTable = vertexIterator
       .flatMap(f.asInstanceOf[PojoVertexBase => IterableOnce[RowImplementation]])
+      .flatMap(_.yieldAndRelease)
+    onComplete
+  }
+
+  def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row], graphState: GraphState)(onComplete: => Unit): Unit = {
+    dataTable = vertexIterator
+      .flatMap(v => f.asInstanceOf[(PojoVertexBase, GraphState) => IterableOnce[RowImplementation]](v, graphState))
       .flatMap(_.yieldAndRelease)
     onComplete
   }
@@ -235,7 +242,7 @@ final private[raphtory] case class PojoGraphLens(
     vs.filter(v => v.hasMessage || includeAllVs)
       .grouped(chunkSize)
       .map { chunk =>
-        chunk.size -> IO.blocking {
+        chunk.size -> IO {
           chunk.foreach(f)
         }
       }
@@ -244,22 +251,22 @@ final private[raphtory] case class PojoGraphLens(
           (count + chunkSize, io :: ll)
       }
 
-  override def runMessagedGraphFunction(f: _ => Unit)(onComplete: => Unit): Unit = {
+  override def runMessagedGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit = {
 
     val (count, tasks) =
-      prepareRun(vertexIterator, chunkSize, includeAllVs = false)(f.asInstanceOf[PojoVertexBase => Unit])
+      prepareRun(vertexIterator, chunkSize, includeAllVs = false)(f)
 
     vertexCount.set(count)
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
   override def runMessagedGraphFunction(
-      f: (_, GraphState) => Unit,
+      f: (Vertex, GraphState) => Unit,
       graphState: GraphState
   )(onComplete: => Unit): Unit = {
 
     val (count, tasks) = prepareRun(vertexIterator, chunkSize, includeAllVs = false) { vertex =>
-      f.asInstanceOf[(PojoVertexBase, GraphState) => Unit](vertex, graphState)
+      f(vertex, graphState)
     }
 
     vertexCount.set(count)

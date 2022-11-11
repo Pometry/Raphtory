@@ -3,6 +3,7 @@ package com.raphtory.internals.components.ingestion
 import cats.effect.Async
 import cats.effect.Resource
 import cats.effect.Spawn
+import cats.syntax.all._
 import com.raphtory.api.input.Source
 import com.raphtory.internals.FlushToFlight
 import com.raphtory.internals.communication.CanonicalTopic
@@ -14,56 +15,62 @@ import com.raphtory.internals.components.querymanager.NonBlocking
 import com.raphtory.internals.components.querymanager.UnblockIngestion
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.management.Scheduler
+import com.raphtory.internals.management.telemetry.TelemetryReporter
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
 
-private[raphtory] class IngestionExecutor(
+private[raphtory] class IngestionExecutor[F[_]: Async](
     graphID: String,
     source: Source,
     blocking: Boolean,
     sourceID: Int,
     conf: Config,
-    topics: TopicRepository,
-    override val scheduler: Scheduler
-) extends Component[Any](conf)
-        with FlushToFlight {
-  override val logger: Logger                               = Logger(LoggerFactory.getLogger(this.getClass))
-  private val failOnError                                   = conf.getBoolean("raphtory.builders.failOnError")
-  override val writers: Map[Int, EndPoint[GraphAlteration]] = topics.graphUpdates(graphID).endPoint()
-  private val queryManager                                  = topics.blockingIngestion(graphID).endPoint
-  private val sourceInstance                                = source.buildSource(graphID, sourceID)
-  private val spoutReschedulesCount                         = telemetry.spoutReschedules.labels(graphID)
-  private val fileLinesSent                                 = telemetry.fileLinesSent.labels(graphID)
+    topics: TopicRepository
+) {
+  private val logger: Logger                               = Logger(LoggerFactory.getLogger(this.getClass))
+  private val failOnError                                  = conf.getBoolean("raphtory.builders.failOnError")
+  private val writers: Map[Int, EndPoint[GraphAlteration]] = topics.graphUpdates(graphID).endPoint()
+  private val queryManager                                 = topics.blockingIngestion(graphID).endPoint
+  private val sourceInstance                               = source.buildSource(graphID, sourceID)
+  private val totalTuplesProcessed                         = TelemetryReporter.totalTuplesProcessed.labels(s"$sourceID", graphID)
 
-  private var index: Long                              = 0
-  private var scheduledRun: Option[() => Future[Unit]] = None
+  private var index: Long = 0
 
   sourceInstance.setupStreamIngestion(writers)
 
-  private def rescheduler(): Unit = {
-    sourceInstance.executeReschedule()
-    executeSpout()
-  }: Unit
+  def release(): F[Unit] =
+    for {
+//      _ <- Async[F].delay(close()) -> Needed if this class extends FlushToFlight
+      _ <- Async[F].delay(writers.values.foreach(_.close()))
+      _ <- Async[F].delay(queryManager.close())
+    } yield ()
 
-  override def stop(): Unit = {
-    scheduledRun.foreach(cancelable => cancelable())
-    close()
-    writers.values.foreach(_.close())
-  }
+  def run(): F[Unit] =
+    for {
+      _ <- Async[F].delay(logger.debug("Running ingestion executor"))
+      _ <- iterativePolls
+    } yield ()
 
-  override def run(): Unit = {
-    logger.debug("Running ingestion executor")
-    executeSpout()
-  }
+  private def iterativePolls: F[Unit] =
+    for {
+      _ <- uniquePoll
+      _ <- if (sourceInstance.spoutReschedules()) waitForNextPoll *> iterativePolls else Async[F].unit
+    } yield ()
 
-  override def handleMessage(msg: Any): Unit = {} //No messages received by this component
+  private def waitForNextPoll: F[Unit] =
+    for {
+      _ <- Async[F].delay(logger.trace(s"Spout: Scheduling spout to poll again in ${sourceInstance.pollInterval}."))
+      _ <- Async[F].sleep(sourceInstance.pollInterval)
+    } yield ()
 
-  private def executeSpout(): Unit = {
-    spoutReschedulesCount.inc()
+  private def uniquePoll: F[Unit] = Async[F].blocking(executePoll())
+
+  private def executePoll(): Unit = {
     var iBlocked = false
 
     if (sourceInstance.hasRemainingUpdates)
@@ -75,49 +82,32 @@ private[raphtory] class IngestionExecutor(
         queryManager.sendAsync(NonBlocking(sourceID = sourceInstance.sourceID, graphID = graphID))
 
     while (sourceInstance.hasRemainingUpdates) {
-      latestMsgTimeToFlushToFlight = System.currentTimeMillis()
-      fileLinesSent.inc()
+//      latestMsgTimeToFlushToFlight = System.currentTimeMillis() -> Needed if this class extends FlushToFlight
+      totalTuplesProcessed.inc()
       index = index + 1
       sourceInstance.sendUpdates(index, failOnError)
     }
-    if (sourceInstance.spoutReschedules())
-      reschedule()
-    if (blocking && iBlocked)
-      queryManager.sendAsync(
-              UnblockIngestion(
-                      sourceInstance.sourceID,
-                      graphID = graphID,
-                      sourceInstance.sentMessages(),
-                      sourceInstance.highestTimeSeen(),
-                      force = false
-              )
-      )
+    if (blocking && iBlocked) {
+      val id  = sourceInstance.sourceID
+      val msg =
+        UnblockIngestion(id, graphID, sourceInstance.sentMessages(), sourceInstance.highestTimeSeen(), force = false)
+      queryManager sendAsync msg
+    }
   }
-
-  private def reschedule(): Unit = {
-    // TODO: Parameterise the delay
-    logger.trace("Spout: Scheduling spout to poll again in 1 seconds.")
-    scheduledRun = Option(scheduler.scheduleOnce(1.seconds, rescheduler()))
-  }
-
 }
 
 object IngestionExecutor {
 
-  def apply[IO[_]: Spawn](
+  def apply[F[_]: Async](
       graphID: String,
       source: Source,
       blocking: Boolean,
       sourceID: Int,
       config: Config,
       topics: TopicRepository
-  )(implicit IO: Async[IO]): Resource[IO, IngestionExecutor] =
-    Component
-      .makeAndStart(
-              topics,
-              "spout-executor",
-              Seq.empty[CanonicalTopic[Any]],
-              new IngestionExecutor(graphID, source, blocking, sourceID, config, topics, new Scheduler)
-      )
-
+  ): Resource[F, IngestionExecutor[F]] = {
+    val createExecutor =
+      Async[F].delay(new IngestionExecutor(graphID, source, blocking, sourceID, config, topics))
+    Resource.make(createExecutor)(executor => executor.release())
+  }
 }
