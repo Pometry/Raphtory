@@ -4,7 +4,7 @@
 
 ### Requirements
 
-- Temurin Java 11 - 11.0.16-tem
+- Java 11
     - Please ensure `JAVA_HOME` environment variable is set and points to a JDK location
 - sbt
 
