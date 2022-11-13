@@ -35,7 +35,8 @@ extensions = [
     'extractScalaAlgoDocs',
     'sphinx.ext.autodoc',
     'myst_parser',
-    'sphinx_tabs.tabs'
+    'sphinx_tabs.tabs',
+    "nbsphinx"
 ]
 
 autodoc_default_options = {
