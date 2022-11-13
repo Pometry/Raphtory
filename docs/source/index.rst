@@ -1,7 +1,5 @@
 .. Raphtory documentation master file, created by
    sphinx-quickstart on Tue Feb  1 02:02:01 2022.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
 
 .. raw:: html
 
@@ -46,12 +44,12 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/pyth
    :maxdepth: 1
    :caption: PyRaphtory API
 
-   PythonDocs/index.md
+   PythonDocs/index.rst
 
 .. toctree::
    :maxdepth: 2
    :hidden:
-   :caption: Example Projects (Scala & Python)
+   :caption: Example Projects
 
    Examples/lotr.md
    Examples/nft.md
@@ -60,7 +58,7 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/pyth
 .. toctree:: 
    :maxdepth: 2
    :hidden:
-   :caption: Deployment
+   :caption: Deploying Raphtory
 
    Deployment/baremetalsingle.md
    Deployment/kubernetes.md
@@ -76,19 +74,9 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/pyth
    Dev/building.md
    Dev/publishing.md
 
-   .. toctree::
+.. toctree::
    :hidden:
    :maxdepth: 2
    :caption: API (Scala)
 
    Scaladoc/index.md
-
-
-   ..  
-      PythonDocs/algorithm.rst
-      PythonDocs/builder.rst
-      PythonDocs/formats.rst
-      PythonDocs/graph.rst
-      PythonDocs/sinks.rst
-      PythonDocs/spouts.rst
-      PythonDocs/vertex.rst
