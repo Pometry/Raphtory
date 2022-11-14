@@ -65,7 +65,7 @@ final private[raphtory] case class PojoGraphLens(
   private var fullGraphSize     = 0
   private var exploded: Boolean = false
 
-  val chunkSize = 1
+  val chunkSize = 128
 
   private val needsFiltering: SuperStepFlag = SuperStepFlag()
 
