@@ -8,37 +8,91 @@
 [![Latest Release](https://img.shields.io/github/v/release/Raphtory/Raphtory?color=brightgreen&include_prereleases&sort=semver)](https://github.com/Raphtory/Raphtory/releases)
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://conventionalcommits.org)
 
-Raphtory is an open-source platform for distributed real-time temporal graph analytics, allowing you to load and process large dynamic datasets across time. If you would like a brief summary of what its used for before fully diving into the getting started guide please check out this [article](https://www.turing.ac.uk/blog/just-add-time-dizzying-potential-dynamic-graphs) from the Alan Turing Institute! For more in-depth info you can watch our most recent talk on Raphtory at [AIUK 2022](https://www.youtube.com/watch?v=7S9Ymnih-YM&list=PLuD_SqLtxSdVEUsCYlb5XjWm9D6WuNKEz&index=9), [KGC 2022](https://www.youtube.com/watch?v=37S4bSN5EaU) and [NetSciX](https://www.youtube.com/watch?v=QxhrONca4FE).
+Raphtory is an open-source platform for distributed real-time temporal graph analytics, allowing you to load and process large dynamic datasets across time. 
+
+Features of Raphtory include:
+1. No data movement required - easy to pull in data from **anywhere**
+2. Easy to **scale**
+3. Easy to **distribute** and **elastic**
+4. Familiar functions to **Pandas** and **NetworkX**
+
+### Useful Links
+- **[Website 🌍](https://www.raphtory.com/)**
+- **[Documentation 📒](https://docs.raphtory.com/en/development/)**
+- **[Source Code 🖥](https://github.com/Raphtory/Raphtory)**
+- **[Tutorial 🧙🏻‍](https://docs.raphtory.com/en/development/Examples/lotr.html)**
+- **[Report a Bug 🐛](https://github.com/Raphtory/Raphtory/issues)**
+
+### Articles and Talks about Raphtory
+- **[Raphtory on the Alan Turing Institute Blog](https://www.turing.ac.uk/blog/just-add-time-dizzying-potential-dynamic-graphs)**
+- **[Talk on Raphtory at AI UK 2022](https://www.youtube.com/watch?v=7S9Ymnih-YM&list=PLuD_SqLtxSdVEUsCYlb5XjWm9D6WuNKEz&index=9)**
+- **[Talk on Raphtory at KGC 2022](https://www.youtube.com/watch?v=37S4bSN5EaU)**
+- **[Talk on Raphtory at NetSciX 2022](https://www.youtube.com/watch?v=QxhrONca4FE)**
 
 <p align="center">
-<img src="https://user-images.githubusercontent.com/6665739/154071628-a55fb5f9-6994-4dcf-be03-401afc7d9ee0.png"/> If you like the sound of what we are working on, come join the <a href="https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA">Slack</a>! <img src="https://user-images.githubusercontent.com/6665739/154071628-a55fb5f9-6994-4dcf-be03-401afc7d9ee0.png"/>
+<img src="https://user-images.githubusercontent.com/6665739/154071628-a55fb5f9-6994-4dcf-be03-401afc7d9ee0.png"/> If you like the sound of what we are working on, come join our <a href="https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA">Slack Community</a>! <img src="https://user-images.githubusercontent.com/6665739/154071628-a55fb5f9-6994-4dcf-be03-401afc7d9ee0.png"/>
 </p>
 
-## 0.2.0a7 - Raphtory Pre-Alpha Release
-With the release of 0.2.0, we have re-designed and updated many of the core components. The full changelog can be dug into [here](https://github.com/Raphtory/Raphtory/releases), but as a sneak peek this includes:
+# Install
 
-* ..... TBD 
+Install PyRaphtory, which contains all the functions to create a graph, run algorithms and analyse results.
+```bash
+ $ pip install pyraphtory_jvm
+```
 
-The prior version of Raphtory has now been deprecated as raphtory-akka which will remain available with no support [here](https://github.com/Raphtory/Raphtory/tree/raphtory-akka).
+# Basic Example
 
-# Getting Started
-The best way to get started with Raphtory is to visit our [ReadTheDocs](https://raphtory.readthedocs.io/) site where we have tutorials on how to use Raphtory for graph building, analysis, and more. 
+Initialise Raphtory and create a new graph.
+```python
+ctx = PyRaphtory.local()
+graph = ctx.new_graph()
+```
 
-**Note:** Raphtory is built with Scala and works with Python. We recommend using IntelliJ IDE for your code. They have a community version which is free. Follow their [guide](https://www.jetbrains.com/idea/download/#section=windows) for installation.
+Add nodes and edges to your graph from any file (here we used a CSV file).
+```python
+with open(filename, 'r') as csvfile:
+    datareader = csv.reader(csvfile)
+    for row in datareader:
+        source_node = row[0]
+        src_id = graph.assign_id(source_node)
+        target_node = row[1]
+        tar_id = graph.assign_id(target_node)
+        time_stamp = int(row[2])
+        graph.add_vertex(time_stamp, src_id, Properties(ImmutableProperty("name", source_node)), Type("Character"))
+        graph.add_vertex(time_stamp, tar_id, Properties(ImmutableProperty("name", target_node)), Type("Character"))
+        graph.add_edge(time_stamp, src_id, tar_id, Type("Character_Co-occurence"))
+```
+Collect simple metrics from your graph.
+```python
+df = graph
+    .at(32674)
+    .past()
+    .select(lambda vertex: Row(vertex.name(), vertex.degree(), vertex.out_degree(), vertex.in_degree()))
+    .to_df(["name", "degree", "out_degree", "in_degree"])
+```
+Run a PageRank Algorithm on your graph.
+```python
+cols = ["prlabel"]
 
-### Good entry points for the very beginning are
+df_pagerank = graph.at(32674) 
+                .past() 
+                .transform(ctx.algorithms.generic.centrality.PageRank())
+                .execute(ctx.algorithms.generic.NodeList(*cols)) 
+                .to_df(["name"] + cols)
+```
 
-- [Installation](https://docs.raphtory.com/en/development/Install/start.html) - Installation of Raphtory and PyRaphtory. 
-- [Building a graph from your data](https://raphtory.readthedocs.io/en/development/Ingestion/sprouter.html) - How to ingest raw data into Raphtory and the basics of modelling your data as a Temporal Graph.
-- [Six Degrees of Gandalf](https://raphtory.readthedocs.io/en/development/Analysis/LOTR_six_degrees.html) - A Lord of the Rings themed intro into the world of Graph Algorithms.
-- [Running queries across time](https://raphtory.readthedocs.io/en/development/Analysis/queries.html) - Exploring how to run algorithms throughout the history of your data. 
-- [Analysis In Raphtory](https://raphtory.readthedocs.io/en/development/Analysis/analysis-explained.html) - A deeper dive into the underlying analysis model of Raphtory. 
+# Want to do something more complex?
+If you would like to do something more complex, follow these links:
 
-### Once you are feeling more comfortable with Raphtory you can checkout out
-- [ScalaDocs](https://raphtory.readthedocs.io/en/development/Scaladoc/index.html), [PythonDocs](https://raphtory.readthedocs.io/en/development/PythonDocs/index.html) and [Algorithm API](https://raphtory.readthedocs.io/en/development/_autodoc/com/raphtory/algorithms/generic/index.html) - We provide a fully documented API for Raphtory, explaining all user-facing classes and functions. This sits alongside explanations for the included algorithmic library (both temporal and static). These algorithms can be used to analyse your datasets once ingested or as a basis to implement your own custom algorithms.
-- [Raphtory Streaming and Distributed Deployment](https://raphtory.readthedocs.io/en/development/Deployment/pulsarlocal.html) - Raphtory can be deployed as a single node or a distributed cluster. For the latter, we provide runners to establish the cluster on bare metal or on top of Kubernetes. 
-- [Using the Python client](https://raphtory.readthedocs.io/en/development/PythonClient/setup.html) - We are developing a full python client alongside the main scala implementation so that you can attach Raphtory to your favorite data science tools.
+- [Building your own Scala source code into PyRaphtory](https://docs.raphtory.com/en/development/PythonDocs/setup.html#id2)
+- [Complete list of available algorithms in Raphtory](https://docs.raphtory.com/en/development/_autodoc/com/raphtory/algorithms/generic/index.html)
+- [Writing your own algorithm in Raphtory](https://docs.raphtory.com/en/development/Analysis/LOTR_six_degrees.html)
 
+# Raphtory Latest Release
+### 0.2.0a7 
+With the release of 0.2.0, we have re-designed and updated many of the core components. The full changelog can be dug into [here](https://github.com/Raphtory/Raphtory/releases).
+
+The prior version of Raphtory, raphtory-akka, has now been deprecated. This will remain available with no support [here](https://github.com/Raphtory/Raphtory/tree/raphtory-akka).
 
 # Community  
 
