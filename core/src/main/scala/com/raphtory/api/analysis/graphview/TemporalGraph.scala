@@ -85,7 +85,7 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   def until(endTime: String): G = until(parseDateTime(endTime))
 
   /** Creates a new `TemporalGraph` which includes all activity between `startTime` (inclusive) and `endTime` (exclusive)
-    *  `graph.slice(startTime, endTime)` is equivalent to `graph.from(startTime).until(endTime)`
+    * `graph.slice(startTime, endTime)` is equivalent to `graph.from(startTime).until(endTime)`
     */
   def slice(startTime: Long, endTime: Long): G = this from startTime until endTime
 

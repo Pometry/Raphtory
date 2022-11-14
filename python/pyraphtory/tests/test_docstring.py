@@ -19,7 +19,7 @@ def test_string_conversion():
 
 
 def test_scaladoc_comment_removal():
-    assert convert_docstring("/** * \n * s\n */") == "*\ns"
+    assert convert_docstring("/** * \n * s\n */") == "* \ns"
 
 
 def test_direct_conversion():
@@ -45,3 +45,28 @@ def test_note_parser():
         "/** @note First line\n *     Second line\n *       Indented third line\n * \n * \n *     Normal fourth line\n * Other text */")
             == ".. note:: First line\n   Second line\n     Indented third line\n\n\n   Normal fourth line\nOther text")
 
+
+def test_param_list_without_space():
+    assert (convert_docstring(
+        "/** Some text\n * @param name this is \n *    some long text \n * @param other this is some short text \n * some other non-indented text needs to be separated */")
+            == "Some text\n\n:param name: this is \n   some long text \n:param other: this is some short text \n\nsome other non-indented text needs to be separated"
+            )
+
+
+def test_param_list_with_space():
+    assert (convert_docstring(
+        "/** Some text\n\n\n * @param name this is \n *    some long text \n * @param other this is some short text \n * some other non-indented text needs to be separated */")
+            == "Some text\n\n\n:param name: this is \n   some long text \n:param other: this is some short text \n\nsome other non-indented text needs to be separated"
+            )
+
+
+def test_param_list_from_accumulator():
+    assert (convert_docstring(
+        """/** Add new value to accumulator and return the accumulator object
+*
+* @param newValue Value to add
+*/"""
+    ) ==
+            """Add new value to accumulator and return the accumulator object
+
+:param new_value: Value to add""")
