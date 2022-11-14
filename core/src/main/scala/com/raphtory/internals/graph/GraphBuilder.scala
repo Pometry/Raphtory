@@ -4,17 +4,16 @@ import cats.Functor
 import cats.effect.Async
 import cats.effect.Ref
 import cats.effect.std.Dispatcher
-import cats.effect.std.Queue
 import cats.syntax.all._
 import com.raphtory.api.input._
 import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.management.telemetry.TelemetryReporter
 import com.raphtory.protocol
-import com.raphtory.protocol.Empty
 import com.raphtory.protocol.WriterService
 import fs2.Chunk
 
-import scala.util.control.NonFatal
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 class GraphBuilderF[F[_], T](
     graphId: String,
@@ -28,110 +27,56 @@ class GraphBuilderF[F[_], T](
   private val totalSourceErrors = TelemetryReporter.totalSourceErrors.labels(s"$sourceId", graphId) // TODO
 
   def buildGraphFromT(t: Chunk[T], index: Ref[F, Long]): F[Unit] =
-    Dispatcher[F].use { d =>
-      for {
-        q <- Queue.unbounded[F, Option[GraphUpdate]]
-        cb = UnsafeGraphCallback(writers.size, sourceId, -1, graphId, d, q)
-        _ <- t.foldLeftM(index) { (i, t) =>
-               i.getAndUpdate(_ + 1)
-                 .map { index =>
-                   builder(cb.copy(index = index), t)
-                 }
-                 .map(_ => i)
-             } *> q.offer(None)
-        _ <- fs2.Stream
-               .fromQueueNoneTerminated(q)
-               .parEvalMapUnordered(8) { update =>
-                 val partitionForTuple = cb.getPartitionForId(update.srcId)
-                 (for {
-                   _ <- (writers(partitionForTuple).processAlteration(protocol.GraphAlteration(update)))
-                   _ <- highestSeen.update(Math.max(_, update.updateTime))
-                   _ <- sentUpdates.update(_ + 1L)
-                 } yield ()).handleError {
-                   case NonFatal(t) =>
-                     F.delay {
-                       totalSourceErrors.inc()
-                     } *> F.raiseError(t)
-                 }
-               }
-               .last
-               .compile
-               .toList
-      } yield ()
+    timed(
+            s"BATCH PROCESSING OF ${t.size}",
+            for {
+              b <- F.delay(new mutable.ArrayBuffer[GraphUpdate](t.size))
+              cb = UnsafeGraphCallback(writers.size, sourceId, -1, graphId, b)
+              _ <- timed(
+                           "HANDOVER into cats-effect",
+                           index.getAndUpdate(_ + t.size).map { index =>
+                             t.foldLeft(index) { (i, t) =>
+                               builder(cb.copy(index = i), t)
+                               i + 1
+                             }
+                           }
+                   )
+              _ <- timed(
+                           "SENDING TO WRITERS",
+                           processGraphUpdates(b, cb)
+                   )
+            } yield ()
+    )
+
+  private def processGraphUpdates(b: ArrayBuffer[GraphUpdate], cb: UnsafeGraphCallback[F]) = {
+//    F.parSequenceN(4)(prepareGraphUpdates(cb)(b.toSeq))
+    prepareGraphUpdates(cb)(b.toSeq).sequence_
+  }
+
+  def timed[A](msg: String, f: F[A]): F[A] =
+    F.timed(f).flatMap {
+      case (t, a) =>
+//        println(s"TIME ${t.toMillis}ms for $msg")
+        F.pure(a)
     }
+
+  private def prepareGraphUpdates(cb: Graph)(updates: Seq[GraphUpdate]): Vector[F[Unit]] =
+    updates
+      .groupBy(update => cb.getPartitionForId(update.srcId))
+      .map {
+        case (partition, updates) =>
+          val maxTime = updates.maxBy(_.updateTime).updateTime
+          for {
+            _ <- writers(partition)
+                   .processAlteration(protocol.GraphAlterations(alterations = updates.map(protocol.GraphAlteration(_))))
+            _ <- highestSeen.update(Math.max(_, maxTime))
+            _ <- sentUpdates.update(_ + updates.size)
+          } yield ()
+      }
+      .toVector
 
   def getSentUpdates: F[Long]  = sentUpdates.get
   def highestTimeSeen: F[Long] = highestSeen.get
-}
-
-private[raphtory] class GraphBuilderInstance[F[_], T](
-    graphId: String,
-    sourceId: Int,
-    builder: GraphBuilder[T],
-    q: Queue[F, (GraphUpdate, Int)],
-    dispatcher: Dispatcher[F],
-//    unsafeGraphCallback: UnsafeGraphCallback[F],
-    writers: Map[Int, WriterService[F]]
-)(implicit F: Async[F])
-        extends Serializable
-        with Graph {
-
-  override protected def sourceID: Int = sourceId
-
-  override protected def graphID: String = graphId
-
-  /** Logger instance for writing out log messages */
-  var highestTimeSeen: Long           = Long.MinValue
-  var internalIndex: Long             = -1L
-  override def index: Long            = internalIndex
-  private val partitionIDs            = writers.keySet
-  private val internalTotalPartitions = writers.size
-  def totalPartitions: Int            = internalTotalPartitions
-  private var sentUpdates: Long       = 0
-  private val totalSourceErrors       = TelemetryReporter.totalSourceErrors.labels(s"$sourceID", graphID)
-
-  def getGraphID: String         = graphID
-  def getSourceID: Int           = sourceID
-  def parseTuple(tuple: T): Unit = builder(this, tuple)
-
-  private[raphtory] def getSentUpdates: Long = sentUpdates
-
-  /** Parses `tuple` and fetches list of updates for the graph This is used internally to retrieve updates. */
-  private[raphtory] def sendUpdates(tuple: T, tupleIndex: Long)(failOnError: Boolean = true): Unit =
-    try {
-      logger.trace(s"Parsing tuple: $tuple with index $tupleIndex")
-      internalIndex = tupleIndex
-      parseTuple(tuple)
-
-    }
-    catch {
-      case e: Exception =>
-        if (failOnError) {
-          e.printStackTrace()
-          totalSourceErrors.inc()
-          throw e
-        }
-        else {
-          logger.warn(s"Failed to parse tuple.", e.getMessage)
-          totalSourceErrors.inc()
-          e.printStackTrace()
-        }
-    }
-
-  override protected def handleGraphUpdate(update: GraphUpdate): Unit = {
-    logger.trace(s"handling $update")
-    sentUpdates += 1
-    highestTimeSeen = highestTimeSeen max update.updateTime
-    val partitionForTuple = getPartitionForId(update.srcId)
-    if (partitionIDs contains partitionForTuple) {
-      dispatcher.unsafeRunSync(q.offer((update, partitionForTuple)))
-      logger.trace(s"$update sent")
-    }
-  }
-
-  private def runAlteration(update: GraphUpdate, partitionForTuple: Int): F[Empty] =
-    writers(partitionForTuple).processAlteration(protocol.GraphAlteration(update))
-
 }
 
 case class UnsafeGraphCallback[F[_]: Functor](
@@ -139,11 +84,8 @@ case class UnsafeGraphCallback[F[_]: Functor](
     sourceID: Int,
     index: Long,
     graphID: String,
-    d: Dispatcher[F],
-    q: Queue[F, Option[GraphUpdate]]
+    b: mutable.ArrayBuffer[GraphUpdate]
 ) extends Graph {
-  override protected def handleGraphUpdate(update: GraphUpdate): Unit = d.unsafeRunSync(q.offer(Some(update)))
-
-  def updates: fs2.Stream[F, GraphUpdate] = fs2.Stream.fromQueueNoneTerminated(q)
+  override protected def handleGraphUpdate(update: GraphUpdate): Unit = b += update
 
 }

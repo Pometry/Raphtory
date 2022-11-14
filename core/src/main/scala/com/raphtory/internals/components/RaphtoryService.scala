@@ -150,7 +150,11 @@ class DefaultRaphtoryService[F[_]](
           _ <-
             registry // TODO: the performance of this is terrible, but this interface is not meant for big loads anyway
               .writer(graphId, partitioner.getPartitionForId(update.srcId))
-              .use(_.processAlteration(protocol.GraphAlteration(update)))
+              .use(
+                      _.processAlteration(
+                              protocol.GraphAlterations(alterations = Vector(protocol.GraphAlteration(update)))
+                      )
+              )
         } yield success
     }
 

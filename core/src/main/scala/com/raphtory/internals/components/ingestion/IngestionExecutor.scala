@@ -7,7 +7,6 @@ import cats.effect.kernel.Ref
 import cats.effect.std.Dispatcher
 import cats.syntax.all._
 import com.raphtory.api.input.Source
-import com.raphtory.api.input.SourceInstance
 import com.raphtory.api.input.StreamSource
 import com.raphtory.internals.FlushToFlight
 import com.raphtory.internals.communication.CanonicalTopic
@@ -105,7 +104,6 @@ private[raphtory] class IngestionExecutor[F[_], T](
         highestTimeSeen <- source.highestTimeSeen()
         _ <- if (blocked && blocking)
           F.delay {
-            println("HOW MANY TIMES ARE YOU HAPPENING!?")
             val id = source.sourceID
             val msg =
               UnblockIngestion(id, graphID, sentMessages, highestTimeSeen, force = false)

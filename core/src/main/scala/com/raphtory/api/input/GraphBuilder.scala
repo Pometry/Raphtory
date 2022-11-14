@@ -5,7 +5,6 @@ import cats.effect.Ref
 import cats.effect.Resource
 import cats.syntax.all._
 import com.raphtory.internals.graph.GraphBuilderF
-import com.raphtory.internals.graph.GraphBuilderInstance
 import com.raphtory.protocol.WriterService
 
 trait GraphBuilder[T] extends ((Graph, T) => Unit) with Serializable {

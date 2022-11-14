@@ -12,8 +12,8 @@ message Status {
 }
 
 message QueryManagement {
-//  option (scalapb.message).extends = "com.raphtory.internals.components.querymanager.ProtoDef";
-//  option (scalapb.message).type = "com.raphtory.internals.components.querymanager.QueryManagement";
+  //  option (scalapb.message).extends = "com.raphtory.internals.components.querymanager.ProtoDef";
+  //  option (scalapb.message).type = "com.raphtory.internals.components.querymanager.QueryManagement";
   bytes bytes = 1 [(scalapb.field).type = "com.raphtory.internals.components.querymanager.QueryManagement"];
 }
 
@@ -28,8 +28,8 @@ message GraphInfo {
 }
 
 message Query {
-//  option (scalapb.message).extends = "com.raphtory.internals.components.querymanager.ProtoDef";
-//  option (scalapb.message).type = "com.raphtory.internals.components.querymanager.Query";
+  //  option (scalapb.message).extends = "com.raphtory.internals.components.querymanager.ProtoDef";
+  //  option (scalapb.message).type = "com.raphtory.internals.components.querymanager.Query";
   bytes bytes = 1 [(scalapb.field).type = "com.raphtory.internals.components.querymanager.TryQuery"];
 }
 
@@ -58,6 +58,10 @@ message GraphUpdate {
 
 message GraphAlteration {
   bytes alteration = 2 [(scalapb.field).type = "com.raphtory.internals.graph.GraphAlteration"];
+}
+
+message GraphAlterations {
+  repeated GraphAlteration alterations = 1;
 }
 
 message DestroyGraph {
@@ -98,5 +102,5 @@ service PartitionService {
 }
 
 service WriterService {
-  rpc processAlteration(GraphAlteration) returns (Empty);
+  rpc processAlteration(GraphAlterations) returns (Empty);
 }

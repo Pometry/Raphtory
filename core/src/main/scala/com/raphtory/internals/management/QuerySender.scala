@@ -34,7 +34,7 @@ private[raphtory] class QuerySender(
 
   class NoIDException(message: String) extends Exception(message)
 
-  override val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
   val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")

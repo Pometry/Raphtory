@@ -38,7 +38,8 @@ private[raphtory] class Writer[F[_]](
     storage: GraphPartition,
     conf: Config,
     writers: Deferred[F, Map[Int, WriterService[F]]]
-)(implicit F:Async[F]) extends WriterService[F] {
+)(implicit F: Async[F])
+        extends WriterService[F] {
 
   private val vertexAdditionCount = TelemetryReporter.writerVertexAdditions.labels(partitionID.toString, graphID)
   private val edgeAddCount        = TelemetryReporter.writerEdgeAdditions.labels(partitionID.toString, graphID)
@@ -49,81 +50,81 @@ private[raphtory] class Writer[F[_]](
 
   private val partitioner = Partitioner()
 
-//  def withGraphPartition[B](f: GraphPartition => F[B]): F[B] = {
-//   F.bracket(storage.take)(f)(storage.offer)
-//
-//  }
-
-  override def processAlteration(req: protocol.GraphAlteration): F[Empty] =
+  override def processAlteration(req: protocol.GraphAlterations): F[Empty] =
     for {
-      effects <- Async[F].blocking(handleLocalAlteration(req.alteration))
+      effects <- Async[F].blocking(handleLocalAlterations(req))
       writers <- writers.get
-      delivery = effects map (effect => (writers(partitioner.getPartitionForId(effect.updateId)), effect))
+      delivery = effects
+                   .groupBy(effect => partitioner.getPartitionForId(effect.updateId))
+                   .map {
+                     case (partitionId, effects) =>
+                       writers(partitionId).processAlteration(
+                               protocol.GraphAlterations(alterations = effects.map(protocol.GraphAlteration(_)))
+                       )
+                   }
+                   .toVector
       _       <- Async[F]
-                   .parSequenceN(4)(delivery map {
-                     case (writer, effect) => writer.processAlteration(protocol.GraphAlteration(effect))
-                   })
+                   .parSequenceN(partitioner.totalPartitions)(delivery)
                    .void
     } yield Empty()
 
-  private def handleLocalAlteration(msg: GraphAlteration): List[GraphUpdateEffect] =
-    try msg match {
-      //Updates from the Graph Builder
-      case update: VertexAdd                    => processVertexAdd(update)
-      case update: EdgeAdd                      => processEdgeAdd(update)
-      case update: EdgeDelete                   => processEdgeDelete(update)
-      case update: VertexDelete                 =>
-        processVertexDelete(update) //Delete a vertex and all associated edges
+  private def handleLocalAlterations(msgs: protocol.GraphAlterations): Vector[GraphUpdateEffect] = {
+    msgs.alterations.view
+      .map(_.alteration)
+      .flatMap {
+        //Updates from the Graph Builder
+        case update: VertexAdd                    => processVertexAdd(update)
+        case update: EdgeAdd                      => processEdgeAdd(update)
+        case update: EdgeDelete                   => processEdgeDelete(update)
+        case update: VertexDelete                 =>
+          processVertexDelete(update) //Delete a vertex and all associated edges
 
-      //Syncing Edge Additions
-      case update: SyncNewEdgeAdd               =>
-        processSyncNewEdgeAdd(
-                update
-        ) //A writer has requested a new edge sync for a destination node in this worker
-      case update: SyncExistingEdgeAdd          =>
-        processSyncExistingEdgeAdd(
-                update
-        ) // A writer has requested an existing edge sync for a destination node on in this worker
+        //Syncing Edge Additions
+        case update: SyncNewEdgeAdd               =>
+          processSyncNewEdgeAdd(
+                  update
+          ) //A writer has requested a new edge sync for a destination node in this worker
+        case update: SyncExistingEdgeAdd          =>
+          processSyncExistingEdgeAdd(
+                  update
+          ) // A writer has requested an existing edge sync for a destination node on in this worker
 
-      //Syncing Edge Removals
-      case update: SyncNewEdgeRemoval           =>
-        processSyncNewEdgeRemoval(
-                update
-        ) //A remote worker is asking for a new edge to be removed for a destination node in this worker
+        //Syncing Edge Removals
+        case update: SyncNewEdgeRemoval           =>
+          processSyncNewEdgeRemoval(
+                  update
+          ) //A remote worker is asking for a new edge to be removed for a destination node in this worker
 
-      case update: SyncExistingEdgeRemoval      =>
-        processSyncExistingEdgeRemoval(
-                update
-        ) //A remote worker is asking for the deletion of an existing edge
+        case update: SyncExistingEdgeRemoval      =>
+          processSyncExistingEdgeRemoval(
+                  update
+          ) //A remote worker is asking for the deletion of an existing edge
 
-      //Syncing Vertex Removals
-      case update: OutboundEdgeRemovalViaVertex =>
-        processOutboundEdgeRemovalViaVertex(
-                update
-        ) //Syncs the deletion of an edge, but for when the removal comes from a vertex
-      case update: InboundEdgeRemovalViaVertex  => processInboundEdgeRemovalViaVertex(update)
+        //Syncing Vertex Removals
+        case update: OutboundEdgeRemovalViaVertex =>
+          processOutboundEdgeRemovalViaVertex(
+                  update
+          ) //Syncs the deletion of an edge, but for when the removal comes from a vertex
+        case update: InboundEdgeRemovalViaVertex  => processInboundEdgeRemovalViaVertex(update)
 
-      //Response from storing the destination node being synced
-      case update: SyncExistingRemovals =>
-        processSyncExistingRemovals(
-                update
-        ) //The remote worker has returned all removals in the destination node -- for new edges
+        //Response from storing the destination node being synced
+        case update: SyncExistingRemovals =>
+          processSyncExistingRemovals(
+                  update
+          ) //The remote worker has returned all removals in the destination node -- for new edges
 
-      case update: EdgeSyncAck          =>
-        processEdgeSyncAck(update) //The remote worker acknowledges the completion of an edge sync
-      case update: VertexRemoveSyncAck  => processVertexRemoveSyncAck(update)
+        case update: EdgeSyncAck          =>
+          processEdgeSyncAck(update) //The remote worker acknowledges the completion of an edge sync
+        case update: VertexRemoveSyncAck  => processVertexRemoveSyncAck(update)
 
-      case other =>
-        logger.error(s"Partition '$partitionID': Received unsupported message type '$other'.")
-        throw new IllegalStateException(
-                s"Partition '$partitionID': Received unsupported message '$other'."
-        )
-    }
-    catch {
-      case NonFatal(e) =>
-        logger.error(s"Failed to handle message $msg", e)
-        List()
-    }
+        case other =>
+          logger.error(s"Partition '$partitionID': Received unsupported message type '$other'.")
+          throw new IllegalStateException(
+                  s"Partition '$partitionID': Received unsupported message '$other'."
+          )
+      }
+      .toVector
+  }
 
   // TODO: bring back `processedMessages += 1`
 
