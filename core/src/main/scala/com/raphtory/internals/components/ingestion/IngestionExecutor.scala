@@ -19,7 +19,6 @@ import com.raphtory.internals.components.querymanager.UnblockIngestion
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.management.telemetry.TelemetryReporter
-import com.raphtory.protocol.WriterService
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import fs2.Stream
@@ -38,9 +37,9 @@ private[raphtory] class IngestionExecutor[F[_], T](
     conf: Config,
     topics: TopicRepository
 )(implicit F: Async[F]) {
-  private val logger: Logger       = Logger(LoggerFactory.getLogger(this.getClass))
-  private val failOnError          = conf.getBoolean("raphtory.builders.failOnError")
-  private val queryManager         = topics.blockingIngestion(graphID).endPoint
+  private val logger: Logger                      = Logger(LoggerFactory.getLogger(this.getClass))
+  private val failOnError                         = conf.getBoolean("raphtory.builders.failOnError")
+  private val queryManager                        = topics.blockingIngestion(graphID).endPoint
   private val totalTuplesProcessed: Counter.Child = TelemetryReporter.totalTuplesProcessed.labels(s"$sourceID", graphID)
 
   private var index: Long = 0
@@ -88,7 +87,7 @@ private[raphtory] class IngestionExecutor[F[_], T](
                                     queryManager.sendAsync(NonBlocking(sourceID = source.sourceID, graphID = graphID))
                             ) *> iBlocked.set(false)
                     )
-      _       <- source.elements(totalTuplesProcessed) // process elements here
+      _        <- source.elements(totalTuplesProcessed) // process elements here
       _        <- finaliseIngestion(iBlocked)
     } yield ()
 
@@ -96,23 +95,22 @@ private[raphtory] class IngestionExecutor[F[_], T](
     s.void.compile.drain
   }
 
-  private def finaliseIngestion(iBlocked: Ref[F, Boolean]) = {
+  private def finaliseIngestion(iBlocked: Ref[F, Boolean]) =
     fs2.Stream.eval {
       for {
-        blocked <- iBlocked.get
-        sentMessages <- source.sentMessages
+        blocked         <- iBlocked.get
+        sentMessages    <- source.sentMessages
         highestTimeSeen <- source.highestTimeSeen()
-        _ <- if (blocked && blocking)
-          F.delay {
-            val id = source.sourceID
-            val msg =
-              UnblockIngestion(id, graphID, sentMessages, highestTimeSeen, force = false)
-            queryManager sendAsync msg
-          }
-        else F.unit
+        _               <- if (blocked && blocking)
+                             F.delay {
+                               val id  = source.sourceID
+                               val msg =
+                                 UnblockIngestion(id, graphID, sentMessages, highestTimeSeen, force = false)
+                               queryManager sendAsync msg
+                             }
+                           else F.unit
       } yield ()
     }
-  }
 }
 
 object IngestionExecutor {
@@ -128,8 +126,8 @@ object IngestionExecutor {
     def createExecutor(streamSource: StreamSource[F, _]) =
       Async[F].delay(new IngestionExecutor(graphID, streamSource, blocking, sourceID, config, registry.topics))
     for {
-      writers      <- registry.writers(graphID)
-      streamSource <- source.make(graphID, sourceID, writers)
+      partitions   <- registry.partitions
+      streamSource <- source.make(graphID, sourceID, partitions)
       executor     <- Resource.make(createExecutor(streamSource))(executor => executor.release())
     } yield executor
   }

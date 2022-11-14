@@ -10,7 +10,6 @@ import com.raphtory.internals.components.partition.Writer
 import com.raphtory.internals.management.Partitioner
 import com.raphtory.protocol.IngestionService
 import com.raphtory.protocol.PartitionService
-import com.raphtory.protocol.WriterService
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -54,14 +53,11 @@ abstract class ServiceRegistry[F[_]: Async](val topics: TopicRepository) {
   final def ingestion: Resource[F, IngestionService[F]] =
     getService[IngestionService[F]](IngestionServiceImpl.descriptor)
 
-  final def partitions: Resource[F, Seq[PartitionService[F]]] =
-    getServices(PartitionServiceImpl.descriptor, partitionIds).map(_.values.toSeq)
+  final def partitions: Resource[F, Map[Int, PartitionService[F]]] =
+    getServices(PartitionServiceImpl.descriptor, partitionIds)
 
-  final def writers(graphId: String): Resource[F, Map[Int, WriterService[F]]] =
-    getServices(Writer.descriptor(graphId), partitionIds)
-
-  final def writer(graphId: String, partitionId: Int): Resource[F, WriterService[F]] =
-    getService(Writer.descriptor(graphId), partitionId)
+  final def writer(partitionId: Int): Resource[F, PartitionService[F]] =
+    getService(PartitionServiceImpl.descriptor, partitionId)
 
   private def getServices[T](descriptor: ServiceDescriptor[F, T], ids: Seq[Int]): Resource[F, Map[Int, T]] =
     ids

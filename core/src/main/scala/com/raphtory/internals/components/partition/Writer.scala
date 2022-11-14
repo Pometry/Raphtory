@@ -22,7 +22,7 @@ import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.management.telemetry.TelemetryReporter
 import com.raphtory.protocol
 import com.raphtory.protocol.Empty
-import com.raphtory.protocol.WriterService
+import com.raphtory.protocol.PartitionService
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -36,10 +36,9 @@ private[raphtory] class Writer[F[_]](
     graphID: String,
     partitionID: Int,
     storage: GraphPartition,
-    conf: Config,
-    writers: Deferred[F, Map[Int, WriterService[F]]]
-)(implicit F: Async[F])
-        extends WriterService[F] {
+    partitions: Map[Int, PartitionService[F]],
+    conf: Config
+)(implicit F: Async[F]) {
 
   private val vertexAdditionCount = TelemetryReporter.writerVertexAdditions.labels(partitionID.toString, graphID)
   private val edgeAddCount        = TelemetryReporter.writerEdgeAdditions.labels(partitionID.toString, graphID)
@@ -50,16 +49,15 @@ private[raphtory] class Writer[F[_]](
 
   private val partitioner = Partitioner()
 
-  override def processAlteration(req: protocol.GraphAlterations): F[Empty] =
+  def processAlterations(req: protocol.GraphAlterations): F[Empty] =
     for {
       effects <- Async[F].blocking(handleLocalAlterations(req))
-      writers <- writers.get
       delivery = effects
                    .groupBy(effect => partitioner.getPartitionForId(effect.updateId))
                    .map {
                      case (partitionId, effects) =>
-                       writers(partitionId).processAlteration(
-                               protocol.GraphAlterations(alterations = effects.map(protocol.GraphAlteration(_)))
+                       partitions(partitionId).processAlterations(
+                               protocol.GraphAlterations(graphID, effects.map(protocol.GraphAlteration(_)))
                        )
                    }
                    .toVector
@@ -68,7 +66,7 @@ private[raphtory] class Writer[F[_]](
                    .void
     } yield Empty()
 
-  private def handleLocalAlterations(msgs: protocol.GraphAlterations): Vector[GraphUpdateEffect] = {
+  private def handleLocalAlterations(msgs: protocol.GraphAlterations): Vector[GraphUpdateEffect] =
     msgs.alterations.view
       .map(_.alteration)
       .flatMap {
@@ -124,7 +122,6 @@ private[raphtory] class Writer[F[_]](
           )
       }
       .toVector
-  }
 
   // TODO: bring back `processedMessages += 1`
 
@@ -313,22 +310,12 @@ object Writer {
       storage: GraphPartition,
       registry: ServiceRegistry[F],
       conf: Config
-  ): Resource[F, Unit] =
+  ): Resource[F, Writer[F]] =
     for {
-      _            <- Resource.eval(startupMessage(graphID, partitionID))
-      deferWriters <- Resource.eval(Deferred[F, Map[Int, WriterService[F]]])
-      service      <- Resource.eval(Async[F].delay(new Writer[F](graphID, partitionID, storage, conf, deferWriters)))
-      _            <- registry.registered(service, Writer.descriptor(graphID), partitionID)
-      writers      <- registry.writers(graphID)
-      _            <- Resource.eval(deferWriters.complete(writers))
-    } yield ()
-
-  def descriptor[F[_]: Async](graphId: String): ServiceDescriptor[F, WriterService[F]] =
-    GrpcServiceDescriptor[F, WriterService[F]](
-            s"writer-$graphId",
-            WriterService.client(_),
-            WriterService.bindService(Async[F], _)
-    )
+      _          <- Resource.eval(startupMessage(graphID, partitionID))
+      partitions <- registry.partitions
+      writer     <- Resource.eval(Async[F].delay(new Writer[F](graphID, partitionID, storage, partitions, conf)))
+    } yield writer
 
   private def startupMessage[F[_]: Async](graphId: String, partitionId: Int) =
     Async[F].delay(logger.debug(s"Starting writer for graph '$graphId' and partition '$partitionId'"))

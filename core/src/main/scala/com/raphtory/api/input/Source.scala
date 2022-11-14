@@ -5,7 +5,7 @@ import cats.effect.Resource
 import cats.effect.kernel.Ref
 import cats.syntax.all._
 import com.raphtory.internals.graph.GraphBuilderF
-import com.raphtory.protocol.WriterService
+import com.raphtory.protocol.PartitionService
 import com.twitter.chill.ClosureCleaner
 import io.prometheus.client.Counter
 
@@ -21,10 +21,10 @@ trait Source {
   def make[F[_]: Async](
       graphID: String,
       id: Int,
-      writers: Map[Int, WriterService[F]]
+      partitions: Map[Int, PartitionService[F]]
   ): Resource[F, StreamSource[F, MessageType]] =
     builder
-      .make(graphID, id, writers)
+      .make(graphID, id, partitions)
       .map(builder => new StreamSource[F, MessageType](id, spout.buildSpout(), builder))
 }
 

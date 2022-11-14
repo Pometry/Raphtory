@@ -5,19 +5,19 @@ import cats.effect.Ref
 import cats.effect.Resource
 import cats.syntax.all._
 import com.raphtory.internals.graph.GraphBuilderF
-import com.raphtory.protocol.WriterService
+import com.raphtory.protocol.PartitionService
 
 trait GraphBuilder[T] extends ((Graph, T) => Unit) with Serializable {
 
   final def make[F[_]: Async](
       graphID: String,
       sourceID: Int,
-      writers: Map[Int, WriterService[F]]
+      partitions: Map[Int, PartitionService[F]]
   ): Resource[F, GraphBuilderF[F, T]] =
     Resource.eval(for {
       highestSeen <- Ref.of(Long.MinValue)
       sentUpdates <- Ref.of(0L)
-      builder     <- Async[F].delay(new GraphBuilderF(graphID, sourceID, this, writers, highestSeen, sentUpdates))
+      builder     <- Async[F].delay(new GraphBuilderF(graphID, sourceID, this, partitions, highestSeen, sentUpdates))
     } yield builder)
 }
 

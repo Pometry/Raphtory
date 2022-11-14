@@ -22,6 +22,9 @@ import com.raphtory.internals.storage.arrow.ArrowSchema
 import com.raphtory.internals.storage.arrow.EdgeSchema
 import com.raphtory.internals.storage.arrow.VertexSchema
 import com.raphtory.internals.storage.pojograph.PojoBasedPartition
+import com.raphtory.protocol.Empty
+import com.raphtory.protocol.GraphAlteration
+import com.raphtory.protocol.GraphAlterations
 import com.raphtory.protocol.PartitionService
 import com.raphtory.protocol.Query
 import com.raphtory.protocol.Status
@@ -33,20 +36,29 @@ import org.slf4j.LoggerFactory
 
 import java.nio.file.Files
 import scala.util.Success
+import PartitionServiceImpl.Partition
 
 abstract class PartitionServiceImpl[F[_]: Async](
     id: Deferred[F, Int],
-    graphs: GraphList[F, GraphPartition],
+    graphs: GraphList[F, Partition[F]],
     registry: ServiceRegistry[F],
     config: Config
 ) extends OrchestratorService(graphs)
         with PartitionService[F] {
 
-  override protected def graphExecution(graph: Graph[F, GraphPartition]): F[Unit] =
+  protected def makeGraphStorage(graphId: String): F[GraphPartition]
+
+  override protected def makeGraphData(graphId: String): Resource[F, Partition[F]] =
+    for {
+      id      <- Resource.eval(id.get)
+      storage <- Resource.eval(makeGraphStorage(graphId))
+      writer  <- Writer(graphId, id, storage, registry, config)
+    } yield Partition(storage, writer)
+
+  override protected def graphExecution(graph: Graph[F, Partition[F]]): F[Unit] =
     (for {
       id <- Resource.eval(id.get)
-      _  <- Reader[F](graph.id, id, graph.data, new Scheduler, config, registry.topics)
-      _  <- Writer[F](graph.id, id, graph.data, registry, config)
+      _  <- Reader[F](graph.id, id, graph.data.storage, new Scheduler, config, registry.topics)
     } yield ()).use(_ => Async[F].never)
 
   override def establishExecutor(req: Query): F[Status] =
@@ -55,35 +67,41 @@ abstract class PartitionServiceImpl[F[_]: Async](
       case _                                              => failure[F]
     }
 
+  override def processAlterations(req: GraphAlterations): F[Empty] =
+    for {
+      writer <- graphs.get.map(graphs => graphs(req.graphId).data.writer)
+      _      <- writer.processAlterations(req)
+    } yield Empty()
+
   private def queryExecutor(query: querymanager.Query) =
     for {
       id <- id.get
       _  <- attachExecutionToGraph(
                     query.graphID,
-                    graph => QueryExecutor(query, id, graph.data, config, registry.topics, new Scheduler)
+                    graph => QueryExecutor(query, id, graph.data.storage, config, registry.topics, new Scheduler)
             )
     } yield ()
 }
 
 class PojoPartitionServerImpl[F[_]: Async](
     id: Deferred[F, Int],
-    graphs: GraphList[F, GraphPartition],
+    graphs: GraphList[F, Partition[F]],
     registry: ServiceRegistry[F],
     config: Config
 ) extends PartitionServiceImpl[F](id, graphs, registry, config) {
 
-  override def makeGraphData(graphId: String): F[GraphPartition] =
+  override protected def makeGraphStorage(graphId: String): F[GraphPartition] =
     id.get.map(id => new PojoBasedPartition(graphId, id, config))
 }
 
 class ArrowPartitionServerImpl[F[_]: Async, V: VertexSchema, E: EdgeSchema](
     id: Deferred[F, Int],
-    graphs: GraphList[F, GraphPartition],
+    graphs: GraphList[F, Partition[F]],
     registry: ServiceRegistry[F],
     config: Config
 ) extends PartitionServiceImpl[F](id, graphs, registry, config) {
 
-  override def makeGraphData(graphId: String): F[GraphPartition] =
+  override protected def makeGraphStorage(graphId: String): F[GraphPartition] =
     for {
       id      <- id.get
       storage <-
@@ -99,6 +117,8 @@ class ArrowPartitionServerImpl[F[_]: Async, V: VertexSchema, E: EdgeSchema](
 
 object PartitionServiceImpl {
   import OrchestratorService._
+
+  case class Partition[F[_]](storage: GraphPartition, writer: Writer[F])
 
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
@@ -126,7 +146,7 @@ object PartitionServiceImpl {
     )
 
   private def makeNWithStorage[F[_]: Async](
-      service: (Deferred[F, Int], GraphList[F, GraphPartition]) => PartitionServiceImpl[F],
+      service: (Deferred[F, Int], GraphList[F, Partition[F]]) => PartitionServiceImpl[F],
       repo: ServiceRegistry[F],
       config: Config
   ): Resource[F, Unit] = {
@@ -140,12 +160,12 @@ object PartitionServiceImpl {
 
   private def makePartition[F[_]: Async](
       candidateIds: Seq[Int],
-      service: (Deferred[F, Int], GraphList[F, GraphPartition]) => PartitionServiceImpl[F],
+      service: (Deferred[F, Int], GraphList[F, Partition[F]]) => PartitionServiceImpl[F],
       repo: ServiceRegistry[F],
       conf: Config
   ): Resource[F, Unit] =
     for {
-      graphs   <- makeGraphList[F, GraphPartition]
+      graphs   <- makeGraphList[F, Partition[F]]
       id       <- Resource.eval(Deferred[F, Int])
       service  <- Resource.eval(Async[F].delay(service(id, graphs)))
       idNumber <- repo.registered(service, PartitionServiceImpl.descriptor, candidateIds.toList)

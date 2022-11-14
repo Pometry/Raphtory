@@ -9,7 +9,7 @@ import com.raphtory.api.input._
 import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.management.telemetry.TelemetryReporter
 import com.raphtory.protocol
-import com.raphtory.protocol.WriterService
+import com.raphtory.protocol.PartitionService
 import fs2.Chunk
 
 import scala.collection.mutable
@@ -19,7 +19,7 @@ class GraphBuilderF[F[_], T](
     graphId: String,
     sourceId: Int,
     builder: GraphBuilder[T],
-    writers: Map[Int, WriterService[F]],
+    partitions: Map[Int, PartitionService[F]],
     highestSeen: Ref[F, Long],
     sentUpdates: Ref[F, Long]
 )(implicit F: Async[F]) {
@@ -31,7 +31,7 @@ class GraphBuilderF[F[_], T](
             s"BATCH PROCESSING OF ${t.size}",
             for {
               b <- F.delay(new mutable.ArrayBuffer[GraphUpdate](t.size))
-              cb = UnsafeGraphCallback(writers.size, sourceId, -1, graphId, b)
+              cb = UnsafeGraphCallback(partitions.size, sourceId, -1, graphId, b)
               _ <- timed(
                            "HANDOVER into cats-effect",
                            index.getAndUpdate(_ + t.size).map { index =>
@@ -48,10 +48,9 @@ class GraphBuilderF[F[_], T](
             } yield ()
     )
 
-  private def processGraphUpdates(b: ArrayBuffer[GraphUpdate], cb: UnsafeGraphCallback[F]) = {
+  private def processGraphUpdates(b: ArrayBuffer[GraphUpdate], cb: UnsafeGraphCallback[F]) =
 //    F.parSequenceN(4)(prepareGraphUpdates(cb)(b.toSeq))
     prepareGraphUpdates(cb)(b.toSeq).sequence_
-  }
 
   def timed[A](msg: String, f: F[A]): F[A] =
     F.timed(f).flatMap {
@@ -67,8 +66,10 @@ class GraphBuilderF[F[_], T](
         case (partition, updates) =>
           val maxTime = updates.maxBy(_.updateTime).updateTime
           for {
-            _ <- writers(partition)
-                   .processAlteration(protocol.GraphAlterations(alterations = updates.map(protocol.GraphAlteration(_))))
+            _ <- partitions(partition)
+                   .processAlterations(
+                           protocol.GraphAlterations(graphId, alterations = updates.map(protocol.GraphAlteration(_)))
+                   )
             _ <- highestSeen.update(Math.max(_, maxTime))
             _ <- sentUpdates.update(_ + updates.size)
           } yield ()

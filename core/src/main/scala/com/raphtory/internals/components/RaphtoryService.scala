@@ -138,25 +138,21 @@ class DefaultRaphtoryService[F[_]](
   override def submitSource(req: protocol.IngestData): F[Status] = ingestion.ingestData(req)
 
   override def getNextAvailableId(req: IdPool): F[OptionalId] =
-    req match {
-      case IdPool(pool, _) => F.blocking(idManager.getNextAvailableID(pool)).map(protocol.OptionalId(_))
-    }
+    F.blocking(idManager.getNextAvailableID(req.pool)).map(protocol.OptionalId(_))
 
   override def processUpdate(req: protocol.GraphUpdate): F[Status] =
-    req match {
-      case protocol.GraphUpdate(graphId, update, _) =>
-        for {
-          _ <- F.delay(logger.trace(s"Processing graph update $update"))
-          _ <-
-            registry // TODO: the performance of this is terrible, but this interface is not meant for big loads anyway
-              .writer(graphId, partitioner.getPartitionForId(update.srcId))
-              .use(
-                      _.processAlteration(
-                              protocol.GraphAlterations(alterations = Vector(protocol.GraphAlteration(update)))
-                      )
-              )
-        } yield success
-    }
+    for {
+      _ <- F.delay(logger.trace(s"Processing graph update ${req.update}"))
+      _ <- registry // TODO: the performance of this is terrible, but this interface is not meant for big loads anyway
+             .partitions
+             .map(_.apply(partitioner.getPartitionForId(req.update.srcId)))
+             .use(
+                     _.processAlterations(
+                             protocol
+                               .GraphAlterations(req.graphId, Vector(protocol.GraphAlteration(req.update)))
+                     )
+             )
+    } yield success
 
   override def unblockIngestion(req: protocol.UnblockIngestion): F[Status] =
     req match {
@@ -242,7 +238,7 @@ object RaphtoryServiceBuilder {
                                                  runningGraphs,
                                                  existingGraphs,
                                                  ingestion,
-                                                 partitions,
+                                                 partitions.values.toSeq,
                                                  sourceIDManager,
                                                  repo,
                                                  repo.topics,
