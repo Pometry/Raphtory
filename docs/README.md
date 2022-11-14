@@ -1,19 +1,20 @@
 ## Steps to build docs
-1. Start in the root raphtory folder 
-2. Build raphtory and pyraphtory 
+1. Start in the root raphtory folder
+2. Install requirements for readthedocs 
+3. Build raphtory and pyraphtory 
     ```shell
     make sbt-build
     make python-build
     ```
-3. Install dev dependencies
+4. Install dev dependencies
    ```shell
-   pip install myst-parser sphinx-rtd-theme sphinx docutils sphinx-tabs
+   pip install myst-parser sphinx-rtd-theme sphinx docutils sphinx-tabs nbsphinx
    ```
-4. Build docs
+5. Build docs
    ```shell
    cd docs && make html
    ```
-5. View docs
+6. View docs
    ```shell
    open build/html/index.html
    ```

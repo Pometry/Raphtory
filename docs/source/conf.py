@@ -35,7 +35,8 @@ extensions = [
     'extractScalaAlgoDocs',
     'sphinx.ext.autodoc',
     'myst_parser',
-    'sphinx_tabs.tabs'
+    'sphinx_tabs.tabs',
+    "nbsphinx"
 ]
 
 autodoc_default_options = {
@@ -80,3 +81,4 @@ html_theme_options = {
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static', 'images', '_scaladoc']
+nbsphinx_kernel_name = 'python3'
