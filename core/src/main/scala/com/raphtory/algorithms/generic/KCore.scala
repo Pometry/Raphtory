@@ -82,13 +82,20 @@ class KCore(k: Int, resetStates: Boolean = true) extends Generic {
                   val newlyDeadNeighbours = vertex.messageQueue[Int].length
                   val newEffDegree        = effDegree - newlyDeadNeighbours
 
+                  if (newEffDegree == effDegree)
+                    vertex.voteToHalt()
+
                   vertex.setState(EFFDEGREE, newEffDegree)
-                  if (newEffDegree < k) // this vertex dies
+                  if (newEffDegree < k) { // this vertex dies
                     vertex.messageAllNeighbours(0)
+                    vertex.voteToHalt()
+                  }
+                } else {
+                  vertex.voteToHalt()
                 }
 
               },
-              iterations = 100,
+              iterations = 5000,
               executeMessagedOnly = true
       )
 

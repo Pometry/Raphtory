@@ -1,7 +1,6 @@
 package com.raphtory.algorithms.generic.motif
 
-import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.algorithms.generic.motif
+import com.raphtory.algorithms.generic.{KCore, NodeList, motif}
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.internals.communication.SchemaProviderInstances._
 
@@ -46,13 +45,18 @@ import com.raphtory.internals.communication.SchemaProviderInstances._
 class LocalTriangleCount extends NodeList(Seq("triangleCount")) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
-    graph
-      .step { (vertex, _) =>
-        vertex.setState("triangleCount", 0)
+    KCore(2).apply(graph)
+      .vertexFilter(v => v.getState[Int]("effectiveDegree")>=2)
+      .step{vertex =>
         val neighbours = vertex.neighbours.toSet
         neighbours.foreach(nb => vertex.messageVertex(nb, neighbours))
-      }
-      .step { (vertex, _) =>
+        }
+//      .step { (vertex, _) =>
+//        vertex.setState("triangleCount", 0)
+//        val neighbours = vertex.neighbours.toSet
+//        neighbours.foreach(nb => vertex.messageVertex(nb, neighbours))
+//      }
+      .step { vertex =>
         val neighbours = vertex.neighbours.toSet
         val queue      = vertex.messageQueue[Set[vertex.IDType]]
         var tri        = 0
