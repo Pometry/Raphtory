@@ -22,7 +22,7 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/pyth
    Install/python/pyraphtory.ipynb
    Ingestion/sprouter.md
    Analysis/queries.md
-     
+
 .. toctree::
    :hidden:
    :caption: Inbuilt Algorithms
@@ -30,7 +30,7 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/pyth
    _autodoc/com/raphtory/algorithms/generic/index.rst
    _autodoc/com/raphtory/algorithms/temporal/index.rst
    _autodoc/com/raphtory/algorithms/filters/index.rst
-
+   
 .. toctree::
    :hidden:
    :maxdepth: 1
@@ -38,22 +38,6 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/pyth
 
    Analysis/LOTR_six_degrees.md
    Analysis/analysis-explained.md
-
-.. toctree::
-   :hidden:
-   :maxdepth: 1
-   :caption: PyRaphtory API
-
-   PythonDocs/index.rst
-
-.. toctree::
-   :maxdepth: 2
-   :hidden:
-   :caption: Example Projects
-
-   Examples/lotr.md
-   Examples/nft.md
-   Examples/higgs-twitter.md
 
 .. toctree:: 
    :maxdepth: 2
@@ -64,19 +48,28 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/pyth
    Deployment/kubernetes.md
 
 .. toctree::
-   :maxdepth: 2
    :hidden:
-   :caption: Contributing to Raphtory
+   :maxdepth: 1
+   :caption: PyRaphtory API
 
+   PythonDocs/index.rst
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Raphtory Scala
+
+   scala/quickstart.md
+   scala/apidocs.md
    Install/scala/raphtory.md
    Install/scala/install_java.md
    Install/scala/compile_run_example.md
-   Dev/building.md
-   Dev/publishing.md
 
 .. toctree::
-   :hidden:
    :maxdepth: 2
-   :caption: API (Scala)
+   :hidden:
+   :caption: Example Projects
 
-   Scaladoc/index.md
+   Examples/lotr.md
+   Examples/nft.md
+   Examples/higgs-twitter.md
