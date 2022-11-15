@@ -26,16 +26,16 @@ class GraphBuilderF[F[_], T](
 
   private val totalSourceErrors = TelemetryReporter.totalSourceErrors.labels(s"$sourceId", graphId) // TODO
 
-  def buildGraphFromT(t: Chunk[T], index: Ref[F, Long]): F[Unit] =
+  def buildGraphFromT(chunk: Chunk[T], index: Ref[F, Long]): F[Unit] =
     timed(
-            s"BATCH PROCESSING OF ${t.size}",
+            s"BATCH PROCESSING OF ${chunk.size}",
             for {
-              b <- F.delay(new mutable.ArrayBuffer[GraphUpdate](t.size))
+              b <- F.delay(new mutable.ArrayBuffer[GraphUpdate](chunk.size))
               cb = UnsafeGraphCallback(partitions.size, sourceId, -1, graphId, b)
               _ <- timed(
                            "HANDOVER into cats-effect",
-                           index.getAndUpdate(_ + t.size).map { index =>
-                             t.foldLeft(index) { (i, t) =>
+                           index.getAndUpdate(_ + chunk.size).map { index =>
+                             chunk.foldLeft(index) { (i, t) =>
                                builder(cb.copy(index = i), t)
                                i + 1
                              }
