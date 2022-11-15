@@ -61,9 +61,6 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/pyth
 
    scala/quickstart.md
    scala/apidocs.md
-   Install/scala/raphtory.md
-   Install/scala/install_java.md
-   Install/scala/compile_run_example.md
 
 .. toctree::
    :maxdepth: 2
