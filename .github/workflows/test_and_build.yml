@@ -79,7 +79,10 @@ jobs:
       - name: Run notebook tests
         run: cd examples && pytest --nbmake -n=auto
       - name: Run doc compile check
-        run: export PATH=$(pwd)/sbt/bin:$PATH && cd docs && python -m pip install -r requirements.txt && apt-get update && apt-get -y install python3-sphinx && make html
+        run: | 
+          export PATH=$(pwd)/sbt/bin:$PATH
+          apt update && apt install -y pandoc 
+          cd docs && python -m pip install -r requirements.txt && apt-get update && apt-get -y install python3-sphinx && make html
       - name: Run SBT tests
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH
