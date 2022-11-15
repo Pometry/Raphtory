@@ -269,8 +269,6 @@ lazy val assemblySettings = assembly / assemblyMergeStrategy := {
 
 Test / parallelExecution := true
 
-core / Compile / logLevel := Level.Error
-
 Global / concurrentRestrictions := Seq(
         Tags.limit(Tags.Test, 1)
 )
