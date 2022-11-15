@@ -60,6 +60,7 @@ jobs:
           export PATH=$(pwd)/sbt/bin:$PATH
           apt-get update && apt-get install make
           echo "core / Compile / logLevel := Level.Error" >> build.sbt
+          echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
           make gh-sbt-build
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
