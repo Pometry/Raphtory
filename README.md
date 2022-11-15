@@ -37,7 +37,9 @@ Features of Raphtory include:
 
 Install PyRaphtory, which contains all the functions to create a graph, run algorithms and analyse results.
 ```bash
- $ pip install pyraphtory_jvm
+pip install requests pandas pemja cloudpickle parsy
+pip install -i https://test.pypi.org/simple/ pyraphtory_jvm==0.2.0a7
+pip install -i https://test.pypi.org/simple/ pyraphtory==0.2.0a7
 ```
 
 # Basic Example
