@@ -265,7 +265,7 @@ def scaladoc_link(role, rawtext, text: str, lineno, inliner, options={}, content
         node = nodes.inline(rawtext)
         logger.warning(f"Cannot find docs for `{text}`", location=node, type='ref')
     else:
-        node = nodes.reference(rawtext, refuri=link)
+        node = nodes.reference(rawtext, refuri=link, target="_blank")
     node.line = lineno
     for child in children:
         node += child
