@@ -8,6 +8,8 @@ import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.ServiceDescriptor
 import com.raphtory.internals.components.ServiceRegistry
 
+import scala.concurrent.duration.DurationInt
+
 /** Local implementation of the ServiceRepository
   * @param topics the legacy TopicRepository to be removed soon
   * @param services Map from (service name, instance ID) to instance

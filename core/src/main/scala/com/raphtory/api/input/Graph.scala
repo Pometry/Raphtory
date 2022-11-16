@@ -35,7 +35,6 @@ import org.slf4j.LoggerFactory
   * @see [[Properties]] [[Spout]]
   */
 trait Graph {
-  protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   def totalPartitions: Int
   protected def handleGraphUpdate(update: GraphUpdate): Unit
@@ -43,10 +42,17 @@ trait Graph {
   def index: Long
   protected def graphID: String
 
-  private val vertexAddCounter    = TelemetryReporter.vertexAddCounter.labels(s"$sourceID", graphID)
-  private val vertexDeleteCounter = TelemetryReporter.vertexDeleteCounter.labels(s"$sourceID", graphID)
-  private val edgeAddCounter      = TelemetryReporter.edgeAddCounter.labels(s"$sourceID", graphID)
-  private val edgeDeleteCounter   = TelemetryReporter.edgeDeleteCounter.labels(s"$sourceID", graphID)
+  @inline
+  private def vertexAddCounter    = TelemetryReporter.vertexAddCounter.labels(s"$sourceID", graphID)
+
+  @inline
+  private def vertexDeleteCounter = TelemetryReporter.vertexDeleteCounter.labels(s"$sourceID", graphID)
+
+  @inline
+  private def edgeAddCounter      = TelemetryReporter.edgeAddCounter.labels(s"$sourceID", graphID)
+
+  @inline
+  private def edgeDeleteCounter   = TelemetryReporter.edgeDeleteCounter.labels(s"$sourceID", graphID)
 
   /** Adds a new vertex to the graph or updates an existing vertex
     *
@@ -74,7 +80,6 @@ trait Graph {
       secondaryIndex: Long = index
   ): Unit = {
     val update = VertexAdd(sourceID, updateTime, secondaryIndex, srcId, properties, vertexType.toOption)
-    logger.trace(s"Created update $update")
     handleGraphUpdate(update)
     vertexAddCounter.inc()
   }

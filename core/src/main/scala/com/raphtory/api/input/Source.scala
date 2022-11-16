@@ -1,11 +1,13 @@
 package com.raphtory.api.input
 
-import com.raphtory.internals.communication.EndPoint
-import com.raphtory.internals.graph.GraphAlteration
-import com.raphtory.internals.graph.GraphBuilderInstance
+import cats.effect.Async
+import cats.effect.Resource
+import cats.effect.kernel.Ref
+import cats.syntax.all._
+import com.raphtory.internals.graph.GraphBuilderF
+import com.raphtory.protocol.PartitionService
 import com.twitter.chill.ClosureCleaner
-import com.typesafe.scalalogging.Logger
-import org.slf4j.LoggerFactory
+import io.prometheus.client.Counter
 
 import scala.concurrent.duration._
 
@@ -16,8 +18,14 @@ trait Source {
 
   def getBuilderClass: Class[_] = builder.getClass
 
-  def buildSource(graphID: String, id: Int): SourceInstance[MessageType] =
-    new SourceInstance[MessageType](id, spout.buildSpout(), builder.buildInstance(graphID, id))
+  def make[F[_]: Async](
+      graphID: String,
+      id: Int,
+      partitions: Map[Int, PartitionService[F]]
+  ): Resource[F, StreamSource[F, MessageType]] =
+    builder
+      .make(graphID, id, partitions)
+      .map(builder => new StreamSource[F, MessageType](id, spout.buildSpout(), builder))
 }
 
 class ConcreteSource[T](override val spout: Spout[T], override val builder: GraphBuilder[T]) extends Source {
@@ -25,35 +33,25 @@ class ConcreteSource[T](override val spout: Spout[T], override val builder: Grap
 
 }
 
-class SourceInstance[T](id: Int, spoutInstance: SpoutInstance[T], builderInstance: GraphBuilderInstance[T]) {
+class StreamSource[F[_], T](id: Int, spoutInstance: SpoutInstance[T], builderInstance: GraphBuilderF[F, T])(implicit
+    F: Async[F]
+) {
 
-  /** Logger instance for writing out log messages */
-  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-  def sourceID: Int  = id
+  def elements(counter: Counter.Child): fs2.Stream[F, Unit] =
+    for {
+      index <- fs2.Stream.eval(Ref.of[F, Long](1L))
+      tuples = fs2.Stream.fromBlockingIterator[F](spoutInstance, 512)
+      _     <- tuples.chunks.parEvalMapUnordered(4)(chunk =>
+                 builderInstance.buildGraphFromT(chunk, index) *> F.delay(counter.inc(chunk.size))
+               )
+    } yield ()
 
-  def pollInterval: FiniteDuration = 1.seconds
+  def sentMessages: F[Long] = builderInstance.getSentUpdates
 
-  def hasRemainingUpdates: Boolean = spoutInstance.hasNext
-
-  def sendUpdates(index: Long, failOnError: Boolean): Unit = {
-    val element = spoutInstance.next()
-    builderInstance.sendUpdates(element, index)(failOnError)
-  }
-
-  def spoutReschedules(): Boolean = spoutInstance.spoutReschedules()
-
-  def executeReschedule(): Unit = spoutInstance.executeReschedule()
-
-  def setupStreamIngestion(
-      streamWriters: collection.Map[Int, EndPoint[GraphAlteration]]
-  ): Unit =
-    builderInstance.setupStreamIngestion(streamWriters)
-
-  def close(): Unit = spoutInstance.close()
-
-  def sentMessages(): Long = builderInstance.getSentUpdates
-
-  def highestTimeSeen(): Long = builderInstance.highestTimeSeen
+  def highestTimeSeen(): F[Long]     = builderInstance.highestTimeSeen
+  def spoutReschedules(): F[Boolean] = F.delay(spoutInstance.spoutReschedules())
+  def pollInterval: FiniteDuration   = 1.seconds
+  def sourceID: Int                  = id
 }
 
 object Source {

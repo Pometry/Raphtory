@@ -24,9 +24,7 @@ private[raphtory] class TopicRepository(
 ) {
 
   // Methods to override:
-  protected def graphUpdatesConnector: Connector = defaultIngestionConnector
-  protected def graphSyncConnector: Connector    = defaultIngestionConnector
-  protected def outputConnector: Connector       = defaultIngestionConnector
+  protected def outputConnector: Connector = defaultIngestionConnector
 
   protected def submissionsConnector: Connector       = defaultControlConnector
   protected def completedQueriesConnector: Connector  = defaultControlConnector
@@ -68,12 +66,6 @@ private[raphtory] class TopicRepository(
     )
 
   // graph wise topics
-  final def graphUpdates(graphID: String): ShardingTopic[GraphAlteration] =
-    ShardingTopic[GraphAlteration](numPartitions, graphUpdatesConnector, s"graph.updates", graphID)
-
-  final def graphSync(graphID: String): ShardingTopic[GraphUpdateEffect] =
-    ShardingTopic[GraphUpdateEffect](numPartitions, graphSyncConnector, s"graph.sync", graphID)
-
   final def watermark(graphID: String): ExclusiveTopic[WatermarkTime] =
     ExclusiveTopic[WatermarkTime](watermarkConnector, "watermark", graphID)
 

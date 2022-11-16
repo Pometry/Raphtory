@@ -24,15 +24,11 @@ class RaphtoryGraphTest extends FunSuite {
           extends QuerySender(
                   graphID = "",
                   service = null,
-                  scheduler = null,
                   topics = null,
                   config = config,
                   clientID = ""
           ) {
     override def IDForUpdates(): Int = 1
-
-    override def flushArrow(): Unit = {}
-    override def runFlushArrow(): Unit = {}
   }
 
   private def createMockGraph(config: Config = ConfigBuilder.getDefaultConfig) =

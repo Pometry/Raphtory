@@ -9,7 +9,7 @@ sealed private[raphtory] trait GraphAlteration {
   val sourceID: Long
 }
 
-private[raphtory] object GraphAlteration {
+private[raphtory] object GraphAlteration extends ProtoField[GraphAlteration] {
 
   sealed trait GraphUpdate extends GraphAlteration {
     val updateTime: Long
