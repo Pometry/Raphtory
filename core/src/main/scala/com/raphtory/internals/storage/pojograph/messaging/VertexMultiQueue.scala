@@ -14,21 +14,21 @@ final private[raphtory] class VertexMultiQueue {
 
   def getMessageQueue(superStep: Int): Vector[Any] =
     if (superStep % 2 == 0) {
-      logger.debug(s"retreived even message queue at step $superStep")
+      logger.trace(s"retreived even message queue at step $superStep")
       evenMessageQueue.asScala.toVector
     }
     else {
-      logger.debug(s"retreived odd message queue at step $superStep")
+      logger.trace(s"retreived odd message queue at step $superStep")
       oddMessageQueue.asScala.toVector
     }
 
   def clearQueue(superStep: Int): Unit =
     if (superStep % 2 == 0) {
-      logger.debug(s"Clearing even message queue at super step '$superStep'.")
+      logger.trace(s"Clearing even message queue at super step '$superStep'.")
       evenMessageQueue.clear()
     }
     else {
-      logger.debug(s"Clearing odd message queue at super step '$superStep'.")
+      logger.trace(s"Clearing odd message queue at super step '$superStep'.")
       oddMessageQueue.clear()
     }
 
@@ -41,10 +41,10 @@ final private[raphtory] class VertexMultiQueue {
   def receiveMessage(superStep: Int, data: Any): Unit =
     if (superStep % 2 == 0) {
       evenMessageQueue.add(data)
-      logger.debug(s"data $data added to even queue at step $superStep")
+      logger.trace(s"data $data added to even queue at step $superStep")
     }
     else {
-      logger.debug(s"data $data added to odd queue at step $superStep")
+      logger.trace(s"data $data added to odd queue at step $superStep")
       oddMessageQueue.add(data)
     }
 
