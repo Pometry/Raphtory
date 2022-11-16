@@ -37,7 +37,6 @@ Features of Raphtory include:
 - Python 3.9.15
   - Conda, virtualenv or system installed Python
 - Mac and Linux
-- Not compatible with pyenv
 
 # Install
 
