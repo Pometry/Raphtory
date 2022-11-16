@@ -52,11 +52,7 @@ private[raphtory] class Writer[F[_]](
   private val partitioner = Partitioner()
 
   def processUpdates(req: protocol.GraphAlterations): F[Unit] =
-    for {
-      _ <- lock.acquire
-      _ <- processAlterations(req)
-      _ <- lock.release
-    } yield ()
+    F.bracket(lock.acquire)(_ => processAlterations(req))(_ => lock.release)
 
   def processEffects(req: protocol.GraphAlterations): F[Unit] =
     for {

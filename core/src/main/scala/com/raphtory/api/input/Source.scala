@@ -41,7 +41,7 @@ class StreamSource[F[_], T](id: Int, spoutInstance: SpoutInstance[T], builderIns
     for {
       index <- fs2.Stream.eval(Ref.of[F, Long](1L))
       tuples = fs2.Stream.fromBlockingIterator[F](spoutInstance, 512)
-      _     <- tuples.chunks.evalMap(chunk =>
+      _     <- tuples.chunks.parEvalMapUnordered(4)(chunk =>
                  builderInstance.buildGraphFromT(chunk, index) *> F.delay(counter.inc(chunk.size))
                )
     } yield ()
