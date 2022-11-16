@@ -68,8 +68,10 @@ class PyRaphtoryTest(unittest.TestCase):
             .transform(self.ctx.algorithms.generic.centrality.PageRank()) \
             .execute(self.ctx.algorithms.generic.NodeList(*cols)) \
             .to_df(["name"] + cols)
-        expected_result = ",timestamp,window,name,prlabel\n0,1,,1,0.5591676860759176\n1,1,,2,0.6779902175724227\n2,1," \
-                          ",3,0.6779902175724227\n3,1,,4,0.6779902175724227\n4,1,,5,2.4068616612068134\n"
+        expected_result = ",timestamp,window,name,prlabel\n0,1,,1,0.559167686075918\n1,1,,2,0.677990217572423\n2,1," \
+                          ",3,0.677990217572423\n3,1,,4,0.677990217572423\n4,1,,5,2.406861661206814\n"
+        df_pagerank = df_pagerank.round(15)
+        print(df_pagerank.to_csv())
         self.assertEqual(df_pagerank.to_csv(), expected_result)
         graph.destroy(force=True)
 

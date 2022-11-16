@@ -34,12 +34,13 @@ class CSVEdgeListSource(
 ) extends Source {
   override type MessageType = String
 
+  private var typesSet: Boolean       = _
   private var dateTimeFormat: Boolean = _
   private var epochFormat: Boolean    = _
   private var longFormat: Boolean     = _
   private var stringFormat: Boolean   = _
 
-  def buildCSVEdgeListGraph(graph: Graph, tuple: String, rawTime: String, source: String, target: String) = {
+  def buildCSVEdgeListGraph(graph: Graph, tuple: String, rawTime: String, source: String, target: String): Unit = {
     val timestamp = {
       if (dateTimeFormat)
         parseDateTime(rawTime)
@@ -47,7 +48,8 @@ class CSVEdgeListSource(
         rawTime.toLong
       else
         throw new RuntimeException(
-                s"Timestamp does not conform to what was seen in first line of data in tuple: $tuple"
+                s"Timestamp in tuple '$tuple' does not conform to what was seen in first" +
+                  s" line of data (${if (dateTimeFormat) "datetime format" else "epoch format"})"
         )
     }
 
@@ -76,25 +78,32 @@ class CSVEdgeListSource(
 
   def checkTypesAndBuildGraph(graph: Graph, tuple: String, rawTime: String, source: String, target: String) = {
     //Check time and convert to correct type
-    try {
-      rawTime.toLong
-      epochFormat = true
-    }
-    catch {
-      case e: NumberFormatException =>
-        parseDateTime(rawTime)
-        dateTimeFormat = true
-    }
+    if (!typesSet)
+      typesSet.synchronized {
+        if (!typesSet) {
+          try {
+            rawTime.toLong
+            epochFormat = true
+          }
+          catch {
+            case e: NumberFormatException =>
+              parseDateTime(rawTime)
+              dateTimeFormat = true
+          }
 
-    try {
-      source.toLong
-      target.toLong
-      longFormat = true
-    }
-    catch {
-      case e: NumberFormatException =>
-        stringFormat = true
-    }
+          try {
+            source.toLong
+            target.toLong
+            longFormat = true
+          }
+          catch {
+            case e: NumberFormatException =>
+              stringFormat = true
+          }
+        }
+        typesSet = true
+      }
+
     //    Build Graph
     buildCSVEdgeListGraph(graph, tuple, rawTime, source, target)
   }
@@ -108,10 +117,7 @@ class CSVEdgeListSource(
       val rawTime  = fileLine(timeIndex)
       graph.index match {
         case 1 => if (!header) checkTypesAndBuildGraph(graph, tuple, rawTime, source, target)
-        case 2 =>
-          if (header) checkTypesAndBuildGraph(graph, tuple, rawTime, source, target)
-          else buildCSVEdgeListGraph(graph, tuple, rawTime, source, target)
-        case _ => buildCSVEdgeListGraph(graph, tuple, rawTime, source, target)
+        case _ => checkTypesAndBuildGraph(graph, tuple, rawTime, source, target)
       }
     }
 }
