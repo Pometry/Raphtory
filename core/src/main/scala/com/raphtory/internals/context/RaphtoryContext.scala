@@ -35,13 +35,11 @@ abstract class Context(serviceAsResource: Resource[IO, RaphtoryService[IO]], con
                        else if (!failOnNotFound && ifGraphExists.success) throw GraphAlreadyDeployed(graphID)
       _             <- Prometheus[IO](config.getInt("raphtory.prometheus.metrics.port"))
       topicRepo     <- LocalTopicRepository[IO](config, None)
-      querySender   <-
-        Resource.make(IO.delay(new QuerySender(graphID, service, new Scheduler(), topicRepo, config, createName))) {
-          qs =>
-            IO.blocking {
-              if (destroy) qs.destroyGraph(true) else qs.disconnect()
-            }
-        }
+      querySender   <- Resource.make(IO.delay(new QuerySender(graphID, service, topicRepo, config, createName))) { qs =>
+                         IO.blocking {
+                           if (destroy) qs.destroyGraph(true) else qs.disconnect()
+                         }
+                       }
       _             <- { if (!failOnNotFound) Resource.eval(IO(querySender.establishGraph())) else Resource.eval(IO.unit) }
     } yield (Query(graphID = graphID), querySender, config)
 }
