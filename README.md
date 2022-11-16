@@ -75,18 +75,23 @@ graph.add_edge(2, 1, 3)
 Collect simple metrics from your graph.
 ```python
 df = graph
-    .select(lambda vertex: Row(vertex.name(), vertex.out_degree(), vertex.in_degree()))
-    .to_df(["name", "out_degree", "in_degree"])
+      .range(1,4,1)
+      .window(1)
+      .select(lambda vertex: Row(vertex.name(), vertex.out_degree(), vertex.in_degree()))
+      .to_df(["name", "out_degree", "in_degree"])
 ```
 Check out the output.
 ```python
 df
 ```
-|    |   timestamp | window   |   name |   out_degree |   in_degree |
-|---:|------------:|:---------|-------:|-------------:|------------:|
-|  0 |           2 |          |      1 |            2 |           0 |
-|  1 |           2 |          |      2 |            0 |           1 |
-|  2 |           2 |          |      3 |            0 |           1 |
+|    |   timestamp |   window |   name |   out_degree |   in_degree |
+|---:|------------:|---------:|-------:|-------------:|------------:|
+|  0 |           1 |        1 |      1 |            0 |           0 |
+|  1 |           2 |        1 |      2 |            0 |           0 |
+|  2 |           3 |        1 |      3 |            0 |           0 |
+|  3 |           4 |        1 |      1 |            2 |           0 |
+|  4 |           4 |        1 |      2 |            0 |           1 |
+|  5 |           4 |        1 |      3 |            0 |           1 |
 
 # Want to do something more complex?
 If you would like to do something more complex, follow these links:
