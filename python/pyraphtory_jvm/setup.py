@@ -36,7 +36,7 @@ setup_kwargs = {
     'cmdclass': {
         'build': BuildCommand,
     },
-    'python_requires': '>=3.9.13,<3.11',
+    'python_requires': '>=3.7,<3.11',
     'classifiers': [
         'Development Status :: 1 - Planning',
         'Intended Audience :: Science/Research',
