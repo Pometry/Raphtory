@@ -15,7 +15,10 @@
 <img alt="Issues" src="https://img.shields.io/github/issues/Raphtory/Raphtory?color=brightgreen" />
 </a>
 </p>
-<br>
+
+<p align="center">
+<a href="https://www.raphtory.com/"><b>Website 🌍</b></a> <a href="https://docs.raphtory.com/en/development/"><b>Documentation 📒</b></a> <a href="https://github.com/Raphtory/Raphtory"><b>Source Code 🖥</b></a> <a href="https://docs.raphtory.com/en/development/Examples/lotr.html"><b>Tutorial 🧙🏻</b></a> <a href="https://github.com/Raphtory/Raphtory/issues"><b>Report a Bug 🐛</b></a>
+</p>
 
 Raphtory is an open-source platform for distributed real-time temporal graph analytics, allowing you to load and process large dynamic datasets across time. 
 
@@ -24,13 +27,6 @@ Features of Raphtory include:
 2. Easy to **scale**
 3. Easy to **distribute** and **elastic**
 4. Familiar functions to **Pandas** and **NetworkX**
-
-### Useful Links
-- **[Website 🌍](https://www.raphtory.com/)**
-- **[Documentation 📒](https://docs.raphtory.com/en/development/)**
-- **[Source Code 🖥](https://github.com/Raphtory/Raphtory)**
-- **[Tutorial 🧙🏻‍](https://docs.raphtory.com/en/development/Examples/lotr.html)**
-- **[Report a Bug 🐛](https://github.com/Raphtory/Raphtory/issues)**
 
 ### Articles and Talks about Raphtory
 - **[Raphtory on the Alan Turing Institute Blog](https://www.turing.ac.uk/blog/just-add-time-dizzying-potential-dynamic-graphs)**
