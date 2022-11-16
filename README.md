@@ -33,6 +33,12 @@ Features of Raphtory include:
 <img src="https://user-images.githubusercontent.com/6665739/154071628-a55fb5f9-6994-4dcf-be03-401afc7d9ee0.png"/> If you like the sound of what we are working on, come join our <a href="https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA">Slack Community</a>! <img src="https://user-images.githubusercontent.com/6665739/154071628-a55fb5f9-6994-4dcf-be03-401afc7d9ee0.png"/>
 </p>
 
+# Prerequisites
+- Python 3.9.15
+  - Conda, virtualenv or system installed Python
+- Mac and Linux
+- Not compatible with pyenv
+
 # Install
 
 Install PyRaphtory, which contains all the functions to create a graph, run algorithms and analyse results.
