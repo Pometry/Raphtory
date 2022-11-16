@@ -7,6 +7,7 @@ import com.raphtory.api.time.Interval
 import com.raphtory.api.time.NullInterval
 import com.raphtory.internals.components.querymanager.NullPointSet
 import com.raphtory.internals.components.querymanager.PointPath
+import com.raphtory.internals.components.querymanager.ProtoField
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.components.querymanager.SinglePoint
@@ -25,6 +26,8 @@ private[raphtory] case class Perspective(
     actualStart: Long,
     actualEnd: Long
 ) extends time.Perspective
+
+object Perspective extends ProtoField[Perspective]
 
 private[raphtory] class PerspectiveController(
     private var perspectiveStreams: Array[LazyList[Perspective]]

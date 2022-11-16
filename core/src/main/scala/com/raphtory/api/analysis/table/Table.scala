@@ -1,11 +1,14 @@
 package com.raphtory.api.analysis.table
 
 import com.raphtory.api.output.sink.Sink
-import com.raphtory.api.progresstracker.{QueryProgressTracker, QueryProgressTrackerWithIterator}
+import com.raphtory.api.progresstracker.QueryProgressTracker
+import com.raphtory.api.progresstracker.QueryProgressTrackerWithIterator
+import com.raphtory.internals.components.querymanager.Operation
 import com.raphtory.internals.components.querymanager.QueryManagement
+
 import scala.concurrent.duration.Duration
 
-sealed private[raphtory] trait TableFunction extends QueryManagement
+sealed private[raphtory] trait TableFunction                            extends Operation
 final private[raphtory] case class TableFilter(f: (Row) => Boolean)     extends TableFunction
 final private[raphtory] case class Explode(f: Row => IterableOnce[Row]) extends TableFunction
 private[raphtory] case object WriteToOutput                             extends TableFunction
