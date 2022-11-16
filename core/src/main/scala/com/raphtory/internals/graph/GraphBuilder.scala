@@ -49,7 +49,7 @@ class GraphBuilderF[F[_], T](
           val maxTime = updates.maxBy(_.updateTime).updateTime
           for {
             _ <- partitions(partition)
-                   .processAlterations(
+                   .processUpdates(
                            protocol.GraphAlterations(graphId, alterations = updates.map(protocol.GraphAlteration(_)))
                    )
             _ <- highestSeen.update(Math.max(_, maxTime))

@@ -6,6 +6,7 @@ import cats.effect.Async
 import cats.effect.Deferred
 import cats.effect.Resource
 import cats.effect.std.Queue
+import cats.effect.std.Semaphore
 import cats.syntax.all._
 import com.raphtory.api.input._
 import com.raphtory.internals.FlushToFlight
@@ -33,6 +34,7 @@ import scala.language.postfixOps
 import scala.util.control.NonFatal
 
 private[raphtory] class Writer[F[_]](
+    lock: Semaphore[F],
     graphID: String,
     partitionID: Int,
     storage: GraphPartition,
@@ -49,14 +51,26 @@ private[raphtory] class Writer[F[_]](
 
   private val partitioner = Partitioner()
 
-  def processAlterations(req: protocol.GraphAlterations): F[Empty] =
+  def processUpdates(req: protocol.GraphAlterations): F[Unit] =
+    for {
+      _ <- lock.acquire
+      _ <- processAlterations(req)
+      _ <- lock.release
+    } yield ()
+
+  def processEffects(req: protocol.GraphAlterations): F[Unit] =
+    for {
+      _ <- processAlterations(req)
+    } yield ()
+
+  private def processAlterations(req: protocol.GraphAlterations): F[Unit] =
     for {
       effects <- Async[F].blocking(handleLocalAlterations(req))
       delivery = effects
                    .groupBy(effect => partitioner.getPartitionForId(effect.updateId))
                    .map {
                      case (partitionId, effects) =>
-                       partitions(partitionId).processAlterations(
+                       partitions(partitionId).processEffects(
                                protocol.GraphAlterations(graphID, effects.map(protocol.GraphAlteration(_)))
                        )
                    }
@@ -64,7 +78,7 @@ private[raphtory] class Writer[F[_]](
       _       <- Async[F]
                    .parSequenceN(partitioner.totalPartitions)(delivery)
                    .void
-    } yield Empty()
+    } yield ()
 
   private def handleLocalAlterations(msgs: protocol.GraphAlterations): Vector[GraphUpdateEffect] =
     msgs.alterations.view
@@ -314,7 +328,8 @@ object Writer {
     for {
       _          <- Resource.eval(startupMessage(graphID, partitionID))
       partitions <- registry.partitions
-      writer     <- Resource.eval(Async[F].delay(new Writer[F](graphID, partitionID, storage, partitions, conf)))
+      lock       <- Resource.eval(Semaphore[F](1))
+      writer     <- Resource.eval(Async[F].delay(new Writer[F](lock, graphID, partitionID, storage, partitions, conf)))
     } yield writer
 
   private def startupMessage[F[_]: Async](graphId: String, partitionId: Int) =

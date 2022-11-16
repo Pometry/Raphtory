@@ -67,10 +67,16 @@ abstract class PartitionServiceImpl[F[_]: Async](
       case _                                              => failure[F]
     }
 
-  override def processAlterations(req: GraphAlterations): F[Empty] =
+  override def processUpdates(req: GraphAlterations): F[Empty] =
     for {
       writer <- graphs.get.map(graphs => graphs(req.graphId).data.writer)
-      _      <- writer.processAlterations(req)
+      _      <- writer.processUpdates(req)
+    } yield Empty()
+
+  override def processEffects(req: GraphAlterations): F[Empty] =
+    for {
+      writer <- graphs.get.map(graphs => graphs(req.graphId).data.writer)
+      _      <- writer.processEffects(req)
     } yield Empty()
 
   private def queryExecutor(query: querymanager.Query) =

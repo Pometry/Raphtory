@@ -142,7 +142,7 @@ class DefaultRaphtoryService[F[_]](
   override def processUpdate(req: protocol.GraphUpdate): F[Status] =
     for {
       _ <- F.delay(logger.trace(s"Processing graph update ${req.update}"))
-      _ <- partitions(partitioner.getPartitionForId(req.update.srcId)).processAlterations(
+      _ <- partitions(partitioner.getPartitionForId(req.update.srcId)).processUpdates(
                    protocol.GraphAlterations(req.graphId, Vector(protocol.GraphAlteration(req.update)))
            )
 

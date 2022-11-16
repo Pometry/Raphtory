@@ -100,5 +100,6 @@ service PartitionService {
   rpc establishGraph(GraphInfo) returns (Status);
   rpc destroyGraph(GraphInfo) returns (Status);
   rpc establishExecutor(Query) returns (Status);
-  rpc processAlterations(GraphAlterations) returns (Empty);
+  rpc processUpdates(GraphAlterations) returns (Empty);
+  rpc processEffects(GraphAlterations) returns (Empty);
 }
