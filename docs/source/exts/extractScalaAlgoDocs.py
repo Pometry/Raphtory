@@ -28,6 +28,8 @@ def setup(app: Sphinx):
     app.add_role("scaladoc", scaladoc_link)
     app.add_config_value("raphtory_src_root", "", 'env', [str])
     app.add_config_value("autodoc_packages", [], 'env', [list[str]])
+    app.add_config_value("build_scaladocs", True, 'env', [bool])
+    app.add_config_value("build_algodocs", True, 'env', [bool])
     app.add_config_value("raphtory_root", "", 'env', [str])
     app.connect("config-inited", handle_config_init)
 
@@ -63,17 +65,20 @@ def handle_config_init(app: Sphinx, config: Config):
     scala_src_root = config.raphtory_src_root
 
     if scala_src_root:
-        scala_src_root = Path(scala_src_root)
-        # clean up old files
-        shutil.rmtree(doc_root, ignore_errors=True)
-        for package in config.autodoc_packages:
-            rel_path = Path(*package.split('.'))
-            src_root = scala_src_root / rel_path
+        if config.build_algodocs:
+            scala_src_root = Path(scala_src_root)
+            # clean up old files
+            shutil.rmtree(doc_root, ignore_errors=True)
+            for package in config.autodoc_packages:
+                rel_path = Path(*package.split('.'))
+                src_root = scala_src_root / rel_path
 
-            write_index(doc_root / rel_path, package)
-            discover_files(doc_root / rel_path, src_root, scala_src_root)
-        # build scala doc
-        compile_move_scaladoc(config, source_root)
+                write_index(doc_root / rel_path, package)
+                discover_files(doc_root / rel_path, src_root, scala_src_root)
+            # build scala doc
+        if config.build_scaladocs:
+            compile_move_scaladoc(config, source_root)
+
 
 def discover_files(doc_root: Path, scala_root: Path, base_path: Path):
     """Recursively search for files to include and copy doc strings"""
@@ -260,7 +265,7 @@ def scaladoc_link(role, rawtext, text: str, lineno, inliner, options={}, content
         node = nodes.inline(rawtext)
         logger.warning(f"Cannot find docs for `{text}`", location=node, type='ref')
     else:
-        node = nodes.reference(rawtext, refuri=link)
+        node = nodes.reference(rawtext, refuri=link, target="_blank")
     node.line = lineno
     for child in children:
         node += child

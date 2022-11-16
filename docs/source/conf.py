@@ -57,6 +57,10 @@ autodoc_packages = [
     "com.raphtory.algorithms.filters"
 ]
 
+# Uncomment to turn of rebuilding of scala and algorithm docs (use when writing other docs to speed up compile)
+# build_scaladocs = False
+# build_algodocs = False
+
 sphinx_tabs_valid_builders = ['linkcheck']
 
 # Add any paths that contain templates here, relative to this directory.
