@@ -1,8 +1,8 @@
 # Quick Start Guide
-In this section, we will see how we can work with the Raphtory Scala APIs to create and analyse graphs. The foundations that we have build in the introductory chapters are as much applicable to this section therefore we won't be revisiting them here again!
+In this section, we will see how we can work with the Raphtory Scala APIs to create and analyse graphs. The foundations that we have built in the introductory chapters are as much applicable to this section therefore we won't be revisiting them here again!
 
 ## Installing Dependencies
-To work with a Scala project you would need Scala, Java and SBT as development dependencies. The dependencies that we have tested the project discussed in this section to work with Raphtory are Scala version `2.13.7`, Java version `11.0.11.hs-adpt` and SBT version `1.8.0`.
+To work with a Scala project you would need Scala, Java and SBT as development dependencies. The dependencies to work with Scala Raphtory APIs are Scala version `2.13.7`, Java version `11.0.11.hs-adpt` and SBT version `1.8.0`.
 
 **Note**: You can manage these dependencies using [SDKMAN](https://sdkman.io/), if you like.
 
@@ -14,7 +14,7 @@ We can create a new project from Raphtory giter8 template like so:
 $ sbt new Raphtory/raphtory.g8
 ```
 
-Besides downloading some of the required dependencies and creating a new project from the template, a couple of project details (with some sensible defaults) are asked, as part of above step, which you might want to change if you would like:
+Besides downloading some of the required dependencies and creating a new project from the template, there are a couple of project details (with some sensible defaults) presented for you to change:
 ```
 name [raphtory-quickstart]:
 version [0.1.0-SNAPSHOT]:
@@ -26,34 +26,34 @@ raphtory_version [0.2.0a7]:
 ```
 
 ## Create/Retrieve Graph
-To start working with a graph, we can either create it with a user-specified graph id (or get it auto-generate) or retrieve an existing graph for a given graph id. We can make use of following APIs:
+To start working with a graph, we can either create one with a user-specified graph ID or get it to auto-generate an ID. We can also retrieve an existing graph from its graph id.
 
 - To create a new graph 
 
     ```scala
     def runWithNewGraph[T](graphID: String = createName, persist: Boolean = false)
     ```
-    **Note**: The default behaviour is to destory any new graph upon exiting the scope of raphtory context unless chosen to persist explicitly.
+    **Note**: The default behaviour is to destroy any new graph upon exiting the scope of raphtory context unless chosen to persist explicitly.
 
-- To retreive an existing graph
+- To retrieve an existing graph
 
     ```scala
     def runWithGraph[T](graphID: String, destroy: Boolean = false)
     ```
-    **Note**: User can chose to destroy the graph upon exiting the raphtory context by set the `destory` flag to `true`.
+    **Note**: User can choose to destroy the graph upon exiting the raphtory context by set the `destroy` flag to `true`.
 
 - Destroy graphs
 
-    Should user choose to destory any of the persisted graphs for a given graph id
+    Should user choose to destroy any of the persisted graphs for a given graph id
     ```scala
     def destroyGraph(graphID: String)
     ```
 
-These APIs are availabe on `RaphtoryContext` which could be summoned differently for local and remote deployments.
+These APIs are available on `RaphtoryContext` which could be summoned differently for local and remote deployments.
 
 - For Local Deployment
 
-    In order to bring "local" raphtory context in scope, the main application needs to extend `Raphtory.Local` abstract class which requires user to override the `run` method that brings `RaphtoryContext` in scope which could be used to create or retrieve graphs:
+    The main application needs to extend the `Raphtory.Local` abstract class. We also need to override the `run` method that brings "local" `RaphtoryContext` in scope, which in turn is used to create or retrieve graphs:
     ```scala
     object Runner extends RaphtoryApp.Local {
         override def run(args: Array[String], ctx: RaphtoryContext): Unit = ???
@@ -62,7 +62,7 @@ These APIs are availabe on `RaphtoryContext` which could be summoned differently
 
 - For Remote Deployment
 
-    In order to bring "remote" raphtory context in scope, the main application should extend `Raphtory.Remote("127.0.0.1", 1736)` abstract class. Since hosts and ports here are already configured as defaults, we need not provide them explicitly:
+     The main application needs to extend the `Raphtory.Remote("127.0.0.1", 1736)` abstract class. Since the hosts and ports mentioned here are already configured as default values in the `application.conf` file, we need not provide them explicitly. We also need to override the `run` method that brings "remote" `RaphtoryContext` in scope, which in turn is used to create or retrieve graphs:
     ```scala
     object RemoteRunner extends RaphtoryApp.Remote() {
         override def run(args: Array[String], ctx: RaphtoryContext): Unit = ???
@@ -82,11 +82,11 @@ These APIs are availabe on `RaphtoryContext` which could be summoned differently
 
     Here we download raw data to `/tmp` and then transform it to vertices and edges using graph builders.
 
-- If you are already working with an existing graph, you may not need to load any new data and you can directly jump onto analysis it
+- If you are already working with an existing graph, you may not need to load any new data and you can jump straight into analysis
 
 
 ## Analyse Graph
-Once you have created or retrieved an already existing graph against a `graphId`, you could run analysis on it and choose to write output to a sink of your choice. 
+Once you have created or retrieved an already existing graph against a `graphId`, you can run analysis on it and choose to write output to a sink of your choice. 
 
 ```scala
 graph
