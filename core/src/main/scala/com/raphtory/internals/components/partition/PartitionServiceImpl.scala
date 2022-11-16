@@ -22,12 +22,18 @@ import com.raphtory.internals.storage.arrow.ArrowSchema
 import com.raphtory.internals.storage.arrow.EdgeSchema
 import com.raphtory.internals.storage.arrow.VertexSchema
 import com.raphtory.internals.storage.pojograph.PojoBasedPartition
+import com.raphtory.protocol.CreatePerspective
 import com.raphtory.protocol.Empty
 import com.raphtory.protocol.GraphAlteration
 import com.raphtory.protocol.GraphAlterations
+import com.raphtory.protocol.GraphId
+import com.raphtory.protocol.Operation
+import com.raphtory.protocol.OperationAndState
+import com.raphtory.protocol.PartitionResult
 import com.raphtory.protocol.PartitionService
 import com.raphtory.protocol.Query
 import com.raphtory.protocol.Status
+import com.raphtory.protocol.VertexMessage
 import com.raphtory.protocol.failure
 import com.raphtory.protocol.success
 import com.typesafe.config.Config
@@ -78,6 +84,18 @@ abstract class PartitionServiceImpl[F[_]: Async](
       writer <- graphs.get.map(graphs => graphs(req.graphId).data.writer)
       _      <- writer.processEffects(req)
     } yield Empty()
+
+  override def processMessages(req: VertexMessage): F[Empty] = ???
+
+  override def establishPerspective(req: CreatePerspective): F[Empty] = ???
+
+  override def executeOperation(req: Operation): F[Empty] = ???
+
+  override def executeOperationWithState(req: OperationAndState): F[Empty] = ???
+
+  override def getResult(req: GraphId): F[PartitionResult] = ???
+
+  override def writePerspective(req: GraphId): F[Empty] = ???
 
   private def queryExecutor(query: querymanager.Query) =
     for {

@@ -18,11 +18,12 @@ import com.raphtory.api.analysis.visitor.InterlayerEdge
 import com.raphtory.api.analysis.visitor.ReducedVertex
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
+import com.raphtory.internals.components.querymanager.Operation
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.management.QuerySender
 
-sealed private[raphtory] trait GraphFunction                             extends QueryManagement
+sealed private[raphtory] trait GraphFunction                             extends Operation
 final private[raphtory] case class SetGlobalState(f: GraphState => Unit) extends GraphFunction
 
 sealed private[raphtory] trait GlobalGraphFunction extends GraphFunction
