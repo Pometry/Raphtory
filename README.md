@@ -7,7 +7,9 @@
 [![Latest Tag](https://img.shields.io/github/v/tag/Raphtory/Raphtory?include_prereleases&sort=semver&color=brightgreen)](https://github.com/Raphtory/Raphtory/tags)
 [![Latest Release](https://img.shields.io/github/v/release/Raphtory/Raphtory?color=brightgreen&include_prereleases&sort=semver)](https://github.com/Raphtory/Raphtory/releases)
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://conventionalcommits.org)
-
+<a href="https://github.com/Raphtory/Raphtory/issues">
+<img alt="Issues" src="https://img.shields.io/github/issues/Raphtory/Raphtory?color=brightgreen" />
+</a>
 Raphtory is an open-source platform for distributed real-time temporal graph analytics, allowing you to load and process large dynamic datasets across time. 
 
 Features of Raphtory include:
@@ -97,8 +99,8 @@ The prior version of Raphtory, raphtory-akka, has now been deprecated. This will
 
 - [![Slack](https://img.shields.io/twitter/follow/raphtory?label=Follow)](https://twitter.com/raphtory) the latest developments on the official Raphtory Twitter
 
-- [![Slack](https://img.shields.io/badge/Join%20Our%20Community-Slack-darkred)](https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA) - we are always happy to answer any questions and chat about the project! Feel free to join the #raphtory-development and #askaway channel to discuss current issues or ask any questions.
- 
+- [![Slack](https://img.shields.io/badge/Join%20Our%20Community-Slack-red)](https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA) - we are always happy to answer any questions and chat about the project! Feel free to join the #raphtory-development and #askaway channel to discuss current issues or ask any questions.
+
 
 # Contributors
 
