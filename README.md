@@ -67,10 +67,10 @@ graph = ctx.new_graph()
 Add nodes and edges to your graph from any file (here we used a CSV file).
 ```python
 graph.add_vertex(1, 1)
-graph.add_vertex(1, 2)
-graph.add_vertex(1, 3)
-graph.add_edge(2, 1, 2)
-graph.add_edge(2, 1, 3)
+graph.add_vertex(2, 2)
+graph.add_vertex(3, 3)
+graph.add_edge(4, 1, 2)
+graph.add_edge(4, 1, 3)
 ```
 Collect simple metrics from your graph.
 ```python
