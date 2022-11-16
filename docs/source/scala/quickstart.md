@@ -1,5 +1,5 @@
-# Quick Start Guide
-In this section, we will see how we can work with the Raphtory Scala APIs to create and analyse graphs. The foundations that we have built in the introductory chapters are as much applicable to this section therefore we won't be revisiting them here again!
+# Quickstart Guide
+In this section, we will see how we can work with the Raphtory Scala APIs to create and analyse graphs. The foundations that we have built in the [PyRaphtory introduction](../Ingestion/sprouter.md) are almost exactly the same as for Scala, so here we shall only introduce concepts which are unique to Scala.
 
 ## Installing Dependencies
 To work with a Scala project you would need Scala, Java and SBT as development dependencies. The dependencies to work with Scala Raphtory APIs are Scala version `2.13.7`, Java version `11.0.11.hs-adpt` and SBT version `1.8.0`.

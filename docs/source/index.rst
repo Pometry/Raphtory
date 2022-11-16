@@ -15,11 +15,17 @@ If you would like a brief summary of what it's used for before fully diving into
 Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/python/pyraphtory>`. Alternatively, if you want to dive headfirst into the API's you can visit the :doc:`PythonDocs <PythonDocs/index>` or :doc:`ScalaDocs <Scaladoc/index>`.
 
 .. toctree::
+   :maxdepth: 2
+   :hidden:
+   :caption: PyRaphtory Quick Start
+
+   Install/python/pyraphtory.ipynb
+
+.. toctree::
    :maxdepth: 1
    :hidden:
    :caption: PyRaphtory Introduction
 
-   Install/python/pyraphtory.ipynb
    Ingestion/sprouter.md
    Analysis/queries.md
 
@@ -37,7 +43,6 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/pyth
    :caption: Writing your own Algorithm
 
    Analysis/LOTR_six_degrees.md
-   Analysis/analysis-explained.md
 
 .. toctree:: 
    :maxdepth: 2
@@ -60,6 +65,7 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/pyth
    :caption: Raphtory Scala
 
    scala/quickstart.md
+   Analysis/analysis-explained.md
    scala/apidocs.md
 
 .. toctree::
