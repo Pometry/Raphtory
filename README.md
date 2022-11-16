@@ -95,8 +95,10 @@ The prior version of Raphtory, raphtory-akka, has now been deprecated. This will
 
 # Community  
 
-- Follow the latest developments on the official Raphtory [Twitter](https://twitter.com/raphtory)
-- Join the [Slack](https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA) - we are always happy to answer any questions and chat about the project! Feel free to join the #raphtory-development and #askaway channel to discuss current issues or ask any questions.
+- [![Slack](https://img.shields.io/twitter/follow/raphtory?label=Follow)](https://twitter.com/raphtory) the latest developments on the official Raphtory Twitter
+
+- [![Slack](https://img.shields.io/badge/Join%20Our%20Community-Slack-darkred)](https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA) - we are always happy to answer any questions and chat about the project! Feel free to join the #raphtory-development and #askaway channel to discuss current issues or ask any questions.
+ 
 
 # Contributors
 
