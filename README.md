@@ -52,40 +52,32 @@ graph = ctx.new_graph()
 
 Add nodes and edges to your graph from any file (here we used a CSV file).
 ```python
-with open(filename, 'r') as csvfile:
-    datareader = csv.reader(csvfile)
-    for row in datareader:
-        source_node = row[0]
-        src_id = graph.assign_id(source_node)
-        target_node = row[1]
-        tar_id = graph.assign_id(target_node)
-        time_stamp = int(row[2])
-        graph.add_vertex(time_stamp, src_id, Properties(ImmutableProperty("name", source_node)), Type("Character"))
-        graph.add_vertex(time_stamp, tar_id, Properties(ImmutableProperty("name", target_node)), Type("Character"))
-        graph.add_edge(time_stamp, src_id, tar_id, Type("Character_Co-occurence"))
+graph.add_vertex(1, 1)
+graph.add_vertex(1, 2)
+graph.add_vertex(1, 3)
+graph.add_edge(2, 1, 2)
+graph.add_edge(2, 1, 3)
 ```
 Collect simple metrics from your graph.
 ```python
 df = graph
-    .at(32674)
-    .past()
-    .select(lambda vertex: Row(vertex.name(), vertex.degree(), vertex.out_degree(), vertex.in_degree()))
-    .to_df(["name", "degree", "out_degree", "in_degree"])
+    .select(lambda vertex: Row(vertex.name(), vertex.out_degree(), vertex.in_degree()))
+    .to_df(["name", "out_degree", "in_degree"])
 ```
-Run a PageRank Algorithm on your graph.
+Check out the output.
 ```python
-cols = ["prlabel"]
-
-df_pagerank = graph.at(32674) 
-                .past() 
-                .transform(ctx.algorithms.generic.centrality.PageRank())
-                .execute(ctx.algorithms.generic.NodeList(*cols)) 
-                .to_df(["name"] + cols)
+df
 ```
+|    |   timestamp | window   |   name |   out_degree |   in_degree |
+|---:|------------:|:---------|-------:|-------------:|------------:|
+|  0 |           2 |          |      1 |            2 |           0 |
+|  1 |           2 |          |      2 |            0 |           1 |
+|  2 |           2 |          |      3 |            0 |           1 |
 
 # Want to do something more complex?
 If you would like to do something more complex, follow these links:
 
+- **[Documentation](https://docs.raphtory.com/en/development/)**
 - [Building your own Scala source code into PyRaphtory](https://docs.raphtory.com/en/development/PythonDocs/setup.html#id2)
 - [Complete list of available algorithms in Raphtory](https://docs.raphtory.com/en/development/_autodoc/com/raphtory/algorithms/generic/index.html)
 - [Writing your own algorithm in Raphtory](https://docs.raphtory.com/en/development/Analysis/LOTR_six_degrees.html)
