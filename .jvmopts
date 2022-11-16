@@ -1,7 +1,8 @@
 -Xmx2g
--Xms512m
+-Xms2g
 -Xss2M
 -XX:MaxMetaspaceSize=1024M
+-XX:GCTimeRatio=1
 --add-opens=java.base/java.util=ALL-UNNAMED
 --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
 --add-opens=java.base/java.lang=ALL-UNNAMED
