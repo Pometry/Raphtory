@@ -11,6 +11,7 @@
 <img alt="Issues" src="https://img.shields.io/github/issues/Raphtory/Raphtory?color=brightgreen" />
 </a>
 </br>
+
 Raphtory is an open-source platform for distributed real-time temporal graph analytics, allowing you to load and process large dynamic datasets across time. 
 
 Features of Raphtory include:
