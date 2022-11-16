@@ -58,7 +58,7 @@ private[raphtory] class IngestionExecutor[F[_], T](
 
   private def iterativePolls: F[Unit] =
     for {
-      _    <- uniquePoll
+      _    <- executePoll
       wait <- source.spoutReschedules()
       _    <- if (wait) waitForNextPoll else F.unit
     } yield ()
@@ -69,9 +69,7 @@ private[raphtory] class IngestionExecutor[F[_], T](
       _ <- F.sleep(source.pollInterval)
     } yield ()
 
-  private def uniquePoll: F[Unit] = executePoll()
-
-  private def executePoll(): F[Unit] = {
+  private def executePoll: F[Unit] = {
 
     val s = for {
       iBlocked <- fs2.Stream.eval(Ref.of(false))

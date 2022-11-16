@@ -1,5 +1,6 @@
 package com.raphtory.internals.components
 
+import cats.Parallel
 import cats.effect.Async
 import cats.effect.Ref
 import cats.effect.Resource
@@ -50,14 +51,13 @@ class DefaultRaphtoryService[F[_]](
     runningGraphs: Ref[F, Map[String, Set[String]]],
     existingGraphs: Ref[F, Set[String]],
     ingestion: IngestionService[F],
-    partitions: Seq[PartitionService[F]],
+    partitions: Map[Int, PartitionService[F]],
     idManager: IDManager,
     registry: ServiceRegistry[F],
     topics: TopicRepository,
     config: Config
-)(implicit
-    F: Async[F]
-) extends RaphtoryService[F] {
+)(implicit F: Async[F])
+        extends RaphtoryService[F] {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val partitioner    = new Partitioner()
 
@@ -79,7 +79,7 @@ class DefaultRaphtoryService[F[_]](
                            for {
                              _ <- F.delay(cluster sendAsync EstablishGraph(req.graphId, req.clientId))
                              _ <- ingestion.establishGraph(req)
-                             _ <- partitions.map(partition => partition.establishGraph(req)).sequence
+                             _ <- controlPartitions(_.establishGraph(req))
                              _ <- runningGraphs.update(graphs =>
                                     if (graphs contains req.graphId) graphs else (graphs + (req.graphId -> Set()))
                                   )
@@ -95,8 +95,7 @@ class DefaultRaphtoryService[F[_]](
                         _      <- F.delay(logger.debug(s"Destroying graph ${req.graphId}"))
                         _      <- F.delay(cluster sendAsync DestroyGraph(req.graphId, req.clientId, req.force))
                         status <- ingestion.destroyGraph(GraphInfo(req.clientId, req.graphId))
-                        _      <-
-                          partitions.map(partition => partition.destroyGraph(GraphInfo(req.clientId, req.graphId))).sequence
+                        _      <- controlPartitions(_.destroyGraph(GraphInfo(req.clientId, req.graphId)))
                         _      <- existingGraphs.update(graphs => graphs - req.graphId)
                       } yield status
     } yield status
@@ -124,7 +123,7 @@ class DefaultRaphtoryService[F[_]](
     protocol.QueryManagement(JobFailed(new IllegalStateException(s"Graph $graphId is not running")))
 
   private def establishExecutors(query: protocol.Query) =
-    partitions.map(partition => partition.establishExecutor(query)).sequence // TODO: in parallel?
+    controlPartitions(_.establishExecutor(query))
 
   private def submitDeserializedQuery(query: Query): F[Stream[F, protocol.QueryManagement]] =
     (for {
@@ -143,15 +142,10 @@ class DefaultRaphtoryService[F[_]](
   override def processUpdate(req: protocol.GraphUpdate): F[Status] =
     for {
       _ <- F.delay(logger.trace(s"Processing graph update ${req.update}"))
-      _ <- registry // TODO: the performance of this is terrible, but this interface is not meant for big loads anyway
-             .partitions
-             .map(_.apply(partitioner.getPartitionForId(req.update.srcId)))
-             .use(
-                     _.processAlterations(
-                             protocol
-                               .GraphAlterations(req.graphId, Vector(protocol.GraphAlteration(req.update)))
-                     )
-             )
+      _ <- partitions(partitioner.getPartitionForId(req.update.srcId)).processAlterations(
+                   protocol.GraphAlterations(req.graphId, Vector(protocol.GraphAlteration(req.update)))
+           )
+
     } yield success
 
   override def unblockIngestion(req: protocol.UnblockIngestion): F[Status] =
@@ -165,6 +159,9 @@ class DefaultRaphtoryService[F[_]](
     }
 
   override def getGraph(req: GetGraph): F[Status] = runningGraphs.get.map(i => Status(i.contains(req.graphID)))
+
+  private def controlPartitions[T](f: PartitionService[F] => F[T]) =
+    F.parSequenceN(partitions.size)(partitions.values.toSeq.map(f))
 
   /** Returns true if we can destroy the graph */
   private def forcedRemoval(graphId: String): F[Boolean] =
@@ -238,7 +235,7 @@ object RaphtoryServiceBuilder {
                                                  runningGraphs,
                                                  existingGraphs,
                                                  ingestion,
-                                                 partitions.values.toSeq,
+                                                 partitions,
                                                  sourceIDManager,
                                                  repo,
                                                  repo.topics,

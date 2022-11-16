@@ -27,37 +27,19 @@ class GraphBuilderF[F[_], T](
   private val totalSourceErrors = TelemetryReporter.totalSourceErrors.labels(s"$sourceId", graphId) // TODO
 
   def buildGraphFromT(chunk: Chunk[T], index: Ref[F, Long]): F[Unit] =
-    timed(
-            s"BATCH PROCESSING OF ${chunk.size}",
-            for {
-              b <- F.delay(new mutable.ArrayBuffer[GraphUpdate](chunk.size))
-              cb = UnsafeGraphCallback(partitions.size, sourceId, -1, graphId, b)
-              _ <- timed(
-                           "HANDOVER into cats-effect",
-                           index.getAndUpdate(_ + chunk.size).map { index =>
-                             chunk.foldLeft(index) { (i, t) =>
-                               builder(cb.copy(index = i), t)
-                               i + 1
-                             }
-                           }
-                   )
-              _ <- timed(
-                           "SENDING TO WRITERS",
-                           processGraphUpdates(b, cb)
-                   )
-            } yield ()
-    )
+    for {
+      b <- F.delay(new mutable.ArrayBuffer[GraphUpdate](chunk.size))
+      cb = UnsafeGraphCallback(partitions.size, sourceId, -1, graphId, b)
+      _ <- index.getAndUpdate(_ + chunk.size).map { index =>
+             chunk.foldLeft(index) { (i, t) =>
+               builder(cb.copy(index = i), t)
+               i + 1
+             }
+           }
 
-  private def processGraphUpdates(b: ArrayBuffer[GraphUpdate], cb: UnsafeGraphCallback[F]) =
-//    F.parSequenceN(4)(prepareGraphUpdates(cb)(b.toSeq))
-    prepareGraphUpdates(cb)(b.toSeq).sequence_
+      _ <- prepareGraphUpdates(cb)(b.toSeq).sequence_
 
-  def timed[A](msg: String, f: F[A]): F[A] =
-    F.timed(f).flatMap {
-      case (t, a) =>
-//        println(s"TIME ${t.toMillis}ms for $msg")
-        F.pure(a)
-    }
+    } yield ()
 
   private def prepareGraphUpdates(cb: Graph)(updates: Seq[GraphUpdate]): Vector[F[Unit]] =
     updates
@@ -80,6 +62,9 @@ class GraphBuilderF[F[_], T](
   def highestTimeSeen: F[Long] = highestSeen.get
 }
 
+/** This class implements Graph interface by putting updates into a provided array buffer
+  * so we can get updates out of it to be sent to the partitions
+  */
 case class UnsafeGraphCallback[F[_]: Functor](
     totalPartitions: Int,
     sourceID: Int,

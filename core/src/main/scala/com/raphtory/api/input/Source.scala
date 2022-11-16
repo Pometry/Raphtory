@@ -33,32 +33,6 @@ class ConcreteSource[T](override val spout: Spout[T], override val builder: Grap
 
 }
 
-//class SourceInstance[F[_], T](id: Int, spoutInstance: SpoutInstance[T], builderInstance: GraphBuilderInstance[F, T]) {
-//
-//  /** Logger instance for writing out log messages */
-//  val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-//  def sourceID: Int  = id
-//
-//  def pollInterval: FiniteDuration = 1.seconds
-//
-//  def hasRemainingUpdates: Boolean = spoutInstance.hasNext
-//
-//  def sendUpdates(index: Long, failOnError: Boolean): Unit = {
-//    val element = spoutInstance.next()
-//    builderInstance.sendUpdates(element, index)(failOnError)
-//  }
-//
-//  def spoutReschedules(): Boolean = spoutInstance.spoutReschedules()
-//
-////  def executeReschedule(): Unit = spoutInstance.executeReschedule()
-//
-////  def close(): Unit = spoutInstance.close()
-//
-//  def sentMessages(): Long = builderInstance.getSentUpdates
-//
-//  def highestTimeSeen(): Long = builderInstance.highestTimeSeen
-//}
-
 class StreamSource[F[_], T](id: Int, spoutInstance: SpoutInstance[T], builderInstance: GraphBuilderF[F, T])(implicit
     F: Async[F]
 ) {
@@ -67,10 +41,9 @@ class StreamSource[F[_], T](id: Int, spoutInstance: SpoutInstance[T], builderIns
     for {
       index <- fs2.Stream.eval(Ref.of[F, Long](1L))
       tuples = fs2.Stream.fromBlockingIterator[F](spoutInstance, 512)
-      _     <- tuples.chunks
-                 .parEvalMapUnordered(4)(chunk =>
-                   builderInstance.buildGraphFromT(chunk, index) *> F.delay(counter.inc(chunk.size))
-                 )
+      _     <- tuples.chunks.evalMap(chunk =>
+                 builderInstance.buildGraphFromT(chunk, index) *> F.delay(counter.inc(chunk.size))
+               )
     } yield ()
 
   def sentMessages: F[Long] = builderInstance.getSentUpdates
