@@ -1,11 +1,24 @@
 package com.raphtory.api.input
 
-import com.raphtory.internals.graph.GraphBuilderInstance
+import cats.effect.Async
+import cats.effect.Ref
+import cats.effect.Resource
+import cats.syntax.all._
+import com.raphtory.internals.graph.GraphBuilderF
+import com.raphtory.protocol.PartitionService
 
 trait GraphBuilder[T] extends ((Graph, T) => Unit) with Serializable {
 
-  final def buildInstance(graphID: String, sourceID: Int): GraphBuilderInstance[T] =
-    new GraphBuilderInstance[T](graphID, sourceID, this)
+  final def make[F[_]: Async](
+      graphID: String,
+      sourceID: Int,
+      partitions: Map[Int, PartitionService[F]]
+  ): Resource[F, GraphBuilderF[F, T]] =
+    Resource.eval(for {
+      highestSeen <- Ref.of(Long.MinValue)
+      sentUpdates <- Ref.of(0L)
+      builder     <- Async[F].delay(new GraphBuilderF(graphID, sourceID, this, partitions, highestSeen, sentUpdates))
+    } yield builder)
 }
 
 private[raphtory] object GraphBuilder {

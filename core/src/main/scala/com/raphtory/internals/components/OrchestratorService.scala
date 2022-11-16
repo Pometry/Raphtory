@@ -20,18 +20,19 @@ abstract class OrchestratorService[F[_]: Async, T](graphs: GraphList[F, T]) {
 
   private def logError(e: Throwable) = Async[F].delay(logger.error(s"Exception found in Orchestrator service: '$e'"))
 
-  protected def makeGraphData(graphId: String): F[T]
+  protected def makeGraphData(graphId: String): Resource[F, T]
 
   protected def graphExecution(graph: Graph[F, T]): F[Unit] = Async[F].unit
 
   final def establishGraph(req: GraphInfo): F[Status] =
     for {
-      data                 <- makeGraphData(req.graphId)
-      supervisorAllocated  <- Supervisor[F].allocated
-      (supervisor, release) = supervisorAllocated
-      graph                 = Graph(req.graphId, supervisor, release, data)
-      _                    <- supervisor.supervise(graphExecution(graph))
-      _                    <- graphs.update(graphs => graphs + (req.graphId -> graph))
+      supervisorAllocated            <- Supervisor[F].allocated
+      (supervisor, releaseSupervisor) = supervisorAllocated
+      dataAllocated                  <- makeGraphData(req.graphId).allocated
+      (data, releaseData)             = dataAllocated
+      graph                           = Graph(req.graphId, supervisor, releaseData *> releaseSupervisor, data)
+      _                              <- supervisor.supervise(graphExecution(graph))
+      _                              <- graphs.update(graphs => graphs + (req.graphId -> graph))
     } yield success
 
   final def destroyGraph(req: GraphInfo): F[Status] = destroyGraph(req.graphId).as(success)
@@ -66,5 +67,5 @@ object OrchestratorService {
 
 abstract class NoGraphDataOrchestratorService[F[_]: Async](graphs: GraphList[F, Unit])
         extends OrchestratorService(graphs) {
-  protected def makeGraphData(graphId: String): F[Unit] = Async[F].unit
+  override protected def makeGraphData(graphId: String): Resource[F, Unit] = Resource.unit
 }

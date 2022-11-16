@@ -15,14 +15,14 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
-class IngestionServiceImpl[F[_]: Async](graphs: GraphList[F, Unit], repo: TopicRepository, config: Config)
+class IngestionServiceImpl[F[_]: Async](graphs: GraphList[F, Unit], registry: ServiceRegistry[F], config: Config)
         extends NoGraphDataOrchestratorService(graphs)
         with IngestionService[F] {
 
   override def ingestData(request: protocol.IngestData): F[Status] =
     request match {
       case protocol.IngestData(TryIngestData(scala.util.Success(req)), _) =>
-        val executor = IngestionExecutor(req.graphID, req.source, req.blocking, req.sourceId, config, repo)
+        val executor = IngestionExecutor(req.graphID, req.source, req.blocking, req.sourceId, config, registry)
         for {
           executorResource           <- executor.allocated
           (executor, releaseExecutor) = executorResource
@@ -30,7 +30,7 @@ class IngestionServiceImpl[F[_]: Async](graphs: GraphList[F, Unit], repo: TopicR
         } yield success
     }
 
-  private def runExecutor(graphId: String, executor: IngestionExecutor[F], release: F[Unit]): F[Unit] = {
+  private def runExecutor(graphId: String, executor: IngestionExecutor[F, _], release: F[Unit]): F[Unit] = {
     def logError(e: Throwable): Unit = logger.error(s"Exception while executing source: $e")
     for {
       _ <- executor.run().handleErrorWith(e => Async[F].delay(logError(e)) *> destroyGraph(graphId))
@@ -44,12 +44,12 @@ object IngestionServiceImpl {
 
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  def apply[F[_]: Async](repo: ServiceRegistry[F], config: Config): Resource[F, Unit] =
+  def apply[F[_]: Async](registry: ServiceRegistry[F], config: Config): Resource[F, Unit] =
     for {
       graphs  <- makeGraphList[F, Unit]
       _       <- Resource.eval(Async[F].delay(logger.info(s"Starting Ingestion Service")))
-      service <- Resource.eval(Async[F].delay(new IngestionServiceImpl[F](graphs, repo.topics, config)))
-      _       <- repo.registered(service, IngestionServiceImpl.descriptor)
+      service <- Resource.eval(Async[F].delay(new IngestionServiceImpl[F](graphs, registry, config)))
+      _       <- registry.registered(service, IngestionServiceImpl.descriptor)
     } yield ()
 
   def descriptor[F[_]: Async]: ServiceDescriptor[F, IngestionService[F]] =

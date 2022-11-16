@@ -12,8 +12,8 @@ message Status {
 }
 
 message QueryManagement {
-//  option (scalapb.message).extends = "com.raphtory.internals.components.querymanager.ProtoDef";
-//  option (scalapb.message).type = "com.raphtory.internals.components.querymanager.QueryManagement";
+  //  option (scalapb.message).extends = "com.raphtory.internals.components.querymanager.ProtoDef";
+  //  option (scalapb.message).type = "com.raphtory.internals.components.querymanager.QueryManagement";
   bytes bytes = 1 [(scalapb.field).type = "com.raphtory.internals.components.querymanager.QueryManagement"];
 }
 
@@ -28,8 +28,8 @@ message GraphInfo {
 }
 
 message Query {
-//  option (scalapb.message).extends = "com.raphtory.internals.components.querymanager.ProtoDef";
-//  option (scalapb.message).type = "com.raphtory.internals.components.querymanager.Query";
+  //  option (scalapb.message).extends = "com.raphtory.internals.components.querymanager.ProtoDef";
+  //  option (scalapb.message).type = "com.raphtory.internals.components.querymanager.Query";
   bytes bytes = 1 [(scalapb.field).type = "com.raphtory.internals.components.querymanager.TryQuery"];
 }
 
@@ -56,6 +56,15 @@ message GraphUpdate {
   bytes update = 2 [(scalapb.field).type = "com.raphtory.internals.graph.GraphAlteration.GraphUpdate"];
 }
 
+message GraphAlteration {
+  bytes alteration = 1 [(scalapb.field).type = "com.raphtory.internals.graph.GraphAlteration"];
+}
+
+message GraphAlterations {
+  string graphId = 1;
+  repeated GraphAlteration alterations = 2;
+}
+
 message DestroyGraph {
   string clientId = 1;
   string graphId = 2;
@@ -65,6 +74,8 @@ message DestroyGraph {
 message GetGraph {
   string graphID = 1;
 }
+
+message Empty {}
 
 // Services
 service RaphtoryService {
@@ -89,4 +100,6 @@ service PartitionService {
   rpc establishGraph(GraphInfo) returns (Status);
   rpc destroyGraph(GraphInfo) returns (Status);
   rpc establishExecutor(Query) returns (Status);
+  rpc processUpdates(GraphAlterations) returns (Empty);
+  rpc processEffects(GraphAlterations) returns (Empty);
 }
