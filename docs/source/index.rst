@@ -15,14 +15,20 @@ If you would like a brief summary of what it's used for before fully diving into
 Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/python/pyraphtory>`. Alternatively, if you want to dive headfirst into the API's you can visit the :doc:`PythonDocs <PythonDocs/index>` or :doc:`ScalaDocs <Scaladoc/index>`.
 
 .. toctree::
+   :maxdepth: 2
+   :hidden:
+   :caption: PyRaphtory Quick Start
+
+   Install/python/pyraphtory.ipynb
+
+.. toctree::
    :maxdepth: 1
    :hidden:
    :caption: PyRaphtory Introduction
 
-   Install/python/pyraphtory.ipynb
    Ingestion/sprouter.md
    Analysis/queries.md
-     
+
 .. toctree::
    :hidden:
    :caption: Inbuilt Algorithms
@@ -30,30 +36,13 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/pyth
    _autodoc/com/raphtory/algorithms/generic/index.rst
    _autodoc/com/raphtory/algorithms/temporal/index.rst
    _autodoc/com/raphtory/algorithms/filters/index.rst
-
+   
 .. toctree::
    :hidden:
    :maxdepth: 1
    :caption: Writing your own Algorithm
 
    Analysis/LOTR_six_degrees.md
-   Analysis/analysis-explained.md
-
-.. toctree::
-   :hidden:
-   :maxdepth: 1
-   :caption: PyRaphtory API
-
-   PythonDocs/index.rst
-
-.. toctree::
-   :maxdepth: 2
-   :hidden:
-   :caption: Example Projects
-
-   Examples/lotr.md
-   Examples/nft.md
-   Examples/higgs-twitter.md
 
 .. toctree:: 
    :maxdepth: 2
@@ -64,19 +53,26 @@ Once you are ready, hit next and lets get Raphtory :doc:`installed <Install/pyth
    Deployment/kubernetes.md
 
 .. toctree::
-   :maxdepth: 2
    :hidden:
-   :caption: Contributing to Raphtory
+   :maxdepth: 1
+   :caption: PyRaphtory API
 
-   Install/scala/raphtory.md
-   Install/scala/install_java.md
-   Install/scala/compile_run_example.md
-   Dev/building.md
-   Dev/publishing.md
+   PythonDocs/index.rst
 
 .. toctree::
+   :maxdepth: 1
    :hidden:
-   :maxdepth: 2
-   :caption: API (Scala)
+   :caption: Raphtory Scala
 
-   Scaladoc/index.md
+   scala/quickstart.md
+   Analysis/analysis-explained.md
+   scala/apidocs.md
+
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+   :caption: Example Projects
+
+   Examples/lotr.md
+   Examples/nft.md
+   Examples/higgs-twitter.md
