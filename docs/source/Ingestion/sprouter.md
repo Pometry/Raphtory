@@ -35,44 +35,56 @@ Also, in the examples folder you will find `DegreesSeparation.scala` and `Tutori
 
 ## Local Deployment
 First lets open `TutorialRunner.scala`, which is our `main` class i.e. the file which we actually run. 
-To do this we have made our class a Scala app via `extends App`. 
-This is a short hand for creating your runnable main class (if you come from a Java background) or can be viewed as a script if you are more comfortable with Python. 
+To do this we have made our class a Scala app via `extends RaphtoryApp.Local`. Here, `Local` is an abstract class that implements the `main` method, making any class/object extending it "runnable". (This is a short hand for creating your runnable main class (if you come from a Java background) or can be viewed as a script if you are more comfortable with Python.) In adddition, it brings in local raphtory context in current scope. What it means is that overriding the `run` method from `RaphtoryApp` would provide you with a `RaphtoryContext` which creates (using `ctx.runWithNewGraph`) or returns already created graphs (`ctx.runWithGraph`) from the local machine itself. This is a pretty convenient way quickly try Raphtory.
 
-Inside of this we first create a new graph object in Raphtory by calling `val graph = Raphtory.newGraph()`. We then pull data from our data source defined in the `url` variable, this is where the Lord of the Rings CSV file is located. A `foreach` function is called which basically reads each line of the CSV file - this is essentially what the Spout does in Raphtory. For each file line, we split the line into its respective variables: source, target and timestamp. These variables are then added as nodes and edges on the graph object we created at the start - this is essentially what the Graph Builder does in Raphtory. 
+We then pull data from our data source defined in the `url` variable, this is where the Lord of the Rings CSV file is located. A `foreach` function is called which basically reads each line of the CSV file - this is essentially what the Spout does in Raphtory. For each file line, we split the line into its respective variables: source, target and timestamp. These variables are then added as nodes and edges on the graph object we created at the start - this is essentially what the Graph Builder does in Raphtory. 
 
 The graph object can then be used to run analysis on the graph you have built.
 
 ````scala
-object TutorialRunner extends App {
+object TutorialRunner extends RaphtoryApp.Local {
 
-  val graph = Raphtory.newGraph()
-  val path = "/tmp/lotr.csv"
-  val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
-  FileUtils.curlFile(path, url)
+  override def run(args: Array[String], ctx: RaphtoryContext): Unit = {
+    ctx.runWithNewGraph() { graph =>  // creates graphId, if not provided
+      val path = "/tmp/lotr.csv"
+      val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
+      FileUtils.curlFile(path, url)
 
-  val file = scala.io.Source.fromFile(path)
-  file.getLines.foreach { line =>
-    val fileLine   = line.split(",").map(_.trim)
-    val sourceNode = fileLine(0)
-    val srcID      = assignID(sourceNode)
-    val targetNode = fileLine(1)
-    val tarID      = assignID(targetNode)
-    val timeStamp  = fileLine(2).toLong
+      val file = scala.io.Source.fromFile(path)
+      file.getLines.foreach { line =>
+        val fileLine   = line.split(",").map(_.trim)
+        val sourceNode = fileLine(0)
+        val srcID      = assignID(sourceNode)
+        val targetNode = fileLine(1)
+        val tarID      = assignID(targetNode)
+        val timeStamp  = fileLine(2).toLong
 
-    graph.addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)), Type("Character"))
-    graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("Character"))
-    graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurrence"))
+        graph.addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)), Type("Character"))
+        graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("Character"))
+        graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurrence"))
+      }
+
+      graph
+        .at(32674)
+        .past()
+        .execute(DegreesSeparation())
+        .writeTo(FileSink("/tmp/raphtory"))
+        .waitForJob()
+
+    }
   }
-
-  val queryHandler = graph
-    .at(32674)
-    .past()
-    .execute(DegreesSeparation())
-    .writeTo(output)
-
-  queryHandler.waitForJob()
-
 }
+````
+
+This can also be written using self-type annotations, as shown in the `TutorialRunner.scala`. You can read more about "Self-Type Annotations" [here](https://docs.scala-lang.org/tour/self-types.html), if you like.
+
+````scala
+object TutorialRunner extends RaphtoryApp.Local with LocalRunner
+
+trait LocalRunner { self: RaphtoryApp =>
+
+  override def run(args: Array[String], ctx: RaphtoryContext): Unit = ???
+  }
 }
 ````
 
