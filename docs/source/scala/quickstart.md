@@ -95,7 +95,7 @@ graph
     .waitForJob()
 ```
 
-Here, we run `Degree` algorithm on the graph which returns "in-degree" and "out-degree" of nodes in case of a directed graph i.e., incoming or outgoing edges respectively and "degree" of nodes in case of undirected graph representing the total number of edges. Additionally, we chose to write the output to a directory `/tmp/raphtory` using `FileSink`.
+Here, we run [{s}`Degree`](com.raphtory.algorithms.generic.centrality.Degree) algorithm on the {scaladoc}`com.raphtory.api.analysis.graphview.TemporalGraph`. In the case of a directed graph, the algorithm returns "in-degree" and "out-degree" of nodes i.e., the incoming or outgoing edges. In the case of an undirected graph, the algorithm returns the "degree" of nodes,x representing the total number of edges. Additionally, we chose to write the output to a directory `/tmp/raphtory` using {scaladoc}`com.raphtory.sinks.FileSink`.
 
 ## Puting it all together
 - Working with Local Deployment
