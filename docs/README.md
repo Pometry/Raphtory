@@ -1,21 +1,23 @@
 ## Steps to build docs
-1. Create conda environment
+1. Start in the root raphtory folder
+2. Install requirements for readthedocs 
+3. Build raphtory and pyraphtory 
     ```shell
-    % conda create --name raphtorydocs python=3.9.13 -c conda-forge
+    make sbt-build
+    make python-build
     ```
-2. Activate conda environment
+4. Install dev dependencies
    ```shell
-   % conda activate raphtorydocs
+   pip install myst-parser sphinx-rtd-theme sphinx docutils sphinx-tabs nbsphinx
    ```
-3. Install dev dependencies
+5. Build docs
    ```shell
-   % pip install myst-parser
-   % pip install sphinx-rtd-theme
-   % pip install sphinx==4.4.0
-   % pip install docutils==0.17.1
-   % pip install sphinx-tabs
+   cd docs && make html
    ```
-4. Build docs
+6. View docs
    ```shell
-   % make html
+   open build/html/index.html
    ```
+   
+If you are not editing the scaladocs, these can be disabled which will greatly speed up build times. 
+Just edit the `docs/source/conf.py` and comment out the `'extractScalaAlgoDocs',` line with a `#`

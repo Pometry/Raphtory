@@ -34,6 +34,15 @@ def ignore(s):
     return ""
 
 
+def debug(name):
+    """useful for printing debug info during parsing"""
+
+    def debug_wrapped(s):
+        print(f"{name} parsed {s}")
+        return s
+    return debug_wrapped
+
+
 def capitalise(s: str):
     return s.capitalize()
 
@@ -55,25 +64,28 @@ def as_code(s: str):
     return "`" + s + "`"
 
 
+# whitespace parsers
 non_newline_whitespace = regex(r"[^\S\r\n]+")
+non_whitespace_char = regex(r"\S")
 space = string(" ")
 counted_spaces = space.many().map(len)
-newline = string("\n") | string("\r\n") | string("\r")
+newline = (string("\n") | string("\r\n") | string("\r")).result("\n")
 
-# scaladoc comment noise
-start = (whitespace.optional("") + string("/**") + space.optional("")).map(ignore)
-linestart = (non_newline_whitespace.optional("")
-             + newline + non_newline_whitespace.optional("")
-             + string("*")
-             + space.optional("")).map(linestart_clean)
-end = (whitespace.optional("") + string("*").at_least(1).concat() + string("/")).map(ignore)
+# scaladoc line start and end comments
+start = (non_newline_whitespace.optional("") + string("/**") + space.optional("")).result("")
+line_start = start | (non_newline_whitespace.optional("") + string("*") + space.optional("")).result("")
+end = (whitespace.optional("") + string("*").at_least(1).concat() + string("/")).result("")
+line_end = newline | end
 
-# convert tags
-token = any_char.until(whitespace | eof, min=1).map(join_tokens)  # consume non-whitespace characters
+# blank lines
+blank_remaining_line = non_newline_whitespace.until(line_end | eof).concat() + line_end.optional("")
+blank_line = line_start.optional("") + blank_remaining_line
+
+# separate by spaces
+token = non_whitespace_char.until(whitespace | line_end | eof, min=1).concat()  # consume non-whitespace characters
+
+# token that should be converted to snake_case
 name = token.map(parse_name)
-param_id = string("@param").map(convert_param)
-param = (param_id + whitespace + name).map(finalise_param)
-return_id = string("@return").map(convert_returns)
 
 # convert code expressions
 code_others = string("`").should_fail(
@@ -123,45 +135,105 @@ def link():
 inline = link | code | code_unparsed | non_newline_whitespace | token
 
 # lines
-line = inline.until((end | eof | newline)).map(join_tokens)
-blank_line = non_newline_whitespace.until(newline).map(join_tokens)
+remaining_line = inline.until(line_end | eof).concat() + line_end.optional("")
+line = line_start.optional("") + remaining_line
+
+# convert tags
+param_id = string("@param").map(convert_param)
+param_label = (param_id + non_newline_whitespace + name).map(finalise_param)
 
 
-def directive_line(indent, output_indent):
+@generate("param")
+def param():
+    leading_spaces = yield line_start >> counted_spaces
+    first_line = yield param_label + remaining_line
+    body = yield indented_block(leading_spaces)
+    return " " * leading_spaces + first_line + body
+
+
+@generate("tparam")
+def tparam():
+    """strips out @tparam documentation as these are not relevant in python"""
+    leading_spaces = yield line_start >> counted_spaces
+    yield string("@tparam") + remaining_line
+    yield indented_block(leading_spaces)
+    return ""
+
+
+return_id = string("@return").result(":returns:")
+
+@generate("return")
+def return_():
+    leading_spaces = yield line_start >> counted_spaces
+    first_line = yield return_id + remaining_line
+    body = yield indented_block(leading_spaces)
+    return " " * leading_spaces + first_line + body
+
+
+field_list_item = param | tparam | return_
+
+# rst field lists need blank lines before and after
+field_list = blank_line.optional("\n") + field_list_item.at_least(1).concat() + blank_line.optional("\n")
+
+
+def indented_line(indent, output_indent):
     """Identify an indented line of a block and return it with converted indent
+
     :param indent: indent in scaladoc block
     :param output_indent: indent in python docstring block
     """
-    return linestart + (blank_line | ((space * indent).result(" " * output_indent) + line))
+    return blank_line | (line_start + ((space * indent).result(" " * output_indent) + remaining_line))
+
+
+def indented_block(leading_spaces, output_indent=None):
+    """Parse an indented block of text
+
+    :param leading_spaces: outer indent of the block
+    :param output_indent: indent of output (defaults to the indent in the original)
+    """
+    @generate("indented_block")
+    def indented_block_parser():
+        result = []
+        blanks = yield blank_line.many().concat()
+        result.append(blanks)
+        first_indent = yield peek(line_start >> counted_spaces).optional(0)
+        nonlocal output_indent
+        if output_indent is None:
+            output_indent = first_indent
+        if first_indent > leading_spaces:
+            output = yield indented_line(first_indent, leading_spaces + output_indent).many().concat()
+            result.append(output)
+        return join_tokens(result)
+    return indented_block_parser
 
 
 def directive(name, pythonname=None):
+    """Parse a directive-style tag
+
+    :param name: name of scala tag is `@name`
+    :param pythonname: name in the output (defaults to name)
+    """
     if pythonname is None:
         pythonname = name
 
     @generate(name)
     def directive_parser():
         result = []
-        leading_spaces = yield (start | linestart) >> counted_spaces
-        directive_start = yield string("@" + name).result(" " * leading_spaces + f".. {pythonname}::") + line
+        leading_spaces = yield line_start >> counted_spaces
+        directive_start = yield string("@" + name).result(" " * leading_spaces + f".. {pythonname}::") + remaining_line
         result.append(directive_start)  # this picks up any remaining text in the first line
-        blanks = yield (linestart + blank_line).many().concat()  # blank lines don't matter in terms of indentation
-        result.append(blanks)
-        first_indent = yield peek(linestart >> counted_spaces)
-        if first_indent > leading_spaces:
-            output = yield directive_line(first_indent, leading_spaces + 3).many().concat()
-            result.append(output)
+        block = yield indented_block(leading_spaces, 3)
+        result.append(block)
         return join_tokens(result)
 
     return directive_parser
 
 
-doc_converter = alt(directive("note"), directive("see", "seealso"),
-                    # multiline blocks first as they handle new lines specially
-                    start, end, linestart,  # strip out scaladoc newline formatting
-                    param, return_id,  # handle simple tags
-                    inline  # handle inline markup
-                    ).many().map(join_tokens)
+doc_converter = alt(tparam, directive("note"), directive("see", "seealso"),
+                    field_list,
+                    end,
+                    line,
+                    ).until(eof).map(join_tokens)
 
 
 def convert_docstring(docs):
@@ -169,7 +241,8 @@ def convert_docstring(docs):
         try:
             cleaned = doc_converter.parse(docs)
             return cleaned.rstrip("\n")
-        except ParseError:
+        except ParseError as e:
+            print(e)
             return docs
     else:
         return docs

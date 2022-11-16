@@ -14,31 +14,28 @@ Raphtory is an open-source platform for distributed real-time temporal graph ana
 <img src="https://user-images.githubusercontent.com/6665739/154071628-a55fb5f9-6994-4dcf-be03-401afc7d9ee0.png"/> If you like the sound of what we are working on, come join the <a href="https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA">Slack</a>! <img src="https://user-images.githubusercontent.com/6665739/154071628-a55fb5f9-6994-4dcf-be03-401afc7d9ee0.png"/>
 </p>
 
-## 0.1.0 - Raphtory Post Alpha Release
-With the release of 0.1.0, we have completely rebuilt Raphtory from the ground up. The full changelog can be dug into [here](https://github.com/Raphtory/Raphtory/releases), but as a sneak peek this includes:
+## 0.2.0a7 - Raphtory Pre-Alpha Release
+With the release of 0.2.0, we have re-designed and updated many of the core components. The full changelog can be dug into [here](https://github.com/Raphtory/Raphtory/releases), but as a sneak peek this includes:
 
-* A brand new Analytical API with expressive windowing and history exploration, composable algorithms/chaining, global aggregators/histograms, filters/sampling, multilayer graph projections, clearer output formats and much more.
-* A communication layer which allows for fine-grained management of how Raphtory components send messages. This by default is split between [Apache Pulsar](https://pulsar.apache.org) for updates and vertex messages and [Akka](https://akka.io) for control messages. This fixes a number of issues faced in prior versions, notably around message back pressure and cluster management.
-* An initial Python client for Raphtory which will be brought fully in line with the Scala version over the coming months.   
+* ..... TBD 
 
-This has replaced the now deprecated Raphtory Alpha which will remain available [here](https://github.com/Raphtory/Raphtory/tree/raphtory-akka).
-
+The prior version of Raphtory has now been deprecated as raphtory-akka which will remain available with no support [here](https://github.com/Raphtory/Raphtory/tree/raphtory-akka).
 
 # Getting Started
-The best way to get started with Raphtory is to visit our [ReadTheDocs](https://raphtory.readthedocs.io/en/master/) site where we have tutorials on how to use Raphtory for graph building, analysis, and more. 
+The best way to get started with Raphtory is to visit our [ReadTheDocs](https://raphtory.readthedocs.io/) site where we have tutorials on how to use Raphtory for graph building, analysis, and more. 
 
-**Note:** Raphtory is built with Scala. We recommend using IntelliJ IDE for your code. They have a community version which is free. Follow their [guide](https://www.jetbrains.com/idea/download/#section=windows) for installation.
+**Note:** Raphtory is built with Scala and works with Python. We recommend using IntelliJ IDE for your code. They have a community version which is free. Follow their [guide](https://www.jetbrains.com/idea/download/#section=windows) for installation.
 
 ### Good entry points for the very beginning are
 
-- [Installation](https://raphtory.readthedocs.io/en/development/Install/installdependencies.html) - Installation of Raphtory and running your first job locally.
+- [Installation](https://docs.raphtory.com/en/development/Install/start.html) - Installation of Raphtory and PyRaphtory. 
 - [Building a graph from your data](https://raphtory.readthedocs.io/en/development/Ingestion/sprouter.html) - How to ingest raw data into Raphtory and the basics of modelling your data as a Temporal Graph.
 - [Six Degrees of Gandalf](https://raphtory.readthedocs.io/en/development/Analysis/LOTR_six_degrees.html) - A Lord of the Rings themed intro into the world of Graph Algorithms.
 - [Running queries across time](https://raphtory.readthedocs.io/en/development/Analysis/queries.html) - Exploring how to run algorithms throughout the history of your data. 
 - [Analysis In Raphtory](https://raphtory.readthedocs.io/en/development/Analysis/analysis-explained.html) - A deeper dive into the underlying analysis model of Raphtory. 
 
 ### Once you are feeling more comfortable with Raphtory you can checkout out
-- [ScalaDocs](https://raphtory.readthedocs.io/en/development/Scaladoc/index.html) and [Algorithm API](https://raphtory.readthedocs.io/en/development/_autodoc/com/raphtory/algorithms/generic/index.html) - We provide a fully documented API for Raphtory, explaining all user-facing classes and functions. This sits alongside explanations for the included algorithmic library (both temporal and static). These algorithms can be used to analyse your datasets once ingested or as a basis to implement your own custom algorithms.
+- [ScalaDocs](https://raphtory.readthedocs.io/en/development/Scaladoc/index.html), [PythonDocs](https://raphtory.readthedocs.io/en/development/PythonDocs/index.html) and [Algorithm API](https://raphtory.readthedocs.io/en/development/_autodoc/com/raphtory/algorithms/generic/index.html) - We provide a fully documented API for Raphtory, explaining all user-facing classes and functions. This sits alongside explanations for the included algorithmic library (both temporal and static). These algorithms can be used to analyse your datasets once ingested or as a basis to implement your own custom algorithms.
 - [Raphtory Streaming and Distributed Deployment](https://raphtory.readthedocs.io/en/development/Deployment/pulsarlocal.html) - Raphtory can be deployed as a single node or a distributed cluster. For the latter, we provide runners to establish the cluster on bare metal or on top of Kubernetes. 
 - [Using the Python client](https://raphtory.readthedocs.io/en/development/PythonClient/setup.html) - We are developing a full python client alongside the main scala implementation so that you can attach Raphtory to your favorite data science tools.
 
