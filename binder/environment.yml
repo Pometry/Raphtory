@@ -19,6 +19,10 @@ dependencies:
       - pemja>=0.2.6
       - cloudpickle>=0.4
       - pandas>=1.4.3
+      - matplotlib
+      - pyvis
+      - scipy
+      - seaborn
       - py4j=0.10
       - requests>=2.28.1
       - parsy>=2.0
