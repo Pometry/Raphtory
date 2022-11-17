@@ -28,5 +28,5 @@ dependencies:
       - parsy>=2.0
   - pip:
       - --extra-index-url https://test.pypi.org/simple/
-      - pyraphtory_jvm>=0.2.0a7
-      - pyraphtory>=0.2.0a7
+      - pyraphtory_jvm==0.2.0a7
+      - pyraphtory==0.2.0a7
