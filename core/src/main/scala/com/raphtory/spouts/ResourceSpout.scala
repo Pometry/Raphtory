@@ -1,6 +1,7 @@
 package com.raphtory.spouts
 
-import com.raphtory.api.input.{Spout, SpoutInstance}
+import com.raphtory.api.input.Spout
+import com.raphtory.api.input.SpoutInstance
 
 import scala.io.Source
 
