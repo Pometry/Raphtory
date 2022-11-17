@@ -1,8 +1,8 @@
 name: 'Trigger-Binder-build-on-dev'
 on:
   push:
-    branches:
-      - development
+    tags:
+      - '**'
 
 jobs:
   trigger-binder-build:
@@ -12,6 +12,5 @@ jobs:
         with:
           target-repo: raphtory/raphtory
           service-name: gh
-          target-state: development
           use-default-build-servers: true
           debug: true
