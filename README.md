@@ -11,10 +11,13 @@
 <img alt="Test and Build" src="https://github.com/Raphtory/Raphtory/actions/workflows/test_and_build.yml/badge.svg?event=schedule" />
 </a>
 <a href="https://github.com/Raphtory/Raphtory/releases">
-<img alt="Latest Release" src="https://img.shields.io/github/v/release/Raphtory/Raphtory?color=brightgreen&include_prereleases&sort=semver" />
+<img alt="Latest Release" src="https://img.shields.io/github/v/release/Raphtory/Raphtory?color=brightgreen&include_prereleases" />
 </a>
 <a href="https://github.com/Raphtory/Raphtory/issues">
 <img alt="Issues" src="https://img.shields.io/github/issues/Raphtory/Raphtory?color=brightgreen" />
+</a>
+<a href="https://mybinder.org/v2/gh/Raphtory/Raphtory/v0.2.0a7?labpath=examples%2Fbinder_python%2Findex.ipynb">
+<img alt="Launch Notebook" src="https://mybinder.org/badge_logo.svg" />
 </a>
 </p>
 <p align="center">
@@ -86,7 +89,7 @@ df
 |  5 |           4 |        1 |      3 |            0 |           1 |
 ```
 
-You can try out Raphtory for yourself in a Jupyter Notebook. Please click here [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Raphtory/Raphtory/development?labpath=examples%2Flotr%2Fsrc%2Fmain%2Fpython%2FLOTR-PyRaphtory.ipynb) to launch the notebook.
+You can try out Raphtory for yourself in a Jupyter Notebook. Please click here [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Raphtory/Raphtory/v0.2.0a7?labpath=examples%2Fbinder_python%2Findex.ipynb) to launch the notebook.
 
 # Installing Raphtory 
 Raphtory is available for both Python and Scala / Java, with support for Rust planned in the 0.3.0 release. 
