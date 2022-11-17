@@ -18,17 +18,17 @@
 </a>
 </p>
 <p align="center">
-<a href="www.raphtory.com"> 🌍 &nbsp Website </a>
+<a href="www.raphtory.com">🌍 Website </a>
 &nbsp
-<a href="https://docs.raphtory.com/en/development/">📒] &nbsp Documentation</a>
+<a href="https://docs.raphtory.com/en/development/">📒 Documentation</a>
 &nbsp 
-<a href="https://www.pometry.com">🥝  &nbsp Pometry</a> 
+<a href="https://www.pometry.com">🥝 Pometry</a> 
 &nbsp
-<a href="https://docs.raphtory.com/en/development/Examples/lotr.html">🧙🏻‍ &nbsp Tutorial</a> 
+<a href="https://docs.raphtory.com/en/development/Examples/lotr.html">🧙🏻‍ Tutorial</a> 
 &nbsp
-<a href="https://github.com/Raphtory/Raphtory/issues">🐛 &nbsp Report a Bug</a> 
+<a href="https://github.com/Raphtory/Raphtory/issues">🐛 Report a Bug</a> 
 &nbsp
-<a href="https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA"><img src="https://user-images.githubusercontent.com/6665739/154071628-a55fb5f9-6994-4dcf-be03-401afc7d9ee0.png" height="15"/>&nbsp Join Slack</a> 
+<a href="https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA"><img src="https://user-images.githubusercontent.com/6665739/154071628-a55fb5f9-6994-4dcf-be03-401afc7d9ee0.png" height="15"/> Join Slack</a> 
 </p>
 
 </br>
@@ -66,6 +66,7 @@ graph.add_edge(4, 1, 3)
 cols = ["inDegree", "outDegree", "degree", "prlabel", "cclabel"]
 
 # Collect some simple vertex metrics
+# Ran across a range of the data with incremental windowing
 df = graph
       .range(1,4,1)
       .window(1)
