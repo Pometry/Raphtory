@@ -77,13 +77,14 @@ private[raphtory] class IngestionExecutor[F[_], T](
   private def finaliseIngestion(isBlocked: Ref[F, Boolean]) =
     fs2.Stream.eval {
       for {
-        blocked         <- isBlocked.get
-        highestTimeSeen <- source.highestTimeSeen()
-        _               <- if (blocked)
-                             queryService.unblockIngestion(
-                                     UnblockIngestion(graphID, source.sourceID, 0, highestTimeSeen)
-                             )
-                           else F.unit
+        blocked          <- isBlocked.get
+        earliestTimeSeen <- source.earliestTimeSeen()
+        highestTimeSeen  <- source.highestTimeSeen()
+        _                <- if (blocked)
+                              queryService.unblockIngestion(
+                                      UnblockIngestion(graphID, source.sourceID, earliestTimeSeen, highestTimeSeen)
+                              )
+                            else F.unit
       } yield ()
     }
 }

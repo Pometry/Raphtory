@@ -46,8 +46,8 @@ class StreamSource[F[_], T](id: Int, spoutInstance: SpoutInstance[T], builderIns
                )
     } yield ()
 
-  def sentMessages: F[Long] = builderInstance.getSentUpdates
-
+  def sentMessages: F[Long]          = builderInstance.getSentUpdates
+  def earliestTimeSeen(): F[Long]    = builderInstance.earliestTimeSeen
   def highestTimeSeen(): F[Long]     = builderInstance.highestTimeSeen
   def spoutReschedules(): F[Boolean] = F.delay(spoutInstance.spoutReschedules())
   def pollInterval: FiniteDuration   = 1.seconds

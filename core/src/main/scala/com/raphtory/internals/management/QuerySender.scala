@@ -41,6 +41,7 @@ private[raphtory] class QuerySender(
   val totalPartitions: Int     = partitionServers * partitionsPerServer
 
   private val blockingSources          = ArrayBuffer[Long]()
+  private var earliestTimeSeen         = Long.MaxValue
   private var highestTimeSeen          = Long.MinValue
   private var totalUpdateIndex         = 0    //used at the secondary index for the client
   private var updatesSinceLastIDChange = 0    //used to know how many messages to wait for when blocking in the Q manager
@@ -69,6 +70,7 @@ private[raphtory] class QuerySender(
     handleGraphUpdate(update) // Required so the Temporal Graph obj can call the below func
 
   override protected def handleGraphUpdate(update: GraphUpdate): Unit = {
+    earliestTimeSeen = earliestTimeSeen min update.updateTime
     highestTimeSeen = highestTimeSeen max update.updateTime
     service.processUpdate(protocol.GraphUpdate(graphID, update)).unsafeRunSync()
     totalUpdateIndex += 1
@@ -124,7 +126,7 @@ private[raphtory] class QuerySender(
 
   private def unblockIngestion(sourceID: Int, messageCount: Long, force: Boolean): Unit =
     service
-      .unblockIngestion(protocol.UnblockIngestion(graphID, sourceID, messageCount, highestTimeSeen))
+      .unblockIngestion(protocol.UnblockIngestion(graphID, sourceID, earliestTimeSeen, highestTimeSeen))
       .unsafeRunSync()
 
   def destroyGraph(force: Boolean): Unit =

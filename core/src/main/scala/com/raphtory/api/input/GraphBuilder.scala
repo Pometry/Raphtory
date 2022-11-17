@@ -15,9 +15,11 @@ trait GraphBuilder[T] extends ((Graph, T) => Unit) with Serializable {
       partitions: Map[Int, PartitionService[F]]
   ): Resource[F, GraphBuilderF[F, T]] =
     Resource.eval(for {
-      highestSeen <- Ref.of(Long.MinValue)
-      sentUpdates <- Ref.of(0L)
-      builder     <- Async[F].delay(new GraphBuilderF(graphID, sourceID, this, partitions, highestSeen, sentUpdates))
+      earliestSeen <- Ref.of(Long.MaxValue)
+      highestSeen  <- Ref.of(Long.MinValue)
+      sentUpdates  <- Ref.of(0L)
+      builder      <-
+        Async[F].delay(new GraphBuilderF(graphID, sourceID, this, partitions, earliestSeen, highestSeen, sentUpdates))
     } yield builder)
 }
 
