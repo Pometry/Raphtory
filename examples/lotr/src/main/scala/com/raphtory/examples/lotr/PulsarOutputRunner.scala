@@ -4,9 +4,9 @@ import com.raphtory.RaphtoryApp
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.api.analysis.graphview.Alignment
-import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.pulsar.sink.PulsarSink
+import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.utils.FileUtils
 
 object PulsarOutputRunner extends RaphtoryApp.Local {

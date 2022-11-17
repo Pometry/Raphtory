@@ -14,7 +14,8 @@ import com.raphtory.BaseCorrectnessTest
 import com.raphtory.Reverse
 import com.raphtory.TestQuery
 import com.raphtory.Undirected
-import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.sources.CSVEdgeListSource
+
 import scala.util.Random
 
 class WindowedOutEdgeHistory(after: Long, before: Long) extends GenericReduction {

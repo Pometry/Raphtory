@@ -14,8 +14,9 @@ import com.raphtory.algorithms.generic.motif.LocalTriangleCount
 import com.raphtory.algorithms.temporal.Ancestors
 import com.raphtory.algorithms.temporal.Descendants
 import com.raphtory.algorithms.temporal.dynamic.GenericTaint
-import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.api.input._
+import com.raphtory.sources.CSVEdgeListSource
+
 import java.net.URL
 import scala.language.postfixOps
 
