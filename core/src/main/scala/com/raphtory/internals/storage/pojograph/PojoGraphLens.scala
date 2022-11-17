@@ -235,7 +235,6 @@ final private[raphtory] case class PojoGraphLens(
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
-  @inline
   def prepareRun[V <: Vertex](vs: Iterator[V], chunkSize: Int, includeAllVs: Boolean)(
       f: V => Unit
   ): (Int, List[IO[Unit]]) =
