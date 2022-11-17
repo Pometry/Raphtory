@@ -41,7 +41,6 @@ private[raphtory] class QueryHandler[F[_]: Async] private(
     dispatcher: Dispatcher[F],
     finish: cats.effect.std.Semaphore[F]
 ) extends Component[QueryManagement](conf) {
-  println(s"Creating QueryHandler")
   import com.raphtory.internals.components.querymanager.Stages._
 
   private val startTime      = System.currentTimeMillis()
@@ -69,7 +68,7 @@ private[raphtory] class QueryHandler[F[_]: Async] private(
     Perspective(DEFAULT_PERSPECTIVE_TIME, DEFAULT_PERSPECTIVE_WINDOW, 0, 0)
 
   private var lastTime: Long             = 0L
-  private var readyCount: Int            = 4
+  private var readyCount: Int            = 0
   private var vertexCount: Int           = 0
   private var receivedMessageCount: Long = 0
   private var sentMessageCount: Long     = 0
@@ -269,7 +268,7 @@ private[raphtory] class QueryHandler[F[_]: Async] private(
                   s"Job '$jobID': Write completed in ${writeCompletedTimeTaken}ms."
           )
           timeTaken = System.currentTimeMillis()
-          killJob()
+          dispatcher.unsafeRunSync(killJob())
           Stages.EndTask
         }
         else
@@ -412,7 +411,7 @@ private[raphtory] class QueryHandler[F[_]: Async] private(
   private def messagetoAllJobWorkers(msg: QueryManagement): Unit =
     workerList sendAsync msg
 
-  private def killJob(): Unit = {
+  private def killJob(): F[Unit] = {
     messagetoAllJobWorkers(EndQuery(jobID))
     workerList.close()
     querySupervisor.endQuery(jobID)

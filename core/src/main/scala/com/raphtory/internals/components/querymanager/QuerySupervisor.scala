@@ -9,6 +9,7 @@ import com.raphtory.internals.management.telemetry.TelemetryReporter
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
+import cats.Traverse
 import javax.annotation.concurrent.NotThreadSafe
 import scala.collection.mutable
 
@@ -17,7 +18,7 @@ class QuerySupervisor[F[_]] private (
     graphID: GraphID,
     topics: TopicRepository,
     config: Config,
-    private val blockingSources: mutable.Set[SourceID],
+    private val blockingSources: mutable.Map[SourceID, ISBLOCKING],
     private val blockedQueries: mutable.Set[Query],
     private val currentQueries: mutable.Set[JobID]
 )(implicit F: Async[F]) {
@@ -28,12 +29,12 @@ class QuerySupervisor[F[_]] private (
   def startBlockingIngestion(sourceID: Int): F[Unit] =
     F.delay {
       if (!blockingSources.contains(sourceID))
-        blockingSources.add(sourceID)
+        blockingSources.addOne(sourceID, true)
       logger.info(s"Source '$sourceID' is blocking analysis for Graph '$graphID'")
     }
 
   private def isBlockIngesting(blockedBy: Array[Long]): F[Boolean] =
-    F.delay(blockedBy.forall(blockingSources.contains))
+    F.delay(blockedBy.forall(id => blockingSources.contains(id) && blockingSources(id)))
 
   private def spawnQueryHandler(query: Query): F[Unit] =
     QueryHandler(this, new Scheduler, query, config, topics, earliestTime, latestTime) *>
@@ -48,15 +49,19 @@ class QuerySupervisor[F[_]] private (
                     earliestTime = _earliestTime
                     latestTime = _latestTime
                   }
-      blockedQ <- blockedQueries.toList.filterA { query =>
+      blockedQ <- Traverse[List].traverse(blockedQueries.toList) { query =>
                     for {
                       blockingIngestion <- isBlockIngesting(query.blockedBy)
-                      _                 <- if (blockingIngestion) spawnQueryHandler(query) else F.unit
-                    } yield blockingIngestion
+                      res               <- if (blockingIngestion)
+                                             spawnQueryHandler(query) >>
+                                               F.pure(Option(query))
+                                           else
+                                             F.pure(Option.empty[Query])
+                    } yield res
                   }
       _        <- F.blocking {
-                    blockedQ.foreach(blockedQueries.remove)
-                    blockingSources.remove(sourceID)
+                    blockedQ.filter(_.isDefined).foreach(i => blockedQueries.remove(i.get))
+                    blockingSources(sourceID) = false
                     logger.info(
                             s"Source '$sourceID' is unblocking analysis for Graph '$graphID' with earliest time seen as $earliestTime and latest time seen as $latestTime"
                     )
@@ -66,8 +71,11 @@ class QuerySupervisor[F[_]] private (
   def submitQuery(query: Query): F[Unit] =
     for {
       _                 <- F.delay {
-                             logger.info(s"Handling query: $query")
-                             query.blockedBy.foreach(blockingSources.add)
+                             logger.debug(s"Handling query: $query")
+                             query.blockedBy.foreach { id =>
+                               if (!blockingSources.contains(id))
+                                 blockingSources.addOne(id, true)
+                             }
                            }
       blockingIngestion <- isBlockIngesting(query.blockedBy)
       _                 <- if (blockingIngestion)
@@ -86,9 +94,10 @@ class QuerySupervisor[F[_]] private (
 }
 
 object QuerySupervisor {
-  type GraphID  = String
-  type SourceID = Long
-  type JobID    = String
+  type GraphID    = String
+  type SourceID   = Long
+  type JobID      = String
+  type ISBLOCKING = Boolean
 
   def apply[F[_]: Async](graphID: GraphID, topics: TopicRepository, config: Config): Resource[F, QuerySupervisor[F]] =
     Resource.make {
@@ -97,7 +106,7 @@ object QuerySupervisor {
                       graphID,
                       topics,
                       config,
-                      mutable.Set[SourceID](),
+                      mutable.Map[SourceID, ISBLOCKING](),
                       mutable.Set[Query](),
                       mutable.Set[JobID]()
               )

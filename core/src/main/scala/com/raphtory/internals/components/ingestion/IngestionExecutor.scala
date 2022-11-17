@@ -58,15 +58,13 @@ private[raphtory] class IngestionExecutor[F[_], T](
     } yield ()
 
   private def executePoll(): F[Unit] = {
-
     val s = for {
       isBlocked <- fs2.Stream.eval(Ref.of(false))
       _         <- fs2.Stream.eval(
-                           F.delay(
-                                   queryService.blockIngestion(
-                                           BlockIngestion(source.sourceID, graphID)
-                                   )
-                           ) *> isBlocked.set(true)
+                           queryService.blockIngestion(
+                                   BlockIngestion(source.sourceID, graphID)
+                           )
+                             *> isBlocked.set(true)
                    )
       _         <- source.elements(totalTuplesProcessed) // process elements here
       _         <- finaliseIngestion(isBlocked)
@@ -82,11 +80,9 @@ private[raphtory] class IngestionExecutor[F[_], T](
         blocked         <- isBlocked.get
         highestTimeSeen <- source.highestTimeSeen()
         _               <- if (blocked)
-                             F.delay {
-                               queryService.unblockIngestion(
-                                       UnblockIngestion(graphID, source.sourceID, 0, highestTimeSeen)
-                               )
-                             }
+                             queryService.unblockIngestion(
+                                     UnblockIngestion(graphID, source.sourceID, 0, highestTimeSeen)
+                             )
                            else F.unit
       } yield ()
     }
