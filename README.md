@@ -22,7 +22,7 @@
 &nbsp
 <a href="https://docs.raphtory.com/en/development/">📒 Documentation</a>
 &nbsp 
-<a href="https://www.pometry.com">🥝 Pometry</a> 
+<a href="https://www.pometry.com"><img src="https://user-images.githubusercontent.com/6665739/202438989-2859f8b8-30fb-4402-820a-563049e1fdb3.png" height="16"/> Pometry</a> 
 &nbsp
 <a href="https://docs.raphtory.com/en/development/Examples/lotr.html">🧙🏻‍ Tutorial</a> 
 &nbsp
@@ -33,12 +33,14 @@
 
 </br>
 
-Raphtory is a unified analytics engine for distributed graph analytics, allowing you to run complex graph queries no matter where your data lives and what format it is in. Besides performance and scalability, what makes Raphtory unique is its ability to explore the history of a complex system, from simply “time travelling” through data, to executing richer analysis like taint tracking, temporal reachability, or mining temporal motifs.
 
-#### Features of Raphtory include:
-1. **No data movement required**, read your data as a graph no matter storage and format
-2. **Easy to install and run**, with functions familiar to **NetworkX** and easy integration with **Pandas**
-3. **Performant and scalable**, with Apache Arrow storage model and gRPC client communication
+Raphtory is a unified analytics engine for large-scale graph analysis, allowing you to run complex graph queries no matter where your data lives and what format it is in. Besides performance and scalability, what makes Raphtory cool is its ability to represent and explore the history of a complex system, from simply “time travelling” through data, to executing richer analysis like taint tracking, temporal reachability, or mining temporal motifs.
+
+**Raphtory is easy to use:** One-line pip installation and smooth integration with Pandas for input and output.
+
+**Raphtory is expressive:** Designed to represent all types of graph queries and temporal graphs in mind, with a thoughtfully developed API for exploring your data across its history.
+
+**Raphtory is scalable:** Built on top of Apache Arrow’s storage model and gRPC for client communication, Raphtory can be run on a laptop or scaled up to a cluster for results on terabyte scale graphs.
 
 #### Articles and Talks about Raphtory
 - **[Raphtory on the Alan Turing Institute Blog](https://www.turing.ac.uk/blog/just-add-time-dizzying-potential-dynamic-graphs)**
