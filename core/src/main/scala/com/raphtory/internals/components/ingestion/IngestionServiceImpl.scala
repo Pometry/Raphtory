@@ -3,26 +3,26 @@ package com.raphtory.internals.components.ingestion
 import cats.effect.Async
 import cats.effect.Resource
 import cats.syntax.all._
-import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.OrchestratorService.GraphList
 import com.raphtory.internals.components._
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.protocol
 import com.raphtory.protocol.IngestionService
+import com.raphtory.protocol.QueryService
 import com.raphtory.protocol.Status
 import com.raphtory.protocol.success
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
-class IngestionServiceImpl[F[_]: Async](graphs: GraphList[F, Unit], registry: ServiceRegistry[F], config: Config)
+class IngestionServiceImpl[F[_]: Async] private (graphs: GraphList[F, Unit], queryService: QueryService[F], registry: ServiceRegistry[F], config: Config)
         extends NoGraphDataOrchestratorService(graphs)
         with IngestionService[F] {
 
   override def ingestData(request: protocol.IngestData): F[Status] =
     request match {
       case protocol.IngestData(TryIngestData(scala.util.Success(req)), _) =>
-        val executor = IngestionExecutor(req.graphID, req.source, req.blocking, req.sourceId, config, registry)
+        val executor = IngestionExecutor(req.graphID, queryService, req.source, req.sourceId, config, registry)
         for {
           executorResource           <- executor.allocated
           (executor, releaseExecutor) = executorResource
@@ -48,7 +48,8 @@ object IngestionServiceImpl {
     for {
       graphs  <- makeGraphList[F, Unit]
       _       <- Resource.eval(Async[F].delay(logger.info(s"Starting Ingestion Service")))
-      service <- Resource.eval(Async[F].delay(new IngestionServiceImpl[F](graphs, registry, config)))
+      queryService <- registry.query
+      service <- Resource.eval(Async[F].delay(new IngestionServiceImpl[F](graphs, queryService, registry, config)))
       _       <- registry.registered(service, IngestionServiceImpl.descriptor)
     } yield ()
 

@@ -14,6 +14,7 @@ import org.apache.curator.x.discovery.ServiceDiscovery
 import org.apache.curator.x.discovery.ServiceDiscoveryBuilder
 import org.apache.curator.x.discovery.ServiceInstance
 import java.net.InetAddress
+import scala.concurrent.duration.DurationInt
 
 class DistributedServiceRegistry[F[_]: Async](topics: TopicRepository, serviceDiscovery: ServiceDiscovery[Void])
         extends ServiceRegistry[F](topics) {
@@ -22,8 +23,19 @@ class DistributedServiceRegistry[F[_]: Async](topics: TopicRepository, serviceDi
   private def serviceName                      = "service"
 
   override protected def getService[T](descriptor: ServiceDescriptor[F, T], id: Int): Resource[F, T] = {
-    val instance = serviceDiscovery.queryForInstance(serviceName, serviceId(descriptor.name, id))
-    descriptor.makeClient(instance.getAddress, instance.getPort)
+    def getServiceRetry[R](descriptor: ServiceDescriptor[F, R], id: Int): F[ServiceInstance[R]] =
+      Async[F]
+        .blocking(
+                serviceDiscovery
+                  .queryForInstance(serviceName, serviceId(descriptor.name, id))
+                  .asInstanceOf[ServiceInstance[R]]
+        )
+        .handleErrorWith(_ => Async[F].delayBy(getServiceRetry(descriptor, id), 10.millis))
+
+    for {
+      instance <- Resource.eval(Async[F].timeout(getServiceRetry(descriptor, id), 30.seconds))
+      client   <- descriptor.makeClient(instance.getAddress, instance.getPort)
+    } yield client
   }
 
   override protected def register[T](instance: T, descriptor: ServiceDescriptor[F, T], id: Int): F[F[Unit]] = {

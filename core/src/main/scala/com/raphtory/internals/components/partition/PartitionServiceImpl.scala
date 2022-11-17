@@ -4,7 +4,6 @@ import cats.effect.Async
 import cats.effect.Deferred
 import cats.effect.Resource
 import cats.syntax.all._
-import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.OrchestratorService.Graph
 import com.raphtory.internals.components.OrchestratorService.GraphList
 import com.raphtory.internals.components.GrpcServiceDescriptor
@@ -24,7 +23,6 @@ import com.raphtory.internals.storage.arrow.VertexSchema
 import com.raphtory.internals.storage.pojograph.PojoBasedPartition
 import com.raphtory.protocol.CreatePerspective
 import com.raphtory.protocol.Empty
-import com.raphtory.protocol.GraphAlteration
 import com.raphtory.protocol.GraphAlterations
 import com.raphtory.protocol.GraphId
 import com.raphtory.protocol.Operation
@@ -39,7 +37,6 @@ import com.raphtory.protocol.success
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-
 import java.nio.file.Files
 import scala.util.Success
 import PartitionServiceImpl.Partition
@@ -64,7 +61,6 @@ abstract class PartitionServiceImpl[F[_]: Async](
   override protected def graphExecution(graph: Graph[F, Partition[F]]): F[Unit] =
     (for {
       id <- Resource.eval(id.get)
-      _  <- Reader[F](graph.id, id, graph.data.storage, new Scheduler, config, registry.topics)
     } yield ()).use(_ => Async[F].never)
 
   override def establishExecutor(req: Query): F[Status] =

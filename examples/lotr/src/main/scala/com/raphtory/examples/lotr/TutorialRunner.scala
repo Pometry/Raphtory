@@ -16,7 +16,6 @@ import com.raphtory.internals.storage.arrow.immutable
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
-
 import scala.language.postfixOps
 
 object TutorialRunner      extends RaphtoryApp.Local with LocalRunner

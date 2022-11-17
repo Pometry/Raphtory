@@ -78,8 +78,10 @@ jobs:
         run: cd python/pyraphtory && poetry build && poetry install
       - name: Run pyraphtory tests
         run: cd python/pyraphtory && poetry run pytest -n=auto
+        timeout-minutes: 10
       - name: Run notebook tests
         run: cd examples && pytest --nbmake -n=auto
+        timeout-minutes: 10
       - name: Run doc compile check
         run: | 
           export PATH=$(pwd)/sbt/bin:$PATH

@@ -1,19 +1,9 @@
 package com.raphtory.internals.communication
 
 import com.raphtory.internals.components.output.OutputMessages
-import com.raphtory.internals.components.querymanager.ClusterManagement
-import com.raphtory.internals.components.querymanager.EndQuery
-import com.raphtory.internals.components.querymanager.GraphManagement
-import com.raphtory.internals.components.querymanager.IngestData
-import com.raphtory.internals.components.querymanager.IngestionBlockingCommand
 import com.raphtory.internals.components.querymanager.QueryManagement
-import com.raphtory.internals.components.querymanager.Submission
 import com.raphtory.internals.components.querymanager.VertexMessagesSync
 import com.raphtory.internals.components.querymanager.VertexMessaging
-import com.raphtory.internals.components.querymanager.WatermarkTime
-import com.raphtory.internals.components.querymanager._
-import com.raphtory.internals.graph.GraphAlteration
-import com.raphtory.internals.graph.GraphAlteration._
 import com.typesafe.config.Config
 
 private[raphtory] class TopicRepository(
@@ -25,13 +15,6 @@ private[raphtory] class TopicRepository(
 
   // Methods to override:
   protected def outputConnector: Connector = defaultIngestionConnector
-
-  protected def submissionsConnector: Connector       = defaultControlConnector
-  protected def completedQueriesConnector: Connector  = defaultControlConnector
-  protected def watermarkConnector: Connector         = defaultControlConnector
-  protected def blockingIngestionConnector: Connector = defaultControlConnector
-  protected def queryPrepConnector: Connector         = defaultControlConnector
-  protected def ingestSetupConnector: Connector       = defaultControlConnector
   protected def queryTrackConnector: Connector        = defaultControlConnector
   protected def rechecksConnector: Connector          = defaultControlConnector
   protected def jobStatusConnector: Connector         = defaultControlConnector
@@ -49,36 +32,10 @@ private[raphtory] class TopicRepository(
   final def output(graphID: String, jobId: String): ExclusiveTopic[OutputMessages] =
     ExclusiveTopic[OutputMessages](outputConnector, "output", s"$graphID-$jobId")
 
-  final def submissions(graphID: String): ExclusiveTopic[Submission] =
-    ExclusiveTopic[Submission](submissionsConnector, s"submissions", graphID)
-
-  final def completedQueries(graphID: String): ExclusiveTopic[EndQuery] =
-    ExclusiveTopic[EndQuery](completedQueriesConnector, "completed.queries", graphID)
-
-  final def graphSetup: ExclusiveTopic[ClusterManagement] =
-    ExclusiveTopic[ClusterManagement](ingestSetupConnector, "graph.setup")
-
-  final def clusterComms: BroadcastTopic[ClusterManagement] =
-    BroadcastTopic[ClusterManagement](
-            1, // 1 query orchestrator
-            ingestSetupConnector,
-            "cluster.comms"
-    )
-
-  // graph wise topics
-  final def watermark(graphID: String): ExclusiveTopic[WatermarkTime] =
-    ExclusiveTopic[WatermarkTime](watermarkConnector, "watermark", graphID)
-
-  final def blockingIngestion(graphID: String): ExclusiveTopic[IngestionBlockingCommand] =
-    ExclusiveTopic[IngestionBlockingCommand](blockingIngestionConnector, "blocking.ingestion", graphID)
-
   // Job wise topics
   final def queryTrack(graphID: String, jobId: String): ExclusiveTopic[QueryManagement] =
     ExclusiveTopic[QueryManagement](queryTrackConnector, "query.track", s"$graphID-$jobId")
   // Removed graphID from queryTrack because it is not necessary and complicates using on the webServer as it is not set
-
-  final def rechecks(graphID: String, jobId: String): ExclusiveTopic[QueryManagement] =
-    ExclusiveTopic[QueryManagement](rechecksConnector, "rechecks", s"$graphID-$jobId")
 
   final def jobStatus(graphID: String, jobId: String): ExclusiveTopic[QueryManagement] =
     ExclusiveTopic[QueryManagement](jobStatusConnector, "job.status", s"$graphID-$jobId")

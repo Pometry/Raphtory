@@ -1,6 +1,5 @@
 package com.raphtory.internals.components.querymanager
 
-import com.google.protobuf.ByteString
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.GlobalGraphFunction
@@ -11,13 +10,9 @@ import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.time.Interval
 import com.raphtory.api.time.NullInterval
 import com.raphtory.internals.graph.Perspective
-
 import scala.collection.immutable.Queue
 import com.raphtory.internals.serialisers.DependencyFinder
-import com.raphtory.protocol
 import org.apache.bcel.Repository
-import scalapb.TypeMapper
-
 import java.io.ByteArrayOutputStream
 import scala.jdk.CollectionConverters._
 import scala.util.Try
@@ -37,8 +32,6 @@ private[raphtory] case class WatermarkTime(
     sourceMessages: Array[(Long, Long)]
 ) extends QueryManagement
 
-private[raphtory] case object StartAnalysis extends QueryManagement
-
 private[raphtory] case class SetMetaData(vertices: Int) extends QueryManagement
 
 private[raphtory] case object JobDone                    extends QueryManagement
@@ -55,10 +48,6 @@ private[raphtory] case class PerspectiveFailed(perspective: Perspective, reason:
 private[raphtory] case object StartGraph extends QueryManagement
 
 private[raphtory] case object CompleteWrite extends QueryManagement
-
-private[raphtory] case object RecheckTime                 extends QueryManagement
-private[raphtory] case object RecheckEarliestTime         extends QueryManagement
-private[raphtory] case class CheckMessages(jobId: String) extends QueryManagement
 
 sealed private[raphtory] trait VertexMessaging extends QueryManagement
 
@@ -204,12 +193,10 @@ private[raphtory] case class GraphFunctionWithGlobalState(
     graphState: GraphStateImplementation
 )                                                           extends QueryManagement
 private[raphtory] case class EndQuery(jobID: String)        extends QueryManagement
-private[raphtory] case class QueryNotPresent(jobID: String) extends QueryManagement
 
 // Messages for jobStatus topic
 sealed private[raphtory] trait JobStatus extends QueryManagement
 
-private[raphtory] case class ExecutorEstablished(worker: Int) extends JobStatus
 private[raphtory] case object WriteCompleted                  extends JobStatus
 
 sealed private[raphtory] trait PerspectiveStatus extends JobStatus {
@@ -248,8 +235,7 @@ private[raphtory] case class IngestData(
     _bootstrap: DynamicLoader,
     graphID: String,
     sourceId: Int,
-    source: Source,
-    blocking: Boolean
+    source: Source
 ) extends Submission
         with GraphManagement
 
@@ -259,18 +245,3 @@ object TryIngestData extends TryProtoField[TryIngestData, IngestData] {
   override def buildScala(value: Try[IngestData]): TryIngestData = TryIngestData(value)
   override def getTry(wrapper: TryIngestData): Try[IngestData]   = wrapper.ingestData
 }
-
-sealed private[raphtory] trait ClusterManagement extends QueryManagement
-
-private[raphtory] case class EstablishGraph(graphID: String, clientID: String)               extends ClusterManagement
-private[raphtory] case class DestroyGraph(graphID: String, clientID: String, force: Boolean) extends ClusterManagement
-private[raphtory] case class ClientDisconnected(graphID: String, clientID: String)           extends ClusterManagement
-
-sealed private[raphtory] trait IngestionBlockingCommand   extends QueryManagement {
-  def graphID: String
-}
-case class NonBlocking(sourceID: Int, graphID: String)    extends IngestionBlockingCommand
-case class BlockIngestion(sourceID: Int, graphID: String) extends IngestionBlockingCommand
-
-case class UnblockIngestion(sourceID: Int, graphID: String, messageCount: Long, highestTimeSeen: Long, force: Boolean)
-        extends IngestionBlockingCommand
