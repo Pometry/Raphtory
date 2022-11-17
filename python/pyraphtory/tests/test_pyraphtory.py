@@ -2,7 +2,7 @@ from pathlib import Path
 from pyraphtory.context import PyRaphtory
 import pyraphtory
 from pyraphtory import __version__
-from pyraphtory.builder import *
+from pyraphtory.input import *
 import unittest
 
 version_file = Path(__file__).parent.parent.parent.parent / "version"

@@ -29,8 +29,7 @@ Alternatively, hit next and lets get Raphtory :doc:`installed <Install/python/py
    :hidden:
    :caption: PyRaphtory Introduction
 
-   Ingestion/sprouter.md
-   Analysis/queries.md
+   Introduction/ingestion.ipynb
 
 .. toctree::
    :hidden:

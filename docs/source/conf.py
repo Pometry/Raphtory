@@ -58,8 +58,8 @@ autodoc_packages = [
 ]
 
 # Uncomment to turn of rebuilding of scala and algorithm docs (use when writing other docs to speed up compile)
-# build_scaladocs = False
-# build_algodocs = False
+build_scaladocs = False
+build_algodocs = False
 
 sphinx_tabs_valid_builders = ['linkcheck']
 
