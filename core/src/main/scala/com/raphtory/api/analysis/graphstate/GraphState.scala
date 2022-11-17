@@ -1,5 +1,6 @@
 package com.raphtory.api.analysis.graphstate
 
+import com.raphtory.internals.components.querymanager.ProtoField
 import com.raphtory.utils.Bounded
 import com.raphtory.utils.Bounded._
 import com.raphtory.utils.ExtendedNumeric._
@@ -26,15 +27,14 @@ import com.raphtory.utils.ExtendedNumeric._
   */
 abstract class GraphState {
 
-
   /**  Create a new general Accumulator
     *
     * $vType
     * $name
     * $initialValue
     * $retainState
-   *
-   * @param op Reduction function for the accumulator.
+    *
+    * @param op Reduction function for the accumulator.
     */
   def newAccumulator[T](
       name: String,
@@ -43,7 +43,8 @@ abstract class GraphState {
       op: (T, T) => T
   ): Unit
 
-  def newConcurrentAccumulator[T]( name: String, initialValue: T, retainState: Boolean = false, op: (T, T) => T ): Unit
+  def newConcurrentAccumulator[T](name: String, initialValue: T, retainState: Boolean = false, op: (T, T) => T): Unit
+
   /** Create a new constant that stores an immutable value
     *
     * @tparam T Value type of the constant
@@ -89,6 +90,7 @@ abstract class GraphState {
     newIntAdder(str, 0, retainState = false)
 
   def newIntAdder(str: String, initalValue: Int, retainState: Boolean): Unit
+
   /** Create a new one-initialised accumulator that multiplies values and resets after each step
     *
     * $vType
@@ -225,9 +227,9 @@ abstract class GraphState {
     * @tparam T Type of counted values
     */
   def newCounter[T](
-                                name: String,
-                                retainState: Boolean = true
-                              ): Unit
+      name: String,
+      retainState: Boolean = true
+  ): Unit
 
   /** Create new Boolean accumulator that returns `true` if all accumulated values are `true` and `false` otherwise
     *
@@ -274,3 +276,5 @@ abstract class GraphState {
     */
   def contains(name: String): Boolean
 }
+
+object GraphState extends ProtoField[GraphState]

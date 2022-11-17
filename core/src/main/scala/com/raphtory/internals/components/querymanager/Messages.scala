@@ -22,6 +22,8 @@ private[raphtory] trait QueryManagement extends Serializable
 
 object QueryManagement extends ProtoField[QueryManagement]
 
+private[raphtory] trait Operation extends QueryManagement
+
 private[raphtory] case class WatermarkTime(
     partitionID: Int,
     oldestTime: Long,
@@ -107,8 +109,7 @@ private[raphtory] case class Query(
     timelineEnd: Long = Long.MaxValue,           // inclusive
     windows: List[Interval] = List(),
     windowAlignment: Alignment.Value = Alignment.START,
-    graphFunctions: Queue[GraphFunction] = Queue(),
-    tableFunctions: Queue[TableFunction] = Queue(),
+    operations: List[Operation] = List(),
     blockedBy: Array[Long] = Array(),
     sink: Option[Sink] = None,
     pyScript: Option[String] = None

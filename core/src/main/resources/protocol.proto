@@ -21,6 +21,32 @@ message OptionalId {
   google.protobuf.Int32Value id = 1;
 }
 
+message PerspectiveResult {
+  option (scalapb.message).extends = "com.raphtory.internals.components.querymanager.QueryManagement";
+
+  bytes perspective = 1 [(scalapb.field).type = "com.raphtory.internals.graph.Perspective"];
+  int32 totalPartitions = 2;
+  repeated bytes rows = 3 [(scalapb.field).type = "com.raphtory.api.analysis.table.Row"];
+}
+
+message PartitionResult {
+  repeated bytes rows = 3 [(scalapb.field).type = "com.raphtory.api.analysis.table.Row"];
+}
+
+message FunctionResult {
+  bool votedToHalt = 1;
+}
+
+message FunctionWithStateResult {
+  bool votedToHalt = 1;
+  bytes state = 2 [(scalapb.field).type = "com.raphtory.api.analysis.graphstate.GraphState"];
+}
+
+
+
+message Empty {}
+
+
 // Requests
 message GraphInfo {
   string clientId = 1;
@@ -63,16 +89,36 @@ message DestroyGraph {
   bool force = 3;
 }
 
-message GetGraph {
+message GraphId {
   string graphID = 1;
 }
 
-message Empty {}
+message CreatePerspective {
+  string graphId = 1;
+  int32 id  = 2;
+  bytes perspective = 3 [(scalapb.field).type = "com.raphtory.internals.graph.Perspective"];
+}
+
+message Operation {
+  string graphId = 1;
+  int32 number = 2;
+}
+
+message OperationAndState {
+  string GraphId = 1;
+  int32 number = 2;
+  bytes state = 3 [(scalapb.field).type = "com.raphtory.api.analysis.graphstate.GraphState"];
+}
+
+message VertexMessage {
+  string graphId = 1;
+  bytes message = 2 [(scalapb.field).type = "com.raphtory.internals.components.querymanager.QueryManagement"];
+}
 
 // Services
 service RaphtoryService {
   rpc establishGraph(GraphInfo) returns (Status);
-  rpc getGraph(GetGraph) returns (Status);
+  rpc getGraph(GraphId) returns (Status);
   rpc submitQuery(Query) returns (stream QueryManagement);
   rpc submitSource(IngestData) returns (Status);
   rpc disconnect(GraphInfo) returns (Status);
@@ -92,8 +138,12 @@ service PartitionService {
   rpc establishGraph(GraphInfo) returns (Status);
   rpc destroyGraph(GraphInfo) returns (Status);
   rpc establishExecutor(Query) returns (Status);
-  rpc processUpdates(GraphAlterations) returns (Empty);
-  rpc processEffects(GraphAlterations) returns (Empty);
+  rpc processMessages(VertexMessage) returns (Empty);
+  rpc establishPerspective(CreatePerspective) returns (Empty);
+  rpc executeOperation(Operation) returns (Empty);
+  rpc executeOperationWithState(OperationAndState) returns (Empty);
+  rpc getResult(GraphId) returns (PartitionResult);
+  rpc writePerspective(GraphId) returns (Empty); // this should flush the output
 }
 
 message BlockIngestion {
