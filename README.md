@@ -34,7 +34,7 @@
 <br>
 
 
-Raphtory is a unified analytics engine for large-scale graph analysis, allowing you to run complex graph queries **no matter where your data lives and what format it is in**. Besides performance and scalability, what makes Raphtory cool is its ability to represent and explore the history of a complex system, from simply **“time travelling” through data**, to executing richer analysis like **taint tracking**, **temporal reachability**, or **mining temporal motifs**.
+Raphtory is a unified analytics engine for large-scale graph analysis, allowing you to run complex graph queries no matter where your data lives and what format it is in. Besides performance and scalability, what makes Raphtory cool is its ability to represent and explore the history of a complex system, from simply “time travelling” through data, to executing richer analysis like **taint tracking**, **temporal reachability**, or **mining temporal motifs**.
 
 **Raphtory is easy to use:** One-line pip installation and smooth integration with Pandas for input and output.
 
@@ -53,21 +53,18 @@ Raphtory is a unified analytics engine for large-scale graph analysis, allowing 
 ```python
 # Import Raphtory
 import PyRaphtory
-```
-```python
+
 # Create a new local or distributed context
 ctx = PyRaphtory.local()
 graph = ctx.new_graph()
-```
-```python
+
 # Add some data to your graph
 graph.add_vertex(1, 1)
 graph.add_vertex(2, 2)
 graph.add_vertex(3, 3)
 graph.add_edge(4, 1, 2)
 graph.add_edge(4, 1, 3)
-```
-```python
+
 # Collect some simple vertex metrics
 # Ran across a range of the data with incremental windowing
 df = graph
@@ -75,8 +72,7 @@ df = graph
       .window(1)
       .select(lambda vertex: Row(vertex.name(), vertex.out_degree(), vertex.in_degree()))
       .to_df(["name", "out_degree", "in_degree"])
-```
-```python
+
 # Preview DataFrame
 df
 ```
