@@ -37,14 +37,17 @@ class StreamSource[F[_], T](id: Int, spoutInstance: SpoutInstance[T], builderIns
     F: Async[F]
 ) {
 
-  def elements(counter: Counter.Child): fs2.Stream[F, Unit] =
-    for {
+  def elements(counter: Counter.Child): F[Unit] = {
+    val s = for {
       index <- fs2.Stream.eval(Ref.of[F, Long](1L))
       tuples = fs2.Stream.fromBlockingIterator[F](spoutInstance, 512)
       _     <- tuples.chunks.parEvalMapUnordered(4)(chunk =>
                  builderInstance.buildGraphFromT(chunk, index) *> F.delay(counter.inc(chunk.size))
                )
     } yield ()
+
+    s.void.compile.drain
+  }
 
   def sentMessages: F[Long]          = builderInstance.getSentUpdates
   def earliestTimeSeen(): F[Long]    = builderInstance.earliestTimeSeen

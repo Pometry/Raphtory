@@ -54,7 +54,6 @@ class GraphBuilderF[F[_], T](
                    .processUpdates(
                            protocol.GraphAlterations(graphId, alterations = updates.map(protocol.GraphAlteration(_)))
                    )
-            _ <- F.delay(println(s"$earliestSeen, $minTime"))
             _ <- earliestSeen.update(Math.min(_, minTime))
             _ <- highestSeen.update(Math.max(_, maxTime))
             _ <- sentUpdates.update(_ + updates.size)

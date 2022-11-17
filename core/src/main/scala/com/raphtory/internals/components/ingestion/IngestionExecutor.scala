@@ -27,10 +27,7 @@ private[raphtory] class IngestionExecutor[F[_], T](
 )(implicit F: Async[F]) {
   private val logger: Logger                      = Logger(LoggerFactory.getLogger(this.getClass))
   private val failOnError                         = conf.getBoolean("raphtory.builders.failOnError")
-//  private val sourceInstance                      = source.buildSource(graphID, sourceID)
   private val totalTuplesProcessed: Counter.Child = TelemetryReporter.totalTuplesProcessed.labels(s"$sourceID", graphID)
-
-  private var index: Long = 0
 
   def release(): F[Unit] =
     for {
@@ -41,52 +38,31 @@ private[raphtory] class IngestionExecutor[F[_], T](
   def run(): F[Unit] =
     for {
       _ <- F.delay(logger.debug("Running ingestion executor"))
-      _ <- iterativePolls
+      _ <- executePoll()
     } yield ()
 
-  private def iterativePolls: F[Unit] =
+  private def executePoll(): F[Unit] =
     for {
-      _    <- executePoll()
-      wait <- source.spoutReschedules()
-      _    <- if (wait) waitForNextPoll else F.unit
-    } yield ()
+      isBlocked <- Ref.of(false)
+      _         <- queryService.blockIngestion(
+                           BlockIngestion(source.sourceID, graphID)
+                   ) *> isBlocked.set(true)
 
-  private def waitForNextPoll: F[Unit] =
-    for {
-      _ <- F.delay(logger.trace(s"Spout: Scheduling spout to poll again in ${source.pollInterval}."))
-      _ <- F.sleep(source.pollInterval)
-    } yield ()
-
-  private def executePoll(): F[Unit] = {
-    val s = for {
-      isBlocked <- fs2.Stream.eval(Ref.of(false))
-      _         <- fs2.Stream.eval(
-                           queryService.blockIngestion(
-                                   BlockIngestion(source.sourceID, graphID)
-                           )
-                             *> isBlocked.set(true)
-                   )
       _         <- source.elements(totalTuplesProcessed) // process elements here
       _         <- finaliseIngestion(isBlocked)
-    } yield ()
-
-    totalTuplesProcessed.inc()
-    s.void.compile.drain
-  }
+    } yield totalTuplesProcessed.inc()
 
   private def finaliseIngestion(isBlocked: Ref[F, Boolean]) =
-    fs2.Stream.eval {
-      for {
-        blocked          <- isBlocked.get
-        earliestTimeSeen <- source.earliestTimeSeen()
-        highestTimeSeen  <- source.highestTimeSeen()
-        _                <- if (blocked)
-                              queryService.unblockIngestion(
-                                      UnblockIngestion(graphID, source.sourceID, earliestTimeSeen, highestTimeSeen)
-                              )
-                            else F.unit
-      } yield ()
-    }
+    for {
+      blocked          <- isBlocked.get
+      earliestTimeSeen <- source.earliestTimeSeen()
+      highestTimeSeen  <- source.highestTimeSeen()
+      _                <- if (blocked)
+                            queryService.unblockIngestion(
+                                    UnblockIngestion(graphID, source.sourceID, earliestTimeSeen, highestTimeSeen)
+                            )
+                          else F.unit
+    } yield ()
 }
 
 object IngestionExecutor {
