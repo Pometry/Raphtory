@@ -75,7 +75,7 @@ df = graph
 
 # Preview DataFrame
 df
-```
+
 |    |   timestamp |   window |   name |   out_degree |   in_degree |
 |---:|------------:|---------:|-------:|-------------:|------------:|
 |  0 |           1 |        1 |      1 |            0 |           0 |
@@ -84,6 +84,7 @@ df
 |  3 |           4 |        1 |      1 |            2 |           0 |
 |  4 |           4 |        1 |      2 |            0 |           1 |
 |  5 |           4 |        1 |      3 |            0 |           1 |
+```
 
 You can try out Raphtory for yourself in a Jupyter Notebook. Please click here [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Raphtory/Raphtory/development?labpath=examples%2Flotr%2Fsrc%2Fmain%2Fpython%2FLOTR-PyRaphtory.ipynb) to launch the notebook.
 
