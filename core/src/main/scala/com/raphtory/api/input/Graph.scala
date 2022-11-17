@@ -42,17 +42,13 @@ trait Graph {
   def index: Long
   protected def graphID: String
 
-  @inline
-  private def vertexAddCounter    = TelemetryReporter.vertexAddCounter.labels(s"$sourceID", graphID)
+  private def vertexAddCounter = TelemetryReporter.vertexAddCounter.labels(s"$sourceID", graphID)
 
-  @inline
   private def vertexDeleteCounter = TelemetryReporter.vertexDeleteCounter.labels(s"$sourceID", graphID)
 
-  @inline
-  private def edgeAddCounter      = TelemetryReporter.edgeAddCounter.labels(s"$sourceID", graphID)
+  private def edgeAddCounter = TelemetryReporter.edgeAddCounter.labels(s"$sourceID", graphID)
 
-  @inline
-  private def edgeDeleteCounter   = TelemetryReporter.edgeDeleteCounter.labels(s"$sourceID", graphID)
+  private def edgeDeleteCounter = TelemetryReporter.edgeDeleteCounter.labels(s"$sourceID", graphID)
 
   /** Adds a new vertex to the graph or updates an existing vertex
     *
