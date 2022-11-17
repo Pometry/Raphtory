@@ -31,10 +31,10 @@
 <a href="https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA"><img src="https://user-images.githubusercontent.com/6665739/154071628-a55fb5f9-6994-4dcf-be03-401afc7d9ee0.png" height="20" align="center"/> Join Slack</a> 
 </p>
 
-</br>
+<br>
 
 
-Raphtory is a unified analytics engine for large-scale graph analysis, allowing you to run complex graph queries no matter where your data lives and what format it is in. Besides performance and scalability, what makes Raphtory cool is its ability to represent and explore the history of a complex system, from simply “time travelling” through data, to executing richer analysis like taint tracking, temporal reachability, or mining temporal motifs.
+Raphtory is a unified analytics engine for large-scale graph analysis, allowing you to run complex graph queries **no matter where your data lives and what format it is in**. Besides performance and scalability, what makes Raphtory cool is its ability to represent and explore the history of a complex system, from simply **“time travelling” through data**, to executing richer analysis like **taint tracking**, **temporal reachability**, or **mining temporal motifs**.
 
 **Raphtory is easy to use:** One-line pip installation and smooth integration with Pandas for input and output.
 
@@ -53,20 +53,21 @@ Raphtory is a unified analytics engine for large-scale graph analysis, allowing 
 ```python
 # Import Raphtory
 import PyRaphtory
-
+```
+```python
 # Create a new local or distributed context
 ctx = PyRaphtory.local()
 graph = ctx.new_graph()
-
+```
+```python
 # Add some data to your graph
 graph.add_vertex(1, 1)
 graph.add_vertex(2, 2)
 graph.add_vertex(3, 3)
 graph.add_edge(4, 1, 2)
 graph.add_edge(4, 1, 3)
-
-cols = ["inDegree", "outDegree", "degree", "prlabel", "cclabel"]
-
+```
+```python
 # Collect some simple vertex metrics
 # Ran across a range of the data with incremental windowing
 df = graph
@@ -74,9 +75,11 @@ df = graph
       .window(1)
       .select(lambda vertex: Row(vertex.name(), vertex.out_degree(), vertex.in_degree()))
       .to_df(["name", "out_degree", "in_degree"])
-
+```
+```python
+# Preview DataFrame
 df
-
+```
 |    |   timestamp |   window |   name |   out_degree |   in_degree |
 |---:|------------:|---------:|-------:|-------------:|------------:|
 |  0 |           1 |        1 |      1 |            0 |           0 |
@@ -85,7 +88,8 @@ df
 |  3 |           4 |        1 |      1 |            2 |           0 |
 |  4 |           4 |        1 |      2 |            0 |           1 |
 |  5 |           4 |        1 |      3 |            0 |           1 |
-```
+
+You can try out Raphtory for yourself in a Jupyter Notebook. Please click here [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Raphtory/Raphtory/development?labpath=examples%2Flotr%2Fsrc%2Fmain%2Fpython%2FLOTR-PyRaphtory.ipynb) to launch the notebook.
 
 # Installing Raphtory 
 Raphtory is available for both Python and Scala / Java, with support for Rust planned in the 0.3.0 release. 
