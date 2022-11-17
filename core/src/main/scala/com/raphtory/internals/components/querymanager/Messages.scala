@@ -30,8 +30,6 @@ private[raphtory] case class WatermarkTime(
     sourceMessages: Array[(Long, Long)]
 ) extends QueryManagement
 
-private[raphtory] case object StartAnalysis extends QueryManagement
-
 private[raphtory] case class SetMetaData(vertices: Int) extends QueryManagement
 
 private[raphtory] case object JobDone                    extends QueryManagement
@@ -48,10 +46,6 @@ private[raphtory] case class PerspectiveFailed(perspective: Perspective, reason:
 private[raphtory] case object StartGraph extends QueryManagement
 
 private[raphtory] case object CompleteWrite extends QueryManagement
-
-private[raphtory] case object RecheckTime                 extends QueryManagement
-private[raphtory] case object RecheckEarliestTime         extends QueryManagement
-private[raphtory] case class CheckMessages(jobId: String) extends QueryManagement
 
 sealed private[raphtory] trait VertexMessaging extends QueryManagement
 
@@ -198,7 +192,6 @@ private[raphtory] case class GraphFunctionWithGlobalState(
     graphState: GraphStateImplementation
 )                                                           extends QueryManagement
 private[raphtory] case class EndQuery(jobID: String)        extends QueryManagement
-private[raphtory] case class QueryNotPresent(jobID: String) extends QueryManagement
 
 // Messages for jobStatus topic
 sealed private[raphtory] trait JobStatus extends QueryManagement
