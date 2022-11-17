@@ -20,13 +20,12 @@
 <a href="https://www.raphtory.com/"><b>Website 🌍</b></a> <a href="https://docs.raphtory.com/en/development/"><b>Documentation 📒</b></a> <a href="https://github.com/Raphtory/Raphtory"><b>Source Code 🖥</b></a> <a href="https://docs.raphtory.com/en/development/Examples/lotr.html"><b>Tutorial 🧙🏻</b></a> <a href="https://github.com/Raphtory/Raphtory/issues"><b>Report a Bug 🐛</b></a>
 </p>
 
-Raphtory is an open-source platform for distributed real-time temporal graph analytics, allowing you to load and process large dynamic datasets across time. 
+Raphtory is a unified analytics engine for **distributed graph analytics**, which allows you to run complex graph queries **no matter where your data lives** and **what format** it is in. What makes Raphtory unique is its combination of a **graph model with time-series analysis**, providing a powerful model for extracting new **insights**. Raphtory supports both **traditional graph analysis** (e.g. shortest path and community detection), as well as **trend and anomaly detection** via time-series. Things get interesting when the two are combined, allowing you to **"time travel"** through your data, look for **time-respecting paths**, identify **causal relationships**, model the evolution of **communities over time** or extract **temporal patterns in the interactions** between entities in the network.
 
 Features of Raphtory include:
-1. No data movement required - easy to pull in data from **anywhere**
-2. Easy to **scale**
-3. Easy to **distribute** and **elastic**
-4. Familiar functions to **Pandas** and **NetworkX**
+1. **No data movement** required, read your data as a graph no matter storage and format
+2. Easy to install and run, with functions familiar to **NetworkX** and easy integration with **Pandas**
+3. **Performant and scalable**, with Apache Arrow storage model and gRPC client communication
 
 ### Articles and Talks about Raphtory
 - **[Raphtory on the Alan Turing Institute Blog](https://www.turing.ac.uk/blog/just-add-time-dizzying-potential-dynamic-graphs)**
@@ -45,7 +44,10 @@ Features of Raphtory include:
 
 # Install
 
-Install PyRaphtory, which contains all the functions to create a graph, run algorithms and analyse results.
+Install PyRaphtory, which contains all the functions to create a graph, run algorithms and analyse results. We also support Conda, but pip is the preferred option.
+
+*Make sure Python version > 3.7 is installed.*
+
 ```bash
 pip install requests pandas pemja cloudpickle parsy
 pip install -i https://test.pypi.org/simple/ pyraphtory_jvm==0.2.0a7
@@ -56,6 +58,8 @@ pip install -i https://test.pypi.org/simple/ pyraphtory==0.2.0a7
 
 Initialise Raphtory and create a new graph.
 ```python
+import PyRaphtory
+
 ctx = PyRaphtory.local()
 graph = ctx.new_graph()
 ```
