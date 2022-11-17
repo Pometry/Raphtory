@@ -120,19 +120,18 @@ object PythonEncoder {
     for (i <- 0 until length) {
       var c = input.charAt(i)
       if (c == '$') c = '_'
-      if (i > 0 || c != '_') { // skip first starting underscore
-        if (Character.isUpperCase(c)) {
-          if (!wasPrevTranslated && resultLength > 0 && result.charAt(resultLength - 1) != '_') {
-            result.append('_')
-            resultLength += 1
-          }
-          c = Character.toLowerCase(c)
-          wasPrevTranslated = true
+      if (Character.isUpperCase(c)) {
+        if (!wasPrevTranslated && resultLength > 0 && result.charAt(resultLength - 1) != '_') {
+          result.append('_')
+          resultLength += 1
         }
-        else wasPrevTranslated = false
-        result.append(c)
-        resultLength += 1
+        c = Character.toLowerCase(c)
+        wasPrevTranslated = true
       }
+      else wasPrevTranslated = false
+      result.append(c)
+      resultLength += 1
+
     }
     if (resultLength > 0) result.toString
     else input

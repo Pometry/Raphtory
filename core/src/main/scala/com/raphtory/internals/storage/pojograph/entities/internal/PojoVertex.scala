@@ -39,7 +39,6 @@ private[raphtory] class PojoVertex(msgTime: Long, index: Long, val vertexId: Lon
             lens
     )
 
-  @inline
   def edgeView(
       startTime: Long,
       endTime: Long,
