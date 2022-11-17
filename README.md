@@ -22,13 +22,13 @@
 &nbsp
 <a href="https://docs.raphtory.com/en/development/">📒 Documentation</a>
 &nbsp 
-<a href="https://www.pometry.com"><img src="https://user-images.githubusercontent.com/6665739/202438989-2859f8b8-30fb-4402-820a-563049e1fdb3.png" style="height: 1.2em; vertical-align: -0.2em"/> Pometry</a> 
+<a href="https://www.pometry.com"><img src="https://user-images.githubusercontent.com/6665739/202438989-2859f8b8-30fb-4402-820a-563049e1fdb3.png" height="20" align="center"/> Pometry</a> 
 &nbsp
 <a href="https://docs.raphtory.com/en/development/Examples/lotr.html">🧙🏻‍ Tutorial</a> 
 &nbsp
 <a href="https://github.com/Raphtory/Raphtory/issues">🐛 Report a Bug</a> 
 &nbsp
-<a href="https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA"><img src="https://user-images.githubusercontent.com/6665739/154071628-a55fb5f9-6994-4dcf-be03-401afc7d9ee0.png" style="height: 1.2em; vertical-align: -0.2em"/> Join Slack</a> 
+<a href="https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA"><img src="https://user-images.githubusercontent.com/6665739/154071628-a55fb5f9-6994-4dcf-be03-401afc7d9ee0.png" height="20" align="center"/> Join Slack</a> 
 </p>
 
 </br>
