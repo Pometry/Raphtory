@@ -427,9 +427,9 @@ class OverloadedMethod:
     def __init__(self, methods, name):
         self.__name__ = name
         self._methods = methods
-        self.__doc__ = (f"Overloaded method {self.__name__} with alternatives\n\n"
-                        + "\n\n".join(f"{self.__name__}{inspect.signature(m)}" +
-                                      ("\n" + indent(m.__doc__, "    ") if m.__doc__ else "")
+        self.__doc__ = (f"Overloaded method with alternatives\n\n"
+                        + "\n\n".join(f".. method:: {self.__name__}{str(inspect.signature(m.__get__(m)))}\n   :noindex:\n" +  # hack to get signature as if bound method
+                                      ("\n" + indent(m.__doc__, "   ") if m.__doc__ else "")
                                       for m in self._methods))
 
     def __call__(self, *args, **kwargs):

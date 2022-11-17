@@ -4,8 +4,6 @@ import com.raphtory.internals.components.output.OutputMessages
 import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.components.querymanager.VertexMessagesSync
 import com.raphtory.internals.components.querymanager.VertexMessaging
-import com.raphtory.internals.graph.GraphAlteration
-import com.raphtory.internals.graph.GraphAlteration._
 import com.typesafe.config.Config
 
 private[raphtory] class TopicRepository(
@@ -16,16 +14,7 @@ private[raphtory] class TopicRepository(
 ) {
 
   // Methods to override:
-  protected def graphUpdatesConnector: Connector = defaultIngestionConnector
-  protected def graphSyncConnector: Connector    = defaultIngestionConnector
-  protected def outputConnector: Connector       = defaultIngestionConnector
-
-  protected def submissionsConnector: Connector       = defaultControlConnector
-  protected def completedQueriesConnector: Connector  = defaultControlConnector
-  protected def watermarkConnector: Connector         = defaultControlConnector
-  protected def blockingIngestionConnector: Connector = defaultControlConnector
-  protected def queryPrepConnector: Connector         = defaultControlConnector
-  protected def ingestSetupConnector: Connector       = defaultControlConnector
+  protected def outputConnector: Connector = defaultIngestionConnector
   protected def queryTrackConnector: Connector        = defaultControlConnector
   protected def rechecksConnector: Connector          = defaultControlConnector
   protected def jobStatusConnector: Connector         = defaultControlConnector
@@ -42,13 +31,6 @@ private[raphtory] class TopicRepository(
   // Global topics
   final def output(graphID: String, jobId: String): ExclusiveTopic[OutputMessages] =
     ExclusiveTopic[OutputMessages](outputConnector, "output", s"$graphID-$jobId")
-
-  // graph wise topics
-  final def graphUpdates(graphID: String): ShardingTopic[GraphAlteration] =
-    ShardingTopic[GraphAlteration](numPartitions, graphUpdatesConnector, s"graph.updates", graphID)
-
-  final def graphSync(graphID: String): ShardingTopic[GraphUpdateEffect] =
-    ShardingTopic[GraphUpdateEffect](numPartitions, graphSyncConnector, s"graph.sync", graphID)
 
   // Job wise topics
   final def queryTrack(graphID: String, jobId: String): ExclusiveTopic[QueryManagement] =

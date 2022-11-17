@@ -21,13 +21,13 @@ class QueryServiceImpl[F[_]: Async] private (
 ) extends OrchestratorService(graphs)
         with protocol.QueryService[F] {
 
-  override protected def makeGraphData(graphID: String): F[QuerySupervisor[F]] =
-    Async[F].delay(QuerySupervisor(graphID, topics, config))
+  override protected def makeGraphData(graphID: String): Resource[F, QuerySupervisor[F]] =
+    QuerySupervisor(graphID, topics, config)
 
   private def getQuerySupervisor(graphID: String): F[QuerySupervisor[F]] =
     for (m <- graphs.get) yield m(graphID).data
 
-  override def blockIngestion(req: protocol.BlockIngestion): F[Empty] =
+  override def blockIngestion(req: protocol.BlockIngestion): F[Empty]    =
     for {
       querySupervisor <- getQuerySupervisor(req.graphID)
       _               <- querySupervisor.startBlockingIngestion(req.sourceID)

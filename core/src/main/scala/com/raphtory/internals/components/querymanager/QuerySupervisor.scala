@@ -90,13 +90,17 @@ object QuerySupervisor {
   type SourceID = Long
   type JobID    = String
 
-  def apply[F[_]: Async](graphID: GraphID, topics: TopicRepository, config: Config): QuerySupervisor[F] =
-    new QuerySupervisor(
-            graphID,
-            topics,
-            config,
-            mutable.Set[SourceID](),
-            mutable.Set[Query](),
-            mutable.Set[JobID]()
-    )
+  def apply[F[_]: Async](graphID: GraphID, topics: TopicRepository, config: Config): Resource[F, QuerySupervisor[F]] =
+    Resource.make {
+      Async[F].delay(
+              new QuerySupervisor(
+                      graphID,
+                      topics,
+                      config,
+                      mutable.Set[SourceID](),
+                      mutable.Set[Query](),
+                      mutable.Set[JobID]()
+              )
+      )
+    }(_ => Async[F].unit)
 }

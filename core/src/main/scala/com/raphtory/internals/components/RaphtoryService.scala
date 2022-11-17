@@ -6,7 +6,6 @@ import cats.effect.Resource
 import cats.effect.std.Dispatcher
 import cats.effect.std.Queue
 import cats.syntax.all._
-import com.raphtory.internals.communication.EndPoint
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
@@ -16,7 +15,6 @@ import com.raphtory.internals.components.partition.PartitionServiceImpl
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.components.repositories.DistributedServiceRegistry
 import com.raphtory.internals.components.repositories.LocalServiceRegistry
-import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.management.Partitioner
 import com.raphtory.internals.management.id.IDManager
 import com.raphtory.internals.storage.arrow.EdgeSchema
@@ -43,7 +41,6 @@ import higherkindness.mu.rpc.healthcheck.HealthService
 import higherkindness.mu.rpc.server.AddService
 import higherkindness.mu.rpc.server.GrpcServer
 import org.slf4j.LoggerFactory
-
 import scala.util.Failure
 import scala.util.Success
 
@@ -51,19 +48,16 @@ class DefaultRaphtoryService[F[_]](
     runningGraphs: Ref[F, Map[String, Set[String]]],
     existingGraphs: Ref[F, Set[String]],
     ingestion: IngestionService[F],
-    partitions: Seq[PartitionService[F]],
+    partitions: Map[Int, PartitionService[F]],
     queryService: QueryService[F],
     idManager: IDManager,
+    registry: ServiceRegistry[F],
     topics: TopicRepository,
     config: Config
-)(implicit
-    F: Async[F]
-) extends RaphtoryService[F] {
+)(implicit F: Async[F])
+        extends RaphtoryService[F] {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val partitioner    = new Partitioner()
-
-  private lazy val writers =
-    Map[String, Map[Int, EndPoint[GraphAlteration]]]().withDefault(topics.graphUpdates(_).endPoint())
 
   override def establishGraph(req: GraphInfo): F[Status] =
     for {
@@ -74,7 +68,7 @@ class DefaultRaphtoryService[F[_]](
                          else
                            for {
                              _ <- ingestion.establishGraph(req)
-                             _ <- partitions.map(partition => partition.establishGraph(req)).sequence
+                             _ <- controlPartitions(_.establishGraph(req))
                              _ <- queryService.establishGraph(req)
                              _ <- runningGraphs.update(graphs =>
                                     if (graphs contains req.graphId) graphs else (graphs + (req.graphId -> Set()))
@@ -90,8 +84,7 @@ class DefaultRaphtoryService[F[_]](
                       for {
                         _      <- F.delay(logger.debug(s"Destroying graph ${req.graphId}"))
                         _      <- ingestion.destroyGraph(GraphInfo(req.clientId, req.graphId))
-                        _      <-
-                          partitions.map(partition => partition.destroyGraph(GraphInfo(req.clientId, req.graphId))).sequence
+                        _      <- controlPartitions(_.destroyGraph(GraphInfo(req.clientId, req.graphId)))
                         status <- queryService.destroyGraph(GraphInfo(req.clientId, req.graphId))
                         _      <- existingGraphs.update(graphs => graphs - req.graphId)
                       } yield status
@@ -121,7 +114,7 @@ class DefaultRaphtoryService[F[_]](
     protocol.QueryManagement(JobFailed(new IllegalStateException(s"Graph $graphId is not running")))
 
   private def establishExecutors(query: protocol.Query) =
-    partitions.map(partition => partition.establishExecutor(query)).sequence // TODO: in parallel?
+    controlPartitions(_.establishExecutor(query))
 
   private def submitDeserializedQuery(query: Query): F[Stream[F, protocol.QueryManagement]] =
     (for {
@@ -134,24 +127,25 @@ class DefaultRaphtoryService[F[_]](
   override def submitSource(req: protocol.IngestData): F[Status] = ingestion.ingestData(req)
 
   override def getNextAvailableId(req: IdPool): F[OptionalId] =
-    req match {
-      case IdPool(pool, _) => F.blocking(idManager.getNextAvailableID(pool)).map(protocol.OptionalId(_))
-    }
+    F.blocking(idManager.getNextAvailableID(req.pool)).map(protocol.OptionalId(_))
 
   override def processUpdate(req: protocol.GraphUpdate): F[Status] =
-    req match {
-      case protocol.GraphUpdate(graphId, update, _) =>
-        for {
-          _ <- F.delay(logger.debug(s"Processing graph update $update"))
-          _ <- F.delay(writers(graphId)(partitioner.getPartitionForId(update.srcId)) sendAsync update)
-        } yield success
-    }
+    for {
+      _ <- F.delay(logger.trace(s"Processing graph update ${req.update}"))
+      _ <- partitions(partitioner.getPartitionForId(req.update.srcId)).processUpdates(
+                   protocol.GraphAlterations(req.graphId, Vector(protocol.GraphAlteration(req.update)))
+           )
+
+    } yield success
 
   override def unblockIngestion(req: protocol.UnblockIngestion): F[Status] =
     F.delay(logger.debug(s"Unblocking ingestion for source id: '${req.sourceID}' and graph id '${req.graphID}'")) *>
       queryService.unblockIngestion(req).as(success)
 
   override def getGraph(req: GetGraph): F[Status] = runningGraphs.get.map(i => Status(i.contains(req.graphID)))
+
+  private def controlPartitions[T](f: PartitionService[F] => F[T]) =
+    F.parSequenceN(partitions.size)(partitions.values.toSeq.map(f))
 
   /** Returns true if we can destroy the graph */
   private def forcedRemoval(graphId: String): F[Boolean] =
@@ -229,6 +223,7 @@ object RaphtoryServiceBuilder {
                                                  partitions,
                                                  query,
                                                  sourceIDManager,
+                                                 repo,
                                                  repo.topics,
                                                  config
                                          )
