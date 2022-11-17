@@ -44,7 +44,7 @@ private[raphtory] class QueryExecutor[F[_]](
 ) extends Component[QueryManagement](conf) {
 
   private val graphID        = query.graphID
-  private val sink           = query.sink.get
+  private val sink           = query.sink.getOrElse(throw new Exception("No Sink found!"))
   private val jobID          = query.name
   private val pyScript       = query.pyScript
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
