@@ -24,7 +24,6 @@ def _kill_jvm(j_raphtory, j_gateway):
         pass
 
 
-
 def print_output(input_stream: IO[AnyStr], output_stream=sys.stdout):
     out = input_stream.readline()
     while out:
@@ -38,10 +37,15 @@ def read_output(stream: IO[AnyStr]):
         yield out
         out = stream.readline()
 
+def check_raphtory_logging_env():
+    home = os.getenv('RAPHTORY_CORE_LOG')
+    if home is None:
+        os.environ["RAPHTORY_CORE_LOG"] = "ERROR"
 
 class Py4JConnection:
     def __init__(self):
 
+        check_raphtory_logging_env()
         java = pyraphtory_jvm.jre.get_local_java_loc()
 
         if pyraphtory._config.java_args:
