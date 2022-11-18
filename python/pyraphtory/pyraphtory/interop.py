@@ -35,8 +35,12 @@ try:
 
     _scala = findClass('com.raphtory.internals.management.PythonInterop')
 except ImportError:
-    _py4j = Py4JConnection()
-    _scala = _py4j.j_gateway.entry_point
+    import jpype
+    import jpype.imports
+    from pyraphtory import _config
+
+    jpype.startJVM(*_config.java_args, classpath=_config.jars.split(":"))
+    from com.raphtory.internals.management import PythonInterop as _scala
 
 
 def test_scala_reflection(obj):

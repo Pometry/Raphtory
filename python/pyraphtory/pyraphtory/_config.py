@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from pyraphtory_jvm.jre import ivy_folder
+from pyraphtory_jvm.jre import ivy_folder, get_local_java_loc
 
 
 def get_ivy_jars_from_local_lib():
@@ -29,3 +29,4 @@ def setup_raphtory_jars():
 
 
 jars, java_args = setup_raphtory_jars()
+java = get_local_java_loc()

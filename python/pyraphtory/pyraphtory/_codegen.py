@@ -4,9 +4,9 @@ from pyraphtory._docstring import convert_docstring
 
 def clean_identifier(name: str):
     if iskeyword(name):
-        return name + "_"
+        return str(name + "_")
     else:
-        return name
+        return str(name)
 
 
 def build_method(name, method):
