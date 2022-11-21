@@ -495,15 +495,15 @@ object ArrowPartition {
 
   val lock = new ReentrantReadWriteLock()
 
+//  def withReaderLock[A](f: => A): A =
+//    try if (lock.writeLock().tryLock() || lock.writeLock().tryLock(1, TimeUnit.SECONDS))
+//      f
+//    else
+//      throw new IllegalStateException("FAILED TO GET READ LOCK!")
+//    finally lock.writeLock().unlock()
+
+
   def withReaderLock[A](f: => A): A =
-    try if (lock.writeLock().tryLock() || lock.writeLock().tryLock(1, TimeUnit.SECONDS))
-      f
-    else
-      throw new IllegalStateException("FAILED TO GET READ LOCK!")
-    finally lock.writeLock().unlock()
-
-
-  def withReaderLock2[A](f: => A): A =
     try if (lock.readLock().tryLock() || lock.readLock().tryLock(1, TimeUnit.SECONDS))
       f
     else
