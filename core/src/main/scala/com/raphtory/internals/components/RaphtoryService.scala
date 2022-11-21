@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory
 import scala.util.Failure
 import scala.util.Success
 
-class DefaultRaphtoryService[F[_]](
+class RaphtoryServiceImpl[F[_]](
     runningGraphs: Ref[F, Map[String, Set[String]]],
     existingGraphs: Ref[F, Set[String]],
     ingestion: IngestionService[F],
@@ -216,7 +216,7 @@ object RaphtoryServiceBuilder {
       existingGraphs  <- Resource.eval(Ref.of(Set[String]()))
       service         <- Resource.eval(
                                  Async[F].delay(
-                                         new DefaultRaphtoryService(
+                                         new RaphtoryServiceImpl(
                                                  runningGraphs,
                                                  existingGraphs,
                                                  ingestion,
