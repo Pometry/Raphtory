@@ -51,7 +51,6 @@ class DefaultRaphtoryService[F[_]](
     partitions: Map[Int, PartitionService[F]],
     queryService: QueryService[F],
     idManager: IDManager,
-    registry: ServiceRegistry[F],
     topics: TopicRepository,
     config: Config
 )(implicit F: Async[F])
@@ -224,7 +223,6 @@ object RaphtoryServiceBuilder {
                                                  partitions,
                                                  query,
                                                  sourceIDManager,
-                                                 repo,
                                                  repo.topics,
                                                  config
                                          )
