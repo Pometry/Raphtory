@@ -186,8 +186,8 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       }
     } match {
       case Some(e) =>
-        updateExistingEdge(sourceID, msgTime, index, srcId, dstId, properties, dst, e)
         addVertexInternal(dstId, msgTime, Properties())
+        updateExistingEdge(sourceID, msgTime, index, srcId, dstId, properties, dst, e)
       case None    =>
         val dstV = addVertexInternal(dstId, msgTime, Properties())
         addLocalVerticesToEdge(src, dstV, msgTime, properties)
