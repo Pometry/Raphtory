@@ -22,8 +22,8 @@ class QuerySupervisor[F[_]] private (
     private val blockingSources: Ref[F, Map[SourceID, Deferred[F, Unit]]]
 )(implicit F: Async[F]) {
   private val logger       = Logger(LoggerFactory.getLogger(this.getClass))
-  private var earliestTime = -1L
-  private var latestTime   = -1L
+  private var earliestTime = Long.MaxValue
+  private var latestTime   = Long.MinValue
 
   def startBlockingIngestion(sourceID: SourceID): F[Unit] =
     for {

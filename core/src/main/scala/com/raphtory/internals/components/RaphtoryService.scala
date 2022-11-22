@@ -103,7 +103,7 @@ class RaphtoryServiceImpl[F[_]](
         for {
           graphRunning <- runningGraphs.get.map(graphs => graphs.isDefinedAt(query.graphID))
           responses    <- if (graphRunning)
-                            establishExecutors(req) *> submitDeserializedQuery(query, req)
+                            establishExecutors(req) *> queryService.submitQuery(req)
                           else Stream[F, protocol.QueryManagement](graphNotRunningMessage(query.graphID)).pure[F]
         } yield responses
       case protocol.Query(TryQuery(Failure(error)), _) =>
@@ -115,15 +115,6 @@ class RaphtoryServiceImpl[F[_]](
 
   private def establishExecutors(query: protocol.Query) =
     controlPartitions(_.establishExecutor(query))
-
-  private def submitDeserializedQuery(query: Query, req: protocol.Query): F[Stream[F, protocol.QueryManagement]] =
-    (for {
-      queue      <- Stream.eval(Queue.unbounded[F, Option[QueryManagement]])
-      dispatcher <- Stream.resource(Dispatcher[F])
-      _          <- Stream.resource(QueryTrackerForwarder[F](query.graphID, query.name, topics, queue, dispatcher, config))
-      _          <- Stream.eval(queryService.submitQuery(req))
-      response   <- Stream.fromQueueNoneTerminated(queue, 1000)
-    } yield protocol.QueryManagement(response)).pure[F]
 
   override def submitSource(req: protocol.IngestData): F[Status] = ingestion.ingestData(req)
 

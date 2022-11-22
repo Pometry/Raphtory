@@ -112,8 +112,8 @@ abstract class PartitionServiceImpl[F[_]](
 
   override def endQuery(req: QueryId): F[Empty] =
     for {
-      _ <- updateExecutorsForGraph(req.graphId, _ - req.jobId)
       _ <- forwardToExecutor(req.graphId, req.jobId, _.endQuery)
+      _ <- updateExecutorsForGraph(req.graphId, _ - req.jobId)
     } yield Empty()
 
   private def forwardToExecutor[T](graphId: String, jobId: String, f: QueryExecutorF[F] => F[T]): F[T] =

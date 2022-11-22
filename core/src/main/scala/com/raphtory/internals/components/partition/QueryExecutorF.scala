@@ -155,7 +155,7 @@ class QueryExecutorF[F[_]](
           case op: ExplodeSelect[Vertex] @unchecked                          => lens.explodeSelect(op.f)(cb)
           case ReduceView(defaultMergeStrategy, mergeStrategyMap, aggregate) =>
             lens.reduceView(defaultMergeStrategy, mergeStrategyMap, aggregate)(cb)
-          case _                                                             => throw new Exception("Iterate not handled here")
+          case x                                                             => throw new Exception(s"$x not handled")
         }
       }
 
@@ -188,7 +188,7 @@ class QueryExecutorF[F[_]](
           case SelectWithGraph(f)                             => lens.executeSelect(f, graphState)(cb)
           case esf: ExplodeSelectWithGraph[Vertex] @unchecked => lens.explodeSelect(esf.f, graphState)(cb)
           case GlobalSelect(f)                                => if (partitionID == 0) lens.executeSelect(f, graphState)(cb) else cb()
-          case _                                              => throw new Exception("Iternate not handled here")
+          case x                                              => throw new Exception(s"$x not handled")
         }
       }
 

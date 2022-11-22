@@ -5,6 +5,7 @@ import cats.effect.Async
 import cats.effect.Deferred
 import cats.syntax.all._
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
+import com.raphtory.api.analysis.graphview.GlobalGraphFunction
 import com.raphtory.api.analysis.graphview.SetGlobalState
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.internals.components.output.TableOutputSink
@@ -91,9 +92,9 @@ class QueryHandlerF[F[_]](
     query.operations.zipWithIndex.map {
       case (operation, index) =>
         operation match {
-          case SetGlobalState(fun)             => F.delay(fun(state))
-          case _: GraphFunctionWithGlobalState => executeWithStateUntilConsensus(index, state)
-          case _                               => executeUntilConsensus(index)
+          case SetGlobalState(fun)    => F.delay(fun(state))
+          case y: GlobalGraphFunction => F.delay(println(s"with sate ${y}")) >> executeWithStateUntilConsensus(index, state)
+          case x                      => F.delay(println(s"without state ${x}")) >> executeUntilConsensus(index)
         }
     }.sequence_
 
