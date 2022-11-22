@@ -13,14 +13,14 @@ trait GraphBuilder[T] extends ((Graph, T) => Unit) with Serializable {
       graphID: String,
       sourceID: Int,
       partitions: Map[Int, PartitionService[F]]
-  ): Resource[F, GraphBuilderF[F, T]] =
-    Resource.eval(for {
+  ): F[GraphBuilderF[F, T]] =
+    for {
       earliestSeen <- Ref.of(Long.MaxValue)
       highestSeen  <- Ref.of(Long.MinValue)
       sentUpdates  <- Ref.of(0L)
       builder      <-
         Async[F].delay(new GraphBuilderF(graphID, sourceID, this, partitions, earliestSeen, highestSeen, sentUpdates))
-    } yield builder)
+    } yield builder
 }
 
 private[raphtory] object GraphBuilder {

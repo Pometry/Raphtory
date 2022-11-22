@@ -22,7 +22,7 @@ trait Source {
       graphID: String,
       id: Int,
       partitions: Map[Int, PartitionService[F]]
-  ): Resource[F, StreamSource[F, MessageType]] =
+  ): F[StreamSource[F, MessageType]] =
     builder
       .make(graphID, id, partitions)
       .map(builder => new StreamSource[F, MessageType](id, spout.buildSpout(), builder))
