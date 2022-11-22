@@ -10,7 +10,7 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.input.Graph
-import com.raphtory.internals.management.python.EmbeddedPython
+import com.raphtory.internals.management.python.{EmbeddedPython, JPypeEmbeddedPython}
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
@@ -23,6 +23,7 @@ import scala.reflect.runtime.universe
 import universe._
 import scala.util.Random
 import com.github.takezoe.scaladoc.Scaladoc
+import pemja.core.Interpreter
 
 /** Scala-side methods for interfacing with Python */
 object PythonInterop {
@@ -58,6 +59,10 @@ object PythonInterop {
   def assign_id(s: String): Long =
     Graph.assignID(s)
 
+  def set_interpreter(interpreter: Interpreter): Unit = {
+    EmbeddedPython.injectInterpreter(JPypeEmbeddedPython(interpreter))
+  }
+
   /** convert names from camel to snake case */
   def camel_to_snake(s: String): String =
     PythonEncoder.camelToSnakeCase(s)
@@ -65,11 +70,8 @@ object PythonInterop {
   /** used to convert java objects to scala objects when passing through python collections
     * (define more converters as needed)
     */
-  def decode[T](obj: Any): T =
-    (obj match {
-      case obj: java.util.ArrayList[_] => obj.asScala
-      case obj                         => obj
-    }).asInstanceOf[T]
+  def decode[T](obj: java.util.Collection[_]): T =
+    obj.asScala.asInstanceOf[T]
 
   /** Look up name of python wrapper based on input type
     * (used to provide specialised wrappers for categories of types rather than specific classes)
@@ -269,8 +271,10 @@ trait PythonFunction {
           catch {
             case e: Throwable =>
               // variable still doesn't exist so unpack the function
+              println(s"unpacking ${eval_name}")
               py.set(s"${eval_name}_bytes", pickleBytes)
               py.run(s"import cloudpickle as pickle; $eval_name = pickle.loads(${eval_name}_bytes)")
+              println(s"deleting packed bytes for ${eval_name}")
               py.run(s"del ${eval_name}_bytes")
           }
         }

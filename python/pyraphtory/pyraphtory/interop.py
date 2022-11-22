@@ -12,6 +12,7 @@ from threading import Lock, RLock
 from copy import copy
 from textwrap import indent
 from pyraphtory import _codegen
+from jpype import JObject, JBoolean, JByte, JShort, JInt, JLong, JFloat, JDouble, JString
 from pyraphtory._py4jgateway import Py4JConnection
 
 _wrapper_lock = Lock()
@@ -19,7 +20,7 @@ _wrappers = {}
 
 
 def repr(obj):
-    return _scala.repr(obj)
+    return str(_scala.repr(obj))
 
 
 # stay sane while debugging this code
@@ -39,8 +40,10 @@ except ImportError:
     import jpype.imports
     from pyraphtory import _config
 
-    jpype.startJVM(*_config.java_args, classpath=_config.jars.split(":"))
+    jpype.startJVM(_config.java_args, classpath=_config.jars.split(":"))
+    from pyraphtory._jpypeinterpreter import JPypeInterpreter
     from com.raphtory.internals.management import PythonInterop as _scala
+    _scala.set_interpreter(JPypeInterpreter())
 
 
 def test_scala_reflection(obj):
@@ -64,9 +67,15 @@ def register(cls=None, *, name=None):
         return cls
 
 
+_JPrimitiveTypes = (JBoolean, JByte, JShort, JInt, JLong, JFloat, JDouble, JString)
+def _isJPrimitive(obj):
+    return isinstance(obj, _JPrimitiveTypes)
+
 def is_PyJObject(obj):
     """Needed because Pemja objects do not support isinstance"""
-    return type(obj).__name__ == "PyJObject" or isinstance(obj, JavaObject) or isinstance(obj, JavaClass)
+    return (type(obj).__name__ == "PyJObject"
+            or (isinstance(obj, JObject) and not _isJPrimitive(obj))
+            or isinstance(obj, JavaObject) or isinstance(obj, JavaClass))
 
 
 def snake_to_camel(name: str):
@@ -103,7 +112,7 @@ def get_methods_from_name(name):
 
 def get_wrapper(obj):
     """get wrapper class for a java object"""
-    name = obj.getClass().getName()
+    name = str(obj.getClass().getName())
     logger.trace("Retrieving wrapper for {name!r}", name=name)
     try:
         wrapper = _wrappers[name]
@@ -117,7 +126,7 @@ def get_wrapper(obj):
                 logger.trace("Found wrapper for {name!r} based on class name after initial wait", name=name)
             else:
                 # Check if a special wrapper class is registered for the object
-                wrap_name = _scala.get_wrapper_str(obj)
+                wrap_name = str(_scala.get_wrapper_str(obj))
                 if wrap_name in _wrappers:
                     # Add special wrapper class to the top of the mro such that method overloads work
                     logger.debug("Using wrapper based on name {wrap_name} for {name}", wrap_name=wrap_name, name=name)
@@ -163,6 +172,8 @@ def to_python(obj):
         wrapper = get_wrapper(obj)
         logger.trace("Calling wrapper with jvm_object={obj}", obj=obj)
         return wrapper(jvm_object=obj)
+    elif isinstance(obj, JString):
+        return str(obj)
     else:
         logger.trace("Primitive object {obj!r} passed to python unchanged", obj=obj)
         return obj
