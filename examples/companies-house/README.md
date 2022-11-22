@@ -3,12 +3,6 @@
 ## Overview
 This is the code used to analyse the Companies House data in Raphtory, written up in two blog posts: [A Series Of Unfortunate Directors](https://www.raphtory.com/A-Series-of-Unfortunate-Directors/) and [The Chocolate NePPEtism Factory](https://www.raphtory.com/NHS-contracts/)
 
-## Installation Guide
-
-Scala Installation Guide: https://docs.raphtory.com/en/development/Install/scala/install.html
-
-Python Installation Guide: [With Conda](https://docs.raphtory.com/en/development/Install/python/install_conda.html) and [Without Conda](https://docs.raphtory.com/en/development/Install/python/install_no_conda.html)
-
 ## Data
 
 The data was pulled from the [Companies House Public API](https://developer-specs.company-information.service.gov.uk/) and it is in JSON format. 

@@ -6,7 +6,7 @@ In recent work, Raphtory has been used to study the evolution of a fairly new so
 
 ## Project Overview
 
-This [example](https://github.com/Raphtory/Raphtory/tree/development/examples/raphtory-example-gab) demonstrates an analysis used to study the evolution of the Gab Social network. The data is a `csv` file (comma-separated values) located in the `data` folder. Each row of data consists of `Time of post`, `post ID`, `user ID`, `topic ID`, `parent post ID` and `parent user ID`.
+This demonstrates an analysis used to study the evolution of the Gab Social network. The data is a `csv` file (comma-separated values) located in the `data` folder. Each row of data consists of `Time of post`, `post ID`, `user ID`, `topic ID`, `parent post ID` and `parent user ID`.
 `post ID`: Identifier for the post that was made
 `user ID`: User that authored the post
 `topic ID`: Identifier for topic of post
@@ -33,11 +33,11 @@ As of February 2022, this is a guide to run this within IntelliJ.
 
 ## Running this example
 
-1. This example project is up on Github: [raphtory-example-gab](https://github.com/Raphtory/Raphtory/tree/development/examples/raphtory-example-gab). If you have downloaded the Examples folder from the installation guide previously, then the Gab example will already be set up. If not, please return [there](https://raphtory.readthedocs.io/en/development/Install/installdependencies.html) and complete this step first.
+1. This example project is up on Github: [raphtory-example-gab](https://github.com/Raphtory/Raphtory/tree/master/examples/raphtory-example-gab). If you have downloaded the Examples folder from the installation guide previously, then the Gab example will already be set up.
 2. Download the _gabNetwork500.csv_ data from [raphtory-data](https://github.com/Raphtory/Data) repository and place it inside of the resources folder.
 3. In the Examples folder, open up the directory `raphtory-example-gab` to get this example running.
-4. Install all the python libraries necessary for visualising your data via the [Jupyter Notebook Tutorial](https://raphtory.readthedocs.io/en/development/PythonClient/tutorial.html). Once you have Jupyter Notebook up and running on your local machine, you can open up the Jupyter Notebook specific for this project, with all the commands needed to output your graph. This can be found by following the path `src/main/python/GabJupyterNotebook.ipynb`.
-5. You are now ready to run this example. You can either run this example via Intellij by running the class `Runner.scala` or [via sbt](https://raphtory.readthedocs.io/en/development/Install/installdependencies.html#running-raphtory-via-sbt).
+4. Install all the python libraries necessary for visualising your data via the [Jupyter Notebook Tutorial](https://docs.raphtory.com/en/master/Install/python/pyraphtory.html#Running-PyRaphtory). Once you have Jupyter Notebook up and running on your local machine, you can open up the Jupyter Notebook specific for this project, with all the commands needed to output your graph. This can be found by following the path `src/main/python/GabJupyterNotebook.ipynb`.
+5. You are now ready to run this example. You can either run this example via Intellij by running the class `Runner.scala` or [via sbt](https://docs.raphtory.com/en/master/scala/quickstart.html).
 6. Once your job has finished, you are ready to go onto Jupyter Notebook and run your analyses/output.
 
 ## Output
