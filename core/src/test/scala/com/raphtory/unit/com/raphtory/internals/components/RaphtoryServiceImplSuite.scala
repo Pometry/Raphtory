@@ -7,7 +7,7 @@ import com.raphtory.protocol._
 import munit.CatsEffectSuite
 import org.mockito.MockitoSugar._
 
-class DefaultRaphtoryServiceSuite extends CatsEffectSuite {
+class RaphtoryServiceImplSuite extends CatsEffectSuite {
 
   private val clientId  = "testClientId"
   private val graphId   = "testGraphId"
@@ -23,7 +23,7 @@ class DefaultRaphtoryServiceSuite extends CatsEffectSuite {
             existingGraphs   <- Resource.eval(IO.ref(Set[String]()))
             service          <- Resource.eval(
                                         Async[IO].delay(
-                                                new DefaultRaphtoryService(
+                                                new RaphtoryServiceImpl(
                                                         runningGraphs,
                                                         existingGraphs,
                                                         ingestionService,
