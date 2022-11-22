@@ -5,6 +5,8 @@ import cats.effect.std.Dispatcher
 import cats.effect.std.Queue
 import cats.effect.std.Semaphore
 import cats.syntax.all._
+import com.google.protobuf.empty.Empty
+import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview.ClearChain
 import com.raphtory.api.analysis.graphview.DirectedView
@@ -25,28 +27,19 @@ import com.raphtory.api.analysis.graphview.UndirectedView
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.TableFunction
 import com.raphtory.api.analysis.visitor.Vertex
-import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.output.sink.SinkExecutor
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
-import com.raphtory.internals.components.querymanager.GraphFunctionCompleteWithState
 import com.raphtory.internals.components.querymanager.Query
-import com.raphtory.internals.components.querymanager.TableBuilt
-import com.raphtory.internals.components.querymanager.TableFunctionComplete
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.management.Partitioner
 import com.raphtory.internals.management.Scheduler
-import com.raphtory.protocol.Empty
-import com.raphtory.protocol.GraphId
 import com.raphtory.protocol.NodeCount
-import com.raphtory.protocol.Operation
-import com.raphtory.protocol.OperationAndState
 import com.raphtory.protocol.OperationResult
 import com.raphtory.protocol.OperationWithStateResult
 import com.raphtory.protocol.PartitionResult
 import com.raphtory.protocol.PartitionService
-import com.raphtory.protocol.PerspectiveCommand
 import com.raphtory.protocol.VertexMessages
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -141,16 +134,14 @@ class QueryExecutorF[F[_]](
     } yield Empty()
 
   private def executeGraphFunction(function: GraphFunction, lens: LensInterface): F[OperationResult] = {
-    def processIterate    =
+    def processIterate(f: Vertex => Unit, executeMessagedOnly: Boolean) =
       withFinishCallback { cb =>
-        function match {
-          case Iterate(f: (Vertex => Unit) @unchecked, iterations, executeMessagedOnly) =>
-            if (executeMessagedOnly)
-              lens.runMessagedGraphFunction(f)(cb)
-            else
-              lens.runGraphFunction(f)(cb)
-        }
+        if (executeMessagedOnly)
+          lens.runMessagedGraphFunction(f)(cb)
+        else
+          lens.runGraphFunction(f)(cb)
       }
+
     def processNonIterate =
       withFinishCallback { cb =>
         function match {
@@ -159,18 +150,21 @@ class QueryExecutorF[F[_]](
           case UndirectedView()                                              => lens.viewUndirected()(cb)
           case DirectedView()                                                => lens.viewDirected()(cb)
           case ReversedView()                                                => lens.viewReversed()(cb)
-          case ClearChain()                                                  => lens.clearMessages(); cb
+          case ClearChain()                                                  => lens.clearMessages(); cb()
           case op: Select[Vertex] @unchecked                                 => lens.executeSelect(op.f)(cb)
           case op: ExplodeSelect[Vertex] @unchecked                          => lens.explodeSelect(op.f)(cb)
           case ReduceView(defaultMergeStrategy, mergeStrategyMap, aggregate) =>
             lens.reduceView(defaultMergeStrategy, mergeStrategyMap, aggregate)(cb)
+          case _                                                             => throw new Exception("Iterate not handled here")
         }
       }
 
     function match {
-      case _: Iterate[_] =>
-        wrapMessagingFunction(processIterate, lens) *> F.delay(OperationResult(voteToContinue = lens.checkVotes()))
-      case _             => wrapMessagingFunction(processNonIterate, lens) as OperationResult(voteToContinue = true)
+      case Iterate(f: (Vertex => Unit) @unchecked, _, executeMessagedOnly) =>
+        wrapMessagingFunction(processIterate(f, executeMessagedOnly), lens) *> F.delay(
+                OperationResult(voteToContinue = lens.checkVotes())
+        )
+      case _                                                               => wrapMessagingFunction(processNonIterate, lens) as OperationResult(voteToContinue = true)
     }
   }
 
@@ -179,30 +173,31 @@ class QueryExecutorF[F[_]](
       graphState: GraphStateImplementation,
       lens: LensInterface
   ): F[OperationWithStateResult] = {
-    def processIterate    =
+    def processIterate(f: ((Vertex, GraphState) => Unit), executeMessagedOnly: Boolean) =
       withFinishCallback { cb =>
-        function match {
-          case iwg: IterateWithGraph[Vertex] @unchecked =>
-            if (iwg.executeMessagedOnly)
-              lens.runMessagedGraphFunction(iwg.f, graphState)(cb)
-            else
-              lens.runGraphFunction(iwg.f, graphState)(cb)
-        }
+        if (executeMessagedOnly)
+          lens.runMessagedGraphFunction(f, graphState)(cb)
+        else
+          lens.runGraphFunction(f, graphState)(cb)
       }
+
     def processNonIterate =
       withFinishCallback { cb =>
         function match {
           case StepWithGraph(f)                               => lens.runGraphFunction(f, graphState)(cb)
           case SelectWithGraph(f)                             => lens.executeSelect(f, graphState)(cb)
           case esf: ExplodeSelectWithGraph[Vertex] @unchecked => lens.explodeSelect(esf.f, graphState)(cb)
-          case GlobalSelect(f)                                => if (partitionID == 0) lens.executeSelect(f, graphState)(cb) else cb
+          case GlobalSelect(f)                                => if (partitionID == 0) lens.executeSelect(f, graphState)(cb) else cb()
+          case _                                              => throw new Exception("Iternate not handled here")
         }
       }
 
     function match {
-      case _: IterateWithGraph[_] =>
-        wrapMessagingFunction(processIterate, lens) *> F.delay(OperationWithStateResult(lens.checkVotes(), graphState))
-      case _                      =>
+      case IterateWithGraph(f: ((Vertex, GraphState) => Unit) @unchecked, _, executeMessagedOnly) =>
+        wrapMessagingFunction(processIterate(f, executeMessagedOnly), lens) *> F.delay(
+                OperationWithStateResult(lens.checkVotes(), graphState)
+        )
+      case _                                                                                      =>
         wrapMessagingFunction(processNonIterate, lens) as OperationWithStateResult(voteToContinue = true, graphState)
     }
   }

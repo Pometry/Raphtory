@@ -4,6 +4,7 @@ import cats.effect.IO
 import com.raphtory._
 import com.raphtory.protocol._
 import munit.CatsEffectSuite
+import com.google.protobuf.empty.Empty
 
 class RaphtoryServiceTestSuite extends CatsEffectSuite {
 

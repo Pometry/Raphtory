@@ -6,6 +6,7 @@ import cats.effect.Resource
 import cats.effect.std.Dispatcher
 import cats.effect.std.Queue
 import cats.syntax.all._
+import com.google.protobuf.empty.Empty
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.communication.connectors.AkkaConnector
 import com.raphtory.internals.communication.repositories.DistributedTopicRepository
@@ -21,7 +22,6 @@ import com.raphtory.internals.storage.arrow.EdgeSchema
 import com.raphtory.internals.storage.arrow.VertexSchema
 import com.raphtory.makeLocalIdManager
 import com.raphtory.protocol
-import com.raphtory.protocol.GraphId
 import com.raphtory.protocol.GraphInfo
 import com.raphtory.protocol.IdPool
 import com.raphtory.protocol.IngestionService
@@ -41,7 +41,6 @@ import higherkindness.mu.rpc.healthcheck.HealthService
 import higherkindness.mu.rpc.server.AddService
 import higherkindness.mu.rpc.server.GrpcServer
 import org.slf4j.LoggerFactory
-
 import scala.util.Failure
 import scala.util.Success
 
@@ -244,9 +243,9 @@ object RaphtoryServiceBuilder {
     for {
       topics      <- LocalTopicRepository[F](config, None)
       serviceRepo <- LocalServiceRegistry(topics)
+      _           <- PartitionServiceImpl.makeN(serviceRepo, config)
       _           <- QueryServiceImpl(serviceRepo, config)
       _           <- IngestionServiceImpl(serviceRepo, config)
-      _           <- PartitionServiceImpl.makeN(serviceRepo, config)
     } yield serviceRepo
 
   private def localArrowCluster[F[_]: Async, V: VertexSchema, E: EdgeSchema](
@@ -255,9 +254,9 @@ object RaphtoryServiceBuilder {
     for {
       topics      <- LocalTopicRepository[F](config, None)
       serviceRepo <- LocalServiceRegistry(topics)
+      _           <- PartitionServiceImpl.makeNArrow[F, V, E](serviceRepo, config)
       _           <- QueryServiceImpl(serviceRepo, config)
       _           <- IngestionServiceImpl(serviceRepo, config)
-      _           <- PartitionServiceImpl.makeNArrow[F, V, E](serviceRepo, config)
     } yield serviceRepo
 
   private def remoteCluster[F[_]: Async](config: Config): Resource[F, ServiceRegistry[F]] =

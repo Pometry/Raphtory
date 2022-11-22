@@ -120,11 +120,12 @@ class QueryHandlerF[F[_]](
 object QueryHandlerF {
 
   def apply[F[_]: Async](
-      graphId: String,
       firstTimestamp: Long,
       lastTimestamp: Long,
       partitions: Seq[PartitionService[F]],
       query: Query
-  ): F[fs2.Stream[F, QueryManagement]] =
-    new QueryHandlerF[F](graphId, query, partitions).processQuery(firstTimestamp, lastTimestamp)
+  ): F[fs2.Stream[F, protocol.QueryManagement]] =
+    new QueryHandlerF[F](query.graphID, query, partitions)
+      .processQuery(firstTimestamp, lastTimestamp)
+      .map(_.map(j => protocol.QueryManagement(j)))
 }

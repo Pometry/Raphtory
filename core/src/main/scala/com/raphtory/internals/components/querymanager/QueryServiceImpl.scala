@@ -7,7 +7,7 @@ import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.OrchestratorService.GraphList
 import com.raphtory.internals.components._
 import com.raphtory.protocol
-import com.raphtory.protocol.QueryService
+import com.raphtory.protocol.{PartitionService, QueryService}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import fs2.Stream
@@ -19,12 +19,13 @@ import scala.util.Success
 class QueryServiceImpl[F[_]: Async] private (
     graphs: GraphList[F, QuerySupervisor[F]],
     topics: TopicRepository,
-    config: Config
+    config: Config,
+    partitions: Map[Int, PartitionService[F]]
 ) extends OrchestratorService(graphs)
         with protocol.QueryService[F] {
 
   override protected def makeGraphData(graphID: String): Resource[F, QuerySupervisor[F]] =
-    QuerySupervisor(graphID, topics, config)
+    QuerySupervisor(graphID, topics, config, partitions)
 
   private def getQuerySupervisor(graphID: String): F[QuerySupervisor[F]] =
     for (m <- graphs.get) yield m(graphID).data
@@ -51,12 +52,6 @@ class QueryServiceImpl[F[_]: Async] private (
       case protocol.Query(TryQuery(Failure(error)), _) =>
         Stream[F, protocol.QueryManagement](protocol.QueryManagement(JobFailed(error))).pure[F]
     }
-
-  override def endQuery(req: protocol.JobID): F[Empty] =
-    for {
-      querySupervisor <- getQuerySupervisor(req.jobID)
-      _               <- querySupervisor.endQuery(req.jobID)
-    } yield Empty()
 }
 
 object QueryServiceImpl {
@@ -68,7 +63,8 @@ object QueryServiceImpl {
     for {
       graphs  <- makeGraphList[F, QuerySupervisor[F]]
       _       <- Resource.eval(Async[F].delay(logger.info(s"Starting Query Service")))
-      service <- Resource.eval(Async[F].delay(new QueryServiceImpl[F](graphs, repo.topics, config)))
+      partitions   <- repo.partitions
+      service <- Resource.eval(Async[F].delay(new QueryServiceImpl[F](graphs, repo.topics, config, partitions)))
       _       <- repo.registered(service, QueryServiceImpl.descriptor)
     } yield ()
 

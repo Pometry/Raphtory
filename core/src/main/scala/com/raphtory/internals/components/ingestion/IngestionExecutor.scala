@@ -27,9 +27,6 @@ private[raphtory] class IngestionExecutor[F[_], T](
   def run(): F[Unit] =
     for {
       _                <- F.delay(logger.debug("Running ingestion executor"))
-      _                <- queryService.blockIngestion(
-                                  BlockIngestion(source.sourceID, graphID)
-                          )
       _                <- source.elements(totalTuplesProcessed) // process elements here
       earliestTimeSeen <- source.earliestTimeSeen()
       highestTimeSeen  <- source.highestTimeSeen()
@@ -50,6 +47,7 @@ object IngestionExecutor {
       partitions: Map[Int, PartitionService[F]]
   ): F[IngestionExecutor[F, _]] =
     for {
+      _            <- queryService.blockIngestion(BlockIngestion(sourceID, graphID))
       streamSource <- source.make(graphID, sourceID, partitions)
       executor     <- Async[F].delay(new IngestionExecutor(graphID, queryService, streamSource, sourceID, config))
     } yield executor

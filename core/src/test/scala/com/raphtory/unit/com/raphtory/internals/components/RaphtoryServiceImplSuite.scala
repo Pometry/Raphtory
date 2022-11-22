@@ -6,6 +6,7 @@ import com.raphtory.internals.management.id.IDManager
 import com.raphtory.protocol._
 import munit.CatsEffectSuite
 import org.mockito.MockitoSugar._
+import com.google.protobuf.empty.Empty
 
 class RaphtoryServiceImplSuite extends CatsEffectSuite {
 

@@ -113,66 +113,66 @@ final private[raphtory] case class PojoGraphLens(
   def filterAtStep(superStep: Int): Unit =
     needsFiltering.set(superStep)
 
-  def executeSelect(f: Vertex => Row)(onComplete: => Unit): Unit = {
+  def executeSelect(f: Vertex => Row)(onComplete: () => Unit): Unit = {
     dataTable = vertexIterator.flatMap { vertex =>
       f.asInstanceOf[PojoVertexBase => RowImplementation](vertex).yieldAndRelease
     }
-    onComplete
+    onComplete()
   }
 
   def executeSelect(
       f: (_, GraphState) => Row,
       graphState: GraphState
-  )(onComplete: => Unit): Unit = {
+  )(onComplete: () => Unit): Unit = {
     dataTable = vertexIterator.flatMap { vertex =>
       f.asInstanceOf[(PojoVertexBase, GraphState) => RowImplementation](vertex, graphState).yieldAndRelease
     }
-    onComplete
+    onComplete()
   }
 
   def executeSelect(
       f: GraphState => Row,
       graphState: GraphState
-  )(onComplete: => Unit): Unit = {
+  )(onComplete: () => Unit): Unit = {
     if (partitionID == 0)
       dataTable = Iterator
         .fill(1)(f(graphState).asInstanceOf[RowImplementation])
         .flatMap(_.yieldAndRelease)
-    onComplete
+    onComplete()
   }
 
-  def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: => Unit): Unit = {
+  def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: () => Unit): Unit = {
     dataTable = vertexIterator
       .flatMap(f.asInstanceOf[PojoVertexBase => IterableOnce[RowImplementation]])
       .flatMap(_.yieldAndRelease)
-    onComplete
+    onComplete()
   }
 
-  def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row], graphState: GraphState)(onComplete: => Unit): Unit = {
+  def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row], graphState: GraphState)(onComplete: () => Unit): Unit = {
     dataTable = vertexIterator
       .flatMap(v => f.asInstanceOf[(PojoVertexBase, GraphState) => IterableOnce[RowImplementation]](v, graphState))
       .flatMap(_.yieldAndRelease)
-    onComplete
+    onComplete()
   }
 
-  def filteredTable(f: Row => Boolean)(onComplete: => Unit): Unit = {
+  def filteredTable(f: Row => Boolean)(onComplete: () => Unit): Unit = {
     dataTable = dataTable.filter(f)
-    onComplete
+    onComplete()
   }
 
-  def explodeTable(f: Row => IterableOnce[Row])(onComplete: => Unit): Unit = {
+  def explodeTable(f: Row => IterableOnce[Row])(onComplete: () => Unit): Unit = {
     dataTable = dataTable.flatMap(_.explode(f))
-    onComplete
+    onComplete()
   }
 
-  def writeDataTable(writer: Row => Unit)(onComplete: => Unit): Unit = {
+  def writeDataTable(writer: Row => Unit)(onComplete: () => Unit): Unit = {
     dataTable.foreach(row => writer(row))
-    onComplete
+    onComplete()
   }
 
   override def explodeView(
       interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]]
-  )(onComplete: => Unit): Unit = {
+  )(onComplete: () => Unit): Unit = {
     val tasks = {
       if (exploded)
         if (interlayerEdgeBuilder.nonEmpty)
@@ -190,26 +190,26 @@ final private[raphtory] case class PojoGraphLens(
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
-  def viewUndirected()(onComplete: => Unit): Unit = {
+  def viewUndirected()(onComplete: () => Unit): Unit = {
     unDir = true
-    onComplete
+    onComplete()
   }
 
-  def viewDirected()(onComplete: => Unit): Unit = {
+  def viewDirected()(onComplete: () => Unit): Unit = {
     unDir = false
-    onComplete
+    onComplete()
   }
 
-  def viewReversed()(onComplete: => Unit): Unit = {
+  def viewReversed()(onComplete: () => Unit): Unit = {
     reversed = !reversed
-    onComplete
+    onComplete()
   }
 
   def reduceView(
       defaultMergeStrategy: Option[PropertyMerge[_, _]],
       mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
       aggregate: Boolean
-  )(onComplete: => Unit): Unit = {
+  )(onComplete: () => Unit): Unit = {
     exploded = false
     val (_, tasks) = prepareRun(vertexMap.valuesIterator, chunkSize, includeAllVs = true)(vertex =>
       vertex.reduce(defaultMergeStrategy, mergeStrategyMap, aggregate)
@@ -218,7 +218,7 @@ final private[raphtory] case class PojoGraphLens(
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
-  def runGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit = {
+  def runGraphFunction(f: Vertex => Unit)(onComplete: () => Unit): Unit = {
     val (count, tasks) = prepareRun(vertexIterator, chunkSize, includeAllVs = true)(f)
     vertexCount.set(count)
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
@@ -227,7 +227,7 @@ final private[raphtory] case class PojoGraphLens(
   override def runGraphFunction(
       f: (_, GraphState) => Unit,
       graphState: GraphState
-  )(onComplete: => Unit): Unit = {
+  )(onComplete: () => Unit): Unit = {
     val (count, tasks) = prepareRun(vertexIterator, chunkSize, includeAllVs = true)(vertex =>
       f.asInstanceOf[(PojoVertexBase, GraphState) => Unit](vertex, graphState)
     )
@@ -250,7 +250,7 @@ final private[raphtory] case class PojoGraphLens(
           (count + chunkSize, io :: ll)
       }
 
-  override def runMessagedGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit = {
+  override def runMessagedGraphFunction(f: Vertex => Unit)(onComplete: () => Unit): Unit = {
 
     val (count, tasks) =
       prepareRun(vertexIterator, chunkSize, includeAllVs = false)(f)
@@ -262,7 +262,7 @@ final private[raphtory] case class PojoGraphLens(
   override def runMessagedGraphFunction(
       f: (Vertex, GraphState) => Unit,
       graphState: GraphState
-  )(onComplete: => Unit): Unit = {
+  )(onComplete: () => Unit): Unit = {
 
     val (count, tasks) = prepareRun(vertexIterator, chunkSize, includeAllVs = false) { vertex =>
       f(vertex, graphState)

@@ -27,14 +27,14 @@ private[raphtory] class Scheduler {
 
   def executeInParallel(
       tasks: List[IO[Unit]],
-      onSuccess: => Unit,
+      onSuccess: () => Unit,
       errorHandler: (Throwable) => Unit
   ): () => Future[Unit] = {
 
     val (_, cancelable) = IO
       .parSequenceN(threads)(tasks)
       .onError(t => IO.blocking(errorHandler(t)))
-      .flatMap(_ => IO.blocking(onSuccess))
+      .flatMap(_ => IO.blocking(onSuccess()))
       .unsafeToFutureCancelable()
 
     cancelable

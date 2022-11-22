@@ -15,16 +15,13 @@ import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import com.raphtory.internals.components.querymanager.TryQuery
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.Partitioner
-import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.storage.arrow.ArrowPartition
 import com.raphtory.internals.storage.arrow.ArrowPartitionConfig
 import com.raphtory.internals.storage.arrow.ArrowSchema
 import com.raphtory.internals.storage.arrow.EdgeSchema
 import com.raphtory.internals.storage.arrow.VertexSchema
 import com.raphtory.internals.storage.pojograph.PojoBasedPartition
-import com.raphtory.protocol.Empty
 import com.raphtory.protocol.GraphAlterations
-import com.raphtory.protocol.GraphId
 import com.raphtory.protocol.NodeCount
 import com.raphtory.protocol.Operation
 import com.raphtory.protocol.OperationAndState
@@ -46,6 +43,7 @@ import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import scala.util.Success
 import PartitionServiceImpl.Partition
+import com.google.protobuf.empty.Empty
 
 abstract class PartitionServiceImpl[F[_]](
     id: Deferred[F, Int],

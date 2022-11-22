@@ -43,10 +43,6 @@ message OperationWithStateResult {
 }
 
 
-
-message Empty {}
-
-
 // Requests
 message GraphInfo {
   string clientId = 1;
@@ -132,7 +128,7 @@ message VertexMessages {
 // Services
 service RaphtoryService {
   rpc establishGraph(GraphInfo) returns (Status);
-  rpc connectToGraph(GraphInfo) returns (Empty);
+  rpc connectToGraph(GraphInfo) returns (google.protobuf.Empty);
   rpc submitQuery(Query) returns (stream QueryManagement);
   rpc submitSource(IngestData) returns (Status);
   rpc disconnect(GraphInfo) returns (Status);
@@ -152,16 +148,16 @@ service PartitionService {
   rpc establishGraph(GraphInfo) returns (Status);
   rpc destroyGraph(GraphInfo) returns (Status);
   rpc establishExecutor(Query) returns (Status);
-  rpc processUpdates(GraphAlterations) returns (Empty);
-  rpc processEffects(GraphAlterations) returns (Empty);
-  rpc receiveMessages(VertexMessages) returns (Empty);
+  rpc processUpdates(GraphAlterations) returns (google.protobuf.Empty);
+  rpc processEffects(GraphAlterations) returns (google.protobuf.Empty);
+  rpc receiveMessages(VertexMessages) returns (google.protobuf.Empty);
   rpc establishPerspective(PerspectiveCommand) returns (NodeCount);
-  rpc setMetadata(NodeCount) returns (Empty);
+  rpc setMetadata(NodeCount) returns (google.protobuf.Empty);
   rpc executeOperation(Operation) returns (OperationResult);
   rpc executeOperationWithState(OperationAndState) returns (OperationWithStateResult);
   rpc getResult(QueryId) returns (PartitionResult);
-  rpc writePerspective(PerspectiveCommand) returns (Empty); // this should flush the output
-  rpc endQuery(QueryId) returns (Empty);
+  rpc writePerspective(PerspectiveCommand) returns (google.protobuf.Empty);
+  rpc endQuery(QueryId) returns (google.protobuf.Empty);
 }
 
 message BlockIngestion {
@@ -186,5 +182,4 @@ service QueryService {
   rpc blockIngestion(BlockIngestion) returns (google.protobuf.Empty);
   rpc unblockIngestion(UnblockIngestion) returns (google.protobuf.Empty);
   rpc submitQuery(Query) returns (stream QueryManagement);
-  rpc endQuery(JobID) returns (google.protobuf.Empty);
 }
