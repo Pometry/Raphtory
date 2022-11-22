@@ -1,7 +1,9 @@
 package com.raphtory.api.analysis.table
 
 import com.raphtory.api.output.sink.Sink
-import com.raphtory.api.progresstracker.{ProgressTracker, QueryProgressTracker, QueryProgressTrackerWithIterator}
+import com.raphtory.api.progresstracker.ProgressTracker
+import com.raphtory.api.progresstracker.QueryProgressTracker
+import com.raphtory.api.progresstracker.QueryProgressTrackerWithIterator
 import com.raphtory.internals.components.output.TableOutputSink
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.management._
@@ -21,18 +23,24 @@ private[api] class TableImplementation(val query: Query, private[raphtory] val q
   }
 
   override def writeTo(sink: Sink, jobName: String): QueryProgressTracker =
-    submitQueryWithSink(sink, jobName, jobID => querySender.createQueryProgressTracker(jobID)).asInstanceOf[QueryProgressTracker]
+    submitQueryWithSink(sink, jobName, jobID => querySender.createQueryProgressTracker(jobID))
+      .asInstanceOf[QueryProgressTracker]
 
   override def writeTo(sink: Sink): QueryProgressTracker =
     writeTo(sink, "")
 
   override def get(jobName: String = "", timeout: Duration = Duration.Inf): Iterator[TableOutput] =
-    submitQueryWithSink(TableOutputSink(querySender.graphID), jobName, jobID => querySender.createTableOutputTracker(jobID, timeout))
-      .asInstanceOf[QueryProgressTrackerWithIterator].TableOutputIterator
+    submitQueryWithSink(
+            TableOutputSink(querySender.graphID),
+            jobName,
+            jobID => querySender.createTableOutputTracker(jobID, timeout)
+    )
+      .asInstanceOf[QueryProgressTrackerWithIterator]
+      .TableOutputIterator
 
   private def addFunction(function: TableFunction) =
     new TableImplementation(
-            query.copy(tableFunctions = query.tableFunctions.enqueue(function)),
+            query.copy(operations = query.operations :+ function),
             querySender
     )
 
@@ -41,8 +49,8 @@ private[api] class TableImplementation(val query: Query, private[raphtory] val q
       jobName: String,
       createProgressTracker: String => ProgressTracker
   ): ProgressTracker = {
-    val closedQuery     = addFunction(WriteToOutput).query
-    val queryWithFormat = closedQuery.copy(sink = Some(sink))
+    // val closedQuery     = addFunction(WriteToOutput).query -> Writing is not a operation in the list anymore
+    val queryWithFormat = query.copy(sink = Some(sink))
     querySender.submit(queryWithFormat, jobName, createProgressTracker)
   }
 }

@@ -26,7 +26,7 @@ trait Sink {
     * @param topics the topic repository of the deployment
     * @return the `SinkExecutor` to be used for writing out results
     */
-  def executor(jobID: String, partitionID: Int, config: Config, topics: TopicRepository): SinkExecutor
+  def executor(jobID: String, partitionID: Int, config: Config): SinkExecutor
 }
 
 /** Base trait for sink executors.

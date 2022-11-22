@@ -318,14 +318,13 @@ object Writer {
       graphID: String,
       partitionID: Int,
       storage: GraphPartition,
-      registry: ServiceRegistry[F],
+      partitions: Map[Int, PartitionService[F]],
       conf: Config
   ): Resource[F, Writer[F]] =
     for {
-      _          <- Resource.eval(startupMessage(graphID, partitionID))
-      partitions <- registry.partitions
-      lock       <- Resource.eval(Semaphore[F](1))
-      writer     <- Resource.eval(Async[F].delay(new Writer[F](lock, graphID, partitionID, storage, partitions, conf)))
+      _      <- Resource.eval(startupMessage(graphID, partitionID))
+      lock   <- Resource.eval(Semaphore[F](1))
+      writer <- Resource.eval(Async[F].delay(new Writer[F](lock, graphID, partitionID, storage, partitions, conf)))
     } yield writer
 
   private def startupMessage[F[_]: Async](graphId: String, partitionId: Int) =

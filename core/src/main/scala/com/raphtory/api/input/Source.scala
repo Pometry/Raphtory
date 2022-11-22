@@ -46,7 +46,7 @@ class StreamSource[F[_], T](id: Int, spoutInstance: SpoutInstance[T], builderIns
                )
     } yield ()
 
-    s.void.compile.drain
+    s.compile.drain
   }
 
   def sentMessages: F[Long]          = builderInstance.getSentUpdates

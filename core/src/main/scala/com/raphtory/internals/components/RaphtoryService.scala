@@ -69,7 +69,7 @@ class RaphtoryServiceImpl[F[_]](
                              _ <- ingestion.establishGraph(req)
                              _ <- controlPartitions(_.establishGraph(req))
                              _ <- queryService.establishGraph(req)
-                             _ <- runningGraphs.update(graphs =>
+                             _ <- runningGraphs.update(graphs => // TODO add client id
                                     if (graphs contains req.graphId) graphs else (graphs + (req.graphId -> Set()))
                                   )
                            } yield success
@@ -77,6 +77,7 @@ class RaphtoryServiceImpl[F[_]](
 
   override def destroyGraph(req: protocol.DestroyGraph): F[Status] =
     for {
+      // TODO check first existingGraphs and return already in progress failure
       canDestroy <- if (req.force) forcedRemoval(req.graphId) else safeRemoval(req.graphId, req.clientId)
       status     <- if (!canDestroy) failure[F]
                     else
@@ -143,6 +144,7 @@ class RaphtoryServiceImpl[F[_]](
       queryService.unblockIngestion(req).as(success)
 
   override def getGraph(req: GetGraph): F[Status] = runningGraphs.get.map(i => Status(i.contains(req.graphID)))
+  // TODO add the client id to the list
 
   private def controlPartitions[T](f: PartitionService[F] => F[T]) =
     F.parSequenceN(partitions.size)(partitions.values.toSeq.map(f))
