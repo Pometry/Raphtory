@@ -2,12 +2,9 @@ package com.raphtory.internals.components.ingestion
 
 import cats.effect.Async
 import cats.effect.kernel.Ref
-import cats.effect.Resource
 import cats.syntax.all._
 import com.raphtory.api.input.Source
-import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.api.input.StreamSource
-import com.raphtory.internals.components.ServiceRegistry
 import com.raphtory.internals.management.telemetry.TelemetryReporter
 import com.raphtory.protocol.BlockIngestion
 import com.raphtory.protocol.PartitionService
@@ -23,19 +20,14 @@ private[raphtory] class IngestionExecutor[F[_], T](
     queryService: QueryService[F],
     source: StreamSource[F, T],
     sourceID: Int,
-    conf: Config,
+    conf: Config
 )(implicit F: Async[F]) {
   private val logger: Logger                      = Logger(LoggerFactory.getLogger(this.getClass))
   private val totalTuplesProcessed: Counter.Child = TelemetryReporter.totalTuplesProcessed.labels(s"$sourceID", graphID)
 
   def run(): F[Unit] =
     for {
-      _ <- F.delay(logger.debug("Running ingestion executor"))
-      _ <- executePoll()
-    } yield ()
-
-  private def executePoll(): F[Unit] =
-    for {
+      _         <- F.delay(logger.debug("Running ingestion executor"))
       isBlocked <- Ref.of(false)
       _         <- queryService.blockIngestion(
                            BlockIngestion(source.sourceID, graphID)
@@ -67,12 +59,9 @@ object IngestionExecutor {
       sourceID: Int,
       config: Config,
       partitions: Map[Int, PartitionService[F]]
-  ): F[IngestionExecutor[F, _]] = {
-    def createExecutor(streamSource: StreamSource[F, _]) =
-      Async[F].delay(new IngestionExecutor(graphID, queryService, streamSource, sourceID, config))
+  ): F[IngestionExecutor[F, _]] =
     for {
       streamSource <- source.make(graphID, sourceID, partitions)
-      executor     <- createExecutor(streamSource)
+      executor     <- Async[F].delay(new IngestionExecutor(graphID, queryService, streamSource, sourceID, config))
     } yield executor
-  }
 }
