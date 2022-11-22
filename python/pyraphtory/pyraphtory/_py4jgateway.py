@@ -38,8 +38,8 @@ def read_output(stream: IO[AnyStr]):
         out = stream.readline()
 
 def check_raphtory_logging_env():
-    home = os.getenv('RAPHTORY_CORE_LOG')
-    if home is None:
+    log_level = os.getenv('RAPHTORY_CORE_LOG')
+    if log_level is None:
         os.environ["RAPHTORY_CORE_LOG"] = "ERROR"
 
 class Py4JConnection:

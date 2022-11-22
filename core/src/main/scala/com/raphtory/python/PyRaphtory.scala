@@ -8,6 +8,7 @@ import com.raphtory.internals.management.Py4JServer
 import com.raphtory.internals.management.PythonInterop
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
+import sun.misc.Unsafe
 
 import scala.concurrent.duration.DurationInt
 import scala.jdk.OptionConverters._
@@ -20,6 +21,19 @@ object PyRaphtory
         ) {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+
+  def disableReflectWarning(): Unit =
+    try {
+      val theUnsafe = classOf[Unsafe].getDeclaredField("theUnsafe")
+      theUnsafe.setAccessible(true)
+      val u         = theUnsafe.get(null).asInstanceOf[Unsafe]
+      val cls       = Class.forName("jdk.internal.module.IllegalAccessLogger")
+      val logger    = cls.getDeclaredField("logger")
+      u.putObjectVolatile(cls, u.staticFieldOffset(logger), null)
+    }
+    catch {
+      case e: Exception => println(e.getStackTrace.mkString("Array(", ", ", ")"))
+    }
 
   def checkParent(parentID: Long): IO[Unit] =
     IO.blocking(ProcessHandle.current().parent().toScala match {
@@ -36,6 +50,7 @@ object PyRaphtory
     }) *> IO.sleep(10.seconds)
 
   override def main: Opts[IO[ExitCode]] = {
+    disableReflectWarning()
     val parentID = Opts.option[Long](long = "parentID", short = "p", help = "Parent process ID").orNone
     val gateway  = Py4JServer.fromEntryPoint[IO](PythonInterop)
 
