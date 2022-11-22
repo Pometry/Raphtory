@@ -1,7 +1,6 @@
 package com.raphtory.internals.components.ingestion
 
 import cats.effect.Async
-import cats.effect.kernel.Ref
 import cats.syntax.all._
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.StreamSource
@@ -27,27 +26,17 @@ private[raphtory] class IngestionExecutor[F[_], T](
 
   def run(): F[Unit] =
     for {
-      _         <- F.delay(logger.debug("Running ingestion executor"))
-      isBlocked <- Ref.of(false)
-      _         <- queryService.blockIngestion(
-                           BlockIngestion(source.sourceID, graphID)
-                   ) *> isBlocked.set(true)
-
-      _         <- source.elements(totalTuplesProcessed) // process elements here
-      _         <- finaliseIngestion(isBlocked)
-    } yield totalTuplesProcessed.inc()
-
-  private def finaliseIngestion(isBlocked: Ref[F, Boolean]) =
-    for {
-      blocked          <- isBlocked.get
+      _                <- F.delay(logger.debug("Running ingestion executor"))
+      _                <- queryService.blockIngestion(
+                                  BlockIngestion(source.sourceID, graphID)
+                          )
+      _                <- source.elements(totalTuplesProcessed) // process elements here
       earliestTimeSeen <- source.earliestTimeSeen()
       highestTimeSeen  <- source.highestTimeSeen()
-      _                <- if (blocked)
-                            queryService.unblockIngestion(
-                                    UnblockIngestion(graphID, source.sourceID, earliestTimeSeen, highestTimeSeen)
-                            )
-                          else F.unit
-    } yield ()
+      _                <- queryService.unblockIngestion(
+                                  UnblockIngestion(graphID, source.sourceID, earliestTimeSeen, highestTimeSeen)
+                          )
+    } yield totalTuplesProcessed.inc()
 }
 
 object IngestionExecutor {
