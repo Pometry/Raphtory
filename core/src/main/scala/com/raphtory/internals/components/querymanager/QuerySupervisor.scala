@@ -10,9 +10,7 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 import cats.Traverse
-import javax.annotation.concurrent.NotThreadSafe
 
-@NotThreadSafe
 class QuerySupervisor[F[_]] private (
     graphID: GraphID,
     topics: TopicRepository,
