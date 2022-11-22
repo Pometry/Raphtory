@@ -30,7 +30,7 @@ abstract class Context(serviceAsResource: Resource[IO, RaphtoryService[IO]], con
   ): Resource[IO, (Query, QuerySender, Config)] =
     for {
       service       <- serviceAsResource
-      ifGraphExists <- Resource.eval(service.getGraph(protocol.GetGraph(graphID)))
+      ifGraphExists <- Resource.eval(service.getGraph(protocol.GraphId(graphID)))
       _              = if (!ifGraphExists.success && failOnNotFound) throw NoGraphFound(graphID)
                        else if (!failOnNotFound && ifGraphExists.success) throw GraphAlreadyDeployed(graphID)
       _             <- Prometheus[IO](config.getInt("raphtory.prometheus.metrics.port"))

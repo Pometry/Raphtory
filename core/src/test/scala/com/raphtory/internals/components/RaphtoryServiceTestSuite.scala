@@ -2,10 +2,7 @@ package com.raphtory.internals.components
 
 import cats.effect.IO
 import com.raphtory._
-import com.raphtory.protocol.GetGraph
-import com.raphtory.protocol.GraphInfo
-import com.raphtory.protocol.RaphtoryService
-import com.raphtory.protocol.Status
+import com.raphtory.protocol._
 import munit.CatsEffectSuite
 
 class RaphtoryServiceTestSuite extends CatsEffectSuite {
@@ -32,7 +29,7 @@ class RaphtoryServiceTestSuite extends CatsEffectSuite {
   test("Validate that a graph doesn't exists with a given graphId if the graph is not established already") {
     val standalone = f()
     val graphId    = createName
-    standalone.getGraph(GetGraph(graphId)).map(res => assertEquals(res, Status()))
+    standalone.getGraph(GraphId(graphId)).map(res => assertEquals(res, Status()))
   }
 
   test("Validate that a graph exists with a given graphId if the graph is established already") {
@@ -42,7 +39,7 @@ class RaphtoryServiceTestSuite extends CatsEffectSuite {
     standalone
       .establishGraph(GraphInfo(clientId, graphId))
       .flatMap { status =>
-        if (status.success) standalone.getGraph(GetGraph(graphId)) else IO(Status())
+        if (status.success) standalone.getGraph(GraphId(graphId)) else IO(Status())
       }
       .map { status =>
         assertEquals(status.success, true)
