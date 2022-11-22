@@ -10,7 +10,9 @@ import com.raphtory.protocol
 import com.raphtory.protocol.QueryService
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
+import fs2.Stream
 import org.slf4j.LoggerFactory
+
 import scala.util.Failure
 import scala.util.Success
 
@@ -39,15 +41,15 @@ class QueryServiceImpl[F[_]: Async] private (
       _               <- querySupervisor.endBlockingIngestion(req.sourceID, req.earliestTimeSeen, req.latestTimeSeen)
     } yield Empty()
 
-  override def submitQuery(req: protocol.Query): F[Empty] =
+  override def submitQuery(req: protocol.Query): F[Stream[F, protocol.QueryManagement]] =
     req match {
       case protocol.Query(TryQuery(Success(query)), _) =>
         for {
           querySupervisor <- getQuerySupervisor(query.graphID)
-          _               <- querySupervisor.submitQuery(query)
-        } yield Empty()
+          responses       <- querySupervisor.submitQuery(query)
+        } yield responses
       case protocol.Query(TryQuery(Failure(error)), _) =>
-        throw new Exception(s"Error interpreting request $req").initCause(error)
+        Stream[F, protocol.QueryManagement](protocol.QueryManagement(JobFailed(error))).pure[F]
     }
 
   override def endQuery(req: protocol.JobID): F[Empty] =

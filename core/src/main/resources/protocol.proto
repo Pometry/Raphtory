@@ -185,6 +185,6 @@ service QueryService {
   rpc destroyGraph(GraphInfo) returns (Status);
   rpc blockIngestion(BlockIngestion) returns (google.protobuf.Empty);
   rpc unblockIngestion(UnblockIngestion) returns (google.protobuf.Empty);
-  rpc submitQuery(Query) returns (google.protobuf.Empty);
+  rpc submitQuery(Query) returns (stream QueryManagement);
   rpc endQuery(JobID) returns (google.protobuf.Empty);
 }

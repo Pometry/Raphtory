@@ -10,6 +10,8 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 import cats.Traverse
+import com.raphtory.protocol
+import fs2.Stream
 
 class QuerySupervisor[F[_]] private (
     graphID: GraphID,
@@ -72,7 +74,7 @@ class QuerySupervisor[F[_]] private (
                   }
     } yield ()
 
-  def submitQuery(query: Query): F[Unit] =
+  def submitQuery(query: Query): F[Stream[F, protocol.QueryManagement]] =
     for {
       _                 <- F.delay(logger.debug(s"Handling query: $query"))
       _                 <- blockingSources.update { sources =>
