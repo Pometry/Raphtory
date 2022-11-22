@@ -39,7 +39,7 @@ case class TableOutput private (
     */
   override def writeTo(sink: Sink, jobName: String): WriteProgressTracker = {
     // TODO: Make this actually asynchronous
-    val executor = sink.executor(jobName, -1, conf, topics)
+    val executor = sink.executor(jobName, -1, conf)
     executor.setupPerspective(perspective)
     rows.foreach(executor.threadSafeWriteRow)
     executor.closePerspective()

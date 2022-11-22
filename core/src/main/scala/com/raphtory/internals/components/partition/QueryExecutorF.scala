@@ -5,7 +5,6 @@ import cats.effect.std.Dispatcher
 import cats.effect.std.Queue
 import cats.effect.std.Semaphore
 import cats.syntax.all._
-import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview.ClearChain
 import com.raphtory.api.analysis.graphview.DirectedView
@@ -40,6 +39,7 @@ import com.raphtory.internals.management.Partitioner
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.protocol.Empty
 import com.raphtory.protocol.GraphId
+import com.raphtory.protocol.NodeCount
 import com.raphtory.protocol.Operation
 import com.raphtory.protocol.OperationAndState
 import com.raphtory.protocol.OperationResult
@@ -65,25 +65,29 @@ class QueryExecutorF[F[_]](
     conf: Config
 )(implicit F: Async[F]) {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-  private val loggingPrefix  = s"${query.name}_$partitionID:"
+  private val graphId        = query.graphID
+  private val jobId          = query.name
+  private val loggingPrefix  = s"${jobId}_$partitionID:"
 
   def receiveMessages(messages: Seq[GenericVertexMessage[_]]): F[Empty] =
-    withLens(lens => F.delay(messages.foreach(msg => lens.receiveMessage(msg))))
+    withLens(lens => F.delay(messages.foreach(msg => lens.receiveMessage(msg)))).as(Empty())
 
-  def establishPerspective(perspective: Perspective): F[Empty] = {
+  def establishPerspective(perspective: Perspective): F[NodeCount] = {
     val (timestamp, window)                          = (perspective.timestamp, perspective.window)
     val (start, end)                                 = (perspective.actualStart, perspective.actualEnd)
     val sendMessage: GenericVertexMessage[_] => Unit = message => messageBuffer.addOne(message)
     timed(s"Creating perspective at time '$timestamp' with window '$window") {
       for {
-        lens <- F.delay(storage.lens(query.name, start, end, 0, sendMessage, null, new Scheduler))
+        size <- graphLens.size
+        _    <- Seq.fill(size)(graphLens.take).sequence // empty the queue
+        lens <- F.delay(storage.lens(jobId, start, end, 0, sendMessage, null, new Scheduler))
         _    <- graphLens.offer(lens)
-      } yield Empty()
+      } yield NodeCount(count = lens.localNodeCount)
     }
   }
 
   def setMetada(count: Int): F[Empty] =
-    timed(s"Setting metadata")(withLens(lens => F.delay(lens.setFullGraphSize(count))))
+    timed(s"Setting metadata")(withLens(lens => F.delay(lens.setFullGraphSize(count)))).as(Empty())
 
   def executeOperation(number: Int): F[OperationResult] = {
     val function = query.operations(number)
@@ -126,7 +130,7 @@ class QueryExecutorF[F[_]](
           _ <- F.delay(sinkExecutor.setupPerspective(perspective))
           _ <- withFinishCallback(cb => lens.writeDataTable(row => sinkExecutor.threadSafeWriteRow(row))(cb))
           _ <- F.delay(sinkExecutor.closePerspective())
-        } yield ()
+        } yield Empty()
       }
     }
 
@@ -172,7 +176,7 @@ class QueryExecutorF[F[_]](
 
   private def executeGraphFunctionWithState(
       function: GraphFunction,
-      graphState: GraphState,
+      graphState: GraphStateImplementation,
       lens: LensInterface
   ): F[OperationWithStateResult] = {
     def processIterate    =
@@ -237,7 +241,7 @@ class QueryExecutorF[F[_]](
                            for {
                              chunk <- F.delay(messages.toSeq.asInstanceOf[Seq[GenericVertexMessage[Any]]])
                              _     <- if (chunk.nonEmpty)
-                                        partitions(destination).receiveMessages(VertexMessages(query.graphID, chunk))
+                                        partitions(destination).receiveMessages(VertexMessages(graphId, jobId, chunk))
                                       else F.unit
                            } yield ()
                      }

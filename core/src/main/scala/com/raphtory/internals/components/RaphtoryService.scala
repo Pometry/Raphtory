@@ -21,7 +21,17 @@ import com.raphtory.internals.storage.arrow.EdgeSchema
 import com.raphtory.internals.storage.arrow.VertexSchema
 import com.raphtory.makeLocalIdManager
 import com.raphtory.protocol
-import com.raphtory.protocol.{GraphId, GraphInfo, IdPool, IngestionService, OptionalId, PartitionService, QueryService, RaphtoryService, Status, failure, success}
+import com.raphtory.protocol.GraphId
+import com.raphtory.protocol.GraphInfo
+import com.raphtory.protocol.IdPool
+import com.raphtory.protocol.IngestionService
+import com.raphtory.protocol.OptionalId
+import com.raphtory.protocol.PartitionService
+import com.raphtory.protocol.QueryService
+import com.raphtory.protocol.RaphtoryService
+import com.raphtory.protocol.Status
+import com.raphtory.protocol.failure
+import com.raphtory.protocol.success
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import fs2.Stream
@@ -60,8 +70,8 @@ class RaphtoryServiceImpl[F[_]](
                              _ <- ingestion.establishGraph(req)
                              _ <- controlPartitions(_.establishGraph(req))
                              _ <- queryService.establishGraph(req)
-                             _ <- runningGraphs.update(graphs => // TODO add client id
-                                    if (graphs contains req.graphId) graphs else (graphs + (req.graphId -> Set()))
+                             _ <- runningGraphs.update(graphs =>
+                                    if (graphs contains req.graphId) graphs else (graphs + (req.graphId -> Set(req.clientId)))
                                   )
                            } yield success
     } yield status
@@ -134,8 +144,15 @@ class RaphtoryServiceImpl[F[_]](
     F.delay(logger.debug(s"Unblocking ingestion for source id: '${req.sourceID}' and graph id '${req.graphID}'")) *>
       queryService.unblockIngestion(req).as(success)
 
-  override def getGraph(req: GraphId): F[Status] = runningGraphs.get.map(i => Status(i.contains(req.graphID)))
-  // TODO add the client id to the list
+  override def connectToGraph(req: GraphInfo): F[Empty] =
+    runningGraphs
+      .update(graphs =>
+        graphs.updatedWith(req.graphId) {
+          case Some(clients) => Some(clients + req.clientId)
+          case None          => throw new IllegalStateException(s"The graph '${req.graphId}' doesn't exist")
+        }
+      )
+      .as(Empty())
 
   private def controlPartitions[T](f: PartitionService[F] => F[T]) =
     F.parSequenceN(partitions.size)(partitions.values.toSeq.map(f))

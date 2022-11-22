@@ -1,5 +1,6 @@
 package com.raphtory.api.analysis.graphstate
 
+import com.raphtory.internals.components.querymanager.ProtoField
 import com.raphtory.utils.Bounded
 
 import scala.collection.mutable
@@ -99,7 +100,7 @@ private[raphtory] class GraphStateImplementation(override val nodeCount: Int) ex
       new ConcurrentAccumulatorImpl[T](initialValue, retainState, op).asInstanceOf[AccumulatorImplementation[Any, Any]]
 }
 
-private[raphtory] object GraphStateImplementation {
+private[raphtory] object GraphStateImplementation extends ProtoField[GraphStateImplementation] {
   def apply(nodeCount: Int) = new GraphStateImplementation(nodeCount)
   val empty                 = new GraphStateImplementation(0)
 }

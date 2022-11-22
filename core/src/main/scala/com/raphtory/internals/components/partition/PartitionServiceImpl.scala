@@ -11,6 +11,7 @@ import com.raphtory.internals.components.OrchestratorService
 import com.raphtory.internals.components.ServiceDescriptor
 import com.raphtory.internals.components.ServiceRegistry
 import com.raphtory.internals.components.querymanager
+import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import com.raphtory.internals.components.querymanager.TryQuery
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.Partitioner
@@ -62,8 +63,8 @@ abstract class PartitionServiceImpl[F[_]](
       id         <- Resource.eval(id.get)
       storage    <- Resource.eval(makeGraphStorage(graphId))
       partitions <- Resource.eval(partitions.get)
-      writer     <- Writer(graphId, id, storage, partitions, config)
-    } yield Partition(storage, writer)
+      writer     <- Writer[F](graphId, id, storage, partitions, config)
+    } yield Partition(storage, writer, Map())
 
   override protected def graphExecution(graph: Graph[F, Partition[F]]): F[Unit] =
     (for {
@@ -89,7 +90,11 @@ abstract class PartitionServiceImpl[F[_]](
     } yield Empty()
 
   override def receiveMessages(req: VertexMessages): F[Empty] =
-    forwardToExecutor(req.graphId, req.jobId, _.receiveMessages(req.messages))
+    forwardToExecutor(
+            req.graphId,
+            req.jobId,
+            _.receiveMessages(req.messages.asInstanceOf[Seq[GenericVertexMessage[_]]])
+    )
 
   override def establishPerspective(req: PerspectiveCommand): F[NodeCount] =
     forwardToExecutor(req.graphId, req.jobId, _.establishPerspective(req.perspective))
@@ -177,11 +182,7 @@ class ArrowPartitionServerImpl[F[_]: Async, V: VertexSchema, E: EdgeSchema](
 object PartitionServiceImpl {
   import OrchestratorService._
 
-  case class Partition[F[_]](
-      storage: GraphPartition,
-      writer: Writer[F],
-      executors: Map[String, QueryExecutorF[F]] = Map()
-  )
+  case class Partition[F[_]](storage: GraphPartition, writer: Writer[F], executors: Map[String, QueryExecutorF[F]])
 
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
@@ -189,14 +190,18 @@ object PartitionServiceImpl {
       registry: ServiceRegistry[F],
       config: Config
   ): Resource[F, Unit] =
-    makeNWithStorage((id, graphs) => new PojoPartitionServerImpl[F](id, graphs, registry, config), registry, config)
+    makeNWithStorage(
+            (id, partitions, graphs) => new PojoPartitionServerImpl[F](id, partitions, graphs, config),
+            registry,
+            config
+    )
 
   def makeNArrow[F[_]: Async, V: VertexSchema, E: EdgeSchema](
       registry: ServiceRegistry[F],
       config: Config
   ): Resource[F, Unit] =
     makeNWithStorage(
-            (id, graphs) => new ArrowPartitionServerImpl[F, V, E](id, graphs, registry, config),
+            (id, partitions, graphs) => new ArrowPartitionServerImpl[F, V, E](id, partitions, graphs, config),
             registry,
             config
     )
@@ -209,15 +214,19 @@ object PartitionServiceImpl {
     )
 
   private def makeNWithStorage[F[_]: Async](
-      service: (Deferred[F, Int], GraphList[F, Partition[F]]) => PartitionServiceImpl[F],
-      repo: ServiceRegistry[F],
+      service: (
+          Deferred[F, Int],
+          Deferred[F, Map[Int, PartitionService[F]]],
+          GraphList[F, Partition[F]]
+      ) => PartitionServiceImpl[F],
+      registry: ServiceRegistry[F],
       config: Config
   ): Resource[F, Unit] = {
     val partitioner      = Partitioner()
     val candidateIds     = 0 until partitioner.totalPartitions
     val partitionsToMake = 0 until partitioner.partitionsPerServer
     partitionsToMake
-      .map(_ => makePartition(candidateIds, service, repo, config))
+      .map(_ => makePartition(candidateIds, service, registry, config))
       .reduce((p1, p2) => p1 flatMap (_ => p2))
   }
 
@@ -234,12 +243,12 @@ object PartitionServiceImpl {
     for {
       graphs        <- makeGraphList[F, Partition[F]]
       id            <- Resource.eval(Deferred[F, Int])
-      partitionsDef <- Resource.eval(Deferred[F, Map[Int, PartitionService[F]]])
-      service       <- Resource.eval(Async[F].delay(service(id, partitionsDef, graphs)))
+      partitionsDfr <- Resource.eval(Deferred[F, Map[Int, PartitionService[F]]])
+      service       <- Resource.eval(Async[F].delay(service(id, partitionsDfr, graphs)))
       idNumber      <- registry.registered(service, PartitionServiceImpl.descriptor, candidateIds.toList)
       _             <- Resource.eval(id.complete(idNumber))
       partitions    <- registry.partitions // TODO: this is gonna fail with several partitions even locally
-      _             <- Resource.eval(partitionsDef.complete(partitions))
+      _             <- Resource.eval(partitionsDfr.complete(partitions))
       _             <- Resource.eval(id.get.map(id => logger.info(s"Starting partition service for id '$id'")))
     } yield ()
 }

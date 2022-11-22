@@ -49,7 +49,11 @@ private[raphtory] case object StartGraph extends QueryManagement
 
 private[raphtory] case object CompleteWrite extends QueryManagement
 
+// We are assuming that all objects implementing this trait are GenericVertexMessage to bypass compilation problems in
+// protocol.proto definitions, where we cannot use generic types so we use this one instead
 sealed private[raphtory] trait VertexMessaging extends QueryManagement
+
+object VertexMessaging extends ProtoField[VertexMessaging]
 
 sealed private[raphtory] trait GenericVertexMessage[VertexID] extends VertexMessaging {
   def superstep: Int
@@ -69,7 +73,7 @@ case class VertexMessage[T, VertexID](
 )(implicit val provider: SchemaProvider[T])
         extends GenericVertexMessage[VertexID]
 
-private[raphtory] case class VertexMessageBatch(data: Array[GenericVertexMessage[_]]) extends VertexMessaging
+// private[raphtory] case class VertexMessageBatch(data: Array[GenericVertexMessage[_]]) extends VertexMessaging
 
 private[raphtory] case class FilteredEdgeMessage[VertexID](
     superstep: Int,
@@ -191,13 +195,13 @@ private[raphtory] case class PointPath(
 private[raphtory] case class GraphFunctionWithGlobalState(
     function: GlobalGraphFunction,
     graphState: GraphStateImplementation
-)                                                           extends QueryManagement
-private[raphtory] case class EndQuery(jobID: String)        extends QueryManagement
+)                                                    extends QueryManagement
+private[raphtory] case class EndQuery(jobID: String) extends QueryManagement
 
 // Messages for jobStatus topic
 sealed private[raphtory] trait JobStatus extends QueryManagement
 
-private[raphtory] case object WriteCompleted                  extends JobStatus
+private[raphtory] case object WriteCompleted extends JobStatus
 
 sealed private[raphtory] trait PerspectiveStatus extends JobStatus {
   def perspectiveID: Int

@@ -9,6 +9,8 @@ import org.mockito.MockitoSugar._
 
 class RaphtoryServiceImplSuite extends CatsEffectSuite {
 
+  case object GraphAlreadyPresent
+
   private val clientId  = "testClientId"
   private val graphId   = "testGraphId"
   private val graphInfo = GraphInfo(clientId, graphId)
@@ -53,8 +55,8 @@ class RaphtoryServiceImplSuite extends CatsEffectSuite {
     val service = raphtoryService()
     assertIO(
             service.establishGraph(graphInfo) >>
-              service.getGraph(GetGraph("testGraphId")),
-            Status(success = true)
+              service.connectToGraph(GraphInfo(graphId)),
+            Empty()
     )
   }
 
@@ -71,8 +73,8 @@ class RaphtoryServiceImplSuite extends CatsEffectSuite {
           "Getting a graph for a given graph id returns with a failed status if no graph was already established for that graph id"
   ) {
     assertIO(
-            raphtoryService().getGraph(GetGraph("1testGraphId")),
-            Status()
+            raphtoryService().connectToGraph(GraphInfo(graphId)).handleError(_ => GraphAlreadyPresent),
+            GraphAlreadyPresent
     )
   }
 
@@ -81,8 +83,8 @@ class RaphtoryServiceImplSuite extends CatsEffectSuite {
     val service = raphtoryService()
     assertIO(
             service.destroyGraph(DestroyGraph(clientId, graphId)) >>
-              service.getGraph(GetGraph(graphId)),
-            Status()
+              service.connectToGraph(GraphInfo(graphId)).handleError(_ => GraphAlreadyPresent),
+            GraphAlreadyPresent
     )
   }
 
@@ -93,8 +95,8 @@ class RaphtoryServiceImplSuite extends CatsEffectSuite {
     assertIO(
             service.establishGraph(graphInfo) >>
               service.destroyGraph(DestroyGraph(clientId, graphId, force = true)) >>
-              service.getGraph(GetGraph(graphId)),
-            Status()
+              service.connectToGraph(GraphInfo(graphId)).handleError(_ => GraphAlreadyPresent),
+            GraphAlreadyPresent
     )
   }
 

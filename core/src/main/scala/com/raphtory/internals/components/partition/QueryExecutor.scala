@@ -65,7 +65,7 @@ private[raphtory] class QueryExecutor[F[_]](
   private val sync = new QuerySuperstepSync(totalPartitions)
   pyScript.map(s => EmbeddedPython.global.run(s))
 
-  private val sinkExecutor: SinkExecutor = sink.executor(jobID, partitionID, conf, topics)
+  private val sinkExecutor: SinkExecutor = sink.executor(jobID, partitionID, conf)
 
   if (messageBatch)
     logger.debug(
@@ -135,16 +135,16 @@ private[raphtory] class QueryExecutor[F[_]](
   def receiveVertexMessage(msg: VertexMessaging): Unit =
     try msg match {
 
-      case VertexMessageBatch(msgBatch) =>
-        logger.trace(
-                logMessage(
-                        s"Executing 'VertexMessageBatch', '[${msgBatch
-                          .mkString(",")}]'."
-                )
-        )
-        msgBatch.foreach(message => graphLens.receiveMessage(message))
-        receivedMessageCount.addAndGet(msgBatch.length)
-        sync.updateVertexMessageCount(msgBatch.length)
+//      case VertexMessageBatch(msgBatch) =>
+//        logger.trace(
+//                logMessage(
+//                        s"Executing 'VertexMessageBatch', '[${msgBatch
+//                          .mkString(",")}]'."
+//                )
+//        )
+//        msgBatch.foreach(message => graphLens.receiveMessage(message))
+//        receivedMessageCount.addAndGet(msgBatch.length)
+//        sync.updateVertexMessageCount(msgBatch.length)
 
       case msg: GenericVertexMessage[_] =>
         logger.trace(
@@ -629,7 +629,7 @@ private[raphtory] class QueryExecutor[F[_]](
   def sendCached(partition: Int): Unit = {
     val cache = messageCache(partition)
     cache.synchronized {
-      neighbours(partition) sendAsync VertexMessageBatch(cache.toArray)
+//      neighbours(partition) sendAsync VertexMessageBatch(cache.toArray)
       cache.clear() // synchronisation breaks if we create a new object here
     }
   }

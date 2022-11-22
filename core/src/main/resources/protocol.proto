@@ -126,13 +126,13 @@ message OperationAndState {
 message VertexMessages {
   string graphId = 1;
   string jobId = 2;
-  repeated bytes messages = 3 [(scalapb.field).type = "com.raphtory.internals.components.querymanager.GenericVertexMessage[Any]"];
+  repeated bytes messages = 3 [(scalapb.field).type = "com.raphtory.internals.components.querymanager.VertexMessaging"];
 }
 
 // Services
 service RaphtoryService {
   rpc establishGraph(GraphInfo) returns (Status);
-  rpc getGraph(GraphId) returns (Status);
+  rpc connectToGraph(GraphInfo) returns (Empty);
   rpc submitQuery(Query) returns (stream QueryManagement);
   rpc submitSource(IngestData) returns (Status);
   rpc disconnect(GraphInfo) returns (Status);

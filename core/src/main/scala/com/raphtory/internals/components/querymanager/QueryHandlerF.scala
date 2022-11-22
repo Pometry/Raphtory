@@ -5,6 +5,7 @@ import cats.effect.Async
 import cats.effect.Deferred
 import cats.syntax.all._
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
+import com.raphtory.api.analysis.graphview.SetGlobalState
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.internals.components.output.TableOutputSink
 import com.raphtory.internals.graph.LensInterface
@@ -82,7 +83,7 @@ class QueryHandlerF[F[_]](
     perspectiveProcessing
       .handleErrorWith { e =>
         val msg = s"Deployment '$graphId': Failed to handle message. ${e.getMessage}. Skipping perspective."
-        Async[F].delay(logger.error(msg, e)).as(fs2.Stream(PerspectiveFailed(perspective, e.getMessage)))
+        Async[F].delay(logger.error(msg, e)).as(List(PerspectiveFailed(perspective, e.getMessage)))
       }
   }
 
@@ -90,6 +91,7 @@ class QueryHandlerF[F[_]](
     query.operations.zipWithIndex.map {
       case (operation, index) =>
         operation match {
+          case SetGlobalState(fun)             => F.delay(fun(state))
           case _: GraphFunctionWithGlobalState => executeWithStateUntilConsensus(index, state)
           case _                               => executeUntilConsensus(index)
         }

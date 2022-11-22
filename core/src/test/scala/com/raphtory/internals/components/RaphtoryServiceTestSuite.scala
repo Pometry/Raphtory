@@ -7,6 +7,8 @@ import munit.CatsEffectSuite
 
 class RaphtoryServiceTestSuite extends CatsEffectSuite {
 
+  case object GraphAlreadyPresent
+
   val f: Fixture[RaphtoryService[IO]] = ResourceSuiteLocalFixture(
           "standalone",
           RaphtoryServiceBuilder.standalone[IO](defaultConf)
@@ -29,20 +31,16 @@ class RaphtoryServiceTestSuite extends CatsEffectSuite {
   test("Validate that a graph doesn't exists with a given graphId if the graph is not established already") {
     val standalone = f()
     val graphId    = createName
-    standalone.getGraph(GraphId(graphId)).map(res => assertEquals(res, Status()))
+    assertIO(standalone.connectToGraph(GraphInfo(graphId)).handleError(_ => GraphAlreadyPresent), GraphAlreadyPresent)
   }
 
   test("Validate that a graph exists with a given graphId if the graph is established already") {
     val standalone = f()
     val clientId   = createName
     val graphId    = createName
-    standalone
-      .establishGraph(GraphInfo(clientId, graphId))
-      .flatMap { status =>
-        if (status.success) standalone.getGraph(GraphId(graphId)) else IO(Status())
-      }
-      .map { status =>
-        assertEquals(status.success, true)
-      }
+    for {
+      _ <- standalone.establishGraph(GraphInfo(clientId, graphId))
+      _ <- assertIO(standalone.connectToGraph(GraphInfo(graphId)), Empty())
+    } yield ()
   }
 }

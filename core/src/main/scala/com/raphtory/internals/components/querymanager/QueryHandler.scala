@@ -27,7 +27,7 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.util.Try
 
-private[raphtory] class QueryHandler[F[_]: Async] private(
+private[raphtory] class QueryHandler[F[_]: Async] private (
     graphID: String,
     querySupervisor: QuerySupervisor[F],
     scheduler: Scheduler,
@@ -158,8 +158,8 @@ private[raphtory] class QueryHandler[F[_]: Async] private(
   private def executeGraph(msg: QueryManagement): Stage =
     msg match {
       case StartGraph                                                                         =>
-        graphFunctions = mutable.Queue.from(query.graphFunctions)
-        tableFunctions = mutable.Queue.from(query.tableFunctions)
+        // graphFunctions = mutable.Queue.from(query.graphFunctions)
+        // tableFunctions = mutable.Queue.from(query.tableFunctions)
         graphState = GraphStateImplementation(vertexCount)
         val startingGraphTime = System.currentTimeMillis() - timeTaken
         logger.debug(

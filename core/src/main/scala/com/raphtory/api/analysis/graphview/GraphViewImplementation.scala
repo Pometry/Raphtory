@@ -239,19 +239,16 @@ private[api] trait GraphViewImplementation[
   }
 
   private def addFunction(function: GraphFunction) =
-    newGraph(query.copy(graphFunctions = query.graphFunctions.enqueue(function)), querySender)
+    newGraph(query.copy(operations = query.operations :+ function), querySender)
 
   private def addRFunction(function: GraphFunction) =
-    newRGraph(query.copy(graphFunctions = query.graphFunctions.enqueue(function)), querySender)
+    newRGraph(query.copy(operations = query.operations :+ function), querySender)
 
   private def addMFunction(function: GraphFunction) =
-    newMGraph(query.copy(graphFunctions = query.graphFunctions.enqueue(function)), querySender)
+    newMGraph(query.copy(operations = query.operations :+ function), querySender)
 
   private def addSelect(function: GraphFunction) =
-    new TableImplementation(
-            query.copy(graphFunctions = query.graphFunctions.enqueue(function)),
-            querySender
-    )
+    new TableImplementation(query.copy(operations = query.operations :+ function), querySender)
 
   private[api] def withTransformedName(algorithm: BaseAlgorithm): G =
     withTransformedName(algorithm.name).addClass(algorithm.getClass)
