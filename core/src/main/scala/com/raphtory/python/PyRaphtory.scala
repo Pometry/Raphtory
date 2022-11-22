@@ -23,6 +23,19 @@ object PyRaphtory
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
+  def disableReflectWarning(): Unit =
+    try {
+      val theUnsafe = classOf[Unsafe].getDeclaredField("theUnsafe")
+      theUnsafe.setAccessible(true)
+      val u         = theUnsafe.get(null).asInstanceOf[Unsafe]
+      val cls       = Class.forName("jdk.internal.module.IllegalAccessLogger")
+      val logger    = cls.getDeclaredField("logger")
+      u.putObjectVolatile(cls, u.staticFieldOffset(logger), null)
+    }
+    catch {
+      case e: Exception => println(e.getStackTrace.mkString("Array(", ", ", ")"))
+    }
+
   def checkParent(parentID: Long): IO[Unit] =
     IO.blocking(ProcessHandle.current().parent().toScala match {
       case None    =>
