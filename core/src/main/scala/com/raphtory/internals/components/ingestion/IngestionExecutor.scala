@@ -85,8 +85,7 @@ private[raphtory] class IngestionExecutor[F[_], T](
                                     queryManager.sendAsync(NonBlocking(sourceID = source.sourceID, graphID = graphID))
                             ) *> iBlocked.set(false)
                     )
-      _        <- source.elements(totalTuplesProcessed).last // process elements here
-      _        <- finaliseIngestion(iBlocked)
+      _        <- source.elements(totalTuplesProcessed).last.onComplete(finaliseIngestion(iBlocked)) // process elements here
     } yield ()
 
     totalTuplesProcessed.inc()
