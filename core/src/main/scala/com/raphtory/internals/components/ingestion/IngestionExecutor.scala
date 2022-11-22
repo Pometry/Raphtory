@@ -72,7 +72,7 @@ private[raphtory] class IngestionExecutor[F[_], T](
   private def executePoll: F[Unit] = {
 
     val s = for {
-      iBlocked <- fs2.Stream.eval(Ref.of(false))
+      iBlocked <- fs2.Stream.eval(Ref.of(blocking))
       _        <- if (blocking)
                     fs2.Stream.eval(
                             F.delay(
@@ -85,7 +85,7 @@ private[raphtory] class IngestionExecutor[F[_], T](
                                     queryManager.sendAsync(NonBlocking(sourceID = source.sourceID, graphID = graphID))
                             ) *> iBlocked.set(false)
                     )
-      _        <- source.elements(totalTuplesProcessed) // process elements here
+      _        <- source.elements(totalTuplesProcessed).last // process elements here
       _        <- finaliseIngestion(iBlocked)
     } yield ()
 
