@@ -135,7 +135,6 @@ service RaphtoryService {
   rpc destroyGraph(DestroyGraph) returns (Status);
   rpc getNextAvailableId(IdPool) returns (OptionalId);
   rpc processUpdate(GraphUpdate) returns (Status);
-  rpc unblockIngestion(UnblockIngestion) returns (Status);
 }
 
 service IngestionService {

@@ -89,7 +89,6 @@ private[raphtory] class QuerySender(
     val progressTracker: ProgressTracker = createProgressTracker(jobID)
 
     if (updatesSinceLastIDChange > 0) { // TODO Think this will block multi-client -- not an issue for right now
-      unblockIngestion(sourceID = currentSourceID, updatesSinceLastIDChange, force = false)
       blockingSources += currentSourceID
       updatesSinceLastIDChange = 0
       newIDRequiredOnUpdate = true
@@ -123,11 +122,6 @@ private[raphtory] class QuerySender(
 
   def createTableOutputTracker(jobID: String, timeout: Duration): QueryProgressTrackerWithIterator =
     QueryProgressTrackerWithIterator(graphID, jobID, topics, config, timeout)
-
-  private def unblockIngestion(sourceID: Int, messageCount: Long, force: Boolean): Unit =
-    service
-      .unblockIngestion(protocol.UnblockIngestion(graphID, sourceID, earliestTimeSeen, highestTimeSeen))
-      .unsafeRunSync()
 
   def destroyGraph(force: Boolean): Unit =
     service.destroyGraph(protocol.DestroyGraph(clientID, graphID, force)).unsafeRunSync()

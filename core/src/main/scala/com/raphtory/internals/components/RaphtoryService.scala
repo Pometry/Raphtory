@@ -127,10 +127,6 @@ class RaphtoryServiceImpl[F[_]](
 
     } yield success
 
-  override def unblockIngestion(req: protocol.UnblockIngestion): F[Status] =
-    F.delay(logger.debug(s"Unblocking ingestion for source id: '${req.sourceID}' and graph id '${req.graphID}'")) *>
-      queryService.unblockIngestion(req).as(success)
-
   override def connectToGraph(req: GraphInfo): F[Empty] =
     runningGraphs
       .update(graphs =>
