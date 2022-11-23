@@ -69,6 +69,7 @@ public abstract class VertexIterator {
     protected VersionedEntityPropertyAccessor[] _propertyIteratorAccessors = null;
     protected EdgeIterator.MatchingEdgesIterator _matchingEdgesIterator = null;
     protected VertexHistoryIterator.WindowedVertexHistoryIterator _vertexHistoryIterator = null;
+    protected CachedMutatingEdgeMap.MatchingEdgeCachedIterator _scanner = null;
 
 
     /**
@@ -284,15 +285,29 @@ public abstract class VertexIterator {
      *
      * @return an edge iterator configured to retrieve those edges
      * */
-    public EdgeIterator.MatchingEdgesIterator findAllOutgoingEdges(long dstVertexId, boolean isDstGlobal) {
-        if (_matchingEdgesIterator==null) {
-            _matchingEdgesIterator = new EdgeIterator.MatchingEdgesIterator();
+    public EdgeIterator findAllOutgoingEdges(long dstVertexId, boolean isDstGlobal) {
+        // TODO XXX Find a better or more universal approach for this
+        if (false) {
+            // Use the sorted edges in the vertex partition
+            // Seems to require sorting all the time as
+            // edges etc are added...so slow!
+            if (_matchingEdgesIterator == null) {
+                _matchingEdgesIterator = new EdgeIterator.MatchingEdgesIterator();
+            }
+
+            _matchingEdgesIterator.init(_avpm._aepm);
+            _matchingEdgesIterator.findEdgesViaVertex(_p, _vertexId, dstVertexId, isDstGlobal, getNOutgoingEdges());
+
+            return _matchingEdgesIterator;
         }
+        else {
+            // Use a hash-map that's updated each time an edge is added
+            if (_scanner==null) {
+                _scanner = new CachedMutatingEdgeMap.MatchingEdgeCachedIterator();
+            }
 
-        _matchingEdgesIterator.init(_avpm._aepm);
-        _matchingEdgesIterator.findEdgesViaVertex(_p, _vertexId, dstVertexId, isDstGlobal, getNOutgoingEdges());
-
-        return _matchingEdgesIterator;
+            return _p.findMatchingEdges(_vertexId, dstVertexId, isDstGlobal, _scanner);
+        }
     }
 
 
