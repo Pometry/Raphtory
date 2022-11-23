@@ -2,18 +2,11 @@ package com.raphtory.internals.storage.arrow
 
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.api.input._
-import com.raphtory.arrowcore.implementation.ArrowPropertyIterator
-import com.raphtory.arrowcore.implementation.EdgeHistoryIterator
-import com.raphtory.arrowcore.implementation.EdgeIterator
-import com.raphtory.arrowcore.implementation.EdgePartitionManager
-import com.raphtory.arrowcore.implementation.EntityFieldAccessor
-import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
-import com.raphtory.arrowcore.implementation.VertexHistoryIterator
-import com.raphtory.arrowcore.implementation.VertexPartition
-import com.raphtory.arrowcore.implementation.VertexPartitionManager
+import com.raphtory.arrowcore.implementation._
 import com.raphtory.arrowcore.model.Edge
 import com.raphtory.arrowcore.model.Entity
 import com.raphtory.arrowcore.model.Vertex
+import com.raphtory.internals.communication.SchemaProviderInstances._
 import com.raphtory.internals.graph.GraphAlteration.SyncExistingEdgeAdd
 import com.raphtory.internals.graph.GraphAlteration.SyncExistingEdgeRemoval
 import com.raphtory.internals.graph.GraphAlteration.SyncExistingRemovals
@@ -23,20 +16,23 @@ import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExVertex
 import com.typesafe.config.Config
-import com.raphtory.internals.communication.SchemaProviderInstances._
 
 import java.lang
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.LongAccumulator
-import java.util.concurrent.locks.ReadWriteLock
 import java.util.concurrent.locks.ReentrantReadWriteLock
+import scala.annotation.tailrec
 import scala.collection.AbstractView
 import scala.collection.View
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition: Int, conf: Config)
-        extends GraphPartition(graphID, partition, conf)
+class ArrowPartition(
+    graphID: String,
+    val par: RaphtoryArrowPartition,
+    partition: Int,
+    conf: Config,
+    parallelism: Int = 16
+) extends GraphPartition(graphID, partition, conf)
         with AutoCloseable {
 
   def asGlobal(vertexId: Long): Long =
@@ -303,17 +299,6 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     setProps(v, msgTime, properties)(key => par.getVertexPropertyId(key.toLowerCase()))(key =>
       par.getVertexFieldId(key.toLowerCase())
     )
-
-  private def linkIncomingToLocalNode(msgTime: Long, dst: EntityId, e: Edge): Unit = {
-    val p           = vmgr.getPartition(vmgr.getPartitionId(dst.id))
-    val prevListPtr = p.synchronized {
-      val ptr = p.addIncomingEdgeToList(dst.id, e.getLocalId)
-      p.addHistory(dst.id, msgTime, true, false, e.getLocalId, false)
-      ptr
-    }
-
-    emgr.setIncomingEdgePtr(e.getLocalId, prevListPtr)
-  }
 
   override def syncNewEdgeAdd(
       sourceID: Long,

@@ -25,7 +25,7 @@ trait Source {
   ): F[StreamSource[F, MessageType]] =
     builder
       .make(graphID, id, partitions)
-      .map(builder => new StreamSource[F, MessageType](id, spout.buildSpout(), builder))
+      .map(builder => new StreamSource[F, MessageType](id, spout.asStream, builder))
 }
 
 class ConcreteSource[T](override val spout: Spout[T], override val builder: GraphBuilder[T]) extends Source {
@@ -33,17 +33,16 @@ class ConcreteSource[T](override val spout: Spout[T], override val builder: Grap
 
 }
 
-class StreamSource[F[_], T](id: Int, spoutInstance: SpoutInstance[T], builderInstance: GraphBuilderF[F, T])(implicit
+class StreamSource[F[_], T](id: Int, tuples: fs2.Stream[F, T], builderInstance: GraphBuilderF[F, T])(implicit
     F: Async[F]
 ) {
 
   def elements(counter: Counter.Child): F[Unit] = {
     val s = for {
       index <- fs2.Stream.eval(Ref.of[F, Long](1L))
-      tuples = fs2.Stream.fromBlockingIterator[F](spoutInstance, 512)
-      _     <- tuples.chunks.parEvalMapUnordered(4)(chunk =>
+      _     <- tuples.chunks.parEvalMapUnordered(16){ chunk =>
                  builderInstance.buildGraphFromT(chunk, index) *> F.delay(counter.inc(chunk.size))
-               )
+               }
     } yield ()
 
     s.compile.drain
@@ -52,7 +51,7 @@ class StreamSource[F[_], T](id: Int, spoutInstance: SpoutInstance[T], builderIns
   def sentMessages: F[Long]          = builderInstance.getSentUpdates
   def earliestTimeSeen(): F[Long]    = builderInstance.earliestTimeSeen
   def highestTimeSeen(): F[Long]     = builderInstance.highestTimeSeen
-  def spoutReschedules(): F[Boolean] = F.delay(spoutInstance.spoutReschedules())
+  def spoutReschedules(): F[Boolean] = F.delay(false)
   def pollInterval: FiniteDuration   = 1.seconds
   def sourceID: Int                  = id
 }
