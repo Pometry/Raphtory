@@ -1,4 +1,4 @@
-name: test and build
+name: Test Raphtory both Scala and Python
 on:
   push:
   schedule:
@@ -94,77 +94,77 @@ jobs:
         timeout-minutes: 10
     if: needs.configure.outputs.type == 'regular'
 
-  build:
-    name: "build"
-    needs:
-      - configure
-    runs-on: ubuntu-latest
-    container:
-      image: eclipse-temurin:11.0.12_7-jdk
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: '0'
-          ref: "${{ needs.configure.outputs.branch }}"
-      - name: Get sbt package
-        run: apt-get update && apt-get install unzip && curl -L "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.zip" -o sbt-1.5.5.zip && unzip sbt-1.5.5.zip
-      - name: Run sbt assembly
-        run: |
-          export PATH=$(pwd)/sbt/bin:$PATH
-          sbt core/assembly
-      # Tag when push to master branch
-      - name: Bump tag version and push
-        uses: anothrNick/github-tag-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        if: needs.configure.outputs.type == 'master'
-      - name: Get latest tag
-        id: bumped-tag
-        uses: actions-ecosystem/action-get-latest-tag@v1
-        with:
-          semver_only: true
-        if: needs.configure.outputs.type == 'master'
-      # Tag when scheduled nightly run
-      - name: Push nightly build tag
-        run: |
-          git config user.name "${GITHUB_ACTOR}"
-          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
-          git tag -a "${{ needs.configure.outputs.branch }}-nightly-build-${{ needs.configure.outputs.date }}" -m "${{ needs.configure.outputs.branch }} nightly build - ${{ needs.configure.outputs.date }}"
-          git push origin "${{ env.software_version }}"
-        if: needs.configure.outputs.type == 'nightly'
-      # Get artifacts
-      - name: Get artifact path
-        id: artifact
-        run: echo "::set-output name=path::$(find . -name raphtory*.jar)"
-      # Create release and upload artifacts to release if nightly
-      - name: Name artifact for nightly release
-        id: artifact-nightly
-        run: mv ${{ steps.artifact.outputs.path }} ./raphtory-${{ needs.configure.outputs.branch }}-nightly-build-latest.jar
-        if: needs.configure.outputs.type == 'nightly'
-      - name: Create nightly release and upload artifact
-        uses: ncipollo/release-action@v1
-        with:
-          name: "${{ needs.configure.outputs.branch }}-nightly-build-latest"
-          tag: "${{ needs.configure.outputs.branch }}-nightly-build-${{ needs.configure.outputs.date }}"
-          token: ${{ secrets.GITHUB_TOKEN }}
-          allowUpdates: true
-          artifacts: ./raphtory-${{ needs.configure.outputs.branch }}-nightly-build-latest.jar
-          body: "Nightly build of ${{ needs.configure.outputs.branch }} branch."
-          prerelease: false
-        if: needs.configure.outputs.type == 'nightly'
-      # Create release and upload artifacts to release if master
-      - name: Name artifact for master release
-        run: mv ${{ steps.artifact.outputs.path }} ./raphtory-${{ steps.bumped-tag.outputs.tag }}.jar
-        if: needs.configure.outputs.type == 'master'
-      - name: Create master release and upload artifact
-        uses: ncipollo/release-action@v1
-        with:
-          tag: ${{ steps.bumped-tag.outputs.tag }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          allowUpdates: false
-          artifacts: ./raphtory-${{ steps.bumped-tag.outputs.tag }}.jar
-          body: ${{ steps.bumped-tag.outputs.message }}
-          prerelease: true
-        if: needs.configure.outputs.type == 'master'
-    if: (needs.configure.outputs.type == 'nightly' || needs.configure.outputs.type == 'master' )
+#  build:
+#    name: "build"
+#    needs:
+#      - configure
+#    runs-on: ubuntu-latest
+#    container:
+#      image: eclipse-temurin:11.0.12_7-jdk
+#    steps:
+#      - name: Checkout code
+#        uses: actions/checkout@v2
+#        with:
+#          fetch-depth: '0'
+#          ref: "${{ needs.configure.outputs.branch }}"
+#      - name: Get sbt package
+#        run: apt-get update && apt-get install unzip && curl -L "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.zip" -o sbt-1.5.5.zip && unzip sbt-1.5.5.zip
+#      - name: Run sbt assembly
+#        run: |
+#          export PATH=$(pwd)/sbt/bin:$PATH
+#          sbt core/assembly
+#      # Tag when push to master branch
+#      - name: Bump tag version and push
+#        uses: anothrNick/github-tag-action@master
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        if: needs.configure.outputs.type == 'master'
+#      - name: Get latest tag
+#        id: bumped-tag
+#        uses: actions-ecosystem/action-get-latest-tag@v1
+#        with:
+#          semver_only: true
+#        if: needs.configure.outputs.type == 'master'
+#      # Tag when scheduled nightly run
+#      - name: Push nightly build tag
+#        run: |
+#          git config user.name "${GITHUB_ACTOR}"
+#          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+#          git tag -a "${{ needs.configure.outputs.branch }}-nightly-build-${{ needs.configure.outputs.date }}" -m "${{ needs.configure.outputs.branch }} nightly build - ${{ needs.configure.outputs.date }}"
+#          git push origin "${{ env.software_version }}"
+#        if: needs.configure.outputs.type == 'nightly'
+#      # Get artifacts
+#      - name: Get artifact path
+#        id: artifact
+#        run: echo "::set-output name=path::$(find . -name raphtory*.jar)"
+#      # Create release and upload artifacts to release if nightly
+#      - name: Name artifact for nightly release
+#        id: artifact-nightly
+#        run: mv ${{ steps.artifact.outputs.path }} ./raphtory-${{ needs.configure.outputs.branch }}-nightly-build-latest.jar
+#        if: needs.configure.outputs.type == 'nightly'
+#      - name: Create nightly release and upload artifact
+#        uses: ncipollo/release-action@v1
+#        with:
+#          name: "${{ needs.configure.outputs.branch }}-nightly-build-latest"
+#          tag: "${{ needs.configure.outputs.branch }}-nightly-build-${{ needs.configure.outputs.date }}"
+#          token: ${{ secrets.GITHUB_TOKEN }}
+#          allowUpdates: true
+#          artifacts: ./raphtory-${{ needs.configure.outputs.branch }}-nightly-build-latest.jar
+#          body: "Nightly build of ${{ needs.configure.outputs.branch }} branch."
+#          prerelease: false
+#        if: needs.configure.outputs.type == 'nightly'
+#      # Create release and upload artifacts to release if master
+#      - name: Name artifact for master release
+#        run: mv ${{ steps.artifact.outputs.path }} ./raphtory-${{ steps.bumped-tag.outputs.tag }}.jar
+#        if: needs.configure.outputs.type == 'master'
+#      - name: Create master release and upload artifact
+#        uses: ncipollo/release-action@v1
+#        with:
+#          tag: ${{ steps.bumped-tag.outputs.tag }}
+#          token: ${{ secrets.GITHUB_TOKEN }}
+#          allowUpdates: false
+#          artifacts: ./raphtory-${{ steps.bumped-tag.outputs.tag }}.jar
+#          body: ${{ steps.bumped-tag.outputs.message }}
+#          prerelease: true
+#        if: needs.configure.outputs.type == 'master'
+#    if: (needs.configure.outputs.type == 'nightly' || needs.configure.outputs.type == 'master' )
