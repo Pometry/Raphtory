@@ -16,7 +16,18 @@ from jpype import JObject, JBoolean, JByte, JShort, JInt, JLong, JFloat, JDouble
 from pyraphtory._py4jgateway import Py4JConnection
 
 _wrapper_lock = Lock()
-_wrappers = {}
+
+def no_wrapper(jvm_object):
+    return jvm_object
+
+
+_wrappers = {
+    "java.lang.Integer": no_wrapper,
+    "java.lang.Short": no_wrapper,
+    "java.lang.Long": no_wrapper,
+    "java.lang.Float": no_wrapper,
+    "java.lang.Double": no_wrapper,
+}
 
 
 def repr(obj):
@@ -448,11 +459,15 @@ class OverloadedMethod:
                                       for m in self._methods))
 
     def __call__(self, *args, **kwargs):
+        errors = []
         for method in self._methods:
             try:
                 return method(*args, **kwargs)
             except Exception as e:
                 logger.trace("call failed for {name} with exception {e}", e=e, name=self.__name__)
+                errors.append(e)
+        for e in errors:
+            print(e)
         raise RuntimeError(f"No overloaded implementations matched for {self.__name__} with {args=} and {kwargs=}")
 
     def __get__(self, instance, owner):
