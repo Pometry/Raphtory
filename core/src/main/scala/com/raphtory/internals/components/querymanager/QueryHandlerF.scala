@@ -5,8 +5,14 @@ import cats.effect.Async
 import cats.effect.Deferred
 import cats.syntax.all._
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
+import com.raphtory.api.analysis.graphview.ExplodeSelectWithGraph
 import com.raphtory.api.analysis.graphview.GlobalGraphFunction
+import com.raphtory.api.analysis.graphview.GlobalSelect
+import com.raphtory.api.analysis.graphview.IterateWithGraph
+import com.raphtory.api.analysis.graphview.SelectWithGraph
 import com.raphtory.api.analysis.graphview.SetGlobalState
+import com.raphtory.api.analysis.graphview.StepWithGraph
+import com.raphtory.api.analysis.graphview.TabularisingGraphFunction
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.internals.components.output.PerspectiveResult
 import com.raphtory.internals.components.output.TableOutputSink
@@ -60,7 +66,6 @@ class QueryHandlerF[F[_]](
                        .map(_.get)
       result      <- fs2.Stream.eval(processPerspective(perspective))
       message     <- fs2.Stream.fromOption(result._1) ++ fs2.Stream(result._2)
-      _           <- fs2.Stream.eval(F.delay(println(s"message on stream: $message from list: $result")))
     } yield message
   }
 
@@ -82,7 +87,6 @@ class QueryHandlerF[F[_]](
                        partitionFunction(_.writePerspective(PerspectiveCommand(graphId, jobId, perspective)))
                          .as((None, completed))
                    }
-      _         <- F.delay(println("I have a result for one perspective"))
     } yield result
 
     perspectiveProcessing
@@ -96,19 +100,25 @@ class QueryHandlerF[F[_]](
     query.operations.zipWithIndex.map {
       case (operation, index) =>
         operation match {
-          case SetGlobalState(fun)    => F.delay(fun(state))
-          case y: GlobalGraphFunction =>
-            F.delay(println(s"with sate $y")) >> executeWithStateUntilConsensus(index, state)
-          case x                      => F.delay(println(s"without state $x")) >> executeUntilConsensus(index)
+          case SetGlobalState(fun)                                   => F.delay(println("handling global state")) *> F.delay(fun(state))
+          case _: TabularisingGraphFunction with GlobalGraphFunction =>
+            executeWithStateUntilConsensus(index, state, update = false)
+          case _: GlobalGraphFunction                                => executeWithStateUntilConsensus(index, state, update = true)
+          case x                                                     => F.delay(println(s"without state $x")) >> executeUntilConsensus(index)
         }
     }.sequence_
 
-  private def executeWithStateUntilConsensus(index: Int, state: GraphStateImplementation) =
+  private def executeWithStateUntilConsensus(index: Int, state: GraphStateImplementation, update: Boolean): F[Unit] =
     for {
       results <- partitionFunction(_.executeOperationWithState(OperationAndState(graphId, jobId, index, state)))
-      _       <- F.delay(results.foreach(result => state.update(result.state)))
-      _       <- F.delay(state.rotate())
-      _       <- if (results.forall(result => result.voteToContinue)) F.unit else executeUntilConsensus(index)
+      _       <- F.delay(println(s"state received from 1: ${results.head.state("name length max").value}"))
+      _       <- F.delay(if (update) {
+                   results.foreach(result => state.update(result.state))
+                   state.rotate()
+                 })
+      _       <- F.delay(println(s"state after rotating: ${state("name length max").value}"))
+      _       <- if (results.forall(result => result.voteToContinue)) F.unit
+                 else executeWithStateUntilConsensus(index, state, update)
     } yield ()
 
   private def executeUntilConsensus(index: Int): F[Unit] =

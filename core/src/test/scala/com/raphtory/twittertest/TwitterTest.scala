@@ -50,6 +50,4 @@ class TwitterTest extends BaseRaphtoryAlgoTest[String] {
 
   override def liftFileIfNotPresent: Option[(String, URL)] =
     Some(tmpFilePath -> new URL("https://raw.githubusercontent.com/Raphtory/Data/main/snap-twitter.csv"))
-
-  override def munitTimeout: Duration                      = new FiniteDuration(240, TimeUnit.SECONDS)
 }
