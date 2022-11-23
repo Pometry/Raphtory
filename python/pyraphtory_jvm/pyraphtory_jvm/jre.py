@@ -235,7 +235,7 @@ def check_system_dl_java(download_dir=str(os.path.dirname(os.path.realpath(__fil
 
 def has_java():
     try:
-        res = subprocess.run(["java", "-version"], stdout=subprocess.PIPE)
+        res = subprocess.run(["java", "-version"],stdout=subprocess.DEVNULL,stderr=subprocess.STDOUT)
         if res.returncode == 0:
             logging.info("Java found!")
             return True
