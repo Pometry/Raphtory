@@ -52,7 +52,6 @@ Alternatively, hit next and lets get Raphtory :doc:`installed <Install/python/py
    :caption: Deploying Raphtory
 
    Deployment/baremetalsingle.md
-   Deployment/kubernetes.md
 
 .. toctree::
    :hidden:
