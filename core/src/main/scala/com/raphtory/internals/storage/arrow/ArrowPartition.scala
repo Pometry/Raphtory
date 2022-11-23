@@ -212,6 +212,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
         case Some(e) => updateExistingEdge(msgTime, index, srcId, dstId, properties, dst, e)
         case None => addRemoteOutgoingEdge(src, dst.id, msgTime, properties)
       }
+
     }
   }
 
