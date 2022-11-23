@@ -4,7 +4,6 @@ import cats.effect.IO
 import cats.effect.Resource
 import cats.effect.ResourceApp
 import com.raphtory.internals.communication.connectors.AkkaConnector
-import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.components.querymanager.QueryServiceImpl
 import com.raphtory.internals.components.repositories.DistributedServiceRegistry
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder

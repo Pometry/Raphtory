@@ -3,7 +3,6 @@ package com.raphtory.internals.components
 import cats.effect.Async
 import cats.effect.Resource
 import cats.syntax.all._
-import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.ingestion.IngestionServiceImpl
 import com.raphtory.internals.components.partition.PartitionServiceImpl
 import com.raphtory.internals.components.querymanager.QueryServiceImpl
@@ -35,14 +34,13 @@ abstract class ServiceRegistry[F[_]: Async] {
         attempts match {
           case (id, register) :: tail =>
             for {
-              _      <-
-                Async[F].delay(logger.debug(s"Trying to register $instance for id '$id' among ${candidateIds.toList}"))
+              _      <- Async[F].delay(logger.debug(s"Trying to register $instance for id '$id' among $candidateIds"))
               result <- register.map(unregister => (id, unregister)).recoverWith(_ => firstSuccess(tail))
             } yield result
 
           case _                      =>
             val errorMsg =
-              s"Failed to retrieve id among ${candidateIds.toList} for instance of service ${descriptor.name}"
+              s"Failed to retrieve id among $candidateIds for instance of service ${descriptor.name}"
             Async[F].raiseError(new IllegalStateException(errorMsg))
         }
 
@@ -56,8 +54,7 @@ abstract class ServiceRegistry[F[_]: Async] {
   final def partitions: Resource[F, Map[Int, PartitionService[F]]] =
     getServices(PartitionServiceImpl.descriptor, partitionIds)
 
-  final def query: Resource[F, QueryService[F]] =
-    getService[QueryService[F]](QueryServiceImpl.descriptor)
+  final def query: Resource[F, QueryService[F]] = getService[QueryService[F]](QueryServiceImpl.descriptor)
 
   private def getServices[T](descriptor: ServiceDescriptor[F, T], ids: Seq[Int]): Resource[F, Map[Int, T]] =
     ids

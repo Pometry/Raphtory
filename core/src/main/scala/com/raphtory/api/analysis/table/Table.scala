@@ -11,7 +11,6 @@ import scala.concurrent.duration.Duration
 sealed private[raphtory] trait TableFunction                            extends Operation
 final private[raphtory] case class TableFilter(f: (Row) => Boolean)     extends TableFunction
 final private[raphtory] case class Explode(f: Row => IterableOnce[Row]) extends TableFunction
-private[raphtory] case object WriteToOutput                             extends TableFunction
 
 /**  Interface for table operations
   *

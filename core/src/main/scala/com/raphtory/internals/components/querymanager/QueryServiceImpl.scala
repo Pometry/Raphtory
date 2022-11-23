@@ -3,7 +3,6 @@ package com.raphtory.internals.components.querymanager
 import cats.syntax.all._
 import cats.effect._
 import com.google.protobuf.empty.Empty
-import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.OrchestratorService.GraphList
 import com.raphtory.internals.components._
 import com.raphtory.protocol

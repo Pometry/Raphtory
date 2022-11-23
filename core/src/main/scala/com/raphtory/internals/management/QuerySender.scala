@@ -7,10 +7,7 @@ import com.raphtory.api.input.Source
 import com.raphtory.api.progresstracker.ProgressTracker
 import com.raphtory.api.progresstracker.QueryProgressTracker
 import com.raphtory.api.progresstracker.QueryProgressTrackerWithIterator
-import com.raphtory.internals.FlushToFlight
-import com.raphtory.internals.communication.EndPoint
-import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.components.output.OutputMessages
+import com.raphtory.internals.components.output.PerspectiveResult
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.protocol
@@ -19,6 +16,7 @@ import com.raphtory.protocol.RaphtoryService
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
+
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.Duration
 import scala.util.Random
@@ -27,7 +25,6 @@ import scala.util.Success
 private[raphtory] class QuerySender(
     val graphID: String,
     private val service: RaphtoryService[IO],
-    private val topics: TopicRepository,
     private val config: Config,
     private val clientID: String
 ) extends Graph {
@@ -104,10 +101,11 @@ private[raphtory] class QuerySender(
     val responses = service.submitQuery(protocol.Query(TryQuery(Success(outputQuery)))).unsafeRunSync()
     responses
       .map(_.bytes)
+      .evalMap(msg => IO.println(s"msg on query sender: $msg").as(msg))
       .foreach {
-        case message: OutputMessages =>
+        case message: PerspectiveResult =>
           IO(progressTracker.asInstanceOf[QueryProgressTrackerWithIterator].handleOutputMessage(message))
-        case message                 =>
+        case message                    =>
           IO(progressTracker.handleMessage(message))
       }
       .compile
@@ -121,7 +119,7 @@ private[raphtory] class QuerySender(
     QueryProgressTracker(graphID, jobID, config)
 
   def createTableOutputTracker(jobID: String, timeout: Duration): QueryProgressTrackerWithIterator =
-    QueryProgressTrackerWithIterator(graphID, jobID, topics, config, timeout)
+    QueryProgressTrackerWithIterator(graphID, jobID, config, timeout)
 
   def destroyGraph(force: Boolean): Unit =
     service.destroyGraph(protocol.DestroyGraph(clientID, graphID, force)).unsafeRunSync()

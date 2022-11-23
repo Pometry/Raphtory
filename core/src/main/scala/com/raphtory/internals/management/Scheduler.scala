@@ -2,7 +2,6 @@ package com.raphtory.internals.management
 
 import cats.effect.IO
 import cats.effect.unsafe.IORuntime
-import com.raphtory.internals.components.Component
 
 import java.util.concurrent.CompletableFuture
 import scala.concurrent.Future
@@ -14,8 +13,8 @@ private[raphtory] class Scheduler {
 
   implicit val runtime = IORuntime.global
 
-  def execute[T](component: Component[T]): Unit =
-    IO.blocking(component.run()).unsafeToFuture()
+//  def execute[T](component: Component[T]): Unit =
+//    IO.blocking(component.run()).unsafeToFuture()
 
   def executeCompletable[T](task: => Unit): CompletableFuture[Unit] =
     IO.blocking(task).unsafeToCompletableFuture()

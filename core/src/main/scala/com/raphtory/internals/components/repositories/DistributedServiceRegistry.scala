@@ -3,7 +3,6 @@ package com.raphtory.internals.components.repositories
 import cats.effect.Async
 import cats.effect.Resource
 import cats.syntax.all._
-import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.ServiceDescriptor
 import com.raphtory.internals.components.ServiceRegistry
 import com.typesafe.config.Config

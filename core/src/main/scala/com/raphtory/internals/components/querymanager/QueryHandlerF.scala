@@ -60,6 +60,7 @@ class QueryHandlerF[F[_]](
                        .map(_.get)
       messages    <- fs2.Stream.eval(processPerspective(perspective))
       message     <- fs2.Stream.fromIterator(messages.iterator, 2)
+      _           <- fs2.Stream.eval(F.delay(println(s"message on stream: $message from list: $messages")))
     } yield message
   }
 
@@ -79,6 +80,7 @@ class QueryHandlerF[F[_]](
                        partitionFunction(_.writePerspective(PerspectiveCommand(graphId, jobId, perspective)))
                          .as(List(completed))
                    }
+      _         <- F.delay(println("I have a result for one perspective"))
     } yield result
 
     perspectiveProcessing
@@ -93,8 +95,9 @@ class QueryHandlerF[F[_]](
       case (operation, index) =>
         operation match {
           case SetGlobalState(fun)    => F.delay(fun(state))
-          case y: GlobalGraphFunction => F.delay(println(s"with sate ${y}")) >> executeWithStateUntilConsensus(index, state)
-          case x                      => F.delay(println(s"without state ${x}")) >> executeUntilConsensus(index)
+          case y: GlobalGraphFunction =>
+            F.delay(println(s"with sate $y")) >> executeWithStateUntilConsensus(index, state)
+          case x                      => F.delay(println(s"without state $x")) >> executeUntilConsensus(index)
         }
     }.sequence_
 

@@ -7,8 +7,6 @@ import cats.effect.std.Dispatcher
 import cats.effect.std.Queue
 import cats.syntax.all._
 import com.google.protobuf.empty.Empty
-import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import com.raphtory.internals.components.ingestion.IngestionServiceImpl
 import com.raphtory.internals.components.partition.PartitionServiceImpl
 import com.raphtory.internals.components.querymanager._
@@ -244,46 +242,4 @@ object RaphtoryServiceBuilder {
     DistributedServiceRegistry(config)
 
   private def port[F[_]](config: Config): Resource[F, Int] = Resource.pure(config.getInt("raphtory.deploy.port"))
-}
-
-class QueryTrackerForwarder[F[_]](queue: Queue[F, Option[QueryManagement]], dispatcher: Dispatcher[F], config: Config)
-        extends Component[QueryManagement](config) {
-  private val log: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-
-  override private[raphtory] def run(): Unit = log.debug("Running QueryTrackerForwarder")
-
-  override def handleMessage(msg: QueryManagement): Unit = {
-    log.trace(s"Putting message $msg into the queue")
-    dispatcher.unsafeRunSync(queue.offer(Some(msg)))
-    //    if (msg == JobDone)
-    //      dispatcher.unsafeRunSync(queue.offer(None))
-    // TODO: Merge output and querytracking topics and turn back on
-  }
-  override private[raphtory] def stop(): Unit = log.debug("QueryTrackerListener stopping")
-}
-
-object QueryTrackerForwarder {
-  private val log: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-
-  def apply[F[_]](
-      graphID: String,
-      jobId: String,
-      repo: TopicRepository,
-      queue: Queue[F, Option[QueryManagement]],
-      dispatcher: Dispatcher[F],
-      config: Config
-  )(implicit
-      F: Async[F]
-  ): Resource[F, QueryTrackerForwarder[F]] =
-    Component
-      .makeAndStart(
-              repo,
-              s"query-tracker-listener-$jobId",
-              Seq(repo.queryTrack(graphID, jobId), repo.output(graphID, jobId)),
-              new QueryTrackerForwarder(queue, dispatcher, config)
-      )
-      .map { component =>
-        log.debug(s"Created QueryTrackerForwarder for job: $jobId")
-        component
-      }
 }

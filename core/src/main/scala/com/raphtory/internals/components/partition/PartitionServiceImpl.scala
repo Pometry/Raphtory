@@ -245,8 +245,7 @@ object PartitionServiceImpl {
       service       <- Resource.eval(Async[F].delay(service(id, partitionsDfr, graphs)))
       idNumber      <- registry.registered(service, PartitionServiceImpl.descriptor, candidateIds.toList)
       _             <- Resource.eval(id.complete(idNumber))
-      partitions    <- registry.partitions // TODO: this is gonna fail with several partitions even locally
-      _             <- Resource.eval(partitionsDfr.complete(partitions))
+      _             <- registry.partitions.evalMap(partitions => partitionsDfr.complete(partitions)).start
       _             <- Resource.eval(id.get.map(id => logger.info(s"Starting partition service for id '$id'")))
     } yield ()
 }

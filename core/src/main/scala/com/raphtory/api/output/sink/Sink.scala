@@ -2,7 +2,6 @@ package com.raphtory.api.output.sink
 
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.time.Perspective
-import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.sinks.FileSink
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger

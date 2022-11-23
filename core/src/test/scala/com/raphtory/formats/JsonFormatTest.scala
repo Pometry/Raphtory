@@ -9,7 +9,6 @@ import com.raphtory.internals.communication.CancelableListener
 import com.raphtory.internals.communication.CanonicalTopic
 import com.raphtory.internals.communication.Connector
 import com.raphtory.internals.communication.EndPoint
-import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import munit.FunSuite

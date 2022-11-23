@@ -5,7 +5,6 @@ import cats.effect.Resource
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.PyDeployedTemporalGraph
 import com.raphtory._
-import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import cats.effect.unsafe.implicits.global
 import com.raphtory.internals.components.RaphtoryServiceBuilder
 import com.raphtory.internals.management.Prometheus
@@ -37,8 +36,7 @@ abstract class Context(serviceAsResource: Resource[IO, RaphtoryService[IO]], con
       _            = if (!graphExists && failOnNotFound) throw NoGraphFound(graphID)
                      else if (!failOnNotFound && graphExists) throw GraphAlreadyDeployed(graphID)
       _           <- Prometheus[IO](config.getInt("raphtory.prometheus.metrics.port"))
-      topicRepo   <- LocalTopicRepository[IO](config, None)
-      querySender <- Resource.make(IO.delay(new QuerySender(graphID, service, topicRepo, config, clientId))) { qs =>
+      querySender <- Resource.make(IO.delay(new QuerySender(graphID, service, config, clientId))) { qs =>
                        IO.blocking {
                          if (destroy) qs.destroyGraph(true) else qs.disconnect()
                        }

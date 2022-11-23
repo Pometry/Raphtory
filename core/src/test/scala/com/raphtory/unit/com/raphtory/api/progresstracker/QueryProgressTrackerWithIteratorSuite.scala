@@ -5,21 +5,18 @@ import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.TableOutput
 import com.raphtory.api.progresstracker.QueryProgressTrackerWithIterator
 import com.raphtory.api.time.Interval
-import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.components.output.EndOutput
-import com.raphtory.internals.components.output.EndPerspective
-import com.raphtory.internals.components.output.RowOutput
+import com.raphtory.internals.components.output.PerspectiveResult
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.Perspective
 import munit.CatsEffectSuite
 import org.mockito.MockitoSugar.mock
+
 import scala.concurrent.duration.Duration
 
 class QueryProgressTrackerWithIteratorSuite extends CatsEffectSuite {
 
   private val graphId         = "testGraphId"
   private val jobId           = "testJobId"
-  private val topicRepository = mock[TopicRepository]
   private val config          = mock[com.typesafe.config.Config]
   private val totalPartitions = 1
 
@@ -37,7 +34,6 @@ class QueryProgressTrackerWithIteratorSuite extends CatsEffectSuite {
                           QueryProgressTrackerWithIterator(
                                   graphId,
                                   jobId,
-                                  topicRepository,
                                   config,
                                   Duration.Inf
                           )
@@ -65,9 +61,8 @@ class QueryProgressTrackerWithIteratorSuite extends CatsEffectSuite {
     val tracker = queryProgressTrackerWithIterator()
     val row     = Row(1, 2, 3)
 
-    tracker.handleOutputMessage(RowOutput(perspective, row))
-    tracker.handleOutputMessage(EndPerspective(perspective, totalPartitions))
-    tracker.handleOutputMessage(EndOutput(totalPartitions))
+    tracker.handleOutputMessage(PerspectiveResult(perspective, totalPartitions, Array(row)))
+    tracker.handleMessage(JobDone)
 
     val itr: Iterator[TableOutput] = tracker.TableOutputIterator
     while (itr.hasNext)
@@ -77,16 +72,15 @@ class QueryProgressTrackerWithIteratorSuite extends CatsEffectSuite {
                       jobId,
                       perspective,
                       Array(row),
-                      config,
-                      topicRepository
+                      config
               ).toString
       )
   }
 
-  test("""QueryProgressTrackerWithIterator completes job when received "EndOuput" message""") {
+  test("""QueryProgressTrackerWithIterator completes job when received "JobDone" message""") {
     val tracker = queryProgressTrackerWithIterator()
 
-    tracker.handleOutputMessage(EndOutput(totalPartitions))
+    tracker.handleMessage(JobDone)
 
     val itr: Iterator[TableOutput] = tracker.TableOutputIterator
     while (itr.hasNext) itr.next()

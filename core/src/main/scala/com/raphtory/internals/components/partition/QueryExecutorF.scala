@@ -1,6 +1,7 @@
 package com.raphtory.internals.components.partition
 
 import cats.effect.Async
+import cats.effect.Ref
 import cats.effect.std.Dispatcher
 import cats.effect.std.Queue
 import cats.effect.std.Semaphore
@@ -24,7 +25,9 @@ import com.raphtory.api.analysis.graphview.SelectWithGraph
 import com.raphtory.api.analysis.graphview.Step
 import com.raphtory.api.analysis.graphview.StepWithGraph
 import com.raphtory.api.analysis.graphview.UndirectedView
+import com.raphtory.api.analysis.table.Explode
 import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.TableFilter
 import com.raphtory.api.analysis.table.TableFunction
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.output.sink.SinkExecutor
@@ -52,7 +55,7 @@ class QueryExecutorF[F[_]](
     partitionID: Int,
     storage: GraphPartition,
     partitions: Map[Int, PartitionService[F]],
-    graphLens: Queue[F, LensInterface],
+    graphLens: Ref[F, Option[LensInterface]],
     sinkExecutor: SinkExecutor,
     messageBuffer: ArrayBuffer[GenericVertexMessage[_]],
     conf: Config
@@ -71,10 +74,8 @@ class QueryExecutorF[F[_]](
     val sendMessage: GenericVertexMessage[_] => Unit = message => messageBuffer.addOne(message)
     timed(s"Creating perspective at time '$timestamp' with window '$window") {
       for {
-        size <- graphLens.size
-        _    <- Seq.fill(size)(graphLens.take).sequence // empty the queue
         lens <- F.delay(storage.lens(jobId, start, end, 0, sendMessage, null, new Scheduler))
-        _    <- graphLens.offer(lens)
+        _    <- graphLens.update(_ => Some(lens))
       } yield NodeCount(count = lens.localNodeCount)
     }
   }
@@ -90,7 +91,7 @@ class QueryExecutorF[F[_]](
           case function: GraphFunction =>
             F.delay(lens.nextStep()) *> executeGraphFunction(function, lens)
           case function: TableFunction =>
-            F.delay(lens.nextStep()) *> executeTableFunction(function) as OperationResult(voteToContinue = true)
+            F.delay(lens.nextStep()) *> executeTableFunction(function, lens) as OperationResult(voteToContinue = true)
         }
       }
     }
@@ -161,10 +162,16 @@ class QueryExecutorF[F[_]](
 
     function match {
       case Iterate(f: (Vertex => Unit) @unchecked, _, executeMessagedOnly) =>
-        wrapMessagingFunction(processIterate(f, executeMessagedOnly), lens) *> F.delay(
+        F.delay(println("executing Iterate")) *> wrapMessagingFunction(
+                processIterate(f, executeMessagedOnly),
+                lens
+        ) *> F.delay(
                 OperationResult(voteToContinue = lens.checkVotes())
         )
-      case _                                                               => wrapMessagingFunction(processNonIterate, lens) as OperationResult(voteToContinue = true)
+      case f                                                               =>
+        F.delay(println(s"executing $f")) *> wrapMessagingFunction(processNonIterate, lens) as OperationResult(
+                voteToContinue = true
+        )
     }
   }
 
@@ -202,17 +209,22 @@ class QueryExecutorF[F[_]](
     }
   }
 
-  private def executeTableFunction(function: TableFunction): F[Unit] = ???
+  private def executeTableFunction(function: TableFunction, lens: LensInterface): F[Unit] =
+    withFinishCallback { cb =>
+      function match {
+        case TableFilter(f) => lens.filteredTable(f)(cb)
+        case Explode(f)     => lens.explodeTable(f)(cb)
+      }
+    }
 
   private def timed[A](processName: String)(f: F[A]) =
     for {
       output   <- F.timed(f)
       (time, a) = output
-      _        <- F.delay(logger.debug(s"$loggingPrefix $processName took ${time.toMillis} ms to complete"))
+      _        <- F.delay(logger.info(s"$loggingPrefix $processName took ${time.toMillis} ms to complete"))
     } yield a
 
-  private def withLens[A](f: LensInterface => F[A]): F[A] =
-    F.bracket(graphLens.take)(f)(lens => graphLens.offer(lens))
+  private def withLens[A](f: LensInterface => F[A]): F[A] = graphLens.get.flatMap(lens => f(lens.get))
 
   private def withFinishCallback(function: (() => Unit) => Unit): F[Unit] =
     Dispatcher[F].use { dispatcher =>
@@ -240,7 +252,9 @@ class QueryExecutorF[F[_]](
                                       else F.unit
                            } yield ()
                      }
+      _           <- F.delay(println("about to send messages"))
       _           <- F.parSequenceN(partitions.size)(delivery.toSeq)
+      _           <- F.delay(println("Messages were sent"))
     } yield ()
 
   private def clearBuffer = F.delay(messageBuffer.clear())
@@ -264,7 +278,7 @@ object QueryExecutorF {
       conf: Config
   )(implicit F: Async[F]): F[QueryExecutorF[F]] =
     for {
-      lens         <- Queue.unbounded[F, LensInterface]
+      lens         <- Ref.of[F, Option[LensInterface]](None)
       buffer       <- F.delay(ArrayBuffer[GenericVertexMessage[_]]())
       sinkExecutor <- F.delay(query.sink.get.executor(query.name, partitionID, conf)) // TODO: handle this as a resource
       executor     <-
