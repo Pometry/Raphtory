@@ -16,8 +16,7 @@ import org.apache.curator.x.discovery.ServiceInstance
 import java.net.InetAddress
 import scala.concurrent.duration.DurationInt
 
-class DistributedServiceRegistry[F[_]: Async](topics: TopicRepository, serviceDiscovery: ServiceDiscovery[Void])
-        extends ServiceRegistry[F](topics) {
+class DistributedServiceRegistry[F[_]: Async](serviceDiscovery: ServiceDiscovery[Void]) extends ServiceRegistry[F] {
 
   private def serviceId(name: String, id: Int) = s"$name-${id.toString}"
   private def serviceName                      = "service"
@@ -63,14 +62,14 @@ class DistributedServiceRegistry[F[_]: Async](topics: TopicRepository, serviceDi
 
 object DistributedServiceRegistry {
 
-  def apply[F[_]: Async](topics: TopicRepository, config: Config): Resource[F, ServiceRegistry[F]] =
+  def apply[F[_]: Async](config: Config): Resource[F, ServiceRegistry[F]] =
     for {
       address          <- Resource.pure(config.getString("raphtory.zookeeper.address"))
       client           <- Resource.fromAutoCloseable(Async[F].delay(buildZkClient(address)))
       _                <- Resource.eval(Async[F].blocking(client.start()))
       serviceDiscovery <- Resource.fromAutoCloseable(Async[F].delay(buildServiceDiscovery(client)))
       _                <- Resource.eval(Async[F].blocking(serviceDiscovery.start()))
-      serviceRepo      <- Resource.eval(Async[F].delay(new DistributedServiceRegistry[F](topics, serviceDiscovery)))
+      serviceRepo      <- Resource.eval(Async[F].delay(new DistributedServiceRegistry[F](serviceDiscovery)))
     } yield serviceRepo
 
   private def buildServiceDiscovery(zkClient: CuratorFramework) =

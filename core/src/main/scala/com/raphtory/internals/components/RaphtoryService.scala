@@ -8,8 +8,6 @@ import cats.effect.std.Queue
 import cats.syntax.all._
 import com.google.protobuf.empty.Empty
 import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.communication.connectors.AkkaConnector
-import com.raphtory.internals.communication.repositories.DistributedTopicRepository
 import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import com.raphtory.internals.components.ingestion.IngestionServiceImpl
 import com.raphtory.internals.components.partition.PartitionServiceImpl
@@ -51,7 +49,6 @@ class RaphtoryServiceImpl[F[_]](
     partitions: Map[Int, PartitionService[F]],
     queryService: QueryService[F],
     idManager: IDManager,
-    topics: TopicRepository,
     config: Config
 )(implicit F: Async[F])
         extends RaphtoryService[F] {
@@ -223,7 +220,6 @@ object RaphtoryServiceBuilder {
                                                  partitions,
                                                  query,
                                                  sourceIDManager,
-                                                 repo.topics,
                                                  config
                                          )
                                  )
@@ -232,29 +228,24 @@ object RaphtoryServiceBuilder {
 
   private def localCluster[F[_]: Async](config: Config): Resource[F, ServiceRegistry[F]] =
     for {
-      topics      <- LocalTopicRepository[F](config, None)
-      serviceRepo <- LocalServiceRegistry(topics)
-      _           <- PartitionServiceImpl.makeN(serviceRepo, config)
-      _           <- QueryServiceImpl(serviceRepo, config)
-      _           <- IngestionServiceImpl(serviceRepo, config)
-    } yield serviceRepo
+      registry <- LocalServiceRegistry()
+      _        <- PartitionServiceImpl.makeN(registry, config)
+      _        <- QueryServiceImpl(registry, config)
+      _        <- IngestionServiceImpl(registry, config)
+    } yield registry
 
   private def localArrowCluster[F[_]: Async, V: VertexSchema, E: EdgeSchema](
       config: Config
   ): Resource[F, ServiceRegistry[F]] =
     for {
-      topics      <- LocalTopicRepository[F](config, None)
-      serviceRepo <- LocalServiceRegistry(topics)
-      _           <- PartitionServiceImpl.makeNArrow[F, V, E](serviceRepo, config)
-      _           <- QueryServiceImpl(serviceRepo, config)
-      _           <- IngestionServiceImpl(serviceRepo, config)
-    } yield serviceRepo
+      registry <- LocalServiceRegistry()
+      _        <- PartitionServiceImpl.makeNArrow[F, V, E](registry, config)
+      _        <- QueryServiceImpl(registry, config)
+      _        <- IngestionServiceImpl(registry, config)
+    } yield registry
 
   private def remoteCluster[F[_]: Async](config: Config): Resource[F, ServiceRegistry[F]] =
-    for {
-      topics <- DistributedTopicRepository[F](AkkaConnector.SeedMode, config, None)
-      repo   <- DistributedServiceRegistry(topics, config)
-    } yield repo
+    DistributedServiceRegistry(config)
 
   private def port[F[_]](config: Config): Resource[F, Int] = Resource.pure(config.getInt("raphtory.deploy.port"))
 }

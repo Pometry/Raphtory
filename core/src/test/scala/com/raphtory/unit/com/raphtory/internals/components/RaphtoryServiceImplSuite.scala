@@ -33,7 +33,6 @@ class RaphtoryServiceImplSuite extends CatsEffectSuite {
                                                         Map[Int, PartitionService[IO]](0 -> partitionService),
                                                         queryService,
                                                         mock[IDManager],
-                                                        mock[ServiceRegistry[IO]].topics,
                                                         mock[com.typesafe.config.Config]
                                                 )
                                         )

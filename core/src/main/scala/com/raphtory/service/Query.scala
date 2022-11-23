@@ -15,10 +15,9 @@ object Query extends ResourceApp.Forever {
   def run(args: List[String]): Resource[IO, Unit] = {
     val config = ConfigBuilder.getDefaultConfig
     for {
-      _      <- Prometheus[IO](config.getInt("raphtory.prometheus.metrics.port"))
-      topics <- DistributedTopicRepository[IO](AkkaConnector.ClientMode, config, None)
-      repo   <- DistributedServiceRegistry[IO](topics, config)
-      _      <- QueryServiceImpl[IO](repo, config)
+      _    <- Prometheus[IO](config.getInt("raphtory.prometheus.metrics.port"))
+      repo <- DistributedServiceRegistry[IO](config)
+      _    <- QueryServiceImpl[IO](repo, config)
     } yield ()
   }
 }

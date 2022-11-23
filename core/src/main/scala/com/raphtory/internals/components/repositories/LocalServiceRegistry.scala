@@ -16,8 +16,7 @@ import scala.concurrent.duration.DurationInt
   * @param async$F$0 the implicit Async type class for F
   * @tparam F the effect type
   */
-class LocalServiceRegistry[F[_]: Async](topics: TopicRepository, services: Ref[F, Map[(String, Int), Any]])
-        extends ServiceRegistry[F](topics) {
+class LocalServiceRegistry[F[_]: Async](services: Ref[F, Map[(String, Int), Any]]) extends ServiceRegistry[F] {
 
   override protected def register[T](instance: T, descriptor: ServiceDescriptor[F, T], id: Int): F[F[Unit]] = {
     val key = (descriptor.name, id)
@@ -39,9 +38,9 @@ class LocalServiceRegistry[F[_]: Async](topics: TopicRepository, services: Ref[F
 
 object LocalServiceRegistry {
 
-  def apply[F[_]: Async](topics: TopicRepository): Resource[F, ServiceRegistry[F]] =
+  def apply[F[_]: Async](): Resource[F, ServiceRegistry[F]] =
     for {
       services <- Resource.eval(Ref.of(Map[(String, Int), Any]()))
-      repo     <- Resource.eval(Async[F].delay(new LocalServiceRegistry[F](topics, services)))
+      repo     <- Resource.eval(Async[F].delay(new LocalServiceRegistry[F](services)))
     } yield repo
 }

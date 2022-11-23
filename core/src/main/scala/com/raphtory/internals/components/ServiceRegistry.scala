@@ -14,7 +14,7 @@ import com.raphtory.protocol.PartitionService
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
-abstract class ServiceRegistry[F[_]: Async](val topics: TopicRepository) {
+abstract class ServiceRegistry[F[_]: Async] {
 
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 

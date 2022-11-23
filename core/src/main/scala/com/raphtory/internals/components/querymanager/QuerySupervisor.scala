@@ -16,7 +16,6 @@ import fs2.Stream
 
 class QuerySupervisor[F[_]] private (
     graphID: GraphID,
-    topics: TopicRepository,
     config: Config,
     partitions: Map[Int, PartitionService[F]],
     private val blockingSources: Ref[F, Map[SourceID, Deferred[F, Unit]]]
@@ -39,7 +38,7 @@ class QuerySupervisor[F[_]] private (
               latestTime = latestTime max _latestTime
             }
       bs <- blockingSources.get
-      _  <- bs(sourceID).complete()
+      _  <- bs(sourceID).complete(())
       _  <- F.blocking {
               logger.info(
                       s"Source '$sourceID' is unblocking analysis for Graph '$graphID' with earliest time seen as $earliestTime and latest time seen as $latestTime"
@@ -62,7 +61,6 @@ object QuerySupervisor {
 
   def apply[F[_]: Async](
       graphID: GraphID,
-      topics: TopicRepository,
       config: Config,
       partitions: Map[Int, PartitionService[F]]
   ): Resource[F, QuerySupervisor[F]] =
@@ -72,7 +70,6 @@ object QuerySupervisor {
                            Async[F].delay(
                                    new QuerySupervisor(
                                            graphID,
-                                           topics,
                                            config,
                                            partitions,
                                            blockingSources
