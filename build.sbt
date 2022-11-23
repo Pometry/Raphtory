@@ -153,6 +153,7 @@ lazy val core = (project in file("core"))
                   curatorRecipes,
                   decline,
                   fs2,
+                  fs2IO,
                   apacheHttp,
                   jackson,
                   jfr,

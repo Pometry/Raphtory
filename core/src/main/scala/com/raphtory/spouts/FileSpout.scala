@@ -1,8 +1,11 @@
 package com.raphtory.spouts
 
+import cats.effect.Async
 import com.raphtory.api.input.Spout
 import com.raphtory.api.input.SpoutInstance
 import com.raphtory.utils.FileUtils
+import fs2.io.file.Flags
+import fs2.text
 
 import java.io.File
 import java.io.FileInputStream
@@ -55,6 +58,23 @@ case class FileSpout[T](
 
   override def buildSpout(): SpoutInstance[T] =
     new FileSpoutInstance[T](path, regexPattern, reReadFiles, recurse, lineConverter)
+
+  import fs2.io.file
+
+  override def asStream[F[_]: Async]: fs2.Stream[F, T] = {
+
+    val s = file.Files[F]
+      .readAll(file.Path.fromNioPath(Paths.get(path)), 1024 * 1024, Flags.Read)
+      .prefetchN(8)
+      .through(text.utf8.decode)
+      .through(text.lines)
+
+    if (lineConverter.isDefined) {
+      val convert = lineConverter.get
+      s.map(convert)
+    }
+    else s.asInstanceOf[fs2.Stream[F, T]]
+  }
 }
 
 object FileSpout {

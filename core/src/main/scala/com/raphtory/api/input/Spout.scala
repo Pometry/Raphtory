@@ -1,5 +1,6 @@
 package com.raphtory.api.input
 
+import cats.effect.kernel.Async
 import com.raphtory.spouts.FileSpout
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -20,6 +21,8 @@ import org.slf4j.LoggerFactory
   */
 trait Spout[T] {
   def buildSpout(): SpoutInstance[T]
+
+  def asStream[F[_]:Async]: fs2.Stream[F, T] = ???
 }
 
 trait SpoutInstance[T] extends Iterator[T] {
