@@ -73,6 +73,9 @@ object PythonInterop {
   def decode[T](obj: java.util.Collection[_]): T =
     obj.asScala.asInstanceOf[T]
 
+  def decode[T](obj: java.util.Map[_, _]): T =
+    obj.asScala.asInstanceOf[T]
+
   /** Look up name of python wrapper based on input type
     * (used to provide specialised wrappers for categories of types rather than specific classes)
     */
