@@ -1,4 +1,4 @@
-name: test and build
+name: Test Raphtory both Scala and Python
 on:
   push:
   schedule:
