@@ -201,18 +201,13 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     val src = addVertexInternal(srcId, msgTime, Properties()) // handle dst
     val dst = idsRepo.resolve(dstId)
 
-    src.outgoingEdges.find { e =>
-      dst match {
-        case NotFound(_) => false
-        case GlobalId(id) => id == e.getDstVertex && e.isDstGlobal
-        case ExistsOnPartition(id) => id == e.getDstVertex && !e.isDstGlobal
-      }
-      match
-      {
-        case Some(e) => updateExistingEdge(msgTime, index, srcId, dstId, properties, dst, e)
-        case None => addRemoteOutgoingEdge(src, dst.id, msgTime, properties)
-      }
-
+      val matchingEdges = src.findAllOutgoingEdges(dstId, dst.isLocal)
+      if (matchingEdges.hasNext) {
+        matchingEdges.next()
+        val foundEdge = matchingEdges.getEdge
+        updateExistingEdge(msgTime, index, srcId, dstId, properties, dst, foundEdge)
+      } else {
+          addRemoteOutgoingEdge(src, dst.id, msgTime, properties)
     }
   }
 
