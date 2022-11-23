@@ -240,7 +240,7 @@ public class Vertex extends Entity {
      *
      * @return the configured edge iterator
      */
-    public EdgeIterator.MatchingEdgesIterator findAllOutgoingEdges(long dstVertexId, boolean dstIsGlobal) {
+    public EdgeIterator findAllOutgoingEdges(long dstVertexId, boolean dstIsGlobal) {
         if (_vertexIterator == null) {
             _vertexIterator = _rap.getNewAllVerticesIterator();
         }
