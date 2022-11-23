@@ -1,11 +1,10 @@
 import jpype.imports
 from jpype import JImplements, JOverride, JString, JObject, JClass
-import pydevd
+# import pydevd
 from traceback import print_exc
 
 Interpreter = JClass("pemja.core.Interpreter")
 from java.util import Map
-from java.lang import Object
 
 
 @JImplements(Interpreter)
