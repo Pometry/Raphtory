@@ -21,14 +21,6 @@ message OptionalId {
   google.protobuf.Int32Value id = 1;
 }
 
-message PerspectiveResult {
-  option (scalapb.message).extends = "com.raphtory.internals.components.querymanager.QueryManagement";
-
-  bytes perspective = 1 [(scalapb.field).type = "com.raphtory.internals.graph.Perspective"];
-  int32 totalPartitions = 2;
-  repeated bytes rows = 3 [(scalapb.field).type = "com.raphtory.api.analysis.table.Row"];
-}
-
 message PartitionResult {
   repeated bytes rows = 3 [(scalapb.field).type = "com.raphtory.api.analysis.table.Row"];
 }

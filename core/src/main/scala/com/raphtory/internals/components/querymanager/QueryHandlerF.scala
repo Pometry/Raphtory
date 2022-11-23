@@ -8,6 +8,7 @@ import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview.GlobalGraphFunction
 import com.raphtory.api.analysis.graphview.SetGlobalState
 import com.raphtory.api.analysis.table.Row
+import com.raphtory.internals.components.output.PerspectiveResult
 import com.raphtory.internals.components.output.TableOutputSink
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.graph.Perspective
@@ -20,7 +21,6 @@ import com.raphtory.protocol.OperationAndState
 import com.raphtory.protocol.PartitionResult
 import com.raphtory.protocol.PartitionService
 import com.raphtory.protocol.PerspectiveCommand
-import com.raphtory.protocol.PerspectiveResult
 import com.raphtory.protocol.QueryId
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -58,15 +58,15 @@ class QueryHandlerF[F[_]](
                        .iterateEval(firstPerspective)(_ => Async[F].delay(controller.nextPerspective()))
                        .takeWhile(_.nonEmpty)
                        .map(_.get)
-      messages    <- fs2.Stream.eval(processPerspective(perspective))
-      message     <- fs2.Stream.fromIterator(messages.iterator, 2)
-      _           <- fs2.Stream.eval(F.delay(println(s"message on stream: $message from list: $messages")))
+      result      <- fs2.Stream.eval(processPerspective(perspective))
+      message     <- fs2.Stream.fromOption(result._1) ++ fs2.Stream(result._2)
+      _           <- fs2.Stream.eval(F.delay(println(s"message on stream: $message from list: $result")))
     } yield message
   }
 
-  private def processPerspective(perspective: Perspective): F[List[QueryManagement]] = {
-    val completed: QueryManagement = PerspectiveCompleted(perspective)
-    val perspectiveProcessing      = for {
+  private def processPerspective(perspective: Perspective): F[(Option[PerspectiveResult], QueryManagement)] = {
+    val completed: QueryManagement                                             = PerspectiveCompleted(perspective)
+    val perspectiveProcessing: F[(Option[PerspectiveResult], QueryManagement)] = for {
       counts    <- partitionFunction(_.establishPerspective(PerspectiveCommand(graphId, jobId, perspective)))
       totalCount = counts.map(_.count).sum
       state      = GraphStateImplementation(totalCount)
@@ -75,10 +75,12 @@ class QueryHandlerF[F[_]](
       result    <- query.sink match {
                      case Some(TableOutputSink(_)) =>
                        partitionFunction(_.getResult(QueryId(graphId, jobId)))
-                         .flatMap(results => mergePartitionResults(perspective, results).map(List(_, completed)))
+                         .flatMap(results =>
+                           mergePartitionResults(perspective, results).map(result => ((Some(result), completed)))
+                         )
                      case _                        =>
                        partitionFunction(_.writePerspective(PerspectiveCommand(graphId, jobId, perspective)))
-                         .as(List(completed))
+                         .as((None, completed))
                    }
       _         <- F.delay(println("I have a result for one perspective"))
     } yield result
@@ -86,7 +88,7 @@ class QueryHandlerF[F[_]](
     perspectiveProcessing
       .handleErrorWith { e =>
         val msg = s"Deployment '$graphId': Failed to handle message. ${e.getMessage}. Skipping perspective."
-        Async[F].delay(logger.error(msg, e)).as(List(PerspectiveFailed(perspective, e.getMessage)))
+        F.delay(logger.error(msg, e)).as((None, PerspectiveFailed(perspective, e.getMessage)))
       }
   }
 
@@ -117,7 +119,7 @@ class QueryHandlerF[F[_]](
 
   private def mergePartitionResults(perspective: Perspective, results: Seq[PartitionResult]): F[PerspectiveResult] =
     Async[F]
-      .delay(results.foldLeft(Vector[Row]())((acc, partResult) => acc ++ partResult.rows))
+      .delay(results.foldLeft(Array[Row]())((acc, partResult) => acc ++ partResult.rows))
       .map(rows => PerspectiveResult(perspective, partitions.size, rows))
 }
 
