@@ -9,3 +9,5 @@ classpathTypes += "maven-plugin"
 addSbtPlugin("io.phdata"          % "sbt-os-detector"    % "0.3.0-20220520.230852-1")
 addSbtPlugin("org.scoverage"      % "sbt-scoverage"      % "2.0.0")
 addSbtPlugin("com.github.sbt"     % "sbt-release"        % "1.1.0")
+
+addDependencyTreePlugin
