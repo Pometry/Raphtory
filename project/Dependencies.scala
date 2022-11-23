@@ -67,6 +67,7 @@ object Dependencies {
     "org.apache.curator" % "curator-recipes" % curatorVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val decline    = "com.monovore"             %% "decline-effect" % declineVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val fs2        = "co.fs2"                   %% "fs2-core"       % fs2Version
+  lazy val fs2IO        = "co.fs2"                   %% "fs2-io"       % fs2Version
   lazy val h2         = "com.h2database"            % "h2"             % h2Version % Test
   lazy val apacheHttp = "org.apache.httpcomponents" % "httpclient"     % "4.5.13"
 

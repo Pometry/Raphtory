@@ -18,7 +18,6 @@ import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExVertex
 import com.typesafe.config.Config
-import com.raphtory.internals.communication.SchemaProviderInstances._
 
 import java.lang
 import java.util.concurrent.atomic.LongAccumulator
@@ -297,17 +296,6 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     setProps(v, msgTime, properties)(key => par.getVertexPropertyId(key.toLowerCase()))(key =>
       par.getVertexFieldId(key.toLowerCase())
     )
-
-  private def linkIncomingToLocalNode(msgTime: Long, dst: EntityId, e: Edge): Unit = {
-    val p           = vmgr.getPartition(vmgr.getPartitionId(dst.id))
-    val prevListPtr = p.synchronized {
-      val ptr = p.addIncomingEdgeToList(dst.id, e.getLocalId)
-      p.addHistory(dst.id, msgTime, true, false, e.getLocalId, false)
-      ptr
-    }
-
-    emgr.setIncomingEdgePtr(e.getLocalId, prevListPtr)
-  }
 
   // This method should assume that the srcId belongs to another partition
   override def addIncomingEdge(
