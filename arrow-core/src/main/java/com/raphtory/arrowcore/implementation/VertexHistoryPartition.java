@@ -312,9 +312,7 @@ public class VertexHistoryPartition {
      */
     public void saveToFile() {
         try {
-            if (!_sorted) {
-                sortHistoryTimes();
-            }
+            sortHistoryTimes();
 
             if (_modified) {
                 _historyRO.syncSchema();
@@ -435,7 +433,15 @@ public class VertexHistoryPartition {
      * instead, an index is created that points to the rows in the correct
      * sorted order. ie. an indirect sorted index is created.
      */
-    protected void sortHistoryTimes() {
+    protected synchronized void sortHistoryTimes() {
+        if (_sorted) {
+            return;
+        }
+
+        if (_historyRO.getRowCount() != _history._maxRow) {
+            _historyRO.setRowCount(_history._maxRow);
+        }
+
         int n = _history._maxRow;
 
         IntArrayList tmpList = _tmpListTL.get();
@@ -488,13 +494,7 @@ public class VertexHistoryPartition {
             return;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         TimeWindowComparator wc = _timeWindowComparatorTL.get();
         wc.init(_history._sortedTimeIndices, _history._times, state._minTime, state._maxTime);
@@ -541,13 +541,7 @@ public class VertexHistoryPartition {
             return;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         VertexEdgeTimeWindowComparator wc = _vertexTimeEdgeWindowComparatorTL.get();
         wc.init(state._vertexRowId, _history._vertexRowIds, _history._sortedVertexTimeIndices, _history._times, state._minTime, state._maxTime);
@@ -564,6 +558,11 @@ public class VertexHistoryPartition {
     }
 
 
+    /**
+     * Intialises the history iterator to retrieve history records for the specified state
+     *
+     * @param state the state to use
+     */
     protected void findHistory(VertexHistoryIterator.WindowedVertexHistoryIterator state) {
         if (_historyRO == null) {
             state._firstIndex = -1;
@@ -571,13 +570,7 @@ public class VertexHistoryPartition {
             return;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         if (state._vertexId==-1L) {
             TimeWindowComparator wc = _timeWindowComparatorTL.get();
@@ -610,19 +603,15 @@ public class VertexHistoryPartition {
     }
 
 
+    /**
+     * @return the lowest history time in this partition
+     */
     public long getLowestTime() {
         if (_history._maxRow==0) {
             return Long.MAX_VALUE;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
-
+        sortHistoryTimes();
 
         int lowestRow = _history._sortedTimeIndices.get(0);
 
@@ -630,18 +619,15 @@ public class VertexHistoryPartition {
     }
 
 
+    /**
+     * @return the highest history time in this partition
+     */
     public long getHighestTime() {
         if (_history._maxRow==0) {
             return Long.MIN_VALUE;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         int highestRow = _history._sortedTimeIndices.get(_history._maxRow-1);
 
@@ -649,6 +635,9 @@ public class VertexHistoryPartition {
     }
 
 
+    /**
+     * @return the number of history items in this partition
+     */
     public long getNHistoryItems() {
         int n = _history._maxRow;
         return n+1;
@@ -821,7 +810,9 @@ public class VertexHistoryPartition {
     }
 
 
-
+    /**
+     * This class is used to compare creation-times for vertices
+     */
     private static class VertexTimeWindowComparator extends VectorValueComparator<IntVector> {
         private int _vertexRowId;
         private IntVector _rowIds;
@@ -903,21 +894,25 @@ public class VertexHistoryPartition {
     }
 
 
+    /**
+     * @return the vertex history store
+     */
     protected VertexHistoryStore getHistoryStore() { return _history; }
 
 
+    /**
+     * Returns the lowest history time for a vertex-row
+     *
+     * @param vertexRowId the row in question
+     *
+     * @return the lowest history time
+     */
     public long getVertexMinHistoryTime(int vertexRowId) {
         if (_historyRO == null) {
             return Long.MIN_VALUE;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         VertexEdgeTimeWindowComparator wc = _vertexTimeEdgeWindowComparatorTL.get();
         wc.init(vertexRowId, _history._vertexRowIds, _history._sortedVertexTimeIndices, _history._times, Long.MIN_VALUE, Long.MAX_VALUE);
@@ -931,18 +926,19 @@ public class VertexHistoryPartition {
     }
 
 
-    public long getVertexMaxHistoryTime(int vertexRowId) {
+    /**
+     * Returns the highest history time for a vertex-row
+     *
+     * @param vertexRowId the row in question
+     *
+     * @return the max history time
+     */
+    protected long getVertexMaxHistoryTime(int vertexRowId) {
         if (_historyRO == null) {
             return Long.MAX_VALUE;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         VertexEdgeTimeWindowComparator wc = _vertexTimeEdgeWindowComparatorTL.get();
         wc.init(vertexRowId, _history._vertexRowIds, _history._sortedVertexTimeIndices, _history._times, Long.MIN_VALUE, Long.MAX_VALUE);

@@ -51,6 +51,7 @@ public class VertexPartitionManager {
     private final RaphtoryThreadPool _pool;
     private VertexPartition[] _partitionArray;
     private int _lastFreePartitionId = 0;
+    private int _maxPartitionId = -1;
 
     public final int PARTITION_SIZE;
     public final int PARTITION_SHIFT;
@@ -92,17 +93,22 @@ public class VertexPartitionManager {
     public int nPartitions() { return _partitions.size(); }
 
 
+    public int getMaxPartitionId() { return _maxPartitionId; }
+
+
     /**
      * @return the total number of vertices
      *
      * TODO: This is a bit slow
      */
     public long getTotalNumberOfVertices() {
-        long nVertices = 0;
-        int nPartitions = nPartitions();
+        long nVertices = 0L;
 
-        for (int i=0; i<nPartitions; ++i) {
-            nVertices += getPartition(i).getVerticesCount();
+        for (int i=0; i<=_maxPartitionId; ++i) {
+            VertexPartition p = getPartition(i);
+            if (p!=null) {
+                nVertices += p.getVerticesCount();
+            }
         }
 
         return nVertices;
@@ -127,16 +133,19 @@ public class VertexPartitionManager {
             return 0L;
         }
 
-        for (int i=_lastFreePartitionId; i<nPartitions; ++i) {
-            long freeId = getPartition(i).getNextFreeVertexId();
-            if (freeId!=-1L) {
-                _lastFreePartitionId = i;
-                return freeId;
+        for (int i=_lastFreePartitionId; i<=_maxPartitionId; ++i) {
+            VertexPartition p = getPartition(i);
+            if (p!=null) {
+                long freeId = p.getNextFreeVertexId();
+                if (freeId != -1L) {
+                    _lastFreePartitionId = i;
+                    return freeId;
+                }
             }
         }
 
-        _lastFreePartitionId = nPartitions;
-        return (long)nPartitions * (long)PARTITION_SIZE;
+        _lastFreePartitionId = _maxPartitionId+1;
+        return (long)_lastFreePartitionId * (long)PARTITION_SIZE;
     }
 
 
@@ -195,6 +204,7 @@ public class VertexPartitionManager {
             else {
                 p = new VertexPartition(this, partId);
                 _partitions.put(partId, p);
+                _maxPartitionId = Math.max(_maxPartitionId, partId);
             }
         }
 
@@ -282,6 +292,20 @@ public class VertexPartitionManager {
             touchPartition(p);
         }
 
+        return p;
+    }
+
+
+    /**
+     * Retrieves the vertex partition that contains the specified local vertex-id
+     *
+     * @param localVertexId the local vertex-id in question
+     *
+     * @return the partition, or null if it hasn't been loaded
+     */
+    public VertexPartition getPartitionForVertex(long localVertexId) {
+        int partId = getPartitionId(localVertexId);
+        VertexPartition p = getPartition(partId);
         return p;
     }
 

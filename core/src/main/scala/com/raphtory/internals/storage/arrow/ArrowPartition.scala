@@ -84,10 +84,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       srcId: Long,
       properties: Properties,
       vertexType: Option[Type]
-  ): Unit =
-    ArrowPartition.withWriterLock {
-      addVertexInternal(srcId, msgTime, properties)
-    }
+  ): Unit = addVertexInternal(srcId, msgTime, properties)
 
   private def updateAdders(msgTime: Long): Unit = {
     min.accumulate(msgTime)
@@ -181,8 +178,8 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       dstId: Long,
       properties: Properties,
       edgeType: Option[Type]
-  ): Option[GraphAlteration.GraphUpdateEffect] =
-    ArrowPartition.withWriterLock {
+  ): Option[GraphAlteration.GraphUpdateEffect] = {
+      //System.out.println("ADDEDGE: " + srcId + ", " + dstId)
 
       logger.trace(s"Adding edge: $srcId -> $dstId to partition: $partition @ t:$msgTime")
 
@@ -192,27 +189,23 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       // handle dst
       val dst = idsRepo.resolve(dstId)
 
-      src.outgoingEdges.find { e =>
-        dst match {
-          case NotFound(_)           => false
-          case GlobalId(id)          => id == e.getDstVertex && e.isDstGlobal
-          case ExistsOnPartition(id) => id == e.getDstVertex && !e.isDstGlobal
+      val matchingEdges = src.findAllOutgoingEdges(dstId, dst.isLocal)
+      if (matchingEdges.hasNext) {
+        matchingEdges.next()
+        val foundEdge = matchingEdges.getEdge
+        updateExistingEdge(sourceID, msgTime, index, srcId, dstId, properties, dst, foundEdge)
+      }
+      else {
+        if (dst.isLocal) {
+          val dstV = addVertexInternal(dstId, msgTime, Properties())
+          addLocalVerticesToEdge(src, dstV, msgTime, properties)
+          None
         }
-      } match {
-        case Some(e) =>
-          updateExistingEdge(sourceID, msgTime, index, srcId, dstId, properties, dst, e)
-        case None    =>
-          if (dst.isLocal) {
-            val dstV = addVertexInternal(dstId, msgTime, Properties())
-            addLocalVerticesToEdge(src, dstV, msgTime, properties)
-            None
-          }
-          else {
-            addRemoteOutgoingEdge(src, dst.id, msgTime, properties)
+        else {
+          addRemoteOutgoingEdge(src, dst.id, msgTime, properties)
 
-            Some(SyncNewEdgeAdd(sourceID, msgTime, index, srcId, dstId, properties, Nil, edgeType))
-          }
-
+          Some(SyncNewEdgeAdd(sourceID, msgTime, index, srcId, dstId, properties, Nil, edgeType))
+        }
       }
     }
 
@@ -331,9 +324,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       properties: Properties,
       srcRemovals: List[(Long, Long)],
       edgeType: Option[Type]
-  ): GraphAlteration.GraphUpdateEffect =
-    ArrowPartition.withWriterLock {
-
+  ): GraphAlteration.GraphUpdateEffect = {
       updateAdders(msgTime)
 
       val dst = addVertexInternal(dstId, msgTime, properties)
@@ -416,9 +407,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       index: Long,
       srcId: Long,
       dstId: Long
-  ): Option[GraphAlteration.GraphUpdateEffect] =
-    ArrowPartition.withWriterLock {
-
+  ): Option[GraphAlteration.GraphUpdateEffect] = {
       val src = idsRepo.resolve(srcId)
       val dst = idsRepo.resolve(dstId)
 
@@ -493,93 +482,66 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
 
 object ArrowPartition {
 
-  val lock = new ReentrantReadWriteLock()
-
-
-  def withReaderLock[A](f: => A): A =
-    try if (lock.readLock().tryLock() || lock.readLock().tryLock(1, TimeUnit.SECONDS))
-      f
-    else
-      throw new IllegalStateException("FAILED TO GET READ LOCK!")
-    finally lock.readLock().unlock()
-
-  def withWriterLock[A](f: => A): A =
-    try if (lock.writeLock().tryLock() || lock.writeLock().tryLock(1, TimeUnit.SECONDS))
-      f
-    else
-      throw new IllegalStateException("FAILED TO GET WRITE LOCK!")
-    finally lock.writeLock().unlock()
-
   class PropertyIterator[P](iter: ArrowPropertyIterator)(implicit P: Prop[P]) extends Iterator[Option[(P, Long)]] {
-    override def hasNext: Boolean = withReaderLock(iter.hasNext)
+    override def hasNext: Boolean = iter.hasNext
 
-    override def next(): Option[(P, Long)] =
-      withReaderLock {
-        val acc = iter.next()
-        P.get(acc).map(p => p -> acc.getCreationTime)
-      }
-  }
+    override def next(): Option[(P, Long)] = {
+      val acc = iter.next()
+      P.get(acc).map(p => p -> acc.getCreationTime)
+    }
 
-  class VertexIterator(vs: com.raphtory.arrowcore.implementation.VertexIterator) extends Iterator[Vertex] {
+    class VertexIterator(vs: com.raphtory.arrowcore.implementation.VertexIterator) extends Iterator[Vertex] {
 
-    override def hasNext: Boolean =
-      withReaderLock(vs.hasNext)
+      override def hasNext: Boolean = vs.hasNext
 
-    override def next(): Vertex =
-      withReaderLock {
+      override def next(): Vertex = {
         vs.next()
         vs.getVertex
       }
-  }
+    }
 
-  class EdgesIterator(es: EdgeIterator) extends Iterator[Edge] {
+    class EdgesIterator(es: EdgeIterator) extends Iterator[Edge] {
 
-    override def hasNext: Boolean = withReaderLock(es.hasNext)
+      override def hasNext: Boolean = es.hasNext
 
-    override def next(): Edge =
-      withReaderLock {
+      override def next(): Edge = {
         es.next()
         es.getEdge
       }
+    }
 
-  }
+    class VertexHistoryIterator(vhi: VertexHistoryIterator.WindowedVertexHistoryIterator)
+      extends Iterator[HistoricEvent] {
+      override def hasNext: Boolean = vhi.hasNext
 
-  class VertexHistoryIterator(vhi: VertexHistoryIterator.WindowedVertexHistoryIterator)
-          extends Iterator[HistoricEvent] {
-    override def hasNext: Boolean = withReaderLock(vhi.hasNext)
-
-    override def next(): HistoricEvent =
-      withReaderLock {
+      override def next(): HistoricEvent = {
         vhi.next()
         HistoricEvent(vhi.getModificationTime, vhi.getModificationTime, vhi.wasActive())
       }
+    }
 
-  }
+    class EdgeHistoryIterator(vhi: EdgeHistoryIterator.WindowedEdgeHistoryIterator) extends Iterator[HistoricEvent] {
+      override def hasNext: Boolean = vhi.hasNext
 
-  class EdgeHistoryIterator(vhi: EdgeHistoryIterator.WindowedEdgeHistoryIterator) extends Iterator[HistoricEvent] {
-    override def hasNext: Boolean = withReaderLock(vhi.hasNext)
-
-    override def next(): HistoricEvent =
-      withReaderLock {
+      override def next(): HistoricEvent = {
         vhi.next()
         HistoricEvent(vhi.getModificationTime, vhi.getModificationTime, vhi.wasActive())
       }
+    }
 
-  }
+    class MatchingEdgesIterator(mei: EdgeIterator) extends Iterator[Edge] {
+      override def hasNext: Boolean = mei.hasNext
 
-  class MatchingEdgesIterator(mei: EdgeIterator.MatchingEdgesIterator) extends Iterator[Edge] {
-    override def hasNext: Boolean = withReaderLock(mei.hasNext)
-
-    override def next(): Edge =
-      withReaderLock {
+      override def next(): Edge = {
         mei.next()
         mei.getEdge
       }
-  }
+    }
 
-  def apply(graphId: String, cfg: ArrowPartitionConfig, config: Config): ArrowPartition = {
-    val arrowConfig = new RaphtoryArrowPartition(cfg.toRaphtoryPartitionConfig)
+    def apply(graphId: String, cfg: ArrowPartitionConfig, config: Config): ArrowPartition = {
+      val arrowConfig = new RaphtoryArrowPartition(cfg.toRaphtoryPartitionConfig)
 
-    new ArrowPartition(graphId, arrowConfig, arrowConfig.getRaphtoryPartitionId, config)
+      new ArrowPartition(graphId, arrowConfig, arrowConfig.getRaphtoryPartitionId, config)
+    }
   }
 }

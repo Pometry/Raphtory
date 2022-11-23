@@ -32,6 +32,7 @@ import java.util.ArrayList;
 public class EdgePartition implements LRUListItem<EdgePartition> {
     // Basic partition details:
     protected final int _partitionId;
+    protected final long _baseLocalEdgeIds;
     protected final EdgePartitionManager _aepm;
 
     // The actual arrow vertex stuff:
@@ -67,6 +68,7 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
     public EdgePartition(EdgePartitionManager aepm, int partitionId) {
         _aepm = aepm;
         _partitionId = partitionId;
+        _baseLocalEdgeIds = _partitionId * aepm.PARTITION_SIZE;
         _store = new EdgeArrowStore();
         _history = new EdgeHistoryPartition(_partitionId, this);
 
@@ -94,7 +96,7 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
         _rootRO.setRowCount(_aepm.PARTITION_SIZE);
         _fieldAccessors = _aepm._raphtoryPartition.createSchemaFieldAccessors(_rootRO, _aepm._raphtoryPartition._propertySchema.nonversionedEdgeProperties());
 
-        _store.init(_partitionId, _rootRO, _fieldAccessors);
+        _store.init(this, _rootRO, _fieldAccessors);
 
         _history.initialize();
 
@@ -229,6 +231,17 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
     /**
      * Sets the outgoing edge pointer for an edge - maintaining the linked list.
      *
+     * @param edgeId the edgeId to update
+     * @param ptr the new pointer value
+     */
+    public void setOutgoingEdgePtrByEdgeId(long edgeId, long ptr) {
+        setOutgoingEdgePtrByRow(_aepm.getRowId(edgeId), ptr);
+    }
+
+
+    /**
+     * Sets the outgoing edge pointer for an edge - maintaining the linked list.
+     *
      * @param row the row to update
      * @param ptr the new pointer value
      */
@@ -247,6 +260,17 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
     public synchronized void setIncomingEdgePtrByRow(int row, long ptr) {
         _store._prevIncomingEdgesPtr.set(row, ptr);
         _modified = true;
+    }
+
+
+    /**
+     * Sets the incoming edge pointer for an edge - maintaining the linked list.
+     *
+     * @param edgeId the edge to update
+     * @param ptr the new pointer value
+     */
+    public void setIncomingEdgePtrByEdgeId(long edgeId, long ptr) {
+        setIncomingEdgePtrByRow(_aepm.getRowId(edgeId), ptr);
     }
 
 
@@ -459,7 +483,7 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
             _rootRO.syncSchema();
 
             _fieldAccessors = _aepm._raphtoryPartition.createSchemaFieldAccessors(_rootRO, _aepm._raphtoryPartition._propertySchema.nonversionedEdgeProperties());
-            _store.init(_partitionId, _rootRO, _fieldAccessors);
+            _store.init(this, _rootRO, _fieldAccessors);
 
             _modified = false;
             _currentSize = _rootRO.getRowCount();
@@ -490,7 +514,7 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
             _loaded = false;
 
             if (_store !=null) {
-                _store.init(_partitionId, null, null);
+                _store.init(this, null, null);
             }
 
             if (_rootRO != null) {
@@ -583,7 +607,7 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
      *
      * @return true if valid, false otherwise
      */
-    protected boolean isValidRow(int row) { return row<_currentSize && _store._localIds.isSet(row)!=0; }
+    protected boolean isValidRow(int row) { return row<_currentSize && _store._srcVertexIds.isSet(row)!=0; }
 
 
     /**
@@ -665,7 +689,7 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
      *
      * @return the local edge-id
      */
-    protected long _getLocalEdgeIdByRow(int row) { return _store._localIds.get(row); }
+    protected long _getLocalEdgeIdByRow(int row) { return _baseLocalEdgeIds + row; }
 
 
     /**

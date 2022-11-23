@@ -1,11 +1,10 @@
-package com.raphtory.arrowcore;
-
 /* Copyright (C) Pometry Ltd - All Rights Reserved.
  *
  * This file is proprietary and confidential. Unauthorised
  * copying of this file, via any medium is strictly prohibited.
  *
  */
+package com.raphtory.arrowcore;
 
 import com.raphtory.arrowcore.implementation.*;
 import com.raphtory.arrowcore.model.Edge;
@@ -18,9 +17,9 @@ import java.io.BufferedWriter;
 import java.io.OutputStreamWriter;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.*;
 
 /**
  * Simple program to confirm that vertices and edges are
@@ -37,8 +36,11 @@ public class TestSimpleEdges {
     private static final HashMap<String, Vertex> _vertices = new HashMap<>();
     private static String[] _names = new String[]{
             "Bob",
+            "Carol",
+            "Ted",
             "Alice"
     };
+
 
 
     @BeforeClass
@@ -85,13 +87,17 @@ public class TestSimpleEdges {
 
         Edge e = _rap.getEdge();
         e.reset(0, 0, true, time);
-        e.resetEdgeData(bob.getLocalId(), alice.getLocalId(), -1L, -1L, false, false);
+        e.resetEdgeData(bob.getLocalId(), alice.getLocalId(), false, false);
         _aepm.addEdge(e, -1L, -1L);
         _aepm.addHistory(e.getLocalId(), time, true, false);
 
-        linkOutgoingEdge(bob, e);
+        VertexPartition p = _rap.getVertexMgr().getPartition(_rap.getVertexMgr().getPartitionId(bob.getLocalId()));
+        _aepm.setOutgoingEdgePtr(e.getLocalId(), p.addOutgoingEdgeToList(e.getSrcVertex(), e.getLocalId(), e.getDstVertex(), false));
+        p.addHistory(bob.getLocalId(), System.currentTimeMillis(), true, false, e.getLocalId(), true);
 
-        linkIncomingEdge(alice, e);
+        p = _rap.getVertexMgr().getPartition(_rap.getVertexMgr().getPartitionId(alice.getLocalId()));
+        _aepm.setIncomingEdgePtr(e.getLocalId(), p.addIncomingEdgeToList(alice.getLocalId(), e.getLocalId()));
+        p.addHistory(alice.getLocalId(), System.currentTimeMillis(), true, false, e.getLocalId(), false);
 
         VertexIterator vi = _rap.getNewAllVerticesIterator();
         while (vi.hasNext()) {
@@ -99,29 +105,25 @@ public class TestSimpleEdges {
         }
     }
 
-    private static void linkOutgoingEdge(Vertex bob, Edge e) {
-        VertexPartition p = _rap.getVertexMgr().getPartition(_rap.getVertexMgr().getPartitionId(bob.getLocalId()));
-        _aepm.setOutgoingEdgePtr(e.getLocalId(), p.addOutgoingEdgeToList(e.getSrcVertex(), e.getLocalId(), e.getDstVertex(), e.isDstGlobal()));
-        p.addHistory(bob.getLocalId(), System.currentTimeMillis(), true, false, e.getLocalId(), true);
-    }
-
-    private static void linkIncomingEdge(Vertex dst, Edge e) {
-        VertexPartition p;
-        p = _rap.getVertexMgr().getPartition(_rap.getVertexMgr().getPartitionId(dst.getLocalId()));
-        _aepm.setIncomingEdgePtr(e.getLocalId(), p.addIncomingEdgeToList(dst.getLocalId(), e.getLocalId()));
-        p.addHistory(dst.getLocalId(), System.currentTimeMillis(), true, false, e.getLocalId(), false);
-    }
-
 
     @Test
     public void allVerticesIterator() throws Exception {
+        HashSet<String> foundVertices = new HashSet<>();
+
         BufferedWriter out = new BufferedWriter(new OutputStreamWriter(System.out), 16384);
 
         VertexIterator.AllVerticesIterator iter = _rap.getNewAllVerticesIterator();
         while (iter.hasNext()) {
-            out.append(Long.toString(iter.next()));
+            long id = iter.next();
+            String name = getVertexName(iter).toString();
+
+            assertFalse(foundVertices.contains(name));
+
+            foundVertices.add(name);
+
+            out.append(Long.toString(id));
             out.append(": ");
-            out.append(getVertexName(iter));
+            out.append(name);
             out.append(", nEdges=" + (iter.getNOutgoingEdges() + iter.getNIncomingEdges()));
 
             EdgeIterator edges = iter.getIncomingEdges();

@@ -96,7 +96,7 @@ public class RaphtoryArrowPartition {
         /**
          * Enable or disable arrow bounds checking
          */
-        public boolean _disableBoundsCheck = false;
+        public boolean _disableBoundsCheck = true;
     }
 
 

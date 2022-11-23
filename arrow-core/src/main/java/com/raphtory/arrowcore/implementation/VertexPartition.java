@@ -32,6 +32,7 @@ import java.util.ArrayList;
 public class VertexPartition implements LRUListItem<VertexPartition> {
     // Basic partition details:
     protected final int _partitionId;
+    protected final long _baseLocalVertexIds;
     protected final VertexPartitionManager _apm;
     protected final LocalEntityIdStore _localIdStore;
 
@@ -49,6 +50,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
     protected final VertexHistoryPartition _history;           // The vertex history partition
     //protected final VertexSnapshotPartition _snapshots;      // The vertex snapshots partition
     protected final VertexEdgeIndexPartition _edgeIndex;       // Index of edges by dst-vertex-id
+    protected final CachedMutatingEdgeMap _cachedEdgeMap;      // Cached dst/edges per src vertex
 
     protected SchemaFieldAccessor[] _fieldAccessors;           // Field accessors for the user-defined fields
 
@@ -71,11 +73,15 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
     public VertexPartition(VertexPartitionManager apm, int partitionId) {
         _apm = apm;
         _partitionId = partitionId;
+        _baseLocalVertexIds = apm.PARTITION_SIZE * _partitionId;
+
         _localIdStore = _apm._raphtoryPartition.getLocalEntityIdStore();
         _rootRO = null;
         _store = new VertexArrowStore();
         _history = new VertexHistoryPartition(_partitionId, this);
         _edgeIndex = new VertexEdgeIndexPartition(_partitionId, this);
+
+        _cachedEdgeMap = new CachedMutatingEdgeMap(this, apm, apm._aepm);
 
         ArrayList<VersionedProperty> props = _apm._raphtoryPartition._propertySchema.versionedVertexProperties();
         _nProperties = props==null ? 0 : props.size();
@@ -106,7 +112,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
         _rootRO.setRowCount(_apm.PARTITION_SIZE);
         _fieldAccessors = _apm._raphtoryPartition.createSchemaFieldAccessors(_rootRO, _apm._raphtoryPartition._propertySchema.nonversionedVertexProperties());
 
-        _store.init(_partitionId, _rootRO, _fieldAccessors);
+        _store.init(this, _rootRO, _fieldAccessors);
 
         _history.initialize();
         _edgeIndex.initialize();
@@ -392,7 +398,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
      * @return the local vertex id stored there
      */
     protected long _getLocalVertexIdByRow(int row) {
-        return _store._localIds.get(row);
+        return _baseLocalVertexIds + row;
     }
 
 
@@ -428,7 +434,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
     private void dumpRow(int row) {
         System.out.println("HERE WITH: partId=" + _partitionId +", row=" + row);
         System.out.println("gid=" + _store._globalIds.isSet(row));
-        System.out.println("lid=" + _store._localIds.isSet(row));
+        System.out.println("lid=" + _getLocalVertexIdByRow(row));
     }
 
 
@@ -475,7 +481,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
      * @return true if a valid vertex is stored at that row, false otherwise
      */
     protected boolean isValidRow(int row) {
-        return row<_currentSize && _store._localIds.isSet(row)!=0;
+        return row<_currentSize && _store._globalIds.isSet(row)!=0;
     }
 
 
@@ -494,7 +500,8 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
         long prev = _store._outgoingEdges.get(row);
         _store._outgoingEdges.set(row, edgeId);
         _store._nOutgoingEdges.set(row, _store._nOutgoingEdges.get(row)+1);
-        _edgeIndex.addEdgeIndexRecord(row, dstVertexId, edgeId, dstIsGlobal);
+        _edgeIndex.addEdgeIndexRecord(row, dstVertexId, edgeId, dstIsGlobal); // XXX We only need 1 of these methods of finding matching edges?
+        _cachedEdgeMap.addEdge(srcVertexId, dstVertexId, edgeId, _store._nOutgoingEdges.get(row));
         _modified = true;
         return prev;
     }
@@ -670,7 +677,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
             _rootRO.syncSchema();
 
             _fieldAccessors = _apm._raphtoryPartition.createSchemaFieldAccessors(_rootRO, _apm._raphtoryPartition._propertySchema.nonversionedVertexProperties());
-            _store.init(_partitionId, _rootRO, _fieldAccessors);
+            _store.init(this, _rootRO, _fieldAccessors);
 
             _modified = false;
             _currentSize = _rootRO.getRowCount();
@@ -714,7 +721,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
             _loaded = false;
 
             if (_store !=null) {
-                _store.init(-1,null, null);
+                _store.init(this,null, null);
             }
 
             if (_rootRO != null) {
@@ -791,14 +798,46 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
     }
 
 
+    /**
+     * Returns the max history time for a vertex
+     *
+     * @param vertexId the vertex in question
+     *
+     * @return the max history time for that vertex
+     */
     public long getVertexMaxHistoryTime(long vertexId) {
         int row = _apm.getRowId(vertexId);
         return _history.getVertexMaxHistoryTime(row);
     }
 
 
+    /**
+     * Returns the min history time for a vertex
+     *
+     * @param vertexId the vertex in question
+     *
+     * @return the min history time for that vertex
+     */
     public long getVertexMinHistoryTime(long vertexId) {
         int row = _apm.getRowId(vertexId);
         return _history.getVertexMinHistoryTime(row);
+    }
+
+
+    /**
+     * Initialises the matching-edge-scanner iterator to find matching edges for
+     * the appropriate parameters.
+     *
+     * @param srcId the src vertex id
+     * @param dstID the dst vertex id
+     * @param isDstGlobal true if the dst vertex is remote, false otherwise
+     * @param scanner the iterator to configure
+     *
+     * @return the configured iterator
+     */
+    public synchronized EdgeIterator findMatchingEdges(long srcId, long dstID, boolean isDstGlobal, CachedMutatingEdgeMap.MatchingEdgeCachedIterator scanner) {
+        int row = _apm.getRowId(srcId);
+        int nOutgoingEdges = _store._nOutgoingEdges.get(row);
+        return _cachedEdgeMap.findMatchingEdges(srcId, dstID, isDstGlobal, nOutgoingEdges, scanner);
     }
 }

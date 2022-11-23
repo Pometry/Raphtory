@@ -33,7 +33,6 @@ public class VertexArrowStore {
         ArrayList<Field> vertexFields = new ArrayList<>();
 
         vertexFields.add(new Field("global_id", new FieldType(false, new ArrowType.Int(64, true), null), null));
-        vertexFields.add(new Field("local_id", new FieldType(false, new ArrowType.Int(64, true), null), null));
         vertexFields.add(new Field("initial_value", new FieldType(false, new ArrowType.Bool(), null), null));
         vertexFields.add(new Field("creation_time", new FieldType(false, new ArrowType.Int(64, true), null), null));
         vertexFields.add(new Field("oldest_point", new FieldType(false, new ArrowType.Int(64, true), null), null));
@@ -48,12 +47,11 @@ public class VertexArrowStore {
     }
 
 
-    protected int _partitionId;             // Arrow partition-id for this instance
+    protected VertexPartition _partition;   // Arrow vertex partition for this instance
     protected VectorSchemaRoot _vertexRoot; // Arrow root for this instance
 
     // The individual vectors that make up this schema
     protected BigIntVector _globalIds;
-    protected BigIntVector _localIds;
     protected BitVector _initialValues;
     protected BigIntVector _creationTimes;
     protected BigIntVector _oldestPoints;
@@ -72,19 +70,18 @@ public class VertexArrowStore {
     /**
      * Initialises this instance
      *
-     * @param partitionId the Arrow partition-id
+     * @param partition the Arrow vertex partition
      * @param vertexRoot the Arrow schema-root containing the vectors
      * @param accessors the schema-field accessors for user-defined fields within this schema
      */
-    protected void init(int partitionId, VectorSchemaRoot vertexRoot, SchemaFieldAccessor[] accessors) {
-        _partitionId = partitionId;
+    protected void init(VertexPartition partition, VectorSchemaRoot vertexRoot, SchemaFieldAccessor[] accessors) {
+        _partition = partition;
         _vertexRoot = vertexRoot;
         _accessors = accessors;
         _nAccessors = _accessors==null ? 0 : _accessors.length;
 
         if (vertexRoot!=null) {
             _globalIds = (BigIntVector)_vertexRoot.getVector("global_id");
-            _localIds = (BigIntVector)_vertexRoot.getVector("local_id");
             _initialValues = (BitVector)_vertexRoot.getVector("initial_value");
             _creationTimes = (BigIntVector)_vertexRoot.getVector("creation_time");
             _oldestPoints = (BigIntVector)_vertexRoot.getVector("oldest_point");
@@ -97,7 +94,6 @@ public class VertexArrowStore {
         }
         else {
             _globalIds = null;
-            _localIds = null;
             _initialValues = null;
             _creationTimes = null;
             _oldestPoints = null;
@@ -122,12 +118,11 @@ public class VertexArrowStore {
         //System.out.println("Added vertex: " + v.getLocalId());
 
         int nthVertex = row;
-        boolean isNew = _localIds.isSet(nthVertex) == 0;
+        boolean isNew = _globalIds.isSet(nthVertex) == 0;
 
         if (isNew) {
             // These fields are only ever set once
             _globalIds.set(nthVertex, v.getGlobalId());
-            _localIds.set(nthVertex, v.getLocalId());
 
             // No history so far
             _historyPtr.set(nthVertex, -1);
@@ -161,7 +156,7 @@ public class VertexArrowStore {
      */
     protected Vertex retrieveVertex(int row, Vertex retVertex) {
         // Set the base details
-        retVertex.reset(_localIds.get(row), _globalIds.get(row), _initialValues.get(row) != 0, _creationTimes.get(row));
+        retVertex.reset(_partition._getLocalVertexIdByRow(row), _globalIds.get(row), _initialValues.get(row) != 0, _creationTimes.get(row));
 
         // Set the edge summary and the heads of the incoming and outgoing edge lists.
         retVertex.resetEdgeData(_incomingEdges.get(row), _outgoingEdges.get(row), _nIncomingEdges.get(row), _nOutgoingEdges.get(row));
