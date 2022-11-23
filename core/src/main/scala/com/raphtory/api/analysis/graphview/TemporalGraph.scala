@@ -44,13 +44,8 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
 
   def totalPartitions: Int = querySender.totalPartitions
 
-  def stream(sources: Source*): G = {
-    querySender.submitSources(blocking = false, sources)
-    this
-  }
-
   def load(sources: Source*): G = {
-    querySender.submitSources(blocking = true, sources)
+    querySender.submitSources(sources)
     this
   }
 

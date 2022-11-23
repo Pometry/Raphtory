@@ -136,14 +136,12 @@ private[raphtory] class QuerySender(
 
   def establishGraph(): Unit = service.establishGraph(GraphInfo(clientID, graphID)).unsafeRunSync()
 
-  def submitSources(blocking: Boolean, sources: Seq[Source]): Unit = {
-    val clazzes      = sources.map { source =>
-      source.getBuilderClass
-    }.toList
+  def submitSources(sources: Seq[Source]): Unit = {
+    val clazzes      = sources.map(_.getBuilderClass).toList
     val sourceWithId = sources.map { source =>
       service.getNextAvailableId(protocol.IdPool(graphID)).unsafeRunSync() match {
         case protocol.OptionalId(Some(id), _) =>
-          if (blocking) blockingSources += id
+          blockingSources += id
           (id, source)
         case protocol.OptionalId(None, _)     =>
           throw new NoIDException(s"Client '$clientID' was not able to acquire a source ID for $source")

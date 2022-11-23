@@ -4,12 +4,9 @@ import cats.syntax.all._
 import cats.effect._
 import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.querymanager.QuerySupervisor._
-import com.raphtory.internals.management.Scheduler
-import com.raphtory.internals.management.telemetry.TelemetryReporter
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-import cats.Traverse
 import com.raphtory.protocol
 import com.raphtory.protocol.PartitionService
 import fs2.Stream
@@ -49,7 +46,7 @@ class QuerySupervisor[F[_]] private (
   def submitQuery(query: Query): F[Stream[F, protocol.QueryManagement]] =
     for {
       bs       <- blockingSources.get
-      _        <- bs.values.map(x => x.get).toSeq.sequence
+      _        <- bs.values.map(_.get).toSeq.sequence
       response <- QueryHandlerF(earliestTime, latestTime, partitions.values.toSeq, query)
     } yield response
 }
