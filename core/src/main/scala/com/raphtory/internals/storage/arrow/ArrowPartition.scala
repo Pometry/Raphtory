@@ -189,23 +189,27 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       // handle dst
       val dst = idsRepo.resolve(dstId)
 
-      val matchingEdges = src.findAllOutgoingEdges(dstId, dst.isLocal)
-      if (matchingEdges.hasNext) {
-        matchingEdges.next()
-        val foundEdge = matchingEdges.getEdge
-        updateExistingEdge(sourceID, msgTime, index, srcId, dstId, properties, dst, foundEdge)
-      }
-      else {
-        if (dst.isLocal) {
-          val dstV = addVertexInternal(dstId, msgTime, Properties())
-          addLocalVerticesToEdge(src, dstV, msgTime, properties)
-          None
+      src.outgoingEdges.find { e =>
+        dst match {
+          case NotFound(_)           => false
+          case GlobalId(id)          => id == e.getDstVertex && e.isDstGlobal
+          case ExistsOnPartition(id) => id == e.getDstVertex && !e.isDstGlobal
         }
-        else {
-          addRemoteOutgoingEdge(src, dst.id, msgTime, properties)
+      } match {
+        case Some(e) =>
+          updateExistingEdge(sourceID, msgTime, index, srcId, dstId, properties, dst, e)
+        case None    =>
+          if (dst.isLocal) {
+            val dstV = addVertexInternal(dstId, msgTime, Properties())
+            addLocalVerticesToEdge(src, dstV, msgTime, properties)
+            None
+          }
+          else {
+            addRemoteOutgoingEdge(src, dst.id, msgTime, properties)
 
-          Some(SyncNewEdgeAdd(sourceID, msgTime, index, srcId, dstId, properties, Nil, edgeType))
-        }
+            Some(SyncNewEdgeAdd(sourceID, msgTime, index, srcId, dstId, properties, Nil, edgeType))
+          }
+
       }
     }
 
