@@ -197,9 +197,7 @@ public class VertexEdgeIndexPartition {
      */
     public void saveToFile() {
         try {
-            if (!_sorted) {
-                sortVertexEdgeIndex();
-            }
+            sortVertexEdgeIndex();
 
             if (_modified) {
                 _indexRO.syncSchema();
@@ -290,7 +288,15 @@ public class VertexEdgeIndexPartition {
     /**
      * Sorts the index.
      */
-    protected void sortVertexEdgeIndex() {
+    protected synchronized void sortVertexEdgeIndex() {
+        if (_sorted) {
+            return;
+        }
+
+        if (_indexRO.getRowCount() != _index._maxRow) {
+            _indexRO.setRowCount(_index._maxRow);
+        }
+
         int n = _index._maxRow;
 
         IntArrayList tmpList = _tmpListTL.get();
@@ -329,13 +335,7 @@ public class VertexEdgeIndexPartition {
             return;
         }
 
-        if (_indexRO.getRowCount() != _index._maxRow) {
-            _indexRO.setRowCount(_index._maxRow);
-        }
-
-        if (!_sorted) {
-            sortVertexEdgeIndex();
-        }
+        sortVertexEdgeIndex();
 
         VertexDstEdgeWindowComparator wc = _timeVertexWindowComparatorTL.get();
         wc.init(state._vertexRowId, _index._vertexRowIds, _index._sortedIndex, _index._dstVertexIds, state._dstVertexId);

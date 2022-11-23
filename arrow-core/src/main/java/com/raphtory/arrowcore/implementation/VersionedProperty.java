@@ -79,6 +79,7 @@ public class VersionedProperty {
 
     protected final String _name;
     protected final Class _class;
+    protected final Supplier<VersionedEntityPropertyAccessor> _accessor;
     protected int _prevPtrFieldIndexInEntitySchema;
 
 
@@ -91,6 +92,7 @@ public class VersionedProperty {
     public VersionedProperty(String name, Class c) {
         _name = name.toLowerCase();
         _class = c;
+        _accessor = _entityAccessorMap.get(_class);
     }
 
 
@@ -146,7 +148,7 @@ public class VersionedProperty {
      * @return a new entity accessor
      */
     public VersionedEntityPropertyAccessor getNewEntityFieldAccessor(int fieldId) {
-        VersionedEntityPropertyAccessor fa = _entityAccessorMap.get(_class).get();
+        VersionedEntityPropertyAccessor fa = _accessor.get();
         fa.setEntityPrevPtrFieldId(fieldId);
         return fa;
     }

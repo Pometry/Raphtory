@@ -230,7 +230,7 @@ public class EdgePartitionManager {
      *
      * @return the partition, or null if it hasn't been loaded
      */
-    protected EdgePartition getPartition(int partId) {
+    public EdgePartition getPartition(int partId) {
         if (_partitionArray!=null && partId<_partitionArray.length) {
             return _partitionArray[partId];
         }

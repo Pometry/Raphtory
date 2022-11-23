@@ -226,9 +226,7 @@ public class EdgeHistoryPartition {
      */
     public void saveToFile() {
         try {
-            if (!_sorted) {
-                sortHistoryTimes();
-            }
+            sortHistoryTimes();
 
             if (_modified) {
                 _historyRO.syncSchema();
@@ -326,7 +324,15 @@ public class EdgeHistoryPartition {
      * instead, an index is created that points to the rows in the correct
      * sorted order. ie. an indirect sorted index is created.
      */
-    private void sortHistoryTimes() {
+    private synchronized void sortHistoryTimes() {
+        if (_sorted) {
+            return;
+        }
+
+        if (_historyRO.getRowCount() != _history._maxRow) {
+            _historyRO.setRowCount(_history._maxRow);
+        }
+
         int n = _history._maxRow;
 
         IntArrayList tmpList = _tmpListTL.get();
@@ -379,13 +385,7 @@ public class EdgeHistoryPartition {
             return;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         WindowComparator wc = _windowComparatorTL.get();
         wc.init(_history._sortedTimeIndices, _history._times, state._minTime, state._maxTime);
@@ -602,19 +602,15 @@ public class EdgeHistoryPartition {
     }
 
 
-
+    /**
+     * @return the lowest history time in this partition
+     */
     public long getLowestTime() {
         if (_history._maxRow==0) {
             return Long.MAX_VALUE;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         int lowestRow = _history._sortedTimeIndices.get(0);
 
@@ -622,18 +618,15 @@ public class EdgeHistoryPartition {
     }
 
 
+    /**
+     * @return the highest history time in this partition
+     */
     public long getHighestTime() {
         if (_history._maxRow==0) {
             return Long.MIN_VALUE;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         int highestRow = _history._sortedTimeIndices.get(_history._maxRow-1);
 
@@ -641,24 +634,26 @@ public class EdgeHistoryPartition {
     }
 
 
+    /**
+     * @return the number of history records in this partition
+     */
     public long getNHistoryItems() {
         int n = _history._maxRow;
         return n+1;
     }
 
 
-    public long getEdgeMinHistoryTime(int edgeRowId) {
+    /**
+     * @param edgeRowId  the edge-row in question
+     *
+     * @return the lowest history time for the specified edge
+     */
+    protected long getEdgeMinHistoryTime(int edgeRowId) {
         if (_historyRO == null) {
             return Long.MIN_VALUE;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         EdgeWindowComparator wc = _edgeWindowComparatorTL.get();
         wc.init(edgeRowId, _history._edgeRowIds, _history._sortedEdgeTimeIndices, _history._times, Long.MIN_VALUE, Long.MAX_VALUE);
@@ -672,21 +667,20 @@ public class EdgeHistoryPartition {
     }
 
 
-    public long getEdgeMaxHistoryTime(int vertexRowId) {
+    /**
+     * @param edgeRowId  the edge-row in question
+     *
+     * @return the highest history time for the specified edge
+     */
+    protected long getEdgeMaxHistoryTime(int edgeRowId) {
         if (_historyRO == null) {
             return Long.MAX_VALUE;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         EdgeWindowComparator wc = _edgeWindowComparatorTL.get();
-        wc.init(vertexRowId, _history._edgeRowIds, _history._sortedEdgeTimeIndices, _history._times, Long.MIN_VALUE, Long.MAX_VALUE);
+        wc.init(edgeRowId, _history._edgeRowIds, _history._sortedEdgeTimeIndices, _history._times, Long.MIN_VALUE, Long.MAX_VALUE);
         int sortedRow = VectorRangeSearcher.getLastMatch(_history._sortedEdgeTimeIndices, wc, null, 0);
         if (sortedRow>=0) {
             int row = _history._sortedEdgeTimeIndices.get(sortedRow);
@@ -697,6 +691,11 @@ public class EdgeHistoryPartition {
     }
 
 
+    /**
+     * Initialises the windowed-edge-history iterator for the current search
+     *
+     * @param state the iterator state to initialise
+     */
     protected void findHistory(EdgeHistoryIterator.WindowedEdgeHistoryIterator state) {
         if (_historyRO == null) {
             state._firstIndex = -1;
@@ -704,13 +703,7 @@ public class EdgeHistoryPartition {
             return;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         if (state._edgeId==-1L) {
             WindowComparator wc = _windowComparatorTL.get();
@@ -742,6 +735,10 @@ public class EdgeHistoryPartition {
         }
     }
 
+
+    /**
+     * @return the history store for this partition
+     */
     public EdgeHistoryStore getHistoryStore() {
         return _history;
     }
