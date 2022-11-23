@@ -67,6 +67,11 @@ package object arrow {
       View.from(new ArrowPartition.EdgesIterator(edgesIter))
     }
 
+    def outgoingEdgesIter: Iterator[Edge] = {
+      val edgesIter: EdgeIterator = v.getOutgoingEdges
+      new ArrowPartition.EdgesIterator(edgesIter)
+    }
+
     def outgoingEdges(start: Long, end: Long): View[Edge] = {
       val b    = Vector.newBuilder[Edge]
       val iter = v.getRaphtory.getNewWindowedVertexIterator(start, end)
