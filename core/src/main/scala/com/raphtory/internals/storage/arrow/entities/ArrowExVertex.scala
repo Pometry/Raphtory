@@ -55,6 +55,25 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
   override def messageVertex[T](vertexId: IDType, data: T)(implicit provider: SchemaProvider[T]): Unit =
     repo.sendMessage(VertexMessage(repo.superStep + 1, vertexId, data))
 
+  private def mkArrOutEdge(e: model.Edge) = {
+    val dst =
+      if (!e.isDstGlobal) repo.asGlobal(e.getDstVertex)
+      else e.getDstVertex
+    new ArrowExEdge(dst, e, repo)
+  }
+
+  private def mkArrInEdge(e: model.Edge) = {
+    val src =
+      if (!e.isSrcGlobal) repo.asGlobal(e.getSrcVertex)
+      else e.getSrcVertex
+    new ArrowExEdge(src, e, repo)
+  }
+
+  override def outDegree: Int = vertex.outDegree(repo.start, repo.end) - repo.deletedOutEdges(ID)
+
+  override def inDegree: Int = vertex.inDegree(repo.start, repo.end) - repo.deletedInEdges(ID)
+
+//  override def degree: Int = outDegree + inDegree
   /** Return all edges starting at this vertex
     */
   override def outEdges: View[ArrowExEdge] =
@@ -63,53 +82,14 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
       .map(mkArrOutEdge)
       .filter(e => repo.isEdgeAlive(e.src, e.dst))
 
-  private def mkArrOutEdge(e: model.Edge) = {
-    val dst =
-      if (!e.isDstGlobal) repo.asGlobal(e.getDstVertex)
-      else e.getDstVertex
-    new ArrowExEdge(dst, e, repo)
-  }
 
   /** Return all edges ending at this vertex
     */
   override def inEdges: View[ArrowExEdge] =
-//    val it = new FabianTest(vertex.getRaphtory)
-
-//    it.allVerticesIterator();
-//    it.allEdgesIterator();
-//    it.allWindowedVerticesIterator();
-//    it.allWindowedEdgesIterator();
-//    if (vertex.getGlobalId == 6L)
-//      it.fabianTest(Long.MinValue, Long.MaxValue);
-
-//    val b    = Vector.newBuilder[model.Edge]
-//    val iter = vertex.getRaphtory.getNewWindowedVertexIterator(repo.start, repo.end)
-//    iter.reset(vertex.getLocalId)
-//    iter.next()
-//    val v    = iter.getVertex
-//
-//    val eIter = iter.getIncomingEdges
-//    while (eIter.hasNext) {
-//      eIter.next()
-//      val edge: model.Edge = eIter.getEdge
-//      b += edge
-//    }
-//
-//    b.result()
-//      .map(e => mkArrInEdge(e))
-//      .view
-//      .filter(e => repo.isEdgeAlive(e.src, e.dst))
     vertex
       .incomingEdges(repo.start, repo.end)
       .map(mkArrInEdge)
       .filter(e => repo.isEdgeAlive(e.src, e.dst))
-
-  private def mkArrInEdge(e: model.Edge) = {
-    val src =
-      if (!e.isSrcGlobal) repo.asGlobal(e.getSrcVertex)
-      else e.getSrcVertex
-    new ArrowExEdge(src, e, repo)
-  }
 
   /** Return specified edge if it is an out-edge of this vertex
     *

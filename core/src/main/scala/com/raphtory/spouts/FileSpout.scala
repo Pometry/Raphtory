@@ -10,12 +10,14 @@ import fs2.text
 import java.io.File
 import java.io.FileInputStream
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
 import java.util.zip.GZIPInputStream
 import java.util.zip.ZipInputStream
 import scala.collection.mutable
 import scala.io.Source
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.reflect.runtime.universe._
 import scala.util.Random
 import scala.util.matching.Regex
@@ -62,12 +64,31 @@ case class FileSpout[T](
   import fs2.io.file
 
   override def asStream[F[_]: Async]: fs2.Stream[F, T] = {
+    def toLinesStream(path: Path) = {
+      val s = file
+        .Files[F]
+        .readAll(file.Path.fromNioPath(path), 1024 * 1024, Flags.Read)
+//        .prefetchN(8)
+        .through(text.utf8.decode)
+        .through(text.lines)
+      s
+    }
 
-    val s = file.Files[F]
-      .readAll(file.Path.fromNioPath(Paths.get(path)), 1024 * 1024, Flags.Read)
-      .prefetchN(8)
-      .through(text.utf8.decode)
-      .through(text.lines)
+    val rootPath = Paths.get(path)
+    val reg   = new Regex(regexPattern)
+    val s     = if (Files.isDirectory(rootPath)) {
+      val streams = Files
+        .list(rootPath)
+        .iterator()
+        .asScala
+        .filter(p => reg.findFirstIn(p.toString).isDefined)
+        .tapEach(println)
+        .toVector
+      assert(streams.nonEmpty, s"No files found with pattern ${reg} in path ${rootPath}")
+      fs2.Stream(streams.map(toLinesStream): _*).parJoinUnbounded
+    }
+    else
+      toLinesStream(rootPath)
 
     if (lineConverter.isDefined) {
       val convert = lineConverter.get

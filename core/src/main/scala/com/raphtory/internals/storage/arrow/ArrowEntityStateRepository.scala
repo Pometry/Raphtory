@@ -3,6 +3,9 @@ package com.raphtory.internals.storage.arrow
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
 
 trait ArrowEntityStateRepository {
+  def deletedOutEdges(ID: Long):Int
+  def deletedInEdges(ID: Long):Int
+
 
   def start: Long
 

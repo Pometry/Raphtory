@@ -7,6 +7,7 @@ import com.raphtory.arrowcore.implementation.EntityFieldAccessor
 import com.raphtory.arrowcore.implementation.NonversionedEnumField
 import com.raphtory.arrowcore.implementation.VersionedEntityPropertyAccessor
 import com.raphtory.arrowcore.implementation.VertexHistoryIterator
+import com.raphtory.arrowcore.implementation.VertexIterator
 import com.raphtory.arrowcore.model.Edge
 import com.raphtory.arrowcore.model.Vertex
 import com.raphtory.internals.storage.arrow.ArrowPartition.PropertyIterator
@@ -72,36 +73,39 @@ package object arrow {
       new ArrowPartition.EdgesIterator(edgesIter)
     }
 
-    def outgoingEdges(start: Long, end: Long): View[Edge] = {
-      val b    = Vector.newBuilder[Edge]
+    def outgoingEdges(start: Long, end: Long): View[Edge] =
+      View.fromIteratorProvider { () =>
+        val iter: VertexIterator.WindowedVertexIterator = windowIter(start, end)
+        new ArrowPartition.EdgesIterator(iter.getOutgoingEdges)
+      }
+
+    def outDegree(start: Long, end: Long): Int = {
+      v.nOutgoingEdges()
+//      val i = v.getRaphtory.getNewAllVerticesIterator
+//      i.reset(v.getLocalId)
+//      i.getNOutgoingEdges
+      outgoingEdges(start, end).size
+    }
+
+    def inDegree(start: Long, end: Long): Int = {
+//      val i = v.getRaphtory.getNewAllVerticesIterator
+//      i.reset(v.getLocalId)
+//      i.getNIncomingEdges
+
+      incomingEdges(start, end).size
+    }
+
+    private def windowIter(start: Long, end: Long) = {
       val iter = v.getRaphtory.getNewWindowedVertexIterator(start, end)
       iter.reset(v.getLocalId)
       iter.next()
-      iter.getVertex
-
-      val eIter = iter.getOutgoingEdges
-      while (eIter.hasNext) {
-        eIter.next()
-        val edge = eIter.getEdge
-        b += edge
-      }
-
-      b.result().view
-//      View.fromIteratorProvider { () =>
-//        val iter = v.getRaphtory.getNewWindowedVertexIterator(start, end)
-//        iter.reset(v.getLocalId)
-//        iter.next()
-//        val v0 = iter.getVertex
-//        new ArrowPartition.EdgesIterator(iter.getOutgoingEdges)
-//      }
+      val v0   = iter.getVertex
+      iter
     }
 
     def incomingEdges(start: Long, end: Long): View[Edge] =
       View.fromIteratorProvider { () =>
-        val iter = v.getRaphtory.getNewWindowedVertexIterator(start, end)
-        iter.reset(v.getLocalId)
-        iter.next()
-        val v0   = iter.getVertex
+        val iter: VertexIterator.WindowedVertexIterator = windowIter(start, end)
         new ArrowPartition.EdgesIterator(iter.getIncomingEdges)
       }
 
