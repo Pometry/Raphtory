@@ -54,17 +54,25 @@ class TemporalGraph(GenericScalaProxy):
         else:
             return algorithm.tabularise(self.transform(algorithm))
 
-    def addVertex(self,update_time,src_id,properties=Properties(),vertex_type=None,secondary_index=None):
+    def addVertex(self,update_time,src_id,properties=Properties(),vertex_type="",secondary_index=None):
         if secondary_index is None:
             secondary_index = self.index()
-        if vertex_type is None:
-            vertex_type=Type("")
         if isinstance(src_id, str):
             properties= properties.add_property(ImmutableProperty("name", src_id))
-            self.add_vertex(update_time,self.assign_id(src_id),properties,vertex_type,secondary_index)
+            self.add_vertex(update_time,self.assign_id(src_id),properties,Type(vertex_type),secondary_index)
         else:
             self.add_vertex(update_time,src_id,properties,vertex_type,secondary_index)
 
+    def addEdge(self,update_time,src_id,dst_id,properties=Properties(),edge_type="",secondary_index=None):
+        if secondary_index is None:
+            secondary_index = self.index()
+        source = src_id
+        destination = dst_id
+        if isinstance(src_id, str):
+            source = self.assign_id(src_id)
+        if isinstance(dst_id, str):
+            destination = self.assign_id(dst_id)
+        self.add_edge(update_time,source,destination,properties,Type(edge_type),secondary_index)
 
 class DeployedTemporalGraph(TemporalGraph):
     _classname = "com.raphtory.api.analysis.graphview.PyDeployedTemporalGraph"
