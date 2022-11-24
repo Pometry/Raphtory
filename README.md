@@ -21,7 +21,7 @@
 </a>
 </p>
 <p align="center">
-<a href="www.raphtory.com">🌍 Website </a>
+<a href="https://www.raphtory.com">🌍 Website </a>
 &nbsp
 <a href="https://docs.raphtory.com/">📒 Documentation</a>
 &nbsp 
