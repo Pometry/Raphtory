@@ -76,7 +76,7 @@ object UnsafeEmbeddedPython {
         PythonInterpreterConfig
           .newBuilder()
           .setPythonExec(pythonExec)
-          .setExcType(PythonInterpreterConfig.ExecType.SUB_INTERPRETER)
+          .setExcType(PythonInterpreterConfig.ExecType.MULTI_THREAD)
 
       val config      = (pythonPaths ++ sitePackages)
         .foldLeft(builder) { (b, path) =>
