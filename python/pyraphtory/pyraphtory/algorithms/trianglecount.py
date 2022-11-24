@@ -28,7 +28,7 @@ class LocalTriangleCount(PyAlgorithm):
 class GlobalTriangleCount(LocalTriangleCount):
     def __call__(self, graph: TemporalGraph) -> TemporalGraph:
         return (super().__call__(graph)
-                .set_global_state(lambda s: s.new_adder[Long](name="triangles", retain_state=True))
+                .set_global_state(lambda s: s.new_adder[Long](name="triangles", initial_value=0, retain_state=True))
                 .step(lambda v, s: s["triangles"].add(v["triangleCount"])))
 
     def tabularise(self, graph: TemporalGraph):
