@@ -61,6 +61,7 @@ class QueryExecutorF[F[_]](
     graphLens: Ref[F, Option[LensInterface]],
     sinkExecutor: SinkExecutor,
     messageBuffer: ArrayBuffer[GenericVertexMessage[_]],
+    dispatcher: Dispatcher[F],
     conf: Config
 )(implicit F: Async[F]) {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
@@ -73,12 +74,11 @@ class QueryExecutorF[F[_]](
     withLens(lens => F.delay(messages.foreach(msg => lens.receiveMessage(msg)))).as(Empty())
 
   def establishPerspective(perspective: Perspective): F[NodeCount] = {
-    val (timestamp, window)                          = (perspective.timestamp, perspective.window)
-    val (start, end)                                 = (perspective.actualStart, perspective.actualEnd)
-    val sendMessage: GenericVertexMessage[_] => Unit = message => messageBuffer.addOne(message)
+    val (timestamp, window) = (perspective.timestamp, perspective.window)
+    val (start, end)        = (perspective.actualStart, perspective.actualEnd)
     timed(s"Creating perspective at time '$timestamp' with window '$window") {
       for {
-        lens <- F.delay(storage.lens(jobId, start, end, 0, sendMessage, null, new Scheduler))
+        lens <- F.delay(storage.lens(jobId, start, end, 0, unsafeSendMessage, null, new Scheduler))
         _    <- graphLens.update(_ => Some(lens))
       } yield NodeCount(count = lens.localNodeCount)
     }
@@ -258,14 +258,19 @@ class QueryExecutorF[F[_]](
                                       else F.unit
                            } yield ()
                      }
-      _           <- F.delay(println("about to send messages"))
       _           <- F.parSequenceN(partitions.size)(delivery.toSeq)
-      _           <- F.delay(println("Messages were sent"))
     } yield ()
 
   private def clearBuffer = F.delay(messageBuffer.clear())
 
+  private def unsafeSendMessage(message: GenericVertexMessage[_]): Unit = {
+    messageBuffer.addOne(message)
+    if (messageBuffer.size >= 1024)
+      dispatcher.unsafeRunSync(graphLens.get.map(lens => sendMessages(lens.get)) *> clearBuffer)
+  }
+
   private def partitionForMessage(message: GenericVertexMessage[_]) = {
+    if (message == null) println("message =  null!!!!!!!!!!!!!!!!")
     val vId = message.vertexId match {
       case (v: Long, _) => v
       case v: Long      => v
@@ -278,16 +283,17 @@ object QueryExecutorF {
 
   def apply[F[_]](
       query: Query,
-      partitionID: Int,
+      id: Int,
       storage: GraphPartition,
       partitions: Map[Int, PartitionService[F]],
+      dispatcher: Dispatcher[F],
       conf: Config
   )(implicit F: Async[F]): F[QueryExecutorF[F]] =
     for {
       lens         <- Ref.of[F, Option[LensInterface]](None)
       buffer       <- F.delay(ArrayBuffer[GenericVertexMessage[_]]())
-      sinkExecutor <- F.delay(query.sink.get.executor(query.name, partitionID, conf)) // TODO: handle this as a resource
+      sinkExecutor <- F.delay(query.sink.get.executor(query.name, id, conf)) // TODO: handle this as a resource
       executor     <-
-        F.delay(new QueryExecutorF[F](query, partitionID, storage, partitions, lens, sinkExecutor, buffer, conf))
+        F.delay(new QueryExecutorF[F](query, id, storage, partitions, lens, sinkExecutor, buffer, dispatcher, conf))
     } yield executor
 }

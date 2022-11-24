@@ -43,12 +43,14 @@ import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import scala.util.Success
 import PartitionServiceImpl.Partition
+import cats.effect.std.Dispatcher
 import com.google.protobuf.empty.Empty
 
 abstract class PartitionServiceImpl[F[_]](
     id: Deferred[F, Int],
     partitions: Deferred[F, Map[Int, PartitionService[F]]],
     graphs: GraphList[F, Partition[F]],
+    dispatcher: Dispatcher[F],
     config: Config
 )(implicit F: Async[F])
         extends OrchestratorService(graphs)
@@ -127,7 +129,7 @@ abstract class PartitionServiceImpl[F[_]](
       id         <- id.get
       storage    <- graphs.get.map(list => list(query.graphID).data.storage)
       partitions <- partitions.get
-      executor   <- QueryExecutorF[F](query, id, storage, partitions, config)
+      executor   <- QueryExecutorF[F](query, id, storage, partitions, dispatcher, config)
       _          <- updateExecutorsForGraph(query.graphID, _ + (query.name -> executor))
     } yield ()
 
@@ -149,8 +151,9 @@ class PojoPartitionServerImpl[F[_]: Async](
     id: Deferred[F, Int],
     partitions: Deferred[F, Map[Int, PartitionService[F]]],
     graphs: GraphList[F, Partition[F]],
+    dispatcher: Dispatcher[F],
     config: Config
-) extends PartitionServiceImpl[F](id, partitions, graphs, config) {
+) extends PartitionServiceImpl[F](id, partitions, graphs, dispatcher, config) {
 
   override protected def makeGraphStorage(graphId: String): F[GraphPartition] =
     id.get.map(id => new PojoBasedPartition(graphId, id, config))
@@ -160,8 +163,9 @@ class ArrowPartitionServerImpl[F[_]: Async, V: VertexSchema, E: EdgeSchema](
     id: Deferred[F, Int],
     partitions: Deferred[F, Map[Int, PartitionService[F]]],
     graphs: GraphList[F, Partition[F]],
+    dispatcher: Dispatcher[F],
     config: Config
-) extends PartitionServiceImpl[F](id, partitions, graphs, config) {
+) extends PartitionServiceImpl[F](id, partitions, graphs, dispatcher, config) {
 
   override protected def makeGraphStorage(graphId: String): F[GraphPartition] =
     for {
@@ -189,7 +193,8 @@ object PartitionServiceImpl {
       config: Config
   ): Resource[F, Unit] =
     makeNWithStorage(
-            (id, partitions, graphs) => new PojoPartitionServerImpl[F](id, partitions, graphs, config),
+            (id, partitions, graphs, dispatcher) =>
+              new PojoPartitionServerImpl[F](id, partitions, graphs, dispatcher, config),
             registry,
             config
     )
@@ -199,7 +204,8 @@ object PartitionServiceImpl {
       config: Config
   ): Resource[F, Unit] =
     makeNWithStorage(
-            (id, partitions, graphs) => new ArrowPartitionServerImpl[F, V, E](id, partitions, graphs, config),
+            (id, partitions, graphs, dispatcher) =>
+              new ArrowPartitionServerImpl[F, V, E](id, partitions, graphs, dispatcher, config),
             registry,
             config
     )
@@ -215,7 +221,8 @@ object PartitionServiceImpl {
       service: (
           Deferred[F, Int],
           Deferred[F, Map[Int, PartitionService[F]]],
-          GraphList[F, Partition[F]]
+          GraphList[F, Partition[F]],
+          Dispatcher[F]
       ) => PartitionServiceImpl[F],
       registry: ServiceRegistry[F],
       config: Config
@@ -233,7 +240,8 @@ object PartitionServiceImpl {
       service: (
           Deferred[F, Int],
           Deferred[F, Map[Int, PartitionService[F]]],
-          GraphList[F, Partition[F]]
+          GraphList[F, Partition[F]],
+          Dispatcher[F]
       ) => PartitionServiceImpl[F],
       registry: ServiceRegistry[F],
       conf: Config
@@ -242,7 +250,8 @@ object PartitionServiceImpl {
       graphs        <- makeGraphList[F, Partition[F]]
       id            <- Resource.eval(Deferred[F, Int])
       partitionsDfr <- Resource.eval(Deferred[F, Map[Int, PartitionService[F]]])
-      service       <- Resource.eval(Async[F].delay(service(id, partitionsDfr, graphs)))
+      dispatcher    <- Dispatcher[F]
+      service       <- Resource.eval(Async[F].delay(service(id, partitionsDfr, graphs, dispatcher)))
       idNumber      <- registry.registered(service, PartitionServiceImpl.descriptor, candidateIds.toList)
       _             <- Resource.eval(id.complete(idNumber))
       _             <- registry.partitions.evalMap(partitions => partitionsDfr.complete(partitions)).start
