@@ -2,15 +2,18 @@ name: Docs
 on:
   push:
     branches:
-      - 'development'
+      - 'master'
     tags:
       - '**'
 
 jobs:
   notebooks:
-    - name: Trigger RTDs build
-      uses: dfm/rtds-action@v1
-      with:
-        webhook_url: ${{ secrets.RTDS_WEBHOOK_URL }}
-        webhook_token: ${{ secrets.RTDS_WEBHOOK_TOKEN }}
-        commit_ref: ${{ github.ref }}
+    name: "Build docs"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger RTDs build
+        uses: dfm/rtds-action@v1
+        with:
+          webhook_url: ${{ secrets.RTDS_WEBHOOK_URL }}
+          webhook_token: ${{ secrets.RTDS_WEBHOOK_TOKEN }}
+          commit_ref: ${{ github.ref }}
