@@ -1,32 +1,30 @@
 import jpype.imports
 from jpype import JImplements, JOverride, JString, JObject, JClass
-# import pydevd
+from pyraphtory.debug import enable_pydev_debug
 from traceback import print_exc
 
 Interpreter = JClass("pemja.core.Interpreter")
 from java.util import Map
 
+_globals = globals()
 
 @JImplements(Interpreter)
 class JPypeInterpreter:
-    _locals = {}
 
     @JOverride
     def set(self, name: JString, value: JObject):
-        # pydevd.connected = True
-        # pydevd.settrace(suspend=False)
+        enable_pydev_debug()
         try:
-            self._locals[name] = value
+            globals()[name] = value
         except Exception as e:
             print_exc()
             raise e
 
     @JOverride
     def get(self, *args):
-        # pydevd.connected = True
-        # pydevd.settrace(suspend=False)
+        enable_pydev_debug()
         try:
-            obj = self._locals[args[0]]
+            obj = globals()[args[0]]
             if len(args) == 1:
                 return obj
             else:
@@ -37,10 +35,9 @@ class JPypeInterpreter:
 
     @JOverride
     def invoke(self, *args):
-        # pydevd.connected = True
-        # pydevd.settrace(suspend=False)
+        enable_pydev_debug()
         try:
-            fun = self._locals[args[0]]
+            fun = globals()[args[0]]
             if isinstance(args[1], Map):
                 return fun(**args[1])
             else:
@@ -54,10 +51,9 @@ class JPypeInterpreter:
 
     @JOverride
     def invokeMethod(self, obj: JString, method: JString, args):
-        # pydevd.connected = True
-        # pydevd.settrace(suspend=False)
+        enable_pydev_debug()
         try:
-            obj = self._locals[obj]
+            obj = globals()[obj]
             method = getattr(obj, str(method))
             result = method(*args)
         except Exception as e:
@@ -67,10 +63,9 @@ class JPypeInterpreter:
 
     @JOverride
     def exec(self, code: JString):
-        # pydevd.connected = True
-        # pydevd.settrace(suspend=False)
+        enable_pydev_debug()
         try:
-            exec(str(code), globals(), self._locals)
+            exec(str(code), globals(), globals())
         except Exception as e:
             print_exc()
             raise e
@@ -78,6 +73,4 @@ class JPypeInterpreter:
 
     @JOverride
     def close(self):
-        # pydevd.connected = True
-        # pydevd.settrace(suspend=False)
-        self._locals = {}
+        pass
