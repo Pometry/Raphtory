@@ -8,6 +8,7 @@ import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview.ExplodeSelectWithGraph
 import com.raphtory.api.analysis.graphview.GlobalGraphFunction
 import com.raphtory.api.analysis.graphview.GlobalSelect
+import com.raphtory.api.analysis.graphview.Iterate
 import com.raphtory.api.analysis.graphview.IterateWithGraph
 import com.raphtory.api.analysis.graphview.SelectWithGraph
 import com.raphtory.api.analysis.graphview.SetGlobalState
@@ -39,6 +40,8 @@ class QueryHandlerF[F[_]](
     query: Query,
     partitions: Seq[PartitionService[F]]
 )(implicit F: Async[F]) {
+
+  type GlobalTabularisingFunction = TabularisingGraphFunction with GlobalGraphFunction
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val jobId          = query.name
@@ -102,39 +105,51 @@ class QueryHandlerF[F[_]](
     query.operations.zipWithIndex.map {
       case (operation, index) =>
         operation match {
-          case SetGlobalState(fun)                                   => F.delay(println("handling global state")) *> F.delay(fun(state))
-          case _: TabularisingGraphFunction with GlobalGraphFunction =>
-            executeWithStateUntilConsensus(index, state, update = false)
-          case _: GlobalGraphFunction                                => executeWithStateUntilConsensus(index, state, update = true)
-          case x                                                     => F.delay(println(s"without state $x")) >> executeUntilConsensus(index)
+          case SetGlobalState(fun)           => F.delay(fun(state))
+          case _: GlobalTabularisingFunction => executeWithState(index, state, update = false)
+          case it: IterateWithGraph[_]       => executeWithStateUntilConsensus(index, state, update = true, it.iterations)
+          case _: GlobalGraphFunction        => executeWithState(index, state, update = true)
+          case it: Iterate[_]                => executeUntilConsensus(index, it.iterations)
+          case x                             => execute(index)
         }
     }.sequence_
 
-  private def executeWithStateUntilConsensus(index: Int, state: GraphStateImplementation, update: Boolean): F[Unit] =
-    for {
-      results <-
-        partitionFunction(partition =>
-          // TODO: this is to avoid sharing the same object in local setups, but there should be a better solution because in remote mode we are serialising twice
-          F.delay(kryo.deserialise[GraphStateImplementation](kryo.serialise(state)))
-            .flatMap(state => partition.executeOperationWithState(OperationAndState(graphId, jobId, index, state)))
-        )
-//      _       <- F.delay(
-//                         results.foreach(result => println(s"state received: ${result.state("name length total").value}"))
-//                 )
-      _       <- F.delay(if (update) {
-                   results.foreach(result => state.update(result.state))
-                   state.rotate()
-                 })
-//      _       <- F.delay(println(s"state after rotating: ${state("name length total").value}"))
-      _       <- if (results.forall(result => result.voteToContinue)) F.unit
-                 else executeWithStateUntilConsensus(index, state, update)
-    } yield ()
+  private def executeWithState(index: Int, state: GraphStateImplementation, update: Boolean) =
+    executeWithStateUntilConsensus(index, state, update, 1)
 
-  private def executeUntilConsensus(index: Int): F[Unit] =
-    for {
-      results <- partitionFunction(_.executeOperation(Operation(graphId, jobId, index)))
-      _       <- if (results.forall(result => result.voteToContinue)) F.unit else executeUntilConsensus(index)
-    } yield ()
+  private def executeWithStateUntilConsensus(
+      index: Int,
+      state: GraphStateImplementation,
+      update: Boolean,
+      iterations: Int = 1
+  ): F[Unit] =
+    if (iterations <= 0) F.unit
+    else
+      for {
+        results <-
+          partitionFunction(partition =>
+            // TODO: this is to avoid sharing the same object in local setups, but there should be a better solution because in remote mode we are serialising twice
+            F.delay(kryo.deserialise[GraphStateImplementation](kryo.serialise(state)))
+              .flatMap(state => partition.executeOperationWithState(OperationAndState(graphId, jobId, index, state)))
+          )
+        _       <- F.delay(if (update) {
+                     results.foreach(result => state.update(result.state))
+                     state.rotate()
+                   })
+        _       <- if (results.forall(result => result.voteToContinue)) F.unit
+                   else executeWithStateUntilConsensus(index, state, update, iterations - 1)
+      } yield ()
+
+  private def execute(index: Int) = executeUntilConsensus(index, 1)
+
+  private def executeUntilConsensus(index: Int, iterations: Int): F[Unit] =
+    if (iterations <= 0) F.unit
+    else
+      for {
+        results <- partitionFunction(_.executeOperation(Operation(graphId, jobId, index)))
+        _       <- if (results.forall(result => result.voteToContinue)) F.unit
+                   else executeUntilConsensus(index, iterations - 1)
+      } yield ()
 
   private def mergePartitionResults(perspective: Perspective, results: Seq[PartitionResult]): F[PerspectiveResult] =
     Async[F]
