@@ -71,6 +71,7 @@ class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint
     // Here we apply a trick to make sure the triangles are only counted for nodes in the two-core.
     KCore(2)
       .apply(graph)
+      .clearMessages()
       .reducedView
       .setGlobalState{
         state =>
