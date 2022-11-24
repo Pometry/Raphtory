@@ -49,4 +49,8 @@ case class BooleanProperty(key: String, value: Boolean) extends Property
 case class IntegerProperty(key: String, value: Int) extends Property
 
 /** Wrapper class for properties */
-case class Properties(properties: Property*)
+case class Properties(properties: Property*) {
+
+  def addProperty(property: Property): Properties =
+    Properties(properties.:+(property): _*)
+}

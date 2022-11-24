@@ -1,4 +1,6 @@
 from pyraphtory.interop import register, logger, to_jvm, find_class, ScalaProxyBase, GenericScalaProxy, ScalaClassProxy
+from pyraphtory.input import Properties,ImmutableProperty,Type
+from pyraphtory.scala.implicits.bounded import Bounded
 import pandas as pd
 import json
 
@@ -52,6 +54,17 @@ class TemporalGraph(GenericScalaProxy):
         else:
             return algorithm.tabularise(self.transform(algorithm))
 
+    def addVertex(self,update_time,src_id,properties=Properties(),vertex_type=None,secondary_index=None):
+        if secondary_index is None:
+            secondary_index = self.index()
+        if vertex_type is None:
+            vertex_type=Type("")
+        if isinstance(src_id, str):
+            properties= properties.add_property(ImmutableProperty("name", src_id))
+            self.add_vertex(update_time,self.assign_id(src_id),properties,vertex_type,secondary_index)
+        else:
+            self.add_vertex(update_time,src_id,properties,vertex_type,secondary_index)
+
 
 class DeployedTemporalGraph(TemporalGraph):
     _classname = "com.raphtory.api.analysis.graphview.PyDeployedTemporalGraph"
@@ -62,7 +75,6 @@ class DeployedTemporalGraph(TemporalGraph):
     def __exit__(self, exc_type, exc_val, exc_tb):
         logger.debug("Graph closed using context manager")
         self.close()
-
 
 @register(name="Accumulator")
 class Accumulator(GenericScalaProxy):

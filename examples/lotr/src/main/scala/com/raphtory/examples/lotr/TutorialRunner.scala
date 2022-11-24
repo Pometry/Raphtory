@@ -38,7 +38,6 @@ trait LocalRunner { self: RaphtoryApp =>
         val targetNode = fileLine(1)
         val tarID      = assignID(targetNode)
         val timeStamp  = fileLine(2).toLong
-
         graph.addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)), Type("Character"))
         graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)), Type("Character"))
         graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurrence"))
