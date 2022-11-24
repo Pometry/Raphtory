@@ -6,7 +6,9 @@ import com.raphtory.algorithms.generic.HITS
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceSpout
+import munit.IgnoreSuite
 
+@IgnoreSuite
 class HITSTest extends FPCorrectnessTest(Set(2, 3), tol = 1e-4) {
   test("Test HITS on small graph") {
     correctnessTest(

@@ -102,6 +102,12 @@ private[raphtory] class QuerySender(
     responses
       .map(_.bytes)
       .evalMap(msg => IO.println(s"msg on query sender: $msg").as(msg))
+      .evalMap(msg =>
+        IO(msg match {
+          case PerspectiveResult(perspective, totalPartitions, rows) => println(s"rows: ${rows.toList}")
+          case _                                                     =>
+        }).as(msg)
+      )
       .foreach {
         case message: PerspectiveResult =>
           IO(progressTracker.asInstanceOf[QueryProgressTrackerWithIterator].handleOutputMessage(message))

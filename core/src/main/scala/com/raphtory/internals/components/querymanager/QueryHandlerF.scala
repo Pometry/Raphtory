@@ -19,6 +19,7 @@ import com.raphtory.internals.components.output.TableOutputSink
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.graph.PerspectiveController
+import com.raphtory.internals.serialisers.KryoSerialiser
 import com.raphtory.protocol
 import com.raphtory.protocol.GraphId
 import com.raphtory.protocol.NodeCount
@@ -41,6 +42,7 @@ class QueryHandlerF[F[_]](
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
   private val jobId          = query.name
+  private val kryo           = KryoSerialiser()
 
   def processQuery(firstTimestamp: Long, lastTimestamp: Long): F[fs2.Stream[F, QueryManagement]] = {
     val queryProcessing = for {
@@ -110,13 +112,20 @@ class QueryHandlerF[F[_]](
 
   private def executeWithStateUntilConsensus(index: Int, state: GraphStateImplementation, update: Boolean): F[Unit] =
     for {
-      results <- partitionFunction(_.executeOperationWithState(OperationAndState(graphId, jobId, index, state)))
-      _       <- F.delay(println(s"state received from 1: ${results.head.state("name length max").value}"))
+      results <-
+        partitionFunction(partition =>
+          // TODO: this is to avoid sharing the same object in local setups, but there should be a better solution because in remote mode we are serialising twice
+          F.delay(kryo.deserialise[GraphStateImplementation](kryo.serialise(state)))
+            .flatMap(state => partition.executeOperationWithState(OperationAndState(graphId, jobId, index, state)))
+        )
+//      _       <- F.delay(
+//                         results.foreach(result => println(s"state received: ${result.state("name length total").value}"))
+//                 )
       _       <- F.delay(if (update) {
                    results.foreach(result => state.update(result.state))
                    state.rotate()
                  })
-      _       <- F.delay(println(s"state after rotating: ${state("name length max").value}"))
+//      _       <- F.delay(println(s"state after rotating: ${state("name length total").value}"))
       _       <- if (results.forall(result => result.voteToContinue)) F.unit
                  else executeWithStateUntilConsensus(index, state, update)
     } yield ()

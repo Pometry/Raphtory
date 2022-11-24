@@ -7,6 +7,7 @@ import cats.effect.std.Queue
 import cats.effect.std.Semaphore
 import cats.syntax.all._
 import com.google.protobuf.empty.Empty
+import com.raphtory.api.analysis.graphstate.AccumulatorImplementation
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview.ClearChain
@@ -101,11 +102,7 @@ class QueryExecutorF[F[_]](
   def executeOperationWithState(number: Int, state: GraphStateImplementation): F[OperationWithStateResult] = {
     val function = query.operations(number).asInstanceOf[GraphFunction]
     timed(s"Executing operation $function") {
-      withLens { lens =>
-        F.delay(lens.nextStep()) *> executeGraphFunctionWithState(function, state, lens) <* F.delay(
-                println(s"new state in $partitionID: ${state("name length max").value}")
-        )
-      }
+      withLens(lens => F.delay(lens.nextStep()) *> executeGraphFunctionWithState(function, state, lens))
     }
   }
 
@@ -200,9 +197,7 @@ class QueryExecutorF[F[_]](
           case GlobalSelect(f)                                => if (partitionID == 0) lens.executeSelect(f, graphState)(cb) else cb()
           case x                                              => throw new Exception(s"$x not handled")
         }
-      } *> F.sleep(200.milliseconds) *> F.delay(
-              println(s"state after function in $partitionID: ${graphState("name length max").value}")
-      )
+      }
 
     function match {
       case IterateWithGraph(f: ((Vertex, GraphState) => Unit) @unchecked, _, executeMessagedOnly) =>
