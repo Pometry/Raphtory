@@ -70,7 +70,7 @@ object PyRaphtoryContext {
 
   def local(): PyRaphtoryContext = new PyRaphtoryContext(Resource.pure(standalone), defaultConf, shutdown)
 
-  def remote(host: String, port: Int): PyRaphtoryContext = {
+  def remote(host: String = deployInterface, port: Int = deployPort): PyRaphtoryContext = {
     val config =
       ConfigBuilder()
         .addConfig("raphtory.deploy.address", host)

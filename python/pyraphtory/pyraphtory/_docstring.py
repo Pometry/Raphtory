@@ -237,6 +237,7 @@ doc_converter = alt(tparam, directive("note"), directive("see", "seealso"),
 
 
 def convert_docstring(docs):
+    docs = str(docs)
     if docs:
         try:
             cleaned = doc_converter.parse(docs)

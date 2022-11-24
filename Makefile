@@ -23,6 +23,9 @@ gh-sbt-build: version
 
 .PHONY sbt-build:
 sbt-build: version
+	rm -r -f ~/.ivy2/local/com.raphtory/arrow-core_2.13/$$(cat version)
+	rm -r -f ~/.ivy2/local/com.raphtory/arrow-messaging_2.13/$$(cat version)
+	rm -r -f ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)
 	sbt publishLocal
 	cp ~/.ivy2/local/com.raphtory/arrow-core_2.13/$$(cat version)/ivys/ivy.xml python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/arrow_core_ivy.xml
 	cp ~/.ivy2/local/com.raphtory/arrow-messaging_2.13/$$(cat version)/ivys/ivy.xml python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/arrow_messaging_ivy.xml

@@ -16,6 +16,9 @@ trait EmbeddedPython[IO[_]] {
 }
 
 object EmbeddedPython {
+  private var globalInterpreter: Option[EmbeddedPython[Id]] = None
+  def injectInterpreter(interpreter: EmbeddedPython[Id]) =
+    globalInterpreter = Some(interpreter)
   private val interpreters       = ThreadLocal.withInitial[EmbeddedPython[Id]](() => UnsafeEmbeddedPython.apply())
-  def global: EmbeddedPython[Id] = interpreters.get()
+  def global: EmbeddedPython[Id] = globalInterpreter.getOrElse(interpreters.get())
 }

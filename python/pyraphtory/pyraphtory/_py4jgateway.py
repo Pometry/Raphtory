@@ -8,6 +8,9 @@ from weakref import finalize
 
 import pyraphtory_jvm.jre
 from py4j.java_gateway import JavaGateway, GatewayParameters
+import jpype
+import jpype.imports
+
 from typing.io import IO
 
 import pyraphtory._config
