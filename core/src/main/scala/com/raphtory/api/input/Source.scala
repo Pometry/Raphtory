@@ -40,7 +40,7 @@ class StreamSource[F[_], T](id: Int, tuples: fs2.Stream[F, T], builderInstance: 
   def elements(counter: Counter.Child): F[Unit] = {
     val s = for {
       index <- fs2.Stream.eval(Ref.of[F, Long](1L))
-      _     <- tuples.chunks.parEvalMapUnordered(16){ chunk =>
+      _     <- tuples.chunks.parEvalMapUnordered(16) { chunk =>
                  builderInstance.buildGraphFromT(chunk, index) *> F.delay(counter.inc(chunk.size))
                }
     } yield ()
@@ -56,7 +56,13 @@ class StreamSource[F[_], T](id: Int, tuples: fs2.Stream[F, T], builderInstance: 
   def sourceID: Int                  = id
 }
 
-object Source {
+object StreamSource {
+
+  def apply[F[_]: Async, T](id: Int, iter: Iterator[T], gb: GraphBuilderF[F, T]): StreamSource[F, T] =
+    new StreamSource[F, T](id, fs2.Stream.fromBlockingIterator(iter, 1024 * 1024).prefetch, gb)
+}
+
+object Source       {
 
   def apply[T](spout: Spout[T], builder: GraphBuilder[T]): Source =
     new ConcreteSource(spout, ClosureCleaner.clean(builder))
