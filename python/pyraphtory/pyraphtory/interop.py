@@ -16,6 +16,12 @@ from jpype import JObject, JBoolean, JByte, JShort, JInt, JLong, JFloat, JDouble
 from pyraphtory._py4jgateway import Py4JConnection
 
 _wrapper_lock = Lock()
+_jpype = False
+
+class NoCache:
+    def __setitem__(self, key, value):
+        pass
+_globals = NoCache()
 
 def no_wrapper(jvm_object):
     return jvm_object
@@ -52,9 +58,10 @@ except ImportError:
     from pyraphtory import _config
 
     jpype.startJVM(_config.java_args, classpath=_config.jars.split(":"))
-    from pyraphtory._jpypeinterpreter import JPypeInterpreter
+    from pyraphtory._jpypeinterpreter import JPypeInterpreter, _globals
     from com.raphtory.internals.management import PythonInterop as _scala
     _scala.set_interpreter(JPypeInterpreter())
+    _jpype = True
 
 
 def test_scala_reflection(obj):
@@ -312,7 +319,7 @@ class ScalaProxyBase(object):
         if len(method_array) > 1:
             for i, method in enumerate(sorted(method_array, key=lambda m: m.n())):
                 try:
-                    exec(_codegen.build_method(f"{name}{i}", method), globals(), output)
+                    exec(_codegen.build_method(f"{name}{i}", method, _jpype), globals(), output)
                     # output[f"{name}{i}"].__doc__ = method.docs()
                 except Exception as e:
                     traceback.print_exc()
@@ -322,7 +329,7 @@ class ScalaProxyBase(object):
         else:
             method = method_array[0]
             try:
-                exec(_codegen.build_method(name, method), globals(), output)
+                exec(_codegen.build_method(name, method, _jpype), globals(), output)
                 # output[name].__doc__ = method.docs()
             except Exception as e:
                 traceback.print_exc()

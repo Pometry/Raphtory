@@ -9,9 +9,10 @@ def clean_identifier(name: str):
         return str(name)
 
 
-def build_method(name, method):
+def build_method(name, method, jpype=False):
     params = [clean_identifier(name) for name in method.parameters()]
     name = clean_identifier(name)
+    java_name = clean_identifier(method.name()) if jpype else method.name()
     implicits = [clean_identifier(name) for name in method.implicits()]
     nargs = method.n()
     varargs = method.varargs()
@@ -43,7 +44,7 @@ def build_method(name, method):
     lines.extend(f"    {p} = _check_default(self._jvm_object, {p})" if i in defaults else
                  f"    {p} = to_jvm({p})" for i, p in enumerate(params))
     if varargs:
-        lines.append(f"    {varparam} = make_varargs(to_jvm({varparam}))")
+        lines.append(f"    {varparam} = make_varargs(to_jvm(list({varparam})))")
         params.append(varparam)
-    lines.append(f"    return to_python(getattr(self._jvm_object, '{method.name()}')({', '.join(p for p in params + implicits)}))")
+    lines.append(f"    return to_python(getattr(self._jvm_object, '{java_name}')({', '.join(p for p in params + implicits)}))")
     return "\n".join(lines)
