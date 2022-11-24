@@ -317,7 +317,7 @@ public class VertexPartitionManager {
      *
      * @return the vertex partition
      */
-    protected VertexPartition getPartitionAndLoad(int partId) {
+    public VertexPartition getPartitionAndLoad(int partId) {
         VertexPartition p = _partitions.get(partId);
         if (p == null) {
             if (_partitions.size() >= N_ARROW_PARTITIONS) {
