@@ -39,6 +39,7 @@ import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.management.Partitioner
 import com.raphtory.internals.management.Scheduler
+import com.raphtory.internals.serialisers.KryoSerialiser
 import com.raphtory.protocol.NodeCount
 import com.raphtory.protocol.OperationResult
 import com.raphtory.protocol.OperationWithStateResult
@@ -66,6 +67,7 @@ class QueryExecutorF[F[_]](
   private val graphId        = query.graphID
   private val jobId          = query.name
   private val loggingPrefix  = s"${jobId}_$partitionID:"
+  private val kryo           = KryoSerialiser()
 
   def receiveMessages(messages: Seq[GenericVertexMessage[_]]): F[Empty] =
     withLens(lens => F.delay(messages.foreach(msg => lens.receiveMessage(msg)))).as(Empty())
@@ -111,7 +113,11 @@ class QueryExecutorF[F[_]](
       withLens { lens =>
         for {
           buffer <- F.delay(ArrayBuffer[Row]())
-          _      <- withFinishCallback(cb => lens.writeDataTable(row => buffer.addOne(row))(cb))
+          _      <- withFinishCallback(
+                            // TODO Using kryo here is a hack so we get rows out of the row pool. Maybe we could consider if the pool mechanism is really necessary as it cause undesired behavior as in this case
+                            cb => lens.writeDataTable(row => buffer.addOne(kryo.deserialise[Row](kryo.serialise(row))))(cb)
+                    )
+          _      <- F.delay(println(s"sending rows: ${buffer.toList}"))
           result <- F.delay(PartitionResult(buffer.toSeq))
         } yield result
       }
