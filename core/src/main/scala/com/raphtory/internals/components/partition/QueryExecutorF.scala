@@ -168,14 +168,14 @@ class QueryExecutorF[F[_]](
 
     function match {
       case Iterate(f: (Vertex => Unit) @unchecked, _, executeMessagedOnly) =>
-        F.delay(println("executing Iterate")) *> wrapMessagingFunction(
+        wrapMessagingFunction(
                 processIterate(f, executeMessagedOnly),
                 lens
         ) *> F.delay(
                 OperationResult(voteToContinue = lens.checkVotes())
         )
       case f                                                               =>
-        F.delay(println(s"executing $f")) *> wrapMessagingFunction(processNonIterate, lens) as OperationResult(
+        wrapMessagingFunction(processNonIterate, lens) as OperationResult(
                 voteToContinue = true
         )
     }
@@ -227,7 +227,7 @@ class QueryExecutorF[F[_]](
     for {
       output   <- F.timed(f)
       (time, a) = output
-      _        <- F.delay(logger.info(s"$loggingPrefix $processName took ${time.toMillis} ms to complete"))
+      _        <- F.delay(logger.debug(s"$loggingPrefix $processName took ${time.toMillis} ms to complete"))
     } yield a
 
   private def withLens[A](f: LensInterface => F[A]): F[A] = graphLens.get.flatMap(lens => f(lens.get))

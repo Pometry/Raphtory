@@ -101,7 +101,6 @@ private[raphtory] class QuerySender(
     val responses = service.submitQuery(protocol.Query(TryQuery(Success(outputQuery)))).unsafeRunSync()
     responses
       .map(_.bytes)
-      .evalMap(msg => IO.println(s"msg on query sender: $msg").as(msg))
       .evalMap(msg =>
         IO(msg match {
           case PerspectiveResult(perspective, totalPartitions, rows) => println(s"rows: ${rows.toList}")
