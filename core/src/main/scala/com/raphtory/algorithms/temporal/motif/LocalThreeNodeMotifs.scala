@@ -68,7 +68,10 @@ import scala.collection.mutable.ArrayBuffer
 class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint:Boolean=true) extends GenericReduction {
 
   override def apply(graph: GraphPerspective): graph.ReducedGraph = {
-    KCore(2).apply(graph).reducedView
+    // Here we apply a trick to make sure the triangles are only counted for nodes in the two-core.
+    KCore(2)
+      .apply(graph)
+      .reducedView
       .setGlobalState{
         state =>
           state.newAccumulator[Array[Long]]("twoNodeCounts",Array.fill(8)(0L), retainState = true, (ar1, ar2) => ar1.zip(ar2).map{case (x,y) => x + y})
