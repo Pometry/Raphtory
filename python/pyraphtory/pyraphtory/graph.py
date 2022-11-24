@@ -81,5 +81,5 @@ class Accumulator(GenericScalaProxy):
     _classname = "com.raphtory.api.analysis.graphstate.Accumulator"
 
     def __iadd__(self, other):
-        self.plus_eq(other)
+        self._plus_eq(other)
         return self

@@ -21,7 +21,7 @@ us that Gandalf and Elrond appears together in sentence 33.
 
 ## Lord Of The Rings Example 🧝🏻‍♀️🧙🏻‍♂️💍
 
-We have detailed each step of our Scala and Python example code below. You can find the code on Github here: <a href="https://github.com/Raphtory/Raphtory/tree/development/examples/lotr/src/main/scala/com/raphtory/examples/lotr" target="_blank">Scala</a> and <a href="https://github.com/Raphtory/Raphtory/blob/development/examples/lotr/src/main/python/LOTR-PyRaphtory.ipynb" target="_blank">Python</a>.
+We have detailed each step of our Scala and Python example code below. You can find the code on Github here: <a href="https://github.com/Raphtory/Raphtory/tree/master/examples/lotr/src/main/scala/com/raphtory/examples/lotr" target="_blank">Scala</a> and <a href="https://github.com/Raphtory/Raphtory/blob/master/examples/lotr/src/main/python/LOTR-PyRaphtory.ipynb" target="_blank">Python</a>.
 
 ### Setup environment 🌍
 
