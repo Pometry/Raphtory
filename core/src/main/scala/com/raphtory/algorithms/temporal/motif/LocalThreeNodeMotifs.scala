@@ -46,6 +46,9 @@ import scala.collection.mutable.ArrayBuffer
   *   7. i --> j, j --> k, k --> i
   *   8. i --> j, i --> k, k --> j
   *
+  *   The motif counts are returned as a 40-d array where the first 24 elements are star counts,
+  *   the next 8 are two-node motif counts and the final 8 are triangle counts.
+  *
   * ## States
   *  {s}`starCounts: Array[Int]`
   *    : Three-node star motif counts stored as an array (see indices above)
@@ -53,6 +56,13 @@ import scala.collection.mutable.ArrayBuffer
   *    : Two-node motif counts stored as an array (see indices above)
   *  {s}`triCounts: Array[Int]`
   *    : Triangle motif counts stored as an array (see indices above)
+  *
+  * ## Returns
+  *
+  *  | vertex name       | motifs                   |
+  *  | ----------------- | ------------------------ |
+  *  | {s}`name: String` | {s}`motifCounts: Array[Long]` |
+  *
   */
 
 class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint:Boolean=true) extends GenericReduction {
