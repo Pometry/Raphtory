@@ -10,12 +10,14 @@ import com.raphtory.api.input.ImmutableProperty
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Type
+import com.raphtory.api.progresstracker.QueryProgressTracker
 import com.raphtory.examples.lotr.graphbuilder.LotrGraphBuilder
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.internals.storage.arrow.immutable
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
+
 import scala.language.postfixOps
 
 object TutorialRunner      extends RaphtoryApp.Local with LocalRunner
@@ -27,7 +29,7 @@ trait LocalRunner { self: RaphtoryApp =>
     ctx.runWithNewGraph() { graph =>
       val path = "/tmp/lotr.csv"
       val url  = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"
-      FileUtils.curlFile(path, url)
+//      FileUtils.curlFile(path, url)
 
 //      val file = scala.io.Source.fromFile(path)
 //      file.getLines.foreach { line =>
@@ -43,44 +45,61 @@ trait LocalRunner { self: RaphtoryApp =>
 //        graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurrence"))
 //      }
 
+      val path1 = "/tmp/lotr1.csv"
+      val path2 = "/tmp/lotr2.csv"
+      val path3 = "/tmp/lotr3.csv"
+
       //The ingestion of data into a graph (line 33-45) can also be pushed into Raphtory via a Source and load function:
-            val source = Source(FileSpout(path), LotrGraphBuilder)
-            graph.load(source)
+      graph.load(Source(FileSpout(path1), LotrGraphBuilder))
+      graph.load(Source(FileSpout(path2), LotrGraphBuilder))
 
       // Get simple metrics
-      graph
+      val tracker = graph
         .execute(Degree())
         .writeTo(FileSink("/tmp/raphtory"))
-        .waitForJob()
+//        .waitForJob()
 
-      // PageRank
-      graph
-        .at(32674)
-        .past()
-        .transform(PageRank())
-        .execute(NodeList(Seq("prlabel")))
+      graph.load(Source(FileSpout(path3), LotrGraphBuilder))
+
+//      // PageRank
+//      graph
+//        .at(32674)
+//        .past()
+//        .transform(PageRank())
+//        .execute(NodeList(Seq("prlabel")))
+//        .writeTo(FileSink("/tmp/raphtory"))
+//        .waitForJob()
+//
+//      // Connected Components
+//      graph
+//        .at(32674)
+//        .past()
+//        .execute(ConnectedComponents)
+//        .writeTo(FileSink("/tmp/raphtory"))
+//        .waitForJob()
+//
+//      // Chained Example
+//      graph
+//        .at(32674)
+//        .past()
+//        .transform(PageRank())
+//        .transform(ConnectedComponents)
+//        .transform(Degree())
+//        .execute(NodeList(Seq("prlabel", "cclabel", "inDegree", "outDegree", "degree")))
+//        .writeTo(FileSink("/tmp/raphtory"))
+//        .waitForJob()
+
+
+      tracker.waitForJob()
+
+      println(tracker.getPerspectivesProcessed)
+
+      val tracker2 = graph
+        .execute(Degree())
         .writeTo(FileSink("/tmp/raphtory"))
-        .waitForJob()
 
-      // Connected Components
-      graph
-        .at(32674)
-        .past()
-        .execute(ConnectedComponents)
-        .writeTo(FileSink("/tmp/raphtory"))
-        .waitForJob()
-
-      // Chained Example
-      graph
-        .at(32674)
-        .past()
-        .transform(PageRank())
-        .transform(ConnectedComponents)
-        .transform(Degree())
-        .execute(NodeList(Seq("prlabel", "cclabel", "inDegree", "outDegree", "degree")))
-        .writeTo(FileSink("/tmp/raphtory"))
-        .waitForJob()
-
+      tracker2.waitForJob()
+      println(tracker2.getPerspectivesProcessed)
     }
 }
 

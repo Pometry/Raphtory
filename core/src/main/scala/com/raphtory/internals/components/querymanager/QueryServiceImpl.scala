@@ -12,7 +12,6 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import fs2.Stream
 import org.slf4j.LoggerFactory
-
 import scala.util.Failure
 import scala.util.Success
 

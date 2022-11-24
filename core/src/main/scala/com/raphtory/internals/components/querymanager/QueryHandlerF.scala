@@ -1,28 +1,20 @@
 package com.raphtory.internals.components.querymanager
 
-import cats.Parallel
 import cats.effect.Async
-import cats.effect.Deferred
 import cats.syntax.all._
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
-import com.raphtory.api.analysis.graphview.ExplodeSelectWithGraph
 import com.raphtory.api.analysis.graphview.GlobalGraphFunction
-import com.raphtory.api.analysis.graphview.GlobalSelect
 import com.raphtory.api.analysis.graphview.Iterate
 import com.raphtory.api.analysis.graphview.IterateWithGraph
-import com.raphtory.api.analysis.graphview.SelectWithGraph
 import com.raphtory.api.analysis.graphview.SetGlobalState
-import com.raphtory.api.analysis.graphview.StepWithGraph
 import com.raphtory.api.analysis.graphview.TabularisingGraphFunction
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.internals.components.output.PerspectiveResult
 import com.raphtory.internals.components.output.TableOutputSink
-import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.graph.PerspectiveController
 import com.raphtory.internals.serialisers.KryoSerialiser
 import com.raphtory.protocol
-import com.raphtory.protocol.GraphId
 import com.raphtory.protocol.NodeCount
 import com.raphtory.protocol.Operation
 import com.raphtory.protocol.OperationAndState
@@ -32,13 +24,13 @@ import com.raphtory.protocol.PerspectiveCommand
 import com.raphtory.protocol.QueryId
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-
 import scala.util.Success
 
 class QueryHandlerF[F[_]](
     graphId: String,
     query: Query,
-    partitions: Seq[PartitionService[F]]
+    partitions: Seq[PartitionService[F]],
+    querySupervisor: QuerySupervisor[F]
 )(implicit F: Async[F]) {
 
   type GlobalTabularisingFunction = TabularisingGraphFunction with GlobalGraphFunction
@@ -57,7 +49,11 @@ class QueryHandlerF[F[_]](
     queryProcessing.handleErrorWith(e => Async[F].pure(fs2.Stream(JobFailed(e))))
   }
 
-  private def endQuery = partitionFunction(_.endQuery(QueryId(graphId, jobId))).as(JobDone)
+  private def endQuery =
+    for {
+      x <- partitionFunction(_.endQuery(QueryId(graphId, jobId))).as(JobDone)
+      _ <- querySupervisor.endQuery(query)
+    } yield x
 
   private def partitionFunction[T](function: PartitionService[F] => F[T]) =
     Async[F].parSequenceN(partitions.size)(partitions.map(function))
@@ -163,9 +159,10 @@ object QueryHandlerF {
       firstTimestamp: Long,
       lastTimestamp: Long,
       partitions: Seq[PartitionService[F]],
-      query: Query
+      query: Query,
+      querySupervisor: QuerySupervisor[F]
   ): F[fs2.Stream[F, protocol.QueryManagement]] =
-    new QueryHandlerF[F](query.graphID, query, partitions)
+    new QueryHandlerF[F](query.graphID, query, partitions, querySupervisor)
       .processQuery(firstTimestamp, lastTimestamp)
       .map(_.map(j => protocol.QueryManagement(j)))
 }
