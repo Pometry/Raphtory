@@ -117,6 +117,11 @@ def decode(obj):
     return _scala.decode(obj)
 
 
+def decode_tuple(obj):
+    """call scala decode_tuple function to convert collection to scala tuple"""
+    return _scala.decode_tuple(obj)
+
+
 def get_methods(obj):
     """look up methods for a java object"""
     logger.trace("Finding methods for {obj!r}", obj=obj)
@@ -173,6 +178,9 @@ def to_jvm(value):
     elif callable(value):
         logger.trace("Converting value {value!r}, decoding as Function", value=value)
         return _wrap_python_function(value)
+    elif isinstance(value, tuple):
+        logger.trace(f"Converting value {value!r}, decoding as Tuple", value=value)
+        return decode_tuple([to_jvm(v) for v in value])
     elif (isinstance(value, Iterable)
           and not isinstance(value, str)
           and not isinstance(value, bytes)
@@ -214,12 +222,14 @@ def make_varargs(param):
 
 def _wrap_python_function(fun):
     """take a python function and turn it into a scala function"""
+    eval_name = f"wrapped_{id(fun)}"
     wrapped = FunctionWrapper(fun)
     pickle_bytes = pickle.dumps(wrapped)
+    _globals[eval_name] = wrapped
     if wrapped.n_args == 1:
-        return to_jvm(Function1(pickle_bytes))
+        return to_jvm(Function1(pickle_bytes, eval_name))
     elif wrapped.n_args == 2:
-        return to_jvm(Function2(pickle_bytes))
+        return to_jvm(Function2(pickle_bytes, eval_name))
     else:
         raise ValueError("Only functions with 1 or 2 arguments are currently implemented when passing to scala")
 
@@ -548,6 +558,7 @@ class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
         else:
             actual_mcs = type.__new__(mcs, name + "_", (mcs,), {"_classname": attrs["_classname"]})
             actual_mcs._init_base_methods(_scala.find_class(actual_mcs._classname))
+
 
         cls = type.__new__(actual_mcs, name, bases, attrs, **kwargs)
         if concrete:

@@ -1,5 +1,4 @@
 from collections import abc
-
 from pyraphtory.interop import register, GenericScalaProxy, ScalaClassProxy, to_python, to_jvm
 
 
@@ -63,6 +62,23 @@ class SequenceScalaProxy(IterableScalaProxy, abc.Sequence):
             return self.indexOf(value)
 
 
+@register(name="Map")
+class Map(ScalaClassProxy, abc.Mapping):
+    _classname = "scala.collection.Map"
+
+    def __len__(self) -> int:
+        self.size()
+
+    def __iter__(self):
+        return self.keys_iterator()
+
+    def __getitem__(self, key):
+        try:
+            return self.apply(key)
+        except Exception:
+            raise KeyError(f"missing key {key}")
+
+
 class List(ScalaClassProxy, SequenceScalaProxy):
     _classname = "scala.collection.immutable.List"
 
@@ -97,3 +113,11 @@ class ScalaNone(ScalaClassProxy):
 
     def __new__(cls, jvm_object=None):
         return None
+
+
+class ScalaSome(ScalaClassProxy):
+    _classname = "scala.Some"
+
+    @classmethod
+    def _from_jvm(cls, jvm_object):
+        return to_python(jvm_object.get())
