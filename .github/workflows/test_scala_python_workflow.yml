@@ -4,6 +4,7 @@ on:
     inputs:
       config-path:
         required: false
+        type: string
 
 jobs:
   test:
