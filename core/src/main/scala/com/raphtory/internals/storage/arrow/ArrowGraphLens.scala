@@ -4,9 +4,10 @@ import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.arrowcore.implementation.RaphtoryThreadPool
 import com.raphtory.arrowcore.implementation.VertexIterator
+import com.raphtory.arrowcore.implementation.VertexIterator.WindowedVertexIterator
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import com.raphtory.internals.management.Scheduler
-import com.raphtory.internals.storage.arrow.entities.ArrowExVertex
+import com.raphtory.internals.storage.arrow.entities.{ArrowExVertex, ArrowExVertexIter}
 
 import java.time.Duration
 import java.time.LocalDateTime
@@ -61,13 +62,16 @@ final case class ArrowGraphLens(
     val topB = new AtomicReference[B](init)
 
     mtIterator.start { (pid, iter) =>
+      val iterw:WindowedVertexIterator = iter.asInstanceOf[WindowedVertexIterator]
+
       var localB = init
       val start  = LocalDateTime.now()
       println(s"$pid STARTING PROCESSING AT $start")
+
       while (iter.hasNext) {
         iter.next()
-        val v    = iter.getVertex
-        val arrV = new ArrowExVertex(graphState, v)
+//        val v    = iter.getVertex
+        val arrV = new ArrowExVertexIter(graphState, iter) //new ArrowExVertex(graphState, v)
 
         val b = mapper(arrV)
         localB = acc(localB, b)
