@@ -4,7 +4,7 @@ import com.raphtory.arrowcore.implementation.*;
 import com.raphtory.arrowcore.model.Edge;
 import com.raphtory.arrowcore.model.PropertySchema;
 import com.raphtory.arrowcore.model.Vertex;
-import net.openhft.chronicle.core.util.StringUtils;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -74,17 +74,29 @@ public class AlphaBayLoader {
     public static void main(String[] args) throws Exception {
         RaphtoryArrowPartition.RaphtoryArrowPartitionConfig cfg = new RaphtoryArrowPartition.RaphtoryArrowPartitionConfig();
         cfg._propertySchema = new AlphaBaySchema();
-        cfg._arrowDir = "/tmp";
+        cfg._arrowDir = "E:/tmp/alphabay";
         cfg._raphtoryPartitionId = 0;
         cfg._nRaphtoryPartitions = 1;
         cfg._nLocalEntityIdMaps = 128;
         cfg._localEntityIdMapSize = 1024;
         cfg._syncIDMap = false;
+        cfg._edgePartitionSize = 512 * 1024;
+        cfg._vertexPartitionSize = 256 * 1024;
 
         RaphtoryArrowPartition rap = new RaphtoryArrowPartition(cfg);
 
         AlphaBayLoader loader = new AlphaBayLoader(rap);
-        loader.load("D:\\home\\jatinder\\Pometry\\public\\Raphtory\\alphabay_sorted.csv.gz");
+        if (new File("E:/tmp/alphabay/vertex-p0.rap").exists()) {
+            rap.getVertexMgr().loadFiles();
+            rap.getEdgeMgr().loadFiles();
+        }
+        else {
+            loader.load("D:/home/jatinder/Pometry/public/Raphtory/alphabay_sorted.csv.gz");
+            rap.getVertexMgr().saveFiles();
+        }
+
+        loader.degreeAlgoMT();
+        System.exit(0);
     }
 
 
@@ -102,61 +114,177 @@ public class AlphaBayLoader {
     }
 
 
-    public void load2(String file) throws Exception {
-        InputStream br;
+    public void degreeAlgo() throws Exception {
+        System.out.println(new Date() + ": Degrees starting");
+        //VertexIterator vi = _rap.getNewWindowedVertexIterator(Long.MIN_VALUE, Long.MAX_VALUE);
+        VertexIterator vi = _rap.getNewAllVerticesIterator();
+        int nVertices = 0;
+        int nEdges = 0;
+        Long2IntOpenHashMap inDegreeMap = new Long2IntOpenHashMap(16384);
+        Long2IntOpenHashMap outDegreeMap = new Long2IntOpenHashMap(16384);
+        Long2IntOpenHashMap degreeMap = new Long2IntOpenHashMap(16384);
 
-        if (file.endsWith(".gz")) {
-            br = new BufferedInputStream(new GZIPInputStream(new BufferedInputStream(new FileInputStream(file), 65536), 65536), 65536);
+
+        while (vi.hasNext()) {
+            long vId = vi.next();
+            ++nVertices;
+
+            EdgeIterator ei;
+
+            inDegreeMap.put(vId, vi.getNIncomingEdges());
+            outDegreeMap.put(vId, vi.getNOutgoingEdges());
+
+            /*
+            int nIncoming = 0;
+            ei = vi.getOutgoingEdges();
+            while (ei.hasNext()) {
+                ei.next();
+                ++nIncoming;
+            }
+            inDegreeMap.put(vId, nIncoming);
+
+            int nOutgoing = 0;
+            ei = vi.getOutgoingEdges();
+            while (ei.hasNext()) {
+                ei.next();
+                ++nOutgoing;
+            }
+            outDegreeMap.put(vId, nOutgoing);
+            */
+
+            int nTotal = 0;
+            ei = vi.getAllEdges();
+            while (ei.hasNext()) {
+                ei.next();
+                ++nTotal;
+            }
+            degreeMap.put(vId, nTotal);
+            nEdges += nTotal;
         }
-        else {
-            br = new BufferedInputStream(new FileInputStream(file), 65536);
-        }
-        String line;
+
+        OutputStream output = new BufferedOutputStream(new FileOutputStream("degree_output.csv"), 65536);
         StringBuilder tmp = new StringBuilder();
 
-        System.out.println(new Date() + ": Starting load");
+        degreeMap.keySet().forEach(id -> {
+            tmp.setLength(0);
+            tmp.append("DUMMY,");
+            tmp.append(id);
+            tmp.append(",");
+            tmp.append(inDegreeMap.get(id));
+            tmp.append(",");
+            tmp.append(outDegreeMap.get(id));
+            tmp.append(",");
+            tmp.append(degreeMap.get(id));
+            tmp.append("\n");
 
-        int[] fields = new int[8];
-
-        long then = System.currentTimeMillis();
-
-        int count = 0;
-        StringBuilder lineSB = new StringBuilder();
-        while (readLine(br, lineSB)) {
-            // Extract the 2 fields...
-            for (int i = 0; i < fields.length; ++i) {
-                if (i == 0) {
-                    fields[i] = 0;
-                }
-                else {
-                    int index = lineSB.indexOf(",", fields[i - 1]) + 1;
-                    fields[i] = index;
-                }
+            try {
+                output.write(tmp.toString().getBytes());
             }
+            catch (Exception e) {
+                // NOP
+            }
+        });
+
+        output.flush();
+        output.close();
+
+        System.out.println(new Date() + ": Degrees ended");
+        System.out.println("nVertices: " + nVertices + ", nEdges=" + nEdges);
+    }
 
 
-            copy(lineSB, fields[3], fields[4] - 1 - fields[3], tmp);
-            long src = StringUtils.parseLong(tmp, 10);
 
-            copy(lineSB, fields[4], fields[5] - 1 - fields[4], tmp);
-            long dst = StringUtils.parseLong(tmp, 10);
+    public void degreeAlgoMT() throws Exception {
+        System.out.println(new Date() + ": Degrees starting");
+        //VertexIterator vi = _rap.getNewWindowedVertexIterator(Long.MIN_VALUE, Long.MAX_VALUE);
+        VertexIterator.MTAllVerticesManager avm = _rap.getNewMTAllVerticesManager(RaphtoryThreadPool.THREAD_POOL);
 
-            copy(lineSB, fields[5], fields[6] - 1 - fields[5], tmp);
-            long time = StringUtils.parseLong(tmp, 10);
+        Long2IntOpenHashMap[] inDegreesMap = new Long2IntOpenHashMap[_rap.getVertexMgr().nPartitions()];
+        Long2IntOpenHashMap[] outDegreesMap = new Long2IntOpenHashMap[_rap.getVertexMgr().nPartitions()];
+        Long2IntOpenHashMap[] degreesMap = new Long2IntOpenHashMap[_rap.getVertexMgr().nPartitions()];
 
-            copy(lineSB, fields[7], lineSB.length() - fields[7], tmp);
-            long price = StringUtils.parseLong(tmp, 10);
-
-            addVertex(src, time);
-            addVertex(dst, time);
-            addOrUpdateEdge(src, dst, time, price);
+        for (int i=0; i<_rap.getVertexMgr().nPartitions(); ++i) {
+            inDegreesMap[i] = new Long2IntOpenHashMap(16384);
+            outDegreesMap[i] = new Long2IntOpenHashMap(16384);
+            degreesMap[i] = new Long2IntOpenHashMap(16384);
         }
 
-        long now = System.currentTimeMillis();
-        double rate = _rap.getStatistics().getNHistoryPoints() / (((double)(now-then)) / 1000.0d);
-        System.out.println(new Date() + ": Ending load: rate=" + rate + " per second");
+        avm.start((id, vi) -> {
+            Long2IntOpenHashMap inDegreeMap = inDegreesMap[id];
+            Long2IntOpenHashMap outDegreeMap = inDegreesMap[id];
+            Long2IntOpenHashMap degreeMap = inDegreesMap[id];
 
-        System.out.println(_rap.getStatistics());
+            while (vi.hasNext()) {
+                long vId = vi.next();
+
+                EdgeIterator ei;
+
+                inDegreeMap.put(vId, vi.getNIncomingEdges());
+                outDegreeMap.put(vId, vi.getNOutgoingEdges());
+
+                /*
+                int nIncoming = 0;
+                ei = vi.getOutgoingEdges();
+                while (ei.hasNext()) {
+                    ei.next();
+                    ++nIncoming;
+                }
+                inDegreeMap.put(vId, nIncoming);
+
+                int nOutgoing = 0;
+                ei = vi.getOutgoingEdges();
+                while (ei.hasNext()) {
+                    ei.next();
+                    ++nOutgoing;
+                }
+                outDegreeMap.put(vId, nOutgoing);
+                */
+
+                int nTotal = 0;
+                ei = vi.getAllEdges();
+                while (ei.hasNext()) {
+                    ei.next();
+                    ++nTotal;
+                }
+                degreeMap.put(vId, nTotal);
+            }
+        });
+
+        avm.waitTilComplete();
+
+        OutputStream output = new BufferedOutputStream(new FileOutputStream("degree_output.csv"), 65536);
+        StringBuilder tmp = new StringBuilder();
+
+        for (int i=0; i<degreesMap.length; ++i) {
+            Long2IntOpenHashMap inDegreeMap = inDegreesMap[i];
+            Long2IntOpenHashMap outDegreeMap = inDegreesMap[i];
+            Long2IntOpenHashMap degreeMap = inDegreesMap[i];
+
+            degreeMap.keySet().forEach(id -> {
+                tmp.setLength(0);
+                tmp.append("DUMMY,");
+                tmp.append(id);
+                tmp.append(",");
+                tmp.append(inDegreeMap.get(id));
+                tmp.append(",");
+                tmp.append(outDegreeMap.get(id));
+                tmp.append(",");
+                tmp.append(degreeMap.get(id));
+                tmp.append("\n");
+
+                try {
+                    output.write(tmp.toString().getBytes());
+                }
+                catch (Exception e) {
+                    // NOP
+                }
+            });
+        }
+
+        output.flush();
+        output.close();
+
+        System.out.println(new Date() + ": Degrees ended");
     }
 
 
@@ -178,22 +306,18 @@ public class AlphaBayLoader {
         while ((line = br.readLine())!=null) {
             String[] fields = line.split(",");
 
+            long srcGlobalId = _rap.getGlobalEntityIdStore().getGlobalNodeId(fields[3]);
             long src = Long.parseLong(fields[3]);
+
+            long dstGlobalId = _rap.getGlobalEntityIdStore().getGlobalNodeId(fields[4]);
             long dst = Long.parseLong(fields[4]);
+
             long time = Long.parseLong(fields[5]);
             long price = Long.parseLong(fields[7]);
 
-            //tmp.setLength(0);
-            //tmp.append(fields[3]);
-            //long srcId = _rap.getGlobalEntityIdStore().getGlobalNodeId(tmp);
-
-            //tmp.setLength(0);
-            //tmp.append(fields[4]);
-            //long dstId = _rap.getGlobalEntityIdStore().getGlobalNodeId(tmp);
-
-            addVertex(src, time);
-            addVertex(dst, time);
-            addOrUpdateEdge(src, dst, time, price);
+            addVertex(srcGlobalId, src, time);
+            addVertex(dstGlobalId, dst, time);
+            addOrUpdateEdge(srcGlobalId, dstGlobalId, time, price);
         }
 
         long now = System.currentTimeMillis();
@@ -204,20 +328,20 @@ public class AlphaBayLoader {
     }
 
 
-    private void addVertex(long globalId, long time) {
+    private void addVertex(long globalId, long nodeId, long time) {
         long localId = _rap.getLocalEntityIdStore().getLocalNodeId(globalId);
         if (localId==-1L) {
-            Vertex v = createVertex(_rap.getVertexMgr().getNextFreeVertexId(), globalId, time);
+            Vertex v = createVertex(_rap.getVertexMgr().getNextFreeVertexId(), globalId, nodeId, time);
             v.decRefCount();
         }
     }
 
 
-    private Vertex createVertex(long localId, long globalId, long time) {
+    private Vertex createVertex(long localId, long globalId, long nodeId, long time) {
         Vertex v = _rap.getVertex();
         v.incRefCount();
         v.reset(localId, globalId, true, time);
-        v.getField(NODEID_FIELD).set(globalId);
+        v.getField(NODEID_FIELD).set(nodeId);
         _avpm.addVertex(v);
         return v;
     }
@@ -317,4 +441,54 @@ public class AlphaBayLoader {
         trim(dst);
         return dst;
     }
+
+
+
+    /*
+
+    private final int N_LOAD_THREADS = 8;
+
+    public void loadMT(String file) throws Exception {
+        BufferedReader br;
+
+        if (file.endsWith(".gz")) {
+            br = new BufferedReader(new InputStreamReader(new GZIPInputStream(new FileInputStream(file), 65536)), 65536);
+        }
+        else {
+            br = new BufferedReader(new InputStreamReader(new FileInputStream(file)), 65536);
+        }
+        String line;
+        StringBuilder tmp = new StringBuilder();
+
+        System.out.println(new Date() + ": Starting load");
+
+        long then = System.currentTimeMillis();
+        while ((line = br.readLine())!=null) {
+            String[] fields = line.split(",");
+
+            long srcGlobalId = _rap.getGlobalEntityIdStore().getGlobalNodeId(fields[3]);
+            long src = Long.parseLong(fields[3]);
+
+            long dstGlobalId = _rap.getGlobalEntityIdStore().getGlobalNodeId(fields[4]);
+            long dst = Long.parseLong(fields[4]);
+
+            long time = Long.parseLong(fields[5]);
+            long price = Long.parseLong(fields[7]);
+
+            int srcWorker = Math.abs((int)(srcGlobalId % N_LOAD_THREADS));
+            int dstWorker = Math.abs((int)(dstGlobalId % N_LOAD_THREADS));
+
+            addVertex(srcWorker, srcGlobalId, src, time);
+            addVertex(dstWorker, dstGlobalId, dst, time);
+            addOrUpdateEdge(srcGlobalId, dstGlobalId, time, price);
+        }
+
+        long now = System.currentTimeMillis();
+        double rate = _rap.getStatistics().getNHistoryPoints() / (((double)(now-then)) / 1000.0d);
+        System.out.println(new Date() + ": Ending load: rate=" + rate + " per second");
+
+        System.out.println(_rap.getStatistics());
+    }
+
+     */
 }
