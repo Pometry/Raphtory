@@ -1,3 +1,4 @@
+name: Publish a new Release
 on:
   push:
       tags:

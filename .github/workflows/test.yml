@@ -1,3 +1,4 @@
+name: Run the scala and python tests
 on:
   push:
   schedule:

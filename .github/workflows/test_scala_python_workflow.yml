@@ -1,4 +1,4 @@
-name: Test Raphtory both Scala and Python
+name: Test Raphtory in both Scala and Python
 on:
   workflow_call:
     inputs:
