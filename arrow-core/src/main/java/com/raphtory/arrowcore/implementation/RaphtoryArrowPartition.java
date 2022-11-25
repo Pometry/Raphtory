@@ -86,12 +86,12 @@ public class RaphtoryArrowPartition {
         /**
          * Maximum number of vertices per arrow file
          */
-        public int _vertexPartitionSize = 1024 * 1024;
+        public int _vertexPartitionSize = 256 * 1024;
 
         /**
          * Maximum number of edges per arrow file
          */
-        public int _edgePartitionSize = 2 * 1024 * 1024;
+        public int _edgePartitionSize = 512 * 1024;
 
         /**
          * Enable or disable arrow bounds checking

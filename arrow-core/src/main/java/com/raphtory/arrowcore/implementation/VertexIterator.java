@@ -71,7 +71,9 @@ public abstract class VertexIterator {
     protected VertexHistoryIterator.WindowedVertexHistoryIterator _vertexHistoryIterator = null;
     protected CachedMutatingEdgeMap.MatchingEdgeCachedIterator _scanner = null;
 
+    public RaphtoryArrowPartition getRaphtory() { return _avpm._raphtoryPartition; }
 
+    public long getVertexId() {return _vertexId;}
     /**
      * Initialise this iterator
      *
