@@ -6,16 +6,8 @@ on:
         required: false
 
 jobs:
-  configure:
-    name: Configure
-    runs-on: ubuntu-latest
-    outputs:
-      date: ${{ steps.configure.outputs.date }}
-      type: ${{ steps.configure.outputs.type }}
-      branch: ${{ steps.configure.outputs.branch }}
   test:
-    name: "test"
-    needs: configure
+    name: "test_scala_python"
     strategy:
       fail-fast: false
       matrix:
