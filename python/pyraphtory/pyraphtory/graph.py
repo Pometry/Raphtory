@@ -54,16 +54,24 @@ class TemporalGraph(GenericScalaProxy):
         else:
             return algorithm.tabularise(self.transform(algorithm))
 
-    def addVertex(self,update_time,src_id,properties=Properties(),vertex_type="",secondary_index=None):
+    def add_vertex(self,update_time,src_id,properties=None,vertex_type="",secondary_index=None):
         if secondary_index is None:
             secondary_index = self.index()
-        if isinstance(src_id, str):
-            properties= properties.add_property(ImmutableProperty("name", src_id))
-            self.add_vertex(update_time,self.assign_id(src_id),properties,Type(vertex_type),secondary_index)
-        else:
-            self.add_vertex(update_time,src_id,properties,vertex_type,secondary_index)
 
-    def addEdge(self,update_time,src_id,dst_id,properties=Properties(),edge_type="",secondary_index=None):
+        if isinstance(src_id, str):
+            if properties is None:
+                properties = []
+            properties += ImmutableProperty("name", src_id), #comma makes this a tuple and is apparently the fastest way to do things
+            super().add_vertex(update_time,self.assign_id(src_id),Properties(*properties),Type(vertex_type),secondary_index)
+        else:
+            if properties is None:
+                super().add_vertex(update_time,src_id,Properties(),Type(vertex_type),secondary_index)
+            else:
+                super().add_vertex(update_time,src_id,Properties(*properties),Type(vertex_type),secondary_index)
+
+
+
+    def add_edge(self,update_time,src_id,dst_id,properties=None,edge_type="",secondary_index=None):
         if secondary_index is None:
             secondary_index = self.index()
         source = src_id
@@ -72,7 +80,11 @@ class TemporalGraph(GenericScalaProxy):
             source = self.assign_id(src_id)
         if isinstance(dst_id, str):
             destination = self.assign_id(dst_id)
-        self.add_edge(update_time,source,destination,properties,Type(edge_type),secondary_index)
+        if properties is None:
+            super().add_edge(update_time,source,destination,Properties(),Type(edge_type),secondary_index)
+        else:
+            super().add_edge(update_time,source,destination,Properties(*properties),Type(edge_type),secondary_index)
+
 
 class DeployedTemporalGraph(TemporalGraph):
     _classname = "com.raphtory.api.analysis.graphview.PyDeployedTemporalGraph"

@@ -51,6 +51,9 @@ case class IntegerProperty(key: String, value: Int) extends Property
 /** Wrapper class for properties */
 case class Properties(properties: Property*) {
 
+  def apply(properties: List[Property]): Properties =
+    Properties(properties: _*)
+
   def addProperty(property: Property): Properties =
     Properties(properties.:+(property): _*)
 }
