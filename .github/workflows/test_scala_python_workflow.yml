@@ -1,8 +1,10 @@
 name: Test Raphtory both Scala and Python
 on:
-  push:
-  schedule:
-    - cron: '0 1 * * *'
+  workflow_call:
+    inputs:
+      config-path:
+        required: false
+
 jobs:
   configure:
     name: Configure
@@ -11,21 +13,6 @@ jobs:
       date: ${{ steps.configure.outputs.date }}
       type: ${{ steps.configure.outputs.type }}
       branch: ${{ steps.configure.outputs.branch }}
-    steps:
-    - name: Configure
-      id: configure
-      run: |
-        if [ "${{ github.event.schedule }}" = "0 1 * * *" ]; then
-          echo "::set-output name=date::$(date +'%Y-%m-%d')"
-          echo '::set-output name=branch::development'
-          echo '::set-output name=type::nightly'
-        elif [ "${GITHUB_REF##*/}" = "master" ]; then
-          echo '::set-output name=branch::master'
-          echo '::set-output name=type::master'
-        else
-          echo '::set-output name=branch::${GITHUB_REF##*/}'
-          echo '::set-output name=type::regular'
-        fi
   test:
     name: "test"
     needs: configure
@@ -92,7 +79,6 @@ jobs:
           sbt "arrowCore/test"
           sbt "core/test"
         timeout-minutes: 10
-    if: needs.configure.outputs.type == 'regular'
 
 #  build:
 #    name: "build"
