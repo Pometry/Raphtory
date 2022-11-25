@@ -41,7 +41,7 @@ class RaphtoryServiceTestSuite extends CatsEffectSuite {
     val graphId    = createName
     for {
       _ <- standalone.establishGraph(GraphInfo(clientId, graphId))
-      _ <- assertIO(standalone.connectToGraph(GraphInfo(graphId)), Empty())
+      _ <- assertIO(standalone.connectToGraph(GraphInfo("anotherClient", graphId)), Empty())
     } yield ()
   }
 }

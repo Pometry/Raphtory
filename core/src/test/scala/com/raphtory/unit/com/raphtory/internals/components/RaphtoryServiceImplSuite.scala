@@ -54,8 +54,8 @@ class RaphtoryServiceImplSuite extends CatsEffectSuite {
   test("Establishing a graph for a given graph id updates list of graphs maintained by Raphtory service") {
     val service = raphtoryService()
     assertIO(
-            service.establishGraph(graphInfo) >>
-              service.connectToGraph(GraphInfo(graphId)),
+            service.establishGraph(graphInfo) *>
+              service.connectToGraph(GraphInfo("anotherClient", graphId)),
             Empty()
     )
   }

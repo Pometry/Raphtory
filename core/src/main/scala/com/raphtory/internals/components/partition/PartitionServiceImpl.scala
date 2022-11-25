@@ -99,7 +99,8 @@ abstract class PartitionServiceImpl[F[_]](
   override def establishPerspective(req: PerspectiveCommand): F[NodeCount] =
     forwardToExecutor(req.graphId, req.jobId, _.establishPerspective(req.perspective))
 
-  override def setMetadata(req: NodeCount): F[Empty] = forwardToExecutor(req.graphId, req.jobId, _.setMetada(req.count))
+  override def setMetadata(req: NodeCount): F[Empty] =
+    forwardToExecutor(req.graphId, req.jobId, _.setMetadata(req.count))
 
   override def executeOperation(req: Operation): F[OperationResult] =
     forwardToExecutor(req.graphId, req.jobId, _.executeOperation(req.number))
