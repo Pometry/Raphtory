@@ -8,3 +8,6 @@ jobs:
   call-test-scala-python-workflow-in-local-repo:
     uses: ./.github/workflows/test_scala_python_workflow.yml
     secrets: inherit
+  publish-builds-to-github:
+    uses: ./.github/workflows/publish_builds.yml
+    secrets: inherit
