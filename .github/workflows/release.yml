@@ -5,11 +5,11 @@ on:
       - 'v*'
 
 jobs:
-  test-scala-python-workflow:
-    uses: ./.github/workflows/test_scala_python_workflow.yml
-    secrets: inherit
+#  test-scala-python-workflow:
+#    uses: ./.github/workflows/test_scala_python_workflow.yml
+#    secrets: inherit
   publish-builds-to-github:
-    needs: test-scala-python-workflow
+#    needs: test-scala-python-workflow
     uses: ./.github/workflows/publish_builds.yml
     with:
       branch: ${GITHUB_REF##*/}
