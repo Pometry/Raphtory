@@ -117,7 +117,6 @@ final private[raphtory] case class PojoGraphLens(
     dataTable = vertexIterator.flatMap { vertex =>
       f.asInstanceOf[PojoVertexBase => RowImplementation](vertex).yieldAndRelease
     }
-    println(s"table = ${dataTable.toList}")
     onComplete()
   }
 

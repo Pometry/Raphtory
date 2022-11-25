@@ -143,30 +143,31 @@ class QueryExecutorF[F[_]](
     def processIterate(f: Vertex => Unit, executeMessagedOnly: Boolean) =
       F.blocking(if (executeMessagedOnly) lens.runMessagedGraphFunction(f)(cb) else lens.runGraphFunction(f)(cb))
 
-    def processNonIterate =
+    def processNonMessaging =
       F.blocking(
               function match {
-                case MultilayerView(interlayerEdgeBuilder)                         => lens.explodeView(interlayerEdgeBuilder)(cb)
-                case Step(f: (Vertex => Unit) @unchecked)                          => lens.runGraphFunction(f)(cb)
-                case UndirectedView()                                              => lens.viewUndirected()(cb)
-                case DirectedView()                                                => lens.viewDirected()(cb)
-                case ReversedView()                                                => lens.viewReversed()(cb)
-                case ClearChain()                                                  => lens.clearMessages(); cb()
-                case op: Select[Vertex] @unchecked                                 => lens.executeSelect(op.f)(cb)
-                case op: ExplodeSelect[Vertex] @unchecked                          => lens.explodeSelect(op.f)(cb)
-                case ReduceView(defaultMergeStrategy, mergeStrategyMap, aggregate) =>
-                  lens.reduceView(defaultMergeStrategy, mergeStrategyMap, aggregate)(cb)
-                case x                                                             => throw new Exception(s"$x not handled")
+                case MultilayerView(interlayerEdgeBuilder) => lens.explodeView(interlayerEdgeBuilder)(cb)
+                case Step(f: (Vertex => Unit) @unchecked)  => lens.runGraphFunction(f)(cb)
+                case UndirectedView()                      => lens.viewUndirected()(cb)
+                case DirectedView()                        => lens.viewDirected()(cb)
+                case ReversedView()                        => lens.viewReversed()(cb)
+                case ClearChain()                          => lens.clearMessages(); cb()
+                case op: Select[Vertex] @unchecked         => lens.executeSelect(op.f)(cb)
+                case op: ExplodeSelect[Vertex] @unchecked  => lens.explodeSelect(op.f)(cb)
+                case rv: ReduceView                        => lens.reduceView(rv.defaultMergeStrategy, rv.mergeStrategyMap, rv.aggregate)(cb)
+                case x                                     => throw new Exception(s"$x not handled")
               }
       )
 
     function match {
-      case Iterate(f: (Vertex => Unit) @unchecked, _, executeMessagedOnly) =>
-        wrapMessagingFunction(processIterate(f, executeMessagedOnly), lens) *> F.delay(
-                OperationResult(voteToContinue = lens.checkVotes())
-        )
-      case _                                                               =>
-        wrapMessagingFunction(processNonIterate, lens) as OperationResult(voteToContinue = true)
+      case Step(f: (Vertex => Unit) @unchecked) =>
+        wrapMessagingFunction(F.blocking(lens.runGraphFunction(f)(cb)), lens) as OperationResult()
+      case it: Iterate[Vertex] @unchecked       =>
+        for {
+          _      <- wrapMessagingFunction(processIterate(it.f, it.executeMessagedOnly), lens)
+          result <- F.blocking(OperationResult(voteToContinue = lens.checkVotes()))
+        } yield result
+      case _                                    => processNonMessaging as OperationResult()
     }
   }
 
@@ -181,24 +182,27 @@ class QueryExecutorF[F[_]](
               else lens.runGraphFunction(f, graphState)(cb)
       )
 
-    def processNonIterate =
+    def processNonMessaging =
       F.blocking(
               function match {
-                case StepWithGraph(f)                               => lens.runGraphFunction(f, graphState)(cb)
                 case SelectWithGraph(f)                             => lens.executeSelect(f, graphState)(cb)
                 case esf: ExplodeSelectWithGraph[Vertex] @unchecked => lens.explodeSelect(esf.f, graphState)(cb)
                 case GlobalSelect(f)                                => if (partitionID == 0) lens.executeSelect(f, graphState)(cb) else cb()
-                case x                                              => throw new Exception(s"$x not handled")
               }
       )
 
     function match {
-      case IterateWithGraph(f: ((Vertex, GraphState) => Unit) @unchecked, _, executeMessagedOnly) =>
-        wrapMessagingFunction(processIterate(f, executeMessagedOnly), lens) *> F.blocking(
-                OperationWithStateResult(lens.checkVotes(), graphState)
-        )
-      case _                                                                                      =>
-        wrapMessagingFunction(processNonIterate, lens) as OperationWithStateResult(voteToContinue = true, graphState)
+      case StepWithGraph(f)                        =>
+        for {
+          _ <- wrapMessagingFunction(F.blocking(lens.runGraphFunction(f, graphState)(cb)), lens)
+        } yield OperationWithStateResult(voteToContinue = true, graphState)
+      case it: IterateWithGraph[Vertex] @unchecked =>
+        for {
+          _      <- wrapMessagingFunction(processIterate(it.f, it.executeMessagedOnly), lens)
+          result <- F.blocking(OperationWithStateResult(lens.checkVotes(), graphState))
+        } yield result
+      case _                                       =>
+        processNonMessaging as OperationWithStateResult(voteToContinue = true, graphState)
     }
   }
 
@@ -245,24 +249,6 @@ class QueryExecutorF[F[_]](
     } yield ()
 
   private def clearBuffer = F.delay(messageBuffer.clear())
-
-//  private def unsafeSendMessage(message: GenericVertexMessage[_]): Unit = {
-//    if (message == null) println("adding null message !!!!!!!!!!!!!!!!")
-//    messageBuffer.addOne(message)
-//
-//    if (messageBuffer.size >= 1024) {
-//      println(s"entering sync block for $partitionID")
-//      messageBuffer.synchronized { // This is being called in parallel. There might be a point where it isn't anymore
-//        println(s"inside sync block $partitionID")
-//        if (messageBuffer.size >= 1024) {
-//          println(s"about to send chunk in $partitionID")
-//          dispatcher.unsafeRunSync(graphLens.get.map(lens => sendMessages(lens.get)))
-//          messageBuffer.clear()
-//        }
-//        println(s"getting out of syn block for $partitionID")
-//      }
-//    }
-//  }
 
   private def unsafeSendMessage(message: GenericVertexMessage[_]): Unit =
     // println(s"entering sync block for $partitionID")
