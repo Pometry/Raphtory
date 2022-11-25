@@ -1,8 +1,8 @@
 name: Publish a new Release
 on:
   push:
-      tags:
-        - 'v*'
+    tags:
+      - 'v*'
 
 jobs:
   call-test-scala-python-workflow-in-local-repo:
@@ -10,4 +10,6 @@ jobs:
     secrets: inherit
   publish-builds-to-github:
     uses: ./.github/workflows/publish_builds.yml
+    with:
+      branch: ${GITHUB_REF##*/}
     secrets: inherit

@@ -40,7 +40,7 @@ jobs:
           echo "core / Compile / logLevel := Level.Error" >> build.sbt
           echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
           make gh-sbt-build
-      - name: Seting up Python ${{ matrix.python-version }}
+      - name: Setting up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
@@ -58,11 +58,6 @@ jobs:
           echo "core / Compile / logLevel := Level.Error" >> build.sbt
           echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
           sbt clean && sbt assembly
-      - name: Get latest tag
-        id: bumped-tag
-        uses: actions-ecosystem/action-get-latest-tag@v1
-        with:
-          semver_only: true
       # Get artifacts
       - name: Copy Jar & Python artifacts to folder
         run: | 
@@ -74,8 +69,7 @@ jobs:
       - name: Create release and upload artifacts
         uses: ncipollo/release-action@v1
         with:
-          tag: ${{ steps.bumped-tag.outputs.tag }}
+          tag: ${{ inputs.branch }}
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
           artifacts: ./artifacts/
-          body: ${{ steps.bumped-tag.outputs.message }}
