@@ -71,6 +71,9 @@ jobs:
           export RAPHTORY_CORE_LOG="ERROR"
           sbt "arrowCore/test"
           sbt "core/test"
+          sbt "connectorsAWS/test"
+          sbt "connectorsTwitter/test"
+          sbt "connectorsTypeDB/test"
         timeout-minutes: 10
 
 #  build:
