@@ -34,6 +34,7 @@ release = '0.1.0'
 extensions = [
     'extractScalaAlgoDocs',
     'sphinx.ext.autodoc',
+    'processWrapperDocs',
     'myst_parser',
     'sphinx_tabs.tabs',
     "nbsphinx"
@@ -42,7 +43,8 @@ extensions = [
 autodoc_default_options = {
     'members': True,
     'undoc-members': True,
-    'inherited-members': True
+    'inherited-members': True,
+    "show-inheritance": True,
 }
 
 # Extension options

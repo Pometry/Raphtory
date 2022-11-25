@@ -550,6 +550,12 @@ class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
         else:
             return None
 
+    def __subclasscheck__(self, subclass):
+        try:
+            super().__subclasscheck__(subclass)
+        except Exception as e:
+            return NotImplemented
+
     def _from_jvm(cls, jvm_object):
         if cls._base_initialised:
             return cls
