@@ -93,6 +93,7 @@ public class AlphaBayLoader {
         else {
             loader.load("D:/home/jatinder/Pometry/public/Raphtory/alphabay_sorted.csv.gz");
             rap.getVertexMgr().saveFiles();
+            rap.getEdgeMgr().saveFiles();
         }
 
         loader.degreeAlgoMT();
