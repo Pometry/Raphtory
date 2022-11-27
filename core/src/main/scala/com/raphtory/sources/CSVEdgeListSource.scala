@@ -3,7 +3,7 @@ package com.raphtory.sources
 import com.raphtory.api.input.Graph.assignID
 import com.raphtory.api.input.Graph
 import com.raphtory.api.input.GraphBuilder
-import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.ImmutableString
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
@@ -71,8 +71,8 @@ class CSVEdgeListSource(
         throw new RuntimeException(s"Target does not conform to what was seen in first line of data in tuple: $tuple")
     }
 
-    graph.addVertex(timestamp, src, Properties(ImmutableProperty("name", source)))
-    graph.addVertex(timestamp, dst, Properties(ImmutableProperty("name", target)))
+    graph.addVertex(timestamp, src, Properties(ImmutableString("name", source)))
+    graph.addVertex(timestamp, dst, Properties(ImmutableString("name", target)))
     graph.addEdge(timestamp, src, dst)
   }
 

@@ -1,5 +1,5 @@
 from pyraphtory.interop import register, logger, to_jvm, find_class, ScalaProxyBase, GenericScalaProxy, ScalaClassProxy
-from pyraphtory.input import Properties,ImmutableProperty,Type
+from pyraphtory.input import Properties,ImmutableString,Type
 from pyraphtory.scala.implicits.bounded import Bounded
 import pandas as pd
 import json
@@ -61,7 +61,7 @@ class TemporalGraph(GenericScalaProxy):
         if isinstance(src_id, str):
             if properties is None:
                 properties = []
-            properties += ImmutableProperty("name", src_id), #comma makes this a tuple and is apparently the fastest way to do things
+            properties += ImmutableString("name", src_id), #comma makes this a tuple and is apparently the fastest way to do things
             super().add_vertex(update_time,self.assign_id(src_id),Properties(*properties),Type(vertex_type),secondary_index)
         else:
             if properties is None:

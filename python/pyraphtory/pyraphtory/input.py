@@ -6,23 +6,23 @@ class GraphBuilder(ScalaClassProxy):
 class Type(ScalaClassProxy):
     _classname = "com.raphtory.api.input.Type"
 
-class StringProperty(ScalaClassProxy):
-    _classname = "com.raphtory.api.input.StringProperty"
+class ImmutableString(ScalaClassProxy):
+    _classname = "com.raphtory.api.input.ImmutableString"
 
-class ImmutableProperty(ScalaClassProxy):
-    _classname = "com.raphtory.api.input.ImmutableProperty"
+class MutableString(ScalaClassProxy):
+    _classname = "com.raphtory.api.input.MutableString"
 
-class LongProperty(ScalaClassProxy):
-    _classname = "com.raphtory.api.input.LongProperty"
+class MutableLong(ScalaClassProxy):
+    _classname = "com.raphtory.api.input.MutableLong"
 
-class DoubleProperty(ScalaClassProxy):
-    _classname = "com.raphtory.api.input.DoubleProperty"
+class MutableDouble(ScalaClassProxy):
+    _classname = "com.raphtory.api.input.MutableDouble"
 
-class FloatProperty(ScalaClassProxy):
-    _classname = "com.raphtory.api.input.FloatProperty"
+class MutableFloat(ScalaClassProxy):
+    _classname = "com.raphtory.api.input.MutableFloat"
 
-class BooleanProperty(ScalaClassProxy):
-    _classname = "com.raphtory.api.input.BooleanProperty"
+class MutableBoolean(ScalaClassProxy):
+    _classname = "com.raphtory.api.input.MutableBoolean"
 
 class Properties(ScalaClassProxy):
     _classname = "com.raphtory.api.input.Properties"

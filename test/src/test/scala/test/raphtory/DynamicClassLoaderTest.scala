@@ -54,13 +54,13 @@ object Parent {
             graph.addVertex(
                     timeStamp,
                     srcID,
-                    Properties(ImmutableProperty("name", sourceNode)),
+                    Properties(ImmutableString("name", sourceNode)),
                     Type("Character")
             )
             graph.addVertex(
                     timeStamp,
                     tarID,
-                    Properties(ImmutableProperty("name", targetNode)),
+                    Properties(ImmutableString("name", targetNode)),
                     Type("Character")
             )
             graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurence"))

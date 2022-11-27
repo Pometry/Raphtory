@@ -165,7 +165,7 @@ abstract class EntityVisitor {
     * The exact behaviour depends on the type of the property:
     *
     * In case of a
-    * [[com.raphtory.api.input.ImmutableProperty]], the history
+    * [[com.raphtory.api.input.ImmutableString]], the history
     * depends only on the creation time of the property. If the property was created within the current view, the
     * history contains a single tuple with the value of the property and the timestamp given by the creation time
     * of the property. If the property creation time is before the start of the current view, the history contains
@@ -247,8 +247,8 @@ abstract class EntityVisitor {
     */
   def appendToState[T: ClassTag](key: String, value: T): Unit
 
-  /** Remove an entry in the entity's algorithmic state.  */
-  def clearState(key:String): Unit
+  /** Remove an entry in the entity's algorithmic state. */
+  def clearState(key: String): Unit
 
   def history(): List[HistoricEvent]
 

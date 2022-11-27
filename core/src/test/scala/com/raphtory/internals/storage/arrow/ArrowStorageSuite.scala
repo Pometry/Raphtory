@@ -2,8 +2,11 @@ package com.raphtory.internals.storage.arrow
 
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.api.input._
-import com.raphtory.arrowcore.implementation.{LocalEntityIdStore, RaphtoryArrowPartition, VertexIterator}
-import com.raphtory.arrowcore.model.{PropertySchema, Vertex}
+import com.raphtory.arrowcore.implementation.LocalEntityIdStore
+import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
+import com.raphtory.arrowcore.implementation.VertexIterator
+import com.raphtory.arrowcore.model.PropertySchema
+import com.raphtory.arrowcore.model.Vertex
 import com.raphtory.internals.graph.GraphAlteration.SyncNewEdgeAdd
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 
@@ -228,13 +231,13 @@ class ArrowStorageSuite extends munit.FunSuite {
             3,
             timestamp,
             Some(Type("Person")),
-            LongProperty("pLong", now),
-            DoubleProperty("pDouble", 1.234d),
-            FloatProperty("pFloat", 4.321f),
-            BooleanProperty("pBool", value = true),
-            StringProperty("pString", "blerg"),
-            IntegerProperty("pInt", 12345789),
-            ImmutableProperty("name", "Bob")
+            MutableLong("pLong", now),
+            MutableDouble("pDouble", 1.234d),
+            MutableFloat("pFloat", 4.321f),
+            MutableBoolean("pBool", value = true),
+            MutableString("pString", "blerg"),
+            MutableInteger("pInt", 12345789),
+            ImmutableString("name", "Bob")
     )(par)
 
     val actual = par.vertices.head
@@ -254,7 +257,7 @@ class ArrowStorageSuite extends munit.FunSuite {
             3,
             timestamp + 1,
             None,
-            LongProperty("pLong", now + 1)
+            MutableLong("pLong", now + 1)
     )(par)
 
     val actual2 = par.vertices.head
@@ -267,9 +270,9 @@ class ArrowStorageSuite extends munit.FunSuite {
     val timestamp           = System.currentTimeMillis()
 
     // add bob
-    addVertex(3, timestamp, None, ImmutableProperty("name", "Bob"))(par)
+    addVertex(3, timestamp, None, ImmutableString("name", "Bob"))(par)
     // add alice
-    addVertex(7, timestamp, None, ImmutableProperty("name", "Alice"))(par)
+    addVertex(7, timestamp, None, ImmutableString("name", "Alice"))(par)
 
     val vs = par.vertices
     assertEquals(vs.size, 2)
@@ -286,7 +289,7 @@ class ArrowStorageSuite extends munit.FunSuite {
     val timestamp           = System.currentTimeMillis()
 
     // add bob at t1
-    val property = ImmutableProperty("name", "Bob")
+    val property = ImmutableString("name", "Bob")
     addVertex(3, timestamp, None, property)(par)
     // add bob at t3
     addVertex(3, timestamp + 2, None, property)(par)
@@ -320,9 +323,9 @@ class ArrowStorageSuite extends munit.FunSuite {
     val t2                  = t1 + 1
 
     // add bob
-    addVertex(3, t1, None, ImmutableProperty("name", "Bob"))(par)
+    addVertex(3, t1, None, ImmutableString("name", "Bob"))(par)
     // add alice
-    addVertex(7, t2, None, ImmutableProperty("name", "Alice"))(par)
+    addVertex(7, t2, None, ImmutableString("name", "Alice"))(par)
 
     val vs  = par.vertices
     assertEquals(vs.size, 2)
@@ -341,9 +344,9 @@ class ArrowStorageSuite extends munit.FunSuite {
     val timestamp           = System.currentTimeMillis()
 
     // add bob
-    addVertex(3, timestamp, None, ImmutableProperty("name", "Bob"))(par)
+    addVertex(3, timestamp, None, ImmutableString("name", "Bob"))(par)
     // add alice
-    addVertex(7, timestamp, None, ImmutableProperty("name", "Alice"))(par)
+    addVertex(7, timestamp, None, ImmutableString("name", "Alice"))(par)
     // add edge
     val action = par.addEdge(
             3,
@@ -352,8 +355,8 @@ class ArrowStorageSuite extends munit.FunSuite {
             3,
             7,
             Properties(
-                    ImmutableProperty("name", "friends"),
-                    LongProperty("weight", 7)
+                    ImmutableString("name", "friends"),
+                    MutableLong("weight", 7)
             ),
             None
     )
@@ -383,8 +386,8 @@ class ArrowStorageSuite extends munit.FunSuite {
             3,
             7,
             Properties(
-                    ImmutableProperty("name", "friends"),
-                    LongProperty("weight", 9)
+                    ImmutableString("name", "friends"),
+                    MutableLong("weight", 9)
             ),
             None
     )
@@ -400,9 +403,9 @@ class ArrowStorageSuite extends munit.FunSuite {
     val timestamp           = System.currentTimeMillis()
 
     // add bob
-    addVertex(3, timestamp, None, ImmutableProperty("name", "Bob"))(par)
+    addVertex(3, timestamp, None, ImmutableString("name", "Bob"))(par)
     // add alice
-    addVertex(7, timestamp, None, ImmutableProperty("name", "Alice"))(par)
+    addVertex(7, timestamp, None, ImmutableString("name", "Alice"))(par)
     // add edge
     for (i <- 0 until 3)
       par.addEdge(
@@ -412,8 +415,8 @@ class ArrowStorageSuite extends munit.FunSuite {
               3,
               7,
               Properties(
-                      ImmutableProperty("name", "friends"),
-                      LongProperty("weight", 7)
+                      ImmutableString("name", "friends"),
+                      MutableLong("weight", 7)
               ),
               None
       )
@@ -457,7 +460,7 @@ class ArrowStorageSuite extends munit.FunSuite {
     val timestamp           = System.currentTimeMillis()
 
     // add bob
-    addVertex(3, timestamp, None, ImmutableProperty("name", "Bob"))(par)
+    addVertex(3, timestamp, None, ImmutableString("name", "Bob"))(par)
     // add alice
     addVertex(3, timestamp, None)(par)
     // add edge
@@ -468,8 +471,8 @@ class ArrowStorageSuite extends munit.FunSuite {
             3,
             3,
             Properties(
-                    ImmutableProperty("name", "friends"),
-                    LongProperty("weight", 7)
+                    ImmutableString("name", "friends"),
+                    MutableLong("weight", 7)
             ),
             None
     )
@@ -489,9 +492,9 @@ class ArrowStorageSuite extends munit.FunSuite {
     val timestamp           = System.currentTimeMillis()
 
     // add bob
-    addVertex(3, timestamp, None, ImmutableProperty("name", "Bob"))(par)
+    addVertex(3, timestamp, None, ImmutableString("name", "Bob"))(par)
     // add alice
-    addVertex(7, timestamp, None, ImmutableProperty("name", "Alice"))(par)
+    addVertex(7, timestamp, None, ImmutableString("name", "Alice"))(par)
     // add edge
     val action = par.addEdge(
             3,
@@ -500,7 +503,7 @@ class ArrowStorageSuite extends munit.FunSuite {
             3,
             7,
             Properties(
-                    ImmutableProperty("name", "friends")
+                    ImmutableString("name", "friends")
             ),
             None
     )
@@ -515,9 +518,9 @@ class ArrowStorageSuite extends munit.FunSuite {
     val timestamp            = System.currentTimeMillis()
 
     // add bob
-    addVertex(2, timestamp, None, ImmutableProperty("name", "Bob"))(par1)
+    addVertex(2, timestamp, None, ImmutableString("name", "Bob"))(par1)
     // add alice
-    addVertex(7, timestamp, None, ImmutableProperty("name", "Alice"))(par2)
+    addVertex(7, timestamp, None, ImmutableString("name", "Alice"))(par2)
     // add edge on par1
     val action                                                                        = par1
       .addEdge(
@@ -527,7 +530,7 @@ class ArrowStorageSuite extends munit.FunSuite {
               2,
               7,
               Properties(
-                      ImmutableProperty("name", "friends")
+                      ImmutableString("name", "friends")
               ),
               None
       )

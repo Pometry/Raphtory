@@ -1,9 +1,9 @@
 package com.raphtory.ethereumtest
 
-import com.raphtory.api.input.DoubleProperty
+import com.raphtory.api.input.MutableDouble
 import com.raphtory.api.input.Graph
 import com.raphtory.api.input.Graph.assignID
-import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.ImmutableString
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
 
@@ -24,12 +24,12 @@ object EthereumTxGraphBuilder {
     val value       = fileLine(7).toDouble
 
     val edgeProperties = Properties(
-            ImmutableProperty("txHash", txHash),
-            ImmutableProperty("blockNumber", blockNumber),
-            DoubleProperty("value", value)
+            ImmutableString("txHash", txHash),
+            ImmutableString("blockNumber", blockNumber),
+            MutableDouble("value", value)
     )
-    graph.addVertex(timeStamp, srcID, Properties(ImmutableProperty("address", sourceNode)), Type("node"))
-    graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("address", sourceNode)), Type("node"))
+    graph.addVertex(timeStamp, srcID, Properties(ImmutableString("address", sourceNode)), Type("node"))
+    graph.addVertex(timeStamp, tarID, Properties(ImmutableString("address", sourceNode)), Type("node"))
     graph.addEdge(timeStamp, srcID, tarID, edgeProperties, Type("transaction"))
   }
 
@@ -47,12 +47,12 @@ object EthereumTxGraphBuilder {
     val value       = tx.value
 
     val edgeProperties = Properties(
-            ImmutableProperty("txHash", txHash),
-            ImmutableProperty("blockNumber", blockNumber),
-            DoubleProperty("value", value)
+            ImmutableString("txHash", txHash),
+            ImmutableString("blockNumber", blockNumber),
+            MutableDouble("value", value)
     )
-    graph.addVertex(timeStamp, srcID, Properties(ImmutableProperty("address", sourceNode)), Type("node"))
-    graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("address", sourceNode)), Type("node"))
+    graph.addVertex(timeStamp, srcID, Properties(ImmutableString("address", sourceNode)), Type("node"))
+    graph.addVertex(timeStamp, tarID, Properties(ImmutableString("address", sourceNode)), Type("node"))
     graph.addEdge(timeStamp, srcID, tarID, edgeProperties, Type("transaction"))
   }
 }

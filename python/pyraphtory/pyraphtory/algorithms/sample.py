@@ -19,14 +19,12 @@ if __name__ == "__main__":
     def parse(graph, tuple: str):
         parts = [v.strip() for v in tuple.split(",")]
         source_node = parts[0]
-        src_id = graph.assign_id(source_node)
         target_node = parts[1]
-        tar_id = graph.assign_id(target_node)
         time_stamp = int(parts[2])
 
-        graph.add_vertex(time_stamp, src_id, Properties(ImmutableProperty("name", source_node)), Type("Character"))
-        graph.add_vertex(time_stamp, tar_id, Properties(ImmutableProperty("name", target_node)), Type("Character"))
-        graph.add_edge(time_stamp, src_id, tar_id, Type("Character_Co-occurence"))
+        graph.add_vertex(time_stamp, source_node, type ="Character")
+        graph.add_vertex(time_stamp, target_node, type ="Character")
+        graph.add_edge(time_stamp, source_node, target_node, type ="Character_Co-occurence")
 
 
     with PyRaphtory.local() as ctx:

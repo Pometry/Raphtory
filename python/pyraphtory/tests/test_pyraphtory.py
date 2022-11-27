@@ -78,11 +78,11 @@ class PyRaphtoryTest(unittest.TestCase):
     def test_check_vertex_properties_with_history(self):
         graph = self.ctx.new_graph()
         graph.add_vertex(1, 1, Properties(
-            ImmutableProperty("name", "TEST"),
-            StringProperty("strProp", "TESTstr"),
+            ImmutableString("name", "TEST"),
+            MutableString("strProp", "TESTstr"),
         ))
         graph.add_vertex(2, 1, Properties(
-            StringProperty("strProp", "TESTstr2"),
+            MutableString("strProp", "TESTstr2"),
         ))
         df = graph.at(1).past().select(lambda v: pyraphtory.graph.Row(v.name(),
                                                                       v.get_property_or_else('strProp', '')))\
