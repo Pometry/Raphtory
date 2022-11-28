@@ -24,14 +24,14 @@ jobs:
       image: ${{ matrix.containers }}
     steps:
       # Checkout the code
-      - name: Branch name REF
-        run: echo running on branch ${GITHUB_REF##*/}
-      - name: Branch name inputs
-        run: echo running on inputs branchcd  ${{ inputs.branch }}
+      - name: Print Branch input name
+        run: echo running on inputs branch ${{ inputs.branch }}
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          ref: ${GITHUB_REF##*/}
+          fetch-depth: 0
+      - name: Checkout version trigger
+        run: git checkout ${{ inputs.branch }}
       # Install SBT
       - name: Get sbt package
         run: apt-get update && apt-get install unzip && curl -L "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.zip" -o sbt-1.5.5.zip && unzip sbt-1.5.5.zip
