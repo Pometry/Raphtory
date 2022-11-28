@@ -71,4 +71,4 @@ jobs:
           tag:  ${{ github.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
-          artifacts: ./artifacts/
+          artifacts: "./artifacts/*.*"
