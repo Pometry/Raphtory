@@ -68,7 +68,7 @@ jobs:
       - name: Create release and upload artifacts
         uses: ncipollo/release-action@v1
         with:
-          tag:  ${GITHUB_REF##*/}
+          tag:  ${{ github.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
           artifacts: ./artifacts/
