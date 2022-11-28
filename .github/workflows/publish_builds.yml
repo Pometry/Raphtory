@@ -56,7 +56,7 @@ jobs:
           export PATH=$(pwd)/sbt/bin:$PATH
           echo "core / Compile / logLevel := Level.Error" >> build.sbt
           echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
-          sbt clean && sbt assembly
+          sbt clean && sbt core/assembly && sbt arrowCore/assembly && sbt arrowMessaging/assembly
       # Get artifacts
       - name: Copy Jar & Python artifacts to folder
         run: | 
@@ -69,6 +69,7 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag:  ${{ github.ref }}
+          name: ${GITHUB_REF##*/}
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
           artifacts: "./artifacts/*.*"
