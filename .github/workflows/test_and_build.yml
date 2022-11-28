@@ -55,6 +55,14 @@ jobs:
         run: /usr/local/bin/$(ls /usr/local/bin|grep apache-zookeeper|grep -v "tar.gz"|sort|tail -1)/bin/zkServer.sh start &
       - name: Get sbt package
         run: apt-get update && apt-get install unzip && curl -L "https://github.com/sbt/sbt/releases/download/v${{ matrix.sbt }}/sbt-${{ matrix.sbt }}.zip" -o sbt-${{ matrix.sbt }}.zip && unzip sbt-${{ matrix.sbt }}.zip
+      - name: Run SBT tests
+        run: |
+          export JAVA_OPTS="-Xms4g -Xmx4g -XX:+UseG1GC"
+          export PATH=$(pwd)/sbt/bin:$PATH
+          export RAPHTORY_CORE_LOG="ERROR"
+          sbt "arrowCore/test"
+          sbt "core/test"
+        timeout-minutes: 10
       - name: Build Raphtory Jars
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH
@@ -78,20 +86,15 @@ jobs:
         run: cd python/pyraphtory && poetry build && poetry install
       - name: Run pyraphtory tests
         run: cd python/pyraphtory && poetry run pytest -n=auto
+        timeout-minutes: 10
       - name: Run notebook tests
         run: cd examples && pytest --nbmake -n=auto
+        timeout-minutes: 10
       - name: Run doc compile check
         run: | 
           export PATH=$(pwd)/sbt/bin:$PATH
           apt update && apt install -y pandoc 
           cd docs && python -m pip install -r requirements.txt && apt-get update && apt-get -y install python3-sphinx && make html
-      - name: Run SBT tests
-        run: |
-          export PATH=$(pwd)/sbt/bin:$PATH
-          export RAPHTORY_CORE_LOG="ERROR"
-          sbt "arrowCore/test"
-          sbt "core/test"
-        timeout-minutes: 10
     if: needs.configure.outputs.type == 'regular'
 
 #  build:

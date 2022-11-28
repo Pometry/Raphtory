@@ -24,7 +24,6 @@ class RaphtoryGraphTest extends FunSuite {
           extends QuerySender(
                   graphID = "",
                   service = null,
-                  topics = null,
                   config = config,
                   clientID = ""
           ) {
@@ -53,16 +52,14 @@ class RaphtoryGraphTest extends FunSuite {
     assertEquals(query.points.asInstanceOf[PointPath].increment, DiscreteInterval(100))
     assertEquals(query.windows, List(DiscreteInterval(50)))
 
-    assertEquals(query.graphFunctions.length, 6)
-    assert(query.graphFunctions(0).isInstanceOf[Step[Vertex]])
-    assert(query.graphFunctions(1).isInstanceOf[Step[Vertex]])
-    assert(query.graphFunctions(2).isInstanceOf[Step[Vertex]])
-    assert(query.graphFunctions(3).isInstanceOf[Iterate[Vertex]])
-    assert(query.graphFunctions(4).isInstanceOf[ClearChain])
-    assert(query.graphFunctions(5).isInstanceOf[Select[Vertex]])
-
-    assertEquals(query.tableFunctions.length, 1)
-    assert(query.tableFunctions.head.isInstanceOf[TableFilter])
+    assertEquals(query.operations.length, 7)
+    assert(query.operations(0).isInstanceOf[Step[_]])
+    assert(query.operations(1).isInstanceOf[Step[_]])
+    assert(query.operations(2).isInstanceOf[Step[_]])
+    assert(query.operations(3).isInstanceOf[Iterate[_]])
+    assert(query.operations(4).isInstanceOf[ClearChain])
+    assert(query.operations(5).isInstanceOf[Select[_]])
+    assert(query.operations(6).isInstanceOf[TableFilter])
   }
 
   test("Test timestamp format without milliseconds") {

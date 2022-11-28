@@ -61,27 +61,27 @@ class Queries extends CatsEffectSuite {
       .execute(ConnectedComponents)
       .writeTo(output)
     // [walk-window]
-
-    // [direct-style]
-    graph
-      .slice("2020-01-01", "2021-01-01")
-      .walk("1 day")
-      .window("1 day")
-      .vertexFilter(vertex => vertex.outDegree > 10)
-      .step(vertex => vertex.messageOutNeighbours(vertex.name()))
-      .select(vertex => Row(vertex.messageQueue))
-      .writeTo(FileSink(pathToYourFile))
-    // [direct-style]
-
-    // [mixed-style]
-    graph
-      .slice("2020-01-01", "2021-01-01")
-      .walk("1 day")
-      .window("1 day")
-      .vertexFilter(vertex => vertex.outDegree > 10)
-      .execute(ConnectedComponents)
-      .writeTo(FileSink(pathToYourFile))
-  // [mixed-style]
+//
+//    // [direct-style]
+//    graph
+//      .slice("2020-01-01", "2021-01-01")
+//      .walk("1 day")
+//      .window("1 day")
+//      .vertexFilter(vertex => vertex.outDegree > 10)
+//      .step(vertex => vertex.messageOutNeighbours(vertex.name()))
+//      .select(vertex => Row(vertex.messageQueue))
+//      .writeTo(FileSink(pathToYourFile))
+//    // [direct-style]
+//
+//    // [mixed-style]
+//    graph
+//      .slice("2020-01-01", "2021-01-01")
+//      .walk("1 day")
+//      .window("1 day")
+//      .vertexFilter(vertex => vertex.outDegree > 10)
+//      .execute(ConnectedComponents)
+//      .writeTo(FileSink(pathToYourFile))
+//  // [mixed-style]
 
   }
 }

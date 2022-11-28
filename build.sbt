@@ -162,7 +162,8 @@ lazy val core = (project in file("core"))
                   shapeless,
                   curatorDiscovery,
                   scalaDocReader,
-                  "junit" % "junit" % "4.13.2" % Test
+                  junit,
+                  mockitoScala
           ),
           libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) },
           // Needed to expand the @service macro annotation

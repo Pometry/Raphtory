@@ -2,7 +2,6 @@ package com.raphtory.api.progresstracker
 
 import com.raphtory.api.analysis.table._
 import com.raphtory.api.time.Perspective
-import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.output._
 import com.raphtory.internals.components.querymanager._
 import com.typesafe.config.Config
@@ -19,7 +18,6 @@ import scala.concurrent.duration.Duration
 class QueryProgressTrackerWithIterator(
     graphID: String,
     jobID: String,
-    topics: TopicRepository,
     conf: Config,
     timeout: Duration
 ) extends QueryProgressTracker(graphID, jobID, conf) {
@@ -28,39 +26,19 @@ class QueryProgressTrackerWithIterator(
   private var outputDone: Boolean             = false
   private var jobsDone                        = 0
   private var nextResult: Option[TableOutput] = None
-  private val resultsInProgress               = mutable.Map.empty[Perspective, ArrayBuffer[Row]]
-  private val perspectiveDoneCounts           = mutable.Map.empty[Perspective, Int]
   private val completedResults                = new LinkedBlockingQueue[Any]
 
   override def handleMessage(msg: QueryManagement): Unit =
     msg match {
-      case _: JobFailed =>
+      case JobFailed(_) | JobDone =>
         completedResults.add(msg)
         super.handleMessage(msg)
-      case _            => super.handleMessage(msg)
+      case _                      => super.handleMessage(msg)
     }
 
-  def handleOutputMessage(msg: OutputMessages): Unit = {
-    logger.debug(s"received message $msg")
-    msg match {
-      case RowOutput(perspective, row)                  =>
-        resultsInProgress.getOrElseUpdate(perspective, ArrayBuffer.empty[Row]).append(row)
-      case EndPerspective(perspective, totalPartitions) =>
-        perspectiveDoneCounts(perspective) = perspectiveDoneCounts.getOrElse(perspective, 0) + 1
-        if (perspectiveDoneCounts(perspective) == totalPartitions) {
-          perspectiveDoneCounts.remove(perspective)
-          resultsInProgress.remove(perspective).map(_.toArray) match {
-            case Some(rows) =>
-              completedResults.add(TableOutput(getJobId, perspective, rows, conf, topics))
-            case None       =>
-              completedResults.add(TableOutput(getJobId, perspective, Array.empty, conf, topics))
-          }
-        }
-      case EndOutput(totalPartitions)                   =>
-        jobsDone += 1
-        if (jobsDone == totalPartitions)
-          completedResults.add(EndOutput)
-    }
+  def handleOutputMessage(result: PerspectiveResult): Unit = {
+    logger.debug(s"received message $result")
+    completedResults.add(TableOutput(getJobId, result.perspective, result.rows, conf))
   }
 
   override def isJobDone: Boolean = outputDone
@@ -91,7 +69,7 @@ class QueryProgressTrackerWithIterator(
             res match {
               case JobFailed(error) =>
                 throw new JobFailedException(jobID, error)
-              case EndOutput        =>
+              case JobDone          =>
                 outputDone = true
                 logger.debug("hasNext false as output complete after waiting for result")
                 false
@@ -128,9 +106,8 @@ object QueryProgressTrackerWithIterator {
   def apply(
       graphID: String,
       jobID: String,
-      topics: TopicRepository,
       conf: Config,
       timeout: Duration
   ): QueryProgressTrackerWithIterator =
-    new QueryProgressTrackerWithIterator(graphID, jobID, topics, conf, timeout)
+    new QueryProgressTrackerWithIterator(graphID, jobID, conf, timeout)
 }

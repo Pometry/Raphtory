@@ -2,13 +2,13 @@ package com.raphtory.internals.components
 
 import cats.effect.IO
 import com.raphtory._
-import com.raphtory.protocol.GetGraph
-import com.raphtory.protocol.GraphInfo
-import com.raphtory.protocol.RaphtoryService
-import com.raphtory.protocol.Status
+import com.raphtory.protocol._
 import munit.CatsEffectSuite
+import com.google.protobuf.empty.Empty
 
 class RaphtoryServiceTestSuite extends CatsEffectSuite {
+
+  case object GraphAlreadyPresent
 
   val f: Fixture[RaphtoryService[IO]] = ResourceSuiteLocalFixture(
           "standalone",
@@ -32,20 +32,16 @@ class RaphtoryServiceTestSuite extends CatsEffectSuite {
   test("Validate that a graph doesn't exists with a given graphId if the graph is not established already") {
     val standalone = f()
     val graphId    = createName
-    standalone.getGraph(GetGraph(graphId)).map(res => assertEquals(res, Status()))
+    assertIO(standalone.connectToGraph(GraphInfo(graphId)).handleError(_ => GraphAlreadyPresent), GraphAlreadyPresent)
   }
 
   test("Validate that a graph exists with a given graphId if the graph is established already") {
     val standalone = f()
     val clientId   = createName
     val graphId    = createName
-    standalone
-      .establishGraph(GraphInfo(clientId, graphId))
-      .flatMap { status =>
-        if (status.success) standalone.getGraph(GetGraph(graphId)) else IO(Status())
-      }
-      .map { status =>
-        assertEquals(status.success, true)
-      }
+    for {
+      _ <- standalone.establishGraph(GraphInfo(clientId, graphId))
+      _ <- assertIO(standalone.connectToGraph(GraphInfo("anotherClient", graphId)), Empty())
+    } yield ()
   }
 }

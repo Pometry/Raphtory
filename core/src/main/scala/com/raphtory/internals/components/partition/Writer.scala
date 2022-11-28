@@ -1,37 +1,19 @@
 package com.raphtory.internals.components.partition
 
-import cats.Parallel
 import com.raphtory.internals.graph.GraphAlteration._
 import cats.effect.Async
-import cats.effect.Deferred
 import cats.effect.Resource
-import cats.effect.std.Queue
 import cats.effect.std.Semaphore
 import cats.syntax.all._
-import com.raphtory.api.input._
-import com.raphtory.internals.FlushToFlight
-import com.raphtory.internals.communication.EndPoint
-import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.components.Component
-import com.raphtory.internals.components.GrpcServiceDescriptor
-import com.raphtory.internals.components.ServiceDescriptor
-import com.raphtory.internals.components.ServiceRegistry
-import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.Partitioner
-import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.management.telemetry.TelemetryReporter
 import com.raphtory.protocol
-import com.raphtory.protocol.Empty
 import com.raphtory.protocol.PartitionService
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-
-import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-import scala.util.control.NonFatal
 
 private[raphtory] class Writer[F[_]](
     lock: Semaphore[F],
@@ -318,14 +300,13 @@ object Writer {
       graphID: String,
       partitionID: Int,
       storage: GraphPartition,
-      registry: ServiceRegistry[F],
+      partitions: Map[Int, PartitionService[F]],
       conf: Config
   ): Resource[F, Writer[F]] =
     for {
-      _          <- Resource.eval(startupMessage(graphID, partitionID))
-      partitions <- registry.partitions
-      lock       <- Resource.eval(Semaphore[F](1))
-      writer     <- Resource.eval(Async[F].delay(new Writer[F](lock, graphID, partitionID, storage, partitions, conf)))
+      _      <- Resource.eval(startupMessage(graphID, partitionID))
+      lock   <- Resource.eval(Semaphore[F](1))
+      writer <- Resource.eval(Async[F].delay(new Writer[F](lock, graphID, partitionID, storage, partitions, conf)))
     } yield writer
 
   private def startupMessage[F[_]: Async](graphId: String, partitionId: Int) =

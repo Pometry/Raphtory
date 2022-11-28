@@ -91,93 +91,93 @@ abstract class AbstractGraphLens(
       new ArrowExVertex(graphState, storage.getVertex(id))
     }
 
-  override def runGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit = {
+  override def runGraphFunction(f: Vertex => Unit)(onComplete: () => Unit): Unit = {
     vertexCount.set(0)
     val count = vertices.foldLeft(0) { (c, v) => f(v); c + 1 }
     vertexCount.set(count)
-    onComplete
+    onComplete()
   }
 
   override def runGraphFunction(f: (_, GraphState) => Unit, graphState: GraphState)(
-      onComplete: => Unit
+      onComplete: () => Unit
   ): Unit = {
     vertexCount.set(0)
     val count = vertices.foldLeft(0) { (c, v) => f.asInstanceOf[(Vertex, GraphState) => Unit](v, graphState); c + 1 }
     vertexCount.set(count)
-    onComplete
+    onComplete()
   }
 
-  override def runMessagedGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit = {
+  override def runMessagedGraphFunction(f: Vertex => Unit)(onComplete: () => Unit): Unit = {
     vertexCount.set(0)
     val count = vertices.filter(_.hasMessage).foldLeft(0) { (c, v) => f(v); c + 1 }
     vertexCount.set(count)
-    onComplete
+    onComplete()
   }
 
   override def runMessagedGraphFunction(f: (Vertex, GraphState) => Unit, graphState: GraphState)(
-      onComplete: => Unit
+      onComplete: () => Unit
   ): Unit = {
 
     vertexCount.set(0)
     val count = vertices.filter(_.hasMessage).foldLeft(0) { (c, v) => f(v, graphState); c + 1 }
     vertexCount.set(count)
-    onComplete
+    onComplete()
   }
 
-  override def writeDataTable(writer: Row => Unit)(onComplete: => Unit): Unit = {
+  override def writeDataTable(writer: Row => Unit)(onComplete: () => Unit): Unit = {
     dataTable.foreach(writer)
-    onComplete
+    onComplete()
   }
 
-  def explodeTable(f: Row => IterableOnce[Row])(onComplete: => Unit): Unit = {
+  def explodeTable(f: Row => IterableOnce[Row])(onComplete: () => Unit): Unit = {
     //FIXME: this doesn't work -> row.asInstanceOf[RowImplementation].explode(f).toVector
     dataTable = dataTable.flatMap(f)
-    onComplete
+    onComplete()
   }
 
-  override def executeSelect(f: GraphState => Row, graphState: GraphState)(onComplete: => Unit): Unit = {
+  override def executeSelect(f: GraphState => Row, graphState: GraphState)(onComplete: () => Unit): Unit = {
     if (partitionID == 0)
       dataTable = View
         .fromIteratorProvider(() => Iterator.fill(1)(f(graphState).asInstanceOf[RowImplementation]))
         .flatMap(_.yieldAndRelease)
-    onComplete
+    onComplete()
   }
 
-  override def filteredTable(f: Row => Boolean)(onComplete: => Unit): Unit = {
+  override def filteredTable(f: Row => Boolean)(onComplete: () => Unit): Unit = {
     dataTable = dataTable.filter(f)
-    onComplete
+    onComplete()
   }
 
-  override def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: => Unit): Unit = {
+  override def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: () => Unit): Unit = {
     dataTable = vertices.flatMap(f).flatMap(row => row.asInstanceOf[RowImplementation].yieldAndRelease)
-    onComplete
+    onComplete()
   }
 
   override def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row], graphState: GraphState)(
-      onComplete: => Unit
+      onComplete: () => Unit
   ): Unit = {
     dataTable =
       vertices.flatMap(v => f(v, graphState)).flatMap(row => row.asInstanceOf[RowImplementation].yieldAndRelease)
-    onComplete
+    onComplete()
   }
 
-  override def executeSelect(f: Vertex => Row)(onComplete: => Unit): Unit =
+  override def executeSelect(f: Vertex => Row)(onComplete: () => Unit): Unit =
     explodeSelect(v => List(f(v)))(onComplete)
 
   override def reduceView(
       defaultMergeStrategy: Option[PropertyMerge[_, _]],
       mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
       aggregate: Boolean
-  )(onComplete: => Unit): Unit = onComplete
+  )(onComplete: () => Unit): Unit = onComplete()
 
-  override def explodeView(interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]])(onComplete: => Unit): Unit =
+  override def explodeView(interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]])(onComplete: () => Unit): Unit =
     ???
 
-  override def executeSelect(f: (_, GraphState) => Row, graphState: GraphState)(onComplete: => Unit): Unit = ???
+  override def executeSelect(f: (_, GraphState) => Row, graphState: GraphState)(onComplete: () => Unit): Unit = ???
 
-  override def viewUndirected()(onComplete: => Unit): Unit = ???
+  override def viewUndirected()(onComplete: () => Unit): Unit = ???
 
-  override def viewDirected()(onComplete: => Unit): Unit = ???
+  override def viewDirected()(onComplete: () => Unit): Unit = ???
 
-  override def viewReversed()(onComplete: => Unit): Unit = ???
+  override def viewReversed()(onComplete: () => Unit): Unit = ???
 }
