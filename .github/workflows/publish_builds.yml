@@ -65,16 +65,11 @@ jobs:
           cp python/pyraphtory_jvm/dist/*.gz artifacts/
           cp python/pyraphtory/dist/*.gz artifacts/
       # Create release and upload the artifacts to release
-      - name: Create release and upload artifacts
-        uses: ncipollo/release-action@v1
+      - name: Publish Release to Github
+        uses: softprops/action-gh-release@v1
         with:
-          tag:  ${{ github.ref }}
+          draft: false
+          prerelease: false
+          files: "./artifacts/*.*"
           name: ${{ github.ref_name }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          allowUpdates: true
-          artifacts: "./artifacts/*.*"
-          artifactErrorsFailBuild: true
-          generateReleaseNotes: true
-          removeArtifacts: true
-          replacesArtifacts: true
-
+          generate_release_notes: true
