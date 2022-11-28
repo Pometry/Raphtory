@@ -60,7 +60,7 @@ private[raphtory] object PerspectiveController {
       lastAvailableTimestamp: Long,
       query: Query
   ): PerspectiveController = {
-    logger.debug(
+    logger.info(
             s"Defining perspective list using: " +
               s"firstAvailableTimestamp='$firstAvailableTimestamp', " +
               s"lastAvailableTimestamp='$lastAvailableTimestamp', " +

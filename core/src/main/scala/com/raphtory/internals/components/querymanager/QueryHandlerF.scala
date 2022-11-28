@@ -59,15 +59,24 @@ class QueryHandlerF[F[_]](
     Async[F].parSequenceN(partitions.size)(partitions.map(function))
 
   private def processAllPerspectives(controller: PerspectiveController): fs2.Stream[F, QueryManagement] = {
-    val firstPerspective = controller.nextPerspective()
-    for {
-      perspective <- fs2.Stream
-                       .iterateEval(firstPerspective)(_ => Async[F].delay(controller.nextPerspective()))
-                       .takeWhile(_.nonEmpty)
-                       .map(_.get)
-      result      <- fs2.Stream.eval(processPerspective(perspective))
-      message     <- fs2.Stream.fromOption(result._1) ++ fs2.Stream(result._2)
-    } yield message
+    fs2.Stream
+      .repeatEval(F.delay(controller.nextPerspective()))
+      .takeWhile(_.isDefined)
+      .collect { case Some(o) => o }
+      .evalMap(processPerspective)
+      .flatMap {
+        case (res1, res2) =>
+          fs2.Stream.fromOption(res1) ++ fs2.Stream(res2)
+      }
+
+//    for {
+//      perspective <- fs2.Stream
+//                       .iterateEval(firstPerspective)(_ => Async[F].delay(controller.nextPerspective()))
+//                       .takeWhile(_.nonEmpty)
+//                       .map(_.get)
+//      result      <- fs2.Stream.eval(processPerspective(perspective))
+//      message     <- fs2.Stream.fromOption(result._1) ++ fs2.Stream(result._2)
+//    } yield message
   }
 
   private def processPerspective(perspective: Perspective): F[(Option[PerspectiveResult], QueryManagement)] = {

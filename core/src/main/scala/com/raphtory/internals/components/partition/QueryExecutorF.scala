@@ -1,17 +1,26 @@
 package com.raphtory.internals.components.partition
 
-import cats.effect.{Async, Ref}
+import cats.effect.Async
+import cats.effect.Ref
 import cats.effect.std.Dispatcher
 import cats.syntax.all._
 import com.google.protobuf.empty.Empty
-import com.raphtory.api.analysis.graphstate.{GraphState, GraphStateImplementation}
+import com.raphtory.api.analysis.graphstate.GraphState
+import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview._
-import com.raphtory.api.analysis.table.{Explode, Row, TableFilter, TableFunction}
+import com.raphtory.api.analysis.table.Explode
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.TableFilter
+import com.raphtory.api.analysis.table.TableFunction
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.output.sink.SinkExecutor
-import com.raphtory.internals.components.querymanager.{GenericVertexMessage, Query}
-import com.raphtory.internals.graph.{GraphPartition, LensInterface, Perspective}
-import com.raphtory.internals.management.{Partitioner, Scheduler}
+import com.raphtory.internals.components.querymanager.GenericVertexMessage
+import com.raphtory.internals.components.querymanager.Query
+import com.raphtory.internals.graph.GraphPartition
+import com.raphtory.internals.graph.LensInterface
+import com.raphtory.internals.graph.Perspective
+import com.raphtory.internals.management.Partitioner
+import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.serialisers.KryoSerialiser
 import com.raphtory.protocol._
 import com.typesafe.config.Config
@@ -83,7 +92,6 @@ class QueryExecutorF[F[_]](
           buffer <- F.delay(ArrayBuffer[Row]())
           // TODO Using kryo here is a hack so we get rows out of the row pool. Maybe we could consider if the pool mechanism is really necessary as it causes undesired behavior as in this case
           _      <- F.blocking(lens.writeDataTable(row => buffer.addOne(kryo.deserialise[Row](kryo.serialise(row))))(cb))
-          _      <- F.delay(println(s"sending rows: ${buffer.toList}"))
           result <- F.delay(PartitionResult(buffer.toSeq))
         } yield result
       }
@@ -92,11 +100,10 @@ class QueryExecutorF[F[_]](
   def writePerspective(perspective: Perspective): F[Empty] =
     timed(s"Writing results from table to sink ${query.sink.get.getClass.getSimpleName}") { // TODO unsafe call to get
       withLens { lens =>
-        for {
-          _ <- F.delay(sinkExecutor.setupPerspective(perspective))
-          _ <- F.blocking(lens.writeDataTable(row => sinkExecutor.threadSafeWriteRow(row))(cb))
-          _ <- F.delay(sinkExecutor.closePerspective())
-        } yield Empty()
+        F.bracket(F.delay(sinkExecutor.setupPerspective(perspective))) { _ =>
+          F.blocking(lens.writeDataTable(row => sinkExecutor.threadSafeWriteRow(row))(cb))
+        }(_ => F.delay(sinkExecutor.closePerspective()))
+          .map(_ => Empty())
       }
     }
 

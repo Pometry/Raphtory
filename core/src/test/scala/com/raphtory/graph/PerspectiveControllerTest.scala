@@ -9,6 +9,26 @@ import com.raphtory.internals.time.IntervalParser.{parse => parseInterval}
 import com.raphtory.internals.time.DateTimeParser.{defaultParse => parseDateTime}
 
 class PerspectiveControllerTest extends FunSuite {
+
+    test("Inverted first/last".ignore) { //FIXME: this should not run forever
+    val increment  = parseInterval("2 months")
+    val start      = parseDateTime("2021-01-01 00:00:00")
+    val middle     = parseDateTime("2021-03-01 00:00:00")
+    val end        = parseDateTime("2021-05-01 00:00:00")
+    val query      = Query(
+      graphID = "",
+      timelineStart = start,
+      timelineEnd = end - 1,
+      points = PointPath(increment),
+      windows = List(increment),
+      windowAlignment = Alignment.START
+    )
+
+    val controller = PerspectiveController(Long.MaxValue, Long.MinValue, query)
+
+    assertEquals(controller.nextPerspective(), None)
+  }
+
   test("A range of perspectives is correctly generated") {
     val increment  = parseInterval("2 months")
     val start      = parseDateTime("2021-01-01 00:00:00")
