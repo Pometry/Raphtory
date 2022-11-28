@@ -46,6 +46,7 @@ class LocalTriangleCount extends NodeList(Seq("triangleCount")) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     KCore(2).apply(graph)
+      .clearMessages()
       // Filter step 1: tell neighbours you are in the filter
       .step{v =>
         v.setState("triangleCount", 0)
