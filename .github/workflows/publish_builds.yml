@@ -29,10 +29,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
-      - name: Checkout version trigger
-        uses: actions/checkout@v3
-        run: git checkout ${{ inputs.branch }}
+          ref: v0.2.0a8
+      #          fetch-depth: 0
+#      - run: git checkout ${{ inputs.branch }}
       # Install SBT
       - name: Get sbt package
         run: apt-get update && apt-get install unzip && curl -L "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.zip" -o sbt-1.5.5.zip && unzip sbt-1.5.5.zip
