@@ -148,7 +148,9 @@ final private[raphtory] case class PojoGraphLens(
     onComplete()
   }
 
-  def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row], graphState: GraphState)(onComplete: () => Unit): Unit = {
+  def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row], graphState: GraphState)(
+      onComplete: () => Unit
+  ): Unit = {
     dataTable = vertexIterator
       .flatMap(v => f.asInstanceOf[(PojoVertexBase, GraphState) => IterableOnce[RowImplementation]](v, graphState))
       .flatMap(_.yieldAndRelease)

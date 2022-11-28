@@ -101,12 +101,6 @@ private[raphtory] class QuerySender(
     val responses = service.submitQuery(protocol.Query(TryQuery(Success(outputQuery)))).unsafeRunSync()
     responses
       .map(_.bytes)
-      .evalMap(msg =>
-        IO(msg match {
-          case PerspectiveResult(perspective, totalPartitions, rows) => println(s"rows: ${rows.toList}")
-          case _                                                     =>
-        }).as(msg)
-      )
       .foreach {
         case message: PerspectiveResult =>
           IO(progressTracker.asInstanceOf[QueryProgressTrackerWithIterator].handleOutputMessage(message))

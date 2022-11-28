@@ -62,19 +62,10 @@ class QueryProgressTrackerWithIteratorSuite extends CatsEffectSuite {
     val row     = Row(1, 2, 3)
 
     tracker.handleOutputMessage(PerspectiveResult(perspective, totalPartitions, Array(row)))
-    tracker.handleMessage(JobDone)
 
     val itr: Iterator[TableOutput] = tracker.TableOutputIterator
     while (itr.hasNext)
-      assertEquals(
-              itr.next().toString,
-              TableOutput(
-                      jobId,
-                      perspective,
-                      Array(row),
-                      config
-              ).toString
-      )
+      assertEquals(itr.next().toString, TableOutput(jobId, perspective, Array(row), config).toString)
 
     assert(tracker.isJobDone)
   }
