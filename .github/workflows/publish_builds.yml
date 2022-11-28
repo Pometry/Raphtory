@@ -61,7 +61,7 @@ jobs:
       - name: Copy Jar & Python artifacts to folder
         run: | 
           mkdir artifacts
-          find . -name '*-assembly-*.jar' ! -path './examples/*' ! -path './test/*' ! -path './deploy/*' ! -path './doc-tests/*' -exec cp {} artifacts \;
+          find './core/target' './arrow-core/target' './arrow-messaging/target' -type f \(  -name 'core-assembly-*.jar' -o -name 'arrow-core-assembly-*.jar' -o -name 'arrow-messaging-assembly-*.jar' \) -exec cp {} artifacts \;
           cp python/pyraphtory_jvm/dist/*.gz artifacts/
           cp python/pyraphtory/dist/*.gz artifacts/
       # Create release and upload the artifacts to release
@@ -72,3 +72,8 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
           artifacts: "./artifacts/*.*"
+          artifactErrorsFailBuild: true
+          generateReleaseNotes: true
+          removeArtifacts: true
+          replacesArtifacts: true
+
