@@ -22,14 +22,12 @@ jobs:
     steps:
       # Checkout the code
       - name: Print Branch input name
-        run: echo running on ref branch ${GITHUB_REF##*/}
+        run: echo running on ref branch ${{ github.ref }}
       - name: Checkout code
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
           ref: ${{ github.ref }}
-      # - run: apt-get update && apt-get install -y git && git checkout ${GITHUB_REF##*/}
-      #  run: git checkout  ${GITHUB_REF##*/}
       # Install SBT
       - name: Get sbt package
         run: apt-get update && apt-get install unzip && curl -L "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.zip" -o sbt-1.5.5.zip && unzip sbt-1.5.5.zip
