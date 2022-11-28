@@ -69,7 +69,7 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag:  ${{ github.ref }}
-          name: ${GITHUB_REF##*/}
+          name: ${{ github.ref_name }}
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
           artifacts: "./artifacts/*.*"
