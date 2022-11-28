@@ -89,6 +89,7 @@ jobs:
           cd docs && python -m pip install -r requirements.txt && apt-get update && apt-get -y install python3-sphinx && make html
       - name: Run SBT tests
         run: |
+          export JAVA_OPTS="-Xms4g -Xmx4g"
           export PATH=$(pwd)/sbt/bin:$PATH
           export RAPHTORY_CORE_LOG="ERROR"
           sbt "arrowCore/test"
