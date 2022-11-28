@@ -1,57 +1,24 @@
 package com.raphtory.internals.components.partition
 
-import cats.effect.Async
-import cats.effect.Ref
+import cats.effect.{Async, Ref}
 import cats.effect.std.Dispatcher
-import cats.effect.std.Queue
-import cats.effect.std.Semaphore
 import cats.syntax.all._
 import com.google.protobuf.empty.Empty
-import com.raphtory.api.analysis.graphstate.AccumulatorImplementation
-import com.raphtory.api.analysis.graphstate.GraphState
-import com.raphtory.api.analysis.graphstate.GraphStateImplementation
-import com.raphtory.api.analysis.graphview.ClearChain
-import com.raphtory.api.analysis.graphview.DirectedView
-import com.raphtory.api.analysis.graphview.ExplodeSelect
-import com.raphtory.api.analysis.graphview.ExplodeSelectWithGraph
-import com.raphtory.api.analysis.graphview.GlobalSelect
-import com.raphtory.api.analysis.graphview.GraphFunction
-import com.raphtory.api.analysis.graphview.Iterate
-import com.raphtory.api.analysis.graphview.IterateWithGraph
-import com.raphtory.api.analysis.graphview.MultilayerView
-import com.raphtory.api.analysis.graphview.ReduceView
-import com.raphtory.api.analysis.graphview.ReversedView
-import com.raphtory.api.analysis.graphview.Select
-import com.raphtory.api.analysis.graphview.SelectWithGraph
-import com.raphtory.api.analysis.graphview.Step
-import com.raphtory.api.analysis.graphview.StepWithGraph
-import com.raphtory.api.analysis.graphview.UndirectedView
-import com.raphtory.api.analysis.table.Explode
-import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.TableFilter
-import com.raphtory.api.analysis.table.TableFunction
+import com.raphtory.api.analysis.graphstate.{GraphState, GraphStateImplementation}
+import com.raphtory.api.analysis.graphview._
+import com.raphtory.api.analysis.table.{Explode, Row, TableFilter, TableFunction}
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.output.sink.SinkExecutor
-import com.raphtory.internals.components.querymanager.GenericVertexMessage
-import com.raphtory.internals.components.querymanager.Query
-import com.raphtory.internals.graph.GraphPartition
-import com.raphtory.internals.graph.LensInterface
-import com.raphtory.internals.graph.Perspective
-import com.raphtory.internals.management.Partitioner
-import com.raphtory.internals.management.Scheduler
+import com.raphtory.internals.components.querymanager.{GenericVertexMessage, Query}
+import com.raphtory.internals.graph.{GraphPartition, LensInterface, Perspective}
+import com.raphtory.internals.management.{Partitioner, Scheduler}
 import com.raphtory.internals.serialisers.KryoSerialiser
-import com.raphtory.protocol.NodeCount
-import com.raphtory.protocol.OperationResult
-import com.raphtory.protocol.OperationWithStateResult
-import com.raphtory.protocol.PartitionResult
-import com.raphtory.protocol.PartitionService
-import com.raphtory.protocol.VertexMessages
+import com.raphtory.protocol._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.duration.DurationInt
 
 class QueryExecutorF[F[_]](
     query: Query,
@@ -90,13 +57,13 @@ class QueryExecutorF[F[_]](
 
   def executeOperation(number: Int): F[OperationResult] = {
     val function = query.operations(number)
-    timed(s"Executing operation $function") {
+    timed(s"Executed operation $function") {
       withLens { lens =>
         function match {
           case function: GraphFunction =>
             F.delay(lens.nextStep()) *> executeGraphFunction(function, lens)
-          case function: TableFunction =>
-            F.delay(lens.nextStep()) *> executeTableFunction(function, lens) as OperationResult(voteToContinue = true)
+          case function: TableFunction => // Table functions don't call nextStep
+            executeTableFunction(function, lens) as OperationResult(voteToContinue = true)
         }
       }
     }
@@ -104,7 +71,7 @@ class QueryExecutorF[F[_]](
 
   def executeOperationWithState(number: Int, state: GraphStateImplementation): F[OperationWithStateResult] = {
     val function = query.operations(number).asInstanceOf[GraphFunction]
-    timed(s"Executing operation $function") {
+    timed(s"Executed operation $function") {
       withLens(lens => F.delay(lens.nextStep()) *> executeGraphFunctionWithState(function, state, lens))
     }
   }
@@ -218,7 +185,7 @@ class QueryExecutorF[F[_]](
     for {
       output   <- F.timed(f)
       (time, a) = output
-      _        <- F.delay(logger.info(s"$loggingPrefix $processName took ${time.toMillis} ms to complete"))
+      _        <- F.delay(logger.debug(s"$loggingPrefix $processName took ${time.toMillis} ms to complete"))
     } yield a
 
   private def withLens[A](f: LensInterface => F[A]): F[A] = graphLens.get.flatMap(lens => f(lens.get))
