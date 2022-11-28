@@ -39,7 +39,7 @@ private[raphtory] class QuerySender(
 
   private val blockingSources          = ArrayBuffer[Long]()
   private var earliestTimeSeen         = Long.MaxValue
-  private var highestTimeSeen          = Long.MinValue
+  private var latestTimeSeen           = Long.MinValue
   private var totalUpdateIndex         = 0    //used at the secondary index for the client
   private var updatesSinceLastIDChange = 0    //used to know how many messages to wait for when blocking in the Q manager
   private var newIDRequiredOnUpdate    = true // has a query been since the last update and do I need a new ID
@@ -68,7 +68,7 @@ private[raphtory] class QuerySender(
 
   override protected def handleGraphUpdate(update: GraphUpdate): Unit = {
     earliestTimeSeen = earliestTimeSeen min update.updateTime
-    highestTimeSeen = highestTimeSeen max update.updateTime
+    latestTimeSeen = latestTimeSeen max update.updateTime
     service.processUpdate(protocol.GraphUpdate(graphID, update)).unsafeRunSync()
     totalUpdateIndex += 1
     updatesSinceLastIDChange += 1
@@ -95,7 +95,9 @@ private[raphtory] class QuerySender(
       .copy(
               name = jobID,
               blockedBy = blockingSources.toArray,
-              _bootstrap = query._bootstrap.resolve(searchPath)
+              _bootstrap = query._bootstrap.resolve(searchPath),
+              earliestSeen = earliestTimeSeen,
+              latestSeen = latestTimeSeen
       )
 
     val responses = service.submitQuery(protocol.Query(TryQuery(Success(outputQuery)))).unsafeRunSync()

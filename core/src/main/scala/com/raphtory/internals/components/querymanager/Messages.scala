@@ -115,6 +115,8 @@ private[raphtory] case class Query(
     windowAlignment: Alignment.Value = Alignment.START,
     operations: List[Operation] = List(),
     blockedBy: Array[Long] = Array(),
+    earliestSeen: Long = Long.MaxValue,
+    latestSeen: Long = Long.MinValue,
     sink: Option[Sink] = None,
     pyScript: Option[String] = None
 ) extends Submission

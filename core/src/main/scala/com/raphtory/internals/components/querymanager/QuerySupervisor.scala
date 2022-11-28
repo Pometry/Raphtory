@@ -93,6 +93,10 @@ class QuerySupervisor[F[_]] protected (
   def submitQuery(query: Query): F[Stream[F, protocol.QueryManagement]] =
     for {
       _        <- processQueryRequest(query.name)
+      _        <- F.delay {
+                    earliestTime = earliestTime min query.earliestSeen
+                    latestTime = latestTime max query.latestSeen
+                  }
       response <- QueryHandlerF(earliestTime, latestTime, partitions.values.toSeq, query, this)
     } yield response
 
