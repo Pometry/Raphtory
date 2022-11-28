@@ -5,7 +5,6 @@ import cats.effect.Resource
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.PyDeployedTemporalGraph
 import com.raphtory._
-import com.raphtory.internals.communication.repositories.LocalTopicRepository
 import cats.effect.unsafe.implicits.global
 import com.raphtory.internals.components.RaphtoryServiceBuilder
 import com.raphtory.internals.management.Prometheus
@@ -23,24 +22,26 @@ import com.raphtory.internals.storage.arrow.VertexSchema
 
 abstract class Context(serviceAsResource: Resource[IO, RaphtoryService[IO]], config: Config) {
 
+  private val clientId = createName
+
   protected def newIOGraphParams(
       failOnNotFound: Boolean,
       graphID: String = createName,
       destroy: Boolean
   ): Resource[IO, (Query, QuerySender, Config)] =
     for {
-      service       <- serviceAsResource
-      ifGraphExists <- Resource.eval(service.getGraph(protocol.GetGraph(graphID)))
-      _              = if (!ifGraphExists.success && failOnNotFound) throw NoGraphFound(graphID)
-                       else if (!failOnNotFound && ifGraphExists.success) throw GraphAlreadyDeployed(graphID)
-      _             <- Prometheus[IO](config.getInt("raphtory.prometheus.metrics.port"))
-      topicRepo     <- LocalTopicRepository[IO](config, None)
-      querySender   <- Resource.make(IO.delay(new QuerySender(graphID, service, topicRepo, config, createName))) { qs =>
-                         IO.blocking {
-                           if (destroy) qs.destroyGraph(true) else qs.disconnect()
-                         }
+      service     <- serviceAsResource
+      graphExists <-
+        Resource.eval(service.connectToGraph(protocol.GraphInfo(graphID, clientId)).as(true).handleError(_ => false))
+      _            = if (!graphExists && failOnNotFound) throw NoGraphFound(graphID)
+                     else if (!failOnNotFound && graphExists) throw GraphAlreadyDeployed(graphID)
+      _           <- Prometheus[IO](config.getInt("raphtory.prometheus.metrics.port"))
+      querySender <- Resource.make(IO.delay(new QuerySender(graphID, service, config, clientId))) { qs =>
+                       IO.blocking {
+                         if (destroy) qs.destroyGraph(true) else qs.disconnect()
                        }
-      _             <- { if (!failOnNotFound) Resource.eval(IO(querySender.establishGraph())) else Resource.eval(IO.unit) }
+                     }
+      _           <- { if (!failOnNotFound) Resource.eval(IO(querySender.establishGraph())) else Resource.eval(IO.unit) }
     } yield (Query(graphID = graphID), querySender, config)
 }
 

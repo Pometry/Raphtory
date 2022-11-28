@@ -1,14 +1,60 @@
 package com.raphtory.graph
 
 import com.raphtory.api.analysis.graphview.Alignment
-import com.raphtory.internals.components.querymanager.PointPath
-import com.raphtory.internals.components.querymanager.Query
+import com.raphtory.internals.components.querymanager.{NullPointSet, PointPath, Query}
 import com.raphtory.internals.graph.PerspectiveController
-import munit.FunSuite
-import com.raphtory.internals.time.IntervalParser.{parse => parseInterval}
 import com.raphtory.internals.time.DateTimeParser.{defaultParse => parseDateTime}
+import com.raphtory.internals.time.IntervalParser.{parse => parseInterval}
+import munit.FunSuite
 
 class PerspectiveControllerTest extends FunSuite {
+
+  test("Inverted first/last should result in None nextPerspective") {
+    val query = Query(
+            graphID = "",
+            timelineStart = Long.MinValue,
+            timelineEnd = Long.MaxValue,
+            points = NullPointSet,
+            windows = Nil,
+            windowAlignment = Alignment.START
+    )
+
+    val controller = PerspectiveController(Long.MaxValue, Long.MinValue, query)
+
+    assertEquals(controller.nextPerspective(), None)
+  }
+
+  test("Inverted timeline start/end inverted should result in None nextPerspective") {
+    val query = Query(
+            graphID = "",
+            timelineStart = Long.MaxValue,
+            timelineEnd = Long.MinValue,
+            points = NullPointSet,
+            windows = Nil,
+            windowAlignment = Alignment.START
+    )
+
+    val controller = PerspectiveController(0, Long.MaxValue, query)
+
+    assertEquals(controller.nextPerspective(), None)
+  }
+
+  test("Query start/end out of bounds") {
+    val query = Query(
+      graphID = "",
+      timelineStart = 5,
+      timelineEnd = 5000,
+      points = NullPointSet,
+      windows = Nil,
+      windowAlignment = Alignment.START
+    )
+
+    val controller = PerspectiveController(5001, Long.MaxValue, query)
+
+    assertEquals(controller.nextPerspective(), None)
+  }
+
+
   test("A range of perspectives is correctly generated") {
     val increment  = parseInterval("2 months")
     val start      = parseDateTime("2021-01-01 00:00:00")

@@ -1,5 +1,6 @@
 package com.raphtory.api.analysis.table
 
+import com.raphtory.internals.components.querymanager.ProtoField
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
@@ -125,7 +126,7 @@ private[raphtory] class RowImplementation extends Row {
 }
 
 /** Factory object for Rows */
-object Row {
+object Row extends ProtoField[Row] {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private[table] val pool =

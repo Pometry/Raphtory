@@ -3,7 +3,6 @@ package com.raphtory.internals.components.repositories
 import cats.effect.Async
 import cats.effect.Resource
 import cats.syntax.all._
-import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.ServiceDescriptor
 import com.raphtory.internals.components.ServiceRegistry
 import com.typesafe.config.Config
@@ -14,16 +13,27 @@ import org.apache.curator.x.discovery.ServiceDiscovery
 import org.apache.curator.x.discovery.ServiceDiscoveryBuilder
 import org.apache.curator.x.discovery.ServiceInstance
 import java.net.InetAddress
+import scala.concurrent.duration.DurationInt
 
-class DistributedServiceRegistry[F[_]: Async](topics: TopicRepository, serviceDiscovery: ServiceDiscovery[Void])
-        extends ServiceRegistry[F](topics) {
+class DistributedServiceRegistry[F[_]: Async](serviceDiscovery: ServiceDiscovery[Void]) extends ServiceRegistry[F] {
 
   private def serviceId(name: String, id: Int) = s"$name-${id.toString}"
   private def serviceName                      = "service"
 
   override protected def getService[T](descriptor: ServiceDescriptor[F, T], id: Int): Resource[F, T] = {
-    val instance = serviceDiscovery.queryForInstance(serviceName, serviceId(descriptor.name, id))
-    descriptor.makeClient(instance.getAddress, instance.getPort)
+    def getServiceRetry[R](descriptor: ServiceDescriptor[F, R], id: Int): F[ServiceInstance[R]] =
+      Async[F]
+        .blocking(
+                serviceDiscovery
+                  .queryForInstance(serviceName, serviceId(descriptor.name, id))
+                  .asInstanceOf[ServiceInstance[R]]
+        )
+        .handleErrorWith(_ => Async[F].delayBy(getServiceRetry(descriptor, id), 10.millis))
+
+    for {
+      instance <- Resource.eval(Async[F].timeout(getServiceRetry(descriptor, id), 30.seconds))
+      client   <- descriptor.makeClient(instance.getAddress, instance.getPort)
+    } yield client
   }
 
   override protected def register[T](instance: T, descriptor: ServiceDescriptor[F, T], id: Int): F[F[Unit]] = {
@@ -51,14 +61,14 @@ class DistributedServiceRegistry[F[_]: Async](topics: TopicRepository, serviceDi
 
 object DistributedServiceRegistry {
 
-  def apply[F[_]: Async](topics: TopicRepository, config: Config): Resource[F, ServiceRegistry[F]] =
+  def apply[F[_]: Async](config: Config): Resource[F, ServiceRegistry[F]] =
     for {
       address          <- Resource.pure(config.getString("raphtory.zookeeper.address"))
       client           <- Resource.fromAutoCloseable(Async[F].delay(buildZkClient(address)))
       _                <- Resource.eval(Async[F].blocking(client.start()))
       serviceDiscovery <- Resource.fromAutoCloseable(Async[F].delay(buildServiceDiscovery(client)))
       _                <- Resource.eval(Async[F].blocking(serviceDiscovery.start()))
-      serviceRepo      <- Resource.eval(Async[F].delay(new DistributedServiceRegistry[F](topics, serviceDiscovery)))
+      serviceRepo      <- Resource.eval(Async[F].delay(new DistributedServiceRegistry[F](serviceDiscovery)))
     } yield serviceRepo
 
   private def buildServiceDiscovery(zkClient: CuratorFramework) =

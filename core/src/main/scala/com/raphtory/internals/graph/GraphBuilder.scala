@@ -20,6 +20,7 @@ class GraphBuilderF[F[_], T](
     sourceId: Int,
     builder: GraphBuilder[T],
     partitions: Map[Int, PartitionService[F]],
+    earliestSeen: Ref[F, Long],
     highestSeen: Ref[F, Long],
     sentUpdates: Ref[F, Long]
 )(implicit F: Async[F]) {
@@ -46,20 +47,23 @@ class GraphBuilderF[F[_], T](
       .groupBy(update => cb.getPartitionForId(update.srcId))
       .map {
         case (partition, updates) =>
+          val minTime = updates.minBy(_.updateTime).updateTime
           val maxTime = updates.maxBy(_.updateTime).updateTime
           for {
             _ <- partitions(partition)
                    .processUpdates(
                            protocol.GraphAlterations(graphId, alterations = updates.map(protocol.GraphAlteration(_)))
                    )
+            _ <- earliestSeen.update(Math.min(_, minTime))
             _ <- highestSeen.update(Math.max(_, maxTime))
             _ <- sentUpdates.update(_ + updates.size)
           } yield ()
       }
       .toVector
 
-  def getSentUpdates: F[Long]  = sentUpdates.get
-  def highestTimeSeen: F[Long] = highestSeen.get
+  def getSentUpdates: F[Long]   = sentUpdates.get
+  def earliestTimeSeen: F[Long] = earliestSeen.get
+  def highestTimeSeen: F[Long]  = highestSeen.get
 }
 
 /** This class implements Graph interface by putting updates into a provided array buffer

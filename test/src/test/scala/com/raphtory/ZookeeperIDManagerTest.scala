@@ -8,6 +8,7 @@ import munit.IgnoreSuite
 
 import scala.util.Random
 
+@IgnoreSuite // We are not using this class anymore
 class ZookeeperIDManagerTest extends CatsEffectSuite {
 
   private val deploymentID     = s"raphtory-test-${Random.nextLong().abs}"

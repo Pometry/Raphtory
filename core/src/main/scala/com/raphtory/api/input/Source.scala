@@ -22,7 +22,7 @@ trait Source {
       graphID: String,
       id: Int,
       partitions: Map[Int, PartitionService[F]]
-  ): Resource[F, StreamSource[F, MessageType]] =
+  ): F[StreamSource[F, MessageType]] =
     builder
       .make(graphID, id, partitions)
       .map(builder => new StreamSource[F, MessageType](id, spout.buildSpout(), builder))
@@ -37,8 +37,8 @@ class StreamSource[F[_], T](id: Int, spoutInstance: SpoutInstance[T], builderIns
     F: Async[F]
 ) {
 
-  def elements(counter: Counter.Child): fs2.Stream[F, Unit] =
-    for {
+  def elements(counter: Counter.Child): F[Unit] = {
+    val s = for {
       index <- fs2.Stream.eval(Ref.of[F, Long](1L))
       tuples = fs2.Stream.fromBlockingIterator[F](spoutInstance, 512)
       _     <- tuples.chunks.parEvalMapUnordered(4)(chunk =>
@@ -46,8 +46,11 @@ class StreamSource[F[_], T](id: Int, spoutInstance: SpoutInstance[T], builderIns
                )
     } yield ()
 
-  def sentMessages: F[Long] = builderInstance.getSentUpdates
+    s.compile.drain
+  }
 
+  def sentMessages: F[Long]          = builderInstance.getSentUpdates
+  def earliestTimeSeen(): F[Long]    = builderInstance.earliestTimeSeen
   def highestTimeSeen(): F[Long]     = builderInstance.highestTimeSeen
   def spoutReschedules(): F[Boolean] = F.delay(spoutInstance.spoutReschedules())
   def pollInterval: FiniteDuration   = 1.seconds

@@ -3,23 +3,17 @@ package com.raphtory.internals.components
 import cats.effect.Async
 import cats.effect.Resource
 import cats.syntax.all._
-import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.components.ingestion.IngestionServiceImpl
 import com.raphtory.internals.components.partition.PartitionServiceImpl
-import com.raphtory.internals.components.partition.Writer
+import com.raphtory.internals.components.querymanager.QueryServiceImpl
 import com.raphtory.internals.management.Partitioner
-import com.raphtory.protocol.Empty
-import com.raphtory.protocol.GraphAlterations
-import com.raphtory.protocol.GraphInfo
+import com.raphtory.protocol._
 import com.raphtory.protocol.IngestionService
 import com.raphtory.protocol.PartitionService
-import com.raphtory.protocol.Query
-import com.raphtory.protocol.Status
-import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
-abstract class ServiceRegistry[F[_]: Async](val topics: TopicRepository) {
+abstract class ServiceRegistry[F[_]: Async] {
 
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
@@ -40,14 +34,13 @@ abstract class ServiceRegistry[F[_]: Async](val topics: TopicRepository) {
         attempts match {
           case (id, register) :: tail =>
             for {
-              _      <-
-                Async[F].delay(logger.debug(s"Trying to register $instance for id '$id' among ${candidateIds.toList}"))
+              _      <- Async[F].delay(logger.debug(s"Trying to register $instance for id '$id' among $candidateIds"))
               result <- register.map(unregister => (id, unregister)).recoverWith(_ => firstSuccess(tail))
             } yield result
 
           case _                      =>
             val errorMsg =
-              s"Failed to retrieve id among ${candidateIds.toList} for instance of service ${descriptor.name}"
+              s"Failed to retrieve id among $candidateIds for instance of service ${descriptor.name}"
             Async[F].raiseError(new IllegalStateException(errorMsg))
         }
 
@@ -60,6 +53,8 @@ abstract class ServiceRegistry[F[_]: Async](val topics: TopicRepository) {
 
   final def partitions: Resource[F, Map[Int, PartitionService[F]]] =
     getServices(PartitionServiceImpl.descriptor, partitionIds)
+
+  final def query: Resource[F, QueryService[F]] = getService[QueryService[F]](QueryServiceImpl.descriptor)
 
   private def getServices[T](descriptor: ServiceDescriptor[F, T], ids: Seq[Int]): Resource[F, Map[Int, T]] =
     ids
