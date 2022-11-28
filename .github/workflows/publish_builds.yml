@@ -31,7 +31,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          ref: ${{ inputs.branch }}
+          ref: ${GITHUB_REF##*/}
       # Install SBT
       - name: Get sbt package
         run: apt-get update && apt-get install unzip && curl -L "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.zip" -o sbt-1.5.5.zip && unzip sbt-1.5.5.zip
