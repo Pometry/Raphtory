@@ -1,5 +1,6 @@
 package com.raphtory.algorithms.temporal.motif
 
+import com.raphtory.algorithms.generic.KCore
 import com.raphtory.api.analysis.algorithm.{Generic, GenericReduction}
 import com.raphtory.api.analysis.graphview.{GraphPerspective, ReducedGraphPerspective}
 import com.raphtory.api.analysis.table.{Row, Table}
@@ -45,6 +46,9 @@ import scala.collection.mutable.ArrayBuffer
   *   7. i --> j, j --> k, k --> i
   *   8. i --> j, i --> k, k --> j
   *
+  *   The motif counts are returned as a 40-d array where the first 24 elements are star counts,
+  *   the next 8 are two-node motif counts and the final 8 are triangle counts.
+  *
   * ## States
   *  {s}`starCounts: Array[Int]`
   *    : Three-node star motif counts stored as an array (see indices above)
@@ -52,64 +56,87 @@ import scala.collection.mutable.ArrayBuffer
   *    : Two-node motif counts stored as an array (see indices above)
   *  {s}`triCounts: Array[Int]`
   *    : Triangle motif counts stored as an array (see indices above)
+  *
+  * ## Returns
+  *
+  *  | vertex name       | motifs                   |
+  *  | ----------------- | ------------------------ |
+  *  | {s}`name: String` | {s}`motifCounts: Array[Long]` |
+  *
   */
 
 class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint:Boolean=true) extends GenericReduction {
 
   override def apply(graph: GraphPerspective): graph.ReducedGraph = {
-    graph.reducedView
+    // Here we apply a trick to make sure the triangles are only counted for nodes in the two-core.
+    KCore(2)
+      .apply(graph)
+      .clearMessages()
+      .reducedView
       .setGlobalState{
         state =>
           state.newAccumulator[Array[Long]]("twoNodeCounts",Array.fill(8)(0L), retainState = true, (ar1, ar2) => ar1.zip(ar2).map{case (x,y) => x + y})
           state.newAccumulator[Array[Long]]("triCounts",Array.fill(8)(0L), retainState = true, (ar1, ar2) => ar1.zip(ar2).map{case (x,y) => x + y})
           state.newAccumulator[Array[Long]]("starCounts",Array.fill(24)(0L), retainState = true, (ar1, ar2) => ar1.zip(ar2).map{case (x,y) => x + y})
       }
-      .step {
-        v=>
-          val neighbours = v.neighbours.filter(_!=v.ID).toSet
-          neighbours.foreach{nb =>
-            v.messageVertex(nb,(v.ID, neighbours))
-          }
-          v.setState("triCounts",Array.fill(8)(0L))
+      // Filter step 1: tell neighbours you are in the filter
+      .step{v =>
+        if (v.getState[Int]("effectiveDegree")>=2) {
+          v.messageAllNeighbours(v.ID)
+        }
+      }
+      // Filter step 2: send neigbours in filter to other neighbours in filter
+      .step{v =>
+        if (v.getState[Int]("effectiveDegree")>=2) {
+          val neighbours = v.messageQueue[v.IDType].toSet
+          v.setState("effNeighbours",neighbours)
+          neighbours.foreach(nb => v.messageVertex(nb, (v.ID, neighbours)))
+        }
       }
       .step { v =>
-        val neighbours = v.neighbours.filter(_!=v.ID).toSet
-        val queue      = v.messageQueue[(v.IDType,Set[v.IDType])]
-        queue.foreach{
-          // Pick a representative node who will hold all the exploded edge info.
-          case (nb, friendsOfFriend) =>
-            // Here we want to make sure only one node is computing each triangle count as the operation is expensive, pick this
-            // to be the smallest id vertex which receives the exploded edge of the opposite triangle.
-            if (v.ID > nb) {
-            friendsOfFriend.intersect(neighbours).foreach{
-              w =>
-                if (nb > w)
-                  v.messageVertex(w,v.explodedEdge(nb).getOrElse(List()).map(e=> (e.src, e.dst, e.timestamp)))
-                // largest id node sends to the smallest id node the exploded edges.
+        v.setState("triCounts",Array.fill(8)(0L))
+        if( v.getState[Int]("effectiveDegree")>=2 ) {
+          val neighbours = v.getState[Set[v.IDType]]("effNeighbours")
+          v.clearState("effNeighbours")
+          val queue = v.messageQueue[(v.IDType, Set[v.IDType])]
+          queue.foreach {
+            // Pick a representative node who will hold all the exploded edge info.
+            case (nb, friendsOfFriend) =>
+              // Here we want to make sure only one node is computing each triangle count as the operation is expensive, pick this
+              // to be the smallest id vertex which receives the exploded edge of the opposite triangle.
+              if (v.ID > nb) {
+                friendsOfFriend.intersect(neighbours).foreach {
+                  w =>
+                    if (nb > w)
+                      v.messageVertex(w, v.explodedEdge(nb).getOrElse(List()).map(e => (e.src, e.dst, e.timestamp)))
+                  // largest id node sends to the smallest id node the exploded edges.
                 }
-            }
+              }
+          }
         }
       }
       .step{
         (v, state) =>
-          v.messageQueue[List[(Long,Long,Long)]].foreach{
-            edges =>
-              val (u, w, _) = edges.head
-              // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
-              // for motif edges with the same timestamp
-              val inputEdges = (v.explodedEdge(u).getOrElse(List()).map(e => (e.src, e.dst, e.timestamp)) ++
-                v.explodedEdge(w).getOrElse(List()).map(e => (e.src, e.dst, e.timestamp)) ++
-                edges)
-                .sortBy(x => (x._3, x._1, x._2))
-              val ids = List(v.ID,u,w).sortWith(_<_)
-              val mc = new TriadMotifCounter(ids(0),ids(1), List(ids(2)))
-              mc.execute(inputEdges,delta)
-              val curVal = v.getState[Array[Long]]("triCounts")
-              v.setState("triCounts", curVal.zip(mc.getCounts)
-                .map{ case(x,y)=> x+y})
-              v.messageVertex(u,mc.getCounts)
-              v.messageVertex(w,mc.getCounts)
-              state("triCounts")+=mc.getCounts.map(_.toLong)
+          if (v.getState[Int]("effectiveDegree")>=2) {
+            v.messageQueue[List[(Long, Long, Long)]].foreach {
+              edges =>
+                val (u, w, _) = edges.head
+                // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
+                // for motif edges with the same timestamp
+                val inputEdges = (v.explodedEdge(u).getOrElse(List()).map(e => (e.src, e.dst, e.timestamp)) ++
+                  v.explodedEdge(w).getOrElse(List()).map(e => (e.src, e.dst, e.timestamp)) ++
+                  edges)
+                  .sortBy(x => (x._3, x._1, x._2))
+                val ids = List(v.ID, u, w).sortWith(_ < _)
+                val mc = new TriadMotifCounter(ids(0), ids(1), List(ids(2)))
+                mc.execute(inputEdges, delta)
+                val curVal = v.getState[Array[Long]]("triCounts")
+                v.setState("triCounts", curVal.zip(mc.getCounts)
+                  .map { case (x, y) => x + y })
+                v.messageVertex(u, mc.getCounts)
+                v.messageVertex(w, mc.getCounts)
+                state("triCounts") += mc.getCounts.map(_.toLong)
+            }
           }
       }
       .step{

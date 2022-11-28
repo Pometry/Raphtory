@@ -21,13 +21,13 @@
 </a>
 </p>
 <p align="center">
-<a href="www.raphtory.com">🌍 Website </a>
+<a href="https://www.raphtory.com">🌍 Website </a>
 &nbsp
-<a href="https://docs.raphtory.com/en/development/">📒 Documentation</a>
+<a href="https://docs.raphtory.com/">📒 Documentation</a>
 &nbsp 
 <a href="https://www.pometry.com"><img src="https://user-images.githubusercontent.com/6665739/202438989-2859f8b8-30fb-4402-820a-563049e1fdb3.png" height="20" align="center"/> Pometry</a> 
 &nbsp
-<a href="https://docs.raphtory.com/en/development/Examples/lotr.html">🧙🏻‍ Tutorial</a> 
+<a href="https://docs.raphtory.com/en/master/Examples/lotr.html">🧙🏻‍ Tutorial</a> 
 &nbsp
 <a href="https://github.com/Raphtory/Raphtory/issues">🐛 Report a Bug</a> 
 &nbsp
@@ -107,10 +107,9 @@ pip install -i https://test.pypi.org/simple/ pyraphtory==0.2.0a7
 # Want to do something more complex?
 If you would like to do something more complex, follow these links:
 
-- **[Documentation](https://docs.raphtory.com/en/development/)**
-- [Building your own Scala source code into PyRaphtory](https://docs.raphtory.com/en/development/PythonDocs/setup.html#id2)
-- [Complete list of available algorithms in Raphtory](https://docs.raphtory.com/en/development/_autodoc/com/raphtory/algorithms/generic/index.html)
-- [Writing your own algorithm in Raphtory](https://docs.raphtory.com/en/development/Analysis/LOTR_six_degrees.html)
+- **[Documentation](https://docs.raphtory.com/)**
+- [Complete list of available algorithms in Raphtory](https://docs.raphtory.com/en/master/_autodoc/com/raphtory/algorithms/generic/index.html)
+- [Writing your own algorithm in Raphtory](https://docs.raphtory.com/en/master/Analysis/LOTR_six_degrees.html)
 
 # Bounty board
 
