@@ -1,4 +1,4 @@
-package com.raphtory.unit.com.raphtory.api.progresstracker
+package com.raphtory.api.progresstracker
 
 import cats.effect._
 import com.raphtory.api.progresstracker.QueryProgressTracker

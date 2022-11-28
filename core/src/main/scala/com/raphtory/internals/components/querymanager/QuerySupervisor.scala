@@ -12,21 +12,21 @@ import fs2.Stream
 import java.util.concurrent.ArrayBlockingQueue
 import scala.annotation.tailrec
 
-class QuerySupervisor[F[_]] private (
+class QuerySupervisor[F[_]] protected (
     graphID: GraphID,
     config: Config,
     partitions: Map[Int, PartitionService[F]],
-    private val inprogressReqs: Ref[F, Set[Request]]
+    private[querymanager] val inprogressReqs: Ref[F, Set[Request]]
 )(implicit F: Async[F]) {
 
-  private case class QueryRequest(queryName: String, release: Deferred[F, Unit]) extends Request
+  private[querymanager] case class QueryRequest(queryName: String, release: Deferred[F, Unit]) extends Request
 
-  private case class LoadRequest(sourceID: SourceID, release: Deferred[F, Unit]) extends Request
+  private[querymanager] case class LoadRequest(sourceID: SourceID, release: Deferred[F, Unit]) extends Request
 
-  private val logger       = Logger(LoggerFactory.getLogger(this.getClass))
-  private var earliestTime = Long.MaxValue
-  private var latestTime   = Long.MinValue
-  private val pendingReqs  = new ArrayBlockingQueue[Request](1000)
+  private val logger                     = Logger(LoggerFactory.getLogger(this.getClass))
+  private[querymanager] var earliestTime = Long.MaxValue
+  private[querymanager] var latestTime   = Long.MinValue
+  private[querymanager] val pendingReqs  = new ArrayBlockingQueue[Request](1000)
 
   def startBlockingIngestion(sourceID: SourceID): F[Unit] =
     for {
@@ -35,10 +35,16 @@ class QuerySupervisor[F[_]] private (
       ipr  <- inprogressReqs.updateAndGet { r =>
                 if (r.isEmpty || (!r.last.isInstanceOf[QueryRequest] && pendingReqs.isEmpty)) r + lr else r
               }
-      _    <-
-        if (ipr.isEmpty || (!ipr.last.isInstanceOf[QueryRequest] && pendingReqs.isEmpty))
-          lr.release.complete(()) >> F.delay(println(s"Starting blocking ingestion for source = $sourceID, ipr = $ipr"))
-        else F.delay(pendingReqs.add(lr)) >> lr.release.get >> F.delay(s"Blocking load request = $sourceID")
+      _    <- if (ipr.isEmpty || (!ipr.last.isInstanceOf[QueryRequest] && pendingReqs.isEmpty))
+                lr.release.complete(())
+              else
+                F.delay(pendingReqs.add(lr)) >>
+                  F.delay(
+                          logger.info(
+                                  s"Source '$sourceID' queued for Graph '$graphID', waiting for queries in progress to complete"
+                          )
+                  ) >>
+                  lr.release.get
       _    <- F.delay(logger.info(s"Source '$sourceID' is blocking analysis for Graph '$graphID'"))
     } yield ()
 
@@ -50,12 +56,6 @@ class QuerySupervisor[F[_]] private (
       else ls
 
     for {
-      _   <-
-        F.delay(
-                println(
-                        s"Blocking Ingestion ended for $sourceID, earliestTime = ${_earliestTime}, latestTime = ${_latestTime}"
-                )
-        )
       _   <- F.delay {
                earliestTime = earliestTime min _earliestTime
                latestTime = latestTime max _latestTime
@@ -64,15 +64,7 @@ class QuerySupervisor[F[_]] private (
       ls  <- if (ipr.isEmpty) F.delay(queryReqsToRelease(Nil)) else F.pure(Nil)
       // Query requests removed from pending request list should be added to the inprogress request list
       _   <- inprogressReqs.update(_ ++ ls)
-      _   <-
-        ls.map(
-                _.release.complete(()) >>
-                  F.delay(
-                          println(
-                                  s"Unblocked all query requests, pendingReqs = $pendingReqs, earliestTime = $earliestTime, latestTime = $latestTime"
-                          )
-                  )
-        ).sequence
+      _   <- ls.map(_.release.complete(())).sequence
       _   <- F.blocking {
                logger.info(
                        s"Source '$sourceID' is unblocking analysis for Graph '$graphID' with earliest time seen as $earliestTime and latest time seen as $latestTime"
@@ -81,20 +73,26 @@ class QuerySupervisor[F[_]] private (
     } yield ()
   }
 
+  private[querymanager] def processQueryRequest(queryName: String): F[Unit] =
+    for {
+      defr <- Deferred[F, Unit]
+      qr   <- F.delay(QueryRequest(queryName, defr))
+      ipr  <- inprogressReqs.updateAndGet { r =>
+                if (r.isEmpty || (!r.last.isInstanceOf[LoadRequest] && pendingReqs.isEmpty)) r + qr else r
+              }
+      _    <- if (ipr.isEmpty || (!ipr.last.isInstanceOf[LoadRequest] && pendingReqs.isEmpty))
+                qr.release.complete(())
+              else
+                F.delay(pendingReqs.add(qr)) >>
+                  F.delay(
+                          logger.info(s"Blocking query request = $queryName for any in progress ingestion to complete")
+                  ) >>
+                  qr.release.get
+    } yield ()
+
   def submitQuery(query: Query): F[Stream[F, protocol.QueryManagement]] =
     for {
-      _        <- F.delay(println(s"submitQuery req received"))
-      defr     <- Deferred[F, Unit]
-      qr       <- F.delay(QueryRequest(query.name, defr))
-      ipr      <- inprogressReqs.updateAndGet { r =>
-                    if (r.isEmpty || (!r.last.isInstanceOf[LoadRequest] && pendingReqs.isEmpty)) r + qr else r
-                  }
-      _        <- if (ipr.isEmpty || (!ipr.last.isInstanceOf[LoadRequest] && pendingReqs.isEmpty))
-                    qr.release.complete(()) >> F.delay(println(s"Starting query ${query.name}, ipr = $ipr"))
-                  else
-                    F.delay(pendingReqs.add(qr)) >> F.delay(
-                            println(s"Blocking query request = ${query.name}")
-                    ) >> qr.release.get // When released it should be added to the inprogress list, ain't it??
+      _        <- processQueryRequest(query.name)
       response <- QueryHandlerF(earliestTime, latestTime, partitions.values.toSeq, query, this)
     } yield response
 
@@ -106,7 +104,6 @@ class QuerySupervisor[F[_]] private (
       else ls
 
     for {
-      _   <- F.delay(println(s"Query ${query.name} ended"))
       ipr <- inprogressReqs.updateAndGet(_.filterNot(_.asInstanceOf[QueryRequest].queryName == query.name))
       ls  <- if (ipr.isEmpty) F.delay(loadReqsToRelease(Nil)) else F.pure(Nil)
       // Load requests removed from pending request list should be added to the inprogress request list

@@ -1,4 +1,4 @@
-package com.raphtory.unit.com.raphtory.api.progresstracker
+package com.raphtory.api.progresstracker
 
 import cats.effect._
 import com.raphtory.api.analysis.table.Row
@@ -75,15 +75,7 @@ class QueryProgressTrackerWithIteratorSuite extends CatsEffectSuite {
                       config
               ).toString
       )
-  }
 
-  test("""QueryProgressTrackerWithIterator completes job when received "JobDone" message""") {
-    val tracker = queryProgressTrackerWithIterator()
-
-    tracker.handleMessage(JobDone)
-
-    val itr: Iterator[TableOutput] = tracker.TableOutputIterator
-    while (itr.hasNext) itr.next()
     assert(tracker.isJobDone)
   }
 }

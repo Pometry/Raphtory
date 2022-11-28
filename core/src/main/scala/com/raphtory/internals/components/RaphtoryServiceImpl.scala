@@ -64,8 +64,8 @@ class RaphtoryServiceImpl[F[_]](
                              _ <- ingestion.establishGraph(req)
                              _ <- controlPartitions(_.establishGraph(req))
                              _ <- queryService.establishGraph(req)
-                             _ <- runningGraphs.update(graphs =>
-                                    if (graphs contains req.graphId) graphs else (graphs + (req.graphId -> Set(req.clientId)))
+                             _ <- runningGraphs.updateAndGet(graphs =>
+                                    if (graphs contains req.graphId) graphs else graphs + (req.graphId -> Set(req.clientId))
                                   )
                            } yield success
     } yield status

@@ -1,12 +1,12 @@
-package com.raphtory.unit.com.raphtory.internals.components
+package com.raphtory.internals.components.querymanager
 
 import cats.effect._
+import com.google.protobuf.empty.Empty
 import com.raphtory.internals.components._
 import com.raphtory.internals.management.id.IDManager
 import com.raphtory.protocol._
 import munit.CatsEffectSuite
 import org.mockito.MockitoSugar._
-import com.google.protobuf.empty.Empty
 
 class RaphtoryServiceImplSuite extends CatsEffectSuite {
 
@@ -55,7 +55,7 @@ class RaphtoryServiceImplSuite extends CatsEffectSuite {
     val service = raphtoryService()
     assertIO(
             service.establishGraph(graphInfo) >>
-              service.connectToGraph(GraphInfo(graphId)),
+              service.connectToGraph(graphInfo),
             Empty()
     )
   }
