@@ -24,10 +24,11 @@ jobs:
       - name: Print Branch input name
         run: echo running on ref branch ${GITHUB_REF##*/}
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v1
         with:
           fetch-depth: 0
-      - run: apt-get update && apt-get install -y git && git checkout ${GITHUB_REF##*/}
+          ref: ${GITHUB_REF##*/}
+      # - run: apt-get update && apt-get install -y git && git checkout ${GITHUB_REF##*/}
       #  run: git checkout  ${GITHUB_REF##*/}
       # Install SBT
       - name: Get sbt package
