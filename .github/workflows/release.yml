@@ -11,6 +11,4 @@ jobs:
   publish-builds-to-github:
 #    needs: test-scala-python-workflow
     uses: ./.github/workflows/publish_builds.yml
-    with:
-      branch: ${GITHUB_REF##*/}
     secrets: inherit
