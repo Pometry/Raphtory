@@ -53,14 +53,14 @@ class Queries extends CatsEffectSuite {
       .writeTo(output)
     // [depart-window]
 
-//    // [walk-window]
-//    graph
-//      .slice("2020-01-01", "2021-01-01")
-//      .walk("1 day")
-//      .window("1 week", Alignment.START)
-//      .execute(ConnectedComponents)
-//      .writeTo(output)
-//    // [walk-window]
+    // [walk-window]
+    graph
+      .slice("2020-01-01", "2021-01-01")
+      .walk("1 day")
+      .window("1 week", Alignment.START)
+      .execute(ConnectedComponents)
+      .writeTo(output)
+    // [walk-window]
 //
 //    // [direct-style]
 //    graph
