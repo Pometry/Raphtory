@@ -27,11 +27,10 @@ jobs:
       - name: Branch name REF
         run: echo running on branch ${GITHUB_REF##*/}
       - name: Branch name inputs
-        run: echo running on inputs branch ${{ inputs.branch }}
+        run: echo running on inputs branchcd  ${{ inputs.branch }}
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: '0'
           ref: ${{ inputs.branch }}
       # Install SBT
       - name: Get sbt package
