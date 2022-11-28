@@ -1,7 +1,7 @@
 import inspect
 import re
 import traceback
-from abc import ABCMeta
+from abc import ABCMeta, ABC
 from collections.abc import Iterable, Mapping
 
 import os
@@ -496,7 +496,7 @@ class OverloadedMethod:
             print(e)
         raise RuntimeError(f"No overloaded implementations matched for {self.__name__} with {args=} and {kwargs=}")
 
-    def __get__(self, instance, owner):
+    def __get__(self, instance, owner=None):
         if instance is None:
             return self
         else:
@@ -552,9 +552,10 @@ class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
 
     def __subclasscheck__(self, subclass):
         try:
-            super().__subclasscheck__(subclass)
-        except Exception as e:
-            return NotImplemented
+            value = super().__subclasscheck__(subclass)
+            return value
+        except AttributeError as e:
+            return False
 
     def _from_jvm(cls, jvm_object):
         if cls._base_initialised:
@@ -598,7 +599,7 @@ class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
                 mcs._base_initialised = True
 
 
-class ScalaClassProxy(GenericScalaProxy, metaclass=ScalaObjectProxy):
+class ScalaClassProxy(GenericScalaProxy, ABC, metaclass=ScalaObjectProxy):
     """Base class for wrapper objects that are constructable from python"""
 
     @classmethod
