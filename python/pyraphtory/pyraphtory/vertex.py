@@ -10,8 +10,11 @@ class Vertex(GenericScalaProxy):
 
     _classname = "com.raphtory.api.analysis.visitor.Vertex"
 
-    def message_vertex(self, message):
-        super().message_vertex[SchemaProviders.get_schema(message)](message)
+    def message_vertex(self, vertex_id, data):
+        super().message_vertex[SchemaProviders.get_schema(data)](vertex_id, data)
+
+    def message_self(self, data):
+        super().message_self[SchemaProviders.get_schema(data)](data)
 
     def message_out_neighbours(self, message):
         super().message_out_neighbours[SchemaProviders.get_schema(message)](message)
