@@ -40,7 +40,7 @@ class QuerySupervisorSuite extends CatsEffectSuite {
                   lt1 == Long.MinValue
                 }
               }
-      _    <- startBlockingIngestion(0)
+      _    <- startIngestion(0)
       et2  <- earliestTime.get
       lt2  <- latestTime.get
       ipr2 <- inprogressReqs.get
@@ -73,7 +73,7 @@ class QuerySupervisorSuite extends CatsEffectSuite {
                   lt1 == Long.MinValue
                 }
               }
-      _    <- startBlockingIngestion(1)
+      _    <- startIngestion(1)
       et2  <- earliestTime.get
       lt2  <- latestTime.get
       ipr  <- inprogressReqs.get
@@ -107,7 +107,7 @@ class QuerySupervisorSuite extends CatsEffectSuite {
                     lt1 == Long.MinValue
                   }
                 }
-      fib    <- startBlockingIngestion(1).start
+      fib    <- startIngestion(1).start
       _      <- IO.sleep(50.millis)
       _      <- pendingReqs.toArray.last.asInstanceOf[LoadRequest].release.complete(())
       et2    <- earliestTime.get
@@ -144,7 +144,7 @@ class QuerySupervisorSuite extends CatsEffectSuite {
                     lt1 == Long.MinValue
                   }
                 }
-      fib    <- startBlockingIngestion(0).start
+      fib    <- startIngestion(0).start
       _      <- IO.sleep(50.millis)
       _      <- pendingReqs.toArray.last.asInstanceOf[LoadRequest].release.complete(())
       et2    <- earliestTime.get
@@ -182,7 +182,7 @@ class QuerySupervisorSuite extends CatsEffectSuite {
                     lt1 == Long.MinValue
                   }
                 }
-      fib    <- startBlockingIngestion(1).start
+      fib    <- startIngestion(1).start
       _      <- IO.sleep(50.millis)
       _      <- pendingReqs.toArray.last.asInstanceOf[LoadRequest].release.complete(())
       et2    <- earliestTime.get
@@ -222,8 +222,8 @@ class QuerySupervisorSuite extends CatsEffectSuite {
                      lt1 == Long.MinValue
                    }
                  }
-      _       <- endBlockingIngestion(sourceID = 0, 5, 10)
-      _       <- endBlockingIngestion(sourceID = 1, 0, 6)
+      _       <- endIngestion(sourceID = 0, 5, 10)
+      _       <- endIngestion(sourceID = 1, 0, 6)
       et2     <- earliestTime.get
       lt2     <- latestTime.get
       ipr     <- inprogressReqs.get
@@ -256,7 +256,7 @@ class QuerySupervisorSuite extends CatsEffectSuite {
                     lt1 == Long.MinValue
                   }
                 }
-      _      <- endBlockingIngestion(sourceID = 0, 0, 10)
+      _      <- endIngestion(sourceID = 0, 0, 10)
       et2    <- earliestTime.get
       lt2    <- latestTime.get
       ipr    <- inprogressReqs.get

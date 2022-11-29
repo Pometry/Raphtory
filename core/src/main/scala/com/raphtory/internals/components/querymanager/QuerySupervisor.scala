@@ -28,7 +28,7 @@ class QuerySupervisor[F[_]] protected (
   private val logger                    = Logger(LoggerFactory.getLogger(this.getClass))
   private[querymanager] val pendingReqs = new ArrayBlockingQueue[Request](1000)
 
-  def startBlockingIngestion(sourceID: SourceID): F[Unit] =
+  def startIngestion(sourceID: SourceID): F[Unit] =
     for {
       defr <- Deferred[F, Unit]
       lr   <- F.delay(LoadRequest(sourceID, defr))
@@ -48,7 +48,7 @@ class QuerySupervisor[F[_]] protected (
       _    <- F.delay(logger.info(s"Source '$sourceID' is blocking analysis for Graph '$graphID'"))
     } yield ()
 
-  def endBlockingIngestion(sourceID: Int, _earliestTime: Long, _latestTime: Long): F[Unit] = {
+  def endIngestion(sourceID: Int, _earliestTime: Long, _latestTime: Long): F[Unit] = {
     @tailrec
     def queryReqsToRelease(ls: List[QueryRequest]): Seq[QueryRequest] =
       if (pendingReqs.peek().isInstanceOf[QueryRequest])
