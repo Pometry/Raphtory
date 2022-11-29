@@ -103,6 +103,7 @@ lazy val arrowCore =
   (project in file("arrow-core")).settings(assemblySettings)
 
 lazy val core = (project in file("core"))
+  .configs(IntegrationTest)
   .settings(
           name := "core",
           assembly / test := {},
@@ -113,6 +114,7 @@ lazy val core = (project in file("core"))
                   "-private"
           ),
           assemblySettings,
+          Defaults.itSettings,
           defaultSettings,
           addCompilerPlugin(scalaDocReader),
           libraryDependencies ++= Seq(
