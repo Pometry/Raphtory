@@ -1,9 +1,14 @@
 from pathlib import Path
+
+import numpy as np
+
 from pyraphtory.context import PyRaphtory
+from pyraphtory.graph import Row
 import pyraphtory
 from pyraphtory import __version__
 from pyraphtory.input import *
 import unittest
+from numpy import array_equal
 
 version_file = Path(__file__).parent.parent.parent.parent / "version"
 
@@ -93,3 +98,12 @@ class PyRaphtoryTest(unittest.TestCase):
         self.assertEqual(df.to_csv(), expected_value)
         self.assertEqual(df_time.to_csv(), expected_value_time)
         graph.destroy(force=True)
+
+    def test_message_vertex(self):
+        with self.ctx.new_graph() as graph:
+            graph.add_edge(1, 1, 2)
+            df = (graph.step(lambda vertex: vertex.message_vertex(1, "message"))
+                  .explode_select(lambda vertex: [Row(vertex.name(), message) for message in vertex.message_queue()])).to_df(["id", "message"])
+            assert array_equal(df["id"], ["1", "1"])
+            assert array_equal(df["message"], ["message", "message"])
+
