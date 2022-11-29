@@ -52,6 +52,7 @@ trait LocalRunner { self: RaphtoryApp =>
       val tracker = graph
         .execute(Degree())
         .writeTo(FileSink("/tmp/raphtory"))
+        .waitForJob()
 
       // PageRank
       graph
@@ -68,6 +69,7 @@ trait LocalRunner { self: RaphtoryApp =>
         .past()
         .execute(ConnectedComponents)
         .writeTo(FileSink("/tmp/raphtory"))
+        .waitForJob()
 
       // Chained Example
       graph
@@ -78,6 +80,7 @@ trait LocalRunner { self: RaphtoryApp =>
         .transform(Degree())
         .execute(NodeList(Seq("prlabel", "cclabel", "inDegree", "outDegree", "degree")))
         .writeTo(FileSink("/tmp/raphtory"))
+        .waitForJob()
 
     }
 }
