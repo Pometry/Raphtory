@@ -1,0 +1,12 @@
+version: "3.9"
+services:
+  zoo1:
+    image: zookeeper
+    restart: always
+    hostname: zk
+    ports:
+      - 2181:2181
+  query:
+    build:
+      context: .
+
