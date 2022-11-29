@@ -1,8 +1,8 @@
 package com.raphtory.algorithms.generic
 
-import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.algorithm.{Generic, GenericReduction}
 import com.raphtory.api.analysis.graphstate.Accumulator
-import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.graphview.{GraphPerspective, ReducedGraphPerspective}
 import com.raphtory.api.analysis.table.{Row, Table}
 
 import scala.math.Ordering.Implicits._
@@ -29,25 +29,28 @@ import scala.math.Ordering.Implicits._
   *
   */
 
-object NodeEdgeCount extends Generic {
+object NodeEdgeCount extends GenericReduction {
 
-  override def apply(graph: GraphPerspective): graph.Graph = {
-    graph.setGlobalState({state =>
+  override def apply(graph: GraphPerspective): graph.ReducedGraph = {
+    graph.reducedView.setGlobalState({state =>
       state.newIntAdder("directedEdges")
       state.newIntAdder("undirectedEdges")
+      state.newIntAdder("temporalEdges")
     }).step{ (vertex, state) =>
       import vertex._
       val acc1: Accumulator[Int, Int] = state("directedEdges")
       acc1+=vertex.outEdges.size
       val acc2: Accumulator[Int, Int] = state("undirectedEdges")
       acc2+=vertex.degree
+      val acc3: Accumulator[Int,Int] = state("temporalEdges")
+      acc3+=vertex.explodeOutEdges().size
     }
   }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: ReducedGraphPerspective): Table =
     graph.globalSelect{
       state =>
-        Row(state.nodeCount, state("directedEdges").value, state[Int,Int]("undirectedEdges").value/2)
+        Row(state.nodeCount, state("directedEdges").value, state[Int,Int]("undirectedEdges").value/2, state[Int,Int]("temporalEdges").value)
     }
 }
 
