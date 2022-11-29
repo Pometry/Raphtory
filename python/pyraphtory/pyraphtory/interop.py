@@ -479,6 +479,7 @@ class OverloadedMethod:
     def __init__(self, methods, name):
         self.__name__ = name
         self._methods = methods
+        self.__signature__ = inspect.signature(self.__class__.__call__)
         self.__doc__ = (f"Overloaded method with alternatives\n\n"
                         + "\n\n".join(f".. method:: {self.__name__}{str(inspect.signature(m.__get__(m)))}\n   :noindex:\n" +  # hack to get signature as if bound method
                                       ("\n" + indent(m.__doc__, "   ") if m.__doc__ else "")
@@ -504,7 +505,6 @@ class OverloadedMethod:
             bound._methods = [m.__get__(instance, owner) for m in bound._methods]
             return bound
 
-    __text_signature__ = "($self, *args, **kwargs)"
 
 
 class WithImplicits:
