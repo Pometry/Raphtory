@@ -86,12 +86,12 @@ public class RaphtoryArrowPartition {
         /**
          * Maximum number of vertices per arrow file
          */
-        public int _vertexPartitionSize = 256 * 1024;
+        public int _vertexPartitionSize = 1024 * 1024;
 
         /**
          * Maximum number of edges per arrow file
          */
-        public int _edgePartitionSize = 512 * 1024;
+        public int _edgePartitionSize = 2 * 1024 * 1024;
 
         /**
          * Enable or disable arrow bounds checking
@@ -770,6 +770,22 @@ public class RaphtoryArrowPartition {
 
 
     /**
+     * Returns a new Windowed Vertices Manager that manages multi-threaded iteration over windowed vertices.
+     *
+     * @param threadPool the thread pool to use
+     * @param startTime the window start time (inclusive)
+     * @param endTime the window end time (inclusive)
+     *
+     * @return a new Vertices Manager
+     */
+    public VertexIterator.MTWindowedVertexManager getNewMTWindowedVertexManager(RaphtoryThreadPool threadPool, long startTime, long endTime) {
+        VertexIterator.MTWindowedVertexManager it = new VertexIterator.MTWindowedVertexManager();
+        it.init(_vmgr, threadPool, startTime, endTime);
+        return it;
+    }
+
+
+    /**
      * Returns a new Edges Manager that manages multi-threaded iteration over all edges.
      *
      * @param threadPool the thread pool to use
@@ -826,7 +842,7 @@ public class RaphtoryArrowPartition {
 
         long then = System.currentTimeMillis();
         mgr.start((pid, iter) -> {
-            VertexIterator.WindowedVertexIterator wvi = (VertexIterator.WindowedVertexIterator)iter;
+            VertexIterator.WindowedVertexHistoryIterator wvi = (VertexIterator.WindowedVertexHistoryIterator)iter;
 
             LongArrayList vIds = vertexIds[pid];
             LongArrayList times = timestamps[pid];

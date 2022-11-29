@@ -335,7 +335,7 @@ public class DataSetBuilder {
                     long srcId = ei.isSrcVertexLocal() ? getGlobalVertexIdFromLocalId(_raps[i], ei.getSrcVertexId()) : ei.getSrcVertexId();
                     long dstId = ei.isDstVertexLocal() ? getGlobalVertexIdFromLocalId(_raps[i], ei.getDstVertexId()) : ei.getDstVertexId();
 
-                    assertTrue("Couldn't find edge!", findAndRemoveEdge(edgesPerRap[i], srcId, dstId, start, end));
+                    assertTrue("Couldn't find edge! src=" + srcId + ", dst=" + dstId, findAndRemoveEdge(edgesPerRap[i], srcId, dstId, start, end));
                 }
             }
             assertTrue("Unknown edges found!", edgesPerRap[i].isEmpty());
@@ -364,6 +364,7 @@ public class DataSetBuilder {
      * set of vertices for the specified time frame.
      */
     private void checkWindowedVertexIterator(long start, long end, long[][] data) {
+        //System.out.println("TIME: " + start + " -> " + end);
         // List of unique vertices
         LongOpenHashSet vertices = new LongOpenHashSet();
         {
@@ -401,7 +402,7 @@ public class DataSetBuilder {
         }
 
         for (int i=0; i<_raps.length; ++i) {
-            assertTrue("Didn't identify all vertices!", verticesPerRap[i].isEmpty());
+            assertTrue(start + "->" + end + ": Didn't identify all vertices!: " + verticesPerRap[i], verticesPerRap[i].isEmpty());
         }
     }
 
@@ -459,7 +460,7 @@ public class DataSetBuilder {
                 long srcId = ei.isSrcVertexLocal() ? getGlobalVertexIdFromLocalId(_raps[i], ei.getSrcVertexId()) : ei.getSrcVertexId();
                 long dstId = ei.isDstVertexLocal() ? getGlobalVertexIdFromLocalId(_raps[i], ei.getDstVertexId()) : ei.getDstVertexId();
 
-                assertTrue("Couldn't find edge!", findAndRemoveEdge(edgesPerRap[i], srcId, dstId, start, end));
+                assertTrue("Couldn't find edge!: src=" + srcId + ", dst=" + dstId, findAndRemoveEdge(edgesPerRap[i], srcId, dstId, start, end));
             }
 
             assertTrue("Unknown edges found!", edgesPerRap[i].isEmpty());
