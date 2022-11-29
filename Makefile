@@ -47,9 +47,11 @@ docker-sbt-build:
 	wget https://dlcdn.apache.org//ant/ivy/$(IVY_VERSION)/apache-ivy-$(IVY_VERSION)-bin.zip
 	unzip apache-ivy-$(IVY_VERSION)-bin.zip
 	mkdir -p core/target/ivyjars
-	rm -Rf core	target/ivyjars/*
-	java -jar apache-ivy-$(IVY_VERSION)/ivy-$(IVY_VERSION).jar -ivy $$(ls python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/**.xml) -retreive core/target/ivyjars
-	rm -Rf apache-ivy*
+	rm -Rf core/target/ivyjars/*
+	for ivy_xml in $$(ls python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/core_**.xml) ; do \
+		java -jar apache-ivy-$(IVY_VERSION)/ivy-$(IVY_VERSION).jar -ivy $$ivy_xml -confs runtime -retreive "lib/[conf]/[artifact]-[type]-[revision].[ext]" ; \
+	done
+	#rm -Rf apache-ivy*
 
 .PHONY sbt-skip-build:
 sbt-skip-build: version
