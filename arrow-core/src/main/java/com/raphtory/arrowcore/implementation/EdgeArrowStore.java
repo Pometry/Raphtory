@@ -39,6 +39,10 @@ public class EdgeArrowStore {
         edgeFields.add(new Field("prev_out_edge_ptr", new FieldType(false, new ArrowType.Int(64, true), null), null)); // Points to previous edge
         edgeFields.add(new Field("history_ptr", new FieldType(false, new ArrowType.Int(32, true), null), null)); // Points to end of list...
 
+        // Sorted edge history fields (here because we only need 1 entry per edge)
+        edgeFields.add(new Field("sortedhstart", new FieldType(false, new ArrowType.Int(32, true), null), null)); // Start of sorted history range
+        edgeFields.add(new Field("sortedhend", new FieldType(false, new ArrowType.Int(32, true), null), null));   // End of sorted history range
+
         return edgeFields;
     }
 
@@ -57,6 +61,9 @@ public class EdgeArrowStore {
     protected BigIntVector _prevIncomingEdgesPtr;
     protected BigIntVector _prevOutgoingEdgesPtr;
     protected IntVector _historyPtr;
+    protected IntVector _sortedHStart;
+    protected IntVector _sortedHEnd;
+
 
     // Accessors which can retrieve user-defined fields from the schema
     protected SchemaFieldAccessor[] _accessors;
@@ -88,6 +95,8 @@ public class EdgeArrowStore {
             _prevIncomingEdgesPtr = (BigIntVector) _edgeRoot.getVector("prev_inc_edge_ptr");
             _prevOutgoingEdgesPtr = (BigIntVector) _edgeRoot.getVector("prev_out_edge_ptr");
             _historyPtr = (IntVector)_edgeRoot.getVector("history_ptr");
+            _sortedHStart = (IntVector)_edgeRoot.getVector("sortedhstart");
+            _sortedHEnd = (IntVector)_edgeRoot.getVector("sortedhend");
         }
         else {
             _srcVertexIds = null;
@@ -100,6 +109,8 @@ public class EdgeArrowStore {
             _prevIncomingEdgesPtr = null;
             _prevOutgoingEdgesPtr = null;
             _historyPtr = null;
+            _sortedHStart = null;
+            _sortedHEnd = null;
         }
     }
 

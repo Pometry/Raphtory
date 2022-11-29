@@ -10,6 +10,7 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.zip.GZIPInputStream;
 
 public class AlphaBayLoader {
@@ -80,7 +81,7 @@ public class AlphaBayLoader {
         cfg._nLocalEntityIdMaps = 128;
         cfg._localEntityIdMapSize = 1024;
         cfg._syncIDMap = false;
-        cfg._edgePartitionSize = 512 * 1024;
+        cfg._edgePartitionSize = 1024 * 1024;
         cfg._vertexPartitionSize = 256 * 1024;
 
         RaphtoryArrowPartition rap = new RaphtoryArrowPartition(cfg);
@@ -89,6 +90,7 @@ public class AlphaBayLoader {
         if (new File("E:/tmp/alphabay/vertex-p0.rap").exists()) {
             rap.getVertexMgr().loadFiles();
             rap.getEdgeMgr().loadFiles();
+            System.out.println(rap.getStatistics());
         }
         else {
             loader.load("D:/home/jatinder/Pometry/public/Raphtory/alphabay_sorted.csv.gz");
@@ -96,6 +98,8 @@ public class AlphaBayLoader {
             rap.getEdgeMgr().saveFiles();
         }
 
+        loader.degreeAlgoTest();
+        loader.degreeAlgoTestHack();
         loader.degreeAlgoMT();
         System.exit(0);
     }
@@ -117,8 +121,8 @@ public class AlphaBayLoader {
 
     public void degreeAlgo() throws Exception {
         System.out.println(new Date() + ": Degrees starting");
-        //VertexIterator vi = _rap.getNewWindowedVertexIterator(Long.MIN_VALUE, Long.MAX_VALUE);
-        VertexIterator vi = _rap.getNewAllVerticesIterator();
+        VertexIterator vi = _rap.getNewWindowedVertexIterator(Long.MIN_VALUE, Long.MAX_VALUE);
+        //VertexIterator vi = _rap.getNewAllVerticesIterator();
         int nVertices = 0;
         int nEdges = 0;
         Long2IntOpenHashMap inDegreeMap = new Long2IntOpenHashMap(16384);
@@ -132,12 +136,11 @@ public class AlphaBayLoader {
 
             EdgeIterator ei;
 
-            inDegreeMap.put(vId, vi.getNIncomingEdges());
-            outDegreeMap.put(vId, vi.getNOutgoingEdges());
+            //inDegreeMap.put(vId, vi.getNIncomingEdges());
+            //outDegreeMap.put(vId, vi.getNOutgoingEdges());
 
-            /*
             int nIncoming = 0;
-            ei = vi.getOutgoingEdges();
+            ei = vi.getIncomingEdges();
             while (ei.hasNext()) {
                 ei.next();
                 ++nIncoming;
@@ -151,8 +154,8 @@ public class AlphaBayLoader {
                 ++nOutgoing;
             }
             outDegreeMap.put(vId, nOutgoing);
-            */
 
+            /*
             int nTotal = 0;
             ei = vi.getAllEdges();
             while (ei.hasNext()) {
@@ -161,8 +164,10 @@ public class AlphaBayLoader {
             }
             degreeMap.put(vId, nTotal);
             nEdges += nTotal;
+            */
         }
 
+        /*
         OutputStream output = new BufferedOutputStream(new FileOutputStream("degree_output.csv"), 65536);
         StringBuilder tmp = new StringBuilder();
 
@@ -188,6 +193,7 @@ public class AlphaBayLoader {
 
         output.flush();
         output.close();
+*/
 
         System.out.println(new Date() + ": Degrees ended");
         System.out.println("nVertices: " + nVertices + ", nEdges=" + nEdges);
@@ -195,10 +201,235 @@ public class AlphaBayLoader {
 
 
 
-    public void degreeAlgoMT() throws Exception {
+    public void degreeAlgoTest() throws Exception {
+        //long time = 1325264638L;
+        long time = Long.MAX_VALUE;
+
         System.out.println(new Date() + ": Degrees starting");
+        VertexIterator vi = _rap.getNewWindowedVertexIterator(Long.MIN_VALUE, time);
+
+        int nVertices = 0;
+        int nEdges = 0;
+        Long2IntOpenHashMap inDegreeMap = new Long2IntOpenHashMap(16384);
+        Long2IntOpenHashMap outDegreeMap = new Long2IntOpenHashMap(16384);
+        Long2IntOpenHashMap degreeMap = new Long2IntOpenHashMap(16384);
+
+        long then = System.nanoTime();
+        while (vi.hasNext()) {
+
+            long vId = vi.next();
+
+            //System.out.println("FOUND: " + vId);
+
+            ++nVertices;
+
+            EdgeIterator ei;
+
+            int nIncoming = 0;
+            int nOutgoing = 0;
+            int nSelfEdges = 0;
+
+            ei = vi.getIncomingEdges();
+            while (ei.hasNext()) {
+                long edgeId = ei.next();
+
+                ++nIncoming;
+
+                if (ei.getSrcVertexId()==ei.getDstVertexId() && ei.isSrcVertexLocal() && ei.isDstVertexLocal()) {
+                    ++nSelfEdges;
+                }
+
+                //System.out.println("I: " + edgeId);
+            }
+
+            inDegreeMap.put(vId, nIncoming);
+            nEdges += nIncoming;
+
+            ei = vi.getOutgoingEdges();
+            while (ei.hasNext()) {
+                long edgeId = ei.next();
+
+                ++nOutgoing;
+                //System.out.println("O: " + edgeId);
+            }
+            outDegreeMap.put(vId, nOutgoing);
+            nEdges += nOutgoing;
+
+            if (true) {
+                int nTotal = 0;
+                ei = vi.getAllEdges();
+                while (ei.hasNext()) {
+                    long edgeId = ei.next();
+                    ++nTotal;
+                    //System.out.println("A: " + edgeId);
+                }
+
+                degreeMap.put(vId, nTotal);
+                nEdges += nTotal;
+            }
+            else {
+                int nTotal = nIncoming + nOutgoing - nSelfEdges;
+                degreeMap.put(vId, nTotal);
+                nEdges += nTotal;
+            }
+        }
+
+        /*
+        OutputStream output = new BufferedOutputStream(new FileOutputStream("degree_output.csv"), 65536);
+        StringBuilder tmp = new StringBuilder();
+
+        degreeMap.keySet().forEach(id -> {
+            tmp.setLength(0);
+            tmp.append("DUMMY,");
+            tmp.append(id);
+            tmp.append(",");
+            tmp.append(inDegreeMap.get(id));
+            tmp.append(",");
+            tmp.append(outDegreeMap.get(id));
+            tmp.append(",");
+            tmp.append(degreeMap.get(id));
+            tmp.append("\n");
+
+            try {
+                output.write(tmp.toString().getBytes());
+            }
+            catch (Exception e) {
+                // NOP
+            }
+        });
+
+        output.flush();
+        output.close();
+        */
+
+        long now = System.nanoTime();
+        System.out.println("Took: " + (now-then)/1000000.0d + "ms");
+        System.out.println(new Date() + ": Degrees ended");
+        System.out.println("nVertices: " + nVertices + ", nEdges=" + nEdges);
+    }
+
+
+
+    public void degreeAlgoTestHack() throws Exception {
+        //long time = 1325264638L;
+        long time = Long.MAX_VALUE;
+
+        System.out.println(new Date() + ": Degrees starting");
+        VertexIterator vi = _rap.getNewAllVerticesIterator();
+
+        int nVertices = 0;
+        int nEdges = 0;
+        Long2IntOpenHashMap inDegreeMap = new Long2IntOpenHashMap(16384);
+        Long2IntOpenHashMap outDegreeMap = new Long2IntOpenHashMap(16384);
+        Long2IntOpenHashMap degreeMap = new Long2IntOpenHashMap(16384);
+
+        long then = System.nanoTime();
+        while (vi.hasNext()) {
+            long vId = vi.next();
+            if (!vi.isAliveAt(Long.MIN_VALUE, time)) { continue; }
+
+            //System.out.println("FOUND: " + vId);
+
+            ++nVertices;
+
+            EdgeIterator ei;
+
+            int nIncoming = 0;
+            int nOutgoing = 0;
+            int nSelfEdges = 0;
+
+            ei = vi.getIncomingEdges();
+            while (ei.hasNext()) {
+                long edgeId = ei.next();
+                if (!ei.isAliveAt(Long.MIN_VALUE, time)) { continue; }
+
+                ++nIncoming;
+
+                if (ei.getSrcVertexId()==ei.getDstVertexId() && ei.isSrcVertexLocal() && ei.isDstVertexLocal()) {
+                    ++nSelfEdges;
+                }
+
+                //System.out.println("I: " + edgeId);
+            }
+
+            inDegreeMap.put(vId, nIncoming);
+            nEdges += nIncoming;
+
+            ei = vi.getOutgoingEdges();
+            while (ei.hasNext()) {
+                long edgeId = ei.next();
+                if (!ei.isAliveAt(Long.MIN_VALUE, time)) { continue; }
+
+                ++nOutgoing;
+                //System.out.println("O: " + edgeId);
+            }
+            outDegreeMap.put(vId, nOutgoing);
+            nEdges += nOutgoing;
+
+            if (true) {
+                int nTotal = 0;
+                ei = vi.getAllEdges();
+                while (ei.hasNext()) {
+                    long edgeId = ei.next();
+                    if (!ei.isAliveAt(Long.MIN_VALUE, time)) { continue; }
+                    ++nTotal;
+                    //System.out.println("A: " + edgeId);
+                }
+
+                degreeMap.put(vId, nTotal);
+                nEdges += nTotal;
+            }
+            else {
+                int nTotal = nIncoming + nOutgoing - nSelfEdges;
+                degreeMap.put(vId, nTotal);
+                nEdges += nTotal;
+            }
+        }
+
+        /*
+        OutputStream output = new BufferedOutputStream(new FileOutputStream("degree_output.csv"), 65536);
+        StringBuilder tmp = new StringBuilder();
+
+        degreeMap.keySet().forEach(id -> {
+            tmp.setLength(0);
+            tmp.append("DUMMY,");
+            tmp.append(id);
+            tmp.append(",");
+            tmp.append(inDegreeMap.get(id));
+            tmp.append(",");
+            tmp.append(outDegreeMap.get(id));
+            tmp.append(",");
+            tmp.append(degreeMap.get(id));
+            tmp.append("\n");
+
+            try {
+                output.write(tmp.toString().getBytes());
+            }
+            catch (Exception e) {
+                // NOP
+            }
+        });
+
+        output.flush();
+        output.close();
+        */
+
+        long now = System.nanoTime();
+        System.out.println("Took: " + (now-then)/1000000.0d + "ms");
+        System.out.println(new Date() + ": Degrees ended");
+        System.out.println("nVertices: " + nVertices + ", nEdges=" + nEdges);
+    }
+
+
+    public void degreeAlgoMT() throws Exception {
+        final long start = Long.MIN_VALUE;
+        final long end = Long.MAX_VALUE;
+
+        System.out.println(new Date() + ": Degrees starting");
+        long then = System.nanoTime();
+
         //VertexIterator vi = _rap.getNewWindowedVertexIterator(Long.MIN_VALUE, Long.MAX_VALUE);
-        VertexIterator.MTAllVerticesManager avm = _rap.getNewMTAllVerticesManager(RaphtoryThreadPool.THREAD_POOL);
+        VertexIterator.MTWindowedVertexManager avm = _rap.getNewMTWindowedVertexManager(RaphtoryThreadPool.THREAD_POOL, start, end);
 
         Long2IntOpenHashMap[] inDegreesMap = new Long2IntOpenHashMap[_rap.getVertexMgr().nPartitions()];
         Long2IntOpenHashMap[] outDegreesMap = new Long2IntOpenHashMap[_rap.getVertexMgr().nPartitions()];
@@ -218,16 +449,18 @@ public class AlphaBayLoader {
             while (vi.hasNext()) {
                 long vId = vi.next();
 
+                //if (!vi.isAliveAt(Long.MIN_VALUE, Long.MAX_VALUE)) { continue; }
+
                 EdgeIterator ei;
 
-                inDegreeMap.put(vId, vi.getNIncomingEdges());
-                outDegreeMap.put(vId, vi.getNOutgoingEdges());
+                //inDegreeMap.put(vId, vi.getNIncomingEdges());
+                //outDegreeMap.put(vId, vi.getNOutgoingEdges());
 
-                /*
                 int nIncoming = 0;
                 ei = vi.getOutgoingEdges();
                 while (ei.hasNext()) {
                     ei.next();
+                    //if (!ei.isAliveAt(Long.MIN_VALUE, Long.MAX_VALUE)) { continue; }
                     ++nIncoming;
                 }
                 inDegreeMap.put(vId, nIncoming);
@@ -236,15 +469,16 @@ public class AlphaBayLoader {
                 ei = vi.getOutgoingEdges();
                 while (ei.hasNext()) {
                     ei.next();
+                    //if (!ei.isAliveAt(Long.MIN_VALUE, Long.MAX_VALUE)) { continue; }
                     ++nOutgoing;
                 }
                 outDegreeMap.put(vId, nOutgoing);
-                */
 
                 int nTotal = 0;
                 ei = vi.getAllEdges();
                 while (ei.hasNext()) {
                     ei.next();
+                    //if (!ei.isAliveAt(Long.MIN_VALUE, Long.MAX_VALUE)) { continue; }
                     ++nTotal;
                 }
                 degreeMap.put(vId, nTotal);
@@ -253,6 +487,7 @@ public class AlphaBayLoader {
 
         avm.waitTilComplete();
 
+        /*
         OutputStream output = new BufferedOutputStream(new FileOutputStream("degree_output.csv"), 65536);
         StringBuilder tmp = new StringBuilder();
 
@@ -284,6 +519,10 @@ public class AlphaBayLoader {
 
         output.flush();
         output.close();
+        */
+
+        long now = System.nanoTime();
+        System.out.println("Took: " + (now-then)/1000000.0d + "ms");
 
         System.out.println(new Date() + ": Degrees ended");
     }
@@ -445,11 +684,18 @@ public class AlphaBayLoader {
 
 
 
-    /*
 
-    private final int N_LOAD_THREADS = 8;
+
+
+    private final int N_LOAD_THREADS = 32;
+    private final Worker _workers[] = new Worker[N_LOAD_THREADS];
 
     public void loadMT(String file) throws Exception {
+        for (int i=0; i<_workers.length; ++i) {
+            _workers[i] = new Worker(i);
+            new Thread(_workers[i]).start();
+        }
+
         BufferedReader br;
 
         if (file.endsWith(".gz")) {
@@ -481,7 +727,21 @@ public class AlphaBayLoader {
 
             addVertex(srcWorker, srcGlobalId, src, time);
             addVertex(dstWorker, dstGlobalId, dst, time);
-            addOrUpdateEdge(srcGlobalId, dstGlobalId, time, price);
+        }
+
+        boolean finished = false;
+        while (!finished) {
+            finished = true;
+
+            for (int i=0; i<_workers.length; ++i) {
+                if (!_workers[i]._queue.isEmpty()) {
+                    finished = false;
+                }
+            }
+
+            if (!finished) {
+                Thread.sleep(10L);
+            }
         }
 
         long now = System.currentTimeMillis();
@@ -491,5 +751,76 @@ public class AlphaBayLoader {
         System.out.println(_rap.getStatistics());
     }
 
-     */
+
+
+    private void addVertex(int worker, long globalId, long nodeId, long time) {
+        AddVertex av = new AddVertex();
+        av.init(globalId, nodeId, time);
+        _workers[worker].process(av);
+    }
+
+
+    private class Worker implements Runnable {
+        final int _id;
+        final ArrayBlockingQueue<Object> _queue = new ArrayBlockingQueue<>(102400);
+        long _lastVertexId = -1L;
+        long _endVertexId = -1L;
+
+        public Worker(int id) {
+            _id = id;
+        }
+
+
+        public void process(Object o) {
+            try {
+                _queue.put(o);
+            }
+            catch (InterruptedException ie) {
+                // NOP
+            }
+        }
+
+
+        @Override
+        public void run() {
+            for (; ; ) {
+                Object o = null;
+
+                try {
+                    o = _queue.take();
+                }
+                catch (InterruptedException ie) {
+                    // NOP
+                    continue;
+                }
+
+                if (o instanceof AddVertex) {
+                    //System.out.println("ADDING");
+                    if (_lastVertexId==-1L || _lastVertexId>=_endVertexId) {
+                        int partId = _rap.getVertexMgr().getNewPartitionId();
+                        _lastVertexId = partId * _rap.getVertexMgr().PARTITION_SIZE;
+                        _endVertexId = _lastVertexId + _rap.getVertexMgr().PARTITION_SIZE;
+                    }
+
+                    AddVertex av = (AddVertex) o;
+                    createVertex(_lastVertexId, av._globalId, av._nodeId, av._time);
+
+                    ++_lastVertexId;
+                }
+            }
+        }
+    }
+
+
+    private static class AddVertex {
+        long _globalId;
+        long _nodeId;
+        long _time;
+
+        void init(long globalId, long nodeId, long time) {
+            _globalId = globalId;
+            _nodeId = nodeId;
+            _time = time;
+        }
+    }
 }

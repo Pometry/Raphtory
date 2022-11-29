@@ -39,11 +39,12 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
 
     // The actual arrow vertex stuff:
     private VectorSchemaRoot _rootRO;       // Arrow root
-    private VertexArrowStore _store;        // Used to access the actual arrow data
+    protected VertexArrowStore _store;      // Used to access the actual arrow data
     private ArrowFileReader _reader;        // File reader
     private int _currentSize = 0;           // Number of rows so far
     private boolean _modified = false;      // Whether or not this partition has been modified
     private boolean _loaded = false;        // Whether or not this partition has been loaded
+    private boolean _sorted = false;        // Whether or not this partition has been sorted
 
 
     // History, Fields and Properties:
@@ -197,6 +198,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
         int row = _apm.getRowId(v.getLocalId());
         boolean created = _store.addVertex(row, v);
         _modified = true;
+        _sorted = false;
 
         // Store the properties...
         for (int i=0; i<_nProperties; ++i) {
@@ -243,6 +245,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
     public synchronized int addProperty(long vertexId, int propertyId, VersionedEntityPropertyAccessor efa) {
         if (efa.isSet()) {
             _modified = true;
+            _sorted = false;
 
             int row = _apm.getRowId(vertexId);
 
@@ -307,6 +310,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
         }
 
         _modified = true;
+        _sorted = false;
 
         return historyRow;
     }
@@ -481,7 +485,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
      * @return true if a valid vertex is stored at that row, false otherwise
      */
     protected boolean isValidRow(int row) {
-        return row<_currentSize && _store._globalIds.isSet(row)!=0;
+        return row>=0 && row<_currentSize && _store._globalIds.isSet(row)!=0;
     }
 
 
@@ -503,6 +507,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
         _edgeIndex.addEdgeIndexRecord(row, dstVertexId, edgeId, dstIsGlobal); // XXX We only need 1 of these methods of finding matching edges?
         _cachedEdgeMap.addEdge(srcVertexId, dstVertexId, edgeId, _store._nOutgoingEdges.get(row));
         _modified = true;
+        _sorted = false;
         return prev;
     }
 
@@ -521,6 +526,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
         _store._incomingEdges.set(row, edgeId);
         _store._nIncomingEdges.set(row, _store._nIncomingEdges.get(row)+1);
         _modified = true;
+        _sorted = false;
         return prev;
     }
 
@@ -545,6 +551,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
      */
     public synchronized void saveToFile() {
         try {
+            buildSortedVertexPointers();
             if (_modified) {
                 _rootRO.syncSchema();
                 _rootRO.setRowCount(_currentSize);
@@ -568,6 +575,39 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
             System.out.println("Exception: " + e);
             e.printStackTrace(System.err);
         }
+    }
+
+
+    /**
+     * Synchronizes the sorted history store with this vertex store
+     * by updating the sorted history vertex start/end pointers
+     */
+    protected synchronized void buildSortedVertexPointers() {
+        if (_sorted) {
+            return;
+        }
+
+        _history.sortHistoryTimes();
+        int n = _history._history._maxRow;
+        IntVector sorted = _history._history._sortedVertexTimeIndices;
+
+        int vertexRow = -1;
+        for (int i=0; i<n; ++i) {
+            int actualRow = sorted.get(i);
+
+            if (vertexRow==-1) {
+                vertexRow = _history._history._vertexRowIds.get(actualRow);
+                _store._sortedHStart.set(vertexRow, i);
+            }
+            else if (vertexRow != _history._history._vertexRowIds.get(actualRow)) {
+                _store._sortedHEnd.set(vertexRow, i-1);
+                vertexRow = _history._history._vertexRowIds.get(actualRow);
+                _store._sortedHStart.set(vertexRow, i);
+            }
+        }
+
+        _store._sortedHEnd.set(vertexRow, n-1);
+        _sorted = true;
     }
 
 
@@ -680,6 +720,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
             _store.init(this, _rootRO, _fieldAccessors);
 
             _modified = false;
+            _sorted = true;
             _currentSize = _rootRO.getRowCount();
             if (_currentSize != _apm.PARTITION_SIZE) {
                 _rootRO.setRowCount(_apm.PARTITION_SIZE);
@@ -839,5 +880,52 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
         int row = _apm.getRowId(srcId);
         int nOutgoingEdges = _store._nOutgoingEdges.get(row);
         return _cachedEdgeMap.findMatchingEdges(srcId, dstID, isDstGlobal, nOutgoingEdges, scanner);
+    }
+
+
+    /**
+     * Identifies whether or not the specified vertex is alive within the time window
+     *
+     * @param vertexId the vertexId
+     * @param start the window start time (inclusive)
+     * @param end the window end time (inclusive)
+     *
+     * @return true if the vertex was alive in the window, false otherwise
+     */
+    public boolean isAliveAt(long vertexId, long start, long end) {
+        buildSortedVertexPointers();
+        return _history.isAliveAt(_apm.getRowId(vertexId), start, end);
+    }
+
+
+    /**
+     * Identifies whether or not the specified vertex is alive within the time window
+     *
+     * @param vertexId the vertexId
+     * @param start the window start time (inclusive)
+     * @param end the window end time (inclusive)
+     * @param searcher the binary searcher to use
+     *
+     * @return true if the vertex was alive in the window, false otherwise
+     */
+    public boolean isAliveAt(long vertexId, long start, long end, VertexHistoryPartition.BoundedVertexEdgeTimeWindowComparator searcher) {
+        buildSortedVertexPointers();
+        return _history.isAliveAt(_apm.getRowId(vertexId), start, end, searcher);
+    }
+
+
+    /**
+     * Identifies whether or not the specified vertex is alive within the time window
+     *
+     * @param vertexRow the vertex
+     * @param start the window start time (inclusive)
+     * @param end the window end time (inclusive)
+     * @param searcher the binary searcher to use
+     *
+     * @return true if the edge was alive in the window, false otherwise
+     */
+    protected boolean isAliveAtByRow(int vertexRow, long start, long end, VertexHistoryPartition.BoundedVertexEdgeTimeWindowComparator searcher) {
+        buildSortedVertexPointers();
+        return _history.isAliveAt(vertexRow, start, end, searcher);
     }
 }
