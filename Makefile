@@ -2,10 +2,11 @@ SHELL:=/bin/bash -euxo pipefail
 DOCKER_RAP:=bin/docker/raphtory
 DOCKER_TMP:=$(DOCKER_RAP)/tmp
 MODE:=batch
+IVY_VERSION:=2.5.1
 
-# version:
-# 	sbt -Dsbt.supershell=false -error "exit" && \
-# 	sbt -Dsbt.supershell=false -error "print core/version" | tr -d "[:cntrl:]"  > version
+version:
+	sbt -Dsbt.supershell=false -error "exit" && \
+	sbt -Dsbt.supershell=false -error "print core/version" | tr -d "[:cntrl:]"  > version
 
 .PHONY gh-sbt-build:
 gh-sbt-build: version
@@ -37,6 +38,16 @@ sbt-build: version
 	cp ~/.ivy2/local/com.raphtory/arrow-core_2.13/$$(cat version)/jars/arrow-core_2.13.jar python/pyraphtory/lib
 	cp ~/.ivy2/local/com.raphtory/arrow-messaging_2.13/$$(cat version)/jars/arrow-messaging_2.13.jar python/pyraphtory/lib
 	cp ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/jars/core_2.13.jar python/pyraphtory/lib
+
+
+docker-sbt-build:
+	rm -Rf apache-ivy*
+	wget https://dlcdn.apache.org//ant/ivy/$(IVY_VERSION)/apache-ivy-$(IVY_VERSION)-bin.zip
+	unzip apache-ivy-$(IVY_VERSION)-bin.zip
+	mkdir -p core/target/ivyjars
+	rm -Rf core	target/ivyjars/*
+	java -jar apache-ivy-$(IVY_VERSION)/ivy-$(IVY_VERSION).jar -ivy $$(ls python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/**.xml) -retreive core/target/ivyjars
+	rm -Rf apache-ivy*
 
 .PHONY sbt-skip-build:
 sbt-skip-build: version
@@ -84,8 +95,11 @@ docker-build: version
 	docker build \
 		--build-arg VERSION="$$(cat version)" \
 		-t raphtory-os:$$(cat version) \
-		-f $(DOCKER_RAP)/DockerfileV2 . --compress
+		-f Dockerfile . --compress
 
+.PHONY: docker-compose-up
+docker-compose-up: version docker-build
+	docker-compose -f docker-compose.yml up
 
 .PHONY: run-local-cluster
 run-local-cluster: version
