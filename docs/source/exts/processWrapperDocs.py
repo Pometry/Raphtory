@@ -1,8 +1,8 @@
 from sphinx.application import Sphinx
-from pyraphtory.interop import ScalaClassProxy, InstanceOnlyMethod, ScalaObjectProxy
+from pyraphtory.interop import ScalaClassProxy, InstanceOnlyMethod, ScalaObjectProxy, WithImplicits, OverloadedMethod
 from sphinx.util import logging
 from sphinx.locale import _, __
-from sphinx.ext.autodoc import MethodDocumenter, ClassDocumenter, safe_getattr, ObjectMembers, get_class_members, ModuleDocumenter
+from sphinx.ext.autodoc import MethodDocumenter, ClassDocumenter, safe_getattr, ObjectMembers, get_class_members, ModuleDocumenter, AttributeDocumenter, Documenter
 from typing import *
 
 logger = logging.getLogger(__name__)
@@ -10,38 +10,106 @@ logger = logging.getLogger(__name__)
 
 def setup(app: Sphinx):
     app.add_autodocumenter(InstanceOnlyMethodDocumenter)
+    app.add_autodocumenter(MetaclassMethodDocumenter)
     app.add_autodocumenter(ScalaClassProxyDocumenter)
-    app.add_autodocumenter(ClassMethodDocumenter)
+    app.add_autodocumenter(ImplicitMethodDocumenter)
+    app.add_autodocumenter(OverloadedMethodDocumenter)
 
 
-class InstanceOnlyMethodDocumenter(MethodDocumenter):  # type: ignore
-    """
-    Specialized Documenter subclass for instance-only.
-    """
-    priority = MethodDocumenter.priority + 1  # must be more than FunctionDocumenter
+def unpack_class_method(obj, name=None):
+    if hasattr(obj, "__self__"):
+        if name is None:
+            name = obj.__name__
+        for c in obj.__self__.mro():
+            if name in c.__dict__:
+                obj = c.__dict__[name]
+                break
+    return obj
+
+class ImplicitsSignatureMixin:
+    def format_signature(self, **kwargs):
+        sig = super().format_signature(**kwargs)  # type: ignore
+        if hasattr(self.object, "__self__"):
+            cls = self.object.__self__
+            method_class = cls.__class__.__dict__.get(self.object_name)
+        else:
+            method_class = self.object
+        if isinstance(method_class, InstanceOnlyMethod):
+            method_class = method_class.__func__
+        if isinstance(method_class, WithImplicits):
+            sig = "[*implicits]" + sig
+        return sig
+
+
+class ImplicitMethodDocumenter(ImplicitsSignatureMixin, MethodDocumenter):
+    objtype = "implicitmethod"
+    priority = AttributeDocumenter.priority + 1
 
     @classmethod
     def can_document_member(cls, member: Any, membername: str, isattr: bool, parent: Any
                             ) -> bool:
-        if isinstance(parent, ClassDocumenter):
-            if hasattr(member, "__self__"):
-                try:
-                    actual_method = member.__self__.__class__.__dict__[membername]
-                    if isinstance(actual_method, InstanceOnlyMethod):
-                        return True
-                except Exception as e:
-                    pass
-        return False
+        value = isinstance(member, WithImplicits)
+        if value:
+            print(member)
+        return value
+
+
+class OverloadedMethodDocumenter(ImplicitsSignatureMixin, MethodDocumenter):
+    objtype = "overloadedmethod"
+    priority = AttributeDocumenter.priority + 1
+
+    @classmethod
+    def can_document_member(cls, member: Any, membername: str, isattr: bool, parent: Any
+                            ) -> bool:
+        value = isinstance(member, OverloadedMethod)
+        if value:
+            print(member)
+        return value
+
+
+class InstanceOnlyMethodDocumenter(ImplicitsSignatureMixin, MethodDocumenter):  # type: ignore
+    """
+    Specialized Documenter subclass for instance-only.
+    """
+    objtype = "instancemethod"
+    priority = AttributeDocumenter.priority + 1
+    @classmethod
+    def can_document_member(cls, member: Any, membername: str, isattr: bool, parent: Any
+                            ) -> bool:
+        actual_method = unpack_class_method(member, membername)
+        return isinstance(actual_method, InstanceOnlyMethod)
+
 
     def import_object(self, raiseerror: bool = False) -> bool:
         ret = super().import_object(raiseerror)
         if not ret:
             return ret
-
-        actual_method = self.object.__self__.__class__.__dict__[self.object_name]
-        self.object = actual_method.__func__
-
+        # recover from InstanceOnly methods being bound as class methods if the method of the same name exists
+        # as a class method
+        actual_method = unpack_class_method(self.object, self.object_name)
+        if isinstance(actual_method, InstanceOnlyMethod):
+            self.object = actual_method.__func__
         return ret
+
+
+class MetaclassMethodDocumenter(ImplicitsSignatureMixin, MethodDocumenter):
+    objtype = "metaclassmethod"
+    member_order = MethodDocumenter.member_order - 1
+    priority = AttributeDocumenter.priority + 1  # make sure these are not parsed as attributes!
+
+    @classmethod
+    def can_document_member(cls, member: Any, membername: str, isattr: bool, parent: Any
+                            ) -> bool:
+        value = isinstance(member, ClassMethodWrapper)
+        return value
+
+    def import_object(self, raiseerror: bool = False) -> bool:
+        ret = super().import_object(raiseerror)
+        return ret
+
+    def add_directive_header(self, sig: str) -> None:
+        super(MethodDocumenter, self).add_directive_header(sig)
+        self.add_line('   :classmethod:', self.get_sourcename())
 
 
 class ClassMethodWrapper:
@@ -50,54 +118,34 @@ class ClassMethodWrapper:
         self.method = method
 
 
-class ClassMethodDocumenter(MethodDocumenter):  # type: ignore
-    """
-    Specialized Documenter subclass for instance-only.
-    """
-    priority = MethodDocumenter.priority + 1  # must be more than FunctionDocumenter
-
-    @classmethod
-    def can_document_member(cls, member: Any, membername: str, isattr: bool, parent: Any
-                            ) -> bool:
-        if isinstance(parent, ScalaClassProxyDocumenter):
-            return isinstance(member, ClassMethodWrapper)
-        return False
-
-    def import_object(self, raiseerror: bool = False) -> bool:
-        ret = super().import_object(raiseerror)
-        self.object = self.object.method
-        return ret
-
-
-
 class ScalaClassProxyDocumenter(ClassDocumenter):
+    objtype = "proxy"
+    directivetype = "class"
     priority = ClassDocumenter.priority + 1
+
     @classmethod
     def can_document_member(cls, member: Any, membername: str, isattr: bool, parent: Any
                             ) -> bool:
-        ret = isinstance(member, ScalaObjectProxy)
-        return ret
+        return isinstance(member, ScalaObjectProxy)
 
     def get_object_members(self, want_all: bool) -> Tuple[bool, ObjectMembers]:
-        members = get_class_members(self.object, self.objpath, self.get_attr,
-                                    self.config.autodoc_inherit_docstrings)
-        class_members = [(name, ClassMethodWrapper(cmember.__func__.__get__(self.object.__class__, self.object.__class__.__class__)))
-                         for name, cmember in self.object.__class__.__dict__.items()
-                         if isinstance(cmember, InstanceOnlyMethod)]
+        flag, members = super().get_object_members(want_all)
+        if isinstance(self.object, ScalaObjectProxy):
+            class_members = [(name, ClassMethodWrapper(getattr(self.object, name)))
+                             for name, cmember in self.object.__class__.__dict__.items()
+                             if isinstance(cmember, InstanceOnlyMethod)]
+            members = class_members + members
+        return flag, members
 
-        if not want_all:
-            if not self.options.members:
-                return False, []  # type: ignore
-            # specific members given
-            member_list = []
-            for name in self.options.members:
-                if name in members:
-                    member_list.append(members[name])
-                else:
-                    logger.warning(__('missing attribute %s in object %s') %
-                                   (name, self.fullname), type='autodoc')
-        elif self.options.inherited_members:
-            member_list = list(members.values())
-        else:
-            member_list = [m for m in members.values() if m.class_ == self.object]
-        return False, member_list + class_members
+    def filter_members(self, members: ObjectMembers, want_all: bool
+                       ) -> List[Tuple[str, Any, bool]]:
+        class_methods = []
+        other_members = []
+        for name, member in members:
+            if isinstance(member, ClassMethodWrapper):
+                class_methods.append((name, member, False))
+            else:
+                other_members.append((name, member))
+        other_members = super().filter_members(other_members, want_all)
+        return class_methods + other_members
+
