@@ -43,8 +43,12 @@ public class VertexArrowStore {
         vertexFields.add(new Field("outgoing_edges_ptr", new FieldType(false, new ArrowType.Int(64, true), null), null)); // Points to end of list...
         vertexFields.add(new Field("history_ptr", new FieldType(false, new ArrowType.Int(32, true), null), null)); // Points to end of list...
 
+        vertexFields.add(new Field("sortedhstart", new FieldType(false, new ArrowType.Int(32, true), null), null)); // Start index of sorted history for this vertex
+        vertexFields.add(new Field("sortedhend", new FieldType(false, new ArrowType.Int(32, true), null), null));   // End index of sorted history for this vertex
+
         return vertexFields;
     }
+
 
 
     protected VertexPartition _partition;   // Arrow vertex partition for this instance
@@ -61,6 +65,8 @@ public class VertexArrowStore {
     protected BigIntVector _incomingEdges;
     protected BigIntVector _outgoingEdges;
     protected IntVector _historyPtr;
+    protected IntVector _sortedHStart;
+    protected IntVector _sortedHEnd;
 
     // Accessors which can retrieve user-defined fields from the schema
     protected SchemaFieldAccessor[] _accessors;
@@ -91,6 +97,8 @@ public class VertexArrowStore {
             _incomingEdges = (BigIntVector)_vertexRoot.getVector("incoming_edges_ptr");
             _outgoingEdges = (BigIntVector)_vertexRoot.getVector("outgoing_edges_ptr");
             _historyPtr = (IntVector)_vertexRoot.getVector("history_ptr");
+            _sortedHStart = (IntVector)_vertexRoot.getVector("sortedhstart");
+            _sortedHEnd = (IntVector)_vertexRoot.getVector("sortedhend");
         }
         else {
             _globalIds = null;
@@ -103,6 +111,8 @@ public class VertexArrowStore {
             _incomingEdges = null;
             _outgoingEdges = null;
             _historyPtr = null;
+            _sortedHStart = null;
+            _sortedHEnd = null;
         }
     }
 
