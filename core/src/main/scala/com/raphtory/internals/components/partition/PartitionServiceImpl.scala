@@ -119,7 +119,7 @@ abstract class PartitionServiceImpl[F[_]](
       _ <- updateExecutorsForGraph(req.graphId, _ - req.jobId)
     } yield Empty()
 
-  private def forwardToExecutor[T](graphId: String, jobId: String, f: QueryExecutorF[F] => F[T]): F[T] =
+  private def forwardToExecutor[T](graphId: String, jobId: String, f: QueryExecutor[F] => F[T]): F[T] =
     for {
       executor <- graphs.get.map(graphs => graphs(graphId).data.executors(jobId))
       result   <- f(executor)
@@ -130,13 +130,13 @@ abstract class PartitionServiceImpl[F[_]](
       id         <- id.get
       storage    <- graphs.get.map(list => list(query.graphID).data.storage)
       partitions <- partitions.get
-      executor   <- QueryExecutorF[F](query, id, storage, partitions, dispatcher, config)
+      executor   <- QueryExecutor[F](query, id, storage, partitions, dispatcher, config)
       _          <- updateExecutorsForGraph(query.graphID, _ + (query.name -> executor))
     } yield ()
 
   private def updateExecutorsForGraph(
       graphId: String,
-      updating: Map[String, QueryExecutorF[F]] => Map[String, QueryExecutorF[F]]
+      updating: Map[String, QueryExecutor[F]] => Map[String, QueryExecutor[F]]
   ) =
     graphs.update(graphs =>
       graphs.updatedWith(graphId)(_.map { graph =>
@@ -185,7 +185,7 @@ class ArrowPartitionServerImpl[F[_]: Async, V: VertexSchema, E: EdgeSchema](
 object PartitionServiceImpl {
   import OrchestratorService._
 
-  case class Partition[F[_]](storage: GraphPartition, writer: Writer[F], executors: Map[String, QueryExecutorF[F]])
+  case class Partition[F[_]](storage: GraphPartition, writer: Writer[F], executors: Map[String, QueryExecutor[F]])
 
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 

@@ -93,7 +93,7 @@ class QuerySupervisor[F[_]] protected (
   def submitQuery(query: Query): F[Stream[F, protocol.QueryManagement]]        =
     for {
       t        <- processQueryRequest(query)
-      response <- QueryHandlerF(t._1, t._2, partitions.values.toSeq, query, this)
+      response <- QueryHandler(t._1, t._2, partitions.values.toSeq, query, this)
     } yield response
 
   def endQuery(query: Query): F[Unit] = {
