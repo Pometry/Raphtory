@@ -46,8 +46,8 @@ public abstract class EdgeIterator {
         public void accept(int partitionId, EdgeIterator iter);
     }
 
-    private boolean _hasNext = false;
-    private boolean _getNext = true;
+    protected boolean _hasNext = false;
+    protected boolean _getNext = true;
 
     protected EdgePartitionManager _aepm;
     protected EdgePartition _edgePartition;
@@ -58,6 +58,8 @@ public abstract class EdgeIterator {
     protected VersionedEntityPropertyAccessor[] _vefa = null;
     protected ArrowPropertyIterator[] _propertyIterators = null;
     protected VersionedEntityPropertyAccessor[] _propertyIteratorAccessors = null;
+    private EdgeHistoryPartition.EdgeHistoryBoundedBinarySearch _isAliveSearcher;
+
 
 
     /**
@@ -108,6 +110,37 @@ public abstract class EdgeIterator {
         _getNext = false;
 
         return _hasNext;
+    }
+
+
+    /**
+     * Clears the state of this iterator.
+     */
+    protected void clear() {
+        _edgeId = -1L;
+        _edgeRowId = -1;
+        _edgePartition = null;
+        _hasNext = false;
+        _getNext = false;
+    }
+
+
+    /**
+     * Returns whether the edge is alive within the specified time window
+     *
+     * @param start the start time of the window (inclusive)
+     * @param end the end time of the window (inclusive)
+     *
+     * @return true if the edge is alive at the end of the window
+     */
+    public boolean isAliveAt(long start, long end) {
+        if (_isAliveSearcher != null) {
+            return _edgePartition.isAliveAt(_edgeId, start, end, _isAliveSearcher);
+        }
+        else {
+            _isAliveSearcher = new EdgeHistoryPartition.EdgeHistoryBoundedBinarySearch();
+            return _edgePartition.isAliveAt(_edgeId, start, end, _isAliveSearcher);
+        }
     }
 
 
@@ -642,6 +675,7 @@ public abstract class EdgeIterator {
         private final EdgeIteratorFromVertex _incoming = new EdgeIteratorFromVertex();
         private final EdgeIteratorFromVertex _outgoing = new EdgeIteratorFromVertex();
         private EdgeIteratorFromVertex _delegate = null;
+        private LongOpenHashSet _processedEdges = new LongOpenHashSet();
 
 
         /**
@@ -656,6 +690,7 @@ public abstract class EdgeIterator {
             _incoming.init(aepm, incomingEdgeId, true);
             _outgoing.init(aepm, outgoingEdgeId, false);
             _delegate = _incoming;
+            _processedEdges.clear();
         }
 
 
@@ -664,23 +699,32 @@ public abstract class EdgeIterator {
          */
         @Override
         protected boolean moveToNext() {
-            boolean retval = _delegate.hasNext();
-            if (!retval) {
-                if (_delegate == _incoming) {
-                    _delegate = _outgoing;
-                    retval = _delegate.hasNext();
+            for (;;) {
+                boolean retval = _delegate.hasNext();
+                if (!retval) {
+                    if (_delegate == _incoming) {
+                        _delegate = _outgoing;
+                        retval = _delegate.hasNext();
+                    }
                 }
-            }
 
-            if (retval) {
-                _delegate.next();
-                _edgePartition = _delegate._edgePartition;
-                _partitionId = _delegate._partitionId;
-                _edgeRowId = _delegate._edgeRowId;
-                _edgeId = _delegate._edgeId;
-            }
+                if (retval) {
+                    long edgeId = _delegate.next();
 
-            return retval;
+                    boolean isSelfEdge = _delegate.getSrcVertexId() == _delegate.getDstVertexId() && _delegate.isSrcVertexLocal() && _delegate.isDstVertexLocal();
+                    if (!isSelfEdge || _processedEdges.add(edgeId)) {
+                        _edgePartition = _delegate._edgePartition;
+                        _partitionId = _delegate._partitionId;
+                        _edgeRowId = _delegate._edgeRowId;
+                        _edgeId = _delegate._edgeId;
+                        return true;
+                    }
+
+                    continue;
+                }
+
+                return false;
+            }
         }
     }
 
@@ -741,6 +785,161 @@ public abstract class EdgeIterator {
                 _edgeRowId = _aepm.getRowId(_edgeId);
                 _edgePartition = _aepm.getPartition(_aepm.getPartitionId(_edgeId));
                 return true;
+            }
+        }
+    }
+
+
+    /**
+     * This iterator works in conjunction with WindowedVertexHistoryIterator and allows
+     * the active edges associated with a particular vertex and time window
+     * to be iterated over.
+     * Either incoming or outgoing edges only will be iterated over.
+     *
+     * @see VertexIterator.AllVerticesIterator
+     */
+    public static class WindowedEdgeIteratorFromVertex extends EdgeIterator {
+        private boolean _incoming;
+        private long _startTime;
+        private long _endTime;
+
+        /**
+         * Initialises this instance
+         *
+         * @param aepm the edge partition to use
+         * @param edgeId the head of the list of edge list to iterate over
+         * @param incoming true if this is the incoming list, false for the outgoing list
+         */
+        protected void init(EdgePartitionManager aepm, long edgeId, boolean incoming, long startTime, long endTime) {
+            super.init(aepm);
+
+            _incoming = incoming;
+            _startTime = startTime;
+            _endTime = endTime;
+            _edgeId = edgeId;
+
+            while (_edgeId!=-1L) {
+                reset(_edgeId);
+                if (!isAliveAt(_startTime, _endTime)) {
+                    if (_incoming) {
+                        _edgeId = _edgePartition._getPrevIncomingPtrByRow(_edgeRowId);
+                    }
+                    else {
+                        _edgeId = _edgePartition._getPrevOutgoingPtrByRow(_edgeRowId);
+                    }
+                }
+                else {
+                    break;
+                }
+            }
+
+            if (_edgeId==-1L) {
+                clear();
+            }
+        }
+
+
+        /**
+         * @return true if there are further edges within this iterator, false otherwise
+         */
+        @Override
+        protected boolean moveToNext() {
+            if (_edgePartition == null) {
+                _edgeRowId = -1;
+                _edgeId = -1L;
+                return false;
+            }
+
+            do {
+                if (_incoming) {
+                    _edgeId = _edgePartition._getPrevIncomingPtrByRow(_edgeRowId);
+                }
+                else {
+                    _edgeId = _edgePartition._getPrevOutgoingPtrByRow(_edgeRowId);
+                }
+
+                if (_edgeId == -1L) {
+                    _edgeRowId = -1;
+                    _edgePartition = null;
+                    _edgeRowId = -1;
+                    _edgeId = -1L;
+                    return false;
+                }
+                else {
+                    _edgeRowId = _aepm.getRowId(_edgeId);
+                    _edgePartition = _aepm.getPartition(_aepm.getPartitionId(_edgeId));
+                }
+            }
+            while (!isAliveAt(_startTime, _endTime));
+
+            return true;
+        }
+    }
+
+
+    /**
+     * This iterator works in conjunction with WindowedVertexIterator and allows
+     * the active edges associated with a particular vertex and time window
+     * to be iterated over.
+     * All edges (incoming or outgoing) will be iterated over.
+     *
+     * @see VertexIterator.AllVerticesIterator
+     */
+    public static class AllWindowedEdgeIteratorFromVertex extends EdgeIterator {
+        private final WindowedEdgeIteratorFromVertex _incoming = new WindowedEdgeIteratorFromVertex();
+        private final WindowedEdgeIteratorFromVertex _outgoing = new WindowedEdgeIteratorFromVertex();
+        private LongOpenHashSet _processedEdges = new LongOpenHashSet();
+
+        private WindowedEdgeIteratorFromVertex _delegate = null;
+
+
+        /**
+         * Initialises this instance
+         *
+         * @param aepm the edge partition to use
+         * @param incomingEdgeId the head of the list of incoming edge-ids
+         * @param outgoingEdgeId the head of the list of outgoing edge-ids
+         */
+        protected void init(EdgePartitionManager aepm, long incomingEdgeId, long outgoingEdgeId, long startTime, long endTime) {
+            super.init(aepm);
+            _incoming.init(aepm, incomingEdgeId, true, startTime, endTime);
+            _outgoing.init(aepm, outgoingEdgeId, false, startTime, endTime);
+            _delegate = _incoming;
+            _processedEdges.clear();
+        }
+
+
+        /**
+         * @return true if there are further edges within this iterator, false otherwise
+         */
+        @Override
+        protected boolean moveToNext() {
+            for (;;) {
+                boolean retval = _delegate.hasNext();
+
+                if (!retval) {
+                    if (_delegate == _incoming) {
+                        _delegate = _outgoing;
+                        retval = _delegate.hasNext();
+                    }
+                }
+
+                if (retval) {
+                    long edgeId = _delegate.next();
+
+                    boolean isSelfEdge = _delegate.getSrcVertexId()==_delegate.getDstVertexId() && _delegate.isSrcVertexLocal() && _delegate.isDstVertexLocal();
+                    if (!isSelfEdge || _processedEdges.add(edgeId)) {
+                        _edgePartition = _delegate._edgePartition;
+                        _partitionId = _delegate._partitionId;
+                        _edgeRowId = _delegate._edgeRowId;
+                        _edgeId = _delegate._edgeId;
+                        return true;
+                    }
+
+                    continue;
+                }
+
+                return false;
             }
         }
     }
