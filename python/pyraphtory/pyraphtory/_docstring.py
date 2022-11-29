@@ -4,10 +4,12 @@ from parsy import string, whitespace, any_char, seq, peek, alt, eof, string_from
 code_conversions = {}
 
 
-def camel_to_snake(name):
+def camel_to_snake(name: str):
     from pyraphtory.interop import camel_to_snake as convert
     from pyraphtory._codegen import clean_identifier
-    return clean_identifier(convert(name))
+    if name[0].islower():
+        name = convert(name)
+    return clean_identifier(name)
 
 
 def parse_name(name):
@@ -139,26 +141,28 @@ remaining_line = inline.until(line_end | eof).concat() + line_end.optional("")
 line = line_start.optional("") + remaining_line
 
 # convert tags
-param_id = string("@param").map(convert_param)
-param_label = (param_id + non_newline_whitespace + name).map(finalise_param)
+def labeled_tag(tag_name, converted_name=None):
+    if converted_name is None:
+        converted_name = tag_name
+    id = string(f"@{tag_name}").result(f":{converted_name}")
+    return (id + non_newline_whitespace + name).map(finalise_param)
 
 
-@generate("param")
-def param():
-    leading_spaces = yield line_start >> counted_spaces
-    first_line = yield param_label + remaining_line
-    body = yield indented_block(leading_spaces)
-    return " " * leading_spaces + first_line + body
+def field_list_item(tag_name, converted_name=None):
+    id_and_label = labeled_tag(tag_name, converted_name)
 
+    @generate(f"{tag_name}_item")
+    def list_item():
+        leading_spaces = yield line_start >> counted_spaces
+        first_line = yield id_and_label + remaining_line
+        body = yield indented_block(leading_spaces)
+        return " " * leading_spaces + first_line + body
 
-@generate("tparam")
-def tparam():
-    """strips out @tparam documentation as these are not relevant in python"""
-    leading_spaces = yield line_start >> counted_spaces
-    yield string("@tparam") + remaining_line
-    yield indented_block(leading_spaces)
-    return ""
+    return list_item
 
+param = field_list_item("param")
+throws = field_list_item("throws", "raises")
+tparam = field_list_item("tparam").result("")
 
 return_id = string("@return").result(":returns:")
 
@@ -170,7 +174,7 @@ def return_():
     return " " * leading_spaces + first_line + body
 
 
-field_list_item = param | tparam | return_
+field_list_item = param | tparam | throws | return_
 
 # rst field lists need blank lines before and after
 field_list = blank_line.optional("\n") + field_list_item.at_least(1).concat() + blank_line.optional("\n")
