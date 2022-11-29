@@ -71,10 +71,10 @@ class QuerySupervisor[F[_]] protected (
     } yield ()
   }
 
-  private[querymanager] def processQueryRequest(queryName: String): F[Unit] =
+  private[querymanager] def processQueryRequest(query: Query): F[(Long, Long)] =
     for {
       defr <- Deferred[F, Unit]
-      qr   <- F.delay(QueryRequest(queryName, defr))
+      qr   <- F.delay(QueryRequest(query.name, defr))
       ipr  <- inprogressReqs.updateAndGet { r =>
                 if (r.isEmpty || (!r.last.isInstanceOf[LoadRequest] && pendingReqs.isEmpty)) r + qr else r
               }
@@ -83,17 +83,17 @@ class QuerySupervisor[F[_]] protected (
               else
                 F.delay(pendingReqs.add(qr)) >>
                   F.delay(
-                          logger.info(s"Blocking query request = $queryName for any in progress ingestion to complete")
+                          logger.info(s"Blocking query request = ${query.name} for any in progress ingestion to complete")
                   ) >>
                   qr.release.get
-    } yield ()
+      et   <- earliestTime.updateAndGet(_ min query.earliestSeen)
+      lt   <- latestTime.updateAndGet(_ max query.latestSeen)
+    } yield et -> lt
 
-  def submitQuery(query: Query): F[Stream[F, protocol.QueryManagement]] =
+  def submitQuery(query: Query): F[Stream[F, protocol.QueryManagement]]        =
     for {
-      _        <- processQueryRequest(query.name)
-      et       <- earliestTime.updateAndGet(_ min query.earliestSeen)
-      lt       <- latestTime.updateAndGet(_ max query.latestSeen)
-      response <- QueryHandlerF(et, lt, partitions.values.toSeq, query, this)
+      t        <- processQueryRequest(query)
+      response <- QueryHandlerF(t._1, t._2, partitions.values.toSeq, query, this)
     } yield response
 
   def endQuery(query: Query): F[Unit] = {

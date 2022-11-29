@@ -289,7 +289,7 @@ class QuerySupervisorSuite extends CatsEffectSuite {
                   lt1 == Long.MinValue
                 }
               }
-      _    <- processQueryRequest("testQuery")
+      _    <- processQueryRequest(Query(name = "testQuery", graphID = "1"))
       et2  <- earliestTime.get
       lt2  <- latestTime.get
       ipr2 <- inprogressReqs.get
@@ -322,7 +322,7 @@ class QuerySupervisorSuite extends CatsEffectSuite {
                     lt1 == Long.MinValue
                   }
                 }
-      _      <- processQueryRequest("testQuery2")
+      _      <- processQueryRequest(Query(name = "testQuery2", graphID = "2"))
       et2    <- earliestTime.get
       lt2    <- latestTime.get
       ipr2   <- inprogressReqs.get
@@ -356,7 +356,7 @@ class QuerySupervisorSuite extends CatsEffectSuite {
                     lt1 == Long.MinValue
                   }
                 }
-      fib    <- processQueryRequest("testQuery2").start
+      fib    <- processQueryRequest(Query(name = "testQuery2", graphID = "2")).start
       _      <- IO.sleep(50.millis)
       _      <- pendingReqs.toArray.last.asInstanceOf[QueryRequest].release.complete(())
       et2    <- earliestTime.get
@@ -393,7 +393,7 @@ class QuerySupervisorSuite extends CatsEffectSuite {
                     lt1 == Long.MinValue
                   }
                 }
-      fib    <- processQueryRequest("testQuery").start
+      fib    <- processQueryRequest(Query(name = "testQuery", graphID = "1")).start
       _      <- IO.sleep(50.millis)
       _      <- pendingReqs.toArray.last.asInstanceOf[QueryRequest].release.complete(())
       et2    <- earliestTime.get
@@ -431,7 +431,7 @@ class QuerySupervisorSuite extends CatsEffectSuite {
                     lt1 == Long.MinValue
                   }
                 }
-      fib    <- processQueryRequest("testQuery2").start
+      fib    <- processQueryRequest(Query(name = "testQuery2", graphID = "2")).start
       _      <- IO.sleep(50.millis)
       _      <- pendingReqs.toArray.last.asInstanceOf[QueryRequest].release.complete(())
       et2    <- earliestTime.get
