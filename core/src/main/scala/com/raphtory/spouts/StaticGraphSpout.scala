@@ -12,7 +12,6 @@ import scala.io.Source
   * As such it appends a logical timestamp (linenumber) to each tuples it outputs.
   *
   *  @see [[com.raphtory.api.input.Spout Spout]]
-  *       [[com.raphtory.Raphtory Raphtory]]
   */
 case class StaticGraphSpout(fileDataPath: String) extends Spout[String] {
   override def buildSpout(): SpoutInstance[String] = new StaticGraphSpoutInstance(fileDataPath)

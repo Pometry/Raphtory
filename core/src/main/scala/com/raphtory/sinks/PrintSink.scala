@@ -30,7 +30,6 @@ import com.typesafe.config.Config
   *      [[com.raphtory.api.output.format.Format Format]]
   *      [[com.raphtory.formats.CsvFormat CsvFormat]]
   *      [[com.raphtory.api.analysis.table.Table Table]]
-  *      [[com.raphtory.Raphtory Raphtory]]
   */
 case class PrintSink(format: Format = CsvFormat()) extends FormatAgnosticSink(format) {
 

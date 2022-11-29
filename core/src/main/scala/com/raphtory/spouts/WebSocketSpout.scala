@@ -33,7 +33,6 @@ import java.io.InputStreamReader
   * graph.execute(EdgeList()).writeTo(sink)
   * }}}
   * @see [[com.raphtory.api.input.Spout Spout]]
-  *      [[com.raphtory.Raphtory Raphtory]]
   */
 case class WebSocketSpout(url: String, auth: Option[String], contentType: Option[String]) extends Spout[String] {
   override def buildSpout(): SpoutInstance[String] = new WebSocketSpoutInstance(url, auth, contentType)
