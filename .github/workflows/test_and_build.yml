@@ -89,6 +89,8 @@ jobs:
         timeout-minutes: 10
       - name: Run notebook tests
         run: cd examples && pytest --nbmake -n=auto
+      - name: Run documentation notebook tests
+        run: cd docs && pytest --nbmake -n=auto        
         timeout-minutes: 10
       - name: Run doc compile check
         run: | 
