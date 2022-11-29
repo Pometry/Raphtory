@@ -23,9 +23,9 @@ import scala.math.Ordering.Implicits._
   *  {s}`undirectedEdges: Long`
   *  : Number of undirected edges in the perspective
   *
-  *  | no nodes          | no directed edges       | no undirected edges       |
-  *  | ----------------- | ----------------------- | ------------------------- |
-  *  | {s}`noNodes: Int` | {s}`directedEdges: Int` | {s}`undirectedEdges: Int` |
+  *  | no nodes          | no directed edges       | no undirected edges       | no temporal edges |
+  *  | ----------------- | ----------------------- | ------------------------- | ----------------- |
+  *  | {s}`noNodes: Int` | {s}`directedEdges: Int` | {s}`undirectedEdges: Int` | {s}`temporalEdges: Int` |
   *
   */
 
