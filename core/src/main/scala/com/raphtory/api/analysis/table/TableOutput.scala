@@ -3,7 +3,6 @@ package com.raphtory.api.analysis.table
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.progresstracker._
 import com.raphtory.api.time.Perspective
-import com.raphtory.internals.communication.TopicRepository
 import com.typesafe.config.Config
 
 /** Concrete Table with computed results for a perspective */
@@ -11,8 +10,7 @@ case class TableOutput private (
     jobID: String,
     perspective: Perspective,
     rows: Array[Row],
-    private val conf: Config,
-    private val topics: TopicRepository
+    private val conf: Config
 ) extends TableBase {
 
   /** Add a filter operation to table
@@ -39,7 +37,7 @@ case class TableOutput private (
     */
   override def writeTo(sink: Sink, jobName: String): WriteProgressTracker = {
     // TODO: Make this actually asynchronous
-    val executor = sink.executor(jobName, -1, conf, topics)
+    val executor = sink.executor(jobName, -1, conf)
     executor.setupPerspective(perspective)
     rows.foreach(executor.threadSafeWriteRow)
     executor.closePerspective()

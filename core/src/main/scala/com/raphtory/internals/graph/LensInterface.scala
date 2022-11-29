@@ -16,47 +16,47 @@ private[raphtory] trait LensInterface {
   def getFullGraphSize: Int
   def setFullGraphSize(size: Int): Unit
 
-  def executeSelect(f: Vertex => Row)(onComplete: => Unit): Unit
+  def executeSelect(f: Vertex => Row)(onComplete: () => Unit): Unit
 
   def executeSelect(
       f: (_, GraphState) => Row,
       graphState: GraphState
-  )(onComplete: => Unit): Unit
-  def executeSelect(f: GraphState => Row, graphState: GraphState)(onComplete: => Unit): Unit
-  def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: => Unit): Unit
-  def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row], graphState: GraphState)(onComplete: => Unit): Unit
-  def filteredTable(f: Row => Boolean)(onComplete: => Unit): Unit
-  def explodeTable(f: Row => IterableOnce[Row])(onComplete: => Unit): Unit
-  def writeDataTable(f: Row => Unit)(onComplete: => Unit): Unit
+  )(onComplete: () => Unit): Unit
+  def executeSelect(f: GraphState => Row, graphState: GraphState)(onComplete: () => Unit): Unit
+  def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: () => Unit): Unit
+  def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row], graphState: GraphState)(onComplete: () => Unit): Unit
+  def filteredTable(f: Row => Boolean)(onComplete: () => Unit): Unit
+  def explodeTable(f: Row => IterableOnce[Row])(onComplete: () => Unit): Unit
+  def writeDataTable(f: Row => Unit)(onComplete: () => Unit): Unit
 
   def explodeView(
       interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]]
-  )(onComplete: => Unit): Unit
+  )(onComplete: () => Unit): Unit
 
-  def viewUndirected()(onComplete: => Unit): Unit
+  def viewUndirected()(onComplete: () => Unit): Unit
 
-  def viewDirected()(onComplete: => Unit): Unit
+  def viewDirected()(onComplete: () => Unit): Unit
 
-  def viewReversed()(onComplete: => Unit): Unit
+  def viewReversed()(onComplete: () => Unit): Unit
 
   def reduceView(
       defaultMergeStrategy: Option[PropertyMerge[_, _]],
       mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
       aggregate: Boolean
-  )(onComplete: => Unit): Unit
+  )(onComplete: () => Unit): Unit
 
-  def runGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit
+  def runGraphFunction(f: Vertex => Unit)(onComplete: () => Unit): Unit
 
   def runGraphFunction(
       f: (_, GraphState) => Unit,
       graphState: GraphState
-  )(onComplete: => Unit): Unit
-  def runMessagedGraphFunction(f: Vertex => Unit)(onComplete: => Unit): Unit
+  )(onComplete: () => Unit): Unit
+  def runMessagedGraphFunction(f: Vertex => Unit)(onComplete: () => Unit): Unit
 
   def runMessagedGraphFunction(
       f: (Vertex, GraphState) => Unit,
       graphState: GraphState
-  )(onComplete: => Unit): Unit
+  )(onComplete: () => Unit): Unit
   def checkVotes(): Boolean
   def sendMessage(msg: GenericVertexMessage[_]): Unit
   def nextStep(): Unit

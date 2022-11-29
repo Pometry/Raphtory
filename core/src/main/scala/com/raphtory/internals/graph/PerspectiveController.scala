@@ -2,17 +2,11 @@ package com.raphtory.internals.graph
 
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.time
-import com.raphtory.api.time.DiscreteInterval
-import com.raphtory.api.time.Interval
-import com.raphtory.api.time.NullInterval
-import com.raphtory.internals.components.querymanager.NullPointSet
-import com.raphtory.internals.components.querymanager.PointPath
-import com.raphtory.internals.components.querymanager.Query
-import com.raphtory.internals.components.querymanager.QueryManagement
-import com.raphtory.internals.components.querymanager.SinglePoint
+import com.raphtory.api.time.{DiscreteInterval, Interval, NullInterval}
+import com.raphtory.internals.components.querymanager._
+import com.raphtory.internals.time.TimeConverters._
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-import com.raphtory.internals.time.TimeConverters._
 
 import scala.annotation.tailrec
 import scala.util.Try
@@ -25,6 +19,8 @@ private[raphtory] case class Perspective(
     actualStart: Long,
     actualEnd: Long
 ) extends time.Perspective
+
+object Perspective extends ProtoField[Perspective]
 
 private[raphtory] class PerspectiveController(
     private var perspectiveStreams: Array[LazyList[Perspective]]
@@ -57,69 +53,79 @@ private[raphtory] object PerspectiveController {
       lastAvailableTimestamp: Long,
       query: Query
   ): PerspectiveController = {
-    logger.debug(
+    logger.info(
             s"Defining perspective list using: " +
               s"firstAvailableTimestamp='$firstAvailableTimestamp', " +
               s"lastAvailableTimestamp='$lastAvailableTimestamp', " +
               s"query='$query'"
     )
-    val untrimmedPerspectives = query.points match {
-      // If there are no points marked by the user, we create
-      // a windowless perspective that ends at the lastAvailableTimestamp
-      case NullPointSet                                     =>
-        perspectivesFromTimestamps(LazyList(lastAvailableTimestamp), List(), Alignment.END)
-
-      // Similar to PointQuery
-      case SinglePoint(time)                                =>
-        perspectivesFromTimestamps(LazyList(time), query.windows, query.windowAlignment)
-
-      // Similar to RangeQuery and LiveQuery
-      case PointPath(increment, pathStart, pathEnd, offset) =>
-        val maxWindow      = Try(query.windows.max).getOrElse(NullInterval)
-        val alignmentPoint = pathStart.orElse(pathEnd).getOrElse(0 + offset)
-        val start          =
-          pathStart.getOrElse((query.timelineStart max firstAvailableTimestamp) - maxWindow)
-
-        val unboundedTimestamps: LazyList[Long] = createTimestamps(start, increment, alignmentPoint)
-
-        val endBoundedPerspectives = pathEnd match {
-          case Some(pathEnd) =>
-            val boundedTimestamps = unboundedTimestamps.takeWhile(_ < pathEnd).appended(pathEnd)
-            // TODO: the pathEnd is inclusive and is done artificially to match the former behavior, it's worth it considering a change in the future
-            perspectivesFromTimestamps(boundedTimestamps, query.windows, query.windowAlignment)
-
-          case None          =>
-            val unboundedPerspectives =
-              perspectivesFromTimestamps(unboundedTimestamps, query.windows, query.windowAlignment)
-            unboundedPerspectives map { stream =>
-              stream.takeWhile(_.actualStart <= query.timelineEnd)
-            }
-        }
-
-        val boundedPerspectives = pathStart match {
-          case Some(_) => endBoundedPerspectives
-          case None    =>
-            val start = query.timelineStart max firstAvailableTimestamp
-            endBoundedPerspectives map { stream =>
-              stream.dropWhile(_.actualEnd < start)
-            }
-        }
-
-        boundedPerspectives
-    }
-
-    val trimmedPerspectives =
-      untrimmedPerspectives map (stream => stream.map(trimPerspective(_, query.timelineStart, query.timelineEnd)))
-
-    if (trimmedPerspectives forall (_.isEmpty))
+    if (firstAvailableTimestamp > lastAvailableTimestamp || query.timelineStart > query.timelineEnd)
+      new PerspectiveController(Array.empty) // NONSENSE case
+    else if (query.timelineStart > lastAvailableTimestamp || query.timelineEnd < firstAvailableTimestamp) {
       logger.warn(
-              s"No perspectives to be generated: " +
-                s"firstAvailableTimestamp='$firstAvailableTimestamp', " +
-                s"lastAvailableTimestamp='$lastAvailableTimestamp', " +
-                s"query='$query'"
+              s"first/last available timestamps [$firstAvailableTimestamp, $lastAvailableTimestamp] outside of query timeline [${query.timelineStart}, ${query.timelineEnd}]"
       )
+      new PerspectiveController(Array.empty) // out of bounds
+    }
+    else {
+      val untrimmedPerspectives = query.points match {
+        // If there are no points marked by the user, we create
+        // a windowless perspective that ends at the lastAvailableTimestamp
+        case NullPointSet                                     =>
+          perspectivesFromTimestamps(LazyList(lastAvailableTimestamp), List(), Alignment.END)
 
-    new PerspectiveController(trimmedPerspectives.toArray)
+        // Similar to PointQuery
+        case SinglePoint(time)                                =>
+          perspectivesFromTimestamps(LazyList(time), query.windows, query.windowAlignment)
+
+        // Similar to RangeQuery and LiveQuery
+        case PointPath(increment, pathStart, pathEnd, offset) =>
+          val maxWindow      = Try(query.windows.max).getOrElse(NullInterval)
+          val alignmentPoint = pathStart.orElse(pathEnd).getOrElse(0 + offset)
+          val start          =
+            pathStart.getOrElse((query.timelineStart max firstAvailableTimestamp) - maxWindow)
+
+          val unboundedTimestamps: LazyList[Long] = createTimestamps(start, increment, alignmentPoint)
+
+          val endBoundedPerspectives = pathEnd match {
+            case Some(pathEnd) =>
+              val boundedTimestamps = unboundedTimestamps.takeWhile(_ < pathEnd).appended(pathEnd)
+              // TODO: the pathEnd is inclusive and is done artificially to match the former behavior, it's worth it considering a change in the future
+              perspectivesFromTimestamps(boundedTimestamps, query.windows, query.windowAlignment)
+
+            case None          =>
+              val unboundedPerspectives =
+                perspectivesFromTimestamps(unboundedTimestamps, query.windows, query.windowAlignment)
+              unboundedPerspectives map { stream =>
+                stream.takeWhile(_.actualStart <= query.timelineEnd)
+              }
+          }
+
+          val boundedPerspectives = pathStart match {
+            case Some(_) => endBoundedPerspectives
+            case None    =>
+              val start = query.timelineStart max firstAvailableTimestamp
+              endBoundedPerspectives map { stream =>
+                stream.dropWhile(_.actualEnd < start)
+              }
+          }
+
+          boundedPerspectives
+      }
+
+      val trimmedPerspectives =
+        untrimmedPerspectives map (stream => stream.map(trimPerspective(_, query.timelineStart, query.timelineEnd)))
+
+      if (trimmedPerspectives forall (_.isEmpty))
+        logger.warn(
+                s"No perspectives to be generated: " +
+                  s"firstAvailableTimestamp='$firstAvailableTimestamp', " +
+                  s"lastAvailableTimestamp='$lastAvailableTimestamp', " +
+                  s"query='$query'"
+        )
+
+      new PerspectiveController(trimmedPerspectives.toArray)
+    }
   }
 
   private def createTimestamps(start: Long, increment: Interval, alignmentPoint: Long) = {

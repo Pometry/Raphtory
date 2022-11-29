@@ -22,7 +22,6 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-
 import java.net.BindException
 import java.net.InetAddress
 import java.util.concurrent.CompletableFuture

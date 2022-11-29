@@ -10,6 +10,7 @@ import com.raphtory.api.input.ImmutableString
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Type
+import com.raphtory.api.progresstracker.QueryProgressTracker
 import com.raphtory.examples.lotr.graphbuilder.LotrGraphBuilder
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.internals.storage.arrow.immutable
@@ -48,10 +49,9 @@ trait LocalRunner { self: RaphtoryApp =>
       //      graph.load(source)
 
       // Get simple metrics
-      graph
+      val tracker = graph
         .execute(Degree())
         .writeTo(FileSink("/tmp/raphtory"))
-        .waitForJob()
 
       // PageRank
       graph
@@ -68,7 +68,6 @@ trait LocalRunner { self: RaphtoryApp =>
         .past()
         .execute(ConnectedComponents)
         .writeTo(FileSink("/tmp/raphtory"))
-        .waitForJob()
 
       // Chained Example
       graph
@@ -79,7 +78,6 @@ trait LocalRunner { self: RaphtoryApp =>
         .transform(Degree())
         .execute(NodeList(Seq("prlabel", "cclabel", "inDegree", "outDegree", "degree")))
         .writeTo(FileSink("/tmp/raphtory"))
-        .waitForJob()
 
     }
 }
