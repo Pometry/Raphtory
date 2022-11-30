@@ -174,13 +174,19 @@ lazy val core = (project in file("core"))
 // CONNECTORS
 
 lazy val connectorsAWS =
-  (project in file("connectors/aws")).dependsOn(core).settings(assemblySettings)
+  (project in file("connectors/aws"))
+    .dependsOn(core)
+    .settings(assemblySettings)
 
 lazy val connectorsTwitter =
-  (project in file("connectors/twitter")).dependsOn(core).settings(assemblySettings)
+  (project in file("connectors/twitter"))
+    .dependsOn(core)
+    .settings(assemblySettings)
 
 lazy val connectorsTypeDB =
-  (project in file("connectors/typedb")).dependsOn(core).settings(assemblySettings)
+  (project in file("connectors/typedb"))
+    .dependsOn(core)
+    .settings(assemblySettings)
 
 lazy val connectorsPulsar =
   (project in file("connectors/pulsar"))
@@ -221,6 +227,7 @@ lazy val examplesNFT =
 
 lazy val deploy =
   (project in file("deploy"))
+    .enablePlugins(NoPublishPlugin)
     .settings(assemblySettings)
 
 lazy val integrationTest =

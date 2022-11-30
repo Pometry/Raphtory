@@ -6,8 +6,16 @@ on:
         required: false
         type: string
 
+env:
+  PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+  SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+  SONATYPE_CREDENTIAL_HOST: ${{ secrets.SONATYPE_CREDENTIAL_HOST }}
+  SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+  PGP_SECRET: ${{ secrets.PGP_SECRET }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
-  publishBuild:
+  buildPublishGithub:
     name: "Build and Publish"
     strategy:
       fail-fast: false
@@ -30,7 +38,7 @@ jobs:
           ref: ${{ github.ref }}
       # Install SBT
       - name: Get sbt package
-        run: apt-get update && apt-get install unzip && curl -L "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.zip" -o sbt-1.5.5.zip && unzip sbt-1.5.5.zip
+        run: apt-get update && apt-get install rng-tools unzip gnupg && curl -L "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.zip" -o sbt-1.5.5.zip && unzip sbt-1.5.5.zip
       # Create Raphtory thin jars and build python
       - name: Building Thin Raphtory Jars for Python
         run: |
@@ -73,3 +81,23 @@ jobs:
           files: "./artifacts/*.*"
           name: ${{ github.ref_name }}
           generate_release_notes: true
+      - name: (Maven) Import signing key from GitubSecrets
+        if: env.PGP_SECRET != '' && env.PGP_PASSPHRASE == ''
+        run: echo $PGP_SECRET | base64 -di | gpg --import
+      - name: (Maven) Import signing key and strip passphrase
+        if: env.PGP_SECRET != '' && env.PGP_PASSPHRASE != ''
+        run: |
+          echo "$PGP_SECRET" | base64 -di > /tmp/signing-key.gpg
+          echo "$PGP_PASSPHRASE" | gpg --pinentry-mode loopback --passphrase-fd 0 --import /tmp/signing-key.gpg
+          (echo "$PGP_PASSPHRASE"; echo; echo) | gpg --command-fd 0 --pinentry-mode loopback --change-passphrase $(gpg --list-secret-keys --with-colons 2> /dev/null | grep '^sec:' | cut --delimiter ':' --fields 5 | tail -n 1)
+      - name: (Maven) Create Sonatype Credentials files on local machine
+        run: |
+          echo "Saving data to $HOME/.sbt/sonatype_credentials"
+          mkdir -p $HOME/.sbt/1.0
+          echo "realm=Sonatype Nexus Repository Manager" >> $HOME/.sbt/sonatype_credentials
+          echo "host=s01.oss.sonatype.org" >> $HOME/.sbt/sonatype_credentials
+          echo "username=$SONATYPE_USERNAME" >> $HOME/.sbt/sonatype_credentials
+          echo "password=$SONATYPE_PASSWORD" >> $HOME/.sbt/sonatype_credentials
+          echo 'credentials += Credentials(Path.userHome / ".sbt" / "sonatype_credentials")' >> $HOME/.sbt/1.0/sonatype.sbt
+      - name: (Maven) Release
+        run: sbt core/publishSigned && sbt arrowCore/publishSigned && sbt arrowMessaging/publishSigned
