@@ -38,7 +38,7 @@ jobs:
           ref: ${{ github.ref }}
       # Install SBT
       - name: Get sbt package
-        run: apt-get update && apt-get install -y unzip gnupg glibc-source && curl -L "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.zip" -o sbt-1.5.5.zip && unzip sbt-1.5.5.zip
+        run: apt-get update && apt-get install -y unzip  && curl -L "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.zip" -o sbt-1.5.5.zip && unzip sbt-1.5.5.zip
       # Create Raphtory thin jars and build python
       - name: Building Thin Raphtory Jars for Python
         run: |
