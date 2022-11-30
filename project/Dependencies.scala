@@ -1,3 +1,4 @@
+import sbt.Keys.libraryDependencies
 import sbt._
 
 object Dependencies {
@@ -34,9 +35,16 @@ object Dependencies {
   private lazy val nomenVersion                    = "2.1.0"
   private lazy val mockitoScalaVersion             = "1.17.12"
   private lazy val junitVersion                    = "4.13.2"
+  private lazy val commonsIOVersion                = "2.11.0"
+  private lazy val amazonAws                       = "1.12.221"
+  private lazy val twitterVersion                  = "2.16"
+  private lazy val typedbClientVersion             = "2.11.0"
+  private lazy val univocityParsersVersion         = "2.9.1"
+  private lazy val mjsonVersion                    = "1.4.1"
 
-  lazy val excludeSlf4j = ExclusionRule(organization = "org.slf4j")
-  lazy val excludeLog4j = ExclusionRule(organization = "log4j")
+  lazy val excludeSlf4j         = ExclusionRule(organization = "org.slf4j")
+  lazy val excludeLog4j         = ExclusionRule(organization = "log4j")
+  lazy val excludePulsarBinding = ExclusionRule(organization = "org.apache.pulsar")
 
   lazy val akkaClusterTyped =
     "com.typesafe.akka" %% "akka-cluster-typed" % akkaVersion excludeAll (excludeLog4j, excludeSlf4j)
@@ -108,6 +116,33 @@ object Dependencies {
   lazy val curatorDiscovery = "org.apache.curator" % "curator-x-discovery" % curatorVersion
   lazy val junit            = "junit"              % "junit"               % junitVersion        % Test
   lazy val mockitoScala     = "org.mockito"       %% "mockito-scala"       % mockitoScalaVersion % Test
+
+  // AWS CONNECTOR
+  lazy val commonsIO    = "commons-io"    % "commons-io"       % commonsIOVersion
+  lazy val amazonAwsS3  = "com.amazonaws" % "aws-java-sdk-s3"  % amazonAws
+  lazy val amazonAwsSts = "com.amazonaws" % "aws-java-sdk-sts" % amazonAws
+
+  // PULSAR CONNECTOR
+  lazy val pulsarClientAdmin =
+    "org.apache.pulsar" % "pulsar-client-admin-original" % pulsarVersion excludeAll excludePulsarBinding
+
+  lazy val pulsarClientApi =
+    "org.apache.pulsar" % "pulsar-client-api" % pulsarVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val pulsarCommon = "org.apache.pulsar" % "pulsar-common" % pulsarVersion excludeAll (excludeLog4j, excludeSlf4j)
+
+  lazy val pulsarClientMsgCrypto =
+    "org.apache.pulsar" % "pulsar-client-messagecrypto-bc" % pulsarVersion excludeAll (excludeLog4j, excludeSlf4j)
+
+  lazy val pulsarClientOriginal =
+    "org.apache.pulsar" % "pulsar-client-original" % pulsarVersion excludeAll (excludeLog4j, excludeSlf4j)
+
+  // TWITTER CONNECTOR
+  lazy val twitterEd = "io.github.redouane59.twitter" % "twittered" % twitterVersion
+
+  // TYPEDB CONNECTOR
+  lazy val typedbClient     = "com.vaticle.typedb" % "typedb-client"     % typedbClientVersion
+  lazy val univocityParsers = "com.univocity"      % "univocity-parsers" % univocityParsersVersion
+  lazy val mjson            = "org.sharegov"       % "mjson"             % mjsonVersion
 
   object Internal {
     lazy val catsMUnit = "org.typelevel" %% "munit-cats-effect-3" % catsMUnitVersion

@@ -1,10 +1,7 @@
 import sbt.Compile
-import sbt.Keys.baseDirectory
 import Dependencies._
 import Version._
 import higherkindness.mu.rpc.srcgen.Model._
-
-import scala.io.Source
 
 ThisBuild / scalaVersion := raphtoryScalaVersion
 ThisBuild / version := raphtoryVersion
@@ -44,7 +41,11 @@ ThisBuild / publishTo := {
   else Some("releases" at nexus + "service/local/staging/deploy/maven2")
 }
 ThisBuild / publishMavenStyle.withRank(KeyRanks.Invisible) := true
-ThisBuild / resolvers += Resolver.mavenLocal
+ThisBuild / resolvers ++=
+  Seq(
+          "repo.vaticle.com" at "https://repo.vaticle.com/repository/maven/",
+          Resolver.mavenLocal
+  )
 
 ThisBuild / scalacOptions += "-language:higherKinds"
 
@@ -89,12 +90,6 @@ lazy val root = (project in file("."))
           it,
           docTests
   )
-
-//lazy val protocol = project
-//  .settings(
-//          // Needed to expand the @service macro annotation
-//          macroSettings
-//  )
 
 lazy val arrowMessaging =
   (project in file("arrow-messaging")).settings(assemblySettings)
@@ -179,18 +174,43 @@ lazy val core = (project in file("core"))
 // CONNECTORS
 
 lazy val connectorsAWS =
-  (project in file("connectors/aws")).dependsOn(core, testkit).settings(assemblySettings)
+  (project in file("connectors/aws"))
+    .dependsOn(core, testkit)
+    .settings(
+            assemblySettings,
+            libraryDependencies ++= Seq(commonsIO, amazonAwsS3, amazonAwsSts)
+    )
 
 lazy val connectorsTwitter =
-  (project in file("connectors/twitter")).dependsOn(core, testkit).settings(assemblySettings)
+  (project in file("connectors/twitter"))
+    .dependsOn(core, testkit)
+    .settings(
+            assemblySettings,
+            libraryDependencies ++= Seq(twitterEd)
+    )
 
 lazy val connectorsTypeDB =
-  (project in file("connectors/typedb")).dependsOn(core).settings(assemblySettings)
+  (project in file("connectors/typedb"))
+    .dependsOn(core)
+    .settings(
+            assemblySettings,
+            libraryDependencies ++= Seq(typedbClient, univocityParsers, mjson)
+    )
 
 lazy val connectorsPulsar =
   (project in file("connectors/pulsar"))
     .dependsOn(core, testkit)
-    .settings(assemblySettings)
+    .settings(
+            assemblySettings,
+            libraryDependencies ++=
+              Seq(
+                      pulsarClientAdmin,
+                      pulsarClientApi,
+                      pulsarCommon,
+                      pulsarClientMsgCrypto,
+                      pulsarClientOriginal
+              )
+    )
 
 // EXAMPLE PROJECTS
 
