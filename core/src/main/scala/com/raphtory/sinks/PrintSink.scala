@@ -1,9 +1,7 @@
 package com.raphtory.sinks
 
-import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.output.format.Format
 import com.raphtory.api.output.sink.FormatAgnosticSink
-import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.output.sink.SinkConnector
 import com.raphtory.formats.CsvFormat
 import com.typesafe.config.Config
@@ -30,7 +28,6 @@ import com.typesafe.config.Config
   *      [[com.raphtory.api.output.format.Format Format]]
   *      [[com.raphtory.formats.CsvFormat CsvFormat]]
   *      [[com.raphtory.api.analysis.table.Table Table]]
-  *      [[com.raphtory.Raphtory Raphtory]]
   */
 case class PrintSink(format: Format = CsvFormat()) extends FormatAgnosticSink(format) {
 

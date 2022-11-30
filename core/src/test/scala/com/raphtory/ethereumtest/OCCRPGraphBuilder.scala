@@ -1,10 +1,10 @@
 package com.raphtory.ethereumtest
 
-import com.raphtory.api.input.DoubleProperty
+import com.raphtory.api.input.MutableDouble
 import com.raphtory.api.input.Graph
 import com.raphtory.api.input.Graph.assignID
-import com.raphtory.api.input.ImmutableProperty
-import com.raphtory.api.input.LongProperty
+import com.raphtory.api.input.ImmutableString
+import com.raphtory.api.input.MutableLong
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
 
@@ -33,13 +33,13 @@ object OCCRPGraphBuilder {
       val srcID          = assignID(source)
       val tarID          = assignID(target)
       val edgeProperties = Properties(
-              ImmutableProperty("payer_name", source),
-              ImmutableProperty("beneficiary_name", target),
-              DoubleProperty("amountUSD", amountUSD),
-              LongProperty("timestamp", timestamp)
+              ImmutableString("payer_name", source),
+              ImmutableString("beneficiary_name", target),
+              MutableDouble("amountUSD", amountUSD),
+              MutableLong("timestamp", timestamp)
       )
-      graph.addVertex(timestamp, srcID, Properties(ImmutableProperty("name", source)), Type("node"))
-      graph.addVertex(timestamp, tarID, Properties(ImmutableProperty("name", target)), Type("node"))
+      graph.addVertex(timestamp, srcID, Properties(ImmutableString("name", source)), Type("node"))
+      graph.addVertex(timestamp, tarID, Properties(ImmutableString("name", target)), Type("node"))
       graph.addEdge(timestamp, srcID, tarID, edgeProperties, Type("transaction"))
     }
     catch { case _: Throwable => }

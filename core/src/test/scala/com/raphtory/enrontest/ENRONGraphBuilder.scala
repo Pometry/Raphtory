@@ -2,7 +2,7 @@ package com.raphtory.enrontest
 
 import com.raphtory.api.input.Graph
 import com.raphtory.api.input.GraphBuilder
-import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.ImmutableString
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
 import com.raphtory.api.input.Graph.assignID
@@ -72,11 +72,11 @@ object ENRONGraphBuilder extends GraphBuilder[String] {
     val srcID = assignID(sender)
     val tarID = assignID(receiver)
 
-    graph.addVertex(dateEpochUTC, srcID, Properties(ImmutableProperty("name", sender)), Type("Character"))
+    graph.addVertex(dateEpochUTC, srcID, Properties(ImmutableString("name", sender)), Type("Character"))
     graph.addVertex(
             dateEpochUTC,
             tarID,
-            Properties(ImmutableProperty("name", receiver)),
+            Properties(ImmutableString("name", receiver)),
             Type("Character")
     )
     graph.addEdge(
@@ -84,8 +84,8 @@ object ENRONGraphBuilder extends GraphBuilder[String] {
             srcID,
             tarID,
             Properties(
-                    ImmutableProperty("MsgId", msgId),
-                    ImmutableProperty("Subject", subject.get)
+                    ImmutableString("MsgId", msgId),
+                    ImmutableString("Subject", subject.get)
             ),
             Type("Character")
     )

@@ -2,8 +2,8 @@ package com.raphtory.algorithms
 
 import com.raphtory.api.input.Graph
 import com.raphtory.api.input.GraphBuilder
-import com.raphtory.api.input.ImmutableProperty
-import com.raphtory.api.input.LongProperty
+import com.raphtory.api.input.ImmutableString
+import com.raphtory.api.input.MutableLong
 import com.raphtory.api.input.Properties
 
 object WeightedGraphBuilder extends GraphBuilder[String] {
@@ -17,9 +17,9 @@ object WeightedGraphBuilder extends GraphBuilder[String] {
     val timeStamp  = line(2).toLong
     val weight     = line(3).toLong
 
-    graph.addVertex(timeStamp, srcID, Properties(ImmutableProperty("name", sourceNode)))
-    graph.addVertex(timeStamp, tarID, Properties(ImmutableProperty("name", targetNode)))
-    graph.addEdge(timeStamp, srcID, tarID, Properties(LongProperty("weight", weight)))
+    graph.addVertex(timeStamp, srcID, Properties(ImmutableString("name", sourceNode)))
+    graph.addVertex(timeStamp, tarID, Properties(ImmutableString("name", targetNode)))
+    graph.addEdge(timeStamp, srcID, tarID, Properties(MutableLong("weight", weight)))
 
 //    logger.debug(s"Finished processing line '$line'.")
   }

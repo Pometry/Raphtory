@@ -50,7 +50,7 @@ class CompaniesStreamPersonGraphBuilder extends GraphBuilder[String] {
         graph.addVertex(
                 timestamp,
                 srcID,
-                Properties(ImmutableProperty("company_number", companyHash)),
+                Properties(ImmutableString("company_number", companyHash)),
                 Type("Company")
         )
 
@@ -60,10 +60,10 @@ class CompaniesStreamPersonGraphBuilder extends GraphBuilder[String] {
           graph.addVertex(
                   timestamp,
                   dstID,
-                  Properties(ImmutableProperty("person_sig_control", personHash)),
+                  Properties(ImmutableString("person_sig_control", personHash)),
                   Type("Person")
           )
-          graph.addEdge(timestamp, srcID, dstID, Properties(StringProperty("type", "Company to Person")))
+          graph.addEdge(timestamp, srcID, dstID, Properties(MutableString("type", "Company to Person")))
         }
       }
 

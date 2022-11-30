@@ -78,27 +78,27 @@ case class BatchAddRemoteEdgeArrowFlightMessageSchema[
 
       val immutableProperties =
         (msg.immutablePropertyKeys zip msg.immutablePropertyValues).map {
-          case (k, v) => ImmutableProperty(k, v)
+          case (k, v) => ImmutableString(k, v)
         }
 
       val stringProperties =
         (msg.stringPropertyKeys zip msg.stringPropertyValues).map {
-          case (k, v) => StringProperty(k, v)
+          case (k, v) => MutableString(k, v)
         }
 
       val longProperties =
         (msg.longPropertyKeys zip msg.longPropertyValues).map {
-          case (k, v) => LongProperty(k, v)
+          case (k, v) => MutableLong(k, v)
         }
 
       val doubleProperties =
         (msg.doublePropertykeys zip msg.doublePropertyValues).map {
-          case (k, v) => DoubleProperty(k, v)
+          case (k, v) => MutableDouble(k, v)
         }
 
       val floatProperties =
         (msg.floatProperyKeys zip msg.floatPropertyValues).map {
-          case (k, v) => FloatProperty(k, v)
+          case (k, v) => MutableFloat(k, v)
         }
 
       val props = List(
@@ -140,23 +140,23 @@ case class BatchAddRemoteEdgeArrowFlightMessageSchema[
       val floatPropertyValues     = mutable.ListBuffer.empty[Float]
 
       vadd.properties.properties.foreach {
-        case ImmutableProperty(key, value) =>
+        case ImmutableString(key, value) =>
           immutablePropertyKeys.addOne(key)
           immutablePropertyValues.addOne(value)
 
-        case StringProperty(key, value)    =>
+        case MutableString(key, value)   =>
           stringPropertyKeys.addOne(key)
           stringPropertyValues.addOne(value)
 
-        case LongProperty(key, value)      =>
+        case MutableLong(key, value)     =>
           longPropertyKeys.addOne(key)
           longPropertyValues.addOne(value)
 
-        case DoubleProperty(key, value)    =>
+        case MutableDouble(key, value)   =>
           doublePropertyKeys.addOne(key)
           doublePropertyValues.addOne(value)
 
-        case FloatProperty(key, value)     =>
+        case MutableFloat(key, value)    =>
           floatPropertyKeys.addOne(key)
           floatPropertyValues.addOne(value)
       }

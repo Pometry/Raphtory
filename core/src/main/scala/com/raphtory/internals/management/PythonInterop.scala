@@ -25,10 +25,26 @@ import universe._
 import scala.util.Random
 import com.github.takezoe.scaladoc.Scaladoc
 import pemja.core.Interpreter
+import sun.misc.Unsafe
 
 /** Scala-side methods for interfacing with Python */
 object PythonInterop {
   val logger: WrappedLogger = new WrappedLogger(Logger(LoggerFactory.getLogger(this.getClass)))
+
+  def disableReflectWarning(): Unit =
+    try {
+      val theUnsafe = classOf[Unsafe].getDeclaredField("theUnsafe")
+      theUnsafe.setAccessible(true)
+      val u         = theUnsafe.get(null).asInstanceOf[Unsafe]
+      val cls       = Class.forName("jdk.internal.module.IllegalAccessLogger")
+      val logger    = cls.getDeclaredField("logger")
+      u.putObjectVolatile(cls, u.staticFieldOffset(logger), null)
+    }
+    catch {
+      case e: Exception => println(e.getStackTrace.mkString("Array(", ", ", ")"))
+    }
+
+  disableReflectWarning()
 
   def repr(obj: Any): String =
     obj match {
@@ -76,7 +92,7 @@ object PythonInterop {
   /** create a Scala tuple from python (nasty hack necessary due to Scala type safety and non-iterable tuples) */
   def decode_tuple[T](obj: java.util.Collection[_]): T = {
     val objScala = obj.asScala.toSeq
-    val class_ = Class.forName("scala.Tuple" + objScala.size)
+    val class_   = Class.forName("scala.Tuple" + objScala.size)
     class_.getConstructors.apply(0).newInstance(objScala: _*).asInstanceOf[T]
   }
 
@@ -94,6 +110,7 @@ object PythonInterop {
       case _: Iterable[_]          => "Iterable"
       case _: Iterator[_]          => "Iterator"
       case _: GraphPerspective     => "TemporalGraph"
+      case _: Graph                => "Graph"
       case _: Table                => "Table"
       case _: Accumulator[_, _]    => "Accumulator"
       case _: Vertex               => "Vertex"
@@ -108,9 +125,10 @@ object PythonInterop {
     val runtimeMirror = universe.runtimeMirror(getClass.getClassLoader)
     try {
       val module = runtimeMirror.staticModule(name)
-      val obj = runtimeMirror.reflectModule(module)
+      val obj    = runtimeMirror.reflectModule(module)
       obj.instance
-    } catch {
+    }
+    catch {
       case v: ClassNotFoundException => ()
     }
   }

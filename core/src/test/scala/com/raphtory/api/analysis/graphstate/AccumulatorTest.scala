@@ -10,7 +10,7 @@ import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.input.Source
-import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceSpout
 
 object CountNodes extends Generic {

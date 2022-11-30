@@ -2,9 +2,9 @@ package com.raphtory.aws
 
 import com.raphtory.RaphtoryApp
 import com.raphtory.algorithms.generic.EdgeList
-import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
+import com.raphtory.sources.CSVEdgeListSource
 
 /**
   * Tests the AWS S3 Spout and Sink, requires bucket name and bucket path that you would like to ingest.

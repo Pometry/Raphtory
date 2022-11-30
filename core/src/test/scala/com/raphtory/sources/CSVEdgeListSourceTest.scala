@@ -1,6 +1,5 @@
 package com.raphtory.sources
 
-import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.TestQuery
 import com.raphtory.algorithms.generic.EdgeList

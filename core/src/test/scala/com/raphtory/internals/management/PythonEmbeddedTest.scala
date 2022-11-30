@@ -2,7 +2,7 @@ package com.raphtory.internals.management
 
 import cats.effect.IO
 import com.raphtory.api.analysis.visitor.Vertex
-import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.ImmutableString
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
 import com.raphtory.internals.components.querymanager.VertexMessage

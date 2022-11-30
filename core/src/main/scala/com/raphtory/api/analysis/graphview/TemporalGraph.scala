@@ -40,7 +40,7 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
 
   override def index: Long = querySender.index
 
-  override protected def graphID: String = querySender.graphID
+  override def graphID: String = querySender.graphID
 
   def totalPartitions: Int = querySender.totalPartitions
 

@@ -7,24 +7,26 @@ import com.raphtory.examples.coho.companiesStream.jsonparsers.officerappointment
 import spray.json._
 
 import java.time.format.DateTimeFormatter
-import java.time.{LocalDate, LocalTime, ZoneOffset}
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneOffset
 
 /**
- * Graph Builder for graph of officer to company, used data from Officer Appointment API
- */
+  * Graph Builder for graph of officer to company, used data from Officer Appointment API
+  */
 class OfficerToCompanyGraphBuilder extends GraphBuilder[String] {
 
   override def apply(graph: Graph, tuple: String): Unit = {
     try {
-      val command = tuple
+      val command         = tuple
       val appointmentList = command.parseJson.convertTo[OfficerAppointmentList]
       sendAppointmentListToPartitions(appointmentList, graph)
-    } catch {
+    }
+    catch {
       case e: Exception => e.printStackTrace()
     }
 
-    def sendAppointmentListToPartitions(
-                                         appointmentList: OfficerAppointmentList, graph: Graph): Unit = {
+    def sendAppointmentListToPartitions(appointmentList: OfficerAppointmentList, graph: Graph): Unit = {
       val officerId = appointmentList.links.get.self.get.split("/")(2)
 
       var tupleIndex = graph.index * 50
@@ -32,25 +34,29 @@ class OfficerToCompanyGraphBuilder extends GraphBuilder[String] {
       appointmentList.items.get.foreach { item =>
         if (item.appointed_on.nonEmpty && item.appointed_to.nonEmpty) {
 
-         val name = item.name.get
-          val companyNumber = item.appointed_to.get.company_number.get
-          val resignedOnParsed =
-            LocalDate.parse(item.resigned_on.get.replaceAll("\"", ""), DateTimeFormatter.ofPattern("yyyy-MM-dd")).toEpochSecond(LocalTime.MIDNIGHT, ZoneOffset.MIN) * 1000
-          val appointedOn =
+          val name              = item.name.get
+          val companyNumber     = item.appointed_to.get.company_number.get
+          val resignedOnParsed  =
+            LocalDate
+              .parse(item.resigned_on.get.replaceAll("\"", ""), DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+              .toEpochSecond(LocalTime.MIDNIGHT, ZoneOffset.MIN) * 1000
+          val appointedOn       =
             item.appointed_on.get
-          val resignedOn =
+          val resignedOn        =
             item.resigned_on.get
           val appointedOnParsed =
-            LocalDate.parse(item.appointed_on.get.replaceAll("\"", ""), DateTimeFormatter.ofPattern("yyyy-MM-dd")).toEpochSecond(LocalTime.MIDNIGHT, ZoneOffset.MIN) * 1000
+            LocalDate
+              .parse(item.appointed_on.get.replaceAll("\"", ""), DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+              .toEpochSecond(LocalTime.MIDNIGHT, ZoneOffset.MIN) * 1000
 
           val difference = resignedOnParsed - appointedOnParsed
 
           graph.addVertex(
-            appointedOnParsed,
-            assignID(officerId),
-            Properties(ImmutableProperty("name", officerId)),
-            Type("Officer ID"),
-            tupleIndex
+                  appointedOnParsed,
+                  assignID(officerId),
+                  Properties(ImmutableString("name", officerId)),
+                  Type("Officer ID"),
+                  tupleIndex
           )
 
 //          addVertex(
@@ -62,26 +68,25 @@ class OfficerToCompanyGraphBuilder extends GraphBuilder[String] {
 //          )
 
           graph.addVertex(
-            appointedOnParsed,
-            difference,
-            Properties(ImmutableProperty("name", difference.toString)),
-            Type("Company Duration"),
-            tupleIndex
+                  appointedOnParsed,
+                  difference,
+                  Properties(ImmutableString("name", difference.toString)),
+                  Type("Company Duration"),
+                  tupleIndex
           )
 
           graph.addEdge(
-            appointedOnParsed,
-            assignID(officerId),
-            difference,
-            Properties(LongProperty("weight", difference)),
-            Type("Officer to Company Duration"),
-            tupleIndex
+                  appointedOnParsed,
+                  assignID(officerId),
+                  difference,
+                  Properties(MutableLong("weight", difference)),
+                  Type("Officer to Company Duration"),
+                  tupleIndex
           )
 
           tupleIndex += 1
         }
       }
-
 
     }
 

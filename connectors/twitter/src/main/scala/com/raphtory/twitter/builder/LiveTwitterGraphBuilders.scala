@@ -2,7 +2,7 @@ package com.raphtory.twitter.builder
 
 import com.raphtory.api.input.Graph
 import com.raphtory.api.input.GraphBuilder
-import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.ImmutableString
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
 import com.raphtory.twitter.spout.LiveTwitterSpout
@@ -37,13 +37,13 @@ object TwitterRetweetGraphBuilder extends GraphBuilder[Tweet] {
     graph.addVertex(
             timeStamp,
             srcID,
-            Properties(ImmutableProperty("user id", sourceNode)),
+            Properties(ImmutableString("user id", sourceNode)),
             Type("User ID")
     )
     graph.addVertex(
             timeStamp,
             tarID,
-            Properties(ImmutableProperty("user id", targetNode)),
+            Properties(ImmutableString("user id", targetNode)),
             Type("Retweeted User ID")
     )
     graph.addEdge(timeStamp, srcID, tarID, Type("Retweet Relationship"))
@@ -62,13 +62,13 @@ object TwitterUserGraphBuilder extends GraphBuilder[Tweet] {
     graph.addVertex(
             timeStamp,
             srcID,
-            Properties(ImmutableProperty("user id", sourceNode)),
+            Properties(ImmutableString("user id", sourceNode)),
             Type("User ID")
     )
     graph.addVertex(
             timeStamp,
             tarID,
-            Properties(ImmutableProperty("tweet id", targetNode)),
+            Properties(ImmutableString("tweet id", targetNode)),
             Type("Tweet ID")
     )
     graph.addEdge(timeStamp, srcID, tarID, Type("User to Tweet Relationship"))

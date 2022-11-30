@@ -1,5 +1,5 @@
 import pyraphtory.vertex
-import pyraphtory.builder
+import pyraphtory.input
 import pyraphtory.graph
 import pyraphtory.scala
 import pyraphtory.spouts

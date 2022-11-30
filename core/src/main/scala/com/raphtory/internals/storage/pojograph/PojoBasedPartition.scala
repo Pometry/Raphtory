@@ -3,9 +3,13 @@ package com.raphtory.internals.storage.pojograph
 import com.raphtory.api.input._
 import com.raphtory.internals.communication.SchemaProviderInstances._
 import com.raphtory.internals.graph.GraphAlteration._
-import com.raphtory.internals.graph.{GraphPartition, LensInterface}
+import com.raphtory.internals.graph.GraphPartition
+import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExVertex
-import com.raphtory.internals.storage.pojograph.entities.internal.{PojoEdge, PojoEntity, PojoVertex, SplitEdge}
+import com.raphtory.internals.storage.pojograph.entities.internal.PojoEdge
+import com.raphtory.internals.storage.pojograph.entities.internal.PojoEntity
+import com.raphtory.internals.storage.pojograph.entities.internal.PojoVertex
+import com.raphtory.internals.storage.pojograph.entities.internal.SplitEdge
 import com.typesafe.config.Config
 
 import scala.collection.mutable
@@ -24,13 +28,13 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
 
   def addProperties(msgTime: Long, index: Long, entity: PojoEntity, properties: Properties): Unit =
     properties.properties.foreach {
-      case StringProperty(key, value)    => entity + (msgTime, index, false, key, value)
-      case LongProperty(key, value)      => entity + (msgTime, index, false, key, value)
-      case DoubleProperty(key, value)    => entity + (msgTime, index, false, key, value)
-      case FloatProperty(key, value)     => entity + (msgTime, index, false, key, value)
-      case BooleanProperty(key, value)   => entity + (msgTime, index, false, key, value)
-      case IntegerProperty(key, value)   => entity + (msgTime, index, false, key, value)
-      case ImmutableProperty(key, value) => entity + (msgTime, index, true, key, value)
+      case MutableString(key, value)   => entity + (msgTime, index, false, key, value)
+      case MutableLong(key, value)     => entity + (msgTime, index, false, key, value)
+      case MutableDouble(key, value)   => entity + (msgTime, index, false, key, value)
+      case MutableFloat(key, value)    => entity + (msgTime, index, false, key, value)
+      case MutableBoolean(key, value)  => entity + (msgTime, index, false, key, value)
+      case MutableInteger(key, value)  => entity + (msgTime, index, false, key, value)
+      case ImmutableString(key, value) => entity + (msgTime, index, true, key, value)
     }
 
   // if the add come with some properties add all passed properties into the entity
@@ -41,10 +45,11 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
       srcId: Long,
       properties: Properties,
       vertexType: Option[Type]
-  ): Unit = vertices.synchronized {
-    addVertexInternal(msgTime, index, srcId, properties, vertexType)
-    logger.trace(s"Added vertex $srcId")
-  }
+  ): Unit =
+    vertices.synchronized {
+      addVertexInternal(msgTime, index, srcId, properties, vertexType)
+      logger.trace(s"Added vertex $srcId")
+    }
 
   // TODO Unfolding of type is un-necessary
   def addVertexInternal(

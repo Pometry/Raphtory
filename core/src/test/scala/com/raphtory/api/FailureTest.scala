@@ -9,9 +9,9 @@ import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.SequenceSpout
-import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.internals.components.RaphtoryServiceBuilder
 import com.raphtory.internals.context.RaphtoryContext
+import com.raphtory.sources.CSVEdgeListSource
 import munit.CatsEffectSuite
 
 class FailingAlgo extends Generic {

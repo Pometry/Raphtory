@@ -1,6 +1,6 @@
 package com.raphtory.stateTest
 
-import com.raphtory.api.input.FloatProperty
+import com.raphtory.api.input.MutableFloat
 import com.raphtory.api.input.Graph
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Properties
@@ -34,7 +34,7 @@ object AllCommandsBuilder extends GraphBuilder[String] {
                 .asJsObject
                 .fields
                 .map { pair => //add all of the pairs to the map
-                  FloatProperty(pair._1, pair._2.toString().toFloat)
+                  MutableFloat(pair._1, pair._2.toString().toFloat)
                 }
                 .toSeq: _*
       )
@@ -64,7 +64,7 @@ object AllCommandsBuilder extends GraphBuilder[String] {
                 .asJsObject
                 .fields
                 .map { pair => //add all of the pairs to the map
-                  FloatProperty(pair._1, pair._2.toString().toFloat)
+                  MutableFloat(pair._1, pair._2.toString().toFloat)
                 }
                 .toSeq: _*
       )

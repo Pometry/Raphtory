@@ -4,7 +4,7 @@ import com.raphtory.BaseCorrectnessTest
 import com.raphtory.TestQuery
 import com.raphtory.algorithms.generic.motif.SquareCount
 import com.raphtory.api.input.Source
-import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.sources.CSVEdgeListSource
 
 class SquareCountTest extends BaseCorrectnessTest {
   test("test PQ square") {

@@ -6,8 +6,10 @@ import com.monovore.decline._
 import com.monovore.decline.effect._
 import com.raphtory.internals.management.Py4JServer
 import com.raphtory.internals.management.PythonInterop
+import com.raphtory.internals.management.PythonInterop.disableReflectWarning
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
+import sun.misc.Unsafe
 
 import scala.concurrent.duration.DurationInt
 import scala.jdk.OptionConverters._
@@ -36,6 +38,7 @@ object PyRaphtory
     }) *> IO.sleep(10.seconds)
 
   override def main: Opts[IO[ExitCode]] = {
+    disableReflectWarning()
     val parentID = Opts.option[Long](long = "parentID", short = "p", help = "Parent process ID").orNone
     val gateway  = Py4JServer.fromEntryPoint[IO](PythonInterop)
 

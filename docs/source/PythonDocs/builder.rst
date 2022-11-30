@@ -5,7 +5,7 @@ builder
    :glob:
    :maxdepth: 3
 
-.. automodule:: pyraphtory.builder
+.. automodule:: pyraphtory.input
    :members:
    :undoc-members:
    :inherited-members:

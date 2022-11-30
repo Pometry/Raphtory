@@ -28,25 +28,32 @@ case class Type(name: String) extends MaybeType {
 }
 
 /** `Property` with a fixed value (the value should be the same for each update to the entity) */
-case class ImmutableProperty(key: String, value: String) extends Property
+case class ImmutableString(key: String, value: String) extends Property
 
 /** `Property` with a `String` value */
-case class StringProperty(key: String, value: String) extends Property
+case class MutableString(key: String, value: String) extends Property
 
 /** `Property` with a `Long` value */
-case class LongProperty(key: String, value: Long) extends Property
+case class MutableLong(key: String, value: Long) extends Property
 
 /** `Property` with a `Double` value */
-case class DoubleProperty(key: String, value: Double) extends Property
+case class MutableDouble(key: String, value: Double) extends Property
 
 /** `Property` with a `Float` value */
-case class FloatProperty(key: String, value: Float) extends Property
+case class MutableFloat(key: String, value: Float) extends Property
 
 /** `Property` with a `Boolean` value */
-case class BooleanProperty(key: String, value: Boolean) extends Property
+case class MutableBoolean(key: String, value: Boolean) extends Property
 
 /** `Property` with a `Integer` value */
-case class IntegerProperty(key: String, value: Int) extends Property
+case class MutableInteger(key: String, value: Int) extends Property
 
 /** Wrapper class for properties */
-case class Properties(properties: Property*)
+case class Properties(properties: Property*) {
+
+  def apply(properties: List[Property]): Properties =
+    Properties(properties: _*)
+
+  def addProperty(property: Property): Properties =
+    Properties(properties.:+(property): _*)
+}

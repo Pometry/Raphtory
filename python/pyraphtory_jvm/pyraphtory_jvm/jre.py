@@ -11,6 +11,9 @@ import tempfile
 import subprocess
 import os
 import site
+import logging
+
+#logging.basicConfig(level=logging.INFO)
 
 IVY_LIB = '/lib'
 PYRAPHTORY_DATA = '/pyraphtory_jvm/data'
@@ -84,7 +87,7 @@ def getArch():
 
 
 def delete_source(filename):
-    print(f"Deleting source file {filename}...")
+    logging.info(f"Deleting source file {filename}...")
     if os.path.exists(filename):
         try:
             os.remove(filename)
@@ -99,10 +102,10 @@ def checksum(filepath, expected_sha_hash):
         for byte_block in iter(lambda: f.read(4096), b""):
             sha256_hash.update(byte_block)
     if sha256_hash.hexdigest() == expected_sha_hash:
-        print(f"{filepath} hash correct")
+        logging.info(f"{filepath} hash correct")
         return True
     else:
-        print(f"{filepath} hash invalid, got {sha256_hash.hexdigest()} expected {expected_sha_hash}")
+        logging.info(f"{filepath} hash invalid, got {sha256_hash.hexdigest()} expected {expected_sha_hash}")
         return False
 
 
@@ -110,18 +113,18 @@ def download_java(system_os, architecture, download_dir):
     # get the version and sha which is stored locally
     if system_os not in SOURCES:
         msg = f'Error: System OS {system_os} not supported.\nNot downloading.'
-        print(msg)
+        logging.info(msg)
         raise SystemExit(msg)
     url = SOURCES[system_os][architecture][LINK]
     expected_sha = SOURCES[system_os][architecture][CHECKSUM_SHA256]
     # open a session and download
-    print(f"Downloading JAVA JRE {system_os}-{architecture} from {url}. Please wait...")
+    logging.info(f"Downloading JAVA JRE {system_os}-{architecture} from {url}. Please wait...")
     file_location = safe_download_file(download_dir, expected_sha, url)
     return file_location
 
 
 def safe_download_file(download_dir, expected_sha, url):
-    print(f"Downloading {url} to {download_dir}")
+    logging.info(f"Downloading {url} to {download_dir}")
     req_session = requests.Session()
     retries = Retry(total=5, backoff_factor=1, status_forcelist=[502, 503, 504])
     req_session.mount('https://', HTTPAdapter(max_retries=retries))
@@ -140,10 +143,10 @@ def safe_download_file(download_dir, expected_sha, url):
         r.close()
         if not status:
             delete_source(file_location)
-            print(f"Downloaded Jar {file_location} has incorrect checksum")
+            logging.info(f"Downloaded Jar {file_location} has incorrect checksum")
             raise SystemExit()
     except requests.exceptions.RequestException as err:
-        print(f"Major exception: {err}")
+        logging.info(f"Major exception: {err}")
         delete_source(file_location)
         raise SystemExit(err)
     return file_location
@@ -153,10 +156,10 @@ def get_and_run_ivy(JAVA_BIN, download_dir=os.path.dirname(os.path.realpath(__fi
     file_location = safe_download_file(str(download_dir), IVY_BIN[CHECKSUM_SHA256], IVY_BIN[LINK])
     shutil.unpack_archive(file_location, extract_dir=download_dir)
     working_dir = os.getcwd()
-    print(
+    logging.info(
         f"IVY working dir {working_dir}, dl dir: {download_dir} REAL PATH {str(os.path.dirname(os.path.realpath(__file__)))}")
     os.chdir(download_dir)
-    print(os.listdir('.'))
+    logging.info(os.listdir('.'))
     files = os.listdir(ivy_folder)
     for fname in files:
         if fname.endswith('.xml'):
@@ -192,7 +195,7 @@ def empty_folder(folder):
 
 def unpack_jre(filename, jre_loc, unpack_dir=tempfile.mkdtemp(dir=pathlib.Path().resolve())):
     system_os = getOS()
-    print(f'Unpacking JRE for {system_os}...')
+    logging.info(f'Unpacking JRE for {system_os}...')
     shutil.unpack_archive(filename, unpack_dir)
     if os.listdir(unpack_dir):
         result_dir = unpack_dir + '/' + os.listdir(unpack_dir)[0]
@@ -205,7 +208,7 @@ def unpack_jre(filename, jre_loc, unpack_dir=tempfile.mkdtemp(dir=pathlib.Path()
         file_names = os.listdir(result_dir + move_dir)
         for file_name in file_names:
             shutil.move(os.path.join(result_dir + move_dir, file_name), jre_loc)
-        print('Cleaning up...')
+        logging.info('Cleaning up...')
         shutil.rmtree(unpack_dir, ignore_errors=True)
         try:
             os.remove(filename)
@@ -216,12 +219,12 @@ def unpack_jre(filename, jre_loc, unpack_dir=tempfile.mkdtemp(dir=pathlib.Path()
 
 
 def check_system_dl_java(download_dir=str(os.path.dirname(os.path.realpath(__file__)))):
-    print("Downloading java...")
+    logging.info("Downloading java...")
     system_os = getOS()
-    print(f"- Operating system: {system_os} ")
+    logging.info(f"- Operating system: {system_os} ")
     architecture = getArch()
-    print(f"- Architecture: {architecture}")
-    print(f"Downloading to {download_dir}")
+    logging.info(f"- Architecture: {architecture}")
+    logging.info(f"Downloading to {download_dir}")
     jre_loc = download_dir + '/jre'
     if not os.path.exists(jre_loc):
         os.makedirs(jre_loc)
@@ -232,22 +235,22 @@ def check_system_dl_java(download_dir=str(os.path.dirname(os.path.realpath(__fil
 
 def has_java():
     try:
-        res = subprocess.run(["java", "-version"], stdout=subprocess.PIPE)
+        res = subprocess.run(["java", "-version"],stdout=subprocess.DEVNULL,stderr=subprocess.STDOUT)
         if res.returncode == 0:
-            print("Java found!")
+            logging.info("Java found!")
             return True
     except FileNotFoundError:
         return False
 
 
 def get_java_home():
-    print("Getting JAVA_HOME")
+    logging.info("Getting JAVA_HOME")
     home = os.getenv('JAVA_HOME')
     if home is not None:
-        print(f"JAVA_HOME found = {home}/bin/java")
+        logging.info(f"JAVA_HOME found = {home}/bin/java")
         return home + '/bin/java'
     elif shutil.which('java') is not None:
-        print(f'JAVA_HOME not found. But java found. Detecting home...')
+        logging.info(f'JAVA_HOME not found. But java found. Detecting home...')
         return shutil.which('java')
     else:
         raise FileNotFoundError("JAVA_HOME has not been set, java was also not found")

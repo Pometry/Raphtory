@@ -4,6 +4,8 @@ import traceback
 from abc import ABCMeta
 from collections.abc import Iterable, Mapping
 
+import os
+
 from py4j.java_gateway import JavaObject, JavaClass
 from py4j.java_collections import JavaArray
 import cloudpickle as pickle
@@ -40,6 +42,11 @@ def repr(obj):
     return str(_scala.repr(obj))
 
 
+def check_raphtory_logging_env():
+    log_level = os.getenv('RAPHTORY_CORE_LOG')
+    if log_level is None:
+        os.environ["RAPHTORY_CORE_LOG"] = "ERROR"
+
 # stay sane while debugging this code
 JavaArray.__repr__ = repr
 JavaArray.__str__ = repr
@@ -56,6 +63,8 @@ except ImportError:
     import jpype
     import jpype.imports
     from pyraphtory import _config
+
+    check_raphtory_logging_env()
 
     jpype.startJVM(_config.java_args, classpath=_config.jars.split(":"))
     from pyraphtory._jpypeinterpreter import JPypeInterpreter, _globals

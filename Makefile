@@ -63,6 +63,12 @@ python-build: version sbt-build
 		poetry install
 	pip3 install python/pyraphtory/dist/pyraphtory-$$(cat version).tar.gz
 
+PHONY python-build-quick:
+python-build-quick: version
+	cd python/pyraphtory/ && \
+		poetry build && \
+		poetry install
+	pip3 install python/pyraphtory/dist/pyraphtory-$$(cat version).tar.gz
 
 .PHONY docs:
 docs: version sbt-build python-build

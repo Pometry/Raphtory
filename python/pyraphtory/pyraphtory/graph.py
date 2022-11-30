@@ -1,4 +1,6 @@
 from pyraphtory.interop import register, logger, to_jvm, find_class, ScalaProxyBase, GenericScalaProxy, ScalaClassProxy
+from pyraphtory.input import Properties,ImmutableString,Type
+from pyraphtory.scala.implicits.bounded import Bounded
 import pandas as pd
 import json
 
@@ -20,11 +22,14 @@ class Table(GenericScalaProxy):
         for res in self.get():
             timestamp = res.perspective().timestamp()
             window = res.perspective().window()
-
-            for r in res.rows():
-                rows.append((timestamp, window, *r.get_values()))
-        return pd.DataFrame.from_records(rows, columns=('timestamp', 'window', *cols))
-
+            if(window!=None):
+                for r in res.rows():
+                    rows.append((timestamp, window, *r.get_values()))
+                return pd.DataFrame.from_records(rows, columns=('timestamp', 'window', *cols))
+            else:
+                for r in res.rows():
+                    rows.append((timestamp, *r.get_values()))
+                return pd.DataFrame.from_records(rows, columns=('timestamp', *cols))
 
 class Row(ScalaClassProxy):
     _classname = "com.raphtory.api.analysis.table.Row"
@@ -34,8 +39,42 @@ class PropertyMergeStrategy(ScalaClassProxy):
     _classname = "com.raphtory.api.analysis.visitor.PropertyMergeStrategy"
 
 
+@register(name="Graph")
+class Graph(GenericScalaProxy):
+    _classname = "com.raphtory.api.input.Graph"
+
+    def add_vertex(self,update_time,src_id,properties=None,vertex_type="",secondary_index=None):
+        if secondary_index is None:
+            secondary_index = self.index()
+
+        if isinstance(src_id, str):
+            if properties is None:
+                properties = []
+            properties += ImmutableString("name", src_id), #comma makes this a tuple and is apparently the fastest way to do things
+            super().add_vertex(update_time,self.assign_id(src_id),Properties(*properties),Type(vertex_type),secondary_index)
+        else:
+            if properties is None:
+                super().add_vertex(update_time,src_id,Properties(),Type(vertex_type),secondary_index)
+            else:
+                super().add_vertex(update_time,src_id,Properties(*properties),Type(vertex_type),secondary_index)
+
+    def add_edge(self,update_time,src_id,dst_id,properties=None,edge_type="",secondary_index=None):
+        if secondary_index is None:
+            secondary_index = self.index()
+        source = src_id
+        destination = dst_id
+        if isinstance(src_id, str):
+            source = self.assign_id(src_id)
+        if isinstance(dst_id, str):
+            destination = self.assign_id(dst_id)
+        if properties is None:
+            super().add_edge(update_time,source,destination,Properties(),Type(edge_type),secondary_index)
+        else:
+            super().add_edge(update_time,source,destination,Properties(*properties),Type(edge_type),secondary_index)
+
+
 @register(name="TemporalGraph")
-class TemporalGraph(GenericScalaProxy):
+class TemporalGraph(Graph):
     _classname = "com.raphtory.api.analysis.graphview.TemporalGraph"
     def transform(self, algorithm):
         if isinstance(algorithm, ScalaProxyBase):
@@ -50,6 +89,8 @@ class TemporalGraph(GenericScalaProxy):
             return algorithm.tabularise(self.transform(algorithm))
 
 
+
+
 class DeployedTemporalGraph(TemporalGraph):
     _classname = "com.raphtory.api.analysis.graphview.PyDeployedTemporalGraph"
 
@@ -59,7 +100,6 @@ class DeployedTemporalGraph(TemporalGraph):
     def __exit__(self, exc_type, exc_val, exc_tb):
         logger.debug("Graph closed using context manager")
         self.close()
-
 
 @register(name="Accumulator")
 class Accumulator(GenericScalaProxy):

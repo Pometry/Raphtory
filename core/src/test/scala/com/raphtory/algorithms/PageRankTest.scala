@@ -4,7 +4,7 @@ import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.FPCorrectnessTest
 import com.raphtory.TestQuery
 import com.raphtory.api.input.Source
-import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceSpout
 
 class PageRankTest extends FPCorrectnessTest(tol = 1e-4) {
