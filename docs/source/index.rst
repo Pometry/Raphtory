@@ -42,20 +42,6 @@ Alternatively, hit next and lets get Raphtory :doc:`installed <Install/python/py
 .. toctree::
    :hidden:
    :maxdepth: 1
-   :caption: Writing your own Algorithm
-
-   Analysis/LOTR_six_degrees.md
-
-.. toctree:: 
-   :maxdepth: 2
-   :hidden:
-   :caption: Deploying Raphtory
-
-   Deployment/baremetalsingle.md
-
-.. toctree::
-   :hidden:
-   :maxdepth: 1
    :caption: PyRaphtory API
 
    PythonDocs/index.rst
@@ -69,11 +55,3 @@ Alternatively, hit next and lets get Raphtory :doc:`installed <Install/python/py
    Analysis/analysis-explained.md
    scala/apidocs.md
 
-.. toctree::
-   :maxdepth: 2
-   :hidden:
-   :caption: Example Projects
-
-   Examples/lotr.md
-   Examples/nft.md
-   Examples/higgs-twitter.md
