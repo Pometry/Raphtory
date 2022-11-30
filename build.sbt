@@ -225,7 +225,7 @@ lazy val it =
       assemblySettings,
       defaultSettings
     )
-    .dependsOn(core)
+    .dependsOn(core % "compile->compile;test->test")
 
 lazy val docTests =
   (project in file("doc-tests"))
