@@ -39,20 +39,9 @@ class PropertyMergeStrategy(ScalaClassProxy):
     _classname = "com.raphtory.api.analysis.visitor.PropertyMergeStrategy"
 
 
-@register(name="TemporalGraph")
-class TemporalGraph(GenericScalaProxy):
-    _classname = "com.raphtory.api.analysis.graphview.TemporalGraph"
-    def transform(self, algorithm):
-        if isinstance(algorithm, ScalaProxyBase):
-            return super().transform(algorithm)
-        else:
-            return algorithm(self).with_transformed_name(algorithm.__class__.__name__)
-
-    def execute(self, algorithm):
-        if isinstance(algorithm, ScalaProxyBase):
-            return super().execute(algorithm)
-        else:
-            return algorithm.tabularise(self.transform(algorithm))
+@register(name="Graph")
+class Graph(GenericScalaProxy):
+    _classname = "com.raphtory.api.input.Graph"
 
     def add_vertex(self,update_time,src_id,properties=None,vertex_type="",secondary_index=None):
         if secondary_index is None:
@@ -69,8 +58,6 @@ class TemporalGraph(GenericScalaProxy):
             else:
                 super().add_vertex(update_time,src_id,Properties(*properties),Type(vertex_type),secondary_index)
 
-
-
     def add_edge(self,update_time,src_id,dst_id,properties=None,edge_type="",secondary_index=None):
         if secondary_index is None:
             secondary_index = self.index()
@@ -84,6 +71,24 @@ class TemporalGraph(GenericScalaProxy):
             super().add_edge(update_time,source,destination,Properties(),Type(edge_type),secondary_index)
         else:
             super().add_edge(update_time,source,destination,Properties(*properties),Type(edge_type),secondary_index)
+
+
+@register(name="TemporalGraph")
+class TemporalGraph(Graph):
+    _classname = "com.raphtory.api.analysis.graphview.TemporalGraph"
+    def transform(self, algorithm):
+        if isinstance(algorithm, ScalaProxyBase):
+            return super().transform(algorithm)
+        else:
+            return algorithm(self).with_transformed_name(algorithm.__class__.__name__)
+
+    def execute(self, algorithm):
+        if isinstance(algorithm, ScalaProxyBase):
+            return super().execute(algorithm)
+        else:
+            return algorithm.tabularise(self.transform(algorithm))
+
+
 
 
 class DeployedTemporalGraph(TemporalGraph):
