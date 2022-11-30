@@ -98,6 +98,7 @@ lazy val arrowCore =
   (project in file("arrow-core")).settings(assemblySettings)
 
 lazy val core = (project in file("core"))
+  .configs(IntegrationTest)
   .settings(
           name := "core",
           assembly / test := {},
@@ -109,6 +110,7 @@ lazy val core = (project in file("core"))
           ),
           assemblySettings,
           defaultSettings,
+          Defaults.itSettings,
           addCompilerPlugin(scalaDocReader),
           libraryDependencies ++= Seq(
                   //please keep in alphabetical order
@@ -176,16 +178,20 @@ lazy val core = (project in file("core"))
 lazy val connectorsAWS =
   (project in file("connectors/aws"))
     .dependsOn(core, testkit)
+    .configs(IntegrationTest)
     .settings(
             assemblySettings,
+            Defaults.itSettings,
             libraryDependencies ++= Seq(commonsIO, amazonAwsS3, amazonAwsSts)
     )
 
 lazy val connectorsTwitter =
   (project in file("connectors/twitter"))
     .dependsOn(core, testkit)
+    .configs(IntegrationTest)
     .settings(
             assemblySettings,
+            Defaults.itSettings,
             libraryDependencies ++= Seq(twitterEd)
     )
 
@@ -200,8 +206,10 @@ lazy val connectorsTypeDB =
 lazy val connectorsPulsar =
   (project in file("connectors/pulsar"))
     .dependsOn(core, testkit)
+    .configs(IntegrationTest)
     .settings(
             assemblySettings,
+            Defaults.itSettings,
             libraryDependencies ++=
               Seq(
                       pulsarClientAdmin,
@@ -241,7 +249,9 @@ lazy val deploy =
 
 lazy val it =
   (project in file("it"))
+    .configs(IntegrationTest)
     .settings(
+            Defaults.itSettings,
             assemblySettings,
             defaultSettings,
             libraryDependencies ++= Seq(
@@ -256,8 +266,9 @@ lazy val it =
 
 lazy val testkit =
   (project in file("testkit"))
+    .configs(IntegrationTest)
     .dependsOn(core)
-    .settings(defaultSettings)
+    .settings(Defaults.itSettings, defaultSettings)
 
 lazy val docTests =
   (project in file("doc-tests"))

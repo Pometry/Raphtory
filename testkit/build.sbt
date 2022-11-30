@@ -1,3 +1,3 @@
-import Dependencies.Internal._
+import Dependencies.Testkit._
 
 libraryDependencies += catsMUnit
