@@ -22,18 +22,14 @@ ThisBuild / scmInfo := Some(
         )
 )
 ThisBuild / developers := List(
-        Developer(
-                id = "miratepuffin",
-                name = "Ben Steer",
-                email = "ben.steer@raphtory.com",
-                url = url("https://twitter.com/miratepuffin")
-        )
+      tlGitHubDev("Pometry-Team", "Pometry"),
+      tlGitHubDev("miratepuffin", "Ben Steer")
 )
 
+ThisBuild / tlSonatypeUseLegacyHost := false
+
 ThisBuild / description := "A Distributed Temporal Graph Processing System"
-ThisBuild / licenses := List(
-        "Apache 2" -> new URL("http://www.apache.org/licenses/LICENSE-2.0.txt")
-)
+ThisBuild / licenses := Seq(License.Apache2)
 ThisBuild / homepage := Some(url("https://github.com/Raphtory/Raphtory"))
 
 // Remove all additional repository other than Maven Central from POM
@@ -194,23 +190,32 @@ lazy val connectorsPulsar =
 // EXAMPLE PROJECTS
 
 lazy val examplesCoho =
-  (project in file("examples/companies-house")).dependsOn(core).settings(assemblySettings)
+  (project in file("examples/companies-house"))
+    .enablePlugins(NoPublishPlugin)
+    .dependsOn(core)
+    .settings(assemblySettings)
 
 lazy val examplesGab =
-  (project in file("examples/gab")).dependsOn(core, connectorsPulsar).settings(assemblySettings)
+  (project in file("examples/gab"))
+    .enablePlugins(NoPublishPlugin)
+    .dependsOn(core, connectorsPulsar)
+    .settings(assemblySettings)
 
 lazy val examplesLotr =
   (project in file("examples/lotr"))
+    .enablePlugins(NoPublishPlugin)
     .dependsOn(core % "compile->compile;test->test", connectorsPulsar)
     .settings(assemblySettings)
 
 lazy val examplesTwitter =
   (project in file("examples/twitter"))
+    .enablePlugins(NoPublishPlugin)
     .dependsOn(core, connectorsTwitter, connectorsPulsar)
     .settings(assemblySettings)
 
 lazy val examplesNFT =
   (project in file("examples/nft"))
+    .enablePlugins(NoPublishPlugin)
     .dependsOn(core)
     .settings(assemblySettings)
 
@@ -220,11 +225,13 @@ lazy val deploy =
 
 lazy val integrationTest =
   (project in file("test"))
+    .enablePlugins(NoPublishPlugin)
     .dependsOn(core % "compile->compile;test->test")
     .settings(assemblySettings)
 
 lazy val docTests =
   (project in file("doc-tests"))
+    .enablePlugins(NoPublishPlugin)
     .dependsOn(core % "compile->compile;test->test", examplesLotr)
     .settings(assemblySettings)
 
