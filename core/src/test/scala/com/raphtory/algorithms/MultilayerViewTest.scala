@@ -10,8 +10,8 @@ import com.raphtory.algorithms.temporal.views.MultilayerView
 import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy
-import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.api.input.Source
+import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.SequenceSpout
 
 class WriteValue extends GenericReduction {

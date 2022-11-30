@@ -14,7 +14,7 @@ import java.util.Date
   * for a companies information.
   */
 
-class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
+class CompaniesStreamRawGraphBuilder extends GraphBuilder[String] {
   private val nullStr = "null"
 
   def apply(graph: Graph, tuple: String): Unit = {
@@ -45,35 +45,35 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
               timestamp,
               companyNumber,
               Properties(
-                      StringProperty(
+                      MutableString(
                               "resource_kind",
                               company.resource_kind match {
                                 case Some(kind) => kind
                                 case None       => nullStr
                               }
                       ),
-                      StringProperty(
+                      MutableString(
                               "resource_uri",
                               company.resource_uri match {
                                 case Some(uri) => uri
                                 case None      => nullStr
                               }
                       ),
-                      StringProperty(
+                      MutableString(
                               "resource_id",
                               company.resource_id match {
                                 case Some(id) => id
                                 case None     => nullStr
                               }
                       ),
-                      StringProperty(
+                      MutableString(
                               "data",
                               company.data match {
                                 case Some(data) => data.company_number.toString
                                 case None       => nullStr
                               }
                       ),
-                      IntegerProperty(
+                      MutableInteger(
                               "event",
                               company.event match {
                                 case Some(event) => event.timepoint.get
@@ -90,107 +90,107 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                 timestamp,
                 companyNumber,
                 Properties(
-                        BooleanProperty(
+                        MutableBoolean(
                                 "can_file",
                                 data.can_file match {
                                   case Some(can_file) => can_file
                                   case None           => false
                                 }
                         ),
-                        StringProperty(
+                        MutableString(
                                 "company_name",
                                 data.company_name match {
                                   case Some(company_name) => company_name
                                   case None               => nullStr
                                 }
                         ),
-                        StringProperty(
+                        MutableString(
                                 "company_number",
                                 data.company_number match {
                                   case Some(company_number) => company_number
                                   case None                 => nullStr
                                 }
                         ),
-                        StringProperty(
+                        MutableString(
                                 "company_status",
                                 data.company_status match {
                                   case Some(company_status) => company_status
                                   case None                 => nullStr
                                 }
                         ),
-                        StringProperty(
+                        MutableString(
                                 "company_status_detail",
                                 data.company_status_detail match {
                                   case Some(company_status_detail) => company_status_detail
                                   case None                        => nullStr
                                 }
                         ),
-                        StringProperty(
+                        MutableString(
                                 "date_of_cessation",
                                 data.date_of_cessation match {
                                   case Some(date_of_cessation) => date_of_cessation
                                   case None                    => nullStr
                                 }
                         ),
-                        StringProperty("date_of_creation", data.date_of_creation.get),
-                        StringProperty(
+                        MutableString("date_of_creation", data.date_of_creation.get),
+                        MutableString(
                                 "etag",
                                 data.etag match {
                                   case Some(etag) => etag
                                   case None       => nullStr
                                 }
                         ),
-                        BooleanProperty(
+                        MutableBoolean(
                                 "has_been_liquidated",
                                 data.has_been_liquidated match {
                                   case Some(has_been_liquidated) => has_been_liquidated
                                   case None                      => false
                                 }
                         ),
-                        BooleanProperty(
+                        MutableBoolean(
                                 "has_charges",
                                 data.has_charges match {
                                   case Some(has_charges) => has_charges
                                   case None              => false
                                 }
                         ),
-                        BooleanProperty(
+                        MutableBoolean(
                                 "has_insolvency_history",
                                 data.has_insolvency_history match {
                                   case Some(has_insolvency_history) => has_insolvency_history
                                   case None                         => false
                                 }
                         ),
-                        BooleanProperty(
+                        MutableBoolean(
                                 "is_community_interest_company",
                                 data.is_community_interest_company match {
                                   case Some(is_community_interest_company) => is_community_interest_company
                                   case None                                => false
                                 }
                         ),
-                        StringProperty("jurisdiction", data.jurisdiction.get),
-                        StringProperty(
+                        MutableString("jurisdiction", data.jurisdiction.get),
+                        MutableString(
                                 "last_full_members_list_date",
                                 data.last_full_members_list_date match {
                                   case Some(last_full_members_list_date) => last_full_members_list_date
                                   case None                              => nullStr
                                 }
                         ),
-                        BooleanProperty(
+                        MutableBoolean(
                                 "registered_office_is_in_dispute",
                                 data.registered_office_is_in_dispute match {
                                   case Some(registered_office_is_in_dispute) => registered_office_is_in_dispute
                                   case None                                  => false
                                 }
                         ),
-                        StringProperty(
+                        MutableString(
                                 "sic_codes",
                                 data.sic_codes match {
                                   case Some(sic_codes) => sic_codes
                                   case None            => nullStr
                                 }
                         ),
-                        BooleanProperty(
+                        MutableBoolean(
                                 "undeliverable_registered_office_address",
                                 data.undeliverable_registered_office_address match {
                                   case Some(undeliverable_registered_office_address) =>
@@ -198,7 +198,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                                   case None                                          => false
                                 }
                         ),
-                        StringProperty(
+                        MutableString(
                                 "type",
                                 data.`type` match {
                                   case Some(_type) => _type
@@ -208,7 +208,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                 )
         )
         //Edge from company to companyProfile resource data
-        graph.addEdge(timestamp, companyNumber, dataCompanyNumber, Properties(StringProperty("type", "companyToData")))
+        graph.addEdge(timestamp, companyNumber, dataCompanyNumber, Properties(MutableString("type", "companyToData")))
 
         //Company Accounts Information
         for (account <- data.accounts) {
@@ -218,14 +218,14 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                     timestamp,
                     companyNumber,
                     Properties(
-                            StringProperty(
+                            MutableString(
                                     "accounting_reference_date_day",
                                     accountingReference.day match {
                                       case Some(day) => day
                                       case None      => nullStr
                                     }
                             ),
-                            StringProperty(
+                            MutableString(
                                     "accounting_reference_date_month",
                                     accountingReference.month match {
                                       case Some(month) => month
@@ -241,14 +241,14 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                     timestamp,
                     companyNumber,
                     Properties(
-                            StringProperty(
+                            MutableString(
                                     "last_accounts_made_up_to",
                                     lastAccounts.made_up_to match {
                                       case Some(made_up_to) => made_up_to
                                       case None             => nullStr
                                     }
                             ),
-                            StringProperty(
+                            MutableString(
                                     "last_accounts_type",
                                     lastAccounts.`type` match {
                                       case Some(_type) => _type
@@ -263,15 +263,15 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                   timestamp,
                   companyNumber,
                   Properties(
-                          StringProperty(
+                          MutableString(
                                   "next_due",
                                   account.next_due match {
                                     case Some(next_due) => next_due
                                     case None           => nullStr
                                   }
                           ),
-                          StringProperty("next_made_up_to", account.next_made_up_to.get),
-                          BooleanProperty(
+                          MutableString("next_made_up_to", account.next_made_up_to.get),
+                          MutableBoolean(
                                   "overdue",
                                   account.overdue match {
                                     case Some(overdue) => overdue
@@ -284,7 +284,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
           val dst = account.accounting_reference_date.get.day.get
             .hashCode() + account.accounting_reference_date.get.month.get.hashCode()
           graph
-            .addEdge(timestamp, dataCompanyNumber, dst, Properties(StringProperty("type", "dataToAccountsInformation")))
+            .addEdge(timestamp, dataCompanyNumber, dst, Properties(MutableString("type", "dataToAccountsInformation")))
         }
 
         //Annual return information
@@ -293,28 +293,28 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                   timestamp,
                   companyNumber,
                   Properties(
-                          StringProperty(
+                          MutableString(
                                   "last_made_up_to",
                                   annualReturn.last_made_up_to match {
                                     case Some(last_made_up_to) => last_made_up_to
                                     case None                  => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "next_due",
                                   annualReturn.next_due match {
                                     case Some(next_due) => next_due
                                     case None           => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "next_made_up_to",
                                   annualReturn.next_made_up_to match {
                                     case Some(next_made_up_to) => next_made_up_to
                                     case None                  => nullStr
                                   }
                           ),
-                          BooleanProperty(
+                          MutableBoolean(
                                   "overdue",
                                   annualReturn.overdue match {
                                     case Some(overdue) => overdue
@@ -325,7 +325,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
           )
           val dst = annualReturn.next_due.hashCode()
           //Edge from data to annual return
-          graph.addEdge(timestamp, dataCompanyNumber, dst, Properties(StringProperty("type", "dataToAnnualReturn")))
+          graph.addEdge(timestamp, dataCompanyNumber, dst, Properties(MutableString("type", "dataToAnnualReturn")))
         }
 
         //UK branch of a foreign company
@@ -334,21 +334,21 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                   timestamp,
                   companyNumber,
                   Properties(
-                          StringProperty(
+                          MutableString(
                                   "business_activity",
                                   branchCompanyDetails.business_activity match {
                                     case Some(business_activity) => business_activity
                                     case None                    => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "parent_company_name",
                                   branchCompanyDetails.parent_company_name match {
                                     case Some(parent_company_name) => parent_company_name
                                     case None                      => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "parent_company_number",
                                   branchCompanyDetails.parent_company_number match {
                                     case Some(parent_company_number) => parent_company_number
@@ -363,7 +363,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                   timestamp,
                   dataCompanyNumber,
                   dst,
-                  Properties(StringProperty("type", "dataToBranchCompanyDetails"))
+                  Properties(MutableString("type", "dataToBranchCompanyDetails"))
           )
         }
 
@@ -373,28 +373,28 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                   timestamp,
                   companyNumber,
                   Properties(
-                          StringProperty(
+                          MutableString(
                                   "last_made_up_to",
                                   confirmationStatement.last_made_up_to match {
                                     case Some(last_made_up_to) => last_made_up_to
                                     case None                  => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "next_due",
                                   confirmationStatement.next_due match {
                                     case Some(next_due) => next_due
                                     case None           => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "next_made_up_to",
                                   confirmationStatement.next_made_up_to match {
                                     case Some(next_made_up_to) => next_made_up_to
                                     case None                  => nullStr
                                   }
                           ),
-                          BooleanProperty(
+                          MutableBoolean(
                                   "overdue",
                                   confirmationStatement.overdue match {
                                     case Some(overdue) => overdue
@@ -409,7 +409,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                   timestamp,
                   dataCompanyNumber,
                   dst,
-                  Properties(StringProperty("type", "dataToConfirmationStatement"))
+                  Properties(MutableString("type", "dataToConfirmationStatement"))
           )
         }
 
@@ -419,35 +419,35 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                   timestamp,
                   companyNumber,
                   Properties(
-                          StringProperty(
+                          MutableString(
                                   "business_activity",
                                   foreignCompanyDetails.business_activity match {
                                     case Some(business_activity) => business_activity
                                     case None                    => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "company_type",
                                   foreignCompanyDetails.company_type match {
                                     case Some(company_type) => company_type
                                     case None               => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "governed_by",
                                   foreignCompanyDetails.governed_by match {
                                     case Some(governed_by) => governed_by
                                     case None              => nullStr
                                   }
                           ),
-                          BooleanProperty(
+                          MutableBoolean(
                                   "is_a_credit_finance_institution",
                                   foreignCompanyDetails.is_a_credit_finance_institution match {
                                     case Some(is_a_credit_finance_institution) => is_a_credit_finance_institution
                                     case None                                  => false
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "registration_number",
                                   foreignCompanyDetails.registration_number match {
                                     case Some(registration_number) => registration_number
@@ -462,7 +462,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                   timestamp,
                   dataCompanyNumber,
                   dst,
-                  Properties(StringProperty("type", "dataToForeignCompanyDetails"))
+                  Properties(MutableString("type", "dataToForeignCompanyDetails"))
           )
 
           //Accounts Requirement
@@ -471,14 +471,14 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                     timestamp,
                     companyNumber,
                     Properties(
-                            StringProperty(
+                            MutableString(
                                     "foreign_account_type",
                                     accountingRequirement.foreign_account_type match {
                                       case Some(foreign_account_type) => foreign_account_type
                                       case None                       => nullStr
                                     }
                             ),
-                            StringProperty(
+                            MutableString(
                                     "terms_of_account_publication",
                                     accountingRequirement.terms_of_account_publication match {
                                       case Some(terms_of_account_publication) => terms_of_account_publication
@@ -494,7 +494,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                     timestamp,
                     src,
                     dst,
-                    Properties(StringProperty("type", "foreignCompanyDetailsToAccountingRequirement"))
+                    Properties(MutableString("type", "foreignCompanyDetailsToAccountingRequirement"))
             )
           }
 
@@ -505,7 +505,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                     timestamp,
                     foreignCompanyDetails.registration_number.get.hashCode(),
                     accountDst,
-                    Properties(StringProperty("type", "foreignCompanyDetailsToAccounts"))
+                    Properties(MutableString("type", "foreignCompanyDetailsToAccounts"))
             )
             //Date account period starts under parent law
             for (accountFrom <- accounts.account_period_from) {
@@ -513,14 +513,14 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                       timestamp,
                       companyNumber,
                       Properties(
-                              StringProperty(
+                              MutableString(
                                       "account_period_from_day",
                                       accountFrom.day match {
                                         case Some(day) => day
                                         case None      => nullStr
                                       }
                               ),
-                              StringProperty(
+                              MutableString(
                                       "account_period_from_month",
                                       accountFrom.month match {
                                         case Some(month) => month
@@ -533,7 +533,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                       timestamp,
                       accountDst,
                       accountFrom.day.get.hashCode(),
-                      Properties(StringProperty("type", "accountsToAccountPeriodFrom"))
+                      Properties(MutableString("type", "accountsToAccountPeriodFrom"))
               )
             }
 
@@ -543,14 +543,14 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                       timestamp,
                       companyNumber,
                       Properties(
-                              StringProperty(
+                              MutableString(
                                       "account_period_to_day",
                                       accountTo.day match {
                                         case Some(day) => day
                                         case None      => nullStr
                                       }
                               ),
-                              StringProperty(
+                              MutableString(
                                       "account_period_to_month",
                                       accountTo.month match {
                                         case Some(month) => month
@@ -563,7 +563,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                       timestamp,
                       accountDst,
                       accountTo.day.get.hashCode(),
-                      Properties(StringProperty("type", "accountsToAccountPeriodTo"))
+                      Properties(MutableString("type", "accountsToAccountPeriodTo"))
               )
             }
 
@@ -573,7 +573,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                       timestamp,
                       companyNumber,
                       Properties(
-                              StringProperty(
+                              MutableString(
                                       "must_file_within_months",
                                       mustFileWithin.months match {
                                         case Some(months) => months
@@ -586,7 +586,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                       timestamp,
                       accountDst,
                       mustFileWithin.months.get.hashCode(),
-                      Properties(StringProperty("type", "accountsToMustFileWithin"))
+                      Properties(MutableString("type", "accountsToMustFileWithin"))
               )
             }
           }
@@ -597,14 +597,14 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                     timestamp,
                     companyNumber,
                     Properties(
-                            StringProperty(
+                            MutableString(
                                     "originating_registry_name",
                                     originatingRegistry.name match {
                                       case Some(name) => name
                                       case None       => nullStr
                                     }
                             ),
-                            StringProperty(
+                            MutableString(
                                     "originating_registry_country",
                                     originatingRegistry.country match {
                                       case Some(country) => country
@@ -617,7 +617,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                     timestamp,
                     originatingRegistry.name.get.hashCode(),
                     dst,
-                    Properties(StringProperty("type", "foreignCompanyDetailsToOriginatingRegistry"))
+                    Properties(MutableString("type", "foreignCompanyDetailsToOriginatingRegistry"))
             )
           }
         }
@@ -628,28 +628,28 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                   timestamp,
                   companyNumber,
                   Properties(
-                          StringProperty(
+                          MutableString(
                                   "persons_with_significant_control",
                                   links.persons_with_significant_control match {
                                     case Some(person) => person
                                     case None         => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "persons_with_significant_control_statement",
                                   links.persons_with_significant_control_statements match {
                                     case Some(person) => person
                                     case None         => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "registers",
                                   links.registers match {
                                     case Some(registers) => registers
                                     case None            => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "self",
                                   links.self match {
                                     case Some(self) => self
@@ -662,7 +662,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                   timestamp,
                   dataCompanyNumber,
                   links.self.get.hashCode(),
-                  Properties(StringProperty("type", "dataToLinks"))
+                  Properties(MutableString("type", "dataToLinks"))
           )
         }
 
@@ -673,21 +673,21 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                     timestamp,
                     companyNumber,
                     Properties(
-                            StringProperty(
+                            MutableString(
                                     "ceased_on",
                                     name.ceased_on match {
                                       case Some(ceased_on) => ceased_on
                                       case None            => nullStr
                                     }
                             ),
-                            StringProperty(
+                            MutableString(
                                     "effective_from",
                                     name.effective_from match {
                                       case Some(effective_from) => effective_from
                                       case None                 => nullStr
                                     }
                             ),
-                            StringProperty(
+                            MutableString(
                                     "name",
                                     name.name match {
                                       case Some(name) => name
@@ -700,7 +700,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                     timestamp,
                     dataCompanyNumber,
                     name.name.getOrElse(nullStr).hashCode,
-                    Properties(StringProperty("type", "dataToPreviousNames"))
+                    Properties(MutableString("type", "dataToPreviousNames"))
             )
           }
         //The address of the company's registered office
@@ -709,63 +709,63 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                   timestamp,
                   companyNumber,
                   Properties(
-                          StringProperty(
+                          MutableString(
                                   "address_line_1",
                                   registeredOfficeAddress.address_line_1 match {
                                     case Some(address_line) => address_line
                                     case None               => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "address_line_2",
                                   registeredOfficeAddress.address_line_2 match {
                                     case Some(address_line_2) => address_line_2
                                     case None                 => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "care_of",
                                   registeredOfficeAddress.care_of match {
                                     case Some(care_of) => care_of
                                     case None          => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "country",
                                   registeredOfficeAddress.country match {
                                     case Some(country) => country
                                     case None          => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "locality",
                                   registeredOfficeAddress.locality match {
                                     case Some(locality) => locality
                                     case None           => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "po_box",
                                   registeredOfficeAddress.po_box match {
                                     case Some(po_box) => po_box
                                     case None         => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "postal_code",
                                   registeredOfficeAddress.postal_code match {
                                     case Some(postal_code) => postal_code
                                     case None              => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "premises",
                                   registeredOfficeAddress.premises match {
                                     case Some(premises) => premises
                                     case None           => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "region",
                                   registeredOfficeAddress.region match {
                                     case Some(region) => region
@@ -778,7 +778,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                   timestamp,
                   dataCompanyNumber,
                   registeredOfficeAddress.postal_code.get.hashCode,
-                  Properties(StringProperty("type", "dataToRegisteredAddress"))
+                  Properties(MutableString("type", "dataToRegisteredAddress"))
           )
         }
 
@@ -787,56 +787,56 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                   timestamp,
                   companyNumber,
                   Properties(
-                          StringProperty(
+                          MutableString(
                                   "address_line_1",
                                   serviceAddress.address_line_1 match {
                                     case Some(address_line_1) => address_line_1
                                     case None                 => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "address_line_2",
                                   serviceAddress.address_line_2 match {
                                     case Some(address_line_2) => address_line_2
                                     case None                 => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "care_of",
                                   serviceAddress.care_of match {
                                     case Some(care_of) => care_of
                                     case None          => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "country",
                                   serviceAddress.country match {
                                     case Some(country) => country
                                     case None          => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "locality",
                                   serviceAddress.locality match {
                                     case Some(locality) => locality
                                     case None           => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "po_box",
                                   serviceAddress.po_box match {
                                     case Some(po_box) => po_box
                                     case None         => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "postal_code",
                                   serviceAddress.postal_code match {
                                     case Some(postal_code) => postal_code
                                     case None              => nullStr
                                   }
                           ),
-                          StringProperty(
+                          MutableString(
                                   "region",
                                   serviceAddress.region match {
                                     case Some(region) => region
@@ -849,7 +849,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                   timestamp,
                   dataCompanyNumber,
                   serviceAddress.postal_code.get.hashCode(),
-                  Properties(StringProperty("type", "dataToServiceAddress"))
+                  Properties(MutableString("type", "dataToServiceAddress"))
           )
         }
 
@@ -861,28 +861,28 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                 timestamp,
                 companyNumber,
                 Properties(
-                        StringProperty(
+                        MutableString(
                                 "fields_changed",
                                 event.fields_changed match {
                                   case Some(fields_changed) => fields_changed.mkString
                                   case None                 => nullStr
                                 }
                         ),
-                        IntegerProperty(
+                        MutableInteger(
                                 "timepoint",
                                 event.timepoint match {
                                   case Some(timepoint) => timepoint
                                   case None            => 0
                                 }
                         ),
-                        StringProperty(
+                        MutableString(
                                 "published_at",
                                 event.published_at match {
                                   case Some(published_at) => published_at
                                   case None               => nullStr
                                 }
                         ),
-                        StringProperty(
+                        MutableString(
                                 "_type",
                                 event.`type` match {
                                   case Some(_type) => _type
@@ -895,7 +895,7 @@ class CompaniesStreamRawGraphBuilder extends GraphBuilder[String]{
                 timestamp,
                 companyNumber,
                 event.published_at.get.hashCode(),
-                Properties(StringProperty("type", "companyToEvent"))
+                Properties(MutableString("type", "companyToEvent"))
         )
       }
     }

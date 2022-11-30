@@ -10,7 +10,6 @@ import com.raphtory.api.input.SpoutInstance
   *  For instance, another process may publish to the pulsar topic the GraphBuilders are listening to.
   *
   *  @see [[com.raphtory.api.input.Spout Spout]]
-  *       [[com.raphtory.Raphtory Raphtory]]
   */
 case class IdentitySpout[T]() extends Spout[T] {
   override def buildSpout(): SpoutInstance[T] = new IdentitySpoutInstance()
