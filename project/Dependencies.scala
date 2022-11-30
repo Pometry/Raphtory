@@ -144,7 +144,7 @@ object Dependencies {
   lazy val univocityParsers = "com.univocity"      % "univocity-parsers" % univocityParsersVersion
   lazy val mjson            = "org.sharegov"       % "mjson"             % mjsonVersion
 
-  object Internal {
+  object Testkit {
     lazy val catsMUnit = "org.typelevel" %% "munit-cats-effect-3" % catsMUnitVersion
   }
 }
