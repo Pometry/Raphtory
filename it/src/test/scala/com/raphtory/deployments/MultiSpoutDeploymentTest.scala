@@ -3,9 +3,8 @@ package com.raphtory.deployments
 import cats.effect.IO
 import cats.effect.Resource
 import com.raphtory.api.analysis.graphview.Alignment
-import com.raphtory.TestUtils
 import com.raphtory.algorithms.generic.ConnectedComponents
-import com.raphtory.defaultConf
+import com.raphtory.{TestUtils, defaultConf}
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.internals.components.RaphtoryServiceBuilder
 import com.raphtory.internals.context.RaphtoryContext

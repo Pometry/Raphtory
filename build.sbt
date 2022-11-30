@@ -243,7 +243,14 @@ lazy val it =
   (project in file("it"))
     .settings(
             assemblySettings,
-            defaultSettings
+            defaultSettings,
+            libraryDependencies ++= Seq(
+                    junit,
+                    mockitoScala,
+                    testContainers,
+                    scalaTest,
+                    catsMUnit
+            )
     )
     .dependsOn(core, testkit)
 
