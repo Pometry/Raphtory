@@ -13,5 +13,14 @@ libraryDependencies ++= Seq(
         "org.scalatest" %% "scalatest"                  % "3.2.11"  % "test",
         "org.typelevel" %% "munit-cats-effect-3"        % "1.0.7"   % "test"
 )
+scalacOptions := Seq(
+  "-feature",
+  "-language:implicitConversions",
+  "-language:postfixOps",
+  "-unchecked",
+  "-deprecation",
+  "-encoding",
+  "utf8"
+)
 
 resolvers += Resolver.mavenLocal

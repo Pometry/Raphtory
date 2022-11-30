@@ -164,7 +164,7 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   test("test algorithm locally") {
     val res = runWithGraph(LocalContext, source) { graph =>
-      graph.execute(MaxFlowTest[Int]("Gandalf", "Gandalf")).get().toList
+      graph.addDynamicPath("com.raphtory.deployments.dynamicclassloader").execute(MaxFlowTest[Int]("Gandalf", "Gandalf")).get().toList
     }
     assert(res.nonEmpty)
   }
@@ -194,14 +194,14 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   test("test algorithm class injection") {
     val res = runWithGraph(RemoteContext, source) { graph =>
-      graph.execute(MinimalTestAlgorithm).get().toList
+      graph.addDynamicPath("com.raphtory.deployments.dynamicclassloader").execute(MinimalTestAlgorithm).get().toList
     }
     assert(res.nonEmpty)
   }
 
   test("test manual dynamic path") {
     val res = runWithGraph(RemoteContext, source) { graph =>
-      graph.addDynamicPath("dependency").execute(TestAlgorithmWithExternalDependency).get().toList
+      graph.addDynamicPath("com.raphtory.deployments.dynamicclassloader").execute(TestAlgorithmWithExternalDependency).get().toList
     }
     assert(res.nonEmpty)
   }
@@ -215,14 +215,14 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   test("test algorithm class injection with MaxFlow") {
     val res = runWithGraph(RemoteContext, source) { graph =>
-      graph.execute(MaxFlowTest[Int]("Gandalf", "Gandalf")).get().toList
+      graph.addDynamicPath("com.raphtory.deployments.dynamicclassloader").execute(MaxFlowTest[Int]("Gandalf", "Gandalf")).get().toList
     }
     assert(res.nonEmpty)
   }
 
   private def runWithGraph[T](context: Context, source: Fixture[Source])(graphHandling: TemporalGraph => T): T =
     fetchContext(context)().runWithNewGraph() { graph =>
-      val graphWithLoad = graph.addDynamicPath("com.raphtory.lotrtest").load(source())
+      val graphWithLoad = graph.addDynamicPath("com.raphtory.deployments.dynamicclassloader").load(source())
       graphHandling(graphWithLoad)
     }
 }
