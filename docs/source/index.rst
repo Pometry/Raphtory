@@ -18,7 +18,7 @@ You can try PyRaphtory (the python library) right now in a Jupyter notebook with
 Alternatively, hit next and lets get Raphtory :doc:`installed <Install/python/pyraphtory>`. If you want to dive headfirst into the API's you can visit the :doc:`PythonDocs <PythonDocs/index>` or :doc:`ScalaDocs <Scaladoc/index>`.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :hidden:
    :caption: PyRaphtory Quick Start
 
@@ -29,8 +29,7 @@ Alternatively, hit next and lets get Raphtory :doc:`installed <Install/python/py
    :hidden:
    :caption: PyRaphtory Introduction
 
-   Ingestion/sprouter.md
-   Analysis/queries.md
+   Introduction/ingestion.ipynb
 
 .. toctree::
    :hidden:
@@ -53,7 +52,6 @@ Alternatively, hit next and lets get Raphtory :doc:`installed <Install/python/py
    :caption: Deploying Raphtory
 
    Deployment/baremetalsingle.md
-   Deployment/kubernetes.md
 
 .. toctree::
    :hidden:

@@ -5,13 +5,13 @@ import cats.effect.IO
 import com.raphtory._
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.graphview.Alignment
-import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.api.input.Source
 import com.raphtory.internals.components.RaphtoryServiceBuilder
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.raphtory.pulsar.connector.PulsarConnector
 import com.raphtory.pulsar.sink.PulsarSink
+import com.raphtory.sources.CSVEdgeListSource
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema

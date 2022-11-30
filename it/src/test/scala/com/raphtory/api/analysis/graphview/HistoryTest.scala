@@ -4,10 +4,10 @@ import com.raphtory.algorithms.generic._
 import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.table._
 import com.raphtory.api.input.Source
-import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.spouts.SequenceSpout
 import com.raphtory._
 import com.raphtory.algorithms.temporal.{TemporalEdgeList, TemporalNodeList}
+import com.raphtory.sources.CSVEdgeListSource
 
 import scala.util.Random
 

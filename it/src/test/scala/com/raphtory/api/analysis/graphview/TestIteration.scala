@@ -4,7 +4,7 @@ import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.table.{Row, Table}
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.input.Source
-import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceSpout
 import com.raphtory.{BaseCorrectnessTest, TestQuery}
 

@@ -20,18 +20,6 @@ import java.io.InputStreamReader
   * @param auth The authorization code in Base64 format to access the url e.g. "Basic XXXXXXXXX"
   * @param contentType The content type of the data e.g. application/json
   *
-  * @example
-  * {{{
-  * import com.raphtory.algorithms.generic.EdgeList
-  * import com.raphtory.sinks.FileSink
-  * import com.raphtory.spouts.WebSocketSpout
-  *
-  * val webSpout = new WebSocketSpout("https://stream.companieshouse.gov.uk/companies")
-  * val graph = Raphtory.load(webSpout, YourGraphBuilder())
-  * val sink = FileSink("/tmp/raphtoryTest")
-  *
-  * graph.execute(EdgeList()).writeTo(sink)
-  * }}}
   * @see [[com.raphtory.api.input.Spout Spout]]
   */
 case class WebSocketSpout(url: String, auth: Option[String], contentType: Option[String]) extends Spout[String] {

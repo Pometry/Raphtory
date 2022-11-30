@@ -1,4 +1,4 @@
-package com.raphtory.api.input.sources
+package com.raphtory.sources
 
 import com.jayway.jsonpath.JsonPath
 import com.raphtory.api.input.Graph.assignID

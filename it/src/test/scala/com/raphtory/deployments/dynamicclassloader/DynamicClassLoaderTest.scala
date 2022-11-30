@@ -8,10 +8,10 @@ import com.raphtory.api.analysis.algorithm._
 import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.input._
-import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.internals.context.{RaphtoryContext, RaphtoryIOContext}
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.raphtory.sinks.PrintSink
+import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.FileSpout
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
@@ -44,13 +44,13 @@ object Parent {
             graph.addVertex(
                     timeStamp,
                     srcID,
-                    Properties(ImmutableProperty("name", sourceNode)),
+                    Properties(ImmutableString("name", sourceNode)),
                     Type("Character")
             )
             graph.addVertex(
                     timeStamp,
                     tarID,
-                    Properties(ImmutableProperty("name", targetNode)),
+                    Properties(ImmutableString("name", targetNode)),
                     Type("Character")
             )
             graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurence"))

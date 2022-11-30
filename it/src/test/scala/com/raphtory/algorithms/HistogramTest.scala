@@ -4,8 +4,8 @@ import com.raphtory.BaseCorrectnessTest
 import com.raphtory.TestQuery
 import com.raphtory.algorithms.generic.VertexHistogram
 import com.raphtory.algorithms.generic.centrality.Degree
-import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.api.input.Source
+import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceSpout
 
 class HistogramTest extends BaseCorrectnessTest {

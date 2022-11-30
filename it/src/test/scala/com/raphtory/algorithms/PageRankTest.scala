@@ -3,7 +3,7 @@ package com.raphtory.algorithms
 import com.raphtory._
 import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.api.input.Source
-import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceSpout
 
 class PageRankTest extends FPCorrectnessTest(tol = 1e-4) {

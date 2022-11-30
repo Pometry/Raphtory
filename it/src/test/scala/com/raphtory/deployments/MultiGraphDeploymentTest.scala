@@ -5,11 +5,11 @@ import com.raphtory.TestUtils
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.defaultConf
 import com.raphtory.api.analysis.graphview.Alignment
-import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.internals.components.RaphtoryServiceBuilder
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.sinks.FileSink
+import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.StaticGraphSpout
 import munit.CatsEffectSuite

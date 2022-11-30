@@ -4,8 +4,8 @@ import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table._
 import com.raphtory.api.input.Source
-import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.deployments.CheckHistory.isSortedIncreasing
+import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.SequenceSpout
 import com.raphtory.{BaseCorrectnessTest, TestQuery}
 

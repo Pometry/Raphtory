@@ -3,7 +3,7 @@ package com.raphtory.api.analysis.graphview
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.input.Source
-import com.raphtory.api.input.sources.CSVEdgeListSource
+import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.SequenceSpout
 
 /** This should call methods on graph view and make sure they work */

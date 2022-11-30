@@ -2,8 +2,8 @@ package com.raphtory
 
 import com.raphtory.api.analysis.algorithm.GenericallyApplicable
 import com.raphtory.api.analysis.graphview.{Alignment, TemporalGraph}
-import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.api.input.{Source, Spout}
+import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.{IdentitySpout, SequenceSpout}
 
 case class TestQuery(

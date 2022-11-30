@@ -31,9 +31,8 @@ class StaticGraphSpoutInstance(fileDataPath: String) extends SpoutInstance[Strin
     val data = s"$line $lineNo"
     lineNo += 1
     count += 1
-    if (count % 100_000 == 0) {
+    if (count % 100_000 == 0)
       logger.debug(s"File spout sent $count messages.")
-    }
     data
   }
 

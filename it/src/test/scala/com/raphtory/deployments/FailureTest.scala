@@ -4,10 +4,10 @@ import cats.effect._
 import com.raphtory._
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview._
-import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.internals.components.RaphtoryServiceBuilder
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.sinks.FileSink
+import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.SequenceSpout
 import munit.CatsEffectSuite
 

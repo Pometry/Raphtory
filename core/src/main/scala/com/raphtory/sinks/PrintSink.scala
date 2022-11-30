@@ -1,9 +1,7 @@
 package com.raphtory.sinks
 
-import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.output.format.Format
 import com.raphtory.api.output.sink.FormatAgnosticSink
-import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.output.sink.SinkConnector
 import com.raphtory.formats.CsvFormat
 import com.typesafe.config.Config
