@@ -12,16 +12,22 @@ import scala.math.Ordering.Implicits._
   *  Stores/returns the number of nodes and edges in the graph.
   *
   *  This counts the number of nodes and edges in the perspective and returns them. We count both the number of "undirected"
-  *  edges, treating the graph as a simple undirected graph, and the number of directed edges, treating the graph as directed
-  *  and simple.
+  *  edges, treating the graph as a simple undirected graph, the number of directed edges, treating the graph as directed
+  *  and simple, and the number of temporal edges which includes duplicate directed edges between the same pair of nodes.
   *
   * ## States
   *
-  *  {s}`directedEdges: Long`
+  *  {s}`directedEdges: Int`
   *  : Number of directed edges in the perspective
   *
-  *  {s}`undirectedEdges: Long`
+  *  {s}`undirectedEdges: Int`
   *  : Number of undirected edges in the perspective
+  *
+  *  {s}`temporalEdges: Int`
+  *  : Number of directed edges with multiplicity in the perspective
+  *
+  *
+  *  ## Returns
   *
   *  | no nodes          | no directed edges       | no undirected edges       | no temporal edges |
   *  | ----------------- | ----------------------- | ------------------------- | ----------------- |
@@ -53,4 +59,3 @@ object NodeEdgeCount extends GenericReduction {
         Row(state.nodeCount, state("directedEdges").value, state[Int,Int]("undirectedEdges").value/2, state[Int,Int]("temporalEdges").value)
     }
 }
-
