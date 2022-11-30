@@ -3,10 +3,32 @@ services:
   zoo1:
     image: zookeeper
     restart: always
-    hostname: zk
+    hostname: zoo1
     ports:
       - 2181:2181
-  query:
-    build:
-      context: .
-
+#  query:
+#    image: raphtory-core:latest
+#    environment:
+#      RAPHTORY_JAVA_RUN_CLASS: com.raphtory.service.Query
+#      RAPHTORY_ZOOKEEPER_ADDRESS: zoo1:2181
+#      RAPHTORY_PARTITIONS_SERVERCOUNT: 2
+#  cluster:
+#    image: raphtory-core:latest
+#    environment:
+#      RAPHTORY_JAVA_RUN_CLASS: com.raphtory.service.ClusterManager
+#      RAPHTORY_ZOOKEEPER_ADDRESS: zoo1:2181
+#      RAPHTORY_PARTITIONS_SERVERCOUNT: 2
+#  ingestion:
+#    image: raphtory-core:latest
+#    environment:
+#      RAPHTORY_JAVA_RUN_CLASS: com.raphtory.service.Ingestion
+#      RAPHTORY_ZOOKEEPER_ADDRESS: zoo1:2181
+#      RAPHTORY_PARTITIONS_SERVERCOUNT: 2
+#  partition:
+#    image: raphtory-core:latest
+#    deploy:
+#      replicas: 2
+#    environment:
+#      RAPHTORY_JAVA_RUN_CLASS: com.raphtory.service.Partition
+#      RAPHTORY_ZOOKEEPER_ADDRESS: zoo1:2181
+#      RAPHTORY_PARTITIONS_SERVERCOUNT: 2
