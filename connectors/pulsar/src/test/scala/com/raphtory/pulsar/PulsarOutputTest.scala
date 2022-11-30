@@ -2,8 +2,7 @@ package com.raphtory.pulsar
 
 import cats.effect.Async
 import cats.effect.IO
-import com.raphtory.BaseRaphtoryAlgoTest
-import com.raphtory.defaultConf
+import com.raphtory._
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.input.sources.CSVEdgeListSource
@@ -16,6 +15,7 @@ import com.raphtory.pulsar.sink.PulsarSink
 import org.apache.pulsar.client.api.Consumer
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.client.api.Schema
+
 import java.net.URL
 import java.util.UUID
 import scala.language.postfixOps

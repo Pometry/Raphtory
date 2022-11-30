@@ -108,4 +108,8 @@ object Dependencies {
   lazy val curatorDiscovery = "org.apache.curator" % "curator-x-discovery" % curatorVersion
   lazy val junit            = "junit"              % "junit"               % junitVersion        % Test
   lazy val mockitoScala     = "org.mockito"       %% "mockito-scala"       % mockitoScalaVersion % Test
+
+  object Internal {
+    lazy val catsMUnit = "org.typelevel" %% "munit-cats-effect-3" % catsMUnitVersion
+  }
 }

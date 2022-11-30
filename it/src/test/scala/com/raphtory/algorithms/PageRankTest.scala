@@ -1,7 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.FPCorrectnessTest
-import com.raphtory.TestQuery
+import com.raphtory._
 import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.sources.CSVEdgeListSource

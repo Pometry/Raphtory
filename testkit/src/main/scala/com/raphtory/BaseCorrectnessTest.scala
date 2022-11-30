@@ -5,7 +5,6 @@ import com.raphtory.api.analysis.graphview.{Alignment, TemporalGraph}
 import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.api.input.{Source, Spout}
 import com.raphtory.spouts.{IdentitySpout, SequenceSpout}
-import munit.Assertions.assertEquals
 
 case class TestQuery(
     algorithm: GenericallyApplicable,

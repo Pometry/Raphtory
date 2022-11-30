@@ -10,6 +10,7 @@ import com.raphtory.algorithms.temporal.dynamic.GenericTaint
 import com.raphtory.algorithms.{GlobalState, GraphState}
 import com.raphtory.api.input.sources.CSVEdgeListSource
 import com.raphtory.api.input._
+import com.typesafe.sslconfig.ssl.AlgorithmConstraintsParser.algorithm
 
 import java.net.URL
 import scala.language.postfixOps

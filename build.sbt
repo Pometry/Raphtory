@@ -179,17 +179,17 @@ lazy val core = (project in file("core"))
 // CONNECTORS
 
 lazy val connectorsAWS =
-  (project in file("connectors/aws")).dependsOn(core).settings(assemblySettings)
+  (project in file("connectors/aws")).dependsOn(core, testkit).settings(assemblySettings)
 
 lazy val connectorsTwitter =
-  (project in file("connectors/twitter")).dependsOn(core).settings(assemblySettings)
+  (project in file("connectors/twitter")).dependsOn(core, testkit).settings(assemblySettings)
 
 lazy val connectorsTypeDB =
   (project in file("connectors/typedb")).dependsOn(core).settings(assemblySettings)
 
 lazy val connectorsPulsar =
   (project in file("connectors/pulsar"))
-    .dependsOn(core % "compile->compile;test->test")
+    .dependsOn(core, testkit)
     .settings(assemblySettings)
 
 // EXAMPLE PROJECTS
@@ -222,10 +222,15 @@ lazy val deploy =
 lazy val it =
   (project in file("it"))
     .settings(
-      assemblySettings,
-      defaultSettings
+            assemblySettings,
+            defaultSettings
     )
-    .dependsOn(core % "compile->compile;test->test")
+    .dependsOn(core, testkit)
+
+lazy val testkit =
+  (project in file("testkit"))
+    .dependsOn(core)
+    .settings(defaultSettings)
 
 lazy val docTests =
   (project in file("doc-tests"))
