@@ -144,6 +144,8 @@ object Dependencies {
   lazy val univocityParsers = "com.univocity"      % "univocity-parsers" % univocityParsersVersion
   lazy val mjson            = "org.sharegov"       % "mjson"             % mjsonVersion
 
+  // Dependencies whose scope goes beyond tests in some modules can go here because
+  // it doesn't make any sense to widen the scope of test dependencies to be made part of raphtory
   object Testkit {
     lazy val catsMUnit = "org.typelevel" %% "munit-cats-effect-3" % catsMUnitVersion
   }
