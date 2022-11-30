@@ -4,7 +4,7 @@ object Dependencies {
   private lazy val bcelVersion                     = "6.5.0"
   private lazy val catsEffectVersion               = "3.3.12"
   private lazy val chillVersion                    = "0.10.0"
-  private lazy val curatorVersion                  = "5.2.1"
+  private lazy val curatorVersion                  = "5.4.0"
   private lazy val declineVersion                  = "2.3.0"
   private lazy val fs2Version                      = "3.2.12"
   private lazy val jacksonVersion                  = "2.13.3"
