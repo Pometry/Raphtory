@@ -38,7 +38,7 @@ jobs:
           ref: ${{ github.ref }}
       # Install SBT
       - name: Get sbt package
-        run: apt-get update && apt-get install -y rng-tools unzip gnupg glibc-source && curl -L "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.zip" -o sbt-1.5.5.zip && unzip sbt-1.5.5.zip
+        run: apt-get update && apt-get install -y unzip gnupg glibc-source && curl -L "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.zip" -o sbt-1.5.5.zip && unzip sbt-1.5.5.zip
       # Create Raphtory thin jars and build python
       - name: Building Thin Raphtory Jars for Python
         run: |
@@ -53,6 +53,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Installing poetry
         run: |
+          apt-get update && apt-get install -y python3.9-dev
           python -m pip install --upgrade pip
           python -m pip install poetry
       - name: Building pyraphtory_jvm
