@@ -1,6 +1,5 @@
-package test.raphtory.algorithms
+package com.raphtory.deployments.dynamicclassloader
 
-import dependency.DependentMessage
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.internals.communication.SchemaProviderInstances._

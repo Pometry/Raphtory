@@ -88,12 +88,12 @@ object Dependencies {
   lazy val scalaParallelCollections =
     "org.scala-lang.modules" %% "scala-parallel-collections" % scalaParallelCollectionsVersion
   lazy val scalaPb          = "com.thesamet.scalapb" %% "scalapb-runtime"            % scalaPbVersion        % "protobuf"
-  lazy val scalaTest        = "org.scalatest"        %% "scalatest"                  % scalatestVersion      % "it,test"
+  lazy val scalaTest        = "org.scalatest"        %% "scalatest"                  % scalatestVersion      % Test
   lazy val scalaTestCompile = "org.scalatest"        %% "scalatest"                  % scalatestVersion
   lazy val shapeless        = "com.chuusai"          %% "shapeless"                  % shapelessVer
   lazy val slf4j            = "org.slf4j"             % "slf4j-api"                  % slf4jVersion
   lazy val sprayJson        = "io.spray"             %% "spray-json"                 % sprayJsonVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val testContainers   = "com.dimafeng"         %% "testcontainers-scala-munit" % testContainersVersion % "it,test"
+  lazy val testContainers   = "com.dimafeng"         %% "testcontainers-scala-munit" % testContainersVersion % Test
 
   lazy val twitterChill   = "com.twitter"         %% "chill"     % chillVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val typesafeConfig = "com.typesafe"         % "config"    % typesafeConfigVersion excludeAll (excludeLog4j, excludeSlf4j)
@@ -101,11 +101,11 @@ object Dependencies {
   lazy val zookeeper      = "org.apache.zookeeper" % "zookeeper" % zookeeperVersion excludeAll (excludeLog4j, excludeSlf4j)
 
   lazy val catsMUnit =
-    "org.typelevel" %% "munit-cats-effect-3" % catsMUnitVersion % "it,test" excludeAll (excludeLog4j, excludeSlf4j)
+    "org.typelevel" %% "munit-cats-effect-3" % catsMUnitVersion % Test excludeAll (excludeLog4j, excludeSlf4j)
   lazy val alleyCats      = "org.typelevel"      %% "alleycats-core"          % catsVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val scalaDocReader = "com.github.takezoe" %% "runtime-scaladoc-reader" % "1.0.3"
 
   lazy val curatorDiscovery = "org.apache.curator" % "curator-x-discovery" % curatorVersion
-  lazy val junit            = "junit"              % "junit"               % junitVersion        % "it,test"
-  lazy val mockitoScala     = "org.mockito"       %% "mockito-scala"       % mockitoScalaVersion % "it,test"
+  lazy val junit            = "junit"              % "junit"               % junitVersion        % Test
+  lazy val mockitoScala     = "org.mockito"       %% "mockito-scala"       % mockitoScalaVersion % Test
 }

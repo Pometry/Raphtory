@@ -1,33 +1,24 @@
-package test.raphtory
+package com.raphtory.deployments.dynamicclassloader
 
 import cats.effect.IO
 import cats.effect.kernel.Resource
-import cats.effect.std.Semaphore
-import com.raphtory.algorithms.generic.EdgeList
-import com.raphtory.api.analysis.algorithm.Generic
-import com.raphtory.api.analysis.graphview.TemporalGraph
-import com.raphtory.api.input._
-import com.raphtory.internals.context.RaphtoryContext
-import com.raphtory.internals.context.RaphtoryIOContext
-import com.raphtory.spouts.FileSpout
 import com.raphtory.TestUtils
+import com.raphtory.algorithms.generic.EdgeList
+import com.raphtory.api.analysis.algorithm._
+import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.input._
 import com.raphtory.api.input.sources.CSVEdgeListSource
-import com.raphtory.internals.components.RaphtoryServiceBuilder
+import com.raphtory.internals.context.{RaphtoryContext, RaphtoryIOContext}
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.raphtory.sinks.PrintSink
+import com.raphtory.spouts.FileSpout
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import grpc.health.v1.health.Health
-import grpc.health.v1.health.HealthCheckRequest
-import grpc.health.v1.health.HealthCheckResponse
+import grpc.health.v1.health.{Health, HealthCheckRequest}
 import higherkindness.mu.rpc.ChannelForAddress
-import higherkindness.mu.rpc.healthcheck.HealthService
 import munit.CatsEffectSuite
 import org.slf4j.LoggerFactory
-import test.raphtory.algorithms.MaxFlowTest
-import test.raphtory.algorithms.MinimalTestAlgorithm
-import test.raphtory.algorithms.TestAlgorithmWithExternalDependency
 
 import java.net.URL
 import scala.concurrent.duration.DurationInt
@@ -36,7 +27,6 @@ import scala.reflect.runtime.universe._
 import scala.sys.process._
 import scala.tools.reflect.ToolBox
 import scala.util.Try
-import scala.util.control.NonFatal
 
 object Parent {
 

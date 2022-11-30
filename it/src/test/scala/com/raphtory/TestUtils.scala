@@ -5,11 +5,13 @@ import cats.effect.kernel.Resource
 import com.google.common.hash.Hashing
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
+
 import java.io.File
 import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import scala.sys.process._
+import scala.language.postfixOps
 
 object TestUtils {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))

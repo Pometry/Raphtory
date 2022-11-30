@@ -86,7 +86,7 @@ lazy val root = (project in file("."))
           examplesTwitter,
           examplesNFT,
           deploy,
-          integrationTest,
+          it,
           docTests
   )
 
@@ -103,7 +103,6 @@ lazy val arrowCore =
   (project in file("arrow-core")).settings(assemblySettings)
 
 lazy val core = (project in file("core"))
-  .configs(IntegrationTest)
   .settings(
           name := "core",
           assembly / test := {},
@@ -114,7 +113,6 @@ lazy val core = (project in file("core"))
                   "-private"
           ),
           assemblySettings,
-          Defaults.itSettings,
           defaultSettings,
           addCompilerPlugin(scalaDocReader),
           libraryDependencies ++= Seq(
@@ -221,10 +219,13 @@ lazy val deploy =
   (project in file("deploy"))
     .settings(assemblySettings)
 
-lazy val integrationTest =
-  (project in file("test"))
-    .dependsOn(core % "compile->compile;test->test")
-    .settings(assemblySettings)
+lazy val it =
+  (project in file("it"))
+    .settings(
+      assemblySettings,
+      defaultSettings
+    )
+    .dependsOn(core)
 
 lazy val docTests =
   (project in file("doc-tests"))

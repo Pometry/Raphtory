@@ -1,12 +1,12 @@
-package test.raphtory.algorithms
+package com.raphtory.deployments.dynamicclassloader
 
 // make this not part of com.raphtory to test automatic dependency loading
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.Table
-import com.raphtory.utils.ExtendedNumeric.numericFromInt
+import com.raphtory.api.analysis.table.{Row, Table}
 import com.raphtory.internals.communication.SchemaProviderInstances._
+import com.raphtory.utils.ExtendedNumeric.numericFromInt
+
 import scala.collection.mutable
 import scala.language.existentials
 import scala.math.Numeric.Implicits._

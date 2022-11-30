@@ -1,10 +1,9 @@
-package com.raphtory
+package com.raphtory.internals.management
 
 import cats.effect.IO
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.raphtory.internals.management.id.ZookeeperLimitedPool
-import munit.CatsEffectSuite
-import munit.IgnoreSuite
+import munit.{CatsEffectSuite, IgnoreSuite}
 
 import scala.util.Random
 

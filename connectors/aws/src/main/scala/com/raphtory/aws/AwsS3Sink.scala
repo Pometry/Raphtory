@@ -38,7 +38,6 @@ import scala.collection.mutable.ListBuffer
  *      [[com.raphtory.api.output.format.Format Format]]
  *      [[com.raphtory.formats.CsvFormat CsvFormat]]
  *      [[com.raphtory.api.analysis.table.Table Table]]
- *      [[com.raphtory.Raphtory Raphtory]]
  */
 
 case class AwsS3Sink(awsS3OutputFormatBucketName: String, format: Format = CsvFormat())

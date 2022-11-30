@@ -1,4 +1,4 @@
-package test.raphtory.algorithms
+package com.raphtory.deployments.dynamicclassloader
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
