@@ -1,9 +1,0 @@
-*.iml
-target
-.idea
-/dependency-reduced-pom.xml
-bdoutput
-ccoutput
-fdoutput
-g+data
-testpfdoutput

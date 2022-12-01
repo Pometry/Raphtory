@@ -2,8 +2,7 @@
 //
 //import com.raphtory.arrowmessaging.arrowmessaging.mixMessage
 //import com.raphtory.arrowmessaging.model.ArrowFlightMessage
-//import org.apache.arrow.memory.BufferAllocator
-//import org.apache.arrow.memory.RootAllocator
+//import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 //import org.scalatest.BeforeAndAfterAll
 //import org.scalatest.funsuite.AnyFunSuite
 //
