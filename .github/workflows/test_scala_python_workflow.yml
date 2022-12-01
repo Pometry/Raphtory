@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runners: [ubuntu-latest]
+        runners: ['ubuntu-20.04']
         containers: ["eclipse-temurin:11.0.12_7-jdk"]
         python-version: ["3.9"]
         sbt: [1.6.2]
