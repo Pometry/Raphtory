@@ -92,7 +92,25 @@ lazy val root = (project in file("."))
   )
 
 lazy val arrowMessaging =
-  (project in file("arrow-messaging")).settings(assemblySettings)
+  (project in file("arrow-messaging"))
+    .configs(IntegrationTest)
+    .settings(
+            Defaults.itSettings,
+            assemblySettings,
+            libraryDependencies ++= Seq(
+                    objenesis,
+                    catsMUnit,
+                    alleyCats,
+                    catsEffect,
+                    shapeless,
+                    scalaTestFunSuite,
+                    scalaReflect,
+                    log4jCore,
+                    log4jApi,
+                    netty classifier osDetectorClassifier.value,
+                    flightCore
+            )
+    )
 
 lazy val arrowCore =
   (project in file("arrow-core")).settings(assemblySettings)

@@ -1,4 +1,3 @@
-import sbt.Keys.libraryDependencies
 import sbt._
 
 object Dependencies {
@@ -41,6 +40,11 @@ object Dependencies {
   private lazy val typedbClientVersion             = "2.11.0"
   private lazy val univocityParsersVersion         = "2.9.1"
   private lazy val mjsonVersion                    = "1.4.1"
+  private lazy val scalaReflectVersion             = "2.13.8"
+  private lazy val scalaTestFunSuiteVersion        = "3.2.12"
+  private lazy val objenesisVersion                = "3.3"
+  private lazy val flightCoreVersion               = "8.0.0"
+  private lazy val nettyVersion                    = "4.1.72.Final"
 
   lazy val excludeSlf4j         = ExclusionRule(organization = "org.slf4j")
   lazy val excludeLog4j         = ExclusionRule(organization = "log4j")
@@ -143,6 +147,17 @@ object Dependencies {
   lazy val typedbClient     = "com.vaticle.typedb" % "typedb-client"     % typedbClientVersion
   lazy val univocityParsers = "com.univocity"      % "univocity-parsers" % univocityParsersVersion
   lazy val mjson            = "org.sharegov"       % "mjson"             % mjsonVersion
+
+  // ARROW MESSAGING
+  lazy val objenesis         = "org.objenesis"  % "objenesis"          % objenesisVersion
+  lazy val scalaTestFunSuite = "org.scalatest" %% "scalatest-funsuite" % scalaTestFunSuiteVersion % "test"
+  lazy val scalaReflect      = "org.scala-lang" % "scala-reflect"      % scalaReflectVersion
+
+  lazy val netty =
+    "io.netty" % "netty-transport-native-unix-common" % nettyVersion % "compile"
+
+  lazy val flightCore =
+    "org.apache.arrow" % "flight-core" % flightCoreVersion exclude ("io.netty", "netty-transport-native-unix-common")
 
   // Dependencies whose scope goes beyond tests in some modules can go here because
   // it doesn't make any sense to widen the scope of test dependencies to be made part of raphtory
