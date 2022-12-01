@@ -75,7 +75,8 @@ jobs:
       - name: Copy Jar & Python artifacts to folder
         run: | 
           mkdir artifacts
-          find './core/target' './arrow-core/target' './arrow-messaging/target' -type f \(  -name 'core-assembly-*.jar' -o -name 'arrow-core-assembly-*.jar' -o -name 'arrow-messaging-assembly-*.jar' \) -exec cp {} artifacts \;
+          touch artifacts/hi.txt
+#          find './core/target' './arrow-core/target' './arrow-messaging/target' -type f \(  -name 'core-assembly-*.jar' -o -name 'arrow-core-assembly-*.jar' -o -name 'arrow-messaging-assembly-*.jar' \) -exec cp {} artifacts \;
 #          cp python/pyraphtory_jvm/dist/*.gz artifacts/
 #          cp python/pyraphtory/dist/*.gz artifacts/
       # Create release and upload the artifacts to release
