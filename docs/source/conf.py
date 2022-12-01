@@ -46,6 +46,7 @@ autodoc_default_options = {
     'inherited-members': True,
 }
 
+autodoc_member_order = 'groupwise'
 # Extension options
 myst_enable_extensions = ["deflist", "dollarmath"]
 myst_heading_anchors = 3
