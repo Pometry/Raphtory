@@ -35,6 +35,7 @@ jobs:
           fi
   buildPublishGithub:
     name: "Build and Publish"
+    needs: configure
     strategy:
       fail-fast: false
       matrix:
