@@ -106,7 +106,8 @@ jobs:
           echo "password=$SONATYPE_PASSWORD" >> $HOME/.sbt/sonatype_credentials
           echo 'credentials += Credentials(Path.userHome / ".sbt" / "sonatype_credentials")' >> $HOME/.sbt/1.0/sonatype.sbt
       - name: (Maven) Release
-        run: | 
+        run: |
+          sbt clean
           sbt core/publishSigned 
           sbt arrowCore/publishSigned
           sbt arrowMessaging/publishSigned
