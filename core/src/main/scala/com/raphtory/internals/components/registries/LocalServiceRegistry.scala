@@ -1,4 +1,4 @@
-package com.raphtory.internals.components.repositories
+package com.raphtory.internals.components.registries
 
 import cats.effect.Async
 import cats.effect.Ref

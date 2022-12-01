@@ -10,13 +10,13 @@ import com.google.protobuf.empty.Empty
 import com.raphtory.internals.components.ingestion.IngestionServiceImpl
 import com.raphtory.internals.components.partition.PartitionServiceImpl
 import com.raphtory.internals.components.querymanager._
-import com.raphtory.internals.components.repositories.DistributedServiceRegistry
-import com.raphtory.internals.components.repositories.LocalServiceRegistry
+import com.raphtory.internals.components.registries.DistributedServiceRegistry
+import com.raphtory.internals.components.registries.LocalServiceRegistry
 import com.raphtory.internals.management.Partitioner
 import com.raphtory.internals.management.id.IDManager
+import com.raphtory.internals.management.id.LocalIDManager
 import com.raphtory.internals.storage.arrow.EdgeSchema
 import com.raphtory.internals.storage.arrow.VertexSchema
-import com.raphtory.makeLocalIdManager
 import com.raphtory.protocol
 import com.raphtory.protocol.GraphInfo
 import com.raphtory.protocol.IdPool
@@ -37,6 +37,7 @@ import higherkindness.mu.rpc.healthcheck.HealthService
 import higherkindness.mu.rpc.server.AddService
 import higherkindness.mu.rpc.server.GrpcServer
 import org.slf4j.LoggerFactory
+
 import scala.util.Failure
 import scala.util.Success
 
@@ -199,7 +200,7 @@ object RaphtoryServiceBuilder {
   private def createService[F[_]](cluster: Resource[F, ServiceRegistry[F]], config: Config)(implicit F: Async[F]) =
     for {
       repo            <- cluster
-      sourceIDManager <- makeLocalIdManager[F]
+      sourceIDManager <- Resource.eval(Async[F].delay(new LocalIDManager))
       ingestion       <- repo.ingestion
       partitions      <- repo.partitions
       query           <- repo.query

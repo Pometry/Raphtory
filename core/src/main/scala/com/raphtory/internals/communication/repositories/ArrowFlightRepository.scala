@@ -3,14 +3,11 @@ package com.raphtory.internals.communication.repositories
 import cats.effect.Async
 import cats.effect.Resource
 import com.raphtory.arrowmessaging.ArrowFlightMessageSignatureRegistry
-import com.raphtory.internals.communication.connectors.AkkaConnector
-import com.raphtory.internals.communication.connectors.ArrowFlightConnector
 import com.raphtory.internals.communication.models._
 import com.raphtory.internals.communication.models.graphalterations._
 import com.raphtory.internals.communication.models.vertexmessaging._
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.GraphAlteration._
-import com.raphtory.internals.management.arrow.ArrowFlightHostAddressProvider
 import com.typesafe.config.Config
 
 /** @DoNotDocument */
