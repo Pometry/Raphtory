@@ -37,12 +37,19 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.ref }}
       # Install SBT
-      - name: Get sbt package
-        run: apt-get update && apt-get install -y unzip  && curl -L "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.zip" -o sbt-1.5.5.zip && unzip sbt-1.5.5.zip
+      - name: Install sbt and GNUPG
+        run: |
+          apt-get update
+          apt-get install -y unzip apt-transport-https curl gnupg -yqq
+          echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | tee /etc/apt/sources.list.d/sbt.list
+          echo "deb https://repo.scala-sbt.org/scalasbt/debian /" | tee /etc/apt/sources.list.d/sbt_old.list
+          curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | gpg --no-default-keyring --keyring gnupg-ring:/etc/apt/trusted.gpg.d/scalasbt-release.gpg --import
+          chmod 644 /etc/apt/trusted.gpg.d/scalasbt-release.gpg
+          apt-get update
+          apt-get install -y sbt
       # Create Raphtory thin jars and build python
       - name: Building Thin Raphtory Jars for Python
         run: |
-          export PATH=$(pwd)/sbt/bin:$PATH
           apt-get update && apt-get install make
           echo "core / Compile / logLevel := Level.Error" >> build.sbt
           echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
@@ -61,7 +68,6 @@ jobs:
         run: cd python/pyraphtory && poetry build
       - name: Building Fat Scala Jars (sbt assembly)
         run: |
-          export PATH=$(pwd)/sbt/bin:$PATH
           echo "core / Compile / logLevel := Level.Error" >> build.sbt
           echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
           sbt clean && sbt core/assembly && sbt arrowCore/assembly && sbt arrowMessaging/assembly
