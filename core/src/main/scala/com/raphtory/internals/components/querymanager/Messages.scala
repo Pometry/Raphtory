@@ -12,7 +12,61 @@ import scala.jdk.CollectionConverters._
 import scala.util.Try
 import scala.util.Using
 
+// Analysis queries
+
+private[raphtory] case class Query(
+    _bootstrap: DynamicLoader = DynamicLoader(), // leave the `_` this field gets deserialized first
+    graphID: String,
+    name: String = "",
+    points: PointSet = NullPointSet,
+    timelineStart: Long = Long.MinValue,         // inclusive
+    timelineEnd: Long = Long.MaxValue,           // inclusive
+    windows: List[Interval] = List(),
+    windowAlignment: Alignment.Value = Alignment.START,
+    operations: List[Operation] = List(),
+    earliestSeen: Long = Long.MaxValue,
+    latestSeen: Long = Long.MinValue,
+    sink: Option[Sink] = None,
+    pyScript: Option[String] = None
+) extends Serializable
+
+case class TryQuery(query: Try[Query])
+
+object TryQuery extends TryProtoField[TryQuery, Query] {
+  override def buildScala(value: Try[Query]): TryQuery = TryQuery(value)
+  override def getTry(wrapper: TryQuery): Try[Query]   = wrapper.query
+}
+
+sealed private[raphtory] trait PointSet
+private[raphtory] case object NullPointSet           extends PointSet
+private[raphtory] case class SinglePoint(time: Long) extends PointSet
+
+private[raphtory] case class PointPath(
+    increment: Interval,
+    start: Option[Long] = None,
+    end: Option[Long] = None,
+    offset: Interval = NullInterval
+) extends PointSet
+
 private[raphtory] trait Operation extends Serializable
+
+// Ingest data command
+
+private[raphtory] case class IngestData(
+    _bootstrap: DynamicLoader,
+    graphID: String,
+    sourceId: Int,
+    source: Source
+) extends Serializable
+
+case class TryIngestData(ingestData: Try[IngestData])
+
+object TryIngestData extends TryProtoField[TryIngestData, IngestData] {
+  override def buildScala(value: Try[IngestData]): TryIngestData = TryIngestData(value)
+  override def getTry(wrapper: TryIngestData): Try[IngestData]   = wrapper.ingestData
+}
+
+// vertex messaging
 
 // We are assuming that all objects implementing this trait are GenericVertexMessage to bypass compilation problems in
 // protocol.proto definitions, where we cannot use generic types so we use this one instead
@@ -37,8 +91,6 @@ case class VertexMessage[T, VertexID](
     data: T
 )(implicit val provider: SchemaProvider[T])
         extends GenericVertexMessage[VertexID]
-
-// private[raphtory] case class VertexMessageBatch(data: Array[GenericVertexMessage[_]]) extends VertexMessaging
 
 private[raphtory] case class FilteredEdgeMessage[VertexID](
     superstep: Int,
@@ -65,28 +117,7 @@ private[raphtory] case class VertexMessagesSync(partitionID: Int, count: Long)(i
     val provider: SchemaProvider[VertexMessagesSync]
 ) extends Serializable // TODO: is this class really needed anymore?
 
-private[raphtory] case class Query(
-    _bootstrap: DynamicLoader = DynamicLoader(), // leave the `_` this field gets deserialized first
-    graphID: String,
-    name: String = "",
-    points: PointSet = NullPointSet,
-    timelineStart: Long = Long.MinValue,         // inclusive
-    timelineEnd: Long = Long.MaxValue,           // inclusive
-    windows: List[Interval] = List(),
-    windowAlignment: Alignment.Value = Alignment.START,
-    operations: List[Operation] = List(),
-    earliestSeen: Long = Long.MaxValue,
-    latestSeen: Long = Long.MinValue,
-    sink: Option[Sink] = None,
-    pyScript: Option[String] = None
-) extends Serializable
-
-case class TryQuery(query: Try[Query])
-
-object TryQuery extends TryProtoField[TryQuery, Query] {
-  override def buildScala(value: Try[Query]): TryQuery = TryQuery(value)
-  override def getTry(wrapper: TryQuery): Try[Query]   = wrapper.query
-}
+// DynamicLoader
 
 case class DynamicLoader(classes: List[Class[_]] = List.empty, resolved: Boolean = false) {
   def +(cls: Class[_]): DynamicLoader = this.copy(classes = cls :: classes)
@@ -141,29 +172,4 @@ case class DynamicLoader(classes: List[Class[_]] = List.empty, resolved: Boolean
     }
     else Nil
   }
-}
-
-sealed private[raphtory] trait PointSet
-private[raphtory] case object NullPointSet           extends PointSet
-private[raphtory] case class SinglePoint(time: Long) extends PointSet
-
-private[raphtory] case class PointPath(
-    increment: Interval,
-    start: Option[Long] = None,
-    end: Option[Long] = None,
-    offset: Interval = NullInterval
-) extends PointSet
-
-private[raphtory] case class IngestData(
-    _bootstrap: DynamicLoader,
-    graphID: String,
-    sourceId: Int,
-    source: Source
-) extends Serializable
-
-case class TryIngestData(ingestData: Try[IngestData])
-
-object TryIngestData extends TryProtoField[TryIngestData, IngestData] {
-  override def buildScala(value: Try[IngestData]): TryIngestData = TryIngestData(value)
-  override def getTry(wrapper: TryIngestData): Try[IngestData]   = wrapper.ingestData
 }
