@@ -5,7 +5,6 @@ import com.raphtory.api.input.Source
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.time.Interval
 import com.raphtory.api.time.NullInterval
-import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.serialisers.DependencyFinder
 import org.apache.bcel.Repository
 import java.io.ByteArrayOutputStream
@@ -15,18 +14,7 @@ import scala.util.Using
 
 private[raphtory] trait QueryManagement extends Serializable
 
-object QueryManagement extends ProtoField[QueryManagement]
-
 private[raphtory] trait Operation extends QueryManagement
-
-private[raphtory] case object JobDone                    extends QueryManagement
-private[raphtory] case class JobFailed(error: Throwable) extends QueryManagement
-
-sealed private[raphtory] trait PerspectiveReport                                         extends QueryManagement {
-  def perspective: Perspective
-}
-private[raphtory] case class PerspectiveCompleted(perspective: Perspective)              extends PerspectiveReport
-private[raphtory] case class PerspectiveFailed(perspective: Perspective, reason: String) extends PerspectiveReport
 
 // We are assuming that all objects implementing this trait are GenericVertexMessage to bypass compilation problems in
 // protocol.proto definitions, where we cannot use generic types so we use this one instead

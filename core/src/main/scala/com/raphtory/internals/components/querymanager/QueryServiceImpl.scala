@@ -7,11 +7,15 @@ import com.raphtory.internals.components.OrchestratorService.GraphList
 import com.raphtory.internals.components._
 import com.raphtory.protocol
 import com.raphtory.protocol.PartitionService
+import com.raphtory.protocol.QueryFailed
 import com.raphtory.protocol.QueryService
+import com.raphtory.protocol.QueryUpdate
+import com.raphtory.protocol.QueryUpdateMessage
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import fs2.Stream
 import org.slf4j.LoggerFactory
+
 import scala.util.Failure
 import scala.util.Success
 
@@ -40,15 +44,15 @@ class QueryServiceImpl[F[_]: Async] private (
       _               <- querySupervisor.endIngestion(req.sourceID, req.earliestTimeSeen, req.latestTimeSeen)
     } yield Empty()
 
-  override def submitQuery(req: protocol.Query): F[Stream[F, protocol.QueryManagement]] =
+  override def submitQuery(req: protocol.Query): F[Stream[F, QueryUpdateMessage]] =
     req match {
       case protocol.Query(TryQuery(Success(query)), _) =>
         for {
           querySupervisor <- getQuerySupervisor(query.graphID)
-          responses       <- querySupervisor.submitQuery(query)
-        } yield responses
+          messages        <- querySupervisor.submitQuery(query).map(updates => updates.map(update => update.asMessage))
+        } yield messages
       case protocol.Query(TryQuery(Failure(error)), _) =>
-        Stream[F, protocol.QueryManagement](protocol.QueryManagement(JobFailed(error))).pure[F]
+        Stream[F, QueryUpdateMessage](QueryFailed(error.getMessage).asMessage).pure[F]
     }
 }
 

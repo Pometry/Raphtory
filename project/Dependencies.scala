@@ -11,7 +11,7 @@ object Dependencies {
   private lazy val jacksonVersion                  = "2.13.3"
   private lazy val jsonpathVersion                 = "0.5.5"
   private lazy val log4jVersion                    = "2.18.0"
-  private lazy val muVersion                       = "0.29.0"
+  private lazy val muVersion                       = "0.29.1"
   private lazy val openhftVersion                  = "0.15"
   private lazy val pemjaVersion                    = "0.2.6"
   private lazy val prometheusVersion               = "0.15.0"

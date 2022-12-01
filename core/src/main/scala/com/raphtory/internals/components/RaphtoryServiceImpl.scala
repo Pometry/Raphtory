@@ -23,7 +23,10 @@ import com.raphtory.protocol.IdPool
 import com.raphtory.protocol.IngestionService
 import com.raphtory.protocol.OptionalId
 import com.raphtory.protocol.PartitionService
+import com.raphtory.protocol.QueryFailed
 import com.raphtory.protocol.QueryService
+import com.raphtory.protocol.QueryUpdate
+import com.raphtory.protocol.QueryUpdateMessage
 import com.raphtory.protocol.RaphtoryService
 import com.raphtory.protocol.Status
 import com.raphtory.protocol.failure
@@ -93,21 +96,19 @@ class RaphtoryServiceImpl[F[_]](
       (updatedGraphs, status)
     }
 
-  override def submitQuery(req: protocol.Query): F[Stream[F, protocol.QueryManagement]] =
+  override def submitQuery(req: protocol.Query): F[Stream[F, QueryUpdateMessage]] =
     req match {
       case protocol.Query(TryQuery(Success(query)), _) =>
         for {
           graphRunning <- runningGraphs.get.map(graphs => graphs.isDefinedAt(query.graphID))
-          responses    <- if (graphRunning)
-                            establishExecutors(req) *> queryService.submitQuery(req)
-                          else Stream[F, protocol.QueryManagement](graphNotRunningMessage(query.graphID)).pure[F]
+          responses    <- if (graphRunning) establishExecutors(req) *> queryService.submitQuery(req)
+                          else Stream[F, QueryUpdateMessage](graphNotRunningMessage(query.graphID)).pure[F]
         } yield responses
       case protocol.Query(TryQuery(Failure(error)), _) =>
-        Stream[F, protocol.QueryManagement](protocol.QueryManagement(JobFailed(error))).pure[F]
+        Stream[F, QueryUpdateMessage](QueryFailed(error.getMessage).asMessage).pure[F]
     }
 
-  private def graphNotRunningMessage(graphId: String) =
-    protocol.QueryManagement(JobFailed(new IllegalStateException(s"Graph $graphId is not running")))
+  private def graphNotRunningMessage(graphId: String) = QueryFailed(s"Graph $graphId is not running").asMessage
 
   private def establishExecutors(query: protocol.Query) =
     controlPartitions(_.establishExecutor(query))

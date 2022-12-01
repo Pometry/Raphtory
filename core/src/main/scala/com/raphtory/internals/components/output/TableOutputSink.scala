@@ -9,9 +9,6 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
-final private[raphtory] case class PerspectiveResult(perspective: Perspective, totalPartitions: Int, rows: Array[Row])
-        extends QueryManagement
-
 private[raphtory] case class TableOutputSink(graphID: String) extends Sink {
 
   override def executor(jobID: String, partitionID: Int, config: Config): SinkExecutor =
