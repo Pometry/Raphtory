@@ -41,7 +41,7 @@ jobs:
       # Create Raphtory thin jars and build python
 #      - name: Building Thin Raphtory Jars for Python
 #        run: |
-#           export PATH=$(pwd)/sbt/bin:$PATH
+#          export PATH=$(pwd)/sbt/bin:$PATH
 #          apt-get update && apt-get install make
 #          echo "core / Compile / logLevel := Level.Error" >> build.sbt
 #          echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
@@ -60,7 +60,7 @@ jobs:
 #        run: cd python/pyraphtory && poetry build
 #      - name: Building Fat Scala Jars (sbt assembly)
 #        run: |
-#           export PATH=$(pwd)/sbt/bin:$PATH
+#          export PATH=$(pwd)/sbt/bin:$PATH
 #          echo "core / Compile / logLevel := Level.Error" >> build.sbt
 #          echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
 #          sbt clean && sbt core/assembly && sbt arrowCore/assembly && sbt arrowMessaging/assembly
@@ -82,9 +82,6 @@ jobs:
           files: "./artifacts/*.*"
           name: ${{ github.ref_name }}
           generate_release_notes: true
-      - name: (Maven) Import signing key from GitubSecrets
-        if: env.PGP_SECRET != '' && env.PGP_PASSPHRASE == ''
-        run: echo $PGP_SECRET | base64 -di | gpg --import
       - name: (Maven) Import signing key and strip passphrase
         if: env.PGP_SECRET != '' && env.PGP_PASSPHRASE != ''
         run: |
@@ -102,6 +99,8 @@ jobs:
           echo 'credentials += Credentials(Path.userHome / ".sbt" / "sonatype_credentials")' >> $HOME/.sbt/1.0/sonatype.sbt
       - name: (Maven) Key pairs found
         run: gpg --list-keys
+      - name: (Maven) delete file?
+        run: rm -r "/__w/Raphtory/Raphtory/core/target/scala-2.13/*.asc"
       - name: (Maven) Release
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH
