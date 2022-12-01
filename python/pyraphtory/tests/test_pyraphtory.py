@@ -1,11 +1,8 @@
 from pathlib import Path
 from pyraphtory.context import PyRaphtory
 import pyraphtory
-from pyraphtory import __version__
 from pyraphtory.builder import *
 import unittest
-
-version_file = Path(__file__).parent.parent.parent.parent / "version"
 
 
 class PyRaphtoryTest(unittest.TestCase):
@@ -21,11 +18,6 @@ class PyRaphtoryTest(unittest.TestCase):
     def tearDownClass(cls):
         print("Finished all tests. Closing context")
         cls.ctx.close()
-
-    def test_version(cls):
-        with open(version_file) as f:
-            version = f.readline()
-        assert __version__ == version
 
     def test_pyraphtory_launch_context(self):
         self.assertTrue(self.ctx.classname, 'com.raphtory.internals.context.PyRaphtoryContext')
