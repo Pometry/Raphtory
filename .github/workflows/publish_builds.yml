@@ -76,6 +76,7 @@ jobs:
         run: | 
           mkdir artifacts
           touch artifacts/hi.txt
+          echo "hello" >> artifacts/hi.txt
 #          find './core/target' './arrow-core/target' './arrow-messaging/target' -type f \(  -name 'core-assembly-*.jar' -o -name 'arrow-core-assembly-*.jar' -o -name 'arrow-messaging-assembly-*.jar' \) -exec cp {} artifacts \;
 #          cp python/pyraphtory_jvm/dist/*.gz artifacts/
 #          cp python/pyraphtory/dist/*.gz artifacts/
