@@ -103,6 +103,7 @@ jobs:
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH
           sbt clean
+          rm -rf /__w/Raphtory/Raphtory/core/target/scala-2.13/*.asc ||:
           sbt core/publishSigned 
           sbt arrowCore/publishSigned
           sbt arrowMessaging/publishSigned
