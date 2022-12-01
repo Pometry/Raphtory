@@ -106,7 +106,10 @@ jobs:
           echo "password=$SONATYPE_PASSWORD" >> $HOME/.sbt/sonatype_credentials
           echo 'credentials += Credentials(Path.userHome / ".sbt" / "sonatype_credentials")' >> $HOME/.sbt/1.0/sonatype.sbt
       - name: (Maven) Release
-        run: sbt core/publishSigned && sbt arrowCore/publishSigned && sbt arrowMessaging/publishSigned
+        run: | 
+          sbt core/publishSigned 
+          sbt arrowCore/publishSigned
+          sbt arrowMessaging/publishSigned
       # Release to Pypi Production
 #      - name: Publish pyraphtory_jvm distribution to PyPI production
 #        uses: pypa/gh-action-pypi-publish@master

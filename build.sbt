@@ -166,7 +166,9 @@ lazy val core = (project in file("core"))
           // Generate sources from .proto files
           muSrcGenIdlType := IdlType.Proto,
           // Make it easy for 3rd-party clients to communicate with us via gRPC
-          muSrcGenIdiomaticEndpoints := true
+          muSrcGenIdiomaticEndpoints := true,
+          publishConfiguration := publishConfiguration.value.withOverwrite(true),
+          publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
   )
   .dependsOn(arrowMessaging, arrowCore)
   .enablePlugins(SrcGenPlugin)
@@ -289,3 +291,5 @@ Global / concurrentRestrictions := Seq(
 core / Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 // Scaladocs parameters
 // doc / scalacOptions ++= Seq("-skip-packages", "com.raphtory.algorithms.generic:com.raphtory.algorithms.temporal", "-private")
+publishConfiguration := publishConfiguration.value.withOverwrite(true)
+publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
