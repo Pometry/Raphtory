@@ -92,10 +92,48 @@ lazy val root = (project in file("."))
   )
 
 lazy val arrowMessaging =
-  (project in file("arrow-messaging")).settings(assemblySettings)
+  (project in file("arrow-messaging"))
+    .configs(IntegrationTest)
+    .settings(
+            name := "arrow-messaging",
+            Defaults.itSettings,
+            assemblySettings,
+            libraryDependencies ++= Seq(
+                    objenesis,
+                    catsMUnit,
+                    alleyCats,
+                    catsEffect,
+                    shapeless,
+                    scalaTestFunSuite,
+                    scalaReflect,
+                    log4jCore,
+                    log4jApi,
+                    netty classifier osDetectorClassifier.value,
+                    flightCore
+            )
+    )
 
 lazy val arrowCore =
-  (project in file("arrow-core")).settings(assemblySettings)
+  (project in file("arrow-core"))
+    .configs(IntegrationTest)
+    .settings(
+            name := "arrow-core",
+            Defaults.itSettings,
+            assemblySettings,
+            Compile / packageDoc / publishArtifact := false,
+            libraryDependencies ++= Seq(
+                    junit,
+                    openhft,
+                    arrowMemory,
+                    arrowVector,
+                    arrowAlgorithm,
+                    arrowDataset,
+                    chronicleMap,
+                    fastUtil,
+                    commonsLang,
+                    junitInterface
+            )
+    )
 
 lazy val core = (project in file("core"))
   .configs(IntegrationTest)
@@ -178,6 +216,7 @@ lazy val connectorsAWS =
     .dependsOn(core, testkit)
     .configs(IntegrationTest)
     .settings(
+            name := "aws",
             assemblySettings,
             Defaults.itSettings,
             libraryDependencies ++= Seq(commonsIO, amazonAwsS3, amazonAwsSts)
@@ -188,6 +227,7 @@ lazy val connectorsTwitter =
     .dependsOn(core, testkit)
     .configs(IntegrationTest)
     .settings(
+            name := "twitter",
             assemblySettings,
             Defaults.itSettings,
             libraryDependencies ++= Seq(twitterEd)
@@ -197,6 +237,7 @@ lazy val connectorsTypeDB =
   (project in file("connectors/typedb"))
     .dependsOn(core)
     .settings(
+            name := "typedb",
             assemblySettings,
             libraryDependencies ++= Seq(typedbClient, univocityParsers, mjson)
     )
@@ -206,6 +247,7 @@ lazy val connectorsPulsar =
     .dependsOn(core, testkit)
     .configs(IntegrationTest)
     .settings(
+            name := "pulsar",
             assemblySettings,
             Defaults.itSettings,
             libraryDependencies ++=
