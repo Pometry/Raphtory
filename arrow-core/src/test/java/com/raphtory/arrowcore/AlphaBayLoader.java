@@ -71,11 +71,17 @@ public class AlphaBayLoader {
     private final VertexIterator _vertexIter;
     private final VersionedEntityPropertyAccessor _priceVEPA;
 
+//    public final static String RaphtoryInput = "D:/home/jatinder/Pometry/public/Raphtory/";
+//    public final static String RaphtoryOutput = "E:/tmp/alphabay/";
+
+
+    public final static String RaphtoryInput = "/pometry/wip/";
+    public final static String ArrowDir = "/pometry/wip/data/";
 
     public static void main(String[] args) throws Exception {
         RaphtoryArrowPartition.RaphtoryArrowPartitionConfig cfg = new RaphtoryArrowPartition.RaphtoryArrowPartitionConfig();
         cfg._propertySchema = new AlphaBaySchema();
-        cfg._arrowDir = "E:/tmp/alphabay";
+        cfg._arrowDir = ArrowDir;
         cfg._raphtoryPartitionId = 0;
         cfg._nRaphtoryPartitions = 1;
         cfg._nLocalEntityIdMaps = 128;
@@ -87,13 +93,13 @@ public class AlphaBayLoader {
         RaphtoryArrowPartition rap = new RaphtoryArrowPartition(cfg);
 
         AlphaBayLoader loader = new AlphaBayLoader(rap);
-        if (new File("E:/tmp/alphabay/vertex-p0.rap").exists()) {
+        if (new File(ArrowDir + "vertex-p0.rap").exists()) {
             rap.getVertexMgr().loadFiles();
             rap.getEdgeMgr().loadFiles();
             System.out.println(rap.getStatistics());
         }
         else {
-            loader.load("D:/home/jatinder/Pometry/public/Raphtory/alphabay_sorted.csv.gz");
+            loader.load(RaphtoryInput + "alphabay_sorted.csv.gz");
             rap.getVertexMgr().saveFiles();
             rap.getEdgeMgr().saveFiles();
         }
