@@ -12,13 +12,11 @@ import scala.jdk.CollectionConverters._
 import scala.util.Try
 import scala.util.Using
 
-private[raphtory] trait QueryManagement extends Serializable
-
-private[raphtory] trait Operation extends QueryManagement
+private[raphtory] trait Operation extends Serializable
 
 // We are assuming that all objects implementing this trait are GenericVertexMessage to bypass compilation problems in
 // protocol.proto definitions, where we cannot use generic types so we use this one instead
-sealed private[raphtory] trait VertexMessaging extends QueryManagement
+sealed private[raphtory] trait VertexMessaging extends Serializable
 
 object VertexMessaging extends ProtoField[VertexMessaging]
 
@@ -65,11 +63,7 @@ private[raphtory] case class FilteredOutEdgeMessage[VertexID](
 
 private[raphtory] case class VertexMessagesSync(partitionID: Int, count: Long)(implicit
     val provider: SchemaProvider[VertexMessagesSync]
-) extends QueryManagement
-
-sealed private[raphtory] trait Submission extends QueryManagement {
-  def graphID: String
-}
+) extends Serializable // TODO: is this class really needed anymore?
 
 private[raphtory] case class Query(
     _bootstrap: DynamicLoader = DynamicLoader(), // leave the `_` this field gets deserialized first
@@ -85,7 +79,7 @@ private[raphtory] case class Query(
     latestSeen: Long = Long.MinValue,
     sink: Option[Sink] = None,
     pyScript: Option[String] = None
-) extends Submission
+) extends Serializable
 
 case class TryQuery(query: Try[Query])
 
@@ -160,16 +154,12 @@ private[raphtory] case class PointPath(
     offset: Interval = NullInterval
 ) extends PointSet
 
-// Messages for partitionSetup topic
-sealed private[raphtory] trait GraphManagement extends QueryManagement
-
 private[raphtory] case class IngestData(
     _bootstrap: DynamicLoader,
     graphID: String,
     sourceId: Int,
     source: Source
-) extends Submission
-        with GraphManagement
+) extends Serializable
 
 case class TryIngestData(ingestData: Try[IngestData])
 
