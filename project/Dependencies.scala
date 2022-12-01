@@ -45,6 +45,10 @@ object Dependencies {
   private lazy val objenesisVersion                = "3.3"
   private lazy val flightCoreVersion               = "8.0.0"
   private lazy val nettyVersion                    = "4.1.72.Final"
+  private lazy val arrowVersion                    = "7.0.0"
+  private lazy val chronicleMapVersion             = "3.21.86"
+  private lazy val fastUtilVersion                 = "8.5.6"
+  private lazy val commonsLangVersion              = "3.12.0"
 
   lazy val excludeSlf4j         = ExclusionRule(organization = "org.slf4j")
   lazy val excludeLog4j         = ExclusionRule(organization = "log4j")
@@ -158,6 +162,15 @@ object Dependencies {
 
   lazy val flightCore =
     "org.apache.arrow" % "flight-core" % flightCoreVersion exclude ("io.netty", "netty-transport-native-unix-common")
+
+  // ARROW CORE
+  lazy val arrowMemory    = "org.apache.arrow"   % "arrow-memory-unsafe" % arrowVersion
+  lazy val arrowVector    = "org.apache.arrow"   % "arrow-vector"        % arrowVersion
+  lazy val arrowAlgorithm = "org.apache.arrow"   % "arrow-algorithm"     % arrowVersion
+  lazy val arrowDataset   = "org.apache.arrow"   % "arrow-dataset"       % arrowVersion
+  lazy val chronicleMap   = "net.openhft"        % "chronicle-map"       % chronicleMapVersion
+  lazy val fastUtil       = "it.unimi.dsi"       % "fastutil"            % fastUtilVersion
+  lazy val commonsLang    = "org.apache.commons" % "commons-lang3"       % commonsLangVersion
 
   // Dependencies whose scope goes beyond tests in some modules can go here because
   // it doesn't make any sense to widen the scope of test dependencies to be made part of raphtory

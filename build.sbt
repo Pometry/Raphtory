@@ -113,7 +113,24 @@ lazy val arrowMessaging =
     )
 
 lazy val arrowCore =
-  (project in file("arrow-core")).settings(assemblySettings)
+  (project in file("arrow-core"))
+    .configs(IntegrationTest)
+    .settings(
+            Defaults.itSettings,
+            assemblySettings,
+            Compile / packageDoc / publishArtifact := false,
+            libraryDependencies ++= Seq(
+                    junit,
+                    openhft,
+                    arrowMemory,
+                    arrowVector,
+                    arrowAlgorithm,
+                    arrowDataset,
+                    chronicleMap,
+                    fastUtil,
+                    commonsLang
+            )
+    )
 
 lazy val core = (project in file("core"))
   .configs(IntegrationTest)
