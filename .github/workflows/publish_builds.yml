@@ -99,8 +99,6 @@ jobs:
           echo 'credentials += Credentials(Path.userHome / ".sbt" / "sonatype_credentials")' >> $HOME/.sbt/1.0/sonatype.sbt
       - name: (Maven) Key pairs found
         run: gpg --list-keys
-      - name: (Maven) delete file?
-        run: rm -r "/__w/Raphtory/Raphtory/core/target/scala-2.13/*.asc"
       - name: (Maven) Release
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH
