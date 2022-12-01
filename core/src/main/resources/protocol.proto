@@ -151,12 +151,12 @@ service PartitionService {
   rpc endQuery(QueryId) returns (google.protobuf.Empty);
 }
 
-message BlockIngestion {
+message StartIngestion {
   int32 sourceID = 1;
   string graphID = 2;
 }
 
-message UnblockIngestion {
+message EndIngestion {
   string graphID = 1;
   int32 sourceID = 2;
   int64 earliestTimeSeen = 3;
@@ -170,7 +170,7 @@ message JobID {
 service QueryService {
   rpc establishGraph(GraphInfo) returns (Status);
   rpc destroyGraph(GraphInfo) returns (Status);
-  rpc blockIngestion(BlockIngestion) returns (google.protobuf.Empty);
-  rpc unblockIngestion(UnblockIngestion) returns (google.protobuf.Empty);
+  rpc startIngestion(StartIngestion) returns (google.protobuf.Empty);
+  rpc endIngestion(EndIngestion) returns (google.protobuf.Empty);
   rpc submitQuery(Query) returns (stream QueryManagement);
 }

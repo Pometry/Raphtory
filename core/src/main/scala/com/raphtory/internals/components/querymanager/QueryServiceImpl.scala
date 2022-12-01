@@ -28,16 +28,16 @@ class QueryServiceImpl[F[_]: Async] private (
   private def getQuerySupervisor(graphID: String): F[QuerySupervisor[F]] =
     for (m <- graphs.get) yield m(graphID).data
 
-  override def blockIngestion(req: protocol.BlockIngestion): F[Empty]    =
+  override def startIngestion(req: protocol.StartIngestion): F[Empty]    =
     for {
       querySupervisor <- getQuerySupervisor(req.graphID)
-      _               <- querySupervisor.startBlockingIngestion(req.sourceID)
+      _               <- querySupervisor.startIngestion(req.sourceID)
     } yield Empty()
 
-  override def unblockIngestion(req: protocol.UnblockIngestion): F[Empty] =
+  override def endIngestion(req: protocol.EndIngestion): F[Empty] =
     for {
       querySupervisor <- getQuerySupervisor(req.graphID)
-      _               <- querySupervisor.endBlockingIngestion(req.sourceID, req.earliestTimeSeen, req.latestTimeSeen)
+      _               <- querySupervisor.endIngestion(req.sourceID, req.earliestTimeSeen, req.latestTimeSeen)
     } yield Empty()
 
   override def submitQuery(req: protocol.Query): F[Stream[F, protocol.QueryManagement]] =

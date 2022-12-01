@@ -5,10 +5,7 @@ import cats.syntax.all._
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.StreamSource
 import com.raphtory.internals.management.telemetry.TelemetryReporter
-import com.raphtory.protocol.BlockIngestion
-import com.raphtory.protocol.PartitionService
-import com.raphtory.protocol.QueryService
-import com.raphtory.protocol.UnblockIngestion
+import com.raphtory.protocol._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import io.prometheus.client.Counter
@@ -30,8 +27,8 @@ private[raphtory] class IngestionExecutor[F[_], T](
       _                <- source.elements(totalTuplesProcessed) // process elements here
       earliestTimeSeen <- source.earliestTimeSeen()
       highestTimeSeen  <- source.highestTimeSeen()
-      _                <- queryService.unblockIngestion(
-                                  UnblockIngestion(graphID, source.sourceID, earliestTimeSeen, highestTimeSeen)
+      _                <- queryService.endIngestion(
+                                  EndIngestion(graphID, source.sourceID, earliestTimeSeen, highestTimeSeen)
                           )
     } yield totalTuplesProcessed.inc()
 }
@@ -47,7 +44,7 @@ object IngestionExecutor {
       partitions: Map[Int, PartitionService[F]]
   ): F[IngestionExecutor[F, _]] =
     for {
-      _            <- queryService.blockIngestion(BlockIngestion(sourceID, graphID))
+      _            <- queryService.startIngestion(StartIngestion(sourceID, graphID))
       streamSource <- source.make(graphID, sourceID, partitions)
       executor     <- Async[F].delay(new IngestionExecutor(graphID, queryService, streamSource, sourceID, config))
     } yield executor

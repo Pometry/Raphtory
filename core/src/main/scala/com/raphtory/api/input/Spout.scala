@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory
   * There are a variety of Spout implementations within Raphtory including for Files, Streams and Cloud Services.
   * To minimise the size of the core Raphtory jar these can be viewed in the Connectors package.
   *
-  * @see [[com.raphtory.spouts.FileSpout FileSpout]], [[com.raphtory.Raphtory]], [[Graph]]
+  * @see [[com.raphtory.spouts.FileSpout FileSpout]], [[Graph]]
   */
 trait Spout[T] {
   def buildSpout(): SpoutInstance[T]
