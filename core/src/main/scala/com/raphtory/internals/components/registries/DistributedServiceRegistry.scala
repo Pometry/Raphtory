@@ -56,14 +56,11 @@ class DistributedServiceRegistry[F[_]: Async](serviceDiscovery: ServiceDiscovery
   }
 
   override protected def register[T](instance: T, descriptor: ServiceDescriptor[F, T], id: Int): F[F[Unit]] = {
-    def serviceInstance(name: String, id: Int, port: Int): ServiceInstance =
-      ServiceInstance(InetAddress.getLocalHost.getHostAddress, port)
-
     for {
       serverResource    <- descriptor.makeServer(instance).allocated
       (port, stopServer) = serverResource
-      zkInstance         = serviceInstance(descriptor.name, id, port)
-      _                 <- Async[F].blocking(serviceDiscovery.registerService(zkInstance, descriptor.name, id))
+      zkInstance         = ServiceInstance(InetAddress.getLocalHost.getHostAddress, port)
+      _                 <- serviceDiscovery.registerService(zkInstance, descriptor.name, id)
       unregister        <- Async[F].pure(for {
                              _ <- serviceDiscovery.unregisterService(descriptor.name, id)
                              _ <- stopServer
