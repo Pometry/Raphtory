@@ -2,7 +2,7 @@ from sphinx.application import Sphinx
 from pyraphtory.interop import ScalaClassProxy, InstanceOnlyMethod, ScalaObjectProxy, WithImplicits, OverloadedMethod
 from sphinx.util import logging
 from sphinx.locale import _, __
-from sphinx.ext.autodoc import MethodDocumenter, ClassDocumenter, safe_getattr, ObjectMembers, get_class_members, ModuleDocumenter, AttributeDocumenter, Documenter
+from sphinx.ext.autodoc import MethodDocumenter, ClassDocumenter, safe_getattr, ObjectMembers, get_class_members, ModuleDocumenter, AttributeDocumenter
 from typing import *
 
 logger = logging.getLogger(__name__)
@@ -27,18 +27,19 @@ def unpack_class_method(obj, name=None):
     return obj
 
 class ImplicitsSignatureMixin:
-    def format_signature(self, **kwargs):
-        sig = super().format_signature(**kwargs)  # type: ignore
-        if hasattr(self.object, "__self__"):
-            cls = self.object.__self__
-            method_class = cls.__class__.__dict__.get(self.object_name)
-        else:
-            method_class = self.object
-        if isinstance(method_class, InstanceOnlyMethod):
-            method_class = method_class.__func__
-        if isinstance(method_class, WithImplicits):
-            sig = "[*implicits]" + sig
-        return sig
+    # def format_signature(self, **kwargs):
+    #     sig = super().format_signature(**kwargs)  # type: ignore
+    #     if hasattr(self.object, "__self__"):
+    #         cls = self.object.__self__
+    #         method_class = cls.__class__.__dict__.get(self.object_name)
+    #     else:
+    #         method_class = self.object
+    #     if isinstance(method_class, InstanceOnlyMethod):
+    #         method_class = method_class.__func__
+    #     if isinstance(method_class, WithImplicits):
+    #         sig = "[*implicits]" + sig
+    #     return sig
+    pass
 
 
 class ImplicitMethodDocumenter(ImplicitsSignatureMixin, MethodDocumenter):
@@ -97,6 +98,10 @@ class MetaclassMethodDocumenter(ImplicitsSignatureMixin, MethodDocumenter):
     member_order = MethodDocumenter.member_order - 1
     priority = AttributeDocumenter.priority + 1  # make sure these are not parsed as attributes!
 
+    def __init__(self, directive: "DocumenterBridge", name: str, indent: str = '') -> None:
+        super().__init__(directive, name, indent)
+        self.options["noindex"] = True
+
     @classmethod
     def can_document_member(cls, member: Any, membername: str, isattr: bool, parent: Any
                             ) -> bool:
@@ -110,6 +115,7 @@ class MetaclassMethodDocumenter(ImplicitsSignatureMixin, MethodDocumenter):
     def add_directive_header(self, sig: str) -> None:
         super(MethodDocumenter, self).add_directive_header(sig)
         self.add_line('   :classmethod:', self.get_sourcename())
+
 
 
 class ClassMethodWrapper:
