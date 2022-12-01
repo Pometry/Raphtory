@@ -2,6 +2,17 @@ from keyword import iskeyword
 from pyraphtory._docstring import convert_docstring
 
 
+type_map = {"String": "str",
+            "Double": "float",
+            "Float": "float",
+            "Short": "int",
+            "Int": "int",
+            "Long": "int",
+            "Boolean": "bool",
+            "Object": "Any",
+            }
+
+
 def clean_identifier(name: str):
     if iskeyword(name):
         return str(name + "_")
@@ -9,8 +20,19 @@ def clean_identifier(name: str):
         return str(name)
 
 
+def clean_type(scala_type):
+    name = scala_type.toString()
+    from pyraphtory.interop import get_type_repr
+    if name in type_map:
+        type_name = type_map[name]
+    else:
+        type_name = get_type_repr(scala_type)
+    return repr(type_name)
+
+
 def build_method(name, method, jpype=False):
     params = [clean_identifier(name) for name in method.parameters()]
+    types = [clean_type(name) for name in method.types()]
     name = clean_identifier(name)
     java_name = clean_identifier(method.name()) if jpype else method.name()
     implicits = [clean_identifier(name) for name in method.implicits()]
@@ -22,12 +44,12 @@ def build_method(name, method, jpype=False):
     required = max(defaults.keys(), default=nargs)
 
     args = ["self"]
-    args.extend(p + f'=DefaultValue("{defaults[i]}")' if i in defaults
-                else (p + '=None' if i > required
-                      else p)
-                for i, p in enumerate(params))
+    args.extend(f'{p}: {t} = DefaultValue("{defaults[i]}")' if i in defaults
+                else (f"{p}: {t} = None" if i > required
+                      else f"{p}: {t}")
+                for i, (p, t) in enumerate(zip(params, types)))
     if varargs:
-        args.append(f"*{varparam}")
+        args.append(f"*{varparam}: {types[-1]}")
     if implicits:
         args.append("_implicits=()")
     args = ", ".join(args)

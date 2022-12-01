@@ -6,6 +6,7 @@ from collections.abc import Iterable, Mapping
 
 import os
 
+from typing import *
 from py4j.java_gateway import JavaObject, JavaClass
 from py4j.java_collections import JavaArray
 import cloudpickle as pickle
@@ -142,35 +143,47 @@ def get_methods_from_name(name):
     return _scala.methods_from_name(name)
 
 
+def get_wrapper_for_name(name: str):
+    logger.trace("Retrieving wrapper for {name!r}", name=name)
+    wrapper = _wrappers[name]
+    logger.trace("Found wrapper for {name!r} based on class name", name=name)
+
+
+def get_type_repr(tpe: Any):
+    return _scala.get_type_repr(tpe)
+
+
+def build_wrapper(name: str, obj: Any):
+    # Create a new base class for the jvm wrapper and add methods
+    with _wrapper_lock:
+        if name in _wrappers:
+            # a different thread already created the wrapper
+            wrapper = _wrappers[name]
+            logger.trace("Found wrapper for {name!r} based on class name after initial wait", name=name)
+        else:
+            # Check if a special wrapper class is registered for the object
+            wrap_name = str(_scala.get_wrapper_str(obj))
+            if wrap_name in _wrappers:
+                # Add special wrapper class to the top of the mro such that method overloads work
+                logger.debug("Using wrapper based on name {wrap_name} for {name}", wrap_name=wrap_name, name=name)
+                # Note this wrapper is registered automatically as '_classname' is defined
+                wrapper = type(name, (_wrappers[wrap_name],), {"_classname": name, "_initialised": False})
+            else:
+                # No special wrapper registered, can use base wrapper directly
+                logger.debug("No wrapper found for name {}, using GenericScalaProxy", name)
+                wrapper = type(name, (GenericScalaProxy,), {"_classname": name, "_initialised": False})
+            logger.trace("New wrapper created for {name!r}", name=name)
+    logger.trace("Wrapper is {wrapper!r}", wrapper=wrapper)
+    return wrapper
+
+
 def get_wrapper(obj):
     """get wrapper class for a java object"""
     name = str(obj.getClass().getName())
-    logger.trace("Retrieving wrapper for {name!r}", name=name)
     try:
-        wrapper = _wrappers[name]
-        logger.trace("Found wrapper for {name!r} based on class name", name=name)
+        return get_wrapper_for_name(name)
     except KeyError:
-        # Create a new base class for the jvm wrapper and add methods
-        with _wrapper_lock:
-            if name in _wrappers:
-                # a different thread already created the wrapper
-                wrapper = _wrappers[name]
-                logger.trace("Found wrapper for {name!r} based on class name after initial wait", name=name)
-            else:
-                # Check if a special wrapper class is registered for the object
-                wrap_name = str(_scala.get_wrapper_str(obj))
-                if wrap_name in _wrappers:
-                    # Add special wrapper class to the top of the mro such that method overloads work
-                    logger.debug("Using wrapper based on name {wrap_name} for {name}", wrap_name=wrap_name, name=name)
-                    # Note this wrapper is registered automatically as '_classname' is defined
-                    wrapper = type(name, (_wrappers[wrap_name],), {"_classname": name, "_initialised": False})
-                else:
-                    # No special wrapper registered, can use base wrapper directly
-                    logger.debug("No wrapper found for name {}, using GenericScalaProxy", name)
-                    wrapper = type(name, (GenericScalaProxy,), {"_classname": name, "_initialised": False})
-                logger.trace("New wrapper created for {name!r}", name=name)
-    logger.trace("Wrapper is {wrapper!r}", wrapper=wrapper)
-    return wrapper
+        return build_wrapper(name, obj)
 
 
 def to_jvm(value):

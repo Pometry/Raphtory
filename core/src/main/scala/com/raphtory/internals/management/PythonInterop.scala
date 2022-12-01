@@ -21,6 +21,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 import scala.reflect.runtime.universe
+import scala.reflect.api.Types
 import universe._
 import scala.util.Random
 import com.github.takezoe.scaladoc.Scaladoc
@@ -105,7 +106,7 @@ object PythonInterop {
   def get_wrapper_str(obj: Any): String =
     obj match {
       case _: Array[_]             => "Array"
-      case _: collection.Map[_, _] => "Map"
+      case _: collection.Map[_, _] => "Mapping"
       case _: collection.Seq[_]    => "Sequence"
       case _: Iterable[_]          => "Iterable"
       case _: Iterator[_]          => "Iterator"
@@ -117,6 +118,68 @@ object PythonInterop {
       case _: GraphState           => "GraphState"
       case _                       => "None"
     }
+
+  def funTypeRepr(v: universe.Type, tpe: universe.Type): String = {
+    val f         = tpe.typeSymbol.asClass
+    val n         = f.typeParams.size - 1
+    val argsTypes = f.typeParams.map(t => t.asType.toType.asSeenFrom(v, f))
+    val argIter   = argsTypes.grouped(n)
+    val args      = argIter.next()
+    val ret       = argIter.next().head
+    "Callable[[" + args.map(get_type_repr).mkString(", ") + "], " + get_type_repr(ret) + "]"
+  }
+
+  def integralType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Byte] || tpe <:< typeOf[Short] ||
+      tpe <:< typeOf[Int] || tpe <:< typeOf[Long] ||
+      tpe <:< typeOf[java.lang.Byte] ||
+      tpe <:< typeOf[java.lang.Short] ||
+      tpe <:< typeOf[java.lang.Integer] ||
+      tpe <:< typeOf[java.lang.Long]
+
+  def floatType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Float] || tpe <:< typeOf[Double] ||
+      tpe <:< typeOf[java.lang.Float] || tpe <:< typeOf[java.lang.Double]
+
+  def typeArgRepr(tpe: universe.Type, parent: universe.Type): String = {
+    val clazz = parent.typeSymbol.asClass
+    clazz.typeParams.map { t =>
+      val T = t.asType.toType
+      get_type_repr(T.asSeenFrom(tpe, clazz))
+    }.mkString("[", ", ", "]")
+  }
+
+
+  def get_type_repr(tpe: universe.Type): String = {
+    val reprMap = Map[universe.Type => Boolean, universe.Type => String](
+      (v => v =:= typeOf[Array[Byte]], "bytes"),
+      (v => v =:= typeOf[Array[_]] && !(v =:= typeOf[Array[Byte]]), {v =>
+        val typeArgs = typeArgRepr(v, typeOf[Array[_]])
+        "list" + typeArgs +" | scala.collection.Array" + typeArgs
+      }),
+      (integralType, "int"),
+      (floatType, "float"),
+
+
+    )
+    val mirror       = universe.runtimeMirror(tpe.getClass.getClassLoader)
+    var alternatives = Set.empty[String]
+    val r: String    = tpe match {
+      case v if integralType(v)                                          => "int"
+      case v if floatType(v)                                             => "float"
+      case v if v <:< typeOf[collection.IterableOnce[_]]                 =>
+        val t       = typeOf[collection.IterableOnce[_]].typeSymbol.asClass
+        val T       = t.typeParams(0).asType.toType
+        val typeArg = T.asSeenFrom(v, t)
+        "Sequence"
+      case v if v <:< typeOf[Function1[_, _]] && !(typeOf[Seq[_]] <:< v) =>
+        funTypeRepr(v, typeOf[Function1[_, _]])
+      case v if v <:< typeOf[Function2[_, _, _]]                         => funTypeRepr(v, typeOf[Function2[_, _, _]])
+
+      case _ => tpe.toString
+    }
+    r
+  }
 
   /** Find the singleton instance of a companion object for a class name
     * (used for constructing objects from python)
@@ -180,7 +243,7 @@ object PythonInterop {
       m.overrides
       val name       = m.name.toString
       val params     = m.paramLists.flatten
-      val types      = params.map(p => p.info.toString).toArray
+      val types      = params.map(p => p.infoIn(objType)).toArray
       val implicits  = params.collect { case p if p.isImplicit => camel_to_snake(p.name.toString) }.toArray
       val paramNames = params.filterNot(_.isImplicit).map(p => camel_to_snake(p.name.toString)).toArray
       val docs       = getMethodDocString(m)
@@ -267,7 +330,7 @@ case class Method(
     name: String,
     n: Int,
     parameters: Array[String],
-    types: Array[String],
+    types: Array[Type],
     defaults: java.util.Map[Int, String],
     varargs: Boolean,
     implicits: Array[String],
