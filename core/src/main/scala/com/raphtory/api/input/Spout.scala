@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory
 trait Spout[T] {
   def buildSpout(): SpoutInstance[T]
 
-  def asStream[F[_]:Async]: fs2.Stream[F, T] = ???
+  def asStream[F[_]:Async]: fs2.Stream[F, T] = fs2.Stream.fromBlockingIterator(buildSpout(), 1024)
 }
 
 trait SpoutInstance[T] extends Iterator[T] {
