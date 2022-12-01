@@ -2,7 +2,6 @@ import sbt.Keys.libraryDependencies
 import sbt._
 
 object Dependencies {
-  private lazy val akkaVersion                     = "2.6.19"
   private lazy val bcelVersion                     = "6.5.0"
   private lazy val catsEffectVersion               = "3.3.12"
   private lazy val chillVersion                    = "0.10.0"
@@ -45,12 +44,8 @@ object Dependencies {
   lazy val excludeSlf4j         = ExclusionRule(organization = "org.slf4j")
   lazy val excludeLog4j         = ExclusionRule(organization = "log4j")
   lazy val excludePulsarBinding = ExclusionRule(organization = "org.apache.pulsar")
-
-  lazy val akkaClusterTyped =
-    "com.typesafe.akka" %% "akka-cluster-typed" % akkaVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val akkaTyped  = "com.typesafe.akka" %% "akka-actor-typed" % akkaVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val bcel       = "org.apache.bcel"    % "bcel"             % bcelVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val catsEffect = "org.typelevel"     %% "cats-effect"      % catsEffectVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val bcel                 = "org.apache.bcel" % "bcel"        % bcelVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val catsEffect           = "org.typelevel"  %% "cats-effect" % catsEffectVersion excludeAll (excludeLog4j, excludeSlf4j)
 
   lazy val curatorRecipes =
     "org.apache.curator" % "curator-recipes" % curatorVersion excludeAll (excludeLog4j, excludeSlf4j)

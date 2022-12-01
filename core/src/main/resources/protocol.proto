@@ -167,6 +167,24 @@ message JobID {
   string JobID = 1;
 }
 
+message PerspectiveResult {
+
+}
+
+message PerspectiveCompleted {
+  int32 id = 1;
+}
+
+message QueryCompleted {}
+
+message QueryUpdate {
+  oneof update {
+    PerspectiveCompleted a = 1;
+    PerspectiveResult b = 2;
+    QueryCompleted c = 3;
+  }
+}
+
 service QueryService {
   rpc establishGraph(GraphInfo) returns (Status);
   rpc destroyGraph(GraphInfo) returns (Status);

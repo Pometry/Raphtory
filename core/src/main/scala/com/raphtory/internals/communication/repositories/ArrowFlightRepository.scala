@@ -249,26 +249,5 @@ object ArrowFlightRepository {
                 classOf[SyncExistingRemovalsArrowFlightMessage]
         )
       }
-
-    private[raphtory] lazy val edgeSyncAckArrowFlightMessageSchemaProvider =
-      new ArrowFlightSchemaProvider[EdgeSyncAck] {
-        override val endpoint = "edgeSyncAck"
-
-        signatureRegistry.registerSignature(
-                endpoint,
-                classOf[EdgeSyncAckArrowFlightMessage]
-        )
-      }
-
-    private[raphtory] lazy val vertexRemoveSyncAckArrowFlightMessageSchemaProvider =
-      new ArrowFlightSchemaProvider[VertexRemoveSyncAck] {
-        override val endpoint = "vertexRemoveSyncAck"
-
-        signatureRegistry.registerSignature(
-                endpoint,
-                classOf[VertexRemoveSyncAckArrowFlightMessage]
-        )
-      }
   }
-
 }

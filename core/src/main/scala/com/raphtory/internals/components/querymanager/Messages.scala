@@ -1,16 +1,11 @@
 package com.raphtory.internals.components.querymanager
 
-import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview.Alignment
-import com.raphtory.api.analysis.graphview.GlobalGraphFunction
-import com.raphtory.api.analysis.graphview.GraphFunction
-import com.raphtory.api.analysis.table.TableFunction
 import com.raphtory.api.input.Source
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.time.Interval
 import com.raphtory.api.time.NullInterval
 import com.raphtory.internals.graph.Perspective
-import scala.collection.immutable.Queue
 import com.raphtory.internals.serialisers.DependencyFinder
 import org.apache.bcel.Repository
 import java.io.ByteArrayOutputStream
@@ -24,30 +19,14 @@ object QueryManagement extends ProtoField[QueryManagement]
 
 private[raphtory] trait Operation extends QueryManagement
 
-private[raphtory] case class WatermarkTime(
-    partitionID: Int,
-    oldestTime: Long,
-    latestTime: Long,
-    safe: Boolean,
-    sourceMessages: Array[(Long, Long)]
-) extends QueryManagement
-
-private[raphtory] case class SetMetaData(vertices: Int) extends QueryManagement
-
 private[raphtory] case object JobDone                    extends QueryManagement
 private[raphtory] case class JobFailed(error: Throwable) extends QueryManagement
-
-private[raphtory] case class CreatePerspective(id: Int, perspective: Perspective) extends QueryManagement
 
 sealed private[raphtory] trait PerspectiveReport                                         extends QueryManagement {
   def perspective: Perspective
 }
 private[raphtory] case class PerspectiveCompleted(perspective: Perspective)              extends PerspectiveReport
 private[raphtory] case class PerspectiveFailed(perspective: Perspective, reason: String) extends PerspectiveReport
-
-private[raphtory] case object StartGraph extends QueryManagement
-
-private[raphtory] case object CompleteWrite extends QueryManagement
 
 // We are assuming that all objects implementing this trait are GenericVertexMessage to bypass compilation problems in
 // protocol.proto definitions, where we cannot use generic types so we use this one instead
@@ -192,46 +171,6 @@ private[raphtory] case class PointPath(
     end: Option[Long] = None,
     offset: Interval = NullInterval
 ) extends PointSet
-
-private[raphtory] case class GraphFunctionWithGlobalState(
-    function: GlobalGraphFunction,
-    graphState: GraphStateImplementation
-)                                                    extends QueryManagement
-private[raphtory] case class EndQuery(jobID: String) extends QueryManagement
-
-// Messages for jobStatus topic
-sealed private[raphtory] trait JobStatus extends QueryManagement
-
-private[raphtory] case object WriteCompleted extends JobStatus
-
-sealed private[raphtory] trait PerspectiveStatus extends JobStatus {
-  def perspectiveID: Int
-}
-
-private[raphtory] case class PerspectiveEstablished(perspectiveID: Int, vertices: Int) extends PerspectiveStatus
-private[raphtory] case class MetaDataSet(perspectiveID: Int)                           extends PerspectiveStatus
-
-private[raphtory] case class GraphFunctionComplete(
-    perspectiveID: Int,
-    partitionID: Int,
-    receivedMessages: Long,
-    sentMessages: Long,
-    votedToHalt: Boolean = false
-) extends PerspectiveStatus
-
-private[raphtory] case class GraphFunctionCompleteWithState(
-    perspectiveID: Int,
-    partitionID: Int,
-    receivedMessages: Long,
-    sentMessages: Long,
-    votedToHalt: Boolean = false,
-    graphState: GraphStateImplementation
-) extends PerspectiveStatus
-
-private[raphtory] case class TableFunctionComplete(perspectiveID: Int) extends PerspectiveStatus
-private[raphtory] case class TableBuilt(perspectiveID: Int)            extends PerspectiveStatus
-
-private[raphtory] case class AlgorithmFailure(perspectiveID: Int, exception: Throwable) extends PerspectiveStatus
 
 // Messages for partitionSetup topic
 sealed private[raphtory] trait GraphManagement extends QueryManagement

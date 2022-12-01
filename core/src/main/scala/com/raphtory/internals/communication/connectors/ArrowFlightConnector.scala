@@ -78,14 +78,12 @@ class ArrowFlightConnector(
         case msg: OutboundEdgeRemovalViaVertex => sendMsg(msg)(msg.provider.endpoint)
         case msg: InboundEdgeRemovalViaVertex  => sendMsg(msg)(msg.provider.endpoint)
         case msg: SyncExistingRemovals         => sendMsg(msg)(msg.provider.endpoint)
-        case msg: EdgeSyncAck                  => sendMsg(msg)(msg.provider.endpoint)
-        case msg: VertexRemoveSyncAck          => sendMsg(msg)(msg.provider.endpoint)
 
         case _ => logger.error("VertexMessage or GraphAlteration expected")
       }
     }
 
-    override def sendSync(message: T): Unit            = sendAsync(message)
+    override def sendSync(message: T): Unit = sendAsync(message)
 
     override def flushAsync(): CompletableFuture[Void] =
       CompletableFuture.completedFuture {
