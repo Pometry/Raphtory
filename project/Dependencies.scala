@@ -49,10 +49,13 @@ object Dependencies {
   private lazy val chronicleMapVersion             = "3.21.86"
   private lazy val fastUtilVersion                 = "8.5.6"
   private lazy val commonsLangVersion              = "3.12.0"
+  private lazy val junitInterfaceVersion           = "0.11"
 
   lazy val excludeSlf4j         = ExclusionRule(organization = "org.slf4j")
   lazy val excludeLog4j         = ExclusionRule(organization = "log4j")
   lazy val excludePulsarBinding = ExclusionRule(organization = "org.apache.pulsar")
+  lazy val excludeJunit         = ExclusionRule(organization = "junit")
+  lazy val excludeJunitDep      = ExclusionRule(organization = "junit-dep")
 
   lazy val akkaClusterTyped =
     "com.typesafe.akka" %% "akka-cluster-typed" % akkaVersion excludeAll (excludeLog4j, excludeSlf4j)
@@ -171,6 +174,9 @@ object Dependencies {
   lazy val chronicleMap   = "net.openhft"        % "chronicle-map"       % chronicleMapVersion
   lazy val fastUtil       = "it.unimi.dsi"       % "fastutil"            % fastUtilVersion
   lazy val commonsLang    = "org.apache.commons" % "commons-lang3"       % commonsLangVersion
+
+  lazy val junitInterface =
+    "com.novocode" % "junit-interface" % junitInterfaceVersion % Test excludeAll (excludeJunit, excludeJunitDep)
 
   // Dependencies whose scope goes beyond tests in some modules can go here because
   // it doesn't make any sense to widen the scope of test dependencies to be made part of raphtory
