@@ -15,6 +15,24 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
+  configure:
+    name: Configure
+    runs-on: ubuntu-latest
+    outputs:
+      date: ${{ steps.configure.outputs.date }}
+      type: ${{ steps.configure.outputs.type }}
+      branch: ${{ steps.configure.outputs.branch }}
+    steps:
+      - name: Configure
+        id: configure
+        run: |
+          if [ "${GITHUB_REF##*/}" = "master" ]; then
+            echo '::set-output name=branch::master'
+            echo '::set-output name=type::master'
+          else
+            echo '::set-output name=branch::${GITHUB_REF##*/}'
+            echo '::set-output name=type::regular'
+          fi
   buildPublishGithub:
     name: "Build and Publish"
     strategy:
