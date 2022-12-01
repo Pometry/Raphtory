@@ -114,7 +114,6 @@ private[raphtory] case class Query(
     windows: List[Interval] = List(),
     windowAlignment: Alignment.Value = Alignment.START,
     operations: List[Operation] = List(),
-    blockedBy: Array[Long] = Array(),
     earliestSeen: Long = Long.MaxValue,
     latestSeen: Long = Long.MinValue,
     sink: Option[Sink] = None,

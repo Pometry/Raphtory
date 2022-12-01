@@ -16,6 +16,8 @@ class QuerySupervisor[F[_]] protected (
     graphID: GraphID,
     config: Config,
     partitions: Map[Int, PartitionService[F]],
+    private[querymanager] val earliestTime: Ref[F, Long],
+    private[querymanager] val latestTime: Ref[F, Long],
     private[querymanager] val inprogressReqs: Ref[F, Set[Request]]
 )(implicit F: Async[F]) {
 
@@ -23,12 +25,10 @@ class QuerySupervisor[F[_]] protected (
 
   private[querymanager] case class LoadRequest(sourceID: SourceID, release: Deferred[F, Unit]) extends Request
 
-  private val logger                     = Logger(LoggerFactory.getLogger(this.getClass))
-  private[querymanager] var earliestTime = Long.MaxValue
-  private[querymanager] var latestTime   = Long.MinValue
-  private[querymanager] val pendingReqs  = new ArrayBlockingQueue[Request](1000)
+  private val logger                    = Logger(LoggerFactory.getLogger(this.getClass))
+  private[querymanager] val pendingReqs = new ArrayBlockingQueue[Request](1000)
 
-  def startBlockingIngestion(sourceID: SourceID): F[Unit] =
+  def startIngestion(sourceID: SourceID): F[Unit] =
     for {
       defr <- Deferred[F, Unit]
       lr   <- F.delay(LoadRequest(sourceID, defr))
@@ -48,7 +48,7 @@ class QuerySupervisor[F[_]] protected (
       _    <- F.delay(logger.info(s"Source '$sourceID' is blocking analysis for Graph '$graphID'"))
     } yield ()
 
-  def endBlockingIngestion(sourceID: Int, _earliestTime: Long, _latestTime: Long): F[Unit] = {
+  def endIngestion(sourceID: Int, _earliestTime: Long, _latestTime: Long): F[Unit] = {
     @tailrec
     def queryReqsToRelease(ls: List[QueryRequest]): Seq[QueryRequest] =
       if (pendingReqs.peek().isInstanceOf[QueryRequest])
@@ -56,10 +56,8 @@ class QuerySupervisor[F[_]] protected (
       else ls
 
     for {
-      _   <- F.delay {
-               earliestTime = earliestTime min _earliestTime
-               latestTime = latestTime max _latestTime
-             }
+      _   <- earliestTime.update(_ min _earliestTime)
+      _   <- latestTime.update(_ max _latestTime)
       ipr <- inprogressReqs.updateAndGet(_.filterNot(_.asInstanceOf[LoadRequest].sourceID == sourceID))
       ls  <- if (ipr.isEmpty) F.delay(queryReqsToRelease(Nil)) else F.pure(Nil)
       // Query requests removed from pending request list should be added to the inprogress request list
@@ -73,10 +71,10 @@ class QuerySupervisor[F[_]] protected (
     } yield ()
   }
 
-  private[querymanager] def processQueryRequest(queryName: String): F[Unit] =
+  private[querymanager] def processQueryRequest(query: Query): F[(Long, Long)] =
     for {
       defr <- Deferred[F, Unit]
-      qr   <- F.delay(QueryRequest(queryName, defr))
+      qr   <- F.delay(QueryRequest(query.name, defr))
       ipr  <- inprogressReqs.updateAndGet { r =>
                 if (r.isEmpty || (!r.last.isInstanceOf[LoadRequest] && pendingReqs.isEmpty)) r + qr else r
               }
@@ -85,19 +83,17 @@ class QuerySupervisor[F[_]] protected (
               else
                 F.delay(pendingReqs.add(qr)) >>
                   F.delay(
-                          logger.info(s"Blocking query request = $queryName for any in progress ingestion to complete")
+                          logger.info(s"Blocking query request = ${query.name} for any in progress ingestion to complete")
                   ) >>
                   qr.release.get
-    } yield ()
+      et   <- earliestTime.updateAndGet(_ min query.earliestSeen)
+      lt   <- latestTime.updateAndGet(_ max query.latestSeen)
+    } yield et -> lt
 
-  def submitQuery(query: Query): F[Stream[F, protocol.QueryManagement]] =
+  def submitQuery(query: Query): F[Stream[F, protocol.QueryManagement]]        =
     for {
-      _        <- processQueryRequest(query.name)
-      _        <- F.delay {
-                    earliestTime = earliestTime min query.earliestSeen
-                    latestTime = latestTime max query.latestSeen
-                  }
-      response <- QueryHandlerF(earliestTime, latestTime, partitions.values.toSeq, query, this)
+      t        <- processQueryRequest(query)
+      response <- QueryHandler(t._1, t._2, partitions.values.toSeq, query, this)
     } yield response
 
   def endQuery(query: Query): F[Unit] = {
@@ -131,12 +127,16 @@ object QuerySupervisor {
   ): Resource[F, QuerySupervisor[F]] =
     for {
       inprogressReqs <- Resource.eval(Ref.of(Set[Request]()))
+      earliestTime   <- Resource.eval(Ref.of(Long.MaxValue))
+      latestTime     <- Resource.eval(Ref.of(Long.MinValue))
       service        <- Resource.make {
                           Async[F].delay(
                                   new QuerySupervisor(
                                           graphID,
                                           config,
                                           partitions,
+                                          earliestTime,
+                                          latestTime,
                                           inprogressReqs
                                   )
                           )
