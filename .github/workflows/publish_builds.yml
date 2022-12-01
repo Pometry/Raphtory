@@ -47,10 +47,14 @@ jobs:
           echo "core / Compile / logLevel := Level.Error" >> build.sbt
           echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
           make gh-sbt-build
-      - name: Setting up Python ${{ matrix.python-version }}
+      - name: Pre-setup for Python
+        run: |
+          curl -fsSL https://deb.nodesource.com/setup_14.x | bash -
+          apt-get install -y nodejs
+      - name: Setting up Python 3.9
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: 3.9
       - name: Installing poetry
         run: |
           python -m pip install --upgrade pip
