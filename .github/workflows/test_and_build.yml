@@ -60,8 +60,7 @@ jobs:
           export JAVA_OPTS="-Xms4g -Xmx4g -XX:+UseG1GC"
           export PATH=$(pwd)/sbt/bin:$PATH
           export RAPHTORY_CORE_LOG="ERROR"
-          sbt "arrowCore/test"
-          sbt "core/test"
+          sbt "test;it:test"
         timeout-minutes: 10
       - name: Build Raphtory Jars
         run: |
