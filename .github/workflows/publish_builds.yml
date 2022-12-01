@@ -48,36 +48,36 @@ jobs:
           apt-get update
           apt-get install -y sbt
       # Create Raphtory thin jars and build python
-      - name: Building Thin Raphtory Jars for Python
-        run: |
-          apt-get update && apt-get install make
-          echo "core / Compile / logLevel := Level.Error" >> build.sbt
-          echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
-          make gh-sbt-build
-      - name: Setting up Python 3.9
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.9
-      - name: Installing poetry
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install poetry
-      - name: Building pyraphtory_jvm
-        run: cd python/pyraphtory_jvm && python setup.py sdist
-      - name: Building pyraphtory
-        run: cd python/pyraphtory && poetry build
-      - name: Building Fat Scala Jars (sbt assembly)
-        run: |
-          echo "core / Compile / logLevel := Level.Error" >> build.sbt
-          echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
-          sbt clean && sbt core/assembly && sbt arrowCore/assembly && sbt arrowMessaging/assembly
+#      - name: Building Thin Raphtory Jars for Python
+#        run: |
+#          apt-get update && apt-get install make
+#          echo "core / Compile / logLevel := Level.Error" >> build.sbt
+#          echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
+#          make gh-sbt-build
+#      - name: Setting up Python 3.9
+#        uses: actions/setup-python@v4
+#        with:
+#          python-version: 3.9
+#      - name: Installing poetry
+#        run: |
+#          python -m pip install --upgrade pip
+#          python -m pip install poetry
+#      - name: Building pyraphtory_jvm
+#        run: cd python/pyraphtory_jvm && python setup.py sdist
+#      - name: Building pyraphtory
+#        run: cd python/pyraphtory && poetry build
+#      - name: Building Fat Scala Jars (sbt assembly)
+#        run: |
+#          echo "core / Compile / logLevel := Level.Error" >> build.sbt
+#          echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
+#          sbt clean && sbt core/assembly && sbt arrowCore/assembly && sbt arrowMessaging/assembly
       # Get artifacts
       - name: Copy Jar & Python artifacts to folder
         run: | 
           mkdir artifacts
           find './core/target' './arrow-core/target' './arrow-messaging/target' -type f \(  -name 'core-assembly-*.jar' -o -name 'arrow-core-assembly-*.jar' -o -name 'arrow-messaging-assembly-*.jar' \) -exec cp {} artifacts \;
-          cp python/pyraphtory_jvm/dist/*.gz artifacts/
-          cp python/pyraphtory/dist/*.gz artifacts/
+#          cp python/pyraphtory_jvm/dist/*.gz artifacts/
+#          cp python/pyraphtory/dist/*.gz artifacts/
       # Create release and upload the artifacts to release
       - name: Publish Release to Github
         uses: softprops/action-gh-release@v1
@@ -105,6 +105,8 @@ jobs:
           echo "username=$SONATYPE_USERNAME" >> $HOME/.sbt/sonatype_credentials
           echo "password=$SONATYPE_PASSWORD" >> $HOME/.sbt/sonatype_credentials
           echo 'credentials += Credentials(Path.userHome / ".sbt" / "sonatype_credentials")' >> $HOME/.sbt/1.0/sonatype.sbt
+      - name: (Maven) Key pairs found
+        run: gpg --list-keys
       - name: (Maven) Release
         run: |
           sbt clean
