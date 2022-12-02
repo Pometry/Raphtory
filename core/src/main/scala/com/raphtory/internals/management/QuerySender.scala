@@ -7,8 +7,11 @@ import com.raphtory.api.input.Source
 import com.raphtory.api.progresstracker.ProgressTracker
 import com.raphtory.api.progresstracker.QueryProgressTracker
 import com.raphtory.api.progresstracker.QueryProgressTrackerWithIterator
-import com.raphtory.internals.components.output.PerspectiveResult
-import com.raphtory.internals.components.querymanager._
+import com.raphtory.internals.components.querymanager.DynamicLoader
+import com.raphtory.internals.components.querymanager.IngestData
+import com.raphtory.internals.components.querymanager.Query
+import com.raphtory.internals.components.querymanager.TryIngestData
+import com.raphtory.internals.components.querymanager.TryQuery
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.protocol
 import com.raphtory.protocol.GraphInfo
@@ -99,13 +102,8 @@ private[raphtory] class QuerySender(
 
     val responses = service.submitQuery(protocol.Query(TryQuery(Success(outputQuery)))).unsafeRunSync()
     responses
-      .map(_.bytes)
-      .foreach {
-        case message: PerspectiveResult =>
-          IO(progressTracker.asInstanceOf[QueryProgressTrackerWithIterator].handleOutputMessage(message))
-        case message                    =>
-          IO(progressTracker.handleMessage(message))
-      }
+      .map(message => message.toQueryUpdate)
+      .foreach(update => IO(progressTracker.handleQueryUpdate(update)))
       .compile
       .drain
       .unsafeRunAndForget()

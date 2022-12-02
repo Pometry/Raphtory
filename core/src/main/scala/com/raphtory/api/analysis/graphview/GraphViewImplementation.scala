@@ -20,7 +20,6 @@ import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.internals.components.querymanager.Operation
 import com.raphtory.internals.components.querymanager.Query
-import com.raphtory.internals.components.querymanager.QueryManagement
 import com.raphtory.internals.management.QuerySender
 
 sealed private[raphtory] trait GraphFunction                             extends Operation

@@ -2,9 +2,7 @@ package com.raphtory.api.analysis.table
 
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.api.progresstracker.QueryProgressTracker
-import com.raphtory.api.progresstracker.QueryProgressTrackerWithIterator
 import com.raphtory.internals.components.querymanager.Operation
-import com.raphtory.internals.components.querymanager.QueryManagement
 
 import scala.concurrent.duration.Duration
 

@@ -1,7 +1,6 @@
 import sbt._
 
 object Dependencies {
-  private lazy val akkaVersion                     = "2.6.19"
   private lazy val bcelVersion                     = "6.5.0"
   private lazy val catsEffectVersion               = "3.3.12"
   private lazy val chillVersion                    = "0.10.0"
@@ -11,7 +10,7 @@ object Dependencies {
   private lazy val jacksonVersion                  = "2.13.3"
   private lazy val jsonpathVersion                 = "0.5.5"
   private lazy val log4jVersion                    = "2.18.0"
-  private lazy val muVersion                       = "0.29.0"
+  private lazy val muVersion                       = "0.29.1"
   private lazy val openhftVersion                  = "0.15"
   private lazy val pemjaVersion                    = "0.2.6"
   private lazy val prometheusVersion               = "0.15.0"
@@ -57,11 +56,8 @@ object Dependencies {
   lazy val excludeJunit         = ExclusionRule(organization = "junit")
   lazy val excludeJunitDep      = ExclusionRule(organization = "junit-dep")
 
-  lazy val akkaClusterTyped =
-    "com.typesafe.akka" %% "akka-cluster-typed" % akkaVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val akkaTyped  = "com.typesafe.akka" %% "akka-actor-typed" % akkaVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val bcel       = "org.apache.bcel"    % "bcel"             % bcelVersion excludeAll (excludeLog4j, excludeSlf4j)
-  lazy val catsEffect = "org.typelevel"     %% "cats-effect"      % catsEffectVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val bcel       = "org.apache.bcel" % "bcel"        % bcelVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val catsEffect = "org.typelevel"  %% "cats-effect" % catsEffectVersion excludeAll (excludeLog4j, excludeSlf4j)
 
   lazy val curatorRecipes =
     "org.apache.curator" % "curator-recipes" % curatorVersion excludeAll (excludeLog4j, excludeSlf4j)

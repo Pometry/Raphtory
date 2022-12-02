@@ -128,19 +128,4 @@ private[raphtory] object GraphAlteration extends ProtoField[GraphAlteration] {
   )(implicit
       val provider: SchemaProvider[SyncExistingRemovals]
   ) extends GraphUpdateEffect(srcId)
-
-  case class EdgeSyncAck(
-      sourceID: Long,
-      updateTime: Long,
-      index: Long,
-      srcId: Long,
-      dstId: Long,
-      fromAddition: Boolean
-  )(implicit
-      val provider: SchemaProvider[EdgeSyncAck]
-  ) extends GraphUpdateEffect(srcId)
-
-  case class VertexRemoveSyncAck(sourceID: Long, updateTime: Long, index: Long, override val updateId: Long)(implicit
-      val provider: SchemaProvider[VertexRemoveSyncAck]
-  ) extends GraphUpdateEffect(updateId)
 }

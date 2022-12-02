@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.Resource
 import cats.effect.ResourceApp
 import com.raphtory.internals.components.ingestion.IngestionServiceImpl
-import com.raphtory.internals.components.repositories.DistributedServiceRegistry
+import com.raphtory.internals.components.registries.DistributedServiceRegistry
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.raphtory.internals.management.Prometheus
 

@@ -6,9 +6,10 @@ import com.raphtory.internals.components.querymanager.QuerySupervisor._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-import com.raphtory.protocol
 import com.raphtory.protocol.PartitionService
+import com.raphtory.protocol.QueryUpdate
 import fs2.Stream
+
 import java.util.concurrent.ArrayBlockingQueue
 import scala.annotation.tailrec
 
@@ -90,7 +91,7 @@ class QuerySupervisor[F[_]] protected (
       lt   <- latestTime.updateAndGet(_ max query.latestSeen)
     } yield et -> lt
 
-  def submitQuery(query: Query): F[Stream[F, protocol.QueryManagement]]        =
+  def submitQuery(query: Query): F[Stream[F, QueryUpdate]]                     =
     for {
       t        <- processQueryRequest(query)
       response <- QueryHandler(t._1, t._2, partitions.values.toSeq, query, this)

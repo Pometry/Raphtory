@@ -1,11 +1,10 @@
 package com.raphtory.api.progresstracker
 
 import cats.effect._
-import com.raphtory.api.progresstracker.QueryProgressTracker
 import com.raphtory.api.time.Interval
-import com.raphtory.internals.components.querymanager.JobDone
-import com.raphtory.internals.components.querymanager.PerspectiveCompleted
 import com.raphtory.internals.graph.Perspective
+import com.raphtory.protocol.PerspectiveCompleted
+import com.raphtory.protocol.QueryCompleted
 import munit.CatsEffectSuite
 import org.mockito.MockitoSugar._
 
@@ -34,7 +33,7 @@ class QueryProgressTrackerSuite extends CatsEffectSuite {
             actualEnd = 3L
     )
 
-    tracker.handleMessage(PerspectiveCompleted(perspective))
+    tracker.handleQueryUpdate(PerspectiveCompleted(perspective))
 
     assert(tracker.getLatestPerspectiveProcessed.contains(perspective))
     assert(tracker.getPerspectivesProcessed == List(perspective))
@@ -43,7 +42,7 @@ class QueryProgressTrackerSuite extends CatsEffectSuite {
 
   test("Job done is complete when query progress tracker receives \"JobDone\" message") {
     val tracker = queryProgressTracker()
-    tracker.handleMessage(JobDone)
+    tracker.handleQueryUpdate(QueryCompleted())
     assert(tracker.isJobDone)
   }
 }

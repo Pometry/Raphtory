@@ -1,10 +1,9 @@
 package com.raphtory.api.progresstracker
 
 import com.raphtory.api.time.Perspective
-import com.raphtory.internals.components.querymanager.QueryManagement
+import com.raphtory.protocol.QueryUpdate
 
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.duration.Duration
 
 abstract class ProgressTracker(jobID: String) {
 
@@ -36,5 +35,5 @@ abstract class ProgressTracker(jobID: String) {
     */
   def isJobDone: Boolean = jobDone
 
-  def handleMessage(msg: QueryManagement): Unit = {}
+  def handleQueryUpdate(msg: QueryUpdate): Unit = {}
 }

@@ -9,7 +9,6 @@ import com.raphtory.api.analysis.graphview.IterateWithGraph
 import com.raphtory.api.analysis.graphview.SetGlobalState
 import com.raphtory.api.analysis.graphview.TabularisingGraphFunction
 import com.raphtory.api.analysis.table.Row
-import com.raphtory.internals.components.output.PerspectiveResult
 import com.raphtory.internals.components.output.TableOutputSink
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.graph.PerspectiveController
@@ -21,9 +20,16 @@ import com.raphtory.protocol.OperationAndState
 import com.raphtory.protocol.PartitionResult
 import com.raphtory.protocol.PartitionService
 import com.raphtory.protocol.PerspectiveCommand
+import com.raphtory.protocol.PerspectiveCompleted
+import com.raphtory.protocol.PerspectiveFailed
+import com.raphtory.protocol.QueryCompleted
+import com.raphtory.protocol.QueryFailed
 import com.raphtory.protocol.QueryId
+import com.raphtory.protocol.QueryUpdate
+import com.raphtory.protocol.QueryUpdateMessage
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
+
 import scala.util.Success
 
 class QueryHandler[F[_]](
@@ -39,49 +45,34 @@ class QueryHandler[F[_]](
   private val jobId          = query.name
   private val kryo           = KryoSerialiser()
 
-  def processQuery(firstTimestamp: Long, lastTimestamp: Long): F[fs2.Stream[F, QueryManagement]] = {
-    val queryProcessing = for {
+  def processQuery(firstTimestamp: Long, lastTimestamp: Long): F[fs2.Stream[F, QueryUpdate]] = {
+    val queryProcessing: F[fs2.Stream[F, QueryUpdate]] = for {
       _          <- partitionFunction(_.establishExecutor(protocol.Query(TryQuery(Success(query)))))
       controller <- Async[F].delay(PerspectiveController(firstTimestamp, lastTimestamp, query))
       responses  <- F.pure(processAllPerspectives(controller) ++ fs2.Stream.eval(endQuery))
     } yield responses
 
-    queryProcessing.handleErrorWith(e => Async[F].pure(fs2.Stream(JobFailed(e))))
+    queryProcessing.handleErrorWith(e => Async[F].pure(fs2.Stream(QueryFailed(e.getMessage))))
   }
 
-  private def endQuery =
+  private def endQuery: F[QueryCompleted] =
     for {
-      x <- partitionFunction(_.endQuery(QueryId(graphId, jobId))).as(JobDone)
+      x <- partitionFunction(_.endQuery(QueryId(graphId, jobId))).as(QueryCompleted())
       _ <- querySupervisor.endQuery(query)
     } yield x
 
   private def partitionFunction[T](function: PartitionService[F] => F[T]) =
     Async[F].parSequenceN(partitions.size)(partitions.map(function))
 
-  private def processAllPerspectives(controller: PerspectiveController): fs2.Stream[F, QueryManagement] = {
-    fs2.Stream
-      .repeatEval(F.delay(controller.nextPerspective()))
-      .takeWhile(_.isDefined)
-      .collect { case Some(o) => o }
-      .evalMap(processPerspective)
-      .flatMap {
-        case (res1, res2) =>
-          fs2.Stream.fromOption(res1) ++ fs2.Stream(res2)
-      }
+  private def processAllPerspectives(controller: PerspectiveController): fs2.Stream[F, QueryUpdate] =
+    for {
+      perspective <- fs2.Stream.repeatEval(F.delay(controller.nextPerspective())).takeWhile(_.isDefined)
+      update      <- fs2.Stream.eval(processPerspective(perspective.get))
+    } yield update
 
-//    for {
-//      perspective <- fs2.Stream
-//                       .iterateEval(firstPerspective)(_ => Async[F].delay(controller.nextPerspective()))
-//                       .takeWhile(_.nonEmpty)
-//                       .map(_.get)
-//      result      <- fs2.Stream.eval(processPerspective(perspective))
-//      message     <- fs2.Stream.fromOption(result._1) ++ fs2.Stream(result._2)
-//    } yield message
-  }
-
-  private def processPerspective(perspective: Perspective): F[(Option[PerspectiveResult], QueryManagement)] = {
-    val completed: QueryManagement                                             = PerspectiveCompleted(perspective)
-    val perspectiveProcessing: F[(Option[PerspectiveResult], QueryManagement)] = for {
+  private def processPerspective(perspective: Perspective): F[QueryUpdate] = {
+    val completed: QueryUpdate                = PerspectiveCompleted(perspective)
+    val perspectiveProcessing: F[QueryUpdate] = for {
       counts    <- partitionFunction(_.establishPerspective(PerspectiveCommand(graphId, jobId, perspective)))
       totalCount = counts.map(_.count).sum
       state      = GraphStateImplementation(totalCount)
@@ -90,19 +81,17 @@ class QueryHandler[F[_]](
       result    <- query.sink match {
                      case Some(TableOutputSink(_)) =>
                        partitionFunction(_.getResult(QueryId(graphId, jobId)))
-                         .flatMap(results =>
-                           mergePartitionResults(perspective, results).map(result => ((Some(result), completed)))
-                         )
+                         .flatMap(results => mergePartitionResults(perspective, results))
                      case _                        =>
                        partitionFunction(_.writePerspective(PerspectiveCommand(graphId, jobId, perspective)))
-                         .as((None, completed))
+                         .as(completed)
                    }
     } yield result
 
     perspectiveProcessing
       .handleErrorWith { e =>
         val msg = s"Deployment '$graphId': Failed to handle message. ${e.getMessage}. Skipping perspective."
-        F.delay(logger.error(msg, e)).as((None, PerspectiveFailed(perspective, e.getMessage)))
+        F.delay(logger.error(msg, e)).as(PerspectiveFailed(perspective, e.getMessage))
       }
   }
 
@@ -156,10 +145,10 @@ class QueryHandler[F[_]](
                    else executeUntilConsensus(index, iterations - 1)
       } yield ()
 
-  private def mergePartitionResults(perspective: Perspective, results: Seq[PartitionResult]): F[PerspectiveResult] =
+  private def mergePartitionResults(perspective: Perspective, results: Seq[PartitionResult]) =
     Async[F]
       .delay(results.foldLeft(Array[Row]())((acc, partResult) => acc ++ partResult.rows))
-      .map(rows => PerspectiveResult(perspective, partitions.size, rows))
+      .map(rows => PerspectiveCompleted(perspective, rows))
 }
 
 object QueryHandler {
@@ -170,8 +159,6 @@ object QueryHandler {
       partitions: Seq[PartitionService[F]],
       query: Query,
       querySupervisor: QuerySupervisor[F]
-  ): F[fs2.Stream[F, protocol.QueryManagement]] =
-    new QueryHandler[F](query.graphID, query, partitions, querySupervisor)
-      .processQuery(firstTimestamp, lastTimestamp)
-      .map(_.map(j => protocol.QueryManagement(j)))
+  ): F[fs2.Stream[F, QueryUpdate]] =
+    new QueryHandler[F](query.graphID, query, partitions, querySupervisor).processQuery(firstTimestamp, lastTimestamp)
 }

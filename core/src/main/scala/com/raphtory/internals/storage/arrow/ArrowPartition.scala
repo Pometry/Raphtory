@@ -14,7 +14,6 @@ import com.raphtory.arrowcore.implementation.VertexPartitionManager
 import com.raphtory.arrowcore.model.Edge
 import com.raphtory.arrowcore.model.Entity
 import com.raphtory.arrowcore.model.Vertex
-import com.raphtory.internals.graph.GraphAlteration.EdgeSyncAck
 import com.raphtory.internals.graph.GraphAlteration.SyncExistingEdgeAdd
 import com.raphtory.internals.graph.GraphAlteration.SyncExistingEdgeRemoval
 import com.raphtory.internals.graph.GraphAlteration.SyncExistingRemovals
@@ -379,7 +378,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       srcId: Long,
       dstId: Long,
       properties: Properties
-  ): GraphAlteration.GraphUpdateEffect = {
+  ): Unit = {
 
     updateAdders(msgTime)
 
@@ -402,8 +401,6 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       case None    =>
         addRemoteEdgeInternal(msgTime, srcId, dst, properties)
     }
-
-    EdgeSyncAck(sourceID, msgTime, index, srcId, dstId, fromAddition = true)
   }
 
   override def removeEdge(
@@ -447,7 +444,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       index: Long,
       srcId: Long,
       dstId: Long
-  ): GraphAlteration.GraphUpdateEffect = ???
+  ): Unit = ???
 
   override def syncExistingRemovals(
       msgTime: Long,
@@ -473,7 +470,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       index: Long,
       srcId: Long,
       dstId: Long
-  ): GraphAlteration.GraphUpdateEffect = ???
+  ): Unit = ???
 
   override def outboundEdgeRemovalViaVertex(
       sourceID: Long,
@@ -481,7 +478,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       index: Long,
       srcId: Long,
       dstId: Long
-  ): GraphAlteration.GraphUpdateEffect = ???
+  ): Unit = ???
 
   override def close(): Unit = par.close()
 }

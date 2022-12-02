@@ -66,11 +66,6 @@ abstract class PartitionServiceImpl[F[_]](
       writer     <- Writer[F](graphId, id, storage, partitions, config)
     } yield Partition(storage, writer, Map())
 
-  override protected def graphExecution(graph: Graph[F, Partition[F]]): F[Unit] =
-    (for {
-      id <- Resource.eval(id.get)
-    } yield ()).use(_ => Async[F].never)
-
   override def establishExecutor(req: Query): F[Status] =
     req match {
       case Query(TryQuery(Success(query)), _) => queryExecutor(query).as(success)

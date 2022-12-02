@@ -10,20 +10,23 @@ import com.google.protobuf.empty.Empty
 import com.raphtory.internals.components.ingestion.IngestionServiceImpl
 import com.raphtory.internals.components.partition.PartitionServiceImpl
 import com.raphtory.internals.components.querymanager._
-import com.raphtory.internals.components.repositories.DistributedServiceRegistry
-import com.raphtory.internals.components.repositories.LocalServiceRegistry
+import com.raphtory.internals.components.registries.DistributedServiceRegistry
+import com.raphtory.internals.components.registries.LocalServiceRegistry
 import com.raphtory.internals.management.Partitioner
 import com.raphtory.internals.management.id.IDManager
+import com.raphtory.internals.management.id.LocalIDManager
 import com.raphtory.internals.storage.arrow.EdgeSchema
 import com.raphtory.internals.storage.arrow.VertexSchema
-import com.raphtory.makeLocalIdManager
 import com.raphtory.protocol
 import com.raphtory.protocol.GraphInfo
 import com.raphtory.protocol.IdPool
 import com.raphtory.protocol.IngestionService
 import com.raphtory.protocol.OptionalId
 import com.raphtory.protocol.PartitionService
+import com.raphtory.protocol.QueryFailed
 import com.raphtory.protocol.QueryService
+import com.raphtory.protocol.QueryUpdate
+import com.raphtory.protocol.QueryUpdateMessage
 import com.raphtory.protocol.RaphtoryService
 import com.raphtory.protocol.Status
 import com.raphtory.protocol.failure
@@ -37,6 +40,7 @@ import higherkindness.mu.rpc.healthcheck.HealthService
 import higherkindness.mu.rpc.server.AddService
 import higherkindness.mu.rpc.server.GrpcServer
 import org.slf4j.LoggerFactory
+
 import scala.util.Failure
 import scala.util.Success
 
@@ -92,21 +96,19 @@ class RaphtoryServiceImpl[F[_]](
       (updatedGraphs, status)
     }
 
-  override def submitQuery(req: protocol.Query): F[Stream[F, protocol.QueryManagement]] =
+  override def submitQuery(req: protocol.Query): F[Stream[F, QueryUpdateMessage]] =
     req match {
       case protocol.Query(TryQuery(Success(query)), _) =>
         for {
           graphRunning <- runningGraphs.get.map(graphs => graphs.isDefinedAt(query.graphID))
-          responses    <- if (graphRunning)
-                            establishExecutors(req) *> queryService.submitQuery(req)
-                          else Stream[F, protocol.QueryManagement](graphNotRunningMessage(query.graphID)).pure[F]
+          responses    <- if (graphRunning) establishExecutors(req) *> queryService.submitQuery(req)
+                          else Stream[F, QueryUpdateMessage](graphNotRunningMessage(query.graphID)).pure[F]
         } yield responses
       case protocol.Query(TryQuery(Failure(error)), _) =>
-        Stream[F, protocol.QueryManagement](protocol.QueryManagement(JobFailed(error))).pure[F]
+        Stream[F, QueryUpdateMessage](QueryFailed(error.getMessage).asMessage).pure[F]
     }
 
-  private def graphNotRunningMessage(graphId: String) =
-    protocol.QueryManagement(JobFailed(new IllegalStateException(s"Graph $graphId is not running")))
+  private def graphNotRunningMessage(graphId: String) = QueryFailed(s"Graph $graphId is not running").asMessage
 
   private def establishExecutors(query: protocol.Query) =
     controlPartitions(_.establishExecutor(query))
@@ -199,7 +201,7 @@ object RaphtoryServiceBuilder {
   private def createService[F[_]](cluster: Resource[F, ServiceRegistry[F]], config: Config)(implicit F: Async[F]) =
     for {
       repo            <- cluster
-      sourceIDManager <- makeLocalIdManager[F]
+      sourceIDManager <- Resource.eval(Async[F].delay(new LocalIDManager))
       ingestion       <- repo.ingestion
       partitions      <- repo.partitions
       query           <- repo.query

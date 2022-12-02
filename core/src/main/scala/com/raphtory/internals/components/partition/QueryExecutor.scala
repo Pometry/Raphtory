@@ -66,7 +66,7 @@ class QueryExecutor[F[_]](
 
   def executeOperation(number: Int): F[OperationResult] = {
     val function = query.operations(number)
-    timed(s"Executed operation $function") {
+    timed(s"Executing operation ${function.getClass.getSimpleName}") {
       withLens { lens =>
         function match {
           case function: GraphFunction =>
@@ -80,7 +80,7 @@ class QueryExecutor[F[_]](
 
   def executeOperationWithState(number: Int, state: GraphStateImplementation): F[OperationWithStateResult] = {
     val function = query.operations(number).asInstanceOf[GraphFunction]
-    timed(s"Executed operation $function") {
+    timed(s"Executing operation ${function.getClass.getSimpleName}") {
       withLens(lens => F.delay(lens.nextStep()) *> executeGraphFunctionWithState(function, state, lens))
     }
   }
@@ -201,47 +201,34 @@ class QueryExecutor[F[_]](
 
   private def sendMessages(lens: LensInterface) =
     for {
-//      _           <- F.delay(println(s"in sendMessages for partition $partitionID"))
       partitioned <- F.delay(messageBuffer.groupBy(message => partitionForMessage(message)))
-//      _           <- F.delay(println(s"messages partitioned for partition $partitionID"))
       delivery     = partitioned.map {
                        case (destination, messages) =>
                          if (destination == partitionID)
-//                           F.delay(println(s"receiving direct messages $partitionID")) *>
                            F.delay(messages.foreach(message => lens.receiveMessage(message)))
                          else
                            for {
-//                             _     <- F.delay(println(s"about to send chunk $partitionID"))
                              chunk <- F.delay(messages.toSeq.asInstanceOf[Seq[GenericVertexMessage[Any]]])
                              _     <- if (chunk.nonEmpty)
                                         partitions(destination).receiveMessages(VertexMessages(graphId, jobId, chunk))
                                       else F.unit
                            } yield ()
                      }
-//      _           <- F.delay(println(s"delivery defined for partition $partitionID"))
       _           <- F.parSequenceN(partitions.size)(delivery.toSeq)
     } yield ()
 
   private def clearBuffer = F.delay(messageBuffer.clear())
 
   private def unsafeSendMessage(message: GenericVertexMessage[_]): Unit =
-    // println(s"entering sync block for $partitionID")
     messageBuffer.synchronized {
-      // println(s"inside sync block $partitionID")
       messageBuffer.addOne(message)
       if (messageBuffer.size >= 1024) {
-//        println(s"about to send chunk in $partitionID")
         dispatcher.unsafeRunSync(for {
-//          _    <- F.delay(println(s"getting graphlens in $partitionID"))
           lens <- graphLens.get
-//          _    <- F.delay(println(s"got graphlens in $partitionID"))
           _    <- sendMessages(lens.get)
-        } yield ()) // graphLens.get.map(lens => sendMessages(lens.get)))
-//        println(s"messages sent in $partitionID")
+        } yield ())
         messageBuffer.clear()
-//        println(s"buffer clear in $partitionID")
       }
-      // println(s"getting out of syn block for $partitionID")
     }
 
   private def partitionForMessage(message: GenericVertexMessage[_]) = {
