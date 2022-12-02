@@ -1,16 +1,15 @@
 package com.raphtory.algorithms
 
-import com.raphtory.BaseCorrectnessTest
-import com.raphtory.TestQuery
+import com.raphtory.{BaseCorrectnessTest, TestQuery}
 import com.raphtory.algorithms.generic.MaxFlow
 import com.raphtory.api.input.Source
-import com.raphtory.spouts.ResourceSpout
+import com.raphtory.spouts.{ResourceOrFileSpout, ResourceSpout}
 
 class MaxFlowTest extends BaseCorrectnessTest {
   test("test on line graph") {
     correctnessTest(
             TestQuery(MaxFlow[Long]("1", "3"), 2),
-            Source(ResourceSpout("MaxFlow/minimalTest.csv"), WeightedGraphBuilder),
+            Source(ResourceSpout("MaxFlow/minimalTest.csv"), WeightedGraphBuilder()),
             "MaxFlow/minimalResult.csv"
     )
   }
@@ -22,5 +21,5 @@ class MaxFlowTest extends BaseCorrectnessTest {
     )
   }
 
-  override def setSource(): Source = Source(ResourceSpout("MaxFlow/bottleneck.csv"), WeightedGraphBuilder)
+  override def setSource(): Source = Source(ResourceOrFileSpout("MaxFlow/bottleneck.csv"), WeightedGraphBuilder())
 }

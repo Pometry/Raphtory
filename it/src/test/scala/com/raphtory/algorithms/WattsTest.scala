@@ -5,7 +5,7 @@ import com.raphtory.TestQuery
 import com.raphtory.algorithms.generic.dynamic.WattsCascade
 import com.raphtory.api.input.Source
 import com.raphtory.sources.CSVEdgeListSource
-import com.raphtory.spouts.ResourceSpout
+import com.raphtory.spouts.{ResourceOrFileSpout, ResourceSpout}
 
 import scala.::
 
@@ -16,5 +16,5 @@ class WattsTest extends BaseCorrectnessTest {
             "WattsCascade/wattsResults.csv"
     )
   }
-  override def setSource(): Source = CSVEdgeListSource(ResourceSpout("MotifCount/motiftest.csv"))
+  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("MotifCount/motiftest.csv"))
 }

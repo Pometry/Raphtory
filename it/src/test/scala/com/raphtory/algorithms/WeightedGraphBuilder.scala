@@ -1,12 +1,8 @@
 package com.raphtory.algorithms
 
-import com.raphtory.api.input.Graph
-import com.raphtory.api.input.GraphBuilder
-import com.raphtory.api.input.ImmutableString
-import com.raphtory.api.input.MutableLong
-import com.raphtory.api.input.Properties
+import com.raphtory.api.input._
 
-object WeightedGraphBuilder extends GraphBuilder[String] {
+case class WeightedGraphBuilder() extends GraphBuilder[String] with Serializable {
 
   def apply(graph: Graph, tuple: String): Unit = {
     val line       = tuple.split(",")

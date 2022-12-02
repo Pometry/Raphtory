@@ -37,6 +37,7 @@ RUN mkdir -p /raphtory/data
 RUN mkdir -p /tmp
 COPY bin/docker/raphtory/bin /raphtory/bin
 COPY --from=python-build /opt/venv /opt/venv
+COPY it/src/it/resources /raphtory/jars
 ENV PATH="/opt/venv/bin:$PATH"
 ENV PYEXEC="/opt/venv/bin/python3"
 

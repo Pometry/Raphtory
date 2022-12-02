@@ -1,10 +1,9 @@
 package com.raphtory.algorithms
 
-import com.raphtory.BaseCorrectnessTest
-import com.raphtory.TestQuery
+import com.raphtory.{BaseCorrectnessTest, TestQuery}
 import com.raphtory.algorithms.generic.centrality.{Degree, WeightedDegree}
 import com.raphtory.api.input.Source
-import com.raphtory.spouts.ResourceSpout
+import com.raphtory.spouts.ResourceOrFileSpout
 
 class DegreeTest extends BaseCorrectnessTest {
 
@@ -23,5 +22,5 @@ class DegreeTest extends BaseCorrectnessTest {
     correctnessTest(TestQuery(Degree(), 6), "Degree/unweightedResult.csv")
   }
 
-  override def setSource(): Source = Source(ResourceSpout("Degree/degreeTest.csv"), WeightedGraphBuilder)
+  override def setSource(): Source = Source(ResourceOrFileSpout("Degree/degreeTest.csv"), WeightedGraphBuilder())
 }

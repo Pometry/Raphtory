@@ -1,4 +1,8 @@
+ARG DEP_JAR_PATH
+ARG CORE_JAR_PATH
 FROM eclipse-temurin:11.0.17_8-jre-jammy as raphtory-core
+RUN test -n "$DEP_JAR_PATH"
+RUN test -n "$CORE_JAR_PATH"
 RUN apt update
 RUN apt install -y python3 libpython3.10
 RUN ln -s /usr/lib/x86_64-linux-gnu/libpython3.10.so.1 /usr/lib/x86_64-linux-gnu/libpython3.so
@@ -6,5 +10,9 @@ RUN mkdir -p /raphtory/jars
 RUN mkdir -p /raphtory/bin
 RUN mkdir -p /raphtory/data
 RUN mkdir -p /tmp
+COPY $DEP_JAR_PATH/* /raphtory/jars/
+COPY $CORE_JAR_PATH/* /raphtory/jars/
 COPY bin/docker/raphtory/bin /raphtory/bin
+
+CMD /raphtory/bin/entrypoint-gh.sh
 
