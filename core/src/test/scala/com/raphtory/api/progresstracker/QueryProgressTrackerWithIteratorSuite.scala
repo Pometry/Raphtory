@@ -3,11 +3,10 @@ package com.raphtory.api.progresstracker
 import cats.effect._
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.TableOutput
-import com.raphtory.api.progresstracker.QueryProgressTrackerWithIterator
 import com.raphtory.api.time.Interval
-import com.raphtory.internals.components.output.PerspectiveResult
-import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.Perspective
+import com.raphtory.protocol.PerspectiveCompleted
+import com.raphtory.protocol.QueryCompleted
 import munit.CatsEffectSuite
 import org.mockito.MockitoSugar.mock
 
@@ -47,23 +46,16 @@ class QueryProgressTrackerWithIteratorSuite extends CatsEffectSuite {
     assert(!queryProgressTrackerWithIterator().isJobDone)
   }
 
-  test("""QueryProgressTrackerWithIterator updates list of perspectives when received "PerspectiveReport" message""") {
-    val tracker = queryProgressTrackerWithIterator()
-
-    tracker.handleMessage(PerspectiveCompleted(perspective))
-
-    assert(tracker.getLatestPerspectiveProcessed.contains(perspective))
-    assert(tracker.getPerspectivesProcessed == List(perspective))
-    assert(tracker.getPerspectiveDurations.size == 1)
-  }
-
-  test("""QueryProgressTrackerWithIterator updates iterator when received "OutputMessages" messages""") {
+  test("QueryProgressTrackerWithIterator updates list of perspectives and iterator when received PerspectiveCompleted") {
     val tracker = queryProgressTrackerWithIterator()
     val row     = Row(1, 2, 3)
 
-    tracker.handleOutputMessage(PerspectiveResult(perspective, totalPartitions, Array(row)))
+    tracker.handleQueryUpdate(PerspectiveCompleted(perspective, Seq(row)))
+    tracker.handleQueryUpdate(QueryCompleted())
 
-    tracker.handleMessage(JobDone)
+    assert(tracker.getLatestPerspectiveProcessed.contains(perspective))
+    assertEquals(tracker.getPerspectivesProcessed, List(perspective))
+    assertEquals(tracker.getPerspectiveDurations.size, 1)
 
     val itr: Iterator[TableOutput] = tracker.TableOutputIterator
     while (itr.hasNext)
