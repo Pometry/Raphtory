@@ -56,6 +56,10 @@ jobs:
         run: cd python/pyraphtory_jvm && tox -p -o
       - name: Install pyraphtory
         run: cd python/pyraphtory && poetry build && poetry install
+      - name: Summary of pyraphtory install
+        run: |
+          ls -ltr $(python3 -c "from pyraphtory_jvm.jre import get_local_ivy_loc; print(get_local_ivy_loc())")/compile
+          ls -ltr $(python3 -c "import site; print(site.getsitepackages()[0] + '/lib/')")
       - name: Run pyraphtory tests
         run: cd python/pyraphtory && poetry run pytest -n=auto
       - name: Run notebook tests
