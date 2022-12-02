@@ -78,6 +78,15 @@ python-build: version sbt-build
 		poetry install
 	pip3 install python/pyraphtory/dist/pyraphtory-$$(cat version).tar.gz
 
+
+.PHONY docker-it-image:
+docker-it-image:
+	docker build --build-arg DEP_JAR_PATH="$$(python3 -c "from pyraphtory_jvm.jre import get_local_ivy_loc; print(get_local_ivy_loc())")/compile" \
+		--build-arg CORE_JAR_PATH="$$(python3 -c "import site; print(site.getsitepackages()[0] + '/lib/')")" -f Dockerfile-gh \
+		-t raphtory-core-it:$$(cat version) \
+		-t raphtory-core-it:latest \
+		--compress
+
 PHONY python-build-quick:
 python-build-quick: version
 	cd python/pyraphtory/ && \

@@ -20,16 +20,10 @@ class ServiceDiscovery[F[_]](zk: CuratorFramework)(implicit F: Async[F]) {
 
   def registerService(serviceInstance: ServiceInstance, name: String, id: Int): F[Int] =
     F.blocking {
-      try {
-        zk.create()
-          .creatingParentsIfNeeded()
-          .withMode(CreateMode.EPHEMERAL)
-          .forPath(mkPath(name, id), om.writeValueAsBytes(serviceInstance))
-      } catch {
-        case NonFatal(t) =>
-          t.printStackTrace()
-          throw t
-      }
+      zk.create()
+        .creatingParentsIfNeeded()
+        .withMode(CreateMode.EPHEMERAL)
+        .forPath(mkPath(name, id), om.writeValueAsBytes(serviceInstance))
       id
     }
 

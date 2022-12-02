@@ -23,8 +23,8 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   var jobId: String           = ""
-  val outputDirectory: String = "/tmp/raphtoryTest"
-  def defaultSink: Sink       = FileSink(outputDirectory)
+  val outputDirectory: String = "/pometry/Source/Raphtory/it/target/docker"
+  def defaultSink: Sink       = FileSink("/tmp/raphtoryTest")
 
   def liftFileIfNotPresent: Option[(String, URL)] = None
   def setSource(): Source
@@ -34,7 +34,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           "context-and-graph",
           for {
             _     <- TestUtils.manageTestFile(liftFileIfNotPresent)
-            ctx   <- RaphtoryIOContext.localIO()
+            ctx   <- RaphtoryIOContext.remoteIO()
             graph <- ctx.newIOGraph(failOnNotFound = false, destroy = true)
             _     <- Resource.pure(graph.load(setSource()))
           } yield (ctx, graph)

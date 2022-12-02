@@ -22,5 +22,5 @@ class RepeatedEdgeTest extends BaseCorrectnessTest {
     correctnessTest(TestQuery(TemporalEdgeList("weight"), edges.size - 1), res)
   }
 
-  override def setSource(): Source = Source(SequenceSpout(repeatedInput), WeightedGraphBuilder)
+  override def setSource(): Source = Source(SequenceSpout(repeatedInput), WeightedGraphBuilder())
 }

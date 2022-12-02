@@ -12,6 +12,10 @@ services:
       RAPHTORY_JAVA_RUN_CLASS: com.raphtory.service.Query
       RAPHTORY_ZOOKEEPER_ADDRESS: zoo1:2181
       RAPHTORY_PARTITIONS_SERVERCOUNT: 2
+      RAPHTORY_DATA: /raphtory/data_it/
+    volumes:
+      - "./it/src/it/resources:/raphtory/data_it:z"
+      - "./it/target/docker:/tmp/raphtory:z"
   cluster:
     image: raphtory-core:latest
     ports:
@@ -20,12 +24,20 @@ services:
       RAPHTORY_JAVA_RUN_CLASS: com.raphtory.service.ClusterManager
       RAPHTORY_ZOOKEEPER_ADDRESS: zoo1:2181
       RAPHTORY_PARTITIONS_SERVERCOUNT: 2
+      RAPHTORY_DATA: /raphtory/data_it/
+    volumes:
+      - "./it/src/it/resources:/raphtory/data_it:z"
+      - "./it/target/docker:/tmp/raphtoryTest:z"
   ingestion:
     image: raphtory-core:latest
     environment:
       RAPHTORY_JAVA_RUN_CLASS: com.raphtory.service.Ingestion
       RAPHTORY_ZOOKEEPER_ADDRESS: zoo1:2181
       RAPHTORY_PARTITIONS_SERVERCOUNT: 2
+      RAPHTORY_DATA: /raphtory/data_it/
+    volumes:
+      - "./it/src/it/resources:/raphtory/data_it:z"
+      - "./it/target/docker:/tmp/raphtoryTest:z"
   partition:
     image: raphtory-core:latest
     deploy:
@@ -34,3 +46,7 @@ services:
       RAPHTORY_JAVA_RUN_CLASS: com.raphtory.service.Partition
       RAPHTORY_ZOOKEEPER_ADDRESS: zoo1:2181
       RAPHTORY_PARTITIONS_SERVERCOUNT: 2
+      RAPHTORY_DATA: /raphtory/data_it/
+    volumes:
+      - "./it/src/it/resources:/raphtory/data_it:z"
+      - "./it/target/docker:/tmp/raphtoryTest:z"

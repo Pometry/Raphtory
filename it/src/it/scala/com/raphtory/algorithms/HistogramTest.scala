@@ -1,12 +1,11 @@
 package com.raphtory.algorithms
 
-import com.raphtory.BaseCorrectnessTest
-import com.raphtory.TestQuery
+import com.raphtory.{BaseCorrectnessTest, TestQuery}
 import com.raphtory.algorithms.generic.VertexHistogram
 import com.raphtory.algorithms.generic.centrality.Degree
 import com.raphtory.api.input.Source
 import com.raphtory.sources.CSVEdgeListSource
-import com.raphtory.spouts.ResourceSpout
+import com.raphtory.spouts.ResourceOrFileSpout
 
 class HistogramTest extends BaseCorrectnessTest {
 
@@ -31,5 +30,5 @@ class HistogramTest extends BaseCorrectnessTest {
     )
   }
 
-  override def setSource(): Source = CSVEdgeListSource(ResourceSpout("MotifCount/motiftest.csv"))
+  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("MotifCount/motiftest.csv"))
 }
