@@ -44,7 +44,7 @@ object Dependencies {
   private lazy val objenesisVersion                = "3.3"
   private lazy val flightCoreVersion               = "8.0.0"
   private lazy val nettyVersion                    = "4.1.72.Final"
-  private lazy val arrowVersion                    = "7.0.0"
+  private lazy val arrowVersion                    = "9.0.0"
   private lazy val chronicleMapVersion             = "3.21.86"
   private lazy val fastUtilVersion                 = "8.5.6"
   private lazy val commonsLangVersion              = "3.12.0"
