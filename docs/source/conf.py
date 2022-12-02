@@ -45,9 +45,11 @@ autodoc_default_options = {
     'members': True,
     'undoc-members': True,
     'inherited-members': True,
+    'special-member': ["__call__"]
 }
 
 autodoc_member_order = 'groupwise'
+autodoc_typehints_format = "short"
 
 autosummary_generate = True
 # Extension options

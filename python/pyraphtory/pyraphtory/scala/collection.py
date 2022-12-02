@@ -4,7 +4,7 @@ import typing as t
 
 A = t.TypeVar("A", covariant=True)
 @register(name="Iterable")
-class IterableScalaProxy(GenericScalaProxy, abc.Iterable[A]):
+class Iterable(GenericScalaProxy, abc.Iterable[A]):
     """Proxy object that converts scala iterables into python iterables"""
     def __iter__(self) -> t.Iterator[A]:
         return self.iterator()
@@ -14,7 +14,7 @@ class IterableScalaProxy(GenericScalaProxy, abc.Iterable[A]):
 
 
 @register(name="Iterator")
-class IteratorScalaProxy(GenericScalaProxy, abc.Iterator[A]):
+class Iterator(GenericScalaProxy, abc.Iterator[A]):
     """Proxy object that converts scala iterators into python iterators"""
 
     def __next__(self) -> A:
@@ -25,7 +25,7 @@ class IteratorScalaProxy(GenericScalaProxy, abc.Iterator[A]):
 
 
 @register(name="Sequence")
-class SequenceScalaProxy(IterableScalaProxy, abc.Sequence[A]):
+class Sequence(Iterable, abc.Sequence[A]):
     """Proxy object that converts scala sequence into python sequence"""
     def __len__(self) -> int:
         return self.size()
@@ -66,7 +66,7 @@ class SequenceScalaProxy(IterableScalaProxy, abc.Sequence[A]):
 K = t.TypeVar("K")
 V = t.TypeVar("V", covariant=True)
 @register(name="Mapping")
-class Map(ScalaClassProxy, abc.Mapping[K, V]):
+class Mapping(ScalaClassProxy, abc.Mapping[K, V]):
     _classname = "scala.collection.Map"
 
     def __len__(self) -> int:
@@ -82,7 +82,7 @@ class Map(ScalaClassProxy, abc.Mapping[K, V]):
             raise KeyError(f"missing key {key}")
 
 
-class List(ScalaClassProxy, SequenceScalaProxy[A]):
+class List(ScalaClassProxy, Sequence[A]):
     _classname = "scala.collection.immutable.List"
 
     @classmethod

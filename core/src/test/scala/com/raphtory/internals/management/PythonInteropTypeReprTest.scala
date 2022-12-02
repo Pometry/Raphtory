@@ -4,7 +4,20 @@ import munit.FunSuite
 import PythonInterop._
 
 import scala.reflect.runtime.universe._
+import scala.reflect
 import com.raphtory.api.input.GraphBuilder
+
+import scala.reflect.runtime.currentMirror
+
+object TestMethods {
+  def varArgs(test: Int*): Unit = {}
+  val varargsType = {
+    val objType = currentMirror.classSymbol(TestMethods.getClass).toType.dealias
+    val m = objType.members.find(p => p.isMethod && p.asMethod.name.toString == "varArgs").get
+    val param = m.asMethod.paramLists(0).head
+    param.info
+  }
+}
 
 class PythonInteropTypeReprTest extends FunSuite {
   type T
@@ -104,6 +117,25 @@ class PythonInteropTypeReprTest extends FunSuite {
     assert(!bytesType(typeOf[Array[Any]]))
   }
 
+  test("Python list type matches IterableOnce") {
+    assert(pyListType(typeOf[IterableOnce[Any]]))
+  }
+
+  test("Python list type matches Array") {
+    assert(pyListType(typeOf[Array[Any]]))
+  }
+
+  test("varargs is not List") {
+    assert(!scalaListType(TestMethods.varargsType))
+  }
+
+  test("Test varargs type matcher") {
+    assert(varargsType(TestMethods.varargsType))
+  }
+
+  test("List is not varargs") {
+    assert(!varargsType(typeOf[Seq[Any]]))
+  }
 //  test("Test actual type is not generic type label") {
 //    assert(!genericType(typeOf[Any]))
 //  }

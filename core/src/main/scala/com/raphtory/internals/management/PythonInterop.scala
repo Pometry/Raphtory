@@ -123,7 +123,7 @@ object PythonInterop {
       case _                       => "None"
     }
 
-  def funTypeRepr(v: universe.Type, tpe: universe.Type): String = {
+  private def funTypeRepr(v: universe.Type, tpe: universe.Type): String = {
     val f         = tpe.typeSymbol.asClass
     val n         = f.typeParams.size - 1
     val argsTypes = f.typeParams.map(t => t.asType.toType.asSeenFrom(v, f))
@@ -144,6 +144,12 @@ object PythonInterop {
     tpe =:= typeOf[Float] || tpe =:= typeOf[Double] ||
       tpe =:= typeOf[java.lang.Float] || tpe =:= typeOf[java.lang.Double]
 
+  def stringType(tpe: universe.Type): Boolean =
+    tpe =:= typeOf[String]
+
+  def booleanType(tpe: universe.Type): Boolean =
+    tpe =:= typeOf[Boolean] || tpe =:= typeOf[java.lang.Boolean]
+
   def bytesType(tpe: universe.Type): Boolean =
     tpe =:= typeOf[Array[Byte]]
 
@@ -151,7 +157,7 @@ object PythonInterop {
     !bytesType(tpe) && tpe <:< typeOf[Array[_]]
 
   def pyListType(tpe: universe.Type): Boolean =
-    arrayType(tpe) || (tpe <:< typeOf[mutable.Buffer[_]] && typeOf[IterableOnce[_]].erasure <:< tpe.erasure)
+    arrayType(tpe) || (typeOf[mutable.Buffer[_]].erasure <:< tpe.erasure && tpe <:< typeOf[IterableOnce[_]])
 
   def iteratorType(tpe: universe.Type): Boolean =
     tpe <:< typeOf[IterableOnce[_]] && typeOf[Iterator[_]].erasure <:< tpe.erasure
@@ -162,6 +168,9 @@ object PythonInterop {
   def sequenceType(tpe: universe.Type): Boolean =
     !iterableType(tpe) && (tpe <:< typeOf[Iterable[_]] && typeOf[collection.Seq[_]].erasure <:< tpe.erasure)
 
+  def varargsType(tpe: universe.Type): Boolean =
+    tpe.toString.endsWith("*")
+
   def function1Type(tpe: universe.Type): Boolean =
     tpe <:< typeOf[Function1[_, _]] && !(tpe <:< typeOf[Iterable[_]]) &&
       typeOf[PythonFunction1[_, _]].erasure <:< tpe.erasure
@@ -170,7 +179,10 @@ object PythonInterop {
     tpe <:< typeOf[Function2[_, _, _]] && typeOf[PythonFunction2[_, _, _]].erasure <:< tpe.erasure
 
   def scalaListType(tpe: universe.Type): Boolean =
-    tpe <:< typeOf[Seq[_]] && typeOf[List[_]].erasure <:< tpe.erasure
+    tpe <:< typeOf[Seq[_]] && typeOf[List[_]].erasure <:< tpe.erasure && !varargsType(tpe)
+
+  def scalaMappingType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[collection.Map[_, _]] && typeOf[immutable.Map[_, _]].erasure <:< tpe.erasure
 
   def genericType(tpe: universe.Type): Boolean =
 //    tpe.typeSymbol.asType.isExistential
@@ -188,6 +200,7 @@ object PythonInterop {
   def typeArgRepr(tpe: universe.Type, parent: universe.Type): String =
     extractTypeArgs(tpe, parent).mkString("[", ", ", "]")
 
+  // try to remove all aliases and singleton types
   @tailrec
   def expandType(tpe: universe.Type): universe.Type = {
     val widened = tpe.widen.dealias
@@ -198,17 +211,21 @@ object PythonInterop {
   }
 
   def get_type_repr(tpe: universe.Type): String = {
-    val collection: String                                              = "pyraphtory.scala.collection."
+    val collectionStr: String                                           = "pyraphtory.scala.collection."
     val reprMap: Map[universe.Type => Boolean, universe.Type => String] = Map(
             (bytesType, _ => "bytes"),
-            (arrayType, tpe => collection + "Array" + typeArgRepr(tpe, typeOf[Array[_]])),
+            (arrayType, tpe => collectionStr + "Array" + typeArgRepr(tpe, typeOf[Array[_]])),
             (integralType, _ => "int"),
             (floatType, _ => "float"),
+            (stringType, _ => "str"),
+            (booleanType, _ => "bool"),
+            (varargsType, tpe => extractTypeArgs(tpe, typeOf[Seq[_]]).head),
             (pyListType, tpe => "list" + typeArgRepr(tpe, typeOf[IterableOnce[_]])),
-            (iteratorType, tpe => collection + "Iterator" + typeArgRepr(tpe, typeOf[IterableOnce[_]])),
-            (iterableType, tpe => collection + "Iterable" + typeArgRepr(tpe, typeOf[IterableOnce[_]])),
-            (sequenceType, tpe => collection + "Sequence" + typeArgRepr(tpe, typeOf[Iterable[_]])),
-            (scalaListType, tpe => collection + "List" + typeArgRepr(tpe, typeOf[List[_]])),
+            (iteratorType, tpe => collectionStr + "Iterator" + typeArgRepr(tpe, typeOf[IterableOnce[_]])),
+            (iterableType, tpe => collectionStr + "Iterable" + typeArgRepr(tpe, typeOf[IterableOnce[_]])),
+            (sequenceType, tpe => collectionStr + "Sequence" + typeArgRepr(tpe, typeOf[Iterable[_]])),
+            (scalaListType, tpe => collectionStr + "List" + typeArgRepr(tpe, typeOf[List[_]])),
+            (scalaMappingType, tpe => collectionStr + "Mapping" + typeArgRepr(tpe, typeOf[collection.Map[_, _]])),
             (function1Type, tpe => funTypeRepr(tpe, typeOf[Function1[_, _]])),
             (function2Type, tpe => funTypeRepr(tpe, typeOf[Function2[_, _, _]])),
             (genericType, tpe => tpe.toString)
