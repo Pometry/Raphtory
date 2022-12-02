@@ -294,7 +294,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
       srcId: Long,
       dstId: Long,
       properties: Properties
-  ): GraphUpdateEffect =
+  ): Unit =
     vertices.synchronized {
       val dstVertex =
         addVertexInternal(msgTime, index, dstId, Properties(), None) // revive the destination node
@@ -312,9 +312,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
           val edge = new SplitEdge(msgTime, index, srcId, dstId, initialValue = true)
           addProperties(msgTime, index, edge, properties)
           dstVertex addIncomingEdge edge
-
       }
-      EdgeSyncAck(sourceID, msgTime, index, srcId, dstId, fromAddition = true)
     }
 
   def removeEdge(sourceID: Long, msgTime: Long, index: Long, srcId: Long, dstId: Long): Option[GraphUpdateEffect] =
@@ -381,13 +379,12 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
       index: Long,
       srcId: Long,
       dstId: Long
-  ): GraphUpdateEffect =
+  ): Unit =
     vertices.synchronized { //for the source getting an update about deletions from a remote worker
       getVertexOrPlaceholder(msgTime, index, srcId).getOutgoingEdge(dstId) match {
         case Some(edge) => edge kill (msgTime, index)
         case None       => logger.error("Remote edge removal with no outgoing edge.")
       }
-      VertexRemoveSyncAck(sourceID, msgTime, index, dstId)
     }
 
   def syncExistingEdgeRemoval(
@@ -396,7 +393,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
       index: Long,
       srcId: Long,
       dstId: Long
-  ): GraphUpdateEffect =
+  ): Unit =
     vertices.synchronized {
       val dstVertex = getVertexOrPlaceholder(msgTime, index, dstId)
       dstVertex.getIncomingEdge(srcId) match {
@@ -408,7 +405,6 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
           val edge = new SplitEdge(msgTime, index, srcId, dstId, initialValue = false)
           dstVertex addIncomingEdge edge
       }
-      EdgeSyncAck(sourceID, msgTime, index, srcId, dstId, fromAddition = false)
     }
 
   def outboundEdgeRemovalViaVertex(
@@ -417,13 +413,12 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
       index: Long,
       srcId: Long,
       dstId: Long
-  ): GraphUpdateEffect =
+  ): Unit =
     vertices.synchronized {
       getVertexOrPlaceholder(msgTime, index, dstId).getIncomingEdge(srcId) match {
         case Some(e) => e kill (msgTime, index)
         case None    => logger.error("Remote edge removal from vertex with no incoming edge.")
       }
-      VertexRemoveSyncAck(sourceID, msgTime, index, srcId)
     }
 
   def syncNewEdgeRemoval(
