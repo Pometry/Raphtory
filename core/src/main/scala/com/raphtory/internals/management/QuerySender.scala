@@ -7,8 +7,11 @@ import com.raphtory.api.input.Source
 import com.raphtory.api.progresstracker.ProgressTracker
 import com.raphtory.api.progresstracker.QueryProgressTracker
 import com.raphtory.api.progresstracker.QueryProgressTrackerWithIterator
-import com.raphtory.internals.components.output.PerspectiveResult
-import com.raphtory.internals.components.querymanager._
+import com.raphtory.internals.components.querymanager.DynamicLoader
+import com.raphtory.internals.components.querymanager.IngestData
+import com.raphtory.internals.components.querymanager.Query
+import com.raphtory.internals.components.querymanager.TryIngestData
+import com.raphtory.internals.components.querymanager.TryQuery
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.protocol
 import com.raphtory.protocol.GraphInfo
@@ -37,7 +40,6 @@ private[raphtory] class QuerySender(
   val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
   val totalPartitions: Int     = partitionServers * partitionsPerServer
 
-  private val blockingSources          = ArrayBuffer[Long]()
   private var earliestTimeSeen         = Long.MaxValue
   private var latestTimeSeen           = Long.MinValue
   private var totalUpdateIndex         = 0    //used at the secondary index for the client
@@ -86,7 +88,6 @@ private[raphtory] class QuerySender(
     val progressTracker: ProgressTracker = createProgressTracker(jobID)
 
     if (updatesSinceLastIDChange > 0) { // TODO Think this will block multi-client -- not an issue for right now
-      blockingSources += currentSourceID
       updatesSinceLastIDChange = 0
       newIDRequiredOnUpdate = true
     }
@@ -94,7 +95,6 @@ private[raphtory] class QuerySender(
     val outputQuery = query
       .copy(
               name = jobID,
-              blockedBy = blockingSources.toArray,
               _bootstrap = query._bootstrap.resolve(searchPath),
               earliestSeen = earliestTimeSeen,
               latestSeen = latestTimeSeen
@@ -102,13 +102,8 @@ private[raphtory] class QuerySender(
 
     val responses = service.submitQuery(protocol.Query(TryQuery(Success(outputQuery)))).unsafeRunSync()
     responses
-      .map(_.bytes)
-      .foreach {
-        case message: PerspectiveResult =>
-          IO(progressTracker.asInstanceOf[QueryProgressTrackerWithIterator].handleOutputMessage(message))
-        case message                    =>
-          IO(progressTracker.handleMessage(message))
-      }
+      .map(message => message.toQueryUpdate)
+      .foreach(update => IO(progressTracker.handleQueryUpdate(update)))
       .compile
       .drain
       .unsafeRunAndForget()
@@ -134,7 +129,6 @@ private[raphtory] class QuerySender(
     val sourceWithId = sources.map { source =>
       service.getNextAvailableId(protocol.IdPool(graphID)).unsafeRunSync() match {
         case protocol.OptionalId(Some(id), _) =>
-          blockingSources += id
           (id, source)
         case protocol.OptionalId(None, _)     =>
           throw new NoIDException(s"Client '$clientID' was not able to acquire a source ID for $source")

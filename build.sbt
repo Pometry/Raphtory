@@ -1,10 +1,7 @@
 import sbt.Compile
-import sbt.Keys.baseDirectory
 import Dependencies._
 import Version._
 import higherkindness.mu.rpc.srcgen.Model._
-
-import scala.io.Source
 
 ThisBuild / scalaVersion := raphtoryScalaVersion
 ThisBuild / version := raphtoryVersion
@@ -44,7 +41,11 @@ ThisBuild / publishTo := {
   else Some("releases" at nexus + "service/local/staging/deploy/maven2")
 }
 ThisBuild / publishMavenStyle.withRank(KeyRanks.Invisible) := true
-ThisBuild / resolvers += Resolver.mavenLocal
+ThisBuild / resolvers ++=
+  Seq(
+          "repo.vaticle.com" at "https://repo.vaticle.com/repository/maven/",
+          Resolver.mavenLocal
+  )
 
 ThisBuild / scalacOptions += "-language:higherKinds"
 
@@ -86,23 +87,56 @@ lazy val root = (project in file("."))
           examplesTwitter,
           examplesNFT,
           deploy,
-          integrationTest,
+          it,
           docTests
   )
 
-//lazy val protocol = project
-//  .settings(
-//          // Needed to expand the @service macro annotation
-//          macroSettings
-//  )
-
 lazy val arrowMessaging =
-  (project in file("arrow-messaging")).settings(assemblySettings)
+  (project in file("arrow-messaging"))
+    .configs(IntegrationTest)
+    .settings(
+            name := "arrow-messaging",
+            Defaults.itSettings,
+            assemblySettings,
+            libraryDependencies ++= Seq(
+                    objenesis,
+                    catsMUnit,
+                    alleyCats,
+                    catsEffect,
+                    shapeless,
+                    scalaTestFunSuite,
+                    scalaReflect,
+                    log4jCore,
+                    log4jApi,
+                    netty classifier osDetectorClassifier.value,
+                    flightCore
+            )
+    )
 
 lazy val arrowCore =
-  (project in file("arrow-core")).settings(assemblySettings)
+  (project in file("arrow-core"))
+    .configs(IntegrationTest)
+    .settings(
+            name := "arrow-core",
+            Defaults.itSettings,
+            assemblySettings,
+            Compile / packageDoc / publishArtifact := false,
+            libraryDependencies ++= Seq(
+                    junit,
+                    openhft,
+                    arrowMemory,
+                    arrowVector,
+                    arrowAlgorithm,
+                    arrowDataset,
+                    chronicleMap,
+                    fastUtil,
+                    commonsLang,
+                    junitInterface
+            )
+    )
 
 lazy val core = (project in file("core"))
+  .configs(IntegrationTest)
   .settings(
           name := "core",
           assembly / test := {},
@@ -114,11 +148,10 @@ lazy val core = (project in file("core"))
           ),
           assemblySettings,
           defaultSettings,
+          Defaults.itSettings,
           addCompilerPlugin(scalaDocReader),
           libraryDependencies ++= Seq(
                   //please keep in alphabetical order
-                  akkaClusterTyped,
-                  akkaTyped,
                   bcel,
                   curatorRecipes,
                   decline,
@@ -179,18 +212,53 @@ lazy val core = (project in file("core"))
 // CONNECTORS
 
 lazy val connectorsAWS =
-  (project in file("connectors/aws")).dependsOn(core).settings(assemblySettings)
+  (project in file("connectors/aws"))
+    .dependsOn(core, testkit)
+    .configs(IntegrationTest)
+    .settings(
+            name := "aws",
+            assemblySettings,
+            Defaults.itSettings,
+            libraryDependencies ++= Seq(commonsIO, amazonAwsS3, amazonAwsSts)
+    )
 
 lazy val connectorsTwitter =
-  (project in file("connectors/twitter")).dependsOn(core).settings(assemblySettings)
+  (project in file("connectors/twitter"))
+    .dependsOn(core, testkit)
+    .configs(IntegrationTest)
+    .settings(
+            name := "twitter",
+            assemblySettings,
+            Defaults.itSettings,
+            libraryDependencies ++= Seq(twitterEd)
+    )
 
 lazy val connectorsTypeDB =
-  (project in file("connectors/typedb")).dependsOn(core).settings(assemblySettings)
+  (project in file("connectors/typedb"))
+    .dependsOn(core)
+    .settings(
+            name := "typedb",
+            assemblySettings,
+            libraryDependencies ++= Seq(typedbClient, univocityParsers, mjson)
+    )
 
 lazy val connectorsPulsar =
   (project in file("connectors/pulsar"))
-    .dependsOn(core % "compile->compile;test->test")
-    .settings(assemblySettings)
+    .dependsOn(core, testkit)
+    .configs(IntegrationTest)
+    .settings(
+            name := "pulsar",
+            assemblySettings,
+            Defaults.itSettings,
+            libraryDependencies ++=
+              Seq(
+                      pulsarClientAdmin,
+                      pulsarClientApi,
+                      pulsarCommon,
+                      pulsarClientMsgCrypto,
+                      pulsarClientOriginal
+              )
+    )
 
 // EXAMPLE PROJECTS
 
@@ -219,10 +287,28 @@ lazy val deploy =
   (project in file("deploy"))
     .settings(assemblySettings)
 
-lazy val integrationTest =
-  (project in file("test"))
-    .dependsOn(core % "compile->compile;test->test")
-    .settings(assemblySettings)
+lazy val it =
+  (project in file("it"))
+    .configs(IntegrationTest)
+    .settings(
+            Defaults.itSettings,
+            assemblySettings,
+            defaultSettings,
+            libraryDependencies ++= Seq(
+                    junit,
+                    mockitoScala,
+                    testContainers,
+                    scalaTest,
+                    catsMUnit
+            )
+    )
+    .dependsOn(core, testkit)
+
+lazy val testkit =
+  (project in file("testkit"))
+    .configs(IntegrationTest)
+    .dependsOn(core)
+    .settings(Defaults.itSettings, defaultSettings)
 
 lazy val docTests =
   (project in file("doc-tests"))
