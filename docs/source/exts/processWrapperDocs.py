@@ -100,7 +100,6 @@ class MetaclassMethodDocumenter(ImplicitsSignatureMixin, MethodDocumenter):
 
     def __init__(self, directive: "DocumenterBridge", name: str, indent: str = '') -> None:
         super().__init__(directive, name, indent)
-        self.options["noindex"] = True
 
     @classmethod
     def can_document_member(cls, member: Any, membername: str, isattr: bool, parent: Any
@@ -115,6 +114,7 @@ class MetaclassMethodDocumenter(ImplicitsSignatureMixin, MethodDocumenter):
     def add_directive_header(self, sig: str) -> None:
         super(MethodDocumenter, self).add_directive_header(sig)
         self.add_line('   :classmethod:', self.get_sourcename())
+        self.add_line('   :noindex:', self.get_sourcename())
 
 
 

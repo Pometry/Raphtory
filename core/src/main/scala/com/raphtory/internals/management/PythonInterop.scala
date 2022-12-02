@@ -16,6 +16,7 @@ import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 import java.util
+import scala.collection.immutable
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.ListBuffer
@@ -27,6 +28,9 @@ import scala.util.Random
 import com.github.takezoe.scaladoc.Scaladoc
 import pemja.core.Interpreter
 import sun.misc.Unsafe
+
+import scala.annotation.tailrec
+import scala.language.existentials
 
 /** Scala-side methods for interfacing with Python */
 object PythonInterop {
@@ -130,54 +134,96 @@ object PythonInterop {
   }
 
   def integralType(tpe: universe.Type): Boolean =
-    tpe <:< typeOf[Byte] || tpe <:< typeOf[Short] ||
-      tpe <:< typeOf[Int] || tpe <:< typeOf[Long] ||
-      tpe <:< typeOf[java.lang.Byte] ||
-      tpe <:< typeOf[java.lang.Short] ||
-      tpe <:< typeOf[java.lang.Integer] ||
-      tpe <:< typeOf[java.lang.Long]
+    (tpe weak_<:< typeOf[Long]) ||
+      tpe =:= typeOf[java.lang.Byte] ||
+      tpe =:= typeOf[java.lang.Short] ||
+      tpe =:= typeOf[java.lang.Integer] ||
+      tpe =:= typeOf[java.lang.Long]
 
   def floatType(tpe: universe.Type): Boolean =
-    tpe <:< typeOf[Float] || tpe <:< typeOf[Double] ||
-      tpe <:< typeOf[java.lang.Float] || tpe <:< typeOf[java.lang.Double]
+    tpe =:= typeOf[Float] || tpe =:= typeOf[Double] ||
+      tpe =:= typeOf[java.lang.Float] || tpe =:= typeOf[java.lang.Double]
 
-  def typeArgRepr(tpe: universe.Type, parent: universe.Type): String = {
+  def bytesType(tpe: universe.Type): Boolean =
+    tpe =:= typeOf[Array[Byte]]
+
+  def arrayType(tpe: universe.Type): Boolean =
+    !bytesType(tpe) && tpe <:< typeOf[Array[_]]
+
+  def pyListType(tpe: universe.Type): Boolean =
+    arrayType(tpe) || (tpe <:< typeOf[mutable.Buffer[_]] && typeOf[IterableOnce[_]].erasure <:< tpe.erasure)
+
+  def iteratorType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[IterableOnce[_]] && typeOf[Iterator[_]].erasure <:< tpe.erasure
+
+  def iterableType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[IterableOnce[_]] && typeOf[Iterable[_]].erasure <:< tpe.erasure
+
+  def sequenceType(tpe: universe.Type): Boolean =
+    !iterableType(tpe) && (tpe <:< typeOf[Iterable[_]] && typeOf[collection.Seq[_]].erasure <:< tpe.erasure)
+
+  def function1Type(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Function1[_, _]] && !(tpe <:< typeOf[Iterable[_]]) &&
+      typeOf[PythonFunction1[_, _]].erasure <:< tpe.erasure
+
+  def function2Type(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Function2[_, _, _]] && typeOf[PythonFunction2[_, _, _]].erasure <:< tpe.erasure
+
+  def scalaListType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Seq[_]] && typeOf[List[_]].erasure <:< tpe.erasure
+
+  def genericType(tpe: universe.Type): Boolean =
+//    tpe.typeSymbol.asType.isExistential
+    false // need to figure out how to detect these if we want them
+
+  def extractTypeArgs(tpe: universe.Type, parent: universe.Type): Iterable[String] = {
     val clazz = parent.typeSymbol.asClass
-    clazz.typeParams.map { t =>
-      val T = t.asType.toType
-      get_type_repr(T.asSeenFrom(tpe, clazz))
-    }.mkString("[", ", ", "]")
+    clazz.typeParams
+      .map { t =>
+        val T = t.asType.toType
+        get_type_repr(T.asSeenFrom(tpe, clazz))
+      }
   }
 
+  def typeArgRepr(tpe: universe.Type, parent: universe.Type): String =
+    extractTypeArgs(tpe, parent).mkString("[", ", ", "]")
+
+  @tailrec
+  def expandType(tpe: universe.Type): universe.Type = {
+    val widened = tpe.widen.dealias
+    if (widened != tpe)
+      expandType(widened)
+    else
+      tpe
+  }
 
   def get_type_repr(tpe: universe.Type): String = {
-    val reprMap = Map[universe.Type => Boolean, universe.Type => String](
-      (v => v =:= typeOf[Array[Byte]], "bytes"),
-      (v => v =:= typeOf[Array[_]] && !(v =:= typeOf[Array[Byte]]), {v =>
-        val typeArgs = typeArgRepr(v, typeOf[Array[_]])
-        "list" + typeArgs +" | scala.collection.Array" + typeArgs
-      }),
-      (integralType, "int"),
-      (floatType, "float"),
-
-
+    val collection: String                                              = "pyraphtory.scala.collection."
+    val reprMap: Map[universe.Type => Boolean, universe.Type => String] = Map(
+            (bytesType, _ => "bytes"),
+            (arrayType, tpe => collection + "Array" + typeArgRepr(tpe, typeOf[Array[_]])),
+            (integralType, _ => "int"),
+            (floatType, _ => "float"),
+            (pyListType, tpe => "list" + typeArgRepr(tpe, typeOf[IterableOnce[_]])),
+            (iteratorType, tpe => collection + "Iterator" + typeArgRepr(tpe, typeOf[IterableOnce[_]])),
+            (iterableType, tpe => collection + "Iterable" + typeArgRepr(tpe, typeOf[IterableOnce[_]])),
+            (sequenceType, tpe => collection + "Sequence" + typeArgRepr(tpe, typeOf[Iterable[_]])),
+            (scalaListType, tpe => collection + "List" + typeArgRepr(tpe, typeOf[List[_]])),
+            (function1Type, tpe => funTypeRepr(tpe, typeOf[Function1[_, _]])),
+            (function2Type, tpe => funTypeRepr(tpe, typeOf[Function2[_, _, _]])),
+            (genericType, tpe => tpe.toString)
     )
-    val mirror       = universe.runtimeMirror(tpe.getClass.getClassLoader)
-    var alternatives = Set.empty[String]
-    val r: String    = tpe match {
-      case v if integralType(v)                                          => "int"
-      case v if floatType(v)                                             => "float"
-      case v if v <:< typeOf[collection.IterableOnce[_]]                 =>
-        val t       = typeOf[collection.IterableOnce[_]].typeSymbol.asClass
-        val T       = t.typeParams(0).asType.toType
-        val typeArg = T.asSeenFrom(v, t)
-        "Sequence"
-      case v if v <:< typeOf[Function1[_, _]] && !(typeOf[Seq[_]] <:< v) =>
-        funTypeRepr(v, typeOf[Function1[_, _]])
-      case v if v <:< typeOf[Function2[_, _, _]]                         => funTypeRepr(v, typeOf[Function2[_, _, _]])
-
-      case _ => tpe.toString
+    val options: immutable.Iterable[String]                             = reprMap.collect {
+      case (match_fun, repr_fun) if match_fun(expandType(tpe)) => repr_fun(tpe)
     }
+    val r                                                               =
+      if (options.isEmpty)
+        "Any"
+      else if (options.size == 1)
+        options.head
+      else
+        options.mkString("Union[", ", ", "]")
+
     r
   }
 

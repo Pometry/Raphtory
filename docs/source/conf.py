@@ -34,6 +34,7 @@ release = '0.1.0'
 extensions = [
     'extractScalaAlgoDocs',
     'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
     'processWrapperDocs',
     'myst_parser',
     'sphinx_tabs.tabs',
@@ -47,6 +48,8 @@ autodoc_default_options = {
 }
 
 autodoc_member_order = 'groupwise'
+
+autosummary_generate = True
 # Extension options
 myst_enable_extensions = ["deflist", "dollarmath"]
 myst_heading_anchors = 3

@@ -23,10 +23,7 @@ def clean_identifier(name: str):
 def clean_type(scala_type):
     name = scala_type.toString()
     from pyraphtory.interop import get_type_repr
-    if name in type_map:
-        type_name = type_map[name]
-    else:
-        type_name = get_type_repr(scala_type)
+    type_name = get_type_repr(scala_type)
     return repr(type_name)
 
 

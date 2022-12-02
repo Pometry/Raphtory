@@ -86,7 +86,7 @@ class List(ScalaClassProxy, SequenceScalaProxy[A]):
     _classname = "scala.collection.immutable.List"
 
     @classmethod
-    def _build_from_python(cls, iterable: t.Iterable[A]) -> t.Self:
+    def _build_from_python(cls, iterable: t.Iterable[A]):
         builder = cls.new_builder()
         for element in iterable:
             builder.append(element)
