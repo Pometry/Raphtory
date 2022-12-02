@@ -1,0 +1,10 @@
+FROM eclipse-temurin:11.0.17_8-jre-jammy as raphtory-core
+RUN apt update
+RUN apt install -y python3 libpython3.10
+RUN ln -s /usr/lib/x86_64-linux-gnu/libpython3.10.so.1 /usr/lib/x86_64-linux-gnu/libpython3.so
+RUN mkdir -p /raphtory/jars
+RUN mkdir -p /raphtory/bin
+RUN mkdir -p /raphtory/data
+RUN mkdir -p /tmp
+COPY bin/docker/raphtory/bin /raphtory/bin
+
