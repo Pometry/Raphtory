@@ -18,12 +18,13 @@ def setup(app: Sphinx):
 
 def unpack_class_method(obj, name=None):
     if hasattr(obj, "__self__"):
-        if name is None:
-            name = obj.__name__
-        for c in obj.__self__.mro():
-            if name in c.__dict__:
-                obj = c.__dict__[name]
-                break
+        if isinstance(obj.__self__, type):
+            if name is None:
+                name = obj.__name__
+            for c in obj.__self__.mro():
+                if name in c.__dict__:
+                    obj = c.__dict__[name]
+                    break
     return obj
 
 class ImplicitsSignatureMixin:
