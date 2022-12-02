@@ -31,7 +31,8 @@ Alternatively, hit next and lets get Raphtory :doc:`installed <Install/python/py
 
    Introduction/ingestion.ipynb
    Introduction/analysis.ipynb
-   Analysis/query.md
+   Introduction/own-algorithms.ipynb
+
 
 .. toctree::
    :hidden:

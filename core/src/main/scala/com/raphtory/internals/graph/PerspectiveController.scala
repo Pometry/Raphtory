@@ -2,7 +2,9 @@ package com.raphtory.internals.graph
 
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.time
-import com.raphtory.api.time.{DiscreteInterval, Interval, NullInterval}
+import com.raphtory.api.time.DiscreteInterval
+import com.raphtory.api.time.Interval
+import com.raphtory.api.time.NullInterval
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.time.TimeConverters._
 import com.typesafe.scalalogging.Logger
@@ -80,37 +82,13 @@ private[raphtory] object PerspectiveController {
 
         // Similar to RangeQuery and LiveQuery
         case PointPath(increment, pathStart, pathEnd, offset) =>
-          val maxWindow      = Try(query.windows.max).getOrElse(NullInterval)
-          val alignmentPoint = pathStart.orElse(pathEnd).getOrElse(0 + offset)
-          val start          =
+          val maxWindow                  = Try(query.windows.max).getOrElse(NullInterval)
+          val alignmentPoint             = pathStart.orElse(pathEnd).getOrElse(0 + offset)
+          val start                      =
             pathStart.getOrElse((query.timelineStart max firstAvailableTimestamp) - maxWindow)
-
-          val unboundedTimestamps: LazyList[Long] = createTimestamps(start, increment, alignmentPoint)
-
-          val endBoundedPerspectives = pathEnd match {
-            case Some(pathEnd) =>
-              val boundedTimestamps = unboundedTimestamps.takeWhile(_ < pathEnd).appended(pathEnd)
-              // TODO: the pathEnd is inclusive and is done artificially to match the former behavior, it's worth it considering a change in the future
-              perspectivesFromTimestamps(boundedTimestamps, query.windows, query.windowAlignment)
-
-            case None          =>
-              val unboundedPerspectives =
-                perspectivesFromTimestamps(unboundedTimestamps, query.windows, query.windowAlignment)
-              unboundedPerspectives map { stream =>
-                stream.takeWhile(_.actualStart <= query.timelineEnd)
-              }
-          }
-
-          val boundedPerspectives = pathStart match {
-            case Some(_) => endBoundedPerspectives
-            case None    =>
-              val start = query.timelineStart max firstAvailableTimestamp
-              endBoundedPerspectives map { stream =>
-                stream.dropWhile(_.actualEnd < start)
-              }
-          }
-
-          boundedPerspectives
+          val end                        = pathEnd.getOrElse(query.timelineEnd min lastAvailableTimestamp)
+          val timestamps: LazyList[Long] = createTimestamps(start, end, increment, alignmentPoint)
+          perspectivesFromTimestamps(timestamps, query.windows, query.windowAlignment)
       }
 
       val trimmedPerspectives =
@@ -128,9 +106,9 @@ private[raphtory] object PerspectiveController {
     }
   }
 
-  private def createTimestamps(start: Long, increment: Interval, alignmentPoint: Long) = {
+  private def createTimestamps(start: Long, end: Long, increment: Interval, alignmentPoint: Long) = {
     val actualStart = getImmediateGreaterOrEqual(alignmentPoint, increment, start)
-    LazyList.iterate(actualStart)(_ + increment)
+    LazyList.iterate(actualStart)(_ + increment).takeWhile(_ < end).appended(end)
   }
 
   private def perspectivesFromTimestamps(
