@@ -41,12 +41,8 @@ sealed private[raphtory] trait PointSet
 private[raphtory] case object NullPointSet           extends PointSet
 private[raphtory] case class SinglePoint(time: Long) extends PointSet
 
-private[raphtory] case class PointPath(
-    increment: Interval,
-    start: Option[Long] = None,
-    end: Option[Long] = None,
-    offset: Interval = NullInterval
-) extends PointSet
+private[raphtory] case class PointPath(increment: Interval, start: Option[Long] = None, end: Option[Long] = None)
+        extends PointSet
 
 private[raphtory] trait Operation extends Serializable
 

@@ -73,21 +73,28 @@ private[raphtory] object PerspectiveController {
       val untrimmedPerspectives = query.points match {
         // If there are no points marked by the user, we create
         // a windowless perspective that ends at the lastAvailableTimestamp
-        case NullPointSet                                     =>
+        case NullPointSet                             =>
           perspectivesFromTimestamps(LazyList(lastAvailableTimestamp), List(), Alignment.END)
 
         // Similar to PointQuery
-        case SinglePoint(time)                                =>
+        case SinglePoint(time)                        =>
           perspectivesFromTimestamps(LazyList(time), query.windows, query.windowAlignment)
 
         // Similar to RangeQuery and LiveQuery
-        case PointPath(increment, pathStart, pathEnd, offset) =>
-          val maxWindow                  = Try(query.windows.max).getOrElse(NullInterval)
-          val alignmentPoint             = pathStart.orElse(pathEnd).getOrElse(0 + offset)
-          val start                      =
+        case PointPath(increment, pathStart, pathEnd) =>
+          val maxWindow = Try(query.windows.max).getOrElse(NullInterval)
+
+          val start =
             pathStart.getOrElse((query.timelineStart max firstAvailableTimestamp) - maxWindow)
-          val end                        = pathEnd.getOrElse(query.timelineEnd min lastAvailableTimestamp)
-          val timestamps: LazyList[Long] = createTimestamps(start, end, increment, alignmentPoint)
+          val end   =
+            pathEnd.getOrElse(query.timelineEnd min lastAvailableTimestamp + maxWindow)
+
+          val timestamps: LazyList[Long] =
+            LazyList
+              .iterate(start)(_ + increment)
+              .takeWhile(_ < end)
+              .appended(end)
+
           perspectivesFromTimestamps(timestamps, query.windows, query.windowAlignment)
       }
 
@@ -104,11 +111,6 @@ private[raphtory] object PerspectiveController {
 
       new PerspectiveController(trimmedPerspectives.toArray)
     }
-  }
-
-  private def createTimestamps(start: Long, end: Long, increment: Interval, alignmentPoint: Long) = {
-    val actualStart = getImmediateGreaterOrEqual(alignmentPoint, increment, start)
-    LazyList.iterate(actualStart)(_ + increment).takeWhile(_ < end).appended(end)
   }
 
   private def perspectivesFromTimestamps(
@@ -169,34 +171,5 @@ private[raphtory] object PerspectiveController {
       else perspective
     if (lowerBounded.actualEnd > upperBound) lowerBounded.copy(actualEnd = upperBound)
     else lowerBounded
-  }
-
-  //Departing from the source point, moves forward or backward using the given increment until it
-  // founds the immediate greater or equal than the bound
-  @tailrec
-  private def getImmediateGreaterOrEqual(source: Long, increment: Interval, bound: Long): Long = {
-    lazy val jumps = LazyList.iterate(1)(_ * 10)
-    if (source + increment == source)
-      source
-    else if (source >= bound && source - increment < bound)
-      source
-    else if (source > bound) {
-      val nextPosition = Try(
-              jumps
-                .map(jump => source - (increment * jump))
-                .takeWhile(position => position > bound && position < source) // avoid overflow
-                .last
-      ).getOrElse(source - increment)
-      getImmediateGreaterOrEqual(nextPosition, increment, bound)
-    }
-    else { // source < bound
-      val nextPosition = Try(
-              jumps
-                .map(jump => source + (increment * jump))
-                .takeWhile(position => position < bound && position > source) // avoid overflow
-                .last
-      ).getOrElse(source + increment)
-      getImmediateGreaterOrEqual(nextPosition, increment, bound)
-    }
   }
 }
