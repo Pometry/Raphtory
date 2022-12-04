@@ -70,24 +70,32 @@ private[raphtory] object PerspectiveController {
       new PerspectiveController(Array.empty) // out of bounds
     }
     else {
-      val untrimmedPerspectives = query.points match {
+      val perspectives = query.points match {
         // If there are no points marked by the user, we create
         // a windowless perspective that ends at the lastAvailableTimestamp
         case NullPointSet                             =>
-          perspectivesFromTimestamps(LazyList(lastAvailableTimestamp), List(), Alignment.END)
+          perspectivesFromTimestamps(
+                  query.timelineStart,
+                  query.timelineEnd,
+                  LazyList(lastAvailableTimestamp),
+                  List(),
+                  Alignment.END
+          )
 
         // Similar to PointQuery
         case SinglePoint(time)                        =>
-          perspectivesFromTimestamps(LazyList(time), query.windows, query.windowAlignment)
+          perspectivesFromTimestamps(
+                  query.timelineStart,
+                  query.timelineEnd,
+                  LazyList(time),
+                  query.windows,
+                  query.windowAlignment
+          )
 
         // Similar to RangeQuery and LiveQuery
         case PointPath(increment, pathStart, pathEnd) =>
-          val maxWindow = Try(query.windows.max).getOrElse(NullInterval)
-
-          val start =
-            pathStart.getOrElse((query.timelineStart max firstAvailableTimestamp) - maxWindow)
-          val end   =
-            pathEnd.getOrElse(query.timelineEnd min lastAvailableTimestamp + maxWindow)
+          val start = pathStart.getOrElse(query.timelineStart max firstAvailableTimestamp)
+          val end   = pathEnd.getOrElse(query.timelineEnd min lastAvailableTimestamp)
 
           val timestamps: LazyList[Long] =
             LazyList
@@ -95,48 +103,50 @@ private[raphtory] object PerspectiveController {
               .takeWhile(_ < end)
               .appended(end)
 
-          perspectivesFromTimestamps(timestamps, query.windows, query.windowAlignment)
+          perspectivesFromTimestamps(
+                  query.timelineStart,
+                  query.timelineEnd,
+                  timestamps,
+                  query.windows,
+                  query.windowAlignment
+          )
       }
 
-      val trimmedPerspectives =
-        untrimmedPerspectives map (stream => stream.map(trimPerspective(_, query.timelineStart, query.timelineEnd)))
-
-      if (trimmedPerspectives forall (_.isEmpty))
-        logger.warn(
-                s"No perspectives to be generated: " +
-                  s"firstAvailableTimestamp='$firstAvailableTimestamp', " +
-                  s"lastAvailableTimestamp='$lastAvailableTimestamp', " +
-                  s"query='$query'"
-        )
-
-      new PerspectiveController(trimmedPerspectives.toArray)
+      new PerspectiveController(perspectives.toArray)
     }
   }
 
   private def perspectivesFromTimestamps(
+      timelineStart: Long,
+      timelineEnd: Long,
       timestamps: LazyList[Long],
       windows: Seq[Interval],
       alignment: Alignment.Value
   ) =
     windows match {
-      case Seq()   => List(timestamps map (createWindowlessPerspective(_, alignment)))
+      case Seq()   => List(timestamps map (createWindowlessPerspective(timelineStart, timelineEnd, _, alignment)))
       case windows =>
         windows.sorted.reverse map { window =>
-          timestamps map (createPerspective(_, window, alignment))
+          val x = timestamps map (createPerspective(timelineStart, timelineEnd, _, window, alignment))
+          x
         }
     }
 
   private def createWindowlessPerspective(
+      timelineStart: Long,
+      timelineEnd: Long,
       timestamp: Long,
       alignment: Alignment.Value
   ) =
     alignment match {
-      case Alignment.START  => Perspective(timestamp, None, timestamp, Long.MaxValue)
-      case Alignment.MIDDLE => Perspective(timestamp, None, Long.MinValue, Long.MaxValue)
-      case Alignment.END    => Perspective(timestamp, None, Long.MinValue, timestamp)
+      case Alignment.START  => Perspective(timestamp, None, timestamp, timelineEnd)
+      case Alignment.MIDDLE => Perspective(timestamp, None, timelineStart, timelineEnd)
+      case Alignment.END    => Perspective(timestamp, None, timelineStart, timestamp)
     }
 
   private def createPerspective(
+      timelineStart: Long,
+      timelineEnd: Long,
       timestamp: Long,
       window: Interval,
       alignment: Alignment.Value
@@ -147,29 +157,21 @@ private[raphtory] object PerspectiveController {
                 timestamp,
                 Some(window),
                 timestamp,
-                timestamp + window - 1 // The end is exclusive
+                ((timestamp + window) min timelineEnd) - 1 // The end is exclusive
         )
       case Alignment.MIDDLE =>
         Perspective(
                 timestamp,
                 Some(window),
-                timestamp - window / 2,
-                timestamp - window / 2 + window - 1 // The end is exclusive
+                ((timestamp - window / 2) max timelineStart) + 1,
+                ((timestamp + window / 2) min timelineEnd) - 1 // Both are exclusive
         )
       case Alignment.END    =>
         Perspective(
                 timestamp,
                 Some(window),
-                timestamp - window + 1, // The start is exclusive
+                ((timestamp - window) max timelineStart) + 1, // The start is exclusive
                 timestamp
         )
     }
-
-  private def trimPerspective(perspective: Perspective, lowerBound: Long, upperBound: Long) = {
-    val lowerBounded =
-      if (perspective.actualStart < lowerBound) perspective.copy(actualStart = lowerBound)
-      else perspective
-    if (lowerBounded.actualEnd > upperBound) lowerBounded.copy(actualEnd = upperBound)
-    else lowerBounded
-  }
 }

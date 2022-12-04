@@ -57,29 +57,28 @@ class PerspectiveControllerTest extends FunSuite {
   }
 
   test("A range of perspectives is correctly generated") {
-    val increment  = parseInterval("2 months")
-    val start      = parseDateTime("2021-01-01 00:00:00")
-    val middle     = parseDateTime("2021-03-01 00:00:00")
-    val end        = parseDateTime("2021-05-01 00:00:00")
-    val query      = Query(
+    val increment        = parseInterval("2 months")
+    val start            = parseDateTime("2021-01-01 00:00:00")
+    val middle           = parseDateTime("2021-03-01 00:00:00")
+    val end              = parseDateTime("2021-05-01 00:00:00")
+    val query            = Query(
             graphID = "",
             timelineStart = start,
-            timelineEnd = end - 1,
+            timelineEnd = end,
             points = PointPath(increment),
             windows = List(increment),
             windowAlignment = Alignment.START
     )
-    val controller = PerspectiveController(0, Long.MaxValue, query)
-
+    val controller       = PerspectiveController(0, Long.MaxValue, query)
+    var count            = 0
     val firstPerspective = controller.nextPerspective().get
     assertEquals(firstPerspective.actualStart, start)
-    println(start)
     assertEquals(firstPerspective.actualEnd, middle - 1)
 
     val secondPerspective = controller.nextPerspective().get
-//    assertEquals(secondPerspective.actualStart, middle)
+    assertEquals(secondPerspective.actualStart, middle)
     assertEquals(secondPerspective.actualEnd, end - 1)
-
+    controller.nextPerspective()
     assertEquals(controller.nextPerspective(), None)
   }
 }
