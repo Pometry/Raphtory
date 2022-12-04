@@ -55,7 +55,7 @@ private[raphtory] object PerspectiveController {
       lastAvailableTimestamp: Long,
       query: Query
   ): PerspectiveController = {
-    logger.info(
+    logger.debug(
             s"Defining perspective list using: " +
               s"firstAvailableTimestamp='$firstAvailableTimestamp', " +
               s"lastAvailableTimestamp='$lastAvailableTimestamp', " +
@@ -77,7 +77,7 @@ private[raphtory] object PerspectiveController {
           perspectivesFromTimestamps(
                   query.timelineStart,
                   query.timelineEnd,
-                  LazyList(lastAvailableTimestamp),
+                  LazyList(query.timelineEnd min lastAvailableTimestamp),
                   List(),
                   Alignment.END
           )
@@ -124,54 +124,42 @@ private[raphtory] object PerspectiveController {
       alignment: Alignment.Value
   ) =
     windows match {
-      case Seq()   => List(timestamps map (createWindowlessPerspective(timelineStart, timelineEnd, _, alignment)))
+      case Seq()   =>
+        List(timestamps map (timestamp => {
+          alignment match {
+            case Alignment.START  => Perspective(timestamp, None, (timestamp max timelineStart), timelineEnd)
+            case Alignment.MIDDLE => Perspective(timestamp, None, timelineStart, timelineEnd)
+            case Alignment.END    => Perspective(timestamp, None, timelineStart, (timestamp min timelineEnd))
+          }
+        }))
       case windows =>
         windows.sorted.reverse map { window =>
-          val x = timestamps map (createPerspective(timelineStart, timelineEnd, _, window, alignment))
-          x
+          timestamps map (timestamp => {
+            alignment match {
+              case Alignment.START  =>
+                Perspective(
+                        timestamp,
+                        Some(window),
+                        (timestamp max timelineStart),
+                        ((timestamp + window) min timelineEnd) - 1 // The end is exclusive
+                )
+              case Alignment.MIDDLE =>
+                Perspective(
+                        timestamp,
+                        Some(window),
+                        ((timestamp - window / 2) max timelineStart) + 1,
+                        ((timestamp + window / 2) min timelineEnd) - 1 // Both are exclusive
+                )
+              case Alignment.END    =>
+                Perspective(
+                        timestamp,
+                        Some(window),
+                        ((timestamp - window) max timelineStart) + 1, // The start is exclusive
+                        (timestamp min timelineEnd)
+                )
+            }
+          })
         }
     }
 
-  private def createWindowlessPerspective(
-      timelineStart: Long,
-      timelineEnd: Long,
-      timestamp: Long,
-      alignment: Alignment.Value
-  ) =
-    alignment match {
-      case Alignment.START  => Perspective(timestamp, None, timestamp, timelineEnd)
-      case Alignment.MIDDLE => Perspective(timestamp, None, timelineStart, timelineEnd)
-      case Alignment.END    => Perspective(timestamp, None, timelineStart, timestamp)
-    }
-
-  private def createPerspective(
-      timelineStart: Long,
-      timelineEnd: Long,
-      timestamp: Long,
-      window: Interval,
-      alignment: Alignment.Value
-  ) =
-    alignment match {
-      case Alignment.START  =>
-        Perspective(
-                timestamp,
-                Some(window),
-                timestamp,
-                ((timestamp + window) min timelineEnd) - 1 // The end is exclusive
-        )
-      case Alignment.MIDDLE =>
-        Perspective(
-                timestamp,
-                Some(window),
-                ((timestamp - window / 2) max timelineStart) + 1,
-                ((timestamp + window / 2) min timelineEnd) - 1 // Both are exclusive
-        )
-      case Alignment.END    =>
-        Perspective(
-                timestamp,
-                Some(window),
-                ((timestamp - window) max timelineStart) + 1, // The start is exclusive
-                timestamp
-        )
-    }
 }

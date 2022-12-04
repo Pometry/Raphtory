@@ -43,7 +43,7 @@ class PulsarOutputTest extends BaseRaphtoryAlgoTest[String](deleteResultAfterFin
             val queryProgressTracker =
               graph
                 .range(1, 32674, 10000)
-                .window(List(500, 1000, 10000), Alignment.END)
+                .window(Array(500L, 1000L, 10000L), Alignment.END)
                 .execute(EdgeList())
                 .writeTo(sink, "EdgeList")
             jobId = queryProgressTracker.getJobId

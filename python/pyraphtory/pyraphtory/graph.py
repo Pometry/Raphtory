@@ -3,7 +3,7 @@ from pyraphtory.input import Properties,ImmutableString,Type
 from pyraphtory.scala.implicits.bounded import Bounded
 import pandas as pd
 import json
-
+from jpype.types import *
 
 class ProgressTracker(GenericScalaProxy):
     _classname = "com.raphtory.api.querytracker.QueryProgressTracker"
@@ -26,7 +26,8 @@ class Table(GenericScalaProxy):
             if(window!=None):
                 columns=('timestamp', 'window', *cols)
                 for r in res.rows():
-                    rows.append((timestamp, window, *r.get_values()))
+                    window_size=window.get().size()
+                    rows.append((timestamp,window_size, *r.get_values()))
             else:
                 columns=('timestamp', *cols)
                 for r in res.rows():
@@ -103,6 +104,23 @@ class DeployedTemporalGraph(TemporalGraph):
     def __exit__(self, exc_type, exc_val, exc_tb):
         logger.debug("Graph closed using context manager")
         self.close()
+
+class DeployedTemporalGraph(TemporalGraph):
+    _classname = "com.raphtory.api.analysis.graphview.PyDeployedTemporalGraph"
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        logger.debug("Graph closed using context manager")
+        self.close()
+
+@register(name="DottedGraph")
+class DottedGraph(ScalaClassProxy):
+    _classname = "com.raphtory.api.analysis.graphview.DottedGraph"
+
+    def window(self,sizes,alignment=None):
+        return super().window(JLong[:](sizes),alignment)
 
 @register(name="Accumulator")
 class Accumulator(GenericScalaProxy):

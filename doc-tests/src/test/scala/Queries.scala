@@ -48,7 +48,7 @@ class Queries extends CatsEffectSuite {
     // [depart-window]
     graph
       .depart("2020-01-01", "1 day") // departing from Jan 1, 2020 with steps of one day
-      .window("1 day")               // creates a window of one day for each increment
+      .dateWindow("1 day")               // creates a window of one day for each increment
       .execute(ConnectedComponents)
       .writeTo(output)
     // [depart-window]
@@ -57,7 +57,7 @@ class Queries extends CatsEffectSuite {
     graph
       .slice("2020-01-01", "2021-01-01")
       .walk("1 day")
-      .window("1 week", Alignment.START)
+      .dateWindow("1 week", Alignment.START)
       .execute(ConnectedComponents)
       .writeTo(output)
     // [walk-window]

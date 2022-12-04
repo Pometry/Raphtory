@@ -49,7 +49,7 @@ trait LocalRunner { self: RaphtoryApp =>
       //      graph.load(source)
 
       // Get simple metrics
-      val tracker = graph
+      graph
         .execute(Degree())
         .writeTo(FileSink("/tmp/raphtory"))
         .waitForJob()

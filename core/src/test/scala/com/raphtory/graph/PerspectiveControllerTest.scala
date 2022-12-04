@@ -17,7 +17,7 @@ class PerspectiveControllerTest extends FunSuite {
             timelineStart = Long.MinValue,
             timelineEnd = Long.MaxValue,
             points = NullPointSet,
-            windows = Nil,
+            windows = Array.empty,
             windowAlignment = Alignment.START
     )
 
@@ -32,7 +32,7 @@ class PerspectiveControllerTest extends FunSuite {
             timelineStart = Long.MaxValue,
             timelineEnd = Long.MinValue,
             points = NullPointSet,
-            windows = Nil,
+            windows = Array.empty,
             windowAlignment = Alignment.START
     )
 
@@ -47,7 +47,7 @@ class PerspectiveControllerTest extends FunSuite {
             timelineStart = 5,
             timelineEnd = 5000,
             points = NullPointSet,
-            windows = Nil,
+            windows = Array.empty,
             windowAlignment = Alignment.START
     )
 
@@ -66,7 +66,7 @@ class PerspectiveControllerTest extends FunSuite {
             timelineStart = start,
             timelineEnd = end,
             points = PointPath(increment),
-            windows = List(increment),
+            windows = Array(increment),
             windowAlignment = Alignment.START
     )
     val controller       = PerspectiveController(0, Long.MaxValue, query)

@@ -21,7 +21,7 @@ private[raphtory] case class Query(
     points: PointSet = NullPointSet,
     timelineStart: Long = Long.MinValue,         // inclusive
     timelineEnd: Long = Long.MaxValue,           // inclusive
-    windows: List[Interval] = List(),
+    windows: Array[Interval] = Array(),
     windowAlignment: Alignment.Value = Alignment.START,
     operations: List[Operation] = List(),
     earliestSeen: Long = Long.MaxValue,

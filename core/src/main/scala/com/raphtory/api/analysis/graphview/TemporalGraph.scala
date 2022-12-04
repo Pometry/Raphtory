@@ -52,13 +52,13 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   /** Creates a new `TemporalGraph` which includes all activity after startTime (inclusive).
     * @param startTime time interpreted in milliseconds by default
     */
-  def from(startTime: Long): G = {
+  def startingFrom(startTime: Long): G = {
     val updatedStart = query.timelineStart max startTime
     newGraph(query.copy(timelineStart = updatedStart), querySender)
   }
 
   /** Creates a new `TemporalGraph` which includes all activity after startTime (inclusive). */
-  def from(startTime: String): G = from(parseDateTime(startTime))
+  def startingFrom(startTime: String): G = startingFrom(parseDateTime(startTime))
 
   /** Creates a new `TemporalGraph` which includes all activity before endTime (inclusive).
     * @param endTime time interpreted in milliseconds by default
@@ -82,7 +82,7 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   /** Creates a new `TemporalGraph` which includes all activity between `startTime` (inclusive) and `endTime` (exclusive)
     * `graph.slice(startTime, endTime)` is equivalent to `graph.from(startTime).until(endTime)`
     */
-  def slice(startTime: Long, endTime: Long): G = this from startTime until endTime
+  def slice(startTime: Long, endTime: Long): G = this startingFrom startTime until endTime
 
   /** Creates a new `TemporalGraph` which includes all activity between `startTime` (inclusive) and `endTime` (exclusive)
     * `graph.slice(startTime, endTime)` is equivalent to `graph.from(startTime).until(endTime)`.
