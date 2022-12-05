@@ -20,6 +20,7 @@ import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExV
 import com.typesafe.config.Config
 
 import java.lang
+import java.time.{Duration, LocalDateTime}
 import java.util.concurrent.atomic.LongAccumulator
 import scala.collection.AbstractView
 import scala.collection.View
@@ -343,8 +344,35 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   private def addRemoteEdgeInternal(msgTime: Long, srcId: Long, dst: Vertex, properties: Properties): Unit =
     addRemoteIncomingEdge(srcId, dst, msgTime, properties)
 
-  private def getIncomingEdge(srcId: Long, dst: Vertex): Option[Edge] =
-    dst.incomingEdges.find(e => e.getSrcVertex == srcId && e.isSrcGlobal)
+  private def getIncomingEdge(srcId: Long, dst: Vertex): Option[Edge] = {
+    val iter0 = dst.getIncomingEdges
+    while (iter0.hasNext) {
+      iter0.next()
+      if (iter0.getSrcVertexId == srcId && !iter0.isSrcVertexLocal) {
+       return Some(iter0.getEdge)
+      }
+    }
+    None
+
+
+//    var c = 0
+//    var e0: Edge = null
+//    val iter = dst.incomingEdges.iterator
+//    val begin = LocalDateTime.now()
+//    while (e0 == null && iter.hasNext) {
+//      val e = iter.next()
+//      if (e.getSrcVertex == srcId && e.isSrcGlobal) {
+//        e0 = e
+//      }
+//      c+=1
+//    }
+//    if (c > 100) {
+//      val end = LocalDateTime.now()
+//      println(s"Incoming edge iterated over ${c} edges took ${Duration.between(begin, end).toMillis}ms")
+//    }
+//    Option(e0)
+//    dst.incomingEdges.find(e => e.getSrcVertex == srcId && e.isSrcGlobal)
+  }
 
   override def getVertices(graphPerspective: LensInterface, start: Long, end: Long): mutable.Map[Long, PojoExVertex] =
     ???

@@ -56,8 +56,9 @@ final case class ArrowGraphLens(
       .map(new ArrowExVertex(graphState, _))
 
   override def parAggregate[B](init: B)(mapper: Vertex => B)(acc: (B, B) => B): B = {
-    val mtIterator = new VertexIterator.MTWindowedVertexManager
-    mtIterator.init(par.par.getVertexMgr, RaphtoryThreadPool.THREAD_POOL, start, end)
+    val begin = LocalDateTime.now()
+
+    val mtIterator = par.par.getNewMTWindowedVertexManager(RaphtoryThreadPool.THREAD_POOL, start, end);
 
     val topB = new AtomicReference[B](init)
 
@@ -66,24 +67,27 @@ final case class ArrowGraphLens(
 
       var localB = init
       val start  = LocalDateTime.now()
-      println(s"$pid STARTING PROCESSING AT $start")
+//      println(s"$pid STARTING PROCESSING AT $start")
 
       while (iter.hasNext) {
         iter.next()
-//        val v    = iter.getVertex
-        val arrV = new ArrowExVertexIter(graphState, iter) //new ArrowExVertex(graphState, v)
+        val arrV = new ArrowExVertexIter(graphState, iter)
 
         val b = mapper(arrV)
         localB = acc(localB, b)
       }
 
       val end = LocalDateTime.now()
-      println(s"$pid ENDING PROCESSING AT $end took ${Duration.between(start, end).toMillis}ms processed $localB items")
+//      println(s"$pid ENDING PROCESSING AT $end took ${Duration.between(start, end).toMillis}ms processed $localB items")
       topB.accumulateAndGet(localB, (b1, b2) => acc(b1, b2))
     }
 
     mtIterator.waitTilComplete()
 
+    val stop = LocalDateTime.now()
+
+
+//    println(s"JOB DONE ${Duration.between(begin, stop).toSeconds}s")
     topB.get()
   }
 }

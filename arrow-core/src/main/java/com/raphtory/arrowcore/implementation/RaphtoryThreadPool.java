@@ -7,6 +7,8 @@
 
 package com.raphtory.arrowcore.implementation;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.ArrayList;
 import java.util.concurrent.*;
 
@@ -18,23 +20,31 @@ public class RaphtoryThreadPool {
     // Global instance that can be used if there are no specific threading requirements
     public static RaphtoryThreadPool THREAD_POOL = new RaphtoryThreadPool(Runtime.getRuntime().availableProcessors(), Integer.MAX_VALUE);
 
+
     private final ThreadPoolExecutor _threadPool;
 
 
     public RaphtoryThreadPool(int nThreads, int qLength) {
-        if (qLength==Integer.MAX_VALUE) {
-            _threadPool = new ThreadPoolExecutor(nThreads, nThreads, Long.MAX_VALUE, TimeUnit.SECONDS, new LinkedBlockingQueue<>(Integer.MAX_VALUE));
-        }
-        else {
+        if (qLength == Integer.MAX_VALUE) {
+            _threadPool = new ThreadPoolExecutor(nThreads, nThreads, 5L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(Integer.MAX_VALUE), new ThreadFactory() {
+                @Override
+                public Thread newThread(@NotNull Runnable r) {
+                    Thread t = new Thread(r);
+                    t.setDaemon(true);
+                    return t;
+                }
+            });
+            System.out.println(_threadPool);
+        } else {
             // TODO: Make this use a fixed-size circular queue
-            _threadPool = new ThreadPoolExecutor(nThreads, nThreads, Long.MAX_VALUE, TimeUnit.SECONDS, new LinkedBlockingQueue(qLength) {
+            _threadPool = new ThreadPoolExecutor(nThreads, nThreads, 5L, TimeUnit.SECONDS, new LinkedBlockingQueue(qLength) {
                 @Override
                 public boolean offer(Object e) {
                     // turn offer() and add() into a blocking calls (unless interrupted)
                     try {
                         put(e);
                         return true;
-                    } catch(InterruptedException ie) {
+                    } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                     }
                     return false;
@@ -55,7 +65,9 @@ public class RaphtoryThreadPool {
     }
 
 
-    public boolean isIdle() { return _threadPool.getActiveCount()==0; }
+    public boolean isIdle() {
+        return _threadPool.getActiveCount() == 0;
+    }
 
 
     /**
@@ -66,8 +78,7 @@ public class RaphtoryThreadPool {
     public void waitTilComplete(Future<?> task) {
         try {
             task.get();
-        }
-        catch (ExecutionException | InterruptedException ee) {
+        } catch (ExecutionException | InterruptedException ee) {
             System.err.println("Exception: " + ee);
             ee.printStackTrace(System.err);
             cancel(task);
@@ -87,8 +98,7 @@ public class RaphtoryThreadPool {
                 //System.err.println("Waiting for: " + i);
                 tasks.get(i).get();
             }
-        }
-        catch (ExecutionException | InterruptedException ee) {
+        } catch (ExecutionException | InterruptedException ee) {
             System.err.println("Exception: " + ee);
             ee.printStackTrace(System.err);
             cancel(tasks);
@@ -104,8 +114,7 @@ public class RaphtoryThreadPool {
     public void cancel(Future<?> task) {
         try {
             task.cancel(true);
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             // IGNORED
         }
     }
@@ -118,11 +127,10 @@ public class RaphtoryThreadPool {
      */
     public void cancel(ArrayList<Future<?>> tasks) {
         int n = tasks.size();
-        for (int i=0; i<n; ++i) {
+        for (int i = 0; i < n; ++i) {
             try {
                 tasks.get(i).cancel(true);
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 // IGNORED
             }
         }
