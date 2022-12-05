@@ -76,7 +76,7 @@ lazy val root = (project in file("."))
           defaultSettings
   )
   .enablePlugins(OsDetectorPlugin)
-//  .enablePlugins(NoPublishPlugin)
+  .enablePlugins(NoPublishPlugin)
   .aggregate(
           arrowMessaging,
           arrowCore,
