@@ -15,6 +15,8 @@ ThisBuild / organizationHomepage := Some(url("https://raphtory.readthedocs.io/")
 sonatypeCredentialHost := "s01.oss.sonatype.org"
 sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 
+credentials += Credentials(Path.userHome / ".sbt" / ".credentials")
+
 ThisBuild / scmInfo := Some(
         ScmInfo(
                 url("https://github.com/Raphtory/Raphtory"),
