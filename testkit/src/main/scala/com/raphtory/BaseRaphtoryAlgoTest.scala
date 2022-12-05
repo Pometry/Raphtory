@@ -23,7 +23,8 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   var jobId: String           = ""
-  val outputDirectory: String = "/pometry/Source/Raphtory/it/target/docker"
+//  val outputDirectory: String = "/pometry/Source/Raphtory/it/target/docker"
+  val outputDirectory: String = "/tmp/raphtoryTest"
   def defaultSink: Sink       = FileSink("/tmp/raphtoryTest")
 
   def liftFileIfNotPresent: Option[(String, URL)] = None
