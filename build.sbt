@@ -87,8 +87,7 @@ lazy val root = (project in file("."))
           examplesTwitter,
           examplesNFT,
           deploy,
-          it,
-          docTests
+          it
   )
 
 lazy val arrowMessaging =
@@ -309,11 +308,6 @@ lazy val testkit =
     .configs(IntegrationTest)
     .dependsOn(core)
     .settings(Defaults.itSettings, defaultSettings)
-
-lazy val docTests =
-  (project in file("doc-tests"))
-    .dependsOn(core % "compile->compile;test->test", examplesLotr)
-    .settings(assemblySettings)
 
 // SETTINGS
 
