@@ -42,6 +42,7 @@ object AdjPlus extends Generic {
   override def apply(graph: GraphPerspective): graph.Graph =
     graph.step(vertex => vertex.messageAllNeighbours((vertex.ID, vertex.degree))).step { vertex =>
       import vertex._ // make ClassTag and Ordering for IDType available
+      println(s"DEG ${vertex.ID} ${vertex.degree} ")
       val degree = vertex.degree
       //        Find set of neighbours with higher degree
       val adj    = vertex
@@ -50,6 +51,8 @@ object AdjPlus extends Generic {
         .sortBy(m => (m._2, m._1))
         .map(message => message._1)
         .toArray[vertex.IDType]
+
+      println(s"${vertex.ID} -> ${adj.toVector}")
       vertex.setState("adjPlus", adj)
       vertex.setState("name", vertex.name())
     }
