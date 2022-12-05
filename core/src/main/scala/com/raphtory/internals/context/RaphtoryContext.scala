@@ -136,6 +136,11 @@ object RaphtoryIOContext {
       .standalone[IO](defaultConf)
       .evalMap(service => IO(new RaphtoryContext(Resource.pure(service), defaultConf)))
 
+  def localArrowIO[V:VertexSchema, E:EdgeSchema]() =
+    RaphtoryServiceBuilder
+      .arrowStandalone[V, E, IO](defaultConf)
+      .evalMap(service => IO(new RaphtoryContext(Resource.pure(service), defaultConf)))
+
   def remoteIO(host: String = deployInterface, port: Int = deployPort): Resource[IO, RaphtoryContext] = {
     val config =
       ConfigBuilder()

@@ -3,6 +3,7 @@ package com.raphtory.internals.storage.arrow
 case class VertexProp(
                        age: Long,
                        @immutable name: String,
+                       weight: Long,
                        @immutable address_chain: String,
                        @immutable transaction_hash: String
                      )

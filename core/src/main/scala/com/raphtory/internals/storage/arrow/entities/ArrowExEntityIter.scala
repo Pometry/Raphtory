@@ -1,9 +1,9 @@
 package com.raphtory.internals.storage.arrow.entities
 
 import com.raphtory.api.analysis.visitor.{EntityVisitor, HistoricEvent, PropertyValue}
-import com.raphtory.arrowcore.implementation.{EdgeIterator, VertexIterator}
+import com.raphtory.arrowcore.implementation.VertexIterator
 import com.raphtory.arrowcore.model.{Edge => ArrEdge, Vertex => ArrVertex}
-import com.raphtory.internals.storage.arrow.{ArrowEntityStateRepository, ArrowPartition, Field, Prop, PropAccess, RichEdge, RichVertex}
+import com.raphtory.internals.storage.arrow.{ArrowEntityStateRepository, ArrowPartition, Field, Prop, PropAccess, RichEdge, RichVIter, RichVertex}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.reflect.ClassTag
@@ -76,6 +76,25 @@ trait ArrowExEntityIter extends EntityVisitor {
     */
   override def getPropertyHistory[T](key: String, after: Long, before: Long): Option[Iterable[PropertyValue[T]]] =
     this match {
+      case vIter: ArrowExVertexIter =>
+        if (!isField(key)) {
+          implicit val PROP: Prop[T] = Prop.runtime[T](null)
+          historyProps(vIter.vertexIter.prop[T](key), after, before)
+        } else {
+          implicit val FIELD: Field[T] = com.raphtory.internals.storage.arrow.Field.runtime[T]
+          vIter.vertexIter
+            .field[T](key)
+            .get
+            .map(value =>
+              List(
+                      PropertyValue(
+                              vIter.vertexIter.getCreationTime,
+                              vIter.vertexIter.getCreationTime,
+                              value
+                      )
+              )
+            )
+        }
       case vertex: ArrowExVertex =>
         if (!isField(key)) {
           implicit val PROP: Prop[T] = Prop.runtime[T](vertex.entity)
@@ -98,7 +117,7 @@ trait ArrowExEntityIter extends EntityVisitor {
             )
 
         }
-      case edge: ArrowExEdge     =>
+      case edge: ArrowExEdge =>
         if (!isField(key)) {
           implicit val PROP: Prop[T] = Prop.runtime[T](edge.entity)
           val arrE                   = edge.entity.asInstanceOf[ArrEdge]

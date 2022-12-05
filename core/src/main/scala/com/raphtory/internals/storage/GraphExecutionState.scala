@@ -107,8 +107,9 @@ class GraphExecutionState(
   override def removeVertex(vertexId: Long): Unit =
     newFilteredVertices.synchronized(newFilteredVertices.addOne(vertexId))
 
-  override def sendMessage(msg: GenericVertexMessage[_]): Unit =
+  override def sendMessage(msg: GenericVertexMessage[_]): Unit = {
     messageSender(msg)
+  }
 
   override def superStep: Int = superStep0.get
 
@@ -126,8 +127,8 @@ class GraphExecutionState(
   override def vertexVoted(): Unit = votingMachine.vote()
 
   override def isEdgeAlive(sourceId: Long, vertexId: Long): Boolean =
-    !filteredOutEdges.get(sourceId).exists(removed => removed(vertexId)) &&
-      !filteredInEdges.get(vertexId).exists(removed => removed(sourceId))
+    !filteredOutEdges.getOrElse(sourceId, mutable.Set.empty[Long])(vertexId) && !filteredInEdges
+      .getOrElse(vertexId, mutable.Set.empty[Long])(sourceId)
 
   override def deletedOutEdges(ID: Long): Int = filteredOutEdges.getOrElse(ID, mutable.Set.empty[Long]).size
 
