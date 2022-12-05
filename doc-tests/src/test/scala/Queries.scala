@@ -28,14 +28,11 @@ class Queries extends CatsEffectSuite {
     val pathToYourFile = "/tmp/doc-queries-example-sink"
 
     // [everything]
-    graph
-      .execute(DegreesSeparation())
-      .writeTo(output)
+
     // [everything]
 
     // [sentence-filtering]
-    val first1000sentences      = graph.until(1000)
-    val sentencesFrom4000To5000 = graph.slice(4000, 5000)
+
     // [sentence-filtering]
 
     // [year-slice]

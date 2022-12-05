@@ -9,7 +9,7 @@ import scala.concurrent.duration.FiniteDuration
 
 private[raphtory] class Scheduler {
   //FIXME: wipe this class out as we move to cats-effect
-  private val threads: Int = 1 // Used to be 16
+  private val threads: Int = 1 // CHANGE ME HERE :)
 
   implicit val runtime = IORuntime.global
 

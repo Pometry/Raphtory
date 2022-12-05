@@ -68,7 +68,7 @@ class DottedGraph[G <: FixedGraph[G]] private[api] (
     * @param sizes the exact sizes of the windows
     * @return A modified Raphtory graph with the window sizes
     */
-  def window(sizes: Array[Long]): G =
+  def window(sizes: Iterable[Long]): G =
     window(sizes, Alignment.END)
 
   /** Create a number of windows with the given sizes and given alignment at every temporal epoch.
@@ -77,8 +77,8 @@ class DottedGraph[G <: FixedGraph[G]] private[api] (
     * @param alignment the alignment of the windows
     * @return A modified Raphtory graph with the window sizes and given alignment
     */
-  def window(sizes: Array[Long], alignment: Alignment.Value): G =
-    addWindows(sizes map DiscreteInterval, alignment)
+  def window(sizes: Iterable[Long], alignment: Alignment.Value): G =
+    addWindows(sizes.map(DiscreteInterval).toArray, alignment)
 
   //****** STRING BASED WINDOWING ***********
 
@@ -105,7 +105,7 @@ class DottedGraph[G <: FixedGraph[G]] private[api] (
     * @param sizes the exact sizes of the windows
     * @return A modified Raphtory graph with the window sizes
     */
-  def dateWindow(sizes: Array[String]): G =
+  def dateWindow(sizes: Iterable[String]): G =
     dateWindow(sizes, Alignment.END)
 
   /** Create a number of windows with the given sizes and given alignment at every temporal epoch.
@@ -114,8 +114,8 @@ class DottedGraph[G <: FixedGraph[G]] private[api] (
     * @param alignment the alignment of the windows
     * @return A modified Raphtory graph with the window sizes and given alignment
     */
-  def dateWindow(sizes: Array[String], alignment: Alignment.Value): G =
-    addWindows(sizes map parseInterval, alignment)
+  def dateWindow(sizes: Iterable[String], alignment: Alignment.Value): G =
+    addWindows(sizes.map(parseInterval).toArray, alignment)
 
   /** For each temporal epoch create a window starting from the current point and include all older events
     */

@@ -115,12 +115,12 @@ class DeployedTemporalGraph(TemporalGraph):
         logger.debug("Graph closed using context manager")
         self.close()
 
-@register(name="DottedGraph")
-class DottedGraph(ScalaClassProxy):
-    _classname = "com.raphtory.api.analysis.graphview.DottedGraph"
+#@register(name="DottedGraph")
+#class DottedGraph(ScalaClassProxy):
+#    _classname = "com.raphtory.api.analysis.graphview.DottedGraph"
 
-    def window(self,sizes,alignment=None):
-        return super().window(JLong[:](sizes),alignment)
+#    def window(self,sizes,alignment=None):
+#        return super().window(JLong[:](sizes),alignment)
 
 @register(name="Accumulator")
 class Accumulator(GenericScalaProxy):
