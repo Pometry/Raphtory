@@ -11,8 +11,8 @@ RUN mkdir -p /raphtory/jars
 RUN mkdir -p /raphtory/bin
 RUN mkdir -p /raphtory/data
 RUN mkdir -p /tmp
-COPY $DEP_JAR_PATH/* /raphtory/jars/
-COPY $CORE_JAR_PATH/* /raphtory/jars/
+COPY $DEP_JAR_PATH/ /raphtory/jars/
+COPY $CORE_JAR_PATH/ /raphtory/jars/
 COPY bin/docker/raphtory/bin /raphtory/bin
 
 CMD /raphtory/bin/entrypoint-gh.sh
