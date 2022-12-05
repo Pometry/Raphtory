@@ -58,3 +58,9 @@ Alternatively, hit next and lets get Raphtory :doc:`installed <Install/python/py
    Analysis/analysis-explained.md
    scala/apidocs.md
 
+.. toctree::
+   :hidden:
+   :maxdepth: 1
+   :caption: Deployment
+
+   Deployment/server.md
