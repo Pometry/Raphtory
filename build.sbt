@@ -38,7 +38,7 @@ ThisBuild / homepage := Some(url("https://github.com/Raphtory/Raphtory"))
 
 // Remove all additional repository other than Maven Central from POM
 ThisBuild / pomIncludeRepository.withRank(KeyRanks.Invisible) := { _ => false }
-ThisBuild / publishTo := {
+publishTo := {
   val nexus = "https://s01.oss.sonatype.org/"
   if (isSnapshot.value) Some("snapshots" at nexus + "content/repositories/snapshots")
   else Some("releases" at nexus + "service/local/staging/deploy/maven2")
@@ -50,6 +50,7 @@ ThisBuild / scalacOptions += "-language:higherKinds"
 
 ThisBuild / releaseProcess := Seq[ReleaseStep](publishArtifacts)
 releasePublishArtifactsAction := PgpKeys.publishSigned.value
+
 
 //def on[A](major: Int, minor: Int)(a: A): Def.Initialize[Seq[A]] =
 //  Def.setting {
