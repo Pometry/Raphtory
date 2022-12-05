@@ -42,14 +42,16 @@ class DottedGraph[G <: FixedGraph[G]] private[api] (
   implicit val ignoreInt: Int       = 1
   implicit val ignoreString: String = ""
 
+  //****** LONG BASED WINDOWING ***********
+
   /**  Creates a window from the given size starting via every temporal epoch
-    *  The start of the window is inclusive and the end exclusive
+    *  By default the window looks into the past (Alignment.END)
     *
     *  @param size the exact size of the window
     *  @return A modified Raphtory graph with the window size
     */
   def window(size: Long): G =
-    window(size, Alignment.START)
+    window(size, Alignment.END)
 
   /** Creates a window from the given size and alignment from every temporal epoch
     *
@@ -58,15 +60,35 @@ class DottedGraph[G <: FixedGraph[G]] private[api] (
     *  @return A modified Raphtory graph with the window size and alignment
     */
   def window(size: Long, alignment: Alignment.Value): G =
-    addWindows(List(DiscreteInterval(size)), alignment)
+    addWindows(Array(DiscreteInterval(size)), alignment)
+
+  /** Create a number of windows with the given sizes at every temporal epoch.
+    * By default the window looks into the past (Alignment.END)
+    *
+    * @param sizes the exact sizes of the windows
+    * @return A modified Raphtory graph with the window sizes
+    */
+  def window(sizes: Iterable[Long]): G =
+    window(sizes, Alignment.END)
+
+  /** Create a number of windows with the given sizes and given alignment at every temporal epoch.
+    *
+    * @param sizes the exact sizes of the windows
+    * @param alignment the alignment of the windows
+    * @return A modified Raphtory graph with the window sizes and given alignment
+    */
+  def window(sizes: Iterable[Long], alignment: Alignment.Value): G =
+    addWindows(sizes.map(DiscreteInterval).toArray, alignment)
+
+  //****** STRING BASED WINDOWING ***********
 
   /**  Creates a window from the given size at every temporal epoch.
-    *  The start of the window is inclusive and the end exclusive.
+    *  By default the window looks into the past (Alignment.END)
     *
     *  @param size the exact size of the window
     *  @return A modified Raphtory graph with the window size
     */
-  def window(size: String): G = window(size, Alignment.START)
+  def dateWindow(size: String): G = dateWindow(size, Alignment.END)
 
   /** Creates a window from the given size and alignment at every temporal epoch.
     *
@@ -74,17 +96,17 @@ class DottedGraph[G <: FixedGraph[G]] private[api] (
     *  @param alignment the alignment of the window
     *  @return A modified Raphtory graph with the window size and alignment
     */
-  def window(size: String, alignment: Alignment.Value): G =
-    addWindows(List(parseInterval(size)), alignment)
+  def dateWindow(size: String, alignment: Alignment.Value): G =
+    addWindows(Array(parseInterval(size)), alignment)
 
   /** Create a number of windows with the given sizes at every temporal epoch.
-    * The start of the window is inclusive and the end exclusive.
+    * By default the window looks into the past (Alignment.END)
     *
     * @param sizes the exact sizes of the windows
     * @return A modified Raphtory graph with the window sizes
     */
-  def window(sizes: List[Int]): G =
-    window(sizes, Alignment.START)
+  def dateWindow(sizes: Iterable[String]): G =
+    dateWindow(sizes, Alignment.END)
 
   /** Create a number of windows with the given sizes and given alignment at every temporal epoch.
     *
@@ -92,58 +114,18 @@ class DottedGraph[G <: FixedGraph[G]] private[api] (
     * @param alignment the alignment of the windows
     * @return A modified Raphtory graph with the window sizes and given alignment
     */
-  def window(sizes: List[Int], alignment: Alignment.Value): G =
-    addWindows(sizes map (DiscreteInterval(_)), alignment)
-
-  /** Create a number of windows with the given sizes at every temporal epoch.
-    * The start of the window is inclusive and the end exclusive.
-    *
-    * @param sizes the exact sizes of the windows
-    * @return A modified Raphtory graph with the window sizes
-    */
-  def window(sizes: List[Long])(implicit ignore: DummyImplicit): G =
-    window(sizes, Alignment.START)
-
-  /** Create a number of windows with the given sizes and given alignment at every temporal epoch.
-    *
-    * @param sizes the exact sizes of the windows
-    * @param alignment the alignment of the windows
-    * @return A modified Raphtory graph with the window sizes and given alignment
-    */
-  def window(sizes: List[Long], alignment: Alignment.Value)(implicit
-      ignore: DummyImplicit
-  ): G =
-    addWindows(sizes map DiscreteInterval, alignment)
-
-  /** Create a number of windows with the given sizes at every temporal epoch.
-    * The start of the window is inclusive and the end exclusive.
-    *
-    * @param sizes the exact sizes of the windows
-    * @return A modified Raphtory graph with the window sizes
-    */
-  def window(sizes: List[String])(implicit ignore: ClassTag[String]): G =
-    window(sizes, Alignment.START)
-
-  /** Create a number of windows with the given sizes and given alignment at every temporal epoch.
-    *
-    * @param sizes the exact sizes of the windows
-    * @param alignment the alignment of the windows
-    * @return A modified Raphtory graph with the window sizes and given alignment
-    */
-  def window(sizes: List[String], alignment: Alignment.Value)(implicit
-      ignore: ClassTag[String]
-  ): G =
-    addWindows(sizes map parseInterval, alignment)
+  def dateWindow(sizes: Iterable[String], alignment: Alignment.Value): G =
+    addWindows(sizes.map(parseInterval).toArray, alignment)
 
   /** For each temporal epoch create a window starting from the current point and include all older events
     */
-  def past(): G = addWindows(List(), Alignment.END)
+  def past(): G = addWindows(Array(), Alignment.END)
 
   /** For each temporal epoch create a window starting from the current point and include all newer events
     */
-  def future(): G = addWindows(List(), Alignment.START)
+  def future(): G = addWindows(Array(), Alignment.START)
 
-  private def addWindows(sizes: List[Interval], alignment: Alignment.Value = Alignment.START) =
+  private def addWindows(sizes: Array[Interval], alignment: Alignment.Value = Alignment.END) =
     graph.newGraph(
             graph.query.copy(windows = sizes, windowAlignment = alignment),
             graph.querySender

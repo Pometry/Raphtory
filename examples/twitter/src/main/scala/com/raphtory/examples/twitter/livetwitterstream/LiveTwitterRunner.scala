@@ -32,7 +32,7 @@ object LiveTwitterRunner extends RaphtoryApp.Local {
 
       graph
         .walk("10 milliseconds")
-        .window("10 milliseconds")
+        .dateWindow("10 milliseconds")
         .execute(EdgeList())
         .writeTo(output)
         .waitForJob()
