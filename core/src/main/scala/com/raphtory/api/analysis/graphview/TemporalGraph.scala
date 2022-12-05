@@ -52,13 +52,13 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   /** Creates a new `TemporalGraph` which includes all activity after startTime (inclusive).
     * @param startTime time interpreted in milliseconds by default
     */
-  def from(startTime: Long): G = {
+  def startingFrom(startTime: Long): G = {
     val updatedStart = query.timelineStart max startTime
     newGraph(query.copy(timelineStart = updatedStart), querySender)
   }
 
   /** Creates a new `TemporalGraph` which includes all activity after startTime (inclusive). */
-  def from(startTime: String): G = from(parseDateTime(startTime))
+  def startingFrom(startTime: String): G = startingFrom(parseDateTime(startTime))
 
   /** Creates a new `TemporalGraph` which includes all activity before endTime (inclusive).
     * @param endTime time interpreted in milliseconds by default
@@ -82,7 +82,7 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   /** Creates a new `TemporalGraph` which includes all activity between `startTime` (inclusive) and `endTime` (exclusive)
     * `graph.slice(startTime, endTime)` is equivalent to `graph.from(startTime).until(endTime)`
     */
-  def slice(startTime: Long, endTime: Long): G = this from startTime until endTime
+  def slice(startTime: Long, endTime: Long): G = this startingFrom startTime until endTime
 
   /** Creates a new `TemporalGraph` which includes all activity between `startTime` (inclusive) and `endTime` (exclusive)
     * `graph.slice(startTime, endTime)` is equivalent to `graph.from(startTime).until(endTime)`.
@@ -107,27 +107,12 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
     */
   def walk(increment: Long): DottedGraph[FixedG] = setPointPath(DiscreteInterval(increment))
 
-  /** Create a `DottedGraph` with a sequence of temporal epochs with a separation of `increment`
-    * covering all the timeline aligned with `offset`.
-    * @param increment the step size
-    * @param offset the offset to align with
-    */
-  def walk(increment: Long, offset: Long): DottedGraph[FixedG] =
-    setPointPath(DiscreteInterval(increment), offset = DiscreteInterval(offset))
-
-  /** Create a `DottedGraph` with a sequence of temporal epochs with a separation of `increment` covering all the
-    * timeline aligned with 0.
-    * @param increment the step size
-    */
-  def walk(increment: String): DottedGraph[FixedG] = setPointPath(parseInterval(increment))
-
-  /** Create a `DottedGraph` with a sequence of temporal epochs with a separation of `increment` covering all the timeline aligned with `offset`.
+  /** Create a `DottedGraph` with a sequence of temporal epochs with a separation of `increment` covering the whole timeline.
     * These epochs get generated until the end of the current timeline.
     * @param increment the interval to use as the step size
-    * @param offset the interval to expressing the offset from the epoch to align with
     */
-  def walk(increment: String, offset: String): DottedGraph[FixedG] =
-    setPointPath(parseInterval(increment), offset = parseInterval(offset))
+  def walk(increment: String): DottedGraph[FixedG] =
+    setPointPath(parseInterval(increment))
 
   /** Create a DottedGraph with a sequence of temporal epochs with a separation of `increment` starting at `start`.
     * These epochs get generated until the end of the available timeline.
@@ -179,15 +164,10 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
             end = Some(parseDateTime(end))
     )
 
-  private def setPointPath(
-      increment: Interval,
-      start: Option[Long] = None,
-      end: Option[Long] = None,
-      offset: Interval = NullInterval
-  ) =
+  private def setPointPath(increment: Interval, start: Option[Long] = None, end: Option[Long] = None) =
     new DottedGraph(
             newFixedGraph(
-                    query.copy(points = PointPath(increment, start, end, offset)),
+                    query.copy(points = PointPath(increment, start, end)),
                     querySender
             )
     )

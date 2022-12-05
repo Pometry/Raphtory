@@ -6,7 +6,7 @@ on:
 jobs:
   configure:
     name: Configure
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     outputs:
       date: ${{ steps.configure.outputs.date }}
       type: ${{ steps.configure.outputs.type }}
@@ -32,7 +32,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runners: [ubuntu-latest]
+        runners: ['ubuntu-20.04']
         containers: ["eclipse-temurin:11.0.12_7-jdk"]
         python-version: ["3.9"]
         sbt: [1.6.2]
@@ -60,8 +60,7 @@ jobs:
           export JAVA_OPTS="-Xms4g -Xmx4g -XX:+UseG1GC"
           export PATH=$(pwd)/sbt/bin:$PATH
           export RAPHTORY_CORE_LOG="ERROR"
-          sbt "arrowCore/test"
-          sbt "core/test"
+          sbt "test;it:test"
         timeout-minutes: 10
       - name: Build Raphtory Jars
         run: |
