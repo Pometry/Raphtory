@@ -502,6 +502,7 @@ object ArrowPartition {
       val acc = iter.next()
       P.get(acc).map(p => p -> acc.getCreationTime)
     }
+  }
 
     class VertexIterator(vs: com.raphtory.arrowcore.implementation.VertexIterator) extends Iterator[Vertex] {
 
@@ -556,5 +557,4 @@ object ArrowPartition {
 
       new ArrowPartition(graphId, arrowConfig, arrowConfig.getRaphtoryPartitionId, config)
     }
-  }
 }
