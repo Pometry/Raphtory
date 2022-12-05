@@ -1,6 +1,6 @@
 package com.raphtory.examples.nft
 
-import com.raphtory.api.input.{Graph, GraphBuilder, LongProperty, Properties}
+import com.raphtory.api.input.{Graph, GraphBuilder, MutableLong, Properties}
 
 import scala.util.control.NonFatal
 
@@ -16,7 +16,7 @@ class AlphaBayBuilder extends GraphBuilder[String]{
 
       graph.addVertex(time, src)
       graph.addVertex(time, dst)
-      graph.addEdge(time, src, dst, Properties(LongProperty("valUSD", valUSD)))
+      graph.addEdge(time, src, dst, Properties(MutableLong("valUSD", valUSD)))
     } catch {
       case NonFatal(t) =>
         println(s"ERROR ON LINE ${tuple}")
