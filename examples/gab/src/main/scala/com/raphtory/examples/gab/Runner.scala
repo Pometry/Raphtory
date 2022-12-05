@@ -7,7 +7,6 @@ import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.input.Source
 import com.raphtory.examples.gab.graphbuilders.GabUserGraphBuilder
 import com.raphtory.internals.context.RaphtoryContext
-import com.raphtory.pulsar.sink.PulsarSink
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
@@ -34,7 +33,7 @@ object Runner extends RaphtoryApp.Remote("localhost", 1736) {
 
       graph
         .range(1470797917000L, 1476113856000L, 86400000L)
-        .window(List(3600000L, 86400000L, 604800000L, 2592000000L, 31536000000L), Alignment.END)
+        .window(Array(3600000L, 86400000L, 604800000L, 2592000000L, 31536000000L), Alignment.END)
         .execute(ConnectedComponents)
         .writeTo(FileSink("/tmp/raphtory/Gab"))
         .waitForJob()

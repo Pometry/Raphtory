@@ -6,7 +6,8 @@ import com.raphtory.api.analysis.table._
 import com.raphtory.api.input.Source
 import com.raphtory.spouts.SequenceSpout
 import com.raphtory._
-import com.raphtory.algorithms.temporal.{TemporalEdgeList, TemporalNodeList}
+import com.raphtory.algorithms.temporal.TemporalEdgeList
+import com.raphtory.algorithms.temporal.TemporalNodeList
 import com.raphtory.sources.CSVEdgeListSource
 
 import scala.util.Random
@@ -102,7 +103,7 @@ class HistoryTest extends BaseCorrectnessTest {
   }
 
   test("test exploded edge output with window") {
-    val query = TestQuery(TemporalEdgeList(), 70, List(30))
+    val query = TestQuery(TemporalEdgeList(), 70, Array(30))
     val res   = input
       .filter { e =>
         val t = e.split(",").last.toInt
@@ -113,7 +114,7 @@ class HistoryTest extends BaseCorrectnessTest {
   }
 
   test("test exploded edge output with window on undirected view") {
-    val query = TestQuery(TemporalEdgeList(), 70, List(30))
+    val query = TestQuery(TemporalEdgeList(), 70, Array(30))
     val res   = input
       .filter { e =>
         val t = e.split(",").last.toInt
@@ -124,7 +125,7 @@ class HistoryTest extends BaseCorrectnessTest {
   }
 
   test("test exploded edge output with window on reversed view") {
-    val query = TestQuery(TemporalEdgeList(), 70, List(30))
+    val query = TestQuery(TemporalEdgeList(), 70, Array(30))
     val res   = input
       .filter { e =>
         val t = e.split(",").last.toInt
@@ -136,7 +137,7 @@ class HistoryTest extends BaseCorrectnessTest {
 
   test("test windowing functionality") {
     correctnessTest(
-            TestQuery(EdgeList(), edges.size - 2, List(edges.size - 4)),
+            TestQuery(EdgeList(), edges.size - 2, Array(edges.size - 4)),
             edges
               .slice(
                       2,
@@ -156,7 +157,7 @@ class HistoryTest extends BaseCorrectnessTest {
       .distinct
       .map(e => s"${edges.size - 2},${edges.size - 4},$e")
     correctnessTest(
-            TestQuery(EdgeList(), edges.size - 2, List(edges.size - 4)),
+            TestQuery(EdgeList(), edges.size - 2, Array(edges.size - 4)),
             graph.undirectedView,
             (res ++ reverseEdgesWithWindow(res)).distinct
     )
@@ -171,7 +172,7 @@ class HistoryTest extends BaseCorrectnessTest {
       .distinct
       .map(e => s"${edges.size - 2},${edges.size - 4},$e")
     correctnessTest(
-            TestQuery(EdgeList(), edges.size - 2, List(edges.size - 4)),
+            TestQuery(EdgeList(), edges.size - 2, Array(edges.size - 4)),
             graph.reversedView,
             reverseEdgesWithWindow(res)
     )
@@ -230,7 +231,7 @@ class HistoryTest extends BaseCorrectnessTest {
       }
       .map(e => s"$timestamp,$window,$e")
     correctnessTest(
-            TestQuery(new WindowedOutEdgeHistory(after, before), timestamp, List(window)),
+            TestQuery(new WindowedOutEdgeHistory(after, before), timestamp, Array(window)),
             res
     )
   }
@@ -247,7 +248,7 @@ class HistoryTest extends BaseCorrectnessTest {
       }
       .map(e => s"$timestamp,$window,$e")
     correctnessTest(
-            TestQuery(new WindowedOutEdgeHistory(after, before), timestamp, List(window)),
+            TestQuery(new WindowedOutEdgeHistory(after, before), timestamp, Array(window)),
             graph.undirectedView,
             (res ++ reverseEdgesWithWindow(res)).distinct
     )
@@ -265,7 +266,7 @@ class HistoryTest extends BaseCorrectnessTest {
       }
       .map(e => s"$timestamp,$window,$e")
     correctnessTest(
-            TestQuery(new WindowedOutEdgeHistory(after, before), timestamp, List(window)),
+            TestQuery(new WindowedOutEdgeHistory(after, before), timestamp, Array(window)),
             graph.reversedView,
             reverseEdgesWithWindow(res)
     )
@@ -315,7 +316,7 @@ class HistoryTest extends BaseCorrectnessTest {
   }
 
   test("test temporal node-list output with window") {
-    val query = TestQuery(TemporalNodeList(), 70, List(30))
+    val query = TestQuery(TemporalNodeList(), 70, Array(30))
     val res   = input
       .filter { e =>
         val t = e.split(",").last.toInt

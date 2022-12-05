@@ -7,7 +7,8 @@ import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.input.Source
 import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceSpout
-import com.raphtory.{BaseCorrectnessTest, TestQuery}
+import com.raphtory.BaseCorrectnessTest
+import com.raphtory.TestQuery
 
 object CountNodes extends Generic {
 
@@ -82,7 +83,7 @@ class AccumulatorTest extends BaseCorrectnessTest {
             10,
             23,
             1,
-            List(10)
+            Array(10)
     ).map { res =>
       if (res.nonEmpty) {
         val t = res.split(",")

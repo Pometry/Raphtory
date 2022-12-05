@@ -1,9 +1,12 @@
 package com.raphtory.api.analysis.graphview
 
 import com.raphtory.algorithms.generic.ConnectedComponents
-import com.raphtory.api.analysis.table.{Row, TableFilter, TableImplementation}
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.TableFilter
+import com.raphtory.api.analysis.table.TableImplementation
 import com.raphtory.api.time.DiscreteInterval
-import com.raphtory.internals.components.querymanager.{PointPath, Query}
+import com.raphtory.internals.components.querymanager.PointPath
+import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.raphtory.internals.management.QuerySender
 import com.typesafe.config.Config
@@ -31,7 +34,7 @@ class RaphtoryGraphTest extends FunSuite {
   test("Test overall pipeline syntax for RaphtoryGraph class and related hierarchy") {
     val graph = createMockGraph()
     val table = graph
-      .from(100)
+      .startingFrom(100)
       .until(500)
       .walk(100)
       .window(50)
@@ -45,7 +48,7 @@ class RaphtoryGraphTest extends FunSuite {
     assertEquals(query.timelineStart, 100L)
     assertEquals(query.timelineEnd, 499L)
     assertEquals(query.points.asInstanceOf[PointPath].increment, DiscreteInterval(100))
-    assertEquals(query.windows, List(DiscreteInterval(50)))
+    assertEquals(query.windows.toList, List(DiscreteInterval(50)))
 
     assertEquals(query.operations.length, 7)
     assert(query.operations(0).isInstanceOf[Step[_]])
@@ -59,19 +62,19 @@ class RaphtoryGraphTest extends FunSuite {
 
   test("Test timestamp format without milliseconds") {
     val graph = createMockGraph()
-    val query = graph.from("2020-02-25 23:12:08").query
+    val query = graph.startingFrom("2020-02-25 23:12:08").query
     assert(query.timelineStart != Long.MinValue)
   }
 
   test("Test timestamp format with milliseconds") {
     val graph = createMockGraph()
-    val query = graph.from("2020-02-25 23:12:08.567").query
+    val query = graph.startingFrom("2020-02-25 23:12:08.567").query
     assert(query.timelineStart != Long.MinValue)
   }
 
   test("Test timestamp format with date") {
     val graph = createMockGraph()
-    val query = graph.from("2020-02-25").query
+    val query = graph.startingFrom("2020-02-25").query
     assert(query.timelineStart != Long.MinValue)
   }
 
@@ -83,7 +86,7 @@ class RaphtoryGraphTest extends FunSuite {
                 .build()
                 .getConfig
       )
-    val query = graph.from("2020-02-25 23:12:08.56").query
+    val query = graph.startingFrom("2020-02-25 23:12:08.56").query
     assert(query.timelineStart != Long.MinValue)
   }
 
@@ -95,7 +98,7 @@ class RaphtoryGraphTest extends FunSuite {
                 .build()
                 .getConfig
       )
-    val query = graph.from("2020-02-25 12:23").query
+    val query = graph.startingFrom("2020-02-25 12:23").query
     assert(query.timelineStart != Long.MinValue)
   }
 }

@@ -30,6 +30,9 @@ Alternatively, hit next and lets get Raphtory :doc:`installed <Install/python/py
    :caption: PyRaphtory Introduction
 
    Introduction/ingestion.ipynb
+   Introduction/analysis.ipynb
+   Introduction/own-algorithms.ipynb
+
 
 .. toctree::
    :hidden:
@@ -39,20 +42,6 @@ Alternatively, hit next and lets get Raphtory :doc:`installed <Install/python/py
    _autodoc/com/raphtory/algorithms/temporal/index.rst
    _autodoc/com/raphtory/algorithms/filters/index.rst
    
-.. toctree::
-   :hidden:
-   :maxdepth: 1
-   :caption: Writing your own Algorithm
-
-   Analysis/LOTR_six_degrees.md
-
-.. toctree:: 
-   :maxdepth: 2
-   :hidden:
-   :caption: Deploying Raphtory
-
-   Deployment/baremetalsingle.md
-
 .. toctree::
    :hidden:
    :maxdepth: 1
@@ -70,10 +59,8 @@ Alternatively, hit next and lets get Raphtory :doc:`installed <Install/python/py
    scala/apidocs.md
 
 .. toctree::
-   :maxdepth: 2
    :hidden:
-   :caption: Example Projects
+   :maxdepth: 1
+   :caption: Deployment
 
-   Examples/lotr.md
-   Examples/nft.md
-   Examples/higgs-twitter.md
+   Deployment/server.md

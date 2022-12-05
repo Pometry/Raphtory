@@ -2,10 +2,12 @@ package com.raphtory
 
 import cats.effect._
 import com.raphtory.api.analysis.algorithm.GenericallyApplicable
-import com.raphtory.api.analysis.graphview.{Alignment, DeployedTemporalGraph}
+import com.raphtory.api.analysis.graphview.Alignment
+import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.input._
 import com.raphtory.api.output.sink.Sink
-import com.raphtory.internals.context.{RaphtoryContext, RaphtoryIOContext}
+import com.raphtory.internals.context.RaphtoryContext
+import com.raphtory.internals.context.RaphtoryIOContext
 import com.raphtory.sinks.FileSink
 import com.typesafe.scalalogging.Logger
 import munit.CatsEffectSuite
@@ -49,7 +51,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
       start: Long,
       end: Long,
       increment: Long,
-      windows: List[Long] = List[Long](),
+      windows: Array[Long] = Array[Long](),
       sink: Sink = defaultSink,
       graph: DeployedTemporalGraph = graph
   ): IO[String] =
@@ -70,7 +72,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   def algorithmPointTest(
       algorithm: GenericallyApplicable,
       timestamp: Long,
-      windows: List[Long] = List[Long](),
+      windows: Array[Long] = Array[Long](),
       sink: Sink = defaultSink,
       graph: DeployedTemporalGraph = graph
   ): IO[String] =

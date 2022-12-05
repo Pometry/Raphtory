@@ -38,7 +38,7 @@ object LiveTwitterTest extends RaphtoryApp.Local {
       graph.load(source)
       graph
         .walk("10 milliseconds")
-        .window("10 milliseconds")
+        .dateWindow("10 milliseconds")
         .execute(EdgeList())
         .writeTo(output)
         .waitForJob()
