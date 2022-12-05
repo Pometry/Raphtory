@@ -1,4 +1,5 @@
 import Version._
+import ReleaseTransformations._
 
 name := "arrow-core"
 version := raphtoryVersion
@@ -25,3 +26,4 @@ libraryDependencies ++= Seq(
 
 publishConfiguration := publishConfiguration.value.withOverwrite(true)
 publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
+releaseProcess := Seq[ReleaseStep](publishArtifacts)

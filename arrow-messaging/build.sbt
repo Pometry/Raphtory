@@ -1,4 +1,5 @@
 import Version._
+import ReleaseTransformations._
 
 name := "arrow-messaging"
 version := raphtoryVersion
@@ -22,6 +23,8 @@ libraryDependencies ++= Seq(
         "org.typelevel"           %% "munit-cats-effect-3"                % catsMUnitVersion % Test,
         "org.objenesis"            % "objenesis"                          % "3.3"
 )
+
+releaseProcess := Seq[ReleaseStep](publishArtifacts)
 
 //lazy val root = (project in file("."))
 //
