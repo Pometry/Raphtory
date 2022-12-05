@@ -36,14 +36,14 @@ setup_kwargs = {
     'cmdclass': {
         'build': BuildCommand,
     },
-    'python_requires': '>=3.9.13,<3.11',
+    'python_requires': '>=3.10,<3.11',
     'classifiers': [
         'Development Status :: 1 - Planning',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: BSD License',
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
     ],
     'test_suite': "tests.test_pyraphtory_jvm"
 }
