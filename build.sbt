@@ -101,7 +101,12 @@ lazy val root = (project in file("."))
 //  )
 
 lazy val arrowMessaging =
-  (project in file("arrow-messaging")).settings(assemblySettings)
+  (project in file("arrow-messaging"))
+    .settings(assemblySettings,
+      publishConfiguration := publishConfiguration.value.withOverwrite(true),
+      publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true),
+      publishMavenStyle := true
+    )
 
 lazy val arrowCore =
   (project in file("arrow-core"))
