@@ -1,3 +1,4 @@
+SHELL ["/bin/bash", "-c"]
 ARG DEP_JAR_PATH
 ARG CORE_JAR_PATH
 FROM eclipse-temurin:11.0.17_8-jre-jammy as raphtory-core
