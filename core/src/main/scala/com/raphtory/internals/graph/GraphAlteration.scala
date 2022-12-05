@@ -21,10 +21,10 @@ private[raphtory] object GraphAlteration extends ProtoField[GraphAlteration] {
 
   /** basic update types */
   case class VertexAdd(
-      sourceID: Long,
+      sourceID: Long,         // the id of the ingestion source
       updateTime: Long,
-      index: Long,
-      srcId: Long,
+      index: Long,            // the secondary index, automatically incremented for every update to avoid duplicates
+      srcId: Long,            // the actual id of the vertex
       properties: Properties,
       vType: Option[Type]
   )(implicit val provider: SchemaProvider[VertexAdd])
@@ -35,11 +35,11 @@ private[raphtory] object GraphAlteration extends ProtoField[GraphAlteration] {
   ) extends GraphUpdate
 
   case class EdgeAdd(
-      sourceID: Long,
+      sourceID: Long, // the id of the ingestion source
       updateTime: Long,
-      index: Long,
-      srcId: Long,
-      dstId: Long,
+      index: Long,    // the secondary index, automatically incremented for every update to avoid duplicates
+      srcId: Long,    // the actual id of the source vertex
+      dstId: Long,    // the actual id of the destination vertex
       properties: Properties,
       eType: Option[Type]
   )(implicit val provider: SchemaProvider[EdgeAdd])

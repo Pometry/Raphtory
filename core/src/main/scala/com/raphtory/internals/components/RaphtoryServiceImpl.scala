@@ -12,6 +12,7 @@ import com.raphtory.internals.components.partition.PartitionServiceImpl
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.components.registries.DistributedServiceRegistry
 import com.raphtory.internals.components.registries.LocalServiceRegistry
+import com.raphtory.internals.graph.GraphAlteration.EdgeAdd
 import com.raphtory.internals.management.Partitioner
 import com.raphtory.internals.management.id.IDManager
 import com.raphtory.internals.management.id.LocalIDManager
@@ -55,7 +56,7 @@ class RaphtoryServiceImpl[F[_]](
 )(implicit F: Async[F])
         extends RaphtoryService[F] {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-  private val partitioner    = new Partitioner()
+  private val partitioner    = Partitioner()
 
   override def establishGraph(req: GraphInfo): F[Status] =
     for {
@@ -118,14 +119,18 @@ class RaphtoryServiceImpl[F[_]](
   override def getNextAvailableId(req: IdPool): F[OptionalId] =
     F.blocking(idManager.getNextAvailableID(req.pool)).map(protocol.OptionalId(_))
 
-  override def processUpdate(req: protocol.GraphUpdate): F[Status] =
+  override def processUpdate(req: protocol.GraphUpdate): F[Status] = {
+    val dstPartitions = req.update match {
+      case update: EdgeAdd => partitioner.getPartitionsForEdge(update.srcId, update.dstId).map(partitions(_))
+      case update          => Set(partitions(partitioner.getPartitionForId(update.srcId)))
+    }
+    val updateMsg     = protocol.GraphAlterations(req.graphId, Vector(protocol.GraphAlteration(req.update)))
+
     for {
       _ <- F.delay(logger.trace(s"Processing graph update ${req.update}"))
-      _ <- partitions(partitioner.getPartitionForId(req.update.srcId)).processUpdates(
-                   protocol.GraphAlterations(req.graphId, Vector(protocol.GraphAlteration(req.update)))
-           )
-
+      _ <- F.parSequenceN(dstPartitions.size)(dstPartitions.map(_.processUpdates(updateMsg)).toSeq)
     } yield success
+  }
 
   override def connectToGraph(req: GraphInfo): F[Empty] =
     runningGraphs

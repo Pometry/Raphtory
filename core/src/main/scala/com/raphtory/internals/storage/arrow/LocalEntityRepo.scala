@@ -10,9 +10,9 @@ class LocalEntityRepo(store: LocalEntityIdStore, totalPartitions: Int, partition
       // not found but belongs to this partition
       case -1 if GraphPartition.checkDst(globalId, totalPartitions, partitionID) => NotFound(globalId)
       // not found and belongs to different partition
-      case -1 => GlobalId(globalId)
+      case -1                                                                    => GlobalId(globalId)
       // already here
-      case id => ExistsOnPartition(id)
+      case id                                                                    => ExistsOnPartition(id)
     }
 
 }

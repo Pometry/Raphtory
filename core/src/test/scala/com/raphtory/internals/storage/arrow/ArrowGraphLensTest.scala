@@ -123,15 +123,10 @@ class MockCluster(parts: Vector[ArrowPartition]) extends AutoCloseable {
 
   def addEdge(src: Long, dst: Long, time: Long): Unit = {
     val srcPar = findPartition(src)
-    srcPar.addEdge(-1, time, -1, src, dst, Properties(), None) match {
-      case Some(SyncExistingEdgeAdd(_, updateTime, _, srcId, dstId, properties))  =>
-        val dstPar = findPartition(dst)
-        dstPar.syncExistingEdgeAdd(-1, updateTime, -1, srcId, dstId, properties)
-      case Some(SyncNewEdgeAdd(_, updateTime, _, srcId, dstId, properties, _, _)) =>
-        val dstPar = findPartition(dst)
-        dstPar.syncNewEdgeAdd(-1, updateTime, -1, srcId, dstId, properties, Nil, None)
-      case None                                                                   =>
-    }
+    val dstPar = findPartition(dst)
+    srcPar.addEdge(-1, time, -1, src, dst, Properties(), None)
+    if (dstPar != srcPar)
+      dstPar.addEdge(-1, time, -1, src, dst, Properties(), None)
   }
 
   def addVertex(v: Long, time: Long): Unit = {

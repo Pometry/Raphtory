@@ -4,6 +4,7 @@ import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdateEffect
+import com.raphtory.internals.management.Partitioner
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.storage.arrow.ArrowGraphLens
 import com.raphtory.internals.storage.arrow.ArrowPartition
@@ -32,26 +33,26 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
       vertexType: Option[Type]
   ): Unit
 
-  def removeVertex(sourceID: Long, msgTime: Long, index: Long, srcId: Long): List[GraphUpdateEffect]
-
-  def inboundEdgeRemovalViaVertex(
-      sourceID: Long,
-      msgTime: Long,
-      index: Long,
-      srcId: Long,
-      dstId: Long
-  ): Unit
-
-  def outboundEdgeRemovalViaVertex(
-      sourceID: Long,
-      msgTime: Long,
-      index: Long,
-      srcId: Long,
-      dstId: Long
-  ): Unit
+//  def removeVertex(sourceID: Long, msgTime: Long, index: Long, srcId: Long): List[GraphUpdateEffect]
+//
+//  def inboundEdgeRemovalViaVertex(
+//      sourceID: Long,
+//      msgTime: Long,
+//      index: Long,
+//      srcId: Long,
+//      dstId: Long
+//  ): Unit
+//
+//  def outboundEdgeRemovalViaVertex(
+//      sourceID: Long,
+//      msgTime: Long,
+//      index: Long,
+//      srcId: Long,
+//      dstId: Long
+//  ): Unit
 
   // Ingesting Edges
-  def addEdge(
+  final def addEdge(
       sourceID: Long,
       msgTime: Long,
       index: Long,
@@ -59,48 +60,43 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
       dstId: Long,
       properties: Properties,
       edgeType: Option[Type]
-  ): Option[GraphUpdateEffect]
+  ): Unit =
+    if (isLocal(srcId)) addOutgoingEdge(sourceID, msgTime, index, srcId, dstId, properties, edgeType)
+    else addIncomingEdge(sourceID, msgTime, index, srcId, dstId, properties, edgeType)
 
-  def syncNewEdgeAdd(
+  // This method is the old addEdge. It should take care of the dstId is it is local as well
+  protected def addOutgoingEdge(
       sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
       dstId: Long,
       properties: Properties,
-      srcRemovals: List[(Long, Long)],
       edgeType: Option[Type]
-  ): GraphUpdateEffect
+  ): Unit
 
-  def syncExistingEdgeAdd(
+  // This  should take care only of the dstId. If both ids are local addOutgoingEdge is called instead
+  protected def addIncomingEdge(
       sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
       dstId: Long,
-      properties: Properties
+      properties: Properties,
+//      srcRemovals: List[(Long, Long)],
+      edgeType: Option[Type]
   ): Unit
 
-  def removeEdge(sourceID: Long, msgTime: Long, index: Long, srcId: Long, dstId: Long): Option[GraphUpdateEffect]
+//  def syncExistingEdgeAdd(
+//      sourceID: Long,
+//      msgTime: Long,
+//      index: Long,
+//      srcId: Long,
+//      dstId: Long,
+//      properties: Properties
+//  ): Unit
 
-  def syncNewEdgeRemoval(
-      sourceID: Long,
-      msgTime: Long,
-      index: Long,
-      srcId: Long,
-      dstId: Long,
-      srcRemovals: List[(Long, Long)]
-  ): GraphUpdateEffect
-
-  def syncExistingEdgeRemoval(sourceID: Long, msgTime: Long, index: Long, srcId: Long, dstId: Long): Unit
-
-  def syncExistingRemovals(
-      msgTime: Long,
-      index: Long,
-      srcId: Long,
-      dstId: Long,
-      dstRemovals: List[(Long, Long)]
-  ): Unit
+//  def removeEdge(sourceID: Long, msgTime: Long, index: Long, srcId: Long, dstId: Long): Unit
 
   // Analysis Functions
   def getVertices(
@@ -110,13 +106,11 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
   ): mutable.Map[Long, PojoExVertex]
 
   // Partition Neighbours
-  private val totalPartitions = conf.getInt("raphtory.partitions.countPerServer") *
-    conf.getInt("raphtory.partitions.serverCount")
+  private val partitioner = Partitioner()
 
   def getPartitionID: Int = partitionID
 
-  def checkDst(dstID: Long): Boolean =
-    GraphPartition.checkDst(dstID, totalPartitions, partitionID)
+  def isLocal(id: Long): Boolean = partitioner.getPartitionForId(id) == partitionID
 
   def lens(
       jobID: String,
