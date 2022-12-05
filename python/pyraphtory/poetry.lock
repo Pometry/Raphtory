@@ -188,7 +188,7 @@ diagrams = ["railroad-diagrams", "jinja2"]
 
 [[package]]
 name = "pyraphtory-jvm"
-version = "0.2.0a7"
+version = "0.2.0a9"
 description = "Bootstrap JRE and IVY installer for Pyraphtory"
 category = "main"
 optional = false
