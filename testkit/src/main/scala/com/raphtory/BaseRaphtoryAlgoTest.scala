@@ -6,8 +6,8 @@ import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.input._
 import com.raphtory.api.output.sink.Sink
-import com.raphtory.internals.context.RaphtoryContext
-import com.raphtory.internals.context.RaphtoryIOContext
+import com.raphtory.internals.context.{RaphtoryContext, RaphtoryIOContext}
+import com.raphtory.internals.storage.arrow.immutable
 import com.raphtory.sinks.FileSink
 import com.typesafe.scalalogging.Logger
 import munit.CatsEffectSuite
@@ -64,7 +64,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
                          logger.warn("!! Running Integration Tests on Remote Raphtory !!")
                          RaphtoryIOContext.remoteIO()
                        }
-                       .getOrElse(RaphtoryIOContext.localIO())
+                       .getOrElse(RaphtoryIOContext.localArrowIO[VertexProp, EdgeProp]()/*RaphtoryIOContext.localIO()*/)
             graph <- ctx.newIOGraph(failOnNotFound = false, destroy = true)
             _     <- Resource.pure(graph.load(setSource()))
           } yield (ctx, graph)
@@ -122,3 +122,19 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
       TestUtils.generateTestHash(outputDirectory, jobId)
     }
 }
+
+case class VertexProp(
+                       age: Long,
+                       @immutable name: String,
+                       weight: Long,
+                       @immutable address_chain: String,
+                       @immutable transaction_hash: String
+                     )
+
+case class EdgeProp(
+                     @immutable name: String,
+                     friends: Boolean,
+                     weight: Long,
+                     @immutable msgId: String,
+                     @immutable subject: String
+                   )
