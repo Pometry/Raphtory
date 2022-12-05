@@ -49,6 +49,7 @@ ThisBuild / scalacOptions += "-language:higherKinds"
 
 
 ThisBuild / releaseProcess := Seq[ReleaseStep](publishArtifacts)
+releasePublishArtifactsAction := PgpKeys.publishSigned.value
 
 //def on[A](major: Int, minor: Int)(a: A): Def.Initialize[Seq[A]] =
 //  Def.setting {
