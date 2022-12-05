@@ -22,3 +22,6 @@ libraryDependencies ++= Seq(
 
         "junit"                    % "junit"                       % "4.13.2" % Test
 )
+
+publishConfiguration := publishConfiguration.value.withOverwrite(true)
+publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
