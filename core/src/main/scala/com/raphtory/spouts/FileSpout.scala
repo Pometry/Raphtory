@@ -4,6 +4,7 @@ import cats.effect.Async
 import com.raphtory.api.input.Spout
 import com.raphtory.api.input.SpoutInstance
 import com.raphtory.utils.FileUtils
+import fs2.compression.DeflateParams
 import fs2.io.file.Flags
 import fs2.text
 
@@ -62,21 +63,31 @@ case class FileSpout[T](
     new FileSpoutInstance[T](path, regexPattern, reReadFiles, recurse, lineConverter)
 
   import fs2.io.file
+  import fs2.compression.Compression
 
   override def asStream[F[_]: Async]: fs2.Stream[F, T] = {
     def toLinesStream(path: Path) = {
-      val s = file
+      fs2.compression.Compression
+      val uncommpressed =
+        if (path.toString.endsWith(".gz"))
+          file
+            .Files[F]
+            .readAll(file.Path.fromNioPath(path), 1024 * 1024, Flags.Read)
+            .through(Compression[F].gunzip())
+            .flatMap(_.content)
+        else file
         .Files[F]
         .readAll(file.Path.fromNioPath(path), 1024 * 1024, Flags.Read)
-//        .prefetchN(8)
+
+
+      uncommpressed
         .through(text.utf8.decode)
         .through(text.lines)
-      s
     }
 
     val rootPath = Paths.get(path)
-    val reg   = new Regex(regexPattern)
-    val s     = if (Files.isDirectory(rootPath)) {
+    val reg      = new Regex(regexPattern)
+    val s        = if (Files.isDirectory(rootPath)) {
       val streams = Files
         .list(rootPath)
         .iterator()
@@ -84,7 +95,7 @@ case class FileSpout[T](
         .filter(p => reg.findFirstIn(p.toString).isDefined)
         .tapEach(println)
         .toVector
-      assert(streams.nonEmpty, s"No files found with pattern ${reg} in path ${rootPath}")
+      assert(streams.nonEmpty, s"No files found with pattern $reg in path $rootPath")
       fs2.Stream(streams.map(toLinesStream): _*).parJoinUnbounded
     }
     else
