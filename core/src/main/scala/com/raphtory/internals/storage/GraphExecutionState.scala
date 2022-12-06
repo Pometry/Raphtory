@@ -22,12 +22,11 @@ class GraphExecutionState(
     val end: Long
 ) extends ArrowEntityStateRepository {
 
-  private val filteredInEdges  = mutable.HashMap.empty[Long, mutable.Set[Long]]
-  private val filteredOutEdges = mutable.HashMap.empty[Long, mutable.Set[Long]]
+  private val filteredEdges    = mutable.HashMap.empty[Long, mutable.Set[Long]]
   private val filteredVertices = mutable.Set.empty[Any]
 
   private val newFilteredVertices = new ArrayBuffer[Any]
-  private val newFilteredEdges    = new ArrayBuffer[EdgeRemoval]
+  private val newFilteredEdges    = new ArrayBuffer[(Any, Any)]
 
   private val messagesPerVertex = TrieMap.empty[Any, VertexMultiQueue]
 
@@ -62,10 +61,10 @@ class GraphExecutionState(
     messagesPerVertex.get(vertexId).exists(_.getMessageQueue(superStep).nonEmpty)
 
   def removeOutEdge(sourceId: Long, vertexId: Long): Unit =
-    newFilteredEdges += RemoveOut(sourceId, vertexId)
+    newFilteredEdges += (sourceId -> vertexId)
 
   def removeInEdge(sourceId: Long, vertexId: Long): Unit =
-    newFilteredEdges += RemoveInto(vertexId, sourceId)
+    newFilteredEdges += (vertexId -> sourceId)
 
   def removeEdge(vertexId: Long, sourceId: Long, edgeId: Option[Long]): Unit = {
     removeInEdge(sourceId, vertexId)
@@ -84,17 +83,11 @@ class GraphExecutionState(
 
   def nextStep(superStepLocal: Int): Unit = {
     newFilteredEdges.foreach {
-      case RemoveOut(sourceId, vertexId)  =>
-        filteredOutEdges.updateWith(sourceId) {
-          case None      => Some(mutable.Set(vertexId))
-          case Some(set) => Some(set + vertexId)
+      case (a: Long, b: Long) =>
+        filteredEdges.updateWith(a) {
+          case None      => Some(mutable.Set(b))
+          case Some(set) => Some(set + b)
         }
-      case RemoveInto(vertexId, sourceId) =>
-        filteredInEdges.updateWith(vertexId) {
-          case None      => Some(mutable.Set(sourceId))
-          case Some(set) => Some(set + sourceId)
-        }
-
     }
     newFilteredVertices.foldLeft(filteredVertices)(_ += _)
     newFilteredVertices.clear()
@@ -107,9 +100,8 @@ class GraphExecutionState(
   override def removeVertex(vertexId: Long): Unit =
     newFilteredVertices.synchronized(newFilteredVertices.addOne(vertexId))
 
-  override def sendMessage(msg: GenericVertexMessage[_]): Unit = {
+  override def sendMessage(msg: GenericVertexMessage[_]): Unit =
     messageSender(msg)
-  }
 
   override def superStep: Int = superStep0.get
 
@@ -127,12 +119,7 @@ class GraphExecutionState(
   override def vertexVoted(): Unit = votingMachine.vote()
 
   override def isEdgeAlive(sourceId: Long, vertexId: Long): Boolean =
-    !filteredOutEdges.getOrElse(sourceId, mutable.Set.empty[Long])(vertexId) && !filteredInEdges
-      .getOrElse(vertexId, mutable.Set.empty[Long])(sourceId)
-
-  override def deletedOutEdges(ID: Long): Int = filteredOutEdges.getOrElse(ID, mutable.Set.empty[Long]).size
-
-  override def deletedInEdges(ID: Long): Int = filteredInEdges.getOrElse(ID, mutable.Set.empty[Long]).size
+    !filteredEdges.get(sourceId).exists(removed => removed(vertexId))
 }
 
 object GraphExecutionState {
@@ -148,7 +135,3 @@ object GraphExecutionState {
   ): GraphExecutionState =
     new GraphExecutionState(partitionId, superStep, votingMachine, messageSender, makeGlobal, start, end)
 }
-
-sealed trait EdgeRemoval
-case class RemoveOut(sourceId: Long, vertexId: Long)  extends EdgeRemoval
-case class RemoveInto(vertexId: Long, sourceId: Long) extends EdgeRemoval
