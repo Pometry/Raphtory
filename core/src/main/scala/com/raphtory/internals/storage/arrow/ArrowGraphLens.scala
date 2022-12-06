@@ -7,7 +7,8 @@ import com.raphtory.arrowcore.implementation.VertexIterator
 import com.raphtory.arrowcore.implementation.VertexIterator.WindowedVertexIterator
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
 import com.raphtory.internals.management.Scheduler
-import com.raphtory.internals.storage.arrow.entities.{ArrowExVertex, ArrowExVertexIter}
+import com.raphtory.internals.storage.arrow.entities.ArrowExVertex
+import com.raphtory.internals.storage.arrow.entities.ArrowExVertexIter
 
 import java.time.Duration
 import java.time.LocalDateTime
@@ -56,18 +57,13 @@ final case class ArrowGraphLens(
       .map(new ArrowExVertex(graphState, _))
 
   override def parAggregate[B](init: B)(mapper: Vertex => B)(acc: (B, B) => B): B = {
-    val begin = LocalDateTime.now()
 
     val mtIterator = par.par.getNewMTWindowedVertexManager(RaphtoryThreadPool.THREAD_POOL, start, end);
 
     val topB = new AtomicReference[B](init)
 
-    mtIterator.start { (pid, iter) =>
-      val iterw:WindowedVertexIterator = iter.asInstanceOf[WindowedVertexIterator]
-
+    mtIterator.start { (_, iter) =>
       var localB = init
-      val start  = LocalDateTime.now()
-//      println(s"$pid STARTING PROCESSING AT $start")
 
       while (iter.hasNext) {
         iter.next()
@@ -77,17 +73,11 @@ final case class ArrowGraphLens(
         localB = acc(localB, b)
       }
 
-      val end = LocalDateTime.now()
-//      println(s"$pid ENDING PROCESSING AT $end took ${Duration.between(start, end).toMillis}ms processed $localB items")
       topB.accumulateAndGet(localB, (b1, b2) => acc(b1, b2))
     }
 
     mtIterator.waitTilComplete()
 
-    val stop = LocalDateTime.now()
-
-
-//    println(s"JOB DONE ${Duration.between(begin, stop).toSeconds}s")
     topB.get()
   }
 }
