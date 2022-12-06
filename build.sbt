@@ -13,10 +13,10 @@ ThisBuild / organizationName := "raphtory"
 ThisBuild / organizationHomepage := Some(url("https://raphtory.readthedocs.io/"))
 ThisBuild / versionScheme := Some("early-semver")
 
-sonatypeCredentialHost := "s01.oss.sonatype.org"
-sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
+ThisBuild /  sonatypeCredentialHost := "s01.oss.sonatype.org"
+ThisBuild /  sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 
-credentials += Credentials(Path.userHome / ".sbt" / ".credentials")
+ThisBuild / credentials += Credentials(Path.userHome / ".sbt" / ".credentials")
 
 ThisBuild / scmInfo := Some(
         ScmInfo(
@@ -38,19 +38,17 @@ ThisBuild / homepage := Some(url("https://github.com/Raphtory/Raphtory"))
 
 // Remove all additional repository other than Maven Central from POM
 ThisBuild / pomIncludeRepository.withRank(KeyRanks.Invisible) := { _ => false }
-publishTo := {
+ThisBuild / publishTo := {
   val nexus = "https://s01.oss.sonatype.org/"
   if (isSnapshot.value) Some("snapshots" at nexus + "content/repositories/snapshots")
   else Some("releases" at nexus + "service/local/staging/deploy/maven2")
 }
-//ThisBuild / resolvers += Resolver.mavenLocal
 
 ThisBuild / scalacOptions += "-language:higherKinds"
 
-
-ThisBuild / releaseProcess := Seq[ReleaseStep](publishArtifacts)
+releaseCrossBuild := false
+releaseProcess := Seq[ReleaseStep](releaseStepCommandAndRemaining("publishSigned"))
 releasePublishArtifactsAction := PgpKeys.publishSigned.value
-
 
 //def on[A](major: Int, minor: Int)(a: A): Def.Initialize[Seq[A]] =
 //  Def.setting {
