@@ -63,7 +63,7 @@ jobs:
           export PATH=$(pwd)/sbt/bin:$PATH
           echo "core / Compile / logLevel := Level.Error" >> build.sbt
           echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
-          sbt clean && sbt core/assembly && sbt arrowCore/assembly && sbt arrowMessaging/assembly
+          sbt clean && sbt core/assembly arrowCore/assembly arrowMessaging/assembly
       # Get artifacts
       - name: Copy Jar & Python artifacts to folder
         run: | 
@@ -78,6 +78,9 @@ jobs:
           draft: false
           prerelease: false
           artifacts: "./artifacts/*.*"
+          artifactErrorsFailBuild: true
+          replacesArtifacts: true
+          removeArtifacts: true
           name: ${{ github.ref_name }}
           generate_release_notes: true
       - name: (Maven) Import signing key and strip passphrase
