@@ -73,11 +73,11 @@ jobs:
           cp python/pyraphtory/dist/*.gz artifacts/
       # Create release and upload the artifacts to release
       - name: Publish Release to Github
-        uses: softprops/action-gh-release@v1
+        uses: ncipollo/release-action@v1
         with:
           draft: false
           prerelease: false
-          files: "./artifacts/*.*"
+          artifacts: "./artifacts/*.*"
           name: ${{ github.ref_name }}
           generate_release_notes: true
       - name: (Maven) Import signing key and strip passphrase
