@@ -20,7 +20,8 @@ import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExV
 import com.typesafe.config.Config
 
 import java.lang
-import java.time.{Duration, LocalDateTime}
+import java.time.Duration
+import java.time.LocalDateTime
 import java.util.concurrent.atomic.LongAccumulator
 import scala.collection.AbstractView
 import scala.collection.View
@@ -83,7 +84,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     max.accumulate(msgTime)
   }
 
-  private def addVertexInternal(srcId: Long, msgTime: Long, properties: Properties): Vertex = {
+  private def addVertexInternal(srcId: Long, msgTime: Long, properties: Properties): Vertex = this.synchronized{
 
     updateAdders(msgTime)
 
@@ -209,7 +210,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       } else {
           addRemoteOutgoingEdge(src, dst.id, msgTime, properties)
     }
-  }
+    }
 
   private def updateExistingEdge(
       msgTime: Long,
@@ -235,7 +236,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     v
   }
 
-  private def addRemoteIncomingEdge(globalSrcId: Long, dst: Vertex, time: Long, properties: Properties): Unit = {
+  private def addRemoteIncomingEdge(globalSrcId: Long, dst: Vertex, time: Long, properties: Properties): Unit = this.synchronized {
     logger.trace(
             s"PAR $partition ADD Remote incoming G($globalSrcId) -> (${dst.getGlobalId}:${dst.getLocalId}) @ $time"
     )
@@ -246,48 +247,56 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     par.getEdgeMgr.addEdge(e, -1L, -1L)
     par.getEdgeMgr.addHistory(e.getLocalId, time, true, true)
     val p = partitionFromVertex(dst)
-    par.getEdgeMgr.setIncomingEdgePtr(e.getLocalId, p.addIncomingEdgeToList(e.getDstVertex, e.getLocalId))
-    p.addHistory(dst.getLocalId, time, true, false, e.getLocalId, false)
+
+    val id = p.synchronized {
+      p.addHistory(dst.getLocalId, time, true, false, e.getLocalId, false)
+      p.addIncomingEdgeToList(e.getDstVertex, e.getLocalId)
+    }
+
+    par.getEdgeMgr.setIncomingEdgePtr(e.getLocalId, id)
   }
 
-  private def addRemoteOutgoingEdge(src: Vertex, globalDstId: Long, time: Long, properties: Properties): Unit = {
+  private def addRemoteOutgoingEdge(src: Vertex, globalDstId: Long, time: Long, properties: Properties): Unit = this.synchronized {
     logger.trace(
             s"PAR $partition ADD Remote Outgoing -> (${src.getGlobalId}:${src.getLocalId}) -> G($globalDstId)  @ $time"
     )
-    val e = par.getEdge
+    val e  = par.getEdge
     e.init(par.getEdgeMgr.getNextFreeEdgeId, true, time)
     e.resetEdgeData(src.getLocalId, globalDstId, -1L, -1L, false, true)
     addOrUpdateEdgeProps(time, e, properties)
     par.getEdgeMgr.addEdge(e, -1L, -1L)
     par.getEdgeMgr.addHistory(e.getLocalId, time, true, true)
-    val p = partitionFromVertex(src)
-    par.getEdgeMgr
-      .setOutgoingEdgePtr(
-              e.getLocalId,
-              p.addOutgoingEdgeToList(e.getSrcVertex, e.getLocalId, e.getDstVertex, e.isDstGlobal)
-      )
-//      .setOutgoingEdgePtr(e.getLocalId, p.addOutgoingEdgeToList(e.getSrcVertex, e.getLocalId, e.getDstVertex))
-    p.addHistory(src.getLocalId, time, true, false, e.getLocalId, true)
+    val p  = partitionFromVertex(src)
+    val id = p.synchronized {
+      p.addHistory(src.getLocalId, time, true, false, e.getLocalId, true)
+      p.addOutgoingEdgeToList(e.getSrcVertex, e.getLocalId, e.getDstVertex, e.isDstGlobal)
+    }
+    par.getEdgeMgr.setOutgoingEdgePtr(e.getLocalId, id)
   }
 
-  private def addLocalVerticesToEdge(src: Vertex, dst: Vertex, time: Long, properties: Properties): Unit = {
+  private def addLocalVerticesToEdge(src: Vertex, dst: Vertex, time: Long, properties: Properties): Unit = this.synchronized{
     logger.trace(s"PAR $partition ADD Local Edge -> ${src.getLocalId} -> ${dst.getLocalId}  @ $time")
-    val e = par.getEdge
+    val e   = par.getEdge
     e.init(par.getEdgeMgr.getNextFreeEdgeId, true, time)
     e.resetEdgeData(src.getLocalId, dst.getLocalId, -1L, -1L, false, false)
     addOrUpdateEdgeProps(time, e, properties)
     par.getEdgeMgr.addEdge(e, -1L, -1L)
     par.getEdgeMgr.addHistory(e.getLocalId, time, true, true)
-    var p = partitionFromVertex(src)
-    par.getEdgeMgr
-      .setOutgoingEdgePtr(
-              e.getLocalId,
-              p.addOutgoingEdgeToList(e.getSrcVertex, e.getLocalId, e.getDstVertex, e.isDstGlobal)
-      )
-    p.addHistory(src.getLocalId, time, true, false, e.getLocalId, true)
+    var p   = partitionFromVertex(src)
+    val id1 = p.synchronized {
+      p.addHistory(src.getLocalId, time, true, false, e.getLocalId, true)
+      p.addOutgoingEdgeToList(e.getSrcVertex, e.getLocalId, e.getDstVertex, e.isDstGlobal)
+    }
+
+    par.getEdgeMgr.setOutgoingEdgePtr(e.getLocalId, id1)
+
     p = partitionFromVertex(dst)
-    par.getEdgeMgr.setIncomingEdgePtr(e.getLocalId, p.addIncomingEdgeToList(e.getDstVertex, e.getLocalId))
-    p.addHistory(dst.getLocalId, time, true, false, e.getLocalId, false)
+    val id = p.synchronized {
+      p.addHistory(dst.getLocalId, time, true, false, e.getLocalId, false)
+      p.addIncomingEdgeToList(e.getDstVertex, e.getLocalId)
+    }
+
+    par.getEdgeMgr.setIncomingEdgePtr(e.getLocalId, id)
   }
 
   private def addOrUpdateEdgeProps(msgTime: Long, e: Edge, properties: Properties): Unit =
@@ -342,31 +351,11 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   private def getIncomingEdge(srcId: Long, dst: Vertex): Option[Edge] = {
     val iter0 = dst.getIncomingEdges
     while (iter0.hasNext) {
-      iter0.next()
-      if (iter0.getSrcVertexId == srcId && !iter0.isSrcVertexLocal) {
+      val eId = iter0.next()
+      if (iter0.getSrcVertexId == srcId && !iter0.isSrcVertexLocal)
        return Some(iter0.getEdge)
       }
-    }
     None
-
-
-//    var c = 0
-//    var e0: Edge = null
-//    val iter = dst.incomingEdges.iterator
-//    val begin = LocalDateTime.now()
-//    while (e0 == null && iter.hasNext) {
-//      val e = iter.next()
-//      if (e.getSrcVertex == srcId && e.isSrcGlobal) {
-//        e0 = e
-//      }
-//      c+=1
-//    }
-//    if (c > 100) {
-//      val end = LocalDateTime.now()
-//      println(s"Incoming edge iterated over ${c} edges took ${Duration.between(begin, end).toMillis}ms")
-//    }
-//    Option(e0)
-//    dst.incomingEdges.find(e => e.getSrcVertex == srcId && e.isSrcGlobal)
   }
 
   override def getVertices(graphPerspective: LensInterface, start: Long, end: Long): mutable.Map[Long, PojoExVertex] =
