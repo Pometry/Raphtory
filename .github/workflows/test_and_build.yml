@@ -1,7 +1,6 @@
 name: Test Raphtory both Scala and Python
 on:
   push:
-  pull_request:
 
 jobs:
   test:
