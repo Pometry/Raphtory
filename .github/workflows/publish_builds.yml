@@ -93,10 +93,10 @@ jobs:
         run: |
           echo "Saving data to $HOME/.sbt/sonatype_credentials"
           mkdir -p $HOME/.sbt/1.0
-          echo "realm=Sonatype Nexus Repository Manager" >> $HOME/.sbt/sonatype_credentials
-          echo "host=s01.oss.sonatype.org" >> $HOME/.sbt/sonatype_credentials
-          echo "username=$SONATYPE_USERNAME" >> $HOME/.sbt/sonatype_credentials
-          echo "password=$SONATYPE_PASSWORD" >> $HOME/.sbt/sonatype_credentials
+          echo "realm=Sonatype Nexus Repository Manager" >> /root/.sbt/sonatype_credentials
+          echo "host=s01.oss.sonatype.org" >> /root/.sbt/sonatype_credentials
+          echo "username=$SONATYPE_USERNAME" >> /root/.sbt/sonatype_credentials
+          echo "password=$SONATYPE_PASSWORD" >> /root/.sbt/sonatype_credentials
       - name: (Maven) Key pairs found
         run: gpg --list-keys
       - name: (Maven) Release
