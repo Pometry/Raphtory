@@ -10,8 +10,8 @@ ThisBuild / organization := "com.raphtory"
 ThisBuild / organizationName := "raphtory"
 ThisBuild / organizationHomepage := Some(url("https://raphtory.readthedocs.io/"))
 
-sonatypeCredentialHost := "s01.oss.sonatype.org"
-sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
+//sonatypeCredentialHost := "s01.oss.sonatype.org"
+//sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 
 ThisBuild / scmInfo := Some(
   ScmInfo(
@@ -35,14 +35,11 @@ ThisBuild / licenses := List(
 ThisBuild / homepage := Some(url("https://github.com/Raphtory/Raphtory"))
 
 // Remove all additional repository other than Maven Central from POM
-ThisBuild / pomIncludeRepository.withRank(KeyRanks.Invisible) := { _ => false }
-ThisBuild / publishTo := {
-  val nexus = "https://s01.oss.sonatype.org/"
-  if (isSnapshot.value) Some("snapshots" at nexus + "content/repositories/snapshots")
-  else Some("releases" at nexus + "service/local/staging/deploy/maven2")
+pomIncludeRepository.withRank(KeyRanks.Invisible) := { _ => false }
+ThisBuild / publishTo := { Some("releases" at "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2")
 }
-ThisBuild / publishMavenStyle.withRank(KeyRanks.Invisible) := true
-ThisBuild / resolvers ++=
+publishMavenStyle.withRank(KeyRanks.Invisible) := true
+resolvers ++=
   Seq(
     "repo.vaticle.com" at "https://repo.vaticle.com/repository/maven/",
     Resolver.mavenLocal
@@ -71,7 +68,8 @@ lazy val macroSettings: Seq[Setting[_]] = Seq(
 lazy val root = (project in file("."))
   .settings(
     name := "Raphtory",
-    defaultSettings
+    defaultSettings,
+    publishArtifact := false
   )
   .enablePlugins(OsDetectorPlugin)
   .aggregate(
@@ -216,41 +214,40 @@ lazy val core = (project in file("core"))
 lazy val connectorsAWS =
   (project in file("connectors/aws"))
     .dependsOn(core, testkit)
-    .enablePlugins(NoPublishPlugin)
     .configs(IntegrationTest)
     .settings(
       name := "aws",
       assemblySettings,
       Defaults.itSettings,
-      libraryDependencies ++= Seq(commonsIO, amazonAwsS3, amazonAwsSts)
+      libraryDependencies ++= Seq(commonsIO, amazonAwsS3, amazonAwsSts),
+      publishArtifact := false
     )
 
 lazy val connectorsTwitter =
   (project in file("connectors/twitter"))
     .dependsOn(core, testkit)
-    .enablePlugins(NoPublishPlugin)
     .configs(IntegrationTest)
     .settings(
       name := "twitter",
       assemblySettings,
       Defaults.itSettings,
-      libraryDependencies ++= Seq(twitterEd)
+      libraryDependencies ++= Seq(twitterEd),
+      publishArtifact := false
     )
 
 lazy val connectorsTypeDB =
   (project in file("connectors/typedb"))
     .dependsOn(core)
-    .enablePlugins(NoPublishPlugin)
     .settings(
       name := "typedb",
       assemblySettings,
-      libraryDependencies ++= Seq(typedbClient, univocityParsers, mjson)
+      libraryDependencies ++= Seq(typedbClient, univocityParsers, mjson),
+      publishArtifact := false
     )
 
 lazy val connectorsPulsar =
   (project in file("connectors/pulsar"))
     .dependsOn(core, testkit)
-    .enablePlugins(NoPublishPlugin)
     .configs(IntegrationTest)
     .settings(
       name := "pulsar",
@@ -263,44 +260,40 @@ lazy val connectorsPulsar =
           pulsarCommon,
           pulsarClientMsgCrypto,
           pulsarClientOriginal
-        )
+        ),
+      publishArtifact := false
     )
 
 // EXAMPLE PROJECTS
 
 lazy val examplesCoho =
-  (project in file("examples/companies-house")).dependsOn(core).enablePlugins(NoPublishPlugin).settings(assemblySettings)
+  (project in file("examples/companies-house")).dependsOn(core).settings(assemblySettings, publishArtifact := false)
 
 lazy val examplesGab =
-  (project in file("examples/gab")).dependsOn(core, connectorsPulsar).enablePlugins(NoPublishPlugin).settings(assemblySettings)
+  (project in file("examples/gab")).dependsOn(core, connectorsPulsar).settings(assemblySettings, publishArtifact := false)
 
 lazy val examplesLotr =
   (project in file("examples/lotr"))
     .dependsOn(core % "compile->compile;test->test", connectorsPulsar)
-    .enablePlugins(NoPublishPlugin)
-    .settings(assemblySettings)
+    .settings(assemblySettings, publishArtifact := false)
 
 lazy val examplesTwitter =
   (project in file("examples/twitter"))
     .dependsOn(core, connectorsTwitter, connectorsPulsar)
-    .enablePlugins(NoPublishPlugin)
-    .settings(assemblySettings)
+    .settings(assemblySettings, publishArtifact := false)
 
 lazy val examplesNFT =
   (project in file("examples/nft"))
     .dependsOn(core)
-    .enablePlugins(NoPublishPlugin)
-    .settings(assemblySettings)
+    .settings(assemblySettings, publishArtifact := false)
 
 lazy val deploy =
   (project in file("deploy"))
-    .enablePlugins(NoPublishPlugin)
-    .settings(assemblySettings)
+    .settings(assemblySettings, publishArtifact := false)
 
 lazy val it =
   (project in file("it"))
     .configs(IntegrationTest)
-    .enablePlugins(NoPublishPlugin)
     .settings(
       Defaults.itSettings,
       assemblySettings,
@@ -311,16 +304,16 @@ lazy val it =
         testContainers,
         scalaTest,
         catsMUnit
-      )
+      ),
+      publishArtifact := false
     )
     .dependsOn(core, testkit)
 
 lazy val testkit =
   (project in file("testkit"))
-    .enablePlugins(NoPublishPlugin)
     .configs(IntegrationTest)
     .dependsOn(core)
-    .settings(Defaults.itSettings, defaultSettings)
+    .settings(Defaults.itSettings, defaultSettings, publishArtifact := false)
 
 // SETTINGS
 
@@ -369,11 +362,10 @@ Global / concurrentRestrictions := Seq(
 core / Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 // Scaladocs parameters
 // doc / scalacOptions ++= Seq("-skip-packages", "com.raphtory.algorithms.generic:com.raphtory.algorithms.temporal", "-private")
-ThisBuild / releaseCrossBuild := false
-ThisBuild / releaseProcess := Seq[ReleaseStep](releaseStepCommandAndRemaining("publishSigned"))
-ThisBuild / releasePublishArtifactsAction := PgpKeys.publishSigned.value
-ThisBuild / publishArtifact in Test := false
-ThisBuild / publishMavenStyle := true
-ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
-ThisBuild / sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
-ThisBuild / credentials += Credentials(Path.userHome / ".sbt" / ".credentials")
+releaseCrossBuild := false
+releaseProcess := Seq[ReleaseStep](releaseStepCommandAndRemaining("publishSigned"))
+releasePublishArtifactsAction := PgpKeys.publishSigned.value
+publishMavenStyle := true
+//sonatypeCredentialHost := "s01.oss.sonatype.org"
+//sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
+credentials += Credentials(Path.userHome / ".sbt" / ".credentials")
