@@ -40,7 +40,7 @@ class StreamSource[F[_], T](id: Int, tuples: fs2.Stream[F, T], builderInstance: 
   def elements(counter: Counter.Child): F[Unit] = {
     val s = for {
       index <- fs2.Stream.eval(Ref.of[F, Long](1L))
-      _     <- tuples.chunks.parEvalMapUnordered(16) { chunk =>
+      _     <- tuples.chunks.parEvalMapUnordered(16){ chunk =>
                  builderInstance.buildGraphFromT(chunk, index) *> F.delay(counter.inc(chunk.size))
                }
     } yield ()

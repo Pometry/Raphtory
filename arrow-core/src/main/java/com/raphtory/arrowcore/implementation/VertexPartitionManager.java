@@ -129,6 +129,7 @@ public class VertexPartitionManager {
     public long getNextFreeVertexId() {
         int nPartitions = nPartitions();
         if (nPartitions==0) {
+            getPartitionAndLoad(0);
             _lastFreePartitionId = 0;
             return 0L;
         }
