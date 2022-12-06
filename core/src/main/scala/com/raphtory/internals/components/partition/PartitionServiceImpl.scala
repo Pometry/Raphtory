@@ -223,7 +223,7 @@ object PartitionServiceImpl {
       registry: ServiceRegistry[F],
       config: Config
   ): Resource[F, Unit] = {
-    val partitioner      = Partitioner()
+    val partitioner      = Partitioner(config)
     val candidateIds     = 0 until partitioner.totalPartitions
     val partitionsToMake = 0 until partitioner.partitionsPerServer
     partitionsToMake

@@ -9,6 +9,7 @@ import com.raphtory.api.input._
 import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.management.Partitioner
 import com.raphtory.internals.management.telemetry.TelemetryReporter
+import com.raphtory.defaultConf
 import com.raphtory.protocol
 import com.raphtory.protocol.PartitionService
 import fs2.Chunk
@@ -26,7 +27,7 @@ class GraphBuilderF[F[_], T](
     sentUpdates: Ref[F, Long]
 )(implicit F: Async[F]) {
 
-  private val partitioner       = Partitioner()
+  private val partitioner       = Partitioner(defaultConf)                                          // FIXME: we should be passing it over
   private val totalSourceErrors = TelemetryReporter.totalSourceErrors.labels(s"$sourceId", graphId) // TODO
 
   def buildGraphFromT(chunk: Chunk[T], index: Ref[F, Long]): F[Unit] =

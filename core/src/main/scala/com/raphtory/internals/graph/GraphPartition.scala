@@ -106,7 +106,7 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
   ): mutable.Map[Long, PojoExVertex]
 
   // Partition Neighbours
-  private val partitioner = Partitioner()
+  private val partitioner = Partitioner(conf)
 
   def getPartitionID: Int = partitionID
 

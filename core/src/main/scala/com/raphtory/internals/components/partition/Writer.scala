@@ -19,9 +19,9 @@ private[raphtory] class Writer[F[_]](
 //    lock: Semaphore[F],
     graphID: String,
     partitionID: Int,
-    storage: GraphPartition
+    storage: GraphPartition,
 //    partitions: Map[Int, PartitionService[F]],
-//    conf: Config
+    conf: Config
 )(implicit F: Async[F]) {
 
   private val vertexAdditionCount = TelemetryReporter.writerVertexAdditions.labels(partitionID.toString, graphID)
@@ -31,7 +31,7 @@ private[raphtory] class Writer[F[_]](
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val partitioner = Partitioner()
+  private val partitioner = Partitioner(conf)
 
   def processUpdates(req: protocol.GraphAlterations): F[Unit] =
     Async[F].blocking(handleLocalAlterations(req))
@@ -233,7 +233,7 @@ object Writer {
   ): Resource[F, Writer[F]] =
     for {
       _      <- Resource.eval(startupMessage(graphID, partitionID))
-      writer <- Resource.eval(Async[F].delay(new Writer[F](graphID, partitionID, storage)))
+      writer <- Resource.eval(Async[F].delay(new Writer[F](graphID, partitionID, storage, conf)))
     } yield writer
 
   private def startupMessage[F[_]: Async](graphId: String, partitionId: Int) =

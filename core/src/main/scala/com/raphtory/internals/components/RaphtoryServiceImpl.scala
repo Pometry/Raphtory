@@ -56,7 +56,7 @@ class RaphtoryServiceImpl[F[_]](
 )(implicit F: Async[F])
         extends RaphtoryService[F] {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-  private val partitioner    = Partitioner()
+  private val partitioner    = Partitioner(config)
 
   override def establishGraph(req: GraphInfo): F[Status] =
     for {
@@ -229,7 +229,7 @@ object RaphtoryServiceBuilder {
 
   private def localCluster[F[_]: Async](config: Config): Resource[F, ServiceRegistry[F]] =
     for {
-      registry <- LocalServiceRegistry()
+      registry <- LocalServiceRegistry(config)
       _        <- PartitionServiceImpl.makeN(registry, config)
       _        <- QueryServiceImpl(registry, config)
       _        <- IngestionServiceImpl(registry, config)
@@ -239,7 +239,7 @@ object RaphtoryServiceBuilder {
       config: Config
   ): Resource[F, ServiceRegistry[F]] =
     for {
-      registry <- LocalServiceRegistry()
+      registry <- LocalServiceRegistry(config)
       _        <- PartitionServiceImpl.makeNArrow[F, V, E](registry, config)
       _        <- QueryServiceImpl(registry, config)
       _        <- IngestionServiceImpl(registry, config)

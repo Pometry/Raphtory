@@ -353,16 +353,6 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
         logger.trace(s"Adding inbound edge: $srcId -> $dstId to partition: $partition @ t:$msgTime")
         addRemoteEdgeInternal(msgTime, srcId, dst, properties)
     }
-
-    SyncExistingRemovals(
-            sourceID = sourceID,
-            updateTime = msgTime,
-            index = index,
-            srcId = srcId,
-            dstId = dstId,
-            removals = Nil,
-            fromAddition = true
-    )
   }
 
   private def addRemoteEdgeInternal(msgTime: Long, srcId: Long, dst: Vertex, properties: Properties): Unit =

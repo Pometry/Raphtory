@@ -1,10 +1,8 @@
 package com.raphtory.internals.management
 
-import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.typesafe.config.Config
 
-class Partitioner {
-  val config: Config           = ConfigBuilder.getDefaultConfig // FIXME: is this going to be always safe?
+class Partitioner(config: Config) {
   val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
   val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
   val totalPartitions: Int     = partitionServers * partitionsPerServer
@@ -14,5 +12,5 @@ class Partitioner {
 }
 
 object Partitioner {
-  def apply() = new Partitioner()
+  def apply(config: Config) = new Partitioner(config)
 }
