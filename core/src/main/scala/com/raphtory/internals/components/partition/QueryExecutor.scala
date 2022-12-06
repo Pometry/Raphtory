@@ -54,7 +54,7 @@ class QueryExecutor[F[_]](
   def establishPerspective(perspective: Perspective): F[NodeCount] = {
     val (timestamp, window) = (perspective.timestamp, perspective.window)
     val (start, end)        = (perspective.actualStart, perspective.actualEnd)
-    timed(s"Creating perspective at time '$timestamp' with window '$window") {
+    timed(s"Creating perspective at time '$timestamp' with window '$window, real start $start, real end $end") {
       for {
         lens <- F.delay(storage.lens(jobId, start, end, 0, unsafeSendMessage, null, new Scheduler))
         _    <- graphLens.update(_ => Some(lens))

@@ -4,7 +4,8 @@ import cats.effect.IO
 import cats.effect.Resource
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.algorithms.generic.ConnectedComponents
-import com.raphtory.{TestUtils, defaultConf}
+import com.raphtory.TestUtils
+import com.raphtory.defaultConf
 import com.raphtory.api.output.sink.Sink
 import com.raphtory.internals.components.RaphtoryServiceBuilder
 import com.raphtory.internals.context.RaphtoryContext
@@ -59,7 +60,7 @@ class MultiSpoutDeploymentTest extends CatsEffectSuite {
               graph.load(CSVEdgeListSource(evenSpout))
               val tracker = graph
                 .range(1, 32674, 10000)
-                .window(List(500, 1000, 10000), Alignment.END)
+                .window(Array[Long](500, 1000, 10000), Alignment.END)
                 .execute(ConnectedComponents)
                 .writeTo(defaultSink)
 

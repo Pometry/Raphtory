@@ -1,15 +1,18 @@
 package com.raphtory
 
 import com.raphtory.api.analysis.algorithm.GenericallyApplicable
-import com.raphtory.api.analysis.graphview.{Alignment, TemporalGraph}
-import com.raphtory.api.input.{Source, Spout}
+import com.raphtory.api.analysis.graphview.Alignment
+import com.raphtory.api.analysis.graphview.TemporalGraph
+import com.raphtory.api.input.Source
+import com.raphtory.api.input.Spout
 import com.raphtory.sources.CSVEdgeListSource
-import com.raphtory.spouts.{IdentitySpout, SequenceSpout}
+import com.raphtory.spouts.IdentitySpout
+import com.raphtory.spouts.SequenceSpout
 
 case class TestQuery(
     algorithm: GenericallyApplicable,
     timestamp: Long = -1,
-    windows: List[Long] = List.empty[Long]
+    windows: Array[Long] = Array.empty[Long]
 )
 
 case class Edges(source: Source)

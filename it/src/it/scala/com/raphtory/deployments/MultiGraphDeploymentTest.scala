@@ -1,7 +1,8 @@
 package com.raphtory.deployments
 
 import cats.effect.IO
-import com.raphtory.{TestUtils, defaultConf}
+import com.raphtory.TestUtils
+import com.raphtory.defaultConf
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.output.sink.Sink
@@ -76,7 +77,7 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
             lotrGraph.load(CSVEdgeListSource(lotrSpout))
             val lotrTracker = lotrGraph
               .range(1, 32674, 10000)
-              .window(List(500, 1000, 10000), Alignment.END)
+              .window(Array(500L, 1000L, 10000L), Alignment.END)
               .execute(ConnectedComponents)
               .writeTo(defaultSink)
             lotrTracker.waitForJob()

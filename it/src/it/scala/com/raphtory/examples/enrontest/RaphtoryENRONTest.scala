@@ -31,7 +31,7 @@ class RaphtoryENRONTest extends BaseRaphtoryAlgoTest[String] {
     graph.load(setSource())
     graph
       .range(1, 32674, 10000)
-      .window(List(500, 1000, 10000))
+      .window(Array[Long](500, 1000, 10000))
       .execute(ConnectedComponents)
       .writeTo(sink)
       .waitForJob()
