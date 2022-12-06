@@ -193,7 +193,8 @@ def empty_folder(folder):
             continue
 
 
-def unpack_jre(filename, jre_loc, unpack_dir=tempfile.mkdtemp(dir=pathlib.Path().resolve())):
+def unpack_jre(filename, jre_loc):
+    unpack_dir = tempfile.mkdtemp()
     system_os = getOS()
     logging.info(f'Unpacking JRE for {system_os}...')
     shutil.unpack_archive(filename, unpack_dir)
