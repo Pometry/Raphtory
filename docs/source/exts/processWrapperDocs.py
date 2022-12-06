@@ -1,5 +1,6 @@
 from sphinx.application import Sphinx
 from pyraphtory.interop import ScalaClassProxy, InstanceOnlyMethod, ScalaObjectProxy, WithImplicits, OverloadedMethod
+import pyraphtory
 from sphinx.util import logging
 from sphinx.locale import _, __
 from sphinx.ext.autodoc import MethodDocumenter, ClassDocumenter, safe_getattr, ObjectMembers, get_class_members, ModuleDocumenter, AttributeDocumenter
@@ -14,6 +15,33 @@ def setup(app: Sphinx):
     app.add_autodocumenter(ScalaClassProxyDocumenter)
     app.add_autodocumenter(ImplicitMethodDocumenter)
     app.add_autodocumenter(OverloadedMethodDocumenter)
+    app.connect('autodoc-process-signature', process_signature)
+    app.connect('autodoc-before-process-signature', before_process_signature)
+
+
+def fix_signature_link(signature: str):
+    parts = signature.split(": ")
+    parts[1:] = [fix_part(p) for p in parts[1:]]
+    return ": ".join(parts)
+
+def fix_part(part: str):
+    if part.startswith("~"):
+        return part
+    if part.startswith("pyraphtory"):
+        return "~" + part
+    return part
+
+
+def before_process_signature(app, obj, bound_method):
+    if hasattr(obj, "__globals__"):
+        obj.__globals__.update(vars(pyraphtory))  # inject definitions for resolving annotations
+    print(obj)
+
+def process_signature(app, what, name, obj, options, signature, return_annotation):
+    fixed_signature = fix_signature_link(signature) if signature is not None else None
+    if fixed_signature != signature:
+        print(signature)
+    return signature, return_annotation
 
 
 def unpack_class_method(obj, name=None):
@@ -43,7 +71,11 @@ class ImplicitsSignatureMixin:
     pass
 
 
-class ImplicitMethodDocumenter(ImplicitsSignatureMixin, MethodDocumenter):
+class MyMethodDocumenter(MethodDocumenter):
+    pass
+
+
+class ImplicitMethodDocumenter(ImplicitsSignatureMixin, MyMethodDocumenter):
     objtype = "implicitmethod"
     priority = AttributeDocumenter.priority + 1
 
@@ -51,12 +83,10 @@ class ImplicitMethodDocumenter(ImplicitsSignatureMixin, MethodDocumenter):
     def can_document_member(cls, member: Any, membername: str, isattr: bool, parent: Any
                             ) -> bool:
         value = isinstance(member, WithImplicits)
-        if value:
-            print(member)
         return value
 
 
-class OverloadedMethodDocumenter(ImplicitsSignatureMixin, MethodDocumenter):
+class OverloadedMethodDocumenter(ImplicitsSignatureMixin, MyMethodDocumenter):
     objtype = "overloadedmethod"
     priority = AttributeDocumenter.priority + 1
 
@@ -64,12 +94,10 @@ class OverloadedMethodDocumenter(ImplicitsSignatureMixin, MethodDocumenter):
     def can_document_member(cls, member: Any, membername: str, isattr: bool, parent: Any
                             ) -> bool:
         value = isinstance(member, OverloadedMethod)
-        if value:
-            print(member)
         return value
 
 
-class InstanceOnlyMethodDocumenter(ImplicitsSignatureMixin, MethodDocumenter):  # type: ignore
+class InstanceOnlyMethodDocumenter(ImplicitsSignatureMixin, MyMethodDocumenter):  # type: ignore
     """
     Specialized Documenter subclass for instance-only.
     """
@@ -94,7 +122,7 @@ class InstanceOnlyMethodDocumenter(ImplicitsSignatureMixin, MethodDocumenter):  
         return ret
 
 
-class MetaclassMethodDocumenter(ImplicitsSignatureMixin, MethodDocumenter):
+class MetaclassMethodDocumenter(ImplicitsSignatureMixin, MyMethodDocumenter):
     objtype = "metaclassmethod"
     member_order = MethodDocumenter.member_order - 1
     priority = AttributeDocumenter.priority + 1  # make sure these are not parsed as attributes!

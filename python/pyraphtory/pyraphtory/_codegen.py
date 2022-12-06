@@ -24,7 +24,7 @@ def clean_type(scala_type):
     name = scala_type.toString()
     from pyraphtory.interop import get_type_repr
     type_name = get_type_repr(scala_type)
-    return repr(type_name)
+    return type_name
 
 
 def build_method(name, method, jpype=False):

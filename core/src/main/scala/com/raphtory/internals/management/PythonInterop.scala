@@ -265,7 +265,7 @@ object PythonInterop {
   }
 
   def get_type_repr(tpe: universe.Type): String = {
-    val collectionStr: String                                           = "pyraphtory.scala.collection."
+    val collectionStr: String                                           = "scala.collection."
     val reprMap: Map[universe.Type => Boolean, universe.Type => String] = Map(
             (bytesType, _ => "bytes"),
             (arrayType, tpe => collectionStr + "Array" + typeArgRepr(tpe, typeOf[Array[_]])),
@@ -282,22 +282,22 @@ object PythonInterop {
             (scalaMappingType, tpe => collectionStr + "Mapping" + typeArgRepr(tpe, typeOf[collection.Map[_, _]])),
             (function1Type, tpe => funTypeRepr(tpe, typeOf[Function1[_, _]])),
             (function2Type, tpe => funTypeRepr(tpe, typeOf[Function2[_, _, _]])),
-            (ingestionGraphType, tpe => "pyraphtory.graph.Graph"),
-            (graphPerspectiveType, tpe => "pyraphtory.graph.TemporalGraph"),
-            (vertexType, tpe => "pyraphtory.vertex.Vertex"),
-            (graphStateType, tpe => "pyraphtory.vertex.GraphState"),
-            (accumulatorType, tpe => "pyraphtory.graph.Accumulator"),
-            (spoutType, tpe => "pyraphtory.spouts.Spout"),
-            (sourceType, tpe => "pyraphtory.sources.Source"),
-            (sinkType, tpe => "pyraphtory.sinks.Sink"),
-            (propertyType, tpe => "pyraphtory.input.Property"),
-            (rowType, tpe => "pyraphtory.graph.Row"),
-            (tableType, tpe => "pyraphtory.graph.Table"),
-            (progressTrackerType, tpe => "pyraphtory.graph.ProgressTracker"),
-            (formatType, tpe => "pyraphtory.formats.Format"),
-            (contextType, tpe => "pyraphtory.context.PyRaphtory"),
-            (algorithmType, tpe => "pyraphtory.algorithm.PyAlgorithm"),
-            (algorithmType, tpe => "pyraphtory.algorithm.ScalaAlgorithm"),
+            (ingestionGraphType, tpe => "graph.Graph"),
+            (graphPerspectiveType, tpe => "graph.TemporalGraph"),
+            (vertexType, tpe => "vertex.Vertex"),
+            (graphStateType, tpe => "vertex.GraphState"),
+            (accumulatorType, tpe => "graph.Accumulator"),
+            (spoutType, tpe => "spouts.Spout"),
+            (sourceType, tpe => "sources.Source"),
+            (sinkType, tpe => "sinks.Sink"),
+            (propertyType, tpe => "input.Property"),
+            (rowType, tpe => "graph.Row"),
+            (tableType, tpe => "graph.Table"),
+            (progressTrackerType, tpe => "graph.ProgressTracker"),
+            (formatType, tpe => "formats.Format"),
+            (contextType, tpe => "context.PyRaphtory"),
+            (algorithmType, tpe => "algorithm.PyAlgorithm"),
+            (algorithmType, tpe => "algorithm.ScalaAlgorithm"),
             (genericType, tpe => tpe.toString)
     )
     val options: immutable.Iterable[String]                             = reprMap.collect {

@@ -33,6 +33,7 @@ release = '0.1.0'
 # ones.
 extensions = [
     'sphinx.ext.autosummary',
+    'sphinx.ext.intersphinx',
     'extractScalaAlgoDocs',
     'sphinx.ext.autodoc',
     'processWrapperDocs',
@@ -40,6 +41,8 @@ extensions = [
     'sphinx_tabs.tabs',
     "nbsphinx"
 ]
+
+intersphinx_mapping = {'python': ('https://docs.python.org/3', None)}
 
 autodoc_default_options = {
     'members': True,
