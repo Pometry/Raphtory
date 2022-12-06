@@ -34,8 +34,8 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           "context-and-graph",
           for {
             _     <- TestUtils.manageTestFile(liftFileIfNotPresent)
-//            ctx   <- RaphtoryIOContext.localIO()
-            ctx   <- RaphtoryIOContext.localArrowIO[VertexProp, EdgeProp]()
+            ctx   <- RaphtoryIOContext.localIO()
+//            ctx   <- RaphtoryIOContext.localArrowIO[VertexProp, EdgeProp]()
             graph <- ctx.newIOGraph(failOnNotFound = false, destroy = true)
             _     <- Resource.pure(graph.load(setSource()))
           } yield (ctx, graph)
