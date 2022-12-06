@@ -52,7 +52,7 @@ public class EdgePartitionManager {
     private final ArrayList<PartitionWriter> _writers = new ArrayList<>(N_WRITERS);
     private final RaphtoryThreadPool _pool;
     private EdgePartition[] _partitionArray;
-    private int _lastFreePartitionId = 0;
+    private int _lastFreePartitionId = -1;
 
     public final int PARTITION_SIZE;
     public final int PARTITION_SHIFT;
@@ -132,6 +132,7 @@ public class EdgePartitionManager {
     public synchronized long getNextFreeEdgeId() {
         int nPartitions = nPartitions();
         if (nPartitions==0) {
+            getPartitionAndLoad(0);
             _lastFreePartitionId = 0;
             return 0L;
         }
