@@ -39,31 +39,31 @@ jobs:
       - name: Get sbt package
         run: apt-get update && apt-get -y install gnupg unzip && curl -L "https://github.com/sbt/sbt/releases/download/v${{ matrix.sbt }}/sbt-${{ matrix.sbt }}.zip" -o sbt-${{ matrix.sbt }}.zip && unzip sbt-${{ matrix.sbt }}.zip
       # Create Raphtory thin jars and build python
-#      - name: Building Thin Raphtory Jars for Python
-#        run: |
-#          export PATH=$(pwd)/sbt/bin:$PATH
-#          apt-get update && apt-get install make
-#          echo "core / Compile / logLevel := Level.Error" >> build.sbt
-#          echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
-#          make gh-sbt-build
-#      - name: Setting up Python 3.9
-#        uses: actions/setup-python@v4
-#        with:
-#          python-version: 3.9
-#      - name: Installing poetry
-#        run: |
-#          python -m pip install --upgrade pip
-#          python -m pip install poetry
-#      - name: Building pyraphtory_jvm
-#        run: cd python/pyraphtory_jvm && python setup.py sdist
-#      - name: Building pyraphtory
-#        run: cd python/pyraphtory && poetry build
-#      - name: Building Fat Scala Jars (sbt assembly)
-#        run: |
-#          export PATH=$(pwd)/sbt/bin:$PATH
-#          echo "core / Compile / logLevel := Level.Error" >> build.sbt
-#          echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
-#          sbt clean && sbt core/assembly && sbt arrowCore/assembly && sbt arrowMessaging/assembly
+      - name: Building Thin Raphtory Jars for Python
+        run: |
+          export PATH=$(pwd)/sbt/bin:$PATH
+          apt-get update && apt-get install make
+          echo "core / Compile / logLevel := Level.Error" >> build.sbt
+          echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
+          make gh-sbt-build
+      - name: Setting up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+      - name: Installing poetry
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install poetry
+      - name: Building pyraphtory_jvm
+        run: cd python/pyraphtory_jvm && python setup.py sdist
+      - name: Building pyraphtory
+        run: cd python/pyraphtory && poetry build
+      - name: Building Fat Scala Jars (sbt assembly)
+        run: |
+          export PATH=$(pwd)/sbt/bin:$PATH
+          echo "core / Compile / logLevel := Level.Error" >> build.sbt
+          echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
+          sbt clean && sbt core/assembly && sbt arrowCore/assembly && sbt arrowMessaging/assembly
       # Get artifacts
       - name: Copy Jar & Python artifacts to folder
         run: | 
