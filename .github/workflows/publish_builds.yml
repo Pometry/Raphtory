@@ -105,16 +105,16 @@ jobs:
           sbt clean
           rm -rf /__w/Raphtory/Raphtory/core/target/scala-2.13/*.asc ||:
           sbt publishSigned
-      # Release to Pypi Production
-#      - name: Publish pyraphtory_jvm distribution to PyPI production
-#        uses: pypa/gh-action-pypi-publish@master
-#        with:
-#          password: ${{ secrets.PYPI_API_TOKEN }}
-#          packages_dir: ./python/pyraphtory_jvm/dist/
-#          print_hash: true
-#      - name: Publish pyraphtory distribution to PyPI production
-#        uses: pypa/gh-action-pypi-publish@master
-#        with:
-#          password: ${{ secrets.PYPI_API_TOKEN }}
-#          packages_dir: ./python/pyraphtory/dist/
-#          print_hash: true
+       # Release to Pypi Production
+      - name: Publish pyraphtory_jvm distribution to PyPI production
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages_dir: ./python/pyraphtory_jvm/dist/
+          print_hash: true
+      - name: Publish pyraphtory distribution to PyPI production
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages_dir: ./python/pyraphtory/dist/
+          print_hash: true
