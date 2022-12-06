@@ -7,9 +7,13 @@ import java.lang.reflect.{Array => JArray}
 import com.raphtory.api.analysis.graphstate.Accumulator
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.input.Graph
+import com.raphtory.api.input.Property
+import com.raphtory.api.input.Source
+import com.raphtory.api.input.Spout
 import com.raphtory.internals.management.python.EmbeddedPython
 import com.raphtory.internals.management.python.JPypeEmbeddedPython
 import com.typesafe.scalalogging.Logger
@@ -26,6 +30,11 @@ import scala.reflect.api.Types
 import universe._
 import scala.util.Random
 import com.github.takezoe.scaladoc.Scaladoc
+import com.raphtory.api.analysis.algorithm.BaseAlgorithm
+import com.raphtory.api.output.format.Format
+import com.raphtory.api.output.sink.Sink
+import com.raphtory.api.progresstracker.ProgressTracker
+import com.raphtory.internals.context.RaphtoryContext
 import pemja.core.Interpreter
 import sun.misc.Unsafe
 
@@ -188,6 +197,51 @@ object PythonInterop {
 //    tpe.typeSymbol.asType.isExistential
     false // need to figure out how to detect these if we want them
 
+  def graphPerspectiveType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[GraphPerspective]
+
+  def ingestionGraphType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Graph] && !graphPerspectiveType(tpe)
+
+  def vertexType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Vertex]
+
+  def graphStateType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[GraphState]
+
+  def accumulatorType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Accumulator[_, _]]
+
+  def spoutType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Spout[_]]
+
+  def sourceType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Source]
+
+  def sinkType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Sink]
+
+  def propertyType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Property]
+
+  def rowType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Row]
+
+  def tableType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Table]
+
+  def progressTrackerType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[ProgressTracker]
+
+  def formatType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Format]
+
+  def contextType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[RaphtoryContext]
+
+  def algorithmType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[BaseAlgorithm]
+
   def extractTypeArgs(tpe: universe.Type, parent: universe.Type): Iterable[String] = {
     val clazz = parent.typeSymbol.asClass
     clazz.typeParams
@@ -228,6 +282,22 @@ object PythonInterop {
             (scalaMappingType, tpe => collectionStr + "Mapping" + typeArgRepr(tpe, typeOf[collection.Map[_, _]])),
             (function1Type, tpe => funTypeRepr(tpe, typeOf[Function1[_, _]])),
             (function2Type, tpe => funTypeRepr(tpe, typeOf[Function2[_, _, _]])),
+            (ingestionGraphType, tpe => "pyraphtory.graph.Graph"),
+            (graphPerspectiveType, tpe => "pyraphtory.graph.TemporalGraph"),
+            (vertexType, tpe => "pyraphtory.vertex.Vertex"),
+            (graphStateType, tpe => "pyraphtory.vertex.GraphState"),
+            (accumulatorType, tpe => "pyraphtory.graph.Accumulator"),
+            (spoutType, tpe => "pyraphtory.spouts.Spout"),
+            (sourceType, tpe => "pyraphtory.sources.Source"),
+            (sinkType, tpe => "pyraphtory.sinks.Sink"),
+            (propertyType, tpe => "pyraphtory.input.Property"),
+            (rowType, tpe => "pyraphtory.graph.Row"),
+            (tableType, tpe => "pyraphtory.graph.Table"),
+            (progressTrackerType, tpe => "pyraphtory.graph.ProgressTracker"),
+            (formatType, tpe => "pyraphtory.formats.Format"),
+            (contextType, tpe => "pyraphtory.context.PyRaphtory"),
+            (algorithmType, tpe => "pyraphtory.algorithm.PyAlgorithm"),
+            (algorithmType, tpe => "pyraphtory.algorithm.ScalaAlgorithm"),
             (genericType, tpe => tpe.toString)
     )
     val options: immutable.Iterable[String]                             = reprMap.collect {
