@@ -95,6 +95,7 @@ abstract class AbstractGraphLens(
 
   override def runGraphFunction(f: Vertex => Unit)(onComplete: () => Unit): Unit = {
     vertexCount.set(0)
+//    val count = vertices.foldLeft(0) { (c, v) => f(v); c + 1 }
     val count = parAggregate(0) { v => f(v); 1 }(_ + _)
     vertexCount.set(count)
     onComplete()
