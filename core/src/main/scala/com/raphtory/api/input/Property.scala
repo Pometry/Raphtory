@@ -57,7 +57,3 @@ case class Properties(properties: Property*) {
   def addProperty(property: Property): Properties =
     Properties(properties.:+(property): _*)
 }
-
-object Properties {
-  val empty: Properties = Properties()
-}
