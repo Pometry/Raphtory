@@ -1,8 +1,6 @@
 name: Run the scala and python tests
 on:
-  push:
-  schedule:
-    - cron: '0 1 * * *'
+  pull_request:
 
 jobs:
   call-test-scala-python-workflow-in-local-repo:
