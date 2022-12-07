@@ -3,7 +3,7 @@ on:
   push:
   pull_request:
     branches:
-      - "*"
+      - "*" 
 
 jobs:
   call-test-scala-python-workflow-in-local-repo:
