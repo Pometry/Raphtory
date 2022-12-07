@@ -1,6 +1,8 @@
 name: Run the scala and python tests
 on:
   push:
+    branches:
+      - "*"
 
 jobs:
   call-test-scala-python-workflow-in-local-repo:
