@@ -1,8 +1,14 @@
 name: Run the scala and python tests
 on:
+  push:
+    branches:
+      - master
   pull_request:
+    branches:
+      - master
 
 jobs:
   call-test-scala-python-workflow-in-local-repo:
     uses: ./.github/workflows/test_scala_python_workflow.yml
     secrets: inherit
+
