@@ -14,35 +14,34 @@ ThisBuild / organizationHomepage := Some(url("https://raphtory.readthedocs.io/")
 //sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 
 ThisBuild / scmInfo := Some(
-  ScmInfo(
-    url("https://github.com/Raphtory/Raphtory"),
-    "scm:git@github.com:Raphtory/Raphtory.git"
-  )
+        ScmInfo(
+                url("https://github.com/Raphtory/Raphtory"),
+                "scm:git@github.com:Raphtory/Raphtory.git"
+        )
 )
 ThisBuild / developers := List(
-  Developer(
-    id = "miratepuffin",
-    name = "Ben Steer",
-    email = "ben.steer@raphtory.com",
-    url = url("https://twitter.com/miratepuffin")
-  )
+        Developer(
+                id = "miratepuffin",
+                name = "Ben Steer",
+                email = "ben.steer@raphtory.com",
+                url = url("https://twitter.com/miratepuffin")
+        )
 )
 
 ThisBuild / description := "A Distributed Temporal Graph Processing System"
 ThisBuild / licenses := List(
-  "Apache 2" -> new URL("http://www.apache.org/licenses/LICENSE-2.0.txt")
+        "Apache 2" -> new URL("http://www.apache.org/licenses/LICENSE-2.0.txt")
 )
 ThisBuild / homepage := Some(url("https://github.com/Raphtory/Raphtory"))
 
 // Remove all additional repository other than Maven Central from POM
 pomIncludeRepository.withRank(KeyRanks.Invisible) := { _ => false }
-ThisBuild / publishTo := { Some("releases" at "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2")
-}
+ThisBuild / publishTo := { Some("releases" at "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2") }
 publishMavenStyle.withRank(KeyRanks.Invisible) := true
 resolvers ++=
   Seq(
-    "repo.vaticle.com" at "https://repo.vaticle.com/repository/maven/",
-    Resolver.mavenLocal
+          "repo.vaticle.com" at "https://repo.vaticle.com/repository/maven/",
+          Resolver.mavenLocal
   )
 
 ThisBuild / scalacOptions += "-language:higherKinds"
@@ -56,153 +55,153 @@ def on[A](major: Int, minor: Int)(a: A): Def.Initialize[Seq[A]] =
   }
 
 lazy val macroSettings: Seq[Setting[_]] = Seq(
-  libraryDependencies ++= Seq(
-    scalaOrganization.value % "scala-compiler" % scalaVersion.value % Provided
-  ),
-  libraryDependencies ++= on(2, 12)(
-    compilerPlugin("org.scalamacros" %% "paradise" % "2.1.1" cross CrossVersion.full)
-  ).value,
-  scalacOptions ++= on(2, 13)("-Ymacro-annotations").value
+        libraryDependencies ++= Seq(
+                scalaOrganization.value % "scala-compiler" % scalaVersion.value % Provided
+        ),
+        libraryDependencies ++= on(2, 12)(
+                compilerPlugin("org.scalamacros" %% "paradise" % "2.1.1" cross CrossVersion.full)
+        ).value,
+        scalacOptions ++= on(2, 13)("-Ymacro-annotations").value
 )
 
 lazy val root = (project in file("."))
   .settings(
-    name := "Raphtory",
-    defaultSettings,
-    publishArtifact := false
+          name := "Raphtory",
+          defaultSettings,
+          publishArtifact := false
   )
   .enablePlugins(OsDetectorPlugin)
   .aggregate(
-    arrowMessaging,
-    arrowCore,
-    core,
-    connectorsAWS,
-    connectorsTwitter,
-    examplesCoho,
-    connectorsPulsar,
-    connectorsTypeDB,
-    examplesGab,
-    examplesLotr,
-    examplesTwitter,
-    examplesNFT,
-    deploy,
-    it
+          arrowMessaging,
+          arrowCore,
+          core,
+          connectorsAWS,
+          connectorsTwitter,
+          examplesCoho,
+          connectorsPulsar,
+          connectorsTypeDB,
+          examplesGab,
+          examplesLotr,
+          examplesTwitter,
+          examplesNFT,
+          deploy,
+          it
   )
 
 lazy val arrowMessaging =
   (project in file("arrow-messaging"))
     .configs(IntegrationTest)
     .settings(
-      name := "arrow-messaging",
-      Defaults.itSettings,
-      assemblySettings,
-      libraryDependencies ++= Seq(
-        objenesis,
-        catsMUnit,
-        alleyCats,
-        catsEffect,
-        shapeless,
-        scalaTestFunSuite,
-        scalaReflect,
-        log4jCore,
-        log4jApi,
-        netty classifier osDetectorClassifier.value,
-        flightCore
-      )
+            name := "arrow-messaging",
+            Defaults.itSettings,
+            assemblySettings,
+            libraryDependencies ++= Seq(
+                    objenesis,
+                    catsMUnit,
+                    alleyCats,
+                    catsEffect,
+                    shapeless,
+                    scalaTestFunSuite,
+                    scalaReflect,
+                    log4jCore,
+                    log4jApi,
+                    netty classifier osDetectorClassifier.value,
+                    flightCore
+            )
     )
 
 lazy val arrowCore =
   (project in file("arrow-core"))
     .configs(IntegrationTest)
     .settings(
-      name := "arrow-core",
-      Defaults.itSettings,
-      assemblySettings,
-      Compile / packageDoc / publishArtifact := false,
-      libraryDependencies ++= Seq(
-        junit,
-        openhft,
-        arrowMemory,
-        arrowVector,
-        arrowAlgorithm,
-        arrowDataset,
-        chronicleMap,
-        fastUtil,
-        commonsLang,
-        junitInterface
-      )
+            name := "arrow-core",
+            Defaults.itSettings,
+            assemblySettings,
+            Compile / packageDoc / publishArtifact := false,
+            libraryDependencies ++= Seq(
+                    junit,
+                    openhft,
+                    arrowMemory,
+                    arrowVector,
+                    arrowAlgorithm,
+                    arrowDataset,
+                    chronicleMap,
+                    fastUtil,
+                    commonsLang,
+                    junitInterface
+            )
     )
 
 lazy val core = (project in file("core"))
   .configs(IntegrationTest)
   .settings(
-    name := "core",
-    assembly / test := {},
-    scalafmtOnCompile := false,
-    Compile / doc / scalacOptions := Seq(
-      "-skip-packages",
-      "com.raphtory.algorithms.generic:com.raphtory.algorithms.temporal:com.raphtory.algorithms.filters",
-      "-private"
-    ),
-    assemblySettings,
-    defaultSettings,
-    Defaults.itSettings,
-    addCompilerPlugin(scalaDocReader),
-    libraryDependencies ++= Seq(
-      //please keep in alphabetical order
-      bcel,
-      curatorRecipes,
-      decline,
-      fs2,
-      apacheHttp,
-      jackson,
-      jfr,
-      jsonpath,
-      log4jSlft4,
-      log4jApi,
-      log4jCore,
-      magnolia,
-      muClient,
-      muFs2,
-      muHealth,
-      muServer,
-      muService,
-      nomen,
-      openhft,
-      pemja,
-      prometheusClient,
-      prometheusHotspot,
-      prometheusHttp,
-      py4j,
-      scalaLogging,
-      scalaParallelCollections,
-      scalaPb,
-      scalaTest,
-      scalaTestCompile,
-      slf4j,
-      sprayJson,
-      testContainers,
-      twitterChill,
-      ujson,
-      catsEffect,
-      catsMUnit,
-      alleyCats,
-      typesafeConfig,
-      zookeeper,
-      magnolia,
-      shapeless,
-      curatorDiscovery,
-      scalaDocReader,
-      junit,
-      mockitoScala
-    ),
-    libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) },
-    // Needed to expand the @service macro annotation
-    macroSettings,
-    // Generate sources from .proto files
-    muSrcGenIdlType := IdlType.Proto,
-    // Make it easy for 3rd-party clients to communicate with us via gRPC
-    muSrcGenIdiomaticEndpoints := true
+          name := "core",
+          assembly / test := {},
+          scalafmtOnCompile := false,
+          Compile / doc / scalacOptions := Seq(
+                  "-skip-packages",
+                  "com.raphtory.algorithms.generic:com.raphtory.algorithms.temporal:com.raphtory.algorithms.filters",
+                  "-private"
+          ),
+          assemblySettings,
+          defaultSettings,
+          Defaults.itSettings,
+          addCompilerPlugin(scalaDocReader),
+          libraryDependencies ++= Seq(
+                  //please keep in alphabetical order
+                  bcel,
+                  curatorRecipes,
+                  decline,
+                  fs2,
+                  apacheHttp,
+                  jackson,
+                  jfr,
+                  jsonpath,
+                  log4jSlft4,
+                  log4jApi,
+                  log4jCore,
+                  magnolia,
+                  muClient,
+                  muFs2,
+                  muHealth,
+                  muServer,
+                  muService,
+                  nomen,
+                  openhft,
+                  pemja,
+                  prometheusClient,
+                  prometheusHotspot,
+                  prometheusHttp,
+                  py4j,
+                  scalaLogging,
+                  scalaParallelCollections,
+                  scalaPb,
+                  scalaTest,
+                  scalaTestCompile,
+                  slf4j,
+                  sprayJson,
+                  testContainers,
+                  twitterChill,
+                  ujson,
+                  catsEffect,
+                  catsMUnit,
+                  alleyCats,
+                  typesafeConfig,
+                  zookeeper,
+                  magnolia,
+                  shapeless,
+                  curatorDiscovery,
+                  scalaDocReader,
+                  junit,
+                  mockitoScala
+          ),
+          libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) },
+          // Needed to expand the @service macro annotation
+          macroSettings,
+          // Generate sources from .proto files
+          muSrcGenIdlType := IdlType.Proto,
+          // Make it easy for 3rd-party clients to communicate with us via gRPC
+          muSrcGenIdiomaticEndpoints := true
   )
   .dependsOn(arrowMessaging, arrowCore)
   .enablePlugins(SrcGenPlugin)
@@ -214,11 +213,11 @@ lazy val connectorsAWS =
     .dependsOn(core, testkit)
     .configs(IntegrationTest)
     .settings(
-      name := "aws",
-      assemblySettings,
-      Defaults.itSettings,
-      libraryDependencies ++= Seq(commonsIO, amazonAwsS3, amazonAwsSts),
-      publishArtifact := false
+            name := "aws",
+            assemblySettings,
+            Defaults.itSettings,
+            libraryDependencies ++= Seq(commonsIO, amazonAwsS3, amazonAwsSts),
+            publishArtifact := false
     )
 
 lazy val connectorsTwitter =
@@ -226,21 +225,21 @@ lazy val connectorsTwitter =
     .dependsOn(core, testkit)
     .configs(IntegrationTest)
     .settings(
-      name := "twitter",
-      assemblySettings,
-      Defaults.itSettings,
-      libraryDependencies ++= Seq(twitterEd),
-      publishArtifact := false
+            name := "twitter",
+            assemblySettings,
+            Defaults.itSettings,
+            libraryDependencies ++= Seq(twitterEd),
+            publishArtifact := false
     )
 
 lazy val connectorsTypeDB =
   (project in file("connectors/typedb"))
     .dependsOn(core)
     .settings(
-      name := "typedb",
-      assemblySettings,
-      libraryDependencies ++= Seq(typedbClient, univocityParsers, mjson),
-      publishArtifact := false
+            name := "typedb",
+            assemblySettings,
+            libraryDependencies ++= Seq(typedbClient, univocityParsers, mjson),
+            publishArtifact := false
     )
 
 lazy val connectorsPulsar =
@@ -248,62 +247,84 @@ lazy val connectorsPulsar =
     .dependsOn(core, testkit)
     .configs(IntegrationTest)
     .settings(
-      name := "pulsar",
-      assemblySettings,
-      Defaults.itSettings,
-      libraryDependencies ++=
-        Seq(
-          pulsarClientAdmin,
-          pulsarClientApi,
-          pulsarCommon,
-          pulsarClientMsgCrypto,
-          pulsarClientOriginal
-        ),
-      publishArtifact := false
+            name := "pulsar",
+            assemblySettings,
+            Defaults.itSettings,
+            libraryDependencies ++=
+              Seq(
+                      pulsarClientAdmin,
+                      pulsarClientApi,
+                      pulsarCommon,
+                      pulsarClientMsgCrypto,
+                      pulsarClientOriginal
+              ),
+            publishArtifact := false
     )
 
 // EXAMPLE PROJECTS
 
 lazy val examplesCoho =
-  (project in file("examples/companies-house")).dependsOn(core).settings(assemblySettings, publishArtifact := false)
+  (project in file("examples/companies-house"))
+    .dependsOn(core)
+    .settings(
+            assemblySettings,
+            publishArtifact := false
+    )
 
 lazy val examplesGab =
-  (project in file("examples/gab")).dependsOn(core, connectorsPulsar).settings(assemblySettings, publishArtifact := false)
+  (project in file("examples/gab"))
+    .dependsOn(core, connectorsPulsar)
+    .settings(
+            assemblySettings,
+            publishArtifact := false
+    )
 
 lazy val examplesLotr =
   (project in file("examples/lotr"))
     .dependsOn(core % "compile->compile;test->test", connectorsPulsar)
-    .settings(assemblySettings, publishArtifact := false)
+    .settings(
+            assemblySettings,
+            publishArtifact := false
+    )
 
 lazy val examplesTwitter =
   (project in file("examples/twitter"))
     .dependsOn(core, connectorsTwitter, connectorsPulsar)
-    .settings(assemblySettings, publishArtifact := false)
+    .settings(
+            assemblySettings,
+            publishArtifact := false
+    )
 
 lazy val examplesNFT =
   (project in file("examples/nft"))
     .dependsOn(core)
-    .settings(assemblySettings, publishArtifact := false)
+    .settings(
+            assemblySettings,
+            publishArtifact := false
+    )
 
 lazy val deploy =
   (project in file("deploy"))
-    .settings(assemblySettings, publishArtifact := false)
+    .settings(
+            assemblySettings,
+            publishArtifact := false
+    )
 
 lazy val it =
   (project in file("it"))
     .configs(IntegrationTest)
     .settings(
-      Defaults.itSettings,
-      assemblySettings,
-      defaultSettings,
-      libraryDependencies ++= Seq(
-        junit,
-        mockitoScala,
-        testContainers,
-        scalaTest,
-        catsMUnit
-      ),
-      publishArtifact := false
+            Defaults.itSettings,
+            assemblySettings,
+            defaultSettings,
+            libraryDependencies ++= Seq(
+                    junit,
+                    mockitoScala,
+                    testContainers,
+                    scalaTest,
+                    catsMUnit
+            ),
+            publishArtifact := false
     )
     .dependsOn(core, testkit)
 
@@ -311,20 +332,24 @@ lazy val testkit =
   (project in file("testkit"))
     .configs(IntegrationTest)
     .dependsOn(core)
-    .settings(Defaults.itSettings, defaultSettings, publishArtifact := false)
+    .settings(
+            Defaults.itSettings,
+            defaultSettings,
+            publishArtifact := false
+    )
 
 // SETTINGS
 
 lazy val defaultSettings = Seq(
-  scalacOptions := Seq(
-    "-feature",
-    "-language:implicitConversions",
-    "-language:postfixOps",
-    "-unchecked",
-    "-deprecation",
-    "-encoding",
-    "utf8"
-  )
+        scalacOptions := Seq(
+                "-feature",
+                "-language:implicitConversions",
+                "-language:postfixOps",
+                "-unchecked",
+                "-deprecation",
+                "-encoding",
+                "utf8"
+        )
 )
 
 // ASSEMBLY SETTINGS
@@ -355,7 +380,7 @@ lazy val assemblySettings = assembly / assemblyMergeStrategy := {
 Test / parallelExecution := true
 
 Global / concurrentRestrictions := Seq(
-  Tags.limit(Tags.Test, 1)
+        Tags.limit(Tags.Test, 1)
 )
 core / Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 // Scaladocs parameters
