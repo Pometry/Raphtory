@@ -149,6 +149,7 @@ def get_wrapper_for_name(name: str):
     logger.trace("Retrieving wrapper for {name!r}", name=name)
     wrapper = _wrappers[name]
     logger.trace("Found wrapper for {name!r} based on class name", name=name)
+    return wrapper
 
 
 def get_type_repr(tpe: Any):
