@@ -40,6 +40,7 @@ import sun.misc.Unsafe
 
 import scala.annotation.tailrec
 import scala.language.existentials
+import scala.reflect.api
 
 /** Scala-side methods for interfacing with Python */
 object PythonInterop {
@@ -193,9 +194,11 @@ object PythonInterop {
   def scalaMappingType(tpe: universe.Type): Boolean =
     tpe <:< typeOf[collection.Map[_, _]] && typeOf[immutable.Map[_, _]].erasure <:< tpe.erasure
 
-  def genericType(tpe: universe.Type): Boolean =
-//    tpe.typeSymbol.asType.isExistential
-    false // need to figure out how to detect these if we want them
+  def genericType(tpe: universe.Type): Boolean = {
+    val name = tpe.typeSymbol.toString
+    val res  = name.startsWith("type") || name.startsWith("free type")
+    res
+  }
 
   def graphPerspectiveType(tpe: universe.Type): Boolean =
     tpe <:< typeOf[GraphPerspective]
@@ -264,6 +267,18 @@ object PythonInterop {
       tpe
   }
 
+  def genericUpperBound(tpe: universe.Type): universe.Type =
+    if (genericType(tpe)) {
+      val bounds = TypeBounds.unapply(tpe.typeSymbol.typeSignature.asInstanceOf[TypeBounds])
+      bounds
+        .map {
+          case (lo, hi) => hi
+        }
+        .getOrElse(tpe)
+    }
+    else
+      tpe
+
   def get_type_repr(tpe: universe.Type): String = {
     val collectionStr: String                                           = "scala.collection."
     val reprMap: Map[universe.Type => Boolean, universe.Type => String] = Map(
@@ -298,10 +313,11 @@ object PythonInterop {
             (contextType, tpe => "context.PyRaphtory"),
             (algorithmType, tpe => "algorithm.PyAlgorithm"),
             (algorithmType, tpe => "algorithm.ScalaAlgorithm"),
-            (genericType, tpe => tpe.toString)
+            (genericType, tpe => s"TypeVar('${tpe.toString}')")
     )
+    val actual_tpe                                                      = expandType(tpe)
     val options: immutable.Iterable[String]                             = reprMap.collect {
-      case (match_fun, repr_fun) if match_fun(expandType(tpe)) => repr_fun(tpe)
+      case (match_fun, repr_fun) if match_fun(actual_tpe) => repr_fun(actual_tpe)
     }
     val r                                                               =
       if (options.isEmpty)
@@ -356,9 +372,10 @@ object PythonInterop {
     }.headOption
 
   private def public_methods(clazz: Class[_]): Map[String, ArrayBuffer[Method]] = {
-    val runtimeMirror = universe.runtimeMirror(clazz.getClassLoader)
-    val objType       = runtimeMirror.classSymbol(clazz).toType.dealias
-    val methods       = objType.members
+    val runtimeMirror      = universe.runtimeMirror(clazz.getClassLoader)
+    val ignoredJavaMethods = Set("notify", "notifyAll", "wait")
+    val objType            = runtimeMirror.classSymbol(clazz).toType.dealias
+    val methods            = objType.members
       .collect {
         case s if s.isTerm && s.isPublic => s.asTerm
       }
@@ -373,34 +390,35 @@ object PythonInterop {
     val methodMap = mutable.Map.empty[String, ArrayBuffer[Method]]
 
     methods.foreach { m =>
-      m.overrides
-      val name       = m.name.toString
-      val params     = m.paramLists.flatten
-      val types      = params.map(p => p.infoIn(objType)).toArray
-      val implicits  = params.collect { case p if p.isImplicit => camel_to_snake(p.name.toString) }.toArray
-      val paramNames = params.filterNot(_.isImplicit).map(p => camel_to_snake(p.name.toString)).toArray
-      val docs       = getMethodDocString(m)
-      val defaults   = params.zipWithIndex
-        .collect {
-          case (p, i) if p.asTerm.isParamWithDefault =>
-            (i, name + "$default$" + s"${i + 1}")
-        }
-        .toMap
-        .asJava
-      methodMap
-        .getOrElseUpdate(name, ArrayBuffer.empty[Method])
-        .append(
-                Method(
-                        name,
-                        params.size,
-                        paramNames,
-                        types,
-                        defaults,
-                        m.isVarargs,
-                        implicits,
-                        docs
-                )
-        )
+      val name = m.name.toString
+      if (!(m.isJava && ignoredJavaMethods.contains(name))) {
+        val params     = m.paramLists.flatten
+        val types      = params.map(p => p.infoIn(objType)).toArray
+        val implicits  = params.collect { case p if p.isImplicit => camel_to_snake(p.name.toString) }.toArray
+        val paramNames = params.filterNot(_.isImplicit).map(p => camel_to_snake(p.name.toString)).toArray
+        val docs       = getMethodDocString(m)
+        val defaults   = params.zipWithIndex
+          .collect {
+            case (p, i) if p.asTerm.isParamWithDefault =>
+              (i, name + "$default$" + s"${i + 1}")
+          }
+          .toMap
+          .asJava
+        methodMap
+          .getOrElseUpdate(name, ArrayBuffer.empty[Method])
+          .append(
+                  Method(
+                          name,
+                          params.size,
+                          paramNames,
+                          types,
+                          defaults,
+                          m.isVarargs,
+                          implicits,
+                          docs
+                  )
+          )
+      }
     }
     methodMap.toMap
   }

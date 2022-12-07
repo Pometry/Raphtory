@@ -48,7 +48,8 @@ autodoc_default_options = {
     'members': True,
     'undoc-members': True,
     'inherited-members': True,
-    'special-member': ["__call__"]
+    'special-members': "__call__",
+    'show-inheritance': True
 }
 
 autodoc_member_order = 'groupwise'

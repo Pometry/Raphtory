@@ -6,6 +6,8 @@ A = t.TypeVar("A", covariant=True)
 @register(name="Iterable")
 class Iterable(GenericScalaProxy, abc.Iterable[A]):
     """Proxy object that converts scala iterables into python iterables"""
+    _classname = "scala.collection.Iterable"
+
     def __iter__(self) -> t.Iterator[A]:
         return self.iterator()
 
@@ -16,6 +18,8 @@ class Iterable(GenericScalaProxy, abc.Iterable[A]):
 @register(name="Iterator")
 class Iterator(GenericScalaProxy, abc.Iterator[A]):
     """Proxy object that converts scala iterators into python iterators"""
+
+    _classname = "scala.collection.Iterator"
 
     def __next__(self) -> A:
         if self.has_next():
@@ -97,6 +101,8 @@ T = t.TypeVar("T")
 @register(name="Array")
 class Array(GenericScalaProxy, abc.Sequence[T]):
     """Proxy object for wrapping java arrays"""
+    _classname = "scala.Array"
+
     def __getitem__(self, item: int) -> T:
         return to_python(self.jvm[item])
 

@@ -19,8 +19,7 @@ object TestMethods {
   }
 }
 
-class PythonInteropTypeReprTest extends FunSuite {
-  type T
+class PythonInteropTypeReprTest[T] extends FunSuite {
 
   test("test function type check") {
     assert(function1Type(typeOf[(Int) => Long ]))
@@ -136,12 +135,13 @@ class PythonInteropTypeReprTest extends FunSuite {
   test("List is not varargs") {
     assert(!varargsType(typeOf[Seq[Any]]))
   }
-//  test("Test actual type is not generic type label") {
-//    assert(!genericType(typeOf[Any]))
-//  }
-//
-//  test("Test generic type label") {
-//    assert(genericType(weakTypeOf[T]))
-//  }
+
+  test("Test actual type is not generic type label") {
+    assert(!genericType(typeOf[Any]))
+  }
+
+  test("Test generic type label") {
+    assert(genericType(weakTypeOf[T]))
+  }
 
 }

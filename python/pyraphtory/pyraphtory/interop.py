@@ -343,7 +343,7 @@ class ScalaProxyBase(object):
 
     @property
     def jvm(self):
-        """Access the wrapped jvm object directly"""
+        """The underlying Scala jvm object"""
         return self._jvm_object
 
     @classmethod
@@ -517,6 +517,7 @@ class OverloadedMethod:
             return self
         else:
             bound = copy(self)
+            bound.__self__ = instance
             bound._methods = [m.__get__(instance, owner) for m in bound._methods]
             return bound
 
@@ -530,7 +531,7 @@ class WithImplicits:
         self._method = method
         self._implicits = []
         self.__signature__ = inspect.signature(method)
-        self.__doc__ = (method.__doc__ + "\n\n" if method.__doc__ is not None else "") + "takes implicit arguments"
+        self.__doc__ = method.__doc__
 
     def __call__(self, *args, **kwargs):
         return self._method(*args, **kwargs, _implicits=self._implicits)
@@ -558,6 +559,7 @@ class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
 
     @property
     def jvm(self):
+        """Underlying Scala companion object instance"""
         if self._jvm_object is not None:
             return self._jvm_object
         elif self._classname is not None:
