@@ -38,11 +38,11 @@ ThisBuild / homepage := Some(url("https://github.com/Raphtory/Raphtory"))
 pomIncludeRepository.withRank(KeyRanks.Invisible) := { _ => false }
 ThisBuild / publishTo := { Some("releases" at "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2") }
 publishMavenStyle.withRank(KeyRanks.Invisible) := true
-//resolvers ++=
-//  Seq(
-//          "repo.vaticle.com" at "https://repo.vaticle.com/repository/maven/",
-//          Resolver.mavenLocal
-//  )
+resolvers ++=
+  Seq(
+          "repo.vaticle.com" at "https://repo.vaticle.com/repository/maven/",
+          Resolver.mavenLocal
+  )
 
 ThisBuild / scalacOptions += "-language:higherKinds"
 
