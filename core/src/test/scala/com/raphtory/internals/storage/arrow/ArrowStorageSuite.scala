@@ -435,20 +435,6 @@ class ArrowStorageSuite extends munit.FunSuite {
                     HistoricEvent(timestamp, timestamp)
             )
     )
-
-    // now remove it
-//    par.removeEdge(3, timestamp + 3, -1, 3, 7)
-//
-//    assertEquals(
-//            edge.history(Long.MinValue, Long.MaxValue).toVector,
-//            Vector(
-//                    HistoricEvent(timestamp + 3, timestamp + 3, event = false),
-//                    HistoricEvent(timestamp + 2, timestamp + 2),
-//                    HistoricEvent(timestamp + 1, timestamp + 1),
-//                    HistoricEvent(timestamp, timestamp)
-//            )
-//    )
-
   }
 
   test("add edge between the same vertex") {
@@ -482,31 +468,6 @@ class ArrowStorageSuite extends munit.FunSuite {
     assertEquals(inEdges, Vector(0L -> 0L))
     assertEquals(outEdges, Vector(0L -> 0L))
   }
-
-//  test("removed edge should be visible depending on iterator time window") {
-//
-//    val par: ArrowPartition = mkPartition(1, 0)
-//    val timestamp           = System.currentTimeMillis()
-//
-//    // add bob
-//    addVertex(3, timestamp, None, ImmutableString("name", "Bob"))(par)
-//    // add alice
-//    addVertex(7, timestamp, None, ImmutableString("name", "Alice"))(par)
-//    // add edge
-//    val action = par.addEdge(
-//            3,
-//            timestamp,
-//            -1,
-//            3,
-//            7,
-//            Properties(
-//                    ImmutableString("name", "friends")
-//            ),
-//            None
-//    )
-//
-//    par.removeEdge(3, timestamp + 1, -1, 3, 7)
-//  }
 
   test("add edge between two vertices on separate partitions") {
 
