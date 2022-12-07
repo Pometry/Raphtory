@@ -1,0 +1,120 @@
+name: Publish All Builds to Github
+on:
+  workflow_call:
+    inputs:
+      config-path:
+        required: false
+        type: string
+
+env:
+  PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+  SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+  SONATYPE_CREDENTIAL_HOST: ${{ secrets.SONATYPE_CREDENTIAL_HOST }}
+  SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+  PGP_SECRET: ${{ secrets.PGP_SECRET }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  buildPublishGithub:
+    name: "Build and Publish"
+    strategy:
+      fail-fast: false
+      matrix:
+        runners: ['ubuntu-20.04']
+        containers: ["eclipse-temurin:11.0.12_7-jdk"]
+        python-version: ["3.9"]
+        sbt: [1.6.2]
+    runs-on: ${{ matrix.runners }}
+    container:
+      image: ${{ matrix.containers }}
+    steps:
+      # Checkout the code
+      - name: Print Branch input name
+        run: echo running on ref branch ${{ github.ref }}
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+      - name: Get sbt package
+        run: apt-get update && apt-get -y install gnupg unzip && curl -L "https://github.com/sbt/sbt/releases/download/v${{ matrix.sbt }}/sbt-${{ matrix.sbt }}.zip" -o sbt-${{ matrix.sbt }}.zip && unzip sbt-${{ matrix.sbt }}.zip
+      # Create Raphtory thin jars and build python
+      - name: Building Thin Raphtory Jars for Python
+        run: |
+          export PATH=$(pwd)/sbt/bin:$PATH
+          apt-get update && apt-get install make
+          echo "core / Compile / logLevel := Level.Error" >> build.sbt
+          echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
+          make gh-sbt-build
+      - name: Setting up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+      - name: Installing poetry
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install poetry
+      - name: Building pyraphtory_jvm
+        run: cd python/pyraphtory_jvm && python setup.py sdist
+      - name: Building pyraphtory
+        run: cd python/pyraphtory && poetry build
+      - name: Building Fat Scala Jars (sbt assembly)
+        run: |
+          export PATH=$(pwd)/sbt/bin:$PATH
+          echo "core / Compile / logLevel := Level.Error" >> build.sbt
+          echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
+          sbt clean && sbt core/assembly arrowCore/assembly arrowMessaging/assembly
+      # Get artifacts
+      - name: Copy Jar & Python artifacts to folder
+        run: | 
+          mkdir artifacts
+          find './core/target' './arrow-core/target' './arrow-messaging/target' -type f \(  -name 'core-assembly-*.jar' -o -name 'arrow-core-assembly-*.jar' -o -name 'arrow-messaging-assembly-*.jar' \) -exec cp {} artifacts \;
+          cp python/pyraphtory_jvm/dist/*.gz artifacts/
+          cp python/pyraphtory/dist/*.gz artifacts/
+      # Create release and upload the artifacts to release
+      - name: Publish Release to Github
+        uses: ncipollo/release-action@v1
+        with:
+          draft: false
+          prerelease: false
+          artifacts: "./artifacts/*.*"
+          artifactErrorsFailBuild: true
+          replacesArtifacts: true
+          removeArtifacts: true
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+      - name: (Maven) Import signing key and strip passphrase
+        if: env.PGP_SECRET != '' && env.PGP_PASSPHRASE != ''
+        run: |
+          echo "$PGP_SECRET" | base64 -di > /tmp/signing-key.gpg
+          echo "$PGP_PASSPHRASE" | gpg --pinentry-mode loopback --passphrase-fd 0 --import /tmp/signing-key.gpg
+          (echo "$PGP_PASSPHRASE"; echo; echo) | gpg --command-fd 0 --pinentry-mode loopback --change-passphrase $(gpg --list-secret-keys --with-colons 2> /dev/null | grep '^sec:' | cut --delimiter ':' --fields 5 | tail -n 1)
+      - name: (Maven) Create Sonatype Credentials files on local machine
+        run: |
+          echo "Saving data to $HOME/.sbt/sonatype_credentials"
+          mkdir -p $HOME/.sbt/1.0
+          echo "realm=Sonatype Nexus Repository Manager" >> /root/.sbt/sonatype_credentials
+          echo "host=s01.oss.sonatype.org" >> /root/.sbt/sonatype_credentials
+          echo "username=$SONATYPE_USERNAME" >> /root/.sbt/sonatype_credentials
+          echo "password=$SONATYPE_PASSWORD" >> /root/.sbt/sonatype_credentials
+      - name: (Maven) Key pairs found
+        run: gpg --list-keys
+      - name: (Maven) Release
+        run: |
+          export PATH=$(pwd)/sbt/bin:$PATH
+          sbt clean
+          rm -rf /__w/Raphtory/Raphtory/core/target/scala-2.13/*.asc ||:
+          sbt publishSigned
+       # Release to Pypi Production
+      - name: Publish pyraphtory_jvm distribution to PyPI production
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages_dir: ./python/pyraphtory_jvm/dist/
+          print_hash: true
+      - name: Publish pyraphtory distribution to PyPI production
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages_dir: ./python/pyraphtory/dist/
+          print_hash: true

@@ -8,9 +8,6 @@ import tarfile
 
 import requests
 from pyraphtory_jvm import jre as jre
-from pyraphtory_jvm import __version__
-
-version_file = Path(__file__).parent.parent.parent.parent / "version"
 
 LOTR_CHECKSUM = '8c7400d7463b4f45daff411a5521cbcadec4cabd624200ed0c17d68dc7c99a3f'
 LOTR_URL = 'https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv'
@@ -33,12 +30,6 @@ def does_url_exist(url):
 
 
 class JRETest(unittest.TestCase):
-
-    def test_version(self):
-        with open(version_file) as f:
-            version = f.readline()
-        version = version.replace('\n', '')
-        self.assertEqual(__version__, version)
 
     def test_getOS(self):
         this_os = platform.system()
