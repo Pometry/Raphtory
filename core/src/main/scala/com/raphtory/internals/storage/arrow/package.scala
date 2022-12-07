@@ -130,24 +130,16 @@ package object arrow {
       }
 
     def outDegree(start: Long, end: Long): Int = {
-      v.nOutgoingEdges()
-//      val i = v.getRaphtory.getNewAllVerticesIterator
-//      i.reset(v.getLocalId)
-//      i.getNOutgoingEdges
       outgoingEdges(start, end).size
     }
 
     def inDegree(start: Long, end: Long): Int =
-//      val i = v.getRaphtory.getNewAllVerticesIterator
-//      i.reset(v.getLocalId)
-//      i.getNIncomingEdges
       incomingEdges(start, end).size
 
     private def windowIter(start: Long, end: Long) = {
       val iter = v.getRaphtory.getNewWindowedVertexIterator(start, end)
       iter.reset(v.getLocalId)
       iter.next()
-      val v0   = iter.getVertex
       iter
     }
 
