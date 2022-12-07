@@ -1,9 +1,6 @@
 name: Run the scala and python tests
 on:
-  workflow_dispatch:
-  push:
-    paths-ignore:
-      - 'README.md'
+  pull_request:
 
 jobs:
   call-test-scala-python-workflow-in-local-repo:
