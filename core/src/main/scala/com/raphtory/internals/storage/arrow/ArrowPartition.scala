@@ -14,7 +14,6 @@ import com.raphtory.arrowcore.implementation.VertexPartitionManager
 import com.raphtory.arrowcore.model.Edge
 import com.raphtory.arrowcore.model.Entity
 import com.raphtory.arrowcore.model.Vertex
-import com.raphtory.internals.graph.GraphAlteration.EdgeSyncAck
 import com.raphtory.internals.graph.GraphAlteration.SyncExistingEdgeAdd
 import com.raphtory.internals.graph.GraphAlteration.SyncExistingEdgeRemoval
 import com.raphtory.internals.graph.GraphAlteration.SyncExistingRemovals
@@ -133,14 +132,14 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       lookupProp: String => Int
   )(lookupField: String => Int): Unit =
     properties.properties.foreach {
-      case ImmutableProperty(key, value) =>
+      case ImmutableString(key, value) =>
         val FIELD    = lookupField(key.toLowerCase())
         val accessor = e.getField(FIELD)
         accessor.set(new lang.StringBuilder(value))
-      case StringProperty(key, value)    =>
+      case MutableString(key, value)   =>
         val FIELD = lookupProp(key)
         e.getProperty(FIELD).setHistory(true, msgTime).set(new lang.StringBuilder(value))
-      case LongProperty(key, value)      =>
+      case MutableLong(key, value)     =>
         val FIELD = lookupProp(key)
         if (!e.getProperty(FIELD).isSet)
           e.getProperty(FIELD).setHistory(true, msgTime).set(value)
@@ -154,19 +153,19 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
               par.getVertexMgr.addProperty(e.getLocalId, FIELD, accessor)
           }
         }
-      case IntegerProperty(key, value)   =>
+      case MutableInteger(key, value)  =>
         val FIELD = lookupProp(key)
         e.getProperty(FIELD).setHistory(true, msgTime).set(value)
-      case DoubleProperty(key, value)    =>
+      case MutableDouble(key, value)   =>
         val FIELD = lookupProp(key)
         e.getProperty(FIELD).setHistory(true, msgTime).set(value)
-      case FloatProperty(key, value)     =>
+      case MutableFloat(key, value)    =>
         val FIELD = lookupProp(key)
         e.getProperty(FIELD).setHistory(true, msgTime).set(value)
-      case BooleanProperty(key, value)   =>
+      case MutableBoolean(key, value)  =>
         val FIELD = lookupProp(key)
         e.getProperty(FIELD).setHistory(true, msgTime).set(value)
-      case _                             =>
+      case _                           =>
     }
 
   override def addEdge(
@@ -270,7 +269,10 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     par.getEdgeMgr.addHistory(e.getLocalId, time, true, true)
     val p = partitionFromVertex(src)
     par.getEdgeMgr
-      .setOutgoingEdgePtr(e.getLocalId, p.addOutgoingEdgeToList(e.getSrcVertex, e.getLocalId, e.getDstVertex, e.isDstGlobal))
+      .setOutgoingEdgePtr(
+              e.getLocalId,
+              p.addOutgoingEdgeToList(e.getSrcVertex, e.getLocalId, e.getDstVertex, e.isDstGlobal)
+      )
 //      .setOutgoingEdgePtr(e.getLocalId, p.addOutgoingEdgeToList(e.getSrcVertex, e.getLocalId, e.getDstVertex))
     p.addHistory(src.getLocalId, time, true, false, e.getLocalId, true)
   }
@@ -285,7 +287,10 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     par.getEdgeMgr.addHistory(e.getLocalId, time, true, true)
     var p = partitionFromVertex(src)
     par.getEdgeMgr
-      .setOutgoingEdgePtr(e.getLocalId, p.addOutgoingEdgeToList(e.getSrcVertex, e.getLocalId, e.getDstVertex, e.isDstGlobal))
+      .setOutgoingEdgePtr(
+              e.getLocalId,
+              p.addOutgoingEdgeToList(e.getSrcVertex, e.getLocalId, e.getDstVertex, e.isDstGlobal)
+      )
     p.addHistory(src.getLocalId, time, true, false, e.getLocalId, true)
     p = partitionFromVertex(dst)
     par.getEdgeMgr.setIncomingEdgePtr(e.getLocalId, p.addIncomingEdgeToList(e.getDstVertex, e.getLocalId))
@@ -373,7 +378,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       srcId: Long,
       dstId: Long,
       properties: Properties
-  ): GraphAlteration.GraphUpdateEffect = {
+  ): Unit = {
 
     updateAdders(msgTime)
 
@@ -396,8 +401,6 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       case None    =>
         addRemoteEdgeInternal(msgTime, srcId, dst, properties)
     }
-
-    EdgeSyncAck(sourceID, msgTime, index, srcId, dstId, fromAddition = true)
   }
 
   override def removeEdge(
@@ -441,7 +444,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       index: Long,
       srcId: Long,
       dstId: Long
-  ): GraphAlteration.GraphUpdateEffect = ???
+  ): Unit = ???
 
   override def syncExistingRemovals(
       msgTime: Long,
@@ -467,7 +470,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       index: Long,
       srcId: Long,
       dstId: Long
-  ): GraphAlteration.GraphUpdateEffect = ???
+  ): Unit = ???
 
   override def outboundEdgeRemovalViaVertex(
       sourceID: Long,
@@ -475,7 +478,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       index: Long,
       srcId: Long,
       dstId: Long
-  ): GraphAlteration.GraphUpdateEffect = ???
+  ): Unit = ???
 
   override def close(): Unit = par.close()
 }

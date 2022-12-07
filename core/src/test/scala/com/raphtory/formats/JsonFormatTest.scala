@@ -5,21 +5,9 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.output.format.Format
 import com.raphtory.api.time.DiscreteInterval
-import com.raphtory.internals.communication.CancelableListener
-import com.raphtory.internals.communication.CanonicalTopic
-import com.raphtory.internals.communication.Connector
-import com.raphtory.internals.communication.EndPoint
-import com.raphtory.internals.communication.TopicRepository
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import munit.FunSuite
-
-object NoConnector extends Connector {
-
-  override def register[T](id: String, messageHandler: T => Unit, topics: Seq[CanonicalTopic[T]]): CancelableListener = ???
-
-  override def endPoint[T](topic: CanonicalTopic[T]): EndPoint[T] = ???
-}
 
 class JsonFormatTest extends FunSuite {
   private val jobID       = "job-id"
@@ -96,8 +84,7 @@ class JsonFormatTest extends FunSuite {
     val executor = sink.executor(
             jobID,
             partitionID,
-            config,
-            TopicRepository(NoConnector, config)
+            config
     )
 
     table foreach {

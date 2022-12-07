@@ -12,7 +12,6 @@ import scala.io.Source
   * As such it appends a logical timestamp (linenumber) to each tuples it outputs.
   *
   *  @see [[com.raphtory.api.input.Spout Spout]]
-  *       [[com.raphtory.Raphtory Raphtory]]
   */
 case class StaticGraphSpout(fileDataPath: String) extends Spout[String] {
   override def buildSpout(): SpoutInstance[String] = new StaticGraphSpoutInstance(fileDataPath)
@@ -32,9 +31,8 @@ class StaticGraphSpoutInstance(fileDataPath: String) extends SpoutInstance[Strin
     val data = s"$line $lineNo"
     lineNo += 1
     count += 1
-    if (count % 100_000 == 0) {
+    if (count % 100_000 == 0)
       logger.debug(s"File spout sent $count messages.")
-    }
     data
   }
 

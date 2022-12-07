@@ -4,6 +4,8 @@ import traceback
 from abc import ABCMeta
 from collections.abc import Iterable, Mapping
 
+import os
+
 from py4j.java_gateway import JavaObject, JavaClass
 from py4j.java_collections import JavaArray
 import cloudpickle as pickle
@@ -12,15 +14,38 @@ from threading import Lock, RLock
 from copy import copy
 from textwrap import indent
 from pyraphtory import _codegen
+from jpype import JObject, JBoolean, JByte, JShort, JInt, JLong, JFloat, JDouble, JString
 from pyraphtory._py4jgateway import Py4JConnection
 
 _wrapper_lock = Lock()
-_wrappers = {}
+_jpype = False
+
+class NoCache:
+    def __setitem__(self, key, value):
+        pass
+_globals = NoCache()
+
+def no_wrapper(jvm_object):
+    return jvm_object
+
+
+_wrappers = {
+    "java.lang.Integer": no_wrapper,
+    "java.lang.Short": no_wrapper,
+    "java.lang.Long": no_wrapper,
+    "java.lang.Float": no_wrapper,
+    "java.lang.Double": no_wrapper,
+}
 
 
 def repr(obj):
-    return _scala.repr(obj)
+    return str(_scala.repr(obj))
 
+
+def check_raphtory_logging_env():
+    log_level = os.getenv('RAPHTORY_CORE_LOG')
+    if log_level is None:
+        os.environ["RAPHTORY_CORE_LOG"] = "ERROR"
 
 # stay sane while debugging this code
 JavaArray.__repr__ = repr
@@ -35,8 +60,17 @@ try:
 
     _scala = findClass('com.raphtory.internals.management.PythonInterop')
 except ImportError:
-    _py4j = Py4JConnection()
-    _scala = _py4j.j_gateway.entry_point
+    import jpype
+    import jpype.imports
+    from pyraphtory import _config
+
+    check_raphtory_logging_env()
+
+    jpype.startJVM(_config.java_args, classpath=_config.jars.split(":"))
+    from pyraphtory._jpypeinterpreter import JPypeInterpreter, _globals
+    from com.raphtory.internals.management import PythonInterop as _scala
+    _scala.set_interpreter(JPypeInterpreter())
+    _jpype = True
 
 
 def test_scala_reflection(obj):
@@ -60,9 +94,15 @@ def register(cls=None, *, name=None):
         return cls
 
 
+_JPrimitiveTypes = (JBoolean, JByte, JShort, JInt, JLong, JFloat, JDouble, JString)
+def _isJPrimitive(obj):
+    return isinstance(obj, _JPrimitiveTypes)
+
 def is_PyJObject(obj):
     """Needed because Pemja objects do not support isinstance"""
-    return type(obj).__name__ == "PyJObject" or isinstance(obj, JavaObject) or isinstance(obj, JavaClass)
+    return (type(obj).__name__ == "PyJObject"
+            or (isinstance(obj, JObject) and not _isJPrimitive(obj))
+            or isinstance(obj, JavaObject) or isinstance(obj, JavaClass))
 
 
 def snake_to_camel(name: str):
@@ -86,6 +126,11 @@ def decode(obj):
     return _scala.decode(obj)
 
 
+def decode_tuple(obj):
+    """call scala decode_tuple function to convert collection to scala tuple"""
+    return _scala.decode_tuple(obj)
+
+
 def get_methods(obj):
     """look up methods for a java object"""
     logger.trace("Finding methods for {obj!r}", obj=obj)
@@ -99,7 +144,7 @@ def get_methods_from_name(name):
 
 def get_wrapper(obj):
     """get wrapper class for a java object"""
-    name = obj.getClass().getName()
+    name = str(obj.getClass().getName())
     logger.trace("Retrieving wrapper for {name!r}", name=name)
     try:
         wrapper = _wrappers[name]
@@ -113,7 +158,7 @@ def get_wrapper(obj):
                 logger.trace("Found wrapper for {name!r} based on class name after initial wait", name=name)
             else:
                 # Check if a special wrapper class is registered for the object
-                wrap_name = _scala.get_wrapper_str(obj)
+                wrap_name = str(_scala.get_wrapper_str(obj))
                 if wrap_name in _wrappers:
                     # Add special wrapper class to the top of the mro such that method overloads work
                     logger.debug("Using wrapper based on name {wrap_name} for {name}", wrap_name=wrap_name, name=name)
@@ -142,6 +187,9 @@ def to_jvm(value):
     elif callable(value):
         logger.trace("Converting value {value!r}, decoding as Function", value=value)
         return _wrap_python_function(value)
+    elif isinstance(value, tuple):
+        logger.trace(f"Converting value {value!r}, decoding as Tuple", value=value)
+        return decode_tuple([to_jvm(v) for v in value])
     elif (isinstance(value, Iterable)
           and not isinstance(value, str)
           and not isinstance(value, bytes)
@@ -159,6 +207,8 @@ def to_python(obj):
         wrapper = get_wrapper(obj)
         logger.trace("Calling wrapper with jvm_object={obj}", obj=obj)
         return wrapper(jvm_object=obj)
+    elif isinstance(obj, JString):
+        return str(obj)
     else:
         logger.trace("Primitive object {obj!r} passed to python unchanged", obj=obj)
         return obj
@@ -181,12 +231,14 @@ def make_varargs(param):
 
 def _wrap_python_function(fun):
     """take a python function and turn it into a scala function"""
+    eval_name = f"wrapped_{id(fun)}"
     wrapped = FunctionWrapper(fun)
     pickle_bytes = pickle.dumps(wrapped)
+    _globals[eval_name] = wrapped
     if wrapped.n_args == 1:
-        return to_jvm(Function1(pickle_bytes))
+        return to_jvm(Function1(pickle_bytes, eval_name))
     elif wrapped.n_args == 2:
-        return to_jvm(Function2(pickle_bytes))
+        return to_jvm(Function2(pickle_bytes, eval_name))
     else:
         raise ValueError("Only functions with 1 or 2 arguments are currently implemented when passing to scala")
 
@@ -286,7 +338,7 @@ class ScalaProxyBase(object):
         if len(method_array) > 1:
             for i, method in enumerate(sorted(method_array, key=lambda m: m.n())):
                 try:
-                    exec(_codegen.build_method(f"{name}{i}", method), globals(), output)
+                    exec(_codegen.build_method(f"{name}{i}", method, _jpype), globals(), output)
                     # output[f"{name}{i}"].__doc__ = method.docs()
                 except Exception as e:
                     traceback.print_exc()
@@ -296,7 +348,7 @@ class ScalaProxyBase(object):
         else:
             method = method_array[0]
             try:
-                exec(_codegen.build_method(name, method), globals(), output)
+                exec(_codegen.build_method(name, method, _jpype), globals(), output)
                 # output[name].__doc__ = method.docs()
             except Exception as e:
                 traceback.print_exc()
@@ -433,11 +485,15 @@ class OverloadedMethod:
                                       for m in self._methods))
 
     def __call__(self, *args, **kwargs):
+        errors = []
         for method in self._methods:
             try:
                 return method(*args, **kwargs)
             except Exception as e:
                 logger.trace("call failed for {name} with exception {e}", e=e, name=self.__name__)
+                errors.append(e)
+        for e in errors:
+            print(e)
         raise RuntimeError(f"No overloaded implementations matched for {self.__name__} with {args=} and {kwargs=}")
 
     def __get__(self, instance, owner):
@@ -511,6 +567,7 @@ class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
         else:
             actual_mcs = type.__new__(mcs, name + "_", (mcs,), {"_classname": attrs["_classname"]})
             actual_mcs._init_base_methods(_scala.find_class(actual_mcs._classname))
+
 
         cls = type.__new__(actual_mcs, name, bases, attrs, **kwargs)
         if concrete:

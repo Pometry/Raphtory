@@ -40,7 +40,7 @@ trait Graph {
   protected def handleGraphUpdate(update: GraphUpdate): Unit
   protected def sourceID: Int
   def index: Long
-  protected def graphID: String
+  def graphID: String
 
   private def vertexAddCounter = TelemetryReporter.vertexAddCounter.labels(s"$sourceID", graphID)
 

@@ -163,13 +163,3 @@ class JRETest(unittest.TestCase):
         mock_unpack_archive.return_value = None
         # Run the function
         self.assertRaises(Exception, jre.unpack_jre, tf, ts)
-
-    @mock.patch('platform.system')
-    def test_unpack_jre(self, mock_machine):
-        mock_machine.return_value = 'Linux'
-        ts = tempfile.mkdtemp()
-        tempfile.mkstemp(dir=ts)
-        unpack_dir = tempfile.mkdtemp()
-        temp_tar = ts + '/tmpfile.tar.gz'
-        make_tarfile(temp_tar, ts)
-        self.assertIsNone(jre.unpack_jre(temp_tar, ts, unpack_dir=unpack_dir))

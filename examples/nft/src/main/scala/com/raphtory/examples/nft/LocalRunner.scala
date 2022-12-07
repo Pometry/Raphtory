@@ -2,11 +2,11 @@ package com.raphtory.examples.nft
 
 import com.raphtory.RaphtoryApp
 import com.raphtory.api.input.Graph.assignID
-import com.raphtory.api.input.DoubleProperty
+import com.raphtory.api.input.MutableDouble
 import com.raphtory.api.input.Graph
-import com.raphtory.api.input.ImmutableProperty
+import com.raphtory.api.input.ImmutableString
 import com.raphtory.api.input.Properties
-import com.raphtory.api.input.StringProperty
+import com.raphtory.api.input.MutableString
 import com.raphtory.api.input.Type
 import com.raphtory.examples.nft.analysis.CycleMania
 import com.raphtory.formats.JsonFormat
@@ -78,7 +78,7 @@ object LocalRunner extends RaphtoryApp.Local {
     graph.addVertex(
             timeStamp,
             buyer_address_hash,
-            Properties(ImmutableProperty("address", buyer_address)),
+            Properties(ImmutableString("address", buyer_address)),
             Type("Wallet")
     )
 
@@ -87,9 +87,9 @@ object LocalRunner extends RaphtoryApp.Local {
             timeStamp,
             token_id_hash,
             Properties(
-                    ImmutableProperty("id", token_id_str),
-                    ImmutableProperty("collection", collection_cleaned),
-                    ImmutableProperty("category", category)
+                    ImmutableString("id", token_id_str),
+                    ImmutableString("collection", collection_cleaned),
+                    ImmutableString("category", category)
             ),
             Type("NFT")
     )
@@ -101,12 +101,12 @@ object LocalRunner extends RaphtoryApp.Local {
             buyer_address_hash,
             token_id_hash,
             Properties(
-                    StringProperty("transaction_hash", tx_hash),
-                    StringProperty("crypto", crypto),
-                    DoubleProperty("price_USD", price_USD),
-                    StringProperty("market", market),
-                    StringProperty("token_id", token_id_str),
-                    StringProperty("buyer_address", buyer_address)
+                    MutableString("transaction_hash", tx_hash),
+                    MutableString("crypto", crypto),
+                    MutableDouble("price_USD", price_USD),
+                    MutableString("market", market),
+                    MutableString("token_id", token_id_str),
+                    MutableString("buyer_address", buyer_address)
             ),
             Type("Purchase")
     )

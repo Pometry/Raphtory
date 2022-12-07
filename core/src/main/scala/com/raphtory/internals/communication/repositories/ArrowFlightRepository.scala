@@ -3,30 +3,15 @@ package com.raphtory.internals.communication.repositories
 import cats.effect.Async
 import cats.effect.Resource
 import com.raphtory.arrowmessaging.ArrowFlightMessageSignatureRegistry
-import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.communication.connectors.AkkaConnector
-import com.raphtory.internals.communication.connectors.ArrowFlightConnector
 import com.raphtory.internals.communication.models._
 import com.raphtory.internals.communication.models.graphalterations._
 import com.raphtory.internals.communication.models.vertexmessaging._
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.internals.graph.GraphAlteration._
-import com.raphtory.internals.management.arrow.ArrowFlightHostAddressProvider
 import com.typesafe.config.Config
 
 /** @DoNotDocument */
 object ArrowFlightRepository {
-
-  def apply[IO[_]: Async](
-      config: Config,
-      addressProvider: ArrowFlightHostAddressProvider
-  ): Resource[IO, TopicRepository] =
-    config.getString("raphtory.communication.control") match {
-      case "auto" | "akka" =>
-        for {
-          akkaConnector <- AkkaConnector[IO](AkkaConnector.StandaloneMode, config)
-        } yield new TopicRepository(akkaConnector, akkaConnector, akkaConnector, config)
-    }
 
   private[raphtory] val signatureRegistry = ArrowFlightMessageSignatureRegistry()
 
@@ -261,26 +246,5 @@ object ArrowFlightRepository {
                 classOf[SyncExistingRemovalsArrowFlightMessage]
         )
       }
-
-    private[raphtory] lazy val edgeSyncAckArrowFlightMessageSchemaProvider =
-      new ArrowFlightSchemaProvider[EdgeSyncAck] {
-        override val endpoint = "edgeSyncAck"
-
-        signatureRegistry.registerSignature(
-                endpoint,
-                classOf[EdgeSyncAckArrowFlightMessage]
-        )
-      }
-
-    private[raphtory] lazy val vertexRemoveSyncAckArrowFlightMessageSchemaProvider =
-      new ArrowFlightSchemaProvider[VertexRemoveSyncAck] {
-        override val endpoint = "vertexRemoveSyncAck"
-
-        signatureRegistry.registerSignature(
-                endpoint,
-                classOf[VertexRemoveSyncAckArrowFlightMessage]
-        )
-      }
   }
-
 }

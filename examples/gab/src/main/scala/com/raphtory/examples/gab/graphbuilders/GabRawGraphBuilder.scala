@@ -2,7 +2,7 @@ package com.raphtory.examples.gab.graphbuilders
 
 import com.raphtory.api.input.Graph
 import com.raphtory.api.input.Properties
-import com.raphtory.api.input.StringProperty
+import com.raphtory.api.input.MutableString
 
 import java.time.OffsetDateTime
 import com.raphtory.examples.gab.rawgraphmodel.GabPost
@@ -50,35 +50,35 @@ object GabRawGraphBuilder {
               timestamp,
               postUUID,
               Properties(
-                      StringProperty(
+                      MutableString(
                               "user",
                               post.user match {
                                 case Some(u) => u.id.toString
                                 case None    => nullStr
                               }
                       ),
-                      StringProperty(
+                      MutableString(
                               "likeCount",
                               post.like_count match {
                                 case Some(likeCount) => likeCount.toString
                                 case None            => nullStr
                               }
                       ),
-                      StringProperty(
+                      MutableString(
                               "score",
                               post.score match {
                                 case Some(score) => score.toString
                                 case None        => nullStr
                               }
                       ),
-                      StringProperty(
+                      MutableString(
                               "topic",
                               post.topic match {
                                 case Some(topic) => topic.id
                                 case None        => nullStr
                               }
                       ),
-                      StringProperty("type", "post")
+                      MutableString("type", "post")
               )
       )
 
@@ -89,16 +89,16 @@ object GabRawGraphBuilder {
                   timestamp,
                   userUUID,
                   Properties(
-                          StringProperty("type", "user"),
-                          StringProperty("id", user.id.toString),
-                          StringProperty("name", user.name),
-                          StringProperty("username", user.username),
-                          StringProperty("verified", user.verified.toString)
+                          MutableString("type", "user"),
+                          MutableString("id", user.id.toString),
+                          MutableString("name", user.name),
+                          MutableString("username", user.username),
+                          MutableString("verified", user.verified.toString)
                   )
           )
 
-          graph.addEdge(timestamp, userUUID, postUUID, Properties((StringProperty("type", "userToPost"))))
-          graph.addEdge(timestamp, postUUID, userUUID, Properties(StringProperty("type", "postToUser")))
+          graph.addEdge(timestamp, userUUID, postUUID, Properties((MutableString("type", "userToPost"))))
+          graph.addEdge(timestamp, postUUID, userUUID, Properties(MutableString("type", "postToUser")))
 
         case None       =>
       }
@@ -110,21 +110,21 @@ object GabRawGraphBuilder {
                   timestamp,
                   topicUUID,
                   Properties(
-                          StringProperty("created_at", topic.created_at),
-                          StringProperty("category", topic.category.toString),
-                          StringProperty("title", topic.title.getOrElse("null")),
-                          StringProperty("type", "topic"),
-                          StringProperty("id", topic.id)
+                          MutableString("created_at", topic.created_at),
+                          MutableString("category", topic.category.toString),
+                          MutableString("title", topic.title.getOrElse("null")),
+                          MutableString("type", "topic"),
+                          MutableString("id", topic.id)
                   )
           )
 
-          graph.addEdge(timestamp, postUUID, topicUUID, Properties(StringProperty("type", "postToTopic")))
+          graph.addEdge(timestamp, postUUID, topicUUID, Properties(MutableString("type", "postToTopic")))
         case None        =>
       }
 
       // Edge from child to parent post
       if (recursiveCall && parent != 0)
-        graph.addEdge(timestamp, postUUID, parent, Properties(StringProperty("type", "childToParent")))
+        graph.addEdge(timestamp, postUUID, parent, Properties(MutableString("type", "childToParent")))
       post.parent match {
         case Some(p) =>
           if (!recursiveCall) // Allow only one recursion per post

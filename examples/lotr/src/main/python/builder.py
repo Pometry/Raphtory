@@ -1,4 +1,4 @@
-from pyraphtory.builder import *
+from pyraphtory.input import *
 
 class LotrGraphBuilder(BaseBuilder):
 

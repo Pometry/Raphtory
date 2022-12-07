@@ -150,8 +150,6 @@ lazy val core = (project in file("core"))
     addCompilerPlugin(scalaDocReader),
     libraryDependencies ++= Seq(
       //please keep in alphabetical order
-      akkaClusterTyped,
-      akkaTyped,
       bcel,
       curatorRecipes,
       decline,

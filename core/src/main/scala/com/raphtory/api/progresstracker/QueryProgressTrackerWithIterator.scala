@@ -1,16 +1,16 @@
 package com.raphtory.api.progresstracker
 
 import com.raphtory.api.analysis.table._
-import com.raphtory.api.time.Perspective
-import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.components.output._
-import com.raphtory.internals.components.querymanager._
+import com.raphtory.protocol.PerspectiveCompleted
+import com.raphtory.protocol.PerspectiveFailed
+import com.raphtory.protocol.QueryCompleted
+import com.raphtory.protocol.QueryFailed
+import com.raphtory.protocol.QueryUpdate
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
+
 import java.util.concurrent.LinkedBlockingQueue
-import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.Duration
 
 /**
@@ -19,7 +19,6 @@ import scala.concurrent.duration.Duration
 class QueryProgressTrackerWithIterator(
     graphID: String,
     jobID: String,
-    topics: TopicRepository,
     conf: Config,
     timeout: Duration
 ) extends QueryProgressTracker(graphID, jobID, conf) {
@@ -28,39 +27,17 @@ class QueryProgressTrackerWithIterator(
   private var outputDone: Boolean             = false
   private var jobsDone                        = 0
   private var nextResult: Option[TableOutput] = None
-  private val resultsInProgress               = mutable.Map.empty[Perspective, ArrayBuffer[Row]]
-  private val perspectiveDoneCounts           = mutable.Map.empty[Perspective, Int]
   private val completedResults                = new LinkedBlockingQueue[Any]
 
-  override def handleMessage(msg: QueryManagement): Unit =
+  override def handleQueryUpdate(msg: QueryUpdate): Unit = {
     msg match {
-      case _: JobFailed =>
+      case PerspectiveCompleted(perspective, rows, _) =>
+        logger.debug(s"received message $msg")
+        completedResults.add(TableOutput(getJobId, perspective, rows.toArray, conf))
+      case _: QueryCompleted | _: QueryFailed         => // QueryCompleted or QueryFailed
         completedResults.add(msg)
-        super.handleMessage(msg)
-      case _            => super.handleMessage(msg)
     }
-
-  def handleOutputMessage(msg: OutputMessages): Unit = {
-    logger.debug(s"received message $msg")
-    msg match {
-      case RowOutput(perspective, row)                  =>
-        resultsInProgress.getOrElseUpdate(perspective, ArrayBuffer.empty[Row]).append(row)
-      case EndPerspective(perspective, totalPartitions) =>
-        perspectiveDoneCounts(perspective) = perspectiveDoneCounts.getOrElse(perspective, 0) + 1
-        if (perspectiveDoneCounts(perspective) == totalPartitions) {
-          perspectiveDoneCounts.remove(perspective)
-          resultsInProgress.remove(perspective).map(_.toArray) match {
-            case Some(rows) =>
-              completedResults.add(TableOutput(getJobId, perspective, rows, conf, topics))
-            case None       =>
-              completedResults.add(TableOutput(getJobId, perspective, Array.empty, conf, topics))
-          }
-        }
-      case EndOutput(totalPartitions)                   =>
-        jobsDone += 1
-        if (jobsDone == totalPartitions)
-          completedResults.add(EndOutput)
-    }
+    super.handleQueryUpdate(msg)
   }
 
   override def isJobDone: Boolean = outputDone
@@ -89,13 +66,13 @@ class QueryProgressTrackerWithIterator(
         waitForNextResult() match {
           case Some(res) =>
             res match {
-              case JobFailed(error) =>
-                throw new JobFailedException(jobID, error)
-              case EndOutput        =>
+              case QueryFailed(reason, _) =>
+                throw new JobFailedException(jobID, reason)
+              case QueryCompleted(_)      =>
                 outputDone = true
                 logger.debug("hasNext false as output complete after waiting for result")
                 false
-              case v: TableOutput   =>
+              case v: TableOutput         =>
                 nextResult = Some(v)
                 logger.debug("hasNext true as new result available after waiting")
                 true
@@ -117,8 +94,8 @@ class QueryProgressTrackerWithIterator(
 
     private object TableOutputIteratorException {
 
-      class JobFailedException(jobID: String, cause: Throwable)
-              extends RuntimeException(s"The execution of the query '$jobID' failed", cause)
+      class JobFailedException(jobID: String, reason: String)
+              extends RuntimeException(s"The execution of the query '$jobID' failed. Reason: $reason")
     }
   }
 }
@@ -128,9 +105,8 @@ object QueryProgressTrackerWithIterator {
   def apply(
       graphID: String,
       jobID: String,
-      topics: TopicRepository,
       conf: Config,
       timeout: Duration
   ): QueryProgressTrackerWithIterator =
-    new QueryProgressTrackerWithIterator(graphID, jobID, topics, conf, timeout)
+    new QueryProgressTrackerWithIterator(graphID, jobID, conf, timeout)
 }

@@ -137,7 +137,7 @@ Import all necessary dependencies needed to build a graph from your data in Raph
 import time
 from calendar import timegm
 from pyraphtory.context import PyRaphtory
-from pyraphtory.builder import *
+from pyraphtory.input import *
 from pyraphtory.spouts import FileSpout
 from pyraphtory.sinks import FileSink
 from pyraphtory.formats import JsonFormat

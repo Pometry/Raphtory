@@ -7,11 +7,11 @@ import com.raphtory.api.input.Source
 import com.raphtory.api.progresstracker.ProgressTracker
 import com.raphtory.api.progresstracker.QueryProgressTracker
 import com.raphtory.api.progresstracker.QueryProgressTrackerWithIterator
-import com.raphtory.internals.FlushToFlight
-import com.raphtory.internals.communication.EndPoint
-import com.raphtory.internals.communication.TopicRepository
-import com.raphtory.internals.components.output.OutputMessages
-import com.raphtory.internals.components.querymanager._
+import com.raphtory.internals.components.querymanager.DynamicLoader
+import com.raphtory.internals.components.querymanager.IngestData
+import com.raphtory.internals.components.querymanager.Query
+import com.raphtory.internals.components.querymanager.TryIngestData
+import com.raphtory.internals.components.querymanager.TryQuery
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.protocol
 import com.raphtory.protocol.GraphInfo
@@ -19,6 +19,7 @@ import com.raphtory.protocol.RaphtoryService
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
+
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.Duration
 import scala.util.Random
@@ -27,7 +28,6 @@ import scala.util.Success
 private[raphtory] class QuerySender(
     val graphID: String,
     private val service: RaphtoryService[IO],
-    private val topics: TopicRepository,
     private val config: Config,
     private val clientID: String
 ) extends Graph {
@@ -40,8 +40,8 @@ private[raphtory] class QuerySender(
   val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
   val totalPartitions: Int     = partitionServers * partitionsPerServer
 
-  private val blockingSources          = ArrayBuffer[Long]()
-  private var highestTimeSeen          = Long.MinValue
+  private var earliestTimeSeen         = Long.MaxValue
+  private var latestTimeSeen           = Long.MinValue
   private var totalUpdateIndex         = 0    //used at the secondary index for the client
   private var updatesSinceLastIDChange = 0    //used to know how many messages to wait for when blocking in the Q manager
   private var newIDRequiredOnUpdate    = true // has a query been since the last update and do I need a new ID
@@ -69,7 +69,8 @@ private[raphtory] class QuerySender(
     handleGraphUpdate(update) // Required so the Temporal Graph obj can call the below func
 
   override protected def handleGraphUpdate(update: GraphUpdate): Unit = {
-    highestTimeSeen = highestTimeSeen max update.updateTime
+    earliestTimeSeen = earliestTimeSeen min update.updateTime
+    latestTimeSeen = latestTimeSeen max update.updateTime
     service.processUpdate(protocol.GraphUpdate(graphID, update)).unsafeRunSync()
     totalUpdateIndex += 1
     updatesSinceLastIDChange += 1
@@ -87,8 +88,6 @@ private[raphtory] class QuerySender(
     val progressTracker: ProgressTracker = createProgressTracker(jobID)
 
     if (updatesSinceLastIDChange > 0) { // TODO Think this will block multi-client -- not an issue for right now
-      unblockIngestion(sourceID = currentSourceID, updatesSinceLastIDChange, force = false)
-      blockingSources += currentSourceID
       updatesSinceLastIDChange = 0
       newIDRequiredOnUpdate = true
     }
@@ -96,19 +95,15 @@ private[raphtory] class QuerySender(
     val outputQuery = query
       .copy(
               name = jobID,
-              blockedBy = blockingSources.toArray,
-              _bootstrap = query._bootstrap.resolve(searchPath)
+              _bootstrap = query._bootstrap.resolve(searchPath),
+              earliestSeen = earliestTimeSeen,
+              latestSeen = latestTimeSeen
       )
 
     val responses = service.submitQuery(protocol.Query(TryQuery(Success(outputQuery)))).unsafeRunSync()
     responses
-      .map(_.bytes)
-      .foreach {
-        case message: OutputMessages =>
-          IO(progressTracker.asInstanceOf[QueryProgressTrackerWithIterator].handleOutputMessage(message))
-        case message                 =>
-          IO(progressTracker.handleMessage(message))
-      }
+      .map(message => message.toQueryUpdate)
+      .foreach(update => IO(progressTracker.handleQueryUpdate(update)))
       .compile
       .drain
       .unsafeRunAndForget()
@@ -120,12 +115,7 @@ private[raphtory] class QuerySender(
     QueryProgressTracker(graphID, jobID, config)
 
   def createTableOutputTracker(jobID: String, timeout: Duration): QueryProgressTrackerWithIterator =
-    QueryProgressTrackerWithIterator(graphID, jobID, topics, config, timeout)
-
-  private def unblockIngestion(sourceID: Int, messageCount: Long, force: Boolean): Unit =
-    service
-      .unblockIngestion(protocol.UnblockIngestion(graphID, sourceID, messageCount, highestTimeSeen, force))
-      .unsafeRunSync()
+    QueryProgressTrackerWithIterator(graphID, jobID, config, timeout)
 
   def destroyGraph(force: Boolean): Unit =
     service.destroyGraph(protocol.DestroyGraph(clientID, graphID, force)).unsafeRunSync()
@@ -134,14 +124,11 @@ private[raphtory] class QuerySender(
 
   def establishGraph(): Unit = service.establishGraph(GraphInfo(clientID, graphID)).unsafeRunSync()
 
-  def submitSources(blocking: Boolean, sources: Seq[Source]): Unit = {
-    val clazzes      = sources.map { source =>
-      source.getBuilderClass
-    }.toList
+  def submitSources(sources: Seq[Source]): Unit = {
+    val clazzes      = sources.map(_.getBuilderClass).toList
     val sourceWithId = sources.map { source =>
       service.getNextAvailableId(protocol.IdPool(graphID)).unsafeRunSync() match {
         case protocol.OptionalId(Some(id), _) =>
-          if (blocking) blockingSources += id
           (id, source)
         case protocol.OptionalId(None, _)     =>
           throw new NoIDException(s"Client '$clientID' was not able to acquire a source ID for $source")
@@ -150,7 +137,7 @@ private[raphtory] class QuerySender(
 
     sourceWithId foreach {
       case (id, source) =>
-        val ingestData = IngestData(DynamicLoader(clazzes).resolve(searchPath), graphID, id, source, blocking)
+        val ingestData = IngestData(DynamicLoader(clazzes).resolve(searchPath), graphID, id, source)
         service.submitSource(protocol.IngestData(TryIngestData(Success(ingestData)))).unsafeRunSync()
     }
   }

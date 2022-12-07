@@ -79,10 +79,4 @@ object SchemaProviderInstances {
 
   implicit lazy val syncExistingRemovalsSchemaProvider: SchemaProvider[SyncExistingRemovals] =
     syncExistingRemovalsArrowFlightMessageSchemaProvider
-
-  implicit lazy val edgeSyncAckSchemaProvider: SchemaProvider[EdgeSyncAck] =
-    edgeSyncAckArrowFlightMessageSchemaProvider
-
-  implicit lazy val vertexRemoveSyncAckSchemaProvider: SchemaProvider[VertexRemoveSyncAck] =
-    vertexRemoveSyncAckArrowFlightMessageSchemaProvider
 }

@@ -34,7 +34,7 @@ from pathlib import Path
 from pyraphtory.context import PyRaphtory
 from pyraphtory.vertex import Vertex
 from pyraphtory.spouts import FileSpout
-from pyraphtory.builder import *
+from pyraphtory.input import *
 from pyvis.network import Network
 
 ```

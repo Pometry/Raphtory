@@ -36,7 +36,6 @@ import java.nio.file.StandardOpenOption
   *      [[com.raphtory.api.output.format.Format Format]]
   *      [[com.raphtory.formats.CsvFormat CsvFormat]]
   *      [[com.raphtory.api.analysis.table.Table Table]]
-  *      [[com.raphtory.Raphtory Raphtory]]
   */
 case class FileSink(filePath: String, format: Format = CsvFormat()) extends FormatAgnosticSink(format) {
 

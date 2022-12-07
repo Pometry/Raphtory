@@ -3,9 +3,13 @@ package com.raphtory.internals.storage.pojograph
 import com.raphtory.api.input._
 import com.raphtory.internals.communication.SchemaProviderInstances._
 import com.raphtory.internals.graph.GraphAlteration._
-import com.raphtory.internals.graph.{GraphPartition, LensInterface}
+import com.raphtory.internals.graph.GraphPartition
+import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExVertex
-import com.raphtory.internals.storage.pojograph.entities.internal.{PojoEdge, PojoEntity, PojoVertex, SplitEdge}
+import com.raphtory.internals.storage.pojograph.entities.internal.PojoEdge
+import com.raphtory.internals.storage.pojograph.entities.internal.PojoEntity
+import com.raphtory.internals.storage.pojograph.entities.internal.PojoVertex
+import com.raphtory.internals.storage.pojograph.entities.internal.SplitEdge
 import com.typesafe.config.Config
 
 import scala.collection.mutable
@@ -24,13 +28,13 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
 
   def addProperties(msgTime: Long, index: Long, entity: PojoEntity, properties: Properties): Unit =
     properties.properties.foreach {
-      case StringProperty(key, value)    => entity + (msgTime, index, false, key, value)
-      case LongProperty(key, value)      => entity + (msgTime, index, false, key, value)
-      case DoubleProperty(key, value)    => entity + (msgTime, index, false, key, value)
-      case FloatProperty(key, value)     => entity + (msgTime, index, false, key, value)
-      case BooleanProperty(key, value)   => entity + (msgTime, index, false, key, value)
-      case IntegerProperty(key, value)   => entity + (msgTime, index, false, key, value)
-      case ImmutableProperty(key, value) => entity + (msgTime, index, true, key, value)
+      case MutableString(key, value)   => entity + (msgTime, index, false, key, value)
+      case MutableLong(key, value)     => entity + (msgTime, index, false, key, value)
+      case MutableDouble(key, value)   => entity + (msgTime, index, false, key, value)
+      case MutableFloat(key, value)    => entity + (msgTime, index, false, key, value)
+      case MutableBoolean(key, value)  => entity + (msgTime, index, false, key, value)
+      case MutableInteger(key, value)  => entity + (msgTime, index, false, key, value)
+      case ImmutableString(key, value) => entity + (msgTime, index, true, key, value)
     }
 
   // if the add come with some properties add all passed properties into the entity
@@ -41,10 +45,11 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
       srcId: Long,
       properties: Properties,
       vertexType: Option[Type]
-  ): Unit = vertices.synchronized {
-    addVertexInternal(msgTime, index, srcId, properties, vertexType)
-    logger.trace(s"Added vertex $srcId")
-  }
+  ): Unit =
+    vertices.synchronized {
+      addVertexInternal(msgTime, index, srcId, properties, vertexType)
+      logger.trace(s"Added vertex $srcId")
+    }
 
   // TODO Unfolding of type is un-necessary
   def addVertexInternal(
@@ -289,7 +294,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
       srcId: Long,
       dstId: Long,
       properties: Properties
-  ): GraphUpdateEffect =
+  ): Unit =
     vertices.synchronized {
       val dstVertex =
         addVertexInternal(msgTime, index, dstId, Properties(), None) // revive the destination node
@@ -307,9 +312,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
           val edge = new SplitEdge(msgTime, index, srcId, dstId, initialValue = true)
           addProperties(msgTime, index, edge, properties)
           dstVertex addIncomingEdge edge
-
       }
-      EdgeSyncAck(sourceID, msgTime, index, srcId, dstId, fromAddition = true)
     }
 
   def removeEdge(sourceID: Long, msgTime: Long, index: Long, srcId: Long, dstId: Long): Option[GraphUpdateEffect] =
@@ -376,13 +379,12 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
       index: Long,
       srcId: Long,
       dstId: Long
-  ): GraphUpdateEffect =
+  ): Unit =
     vertices.synchronized { //for the source getting an update about deletions from a remote worker
       getVertexOrPlaceholder(msgTime, index, srcId).getOutgoingEdge(dstId) match {
         case Some(edge) => edge kill (msgTime, index)
         case None       => logger.error("Remote edge removal with no outgoing edge.")
       }
-      VertexRemoveSyncAck(sourceID, msgTime, index, dstId)
     }
 
   def syncExistingEdgeRemoval(
@@ -391,7 +393,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
       index: Long,
       srcId: Long,
       dstId: Long
-  ): GraphUpdateEffect =
+  ): Unit =
     vertices.synchronized {
       val dstVertex = getVertexOrPlaceholder(msgTime, index, dstId)
       dstVertex.getIncomingEdge(srcId) match {
@@ -403,7 +405,6 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
           val edge = new SplitEdge(msgTime, index, srcId, dstId, initialValue = false)
           dstVertex addIncomingEdge edge
       }
-      EdgeSyncAck(sourceID, msgTime, index, srcId, dstId, fromAddition = false)
     }
 
   def outboundEdgeRemovalViaVertex(
@@ -412,13 +413,12 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
       index: Long,
       srcId: Long,
       dstId: Long
-  ): GraphUpdateEffect =
+  ): Unit =
     vertices.synchronized {
       getVertexOrPlaceholder(msgTime, index, dstId).getIncomingEdge(srcId) match {
         case Some(e) => e kill (msgTime, index)
         case None    => logger.error("Remote edge removal from vertex with no incoming edge.")
       }
-      VertexRemoveSyncAck(sourceID, msgTime, index, srcId)
     }
 
   def syncNewEdgeRemoval(

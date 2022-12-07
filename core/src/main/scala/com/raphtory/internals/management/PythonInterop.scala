@@ -11,6 +11,7 @@ import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.input.Graph
 import com.raphtory.internals.management.python.EmbeddedPython
+import com.raphtory.internals.management.python.JPypeEmbeddedPython
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
@@ -23,10 +24,27 @@ import scala.reflect.runtime.universe
 import universe._
 import scala.util.Random
 import com.github.takezoe.scaladoc.Scaladoc
+import pemja.core.Interpreter
+import sun.misc.Unsafe
 
 /** Scala-side methods for interfacing with Python */
 object PythonInterop {
   val logger: WrappedLogger = new WrappedLogger(Logger(LoggerFactory.getLogger(this.getClass)))
+
+  def disableReflectWarning(): Unit =
+    try {
+      val theUnsafe = classOf[Unsafe].getDeclaredField("theUnsafe")
+      theUnsafe.setAccessible(true)
+      val u         = theUnsafe.get(null).asInstanceOf[Unsafe]
+      val cls       = Class.forName("jdk.internal.module.IllegalAccessLogger")
+      val logger    = cls.getDeclaredField("logger")
+      u.putObjectVolatile(cls, u.staticFieldOffset(logger), null)
+    }
+    catch {
+      case e: Exception => println(e.getStackTrace.mkString("Array(", ", ", ")"))
+    }
+
+  disableReflectWarning()
 
   def repr(obj: Any): String =
     obj match {
@@ -58,6 +76,9 @@ object PythonInterop {
   def assign_id(s: String): Long =
     Graph.assignID(s)
 
+  def set_interpreter(interpreter: Interpreter): Unit =
+    EmbeddedPython.injectInterpreter(JPypeEmbeddedPython(interpreter))
+
   /** convert names from camel to snake case */
   def camel_to_snake(s: String): String =
     PythonEncoder.camelToSnakeCase(s)
@@ -65,27 +86,36 @@ object PythonInterop {
   /** used to convert java objects to scala objects when passing through python collections
     * (define more converters as needed)
     */
-  def decode[T](obj: Any): T =
-    (obj match {
-      case obj: java.util.ArrayList[_] => obj.asScala
-      case obj                         => obj
-    }).asInstanceOf[T]
+  def decode[T](obj: java.util.Collection[_]): T =
+    obj.asScala.asInstanceOf[T]
+
+  /** create a Scala tuple from python (nasty hack necessary due to Scala type safety and non-iterable tuples) */
+  def decode_tuple[T](obj: java.util.Collection[_]): T = {
+    val objScala = obj.asScala.toSeq
+    val class_   = Class.forName("scala.Tuple" + objScala.size)
+    class_.getConstructors.apply(0).newInstance(objScala: _*).asInstanceOf[T]
+  }
+
+  def decode[T](obj: java.util.Map[_, _]): T =
+    obj.asScala.asInstanceOf[T]
 
   /** Look up name of python wrapper based on input type
     * (used to provide specialised wrappers for categories of types rather than specific classes)
     */
   def get_wrapper_str(obj: Any): String =
     obj match {
-      case _: Array[_]          => "Array"
-      case _: collection.Seq[_] => "Sequence"
-      case _: Iterable[_]       => "Iterable"
-      case _: Iterator[_]       => "Iterator"
-      case _: GraphPerspective  => "TemporalGraph"
-      case _: Table             => "Table"
-      case _: Accumulator[_, _] => "Accumulator"
-      case _: Vertex            => "Vertex"
-      case _: GraphState        => "GraphState"
-      case _                    => "None"
+      case _: Array[_]             => "Array"
+      case _: collection.Map[_, _] => "Map"
+      case _: collection.Seq[_]    => "Sequence"
+      case _: Iterable[_]          => "Iterable"
+      case _: Iterator[_]          => "Iterator"
+      case _: GraphPerspective     => "TemporalGraph"
+      case _: Graph                => "Graph"
+      case _: Table                => "Table"
+      case _: Accumulator[_, _]    => "Accumulator"
+      case _: Vertex               => "Vertex"
+      case _: GraphState           => "GraphState"
+      case _                       => "None"
     }
 
   /** Find the singleton instance of a companion object for a class name
@@ -93,9 +123,14 @@ object PythonInterop {
     */
   def find_class(name: String): Any = {
     val runtimeMirror = universe.runtimeMirror(getClass.getClassLoader)
-    val module        = runtimeMirror.staticModule(name)
-    val obj           = runtimeMirror.reflectModule(module)
-    obj.instance
+    try {
+      val module = runtimeMirror.staticModule(name)
+      val obj    = runtimeMirror.reflectModule(module)
+      obj.instance
+    }
+    catch {
+      case v: ClassNotFoundException => ()
+    }
   }
 
   /** Take an iterable of arguments and turn it into a varargs friendly list */
@@ -269,8 +304,10 @@ trait PythonFunction {
           catch {
             case e: Throwable =>
               // variable still doesn't exist so unpack the function
+              println(s"unpacking $eval_name")
               py.set(s"${eval_name}_bytes", pickleBytes)
               py.run(s"import cloudpickle as pickle; $eval_name = pickle.loads(${eval_name}_bytes)")
+              println(s"deleting packed bytes for $eval_name")
               py.run(s"del ${eval_name}_bytes")
           }
         }
@@ -284,14 +321,18 @@ trait PythonFunction {
   }
 }
 
-case class PythonFunction1[I <: AnyRef, R](pickleBytes: Array[Byte]) extends (I => Id[R]) with PythonFunction {
+case class PythonFunction1[I <: AnyRef, R](pickleBytes: Array[Byte], override protected val eval_name: String)
+        extends (I => Id[R])
+        with PythonFunction {
 
   override def apply(v1: I): Id[R] =
     invoke(Vector(v1)).map(v => v.asInstanceOf[R])
 }
 
-case class PythonFunction2[I <: AnyRef, J <: AnyRef, R](pickleBytes: Array[Byte])
-        extends ((I, J) => Id[R])
+case class PythonFunction2[I <: AnyRef, J <: AnyRef, R](
+    pickleBytes: Array[Byte],
+    override protected val eval_name: String
+) extends ((I, J) => Id[R])
         with PythonFunction {
 
   override def apply(v1: I, v2: J): Id[R] =
