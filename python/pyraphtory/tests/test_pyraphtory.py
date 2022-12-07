@@ -3,7 +3,6 @@ import numpy as np
 from pyraphtory.context import PyRaphtory
 from pyraphtory.graph import Row
 import pyraphtory
-from pyraphtory.builder import *
 import unittest
 from numpy import array_equal
 
