@@ -344,7 +344,8 @@ class ScalaProxyBase(object):
 
     @property
     def jvm(self):
-        """The underlying Scala jvm object"""
+        """The underlying Scala jvm object
+        """
         return self._jvm_object
 
     @classmethod
@@ -432,7 +433,8 @@ class GenericScalaProxy(JVMBase):
 
     @property
     def classname(self):
-        """The name of the underlying jvm class of this wrapper"""
+        """The name of the underlying jvm class of this wrapper
+        """
         if self._classname is None:
             if self._jvm_object is not None:
                 self._classname = self._jvm_object.getClass().getName()
@@ -442,7 +444,7 @@ class GenericScalaProxy(JVMBase):
 
     def __call__(self, *args, **kwargs):
         """
-        Calling a wrapper calls the 'apply' method of the jvm object
+        Calling a wrapper calls the `apply` method
         """
         logger.trace(f"{self!r} called with {args=} and {kwargs=}")
         return self.apply(*args, **kwargs)
@@ -626,6 +628,7 @@ class ScalaClassProxy(GenericScalaProxy, ABC, metaclass=ScalaObjectProxy):
         return cls.apply(*args, **kwargs)
 
     def __new__(cls, *args, jvm_object=None, **kwargs):
+        """New instance construction from python uses the `apply` classmethod."""
         if jvm_object is None:
             # call scala constructor
             return cls._build_from_python(*args, **kwargs)

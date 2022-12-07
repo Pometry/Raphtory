@@ -37,5 +37,5 @@ class MutableBoolean(ScalaClassProxy, Property):
     _classname = "com.raphtory.api.input.MutableBoolean"
 
 
-class Properties(ScalaClassProxy, Property):
+class Properties(ScalaClassProxy):
     _classname = "com.raphtory.api.input.Properties"
