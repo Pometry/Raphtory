@@ -12,8 +12,8 @@ import org.slf4j.LoggerFactory
   * An implementation of `GraphBuilder` needs to override `parseTuple(tuple: T)` to define parsing of input data.
   * The input data is generated using a [[com.raphtory.api.input.Spout Spout]] and passed to the
   * `parseTuple` method which is responsible for turning the raw data into a list of graph updates. Inside the
-  * `parseTuple` implementation, use methods `addVertex`/`deleteVertex` and `addEdge`/`deleteEdge`
-  * for adding/deleting vertices and edges. The resulting graph updates are send to the partitions responsible for
+  * `parseTuple` implementation, use methods `addVertex` and `addEdge`
+  * for adding vertices and edges. The resulting graph updates are send to the partitions responsible for
   * handling the vertices and edges.
   *
   * @example
