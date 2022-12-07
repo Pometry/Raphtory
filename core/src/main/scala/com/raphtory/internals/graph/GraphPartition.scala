@@ -3,7 +3,6 @@ package com.raphtory.internals.graph
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
-import com.raphtory.internals.graph.GraphAlteration.GraphUpdateEffect
 import com.raphtory.internals.management.Partitioner
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.storage.arrow.ArrowGraphLens
@@ -33,24 +32,6 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
       vertexType: Option[Type]
   ): Unit
 
-//  def removeVertex(sourceID: Long, msgTime: Long, index: Long, srcId: Long): List[GraphUpdateEffect]
-//
-//  def inboundEdgeRemovalViaVertex(
-//      sourceID: Long,
-//      msgTime: Long,
-//      index: Long,
-//      srcId: Long,
-//      dstId: Long
-//  ): Unit
-//
-//  def outboundEdgeRemovalViaVertex(
-//      sourceID: Long,
-//      msgTime: Long,
-//      index: Long,
-//      srcId: Long,
-//      dstId: Long
-//  ): Unit
-
   // Ingesting Edges
   final def addEdge(
       sourceID: Long,
@@ -64,7 +45,7 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
     if (isLocal(srcId)) addOutgoingEdge(sourceID, msgTime, index, srcId, dstId, properties, edgeType)
     else addIncomingEdge(sourceID, msgTime, index, srcId, dstId, properties, edgeType)
 
-  // This method is the old addEdge. It should take care of the dstId is it is local as well
+  // This method is the old addEdge. It should take care of the dstId if it is local as well
   protected def addOutgoingEdge(
       sourceID: Long,
       msgTime: Long,
@@ -83,20 +64,8 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
       srcId: Long,
       dstId: Long,
       properties: Properties,
-//      srcRemovals: List[(Long, Long)],
       edgeType: Option[Type]
   ): Unit
-
-//  def syncExistingEdgeAdd(
-//      sourceID: Long,
-//      msgTime: Long,
-//      index: Long,
-//      srcId: Long,
-//      dstId: Long,
-//      properties: Properties
-//  ): Unit
-
-//  def removeEdge(sourceID: Long, msgTime: Long, index: Long, srcId: Long, dstId: Long): Unit
 
   // Analysis Functions
   def getVertices(

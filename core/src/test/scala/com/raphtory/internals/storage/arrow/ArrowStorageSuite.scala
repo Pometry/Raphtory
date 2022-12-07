@@ -7,7 +7,6 @@ import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
 import com.raphtory.arrowcore.implementation.VertexIterator
 import com.raphtory.arrowcore.model.PropertySchema
 import com.raphtory.arrowcore.model.Vertex
-import com.raphtory.internals.graph.GraphAlteration.SyncNewEdgeAdd
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 
 import java.nio.file.Files
