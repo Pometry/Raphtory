@@ -1,5 +1,7 @@
 name: Run the scala and python tests
-on: [push, pull_request]
+on:
+  push:
+    - '*'
 
 jobs:
   call-test-scala-python-workflow-in-local-repo:
