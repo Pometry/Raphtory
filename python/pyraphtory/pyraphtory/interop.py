@@ -64,14 +64,14 @@ try:
     _scala = findClass('com.raphtory.internals.management.PythonInterop')
 except ImportError:
     import jpype
-    import jpype.imports
+    from jpype import JClass
     from pyraphtory import _config
 
     check_raphtory_logging_env()
 
     jpype.startJVM(_config.java_args, classpath=_config.jars.split(":"))
     from pyraphtory._jpypeinterpreter import JPypeInterpreter, _globals
-    from com.raphtory.internals.management import PythonInterop as _scala
+    _scala = getattr(JClass("com.raphtory.internals.management.PythonInterop$"), "MODULE$")
     _scala.set_interpreter(JPypeInterpreter())
     _jpype = True
 
