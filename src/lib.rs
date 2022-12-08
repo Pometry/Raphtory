@@ -5,27 +5,33 @@ use roaring::RoaringTreemap;
 
 mod graph;
 
-struct TVertexView<R: RangeBounds<u64>> {
-    r: R,
-    guard: ArcMutexGuardian<BTreeMap<u64, RoaringTreemap>>,
-}
+// struct TVertexView<R: RangeBounds<u64>> {
+//     r: R,
+//     guard: ArcMutexGuardian<BTreeMap<u64, RoaringTreemap>>,
+// }
 
-impl<R: RangeBounds<u64> + Clone> TVertexView<R> {
-    fn iter(&self) -> Box<dyn Iterator<Item = u64> + '_> {
-        let iter = self
-            .guard
-            .range(self.r.clone())
-            .flat_map(|(_, vs)| vs.iter());
-        Box::new(iter)
-    }
+// impl<R: RangeBounds<u64> + Clone> TVertexView<R> {
+//     fn iter(&self) -> Box<dyn Iterator<Item = u64> + '_> {
+//         let iter = self
+//             .guard
+//             .range(self.r.clone())
+//             .flat_map(|(_, vs)| vs.iter());
+//         Box::new(iter)
+//     }
+// }
+
+struct TVertexView<R: RangeBounds<u64>> {
+   r: R
 }
 
 trait TemporalGraphStorage {
-    fn add_vertex(&self, v: u64, t: u64) -> &Self;
+    fn add_vertex(&mut self, v: u64, t: u64) -> &mut Self;
 
-    fn enumerate_vertices(&self) -> Vec<u64>;
+    fn iter_vertices(&self) -> Box<dyn Iterator<Item = &u64> + '_>;
 
-    fn enumerate_vs_at<R: RangeBounds<u64>>(&self, t: R) -> TVertexView<R>;
+    // fn enumerate_vs_at<R: RangeBounds<u64>>(&self, t: R) -> TVertexView<R>;
+
+    fn enumerate_vertices_at<R: RangeBounds<u64>>(&self, r:R) -> TVertexView<R>;
 }
 
 #[cfg(test)]
