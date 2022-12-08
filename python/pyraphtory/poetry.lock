@@ -174,7 +174,7 @@ python-versions = "*"
 
 [[package]]
 name = "pyraphtory-jvm"
-version = "0.2.0a9"
+version = "0.2.1"
 description = "Bootstrap JRE and IVY installer for Pyraphtory"
 category = "main"
 optional = false
