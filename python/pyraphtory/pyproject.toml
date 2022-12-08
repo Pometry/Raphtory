@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pyraphtory"
-version = "0.2.7"
+version = "0.2.8"
 description = "Raphtory - Temporal Graph Analytics Platform. This is the Python version of the library."
 authors = [
     "Fabian Murariu <admin@pometry.com>",
