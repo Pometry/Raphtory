@@ -28,14 +28,6 @@ private[raphtory] object IngestionTelemetry {
       .labelNames("sourceID", "graphID")
       .register
 
-  def totalVertexDeletes =
-    Counter.build
-      .namespace("source")
-      .name("vertex_delete")
-      .help("Total vertices deleted a Source")
-      .labelNames("sourceID", "graphID")
-      .register
-
   def totalEdgeAdds =
     Counter.build
       .namespace("source")
@@ -43,13 +35,4 @@ private[raphtory] object IngestionTelemetry {
       .help("Total edges added by a Source")
       .labelNames("sourceID", "graphID")
       .register
-
-  def totalEdgeDeletes =
-    Counter.build
-      .namespace("source")
-      .name("edge_delete")
-      .help("Total edges deleted by a Source")
-      .labelNames("sourceID", "graphID")
-      .register
-
 }

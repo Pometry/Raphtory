@@ -14,11 +14,6 @@ import com.raphtory.arrowcore.implementation.VertexPartitionManager
 import com.raphtory.arrowcore.model.Edge
 import com.raphtory.arrowcore.model.Entity
 import com.raphtory.arrowcore.model.Vertex
-import com.raphtory.internals.graph.GraphAlteration.SyncExistingEdgeAdd
-import com.raphtory.internals.graph.GraphAlteration.SyncExistingEdgeRemoval
-import com.raphtory.internals.graph.GraphAlteration.SyncExistingRemovals
-import com.raphtory.internals.graph.GraphAlteration.SyncNewEdgeAdd
-import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExVertex
@@ -168,7 +163,8 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       case _                           =>
     }
 
-  override def addEdge(
+  // This method should assume that both vertices are local and create them if they don't exist
+  override def addLocalEdge(
       sourceID: Long,
       msgTime: Long,
       index: Long,
@@ -176,14 +172,10 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       dstId: Long,
       properties: Properties,
       edgeType: Option[Type]
-  ): Option[GraphAlteration.GraphUpdateEffect] = {
-
+  ): Unit = {
     logger.trace(s"Adding edge: $srcId -> $dstId to partition: $partition @ t:$msgTime")
-
-    updateAdders(msgTime)
-    // add source vertex
-    val src = addVertexInternal(srcId, msgTime, Properties())
-    // handle dst
+    updateAdders(msgTime) // add source vertex
+    val src = addVertexInternal(srcId, msgTime, Properties()) // handle dst
     val dst = idsRepo.resolve(dstId)
 
     src.outgoingEdges.find { e =>
@@ -195,18 +187,37 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     } match {
       case Some(e) =>
         updateExistingEdge(sourceID, msgTime, index, srcId, dstId, properties, dst, e)
+        addVertexInternal(dstId, msgTime, Properties())
       case None    =>
-        if (dst.isLocal) {
-          val dstV = addVertexInternal(dstId, msgTime, Properties())
-          addLocalVerticesToEdge(src, dstV, msgTime, properties)
-          None
-        }
-        else {
-          addRemoteOutgoingEdge(src, dst.id, msgTime, properties)
+        val dstV = addVertexInternal(dstId, msgTime, Properties())
+        addLocalVerticesToEdge(src, dstV, msgTime, properties)
+    }
+  }
 
-          Some(SyncNewEdgeAdd(sourceID, msgTime, index, srcId, dstId, properties, Nil, edgeType))
-        }
+  // This method should assume that the dstId belongs to another partition
+  override def addOutgoingEdge(
+      sourceID: Long,
+      msgTime: Long,
+      index: Long,
+      srcId: Long,
+      dstId: Long,
+      properties: Properties,
+      edgeType: Option[Type]
+  ): Unit = {
+    logger.trace(s"Adding edge: $srcId -> $dstId to partition: $partition @ t:$msgTime")
+    updateAdders(msgTime) // add source vertex
+    val src = addVertexInternal(srcId, msgTime, Properties()) // handle dst
+    val dst = idsRepo.resolve(dstId)
 
+    src.outgoingEdges.find { e =>
+      dst match {
+        case NotFound(_)           => false
+        case GlobalId(id)          => id == e.getDstVertex && e.isDstGlobal
+        case ExistsOnPartition(id) => id == e.getDstVertex && !e.isDstGlobal
+      }
+    } match {
+      case Some(e) => updateExistingEdge(sourceID, msgTime, index, srcId, dstId, properties, dst, e)
+      case None    => addRemoteOutgoingEdge(src, dst.id, msgTime, properties)
     }
   }
 
@@ -224,13 +235,6 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     // add the edge properties
     addOrUpdateEdgeProps(msgTime, e, properties)
     emgr.addHistory(e.getLocalId, msgTime, true, properties.properties.nonEmpty)
-    if (dst.isLocal) {
-      // if destination is local add it
-      addVertexInternal(dstId, msgTime, Properties())
-      None
-    }
-    else // send sync
-      Some(SyncExistingEdgeAdd(sourceID, msgTime, index, srcId, dstId, properties))
   }
 
   private def createVertex(localId: Long, globalId: Long, time: Long, properties: Properties): Vertex = {
@@ -316,16 +320,16 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     emgr.setIncomingEdgePtr(e.getLocalId, prevListPtr)
   }
 
-  override def syncNewEdgeAdd(
+  // This method should assume that the srcId belongs to another partition
+  override def addIncomingEdge(
       sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
       dstId: Long,
       properties: Properties,
-      srcRemovals: List[(Long, Long)],
       edgeType: Option[Type]
-  ): GraphAlteration.GraphUpdateEffect = {
+  ): Unit = {
 
     updateAdders(msgTime)
 
@@ -353,16 +357,6 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
         logger.trace(s"Adding inbound edge: $srcId -> $dstId to partition: $partition @ t:$msgTime")
         addRemoteEdgeInternal(msgTime, srcId, dst, properties)
     }
-
-    SyncExistingRemovals(
-            sourceID = sourceID,
-            updateTime = msgTime,
-            index = index,
-            srcId = srcId,
-            dstId = dstId,
-            removals = Nil,
-            fromAddition = true
-    )
   }
 
   private def addRemoteEdgeInternal(msgTime: Long, srcId: Long, dst: Vertex, properties: Properties): Unit =
@@ -371,114 +365,8 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   private def getIncomingEdge(srcId: Long, dst: Vertex): Option[Edge] =
     dst.incomingEdges.find(e => e.getSrcVertex == srcId && e.isSrcGlobal)
 
-  override def syncExistingEdgeAdd(
-      sourceID: Long,
-      msgTime: Long,
-      index: Long,
-      srcId: Long,
-      dstId: Long,
-      properties: Properties
-  ): Unit = {
-
-    updateAdders(msgTime)
-
-    val dst = addVertexInternal(dstId, msgTime, properties)
-
-    getIncomingEdge(srcId, dst) match {
-      case Some(e) =>
-        val props: Set[String] =
-          par.getPropertySchema.versionedEdgeProperties().asScala.map(_.name()).toSet intersect properties.properties
-            .map(_.key.toLowerCase())
-            .toSet
-
-        addOrUpdateEdgeProps(
-                msgTime,
-                e,
-                Properties(properties.properties.filter(p => props(p.key.toLowerCase())): _*)
-        )
-
-        emgr.addHistory(e.getLocalId, msgTime, true, properties.properties.nonEmpty)
-      case None    =>
-        addRemoteEdgeInternal(msgTime, srcId, dst, properties)
-    }
-  }
-
-  override def removeEdge(
-      sourceID: Long,
-      msgTime: Long,
-      index: Long,
-      srcId: Long,
-      dstId: Long
-  ): Option[GraphAlteration.GraphUpdateEffect] = {
-
-    val src = idsRepo.resolve(srcId)
-    val dst = idsRepo.resolve(dstId)
-
-    val v = vmgr.getVertex(src.id)
-
-    val edgeFound = v.outgoingEdges(dst.id, dst.isGlobal).foldLeft(false) { (updated, e) =>
-      emgr.addHistory(e.getLocalId, msgTime, false, false)
-      true // we found at least one edge and changed it
-    }
-
-    if (edgeFound)
-      if (dst.isLocal)
-        None
-      else
-        Some(SyncExistingEdgeRemoval(sourceID, msgTime, index, srcId, dstId))
-    else None
-  }
-
-  override def syncNewEdgeRemoval(
-      sourceID: Long,
-      msgTime: Long,
-      index: Long,
-      srcId: Long,
-      dstId: Long,
-      srcRemovals: List[(Long, Long)]
-  ): GraphAlteration.GraphUpdateEffect = ???
-
-  override def syncExistingEdgeRemoval(
-      sourceID: Long,
-      msgTime: Long,
-      index: Long,
-      srcId: Long,
-      dstId: Long
-  ): Unit = ???
-
-  override def syncExistingRemovals(
-      msgTime: Long,
-      index: Long,
-      srcId: Long,
-      dstId: Long,
-      dstRemovals: List[(Long, Long)]
-  ): Unit = {}
-
   override def getVertices(graphPerspective: LensInterface, start: Long, end: Long): mutable.Map[Long, PojoExVertex] =
     ???
-
-  override def removeVertex(
-      sourceID: Long,
-      msgTime: Long,
-      index: Long,
-      srcId: Long
-  ): List[GraphAlteration.GraphUpdateEffect] = ???
-
-  override def inboundEdgeRemovalViaVertex(
-      sourceID: Long,
-      msgTime: Long,
-      index: Long,
-      srcId: Long,
-      dstId: Long
-  ): Unit = ???
-
-  override def outboundEdgeRemovalViaVertex(
-      sourceID: Long,
-      msgTime: Long,
-      index: Long,
-      srcId: Long,
-      dstId: Long
-  ): Unit = ???
 
   override def close(): Unit = par.close()
 }
