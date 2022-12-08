@@ -239,7 +239,12 @@ lazy val connectorsTypeDB =
             name := "typedb",
             assemblySettings,
             libraryDependencies ++= Seq(typedbClient, univocityParsers, mjson),
-            publishArtifact := false
+            publishArtifact := false,
+            resolvers ++=
+              Seq(
+                      "repo.vaticle.com" at "https://repo.vaticle.com/repository/maven/",
+                      Resolver.mavenLocal
+              )
     )
 
 lazy val connectorsPulsar =
