@@ -36,7 +36,7 @@ object Dependencies {
   private lazy val commonsIOVersion                = "2.11.0"
   private lazy val amazonAws                       = "1.12.221"
   private lazy val twitterVersion                  = "2.16"
-  private lazy val typedbClientVersion             = "2.11.0"
+  private lazy val typedbClientVersion             = "2.14.2"
   private lazy val univocityParsersVersion         = "2.9.1"
   private lazy val mjsonVersion                    = "1.4.1"
   private lazy val scalaReflectVersion             = "2.13.8"
