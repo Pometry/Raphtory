@@ -41,16 +41,23 @@ case class CsvFormat(delimiter: String = ",") extends Format {
       var currentPerspective: Perspective = _
       private val mapper       = JsonMapper.builder().addModule(DefaultScalaModule).build()
 
+      private def ensureQuoted(str: String): String = {
+        if ((str.startsWith("\"") && str.endsWith("\""))
+          || (str.startsWith("'") && str.endsWith("'" ))
+          || !str.contains(delimiter)) {
+          str
+        } else {
+          "\"" + str + "\""
+        }
+      }
+
+
+
       private def csvValue(obj: Any): String = {
-        obj.asInstanceOf[AnyRef] match {
-          case v: java.lang.Number => v.toString
-          case v: java.lang.Boolean => v.toString
+        obj match {
+          case v: String => ensureQuoted(v)
           case v =>
-            val value = mapper.writeValueAsString(v)
-            if (value.startsWith("\"") && value.endsWith("\"")) {
-              value
-            } else
-              "\"" + value + "\""
+            ensureQuoted(mapper.writeValueAsString(v))
         }
       }
 
