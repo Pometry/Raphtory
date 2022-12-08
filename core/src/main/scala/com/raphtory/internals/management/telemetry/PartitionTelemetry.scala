@@ -13,14 +13,6 @@ private[raphtory] object PartitionTelemetry {
       .labelNames("partitionID", "graphID")
       .register()
 
-  def writerVertexDeletions: Counter =
-    Counter.build
-      .namespace("partition")
-      .name("vertex_deletes")
-      .help("Total vertex deletions")
-      .labelNames("partitionID", "graphID")
-      .register()
-
   def writerEdgeAdditions: Counter =
     Counter.build
       .namespace("partition")
@@ -28,13 +20,4 @@ private[raphtory] object PartitionTelemetry {
       .help("Total edge additions")
       .labelNames("partitionID", "graphID")
       .register()
-
-  def writerEdgeDeletions: Counter =
-    Counter.build
-      .namespace("partition")
-      .name("edge_deletes")
-      .help("Total edge deletions")
-      .labelNames("partitionID", "graphID")
-      .register()
-
 }

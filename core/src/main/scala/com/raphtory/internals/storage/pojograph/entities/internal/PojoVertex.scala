@@ -13,13 +13,7 @@ private[raphtory] class PojoVertex(msgTime: Long, index: Long, val vertexId: Lon
     mutable.Map[Long, PojoEdge]() //Map of all edges associated with the vertex
   private val outEdges: mutable.Map[Long, PojoEdge] = mutable.Map[Long, PojoEdge]()
 
-  private var edgesRequiringSync = 0
-
   //Functions for adding associated edges to this vertex
-  def incrementEdgesRequiringSync() = edgesRequiringSync += 1
-
-  def getEdgesRequringSync() = edgesRequiringSync
-
   def addIncomingEdge(edge: PojoEdge): Unit = intoEdges.put(edge.getSrcId, edge)
 
   def addOutgoingEdge(edge: PojoEdge): Unit = outEdges.put(edge.getDstId, edge)

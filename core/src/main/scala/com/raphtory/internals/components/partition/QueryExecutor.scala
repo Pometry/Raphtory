@@ -45,6 +45,7 @@ class QueryExecutor[F[_]](
   private val jobId          = query.name
   private val loggingPrefix  = s"${jobId}_$partitionID:"
   private val kryo           = KryoSerialiser()
+  private val partitioner    = Partitioner(conf)
   private val cb: () => Unit = () => {}
 
   def receiveMessages(messages: Seq[GenericVertexMessage[_]]): F[Empty] =
@@ -236,7 +237,7 @@ class QueryExecutor[F[_]](
       case (v: Long, _) => v
       case v: Long      => v
     }
-    Partitioner().getPartitionForId(vId)
+    partitioner.getPartitionForId(vId)
   }
 }
 

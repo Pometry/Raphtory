@@ -16,10 +16,8 @@ import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.SinglePoint
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphAlteration.EdgeAdd
-import com.raphtory.internals.graph.GraphAlteration.EdgeDelete
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.internals.graph.GraphAlteration.VertexAdd
-import com.raphtory.internals.graph.GraphAlteration.VertexDelete
 import com.raphtory.internals.management.QuerySender
 import com.raphtory.internals.time.DateTimeParser
 import com.typesafe.config.Config

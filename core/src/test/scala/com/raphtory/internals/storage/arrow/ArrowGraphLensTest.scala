@@ -3,8 +3,6 @@ package com.raphtory.internals.storage.arrow
 import com.raphtory.api.analysis.visitor
 import com.raphtory.api.input.Properties
 import com.raphtory.arrowcore.model.Vertex
-import com.raphtory.internals.graph.GraphAlteration.SyncExistingEdgeAdd
-import com.raphtory.internals.graph.GraphAlteration.SyncNewEdgeAdd
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.raphtory.internals.management.Scheduler
@@ -123,14 +121,12 @@ class MockCluster(parts: Vector[ArrowPartition]) extends AutoCloseable {
 
   def addEdge(src: Long, dst: Long, time: Long): Unit = {
     val srcPar = findPartition(src)
-    srcPar.addEdge(-1, time, -1, src, dst, Properties(), None) match {
-      case Some(SyncExistingEdgeAdd(_, updateTime, _, srcId, dstId, properties))  =>
-        val dstPar = findPartition(dst)
-        dstPar.syncExistingEdgeAdd(-1, updateTime, -1, srcId, dstId, properties)
-      case Some(SyncNewEdgeAdd(_, updateTime, _, srcId, dstId, properties, _, _)) =>
-        val dstPar = findPartition(dst)
-        dstPar.syncNewEdgeAdd(-1, updateTime, -1, srcId, dstId, properties, Nil, None)
-      case None                                                                   =>
+    val dstPar = findPartition(dst)
+    if (srcPar == dstPar)
+      srcPar.addLocalEdge(-1, time, -1, src, dst, Properties(), None)
+    else {
+      srcPar.addOutgoingEdge(-1, time, -1, src, dst, Properties(), None)
+      dstPar.addIncomingEdge(-1, time, -1, src, dst, Properties(), None)
     }
   }
 

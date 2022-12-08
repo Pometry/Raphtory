@@ -7,7 +7,6 @@ import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
 import com.raphtory.arrowcore.implementation.VertexIterator
 import com.raphtory.arrowcore.model.PropertySchema
 import com.raphtory.arrowcore.model.Vertex
-import com.raphtory.internals.graph.GraphAlteration.SyncNewEdgeAdd
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 
 import java.nio.file.Files
@@ -348,7 +347,7 @@ class ArrowStorageSuite extends munit.FunSuite {
     // add alice
     addVertex(7, timestamp, None, ImmutableString("name", "Alice"))(par)
     // add edge
-    val action = par.addEdge(
+    par.addLocalEdge(
             3,
             timestamp,
             -1,
@@ -360,8 +359,6 @@ class ArrowStorageSuite extends munit.FunSuite {
             ),
             None
     )
-    // nothing to do both nodes are on the same partition
-    assert(action.isEmpty)
 
     val vs = par.vertices.toList
     assertEquals(vs.size, 2)
@@ -379,7 +376,7 @@ class ArrowStorageSuite extends munit.FunSuite {
     assertEquals(neighbours, List(1L -> "friends", 0L -> "friends")) // local ids are returned
 
     // add the edge again with a different time and different payload
-    par.addEdge(
+    par.addLocalEdge(
             3,
             timestamp + 1,
             -1,
@@ -408,7 +405,7 @@ class ArrowStorageSuite extends munit.FunSuite {
     addVertex(7, timestamp, None, ImmutableString("name", "Alice"))(par)
     // add edge
     for (i <- 0 until 3)
-      par.addEdge(
+      par.addLocalEdge(
               3,
               timestamp + i,
               -1,
@@ -438,20 +435,6 @@ class ArrowStorageSuite extends munit.FunSuite {
                     HistoricEvent(timestamp, timestamp)
             )
     )
-
-    // now remove it
-    par.removeEdge(3, timestamp + 3, -1, 3, 7)
-
-    assertEquals(
-            edge.history(Long.MinValue, Long.MaxValue).toVector,
-            Vector(
-                    HistoricEvent(timestamp + 3, timestamp + 3, event = false),
-                    HistoricEvent(timestamp + 2, timestamp + 2),
-                    HistoricEvent(timestamp + 1, timestamp + 1),
-                    HistoricEvent(timestamp, timestamp)
-            )
-    )
-
   }
 
   test("add edge between the same vertex") {
@@ -464,7 +447,7 @@ class ArrowStorageSuite extends munit.FunSuite {
     // add alice
     addVertex(3, timestamp, None)(par)
     // add edge
-    par.addEdge(
+    par.addLocalEdge(
             3,
             timestamp,
             -1,
@@ -486,62 +469,31 @@ class ArrowStorageSuite extends munit.FunSuite {
     assertEquals(outEdges, Vector(0L -> 0L))
   }
 
-  test("removed edge should be visible depending on iterator time window") {
-
-    val par: ArrowPartition = mkPartition(1, 0)
-    val timestamp           = System.currentTimeMillis()
-
-    // add bob
-    addVertex(3, timestamp, None, ImmutableString("name", "Bob"))(par)
-    // add alice
-    addVertex(7, timestamp, None, ImmutableString("name", "Alice"))(par)
-    // add edge
-    val action = par.addEdge(
-            3,
-            timestamp,
-            -1,
-            3,
-            7,
-            Properties(
-                    ImmutableString("name", "friends")
-            ),
-            None
-    )
-
-    par.removeEdge(3, timestamp + 1, -1, 3, 7)
-  }
-
   test("add edge between two vertices on separate partitions") {
 
     val par1: ArrowPartition = mkPartition(2, 0)
     val par2: ArrowPartition = mkPartition(2, 1)
     val timestamp            = System.currentTimeMillis()
+    val properties           = Properties(ImmutableString("name", "friends"))
 
     // add bob
     addVertex(2, timestamp, None, ImmutableString("name", "Bob"))(par1)
     // add alice
     addVertex(7, timestamp, None, ImmutableString("name", "Alice"))(par2)
     // add edge on par1
-    val action                                                                        = par1
-      .addEdge(
+    par1
+      .addOutgoingEdge(
               3,
               timestamp,
               -1,
               2,
               7,
-              Properties(
-                      ImmutableString("name", "friends")
-              ),
+              properties,
               None
       )
-      .collect { case a: SyncNewEdgeAdd => a }
-
-    // nothing to do both nodes are on the same partition
-    assert(action.isDefined)
-    val SyncNewEdgeAdd(sourceID, updateTime, index, srcId, dstId, properties, _, tpe) = action.get
 
     //add the second edge onto partition2
-    par2.syncNewEdgeAdd(sourceID, updateTime, index, srcId, dstId, properties, List.empty, tpe)
+    par2.addIncomingEdge(3, timestamp, -1, 2, 7, properties, None)
 
     val (vs, names)   = partitionVertices(par1)
     assertEquals(vs.size, 1)

@@ -10,14 +10,15 @@ import com.raphtory.internals.management.Partitioner
 import com.raphtory.protocol._
 import com.raphtory.protocol.IngestionService
 import com.raphtory.protocol.PartitionService
+import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
-abstract class ServiceRegistry[F[_]: Async] {
+abstract class ServiceRegistry[F[_]: Async](conf: Config) {
 
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val partitioner = Partitioner()
+  private val partitioner = Partitioner(conf)
 
   private val partitionIds = 0 until partitioner.totalPartitions
 

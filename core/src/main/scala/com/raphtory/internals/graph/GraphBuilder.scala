@@ -7,7 +7,9 @@ import cats.effect.std.Dispatcher
 import cats.syntax.all._
 import com.raphtory.api.input._
 import com.raphtory.internals.graph.GraphAlteration._
+import com.raphtory.internals.management.Partitioner
 import com.raphtory.internals.management.telemetry.TelemetryReporter
+import com.raphtory.defaultConf
 import com.raphtory.protocol
 import com.raphtory.protocol.PartitionService
 import fs2.Chunk
@@ -25,6 +27,7 @@ class GraphBuilderF[F[_], T](
     sentUpdates: Ref[F, Long]
 )(implicit F: Async[F]) {
 
+  private val partitioner       = Partitioner(defaultConf)
   private val totalSourceErrors = TelemetryReporter.totalSourceErrors.labels(s"$sourceId", graphId) // TODO
 
   def buildGraphFromT(chunk: Chunk[T], index: Ref[F, Long]): F[Unit] =
@@ -44,7 +47,11 @@ class GraphBuilderF[F[_], T](
 
   private def prepareGraphUpdates(cb: Graph)(updates: Seq[GraphUpdate]): Vector[F[Unit]] =
     updates
-      .groupBy(update => cb.getPartitionForId(update.srcId))
+      .flatMap {
+        case update: EdgeAdd => partitioner.getPartitionsForEdge(update.srcId, update.dstId).toSeq.map((_, update))
+        case update          => Seq((cb.getPartitionForId(update.srcId), update))
+      }
+      .groupMap { case (partition, update) => partition } { case (partition, update) => update }
       .map {
         case (partition, updates) =>
           val minTime = updates.minBy(_.updateTime).updateTime
