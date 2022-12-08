@@ -15,7 +15,8 @@ object LargestConnectedComponent extends Generic {
       .step { (vertex, state) =>
         state("components") += (vertex.getState[Long]("cclabel"), 1)
       }
+      .setGlobalState(state => state.newConstant[Long]("lcc",state("components").value.asInstanceOf[Counter[Long]].largest._2))
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.globalSelect(state => Row(state("components").value.asInstanceOf[Counter[Long]].largest._2))
+    graph.globalSelect(state => Row(state("lcc").value))
 }
