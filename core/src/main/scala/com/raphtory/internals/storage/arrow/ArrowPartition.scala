@@ -163,6 +163,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       case _                           =>
     }
 
+  // This method should assume that both vertices are local and create them if they don't exist
   override def addLocalEdge(
       sourceID: Long,
       msgTime: Long,
@@ -193,6 +194,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     }
   }
 
+  // This method should assume that the dstId belongs to another partition
   override def addOutgoingEdge(
       sourceID: Long,
       msgTime: Long,
@@ -318,6 +320,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     emgr.setIncomingEdgePtr(e.getLocalId, prevListPtr)
   }
 
+  // This method should assume that the srcId belongs to another partition
   override def addIncomingEdge(
       sourceID: Long,
       msgTime: Long,

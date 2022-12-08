@@ -33,7 +33,7 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
   ): Unit
 
   // Ingesting Edges
-  // This method is the old addEdge. It should take care of the dstId if it is local as well
+  // This method should assume that both vertices are local and create them if they don't exist
   def addLocalEdge(
       sourceID: Long,
       msgTime: Long,
@@ -44,6 +44,7 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
       edgeType: Option[Type]
   ): Unit
 
+  // This method should assume that the dstId belongs to another partition
   def addOutgoingEdge(
       sourceID: Long,
       msgTime: Long,
@@ -54,7 +55,7 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
       edgeType: Option[Type]
   ): Unit
 
-  // This  should take care only of the dstId. If both ids are local addOutgoingEdge is called instead
+  // This method should assume that the srcId belongs to another partition
   def addIncomingEdge(
       sourceID: Long,
       msgTime: Long,
