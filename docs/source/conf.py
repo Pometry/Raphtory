@@ -32,19 +32,30 @@ release = '0.1.0'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'sphinx.ext.autosummary',
+    'sphinx.ext.intersphinx',
     'extractScalaAlgoDocs',
     'sphinx.ext.autodoc',
+    'processWrapperDocs',
     'myst_parser',
     'sphinx_tabs.tabs',
     "nbsphinx"
 ]
 
+intersphinx_mapping = {'python': ('https://docs.python.org/3', None)}
+
 autodoc_default_options = {
     'members': True,
     'undoc-members': True,
-    'inherited-members': True
+    'inherited-members': True,
+    'special-members': "__call__",
+    'show-inheritance': True
 }
 
+autodoc_member_order = 'groupwise'
+autodoc_typehints_format = "short"
+
+autosummary_generate = True
 # Extension options
 myst_enable_extensions = ["deflist", "dollarmath"]
 myst_heading_anchors = 3
@@ -69,7 +80,7 @@ templates_path = ['_templates']
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = []
+exclude_patterns = ["_templates"]
 
 # -- Options for HTML output -------------------------------------------------
 
