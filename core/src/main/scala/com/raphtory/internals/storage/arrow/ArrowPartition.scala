@@ -251,7 +251,7 @@ class ArrowPartition(
 
     val id = p.synchronized {
       p.addHistory(dst.getLocalId, time, true, false, e.getLocalId, false)
-      p.addIncomingEdgeToList(e.getDstVertex, e.getLocalId)
+      p.addIncomingEdgeToList(e.getDstVertex, e.getLocalId, e.getSrcVertex)
     }
 
     par.getEdgeMgr.setIncomingEdgePtr(e.getLocalId, id)
@@ -294,7 +294,7 @@ class ArrowPartition(
     p = partitionFromVertex(dst)
     val id = p.synchronized {
       p.addHistory(dst.getLocalId, time, true, false, e.getLocalId, false)
-      p.addIncomingEdgeToList(e.getDstVertex, e.getLocalId)
+      p.addIncomingEdgeToList(e.getDstVertex, e.getLocalId, e.getSrcVertex)
     }
 
     par.getEdgeMgr.setIncomingEdgePtr(e.getLocalId, id)

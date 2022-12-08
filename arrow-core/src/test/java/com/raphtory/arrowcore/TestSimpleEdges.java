@@ -71,6 +71,7 @@ public class TestSimpleEdges {
             v.reset(i, i, true, time);
             v.getField(VFIELD_NAME).set(_names[i]);
             _avpm.addVertex(v);
+            _avpm.addHistory(i, time, true, true, -1L, false);
         }
 
         for (int i=0; i<_names.length; ++i) {
@@ -96,7 +97,7 @@ public class TestSimpleEdges {
         p.addHistory(bob.getLocalId(), System.currentTimeMillis(), true, false, e.getLocalId(), true);
 
         p = _rap.getVertexMgr().getPartition(_rap.getVertexMgr().getPartitionId(alice.getLocalId()));
-        _aepm.setIncomingEdgePtr(e.getLocalId(), p.addIncomingEdgeToList(alice.getLocalId(), e.getLocalId()));
+        _aepm.setIncomingEdgePtr(e.getLocalId(), p.addIncomingEdgeToList(e.getDstVertex(), e.getLocalId(), e.getSrcVertex()));
         p.addHistory(alice.getLocalId(), System.currentTimeMillis(), true, false, e.getLocalId(), false);
 
         VertexIterator vi = _rap.getNewAllVerticesIterator();

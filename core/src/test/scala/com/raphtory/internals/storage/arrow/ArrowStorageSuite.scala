@@ -161,7 +161,7 @@ class ArrowStorageSuite extends munit.FunSuite {
     if (dst.isLocal) {
       val p           = vmgr.getPartition(vmgr.getPartitionId(dst.id))
       val prevListPtr = p.synchronized {
-        val ptr = p.addIncomingEdgeToList(dst.id, e.getLocalId)
+        val ptr = p.addIncomingEdgeToList(dst.id, e.getLocalId, src.id)
         p.addHistory(dst.id, timestamp, true, false, e.getLocalId, false)
         ptr
       }
