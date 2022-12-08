@@ -16,7 +16,7 @@
 <a href="https://github.com/Raphtory/Raphtory/issues">
 <img alt="Issues" src="https://img.shields.io/github/issues/Raphtory/Raphtory?color=brightgreen" />
 </a>
-<a href="https://mybinder.org/v2/gh/Raphtory/Raphtory/v0.2.0a9?labpath=examples%2Fbinder_python%2Findex.ipynb">
+<a href="https://mybinder.org/v2/gh/Raphtory/Raphtory/master?labpath=examples%2Fbinder_python%2Findex.ipynb">
 <img alt="Launch Notebook" src="https://mybinder.org/badge_logo.svg" />
 </a>
 </p>
