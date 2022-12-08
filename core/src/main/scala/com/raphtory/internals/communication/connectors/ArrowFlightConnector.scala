@@ -60,18 +60,8 @@ class ArrowFlightConnector(
         case msg: VertexMessagesSync        => sendMsg(msg)(msg.provider.endpoint)
 
         // Graph Alterations
-        case msg: VertexAdd                    => sendMsg(msg)(msg.provider.endpoint)
-        case msg: VertexDelete                 => sendMsg(msg)(msg.provider.endpoint)
-        case msg: EdgeAdd                      => sendMsg(msg)(msg.provider.endpoint)
-        case msg: EdgeDelete                   => sendMsg(msg)(msg.provider.endpoint)
-        case msg: SyncNewEdgeAdd               => sendMsg(msg)(msg.provider.endpoint)
-        case msg: BatchAddRemoteEdge           => sendMsg(msg)(msg.provider.endpoint)
-        case msg: SyncExistingEdgeAdd          => sendMsg(msg)(msg.provider.endpoint)
-        case msg: SyncExistingEdgeRemoval      => sendMsg(msg)(msg.provider.endpoint)
-        case msg: SyncNewEdgeRemoval           => sendMsg(msg)(msg.provider.endpoint)
-        case msg: OutboundEdgeRemovalViaVertex => sendMsg(msg)(msg.provider.endpoint)
-        case msg: InboundEdgeRemovalViaVertex  => sendMsg(msg)(msg.provider.endpoint)
-        case msg: SyncExistingRemovals         => sendMsg(msg)(msg.provider.endpoint)
+        case msg: VertexAdd => sendMsg(msg)(msg.provider.endpoint)
+        case msg: EdgeAdd   => sendMsg(msg)(msg.provider.endpoint)
 
         case _ => logger.error("VertexMessage or GraphAlteration expected")
       }

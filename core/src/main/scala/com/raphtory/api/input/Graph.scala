@@ -12,8 +12,8 @@ import org.slf4j.LoggerFactory
   * An implementation of `GraphBuilder` needs to override `parseTuple(tuple: T)` to define parsing of input data.
   * The input data is generated using a [[com.raphtory.api.input.Spout Spout]] and passed to the
   * `parseTuple` method which is responsible for turning the raw data into a list of graph updates. Inside the
-  * `parseTuple` implementation, use methods `addVertex`/`deleteVertex` and `addEdge`/`deleteEdge`
-  * for adding/deleting vertices and edges. The resulting graph updates are send to the partitions responsible for
+  * `parseTuple` implementation, use methods `addVertex` and `addEdge`
+  * for adding vertices and edges. The resulting graph updates are send to the partitions responsible for
   * handling the vertices and edges.
   *
   * @example
@@ -44,11 +44,7 @@ trait Graph {
 
   private def vertexAddCounter = TelemetryReporter.vertexAddCounter.labels(s"$sourceID", graphID)
 
-  private def vertexDeleteCounter = TelemetryReporter.vertexDeleteCounter.labels(s"$sourceID", graphID)
-
   private def edgeAddCounter = TelemetryReporter.edgeAddCounter.labels(s"$sourceID", graphID)
-
-  private def edgeDeleteCounter = TelemetryReporter.edgeDeleteCounter.labels(s"$sourceID", graphID)
 
   /** Adds a new vertex to the graph or updates an existing vertex
     *
@@ -78,16 +74,6 @@ trait Graph {
     val update = VertexAdd(sourceID, updateTime, secondaryIndex, srcId, properties, vertexType.toOption)
     handleGraphUpdate(update)
     vertexAddCounter.inc()
-  }
-
-  /** Marks a vertex as deleted
-    * @param updateTime time of deletion (a vertex is considered as no longer present in the graph after this time)
-    * @param srcId Id of vertex to delete
-    * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
-    */
-  def deleteVertex(updateTime: Long, srcId: Long, secondaryIndex: Long = index): Unit = {
-    handleGraphUpdate(VertexDelete(sourceID, updateTime, secondaryIndex, srcId))
-    vertexDeleteCounter.inc()
   }
 
   /** Adds a new edge to the graph or updates an existing edge
@@ -122,17 +108,6 @@ trait Graph {
     */
   def addEdge(updateTime: Long, srcId: Long, dstId: Long, posTypeArg: Type): Unit =
     addEdge(updateTime, srcId, dstId, edgeType = posTypeArg)
-
-  /** Mark edge as deleted
-    * @param updateTime time of deletion (the edge is considered as no longer present in the graph after this time)
-    * @param srcId ID of source vertex of the edge
-    * @param dstId ID of the destination vertex of the edge
-    * @param secondaryIndex Optionally specify a secondary index that is used to determine the order of updates with the same `updateTime`
-    */
-  def deleteEdge(updateTime: Long, srcId: Long, dstId: Long, secondaryIndex: Long = index): Unit = {
-    handleGraphUpdate(EdgeDelete(sourceID, updateTime, index, srcId, dstId))
-    edgeDeleteCounter.inc()
-  }
 
   /** Convenience method for generating unique IDs based on vertex names
     *
