@@ -29,10 +29,11 @@ abstract class GraphState {
 
   /**  Create a new general Accumulator
     *
-    * $vType
-    * $name
-    * $initialValue
-    * $retainState
+    * @tparam T Value type of the accumulator
+    * @param name Name for the accumulator
+    * @param initialValue Initial value for accumulator
+    * @param retainState If `true`, accumulation for the next step/iteration of an algorithm continues with the
+    *                                        previously computed value, otherwise, the value is reset to `initialValue` before each step.
     *
     * @param op Reduction function for the accumulator.
     */
@@ -48,7 +49,7 @@ abstract class GraphState {
   /** Create a new constant that stores an immutable value
     *
     * @tparam T Value type of the constant
-    * $name
+    * @param name Name for the accumulator
     * @param value Value of the constant
     */
   def newConstant[T](
@@ -58,8 +59,8 @@ abstract class GraphState {
 
   /** Create a new zero-initialised accumulator that sums values and resets after each step
     *
-    * $vType
-    * $name
+    * @tparam T Value type of the accumulator
+    * @param name Name for the accumulator
     */
   def newAdder[T: Numeric](name: String): Unit =
     newAdder[T](name, 0, retainState = false)
@@ -70,19 +71,21 @@ abstract class GraphState {
 
   /** Create a new zero-initialised accumulator that sums values
     *
-    * $vType
-    * $name
-    * $retainState
+    * @tparam T Value type of the accumulator
+    * @param name Name for the accumulator
+    * @param retainState If `true`, accumulation for the next step/iteration of an algorithm continues with the
+    *                                        previously computed value, otherwise, the value is reset to `initialValue` before each step.
     */
   def newAdder[T: Numeric](name: String, retainState: Boolean): Unit =
     newAdder[T](name, 0, retainState)
 
   /** Create a new accumulator that sums values
     *
-    * $vType
-    * $name
-    * $initialValue
-    * $retainState
+    * @tparam T Value type of the accumulator
+    * @param name Name for the accumulator
+    * @param initialValue Initial value for accumulator
+    * @param retainState If `true`, accumulation for the next step/iteration of an algorithm continues with the
+    *                                        previously computed value, otherwise, the value is reset to `initialValue` before each step.
     */
   def newAdder[@specialized(Long, Double) T: Numeric](name: String, initialValue: T, retainState: Boolean): Unit
 
@@ -93,43 +96,45 @@ abstract class GraphState {
 
   /** Create a new one-initialised accumulator that multiplies values and resets after each step
     *
-    * $vType
-    * $name
+    * @tparam T Value type of the accumulator
+    * @param name Name for the accumulator
     */
   def newMultiplier[T: Numeric](name: String): Unit =
     newMultiplier[T](name, 1, retainState = false)
 
   /** Create a new accumulator that multiplies values and resets after each step
     *
-    * $vType
-    * $name
-    * $initialValue
+    * @tparam T Value type of the accumulator
+    * @param name Name for the accumulator
+    * @param initialValue Initial value for accumulator
     */
   def newMultiplier[T: Numeric](name: String, initialValue: T): Unit =
     newMultiplier[T](name, initialValue, retainState = false)
 
   /** Create a new one-initialised accumulator that multiplies values
     *
-    * $vType
-    * $name
-    * $retainState
+    * @tparam T Value type of the accumulator
+    * @param name Name for the accumulator
+    * @param retainState If `true`, accumulation for the next step/iteration of an algorithm continues with the
+    *                                        previously computed value, otherwise, the value is reset to `initialValue` before each step.
     */
   def newMultiplier[T: Numeric](name: String, retainState: Boolean): Unit =
     newMultiplier[T](name, 1, retainState)
 
   /** Create a new accumulator that multiplies values
     *
-    * $vType
-    * $name
-    * $initialValue
-    * $retainState
+    * @tparam T Value type of the accumulator
+    * @param name Name for the accumulator
+    * @param initialValue Initial value for accumulator
+    * @param retainState If `true`, accumulation for the next step/iteration of an algorithm continues with the
+    *                                        previously computed value, otherwise, the value is reset to `initialValue` before each step.
     */
   def newMultiplier[T: Numeric](name: String, initialValue: T, retainState: Boolean): Unit
 
   /** Create a new accumulator that tracks the maximum value and resets after each step
     *
-    * $vType
-    * $name
+    * @tparam T Value type of the accumulator
+    * @param name Name for the accumulator
     */
   def newMax[T: Numeric: Bounded](
       name: String
@@ -137,28 +142,30 @@ abstract class GraphState {
 
   /** Create a new accumulator that tracks the maximum value and resets after each step
     *
-    * $vType
-    * $name
-    * $initialValue
+    * @tparam T Value type of the accumulator
+    * @param name Name for the accumulator
+    * @param initialValue Initial value for accumulator
     */
   def newMax[T: Numeric: Bounded](name: String, initialValue: T): Unit =
     newMax[T](name, initialValue, retainState = false)
 
   /** Create a new accumulator that tracks the maximum value
     *
-    * $vType
-    * $name
-    * $retainState
+    * @tparam T Value type of the accumulator
+    * @param name Name for the accumulator
+    * @param retainState If `true`, accumulation for the next step/iteration of an algorithm continues with the
+    *                                        previously computed value, otherwise, the value is reset to `initialValue` before each step.
     */
   def newMax[T: Numeric: Bounded](name: String, retainState: Boolean): Unit =
     newMax[T](name, MIN[T], retainState)
 
   /** Create a new accumulator that tracks the maximum value
     *
-    * $vType
-    * $name
-    * $initialValue
-    * $retainState
+    * @tparam T Value type of the accumulator
+    * @param name Name for the accumulator
+    * @param initialValue Initial value for accumulator
+    * @param retainState If `true`, accumulation for the next step/iteration of an algorithm continues with the
+    *                                        previously computed value, otherwise, the value is reset to `initialValue` before each step.
     */
   def newMax[T: Numeric: Bounded](
       name: String,
@@ -168,36 +175,38 @@ abstract class GraphState {
 
   /** Create a new accumulator that tracks the minimum value and resets after each step
     *
-    * $vType
-    * $name
+    * @tparam T Value type of the accumulator
+    * @param name Name for the accumulator
     */
   def newMin[T: Numeric: Bounded](name: String): Unit =
     newMin(name, MAX[T], retainState = false)
 
   /** Create a new accumulator that tracks the minimum value and resets after each step
     *
-    * $vType
-    * $name
-    * $initialValue
+    * @tparam T Value type of the accumulator
+    * @param name Name for the accumulator
+    * @param initialValue Initial value for accumulator
     */
   def newMin[T: Numeric: Bounded](name: String, initialValue: T): Unit =
     newMin(name, initialValue, retainState = false)
 
   /** Create a new accumulator that tracks the minimum value
     *
-    * $vType
-    * $name
-    * $retainState
+    * @tparam T Value type of the accumulator
+    * @param name Name for the accumulator
+    * @param retainState If `true`, accumulation for the next step/iteration of an algorithm continues with the
+    *                                        previously computed value, otherwise, the value is reset to `initialValue` before each step.
     */
   def newMin[T: Numeric: Bounded](name: String, retainState: Boolean): Unit =
     newMin(name, MAX[T], retainState)
 
   /** Create a new accumulator that tracks the minimum value
     *
-    * $vType
-    * $name
-    * $initialValue
-    * $retainState
+    * @tparam T Value type of the accumulator
+    * @param name Name for the accumulator
+    * @param initialValue Initial value for accumulator
+    * @param retainState If `true`, accumulation for the next step/iteration of an algorithm continues with the
+    *                                        previously computed value, otherwise, the value is reset to `initialValue` before each step.
     */
   def newMin[T: Numeric: Bounded](name: String, initialValue: T, retainState: Boolean): Unit
 
@@ -207,7 +216,8 @@ abstract class GraphState {
     * @param noBins Number of histogram bins
     * @param minValue Minimum data value for distribution
     * @param maxValue Maximum data value distribution
-    * $retainState
+    * @param retainState If `true`, accumulation for the next step/iteration of an algorithm continues with the
+    *                                        previously computed value, otherwise, the value is reset to `initialValue` before each step.
     *
     * @tparam T Type of histogram values
     */
@@ -222,7 +232,8 @@ abstract class GraphState {
   /** Create a new counter that tracks the counts of a categorical graph quantity
     *
     * @param name Name for the counter
-    * $retainState
+    * @param retainState If `true`, accumulation for the next step/iteration of an algorithm continues with the
+    *                                        previously computed value, otherwise, the value is reset to `initialValue` before each step.
     *
     * @tparam T Type of counted values
     */
@@ -233,15 +244,17 @@ abstract class GraphState {
 
   /** Create new Boolean accumulator that returns `true` if all accumulated values are `true` and `false` otherwise
     *
-    * $name
-    * $retainState
+    * @param name Name for the accumulator
+    * @param retainState If `true`, accumulation for the next step/iteration of an algorithm continues with the
+    *                                        previously computed value, otherwise, the value is reset to `initialValue` before each step.
     */
   def newAll(name: String, retainState: Boolean = false): Unit
 
   /** Create new Boolean accumulator that returns `true` if any accumulated value is `true` and `false` otherwise
     *
-    * $name
-    * $retainState
+    * @param name Name for the accumulator
+    * @param retainState If `true`, accumulation for the next step/iteration of an algorithm continues with the
+    *                                        previously computed value, otherwise, the value is reset to `initialValue` before each step.
     */
   def newAny(name: String, retainState: Boolean = false): Unit
 
@@ -249,10 +262,10 @@ abstract class GraphState {
   def nodeCount: Int
 
   /** Retrieve accumulator
-    * $iType
-    * $vType
+    * @tparam S Input type of the accumulator
+    * @tparam T Value type of the accumulator
     *
-    * $name
+    * @param name Name for the accumulator
     *
     * @throws NoSuchElementException if accumulator with `name` does not exist
     * @return The accumulator stored under `name`
@@ -260,10 +273,10 @@ abstract class GraphState {
   def apply[S, T](name: String): Accumulator[S, T]
 
   /** Safely retrieve accumulator
-    * $iType
-    * $vType
+    * @tparam S Input type of the accumulator
+    * @tparam T Value type of the accumulator
     *
-    * $name
+    * @param name Name for the accumulator
     *
     * @return The accumulator stored under `name` if it exists, else `None`
     */
@@ -271,7 +284,7 @@ abstract class GraphState {
 
   /** Check if accumulator exists
     *
-    * $name
+    * @param name Name for the accumulator
     * @return `true` if accumulator with `name` exists else `false`
     */
   def contains(name: String): Boolean

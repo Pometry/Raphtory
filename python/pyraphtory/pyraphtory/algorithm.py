@@ -1,9 +1,14 @@
 from pyraphtory.graph import TemporalGraph, Row, Table
-from pyraphtory.interop import ScalaProxyBase, GenericScalaProxy, ScalaClassProxy
+from pyraphtory.interop import GenericScalaProxy, ScalaClassProxy
+
+
+class ScalaAlgorithm(GenericScalaProxy):
+    _classname = "com.raphtory.api.algorithm.BaseAlgorithm"
 
 
 class Alignment(ScalaClassProxy):
     _classname = "com.raphtory.api.analysis.graphview.Alignment"
+
 
 class PyAlgorithm(object):
     """

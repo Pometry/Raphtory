@@ -6,7 +6,7 @@ import com.raphtory.api.analysis.table.Table
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
-private[api] trait BaseAlgorithm extends Serializable {
+private[raphtory] trait BaseAlgorithm extends Serializable {
 
   /** Logger instance for writing out log messages */
 

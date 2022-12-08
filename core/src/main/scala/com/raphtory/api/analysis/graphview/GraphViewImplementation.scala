@@ -205,9 +205,6 @@ private[api] trait GraphViewImplementation[
   override def clearMessages(): G =
     addFunction(ClearChain())
 
-  /**  Execute only the apply step of the algorithm on every perspective and returns a new RaphtoryGraph with the result.
-    *  @param algorithm algorithm to apply
-    */
   def transform(algorithm: Generic): G =
     algorithm
       .apply(withTransformedName(algorithm))
@@ -219,9 +216,6 @@ private[api] trait GraphViewImplementation[
   def transform(algorithm: GenericReduction): RG =
     algorithm(withTransformedName(algorithm)).clearMessages()
 
-  /** Execute the algorithm on every perspective and returns a new `RaphtoryGraph` with the result.
-    * @param algorithm to apply
-    */
   def execute(algorithm: GenericallyApplicable): Table =
     algorithm.run(withTransformedName(algorithm))
 

@@ -7,25 +7,40 @@ import java.lang.reflect.{Array => JArray}
 import com.raphtory.api.analysis.graphstate.Accumulator
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.input.Graph
+import com.raphtory.api.input.Property
+import com.raphtory.api.input.Source
+import com.raphtory.api.input.Spout
 import com.raphtory.internals.management.python.EmbeddedPython
 import com.raphtory.internals.management.python.JPypeEmbeddedPython
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 import java.util
+import scala.collection.immutable
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 import scala.reflect.runtime.universe
+import scala.reflect.api.Types
 import universe._
 import scala.util.Random
 import com.github.takezoe.scaladoc.Scaladoc
+import com.raphtory.api.analysis.algorithm.BaseAlgorithm
+import com.raphtory.api.output.format.Format
+import com.raphtory.api.output.sink.Sink
+import com.raphtory.api.progresstracker.ProgressTracker
+import com.raphtory.internals.context.RaphtoryContext
 import pemja.core.Interpreter
 import sun.misc.Unsafe
+
+import scala.annotation.tailrec
+import scala.language.existentials
+import scala.reflect.api
 
 /** Scala-side methods for interfacing with Python */
 object PythonInterop {
@@ -107,7 +122,7 @@ object PythonInterop {
   def get_wrapper_str(obj: Any): String =
     obj match {
       case _: Array[_]             => "Array"
-      case _: collection.Map[_, _] => "Map"
+      case _: collection.Map[_, _] => "Mapping"
       case _: collection.Seq[_]    => "Sequence"
       case _: Iterable[_]          => "Iterable"
       case _: Iterator[_]          => "Iterator"
@@ -119,6 +134,203 @@ object PythonInterop {
       case _: GraphState           => "GraphState"
       case _                       => "None"
     }
+
+  private def funTypeRepr(v: universe.Type, tpe: universe.Type): String = {
+    val f         = tpe.typeSymbol.asClass
+    val n         = f.typeParams.size - 1
+    val argsTypes = f.typeParams.map(t => t.asType.toType.asSeenFrom(v, f))
+    val argIter   = argsTypes.grouped(n)
+    val args      = argIter.next()
+    val ret       = argIter.next().head
+    "Callable[[" + args.map(get_type_repr).mkString(", ") + "], " + get_type_repr(ret) + "]"
+  }
+
+  def integralType(tpe: universe.Type): Boolean =
+    (tpe weak_<:< typeOf[Long]) ||
+      tpe =:= typeOf[java.lang.Byte] ||
+      tpe =:= typeOf[java.lang.Short] ||
+      tpe =:= typeOf[java.lang.Integer] ||
+      tpe =:= typeOf[java.lang.Long]
+
+  def floatType(tpe: universe.Type): Boolean =
+    tpe =:= typeOf[Float] || tpe =:= typeOf[Double] ||
+      tpe =:= typeOf[java.lang.Float] || tpe =:= typeOf[java.lang.Double]
+
+  def stringType(tpe: universe.Type): Boolean =
+    tpe =:= typeOf[String]
+
+  def booleanType(tpe: universe.Type): Boolean =
+    tpe =:= typeOf[Boolean] || tpe =:= typeOf[java.lang.Boolean]
+
+  def bytesType(tpe: universe.Type): Boolean =
+    tpe =:= typeOf[Array[Byte]]
+
+  def arrayType(tpe: universe.Type): Boolean =
+    !bytesType(tpe) && tpe <:< typeOf[Array[_]]
+
+  def pyListType(tpe: universe.Type): Boolean =
+    arrayType(tpe) || (typeOf[mutable.Buffer[_]].erasure <:< tpe.erasure && tpe <:< typeOf[IterableOnce[_]])
+
+  def iteratorType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[IterableOnce[_]] && typeOf[Iterator[_]].erasure <:< tpe.erasure
+
+  def iterableType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[IterableOnce[_]] && typeOf[Iterable[_]].erasure <:< tpe.erasure
+
+  def sequenceType(tpe: universe.Type): Boolean =
+    !iterableType(tpe) && (tpe <:< typeOf[Iterable[_]] && typeOf[collection.Seq[_]].erasure <:< tpe.erasure)
+
+  def varargsType(tpe: universe.Type): Boolean =
+    tpe.toString.endsWith("*")
+
+  def function1Type(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Function1[_, _]] && !(tpe <:< typeOf[Iterable[_]]) &&
+      typeOf[PythonFunction1[_, _]].erasure <:< tpe.erasure
+
+  def function2Type(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Function2[_, _, _]] && typeOf[PythonFunction2[_, _, _]].erasure <:< tpe.erasure
+
+  def scalaListType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Seq[_]] && typeOf[List[_]].erasure <:< tpe.erasure && !varargsType(tpe)
+
+  def scalaMappingType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[collection.Map[_, _]] && typeOf[immutable.Map[_, _]].erasure <:< tpe.erasure
+
+  def genericType(tpe: universe.Type): Boolean = {
+    val name = tpe.typeSymbol.toString
+    val res  = name.startsWith("type") || name.startsWith("free type")
+    res
+  }
+
+  def graphPerspectiveType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[GraphPerspective]
+
+  def ingestionGraphType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Graph] && !graphPerspectiveType(tpe)
+
+  def vertexType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Vertex]
+
+  def graphStateType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[GraphState]
+
+  def accumulatorType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Accumulator[_, _]]
+
+  def spoutType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Spout[_]]
+
+  def sourceType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Source]
+
+  def sinkType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Sink]
+
+  def propertyType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Property]
+
+  def rowType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Row]
+
+  def tableType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Table]
+
+  def progressTrackerType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[ProgressTracker]
+
+  def formatType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[Format]
+
+  def contextType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[RaphtoryContext]
+
+  def algorithmType(tpe: universe.Type): Boolean =
+    tpe <:< typeOf[BaseAlgorithm]
+
+  def extractTypeArgs(tpe: universe.Type, parent: universe.Type): Iterable[String] = {
+    val clazz = parent.typeSymbol.asClass
+    clazz.typeParams
+      .map { t =>
+        val T = t.asType.toType
+        get_type_repr(T.asSeenFrom(tpe, clazz))
+      }
+  }
+
+  def typeArgRepr(tpe: universe.Type, parent: universe.Type): String =
+    extractTypeArgs(tpe, parent).mkString("[", ", ", "]")
+
+  // try to remove all aliases and singleton types
+  @tailrec
+  def expandType(tpe: universe.Type): universe.Type = {
+    val widened = tpe.widen.dealias
+    if (widened != tpe)
+      expandType(widened)
+    else
+      tpe
+  }
+
+  def genericUpperBound(tpe: universe.Type): universe.Type =
+    if (genericType(tpe)) {
+      val bounds = TypeBounds.unapply(tpe.typeSymbol.typeSignature.asInstanceOf[TypeBounds])
+      bounds
+        .map {
+          case (lo, hi) => hi
+        }
+        .getOrElse(tpe)
+    }
+    else
+      tpe
+
+  def get_type_repr(tpe: universe.Type): String = {
+    val collectionStr: String                                           = "scala.collection."
+    val reprMap: Map[universe.Type => Boolean, universe.Type => String] = Map(
+            (bytesType, _ => "bytes"),
+            (arrayType, tpe => collectionStr + "Array" + typeArgRepr(tpe, typeOf[Array[_]])),
+            (integralType, _ => "int"),
+            (floatType, _ => "float"),
+            (stringType, _ => "str"),
+            (booleanType, _ => "bool"),
+            (varargsType, tpe => extractTypeArgs(tpe, typeOf[Seq[_]]).head),
+            (pyListType, tpe => "list" + typeArgRepr(tpe, typeOf[IterableOnce[_]])),
+            (iteratorType, tpe => collectionStr + "Iterator" + typeArgRepr(tpe, typeOf[IterableOnce[_]])),
+            (iterableType, tpe => collectionStr + "Iterable" + typeArgRepr(tpe, typeOf[IterableOnce[_]])),
+            (sequenceType, tpe => collectionStr + "Sequence" + typeArgRepr(tpe, typeOf[Iterable[_]])),
+            (scalaListType, tpe => collectionStr + "List" + typeArgRepr(tpe, typeOf[List[_]])),
+            (scalaMappingType, tpe => collectionStr + "Mapping" + typeArgRepr(tpe, typeOf[collection.Map[_, _]])),
+            (function1Type, tpe => funTypeRepr(tpe, typeOf[Function1[_, _]])),
+            (function2Type, tpe => funTypeRepr(tpe, typeOf[Function2[_, _, _]])),
+            (ingestionGraphType, tpe => "graph.Graph"),
+            (graphPerspectiveType, tpe => "graph.TemporalGraph"),
+            (vertexType, tpe => "vertex.Vertex"),
+            (graphStateType, tpe => "vertex.GraphState"),
+            (accumulatorType, tpe => "graph.Accumulator"),
+            (spoutType, tpe => "spouts.Spout"),
+            (sourceType, tpe => "sources.Source"),
+            (sinkType, tpe => "sinks.Sink"),
+            (propertyType, tpe => "input.Property"),
+            (rowType, tpe => "graph.Row"),
+            (tableType, tpe => "graph.Table"),
+            (progressTrackerType, tpe => "graph.ProgressTracker"),
+            (formatType, tpe => "formats.Format"),
+            (contextType, tpe => "context.PyRaphtory"),
+            (algorithmType, tpe => "algorithm.PyAlgorithm"),
+            (algorithmType, tpe => "algorithm.ScalaAlgorithm"),
+            (genericType, tpe => s"TypeVar('${tpe.toString}')")
+    )
+    val actual_tpe                                                      = expandType(tpe)
+    val options: immutable.Iterable[String]                             = reprMap.collect {
+      case (match_fun, repr_fun) if match_fun(actual_tpe) => repr_fun(actual_tpe)
+    }
+    val r                                                               =
+      if (options.isEmpty)
+        "Any"
+      else if (options.size == 1)
+        options.head
+      else
+        options.mkString("Union[", ", ", "]")
+
+    r
+  }
 
   /** Find the singleton instance of a companion object for a class name
     * (used for constructing objects from python)
@@ -162,9 +374,10 @@ object PythonInterop {
     }.headOption
 
   private def public_methods(clazz: Class[_]): Map[String, ArrayBuffer[Method]] = {
-    val runtimeMirror = universe.runtimeMirror(clazz.getClassLoader)
-    val objType       = runtimeMirror.classSymbol(clazz).toType.dealias
-    val methods       = objType.members
+    val runtimeMirror      = universe.runtimeMirror(clazz.getClassLoader)
+    val ignoredJavaMethods = Set("notify", "notifyAll", "wait")
+    val objType            = runtimeMirror.classSymbol(clazz).toType.dealias
+    val methods            = objType.members
       .collect {
         case s if s.isTerm && s.isPublic => s.asTerm
       }
@@ -179,34 +392,35 @@ object PythonInterop {
     val methodMap = mutable.Map.empty[String, ArrayBuffer[Method]]
 
     methods.foreach { m =>
-      m.overrides
-      val name       = m.name.toString
-      val params     = m.paramLists.flatten
-      val types      = params.map(p => p.info.toString).toArray
-      val implicits  = params.collect { case p if p.isImplicit => camel_to_snake(p.name.toString) }.toArray
-      val paramNames = params.filterNot(_.isImplicit).map(p => camel_to_snake(p.name.toString)).toArray
-      val docs       = getMethodDocString(m)
-      val defaults   = params.zipWithIndex
-        .collect {
-          case (p, i) if p.asTerm.isParamWithDefault =>
-            (i, name + "$default$" + s"${i + 1}")
-        }
-        .toMap
-        .asJava
-      methodMap
-        .getOrElseUpdate(name, ArrayBuffer.empty[Method])
-        .append(
-                Method(
-                        name,
-                        params.size,
-                        paramNames,
-                        types,
-                        defaults,
-                        m.isVarargs,
-                        implicits,
-                        docs
-                )
-        )
+      val name = m.name.toString
+      if (!(m.isJava && ignoredJavaMethods.contains(name))) {
+        val params     = m.paramLists.flatten
+        val types      = params.map(p => p.infoIn(objType)).toArray
+        val implicits  = params.collect { case p if p.isImplicit => camel_to_snake(p.name.toString) }.toArray
+        val paramNames = params.filterNot(_.isImplicit).map(p => camel_to_snake(p.name.toString)).toArray
+        val docs       = getMethodDocString(m)
+        val defaults   = params.zipWithIndex
+          .collect {
+            case (p, i) if p.asTerm.isParamWithDefault =>
+              (i, name + "$default$" + s"${i + 1}")
+          }
+          .toMap
+          .asJava
+        methodMap
+          .getOrElseUpdate(name, ArrayBuffer.empty[Method])
+          .append(
+                  Method(
+                          name,
+                          params.size,
+                          paramNames,
+                          types,
+                          defaults,
+                          m.isVarargs,
+                          implicits,
+                          docs
+                  )
+          )
+      }
     }
     methodMap.toMap
   }
@@ -269,7 +483,7 @@ case class Method(
     name: String,
     n: Int,
     parameters: Array[String],
-    types: Array[String],
+    types: Array[Type],
     defaults: java.util.Map[Int, String],
     varargs: Boolean,
     implicits: Array[String],

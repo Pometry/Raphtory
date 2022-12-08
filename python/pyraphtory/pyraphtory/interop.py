@@ -1,11 +1,14 @@
+from __future__ import annotations
+
 import inspect
 import re
 import traceback
-from abc import ABCMeta
+from abc import ABCMeta, ABC
 from collections.abc import Iterable, Mapping
 
 import os
 
+from typing import *
 from py4j.java_gateway import JavaObject, JavaClass
 from py4j.java_collections import JavaArray
 import cloudpickle as pickle
@@ -61,14 +64,14 @@ try:
     _scala = findClass('com.raphtory.internals.management.PythonInterop')
 except ImportError:
     import jpype
-    import jpype.imports
+    from jpype import JClass
     from pyraphtory import _config
 
     check_raphtory_logging_env()
 
     jpype.startJVM(_config.java_args, classpath=_config.jars.split(":"))
     from pyraphtory._jpypeinterpreter import JPypeInterpreter, _globals
-    from com.raphtory.internals.management import PythonInterop as _scala
+    _scala = getattr(JClass("com.raphtory.internals.management.PythonInterop$"), "MODULE$")
     _scala.set_interpreter(JPypeInterpreter())
     _jpype = True
 
@@ -142,35 +145,48 @@ def get_methods_from_name(name):
     return _scala.methods_from_name(name)
 
 
+def get_wrapper_for_name(name: str):
+    logger.trace("Retrieving wrapper for {name!r}", name=name)
+    wrapper = _wrappers[name]
+    logger.trace("Found wrapper for {name!r} based on class name", name=name)
+    return wrapper
+
+
+def get_type_repr(tpe: Any):
+    return _scala.get_type_repr(tpe)
+
+
+def build_wrapper(name: str, obj: Any):
+    # Create a new base class for the jvm wrapper and add methods
+    with _wrapper_lock:
+        if name in _wrappers:
+            # a different thread already created the wrapper
+            wrapper = _wrappers[name]
+            logger.trace("Found wrapper for {name!r} based on class name after initial wait", name=name)
+        else:
+            # Check if a special wrapper class is registered for the object
+            wrap_name = str(_scala.get_wrapper_str(obj))
+            if wrap_name in _wrappers:
+                # Add special wrapper class to the top of the mro such that method overloads work
+                logger.debug("Using wrapper based on name {wrap_name} for {name}", wrap_name=wrap_name, name=name)
+                # Note this wrapper is registered automatically as '_classname' is defined
+                wrapper = type(name, (_wrappers[wrap_name],), {"_classname": name, "_initialised": False})
+            else:
+                # No special wrapper registered, can use base wrapper directly
+                logger.debug("No wrapper found for name {}, using GenericScalaProxy", name)
+                wrapper = type(name, (GenericScalaProxy,), {"_classname": name, "_initialised": False})
+            logger.trace("New wrapper created for {name!r}", name=name)
+    logger.trace("Wrapper is {wrapper!r}", wrapper=wrapper)
+    return wrapper
+
+
 def get_wrapper(obj):
     """get wrapper class for a java object"""
     name = str(obj.getClass().getName())
-    logger.trace("Retrieving wrapper for {name!r}", name=name)
     try:
-        wrapper = _wrappers[name]
-        logger.trace("Found wrapper for {name!r} based on class name", name=name)
+        return get_wrapper_for_name(name)
     except KeyError:
-        # Create a new base class for the jvm wrapper and add methods
-        with _wrapper_lock:
-            if name in _wrappers:
-                # a different thread already created the wrapper
-                wrapper = _wrappers[name]
-                logger.trace("Found wrapper for {name!r} based on class name after initial wait", name=name)
-            else:
-                # Check if a special wrapper class is registered for the object
-                wrap_name = str(_scala.get_wrapper_str(obj))
-                if wrap_name in _wrappers:
-                    # Add special wrapper class to the top of the mro such that method overloads work
-                    logger.debug("Using wrapper based on name {wrap_name} for {name}", wrap_name=wrap_name, name=name)
-                    # Note this wrapper is registered automatically as '_classname' is defined
-                    wrapper = type(name, (_wrappers[wrap_name],), {"_classname": name, "_initialised": False})
-                else:
-                    # No special wrapper registered, can use base wrapper directly
-                    logger.debug("No wrapper found for name {}, using GenericScalaProxy", name)
-                    wrapper = type(name, (GenericScalaProxy,), {"_classname": name, "_initialised": False})
-                logger.trace("New wrapper created for {name!r}", name=name)
-    logger.trace("Wrapper is {wrapper!r}", wrapper=wrapper)
-    return wrapper
+        return build_wrapper(name, obj)
 
 
 def to_jvm(value):
@@ -328,7 +344,8 @@ class ScalaProxyBase(object):
 
     @property
     def jvm(self):
-        """Access the wrapped jvm object directly"""
+        """The underlying Scala jvm object
+        """
         return self._jvm_object
 
     @classmethod
@@ -416,7 +433,8 @@ class GenericScalaProxy(JVMBase):
 
     @property
     def classname(self):
-        """The name of the underlying jvm class of this wrapper"""
+        """The name of the underlying jvm class of this wrapper
+        """
         if self._classname is None:
             if self._jvm_object is not None:
                 self._classname = self._jvm_object.getClass().getName()
@@ -426,7 +444,7 @@ class GenericScalaProxy(JVMBase):
 
     def __call__(self, *args, **kwargs):
         """
-        Calling a wrapper calls the 'apply' method of the jvm object
+        Calling a wrapper calls the `apply` method
         """
         logger.trace(f"{self!r} called with {args=} and {kwargs=}")
         return self.apply(*args, **kwargs)
@@ -479,6 +497,7 @@ class OverloadedMethod:
     def __init__(self, methods, name):
         self.__name__ = name
         self._methods = methods
+        self.__signature__ = inspect.signature(self.__class__.__call__)
         self.__doc__ = (f"Overloaded method with alternatives\n\n"
                         + "\n\n".join(f".. method:: {self.__name__}{str(inspect.signature(m.__get__(m)))}\n   :noindex:\n" +  # hack to get signature as if bound method
                                       ("\n" + indent(m.__doc__, "   ") if m.__doc__ else "")
@@ -496,15 +515,15 @@ class OverloadedMethod:
             print(e)
         raise RuntimeError(f"No overloaded implementations matched for {self.__name__} with {args=} and {kwargs=}")
 
-    def __get__(self, instance, owner):
+    def __get__(self, instance, owner=None):
         if instance is None:
             return self
         else:
             bound = copy(self)
+            bound.__self__ = instance
             bound._methods = [m.__get__(instance, owner) for m in bound._methods]
             return bound
 
-    __text_signature__ = "($self, *args, **kwargs)"
 
 
 class WithImplicits:
@@ -515,7 +534,7 @@ class WithImplicits:
         self._method = method
         self._implicits = []
         self.__signature__ = inspect.signature(method)
-        self.__doc__ = (method.__doc__ + "\n\n" if method.__doc__ is not None else "") + "takes implicit arguments"
+        self.__doc__ = method.__doc__
 
     def __call__(self, *args, **kwargs):
         return self._method(*args, **kwargs, _implicits=self._implicits)
@@ -543,12 +562,20 @@ class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
 
     @property
     def jvm(self):
+        """Underlying Scala companion object instance"""
         if self._jvm_object is not None:
             return self._jvm_object
         elif self._classname is not None:
             return find_class(self._classname)
         else:
             return None
+
+    def __subclasscheck__(self, subclass):
+        try:
+            value = super().__subclasscheck__(subclass)
+            return value
+        except AttributeError as e:
+            return False
 
     def _from_jvm(cls, jvm_object):
         if cls._base_initialised:
@@ -592,7 +619,7 @@ class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
                 mcs._base_initialised = True
 
 
-class ScalaClassProxy(GenericScalaProxy, metaclass=ScalaObjectProxy):
+class ScalaClassProxy(GenericScalaProxy, ABC, metaclass=ScalaObjectProxy):
     """Base class for wrapper objects that are constructable from python"""
 
     @classmethod
@@ -601,6 +628,7 @@ class ScalaClassProxy(GenericScalaProxy, metaclass=ScalaObjectProxy):
         return cls.apply(*args, **kwargs)
 
     def __new__(cls, *args, jvm_object=None, **kwargs):
+        """New instance construction from python uses the `apply` classmethod."""
         if jvm_object is None:
             # call scala constructor
             return cls._build_from_python(*args, **kwargs)

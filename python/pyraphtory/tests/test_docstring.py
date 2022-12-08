@@ -59,6 +59,16 @@ def test_param_list_with_space():
             == "Some text\n\n\n:param name: this is \n   some long text \n:param other: this is some short text \n\nsome other non-indented text needs to be separated"
             )
 
+def test_weird_param_list():
+    assert (convert_docstring(
+"""/**  Execute only the apply step of the algorithm on every perspective and returns a new RaphtoryGraph with the result.
+*  @param algorithm algorithm to apply
+*/"""
+    ) ==
+""" Execute only the apply step of the algorithm on every perspective and returns a new RaphtoryGraph with the result.
+
+ :param algorithm: algorithm to apply""")
+
 
 def test_param_list_from_accumulator():
     assert (convert_docstring(
