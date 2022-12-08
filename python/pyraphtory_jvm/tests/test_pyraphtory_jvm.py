@@ -8,9 +8,6 @@ import tarfile
 
 import requests
 from pyraphtory_jvm import jre as jre
-from pyraphtory_jvm import __version__
-
-version_file = Path(__file__).parent.parent.parent.parent / "version"
 
 LOTR_CHECKSUM = '8c7400d7463b4f45daff411a5521cbcadec4cabd624200ed0c17d68dc7c99a3f'
 LOTR_URL = 'https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv'
@@ -33,12 +30,6 @@ def does_url_exist(url):
 
 
 class JRETest(unittest.TestCase):
-
-    def test_version(self):
-        with open(version_file) as f:
-            version = f.readline()
-        version = version.replace('\n', '')
-        self.assertEqual(__version__, version)
 
     def test_getOS(self):
         this_os = platform.system()
@@ -172,13 +163,3 @@ class JRETest(unittest.TestCase):
         mock_unpack_archive.return_value = None
         # Run the function
         self.assertRaises(Exception, jre.unpack_jre, tf, ts)
-
-    @mock.patch('platform.system')
-    def test_unpack_jre(self, mock_machine):
-        mock_machine.return_value = 'Linux'
-        ts = tempfile.mkdtemp()
-        tempfile.mkstemp(dir=ts)
-        unpack_dir = tempfile.mkdtemp()
-        temp_tar = ts + '/tmpfile.tar.gz'
-        make_tarfile(temp_tar, ts)
-        self.assertIsNone(jre.unpack_jre(temp_tar, ts, unpack_dir=unpack_dir))
