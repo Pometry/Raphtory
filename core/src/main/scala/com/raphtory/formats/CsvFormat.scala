@@ -42,10 +42,15 @@ case class CsvFormat(delimiter: String = ",") extends Format {
       private val mapper       = JsonMapper.builder().addModule(DefaultScalaModule).build()
 
       private def csvValue(obj: Any): String = {
-        obj match {
+        obj.asInstanceOf[AnyRef] match {
           case v: java.lang.Number => v.toString
-          case v: Boolean => v.toString
-          case v => "\"" + mapper.writeValueAsString(v) + "\""
+          case v: java.lang.Boolean => v.toString
+          case v =>
+            val value = mapper.writeValueAsString(v)
+            if (value.startsWith("\"") && value.endsWith("\"")) {
+              value
+            } else
+              "\"" + value + "\""
         }
       }
 
@@ -67,10 +72,4 @@ case class CsvFormat(delimiter: String = ",") extends Format {
 
       override def close(): Unit                                    = connector.close()
     }
-}
-
-
-object CsvFormat {
-
-
 }
