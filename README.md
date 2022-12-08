@@ -99,9 +99,7 @@ We recommend installing the PyRaphtory client for Python, which contains all the
 Make sure you have **Python v3.9 or above**. It is also recommended that you install Raphtory through conda, virtualenv or pyenv as a best practice. 
 
 ```bash
-pip install requests pandas pemja cloudpickle parsy
-pip install -i https://test.pypi.org/simple/ pyraphtory_jvm==0.2.0a9
-pip install -i https://test.pypi.org/simple/ pyraphtory==0.2.0a9
+pip install pyraphtory_jvm pyraphtory
 ```
 
 # Want to do something more complex?
