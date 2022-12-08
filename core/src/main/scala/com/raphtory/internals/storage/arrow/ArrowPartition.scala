@@ -163,7 +163,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       case _                           =>
     }
 
-  override protected def addOutgoingEdge(
+  override def addLocalEdge(
       sourceID: Long,
       msgTime: Long,
       index: Long,
@@ -172,13 +172,9 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       properties: Properties,
       edgeType: Option[Type]
   ): Unit = {
-
     logger.trace(s"Adding edge: $srcId -> $dstId to partition: $partition @ t:$msgTime")
-
-    updateAdders(msgTime)
-    // add source vertex
-    val src = addVertexInternal(srcId, msgTime, Properties())
-    // handle dst
+    updateAdders(msgTime) // add source vertex
+    val src = addVertexInternal(srcId, msgTime, Properties()) // handle dst
     val dst = idsRepo.resolve(dstId)
 
     src.outgoingEdges.find { e =>
@@ -190,14 +186,36 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     } match {
       case Some(e) =>
         updateExistingEdge(sourceID, msgTime, index, srcId, dstId, properties, dst, e)
+        addVertexInternal(dstId, msgTime, Properties())
       case None    =>
-        if (dst.isLocal) {
-          val dstV = addVertexInternal(dstId, msgTime, Properties())
-          addLocalVerticesToEdge(src, dstV, msgTime, properties)
-        }
-        else
-          addRemoteOutgoingEdge(src, dst.id, msgTime, properties)
+        val dstV = addVertexInternal(dstId, msgTime, Properties())
+        addLocalVerticesToEdge(src, dstV, msgTime, properties)
+    }
+  }
 
+  override def addOutgoingEdge(
+      sourceID: Long,
+      msgTime: Long,
+      index: Long,
+      srcId: Long,
+      dstId: Long,
+      properties: Properties,
+      edgeType: Option[Type]
+  ): Unit = {
+    logger.trace(s"Adding edge: $srcId -> $dstId to partition: $partition @ t:$msgTime")
+    updateAdders(msgTime) // add source vertex
+    val src = addVertexInternal(srcId, msgTime, Properties()) // handle dst
+    val dst = idsRepo.resolve(dstId)
+
+    src.outgoingEdges.find { e =>
+      dst match {
+        case NotFound(_)           => false
+        case GlobalId(id)          => id == e.getDstVertex && e.isDstGlobal
+        case ExistsOnPartition(id) => id == e.getDstVertex && !e.isDstGlobal
+      }
+    } match {
+      case Some(e) => updateExistingEdge(sourceID, msgTime, index, srcId, dstId, properties, dst, e)
+      case None    => addRemoteOutgoingEdge(src, dst.id, msgTime, properties)
     }
   }
 
@@ -215,9 +233,6 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     // add the edge properties
     addOrUpdateEdgeProps(msgTime, e, properties)
     emgr.addHistory(e.getLocalId, msgTime, true, properties.properties.nonEmpty)
-    if (dst.isLocal)
-      // if destination is local add it
-      addVertexInternal(dstId, msgTime, Properties())
   }
 
   private def createVertex(localId: Long, globalId: Long, time: Long, properties: Properties): Vertex = {
@@ -303,7 +318,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     emgr.setIncomingEdgePtr(e.getLocalId, prevListPtr)
   }
 
-  override protected def addIncomingEdge(
+  override def addIncomingEdge(
       sourceID: Long,
       msgTime: Long,
       index: Long,

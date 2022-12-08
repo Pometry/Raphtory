@@ -91,7 +91,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
 
   // Edge methods
 
-  override protected def addOutgoingEdge(
+  override def addLocalEdge(
       sourceID: Long,
       msgTime: Long,
       index: Long,
@@ -101,72 +101,57 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
       edgeType: Option[Type]
   ): Unit =
     vertices.synchronized {
-      val local     = isLocal(dstId) //is the dst on this machine
-      logger.trace(s"Dst is on the machine: $local")
-      val srcVertex =
-        addVertexInternal(msgTime, index, srcId, Properties(), None) // create or revive the source ID
+      // create or revive the source ID
+      val srcVertex = addVertexInternal(msgTime, index, srcId, Properties(), None)
       logger.trace(s"Src ID: $srcId created and revived")
-      val (present, edge) = srcVertex.getOutgoingEdge(dstId) match {
-        case Some(e) => //retrieve the edge if it exists
-          logger.trace(s"Edge of srcID: $srcId - dstId: $dstId retrieved")
-          (true, e)
-        case None    => //if it does not
-          val newEdge = if (local) {
-            logger.trace(s"New edge created $srcId - $dstId")
-            new PojoEdge(
-                    msgTime,
-                    index,
-                    srcId,
-                    dstId,
-                    initialValue = true
-            ) //create the new edge, local or remote
-          }
-          else {
-            logger.trace(s"Split edge $srcId - $dstId between partitions created")
-            new SplitEdge(msgTime, index, srcId, dstId, initialValue = true)
-          }
+      // do the same for the destination ID
+      val dstVertex = if (srcId != dstId) addVertexInternal(msgTime, index, dstId, Properties(), None) else srcVertex
+      srcVertex.getOutgoingEdge(dstId) match {
+        case Some(edge) =>
+          edge revive (msgTime, index) //if the edge was previously created we need to revive it
+          logger.trace(s"Edge ${edge.getSrcId} - ${edge.getDstId} revived")
+          addProperties(msgTime, index, edge, properties)
+        case None       => //if it does not
+          //create the new edge, local or remote
+          val newEdge = new PojoEdge(msgTime, index, srcId, dstId, initialValue = true)
           newEdge.setType(edgeType.map(_.name))
           srcVertex.addOutgoingEdge(newEdge) //add this edge to the vertex
           logger.trace(s"Added edge $newEdge to vertex $srcVertex")
-          (false, newEdge)
+          dstVertex addIncomingEdge newEdge  // add it to the dst as would not have been seen
+          logger.trace(s"added $newEdge to $dstVertex")
+          addProperties(msgTime, index, newEdge, properties)
       }
-
-      if (present) {
-        edge revive (msgTime, index) //if the edge was previously created we need to revive it
-        logger.trace(s"Edge ${edge.getSrcId} - ${edge.getDstId} revived")
-        if (local)
-          if (srcId != dstId)
-            addVertexInternal(
-                    msgTime,
-                    index,
-                    dstId,
-                    Properties(),
-                    None
-            )                        // do the same for the destination ID
-      }
-      else if (local)
-        if (srcId != dstId) {
-          val dstVertex =
-            addVertexInternal(
-                    msgTime,
-                    index,
-                    dstId,
-                    Properties(),
-                    None
-            )                                                    // do the same for the destination ID
-          dstVertex addIncomingEdge edge                         // add it to the dst as would not have been seen
-          logger.trace(s"added $edge to $dstVertex")
-          if (hasDeletions) edge killList dstVertex.deletionList //add the dst removes into the edge
-          logger.trace(s"Added ${dstVertex.deletionList} to $edge")
-        }
-        else {
-          srcVertex addIncomingEdge edge // a self loop should be in the incoming map as well
-          logger.trace(s"added $edge to $srcVertex")
-        }
-      addProperties(msgTime, index, edge, properties)
     }
 
-  override protected def addIncomingEdge(
+  override def addOutgoingEdge(
+      sourceID: Long,
+      msgTime: Long,
+      index: Long,
+      srcId: Long,
+      dstId: Long,
+      properties: Properties,
+      edgeType: Option[Type]
+  ): Unit =
+    vertices.synchronized {
+      val srcVertex =
+        addVertexInternal(msgTime, index, srcId, Properties(), None) // create or revive the source ID
+      logger.trace(s"Src ID: $srcId created and revived")
+      srcVertex.getOutgoingEdge(dstId) match {
+        case Some(edge) => //retrieve the edge if it exists
+          edge revive (msgTime, index) //if the edge was previously created we need to revive it
+          addProperties(msgTime, index, edge, properties)
+          logger.trace(s"Edge ${edge.getSrcId} - ${edge.getDstId} revived")
+        case None       => //if it does not
+          val newEdge = new SplitEdge(msgTime, index, srcId, dstId, initialValue = true)
+          logger.trace(s"Split edge $srcId - $dstId between partitions created")
+          newEdge.setType(edgeType.map(_.name))
+          srcVertex.addOutgoingEdge(newEdge) //add this edge to the vertex
+          logger.trace(s"Added edge $newEdge to vertex $srcVertex")
+          addProperties(msgTime, index, newEdge, properties)
+      }
+    }
+
+  override def addIncomingEdge(
       sourceID: Long,
       msgTime: Long,
       index: Long,
@@ -192,7 +177,6 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
       logger.trace(s"added $edge to $dstVertex")
       addProperties(msgTime, index, edge, properties)
       logger.trace(s"Added properties $properties")
-      dstVertex.incrementEdgesRequiringSync()
       edge.setType(edgeType.map(_.name))
     }
 

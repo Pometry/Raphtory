@@ -21,6 +21,7 @@ private[raphtory] class Writer[F[_]](
     storage: GraphPartition,
     conf: Config
 )(implicit F: Async[F]) {
+  private val partitioner = Partitioner(conf)
 
   private val vertexAdditionCount = TelemetryReporter.writerVertexAdditions.labels(partitionID.toString, graphID)
   private val edgeAddCount        = TelemetryReporter.writerEdgeAdditions.labels(partitionID.toString, graphID)
@@ -46,18 +47,18 @@ private[raphtory] class Writer[F[_]](
     vertexAdditionCount.inc()
   }
 
-  def processEdgeAdd(update: EdgeAdd): Unit = {
-    logger.trace(s"Partition $partitionID: Received EdgeAdd message '$update'.")
+  def processEdgeAdd(upd: EdgeAdd): Unit = {
+    logger.trace(s"Partition $partitionID: Received EdgeAdd message '$upd'.")
+    val srcPartition = partitioner.getPartitionForId(upd.srcId)
+    val dstPartition = partitioner.getPartitionForId(upd.dstId)
 
-    storage.addEdge(
-            update.sourceID,
-            update.updateTime,
-            update.index,
-            update.srcId,
-            update.dstId,
-            update.properties,
-            update.eType
-    )
+    if (srcPartition == partitionID && dstPartition == partitionID)
+      storage.addLocalEdge(upd.sourceID, upd.updateTime, upd.index, upd.srcId, upd.dstId, upd.properties, upd.eType)
+    else if (srcPartition == partitionID)
+      storage.addOutgoingEdge(upd.sourceID, upd.updateTime, upd.index, upd.srcId, upd.dstId, upd.properties, upd.eType)
+    else
+      storage.addIncomingEdge(upd.sourceID, upd.updateTime, upd.index, upd.srcId, upd.dstId, upd.properties, upd.eType)
+
     edgeAddCount.inc()
   }
 }
