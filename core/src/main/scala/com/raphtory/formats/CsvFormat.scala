@@ -1,5 +1,7 @@
 package com.raphtory.formats
 
+import com.fasterxml.jackson.databind.json.JsonMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.output.format.Format
 import com.raphtory.api.output.sink.SinkConnector
@@ -37,6 +39,15 @@ case class CsvFormat(delimiter: String = ",") extends Format {
   ): SinkExecutor =
     new SinkExecutor {
       var currentPerspective: Perspective = _
+      private val mapper       = JsonMapper.builder().addModule(DefaultScalaModule).build()
+
+      private def csvValue(obj: Any): String = {
+        obj match {
+          case v: java.lang.Number => v.toString
+          case v: Boolean => v.toString
+          case v => "\"" + mapper.writeValueAsString(v) + "\""
+        }
+      }
 
       override def setupPerspective(perspective: Perspective): Unit =
         currentPerspective = perspective
@@ -44,9 +55,9 @@ case class CsvFormat(delimiter: String = ",") extends Format {
       override protected def writeRow(row: Row): Unit = {
         val value = currentPerspective.window match {
           case Some(w) =>
-            s"${currentPerspective.timestamp}$delimiter$w$delimiter${row.getValues().map(repr).mkString(delimiter)}"
+            s"${currentPerspective.timestamp}$delimiter$w$delimiter${row.getValues().map(csvValue).mkString(delimiter)}"
           case None    =>
-            s"${currentPerspective.timestamp}$delimiter${row.getValues().map(repr).mkString(delimiter)}"
+            s"${currentPerspective.timestamp}$delimiter${row.getValues().map(csvValue).mkString(delimiter)}"
         }
         connector.write(value)
         connector.closeItem()
@@ -56,4 +67,10 @@ case class CsvFormat(delimiter: String = ",") extends Format {
 
       override def close(): Unit                                    = connector.close()
     }
+}
+
+
+object CsvFormat {
+
+
 }
