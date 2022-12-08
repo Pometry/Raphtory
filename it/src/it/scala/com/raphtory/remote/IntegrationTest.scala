@@ -3,9 +3,11 @@ package com.raphtory.remote
 import cats.effect.IO
 import com.dimafeng.testcontainers.{DockerComposeContainer, ExposedService}
 import com.dimafeng.testcontainers.munit.TestContainerForAll
+import munit.IgnoreSuite
 
 import java.io.File
 
+//@IgnoreSuite
 class IntegrationTest extends munit.CatsEffectSuite with TestContainerForAll {
 
   override val containerDef: DockerComposeContainer.Def = DockerComposeContainer

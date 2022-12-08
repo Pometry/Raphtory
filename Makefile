@@ -108,13 +108,13 @@ pyraphtory-local: version
 docker-build: version
 	docker build \
 		--build-arg VERSION="$$(cat version)" \
-		-t raphtory-core:$$(cat version) \
+		-t raphtory-core-it:$$(cat version) \
 		-f Dockerfile . --compress
-	docker tag raphtory-core:$$(cat version) raphtory-core:latest
+	docker tag raphtory-core-it:$$(cat version) raphtory-core-it:latest
 
 .PHONY: docker-compose-up
 docker-compose-up: version
-	docker-compose -f docker-compose.yml up --build
+	docker-compose -f docker-compose.yml up --detach
 
 .PHONY: run-local-cluster
 run-local-cluster: version
@@ -133,6 +133,7 @@ clean-local-cluster:
 
 clean:
 	sbt clean
+	rm -Rf python/pyraphtory/lib/*
 
 type?=patch
 .PHONY: version-bump
