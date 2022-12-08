@@ -57,18 +57,20 @@ class QuerySupervisor[F[_]] protected (
       else ls
 
     for {
-      _   <- earliestTime.update(_ min _earliestTime)
-      _   <- latestTime.update(_ max _latestTime)
-      ipr <- inprogressReqs.updateAndGet(_.filterNot(_.asInstanceOf[LoadRequest].sourceID == sourceID))
-      ls  <- if (ipr.isEmpty) F.delay(queryReqsToRelease(Nil)) else F.pure(Nil)
+      _     <- earliestTime.update(_ min _earliestTime)
+      _     <- latestTime.update(_ max _latestTime)
+      ipr   <- inprogressReqs.updateAndGet(_.filterNot(_.asInstanceOf[LoadRequest].sourceID == sourceID))
+      ls    <- if (ipr.isEmpty) F.delay(queryReqsToRelease(Nil)) else F.pure(Nil)
       // Query requests removed from pending request list should be added to the inprogress request list
-      _   <- inprogressReqs.update(_ ++ ls)
-      _   <- ls.map(_.release.complete(())).sequence
-      _   <- F.blocking {
-               logger.info(
-                       s"Source '$sourceID' is unblocking analysis for Graph '$graphID' with earliest time seen as $earliestTime and latest time seen as $latestTime"
-               )
-             }
+      _     <- inprogressReqs.update(_ ++ ls)
+      _     <- ls.map(_.release.complete(())).sequence
+      eTime <- earliestTime.get
+      lTime <- latestTime.get
+      _     <- F.blocking {
+                 logger.info(
+                         s"Source '$sourceID' is unblocking analysis for Graph '$graphID' with earliest time seen as $eTime and latest time seen as $lTime"
+                 )
+               }
     } yield ()
   }
 
