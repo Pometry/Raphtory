@@ -16,11 +16,7 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
-import static junit.framework.Assert.assertNotSame;
-import static junit.framework.TestCase.assertNotNull;
-import static junit.framework.TestCase.assertTrue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.*;
 
 /**
  * Simple program to confirm that vertices and edges are
@@ -111,7 +107,7 @@ public class DataSetBuilder {
             checkWindowedEdgesFromWindowedVertexIterator(data);
 
             checkVertexHistory(data);
-            //checkEdgeHistory(data);
+            //checkEdgeHistory(data); TBD
         }
     }
 
@@ -893,7 +889,7 @@ public class DataSetBuilder {
         p.addHistory(localSrcId, time, true, false, e.getLocalId(), true);
 
         p = rap.getVertexMgr().getPartitionForVertex(localDstId);
-        ep.setIncomingEdgePtrByEdgeId(e.getLocalId(), p.addIncomingEdgeToList(e.getDstVertex(), e.getLocalId()));
+        ep.setIncomingEdgePtrByEdgeId(e.getLocalId(), p.addIncomingEdgeToList(e.getDstVertex(), e.getLocalId(), e.getSrcVertex()));
         p.addHistory(localDstId, time, true, false, e.getLocalId(), false);
 
         e.decRefCount();
@@ -946,7 +942,7 @@ public class DataSetBuilder {
         ep.addHistory(e.getLocalId(), time, true, true);
 
         VertexPartition  p = rap.getVertexMgr().getPartitionForVertex(localDstId);
-        ep.setIncomingEdgePtrByEdgeId(e.getLocalId(), p.addIncomingEdgeToList(e.getDstVertex(), e.getLocalId()));
+        ep.setIncomingEdgePtrByEdgeId(e.getLocalId(), p.addIncomingEdgeToList(e.getDstVertex(), e.getLocalId(), e.getSrcVertex()));
         p.addHistory(localDstId, time, true, false, e.getLocalId(), false);
 
         e.decRefCount();

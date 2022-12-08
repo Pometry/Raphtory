@@ -1,7 +1,9 @@
 package com.raphtory.arrowcore.implementation;
 
+import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 /**
  * This class is used to find edges between a source vertex
@@ -9,14 +11,27 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
  *
  * It's updated whenever edges are added and is also
  * updated lazily if queried.
+ *
+ * TODO: Investigate the use of LongHashFunction.hashLongs() to hash
+ * the src & dst ids to generate a KEY.
+ * The KEY is then stored in the map against a EDGE-ID value.
+ *
+ * If multiple EDGE-IDs need to be stored for that KEY then the stored EDGE-ID
+ * value becomes a -ve index into the edge-list list, which when we iterate
+ * over it, we will need to filter on src and dst.
+ *
+ * This may use much less memory.
  */
-public class CachedMutatingEdgeMap {
+public abstract class CachedMutatingEdgeMap {
     public static final int N_EDGES_FOR_MAP = 64;
 
-    protected final Long2ObjectOpenHashMap<Long2ObjectOpenHashMap<LongArrayList>> _srcToEdgesMap = new Long2ObjectOpenHashMap<>();
     protected final VertexPartition _p;
     protected final EdgePartitionManager _aepm;
     protected final VertexPartitionManager _avpm;
+
+    protected final Long2ObjectOpenHashMap<Long2LongOpenHashMap> _vertexToEdgeMapMap = new Long2ObjectOpenHashMap<>();
+    protected final ObjectArrayList<LongArrayList> _edgeLists = new ObjectArrayList<>();
+
 
 
     public CachedMutatingEdgeMap(VertexPartition p, VertexPartitionManager avpm, EdgePartitionManager aepm) {
@@ -29,56 +44,78 @@ public class CachedMutatingEdgeMap {
     /**
      * Adds a new edge to the map
      *
-     * @param srcId the src vertex id
-     * @param dstId the dst vertex id
-     * @param edgeId the edge id in question*
-     * @param nSrcOutgoingEdges the number of outgoing edges in the src vertex
+     * @param originatingVertexId the vertex id of the target of the edge (outgoing=src, incoming=dst)
+     * @param otherVertexId the vertex id of the vertex at the other end of this edge
+     * @param edgeId the edge id in question
+     * @param prevEdgeId the prev edge in the list
+     * @param nEdges the number of edges in the target vertex (outgoing edges or incoming edges as appropriate)
      */
-    public void addEdge(long srcId, long dstId, long edgeId, int nSrcOutgoingEdges) {
-        if (nSrcOutgoingEdges<N_EDGES_FOR_MAP) {
+    protected void addEdge(long originatingVertexId, long otherVertexId, long edgeId, long prevEdgeId, int nEdges) {
+        if (nEdges<N_EDGES_FOR_MAP) {
             return;
         }
 
-        Long2ObjectOpenHashMap<LongArrayList> edgeMap = _srcToEdgesMap.get(srcId);
+        Long2LongOpenHashMap edgeMap = _vertexToEdgeMapMap.get(originatingVertexId);
         boolean isNew = edgeMap==null;
 
-        if (edgeMap==null) {
-            edgeMap = new Long2ObjectOpenHashMap<>();
-            _srcToEdgesMap.put(srcId, edgeMap);
-        }
-
-        LongArrayList edges = edgeMap.get(dstId);
-        if (edges==null) {
-            edges = new LongArrayList();
-            edgeMap.put(dstId, edges);
-        }
-
         if (isNew) {
-            // Now add the other edges for this src..
-            addAllEdges(srcId, edgeId, nSrcOutgoingEdges);
+            edgeMap = new Long2LongOpenHashMap();
+            edgeMap.defaultReturnValue(Long.MAX_VALUE);
+            _vertexToEdgeMapMap.put(originatingVertexId, edgeMap);
+            // Now add the other edges for this src...
+            addAllEdges(edgeMap, otherVertexId, edgeId, prevEdgeId);
         }
         else {
-            edges.add(edgeId);
+            addEdge(edgeMap, edgeId, otherVertexId);
         }
     }
 
 
     /**
-     * Adds all of the edges for a vertex into the map
+     * Adds all the edges for a vertex into the map
      *
-     * @param srcId the src vertex id
      * @param edgeId the latest edge-id
-     * @param nSrcOutgoingEdges the number of outgoing edges for the src vertex
      */
-    private void addAllEdges(long srcId, long edgeId, int nSrcOutgoingEdges) {
-        while (edgeId!=-1L) {
-            int edgePartitionId = _aepm.getPartitionId(edgeId);
-            int edgeRowId = _aepm.getRowId(edgeId);
-            EdgePartition p = _aepm.getPartition(edgePartitionId);
+    private void addAllEdges(Long2LongOpenHashMap edgeMap, long vertexId, long edgeId, long prevEdgeId) {
+        addEdge(edgeMap, edgeId, vertexId);
 
-            addEdge(srcId, p.getDstVertexId(edgeRowId), edgeId, nSrcOutgoingEdges);
+        addAllEdges(edgeMap, prevEdgeId);
+    }
 
-            edgeId = p._getPrevOutgoingPtrByRow(edgeRowId);
+
+    protected abstract void addAllEdges(Long2LongOpenHashMap edgeMap, long prevEdgeId);
+
+    protected abstract void addAllEdgesFromOriginatingVertex(Long2LongOpenHashMap edgeMap, long originatingVertexId);
+
+
+    protected void addEdge(Long2LongOpenHashMap edgeMap, long edgeId, long otherVertexId) {
+        long edgeIdOrListId = edgeMap.get(otherVertexId);
+
+        if (edgeIdOrListId>=0L) {
+            if (edgeIdOrListId == Long.MAX_VALUE) {
+                // No mapping yet, so just map the edge-id
+                edgeMap.put(otherVertexId, edgeId);
+            }
+            else {
+                // An existing mapping, convert to a list
+                long foundEdgeId = edgeIdOrListId;
+
+                LongArrayList list = new LongArrayList();
+                list.add(foundEdgeId);
+                list.add(edgeId);
+
+                _edgeLists.add(list);
+
+                int listId = -_edgeLists.size();
+
+                edgeMap.put(otherVertexId, listId);
+            }
+        }
+        else {
+            // An existing mapping to a list
+            int listId = (int)(-edgeIdOrListId-1);
+            LongArrayList list = _edgeLists.get(listId);
+            list.add(edgeId);
         }
     }
 
@@ -86,38 +123,106 @@ public class CachedMutatingEdgeMap {
     /**
      * Configures a matching-edges iterator to find matching edges as specified
      *
-     * @param srcId the src vertex id
-     * @param dstId the dst vertex id to find
-     * @param dstIsGlobal true if the dst is global, false otherwise
-     * @param nSrcOutgoingEdges the number of outgoing edges for this src vertex
+     * @param originatingVertexId the src vertex id
+     * @param targetVertexId the dst vertex id to find
+     * @param targetIsGlobal true if the dst is global, false otherwise
+     * @param nEdges the number of outgoing edges for this src vertex
      * @param iter the iterator to configure
      *
      * @return the configured iterator
      */
-    public EdgeIterator findMatchingEdges(long srcId, long dstId, boolean dstIsGlobal, int nSrcOutgoingEdges, MatchingEdgeCachedIterator iter) {
+    public EdgeIterator findMatchingEdges(long originatingVertexId, long targetVertexId, boolean targetIsGlobal, int nEdges, MatchingEdgeCachedIterator iter) {
         iter.init(_aepm);
 
-        Long2ObjectOpenHashMap<LongArrayList> edgeMap = _srcToEdgesMap.get(srcId);
+        Long2LongOpenHashMap edgeMap = _vertexToEdgeMapMap.get(originatingVertexId);
         if (edgeMap!=null) {
             // Use the existing map
-            LongArrayList edges = edgeMap.get(dstId);
-            iter.init(edges, dstIsGlobal);
+            long edgeIdOrListId = edgeMap.get(targetVertexId);
+            if (edgeIdOrListId>=0L) {
+                iter.init(edgeIdOrListId);
+            }
+            else {
+                int listId = (int)(-edgeIdOrListId-1);
+                iter.init(_edgeLists.get(listId), targetIsGlobal);
+            }
         }
-        else if (nSrcOutgoingEdges>N_EDGES_FOR_MAP) {
-            // We should initialise the map and use it
-            int row = _avpm.getRowId(srcId);
-            addAllEdges(srcId, _p._getOutgoingEdgePtrByRow(row), nSrcOutgoingEdges);
+        else if (nEdges>=N_EDGES_FOR_MAP) {
+            // Initialise the mappings for this src
+            edgeMap = new Long2LongOpenHashMap();
+            edgeMap.defaultReturnValue(Long.MAX_VALUE);
+            _vertexToEdgeMapMap.put(originatingVertexId, edgeMap);
 
-            edgeMap = _srcToEdgesMap.get(srcId);
-            LongArrayList edges = edgeMap.get(dstId);
-            iter.init(edges, dstIsGlobal);
+            // Now add the other edges for this src...
+            addAllEdgesFromOriginatingVertex(edgeMap, originatingVertexId);
+
+            long edgeIdOrListId = edgeMap.get(targetVertexId);
+            if (edgeIdOrListId>=0L) {
+                iter.init(edgeIdOrListId);
+            }
+            else {
+                int listId = (int)(-edgeIdOrListId-1);
+                iter.init(_edgeLists.get(listId), targetIsGlobal);
+            }
         }
         else {
             // Just iterate over the edge-list
-            iter.init(_avpm, srcId, dstId, dstIsGlobal);
+            iter.init(_avpm, originatingVertexId, targetVertexId, targetIsGlobal);
         }
 
         return iter;
+    }
+
+
+    public static class OutgoingCachedMutatingEdgeMap extends CachedMutatingEdgeMap {
+        public OutgoingCachedMutatingEdgeMap(VertexPartition p, VertexPartitionManager avpm, EdgePartitionManager aepm) {
+            super(p, avpm, aepm);
+        }
+
+
+        @Override
+        protected void addAllEdges(Long2LongOpenHashMap edgeMap, long prevEdgeId) {
+            while (prevEdgeId != -1L) {
+                int edgePartitionId = _aepm.getPartitionId(prevEdgeId);
+                int edgeRowId = _aepm.getRowId(prevEdgeId);
+                EdgePartition p = _aepm.getPartition(edgePartitionId);
+
+                addEdge(edgeMap, prevEdgeId, p.getDstVertexId(edgeRowId));
+                prevEdgeId = p._getPrevOutgoingPtrByRow(edgeRowId);
+            }
+        }
+
+        @Override
+        protected void addAllEdgesFromOriginatingVertex(Long2LongOpenHashMap edgeMap, long originatingVertexId) {
+            int row = _avpm.getRowId(originatingVertexId);
+            addAllEdges(edgeMap, _p._getOutgoingEdgePtrByRow(row));
+        }
+    }
+
+
+    public static class IncomingCachedMutatingEdgeMap extends CachedMutatingEdgeMap {
+        public IncomingCachedMutatingEdgeMap(VertexPartition p, VertexPartitionManager avpm, EdgePartitionManager aepm) {
+            super(p, avpm, aepm);
+        }
+
+
+        @Override
+        protected void addAllEdges(Long2LongOpenHashMap edgeMap, long prevEdgeId) {
+            while (prevEdgeId!=-1L) {
+                int edgePartitionId = _aepm.getPartitionId(prevEdgeId);
+                int edgeRowId = _aepm.getRowId(prevEdgeId);
+                EdgePartition p = _aepm.getPartition(edgePartitionId);
+
+                addEdge(edgeMap, prevEdgeId, p.getSrcVertexId(edgeRowId));
+                prevEdgeId = p._getPrevIncomingPtrByRow(edgeRowId);
+            }
+        }
+
+
+        @Override
+        protected void addAllEdgesFromOriginatingVertex(Long2LongOpenHashMap edgeMap, long originatingVertexId) {
+            int row = _avpm.getRowId(originatingVertexId);
+            addAllEdges(edgeMap, _p._getIncomingEdgePtrByRow(row));
+        }
     }
 
 
@@ -129,59 +234,77 @@ public class CachedMutatingEdgeMap {
      * the head is stored in the vertex store OR it can iterate over an array
      * of relevant edge-ids.
      */
-    public static class MatchingEdgeCachedIterator extends EdgeIterator {
-        private boolean _dstIsGlobal;
-        private long _dstId;
-        private long _nextEdgeId;
-        private int _index = 0;
-        private boolean _useList;
-        private long[] _edges;
-        private int _nEdges;
+    public static abstract class MatchingEdgeCachedIterator extends EdgeIterator {
+        protected boolean _isGlobal;
+        protected long _vertexId;
+        protected long _nextEdgeId;
+        protected int _index = 0;
+        protected boolean _useEdgeArrayList;
+        protected long[] _edges;
+        protected int _nEdges;
+
+
+        protected void init(long edgeId) {
+            if (edgeId==Long.MAX_VALUE) {
+                _edgeId = -1L;
+                _edgeRowId = -1;
+                _edgePartition = null;
+                _hasNext = false;
+                _getNext = false;
+            }
+            else {
+                reset(edgeId);
+            }
+
+            _useEdgeArrayList = false;
+            _nEdges = 0;
+        }
 
 
         /**
          * Initialises the iterator to iterate over the cached edge list
          *
          * @param edgeIds the cached edge list
-         * @param dstIsGlobal true, if the dst vertex is global, false otherwise
+         * @param isGlobal true, if the other vertex is global, false otherwise
          */
-        public void init(LongArrayList edgeIds, boolean dstIsGlobal) {
-            _useList = true;
+        protected void init(LongArrayList edgeIds, boolean isGlobal) {
+            _useEdgeArrayList = true;
+            _index = 0;
 
-            // We use the underlying array rather than the LongArrayList because
-            // the LongArrayList may change whilst we're iterating over it
             if (edgeIds==null || edgeIds.size()==0) {
                 _edges = null;
                 _nEdges = 0;
             }
             else {
+                // We use the underlying array rather than the LongArrayList because
+                // the LongArrayList may change whilst we're iterating over it
                 _nEdges = edgeIds.size();
                 _edges = edgeIds.elements();
             }
 
-            _dstIsGlobal = dstIsGlobal;
+            _isGlobal = isGlobal;
         }
 
 
         /**
-         * Initialises the iterator to iterate over the edge linked-list for the src vertex
+         * Initialises the iterator to iterate over the edge linked-list for the appropriate vertex
          *
          * @param avpm the VertexPartitionManager to use
-         * @param srcId the src vertex id
-         * @param dstId the dst vertex id
-         * @param dstIsGlobal true, if the dst vertex is global, false otherwise
+         * @param vertexId the vertex id from where we get the edge linked list
+         * @param targetVertexId the vertex id to look for
+         * @param targetIsGlobal true, if the target vertex is global, false otherwise
          */
-        public void init(VertexPartitionManager avpm, long srcId, long dstId, boolean dstIsGlobal) {
-            _useList = false;
-            //_avpm = avpm;
-            _dstId = dstId;
-            _dstIsGlobal = dstIsGlobal;
+        protected void init(VertexPartitionManager avpm, long vertexId, long targetVertexId, boolean targetIsGlobal) {
+            _useEdgeArrayList = false;
+            _vertexId = targetVertexId;
+            _isGlobal = targetIsGlobal;
 
-            int vPartId = avpm.getPartitionId(srcId);
-            int vRowId = avpm.getRowId(srcId);
+            int vPartId = avpm.getPartitionId(vertexId);
+            int vRowId = avpm.getRowId(vertexId);
 
-            _nextEdgeId = avpm.getPartition(vPartId)._getOutgoingEdgePtrByRow(vRowId);
+            _nextEdgeId = getHeadEdgePtr(avpm.getPartition(vPartId), vRowId);
         }
+
 
 
         /**
@@ -190,7 +313,7 @@ public class CachedMutatingEdgeMap {
          */
         @Override
         protected boolean moveToNext() {
-            if (_useList) {
+            if (_useEdgeArrayList) {
                 if (_nEdges==0) {
                     return false;
                 }
@@ -201,7 +324,7 @@ public class CachedMutatingEdgeMap {
                         return false;
                     }
 
-                    if (isDstVertexLocal() != _dstIsGlobal) {
+                    if (localFlagMatches()) {
                         return true;
                     }
                 }
@@ -209,18 +332,85 @@ public class CachedMutatingEdgeMap {
                 return false;
             }
 
+            // Scan the linked list of edge-ptrs
             while (_nextEdgeId!=-1L) {
                 if (!reset(_nextEdgeId)) {
                     return false;
                 }
 
-                _nextEdgeId = _edgePartition._getPrevOutgoingPtrByRow(_edgeRowId);
+                _nextEdgeId = goToNextEdge();
 
-                if (getDstVertexId()==_dstId && isDstVertexLocal()!=_dstIsGlobal) {
+                if (vertexAndLocalFlagMatches()) {
                     return true;
                 }
             }
+
             return false;
+        }
+
+
+        protected abstract long getHeadEdgePtr(VertexPartition p, int rowId);
+
+
+        protected abstract boolean localFlagMatches();
+
+
+        protected abstract boolean vertexAndLocalFlagMatches();
+
+
+        protected abstract long goToNextEdge();
+    }
+
+
+
+    public static class OutgoingMatchingEdgeCachedIterator extends MatchingEdgeCachedIterator {
+        @Override
+        protected long getHeadEdgePtr(VertexPartition p, int rowId) { // XXX
+            return p._getOutgoingEdgePtrByRow(rowId);
+        }
+
+
+        @Override
+        protected boolean localFlagMatches() {
+            return isDstVertexLocal() != _isGlobal;
+        }
+
+
+        @Override
+        protected boolean vertexAndLocalFlagMatches() {
+            return getDstVertexId()==_vertexId && isDstVertexLocal()!=_isGlobal;
+        }
+
+
+        @Override
+        protected long goToNextEdge() {
+            return _edgePartition._getPrevOutgoingPtrByRow(_edgeRowId);
+        }
+    }
+
+
+    public static class IncomingMatchingEdgeCachedIterator extends MatchingEdgeCachedIterator {
+        @Override
+        protected long getHeadEdgePtr(VertexPartition p, int rowId) { // XXX
+            return p._getIncomingEdgePtrByRow(rowId);
+        }
+
+
+        @Override
+        protected boolean localFlagMatches() {
+            return isSrcVertexLocal() != _isGlobal;
+        }
+
+
+        @Override
+        protected boolean vertexAndLocalFlagMatches() {
+            return getSrcVertexId()==_vertexId && isSrcVertexLocal()!=_isGlobal;
+        }
+
+
+        @Override
+        protected long goToNextEdge() {
+            return _edgePartition._getPrevIncomingPtrByRow(_edgeRowId);
         }
     }
 }

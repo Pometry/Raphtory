@@ -50,7 +50,7 @@ public class VertexPartitionManager {
     private final ArrayList<PartitionWriter> _writers = new ArrayList<>(N_WRITERS);
     private final RaphtoryThreadPool _pool;
     private VertexPartition[] _partitionArray;
-    private int _lastFreePartitionId = 0;
+    private int _lastFreePartitionId = -1;
     private int _maxPartitionId = -1;
 
     public final int PARTITION_SIZE;
@@ -93,6 +93,9 @@ public class VertexPartitionManager {
     public int nPartitions() { return _partitions.size(); }
 
 
+    /**
+     * @return the maximum partition id so far loaded
+     */
     public int getMaxPartitionId() { return _maxPartitionId; }
 
 
@@ -127,11 +130,9 @@ public class VertexPartitionManager {
      * @return the next available free vertex-id
      */
     public long getNextFreeVertexId() {
-        int nPartitions = nPartitions();
-        if (nPartitions==0) {
+        if (_lastFreePartitionId==-1) {
             getPartitionAndLoad(0);
             _lastFreePartitionId = 0;
-            return 0L;
         }
 
         for (int i=_lastFreePartitionId; i<=_maxPartitionId; ++i) {
@@ -376,14 +377,15 @@ public class VertexPartitionManager {
      *
      * @param vertexId the vertex in question
      * @param edgeId the new edge to add
+     * @param srcVertexId the src vertex for this edge
      *
      * @return the previous head of the incoming list of edges
      */
-    public long addIncomingEdgeToList(long vertexId, long edgeId) {
+    public long addIncomingEdgeToList(long vertexId, long edgeId, long srcVertexId) {
         int partId = getPartitionId(vertexId);
         VertexPartition p = getPartitionAndLoad(partId);
 
-        return p.addIncomingEdgeToList(vertexId, edgeId);
+        return p.addIncomingEdgeToList(vertexId, edgeId, srcVertexId);
     }
 
 
