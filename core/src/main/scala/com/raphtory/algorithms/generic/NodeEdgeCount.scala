@@ -39,9 +39,9 @@ object NodeEdgeCount extends GenericReduction {
 
   override def apply(graph: GraphPerspective): graph.ReducedGraph = {
     graph.reducedView.setGlobalState({state =>
-      state.newIntAdder("directedEdges")
-      state.newIntAdder("undirectedEdges")
-      state.newIntAdder("temporalEdges")
+      state.newIntAdder("directedEdges", 0,retainState = true)
+      state.newIntAdder("undirectedEdges", 0, retainState = true)
+      state.newIntAdder("temporalEdges", 0, retainState = true)
     }).step{ (vertex, state) =>
       import vertex._
       val acc1: Accumulator[Int, Int] = state("directedEdges")
