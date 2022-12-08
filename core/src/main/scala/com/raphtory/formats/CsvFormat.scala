@@ -1,10 +1,13 @@
 package com.raphtory.formats
 
+import com.fasterxml.jackson.databind.json.JsonMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.output.format.Format
 import com.raphtory.api.output.sink.SinkConnector
 import com.raphtory.api.output.sink.SinkExecutor
 import com.raphtory.api.time.Perspective
+import com.raphtory.internals.management.PythonInterop.repr
 import com.typesafe.config.Config
 
 /** A `Format` that writes a `Table` in comma-separated value (CSV) format
@@ -36,6 +39,27 @@ case class CsvFormat(delimiter: String = ",") extends Format {
   ): SinkExecutor =
     new SinkExecutor {
       var currentPerspective: Perspective = _
+      private val mapper       = JsonMapper.builder().addModule(DefaultScalaModule).build()
+
+      private def ensureQuoted(str: String): String = {
+        if ((str.startsWith("\"") && str.endsWith("\""))
+          || (str.startsWith("'") && str.endsWith("'" ))
+          || !str.contains(delimiter)) {
+          str
+        } else {
+          "\"" + str + "\""
+        }
+      }
+
+
+
+      private def csvValue(obj: Any): String = {
+        obj match {
+          case v: String => ensureQuoted(v)
+          case v =>
+            ensureQuoted(mapper.writeValueAsString(v))
+        }
+      }
 
       override def setupPerspective(perspective: Perspective): Unit =
         currentPerspective = perspective
@@ -43,9 +67,9 @@ case class CsvFormat(delimiter: String = ",") extends Format {
       override protected def writeRow(row: Row): Unit = {
         val value = currentPerspective.window match {
           case Some(w) =>
-            s"${currentPerspective.timestamp}$delimiter$w$delimiter${row.getValues().mkString(delimiter)}"
+            s"${currentPerspective.timestamp}$delimiter$w$delimiter${row.getValues().map(csvValue).mkString(delimiter)}"
           case None    =>
-            s"${currentPerspective.timestamp}$delimiter${row.getValues().mkString(delimiter)}"
+            s"${currentPerspective.timestamp}$delimiter${row.getValues().map(csvValue).mkString(delimiter)}"
         }
         connector.write(value)
         connector.closeItem()
