@@ -242,11 +242,7 @@ final private[raphtory] case class PojoGraphLens(
   ): (Int, List[IO[Unit]]) =
     vs.filter(v => v.hasMessage || includeAllVs)
       .grouped(chunkSize)
-      .map { chunk =>
-        chunk.size -> IO {
-          chunk.foreach(f)
-        }
-      }
+      .map(chunk => chunk.size -> IO.blocking(chunk.foreach(f)))
       .foldLeft(0 -> List.empty[IO[Unit]]) {
         case ((count, ll), (chunkSize, io)) =>
           (count + chunkSize, io :: ll)
