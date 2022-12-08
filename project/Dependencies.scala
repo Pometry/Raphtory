@@ -49,6 +49,7 @@ object Dependencies {
   private lazy val fastUtilVersion                 = "8.5.6"
   private lazy val commonsLangVersion              = "3.12.0"
   private lazy val junitInterfaceVersion           = "0.11"
+  private lazy val disruptorVersion                = "4.0.0.RC1"
 
   lazy val excludeSlf4j         = ExclusionRule(organization = "org.slf4j")
   lazy val excludeLog4j         = ExclusionRule(organization = "log4j")
@@ -171,6 +172,7 @@ object Dependencies {
   lazy val chronicleMap   = "net.openhft"        % "chronicle-map"       % chronicleMapVersion
   lazy val fastUtil       = "it.unimi.dsi"       % "fastutil"            % fastUtilVersion
   lazy val commonsLang    = "org.apache.commons" % "commons-lang3"       % commonsLangVersion
+  lazy val disruptor      = "com.lmax"           % "disruptor"           % disruptorVersion
 
   lazy val junitInterface =
     "com.novocode" % "junit-interface" % junitInterfaceVersion % Test excludeAll (excludeJunit, excludeJunitDep)

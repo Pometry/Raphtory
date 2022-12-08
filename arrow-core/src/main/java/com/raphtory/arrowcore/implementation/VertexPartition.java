@@ -42,18 +42,19 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
     protected VertexArrowStore _store;      // Used to access the actual arrow data
     private ArrowFileReader _reader;        // File reader
     private int _currentSize = 0;           // Number of rows so far
-    private boolean _modified = false;      // Whether or not this partition has been modified
-    private boolean _loaded = false;        // Whether or not this partition has been loaded
-    private boolean _sorted = false;        // Whether or not this partition has been sorted
+    private boolean _modified = false;      // Whether this partition has been modified
+    private boolean _loaded = false;        // Whether this partition has been loaded
+    private boolean _sorted = false;        // Whether this partition has been sorted
 
 
     // History, Fields and Properties:
-    protected final VertexHistoryPartition _history;           // The vertex history partition
-    //protected final VertexSnapshotPartition _snapshots;      // The vertex snapshots partition
-    protected final VertexEdgeIndexPartition _edgeIndex;       // Index of edges by dst-vertex-id
-    protected final CachedMutatingEdgeMap _cachedEdgeMap;      // Cached dst/edges per src vertex
+    protected final VertexHistoryPartition _history;             // The vertex history partition
+    //protected final VertexSnapshotPartition _snapshots;        // The vertex snapshots partition
+    protected final VertexEdgeIndexPartition _edgeIndex;         // Index of edges by dst-vertex-id
+    protected final CachedMutatingEdgeMap.OutgoingCachedMutatingEdgeMap _cachedSrcDstEdgeMap;  // Cached dst/edges per src vertex
+    protected final CachedMutatingEdgeMap.IncomingCachedMutatingEdgeMap _cachedDstSrcEdgeMap;  // Cached src/edges per dst vertex
 
-    protected SchemaFieldAccessor[] _fieldAccessors;           // Field accessors for the user-defined fields
+    protected SchemaFieldAccessor[] _fieldAccessors;             // Field accessors for the user-defined fields
 
     protected int _nProperties;
     protected VersionedProperty[] _propertyFields;             // The user-defined properties
@@ -82,7 +83,8 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
         _history = new VertexHistoryPartition(_partitionId, this);
         _edgeIndex = new VertexEdgeIndexPartition(_partitionId, this);
 
-        _cachedEdgeMap = new CachedMutatingEdgeMap(this, apm, apm._aepm);
+        _cachedSrcDstEdgeMap = new CachedMutatingEdgeMap.OutgoingCachedMutatingEdgeMap(this, apm, apm._aepm);
+        _cachedDstSrcEdgeMap = new CachedMutatingEdgeMap.IncomingCachedMutatingEdgeMap(this, apm, apm._aepm);
 
         ArrayList<VersionedProperty> props = _apm._raphtoryPartition._propertySchema.versionedVertexProperties();
         _nProperties = props==null ? 0 : props.size();
@@ -498,6 +500,14 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
      * @param dstIsGlobal true if the dest vertex id is global, false otherwise
      *
      * @return the previous head of the outgoing list of edges
+     *
+     * Note, we have 2 implementations of this - 1 using arrow and sorted arrays and is very memory efficent,
+     * and the other using Java HashMaps - not so memory efficient but perhaps faster overall.
+     *
+     * The HashMap version doesn't need constant sorting so can be used during
+     * ingestion easily...
+     *
+     * We need to get rid of one of these - or find appropriate
      */
     public synchronized long addOutgoingEdgeToList(long srcVertexId, long edgeId, long dstVertexId, boolean dstIsGlobal) {
         int row = _apm.getRowId(srcVertexId);
@@ -505,7 +515,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
         _store._outgoingEdges.set(row, edgeId);
         _store._nOutgoingEdges.set(row, _store._nOutgoingEdges.get(row)+1);
         _edgeIndex.addEdgeIndexRecord(row, dstVertexId, edgeId, dstIsGlobal); // XXX We only need 1 of these methods of finding matching edges?
-        _cachedEdgeMap.addEdge(srcVertexId, dstVertexId, edgeId, _store._nOutgoingEdges.get(row));
+        _cachedSrcDstEdgeMap.addEdge(srcVertexId, dstVertexId, edgeId, prev, _store._nOutgoingEdges.get(row));
         _modified = true;
         _sorted = false;
         return prev;
@@ -515,16 +525,17 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
     /**
      * Adds an edge to the incoming list for the specified vertex
      *
-     * @param vertexId the vertex in question
+     * @param dstVertexId the vertex in question
      * @param edgeId the new edge to add
      *
      * @return the previous head of the incoming list of edges
      */
-    public synchronized long addIncomingEdgeToList(long vertexId, long edgeId) {
-        int row = _apm.getRowId(vertexId);
+    public synchronized long addIncomingEdgeToList(long dstVertexId, long edgeId, long srcVertexId) {
+        int row = _apm.getRowId(dstVertexId);
         long prev = _store._incomingEdges.get(row);
         _store._incomingEdges.set(row, edgeId);
         _store._nIncomingEdges.set(row, _store._nIncomingEdges.get(row)+1);
+        _cachedDstSrcEdgeMap.addEdge(dstVertexId, srcVertexId, edgeId, prev, _store._nIncomingEdges.get(row));
         _modified = true;
         _sorted = false;
         return prev;
@@ -588,11 +599,19 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
         }
 
         _history.sortHistoryTimes();
-        int n = _history._history._maxRow;
+
+        // Clear indices
+        int nVertices = _apm.PARTITION_SIZE;
+        for (int i=0; i<nVertices; ++i) {
+            _store._sortedHStart.set(i, -1);
+            _store._sortedHEnd.set(i, -1);
+        }
+
+        int nHistoryPoints = _history._history._maxRow;
         IntVector sorted = _history._history._sortedVertexTimeIndices;
 
         int vertexRow = -1;
-        for (int i=0; i<n; ++i) {
+        for (int i=0; i<nHistoryPoints; ++i) {
             int actualRow = sorted.get(i);
 
             if (vertexRow==-1) {
@@ -606,7 +625,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
             }
         }
 
-        _store._sortedHEnd.set(vertexRow, n-1);
+        _store._sortedHEnd.set(vertexRow, nHistoryPoints-1);
         _sorted = true;
     }
 
@@ -870,21 +889,41 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
      * the appropriate parameters.
      *
      * @param srcId the src vertex id
-     * @param dstID the dst vertex id
+     * @param dstId the dst vertex id
      * @param isDstGlobal true if the dst vertex is remote, false otherwise
      * @param scanner the iterator to configure
      *
      * @return the configured iterator
      */
-    public synchronized EdgeIterator findMatchingEdges(long srcId, long dstID, boolean isDstGlobal, CachedMutatingEdgeMap.MatchingEdgeCachedIterator scanner) {
+    protected synchronized EdgeIterator findMatchingOutgoingEdges(long srcId, long dstId, boolean isDstGlobal, CachedMutatingEdgeMap.OutgoingMatchingEdgeCachedIterator scanner) {
         int row = _apm.getRowId(srcId);
         int nOutgoingEdges = _store._nOutgoingEdges.get(row);
-        return _cachedEdgeMap.findMatchingEdges(srcId, dstID, isDstGlobal, nOutgoingEdges, scanner);
+
+        return _cachedSrcDstEdgeMap.findMatchingEdges(srcId, dstId, isDstGlobal, nOutgoingEdges, scanner);
     }
 
 
     /**
-     * Identifies whether or not the specified vertex is alive within the time window
+     * Initialises the matching-edge-scanner iterator to find matching edges for
+     * the appropriate parameters.
+     *
+     * @param srcId the src vertex id
+     * @param dstId the dst vertex id
+     * @param isSrcGlobal true if the dst vertex is remote, false otherwise
+     * @param scanner the iterator to configure
+     *
+     * @return the configured iterator
+     */
+    protected synchronized EdgeIterator findMatchingIncomingEdges(long srcId, long dstId, boolean isSrcGlobal, CachedMutatingEdgeMap.IncomingMatchingEdgeCachedIterator scanner) {
+        int row = _apm.getRowId(dstId);
+        int nIncomingEdges = _store._nIncomingEdges.get(row);
+
+        return _cachedDstSrcEdgeMap.findMatchingEdges(dstId, srcId, isSrcGlobal, nIncomingEdges, scanner);
+    }
+
+
+    /**
+     * Identifies whether the specified vertex is alive within the time window
      *
      * @param vertexId the vertexId
      * @param start the window start time (inclusive)

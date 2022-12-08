@@ -978,13 +978,18 @@ public class VertexHistoryPartition {
      * @return true if the vertex is alive in the window
      */
     protected boolean isAliveAt(int vertexRow, long start, long end, BoundedVertexEdgeTimeWindowComparator searcher) {
-        int nRows = _history._maxRow;
-
-        searcher.init(vertexRow, _history._vertexRowIds, _history._sortedVertexTimeIndices, _history._times, end);
         int low = _avp._store._sortedHStart.get(vertexRow);
         int high = _avp._store._sortedHEnd.get(vertexRow);
+
+        if (low==-1 || high==-1) {
+            System.out.println("Looks like you're searching for history BUT haven't added any for this vertex!");
+            return false;
+        }
+
+        searcher.init(vertexRow, _history._vertexRowIds, _history._sortedVertexTimeIndices, _history._times, end);
         searcher.setBounds(low, high);
 
+        int nRows = _history._maxRow;
         int row = searcher.find();
 
         if (row < 0) {
