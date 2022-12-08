@@ -27,7 +27,7 @@ class GraphBuilderF[F[_], T](
     sentUpdates: Ref[F, Long]
 )(implicit F: Async[F]) {
 
-  private val partitioner       = Partitioner(defaultConf)                                          // FIXME: we should be passing it over
+  private val partitioner       = Partitioner(defaultConf)
   private val totalSourceErrors = TelemetryReporter.totalSourceErrors.labels(s"$sourceId", graphId) // TODO
 
   def buildGraphFromT(chunk: Chunk[T], index: Ref[F, Long]): F[Unit] =

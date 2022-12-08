@@ -78,12 +78,6 @@ abstract class PartitionServiceImpl[F[_]](
       _      <- writer.processUpdates(req)
     } yield Empty()
 
-//  override def processEffects(req: GraphAlterations): F[Empty] =
-//    for {
-//      writer <- graphs.get.map(graphs => graphs(req.graphId).data.writer)
-//      _      <- writer.processEffects(req)
-//    } yield Empty()
-
   override def receiveMessages(req: VertexMessages): F[Empty] =
     forwardToExecutor(
             req.graphId,

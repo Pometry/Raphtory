@@ -176,7 +176,6 @@ service PartitionService {
   rpc destroyGraph(GraphInfo) returns (Status);
   rpc establishExecutor(Query) returns (Status);
   rpc processUpdates(GraphAlterations) returns (google.protobuf.Empty);
-//  rpc processEffects(GraphAlterations) returns (google.protobuf.Empty);
   rpc receiveMessages(VertexMessages) returns (google.protobuf.Empty);
   rpc establishPerspective(PerspectiveCommand) returns (NodeCount);
   rpc setMetadata(NodeCount) returns (google.protobuf.Empty);
