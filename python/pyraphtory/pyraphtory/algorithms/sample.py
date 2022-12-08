@@ -1,3 +1,7 @@
+"""
+sample python script.
+"""
+
 from pyraphtory.graph import Row
 from pyraphtory.input import *
 from pyraphtory.scala.implicits.numeric import Long

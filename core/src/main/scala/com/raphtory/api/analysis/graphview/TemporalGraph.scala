@@ -214,7 +214,7 @@ class TemporalGraph private[raphtory] (
 ) extends TemporalGraphBase[TemporalGraph, RaphtoryGraph]
         with ReducedGraphViewImplementation[TemporalGraph, MultilayerTemporalGraph] {
 
-  override def newFixedGraph(query: Query, querySender: QuerySender): RaphtoryGraph =
+  override private[api] def newFixedGraph(query: Query, querySender: QuerySender): RaphtoryGraph =
     new RaphtoryGraph(query, querySender)
 }
 
@@ -232,6 +232,6 @@ class MultilayerTemporalGraph private[api] (
 ) extends TemporalGraphBase[MultilayerTemporalGraph, MultilayerRaphtoryGraph]
         with MultilayerGraphViewImplementation[MultilayerTemporalGraph, TemporalGraph] {
 
-  override def newFixedGraph(query: Query, querySender: QuerySender): MultilayerRaphtoryGraph =
+  override private[api] def newFixedGraph(query: Query, querySender: QuerySender): MultilayerRaphtoryGraph =
     new MultilayerRaphtoryGraph(query, querySender)
 }
