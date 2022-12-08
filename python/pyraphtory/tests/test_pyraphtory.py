@@ -1,7 +1,5 @@
 from pathlib import Path
 
-import numpy as np
-
 from pyraphtory.context import PyRaphtory
 from pyraphtory.graph import Row
 import pyraphtory
