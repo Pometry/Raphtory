@@ -125,10 +125,5 @@ release: version-bump
 	git tag "v$$(cat version)" && git push origin --tags
 
 
-version-tag:
-	@if [ "test" = "test" ]; then\
-		echo "Hello world";\
-	fi
-
 local-pulsar: version
 	VERSION=$$(cat version) docker-compose -f $(DOCKER_RAP)/docker-compose-local.yml up
