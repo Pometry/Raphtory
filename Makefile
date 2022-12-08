@@ -105,5 +105,22 @@ clean-local-cluster:
 clean:
 	sbt clean
 
+.PHONY: version-bump
+version-bump:
+	echo "Bumping pyraphtory version using poetry"
+	cd python/pyraphtory && poetry version patch --short
+	echo "Bumping SBT file"
+	cd python/pyraphtory && poetry version --short | tr -d "[:cntrl:]" > ../../version
+	echo "Installing and bumping pyraphtory_jvm"
+	pip install bump2version --quiet
+	cd python/pyraphtory_jvm && bump2version --allow-dirty --no-commit --new-version $$(cat ../../version) setup.py
+
+
+.PHONY: release
+release: version-bump
+	git checkout -b v$$(cat version)
+	git add version python/pyraphtory/pyproject.toml python/pyraphtory_jvm/.bumpversion.cfg python/pyraphtory_jvm/setup.py
+	git commit -m "bumped to v$$(cat version)"
+
 local-pulsar: version
 	VERSION=$$(cat version) docker-compose -f $(DOCKER_RAP)/docker-compose-local.yml up
