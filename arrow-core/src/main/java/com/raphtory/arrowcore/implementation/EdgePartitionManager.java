@@ -53,6 +53,7 @@ public class EdgePartitionManager {
     private final RaphtoryThreadPool _pool;
     private EdgePartition[] _partitionArray;
     private int _lastFreePartitionId = -1;
+    private int _maxPartitionId = -1;
 
     public final int PARTITION_SIZE;
     public final int PARTITION_SHIFT;
@@ -102,19 +103,27 @@ public class EdgePartitionManager {
 
 
     /**
+     * @return the maximum partition id so far loaded
+     */
+    public int getMaxPartitionId() { return _maxPartitionId; }
+
+
+    /**
      * @return the total number of edges
      *
      * TODO: This is a bit slow
      */
     public long getTotalNumberOfEdges() {
-        long nVertices = 0;
-        int nPartitions = nPartitions();
+        long nEdges = 0;
 
-        for (int i=0; i<nPartitions; ++i) {
-            nVertices += getPartition(i).getEdgesCount();
+        for (int i=0; i<_maxPartitionId; ++i) {
+            EdgePartition p = getPartition(i);
+            if (p!=null) {
+                nEdges += p.getEdgesCount();
+            }
         }
 
-        return nVertices;
+        return nEdges;
     }
 
 
@@ -130,23 +139,24 @@ public class EdgePartitionManager {
      * @return the next available free edge-id
      */
     public synchronized long getNextFreeEdgeId() {
-        int nPartitions = nPartitions();
-        if (nPartitions==0) {
+        if (_lastFreePartitionId==-1) {
             getPartitionAndLoad(0);
             _lastFreePartitionId = 0;
-            return 0L;
         }
 
-        for (int i=_lastFreePartitionId; i<nPartitions; ++i) {
-            long freeId = getPartition(i).getNextFreeEdgeId();
-            if (freeId!=-1L) {
-                _lastFreePartitionId = i;
-                return freeId;
+        for (int i=_lastFreePartitionId; i<=_maxPartitionId; ++i) {
+            EdgePartition p = getPartition(i);
+            if (p!=null) {
+                long freeId = p.getNextFreeEdgeId();
+                if (freeId != -1L) {
+                    _lastFreePartitionId = i;
+                    return freeId;
+                }
             }
         }
 
-        _lastFreePartitionId = nPartitions;
-        return (long)nPartitions * (long)PARTITION_SIZE;
+        _lastFreePartitionId = _maxPartitionId+1;
+        return (long)_lastFreePartitionId * (long)PARTITION_SIZE;
     }
 
 
@@ -197,6 +207,7 @@ public class EdgePartitionManager {
             else {
                 p = new EdgePartition(this, partId);
                 _partitions.put(partId, p);
+                _maxPartitionId = Math.max(_maxPartitionId, partId);
             }
         }
 

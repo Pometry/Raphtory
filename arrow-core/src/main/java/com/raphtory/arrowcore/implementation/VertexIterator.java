@@ -69,7 +69,8 @@ public abstract class VertexIterator {
     protected VersionedEntityPropertyAccessor[] _propertyIteratorAccessors = null;
     protected EdgeIterator.MatchingEdgesIterator _matchingEdgesIterator = null;
     protected VertexHistoryIterator.WindowedVertexHistoryIterator _vertexHistoryIterator = null;
-    protected CachedMutatingEdgeMap.MatchingEdgeCachedIterator _scanner = null;
+    protected CachedMutatingEdgeMap.OutgoingMatchingEdgeCachedIterator _outgoingScanner = null;
+    protected CachedMutatingEdgeMap.IncomingMatchingEdgeCachedIterator _incomingScanner = null;
     protected VertexHistoryPartition.BoundedVertexEdgeTimeWindowComparator _isAliveSearcher = null;
 
 
@@ -330,13 +331,33 @@ public abstract class VertexIterator {
         }
         else {
             // Use a hash-map that's updated each time an edge is added
-            if (_scanner==null) {
-                _scanner = new CachedMutatingEdgeMap.MatchingEdgeCachedIterator();
+            if (_outgoingScanner ==null) {
+                _outgoingScanner = new CachedMutatingEdgeMap.OutgoingMatchingEdgeCachedIterator();
             }
 
-            return _p.findMatchingEdges(_vertexId, dstVertexId, isDstGlobal, _scanner);
+            return _p.findMatchingOutgoingEdges(_vertexId, dstVertexId, isDstGlobal, _outgoingScanner);
         }
     }
+
+
+    /**
+     * Retrieves all incoming edges from the specified source vertex id to
+     * this vertex.
+     *
+     * @param srcVertexId the source vertex id in question
+     * @param isSrcGlobal true if the src-vertex-id is global, false otherwise
+     *
+     * @return an edge iterator configured to retrieve those edges
+     * */
+    public EdgeIterator findAllIncomingEdges(long srcVertexId, boolean isSrcGlobal) {
+        // TODO XXX Find a better or more universal approach for this
+        if (_incomingScanner == null) {
+            _incomingScanner = new CachedMutatingEdgeMap.IncomingMatchingEdgeCachedIterator();
+        }
+
+        return _p.findMatchingIncomingEdges(srcVertexId, _vertexId, isSrcGlobal, _incomingScanner);
+    }
+
 
 
     /**
@@ -1311,9 +1332,10 @@ public abstract class VertexIterator {
                     return false;
                 }
 
-                while (_p.isValidRow(++_vertexRowId) && !_p.isAliveAtByRow(_vertexRowId, _start, _end, _searcher)) {
-                    // NOP
+                do {
+                    ++_vertexRowId;
                 }
+                while (_p.isValidRow(_vertexRowId) && !_p.isAliveAtByRow(_vertexRowId, _start, _end, _searcher));
 
                 if (_p.isValidRow(_vertexRowId)) {
                     _vertexId = _p._getLocalVertexIdByRow(_vertexRowId);
