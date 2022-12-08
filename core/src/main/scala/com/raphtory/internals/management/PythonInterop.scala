@@ -64,6 +64,8 @@ object PythonInterop {
             case (name, value) => s"$name=${repr(value)}"
           }
           .mkString(", ") + ")"
+      case v: String                                         =>
+        "\"" + v + "\""
       case v                                                 => v.toString
     }
 
