@@ -5,8 +5,8 @@ import os
 class BuildCommand(build):
     def run(self):
         print("Build_wheel")
-        import pyraphtory_jvm
-        pyraphtory_jvm.jre.check_dl_java_ivy(download_dir=os.getcwd()+'/pyraphtory_jvm/data/')
+        from pyraphtory_jvm import jre
+        jre.check_dl_java_ivy(download_dir=os.getcwd()+'/pyraphtory_jvm/data/')
         build.run(self)
 
 
