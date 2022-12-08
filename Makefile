@@ -121,6 +121,8 @@ release: version-bump
 	git checkout -b v$$(cat version)
 	git add version python/pyraphtory/pyproject.toml python/pyraphtory_jvm/.bumpversion.cfg python/pyraphtory_jvm/setup.py
 	git commit -m "bumped to v$$(cat version)"
+	git tag "v$$(cat version)" && git push origin --tags
+
 
 local-pulsar: version
 	VERSION=$$(cat version) docker-compose -f $(DOCKER_RAP)/docker-compose-local.yml up
