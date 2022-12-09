@@ -14,7 +14,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Docker compose exists?
+      - name: Start Raphtory in distributed mode
         run: |
           make docker-build docker-compose-up
+      - name: Run sbt Integration
+        run: |
+          RAPHTORY_CORE_LOG=DEBUG IT_OUTPUT_PATH="it/target/docker" sbt "it/it:testOnly *.DegreeTest"
+      - name: Stop Docker compose
+        if: always()
+        run: |
           docker-compose -f ./docker-compose.yml down --remove-orphans
