@@ -35,7 +35,10 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           for {
             _     <- TestUtils.manageTestFile(liftFileIfNotPresent)
             ctx   <- Option(System.getenv("IT_OUTPUT_PATH")) // if IT_OUTPUT_PATH is set then use the remote context
-                       .map(_ => RaphtoryIOContext.remoteIO())
+                       .map { _ =>
+                         logger.warn("!! Running Integration Tests on Remote Raphtory !!")
+                         RaphtoryIOContext.remoteIO()
+                       }
                        .getOrElse(RaphtoryIOContext.localIO())
             graph <- ctx.newIOGraph(failOnNotFound = false, destroy = true)
             _     <- Resource.pure(graph.load(setSource()))

@@ -12,7 +12,7 @@
 
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{short.classname} - %msg%n" />
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%5.5t] %-5level %logger{short.classname} - %msg%n" />
         </Console>
         <File name="LogFile" fileName="${logFileName}" append="${logFileAppend}">
             <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{short.classname} - %msg%n" />
