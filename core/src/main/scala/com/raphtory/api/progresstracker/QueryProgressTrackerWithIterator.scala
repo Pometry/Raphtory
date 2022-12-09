@@ -34,8 +34,13 @@ class QueryProgressTrackerWithIterator(
       case PerspectiveCompleted(perspective, rows, _) =>
         logger.debug(s"received message $msg")
         completedResults.add(TableOutput(getJobId, perspective, rows.toArray, conf))
-      case _: QueryCompleted | _: QueryFailed         => // QueryCompleted or QueryFailed
+      case _: QueryCompleted | _: QueryFailed        => // QueryCompleted or QueryFailed
         completedResults.add(msg)
+      case PerspectiveFailed(perspective, reason, _) =>
+        logger.error(s"perspective $perspective failed: $reason")
+        completedResults.add(TableOutput(getJobId, perspective, Array.empty[Row], conf))
+      case _ =>
+        logger.error(s"unknown $msg")
     }
     super.handleQueryUpdate(msg)
   }
