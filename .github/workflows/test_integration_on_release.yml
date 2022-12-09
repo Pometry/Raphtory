@@ -19,7 +19,7 @@ jobs:
           make docker-build docker-compose-up
       - name: Run sbt Integration
         run: |
-          RAPHTORY_CORE_LOG=DEBUG IT_OUTPUT_PATH="it/target/docker" sbt "it/it:testOnly *.DegreeTest"
+          RAPHTORY_CORE_LOG=DEBUG IT_OUTPUT_PATH="it/target/docker" sudo sbt "it/it:testOnly *.DegreeTest"
       - name: Stop Docker compose
         if: always()
         run: |
