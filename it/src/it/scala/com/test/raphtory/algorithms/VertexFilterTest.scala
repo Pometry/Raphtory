@@ -12,7 +12,7 @@ import scala.util.Using
 
 class VertexFilterTest extends BaseCorrectnessTest with Serializable{
 
-  val wtf: Vertex => Boolean =  {v => v.ID != 1}
+  override def munitIgnore: Boolean = runningIntegrationTest
 
   test("Vertex is being filtered") {
     val res = Using(Source.fromResource("MotifCount/motiftest.csv")) { source =>
@@ -28,24 +28,12 @@ class VertexFilterTest extends BaseCorrectnessTest with Serializable{
         .toList
     }.get
 
-//    correctnessTest(
-//            TestQuery(VertexFilter(_.ID != 1) -> AllNeighbours, 23),
-//            "MotifCount/motiftest.csv",
-//            res
-//    )
+    correctnessTest(
+            TestQuery(VertexFilter(_.ID != 1) -> AllNeighbours, 23),
+            "MotifCount/motiftest.csv",
+            res
+    )
 
-    correctnessTestF(
-            "MotifCount/motiftest.csv"
-    ) { graph =>
-      val tracker = graph
-        .transform(ShitVertexFilter(_.ID != 1))
-        .execute(AllNeighbours)
-        .writeTo(defaultSink)
-      tracker.waitForJob()
-      TestUtils.getResults(outputDirectory, tracker.getJobId)
-
-      assert(true)
-    }
   }
 
   override def setSource() = CSVEdgeListSource(ResourceOrFileSpout("MotifCount/motiftest.csv"))

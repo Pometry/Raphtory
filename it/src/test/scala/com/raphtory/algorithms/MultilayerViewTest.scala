@@ -10,6 +10,8 @@ import com.raphtory.spouts.SequenceSpout
 import com.test.raphtory.WriteValue
 
 class MultilayerViewTest extends BaseCorrectnessTest {
+  override def munitIgnore: Boolean = runningIntegrationTest
+
   test("test multilayer view") {
     correctnessTest(
             TestQuery(MultilayerView() -> EdgeList(), 2),

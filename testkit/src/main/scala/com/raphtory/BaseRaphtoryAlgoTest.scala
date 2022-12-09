@@ -45,6 +45,8 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           } yield (ctx, graph)
   )
 
+  def runningIntegrationTest: Boolean = Option(System.getenv("IT_OUTPUT_PATH")).isDefined
+
   def ctx: RaphtoryContext = ctxAndGraph()._1
 
   def graph: DeployedTemporalGraph = ctxAndGraph()._2
