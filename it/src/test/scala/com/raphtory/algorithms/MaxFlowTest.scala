@@ -4,12 +4,13 @@ import com.raphtory.{BaseCorrectnessTest, TestQuery}
 import com.raphtory.algorithms.generic.MaxFlow
 import com.raphtory.api.input.Source
 import com.raphtory.spouts.{ResourceOrFileSpout, ResourceSpout}
+import com.test.raphtory.WeightedGraphBuilder
 
 class MaxFlowTest extends BaseCorrectnessTest {
   test("test on line graph") {
     correctnessTest(
             TestQuery(MaxFlow[Long]("1", "3"), 2),
-            Source(ResourceSpout("MaxFlow/minimalTest.csv"), WeightedGraphBuilder()),
+            Source(ResourceOrFileSpout("MaxFlow/minimalTest.csv"), WeightedGraphBuilder()),
             "MaxFlow/minimalResult.csv"
     )
   }

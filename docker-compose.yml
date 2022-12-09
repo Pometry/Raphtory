@@ -13,6 +13,7 @@ services:
       RAPHTORY_ZOOKEEPER_ADDRESS: zoo1:2181
       RAPHTORY_PARTITIONS_SERVERCOUNT: 2
       RAPHTORY_DATA: /raphtory/data_it/
+      RAPHTORY_CORE_LOG: DEBUG
     volumes:
       - "./it/src/it/resources:/raphtory/data_it:z"
       - "./it/target/docker:/tmp/raphtory:z"
@@ -25,6 +26,7 @@ services:
       RAPHTORY_ZOOKEEPER_ADDRESS: zoo1:2181
       RAPHTORY_PARTITIONS_SERVERCOUNT: 2
       RAPHTORY_DATA: /raphtory/data_it/
+      RAPHTORY_CORE_LOG: DEBUG
     volumes:
       - "./it/src/it/resources:/raphtory/data_it:z"
       - "./it/target/docker:/tmp/raphtoryTest:z"
@@ -47,6 +49,7 @@ services:
       RAPHTORY_ZOOKEEPER_ADDRESS: zoo1:2181
       RAPHTORY_PARTITIONS_SERVERCOUNT: 2
       RAPHTORY_DATA: /raphtory/data_it/
+      RAPHTORY_CORE_LOG: DEBUG
     volumes:
       - "./it/src/it/resources:/raphtory/data_it:z"
       - "./it/target/docker:/tmp/raphtoryTest:z"

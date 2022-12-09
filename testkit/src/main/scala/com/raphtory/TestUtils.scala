@@ -45,7 +45,9 @@ object TestUtils {
       .toString
 
   def getResults(outputDirectory: String, jobID: String): Iterator[String] = {
-    val files = new File(outputDirectory + "/" + jobID)
+    val file1 = new File(outputDirectory + "/" + jobID)
+    assert(Files.exists(file1.toPath), s"${file1.toPath.toAbsolutePath} does not exist")
+    val files = file1
       .listFiles()
       .filter(_.isFile)
 

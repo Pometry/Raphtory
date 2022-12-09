@@ -1,33 +1,15 @@
 package com.raphtory.algorithms
 
-import com.raphtory.BaseCorrectnessTest
-import com.raphtory.TestQuery
+import com.raphtory.{BaseCorrectnessTest, TestQuery}
 import com.raphtory.algorithms.generic.{EdgeList, NodeList}
-import com.raphtory.algorithms.temporal.{TemporalEdgeList, TemporalNodeList}
 import com.raphtory.algorithms.temporal.views.MultilayerView
-import com.raphtory.api.analysis.algorithm.GenericReduction
-import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.visitor.PropertyMergeStrategy
+import com.raphtory.algorithms.temporal.{TemporalEdgeList, TemporalNodeList}
 import com.raphtory.api.input.Source
 import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.SequenceSpout
-
-class WriteValue extends GenericReduction {
-
-  override def apply(graph: GraphPerspective): graph.ReducedGraph =
-    graph.multilayerView
-      .step(vertex => vertex.setState("testing", 1))
-      .reducedView(PropertyMergeStrategy.sum[Int])
-
-}
-
-object WriteValue {
-  def apply() = new WriteValue
-}
+import com.test.raphtory.WriteValue
 
 class MultilayerViewTest extends BaseCorrectnessTest {
-  val edges: Seq[String] = Seq("1,2,1", "2,1,2")
-
   test("test multilayer view") {
     correctnessTest(
             TestQuery(MultilayerView() -> EdgeList(), 2),
@@ -53,5 +35,5 @@ class MultilayerViewTest extends BaseCorrectnessTest {
     )
   }
 
-  override def setSource(): Source = CSVEdgeListSource(SequenceSpout(edges))
+  override def setSource(): Source = CSVEdgeListSource(SequenceSpout(Seq("1,2,1", "2,1,2")))
 }

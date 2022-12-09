@@ -126,6 +126,7 @@ case class DynamicLoader(classes: List[Class[_]] = List.empty, resolved: Boolean
             classes = classes.reverse.flatMap { cls =>
               knownDeps += cls
               val deps = recursiveResolveDependencies(cls, actualSearchPath)(knownDeps)
+              println(deps)
               knownDeps = knownDeps ++ deps
               deps.reverse
             }.distinct,

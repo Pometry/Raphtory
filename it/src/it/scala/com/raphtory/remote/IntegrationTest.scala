@@ -7,7 +7,7 @@ import munit.IgnoreSuite
 
 import java.io.File
 
-//@IgnoreSuite
+@IgnoreSuite
 class IntegrationTest extends munit.CatsEffectSuite with TestContainerForAll {
 
   override val containerDef: DockerComposeContainer.Def = DockerComposeContainer
