@@ -10,7 +10,7 @@ ThisBuild / organization := "com.raphtory"
 ThisBuild / organizationName := "raphtory"
 ThisBuild / organizationHomepage := Some(url("https://raphtory.readthedocs.io/"))
 
-//sonatypeCredentialHost := "s01.oss.sonatype.org"
+ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
 //sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 
 ThisBuild / scmInfo := Some(
@@ -396,5 +396,5 @@ releasePublishArtifactsAction := PgpKeys.publishSigned.value
 publishMavenStyle := true
 //sonatypeCredentialHost := "s01.oss.sonatype.org"
 //sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
-credentials += Credentials(Path.userHome / ".sbt" / "sonatype_credentials")
+credentials += Credentials("sonatype_credentials")
 ThisBuild / versionScheme := Some("early-semver")
