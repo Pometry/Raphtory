@@ -8,7 +8,8 @@ object Dependencies {
   private lazy val declineVersion                  = "2.3.0"
   private lazy val fs2Version                      = "3.2.12"
   private lazy val h2Version                       = "2.1.214"
-  private lazy val jacksonVersion                  = "2.13.3"
+  private lazy val jacksonVersion                  = "2.13.4"
+  private lazy val jacksonVersionDB                = s"${jacksonVersion}.2"
   private lazy val jsonpathVersion                 = "0.5.5"
   private lazy val log4jVersion                    = "2.18.0"
   private lazy val muVersion                       = "0.29.1"
@@ -71,8 +72,15 @@ object Dependencies {
   lazy val h2         = "com.h2database"            % "h2"             % h2Version % Test
   lazy val apacheHttp = "org.apache.httpcomponents" % "httpclient"     % "4.5.13"
 
-  lazy val jackson =
+  lazy val jacksonCore =
+    "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersionDB excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val jacksonAnnotations =
+    "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val jacksonDatabind =
+    "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val jacksonScala =
     "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion excludeAll (excludeLog4j, excludeSlf4j)
+
   lazy val jfr        = "org.gradle.jfr.polyfill"  % "jfr-polyfill"     % "1.0.0"
   lazy val jsonpath   = "com.jayway.jsonpath"      % "json-path"        % jsonpathVersion
   lazy val log4jApi   = "org.apache.logging.log4j" % "log4j-api"        % log4jVersion

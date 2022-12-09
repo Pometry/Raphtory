@@ -158,7 +158,10 @@ lazy val core = (project in file("core"))
                   fs2IO,
                   h2,
                   apacheHttp,
-                  jackson,
+                  jacksonCore,
+                  jacksonScala,
+                  jacksonAnnotations,
+                  jacksonDatabind,
                   jfr,
                   jsonpath,
                   log4jSlft4,
@@ -313,7 +316,13 @@ lazy val examplesNFT =
     .dependsOn(core)
     .settings(
             assemblySettings,
-            publishArtifact := false
+            publishArtifact := false,
+            libraryDependencies ++= Seq(
+                    jacksonCore,
+                    jacksonScala,
+                    jacksonAnnotations,
+                    jacksonDatabind
+            )
     )
 
 lazy val deploy =
