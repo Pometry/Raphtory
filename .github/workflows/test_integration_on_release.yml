@@ -1,0 +1,20 @@
+name: Run integration tests
+on:
+  push:
+    branches:
+      - DEV-1325-it-tests
+  pull_request:
+    branches:
+      - DEV-1325-it-tests
+
+jobs:
+  integration-tests:
+    name: "Integration tests"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - uses: isbang/compose-action@v1.4.1
+        with:
+          compose-file: "./docker-compose.yml"
+          down-flags: "--remove-orphans"
