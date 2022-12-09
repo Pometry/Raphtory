@@ -31,9 +31,13 @@ private[raphtory] class IngestionExecutor[F[_], T](
                                   EndIngestion(graphID, source.sourceID, earliestTimeSeen, highestTimeSeen)
                           )
     } yield totalTuplesProcessed.inc()
-    res.onError(e => queryService.endIngestion(
-      EndIngestion(graphID, source.sourceID, Long.MaxValue, Long.MinValue)
-    ) *> Async[F].unit)
+    res.onError(e => for {
+      earliestTimeSeen <- source.earliestTimeSeen().handleError(_ => Long.MaxValue)
+      highestTimeSeen <- source.highestTimeSeen().handleError(_ => Long.MinValue)
+        _ <- queryService.endIngestion(
+      EndIngestion(graphID, source.sourceID, earliestTimeSeen, highestTimeSeen)
+      )
+    } yield ())
   }
 
 }
