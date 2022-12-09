@@ -7,7 +7,7 @@
 
 
 <p align="center">
-<a href="https://github.com/Raphtory/Raphtory/actions/workflows/test_and_build.yml?query=event%3Aschedule++">
+<a href="https://github.com/Raphtory/Raphtory/actions/workflows/test.yml?query=event%3Aschedule++">
 <img alt="Test and Build" src="https://github.com/Raphtory/Raphtory/actions/workflows/test.yml/badge.svg?event=schedule" />
 </a>
 <a href="https://github.com/Raphtory/Raphtory/releases">
@@ -89,7 +89,7 @@ df
 |  5 |           4 |        1 |      3 |            0 |           1 |
 ```
 
-You can try out Raphtory for yourself in a Jupyter Notebook. Please click here [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Raphtory/Raphtory/v0.2.0a9?labpath=examples%2Fbinder_python%2Findex.ipynb) to launch the notebook.
+You can try out Raphtory for yourself in a Jupyter Notebook. Please click here [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Raphtory/Raphtory/master?labpath=examples%2Fbinder_python%2Findex.ipynb) to launch the notebook.
 
 # Installing Raphtory 
 Raphtory is available for both Python and Scala / Java, with support for Rust planned in the 0.3.0 release. 
