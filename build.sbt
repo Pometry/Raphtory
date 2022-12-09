@@ -10,7 +10,7 @@ ThisBuild / organization := "com.raphtory"
 ThisBuild / organizationName := "raphtory"
 ThisBuild / organizationHomepage := Some(url("https://raphtory.readthedocs.io/"))
 
-//sonatypeCredentialHost := "s01.oss.sonatype.org"
+ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
 //sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 
 ThisBuild / scmInfo := Some(
@@ -117,7 +117,7 @@ lazy val arrowCore =
             name := "arrow-core",
             Defaults.itSettings,
             assemblySettings,
-            Compile / packageDoc / publishArtifact := false,
+            sbt.Compile / doc / sources := Seq(),
             libraryDependencies ++= Seq(
                     junit,
                     openhft,

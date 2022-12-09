@@ -33,6 +33,8 @@ jobs:
         run: mv /usr/local/bin/$(ls /usr/local/bin|grep apache-zookeeper|grep -v "tar.gz"|sort|tail -1)/conf/zoo_sample.cfg /usr/local/bin/$(ls /usr/local/bin|grep apache-zookeeper|grep -v "tar.gz"|sort|tail -1)/conf/zoo.cfg
       - name: Start Zookeeper
         run: /usr/local/bin/$(ls /usr/local/bin|grep apache-zookeeper|grep -v "tar.gz"|sort|tail -1)/bin/zkServer.sh start &
+      - name: create blank cred file
+        run: mkdir -p $HOME/.sbt && touch $HOME/.sbt/sonatype_credentials
       - name: Get sbt package
         run: apt-get update && apt-get install unzip && curl -L "https://github.com/sbt/sbt/releases/download/v${{ matrix.sbt }}/sbt-${{ matrix.sbt }}.zip" -o sbt-${{ matrix.sbt }}.zip && unzip sbt-${{ matrix.sbt }}.zip
       - name: Build Raphtory Jars
