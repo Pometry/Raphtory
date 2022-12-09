@@ -63,16 +63,18 @@ case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
     }
 
   private def printPerspectiveProperties(generator: JsonGenerator, perspective: Perspective): Unit = {
-    generator.writeNumberField("timestamp", perspective.timestamp)
+    if (perspective.formatAsDate)
+      generator.writeStringField("timestamp", perspective.timestampAsDatetime)
+    else
+      generator.writeNumberField("timestamp", perspective.timestamp)
     perspective.window match {
-      case Some(DiscreteInterval(interval)) =>
-        generator.writeFieldName("window")
-        generator.writeNumber(interval)
-      case Some(TimeInterval(interval))     =>
-        generator.writeFieldName("window")
-        generator.writeString(interval.toString)
-      case _                                =>
+      case Some(DiscreteInterval(interval))   =>
+        generator.writeNumberField("window", interval)
+      case Some(TimeInterval(interval, name)) =>
+        generator.writeStringField("window", interval.toString)
+      case _                                  =>
     }
+
   }
 
   private def printRowObject(generator: JsonGenerator, serializer: ObjectWriter, row: Row): Unit =

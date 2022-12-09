@@ -47,6 +47,12 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
     this
   }
 
+  def setOutputAsEpoch(): G =
+    newGraph(query.copy(datetimeQuery = false), querySender)
+
+  def setOutputAsDatetime(): G =
+    newGraph(query.copy(datetimeQuery = true), querySender)
+
   /** Creates a new `TemporalGraph` which includes all activity after startTime (inclusive).
     * @param startTime time interpreted in milliseconds by default
     */

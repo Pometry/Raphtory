@@ -6,7 +6,6 @@ import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.api.input.Type
-import com.raphtory.internals.time.DateTimeParser.{defaultParse => parseDateTime}
 import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.ResourceSpout
 
@@ -39,7 +38,7 @@ class JSONEdgeListSource(
       val json      = ujson.read(str)
       val src       = json(sourceKey).toString()
       val dst       = json(targetKey).toString()
-      val timestamp = parseDateTime(json(timeKey).toString().replace("\"", ""))
+      val timestamp = graph.parseDatetime(json(timeKey).toString().replace("\"", ""))
       val srcID     = assignID(src)
       val dstID     = assignID(dst)
 

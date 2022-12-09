@@ -15,4 +15,11 @@ trait Perspective {
 
   /** Latest time point included in the view */
   val actualEnd: Long
+
+  /** Depending on the users query if the output should be formatted as a date */
+  val formatAsDate: Boolean
+
+  /** Timestamp anchor at which the view was created as a datetime string */
+  val timestampAsDatetime: String
+
 }

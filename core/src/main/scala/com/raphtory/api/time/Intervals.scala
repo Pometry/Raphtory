@@ -39,29 +39,35 @@ case class DiscreteInterval(size: Long) extends Interval {
   override protected def toLong: Long    = size
 }
 
-case class TimeInterval(size: TemporalAmount) extends Interval {
+case class TimeInterval(size: TemporalAmount, name: String) extends Interval {
 
   def unary_- : Interval =
-    TimeInterval(size match {
-      case size: Duration => size.negated
-      case size: Period   => size.negated
-      case _              => throw new Exception("Unknown interval type")
-    })
+    TimeInterval(
+            size match {
+              case size: Duration => size.negated
+              case size: Period   => size.negated
+              case _              => throw new Exception("Unknown interval type")
+            },
+            name
+    )
 
   override def *(number: Long): Interval =
-    TimeInterval(size match {
-      case size: Duration => size.multipliedBy(number)
-      case size: Period   => size.multipliedBy(number.toInt)
-      case _              => throw new Exception("Unknown interval type")
-    })
+    TimeInterval(
+            size match {
+              case size: Duration => size.multipliedBy(number)
+              case size: Period   => size.multipliedBy(number.toInt)
+              case _              => throw new Exception("Unknown interval type")
+            },
+            name
+    )
 
   override def /(number: Long): Interval =
     size match {
-      case size: Duration => TimeInterval(size.dividedBy(number))
+      case size: Duration => TimeInterval(size.dividedBy(number), name)
       case size: Period   => DiscreteInterval(toLong / number)
       case _              => throw new Exception("Unknown interval type")
     }
-  override def toString: String          = size.toString
+  override def toString: String          = name
   override protected def toLong: Long    = Instant.ofEpochMilli(0).plus(size).toEpochMilli
 }
 

@@ -7,9 +7,9 @@ import com.raphtory.api.input.ImmutableString
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
+import com.raphtory.internals.time.DateTimeParser
 import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.ResourceSpout
-import com.raphtory.internals.time.DateTimeParser.{defaultParse => parseDateTime}
 
 import scala.language.implicitConversions
 
@@ -43,7 +43,7 @@ class CSVEdgeListSource(
   def buildCSVEdgeListGraph(graph: Graph, tuple: String, rawTime: String, source: String, target: String): Unit = {
     val timestamp = {
       if (dateTimeFormat)
-        parseDateTime(rawTime)
+        graph.parseDatetime(rawTime)
       else if (epochFormat)
         rawTime.toLong
       else
@@ -87,7 +87,7 @@ class CSVEdgeListSource(
           }
           catch {
             case e: NumberFormatException =>
-              parseDateTime(rawTime)
+              graph.parseDatetime(rawTime)
               dateTimeFormat = true
           }
 
