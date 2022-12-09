@@ -14,7 +14,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - uses: isbang/compose-action@v1.4.1
-        with:
-          compose-file: "./docker-compose.yml"
-          down-flags: "--remove-orphans"
+      - name: Docker compose exists?
+        run: |
+          docker-compose -f ./docker-compose.yml up -d
+          docker-compose -f ./docker-compose.yml down --remove-orphans
+#      - uses: isbang/compose-action@v1.4.1
+#        with:
+#          compose-file: "./docker-compose.yml"
+#          down-flags: "--remove-orphans"
