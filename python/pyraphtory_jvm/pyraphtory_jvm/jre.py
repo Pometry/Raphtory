@@ -253,7 +253,7 @@ def get_java_home():
         return home + '/bin/java'
     elif shutil.which('java') is not None:
         logging.info(f'JAVA_HOME not found. But java found. Detecting home...')
-        os.environ["JAVA_HOME"] = Path(shutil.which('java')).parents[1]
+        os.environ["JAVA_HOME"] = str(Path(shutil.which('java')).parents[1])
         return shutil.which('java')
     else:
         raise FileNotFoundError("JAVA_HOME has not been set, java was also not found")
