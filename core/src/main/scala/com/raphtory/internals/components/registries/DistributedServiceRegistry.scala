@@ -15,7 +15,8 @@ import org.apache.curator.x.discovery.ServiceInstance
 import java.net.InetAddress
 import scala.concurrent.duration.DurationInt
 
-class DistributedServiceRegistry[F[_]: Async](serviceDiscovery: ServiceDiscovery[Void]) extends ServiceRegistry[F] {
+class DistributedServiceRegistry[F[_]: Async](serviceDiscovery: ServiceDiscovery[Void], conf: Config)
+        extends ServiceRegistry[F](conf) {
 
   private def serviceId(name: String, id: Int) = s"$name-${id.toString}"
   private def serviceName                      = "service"
@@ -68,7 +69,7 @@ object DistributedServiceRegistry {
       _                <- Resource.eval(Async[F].blocking(client.start()))
       serviceDiscovery <- Resource.fromAutoCloseable(Async[F].delay(buildServiceDiscovery(client)))
       _                <- Resource.eval(Async[F].blocking(serviceDiscovery.start()))
-      serviceRepo      <- Resource.eval(Async[F].delay(new DistributedServiceRegistry[F](serviceDiscovery)))
+      serviceRepo      <- Resource.eval(Async[F].delay(new DistributedServiceRegistry[F](serviceDiscovery, config)))
     } yield serviceRepo
 
   private def buildServiceDiscovery(zkClient: CuratorFramework) =

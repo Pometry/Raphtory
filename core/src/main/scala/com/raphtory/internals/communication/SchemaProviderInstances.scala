@@ -49,34 +49,4 @@ object SchemaProviderInstances {
 
   implicit lazy val edgeAddSchemaProvider: SchemaProvider[EdgeAdd] =
     edgeAddArrowFlightMessageSchemaProvider
-
-  implicit lazy val vertexDeleteSchemaProvider: SchemaProvider[VertexDelete] =
-    vertexDeleteArrowFlightMessageSchemaProvider
-
-  implicit lazy val edgeDeleteSchemaProvider: SchemaProvider[EdgeDelete] =
-    edgeDeleteArrowFlightMessageSchemaProvider
-
-  implicit lazy val syncNewEdgeAddSchemaProvider: SchemaProvider[SyncNewEdgeAdd] =
-    syncNewEdgeAddArrowFlightMessageSchemaProvider
-
-  implicit lazy val batchAddRemoteEdgeSchemaProvider: SchemaProvider[BatchAddRemoteEdge] =
-    batchAddRemoteEdgeArrowFlightMessageSchemaProvider
-
-  implicit lazy val syncExistingEdgeAddSchemaProvider: SchemaProvider[SyncExistingEdgeAdd] =
-    syncExistingEdgeAddArrowFlightMessageSchemaProvider
-
-  implicit lazy val syncExistingEdgeRemovalSchemaProvider: SchemaProvider[SyncExistingEdgeRemoval] =
-    syncExistingEdgeRemovalArrowFlightMessageSchemaProvider
-
-  implicit lazy val syncNewEdgeRemovalSchemaProvider: SchemaProvider[SyncNewEdgeRemoval] =
-    syncNewEdgeRemovalArrowFlightMessageSchemaProvider
-
-  implicit lazy val outboundEdgeRemovalViaVertexSchemaProvider: SchemaProvider[OutboundEdgeRemovalViaVertex] =
-    outboundEdgeRemovalViaVertexArrowFlightMessageSchemaProvider
-
-  implicit lazy val inboundEdgeRemovalViaVertexSchemaProvider: SchemaProvider[InboundEdgeRemovalViaVertex] =
-    inboundEdgeRemovalViaVertexArrowFlightMessageSchemaProvider
-
-  implicit lazy val syncExistingRemovalsSchemaProvider: SchemaProvider[SyncExistingRemovals] =
-    syncExistingRemovalsArrowFlightMessageSchemaProvider
 }
