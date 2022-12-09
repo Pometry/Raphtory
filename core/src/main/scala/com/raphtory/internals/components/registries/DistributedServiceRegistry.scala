@@ -5,7 +5,6 @@ import cats.effect.Resource
 import cats.syntax.all._
 import com.raphtory.internals.components.ServiceDescriptor
 import com.raphtory.internals.components.ServiceRegistry
-import com.raphtory.internals.components.repositories.ServiceDiscovery
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.apache.curator.framework.CuratorFramework
