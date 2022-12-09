@@ -7,8 +7,8 @@
 
 
 <p align="center">
-<a href="https://github.com/Raphtory/Raphtory/actions/workflows/test.yml?query=event%3Aschedule++">
-<img alt="Test and Build" src="https://github.com/Raphtory/Raphtory/actions/workflows/test.yml/badge.svg?event=schedule" />
+<a href="https://github.com/Raphtory/Raphtory/actions/workflows/test.yml/badge.svg">
+<img alt="Test and Build" src="https://github.com/Raphtory/Raphtory/actions/workflows/test.yml/badge.svg" />
 </a>
 <a href="https://github.com/Raphtory/Raphtory/releases">
 <img alt="Latest Release" src="https://img.shields.io/github/v/release/Raphtory/Raphtory?color=brightgreen&include_prereleases" />
