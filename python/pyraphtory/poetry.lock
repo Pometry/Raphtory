@@ -174,16 +174,14 @@ python-versions = "*"
 
 [[package]]
 name = "pyraphtory-jvm"
-version = "0.2.1"
+version = "0.1.2"
 description = "Bootstrap JRE and IVY installer for Pyraphtory"
 category = "main"
 optional = false
-python-versions = "*"
-develop = false
+python-versions = ">=3.9.13,<3.11"
 
-[package.source]
-type = "directory"
-url = "../pyraphtory_jvm"
+[package.dependencies]
+requests = "*"
 
 [[package]]
 name = "pytest"
@@ -274,7 +272,7 @@ socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.9.13,<3.11"
-content-hash = "a7ff36e1cb1268cfe28d448deae411b9aa6c5746ea57499d7b984e9f226b708a"
+content-hash = "91ced360f1a4bed93f03b61ef514bcb32cbfa5da74927575db12a3529872ffe2"
 
 [metadata.files]
 attrs = [
@@ -424,7 +422,9 @@ py4j = [
     {file = "py4j-0.10.9.7-py2.py3-none-any.whl", hash = "sha256:85defdfd2b2376eb3abf5ca6474b51ab7e0de341c75a02f46dc9b5976f5a5c1b"},
     {file = "py4j-0.10.9.7.tar.gz", hash = "sha256:0b6e5315bb3ada5cf62ac651d107bb2ebc02def3dee9d9548e3baac644ea8dbb"},
 ]
-pyraphtory-jvm = []
+pyraphtory-jvm = [
+    {file = "pyraphtory_jvm-0.1.2.tar.gz", hash = "sha256:4de5344d0d625045d5eb1663bded50a52c6b6ce169600666ad45e324add55ab3"},
+]
 pytest = [
     {file = "pytest-7.2.0-py3-none-any.whl", hash = "sha256:892f933d339f068883b6fd5a459f03d85bfcb355e4981e146d2c7616c21fef71"},
     {file = "pytest-7.2.0.tar.gz", hash = "sha256:c4014eb40e10f11f355ad4e3c2fb2c6c6d1919c73f3b5a433de4708202cade59"},
