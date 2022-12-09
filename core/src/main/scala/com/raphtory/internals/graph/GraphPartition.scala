@@ -3,7 +3,7 @@ package com.raphtory.internals.graph
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
-import com.raphtory.internals.graph.GraphAlteration.GraphUpdateEffect
+import com.raphtory.internals.management.Partitioner
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.storage.arrow.ArrowGraphLens
 import com.raphtory.internals.storage.arrow.ArrowPartition
@@ -32,26 +32,9 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
       vertexType: Option[Type]
   ): Unit
 
-  def removeVertex(sourceID: Long, msgTime: Long, index: Long, srcId: Long): List[GraphUpdateEffect]
-
-  def inboundEdgeRemovalViaVertex(
-      sourceID: Long,
-      msgTime: Long,
-      index: Long,
-      srcId: Long,
-      dstId: Long
-  ): Unit
-
-  def outboundEdgeRemovalViaVertex(
-      sourceID: Long,
-      msgTime: Long,
-      index: Long,
-      srcId: Long,
-      dstId: Long
-  ): Unit
-
   // Ingesting Edges
-  def addEdge(
+  // This method should assume that both vertices are local and create them if they don't exist
+  def addLocalEdge(
       sourceID: Long,
       msgTime: Long,
       index: Long,
@@ -59,47 +42,28 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
       dstId: Long,
       properties: Properties,
       edgeType: Option[Type]
-  ): Option[GraphUpdateEffect]
-
-  def syncNewEdgeAdd(
-      sourceID: Long,
-      msgTime: Long,
-      index: Long,
-      srcId: Long,
-      dstId: Long,
-      properties: Properties,
-      srcRemovals: List[(Long, Long)],
-      edgeType: Option[Type]
-  ): GraphUpdateEffect
-
-  def syncExistingEdgeAdd(
-      sourceID: Long,
-      msgTime: Long,
-      index: Long,
-      srcId: Long,
-      dstId: Long,
-      properties: Properties
   ): Unit
 
-  def removeEdge(sourceID: Long, msgTime: Long, index: Long, srcId: Long, dstId: Long): Option[GraphUpdateEffect]
-
-  def syncNewEdgeRemoval(
+  // This method should assume that the dstId belongs to another partition
+  def addOutgoingEdge(
       sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
       dstId: Long,
-      srcRemovals: List[(Long, Long)]
-  ): GraphUpdateEffect
+      properties: Properties,
+      edgeType: Option[Type]
+  ): Unit
 
-  def syncExistingEdgeRemoval(sourceID: Long, msgTime: Long, index: Long, srcId: Long, dstId: Long): Unit
-
-  def syncExistingRemovals(
+  // This method should assume that the srcId belongs to another partition
+  def addIncomingEdge(
+      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
       dstId: Long,
-      dstRemovals: List[(Long, Long)]
+      properties: Properties,
+      edgeType: Option[Type]
   ): Unit
 
   // Analysis Functions
@@ -110,13 +74,11 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
   ): mutable.Map[Long, PojoExVertex]
 
   // Partition Neighbours
-  private val totalPartitions = conf.getInt("raphtory.partitions.countPerServer") *
-    conf.getInt("raphtory.partitions.serverCount")
+  private val partitioner = Partitioner(conf)
 
   def getPartitionID: Int = partitionID
 
-  def checkDst(dstID: Long): Boolean =
-    GraphPartition.checkDst(dstID, totalPartitions, partitionID)
+  def isLocal(id: Long): Boolean = partitioner.getPartitionForId(id) == partitionID
 
   def lens(
       jobID: String,
