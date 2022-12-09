@@ -27,9 +27,9 @@ if __name__ == "__main__":
         target_node = parts[1]
         time_stamp = int(parts[2])
 
-        graph.add_vertex(time_stamp, source_node, type ="Character")
-        graph.add_vertex(time_stamp, target_node, type ="Character")
-        graph.add_edge(time_stamp, source_node, target_node, type ="Character_Co-occurence")
+        graph.add_vertex(time_stamp, source_node, vertex_type="Character")
+        graph.add_vertex(time_stamp, target_node, vertex_type="Character")
+        graph.add_edge(time_stamp, source_node, target_node, edge_type="Character_Co-occurence")
 
 
     with PyRaphtory.local() as ctx:
