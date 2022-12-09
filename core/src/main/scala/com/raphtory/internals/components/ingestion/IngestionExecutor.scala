@@ -21,8 +21,8 @@ private[raphtory] class IngestionExecutor[F[_], T](
   private val logger: Logger                      = Logger(LoggerFactory.getLogger(this.getClass))
   private val totalTuplesProcessed: Counter.Child = TelemetryReporter.totalTuplesProcessed.labels(s"$sourceID", graphID)
 
-  def run(): F[Unit] =
-    for {
+  def run(): F[Unit] = {
+    val res = for {
       _                <- F.delay(logger.debug("Running ingestion executor"))
       _                <- source.elements(totalTuplesProcessed) // process elements here
       earliestTimeSeen <- source.earliestTimeSeen()
@@ -31,6 +31,15 @@ private[raphtory] class IngestionExecutor[F[_], T](
                                   EndIngestion(graphID, source.sourceID, earliestTimeSeen, highestTimeSeen)
                           )
     } yield totalTuplesProcessed.inc()
+    res.onError(e => for {
+      earliestTimeSeen <- source.earliestTimeSeen().handleError(_ => Long.MaxValue)
+      highestTimeSeen <- source.highestTimeSeen().handleError(_ => Long.MinValue)
+        _ <- queryService.endIngestion(
+      EndIngestion(graphID, source.sourceID, earliestTimeSeen, highestTimeSeen)
+      )
+    } yield ())
+  }
+
 }
 
 object IngestionExecutor {
