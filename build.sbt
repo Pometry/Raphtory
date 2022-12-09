@@ -117,7 +117,7 @@ lazy val arrowCore =
             name := "arrow-core",
             Defaults.itSettings,
             assemblySettings,
-            Compile / packageDoc / publishArtifact := false,
+            sbt.Compile / doc / sources := Seq(),
             libraryDependencies ++= Seq(
                     junit,
                     openhft,
@@ -396,5 +396,5 @@ releasePublishArtifactsAction := PgpKeys.publishSigned.value
 publishMavenStyle := true
 //sonatypeCredentialHost := "s01.oss.sonatype.org"
 //sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
-credentials += Credentials("sonatype_credentials")
+credentials += Credentials(Path.userHome / ".sbt" / "sonatype_credentials")
 ThisBuild / versionScheme := Some("early-semver")
