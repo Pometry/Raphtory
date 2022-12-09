@@ -64,18 +64,6 @@ abstract class BaseCorrectnessTest(
       assertResultsMatch(obtained, resultsResource)
     }
 
-
-  def correctnessTestF(
-                       graphEdges: Edges,
-//                       resultsResource: String
-                     )(f: TemporalGraph => Unit): Unit =
-    ctx.runWithNewGraph() { graph: DeployedTemporalGraph =>
-      f(graph.load(graphEdges))
-
-//      val obtained = runTest(test, f(graph))
-//      assertResultsMatch(obtained, resultsResource)
-    }
-
   def correctnessTest(
       test: TestQuery,
       graphEdges: Edges,

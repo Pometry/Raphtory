@@ -5,9 +5,9 @@ MODE:=batch
 IVY_VERSION:=2.5.1
 export JAVA_HOME:= $(shell readlink -f $$(which java) | sed "s:/bin/java::")
 
-version:
-	sbt -Dsbt.supershell=false -error "exit" && \
-	sbt -Dsbt.supershell=false -error "print core/version" | tr -d "[:cntrl:]"  > version
+# version:
+# 	sbt -Dsbt.supershell=false -error "exit" && \
+# 	sbt -Dsbt.supershell=false -error "print core/version" | tr -d "[:cntrl:]"  > version
 
 .PHONY gh-sbt-build:
 gh-sbt-build: version
@@ -42,18 +42,6 @@ sbt-build: version
 	cp ~/.ivy2/local/com.raphtory/arrow-messaging_2.13/$$(cat version)/jars/arrow-messaging_2.13.jar python/pyraphtory/lib
 	cp ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/jars/core_2.13.jar python/pyraphtory/lib
 
-
-in-docker-sbt-build:
-	rm -Rf apache-ivy*
-	wget https://dlcdn.apache.org//ant/ivy/$(IVY_VERSION)/apache-ivy-$(IVY_VERSION)-bin.zip
-	unzip apache-ivy-$(IVY_VERSION)-bin.zip
-	mkdir -p core/target/ivyjars
-	rm -Rf core/target/ivyjars/*
-	for ivy_xml in $$(ls python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/core_**.xml) ; do \
-		java -jar apache-ivy-$(IVY_VERSION)/ivy-$(IVY_VERSION).jar -ivy $$ivy_xml -confs runtime -retrieve "lib/[conf]/[artifact]-[type]-[revision].[ext]" ; \
-	done
-	rm -Rf apache-ivy*
-
 .PHONY sbt-skip-build:
 sbt-skip-build: version
 	ivy-clean-copy-jars
@@ -78,15 +66,6 @@ python-build: version sbt-build
 		poetry build && \
 		poetry install
 	pip3 install python/pyraphtory/dist/pyraphtory-$$(cat version).tar.gz
-
-
-.PHONY docker-it-image:
-docker-it-image:
-	docker build --build-arg DEP_JAR_PATH=$$(pwd)/python/pyraphtory_jvm/pyraphtory_jvm/data/lib/compile \
-		--build-arg CORE_JAR_PATH=$$(pwd)/python/pyraphtory/lib -f Dockerfile-gh \
-		-t raphtory-core-it:$$(cat version) \
-		-t raphtory-core-it:latest \
-		--compress
 
 PHONY python-build-quick:
 python-build-quick: version
