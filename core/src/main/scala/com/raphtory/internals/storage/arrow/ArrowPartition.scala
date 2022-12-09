@@ -424,7 +424,7 @@ object ArrowPartition {
 
   }
 
-  class MatchingEdgesIterator(mei: EdgeIterator.MatchingEdgesIterator) extends Iterator[Edge] {
+  class MatchingEdgesIterator(mei: EdgeIterator) extends Iterator[Edge] {
     override def hasNext: Boolean = mei.hasNext
 
     override def next(): Edge = {

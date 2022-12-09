@@ -10,8 +10,8 @@ import com.raphtory.spouts.FileSpout
 object ThrowawayRunner extends RaphtoryApp.ArrowLocal[NoProps, Price] {
 
 //  val path    = "/pometry/wip/alphabay_partitions_10pc"
-//  val path    = "/pometry/wip/alphabay_partitions"
-  val path    = "/home/jatinder/projects/Pometry/arrow-core/alphabay_sorted.csv.gz"
+  val path    = "/pometry/wip/alphabay_partitions"
+//  val path    = "/home/jatinder/projects/Pometry/arrow-core/alphabay_sorted.csv.gz"
   val builder = new AlphaBayBuilder()
 
   override def run(args: Array[String], ctx: RaphtoryContext): Unit =
