@@ -4,6 +4,7 @@ sample python script.
 
 from pyraphtory.graph import Row
 from pyraphtory.input import *
+from pyraphtory.sources import Source
 from pyraphtory.scala.implicits.numeric import Long
 from pyraphtory.spouts import FileSpout
 from time import perf_counter
