@@ -114,7 +114,7 @@ docker-build: version
 
 .PHONY: docker-compose-up
 docker-compose-up: version
-	docker-compose -f docker-compose.yml up
+	docker-compose -f docker-compose.yml up -d
 
 .PHONY: run-local-cluster
 run-local-cluster: version
