@@ -12,6 +12,7 @@ import subprocess
 import os
 import site
 import logging
+from pathlib import Path
 
 #logging.basicConfig(level=logging.INFO)
 
@@ -252,6 +253,7 @@ def get_java_home():
         return home + '/bin/java'
     elif shutil.which('java') is not None:
         logging.info(f'JAVA_HOME not found. But java found. Detecting home...')
+        os.environ["JAVA_HOME"] = Path(shutil.which('java')).parents[1]
         return shutil.which('java')
     else:
         raise FileNotFoundError("JAVA_HOME has not been set, java was also not found")
@@ -262,6 +264,7 @@ def get_local_java_loc():
         return get_java_home()
     else:
         java_loc = site.getsitepackages()[0] + PYRAPHTORY_DATA + '/jre/bin/java'
+        os.environ["JAVA_HOME"] = site.getsitepackages()[0] + PYRAPHTORY_DATA + '/jre/'
     if os.path.isfile(java_loc):
         return java_loc
     raise Exception("JAVA not home.")
