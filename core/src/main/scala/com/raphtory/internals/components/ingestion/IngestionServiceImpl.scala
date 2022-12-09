@@ -35,7 +35,8 @@ class IngestionServiceImpl[F[_]: Async] private (
 
   private def runExecutor(graphId: String, executor: IngestionExecutor[F, _]): F[Unit] = {
     def logError(e: Throwable): Unit = logger.error(s"Exception while executing source: $e")
-    executor.run().handleErrorWith(e => Async[F].delay(logError(e)) *> destroyGraph(graphId))
+    executor.run()
+      .handleErrorWith(e => Async[F].delay(logError(e)))
   }
 }
 
