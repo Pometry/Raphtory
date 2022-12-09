@@ -1,5 +1,5 @@
 from pyraphtory._config import jars, java, java_args
-from pyraphtory._version import __version__
+from pyraphtory import __version__
 import subprocess
 import sys
 
