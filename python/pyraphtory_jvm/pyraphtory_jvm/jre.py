@@ -253,7 +253,12 @@ def get_java_home():
         return home + '/bin/java'
     elif shutil.which('java') is not None:
         logging.info(f'JAVA_HOME not found. But java found. Detecting home...')
-        os.environ["JAVA_HOME"] = Path(shutil.which('java')).parents[1]
+        # Check if JAVA_HOME is a symlink
+        java_home = str(Path(shutil.which('java')).parents[1])
+        if os.path.islink(java_home):
+            # If it is, resolve the symlink to the real path
+            java_home = os.path.realpath(java_home)
+        os.environ["JAVA_HOME"] = java_home
         return shutil.which('java')
     else:
         raise FileNotFoundError("JAVA_HOME has not been set, java was also not found")
@@ -264,7 +269,11 @@ def get_local_java_loc():
         return get_java_home()
     else:
         java_loc = site.getsitepackages()[0] + PYRAPHTORY_DATA + '/jre/bin/java'
-        os.environ["JAVA_HOME"] = site.getsitepackages()[0] + PYRAPHTORY_DATA + '/jre/'
+        java_home = site.getsitepackages()[0] + PYRAPHTORY_DATA + '/jre/'
+        if os.path.islink(java_home):
+            # If it is, resolve the symlink to the real path
+            java_home = os.path.realpath(java_home)
+        os.environ["JAVA_HOME"] = java_home
     if os.path.isfile(java_loc):
         return java_loc
     raise Exception("JAVA not home.")
