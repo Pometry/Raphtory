@@ -140,7 +140,7 @@ private[raphtory] object PerspectiveController {
           }
         }))
       case windows =>
-        windows.sorted.reverse map { window =>
+        windows.map { window =>
           timestamps map (timestamp => {
             alignment match {
               case Alignment.START  =>

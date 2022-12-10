@@ -49,8 +49,17 @@ trait LocalRunner { self: RaphtoryApp =>
       //      graph.load(source)
 
       // Get simple metrics
+//      graph
+//        .execute(Degree())
+//        .writeTo(FileSink("/tmp/raphtory"))
+//        .waitForJob()
+
       graph
-        .execute(Degree())
+        .at(32674)
+        //.dateWindow(Array("1 day", "1 week", "1 month", "1 year"))
+        .dateWindow(Array("1 week", "1 year"))
+        .transform(PageRank())
+        .execute(NodeList(Seq("prlabel")))
         .writeTo(FileSink("/tmp/raphtory"))
         .waitForJob()
 
