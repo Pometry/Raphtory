@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, ops::RangeBounds};
+use std::{collections::BTreeMap, ops::Range};
 
 #[derive(Debug, PartialEq)]
 /**
@@ -28,9 +28,9 @@ impl<A> TCell<A> {
         }
     }
 
-    pub fn iter_window_t<R: RangeBounds<u64>>(
+    pub fn iter_window_t(
         &self,
-        r: R,
+        r: Range<u64>,
     ) -> Box<dyn Iterator<Item = (&u64, &A)> + '_> {
         match self {
             TCell::TCellEmpty => Box::new(std::iter::empty()),
@@ -38,7 +38,7 @@ impl<A> TCell<A> {
         }
     }
 
-    pub fn iter_window<R: RangeBounds<u64>>(&self, r: R) -> Box<dyn Iterator<Item = &A> + '_> {
+    pub fn iter_window(&self, r: Range<u64>) -> Box<dyn Iterator<Item = &A> + '_> {
         match self {
             TCell::TCellEmpty => Box::new(std::iter::empty()),
             TCell::TCellN(m) => Box::new(m.range(r).map(|(_, a)| a)),
