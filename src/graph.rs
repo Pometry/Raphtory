@@ -135,7 +135,19 @@ impl TemporalGraphStorage for TemporalGraph {
     }
 
     fn inbound(&self, dst: u64, r: Range<u64>) -> Box<dyn Iterator<Item = &u64> + '_> {
-        Box::new(std::iter::empty())
+        let dst_pid = self.logical_to_physical[&dst];
+        if let Adj::List { into, .. } = &self.index[dst_pid] {
+            let iter = into.iter_window(r).flat_map(|pid| {
+                if let Adj::List { logical, .. } = &self.index[*pid] {
+                    Some(logical)
+                } else {
+                    None
+                }
+            });
+            Box::new(iter)
+        } else {
+            Box::new(std::iter::empty())
+        }
     }
 }
 
@@ -191,9 +203,14 @@ mod graph_test {
         assert_eq!(actual, expected);
 
         println!("GRAPH {:?}", g);
-        // the outbound neighbours of 9 at time 0..2 are 1
+        // the outbound neighbours of 9 at time 0..4 are 1
         let actual: Vec<&u64> = g.outbound(9, 0..4).collect();
         assert_eq!(actual, vec![&1]);
+
+
+        // the outbound neighbours of 9 at time 0..4 are 1
+        let actual: Vec<&u64> = g.inbound(1, 0..4).collect();
+        assert_eq!(actual, vec![&9]);
 
     }
 }
