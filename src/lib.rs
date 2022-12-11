@@ -3,6 +3,7 @@ use std::ops::RangeBounds;
 
 mod graph;
 mod tvec;
+mod tcell;
 
 trait TemporalGraphStorage {
     fn add_vertex(&mut self, v: u64, t: u64) -> &mut Self;

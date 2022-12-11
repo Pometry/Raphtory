@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::BTreeMap,
     ops::RangeBounds,
 };
 
@@ -59,26 +59,6 @@ trait TVec<A> {
     fn sort(&mut self)
     where
         A: Ord;
-}
-
-#[derive(Debug)]
-enum TCell<A> {
-    Cell1(A),
-    Cell2(A, A),
-    CellN(Vec<A>),
-}
-
-impl<A> TCell<A> {
-    fn iter(&self) -> Box<dyn Iterator<Item = &A> + '_> {
-        match self {
-            TCell::Cell1(a) => {
-                let x: Box<std::iter::Once<&A>> = Box::new(std::iter::once(a));
-                x
-            }
-            TCell::Cell2(a1, a2) => Box::new(std::iter::once(a1).chain(std::iter::once(a2))),
-            TCell::CellN(v) => Box::new(v.iter()),
-        }
-    }
 }
 
 #[derive(Debug, Default)]
@@ -156,7 +136,7 @@ impl<A> TVec<A> for DefaultTVec<A> {
 }
 
 #[cfg(test)]
-mod tests {
+mod tvec_tests {
     use super::*;
 
     #[test]
@@ -186,16 +166,17 @@ mod tests {
     fn insert() {
         let mut tvec = DefaultTVec::default();
 
-        tvec.push(4, 12);
-        tvec.push(9, 3);
-        tvec.push(1, 2);
+        tvec.push(4, 12); // t: 4 i:0
+        tvec.push(9, 3);  // t: 9 i:1
+        tvec.push(1, 2);  // t: 1 i:2
 
+        // at a different t:3 override the index 2
         tvec.insert(3, 19, 2);
 
         println!("{:?}", tvec);
         assert_eq!(
             tvec.iter_window(0..5).collect::<Vec<_>>(),
-            vec![&2, &19, &12]
+            vec![&2, &12, &19]
         );
     }
 }

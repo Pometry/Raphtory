@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 roaring="0.10"
-arrow2="0.14"
 dashmap="5"
 itertools="0.10"
 guardian = "1.0.2"
