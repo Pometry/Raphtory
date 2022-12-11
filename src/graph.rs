@@ -1,20 +1,20 @@
 use std::{
     collections::{BTreeMap, HashMap},
-    ops::RangeBounds,
+    ops::{Range, RangeBounds},
 };
 
 use roaring::RoaringTreemap;
 
+use crate::tvec::{DefaultTVec, TVec};
 use crate::TemporalGraphStorage;
 
 #[derive(Debug)]
 enum Adj {
     Empty(u64),
     List {
-        sorted: bool,
         logical: u64,
-        out: Vec<usize>,
-        into: Vec<usize>,
+        out: DefaultTVec<usize>,
+        into: DefaultTVec<usize>,
     },
 }
 
@@ -73,7 +73,7 @@ impl TemporalGraphStorage for TemporalGraph {
         self.iter()
     }
 
-    fn enumerate_vs_at<R: RangeBounds<u64>>(&self, r: R) -> Box<dyn Iterator<Item = u64> + '_> {
+    fn enumerate_vs_at(&self, r: Range<u64>) -> Box<dyn Iterator<Item = u64> + '_> {
         let iter = self
             .t_index
             .range(r)
@@ -95,28 +95,105 @@ impl TemporalGraphStorage for TemporalGraph {
         let scr_pid = self.logical_to_physical[&src];
         let dst_pid = self.logical_to_physical[&dst];
 
-
-        if let entry@Adj::Empty(_) = &mut self.index[scr_pid] {
-            *entry = Adj::List { logical: src, out: vec![dst_pid], into: vec![] , sorted: false};
-        } else if let Adj::List {out, ..} = &mut self.index[scr_pid]  {
-           out.push(dst_pid) 
+        if let entry @ Adj::Empty(_) = &mut self.index[scr_pid] {
+            *entry = Adj::List {
+                logical: src,
+                out: DefaultTVec::new(t, dst_pid),
+                into: DefaultTVec::default(),
+            };
+        } else if let Adj::List { out, .. } = &mut self.index[scr_pid] {
+            out.push(t, dst_pid)
         }
 
-        if let entry@Adj::Empty(_) = &mut self.index[dst_pid] {
-            *entry = Adj::List { logical: dst, out: vec![], into: vec![scr_pid] , sorted: false};
-        } else if let Adj::List {into, ..} = &mut self.index[dst_pid]  {
-           into.push(scr_pid) 
+        if let entry @ Adj::Empty(_) = &mut self.index[dst_pid] {
+            *entry = Adj::List {
+                logical: dst,
+                out: DefaultTVec::default(),
+                into: DefaultTVec::new(t, scr_pid),
+            };
+        } else if let Adj::List { into, .. } = &mut self.index[dst_pid] {
+            into.push(t, scr_pid)
         }
         self
+    }
 
+    fn outbound(&self, src: u64, r: Range<u64>) -> Box<dyn Iterator<Item = &u64> + '_> {
+        let src_pid = self.logical_to_physical[&src];
+        if let Adj::List { out, .. } = &self.index[src_pid] {
+            let iter = out.iter_window(r).flat_map(|pid| {
+                if let Adj::List { logical, .. } = &self.index[*pid] {
+                    Some(logical)
+                } else {
+                    None
+                }
+            });
+            Box::new(iter)
+        } else {
+            Box::new(std::iter::empty())
+        }
 
     }
 
-    fn outbound<R: RangeBounds<u64>>(&self, src: u64, r: R) -> Box<dyn Iterator<Item = u64> + '_> {
+    fn inbound(&self, dst: u64, r: Range<u64>) -> Box<dyn Iterator<Item = &u64> + '_> {
         Box::new(std::iter::empty())
     }
+}
 
-    fn inbound<R: RangeBounds<u64>>(&self, dst: u64, r: R) -> Box<dyn Iterator<Item = u64> + '_> {
-        Box::new(std::iter::empty())
+#[cfg(test)]
+mod graph_test {
+    use super::*;
+
+    #[test]
+    fn add_vertex_at_time_t1() {
+        let mut g = TemporalGraph::default();
+
+        g.add_vertex(9, 1);
+
+        assert_eq!(g.iter_vertices().collect::<Vec<&u64>>(), vec![&9])
+    }
+
+    #[test]
+    fn add_vertex_at_time_t1_t2() {
+        let mut g = TemporalGraph::default();
+
+        g.add_vertex(9, 1);
+        g.add_vertex(1, 2);
+
+
+        let actual: Vec<u64> = g.enumerate_vs_at(0..2).collect();
+        assert_eq!(actual, vec![9]);
+        let actual: Vec<u64> = g.enumerate_vs_at(2..10).collect();
+        assert_eq!(actual, vec![1]);
+        let actual: Vec<u64> = g.enumerate_vs_at(0..10).collect();
+        assert_eq!(actual, vec![9, 1]);
+    }
+
+    #[test]
+    fn add_edge_at_time_t1() {
+        let mut g = TemporalGraph::default();
+
+        g.add_vertex(9, 1);
+        g.add_vertex(1, 2);
+
+        // 9 and 1 are not visible at time 3
+        let actual: Vec<u64> = g.enumerate_vs_at(3..10).collect();
+        assert_eq!(actual, vec![]);
+
+        g.add_edge(9, 1, 3);
+
+        // 9 and 1 are now visible at time 3
+        let actual: Vec<u64> = g.enumerate_vs_at(3..10).collect();
+        assert_eq!(actual, vec![9, 1]);
+
+        // the outbound neighbours of 9 at time 0..2 is the empty set
+        let actual: Vec<&u64> = g.outbound(9, 0..2).collect();
+        let expected: Vec<&u64> = vec![];
+        assert_eq!(actual, expected);
+
+        println!("GRAPH {:?}", g);
+        // the outbound neighbours of 9 at time 0..2 are 1
+        let actual: Vec<&u64> = g.outbound(9, 0..4).collect();
+        assert_eq!(actual, vec![&1]);
+
     }
 }

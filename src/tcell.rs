@@ -11,6 +11,13 @@ pub enum TCell<A> {
 }
 
 impl<A> TCell<A> {
+
+    pub fn new(t: u64, a: A) -> Self{
+        let mut m = BTreeMap::new();
+        m.insert(t, a);
+        TCell::TCellN(m)
+    }
+
     pub fn empty() -> Self {
         TCell::TCellEmpty
     }

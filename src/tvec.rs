@@ -5,7 +5,7 @@ use roaring::RoaringTreemap;
 
 use crate::tcell::TCell;
 
-trait TVec<A> {
+pub trait TVec<A> {
     /**
      * Append the item at the end of the TVec
      *  */
@@ -54,10 +54,21 @@ trait TVec<A> {
         A: Ord;
 }
 
-#[derive(Debug, Default)]
-struct DefaultTVec<A> {
+#[derive(Debug, Default, PartialEq)]
+pub struct DefaultTVec<A> {
     vs: Vec<TCell<A>>,
     t_index: BTreeMap<u64, RoaringTreemap>,
+}
+
+impl<A> DefaultTVec<A> {
+    pub fn new(t: u64, a: A) -> Self {
+        let mut m = RoaringTreemap::new();
+        m.insert(0u64);
+        DefaultTVec {
+            vs: vec![TCell::new(t, a)],
+            t_index: BTreeMap::from_iter(vec![(t, m)]),
+        }
+    }
 }
 
 impl<A> TVec<A> for DefaultTVec<A> {
@@ -193,13 +204,11 @@ mod tvec_tests {
         // at a different t:3 override the index 2
         tvec.insert(3, 19, 2);
 
-        println!("{:?} ", tvec);
         assert_eq!(
             tvec.iter_window(0..5).collect::<Vec<_>>(),
             vec![&2, &19, &12]
         );
     }
-
 
     #[test]
     fn insert_iter_time() {
@@ -212,7 +221,6 @@ mod tvec_tests {
         // at a different t:3 override the index 2
         tvec.insert(3, String::from("four"), 2);
 
-        println!("{:?} ", tvec);
         assert_eq!(
             tvec.iter_window_t(0..5).collect::<Vec<_>>(),
             vec![
@@ -222,5 +230,4 @@ mod tvec_tests {
             ]
         );
     }
-
 }
