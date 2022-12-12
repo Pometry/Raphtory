@@ -71,7 +71,7 @@ case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
       case Some(DiscreteInterval(interval))   =>
         generator.writeNumberField("window", interval)
       case Some(TimeInterval(interval, name)) =>
-        generator.writeStringField("window", interval.toString)
+        generator.writeStringField("window", name)
       case _                                  =>
     }
 

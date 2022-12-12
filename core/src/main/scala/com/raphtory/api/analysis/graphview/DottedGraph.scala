@@ -97,7 +97,7 @@ class DottedGraph[G <: FixedGraph[G]] private[api] (
     *  @return A modified Raphtory graph with the window size and alignment
     */
   def dateWindow(size: String, alignment: Alignment.Value): G =
-    addWindows(Array(parseInterval(size, graph.query.datetimeQuery)), alignment)
+    addWindows(Array(parseInterval(size)), alignment)
 
   /** Create a number of windows with the given sizes at every temporal epoch.
     * By default the window looks into the past (Alignment.END)
@@ -115,7 +115,7 @@ class DottedGraph[G <: FixedGraph[G]] private[api] (
     * @return A modified Raphtory graph with the window sizes and given alignment
     */
   def dateWindow(sizes: Iterable[String], alignment: Alignment.Value): G =
-    addWindows(sizes.toArray.map(x => parseInterval(x, graph.query.datetimeQuery)), alignment)
+    addWindows(sizes.toArray.map(x => parseInterval(x)), alignment)
 
   /** For each temporal epoch create a window starting from the current point and include all older events
     */

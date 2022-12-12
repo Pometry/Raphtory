@@ -23,7 +23,7 @@ private[raphtory] object IntervalParser {
   case object SECONDS       extends DurationUnit
   case object MILLIS        extends DurationUnit
 
-  def parse(interval: String, nameAsOriginal: Boolean = true): TimeInterval = {
+  def parse(interval: String): TimeInterval = {
     val cleaned     = interval
       .trim()
       .replaceAll(", ", " ")
@@ -62,8 +62,7 @@ private[raphtory] object IntervalParser {
 
     temporalAmount match {
       case Success(temporalAmount) =>
-        if (nameAsOriginal) TimeInterval(temporalAmount, interval)
-        else TimeInterval(temporalAmount, temporalAmount.toString)
+        TimeInterval(temporalAmount, interval)
       case Failure(_)              =>
         val msg = s"You cannot set years, months, or weeks at the same time as" +
           s" hours, minutes, seconds, or milliseconds: '$interval'"
