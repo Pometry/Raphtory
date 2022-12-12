@@ -9,6 +9,8 @@ MODE:=batch
 
 .PHONY gh-sbt-build:
 gh-sbt-build: version
+	echo "core / Compile / logLevel := Level.Error" >> build.sbt
+	echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
 	sbt publishLocal
 	cp /root/.ivy2/local/com.raphtory/arrow-core_2.13/$$(cat version)/ivys/ivy.xml python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/arrow_core_ivy.xml
 	cp /root/.ivy2/local/com.raphtory/arrow-messaging_2.13/$$(cat version)/ivys/ivy.xml python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/arrow_messaging_ivy.xml
@@ -127,3 +129,20 @@ release: version-bump
 
 local-pulsar: version
 	VERSION=$$(cat version) docker-compose -f $(DOCKER_RAP)/docker-compose-local.yml up
+
+.PHONY: scala-test
+scala-test:
+	export RAPHTORY_CORE_LOG="ERROR" && sbt test
+
+.PHONY: setup-python
+setup-python: gh-sbt-build
+	python -m pip install --upgrade pip
+	python -m pip install poetry nbmake tox pytest-xdist
+	cd python/pyraphtory_jvm && python setup.py sdist && python -m pip install dist/pyraphtory_jvm-*.tar.gz
+	cd python/pyraphtory && poetry build && poetry install
+
+.PHONY: python-test
+python-test:
+	cd python/pyraphtory_jvm && tox -p -o
+	cd python/pyraphtory && poetry run pytest -n=auto
+	cd examples && pytest --nbmake -n=auto
