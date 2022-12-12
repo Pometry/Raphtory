@@ -1,4 +1,4 @@
-name: Run the scala and python tests
+name: Run scala & python test
 on:
   push:
     branches:
