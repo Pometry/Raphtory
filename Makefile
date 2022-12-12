@@ -117,6 +117,7 @@ version-bump:
 	echo "Installing and bumping pyraphtory_jvm"
 	pip install bump2version --quiet
 	cd python/pyraphtory_jvm && bump2version --allow-dirty --no-commit --new-version $$(cat ../../version) setup.py
+	cd python/pyraphtory && poetry update
 
 
 .PHONY: release
