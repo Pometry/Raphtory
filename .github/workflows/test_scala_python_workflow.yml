@@ -60,7 +60,7 @@ jobs:
         run: make python-test
         timeout-minutes: 10
   doc-test:
-    name: "Scala tests"
+    name: "Doc tests"
     strategy:
       fail-fast: false
     runs-on: 'ubuntu-20.04'
