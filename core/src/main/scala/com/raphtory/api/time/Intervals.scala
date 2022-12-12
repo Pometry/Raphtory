@@ -19,6 +19,9 @@ sealed trait Interval extends Ordered[Interval] {
   /** Returns a `String` representation of this `Interval`. */
   def toString: String
 
+  /** Returns the best output format for this `Interval`. */
+  def output: Any
+
   /** Returns the `Interval` resulting from multiplying this `Interval` by `number`. */
   def *(number: Long): Interval
 
@@ -37,6 +40,7 @@ case class DiscreteInterval(size: Long) extends Interval {
   override def *(number: Long): Interval = DiscreteInterval(size * number)
   override def /(number: Long): Interval = DiscreteInterval(size / number)
   override protected def toLong: Long    = size
+  override def output: Any               = size
 }
 
 case class TimeInterval(size: TemporalAmount, name: String) extends Interval {
@@ -69,6 +73,7 @@ case class TimeInterval(size: TemporalAmount, name: String) extends Interval {
     }
   override def toString: String          = name
   override protected def toLong: Long    = Instant.ofEpochMilli(0).plus(size).toEpochMilli
+  override def output: Any               = name
 }
 
 case object NullInterval extends Interval {
@@ -77,4 +82,5 @@ case object NullInterval extends Interval {
   override def /(number: Long): Interval = NullInterval
   override def toString: String          = "0"
   override protected def toLong: Long    = 0
+  override def output: Any               = 0
 }

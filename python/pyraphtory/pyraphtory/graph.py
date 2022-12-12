@@ -21,7 +21,6 @@ class Table(GenericScalaProxy):
         rows = []
         columns = ()
         for res in self.get():
-            timestamp = None
             if res.perspective().format_as_date():
                 timestamp = res.perspective().timestamp_as_datetime()
             else:
@@ -30,7 +29,7 @@ class Table(GenericScalaProxy):
             if (window != None):
                 columns = ('timestamp', 'window', *cols)
                 for r in res.rows():
-                    window_size = window.get().name()
+                    window_size = window.get().output()
                     rows.append((timestamp, window_size, *r.get_values()))
             else:
                 columns = ('timestamp', *cols)
