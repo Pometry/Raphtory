@@ -36,7 +36,7 @@ jobs:
       - name: create blank cred file
         run: mkdir -p $HOME/.sbt && touch $HOME/.sbt/sonatype_credentials
       - name: Get sbt package
-        run: apt-get update && apt-get install unzip && curl -L "https://github.com/sbt/sbt/releases/download/v${{ matrix.sbt }}/sbt-${{ matrix.sbt }}.zip" -o sbt-${{ matrix.sbt }}.zip && unzip sbt-${{ matrix.sbt }}.zip
+        run: apt-get update && apt-get install unzip make && curl -L "https://github.com/sbt/sbt/releases/download/v${{ matrix.sbt }}/sbt-${{ matrix.sbt }}.zip" -o sbt-${{ matrix.sbt }}.zip && unzip sbt-${{ matrix.sbt }}.zip
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
@@ -49,7 +49,6 @@ jobs:
       - name: Build Raphtory jars, Setup Python, Install pyraphtory
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH
-          apt-get update && apt-get install make
           make setup-python
       - name: Run all python tests
         run: make python-test
