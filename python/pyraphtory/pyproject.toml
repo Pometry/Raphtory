@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pyraphtory"
-version = "0.1.2"
+version = "0.1.4"
 description = "Raphtory - Temporal Graph Analytics Platform. This is the Python version of the library."
 authors = [
     "Fabian Murariu <admin@pometry.com>",
@@ -44,6 +44,8 @@ pytest = "^7.1.3"
 [tool.poetry.scripts]
 jre_install = 'pyraphtory.jre:check_dl_java_ivy'
 raphtory-standalone = "pyraphtory.cli:standalone"
+raphtory-classpath = "pyraphtory.cli:classpath"
+raphtory-version = "pyraphtory.cli:version"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

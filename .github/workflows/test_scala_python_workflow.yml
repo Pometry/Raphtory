@@ -1,4 +1,4 @@
-name: Test Raphtory in both Scala and Python
+name: Run scala & python test
 on:
   workflow_call:
     inputs:
@@ -7,18 +7,13 @@ on:
         type: string
 
 jobs:
-  test:
-    name: "test_scala_python"
+  scala-test:
+    name: "Scala tests"
     strategy:
       fail-fast: false
-      matrix:
-        runners: ['ubuntu-20.04']
-        containers: ["eclipse-temurin:11.0.12_7-jdk"]
-        python-version: ["3.9"]
-        sbt: [1.6.2]
-    runs-on: ${{ matrix.runners }}
+    runs-on: 'ubuntu-20.04'
     container:
-      image: ${{ matrix.containers }}
+      image: "eclipse-temurin:11.0.12_7-jdk"
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -36,52 +31,58 @@ jobs:
       - name: create blank cred file
         run: mkdir -p $HOME/.sbt && touch $HOME/.sbt/sonatype_credentials
       - name: Get sbt package
-        run: apt-get update && apt-get install unzip && curl -L "https://github.com/sbt/sbt/releases/download/v${{ matrix.sbt }}/sbt-${{ matrix.sbt }}.zip" -o sbt-${{ matrix.sbt }}.zip && unzip sbt-${{ matrix.sbt }}.zip
-      - name: Build Raphtory Jars
+        run: apt-get update && apt-get install unzip make && curl -L "https://github.com/sbt/sbt/releases/download/v1.6.2/sbt-1.6.2.zip" -o sbt-1.6.2.zip && unzip sbt-1.6.2.zip
+      - name: Run all scala tests
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH
-          apt-get update && apt-get install make
-          echo "core / Compile / logLevel := Level.Error" >> build.sbt
-          echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
-          make gh-sbt-build
-      - name: Set up Python ${{ matrix.python-version }}
+          make scala-test
+  python-test:
+    name: "Python tests"
+    strategy:
+      fail-fast: false
+    runs-on: 'ubuntu-20.04'
+    container:
+      image: "eclipse-temurin:11.0.12_7-jdk"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install poetry and nbmake
+          python-version: "3.9"
+      - name: Get sbt package
+        run: apt-get update && apt-get install unzip make && curl -L "https://github.com/sbt/sbt/releases/download/v1.6.2/sbt-1.6.2.zip" -o sbt-1.6.2.zip && unzip sbt-1.6.2.zip
+      - name: Build Raphtory jars, Setup Python, Install pyraphtory
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install poetry nbmake tox pytest-xdist
-      - name: Install pyraphtory_jvm
-        run: cd python/pyraphtory_jvm && python setup.py sdist && python -m pip install dist/pyraphtory_jvm-*.tar.gz
-      - name: Run pyraphtory_jvm test fam
-        run: cd python/pyraphtory_jvm && tox -p -o
-      - name: Install pyraphtory
-        run: cd python/pyraphtory && poetry build && poetry install
-      - name: Run pyraphtory tests
-        run: cd python/pyraphtory && poetry run pytest -n=auto
-      - name: Run notebook tests
-        run: cd examples && pytest --nbmake -n=auto
+          export PATH=$(pwd)/sbt/bin:$PATH
+          make setup-python
+      - name: Run all python tests
+        run: make python-test
+        timeout-minutes: 10
+  doc-test:
+    name: "Doc tests"
+    strategy:
+      fail-fast: false
+    runs-on: 'ubuntu-20.04'
+    container:
+      image: "eclipse-temurin:11.0.12_7-jdk"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: create blank cred file
+        run: mkdir -p $HOME/.sbt && touch $HOME/.sbt/sonatype_credentials
+      - name: Get sbt package
+        run: apt-get update && apt-get install unzip make && curl -L "https://github.com/sbt/sbt/releases/download/v1.6.2/sbt-1.6.2.zip" -o sbt-1.6.2.zip && unzip sbt-1.6.2.zip
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+      - name: Build Raphtory jars, Setup Python, Install pyraphtory
+        run: |
+          export PATH=$(pwd)/sbt/bin:$PATH
+          make setup-python
       - name: Run doc compile check
         run: | 
           export PATH=$(pwd)/sbt/bin:$PATH
           apt update && apt install -y pandoc 
-          cd docs && python -m pip install -r requirements.txt && apt-get update && apt-get -y install python3-sphinx && make html
-      - name: Run Core tests via sbt
-        run: |
-          export PATH=$(pwd)/sbt/bin:$PATH
-          export RAPHTORY_CORE_LOG="ERROR"
-          sbt "core/test"
-      - name: Run Arrow tests via sbt
-        run: |
-          export PATH=$(pwd)/sbt/bin:$PATH
-          export RAPHTORY_CORE_LOG="ERROR"
-          sbt "arrowCore/test"
-      - name: Run Connectors tests
-        run: |
-          export PATH=$(pwd)/sbt/bin:$PATH
-          export RAPHTORY_CORE_LOG="ERROR"
-          sbt "connectorsAWS/test"
-          sbt "connectorsTwitter/test"
-          sbt "connectorsTypeDB/test"
-        timeout-minutes: 10
+          cd docs && python -m pip install -q -r requirements.txt && apt-get update && apt-get -y install make python3-sphinx && make html

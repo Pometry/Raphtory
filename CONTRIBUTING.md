@@ -88,13 +88,13 @@ Common test classes are defined in `testkit` module.
 - To run tests across all modules
     ```bash
     sbt:Raphtory> test     # Runs all unit tests
-    sbt:Raphtory> it:test  # Runs all integration tests
+    sbt:Raphtory> it/test  # Runs all integration tests
     ```
 - To run tests for a module (for example)
     ```bash
     sbt:Raphtory> project it
     sbt:it> test     # Runs all unit tests
-    sbt:it> it:test  # Runs all integration tests
+    sbt:it> it/test  # Runs all integration tests
     ```
 
 ## Update Docs
