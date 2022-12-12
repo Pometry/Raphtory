@@ -69,17 +69,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Install Zookeeper
-        run: |
-          export ZK_VERSION=3.8.0 && \
-          cd /usr/local/bin && \
-          curl -L "https://dlcdn.apache.org/zookeeper/zookeeper-${ZK_VERSION}/apache-zookeeper-${ZK_VERSION}-bin.tar.gz" -o apache-zookeeper-${ZK_VERSION}-bin.tar.gz && \
-          tar xf apache-zookeeper-${ZK_VERSION}-bin.tar.gz && \
-          rm -rf apache-zookeeper-${ZK_VERSION}-bin.tar.gz
-      - name: Create Zookeeper Config
-        run: mv /usr/local/bin/$(ls /usr/local/bin|grep apache-zookeeper|grep -v "tar.gz"|sort|tail -1)/conf/zoo_sample.cfg /usr/local/bin/$(ls /usr/local/bin|grep apache-zookeeper|grep -v "tar.gz"|sort|tail -1)/conf/zoo.cfg
-      - name: Start Zookeeper
-        run: /usr/local/bin/$(ls /usr/local/bin|grep apache-zookeeper|grep -v "tar.gz"|sort|tail -1)/bin/zkServer.sh start &
       - name: create blank cred file
         run: mkdir -p $HOME/.sbt && touch $HOME/.sbt/sonatype_credentials
       - name: Get sbt package
@@ -88,6 +77,10 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: "3.9"
+      - name: Build Raphtory jars, Setup Python, Install pyraphtory
+        run: |
+          export PATH=$(pwd)/sbt/bin:$PATH
+          make setup-python
       - name: Run doc compile check
         run: | 
           export PATH=$(pwd)/sbt/bin:$PATH
