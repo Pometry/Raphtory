@@ -1,6 +1,6 @@
 use std::{
     collections::{BTreeMap, HashMap},
-    ops::{Range, RangeBounds},
+    ops::Range,
 };
 
 use roaring::RoaringTreemap;
@@ -33,6 +33,11 @@ impl TemporalGraph {
 }
 
 impl TemporalGraphStorage for TemporalGraph {
+
+    fn vertex_count(&self) -> usize {
+        self.logical_to_physical.len()
+    }
+
     fn add_vertex(&mut self, v: u64, t: u64) -> &mut Self {
         match self.logical_to_physical.get(&v) {
             None => {
@@ -182,6 +187,40 @@ mod graph_test {
 
     #[test]
     fn add_edge_at_time_t1() {
+        let mut g = TemporalGraph::default();
+
+        g.add_vertex(9, 1);
+        g.add_vertex(1, 2);
+
+        // 9 and 1 are not visible at time 3
+        let actual: Vec<u64> = g.enumerate_vs_at(3..10).collect();
+        assert_eq!(actual, vec![]);
+
+        g.add_edge(9, 1, 3);
+
+        // 9 and 1 are now visible at time 3
+        let actual: Vec<u64> = g.enumerate_vs_at(3..10).collect();
+        assert_eq!(actual, vec![9, 1]);
+
+        // the outbound neighbours of 9 at time 0..2 is the empty set
+        let actual: Vec<&u64> = g.outbound(9, 0..2).collect();
+        let expected: Vec<&u64> = vec![];
+        assert_eq!(actual, expected);
+
+        println!("GRAPH {:?}", g);
+        // the outbound neighbours of 9 at time 0..4 are 1
+        let actual: Vec<&u64> = g.outbound(9, 0..4).collect();
+        assert_eq!(actual, vec![&1]);
+
+
+        // the outbound neighbours of 9 at time 0..4 are 1
+        let actual: Vec<&u64> = g.inbound(1, 0..4).collect();
+        assert_eq!(actual, vec![&9]);
+
+    }
+
+    #[test]
+    fn add_edge_at_time_t1_t2_t3() {
         let mut g = TemporalGraph::default();
 
         g.add_vertex(9, 1);
