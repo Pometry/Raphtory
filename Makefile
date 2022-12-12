@@ -56,7 +56,7 @@ sbt-thin-build: version
 
 .PHONY python-build:
 python-build: version sbt-build
-	pip install poetry
+	pip install -q poetry
 	cd python/pyraphtory_jvm/ && \
 	python setup.py sdist
 	pip3 install python/pyraphtory_jvm/dist/pyraphtory_jvm-$$(cat version).tar.gz
@@ -74,7 +74,7 @@ python-build-quick: version
 
 .PHONY docs:
 docs: version sbt-build python-build
-	pip install myst-parser sphinx-rtd-theme sphinx docutils sphinx-tabs
+	pip install -q myst-parser sphinx-rtd-theme sphinx docutils sphinx-tabs
 	cd docs && make html
 
 .PHONY pyraphtory-local:
@@ -137,7 +137,7 @@ scala-test:
 .PHONY: setup-python
 setup-python: gh-sbt-build
 	python -m pip install --upgrade pip
-	python -m pip install poetry nbmake tox pytest-xdist
+	python -m pip install -q poetry nbmake tox pytest-xdist
 	cd python/pyraphtory_jvm && python setup.py sdist && python -m pip install dist/pyraphtory_jvm-*.tar.gz
 	cd python/pyraphtory && poetry build && poetry install
 

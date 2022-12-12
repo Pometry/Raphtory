@@ -85,4 +85,4 @@ jobs:
         run: | 
           export PATH=$(pwd)/sbt/bin:$PATH
           apt update && apt install -y pandoc 
-          cd docs && python -m pip install -r requirements.txt && apt-get update && apt-get -y install make python3-sphinx && make html
+          cd docs && python -m pip install -q -r requirements.txt && apt-get update && apt-get -y install make python3-sphinx && make html
