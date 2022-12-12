@@ -3,9 +3,11 @@ on:
   push:
     branches:
       - DEV-1325-it-tests
+      - v*
   pull_request:
     branches:
       - DEV-1325-it-tests
+      - v*
 
 jobs:
   integration-tests:
