@@ -30,7 +30,7 @@ class Table(GenericScalaProxy):
             if (window != None):
                 columns = ('timestamp', 'window', *cols)
                 for r in res.rows():
-                    window_size = window.get().size()
+                    window_size = window.get().name()
                     rows.append((timestamp, window_size, *r.get_values()))
             else:
                 columns = ('timestamp', *cols)
