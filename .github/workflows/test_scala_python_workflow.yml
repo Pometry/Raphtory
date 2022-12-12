@@ -46,17 +46,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Install Zookeeper
-        run: |
-          export ZK_VERSION=3.8.0 && \
-          cd /usr/local/bin && \
-          curl -L "https://dlcdn.apache.org/zookeeper/zookeeper-${ZK_VERSION}/apache-zookeeper-${ZK_VERSION}-bin.tar.gz" -o apache-zookeeper-${ZK_VERSION}-bin.tar.gz && \
-          tar xf apache-zookeeper-${ZK_VERSION}-bin.tar.gz && \
-          rm -rf apache-zookeeper-${ZK_VERSION}-bin.tar.gz
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.9"
+      - name: Get sbt package
+        run: apt-get update && apt-get install unzip make && curl -L "https://github.com/sbt/sbt/releases/download/v1.6.2/sbt-1.6.2.zip" -o sbt-1.6.2.zip && unzip sbt-1.6.2.zip
       - name: Build Raphtory jars, Setup Python, Install pyraphtory
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH
