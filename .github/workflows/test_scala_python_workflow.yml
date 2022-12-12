@@ -7,18 +7,13 @@ on:
         type: string
 
 jobs:
-  test:
-    name: "test_scala_python"
+  scala-test:
+    name: "Scala tests"
     strategy:
       fail-fast: false
-      matrix:
-        runners: ['ubuntu-20.04']
-        containers: ["eclipse-temurin:11.0.12_7-jdk"]
-        python-version: ["3.9"]
-        sbt: [1.6.2]
-    runs-on: ${{ matrix.runners }}
+    runs-on: 'ubuntu-20.04'
     container:
-      image: ${{ matrix.containers }}
+      image: "eclipse-temurin:11.0.12_7-jdk"
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -36,16 +31,32 @@ jobs:
       - name: create blank cred file
         run: mkdir -p $HOME/.sbt && touch $HOME/.sbt/sonatype_credentials
       - name: Get sbt package
-        run: apt-get update && apt-get install unzip make && curl -L "https://github.com/sbt/sbt/releases/download/v${{ matrix.sbt }}/sbt-${{ matrix.sbt }}.zip" -o sbt-${{ matrix.sbt }}.zip && unzip sbt-${{ matrix.sbt }}.zip
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
+        run: apt-get update && apt-get install unzip make && curl -L "https://github.com/sbt/sbt/releases/download/v1.6.2/sbt-1.6.2.zip" -o sbt-1.6.2.zip && unzip sbt-1.6.2.zip
       - name: Run all scala tests
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH
           make scala-test
-        timeout-minutes: 10
+  python-test:
+    name: "Python tests"
+    strategy:
+      fail-fast: false
+    runs-on: 'ubuntu-20.04'
+    container:
+      image: "eclipse-temurin:11.0.12_7-jdk"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install Zookeeper
+        run: |
+          export ZK_VERSION=3.8.0 && \
+          cd /usr/local/bin && \
+          curl -L "https://dlcdn.apache.org/zookeeper/zookeeper-${ZK_VERSION}/apache-zookeeper-${ZK_VERSION}-bin.tar.gz" -o apache-zookeeper-${ZK_VERSION}-bin.tar.gz && \
+          tar xf apache-zookeeper-${ZK_VERSION}-bin.tar.gz && \
+          rm -rf apache-zookeeper-${ZK_VERSION}-bin.tar.gz
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
       - name: Build Raphtory jars, Setup Python, Install pyraphtory
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH
@@ -53,8 +64,37 @@ jobs:
       - name: Run all python tests
         run: make python-test
         timeout-minutes: 10
+  doc-test:
+    name: "Scala tests"
+    strategy:
+      fail-fast: false
+    runs-on: 'ubuntu-20.04'
+    container:
+      image: "eclipse-temurin:11.0.12_7-jdk"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install Zookeeper
+        run: |
+          export ZK_VERSION=3.8.0 && \
+          cd /usr/local/bin && \
+          curl -L "https://dlcdn.apache.org/zookeeper/zookeeper-${ZK_VERSION}/apache-zookeeper-${ZK_VERSION}-bin.tar.gz" -o apache-zookeeper-${ZK_VERSION}-bin.tar.gz && \
+          tar xf apache-zookeeper-${ZK_VERSION}-bin.tar.gz && \
+          rm -rf apache-zookeeper-${ZK_VERSION}-bin.tar.gz
+      - name: Create Zookeeper Config
+        run: mv /usr/local/bin/$(ls /usr/local/bin|grep apache-zookeeper|grep -v "tar.gz"|sort|tail -1)/conf/zoo_sample.cfg /usr/local/bin/$(ls /usr/local/bin|grep apache-zookeeper|grep -v "tar.gz"|sort|tail -1)/conf/zoo.cfg
+      - name: Start Zookeeper
+        run: /usr/local/bin/$(ls /usr/local/bin|grep apache-zookeeper|grep -v "tar.gz"|sort|tail -1)/bin/zkServer.sh start &
+      - name: create blank cred file
+        run: mkdir -p $HOME/.sbt && touch $HOME/.sbt/sonatype_credentials
+      - name: Get sbt package
+        run: apt-get update && apt-get install unzip make && curl -L "https://github.com/sbt/sbt/releases/download/v1.6.2/sbt-1.6.2.zip" -o sbt-1.6.2.zip && unzip sbt-1.6.2.zip
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
       - name: Run doc compile check
         run: | 
           export PATH=$(pwd)/sbt/bin:$PATH
           apt update && apt install -y pandoc 
-          cd docs && python -m pip install -r requirements.txt && apt-get update && apt-get -y install python3-sphinx && make html
+          cd docs && python -m pip install -r requirements.txt && apt-get update && apt-get -y install make python3-sphinx && make html
