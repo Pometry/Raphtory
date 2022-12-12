@@ -1,6 +1,7 @@
 from keyword import iskeyword
 from pyraphtory._docstring import convert_docstring
 from collections import UserString
+from functools import cached_property
 
 
 class LazyDocstr(UserString, str):
@@ -14,17 +15,11 @@ class LazyDocstr(UserString, str):
         if seq is not None:
             super().__init__(seq)
 
-    @property
+    @cached_property
     def data(self):
-        parsed = convert_docstring(self._raw)
-        self.__dict__["data"] = parsed
-        return parsed
-
-    @data.setter
-    def data(self, value):
-        if not isinstance(value, str):
-            value = str(value)
-        self.__dict__["data"] = value
+        if self._raw is not None:
+            parsed = convert_docstring(self._raw)
+            return parsed
 
 
 type_map = {"String": "str",
