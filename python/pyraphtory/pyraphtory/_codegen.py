@@ -4,6 +4,11 @@ from collections import UserString
 
 
 class LazyDocstr(UserString, str):
+    def __new__(cls, *args, **kwargs):
+        # we need to extend str so help works but don't actually want to create the immutable str here
+        self = super().__new__(cls, "")
+        return self
+
     def __init__(self, seq=None, raw=None):
         self._raw = raw
         if seq is not None:
@@ -17,6 +22,8 @@ class LazyDocstr(UserString, str):
 
     @data.setter
     def data(self, value):
+        if not isinstance(value, str):
+            value = str(value)
         self.__dict__["data"] = value
 
 
