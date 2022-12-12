@@ -356,7 +356,7 @@ class ScalaProxyBase(object):
             for i, method in enumerate(sorted(method_array, key=lambda m: m.n())):
                 try:
                     exec(_codegen.build_method(f"{name}{i}", method, _jpype), globals(), output)
-                    # output[f"{name}{i}"].__doc__ = method.docs()
+                    output[f"{name}{i}"].__doc__ = _codegen.LazyDocstr(raw=method.docs())
                 except Exception as e:
                     traceback.print_exc()
                     raise e
@@ -366,7 +366,7 @@ class ScalaProxyBase(object):
             method = method_array[0]
             try:
                 exec(_codegen.build_method(name, method, _jpype), globals(), output)
-                # output[name].__doc__ = method.docs()
+                output[name].__doc__ = _codegen.LazyDocstr(method.docs())
             except Exception as e:
                 traceback.print_exc()
                 raise e

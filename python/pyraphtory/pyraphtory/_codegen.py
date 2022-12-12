@@ -1,5 +1,23 @@
 from keyword import iskeyword
 from pyraphtory._docstring import convert_docstring
+from collections import UserString
+
+
+class LazyDocstr(UserString, str):
+    def __init__(self, seq=None, raw=None):
+        self._raw = raw
+        if seq is not None:
+            super().__init__(seq)
+
+    @property
+    def data(self):
+        parsed = convert_docstring(self._raw)
+        self.__dict__["data"] = parsed
+        return parsed
+
+    @data.setter
+    def data(self, value):
+        self.__dict__["data"] = value
 
 
 type_map = {"String": "str",
@@ -52,7 +70,6 @@ def build_method(name, method, jpype=False):
     args = ", ".join(args)
 
     lines = [f"def {name}({args}):"]
-    lines.append(f'    """{convert_docstring(method.docs())}"""')
     if implicits:
         lines.append(f"    if len(_implicits) < {len(implicits)}:")
         lines.append(f"        raise RuntimeError('missing implicit arguments')")
