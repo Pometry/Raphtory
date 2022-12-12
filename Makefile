@@ -9,6 +9,8 @@ MODE:=batch
 
 .PHONY gh-sbt-build:
 gh-sbt-build: version
+	echo "core / Compile / logLevel := Level.Error" >> build.sbt
+	echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
 	sbt publishLocal
 	cp /root/.ivy2/local/com.raphtory/arrow-core_2.13/$$(cat version)/ivys/ivy.xml python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/arrow_core_ivy.xml
 	cp /root/.ivy2/local/com.raphtory/arrow-messaging_2.13/$$(cat version)/ivys/ivy.xml python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/arrow_messaging_ivy.xml
@@ -54,7 +56,7 @@ sbt-thin-build: version
 
 .PHONY python-build:
 python-build: version sbt-build
-	pip install poetry
+	pip install -q poetry
 	cd python/pyraphtory_jvm/ && \
 	python setup.py sdist
 	pip3 install python/pyraphtory_jvm/dist/pyraphtory_jvm-$$(cat version).tar.gz
@@ -72,7 +74,7 @@ python-build-quick: version
 
 .PHONY docs:
 docs: version sbt-build python-build
-	pip install myst-parser sphinx-rtd-theme sphinx docutils sphinx-tabs
+	pip install -q myst-parser sphinx-rtd-theme sphinx docutils sphinx-tabs
 	cd docs && make html
 
 .PHONY pyraphtory-local:
@@ -115,6 +117,7 @@ version-bump:
 	echo "Installing and bumping pyraphtory_jvm"
 	pip install bump2version --quiet
 	cd python/pyraphtory_jvm && bump2version --allow-dirty --no-commit --new-version $$(cat ../../version) setup.py
+	cd python/pyraphtory && poetry update
 
 
 .PHONY: release
@@ -127,3 +130,20 @@ release: version-bump
 
 local-pulsar: version
 	VERSION=$$(cat version) docker-compose -f $(DOCKER_RAP)/docker-compose-local.yml up
+
+.PHONY: scala-test
+scala-test:
+	export RAPHTORY_CORE_LOG="ERROR" && sbt test
+
+.PHONY: setup-python
+setup-python: gh-sbt-build
+	python -m pip install --upgrade pip
+	python -m pip install -q poetry nbmake tox pytest-xdist
+	cd python/pyraphtory_jvm && python setup.py sdist && python -m pip install dist/pyraphtory_jvm-*.tar.gz
+	cd python/pyraphtory && poetry build && poetry install
+
+.PHONY: python-test
+python-test:
+	cd python/pyraphtory_jvm && tox -p -o
+	cd python/pyraphtory && poetry run pytest -n=auto
+	cd examples && pytest --nbmake -n=auto
