@@ -11,7 +11,7 @@ case class ResourceOrFileSpout(resource: String) extends Spout[String] {
 
 class ResourceOrFileSpoutSpoutInstance(resource: String) extends SpoutInstance[String] {
 
-  private val source = Try{Source.fromResource(resource)}.orElse(Try{Source.fromFile(s"${System.getenv("RAPHTORY_DATA")}${resource}")}).get
+  private val source = Try{Source.fromResource(resource)}.orElse(Try{Source.fromFile(resource)}).get
   private val lines  = source.getLines()
 
   override def hasNext: Boolean = lines.hasNext

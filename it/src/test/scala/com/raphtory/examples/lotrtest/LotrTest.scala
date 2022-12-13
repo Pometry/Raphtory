@@ -15,9 +15,12 @@ import com.raphtory.algorithms.temporal.dynamic.GenericTaint
 import com.raphtory.api.input._
 import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceOrFileSpout
-import com.test.raphtory.algorithms.{GlobalState, GraphState}
+import com.test.raphtory.algorithms.GlobalState
+import com.test.raphtory.algorithms.GraphState
 
 import java.net.URL
+import java.nio.file.Files
+import java.nio.file.Paths
 import scala.language.postfixOps
 
 class LotrTest extends BaseRaphtoryAlgoTest[String] {
@@ -216,10 +219,10 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 //    )
 //  }
 
-  def tmpFilePath = "/tmp/lotr.csv"
 
   override def liftFileIfNotPresent: Option[(String, URL)] =
-    Some(tmpFilePath, new URL("https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"))
+    Some(tmpLocation("/lotr.csv"), new URL("https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"))
 
-  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("lotr.csv"))
+  override def setSource(): Source =
+    CSVEdgeListSource(ResourceOrFileSpout(resolveSpout("/lotr.csv")))
 }

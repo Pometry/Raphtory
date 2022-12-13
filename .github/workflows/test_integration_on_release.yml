@@ -1,4 +1,10 @@
 name: Run integration tests
+#on:
+#  workflow_call:
+#    inputs:
+#      config-path:
+#        required: false
+#        type: string
 on:
   push:
     branches:
@@ -21,10 +27,10 @@ jobs:
           make docker-build docker-compose-up
       - name: Run sbt Integration
         run: |
-          export RAPHTORY_CORE_LOG=DEBUG 
+          export RAPHTORY_CORE_LOG=ERROR 
           export IT_OUTPUT_PATH="it/target/docker"
           sudo -E sbt "it/it:testOnly *.algorithms.*"
       - name: Stop Docker compose
         if: always()
         run: |
-          docker-compose -f ./docker-compose.yml down --remove-orphans
+          make docker-compose-down

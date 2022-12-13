@@ -95,6 +95,10 @@ docker-build: version
 docker-compose-up: version
 	docker-compose -f docker-compose.yml up -d
 
+.PHONY: docker-compose-down
+docker-compose-down: version
+	docker-compose -f docker-compose.yml down --remove-orphans
+
 .PHONY: run-local-cluster
 run-local-cluster: version
 	mkdir -p $(DOCKER_TMP)/builder

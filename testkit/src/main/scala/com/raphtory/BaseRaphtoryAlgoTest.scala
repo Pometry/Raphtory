@@ -14,6 +14,11 @@ import munit.CatsEffectSuite
 import org.slf4j.LoggerFactory
 
 import java.net.URL
+import java.nio.file.{Files, Paths}
+import java.nio.file.attribute.BasicFileAttributes
+import java.nio.file.attribute.FileAttribute
+import java.nio.file.attribute.PosixFilePermissions
+import java.nio.file.attribute.PosixFilePermissions._
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
@@ -26,6 +31,26 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   val outputDirectory: String = Option(System.getenv("IT_OUTPUT_PATH")).getOrElse("/tmp/raphtoryTest")
   def defaultSink: Sink       = FileSink("/tmp/raphtoryTest")
 
+  lazy val raphtoryData =
+    Option(System.getenv("IT_OUTPUT_PATH")).getOrElse(
+            Files
+              .createTempDirectory("tests" )
+              .toString
+    )
+
+
+  def resolveSpout(fileName: String): String =
+    if (System.getenv("IT_OUTPUT_PATH") != null)
+      fileName
+    else {
+      Paths.get(raphtoryData, fileName).toString
+    }
+
+  def tmpLocation(fileName: String): String = {
+    Paths.get(raphtoryData, fileName).toString
+  }
+
+  //  def
   def liftFileIfNotPresent: Option[(String, URL)] = None
   def setSource(): Source
 
