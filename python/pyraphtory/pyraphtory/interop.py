@@ -508,9 +508,9 @@ class OverloadedMethod:
         self.__doc__ = _codegen.LazyStr(
             initial=lambda: f"Overloaded method with alternatives\n\n"
                             + "\n\n".join(
-                f".. method:: {self.__name__}{str(inspect.signature(m.__get__(m)))}\n   :noindex:\n"
+                f"{self.__name__}{str(inspect.signature(m.__get__(m)))}"
                 # hack to get signature as if bound method
-                + ("\n" + indent(m.__doc__, "   ") if m.__doc__ else "")
+                + ("\n" + indent(m.__doc__, "    ") if m.__doc__ else "")
                 for m in self._methods)
         )
 
@@ -544,10 +544,7 @@ class WithImplicits:
         self._method = method
         self._implicits = []
         self.__doc__ = method.__doc__
-
-    @cached_property
-    def __signature__(self):
-        return inspect.signature(self._method)
+        self.__wrapped__ = method
 
     def __call__(self, *args, **kwargs):
         return self._method(*args, **kwargs, _implicits=self._implicits)
