@@ -372,13 +372,13 @@ public abstract class CachedMutatingEdgeMap {
 
         @Override
         protected boolean localFlagMatches() {
-            return isDstVertexLocal() != _isGlobal;
+            return isDstVertexGlobal() == _isGlobal;
         }
 
 
         @Override
         protected boolean vertexAndLocalFlagMatches() {
-            return getDstVertexId()==_vertexId && isDstVertexLocal()!=_isGlobal;
+            return getDstVertexId()==_vertexId && isDstVertexGlobal()==_isGlobal;
         }
 
 
@@ -398,13 +398,13 @@ public abstract class CachedMutatingEdgeMap {
 
         @Override
         protected boolean localFlagMatches() {
-            return isSrcVertexLocal() != _isGlobal;
+            return isSrcVertexGlobal() == _isGlobal;
         }
 
 
         @Override
         protected boolean vertexAndLocalFlagMatches() {
-            return getSrcVertexId()==_vertexId && isSrcVertexLocal()!=_isGlobal;
+            return getSrcVertexId()==_vertexId && isSrcVertexGlobal()==_isGlobal;
         }
 
 

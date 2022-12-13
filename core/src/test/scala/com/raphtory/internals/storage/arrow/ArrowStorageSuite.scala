@@ -417,6 +417,10 @@ class ArrowStorageSuite extends munit.FunSuite {
 
     val bob  = par.vertices.head
     val edge = bob.outgoingEdges.head
+
+    assertEquals(par.vmgr.getTotalNumberOfVertices, 2L)
+    assertEquals(par.emgr.getTotalNumberOfEdges, 1L)
+
     assertEquals(
             edge.history(timestamp, timestamp + 1).toVector,
             Vector(
