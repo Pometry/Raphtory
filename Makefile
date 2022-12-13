@@ -146,6 +146,13 @@ local-pulsar: version
 scala-test:
 	export RAPHTORY_CORE_LOG="ERROR" && sbt test
 
+.PHONY: scala-remote-test
+scala-remote-test:
+	sleep 5
+	export RAPHTORY_CORE_LOG=ERROR && \
+	export IT_OUTPUT_PATH=./it/target/scala-2.13/test-classes && \
+	sbt "it/testOnly *.algorithms.*"
+
 .PHONY: setup-python
 setup-python: gh-sbt-build
 	python -m pip install --upgrade pip
