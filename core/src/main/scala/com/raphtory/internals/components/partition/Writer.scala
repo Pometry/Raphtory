@@ -32,7 +32,7 @@ private[raphtory] class Writer[F[_]](
     Async[F].blocking(handleLocalAlterations(req))
 
   private def handleLocalAlterations(msgs: protocol.GraphAlterations): Unit =
-    msgs.alterations.view
+    msgs.alterations.iterator
       .map(_.alteration)
       .foreach {
         case update: VertexAdd => processVertexAdd(update)
