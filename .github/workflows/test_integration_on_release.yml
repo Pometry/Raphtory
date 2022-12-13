@@ -1,19 +1,10 @@
 name: Run integration tests
-#on:
-#  workflow_call:
-#    inputs:
-#      config-path:
-#        required: false
-#        type: string
 on:
-  push:
-    branches:
-      - DEV-1325-it-tests
-      - v*
-  pull_request:
-    branches:
-      - DEV-1325-it-tests
-      - v*
+  workflow_call:
+    inputs:
+      config-path:
+        required: false
+        type: string
 
 jobs:
   integration-tests:
