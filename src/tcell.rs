@@ -1,22 +1,20 @@
-use std::{collections::BTreeMap, ops::Range};
+use std::{collections::BTreeMap, ops::Range, fmt::Debug};
 
-use scapegoat::SgMap;
-
-const CAPACITY: usize = 2;
+use art_tree::Art;
 
 #[derive(Debug, PartialEq)]
 /**
  * TCells represent a value in time that can
  * be set at multiple times and keeps a history
  **/
-pub enum TCell<A: Clone + Default> {
+pub enum TCell<A: Clone + Default + Debug + PartialEq> {
     TCellEmpty,
     TCell1(u64, A),
-    TCellCap(SgMap<u64, A, CAPACITY>),
+    TCellCap(usize, Art<u64, A>),
     TCellN(BTreeMap<u64, A>),
 }
 
-impl<A: Clone + Default> TCell<A> {
+impl<A: Clone + Default + Debug +PartialEq> TCell<A> {
     pub fn new(t: u64, a: A) -> Self {
         TCell::TCell1(t, a)
     }
@@ -28,7 +26,7 @@ impl<A: Clone + Default> TCell<A> {
     pub fn len(&self) -> usize {
         match self {
             TCell::TCell1(_, _) => 1,
-            TCell::TCellCap(m) => m.len(),
+            TCell::TCellCap(len, m) => *len,
             TCell::TCellN(m) => m.len(),
             _ => 0,
         }
@@ -41,21 +39,23 @@ impl<A: Clone + Default> TCell<A> {
             }
             TCell::TCell1(t0, a0) => {
                 if t != *t0 {
-                    let mut m = SgMap::new();
+                    let mut m = Art::new();
                     m.insert(t, a);
                     m.insert(*t0, a0.clone());
-                    *self = TCell::TCellCap(m)
+                    *self = TCell::TCellCap(2, m)
                 }
             }
-            TCell::TCellCap(m) => {
-                if let Err(_) = m.try_insert(t, a.clone()) {
-                    let mut new_m: BTreeMap<u64, A> = BTreeMap::new();
-                    for (k, v) in m.iter() {
-                        new_m.insert(*k, v.clone());
-                    }
-                    new_m.insert(t, a.clone());
-                    *self = TCell::TCellN(new_m)
-                }
+            TCell::TCellCap(len, m) => {
+                m.insert(t, a.clone());
+                *len+=1;
+                // if let Err(_) = m.try_insert(t, a.clone()) {
+                //     let mut new_m: BTreeMap<u64, A> = BTreeMap::new();
+                //     for (k, v) in m.iter() {
+                //         new_m.insert(*k, v.clone());
+                //     }
+                //     new_m.insert(t, a.clone());
+                //     *self = TCell::TCellN(new_m)
+                // }
             }
             TCell::TCellN(m) => {
                 m.insert(t, a);
@@ -73,7 +73,7 @@ impl<A: Clone + Default> TCell<A> {
                     Box::new(std::iter::empty())
                 }
             }
-            TCell::TCellCap(m) => Box::new(m.range(r)),
+            TCell::TCellCap(_, m) => Box::new(m.range(r)),
             TCell::TCellN(m) => Box::new(m.range(r)),
         }
     }
@@ -88,7 +88,7 @@ impl<A: Clone + Default> TCell<A> {
                     Box::new(std::iter::empty())
                 }
             }
-            TCell::TCellCap(m) => Box::new(m.range(r).map(|(_, a)| a)),
+            TCell::TCellCap(_, m) => Box::new(m.range(r).map(|(_, a)| a)),
             TCell::TCellN(m) => Box::new(m.range(r).map(|(_, a)| a)),
         }
     }
@@ -97,7 +97,7 @@ impl<A: Clone + Default> TCell<A> {
         match self {
             TCell::TCellEmpty => Box::new(std::iter::empty()),
             TCell::TCell1(_, a) => Box::new(std::iter::once(a)),
-            TCell::TCellCap(m) => Box::new(m.values()),
+            TCell::TCellCap(_, m) => Box::new(m.iter().map(|(_, v)| v)),
             TCell::TCellN(v) => Box::new(v.values()),
         }
     }
@@ -106,7 +106,7 @@ impl<A: Clone + Default> TCell<A> {
         match self {
             TCell::TCellEmpty => Box::new(std::iter::empty()),
             TCell::TCell1(t, a) => Box::new(std::iter::once((t, a))),
-            TCell::TCellCap(v) => Box::new(v.iter()),
+            TCell::TCellCap(_, v) => Box::new(v.iter()),
             TCell::TCellN(v) => Box::new(v.iter()),
         }
     }

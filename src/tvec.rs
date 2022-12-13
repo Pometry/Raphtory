@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, ops::Range};
+use std::{collections::BTreeMap, fmt::Debug, ops::Range};
 
 use itertools::Itertools;
 use roaring::RoaringTreemap;
@@ -55,12 +55,12 @@ pub trait TVec<A> {
 }
 
 #[derive(Debug, Default, PartialEq)]
-pub struct DefaultTVec<A:Clone+Default> {
+pub struct DefaultTVec<A: Clone + Default + Debug + PartialEq> {
     vs: Vec<TCell<A>>,
     t_index: BTreeMap<u64, RoaringTreemap>,
 }
 
-impl<A:Clone+Default> DefaultTVec<A> {
+impl<A: Clone + Default + Debug + PartialEq> DefaultTVec<A> {
     pub fn new(t: u64, a: A) -> Self {
         let mut m = RoaringTreemap::new();
         m.insert(0u64);

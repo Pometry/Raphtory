@@ -51,9 +51,9 @@ fn main() {
             now.elapsed().as_secs()
         );
 
-        for (v, cell) in m.iter().sorted_by_cached_key(|(_, cell)| cell.len()){
-            println!("VERTEX: {} CELL: {:?}", v, cell.len())
-        }
+        // for (v, cell) in m.iter().sorted_by_cached_key(|(_, cell)| cell.len()){
+        //     println!("VERTEX: {} CELL: {:?}", v, cell.len())
+        // }
     } else {
         panic!("NO FILE ! NO GRAPH!")
     }
