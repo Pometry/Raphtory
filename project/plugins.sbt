@@ -8,7 +8,11 @@ addCompilerPlugin("com.olegpy"   %% "better-monadic-for" % "0.3.1")
 resolvers += "phdata-sbt-os-detector" at "https://repo.phdata.io/public/sbt-os-detector/maven/"
 classpathTypes += "maven-plugin"
 addSbtPlugin("io.phdata"          % "sbt-os-detector"    % "0.3.0-20220520.230852-1")
-addSbtPlugin("org.scoverage"      % "sbt-scoverage"      % "2.0.0")
+addSbtPlugin("org.scoverage"      % "sbt-scoverage"      % "2.0.6")
 addSbtPlugin("com.github.sbt"     % "sbt-release"        % "1.1.0")
 
 addDependencyTreePlugin
+
+ThisBuild / libraryDependencySchemes ++= Seq(
+  "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always
+)

@@ -66,160 +66,6 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   }
 
-  test("add Bob and Alice and make an edge") {
-    val cfg = new RaphtoryArrowPartition.RaphtoryArrowPartitionConfig()
-    cfg._propertySchema = ArrowSchema[VertexProp, EdgeProp]
-    cfg._arrowDir = Files.createTempDirectory("arrow-storage-test").toString
-    cfg._raphtoryPartitionId = 0
-    cfg._nRaphtoryPartitions = 1
-    cfg._nLocalEntityIdMaps = 128
-    cfg._localEntityIdMapSize = 64
-    cfg._vertexPartitionSize = 128
-    cfg._syncIDMap = true
-
-    val partition = new RaphtoryArrowPartition(cfg)
-
-    val emgr                         = partition.getEdgeMgr
-    val vmgr                         = partition.getVertexMgr
-    val globalIds                    = partition.getGlobalEntityIdStore
-    val localIds: LocalEntityIdStore = partition.getLocalEntityIdStore
-    val idsRepo                      = new LocalEntityRepo(localIds, 1, 0)
-
-    val partitionId = vmgr.getNewPartitionId
-
-    assertEquals(partitionId, 0)
-
-    val NAME_FIELD_ID = partition.getVertexFieldId("name")
-    val AGE_FIELD_ID  = partition.getVertexPropertyId("age")
-
-    val localId = vmgr.getNextFreeVertexId
-    assertEquals(localId, 0L)
-    var bobV    = vmgr.getVertex(localId)
-
-    assert(bobV == null)
-    bobV = partition.getVertex
-    bobV.reset(localId, bobGlobalId, true, System.currentTimeMillis())
-    bobV.getField(NAME_FIELD_ID).set(new java.lang.StringBuilder("Bob"))
-    bobV.getProperty(AGE_FIELD_ID).setHistory(true, System.currentTimeMillis()).set(45L)
-    vmgr.addVertex(bobV)
-    assertEquals(localIds.getLocalNodeId(bobGlobalId), 0L)
-
-    val localId2 = vmgr.getNextFreeVertexId
-    assertEquals(localId2, 1L)
-    var aliceV   = vmgr.getVertex(localId2)
-
-    assert(aliceV == null)
-    aliceV = partition.getVertex
-    aliceV.reset(localId2, aliceGlobalId, true, System.currentTimeMillis())
-    aliceV.getField(NAME_FIELD_ID).set(new java.lang.StringBuilder("Alice"))
-    aliceV.getProperty(AGE_FIELD_ID).setHistory(true, System.currentTimeMillis()).set(47L)
-    vmgr.addVertex(aliceV)
-    assertEquals(localIds.getLocalNodeId(bobGlobalId), localId)
-    assertEquals(localIds.getLocalNodeId(aliceGlobalId), localId2)
-
-    val vs: VertexIterator.AllVerticesIterator = partition.getNewAllVerticesIterator
-    vs.hasNext // this has to be called before getVertex
-    vs.next()
-    val bob: Vertex = vs.getVertex
-
-    assertEquals(bob.getField(NAME_FIELD_ID).getString.toString, "Bob")
-    assertEquals(bob.getProperty(AGE_FIELD_ID).getLong, 45L)
-
-    vs.hasNext // this has to be called before getVertex
-    vs.next()
-    val alice = vs.getVertex
-    assertEquals(alice.getField(NAME_FIELD_ID).getString.toString, "Alice")
-    assertEquals(alice.getProperty(AGE_FIELD_ID).getLong, 47L)
-
-    // add an edge between bob and alice
-    val timestamp = System.currentTimeMillis()
-    val eId       = emgr.getNextFreeEdgeId
-    val e         = partition.getEdge
-    e.init(eId, true, timestamp)
-    // figure out if the src node is local or global
-    val src       = idsRepo.resolve(bobGlobalId)
-    // figure out if the dst node is local or global
-    val dst       = idsRepo.resolve(aliceGlobalId)
-    e.resetEdgeData(src.id, dst.id, -1L, -1L, src.isGlobal, dst.isGlobal)
-    emgr.addEdge(e, -1L, -1L)
-    emgr.addHistory(e.getLocalId, timestamp, true, false)
-
-    if (src.isLocal) {
-      val p = vmgr.getPartition(vmgr.getPartitionId(src.id))
-
-      val prevListPtr = p.synchronized {
-        val ptr = p.addOutgoingEdgeToList(src.id, e.getLocalId, dst.id, dst.isGlobal)
-        p.addHistory(src.id, timestamp, true, false, e.getLocalId, true)
-        ptr
-      }
-
-      emgr.setOutgoingEdgePtr(e.getLocalId, prevListPtr)
-
-    }
-
-    if (dst.isLocal) {
-      val p           = vmgr.getPartition(vmgr.getPartitionId(dst.id))
-      val prevListPtr = p.synchronized {
-        val ptr = p.addIncomingEdgeToList(dst.id, e.getLocalId, src.id)
-        p.addHistory(dst.id, timestamp, true, false, e.getLocalId, false)
-        ptr
-      }
-
-      emgr.setIncomingEdgePtr(e.getLocalId, prevListPtr)
-    }
-
-    // we've got 2 nodes connected by an edge let's put that to good use
-
-    assertEquals(emgr.getTotalNumberOfEdges, 1L)
-
-    val eIter      = partition.getNewAllEdgesIterator
-    assert(eIter.hasNext)
-    val actualEdge = eIter.getEdge
-    assert(actualEdge != null)
-
-    assertEquals(actualEdge.getSrcVertex, bob.getLocalId)
-    assertEquals(actualEdge.getDstVertex, alice.getLocalId)
-
-    val vs2: VertexIterator.AllVerticesIterator = partition.getNewAllVerticesIterator
-    // this should be bob
-    vs2.hasNext
-    vs2.next()
-    val v1                                      = vs2.getVertex
-    assertEquals(v1.getField(NAME_FIELD_ID).getString.toString, "Bob")
-    assertEquals(v1.nOutgoingEdges(), 1)
-    assertEquals(v1.nIncomingEdges(), 0)
-
-    // bob's edges
-    val bobIterE = v1.getOutgoingEdges
-
-    assert(bobIterE.hasNext)
-    bobIterE.next()
-    val bobOutE = bobIterE.getEdge
-
-    assert(bobOutE != null)
-    assert(!bobIterE.hasNext) // idempotent
-    assertEquals(bobOutE.getDstVertex, alice.getLocalId)
-    assertEquals(bobOutE.getSrcVertex, bob.getLocalId)
-    assertEquals(bobOutE.isDstGlobal, false)
-
-    // this should be alice
-    vs2.hasNext
-    vs2.next()
-    val v2 = vs2.getVertex
-
-    assertEquals(v2.getField(NAME_FIELD_ID).getString.toString, "Alice")
-    assertEquals(v2.nOutgoingEdges(), 0)
-    assertEquals(v2.nIncomingEdges(), 1)
-
-    val aliceIterE = v2.getIncomingEdges
-    assert(aliceIterE.hasNext)
-
-    aliceIterE.next()
-    val aliceInE = aliceIterE.getEdge
-    assert(aliceInE != null)
-    assert(!aliceIterE.hasNext)
-  }
-
   test("add vertex with all types of properties and vertex type") {
     val par: ArrowPartition = mkPartition(1, 0, ArrowSchema[AllProps, EdgeProp])
     val timestamp           = System.currentTimeMillis()
@@ -416,20 +262,27 @@ class ArrowStorageSuite extends munit.FunSuite {
       )
 
     val bob  = par.vertices.head
-    val edge = bob.outgoingEdges.head
-
-    //assertEquals(par.vmgr.getTotalNumberOfVertices, 2L)
-    //assertEquals(par.emgr.getTotalNumberOfEdges, 1L)
+    val edge = bob
+    .outgoingEdges
+    .flatMap{e => e.history(timestamp, timestamp+1).toVector}
+    .toVector
 
     assertEquals(
-            edge.history(timestamp, timestamp + 1).toVector,
+            edge,
             Vector(
                     HistoricEvent(timestamp + 1, timestamp + 1),
                     HistoricEvent(timestamp, timestamp)
             )
     )
+
+
+    val edgeMAX = bob
+    .outgoingEdges
+    .flatMap{e => e.history(Long.MinValue, Long.MaxValue).toVector}
+    .toVector
+
     assertEquals(
-            edge.history(Long.MinValue, Long.MaxValue).toVector,
+            edgeMAX,
             Vector(
                     HistoricEvent(timestamp + 2, timestamp + 2),
                     HistoricEvent(timestamp + 1, timestamp + 1),
@@ -570,7 +423,7 @@ class ArrowStorageSuite extends munit.FunSuite {
     val actual  = VertexSchema.gen[VertexProp].nonVersionedVertexProps(None).map(f => f.name()).toList
     assertEquals(actual, List("name", "address_chain", "transaction_hash"))
     val actual2 = VertexSchema.gen[VertexProp].versionedVertexProps(None).map(f => f.name()).toList
-    assertEquals(actual2, List("age"))
+    assertEquals(actual2, List("age", "weight"))
   }
 
   test("can generate Edge schema from case class") {
