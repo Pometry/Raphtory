@@ -55,12 +55,12 @@ pub trait TVec<A> {
 }
 
 #[derive(Debug, Default, PartialEq)]
-pub struct DefaultTVec<A> {
+pub struct DefaultTVec<A:Clone+Default> {
     vs: Vec<TCell<A>>,
     t_index: BTreeMap<u64, RoaringTreemap>,
 }
 
-impl<A> DefaultTVec<A> {
+impl<A:Clone+Default> DefaultTVec<A> {
     pub fn new(t: u64, a: A) -> Self {
         let mut m = RoaringTreemap::new();
         m.insert(0u64);
@@ -69,10 +69,8 @@ impl<A> DefaultTVec<A> {
             t_index: BTreeMap::from_iter(vec![(t, m)]),
         }
     }
-}
 
-impl<A> TVec<A> for DefaultTVec<A> {
-    fn push(&mut self, t: u64, a: A) {
+    pub fn push(&mut self, t: u64, a: A) {
         let i = self.vs.len();
         // select a cell to insert the timed value at
         let mut cell = TCell::empty();
@@ -92,7 +90,7 @@ impl<A> TVec<A> for DefaultTVec<A> {
             });
     }
 
-    fn insert(&mut self, t: u64, a: A, i: usize) {
+    pub fn insert(&mut self, t: u64, a: A, i: usize) {
         let _ = &self.vs[i].set(t, a);
         // mark the index with the new time
         //
@@ -108,20 +106,11 @@ impl<A> TVec<A> for DefaultTVec<A> {
             });
     }
 
-    fn iter(&self) -> Box<dyn Iterator<Item = &A> + '_> {
+    pub fn iter(&self) -> Box<dyn Iterator<Item = &A> + '_> {
         Box::new(self.vs.iter().flat_map(|cell| cell.iter()))
     }
 
-    fn iter_window(&self, r: Range<u64>) -> Box<dyn Iterator<Item = &A> + '_> {
-        // let iter = self
-        //     .t_index
-        //     .range(r.clone())
-        //     .map(|(_, vs)| vs)
-        //     .fold(RoaringTreemap::default(), |mut into, rtm| { into.extend(rtm); into }).iter() // this can be fixed if we create a custom iterator that owns the RoaringTreeMap
-        //     .flat_map(move |id| {
-        //         let i: usize = id.try_into().unwrap();
-        //         self.vs[i].iter_window(r.clone()) // this might be stupid
-        //     });
+    pub fn iter_window(&self, r: Range<u64>) -> Box<dyn Iterator<Item = &A> + '_> {
         let iter = self
             .t_index
             .range(r.clone())
@@ -134,7 +123,7 @@ impl<A> TVec<A> for DefaultTVec<A> {
         Box::new(iter)
     }
 
-    fn iter_window_t(&self, r: Range<u64>) -> Box<dyn Iterator<Item = (&u64, &A)> + '_> {
+    pub fn iter_window_t(&self, r: Range<u64>) -> Box<dyn Iterator<Item = (&u64, &A)> + '_> {
         let iter = self
             .t_index
             .range(r.clone())
