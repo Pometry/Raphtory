@@ -7,8 +7,6 @@ from functools import cached_property
 
 
 class LazyStr(UserString, str):
-    from pyraphtory.interop import logger
-
     def __new__(cls, *args, **kwargs):
         # we need to extend str so help works but don't actually want to create the immutable str here
         self = super().__new__(cls, "")
@@ -22,12 +20,10 @@ class LazyStr(UserString, str):
     @cached_property
     def data(self):
         value = self._initial()
-        self.logger.debug("lazy string evaluated: {}", value)
         return value
 
 
 class LazyAnnotations(UserDict, dict):
-    from pyraphtory.interop import logger
     # UserDict here is necessary such that dict(LazyAnnotations) actually calls the methods
     # instead of using fast dict copy
     def __init__(self, initials: dict):
@@ -35,7 +31,6 @@ class LazyAnnotations(UserDict, dict):
         self.lazy = set(initials.keys())
 
     def _unlazyfy(self):
-        self.logger("unlazified annotations")
         for key in self.lazy:
             self.__getitem__(key)
 
@@ -49,7 +44,6 @@ class LazyAnnotations(UserDict, dict):
 
     def __getitem__(self, item):
         if item in self.lazy:
-            self.logger("unlazified item {}", item)
             self.lazy.remove(item)
             self[item] = clean_type(super().__getitem__(item))
         return super().__getitem__(item)
