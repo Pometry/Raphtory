@@ -4,22 +4,22 @@ from collections import UserString
 from functools import cached_property
 
 
-class LazyDocstr(UserString, str):
+class LazyStr(UserString, str):
     def __new__(cls, *args, **kwargs):
         # we need to extend str so help works but don't actually want to create the immutable str here
         self = super().__new__(cls, "")
         return self
 
-    def __init__(self, seq=None, raw=None):
-        self._raw = raw
+    def __init__(self, seq=None, initial=None):
+        self._initial = initial
         if seq is not None:
             super().__init__(seq)
 
     @cached_property
     def data(self):
-        if self._raw is not None:
-            parsed = convert_docstring(self._raw)
-            return parsed
+        print("lazy string evaluated")
+        value = self._initial()
+        return value
 
 
 type_map = {"String": "str",
