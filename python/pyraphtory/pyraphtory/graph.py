@@ -50,27 +50,32 @@ class PropertyMergeStrategy(ScalaClassProxy):
 class Graph(GenericScalaProxy):
     _classname = "com.raphtory.api.input.Graph"
 
-    def add_vertex(self, update_time, src_id, properties=(), vertex_type="", secondary_index=None):
+    def add_vertex(self, update_time, src_id, properties=(), vertex_type="", secondary_index=None,time_format="yyyy-MM-dd HH:mm:ss.SSS"):
         if secondary_index is None:
             secondary_index = self.index()
+        time = update_time
+        if isinstance(update_time, str):
+            time = self.parse_datetime(time,time_format)
 
         if isinstance(src_id, str):
             properties += (ImmutableString("name", src_id),)  # comma makes this a tuple and is apparently the fastest way to do things
-            super().add_vertex(update_time, self.assign_id(src_id), Properties(*properties), Type(vertex_type),
-                               secondary_index)
+            super().add_vertex(time, self.assign_id(src_id), Properties(*properties), Type(vertex_type),secondary_index)
         else:
-            super().add_vertex(update_time, src_id, Properties(*properties), Type(vertex_type), secondary_index)
+            super().add_vertex(time, src_id, Properties(*properties), Type(vertex_type), secondary_index)
 
-    def add_edge(self, update_time, src_id, dst_id, properties=(), edge_type="", secondary_index=None):
+    def add_edge(self, update_time, src_id, dst_id, properties=(), edge_type="", secondary_index=None,time_format="yyyy-MM-dd HH:mm:ss.SSS"):
         if secondary_index is None:
             secondary_index = self.index()
+        time = update_time
+        if isinstance(update_time, str):
+            time = self.parse_datetime(time,time_format)
         source = src_id
         destination = dst_id
         if isinstance(src_id, str):
             source = self.assign_id(src_id)
         if isinstance(dst_id, str):
             destination = self.assign_id(dst_id)
-        super().add_edge(update_time, source, destination, Properties(*properties), Type(edge_type), secondary_index)
+        super().add_edge(time, source, destination, Properties(*properties), Type(edge_type), secondary_index)
 
 
 @register(name="TemporalGraph")
