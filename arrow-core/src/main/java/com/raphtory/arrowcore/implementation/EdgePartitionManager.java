@@ -116,7 +116,7 @@ public class EdgePartitionManager {
     public long getTotalNumberOfEdges() {
         long nEdges = 0;
 
-        for (int i=0; i<_maxPartitionId; ++i) {
+        for (int i=0; i<=_maxPartitionId; ++i) {
             EdgePartition p = getPartition(i);
             if (p!=null) {
                 nEdges += p.getEdgesCount();
@@ -155,7 +155,7 @@ public class EdgePartitionManager {
             }
         }
 
-        _lastFreePartitionId = _maxPartitionId+1;
+        _lastFreePartitionId = ++_maxPartitionId;
         return (long)_lastFreePartitionId * (long)PARTITION_SIZE;
     }
 

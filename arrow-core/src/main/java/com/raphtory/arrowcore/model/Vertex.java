@@ -252,6 +252,27 @@ public class Vertex extends Entity {
 
 
     /**
+     * Returns an edge iterator configured to iterate over all
+     * edges having a dst equal to this vertex and a src
+     * equal to the specified src-vertex-id
+     *
+     * @param srcVertexId the dst vertex id in question
+     * @param srcIsGlobal true if the dest vertex id is global, false otherwise
+     *
+     * @return the configured edge iterator
+     */
+    public EdgeIterator findAllIncomingEdges(long srcVertexId, boolean srcIsGlobal) {
+        if (_vertexIterator == null) {
+            _vertexIterator = _rap.getNewAllVerticesIterator();
+        }
+
+        _vertexIterator.reset(_localId);
+
+        return _vertexIterator.findAllIncomingEdges(srcVertexId, srcIsGlobal);
+    }
+
+
+    /**
      * @return A vertex history iterator, configured for the entire history of this vertex
      */
     public VertexHistoryIterator getVertexHistory() {

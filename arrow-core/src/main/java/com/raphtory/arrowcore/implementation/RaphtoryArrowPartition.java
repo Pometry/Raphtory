@@ -819,8 +819,8 @@ public class RaphtoryArrowPartition {
     }
 
 
-    public EdgeHistoryIterator.WindowedEdgeHistoryIterator getNewEdgeHistoryIterator(long vertexId, long minTime, long maxTime) {
-        return new EdgeHistoryIterator.WindowedEdgeHistoryIterator(_emgr, vertexId, minTime, maxTime);
+    public EdgeHistoryIterator.WindowedEdgeHistoryIterator getNewEdgeHistoryIterator(long edgeId, long minTime, long maxTime) {
+        return new EdgeHistoryIterator.WindowedEdgeHistoryIterator(_emgr, edgeId, minTime, maxTime);
     }
 
 

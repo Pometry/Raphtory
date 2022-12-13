@@ -227,6 +227,12 @@ public abstract class EdgeIterator {
 
 
     /**
+     * @return the current edge id
+     */
+    public long getEdgeId() { return _edgeId; }
+
+
+    /**
      * Retrieves the current edge as a POJO Edge. The ref-count will be 1.
      *
      * @return the POJO Edge
@@ -255,17 +261,21 @@ public abstract class EdgeIterator {
     /**
      * @return true if the src-vertex is local, false otherwise
      */
-    public boolean isSrcVertexLocal() {
-        return _edgePartition.isSrcVertexLocal(_edgeRowId);
-    }
+    public boolean isSrcVertexLocal() {return _edgePartition.isSrcVertexLocal(_edgeRowId); }
+    /**
+     * @return true if the src-vertex is global, false otherwise
+     */
+    public boolean isSrcVertexGlobal() {return _edgePartition.isSrcVertexGlobal(_edgeRowId); }
 
 
     /**
      * @return true if the dst-vertex is local, false otherwise
      */
-    public boolean isDstVertexLocal() {
-        return _edgePartition.isDstVertexLocal(_edgeRowId);
-    }
+    public boolean isDstVertexLocal() {return _edgePartition.isDstVertexLocal(_edgeRowId); }
+    /**
+     * @return true if the dst-vertex is global, false otherwise
+     */
+    public boolean isDstVertexGlobal() { return _edgePartition.isDstVertexGlobal(_edgeRowId); }
 
 
     /**
