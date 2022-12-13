@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from keyword import iskeyword
 from pyraphtory._docstring import convert_docstring
 from collections import UserString
@@ -47,7 +49,7 @@ def clean_type(scala_type):
     return type_name
 
 
-def build_method(name, method, jpype=False):
+def build_method(name: str, method, jpype: bool, globals: dict, locals: dict):
     params = [clean_identifier(name) for name in method.parameters()]
     types = [clean_type(name) for name in method.types()]
     name = clean_identifier(name)
@@ -85,4 +87,8 @@ def build_method(name, method, jpype=False):
         lines.append(f"    {varparam} = make_varargs(to_jvm(list({varparam})))")
         params.append(varparam)
     lines.append(f"    return to_python(getattr(self._jvm_object, '{java_name}')({', '.join(p for p in params + implicits)}))")
-    return "\n".join(lines)
+    exec("\n".join(lines), globals, locals)
+    py_method = locals[name]
+    docstr = method.docs()
+    py_method.__doc__ = LazyStr(initial=lambda: convert_docstring(docstr))
+    return py_method

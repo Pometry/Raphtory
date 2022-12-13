@@ -361,12 +361,11 @@ class ScalaProxyBase(object):
     def _add_method(cls, name, method_array):
         name = _codegen.clean_identifier(name)
         output = {}
+        methods = []
         if len(method_array) > 1:
             for i, method in enumerate(sorted(method_array, key=lambda m: m.n())):
                 try:
-                    exec(_codegen.build_method(f"{name}{i}", method, _jpype), globals(), output)
-                    docstr = str(method.docs())
-                    output[f"{name}{i}"].__doc__ = _codegen.LazyStr(initial=lambda: _codegen.convert_docstring(docstr))
+                    methods.append(_codegen.build_method(f"{name}{i}", method, _jpype, globals(), output))
                 except Exception as e:
                     traceback.print_exc()
                     raise e
@@ -375,13 +374,10 @@ class ScalaProxyBase(object):
         else:
             method = method_array[0]
             try:
-                exec(_codegen.build_method(name, method, _jpype), globals(), output)
-                docstr = str(method.docs())
-                output[name].__doc__ = _codegen.LazyStr(initial=lambda: _codegen.convert_docstring(docstr))
+                method = _codegen.build_method(name, method, _jpype, globals(), output)
             except Exception as e:
                 traceback.print_exc()
                 raise e
-            method = output.pop(name)
         if any(m.implicits() for m in method_array):
             method = WithImplicits(method)
         setattr(cls, name, InstanceOnlyMethod(method))
