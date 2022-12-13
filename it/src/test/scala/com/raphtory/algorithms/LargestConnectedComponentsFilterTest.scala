@@ -14,5 +14,5 @@ class LargestConnectedComponentsFilterTest extends BaseCorrectnessTest {
     )
   }
 
-  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("ConnectedComponents/twoComponents.csv"))
+  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("/ConnectedComponents/twoComponents.csv"))
 }

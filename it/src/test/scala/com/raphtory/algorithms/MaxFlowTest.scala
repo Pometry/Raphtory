@@ -10,7 +10,7 @@ class MaxFlowTest extends BaseCorrectnessTest {
   test("test on line graph") {
     correctnessTest(
             TestQuery(MaxFlow[Long]("1", "3"), 2),
-            Source(ResourceOrFileSpout("MaxFlow/minimalTest.csv"), WeightedGraphBuilder()),
+            Source(ResourceOrFileSpout("/MaxFlow/minimalTest.csv"), WeightedGraphBuilder()),
             "MaxFlow/minimalResult.csv"
     )
   }
@@ -22,5 +22,5 @@ class MaxFlowTest extends BaseCorrectnessTest {
     )
   }
 
-  override def setSource(): Source = Source(ResourceOrFileSpout("MaxFlow/bottleneck.csv"), WeightedGraphBuilder())
+  override def setSource(): Source = Source(ResourceOrFileSpout("/MaxFlow/bottleneck.csv"), WeightedGraphBuilder())
 }

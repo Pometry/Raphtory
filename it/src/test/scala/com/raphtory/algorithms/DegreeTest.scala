@@ -23,5 +23,5 @@ class DegreeTest extends BaseCorrectnessTest {
     correctnessTest(TestQuery(Degree(), 6), "Degree/unweightedResult.csv")
   }
 
-  override def setSource(): Source = Source(ResourceOrFileSpout("Degree/degreeTest.csv"), WeightedGraphBuilder())
+  override def setSource(): Source = Source(ResourceOrFileSpout("/Degree/degreeTest.csv"), WeightedGraphBuilder())
 }

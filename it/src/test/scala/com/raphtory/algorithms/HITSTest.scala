@@ -14,5 +14,5 @@ class HITSTest extends FPCorrectnessTest(Set(2, 3), tol = 1e-4) {
     )
   }
 
-  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("HITS/inHITS.csv"))
+  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("/HITS/inHITS.csv"))
 }

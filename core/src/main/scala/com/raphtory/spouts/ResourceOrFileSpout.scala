@@ -1,6 +1,7 @@
 package com.raphtory.spouts
 
-import com.raphtory.api.input.{Spout, SpoutInstance}
+import com.raphtory.api.input.Spout
+import com.raphtory.api.input.SpoutInstance
 
 import scala.io.Source
 import scala.util.Try
@@ -11,7 +12,10 @@ case class ResourceOrFileSpout(resource: String) extends Spout[String] {
 
 class ResourceOrFileSpoutSpoutInstance(resource: String) extends SpoutInstance[String] {
 
-  private val source = Try{Source.fromResource(resource)}.orElse(Try{Source.fromFile(resource)}).get
+  private val source = Try(Source.fromResource(resource))
+    .orElse(Try(Source.fromResource(resource.replaceFirst("/", ""))))
+    .orElse(Try(Source.fromFile(resource)))
+    .get
   private val lines  = source.getLines()
 
   override def hasNext: Boolean = lines.hasNext

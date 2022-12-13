@@ -12,5 +12,5 @@ class AdjPlusTest extends BaseCorrectnessTest {
     correctnessTest(TestQuery(AdjPlus, 23), "AdjPlus/adjPlusResults.csv")
   }
 
-  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("MotifCount/motiftest.csv"))
+  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("/MotifCount/motiftest.csv"))
 }

@@ -16,5 +16,5 @@ class WattsTest extends BaseCorrectnessTest {
             "WattsCascade/wattsResults.csv"
     )
   }
-  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("MotifCount/motiftest.csv"))
+  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("/MotifCount/motiftest.csv"))
 }

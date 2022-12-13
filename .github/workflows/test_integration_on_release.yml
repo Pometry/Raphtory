@@ -28,8 +28,8 @@ jobs:
       - name: Run sbt Integration
         run: |
           export RAPHTORY_CORE_LOG=ERROR 
-          export IT_OUTPUT_PATH="it/target/docker"
-          sudo -E sbt "it/it:testOnly *.algorithms.*"
+          expor IT_OUTPUT_PATH=./it/target/scala-2.13/test-classes
+          sudo -E sbt "it/testOnly *.algorithms.*"
       - name: Stop Docker compose
         if: always()
         run: |

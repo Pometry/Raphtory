@@ -14,5 +14,5 @@ class ShortestPathDistanceTest extends BaseCorrectnessTest {
     )
   }
 
-  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("MotifCount/motiftest.csv"))
+  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("/MotifCount/motiftest.csv"))
 }

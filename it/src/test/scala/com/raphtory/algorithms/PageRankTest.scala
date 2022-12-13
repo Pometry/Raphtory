@@ -11,5 +11,5 @@ class PageRankTest extends FPCorrectnessTest(tol = 1e-4) {
     correctnessTest(TestQuery(PageRank(0.85, 1000), 23), "PageRank/pagerankresult.csv")
   }
 
-  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("MotifCount/motiftest.csv"))
+  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("/MotifCount/motiftest.csv"))
 }

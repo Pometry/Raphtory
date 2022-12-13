@@ -47,5 +47,5 @@ class VertexFilterTest extends BaseCorrectnessTest {
     )
   }
 
-  override def setSource() = CSVEdgeListSource(ResourceOrFileSpout("MotifCount/motiftest.csv"))
+  override def setSource(): CSVEdgeListSource = CSVEdgeListSource(ResourceOrFileSpout("/MotifCount/motiftest.csv"))
 }

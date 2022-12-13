@@ -11,5 +11,5 @@ class AssortativityTest extends FPCorrectnessTest(Set(0, 1), tol = 1e-4) {
     correctnessTest(TestQuery(Assortativity(), 1), "Assortativity/AssortativityResult.csv")
   }
 
-  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("Assortativity/AssortativityTest.csv"))
+  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("/Assortativity/AssortativityTest.csv"))
 }

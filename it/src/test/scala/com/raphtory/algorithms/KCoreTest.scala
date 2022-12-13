@@ -15,5 +15,5 @@ class KCoreTest extends BaseCorrectnessTest {
     )
   }
 
-  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("KCore/kCore3.csv"))
+  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("/KCore/kCore3.csv"))
 }

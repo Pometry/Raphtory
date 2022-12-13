@@ -11,7 +11,7 @@ class SquareCountTest extends BaseCorrectnessTest {
   test("test PQ square") {
     correctnessTest(
             TestQuery(SquareCount, 4),
-            "SquareCount/squarePQ.csv",
+            "/SquareCount/squarePQ.csv",
             "SquareCount/singleSquareResult.csv"
     )
   }
@@ -19,7 +19,7 @@ class SquareCountTest extends BaseCorrectnessTest {
   test("test PR square") {
     correctnessTest(
             TestQuery(SquareCount, 4),
-            "SquareCount/squarePR.csv",
+            "/SquareCount/squarePR.csv",
             "SquareCount/singleSquareResult.csv"
     )
   }
@@ -27,7 +27,7 @@ class SquareCountTest extends BaseCorrectnessTest {
   test("test QR square") {
     correctnessTest(
             TestQuery(SquareCount, 4),
-            "SquareCount/squareQR.csv",
+            "/SquareCount/squareQR.csv",
             "SquareCount/singleSquareResult.csv"
     )
   }
@@ -39,5 +39,5 @@ class SquareCountTest extends BaseCorrectnessTest {
     )
   }
 
-  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("SquareCount/squareTest.csv"))
+  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("/SquareCount/squareTest.csv"))
 }
