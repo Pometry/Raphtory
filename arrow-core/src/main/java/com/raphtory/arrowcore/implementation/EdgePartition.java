@@ -693,6 +693,15 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
     protected boolean isSrcVertexLocal(int row) {
         return _store._srcIsGlobals.get(row) == 0;
     }
+    /**
+     * Returns true if the src vertex id is a local vertex id
+     *
+     * @param row the row in question
+     *
+     * @return true if the src-vertex-id is a local-id, false otherwise
+     */
+    protected boolean isSrcVertexGlobal(int row) { return _store._srcIsGlobals.get(row)!=0;
+}
 
 
     /**
@@ -705,6 +714,15 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
     protected boolean isDstVertexLocal(int row) {
         return _store._dstIsGlobals.get(row) == 0;
     }
+    /**
+     * Returns true if the dst vertex id is a local vertex id
+     *
+     * @param row the row in question
+     *
+     * @return true if the dst-vertex-id is a local-id, false otherwise
+     */
+    protected boolean isDstVertexGlobal(int row) { return _store._dstIsGlobals.get(row) != 0; }
+
 
 
     /**

@@ -176,10 +176,10 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   ): Unit = {
     logger.trace(s"Adding edge: $srcId -> $dstId to partition: $partition @ t:$msgTime")
     updateAdders(msgTime) // add source vertex
-    val src = addVertexInternal(srcId, msgTime, Properties()) // handle dst
+    val src = addVertexInternal(srcId, msgTime, Properties()) // handle src
     val dst = idsRepo.resolve(dstId)
 
-    val matchingEdges = src.findAllOutgoingEdges(dstId, dst.isLocal)
+    val matchingEdges = src.findAllOutgoingEdges(dst.id, false)
     if (matchingEdges.hasNext) {
       matchingEdges.next()
       val foundEdge = matchingEdges.getEdge

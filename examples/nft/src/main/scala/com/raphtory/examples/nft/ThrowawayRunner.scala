@@ -10,11 +10,13 @@ import com.raphtory.spouts.FileSpout
 object ThrowawayRunner extends RaphtoryApp.ArrowLocal[NoProps, Price] {
 
 //  val path    = "/pometry/wip/alphabay_partitions_10pc"
-  val path    = "/pometry/wip/alphabay_partitions"
-//  val path    = "/home/jatinder/projects/Pometry/arrow-core/alphabay_sorted.csv.gz"
+  //val path    = "/pometry/wip/alphabay_partitions"
+  val path    = "/home/jatinder/projects/Pometry/arrow-core/alphabay_sorted.csv.gz"
   val builder = new AlphaBayBuilder()
 
-  override def run(args: Array[String], ctx: RaphtoryContext): Unit =
+  override def run(args: Array[String], ctx: RaphtoryContext): Unit = {
+    for (i <- 0 until 60) { Thread.sleep(1000L) }
+
     ctx.runWithNewGraph() { graph =>
       val source = Source(FileSpout(path = path), builder)
       graph.addDynamicPath("com.raphtory.crypto")
@@ -25,6 +27,7 @@ object ThrowawayRunner extends RaphtoryApp.ArrowLocal[NoProps, Price] {
         .writeTo(FileSink("/tmp/raphtory"))
         .waitForJob()
     }
+  }
 }
 
 case class NoProps()

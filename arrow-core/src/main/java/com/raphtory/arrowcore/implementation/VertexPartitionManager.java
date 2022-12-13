@@ -146,7 +146,7 @@ public class VertexPartitionManager {
             }
         }
 
-        _lastFreePartitionId = _maxPartitionId+1;
+        _lastFreePartitionId = ++_maxPartitionId;
         return (long)_lastFreePartitionId * (long)PARTITION_SIZE;
     }
 
