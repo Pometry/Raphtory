@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from keyword import iskeyword
 from pyraphtory._docstring import convert_docstring
-from collections import UserString
+from collections import UserString, UserDict
 from functools import cached_property
 
 
 class LazyStr(UserString, str):
+    from pyraphtory.interop import logger
+
     def __new__(cls, *args, **kwargs):
         # we need to extend str so help works but don't actually want to create the immutable str here
         self = super().__new__(cls, "")
@@ -19,9 +21,42 @@ class LazyStr(UserString, str):
 
     @cached_property
     def data(self):
-        print("lazy string evaluated")
         value = self._initial()
+        self.logger.debug("lazy string evaluated: {}", value)
         return value
+
+
+class LazyAnnotations(UserDict, dict):
+    from pyraphtory.interop import logger
+    # UserDict here is necessary such that dict(LazyAnnotations) actually calls the methods
+    # instead of using fast dict copy
+    def __init__(self, initials: dict):
+        super().__init__(initials)
+        self.lazy = set(initials.keys())
+
+    def _unlazyfy(self):
+        self.logger("unlazified annotations")
+        for key in self.lazy:
+            self.__getitem__(key)
+
+    def items(self):
+        self._unlazyfy()
+        return super().items()
+
+    def values(self):
+        self._unlazyfy()
+        return super().values()
+
+    def __getitem__(self, item):
+        if item in self.lazy:
+            self.logger("unlazified item {}", item)
+            self.lazy.remove(item)
+            self[item] = clean_type(super().__getitem__(item))
+        return super().__getitem__(item)
+
+    def add_lazy_item(self, key, lazy_value):
+        self[key] = lazy_value
+        self.lazy.add(key)
 
 
 type_map = {"String": "str",
@@ -43,15 +78,14 @@ def clean_identifier(name: str):
 
 
 def clean_type(scala_type):
-    name = scala_type.toString()
     from pyraphtory.interop import get_type_repr
-    type_name = get_type_repr(scala_type)
+    type_name = str(get_type_repr(scala_type))
     return type_name
 
 
 def build_method(name: str, method, jpype: bool, globals: dict, locals: dict):
     params = [clean_identifier(name) for name in method.parameters()]
-    types = [clean_type(name) for name in method.types()]
+    types = list(method.types())
     name = clean_identifier(name)
     java_name = clean_identifier(method.name()) if jpype else method.name()
     implicits = [clean_identifier(name) for name in method.implicits()]
@@ -63,12 +97,12 @@ def build_method(name: str, method, jpype: bool, globals: dict, locals: dict):
     required = max(defaults.keys(), default=nargs)
 
     args = ["self"]
-    args.extend(f'{p}: {t} = DefaultValue("{defaults[i]}")' if i in defaults
-                else (f"{p}: {t} = None" if i > required
-                      else f"{p}: {t}")
-                for i, (p, t) in enumerate(zip(params, types)))
+    args.extend(f'{p} = DefaultValue("{defaults[i]}")' if i in defaults
+                else (f"{p} = None" if i > required
+                      else f"{p}")
+                for i, p in enumerate(params))
     if varargs:
-        args.append(f"*{varparam}: {types[-1]}")
+        args.append(f"*{varparam}")
     if implicits:
         args.append("_implicits=()")
     args = ", ".join(args)
@@ -91,4 +125,7 @@ def build_method(name: str, method, jpype: bool, globals: dict, locals: dict):
     py_method = locals[name]
     docstr = method.docs()
     py_method.__doc__ = LazyStr(initial=lambda: convert_docstring(docstr))
+    py_method.__annotations__ = LazyAnnotations({n: t for n, t in zip(params, types)})
+    if varargs:
+        py_method.__annotations__.add_lazy_item(varparam, types[-1])
     return py_method

@@ -480,8 +480,8 @@ class InstanceOnlyMethod(object):
     def __init__(self, method):
         self.__func__ = method
         self.__name__ = method.__name__
-        self.__signature__ = inspect.signature(method)
-        self.__doc__ = f"Instance only method {self.__name__}{self.__signature__}"
+        # self.__signature__ = inspect.signature(method)
+        # self.__doc__ = f"Instance only method {self.__name__}{self.__signature__}"
 
     def __set_name__(self, owner, name):
         self.__name__ = name
@@ -543,8 +543,11 @@ class WithImplicits:
         self.__name__ = method.__name__
         self._method = method
         self._implicits = []
-        self.__signature__ = inspect.signature(method)
         self.__doc__ = method.__doc__
+
+    @cached_property
+    def __signature__(self):
+        return inspect.signature(self._method)
 
     def __call__(self, *args, **kwargs):
         return self._method(*args, **kwargs, _implicits=self._implicits)
