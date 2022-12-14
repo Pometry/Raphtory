@@ -5,7 +5,6 @@ from requests.adapters import HTTPAdapter, Retry
 import platform
 import shutil
 import os.path
-import pathlib
 import hashlib
 import tempfile
 import subprocess
@@ -18,6 +17,10 @@ from pathlib import Path
 
 IVY_LIB = '/lib'
 PYRAPHTORY_DATA = '/pyraphtory_jvm/data'
+
+build_folder = Path(__file__).resolve().parent
+
+data_folder = build_folder / "data"
 
 ivy_folder = os.path.dirname(os.path.realpath(__file__)) + '/data/ivys/'
 build_file = os.path.dirname(os.path.realpath(__file__)) + '/build.xml'
@@ -154,6 +157,7 @@ def safe_download_file(download_dir, expected_sha, url):
 
 
 def get_and_run_ivy(JAVA_BIN, download_dir=os.path.dirname(os.path.realpath(__file__))):
+    download_dir = str(download_dir)
     file_location = safe_download_file(str(download_dir), IVY_BIN[CHECKSUM_SHA256], IVY_BIN[LINK])
     shutil.unpack_archive(file_location, extract_dir=download_dir)
     working_dir = os.getcwd()
@@ -165,7 +169,7 @@ def get_and_run_ivy(JAVA_BIN, download_dir=os.path.dirname(os.path.realpath(__fi
     for fname in files:
         if fname.endswith('.xml'):
             subprocess.call(
-                [JAVA_BIN, "-jar", download_dir + "/apache-ivy-2.5.0/ivy-2.5.0.jar", "-ivy",
+                [JAVA_BIN, "-jar", str(download_dir) + "/apache-ivy-2.5.0/ivy-2.5.0.jar", "-ivy",
                  str(ivy_folder) + "/" + fname, "-retrieve", "."])
     os.chdir(working_dir)
     # Clean up and delete downloaded ivy files
