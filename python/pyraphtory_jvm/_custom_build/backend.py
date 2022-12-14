@@ -14,7 +14,7 @@ platform = next(tags.sys_tags()).platform
 
 def build_wheel(wheel_directory, config_settings: dict=None, metadata_directory=None):
     print(sys.path)
-    jre.check_dl_java_ivy(download_dir=jre.build_folder)
+    jre.check_dl_java_ivy(download_dir=str(jre.build_folder))
     # make wheel platform-specific as the jre downloaded will be different
     if config_settings is not None:
         config_settings.setdefault("--global-option", []).extend(["--plat-name", platform])
