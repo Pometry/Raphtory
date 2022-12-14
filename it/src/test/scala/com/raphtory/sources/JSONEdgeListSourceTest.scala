@@ -7,8 +7,7 @@ import com.raphtory.spouts.FileSpout
 
 class JSONEdgeListSourceTest extends BaseCorrectnessTest {
 
-  val currentDirectory = new java.io.File(".").getCanonicalPath
-  val path             = currentDirectory + "it/src/test/resources/SourceTest/jsontestdata.json"
+  val path = "it/src/test/resources/SourceTest/jsontestdata.json"
 
   override def setSource() =
     JSONEdgeListSource(FileSpout(path), sourceKey = "name", targetKey = "favourite-game", timeKey = "date")
