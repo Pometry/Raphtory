@@ -480,8 +480,6 @@ class InstanceOnlyMethod(object):
     def __init__(self, method):
         self.__func__ = method
         self.__name__ = method.__name__
-        # self.__signature__ = inspect.signature(method)
-        # self.__doc__ = f"Instance only method {self.__name__}{self.__signature__}"
 
     def __set_name__(self, owner, name):
         self.__name__ = name
