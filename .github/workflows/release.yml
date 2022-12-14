@@ -8,8 +8,6 @@ jobs:
   test-scala-python-workflow:
     uses: ./.github/workflows/test_scala_python_workflow.yml
     secrets: inherit
-  integration-test-workflow:
-    uses: ./.github/workflows/test_integration_on_release.yml
   publish-builds-to-github-maven:
     needs: test-scala-python-workflow
     uses: ./.github/workflows/publish_builds.yml
