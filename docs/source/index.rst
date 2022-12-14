@@ -64,3 +64,4 @@ Alternatively, hit next and lets get Raphtory :doc:`installed <Install/python/py
    :caption: Deployment
 
    Deployment/server.md
+   Deployment/configuration.md
