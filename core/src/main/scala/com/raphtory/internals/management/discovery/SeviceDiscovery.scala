@@ -1,4 +1,4 @@
-package com.raphtory.internals.components.registries
+package com.raphtory.internals.management.discovery
 
 import cats.effect.Async
 import com.fasterxml.jackson.databind.ObjectMapper

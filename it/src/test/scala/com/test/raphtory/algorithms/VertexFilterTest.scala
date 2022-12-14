@@ -1,11 +1,10 @@
 package com.test.raphtory.algorithms
 
 import com.raphtory.algorithms.filters.VertexFilter
-import com.raphtory.api.analysis.visitor.Vertex
-import com.raphtory.{BaseCorrectnessTest, TestQuery, TestUtils}
 import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceOrFileSpout
-import com.test.raphtory.{AllNeighbours, ShitVertexFilter}
+import com.raphtory.{BaseCorrectnessTest, TestQuery}
+import com.test.raphtory.AllNeighbours
 
 import scala.io.Source
 import scala.util.Using

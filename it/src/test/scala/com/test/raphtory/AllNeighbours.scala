@@ -14,9 +14,3 @@ object AllNeighbours extends Generic {
       vertex.edges.map(e => Row(vertex.name(), e.src, e.dst))
     }
 }
-
-case class ShitVertexFilter(f: Vertex => Boolean) extends Generic with Serializable{
-
-  override def apply(graph: GraphPerspective): graph.Graph =
-    graph.vertexFilter(f)
-}
