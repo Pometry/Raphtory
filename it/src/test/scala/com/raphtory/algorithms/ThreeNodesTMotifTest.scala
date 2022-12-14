@@ -1,7 +1,7 @@
 package com.raphtory.algorithms
 
 import com.raphtory.api.input.Source
-import com.raphtory.spouts.ResourceSpout
+import com.raphtory.spouts.{ResourceOrFileSpout, ResourceSpout}
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.TestQuery
 import com.raphtory.algorithms.temporal.motif.{LocalThreeNodeMotifs, ThreeNodeMotifs}
@@ -21,5 +21,5 @@ class ThreeNodesTMotifTest extends BaseCorrectnessTest {
     )
   }
 
-  def setSource(): Source = CSVEdgeListSource(ResourceSpout("MotifCount/motiftest.csv"))
+  def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("/MotifCount/motiftest.csv"))
 }
