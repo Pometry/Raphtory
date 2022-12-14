@@ -18,15 +18,18 @@ from copy import copy
 from textwrap import indent
 from pyraphtory import _codegen
 from jpype import JObject, JBoolean, JByte, JShort, JInt, JLong, JFloat, JDouble, JString
-from pyraphtory._py4jgateway import Py4JConnection
 
 _wrapper_lock = Lock()
 _jpype = False
 
+
 class NoCache:
     def __setitem__(self, key, value):
         pass
+
+
 _globals = NoCache()
+
 
 def no_wrapper(jvm_object):
     return jvm_object
@@ -50,6 +53,7 @@ def check_raphtory_logging_env():
     if log_level is None:
         os.environ["RAPHTORY_CORE_LOG"] = "ERROR"
 
+
 # stay sane while debugging this code
 JavaArray.__repr__ = repr
 JavaArray.__str__ = repr
@@ -71,6 +75,7 @@ except ImportError:
 
     jpype.startJVM(_config.java_args, classpath=_config.jars.split(":"))
     from pyraphtory._jpypeinterpreter import JPypeInterpreter, _globals
+
     _scala = getattr(JClass("com.raphtory.internals.management.PythonInterop$"), "MODULE$")
     _scala.set_interpreter(JPypeInterpreter())
     _jpype = True
@@ -98,8 +103,11 @@ def register(cls=None, *, name=None):
 
 
 _JPrimitiveTypes = (JBoolean, JByte, JShort, JInt, JLong, JFloat, JDouble, JString)
+
+
 def _isJPrimitive(obj):
     return isinstance(obj, _JPrimitiveTypes)
+
 
 def is_PyJObject(obj):
     """Needed because Pemja objects do not support isinstance"""
@@ -352,11 +360,11 @@ class ScalaProxyBase(object):
     def _add_method(cls, name, method_array):
         name = _codegen.clean_identifier(name)
         output = {}
+        methods = []
         if len(method_array) > 1:
             for i, method in enumerate(sorted(method_array, key=lambda m: m.n())):
                 try:
-                    exec(_codegen.build_method(f"{name}{i}", method, _jpype), globals(), output)
-                    # output[f"{name}{i}"].__doc__ = method.docs()
+                    methods.append(_codegen.build_method(f"{name}{i}", method, _jpype, globals(), output))
                 except Exception as e:
                     traceback.print_exc()
                     raise e
@@ -365,12 +373,10 @@ class ScalaProxyBase(object):
         else:
             method = method_array[0]
             try:
-                exec(_codegen.build_method(name, method, _jpype), globals(), output)
-                # output[name].__doc__ = method.docs()
+                method = _codegen.build_method(name, method, _jpype, globals(), output)
             except Exception as e:
                 traceback.print_exc()
                 raise e
-            method = output.pop(name)
         if any(m.implicits() for m in method_array):
             method = WithImplicits(method)
         setattr(cls, name, InstanceOnlyMethod(method))
@@ -473,8 +479,6 @@ class InstanceOnlyMethod(object):
     def __init__(self, method):
         self.__func__ = method
         self.__name__ = method.__name__
-        self.__signature__ = inspect.signature(method)
-        self.__doc__ = f"Instance only method {self.__name__}{self.__signature__}"
 
     def __set_name__(self, owner, name):
         self.__name__ = name
@@ -498,10 +502,14 @@ class OverloadedMethod:
         self.__name__ = name
         self._methods = methods
         self.__signature__ = inspect.signature(self.__class__.__call__)
-        self.__doc__ = (f"Overloaded method with alternatives\n\n"
-                        + "\n\n".join(f".. method:: {self.__name__}{str(inspect.signature(m.__get__(m)))}\n   :noindex:\n" +  # hack to get signature as if bound method
-                                      ("\n" + indent(m.__doc__, "   ") if m.__doc__ else "")
-                                      for m in self._methods))
+        self.__doc__ = _codegen.LazyStr(
+            initial=lambda: f"Overloaded method with alternatives\n\n"
+                            + "\n\n".join(
+                f"{self.__name__}{str(inspect.signature(m.__get__(m)))}"
+                # hack to get signature as if bound method
+                + ("\n" + indent(m.__doc__, "    ") if m.__doc__ else "")
+                for m in self._methods)
+        )
 
     def __call__(self, *args, **kwargs):
         errors = []
@@ -525,7 +533,6 @@ class OverloadedMethod:
             return bound
 
 
-
 class WithImplicits:
     """Proxy object for scala method with support for default arguments and implicits"""
 
@@ -533,8 +540,8 @@ class WithImplicits:
         self.__name__ = method.__name__
         self._method = method
         self._implicits = []
-        self.__signature__ = inspect.signature(method)
         self.__doc__ = method.__doc__
+        self.__wrapped__ = method
 
     def __call__(self, *args, **kwargs):
         return self._method(*args, **kwargs, _implicits=self._implicits)
@@ -595,7 +602,6 @@ class ScalaObjectProxy(ScalaProxyBase, ABCMeta, type):
             actual_mcs = type.__new__(mcs, name + "_", (mcs,), {"_classname": attrs["_classname"]})
             actual_mcs._init_base_methods(_scala.find_class(actual_mcs._classname))
 
-
         cls = type.__new__(actual_mcs, name, bases, attrs, **kwargs)
         if concrete:
             cls._jvm_object = _scala.find_class(actual_mcs._classname)
@@ -651,6 +657,7 @@ class Function2(ScalaClassProxy):
 class ScalaPackage(ScalaProxyBase):
     """Proxy object for looking up scala classes based on path
     """
+
     @property
     def _jvm_object(self):
         return find_class(self._path)
