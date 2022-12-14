@@ -8,7 +8,7 @@ import com.raphtory.spouts.FileSpout
 
 class JSONNetworkXSourceTest extends BaseCorrectnessTest {
   val currentDirectory = new java.io.File(".").getCanonicalPath
-  val path             = currentDirectory + "/src/test/resources/SourceTest/lotrnetworkx.json"
+  val path             = currentDirectory + "it/src/test/resources/SourceTest/lotrnetworkx.json"
 
   override def setSource(): Source = JSONSource(FileSpout(path))
 

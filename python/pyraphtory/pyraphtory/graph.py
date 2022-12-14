@@ -23,7 +23,7 @@ class Table(GenericScalaProxy):
         columns = ()
         for res in self.get():
             window = res.perspective().window()
-            timestamp = res.perspective.best_timestamp()
+            timestamp = res.perspective().best_timestamp()
             if window != None:
                 columns = ('timestamp', 'window', *cols)
                 for r in res.rows():
