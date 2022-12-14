@@ -15,15 +15,15 @@ from pathlib import Path
 
 #logging.basicConfig(level=logging.INFO)
 
-IVY_LIB = '/lib'
+IVY_LIB = 'lib'
 PYRAPHTORY_DATA = '/pyraphtory_jvm/data'
 
 build_folder = Path(__file__).resolve().parent
 
 data_folder = build_folder / "data"
 
-ivy_folder = os.path.dirname(os.path.realpath(__file__)) + '/data/ivys/'
-build_file = os.path.dirname(os.path.realpath(__file__)) + '/build.xml'
+ivy_folder = data_folder / 'ivys'
+build_file = build_folder / 'build.xml'
 
 LINK = 'link'
 CHECKSUM_SHA256 = 'checksum'
@@ -73,7 +73,7 @@ IVY_BIN = {
 }
 
 
-def getOS():
+def getOS() -> str:
     platform_system = platform.system()
     if platform_system in (OS_MAC, OS_LINUX):
         return platform_system
@@ -81,7 +81,7 @@ def getOS():
         raise Exception("Unsupported OS. Cannot install.")
 
 
-def getArch():
+def getArch() -> str:
     if platform.machine() == "x86_64":
         return OS_X64
     elif platform.machine() == 'arm64':
@@ -90,16 +90,13 @@ def getArch():
         raise Exception("Unsupported Architecture. Cannot install.")
 
 
-def delete_source(filename):
+def delete_source(filename: Path | str) -> None:
     logging.info(f"Deleting source file {filename}...")
-    if os.path.exists(filename):
-        try:
-            os.remove(filename)
-        except OSError:
-            pass
+    filename = Path(filename)
+    filename.unlink(missing_ok=True)
 
 
-def checksum(filepath, expected_sha_hash):
+def checksum(filepath: Path | str, expected_sha_hash: str) -> bool:
     sha256_hash = hashlib.sha256()
     with open(filepath, "rb") as f:
         # Read and update hash string value in blocks of 4K
@@ -113,7 +110,7 @@ def checksum(filepath, expected_sha_hash):
         return False
 
 
-def download_java(system_os, architecture, download_dir):
+def download_java(system_os: str, architecture: str, download_dir: str | Path):
     # get the version and sha which is stored locally
     if system_os not in SOURCES:
         msg = f'Error: System OS {system_os} not supported.\nNot downloading.'
@@ -127,20 +124,20 @@ def download_java(system_os, architecture, download_dir):
     return file_location
 
 
-def safe_download_file(download_dir, expected_sha, url):
+def safe_download_file(download_dir: Path | str, expected_sha, url: str) -> Path:
+    download_dir = Path(download_dir)
     logging.info(f"Downloading {url} to {download_dir}")
     req_session = requests.Session()
     retries = Retry(total=5, backoff_factor=1, status_forcelist=[502, 503, 504])
     req_session.mount('https://', HTTPAdapter(max_retries=retries))
     filename = url.split('/')[-1]
-    file_location = str(download_dir + '/' + filename)
+    file_location = download_dir / filename
     # stream file to reduce mem footprint
     try:
         r = req_session.get(url, stream=True)
         # raise an exception if http issue occurs
         r.raise_for_status()
-        if not os.path.exists(download_dir):
-            os.mkdir(download_dir)
+        download_dir.mkdir(parents=True, exist_ok=True)
         with open(file_location, 'wb') as f:
             shutil.copyfileobj(r.raw, f)
         status = checksum(file_location, expected_sha)
@@ -156,92 +153,81 @@ def safe_download_file(download_dir, expected_sha, url):
     return file_location
 
 
-def get_and_run_ivy(JAVA_BIN, download_dir=os.path.dirname(os.path.realpath(__file__))):
-    download_dir = str(download_dir)
-    file_location = safe_download_file(str(download_dir), IVY_BIN[CHECKSUM_SHA256], IVY_BIN[LINK])
-    shutil.unpack_archive(file_location, extract_dir=download_dir)
-    working_dir = os.getcwd()
+def get_and_run_ivy(JAVA_BIN: str, download_dir: Path | str = build_folder) -> None:
+    download_dir = Path(download_dir)
+    ivy_file_location = safe_download_file(download_dir, IVY_BIN[CHECKSUM_SHA256], IVY_BIN[LINK])
+    shutil.unpack_archive(ivy_file_location, extract_dir=download_dir)
+    working_dir = Path.cwd()
     logging.info(
-        f"IVY working dir {working_dir}, dl dir: {download_dir} REAL PATH {str(os.path.dirname(os.path.realpath(__file__)))}")
-    os.chdir(download_dir)
+        f"IVY working dir {working_dir}, dl dir: {download_dir} REAL PATH {build_folder}")
     logging.info(os.listdir('.'))
-    files = os.listdir(ivy_folder)
-    for fname in files:
-        if fname.endswith('.xml'):
-            subprocess.call(
-                [JAVA_BIN, "-jar", str(download_dir) + "/apache-ivy-2.5.0/ivy-2.5.0.jar", "-ivy",
-                 str(ivy_folder) + "/" + fname, "-retrieve", "."])
-    os.chdir(working_dir)
+    for fname in ivy_folder.glob("*.xml"):
+        subprocess.call(
+            [JAVA_BIN, "-jar", str(ivy_file_location / "ivy-2.5.0.jar"), "-ivy",
+             str(fname), "-retrieve", str(download_dir)])
     # Clean up and delete downloaded ivy files
-    shutil.rmtree(download_dir + "/apache-ivy-2.5.0", ignore_errors=True)
-    delete_source(download_dir + "/apache-ivy-2.5.0-bin.zip")
+    shutil.rmtree(download_dir / "apache-ivy-2.5.0", ignore_errors=True)
+    delete_source(download_dir / "apache-ivy-2.5.0-bin.zip")
     # Keep only compile directory
-    rm_dirs = os.listdir(download_dir + IVY_LIB)
-    try:
-        rm_dirs.remove('compile')
-    except ValueError:
-        pass
-    for d in rm_dirs:
-        shutil.rmtree(download_dir + IVY_LIB + '/' + d, ignore_errors=True)
+    for d in (download_dir / IVY_LIB).glob("!compile"):
+        shutil.rmtree(d, ignore_errors=True)
 
 
-def empty_folder(folder):
-    for filename in os.listdir(folder):
-        file_path = os.path.join(folder, filename)
+def empty_folder(folder: str | Path):
+    folder = Path(folder)
+    for filename in folder.iterdir():
         try:
-            if os.path.isfile(file_path) or os.path.islink(file_path):
-                os.unlink(file_path)
-            elif os.path.isdir(file_path):
-                shutil.rmtree(file_path, ignore_errors=True)
+            if filename.is_file() or filename.is_symlink():
+                filename.unlink()
+            elif filename.is_dir():
+                shutil.rmtree(filename, ignore_errors=True)
         except Exception:
             # silent continue
             continue
 
 
-def unpack_jre(filename, jre_loc):
-    unpack_dir = tempfile.mkdtemp()
-    system_os = getOS()
-    logging.info(f'Unpacking JRE for {system_os}...')
-    shutil.unpack_archive(filename, unpack_dir)
-    if os.listdir(unpack_dir):
-        result_dir = unpack_dir + '/' + os.listdir(unpack_dir)[0]
+def unpack_jre(filename: str | Path, jre_loc: str | Path):
+    filename = Path(filename)
+    jre_loc = Path(jre_loc)
+    with tempfile.TemporaryDirectory() as unpack_dir:
+        unpack_dir = Path(unpack_dir)
+        system_os = getOS()
+        logging.info(f'Unpacking JRE for {system_os}...')
+        shutil.unpack_archive(filename, unpack_dir)
+        try:
+            result_dir = next(unpack_dir.iterdir())
+        except StopIteration:
+            raise Exception('Error: JRE unpacking failed.')
         # Empty jre folder
         empty_folder(jre_loc)
         if system_os == OS_MAC:
-            move_dir = '/Contents/Home'
+            move_dir = 'Contents/Home'
         else:  # if system_os == OS_LINUX:
-            move_dir = ''
-        file_names = os.listdir(result_dir + move_dir)
-        for file_name in file_names:
-            shutil.move(os.path.join(result_dir + move_dir, file_name), jre_loc)
+            move_dir = '.'
+        for file_name in (result_dir / move_dir).iterdir():
+            shutil.move(file_name, jre_loc)
         logging.info('Cleaning up...')
-        shutil.rmtree(unpack_dir, ignore_errors=True)
-        try:
-            os.remove(filename)
-        except OSError:
-            pass
-    else:
-        raise Exception('Error: JRE unpacking failed.')
+    filename.unlink(missing_ok=True)
 
 
-def check_system_dl_java(download_dir=str(os.path.dirname(os.path.realpath(__file__)))):
+def check_system_dl_java(download_dir: Path | str=build_folder):
+    download_dir = Path(download_dir)
     logging.info("Downloading java...")
     system_os = getOS()
     logging.info(f"- Operating system: {system_os} ")
     architecture = getArch()
     logging.info(f"- Architecture: {architecture}")
     logging.info(f"Downloading to {download_dir}")
-    jre_loc = download_dir + '/jre'
-    if not os.path.exists(jre_loc):
-        os.makedirs(jre_loc)
+    jre_loc = download_dir / 'jre'
+    jre_loc.mkdir(exist_ok=True, parents=True)
     download_loc = download_java(system_os, architecture, download_dir)
     unpack_jre(download_loc, jre_loc)
-    return jre_loc + '/bin/java'
+    return jre_loc / "bin" / 'java'
 
 
 def has_java():
     try:
-        res = subprocess.run(["java", "-version"],stdout=subprocess.DEVNULL,stderr=subprocess.STDOUT)
+        res = subprocess.run(["java", "-version"], stdout=subprocess.DEVNULL,stderr=subprocess.STDOUT)
         if res.returncode == 0:
             logging.info("Java found!")
             return True
@@ -249,12 +235,12 @@ def has_java():
         return False
 
 
-def get_java_home():
+def get_java_home() -> Path:
     logging.info("Getting JAVA_HOME")
     home = os.getenv('JAVA_HOME')
     if home is not None:
         logging.info(f"JAVA_HOME found = {home}/bin/java")
-        return home + '/bin/java'
+        return Path(home) / 'bin' / 'java'
     elif shutil.which('java') is not None:
         logging.info(f'JAVA_HOME not found. But java found. Detecting home...')
         # Check if JAVA_HOME is a symlink
@@ -263,7 +249,7 @@ def get_java_home():
             # If it is, resolve the symlink to the real path
             java_home = os.path.realpath(java_home)
         os.environ["JAVA_HOME"] = java_home
-        return shutil.which('java')
+        return Path(shutil.which('java'))
     else:
         raise FileNotFoundError("JAVA_HOME has not been set, java was also not found")
 
@@ -287,7 +273,8 @@ def get_local_ivy_loc():
     return site.getsitepackages()[0] + PYRAPHTORY_DATA + '/lib/'
 
 
-def check_dl_java_ivy(download_dir=site.getsitepackages()[0] + PYRAPHTORY_DATA):
+def check_dl_java_ivy(download_dir: str | Path = build_folder):
+    download_dir = Path(download_dir)
     if has_java():
         java_bin = get_java_home()
     else:
