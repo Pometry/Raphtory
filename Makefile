@@ -150,7 +150,7 @@ scala-test:
 scala-remote-test:
 	sleep 5
 	export RAPHTORY_CORE_LOG=ERROR && \
-	export IT_OUTPUT_PATH=./it/target/scala-2.13/test-classes && \
+	export RAPHTORY_ITEST_PATH=./it/target/scala-2.13/test-classes && \
 	sbt "it/testOnly *.algorithms.*"
 
 .PHONY: setup-python

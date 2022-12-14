@@ -24,7 +24,7 @@ object AllNeighbours extends Generic {
 
 class VertexFilterTest extends BaseCorrectnessTest {
 
-  override def munitIgnore: Boolean = System.getenv("IT_OUTPUT_PATH") != null
+  override def munitIgnore: Boolean = System.getenv("RAPHTORY_ITEST_PATH") != null
 
   test("Vertex is being filtered") {
     val res = Using(Source.fromResource("MotifCount/motiftest.csv")) { source =>

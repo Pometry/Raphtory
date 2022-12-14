@@ -28,11 +28,11 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   var jobId: String           = ""
-  val outputDirectory: String = Option(System.getenv("IT_OUTPUT_PATH")).getOrElse("/tmp/raphtoryTest")
+  val outputDirectory: String = Option(System.getenv("RAPHTORY_ITEST_PATH")).getOrElse("/tmp/raphtoryTest")
   def defaultSink: Sink       = FileSink("/tmp/raphtoryTest")
 
   lazy val raphtoryData =
-    Option(System.getenv("IT_OUTPUT_PATH")).getOrElse(
+    Option(System.getenv("RAPHTORY_ITEST_PATH")).getOrElse(
             Files
               .createTempDirectory("tests" )
               .toString
@@ -40,7 +40,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
 
   def resolveSpout(fileName: String): String =
-    if (System.getenv("IT_OUTPUT_PATH") != null)
+    if (System.getenv("RAPHTORY_ITEST_PATH") != null)
       fileName
     else {
       Paths.get(raphtoryData, fileName).toString
@@ -59,7 +59,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           "context-and-graph",
           for {
             _     <- TestUtils.manageTestFile(liftFileIfNotPresent)
-            ctx   <- Option(System.getenv("IT_OUTPUT_PATH")) // if IT_OUTPUT_PATH is set then use the remote context
+            ctx   <- Option(System.getenv("RAPHTORY_ITEST_PATH")) // if RAPHTORY_ITEST_PATH is set then use the remote context
                        .map { _ =>
                          logger.warn("!! Running Integration Tests on Remote Raphtory !!")
                          RaphtoryIOContext.remoteIO()
@@ -70,7 +70,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           } yield (ctx, graph)
   )
 
-  def runningIntegrationTest: Boolean = Option(System.getenv("IT_OUTPUT_PATH")).isDefined
+  def runningIntegrationTest: Boolean = Option(System.getenv("RAPHTORY_ITEST_PATH")).isDefined
 
   def ctx: RaphtoryContext = ctxAndGraph()._1
 
