@@ -327,8 +327,12 @@ lazy val it =
                     mockitoScala,
                     testContainers,
                     scalaTest,
-                    catsMUnit
+                    catsMUnit,
+                    log4jSlft4,
+                    log4jApi,
+                    log4jCore
             ),
+            libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) },
             publishArtifact := false
     )
     .dependsOn(core, testkit)

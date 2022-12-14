@@ -1,13 +1,11 @@
 package com.raphtory
 
 import com.raphtory.api.analysis.algorithm.GenericallyApplicable
-import com.raphtory.api.analysis.graphview.Alignment
-import com.raphtory.api.analysis.graphview.TemporalGraph
+import com.raphtory.api.analysis.graphview.{Alignment, DeployedTemporalGraph, TemporalGraph}
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.sources.CSVEdgeListSource
-import com.raphtory.spouts.IdentitySpout
-import com.raphtory.spouts.SequenceSpout
+import com.raphtory.spouts.{IdentitySpout, ResourceOrFileSpout, SequenceSpout}
 
 case class TestQuery(
     algorithm: GenericallyApplicable,
@@ -18,7 +16,7 @@ case class TestQuery(
 case class Edges(source: Source)
 
 object Edges {
-  implicit def edgesFromResource(resource: String): Edges  = Edges(CSVEdgeListSource.fromResource(resource))
+  implicit def edgesFromResource(resource: String): Edges  = Edges(CSVEdgeListSource(ResourceOrFileSpout(resource)))
   implicit def edgesFromSource(source: Source): Edges      = Edges(source)
   implicit def sourceFromEdges(edges: Edges): Source       = edges.source
   implicit def edgesFromEdgeSeq(edges: Seq[String]): Edges = Edges(CSVEdgeListSource(SequenceSpout(edges)))

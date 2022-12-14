@@ -38,7 +38,6 @@ import scala.language.postfixOps
  * */
 
 class TwitterTest extends BaseRaphtoryAlgoTest[String] {
-  override val outputDirectory: String = "/tmp/raphtoryTwitterTest"
 
   test("Connected Components Test") {
     algorithmPointTest(ConnectedComponents, 1400000)

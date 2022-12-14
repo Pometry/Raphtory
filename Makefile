@@ -2,6 +2,8 @@ SHELL:=/bin/bash -euxo pipefail
 DOCKER_RAP:=bin/docker/raphtory
 DOCKER_TMP:=$(DOCKER_RAP)/tmp
 MODE:=batch
+IVY_VERSION:=2.5.1
+export JAVA_HOME:= $(shell readlink -f $$(which java) | sed "s:/bin/java::")
 
 # version:
 # 	sbt -Dsbt.supershell=false -error "exit" && \
@@ -85,9 +87,17 @@ pyraphtory-local: version
 docker-build: version
 	docker build \
 		--build-arg VERSION="$$(cat version)" \
-		-t raphtory-os:$$(cat version) \
-		-f $(DOCKER_RAP)/DockerfileV2 . --compress
+		-t raphtory-core-it:$$(cat version) \
+		-f Dockerfile . --compress
+	docker tag raphtory-core-it:$$(cat version) raphtory-core-it:latest
 
+.PHONY: docker-compose-up
+docker-compose-up: version
+	docker-compose -f docker-compose.yml up -d
+
+.PHONY: docker-compose-down
+docker-compose-down: version
+	docker-compose -f docker-compose.yml down --remove-orphans
 
 .PHONY: run-local-cluster
 run-local-cluster: version
@@ -106,6 +116,7 @@ clean-local-cluster:
 
 clean:
 	sbt clean
+	rm -Rf python/pyraphtory/lib/*
 
 type?=patch
 .PHONY: version-bump
@@ -135,10 +146,17 @@ local-pulsar: version
 scala-test:
 	export RAPHTORY_CORE_LOG="ERROR" && sbt test
 
+.PHONY: scala-remote-test
+scala-remote-test:
+	sleep 5
+	export RAPHTORY_CORE_LOG=ERROR && \
+	export RAPHTORY_ITEST_PATH=./it/target/scala-2.13/test-classes && \
+	sbt "it/testOnly *.algorithms.*"
+
 .PHONY: setup-python
 setup-python: gh-sbt-build
 	python -m pip install --upgrade pip
-	python -m pip install -q poetry nbmake tox pytest-xdist
+	python -m pip install -q poetry nbmake tox pytest-xdist pyvis
 	cd python/pyraphtory_jvm && python setup.py sdist && python -m pip install dist/pyraphtory_jvm-*.tar.gz
 	cd python/pyraphtory && poetry build && poetry install
 

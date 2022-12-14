@@ -6,9 +6,8 @@ import com.raphtory.api.analysis.table._
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.input.Source
 import com.raphtory.sources.CSVEdgeListSource
-import com.raphtory.spouts.ResourceSpout
-import com.raphtory.BaseCorrectnessTest
-import com.raphtory.TestQuery
+import com.raphtory.spouts.{ResourceOrFileSpout, ResourceSpout}
+import com.raphtory.{BaseCorrectnessTest, TestQuery}
 
 object CountNodes extends Generic {
 
@@ -92,5 +91,5 @@ class AccumulatorTest extends BaseCorrectnessTest {
     }
   }
 
-  override def setSource(): Source = CSVEdgeListSource(ResourceSpout("MotifCount/motiftest.csv"))
+  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("MotifCount/motiftest.csv"))
 }

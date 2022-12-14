@@ -1,11 +1,10 @@
 package com.raphtory.algorithms
 
-import com.raphtory.BaseCorrectnessTest
-import com.raphtory.TestQuery
+import com.raphtory.{BaseCorrectnessTest, TestQuery}
 import com.raphtory.algorithms.filters.LargestConnectedComponentFilter
 import com.raphtory.api.input.Source
 import com.raphtory.sources.CSVEdgeListSource
-import com.raphtory.spouts.ResourceSpout
+import com.raphtory.spouts.ResourceOrFileSpout
 
 class LargestConnectedComponentsFilterTest extends BaseCorrectnessTest {
   test("Test largest connected components filter") {
@@ -15,5 +14,5 @@ class LargestConnectedComponentsFilterTest extends BaseCorrectnessTest {
     )
   }
 
-  override def setSource(): Source = CSVEdgeListSource(ResourceSpout("ConnectedComponents/twoComponents.csv"))
+  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("/ConnectedComponents/twoComponents.csv"))
 }

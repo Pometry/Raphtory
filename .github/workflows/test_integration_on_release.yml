@@ -1,0 +1,27 @@
+name: Run integration tests
+on:
+  workflow_call:
+    inputs:
+      config-path:
+        required: false
+        type: string
+
+jobs:
+  integration-tests:
+    name: "Integration tests"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Start Raphtory in distributed mode
+        run: |
+          make docker-build docker-compose-up
+      - name: Run sbt Integration
+        run: |
+          export RAPHTORY_CORE_LOG=ERROR 
+          export RAPHTORY_ITEST_PATH=./it/target/scala-2.13/test-classes
+          sudo -E sbt "it/testOnly *.algorithms.*"
+      - name: Stop Docker compose
+        if: always()
+        run: |
+          make docker-compose-down

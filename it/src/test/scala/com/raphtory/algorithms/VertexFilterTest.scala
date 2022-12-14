@@ -9,7 +9,7 @@ import com.raphtory.api.analysis.table.{Row, Table}
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.input
 import com.raphtory.sources.CSVEdgeListSource
-import com.raphtory.spouts.ResourceSpout
+import com.raphtory.spouts.{ResourceOrFileSpout, ResourceSpout}
 
 import scala.io.Source
 import scala.util.Using
@@ -23,6 +23,8 @@ object AllNeighbours extends Generic {
 }
 
 class VertexFilterTest extends BaseCorrectnessTest {
+
+  override def munitIgnore: Boolean = System.getenv("RAPHTORY_ITEST_PATH") != null
 
   test("Vertex is being filtered") {
     val res = Using(Source.fromResource("MotifCount/motiftest.csv")) { source =>
@@ -45,5 +47,5 @@ class VertexFilterTest extends BaseCorrectnessTest {
     )
   }
 
-  override def setSource() = CSVEdgeListSource(ResourceSpout("MotifCount/motiftest.csv"))
+  override def setSource(): CSVEdgeListSource = CSVEdgeListSource(ResourceOrFileSpout("/MotifCount/motiftest.csv"))
 }

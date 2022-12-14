@@ -16,7 +16,7 @@ jobs:
       image: "eclipse-temurin:11.0.12_7-jdk"
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Install Zookeeper
         run: |
           export ZK_VERSION=3.8.0 && \

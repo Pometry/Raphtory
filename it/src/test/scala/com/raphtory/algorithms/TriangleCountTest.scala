@@ -5,7 +5,7 @@ import com.raphtory.TestQuery
 import com.raphtory.algorithms.generic.motif.LocalTriangleCount
 import com.raphtory.api.input.Source
 import com.raphtory.sources.CSVEdgeListSource
-import com.raphtory.spouts.ResourceSpout
+import com.raphtory.spouts.{ResourceOrFileSpout, ResourceSpout}
 
 class TriangleCountTest extends BaseCorrectnessTest {
   test("test triangle counting") {
@@ -15,5 +15,5 @@ class TriangleCountTest extends BaseCorrectnessTest {
     )
   }
 
-  override def setSource(): Source = CSVEdgeListSource(ResourceSpout("MotifCount/motiftest.csv"))
+  override def setSource(): Source = CSVEdgeListSource(ResourceOrFileSpout("/MotifCount/motiftest.csv"))
 }

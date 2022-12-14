@@ -1,4 +1,4 @@
-package com.raphtory.algorithms
+package com.test.raphtory.algorithms
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective

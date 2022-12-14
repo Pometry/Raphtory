@@ -18,7 +18,6 @@ from copy import copy
 from textwrap import indent
 from pyraphtory import _codegen
 from jpype import JObject, JBoolean, JByte, JShort, JInt, JLong, JFloat, JDouble, JString
-from pyraphtory._py4jgateway import Py4JConnection
 
 _wrapper_lock = Lock()
 _jpype = False

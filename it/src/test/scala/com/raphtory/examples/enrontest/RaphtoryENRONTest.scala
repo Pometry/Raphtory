@@ -1,11 +1,11 @@
 package com.raphtory.examples.enrontest
 
 import com.raphtory._
-import com.raphtory.algorithms.GraphState
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.input._
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
+import com.test.raphtory.algorithms.GraphState
 
 import java.net.URL
 import java.util.concurrent.TimeUnit
