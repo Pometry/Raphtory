@@ -17,7 +17,7 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import grpc.health.v1.health.{Health, HealthCheckRequest}
 import higherkindness.mu.rpc.ChannelForAddress
-import munit.{CatsEffectSuite, IgnoreSuite}
+import munit.CatsEffectSuite
 import org.slf4j.LoggerFactory
 
 import java.net.URL
@@ -58,7 +58,6 @@ object Parent {
   )
 }
 
-@IgnoreSuite
 class DynamicClassLoaderTest extends CatsEffectSuite {
   val logger = Logger(LoggerFactory.getLogger(this.getClass))
 

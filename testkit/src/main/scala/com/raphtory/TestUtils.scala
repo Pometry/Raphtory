@@ -20,14 +20,14 @@ object TestUtils {
       case None           => Resource.eval(IO.unit)
       case Some((p, url)) =>
         val path = Paths.get(p)
-        Resource.make(IO.blocking(if (Files.notExists(path)) s"curl -o $path $url" !!<)){out =>
+        Resource.make(IO.blocking(if (Files.notExists(path)) s"curl -o $path $url" !!))(_ =>
           IO.blocking { // this is a bit hacky but it allows us
             Runtime.getRuntime.addShutdownHook(new Thread {
-              override def run(): Unit = {
-//                Files.deleteIfExists(path)
-              }
+              override def run(): Unit =
+                Files.deleteIfExists(path)
             })
-          }}
+          }
+        )
     }
 
   def generateTestHash(outputDirectory: String, jobId: String): String = {
@@ -45,9 +45,7 @@ object TestUtils {
       .toString
 
   def getResults(outputDirectory: String, jobID: String): Iterator[String] = {
-    val file1 = new File(outputDirectory + "/" + jobID)
-    assert(Files.exists(file1.toPath), s"${file1.toPath.toAbsolutePath} does not exist")
-    val files = file1
+    val files = new File(outputDirectory + "/" + jobID)
       .listFiles()
       .filter(_.isFile)
 
