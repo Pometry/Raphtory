@@ -3,6 +3,7 @@ use std::ops::Range;
 pub mod graph;
 pub mod tvec;
 pub mod tcell;
+pub mod sortedvec;
 
 pub trait TemporalGraphStorage {
     fn add_vertex(&mut self, v: u64, t: u64) -> &mut Self;
@@ -24,7 +25,7 @@ pub trait TemporalGraphStorage {
 
     fn inbound(&self, dst: u64, r:Range<u64>) ->  Box<dyn Iterator<Item = &u64> + '_>;
 
-    fn vertex_count(&self) -> usize;
+    fn len(&self) -> usize;
 
 }
 

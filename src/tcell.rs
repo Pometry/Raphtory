@@ -1,6 +1,6 @@
-use std::{collections::BTreeMap, ops::Range, fmt::Debug};
+use std::{collections::BTreeMap, fmt::Debug, ops::Range};
 
-use art_tree::Art;
+use crate::sortedvec::SortedVec;
 
 #[derive(Debug, PartialEq)]
 /**
@@ -10,11 +10,13 @@ use art_tree::Art;
 pub enum TCell<A: Clone + Default + Debug + PartialEq> {
     TCellEmpty,
     TCell1(u64, A),
-    TCellCap(usize, Art<u64, A>),
+    TCellCap(SortedVec<u64, A>),
     TCellN(BTreeMap<u64, A>),
 }
 
-impl<A: Clone + Default + Debug +PartialEq> TCell<A> {
+const BTREE_CUTOFF: usize = 128;
+
+impl<A: Clone + Default + Debug + PartialEq> TCell<A> {
     pub fn new(t: u64, a: A) -> Self {
         TCell::TCell1(t, a)
     }
@@ -26,7 +28,7 @@ impl<A: Clone + Default + Debug +PartialEq> TCell<A> {
     pub fn len(&self) -> usize {
         match self {
             TCell::TCell1(_, _) => 1,
-            TCell::TCellCap(len, m) => *len,
+            TCell::TCellCap(m) => m.len(),
             TCell::TCellN(m) => m.len(),
             _ => 0,
         }
@@ -39,23 +41,23 @@ impl<A: Clone + Default + Debug +PartialEq> TCell<A> {
             }
             TCell::TCell1(t0, a0) => {
                 if t != *t0 {
-                    let mut m = Art::new();
+                    let mut m = SortedVec::new();
                     m.insert(t, a);
                     m.insert(*t0, a0.clone());
-                    *self = TCell::TCellCap(2, m)
+                    *self = TCell::TCellCap(m)
                 }
             }
-            TCell::TCellCap(len, m) => {
-                m.insert(t, a.clone());
-                *len+=1;
-                // if let Err(_) = m.try_insert(t, a.clone()) {
-                //     let mut new_m: BTreeMap<u64, A> = BTreeMap::new();
-                //     for (k, v) in m.iter() {
-                //         new_m.insert(*k, v.clone());
-                //     }
-                //     new_m.insert(t, a.clone());
-                //     *self = TCell::TCellN(new_m)
-                // }
+            TCell::TCellCap(m) => {
+                if m.len() < BTREE_CUTOFF {
+                    m.insert(t, a.clone());
+                } else {
+                    let mut new_m: BTreeMap<u64, A> = BTreeMap::new();
+                    for (k, v) in m.iter() {
+                        new_m.insert(*k, v.clone());
+                    }
+                    new_m.insert(t, a.clone());
+                    *self = TCell::TCellN(new_m)
+                }
             }
             TCell::TCellN(m) => {
                 m.insert(t, a);
@@ -73,7 +75,7 @@ impl<A: Clone + Default + Debug +PartialEq> TCell<A> {
                     Box::new(std::iter::empty())
                 }
             }
-            TCell::TCellCap(_, m) => Box::new(m.range(r)),
+            TCell::TCellCap(m) => Box::new(m.range(r)),
             TCell::TCellN(m) => Box::new(m.range(r)),
         }
     }
@@ -88,7 +90,7 @@ impl<A: Clone + Default + Debug +PartialEq> TCell<A> {
                     Box::new(std::iter::empty())
                 }
             }
-            TCell::TCellCap(_, m) => Box::new(m.range(r).map(|(_, a)| a)),
+            TCell::TCellCap(m) => Box::new(m.range(r).map(|(_, a)| a)),
             TCell::TCellN(m) => Box::new(m.range(r).map(|(_, a)| a)),
         }
     }
@@ -97,7 +99,7 @@ impl<A: Clone + Default + Debug +PartialEq> TCell<A> {
         match self {
             TCell::TCellEmpty => Box::new(std::iter::empty()),
             TCell::TCell1(_, a) => Box::new(std::iter::once(a)),
-            TCell::TCellCap(_, m) => Box::new(m.iter().map(|(_, v)| v)),
+            TCell::TCellCap(m) => Box::new(m.iter().map(|(_, v)| v)),
             TCell::TCellN(v) => Box::new(v.values()),
         }
     }
@@ -106,7 +108,7 @@ impl<A: Clone + Default + Debug +PartialEq> TCell<A> {
         match self {
             TCell::TCellEmpty => Box::new(std::iter::empty()),
             TCell::TCell1(t, a) => Box::new(std::iter::once((t, a))),
-            TCell::TCellCap(_, v) => Box::new(v.iter()),
+            TCell::TCellCap(v) => Box::new(v.iter()),
             TCell::TCellN(v) => Box::new(v.iter()),
         }
     }
@@ -114,8 +116,6 @@ impl<A: Clone + Default + Debug +PartialEq> TCell<A> {
 
 #[cfg(test)]
 mod tcell_tests {
-    use scapegoat::SgMap;
-    use tinyvec::ArrayVec;
 
     use super::TCell;
 
@@ -169,48 +169,4 @@ mod tcell_tests {
         assert_eq!(actual, expected); // ordering is important by time
     }
 
-    // const CAPACITY: usize = 4;
-    // use core::mem::size_of_val;
-    // use std::collections::BTreeMap;
-
-    // #[test]
-    // fn scapegoat_can_save_our_skin() {
-    //     let mut example = SgMap::<_, _, CAPACITY>::new(); // BTreeMap::new()
-    //     let mut static_str = "your friend the";
-    //     example.insert(3, "the");
-    //     example.insert(2, "don't blame");
-    //     example.insert(1, "Please");
-    //     // Fallible insert variant
-    //     assert!(example.try_insert(4, "borrow checker").is_ok());
-
-    //     // Ordered reference iterator
-    //     assert!(example
-    //         .iter()
-    //         .map(|(_, v)| *v)
-    //         .collect::<ArrayVec<[&str; CAPACITY]>>()
-    //         .iter()
-    //         .eq(["Please", "don't blame", "the", "borrow checker"].iter()));
-
-    //     println!("SIZE: {}", size_of_val(&example));
-    // }
-
-    // #[test]
-    // fn scapegoat_can_save_our_skin_2() {
-    //     let mut example = BTreeMap::new();
-    //     let mut static_str = "your friend the";
-    //     example.insert(3, "the");
-    //     example.insert(2, "don't blame");
-    //     example.insert(1, "Please");
-    //     example.insert(4, "borrow checker");
-
-    //     // Ordered reference iterator
-    //     assert!(example
-    //         .iter()
-    //         .map(|(_, v)| *v)
-    //         .collect::<ArrayVec<[&str; CAPACITY]>>()
-    //         .iter()
-    //         .eq(["Please", "don't blame", "the", "borrow checker"].iter()));
-
-    //     println!("SIZE BTREEMAP: {}", size_of_val(&example));
-    // }
 }

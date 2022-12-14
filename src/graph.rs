@@ -34,7 +34,7 @@ impl TemporalGraph {
 
 impl TemporalGraphStorage for TemporalGraph {
 
-    fn vertex_count(&self) -> usize {
+    fn len(&self) -> usize {
         self.logical_to_physical.len()
     }
 

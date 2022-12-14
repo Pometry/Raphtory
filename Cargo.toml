@@ -12,5 +12,4 @@ itertools="0.10"
 guardian = "1.0.2"
 csv = "1.1.6"
 tinyvec = { version = "1.6.0", features = ["alloc"] }
-scapegoat = "2.3.0"
 art-tree = {path= "../art-rs"}
