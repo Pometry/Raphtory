@@ -156,7 +156,7 @@ scala-remote-test:
 .PHONY: setup-python
 setup-python: gh-sbt-build
 	python -m pip install --upgrade pip
-	python -m pip install -q poetry nbmake tox pytest-xdist
+	python -m pip install -q poetry nbmake tox pytest-xdist pyvis
 	cd python/pyraphtory_jvm && python setup.py sdist && python -m pip install dist/pyraphtory_jvm-*.tar.gz
 	cd python/pyraphtory && poetry build && poetry install
 
