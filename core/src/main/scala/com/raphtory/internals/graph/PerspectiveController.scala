@@ -24,8 +24,15 @@ private[raphtory] case class Perspective(
     formatAsDate: Boolean
 ) extends time.Perspective {
 
-  /** Timestamp anchor at which the view was created as a datetime string */
-  override val timestampAsDatetime: String = DateTimeParser().parse(timestamp)
+  override val timestampAsString: String =
+    if (formatAsDate) DateTimeParser().parse(timestamp) else timestamp.toString
+
+  override val actualStartAsString: String =
+    if (formatAsDate) DateTimeParser().parse(actualStart) else actualStart.toString
+
+  override val actualEndAsString: String =
+    if (formatAsDate) DateTimeParser().parse(actualEnd) else actualEnd.toString
+
 }
 
 object Perspective extends ProtoField[Perspective]
@@ -41,7 +48,7 @@ private[raphtory] class PerspectiveController(
       None
     else {
       val (earliestPerspective, index) = perspectiveStreams.map(_.head).zipWithIndex minBy {
-        case (perspective, _) => perspective.actualEnd
+        case (perspective, _) => perspective.actualEndAsString
       }
       perspectiveStreams = perspectiveStreams.updated(index, perspectiveStreams(index).tail)
       Some(earliestPerspective)

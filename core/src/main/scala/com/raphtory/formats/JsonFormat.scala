@@ -64,7 +64,7 @@ case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
 
   private def printPerspectiveProperties(generator: JsonGenerator, perspective: Perspective): Unit = {
     if (perspective.formatAsDate)
-      generator.writeStringField("timestamp", perspective.timestampAsDatetime)
+      generator.writeStringField("timestamp", perspective.timestampAsString)
     else
       generator.writeNumberField("timestamp", perspective.timestamp)
     perspective.window match {

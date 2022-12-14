@@ -62,13 +62,11 @@ case class CsvFormat(delimiter: String = ",") extends Format {
         currentPerspective = perspective
 
       override protected def writeRow(row: Row): Unit = {
-        val timestamp =
-          if (currentPerspective.formatAsDate) currentPerspective.timestampAsDatetime else currentPerspective.timestamp
-        val value     = currentPerspective.window match {
+        val value = currentPerspective.window match {
           case Some(w) =>
-            s"$timestamp$delimiter$w$delimiter${row.getValues().map(csvValue).mkString(delimiter)}"
+            s"${currentPerspective.timestampAsString}$delimiter$w$delimiter${row.getValues().map(csvValue).mkString(delimiter)}"
           case None    =>
-            s"$timestamp$delimiter${row.getValues().map(csvValue).mkString(delimiter)}"
+            s"${currentPerspective.timestampAsString}$delimiter${row.getValues().map(csvValue).mkString(delimiter)}"
         }
         connector.write(value)
         connector.closeItem()

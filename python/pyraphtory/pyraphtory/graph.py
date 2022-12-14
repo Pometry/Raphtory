@@ -22,11 +22,8 @@ class Table(GenericScalaProxy):
         rows = []
         columns = ()
         for res in self.get():
-            if res.perspective().format_as_date():
-                timestamp = res.perspective().timestamp_as_datetime()
-            else:
-                timestamp = res.perspective().timestamp()
             window = res.perspective().window()
+            timestamp = res.perspective.best_timestamp()
             if window != None:
                 columns = ('timestamp', 'window', *cols)
                 for r in res.rows():

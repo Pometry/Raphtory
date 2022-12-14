@@ -20,6 +20,14 @@ trait Perspective {
   val formatAsDate: Boolean
 
   /** Timestamp anchor at which the view was created as a datetime string */
-  val timestampAsDatetime: String
+  val timestampAsString: String
 
+  /** Earliest time point included in the view */
+  val actualStartAsString: String
+
+  /** Latest time point included in the view */
+  val actualEndAsString: String
+
+  /** Convenience function for sink formats to get either the datetime string or epoch long for output */
+  def bestTimestamp: Any = if (formatAsDate) timestampAsString else timestamp
 }

@@ -123,7 +123,9 @@ trait Graph {
   private[raphtory] def getPartitionForId(id: Long): Int =
     (id.abs % totalPartitions).toInt
 
-  /** Convenience method for converting dates into epochs to be used internally by Raphtory. This is called automatically when you
+  /** Convenience method for converting dates into epochs to be used internally by Raphtory. This is the same function
+    * used by the `add vertex` and `add edge` functions, so can be called explicitly in a graph builder
+    * to reduce the number of conversions when performing multiple updates per tuple.
     *
     * @param dateTime The date string you wish to convert
     * @param format The format of the date string. The default being "yyyy-MM-dd[ HH:mm:ss[.SSS]]."
