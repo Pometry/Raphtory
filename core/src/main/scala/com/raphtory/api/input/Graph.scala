@@ -3,6 +3,7 @@ package com.raphtory.api.input
 import com.raphtory.internals.communication.SchemaProviderInstances._
 import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.management.telemetry.TelemetryReporter
+import com.raphtory.internals.time.DateTimeParser
 import com.typesafe.scalalogging.Logger
 import net.openhft.hashing.LongHashFunction
 import org.slf4j.LoggerFactory
@@ -122,6 +123,16 @@ trait Graph {
   private[raphtory] def getPartitionForId(id: Long): Int =
     (id.abs % totalPartitions).toInt
 
+  /** Convenience method for converting dates into epochs to be used internally by Raphtory. This is the same function
+    * used by the `add vertex` and `add edge` functions, so can be called explicitly in a graph builder
+    * to reduce the number of conversions when performing multiple updates per tuple.
+    *
+    * @param dateTime The date string you wish to convert
+    * @param format The format of the date string. The default being "yyyy-MM-dd[ HH:mm:ss[.SSS]]."
+    * .
+    */
+  def parseDatetime(dateTime: String, format: String = "yyyy-MM-dd[ HH:mm:ss[.SSS]]"): Long =
+    DateTimeParser(format).parse(dateTime)
 }
 
 object Graph {

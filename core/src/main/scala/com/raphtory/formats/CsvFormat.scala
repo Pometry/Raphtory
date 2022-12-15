@@ -39,27 +39,24 @@ case class CsvFormat(delimiter: String = ",") extends Format {
   ): SinkExecutor =
     new SinkExecutor {
       var currentPerspective: Perspective = _
-      private val mapper       = JsonMapper.builder().addModule(DefaultScalaModule).build()
+      private val mapper                  = JsonMapper.builder().addModule(DefaultScalaModule).build()
 
-      private def ensureQuoted(str: String): String = {
-        if ((str.startsWith("\"") && str.endsWith("\""))
-          || (str.startsWith("'") && str.endsWith("'" ))
-          || !str.contains(delimiter)) {
+      private def ensureQuoted(str: String): String =
+        if (
+                (str.startsWith("\"") && str.endsWith("\""))
+                || (str.startsWith("'") && str.endsWith("'"))
+                || !str.contains(delimiter)
+        )
           str
-        } else {
+        else
           "\"" + str + "\""
-        }
-      }
 
-
-
-      private def csvValue(obj: Any): String = {
+      private def csvValue(obj: Any): String =
         obj match {
           case v: String => ensureQuoted(v)
-          case v =>
+          case v         =>
             ensureQuoted(mapper.writeValueAsString(v))
         }
-      }
 
       override def setupPerspective(perspective: Perspective): Unit =
         currentPerspective = perspective
@@ -67,9 +64,9 @@ case class CsvFormat(delimiter: String = ",") extends Format {
       override protected def writeRow(row: Row): Unit = {
         val value = currentPerspective.window match {
           case Some(w) =>
-            s"${currentPerspective.timestamp}$delimiter$w$delimiter${row.getValues().map(csvValue).mkString(delimiter)}"
+            s"${currentPerspective.timestampAsString}$delimiter$w$delimiter${row.getValues().map(csvValue).mkString(delimiter)}"
           case None    =>
-            s"${currentPerspective.timestamp}$delimiter${row.getValues().map(csvValue).mkString(delimiter)}"
+            s"${currentPerspective.timestampAsString}$delimiter${row.getValues().map(csvValue).mkString(delimiter)}"
         }
         connector.write(value)
         connector.closeItem()

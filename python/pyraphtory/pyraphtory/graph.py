@@ -22,12 +22,12 @@ class Table(GenericScalaProxy):
         rows = []
         columns = ()
         for res in self.get():
-            timestamp = res.perspective().timestamp()
             window = res.perspective().window()
+            timestamp = res.perspective().formatted_time()
             if window != None:
                 columns = ('timestamp', 'window', *cols)
                 for r in res.rows():
-                    window_size = window.get().size()
+                    window_size = window.get().output()
                     rows.append((timestamp, window_size, *r.get_values()))
             else:
                 columns = ('timestamp', *cols)
@@ -48,7 +48,7 @@ class PropertyMergeStrategy(ScalaClassProxy):
 class Graph(GenericScalaProxy):
     _classname = "com.raphtory.api.input.Graph"
 
-    def add_vertex(self, update_time: int, src_id: int | str, properties: list[input.Property] = (), vertex_type: str = "", secondary_index: int=None):
+    def add_vertex(self, update_time: int, src_id: int | str, properties: list[input.Property] = (), vertex_type: str = "", secondary_index: int=None,time_format="yyyy[-MM[-dd[ HH[:mm[:ss[.SSS]]]]]]"):
         """Adds a new vertex to the graph or updates an existing vertex
 
            :param update_time: timestamp for vertex update
@@ -58,19 +58,23 @@ class Graph(GenericScalaProxy):
            :param vertex_type: Optionally specify a type for the vertex
            :param secondary_index: Optionally specify a secondary index that is used to determine the order
                                    of updates with the same `update_time`
+           :param time_format: Optionally set the format if providing a datetime String for update_time.
+                                   By default this is yyyy-MM-dd HH:mm:ss.SSS
         """
         if secondary_index is None:
             secondary_index = self.index()
+        time = update_time
+        if isinstance(update_time, str):
+            time = self.parse_datetime(time,time_format)
 
         if isinstance(src_id, str):
             properties += (ImmutableString("name", src_id),)  # comma makes this a tuple and is apparently the fastest way to do things
-            super().add_vertex(update_time, self.assign_id(src_id), Properties(*properties), Type(vertex_type),
-                               secondary_index)
+            super().add_vertex(time, self.assign_id(src_id), Properties(*properties), Type(vertex_type),secondary_index)
         else:
-            super().add_vertex(update_time, src_id, Properties(*properties), Type(vertex_type), secondary_index)
+            super().add_vertex(time, src_id, Properties(*properties), Type(vertex_type), secondary_index)
 
     def add_edge(self, update_time: int, src_id: int | str, dst_id: int | str, properties: list[input.Property] = (),
-                 edge_type: str = "", secondary_index: int = None):
+                 edge_type: str = "", secondary_index: int = None,time_format="yyyy[-MM[-dd[ HH[:mm[:ss[.SSS]]]]]]"):
         """Adds a new edge to the graph or updates an existing edge
 
         :param update_time: timestamp for edge update
@@ -80,16 +84,21 @@ class Graph(GenericScalaProxy):
         :param edge_type: specify a type for the edge
         :param secondary_index: Optionally specify a secondary index that is used to determine the order
                                 of updates with the same `update_time`
+        :param time_format: Optionally set the format if providing a datetime String for update_time.
+                                By default this is yyyy-MM-dd HH:mm:ss.SSS
         """
         if secondary_index is None:
             secondary_index = self.index()
+        time = update_time
+        if isinstance(update_time, str):
+            time = self.parse_datetime(time,time_format)
         source = src_id
         destination = dst_id
         if isinstance(src_id, str):
             source = self.assign_id(src_id)
         if isinstance(dst_id, str):
             destination = self.assign_id(dst_id)
-        super().add_edge(update_time, source, destination, Properties(*properties), Type(edge_type), secondary_index)
+        super().add_edge(time, source, destination, Properties(*properties), Type(edge_type), secondary_index)
 
 
 @register(name="TemporalGraph")
