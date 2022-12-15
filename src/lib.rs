@@ -21,11 +21,21 @@ pub trait TemporalGraphStorage {
 
     fn enumerate_vs_at(&self, r:Range<u64>) ->  Box<dyn Iterator<Item = u64> + '_>;
 
-    fn outbound(&self, src: u64, r:Range<u64>) ->  Box<dyn Iterator<Item = &u64> + '_>;
+    fn outbound(&self, src: u64) ->  Box<dyn Iterator<Item = &u64> + '_>;
 
-    fn inbound(&self, dst: u64, r:Range<u64>) ->  Box<dyn Iterator<Item = &u64> + '_>;
+    fn inbound(&self, dst: u64) ->  Box<dyn Iterator<Item = &u64> + '_>;
+
+    fn outbound_t(&self, src: u64, r:Range<u64>) ->  Box<dyn Iterator<Item = &u64> + '_>;
+
+    fn inbound_t(&self, dst: u64, r:Range<u64>) ->  Box<dyn Iterator<Item = &u64> + '_>;
 
     fn len(&self) -> usize;
+
+    fn outbound_degree(&self, src: u64) -> usize;
+    fn inbound_degree(&self, dst: u64) -> usize;
+
+    fn outbound_degree_t(&self, dst: u64, r:Range<u64>) -> usize;
+    fn inbound_degree_t(&self, dst: u64, r:Range<u64>) -> usize;
 
 }
 

@@ -28,9 +28,9 @@ fn main() {
             for rec_res in reader.records() {
                 if let Ok(rec) = rec_res {
                     if let Some((src, dst, t)) = parse_record(&rec) {
-                                           g.add_vertex(src, t);
-                                           g.add_vertex(dst, t);
-                                           g.add_edge(src, dst, t);
+                        g.add_vertex(src, t);
+                        g.add_vertex(dst, t);
+                        g.add_edge(src, dst, t);
                         //
                         // m.entry(src)
                         //     .and_modify(|cell| cell.set(t, src))
@@ -46,17 +46,26 @@ fn main() {
 
         println!(
             "Loaded {} vertices, took {} seconds",
-            // g.vertex_count(),
             g.len(),
             now.elapsed().as_secs()
         );
 
-        // for (v, cell) in m.iter().sorted_by_cached_key(|(_, cell)| cell.len()){
-        //     println!("VERTEX: {} CELL: {:?}", v, cell.len())
-        // }
+        println!("VERTEX,DEGREE,OUT_DEGREE,IN_DEGREE");
+        for (v, d, outd, ind) in g
+            .iter_vertices()
+            .map(|v| {
+                let out_d = g.outbound_degree(*v);
+                let in_d = g.inbound_degree(*v);
+                let d = out_d + in_d;
+
+                (v, d, out_d, in_d)
+            })
+            .sorted_by_cached_key(|(_, d, _, _)| *d)
+        {
+            println!("{},{},{},{}", v, d, outd, ind)
+        }
+
     } else {
         panic!("NO FILE ! NO GRAPH!")
     }
-    //
-    //
 }
