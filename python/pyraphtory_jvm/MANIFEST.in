@@ -1,4 +1,3 @@
-recursive-include pyraphtory_jvm/data *
-include pyraphtory_jvm/ivy.xml
-include pyraphtory_jvm/build.xml
+recursive-include src/pyraphtory_jvm/lib *.jar
 include _custom_build/backend.py
+include _custom_build/ivy/*.xml

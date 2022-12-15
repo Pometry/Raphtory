@@ -1,8 +1,10 @@
 from setuptools import build_meta as _orig
 import sys
-import jre
+from jre import package_folder, lib_folder
 from packaging import tags
 from pathlib import Path
+from ivy import get_and_run_ivy
+from java import check_system_dl_java
 
 prepare_metadata_for_build_wheel = _orig.prepare_metadata_for_build_wheel
 get_requires_for_build_wheel = _orig.get_requires_for_build_wheel
@@ -10,11 +12,13 @@ get_requires_for_build_sdist = _orig.get_requires_for_build_sdist
 build_sdist = _orig.build_sdist
 
 platform = next(tags.sys_tags()).platform
-
+build_folder = Path(__file__).resolve().parent
 
 def build_wheel(wheel_directory, config_settings: dict=None, metadata_directory=None):
     print(sys.path)
-    jre.check_dl_java_ivy(download_dir=str(jre.build_folder))
+    java_bin = check_system_dl_java(package_folder)
+    get_and_run_ivy(java_bin, build_folder / "ivy", lib_folder)
+
     # make wheel platform-specific as the jre downloaded will be different
     if config_settings is not None:
         config_settings.setdefault("--global-option", []).extend(["--plat-name", platform])

@@ -1,7 +1,7 @@
 [build-system]
 requires = ["setuptools","requests","packaging"]
 build-backend = "backend"
-backend-path = ["_custom_build","pyraphtory_jvm"]
+backend-path = ["_custom_build","src/pyraphtory_jvm"]
 
 [project]
 name = "pyraphtory_jvm"
@@ -22,7 +22,3 @@ classifiers = [
 
 [project.urls]
 homepage = 'https://github.com/raphtory/raphtory'
-
-[tool.setuptools]
-packages = ["pyraphtory_jvm"]
-include-package-data = true
