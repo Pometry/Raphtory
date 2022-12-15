@@ -68,19 +68,20 @@ case class FileSpout[T](
   override def asStream[F[_]: Async]: fs2.Stream[F, T] = {
     def toLinesStream(path: Path) = {
       fs2.compression.Compression
-      val uncommpressed =
+      val uncompressed =
         if (path.toString.endsWith(".gz"))
           file
             .Files[F]
-            .readAll(file.Path.fromNioPath(path), 1024 * 1024, Flags.Read)
+            .readAll(file.Path.fromNioPath(path), 4 * 1024 * 1024, Flags.Read)
+            .prefetch
             .through(Compression[F].gunzip())
             .flatMap(_.content)
         else file
         .Files[F]
-        .readAll(file.Path.fromNioPath(path), 1024 * 1024, Flags.Read)
+        .readAll(file.Path.fromNioPath(path), 2 * 1024 * 1024, Flags.Read)
 
 
-      uncommpressed
+      uncompressed
         .through(text.utf8.decode)
         .through(text.lines)
     }
