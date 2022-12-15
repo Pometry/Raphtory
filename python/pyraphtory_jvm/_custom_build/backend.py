@@ -17,7 +17,7 @@ build_folder = Path(__file__).resolve().parent
 def build_wheel(wheel_directory, config_settings: dict=None, metadata_directory=None):
     print(sys.path)
     java_bin = check_system_dl_java(package_folder)
-    get_and_run_ivy(java_bin, build_folder / "ivy", lib_folder)
+    get_and_run_ivy(java_bin, build_folder / "ivy_data", lib_folder)
 
     # make wheel platform-specific as the jre downloaded will be different
     if config_settings is not None:
