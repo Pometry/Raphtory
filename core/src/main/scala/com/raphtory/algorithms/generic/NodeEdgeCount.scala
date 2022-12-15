@@ -16,6 +16,9 @@ import scala.math.Ordering.Implicits._
   *
   * ## States
   *
+  *  {s}`numNodes: Int`
+  *  : Number of nodes in the perspective
+  *
   *  {s}`directedEdges: Int`
   *  : Number of directed edges in the perspective
   *
@@ -30,7 +33,7 @@ import scala.math.Ordering.Implicits._
   *
   *  | no nodes          | no directed edges       | no undirected edges       | no temporal edges |
   *  | ----------------- | ----------------------- | ------------------------- | ----------------- |
-  *  | {s}`noNodes: Int` | {s}`directedEdges: Int` | {s}`undirectedEdges: Int` | {s}`temporalEdges: Int` |
+  *  | {s}`numNodes: Int` | {s}`directedEdges: Int` | {s}`undirectedEdges: Int` | {s}`temporalEdges: Int` |
   *
   */
 

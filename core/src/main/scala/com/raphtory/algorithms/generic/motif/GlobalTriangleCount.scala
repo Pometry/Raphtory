@@ -12,14 +12,14 @@ import com.raphtory.api.analysis.table.Table
   *
   * ## States
   *
-  *  {s}`triangles: Int`
-  *    : three times the number of triangles (but returned in output without the factor of three).
+  *  {s}`triangleCount: Int`
+  *    : the number of triangles in the graph (treated as undirected and simple).
   *
   * ## Returns
   *
-  *  | total triangles      |
-  *  | -------------------- |
-  *  | {s}`triangles: Int`  |
+  *  | total triangles          |
+  *  | ------------------------ |
+  *  | {s}`triangleCount: Int`  |
   *
   * ```{note}
   *  Edges here are treated as undirected, so if the underlying network is directed here,
