@@ -5,7 +5,7 @@ import com.raphtory.internals.components.querymanager.NullPointSet
 import com.raphtory.internals.components.querymanager.PointPath
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.graph.PerspectiveController
-import com.raphtory.internals.time.DateTimeParser.{defaultParse => parseDateTime}
+import com.raphtory.internals.time.DateTimeParser
 import com.raphtory.internals.time.IntervalParser.{parse => parseInterval}
 import munit.FunSuite
 
@@ -58,9 +58,9 @@ class PerspectiveControllerTest extends FunSuite {
 
   test("A range of perspectives is correctly generated") {
     val increment        = parseInterval("2 months")
-    val start            = parseDateTime("2021-01-01 00:00:00")
-    val middle           = parseDateTime("2021-03-01 00:00:00")
-    val end              = parseDateTime("2021-05-01 00:00:00")
+    val start            = DateTimeParser().parse("2021-01-01 00:00:00")
+    val middle           = DateTimeParser().parse("2021-03-01 00:00:00")
+    val end              = DateTimeParser().parse("2021-05-01 00:00:00")
     val query            = Query(
             graphID = "",
             timelineStart = start,

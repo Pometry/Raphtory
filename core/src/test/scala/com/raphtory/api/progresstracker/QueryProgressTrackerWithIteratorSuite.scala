@@ -23,7 +23,8 @@ class QueryProgressTrackerWithIteratorSuite extends CatsEffectSuite {
           timestamp = 1L,
           window = Some(mock[Interval]),
           actualStart = 2L,
-          actualEnd = 3L
+          actualEnd = 3L,
+          formatAsDate = false
   )
 
   private val queryProgressTrackerWithIterator = ResourceSuiteLocalFixture(

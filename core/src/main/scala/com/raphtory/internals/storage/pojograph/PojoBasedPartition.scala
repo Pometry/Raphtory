@@ -16,12 +16,6 @@ import scala.collection.mutable
 
 private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf: Config)
         extends GraphPartition(graphID, partition, conf) {
-  private val hasDeletionsPath      = "raphtory.data.containsDeletions"
-  private val hasDeletions: Boolean = conf.getBoolean(hasDeletionsPath)
-  logger.debug(
-          s"Config indicates that the data contains 'delete' events. " +
-            s"To change this modify '$hasDeletionsPath' in the application conf."
-  )
 
   // Map of vertices contained in the partition
   private val vertices: mutable.Map[Long, PojoVertex] = mutable.Map[Long, PojoVertex]()

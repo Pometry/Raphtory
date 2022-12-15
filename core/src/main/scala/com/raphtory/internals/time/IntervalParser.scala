@@ -61,7 +61,8 @@ private[raphtory] object IntervalParser {
     val temporalAmount           = Try(periodFromAmounts).orElse(Try(durationFromAmounts))
 
     temporalAmount match {
-      case Success(temporalAmount) => TimeInterval(temporalAmount)
+      case Success(temporalAmount) =>
+        TimeInterval(temporalAmount, interval)
       case Failure(_)              =>
         val msg = s"You cannot set years, months, or weeks at the same time as" +
           s" hours, minutes, seconds, or milliseconds: '$interval'"

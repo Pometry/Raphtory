@@ -33,8 +33,8 @@ class TestTableOutput extends CatsEffectSuite {
     val result       = perspectives.map(out => out.perspective -> Set.from(out.rows)).toMap
 
     val correctResult = Map[Perspective, Set[Row]](
-            Perspective(0, None, Long.MinValue, 0) -> Set(Row("0", "1")),
-            Perspective(1, None, Long.MinValue, 1) -> Set(Row("0", "1"), Row("1", "2"))
+            Perspective(0, None, Long.MinValue, 0, formatAsDate = false) -> Set(Row("0", "1")),
+            Perspective(1, None, Long.MinValue, 1, formatAsDate = false) -> Set(Row("0", "1"), Row("1", "2"))
     )
 
     assertEquals(result, correctResult)

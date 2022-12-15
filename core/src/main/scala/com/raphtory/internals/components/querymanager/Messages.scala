@@ -27,7 +27,8 @@ private[raphtory] case class Query(
     earliestSeen: Long = Long.MaxValue,
     latestSeen: Long = Long.MinValue,
     sink: Option[Sink] = None,
-    pyScript: Option[String] = None
+    pyScript: Option[String] = None,
+    datetimeQuery: Boolean = false
 ) extends Serializable
 
 case class TryQuery(query: Try[Query])

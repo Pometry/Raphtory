@@ -5,6 +5,8 @@ import com.dimafeng.testcontainers.GenericContainer.DockerImage
 import com.dimafeng.testcontainers.ContainerDef
 import com.dimafeng.testcontainers.GenericContainer
 import com.dimafeng.testcontainers.munit.TestContainerForAll
+import com.raphtory.internals.management.discovery.ServiceDiscovery
+import com.raphtory.internals.management.discovery.ServiceInstance
 import munit.CatsEffectSuite
 import org.apache.curator.framework.CuratorFramework
 

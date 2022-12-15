@@ -6,6 +6,7 @@ import com.raphtory.api.time.DiscreteInterval
 import com.raphtory.api.time.Interval
 import com.raphtory.api.time.NullInterval
 import com.raphtory.internals.components.querymanager._
+import com.raphtory.internals.time.DateTimeParser
 import com.raphtory.internals.time.TimeConverters._
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -19,8 +20,20 @@ private[raphtory] case class Perspective(
     timestamp: Long,
     window: Option[Interval],
     actualStart: Long,
-    actualEnd: Long
-) extends time.Perspective
+    actualEnd: Long,
+    formatAsDate: Boolean
+) extends time.Perspective {
+
+  override val timestampAsString: String =
+    if (formatAsDate) DateTimeParser().parse(timestamp) else timestamp.toString
+
+  override val actualStartAsString: String =
+    if (formatAsDate) DateTimeParser().parse(actualStart) else actualStart.toString
+
+  override val actualEndAsString: String =
+    if (formatAsDate) DateTimeParser().parse(actualEnd) else actualEnd.toString
+
+}
 
 object Perspective extends ProtoField[Perspective]
 
@@ -50,11 +63,7 @@ private[raphtory] object PerspectiveController {
 
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  def apply(
-      firstAvailableTimestamp: Long,
-      lastAvailableTimestamp: Long,
-      query: Query
-  ): PerspectiveController = {
+  def apply(firstAvailableTimestamp: Long, lastAvailableTimestamp: Long, query: Query): PerspectiveController = {
     logger.debug(
             s"Defining perspective list using: " +
               s"firstAvailableTimestamp='$firstAvailableTimestamp', " +
@@ -79,7 +88,8 @@ private[raphtory] object PerspectiveController {
                   query.timelineEnd,
                   LazyList(query.timelineEnd min lastAvailableTimestamp),
                   List(),
-                  Alignment.END
+                  Alignment.END,
+                  query.datetimeQuery
           )
 
         // Similar to PointQuery
@@ -89,7 +99,8 @@ private[raphtory] object PerspectiveController {
                   query.timelineEnd,
                   LazyList(time),
                   query.windows,
-                  query.windowAlignment
+                  query.windowAlignment,
+                  query.datetimeQuery
           )
 
         // Similar to RangeQuery and LiveQuery
@@ -108,7 +119,8 @@ private[raphtory] object PerspectiveController {
                   query.timelineEnd,
                   timestamps,
                   query.windows,
-                  query.windowAlignment
+                  query.windowAlignment,
+                  query.datetimeQuery
           )
       }
 
@@ -121,19 +133,21 @@ private[raphtory] object PerspectiveController {
       timelineEnd: Long,
       timestamps: LazyList[Long],
       windows: Seq[Interval],
-      alignment: Alignment.Value
+      alignment: Alignment.Value,
+      formatAsDate: Boolean
   ) =
     windows match {
       case Seq()   =>
         List(timestamps map (timestamp => {
           alignment match {
-            case Alignment.START  => Perspective(timestamp, None, (timestamp max timelineStart), timelineEnd)
-            case Alignment.MIDDLE => Perspective(timestamp, None, timelineStart, timelineEnd)
-            case Alignment.END    => Perspective(timestamp, None, timelineStart, (timestamp min timelineEnd))
+            case Alignment.START  =>
+              Perspective(timestamp, None, (timestamp max timelineStart), timelineEnd, formatAsDate)
+            case Alignment.MIDDLE => Perspective(timestamp, None, timelineStart, timelineEnd, formatAsDate)
+            case Alignment.END    => Perspective(timestamp, None, timelineStart, (timestamp min timelineEnd), formatAsDate)
           }
         }))
       case windows =>
-        windows.sorted.reverse map { window =>
+        windows.map { window =>
           timestamps map (timestamp => {
             alignment match {
               case Alignment.START  =>
@@ -141,21 +155,24 @@ private[raphtory] object PerspectiveController {
                         timestamp,
                         Some(window),
                         (timestamp max timelineStart),
-                        ((timestamp + window) min timelineEnd) - 1 // The end is exclusive
+                        ((timestamp + window) min timelineEnd) - 1, // The end is exclusive
+                        formatAsDate
                 )
               case Alignment.MIDDLE =>
                 Perspective(
                         timestamp,
                         Some(window),
                         ((timestamp - window / 2) max timelineStart) + 1,
-                        ((timestamp + window / 2) min timelineEnd) - 1 // Both are exclusive
+                        ((timestamp + window / 2) min timelineEnd) - 1, // Both are exclusive
+                        formatAsDate
                 )
               case Alignment.END    =>
                 Perspective(
                         timestamp,
                         Some(window),
                         ((timestamp - window) max timelineStart) + 1, // The start is exclusive
-                        (timestamp min timelineEnd)
+                        (timestamp min timelineEnd),
+                        formatAsDate
                 )
             }
           })

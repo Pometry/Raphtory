@@ -39,9 +39,10 @@ object NodeEdgeCount extends GenericReduction {
 
   override def apply(graph: GraphPerspective): graph.ReducedGraph = {
     graph.reducedView.setGlobalState({state =>
-      state.newIntAdder("directedEdges")
-      state.newIntAdder("undirectedEdges")
-      state.newIntAdder("temporalEdges")
+      state.newIntAdder("directedEdges", 0,retainState = true)
+      state.newIntAdder("undirectedEdges", 0, retainState = true)
+      state.newIntAdder("temporalEdges", 0, retainState = true)
+      state.newConstant("noNodes", state.nodeCount)
     }).step{ (vertex, state) =>
       import vertex._
       val acc1: Accumulator[Int, Int] = state("directedEdges")
@@ -56,6 +57,6 @@ object NodeEdgeCount extends GenericReduction {
   override def tabularise(graph: ReducedGraphPerspective): Table =
     graph.globalSelect{
       state =>
-        Row(state.nodeCount, state("directedEdges").value, state[Int,Int]("undirectedEdges").value/2, state[Int,Int]("temporalEdges").value)
+        Row(state("noNodes").value, state("directedEdges").value, state[Int,Int]("undirectedEdges").value/2, state[Int,Int]("temporalEdges").value)
     }
 }
