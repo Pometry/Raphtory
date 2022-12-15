@@ -62,7 +62,7 @@ class RaphtoryGraphTest extends FunSuite {
 
   test("Test timestamp format without milliseconds") {
     val graph = createMockGraph()
-    val query = graph.startingFrom("2020-02-25 23:12:08", timeFormat = "yyyy-MM-dd HH:mm:ss").query
+    val query = graph.startingFrom("2020-02-25 23:12:08").query
     assert(query.timelineStart != Long.MinValue)
   }
 
@@ -74,7 +74,7 @@ class RaphtoryGraphTest extends FunSuite {
 
   test("Test timestamp format with date") {
     val graph = createMockGraph()
-    val query = graph.startingFrom("2020-02-25", timeFormat = "yyyy-MM-dd").query
+    val query = graph.startingFrom("2020-02-25").query
     assert(query.timelineStart != Long.MinValue)
   }
 
@@ -85,7 +85,7 @@ class RaphtoryGraphTest extends FunSuite {
                 .build()
                 .getConfig
       )
-    val query = graph.startingFrom("2020-02-25 23:12:08.56", timeFormat = "yyyy-MM-dd HH:mm:ss.SS").query
+    val query = graph.startingFrom("2020-02-25 23:12:08.56", "yyyy-MM-dd HH:mm:ss.SS").query
     assert(query.timelineStart != Long.MinValue)
   }
 
@@ -96,7 +96,7 @@ class RaphtoryGraphTest extends FunSuite {
                 .build()
                 .getConfig
       )
-    val query = graph.startingFrom("2020-02-25 12:23", timeFormat = "yyyy-MM-dd HH:mm").query
+    val query = graph.startingFrom("2020-02-25 12:23").query
     assert(query.timelineStart != Long.MinValue)
   }
 }

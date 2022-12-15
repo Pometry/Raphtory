@@ -71,7 +71,7 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
     *  @param startTime A timestamp in datetime format
     *  @param timeFormat the format of the start time, defaulting to yyyy-MM-dd HH:mm:ss.SSS
     */
-  def startingFrom(startTime: String, timeFormat: String = "yyyy-MM-dd HH:mm:ss.SSS"): G =
+  def startingFrom(startTime: String, timeFormat: String = "yyyy[-MM[-dd[ HH[:mm[:ss[.SSS]]]]]]"): G =
     startingFrom(parseDateTime(startTime, timeFormat))
 
   /** Creates a new `TemporalGraph` which includes all activity before endTime (inclusive).
@@ -86,7 +86,8 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
     *  @param endTime A timestamp in datetime format
     *  @param timeFormat the format of the end time, defaulting to yyyy-MM-dd HH:mm:ss.SSS
     */
-  def to(endTime: String, timeFormat: String = "yyyy-MM-dd HH:mm:ss.SSS"): G = to(parseDateTime(endTime, timeFormat))
+  def to(endTime: String, timeFormat: String = "yyyy[-MM[-dd[ HH[:mm[:ss[.SSS]]]]]]"): G =
+    to(parseDateTime(endTime, timeFormat))
 
   /** Creates a new `TemporalGraph` which includes all activity before endTime (exclusive).
     * @param endTime time interpreted in milliseconds by default
@@ -97,7 +98,7 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
     *  @param endTime A timestamp in datetime format
     *  @param timeFormat the format of the end time, defaulting to yyyy-MM-dd HH:mm:ss.SSS.
     */
-  def until(endTime: String, timeFormat: String = "yyyy-MM-dd HH:mm:ss.SSS"): G =
+  def until(endTime: String, timeFormat: String = "yyyy[-MM[-dd[ HH[:mm[:ss[.SSS]]]]]]"): G =
     until(parseDateTime(endTime, timeFormat))
 
   /** Creates a new `TemporalGraph` which includes all activity between `startTime` (inclusive) and `endTime` (exclusive)
@@ -111,7 +112,7 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
     *  @param endTime A timestamp in datetime format
     *  @param timeFormat the format of the start and end times, defaulting to yyyy-MM-dd HH:mm:ss.SSS.
     */
-  def slice(startTime: String, endTime: String, timeFormat: String = "yyyy-MM-dd HH:mm:ss.SSS"): G =
+  def slice(startTime: String, endTime: String, timeFormat: String = "yyyy[-MM[-dd[ HH[:mm[:ss[.SSS]]]]]]"): G =
     slice(parseDateTime(startTime, timeFormat), parseDateTime(endTime, timeFormat))
 
   /** Create a `DottedGraph` with a temporal epoch at `time`.
@@ -124,7 +125,7 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
     * @param time A timestamp in datetime format
     *  @param timeFormat the format of time, defaulting to yyyy-MM-dd HH:mm:ss.SSS.
     */
-  def at(time: String, timeFormat: String = "yyyy-MM-dd HH:mm:ss.SSS"): DottedGraph[FixedG] =
+  def at(time: String, timeFormat: String = "yyyy[-MM[-dd[ HH[:mm[:ss[.SSS]]]]]]"): DottedGraph[FixedG] =
     at(parseDateTime(time, timeFormat))
 
   /** Create a `DottedGraph` with a sequence of temporal epochs with a separation of `increment` covering all the
@@ -154,7 +155,11 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
     * @param increment the interval expressing the step size
     * @param timeFormat the format of start, defaulting to yyyy-MM-dd HH:mm:ss.SSS.
     */
-  def depart(start: String, increment: String, timeFormat: String = "yyyy-MM-dd HH:mm:ss.SSS"): DottedGraph[FixedG] =
+  def depart(
+      start: String,
+      increment: String,
+      timeFormat: String = "yyyy[-MM[-dd[ HH[:mm[:ss[.SSS]]]]]]"
+  ): DottedGraph[FixedG] =
     setPointPath(parseInterval(increment), start = Some(parseDateTime(start, timeFormat)))
 
   /** Create a DottedGraph with a sequence of temporal epochs with a separation of `increment` from the start of the timeline ending at `end`.
@@ -169,7 +174,11 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
     * @param increment the step size
     * @param timeFormat the format of end, defaulting to yyyy-MM-dd HH:mm:ss.SSS.
     */
-  def climb(end: String, increment: String, timeFormat: String = "yyyy-MM-dd HH:mm:ss.SSS"): DottedGraph[FixedG] =
+  def climb(
+      end: String,
+      increment: String,
+      timeFormat: String = "yyyy[-MM[-dd[ HH[:mm[:ss[.SSS]]]]]]"
+  ): DottedGraph[FixedG] =
     setPointPath(parseInterval(increment), end = Some(parseDateTime(end, timeFormat)))
 
   /** Create a DottedGraph with a sequence of temporal epochs with a separation of `increment` starting at `start` and ending at `end` (with a smaller step at the end if necessary).
@@ -190,7 +199,7 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
       start: String,
       end: String,
       increment: String,
-      timeFormat: String = "yyyy-MM-dd HH:mm:ss.SSS"
+      timeFormat: String = "yyyy[-MM[-dd[ HH[:mm[:ss[.SSS]]]]]]"
   ): DottedGraph[FixedG] =
     setPointPath(
             parseInterval(increment),
@@ -230,7 +239,7 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   * If any graph operation is invoked from this instance, it is applied over only the elements of the graph within
   * the timeline.
   *
-  *  All the strings expressing intervals need to be in the format `"<number> <unit> [<number> <unit> [...]]"`,
+  *  @note All the strings expressing intervals need to be in the format `"<number> <unit> [<number> <unit> [...]]"`,
   *  where numbers must be integers and units must be one of
   *  {'year', 'month', 'week', 'day', 'hour', 'min'/'minute', 'sec'/'second', 'milli'/'millisecond'}
   *  using the plural when the number is different than 1.

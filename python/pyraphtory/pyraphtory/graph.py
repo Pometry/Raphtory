@@ -58,6 +58,8 @@ class Graph(GenericScalaProxy):
            :param vertex_type: Optionally specify a type for the vertex
            :param secondary_index: Optionally specify a secondary index that is used to determine the order
                                    of updates with the same `update_time`
+           :param time_format: Optionally set the format if providing a datetime String for update_time.
+                                   By default this is yyyy-MM-dd HH:mm:ss.SSS
         """
         if secondary_index is None:
             secondary_index = self.index()
@@ -82,6 +84,8 @@ class Graph(GenericScalaProxy):
         :param edge_type: specify a type for the edge
         :param secondary_index: Optionally specify a secondary index that is used to determine the order
                                 of updates with the same `update_time`
+        :param time_format: Optionally set the format if providing a datetime String for update_time.
+                                By default this is yyyy-MM-dd HH:mm:ss.SSS
         """
         if secondary_index is None:
             secondary_index = self.index()

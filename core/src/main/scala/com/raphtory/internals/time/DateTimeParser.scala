@@ -28,5 +28,5 @@ private[raphtory] class DateTimeParser(format: String) {
 }
 
 private[raphtory] object DateTimeParser {
-  def apply(format: String = "yyyy-MM-dd[ HH:mm:ss[.SSS]]") = new DateTimeParser(format)
+  def apply(format: String = "yyyy[-MM[-dd[ HH[:mm[:ss[.SSS]]]]]]") = new DateTimeParser(format)
 }
