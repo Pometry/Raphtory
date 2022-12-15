@@ -4,7 +4,7 @@ import com.raphtory.api.analysis.algorithm.{Generic, GraphStateOutput}
 
 class GraphState (properties: Seq[String] = Seq.empty[String],
                    defaults: Map[String, Any] = Map.empty[String, Any])
-  extends GraphStateOutput(properties,defaults) with Generic{}
+  extends GraphStateOutput(properties,defaults) with Generic {}
 
 object GraphState {
   def apply(properties: Iterable[String] = Seq.empty[String],

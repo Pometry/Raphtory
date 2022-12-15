@@ -1,5 +1,6 @@
 package com.raphtory.algorithms.temporal
 
+import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
@@ -49,7 +50,7 @@ class Ancestors(
     delta: Long = Long.MaxValue,
     directed: Boolean = true,
     strict: Boolean = true
-) extends Generic {
+) extends NodeList(Seq("ancestor"), Map("ancestor" -> false)) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -84,10 +85,6 @@ class Ancestors(
               executeMessagedOnly = true,
               iterations = 100
       )
-
-  override def tabularise(graph: GraphPerspective): Table =
-    graph.select(vertex => Row(vertex.name(), vertex.getStateOrElse[Boolean]("ancestor", false)))
-
 }
 
 object Ancestors {
