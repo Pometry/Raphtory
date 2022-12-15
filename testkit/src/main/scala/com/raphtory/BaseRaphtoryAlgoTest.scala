@@ -15,10 +15,6 @@ import org.slf4j.LoggerFactory
 
 import java.net.URL
 import java.nio.file.{Files, Paths}
-import java.nio.file.attribute.BasicFileAttributes
-import java.nio.file.attribute.FileAttribute
-import java.nio.file.attribute.PosixFilePermissions
-import java.nio.file.attribute.PosixFilePermissions._
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 

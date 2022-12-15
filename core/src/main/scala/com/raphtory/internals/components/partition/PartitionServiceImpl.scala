@@ -22,6 +22,7 @@ import com.raphtory.internals.storage.arrow.EdgeSchema
 import com.raphtory.internals.storage.arrow.VertexSchema
 import com.raphtory.internals.storage.pojograph.PojoBasedPartition
 import com.raphtory.protocol.GraphAlterations
+import com.raphtory.protocol.GraphId
 import com.raphtory.protocol.NodeCount
 import com.raphtory.protocol.Operation
 import com.raphtory.protocol.OperationAndState
@@ -57,6 +58,14 @@ abstract class PartitionServiceImpl[F[_]](
         with PartitionService[F] {
 
   protected def makeGraphStorage(graphId: String): F[GraphPartition]
+
+  override def flush(req: GraphId): F[Empty] =
+    for {
+      ps <- partitions.get
+      g  <- graphs.get.map(graphs =>
+              graphs.get(req.graphID).map((g: Graph[F, Partition[F]]) => g.data.writer.flush).getOrElse(F.unit)
+            ).flatten
+    } yield Empty()
 
   override protected def makeGraphData(graphId: String): Resource[F, Partition[F]] =
     for {
@@ -147,6 +156,7 @@ class PojoPartitionServerImpl[F[_]: Async](
 
   override protected def makeGraphStorage(graphId: String): F[GraphPartition] =
     id.get.map(id => new PojoBasedPartition(graphId, id, config))
+
 }
 
 class ArrowPartitionServerImpl[F[_]: Async, V: VertexSchema, E: EdgeSchema](
@@ -169,6 +179,7 @@ class ArrowPartitionServerImpl[F[_]: Async, V: VertexSchema, E: EdgeSchema](
                 )
         )
     } yield storage
+
 }
 
 object PartitionServiceImpl {

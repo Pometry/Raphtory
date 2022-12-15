@@ -82,12 +82,12 @@ public class AlphaBayLoader {
     private final VertexIterator _vertexIter;
     private final VersionedEntityPropertyAccessor _priceVEPA;
 
-    public final static String RaphtoryInput = "/home/jatinder/projects/Pometry/arrow-core";
-    public final static String ArrowDir = "/tmp/alphabay";
+//    public final static String RaphtoryInput = "/home/jatinder/projects/Pometry/arrow-core";
+//    public final static String ArrowDir = "/tmp/alphabay";
 
 
-    //public final static String RaphtoryInput = "/pometry/wip";
-    //public final static String ArrowDir = "/pometry/wip/data";
+    public final static String RaphtoryInput = "/pometry/wip";
+    public final static String ArrowDir = "/pometry/wip/data";
 
 
     public static void main(String[] args) throws Exception {
@@ -735,13 +735,6 @@ public class AlphaBayLoader {
         trim(dst);
         return dst;
     }
-
-
-
-
-
-
-
 
 
     private final Worker _workers[] = new Worker[N_LOAD_THREADS];
