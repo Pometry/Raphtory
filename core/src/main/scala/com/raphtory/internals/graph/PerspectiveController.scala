@@ -48,7 +48,7 @@ private[raphtory] class PerspectiveController(
       None
     else {
       val (earliestPerspective, index) = perspectiveStreams.map(_.head).zipWithIndex minBy {
-        case (perspective, _) => perspective.actualEndAsString
+        case (perspective, _) => perspective.actualEnd
       }
       perspectiveStreams = perspectiveStreams.updated(index, perspectiveStreams(index).tail)
       Some(earliestPerspective)
