@@ -23,7 +23,7 @@ class Table(GenericScalaProxy):
         columns = ()
         for res in self.get():
             window = res.perspective().window()
-            timestamp = res.perspective().best_timestamp()
+            timestamp = res.perspective().formatted_time()
             if window != None:
                 columns = ('timestamp', 'window', *cols)
                 for r in res.rows():
@@ -48,7 +48,7 @@ class PropertyMergeStrategy(ScalaClassProxy):
 class Graph(GenericScalaProxy):
     _classname = "com.raphtory.api.input.Graph"
 
-    def add_vertex(self, update_time: int, src_id: int | str, properties: list[input.Property] = (), vertex_type: str = "", secondary_index: int=None,time_format="yyyy-MM-dd HH:mm:ss.SSS"):
+    def add_vertex(self, update_time: int, src_id: int | str, properties: list[input.Property] = (), vertex_type: str = "", secondary_index: int=None,time_format="yyyy[-MM[-dd[ HH[:mm[:ss[.SSS]]]]]]"):
         """Adds a new vertex to the graph or updates an existing vertex
 
            :param update_time: timestamp for vertex update
@@ -74,7 +74,7 @@ class Graph(GenericScalaProxy):
             super().add_vertex(time, src_id, Properties(*properties), Type(vertex_type), secondary_index)
 
     def add_edge(self, update_time: int, src_id: int | str, dst_id: int | str, properties: list[input.Property] = (),
-                 edge_type: str = "", secondary_index: int = None,time_format="yyyy-MM-dd HH:mm:ss.SSS"):
+                 edge_type: str = "", secondary_index: int = None,time_format="yyyy[-MM[-dd[ HH[:mm[:ss[.SSS]]]]]]"):
         """Adds a new edge to the graph or updates an existing edge
 
         :param update_time: timestamp for edge update
