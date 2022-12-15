@@ -111,13 +111,15 @@ class CSVEdgeListSource(
   override def builder: GraphBuilder[String] =
     (graph: Graph, tuple: String) => {
 
-      val fileLine = tuple.split(delimiter).map(_.trim)
-      val source   = fileLine(sourceIndex)
-      val target   = fileLine(targetIndex)
-      val rawTime  = fileLine(timeIndex)
-      graph.index match {
-        case 1 => if (!header) checkTypesAndBuildGraph(graph, tuple, rawTime, source, target)
-        case _ => checkTypesAndBuildGraph(graph, tuple, rawTime, source, target)
+      if (tuple.nonEmpty) {
+        val fileLine = tuple.split(delimiter).map(_.trim)
+        val source = fileLine(sourceIndex)
+        val target = fileLine(targetIndex)
+        val rawTime = fileLine(timeIndex)
+        graph.index match {
+          case 1 => if (!header) checkTypesAndBuildGraph(graph, tuple, rawTime, source, target)
+          case _ => checkTypesAndBuildGraph(graph, tuple, rawTime, source, target)
+        }
       }
     }
 }

@@ -2,6 +2,8 @@ package com.raphtory.internals.storage.arrow
 
 import com.raphtory.api.input.MutableLong
 import com.raphtory.api.input.Properties
+import com.raphtory.internals.communication.SchemaProviderInstances.genericSchemaProvider
+import com.raphtory.internals.graph.GraphAlteration.{EdgeAdd, VertexAdd}
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import munit.FunSuite
 
@@ -40,12 +42,17 @@ class ArrowPartitionTest extends FunSuite {
       val time        = fields(5).toLong
       val price       = fields(7).toLong
 
-      par.addVertex(1, time, i, srcGlobalId, emptyProp, None)
-      par.addVertex(1, time, i, dstGlobalId, emptyProp, None)
-      par.addLocalEdge(1, time, i, srcGlobalId, dstGlobalId, Properties(MutableLong("weight", price)), None)
+      val add1 = VertexAdd(1, time, i, srcGlobalId, emptyProp, None)
+      par.addVertex(add1)
+      val add2 = VertexAdd(1, time, i, dstGlobalId, emptyProp, None)
+      par.addVertex(add2)
+      val eAdd1 = EdgeAdd(1, time, i, srcGlobalId, dstGlobalId, Properties(MutableLong("weight", price)), None)
+      par.addLocalEdge(eAdd1)
       i += 1
 
     }
+
+    par.flush()
 
     val end = LocalDateTime.now()
 

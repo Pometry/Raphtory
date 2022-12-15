@@ -250,26 +250,6 @@ public class Vertex extends Entity {
         return _vertexIterator.findAllOutgoingEdges(dstVertexId, dstIsGlobal);
     }
 
-    /**
-     * Returns an edge iterator configured to iterate over all
-     * edges having a src equal to this vertex and a dst
-     * equal to the specified dst-vertex-id
-     *
-     * @param srcVertexId the dst vertex id in question
-     * @param isSrcGlobal true if the dest vertex id is global, false otherwise
-     *
-     * @return the configured edge iterator
-     */
-    public EdgeIterator findAllIncomingEdges(long srcVertexId, boolean isSrcGlobal) {
-        if (_vertexIterator == null) {
-            _vertexIterator = _rap.getNewAllVerticesIterator();
-        }
-
-        _vertexIterator.reset(_localId);
-
-        return _vertexIterator.findAllIncomingEdges(srcVertexId, isSrcGlobal);
-    }
-
 
     /**
      * Returns an edge iterator configured to iterate over all

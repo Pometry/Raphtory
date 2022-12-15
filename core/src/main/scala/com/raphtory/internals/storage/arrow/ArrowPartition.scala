@@ -1,33 +1,27 @@
 package com.raphtory.internals.storage.arrow
 
+import com.lmax.disruptor.SleepingWaitStrategy
+import com.lmax.disruptor.dsl.Disruptor
+import com.lmax.disruptor.dsl.ProducerType
+import com.lmax.disruptor.util.DaemonThreadFactory
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.api.input._
-import com.raphtory.arrowcore.implementation.ArrowPropertyIterator
-import com.raphtory.arrowcore.implementation.EdgeHistoryIterator
-import com.raphtory.arrowcore.implementation.EdgeIterator
-import com.raphtory.arrowcore.implementation.EdgePartitionManager
-import com.raphtory.arrowcore.implementation.EntityFieldAccessor
-import com.raphtory.arrowcore.implementation.LocalEntityIdStore
-import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
-import com.raphtory.arrowcore.implementation.VertexHistoryIterator
-import com.raphtory.arrowcore.implementation.VertexPartition
-import com.raphtory.arrowcore.implementation.VertexPartitionManager
+import com.raphtory.arrowcore.implementation._
 import com.raphtory.arrowcore.model.Edge
 import com.raphtory.arrowcore.model.Entity
 import com.raphtory.arrowcore.model.Vertex
+import com.raphtory.internals.communication.SchemaProviderInstances.vertexAddSchemaProvider
+import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphPartition
 import com.raphtory.internals.graph.LensInterface
 import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExVertex
 import com.typesafe.config.Config
 
 import java.lang
-import java.time.Duration
-import java.time.LocalDateTime
 import java.util.concurrent.atomic.LongAccumulator
 import scala.collection.AbstractView
 import scala.collection.View
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition: Int, conf: Config)
         extends GraphPartition(graphID, partition, conf)
@@ -47,6 +41,37 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   val partitionServers: Int    = conf.getInt("raphtory.partitions.serverCount")
   val partitionsPerServer: Int = conf.getInt("raphtory.partitions.countPerServer")
   val totalPartitions: Int     = partitionServers * partitionsPerServer
+
+  val nWorkers               = 5
+  val queueSize              = 1024
+  val workers: Array[Worker] = Array.tabulate(nWorkers)(i => new Worker(i, par, conf))
+
+  val disruptors: Array[Disruptor[QueuePayload]] = Array.tabulate(nWorkers) { i =>
+    val d = buildDisruptor
+    d.handleEventsWith(workers(i))
+    d
+  }
+
+  val queues = Array.tabulate(nWorkers)(i => disruptors(i).start)
+
+  override def flush(): Unit = {
+    var finished = false
+    while (!finished) {
+      finished = true
+      for (i <- 0 until nWorkers)
+        if (queues(i).remainingCapacity() != queueSize)
+          finished = false
+
+      if (!finished)
+        Thread.sleep(10)
+    }
+  }
+
+  private def buildDisruptor: Disruptor[QueuePayload] = {
+    val threadFactory = DaemonThreadFactory.INSTANCE
+    val waitStrategy  = new SleepingWaitStrategy
+    new Disruptor[QueuePayload](() => QueuePayload(null), queueSize, threadFactory, ProducerType.SINGLE, waitStrategy)
+  }
 
   def localEntityStore: LocalEntityIdStore = par.getLocalEntityIdStore
 
@@ -81,6 +106,28 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   ): Unit =
     addVertexInternal(srcId, msgTime, properties)
 
+  override def addVertex(vAdd: GraphAlteration.VertexAdd): Unit = {
+    val worker = Math.abs((vAdd.srcId % nWorkers).toInt)
+    enqueueVertex(vAdd, worker)
+  }
+
+  private def enqueueVertex(vAdd: GraphAlteration.VertexAdd, worker: Int): Unit = {
+    val sequenceId          = queues(worker).next
+    val event: QueuePayload = queues(worker).get(sequenceId)
+    event.graphUpdate = vAdd
+    queues(worker).publish(sequenceId)
+  }
+
+  override def addLocalEdge(eAdd: GraphAlteration.EdgeAdd): Unit = {
+    val srcWorker = Math.abs((eAdd.srcId % nWorkers).toInt)
+    val dstWorker = Math.abs((eAdd.dstId % nWorkers).toInt)
+
+    val sequenceId = queues(srcWorker).next()
+    val event: QueuePayload = queues(srcWorker).get(sequenceId)
+    event.graphUpdate = eAdd
+    queues(srcWorker).publish(sequenceId)
+  }
+
   @inline
   private def updateAdders(msgTime: Long): Unit = {
 //    min.accumulate(msgTime)
@@ -88,7 +135,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   }
 
   private def addVertexInternal(srcId: Long, msgTime: Long, properties: Properties): Vertex =
-    /*this.synchronized */{
+    /*this.synchronized */ {
 
       updateAdders(msgTime)
 
@@ -101,15 +148,10 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       else {
         val v = vmgr.getVertex(localSrcId)
 
-//        val props: Set[String] =
-//          par.getPropertySchema.versionedVertexProperties().asScala.map(_.name()).toSet intersect properties.properties
-//            .map(_.key.toLowerCase())
-//            .toSet
-
         addOrUpdateVertexProperties(
                 msgTime,
                 v,
-          properties
+                properties
         )
         vmgr.addHistory(v.getLocalId, msgTime, true, properties.properties.nonEmpty, -1, false)
         v
@@ -259,7 +301,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   }
 
   private def addRemoteIncomingEdge(globalSrcId: Long, dst: Vertex, time: Long, properties: Properties): Unit =
-    /*this.synchronized */{
+    /*this.synchronized */ {
       val e = par.getEdge
       e.init(par.getEdgeMgr.getNextFreeEdgeId, true, time)
       e.resetEdgeData(globalSrcId, dst.getLocalId, -1L, -1L, true, false)
@@ -277,14 +319,14 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     }
 
   private def addRemoteOutgoingEdge(src: Vertex, globalDstId: Long, time: Long, properties: Properties): Unit =
-    /*this.synchronized */{
-      val e  = par.getEdge
+    /*this.synchronized */ {
+      val e = par.getEdge
       e.init(par.getEdgeMgr.getNextFreeEdgeId, true, time)
       e.resetEdgeData(src.getLocalId, globalDstId, -1L, -1L, false, true)
       addOrUpdateEdgeProps(time, e, properties)
       par.getEdgeMgr.addEdge(e, -1L, -1L)
       par.getEdgeMgr.addHistory(e.getLocalId, time, true, true)
-      val p  = partitionFromVertex(src)
+      val p = partitionFromVertex(src)
       val id = /*p.synchronized*/ {
         p.addHistory(src.getLocalId, time, true, false, e.getLocalId, true)
         p.addOutgoingEdgeToList(e.getSrcVertex, e.getLocalId, e.getDstVertex, e.isDstGlobal)
@@ -294,14 +336,14 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
 
   private def addLocalVerticesToEdge(srcLocalId: Long, dstLocalId: Long, time: Long, properties: Properties): Unit =
     /*this.synchronized*/ {
-      val e   = par.getEdge
+      val e = par.getEdge
       e.init(par.getEdgeMgr.getNextFreeEdgeId, true, time)
       e.resetEdgeData(srcLocalId, dstLocalId, -1L, -1L, false, false)
       addOrUpdateEdgeProps(time, e, properties)
       par.getEdgeMgr.addEdge(e, -1L, -1L)
       par.getEdgeMgr.addHistory(e.getLocalId, time, true, true)
-      var p   = partitionFromVertex2(srcLocalId)
-      val id1 = /*p.synchronized */{
+      var p = partitionFromVertex2(srcLocalId)
+      val id1 = /*p.synchronized */ {
         p.addHistory(srcLocalId, time, true, false, e.getLocalId, true)
         p.addOutgoingEdgeToList(e.getSrcVertex, e.getLocalId, e.getDstVertex, e.isDstGlobal)
       }
@@ -309,7 +351,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       par.getEdgeMgr.setOutgoingEdgePtr(e.getLocalId, id1)
 
       p = partitionFromVertex2(dstLocalId)
-      val id = /*p.synchronized */{
+      val id = /*p.synchronized */ {
         p.addHistory(dstLocalId, time, true, false, e.getLocalId, false)
         p.addIncomingEdgeToList(e.getDstVertex, e.getLocalId, e.getSrcVertex)
       }
@@ -318,27 +360,27 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     }
 
   private def addOrUpdateEdgeProps(msgTime: Long, e: Edge, properties: Properties): Unit =
-    setProps(e, msgTime, properties)(key => par.getEdgePropertyId(key.toLowerCase()))(key => par.getEdgeFieldId(key))
+    setProps(e, msgTime, properties)(key => getEdgePropertyId(key))(key => getEdgeFieldId(key))
+
+  private def getEdgeFieldId(key: String) =
+    par.getEdgeFieldId(key.toLowerCase())
+
+  private def getEdgePropertyId(key: String) =
+    par.getEdgePropertyId(key.toLowerCase())
+
+  private def getVertexFieldId(key: String) =
+    par.getVertexFieldId(key.toLowerCase())
+
+  private def getVertexPropertyId(key: String) =
+    par.getVertexPropertyId(key.toLowerCase())
 
   private def addOrUpdateVertexProperties(msgTime: Long, v: Vertex, properties: Properties): Unit =
-    setProps(v, msgTime, properties)(key => par.getVertexPropertyId(key.toLowerCase()))(key =>
-      par.getVertexFieldId(key.toLowerCase())
-    )
+    setProps(v, msgTime, properties)(key => getVertexPropertyId(key))(key => getVertexFieldId(key))
 
   // This method should assume that the srcId belongs to another partition
 
   private def addRemoteEdgeInternal(msgTime: Long, srcId: Long, dst: Vertex, properties: Properties): Unit =
     addRemoteIncomingEdge(srcId, dst, msgTime, properties)
-
-  private def getIncomingEdge(srcId: Long, dst: Vertex): Option[Edge] = {
-    val iter0 = dst.getIncomingEdges
-    while (iter0.hasNext) {
-      val eId = iter0.next()
-      if (iter0.getSrcVertexId == srcId && !iter0.isSrcVertexLocal)
-        return Some(iter0.getEdge)
-    }
-    None
-  }
 
   override def getVertices(graphPerspective: LensInterface, start: Long, end: Long): mutable.Map[Long, PojoExVertex] =
     ???

@@ -14,6 +14,7 @@ import munit.CatsEffectSuite
 import org.slf4j.LoggerFactory
 
 import java.net.URL
+import java.util.concurrent.TimeUnit
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 

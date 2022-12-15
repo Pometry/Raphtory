@@ -1,7 +1,6 @@
 package com.raphtory.api.input
 
-import cats.effect.Async
-import cats.effect.Resource
+import cats.effect.{Async, Clock, Resource}
 import cats.effect.kernel.Ref
 import cats.syntax.all._
 import com.raphtory.internals.graph.GraphBuilderF
@@ -40,9 +39,13 @@ class StreamSource[F[_], T](id: Int, tuples: fs2.Stream[F, T], builderInstance: 
   def elements(counter: Counter.Child): F[Unit] = {
     val s = for {
       index <- fs2.Stream.eval(Ref.of[F, Long](1L))
+      start <- fs2.Stream.eval(Clock[F].monotonic)
       _     <- tuples.chunks.evalMap { chunk =>
                  builderInstance.buildGraphFromT(chunk, index) *> F.delay(counter.inc(chunk.size))
-               }
+               }.last
+        end <- fs2.Stream.eval(Clock[F].monotonic)
+      _ <- fs2.Stream.eval(builderInstance.flush)
+      _ <- fs2.Stream.eval(F.delay(println(s"INNER INGESTION TOOK ${(end - start).toSeconds}s ")))
     } yield ()
 
     s.compile.drain
