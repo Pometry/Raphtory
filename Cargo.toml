@@ -11,5 +11,4 @@ dashmap="5"
 itertools="0.10"
 guardian = "1.0.2"
 csv = "1.1.6"
-tinyvec = { version = "1.6.0", features = ["alloc"] }
-art-tree = {path= "../art-rs"}
+tinyvec = "1.6.0"
