@@ -1,0 +1,7 @@
+recursive-include python/pyraphtory/lib *.jar
+recursive-include python/pyraphtory/jre *
+recursive-include python/pyraphtory *.py
+include python/_custom_build/*.py
+include python/_custom_build/ivy_data/*.xml
+include python/pyraphtory/LICENSE
+include python/pyraphtory/README.md

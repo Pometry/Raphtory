@@ -74,19 +74,16 @@ def unpack_jre(filename: str | Path, jre_loc: str | Path):
         logging.info('Cleaning up...')
 
 
-def check_system_dl_java(download_dir: Path | str) -> Path:
-    download_dir = Path(download_dir)
-    logging.info("Downloading java...")
-    system_os = getOS()
-    logging.info(f"- Operating system: {system_os} ")
-    architecture = getArch()
-    logging.info(f"- Architecture: {architecture}")
-    logging.info(f"Downloading to {download_dir}")
-    jre_loc = download_dir / 'jre'
-    jre_loc.mkdir(exist_ok=True, parents=True)
-    try:
+def check_system_dl_java(jre_dir: Path | str) -> Path:
+    with tempfile.TemporaryDirectory() as download_dir:
+        download_dir = Path(download_dir)
+        logging.info("Downloading java...")
+        system_os = getOS()
+        logging.info(f"- Operating system: {system_os} ")
+        architecture = getArch()
+        logging.info(f"- Architecture: {architecture}")
+        logging.info(f"Downloading to {download_dir}")
+        jre_dir.mkdir(exist_ok=True, parents=True)
         download_loc = download_java(system_os, architecture, download_dir)
-        unpack_jre(download_loc, jre_loc)
-    finally:
-        download_loc.unlink(missing_ok=True)
-    return jre_loc / "bin" / 'java'
+        unpack_jre(download_loc, jre_dir)
+    return jre_dir / "bin" / 'java'

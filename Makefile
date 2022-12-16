@@ -15,35 +15,24 @@ log-level-error:
 	echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
 
 
-.PHONY: ivy-xml
-python-ivy-xml: version
-	sbt core/makeIvyXml
-	cp core/target/scala-2.13/ivy-$$(cat version).xml python/pyraphtory_jvm/_custom_build/ivy_data/core_ivy.xml
-	sed -i.bak '/org="com.raphtory"/d' python/pyraphtory_jvm/_custom_build/ivy_data/core_ivy.xml
-	sbt arrowCore/makeIvyXml
-	cp arrow-core/target/scala-2.13/ivy-$$(cat version).xml python/pyraphtory_jvm/_custom_build/ivy_data/arrow-core_ivy.xml
-	sed -i.bak '/org="com.raphtory"/d' python/pyraphtory_jvm/_custom_build/ivy_data/arrow-core_ivy.xml
-	sbt arrowMessaging/makeIvyXml
-	cp core/target/scala-2.13/ivy-$$(cat version).xml python/pyraphtory_jvm/_custom_build/ivy_data/arrow_messaging_ivy.xml
-	sed -i.bak '/org="com.raphtory"/d' python/pyraphtory_jvm/_custom_build/ivy_data/arrow_messaging_ivy.xml
-
-.PHONY: python-jars
-python-jars: version
-	mkdir -p python/pyraphtory_jvm/src/pyraphtory_jvm/lib
-	sbt core/package
-	cp core/target/scala-2.13/core_2.13-$$(cat version).jar python/pyraphtory_jvm/src/pyraphtory_jvm/lib/core.jar
-	sbt arrowCore/package
-	cp arrow-core/target/scala-2.13/arrow-core_2.13-$$(cat version).jar python/pyraphtory_jvm/src/pyraphtory_jvm/lib/arrow-core.jar
-	sbt arrowMessaging/package
-	cp arrow-messaging/target/scala-2.13/arrow-messaging_2.13-$$(cat version).jar python/pyraphtory_jvm/src/pyraphtory_jvm/lib/arrow-messaging.jar
+.PHONY: sbt-build
+sbt-build: version
+	sbt core/makeIvyXml core/package arrowCore/makeIvyXml arrowCore/package arrowMessaging/makeIvyXml arrowMessaging/package
+	mkdir -p python/_custom_build/ivy_data
+	cp core/target/scala-2.13/ivy-$$(cat version).xml python/_custom_build/ivy_data/core_ivy.xml
+	sed -i.bak '/org="com.raphtory"/d' python/_custom_build/ivy_data/core_ivy.xml
+	cp arrow-core/target/scala-2.13/ivy-$$(cat version).xml python/_custom_build/ivy_data/arrow-core_ivy.xml
+	sed -i.bak '/org="com.raphtory"/d' python/_custom_build/ivy_data/arrow-core_ivy.xml
+	cp arrow-messaging/target/scala-2.13/ivy-$$(cat version).xml python/_custom_build/ivy_data/arrow_messaging_ivy.xml
+	sed -i.bak '/org="com.raphtory"/d' python/_custom_build/ivy_data/arrow_messaging_ivy.xml
+	mkdir -p python/pyraphtory/lib
+	cp core/target/scala-2.13/core_2.13-$$(cat version).jar python/pyraphtory/lib/core.jar
+	cp arrow-core/target/scala-2.13/arrow-core_2.13-$$(cat version).jar python/pyraphtory/lib/arrow-core.jar
+	cp arrow-messaging/target/scala-2.13/arrow-messaging_2.13-$$(cat version).jar python/pyraphtory/lib/arrow-messaging.jar
 
 
 .PHONY: gh-sbt-build
-gh-sbt-build: version log-level-error python-ivy-xml python-jars
-
-
-.PHONY: sbt-build
-sbt-build: version python-ivy-xml python-jars
+gh-sbt-build: version log-level-error sbt-build
 
 
 .PHONY: sbt-skip-build
@@ -51,28 +40,42 @@ sbt-skip-build: version
 	ivy-clean-copy-jars
 
 .PHONY: sbt-thin-build
-sbt-thin-build: version
-	sbt clean compile package
-	rm -rf python/pyraphtory/lib/
-	mkdir -p python/pyraphtory/lib/
-	cp core/target/scala-2.13/core_2.13-$$(cat version).jar python/pyraphtory/lib/
-	cp arrow-core/target/scala-2.13/arrow-core_2.13-$$(cat version).jar python/pyraphtory/lib/
-	cp arrow-messaging/target/scala-2.13/arrow-messaging_2.13-$$(cat version).jar python/pyraphtory/lib/
+sbt-thin-build: version clean sbt-build
 
 
 .PHONY: python-build
-python-build: version sbt-build python-build-quick
+python-build: version
+	python -m pip install .
 
 
-PHONY: python-build-quick
-python-build-quick: version
-	python -m pip install python/pyraphtory_jvm
-	python -m pip install python/pyraphtory
+.PHONY: python-dist
+python-dist: python-dist-clean
+	python -m pip install -q build
+	python -m build
+
+
+.PHONY: python-dist-clean
+python-dist-clean:
+	rm -rf dist
+	rm -rf build
+	rm -rf python/*.egg-info
+
+
+.PHONY: sbt-build-clean
+sbt-build-clean:
+	rm -rf python/pyraphtory/lib/
+	rm -rf python/_custom_build/ivy_data/
+	rm -rf python/pyraphtory/jre/
+
+
+.PHONY: python-build-quick
+python-build-quick: version python-build
 
 .PHONY: docs
-docs: version sbt-build python-build
+docs: version python-build
 	pip install -q myst-parser sphinx-rtd-theme sphinx docutils sphinx-tabs
 	cd docs && make html
+
 
 .PHONY: pyraphtory-local
 pyraphtory-local: version
@@ -109,9 +112,12 @@ clean-local-cluster:
 	docker-compose -f $(DOCKER_RAP)/docker-compose.yml down --remove-orphans
 	rm -Rf $(DOCKER_TMP)/*
 
-clean:
+.PHONY: clean
+clean: python-dist-clean sbt-build-clean
 	sbt clean
 	rm -Rf python/pyraphtory/lib/*
+
+
 
 type?=patch
 .PHONY: version-bump

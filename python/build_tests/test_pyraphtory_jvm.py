@@ -5,9 +5,15 @@ from unittest import mock
 import platform
 import os
 import tarfile
+print(os.environ.get("PYTHONPATH"))
 
 import requests
-from pyraphtory_jvm import jre as jre
+from pyraphtory_jvm import jre
+from ivy import *
+from download import *
+from check_platform import *
+from java import *
+
 
 LOTR_CHECKSUM = '8c7400d7463b4f45daff411a5521cbcadec4cabd624200ed0c17d68dc7c99a3f'
 LOTR_URL = 'https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv'
@@ -33,7 +39,7 @@ class JRETest(unittest.TestCase):
 
     def test_getOS(self):
         this_os = platform.system()
-        self.assertTrue(jre.getOS() == this_os)
+        self.assertTrue(getOS() == this_os)
 
     def test_getArch(self):
         this_arch = platform.machine()
@@ -41,32 +47,27 @@ class JRETest(unittest.TestCase):
             this_arch = 'x64'
         elif platform.machine() == 'arm64':
             this_arch = 'aarch64'
-        self.assertEqual(jre.getArch(), this_arch)
+        self.assertEqual(getArch(), this_arch)
 
     def test_MacJavaFileExists(self):
-        mac_x64_url = jre.SOURCES.get(jre.OS_MAC).get(jre.OS_X64).get(jre.LINK)
-        mac_arch_url = jre.SOURCES.get(jre.OS_MAC).get(jre.OS_AARCH64).get(jre.LINK)
+        mac_x64_url = SOURCES.get(OS_MAC).get(OS_X64).link
+        mac_arch_url = SOURCES.get(OS_MAC).get(OS_AARCH64).link
         self.assertTrue(does_url_exist(url=mac_x64_url))
         self.assertTrue(does_url_exist(url=mac_arch_url))
 
     def test_LinuxJavaFileExists(self):
-        self.assertTrue(does_url_exist(jre.SOURCES.get(jre.OS_LINUX).get(jre.OS_X64).get(jre.LINK)))
-        self.assertTrue(does_url_exist(jre.SOURCES.get(jre.OS_LINUX).get(jre.OS_AARCH64).get(jre.LINK)))
+        self.assertTrue(does_url_exist(SOURCES.get(OS_LINUX).get(OS_X64).link))
+        self.assertTrue(does_url_exist(SOURCES.get(OS_LINUX).get(OS_AARCH64).link))
 
     def test_IVYFileExists(self):
-        self.assertTrue(does_url_exist(jre.IVY_BIN.get(jre.LINK)))
+        self.assertTrue(does_url_exist(IVY_BIN.link))
 
     def test_safe_download(self):
-        temporary_folder = tempfile.mkdtemp()
-        # download a file to the temporary folder
-        ivy_checksum = jre.IVY_BIN.get(jre.CHECKSUM_SHA256)
-        ivy_url = jre.IVY_BIN.get(jre.LINK)
-        file_loc = jre.safe_download_file(temporary_folder, ivy_checksum, ivy_url)
-        # check that the file exists
-        self.assertTrue(os.path.exists(file_loc))
-        # delete the temporary folder and its contents
-        os.unlink(file_loc)
-        os.rmdir(temporary_folder)
+        with tempfile.TemporaryDirectory() as temporary_folder:
+            # download a file to the temporary folder
+            file_loc = safe_download_file(temporary_folder, IVY_BIN)
+            # check that the file exists
+            self.assertTrue(os.path.exists(file_loc))
 
     # Test get_java_home() when java is not installed
     def test_get_java_home_no_java(self):
@@ -99,21 +100,21 @@ class JRETest(unittest.TestCase):
         with mock.patch('platform.system') as mock_system:
             mock_system.return_value = 'HaaroonOS'
             # Test the jre.getArch function and mock platform.machine
-            self.assertRaises(Exception, jre.getOS)
+            self.assertRaises(Exception, getOS)
 
     # Test the jre.getArch function and mock platform.system
     def test_getArch_arm64(self):
         with mock.patch('platform.machine') as mock_machine:
             mock_machine.return_value = 'arm64'
             # Test the jre.getArch function and mock platform.machine
-            self.assertEqual(jre.getArch(), 'aarch64')
+            self.assertEqual(getArch(), 'aarch64')
 
     # Test the jre.getArch function and mock platform.system
     def test_getArch_fail(self):
         with mock.patch('platform.machine') as mock_machine:
             mock_machine.return_value = 'HaaroonArch'
             # Test the jre.getArch function and mock platform.machine
-            self.assertRaises(Exception, jre.getArch)
+            self.assertRaises(Exception, getArch)
 
     # Test the jre.delete source function, make a new temproary file, delete the file and check that it is deleted
     def test_delete_source(self):
@@ -125,22 +126,22 @@ class JRETest(unittest.TestCase):
     # Test the jre.checksum function, make a new temporary file and assert that the checksum is false
     def test_checksum_fails(self):
         temp_file = tempfile.mkstemp()[1]
-        self.assertFalse(jre.checksum(temp_file, 'test'))
+        self.assertFalse(checksum(temp_file, 'test'))
 
     # Test the jre.download_java function
     # mock the sources to use a small test file
     # ensure it passes the checksum
-    @mock.patch("pyraphtory_jvm.jre.SOURCES", {OS: {ARCH: {'link': LOTR_URL, 'checksum': LOTR_CHECKSUM}}})
+    @mock.patch("_custom_build.java.SOURCES", {OS: {ARCH: {'link': LOTR_URL, 'checksum': LOTR_CHECKSUM}}})
     def test_download_java(self):
-        self.assertEqual(jre.download_java(OS, ARCH, '/tmp/abc'), '/tmp/abc/lotr.csv')
+        self.assertEqual(download_java(OS, ARCH, '/tmp/abc'), '/tmp/abc/lotr.csv')
 
-    @mock.patch("pyraphtory_jvm.jre.SOURCES", {OS: {ARCH: {'link': LOTR_URL, 'checksum': '11'}}})
+    @mock.patch("_custom_build.java.SOURCES", {OS: {ARCH: {'link': LOTR_URL, 'checksum': '11'}}})
     def test_download_java_fails(self):
-        self.assertRaises(SystemExit, jre.download_java, OS, ARCH, '/tmp/')
+        self.assertRaises(SystemExit, download_java, OS, ARCH, '/tmp/')
 
-    @mock.patch("pyraphtory_jvm.jre.SOURCES", {'TEST': {ARCH: {'link': LOTR_URL, 'checksum': '11'}}})
+    @mock.patch("_custom_build.java.SOURCES", {'TEST': {ARCH: {'link': LOTR_URL, 'checksum': '11'}}})
     def test_download_java_bad_os(self):
-        self.assertRaises(SystemExit, jre.download_java, OS, ARCH, '/tmp/')
+        self.assertRaises(SystemExit, download_java, OS, ARCH, '/tmp/')
 
     # Mock the subprocess.call method
     @mock.patch('subprocess.run')
@@ -153,7 +154,7 @@ class JRETest(unittest.TestCase):
             mock_subprocess_completedprocess.returncode = 0
             mock_subprocess_run.return_value = mock_subprocess_completedprocess
             # Run the function
-            self.assertIsNone(jre.get_and_run_ivy('f', '/tmp/'))
+            self.assertIsNone(get_and_run_ivy('f', '/tmp/'))
 
     # Test the jre.unpack_jre function and mock shutil.unpack_archive
     @mock.patch('shutil.unpack_archive')
@@ -162,4 +163,4 @@ class JRETest(unittest.TestCase):
         tf = tempfile.mkstemp()[1]
         mock_unpack_archive.return_value = None
         # Run the function
-        self.assertRaises(Exception, jre.unpack_jre, tf, ts)
+        self.assertRaises(Exception, unpack_jre, tf, ts)

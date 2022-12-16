@@ -1,4 +1,0 @@
-recursive-include src/pyraphtory_jvm/lib *.jar
-recursive-include src/pyraphtory_jvm/jre *
-include _custom_build/*.py
-include _custom_build/ivy_data/*.xml
