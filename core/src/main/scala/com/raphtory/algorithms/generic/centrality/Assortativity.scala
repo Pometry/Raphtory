@@ -1,5 +1,6 @@
 package com.raphtory.algorithms.generic.centrality
 
+import com.raphtory.algorithms.generic.GraphState
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
@@ -26,7 +27,7 @@ import com.raphtory.internals.communication.SchemaProviderInstances._
   *
   *
   */
-class Assortativity extends Generic {
+class Assortativity extends GraphState(Seq("assortativity")) {
   override def apply(graph: GraphPerspective): graph.Graph = {
     graph
       .setGlobalState{
@@ -49,6 +50,9 @@ class Assortativity extends Generic {
                 (Map[String, Double](vertex.degree.toString + ',' + degree.toString -> 1.0))
           }
       }
+      .setGlobalState(state =>
+      state.newConstant("assortativity", calculation(state("linkCounter").value, state("nodeDegrees").value, state("sumOfDegrees").value))
+      )
   }
 
   def MapMerge(x: Map[String, Double], y: Map[String, Double]): Map[String, Double] = {
@@ -101,13 +105,6 @@ class Assortativity extends Generic {
     })
     sigma_2 = math.pow(sigma_2, 2)
     (molecular_1 - molecular_2) / ((sigma_1 - sigma_2))
-  }
-
-  override def tabularise(graph: GraphPerspective): Table = {
-    graph.globalSelect(
-      graphState =>
-        Row(calculation(graphState("linkCounter").value, graphState("nodeDegrees").value, graphState("sumOfDegrees").value))
-    )
   }
 }
 
