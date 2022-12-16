@@ -1,4 +1,0 @@
-[console_scripts]
-raphtory-classpath = pyraphtory.cli:classpath
-raphtory-standalone = pyraphtory.cli:standalone
-raphtory-version = pyraphtory.cli:version
