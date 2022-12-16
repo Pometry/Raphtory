@@ -92,18 +92,20 @@ trait ArrowExEntity extends EntityVisitor {
         }
         else {
           implicit val FIELD: Field[T] = com.raphtory.internals.storage.arrow.Field.runtime[T]
-          vertex.vertex
+          val value1 = vertex.vertex
             .field[T](key)
             .get
+          val option = value1
             .map(value =>
               List(
-                      PropertyValue(
-                              vertex.vertex.getCreationTime,
-                              vertex.vertex.getCreationTime,
-                              value
-                      )
+                PropertyValue(
+                  vertex.vertex.getCreationTime,
+                  vertex.vertex.getCreationTime,
+                  value
+                )
               )
             )
+          option
 
         }
       case edge: ArrowExEdge     =>

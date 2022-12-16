@@ -9,11 +9,7 @@ import com.raphtory.api.input.MutableInteger
 import com.raphtory.api.input.MutableLong
 import com.raphtory.api.input.MutableString
 import com.raphtory.api.input.Properties
-import com.raphtory.arrowcore.implementation.EdgeIterator
-import com.raphtory.arrowcore.implementation.EdgePartition
-import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
-import com.raphtory.arrowcore.implementation.VertexIterator
-import com.raphtory.arrowcore.implementation.VertexPartition
+import com.raphtory.arrowcore.implementation.{EdgeIterator, EdgePartition, EntityFieldAccessor, RaphtoryArrowPartition, VertexIterator, VertexPartition}
 import com.raphtory.arrowcore.model.Edge
 import com.raphtory.arrowcore.model.Entity
 import com.raphtory.arrowcore.model.Vertex
@@ -42,8 +38,10 @@ private[raphtory] class Worker(private val _id: Int, _rap: RaphtoryArrowPartitio
   override def onEvent(av: QueuePayload, l: Long, b: Boolean): Unit =
     av match {
       case QueuePayload(vAdd: GraphAlteration.VertexAdd) =>
+//        println(vAdd)
         addVertex(vAdd)
       case QueuePayload(eAdd: GraphAlteration.EdgeAdd)   =>
+//        println(eAdd)
         addLocalEdge(eAdd)
     }
 
@@ -150,7 +148,7 @@ private[raphtory] class Worker(private val _id: Int, _rap: RaphtoryArrowPartitio
     properties.properties.foreach {
       case ImmutableString(key, value) =>
         val FIELD    = lookupField(key.toLowerCase())
-        val accessor = e.getField(FIELD)
+        val accessor: EntityFieldAccessor = e.getField(FIELD)
         accessor.set(new java.lang.StringBuilder(value))
       case MutableString(key, value)   =>
         val FIELD = lookupProp(key)
