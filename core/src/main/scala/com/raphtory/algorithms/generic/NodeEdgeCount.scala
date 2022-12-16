@@ -56,10 +56,4 @@ object NodeEdgeCount extends GraphStateOutput(Seq("numNodes", "directedEdges", "
     }
       .setGlobalState(state => state.newConstant("undirectedEdges",state[Int,Int]("undirectedEdgesAcc").value/2))
   }
-
-//  override def tabularise(graph: ReducedGraphPerspective): Table =
-//    graph.globalSelect{
-//      state =>
-//        Row(state("noNodes").value, state("directedEdges").value, state[Int,Int]("undirectedEdges").value/2, state[Int,Int]("temporalEdges").value)
-//    }
 }
