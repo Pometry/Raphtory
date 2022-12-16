@@ -3,7 +3,7 @@ DOCKER_RAP:=bin/docker/raphtory
 DOCKER_TMP:=$(DOCKER_RAP)/tmp
 MODE:=batch
 IVY_VERSION:=2.5.1
-export JAVA_HOME:= $(shell readlink -f $$(which java) | sed "s:/bin/java::")
+export JAVA_HOME:= $(shell (readlink -f  $$(which java) 2>/dev/null || echo "$$(which java)")| sed "s:/bin/java::")
 
 # version:
 # 	sbt -Dsbt.supershell=false -error "exit" && \
