@@ -74,7 +74,7 @@ trait ArrowExEntityIter extends EntityVisitor {
     * @param after  Only consider addition events in the current view that happened no earlier than time `after`
     * @param before Only consider addition events in the current view that happened no later than time `before`
     */
-  override def getPropertyHistory[T](key: String, after: Long, before: Long): Option[Iterable[PropertyValue[T]]] =
+  override def getPropertyHistory[T](key: String, after: Long, before: Long): Option[Iterable[PropertyValue[T]]] = {
     this match {
       case vIter: ArrowExVertexIter =>
         if (!isField(key)) {
@@ -140,6 +140,7 @@ trait ArrowExEntityIter extends EntityVisitor {
 
         }
     }
+  }
 
   /**
     * check if the property is field or versioned property

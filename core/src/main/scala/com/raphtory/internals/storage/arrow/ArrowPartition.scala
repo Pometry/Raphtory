@@ -42,7 +42,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   val partitionsPerServer: Int = conf.getInt("raphtory.partitions.countPerServer")
   val totalPartitions: Int     = partitionServers * partitionsPerServer
 
-  val nWorkers               = 5
+  val nWorkers               = 1
   val queueSize              = 1024
   val workers: Array[Worker] = Array.tabulate(nWorkers)(i => new Worker(i, par, conf))
 
