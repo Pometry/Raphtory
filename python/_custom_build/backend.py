@@ -17,6 +17,7 @@ platform = next(tags.sys_tags()).platform
 build_folder = Path(__file__).resolve().parent
 package_folder = build_folder.parent / "pyraphtory"
 lib_folder = package_folder / "lib"
+jre_folder = package_folder / "jre"
 
 
 def build_sdist(sdist_directory, config_settings=None):
@@ -26,7 +27,7 @@ def build_sdist(sdist_directory, config_settings=None):
 
 def build_wheel(wheel_directory, config_settings: dict=None, metadata_directory=None):
     print(sys.path)
-    java_bin = check_system_dl_java(package_folder)
+    java_bin = check_system_dl_java(jre_folder)
     get_and_run_ivy(java_bin, build_folder / "ivy_data", lib_folder)
 
     # make wheel platform-specific as the jre downloaded will be different
