@@ -31,17 +31,6 @@ pub trait TVec<A> {
     fn iter_window_t(&self, r: Range<u64>) -> Box<dyn Iterator<Item = (&u64, &A)> + '_>;
 }
 
-// #[derive(Debug, Default, PartialEq)]
-// pub struct DefaultTVec<A: Clone + Default + Debug + PartialEq> {
-//     // Layer 1 deals with first time entries (lots of entries only have 1 item, we don't need to store the time as well since it's in the BTreeMap)
-//     // vs_one: Vec<A>, // the first entry is stored here
-//     // t_index_one: BTreeMap<u64, usize>,
-
-//     // anything after item 1 is stored here
-//     vs: Vec<TCell<A>>,
-//     t_index: BTreeMap<u64, RoaringTreemap>,
-// }
-
 #[derive(Debug, Default, PartialEq)]
 pub enum DefaultTVec<A: Clone + Default + Debug + PartialEq> {
     #[default]
