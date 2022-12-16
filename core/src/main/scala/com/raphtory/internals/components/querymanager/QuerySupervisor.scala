@@ -66,6 +66,7 @@ class QuerySupervisor[F[_]] protected (
       _     <- ls.map(_.release.complete(())).sequence
       eTime <- earliestTime.get
       lTime <- latestTime.get
+      _ = println(s"ARE EARLIESE TIME ${eTime} and LATEST TIME ${lTime}")
       _     <- F.blocking {
                  logger.info(
                          s"Source '$sourceID' is unblocking analysis for Graph '$graphID' with earliest time seen as $eTime and latest time seen as $lTime"
