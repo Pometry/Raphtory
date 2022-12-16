@@ -1,6 +1,6 @@
 package com.raphtory.algorithms.temporal.motif
 
-import com.raphtory.algorithms.generic.KCore
+import com.raphtory.algorithms.generic.{KCore, NodeList}
 import com.raphtory.api.analysis.algorithm.{Generic, GenericReduction}
 import com.raphtory.api.analysis.graphview.{GraphPerspective, ReducedGraphPerspective}
 import com.raphtory.api.analysis.table.{Row, Table}
