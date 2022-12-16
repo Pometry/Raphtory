@@ -11,11 +11,6 @@ use crate::{tcell::TCell, tvec::DefaultTVec};
 #[derive(Debug)]
 enum Adj {
     Empty(u64),
-    One {
-        logical: u64,
-        out: TCell<usize>,
-        into: TCell<usize>,
-    },
     List {
         logical: u64,
         out: DefaultTVec<usize>,
