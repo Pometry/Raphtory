@@ -25,6 +25,13 @@ impl<A: Clone + Default + Debug + PartialEq> TCell<A> {
         TCell::TCellEmpty
     }
 
+    pub fn is_empty(&self) -> bool {
+        match self {
+            TCell::TCellEmpty => true,
+            _ => false
+        }
+    }
+
     pub fn len(&self) -> usize {
         match self {
             TCell::TCell1(_, _) => 1,

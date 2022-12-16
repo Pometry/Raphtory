@@ -3,10 +3,9 @@ use std::{
     ops::Range,
 };
 
-use roaring::RoaringTreemap;
-
-use crate::tvec::{DefaultTVec, TVec};
 use crate::TemporalGraphStorage;
+use crate::tvec::DefaultTVec;
+use crate::bitset::BitSet;
 
 #[derive(Debug)]
 enum Adj {
@@ -22,7 +21,7 @@ enum Adj {
 pub struct TemporalGraph {
     logical_to_physical: HashMap<u64, usize>,
     index: Vec<Adj>,
-    t_index: BTreeMap<u64, RoaringTreemap>,
+    t_index: BTreeMap<u64,BitSet>,
 }
 
 impl TemporalGraph {
@@ -33,7 +32,6 @@ impl TemporalGraph {
 }
 
 impl TemporalGraphStorage for TemporalGraph {
-
     fn len(&self) -> usize {
         self.logical_to_physical.len()
     }
@@ -48,25 +46,20 @@ impl TemporalGraphStorage for TemporalGraph {
                 self.t_index
                     .entry(t)
                     .and_modify(|set| {
-                        set.push(physical_id.try_into().unwrap()); //FIXME: not happy here with unwrap
+                        set.push(physical_id); //FIXME: not happy here with unwrap
                     })
                     .or_insert_with(|| {
-                        let mut bs = RoaringTreemap::default();
-                        bs.push(physical_id.try_into().unwrap()); //FIXME: not happy here with unwrap
-                        bs
+                        BitSet::one(physical_id)
                     });
             }
             Some(pid) => {
                 self.t_index
                     .entry(t)
                     .and_modify(|set| {
-                        let pid_u64: u64 = (*pid).try_into().unwrap();
-                        set.push(pid_u64);
+                        set.push(*pid);
                     })
                     .or_insert_with(|| {
-                        let mut bs = RoaringTreemap::default();
-                        bs.push((*pid).try_into().unwrap()); //FIXME: not happy here with unwrap
-                        bs
+                        BitSet::one(*pid)
                     });
             }
         }
@@ -84,8 +77,7 @@ impl TemporalGraphStorage for TemporalGraph {
             .range(r)
             .flat_map(|(_, vs)| vs.iter())
             .map(|pid| {
-                let pid_usize: usize = pid.try_into().unwrap();
-                match self.index[pid_usize] {
+                match self.index[pid] {
                     Adj::Empty(lid) => lid,
                     Adj::List { logical, .. } => logical,
                 }
@@ -122,7 +114,7 @@ impl TemporalGraphStorage for TemporalGraph {
         self
     }
 
-    fn outbound(&self, src: u64, r: Range<u64>) -> Box<dyn Iterator<Item = &u64> + '_> {
+    fn outbound_t(&self, src: u64, r: Range<u64>) -> Box<dyn Iterator<Item = &u64> + '_> {
         let src_pid = self.logical_to_physical[&src];
         if let Adj::List { out, .. } = &self.index[src_pid] {
             let iter = out.iter_window(r).flat_map(|pid| {
@@ -136,10 +128,25 @@ impl TemporalGraphStorage for TemporalGraph {
         } else {
             Box::new(std::iter::empty())
         }
-
     }
 
-    fn inbound(&self, dst: u64, r: Range<u64>) -> Box<dyn Iterator<Item = &u64> + '_> {
+    fn outbound(&self, src: u64) -> Box<dyn Iterator<Item = &u64> + '_> {
+        let src_pid = self.logical_to_physical[&src];
+        if let Adj::List { out, .. } = &self.index[src_pid] {
+            let iter = out.iter().flat_map(|pid| {
+                if let Adj::List { logical, .. } = &self.index[*pid] {
+                    Some(logical)
+                } else {
+                    None
+                }
+            });
+            Box::new(iter)
+        } else {
+            Box::new(std::iter::empty())
+        }
+    }
+
+    fn inbound_t(&self, dst: u64, r: Range<u64>) -> Box<dyn Iterator<Item = &u64> + '_> {
         let dst_pid = self.logical_to_physical[&dst];
         if let Adj::List { into, .. } = &self.index[dst_pid] {
             let iter = into.iter_window(r).flat_map(|pid| {
@@ -153,6 +160,38 @@ impl TemporalGraphStorage for TemporalGraph {
         } else {
             Box::new(std::iter::empty())
         }
+    }
+
+    fn inbound(&self, dst: u64) -> Box<dyn Iterator<Item = &u64> + '_> {
+        let dst_pid = self.logical_to_physical[&dst];
+        if let Adj::List { into, .. } = &self.index[dst_pid] {
+            let iter = into.iter().flat_map(|pid| {
+                if let Adj::List { logical, .. } = &self.index[*pid] {
+                    Some(logical)
+                } else {
+                    None
+                }
+            });
+            Box::new(iter)
+        } else {
+            Box::new(std::iter::empty())
+        }
+    }
+
+    fn outbound_degree(&self, src: u64) -> usize {
+        self.outbound(src).count() // FIXME use .len() from tvec then sum
+    }
+
+    fn inbound_degree(&self, dst: u64) -> usize {
+        self.inbound(dst).count() // FIXME use .len() from tvec then sum
+    }
+
+    fn outbound_degree_t(&self, src: u64, r: Range<u64>) -> usize {
+        self.outbound_t(src, r).count() // FIXME use .len() from tvec then sum
+    }
+
+    fn inbound_degree_t(&self, dst: u64, r: Range<u64>) -> usize {
+        self.inbound_t(dst, r).count() // FIXME use .len() from tvec then sum
     }
 }
 
@@ -175,7 +214,6 @@ mod graph_test {
 
         g.add_vertex(9, 1);
         g.add_vertex(1, 2);
-
 
         let actual: Vec<u64> = g.enumerate_vs_at(0..2).collect();
         assert_eq!(actual, vec![9]);
@@ -200,23 +238,20 @@ mod graph_test {
 
         // 9 and 1 are now visible at time 3
         let actual: Vec<u64> = g.enumerate_vs_at(3..10).collect();
-        assert_eq!(actual, vec![9, 1]);
+        assert_eq!(actual, vec![1, 9]);
 
         // the outbound neighbours of 9 at time 0..2 is the empty set
-        let actual: Vec<&u64> = g.outbound(9, 0..2).collect();
+        let actual: Vec<&u64> = g.outbound_t(9, 0..2).collect();
         let expected: Vec<&u64> = vec![];
         assert_eq!(actual, expected);
 
-        println!("GRAPH {:?}", g);
         // the outbound neighbours of 9 at time 0..4 are 1
-        let actual: Vec<&u64> = g.outbound(9, 0..4).collect();
+        let actual: Vec<&u64> = g.outbound_t(9, 0..4).collect();
         assert_eq!(actual, vec![&1]);
 
-
         // the outbound neighbours of 9 at time 0..4 are 1
-        let actual: Vec<&u64> = g.inbound(1, 0..4).collect();
+        let actual: Vec<&u64> = g.inbound_t(1, 0..4).collect();
         assert_eq!(actual, vec![&9]);
-
     }
 
     #[test]
@@ -234,22 +269,19 @@ mod graph_test {
 
         // 9 and 1 are now visible at time 3
         let actual: Vec<u64> = g.enumerate_vs_at(3..10).collect();
-        assert_eq!(actual, vec![9, 1]);
+        assert_eq!(actual, vec![1, 9]);
 
         // the outbound neighbours of 9 at time 0..2 is the empty set
-        let actual: Vec<&u64> = g.outbound(9, 0..2).collect();
+        let actual: Vec<&u64> = g.outbound_t(9, 0..2).collect();
         let expected: Vec<&u64> = vec![];
         assert_eq!(actual, expected);
 
-        println!("GRAPH {:?}", g);
         // the outbound neighbours of 9 at time 0..4 are 1
-        let actual: Vec<&u64> = g.outbound(9, 0..4).collect();
+        let actual: Vec<&u64> = g.outbound_t(9, 0..4).collect();
         assert_eq!(actual, vec![&1]);
 
-
         // the outbound neighbours of 9 at time 0..4 are 1
-        let actual: Vec<&u64> = g.inbound(1, 0..4).collect();
+        let actual: Vec<&u64> = g.inbound_t(1, 0..4).collect();
         assert_eq!(actual, vec![&9]);
-
     }
 }
