@@ -32,6 +32,7 @@ object TestUtils {
 
   def generateTestHash(outputDirectory: String, jobId: String): String = {
     val results = getResults(outputDirectory, jobId)
+    results.foreach(println)
     val hash = resultsHash(results)
     logger.info(s"Generated hash code: '$hash'.")
 

@@ -107,11 +107,12 @@ abstract class EntityVisitor {
     *
     * @param mergeStrategy Function to apply to the property history to compute the returned property value.
     */
-  def getPropertyOrElse[A, B](key: String, otherwise: B, mergeStrategy: PropertyMerge[A, B]): B =
+  def getPropertyOrElse[A, B](key: String, otherwise: B, mergeStrategy: PropertyMerge[A, B]): B = {
     getProperty[A, B](key, mergeStrategy) match {
       case Some(value) => value
       case None        => otherwise
     }
+  }
 
   /** Return most recent value of property if it exists or a default value otherwise.
     *

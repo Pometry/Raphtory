@@ -34,8 +34,9 @@ object Field {
       override def get(efa: EntityFieldAccessor): Option[T] =
         efa match {
           case _: EntityFieldAccessor.StringFieldAccessor =>
-            if (efa.isSet) Some(efa.getString.toString.asInstanceOf[T])
-            else None
+            Option(efa.getString.toString.asInstanceOf[T])
+//            if (efa.isSet) Some(efa.getString.toString.asInstanceOf[T])
+//            else None
         }
     }
 }
