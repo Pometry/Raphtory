@@ -6,7 +6,7 @@ use std::{
 use roaring::RoaringTreemap;
 
 use crate::TemporalGraphStorage;
-use crate::{tcell::TCell, tvec::DefaultTVec};
+use crate::tvec::DefaultTVec;
 
 #[derive(Debug)]
 enum Adj {
@@ -86,7 +86,6 @@ impl TemporalGraphStorage for TemporalGraph {
                 let pid_usize: usize = pid.try_into().unwrap();
                 match self.index[pid_usize] {
                     Adj::Empty(lid) => lid,
-                    Adj::One { logical, .. } => logical,
                     Adj::List { logical, .. } => logical,
                 }
             });
@@ -101,36 +100,13 @@ impl TemporalGraphStorage for TemporalGraph {
         let dst_pid = self.logical_to_physical[&dst];
 
         if let entry @ Adj::Empty(_) = &mut self.index[scr_pid] {
-            *entry = Adj::One {
-                logical: src,
-                out: TCell::new(t, dst_pid),
-                into: TCell::empty(),
-            }
-        } else if let Adj::List { out, .. } = &mut self.index[scr_pid] {
-            out.push(t, dst_pid)
-        } else if let Adj::One { out, into, .. } = &self.index[scr_pid] {
-            let mut new_out = DefaultTVec::new(t, dst_pid);
-
-            for (t, v) in out.iter_t() {
-                new_out.push(*t, *v);
-            }
-
-            let mut new_into = DefaultTVec::default();
-
-            for (t, v) in into.iter_t() {
-                new_into.push(*t, *v);
-            }
-
-            for (t, v) in out.iter_t() {
-                new_out.push(*t, *v);
-            }
-
-            let entry = &mut self.index[scr_pid];
             *entry = Adj::List {
                 logical: src,
-                out: new_out,
-                into: new_into,
+                out: DefaultTVec::new(t, dst_pid),
+                into: DefaultTVec::default(),
             };
+        } else if let Adj::List { out, .. } = &mut self.index[scr_pid] {
+            out.push(t, dst_pid)
         }
 
         if let entry @ Adj::Empty(_) = &mut self.index[dst_pid] {
@@ -150,17 +126,6 @@ impl TemporalGraphStorage for TemporalGraph {
         if let Adj::List { out, .. } = &self.index[src_pid] {
             let iter = out.iter_window(r).flat_map(|pid| {
                 if let Adj::List { logical, .. } = &self.index[*pid] {
-                    Some(logical)
-                } else {
-                    None
-                }
-            });
-            Box::new(iter)
-        } else if let Adj::One { out, .. } = &self.index[src_pid] {
-            let iter = out.iter_window(r).flat_map(|pid| {
-                if let Adj::List { logical, .. } = &self.index[*pid] {
-                    Some(logical)
-                } else if let Adj::One { logical, .. } = &self.index[*pid] {
                     Some(logical)
                 } else {
                     None
