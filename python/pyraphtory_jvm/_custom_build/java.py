@@ -1,3 +1,4 @@
+from __future__ import annotations
 from check_platform import OS_MAC, OS_LINUX, OS_AARCH64, OS_X64, getOS, getArch
 from download import Link, safe_download_file, empty_folder
 import logging

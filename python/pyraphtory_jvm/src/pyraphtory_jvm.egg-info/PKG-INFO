@@ -1,0 +1,20 @@
+Metadata-Version: 2.1
+Name: pyraphtory-jvm
+Version: 0.1.4
+Summary: Bootstrap JRE and IVY installer for Pyraphtory
+Author: Haaroon Yousaf, Lucas Jeub
+Maintainer-email: admin@pometry.com
+Project-URL: homepage, https://github.com/raphtory/raphtory
+Classifier: Development Status :: 1 - Planning
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+
+# pyraphtory_jvm
+
+Build and install instructions can be found on the [docs](https://docs.raphtory.com/)
+

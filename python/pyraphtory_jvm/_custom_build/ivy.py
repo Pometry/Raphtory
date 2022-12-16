@@ -1,3 +1,4 @@
+from __future__ import annotations
 import tempfile
 from download import safe_download_file, Link
 from pathlib import Path

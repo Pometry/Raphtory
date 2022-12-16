@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from setuptools import build_meta as _orig
 import sys
 from jre import package_folder, lib_folder

@@ -9,44 +9,48 @@ export JAVA_HOME:= $(shell (readlink -f  $$(which java) 2>/dev/null || echo "$$(
 # 	sbt -Dsbt.supershell=false -error "exit" && \
 # 	sbt -Dsbt.supershell=false -error "print core/version" | tr -d "[:cntrl:]"  > version
 
-.PHONY gh-sbt-build:
-gh-sbt-build: version
+.PHONY: log-level-error
+log-level-error:
 	echo "core / Compile / logLevel := Level.Error" >> build.sbt
 	echo "deploy / Compile / logLevel := Level.Error" >> build.sbt
-	sbt publishLocal
-	cp /root/.ivy2/local/com.raphtory/arrow-core_2.13/$$(cat version)/ivys/ivy.xml python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/arrow_core_ivy.xml
-	cp /root/.ivy2/local/com.raphtory/arrow-messaging_2.13/$$(cat version)/ivys/ivy.xml python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/arrow_messaging_ivy.xml
-	cp /root/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/ivys/ivy.xml python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/core_ivy.xml
-	sed -i.bak '/org="com.raphtory"/d' python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/arrow_core_ivy.xml
-	sed -i.bak '/org="com.raphtory"/d' python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/arrow_messaging_ivy.xml
-	sed -i.bak '/org="com.raphtory"/d' python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/core_ivy.xml
-	cd python/pyraphtory/ && mkdir -p lib
-	cp /root/.ivy2/local/com.raphtory/arrow-core_2.13/$$(cat version)/jars/arrow-core_2.13.jar python/pyraphtory/lib
-	cp /root/.ivy2/local/com.raphtory/arrow-messaging_2.13/$$(cat version)/jars/arrow-messaging_2.13.jar python/pyraphtory/lib
-	cp /root/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/jars/core_2.13.jar python/pyraphtory/lib
 
-.PHONY sbt-build:
-sbt-build: version
-	rm -r -f ~/.ivy2/local/com.raphtory/arrow-core_2.13/$$(cat version)
-	rm -r -f ~/.ivy2/local/com.raphtory/arrow-messaging_2.13/$$(cat version)
-	rm -r -f ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)
-	sbt publishLocal
-	cp ~/.ivy2/local/com.raphtory/arrow-core_2.13/$$(cat version)/ivys/ivy.xml python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/arrow_core_ivy.xml
-	cp ~/.ivy2/local/com.raphtory/arrow-messaging_2.13/$$(cat version)/ivys/ivy.xml python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/arrow_messaging_ivy.xml
-	cp ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/ivys/ivy.xml python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/core_ivy.xml
-	sed -i.bak '/org="com.raphtory"/d' python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/arrow_core_ivy.xml
-	sed -i.bak '/org="com.raphtory"/d' python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/arrow_messaging_ivy.xml
-	sed -i.bak '/org="com.raphtory"/d' python/pyraphtory_jvm/pyraphtory_jvm/data/ivys/core_ivy.xml
-	cd python/pyraphtory/ && mkdir -p lib
-	cp ~/.ivy2/local/com.raphtory/arrow-core_2.13/$$(cat version)/jars/arrow-core_2.13.jar python/pyraphtory/lib
-	cp ~/.ivy2/local/com.raphtory/arrow-messaging_2.13/$$(cat version)/jars/arrow-messaging_2.13.jar python/pyraphtory/lib
-	cp ~/.ivy2/local/com.raphtory/core_2.13/$$(cat version)/jars/core_2.13.jar python/pyraphtory/lib
 
-.PHONY sbt-skip-build:
+.PHONY: ivy-xml
+python-ivy-xml: version
+	sbt core/makeIvyXml
+	cp core/target/scala-2.13/ivy-$$(cat version).xml python/pyraphtory_jvm/_custom_build/ivy_data/core_ivy.xml
+	sed -i.bak '/org="com.raphtory"/d' python/pyraphtory_jvm/_custom_build/ivy_data/core_ivy.xml
+	sbt arrowCore/makeIvyXml
+	cp arrow-core/target/scala-2.13/ivy-$$(cat version).xml python/pyraphtory_jvm/_custom_build/ivy_data/arrow-core_ivy.xml
+	sed -i.bak '/org="com.raphtory"/d' python/pyraphtory_jvm/_custom_build/ivy_data/arrow-core_ivy.xml
+	sbt arrowMessaging/makeIvyXml
+	cp core/target/scala-2.13/ivy-$$(cat version).xml python/pyraphtory_jvm/_custom_build/ivy_data/arrow_messaging_ivy.xml
+	sed -i.bak '/org="com.raphtory"/d' python/pyraphtory_jvm/_custom_build/ivy_data/arrow_messaging_ivy.xml
+
+.PHONY: python-jars
+python-jars: version
+	mkdir -p python/pyraphtory_jvm/src/pyraphtory_jvm/lib
+	sbt core/package
+	cp core/target/scala-2.13/core_2.13-$$(cat version).jar python/pyraphtory_jvm/src/pyraphtory_jvm/lib/core.jar
+	sbt arrowCore/package
+	cp arrow-core/target/scala-2.13/arrow-core_2.13-$$(cat version).jar python/pyraphtory_jvm/src/pyraphtory_jvm/lib/arrow-core.jar
+	sbt arrowMessaging/package
+	cp arrow-messaging/target/scala-2.13/arrow-messaging_2.13-$$(cat version).jar python/pyraphtory_jvm/src/pyraphtory_jvm/lib/arrow-messaging.jar
+
+
+.PHONY: gh-sbt-build
+gh-sbt-build: version log-level-error python-ivy-xml python-jars
+
+
+.PHONY: sbt-build
+sbt-build: version python-ivy-xml python-jars
+
+
+.PHONY: sbt-skip-build
 sbt-skip-build: version
 	ivy-clean-copy-jars
 
-.PHONY sbt-thin-build:
+.PHONY: sbt-thin-build
 sbt-thin-build: version
 	sbt clean compile package
 	rm -rf python/pyraphtory/lib/
@@ -56,30 +60,21 @@ sbt-thin-build: version
 	cp arrow-messaging/target/scala-2.13/arrow-messaging_2.13-$$(cat version).jar python/pyraphtory/lib/
 
 
-.PHONY python-build:
-python-build: version sbt-build
-	pip install -q poetry
-	cd python/pyraphtory_jvm/ && \
-	python setup.py sdist
-	pip3 install python/pyraphtory_jvm/dist/pyraphtory_jvm-$$(cat version).tar.gz
-	cd python/pyraphtory/ && \
-		poetry build && \
-		poetry install
-	pip3 install python/pyraphtory/dist/pyraphtory-$$(cat version).tar.gz
+.PHONY: python-build
+python-build: version sbt-build python-build-quick
 
-PHONY python-build-quick:
+
+PHONY: python-build-quick
 python-build-quick: version
-	cd python/pyraphtory/ && \
-		poetry build && \
-		poetry install
-	pip3 install python/pyraphtory/dist/pyraphtory-$$(cat version).tar.gz
+	python -m pip install python/pyraphtory_jvm
+	python -m pip install python/pyraphtory
 
-.PHONY docs:
+.PHONY: docs
 docs: version sbt-build python-build
 	pip install -q myst-parser sphinx-rtd-theme sphinx docutils sphinx-tabs
 	cd docs && make html
 
-.PHONY pyraphtory-local:
+.PHONY: pyraphtory-local
 pyraphtory-local: version
 	java -cp core/target/scala-2.13/*.jar com.raphtory.python.PyRaphtory --input=$(INPUT) --py=$(PYFILE) --builder=$(BUILDER) --mode=$(MODE)
 
@@ -153,15 +148,19 @@ scala-remote-test:
 	export RAPHTORY_ITEST_PATH=./it/target/scala-2.13/test-classes && \
 	sbt "it/testOnly *.algorithms.*"
 
-.PHONY: setup-python
-setup-python: gh-sbt-build
+
+.PHONY: setup-python-env
+setup-python-env:
 	python -m pip install --upgrade pip
-	python -m pip install -q poetry nbmake tox pytest-xdist pyvis
-	cd python/pyraphtory_jvm && python setup.py sdist && python -m pip install dist/pyraphtory_jvm-*.tar.gz
-	cd python/pyraphtory && poetry build && poetry install
+	python -m pip install -q poetry nbmake tox pytest-xdist build pyvis
+
+
+.PHONY: setup-python
+setup-python: gh-sbt-build setup-python-env python-build-quick
+
 
 .PHONY: python-test
 python-test:
-	cd python/pyraphtory_jvm && tox -p -o
+	cd python/pyraphtory_jvm && tox -p -o -vv
 	cd python/pyraphtory && poetry run pytest -n=auto
 	cd examples && pytest --nbmake -n=auto
