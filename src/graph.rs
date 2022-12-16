@@ -3,10 +3,9 @@ use std::{
     ops::Range,
 };
 
-use roaring::RoaringTreemap;
-
 use crate::TemporalGraphStorage;
 use crate::tvec::DefaultTVec;
+use crate::bitset::BitSet;
 
 #[derive(Debug)]
 enum Adj {
@@ -22,7 +21,7 @@ enum Adj {
 pub struct TemporalGraph {
     logical_to_physical: HashMap<u64, usize>,
     index: Vec<Adj>,
-    t_index: BTreeMap<u64, RoaringTreemap>,
+    t_index: BTreeMap<u64,BitSet>,
 }
 
 impl TemporalGraph {
@@ -47,25 +46,20 @@ impl TemporalGraphStorage for TemporalGraph {
                 self.t_index
                     .entry(t)
                     .and_modify(|set| {
-                        set.push(physical_id.try_into().unwrap()); //FIXME: not happy here with unwrap
+                        set.push(physical_id); //FIXME: not happy here with unwrap
                     })
                     .or_insert_with(|| {
-                        let mut bs = RoaringTreemap::default();
-                        bs.push(physical_id.try_into().unwrap()); //FIXME: not happy here with unwrap
-                        bs
+                        BitSet::one(physical_id)
                     });
             }
             Some(pid) => {
                 self.t_index
                     .entry(t)
                     .and_modify(|set| {
-                        let pid_u64: u64 = (*pid).try_into().unwrap();
-                        set.push(pid_u64);
+                        set.push(*pid);
                     })
                     .or_insert_with(|| {
-                        let mut bs = RoaringTreemap::default();
-                        bs.push((*pid).try_into().unwrap()); //FIXME: not happy here with unwrap
-                        bs
+                        BitSet::one(*pid)
                     });
             }
         }
@@ -83,8 +77,7 @@ impl TemporalGraphStorage for TemporalGraph {
             .range(r)
             .flat_map(|(_, vs)| vs.iter())
             .map(|pid| {
-                let pid_usize: usize = pid.try_into().unwrap();
-                match self.index[pid_usize] {
+                match self.index[pid] {
                     Adj::Empty(lid) => lid,
                     Adj::List { logical, .. } => logical,
                 }
@@ -245,7 +238,7 @@ mod graph_test {
 
         // 9 and 1 are now visible at time 3
         let actual: Vec<u64> = g.enumerate_vs_at(3..10).collect();
-        assert_eq!(actual, vec![9, 1]);
+        assert_eq!(actual, vec![1, 9]);
 
         // the outbound neighbours of 9 at time 0..2 is the empty set
         let actual: Vec<&u64> = g.outbound_t(9, 0..2).collect();
@@ -276,7 +269,7 @@ mod graph_test {
 
         // 9 and 1 are now visible at time 3
         let actual: Vec<u64> = g.enumerate_vs_at(3..10).collect();
-        assert_eq!(actual, vec![9, 1]);
+        assert_eq!(actual, vec![1, 9]);
 
         // the outbound neighbours of 9 at time 0..2 is the empty set
         let actual: Vec<&u64> = g.outbound_t(9, 0..2).collect();

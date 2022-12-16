@@ -1,9 +1,8 @@
 use std::{borrow::Borrow, collections::BTreeMap, fmt::Debug, ops::Range};
 
 use itertools::Itertools;
-use roaring::RoaringTreemap;
 
-use crate::tcell::TCell;
+use crate::{tcell::TCell, bitset::BitSet};
 
 pub trait TVec<A> {
     /**
@@ -50,7 +49,7 @@ pub enum DefaultTVec<A: Clone + Default + Debug + PartialEq> {
     One(TCell<A>),
     Vec {
         vs: Vec<TCell<A>>,
-        t_index: BTreeMap<u64, RoaringTreemap>,
+        t_index: BTreeMap<u64, BitSet>,
     },
 }
 
@@ -91,12 +90,10 @@ impl<A: Clone + Default + Debug + PartialEq> DefaultTVec<A> {
             t_index
                 .entry(t)
                 .and_modify(|set| {
-                    set.push(i.try_into().unwrap()); //FIXME: not happy here with unwrap
+                    set.push(i);
                 })
                 .or_insert_with(|| {
-                    let mut bs = RoaringTreemap::default();
-                    bs.push(i.try_into().unwrap()); //FIXME: not happy here with unwrap
-                    bs
+                    BitSet::one(i)
                 });
         }
     }
@@ -112,12 +109,10 @@ impl<A: Clone + Default + Debug + PartialEq> DefaultTVec<A> {
             t_index
                 .entry(t)
                 .and_modify(|set| {
-                    set.push(i.try_into().unwrap()); //FIXME: not happy here with unwrap
+                    set.push(i);
                 })
                 .or_insert_with(|| {
-                    let mut bs = RoaringTreemap::default();
-                    bs.push(i.try_into().unwrap()); //FIXME: not happy here with unwrap
-                    bs
+                    BitSet::one(i)
                 });
         }
     }
@@ -141,8 +136,7 @@ impl<A: Clone + Default + Debug + PartialEq> DefaultTVec<A> {
                 .flat_map(|(_, vs)| vs.iter())
                 .unique() // problematic as we store the entire thing in memory
                 .flat_map(move |id| {
-                    let i: usize = id.try_into().unwrap();
-                    vs[i].iter_window(r.clone()) // this might be stupid
+                    vs[id].iter_window(r.clone()) // this might be stupid
                 });
             Box::new(iter)
         } else {
@@ -159,8 +153,7 @@ impl<A: Clone + Default + Debug + PartialEq> DefaultTVec<A> {
                 .flat_map(|(_, vs)| vs.iter())
                 .unique() // problematic as we store the entire thing in memory
                 .flat_map(move |id| {
-                    let i: usize = id.try_into().unwrap();
-                    vs[i].iter_window_t(r.clone()) // this might be stupid
+                    vs[id].iter_window_t(r.clone()) // this might be stupid
                 });
             Box::new(iter)
         } else {

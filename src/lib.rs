@@ -4,6 +4,7 @@ pub mod graph;
 pub mod tvec;
 pub mod tcell;
 pub mod sortedvec;
+pub mod bitset;
 
 pub trait TemporalGraphStorage {
     fn add_vertex(&mut self, v: u64, t: u64) -> &mut Self;

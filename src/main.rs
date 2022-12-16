@@ -50,20 +50,20 @@ fn main() {
             now.elapsed().as_secs()
         );
 
-        println!("VERTEX,DEGREE,OUT_DEGREE,IN_DEGREE");
-        for (v, d, outd, ind) in g
-            .iter_vertices()
-            .map(|v| {
-                let out_d = g.outbound_degree(*v);
-                let in_d = g.inbound_degree(*v);
-                let d = out_d + in_d;
+        // println!("VERTEX,DEGREE,OUT_DEGREE,IN_DEGREE");
+        // for (v, d, outd, ind) in g
+        //     .iter_vertices()
+        //     .map(|v| {
+        //         let out_d = g.outbound_degree(*v);
+        //         let in_d = g.inbound_degree(*v);
+        //         let d = out_d + in_d;
 
-                (v, d, out_d, in_d)
-            })
-            .sorted_by_cached_key(|(_, d, _, _)| *d)
-        {
-            println!("{},{},{},{}", v, d, outd, ind)
-        }
+        //         (v, d, out_d, in_d)
+        //     })
+        //     .sorted_by_cached_key(|(_, d, _, _)| *d)
+        // {
+        //     println!("{},{},{},{}", v, d, outd, ind)
+        // }
 
     } else {
         panic!("NO FILE ! NO GRAPH!")
