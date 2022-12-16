@@ -1,5 +1,6 @@
 package com.raphtory.algorithms.generic.motif
 
+import com.raphtory.algorithms.generic.GraphState
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
@@ -11,14 +12,14 @@ import com.raphtory.api.analysis.table.Table
   *
   * ## States
   *
-  *  {s}`triangles: Int`
-  *    : three times the number of triangles (but returned in output without the factor of three).
+  *  {s}`triangleCount: Int`
+  *    : the number of triangles in the graph (treated as undirected and simple).
   *
   * ## Returns
   *
-  *  | total triangles      |
-  *  | -------------------- |
-  *  | {s}`triangles: Int`  |
+  *  | total triangles          |
+  *  | ------------------------ |
+  *  | {s}`triangleCount: Int`  |
   *
   * ```{note}
   *  Edges here are treated as undirected, so if the underlying network is directed here,
@@ -26,7 +27,7 @@ import com.raphtory.api.analysis.table.Table
   * ``
   */
 
-object GlobalTriangleCount extends Generic {
+object GlobalTriangleCount extends GraphState(Seq("triangleCount")) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     LocalTriangleCount(graph)
@@ -34,11 +35,7 @@ object GlobalTriangleCount extends Generic {
       .step { (vertex, state) =>
         val tri = vertex.getState[Int]("triangleCount")
         state("triangles") += tri
-      }
-
-  override def tabularise(graph: GraphPerspective): Table =
-    graph.globalSelect { state =>
-      val totalTri: Int = state("triangles").value
-      Row(totalTri / 3)
-    }
+      }.setGlobalState(
+      state => state.newConstant("triangleCount", state[Int,Int]("triangles").value/3)
+    )
 }
