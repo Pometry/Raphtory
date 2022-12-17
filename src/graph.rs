@@ -48,7 +48,7 @@ impl TemporalGraphStorage for TemporalGraph {
                 self.t_index
                     .entry(t)
                     .and_modify(|set| {
-                        set.push(physical_id); //FIXME: not happy here with unwrap
+                        set.push(physical_id);
                     })
                     .or_insert_with(|| BitSet::one(physical_id));
             }
