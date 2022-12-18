@@ -1,9 +1,9 @@
 use std::{
     collections::{BTreeMap, HashMap},
-    ops::{Range, RangeBounds},
+    ops::Range, rc::Rc,
 };
 
-use itertools::{chain, Itertools};
+use itertools::Itertools;
 
 use crate::tvec::DefaultTVec;
 use crate::tset::TSet;
@@ -87,7 +87,7 @@ impl TemporalGraphStorage for TemporalGraph {
         self.logical_to_physical.len()
     }
 
-    fn add_vertex(&mut self, v: u64, t: u64) -> &mut Self {
+    fn add_vertex_props(&mut self, v: u64, t: u64, props: Vec<Prop>) -> &mut Self {
         match self.logical_to_physical.get(&v) {
             None => {
                 let physical_id: usize = self.index.len();
@@ -131,7 +131,7 @@ impl TemporalGraphStorage for TemporalGraph {
         Box::new(iter)
     }
 
-    fn add_edge(&mut self, src: u64, dst: u64, t: u64) -> &mut Self {
+    fn add_edge_props(&mut self, src: u64, dst: u64, t: u64, props: Vec<Prop>) -> &mut Self {
         // mark the times of the vertices at t
         self.add_vertex(src, t).add_vertex(dst, t);
 

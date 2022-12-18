@@ -1,8 +1,9 @@
-use std::ops::{Range, RangeBounds};
+use std::ops::Range;
 
 pub mod bitset;
 pub mod graph;
 mod misc;
+mod props;
 pub mod sortedvec;
 mod tcell;
 mod tvec;
@@ -16,8 +17,20 @@ pub enum Direction {
     BOTH,
 }
 
+pub enum Prop {
+    Str(String),
+    U32(u32),
+    U64(u64),
+    F32(f32),
+    F64(f64),
+}
+
 pub trait TemporalGraphStorage {
-    fn add_vertex(&mut self, v: u64, t: u64) -> &mut Self;
+    fn add_vertex_props(&mut self, v: u64, t: u64, props: Vec<Prop>) -> &mut Self;
+
+    fn add_vertex(&mut self, v: u64, t: u64) -> &mut Self {
+        self.add_vertex_props(v, t, vec![])
+    }
 
     /**
      * adds the edge in an idempotent manner
@@ -26,7 +39,11 @@ pub trait TemporalGraphStorage {
      *
      * both src and dst get an index at time t if they do exist
      */
-    fn add_edge(&mut self, src: u64, dst: u64, t: u64) -> &mut Self;
+    fn add_edge_props(&mut self, src: u64, dst: u64, t: u64, props: Vec<Prop>) -> &mut Self;
+
+    fn add_edge(&mut self, src: u64, dst: u64, t: u64) -> &mut Self {
+        self.add_edge_props(src, dst, t, vec![])
+    }
 
     fn iter_vs(&self) -> Box<dyn Iterator<Item = &u64> + '_>;
 
@@ -76,7 +93,7 @@ pub trait TemporalGraphStorage {
         &self,
         dst: u64,
         r: Range<u64>,
-    ) -> Box<dyn Iterator<Item = (&u64, &u64)> + '_>{
+    ) -> Box<dyn Iterator<Item = (&u64, &u64)> + '_> {
         self.neighbours_window_t(r, dst, Direction::IN)
     }
 
