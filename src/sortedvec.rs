@@ -1,9 +1,13 @@
-use std::ops::Range;
+use std::{ops::{Range, RangeBounds, Bound, Add, Sub}, fmt::Display};
+
+use crate::misc::MinMax;
 
 #[derive(Debug, Default, PartialEq)]
 pub struct SortedVec<K:Ord, V>(Vec<(K, V)>);
 
-impl<K: Ord + Copy, V> SortedVec<K, V> {
+impl<K: Ord + Copy +Display + std::fmt::Debug , V> SortedVec<K, V>
+    where K: MinMax<K> + Sub<Output = K> + Add<Output = K>,
+{
     pub fn new() -> Self {
         SortedVec(vec![])
     }
@@ -18,9 +22,25 @@ impl<K: Ord + Copy, V> SortedVec<K, V> {
         self.0.len()
     }
 
-    pub fn range(&self, r: Range<K>) -> impl Iterator<Item = (&K, &V)> {
-        let i0 = self.0.binary_search_by_key(&r.start, |&(k, _)| k);
-        let j0 = self.0.binary_search_by_key(&r.end, |&(k, _)| k);
+    pub fn range<W: RangeBounds<K>>(&self, r: W) -> impl Iterator<Item = (&K, &V)> {
+        let one = <K as MinMax<K>>::one();
+        let mut start: K = <K as MinMax<K>>::min();
+        let mut end: K = <K as MinMax<K>>::max();
+
+        if let Bound::Included(s) = r.start_bound(){
+            start = *s;
+        } else if let Bound::Excluded(s) = r.start_bound() {
+            start = *s + one
+        }
+
+        if let Bound::Included(s) = r.end_bound(){
+            end = *s + one;
+        } else if let Bound::Excluded(s) = r.end_bound() {
+            end = *s
+        }
+
+        let i0 = self.0.binary_search_by_key(&start, |&(k, _)| k);
+        let j0 = self.0.binary_search_by_key(&end, |&(k, _)| k);
 
         let i: usize = if let Ok(i1) = &i0 {
             *i1

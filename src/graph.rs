@@ -1,13 +1,13 @@
 use std::{
     collections::{BTreeMap, HashMap},
-    ops::Range,
+    ops::{Range, RangeBounds},
 };
 
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 
-use crate::bitset::BitSet;
 use crate::tvec::DefaultTVec;
 use crate::TemporalGraphStorage;
+use crate::{bitset::BitSet, Direction};
 
 #[derive(Debug)]
 enum Adj {
@@ -17,6 +17,15 @@ enum Adj {
         out: DefaultTVec<usize>,
         into: DefaultTVec<usize>,
     },
+}
+
+impl Adj {
+    fn logical(&self) -> &u64 {
+        match self {
+            Adj::Empty(logical) => logical,
+            Adj::List { logical, .. } => logical,
+        }
+    }
 }
 
 #[derive(Default, Debug)]
@@ -30,6 +39,45 @@ impl TemporalGraph {
     fn iter(&self) -> Box<dyn Iterator<Item = &u64> + '_> {
         let keys = self.logical_to_physical.keys();
         Box::new(keys)
+    }
+
+    fn neighbours_iter(&self, v: u64, d: Direction) -> Box<dyn Iterator<Item = &usize> + '_> {
+        let vid = self.logical_to_physical[&v];
+
+        match &self.index[vid] {
+            Adj::List { out, into, .. } => {
+                match d {
+                    Direction::OUT => out.iter(),
+                    Direction::IN => into.iter(),
+                    _ => {
+                        Box::new(itertools::chain!(out.iter(), into.iter())) // probably awful but will have to do for now
+                    }
+                }
+            }
+            _ => Box::new(std::iter::empty()),
+        }
+    }
+
+    fn neighbours_iter_window(
+        &self,
+        v: u64,
+        d: Direction,
+        window: Range<u64>,
+    ) -> Box<dyn Iterator<Item = &usize> + '_> {
+        let vid = self.logical_to_physical[&v];
+
+        match &self.index[vid] {
+            Adj::List { out, into, .. } => {
+                match d {
+                    Direction::OUT => out.iter_window(window),
+                    Direction::IN => into.iter_window(window),
+                    _ => {
+                        Box::new(itertools::chain!(out.iter(), into.iter())) // probably awful but will have to do for now
+                    }
+                }
+            }
+            _ => Box::new(std::iter::empty()),
+        }
     }
 }
 
@@ -111,69 +159,24 @@ impl TemporalGraphStorage for TemporalGraph {
         self
     }
 
-    fn outbound_window(&self, src: u64, r: Range<u64>) -> Box<dyn Iterator<Item = &u64> + '_> {
-        let src_pid = self.logical_to_physical[&src];
-        if let Adj::List { out, .. } = &self.index[src_pid] {
-            let iter = out.iter_window(r).unique().flat_map(|pid| {
-                // unique() is again problematic
-                if let Adj::List { logical, .. } = &self.index[*pid] {
-                    Some(logical)
-                } else {
-                    None
-                }
-            });
-            Box::new(iter)
-        } else {
-            Box::new(std::iter::empty())
-        }
+    fn neighbours(&self, v: u64, d: crate::Direction) -> Box<dyn Iterator<Item = &u64> + '_> {
+        Box::new(
+            self.neighbours_iter(v, d)
+                .map(|nid| self.index[*nid].logical()),
+        )
     }
 
-    fn outbound(&self, src: u64) -> Box<dyn Iterator<Item = &u64> + '_> {
-        let src_pid = self.logical_to_physical[&src];
-        if let Adj::List { out, .. } = &self.index[src_pid] {
-            let iter = out.iter().flat_map(|pid| {
-                if let Adj::List { logical, .. } = &self.index[*pid] {
-                    Some(logical)
-                } else {
-                    None
-                }
-            });
-            Box::new(iter)
-        } else {
-            Box::new(std::iter::empty())
-        }
-    }
-
-    fn inbound_window(&self, dst: u64, r: Range<u64>) -> Box<dyn Iterator<Item = &u64> + '_> {
-        let dst_pid = self.logical_to_physical[&dst];
-        if let Adj::List { into, .. } = &self.index[dst_pid] {
-            let iter = into.iter_window(r).flat_map(|pid| {
-                if let Adj::List { logical, .. } = &self.index[*pid] {
-                    Some(logical)
-                } else {
-                    None
-                }
-            });
-            Box::new(iter)
-        } else {
-            Box::new(std::iter::empty())
-        }
-    }
-
-    fn inbound(&self, dst: u64) -> Box<dyn Iterator<Item = &u64> + '_> {
-        let dst_pid = self.logical_to_physical[&dst];
-        if let Adj::List { into, .. } = &self.index[dst_pid] {
-            let iter = into.iter().flat_map(|pid| {
-                if let Adj::List { logical, .. } = &self.index[*pid] {
-                    Some(logical)
-                } else {
-                    None
-                }
-            });
-            Box::new(iter)
-        } else {
-            Box::new(std::iter::empty())
-        }
+    fn neighbours_window(
+        &self,
+        w: Range<u64>,
+        v: u64,
+        d: Direction,
+    ) -> Box<dyn Iterator<Item = &u64> + '_> {
+        Box::new(
+            self.neighbours_iter_window(v, d, w)
+                .unique()
+                .map(|nid| self.index[*nid].logical()),
+        )
     }
 
     fn outbound_degree(&self, src: u64) -> usize {
@@ -192,43 +195,39 @@ impl TemporalGraphStorage for TemporalGraph {
         self.inbound_window(dst, r).count() // FIXME use .len() from tvec then sum
     }
 
-    fn outbound_window_t(
+    fn neighbours_window_t(
         &self,
-        src: u64,
         r: Range<u64>,
+        v: u64,
+        d: Direction,
     ) -> Box<dyn Iterator<Item = (&u64, &u64)> + '_> {
-        let src_pid = self.logical_to_physical[&src];
-        if let Adj::List { out, .. } = &self.index[src_pid] {
-            let iter = out.iter_window_t(r).flat_map(|(t, pid)| {
-                if let Adj::List { logical, .. } = &self.index[*pid] {
-                    Some((t, logical))
+        //TODO: this could use some improving but I'm bored now
+        match d {
+            Direction::OUT => {
+                let src_pid = self.logical_to_physical[&v];
+                if let Adj::List { out, .. } = &self.index[src_pid] {
+                    Box::new(
+                        out.iter_window_t(r)
+                            .map(|(t, pid)| (t, self.index[*pid].logical())),
+                    )
                 } else {
-                    None
+                    Box::new(std::iter::empty())
                 }
-            });
-            Box::new(iter)
-        } else {
-            Box::new(std::iter::empty())
-        }
-    }
-
-    fn inbound_window_t(
-        &self,
-        dst: u64,
-        r: Range<u64>,
-    ) -> Box<dyn Iterator<Item = (&u64, &u64)> + '_> {
-        let dst_pid = self.logical_to_physical[&dst];
-        if let Adj::List { into, .. } = &self.index[dst_pid] {
-            let iter = into.iter_window_t(r).flat_map(|(t, pid)| {
-                if let Adj::List { logical, .. } = &self.index[*pid] {
-                    Some((t, logical))
+            }
+            Direction::IN => {
+                let dst_pid = self.logical_to_physical[&v];
+                if let Adj::List { into, .. } = &self.index[dst_pid] {
+                    Box::new(
+                        into.iter_window_t(r)
+                            .map(|(t, pid)| (t, self.index[*pid].logical())),
+                    )
                 } else {
-                    None
+                    Box::new(std::iter::empty())
                 }
-            });
-            Box::new(iter)
-        } else {
-            Box::new(std::iter::empty())
+            }
+            Direction::BOTH => {
+                panic!()
+            }
         }
     }
 }
@@ -359,8 +358,10 @@ mod graph_test {
         assert_eq!(actual, vec![&1]);
 
         // when we look for time we see both variants
-        let actual: Vec<&u64> = g.outbound_window(9, 0..13).collect();
-        assert_eq!(actual, vec![&1]);
+        let actual: Vec<(&u64, &u64)> = g.outbound_window_t(9, 0..13).collect();
+        assert_eq!(actual, vec![(&3, &1), (&12, &1)]);
+        let actual: Vec<(&u64, &u64)> = g.inbound_window_t(1, 0..13).collect();
+        assert_eq!(actual, vec![(&3, &9), (&12, &9)]);
     }
 
     #[test]
@@ -394,13 +395,11 @@ mod graph_test {
         let expected: Vec<&u64> = vec![];
         assert_eq!(actual, expected);
 
-
         let actual = g.inbound_window(44, 1..7).collect::<Vec<_>>();
         let expected: Vec<&u64> = vec![&11];
         assert_eq!(actual, expected);
 
-
-        let actual = g.inbound_window(44, 9 .. 100).collect::<Vec<_>>();
+        let actual = g.inbound_window(44, 9..100).collect::<Vec<_>>();
         let expected: Vec<&u64> = vec![];
         assert_eq!(actual, expected)
     }
