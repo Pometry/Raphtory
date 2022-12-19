@@ -145,6 +145,7 @@ public class RaphtoryArrowPartition {
         _nRaphtoryPartitions = config._nRaphtoryPartitions;
 
         System.getProperties().setProperty("arrow.enable_unsafe_memory_access", config._disableBoundsCheck ? "true" : "false");
+        System.getProperties().setProperty("arrow.enable_null_check_for_get", config._disableBoundsCheck ? "false" : "true");
 
         _syncIDMap = config._syncIDMap;
         _globalEntityIdStore = new GlobalEntityIdStore();

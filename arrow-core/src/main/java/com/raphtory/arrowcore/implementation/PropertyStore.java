@@ -96,6 +96,7 @@ public class PropertyStore {
         _initialValues.setSafe(row, initialValue ? 1 : 0);
         _creationTimes.setSafe(row, creationTime);
         _prevPtrs.setSafe(row, prevPtr);
+
         _accessor.store(ea, row);
 
         return row;

@@ -20,9 +20,9 @@ import java.util.function.Supplier;
 /**
  * VersionedProperty - models a property consisting of a type,
  * a value and associated history.
- * <p>
+ *<p>
  * An VersionedProperty handles the basic primitive types and strings.
- * <p>
+ *<p>
  * This class works in conjunction with VersionedEntityPropertyAccessor (which
  * handles the property within a POJO) and VersionedPropertyStore (which
  * handles the property within an Arrow Schema).
