@@ -258,7 +258,7 @@ public class EdgePartitionManager {
      *
      * @return the edge partition
      */
-    protected EdgePartition getPartitionAndLoad(int partId) {
+    public EdgePartition getPartitionAndLoad(int partId) {
         EdgePartition p = _partitions.get(partId);
         if (p == null) {
             if (_partitions.size() >= N_ARROW_PARTITIONS) {

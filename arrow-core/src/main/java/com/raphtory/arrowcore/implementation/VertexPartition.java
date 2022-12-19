@@ -514,7 +514,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
         long prev = _store._outgoingEdges.get(row);
         _store._outgoingEdges.set(row, edgeId);
         _store._nOutgoingEdges.set(row, _store._nOutgoingEdges.get(row)+1);
-        _edgeIndex.addEdgeIndexRecord(row, dstVertexId, edgeId, dstIsGlobal); // XXX We only need 1 of these methods of finding matching edges?
+        //_edgeIndex.addEdgeIndexRecord(row, dstVertexId, edgeId, dstIsGlobal); // XXX We only need 1 of these methods of finding matching edges?
         _cachedSrcDstEdgeMap.addEdge(srcVertexId, dstVertexId, edgeId, prev, _store._nOutgoingEdges.get(row));
         _modified = true;
         _sorted = false;
