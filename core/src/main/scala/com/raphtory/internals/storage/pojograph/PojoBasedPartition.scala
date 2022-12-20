@@ -45,6 +45,9 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
       logger.trace(s"Added vertex $srcId")
     }
 
+  override def addVertex(vAdd: VertexAdd): Unit =
+    addVertex(vAdd.sourceID, vAdd.updateTime, vAdd.index, vAdd.srcId, vAdd.properties, vAdd.vType)
+
   // TODO Unfolding of type is un-necessary
   def addVertexInternal(
       msgTime: Long,
@@ -116,6 +119,9 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
           addProperties(msgTime, index, newEdge, properties)
       }
     }
+
+  override def addLocalEdge(vAdd: EdgeAdd): Unit =
+    addLocalEdge(vAdd.sourceID, vAdd.updateTime, vAdd.index, vAdd.srcId, vAdd.dstId, vAdd.properties, vAdd.eType)
 
   override def addOutgoingEdge(
       sourceID: Long,
