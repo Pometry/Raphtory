@@ -9,7 +9,7 @@ import java.util.Date
 
 object AlphaBayApp extends App {
 
-  val DATA_DIR  = "/tmp/alphabay/data"
+  val DATA_DIR  = "/home/jatinder/projects/Pometry/arrow-core"
   val ARROW_DIR = "/tmp/alphabay/arrow"
 
   class AlphaBayLoader(rap: RaphtoryArrowPartition) {

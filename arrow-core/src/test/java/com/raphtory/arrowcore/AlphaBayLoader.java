@@ -130,12 +130,15 @@ public class AlphaBayLoader {
         }
 
 
-        rap = new RaphtoryArrowPartition(cfg);
-        loader = new AlphaBayLoader(rap);
-        loader.load(RaphtoryInput + "/alphabay_sorted.csv");
+        //rap = new RaphtoryArrowPartition(cfg);
+        //loader = new AlphaBayLoader(rap);
+        //loader.load(RaphtoryInput + "/alphabay_sorted.csv");
 
         for (int i=0; i<2; ++i) {
             System.out.println("\n\n\n");
+            loader.degreeAlgoNoWindowMT();
+            loader.degreeAlgoNoWindow();
+
             loader.degreeAlgoMT();
             loader.degreeAlgoTestHack();
             loader.degreeAlgoTest();
@@ -156,6 +159,89 @@ public class AlphaBayLoader {
 
         _priceVEPA = _rap.getEdgePropertyAccessor(PRICE_PROPERTY);
     }
+
+
+
+    public void degreeAlgoNoWindow() throws Exception {
+        System.out.println(new Date() + ": NoWindow Degrees starting");
+        VertexIterator vi = _rap.getNewAllVerticesIterator();
+        int nVertices = 0;
+        int nEdges = 0;
+        Long2IntOpenHashMap inDegreeMap = new Long2IntOpenHashMap(16384);
+        Long2IntOpenHashMap outDegreeMap = new Long2IntOpenHashMap(16384);
+        Long2IntOpenHashMap degreeMap = new Long2IntOpenHashMap(16384);
+
+
+        long then = System.currentTimeMillis();
+        while (vi.hasNext()) {
+            long vId = vi.next();
+            ++nVertices;
+
+            EdgeIterator ei;
+
+            //inDegreeMap.put(vId, vi.getNIncomingEdges());
+            //outDegreeMap.put(vId, vi.getNOutgoingEdges());
+
+            int nIncoming = 0;
+            ei = vi.getIncomingEdges();
+            while (ei.hasNext()) {
+                ei.next();
+                ++nIncoming;
+            }
+            inDegreeMap.put(vId, nIncoming);
+
+            int nOutgoing = 0;
+            ei = vi.getOutgoingEdges();
+            while (ei.hasNext()) {
+                ei.next();
+                ++nOutgoing;
+            }
+            outDegreeMap.put(vId, nOutgoing);
+
+            int nTotal = 0;
+            ei = vi.getAllEdges();
+            while (ei.hasNext()) {
+                ei.next();
+                ++nTotal;
+            }
+            degreeMap.put(vId, nTotal);
+            nEdges += nTotal;
+        }
+
+        /*
+        OutputStream output = new BufferedOutputStream(new FileOutputStream("degree_output.csv"), BUFFER_SIZE);
+        StringBuilder tmp = new StringBuilder();
+
+        degreeMap.keySet().forEach(id -> {
+            tmp.setLength(0);
+            tmp.append("DUMMY,");
+            tmp.append(id);
+            tmp.append(",");
+            tmp.append(inDegreeMap.get(id));
+            tmp.append(",");
+            tmp.append(outDegreeMap.get(id));
+            tmp.append(",");
+            tmp.append(degreeMap.get(id));
+            tmp.append("\n");
+
+            try {
+                output.write(tmp.toString().getBytes());
+            }
+            catch (Exception e) {
+            catch (Exception e) {
+                // NOP
+            }
+        });
+
+        output.flush();
+        output.close();
+*/
+
+        System.out.println(new Date() + ": NoWindow Degrees ended");
+        System.out.println("nVertices: " + nVertices + ", nEdges=" + nEdges);
+        System.out.println("Total time: " + (System.currentTimeMillis() - then) + "ms");
+    }
+
 
 
     public void degreeAlgo() throws Exception {
@@ -194,7 +280,6 @@ public class AlphaBayLoader {
             }
             outDegreeMap.put(vId, nOutgoing);
 
-            /*
             int nTotal = 0;
             ei = vi.getAllEdges();
             while (ei.hasNext()) {
@@ -203,7 +288,6 @@ public class AlphaBayLoader {
             }
             degreeMap.put(vId, nTotal);
             nEdges += nTotal;
-            */
         }
 
         /*
@@ -582,8 +666,129 @@ public class AlphaBayLoader {
 
         System.out.println(new Date() + ": Degrees ended");
         System.out.println("nVertices: " + theTotalVertices + ", nEdges=" + theTotalEdges);
-
     }
+
+
+    public void degreeAlgoNoWindowMT() throws Exception {
+        System.out.println(new Date() + ": NoWindowMT Degrees starting");
+        long then = System.nanoTime();
+
+        //VertexIterator vi = _rap.getNewWindowedVertexIterator(Long.MIN_VALUE, Long.MAX_VALUE);
+        VertexIterator.MTAllVerticesManager avm = _rap.getNewMTAllVerticesManager(RaphtoryThreadPool.THREAD_POOL);
+
+        Long2IntOpenHashMap[] inDegreesMap = new Long2IntOpenHashMap[_avpm.nPartitions()];
+        Long2IntOpenHashMap[] outDegreesMap = new Long2IntOpenHashMap[_avpm.nPartitions()];
+        Long2IntOpenHashMap[] degreesMap = new Long2IntOpenHashMap[_avpm.nPartitions()];
+
+        for (int i=0; i<_avpm.nPartitions(); ++i) {
+            inDegreesMap[i] = new Long2IntOpenHashMap(16384);
+            outDegreesMap[i] = new Long2IntOpenHashMap(16384);
+            degreesMap[i] = new Long2IntOpenHashMap(16384);
+        }
+
+        AtomicInteger theTotalVertices = new AtomicInteger();
+        AtomicInteger theTotalEdges = new AtomicInteger();
+
+        avm.start((id, vi) -> {
+            Long2IntOpenHashMap inDegreeMap = inDegreesMap[id];
+            Long2IntOpenHashMap outDegreeMap = inDegreesMap[id];
+            Long2IntOpenHashMap degreeMap = inDegreesMap[id];
+
+            int totalIncoming = 0;
+            int totalOutgoing = 0;
+            int totalTotal = 0;
+            int nVertices = 0;
+
+            while (vi.hasNext()) {
+                long vId = vi.next();
+                ++nVertices;
+
+                //if (!vi.isAliveAt(Long.MIN_VALUE, Long.MAX_VALUE)) { continue; }
+
+                EdgeIterator ei;
+
+                //inDegreeMap.put(vId, vi.getNIncomingEdges());
+                //outDegreeMap.put(vId, vi.getNOutgoingEdges());
+
+                int nIncoming = 0;
+                ei = vi.getOutgoingEdges();
+                while (ei.hasNext()) {
+                    ei.next();
+                    //if (!ei.isAliveAt(Long.MIN_VALUE, Long.MAX_VALUE)) { continue; }
+                    ++nIncoming;
+                }
+                inDegreeMap.put(vId, nIncoming);
+
+                int nOutgoing = 0;
+                ei = vi.getOutgoingEdges();
+                while (ei.hasNext()) {
+                    ei.next();
+                    //if (!ei.isAliveAt(Long.MIN_VALUE, Long.MAX_VALUE)) { continue; }
+                    ++nOutgoing;
+                }
+                outDegreeMap.put(vId, nOutgoing);
+
+                int nTotal = 0;
+                ei = vi.getAllEdges();
+                while (ei.hasNext()) {
+                    ei.next();
+                    //if (!ei.isAliveAt(Long.MIN_VALUE, Long.MAX_VALUE)) { continue; }
+                    ++nTotal;
+                }
+                degreeMap.put(vId, nTotal);
+
+                totalIncoming += nIncoming;
+                totalOutgoing += nOutgoing;
+                totalTotal    += nTotal;
+            }
+
+            theTotalVertices.addAndGet(nVertices);
+            theTotalEdges.addAndGet(totalIncoming + totalOutgoing + totalTotal);
+        });
+
+        avm.waitTilComplete();
+
+        /*
+        OutputStream output = new BufferedOutputStream(new FileOutputStream("degree_output.csv"), BUFFER_SIZE);
+        StringBuilder tmp = new StringBuilder();
+
+        for (int i=0; i<degreesMap.length; ++i) {
+            Long2IntOpenHashMap inDegreeMap = inDegreesMap[i];
+            Long2IntOpenHashMap outDegreeMap = inDegreesMap[i];
+            Long2IntOpenHashMap degreeMap = inDegreesMap[i];
+
+            degreeMap.keySet().forEach(id -> {
+                tmp.setLength(0);
+                tmp.append("DUMMY,");
+                tmp.append(id);
+                tmp.append(",");
+                tmp.append(inDegreeMap.get(id));
+                tmp.append(",");
+                tmp.append(outDegreeMap.get(id));
+                tmp.append(",");
+                tmp.append(degreeMap.get(id));
+                tmp.append("\n");
+
+                try {
+                    output.write(tmp.toString().getBytes());
+                }
+                catch (Exception e) {
+                    // NOP
+                }
+            });
+        }
+
+        output.flush();
+        output.close();
+        */
+
+        long now = System.nanoTime();
+        System.out.println("NoWindowMT Took: " + (now-then)/1000000.0d + "ms");
+
+        System.out.println(new Date() + ": Degrees ended");
+        System.out.println("nVertices: " + theTotalVertices + ", nEdges=" + theTotalEdges);
+    }
+
 
 
     int _nEdgesAdded = 0;
