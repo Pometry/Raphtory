@@ -34,7 +34,7 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
       vertexType: Option[Type]
   ): Unit
 
-  def addVertex(vAdd: VertexAdd): Unit = ???
+  def addVertex(vAdd: VertexAdd): Unit
 
   // Ingesting Edges
   // This method should assume that both vertices are local and create them if they don't exist
@@ -47,7 +47,7 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
       edgeType: Option[Type]
   ): Unit
 
-  def addLocalEdge(vAdd: EdgeAdd): Unit = ???
+  def addLocalEdge(vAdd: EdgeAdd): Unit
 
   // This method should assume that the dstId belongs to another partition
   def addOutgoingEdge(

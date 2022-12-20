@@ -24,6 +24,9 @@ private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, co
   ): Unit =
     q.addAddVertexReqToQueue(msgTime, index, srcId, properties, maybeType)
 
+  override def addVertex(vAdd: VertexAdd): Unit =
+    addVertex(vAdd.updateTime, vAdd.index, vAdd.srcId, vAdd.properties, vAdd.vType)
+
   override def addLocalEdge(
       msgTime: Long,
       index: Long,
@@ -50,6 +53,9 @@ private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, co
     else
       q.addAddEdgeReqToQueue(msgTime, index, srcId, srcId, dstId, properties, maybeType, SelfLoop)
   }
+
+  override def addLocalEdge(vAdd: EdgeAdd): Unit =
+    addLocalEdge(vAdd.updateTime, vAdd.index, vAdd.srcId, vAdd.dstId, vAdd.properties, vAdd.eType)
 
   override def addOutgoingEdge(
       msgTime: Long,
