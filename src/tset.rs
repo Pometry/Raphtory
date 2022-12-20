@@ -6,18 +6,17 @@ use std::{
 
 use itertools::Itertools;
 
-use crate::bitset::BitSet;
-
 #[derive(Debug, PartialEq, Default)]
-pub struct TSet<V: Eq + Hash> {
-    vs: BTreeMap<u64, BTreeSet<V>>,
+pub enum TSet<V: Eq + Hash> {
+    #[default] Empty,
+    One(u64, V),
+    Seq(u64, BTreeSet<V>),
+    Tree(BTreeMap<u64, BTreeSet<V>>),
 }
 
 impl<V: Ord + Hash> TSet<V> {
     pub fn new(t: u64, k: V) -> Self {
-        TSet {
-            vs: BTreeMap::from([(t, BTreeSet::from([k; 1])); 1]),
-        }
+        TSet::One(t, k)
     }
 
     pub fn push(&mut self, t: u64, k: V) {
@@ -30,29 +29,6 @@ impl<V: Ord + Hash> TSet<V> {
                 oc.get_mut().insert(k);
             }
         }
-        // let insert_at = match self.vs.binary_search_by_key(&t, |(t0, _)| *t0) {
-        //     Ok(found) => {
-        //         // we found a time slot, need to iterate over all the values associated with time t
-        //         // if we find K exists already we exit, otherwise we insert it in
-        //         let vs_t = &self.vs[found..];
-
-        //         let mut i:usize= found;
-        //         for (t0, k0) in vs_t {
-        //             if k0 == &k {
-        //                 return self; // done, nothing to do here
-        //             }
-        //             if *t0 != t {
-        //                 break; // we done searching
-        //             }
-        //             i += 1;
-        //         }
-        //         i // this is where we insert the tuple
-        //     }
-        //     Err(not_found) => not_found,
-        // };
-
-        // self.vs.insert(insert_at, (t, k));
-        // self
     }
 
     pub fn iter_window(&self, r: Range<u64>) -> Box<dyn Iterator<Item = &V> + '_> {
