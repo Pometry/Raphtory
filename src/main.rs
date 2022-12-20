@@ -4,7 +4,7 @@ use std::env;
 
 use csv::StringRecord;
 use docbrown::graph::TemporalGraph;
-use docbrown::tcell::TCell;
+// use docbrown::tcell::TCell;
 use docbrown::TemporalGraphStorage;
 use itertools::Itertools;
 use std::time::Instant;
