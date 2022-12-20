@@ -22,6 +22,9 @@ trait LocalRunner2 { self: RaphtoryApp =>
       file.getLines.foreach { line =>
         val parts   = line.split(",").map(_.trim)
 
+        if (graph.getNEdgesAdded % (1024*1024) == 0) {
+          println(graph.getNEdgesAdded);
+        }
         val src = parts(3).trim().toLong
         val dst = parts(4).trim().toLong
         val time = parts(5).trim().toLong
@@ -39,8 +42,8 @@ trait LocalRunner2 { self: RaphtoryApp =>
       // Get simple metrics
       graph
         .execute(Degree())
-        .writeTo(FileSink("/tmp/raphtory"))
-        .waitForJob()
+        //.writeTo(FileSink("/tmp/raphtory"))
+        //.waitForJob()
     }
 }
 
