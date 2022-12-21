@@ -33,8 +33,7 @@ class JSONSource(
     targetType: String = "",
     edgeKey: Option[String] = None,
     timeKey: Option[String] = None
-) extends Source {
-  override type MessageType = String
+) extends SpoutBuilderSource[String] {
 
   private var source: String         = _
   private var target: String         = _

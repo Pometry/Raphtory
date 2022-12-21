@@ -50,20 +50,20 @@ private[raphtory] class QuerySender(
 
   def addToDynamicPath(name: String): Unit = searchPath = name :: searchPath
 
-  override protected def sourceID: Int = IDForUpdates()
-  override def index: Long             = totalUpdateIndex
+//  protected def sourceID: Int = IDForUpdates()
+  override def index: Long = totalUpdateIndex
 
-  def IDForUpdates(): Int = {
-    if (newIDRequiredOnUpdate)
-      service.getNextAvailableId(protocol.IdPool(graphID)).unsafeRunSync() match {
-        case protocol.OptionalId(Some(id), _) =>
-          currentSourceID = id
-          newIDRequiredOnUpdate = false
-        case protocol.OptionalId(None, _)     =>
-          throw new NoIDException(s"Client '$clientID' was not able to acquire a source ID")
-      } //updates the sourceID if we haven't had one yet or if the user has sent a query since the last update block
-    currentSourceID
-  }
+//  def IDForUpdates(): Int = {
+//    if (newIDRequiredOnUpdate)
+//      service.getNextAvailableId(protocol.IdPool(graphID)).unsafeRunSync() match {
+//        case protocol.OptionalId(Some(id), _) =>
+//          currentSourceID = id
+//          newIDRequiredOnUpdate = false
+//        case protocol.OptionalId(None, _)     =>
+//          throw new NoIDException(s"Client '$clientID' was not able to acquire a source ID")
+//      } //updates the sourceID if we haven't had one yet or if the user has sent a query since the last update block
+//    currentSourceID
+//  }
 
   def handleInternal(update: GraphUpdate): Unit =
     handleGraphUpdate(update) // Required so the Temporal Graph obj can call the below func
@@ -125,7 +125,7 @@ private[raphtory] class QuerySender(
   def establishGraph(): Unit = service.establishGraph(GraphInfo(clientID, graphID)).unsafeRunSync()
 
   def submitSources(sources: Seq[Source]): Unit = {
-    val clazzes      = sources.map(_.getBuilderClass).toList
+    val clazzes      = sources.flatMap(_.getDynamicClasses).toList
     val sourceWithId = sources.map { source =>
       service.getNextAvailableId(protocol.IdPool(graphID)).unsafeRunSync() match {
         case protocol.OptionalId(Some(id), _) =>

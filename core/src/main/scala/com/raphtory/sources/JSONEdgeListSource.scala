@@ -5,6 +5,7 @@ import com.raphtory.api.input.Graph
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
+import com.raphtory.api.input.SpoutBuilderSource
 import com.raphtory.api.input.Type
 import com.raphtory.internals.time.DateTimeParser.{defaultParse => parseDateTime}
 import com.raphtory.spouts.FileSpout
@@ -30,8 +31,7 @@ class JSONEdgeListSource(
     targetType: String = "",
     edgeRelationship: String = "",
     timeKey: String = "time"
-) extends Source {
-  override type MessageType = String
+) extends SpoutBuilderSource[String] {
 
   override def builder: GraphBuilder[String] =
     (graph: Graph, jsonString: String) => {

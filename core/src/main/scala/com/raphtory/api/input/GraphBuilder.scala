@@ -9,17 +9,12 @@ import com.raphtory.protocol.PartitionService
 
 trait GraphBuilder[T] extends ((Graph, T) => Unit) with Serializable {
 
-  final def make[F[_]: Async](
-      graphID: String,
-      sourceID: Int,
-      partitions: Map[Int, PartitionService[F]]
-  ): F[GraphBuilderF[F, T]] =
+  final def make[F[_]: Async]: F[GraphBuilderF[F, T]] =
     for {
-      earliestSeen <- Ref.of(Long.MaxValue)
-      highestSeen  <- Ref.of(Long.MinValue)
-      sentUpdates  <- Ref.of(0L)
-      builder      <-
-        Async[F].delay(new GraphBuilderF(graphID, sourceID, this, partitions, earliestSeen, highestSeen, sentUpdates))
+//      earliestSeen <- Ref.of(Long.MaxValue)
+//      highestSeen  <- Ref.of(Long.MinValue)
+//      sentUpdates  <- Ref.of(0L)
+      builder <- Async[F].delay(new GraphBuilderF(this))
     } yield builder
 }
 

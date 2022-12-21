@@ -34,11 +34,11 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   override protected def handleGraphUpdate(update: GraphUpdate): Unit =
     querySender.handleInternal(update)
 
-  override protected def sourceID: Int = querySender.IDForUpdates()
+//  protected def sourceID: Int = querySender.IDForUpdates()
 
   override def index: Long = querySender.index
 
-  override def graphID: String = querySender.graphID
+//  override def graphID: String = querySender.graphID
 
   def totalPartitions: Int = querySender.totalPartitions
 

@@ -25,7 +25,7 @@ class RaphtoryGraphTest extends FunSuite {
                   config = config,
                   clientID = ""
           ) {
-    override def IDForUpdates(): Int = 1
+//    override def IDForUpdates(): Int = 1
   }
 
   private def createMockGraph(config: Config = ConfigBuilder.getDefaultConfig) =

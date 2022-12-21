@@ -39,7 +39,6 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
 
   // if the add come with some properties add all passed properties into the entity
   override def addVertex(
-      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -92,7 +91,6 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
   // Edge methods
 
   override def addLocalEdge(
-      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -124,7 +122,6 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
     }
 
   override def addOutgoingEdge(
-      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -152,7 +149,6 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
     }
 
   override def addIncomingEdge(
-      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,

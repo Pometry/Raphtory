@@ -35,16 +35,13 @@ import org.slf4j.LoggerFactory
   * @see [[Properties]] [[Spout]]
   */
 trait Graph {
-
-  def totalPartitions: Int
   protected def handleGraphUpdate(update: GraphUpdate): Unit
-  protected def sourceID: Int
+//  protected def sourceID: Int
   def index: Long
-  def graphID: String
+//  def graphID: String
 
-  private def vertexAddCounter = TelemetryReporter.vertexAddCounter.labels(s"$sourceID", graphID)
-
-  private def edgeAddCounter = TelemetryReporter.edgeAddCounter.labels(s"$sourceID", graphID)
+//  private def vertexAddCounter = TelemetryReporter.vertexAddCounter.labels(s"$sourceID", graphID)
+//  private def edgeAddCounter = TelemetryReporter.edgeAddCounter.labels(s"$sourceID", graphID)
 
   /** Adds a new vertex to the graph or updates an existing vertex
     *
@@ -71,9 +68,9 @@ trait Graph {
       vertexType: MaybeType = NoType,
       secondaryIndex: Long = index
   ): Unit = {
-    val update = VertexAdd(sourceID, updateTime, secondaryIndex, srcId, properties, vertexType.toOption)
+    val update = VertexAdd(updateTime, secondaryIndex, srcId, properties, vertexType.toOption)
     handleGraphUpdate(update)
-    vertexAddCounter.inc()
+//    vertexAddCounter.inc()
   }
 
   /** Adds a new edge to the graph or updates an existing edge
@@ -94,9 +91,9 @@ trait Graph {
       edgeType: MaybeType = NoType,
       secondaryIndex: Long = index
   ): Unit = {
-    val update = EdgeAdd(sourceID, updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption)
+    val update = EdgeAdd(updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption)
     handleGraphUpdate(update)
-    edgeAddCounter.inc()
+//    edgeAddCounter.inc()
   }
 
   /** Adds a new edge to the graph or updates an existing edge
@@ -118,10 +115,6 @@ trait Graph {
     */
   def assignID(uniqueChars: String): Long =
     Graph.assignID(uniqueChars)
-
-  private[raphtory] def getPartitionForId(id: Long): Int =
-    (id.abs % totalPartitions).toInt
-
 }
 
 object Graph {

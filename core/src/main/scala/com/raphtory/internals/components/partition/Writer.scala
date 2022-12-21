@@ -43,7 +43,7 @@ private[raphtory] class Writer[F[_]](
 
   def processVertexAdd(update: VertexAdd): Unit = {
     logger.trace(s"Partition $partitionID: Received VertexAdd message '$update'.")
-    storage.addVertex(update.sourceID, update.updateTime, update.index, update.srcId, update.properties, update.vType)
+    storage.addVertex(update.updateTime, update.index, update.srcId, update.properties, update.vType)
     vertexAdditionCount.inc()
   }
 
@@ -53,11 +53,11 @@ private[raphtory] class Writer[F[_]](
     val dstPartition = partitioner.getPartitionForId(upd.dstId)
 
     if (srcPartition == partitionID && dstPartition == partitionID)
-      storage.addLocalEdge(upd.sourceID, upd.updateTime, upd.index, upd.srcId, upd.dstId, upd.properties, upd.eType)
+      storage.addLocalEdge(upd.updateTime, upd.index, upd.srcId, upd.dstId, upd.properties, upd.eType)
     else if (srcPartition == partitionID)
-      storage.addOutgoingEdge(upd.sourceID, upd.updateTime, upd.index, upd.srcId, upd.dstId, upd.properties, upd.eType)
+      storage.addOutgoingEdge(upd.updateTime, upd.index, upd.srcId, upd.dstId, upd.properties, upd.eType)
     else
-      storage.addIncomingEdge(upd.sourceID, upd.updateTime, upd.index, upd.srcId, upd.dstId, upd.properties, upd.eType)
+      storage.addIncomingEdge(upd.updateTime, upd.index, upd.srcId, upd.dstId, upd.properties, upd.eType)
 
     edgeAddCount.inc()
   }
