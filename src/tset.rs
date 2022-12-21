@@ -1,21 +1,25 @@
 use std::{
     borrow::Borrow,
     collections::{btree_map::Entry, BTreeMap, BTreeSet},
-    hash::Hash,
     ops::Range,
 };
 
 use itertools::Itertools;
 
-#[derive(Debug, PartialEq, Default)]
-pub enum TSet<V: Eq + Hash> {
-    #[default]
+#[derive(Debug, PartialEq)]
+pub enum TSet<V: Ord> {
     Empty,
     One(u64, V),
     Tree(BTreeMap<u64, BTreeSet<V>>),
 }
 
-impl<V: Ord + Hash + Clone> TSet<V> {
+impl<V: Ord> Default for TSet<V> {
+    fn default() -> Self {
+        TSet::Empty
+    }
+}
+
+impl<V: Ord + Clone> TSet<V> {
     pub fn new(t: u64, k: V) -> Self {
         TSet::One(t, k)
     }
@@ -26,10 +30,12 @@ impl<V: Ord + Hash + Clone> TSet<V> {
                 *self = TSet::One(t, k);
             }
             TSet::One(t0, v0) => {
-                *self = TSet::Tree(BTreeMap::from([
-                    (t, BTreeSet::from([k])),
-                    (*t0, BTreeSet::from([v0.clone()])),
-                ]));
+                if !(t == *t0 && &k == v0) {
+                    *self = TSet::Tree(BTreeMap::from([
+                        (t, BTreeSet::from([k])),
+                        (*t0, BTreeSet::from([v0.clone()])),
+                    ]));
+                }
             }
             TSet::Tree(_) => {
                 if let TSet::Tree(vs) = self {
@@ -46,6 +52,7 @@ impl<V: Ord + Hash + Clone> TSet<V> {
             }
         }
     }
+
 
     pub fn iter_window(&self, r: Range<u64>) -> Box<dyn Iterator<Item = &V> + '_> {
         match self {
@@ -78,6 +85,10 @@ impl<V: Ord + Hash + Clone> TSet<V> {
             TSet::One(_, v) => Box::new(std::iter::once(v)),
             TSet::Tree(vs) => Box::new(vs.iter().map(|(_, set)| set.iter()).kmerge().dedup()),
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.iter().count()
     }
 }
 
@@ -170,4 +181,5 @@ mod tset_tests {
         let expected: Vec<&usize> = vec![&1, &7];
         assert_eq!(actual, expected)
     }
+
 }
