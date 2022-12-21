@@ -2,7 +2,7 @@ use std::{borrow::Borrow, collections::BTreeMap, fmt::Debug, ops::Range};
 
 use itertools::Itertools;
 
-use crate::{tcell::TCell, bitset::BitSet};
+use crate::{bitset::BitSet, tcell::TCell};
 
 pub trait TVec<A> {
     /**
@@ -32,7 +32,7 @@ pub trait TVec<A> {
 }
 
 #[derive(Debug, Default, PartialEq)]
-pub enum DefaultTVec<A: Clone + Default + Debug + PartialEq> {
+pub enum DefaultTVec<A: Clone + Default + Debug + PartialEq + PartialOrd> {
     #[default]
     Empty,
     One(TCell<A>),
@@ -42,7 +42,7 @@ pub enum DefaultTVec<A: Clone + Default + Debug + PartialEq> {
     },
 }
 
-impl<A: Clone + Default + Debug + PartialEq> DefaultTVec<A> {
+impl<A: Clone + Default + Debug + PartialEq + PartialOrd> DefaultTVec<A> {
     pub fn new(t: u64, a: A) -> Self {
         DefaultTVec::One(TCell::new(t, a))
     }
@@ -81,17 +81,19 @@ impl<A: Clone + Default + Debug + PartialEq> DefaultTVec<A> {
                 .and_modify(|set| {
                     set.push(i);
                 })
-                .or_insert_with(|| {
-                    BitSet::one(i)
-                });
+                .or_insert_with(|| BitSet::one(i));
         }
     }
 
     pub fn insert(&mut self, t: u64, a: A, i: usize) {
         if let DefaultTVec::Empty = self {
-            panic!("insertion index (is {i}) should be <= len (is 0)");
+            panic!("insertion index (is {i}) should be < len (is 0)");
         } else if let DefaultTVec::One(tcell) = self {
-            tcell.set(t, a);
+            if i == 0 {
+                tcell.set(t, a);
+            } else {
+                panic!("insertion index (is {i}) should be < len (is 1)");
+            }
         } else if let DefaultTVec::Vec { vs, t_index } = self {
             vs[i].set(t, a);
             // add index
@@ -100,9 +102,7 @@ impl<A: Clone + Default + Debug + PartialEq> DefaultTVec<A> {
                 .and_modify(|set| {
                     set.push(i);
                 })
-                .or_insert_with(|| {
-                    BitSet::one(i)
-                });
+                .or_insert_with(|| BitSet::one(i));
         }
     }
 
@@ -122,11 +122,12 @@ impl<A: Clone + Default + Debug + PartialEq> DefaultTVec<A> {
         } else if let DefaultTVec::Vec { vs, t_index } = self {
             let iter = t_index
                 .range(r.clone())
-                .flat_map(|(_, vs)| vs.iter())
-                .unique() // problematic as we store the entire thing in memory
-                .flat_map(move |id| {
+                .map(|(_, vs)| vs.iter()) // TODO: a modified version of kmerge that does not output duplicates should be a better option here since vs.iter() should be ordered
+                .kmerge()
+                .dedup()
+                .map(move |id| {
                     vs[id].iter_window(r.clone()) // this might be stupid
-                });
+                }).kmerge().dedup();
             Box::new(iter)
         } else {
             Box::new(std::iter::empty())
@@ -139,11 +140,12 @@ impl<A: Clone + Default + Debug + PartialEq> DefaultTVec<A> {
         } else if let DefaultTVec::Vec { vs, t_index } = self {
             let iter = t_index
                 .range(r.clone())
-                .flat_map(|(_, vs)| vs.iter())
-                .unique() // problematic as we store the entire thing in memory
-                .flat_map(move |id| {
+                .map(|(_, vs)| vs.iter()) // TODO: a modified version of kmerge that does not output duplicates should be a better option here since vs.iter() should be ordered
+                .kmerge()
+                .dedup()
+                .map(move |id| {
                     vs[id].iter_window_t(r.clone()) // this might be stupid
-                });
+                }).kmerge().dedup();
             Box::new(iter)
         } else {
             Box::new(std::iter::empty())
@@ -183,14 +185,16 @@ mod tvec_tests {
 
         tvec.push(4, 12); // t: 4 i:0
         tvec.push(9, 3); // t: 9 i:1
-        tvec.push(1, 2); // t: 1 i:2
+        tvec.push(1, 5); // t: 1 i:2
 
         // at a different t:3 override the index 2
         tvec.insert(3, 19, 2);
 
+        println!("{tvec:?}");
+
         assert_eq!(
             tvec.iter_window(0..5).collect::<Vec<_>>(),
-            vec![&2, &19, &12]
+            vec![&5, &12, &19]
         );
     }
 
@@ -249,4 +253,7 @@ mod tvec_tests {
         // len includes all versions
         assert_eq!(tvec.len(), 4);
     }
+
+    #[test]
+    fn push_value_same_time() {}
 }

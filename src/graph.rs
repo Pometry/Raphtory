@@ -6,6 +6,7 @@ use std::{
 use itertools::{chain, Itertools};
 
 use crate::tvec::DefaultTVec;
+use crate::tset::TSet;
 use crate::TemporalGraphStorage;
 use crate::{bitset::BitSet, Direction};
 
@@ -14,8 +15,8 @@ enum Adj {
     Empty(u64),
     List {
         logical: u64,
-        out: DefaultTVec<usize>,
-        into: DefaultTVec<usize>,
+        out: TSet<usize>,
+        into: TSet<usize>,
     },
 }
 
@@ -72,7 +73,7 @@ impl TemporalGraph {
                     Direction::OUT => out.iter_window(window),
                     Direction::IN => into.iter_window(window),
                     _ => {
-                        Box::new(itertools::chain!(out.iter(), into.iter())) // probably awful but will have to do for now
+                        Box::new(itertools::chain!(out.iter_window(window.clone()), into.iter_window(window.clone()))) // probably awful but will have to do for now
                     }
                 }
             }
@@ -140,8 +141,8 @@ impl TemporalGraphStorage for TemporalGraph {
         if let entry @ Adj::Empty(_) = &mut self.index[scr_pid] {
             *entry = Adj::List {
                 logical: src,
-                out: DefaultTVec::new(t, dst_pid),
-                into: DefaultTVec::default(),
+                out: TSet::new(t, dst_pid),
+                into: TSet::default(),
             };
         } else if let Adj::List { out, .. } = &mut self.index[scr_pid] {
             out.push(t, dst_pid)
@@ -150,8 +151,8 @@ impl TemporalGraphStorage for TemporalGraph {
         if let entry @ Adj::Empty(_) = &mut self.index[dst_pid] {
             *entry = Adj::List {
                 logical: dst,
-                out: DefaultTVec::default(),
-                into: DefaultTVec::new(t, scr_pid),
+                out: TSet::default(),
+                into:TSet::new(t, scr_pid),
             };
         } else if let Adj::List { into, .. } = &mut self.index[dst_pid] {
             into.push(t, scr_pid)
@@ -174,7 +175,6 @@ impl TemporalGraphStorage for TemporalGraph {
     ) -> Box<dyn Iterator<Item = &u64> + '_> {
         Box::new(
             self.neighbours_iter_window(v, d, w)
-                .unique()
                 .map(|nid| self.index[*nid].logical()),
         )
     }
@@ -402,5 +402,21 @@ mod graph_test {
         let actual = g.inbound_window(44, 9..100).collect::<Vec<_>>();
         let expected: Vec<&u64> = vec![];
         assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn add_the_same_edge_multiple_times(){
+
+        let mut g = TemporalGraph::default();
+
+        g.add_vertex(11, 1);
+        g.add_vertex(22, 2);
+
+        g.add_edge(11, 22, 4);
+        g.add_edge(11, 22, 4);
+
+
+        let actual = g.outbound_window(11, 1..5).collect::<Vec<_>>();
+        assert_eq!(actual, vec![&22]);
     }
 }
