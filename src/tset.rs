@@ -1,5 +1,6 @@
 use std::{
-    collections::{btree_map::Entry, BTreeMap, BTreeSet, HashSet},
+    borrow::Borrow,
+    collections::{btree_map::Entry, BTreeMap, BTreeSet},
     hash::Hash,
     ops::Range,
 };
@@ -8,43 +9,75 @@ use itertools::Itertools;
 
 #[derive(Debug, PartialEq, Default)]
 pub enum TSet<V: Eq + Hash> {
-    #[default] Empty,
+    #[default]
+    Empty,
     One(u64, V),
-    Seq(u64, BTreeSet<V>),
     Tree(BTreeMap<u64, BTreeSet<V>>),
 }
 
-impl<V: Ord + Hash> TSet<V> {
+impl<V: Ord + Hash + Clone> TSet<V> {
     pub fn new(t: u64, k: V) -> Self {
         TSet::One(t, k)
     }
 
     pub fn push(&mut self, t: u64, k: V) {
-        let entry = self.vs.entry(t);
-        match entry {
-            Entry::Vacant(ve) => {
-                ve.insert(BTreeSet::from([k; 1]));
+        match self.borrow() {
+            TSet::Empty => {
+                *self = TSet::One(t, k);
             }
-            Entry::Occupied(mut oc) => {
-                oc.get_mut().insert(k);
+            TSet::One(t0, v0) => {
+                *self = TSet::Tree(BTreeMap::from([
+                    (t, BTreeSet::from([k])),
+                    (*t0, BTreeSet::from([v0.clone()])),
+                ]));
+            }
+            TSet::Tree(_) => {
+                if let TSet::Tree(vs) = self {
+                    let entry = vs.entry(t);
+                    match entry {
+                        Entry::Vacant(ve) => {
+                            ve.insert(BTreeSet::from([k; 1]));
+                        }
+                        Entry::Occupied(mut oc) => {
+                            oc.get_mut().insert(k);
+                        }
+                    }
+                }
             }
         }
     }
 
     pub fn iter_window(&self, r: Range<u64>) -> Box<dyn Iterator<Item = &V> + '_> {
-        Box::new(self.vs.range(r).map(|(_, set)| set.iter()).kmerge().dedup())
+        match self {
+            TSet::Empty => Box::new(std::iter::empty()),
+            TSet::One(t, v) => {
+                if r.contains(t) {
+                    Box::new(std::iter::once(v))
+                } else {
+                    Box::new(std::iter::empty())
+                }
+            }
+            TSet::Tree(vs) => Box::new(vs.range(r).map(|(_, set)| set.iter()).kmerge().dedup()),
+        }
     }
 
     pub fn iter_window_t(&self, r: Range<u64>) -> Box<dyn Iterator<Item = (&u64, &V)> + '_> {
-        Box::new(
-            self.vs
-                .range(r)
-                .flat_map(|(t, set)| set.iter().map(move |v| (t, v))),
-        )
+        match self {
+            TSet::Empty => Box::new(std::iter::empty()),
+            TSet::One(t, v) => Box::new(std::iter::once((t, v))),
+            TSet::Tree(vs) => Box::new(
+                vs.range(r)
+                    .flat_map(|(t, set)| set.iter().map(move |v| (t, v))),
+            ),
+        }
     }
 
     pub fn iter(&self) -> Box<dyn Iterator<Item = &V> + '_> {
-        Box::new(self.vs.iter().map(|(_, set)| set.iter()).kmerge().dedup())
+        match self {
+            TSet::Empty => Box::new(std::iter::empty()),
+            TSet::One(_, v) => Box::new(std::iter::once(v)),
+            TSet::Tree(vs) => Box::new(vs.iter().map(|(_, set)| set.iter()).kmerge().dedup()),
+        }
     }
 }
 
