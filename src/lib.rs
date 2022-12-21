@@ -4,8 +4,10 @@ pub mod bitset;
 pub mod graph;
 mod misc;
 pub mod sortedvec;
-pub mod tcell;
-pub mod tvec;
+mod tcell;
+mod tvec;
+mod tset;
+
 
 #[derive(Clone, Copy)]
 pub enum Direction {
