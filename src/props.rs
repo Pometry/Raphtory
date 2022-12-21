@@ -1,14 +1,7 @@
-use crate::tvec::{DefaultTVec, TVec};
+use crate::tvec::DefaultTVec;
 
 #[derive(Debug, Default, PartialEq)]
-pub(crate) enum PropsVec {
-    #[default] Empty,
-    One(TProp),
-    Seq(Vec<TProp>),
-}
-
-#[derive(Debug, Default, PartialEq)]
-pub(crate) enum TProp {
+pub enum TProp {
     #[default]
     Empty,
     Str(DefaultTVec<String>),

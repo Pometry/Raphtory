@@ -1,14 +1,16 @@
 use std::ops::Range;
 
+use graph::TemporalGraph;
+
 pub mod bitset;
+mod edge;
 pub mod graph;
 mod misc;
 mod props;
 pub mod sortedvec;
 mod tcell;
-mod tvec;
 mod tset;
-
+mod tvec;
 
 #[derive(Clone, Copy)]
 pub enum Direction {
@@ -25,83 +27,40 @@ pub enum Prop {
     F64(f64),
 }
 
-pub trait TemporalGraphStorage {
-    fn add_vertex_props(&mut self, v: u64, t: u64, props: Vec<Prop>) -> &mut Self;
+pub struct VertexView<'a, G> {
+    g_id: &'a u64,
+    pid: usize,
+    g: &'a G,
+}
 
-    fn add_vertex(&mut self, v: u64, t: u64) -> &mut Self {
-        self.add_vertex_props(v, t, vec![])
+impl<'a> VertexView<'a, TemporalGraph> {
+    pub fn global_id(&self) -> u64 {
+        *self.g_id
     }
 
-    /**
-     * adds the edge in an idempotent manner
-     * if src doesn't exit it's added at time t
-     * if dst doesn't exit it's added at time t
-     *
-     * both src and dst get an index at time t if they do exist
-     */
-    fn add_edge_props(&mut self, src: u64, dst: u64, t: u64, props: Vec<Prop>) -> &mut Self;
-
-    fn add_edge(&mut self, src: u64, dst: u64, t: u64) -> &mut Self {
-        self.add_edge_props(src, dst, t, vec![])
+    pub fn outbound_degree(&self) -> usize {
+        self.g.index[self.pid].out_degree()
     }
 
-    fn iter_vs(&self) -> Box<dyn Iterator<Item = &u64> + '_>;
 
-    fn iter_vs_window(&self, r: Range<u64>) -> Box<dyn Iterator<Item = u64> + '_>;
+    pub fn inbound_degree(&self) -> usize {
+        self.g.index[self.pid].in_degree()
+    }
+}
 
-    fn neighbours(&self, v: u64, d: Direction) -> Box<dyn Iterator<Item = &u64> + '_>;
+pub struct EdgeView<'a, G: Sized> {
+    src_id: usize,
+    dst_id: &'a usize,
+    t: Option<&'a u64>,
+    g: &'a G,
+}
 
-    fn neighbours_window(
-        &self,
-        w: Range<u64>,
-        v: u64,
-        d: Direction,
-    ) -> Box<dyn Iterator<Item = &u64> + '_>;
-
-    fn neighbours_window_t(
-        &self,
-        w: Range<u64>,
-        v: u64,
-        d: Direction,
-    ) -> Box<dyn Iterator<Item = (&u64, &u64)> + '_>;
-
-    fn outbound(&self, src: u64) -> Box<dyn Iterator<Item = &u64> + '_> {
-        self.neighbours(src, Direction::OUT)
+impl<'a> EdgeView<'a, TemporalGraph> {
+    pub fn global_src(&self) -> u64 {
+        *self.g.index[self.src_id].logical()
     }
 
-    fn inbound(&self, dst: u64) -> Box<dyn Iterator<Item = &u64> + '_> {
-        self.neighbours(dst, Direction::IN)
+    pub fn global_dst(&self) -> u64 {
+        *self.g.index[*self.dst_id].logical()
     }
-
-    fn outbound_window(&self, src: u64, r: Range<u64>) -> Box<dyn Iterator<Item = &u64> + '_> {
-        self.neighbours_window(r, src, Direction::OUT)
-    }
-
-    fn inbound_window(&self, dst: u64, r: Range<u64>) -> Box<dyn Iterator<Item = &u64> + '_> {
-        self.neighbours_window(r, dst, Direction::IN)
-    }
-
-    fn outbound_window_t(
-        &self,
-        src: u64,
-        r: Range<u64>,
-    ) -> Box<dyn Iterator<Item = (&u64, &u64)> + '_> {
-        self.neighbours_window_t(r, src, Direction::OUT)
-    }
-
-    fn inbound_window_t(
-        &self,
-        dst: u64,
-        r: Range<u64>,
-    ) -> Box<dyn Iterator<Item = (&u64, &u64)> + '_> {
-        self.neighbours_window_t(r, dst, Direction::IN)
-    }
-
-    fn len(&self) -> usize;
-
-    fn outbound_degree(&self, src: u64) -> usize;
-    fn inbound_degree(&self, dst: u64) -> usize;
-
-    fn outbound_degree_t(&self, dst: u64, r: Range<u64>) -> usize;
-    fn inbound_degree_t(&self, dst: u64, r: Range<u64>) -> usize;
 }
