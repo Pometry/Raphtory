@@ -134,7 +134,7 @@ public class AlphaBayLoader {
         //loader = new AlphaBayLoader(rap);
         //loader.load(RaphtoryInput + "/alphabay_sorted.csv");
 
-        for (int i=0; i<2; ++i) {
+        for (int i=0; i<0; ++i) {
             System.out.println("\n\n\n");
             loader.degreeAlgoNoWindowMT();
             loader.degreeAlgoNoWindow();
@@ -1333,7 +1333,7 @@ public class AlphaBayLoader {
 
     private Disruptor<AddVertexEvent> buildDisruptor() {
         ThreadFactory threadFactory = DaemonThreadFactory.INSTANCE;
-        WaitStrategy waitStrategy = new SleepingWaitStrategy();
+        WaitStrategy waitStrategy = new YieldingWaitStrategy();
         //WaitStrategy waitStrategy = new BusySpinWaitStrategy();
         //WaitStrategy waitStrategy = new BlockingWaitStrategy();
         Disruptor<AddVertexEvent> disruptor = new Disruptor<>(AddVertexEvent.EVENT_FACTORY, QUEUE_SIZE, threadFactory, ProducerType.SINGLE, waitStrategy);

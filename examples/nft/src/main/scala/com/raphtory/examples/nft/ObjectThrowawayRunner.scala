@@ -40,10 +40,10 @@ trait LocalRunner2 { self: RaphtoryApp =>
       //      graph.load(source)
 
       // Get simple metrics
-      graph
+      graph.slice(Long.MinValue, Long.MaxValue)
         .execute(Degree())
-        //.writeTo(FileSink("/tmp/raphtory"))
-        //.waitForJob()
+        .writeTo(FileSink("/tmp/raphtory"))
+        .waitForJob()
     }
 }
 
