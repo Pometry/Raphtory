@@ -5,7 +5,7 @@ use std::{
 
 use itertools::Itertools;
 
-use crate::{bitset::BitSet, Direction};
+use crate::{bitset::BitSet, Direction, props::TProp};
 use crate::{edge::Edge, EdgeView, Prop};
 use crate::{tset::TSet, VertexView};
 
@@ -13,6 +13,7 @@ use crate::{tset::TSet, VertexView};
 pub struct TemporalGraph {
     logical_to_physical: HashMap<u64, usize>,
     pub(crate) index: Vec<Adj>,
+    pub(crate) edge_meta: Vec<TProp>,
     t_index: BTreeMap<u64, BitSet>,
 }
 
@@ -51,6 +52,7 @@ impl Adj {
 
 impl TemporalGraph {
     fn neighbours_iter(&self, v: u64, d: Direction) -> Box<dyn Iterator<Item = &usize> + '_> {
+        // todo!()
         let vid = self.logical_to_physical[&v];
 
         match &self.index[vid] {
@@ -73,6 +75,7 @@ impl TemporalGraph {
         d: Direction,
         window: Range<u64>,
     ) -> Box<dyn Iterator<Item = &usize> + '_> {
+        // todo!()
         let vid = self.logical_to_physical[&v];
 
         match &self.index[vid] {
