@@ -36,14 +36,14 @@ impl Adj {
 
     pub fn out_degree(&self) -> usize {
         match self {
-            Adj::Empty(logical) => 0,
+            Adj::Empty(_) => 0,
             Adj::List { out, .. } => out.len(),
         }
     }
 
     pub fn in_degree(&self) -> usize {
         match self {
-            Adj::Empty(logical) => 0,
+            Adj::Empty(_) => 0,
             Adj::List { into, .. } => into.len(),
         }
     }
@@ -154,7 +154,13 @@ impl TemporalGraph {
         self.add_edge_props(src, dst, t, vec![])
     }
 
-    pub fn add_edge_props(&mut self, src: u64, dst: u64, t: u64, props: Vec<Prop>) -> &mut Self {
+    pub fn add_edge_props(
+        &mut self,
+        src: u64,
+        dst: u64,
+        t: u64,
+        props: Vec<(String, Prop)>,
+    ) -> &mut Self {
         // mark the times of the vertices at t
         self.add_vertex(src, t).add_vertex(dst, t);
 
@@ -162,14 +168,12 @@ impl TemporalGraph {
         let dst_pid = self.logical_to_physical[&dst];
 
         if let entry @ Adj::Empty(_) = &mut self.index[scr_pid] {
-            println!("1 ADD EDGE {src} {dst} {t}");
             *entry = Adj::List {
                 logical: src,
                 out: TSet::new(t, dst_pid),
                 into: TSet::default(),
             };
         } else if let Adj::List { out, .. } = &mut self.index[scr_pid] {
-            println!("2 ADD EDGE {src} {dst} {t}");
             out.push(t, dst_pid)
         }
 
@@ -366,18 +370,12 @@ mod graph_test {
         assert_eq!(actual, vec![1, 9]);
 
         // the outbound neighbours of 9 at time 0..2 is the empty set
-        let actual: Vec<u64> = g
-            .outbound_window(9, 0..2)
-            .map(|e| e.global_dst())
-            .collect();
+        let actual: Vec<u64> = g.outbound_window(9, 0..2).map(|e| e.global_dst()).collect();
         let expected: Vec<u64> = vec![];
         assert_eq!(actual, expected);
 
         // the outbound neighbours of 9 at time 0..4 are 1
-        let actual: Vec<u64> = g
-            .outbound_window(9, 0..4)
-            .map(|e| e.global_dst())
-            .collect();
+        let actual: Vec<u64> = g.outbound_window(9, 0..4).map(|e| e.global_dst()).collect();
         assert_eq!(actual, vec![1]);
 
         // the outbound neighbours of 9 at time 0..4 are 1
@@ -403,18 +401,12 @@ mod graph_test {
         assert_eq!(actual, vec![1, 9]);
 
         // the outbound neighbours of 9 at time 0..2 is the empty set
-        let actual: Vec<u64> = g
-            .outbound_window(9, 0..2)
-            .map(|e| e.global_dst())
-            .collect();
+        let actual: Vec<u64> = g.outbound_window(9, 0..2).map(|e| e.global_dst()).collect();
         let expected: Vec<u64> = vec![];
         assert_eq!(actual, expected);
 
         // the outbound neighbours of 9 at time 0..4 are 1
-        let actual: Vec<u64> = g
-            .outbound_window(9, 0..4)
-            .map(|e| e.global_dst())
-            .collect();
+        let actual: Vec<u64> = g.outbound_window(9, 0..4).map(|e| e.global_dst()).collect();
         assert_eq!(actual, vec![1]);
 
         // the outbound neighbours of 9 at time 0..4 are 1
@@ -535,5 +527,29 @@ mod graph_test {
             .map(|e| e.global_dst())
             .collect::<Vec<_>>();
         assert_eq!(actual, vec![22]);
+    }
+
+    #[test]
+    fn add_edge_with_properties() {
+        let mut g = TemporalGraph::default();
+
+        g.add_vertex(11, 1);
+        g.add_vertex(22, 2);
+
+        g.add_edge_props(11, 22, 4, vec![("weight".into(), Prop::U32(12))]);
+
+        let edge_weights = g
+            .outbound(11)
+            .flat_map(|e| {
+                e.props("weight").flat_map(|(t, prop)| {
+                    match prop {
+                        Prop::U32(weight) => Some((t, weight)),
+                        _ => None,
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(edge_weights, vec![(&4, 12)])
     }
 }
