@@ -1,6 +1,7 @@
 use std::ops::Range;
 
 use graph::TemporalGraph;
+use props::TProp;
 
 pub mod bitset;
 mod edge;
@@ -42,10 +43,19 @@ impl<'a> VertexView<'a, TemporalGraph> {
         self.g.index[self.pid].out_degree()
     }
 
-
     pub fn inbound_degree(&self) -> usize {
         self.g.index[self.pid].in_degree()
     }
+
+    // FIXME: all the functions using global ID need to be changed to use the physical ID instead
+    pub fn outbound(&'a self) -> Box<dyn Iterator<Item = EdgeView<'a, TemporalGraph>> + 'a> {
+        self.g.outbound(*self.g_id)
+    }
+
+    pub fn inbound(&'a self) -> Box<dyn Iterator<Item = EdgeView<'a, TemporalGraph>> + 'a> {
+        self.g.inbound(*self.g_id)
+    }
+
 }
 
 pub struct EdgeView<'a, G: Sized> {
@@ -62,5 +72,9 @@ impl<'a> EdgeView<'a, TemporalGraph> {
 
     pub fn global_dst(&self) -> u64 {
         *self.g.index[*self.dst_id].logical()
+    }
+
+    pub fn props(&self, name: &'a str) -> Box<dyn Iterator<Item = (&'a u64, Prop)> + 'a>  {
+        Box::new(std::iter::empty())
     }
 }
