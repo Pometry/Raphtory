@@ -1,27 +1,19 @@
 package com.raphtory.internals.storage.arrow
 
 import com.lmax.disruptor.SleepingWaitStrategy
-import com.lmax.disruptor.dsl.Disruptor
-import com.lmax.disruptor.dsl.ProducerType
+import com.lmax.disruptor.dsl.{Disruptor, ProducerType}
 import com.lmax.disruptor.util.DaemonThreadFactory
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.api.input._
 import com.raphtory.arrowcore.implementation._
-import com.raphtory.arrowcore.model.Edge
-import com.raphtory.arrowcore.model.Entity
-import com.raphtory.arrowcore.model.Vertex
-import com.raphtory.internals.communication.SchemaProviderInstances.vertexAddSchemaProvider
-import com.raphtory.internals.graph.GraphAlteration
-import com.raphtory.internals.graph.GraphPartition
-import com.raphtory.internals.graph.LensInterface
+import com.raphtory.arrowcore.model.{Edge, Entity, Vertex}
+import com.raphtory.internals.graph.{GraphAlteration, GraphPartition, LensInterface}
 import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExVertex
 import com.typesafe.config.Config
 
 import java.lang
 import java.util.concurrent.atomic.LongAccumulator
-import scala.collection.AbstractView
-import scala.collection.View
-import scala.collection.mutable
+import scala.collection.{AbstractView, View, mutable}
 
 class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition: Int, conf: Config)
         extends GraphPartition(graphID, partition, conf)
@@ -42,8 +34,8 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   val partitionsPerServer: Int = conf.getInt("raphtory.partitions.countPerServer")
   val totalPartitions: Int     = partitionServers * partitionsPerServer
 
-  val nWorkers               = 1
-  val queueSize              = 1024
+  val nWorkers               = 8
+  val queueSize              = 8192
   val workers: Array[Worker] = Array.tabulate(nWorkers)(i => new Worker(i, par, conf))
 
   val disruptors: Array[Disruptor[QueuePayload]] = Array.tabulate(nWorkers) { i =>
@@ -70,6 +62,8 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   private def buildDisruptor: Disruptor[QueuePayload] = {
     val threadFactory = DaemonThreadFactory.INSTANCE
     val waitStrategy  = new SleepingWaitStrategy
+    //val waitStrategy  = new BusySpinWaitStrategy
+    //val waitStrategy = new YieldingWaitStrategy
     new Disruptor[QueuePayload](() => QueuePayload(null), queueSize, threadFactory, ProducerType.SINGLE, waitStrategy)
   }
 
@@ -120,7 +114,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
 
   override def addLocalEdge(eAdd: GraphAlteration.EdgeAdd): Unit = {
     val srcWorker = Math.abs((eAdd.srcId % nWorkers).toInt)
-    val dstWorker = Math.abs((eAdd.dstId % nWorkers).toInt)
+    //val dstWorker = Math.abs((eAdd.dstId % nWorkers).toInt)
 
     val sequenceId = queues(srcWorker).next()
     val event: QueuePayload = queues(srcWorker).get(sequenceId)
