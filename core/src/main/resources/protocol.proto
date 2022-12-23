@@ -80,13 +80,9 @@ message GraphUpdate {
   bytes update = 2 [(scalapb.field).type = "com.raphtory.internals.graph.GraphAlteration.GraphUpdate"];
 }
 
-message GraphAlteration {
-  bytes alteration = 1 [(scalapb.field).type = "com.raphtory.internals.graph.GraphAlteration"];
-}
-
 message GraphAlterations {
   string graphId = 1;
-  repeated GraphAlteration alterations = 2;
+  repeated bytes alterations = 2 [(scalapb.field).type = "com.raphtory.internals.graph.GraphAlteration"];
 }
 
 message DestroyGraph {

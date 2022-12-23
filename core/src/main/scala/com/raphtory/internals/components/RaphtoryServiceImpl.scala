@@ -124,7 +124,7 @@ class RaphtoryServiceImpl[F[_]](
       case update: EdgeAdd => partitioner.getPartitionsForEdge(update.srcId, update.dstId).map(partitions(_))
       case update          => Set(partitions(partitioner.getPartitionForId(update.srcId)))
     }
-    val updateMsg     = protocol.GraphAlterations(req.graphId, Vector(protocol.GraphAlteration(req.update)))
+    val updateMsg     = protocol.GraphAlterations(req.graphId, Vector(req.update))
 
     for {
       _ <- F.delay(logger.trace(s"Processing graph update ${req.update}"))

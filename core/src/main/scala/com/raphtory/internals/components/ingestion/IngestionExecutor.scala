@@ -63,7 +63,7 @@ private[raphtory] class IngestionExecutor[F[_], T](
       _              <- F.parSequenceN(partitions.size)(groupedUpdates.toSeq.map {
                           case (partition, updates) =>
                             partitions(partition)
-                              .processUpdates(protocol.GraphAlterations(graphID, updates.map(protocol.GraphAlteration(_))))
+                              .processUpdates(protocol.GraphAlterations(graphID, updates))
                         })
     } yield ()
 }

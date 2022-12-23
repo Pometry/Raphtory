@@ -33,7 +33,6 @@ private[raphtory] class Writer[F[_]](
 
   private def handleLocalAlterations(msgs: protocol.GraphAlterations): Unit =
     msgs.alterations.view
-      .map(_.alteration)
       .foreach {
         case update: VertexAdd => processVertexAdd(update)
         case update: EdgeAdd   => processEdgeAdd(update)
