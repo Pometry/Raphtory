@@ -227,10 +227,10 @@ object AlphaBayMTApp extends App {
       println(s"${new Date()}: Starting load")
 
       val BATCH     = 4096
-      val SGBID     = Array.fill(BATCH)(-1L)
-      val DGBID     = Array.fill(BATCH)(-1L)
-      val TIME      = Array.fill(BATCH)(-1L)
-      val PRICE     = Array.fill(BATCH)(-1L)
+      val SGBID     = Array.ofDim[Long](BATCH)
+      val DGBID     = Array.ofDim[Long](BATCH)
+      val TIME      = Array.ofDim[Long](BATCH)
+      val PRICE     = Array.ofDim[Long](BATCH)
       var batchSize = 0
 
       while (line != null) {
