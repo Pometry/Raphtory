@@ -5,7 +5,7 @@ use std::{
 
 use itertools::Itertools;
 
-use crate::{bitset::BitSet, Direction, props::TProp};
+use crate::{bitset::BitSet, props::TProp, Direction};
 use crate::{edge::Edge, EdgeView, Prop};
 use crate::{tset::TSet, VertexView};
 
@@ -22,8 +22,8 @@ pub(crate) enum Adj {
     Empty(u64),
     List {
         logical: u64,
-        out: TSet<usize>,
-        into: TSet<usize>,
+        out: TSet<Edge>,
+        into: TSet<Edge>,
     },
 }
 
@@ -51,7 +51,7 @@ impl Adj {
 }
 
 impl TemporalGraph {
-    fn neighbours_iter(&self, v: u64, d: Direction) -> Box<dyn Iterator<Item = &usize> + '_> {
+    fn neighbours_iter(&self, v: u64, d: Direction) -> Box<dyn Iterator<Item = &Edge> + '_> {
         // todo!()
         let vid = self.logical_to_physical[&v];
 
@@ -74,7 +74,7 @@ impl TemporalGraph {
         v: u64,
         d: Direction,
         window: Range<u64>,
-    ) -> Box<dyn Iterator<Item = &usize> + '_> {
+    ) -> Box<dyn Iterator<Item = &Edge> + '_> {
         // todo!()
         let vid = self.logical_to_physical[&v];
 
@@ -170,26 +170,115 @@ impl TemporalGraph {
         let scr_pid = self.logical_to_physical[&src];
         let dst_pid = self.logical_to_physical[&dst];
 
-        if let entry @ Adj::Empty(_) = &mut self.index[scr_pid] {
+        let mut edge_id = self.edge_meta.len();
+
+        let src_edge_meta_id = self.link_outbound_edge(src, t, scr_pid, dst_pid);
+        let dst_edge_meta_id = self.link_inbound_edge(dst, t, scr_pid, dst_pid);
+
+        assert_eq!(src_edge_meta_id, dst_edge_meta_id);
+
+        // if let entry @ Adj::Empty(_) = &mut self.index[scr_pid] {
+        //     *entry = Adj::List {
+        //         logical: src,
+        //         out: TSet::new(t, Edge::new(dst_pid, edge_id)),
+        //         into: TSet::default(),
+        //     };
+        // } else if let Adj::List { out, .. } = &mut self.index[scr_pid] {
+        //     match out.find(Edge {
+        //         v: dst_pid,
+        //         e_meta: None,
+        //     }) {
+        //         Some(Edge {
+        //             v,
+        //             e_meta: Some(p_edge_id),
+        //         }) if *v == dst_pid => {
+        //             edge_id = *p_edge_id; // we already have a location for edge metadata
+        //         }
+        //         _ => {} // nothing to do there isn't an existing edge for this dst so edge meta is new
+        //     }
+        //     out.push(t, Edge::new(dst_pid, edge_id));
+        // }
+
+        // if let entry @ Adj::Empty(_) = &mut self.index[dst_pid] {
+        //     *entry = Adj::List {
+        //         logical: dst,
+        //         out: TSet::default(),
+        //         into: TSet::new(t, scr_pid),
+        //     };
+        // } else if let Adj::List { into, .. } = &mut self.index[dst_pid] {
+        //     into.push(t, scr_pid)
+        // }
+        self
+    }
+
+    fn link_inbound_edge(
+        &mut self,
+        global_dst_id: u64,
+        t: u64,
+        scr_pid: usize,
+        dst_pid: usize,
+    ) -> usize {
+        if let entry @ Adj::Empty(_) = &mut self.index[dst_pid] {
+            let edge_id = self.edge_meta.len();
             *entry = Adj::List {
-                logical: src,
-                out: TSet::new(t, dst_pid),
+                logical: global_dst_id,
+                out: TSet::default(),
+                into: TSet::new(t, Edge::new(scr_pid, edge_id)),
+            };
+            edge_id
+        } else if let Adj::List { into, .. } = &mut self.index[dst_pid] {
+            let search_edge = Edge {
+                v: scr_pid,
+                e_meta: None,
+            };
+
+            let edge_id: usize = match into.find(search_edge) {
+                Some(Edge {
+                    v,
+                    e_meta: Some(p_edge_id),
+                }) if *v == scr_pid => *p_edge_id,
+                _ => self.edge_meta.len(), // nothing to do there isn't an existing edge for this dst so edge meta is new
+            };
+            into.push(t, Edge::new(scr_pid, edge_id));
+            edge_id
+        } else {
+            self.edge_meta.len() // we really should not get here
+        }
+    }
+
+    fn link_outbound_edge(
+        &mut self,
+        global_src_id: u64,
+        t: u64,
+        scr_pid: usize,
+        dst_pid: usize,
+    ) -> usize {
+        if let entry @ Adj::Empty(_) = &mut self.index[scr_pid] {
+            let edge_id = self.edge_meta.len();
+            *entry = Adj::List {
+                logical: global_src_id,
+                out: TSet::new(t, Edge::new(dst_pid, edge_id)),
                 into: TSet::default(),
             };
+            edge_id
         } else if let Adj::List { out, .. } = &mut self.index[scr_pid] {
-            out.push(t, dst_pid)
-        }
-
-        if let entry @ Adj::Empty(_) = &mut self.index[dst_pid] {
-            *entry = Adj::List {
-                logical: dst,
-                out: TSet::default(),
-                into: TSet::new(t, scr_pid),
+            let search_edge = Edge {
+                v: dst_pid,
+                e_meta: None,
             };
-        } else if let Adj::List { into, .. } = &mut self.index[dst_pid] {
-            into.push(t, scr_pid)
+
+            let edge_id: usize = match out.find(search_edge) {
+                Some(Edge {
+                    v,
+                    e_meta: Some(p_edge_id),
+                }) if *v == dst_pid => *p_edge_id,
+                _ => self.edge_meta.len(), // nothing to do there isn't an existing edge for this dst so edge meta is new
+            };
+            out.push(t, Edge::new(dst_pid, edge_id));
+            edge_id
+        } else {
+            self.edge_meta.len() // we really should not get here
         }
-        self
     }
 
     pub fn neighbours_window(
@@ -202,9 +291,9 @@ impl TemporalGraph {
 
         Box::new(
             self.neighbours_iter_window(v, d, w)
-                .map(move |pid| EdgeView {
+                .map(move |Edge { v, .. }| EdgeView {
                     src_id: v_pid,
-                    dst_id: pid,
+                    dst_id: v,
                     t: None,
                     g: self,
                 }),
@@ -240,7 +329,7 @@ impl TemporalGraph {
                 if let Adj::List { out, .. } = &self.index[src_pid] {
                     Box::new(
                         out.iter_window_t(r)
-                            .map(|(t, pid)| (t, self.index[*pid].logical())),
+                            .map(|(t, Edge { v, .. })| (t, self.index[*v].logical())),
                     )
                 } else {
                     Box::new(std::iter::empty())
@@ -251,7 +340,7 @@ impl TemporalGraph {
                 if let Adj::List { into, .. } = &self.index[dst_pid] {
                     Box::new(
                         into.iter_window_t(r)
-                            .map(|(t, pid)| (t, self.index[*pid].logical())),
+                            .map(|(t, Edge { v, .. })| (t, self.index[*v].logical())),
                     )
                 } else {
                     Box::new(std::iter::empty())
@@ -313,12 +402,15 @@ impl TemporalGraph {
     {
         let v_pid = self.logical_to_physical[&v];
 
-        Box::new(self.neighbours_iter(v, d).map(move |pid| EdgeView {
-            src_id: v_pid,
-            dst_id: pid,
-            t: None,
-            g: self,
-        }))
+        Box::new(
+            self.neighbours_iter(v, d)
+                .map(move |Edge { v, .. }| EdgeView {
+                    src_id: v_pid,
+                    dst_id: v,
+                    t: None,
+                    g: self,
+                }),
+        )
     }
 }
 
@@ -544,11 +636,9 @@ mod graph_test {
         let edge_weights = g
             .outbound(11)
             .flat_map(|e| {
-                e.props("weight").flat_map(|(t, prop)| {
-                    match prop {
-                        Prop::U32(weight) => Some((t, weight)),
-                        _ => None,
-                    }
+                e.props("weight").flat_map(|(t, prop)| match prop {
+                    Prop::U32(weight) => Some((t, weight)),
+                    _ => None,
                 })
             })
             .collect::<Vec<_>>();
