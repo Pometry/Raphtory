@@ -7,6 +7,7 @@ use crate::sortedvec::SortedVec;
  * TCells represent a value in time that can
  * be set at multiple times and keeps a history
  **/
+#[derive(Clone)]
 pub enum TCell<A: Clone + Default + Debug + PartialEq> {
     TCellEmpty,
     TCell1(u64, A),

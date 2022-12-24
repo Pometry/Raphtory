@@ -1,7 +1,4 @@
-use std::ops::Range;
-
 use graph::TemporalGraph;
-use props::TProp;
 
 pub mod bitset;
 mod edge;
@@ -55,14 +52,14 @@ impl<'a> VertexView<'a, TemporalGraph> {
     pub fn inbound(&'a self) -> Box<dyn Iterator<Item = EdgeView<'a, TemporalGraph>> + 'a> {
         self.g.inbound(*self.g_id)
     }
-
 }
 
 pub struct EdgeView<'a, G: Sized> {
     src_id: usize,
     dst_id: &'a usize,
-    t: Option<&'a u64>,
     g: &'a G,
+    t: Option<&'a u64>,
+    e_meta: Option<&'a usize>,
 }
 
 impl<'a> EdgeView<'a, TemporalGraph> {
@@ -74,7 +71,14 @@ impl<'a> EdgeView<'a, TemporalGraph> {
         *self.g.index[*self.dst_id].logical()
     }
 
-    pub fn props(&self, name: &'a str) -> Box<dyn Iterator<Item = (&'a u64, Prop)> + 'a>  {
-        Box::new(std::iter::empty())
+    pub fn props(&self, name: &'a str) -> Box<dyn Iterator<Item = (&'a u64, Prop)> + 'a> {
+        // find the id of the property
+        let prop_id: usize = self.g.prop_ids[name]; // FIXME this can break
+
+        if let Some(edge_meta_id) = self.e_meta {
+            self.g.edge_meta[*edge_meta_id].iter(prop_id)
+        } else {
+            Box::new(std::iter::empty())
+        }
     }
 }

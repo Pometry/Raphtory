@@ -5,16 +5,21 @@ use std::{
 
 use itertools::Itertools;
 
-use crate::{bitset::BitSet, props::TProp, Direction};
+use crate::{bitset::BitSet, props::{TProp, TPropVec}, Direction};
 use crate::{edge::Edge, EdgeView, Prop};
 use crate::{tset::TSet, VertexView};
 
 #[derive(Default, Debug)]
 pub struct TemporalGraph {
+    // maps the global id to the local index id
     logical_to_physical: HashMap<u64, usize>,
+    // holds the adjacency lists
     pub(crate) index: Vec<Adj>,
-    pub(crate) edge_meta: Vec<TProp>,
+    // time index pointing at the index with adjacency lists
     t_index: BTreeMap<u64, BitSet>,
+    // attributes for props
+    pub(crate) prop_ids: HashMap<String, usize>,
+    pub(crate) edge_meta: Vec<TPropVec>,
 }
 
 #[derive(Debug)]
@@ -170,44 +175,34 @@ impl TemporalGraph {
         let scr_pid = self.logical_to_physical[&src];
         let dst_pid = self.logical_to_physical[&dst];
 
-        let mut edge_id = self.edge_meta.len();
-
         let src_edge_meta_id = self.link_outbound_edge(src, t, scr_pid, dst_pid);
         let dst_edge_meta_id = self.link_inbound_edge(dst, t, scr_pid, dst_pid);
 
         assert_eq!(src_edge_meta_id, dst_edge_meta_id);
 
-        // if let entry @ Adj::Empty(_) = &mut self.index[scr_pid] {
-        //     *entry = Adj::List {
-        //         logical: src,
-        //         out: TSet::new(t, Edge::new(dst_pid, edge_id)),
-        //         into: TSet::default(),
-        //     };
-        // } else if let Adj::List { out, .. } = &mut self.index[scr_pid] {
-        //     match out.find(Edge {
-        //         v: dst_pid,
-        //         e_meta: None,
-        //     }) {
-        //         Some(Edge {
-        //             v,
-        //             e_meta: Some(p_edge_id),
-        //         }) if *v == dst_pid => {
-        //             edge_id = *p_edge_id; // we already have a location for edge metadata
-        //         }
-        //         _ => {} // nothing to do there isn't an existing edge for this dst so edge meta is new
-        //     }
-        //     out.push(t, Edge::new(dst_pid, edge_id));
-        // }
+        if props.len() > 0 {
+            for (name, prop) in props {
 
-        // if let entry @ Adj::Empty(_) = &mut self.index[dst_pid] {
-        //     *entry = Adj::List {
-        //         logical: dst,
-        //         out: TSet::default(),
-        //         into: TSet::new(t, scr_pid),
-        //     };
-        // } else if let Adj::List { into, .. } = &mut self.index[dst_pid] {
-        //     into.push(t, scr_pid)
-        // }
+                // find where do we slot this property in the temporal vec for each edge
+                let property_id = if let Some(prop_id) = self.prop_ids.get(&name) {
+                    // there is an existing prop set here
+                    *prop_id
+                } else {
+                    // first time we see this prop
+                    let id = self.prop_ids.len();
+                    self.prop_ids.insert(name, id);
+                    id
+                };
+
+                if let Some(edge_props) = self.edge_meta.get_mut(src_edge_meta_id) {
+                    edge_props.set(property_id, t, prop)
+                } else {
+                    // we don't have metadata for this edge
+                    let prop_cell = TPropVec::from(property_id, t, prop);
+                    self.edge_meta.insert(src_edge_meta_id, prop_cell)
+                }
+            }
+        }
         self
     }
 
@@ -291,11 +286,12 @@ impl TemporalGraph {
 
         Box::new(
             self.neighbours_iter_window(v, d, w)
-                .map(move |Edge { v, .. }| EdgeView {
+                .map(move |Edge { v, e_meta }| EdgeView {
                     src_id: v_pid,
                     dst_id: v,
                     t: None,
                     g: self,
+                    e_meta: e_meta.as_ref()
                 }),
         )
     }
@@ -404,11 +400,12 @@ impl TemporalGraph {
 
         Box::new(
             self.neighbours_iter(v, d)
-                .map(move |Edge { v, .. }| EdgeView {
+                .map(move |Edge { v, e_meta }| EdgeView {
                     src_id: v_pid,
                     dst_id: v,
                     t: None,
                     g: self,
+                    e_meta: e_meta.as_ref()
                 }),
         )
     }
@@ -625,7 +622,7 @@ mod graph_test {
     }
 
     #[test]
-    fn add_edge_with_properties() {
+    fn add_edge_with_1_property() {
         let mut g = TemporalGraph::default();
 
         g.add_vertex(11, 1);
@@ -643,6 +640,7 @@ mod graph_test {
             })
             .collect::<Vec<_>>();
 
+        println!("GRAPH {:?}", g);
         assert_eq!(edge_weights, vec![(&4, 12)])
     }
 }
