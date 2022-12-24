@@ -2,7 +2,7 @@ use std::{ops::{Range, RangeBounds, Bound, Add, Sub}, fmt::Display};
 
 use crate::misc::MinMax;
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct SortedVec<K:Ord, V>(Vec<(K, V)>);
 
 impl<K: Ord + Copy +Display + std::fmt::Debug , V> SortedVec<K, V>
