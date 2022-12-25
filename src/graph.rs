@@ -5,7 +5,11 @@ use std::{
 
 use itertools::Itertools;
 
-use crate::{bitset::BitSet, props::{TProp, TPropVec}, Direction};
+use crate::{
+    bitset::BitSet,
+    props::TPropVec,
+    Direction,
+};
 use crate::{edge::Edge, EdgeView, Prop};
 use crate::{tset::TSet, VertexView};
 
@@ -182,7 +186,6 @@ impl TemporalGraph {
 
         if props.len() > 0 {
             for (name, prop) in props {
-
                 // find where do we slot this property in the temporal vec for each edge
                 let property_id = if let Some(prop_id) = self.prop_ids.get(&name) {
                     // there is an existing prop set here
@@ -291,7 +294,7 @@ impl TemporalGraph {
                     dst_id: v,
                     t: None,
                     g: self,
-                    e_meta: e_meta.as_ref()
+                    e_meta: e_meta.as_ref(),
                 }),
         )
     }
@@ -405,7 +408,7 @@ impl TemporalGraph {
                     dst_id: v,
                     t: None,
                     g: self,
-                    e_meta: e_meta.as_ref()
+                    e_meta: e_meta.as_ref(),
                 }),
         )
     }
@@ -642,5 +645,121 @@ mod graph_test {
 
         println!("GRAPH {:?}", g);
         assert_eq!(edge_weights, vec![(&4, 12)])
+    }
+
+
+    #[test]
+    fn add_edge_with_multiple_properties() {
+        let mut g = TemporalGraph::default();
+
+        g.add_vertex(11, 1);
+        g.add_vertex(22, 2);
+
+        g.add_edge_props(11, 22, 4, vec![
+            ("weight".into(), Prop::U32(12)),
+            ("amount".into(), Prop::F64(12.34)),
+            ("label".into(), Prop::Str("blerg".into()))
+        ]);
+
+        let edge_weights = g
+            .outbound(11)
+            .flat_map(|e| {
+                let mut weight = e.props("weight").collect::<Vec<_>>();
+
+                let mut amount = e.props("amount").collect::<Vec<_>>();
+
+                let mut label =  e.props("label").collect::<Vec<_>>();
+
+                weight.append(&mut amount);
+                weight.append(&mut label);
+                weight
+            })
+            .collect::<Vec<_>>();
+
+        println!("GRAPH {:?}", g);
+        assert_eq!(edge_weights, vec![(&4, Prop::U32(12)), (&4, Prop::F64(12.34)), (&4, Prop::Str("blerg".into()))])
+    }
+
+    #[test]
+    fn add_edge_with_1_property_different_times() {
+        let mut g = TemporalGraph::default();
+
+        g.add_vertex(11, 1);
+        g.add_vertex(22, 2);
+
+        g.add_edge_props(11, 22, 4, vec![("amount".into(), Prop::U32(12))]);
+        g.add_edge_props(11, 22, 7, vec![("amount".into(), Prop::U32(24))]);
+        g.add_edge_props(11, 22, 19, vec![("amount".into(), Prop::U32(48))]);
+
+        println!("GRAPH {:?}", g);
+
+        let edge_weights = g
+            .outbound_window(11, 4..8)
+            .flat_map(|e| {
+                e.props_window("amount", 4..8)
+                    .flat_map(|(t, prop)| match prop {
+                        Prop::U32(weight) => Some((t, weight)),
+                        _ => None,
+                    })
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(edge_weights, vec![(&4, 12), (&7, 24)]);
+
+
+        let edge_weights = g
+            .inbound_window(22, 4..8)
+            .flat_map(|e| {
+                e.props_window("amount", 4..8)
+                    .flat_map(|(t, prop)| match prop {
+                        Prop::U32(weight) => Some((t, weight)),
+                        _ => None,
+                    })
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(edge_weights, vec![(&4, 12), (&7, 24)])
+    }
+
+    #[test]
+    fn add_multiple_edges_with_1_property_same_time() {
+        let mut g = TemporalGraph::default();
+
+        g.add_vertex(11, 1);
+        g.add_vertex(22, 2);
+        g.add_vertex(33, 3);
+        g.add_vertex(44, 4);
+
+        g.add_edge_props(11, 22, 4, vec![("weight".into(), Prop::F32(1122.0))]);
+        g.add_edge_props(11, 33, 4, vec![("weight".into(), Prop::F32(1133.0))]);
+        g.add_edge_props(44, 11, 4, vec![("weight".into(), Prop::F32(4411.0))]);
+
+        println!("GRAPH {:?}", g);
+        let edge_weights_out_11 = g
+            .outbound(11)
+            .flat_map(|e| {
+                e.props("weight").flat_map(|(t, prop)| match prop {
+                    Prop::F32(weight) => Some((t, weight)),
+                    _ => None,
+                })
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(edge_weights_out_11, vec![(&4, 1122.0), (&4, 1133.0)]);
+
+
+        let edge_weights_into_11 = g
+            .inbound(11)
+            .flat_map(|e| {
+                e.props("weight").flat_map(|(t, prop)| match prop {
+                    Prop::F32(weight) => Some((t, weight)),
+                    _ => None,
+                })
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(edge_weights_into_11, vec![(&4, 4411.0)])
+
+
     }
 }

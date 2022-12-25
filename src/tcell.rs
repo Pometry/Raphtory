@@ -2,13 +2,13 @@ use std::{collections::BTreeMap, fmt::Debug, ops::Range};
 
 use crate::sortedvec::SortedVec;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Default, Clone)]
 /**
  * TCells represent a value in time that can
  * be set at multiple times and keeps a history
  **/
-#[derive(Clone)]
 pub enum TCell<A: Clone + Default + Debug + PartialEq> {
+    #[default]
     TCellEmpty,
     TCell1(u64, A),
     TCellCap(SortedVec<u64, A>),
@@ -22,14 +22,10 @@ impl<A: Clone + Default + Debug + PartialEq> TCell<A> {
         TCell::TCell1(t, a)
     }
 
-    pub fn empty() -> Self {
-        TCell::TCellEmpty
-    }
-
     pub fn is_empty(&self) -> bool {
         match self {
             TCell::TCellEmpty => true,
-            _ => false
+            _ => false,
         }
     }
 
@@ -129,7 +125,7 @@ mod tcell_tests {
 
     #[test]
     fn set_tcell_once_from_empty() {
-        let mut tcell = TCell::empty();
+        let mut tcell = TCell::default();
         tcell.set(16, String::from("lobster"));
 
         let actual = tcell.iter().collect::<Vec<_>>();
@@ -139,7 +135,7 @@ mod tcell_tests {
 
     #[test]
     fn set_tcell_twice_from_empty() {
-        let mut tcell = TCell::empty();
+        let mut tcell = TCell::default();
         tcell.set(16, String::from("lobster"));
         tcell.set(7, String::from("hamster"));
 
@@ -150,7 +146,7 @@ mod tcell_tests {
 
     #[test]
     fn set_tcell_trice_from_empty_range_iter() {
-        let mut tcell = TCell::empty();
+        let mut tcell = TCell::default();
         tcell.set(16, String::from("lobster"));
         tcell.set(7, String::from("hamster"));
         tcell.set(3, String::from("faster"));
@@ -176,5 +172,4 @@ mod tcell_tests {
         let expected: Vec<&String> = vec![];
         assert_eq!(actual, expected); // ordering is important by time
     }
-
 }
