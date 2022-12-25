@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use graph::TemporalGraph;
 
 pub mod bitset;
@@ -17,6 +19,7 @@ pub enum Direction {
     BOTH,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Prop {
     Str(String),
     U32(u32),
@@ -77,6 +80,17 @@ impl<'a> EdgeView<'a, TemporalGraph> {
 
         if let Some(edge_meta_id) = self.e_meta {
             self.g.edge_meta[*edge_meta_id].iter(prop_id)
+        } else {
+            Box::new(std::iter::empty())
+        }
+    }
+
+    pub fn props_window(&self, name: &'a str, r: Range<u64>) -> Box<dyn Iterator<Item = (&'a u64, Prop)> + 'a> {
+        // find the id of the property
+        let prop_id: usize = self.g.prop_ids[name]; // FIXME this can break
+
+        if let Some(edge_meta_id) = self.e_meta {
+            self.g.edge_meta[*edge_meta_id].iter_window(prop_id, r)
         } else {
             Box::new(std::iter::empty())
         }

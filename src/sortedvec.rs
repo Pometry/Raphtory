@@ -1,4 +1,4 @@
-use std::{ops::{Range, RangeBounds, Bound, Add, Sub}, fmt::Display};
+use std::{ops::{RangeBounds, Bound, Add, Sub}, fmt::Display};
 
 use crate::misc::MinMax;
 
