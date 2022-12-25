@@ -5,7 +5,6 @@ use std::env;
 use csv::StringRecord;
 use docbrown::graph::TemporalGraph;
 // use docbrown::tcell::TCell;
-use docbrown::TemporalGraphStorage;
 use itertools::Itertools;
 use std::time::Instant;
 
@@ -52,19 +51,19 @@ fn main() {
         );
 
         println!("VERTEX,DEGREE,OUT_DEGREE,IN_DEGREE");
-        for (v, d, outd, ind) in g
-            .iter_vs()
+        g
+            .iter_vertices()
             .map(|v| {
-                let out_d = g.outbound_degree(*v);
-                let in_d = g.inbound_degree(*v);
+                let id = v.global_id();
+                let out_d = v.outbound_degree();
+                let in_d = v.inbound_degree();
                 let d = out_d + in_d;
 
-                (*v, d, out_d, in_d)
+                (id, d, out_d, in_d)
             })
-            .sorted_by_cached_key(|(_, _, _, d)| *d)
-        {
+            .sorted_by_cached_key(|(_, _, _, d)| *d).into_iter().for_each(|(v, d, outd, ind)| {
             println!("{},{},{},{}", v, ind, outd, d)
-        }
+        });
     } else {
         panic!("NO FILE ! NO GRAPH!")
     }
