@@ -1,13 +1,16 @@
-use std::ops::{Range, RangeBounds};
+use std::ops::Range;
+
+use graph::TemporalGraph;
 
 pub mod bitset;
+mod edge;
 pub mod graph;
 mod misc;
+mod props;
 pub mod sortedvec;
 mod tcell;
-mod tvec;
 mod tset;
-
+mod tvec;
 
 #[derive(Clone, Copy)]
 pub enum Direction {
@@ -16,75 +19,80 @@ pub enum Direction {
     BOTH,
 }
 
-pub trait TemporalGraphStorage {
-    fn add_vertex(&mut self, v: u64, t: u64) -> &mut Self;
+#[derive(Debug, PartialEq)]
+pub enum Prop {
+    Str(String),
+    U32(u32),
+    U64(u64),
+    F32(f32),
+    F64(f64),
+}
 
-    /**
-     * adds the edge in an idempotent manner
-     * if src doesn't exit it's added at time t
-     * if dst doesn't exit it's added at time t
-     *
-     * both src and dst get an index at time t if they do exist
-     */
-    fn add_edge(&mut self, src: u64, dst: u64, t: u64) -> &mut Self;
+pub struct VertexView<'a, G> {
+    g_id: &'a u64,
+    pid: usize,
+    g: &'a G,
+}
 
-    fn iter_vs(&self) -> Box<dyn Iterator<Item = &u64> + '_>;
-
-    fn iter_vs_window(&self, r: Range<u64>) -> Box<dyn Iterator<Item = u64> + '_>;
-
-    fn neighbours(&self, v: u64, d: Direction) -> Box<dyn Iterator<Item = &u64> + '_>;
-
-    fn neighbours_window(
-        &self,
-        w: Range<u64>,
-        v: u64,
-        d: Direction,
-    ) -> Box<dyn Iterator<Item = &u64> + '_>;
-
-    fn neighbours_window_t(
-        &self,
-        w: Range<u64>,
-        v: u64,
-        d: Direction,
-    ) -> Box<dyn Iterator<Item = (&u64, &u64)> + '_>;
-
-    fn outbound(&self, src: u64) -> Box<dyn Iterator<Item = &u64> + '_> {
-        self.neighbours(src, Direction::OUT)
+impl<'a> VertexView<'a, TemporalGraph> {
+    pub fn global_id(&self) -> u64 {
+        *self.g_id
     }
 
-    fn inbound(&self, dst: u64) -> Box<dyn Iterator<Item = &u64> + '_> {
-        self.neighbours(dst, Direction::IN)
+    pub fn outbound_degree(&self) -> usize {
+        self.g.index[self.pid].out_degree()
     }
 
-    fn outbound_window(&self, src: u64, r: Range<u64>) -> Box<dyn Iterator<Item = &u64> + '_> {
-        self.neighbours_window(r, src, Direction::OUT)
+    pub fn inbound_degree(&self) -> usize {
+        self.g.index[self.pid].in_degree()
     }
 
-    fn inbound_window(&self, dst: u64, r: Range<u64>) -> Box<dyn Iterator<Item = &u64> + '_> {
-        self.neighbours_window(r, dst, Direction::IN)
+    // FIXME: all the functions using global ID need to be changed to use the physical ID instead
+    pub fn outbound(&'a self) -> Box<dyn Iterator<Item = EdgeView<'a, TemporalGraph>> + 'a> {
+        self.g.outbound(*self.g_id)
     }
 
-    fn outbound_window_t(
-        &self,
-        src: u64,
-        r: Range<u64>,
-    ) -> Box<dyn Iterator<Item = (&u64, &u64)> + '_> {
-        self.neighbours_window_t(r, src, Direction::OUT)
+    pub fn inbound(&'a self) -> Box<dyn Iterator<Item = EdgeView<'a, TemporalGraph>> + 'a> {
+        self.g.inbound(*self.g_id)
+    }
+}
+
+pub struct EdgeView<'a, G: Sized> {
+    src_id: usize,
+    dst_id: &'a usize,
+    g: &'a G,
+    t: Option<&'a u64>,
+    e_meta: Option<&'a usize>,
+}
+
+impl<'a> EdgeView<'a, TemporalGraph> {
+    pub fn global_src(&self) -> u64 {
+        *self.g.index[self.src_id].logical()
     }
 
-    fn inbound_window_t(
-        &self,
-        dst: u64,
-        r: Range<u64>,
-    ) -> Box<dyn Iterator<Item = (&u64, &u64)> + '_>{
-        self.neighbours_window_t(r, dst, Direction::IN)
+    pub fn global_dst(&self) -> u64 {
+        *self.g.index[*self.dst_id].logical()
     }
 
-    fn len(&self) -> usize;
+    pub fn props(&self, name: &'a str) -> Box<dyn Iterator<Item = (&'a u64, Prop)> + 'a> {
+        // find the id of the property
+        let prop_id: usize = self.g.prop_ids[name]; // FIXME this can break
 
-    fn outbound_degree(&self, src: u64) -> usize;
-    fn inbound_degree(&self, dst: u64) -> usize;
+        if let Some(edge_meta_id) = self.e_meta {
+            self.g.edge_meta[*edge_meta_id].iter(prop_id)
+        } else {
+            Box::new(std::iter::empty())
+        }
+    }
 
-    fn outbound_degree_t(&self, dst: u64, r: Range<u64>) -> usize;
-    fn inbound_degree_t(&self, dst: u64, r: Range<u64>) -> usize;
+    pub fn props_window(&self, name: &'a str, r: Range<u64>) -> Box<dyn Iterator<Item = (&'a u64, Prop)> + 'a> {
+        // find the id of the property
+        let prop_id: usize = self.g.prop_ids[name]; // FIXME this can break
+
+        if let Some(edge_meta_id) = self.e_meta {
+            self.g.edge_meta[*edge_meta_id].iter_window(prop_id, r)
+        } else {
+            Box::new(std::iter::empty())
+        }
+    }
 }
