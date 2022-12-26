@@ -3,6 +3,7 @@ use std::{
     collections::BinaryHeap,
 };
 
+use itertools::Itertools;
 use roaring::RoaringTreemap;
 
 #[derive(Debug, Default)]
@@ -71,7 +72,7 @@ impl BitSet {
         match self {
             BitSet::Empty => Box::new(std::iter::empty()),
             BitSet::One(i) => Box::new(std::iter::once(*i)),
-            BitSet::Seq(seq) => Box::new(seq.iter().map(|i| *i)),
+            BitSet::Seq(seq) => Box::new(seq.iter().sorted().map(|i| *i)), //FIXME sorted here is expensive, SEQ should probably be some simple form of LSM tree, or removed
             BitSet::Roaring(m) => Box::new(m.iter().map(|i| {i as usize})),
         }
     }
@@ -99,7 +100,7 @@ mod bitset_test {
         bs.push(3);
         bs.push(19);
 
-        assert_eq!(vec![19, 3], bs.iter().collect::<Vec<_>>())
+        assert_eq!(vec![3, 19], bs.iter().collect::<Vec<_>>())
     }
 
 
