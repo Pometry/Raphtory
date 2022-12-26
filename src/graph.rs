@@ -5,11 +5,7 @@ use std::{
 
 use itertools::Itertools;
 
-use crate::{
-    bitset::BitSet,
-    props::TPropVec,
-    Direction,
-};
+use crate::{bitset::BitSet, props::TPropVec, Direction};
 use crate::{edge::Edge, EdgeView, Prop};
 use crate::{tset::TSet, VertexView};
 
@@ -82,9 +78,8 @@ impl TemporalGraph {
         &self,
         v: u64,
         d: Direction,
-        window: Range<u64>,
+        window: &Range<u64>,
     ) -> Box<dyn Iterator<Item = &Edge> + '_> {
-        // todo!()
         let vid = self.logical_to_physical[&v];
 
         match &self.index[vid] {
@@ -94,8 +89,8 @@ impl TemporalGraph {
                     Direction::IN => into.iter_window(window),
                     _ => {
                         Box::new(itertools::chain!(
-                            out.iter_window(window.clone()),
-                            into.iter_window(window.clone())
+                            out.iter_window(window),
+                            into.iter_window(window)
                         )) // probably awful but will have to do for now
                     }
                 }
@@ -143,21 +138,36 @@ impl TemporalGraph {
 
     pub fn iter_vertices(&self) -> Box<dyn Iterator<Item = VertexView<'_, Self>> + '_> {
         Box::new(self.index.iter().enumerate().map(|(pid, v)| VertexView {
-            g_id: v.logical(),
+            g_id: *v.logical(),
             pid,
             g: self,
+            w: None,
         }))
     }
 
-    pub fn iter_vs_window(&self, r: Range<u64>) -> Box<dyn Iterator<Item = u64> + '_> {
+    pub fn iter_vs_window(
+        &self,
+        r: Range<u64>,
+    ) -> Box<dyn Iterator<Item = VertexView<'_, Self>> + '_> {
         let iter = self
             .t_index
-            .range(r)
-            .flat_map(|(_, vs)| vs.iter())
-            .unique()
-            .map(|pid| match self.index[pid] {
-                Adj::Empty(lid) => lid,
-                Adj::List { logical, .. } => logical,
+            .range(r.clone())
+            .map(|(_, vs)| vs.iter())
+            .kmerge()
+            .dedup()
+            .map(move |pid| match self.index[pid] {
+                Adj::Empty(lid) => VertexView {
+                    g_id: lid,
+                    pid,
+                    g: self,
+                    w: Some(r.clone()),
+                },
+                Adj::List { logical, .. } => VertexView {
+                    g_id: logical,
+                    pid,
+                    g: self,
+                    w: Some(r.clone()),
+                },
             });
         Box::new(iter)
     }
@@ -288,11 +298,11 @@ impl TemporalGraph {
         let v_pid = self.logical_to_physical[&v];
 
         Box::new(
-            self.neighbours_iter_window(v, d, w)
+            self.neighbours_iter_window(v, d, &w)
                 .map(move |Edge { v, e_meta }| EdgeView {
                     src_id: v_pid,
                     dst_id: v,
-                    t: None,
+                    w: Some(w.clone()),
                     g: self,
                     e_meta: e_meta.as_ref(),
                 }),
@@ -327,7 +337,7 @@ impl TemporalGraph {
                 let src_pid = self.logical_to_physical[&v];
                 if let Adj::List { out, .. } = &self.index[src_pid] {
                     Box::new(
-                        out.iter_window_t(r)
+                        out.iter_window_t(&r)
                             .map(|(t, Edge { v, .. })| (t, self.index[*v].logical())),
                     )
                 } else {
@@ -338,7 +348,7 @@ impl TemporalGraph {
                 let dst_pid = self.logical_to_physical[&v];
                 if let Adj::List { into, .. } = &self.index[dst_pid] {
                     Box::new(
-                        into.iter_window_t(r)
+                        into.iter_window_t(&r)
                             .map(|(t, Edge { v, .. })| (t, self.index[*v].logical())),
                     )
                 } else {
@@ -406,7 +416,7 @@ impl TemporalGraph {
                 .map(move |Edge { v, e_meta }| EdgeView {
                     src_id: v_pid,
                     dst_id: v,
-                    t: None,
+                    w: None,
                     g: self,
                     e_meta: e_meta.as_ref(),
                 }),
@@ -439,11 +449,11 @@ mod graph_test {
         g.add_vertex(9, 1);
         g.add_vertex(1, 2);
 
-        let actual: Vec<u64> = g.iter_vs_window(0..2).collect();
+        let actual: Vec<u64> = g.iter_vs_window(0..2).map(|v| v.global_id()).collect();
         assert_eq!(actual, vec![9]);
-        let actual: Vec<u64> = g.iter_vs_window(2..10).collect();
+        let actual: Vec<u64> = g.iter_vs_window(2..10).map(|v| v.global_id()).collect();
         assert_eq!(actual, vec![1]);
-        let actual: Vec<u64> = g.iter_vs_window(0..10).collect();
+        let actual: Vec<u64> = g.iter_vs_window(0..10).map(|v| v.global_id()).collect();
         assert_eq!(actual, vec![9, 1]);
     }
 
@@ -455,14 +465,14 @@ mod graph_test {
         g.add_vertex(1, 2);
 
         // 9 and 1 are not visible at time 3
-        let actual: Vec<u64> = g.iter_vs_window(3..10).collect();
+        let actual: Vec<u64> = g.iter_vs_window(3..10).map(|v| v.global_id()).collect();
         assert_eq!(actual, vec![]);
 
         g.add_edge(9, 1, 3);
 
         // 9 and 1 are now visible at time 3
-        let actual: Vec<u64> = g.iter_vs_window(3..10).collect();
-        assert_eq!(actual, vec![1, 9]);
+        let actual: Vec<u64> = g.iter_vs_window(3..10).map(|v| v.global_id()).collect();
+        assert_eq!(actual, vec![9, 1]);
 
         // the outbound neighbours of 9 at time 0..2 is the empty set
         let actual: Vec<u64> = g.outbound_window(9, 0..2).map(|e| e.global_dst()).collect();
@@ -486,14 +496,14 @@ mod graph_test {
         g.add_vertex(1, 2);
 
         // 9 and 1 are not visible at time 3
-        let actual: Vec<u64> = g.iter_vs_window(3..10).collect();
+        let actual: Vec<u64> = g.iter_vs_window(3..10).map(|v| v.global_id()).collect();
         assert_eq!(actual, vec![]);
 
         g.add_edge(9, 1, 3);
 
         // 9 and 1 are now visible at time 3
-        let actual: Vec<u64> = g.iter_vs_window(3..10).collect();
-        assert_eq!(actual, vec![1, 9]);
+        let actual: Vec<u64> = g.iter_vs_window(3..10).map(|v| v.global_id()).collect();
+        assert_eq!(actual, vec![9, 1]);
 
         // the outbound neighbours of 9 at time 0..2 is the empty set
         let actual: Vec<u64> = g.outbound_window(9, 0..2).map(|e| e.global_dst()).collect();
@@ -517,15 +527,15 @@ mod graph_test {
         g.add_vertex(1, 2);
 
         // 9 and 1 are not visible at time 3
-        let actual: Vec<u64> = g.iter_vs_window(3..10).collect();
+        let actual: Vec<u64> = g.iter_vs_window(3..10).map(|v| v.global_id()).collect();
         assert_eq!(actual, vec![]);
 
         g.add_edge(9, 1, 3);
         g.add_edge(9, 1, 12); // add the same edge again at different time
 
         // 9 and 1 are now visible at time 3
-        let actual: Vec<u64> = g.iter_vs_window(3..10).collect();
-        assert_eq!(actual, vec![1, 9]);
+        let actual: Vec<u64> = g.iter_vs_window(3..10).map(|v| v.global_id()).collect();
+        assert_eq!(actual, vec![9, 1]);
 
         // the outbound neighbours of 9 at time 0..2 is the empty set
         let actual: Vec<u64> = g.outbound_window(9, 0..2).map(|e| e.global_dst()).collect();
@@ -568,11 +578,17 @@ mod graph_test {
         g.add_edge(22, 33, 5);
         g.add_edge(11, 44, 6);
 
-        let actual = g.iter_vs_window(1..4).collect::<Vec<_>>();
+        let actual = g
+            .iter_vs_window(1..4)
+            .map(|v| v.global_id())
+            .collect::<Vec<_>>();
 
         assert_eq!(actual, vec![11, 22, 33]);
 
-        let actual = g.iter_vs_window(1..6).collect::<Vec<_>>();
+        let actual = g
+            .iter_vs_window(1..6)
+            .map(|v| v.global_id())
+            .collect::<Vec<_>>();
 
         assert_eq!(actual, vec![11, 22, 33, 44]);
 
@@ -647,7 +663,6 @@ mod graph_test {
         assert_eq!(edge_weights, vec![(&4, 12)])
     }
 
-
     #[test]
     fn add_edge_with_multiple_properties() {
         let mut g = TemporalGraph::default();
@@ -655,11 +670,16 @@ mod graph_test {
         g.add_vertex(11, 1);
         g.add_vertex(22, 2);
 
-        g.add_edge_props(11, 22, 4, vec![
-            ("weight".into(), Prop::U32(12)),
-            ("amount".into(), Prop::F64(12.34)),
-            ("label".into(), Prop::Str("blerg".into()))
-        ]);
+        g.add_edge_props(
+            11,
+            22,
+            4,
+            vec![
+                ("weight".into(), Prop::U32(12)),
+                ("amount".into(), Prop::F64(12.34)),
+                ("label".into(), Prop::Str("blerg".into())),
+            ],
+        );
 
         let edge_weights = g
             .outbound(11)
@@ -668,7 +688,7 @@ mod graph_test {
 
                 let mut amount = e.props("amount").collect::<Vec<_>>();
 
-                let mut label =  e.props("label").collect::<Vec<_>>();
+                let mut label = e.props("label").collect::<Vec<_>>();
 
                 weight.append(&mut amount);
                 weight.append(&mut label);
@@ -677,7 +697,14 @@ mod graph_test {
             .collect::<Vec<_>>();
 
         println!("GRAPH {:?}", g);
-        assert_eq!(edge_weights, vec![(&4, Prop::U32(12)), (&4, Prop::F64(12.34)), (&4, Prop::Str("blerg".into()))])
+        assert_eq!(
+            edge_weights,
+            vec![
+                (&4, Prop::U32(12)),
+                (&4, Prop::F64(12.34)),
+                (&4, Prop::Str("blerg".into()))
+            ]
+        )
     }
 
     #[test]
@@ -705,7 +732,6 @@ mod graph_test {
             .collect::<Vec<_>>();
 
         assert_eq!(edge_weights, vec![(&4, 12), (&7, 24)]);
-
 
         let edge_weights = g
             .inbound_window(22, 4..8)
@@ -747,7 +773,6 @@ mod graph_test {
 
         assert_eq!(edge_weights_out_11, vec![(&4, 1122.0), (&4, 1133.0)]);
 
-
         let edge_weights_into_11 = g
             .inbound(11)
             .flat_map(|e| {
@@ -759,7 +784,88 @@ mod graph_test {
             .collect::<Vec<_>>();
 
         assert_eq!(edge_weights_into_11, vec![(&4, 4411.0)])
+    }
+
+    #[test]
+    fn add_edges_with_multiple_properties_at_different_times() {
+        let mut g = TemporalGraph::default();
+
+        g.add_vertex(11, 1);
+        g.add_vertex(22, 2);
+        g.add_vertex(33, 3);
+        g.add_vertex(44, 4);
+
+        g.add_edge_props(
+            11,
+            22,
+            2,
+            vec![
+                ("amount".into(), Prop::F64(12.34)),
+                ("label".into(), Prop::Str("blerg".into())),
+            ],
+        );
+
+        g.add_edge_props(
+            22,
+            33,
+            3,
+            vec![
+                ("weight".into(), Prop::U32(12)),
+                ("label".into(), Prop::Str("blerg".into())),
+            ],
+        );
+
+        g.add_edge_props(33, 44, 4, vec![("label".into(), Prop::Str("blerg".into()))]);
+
+        g.add_edge_props(
+            44,
+            11,
+            5,
+            vec![
+                ("weight".into(), Prop::U32(12)),
+                ("amount".into(), Prop::F64(12.34)),
+            ],
+        );
+
+        // betwen t:2 and t:4 (excluded) only 11, 22 and 33 are visible, 11 is visible because it has an edge at time 2
+        let vs = g
+            .iter_vs_window(2..4)
+            .map(|v| v.global_id())
+            .collect::<Vec<_>>();
+        assert_eq!(vs, vec![11, 22, 33]);
 
 
+        // between t: 3 and t:6 (excluded) show the visible outbound edges
+        let vs = g
+            .iter_vs_window(3..6)
+            .flat_map(|v| {
+                v.outbound().map(|e| e.global_dst()).collect::<Vec<_>>() // FIXME: we can't just return v.outbound().map(|e| e.global_dst()) here we might need to do so check lifetimes
+            }).collect::<Vec<_>>();
+
+        assert_eq!(vs, vec![33, 44, 11]);
+
+        let edge_weights = g
+            .outbound(11)
+            .flat_map(|e| {
+                let mut weight = e.props("weight").collect::<Vec<_>>();
+
+                let mut amount = e.props("amount").collect::<Vec<_>>();
+
+                let mut label = e.props("label").collect::<Vec<_>>();
+
+                weight.append(&mut amount);
+                weight.append(&mut label);
+                weight
+            })
+            .collect::<Vec<_>>();
+
+        println!("GRAPH {:?}", g);
+        assert_eq!(
+            edge_weights,
+            vec![
+                (&2, Prop::F64(12.34)),
+                (&2, Prop::Str("blerg".into()))
+            ]
+        )
     }
 }

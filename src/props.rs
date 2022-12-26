@@ -23,7 +23,11 @@ impl TPropVec {
     }
 
     pub(crate) fn iter(&self, i: usize) -> Box<dyn Iterator<Item = (&u64, Prop)> + '_> {
-        self.props[i].iter()
+        if self.props.len() <= i {
+            Box::new(std::iter::empty())
+        } else {
+            self.props[i].iter()
+        }
     }
 
     pub(crate) fn iter_window(
