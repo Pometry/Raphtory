@@ -1,7 +1,93 @@
-use std::ops::Range;
-
-use graph::TemporalGraph;
-
+//! Docbrow is an in memory graph database
+//!
+//! dockbrown temporal graph tracks vertices, edges and properties over time, all changes are visible at any time window.
+//!
+//! # Add vertices and edges at different times and iterate over various windows
+//!
+//! ```
+//! use docbrown::graph::TemporalGraph;
+//! use docbrown::Prop;
+//!
+//!
+//! let mut g = TemporalGraph::default();
+//!
+//! g.add_vertex(11, 1);
+//! g.add_vertex(22, 2);
+//! g.add_vertex(33, 3);
+//! g.add_vertex(44, 4);
+//!
+//! g.add_edge_props(
+//!     11,
+//!     22,
+//!     2,
+//!     vec![
+//!         ("amount".into(), Prop::F64(12.34)),
+//!         ("label".into(), Prop::Str("blerg".into())),
+//!     ],
+//! );
+//!
+//! g.add_edge_props(
+//!     22,
+//!     33,
+//!     3,
+//!     vec![
+//!         ("weight".into(), Prop::U32(12)),
+//!         ("label".into(), Prop::Str("blerg".into())),
+//!     ],
+//! );
+//!
+//! g.add_edge_props(33, 44, 4, vec![("label".into(), Prop::Str("blerg".into()))]);
+//!
+//! g.add_edge_props(
+//!     44,
+//!     11,
+//!     5,
+//!     vec![
+//!         ("weight".into(), Prop::U32(12)),
+//!         ("amount".into(), Prop::F64(12.34)),
+//!     ],
+//! );
+//!
+//! // betwen t:2 and t:4 (excluded) only 11, 22 and 33 are visible, 11 is visible because it has an edge at time 2
+//! let vs = g
+//!     .iter_vs_window(2..4)
+//!     .map(|v| v.global_id())
+//!     .collect::<Vec<_>>();
+//! assert_eq!(vs, vec![11, 22, 33]);
+//!
+//!
+//! // between t: 3 and t:6 (excluded) show the visible outbound edges
+//! let vs = g
+//!     .iter_vs_window(3..6)
+//!     .flat_map(|v| {
+//!         v.outbound().map(|e| e.global_dst()).collect::<Vec<_>>() // FIXME: we can't just return v.outbound().map(|e| e.global_dst()) here we might need to do so check lifetimes
+//!     }).collect::<Vec<_>>();
+//!
+//! assert_eq!(vs, vec![33, 44, 11]);
+//!
+//! let edge_weights = g
+//!     .outbound(11)
+//!     .flat_map(|e| {
+//!         let mut weight = e.props("weight").collect::<Vec<_>>();
+//!
+//!         let mut amount = e.props("amount").collect::<Vec<_>>();
+//!
+//!         let mut label = e.props("label").collect::<Vec<_>>();
+//!
+//!         weight.append(&mut amount);
+//!         weight.append(&mut label);
+//!         weight
+//!     })
+//!     .collect::<Vec<_>>();
+//!
+//! assert_eq!(
+//!     edge_weights,
+//!     vec![
+//!         (&2, Prop::F64(12.34)),
+//!         (&2, Prop::Str("blerg".into()))
+//!     ]
+//! )
+//! ```
 pub mod bitset;
 mod edge;
 pub mod graph;
@@ -12,6 +98,10 @@ mod tcell;
 mod tset;
 mod tvec;
 
+use graph::TemporalGraph;
+use std::ops::Range;
+
+/// Specify the direction of the neighbours
 #[derive(Clone, Copy)]
 pub enum Direction {
     OUT,
@@ -29,31 +119,42 @@ pub enum Prop {
 }
 
 pub struct VertexView<'a, G> {
-    g_id: &'a u64,
+    g_id: u64,
     pid: usize,
     g: &'a G,
+    w: Option<Range<u64>>,
 }
 
 impl<'a> VertexView<'a, TemporalGraph> {
     pub fn global_id(&self) -> u64 {
-        *self.g_id
+        self.g_id
     }
 
     pub fn outbound_degree(&self) -> usize {
-        self.g.index[self.pid].out_degree()
+        // self.g.index[self.pid].out_degree()
+        self.outbound().count()
     }
 
     pub fn inbound_degree(&self) -> usize {
-        self.g.index[self.pid].in_degree()
+        // self.g.index[self.pid].in_degree()
+        self.inbound().count()
     }
 
     // FIXME: all the functions using global ID need to be changed to use the physical ID instead
     pub fn outbound(&'a self) -> Box<dyn Iterator<Item = EdgeView<'a, TemporalGraph>> + 'a> {
-        self.g.outbound(*self.g_id)
+        if let Some(r) = &self.w {
+            self.g.outbound_window(self.g_id, r.clone())
+        } else {
+            self.g.outbound(self.g_id)
+        }
     }
 
     pub fn inbound(&'a self) -> Box<dyn Iterator<Item = EdgeView<'a, TemporalGraph>> + 'a> {
-        self.g.inbound(*self.g_id)
+        if let Some(r) = &self.w {
+            self.g.inbound_window(self.g_id, r.clone())
+        } else {
+            self.g.inbound(self.g_id)
+        }
     }
 }
 
@@ -61,7 +162,7 @@ pub struct EdgeView<'a, G: Sized> {
     src_id: usize,
     dst_id: &'a usize,
     g: &'a G,
-    t: Option<&'a u64>,
+    w: Option<Range<u64>>,
     e_meta: Option<&'a usize>,
 }
 
@@ -85,7 +186,11 @@ impl<'a> EdgeView<'a, TemporalGraph> {
         }
     }
 
-    pub fn props_window(&self, name: &'a str, r: Range<u64>) -> Box<dyn Iterator<Item = (&'a u64, Prop)> + 'a> {
+    pub fn props_window(
+        &self,
+        name: &'a str,
+        r: Range<u64>,
+    ) -> Box<dyn Iterator<Item = (&'a u64, Prop)> + 'a> {
         // find the id of the property
         let prop_id: usize = self.g.prop_ids[name]; // FIXME this can break
 
