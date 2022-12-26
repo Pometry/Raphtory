@@ -81,7 +81,7 @@ impl<V: Ord + Clone> TSet<V> {
         }
     }
 
-    pub fn iter_window(&self, r: Range<u64>) -> Box<dyn Iterator<Item = &V> + '_> {
+    pub fn iter_window(&self, r: &Range<u64>) -> Box<dyn Iterator<Item = &V> + '_> {
         match self {
             TSet::Empty => Box::new(std::iter::empty()),
             TSet::One(t, v) => {
@@ -92,18 +92,19 @@ impl<V: Ord + Clone> TSet<V> {
                 }
             }
             TSet::Tree { t_index, .. } => {
-                Box::new(t_index.range(r).map(|(_, set)| set.iter()).kmerge().dedup())
+                Box::new(t_index.range(r.clone()).map(|(_, set)| set.iter()).kmerge().dedup())
             }
         }
     }
 
-    pub fn iter_window_t(&self, r: Range<u64>) -> Box<dyn Iterator<Item = (&u64, &V)> + '_> {
+
+    pub fn iter_window_t(&self, r: &Range<u64>) -> Box<dyn Iterator<Item = (&u64, &V)> + '_> {
         match self {
             TSet::Empty => Box::new(std::iter::empty()),
             TSet::One(t, v) => Box::new(std::iter::once((t, v))),
             TSet::Tree { t_index, .. } => Box::new(
                 t_index
-                    .range(r)
+                    .range(r.clone())
                     .flat_map(|(t, set)| set.iter().map(move |v| (t, v))),
             ),
         }
@@ -134,11 +135,11 @@ mod tset_tests {
 
         ts.push(3, 7);
 
-        let actual = ts.iter_window(0..3).collect::<Vec<_>>();
+        let actual = ts.iter_window(&(0..3)).collect::<Vec<_>>();
         let expected: Vec<&usize> = vec![];
         assert_eq!(actual, expected);
 
-        let actual = ts.iter_window(0..4).collect::<Vec<_>>();
+        let actual = ts.iter_window(&(0..4)).collect::<Vec<_>>();
         let expected: Vec<&usize> = vec![&7];
         assert_eq!(actual, expected)
     }
@@ -150,11 +151,11 @@ mod tset_tests {
         ts.push(3, 7);
         ts.push(3, 7);
 
-        let actual = ts.iter_window(0..3).collect::<Vec<_>>();
+        let actual = ts.iter_window(&(0..3)).collect::<Vec<_>>();
         let expected: Vec<&usize> = vec![];
         assert_eq!(actual, expected);
 
-        let actual = ts.iter_window(0..4).collect::<Vec<_>>();
+        let actual = ts.iter_window(&(0..4)).collect::<Vec<_>>();
         let expected: Vec<&usize> = vec![&7];
         assert_eq!(actual, expected)
     }
@@ -166,15 +167,15 @@ mod tset_tests {
         ts.push(3, 7);
         ts.push(9, 7);
 
-        let actual = ts.iter_window(0..3).collect::<Vec<_>>();
+        let actual = ts.iter_window(&(0..3)).collect::<Vec<_>>();
         let expected: Vec<&usize> = vec![];
         assert_eq!(actual, expected);
 
-        let actual = ts.iter_window(0..4).collect::<Vec<_>>();
+        let actual = ts.iter_window(&(0..4)).collect::<Vec<_>>();
         let expected: Vec<&usize> = vec![&7];
         assert_eq!(actual, expected);
 
-        let actual = ts.iter_window(0..12).collect::<Vec<_>>();
+        let actual = ts.iter_window(&(0..12)).collect::<Vec<_>>();
         let expected: Vec<&usize> = vec![&7];
         assert_eq!(actual, expected)
     }
@@ -186,15 +187,15 @@ mod tset_tests {
         ts.push(9, 1);
         ts.push(3, 7);
 
-        let actual = ts.iter_window(0..3).collect::<Vec<_>>();
+        let actual = ts.iter_window(&(0..3)).collect::<Vec<_>>();
         let expected: Vec<&usize> = vec![];
         assert_eq!(actual, expected);
 
-        let actual = ts.iter_window(0..4).collect::<Vec<_>>();
+        let actual = ts.iter_window(&(0..4)).collect::<Vec<_>>();
         let expected: Vec<&usize> = vec![&7];
         assert_eq!(actual, expected);
 
-        let actual = ts.iter_window(0..12).collect::<Vec<_>>();
+        let actual = ts.iter_window(&(0..12)).collect::<Vec<_>>();
         let expected: Vec<&usize> = vec![&1, &7];
         assert_eq!(actual, expected)
     }
