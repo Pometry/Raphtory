@@ -22,8 +22,8 @@ trait LocalRunner2 { self: RaphtoryApp =>
 //      file.getLines.foreach { line =>
 //        val parts = line.split(",").map(_.trim)
 //
-//        if (graph.getNEdgesAdded % (1024 * 1024) == 0)
-//          println(s"${graph.getNEdgesAdded}, ${System.currentTimeMillis()}")
+//        if (graph.getNEdgesAdded % (1024 * 64) == 0)
+//          println(s"${new java.util.Date()} -> ${graph.getNVerticesAdded}")
 //
 //        val src   = parts(3).trim().toLong
 //        val dst   = parts(4).trim().toLong

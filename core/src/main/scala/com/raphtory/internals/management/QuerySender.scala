@@ -73,7 +73,7 @@ private[raphtory] class QuerySender(
 
     earliestTimeSeen = earliestTimeSeen min update.updateTime
     latestTimeSeen = latestTimeSeen max update.updateTime
-    service.processUpdate(protocol.GraphUpdate(graphID, update));
+    service.processUpdate(protocol.GraphUpdate(graphID, update)).unsafeRunSync()
     totalUpdateIndex += 1
     updatesSinceLastIDChange += 1
   }
