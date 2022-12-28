@@ -20,7 +20,7 @@ pub enum TSet<V: Ord> {
     Tree {
         t_index: BTreeMap<u64, BTreeSet<V>>,
         vs: BTreeSet<V>,
-    }, // HashSet of V
+    },
 }
 
 impl<V: Ord> Default for TSet<V> {
