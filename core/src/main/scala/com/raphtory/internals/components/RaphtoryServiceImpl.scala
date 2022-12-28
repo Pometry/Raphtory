@@ -126,10 +126,18 @@ class RaphtoryServiceImpl[F[_]](
     }
     val updateMsg     = protocol.GraphAlterations(req.graphId, Vector(protocol.GraphAlteration(req.update)))
 
+    for (p <- dstPartitions) {
+      p.processUpdates(updateMsg)
+    }
+
+    success[F]
+    /*
     for {
       _ <- F.delay(logger.trace(s"Processing graph update ${req.update}"))
       _ <- F.parSequenceN(dstPartitions.size)(dstPartitions.map(_.processUpdates(updateMsg)).toSeq)
     } yield success
+
+     */
   }
 
   override def connectToGraph(req: GraphInfo): F[Empty] =
