@@ -93,6 +93,7 @@ mod edge;
 pub mod graph;
 mod misc;
 mod props;
+mod lsm;
 pub mod sortedvec;
 mod tcell;
 mod tset;

@@ -6,6 +6,8 @@ use std::{
 
 use itertools::Itertools;
 
+use crate::lsm::LSMSet;
+
 /**
  * This is a time aware set there are two major components
  * the time index aka (you should be able to locate in log(n) time the vertices participating in ti -> tj window where i <= j)
@@ -18,7 +20,7 @@ pub enum TSet<V: Ord> {
     Empty,
     One(u64, V),
     Tree {
-        t_index: BTreeMap<u64, BTreeSet<V>>,
+        t_index: BTreeMap<u64, LSMSet<V>>,
         vs: BTreeSet<V>,
     },
 }
@@ -57,8 +59,8 @@ impl<V: Ord + Clone> TSet<V> {
                 if !(t == *t0 && &v == v0) {
                     *self = TSet::Tree {
                         t_index: BTreeMap::from([
-                            (t, BTreeSet::from([v.clone()])),
-                            (*t0, BTreeSet::from([v0.clone()])),
+                            (t, LSMSet::from([v.clone()].into_iter())),
+                            (*t0, LSMSet::from([v0.clone()].into_iter())),
                         ]),
                         vs: BTreeSet::from([v, v0.clone()]),
                     };
@@ -70,7 +72,7 @@ impl<V: Ord + Clone> TSet<V> {
                     let entry = t_index.entry(t);
                     match entry {
                         Entry::Vacant(ve) => {
-                            ve.insert(BTreeSet::from([v; 1]));
+                            ve.insert(LSMSet::from([v; 1].into_iter()));
                         }
                         Entry::Occupied(mut oc) => {
                             oc.get_mut().insert(v);
