@@ -3,6 +3,7 @@ package com.raphtory.api.input
 import com.raphtory.internals.communication.SchemaProviderInstances._
 import com.raphtory.internals.graph.GraphAlteration._
 import com.raphtory.internals.management.telemetry.TelemetryReporter
+import com.raphtory.protocol
 import com.typesafe.scalalogging.Logger
 import net.openhft.hashing.LongHashFunction
 import org.slf4j.LoggerFactory
@@ -35,7 +36,6 @@ import org.slf4j.LoggerFactory
   * @see [[Properties]] [[Spout]]
   */
 trait Graph {
-
   def totalPartitions: Int
   protected def handleGraphUpdate(update: GraphUpdate): Unit
   protected def sourceID: Int
@@ -47,6 +47,8 @@ trait Graph {
   private def edgeAddCounter = TelemetryReporter.edgeAddCounter.labels(s"$sourceID", graphID)
 
   def getNEdgesAdded : Long = edgeAddCounter.get().toLong
+
+  def getNVerticesAdded : Long = vertexAddCounter.get().toLong
 
   /** Adds a new vertex to the graph or updates an existing vertex
     *

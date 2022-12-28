@@ -2,8 +2,7 @@ package com.raphtory.internals.management
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.raphtory.api.input.Graph
-import com.raphtory.api.input.Source
+import com.raphtory.api.input.{Graph, Properties, Source}
 import com.raphtory.api.progresstracker.ProgressTracker
 import com.raphtory.api.progresstracker.QueryProgressTracker
 import com.raphtory.api.progresstracker.QueryProgressTrackerWithIterator
@@ -12,7 +11,7 @@ import com.raphtory.internals.components.querymanager.IngestData
 import com.raphtory.internals.components.querymanager.Query
 import com.raphtory.internals.components.querymanager.TryIngestData
 import com.raphtory.internals.components.querymanager.TryQuery
-import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
+import com.raphtory.internals.graph.GraphAlteration.{GraphUpdate, VertexAdd}
 import com.raphtory.protocol
 import com.raphtory.protocol.GraphInfo
 import com.raphtory.protocol.RaphtoryService
@@ -68,10 +67,13 @@ private[raphtory] class QuerySender(
   def handleInternal(update: GraphUpdate): Unit =
     handleGraphUpdate(update) // Required so the Temporal Graph obj can call the below func
 
+
+
   override protected def handleGraphUpdate(update: GraphUpdate): Unit = {
+
     earliestTimeSeen = earliestTimeSeen min update.updateTime
     latestTimeSeen = latestTimeSeen max update.updateTime
-    service.processUpdate(protocol.GraphUpdate(graphID, update)).unsafeRunSync()
+    service.processUpdate(protocol.GraphUpdate(graphID, update));
     totalUpdateIndex += 1
     updatesSinceLastIDChange += 1
   }
