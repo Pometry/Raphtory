@@ -2,31 +2,50 @@ use std::ops::Range;
 
 use crate::{tcell::TCell, Prop};
 
-#[derive(Debug, Default, PartialEq)]
-pub struct TPropVec {
-    props: Vec<TProp>,
+#[derive(Debug, PartialEq)]
+pub enum TPropVec {
+    One(usize, TProp),
+    Props(Vec<TProp>),
 }
 
 impl TPropVec {
+    pub(crate) fn len(&self) -> usize {
+        match self {
+            TPropVec::One(_, _) => 1,
+            TPropVec::Props(props) => props.len(),
+        }
+    }
+
     pub(crate) fn from(i: usize, t: u64, p: Prop) -> Self {
-        let mut props = vec![TProp::Empty; i + 1];
-        props.insert(i, TProp::from(t, p));
-        TPropVec { props }
+        TPropVec::One(i, TProp::from(t, p))
     }
 
     pub(crate) fn set(&mut self, i: usize, t: u64, p: Prop) {
-        if self.props.len() <= i {
-            self.props.resize(i + 1, TProp::Empty)
+        match self {
+            TPropVec::One(i0, p0) => {
+                if i == *i0 {
+                    p0.set(t, p);
+                } else {
+                    let mut props = vec![TProp::Empty; usize::max(i, *i0) + 1];
+                    props[i] = TProp::from(t, p);
+                    props[*i0] = p0.clone();
+                    *self = TPropVec::Props(props);
+                }
+            }
+            TPropVec::Props(props) => {
+                if props.len() <= i {
+                    props.resize(i + 1, TProp::Empty)
+                }
+                props[i].set(t, p);
+            }
         }
-
-        self.props[i].set(t, p);
     }
 
     pub(crate) fn iter(&self, i: usize) -> Box<dyn Iterator<Item = (&u64, Prop)> + '_> {
-        if self.props.len() <= i {
-            Box::new(std::iter::empty())
-        } else {
-            self.props[i].iter()
+        match self {
+            TPropVec::One(i0, p) if *i0 == i => p.iter(),
+            TPropVec::Props(props) if props.len() > i => props[i].iter(),
+            _ => Box::new(std::iter::empty()),
         }
     }
 
@@ -35,7 +54,11 @@ impl TPropVec {
         i: usize,
         r: Range<u64>,
     ) -> Box<dyn Iterator<Item = (&u64, Prop)> + '_> {
-        self.props[i].iter_window(r)
+        match self {
+            TPropVec::One(i0, p) if *i0 == i => p.iter_window(r),
+            TPropVec::Props(props) if props.len() >= i => props[i].iter_window(r),
+            _ => Box::new(std::iter::empty()),
+        }
     }
 }
 #[derive(Debug, Default, PartialEq, Clone)]

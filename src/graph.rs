@@ -426,6 +426,7 @@ impl TemporalGraph {
 
 #[cfg(test)]
 mod graph_test {
+
     use super::*;
 
     #[test]
