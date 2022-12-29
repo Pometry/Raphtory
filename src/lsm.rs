@@ -5,6 +5,7 @@ use replace_with::replace_with_or_abort;
 
 static MERGE_SORT_SIZE: usize = 64;
 
+//FIXME: naive implementation, add benches and more tests
 #[derive(Debug, PartialEq, Default)]
 pub struct LSMSet<K: Ord> {
     cur: Vec<K>,

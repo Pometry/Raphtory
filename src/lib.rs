@@ -98,6 +98,7 @@ pub mod sortedvec;
 mod tcell;
 mod tset;
 mod tvec;
+pub mod db;
 
 use graph::TemporalGraph;
 use std::ops::Range;
