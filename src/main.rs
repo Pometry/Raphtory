@@ -35,20 +35,33 @@ fn main() {
 
     use crossbeam::channel::unbounded;
 
-    let (s1, r1) = unbounded::<Msg>();
+    let n: usize = 32;
 
-    let (s2, r2) = unbounded::<Msg>();
+    let mut channels = vec![];
+
+    for _ in 0..n {
+        channels.push(unbounded::<Msg>())
+    }
+
+
+    let senders = channels.iter().map(|(sender, _)| sender.clone()).collect_vec();
+    let receivers = channels.iter().map(|(_, receiver)| receiver.clone()).collect_vec();
+
+    drop(channels);
 
     if let Some(file_name) = args.get(1) {
         rayon::scope(|s| {
-            s.spawn(|_| {
+            s.spawn(move |_| {
                 if let Ok(mut reader) = csv::Reader::from_path(file_name) {
-                    let senders: Vec<crossbeam::channel::Sender<Msg>> = vec![s1, s2];
+                    // let senders: Vec<crossbeam::channel::Sender<Msg>> = senders;
                     reader.records().for_each(|rec_res| {
                         if let Ok(rec) = rec_res {
                             if let Some((src, dst, t, amount)) = parse_record(&rec) {
-                                let src_shard: usize = (src % 2).try_into().unwrap();
-                                let dst_shard: usize = (dst % 2).try_into().unwrap();
+                                let src_u: usize = src.try_into().unwrap();
+                                let dst_u: usize = dst.try_into().unwrap();
+
+                                let src_shard: usize = src_u % n;
+                                let dst_shard: usize = dst_u % n;
 
                                 // add vertices
                                 senders[src_shard]
@@ -95,73 +108,48 @@ fn main() {
                 }
             });
 
-            s.spawn(|_| {
-                let mut g = TemporalGraph::default();
-                println!("Started thread 1");
+            receivers.iter().enumerate().for_each(|(i, rec)| {
+                s.spawn(move |_| {
+                    let mut g = TemporalGraph::default();
+                    println!("Started thread {i}");
 
-                // let rcv = r1.clone();
+                    let rcv = rec;
 
-                // let mut count: usize = 0;
-                while let Ok(msg) = r1.recv() {
-                    // if count % 1000 == 0 {
-                    //     println!("GOT {count}")
-                    // }
-                    match msg {
-                        Msg::AddVertex(v, t) => {
-                            g.add_vertex(v, t);
+                    let mut count: usize = 0;
+                    while let Ok(msg) = rcv.recv() {
+                        if count % 500000 == 0 {
+                            println!("GOT {count} {i}");
                         }
-                        Msg::AddEdge(src, dst, props, t) => {
-                            g.add_edge_props(src, dst, t, &props);
+                        match msg {
+                            Msg::AddVertex(v, t) => {
+                                g.add_vertex(v, t);
+                            }
+                            Msg::AddEdge(src, dst, props, t) => {
+                                g.add_edge_props(src, dst, t, &props);
+                            }
+                            Msg::AddOutEdge(src, dst, props, t) => {
+                                g.add_edge_remote_out(src, dst, t, &props);
+                            }
+                            Msg::AddIntoEdge(src, dst, props, t) => {
+                                g.add_edge_remote_into(src, dst, t, &props);
+                            }
                         }
-                        Msg::AddOutEdge(src, dst, props, t) => {
-                            g.add_edge_remote_out(src, dst, t, &props);
-                        }
-                        Msg::AddIntoEdge(src, dst, props, t) => {
-                            g.add_edge_remote_into(src, dst, t, &props);
-                        }
-                    }
-                    // count += 1;
-                }
-
-                let now = Instant::now();
-                let len = g.len();
-                println!("Done 1 {now:?} vs: {len}")
-            });
-
-            s.spawn(|_| {
-                let mut g = TemporalGraph::default();
-                println!("Started thread 2");
-
-                // let rcv = r2.clone();
-
-                // let mut count = 0;
-                while let Ok(msg) = r2.recv() {
-                    // if count % 1000 == 0 {
-                    //     println!("GOT {count}")
-                    // }
-                    match msg {
-                        Msg::AddVertex(v, t) => {
-                            g.add_vertex(v, t);
-                        }
-                        Msg::AddEdge(src, dst, props, t) => {
-                            g.add_edge_props(src, dst, t, &props);
-                        }
-                        Msg::AddOutEdge(src, dst, props, t) => {
-                            g.add_edge_remote_out(src, dst, t, &props);
-                        }
-                        Msg::AddIntoEdge(src, dst, props, t) => {
-                            g.add_edge_remote_into(src, dst, t, &props);
-                        }
+                        count += 1;
                     }
 
-                    // count += 1
-                }
-
-                let len = g.len();
-                let now = Instant::now();
-                println!("Done 2 {now:?} vs: {len}")
+                    let now = Instant::now();
+                    let len = g.len();
+                    println!("Done {i} {now:?} vs: {len}")
+                });
             });
+
         });
+
+        // drop(channels);
+        // drop(senders);
+        drop(receivers);
+
+
 
         // drop(s1);
         // drop(s2);
