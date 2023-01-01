@@ -89,17 +89,18 @@
 //! )
 //! ```
 pub mod bitset;
+pub mod db;
 mod edge;
 pub mod graph;
+mod lsm;
 mod misc;
 mod props;
-mod lsm;
 pub mod sortedvec;
 mod tcell;
 mod tset;
 mod tvec;
-pub mod db;
 
+use edge::OtherV;
 use graph::TemporalGraph;
 use std::ops::Range;
 
@@ -160,21 +161,32 @@ impl<'a> VertexView<'a, TemporalGraph> {
     }
 }
 
+// FIXME: this is a bit silly, we might not need the reference lifetime at all
 pub struct EdgeView<'a, G: Sized> {
-    src_id: usize,
-    dst_id: &'a usize,
+    src_id: OtherV,
+    dst_id: OtherV,
     g: &'a G,
-    w: Option<Range<u64>>,
+    t: Option<&'a u64>,
     e_meta: Option<&'a usize>,
 }
 
 impl<'a> EdgeView<'a, TemporalGraph> {
     pub fn global_src(&self) -> u64 {
-        *self.g.index[self.src_id].logical()
+        match self.src_id {
+            OtherV::Local(src_id) => *self.g.index[src_id].logical(),
+            OtherV::Remote(src_id) => src_id,
+        }
     }
 
     pub fn global_dst(&self) -> u64 {
-        *self.g.index[*self.dst_id].logical()
+        match self.dst_id {
+            OtherV::Local(dst_id) => *self.g.index[dst_id].logical(),
+            OtherV::Remote(dst_id) => dst_id,
+        }
+    }
+
+    pub fn time(&self) -> Option<&'a u64> {
+        self.t
     }
 
     pub fn props(&self, name: &'a str) -> Box<dyn Iterator<Item = (&'a u64, Prop)> + 'a> {

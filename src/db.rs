@@ -12,7 +12,7 @@ struct GraphDB {
 
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
-    #[error("Failed to acquire lock")]
+    #[error("Failed to acquire lock poisoned")]
     LockError(),
 }
 

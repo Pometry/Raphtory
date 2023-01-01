@@ -93,12 +93,15 @@ impl<V: Ord + Clone> TSet<V> {
                     Box::new(std::iter::empty())
                 }
             }
-            TSet::Tree { t_index, .. } => {
-                Box::new(t_index.range(r.clone()).map(|(_, set)| set.iter()).kmerge().dedup())
-            }
+            TSet::Tree { t_index, .. } => Box::new(
+                t_index
+                    .range(r.clone())
+                    .map(|(_, set)| set.iter())
+                    .kmerge()
+                    .dedup(),
+            ),
         }
     }
-
 
     pub fn iter_window_t(&self, r: &Range<u64>) -> Box<dyn Iterator<Item = (&u64, &V)> + '_> {
         match self {
@@ -221,31 +224,28 @@ mod tset_tests {
     fn find_added_edge_just_by_destination_id() {
         let mut ts: TSet<Edge> = TSet::default();
 
-        ts.push(1, Edge::new(1, 3)); // t:1, v: 1 edge_id: 3
-        //
-        let actual = ts.find(Edge { v: 1, e_meta: None });
-        assert_eq!(actual, Some(&Edge::new(1, 3)));
+        ts.push(1, Edge::local(1, 3)); // t:1, v: 1 edge_id: 3
+                                       //
+        let actual = ts.find(Edge::local_empty(1));
+        assert_eq!(actual, Some(&Edge::local(1, 3)));
 
-        let actual = ts.find(Edge { v: 13, e_meta: None });
+        let actual = ts.find(Edge::local_empty(13));
         assert_eq!(actual, None);
 
-        ts.push(1, Edge::new(4, 12)); // t:1, v: 4 edge_id: 12
-        ts.push(1, Edge::new(17, 119)); // t:1, v: 17 edge_id: 119
+        ts.push(1, Edge::local(4, 12)); // t:1, v: 4 edge_id: 12
+        ts.push(1, Edge::local(17, 119)); // t:1, v: 17 edge_id: 119
 
         // find the edge by destination only (independent of time?)
-        let actual = ts.find(Edge { v: 1, e_meta: None });
-        assert_eq!(actual, Some(&Edge::new(1, 3)));
+        let actual = ts.find(Edge::local_empty(1));
+        assert_eq!(actual, Some(&Edge::local(1, 3)));
 
-        let actual = ts.find(Edge { v: 4, e_meta: None });
-        assert_eq!(actual, Some(&Edge::new(4, 12)));
+        let actual = ts.find(Edge::local_empty(4));
+        assert_eq!(actual, Some(&Edge::local(4, 12)));
 
-        let actual = ts.find(Edge {
-            v: 17,
-            e_meta: None,
-        });
-        assert_eq!(actual, Some(&Edge::new(17, 119)));
+        let actual = ts.find(Edge::local_empty(17));
+        assert_eq!(actual, Some(&Edge::local(17, 119)));
 
-        let actual = ts.find(Edge { v: 5, e_meta: None }); // we need to activelly filter this out
-        assert_eq!(actual, Some(&Edge::new(17, 119)));
+        let actual = ts.find(Edge::local_empty(5)); // we need to activelly filter this out
+        assert_eq!(actual, Some(&Edge::local(17, 119)));
     }
 }
