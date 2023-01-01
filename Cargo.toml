@@ -14,3 +14,10 @@ csv = "1.1.6"
 replace_with = "0.1"
 thiserror = "1"
 rayon = "1"
+crossbeam = "0.8"
+
+# [profile.release]
+# debug = 1
+
+# [rust]
+# debuginfo-level = 1
