@@ -3,11 +3,13 @@ use std::collections::HashMap;
 use std::env;
 
 use csv::StringRecord;
+use docbrown::db::GraphDB;
 use docbrown::graph::TemporalGraph;
 use docbrown::Prop;
 // use docbrown::tcell::TCell;
 use itertools::Itertools;
 use std::time::Instant;
+use rayon::prelude::*;
 
 fn parse_record(rec: &StringRecord) -> Option<(u64, u64, u64, u64)> {
     let src = rec.get(3).and_then(|s| s.parse::<u64>().ok())?;
@@ -19,7 +21,7 @@ fn parse_record(rec: &StringRecord) -> Option<(u64, u64, u64, u64)> {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let mut g = TemporalGraph::default();
+    let g = GraphDB::new(16);
     //
     // let mut m: HashMap<u64, TCell<u64>> = HashMap::default();
 
@@ -27,23 +29,25 @@ fn main() {
 
     if let Some(file_name) = args.get(1) {
         if let Ok(mut reader) = csv::Reader::from_path(file_name) {
-            for rec_res in reader.records() {
-                if let Ok(rec) = rec_res {
-                    if let Some((src, dst, t, amount)) = parse_record(&rec) {
-                        g.add_vertex(src, t);
-                        g.add_vertex(dst, t);
-                        g.add_edge_props(src, dst, t, vec![("amount".into(), Prop::U64(amount))]);
-                        //
-                        // m.entry(src)
-                        //     .and_modify(|cell| cell.set(t, src))
-                        //     .or_insert_with(|| TCell::new(t, src));
 
-                        // m.entry(dst)
-                        //     .and_modify(|cell| cell.set(t, dst))
-                        //     .or_insert_with(|| TCell::new(t, dst));
+            reader.records().par_bridge().for_each(|rec_res|{
+                 if let Ok(rec) = rec_res {
+                    if let Some((src, dst, t, amount)) = parse_record(&rec) {
+                        g.add_vertex(src, t, vec![]).expect("can't add vertex");
+                        g.add_vertex(dst, t, vec![]).expect("can't add vertex");
+                        g.add_edge(src, dst, t, &vec![("amount".into(), Prop::U64(amount))]).expect("can't add edge");
                     }
                 }
-            }
+            });
+            // for rec_res in reader.records() {
+            //     if let Ok(rec) = rec_res {
+            //         if let Some((src, dst, t, amount)) = parse_record(&rec) {
+            //             g.add_vertex(src, t, vec![]).expect("can't add vertex");
+            //             g.add_vertex(dst, t, vec![]).expect("can't add vertex");
+            //             g.add_edge(src, dst, t, &vec![("amount".into(), Prop::U64(amount))]).expect("can't add edge");
+            //         }
+            //     }
+            // }
         }
 
         println!(

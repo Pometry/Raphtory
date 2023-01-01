@@ -16,11 +16,11 @@ impl TPropVec {
         }
     }
 
-    pub(crate) fn from(i: usize, t: u64, p: Prop) -> Self {
+    pub(crate) fn from(i: usize, t: u64, p: &Prop) -> Self {
         TPropVec::One(i, TProp::from(t, p))
     }
 
-    pub(crate) fn set(&mut self, i: usize, t: u64, p: Prop) {
+    pub(crate) fn set(&mut self, i: usize, t: u64, p: &Prop) {
         match self {
             TPropVec::One(i0, p0) => {
                 if i == *i0 {
@@ -98,13 +98,13 @@ impl TProp {
         }
     }
 
-    pub(crate) fn from(t: u64, p: Prop) -> Self {
+    pub(crate) fn from(t: u64, p: &Prop) -> Self {
         match p {
-            Prop::Str(a) => TProp::Str(TCell::new(t, a)),
-            Prop::U32(a) => TProp::U32(TCell::new(t, a)),
-            Prop::U64(a) => TProp::U64(TCell::new(t, a)),
-            Prop::F32(a) => TProp::F32(TCell::new(t, a)),
-            Prop::F64(a) => TProp::F64(TCell::new(t, a)),
+            Prop::Str(a) => TProp::Str(TCell::new(t, a.to_string())),
+            Prop::U32(a) => TProp::U32(TCell::new(t, *a)),
+            Prop::U64(a) => TProp::U64(TCell::new(t, *a)),
+            Prop::F32(a) => TProp::F32(TCell::new(t, *a)),
+            Prop::F64(a) => TProp::F64(TCell::new(t, *a)),
         }
     }
 
@@ -115,7 +115,7 @@ impl TProp {
         }
     }
 
-    pub(crate) fn set(&mut self, t: u64, p: Prop) {
+    pub(crate) fn set(&mut self, t: u64, p: &Prop) {
         if self.is_empty() {
             *self = TProp::from(t, p);
         } else {
@@ -123,27 +123,27 @@ impl TProp {
                 TProp::Empty => todo!(),
                 TProp::Str(cell) => {
                     if let Prop::Str(a) = p {
-                        cell.set(t, a);
+                        cell.set(t, a.to_string());
                     }
                 }
                 TProp::U32(cell) => {
                     if let Prop::U32(a) = p {
-                        cell.set(t, a);
+                        cell.set(t, *a);
                     }
                 }
                 TProp::U64(cell) => {
                     if let Prop::U64(a) = p {
-                        cell.set(t, a);
+                        cell.set(t, *a);
                     }
                 }
                 TProp::F32(cell) => {
                     if let Prop::F32(a) = p {
-                        cell.set(t, a);
+                        cell.set(t, *a);
                     }
                 }
                 TProp::F64(cell) => {
                     if let Prop::F64(a) = p {
-                        cell.set(t, a);
+                        cell.set(t, *a);
                     }
                 }
             }
