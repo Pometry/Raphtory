@@ -173,43 +173,63 @@ impl TemporalGraph {
     }
 
     pub fn add_edge(&mut self, src: u64, dst: u64, t: u64) -> &mut Self {
-        self.add_edge_props(src, dst, t, vec![])
+        self.add_edge_props(src, dst, t, &vec![])
     }
 
     pub fn add_edge_remote_out(
         &mut self,
-        src: u64,
+        src: u64, // we are on the source shard
         dst: u64,
         t: u64,
-        props: Vec<(String, Prop)>,
+        props: &Vec<(String, Prop)>,
     ) -> &mut Self {
         self.add_vertex(src, t);
-        let scr_pid = self.logical_to_physical[&src];
-        let src_edge_meta_id = self.link_outbound_edge(src, t, scr_pid, OtherV::Remote(dst));
+        let src_pid = self.logical_to_physical[&src];
+        let src_edge_meta_id = self.link_outbound_edge(src, t, src_pid, OtherV::Remote(dst));
 
-        if props.len() > 0 {
-            for (name, prop) in props {
-                // find where do we slot this property in the temporal vec for each edge
-                let property_id = if let Some(prop_id) = self.prop_ids.get(&name) {
-                    // there is an existing prop set here
-                    *prop_id
-                } else {
-                    // first time we see this prop
-                    let id = self.prop_ids.len();
-                    self.prop_ids.insert(name, id);
-                    id
-                };
+        self.update_edge_props(src_edge_meta_id, t, props)
+    }
 
-                if let Some(edge_props) = self.edge_meta.get_mut(src_edge_meta_id) {
-                    edge_props.set(property_id, t, prop)
-                } else {
-                    // we don't have metadata for this edge
-                    let prop_cell = TPropVec::from(property_id, t, prop);
-                    self.edge_meta.insert(src_edge_meta_id, prop_cell)
-                }
+    pub fn add_edge_remote_into(
+        &mut self,
+        src: u64,
+        dst: u64, // we are on the destination shard
+        t: u64,
+        props: &Vec<(String, Prop)>,
+    ) -> &mut Self {
+        self.add_vertex(dst, t);
+        let dst_pid = self.logical_to_physical[&dst];
+        let dst_edge_meta_id = self.link_inbound_edge(dst, t, OtherV::Remote(src), dst_pid);
+
+        self.update_edge_props(dst_edge_meta_id, t, props)
+    }
+
+    fn update_edge_props(
+        &mut self,
+        src_edge_meta_id: usize,
+        t: u64,
+        props: &Vec<(String, Prop)>,
+    ) -> &mut Self {
+        for (name, prop) in props {
+            // find where do we slot this property in the temporal vec for each edge
+            let property_id = if let Some(prop_id) = self.prop_ids.get(name) {
+                // there is an existing prop set here
+                *prop_id
+            } else {
+                // first time we see this prop
+                let id = self.prop_ids.len();
+                self.prop_ids.insert(name.to_string(), id);
+                id
+            };
+
+            if let Some(edge_props) = self.edge_meta.get_mut(src_edge_meta_id) {
+                edge_props.set(property_id, t, prop)
+            } else {
+                // we don't have metadata for this edge
+                let prop_cell = TPropVec::from(property_id, t, prop);
+                self.edge_meta.insert(src_edge_meta_id, prop_cell)
             }
         }
-
         self
     }
 
@@ -218,49 +238,28 @@ impl TemporalGraph {
         src: u64,
         dst: u64,
         t: u64,
-        props: Vec<(String, Prop)>,
+        props: &Vec<(String, Prop)>,
     ) -> &mut Self {
         // mark the times of the vertices at t
         self.add_vertex(src, t).add_vertex(dst, t);
 
-        let scr_pid = self.logical_to_physical[&src];
+        let src_pid = self.logical_to_physical[&src];
         let dst_pid = self.logical_to_physical[&dst];
 
-        let src_edge_meta_id = self.link_outbound_edge(src, t, scr_pid, OtherV::Local(dst_pid));
-        let dst_edge_meta_id = self.link_inbound_edge(dst, t, OtherV::Local(scr_pid), dst_pid);
+        let src_edge_meta_id = self.link_outbound_edge(src, t, src_pid, OtherV::Local(dst_pid));
+        let dst_edge_meta_id = self.link_inbound_edge(dst, t, OtherV::Local(src_pid), dst_pid);
 
         assert_eq!(src_edge_meta_id, dst_edge_meta_id);
 
-        if props.len() > 0 {
-            for (name, prop) in props {
-                // find where do we slot this property in the temporal vec for each edge
-                let property_id = if let Some(prop_id) = self.prop_ids.get(&name) {
-                    // there is an existing prop set here
-                    *prop_id
-                } else {
-                    // first time we see this prop
-                    let id = self.prop_ids.len();
-                    self.prop_ids.insert(name, id);
-                    id
-                };
+        self.update_edge_props(src_edge_meta_id, t, props)
 
-                if let Some(edge_props) = self.edge_meta.get_mut(src_edge_meta_id) {
-                    edge_props.set(property_id, t, prop)
-                } else {
-                    // we don't have metadata for this edge
-                    let prop_cell = TPropVec::from(property_id, t, prop);
-                    self.edge_meta.insert(src_edge_meta_id, prop_cell)
-                }
-            }
-        }
-        self
     }
 
     fn link_inbound_edge(
         &mut self,
         global_dst_id: u64,
         t: u64,
-        scr_pid: OtherV,
+        src_pid: OtherV,
         dst_pid: usize,
     ) -> usize {
         if let entry @ Adj::Empty(_) = &mut self.index[dst_pid] {
@@ -268,12 +267,12 @@ impl TemporalGraph {
             *entry = Adj::List {
                 logical: global_dst_id,
                 out: TSet::default(),
-                into: TSet::new(t, Edge::new(scr_pid, edge_id)),
+                into: TSet::new(t, Edge::new(src_pid, edge_id)),
             };
             edge_id
         } else if let Adj::List { into, .. } = &mut self.index[dst_pid] {
             let search_edge = Edge {
-                v: scr_pid,
+                v: src_pid,
                 e_meta: None,
             };
 
@@ -281,10 +280,10 @@ impl TemporalGraph {
                 Some(Edge {
                     v,
                     e_meta: Some(p_edge_id),
-                }) if *v == scr_pid => *p_edge_id,
+                }) if *v == src_pid => *p_edge_id,
                 _ => self.edge_meta.len(), // nothing to do there isn't an existing edge for this dst so edge meta is new
             };
-            into.push(t, Edge::new(scr_pid, edge_id));
+            into.push(t, Edge::new(src_pid, edge_id));
             edge_id
         } else {
             self.edge_meta.len() // we really should not get here
@@ -295,10 +294,10 @@ impl TemporalGraph {
         &mut self,
         global_src_id: u64,
         t: u64,
-        scr_pid: usize,
+        src_pid: usize,
         dst_pid: OtherV,
     ) -> usize {
-        if let entry @ Adj::Empty(_) = &mut self.index[scr_pid] {
+        if let entry @ Adj::Empty(_) = &mut self.index[src_pid] {
             let edge_id = self.edge_meta.len();
             *entry = Adj::List {
                 logical: global_src_id,
@@ -306,7 +305,7 @@ impl TemporalGraph {
                 into: TSet::default(),
             };
             edge_id
-        } else if let Adj::List { out, .. } = &mut self.index[scr_pid] {
+        } else if let Adj::List { out, .. } = &mut self.index[src_pid] {
             let search_edge = Edge {
                 v: dst_pid,
                 e_meta: None,
@@ -712,7 +711,7 @@ mod graph_test {
         g.add_vertex(11, 1);
         g.add_vertex(22, 2);
 
-        g.add_edge_props(11, 22, 4, vec![("weight".into(), Prop::U32(12))]);
+        g.add_edge_props(11, 22, 4, &vec![("weight".into(), Prop::U32(12))]);
 
         let edge_weights = g
             .outbound(11)
@@ -739,7 +738,7 @@ mod graph_test {
             11,
             22,
             4,
-            vec![
+            &vec![
                 ("weight".into(), Prop::U32(12)),
                 ("amount".into(), Prop::F64(12.34)),
                 ("label".into(), Prop::Str("blerg".into())),
@@ -779,9 +778,9 @@ mod graph_test {
         g.add_vertex(11, 1);
         g.add_vertex(22, 2);
 
-        g.add_edge_props(11, 22, 4, vec![("amount".into(), Prop::U32(12))]);
-        g.add_edge_props(11, 22, 7, vec![("amount".into(), Prop::U32(24))]);
-        g.add_edge_props(11, 22, 19, vec![("amount".into(), Prop::U32(48))]);
+        g.add_edge_props(11, 22, 4, &vec![("amount".into(), Prop::U32(12))]);
+        g.add_edge_props(11, 22, 7, &vec![("amount".into(), Prop::U32(24))]);
+        g.add_edge_props(11, 22, 19, &vec![("amount".into(), Prop::U32(48))]);
 
         println!("GRAPH {:?}", g);
 
@@ -821,9 +820,9 @@ mod graph_test {
         g.add_vertex(33, 3);
         g.add_vertex(44, 4);
 
-        g.add_edge_props(11, 22, 4, vec![("weight".into(), Prop::F32(1122.0))]);
-        g.add_edge_props(11, 33, 4, vec![("weight".into(), Prop::F32(1133.0))]);
-        g.add_edge_props(44, 11, 4, vec![("weight".into(), Prop::F32(4411.0))]);
+        g.add_edge_props(11, 22, 4, &vec![("weight".into(), Prop::F32(1122.0))]);
+        g.add_edge_props(11, 33, 4, &vec![("weight".into(), Prop::F32(1133.0))]);
+        g.add_edge_props(44, 11, 4, &vec![("weight".into(), Prop::F32(4411.0))]);
 
         println!("GRAPH {:?}", g);
         let edge_weights_out_11 = g
@@ -864,7 +863,7 @@ mod graph_test {
             11,
             22,
             2,
-            vec![
+            &vec![
                 ("amount".into(), Prop::F64(12.34)),
                 ("label".into(), Prop::Str("blerg".into())),
             ],
@@ -874,19 +873,19 @@ mod graph_test {
             22,
             33,
             3,
-            vec![
+            &vec![
                 ("weight".into(), Prop::U32(12)),
                 ("label".into(), Prop::Str("blerg".into())),
             ],
         );
 
-        g.add_edge_props(33, 44, 4, vec![("label".into(), Prop::Str("blerg".into()))]);
+        g.add_edge_props(33, 44, 4, &vec![("label".into(), Prop::Str("blerg".into()))]);
 
         g.add_edge_props(
             44,
             11,
             5,
-            vec![
+            &vec![
                 ("weight".into(), Prop::U32(12)),
                 ("amount".into(), Prop::F64(12.34)),
             ],

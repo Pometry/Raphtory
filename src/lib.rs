@@ -20,7 +20,7 @@
 //!     11,
 //!     22,
 //!     2,
-//!     vec![
+//!     &vec![
 //!         ("amount".into(), Prop::F64(12.34)),
 //!         ("label".into(), Prop::Str("blerg".into())),
 //!     ],
@@ -30,19 +30,19 @@
 //!     22,
 //!     33,
 //!     3,
-//!     vec![
+//!     &vec![
 //!         ("weight".into(), Prop::U32(12)),
 //!         ("label".into(), Prop::Str("blerg".into())),
 //!     ],
 //! );
 //!
-//! g.add_edge_props(33, 44, 4, vec![("label".into(), Prop::Str("blerg".into()))]);
+//! g.add_edge_props(33, 44, 4, &vec![("label".into(), Prop::Str("blerg".into()))]);
 //!
 //! g.add_edge_props(
 //!     44,
 //!     11,
 //!     5,
-//!     vec![
+//!     &vec![
 //!         ("weight".into(), Prop::U32(12)),
 //!         ("amount".into(), Prop::F64(12.34)),
 //!     ],
