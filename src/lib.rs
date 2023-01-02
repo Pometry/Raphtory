@@ -90,9 +90,9 @@
 //! ```
 pub mod bitset;
 pub mod db;
-mod edge;
+pub mod edge;
 pub mod graph;
-mod lsm;
+pub mod lsm;
 mod misc;
 mod props;
 pub mod sortedvec;
