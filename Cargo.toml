@@ -11,10 +11,19 @@ dashmap="5"
 itertools="0.10"
 guardian = "1.0.2"
 csv = "1.1.6"
-replace_with = "0.1"
+# replace_with = "0.1"
 thiserror = "1"
 rayon = "1"
 crossbeam = "0.8"
+rand = "0.8.5"
+packed_struct = "0.10"
+
+[dev-dependencies]
+criterion = "0.4"
+
+[[bench]]
+name = "tgraph_benchmarks"
+harness = false
 
 # [profile.release]
 # debug = 1

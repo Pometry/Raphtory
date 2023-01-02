@@ -1,12 +1,12 @@
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
-pub(crate) enum OtherV {
+pub enum OtherV {
     Local(usize),
     Remote(u64),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
-pub(crate) struct Edge {
-    pub(crate) v: OtherV,             // physical id of the other vertex
+pub struct Edge {
+    pub v: OtherV,             // physical id of the other vertex
     pub(crate) e_meta: Option<usize>, // physical id of the edge metadata
 }
 
