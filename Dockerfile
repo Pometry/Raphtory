@@ -11,6 +11,9 @@ COPY build.sbt build.sbt
 COPY .scalafmt.conf .scalafmt.conf
 COPY Makefile Makefile
 COPY version version
+COPY pyproject.toml pyproject.toml
+COPY setup.cfg setup.cfg
+COPY MANIFEST.in MANIFEST.in
 RUN apt update
 RUN apt install -y make wget unzip
 RUN make sbt-build
