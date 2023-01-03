@@ -27,6 +27,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY --from=sbt-builder /root/python python
 COPY Makefile Makefile
 COPY version version
+COPY pyproject.toml pyproject.toml
+COPY setup.cfg setup.cfg
+COPY MANIFEST.in MANIFEST.in
 RUN make python-build -W sbt-build
 
 # =============================
