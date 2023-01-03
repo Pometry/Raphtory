@@ -48,6 +48,7 @@ trait Graph {
   private def edgeAddCounter = TelemetryReporter.edgeAddCounter.labels(s"$sourceID", graphID)
 
   def getNEdgesAdded : Long = edgeAddCounter.get().toLong
+  def getNVerticesAdded : Long = vertexAddCounter.get().toLong
 
   /** Adds a new vertex to the graph or updates an existing vertex
     *

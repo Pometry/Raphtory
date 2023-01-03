@@ -785,7 +785,6 @@ public abstract class EdgeIterator {
             }
 
             if (_edgeId==-1L) {
-                _edgeRowId = -1;
                 _edgePartition = null;
                 _edgeRowId = -1;
                 _edgeId = -1L;
@@ -869,7 +868,6 @@ public abstract class EdgeIterator {
                 }
 
                 if (_edgeId == -1L) {
-                    _edgeRowId = -1;
                     _edgePartition = null;
                     _edgeRowId = -1;
                     _edgeId = -1L;

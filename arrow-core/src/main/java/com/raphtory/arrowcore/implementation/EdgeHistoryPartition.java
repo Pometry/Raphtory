@@ -926,14 +926,14 @@ public class EdgeHistoryPartition {
             int row = _sortedIndices.get(sortedIndexRow);
 
             int edgeRow = _rowIds.get(row);
-            if (_edgeRowId !=edgeRow) {
+            if (_edgeRowId != edgeRow) {
                 return edgeRow<_edgeRowId ? 1 : -1;
             }
 
             long creationTime = _creationTimes.get(row);
 
-            if (creationTime<_maxTime) { return -1; }
-            if (creationTime>_maxTime) { return 1; }
+            if (creationTime<_maxTime) { return 1; }
+            if (creationTime>_maxTime) { return -1; }
 
             return 0;
         }

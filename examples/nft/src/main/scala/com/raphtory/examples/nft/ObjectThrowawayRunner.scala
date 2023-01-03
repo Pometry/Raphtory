@@ -44,7 +44,12 @@ trait LocalRunner2 { self: RaphtoryApp =>
         .execute(Degree())
         .writeTo(FileSink("/tmp/raphtory"))
         .waitForJob()
+
+      println(graph.getNEdgesAdded)
+      println(graph.getNVerticesAdded)
+
     }
+
 }
 
 case class VertexProps()

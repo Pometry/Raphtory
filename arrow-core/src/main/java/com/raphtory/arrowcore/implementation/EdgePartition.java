@@ -462,6 +462,11 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
 
         _store._sortedHEnd.set(edgeRow, n-1);
         _sorted = true;
+
+//        System.out.println("SORTED EDGE TIMES: " + sorted.toString());
+//        for (int i=0; i<_currentSize; ++i) {
+//            System.out.println("EDGE: " + i + " F: " + _store._sortedHStart.get(i) + " -> " + _store._sortedHEnd.get(i));
+//        }
     }
 
 

@@ -478,6 +478,8 @@ public class VertexHistoryPartition {
         }
 
         _sorted = true;
+
+        //dump();
     }
 
 
@@ -524,7 +526,6 @@ public class VertexHistoryPartition {
             tdiff = _history._times.get(row); // - tdiff;
 
             System.out.println(i + ": " + row + ", v=" + _history._vertexRowIds.get(row) + ", t=" + tdiff + ", e=" + _history._edgeIds.get(row));
-
         }
     }
 
