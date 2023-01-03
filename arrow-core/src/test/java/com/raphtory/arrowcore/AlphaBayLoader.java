@@ -16,14 +16,16 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.LockSupport;
 import java.util.zip.GZIPInputStream;
+
 
 
 public class AlphaBayLoader {
     private static final int BUFFER_SIZE = 64 * 1024;
     private static final int N_LOAD_THREADS = 8;
-    private static final int QUEUE_SIZE = 32768 * 2 ;
+    private static final int QUEUE_SIZE = 32768 * 2;
+    private static final boolean BATCH_EDGES = true;
+    private static final int EDGE_BATCH_SIZE = 4096;
 
 
     public static class AlphaBaySchema implements PropertySchema {
@@ -117,12 +119,13 @@ public class AlphaBayLoader {
 
         AlphaBayLoader loader = new AlphaBayLoader(rap);
         if (new File(ArrowDir + "/vertex-p0.rap").exists()) {
+            long then = System.currentTimeMillis();
             rap.getVertexMgr().loadFiles();
             rap.getEdgeMgr().loadFiles();
-            System.out.println(rap.getStatistics());
+            System.out.println("ARROW FILES LOADED: " + rap.getStatistics() + ", time taken: " + (System.currentTimeMillis()-then) + "ms");
         }
         else {
-            //loader.load(RaphtoryInput + "/alphabay_sorted.csv.gz");
+            //loader.load(RaphtoryInput + "/alphabay_sorted.csv");
             loader.loadMT(RaphtoryInput + "/alphabay_sorted.csv");
 
             //rap.getVertexMgr().saveFiles();
@@ -134,13 +137,16 @@ public class AlphaBayLoader {
         //loader = new AlphaBayLoader(rap);
         //loader.load(RaphtoryInput + "/alphabay_sorted.csv");
 
-        for (int i=0; i<0; ++i) {
+        for (int i=0; i<1; ++i) {
             System.out.println("\n\n\n");
+
             loader.degreeAlgoNoWindowMT();
+            loader.degreeAlgoMT();
+
+            loader.degreeAlgoTestHack();
+
             loader.degreeAlgoNoWindow();
 
-            loader.degreeAlgoMT();
-            loader.degreeAlgoTestHack();
             loader.degreeAlgoTest();
         }
     }
@@ -179,9 +185,6 @@ public class AlphaBayLoader {
 
             EdgeIterator ei;
 
-            //inDegreeMap.put(vId, vi.getNIncomingEdges());
-            //outDegreeMap.put(vId, vi.getNOutgoingEdges());
-
             int nIncoming = 0;
             ei = vi.getIncomingEdges();
             while (ei.hasNext()) {
@@ -189,6 +192,7 @@ public class AlphaBayLoader {
                 ++nIncoming;
             }
             inDegreeMap.put(vId, nIncoming);
+            nEdges += nIncoming;
 
             int nOutgoing = 0;
             ei = vi.getOutgoingEdges();
@@ -197,6 +201,7 @@ public class AlphaBayLoader {
                 ++nOutgoing;
             }
             outDegreeMap.put(vId, nOutgoing);
+            nEdges += nOutgoing;
 
             int nTotal = 0;
             ei = vi.getAllEdges();
@@ -239,7 +244,7 @@ public class AlphaBayLoader {
 
         System.out.println(new Date() + ": NoWindow Degrees ended");
         System.out.println("nVertices: " + nVertices + ", nEdges=" + nEdges);
-        System.out.println("Total time: " + (System.currentTimeMillis() - then) + "ms");
+        System.out.println("Total time: " + (System.currentTimeMillis() - then) + "ms" + "\n\n");
     }
 
 
@@ -429,7 +434,7 @@ public class AlphaBayLoader {
         long now = System.nanoTime();
         System.out.println("Normal Took: " + (now-then)/1000000.0d + "ms");
         System.out.println(new Date() + ": Degrees ended");
-        System.out.println("nVertices: " + nVertices + ", nEdges=" + nEdges);
+        System.out.println("nVertices: " + nVertices + ", nEdges=" + nEdges + "\n\n");
     }
 
 
@@ -541,7 +546,7 @@ public class AlphaBayLoader {
         long now = System.nanoTime();
         System.out.println("Hack Took: " + (now-then)/1000000.0d + "ms");
         System.out.println(new Date() + ": Degrees ended");
-        System.out.println("nVertices: " + nVertices + ", nEdges=" + nEdges);
+        System.out.println("nVertices: " + nVertices + ", nEdges=" + nEdges + "\n\n");
     }
 
 
@@ -665,7 +670,7 @@ public class AlphaBayLoader {
         System.out.println("MT Took: " + (now-then)/1000000.0d + "ms");
 
         System.out.println(new Date() + ": Degrees ended");
-        System.out.println("nVertices: " + theTotalVertices + ", nEdges=" + theTotalEdges);
+        System.out.println("nVertices: " + theTotalVertices + ", nEdges=" + theTotalEdges + "\n\n");
     }
 
 
@@ -673,7 +678,6 @@ public class AlphaBayLoader {
         System.out.println(new Date() + ": NoWindowMT Degrees starting");
         long then = System.nanoTime();
 
-        //VertexIterator vi = _rap.getNewWindowedVertexIterator(Long.MIN_VALUE, Long.MAX_VALUE);
         VertexIterator.MTAllVerticesManager avm = _rap.getNewMTAllVerticesManager(RaphtoryThreadPool.THREAD_POOL);
 
         Long2IntOpenHashMap[] inDegreesMap = new Long2IntOpenHashMap[_avpm.nPartitions()];
@@ -703,8 +707,6 @@ public class AlphaBayLoader {
                 long vId = vi.next();
                 ++nVertices;
 
-                //if (!vi.isAliveAt(Long.MIN_VALUE, Long.MAX_VALUE)) { continue; }
-
                 EdgeIterator ei;
 
                 //inDegreeMap.put(vId, vi.getNIncomingEdges());
@@ -714,7 +716,6 @@ public class AlphaBayLoader {
                 ei = vi.getOutgoingEdges();
                 while (ei.hasNext()) {
                     ei.next();
-                    //if (!ei.isAliveAt(Long.MIN_VALUE, Long.MAX_VALUE)) { continue; }
                     ++nIncoming;
                 }
                 inDegreeMap.put(vId, nIncoming);
@@ -723,7 +724,6 @@ public class AlphaBayLoader {
                 ei = vi.getOutgoingEdges();
                 while (ei.hasNext()) {
                     ei.next();
-                    //if (!ei.isAliveAt(Long.MIN_VALUE, Long.MAX_VALUE)) { continue; }
                     ++nOutgoing;
                 }
                 outDegreeMap.put(vId, nOutgoing);
@@ -732,7 +732,6 @@ public class AlphaBayLoader {
                 ei = vi.getAllEdges();
                 while (ei.hasNext()) {
                     ei.next();
-                    //if (!ei.isAliveAt(Long.MIN_VALUE, Long.MAX_VALUE)) { continue; }
                     ++nTotal;
                 }
                 degreeMap.put(vId, nTotal);
@@ -786,7 +785,7 @@ public class AlphaBayLoader {
         System.out.println("NoWindowMT Took: " + (now-then)/1000000.0d + "ms");
 
         System.out.println(new Date() + ": Degrees ended");
-        System.out.println("nVertices: " + theTotalVertices + ", nEdges=" + theTotalEdges);
+        System.out.println("nVertices: " + theTotalVertices + ", nEdges=" + theTotalEdges + "\n\n");
     }
 
 
@@ -827,22 +826,20 @@ public class AlphaBayLoader {
                 System.out.println(nLines);
             }
 
-            if (true) {
-                String[] fields = line.split(",");
+            String[] fields = line.split(",");
 
-                long srcGlobalId = _rap.getGlobalEntityIdStore().getGlobalNodeId(fields[3]);
-                long src = Long.parseLong(fields[3]);
+            long srcGlobalId = _rap.getGlobalEntityIdStore().getGlobalNodeId(fields[3]);
+            long src = Long.parseLong(fields[3]);
 
-                long dstGlobalId = _rap.getGlobalEntityIdStore().getGlobalNodeId(fields[4]);
-                long dst = Long.parseLong(fields[4]);
+            long dstGlobalId = _rap.getGlobalEntityIdStore().getGlobalNodeId(fields[4]);
+            long dst = Long.parseLong(fields[4]);
 
-                long time = Long.parseLong(fields[5]);
-                long price = Long.parseLong(fields[7]);
+            long time = Long.parseLong(fields[5]);
+            long price = Long.parseLong(fields[7]);
 
-                addVertex(srcGlobalId, src, time);
-                addVertex(dstGlobalId, dst, time);
-                addOrUpdateEdge(srcGlobalId, dstGlobalId, time, price);
-            }
+            addVertex(srcGlobalId, src, time);
+            addVertex(dstGlobalId, dst, time);
+            addOrUpdateEdge(srcGlobalId, dstGlobalId, time, price);
         }
 
         long now = System.currentTimeMillis();
@@ -899,7 +896,7 @@ public class AlphaBayLoader {
         if (e==-1L) {
             addEdge(srcId, dstId, time, price);
         }
-        else if (true) {
+        else {
             ++_nEdgesUpdated;
             _priceVEPA.reset();
             _priceVEPA.setHistory(true, time).set(price);
@@ -915,103 +912,34 @@ public class AlphaBayLoader {
         Edge e = _rap.getEdge();
         e.incRefCount();
 
-        if (false) {
-            long edgeId = _aepm.getNextFreeEdgeId();
+        long edgeId = _nextFreeEdgeId;
 
-            e.init(edgeId, true, time);
-            e.resetEdgeData(srcId, dstId, false, false);
-            e.getProperty(PRICE_PROPERTY).set(price);
+        e.init(edgeId, true, time);
 
-            _aepm.addEdge(e, -1L, -1L);
+        e.resetEdgeData(srcId, dstId, false, false);
+        e.getProperty(PRICE_PROPERTY).set(price);
 
-            EdgePartition ep = _aepm.getPartition(_aepm.getPartitionId(e.getLocalId()));
-            ep.addHistory(e.getLocalId(), time, true, true);
+        VertexPartition p = _avpm.getPartitionForVertex(srcId);
+        long outgoingPtr = p.addOutgoingEdgeToList(e.getSrcVertex(), e.getLocalId(), e.getDstVertex(), false);
+        p.addHistory(srcId, time, true, false, e.getLocalId(), true);
 
-            VertexPartition p = _avpm.getPartitionForVertex(srcId);
-            ep.setOutgoingEdgePtrByEdgeId(e.getLocalId(), p.addOutgoingEdgeToList(e.getSrcVertex(), e.getLocalId(), e.getDstVertex(), false));
-            p.addHistory(srcId, time, true, false, e.getLocalId(), true);
+        p = _avpm.getPartitionForVertex(dstId);
+        long incomingPtr = p.addIncomingEdgeToList(e.getDstVertex(), e.getLocalId(), e.getSrcVertex());
+        p.addHistory(dstId, time, true, false, e.getLocalId(), false);
 
-            p = _avpm.getPartitionForVertex(dstId);
-            ep.setIncomingEdgePtrByEdgeId(e.getLocalId(), p.addIncomingEdgeToList(e.getDstVertex(), e.getLocalId(), e.getSrcVertex()));
-            p.addHistory(dstId, time, true, false, e.getLocalId(), false);
+        _nextEdgePartition.addEdge(e, incomingPtr, outgoingPtr);
+        _nextEdgePartition.addHistory(e.getLocalId(), time, true, true);
 
-            e.decRefCount();
+        e.decRefCount();
 
-            ++_nEdgesAdded;
+        ++_nEdgesAdded;
+
+        if (++_nextFreeEdgeId >= _lastFreeEdgeId) {
+            _nextFreeEdgeId = _aepm.getNextFreeEdgeId();
+            int partitionId = _aepm.getPartitionId(_nextFreeEdgeId);
+            _nextEdgePartition = _aepm.getPartitionAndLoad(partitionId);
+            _lastFreeEdgeId = (partitionId + 1L) * _aepm.PARTITION_SIZE;
         }
-        else {
-            long edgeId = _nextFreeEdgeId;
-
-            e.init(edgeId, true, time);
-
-            e.resetEdgeData(srcId, dstId, false, false);
-            e.getProperty(PRICE_PROPERTY).set(price);
-
-            VertexPartition p = _avpm.getPartitionForVertex(srcId);
-            long outgoingPtr = p.addOutgoingEdgeToList(e.getSrcVertex(), e.getLocalId(), e.getDstVertex(), false);
-            p.addHistory(srcId, time, true, false, e.getLocalId(), true);
-
-            p = _avpm.getPartitionForVertex(dstId);
-            long incomingPtr = p.addIncomingEdgeToList(e.getDstVertex(), e.getLocalId(), e.getSrcVertex());
-            p.addHistory(dstId, time, true, false, e.getLocalId(), false);
-
-            _nextEdgePartition.addEdge(e, incomingPtr, outgoingPtr);
-            _nextEdgePartition.addHistory(e.getLocalId(), time, true, true);
-
-
-            e.decRefCount();
-
-            ++_nEdgesAdded;
-
-            if (++_nextFreeEdgeId >= _lastFreeEdgeId) {
-                _nextFreeEdgeId = _aepm.getNextFreeEdgeId();
-                int partitionId = _aepm.getPartitionId(_nextFreeEdgeId);
-                _nextEdgePartition = _aepm.getPartitionAndLoad(partitionId);
-                _lastFreeEdgeId = (partitionId + 1L) * _aepm.PARTITION_SIZE;
-            }
-        }
-    }
-
-
-    private boolean readLine(InputStream br, StringBuilder sb) throws IOException {
-        sb.setLength(0);
-        int c;
-        while ((c = br.read()) != -1) {
-            if (c == '\n') {
-                trim(sb);
-                return sb.length() > 0;
-            }
-            sb.append((char) c);
-        }
-
-        trim(sb);
-        return sb.length() > 0;
-    }
-
-
-    private void trim(StringBuilder sb) {
-        int len = sb.length();
-        while (len>0) {
-            char c = sb.charAt(len-1);
-            if (c=='\r' || c=='\n' || c==' ' || c=='\t') {
-                sb.setLength(len-1);
-                len = len-1;
-                continue;
-            }
-            break;
-        }
-    }
-
-
-    private StringBuilder copy(StringBuilder src, int offset, int length, StringBuilder dst) {
-        dst.setLength(0);
-
-        for (int i=0; i<length; ++i) {
-            dst.append(src.charAt(i + offset));
-        }
-
-        trim(dst);
-        return dst;
     }
 
 
@@ -1028,7 +956,6 @@ public class AlphaBayLoader {
             _queues[i] = _disruptors[i].start();
         }
 
-
         BufferedReader br;
 
         if (file.endsWith(".gz")) {
@@ -1042,11 +969,19 @@ public class AlphaBayLoader {
 
         System.out.println(new Date() + ": Starting load");
 
-        final int BATCH = 4096;
-        long SGBID[] = new long[BATCH];
-        long DGBID[] = new long[BATCH];
-        long TIME[] = new long[BATCH];
-        long PRICE[] = new long[BATCH];
+
+        long SGBID[];
+        long DGBID[];
+        long TIME[];
+        long PRICE[];
+
+        if (BATCH_EDGES) {
+            SGBID = new long[EDGE_BATCH_SIZE];
+            DGBID = new long[EDGE_BATCH_SIZE];
+            TIME = new long[EDGE_BATCH_SIZE];
+            PRICE = new long[EDGE_BATCH_SIZE];
+        }
+
         int batchSize = 0;
 
 
@@ -1057,6 +992,7 @@ public class AlphaBayLoader {
             if (nLines % (1024 * 1024)==0) {
                 System.out.println(nLines);
             }
+
             String[] fields = line.split(",");
 
             long srcGlobalId = _rap.getGlobalEntityIdStore().getGlobalNodeId(fields[3]);
@@ -1074,18 +1010,18 @@ public class AlphaBayLoader {
             queueVertex(dstWorker, dstGlobalId, dst, time);
             queueVertex(srcWorker, srcGlobalId, src, time);
 
-            if (true) {
+            if (BATCH_EDGES) {
                 int bs = batchSize;
                 SGBID[bs] = srcGlobalId;
                 DGBID[bs] = dstGlobalId;
                 TIME[bs] = time;
                 PRICE[bs] = price;
 
-                if (++batchSize >= BATCH) {
-                    for (int i = 0; i < BATCH; ++i) {
-                        srcWorker = Math.abs((int) (SGBID[i] % N_LOAD_THREADS));
+                if (++batchSize >= EDGE_BATCH_SIZE) {
+                    for (int j = 0; j < EDGE_BATCH_SIZE; ++j) {
+                        srcWorker = Math.abs((int) (SGBID[j] % N_LOAD_THREADS));
 
-                        queueEdge(srcWorker, SGBID[i], DGBID[i], TIME[i], PRICE[i]);
+                        queueEdge(srcWorker, SGBID[j], DGBID[j], TIME[j], PRICE[j]);
                     }
 
                     batchSize = 0;
@@ -1096,7 +1032,7 @@ public class AlphaBayLoader {
             }
         }
 
-        if (true && batchSize!=0) {
+        if (BATCH_EDGES && batchSize!=0) {
             for (int i=0; i<batchSize; ++i) {
                 int srcWorker = Math.abs((int)(SGBID[i] % N_LOAD_THREADS));
 
@@ -1130,7 +1066,6 @@ public class AlphaBayLoader {
 
         System.out.println(_rap.getStatistics());
         System.out.println("Total time: " + (now-then) + "ms");
-        //System.out.println("nEdgesAdded=" + AI_NEDGES_ADDED.get() + ", nEdgesUpdated=" + AI_NEDGES_UPDATED);
     }
 
 
@@ -1154,9 +1089,6 @@ public class AlphaBayLoader {
     }
 
 
-
-    private final AtomicInteger AI_NEDGES_ADDED = new AtomicInteger(0);
-    private final AtomicInteger AI_NEDGES_UPDATED = new AtomicInteger(0);
 
     private class Worker implements EventHandler<AddVertexEvent> {
         private final int _id;
