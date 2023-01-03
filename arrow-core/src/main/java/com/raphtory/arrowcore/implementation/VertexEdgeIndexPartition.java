@@ -28,14 +28,14 @@ import java.io.FileOutputStream;
  *     and a vector which contains the row-ids in sorted order.
  *     <p>
  *     This means that after sorting and searching, the sorted-row-index needs to be
- *     translated to it's unsorted row-index via a lookup in the sorted vector.
+ *     translated to its unsorted row-index via a lookup in the sorted vector.
  */
 public class VertexEdgeIndexPartition {
     private static final ThreadLocal<IntArrayList> _tmpListTL = ThreadLocal.withInitial(IntArrayList::new);
 
-    private static final ThreadLocal<VertexDstEdgeComparator> _vertexTimeCmpTL = ThreadLocal.withInitial(VertexDstEdgeComparator::new);
+    private static final ThreadLocal<VertexDstEdgeComparator> _vertexDstEdgeComparatorTL = ThreadLocal.withInitial(VertexDstEdgeComparator::new);
 
-    private static final ThreadLocal<VertexDstEdgeWindowComparator> _timeVertexWindowComparatorTL = ThreadLocal.withInitial(VertexDstEdgeWindowComparator::new);
+    private static final ThreadLocal<SortedVertexDstEdgeComparator> _sortedVertexDstEdgeComparatorTL = ThreadLocal.withInitial(SortedVertexDstEdgeComparator::new);
 
 
     /**
@@ -49,7 +49,7 @@ public class VertexEdgeIndexPartition {
 
 
         /**
-         * Initialises thie comparator for the specified partition
+         * Initialises the comparator for the specified partition
          *
          * @param veip the VertexEdgeIndexPartition to use
          */
@@ -309,7 +309,7 @@ public class VertexEdgeIndexPartition {
         for (int i=0; i<n; ++i) {
             elements[i] = i;
         }
-        VertexDstEdgeComparator vtCmp = _vertexTimeCmpTL.get();
+        VertexDstEdgeComparator vtCmp = _vertexDstEdgeComparatorTL.get();
         vtCmp.init(this);
         tmpList.sort(vtCmp);
         IntVector sortedVertexTimeIndices = _index._sortedIndex;
@@ -337,7 +337,7 @@ public class VertexEdgeIndexPartition {
 
         sortVertexEdgeIndex();
 
-        VertexDstEdgeWindowComparator wc = _timeVertexWindowComparatorTL.get();
+        SortedVertexDstEdgeComparator wc = _sortedVertexDstEdgeComparatorTL.get();
         wc.init(state._vertexRowId, _index._vertexRowIds, _index._sortedIndex, _index._dstVertexIds, state._dstVertexId);
         int first = VectorRangeSearcher.getFirstMatch(_index._sortedIndex, wc, null, 0);
         if (first<0) {
@@ -355,7 +355,7 @@ public class VertexEdgeIndexPartition {
     /**
      * Comparator used for searching the index to find matching edges.
      */
-    protected static class VertexDstEdgeWindowComparator extends VectorValueComparator<IntVector> {
+    protected static class SortedVertexDstEdgeComparator extends VectorValueComparator<IntVector> {
         private int _vertexRowId;
         private long _dstVertexId;
 
@@ -435,7 +435,7 @@ public class VertexEdgeIndexPartition {
          */
         @Override
         public VectorValueComparator<IntVector> createNew() {
-            return new VertexDstEdgeWindowComparator();
+            return new SortedVertexDstEdgeComparator();
         }
     }
 }

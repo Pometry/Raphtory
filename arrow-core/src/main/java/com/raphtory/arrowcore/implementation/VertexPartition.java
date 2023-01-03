@@ -81,7 +81,8 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
         _rootRO = null;
         _store = new VertexArrowStore();
         _history = new VertexHistoryPartition(_partitionId, this);
-        _edgeIndex = new VertexEdgeIndexPartition(_partitionId, this);
+        //_edgeIndex = new VertexEdgeIndexPartition(_partitionId, this);
+        _edgeIndex = null; // XXX Not used at the moment...
 
         _cachedSrcDstEdgeMap = new CachedMutatingEdgeMap.OutgoingCachedMutatingEdgeMap(this, apm, apm._aepm);
         _cachedDstSrcEdgeMap = new CachedMutatingEdgeMap.IncomingCachedMutatingEdgeMap(this, apm, apm._aepm);
@@ -118,7 +119,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
         _store.init(this, _rootRO, _fieldAccessors);
 
         _history.initialize();
-        _edgeIndex.initialize();
+        //_edgeIndex.initialize(); XXX Not used at the moment...
 
         if (_nProperties>0) {
             for (int i = 0; i < _nProperties; ++i) {
@@ -362,7 +363,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
         clearReader();
         _history.close();
         closeProperties();
-        _edgeIndex.close();
+        //_edgeIndex.close(); XXX Not used at the moment...
     }
 
 
@@ -513,7 +514,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
         int row = _apm.getRowId(srcVertexId);
         long prev = _store._outgoingEdges.get(row);
         _store._outgoingEdges.set(row, edgeId);
-        _store._nOutgoingEdges.set(row, _store._nOutgoingEdges.get(row)+1);
+        _store._nOutgoingEdges.set(row, _store._nOutgoingEdges.get(row) + 1);
         //_edgeIndex.addEdgeIndexRecord(row, dstVertexId, edgeId, dstIsGlobal); // XXX We only need 1 of these methods of finding matching edges?
         _cachedSrcDstEdgeMap.addEdge(srcVertexId, dstVertexId, edgeId, prev, _store._nOutgoingEdges.get(row));
         _modified = true;
@@ -578,7 +579,7 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
 
             _history.saveToFile();
             saveProperties();
-            _edgeIndex.saveToFile();
+            //_edgeIndex.saveToFile(); XXX Not used at the moment
 
             _modified = false;
         }
@@ -758,9 +759,9 @@ public class VertexPartition implements LRUListItem<VertexPartition> {
 
             loadProperties();
 
-            if (!_edgeIndex.loadFromFile()) {
-                _edgeIndex.initialize();
-            }
+            //if (!_edgeIndex.loadFromFile()) {
+            //    _edgeIndex.initialize();
+            //}
 
             _loaded = true;
             notifyAll();

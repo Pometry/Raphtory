@@ -55,28 +55,28 @@ public class VersionedProperty {
     static {
         _typeMap.put(int.class, () -> new ArrowType.Int(32, true));
         _typeMap.put(long.class, () -> new ArrowType.Int(64, true));
-        _typeMap.put(java.lang.Long.class, () -> new ArrowType.Int(64, true));
+        _typeMap.put(java.lang.Long.class, () -> new ArrowType.Int(64, true)); // For scala?
         _typeMap.put(float.class, () -> new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE));
         _typeMap.put(double.class, () -> new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE));
         _typeMap.put(boolean.class, ArrowType.Bool::new);
         _typeMap.put(StringBuilder.class, ArrowType.Utf8::new);
 
-        _schemaAccessorMap.put(int.class, VersionedPropertyStore.IntPropertyAccessor::new);
-        _schemaAccessorMap.put(long.class, VersionedPropertyStore.LongPropertyAccessor::new);
-        _schemaAccessorMap.put(java.lang.Long.class, VersionedPropertyStore.LongPropertyAccessor::new);
-        _schemaAccessorMap.put(float.class, VersionedPropertyStore.FloatPropertyAccessor::new);
-        _schemaAccessorMap.put(double.class, VersionedPropertyStore.DoublePropertyAccessor::new);
+        _schemaAccessorMap.put(int.class,     VersionedPropertyStore.IntPropertyAccessor::new);
+        _schemaAccessorMap.put(long.class,    VersionedPropertyStore.LongPropertyAccessor::new);
+        _schemaAccessorMap.put(float.class,   VersionedPropertyStore.FloatPropertyAccessor::new);
+        _schemaAccessorMap.put(double.class,  VersionedPropertyStore.DoublePropertyAccessor::new);
         _schemaAccessorMap.put(boolean.class, VersionedPropertyStore.BooleanPropertyAccessor::new);
         _schemaAccessorMap.put(StringBuilder.class, VersionedPropertyStore.StringPropertyAccessor::new);
 
-        _entityAccessorMap.put(int.class, VersionedEntityPropertyAccessor.IntPropertyAccessor::new);
-        _entityAccessorMap.put(long.class, VersionedEntityPropertyAccessor.LongPropertyAccessor::new);
-        _entityAccessorMap.put(java.lang.Long.class, VersionedEntityPropertyAccessor.LongPropertyAccessor::new);
-        _entityAccessorMap.put(float.class, VersionedEntityPropertyAccessor.FloatPropertyAccessor::new);
-        _entityAccessorMap.put(double.class, VersionedEntityPropertyAccessor.DoublePropertyAccessor::new);
+        _entityAccessorMap.put(int.class,     VersionedEntityPropertyAccessor.IntPropertyAccessor::new);
+        _entityAccessorMap.put(long.class,    VersionedEntityPropertyAccessor.LongPropertyAccessor::new);
+        _entityAccessorMap.put(float.class,   VersionedEntityPropertyAccessor.FloatPropertyAccessor::new);
+        _entityAccessorMap.put(double.class,  VersionedEntityPropertyAccessor.DoublePropertyAccessor::new);
         _entityAccessorMap.put(boolean.class, VersionedEntityPropertyAccessor.BooleanPropertyAccessor::new);
         _entityAccessorMap.put(StringBuilder.class, VersionedEntityPropertyAccessor.StringPropertyAccessor::new);
+        _entityAccessorMap.put(java.lang.Long.class, VersionedEntityPropertyAccessor.LongPropertyAccessor::new); // For scala?
     }
+
 
 
     protected final String _name;
@@ -89,7 +89,7 @@ public class VersionedProperty {
      * Creates a new property
      *
      * @param name the name of the property
-     * @param c    the type of the property value
+     * @param c the type of the property value
      */
     public VersionedProperty(String name, Class c) {
         _name = name.toLowerCase();
@@ -132,6 +132,7 @@ public class VersionedProperty {
      * Returns a new schema accessor to access this property from an Arrow schema
      *
      * @param root the vector schema root to use
+     *
      * @return a new schema accessor
      */
     public VersionedPropertyStore getNewSchemaFieldAccessor(VectorSchemaRoot root) {
@@ -145,6 +146,7 @@ public class VersionedProperty {
      * Returns a new entity accessor to access this property in a POJO
      *
      * @param fieldId the id of the property
+     *
      * @return a new entity accessor
      */
     public VersionedEntityPropertyAccessor getNewEntityFieldAccessor(int fieldId) {
