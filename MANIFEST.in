@@ -1,3 +1,6 @@
 include python/pyraphtory/lib/*.jar
+prune python/pyraphtory/lib/runtime
+prune python/pyraphtory/jre
+prune python/pyraphtory/ivy
 include python/_custom_build/*.py
 include python/_custom_build/ivy_data/*.xml
