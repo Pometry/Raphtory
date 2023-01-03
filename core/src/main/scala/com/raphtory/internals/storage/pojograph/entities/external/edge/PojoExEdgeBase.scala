@@ -33,11 +33,14 @@ private[pojograph] trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
     view.sendMessage(FilteredInEdgeMessage(view.superStep + 1, dst, src))
   }
 
+  //put in pojo ex entity
   private var computationValues: Map[String, Any] =
     Map.empty //Partial results kept between supersteps in calculation
 
   override def setState(key: String, value: Any): Unit =
     computationValues += ((key, value))
+
+  override def getStateSet(): List[String] = computationValues.keys.toList
 
   override def getState[T](key: String, includeProperties: Boolean): T =
     if (computationValues.contains(key))

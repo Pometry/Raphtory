@@ -61,6 +61,8 @@ case class InterlayerEdge(
     time < latestActivity().time && time > earliestActivity().time
 
   override def setState(key: String, value: Any): Unit = ???
+
+  override def getStateSet(): List[String] = ???
   override def getState[T](key: String, includeProperties: Boolean): T = ???
   override def getStateOrElse[T](key: String, value: T, includeProperties: Boolean): T = ???
   override def containsState(key: String, includeProperties: Boolean): Boolean = ???

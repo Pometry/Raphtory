@@ -32,7 +32,7 @@ import com.raphtory.api.analysis.table.Table
   *  | {s}`srcName: String` | {s}`dstName: String` | {s}`value: Any` | ... |
   */
 class EdgeList(
-    properties: Seq[String] = Seq.empty[String],
+    properties: Seq[String] = Seq.empty[String], //if empty, get list of properties and algo state, return everything
     defaults: Map[String, Any] = Map.empty[String, Any]
 ) extends Generic {
 
@@ -47,7 +47,9 @@ class EdgeList(
           .map { edge =>
             val row = name +:
               neighbourMap(edge.dst) +: // get name of neighbour
-              properties // get property values
+              properties // get property values get all props and states if list empty
+                //if empty, build this ourselves,get keys and values, doesn't change below
+                //getPropertySet()
                 .map(key =>
                   edge
                     .getPropertyOrElse(key, defaults.getOrElse(key, None))
