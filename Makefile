@@ -123,14 +123,9 @@ clean: python-dist-clean sbt-build-clean
 type?=patch
 .PHONY: version-bump
 version-bump:
-	echo "Bumping pyraphtory version using poetry"
-	cd python/pyraphtory && poetry version $(type) --short && poetry update
-	echo "Bumping SBT file"
-	cd python/pyraphtory && poetry version --short | tr -d "[:cntrl:]" > ../../version
-	echo "Installing and bumping pyraphtory_jvm"
+	echo "bumping $(type) version"
 	pip install bump2version --quiet
-	cd python/pyraphtory_jvm && bump2version --allow-dirty --no-commit --new-version $$(cat ../../version) setup.py
-	cd python/pyraphtory && poetry update
+	bump2version $(type)
 
 
 .PHONY: release
