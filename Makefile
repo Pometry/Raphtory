@@ -131,7 +131,7 @@ version-bump: version
 .PHONY: release
 release: version-bump
 	git checkout -b v$$(cat version)
-	git add version python/pyraphtory/pyproject.toml python/pyraphtory/poetry.lock python/pyraphtory_jvm/.bumpversion.cfg python/pyraphtory_jvm/setup.py
+	git add version .bumpversion.cfg
 	git commit -m "bumped to v$$(cat version)"
 	git tag "v$$(cat version)" && git push origin --tags
 
