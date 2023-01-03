@@ -122,10 +122,10 @@ clean: python-dist-clean sbt-build-clean
 
 type?=patch
 .PHONY: version-bump
-version-bump:
+version-bump: version
 	echo "bumping $(type) version"
 	pip install bump2version --quiet
-	bump2version $(type)
+	bump2version --current-version=$$(cat version) $(type)
 
 
 .PHONY: release
