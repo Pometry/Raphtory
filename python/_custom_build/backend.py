@@ -18,13 +18,9 @@ get_requires_for_build_editable = _orig.get_requires_for_build_editable
 platform = next(tags.sys_tags()).platform
 build_folder = Path(__file__).resolve().parent
 package_folder = build_folder.parent / "pyraphtory"
+
 lib_folder = package_folder / "lib"
 jre_folder = package_folder / "jre"
-
-
-def setup_java_dependencies():
-    java_bin = check_system_dl_java(jre_folder)
-    get_and_run_ivy(java_bin, build_folder / "ivy_data", lib_folder)
 
 
 def build_sdist(sdist_directory, config_settings=None):
@@ -34,7 +30,8 @@ def build_sdist(sdist_directory, config_settings=None):
 
 def build_wheel(wheel_directory, config_settings: dict=None, metadata_directory=None):
     print(sys.path)
-    setup_java_dependencies()
+    java_bin = check_system_dl_java(jre_folder)
+    get_and_run_ivy(java_bin, build_folder / "ivy_data", lib_folder)
 
     # make wheel platform-specific as the jre downloaded will be different
     if config_settings is not None:
@@ -48,5 +45,6 @@ def build_wheel(wheel_directory, config_settings: dict=None, metadata_directory=
 
 def build_editable(wheel_directory, config_settings=None, metadata_directory=None):
     make_python_build()
-    setup_java_dependencies()
+    java_bin = check_system_dl_java(jre_folder)
+    get_and_run_ivy(java_bin, build_folder / "ivy_data", lib_folder, package_folder / "ivy")
     return _orig.build_editable(wheel_directory, config_settings, metadata_directory)

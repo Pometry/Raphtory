@@ -66,6 +66,7 @@ sbt-build-clean:
 	rm -rf python/pyraphtory/lib/
 	rm -rf python/_custom_build/ivy_data/
 	rm -rf python/pyraphtory/jre/
+	rm -rf python/pyraphtory/ivy/
 
 
 .PHONY: python-build-quick
