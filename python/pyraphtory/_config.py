@@ -9,7 +9,7 @@ from itertools import chain
 
 
 def get_local_jre_loc() -> Path:
-    if os.environ.get("RAPHTORY_USE_SYSTEM_JAVA", ""):
+    if os.environ.get("PYRAPHTORY_USE_SYSTEM_JAVA", ""):
         return Path(os.environ["JAVA_HOME"])
     else:
         manager = as_file(files(pyraphtory) / "jre")
