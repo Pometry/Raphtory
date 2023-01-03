@@ -40,6 +40,7 @@ trait Graph {
   def index: Long
 
   def getNEdgesAdded : Long = edgeAddCounter.get().toLong
+  def getNVerticesAdded : Long = vertexAddCounter.get().toLong
 
   /** Adds a new vertex to the graph or updates an existing vertex
     *
