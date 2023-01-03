@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools","requests","packaging"]
+requires = ["setuptools>=64.0","requests>=2.28","packaging"]
 build-backend = "backend"
 backend-path = ["python/_custom_build"]
 
