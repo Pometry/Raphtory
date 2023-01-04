@@ -7,3 +7,4 @@ sphinx-tabs
 nbsphinx
 ipykernel
 pemja=0.2.6
+JPype1=1.4.1
