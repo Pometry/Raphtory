@@ -24,11 +24,11 @@ jobs:
       - name: Check the containers
         if: always()
         run: |
-          docker logs raphtory2_cluster_1
-          docker logs raphtory2_partition_1
-          docker logs raphtory2_partition_2
-          docker logs raphtory2_ingestion_1
-          docker logs raphtory2_query_1
+          docker logs raphtory_cluster_1
+          docker logs raphtory_partition_1
+          docker logs raphtory_partition_2
+          docker logs raphtory_ingestion_1
+          docker logs raphtory_query_1
       - name: Stop Docker compose
         if: always()
         run: |
