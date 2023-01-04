@@ -19,7 +19,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
         extends ReducedVertex
         with ArrowExEntity {
-
+  override def getStateSet(): List[String] = ???
   def entity: Entity = vertex
 
   /** ID type of this vertex */

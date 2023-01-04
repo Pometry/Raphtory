@@ -23,7 +23,7 @@ case class InterlayerEdge(
 
   override def lastActivityBefore(time: Long, strict: Boolean): Option[HistoricEvent] = None
 
-  override def getPropertySet(): List[String] = properties.keys.toList
+  override def getPropertySet(): List[String] = properties.map(tuple => tuple._1).toList
 
   override def getPropertyHistory[T](
       key: String,

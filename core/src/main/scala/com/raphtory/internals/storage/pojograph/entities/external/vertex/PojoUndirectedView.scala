@@ -9,7 +9,7 @@ import scala.collection.View
 
 private[pojograph] class PojoUndirectedVertexView[T](override val vertex: PojoConcreteVertexBase[T])
         extends PojoLocalVertexViewBase(vertex) {
-
+  override def getStateSet(): List[String] = ???
   override type IDType = vertex.IDType
   override type Edge   = vertex.Edge#Eundir
 
@@ -97,6 +97,8 @@ private[pojograph] class PojoExplodedUndirectedVertexView(override val vertex: P
         with ExplodedVertex {
 
   override def timestamp: Long = vertex.timestamp
+
+  override def getStateSet(): List[String] = ???
 }
 
 private[pojograph] object PojoExplodedUndirectedVertexView {

@@ -45,15 +45,22 @@ class EdgeList(
         val name         = vertex.name()
         vertex.outEdges
           .map { edge =>
-            val row = name +:
-              neighbourMap(edge.dst) +: // get name of neighbour
-              properties // get property values get all props and states if list empty
-                //if empty, build this ourselves,get keys and values, doesn't change below
-                //getPropertySet()
-                .map(key =>
-                  edge
-                    .getPropertyOrElse(key, defaults.getOrElse(key, None))
-                )
+            val row =  if (properties.isEmpty) {
+              val propertySet: List[String] = edge.getPropertySet()
+              val stateSet: List[String] = edge.getStateSet()
+
+              name +:
+                neighbourMap(edge.dst) +: // get name of neighbour
+                propertySet.map(key => edge.getPropertyOrElse(key, defaults.getOrElse(key, None))) +: stateSet.map(key => edge.getStateOrElse(key, defaults.getOrElse(key, None)))
+            } else {
+              name +:
+                neighbourMap(edge.dst) +: // get name of neighbour
+                properties
+                  .map(key =>
+                    edge
+                      .getPropertyOrElse(key, defaults.getOrElse(key, None))
+                  )
+            }
             Row(row: _*)
           }
       }

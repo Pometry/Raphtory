@@ -37,11 +37,12 @@ private[pojograph] trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
   private var computationValues: Map[String, Any] =
     Map.empty //Partial results kept between supersteps in calculation
 
-  override def setState(key: String, value: Any): Unit =
+  override def setState(key: String, value: Any): Unit = {
+    println(key)
     computationValues += ((key, value))
+  }
 
-  override def getStateSet(): List[String] = computationValues.keys.toList
-
+  override def getStateSet(): List[String] = computationValues.map(tuple => tuple._1).toList
   override def getState[T](key: String, includeProperties: Boolean): T =
     if (computationValues.contains(key))
       computationValues(key).asInstanceOf[T]

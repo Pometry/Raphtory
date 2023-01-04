@@ -12,6 +12,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class ArrowExEdge(val ID: Long, val edge: Edge, protected val repo: ArrowEntityStateRepository) extends ReducedEdge with ArrowExEntity {
 
+  override def getStateSet(): List[String] = ???
   /** type of vertex IDs for this edge */
   override type IDType = Long
 
