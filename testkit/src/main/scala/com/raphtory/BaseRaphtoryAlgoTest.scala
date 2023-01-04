@@ -14,6 +14,11 @@ import munit.CatsEffectSuite
 import org.slf4j.LoggerFactory
 
 import java.net.URL
+import java.nio.file.{Files, Paths}
+import java.nio.file.attribute.BasicFileAttributes
+import java.nio.file.attribute.FileAttribute
+import java.nio.file.attribute.PosixFilePermissions
+import java.nio.file.attribute.PosixFilePermissions._
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
@@ -23,9 +28,29 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
   protected val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   var jobId: String           = ""
-  val outputDirectory: String = "/tmp/raphtoryTest"
-  def defaultSink: Sink       = FileSink(outputDirectory)
+  val outputDirectory: String = Option(System.getenv("RAPHTORY_ITEST_PATH")).getOrElse("/tmp/raphtoryTest")
+  def defaultSink: Sink       = FileSink("/tmp/raphtoryTest")
 
+  lazy val raphtoryData =
+    Option(System.getenv("RAPHTORY_ITEST_PATH")).getOrElse(
+            Files
+              .createTempDirectory("tests" )
+              .toString
+    )
+
+
+  def resolveSpout(fileName: String): String =
+    if (System.getenv("RAPHTORY_ITEST_PATH") != null)
+      fileName
+    else {
+      Paths.get(raphtoryData, fileName).toString
+    }
+
+  def tmpLocation(fileName: String): String = {
+    Paths.get(raphtoryData, fileName).toString
+  }
+
+  //  def
   def liftFileIfNotPresent: Option[(String, URL)] = None
   def setSource(): Source
 
@@ -34,11 +59,18 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           "context-and-graph",
           for {
             _     <- TestUtils.manageTestFile(liftFileIfNotPresent)
-            ctx   <- RaphtoryIOContext.localIO()
+            ctx   <- Option(System.getenv("RAPHTORY_ITEST_PATH")) // if RAPHTORY_ITEST_PATH is set then use the remote context
+                       .map { _ =>
+                         logger.warn("!! Running Integration Tests on Remote Raphtory !!")
+                         RaphtoryIOContext.remoteIO()
+                       }
+                       .getOrElse(RaphtoryIOContext.localIO())
             graph <- ctx.newIOGraph(failOnNotFound = false, destroy = true)
             _     <- Resource.pure(graph.load(setSource()))
           } yield (ctx, graph)
   )
+
+  def runningIntegrationTest: Boolean = Option(System.getenv("RAPHTORY_ITEST_PATH")).isDefined
 
   def ctx: RaphtoryContext = ctxAndGraph()._1
 

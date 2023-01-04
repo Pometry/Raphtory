@@ -47,6 +47,18 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
     this
   }
 
+  /** Creates a new `TemporalGraph` where the output timestamp for all queries will be in epoch (long) format. This is
+    * the default mode when a `TemporalGraph` is created.
+    */
+  def setOutputAsEpoch(): G =
+    newGraph(query.copy(datetimeQuery = false), querySender)
+
+  /** Creates a new `TemporalGraph` where the output timestamp for all queries will be in the default raphtory
+    * datetime format (yyyy-MM-dd HH:mm:ss.SSS).
+    */
+  def setOutputAsDatetime(): G =
+    newGraph(query.copy(datetimeQuery = true), querySender)
+
   /** Creates a new `TemporalGraph` which includes all activity after startTime (inclusive).
     * @param startTime time interpreted in milliseconds by default
     */
@@ -55,8 +67,12 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
     newGraph(query.copy(timelineStart = updatedStart), querySender)
   }
 
-  /** Creates a new `TemporalGraph` which includes all activity after startTime (inclusive). */
-  def startingFrom(startTime: String): G = startingFrom(parseDateTime(startTime))
+  /** Creates a new `TemporalGraph` which includes all activity after startTime (inclusive).
+    *  @param startTime A timestamp in datetime format
+    *  @param timeFormat the format of the start time, defaulting to yyyy-MM-dd HH:mm:ss.SSS
+    */
+  def startingFrom(startTime: String, timeFormat: String = "yyyy[-MM[-dd[ HH[:mm[:ss[.SSS]]]]]]"): G =
+    startingFrom(parseDateTime(startTime, timeFormat))
 
   /** Creates a new `TemporalGraph` which includes all activity before endTime (inclusive).
     * @param endTime time interpreted in milliseconds by default
@@ -66,16 +82,24 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
     newGraph(query.copy(timelineEnd = updatedEnd), querySender)
   }
 
-  /** Creates a new `TemporalGraph` which includes all activity before endTime (inclusive). */
-  def to(endTime: String): G = to(parseDateTime(endTime))
+  /** Creates a new `TemporalGraph` which includes all activity before endTime (inclusive).
+    *  @param endTime A timestamp in datetime format
+    *  @param timeFormat the format of the end time, defaulting to yyyy-MM-dd HH:mm:ss.SSS
+    */
+  def to(endTime: String, timeFormat: String = "yyyy[-MM[-dd[ HH[:mm[:ss[.SSS]]]]]]"): G =
+    to(parseDateTime(endTime, timeFormat))
 
   /** Creates a new `TemporalGraph` which includes all activity before endTime (exclusive).
     * @param endTime time interpreted in milliseconds by default
     */
   def until(endTime: Long): G = to(endTime - 1)
 
-  /** Creates a new `TemporalGraph` which includes all activity before endTime (exclusive). */
-  def until(endTime: String): G = until(parseDateTime(endTime))
+  /** Creates a new `TemporalGraph` which includes all activity before endTime (exclusive)
+    *  @param endTime A timestamp in datetime format
+    *  @param timeFormat the format of the end time, defaulting to yyyy-MM-dd HH:mm:ss.SSS.
+    */
+  def until(endTime: String, timeFormat: String = "yyyy[-MM[-dd[ HH[:mm[:ss[.SSS]]]]]]"): G =
+    until(parseDateTime(endTime, timeFormat))
 
   /** Creates a new `TemporalGraph` which includes all activity between `startTime` (inclusive) and `endTime` (exclusive)
     * `graph.slice(startTime, endTime)` is equivalent to `graph.from(startTime).until(endTime)`
@@ -84,9 +108,12 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
 
   /** Creates a new `TemporalGraph` which includes all activity between `startTime` (inclusive) and `endTime` (exclusive)
     * `graph.slice(startTime, endTime)` is equivalent to `graph.from(startTime).until(endTime)`.
+    *  @param startTime A timestamp in datetime format
+    *  @param endTime A timestamp in datetime format
+    *  @param timeFormat the format of the start and end times, defaulting to yyyy-MM-dd HH:mm:ss.SSS.
     */
-  def slice(startTime: String, endTime: String): G =
-    slice(parseDateTime(startTime), parseDateTime(endTime))
+  def slice(startTime: String, endTime: String, timeFormat: String = "yyyy[-MM[-dd[ HH[:mm[:ss[.SSS]]]]]]"): G =
+    slice(parseDateTime(startTime, timeFormat), parseDateTime(endTime, timeFormat))
 
   /** Create a `DottedGraph` with a temporal epoch at `time`.
     * @param time the temporal epoch to be added to the timeline
@@ -95,9 +122,11 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
     new DottedGraph(newFixedGraph(query.copy(points = SinglePoint(time)), querySender))
 
   /** Create a `DottedGraph` with a temporal epoch at `time`.
-    * @param time the temporal epoch to be added to the timeline
+    * @param time A timestamp in datetime format
+    *  @param timeFormat the format of time, defaulting to yyyy-MM-dd HH:mm:ss.SSS.
     */
-  def at(time: String): DottedGraph[FixedG] = at(parseDateTime(time))
+  def at(time: String, timeFormat: String = "yyyy[-MM[-dd[ HH[:mm[:ss[.SSS]]]]]]"): DottedGraph[FixedG] =
+    at(parseDateTime(time, timeFormat))
 
   /** Create a `DottedGraph` with a sequence of temporal epochs with a separation of `increment` covering all the
     * timeline aligned with 0.
@@ -124,9 +153,14 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
     * These epochs get generated until the end of the available timeline.
     * @param start the timestamp to create the first epoch
     * @param increment the interval expressing the step size
+    * @param timeFormat the format of start, defaulting to yyyy-MM-dd HH:mm:ss.SSS.
     */
-  def depart(start: String, increment: String): DottedGraph[FixedG] =
-    setPointPath(parseInterval(increment), start = Some(parseDateTime(start)))
+  def depart(
+      start: String,
+      increment: String,
+      timeFormat: String = "yyyy[-MM[-dd[ HH[:mm[:ss[.SSS]]]]]]"
+  ): DottedGraph[FixedG] =
+    setPointPath(parseInterval(increment), start = Some(parseDateTime(start, timeFormat)))
 
   /** Create a DottedGraph with a sequence of temporal epochs with a separation of `increment` from the start of the timeline ending at `end`.
     * @param end the point to create the last epoch
@@ -138,9 +172,14 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   /** Create a DottedGraph with a sequence of temporal epochs with a separation of `increment` from the start of the timeline ending at `end`.
     * @param end the point to create the last epoch
     * @param increment the step size
+    * @param timeFormat the format of end, defaulting to yyyy-MM-dd HH:mm:ss.SSS.
     */
-  def climb(end: String, increment: String): DottedGraph[FixedG] =
-    setPointPath(parseInterval(increment), end = Some(parseDateTime(end)))
+  def climb(
+      end: String,
+      increment: String,
+      timeFormat: String = "yyyy[-MM[-dd[ HH[:mm[:ss[.SSS]]]]]]"
+  ): DottedGraph[FixedG] =
+    setPointPath(parseInterval(increment), end = Some(parseDateTime(end, timeFormat)))
 
   /** Create a DottedGraph with a sequence of temporal epochs with a separation of `increment` starting at `start` and ending at `end` (with a smaller step at the end if necessary).
     * @param start the point to create the first epoch
@@ -154,12 +193,18 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
     * @param start the timestamp to create the first epoch
     * @param end the timestamp to create the first epoch
     * @param increment the interval expressing the step size
+    * @param timeFormat the format of start and end, defaulting to yyyy-MM-dd HH:mm:ss.SSS.
     */
-  def range(start: String, end: String, increment: String): DottedGraph[FixedG] =
+  def range(
+      start: String,
+      end: String,
+      increment: String,
+      timeFormat: String = "yyyy[-MM[-dd[ HH[:mm[:ss[.SSS]]]]]]"
+  ): DottedGraph[FixedG] =
     setPointPath(
             parseInterval(increment),
-            start = Some(parseDateTime(start)),
-            end = Some(parseDateTime(end))
+            start = Some(parseDateTime(start, timeFormat)),
+            end = Some(parseDateTime(end, timeFormat))
     )
 
   private def setPointPath(increment: Interval, start: Option[Long] = None, end: Option[Long] = None) =
@@ -170,8 +215,8 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
             )
     )
 
-  private def parseDateTime(dateTime: String) =
-    DateTimeParser(conf.getString("raphtory.query.timeFormat")).parse(dateTime)
+  private def parseDateTime(dateTime: String, format: String) =
+    DateTimeParser(format).parse(dateTime)
 
   override private[api] def newRGraph(query: Query, querySender: QuerySender): TemporalGraph =
     new TemporalGraph(query, querySender, conf)
@@ -194,9 +239,7 @@ private[api] trait TemporalGraphBase[G <: TemporalGraphBase[G, FixedG], FixedG <
   * If any graph operation is invoked from this instance, it is applied over only the elements of the graph within
   * the timeline.
   *
-  * @note All the timestamps must follow the format set in the configuration path `"raphtory.query.timeFormat"`.
-  *  By default it is `"yyyy-MM-dd[ HH:mm:ss[.SSS]]"`
-  *  All the strings expressing intervals need to be in the format `"<number> <unit> [<number> <unit> [...]]"`,
+  *  @note All the strings expressing intervals need to be in the format `"<number> <unit> [<number> <unit> [...]]"`,
   *  where numbers must be integers and units must be one of
   *  {'year', 'month', 'week', 'day', 'hour', 'min'/'minute', 'sec'/'second', 'milli'/'millisecond'}
   *  using the plural when the number is different than 1.

@@ -81,11 +81,11 @@ class JRETest(unittest.TestCase):
         with mock.patch('shutil.which') as mock_which:
             with mock.patch('os.getenv') as mock_getenv:
                 mock_getenv.return_value = None
-                mock_which.return_value = 'test'
+                mock_which.return_value = '/tmp/test'
                 # Run the function
                 java_home = jre.get_java_home()
                 # Check that it returns None
-                self.assertEqual(java_home, 'test')
+                self.assertEqual(java_home, '/tmp/test')
         # Mock the shutil.which function and the mock.patch function to return None
         with mock.patch('shutil.which') as mock_which:
             with mock.patch('os.getenv') as mock_getenv:

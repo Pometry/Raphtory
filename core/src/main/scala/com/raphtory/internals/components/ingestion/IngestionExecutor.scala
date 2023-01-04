@@ -30,8 +30,8 @@ private[raphtory] class IngestionExecutor[F[_], T](
 
   private val partitioner = Partitioner(conf)
 
-  def run(): F[Unit] =
-    for {
+  def run(): F[Unit] = {
+    val stats = for {
       _           <- F.delay(logger.debug("Running ingestion executor"))
       globalStats <- Ref.of(SourceStats(Long.MaxValue, Long.MinValue, 0L))
       _           <- stream
@@ -40,13 +40,25 @@ private[raphtory] class IngestionExecutor[F[_], T](
                            _          <- sendUpdates(updates)
                            localStats <- SourceStats.fromUpdates(updates)
                            _          <- globalStats.update(stats => stats.add(localStats))
+                           // TODO: update totalTuplesProcessed here
                          } yield ()
                        )
                        .compile
                        .drain
       stats       <- globalStats.get
       _           <- queryService.endIngestion(EndIngestion(graphID, sourceID, stats.earliestTime, stats.highestSeen))
-    } yield totalTuplesProcessed.inc() // TODO: wtf is this?
+    } yield stats
+
+    stats.onError(e =>
+      for {
+        earliestTimeSeen <- source.earliestTimeSeen().handleError(_ => Long.MaxValue)
+        highestTimeSeen  <- source.highestTimeSeen().handleError(_ => Long.MinValue)
+        _                <- queryService.endIngestion(
+                                    EndIngestion(graphID, source.sourceID, earliestTimeSeen, highestTimeSeen)
+                            )
+      } yield ()
+    )
+  }
 
   private def sendUpdates(updates: Seq[GraphUpdate]): F[Unit] =
     for {

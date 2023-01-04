@@ -174,7 +174,7 @@ python-versions = "*"
 
 [[package]]
 name = "pyraphtory-jvm"
-version = "0.1.2"
+version = "0.1.3"
 description = "Bootstrap JRE and IVY installer for Pyraphtory"
 category = "main"
 optional = false
@@ -423,7 +423,7 @@ py4j = [
     {file = "py4j-0.10.9.7.tar.gz", hash = "sha256:0b6e5315bb3ada5cf62ac651d107bb2ebc02def3dee9d9548e3baac644ea8dbb"},
 ]
 pyraphtory-jvm = [
-    {file = "pyraphtory_jvm-0.1.2.tar.gz", hash = "sha256:4de5344d0d625045d5eb1663bded50a52c6b6ce169600666ad45e324add55ab3"},
+    {file = "pyraphtory_jvm-0.1.3.tar.gz", hash = "sha256:a0f22b35de1610f1e24f4058bb1742a58a2d9cd9423fe3d088a8f2db305c9cd3"},
 ]
 pytest = [
     {file = "pytest-7.2.0-py3-none-any.whl", hash = "sha256:892f933d339f068883b6fd5a459f03d85bfcb355e4981e146d2c7616c21fef71"},

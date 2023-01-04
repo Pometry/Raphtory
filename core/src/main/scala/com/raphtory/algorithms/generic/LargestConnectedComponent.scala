@@ -6,7 +6,7 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 
-object LargestConnectedComponent extends Generic {
+object LargestConnectedComponent extends GraphState(Seq("lcc")) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     ConnectedComponents
@@ -15,7 +15,5 @@ object LargestConnectedComponent extends Generic {
       .step { (vertex, state) =>
         state("components") += (vertex.getState[Long]("cclabel"), 1)
       }
-
-  override def tabularise(graph: GraphPerspective): Table =
-    graph.globalSelect(state => Row(state("components").value.asInstanceOf[Counter[Long]].largest._2))
+      .setGlobalState(state => state.newConstant[Long]("lcc",state("components").value.asInstanceOf[Counter[Long]].largest._2))
 }

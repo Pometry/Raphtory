@@ -1,4 +1,4 @@
-name: Run the scala and python tests
+name: Run scala & python test
 on:
   push:
     branches:
@@ -10,5 +10,8 @@ on:
 jobs:
   call-test-scala-python-workflow-in-local-repo:
     uses: ./.github/workflows/test_scala_python_workflow.yml
+    secrets: inherit
+  integration-test-workflow:
+    uses: ./.github/workflows/test_integration_on_release.yml
     secrets: inherit
 
