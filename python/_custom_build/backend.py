@@ -25,12 +25,12 @@ jre_folder = package_folder / "jre"
 
 
 def build_sdist(sdist_directory, config_settings=None):
-    make_python_build()
+    make_python_build(lib_folder)
     return _orig.build_sdist(sdist_directory, config_settings)
 
 
 def setup_wheel_dependencies():
-    make_python_build()
+    make_python_build(lib_folder)
     java_bin = check_system_dl_java(jre_folder)
     get_and_run_ivy(java_bin, build_folder / "ivy_data", lib_folder, package_folder / "ivy")
 
