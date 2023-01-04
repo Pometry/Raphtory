@@ -43,7 +43,6 @@ class Row(ScalaClassProxy):
 class PropertyMergeStrategy(ScalaClassProxy):
     _classname = "com.raphtory.api.analysis.visitor.PropertyMergeStrategy"
 
-
 @register(name="Graph")
 class Graph(GenericScalaProxy):
     _classname = "com.raphtory.api.input.Graph"
