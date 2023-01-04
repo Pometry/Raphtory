@@ -21,6 +21,14 @@ jobs:
           export RAPHTORY_CORE_LOG=DEBUG 
           export RAPHTORY_ITEST_PATH=./it/target/scala-2.13/test-classes
           sudo -E sbt "it/testOnly *.algorithms.*"
+      - name: Check the containers
+        if: always()
+        run: |
+          docker logs raphtory2_cluster_1
+          docker logs raphtory2_partition_1
+          docker logs raphtory2_partition_2
+          docker logs raphtory2_ingestion_1
+          docker logs raphtory2_query_1
       - name: Stop Docker compose
         if: always()
         run: |
