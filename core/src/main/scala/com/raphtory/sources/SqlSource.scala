@@ -1,107 +1,104 @@
 package com.raphtory.sources
 
 import cats.effect.Async
+import cats.effect.Resource
 import cats.syntax.all._
+import com.raphtory.api.input.MutableInteger
+import com.raphtory.api.input.MutableLong
+import com.raphtory.api.input.MutableString
+import com.raphtory.api.input.Property
 import com.raphtory.api.input.Source
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
+import com.raphtory.sources.SqlSource.isInt
+import com.raphtory.sources.SqlSource.isLong
+import com.raphtory.sources.SqlSource.isString
 import com.typesafe.scalalogging.Logger
-import doobie._
-import doobie.implicits._
-import doobie.util.transactor.Transactor.Aux
 import org.slf4j.LoggerFactory
 
-import scala.util.Random
+import java.sql.ResultSet
+import java.sql.ResultSetMetaData
+import java.sql.Types
+
+object ResultSetStream {
+
+  def apply[F[_]](rs: ResultSet, extractor: ResultSet => GraphUpdate)(implicit
+      F: Async[F]
+  ): fs2.Stream[F, GraphUpdate] =
+    fs2.Stream
+      .repeatEval(F.delay(if (rs.next) Some(extractor.apply(rs)) else None))
+      .collectWhile { case Some(update) => update }
+
+  //fs2.Stream.repeatEval
+}
 
 abstract class SqlSource(
     conn: SqlConnection,
-    query: String,
-    numColumns: Int
+    query: String
 ) extends Source {
-  import SqlSource._
 
-  override def makeStream[F[_]: Async]: F[fs2.Stream[F, Seq[GraphAlteration.GraphUpdate]]] = {
-    val xa             = conn.establish[F]()
-    val viewName       = s"raphtory_view_${Random.nextLong().abs}"
+  override def makeStream[F[_]](implicit F: Async[F]): F[fs2.Stream[F, Seq[GraphAlteration.GraphUpdate]]] = {
     val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
+    val resultSet = for {
+      cn <- Resource.fromAutoCloseable(F.delay(conn.establish()))
+      rs <- Resource.fromAutoCloseable(F.delay(cn.createStatement().executeQuery(buildSelectQuery(query))))
+    } yield rs
+
     for {
-      _                <- Update(s"create view $viewName as ($query)").run(()).transact(xa)
-      _                <- Async[F].delay(logger.debug(s"view $viewName for query '$query' created"))
-      columns          <-
-        HC.stream[Column](
-                s"select column_name, data_type from INFORMATION_SCHEMA.COLUMNS where UPPER(table_name) = '${viewName.toUpperCase}'",
-                ().pure[PreparedStatementIO],
-                512
-        ).transact(xa)
-          .compile
-          .toList
-      upperCaseColumns <-
-        Async[F].delay(columns.map(col => Column(col.column_name.toUpperCase, col.data_type.toUpperCase)))
-      _                <- Async[F].delay(validateColumns(upperCaseColumns, logger))
-      tuples            = queryStringTuples(viewName, xa).evalTap(tuple => Async[F].delay(s"tuple: $tuple"))
-      updates           = parseTuples(tuples, upperCaseColumns).evalTap(update => Async[F].delay(s"update: $update"))
-    } yield updates.chunks.map(_.toVector)
+      resultSetAlloc <- resultSet.allocated
+      (rs, releaseRs) = resultSetAlloc
+      columnTypes     = getColumnTypes(rs.getMetaData)
+      _              <- F.delay(validateTypes(columnTypes))
+      extractor       = buildExtractor(columnTypes)
+      stream         <- fs2.Stream
+                          .iterate(0)(_ + 1)
+                          .evalMap(index => F.delay(if (rs.next()) Some(extractor.apply(rs, index)) else None))
+                          .collectWhile { case Some(update) => update }
+                          .chunks
+                          .map(_.toVector)
+                          .onFinalize(releaseRs)
+                          .pure[F]
+      // TODO we need to release rs if something goes wrong before defining the stream!!!!!
+    } yield stream
   }
 
-  private def queryStringTuples[F[_]: Async](viewName: String, xa: Aux[F, Unit]): fs2.Stream[F, List[String]] = {
-    val select = buildSelectQuery(viewName)
-    val query  = selectNColumns(numColumns)
-    query.build(select).transact(xa).map(_.productIterator.toList.asInstanceOf[List[String]])
+  private def getColumnTypes(metadata: ResultSetMetaData): Map[String, Int] = {
+    val indexes = 1 to metadata.getColumnCount
+    indexes.map(index => (metadata.getColumnName(index).toUpperCase, metadata.getColumnType(index))).toMap
   }
 
-  private def validateColumns(columns: List[Column], logger: Logger): Unit = {
-    val columnNamesInTable = columns.map(_.column_name)
-    val expectedColumns    = expectedColumnTypes.keys.toList
-    logger.debug(s"Validating view with columns: $columnNamesInTable")
-    expectedColumns foreach { column =>
-      assert(columnNamesInTable contains column, s"Column '$column' not found in the result of the query")
+  private def validateTypes(columnTypes: Map[String, Int]): Unit =
+    expectedColumnTypes foreach {
+      case (column, types) =>
+        assert(types contains columnTypes(column), s"Data type for column '$column' not supported")
     }
-    columns filter (column => expectedColumns contains column.column_name) foreach { column =>
-      assert(
-              expectedColumnTypes(column.column_name) contains column.data_type,
-              s"Data type for column ${column.column_name} not supported"
-      )
-    }
-  }
 
-  // TODO: abstract this more -> return just a list of columns to query
-  protected def buildSelectQuery(viewName: String): String
-  protected def expectedColumnTypes: Map[String, List[String]]
+  private def buildSelectQuery(query: String): String =
+    s"select ${expectedColumns.mkString(",")} from ($query)"
 
-  protected def parseTuples[F[_]](
-      tuples: fs2.Stream[F, List[String]],
-      columns: List[Column]
-  ): fs2.Stream[F, GraphUpdate]
+  protected def getPropertyBuilder(index: Int, column: String, columnTypes: Map[String, Int]): ResultSet => Property =
+    if (isInt(columnTypes(column))) { (rs: ResultSet) => MutableInteger(column, rs.getInt(index)) }
+    else if (isLong(columnTypes(column))) { (rs: ResultSet) => MutableLong(column, rs.getLong(index)) }
+    else if (isString(columnTypes(column))) { (rs: ResultSet) => MutableString(column, rs.getString(index)) }
+    else throw new IllegalStateException(s"Unexpected type '${columnTypes(column)}' for column '$column'")
+
+  protected def expectedColumns: List[String]
+  protected def expectedColumnTypes: Map[String, List[Int]]
+  protected def buildExtractor(columnTypes: Map[String, Int]): (ResultSet, Long) => GraphUpdate // TODO use this
 }
 
 private[raphtory] object SqlSource {
-  case class Column(column_name: String, data_type: String)
+  val intTypes: List[Int]      = List(Types.TINYINT, Types.SMALLINT, Types.INTEGER)
+  val longTypes: List[Int]     = List(Types.BIGINT)
+  val integerTypes: List[Int]  = intTypes ++ longTypes
+  val stringTypes: List[Int]   = List(Types.CHAR, Types.VARCHAR, Types.LONGVARCHAR)
+  val timeTypes: List[Int]     = List(Types.TIMESTAMP)
+  val idTypes: List[Int]       = integerTypes ++ stringTypes
+  val epochTypes: List[Int]    = integerTypes ++ timeTypes
+  val propertyTypes: List[Int] = integerTypes ++ stringTypes
 
-  case class QueryBuilder[T: Read]() {
-    def build(query: String): fs2.Stream[ConnectionIO, T] = HC.stream[T](query, ().pure[PreparedStatementIO], 512)
-  }
-  val integerTypes: List[String] = List("SMALLINT", "MEDIUMINT", "INT", "INTEGER", "BIGINT")
-  val stringTypes: List[String]             = List("CHARACTER", "VARCHAR", "CHARACTER VARYING")
-  val idTypes: List[String]                 = integerTypes ++ stringTypes
-  val epochTypes: List[String]              = integerTypes ++ List("TIMESTAMP")
-  val allTypes: List[String]                = integerTypes ++ stringTypes ++ List("TIMESTAMP")
-  private def sel[T: Read]: QueryBuilder[T] = QueryBuilder[T]
-
-  def selectNColumns(n: Int) =
-    n match {
-      case 2  => sel[(String, String)]
-      case 3  => sel[(String, String, String)]
-      case 4  => sel[(String, String, String, String)]
-      case 5  => sel[(String, String, String, String, String)]
-      case 6  => sel[(String, String, String, String, String, String)]
-      case 7  => sel[(String, String, String, String, String, String, String)]
-      case 8  => sel[(String, String, String, String, String, String, String, String)]
-      case 9  => sel[(String, String, String, String, String, String, String, String, String)]
-      case 10 => sel[(String, String, String, String, String, String, String, String, String, String)]
-      case 11 => sel[(String, String, String, String, String, String, String, String, String, String, String)]
-      case 12 => sel[(String, String, String, String, String, String, String, String, String, String, String, String)]
-      case 13 =>
-        sel[(String, String, String, String, String, String, String, String, String, String, String, String, String)]
-    }
+  def isInt(tp: Int)    = intTypes contains tp
+  def isLong(tp: Int)   = longTypes contains tp
+  def isString(tp: Int) = stringTypes contains tp
 }

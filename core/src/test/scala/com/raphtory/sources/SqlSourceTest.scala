@@ -1,12 +1,9 @@
 package com.raphtory.sources
 
-import cats.effect.Async
 import cats.effect.IO
 import cats.effect.Resource
 import com.raphtory.internals.graph.GraphAlteration.EdgeAdd
 import com.raphtory.internals.graph.GraphAlteration.VertexAdd
-import doobie.util.transactor.Transactor
-import doobie.util.transactor.Transactor.Aux
 import munit.CatsEffectSuite
 
 import java.sql.Connection
@@ -19,8 +16,10 @@ class SqlSourceTest extends CatsEffectSuite {
 
   case class TestSqlConnection() extends SqlConnection {
 
-    override def establish[F[_]: Async](): Aux[F, Unit] =
-      Transactor.fromDriverManager[F]("org.h2.Driver", "jdbc:h2:mem:test")
+    override def establish(): Connection = {
+      Class.forName("org.h2.Driver")
+      DriverManager.getConnection(s"jdbc:h2:mem:test")
+    }
   }
 
   private val conn = TestSqlConnection()
@@ -56,7 +55,6 @@ class SqlSourceTest extends CatsEffectSuite {
       _           <- IO(assertEquals(updates.size, 3))
       _           <- IO(testPairs foreach { case (expected, actual) => assertEquals(expected, actual) })
     } yield ()
-
   }
 
   test("SqlVertexSource ingest vertices from SQL table") {

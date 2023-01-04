@@ -1,11 +1,10 @@
 package com.raphtory.sources
 
-import cats.effect.Async
-import doobie.util.transactor.Transactor
-import doobie.util.transactor.Transactor.Aux
+import java.sql.Connection
+import java.sql.DriverManager
 
 trait SqlConnection {
-  def establish[F[_]: Async](): Aux[F, Unit]
+  def establish(): Connection
 }
 
 case class PostgresConnection(
@@ -16,13 +15,16 @@ case class PostgresConnection(
     port: Int = 5432
 ) extends SqlConnection {
 
-  override def establish[F[_]: Async](): Aux[F, Unit] =
-    Transactor
-      .fromDriverManager[F]("org.postgresql.Driver", s"jdbc:postgresql://$address:$port/$database", user, password)
+  override def establish(): Connection = {
+    Class.forName("org.postgresql.Driver")
+    DriverManager.getConnection(s"jdbc:postgresql://$address:$port/$database", user, password)
+  }
 }
 
 case class SqLiteConnection(filepath: String) extends SqlConnection {
 
-  override def establish[F[_]: Async](): Aux[F, Unit] =
-    Transactor.fromDriverManager[F]("SQLite.JDBCDriver", s"jdbc:sqlite:$filepath")
+  override def establish(): Connection = {
+    Class.forName("SQLite.JDBCDriver")
+    DriverManager.getConnection(s"jdbc:sqlite:$filepath")
+  }
 }
