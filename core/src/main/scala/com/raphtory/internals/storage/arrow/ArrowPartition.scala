@@ -27,15 +27,12 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
 
   def vertexCount: Int = par.getVertexMgr.getTotalNumberOfVertices.toInt
 
-  val min: LongAccumulator = new LongAccumulator(Math.min(_, _), Long.MaxValue)
-  val max: LongAccumulator = new LongAccumulator(Math.max(_, _), Long.MinValue)
-
   val partitionServers: Int    = conf.getInt("raphtory.partitions.serverCount")
   val partitionsPerServer: Int = conf.getInt("raphtory.partitions.countPerServer")
   val totalPartitions: Int     = partitionServers * partitionsPerServer
 
-  val nWorkers               = 8
-  val queueSize              = 8192
+  val nWorkers               = 1
+  val queueSize              = 8192 * 16
   val workers: Array[Worker] = Array.tabulate(nWorkers)(i => new Worker(i, par, conf))
 
   val disruptors: Array[Disruptor[QueuePayload]] = Array.tabulate(nWorkers) { i =>
@@ -46,7 +43,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
 
   val queues = Array.tabulate(nWorkers)(i => disruptors(i).start)
 
-  override def flush(): Unit = {
+  override def flush: Unit = {
     var finished = false
     while (!finished) {
       finished = true
@@ -78,14 +75,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     }
 
   def windowVertices(start: Long, end: Long): View[Vertex] =
-    if (start <= min.longValue() && end >= max.longValue())
-      vertices // don't bother filtering if the interval is greater than min and max
-    else
-      new AbstractView[Vertex] {
-
-        override def iterator: Iterator[Vertex] =
-          new ArrowPartition.VertexIterator(par.getNewWindowedVertexIterator(start, end))
-      }
+    View.fromIteratorProvider(() => new ArrowPartition.VertexIterator(par.getNewWindowedVertexIterator(start, end)))
 
   private def vmgr: VertexPartitionManager = par.getVertexMgr
   private def emgr: EdgePartitionManager   = par.getEdgeMgr
