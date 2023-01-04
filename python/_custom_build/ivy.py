@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import os
 import tempfile
 from download import safe_download_file, Link
 from pathlib import Path
@@ -36,7 +38,8 @@ def get_and_run_ivy(java: str | Path, ivy_folder: str | Path, lib_folder: str | 
 
         logging.info(
             f"IVY dl dir: {download_dir}, input dir: {ivy_folder}, lib dir: {lib_folder}")
-        retrieve = str(lib_folder) + "/[conf]/[artifact]-[type]-[revision].[ext]"
+        retrieve = str(lib_folder) + "/[conf]/[artifact]-[type].[ext]"
+        # retrieve = "."
         for fname in ivy_folder.glob("*.xml"):
             subprocess.check_call(
                 [str(java), "-jar", ivy_jar, "-ivy", str(fname), "-retrieve", retrieve, "-confs", "runtime"])
