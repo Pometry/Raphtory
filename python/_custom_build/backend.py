@@ -29,13 +29,15 @@ def build_sdist(sdist_directory, config_settings=None):
     return _orig.build_sdist(sdist_directory, config_settings)
 
 
-def get_java_dependencies():
+def setup_wheel_dependencies():
+    make_python_build()
     java_bin = check_system_dl_java(jre_folder)
     get_and_run_ivy(java_bin, build_folder / "ivy_data", lib_folder, package_folder / "ivy")
 
+
 def build_wheel(wheel_directory, config_settings: dict=None, metadata_directory=None):
     print(sys.path)
-    get_java_dependencies()
+    setup_wheel_dependencies()
 
     # make wheel platform-specific as the jre downloaded will be different
     if config_settings is not None:
@@ -48,6 +50,5 @@ def build_wheel(wheel_directory, config_settings: dict=None, metadata_directory=
 
 
 def build_editable(wheel_directory, config_settings=None, metadata_directory=None):
-    make_python_build()
-    get_java_dependencies()
+    setup_wheel_dependencies()
     return _orig.build_editable(wheel_directory, config_settings, metadata_directory)
