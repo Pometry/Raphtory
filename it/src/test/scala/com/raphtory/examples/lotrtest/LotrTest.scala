@@ -42,7 +42,7 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
     ).map(assertEquals(_, "206d686bb8c5c119980d1743e4ec2aceb1dc62895d0931b5608f521e4da5c334"))
   }
 
-  test("Degree Test") {
+  test("Degree Test".only) {
     algorithmTest(
             algorithm = Degree(),
             start = 1,

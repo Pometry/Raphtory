@@ -38,10 +38,8 @@ private[raphtory] class Worker(private val _id: Int, _rap: RaphtoryArrowPartitio
   override def onEvent(av: QueuePayload, l: Long, b: Boolean): Unit =
     av match {
       case QueuePayload(vAdd: GraphAlteration.VertexAdd) =>
-//        println(vAdd)
         addVertex(vAdd)
       case QueuePayload(eAdd: GraphAlteration.EdgeAdd)   =>
-//        println(eAdd)
         addLocalEdge(eAdd)
     }
 
@@ -51,6 +49,13 @@ private[raphtory] class Worker(private val _id: Int, _rap: RaphtoryArrowPartitio
     while ({ dstId = _rap.getLocalEntityIdStore.getLocalNodeId(av.dstId); dstId } == -1L) {
       Thread.`yield`() // we expect dst should show up eventually
     }
+
+
+    if (srcId == vipVertexId || dstId == vipVertexId) {
+      if (av.updateTime >= 9501 && av.updateTime < 10001)
+        println(s"ADDING EDGE FOR ARAGORN ${av.updateTime}")
+    }
+
     // Check if edge already exists...
     var e          = -1L
     var edge: Edge = null
@@ -82,8 +87,9 @@ private[raphtory] class Worker(private val _id: Int, _rap: RaphtoryArrowPartitio
     e.init(_lastEdgeId, true, time)
     e.resetEdgeData(srcId, dstId, false, false)
 
-    addOrUpdateEdgeProps(time, e, properties)
     // add properties here
+    addOrUpdateEdgeProps(time, e, properties)
+
     _aepm.addEdge(e, -1L, -1L)
     val ep = _aepm.getPartition(_aepm.getPartitionId(e.getLocalId))
     ep.addHistory(e.getLocalId, time, true, true)
@@ -101,7 +107,9 @@ private[raphtory] class Worker(private val _id: Int, _rap: RaphtoryArrowPartitio
     _lastEdgeId += 1
   }
 
+  private var vipVertexId:Long = -1L;
   private def addVertex(av: VertexAdd): Unit = {
+
     if (_lastVertexId == -1L || _lastVertexId >= _endVertexId) {
       val partId = _avpm.getNewPartitionId
       _lastVertexId = partId * _avpm.PARTITION_SIZE
@@ -109,6 +117,13 @@ private[raphtory] class Worker(private val _id: Int, _rap: RaphtoryArrowPartitio
     }
     val localId = _rap.getLocalEntityIdStore.getLocalNodeId(av.srcId)
     if (localId == -1L) {
+
+
+      av.properties.properties.collectFirst { case ImmutableString("name", value) if value == "Aragorn" => value } match {
+        case Some(_) => vipVertexId = _lastVertexId
+        case _ =>
+      }
+
       createVertex(_lastVertexId, av.srcId, av.updateTime, av.properties).decRefCount()
       _lastVertexId += 1
     }
