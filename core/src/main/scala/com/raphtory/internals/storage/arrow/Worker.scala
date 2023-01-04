@@ -9,52 +9,51 @@ import com.raphtory.api.input.MutableInteger
 import com.raphtory.api.input.MutableLong
 import com.raphtory.api.input.MutableString
 import com.raphtory.api.input.Properties
-import com.raphtory.arrowcore.implementation.{EdgeIterator, EdgePartition, EntityFieldAccessor, RaphtoryArrowPartition, VertexIterator, VertexPartition}
+import com.raphtory.arrowcore.implementation.EdgeIterator
+import com.raphtory.arrowcore.implementation.EdgePartition
+import com.raphtory.arrowcore.implementation.EntityFieldAccessor
+import com.raphtory.arrowcore.implementation.RaphtoryArrowPartition
+import com.raphtory.arrowcore.implementation.VertexIterator
+import com.raphtory.arrowcore.implementation.VertexPartition
 import com.raphtory.arrowcore.model.Edge
 import com.raphtory.arrowcore.model.Entity
 import com.raphtory.arrowcore.model.Vertex
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.internals.graph.GraphAlteration.VertexAdd
-import com.raphtory.internals.management.Partitioner
 import com.typesafe.config.Config
 
 private[raphtory] class Worker(private val _id: Int, _rap: RaphtoryArrowPartition, conf: Config)
         extends EventHandler[QueuePayload] {
 
-  private val partitioner                        = Partitioner(conf)
-  _vertexIter2 = _rap.getNewAllVerticesIterator
-  private var _lastVertexId                      = -1L
-  private var _endVertexId                       = -1L
-  private var _lastEdgeId                        = -1L
-  private var _endEdgeId                         = -1L
-  final private var _vertexIter2: VertexIterator = _rap.getNewAllVerticesIterator
-  private val _avpm                              = _rap.getVertexMgr
-  private val _aepm                              = _rap.getEdgeMgr
-  private var vertexCount                        = 0L
-  private var edgeCount                          = 0L
+  private var _lastVertexId                = -1L
+  private var _endVertexId                 = -1L
+  private var _lastEdgeId                  = -1L
+  private var _endEdgeId                   = -1L
+  private val _vertexIter2: VertexIterator = _rap.getNewAllVerticesIterator
+  private val _avpm                        = _rap.getVertexMgr
+  private val _aepm                        = _rap.getEdgeMgr
+  private var vertexCount                  = 0L
+  private var edgeCount                    = 0L
 
   @throws[Exception]
   override def onEvent(av: QueuePayload, l: Long, b: Boolean): Unit =
     av match {
-      case QueuePayload(vAdd: GraphAlteration.VertexAdd) =>
+      case QueuePayload(vAdd: GraphAlteration.VertexAdd, _)                    =>
         addVertex(vAdd)
-      case QueuePayload(eAdd: GraphAlteration.EdgeAdd)   =>
+      case QueuePayload(eAdd: GraphAlteration.EdgeAdd, EdgeDirection.NaN)      =>
         addLocalEdge(eAdd)
+      case QueuePayload(eAdd: GraphAlteration.EdgeAdd, EdgeDirection.Outgoing) =>
+        addRemoteOutgoingEdge(eAdd)
+      case QueuePayload(eAdd: GraphAlteration.EdgeAdd, EdgeDirection.Incoming) =>
+        addRemoteIncomingEdge(eAdd)
     }
 
   private def addLocalEdge(av: GraphAlteration.EdgeAdd): Unit = {
     val srcId = _rap.getLocalEntityIdStore.getLocalNodeId(av.srcId)
     var dstId = 0L
-    while ({ dstId = _rap.getLocalEntityIdStore.getLocalNodeId(av.dstId); dstId } == -1L) {
+    while ({ dstId = _rap.getLocalEntityIdStore.getLocalNodeId(av.dstId); dstId } == -1L)
       Thread.`yield`() // we expect dst should show up eventually
-    }
-
-
-    if (srcId == vipVertexId || dstId == vipVertexId) {
-      if (av.updateTime >= 9501 && av.updateTime < 10001)
-        println(s"ADDING EDGE FOR ARAGORN ${av.updateTime}")
-    }
 
     // Check if edge already exists...
     var e          = -1L
@@ -74,6 +73,105 @@ private[raphtory] class Worker(private val _id: Int, _rap: RaphtoryArrowPartitio
       _avpm.addHistory(iter.getSrcVertexId, av.updateTime, true, false, e, true)
       _avpm.addHistory(iter.getDstVertexId, av.updateTime, true, false, e, false)
     }
+  }
+
+  private def addRemoteIncomingEdge(av: GraphAlteration.EdgeAdd): Unit = {
+    val srcId = av.srcId
+    val dstId = _rap.getLocalEntityIdStore.getLocalNodeId(av.dstId)
+
+    // Check if edge already exists...
+    var e          = -1L
+    var edge: Edge = null
+    _vertexIter2.reset(dstId)
+    val iter       = _vertexIter2.findAllIncomingEdges(srcId, true)
+    if (iter.hasNext) {
+      e = iter.next
+      edge = iter.getEdge
+    }
+    ///System.out.println(av._globalId + "," + av._dstGlobalId + ", " + (e!=null));
+    if (e == -1L)
+      addRemoteIncomingEdge(srcId, dstId, av.updateTime, av.properties)
+    else {
+      addOrUpdateEdgeProps(av.updateTime, edge, av.properties)
+      _aepm.addHistory(e, av.updateTime, true, true)
+      _avpm.addHistory(iter.getDstVertexId, av.updateTime, true, false, e, false)
+    }
+  }
+
+  private def addRemoteOutgoingEdge(av: GraphAlteration.EdgeAdd): Unit = {
+    val srcId = _rap.getLocalEntityIdStore.getLocalNodeId(av.srcId)
+
+    val dstId      = av.dstId
+    // Check if edge already exists...
+    var e          = -1L
+    var edge: Edge = null
+    _vertexIter2.reset(srcId)
+    val iter       = _vertexIter2.findAllOutgoingEdges(dstId, true)
+    if (iter.hasNext) {
+      e = iter.next
+      edge = iter.getEdge
+    }
+
+    if (e == -1L)
+      addRemoteOutgoingEdge(srcId, dstId, av.updateTime, av.properties)
+    else {
+      addOrUpdateEdgeProps(av.updateTime, edge, av.properties)
+      _aepm.addHistory(e, av.updateTime, true, true)
+      _avpm.addHistory(iter.getSrcVertexId, av.updateTime, true, false, e, true)
+    }
+  }
+
+  private def addRemoteOutgoingEdge(srcId: Long, dstId: Long, time: Long, properties: Properties): Unit = {
+    if (_lastEdgeId == -1L || _lastEdgeId >= _endEdgeId) {
+      val partId = _aepm.getNewPartitionId
+      _lastEdgeId = partId * _aepm.PARTITION_SIZE
+      _endEdgeId = _lastEdgeId + _aepm.PARTITION_SIZE
+    }
+    val e = _rap.getEdge
+    e.incRefCount()
+    e.init(_lastEdgeId, true, time)
+    e.resetEdgeData(srcId, dstId, false, true)
+
+    // add properties here
+    addOrUpdateEdgeProps(time, e, properties)
+
+    _aepm.addEdge(e, -1L, -1L)
+    val ep = _aepm.getPartition(_aepm.getPartitionId(e.getLocalId))
+    ep.addHistory(e.getLocalId, time, true, true)
+    val p  = _avpm.getPartitionForVertex(srcId)
+    ep.setOutgoingEdgePtrByEdgeId(
+            e.getLocalId,
+            p.addOutgoingEdgeToList(e.getSrcVertex, e.getLocalId, e.getDstVertex, true)
+    )
+    p.addHistory(srcId, time, true, false, e.getLocalId, true)
+    e.decRefCount()
+    edgeCount += 1
+    _lastEdgeId += 1
+  }
+
+  private def addRemoteIncomingEdge(srcId: Long, dstId: Long, time: Long, properties: Properties): Unit = {
+    if (_lastEdgeId == -1L || _lastEdgeId >= _endEdgeId) {
+      val partId = _aepm.getNewPartitionId
+      _lastEdgeId = partId * _aepm.PARTITION_SIZE
+      _endEdgeId = _lastEdgeId + _aepm.PARTITION_SIZE
+    }
+    val e = _rap.getEdge
+    e.incRefCount()
+    e.init(_lastEdgeId, true, time)
+    e.resetEdgeData(srcId, dstId, true, false)
+
+    // add properties here
+    addOrUpdateEdgeProps(time, e, properties)
+
+    _aepm.addEdge(e, -1L, -1L)
+    val ep = _aepm.getPartition(_aepm.getPartitionId(e.getLocalId))
+    ep.addHistory(e.getLocalId, time, true, true)
+    val p = _avpm.getPartitionForVertex(dstId)
+    ep.setIncomingEdgePtrByEdgeId(e.getLocalId, p.addIncomingEdgeToList(e.getDstVertex, e.getLocalId, e.getSrcVertex))
+    p.addHistory(dstId, time, true, false, e.getLocalId, false)
+    e.decRefCount()
+    edgeCount += 1
+    _lastEdgeId += 1
   }
 
   private def addLocalEdge(srcId: Long, dstId: Long, time: Long, properties: Properties): Unit = {
@@ -107,7 +205,8 @@ private[raphtory] class Worker(private val _id: Int, _rap: RaphtoryArrowPartitio
     _lastEdgeId += 1
   }
 
-  private var vipVertexId:Long = -1L;
+  private var vipVertexId: Long = -1L;
+
   private def addVertex(av: VertexAdd): Unit = {
 
     if (_lastVertexId == -1L || _lastVertexId >= _endVertexId) {
@@ -118,10 +217,11 @@ private[raphtory] class Worker(private val _id: Int, _rap: RaphtoryArrowPartitio
     val localId = _rap.getLocalEntityIdStore.getLocalNodeId(av.srcId)
     if (localId == -1L) {
 
-
-      av.properties.properties.collectFirst { case ImmutableString("name", value) if value == "Aragorn" => value } match {
+      av.properties.properties.collectFirst {
+        case ImmutableString("name", value) if value == "Aragorn" => value
+      } match {
         case Some(_) => vipVertexId = _lastVertexId
-        case _ =>
+        case _       =>
       }
 
       createVertex(_lastVertexId, av.srcId, av.updateTime, av.properties).decRefCount()
@@ -162,7 +262,7 @@ private[raphtory] class Worker(private val _id: Int, _rap: RaphtoryArrowPartitio
   )(lookupField: String => Int): Unit =
     properties.properties.foreach {
       case ImmutableString(key, value) =>
-        val FIELD    = lookupField(key.toLowerCase())
+        val FIELD                         = lookupField(key.toLowerCase())
         val accessor: EntityFieldAccessor = e.getField(FIELD)
         accessor.set(new java.lang.StringBuilder(value))
       case MutableString(key, value)   =>
@@ -199,4 +299,12 @@ private[raphtory] class Worker(private val _id: Int, _rap: RaphtoryArrowPartitio
 
 }
 
-case class QueuePayload(var graphUpdate: GraphUpdate)
+sealed trait EdgeDirection
+
+object EdgeDirection {
+
+  case object NaN      extends EdgeDirection
+  case object Outgoing extends EdgeDirection
+  case object Incoming extends EdgeDirection
+}
+case class QueuePayload(var graphUpdate: GraphUpdate, var direction: EdgeDirection)

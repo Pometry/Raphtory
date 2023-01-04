@@ -27,6 +27,18 @@ private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, co
   override def addVertex(vAdd: VertexAdd): Unit =
     addVertex(vAdd.updateTime, vAdd.index, vAdd.srcId, vAdd.properties, vAdd.vType)
 
+  override def addOutgoingEdge(eAdd: EdgeAdd): Unit =
+    eAdd match {
+      case EdgeAdd(sourceID, updateTime, index, srcId, dstId, properties, eType) =>
+        addOutgoingEdge(updateTime, index, srcId, dstId, properties, eType)
+    }
+
+  override def addIncomingEdge(eAdd: EdgeAdd): Unit =
+    eAdd match {
+      case EdgeAdd(sourceID, updateTime, index, srcId, dstId, properties, eType) =>
+        addIncomingEdge(updateTime, index, srcId, dstId, properties, eType)
+    }
+
   override def addLocalEdge(
       msgTime: Long,
       index: Long,
