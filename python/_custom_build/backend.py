@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 from setuptools import build_meta as _orig
 import sys
 from packaging import tags
