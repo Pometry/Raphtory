@@ -24,7 +24,7 @@ private[raphtory] class IngestionExecutor[F[_], T](
   def run(): F[Unit] =
     for {
       _                <- F.delay(logger.debug("Running ingestion executor"))
-      _                <- source.elements(totalTuplesProcessed) // process elements here
+      _                <- source.processTuples(totalTuplesProcessed) // process elements here
       earliestTimeSeen <- source.earliestTimeSeen()
       highestTimeSeen  <- source.highestTimeSeen()
       _                <- queryService.endIngestion(

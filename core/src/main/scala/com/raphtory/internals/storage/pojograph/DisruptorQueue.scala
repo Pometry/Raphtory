@@ -207,7 +207,7 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
 
   private def getQueue(vId: Long) = queues(Math.abs(vId % N_LOAD_THREADS).toInt)
 
-  def forwardAddVertexReqToHandler(
+  def addAddVertexReqToQueue(
       msgTime: Long,
       index: Long,
       vId: Long,
@@ -221,7 +221,7 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
     q.publish(sequenceId)
   }
 
-  def forwardAddEdgeReqToHandler(
+  def addAddEdgeReqToQueue(
       msgTime: Long,
       index: Long,
       vId: Long,
@@ -238,7 +238,7 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
     q.publish(sequenceId)
   }
 
-  def fetchVertices(
+  def getVertices(
       start: Long,
       end: Long,
       f: (Long, PojoVertex) => (Long, PojoExVertex)
@@ -252,6 +252,22 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
     }
   }
     .reduce(_ ++ _)
+
+  def flush(): Unit = {
+    var finished = false
+    while (!finished) {
+      finished = true
+
+      (0 until N_LOAD_THREADS).foreach { i =>
+        if (queues(i).remainingCapacity() != QUEUE_SIZE)
+          finished = false
+      }
+
+      if (!finished) Thread.sleep(10L)
+    }
+
+    (0 until N_LOAD_THREADS).foreach(i => disruptors(i).halt())
+  }
 }
 
 private[pojograph] object DisruptorQueue {
@@ -267,7 +283,7 @@ private[pojograph] object DisruptorQueue {
 
   final case object RemoteIncomingEdge extends EdgeToCreate
 
-  final private case class VertexAddEvent(
+  final private[DisruptorQueue] case class VertexAddEvent(
       private[pojograph] var msgTime: Long = -1L,
       private[pojograph] var index: Long = -1L,
       private[pojograph] var srcId: Long = -1L,
@@ -316,7 +332,7 @@ private[pojograph] object DisruptorQueue {
 
   }
 
-  private object VertexAddEvent {
+  private[DisruptorQueue] object VertexAddEvent {
 
     final val EVENT_FACTORY =
       new EventFactory[VertexAddEvent] {

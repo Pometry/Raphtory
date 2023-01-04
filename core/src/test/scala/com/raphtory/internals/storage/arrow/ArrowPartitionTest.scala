@@ -15,10 +15,10 @@ import java.time.{Duration, LocalDateTime}
 import java.util.zip.GZIPInputStream
 
 class ArrowPartitionTest extends FunSuite {
-  test("how fast can we load from one single gzipped file on a single Arrow Partition") {
+  test("how fast can we load from one single gzipped file on a single Arrow Partition".ignore) {
 
-    val file   = "/pometry/wip/alphabay_sorted.csv.gz"
-    val parOut = Paths.get("/pometry/wip/scala_arrow_data")
+    val file   = "/tmp/alphabay/data/alphabay_sorted.csv.gz"
+    val parOut = Paths.get("/tmp/alphabay/arrow")
     val br     = new BufferedReader(new InputStreamReader(new GZIPInputStream(new FileInputStream(file), 65536)), 65536);
 
     val config    = ConfigBuilder.getDefaultConfig

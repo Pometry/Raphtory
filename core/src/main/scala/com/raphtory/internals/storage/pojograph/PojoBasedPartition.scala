@@ -22,8 +22,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, co
             s"To change this modify '$hasDeletionsPath' in the application conf."
   )
 
-  private val disruptorQueue = DisruptorQueue(graphID, partitionID)
-  import disruptorQueue._
+  private val q = DisruptorQueue(graphID, partitionID)
 
   // If the add come with some properties add all passed properties into the entity
   override def addVertex(
@@ -34,7 +33,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, co
       properties: Properties,
       vertexType: Option[Type]
   ): Unit =
-    forwardAddVertexReqToHandler(msgTime, index, srcId, properties, vertexType)
+    q.addAddVertexReqToQueue(msgTime, index, srcId, properties, vertexType)
 
   override def addVertex(vAdd: VertexAdd): Unit = {
     val VertexAdd(sourceID, updateTime, index, srcId, properties, vType) = vAdd
@@ -51,19 +50,19 @@ private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, co
       edgeType: Option[Type]
   ): Unit = {
     // Create or revive the src vertex
-    forwardAddVertexReqToHandler(msgTime, index, srcId, Properties(), None)
+    q.addAddVertexReqToQueue(msgTime, index, srcId, Properties(), None)
     logger.trace(s"Src ID: $srcId created and revived")
 
     // Create or revive the dst vertex
     if (srcId != dstId) {
-      forwardAddVertexReqToHandler(msgTime, index, dstId, Properties(), None)
+      q.addAddVertexReqToQueue(msgTime, index, dstId, Properties(), None)
 
       val edge = new PojoEdge(msgTime, index, srcId, dstId, initialValue = true)
-      forwardAddEdgeReqToHandler(msgTime, index, srcId, srcId, dstId, properties, edgeType, LocalOutgoingEdge(edge))
-      forwardAddEdgeReqToHandler(msgTime, index, dstId, srcId, dstId, properties, edgeType, LocalIncomingEdge(edge))
+      q.addAddEdgeReqToQueue(msgTime, index, srcId, srcId, dstId, properties, edgeType, LocalOutgoingEdge(edge))
+      q.addAddEdgeReqToQueue(msgTime, index, dstId, srcId, dstId, properties, edgeType, LocalIncomingEdge(edge))
     }
     else
-      forwardAddEdgeReqToHandler(msgTime, index, srcId, srcId, dstId, properties, edgeType, LocalEdge)
+      q.addAddEdgeReqToQueue(msgTime, index, srcId, srcId, dstId, properties, edgeType, LocalEdge)
   }
 
   override def addLocalEdge(eAdd: EdgeAdd): Unit = {
@@ -81,10 +80,10 @@ private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, co
       edgeType: Option[Type]
   ): Unit = {
     // Create or revive the src vertex
-    forwardAddVertexReqToHandler(msgTime, index, srcId, Properties(), None)
+    q.addAddVertexReqToQueue(msgTime, index, srcId, Properties(), None)
     logger.trace(s"Src ID: $srcId created and revived")
 
-    forwardAddEdgeReqToHandler(msgTime, index, srcId, srcId, dstId, properties, edgeType, RemoteOutgoingEdge)
+    q.addAddEdgeReqToQueue(msgTime, index, srcId, srcId, dstId, properties, edgeType, RemoteOutgoingEdge)
   }
 
   override def addIncomingEdge(
@@ -97,10 +96,10 @@ private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, co
       edgeType: Option[Type]
   ): Unit = {
     // Create or revive the src vertex
-    forwardAddVertexReqToHandler(msgTime, index, dstId, Properties(), None)
+    q.addAddVertexReqToQueue(msgTime, index, dstId, Properties(), None)
     logger.trace(s"Dst ID: $srcId created and revived")
 
-    forwardAddEdgeReqToHandler(msgTime, index, dstId, srcId, dstId, properties, edgeType, RemoteIncomingEdge)
+    q.addAddEdgeReqToQueue(msgTime, index, dstId, srcId, dstId, properties, edgeType, RemoteIncomingEdge)
   }
 
   override def getVertices(
@@ -108,9 +107,11 @@ private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, co
       start: Long,
       end: Long
   ): mutable.Map[Long, PojoExVertex] =
-    fetchVertices(
+    q.getVertices(
             start,
             end,
             (id: Long, vertex: PojoVertex) => (id, vertex.viewBetween(start, end, lens.asInstanceOf[PojoGraphLens]))
     )
+
+  override def flush: Unit = q.flush()
 }
