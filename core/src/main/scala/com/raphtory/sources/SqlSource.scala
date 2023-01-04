@@ -20,18 +20,6 @@ import java.sql.ResultSet
 import java.sql.ResultSetMetaData
 import java.sql.Types
 
-object ResultSetStream {
-
-  def apply[F[_]](rs: ResultSet, extractor: ResultSet => GraphUpdate)(implicit
-      F: Async[F]
-  ): fs2.Stream[F, GraphUpdate] =
-    fs2.Stream
-      .repeatEval(F.delay(if (rs.next) Some(extractor.apply(rs)) else None))
-      .collectWhile { case Some(update) => update }
-
-  //fs2.Stream.repeatEval
-}
-
 abstract class SqlSource(
     conn: SqlConnection,
     query: String
@@ -54,9 +42,9 @@ abstract class SqlSource(
       stream         <- fs2.Stream
                           .iterate(0)(_ + 1)
                           .evalMap(index => F.delay(if (rs.next()) Some(extractor.apply(rs, index)) else None))
-                          .collectWhile { case Some(update) => update }
+                          .collectWhile { case Some(updates) => updates }
                           .chunks
-                          .map(_.toVector)
+                          .map(_.toVector.flatten)
                           .onFinalize(releaseRs)
                           .pure[F]
       // TODO we need to release rs if something goes wrong before defining the stream!!!!!
@@ -85,7 +73,7 @@ abstract class SqlSource(
 
   protected def expectedColumns: List[String]
   protected def expectedColumnTypes: Map[String, List[Int]]
-  protected def buildExtractor(columnTypes: Map[String, Int]): (ResultSet, Long) => GraphUpdate // TODO use this
+  protected def buildExtractor(columnTypes: Map[String, Int]): (ResultSet, Long) => Vector[GraphUpdate]
 }
 
 private[raphtory] object SqlSource {
@@ -98,7 +86,7 @@ private[raphtory] object SqlSource {
   val epochTypes: List[Int]    = integerTypes ++ timeTypes
   val propertyTypes: List[Int] = integerTypes ++ stringTypes
 
-  def isInt(tp: Int)    = intTypes contains tp
-  def isLong(tp: Int)   = longTypes contains tp
-  def isString(tp: Int) = stringTypes contains tp
+  def isInt(tp: Int): Boolean    = intTypes contains tp
+  def isLong(tp: Int): Boolean   = longTypes contains tp
+  def isString(tp: Int): Boolean = stringTypes contains tp
 }

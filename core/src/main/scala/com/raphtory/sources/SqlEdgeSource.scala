@@ -7,6 +7,7 @@ import com.raphtory.api.input.Source
 import com.raphtory.internals.communication.SchemaProviderInstances._
 import com.raphtory.internals.graph.GraphAlteration.EdgeAdd
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
+import com.raphtory.internals.graph.GraphAlteration.VertexAdd
 
 import java.sql.ResultSet
 
@@ -29,21 +30,44 @@ class SqlEdgeSource(
   private val sourcePropertyCols = sourceProperties.map(col => col.toUpperCase)
   private val targetPropertyCols = targetProperties.map(col => col.toUpperCase)
 
-  override protected def buildExtractor(columnTypes: Map[String, Int]): (ResultSet, Long) => GraphUpdate = {
+  override protected def buildExtractor(columnTypes: Map[String, Int]): (ResultSet, Long) => Vector[GraphUpdate] = {
     val sourceIsInteger                                   = integerTypes contains columnTypes(sourceCol)
     val targetIsInteger                                   = integerTypes contains columnTypes(targetCol)
     val timeIsInteger                                     = integerTypes contains columnTypes(timeCol)
-    val edgePropertyIndexes                               = 4 until (4 + edgePropertyCols.size)
+    val sendSource                                        = sourcePropertyCols.nonEmpty
+    val sendTarget                                        = targetPropertyCols.nonEmpty
+    val edgePropertiesStart                               = 4
+    val sourcePropertiesStart                             = edgePropertiesStart + edgePropertyCols.size
+    val targetPropertiesStart                             = sourcePropertiesStart + sourcePropertyCols.size
+    val targetPropertiesEnd                               = targetPropertiesStart + targetPropertyCols.size
+    val edgePropertyIndexes                               = edgePropertiesStart until sourcePropertiesStart
+    val sourcePropertyIndexes                             = sourcePropertiesStart until targetPropertiesStart
+    val targetPropertyIndexes                             = targetPropertiesStart until targetPropertiesEnd
     val edgePropertyBuilders: List[ResultSet => Property] = edgePropertyCols zip edgePropertyIndexes map {
       case (col, index) => getPropertyBuilder(index, col, columnTypes)
     }
-
+    val sourcePropertyBuilders                            = sourcePropertyCols zip sourcePropertyIndexes map {
+      case (col, index) => getPropertyBuilder(index, col, columnTypes)
+    }
+    val targetPropertyBuilders                            = targetPropertyCols zip targetPropertyIndexes map {
+      case (col, index) => getPropertyBuilder(index, col, columnTypes)
+    }
     (rs: ResultSet, index: Long) => {
       val sourceId       = if (sourceIsInteger) rs.getLong(1) else Graph.assignID(rs.getString(1))
       val targetId       = if (targetIsInteger) rs.getLong(2) else Graph.assignID(rs.getString(2))
       val epoch          = if (timeIsInteger) rs.getLong(3) else rs.getTimestamp(3).getTime
       val edgeProperties = edgePropertyBuilders map (_.apply(rs))
-      EdgeAdd(epoch, index, sourceId, targetId, Properties(edgeProperties: _*), None)
+      val edge           = Vector(EdgeAdd(epoch, index, sourceId, targetId, Properties(edgeProperties: _*), None))
+      val source         =
+        if (sendSource)
+          Vector(VertexAdd(epoch, index, sourceId, Properties(sourcePropertyBuilders.map(_.apply(rs)): _*), None))
+        else Vector()
+      val target         =
+        if (sendTarget)
+          Vector(VertexAdd(epoch, index, targetId, Properties(targetPropertyBuilders.map(_.apply(rs)): _*), None))
+        else Vector()
+
+      edge ++ source ++ target
     }
   }
 

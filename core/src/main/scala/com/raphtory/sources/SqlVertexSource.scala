@@ -18,7 +18,7 @@ class SqlVertexSource(conn: SqlConnection, query: String, id: String, time: Stri
   private val timeCol      = time.toUpperCase
   private val propertyCols = properties.map(col => col.toUpperCase)
 
-  override protected def buildExtractor(columnTypes: Map[String, Int]): (ResultSet, Long) => GraphUpdate = {
+  override protected def buildExtractor(columnTypes: Map[String, Int]): (ResultSet, Long) => Vector[GraphUpdate] = {
     val idIsInteger                                   = integerTypes contains columnTypes(idCol)
     val timeIsInteger                                 = integerTypes contains columnTypes(timeCol)
     // TODO: write this so we don't rely on writing '3' appropriately and also in the edge source
@@ -31,7 +31,7 @@ class SqlVertexSource(conn: SqlConnection, query: String, id: String, time: Stri
       val id         = if (idIsInteger) rs.getLong(1) else Graph.assignID(rs.getString(1))
       val epoch      = if (timeIsInteger) rs.getLong(2) else rs.getTimestamp(2).getTime
       val properties = propertyBuilders map (_.apply(rs))
-      VertexAdd(epoch, index, id, Properties(properties: _*), None)
+      Vector(VertexAdd(epoch, index, id, Properties(properties: _*), None))
     }
   }
 
