@@ -1,4 +1,4 @@
-FROM hseeberger/scala-sbt:eclipse-temurin-11.0.14.1_1.6.2_2.13.8 as sbt-builder
+FROM sbtscala/scala-sbt:eclipse-temurin-11.0.17_8_1.8.1_2.13.10 as python-build
 COPY core core/
 COPY examples examples/
 COPY project project/
@@ -16,21 +16,13 @@ COPY setup.cfg setup.cfg
 COPY MANIFEST.in MANIFEST.in
 RUN apt update
 RUN apt install -y make wget unzip
-RUN make sbt-build
-
-FROM eclipse-temurin:11.0.15_10-jdk as python-build
-RUN apt update
 RUN apt install -y python3 python3-pip python3-distutils
 RUN apt install -y python3-venv
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-COPY --from=sbt-builder /root/python python
-COPY Makefile Makefile
-COPY version version
-COPY pyproject.toml pyproject.toml
-COPY setup.cfg setup.cfg
-COPY MANIFEST.in MANIFEST.in
-RUN make python-build -W sbt-build
+RUN make clean python-build
+
+
 
 # =============================
 FROM eclipse-temurin:11.0.17_8-jre-jammy as raphtory-core
@@ -39,7 +31,6 @@ RUN apt install -y python3 libpython3.10
 RUN ln -s /usr/lib/x86_64-linux-gnu/libpython3.10.so.1 /usr/lib/x86_64-linux-gnu/libpython3.so
 RUN mkdir -p /raphtory/jars
 RUN mkdir -p /raphtory/bin
-RUN mkdir -p /raphtory/data
 RUN mkdir -p /tmp
 COPY bin/docker/raphtory/bin /raphtory/bin
 COPY --from=python-build /opt/venv /opt/venv
