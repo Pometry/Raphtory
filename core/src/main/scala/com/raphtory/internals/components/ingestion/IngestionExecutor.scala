@@ -28,10 +28,7 @@ private[raphtory] class IngestionExecutor[F[_], T](
       earliestTimeSeen <- source.earliestTimeSeen()
       highestTimeSeen  <- source.highestTimeSeen()
       ingestion = EndIngestion(graphID, source.sourceID, earliestTimeSeen, highestTimeSeen)
-      _ = println(s"HERE YOU GO ${ingestion}")
-      _                <- queryService.endIngestion(
-                                  ingestion
-                          )
+      _                <- queryService.endIngestion(ingestion)
     } yield totalTuplesProcessed.inc()
     res.onError(e => for {
       earliestTimeSeen <- source.earliestTimeSeen().handleError(_ => Long.MaxValue)

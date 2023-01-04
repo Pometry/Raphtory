@@ -48,6 +48,18 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
   override def addVertex(vAdd: VertexAdd): Unit =
     addVertex(vAdd.sourceID, vAdd.updateTime, vAdd.index, vAdd.srcId, vAdd.properties, vAdd.vType)
 
+  override def addOutgoingEdge(eAdd: EdgeAdd): Unit =
+    eAdd match {
+      case EdgeAdd(sourceID, updateTime, index, srcId, dstId, properties, eType) =>
+        addOutgoingEdge(sourceID, updateTime, index, srcId, dstId, properties, eType)
+    }
+
+  override def addIncomingEdge(eAdd: EdgeAdd): Unit =
+    eAdd match {
+      case EdgeAdd(sourceID, updateTime, index, srcId, dstId, properties, eType) =>
+        addIncomingEdge(sourceID, updateTime, index, srcId, dstId, properties, eType)
+    }
+
   // TODO Unfolding of type is un-necessary
   def addVertexInternal(
       msgTime: Long,
@@ -195,4 +207,5 @@ private[raphtory] class PojoBasedPartition(graphID: String, partition: Int, conf
           (id, vertex.viewBetween(start, end, lenz))
       }.seq
     }
+
 }

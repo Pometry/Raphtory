@@ -50,6 +50,8 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
   ): Unit
 
   def addLocalEdge(vAdd: EdgeAdd): Unit
+  def addOutgoingEdge(eAdd: EdgeAdd): Unit
+  def addIncomingEdge(eAdd: EdgeAdd): Unit
 
   // This method should assume that the dstId belongs to another partition
   def addOutgoingEdge(

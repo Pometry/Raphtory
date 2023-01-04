@@ -32,15 +32,8 @@ object TestUtils {
 
   def generateTestHash(outputDirectory: String, jobId: String): String = {
     val results = getResults(outputDirectory, jobId)
-    results.toVector.sortBy{
-      line =>
-        val cols = line.split(",")
-        (cols(0).toInt, cols(1).toInt, cols(2))
-    }.foreach(println)
-//    results.foreach(println)
     val hash = resultsHash(results)
     logger.info(s"Generated hash code: '$hash'.")
-
     hash
   }
 
