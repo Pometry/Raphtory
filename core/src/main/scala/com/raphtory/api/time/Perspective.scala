@@ -16,6 +16,9 @@ trait Perspective {
   /** Latest time point included in the view */
   val actualEnd: Long
 
+  /** Time taken to process this perspective */
+  val processingTime: Long
+
   /** Depending on the users query if the output should be formatted as a date */
   val formatAsDate: Boolean
 

@@ -68,9 +68,9 @@ class QueryProgressTracker private[raphtory] (
         perspectiveTime = System.currentTimeMillis
         perspectivesProcessed = perspectivesProcessed + 1
 
-        latestPerspective = Some(perspective)
-        perspectivesList.addOne(perspective)
-        perspectivesDurations.addOne(perspectiveDuration)
+        val perspectiveWithTime = perspective.copy(processingTime = perspectiveDuration)
+        latestPerspective = Some(perspectiveWithTime)
+        perspectivesList.addOne(perspectiveWithTime)
 
         logger.info(s"Job $jobID: Running query, processed $perspectivesProcessed perspectives.")
 

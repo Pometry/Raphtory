@@ -165,6 +165,12 @@ object JsonFormat {
   /** Python companion object */
   def apply() = new JsonFormat()
 
+  /** JsonFormat level that creates one JSON object per row */
+  def rowLevel() = new JsonFormat(JsonFormat.ROW)
+
+  /** JsonFormat level that creates one global JSON object per partition */
+  def globalLevel() = new JsonFormat(JsonFormat.GLOBAL)
+
   /** The level to use for creating JSON objects */
   sealed trait Level
 

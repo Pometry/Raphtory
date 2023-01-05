@@ -3,14 +3,14 @@ package com.raphtory.api.progresstracker
 import com.raphtory.api.time.Perspective
 import com.raphtory.protocol.QueryUpdate
 
+import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.ListBuffer
 
 abstract class ProgressTracker(jobID: String) {
 
-  var jobDone: Boolean                          = false
-  var latestPerspective: Option[Perspective]    = None
-  val perspectivesList: ListBuffer[Perspective] = new ListBuffer[Perspective]()
-  val perspectivesDurations: ListBuffer[Long]   = new ListBuffer[Long]()
+  protected var jobDone: Boolean                           = false
+  protected var latestPerspective: Option[Perspective]     = None
+  protected val perspectivesList: ArrayBuffer[Perspective] = new ArrayBuffer[Perspective]()
 
   /** Returns job identifier for the query
     * @return job identifier
@@ -25,15 +25,12 @@ abstract class ProgressTracker(jobID: String) {
   /** Returns list of perspectives processed for the query so far
     * @return a list of perspectives
     */
-  final def getPerspectivesProcessed: List[Perspective] = perspectivesList.toList
-
-  /** Returns the time taken to process each perspective in milliseconds */
-  final def getPerspectiveDurations: List[Long] = perspectivesDurations.toList
+  final def getPerspectivesProcessed: Array[Perspective] = perspectivesList.toArray
 
   /** Checks if job is complete
     * @return job status
     */
   def isJobDone: Boolean = jobDone
 
-  def handleQueryUpdate(msg: QueryUpdate): Unit = {}
+  private[raphtory] def handleQueryUpdate(msg: QueryUpdate): Unit = {}
 }
