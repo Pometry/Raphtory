@@ -191,9 +191,7 @@ package object arrow {
         override def list: View[(P, Long)] =
           try {
             val FIELD    = v.getRaphtory.getEdgePropertyId(name.toLowerCase())
-            val iterator = v.getPropertyHistory(FIELD)
-
-            View.fromIteratorProvider(() => new PropertyIterator(iterator)).flatten
+            View.fromIteratorProvider(() => new PropertyIterator(v.getPropertyHistory(FIELD))).flatten
           }
           catch {
             case _: IllegalArgumentException =>

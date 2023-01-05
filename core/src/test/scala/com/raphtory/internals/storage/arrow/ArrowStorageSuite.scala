@@ -138,6 +138,36 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   }
 
+  test("edges with no properties should have .. not properties".ignore) {
+
+    val par: ArrowPartition = mkPartition(1, 0)
+    val timestamp           = System.currentTimeMillis()
+
+    // add bob
+    addVertex(3, timestamp, None, ImmutableString("name", "Bob"))(par)
+    // add alice
+    addVertex(7, timestamp, None, ImmutableString("name", "Alice"))(par)
+    // add edge
+    par.addLocalEdge(
+            3,
+            timestamp,
+            -1,
+            3,
+            7,
+            Properties(),
+            None
+    )
+
+    par.flush
+
+    val edgeProps = par.vertices.flatMap { v =>
+      v.outgoingEdges.flatten(e => e.prop[Long]("weight").list.take(2).toVector).toVector
+    }.toVector
+
+    assertEquals(edgeProps, Vector.empty)
+
+  }
+
   test("add edge between two vertices locally") {
 
     val par: ArrowPartition = mkPartition(1, 0)
@@ -161,14 +191,14 @@ class ArrowStorageSuite extends munit.FunSuite {
     )
 
     par.flush
-    val vs = par.vertices.toList
+    val vs         = par.vertices.toList
     assertEquals(vs.size, 2)
     val names      = par.vertices.flatMap(v => v.field[String]("name").get.map(name => v.getGlobalId -> name)).toSet
     assertEquals(names, Set(3L -> "Bob", 7L -> "Alice"))
 
     val neighbours = vs.flatMap {
       case v if v.field[String]("name").get.contains("Bob")   =>
-        v.outgoingEdges.flatMap(e => e.field[String]("name").get.map(name => e.getDstVertex-> name)).toList
+        v.outgoingEdges.flatMap(e => e.field[String]("name").get.map(name => e.getDstVertex -> name)).toList
       case v if v.field[String]("name").get.contains("Alice") =>
         v.incomingEdges.flatMap(e => e.field[String]("name").get.map(name => e.getSrcVertex -> name)).toList
     }
@@ -218,10 +248,7 @@ class ArrowStorageSuite extends munit.FunSuite {
 
     par.flush
     val bob  = par.vertices.head
-    val edge = bob
-    .outgoingEdges
-    .flatMap{e => e.history(timestamp, timestamp+1).toVector}
-    .toVector
+    val edge = bob.outgoingEdges.flatMap(e => e.history(timestamp, timestamp + 1).toVector).toVector
 
     assertEquals(
             edge,
@@ -231,11 +258,7 @@ class ArrowStorageSuite extends munit.FunSuite {
             )
     )
 
-
-    val edgeMAX = bob
-    .outgoingEdges
-    .flatMap{e => e.history(Long.MinValue, Long.MaxValue).toVector}
-    .toVector
+    val edgeMAX = bob.outgoingEdges.flatMap(e => e.history(Long.MinValue, Long.MaxValue).toVector).toVector
 
     assertEquals(
             edgeMAX,
