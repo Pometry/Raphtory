@@ -9,8 +9,6 @@ from collections.abc import Iterable, Mapping
 import os
 
 from typing import *
-from py4j.java_gateway import JavaObject, JavaClass
-from py4j.java_collections import JavaArray
 import cloudpickle as pickle
 from functools import cached_property
 from threading import Lock, RLock
@@ -53,14 +51,6 @@ def check_raphtory_logging_env():
     if log_level is None:
         os.environ["RAPHTORY_CORE_LOG"] = "ERROR"
 
-
-# stay sane while debugging this code
-JavaArray.__repr__ = repr
-JavaArray.__str__ = repr
-JavaObject.__repr__ = repr
-JavaObject.__str__ = repr
-JavaClass.__repr__ = repr
-JavaClass.__str__ = repr
 
 try:
     from pemja import findClass
@@ -112,8 +102,7 @@ def _isJPrimitive(obj):
 def is_PyJObject(obj):
     """Needed because Pemja objects do not support isinstance"""
     return (type(obj).__name__ == "PyJObject"
-            or (isinstance(obj, JObject) and not _isJPrimitive(obj))
-            or isinstance(obj, JavaObject) or isinstance(obj, JavaClass))
+            or (isinstance(obj, JObject) and not _isJPrimitive(obj)))
 
 
 def snake_to_camel(name: str):

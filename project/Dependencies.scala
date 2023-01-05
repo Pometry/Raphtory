@@ -2,7 +2,7 @@ import sbt._
 
 object Dependencies {
   private lazy val bcelVersion                     = "6.5.0"
-  private lazy val catsEffectVersion               = "3.3.12"
+  private lazy val catsEffectVersion               = "3.3.14"
   private lazy val chillVersion                    = "0.10.0"
   private lazy val curatorVersion                  = "5.4.0"
   private lazy val declineVersion                  = "2.3.0"
@@ -42,8 +42,8 @@ object Dependencies {
   private lazy val scalaReflectVersion             = "2.13.8"
   private lazy val scalaTestFunSuiteVersion        = "3.2.12"
   private lazy val objenesisVersion                = "3.3"
-  private lazy val flightCoreVersion               = "8.0.0"
-  private lazy val nettyVersion                    = "4.1.72.Final"
+  private lazy val flightCoreVersion               = "9.0.0"
+  private lazy val nettyVersion                    = "4.1.78.Final"
   private lazy val arrowVersion                    = "9.0.0"
   private lazy val chronicleMapVersion             = "3.21.86"
   private lazy val fastUtilVersion                 = "8.5.6"
