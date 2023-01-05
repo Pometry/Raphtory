@@ -63,6 +63,18 @@ python-dist: python-dist-clean
 	python -m build
 
 
+.PHONY: python-sdist
+python-sdist: python-dist-clean
+	python -m pip install -q build
+	python -m build --sdist
+
+
+.PHONY: python-wheel
+python-wheel: python-dist-clean
+	python -m pip install -q build
+	python -m build --wheel
+
+
 .PHONY: python-dist-clean
 python-dist-clean:
 	rm -rf dist
