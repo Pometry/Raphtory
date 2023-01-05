@@ -172,6 +172,11 @@ setup-python-test:
 	python -m pip install ".[test]"
 
 
+.PHONY: setup-python-docs
+setup-python-docs:
+	python -m pip install ".[docs]"
+
+
 .PHONY: python-test
 python-test:
 	pytest python/build_tests

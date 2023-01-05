@@ -80,7 +80,7 @@ jobs:
       - name: Build Raphtory jars, Setup Python, Install pyraphtory
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH
-          make setup-python
+          make setup-python-docs
       - name: Run doc compile check
         run: | 
           export PATH=$(pwd)/sbt/bin:$PATH
