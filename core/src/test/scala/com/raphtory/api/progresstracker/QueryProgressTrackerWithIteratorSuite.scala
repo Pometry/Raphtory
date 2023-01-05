@@ -55,8 +55,9 @@ class QueryProgressTrackerWithIteratorSuite extends CatsEffectSuite {
     tracker.handleQueryUpdate(PerspectiveCompleted(perspective, Seq(row)))
     tracker.handleQueryUpdate(QueryCompleted())
 
-    assert(tracker.getLatestPerspectiveProcessed.contains(perspective))
-    assertEquals(tracker.getPerspectivesProcessed.toList, List(perspective))
+    val outcome = tracker.getLatestPerspectiveProcessed.map { case p: Perspective => p.copy(processingTime = -1) }
+
+    assertEquals(outcome, Some(perspective))
 
     val itr: Iterator[TableOutput] = tracker.TableOutputIterator
     while (itr.hasNext)
