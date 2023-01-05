@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 import tempfile
 import shutil
+import os
 
 
 SOURCES = {

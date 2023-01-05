@@ -19,7 +19,7 @@ get_requires_for_build_editable = _orig.get_requires_for_build_editable
 
 platform = get_platform_tag()
 build_folder = Path(__file__).resolve().parent
-package_folder = build_folder.parent / "pyraphtory"
+package_folder = build_folder.parent / "src" / "pyraphtory"
 
 lib_folder = package_folder / "lib"
 jre_folder = package_folder / "jre"

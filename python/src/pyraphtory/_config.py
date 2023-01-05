@@ -1,43 +1,44 @@
 import os
 from pathlib import Path
-from importlib.resources import files, as_file
-from typing import Iterable
-
+from importlib.resources import files
 import pyraphtory
-import atexit
-from itertools import chain
+import logging
+import shutil
+
+
+def get_java_home() -> Path:
+    logging.info("Getting JAVA_HOME")
+    home = os.getenv('JAVA_HOME')
+    if home is not None:
+        return Path(home)
+    elif shutil.which('java') is not None:
+        logging.info(f'JAVA_HOME not found. But java found. Detecting home...')
+        # resolve JAVA_HOME in case it is a symlink
+        home = Path(shutil.which('java')).resolve().parents[1]
+        os.environ["JAVA_HOME"] = str(home)
+        return home
+    else:
+        raise FileNotFoundError("JAVA_HOME has not been set, java was also not found")
 
 
 def get_local_jre_loc() -> Path:
     if os.environ.get("PYRAPHTORY_USE_SYSTEM_JAVA", ""):
-        return Path(os.environ["JAVA_HOME"])
+        return get_java_home()
     else:
-        manager = as_file(files(pyraphtory) / "jre")
-        jre = manager.__enter__()
+        jre = files(pyraphtory) / "jre"
+        if not isinstance(jre, Path):
+            raise RuntimeError("Pyraphtory is not installed correctly, are you trying to import from a compressed file?")
 
-        def cleanup():
-            manager.__exit__(None, None, None)
-
-        atexit.register(cleanup)
         os.environ["JAVA_HOME"] = str(jre)
         return jre
 
 
 def get_ivy_jars_from_local_lib():
-    manager = as_file(files(pyraphtory) / "lib")
-    # just in case these are not actually files for some reason
-    lib = manager.__enter__()
+    lib = files(pyraphtory) / "lib"
+    if not isinstance(lib, Path):
+        raise RuntimeError("Pyraphtory is not installed correctly, are you trying to import from a compressed file?")
 
-    def cleanup():
-        manager.__exit__(None, None, None)
-
-    atexit.register(cleanup)
     jars = ":".join(str(f) for f in lib.rglob("*.jar"))
-    # ivy_lib_dir = str(Path(ivy_folder).parent)+'/lib/compile'
-    # jars_to_get = []
-    # for file in Path(ivy_lib_dir).rglob("*.jar"):
-    #     jars_to_get.append(str(file))
-    # jars_to_get = ':'.join(set(jars_to_get))
     return jars
 
 

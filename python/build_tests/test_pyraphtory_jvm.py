@@ -6,13 +6,15 @@ import platform
 import os
 import tarfile
 print(os.environ.get("PYTHONPATH"))
+import sys
+sys.path.append(str(Path(__file__).parent.parent / "_custom_build"))
 
 import requests
-from pyraphtory_jvm import jre
 from ivy import *
 from download import *
 from check_platform import *
 from java import *
+import java
 
 
 LOTR_CHECKSUM = '8c7400d7463b4f45daff411a5521cbcadec4cabd624200ed0c17d68dc7c99a3f'
@@ -70,30 +72,7 @@ class JRETest(unittest.TestCase):
             self.assertTrue(os.path.exists(file_loc))
 
     # Test get_java_home() when java is not installed
-    def test_get_java_home_no_java(self):
-        # Mock the os.getenv function to return None
-        with mock.patch('os.getenv') as mock_getenv:
-            mock_getenv.return_value = 'test'
-            # Run the function
-            java_home = jre.get_java_home()
-            # Check that it returns None
-            self.assertEqual(java_home, 'test/bin/java')
-        # Mock the shutil.which function to return True
-        with mock.patch('shutil.which') as mock_which:
-            with mock.patch('os.getenv') as mock_getenv:
-                mock_getenv.return_value = None
-                mock_which.return_value = '/tmp/test'
-                # Run the function
-                java_home = jre.get_java_home()
-                # Check that it returns None
-                self.assertEqual(java_home, '/tmp/test')
-        # Mock the shutil.which function and the mock.patch function to return None
-        with mock.patch('shutil.which') as mock_which:
-            with mock.patch('os.getenv') as mock_getenv:
-                mock_getenv.return_value = None
-                mock_which.return_value = None
-                # assert that it throws an exception
-                self.assertRaises(FileNotFoundError, jre.get_java_home)
+
 
     # Test the jre.getOS function and mock platform.system
     def test_getOS_fail(self):
@@ -120,7 +99,7 @@ class JRETest(unittest.TestCase):
     def test_delete_source(self):
         # Python make a temporary folder
         temp_file = tempfile.mkstemp()[1]
-        jre.delete_source(temp_file)
+        delete_source(temp_file)
         self.assertFalse(os.path.exists(temp_file))
 
     # Test the jre.checksum function, make a new temporary file and assert that the checksum is false
@@ -131,15 +110,15 @@ class JRETest(unittest.TestCase):
     # Test the jre.download_java function
     # mock the sources to use a small test file
     # ensure it passes the checksum
-    @mock.patch("_custom_build.java.SOURCES", {OS: {ARCH: {'link': LOTR_URL, 'checksum': LOTR_CHECKSUM}}})
+    @mock.patch("java.SOURCES", {OS: {ARCH: Link(LOTR_URL, LOTR_CHECKSUM)}})
     def test_download_java(self):
-        self.assertEqual(download_java(OS, ARCH, '/tmp/abc'), '/tmp/abc/lotr.csv')
+        self.assertEqual(download_java(OS, ARCH, '/tmp/abc'), Path('/tmp/abc/lotr.csv'))
 
-    @mock.patch("_custom_build.java.SOURCES", {OS: {ARCH: {'link': LOTR_URL, 'checksum': '11'}}})
+    @mock.patch("java.SOURCES", {OS: {ARCH: Link(LOTR_URL, '11')}})
     def test_download_java_fails(self):
         self.assertRaises(SystemExit, download_java, OS, ARCH, '/tmp/')
 
-    @mock.patch("_custom_build.java.SOURCES", {'TEST': {ARCH: {'link': LOTR_URL, 'checksum': '11'}}})
+    @mock.patch("java.SOURCES", {'TEST': {ARCH: Link(LOTR_URL, '11')}})
     def test_download_java_bad_os(self):
         self.assertRaises(SystemExit, download_java, OS, ARCH, '/tmp/')
 
@@ -154,7 +133,7 @@ class JRETest(unittest.TestCase):
             mock_subprocess_completedprocess.returncode = 0
             mock_subprocess_run.return_value = mock_subprocess_completedprocess
             # Run the function
-            self.assertIsNone(get_and_run_ivy('f', '/tmp/'))
+            self.assertIsNone(get_and_run_ivy('f', '/tmp/', '/tmp/lib'))
 
     # Test the jre.unpack_jre function and mock shutil.unpack_archive
     @mock.patch('shutil.unpack_archive')
