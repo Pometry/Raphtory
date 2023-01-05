@@ -9,7 +9,6 @@ class ScalaAlgorithm(GenericScalaProxy):
 class Alignment(ScalaClassProxy):
     _classname = "com.raphtory.api.analysis.graphview.Alignment"
 
-
 class PyAlgorithm(object):
     """
     Base class for algorithms implemented in python
