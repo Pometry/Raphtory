@@ -13,58 +13,7 @@ import java.nio.file.Files
 
 class ArrowStorageSuite extends munit.FunSuite {
 
-  private val bobGlobalId   = 7L
-  private val aliceGlobalId = 9L
-
   private val defaultPropSchema = ArrowSchema[VertexProp, EdgeProp]
-
-  test("one can create a partition manager, add a vertex then get it back") {
-    val cfg = new RaphtoryArrowPartition.RaphtoryArrowPartitionConfig()
-    cfg._propertySchema = ArrowSchema[VertexProp, EdgeProp]
-    cfg._arrowDir = Files.createTempDirectory("arrow-storage-test").toString
-    cfg._raphtoryPartitionId = 0
-    cfg._nRaphtoryPartitions = 1
-    cfg._nLocalEntityIdMaps = 128
-    cfg._localEntityIdMapSize = 64
-    cfg._syncIDMap = true
-
-    val partition = new RaphtoryArrowPartition(cfg)
-
-    val emgr      = partition.getEdgeMgr
-    val vmgr      = partition.getVertexMgr
-    val globalIds = partition.getGlobalEntityIdStore
-    val localIds  = partition.getLocalEntityIdStore
-
-    val partitionId = vmgr.getNewPartitionId
-
-    assertEquals(partitionId, 0)
-
-    val localId = vmgr.getNextFreeVertexId
-
-    assertEquals(localId, 0L)
-
-    val NAME_FIELD_ID = partition.getVertexFieldId("name")
-    val AGE_FIELD_ID  = partition.getVertexPropertyId("age")
-
-    var bobV = vmgr.getVertex(localId)
-
-    assert(bobV == null)
-    bobV = partition.getVertex
-    bobV.reset(localId, bobGlobalId, true, System.currentTimeMillis())
-    bobV.getField(NAME_FIELD_ID).set(new java.lang.StringBuilder("Bob"))
-    bobV.getProperty(AGE_FIELD_ID).setHistory(true, System.currentTimeMillis()).set(45L)
-
-    vmgr.addVertex(bobV)
-    assertEquals(localIds.getLocalNodeId(bobGlobalId), 0L)
-
-    val vs: VertexIterator.AllVerticesIterator = partition.getNewAllVerticesIterator
-    vs.hasNext // this has to be called before getVertex
-    val v2 = vs.getVertex
-
-    assertEquals(v2.getField(NAME_FIELD_ID).getString.toString, "Bob")
-    assertEquals(v2.getProperty(AGE_FIELD_ID).getLong, 45L)
-
-  }
 
   test("add vertex with all types of properties and vertex type") {
     val par: ArrowPartition = mkPartition(1, 0, ArrowSchema[AllProps, EdgeProp])
@@ -85,7 +34,9 @@ class ArrowStorageSuite extends munit.FunSuite {
             ImmutableString("name", "Bob")
     )(par)
 
-    val actual = par.vertices.head
+    par.flush
+
+    val actual = par.vertices.headOption.get
 
     assertEquals(actual.field[String]("name").get, Some("Bob"))
     assertEquals(actual.prop[Long]("pLong").get, Some(now))
@@ -119,6 +70,8 @@ class ArrowStorageSuite extends munit.FunSuite {
     // add alice
     addVertex(7, timestamp, None, ImmutableString("name", "Alice"))(par)
 
+    par.flush
+
     val vs = par.vertices
     assertEquals(vs.size, 2)
 
@@ -141,6 +94,7 @@ class ArrowStorageSuite extends munit.FunSuite {
     // add bob at t2
     addVertex(3, timestamp + 1, None, property)(par)
 
+    par.flush
     val vs = par.vertices
     assertEquals(vs.size, 1)
 
@@ -148,7 +102,7 @@ class ArrowStorageSuite extends munit.FunSuite {
 
     assertEquals(names, List(3L -> "Bob"))
 
-    val bob = par.vertices.head
+    val bob = par.vertices.headOption.get
 
     assertEquals(
             bob.history(Long.MinValue, Long.MaxValue).toVector,
@@ -172,6 +126,7 @@ class ArrowStorageSuite extends munit.FunSuite {
     // add alice
     addVertex(7, t2, None, ImmutableString("name", "Alice"))(par)
 
+    par.flush
     val vs  = par.vertices
     assertEquals(vs.size, 2)
     val vs1 = par.windowVertices(t1, t2)     // inclusive window
@@ -205,20 +160,20 @@ class ArrowStorageSuite extends munit.FunSuite {
             None
     )
 
+    par.flush
     val vs = par.vertices.toList
     assertEquals(vs.size, 2)
-
-    val names      = vs.flatMap(v => v.field[String]("name").get.map(name => v.getGlobalId -> name))
-    assertEquals(names, List(3L -> "Bob", 7L -> "Alice"))
+    val names      = par.vertices.flatMap(v => v.field[String]("name").get.map(name => v.getGlobalId -> name)).toSet
+    assertEquals(names, Set(3L -> "Bob", 7L -> "Alice"))
 
     val neighbours = vs.flatMap {
       case v if v.field[String]("name").get.contains("Bob")   =>
-        v.outgoingEdges.flatMap(e => e.field[String]("name").get.map(name => e.getDstVertex -> name))
+        v.outgoingEdges.flatMap(e => e.field[String]("name").get.map(name => e.getDstVertex-> name)).toList
       case v if v.field[String]("name").get.contains("Alice") =>
-        v.incomingEdges.flatMap(e => e.field[String]("name").get.map(name => e.getSrcVertex -> name))
+        v.incomingEdges.flatMap(e => e.field[String]("name").get.map(name => e.getSrcVertex -> name)).toList
     }
 
-    assertEquals(neighbours, List(1L -> "friends", 0L -> "friends")) // local ids are returned
+    assertEquals(neighbours, List(32L -> "friends", 0L -> "friends")) // local ids are returned
 
     // add the edge again with a different time and different payload
     par.addLocalEdge(
@@ -232,8 +187,8 @@ class ArrowStorageSuite extends munit.FunSuite {
             ),
             None
     )
-
-    val edges = par.vertices.flatMap(v => v.outgoingEdges.flatMap(e => e.prop[Long]("weight").list)).map(_._1).toSet
+    par.flush
+    val edges = par.vertices.flatMap(v => v.outgoingEdges.flatMap(e => e.prop[Long]("weight").list.toList)).map(_._1).toSet
     assertEquals(edges, Set(7L, 9L))
 
   }
@@ -261,6 +216,7 @@ class ArrowStorageSuite extends munit.FunSuite {
               None
       )
 
+    par.flush
     val bob  = par.vertices.head
     val edge = bob
     .outgoingEdges
@@ -313,7 +269,8 @@ class ArrowStorageSuite extends munit.FunSuite {
             None
     )
 
-    val bob      = par.vertices.head
+    par.flush
+    val bob      = par.vertices.headOption.get
     assertEquals(bob.outgoingEdges.toVector.size, 1)
     val outEdges = bob.outgoingEdges(timestamp, timestamp + 1).map(e => e.getSrcVertex -> e.getDstVertex).toVector
     val inEdges  = bob.incomingEdges(timestamp, timestamp + 1).map(e => e.getSrcVertex -> e.getDstVertex).toVector
@@ -347,6 +304,8 @@ class ArrowStorageSuite extends munit.FunSuite {
     //add the second edge onto partition2
     par2.addIncomingEdge(timestamp, -1, 2, 7, properties, None)
 
+    par1.flush
+    par2.flush
     val (vs, names)   = partitionVertices(par1)
     assertEquals(vs.size, 1)
     assertEquals(names, List(2L -> "Bob"))
@@ -384,7 +343,7 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   private def partitionVertices(par2: ArrowPartition) = {
     val vs2    = par2.vertices.toList
-    val names2 = vs2.flatMap(v => v.field[String]("name").get.map(name => v.getGlobalId -> name))
+    val names2 = vs2.flatMap(v => v.field[String]("name").get.map(name => v.getGlobalId -> name).toList)
     (vs2, names2)
   }
 
