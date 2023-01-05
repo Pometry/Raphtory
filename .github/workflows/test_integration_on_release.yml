@@ -20,7 +20,7 @@ jobs:
         run: |
           export RAPHTORY_CORE_LOG=ERROR
           export RAPHTORY_ITEST_PATH=./it/target/scala-2.13/test-classes
-          sbt "it/testOnly *.algorithms.*"
+          sudo -E sbt "it/testOnly *.algorithms.*"
       - name: Check the containers
         if: always()
         run: |
