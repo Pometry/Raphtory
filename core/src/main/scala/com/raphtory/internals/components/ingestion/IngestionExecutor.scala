@@ -37,10 +37,9 @@ private[raphtory] class IngestionExecutor[F[_], T](
       _           <- stream
                        .parEvalMapUnordered(4)(updates => // Here we are setting the parallelism
                          for {
-                           _          <- sendUpdates(updates)
-                           localStats <- SourceStats.fromUpdates(updates)
-                           _          <- globalStats.update(stats => stats.add(localStats))
-                           _          <- F.delay(totalTuplesProcessed.inc(updates.size))
+                           _ <- sendUpdates(updates)
+                           _ <- globalStats.update(stats => stats.add(updates))
+                           _ <- F.delay(totalTuplesProcessed.inc(updates.size))
                          } yield ()
                        )
                        .onFinalize(for { // This runs even if there is an exception processing the stream
@@ -75,22 +74,11 @@ object IngestionExecutor {
 
   case class SourceStats(earliestTime: Long, highestSeen: Long, sentUpdates: Long) {
 
-    def add(other: SourceStats): SourceStats =
-      SourceStats(
-              Math.min(this.earliestTime, other.earliestTime),
-              Math.max(this.highestSeen, other.highestSeen),
-              this.sentUpdates + other.sentUpdates
-      )
-  }
-
-  object SourceStats {
-
-    def fromUpdates[F[_]: Async](graphUpdates: Seq[GraphUpdate]): F[SourceStats] =
-      Async[F].delay {
-        val minTime = graphUpdates.minBy(_.updateTime).updateTime
-        val maxTime = graphUpdates.maxBy(_.updateTime).updateTime
-        SourceStats(minTime, maxTime, graphUpdates.size)
-      }
+    def add(graphUpdates: Seq[GraphUpdate]): SourceStats = {
+      val minTime = graphUpdates.minBy(_.updateTime).updateTime
+      val maxTime = graphUpdates.maxBy(_.updateTime).updateTime
+      SourceStats(minTime, maxTime, graphUpdates.size)
+    }
   }
 
   def apply[F[_]: Async](
