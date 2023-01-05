@@ -45,7 +45,7 @@ jobs:
       image: "eclipse-temurin:11.0.12_7-jdk"
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -55,7 +55,7 @@ jobs:
       - name: Build Raphtory jars, Setup Python, Install pyraphtory
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH
-          make setup-python
+          make setup-python-test
       - name: Run all python tests
         run: make python-test
         timeout-minutes: 10
@@ -68,7 +68,7 @@ jobs:
       image: "eclipse-temurin:11.0.12_7-jdk"
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: create blank cred file
         run: mkdir -p $HOME/.sbt && touch $HOME/.sbt/sonatype_credentials
       - name: Get sbt package
@@ -80,7 +80,7 @@ jobs:
       - name: Build Raphtory jars, Setup Python, Install pyraphtory
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH
-          make setup-python
+          make setup-python-docs
       - name: Run doc compile check
         run: | 
           export PATH=$(pwd)/sbt/bin:$PATH

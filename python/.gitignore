@@ -1,9 +1,4 @@
 build
 dist
-raphtory_client.egg-info
-python.iml
-/pyraphtory/dist/
-/pyraphtory/pyraphtory.egg-info/
-/pyraphtory/pyraphtory/algorithms/logs/
-/pyraphtory_jvm/dist/
-/pyraphtory_jvm/pyraphtory_jvm.egg-info/
+*.egg-info
+*.iml
