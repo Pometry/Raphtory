@@ -49,10 +49,14 @@ trait LocalRunner { self: RaphtoryApp =>
       //      graph.load(source)
 
       // Get simple metrics
-      graph
+      val x = graph
         .execute(Degree())
         .writeTo(FileSink("/tmp/raphtory"))
-        .waitForJob()
+
+      println(x.getJobId)
+      println(x.getPerspectivesProcessed)
+      x.waitForJob()
+      println(x.getPerspectivesProcessed)
 
       // PageRank
       graph

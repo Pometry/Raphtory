@@ -24,6 +24,7 @@ class QueryProgressTrackerWithIteratorSuite extends CatsEffectSuite {
           window = Some(mock[Interval]),
           actualStart = 2L,
           actualEnd = 3L,
+          processingTime = -1,
           formatAsDate = false
   )
 
@@ -56,7 +57,6 @@ class QueryProgressTrackerWithIteratorSuite extends CatsEffectSuite {
 
     assert(tracker.getLatestPerspectiveProcessed.contains(perspective))
     assertEquals(tracker.getPerspectivesProcessed, List(perspective))
-    assertEquals(tracker.getPerspectiveDurations.size, 1)
 
     val itr: Iterator[TableOutput] = tracker.TableOutputIterator
     while (itr.hasNext)

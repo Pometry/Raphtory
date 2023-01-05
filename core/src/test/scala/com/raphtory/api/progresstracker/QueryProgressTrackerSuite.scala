@@ -31,6 +31,7 @@ class QueryProgressTrackerSuite extends CatsEffectSuite {
             window = Some(mock[Interval]),
             actualStart = 2L,
             actualEnd = 3L,
+            processingTime = -1,
             formatAsDate = false
     )
 
@@ -38,7 +39,6 @@ class QueryProgressTrackerSuite extends CatsEffectSuite {
 
     assert(tracker.getLatestPerspectiveProcessed.contains(perspective))
     assert(tracker.getPerspectivesProcessed == List(perspective))
-    assert(tracker.getPerspectiveDurations.size == 1)
   }
 
   test("Job done is complete when query progress tracker receives \"JobDone\" message") {

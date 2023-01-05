@@ -5,13 +5,17 @@ from pyraphtory.scala.implicits.bounded import Bounded
 import pandas as pd
 import json
 
-
+@register(name="ProgressTracker")
 class ProgressTracker(GenericScalaProxy):
     _classname = "com.raphtory.api.querytracker.QueryProgressTracker"
 
     def inner_tracker(self):
         logger.trace("Progress tracker inner tracker returned")
         return to_jvm(self)
+
+@register(name="Perspective")
+class Perspective(GenericScalaProxy):
+    _classname = "com.raphtory.api.time.Perspective"
 
 
 @register(name="Table")
