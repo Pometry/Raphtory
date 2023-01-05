@@ -18,9 +18,9 @@ jobs:
           make docker-build docker-compose-up
       - name: Run sbt Integration
         run: |
-          export RAPHTORY_CORE_LOG=DEBUG 
+          export RAPHTORY_CORE_LOG=ERROR
           export RAPHTORY_ITEST_PATH=./it/target/scala-2.13/test-classes
-          sudo -E sbt "it/testOnly *.algorithms.*"
+          sbt "it/testOnly *.algorithms.*"
       - name: Check the containers
         if: always()
         run: |
