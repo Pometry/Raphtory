@@ -3,16 +3,9 @@ package com.raphtory.sources
 import cats.effect.Async
 import cats.effect.Resource
 import cats.syntax.all._
-import com.raphtory.api.input.MutableInteger
-import com.raphtory.api.input.MutableLong
-import com.raphtory.api.input.MutableString
-import com.raphtory.api.input.Property
-import com.raphtory.api.input.Source
+import com.raphtory.api.input._
 import com.raphtory.internals.graph.GraphAlteration
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
-import com.raphtory.sources.SqlSource.isInt
-import com.raphtory.sources.SqlSource.isLong
-import com.raphtory.sources.SqlSource.isString
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
@@ -24,6 +17,7 @@ abstract class SqlSource(
     conn: SqlConnection,
     query: String
 ) extends Source {
+  import SqlSource._
 
   override def makeStream[F[_]](implicit F: Async[F]): F[fs2.Stream[F, Seq[GraphAlteration.GraphUpdate]]] = {
     val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
@@ -66,8 +60,11 @@ abstract class SqlSource(
     s"select ${expectedColumns.mkString(",")} from ($query)"
 
   protected def getPropertyBuilder(index: Int, column: String, columnTypes: Map[String, Int]): ResultSet => Property =
-    if (isInt(columnTypes(column))) { (rs: ResultSet) => MutableInteger(column, rs.getInt(index)) }
+    if (isBoolean(columnTypes(column))) { (rs: ResultSet) => MutableBoolean(column, rs.getBoolean(index)) }
+    else if (isInt(columnTypes(column))) { (rs: ResultSet) => MutableInteger(column, rs.getInt(index)) }
     else if (isLong(columnTypes(column))) { (rs: ResultSet) => MutableLong(column, rs.getLong(index)) }
+    else if (isFloat(columnTypes(column))) { (rs: ResultSet) => MutableFloat(column, rs.getFloat(index)) }
+    else if (isDouble(columnTypes(column))) { (rs: ResultSet) => MutableDouble(column, rs.getDouble(index)) }
     else if (isString(columnTypes(column))) { (rs: ResultSet) => MutableString(column, rs.getString(index)) }
     else throw new IllegalStateException(s"Unexpected type '${columnTypes(column)}' for column '$column'")
 
@@ -77,16 +74,27 @@ abstract class SqlSource(
 }
 
 private[raphtory] object SqlSource {
-  val intTypes: List[Int]      = List(Types.TINYINT, Types.SMALLINT, Types.INTEGER)
-  val longTypes: List[Int]     = List(Types.BIGINT)
+  // Canonical types
+  val boolTypes              = List(Types.BOOLEAN)
+  val intTypes: List[Int]    = List(Types.TINYINT, Types.SMALLINT, Types.INTEGER)
+  val longTypes: List[Int]   = List(Types.BIGINT)
+  val floatTypes: List[Int]  = List(Types.FLOAT)
+  val doubleTypes: List[Int] = List(Types.DOUBLE, Types.NUMERIC, Types.REAL, Types.DECIMAL)
+  val stringTypes: List[Int] = List(Types.CHAR, Types.VARCHAR, Types.LONGVARCHAR)
+  val timeTypes: List[Int]   = List(Types.TIMESTAMP)
+
+  // Semantic types
   val integerTypes: List[Int]  = intTypes ++ longTypes
-  val stringTypes: List[Int]   = List(Types.CHAR, Types.VARCHAR, Types.LONGVARCHAR)
-  val timeTypes: List[Int]     = List(Types.TIMESTAMP)
   val idTypes: List[Int]       = integerTypes ++ stringTypes
   val epochTypes: List[Int]    = integerTypes ++ timeTypes
-  val propertyTypes: List[Int] = integerTypes ++ stringTypes
+  val propertyTypes: List[Int] = boolTypes ++ integerTypes ++ floatTypes ++ doubleTypes ++ stringTypes
 
-  def isInt(tp: Int): Boolean    = intTypes contains tp
-  def isLong(tp: Int): Boolean   = longTypes contains tp
-  def isString(tp: Int): Boolean = stringTypes contains tp
+  // Type checking
+  def isBoolean(tp: Int): Boolean = boolTypes contains tp
+  def isInt(tp: Int): Boolean     = intTypes contains tp
+  def isLong(tp: Int): Boolean    = longTypes contains tp
+  def isFloat(tp: Int): Boolean   = floatTypes contains tp
+  def isDouble(tp: Int): Boolean  = doubleTypes contains tp
+  def isString(tp: Int): Boolean  = stringTypes contains tp
+
 }
