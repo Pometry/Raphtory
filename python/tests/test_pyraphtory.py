@@ -1,10 +1,12 @@
 from pyraphtory.context import PyRaphtory
 from pyraphtory.graph import Row
 import pyraphtory
+from pyraphtory._config import get_java_home
 import unittest
 from numpy import array_equal
 from pyraphtory.input import *
-
+from unittest import mock
+from pathlib import Path
 
 
 class PyRaphtoryTest(unittest.TestCase):
@@ -95,4 +97,29 @@ class PyRaphtoryTest(unittest.TestCase):
                   .explode_select(lambda vertex: [Row(vertex.name(), message) for message in vertex.message_queue()])).to_df(["id", "message"])
             assert array_equal(df["id"], ["1", "1"])
             assert array_equal(df["message"], ["message", "message"])
+
+    def test_get_java_home_no_java(self):
+        # Mock the os.getenv function to return None
+        with mock.patch('os.getenv') as mock_getenv:
+            mock_getenv.return_value = 'test'
+            # Run the function
+            java_home = get_java_home()
+            # Check that it returns None
+            self.assertEqual(java_home, Path('test'))
+        # Mock the shutil.which function to return True
+        with mock.patch('shutil.which') as mock_which:
+            with mock.patch('os.getenv') as mock_getenv:
+                mock_getenv.return_value = None
+                mock_which.return_value = '/tmp/test/bin/java'
+                # Run the function
+                java_home = get_java_home()
+                # Check that it returns None
+                self.assertEqual(java_home, Path('/tmp/test').resolve())
+        # Mock the shutil.which function and the mock.patch function to return None
+        with mock.patch('shutil.which') as mock_which:
+            with mock.patch('os.getenv') as mock_getenv:
+                mock_getenv.return_value = None
+                mock_which.return_value = None
+                # assert that it throws an exception
+                self.assertRaises(FileNotFoundError, get_java_home)
 
