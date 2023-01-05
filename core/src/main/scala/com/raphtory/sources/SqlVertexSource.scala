@@ -3,7 +3,6 @@ package com.raphtory.sources
 import com.raphtory.api.input.Graph
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Property
-import com.raphtory.api.input.Source
 import com.raphtory.api.input.Type
 import com.raphtory.internals.communication.SchemaProviderInstances._
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
@@ -21,18 +20,16 @@ case class SqlVertexSource(
 ) extends SqlSource(conn, query) {
   import SqlSource._
 
-  private val idCol        = id.toUpperCase
-  private val timeCol      = time.toUpperCase
-  private val typeCol      = if (vertexType.nonEmpty) Some(vertexType.toUpperCase) else None
-  private val propertyCols = properties.map(col => col.toUpperCase)
+  private val typeCol = if (vertexType.nonEmpty) Some(vertexType.toUpperCase) else None
 
   override protected def buildExtractor(columnTypes: Map[String, Int]): (ResultSet, Long) => GraphUpdate = {
-    val idIsInteger                                   = integerTypes contains columnTypes(idCol)
-    val timeIsInteger                                 = integerTypes contains columnTypes(timeCol)
+    val idIsInteger                                   = checkType(columnTypes, id, integerTypes)
+    val timeIsInteger                                 = checkType(columnTypes, time, integerTypes)
+    // TODO: check type and property columns types
     val propertiesStart                               = if (typeCol.isDefined) 4 else 3
-    val propertiesEnd                                 = propertiesStart + propertyCols.size
+    val propertiesEnd                                 = propertiesStart + properties.size
     val propertyIndexes                               = propertiesStart until propertiesEnd
-    val propertyBuilders: List[ResultSet => Property] = propertyCols zip propertyIndexes map {
+    val propertyBuilders: List[ResultSet => Property] = properties zip propertyIndexes map {
       case (col, index) => getPropertyBuilder(index, col, columnTypes)
     }
 
@@ -46,12 +43,12 @@ case class SqlVertexSource(
   }
 
   override protected def expectedColumnTypes: Map[String, List[Int]] = {
-    val mainTypes = Map(idCol -> idTypes, timeCol -> epochTypes)
+    val mainTypes = Map(id -> idTypes, time -> epochTypes)
     val typeTypes = typeCol.map(col => col -> stringTypes)
-    val propTypes = propertyCols map (property => (property, propertyTypes))
+    val propTypes = properties map (property => (property, propertyTypes))
     mainTypes ++ typeTypes ++ propTypes.toMap
   }
 
   override protected def expectedColumns: List[String] =
-    List(idCol, timeCol) ++ typeCol ++ propertyCols
+    List(id, time) ++ typeCol ++ properties
 }

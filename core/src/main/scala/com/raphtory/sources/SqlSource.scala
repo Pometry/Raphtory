@@ -53,20 +53,25 @@ abstract class SqlSource(
   private def validateTypes(columnTypes: Map[String, Int]): Unit =
     expectedColumnTypes foreach {
       case (column, types) =>
-        assert(types contains columnTypes(column), s"Data type for column '$column' not supported")
+        assert(checkType(columnTypes, column, types), s"Data type for column '$column' not supported")
     }
 
   private def buildSelectQuery(query: String): String =
     s"select ${expectedColumns.mkString(",")} from ($query)"
 
-  protected def getPropertyBuilder(index: Int, column: String, columnTypes: Map[String, Int]): ResultSet => Property =
-    if (isBoolean(columnTypes(column))) { (rs: ResultSet) => MutableBoolean(column, rs.getBoolean(index)) }
-    else if (isInt(columnTypes(column))) { (rs: ResultSet) => MutableInteger(column, rs.getInt(index)) }
-    else if (isLong(columnTypes(column))) { (rs: ResultSet) => MutableLong(column, rs.getLong(index)) }
-    else if (isFloat(columnTypes(column))) { (rs: ResultSet) => MutableFloat(column, rs.getFloat(index)) }
-    else if (isDouble(columnTypes(column))) { (rs: ResultSet) => MutableDouble(column, rs.getDouble(index)) }
-    else if (isString(columnTypes(column))) { (rs: ResultSet) => MutableString(column, rs.getString(index)) }
-    else throw new IllegalStateException(s"Unexpected type '${columnTypes(column)}' for column '$column'")
+  protected def getPropertyBuilder(index: Int, col: String, columnTypes: Map[String, Int]): ResultSet => Property =
+    if (checkType(columnTypes, col, boolTypes)) { (rs: ResultSet) => MutableBoolean(col, rs.getBoolean(index)) }
+    else if (checkType(columnTypes, col, intTypes)) { (rs: ResultSet) => MutableInteger(col, rs.getInt(index)) }
+    else if (checkType(columnTypes, col, longTypes)) { (rs: ResultSet) => MutableLong(col, rs.getLong(index)) }
+    else if (checkType(columnTypes, col, floatTypes)) { (rs: ResultSet) => MutableFloat(col, rs.getFloat(index)) }
+    else if (checkType(columnTypes, col, doubleTypes)) { (rs: ResultSet) => MutableDouble(col, rs.getDouble(index)) }
+    else if (checkType(columnTypes, col, stringTypes)) { (rs: ResultSet) => MutableString(col, rs.getString(index)) }
+    else throw new IllegalStateException(s"Unexpected type '${columnTypes(col)}' for column '$col'")
+
+  protected def checkType(columnTypes: Map[String, Int], column: String, types: List[Int]): Boolean = {
+    val upperCaseColumnTypes = columnTypes.map { case (column, cType) => (column.toUpperCase, cType) }
+    types contains upperCaseColumnTypes(column.toUpperCase)
+  }
 
   protected def expectedColumns: List[String]
   protected def expectedColumnTypes: Map[String, List[Int]]
@@ -75,11 +80,11 @@ abstract class SqlSource(
 
 private[raphtory] object SqlSource {
   // Canonical types
-  val boolTypes              = List(Types.BOOLEAN)
+  val boolTypes              = List(Types.BOOLEAN, Types.BIT)
   val intTypes: List[Int]    = List(Types.TINYINT, Types.SMALLINT, Types.INTEGER)
   val longTypes: List[Int]   = List(Types.BIGINT)
-  val floatTypes: List[Int]  = List(Types.FLOAT)
-  val doubleTypes: List[Int] = List(Types.DOUBLE, Types.NUMERIC, Types.REAL, Types.DECIMAL)
+  val floatTypes: List[Int]  = List(Types.REAL)
+  val doubleTypes: List[Int] = List(Types.FLOAT, Types.DOUBLE, Types.NUMERIC, Types.DECIMAL)
   val stringTypes: List[Int] = List(Types.CHAR, Types.VARCHAR, Types.LONGVARCHAR)
   val timeTypes: List[Int]   = List(Types.TIMESTAMP)
 
