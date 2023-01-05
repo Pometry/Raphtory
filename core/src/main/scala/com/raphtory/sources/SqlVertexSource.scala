@@ -4,25 +4,34 @@ import com.raphtory.api.input.Graph
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Property
 import com.raphtory.api.input.Source
+import com.raphtory.api.input.Type
 import com.raphtory.internals.communication.SchemaProviderInstances._
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.internals.graph.GraphAlteration.VertexAdd
 
 import java.sql.ResultSet
 
-class SqlVertexSource(conn: SqlConnection, query: String, id: String, time: String, properties: List[String])
-        extends SqlSource(conn, query) {
+case class SqlVertexSource(
+    conn: SqlConnection,
+    query: String,
+    id: String,
+    time: String,
+    vertexType: String = "",
+    properties: List[String] = List()
+) extends SqlSource(conn, query) {
   import SqlSource._
 
   private val idCol        = id.toUpperCase
   private val timeCol      = time.toUpperCase
+  private val typeCol      = if (vertexType.nonEmpty) Some(vertexType.toUpperCase) else None
   private val propertyCols = properties.map(col => col.toUpperCase)
 
   override protected def buildExtractor(columnTypes: Map[String, Int]): (ResultSet, Long) => Vector[GraphUpdate] = {
     val idIsInteger                                   = integerTypes contains columnTypes(idCol)
     val timeIsInteger                                 = integerTypes contains columnTypes(timeCol)
-    // TODO: write this so we don't rely on writing '3' appropriately and also in the edge source
-    val propertyIndexes                               = 3 until (3 + propertyCols.size)
+    val propertiesStart                               = if (typeCol.isDefined) 4 else 3
+    val propertiesEnd                                 = propertiesStart + propertyCols.size
+    val propertyIndexes                               = propertiesStart until propertiesEnd
     val propertyBuilders: List[ResultSet => Property] = propertyCols zip propertyIndexes map {
       case (col, index) => getPropertyBuilder(index, col, columnTypes)
     }
@@ -30,25 +39,19 @@ class SqlVertexSource(conn: SqlConnection, query: String, id: String, time: Stri
     (rs: ResultSet, index: Long) => {
       val id         = if (idIsInteger) rs.getLong(1) else Graph.assignID(rs.getString(1))
       val epoch      = if (timeIsInteger) rs.getLong(2) else rs.getTimestamp(2).getTime
+      val vertexType = typeCol.map(_ => Type(rs.getString(3)))
       val properties = propertyBuilders map (_.apply(rs))
-      Vector(VertexAdd(epoch, index, id, Properties(properties: _*), None))
+      Vector(VertexAdd(epoch, index, id, Properties(properties: _*), vertexType))
     }
   }
 
   override protected def expectedColumnTypes: Map[String, List[Int]] = {
     val mainTypes = Map(idCol -> idTypes, timeCol -> epochTypes)
+    val typeTypes = typeCol.map(col => col -> stringTypes)
     val propTypes = propertyCols map (property => (property, propertyTypes))
-    mainTypes ++ propTypes.toMap
+    mainTypes ++ typeTypes ++ propTypes.toMap
   }
 
-  override protected def expectedColumns: List[String] = List(idCol, timeCol) ++ propertyCols
-}
-
-object SqlVertexSource {
-
-  def apply(conn: SqlConnection, query: String, id: String, time: String): Source =
-    new SqlVertexSource(conn, query, id, time, List())
-
-  def apply(conn: SqlConnection, query: String, id: String, time: String, properties: List[String]): Source =
-    new SqlVertexSource(conn, query, id, time, properties)
+  override protected def expectedColumns: List[String] =
+    List(idCol, timeCol) ++ typeCol ++ propertyCols
 }
