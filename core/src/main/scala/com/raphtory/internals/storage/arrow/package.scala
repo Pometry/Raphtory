@@ -108,9 +108,7 @@ package object arrow {
 
     def history(start: Long, end: Long): View[HistoricEvent] =
       View.fromIteratorProvider { () =>
-        val vhi: VertexHistoryIterator.WindowedVertexHistoryIterator =
-          v.getRaphtory.getNewVertexHistoryIterator(v.getLocalId, start, end)
-        new ArrowPartition.VertexHistoryIterator(vhi)
+        new ArrowPartition.VertexHistoryIterator(v.getRaphtory.getNewVertexHistoryIterator(v.getLocalId, start, end))
       }
 
     def outgoingEdges: View[Edge] = {

@@ -52,8 +52,9 @@ private[raphtory] class Worker(private val _id: Int, _rap: RaphtoryArrowPartitio
   private def addLocalEdge(av: GraphAlteration.EdgeAdd): Unit = {
     val srcId = _rap.getLocalEntityIdStore.getLocalNodeId(av.srcId)
     var dstId = 0L
-    while ({ dstId = _rap.getLocalEntityIdStore.getLocalNodeId(av.dstId); dstId } == -1L)
-      Thread.`yield`() // we expect dst should show up eventually
+    if (av.srcId != av.dstId) // waiting on yourself is probably a bad idea
+      while ({ dstId = _rap.getLocalEntityIdStore.getLocalNodeId(av.dstId); dstId } == -1L)
+        Thread.`yield`()      // we expect dst should show up eventually
 
     // Check if edge already exists...
     var e          = -1L
@@ -166,7 +167,7 @@ private[raphtory] class Worker(private val _id: Int, _rap: RaphtoryArrowPartitio
     _aepm.addEdge(e, -1L, -1L)
     val ep = _aepm.getPartition(_aepm.getPartitionId(e.getLocalId))
     ep.addHistory(e.getLocalId, time, true, true)
-    val p = _avpm.getPartitionForVertex(dstId)
+    val p  = _avpm.getPartitionForVertex(dstId)
     ep.setIncomingEdgePtrByEdgeId(e.getLocalId, p.addIncomingEdgeToList(e.getDstVertex, e.getLocalId, e.getSrcVertex))
     p.addHistory(dstId, time, true, false, e.getLocalId, false)
     e.decRefCount()
@@ -205,10 +206,7 @@ private[raphtory] class Worker(private val _id: Int, _rap: RaphtoryArrowPartitio
     _lastEdgeId += 1
   }
 
-  private var vipVertexId: Long = -1L;
-
   private def addVertex(av: VertexAdd): Unit = {
-
     if (_lastVertexId == -1L || _lastVertexId >= _endVertexId) {
       val partId = _avpm.getNewPartitionId
       _lastVertexId = partId * _avpm.PARTITION_SIZE
@@ -217,15 +215,16 @@ private[raphtory] class Worker(private val _id: Int, _rap: RaphtoryArrowPartitio
     val localId = _rap.getLocalEntityIdStore.getLocalNodeId(av.srcId)
     if (localId == -1L) {
 
-      av.properties.properties.collectFirst {
-        case ImmutableString("name", value) if value == "Aragorn" => value
-      } match {
-        case Some(_) => vipVertexId = _lastVertexId
-        case _       =>
-      }
-
       createVertex(_lastVertexId, av.srcId, av.updateTime, av.properties).decRefCount()
       _lastVertexId += 1
+    }
+    else {
+      if (av.properties.properties.nonEmpty) {
+        _vertexIter2.reset(localId)
+        val v = _vertexIter2.getVertex
+        addOrUpdateVertexProperties(av.updateTime, v, av.properties)
+      }
+      _avpm.addHistory(localId, av.updateTime, true, av.properties.properties.nonEmpty, -1, false)
     }
   }
 
