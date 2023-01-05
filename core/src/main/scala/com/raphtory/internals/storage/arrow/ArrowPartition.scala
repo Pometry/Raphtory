@@ -1,6 +1,6 @@
 package com.raphtory.internals.storage.arrow
 
-import com.lmax.disruptor.SleepingWaitStrategy
+import com.lmax.disruptor.{BlockingWaitStrategy, BusySpinWaitStrategy, SleepingWaitStrategy, YieldingWaitStrategy}
 import com.lmax.disruptor.dsl.Disruptor
 import com.lmax.disruptor.dsl.ProducerType
 import com.lmax.disruptor.util.DaemonThreadFactory
@@ -39,7 +39,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   val partitionsPerServer: Int = conf.getInt("raphtory.partitions.countPerServer")
   val totalPartitions: Int     = partitionServers * partitionsPerServer
 
-  val nWorkers               = 1
+  val nWorkers               = 8
   val queueSize              = 8192 * 16
   val workers: Array[Worker] = Array.tabulate(nWorkers)(i => new Worker(i, par, conf))
 
@@ -66,9 +66,11 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
 
   private def buildDisruptor: Disruptor[QueuePayload] = {
     val threadFactory = DaemonThreadFactory.INSTANCE
-    val waitStrategy  = new SleepingWaitStrategy
-    //val waitStrategy  = new BusySpinWaitStrategy
+    //val waitStrategy  = new SleepingWaitStrategy(100, 100)
+    val waitStrategy  = new BusySpinWaitStrategy
     //val waitStrategy = new YieldingWaitStrategy
+    //val waitStrategy = new BlockingWaitStrategy
+
     new Disruptor[QueuePayload](
             () => QueuePayload(null, EdgeDirection.NaN),
             queueSize,
@@ -111,7 +113,8 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     LongHashFunction.xx3().hashLong(id)
 
   override def addVertex(vAdd: GraphAlteration.VertexAdd): Unit = {
-    val worker = Math.abs((vAdd.srcId % nWorkers).toInt)
+    //val worker = Math.abs((vAdd.srcId % nWorkers).toInt)
+    val worker = findWorker(vAdd.srcId)
     enqueueVertex(vAdd, worker)
   }
 
