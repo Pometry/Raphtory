@@ -26,7 +26,7 @@ case class SqlVertexSource(
   private val typeCol      = if (vertexType.nonEmpty) Some(vertexType.toUpperCase) else None
   private val propertyCols = properties.map(col => col.toUpperCase)
 
-  override protected def buildExtractor(columnTypes: Map[String, Int]): (ResultSet, Long) => Vector[GraphUpdate] = {
+  override protected def buildExtractor(columnTypes: Map[String, Int]): (ResultSet, Long) => GraphUpdate = {
     val idIsInteger                                   = integerTypes contains columnTypes(idCol)
     val timeIsInteger                                 = integerTypes contains columnTypes(timeCol)
     val propertiesStart                               = if (typeCol.isDefined) 4 else 3
@@ -41,7 +41,7 @@ case class SqlVertexSource(
       val epoch      = if (timeIsInteger) rs.getLong(2) else rs.getTimestamp(2).getTime
       val vertexType = typeCol.map(_ => Type(rs.getString(3)))
       val properties = propertyBuilders map (_.apply(rs))
-      Vector(VertexAdd(epoch, index, id, Properties(properties: _*), vertexType))
+      VertexAdd(epoch, index, id, Properties(properties: _*), vertexType)
     }
   }
 
