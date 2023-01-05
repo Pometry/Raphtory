@@ -4,7 +4,7 @@ import com.raphtory.algorithms.temporal.TemporalEdgeList
 import com.raphtory.{BaseCorrectnessTest, TestQuery}
 import com.raphtory.api.input.Source
 import com.raphtory.spouts.SequenceSpout
-import com.test.raphtory.WeightedGraphBuilder
+import com.raphtory.algorithms.WeightedGraphBuilder
 
 import scala.util.Random
 

@@ -127,6 +127,7 @@ lazy val arrowCore =
                     arrowDataset,
                     chronicleMap,
                     fastUtil,
+                    disruptor,
                     commonsLang,
                     junitInterface
             )

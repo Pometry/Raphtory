@@ -1,4 +1,4 @@
-package com.test.raphtory
+package com.raphtory.algorithms
 
 import com.raphtory.api.input._
 
