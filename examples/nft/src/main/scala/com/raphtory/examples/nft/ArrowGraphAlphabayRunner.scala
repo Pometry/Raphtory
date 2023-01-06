@@ -7,7 +7,7 @@ import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 
-object ThrowawayRunner extends RaphtoryApp.ArrowLocal[NoProps, Price] {
+object ArrowGraphAlphabayRunner extends RaphtoryApp.ArrowLocal[NoProps, Price] {
 
 //  val path    = "/pometry/wip/alphabay_partitions_10pc"
   //val path    = "/pometry/wip/alphabay_sorted.csv.gz"
