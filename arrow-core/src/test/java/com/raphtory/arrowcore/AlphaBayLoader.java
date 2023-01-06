@@ -24,7 +24,7 @@ public class AlphaBayLoader {
     private static final int BUFFER_SIZE = 64 * 1024;
     private static int N_LOAD_THREADS = 8;
     private static final int QUEUE_SIZE = 32768 * 2;
-    private static final boolean BATCH_EDGES = false;
+    private static final boolean BATCH_EDGES = true;
     private static final int EDGE_BATCH_SIZE = 4096;
 
 

@@ -139,7 +139,7 @@ class ArrowStorageSuite extends munit.FunSuite {
 
   }
 
-  test("edges with no properties should have .. not properties".ignore) {
+  test("edges with no properties should have .. not properties") {
 
     val par: ArrowPartition = mkPartition(1, 0)
     val timestamp           = System.currentTimeMillis()
