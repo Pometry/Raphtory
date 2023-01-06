@@ -90,19 +90,19 @@
 //! ```
 pub mod bitset;
 pub mod db;
-pub mod edge;
 pub mod graph;
 pub mod lsm;
 mod misc;
 mod props;
 pub mod sortedvec;
+mod tadjset;
 mod tcell;
 mod tset;
 mod tvec;
 
-use edge::OtherV;
 use graph::TemporalGraph;
 use std::ops::Range;
+use tadjset::AdjEdge;
 
 /// Specify the direction of the neighbours
 #[derive(Clone, Copy)]
@@ -163,41 +163,39 @@ impl<'a> VertexView<'a, TemporalGraph> {
 
 // FIXME: this is a bit silly, we might not need the reference lifetime at all
 pub struct EdgeView<'a, G: Sized> {
-    src_id: OtherV,
-    dst_id: OtherV,
+    src_id: usize,
+    dst_id: usize,
     g: &'a G,
-    t: Option<&'a u64>,
-    e_meta: Option<&'a usize>,
+    t: Option<u64>,
+    e_meta: AdjEdge,
 }
 
 impl<'a> EdgeView<'a, TemporalGraph> {
     pub fn global_src(&self) -> u64 {
-        match self.src_id {
-            OtherV::Local(src_id) => *self.g.index[src_id].logical(),
-            OtherV::Remote(src_id) => src_id,
+        if self.e_meta.is_local() {
+            *self.g.index[self.src_id].logical()
+        } else {
+            self.src_id.try_into().unwrap()
         }
     }
 
     pub fn global_dst(&self) -> u64 {
-        match self.dst_id {
-            OtherV::Local(dst_id) => *self.g.index[dst_id].logical(),
-            OtherV::Remote(dst_id) => dst_id,
+        if self.e_meta.is_local() {
+            *self.g.index[self.dst_id].logical()
+        } else {
+            self.dst_id.try_into().unwrap()
         }
     }
 
-    pub fn time(&self) -> Option<&'a u64> {
+    pub fn time(&self) -> Option<u64> {
         self.t
     }
 
     pub fn props(&self, name: &'a str) -> Box<dyn Iterator<Item = (&'a u64, Prop)> + 'a> {
         // find the id of the property
         let prop_id: usize = self.g.prop_ids[name]; // FIXME this can break
+        self.g.edge_meta[self.e_meta.edge_meta_id()].iter(prop_id)
 
-        if let Some(edge_meta_id) = self.e_meta {
-            self.g.edge_meta[*edge_meta_id].iter(prop_id)
-        } else {
-            Box::new(std::iter::empty())
-        }
     }
 
     pub fn props_window(
@@ -208,10 +206,7 @@ impl<'a> EdgeView<'a, TemporalGraph> {
         // find the id of the property
         let prop_id: usize = self.g.prop_ids[name]; // FIXME this can break
 
-        if let Some(edge_meta_id) = self.e_meta {
-            self.g.edge_meta[*edge_meta_id].iter_window(prop_id, r)
-        } else {
-            Box::new(std::iter::empty())
-        }
+        self.g.edge_meta[self.e_meta.edge_meta_id()].iter_window(prop_id, r)
+
     }
 }

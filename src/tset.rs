@@ -130,7 +130,6 @@ impl<V: Ord + Clone> TSet<V> {
 
 #[cfg(test)]
 mod tset_tests {
-    use crate::edge::Edge;
 
     use super::*;
 
@@ -220,32 +219,4 @@ mod tset_tests {
         assert_eq!(actual, expected)
     }
 
-    #[test]
-    fn find_added_edge_just_by_destination_id() {
-        let mut ts: TSet<Edge> = TSet::default();
-
-        ts.push(1, Edge::local(1, 3)); // t:1, v: 1 edge_id: 3
-                                       //
-        let actual = ts.find(Edge::local_empty(1));
-        assert_eq!(actual, Some(&Edge::local(1, 3)));
-
-        let actual = ts.find(Edge::local_empty(13));
-        assert_eq!(actual, None);
-
-        ts.push(1, Edge::local(4, 12)); // t:1, v: 4 edge_id: 12
-        ts.push(1, Edge::local(17, 119)); // t:1, v: 17 edge_id: 119
-
-        // find the edge by destination only (independent of time?)
-        let actual = ts.find(Edge::local_empty(1));
-        assert_eq!(actual, Some(&Edge::local(1, 3)));
-
-        let actual = ts.find(Edge::local_empty(4));
-        assert_eq!(actual, Some(&Edge::local(4, 12)));
-
-        let actual = ts.find(Edge::local_empty(17));
-        assert_eq!(actual, Some(&Edge::local(17, 119)));
-
-        let actual = ts.find(Edge::local_empty(5)); // we need to activelly filter this out
-        assert_eq!(actual, Some(&Edge::local(17, 119)));
-    }
 }
