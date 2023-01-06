@@ -8,6 +8,8 @@ import com.raphtory.arrowcore.implementation.VertexIterator
 import com.raphtory.arrowcore.model.PropertySchema
 import com.raphtory.arrowcore.model.Vertex
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
+import edu.emory.mathcs.backport.java.util.concurrent.ConcurrentHashMap
+import sun.jvm.hotspot.HelloWorld.e
 
 import java.nio.file.Files
 
@@ -248,7 +250,9 @@ class ArrowStorageSuite extends munit.FunSuite {
       )
 
     par.flush
-    val bob  = par.vertices.head
+
+    val bobLocalId = par.localEntityStore.getLocalNodeId(3)
+    val bob  = par.getVertex(bobLocalId)
     val edge = bob.outgoingEdges.flatMap(e => e.history(timestamp, timestamp + 1).toVector).toVector
 
     assertEquals(
