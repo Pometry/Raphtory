@@ -44,16 +44,14 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
     )
   }
 
-  private val eventHandlers = Array.ofDim[VertexAddEventHandler](N_LOAD_THREADS)
-  private val queues        = Array.ofDim[RingBuffer[VertexAddEvent]](N_LOAD_THREADS)
-  private val disruptors    = Array.ofDim[Disruptor[VertexAddEvent]](N_LOAD_THREADS)
+  private val queues     = Array.ofDim[RingBuffer[VertexAddEvent]](N_LOAD_THREADS)
+  private val disruptors = Array.ofDim[Disruptor[VertexAddEvent]](N_LOAD_THREADS)
 
   (0 until N_LOAD_THREADS).foreach { i =>
     val eventHandler = new VertexAddEventHandler
     val disruptor    = buildDisruptor()
     disruptor.handleEventsWith(eventHandler)
 
-    eventHandlers(i) = eventHandler
     disruptors(i) = disruptor
     queues(i) = disruptor.start()
   }
@@ -61,36 +59,40 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
   private def getVerticesMap(vId: Long): concurrent.Map[Long, PojoVertex] =
     arrOfMapOfVertices(Math.abs(vId % N_LOAD_THREADS).toInt)
 
+  private def checkIfAlreadyAdded(vId: Long): Unit                        =
+    while (!getVerticesMap(vId).isDefinedAt(vId))
+      Thread.`yield`()
+
   class VertexAddEventHandler extends EventHandler[VertexAddEvent] {
 
     override def onEvent(event: VertexAddEvent, sequence: Long, endOfBatch: Boolean): Unit =
       if (event.dstId == -1L) addVertex(event) else addEdge(event)
 
-    def addProperties(msgTime: Long, index: Long, entity: PojoEntity, properties: Properties): Unit =
+    private def addProperties(msgTime: Long, index: Long, entity: PojoEntity, properties: Properties): Unit =
       properties addPropertiesToEntity (msgTime, index, entity)
 
-    def addVertex(event: VertexAddEvent): Unit = {
+    private def addVertex(event: VertexAddEvent): Unit = {
       val VertexAddEvent(msgTime, index, srcId, _, properties, vertexType, _, _) = event
 
       val vertices = getVerticesMap(srcId)
       vertices.get(srcId) match { // Check if the vertex exists
-        case Some(v) => // If it does
-          v revive (msgTime, index) // Add the history point
-          addProperties(msgTime, index, v, properties)
+        case Some(vertex) => // If it does
+          vertex revive (msgTime, index) // Add the history point
+          addProperties(msgTime, index, vertex, properties)
           logger.trace(s"History point added to vertex: $srcId")
           logger.trace(s"Properties added: $properties")
 
-        case None    => // If it does not exist
-          val v = new PojoVertex(msgTime, index, srcId, initialValue = true) // create a new vertex
-          v.setType(vertexType.map(_.name))
-          vertices += ((srcId, v)) // Put it in the map
-          addProperties(msgTime, index, v, properties)
+        case None         => // If it does not exist
+          val vertex = new PojoVertex(msgTime, index, srcId, initialValue = true) // create a new vertex
+          vertex.setType(vertexType.map(_.name))
+          vertices += ((srcId, vertex)) // Put it in the map
+          addProperties(msgTime, index, vertex, properties)
           logger.trace(s"Properties added: $properties")
           logger.trace(s"New vertex created $srcId")
       }
     }
 
-    def addEdge(event: VertexAddEvent): Unit =
+    private def addEdge(event: VertexAddEvent): Unit =
       event.edgeToCreate.getOrElse(
               new Exception(s"Unspecified type of edge to create. EdgeToCreate = ${event.edgeToCreate}")
       ) match {
@@ -101,11 +103,10 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
         case RemoteOutgoingEdge   => addOutgoingEdge(event)
       }
 
-    def addLocalEdge(event: VertexAddEvent): Unit = {
+    private def addLocalEdge(event: VertexAddEvent): Unit = {
       val VertexAddEvent(msgTime, index, srcId, dstId, properties, _, edgeType, _) = event
 
-      while (!getVerticesMap(srcId).isDefinedAt(srcId))
-        Thread.`yield`()
+      checkIfAlreadyAdded(srcId)
 
       val srcVertex = getVerticesMap(srcId)(srcId)
       srcVertex.getOutgoingEdge(dstId) match {
@@ -115,20 +116,19 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
           logger.trace(s"Edge ${edge.getSrcId} - ${edge.getDstId} revived")
         case None       => // If it does not
           // Create the new edge, local or remote
-          val newEdge = new PojoEdge(msgTime, index, srcId, dstId, initialValue = true)
-          newEdge.setType(edgeType.map(_.name))
-          srcVertex addOutgoingEdge newEdge // Add this edge to the vertex
-          srcVertex addIncomingEdge newEdge // Add it to the dst as would not have been seen
-          addProperties(msgTime, index, newEdge, properties)
-          logger.trace(s"Added incoming & outgoing edge $newEdge to vertex $srcVertex")
+          val edge = new PojoEdge(msgTime, index, srcId, dstId, initialValue = true)
+          edge.setType(edgeType.map(_.name))
+          srcVertex addOutgoingEdge edge // Add this edge to the vertex
+          srcVertex addIncomingEdge edge // Add it to the dst as would not have been seen
+          addProperties(msgTime, index, edge, properties)
+          logger.trace(s"Added incoming & outgoing edge $edge to vertex $srcVertex")
       }
     }
 
-    def addLocalOutgoingEdge(event: VertexAddEvent): Unit = {
-      val VertexAddEvent(msgTime, index, srcId, dstId, properties, _, edgeType, edgeToCreate) = event
+    private def addLocalOutgoingEdge(event: VertexAddEvent): Unit = {
+      val VertexAddEvent(msgTime, index, srcId, dstId, properties, _, _, edgeToCreate) = event
 
-      while (!getVerticesMap(srcId).isDefinedAt(srcId))
-        Thread.`yield`()
+      checkIfAlreadyAdded(srcId)
 
       val srcVertex = getVerticesMap(srcId)(srcId)
       srcVertex.getOutgoingEdge(dstId) match {
@@ -137,37 +137,33 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
           addProperties(msgTime, index, edge, properties)
           logger.trace(s"Edge ${edge.getSrcId} - ${edge.getDstId} revived")
         case None       => // If it does not
-          val newEdge = edgeToCreate.get.asInstanceOf[LocalOutgoingEdge].edge
-          srcVertex.addOutgoingEdge(newEdge) // Add this edge to the vertex
-          addProperties(msgTime, index, newEdge, properties)
-          logger.trace(s"Added edge $newEdge to vertex $srcVertex")
+          val edge = edgeToCreate.get.asInstanceOf[LocalOutgoingEdge].edge
+          srcVertex addOutgoingEdge edge // Add this edge to the vertex
+          addProperties(msgTime, index, edge, properties)
+          logger.trace(s"Added edge $edge to vertex $srcVertex")
       }
     }
 
-    def addLocalIncomingEdge(event: VertexAddEvent): Unit = {
-      val VertexAddEvent(msgTime, index, srcId, dstId, properties, _, _, edgeToCreate) = event
+    private def addLocalIncomingEdge(event: VertexAddEvent): Unit = {
+      val VertexAddEvent(_, _, srcId, dstId, _, _, _, edgeToCreate) = event
 
-      while (!getVerticesMap(dstId).isDefinedAt(dstId))
-        Thread.`yield`()
+      checkIfAlreadyAdded(dstId)
 
       val dstVertex = getVerticesMap(dstId)(dstId)
       dstVertex.getIncomingEdge(srcId) match {
-        case Some(edge) =>
-          edge revive (msgTime, index) // If the edge was previously created we need to revive it
-          addProperties(msgTime, index, edge, properties)
-          logger.trace(s"Edge ${edge.getSrcId} - ${edge.getDstId} revived")
+        case Some(_) =>
         case None       =>
-          val newEdge = edgeToCreate.get.asInstanceOf[LocalIncomingEdge].edge
-          dstVertex.addIncomingEdge(newEdge)
-          logger.trace(s"Added edge $newEdge to vertex $dstVertex")
+          val edge = edgeToCreate.get.asInstanceOf[LocalIncomingEdge].edge
+          dstVertex addIncomingEdge edge
+          logger.trace(s"Added edge $edge to vertex $dstVertex")
       }
     }
 
-    def addOutgoingEdge(event: VertexAddEvent): Unit = {
+
+    private def addOutgoingEdge(event: VertexAddEvent): Unit = {
       val VertexAddEvent(msgTime, index, srcId, dstId, properties, _, edgeType, _) = event
 
-      while (!getVerticesMap(srcId).isDefinedAt(srcId))
-        Thread.`yield`()
+      checkIfAlreadyAdded(srcId)
 
       val srcVertex = getVerticesMap(srcId)(srcId)
       srcVertex.getOutgoingEdge(dstId) match {
@@ -176,20 +172,19 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
           addProperties(msgTime, index, edge, properties)
           logger.trace(s"Edge ${edge.getSrcId} - ${edge.getDstId} revived")
         case None       => // If it does not
-          val newEdge = new SplitEdge(msgTime, index, srcId, dstId, initialValue = true)
+          val edge = new SplitEdge(msgTime, index, srcId, dstId, initialValue = true)
           logger.trace(s"Split edge $srcId - $dstId between partitions created")
-          newEdge.setType(edgeType.map(_.name))
-          srcVertex.addOutgoingEdge(newEdge) // Add this edge to the vertex
-          addProperties(msgTime, index, newEdge, properties)
-          logger.trace(s"Added edge $newEdge to vertex $srcVertex")
+          edge.setType(edgeType.map(_.name))
+          srcVertex addOutgoingEdge edge // Add this edge to the vertex
+          addProperties(msgTime, index, edge, properties)
+          logger.trace(s"Added edge $edge to vertex $srcVertex")
       }
     }
 
-    def addIncomingEdge(event: VertexAddEvent): Unit = {
+    private def addIncomingEdge(event: VertexAddEvent): Unit = {
       val VertexAddEvent(msgTime, index, srcId, dstId, properties, _, edgeType, _) = event
 
-      while (!getVerticesMap(dstId).isDefinedAt(dstId))
-        Thread.`yield`()
+      checkIfAlreadyAdded(dstId)
 
       val dstVertex = getVerticesMap(dstId)(dstId)
       dstVertex.getIncomingEdge(srcId) match {
@@ -199,11 +194,11 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
           addProperties(msgTime, index, edge, properties)
           logger.debug(s"Edge $srcId $dstId already existed in partition $partitionID for syncNewEdgeAdd")
         case None       =>
-          val e = new SplitEdge(msgTime, index, srcId, dstId, initialValue = true)
-          e.setType(edgeType.map(_.name))
-          dstVertex addIncomingEdge e
-          addProperties(msgTime, index, e, properties)
-          logger.trace(s"added $e to $dstVertex")
+          val edge = new SplitEdge(msgTime, index, srcId, dstId, initialValue = true)
+          edge.setType(edgeType.map(_.name))
+          dstVertex addIncomingEdge edge
+          addProperties(msgTime, index, edge, properties)
+          logger.trace(s"added $edge to $dstVertex")
       }
     }
 
