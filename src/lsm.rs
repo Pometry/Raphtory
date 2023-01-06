@@ -4,6 +4,8 @@ use itertools::{chain, Itertools};
 
 static MERGE_SORT_SIZE: usize = 64;
 
+#[repr(transparent)]
+#[derive(Debug)]
 pub struct SortedVec<K: Ord> {
     vs: Vec<K>,
 }
@@ -33,6 +35,10 @@ pub struct LSMSet<K: Ord> {
 impl<K: Ord> LSMSet<K> {
     pub fn new() -> Self {
         LSMSet { vs: vec![] }
+    }
+
+    pub fn len(&self) -> usize {
+        self.vs.len() // not technically correct
     }
 
     pub fn insert(&mut self, k: K) {

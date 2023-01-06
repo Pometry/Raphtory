@@ -6,12 +6,14 @@ use std::{
 use itertools::Itertools;
 use roaring::RoaringTreemap;
 
+use crate::lsm::LSMSet;
+
 #[derive(Debug, Default)]
 pub enum BitSet {
     #[default]
     Empty,
     One(usize),
-    Seq(BinaryHeap<usize>),
+    Seq(LSMSet<usize>), //FIXME: probably switch to a SortedVec
     Roaring(RoaringTreemap),
 }
 
@@ -28,7 +30,7 @@ impl PartialEq for BitSet {
     }
 }
 
-const SEQ_MAX_SIZE: usize = 64;
+const SEQ_MAX_SIZE: usize = 32;
 
 impl BitSet {
     pub fn one(i: usize) -> Self {
@@ -41,15 +43,15 @@ impl BitSet {
                 *self = BitSet::One(i);
             }
             BitSet::One(i0) => {
-                let mut seq = BinaryHeap::new();
-                seq.push(*i0);
-                seq.push(i);
+                let mut seq = LSMSet::new();
+                seq.insert(*i0);
+                seq.insert(i);
                 *self = BitSet::Seq(seq);
             }
             BitSet::Seq(seq) => {
                 if seq.len() <= SEQ_MAX_SIZE {
                     if let BitSet::Seq(seq_mut) = self.borrow_mut() {
-                        seq_mut.push(i);
+                        seq_mut.insert(i);
                     }
                 } else {
                     let mut m = RoaringTreemap::default();

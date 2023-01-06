@@ -5,9 +5,14 @@ use std::{
 
 use itertools::Itertools;
 
-use crate::{bitset::BitSet, edge::OtherV, props::TPropVec, Direction};
-use crate::{edge::Edge, EdgeView, Prop};
-use crate::{tset::TSet, VertexView};
+use crate::VertexView;
+use crate::{
+    bitset::BitSet,
+    props::TPropVec,
+    tadjset::{AdjEdge, TAdjSet},
+    Direction,
+};
+use crate::{EdgeView, Prop};
 
 #[derive(Default, Debug)]
 pub struct TemporalGraph {
@@ -27,8 +32,8 @@ pub(crate) enum Adj {
     Empty(u64),
     List {
         logical: u64,
-        out: TSet<Edge>,
-        into: TSet<Edge>,
+        out: TAdjSet<usize, u64>,
+        into: TAdjSet<usize, u64>,
     },
 }
 
@@ -56,7 +61,11 @@ impl Adj {
 }
 
 impl TemporalGraph {
-    fn neighbours_iter(&self, v: u64, d: Direction) -> Box<dyn Iterator<Item = &Edge> + '_> {
+    fn neighbours_iter(
+        &self,
+        v: u64,
+        d: Direction,
+    ) -> Box<dyn Iterator<Item = (&usize, AdjEdge)> + '_> {
         // todo!()
         let vid = self.logical_to_physical[&v];
 
@@ -79,7 +88,7 @@ impl TemporalGraph {
         v: u64,
         d: Direction,
         window: &Range<u64>,
-    ) -> Box<dyn Iterator<Item = &Edge> + '_> {
+    ) -> Box<dyn Iterator<Item = (usize, AdjEdge)> + '_> {
         let vid = self.logical_to_physical[&v];
 
         match &self.index[vid] {
@@ -185,7 +194,8 @@ impl TemporalGraph {
     ) -> &mut Self {
         self.add_vertex(src, t);
         let src_pid = self.logical_to_physical[&src];
-        let src_edge_meta_id = self.link_outbound_edge(src, t, src_pid, OtherV::Remote(dst));
+        let src_edge_meta_id =
+            self.link_outbound_edge(src, t, src_pid, dst.try_into().unwrap(), true);
 
         self.update_edge_props(src_edge_meta_id, t, props)
     }
@@ -199,7 +209,8 @@ impl TemporalGraph {
     ) -> &mut Self {
         self.add_vertex(dst, t);
         let dst_pid = self.logical_to_physical[&dst];
-        let dst_edge_meta_id = self.link_inbound_edge(dst, t, OtherV::Remote(src), dst_pid);
+        let dst_edge_meta_id =
+            self.link_inbound_edge(dst, t, src.try_into().unwrap(), dst_pid, true);
 
         self.update_edge_props(dst_edge_meta_id, t, props)
     }
@@ -246,47 +257,44 @@ impl TemporalGraph {
         let src_pid = self.logical_to_physical[&src];
         let dst_pid = self.logical_to_physical[&dst];
 
-        let src_edge_meta_id = self.link_outbound_edge(src, t, src_pid, OtherV::Local(dst_pid));
-        let dst_edge_meta_id = self.link_inbound_edge(dst, t, OtherV::Local(src_pid), dst_pid);
+        let src_edge_meta_id = self.link_outbound_edge(src, t, src_pid, dst_pid, false);
+        let dst_edge_meta_id = self.link_inbound_edge(dst, t, src_pid, dst_pid, false);
 
         assert_eq!(src_edge_meta_id, dst_edge_meta_id);
 
         self.update_edge_props(src_edge_meta_id, t, props)
-
     }
 
     fn link_inbound_edge(
         &mut self,
         global_dst_id: u64,
         t: u64,
-        src_pid: OtherV,
+        src: usize, // may or may not be physical id depending on remote_edge flag
         dst_pid: usize,
+        remote_edge: bool,
     ) -> usize {
         if let entry @ Adj::Empty(_) = &mut self.index[dst_pid] {
             let edge_id = self.edge_meta.len();
+
+            let edge = AdjEdge::new(edge_id, !remote_edge);
+
             *entry = Adj::List {
                 logical: global_dst_id,
-                out: TSet::default(),
-                into: TSet::new(t, Edge::new(src_pid, edge_id)),
-            };
-            edge_id
-        } else if let Adj::List { into, .. } = &mut self.index[dst_pid] {
-            let search_edge = Edge {
-                v: src_pid,
-                e_meta: None,
+                out: TAdjSet::default(),
+                into: TAdjSet::new(t, src, edge),
             };
 
-            let edge_id: usize = match into.find(search_edge) {
-                Some(Edge {
-                    v,
-                    e_meta: Some(p_edge_id),
-                }) if *v == src_pid => *p_edge_id,
-                _ => self.edge_meta.len(), // nothing to do there isn't an existing edge for this dst so edge meta is new
-            };
-            into.push(t, Edge::new(src_pid, edge_id));
+            edge_id
+        } else if let Adj::List { into, .. } = &mut self.index[dst_pid] {
+            let edge_id: usize = into
+                .find(src)
+                .map(|e| e.edge_meta_id())
+                .unwrap_or(self.edge_meta.len());
+
+            into.push(t, src, AdjEdge::new(edge_id, !remote_edge));
             edge_id
         } else {
-            self.edge_meta.len() // we really should not get here
+            panic!("we really should not get here, strange the compiler things we might");
         }
     }
 
@@ -295,30 +303,27 @@ impl TemporalGraph {
         global_src_id: u64,
         t: u64,
         src_pid: usize,
-        dst_pid: OtherV,
+        dst: usize, // may or may not pe physical id depending on remote_edge flag
+        remote_edge: bool,
     ) -> usize {
         if let entry @ Adj::Empty(_) = &mut self.index[src_pid] {
             let edge_id = self.edge_meta.len();
+
+            let edge = AdjEdge::new(edge_id, !remote_edge);
+
             *entry = Adj::List {
                 logical: global_src_id,
-                out: TSet::new(t, Edge::new(dst_pid, edge_id)),
-                into: TSet::default(),
+                out: TAdjSet::new(t, dst, edge),
+                into: TAdjSet::default(),
             };
             edge_id
         } else if let Adj::List { out, .. } = &mut self.index[src_pid] {
-            let search_edge = Edge {
-                v: dst_pid,
-                e_meta: None,
-            };
+            let edge_id: usize = out
+                .find(dst)
+                .map(|e| e.edge_meta_id())
+                .unwrap_or(self.edge_meta.len());
 
-            let edge_id: usize = match out.find(search_edge) {
-                Some(Edge {
-                    v,
-                    e_meta: Some(p_edge_id),
-                }) if *v == dst_pid => *p_edge_id,
-                _ => self.edge_meta.len(), // nothing to do there isn't an existing edge for this dst so edge meta is new
-            };
-            out.push(t, Edge::new(dst_pid, edge_id));
+            out.push(t, dst, AdjEdge::new(edge_id, !remote_edge));
             edge_id
         } else {
             self.edge_meta.len() // we really should not get here
@@ -335,12 +340,12 @@ impl TemporalGraph {
 
         Box::new(
             self.neighbours_iter_window(v, d, &w)
-                .map(move |Edge { v, e_meta }| EdgeView {
-                    src_id: OtherV::Local(v_pid),
-                    dst_id: *v,
+                .map(move |(v, e_meta)| EdgeView {
+                    src_id: v_pid,
+                    dst_id: v,
                     t: None,
                     g: self,
-                    e_meta: e_meta.as_ref(),
+                    e_meta,
                 }),
         )
     }
@@ -372,16 +377,13 @@ impl TemporalGraph {
             Direction::OUT => {
                 let src_pid = self.logical_to_physical[&v];
                 if let Adj::List { out, .. } = &self.index[src_pid] {
-                    Box::new(
-                        out.iter_window_t(&r)
-                            .map(move |(t, Edge { v, e_meta })| EdgeView {
-                                src_id: OtherV::Local(src_pid),
-                                dst_id: *v,
-                                t: Some(t),
-                                g: self,
-                                e_meta: e_meta.as_ref(),
-                            }),
-                    )
+                    Box::new(out.iter_window_t(&r).map(move |(v, t, e_meta)| EdgeView {
+                        src_id: src_pid,
+                        dst_id: v,
+                        t: Some(t),
+                        g: self,
+                        e_meta,
+                    }))
                 } else {
                     Box::new(std::iter::empty())
                 }
@@ -389,16 +391,13 @@ impl TemporalGraph {
             Direction::IN => {
                 let dst_pid = self.logical_to_physical[&v];
                 if let Adj::List { into, .. } = &self.index[dst_pid] {
-                    Box::new(
-                        into.iter_window_t(&r)
-                            .map(move |(t, Edge { v, e_meta })| EdgeView {
-                                src_id: *v,
-                                dst_id: OtherV::Local(dst_pid),
-                                t: Some(t),
-                                g: self,
-                                e_meta: e_meta.as_ref(),
-                            }),
-                    )
+                    Box::new(into.iter_window_t(&r).map(move |(v, t, e_meta)| EdgeView {
+                        src_id: v,
+                        dst_id: dst_pid,
+                        t: Some(t),
+                        g: self,
+                        e_meta,
+                    }))
                 } else {
                     Box::new(std::iter::empty())
                 }
@@ -459,16 +458,13 @@ impl TemporalGraph {
     {
         let v_pid = self.logical_to_physical[&v];
 
-        Box::new(
-            self.neighbours_iter(v, d)
-                .map(move |Edge { v, e_meta }| EdgeView {
-                    src_id: OtherV::Local(v_pid),
-                    dst_id: *v,
-                    t: None,
-                    g: self,
-                    e_meta: e_meta.as_ref(),
-                }),
-        )
+        Box::new(self.neighbours_iter(v, d).map(move |(v, e_meta)| EdgeView {
+            src_id: v_pid,
+            dst_id: *v,
+            t: None,
+            g: self,
+            e_meta,
+        }))
     }
 }
 
@@ -515,7 +511,8 @@ mod graph_test {
 
         // 9 and 1 are not visible at time 3
         let actual: Vec<u64> = g.iter_vs_window(3..10).map(|v| v.global_id()).collect();
-        assert_eq!(actual, vec![]);
+        let expected: Vec<u64> = vec![];
+        assert_eq!(actual, expected);
 
         g.add_edge(9, 1, 3);
 
@@ -607,17 +604,17 @@ mod graph_test {
         assert_eq!(actual, vec![1]);
 
         // when we look for time we see both variants
-        let actual: Vec<(&u64, u64)> = g
+        let actual: Vec<(u64, u64)> = g
             .outbound_window_t(9, 0..13)
             .map(|e| (e.time().unwrap(), e.global_dst()))
             .collect();
-        assert_eq!(actual, vec![(&3, 1), (&12, 1)]);
+        assert_eq!(actual, vec![(3, 1), (12, 1)]);
 
-        let actual: Vec<(&u64, u64)> = g
+        let actual: Vec<(u64, u64)> = g
             .inbound_window_t(1, 0..13)
             .map(|e| (e.time().unwrap(), e.global_src()))
             .collect();
-        assert_eq!(actual, vec![(&3, 9), (&12, 9)]);
+        assert_eq!(actual, vec![(3, 9), (12, 9)]);
     }
 
     #[test]
@@ -657,13 +654,13 @@ mod graph_test {
             .outbound_window_t(11, 1..5)
             .map(|e| (e.time().unwrap(), e.global_dst()))
             .collect::<Vec<_>>();
-        assert_eq!(actual, vec![(&4, 22)]);
+        assert_eq!(actual, vec![(4, 22)]);
 
         let actual = g
             .inbound_window_t(44, 1..17)
             .map(|e| (e.time().unwrap(), e.global_src()))
             .collect::<Vec<_>>();
-        assert_eq!(actual, vec![(&6, 11)]);
+        assert_eq!(actual, vec![(6, 11)]);
 
         let actual = g
             .inbound_window(44, 1..6)
@@ -812,6 +809,26 @@ mod graph_test {
     }
 
     #[test]
+    fn edge_metadata_id_bug() {
+        let mut g = TemporalGraph::default();
+
+        let edges: Vec<(u64, u64, u64)> = vec![
+            (1, 2, 1),
+            (3, 4, 2),
+            (5, 4, 3),
+            (1, 4, 4),
+        ];
+
+        for (src, dst, t) in edges {
+            g.add_vertex(src, t);
+            g.add_vertex(dst, t);
+            g.add_edge_props(src, dst, t, &vec![("amount".into(), Prop::U64(12))]);
+        }
+
+        println!("BROKEN GRAPH {g:?}")
+    }
+
+    #[test]
     fn add_multiple_edges_with_1_property_same_time() {
         let mut g = TemporalGraph::default();
 
@@ -879,7 +896,12 @@ mod graph_test {
             ],
         );
 
-        g.add_edge_props(33, 44, 4, &vec![("label".into(), Prop::Str("blerg".into()))]);
+        g.add_edge_props(
+            33,
+            44,
+            4,
+            &vec![("label".into(), Prop::Str("blerg".into()))],
+        );
 
         g.add_edge_props(
             44,
