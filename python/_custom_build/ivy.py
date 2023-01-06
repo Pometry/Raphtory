@@ -44,4 +44,4 @@ def get_and_run_ivy(java: str | Path, ivy_folder: str | Path, lib_folder: str | 
         subprocess.check_call(
             [str(java), f"-Divy_dir={ivy_folder}", "-jar", ivy_jar,
              "-settings", settings, "-ivy", str(ivy_folder / "core_ivy.xml"),
-             "-retrieve", retrieve, "-confs", "runtime"])
+             "-retrieve", retrieve, "-sync", "-confs", "runtime"])
