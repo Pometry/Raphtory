@@ -38,10 +38,10 @@ def get_and_run_ivy(java: str | Path, ivy_folder: str | Path, lib_folder: str | 
 
         logging.info(
             f"IVY dl dir: {download_dir}, input dir: {ivy_folder}, lib dir: {lib_folder}")
-        retrieve = str(lib_folder) + "/[conf]/[artifact]-[type].[ext]"
+        retrieve = str(lib_folder) + "/[artifact]-[type]-[revision].[ext]"
         settings = str(ivy_folder / "ivysettings.xml")
         # retrieve = "."
         subprocess.check_call(
-            [str(java), f"-Divy_dir={ivy_folder}", f"-Dlib_dir={lib_folder}", "-jar", ivy_jar,
+            [str(java), f"-Divy_dir={ivy_folder}", "-jar", ivy_jar,
              "-settings", settings, "-ivy", str(ivy_folder / "core_ivy.xml"),
              "-retrieve", retrieve, "-confs", "runtime"])
