@@ -4,7 +4,7 @@
         <chain name="default" returnFirst="true">
             <filesystem name="local">
                 <ivy pattern="${ivy_dir}/[module]_ivy.xml" />
-                <artifact pattern="${ivy_dir}/ivy_data/[module].jar" />
+                <artifact pattern="${ivy_dir}/[module].jar" />
             </filesystem>
             <ibiblio name="ibiblio" m2compatible="true" />
         </chain>
