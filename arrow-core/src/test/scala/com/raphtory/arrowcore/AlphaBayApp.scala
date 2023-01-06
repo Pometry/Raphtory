@@ -110,17 +110,17 @@ object AlphaBayApp extends App {
         val fields = line.split(",")
 
         val srcGlobalId = rap.getGlobalEntityIdStore.getGlobalNodeId(fields(3))
-        val src         = fields(3).toLong
+        val src         = fields(3).trim().toLong
 
         val dstGlobalId = rap.getGlobalEntityIdStore.getGlobalNodeId(fields(4))
-        val dst         = fields(4).toLong
+        val dst         = fields(4).trim().toLong
 
-        val time  = fields(5).toLong
-        val price = fields(7).toLong
+        val time  = fields(5).trim().toLong
+        val price = fields(7).trim().toLong
 
-        addVertex(srcGlobalId, src, time)
-        addVertex(dstGlobalId, dst, time)
-        addOrUpdateEdge(srcGlobalId, dstGlobalId, time, price)
+        //addVertex(srcGlobalId, src, time)
+        //addVertex(dstGlobalId, dst, time)
+        //addOrUpdateEdge(srcGlobalId, dstGlobalId, time, price)
 
         line = br.readLine()
       }

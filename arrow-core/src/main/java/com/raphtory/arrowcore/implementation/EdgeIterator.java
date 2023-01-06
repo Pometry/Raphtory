@@ -174,9 +174,6 @@ public abstract class EdgeIterator {
         }
 
         int row = _edgePartition.getPropertyPrevPtrByRow(field, _edgeRowId);
-        if (row==-1) {
-            return null;
-        }
 
         _edgePartition._propertyStores[field].retrieveProperty(row, _vefa[field]);
         return _vefa[field];

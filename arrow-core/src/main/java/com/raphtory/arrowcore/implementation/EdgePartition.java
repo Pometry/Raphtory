@@ -761,9 +761,13 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
      * @return the orevious-ptr at that row
      */
     protected int getPropertyPrevPtrByRow(int field, int row) {
-        int prevPtr = _propertyPrevPtrVector[field].get(row);
+        IntVector iv = _propertyPrevPtrVector[field];
+        
+        if (iv.isSet(row)!=0) {
+            return iv.get(row);
+        }
 
-        return prevPtr;
+        return -1;
     }
 
 

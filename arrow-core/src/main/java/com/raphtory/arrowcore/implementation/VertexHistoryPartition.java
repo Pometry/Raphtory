@@ -641,8 +641,7 @@ public class VertexHistoryPartition {
      * @return the number of history items in this partition
      */
     public long getNHistoryItems() {
-        int n = _history._maxRow;
-        return n+1;
+        return _history._maxRow;
     }
 
 

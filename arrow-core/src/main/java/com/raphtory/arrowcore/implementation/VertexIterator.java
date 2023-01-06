@@ -144,9 +144,6 @@ public abstract class VertexIterator {
         }
 
         int propertyRow = _p.getPropertyPrevPtrByRow(field, _vertexRowId);
-        if (propertyRow==-1) {
-            return null;
-        }
 
         return _p.getPropertyByPropertyRow(field, propertyRow, _vefa[field]);
     }

@@ -22,9 +22,9 @@ import java.util.zip.GZIPInputStream;
 
 public class AlphaBayLoader {
     private static final int BUFFER_SIZE = 64 * 1024;
-    private static final int N_LOAD_THREADS = 8;
+    private static int N_LOAD_THREADS = 8;
     private static final int QUEUE_SIZE = 32768 * 2;
-    private static final boolean BATCH_EDGES = true;
+    private static final boolean BATCH_EDGES = false;
     private static final int EDGE_BATCH_SIZE = 4096;
 
 
@@ -126,22 +126,47 @@ public class AlphaBayLoader {
         }
         else {
             //loader.load(RaphtoryInput + "/alphabay_sorted.csv");
-            loader.loadMT(RaphtoryInput + "/alphabay_sorted.csv");
+            //loader.loadMT(RaphtoryInput + "/alphabay_sorted.csv");
+            //loader.dumpHistory("/tmp/smt.log");
 
             //rap.getVertexMgr().saveFiles();
             //rap.getEdgeMgr().saveFiles();
         }
 
 
-        //rap = new RaphtoryArrowPartition(cfg);
-        //loader = new AlphaBayLoader(rap);
-        //loader.load(RaphtoryInput + "/alphabay_sorted.csv");
+        rap = new RaphtoryArrowPartition(cfg);
+        loader = new AlphaBayLoader(rap);
+        loader.load(RaphtoryInput + "/alphabay_sorted.csv");
+        //loader.dumpVertices("/tmp/st-vertices.log");
+        //loader.dumpEdges("/tmp/st-edges.log");
+        loader.dumpHistory("/tmp/st.log");
+        //loader.checkVertex(764940347L);
+        //loader.checkVertex(764940539);
+
+        N_LOAD_THREADS = 1;
+        rap = new RaphtoryArrowPartition(cfg);
+        loader = new AlphaBayLoader(rap);
+        loader.loadMT(RaphtoryInput + "/alphabay_sorted.csv");
+        //loader.dumpVertices("/tmp/mt1-vertices.log");
+        //loader.dumpEdges("/tmp/mt1-edges.log");
+        loader.dumpHistory("/tmp/mt1.log");
+        //loader.checkVertex(764940347L);
+        //loader.checkVertex(764940539);
+
+        N_LOAD_THREADS = 8;
+        rap = new RaphtoryArrowPartition(cfg);
+        loader = new AlphaBayLoader(rap);
+        loader.loadMT(RaphtoryInput + "/alphabay_sorted.csv");
+        //loader.dumpVertices("/tmp/mt8-vertices.log");
+        //loader.dumpHistory("/tmp/mt8.log");
+        //loader.dumpEdges("/tmp/mt8-edges.log");
+        loader.dumpHistory("/tmp/mt8.log");
 
         for (int i=0; i<1; ++i) {
             System.out.println("\n\n\n");
 
             //loader.degreeAlgoNoWindowMT();
-            loader.degreeAlgoMT();
+            //loader.degreeAlgoMT();
 
             //loader.degreeAlgoTestHack();
 
@@ -327,6 +352,95 @@ public class AlphaBayLoader {
         System.out.println(new Date() + ": Degrees ended");
         System.out.println("nVertices: " + nVertices + ", nEdges=" + nEdges);
     }
+
+
+
+    public void dumpHistory(String f) throws Exception {
+        System.out.println(new Date() + ": History dump starting");
+        VertexIterator vi = _rap.getNewAllVerticesIterator();
+        VertexIterator tmpVI = _rap.getNewAllVerticesIterator();
+
+        PrintStream ps = new PrintStream(new BufferedOutputStream(new FileOutputStream(f), 65536));
+
+        long nItems = 0L;
+        long nVerticecs = 0L;
+
+        while (vi.hasNext()) {
+            long vId = vi.next();
+            ++nVerticecs;
+
+            VertexHistoryIterator.WindowedVertexHistoryIterator hi = vi.getVertexHistory();
+            while (hi.hasNext()) {
+                ++nItems;
+
+                hi.next();
+                tmpVI.reset(hi.getVertexId());
+
+                //ps.println(tmpVI.getField(NODEID_FIELD).getLong() + ", " + hi.getModificationTime()+ ", " +hi.wasActive()+ ", " +hi.wasUpdated()+ ", " +(hi.getEdgeId()!=-1L)+ ", " +hi.isOutgoingEdge());
+            }
+        }
+
+        ps.close();
+
+        System.out.println("Read " + nVerticecs + " vertices and " + nItems + " history points");
+    }
+
+
+
+    public void checkVertex(long nodeId) throws Exception {
+        VertexIterator vi = _rap.getNewAllVerticesIterator();
+        long globalId = _rap.getGlobalEntityIdStore().getGlobalNodeId(nodeId+"");
+        long localId = _leis.getLocalNodeId(globalId);
+        if (localId!=-1L) {
+            vi.reset(localId);
+
+            System.out.println("ID: " + localId + ", V: " + vi.getField(NODEID_FIELD).getLong() + ": time=" + vi.getCreationTime() + ", nIn=" + vi.getNIncomingEdges() + ", nOut=" + vi.getNOutgoingEdges());
+        }
+
+        vi = _rap.getNewAllVerticesIterator();
+        while (vi.hasNext()) {
+            if (vi.next()==localId) {
+                System.out.println("FOUND ID: " + localId + ", V: " + vi.getField(NODEID_FIELD).getLong() + ": time=" + vi.getCreationTime() + ", nIn=" + vi.getNIncomingEdges() + ", nOut=" + vi.getNOutgoingEdges());
+            }
+        }
+    }
+
+
+    public void dumpVertices(String f) throws Exception {
+        System.out.println(new Date() + ": Vertex dump starting");
+        VertexIterator vi = _rap.getNewAllVerticesIterator();
+
+        PrintStream ps = new PrintStream(new BufferedOutputStream(new FileOutputStream(f), 65536));
+
+        while (vi.hasNext()) {
+            long vId = vi.next();
+
+            ps.println(vi.getField(NODEID_FIELD).getLong() + ": time=" + vi.getCreationTime() + ", nIn=" + vi.getNIncomingEdges() + ", nOut=" + vi.getNOutgoingEdges());
+        }
+        ps.close();
+    }
+
+
+    public void dumpEdges(String f) throws Exception {
+        System.out.println(new Date() + ": Edge dump starting");
+        EdgeIterator ei = _rap.getNewAllEdgesIterator();
+        VertexIterator vi = _rap.getNewAllVerticesIterator();
+
+        PrintStream ps = new PrintStream(new BufferedOutputStream(new FileOutputStream(f), 65536));
+
+        while (ei.hasNext()) {
+            long eId = ei.next();
+
+            vi.reset(ei.getSrcVertexId());
+            ps.print("E: " + vi.getField(NODEID_FIELD).getLong() + " -> ");
+
+            vi.reset(ei.getDstVertexId());
+            ps.println(vi.getField(NODEID_FIELD).getLong() + ", time=" + ei.getCreationTime());
+        }
+
+        ps.close();
+    }
+
 
 
 
@@ -819,7 +933,7 @@ public class AlphaBayLoader {
         while ((line = br.readLine())!=null) {
             ++nLines;
             if (nLines % (1024 * 1024)==0) {
-                System.out.println(nLines);
+                //System.out.println(nLines);
             }
 
             String[] fields = line.split(",");
@@ -833,8 +947,8 @@ public class AlphaBayLoader {
             long time = Long.parseLong(fields[5]);
             long price = Long.parseLong(fields[7]);
 
-            addVertex(srcGlobalId, src, time);
             addVertex(dstGlobalId, dst, time);
+            addVertex(srcGlobalId, src, time);
             addOrUpdateEdge(srcGlobalId, dstGlobalId, time, price);
         }
 
@@ -963,7 +1077,7 @@ public class AlphaBayLoader {
         String line;
         StringBuilder tmp = new StringBuilder();
 
-        System.out.println(new Date() + ": Starting load");
+        System.out.println(new Date() + ": " + N_LOAD_THREADS + " Starting load");
 
 
         long SGBID[];
@@ -986,7 +1100,7 @@ public class AlphaBayLoader {
         while ((line = br.readLine())!=null) {
             ++nLines;
             if (nLines % (1024 * 1024)==0) {
-                System.out.println(nLines);
+                //System.out.println(nLines);
             }
 
             String[] fields = line.split(",");
@@ -1039,6 +1153,7 @@ public class AlphaBayLoader {
             }
         }
 
+        /*
         System.out.println("WAITING");
         boolean finished = false;
         while (!finished) {
@@ -1054,9 +1169,11 @@ public class AlphaBayLoader {
                 Thread.sleep(10L);
             }
         }
+        */
 
         for (int i=0; i<N_LOAD_THREADS; ++i) {
-            _disruptors[i].halt();
+            //_disruptors[i].halt();
+            _disruptors[i].shutdown();
         }
 
         long now = System.currentTimeMillis();
@@ -1206,6 +1323,7 @@ public class AlphaBayLoader {
             }
 
             long localId = _leis.getLocalNodeId(av._globalId);
+
             if (localId == -1L) {
                 createVertex(_lastVertexId, av._globalId, av._nodeId, av._time).decRefCount();
                 ++_lastVertexId;

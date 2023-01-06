@@ -641,8 +641,7 @@ public class EdgeHistoryPartition {
      * @return the number of history records in this partition
      */
     public long getNHistoryItems() {
-        int n = _history._maxRow;
-        return n+1;
+        return _history._maxRow;
     }
 
 
