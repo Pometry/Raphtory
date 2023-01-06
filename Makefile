@@ -24,11 +24,11 @@ sbt-build: version
 	sbt core/makeIvyXml core/package arrowCore/makeIvyXml arrowCore/package arrowMessaging/makeIvyXml arrowMessaging/package
 	mkdir -p $(PYRAPHTORY_IVYDIR)
 	cp core/target/scala-2.13/ivy-$$(cat version).xml $(PYRAPHTORY_IVYDIR)/core_ivy.xml
-	sed -i.bak '/org="com.raphtory"/d' $(PYRAPHTORY_IVYDIR)/core_ivy.xml
+	#sed -i.bak '/org="com.raphtory"/d' $(PYRAPHTORY_IVYDIR)/core_ivy.xml
 	cp arrow-core/target/scala-2.13/ivy-$$(cat version).xml $(PYRAPHTORY_IVYDIR)/arrow-core_ivy.xml
-	sed -i.bak '/org="com.raphtory"/d' $(PYRAPHTORY_IVYDIR)/arrow-core_ivy.xml
+	#sed -i.bak '/org="com.raphtory"/d' $(PYRAPHTORY_IVYDIR)/arrow-core_ivy.xml
 	cp arrow-messaging/target/scala-2.13/ivy-$$(cat version).xml $(PYRAPHTORY_IVYDIR)/arrow_messaging_ivy.xml
-	sed -i.bak '/org="com.raphtory"/d' $(PYRAPHTORY_IVYDIR)/arrow_messaging_ivy.xml
+	#sed -i.bak '/org="com.raphtory"/d' $(PYRAPHTORY_IVYDIR)/arrow_messaging_ivy.xml
 	mkdir -p $(PYRAPHTORY_LIBDIR)
 	cp core/target/scala-2.13/core_2.13-$$(cat version).jar $(PYRAPHTORY_LIBDIR)/core.jar
 	cp arrow-core/target/scala-2.13/arrow-core_2.13-$$(cat version).jar $(PYRAPHTORY_LIBDIR)/arrow-core.jar
