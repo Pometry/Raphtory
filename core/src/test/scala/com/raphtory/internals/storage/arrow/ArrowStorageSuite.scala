@@ -55,6 +55,7 @@ class ArrowStorageSuite extends munit.FunSuite {
             None,
             MutableLong("pLong", now + 1)
     )(par)
+    par.flush
 
     val actual2 = par.vertices.head
     assertEquals(actual2.prop[Long]("pLong").list.toSet, Set(now -> timestamp, (now + 1, timestamp + 1)))

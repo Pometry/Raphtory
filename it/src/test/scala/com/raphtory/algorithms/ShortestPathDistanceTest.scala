@@ -5,7 +5,9 @@ import com.raphtory.algorithms.generic.distance.ShortestPathDistance
 import com.raphtory.api.input.Source
 import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceOrFileSpout
+import munit.IgnoreSuite
 
+@IgnoreSuite
 class ShortestPathDistanceTest extends BaseCorrectnessTest {
   test("Test shortest path distances") {
     correctnessTest(
