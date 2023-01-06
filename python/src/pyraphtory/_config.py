@@ -38,7 +38,7 @@ def get_ivy_jars_from_local_lib():
     if not isinstance(lib, Path):
         raise RuntimeError("Pyraphtory is not installed correctly, are you trying to import from a compressed file?")
 
-    jars = ":".join(str(f) for f in lib.rglob("*.jar"))
+    jars = str(lib) + "/*.jar"
     return jars
 
 
