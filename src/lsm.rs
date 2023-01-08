@@ -1,8 +1,9 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, ops::Range};
 
 use itertools::{chain, Itertools};
 
 static MERGE_SORT_SIZE: usize = 64;
+
 
 #[repr(transparent)]
 #[derive(Debug)]
