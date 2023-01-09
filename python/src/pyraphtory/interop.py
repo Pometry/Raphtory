@@ -22,6 +22,15 @@ def long_converter(value):
     return JLong(value)
 
 
+@jpype_type_converter("Int")
+def int_converter(value):
+    return JInt(value)
+
+
+@jpype_type_converter("Float")
+def float_converter(value):
+    return JFloat(value)
+
 
 _wrapper_lock = Lock()
 _jpype = False
