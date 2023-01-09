@@ -4,8 +4,6 @@ import inspect
 import re
 import traceback
 from abc import ABCMeta, ABC
-from collections.abc import Iterable, Mapping
-
 import os
 
 from typing import *
@@ -15,7 +13,15 @@ from threading import Lock, RLock
 from copy import copy
 from textwrap import indent
 from pyraphtory import _codegen
+from pyraphtory._codegen import jpype_type_converter, type_converter
 from jpype import JObject, JBoolean, JByte, JShort, JInt, JLong, JFloat, JDouble, JString
+
+
+@jpype_type_converter("Long")
+def long_converter(value):
+    return JLong(value)
+
+
 
 _wrapper_lock = Lock()
 _jpype = False
@@ -328,11 +334,11 @@ class DefaultValue(object):
         return "DefaultValue()"
 
 
-def _check_default(obj, value):
+def _check_default(obj, value, converter):
     if isinstance(value, DefaultValue):
         return value(obj)
     else:
-        return to_jvm(value)
+        return converter(value)
 
 
 class ScalaProxyBase(object):
