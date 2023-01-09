@@ -15,7 +15,11 @@ import com.raphtory.internals.storage.pojograph.entities.internal.PojoEntity
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoVertex
 import com.raphtory.internals.storage.pojograph.entities.internal.SplitEdge
 import com.typesafe.scalalogging.Logger
+import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import org.slf4j.LoggerFactory
+
 import scala.jdk.CollectionConverters._
 import java.util.concurrent.ConcurrentHashMap
 import scala.collection.concurrent
@@ -29,7 +33,7 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
   private val N_LOAD_THREADS = 8
   private val QUEUE_SIZE     = 1024 * 32 * 2
 
-  private val arrOfMapOfVertices = Array.fill(N_LOAD_THREADS)(new ConcurrentHashMap[Long, PojoVertex]().asScala)
+  private val arrOfMapOfVertices = Array.fill(N_LOAD_THREADS)(new Long2ObjectOpenHashMap[PojoVertex]())
 
   def buildDisruptor(): Disruptor[DisruptorEvent] = {
     val threadFactory = DaemonThreadFactory.INSTANCE
@@ -58,19 +62,18 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
 
   private def getIndex(vId: Long): Int = Math.abs(vId % N_LOAD_THREADS).toInt
 
-  private def getVerticesMap(vId: Long): concurrent.Map[Long, PojoVertex] =
+  private def getVerticesMap(vId: Long): Long2ObjectOpenHashMap[PojoVertex] =
     arrOfMapOfVertices(getIndex(vId))
 
-  private def waitUntilVertexIsAdded(vId: Long): Unit                        =
-    while (!getVerticesMap(vId).isDefinedAt(vId))
+  private def waitUntilVertexIsAdded(vId: Long): Unit =
+    while (!getVerticesMap(vId).containsKey(vId))
       Thread.`yield`()
 
   class DisruptorEventHandler extends EventHandler[DisruptorEvent] {
 
-    override def onEvent(event: DisruptorEvent, sequence: Long, endOfBatch: Boolean): Unit = {
+    override def onEvent(event: DisruptorEvent, sequence: Long, endOfBatch: Boolean): Unit =
       // If dstId is set to -1L, event is considered as an add edge event
       if (event.dstId == -1L) addVertex(event) else addEdge(event)
-    }
 
     private def addProperties(msgTime: Long, index: Long, entity: PojoEntity, properties: Properties): Unit =
       properties addPropertiesToEntity (msgTime, index, entity)
@@ -79,20 +82,20 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
       val DisruptorEvent(msgTime, index, srcId, _, properties, maybeType, _) = event
 
       val vertices = getVerticesMap(srcId)
-      vertices.get(srcId) match { // Check if the vertex exists
-        case Some(vertex) => // If it does
-          vertex revive (msgTime, index) // Add the history point
-          addProperties(msgTime, index, vertex, properties)
-          logger.trace(s"History point added to vertex: $srcId")
-          logger.trace(s"Properties added: $properties")
-
-        case None         => // If it does not exist
-          val vertex = new PojoVertex(msgTime, index, srcId, initialValue = true) // create a new vertex
-          vertex.setType(maybeType.map(_.name))
-          vertices += ((srcId, vertex)) // Put it in the map
-          addProperties(msgTime, index, vertex, properties)
-          logger.trace(s"Properties added: $properties")
-          logger.trace(s"New vertex created $srcId")
+      if (vertices.containsKey(srcId)) { // Check if the vertex exists
+        val vertex = vertices.get(srcId)
+        vertex revive (msgTime, index) // Add the history point
+        addProperties(msgTime, index, vertex, properties)
+        logger.trace(s"History point added to vertex: $srcId")
+        logger.trace(s"Properties added: $properties")
+      }
+      else { // If it does not exist
+        val vertex = new PojoVertex(msgTime, index, srcId, initialValue = true) // create a new vertex
+        vertex.setType(maybeType.map(_.name))
+        vertices.put(srcId, vertex) // Put it in the map
+        addProperties(msgTime, index, vertex, properties)
+        logger.trace(s"Properties added: $properties")
+        logger.trace(s"New vertex created $srcId")
       }
     }
 
@@ -100,7 +103,7 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
       event.edgeToCreate.getOrElse(
               new Exception(s"Unspecified type of edge to create. EdgeToCreate = ${event.edgeToCreate}")
       ) match {
-        case SelfLoop            => addLocalEdge(event)
+        case SelfLoop             => addLocalEdge(event)
         case LocalIncomingEdge(_) => addLocalIncomingEdge(event)
         case LocalOutgoingEdge(_) => addLocalOutgoingEdge(event)
         case RemoteIncomingEdge   => addIncomingEdge(event)
@@ -156,13 +159,12 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
       val dstVertex = getVerticesMap(dstId)(dstId)
       dstVertex.getIncomingEdge(srcId) match {
         case Some(_) =>
-        case None       =>
+        case None    =>
           val edge = edgeToCreate.get.asInstanceOf[LocalIncomingEdge].edge
           dstVertex addIncomingEdge edge
           logger.trace(s"Added edge $edge to vertex $dstVertex")
       }
     }
-
 
     private def addOutgoingEdge(event: DisruptorEvent): Unit = {
       val DisruptorEvent(msgTime, index, srcId, dstId, properties, maybeType, _) = event
@@ -242,16 +244,14 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
       start: Long,
       end: Long,
       f: (Long, PojoVertex) => (Long, PojoExVertex)
-  ): mutable.Map[Long, PojoExVertex] = {
-    import scala.collection.parallel.CollectionConverters._
-
-    arrOfMapOfVertices.map {
-      _.par.collect {
-        case (id, vertex) if vertex.aliveBetween(start, end) => f(id, vertex)
-      }.seq
-    }
-  }
-    .reduce(_ ++ _)
+  ): mutable.Map[Long, PojoExVertex] =
+    arrOfMapOfVertices
+      .map {
+        _.asScala.collect {
+          case (id, vertex) if vertex.aliveBetween(start, end) => f(id, vertex)
+        }
+      }
+      .reduce(_ ++ _)
 
   def flush(): Unit = {
     var finished = false
@@ -341,4 +341,11 @@ private[pojograph] object DisruptorQueue {
   }
 
   def apply(graphID: String, partitionID: Int): DisruptorQueue = new DisruptorQueue(graphID, partitionID)
+}
+
+object TestFastUtils extends App {
+  case class Person(name: String = "Shivam")
+  val f = new Long2ObjectOpenHashMap[Person](10)
+  val p = Person()
+  f.putIfAbsent(1L, p)
 }
