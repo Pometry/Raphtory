@@ -6,7 +6,6 @@ object Dependencies {
   private lazy val chillVersion                    = "0.10.0"
   private lazy val curatorVersion                  = "5.4.0"
   private lazy val declineVersion                  = "2.3.0"
-  //private lazy val doobieVersion                   = "1.0.0-RC2"
   private lazy val fs2Version                      = "3.2.12"
   private lazy val h2Version                       = "2.1.214"
   private lazy val jacksonVersion                  = "2.13.3"
@@ -64,9 +63,6 @@ object Dependencies {
   lazy val curatorRecipes =
     "org.apache.curator" % "curator-recipes" % curatorVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val decline    = "com.monovore"             %% "decline-effect" % declineVersion excludeAll (excludeLog4j, excludeSlf4j)
-  //lazy val doobieCore     = "org.tpolecat"             %% "doobie-core"     % doobieVersion
-  //lazy val doobiePostgres = "org.tpolecat"             %% "doobie-postgres" % doobieVersion
-  //lazy val doobieSpecs    = "org.tpolecat"             %% "doobie-specs2"   % doobieVersion
   lazy val fs2        = "co.fs2"                   %% "fs2-core"       % fs2Version
   lazy val h2         = "com.h2database"            % "h2"             % h2Version % Test
   lazy val apacheHttp = "org.apache.httpcomponents" % "httpclient"     % "4.5.13"
