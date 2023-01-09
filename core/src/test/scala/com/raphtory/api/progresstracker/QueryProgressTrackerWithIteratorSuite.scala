@@ -1,8 +1,7 @@
 package com.raphtory.api.progresstracker
 
 import cats.effect._
-import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.TableOutput
+import com.raphtory.api.analysis.table.{KeyPair, Row, TableOutput}
 import com.raphtory.api.time.Interval
 import com.raphtory.internals.graph.Perspective
 import com.raphtory.protocol.PerspectiveCompleted
@@ -50,7 +49,7 @@ class QueryProgressTrackerWithIteratorSuite extends CatsEffectSuite {
 
   test("QueryProgressTrackerWithIterator updates list of perspectives and iterator when received PerspectiveCompleted") {
     val tracker = queryProgressTrackerWithIterator()
-    val row     = Row(1, 2, 3)
+    val row     = Row(KeyPair("",1), KeyPair("",2), KeyPair("",3))
 
     tracker.handleQueryUpdate(PerspectiveCompleted(perspective, Seq(row)))
     tracker.handleQueryUpdate(QueryCompleted())

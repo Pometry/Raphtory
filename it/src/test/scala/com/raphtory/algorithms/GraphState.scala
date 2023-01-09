@@ -2,7 +2,7 @@ package com.test.raphtory.algorithms
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.{Row, Table}
+import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 
 class GraphState() extends Generic {
 
@@ -33,22 +33,22 @@ class GraphState() extends Generic {
         .sum
 
       Row(
-              vertex.ID,
-              inDeg,
-              outDeg,
-              degSum,
-              vdeletions,
-              vcreations,
-              outedgedeletions,
-              outedgecreations,
-              inedgedeletions,
-              inedgecreations,
-              properties,
-              propertyhistory,
-              outedgeProperties,
-              outedgePropertyHistory,
-              inedgeProperties,
-              inedgePropertyHistory
+        KeyPair("vertexID", vertex.ID),
+        KeyPair("inDegree",inDeg),
+        KeyPair("outDegree", outDeg),
+        KeyPair("degreeSum",degSum),
+        KeyPair("vertexDeletions", vdeletions),
+        KeyPair("vertexCreations", vcreations),
+        KeyPair("outedgeDeletions", outedgedeletions),
+        KeyPair("outedgeCreations", outedgecreations),
+        KeyPair("inedgeDeletions", inedgedeletions),
+        KeyPair("inedgeCreations",inedgecreations),
+        KeyPair("properties", properties),
+        KeyPair("propertyHistory", propertyhistory),
+        KeyPair("outedgeProperties",outedgeProperties),
+        KeyPair("outedgePropertyHistory",outedgePropertyHistory),
+        KeyPair("inedgeProperties",inedgeProperties),
+        KeyPair("inedgePropertyHistory",inedgePropertyHistory)
       )
     }
 }

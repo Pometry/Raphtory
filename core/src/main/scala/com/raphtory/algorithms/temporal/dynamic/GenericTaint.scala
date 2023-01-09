@@ -4,8 +4,7 @@ import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
-import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.Table
+import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 
 /**
   * {s}`GenericTaint((startTime: Int, infectedNodes: Iterable[Long], stopNodes: Set[Long] = Set())`
@@ -144,9 +143,9 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
     graph
       .select(vertex =>
         Row(
-                vertex.name(),
-                vertex.getStateOrElse("taintStatus", false),
-                vertex.getStateOrElse[Any]("taintHistory", "false")
+                KeyPair("name", vertex.name()),
+                KeyPair("taintStatus", vertex.getStateOrElse("taintStatus", false)),
+                KeyPair("taintHistory", vertex.getStateOrElse[Any]("taintHistory", "false"))
         )
       )
       // filter for any that had been tainted and save to folder
@@ -155,7 +154,7 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
         row
           .get(2)
           .asInstanceOf[Vector[(String, Long, Long, String)]]
-          .map(tx => Row(row(0), tx._2, tx._3, tx._4))
+          .map(tx => Row(KeyPair("vertexName", row(0)), KeyPair("propagatingEdge", tx._2), KeyPair("timeOfEvent", tx._3), KeyPair("sourceNode",tx._4)))
       )
 }
 

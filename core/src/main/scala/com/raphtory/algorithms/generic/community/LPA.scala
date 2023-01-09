@@ -5,10 +5,10 @@ import com.raphtory.algorithms.generic.community.LPA.MinTieBreak
 import com.raphtory.algorithms.generic.community.LPA.TieBreaker
 import com.raphtory.algorithms.generic.community.LPA.lpa
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.Table
+import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.internals.communication.SchemaProviderInstances._
+
 import scala.util.Random
 
 /**
@@ -84,9 +84,7 @@ class LPA[T: Numeric](
 
   override def tabularise(graph: GraphPerspective): Table =
     graph.select { vertex =>
-      Row(
-              vertex.name(),
-              vertex.getState("community")
+      Row(KeyPair("name", vertex.name()),KeyPair("community", vertex.getState("community"))
       )
     }
   // TODO AGGREGATION STATS - See old code in old dir

@@ -2,8 +2,7 @@ package com.raphtory.algorithms.generic.motif
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.Table
+import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 
 /**
   * {s}`GlobalClusteringCoefficient()`
@@ -50,7 +49,7 @@ object GlobalClusteringCoefficient extends Generic {
       val totalWedges: Int     = state("wedges").value
       val avgCluster           = if (state.nodeCount > 0) totalCluster / state.nodeCount else 0.0
       val globalCluster        = if (totalWedges > 0) totalTriangles / totalWedges else 0.0
-      Row(avgCluster, globalCluster)
+      Row(KeyPair("averageCluster",avgCluster), KeyPair("transitivity", globalCluster))
     }
 
 }

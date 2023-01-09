@@ -39,7 +39,7 @@ private[raphtory] class PojoExVertex(
   // state related
   def setState(key: String, value: Any): Unit =
     computationValues += ((key, value))
-  override def getStateSet(): List[String] = computationValues.map(tuple => tuple._1).toList
+  override def getStateSet(): List[String] = computationValues.keys.toList
 
   def getState[T](key: String, includeProperties: Boolean = false): T =
     if (computationValues.contains(key))

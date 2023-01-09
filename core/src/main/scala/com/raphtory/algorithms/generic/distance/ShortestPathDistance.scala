@@ -2,10 +2,10 @@ package com.raphtory.algorithms.generic.distance
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.Table
+import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 import com.raphtory.utils.Bounded
 import com.raphtory.utils.Bounded._
+
 import math.Numeric.Implicits._
 import math.Ordering.Implicits._
 
@@ -83,7 +83,7 @@ class ShortestPathDistance[T: Bounded: Numeric](src_name: String, tgt_name: Stri
       .explodeSelect { vertex =>
         val name = vertex.name()
         if (name == tgt_name)
-          List(Row(src_name, name, vertex.getState[T](DISTANCE)))
+          List(Row(KeyPair("sourceVertex", src_name), KeyPair("targetVertex", name), KeyPair(DISTANCE, vertex.getState[T](DISTANCE))))
         else
           List.empty[Row]
       }

@@ -6,7 +6,7 @@ import com.raphtory.TestUtils
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.algorithm._
 import com.raphtory.api.analysis.graphview.TemporalGraph
-import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.{KeyPair, Row}
 import com.raphtory.api.input._
 import com.raphtory.internals.context.{RaphtoryContext, RaphtoryIOContext}
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
@@ -178,14 +178,14 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   test("When an algo crashes and we try to iterate over the result we get an exception") {
     val res = runWithGraph(RemoteContext, source) { graph =>
-      Try(graph.select(vertex => Row(1)).get().toList)
+      Try(graph.select(vertex => Row(KeyPair("", 1))).get().toList)
     }
     assert(res.isFailure)
   }
 
   test("When an algo crashes waitForJob returns and isJobDone is false") {
     val res = runWithGraph(RemoteContext, source) { graph =>
-      val query = graph.select(vertex => Row(1)).filter(row => false).writeTo(PrintSink())
+      val query = graph.select(vertex => Row(KeyPair("",1))).filter(row => false).writeTo(PrintSink())
       intercept[java.lang.RuntimeException](query.waitForJob())
       !query.isJobDone
     }

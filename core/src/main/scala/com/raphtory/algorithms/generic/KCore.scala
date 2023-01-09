@@ -3,8 +3,7 @@ package com.raphtory.algorithms.generic
 import com.raphtory.algorithms.generic.KCore.EFFDEGREE
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.Table
+import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 import com.raphtory.internals.communication.SchemaProviderInstances.intSchemaProvider
 
 /**
@@ -101,7 +100,7 @@ class KCore(k: Int, resetStates: Boolean = true) extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .select(vertex => Row(vertex.name, vertex.getState[Int](EFFDEGREE) >= k))
+      .select(vertex => Row(KeyPair("name", vertex.name), KeyPair(EFFDEGREE, vertex.getState[Int](EFFDEGREE) >= k)))
       .filter(r => r.getBool(1))
 }
 

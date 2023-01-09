@@ -33,7 +33,7 @@ class CheckHistory extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
     graph.globalSelect(graphState =>
-      Row(graphState("vertexHistoryOrdered").value, graphState("edgeHistoryOrdered").value)
+      Row(KeyPair("vertexHistoryOrdered", graphState("vertexHistoryOrdered").value), KeyPair("edgeHistoryOrdered", graphState("edgeHistoryOrdered").value))
     )
 }
 

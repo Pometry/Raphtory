@@ -14,7 +14,7 @@ import com.raphtory.api.analysis.visitor.Vertex
   *   selects vertices of the largest component.
   *
   */
-class LargestConnectedComponentFilter extends NodeList {
+class LargestConnectedComponentFilter extends NodeList(Seq("name")) {
 
   override def apply(graph: GraphPerspective): graph.Graph = ConnectedComponents
     .apply(graph)

@@ -2,8 +2,9 @@ package com.raphtory.examples.coho.companiesStream.algorithms
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.{Row, Table}
+import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 import com.raphtory.internals.communication.SchemaProviderInstances._
+
 import scala.collection.View
 
 /**
@@ -58,10 +59,10 @@ class CompanyDirectorGraph extends Generic {
     override def tabularise(graph: GraphPerspective): Table = graph.select { vertex =>
       if (vertex.Type == "Persons With Significant Control")
         Row(
-          vertex.name,
-          vertex.getStateOrElse("time and company", None),
-          vertex.getStateOrElse("list of pscs", None),
-          vertex.getStateOrElse("companies", None),
+          KeyPair("name",vertex.name),
+          KeyPair("timeAndCompany",vertex.getStateOrElse("time and company", None)),
+          KeyPair("listOfPSCs",vertex.getStateOrElse("list of pscs", None)),
+          KeyPair("companies",vertex.getStateOrElse("companies", None)),
         )
       else Row()
     }

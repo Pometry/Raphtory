@@ -11,19 +11,22 @@ import scala.collection.mutable.ArrayBuffer
 /** Create a row of a data table
   * @see [[Table]]
   */
+
+case class KeyPair(key: String, value: Any)
+
 trait Row {
-  protected val values = ArrayBuffer.empty[Any]
+  protected val values = ArrayBuffer.empty[KeyPair]
 
   /** Return value at index
     * @param index index to obtain value from
     */
-  def apply(index: Int): Any = values(index)
+  def apply(index: Int): Any = values(index).value
 
   /** Return value at `index` */
-  def get(index: Int): Any = values(index)
+  def get(index: Int): Any = values(index).value
 
   /** Return value at `index` and cast it to type `T` */
-  def getAs[T](index: Int): T = values(index).asInstanceOf[T]
+  def getAs[T](index: Int): T = values(index).value.asInstanceOf[T]
 
   /** Same as `getAs[Int](index)` */
   def getInt(index: Int): Int = getAs[Int](index)
@@ -41,7 +44,7 @@ trait Row {
   def getDouble(index: Int): Double = getAs[Double](index)
 
   /** Return Array of values */
-  def getValues(): Array[Any] = values.toArray
+  def getValues(): Array[KeyPair] = values.toArray
 
   override def toString: String = "Row(" + values.mkString(", ") + ")"
 
@@ -87,7 +90,7 @@ private[raphtory] class RowImplementation extends Row {
 
   val constructedOn: String = Thread.currentThread().getName
 
-  def init(values: Seq[Any]): Unit = {
+  def init(values: Seq[KeyPair]): Unit = {
     this.values.clear()
     this.values.addAll(values)
     selfIterator.reset()
@@ -133,7 +136,7 @@ object Row extends ProtoField[Row] {
     ThreadLocal.withInitial[ArrayBuffer[RowImplementation]](() => ArrayBuffer.empty[RowImplementation])
 
   /** Create a new Row object */
-  def apply(values: Any*): Row = {
+  def apply(values: KeyPair*): Row = {
     val localPool = pool.get()
     val row       =
       if (localPool.isEmpty) {

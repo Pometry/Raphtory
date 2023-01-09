@@ -3,7 +3,7 @@ package com.raphtory.algorithms.temporal.motif
 import com.raphtory.algorithms.generic.{KCore, NodeList}
 import com.raphtory.api.analysis.algorithm.{Generic, GenericReduction}
 import com.raphtory.api.analysis.graphview.{GraphPerspective, ReducedGraphPerspective}
-import com.raphtory.api.analysis.table.{Row, Table}
+import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs.{get2NodeCountsWithoutRepeats, getStarCountsPretty, getTriCountsPretty}
 import com.raphtory.internals.communication.SchemaProviderInstances._
 
@@ -177,14 +177,14 @@ class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint
   override def tabularise(graph: ReducedGraphPerspective): Table = {
     if (!graphWide) {
       if (prettyPrint)
-        graph.select(vertex => Row(vertex.name, getStarCountsPretty(vertex.getState[Array[Long]]("starCounts")), get2NodeCountsWithoutRepeats(vertex.getState[Array[Long]]("twoNodeCounts")), getTriCountsPretty(vertex.getState[Array[Long]]("triCounts"))))
+        graph.select(vertex => Row(KeyPair("vertexName", vertex.name), KeyPair("starCounts", getStarCountsPretty(vertex.getState[Array[Long]]("starCounts"))), KeyPair("twoNodeCounts", get2NodeCountsWithoutRepeats(vertex.getState[Array[Long]]("twoNodeCounts"))), KeyPair("triCounts", getTriCountsPretty(vertex.getState[Array[Long]]("triCounts")))))
       else
-        graph.select(vertex => Row(vertex.name, (vertex.getState[Array[Long]]("starCounts")++vertex.getState[Array[Long]]("twoNodeCounts")++vertex.getState[Array[Long]]("triCounts")).mkString("(", ";", ")")))
+        graph.select(vertex => Row(KeyPair("vertexName", vertex.name), KeyPair("motifs", (vertex.getState[Array[Long]]("starCounts")++vertex.getState[Array[Long]]("twoNodeCounts")++vertex.getState[Array[Long]]("triCounts")).mkString("(", ";", ")"))))
     } else {
       if (prettyPrint)
-        graph.globalSelect(state => Row(getStarCountsPretty(state[Array[Long],Array[Long]]("starCounts").value), get2NodeCountsWithoutRepeats(state[Array[Long],Array[Long]]("twoNodeCounts").value), getTriCountsPretty(state[Array[Long],Array[Long]]("triCounts").value)))
+        graph.globalSelect(state => Row(KeyPair("starCounts", getStarCountsPretty(state[Array[Long],Array[Long]]("starCounts").value)), KeyPair("twoNodeCounts", get2NodeCountsWithoutRepeats(state[Array[Long],Array[Long]]("twoNodeCounts").value)), KeyPair("triCounts", getTriCountsPretty(state[Array[Long],Array[Long]]("triCounts").value))))
       else
-        graph.globalSelect(state => Row((state[Array[Long],Array[Long]]("starCounts").value++state[Array[Long],Array[Long]]("twoNodeCounts").value++state[Array[Long],Array[Long]]("triCounts").value).mkString("(", ";", ")")))
+        graph.globalSelect(state => Row(KeyPair("motifs", (state[Array[Long],Array[Long]]("starCounts").value++state[Array[Long],Array[Long]]("twoNodeCounts").value++state[Array[Long],Array[Long]]("triCounts").value).mkString("(", ";", ")"))))
     }
   }
 }

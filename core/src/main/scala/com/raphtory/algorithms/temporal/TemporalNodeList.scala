@@ -2,8 +2,7 @@ package com.raphtory.algorithms.temporal
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.Table
+import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 
 /**
   * {s}`TemporalNodeList(properties: String*) = new TemporalNodeList(properties)`
@@ -44,12 +43,12 @@ class TemporalNodeList(
   override def tabularise(graph: GraphPerspective): Table =
     graph.multilayerView
       .select { vertex =>
-        Row(
-                vertex.baseName +: vertex.timestamp +: properties.map(key =>
-                  vertex
-                    .getStateOrElse(key, defaults.getOrElse(key, None), includeProperties = true)
-                ): _*
-        )
+        val temporalNodeList = KeyPair("vertexName", vertex.baseName) +:
+          KeyPair("timestamp",vertex.timestamp) +:
+          properties.map(key =>
+           KeyPair("properties", vertex.getStateOrElse(key, defaults.getOrElse(key, None), includeProperties = true)
+          ))
+        Row(temporalNodeList: _*)
       }
 }
 

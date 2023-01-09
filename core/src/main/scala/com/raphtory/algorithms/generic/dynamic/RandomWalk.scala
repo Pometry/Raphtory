@@ -5,8 +5,7 @@ import com.raphtory.algorithms.generic.dynamic.RandomWalk.StoreMessage
 import com.raphtory.algorithms.generic.dynamic.RandomWalk.WalkMessage
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.Table
+import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 import com.raphtory.api.analysis.visitor.Vertex
 
 import scala.collection.mutable.ArrayBuffer
@@ -100,8 +99,8 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends Generi
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .select(vertex => Row(vertex.getState[Array[ArrayBuffer[String]]]("walks")))
-      .explode(row => row.getAs[Array[ArrayBuffer[String]]](0).map(r => Row(r.toSeq: _*)).toList)
+      .select(vertex => Row(KeyPair("walks", vertex.getState[Array[ArrayBuffer[String]]]("walks"))))
+      .explode(row => row.getAs[Array[ArrayBuffer[String]]](0).map(r => Row(Seq(KeyPair("walks", r)):_*)).toList)
 }
 
 object RandomWalk {

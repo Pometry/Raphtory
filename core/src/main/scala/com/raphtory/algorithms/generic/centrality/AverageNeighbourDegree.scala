@@ -24,7 +24,7 @@ import com.raphtory.internals.communication.SchemaProviderInstances._
   *  | ----------------- | ---------------------------- |
   *  | {s}`name: String` | `avgNeighbourDegree: Double` |
   */
-object AverageNeighbourDegree extends NodeList(Seq("avgNeighbourDegree")) {
+object AverageNeighbourDegree extends NodeList(Seq("name", "avgNeighbourDegree")) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph.step(vertex => vertex.messageAllNeighbours(vertex.degree)).step { vertex =>

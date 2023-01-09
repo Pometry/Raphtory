@@ -1,7 +1,7 @@
 package com.raphtory.api.analysis.graphview
 
 import com.raphtory.api.analysis.algorithm.Generic
-import com.raphtory.api.analysis.table.{Row, Table}
+import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.input.Source
 import com.raphtory.sources.CSVEdgeListSource
@@ -30,7 +30,7 @@ class CountIterations(num_iters_before_vote: Int, num_iters: Int) extends Generi
       }
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.globalSelect(graphState => Row(graphState("maxIterations").value))
+    graph.globalSelect(graphState => Row(KeyPair("maxIterations",graphState("maxIterations").value)))
 }
 
 object CountIterations {

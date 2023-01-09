@@ -2,10 +2,10 @@ package com.raphtory.algorithms.generic
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.Table
+import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 import com.raphtory.utils.ExtendedNumeric.numericFromInt
 import com.raphtory.internals.communication.SchemaProviderInstances._
+
 import scala.collection.mutable
 import scala.language.existentials
 import scala.math.Numeric.Implicits._
@@ -169,7 +169,7 @@ class MaxFlow[T](
   override def tabularise(graph: GraphPerspective): Table =
     graph.explodeSelect(vertex =>
       if (vertex.name() == source)
-        List(Row(vertex.getState[mutable.Map[Long, T]]("flow").values.sum))
+        List(Row(KeyPair("maximumFlow", vertex.getState[mutable.Map[Long, T]]("flow").values.sum)))
       else List.empty[Row]
     )
 

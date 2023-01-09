@@ -2,10 +2,10 @@ package com.raphtory.algorithms.generic.gametheory
 
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.Table
+import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.internals.communication.SchemaProviderInstances._
+
 import scala.collection.mutable
 import scala.collection.mutable.Queue
 import scala.util.Random
@@ -136,7 +136,7 @@ class PrisonersDilemma(
   override def tabularise(graph: GraphPerspective): Table =
     graph.select { vertex =>
       val history = vertex.getState[mutable.Queue[Int]]("cooperationHistory")
-      Row(vertex.name(), "[" + history.mkString(" ") + "]")
+      Row(KeyPair("name",vertex.name()), KeyPair("cooperationHistory", "[" + history.mkString(" ") + "]"))
     }
 }
 

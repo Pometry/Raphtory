@@ -14,6 +14,7 @@ import com.raphtory.internals.storage.pojograph.PojoGraphLens
 import com.raphtory.utils.OrderingFunctions._
 import com.raphtory.internals.communication.SchemaProviderInstances._
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
@@ -34,15 +35,14 @@ private[pojograph] trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
   }
 
   //put in pojo ex entity
-  private var computationValues: Map[String, Any] =
-    Map.empty //Partial results kept between supersteps in calculation
+  private val computationValues: mutable.Map[String, Any] =
+    mutable.Map[String,Any]() //Partial results kept between supersteps in calculation
 
   override def setState(key: String, value: Any): Unit = {
-    println(key)
     computationValues += ((key, value))
   }
 
-  override def getStateSet(): List[String] = computationValues.map(tuple => tuple._1).toList
+  override def getStateSet(): List[String] = computationValues.keys.toList
   override def getState[T](key: String, includeProperties: Boolean): T =
     if (computationValues.contains(key))
       computationValues(key).asInstanceOf[T]

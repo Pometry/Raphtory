@@ -2,8 +2,7 @@ package com.raphtory.algorithms.generic
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.Table
+import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 
 /**
   *  {s}`EdgeList(properties: String*)`
@@ -45,23 +44,22 @@ class EdgeList(
         val name         = vertex.name()
         vertex.outEdges
           .map { edge =>
-            val row =  if (properties.isEmpty) {
-              val propertySet: List[String] = edge.getPropertySet()
-              val stateSet: List[String] = edge.getStateSet()
+            val x = edge.getPropertySet() ++ edge.getStateSet()
+           val propertiesAndStates = if (properties.isEmpty) {
+             KeyPair("name", name) +:
+             KeyPair("neighbourName", neighbourMap(edge.dst)) +:
+              x.map { key =>
+                KeyPair(key,edge.getStateOrElse(key, defaults.getOrElse(key, None), includeProperties = true))
+              }
 
-              name +:
-                neighbourMap(edge.dst) +: // get name of neighbour
-                propertySet.map(key => edge.getPropertyOrElse(key, defaults.getOrElse(key, None))) +: stateSet.map(key => edge.getStateOrElse(key, defaults.getOrElse(key, None)))
             } else {
-              name +:
-                neighbourMap(edge.dst) +: // get name of neighbour
-                properties
-                  .map(key =>
-                    edge
-                      .getPropertyOrElse(key, defaults.getOrElse(key, None))
-                  )
+             KeyPair("name", name) +:
+             KeyPair("neighbourName", neighbourMap(edge.dst)) +:
+              properties.map(name =>
+                  KeyPair(name,edge.getStateOrElse(name, defaults.getOrElse(name, None), includeProperties = true))
+                )
             }
-            Row(row: _*)
+            Row(propertiesAndStates: _*)
           }
       }
 }

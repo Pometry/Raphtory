@@ -2,7 +2,7 @@ package com.raphtory.formats
 
 import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.{KeyPair, Row}
 import com.raphtory.api.output.format.Format
 import com.raphtory.api.time.DiscreteInterval
 import com.raphtory.internals.graph.Perspective
@@ -15,10 +15,10 @@ class JsonFormatTest extends FunSuite {
   private val reader      = JsonMapper.builder().addModule(DefaultScalaModule).build().reader()
 
   private val sampleTable = List(
-          (Perspective(100, None, 0, 100, -1, formatAsDate = false), List(Row("id1", 34), Row("id2", 24))),
+          (Perspective(100, None, 0, 100, -1, formatAsDate = false), List(Row(KeyPair("id1", 34)), Row(KeyPair("id2", 24)))),
           (
                   Perspective(200, Some(DiscreteInterval(200)), 0, 200, -1, formatAsDate = false),
-                  List(Row("id1", 56), Row("id2", 67))
+                  List(Row(KeyPair("id1", 56)), Row(KeyPair("id2", 67)))
           )
   )
 
@@ -67,7 +67,7 @@ class JsonFormatTest extends FunSuite {
   }
 
   test("Print json example on the docs") {
-    val docRows   = List(Row("id1", 12), Row("id2", 13), Row("id3", 24))
+    val docRows   = List(Row(KeyPair("id1", 12)), Row(KeyPair("id2", 13)), Row(KeyPair("id3", 24)))
     val docsTable = List((Perspective(10, None, 0, 10, -1, formatAsDate = false), docRows))
     val output    = formatTable(JsonFormat(JsonFormat.GLOBAL), docsTable, "EdgeCount", 0)
     reader.createParser(output).readValueAs(classOf[Any])

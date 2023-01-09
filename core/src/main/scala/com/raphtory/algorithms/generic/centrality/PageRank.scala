@@ -42,7 +42,7 @@ import com.raphtory.internals.communication.SchemaProviderInstances._
   * ```
   */
 class PageRank(dampingFactor: Double = 0.85, iterateSteps: Int = 100, tol: Double = 0.00001)
-        extends NodeList(Seq("prlabel")) {
+        extends NodeList(Seq("name","prlabel")) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph

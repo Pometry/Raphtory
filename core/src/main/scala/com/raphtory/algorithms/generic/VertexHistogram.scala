@@ -3,8 +3,7 @@ package com.raphtory.algorithms.generic
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphstate.Histogram
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.Table
+import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 import com.raphtory.utils.Bounded
 
 import scala.reflect.ClassTag
@@ -34,11 +33,9 @@ class VertexHistogram[T: Numeric: Bounded: ClassTag](propertyString: String, noB
 
   override def tabularise(graph: GraphPerspective): Table =
     graph.globalSelect { state =>
-      val rowSeq = Seq(state[T, T]("propertyMin").value, state[T, T]("propertyMax").value) ++ state[
-              T,
-              Histogram[T]
-      ]("propertyDist").value.getBins.toSeq
-      Row(rowSeq: _*)
+      println(state[T,Histogram[T]]("propertyDist").value.getBins.toSeq)
+      val seq = Seq(KeyPair("propertyMin",state[T, T]("propertyMin").value), KeyPair("propertyMax", state[T, T]("propertyMax").value) , KeyPair("propertyDist", state[T,Histogram[T]]("propertyDist").value.getBins.toSeq))
+      Row(seq: _*)
     }
 }
 

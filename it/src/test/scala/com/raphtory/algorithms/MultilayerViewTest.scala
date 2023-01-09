@@ -32,7 +32,7 @@ class MultilayerViewTest extends BaseCorrectnessTest {
 
   test("test property merging") {
     correctnessTest(
-            TestQuery(WriteValue() -> NodeList("testing"), 2),
+            TestQuery(WriteValue() -> NodeList("name","testing"), 2),
             Seq("2,1,2", "2,2,2")
     )
   }

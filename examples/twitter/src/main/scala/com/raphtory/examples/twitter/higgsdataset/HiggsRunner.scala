@@ -9,6 +9,7 @@ import com.raphtory.api.input.{Graph, GraphBuilder, ImmutableString, Properties,
 import com.raphtory.examples.twitter.higgsdataset.analysis.MemberRank
 import com.raphtory.examples.twitter.higgsdataset.analysis.TemporalMemberRank
 import com.raphtory.examples.twitter.higgsdataset.graphbuilders.TwitterGraphBuilder
+import com.raphtory.formats.JsonFormat
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
@@ -31,7 +32,7 @@ object LotrGraphBuilder extends GraphBuilder[String] {
 
     graph.addVertex(timeStamp, srcID, Properties(ImmutableString("name", sourceNode)), Type("Character"))
     graph.addVertex(timeStamp, tarID, Properties(ImmutableString("name", targetNode)), Type("Character"))
-    graph.addEdge(timeStamp, srcID, tarID, Type("Character Co-occurrence"))
+    graph.addEdge(timeStamp, srcID, tarID, Properties(ImmutableString("name", targetNode)), Type("Character Co-occurrence"))
   }
 }
 
@@ -45,11 +46,11 @@ object HiggsRunner extends RaphtoryApp.Local {
     ctx.runWithNewGraph() { graph =>
       val spout  = FileSpout(path)
       val source = Source(spout, LotrGraphBuilder)
-      val output = FileSink("/tmp/higgsoutput")
+      val output = FileSink("/tmp/higgsoutput", format = JsonFormat(JsonFormat.GLOBAL))
 
       graph.load(source)
       //get simple metrics
-      graph.at(1341705593).past().transform(ThreeNodeMotifs).execute(NodeList()).writeTo(output).waitForJob()
+      graph.at(1341705593).past().transform(ThreeNodeMotifs).execute(EdgeList()).writeTo(output).waitForJob()
       //execute(NodeList())
 //      graph
 //        .execute(Degree())

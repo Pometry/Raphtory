@@ -2,8 +2,7 @@ package com.raphtory.algorithms.generic.motif
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.Table
+import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 import com.raphtory.api.analysis.visitor.Vertex
 
 import scala.collection.mutable.ArrayBuffer
@@ -157,21 +156,21 @@ object ThreeNodeMotifs extends Generic {
         }
         vertex.setState("motifCounts", motifCounts)
         vertex.edges
-          .map { edge =>
+          .foreach { edge =>
             edge.setState("motifCounts", motifCounts)
-            println(motifCounts)
           }
       }
 
   override def tabularise(graph: GraphPerspective): Table =
     graph.select { vertex =>
-      val motifCounts = vertex.getState[ArrayBuffer[Long]]("motifCounts")
-      val edgemotifCounts = vertex.edges.map { edge =>
+      val name = KeyPair("name",vertex.name())
+      val motifCounts =  KeyPair("motifCounts",vertex.getState[ArrayBuffer[Long]]("motifCounts"))
+      val edgemotifCounts = KeyPair("edgemotifCounts", vertex.edges.map { edge =>
         edge.getState[ArrayBuffer[Long]]("motifCounts")
-      }
+      } +: vertex.getState[ArrayBuffer[Long]]("motifCounts"))
 
-      val row         = vertex.name() +: edgemotifCounts +: motifCounts
-      Row(row.toSeq: _*)
-    }
+        Row(name,edgemotifCounts)
+
+      }
 
 }

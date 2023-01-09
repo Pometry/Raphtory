@@ -3,8 +3,7 @@ package com.raphtory.examples.twitter.higgsdataset.analysis
 import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
-import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.Table
+import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 
 /**
   * Description
@@ -50,8 +49,8 @@ class TemporalMemberRank() extends GenericReduction {
     graph
       .select { vertex =>
         Row(
-                vertex.ID,
-                vertex.getState("times")
+                KeyPair("vertexID", vertex.ID),
+                KeyPair("time", vertex.getState("times"))
         )
       }
       .filter { row =>
@@ -62,7 +61,7 @@ class TemporalMemberRank() extends GenericReduction {
         val rowId = row.getLong(0)
         val times = row.getAs[Seq[NeighbourAndTime[_]]](1)
         times.map { neighbourAndTime =>
-          Row(rowId, neighbourAndTime.id, neighbourAndTime.time)
+          Row(KeyPair("vertexID", rowId), KeyPair("neighbourID", neighbourAndTime.id), KeyPair("neighbourTime",neighbourAndTime.time))
         }.toList
       }
 

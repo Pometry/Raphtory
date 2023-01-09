@@ -4,8 +4,7 @@ import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
-import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.Table
+import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 import com.raphtory.api.analysis.visitor.ReducedVertex
 import com.raphtory.api.analysis.visitor.Vertex
 
@@ -181,15 +180,15 @@ class MultilayerLPA(
     graph
       .select { vertex =>
         Row(
-                vertex.name(),
-                vertex.getState("mlpalabel")
+                KeyPair("vertexName",vertex.name()),
+                KeyPair("mlpalabel", vertex.getState("mlpalabel"))
         )
       }
       .explode { row =>
         row
           .get(1)
           .asInstanceOf[List[(Long, Long)]]
-          .map(lts => Row(lts._2, s"${row.get(0)}_${lts._1}"))
+          .map(lts => Row(KeyPair("vertexName", lts._2),KeyPair("timestamp", s"${row.get(0)}_${lts._1}")))
       }
 
 }

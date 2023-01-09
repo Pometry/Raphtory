@@ -2,7 +2,7 @@ package com.raphtory.formats
 
 import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.{KeyPair, Row}
 import com.raphtory.api.output.format.Format
 import com.raphtory.api.output.sink.SinkConnector
 import com.raphtory.api.output.sink.SinkExecutor
@@ -46,13 +46,14 @@ case class CsvFormat(delimiter: String = ",") extends Format {
                 (str.startsWith("\"") && str.endsWith("\""))
                 || (str.startsWith("'") && str.endsWith("'"))
                 || !str.contains(delimiter)
-        )
+        ) {
           str
-        else
+        } else {
           "\"" + str + "\""
+        }
 
-      private def csvValue(obj: Any): String =
-        obj match {
+      private def csvValue(obj: KeyPair): String =
+        obj.value match {
           case v: String => ensureQuoted(v)
           case v         =>
             ensureQuoted(mapper.writeValueAsString(v))

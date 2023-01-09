@@ -40,7 +40,7 @@ import scala.math.Ordering.Implicits._
   *
   *  4. The algorithm iterates over steps 2 and 3 until no nodes change their label within an iteration.
   */
-object ConnectedComponents extends NodeList(Seq("cclabel")) {
+object ConnectedComponents extends NodeList(Seq("name", "cclabel")) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph

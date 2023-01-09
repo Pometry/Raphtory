@@ -22,7 +22,7 @@ object CountNodes extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .globalSelect(graphState => Row(graphState("nodeCount").value))
+      .globalSelect(graphState => Row(KeyPair("nodeCount",graphState("nodeCount").value)))
 
 }
 
@@ -46,7 +46,7 @@ object CountNodesTwice extends Generic {
   override def tabularise(graph: GraphPerspective): Table =
     graph
       .globalSelect { graphState: GraphState =>
-        Row(graphState("nodeCount").value, graphState("nodeCountDoubled").value)
+        Row(KeyPair("nodeCount",graphState("nodeCount").value), KeyPair("nodeCountDoubled",graphState("nodeCountDoubled").value))
       }
 }
 
@@ -58,7 +58,7 @@ object CheckNodeCount extends Generic {
   override def tabularise(graph: GraphPerspective): Table =
     graph.globalSelect { graphState =>
       val n: Int = graphState("nodeCount").value
-      Row(graphState.nodeCount == n)
+      Row(KeyPair("nodeCountIsCorrect", graphState.nodeCount == n))
     }
 }
 

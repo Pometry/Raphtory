@@ -46,7 +46,7 @@ import com.raphtory.internals.communication.SchemaProviderInstances.genericSchem
   *
   * 5. This repeats until the scores stay approximately constant, in which case the scores are normalised one more time.
   */
-class HITS(iterateSteps: Int = 100, tol: Double = 1e-4) extends NodeList(Seq("hitshub", "hitsauth")) {
+class HITS(iterateSteps: Int = 100, tol: Double = 1e-4) extends NodeList(Seq("name", "hitshub", "hitsauth")) {
 
   override def apply(graph: GraphPerspective): graph.Graph = {
     val initHub = 1.0

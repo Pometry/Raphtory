@@ -43,7 +43,7 @@ private[pojograph] class PojoExplodedVertex(
 
   override def setState(key: String, value: Any): Unit = computationValues += (key -> value)
 
-  override def getStateSet(): List[String] =  computationValues.map(tuple => tuple._1).toList
+  override def getStateSet(): List[String] =  computationValues.keys.toList
 
   override def getState[T](key: String, includeProperties: Boolean): T =
     computationValues.get(key) match {
