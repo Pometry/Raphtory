@@ -7,11 +7,7 @@ PYRAPHTORY_IVYDIR:=python/_custom_build/ivy_data
 PYRAPHTORY_IVYBIN:=python/src/pyraphtory/ivy
 PYRAPHTORY_JREBIN:=python/src/pyraphtory/jre
 IVY_VERSION:=2.5.1
-export JAVA_HOME:= $(shell (readlink -f  $$(which java) 2>/dev/null || echo "$$(which java)")| sed "s:/bin/java::")
 
-# version:
-# 	sbt -Dsbt.supershell=false -error "exit" && \
-# 	sbt -Dsbt.supershell=false -error "print core/version" | tr -d "[:cntrl:]"  > version
 
 .PHONY: log-level-error
 log-level-error:
@@ -43,19 +39,22 @@ sbt-skip-build: version
 .PHONY: sbt-thin-build
 sbt-thin-build: version clean sbt-build
 
+options?=
+.PHONY: python-build-options
+
 
 .PHONY: python-build
-python-build: version
-	python -m pip install .
+python-build: version python-clean-eggs python-build-options
+	python -m pip install $(options) .
 
 
 .PHONY: python-build-editable
-python-build-editable: version
-	python -m pip install -e .
+python-build-editable: version python-clean-eggs python-build-options
+	python -m pip install $(options) -e .
 
 
 .PHONY: python-dist
-python-dist: python-dist-clean
+python-dist: python-dist-clean sbt-build
 	python -m pip install -q build
 	python -m build
 
@@ -72,11 +71,16 @@ python-wheel: python-dist-clean
 	python -m build --wheel
 
 
+.PHONY: python-clean-eggs
+python-clean-eggs:
+	rm -rf python/**/*.egg-info
+
+
 .PHONY: python-dist-clean
-python-dist-clean:
+python-dist-clean: python-clean-eggs
 	rm -rf dist
 	rm -rf build
-	rm -rf python/**/*.egg-info
+
 
 
 .PHONY: sbt-build-clean
