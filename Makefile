@@ -55,7 +55,7 @@ python-build-editable: version
 
 
 .PHONY: python-dist
-python-dist: python-dist-clean
+python-dist: python-dist-clean sbt-build
 	python -m pip install -q build
 	python -m build
 
