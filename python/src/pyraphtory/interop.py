@@ -27,9 +27,29 @@ def int_converter(value):
     return JInt(value)
 
 
+@jpype_type_converter("Short")
+def short_converter(value):
+    return JShort(value)
+
+
+@jpype_type_converter("Byte")
+def byte_converter(value):
+    return JByte(value)
+
+
 @jpype_type_converter("Float")
 def float_converter(value):
     return JFloat(value)
+
+
+@jpype_type_converter("Double")
+def double_converter(value):
+    return JDouble(value)
+
+
+@jpype_type_converter("Boolean")
+def boolean_converter(value):
+    return JBoolean(value)
 
 
 _wrapper_lock = Lock()
