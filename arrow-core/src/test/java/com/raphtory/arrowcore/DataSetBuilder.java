@@ -41,7 +41,9 @@ public class DataSetBuilder {
             cfg._raphtoryPartitionId = i;
             cfg._nRaphtoryPartitions = nRaphtoryPartitions;
             cfg._nLocalEntityIdMaps = 1;
-            cfg._localEntityIdMapSize = 1024;
+            cfg._localEntityIdMapSize = 8;
+            cfg._vertexPartitionSize = 32;
+            cfg._edgePartitionSize = 512;
             cfg._syncIDMap = true;
 
             _raps[i] = new RaphtoryArrowPartition(cfg);

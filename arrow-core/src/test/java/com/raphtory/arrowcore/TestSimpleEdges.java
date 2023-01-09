@@ -51,8 +51,10 @@ public class TestSimpleEdges {
         cfg._raphtoryPartitionId = 0;
         cfg._nRaphtoryPartitions = 1;
         cfg._nLocalEntityIdMaps = 1;
-        cfg._localEntityIdMapSize = 1024;
+        cfg._localEntityIdMapSize = 8;
         cfg._syncIDMap = false;
+        cfg._edgePartitionSize = 512;
+        cfg._vertexPartitionSize = 32;
 
         _rap = new RaphtoryArrowPartition(cfg);
         _aepm = _rap.getEdgeMgr();
