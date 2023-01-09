@@ -31,9 +31,7 @@ private[raphtory] class Writer[F[_]](
   def processUpdates(req: protocol.GraphAlterations): F[Unit] =
     Async[F].blocking(handleLocalAlterations(req))
 
-  def flush: F[Unit] = {
-    Async[F].blocking(storage.flush())
-  }
+  def flush: F[Unit] = Async[F].blocking(storage.flush())
 
   private def handleLocalAlterations(msgs: protocol.GraphAlterations): Unit =
     msgs.alterations.view

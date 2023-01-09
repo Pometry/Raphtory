@@ -23,9 +23,9 @@ private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, co
                           index: Long,
                           srcId: Long,
                           properties: Properties,
-                          vertexType: Option[Type]
+                          maybeType: Option[Type]
                         ): Unit =
-    q.addAddVertexReqToQueue(msgTime, index, srcId, properties, vertexType)
+    q.addAddVertexReqToQueue(msgTime, index, srcId, properties, maybeType)
 
   override def addLocalEdge(
                              sourceID: Long,
@@ -34,7 +34,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, co
                              srcId: Long,
                              dstId: Long,
                              properties: Properties,
-                             edgeType: Option[Type]
+                             maybeType: Option[Type]
                            ): Unit = {
     // Create or revive the src vertex
     q.addAddVertexReqToQueue(msgTime, index, srcId, Properties(), None)
@@ -45,12 +45,12 @@ private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, co
       q.addAddVertexReqToQueue(msgTime, index, dstId, Properties(), None)
 
       val edge = new PojoEdge(msgTime, index, srcId, dstId, initialValue = true)
-      edge.setType(edgeType.map(_.name))
-      q.addAddEdgeReqToQueue(msgTime, index, srcId, srcId, dstId, properties, edgeType, LocalOutgoingEdge(edge))
-      q.addAddEdgeReqToQueue(msgTime, index, dstId, srcId, dstId, properties, edgeType, LocalIncomingEdge(edge))
+      edge.setType(maybeType.map(_.name))
+      q.addAddEdgeReqToQueue(msgTime, index, srcId, srcId, dstId, properties, maybeType, LocalOutgoingEdge(edge))
+      q.addAddEdgeReqToQueue(msgTime, index, dstId, srcId, dstId, properties, maybeType, LocalIncomingEdge(edge))
     }
     else
-      q.addAddEdgeReqToQueue(msgTime, index, srcId, srcId, dstId, properties, edgeType, LocalEdge)
+      q.addAddEdgeReqToQueue(msgTime, index, srcId, srcId, dstId, properties, maybeType, LocalEdge)
   }
 
   override def addOutgoingEdge(
@@ -96,5 +96,5 @@ private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, co
       (id: Long, vertex: PojoVertex) => (id, vertex.viewBetween(start, end, lens.asInstanceOf[PojoGraphLens]))
     )
 
-  override def flush: Unit = q.flush()
+  override def flush(): Unit = q.flush()
 }
