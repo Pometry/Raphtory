@@ -39,7 +39,7 @@ sbt-skip-build: version
 .PHONY: sbt-thin-build
 sbt-thin-build: version clean sbt-build
 
-options?=""
+options?=
 .PHONY: python-build-options
 
 
