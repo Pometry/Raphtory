@@ -65,7 +65,7 @@ final private[raphtory] case class PojoGraphLens(
   private var fullGraphSize     = 0
   private var exploded: Boolean = false
 
-  val chunkSize = 128
+  val chunkSize = conf.getInt("raphtory.partitions.chunkSize")
 
   private val needsFiltering: SuperStepFlag = SuperStepFlag()
 
