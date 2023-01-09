@@ -21,6 +21,7 @@ private[raphtory] case class Perspective(
     window: Option[Interval],
     actualStart: Long,
     actualEnd: Long,
+    processingTime: Long,
     formatAsDate: Boolean
 ) extends time.Perspective {
 
@@ -141,9 +142,10 @@ private[raphtory] object PerspectiveController {
         List(timestamps map (timestamp => {
           alignment match {
             case Alignment.START  =>
-              Perspective(timestamp, None, (timestamp max timelineStart), timelineEnd, formatAsDate)
-            case Alignment.MIDDLE => Perspective(timestamp, None, timelineStart, timelineEnd, formatAsDate)
-            case Alignment.END    => Perspective(timestamp, None, timelineStart, (timestamp min timelineEnd), formatAsDate)
+              Perspective(timestamp, None, (timestamp max timelineStart), timelineEnd, -1, formatAsDate)
+            case Alignment.MIDDLE => Perspective(timestamp, None, timelineStart, timelineEnd, -1, formatAsDate)
+            case Alignment.END    =>
+              Perspective(timestamp, None, timelineStart, (timestamp min timelineEnd), -1, formatAsDate)
           }
         }))
       case windows =>
@@ -156,6 +158,7 @@ private[raphtory] object PerspectiveController {
                         Some(window),
                         (timestamp max timelineStart),
                         ((timestamp + window) min timelineEnd) - 1, // The end is exclusive
+                        -1,
                         formatAsDate
                 )
               case Alignment.MIDDLE =>
@@ -163,7 +166,8 @@ private[raphtory] object PerspectiveController {
                         timestamp,
                         Some(window),
                         ((timestamp - window / 2) max timelineStart) + 1,
-                        ((timestamp + window / 2) min timelineEnd) - 1, // Both are exclusive
+                        ((timestamp + window / 2) min timelineEnd) - 1, // Both are
+                        -1,
                         formatAsDate
                 )
               case Alignment.END    =>
@@ -172,6 +176,7 @@ private[raphtory] object PerspectiveController {
                         Some(window),
                         ((timestamp - window) max timelineStart) + 1, // The start is exclusive
                         (timestamp min timelineEnd),
+                        -1,
                         formatAsDate
                 )
             }
