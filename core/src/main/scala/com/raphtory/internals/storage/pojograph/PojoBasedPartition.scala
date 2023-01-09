@@ -50,7 +50,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, co
       q.addAddEdgeReqToQueue(msgTime, index, dstId, srcId, dstId, properties, maybeType, LocalIncomingEdge(edge))
     }
     else
-      q.addAddEdgeReqToQueue(msgTime, index, srcId, srcId, dstId, properties, maybeType, LocalEdge)
+      q.addAddEdgeReqToQueue(msgTime, index, srcId, srcId, dstId, properties, maybeType, SelfLoop)
   }
 
   override def addOutgoingEdge(

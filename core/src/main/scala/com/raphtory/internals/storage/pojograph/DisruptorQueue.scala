@@ -100,7 +100,7 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
       event.edgeToCreate.getOrElse(
               new Exception(s"Unspecified type of edge to create. EdgeToCreate = ${event.edgeToCreate}")
       ) match {
-        case LocalEdge            => addLocalEdge(event)
+        case SelfLoop            => addLocalEdge(event)
         case LocalIncomingEdge(_) => addLocalIncomingEdge(event)
         case LocalOutgoingEdge(_) => addLocalOutgoingEdge(event)
         case RemoteIncomingEdge   => addIncomingEdge(event)
@@ -276,7 +276,7 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
 private[pojograph] object DisruptorQueue {
   sealed trait EdgeToCreate
 
-  final case object LocalEdge extends EdgeToCreate
+  final case object SelfLoop extends EdgeToCreate
 
   final case class LocalOutgoingEdge(edge: PojoEdge) extends EdgeToCreate
 
