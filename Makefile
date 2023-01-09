@@ -23,16 +23,13 @@ log-level-error:
 sbt-build: version
 	sbt core/makeIvyXml core/package arrowCore/makeIvyXml arrowCore/package arrowMessaging/makeIvyXml arrowMessaging/package
 	mkdir -p $(PYRAPHTORY_IVYDIR)
-	cp core/target/scala-2.13/ivy-$$(cat version).xml $(PYRAPHTORY_IVYDIR)/core_ivy.xml
-	sed -i.bak '/org="com.raphtory"/d' $(PYRAPHTORY_IVYDIR)/core_ivy.xml
-	cp arrow-core/target/scala-2.13/ivy-$$(cat version).xml $(PYRAPHTORY_IVYDIR)/arrow-core_ivy.xml
-	sed -i.bak '/org="com.raphtory"/d' $(PYRAPHTORY_IVYDIR)/arrow-core_ivy.xml
-	cp arrow-messaging/target/scala-2.13/ivy-$$(cat version).xml $(PYRAPHTORY_IVYDIR)/arrow_messaging_ivy.xml
-	sed -i.bak '/org="com.raphtory"/d' $(PYRAPHTORY_IVYDIR)/arrow_messaging_ivy.xml
+	cp core/target/scala-2.13/ivy-$$(cat version).xml $(PYRAPHTORY_IVYDIR)/core_2.13_ivy.xml
+	cp arrow-core/target/scala-2.13/ivy-$$(cat version).xml $(PYRAPHTORY_IVYDIR)/arrow-core_2.13_ivy.xml
+	cp arrow-messaging/target/scala-2.13/ivy-$$(cat version).xml $(PYRAPHTORY_IVYDIR)/arrow_messaging_2.13_ivy.xml
 	mkdir -p $(PYRAPHTORY_LIBDIR)
-	cp core/target/scala-2.13/core_2.13-$$(cat version).jar $(PYRAPHTORY_LIBDIR)/core.jar
-	cp arrow-core/target/scala-2.13/arrow-core_2.13-$$(cat version).jar $(PYRAPHTORY_LIBDIR)/arrow-core.jar
-	cp arrow-messaging/target/scala-2.13/arrow-messaging_2.13-$$(cat version).jar $(PYRAPHTORY_LIBDIR)/arrow-messaging.jar
+	cp core/target/scala-2.13/core_2.13-$$(cat version).jar $(PYRAPHTORY_IVYDIR)/core_2.13.jar
+	cp arrow-core/target/scala-2.13/arrow-core_2.13-$$(cat version).jar $(PYRAPHTORY_IVYDIR)/arrow-core_2.13.jar
+	cp arrow-messaging/target/scala-2.13/arrow-messaging_2.13-$$(cat version).jar $(PYRAPHTORY_IVYDIR)/arrow-messaging_2.13.jar
 
 
 .PHONY: gh-sbt-build
