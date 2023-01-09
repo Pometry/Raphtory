@@ -31,7 +31,7 @@ import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
   *  | {s}`srcName: String` | {s}`dstName: String` | {s}`value: Any` | ... |
   */
 class EdgeList(
-    properties: Seq[String] = Seq.empty[String], //if empty, get list of properties and algo state, return everything
+    properties: Seq[String] = Seq.empty[String],
     defaults: Map[String, Any] = Map.empty[String, Any]
 ) extends Generic {
 
@@ -44,23 +44,22 @@ class EdgeList(
         val name         = vertex.name()
         vertex.outEdges
           .map { edge =>
-            val x = edge.getPropertySet() ++ edge.getStateSet()
-           val propertiesAndStates = if (properties.isEmpty) {
-             KeyPair("name", name) +:
-             KeyPair("neighbourName", neighbourMap(edge.dst)) +:
-              x.map { key =>
-                KeyPair(key,edge.getStateOrElse(key, defaults.getOrElse(key, None), includeProperties = true))
+            val propertyStateList = edge.getPropertySet() ++ edge.getStateSet()
+             val propertiesAndStates = if (properties.isEmpty) {
+               KeyPair("name", name) +:
+               KeyPair("neighbourName", neighbourMap(edge.dst)) +:
+                 propertyStateList.map { key =>
+                  KeyPair(key,edge.getStateOrElse(key, defaults.getOrElse(key, None), includeProperties = true))
+                }
+              } else {
+               KeyPair("name", name) +:
+               KeyPair("neighbourName", neighbourMap(edge.dst)) +:
+                properties.map(name =>
+                    KeyPair(name,edge.getStateOrElse(name, defaults.getOrElse(name, None), includeProperties = true))
+                  )
               }
-
-            } else {
-             KeyPair("name", name) +:
-             KeyPair("neighbourName", neighbourMap(edge.dst)) +:
-              properties.map(name =>
-                  KeyPair(name,edge.getStateOrElse(name, defaults.getOrElse(name, None), includeProperties = true))
-                )
+              Row(propertiesAndStates: _*)
             }
-            Row(propertiesAndStates: _*)
-          }
       }
 }
 

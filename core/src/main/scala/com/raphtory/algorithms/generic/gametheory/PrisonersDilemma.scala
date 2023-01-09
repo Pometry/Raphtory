@@ -5,7 +5,6 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.internals.communication.SchemaProviderInstances._
-
 import scala.collection.mutable
 import scala.collection.mutable.Queue
 import scala.util.Random

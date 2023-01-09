@@ -49,7 +49,7 @@ class QueryProgressTrackerWithIteratorSuite extends CatsEffectSuite {
 
   test("QueryProgressTrackerWithIterator updates list of perspectives and iterator when received PerspectiveCompleted") {
     val tracker = queryProgressTrackerWithIterator()
-    val row     = Row(KeyPair("",1), KeyPair("",2), KeyPair("",3))
+    val row     = Row(KeyPair("perspectiveone",1), KeyPair("perspectivetwo",2), KeyPair("perspectivethree",3))
 
     tracker.handleQueryUpdate(PerspectiveCompleted(perspective, Seq(row)))
     tracker.handleQueryUpdate(QueryCompleted())

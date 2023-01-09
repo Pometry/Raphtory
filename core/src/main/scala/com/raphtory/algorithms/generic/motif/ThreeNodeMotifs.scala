@@ -165,7 +165,6 @@ object ThreeNodeMotifs extends Generic {
       }
       val row = ArrayBuffer[KeyPair](name)++motifList
       Row(row.toSeq: _*)
-
       }
 
 }
