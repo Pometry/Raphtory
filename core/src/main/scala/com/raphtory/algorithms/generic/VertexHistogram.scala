@@ -6,6 +6,7 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 import com.raphtory.utils.Bounded
 
+import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 
 class VertexHistogram[T: Numeric: Bounded: ClassTag](propertyString: String, noBins: Int = 1000) extends Generic {
@@ -33,9 +34,13 @@ class VertexHistogram[T: Numeric: Bounded: ClassTag](propertyString: String, noB
 
   override def tabularise(graph: GraphPerspective): Table =
     graph.globalSelect { state =>
-      println(state[T,Histogram[T]]("propertyDist").value.getBins.toSeq)
-      val seq = Seq(KeyPair("propertyMin",state[T, T]("propertyMin").value), KeyPair("propertyMax", state[T, T]("propertyMax").value) , KeyPair("propertyDist", state[T,Histogram[T]]("propertyDist").value.getBins.toSeq))
-      Row(seq: _*)
+      val minSeq = KeyPair("propertyMin",state[T, T]("propertyMin").value)
+      val maxSeq = KeyPair("propertyMax",state[T, T]("propertyMax").value)
+      val minMaxSeq = Seq(minSeq, maxSeq)
+      val distlist =  state[T,Histogram[T]]("propertyDist").value.getBins.map { value =>
+        KeyPair("propertyDist", value)
+      }.toSeq
+      Row(minMaxSeq ++ distlist: _*)
     }
 }
 

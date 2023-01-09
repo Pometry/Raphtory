@@ -155,21 +155,16 @@ object ThreeNodeMotifs extends Generic {
           motifCounts(triangleMotifIndex(mType, eType)) += 1
         }
         vertex.setState("motifCounts", motifCounts)
-        vertex.edges
-          .foreach { edge =>
-            edge.setState("motifCounts", motifCounts)
-          }
       }
 
   override def tabularise(graph: GraphPerspective): Table =
     graph.select { vertex =>
       val name = KeyPair("name",vertex.name())
-      val motifCounts =  KeyPair("motifCounts",vertex.getState[ArrayBuffer[Long]]("motifCounts"))
-      val edgemotifCounts = KeyPair("edgemotifCounts", vertex.edges.map { edge =>
-        edge.getState[ArrayBuffer[Long]]("motifCounts")
-      } +: vertex.getState[ArrayBuffer[Long]]("motifCounts"))
-
-        Row(name,edgemotifCounts)
+      val motifList = vertex.getState[ArrayBuffer[Long]]("motifCounts").zipWithIndex.map { case (motif, index) =>
+        KeyPair(index.toString, motif)
+      }
+      val row = ArrayBuffer[KeyPair](name)++motifList
+      Row(row.toSeq: _*)
 
       }
 

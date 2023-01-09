@@ -23,10 +23,10 @@ class JsonFormatTest extends FunSuite {
   )
 
   private val rowLevelOutput =
-    """{"timestamp":100,"row":["id1",34]}
-      |{"timestamp":100,"row":["id2",24]}
-      |{"timestamp":200,"window":200,"row":["id1",56]}
-      |{"timestamp":200,"window":200,"row":["id2",67]}
+    """{"timestamp":100,"row":[34]}
+      |{"timestamp":100,"row":[24]}
+      |{"timestamp":200,"window":200,"row":[56]}
+      |{"timestamp":200,"window":200,"row":[67]}
       |""".stripMargin
 
   private val globalLevelOutput =
@@ -35,11 +35,11 @@ class JsonFormatTest extends FunSuite {
       |  "partitionID" : 13,
       |  "perspectives" : [ {
       |    "timestamp" : 100,
-      |    "rows" : [ [ "id1", 34 ], [ "id2", 24 ] ]
+      |    "rows" : [ [ 34 ], [ 24 ] ]
       |  }, {
       |    "timestamp" : 200,
       |    "window" : 200,
-      |    "rows" : [ [ "id1", 56 ], [ "id2", 67 ] ]
+      |    "rows" : [ [ 56 ], [ 67 ] ]
       |  } ]
       |}
       |""".stripMargin

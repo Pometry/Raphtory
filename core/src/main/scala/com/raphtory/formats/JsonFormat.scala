@@ -78,7 +78,7 @@ case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
   }
 
   private def printRowObject(generator: JsonGenerator, serializer: ObjectWriter, row: Row): Unit =
-    serializer.writeValue(generator, row.getValues())
+    serializer.writeValue(generator, row.getValues().map(_.value))
 
   private def flush(generator: JsonGenerator, stringWriter: StringWriter, connector: SinkConnector): Unit = {
     generator.flush()
