@@ -93,13 +93,4 @@ private[raphtory] object SqlSource {
   val idTypes: List[Int]       = integerTypes ++ stringTypes
   val epochTypes: List[Int]    = integerTypes ++ timeTypes
   val propertyTypes: List[Int] = boolTypes ++ integerTypes ++ floatTypes ++ doubleTypes ++ stringTypes
-
-  // Type checking
-  def isBoolean(tp: Int): Boolean = boolTypes contains tp
-  def isInt(tp: Int): Boolean     = intTypes contains tp
-  def isLong(tp: Int): Boolean    = longTypes contains tp
-  def isFloat(tp: Int): Boolean   = floatTypes contains tp
-  def isDouble(tp: Int): Boolean  = doubleTypes contains tp
-  def isString(tp: Int): Boolean  = stringTypes contains tp
-
 }
