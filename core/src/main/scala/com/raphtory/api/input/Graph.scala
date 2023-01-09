@@ -37,12 +37,7 @@ import org.slf4j.LoggerFactory
   */
 trait Graph {
   protected def handleGraphUpdate(update: GraphUpdate): Unit
-//  protected def sourceID: Int
   def index: Long
-//  def graphID: String
-
-//  private def vertexAddCounter = TelemetryReporter.vertexAddCounter.labels(s"$sourceID", graphID)
-//  private def edgeAddCounter = TelemetryReporter.edgeAddCounter.labels(s"$sourceID", graphID)
 
   /** Adds a new vertex to the graph or updates an existing vertex
     *
@@ -71,7 +66,6 @@ trait Graph {
   ): Unit = {
     val update = VertexAdd(updateTime, secondaryIndex, srcId, properties, vertexType.toOption)
     handleGraphUpdate(update)
-//    vertexAddCounter.inc()
   }
 
   /** Adds a new edge to the graph or updates an existing edge
@@ -94,7 +88,6 @@ trait Graph {
   ): Unit = {
     val update = EdgeAdd(updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption)
     handleGraphUpdate(update)
-//    edgeAddCounter.inc()
   }
 
   /** Adds a new edge to the graph or updates an existing edge
@@ -140,5 +133,4 @@ object Graph {
     */
   def assignID(uniqueChars: String): Long =
     LongHashFunction.xx3().hashChars(uniqueChars)
-
 }

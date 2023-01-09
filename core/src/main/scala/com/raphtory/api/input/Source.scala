@@ -27,30 +27,10 @@ abstract class SpoutBuilderSource[T] extends Source {
       stream          <- Async[F].pure(for {
                            index   <- fs2.Stream.eval(Ref.of[F, Long](1L))
                            tuples   = fs2.Stream.fromBlockingIterator[F](spoutInstance, 512)
+                           // TODO: process chunks in parallel and increment the index consistently
                            updates <- tuples.chunks.evalMap(chunk => builderInstance.parseUpdates(chunk, index))
                          } yield updates)
     } yield stream
-}
-
-class StreamSource[F[_], T](id: Int, spoutInstance: SpoutInstance[T], builderInstance: GraphBuilderF[F, T])(implicit
-    F: Async[F]
-) {
-
-  def elements(counter: Counter.Child): fs2.Stream[F, collection.Seq[GraphUpdate]] =
-    for {
-      index   <- fs2.Stream.eval(Ref.of[F, Long](1L))
-      tuples   = fs2.Stream.fromBlockingIterator[F](spoutInstance, 512)
-      updates <- tuples.chunks.parEvalMapUnordered(4)(chunk =>
-                   builderInstance.parseUpdates(chunk, index) <* F.delay(counter.inc(chunk.size))
-                 )
-    } yield updates
-
-//  def sentMessages: F[Long]          = builderInstance.getSentUpdates
-//  def earliestTimeSeen(): F[Long] = builderInstance.earliestTimeSeen
-//  def highestTimeSeen(): F[Long]  = builderInstance.highestTimeSeen
-//  def spoutReschedules(): F[Boolean] = F.delay(spoutInstance.spoutReschedules())
-//  def pollInterval: FiniteDuration   = 1.seconds
-//  def sourceID: Int                  = id
 }
 
 object Source {

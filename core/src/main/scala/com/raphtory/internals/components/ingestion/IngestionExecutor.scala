@@ -4,9 +4,9 @@ import cats.effect.Async
 import cats.effect.Ref
 import cats.syntax.all._
 import com.raphtory.api.input.Source
-import com.raphtory.api.input.StreamSource
 import com.raphtory.internals.graph.GraphAlteration.EdgeAdd
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
+import com.raphtory.internals.graph.GraphAlteration.VertexAdd
 import com.raphtory.internals.management.Partitioner
 import com.raphtory.internals.management.telemetry.TelemetryReporter
 import com.raphtory.protocol
@@ -27,6 +27,8 @@ private[raphtory] class IngestionExecutor[F[_], T](
   import IngestionExecutor.SourceStats
   private val logger: Logger                      = Logger(LoggerFactory.getLogger(this.getClass))
   private val totalTuplesProcessed: Counter.Child = TelemetryReporter.totalTuplesProcessed.labels(s"$sourceID", graphID)
+  private val vertexAddCounter                    = TelemetryReporter.vertexAddCounter.labels(s"$sourceID", graphID)
+  private val edgeAddCounter                      = TelemetryReporter.edgeAddCounter.labels(s"$sourceID", graphID)
 
   private val partitioner = Partitioner(conf)
 
@@ -39,7 +41,11 @@ private[raphtory] class IngestionExecutor[F[_], T](
                          for {
                            _ <- sendUpdates(updates)
                            _ <- globalStats.update(stats => stats.add(updates))
-                           _ <- F.delay(totalTuplesProcessed.inc(updates.size))
+                           _ <- F.delay {
+                                  vertexAddCounter.inc(updates.count(_.isInstanceOf[VertexAdd]))
+                                  edgeAddCounter.inc(updates.count(_.isInstanceOf[EdgeAdd]))
+                                  totalTuplesProcessed.inc(updates.size)
+                                }
                          } yield ()
                        )
                        .onFinalize(for { // This runs even if there is an exception processing the stream
