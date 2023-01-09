@@ -149,8 +149,6 @@ trait ArrowExEntityIter extends EntityVisitor {
     */
   def isField(key: String): Boolean =
     this match {
-      case edge: ArrowExEdgeIter     =>
-        edge.edge.getRaphtory.getPropertySchema.nonversionedEdgeProperties().asScala.map(_.name()).exists(_ == key)
       case vertex: ArrowExVertexIter =>
         vertex.vertexIter.getRaphtory.getPropertySchema
           .nonversionedVertexProperties()

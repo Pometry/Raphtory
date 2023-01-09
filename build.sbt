@@ -126,8 +126,8 @@ lazy val arrowCore =
                     arrowAlgorithm,
                     arrowDataset,
                     chronicleMap,
-                    fastUtil,
                     disruptor,
+                    fastUtil,
                     commonsLang,
                     junitInterface,
                     netty classifier osDetectorClassifier.value

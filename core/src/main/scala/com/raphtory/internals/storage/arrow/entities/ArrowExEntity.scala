@@ -92,10 +92,9 @@ trait ArrowExEntity extends EntityVisitor {
         }
         else {
           implicit val FIELD: Field[T] = com.raphtory.internals.storage.arrow.Field.runtime[T]
-          val value1 = vertex.vertex
+          vertex.vertex
             .field[T](key)
             .get
-          val option = value1
             .map(value =>
               List(
                 PropertyValue(
@@ -105,7 +104,6 @@ trait ArrowExEntity extends EntityVisitor {
                 )
               )
             )
-          option
 
         }
       case edge: ArrowExEdge     =>
