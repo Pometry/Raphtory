@@ -122,18 +122,6 @@ class JRETest(unittest.TestCase):
     def test_download_java_bad_os(self):
         self.assertRaises(SystemExit, download_java, OS, ARCH, '/tmp/')
 
-    # Mock the subprocess.call method
-    @mock.patch('subprocess.run')
-    @mock.patch('subprocess.CompletedProcess')
-    def test_get_and_run_ivy(self, mock_subprocess_completedprocess, mock_subprocess_run):
-        with mock.patch('os.listdir') as fname_endswith:
-            fname_endswith.return_value = []
-            mock_subprocess_completedprocess.stdout = b'success'
-            mock_subprocess_completedprocess.stderr = b''
-            mock_subprocess_completedprocess.returncode = 0
-            mock_subprocess_run.return_value = mock_subprocess_completedprocess
-            # Run the function
-            self.assertIsNone(get_and_run_ivy('f', '/tmp/', '/tmp/lib'))
 
     # Test the jre.unpack_jre function and mock shutil.unpack_archive
     @mock.patch('shutil.unpack_archive')

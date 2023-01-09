@@ -12,10 +12,10 @@ authors = [
     {name="Haaroon Yousaf"}
 ]
 
-license = {file = "python/pyraphtory/LICENSE"}
+license = {file = "LICENSE"}
 maintainers = [{name="Pometry", email="admin@pometry.com"}]
 description = "Raphtory - Temporal Graph Analytics Platform. This is the Python version of the library."
-readme = "python/pyraphtory/README.md"
+readme = "README.md"
 requires-python = ">=3.9"
 keywords = ["raphtory", "pyraphtory", "graph", "analytics", "temporal"]
 classifiers = [

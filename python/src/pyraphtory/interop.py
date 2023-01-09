@@ -56,7 +56,7 @@ try:
     from pemja import findClass
 
     _scala = findClass('com.raphtory.internals.management.PythonInterop')
-except ImportError:
+except (ImportError, ModuleNotFoundError):
     import jpype
     from jpype import JClass
     from pyraphtory import _config

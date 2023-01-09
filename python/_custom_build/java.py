@@ -8,6 +8,8 @@ import shutil
 import os
 
 
+from paths import jre_folder
+
 SOURCES = {
     OS_MAC: {
         OS_X64: Link(
@@ -75,9 +77,8 @@ def unpack_jre(filename: str | Path, jre_loc: str | Path):
         logging.info('Cleaning up...')
 
 
-def check_system_dl_java(jre_dir: Path | str) -> Path:
-    jre_dir = Path(jre_dir)
-    java = jre_dir / "bin" / 'java'
+def check_system_dl_java() -> Path:
+    java = jre_folder / "bin" / 'java'
     if not java.is_file():
         with tempfile.TemporaryDirectory() as download_dir:
             download_dir = Path(download_dir)
@@ -87,7 +88,7 @@ def check_system_dl_java(jre_dir: Path | str) -> Path:
             architecture = getArch()
             logging.info(f"- Architecture: {architecture}")
             logging.info(f"Downloading to {download_dir}")
-            jre_dir.mkdir(exist_ok=True, parents=True)
+            jre_folder.mkdir(exist_ok=True, parents=True)
             download_loc = download_java(system_os, architecture, download_dir)
-            unpack_jre(download_loc, jre_dir)
+            unpack_jre(download_loc, jre_folder)
     return java

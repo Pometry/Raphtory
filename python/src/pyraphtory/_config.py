@@ -33,13 +33,12 @@ def get_local_jre_loc() -> Path:
         return jre
 
 
-def get_ivy_jars_from_local_lib():
+def get_local_jar_path():
     lib = files(pyraphtory) / "lib"
     if not isinstance(lib, Path):
         raise RuntimeError("Pyraphtory is not installed correctly, are you trying to import from a compressed file?")
 
-    jars = ":".join(str(f) for f in lib.rglob("*.jar"))
-    return jars
+    return str(lib) + "/*"
 
 
 def join_jar_path(path: str, *new_paths: str) -> str:
@@ -47,13 +46,9 @@ def join_jar_path(path: str, *new_paths: str) -> str:
 
 
 def setup_raphtory_jars():
-    env_jar_location = os.environ.get("PYRAPTHORY_JAR_LOCATION", "")
     custom_jar_path = os.environ.get("PYRAPHTORYPATH", "")
-    env_jar_glob_lookup = os.environ.get("PYRAPTHORY_JAR_GLOB_LOOKUP", '*.jar')
     java_args_env = os.environ.get("PYRAPTHORY_JVM_ARGS", "")
-    path = get_ivy_jars_from_local_lib()
-    if env_jar_location != "":
-        path = join_jar_path(path, *(str(f) for f in Path(env_jar_location).rglob(env_jar_glob_lookup)))
+    path = get_local_jar_path()
     if custom_jar_path:
         path = join_jar_path(path, custom_jar_path)
     return path, java_args_env
