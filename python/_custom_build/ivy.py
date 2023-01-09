@@ -9,12 +9,17 @@ import logging
 import subprocess
 
 
-from paths import ivy_folder, lib_folder, ivy_bin, build_folder
+from paths import ivy_folder, lib_folder, ivy_bin, build_folder, root_folder
 
 IVY_BIN = Link(
     link='https://github.com/Raphtory/Data/raw/main/apache-ivy-2.5.0-bin.zip',
     checksum='7c6f467e33c28d82f4f8c3c10575bb461498ad8dcabf57770f481bfea59b1e59'
 )
+
+
+def version() -> str:
+    with open(root_folder / "version") as f:
+        return f.readline()
 
 
 def download_ivy(download_dir):
@@ -34,10 +39,10 @@ def get_and_run_ivy(java: str | Path) -> None:
 
         logging.info(
             f"IVY dl dir: {download_dir}, input dir: {ivy_folder}, lib dir: {lib_folder}")
-        retrieve = str(lib_folder) + "/dependencies/[artifact]-[type]-[revision](-[classifier]).[ext]"
+        retrieve = str(lib_folder) + "/[organisation].[artifact]-[revision](-[classifier]).[ext]"
         settings = str(build_folder / "ivysettings.xml")
         # retrieve = "."
         subprocess.check_call(
             [str(java), f"-Divy_dir={ivy_folder}", "-jar", ivy_jar,
-             "-settings", settings, "-ivy", str(ivy_folder / "core_2.13_ivy.xml"),
+             "-settings", settings, "-dependency", "com.raphtory", "core_2.13", version(),
              "-retrieve", retrieve, "-sync", "-refresh", "-confs", "runtime"])

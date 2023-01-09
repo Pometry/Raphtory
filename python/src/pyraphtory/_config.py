@@ -38,7 +38,7 @@ def get_local_jar_path():
     if not isinstance(lib, Path):
         raise RuntimeError("Pyraphtory is not installed correctly, are you trying to import from a compressed file?")
 
-    return join_jar_path(str(lib) + "/*", str(lib / "dependencies") + "/*")
+    return str(lib) + "/*"
 
 
 def join_jar_path(path: str, *new_paths: str) -> str:

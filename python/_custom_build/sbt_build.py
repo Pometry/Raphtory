@@ -7,13 +7,13 @@ from pathlib import Path
 from paths import lib_folder, ivy_folder, root_folder
 
 
-lib_files = ("core_2.13.jar",)
 ivy_files = (
     "arrow-core_2.13.jar",
     "arrow-core_2.13_ivy.xml",
     "arrow-messaging_2.13.jar",
     "arrow_messaging_2.13_ivy.xml",
     "core_2.13_ivy.xml",
+    "core_2.13.jar",
 )
 
 
@@ -22,7 +22,7 @@ def check_folder(folder: Path, files) -> bool:
 
 
 def check_build():
-    build_done = check_folder(lib_folder, lib_files) and check_folder(ivy_folder, ivy_files)
+    build_done = check_folder(ivy_folder, ivy_files)
     return build_done
 
 
