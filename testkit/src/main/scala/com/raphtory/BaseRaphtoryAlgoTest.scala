@@ -66,7 +66,8 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
                   logger.warn("!! Running Integration Tests on Remote Raphtory !!")
                   RaphtoryIOContext.remoteIO()
                 }
-                       .getOrElse(RaphtoryIOContext.localArrowIO[VertexProp, EdgeProp]()/*RaphtoryIOContext.localIO()*/)
+                .getOrElse(RaphtoryIOContext.localIO())
+//              .getOrElse(RaphtoryIOContext.localArrowIO[VertexProp, EdgeProp]()) // uncomment this line for arrow support
             graph <- ctx.newIOGraph(failOnNotFound = false, destroy = true)
             _     <- Resource.pure(graph.load(setSource()))
           } yield (ctx, graph)
@@ -126,17 +127,17 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 }
 
 case class VertexProp(
-                       age: Long,
-                       @immutable name: String,
-                       weight: Long,
-                       @immutable address_chain: String,
-                       @immutable transaction_hash: String
-                     )
+    age: Long,
+    @immutable name: String,
+    weight: Long,
+    @immutable address_chain: String,
+    @immutable transaction_hash: String
+)
 
 case class EdgeProp(
-                     @immutable name: String,
-                     friends: Boolean,
-                     weight: Long,
-                     @immutable msgId: String,
-                     @immutable subject: String
-                   )
+    @immutable name: String,
+    friends: Boolean,
+    weight: Long,
+    @immutable msgId: String,
+    @immutable subject: String
+)

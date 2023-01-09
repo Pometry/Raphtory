@@ -78,9 +78,9 @@ class ArrowStorageSuite extends munit.FunSuite {
     val vs = par.vertices
     assertEquals(vs.size, 2)
 
-    val names = vs.iterator.toList.flatMap(v => v.field[String]("name").get.map(name => v.getGlobalId -> name))
+    val names = vs.iterator.toSet.flatMap(v => v.field[String]("name").get.map(name => v.getGlobalId -> name))
 
-    assertEquals(names, List(3L -> "Bob", 7L -> "Alice"))
+    assertEquals(names, Set(3L -> "Bob", 7L -> "Alice"))
 
   }
 
