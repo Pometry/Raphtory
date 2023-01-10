@@ -1,4 +1,5 @@
 package com.raphtory.api.analysis.visitor
+
 import scala.reflect.ClassTag
 
 /** Class for representing interlayer edges
@@ -23,7 +24,7 @@ case class InterlayerEdge(
 
   override def lastActivityBefore(time: Long, strict: Boolean): Option[HistoricEvent] = None
 
-  override def getPropertySet(): List[String] = properties.map(tuple => tuple._1).toList
+  override def getPropertySet(): List[String] = properties.keys.toList
 
   override def getPropertyHistory[T](
       key: String,
@@ -62,13 +63,13 @@ case class InterlayerEdge(
 
   override def setState(key: String, value: Any): Unit = ???
 
-  override def getStateSet(): List[String] = ???
-  override def getState[T](key: String, includeProperties: Boolean): T = ???
+  override def getStateSet(): List[String]                                             = ???
+  override def getState[T](key: String, includeProperties: Boolean): T                 = ???
   override def getStateOrElse[T](key: String, value: T, includeProperties: Boolean): T = ???
-  override def containsState(key: String, includeProperties: Boolean): Boolean = ???
-  override def getOrSetState[T](key: String, value: T, includeProperties: Boolean): T = ???
-  override def appendToState[T: ClassTag](key: String, value: T): Unit = ???
-  override def clearState(key: String): Unit = ???
+  override def containsState(key: String, includeProperties: Boolean): Boolean         = ???
+  override def getOrSetState[T](key: String, value: T, includeProperties: Boolean): T  = ???
+  override def appendToState[T: ClassTag](key: String, value: T): Unit                 = ???
+  override def clearState(key: String): Unit                                           = ???
 }
 
 /** Default builders for constructing interlayer edges

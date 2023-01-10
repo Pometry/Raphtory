@@ -9,7 +9,6 @@ import scala.collection.View
 private[pojograph] class PojoReversedVertexView[T](override val vertex: PojoConcreteVertexBase[T])
         extends PojoLocalVertexViewBase(vertex) {
 
-  override def getStateSet(): List[String] = ???
   override type IDType = vertex.IDType
   override type Edge   = vertex.Edge
 
@@ -31,7 +30,7 @@ private[pojograph] class PojoReversedVertexView[T](override val vertex: PojoConc
 private[pojograph] class PojoReducedReversedVertexView(override val vertex: PojoExVertex)
         extends PojoReversedVertexView(vertex)
         with ReducedVertex {
-  override def getStateSet(): List[String] = ???
+
   override def getOutEdges(after: Long, before: Long): View[Edge] =
     vertex.getInEdges(after, before).map(_.reversed)
 
@@ -52,7 +51,7 @@ private[pojograph] object PojoReducedReversedVertexView {
 private[pojograph] class PojoExplodedReversedVertexView(override val vertex: PojoExplodedVertex)
         extends PojoReversedVertexView[(Long, Long)](vertex)
         with ExplodedVertex {
-  override def getStateSet(): List[String] = ???
+
   override def timestamp: Long = vertex.timestamp
 }
 

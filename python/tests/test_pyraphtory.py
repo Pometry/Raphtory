@@ -34,7 +34,7 @@ class PyRaphtoryTest(unittest.TestCase):
     def test_add_vertex(self):
         graph = self.ctx.new_graph()
         graph.add_vertex(1, 999)
-        df = graph.select(lambda vertex: pyraphtory.graph.Row(KeyPair("vertexName",vertex.name()))).to_df(["name"])
+        df = graph.select(lambda vertex: pyraphtory.graph.Row(KeyPair("name",vertex.name()))).to_df(["name"])
         expected_result = ',timestamp,name\n0,1,999\n'
         self.assertTrue(df.to_csv(), expected_result)
         graph.destroy(force=True)
@@ -43,7 +43,7 @@ class PyRaphtoryTest(unittest.TestCase):
         graph = self.ctx.new_graph()
         graph.add_edge(1, 1, 2)
         df = graph.select(lambda v:
-                          pyraphtory.graph.Row(KeyPair("vertexName",v.name()), KeyPair("degree",v.degree()), KeyPair("inDegree",v.in_degree()), KeyPair("outDegree",v.out_degree()))) \
+                          pyraphtory.graph.Row(KeyPair("name",v.name()), KeyPair("degree",v.degree()), KeyPair("in_edges",v.in_degree()), KeyPair("out_edges",v.out_degree()))) \
             .to_df(["name", "degree", "in_edges", "out_edges"])
         expected_result = ',timestamp,name,degree,in_edges,out_edges\n0,1,1,1,0,1\n1,1,2,1,1,0\n'
         self.assertTrue(df.to_csv(), expected_result)
@@ -79,9 +79,9 @@ class PyRaphtoryTest(unittest.TestCase):
         graph = self.ctx.new_graph()
         graph.add_vertex(1, 1, properties=[ImmutableString("name", "TEST"),MutableString("strProp", "TESTstr")])
         graph.add_vertex(2, 1, properties=[MutableString("strProp", "TESTstr2")])
-        df = graph.at(1).past().select(lambda v: pyraphtory.graph.Row(KeyPair("vertexName",v.name()),KeyPair("strProp",v.get_property_or_else('strProp', ''))))\
+        df = graph.at(1).past().select(lambda v: pyraphtory.graph.Row(KeyPair("name",v.name()),KeyPair("strProp",v.get_property_or_else('strProp', ''))))\
             .to_df(['name', 'strProp'])
-        df_time = graph.at(2).past().select(lambda v: pyraphtory.graph.Row(KeyPair("vertexName",v.name()),
+        df_time = graph.at(2).past().select(lambda v: pyraphtory.graph.Row(KeyPair("name",v.name()),
                                                                            KeyPair("strProp",v.get_property_or_else('strProp', ''))))\
             .to_df(['name', 'strProp'])
         expected_value = ',timestamp,name,strProp\n0,1,TEST,TESTstr\n'
@@ -94,7 +94,7 @@ class PyRaphtoryTest(unittest.TestCase):
         with self.ctx.new_graph() as graph:
             graph.add_edge(1, 1, 2)
             df = (graph.step(lambda vertex: vertex.message_vertex(1, "message"))
-                  .explode_select(lambda vertex: [Row(KeyPair("vertexName",vertex.name()), KeyPair("message",message)) for message in vertex.message_queue()])).to_df(["id", "message"])
+                  .explode_select(lambda vertex: [Row(KeyPair("id",vertex.name()), KeyPair("message",message)) for message in vertex.message_queue()])).to_df(["id", "message"])
             assert array_equal(df["id"], ["1", "1"])
             assert array_equal(df["message"], ["message", "message"])
 
