@@ -20,7 +20,7 @@ import java.util.zip.GZIPInputStream;
 
 
 
-public class AlphaBayLoader {
+public class HalongBayLoader {
     private static final int BUFFER_SIZE = 64 * 1024;
     private static int N_LOAD_THREADS = 8;
     private static final int QUEUE_SIZE = 32768 * 2;
@@ -28,7 +28,7 @@ public class AlphaBayLoader {
     private static final int EDGE_BATCH_SIZE = 4096;
 
 
-    public static class AlphaBaySchema implements PropertySchema {
+    public static class HalongBaySchema implements PropertySchema {
         private static final ArrayList<NonversionedField> _nonVersionedVertexProperties;
         private static final ArrayList<VersionedProperty> _versionedVertexProperties;
 
@@ -95,7 +95,7 @@ public class AlphaBayLoader {
 
 
     public final static String RaphtoryInput = "/home/jatinder/projects/Pometry/arrow-core";
-    public final static String ArrowDir = "/tmp/alphabay";
+    public final static String ArrowDir = "/tmp/halongbay";
 
 
 
@@ -105,7 +105,7 @@ public class AlphaBayLoader {
 
     public static void main(String[] args) throws Exception {
         RaphtoryArrowPartition.RaphtoryArrowPartitionConfig cfg = new RaphtoryArrowPartition.RaphtoryArrowPartitionConfig();
-        cfg._propertySchema = new AlphaBaySchema();
+        cfg._propertySchema = new HalongBaySchema();
         cfg._arrowDir = ArrowDir;
         cfg._raphtoryPartitionId = 0;
         cfg._nRaphtoryPartitions = 1;
@@ -117,7 +117,7 @@ public class AlphaBayLoader {
 
         RaphtoryArrowPartition rap = new RaphtoryArrowPartition(cfg);
 
-        AlphaBayLoader loader = new AlphaBayLoader(rap);
+        HalongBayLoader loader = new HalongBayLoader(rap);
         if (new File(ArrowDir + "/vertex-p0.rap").exists()) {
             long then = System.currentTimeMillis();
             rap.getVertexMgr().loadFiles();
@@ -125,8 +125,8 @@ public class AlphaBayLoader {
             System.out.println("ARROW FILES LOADED: " + rap.getStatistics() + ", time taken: " + (System.currentTimeMillis()-then) + "ms");
         }
         else {
-            //loader.load(RaphtoryInput + "/alphabay_sorted.csv");
-            //loader.loadMT(RaphtoryInput + "/alphabay_sorted.csv");
+            //loader.load(RaphtoryInput + "/halongbay_sorted.csv");
+            //loader.loadMT(RaphtoryInput + "/halongbay_sorted.csv");
             //loader.dumpHistory("/tmp/smt.log");
 
             //rap.getVertexMgr().saveFiles();
@@ -135,8 +135,8 @@ public class AlphaBayLoader {
 
 
         rap = new RaphtoryArrowPartition(cfg);
-        loader = new AlphaBayLoader(rap);
-        loader.load(RaphtoryInput + "/alphabay_sorted.csv");
+        loader = new HalongBayLoader(rap);
+        loader.load(RaphtoryInput + "/halongbay_sorted.csv");
         //loader.dumpVertices("/tmp/st-vertices.log");
         //loader.dumpEdges("/tmp/st-edges.log");
         loader.dumpHistory("/tmp/st.log");
@@ -145,8 +145,8 @@ public class AlphaBayLoader {
 
         N_LOAD_THREADS = 1;
         rap = new RaphtoryArrowPartition(cfg);
-        loader = new AlphaBayLoader(rap);
-        loader.loadMT(RaphtoryInput + "/alphabay_sorted.csv");
+        loader = new HalongBayLoader(rap);
+        loader.loadMT(RaphtoryInput + "/halongbay_sorted.csv");
         //loader.dumpVertices("/tmp/mt1-vertices.log");
         //loader.dumpEdges("/tmp/mt1-edges.log");
         loader.dumpHistory("/tmp/mt1.log");
@@ -155,8 +155,8 @@ public class AlphaBayLoader {
 
         N_LOAD_THREADS = 8;
         rap = new RaphtoryArrowPartition(cfg);
-        loader = new AlphaBayLoader(rap);
-        loader.loadMT(RaphtoryInput + "/alphabay_sorted.csv");
+        loader = new HalongBayLoader(rap);
+        loader.loadMT(RaphtoryInput + "/halongbay_sorted.csv");
         //loader.dumpVertices("/tmp/mt8-vertices.log");
         //loader.dumpHistory("/tmp/mt8.log");
         //loader.dumpEdges("/tmp/mt8-edges.log");
@@ -177,7 +177,7 @@ public class AlphaBayLoader {
     }
 
 
-    public AlphaBayLoader(RaphtoryArrowPartition rap) {
+    public HalongBayLoader(RaphtoryArrowPartition rap) {
         PRICE_PROPERTY = rap.getEdgePropertyId("price");
         NODEID_FIELD = rap.getVertexFieldId("globalid");
 

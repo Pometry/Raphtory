@@ -4,7 +4,7 @@ import com.raphtory.api.input.{Graph, GraphBuilder, MutableLong, Properties}
 
 import scala.util.control.NonFatal
 
-class AlphaBayBuilder extends GraphBuilder[String]{
+class HalongBayBuilder extends GraphBuilder[String]{
   override def apply(graph:Graph, tuple: String): Unit = {
     try {
       val parts = tuple.split(","); //

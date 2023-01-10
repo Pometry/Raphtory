@@ -11,13 +11,13 @@ import java.io._
 import java.util
 import java.util.Date
 
-object AlphaBayMTApp extends App {
+object HalongBayMTApp extends App {
 
-  //val DATA_DIR  = "/tmp/alphabay/data"
+  //val DATA_DIR  = "/tmp/halongbay/data"
   val DATA_DIR = "/home/jatinder/projects/Pometry/arrow-core"
-  val ARROW_DIR = "/tmp/alphabay/arrow"
+  val ARROW_DIR = "/tmp/halongbay/arrow"
 
-  class AlphaBayLoader(rap: RaphtoryArrowPartition) {
+  class HalongBayLoader(rap: RaphtoryArrowPartition) {
     private val BUFFER_SIZE    = 64 * 1024
     private val N_LOAD_THREADS = 8
     private val QUEUE_SIZE     = 32768 * 2
@@ -308,7 +308,7 @@ object AlphaBayMTApp extends App {
     }
   }
 
-  final case class AlphaBaySchema(
+  final case class HalongBaySchema(
       nonversionedVertexProperties: util.ArrayList[NonversionedField] = new util.ArrayList(
               util.Arrays.asList(
                       new NonversionedField("globalid", classOf[java.lang.Long])
@@ -324,7 +324,7 @@ object AlphaBayMTApp extends App {
   ) extends PropertySchema
 
   val cfg = new RaphtoryArrowPartition.RaphtoryArrowPartitionConfig()
-  cfg._propertySchema = AlphaBaySchema()
+  cfg._propertySchema = HalongBaySchema()
   cfg._arrowDir = ARROW_DIR
   cfg._raphtoryPartitionId = 0
   cfg._nRaphtoryPartitions = 1
@@ -334,6 +334,6 @@ object AlphaBayMTApp extends App {
   cfg._edgePartitionSize = 1024 * 1024
   cfg._vertexPartitionSize = 256 * 1024
 
-  val loader = new AlphaBayLoader(new RaphtoryArrowPartition(cfg))
-  loader.loadMT(s"$DATA_DIR/alphabay_sorted.csv")
+  val loader = new HalongBayLoader(new RaphtoryArrowPartition(cfg))
+  loader.loadMT(s"$DATA_DIR/halongbay_sorted.csv")
 }

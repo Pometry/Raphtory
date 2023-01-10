@@ -91,7 +91,7 @@ public class LOTRLoader {
 
 
     public final static String RaphtoryInput = "/home/jatinder/projects/Pometry/arrow-core";
-    public final static String ArrowDir = "/tmp/alphabay";
+    public final static String ArrowDir = "/tmp/halongbay";
 
 
 
@@ -130,8 +130,8 @@ public class LOTRLoader {
 
 
         //rap = new RaphtoryArrowPartition(cfg);
-        //loader = new AlphaBayLoader(rap);
-        //loader.load(RaphtoryInput + "/alphabay_sorted.csv");
+        //loader = new HalongBayLoader(rap);
+        //loader.load(RaphtoryInput + "/halongbay_sorted.csv");
 
         for (int i=0; i<1; ++i) {
             System.out.println("\n\n\n");

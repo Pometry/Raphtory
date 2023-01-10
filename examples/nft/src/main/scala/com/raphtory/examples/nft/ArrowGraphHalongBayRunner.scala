@@ -7,12 +7,12 @@ import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.sinks.FileSink
 import com.raphtory.spouts.FileSpout
 
-object ArrowGraphAlphabayRunner extends RaphtoryApp.ArrowLocal[NoProps, Price] {
+object ArrowGraphHalongBayRunner extends RaphtoryApp.ArrowLocal[NoProps, Price] {
 
-//  val path    = "/pometry/wip/alphabay_partitions_10pc"
-  val path    = "/pometry/wip/alphabay_sorted.csv.gz"
-//  val path    = "/home/jatinder/projects/Pometry/arrow-core/alphabay_sorted.csv"
-  val builder = new AlphaBayBuilder()
+//  val path    = "/pometry/wip/halongbay_partitions_10pc"
+  val path    = "/pometry/wip/halongbay_sorted.csv.gz"
+//  val path    = "/home/jatinder/projects/Pometry/arrow-core/halongbay_sorted.csv"
+  val builder = new HalongBayBuilder()
 
   override def run(args: Array[String], ctx: RaphtoryContext): Unit =
     ctx.runWithNewGraph() { graph =>
