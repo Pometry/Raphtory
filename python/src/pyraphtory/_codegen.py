@@ -6,6 +6,24 @@ from collections import UserString, UserDict
 from functools import cached_property
 
 
+jpype_type_converters = {}
+type_converters = {}
+
+
+def jpype_type_converter(type_name: str):
+    def converter(fun):
+        jpype_type_converters[type_name] = fun.__name__
+        return fun
+    return converter
+
+
+def type_converter(type_name: str):
+    def converter(fun):
+        type_converters[type_name] = fun.name
+        return fun
+    return converter
+
+
 class LazyStr(UserString, str):
     def __new__(cls, *args, **kwargs):
         # we need to extend str so help works but don't actually want to create the immutable str here
@@ -53,16 +71,6 @@ class LazyAnnotations(UserDict, dict):
         self.lazy.add(key)
 
 
-type_map = {"String": "str",
-            "Double": "float",
-            "Float": "float",
-            "Short": "int",
-            "Int": "int",
-            "Long": "int",
-            "Boolean": "bool",
-            "Object": "Any",
-            }
-
 
 def clean_identifier(name: str):
     if iskeyword(name):
@@ -77,16 +85,34 @@ def clean_type(scala_type):
     return type_name
 
 
+def get_jpype_type_converter(type):
+    name = type.toString()
+    return jpype_type_converters.get(name, type_converters.get(name, "to_jvm"))
+
+
+def get_type_converter(type):
+    name = type.toString()
+    return type_converters.get(name, "to_jvm")
+
+
 def build_method(name: str, method, jpype: bool, globals: dict, locals: dict):
+    if jpype:
+        type_converter = get_jpype_type_converter
+    else:
+        type_converter = get_type_converter
+
     params = [clean_identifier(name) for name in method.parameters()]
     types = list(method.types())
     name = clean_identifier(name)
     java_name = clean_identifier(method.name()) if jpype else method.name()
     implicits = [clean_identifier(name) for name in method.implicits()]
+    implicit_types = types[len(params):]
+    types = types[:len(params)]
     nargs = method.n()
     varargs = method.varargs()
     if varargs:
         varparam = params.pop()
+        varparam_type = types.pop()
     defaults = method.defaults()
     required = max(defaults.keys(), default=nargs)
 
@@ -108,11 +134,11 @@ def build_method(name: str, method, jpype: bool, globals: dict, locals: dict):
         lines.append(f"    if len(_implicits) > {len(implicits)}:")
         lines.append(f"        raise RuntimeError('too many implicit arguments')")
         for i, p in enumerate(implicits):
-            lines.append(f"    {p} = to_jvm(_implicits[{i}])")
-    lines.extend(f"    {p} = _check_default(self._jvm_object, {p})" if i in defaults else
-                 f"    {p} = to_jvm({p})" for i, p in enumerate(params))
+            lines.append(f"    {p} = {type_converter(implicit_types[i])}(_implicits[{i}])")
+    lines.extend(f"    {p} = _check_default(self._jvm_object, {p}, {type_converter(types[i])})" if i in defaults else
+                 f"    {p} = {type_converter(types[i])}({p})" for i, p in enumerate(params))
     if varargs:
-        lines.append(f"    {varparam} = make_varargs(to_jvm(list({varparam})))")
+        lines.append(f"    {varparam} = make_varargs(to_jvm(list({type_converter(varparam_type)}(v) for v in {varparam})))")
         params.append(varparam)
     lines.append(f"    return to_python(getattr(self._jvm_object, '{java_name}')({', '.join(p for p in params + implicits)}))")
     exec("\n".join(lines), globals, locals)
@@ -121,5 +147,5 @@ def build_method(name: str, method, jpype: bool, globals: dict, locals: dict):
     py_method.__doc__ = LazyStr(initial=lambda: convert_docstring(docstr))
     py_method.__annotations__ = LazyAnnotations({n: t for n, t in zip(params, types)})
     if varargs:
-        py_method.__annotations__.add_lazy_item(varparam, types[-1])
+        py_method.__annotations__.add_lazy_item(varparam, varparam_type)
     return py_method

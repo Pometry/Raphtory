@@ -395,7 +395,7 @@ object PythonInterop {
       val name = m.name.toString
       if (!(m.isJava && ignoredJavaMethods.contains(name))) {
         val params     = m.paramLists.flatten
-        val types      = params.map(p => p.infoIn(objType)).toArray
+        val types      = params.map(p => expandType(p.infoIn(objType))).toArray
         val implicits  = params.collect { case p if p.isImplicit => camel_to_snake(p.name.toString) }.toArray
         val paramNames = params.filterNot(_.isImplicit).map(p => camel_to_snake(p.name.toString)).toArray
         val docs       = getMethodDocString(m)

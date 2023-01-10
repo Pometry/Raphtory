@@ -123,3 +123,41 @@ class PyRaphtoryTest(unittest.TestCase):
                 # assert that it throws an exception
                 self.assertRaises(FileNotFoundError, get_java_home)
 
+    def test_type(self):
+        t = pyraphtory.input.Type("test")
+        self.assertEqual(t.name(), "test")
+
+    def test_immutable_string(self):
+        s = pyraphtory.input.ImmutableString(key="key", value="value")
+        self.assertEqual(s.key(), "key")
+        self.assertEqual(s.value(), "value")
+
+    def test_mutable_string(self):
+        s = pyraphtory.input.MutableString(key="key", value="value")
+        self.assertEqual(s.key(), "key")
+        self.assertEqual(s.value(), "value")
+
+    def test_mutable_long(self):
+        long = pyraphtory.input.MutableLong("test", 1)
+        self.assertEqual(long.value(), 1)
+        self.assertEqual(long.key(), "test")
+
+    def test_mutable_double(self):
+        d = pyraphtory.input.MutableDouble("test", 1.0)
+        self.assertEqual(d.value(), 1.0)
+        self.assertEqual(d.key(), "test")
+
+    def test_mutable_float(self):
+        d = pyraphtory.input.MutableFloat("test", 1.0)
+        self.assertEqual(d.value(), 1.0)
+        self.assertEqual(d.key(), "test")
+
+    def test_mutable_boolean(self):
+        b = pyraphtory.input.MutableBoolean("test", False)
+        self.assertEqual(b.value(), False)
+        self.assertEqual(b.key(), "test")
+
+    def test_mutable_integer(self):
+        i = pyraphtory.input.MutableInteger("test", 2)
+        self.assertEqual(i.value(), 2)
+        self.assertEqual(i.key(), "test")

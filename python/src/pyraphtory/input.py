@@ -24,6 +24,9 @@ class MutableString(ScalaClassProxy, Property):
 class MutableLong(ScalaClassProxy, Property):
     _classname = "com.raphtory.api.input.MutableLong"
 
+class MutableInteger(ScalaClassProxy, Property):
+    _classname = "com.raphtory.api.input.MutableInteger"
+
 
 class MutableDouble(ScalaClassProxy, Property):
     _classname = "com.raphtory.api.input.MutableDouble"
