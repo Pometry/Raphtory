@@ -89,7 +89,7 @@ sbt-build-clean:
 
 .PHONY: docs
 docs: version python-build
-	pip install -q myst-parser sphinx-rtd-theme sphinx docutils sphinx-tabs
+	pip install -q myst-parser sphinx-rtd-theme sphinx docutils sphinx-tabs nbsphinx
 	cd docs && make html
 
 
