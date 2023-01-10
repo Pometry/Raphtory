@@ -1,11 +1,15 @@
 package com.raphtory
 
 import com.raphtory.api.analysis.algorithm.GenericallyApplicable
-import com.raphtory.api.analysis.graphview.{Alignment, DeployedTemporalGraph, TemporalGraph}
+import com.raphtory.api.analysis.graphview.Alignment
+import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
+import com.raphtory.api.analysis.graphview.TemporalGraph
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.sources.CSVEdgeListSource
-import com.raphtory.spouts.{IdentitySpout, ResourceOrFileSpout, SequenceSpout}
+import com.raphtory.spouts.IdentitySpout
+import com.raphtory.spouts.ResourceOrFileSpout
+import com.raphtory.spouts.SequenceSpout
 
 case class TestQuery(
     algorithm: GenericallyApplicable,
