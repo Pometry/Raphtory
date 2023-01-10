@@ -22,19 +22,19 @@ class Perspective(GenericScalaProxy):
 class Table(GenericScalaProxy):
     _classname = "com.raphtory.api.analysis.table.Table"
 
-    def to_df(self, cols):
+    def to_df(self):
         rows = []
         columns = ()
         for res in self.get():
             window = res.perspective().window()
             timestamp = res.perspective().formatted_time()
             if window != None:
-                columns = ('timestamp', 'window', *cols)
+                columns = ('timestamp', 'window', *r.keys())
                 for r in res.rows():
                     window_size = window.get().output()
                     rows.append((timestamp, window_size, *r.items()))
             else:
-                columns = ('timestamp', *cols)
+                columns = ('timestamp', *r.keys())
                 for r in res.rows():
                     rows.append((timestamp, *r.items()))
         return pd.DataFrame.from_records(rows, columns=columns)
