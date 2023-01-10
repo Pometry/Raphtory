@@ -342,10 +342,3 @@ private[pojograph] object DisruptorQueue {
 
   def apply(graphID: String, partitionID: Int): DisruptorQueue = new DisruptorQueue(graphID, partitionID)
 }
-
-object TestFastUtils extends App {
-  case class Person(name: String = "Shivam")
-  val f = new Long2ObjectOpenHashMap[Person](10)
-  val p = Person()
-  f.putIfAbsent(1L, p)
-}
