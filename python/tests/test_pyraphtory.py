@@ -59,12 +59,12 @@ class PyRaphtoryTest(unittest.TestCase):
         graph.add_edge(1, 2, 5)
         graph.add_edge(1, 3, 5)
         graph.add_edge(1, 4, 5)
-        cols = ["name","prlabel"]
+        cols = ["prlabel"]
         df_pagerank = graph.at(1) \
             .past() \
             .transform(self.ctx.algorithms.generic.centrality.PageRank()) \
             .execute(self.ctx.algorithms.generic.NodeList(*cols)) \
-            .to_df(cols)
+            .to_df(["name"] + cols)
         expected_result = ",timestamp,name,prlabel" \
                           "\n0,1,1,0.559167686075918" \
                           "\n1,1,2,0.677990217572423" \
