@@ -63,7 +63,7 @@ class PyRaphtoryTest(unittest.TestCase):
         df_pagerank = graph.at(1) \
             .past() \
             .transform(self.ctx.algorithms.generic.centrality.PageRank()) \
-            .execute(self.ctx.algorithms.generic.NodeList(*cols)) \
+            .execute(self.ctx.algorithms.generic.NodeList("name",*cols)) \
             .to_df(["name"] + cols)
         expected_result = ",timestamp,name,prlabel" \
                           "\n0,1,1,0.559167686075918" \
