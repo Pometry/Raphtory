@@ -103,7 +103,7 @@ class NodeInformation(initialID: Long, hopsAway: Int = 1) extends Generic {
         else
           Row()
       }
-      .filter(row => row.getValues().nonEmpty)
+      .filter(row => row.values().nonEmpty)
 }
 
 object NodeInformation {

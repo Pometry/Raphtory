@@ -15,18 +15,18 @@ import scala.collection.mutable.ArrayBuffer
 case class KeyPair(key: String, value: Any)
 
 trait Row {
-  protected val values = ArrayBuffer.empty[KeyPair]
+  protected val keyPairs = ArrayBuffer.empty[KeyPair]
 
   /** Return value at index
     * @param index index to obtain value from
     */
-  def apply(index: Int): Any = values(index).value
+  def apply(index: Int): Any = keyPairs(index).value
 
   /** Return value at `index` */
-  def get(index: Int): Any = values(index).value
+  def get(index: Int): Any = keyPairs(index).value
 
   /** Return value at `index` and cast it to type `T` */
-  def getAs[T](index: Int): T = values(index).value.asInstanceOf[T]
+  def getAs[T](index: Int): T = keyPairs(index).value.asInstanceOf[T]
 
   /** Same as `getAs[Int](index)` */
   def getInt(index: Int): Int = getAs[Int](index)
@@ -44,18 +44,20 @@ trait Row {
   def getDouble(index: Int): Double = getAs[Double](index)
 
   /** Return Array of values */
-  def getValues(): Array[KeyPair] = values.toArray
+  def values(): Array[KeyPair] = keyPairs.toArray
+  def keys(): Array[Any]       = keyPairs.toArray.map(_.key)
+  def items(): Array[Any]      = keyPairs.toArray.map(_.value)
 
-  override def toString: String = "Row(" + values.mkString(", ") + ")"
+  override def toString: String = "Row(" + keyPairs.mkString(", ") + ")"
 
   override def equals(obj: Any): Boolean =
     obj match {
       case that: Row =>
-        that.values.toSeq == this.values.toSeq
+        that.keyPairs.toSeq == this.keyPairs.toSeq
       case _         => false
     }
 
-  override def hashCode(): Int = values.toSeq.hashCode()
+  override def hashCode(): Int = keyPairs.toSeq.hashCode()
 }
 
 private[raphtory] class RowImplementation extends Row {
@@ -91,8 +93,8 @@ private[raphtory] class RowImplementation extends Row {
   val constructedOn: String = Thread.currentThread().getName
 
   def init(values: Seq[KeyPair]): Unit = {
-    this.values.clear()
-    this.values.addAll(values)
+    this.keyPairs.clear()
+    this.keyPairs.addAll(values)
     selfIterator.reset()
     acquired = true
     exploded = false
@@ -107,7 +109,7 @@ private[raphtory] class RowImplementation extends Row {
     else if (acquired) {
       Row.pool.get().append(this)
       acquired = false
-      values.clear()
+      keyPairs.clear()
       logger.trace(s"Row object released on thread ${Thread.currentThread().getName}")
     }
     else

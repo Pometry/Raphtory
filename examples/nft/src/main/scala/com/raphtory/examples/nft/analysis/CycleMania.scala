@@ -3,7 +3,9 @@ package com.raphtory.examples.nft.analysis
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
+import com.raphtory.api.analysis.table.KeyPair
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 
 import scala.collection.mutable
 // lets get ready to rumble
@@ -100,18 +102,18 @@ class CycleMania(moneyCycles: Boolean = true) extends Generic {
                     cycle = singleCycle
             )
             Row(
-              KeyPair("nftID", nftID),
-              KeyPair("nftCollection", nftCollection),
-              KeyPair("nftCategory", nftCategory),
-              KeyPair("cycleSaleLength",singleCycle.sales.length),
-              KeyPair("cycleData", cycleData)
+                    KeyPair("nftID", nftID),
+                    KeyPair("nftCollection", nftCollection),
+                    KeyPair("nftCategory", nftCategory),
+                    KeyPair("cycleSaleLength", singleCycle.sales.length),
+                    KeyPair("cycleData", cycleData)
             )
           }
         }
         else
           List(Row())
       }
-      .filter(row => row.getValues().nonEmpty)
+      .filter(row => row.values().nonEmpty)
 
   case class Sale(buyer: String, price_usd: Double, time: Long, tx_hash: String, nft_id: String)
 

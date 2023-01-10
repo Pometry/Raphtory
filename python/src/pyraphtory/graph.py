@@ -43,6 +43,8 @@ class Table(GenericScalaProxy):
 class Row(ScalaClassProxy):
     _classname = "com.raphtory.api.analysis.table.Row"
 
+class KeyPair(ScalaClassProxy):
+    _classname = "com.raphtory.api.analysis.table.KeyPair"
 
 class PropertyMergeStrategy(ScalaClassProxy):
     _classname = "com.raphtory.api.analysis.visitor.PropertyMergeStrategy"

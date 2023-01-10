@@ -1,5 +1,6 @@
 from pyraphtory.context import PyRaphtory
 from pyraphtory.graph import Row
+from pyraphtory.graph import KeyPair
 import pyraphtory
 from pyraphtory._config import get_java_home
 import unittest
