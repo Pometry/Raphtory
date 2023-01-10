@@ -32,11 +32,11 @@ class Table(GenericScalaProxy):
                 columns = ('timestamp', 'window', *cols)
                 for r in res.rows():
                     window_size = window.get().output()
-                    rows.append((timestamp, window_size, *r.get_values()))
+                    rows.append((timestamp, window_size, *r.get(*cols)))
             else:
                 columns = ('timestamp', *cols)
                 for r in res.rows():
-                    rows.append((timestamp, *r.get_values()))
+                    rows.append((timestamp, *r.get(*cols)))
         return pd.DataFrame.from_records(rows, columns=columns)
 
 
