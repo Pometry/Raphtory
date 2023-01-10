@@ -45,8 +45,8 @@ trait Row {
 
   /** Return Array of values */
   def values(): Array[KeyPair] = keyPairs.toArray
-  def keys(): Array[Any]       = keyPairs.toArray.map(_.key)
-  def items(): Array[Any]      = keyPairs.toArray.map(_.value)
+  def keys(): Array[Any]       = values().map(pair => pair.key)
+  def items(): Array[Any]      = values().map(pair => pair.value)
 
   override def toString: String = "Row(" + keyPairs.mkString(", ") + ")"
 
