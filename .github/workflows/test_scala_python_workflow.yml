@@ -36,6 +36,7 @@ jobs:
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH
           make scala-test
+        timeout-minutes: 10
   python-test:
     name: "Python tests"
     strategy:
