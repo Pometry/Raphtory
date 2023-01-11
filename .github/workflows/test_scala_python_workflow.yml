@@ -35,7 +35,7 @@ jobs:
       - name: Compile tests
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH
-          sbt Test / compile
+          sbt Test/compile
       - name: Run all scala tests
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH
