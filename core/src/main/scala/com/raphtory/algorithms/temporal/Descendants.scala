@@ -50,7 +50,7 @@ class Descendants(
     delta: Long = Long.MaxValue,
     directed: Boolean = true,
     strict: Boolean = true
-) extends NodeList(Seq("name", "descendant"), Map("descendant" -> false)) {
+) extends NodeList(Seq("descendant"), Map("descendant" -> false)) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph

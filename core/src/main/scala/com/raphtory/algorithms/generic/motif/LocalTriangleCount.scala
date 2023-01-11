@@ -42,7 +42,7 @@ import com.raphtory.internals.communication.SchemaProviderInstances._
   * 'neighbours' refers to the union of in-neighbours and out-neighbours.
   * ``
   */
-class LocalTriangleCount extends NodeList(Seq("name", "triangleCount")) {
+class LocalTriangleCount extends NodeList(Seq("triangleCount")) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     KCore(2).apply(graph)

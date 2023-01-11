@@ -12,17 +12,18 @@ abstract class NodeListOutput(
   override def tabularise(graph: Out): Table =
     graph
       .select { vertex =>
-        val propertiesAndStates = if (properties.isEmpty) {
-          val x = vertex.getPropertySet() ++ vertex.getStateSet()
-          x.map { key =>
-            KeyPair(key, vertex.getStateOrElse(key, "", includeProperties = true))
+        val propertiesAndStates =
+          if (properties.isEmpty) {
+            val x = vertex.getPropertySet() ++ vertex.getStateSet()
+            KeyPair("name", vertex.name()) +: x.map { key =>
+              KeyPair(key, vertex.getStateOrElse(key, "", includeProperties = true))
+            }
           }
-        }
-        else
-          properties.map(name =>
-            KeyPair(name, vertex.getStateOrElse(name, defaults.getOrElse(name, None), includeProperties = true))
-          )
-
+          else
+            KeyPair("name", vertex.name()) +: properties.collect {
+              case key: String if !key.equals("name") =>
+                KeyPair(key, vertex.getStateOrElse(key, defaults.getOrElse(key, None), includeProperties = true))
+            }
         Row(propertiesAndStates: _*)
       }
 }

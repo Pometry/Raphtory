@@ -54,33 +54,39 @@ trait LocalRunner { self: RaphtoryApp =>
         .writeTo(FileSink("/tmp/raphtory"))
         .waitForJob()
 
-      // PageRank
-      graph
-        .at(32674)
-        .past()
-        .transform(PageRank())
-        .execute(NodeList(Seq("prlabel")))
-        .writeTo(FileSink("/tmp/raphtory"))
-        .waitForJob()
+    // PageRank
+//      graph
+//        .at(32674)
+//        .past()
+//        .transform(PageRank())
+//        .execute(NodeList(Seq("prlabel")))
+//        .writeTo(FileSink("/tmp/raphtory"))
+//        .waitForJob()
 
-      // Connected Components
-      graph
-        .at(32674)
-        .past()
-        .execute(ConnectedComponents)
-        .writeTo(FileSink("/tmp/raphtory"))
-        .waitForJob()
+//      graph.at(1)
+//      .past()
+//      .transform(PageRank())
+//      .execute(NodeList()).writeTo(FileSink("/tmp/raphtory"))
+//        .waitForJob()
+//
+//      // Connected Components
+//      graph
+//        .at(32674)
+//        .past()
+//        .execute(ConnectedComponents)
+//        .writeTo(FileSink("/tmp/raphtory"))
+//        .waitForJob()
 
-      // Chained Example
-      graph
-        .at(32674)
-        .past()
-        .transform(PageRank())
-        .transform(ConnectedComponents)
-        .transform(Degree())
-        .execute(NodeList(Seq("prlabel", "cclabel", "inDegree", "outDegree", "degree")))
-        .writeTo(FileSink("/tmp/raphtory"))
-        .waitForJob()
+    // Chained Example
+//      graph
+//        .at(32674)
+//        .past()
+//        .transform(PageRank())
+//        .transform(ConnectedComponents)
+//        .transform(Degree())
+//        .execute(NodeList(Seq("prlabel", "cclabel", "inDegree", "outDegree", "degree")))
+//        .writeTo(FileSink("/tmp/raphtory"))
+//        .waitForJob()
 
     }
 }

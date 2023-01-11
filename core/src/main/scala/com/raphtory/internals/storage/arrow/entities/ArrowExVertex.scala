@@ -19,8 +19,8 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
         extends ReducedVertex
         with ArrowExEntity {
-  override def getStateSet(): List[String] = ???
-  def entity: Entity = vertex
+  def getStateSet(): List[String] = ???
+  def entity: Entity              = vertex
 
   /** ID type of this vertex */
   override type IDType = Long
@@ -72,8 +72,7 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
 
   /** Return all edges ending at this vertex
     */
-  override def inEdges: View[ArrowExEdge] = {
-
+  override def inEdges: View[ArrowExEdge] =
 //    val it = new FabianTest(vertex.getRaphtory)
 
 //    it.allVerticesIterator();
@@ -100,11 +99,10 @@ class ArrowExVertex(val repo: ArrowEntityStateRepository, val vertex: ArrVertex)
 //      .map(e => mkArrInEdge(e))
 //      .view
 //      .filter(e => repo.isEdgeAlive(e.src, e.dst))
-
-    vertex.incomingEdges(repo.start, repo.end)
+    vertex
+      .incomingEdges(repo.start, repo.end)
       .map(mkArrInEdge)
       .filter(e => repo.isEdgeAlive(e.src, e.dst))
-  }
 
   private def mkArrInEdge(e: model.Edge) = {
     val src =

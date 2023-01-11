@@ -2,7 +2,9 @@ package com.raphtory.algorithms.generic
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
+import com.raphtory.api.analysis.table.KeyPair
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.internals.communication.SchemaProviderInstances._
 
 import scala.math.Ordering.Implicits._
@@ -61,5 +63,5 @@ object AdjPlus extends Generic {
       }
       .step(vertex => vertex.messageQueue[vertex.IDType].foreach(v => vertex.messageVertex(v, vertex.name())))
       .select(vertex => Row(KeyPair("vertexName", vertex.name()), KeyPair("adjPlus", vertex.messageQueue[String])))
-      .explode(row => row.getAs[Iterable[String]](1).map(v => Row(KeyPair("adjPlus", row.get(0)),KeyPair("v", v))))
+      .explode(row => row.getAs[Iterable[String]](1).map(v => Row(KeyPair("adjPlus", row.get(0)), KeyPair("v", v))))
 }

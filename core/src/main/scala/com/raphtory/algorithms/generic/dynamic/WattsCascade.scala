@@ -62,7 +62,7 @@ class WattsCascade[T: Threshold](
     threshold: T = Threshold.UNIFORM_RANDOM,
     seed: Long = -1,
     maxGenerations: Int = 100
-) extends NodeList(Seq("name","infected")) {
+) extends NodeList(Seq("infected")) {
 
   private val randomiser = if (seed != -1) new Random(seed) else new Random()
 

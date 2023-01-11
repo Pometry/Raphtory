@@ -43,7 +43,7 @@ import scala.math.Numeric.Implicits._
   * ```
   */
 class WeightedDegree[T: Numeric](weightProperty: String = "weight")
-        extends NodeList(Seq("name", "inStrength", "outStrength", "totStrength")) {
+        extends NodeList(Seq("inStrength", "outStrength", "totStrength")) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph.step { vertex =>

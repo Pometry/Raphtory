@@ -1,6 +1,7 @@
 package com.raphtory.examples.twitter.higgsdataset
 
 import com.raphtory.RaphtoryApp
+import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.algorithms.generic.centrality.Degree
 import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.api.input.Source
@@ -13,9 +14,9 @@ import com.raphtory.spouts.FileSpout
 import com.raphtory.utils.FileUtils
 
 /**
- * This Runner runs PageRank, chained with MemberRank and TemporalMemberRank which are two custom written algorithms
- * to find potential bot activity in the Higgs Twitter data.
- */
+  * This Runner runs PageRank, chained with MemberRank and TemporalMemberRank which are two custom written algorithms
+  * to find potential bot activity in the Higgs Twitter data.
+  */
 object HiggsRunner extends RaphtoryApp.Local {
 
   val path = "/tmp/higgs-retweet-activity.csv"
@@ -30,18 +31,16 @@ object HiggsRunner extends RaphtoryApp.Local {
 
       graph.load(source)
       //get simple metrics
-      graph
-        .execute(Degree())
-        .writeTo(output)
-        .waitForJob()
+//      graph
+//        .execute(Degree())
+//        .writeTo(output)
+//        .waitForJob()
 
       //Chained Algorithm Example
       graph
         .at(1341705593)
         .past()
-        .transform(PageRank())
-        .transform(MemberRank())
-        .execute(TemporalMemberRank())
+        .execute(PageRank())
         .writeTo(output)
         .waitForJob()
     }
