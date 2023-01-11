@@ -1,6 +1,7 @@
 package com.raphtory.sources
 
 import com.raphtory.api.input.Graph
+import com.raphtory.api.input.ImmutableString
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Property
 import com.raphtory.api.input.Type
@@ -34,11 +35,13 @@ case class SqlVertexSource(
     }
 
     (rs: ResultSet, index: Long) => {
-      val id         = if (idIsInteger) rs.getLong(1) else Graph.assignID(rs.getString(1))
-      val epoch      = if (timeIsInteger) rs.getLong(2) else rs.getTimestamp(2).getTime
-      val vertexType = typeCol.map(_ => Type(rs.getString(3)))
-      val properties = propertyBuilders map (_.apply(rs))
-      VertexAdd(epoch, index, id, Properties(properties: _*), vertexType)
+      val id                     = if (idIsInteger) rs.getLong(1) else Graph.assignID(rs.getString(1))
+      val epoch                  = if (timeIsInteger) rs.getLong(2) else rs.getTimestamp(2).getTime
+      val vertexType             = typeCol.map(_ => Type(rs.getString(3)))
+      val properties             = propertyBuilders map (_.apply(rs))
+      val name: Option[Property] = if (idIsInteger) None else Some(ImmutableString("name", rs.getString(1)))
+      // We add the id as the property 'name' if it is a String
+      VertexAdd(epoch, index, id, Properties(properties ++ name: _*), vertexType)
     }
   }
 

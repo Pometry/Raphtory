@@ -129,7 +129,7 @@ lazy val arrowCore =
                     fastUtil,
                     commonsLang,
                     junitInterface,
-                    netty classifier osDetectorClassifier.value,
+                    netty classifier osDetectorClassifier.value
             )
     )
 
@@ -171,6 +171,7 @@ lazy val core = (project in file("core"))
                   nomen,
                   openhft,
                   pemja,
+                  postgres,
                   prometheusClient,
                   prometheusHotspot,
                   prometheusHttp,
@@ -182,6 +183,7 @@ lazy val core = (project in file("core"))
                   scalaTestCompile,
                   slf4j,
                   sprayJson,
+                  sqlite,
                   testContainers,
                   twitterChill,
                   ujson,
@@ -196,7 +198,7 @@ lazy val core = (project in file("core"))
                   scalaDocReader,
                   junit,
                   mockitoScala,
-                  netty classifier osDetectorClassifier.value,
+                  netty classifier osDetectorClassifier.value
           ),
           libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) },
           // Needed to expand the @service macro annotation

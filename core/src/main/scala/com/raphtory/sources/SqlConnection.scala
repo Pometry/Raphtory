@@ -8,9 +8,9 @@ trait SqlConnection {
 }
 
 case class PostgresConnection(
-    user: String,
-    password: String,
     database: String,
+    user: String,
+    password: String = "",
     address: String = "localhost",
     port: Int = 5432
 ) extends SqlConnection {
@@ -21,10 +21,10 @@ case class PostgresConnection(
   }
 }
 
-case class SqLiteConnection(filepath: String) extends SqlConnection {
+case class SqliteConnection(filepath: String) extends SqlConnection {
 
   override def establish(): Connection = {
-    Class.forName("SQLite.JDBCDriver")
+    Class.forName("org.sqlite.JDBC")
     DriverManager.getConnection(s"jdbc:sqlite:$filepath")
   }
 }

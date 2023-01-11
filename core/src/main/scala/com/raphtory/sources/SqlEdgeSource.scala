@@ -1,6 +1,7 @@
 package com.raphtory.sources
 
 import com.raphtory.api.input.Graph
+import com.raphtory.api.input.ImmutableString
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Property
 import com.raphtory.api.input.Type

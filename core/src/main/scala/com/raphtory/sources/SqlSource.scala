@@ -57,7 +57,7 @@ abstract class SqlSource(
     }
 
   private def buildSelectQuery(query: String): String =
-    s"select ${expectedColumns.mkString(",")} from ($query)"
+    s"select ${expectedColumns.mkString(",")} from ($query) as query"
 
   protected def getPropertyBuilder(index: Int, col: String, columnTypes: Map[String, Int]): ResultSet => Property =
     if (checkType(columnTypes, col, boolTypes)) { (rs: ResultSet) => MutableBoolean(col, rs.getBoolean(index)) }

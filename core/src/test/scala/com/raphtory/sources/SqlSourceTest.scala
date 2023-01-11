@@ -3,6 +3,7 @@ package com.raphtory.sources
 import cats.effect.IO
 import cats.effect.Resource
 import com.raphtory.api.input.Graph
+import com.raphtory.api.input.ImmutableString
 import com.raphtory.api.input.MutableBoolean
 import com.raphtory.api.input.MutableDouble
 import com.raphtory.api.input.MutableFloat
@@ -115,7 +116,8 @@ class SqlSourceTest extends CatsEffectSuite {
                              MutableString("target_name", row.targetName),
                              MutableBoolean("boolean", row.boolean),
                              MutableFloat("float", row.float),
-                             MutableDouble("double", row.double)
+                             MutableDouble("double", row.double),
+                             ImmutableString("name", row.sourceName)
                      )
                      val expected                          = (Graph.assignID(row.sourceName), row.time.getTime, Type(row.eType), expectedProperties)
                      val actualProperties                  = update.properties.properties
