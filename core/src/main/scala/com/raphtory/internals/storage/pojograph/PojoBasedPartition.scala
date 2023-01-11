@@ -11,10 +11,8 @@ import com.typesafe.config.Config
 import scala.collection.mutable
 import DisruptorQueue._
 
-private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, conf: Config)
+private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, conf: Config, q: DisruptorQueue)
   extends GraphPartition(graphID, partitionID, conf) {
-
-  private val q = DisruptorQueue(graphID, partitionID)
 
   // If the add come with some properties add all passed properties into the entity
   override def addVertex(

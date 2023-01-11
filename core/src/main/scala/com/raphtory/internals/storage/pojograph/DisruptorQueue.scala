@@ -15,14 +15,9 @@ import com.raphtory.internals.storage.pojograph.entities.internal.PojoEntity
 import com.raphtory.internals.storage.pojograph.entities.internal.PojoVertex
 import com.raphtory.internals.storage.pojograph.entities.internal.SplitEdge
 import com.typesafe.scalalogging.Logger
-import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import org.slf4j.LoggerFactory
-
 import scala.jdk.CollectionConverters._
-import java.util.concurrent.ConcurrentHashMap
-import scala.collection.concurrent
 import scala.collection.mutable
 
 private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
@@ -271,9 +266,12 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
 
     logger.trace(s"Finished ingesting data for graphID = $graphID, partitionID = $partitionID")
   }
+
+  def stop(): Unit =
+    (0 until N_LOAD_THREADS).foreach(i => disruptors(i).halt())
 }
 
-private[pojograph] object DisruptorQueue {
+object DisruptorQueue                                                      {
   sealed trait EdgeToCreate
 
   final case object SelfLoop extends EdgeToCreate
