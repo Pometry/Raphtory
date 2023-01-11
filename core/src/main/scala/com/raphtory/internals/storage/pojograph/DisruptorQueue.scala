@@ -23,7 +23,20 @@ import scala.collection.mutable
 private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
   import DisruptorQueue._
 
-  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactor
+    y.getLogger(this.getClass))
+
+  private val BATCH_EDGES        = true
+  private var batchCount         = 0
+  private val BATCH_EDGES_SIZE   = 4096
+  private lazy val msgTimes      = Array.ofDim[Long](BATCH_EDGES_SIZE)
+  private lazy val indexes       = Array.ofDim[Long](BATCH_EDGES_SIZE)
+  private lazy val vIds          = Array.ofDim[Long](BATCH_EDGES_SIZE)
+  private lazy val srcIds        = Array.ofDim[Long](BATCH_EDGES_SIZE)
+  private lazy val dstIds        = Array.ofDim[Long](BATCH_EDGES_SIZE)
+  private lazy val propertiess   = Array.ofDim[Properties](BATCH_EDGES_SIZE)
+  private lazy val maybeTypes    = Array.ofDim[Option[Type]](BATCH_EDGES_SIZE)
+  private lazy val edgeToCreates = Array.ofDim[EdgeToCreate](BATCH_EDGES_SIZE)
 
   private val N_LOAD_THREADS = 8
   private val QUEUE_SIZE     = 1024 * 32 * 2
@@ -201,7 +214,6 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
           logger.trace(s"added $edge to $dstVertex")
       }
     }
-
   }
 
   def addAddVertexReqToQueue(
@@ -210,15 +222,16 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
       vId: Long,
       properties: Properties,
       maybeType: Option[Type]
-  ): Unit = {
-    val q          = queues(getIndex(vId))
-    val sequenceId = q.next()
-    val event      = q.get(sequenceId)
-    event.initAddVertex(msgTime, index, vId, properties, maybeType)
-    q.publish(sequenceId)
-  }
+  ): Unit =
+    synchronized {
+      val q          = queues(getIndex(vId))
+      val sequenceId = q.next()
+      val event      = q.get(sequenceId)
+      event.initAddVertex(msgTime, index, vId, properties, maybeType)
+      q.publish(sequenceId)
+    }
 
-  def addAddEdgeReqToQueue(
+  private def pushEdgeToQueue(
       msgTime: Long,
       index: Long,
       vId: Long,
@@ -235,6 +248,48 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
     q.publish(sequenceId)
   }
 
+  private def flushBatch(): Unit = {
+    for (i <- 0 until batchCount)
+      pushEdgeToQueue(
+              msgTimes(i),
+              indexes(i),
+              vIds(i),
+              srcIds(i),
+              dstIds(i),
+              propertiess(i),
+              maybeTypes(i),
+              edgeToCreates(i)
+      )
+    batchCount = 0
+  }
+
+  def addAddEdgeReqToQueue(
+      msgTime: Long,
+      index: Long,
+      vId: Long,
+      srcId: Long,
+      dstId: Long,
+      properties: Properties,
+      maybeType: Option[Type],
+      edgeToCreate: EdgeToCreate
+  ): Unit =
+    synchronized {
+      if (BATCH_EDGES) {
+        msgTimes(batchCount) = msgTime
+        indexes(batchCount) = index
+        vIds(batchCount) = vId
+        srcIds(batchCount) = srcId
+        dstIds(batchCount) = dstId
+        propertiess(batchCount) = properties
+        maybeTypes(batchCount) = maybeType
+        edgeToCreates(batchCount) = edgeToCreate
+        batchCount += 1
+        if (batchCount == BATCH_EDGES_SIZE)
+          flushBatch()
+      }
+      else pushEdgeToQueue(msgTime, index, vId, srcId, dstId, properties, maybeType, edgeToCreate)
+    }
+
   def getVertices(
       start: Long,
       end: Long,
@@ -248,7 +303,10 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
       }
       .reduce(_ ++ _)
 
-  def flush(): Unit = {
+  def flush(): Unit = synchronized {
+    if (BATCH_EDGES && batchCount != 0)
+      flushBatch()
+
     var finished = false
     while (!finished) {
       finished = true
@@ -271,7 +329,7 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
     (0 until N_LOAD_THREADS).foreach(i => disruptors(i).halt())
 }
 
-object DisruptorQueue                                                      {
+object DisruptorQueue {
   sealed trait EdgeToCreate
 
   final case object SelfLoop extends EdgeToCreate
