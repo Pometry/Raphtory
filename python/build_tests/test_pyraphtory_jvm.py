@@ -155,7 +155,8 @@ class JRETest(unittest.TestCase):
                         ivy.get_and_run_ivy(paths.jre_folder / "bin" / "java")
                         f = next(lib_folder.iterdir())
                         with open(f) as file:
-                            self.assertEqual(file.read(), revision)
+                            res = file.read()
+                            self.assertEqual(revision, res)
                 finally:
                     ivy.lib_folder = old_lib
                     ivy.ivy_folder = old_ivy
