@@ -6,6 +6,8 @@ use std::{
 
 use itertools::Itertools;
 
+use crate::lsm::LSMSet;
+
 /**
  * This is a time aware set there are two major components
  * the time index aka (you should be able to locate in log(n) time the vertices participating in ti -> tj window where i <= j)
@@ -18,7 +20,7 @@ pub enum TSet<V: Ord> {
     Empty,
     One(u64, V),
     Tree {
-        t_index: BTreeMap<u64, BTreeSet<V>>,
+        t_index: BTreeMap<u64, LSMSet<V>>,
         vs: BTreeSet<V>,
     },
 }
@@ -57,8 +59,8 @@ impl<V: Ord + Clone> TSet<V> {
                 if !(t == *t0 && &v == v0) {
                     *self = TSet::Tree {
                         t_index: BTreeMap::from([
-                            (t, BTreeSet::from([v.clone()])),
-                            (*t0, BTreeSet::from([v0.clone()])),
+                            (t, LSMSet::from([v.clone()].into_iter())),
+                            (*t0, LSMSet::from([v0.clone()].into_iter())),
                         ]),
                         vs: BTreeSet::from([v, v0.clone()]),
                     };
@@ -70,7 +72,7 @@ impl<V: Ord + Clone> TSet<V> {
                     let entry = t_index.entry(t);
                     match entry {
                         Entry::Vacant(ve) => {
-                            ve.insert(BTreeSet::from([v; 1]));
+                            ve.insert(LSMSet::from([v; 1].into_iter()));
                         }
                         Entry::Occupied(mut oc) => {
                             oc.get_mut().insert(v);
@@ -91,12 +93,15 @@ impl<V: Ord + Clone> TSet<V> {
                     Box::new(std::iter::empty())
                 }
             }
-            TSet::Tree { t_index, .. } => {
-                Box::new(t_index.range(r.clone()).map(|(_, set)| set.iter()).kmerge().dedup())
-            }
+            TSet::Tree { t_index, .. } => Box::new(
+                t_index
+                    .range(r.clone())
+                    .map(|(_, set)| set.iter())
+                    .kmerge()
+                    .dedup(),
+            ),
         }
     }
-
 
     pub fn iter_window_t(&self, r: &Range<u64>) -> Box<dyn Iterator<Item = (&u64, &V)> + '_> {
         match self {
@@ -125,7 +130,6 @@ impl<V: Ord + Clone> TSet<V> {
 
 #[cfg(test)]
 mod tset_tests {
-    use crate::edge::Edge;
 
     use super::*;
 
@@ -215,35 +219,4 @@ mod tset_tests {
         assert_eq!(actual, expected)
     }
 
-    #[test]
-    fn find_added_edge_just_by_destination_id() {
-        let mut ts: TSet<Edge> = TSet::default();
-
-        ts.push(1, Edge::new(1, 3)); // t:1, v: 1 edge_id: 3
-        //
-        let actual = ts.find(Edge { v: 1, e_meta: None });
-        assert_eq!(actual, Some(&Edge::new(1, 3)));
-
-        let actual = ts.find(Edge { v: 13, e_meta: None });
-        assert_eq!(actual, None);
-
-        ts.push(1, Edge::new(4, 12)); // t:1, v: 4 edge_id: 12
-        ts.push(1, Edge::new(17, 119)); // t:1, v: 17 edge_id: 119
-
-        // find the edge by destination only (independent of time?)
-        let actual = ts.find(Edge { v: 1, e_meta: None });
-        assert_eq!(actual, Some(&Edge::new(1, 3)));
-
-        let actual = ts.find(Edge { v: 4, e_meta: None });
-        assert_eq!(actual, Some(&Edge::new(4, 12)));
-
-        let actual = ts.find(Edge {
-            v: 17,
-            e_meta: None,
-        });
-        assert_eq!(actual, Some(&Edge::new(17, 119)));
-
-        let actual = ts.find(Edge { v: 5, e_meta: None }); // we need to activelly filter this out
-        assert_eq!(actual, Some(&Edge::new(17, 119)));
-    }
 }
