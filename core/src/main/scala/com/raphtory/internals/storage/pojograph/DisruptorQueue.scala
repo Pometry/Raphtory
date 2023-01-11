@@ -273,6 +273,9 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
       edgeToCreate: EdgeToCreate
   ): Unit =
     synchronized {
+      // The idea behind batching only edges is to allow vertices to be created first. The assumption is that
+      // since creation of edges waits for vertices to have already been created (see `waitUntilVertexIsAdded`),
+      // allowing vertices to be created first should reduce wait time.
       if (BATCH_EDGES) {
         msgTimes(batchCount) = msgTime
         indexes(batchCount) = index
