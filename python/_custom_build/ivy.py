@@ -29,20 +29,21 @@ def download_ivy(download_dir):
 
 
 def get_and_run_ivy(java: str | Path) -> None:
-    with tempfile.TemporaryDirectory() as download_dir:
-        # cleans up ivy after we are done
-        download_dir = Path(download_dir)
         ivy_bin.mkdir(exist_ok=True, parents=True)
         ivy_jar = ivy_bin / "ivy-2.5.0.jar"
         if not ivy_jar.is_file():
-            shutil.copyfile(download_ivy(download_dir), ivy_jar)
+            with tempfile.TemporaryDirectory() as download_dir:
+                download_dir = Path(download_dir)
+                shutil.copyfile(download_ivy(download_dir), ivy_jar)
 
-        logging.info(
-            f"IVY dl dir: {download_dir}, input dir: {ivy_folder}, lib dir: {lib_folder}")
+                logging.info(
+                    f"IVY downloaded: {download_dir}, input dir: {ivy_folder}, lib dir: {lib_folder}")
         retrieve = str(lib_folder) + "/[organisation].[artifact]-[revision](-[classifier]).[ext]"
         settings = str(build_folder / "ivysettings.xml")
         # retrieve = "."
-        subprocess.check_call(
-            [str(java), f"-Divy_dir={ivy_folder}", "-jar", ivy_jar,
-             "-settings", settings, "-dependency", "com.raphtory", "core_2.13", version(),
-             "-retrieve", retrieve, "-sync", "-refresh", "-confs", "runtime"])
+        with tempfile.TemporaryDirectory() as cache_dir:
+            subprocess.check_call(
+                [str(java), f"-Divy_dir={ivy_folder}", f"-Divy_tmp_cache={cache_dir}", "-jar", ivy_jar,
+                 "-settings", settings, "-dependency", "com.raphtory", "core_2.13", version(),
+                 "-retrieve", retrieve, "-sync", "-refresh", "-confs", "runtime"])
+
