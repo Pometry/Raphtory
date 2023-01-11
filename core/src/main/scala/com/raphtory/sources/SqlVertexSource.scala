@@ -26,7 +26,6 @@ case class SqlVertexSource(
   override protected def buildExtractor(columnTypes: Map[String, Int]): (ResultSet, Long) => GraphUpdate = {
     val idIsInteger                                   = checkType(columnTypes, id, integerTypes)
     val timeIsInteger                                 = checkType(columnTypes, time, integerTypes)
-    // TODO: check type and property columns types
     val propertiesStart                               = if (typeCol.isDefined) 4 else 3
     val propertiesEnd                                 = propertiesStart + properties.size
     val propertyIndexes                               = propertiesStart until propertiesEnd

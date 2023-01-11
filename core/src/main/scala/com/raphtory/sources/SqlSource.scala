@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory
 import java.sql.ResultSet
 import java.sql.ResultSetMetaData
 import java.sql.Types
+import scala.util.control.NonFatal
 
 abstract class SqlSource(
     conn: SqlConnection,
@@ -22,17 +23,25 @@ abstract class SqlSource(
   override def makeStream[F[_]](implicit F: Async[F]): F[fs2.Stream[F, Seq[GraphAlteration.GraphUpdate]]] = {
     val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-    val resultSet = for {
+    val resultSetResource = for {
       cn <- Resource.fromAutoCloseable(F.delay(conn.establish()))
       rs <- Resource.fromAutoCloseable(F.delay(cn.createStatement().executeQuery(buildSelectQuery(query))))
     } yield rs
 
+    def getExtractor(rs: ResultSet) =
+      for {
+        columnTypes <- F.delay(getColumnTypes(rs.getMetaData))
+        _           <- F.delay(logger.debug(s"Validating types present on the user SQL query"))
+        _           <- F.delay(validateTypes(columnTypes))
+        extractor   <- F.delay(buildExtractor(columnTypes))
+      } yield extractor
+
     for {
-      resultSetAlloc <- resultSet.allocated
+      _              <- F.delay(logger.debug(s"Connecting to database with connection: '$conn'"))
+      resultSetAlloc <- resultSetResource.allocated
       (rs, releaseRs) = resultSetAlloc
-      columnTypes     = getColumnTypes(rs.getMetaData)
-      _              <- F.delay(validateTypes(columnTypes))
-      extractor       = buildExtractor(columnTypes)
+      extractor      <- getExtractor(rs).onError { case NonFatal(_) => releaseRs }
+      _              <- F.delay(logger.debug(s"Defining stream of updates from SQL query"))
       stream         <- fs2.Stream
                           .iterate(0)(_ + 1)
                           .evalMap(index => F.delay(if (rs.next()) Some(extractor.apply(rs, index)) else None))
@@ -41,7 +50,6 @@ abstract class SqlSource(
                           .map(_.toVector)
                           .onFinalize(releaseRs)
                           .pure[F]
-      // TODO we need to release rs if something goes wrong before defining the stream!!!!!
     } yield stream
   }
 

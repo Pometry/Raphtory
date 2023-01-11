@@ -28,7 +28,6 @@ case class SqlEdgeSource(
     val sourceIsInteger                               = checkType(columnTypes, source, integerTypes)
     val targetIsInteger                               = checkType(columnTypes, target, integerTypes)
     val timeIsInteger                                 = checkType(columnTypes, time, integerTypes)
-    // TODO: check type and property columns types
     val propertiesStart                               = if (typeCol.isDefined) 5 else 4
     val propertiesEnd                                 = propertiesStart + properties.size
     val propertyIndexes                               = propertiesStart until propertiesEnd
