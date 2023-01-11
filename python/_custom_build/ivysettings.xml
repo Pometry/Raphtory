@@ -1,8 +1,11 @@
 <ivysettings>
+    <caches>
+        <cache name="localcache" basedir="${ivy_tmp_cache}" useOrigin="true" />
+    </caches>
     <settings defaultResolver="default"/>
     <resolvers>
         <chain name="default" returnFirst="true">
-            <filesystem name="local">
+            <filesystem name="local" cache="localcache">
                 <ivy pattern="${ivy_dir}/[module]_ivy.xml" />
                 <artifact pattern="${ivy_dir}/[module].jar" />
             </filesystem>
