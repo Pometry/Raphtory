@@ -137,9 +137,9 @@ class JRETest(unittest.TestCase):
     @mock.patch("ivy.version")
     def test_ivy_cache(self, mock_version):
         mock_version.return_value = "test"
-        old_lib = paths.lib_folder
-        old_ivy = paths.ivy_folder
         import ivy
+        old_lib = ivy.lib_folder
+        old_ivy = ivy.ivy_folder
         with tempfile.TemporaryDirectory() as lib_folder:
             with tempfile.TemporaryDirectory() as ivy_folder:
                 lib_folder = Path(lib_folder)
