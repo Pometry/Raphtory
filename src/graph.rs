@@ -44,7 +44,6 @@ impl Adj {
             Adj::List { logical, .. } => logical,
         }
     }
-
 }
 
 impl TemporalGraph {
@@ -75,7 +74,6 @@ impl TemporalGraph {
         d: Direction,
         window: &Range<u64>,
     ) -> Box<dyn Iterator<Item = (usize, AdjEdge)> + '_> {
-
         match &self.index[vid] {
             Adj::List { out, into, .. } => {
                 match d {
@@ -98,11 +96,13 @@ impl TemporalGraph {
             Adj::List { out, into, .. } => match d {
                 Direction::OUT => out.len(),
                 Direction::IN => into.len(),
-                _ => vec![out.iter(), into.iter()] // FIXME: there are better ways of doing this, all adj lists are sorted except for the HashMap
-                    .into_iter()
-                    .flatten()
-                    .unique_by(|(v, _)| *v)
-                    .count(),
+                _ => {
+                    vec![out.iter(), into.iter()] // FIXME: there are better ways of doing this, all adj lists are sorted except for the HashMap
+                        .into_iter()
+                        .flatten()
+                        .unique_by(|(v, _)| *v)
+                        .count()
+                }
             },
             _ => 0,
         }
@@ -489,18 +489,29 @@ impl TemporalGraph {
     {
         let v_pid = self.logical_to_physical[&v];
 
-        Box::new(self.neighbours_iter(v_pid, d).map(move |(v, e_meta)| EdgeView {
-            src_id: v_pid,
-            dst_id: *v,
-            t: None,
-            g: self,
-            e_meta,
-        }))
+        Box::new(
+            self.neighbours_iter(v_pid, d)
+                .map(move |(v, e_meta)| EdgeView {
+                    src_id: v_pid,
+                    dst_id: *v,
+                    t: None,
+                    g: self,
+                    e_meta,
+                }),
+        )
     }
 }
 
 #[cfg(test)]
 mod graph_test {
+
+    use std::{
+        collections::hash_map::DefaultHasher,
+        hash::{Hash, Hasher},
+        path::PathBuf,
+    };
+
+    use csv::StringRecord;
 
     use super::*;
 
@@ -1036,5 +1047,124 @@ mod graph_test {
 
         assert_eq!(degrees, expected);
         assert_eq!(degrees_window, expected);
+    }
+
+    #[test]
+    fn lotr_degree() {
+        let mut g = TemporalGraph::default();
+
+        fn calculate_hash<T: Hash>(t: &T) -> u64 {
+            let mut s = DefaultHasher::new();
+            t.hash(&mut s);
+            s.finish()
+        }
+
+        fn parse_record(rec: &StringRecord) -> Option<(String, String, u64)> {
+            let src = rec.get(0).and_then(|s| s.parse::<String>().ok())?;
+            let dst = rec.get(1).and_then(|s| s.parse::<String>().ok())?;
+            let t = rec.get(2).and_then(|s| s.parse::<u64>().ok())?;
+            Some((src, dst, t))
+        }
+
+        let lotr_csv: PathBuf = [env!("CARGO_MANIFEST_DIR"), "resources/test/lotr.csv"]
+            .iter()
+            .collect();
+
+        if let Ok(mut reader) = csv::Reader::from_path(lotr_csv) {
+            for rec_res in reader.records() {
+                if let Ok(rec) = rec_res {
+                    if let Some((src, dst, t)) = parse_record(&rec) {
+                        let src_id = calculate_hash(&src);
+
+                        let dst_id = calculate_hash(&dst);
+
+                        g.add_vertex(src_id, t);
+                        g.add_vertex(dst_id, t);
+                        g.add_edge_props(src_id, dst_id, t, &vec![]);
+                    }
+                }
+            }
+        }
+
+        // query the various graph windows
+        // 9501 .. 10001
+
+        let mut degrees_w1 = g
+            .iter_vs_window(9501..10001)
+            .map(|v| {
+                (
+                    v.global_id(),
+                    v.inbound_degree(),
+                    v.outbound_degree(),
+                    v.degree(),
+                )
+            })
+            .collect_vec();
+
+        let mut expected_degrees_w1 = vec![
+            ("Balin", 0, 5, 5),
+            ("Frodo", 4, 4, 8),
+            ("Thorin", 0, 1, 1),
+            ("Fundin", 1, 0, 1),
+            ("Ori", 0, 1, 1),
+            ("Pippin", 0, 3, 3),
+            ("Merry", 2, 1, 3),
+            ("Bilbo", 4, 0, 4),
+            ("Gimli", 2, 2, 4),
+            ("Legolas", 2, 0, 2),
+            ("Sam", 0, 1, 1),
+            ("Gandalf", 1, 2, 3),
+            ("Boromir", 1, 0, 1),
+            ("Aragorn", 3, 1, 4),
+            ("Daeron", 1, 0, 1),
+        ]
+        .into_iter()
+        .map(|(name, indeg, outdeg, deg)| (calculate_hash(&name), indeg, outdeg, deg))
+        .collect_vec();
+
+        expected_degrees_w1.sort();
+        degrees_w1.sort();
+
+        assert_eq!(degrees_w1, expected_degrees_w1);
+
+        // 19001..20001
+        let mut expected_degrees_w2 = vec![
+            ("Elrond", 1, 0, 1),
+            ("Peregrin", 0, 1, 1),
+            ("Pippin", 0, 4, 4),
+            ("Merry", 2, 1, 3),
+            ("Gimli", 0, 2, 2),
+            ("Wormtongue", 0, 1, 1),
+            ("Legolas", 1, 1, 2),
+            ("Sam", 1, 0, 1),
+            ("Saruman", 1, 1, 2),
+            ("Treebeard", 0, 1, 1),
+            ("Gandalf", 3, 3, 6),
+            ("Aragorn", 7, 0, 7),
+            ("Shadowfax", 1, 1, 2),
+            ("Elendil", 0, 1, 1),
+        ]
+        .into_iter()
+        .map(|(name, indeg, outdeg, deg)| (calculate_hash(&name), indeg, outdeg, deg))
+        .collect_vec();
+
+
+        let mut degrees_w2 = g
+            .iter_vs_window(19001..20001)
+            .map(|v| {
+                (
+                    v.global_id(),
+                    v.inbound_degree(),
+                    v.outbound_degree(),
+                    v.degree(),
+                )
+            })
+            .collect_vec();
+
+
+        expected_degrees_w2.sort();
+        degrees_w2.sort();
+
+        assert_eq!(degrees_w2, expected_degrees_w2);
     }
 }

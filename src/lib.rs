@@ -134,15 +134,27 @@ impl<'a> VertexView<'a, TemporalGraph> {
     }
 
     pub fn outbound_degree(&self) -> usize {
-       self.g.outbound_degree(self.g_id)
+        if let Some(w) = &self.w {
+            self.g._degree_window(self.pid, Direction::OUT, w)
+        } else {
+            self.g._degree(self.pid, Direction::IN)
+        }
     }
 
     pub fn inbound_degree(&self) -> usize {
-       self.g.inbound_degree(self.g_id)
+        if let Some(w) = &self.w {
+            self.g._degree_window(self.pid, Direction::IN, w)
+        } else {
+            self.g._degree(self.pid, Direction::IN)
+        }
     }
 
     pub fn degree(&self) -> usize {
-        self.g.degree(self.g_id)
+        if let Some(w) = &self.w {
+            self.g._degree_window(self.pid, Direction::BOTH, w)
+        } else {
+            self.g._degree(self.pid, Direction::BOTH)
+        }
     }
 
     // FIXME: all the functions using global ID need to be changed to use the physical ID instead
@@ -197,7 +209,6 @@ impl<'a> EdgeView<'a, TemporalGraph> {
         // find the id of the property
         let prop_id: usize = self.g.prop_ids[name]; // FIXME this can break
         self.g.edge_meta[self.e_meta.edge_meta_id()].iter(prop_id)
-
     }
 
     pub fn props_window(
@@ -209,6 +220,5 @@ impl<'a> EdgeView<'a, TemporalGraph> {
         let prop_id: usize = self.g.prop_ids[name]; // FIXME this can break
 
         self.g.edge_meta[self.e_meta.edge_meta_id()].iter_window(prop_id, r)
-
     }
 }
