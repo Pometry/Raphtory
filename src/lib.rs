@@ -137,7 +137,7 @@ impl<'a> VertexView<'a, TemporalGraph> {
         if let Some(w) = &self.w {
             self.g._degree_window(self.pid, Direction::OUT, w)
         } else {
-            self.g._degree(self.pid, Direction::IN)
+            self.g._degree(self.pid, Direction::OUT)
         }
     }
 
