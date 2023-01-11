@@ -20,7 +20,7 @@
 //!     11,
 //!     22,
 //!     2,
-//!     vec![
+//!     &vec![
 //!         ("amount".into(), Prop::F64(12.34)),
 //!         ("label".into(), Prop::Str("blerg".into())),
 //!     ],
@@ -30,19 +30,19 @@
 //!     22,
 //!     33,
 //!     3,
-//!     vec![
+//!     &vec![
 //!         ("weight".into(), Prop::U32(12)),
 //!         ("label".into(), Prop::Str("blerg".into())),
 //!     ],
 //! );
 //!
-//! g.add_edge_props(33, 44, 4, vec![("label".into(), Prop::Str("blerg".into()))]);
+//! g.add_edge_props(33, 44, 4, &vec![("label".into(), Prop::Str("blerg".into()))]);
 //!
 //! g.add_edge_props(
 //!     44,
 //!     11,
 //!     5,
-//!     vec![
+//!     &vec![
 //!         ("weight".into(), Prop::U32(12)),
 //!         ("amount".into(), Prop::F64(12.34)),
 //!     ],
@@ -89,17 +89,20 @@
 //! )
 //! ```
 pub mod bitset;
-mod edge;
+pub mod db;
 pub mod graph;
+pub mod lsm;
 mod misc;
 mod props;
 pub mod sortedvec;
+mod tadjset;
 mod tcell;
 mod tset;
 mod tvec;
 
 use graph::TemporalGraph;
 use std::ops::Range;
+use tadjset::AdjEdge;
 
 /// Specify the direction of the neighbours
 #[derive(Clone, Copy)]
@@ -131,13 +134,27 @@ impl<'a> VertexView<'a, TemporalGraph> {
     }
 
     pub fn outbound_degree(&self) -> usize {
-        // self.g.index[self.pid].out_degree()
-        self.outbound().count()
+        if let Some(w) = &self.w {
+            self.g._degree_window(self.pid, Direction::OUT, w)
+        } else {
+            self.g._degree(self.pid, Direction::IN)
+        }
     }
 
     pub fn inbound_degree(&self) -> usize {
-        // self.g.index[self.pid].in_degree()
-        self.inbound().count()
+        if let Some(w) = &self.w {
+            self.g._degree_window(self.pid, Direction::IN, w)
+        } else {
+            self.g._degree(self.pid, Direction::IN)
+        }
+    }
+
+    pub fn degree(&self) -> usize {
+        if let Some(w) = &self.w {
+            self.g._degree_window(self.pid, Direction::BOTH, w)
+        } else {
+            self.g._degree(self.pid, Direction::BOTH)
+        }
     }
 
     // FIXME: all the functions using global ID need to be changed to use the physical ID instead
@@ -158,32 +175,40 @@ impl<'a> VertexView<'a, TemporalGraph> {
     }
 }
 
+// FIXME: this is a bit silly, we might not need the reference lifetime at all
 pub struct EdgeView<'a, G: Sized> {
     src_id: usize,
-    dst_id: &'a usize,
+    dst_id: usize,
     g: &'a G,
-    w: Option<Range<u64>>,
-    e_meta: Option<&'a usize>,
+    t: Option<u64>,
+    e_meta: AdjEdge,
 }
 
 impl<'a> EdgeView<'a, TemporalGraph> {
     pub fn global_src(&self) -> u64 {
-        *self.g.index[self.src_id].logical()
+        if self.e_meta.is_local() {
+            *self.g.index[self.src_id].logical()
+        } else {
+            self.src_id.try_into().unwrap()
+        }
     }
 
     pub fn global_dst(&self) -> u64 {
-        *self.g.index[*self.dst_id].logical()
+        if self.e_meta.is_local() {
+            *self.g.index[self.dst_id].logical()
+        } else {
+            self.dst_id.try_into().unwrap()
+        }
+    }
+
+    pub fn time(&self) -> Option<u64> {
+        self.t
     }
 
     pub fn props(&self, name: &'a str) -> Box<dyn Iterator<Item = (&'a u64, Prop)> + 'a> {
         // find the id of the property
         let prop_id: usize = self.g.prop_ids[name]; // FIXME this can break
-
-        if let Some(edge_meta_id) = self.e_meta {
-            self.g.edge_meta[*edge_meta_id].iter(prop_id)
-        } else {
-            Box::new(std::iter::empty())
-        }
+        self.g.edge_meta[self.e_meta.edge_meta_id()].iter(prop_id)
     }
 
     pub fn props_window(
@@ -194,10 +219,6 @@ impl<'a> EdgeView<'a, TemporalGraph> {
         // find the id of the property
         let prop_id: usize = self.g.prop_ids[name]; // FIXME this can break
 
-        if let Some(edge_meta_id) = self.e_meta {
-            self.g.edge_meta[*edge_meta_id].iter_window(prop_id, r)
-        } else {
-            Box::new(std::iter::empty())
-        }
+        self.g.edge_meta[self.e_meta.edge_meta_id()].iter_window(prop_id, r)
     }
 }

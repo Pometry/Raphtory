@@ -8,6 +8,7 @@ pub struct SortedVec<K:Ord, V>(Vec<(K, V)>);
 impl<K: Ord + Copy +Display + std::fmt::Debug , V> SortedVec<K, V>
     where K: MinMax<K> + Sub<Output = K> + Add<Output = K>,
 {
+
     pub fn new() -> Self {
         SortedVec(vec![])
     }
