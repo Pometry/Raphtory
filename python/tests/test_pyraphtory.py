@@ -1,5 +1,8 @@
 from pyraphtory.context import PyRaphtory
 from pyraphtory.graph import Row
+from pyraphtory.sources import SqlEdgeSource
+from pyraphtory.sources import SqlVertexSource
+from pyraphtory.sources import PostgresConnection
 import pyraphtory
 from pyraphtory._config import get_java_home
 import unittest
@@ -161,3 +164,10 @@ class PyRaphtoryTest(unittest.TestCase):
         i = pyraphtory.input.MutableInteger("test", 2)
         self.assertEqual(i.value(), 2)
         self.assertEqual(i.key(), "test")
+
+    def test_sql_source(self):
+        graph = self.ctx.new_graph()
+        postgres = PostgresConnection("pfmegrnargs", "reader", "NWDMCE5xdipIjRrp", "hh-pgsql-public.ebi.ac.uk")
+        graph.load(SqlEdgeSource(postgres, "select * from rna limit 10", "id", "upi", "timestamp"))
+        graph.load(SqlVertexSource(postgres, "select * from rna limit 10", "id", "timestamp", "userstamp"))
+        graph.destroy(force=True)
