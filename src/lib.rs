@@ -134,13 +134,15 @@ impl<'a> VertexView<'a, TemporalGraph> {
     }
 
     pub fn outbound_degree(&self) -> usize {
-        // self.g.index[self.pid].out_degree()
-        self.outbound().count()
+       self.g.outbound_degree(self.g_id)
     }
 
     pub fn inbound_degree(&self) -> usize {
-        // self.g.index[self.pid].in_degree()
-        self.inbound().count()
+       self.g.inbound_degree(self.g_id)
+    }
+
+    pub fn degree(&self) -> usize {
+        self.g.degree(self.g_id)
     }
 
     // FIXME: all the functions using global ID need to be changed to use the physical ID instead
