@@ -36,9 +36,8 @@ class LocalServiceRegistry[F[_]](services: Ref[F, Map[(String, Int), Any]], conf
   override def getService[T](descriptor: ServiceDescriptor[F, T], id: Int = 0): Resource[F, T] =
     Resource.eval(
             F.timeout(getServiceOrRetry(descriptor, id), 1.seconds)
-              .handleErrorWith { e =>
+              .onError { e =>
                 F.delay(logger.error(s"Couldn't get a reference to service ${descriptor.name} after 1 second"))
-                throw e
               }
     )
 
