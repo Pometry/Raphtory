@@ -5,6 +5,7 @@ from unittest import mock
 import platform
 import os
 import tarfile
+import shutil
 print(os.environ.get("PYTHONPATH"))
 import sys
 sys.path.append(str(Path(__file__).parent.parent / "_custom_build"))
@@ -14,6 +15,7 @@ from ivy import *
 from download import *
 from check_platform import *
 from java import *
+import paths
 import java
 
 
@@ -131,3 +133,31 @@ class JRETest(unittest.TestCase):
         mock_unpack_archive.return_value = None
         # Run the function
         self.assertRaises(Exception, unpack_jre, tf, ts)
+
+    @mock.patch("ivy.version")
+    def test_ivy_cache(self, mock_version):
+        mock_version.return_value = "test"
+        import ivy
+        old_lib = ivy.lib_folder
+        old_ivy = ivy.ivy_folder
+        with tempfile.TemporaryDirectory() as lib_folder:
+            with tempfile.TemporaryDirectory() as ivy_folder:
+                lib_folder = Path(lib_folder)
+                ivy_folder = Path(ivy_folder)
+                try:
+                    ivy.lib_folder = lib_folder
+                    ivy.ivy_folder = ivy_folder
+                    shutil.copyfile(Path(__file__).parent / "core_2.13_ivy.xml", ivy_folder / "core_2.13_ivy.xml")
+                    for revision in ("revision_1", "revision_2"):
+                        with open(ivy_folder / f"core_2.13.jar", "w") as file:
+                            file.write(revision)
+
+                        ivy.get_and_run_ivy(paths.jre_folder / "bin" / "java")
+                        f = next(lib_folder.iterdir())
+                        with open(f) as file:
+                            res = file.read()
+                            self.assertEqual(revision, res)
+                finally:
+                    ivy.lib_folder = old_lib
+                    ivy.ivy_folder = old_ivy
+

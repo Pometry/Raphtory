@@ -21,7 +21,7 @@ platform = get_platform_tag()
 
 
 def build_sdist(sdist_directory, config_settings=None):
-    make_python_build()
+    make_python_build(rebuild=True)
     return _orig.build_sdist(sdist_directory, config_settings)
 
 
@@ -33,7 +33,7 @@ def setup_wheel_dependencies(rebuild=False):
 
 def build_wheel(wheel_directory, config_settings: dict=None, metadata_directory=None):
     print(sys.path)
-    setup_wheel_dependencies()
+    setup_wheel_dependencies(rebuild=False)
 
     # make wheel platform-specific as the jre downloaded will be different
     if config_settings is not None:

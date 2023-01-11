@@ -32,6 +32,10 @@ jobs:
         run: mkdir -p $HOME/.sbt && touch $HOME/.sbt/sonatype_credentials
       - name: Get sbt package
         run: apt-get update && apt-get install unzip make && curl -L "https://github.com/sbt/sbt/releases/download/v1.6.2/sbt-1.6.2.zip" -o sbt-1.6.2.zip && unzip sbt-1.6.2.zip
+      - name: Compile tests
+        run: |
+          export PATH=$(pwd)/sbt/bin:$PATH
+          sbt Test/compile
       - name: Run all scala tests
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH

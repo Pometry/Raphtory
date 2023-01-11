@@ -1,5 +1,4 @@
-include python/src/pyraphtory/lib/*.jar
-prune python/src/pyraphtory/lib/dependencies
+prune python/src/pyraphtory/lib
 prune python/src/pyraphtory/jre
 prune python/src/pyraphtory/ivy
 include python/_custom_build/*.py
