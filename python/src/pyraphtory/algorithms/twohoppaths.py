@@ -1,5 +1,5 @@
 from pyraphtory.algorithm import PyAlgorithm
-from pyraphtory.graph import TemporalGraph, Row, Table
+from pyraphtory.graph import TemporalGraph, Row, Table, KeyPair
 from pyraphtory.vertex import Vertex
 
 REQUEST_FIRST_HOP = 'request_first_hop'
@@ -48,8 +48,8 @@ class TwoHopPaths(PyAlgorithm):
             if len(r.get_values()) > 1:
                 if r.get(1) is not None:
                     for hop_pair in r.get(1):
-                        return_rows.append(Row(r.get(0), *hop_pair))
+                        return_rows.append(Row(KeyPair("vertexOne",r.get(0)), KeyPair("vertexTwoandThree",*hop_pair())))
             else:
                 return_rows = []
             return return_rows
-        return graph.select(lambda v: Row(v.name(), v[TWO_HOP_PATHS])).explode(explode)
+        return graph.select(lambda v: Row(KeyPair("name",v.name()), KeyPair("two_hop_paths",v[TWO_HOP_PATHS]))).explode(explode)

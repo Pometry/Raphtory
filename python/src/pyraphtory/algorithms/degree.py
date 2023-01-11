@@ -1,5 +1,5 @@
 from pyraphtory.algorithm import PyAlgorithm
-from pyraphtory.graph import TemporalGraph, Row
+from pyraphtory.graph import TemporalGraph, Row, KeyPair
 from pyraphtory.vertex import Vertex
 
 
@@ -17,4 +17,4 @@ class Degree(PyAlgorithm):
         return graph.step(step)
 
     def tabularise(self, graph: TemporalGraph):
-        return graph.select(lambda v: Row(v.name(), v[IN_DEGREE], v[OUT_DEGREE], v[DEGREE]))
+        return graph.select(lambda v: Row(KeyPair("name",v.name()), KeyPair(IN_DEGREE, v[IN_DEGREE]), KeyPair(OUT_DEGREE,v[OUT_DEGREE]), KeyPair(DEGREE, v[DEGREE])))

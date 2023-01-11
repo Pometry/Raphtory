@@ -1,5 +1,5 @@
 from pyraphtory.algorithm import PyAlgorithm
-from pyraphtory.graph import TemporalGraph, Row, Table
+from pyraphtory.graph import TemporalGraph, Row, Table, KeyPair
 from pyraphtory.vertex import Vertex
 
 
@@ -35,4 +35,4 @@ class PageRank(PyAlgorithm):
         return graph.step(init).iterate(iterate, self.max_steps, False)
 
     def tabularise(self, graph: TemporalGraph) -> Table:
-        return graph.select(lambda v: Row(v.name(), v["prlabel"]))
+        return graph.select(lambda v: Row(KeyPair("name",v.name()), KeyPair("prlabel",v["prlabel"])))

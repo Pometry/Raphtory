@@ -29,13 +29,13 @@ class Table(GenericScalaProxy):
             window = res.perspective().window()
             timestamp = res.perspective().formatted_time()
             if window != None:
-                columns = ('timestamp', 'window', *r.keys())
                 for r in res.rows():
+                    columns = ('timestamp', 'window', *r.keys())
                     window_size = window.get().output()
                     rows.append((timestamp, window_size, *r.items()))
             else:
-                columns = ('timestamp', *r.keys())
                 for r in res.rows():
+                    columns = ('timestamp', *r.keys())
                     rows.append((timestamp, *r.items()))
         return pd.DataFrame.from_records(rows, columns=columns)
 
