@@ -49,6 +49,10 @@ impl<V: Ord + Into<usize> + From<usize> + Copy + Hash, Time: Copy + Ord> TAdjSet
         }
     }
 
+    pub fn len_window(&self, window: &Range<Time>) -> usize {
+        self.iter_window(window).count()
+    }
+
     pub fn push(&mut self, t: Time, v: V, e: AdjEdge) {
         match self.borrow() {
             TAdjSet::Empty => {
@@ -67,16 +71,14 @@ impl<V: Ord + Into<usize> + From<usize> + Copy + Hash, Time: Copy + Ord> TAdjSet
             TAdjSet::Small { vs, .. } => {
                 if vs.len() < SMALL_SET {
                     if let TAdjSet::Small { vs, edges, t_index } = self {
-                        match vs.binary_search(&v) {
-                            Ok(i) | Err(i) => {
-                                vs.insert(i, v);
-                                edges.insert(i, e);
-                                t_index
-                                    .entry(t)
-                                    .and_modify(|set| set.push(v.into()))
-                                    .or_insert(BitSet::one(v.into()));
-                            }
+                        if let Err(i) = vs.binary_search(&v) {
+                            vs.insert(i, v);
+                            edges.insert(i, e);
                         }
+                        t_index
+                            .entry(t)
+                            .and_modify(|set| set.push(v.into()))
+                            .or_insert(BitSet::one(v.into()));
                     }
                 } else {
                     replace_with_or_abort(self, |_self| {
@@ -218,6 +220,8 @@ impl<V: Ord + Into<usize> + From<usize> + Copy + Hash, Time: Copy + Ord> TAdjSet
             TAdjSet::Large { vs, .. } => vs.get(&v).map(|e| *e),
         }
     }
+
+
 }
 
 #[repr(transparent)]

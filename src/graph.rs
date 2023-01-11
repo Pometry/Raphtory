@@ -45,29 +45,15 @@ impl Adj {
         }
     }
 
-    pub fn out_degree(&self) -> usize {
-        match self {
-            Adj::Empty(_) => 0,
-            Adj::List { out, .. } => out.len(),
-        }
-    }
-
-    pub fn in_degree(&self) -> usize {
-        match self {
-            Adj::Empty(_) => 0,
-            Adj::List { into, .. } => into.len(),
-        }
-    }
 }
 
 impl TemporalGraph {
     fn neighbours_iter(
         &self,
-        v: u64,
+        vid: usize,
         d: Direction,
     ) -> Box<dyn Iterator<Item = (&usize, AdjEdge)> + '_> {
-        // todo!()
-        let vid = self.logical_to_physical[&v];
+        // let vid = self.logical_to_physical[&v];
 
         match &self.index[vid] {
             Adj::List { out, into, .. } => {
@@ -85,11 +71,10 @@ impl TemporalGraph {
 
     fn neighbours_iter_window(
         &self,
-        v: u64,
+        vid: usize,
         d: Direction,
         window: &Range<u64>,
     ) -> Box<dyn Iterator<Item = (usize, AdjEdge)> + '_> {
-        let vid = self.logical_to_physical[&v];
 
         match &self.index[vid] {
             Adj::List { out, into, .. } => {
@@ -105,6 +90,36 @@ impl TemporalGraph {
                 }
             }
             _ => Box::new(std::iter::empty()),
+        }
+    }
+
+    pub(crate) fn _degree(&self, vid: usize, d: Direction) -> usize {
+        match &self.index[vid] {
+            Adj::List { out, into, .. } => match d {
+                Direction::OUT => out.len(),
+                Direction::IN => into.len(),
+                _ => vec![out.iter(), into.iter()] // FIXME: there are better ways of doing this, all adj lists are sorted except for the HashMap
+                    .into_iter()
+                    .flatten()
+                    .unique_by(|(v, _)| *v)
+                    .count(),
+            },
+            _ => 0,
+        }
+    }
+
+    pub(crate) fn _degree_window(&self, vid: usize, d: Direction, window: &Range<u64>) -> usize {
+        match &self.index[vid] {
+            Adj::List { out, into, .. } => match d {
+                Direction::OUT => out.len_window(window),
+                Direction::IN => into.len_window(window),
+                _ => vec![out.iter_window(window), into.iter_window(window)]
+                    .into_iter()
+                    .flatten()
+                    .unique_by(|(v, _)| *v)
+                    .count(),
+            },
+            _ => 0,
         }
     }
 }
@@ -339,7 +354,7 @@ impl TemporalGraph {
         let v_pid = self.logical_to_physical[&v];
 
         Box::new(
-            self.neighbours_iter_window(v, d, &w)
+            self.neighbours_iter_window(v_pid, d, &w)
                 .map(move |(v, e_meta)| EdgeView {
                     src_id: v_pid,
                     dst_id: v,
@@ -351,31 +366,45 @@ impl TemporalGraph {
     }
 
     pub fn outbound_degree(&self, src: u64) -> usize {
-        self.outbound(src).count() // FIXME use .len() from tvec then sum
+        let src_pid = self.logical_to_physical[&src];
+        self._degree(src_pid, Direction::OUT)
     }
 
     pub fn inbound_degree(&self, dst: u64) -> usize {
-        self.inbound(dst).count() // FIXME use .len() from tvec then sum
+        let dst_pid = self.logical_to_physical[&dst];
+        self._degree(dst_pid, Direction::IN)
     }
 
     pub fn outbound_degree_t(&self, src: u64, r: Range<u64>) -> usize {
-        self.outbound_window(src, r).count() // FIXME use .len() from tvec then sum
+        let src_pid = self.logical_to_physical[&src];
+        self._degree_window(src_pid, Direction::OUT, &r)
     }
 
     pub fn inbound_degree_t(&self, dst: u64, r: Range<u64>) -> usize {
-        self.inbound_window(dst, r).count() // FIXME use .len() from tvec then sum
+        let dst_pid = self.logical_to_physical[&dst];
+        self._degree_window(dst_pid, Direction::IN, &r)
+    }
+
+    pub fn degree(&self, v: u64) -> usize {
+        let v_pid = self.logical_to_physical[&v];
+        self._degree(v_pid, Direction::BOTH)
+    }
+
+    pub fn degree_window(&self, v: u64, r: Range<u64>) -> usize {
+        let v_pid = self.logical_to_physical[&v];
+        self._degree_window(v_pid, Direction::BOTH, &r)
     }
 
     pub fn neighbours_window_t(
         &self,
         r: Range<u64>,
-        v: u64,
+        v: usize,
         d: Direction,
     ) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
         //TODO: this could use some improving but I'm bored now
         match d {
             Direction::OUT => {
-                let src_pid = self.logical_to_physical[&v];
+                let src_pid = v;
                 if let Adj::List { out, .. } = &self.index[src_pid] {
                     Box::new(out.iter_window_t(&r).map(move |(v, t, e_meta)| EdgeView {
                         src_id: src_pid,
@@ -389,7 +418,7 @@ impl TemporalGraph {
                 }
             }
             Direction::IN => {
-                let dst_pid = self.logical_to_physical[&v];
+                let dst_pid = v;
                 if let Adj::List { into, .. } = &self.index[dst_pid] {
                     Box::new(into.iter_window_t(&r).map(move |(v, t, e_meta)| EdgeView {
                         src_id: v,
@@ -437,7 +466,8 @@ impl TemporalGraph {
         src: u64,
         r: Range<u64>,
     ) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
-        self.neighbours_window_t(r, src, Direction::OUT)
+        let src_pid = self.logical_to_physical[&src];
+        self.neighbours_window_t(r, src_pid, Direction::OUT)
     }
 
     pub fn inbound_window_t(
@@ -445,7 +475,8 @@ impl TemporalGraph {
         dst: u64,
         r: Range<u64>,
     ) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
-        self.neighbours_window_t(r, dst, Direction::IN)
+        let dst_pid = self.logical_to_physical[&dst];
+        self.neighbours_window_t(r, dst_pid, Direction::IN)
     }
 
     pub fn neighbours(
@@ -458,7 +489,7 @@ impl TemporalGraph {
     {
         let v_pid = self.logical_to_physical[&v];
 
-        Box::new(self.neighbours_iter(v, d).map(move |(v, e_meta)| EdgeView {
+        Box::new(self.neighbours_iter(v_pid, d).map(move |(v, e_meta)| EdgeView {
             src_id: v_pid,
             dst_id: *v,
             t: None,
@@ -812,12 +843,7 @@ mod graph_test {
     fn edge_metadata_id_bug() {
         let mut g = TemporalGraph::default();
 
-        let edges: Vec<(u64, u64, u64)> = vec![
-            (1, 2, 1),
-            (3, 4, 2),
-            (5, 4, 3),
-            (1, 4, 4),
-        ];
+        let edges: Vec<(u64, u64, u64)> = vec![(1, 2, 1), (3, 4, 2), (5, 4, 3), (1, 4, 4)];
 
         for (src, dst, t) in edges {
             g.add_vertex(src, t);
@@ -950,5 +976,65 @@ mod graph_test {
             edge_weights,
             vec![(&2, Prop::F64(12.34)), (&2, Prop::Str("blerg".into()))]
         )
+    }
+
+    #[test]
+    fn correctness_degree_test() {
+        let mut g = TemporalGraph::default();
+
+        let triplets = vec![
+            (1, 2, 1, 1),
+            (1, 2, 2, 2),
+            (1, 2, 3, 2),
+            (1, 2, 4, 1),
+            (1, 3, 5, 1),
+            (3, 1, 6, 1),
+        ];
+
+        for (src, dst, t, w) in triplets {
+            g.add_edge_props(src, dst, t, &vec![("weight".to_string(), Prop::U32(w))]);
+
+            println!("GRAPH {g:?}");
+        }
+
+        for i in 1..4 {
+            let out1 = g.outbound(i).map(|e| e.global_dst()).collect_vec();
+            let out2 = g
+                .outbound_window(i, 1..7)
+                .map(|e| e.global_dst())
+                .collect_vec();
+            assert_eq!(out1, out2);
+
+            assert_eq!(g.outbound_degree(i), g.outbound_degree_t(i, 1..7));
+            assert_eq!(g.inbound_degree(i), g.inbound_degree_t(i, 1..7));
+        }
+
+        let degrees = g
+            .iter_vertices()
+            .map(|v| {
+                (
+                    v.global_id(),
+                    v.inbound_degree(),
+                    v.outbound_degree(),
+                    v.degree(),
+                )
+            })
+            .collect_vec();
+        let degrees_window = g
+            .iter_vs_window(1..7)
+            .map(|v| {
+                (
+                    v.global_id(),
+                    v.inbound_degree(),
+                    v.outbound_degree(),
+                    v.degree(),
+                )
+            })
+            .collect_vec();
+
+        let expected = vec![(1, 1, 2, 2), (2, 1, 0, 1), (3, 1, 1, 1)];
+
+        assert_eq!(degrees, expected);
+        assert_eq!(degrees_window, expected);
     }
 }
