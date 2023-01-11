@@ -23,8 +23,7 @@ import scala.collection.mutable
 private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
   import DisruptorQueue._
 
-  private val logger: Logger = Logger(LoggerFactor
-    y.getLogger(this.getClass))
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   private val BATCH_EDGES        = true
   private var batchCount         = 0
