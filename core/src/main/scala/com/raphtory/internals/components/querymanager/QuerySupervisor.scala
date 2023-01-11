@@ -165,10 +165,18 @@ object QuerySupervisor {
       _                <- Resource.eval(inprogressReqs.offer(Set.empty[Request]))
       earliestTime     <- Resource.eval(Ref.of(Long.MaxValue))
       latestTime       <- Resource.eval(Ref.of(Long.MinValue))
-      terminateStreams <- SignallingRef[F, Boolean](false)
+      terminateStreams <- Resource.eval(SignallingRef[F, Boolean](false))
       service          <- Resource.eval {
                             Async[F].delay(
-                                    new QuerySupervisor(graphID, config, partitions, earliestTime, latestTime, inprogressReqs)
+                                    new QuerySupervisor(
+                                            graphID,
+                                            config,
+                                            partitions,
+                                            terminateStreams,
+                                            earliestTime,
+                                            latestTime,
+                                            inprogressReqs
+                                    )
                             )
                           }
       _                <- Resource.onFinalize(terminateStreams.set(true))
