@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory
 import com.raphtory.protocol.PartitionService
 import com.raphtory.protocol.QueryUpdate
 import fs2.Stream
+import fs2.concurrent.SignallingRef
 
 import java.util.concurrent.ArrayBlockingQueue
 import scala.annotation.tailrec
@@ -17,6 +18,7 @@ class QuerySupervisor[F[_]] protected (
     graphID: GraphID,
     config: Config,
     partitions: Map[Int, PartitionService[F]],
+    terminateStreams: SignallingRef[F, Boolean],
     private[querymanager] val earliestTime: Ref[F, Long],
     private[querymanager] val latestTime: Ref[F, Long],
     private[querymanager] val inprogressReqs: Ref[F, Set[Request]]
@@ -95,9 +97,10 @@ class QuerySupervisor[F[_]] protected (
 
   def submitQuery(query: Query): F[Stream[F, QueryUpdate]]                     =
     for {
-      t        <- processQueryRequest(query)
-      response <- QueryHandler(t._1, t._2, partitions.values.toSeq, query, this)
-    } yield response
+      t             <- processQueryRequest(query)
+      responses     <- QueryHandler(t._1, t._2, partitions.values.toSeq, query, this)
+      interruptible <- responses.interruptWhen(terminateStreams).pure[F]
+    } yield interruptible
 
   def endQuery(query: Query): F[Unit] = {
     @tailrec
@@ -129,20 +132,15 @@ object QuerySupervisor {
       partitions: Map[Int, PartitionService[F]]
   ): Resource[F, QuerySupervisor[F]] =
     for {
-      inprogressReqs <- Resource.eval(Ref.of(Set[Request]()))
-      earliestTime   <- Resource.eval(Ref.of(Long.MaxValue))
-      latestTime     <- Resource.eval(Ref.of(Long.MinValue))
-      service        <- Resource.make {
-                          Async[F].delay(
-                                  new QuerySupervisor(
-                                          graphID,
-                                          config,
-                                          partitions,
-                                          earliestTime,
-                                          latestTime,
-                                          inprogressReqs
-                                  )
-                          )
-                        }(_ => Async[F].unit)
+      inprogressReqs   <- Resource.eval(Ref.of(Set[Request]()))
+      earliestTime     <- Resource.eval(Ref.of(Long.MaxValue))
+      latestTime       <- Resource.eval(Ref.of(Long.MinValue))
+      terminateStreams <- SignallingRef[F, Boolean](false)
+      service          <- Resource.eval {
+                            Async[F].delay(
+                                    new QuerySupervisor(graphID, config, partitions, earliestTime, latestTime, inprogressReqs)
+                            )
+                          }
+      _                <- Resource.onFinalize(terminateStreams.set(true))
     } yield service
 }
