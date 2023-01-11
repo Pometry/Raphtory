@@ -20,7 +20,7 @@ requires-python = ">=3.9"
 keywords = ["raphtory", "pyraphtory", "graph", "analytics", "temporal"]
 classifiers = [
     'Intended Audience :: Science/Research',
-    'License :: OSI Approved :: Apache License',
+    'License :: OSI Approved :: Apache Software License',
     'Operating System :: POSIX :: Linux',
     'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3.9',

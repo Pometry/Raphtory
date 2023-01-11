@@ -31,6 +31,6 @@ def get_platform_tag() -> str:
         if getArch() == OS_X64:
             return str(next(tags.mac_platforms((10, 11))))
         else:
-            return str(tags.mac_platforms((11, 0)))
+            return str(next(tags.mac_platforms((11, 0))))
     else:
         return str(next(tags.sys_tags()).platform)
