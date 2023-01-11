@@ -89,6 +89,7 @@ sbt-build-clean:
 	rm -rf $(PYRAPHTORY_IVYDIR)/
 	rm -rf $(PYRAPHTORY_JREBIN)/
 	rm -rf $(PYRAPHTORY_IVYBIN)/
+	rm -rf ~/.ivy2/cache/com.raphtory/
 
 
 .PHONY: docs
