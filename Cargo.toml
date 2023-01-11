@@ -16,6 +16,7 @@ thiserror = "1"
 rayon = "1"
 crossbeam = "0.8"
 rand = "0.8.5"
+flate2 = "1.0"
 # packed_struct = "0.10"
  sorted_vector_map = "0.1"
 

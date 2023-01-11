@@ -7,10 +7,14 @@ use csv::StringRecord;
 use docbrown::db::GraphDB;
 use docbrown::graph::TemporalGraph;
 use docbrown::Prop;
-// use docbrown::tcell::TCell;
 use itertools::Itertools;
 use rayon::prelude::*;
 use std::time::Instant;
+
+use flate2; // 1.0
+use flate2::read::GzDecoder;
+use std::fs::File;
+use std::io::{prelude::*, BufReader, LineWriter};
 
 fn parse_record(rec: &StringRecord) -> Option<(u64, u64, u64, u64)> {
     let src = rec.get(3).and_then(|s| s.parse::<u64>().ok())?;
@@ -32,14 +36,15 @@ fn local_single_threaded_temporal_graph(args: Vec<String>) {
     let now = Instant::now();
 
     if let Some(file_name) = args.get(1) {
-        if let Ok(mut reader) = csv::Reader::from_path(file_name) {
-            for rec_res in reader.records() {
-                if let Ok(rec) = rec_res {
-                    if let Some((src, dst, t, amount)) = parse_record(&rec) {
-                        g.add_vertex(src, t);
-                        g.add_vertex(dst, t);
-                        g.add_edge_props(src, dst, t, &vec![("amount".into(), Prop::U64(amount))]);
-                    }
+        let f = File::open(file_name).expect(&format!("Can't open file {file_name}"));
+        let mut csv_gz_reader = csv::Reader::from_reader(BufReader::new(GzDecoder::new(f)));
+
+        for rec_res in csv_gz_reader.records() {
+            if let Ok(rec) = rec_res {
+                if let Some((src, dst, t, amount)) = parse_record(&rec) {
+                    g.add_vertex(src, t);
+                    g.add_vertex(dst, t);
+                    g.add_edge_props(src, dst, t, &vec![("amount".into(), Prop::U64(amount))]);
                 }
             }
         }
@@ -50,28 +55,29 @@ fn local_single_threaded_temporal_graph(args: Vec<String>) {
             now.elapsed().as_secs()
         );
 
-        // println!("VERTEX,DEGREE,OUT_DEGREE,IN_DEGREE");
-        // g.iter_vertices()
-        //     .map(|v| {
-        //         let id = v.global_id();
-        //         let out_d = v.outbound_degree();
-        //         let in_d = v.inbound_degree();
-        //         let d = out_d + in_d;
-        //         let out_sum: u64 = v
-        //             .outbound()
-        //             .flat_map(|e| {
-        //                 e.props("amount").flat_map(|(t, p)| match p {
-        //                     Prop::U64(amount) => Some(amount),
-        //                     _ => None,
-        //                 })
-        //             })
-        //             .sum();
+        let now = Instant::now();
 
-        //         (id, d, out_d, out_sum, in_d)
-        //     })
-        //     .sorted_by_cached_key(|(_, _, _, _, d)| *d)
-        //     .into_iter()
-        //     .for_each(|(v, d, outd, amount, ind)| println!("{},{},{},{},{}", v, ind, outd, d, amount));
+        let iter = g.iter_vertices().map(|v| {
+            let id = v.global_id();
+            let out_d = v.outbound_degree();
+            let in_d = v.inbound_degree();
+            let deg = v.degree();
+
+            format!("{id},{out_d},{in_d},{deg}\n")
+        });
+
+        let file =
+            File::create("bay_deg.csv").expect("unable to create file bay_deg.csv");
+        let mut file = LineWriter::new(file);
+
+        for line in iter {
+            file.write(line.as_bytes())
+                .expect("Unable to write to file");
+        }
+        println!(
+            "Degree output written in {} seconds",
+            now.elapsed().as_secs()
+        )
     }
 }
 
