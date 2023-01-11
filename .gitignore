@@ -102,7 +102,8 @@ python/pyraphtory/deps/jars
 bin/docker/raphtory/tmp/*
 .ipynb_checkpoints/
 python/pyraphtory/lib/
-
+dist
+build
 target
 /dependency-reduced-pom.xml
 bdoutput
@@ -110,3 +111,4 @@ ccoutput
 fdoutput
 g+data
 testpfdoutput
+python/pyraphtory_jvm/pyraphtory_jvm/data/

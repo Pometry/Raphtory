@@ -1,7 +1,10 @@
 #!/bin/bash
+#set -x
+set -euf -o pipefail
+
+RAPHTORY_JAVA_RUN_ARGS="${RAPHTORY_JAVA_RUN_ARGS:-}"
+
+#CORE_CP="$(raphtory-classpath)"
+CORE_CP="/opt/venv/lib/python3.10/site-packages/pyraphtory/lib/*"
 set -x
-
-DEP_CP=$(python3 -c "from pyraphtory_jvm.jre import get_local_ivy_loc; print(get_local_ivy_loc())")
-CORE_CP=$(python3 -c "import site; print(site.getsitepackages()[0] + '/lib/')")
-
-java -cp "$DEP_CP/compile/*:${CORE_CP}/*:/raphtory/jars/*" $RAPHTORY_JAVA_RUN_ARGS $RAPHTORY_JAVA_RUN_CLASS $RAPHTORY_JAVA_COMPONENT_NAME
+java -cp "$CORE_CP:/raphtory/jars/*" $RAPHTORY_JAVA_RUN_ARGS $RAPHTORY_JAVA_RUN_CLASS

@@ -1,0 +1,12 @@
+<ivysettings>
+    <settings defaultResolver="default"/>
+    <resolvers>
+        <chain name="default" returnFirst="true">
+            <filesystem name="local">
+                <ivy pattern="${ivy_dir}/[module]_ivy.xml" />
+                <artifact pattern="${ivy_dir}/[module].jar" />
+            </filesystem>
+            <ibiblio name="public" m2compatible="true" />
+        </chain>
+    </resolvers>
+</ivysettings>
