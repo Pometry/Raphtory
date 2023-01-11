@@ -109,7 +109,7 @@ public class DataSetBuilder {
             checkWindowedEdgesFromWindowedVertexIterator(data);
 
             checkVertexHistory(data);
-            //checkEdgeHistory(data); TBD
+            //checkEdgeHistory(data);
         }
     }
 
@@ -124,7 +124,6 @@ public class DataSetBuilder {
      *
      * Code below is a mish-mash.
      */
-
     /*
     private void checkEdgeHistory(long[][] data) {
         // Currently we only test for edge history records per edge creation...
@@ -175,7 +174,7 @@ public class DataSetBuilder {
             history.add(edge[2]); // Vertex modification (edge added)
         }
     }
-     */
+    */
 
 
     private void checkVertexHistory(long[][] data) {

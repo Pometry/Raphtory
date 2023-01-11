@@ -91,7 +91,7 @@ public class LOTRLoader {
 
 
     public final static String RaphtoryInput = "/home/jatinder/projects/Pometry/arrow-core";
-    public final static String ArrowDir = "/tmp/halongbay";
+    public final static String ArrowDir = "/tmp/lotr";
 
 
 
@@ -128,10 +128,6 @@ public class LOTRLoader {
             //rap.getEdgeMgr().saveFiles();
         }
 
-
-        //rap = new RaphtoryArrowPartition(cfg);
-        //loader = new HalongBayLoader(rap);
-        //loader.load(RaphtoryInput + "/halongbay_sorted.csv");
 
         for (int i=0; i<1; ++i) {
             System.out.println("\n\n\n");

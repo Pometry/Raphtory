@@ -762,7 +762,7 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
      */
     protected int getPropertyPrevPtrByRow(int field, int row) {
         IntVector iv = _propertyPrevPtrVector[field];
-        
+
         if (iv.isSet(row)!=0) {
             return iv.get(row);
         }

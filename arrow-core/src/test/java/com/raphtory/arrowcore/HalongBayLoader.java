@@ -8,6 +8,7 @@ import com.raphtory.arrowcore.implementation.*;
 import com.raphtory.arrowcore.model.Edge;
 import com.raphtory.arrowcore.model.PropertySchema;
 import com.raphtory.arrowcore.model.Vertex;
+import com.raphtory.arrowcore.util.DisruptorPauser;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 
 import java.io.*;
@@ -84,6 +85,7 @@ public class HalongBayLoader {
     private final VertexIterator _vertexIter;
     private final VersionedEntityPropertyAccessor _priceVEPA;
     private final LocalEntityIdStore _leis;
+    private final DisruptorPauser _pauser = new DisruptorPauser();
 
     private long _nextFreeVertexId;
     private long _lastFreeVertexId;
@@ -110,7 +112,7 @@ public class HalongBayLoader {
         cfg._raphtoryPartitionId = 0;
         cfg._nRaphtoryPartitions = 1;
         cfg._nLocalEntityIdMaps = 128;
-        cfg._localEntityIdMapSize = 1024;
+        cfg._localEntityIdMapSize = 65536;
         cfg._syncIDMap = false;
         cfg._edgePartitionSize = 1024 * 1024;
         cfg._vertexPartitionSize = 256 * 1024;
@@ -134,33 +136,38 @@ public class HalongBayLoader {
         }
 
 
-        rap = new RaphtoryArrowPartition(cfg);
-        loader = new HalongBayLoader(rap);
-        loader.load(RaphtoryInput + "/halongbay_sorted.csv");
+        //rap = new RaphtoryArrowPartition(cfg);
+        //loader = new HalongBayLoader(rap);
+        //loader.load(RaphtoryInput + "/halongbay.csv");
         //loader.dumpVertices("/tmp/st-vertices.log");
         //loader.dumpEdges("/tmp/st-edges.log");
-        loader.dumpHistory("/tmp/st.log");
+        //loader.dumpHistory("/tmp/st.log");
         //loader.checkVertex(764940347L);
         //loader.checkVertex(764940539);
 
-        N_LOAD_THREADS = 1;
-        rap = new RaphtoryArrowPartition(cfg);
-        loader = new HalongBayLoader(rap);
-        loader.loadMT(RaphtoryInput + "/halongbay_sorted.csv");
+        //N_LOAD_THREADS = 1;
+        //rap = new RaphtoryArrowPartition(cfg);
+        //loader = new HalongBayLoader(rap);
+        //loader.loadMT(RaphtoryInput + "/halongbay.csv");
         //loader.dumpVertices("/tmp/mt1-vertices.log");
         //loader.dumpEdges("/tmp/mt1-edges.log");
-        loader.dumpHistory("/tmp/mt1.log");
+        //loader.dumpHistory("/tmp/mt1.log");
         //loader.checkVertex(764940347L);
         //loader.checkVertex(764940539);
 
-        N_LOAD_THREADS = 8;
         rap = new RaphtoryArrowPartition(cfg);
         loader = new HalongBayLoader(rap);
-        loader.loadMT(RaphtoryInput + "/halongbay_sorted.csv");
+
+        long then = System.currentTimeMillis();
+        N_LOAD_THREADS = 8;
+        for (int i=0; i<8; ++i) {
+            loader.loadMT(RaphtoryInput + "/halongbay.csv");
+        }
+        System.out.println("Average=" + (System.currentTimeMillis()-then)/8 + "ms");
         //loader.dumpVertices("/tmp/mt8-vertices.log");
         //loader.dumpHistory("/tmp/mt8.log");
         //loader.dumpEdges("/tmp/mt8-edges.log");
-        loader.dumpHistory("/tmp/mt8.log");
+        //loader.dumpHistory("/tmp/mt8.log");
 
         for (int i=0; i<1; ++i) {
             System.out.println("\n\n\n");
@@ -174,6 +181,13 @@ public class HalongBayLoader {
 
             //loader.degreeAlgoTest();
         }
+
+        System.out.println("SLEEPING WHILST SUSPENDED...");
+        Thread.sleep(20L * 1000L);
+
+        loader.halt();
+        System.out.println("SLEEPING WHILST HALTED...");
+        Thread.sleep(20L * 1000L);
     }
 
 
@@ -1059,12 +1073,15 @@ public class HalongBayLoader {
 
 
     public void loadMT(String file) throws Exception {
-        for (int i=0; i<N_LOAD_THREADS; ++i) {
-            _workers[i] = new Worker(i);
-            _disruptors[i] = buildDisruptor();
-            _disruptors[i].handleEventsWith(_workers[i]);
-            _queues[i] = _disruptors[i].start();
+        if (_workers[0]==null) {
+            for (int i = 0; i < N_LOAD_THREADS; ++i) {
+                _workers[i] = new Worker(i);
+                _disruptors[i] = buildDisruptor();
+                _disruptors[i].handleEventsWith(_workers[i]);
+                _queues[i] = _disruptors[i].start();
+            }
         }
+        resume();
 
         BufferedReader br;
 
@@ -1075,7 +1092,6 @@ public class HalongBayLoader {
             br = new BufferedReader(new InputStreamReader(new FileInputStream(file)), BUFFER_SIZE);
         }
         String line;
-        StringBuilder tmp = new StringBuilder();
 
         System.out.println(new Date() + ": " + N_LOAD_THREADS + " Starting load");
 
@@ -1099,8 +1115,9 @@ public class HalongBayLoader {
         long then = System.currentTimeMillis();
         while ((line = br.readLine())!=null) {
             ++nLines;
-            if (nLines % (1024 * 1024)==0) {
-                //System.out.println(nLines);
+            if (nLines % (1024 * 16)==0) {
+                //flush(true);
+                //_pauser.resume();
             }
 
             String[] fields = line.split(",");
@@ -1153,8 +1170,36 @@ public class HalongBayLoader {
             }
         }
 
-        /*
-        System.out.println("WAITING");
+        flush(true);
+
+        long now = System.currentTimeMillis();
+        double rate = nLines / (((double)(now-then)) / 1000.0d);
+        System.out.println(new Date() + ": Ending load: rate=" + rate + " per second, dummy=");
+
+        System.out.println(_rap.getStatistics());
+        System.out.println("Total time: " + (now-then) + "ms");
+    }
+
+
+
+    private void halt() {
+        resume();
+
+        for (int i=0; i<_workers.length; ++i) {
+            _disruptors[i].halt();
+        }
+    }
+
+
+    public void resume() {
+        if (_pauser.isSuspended()) {
+            _pauser.resume();
+        }
+    }
+
+
+    private void flush(boolean suspend) {
+        //System.out.println("WAITING");
         boolean finished = false;
         while (!finished) {
             finished = true;
@@ -1166,23 +1211,15 @@ public class HalongBayLoader {
             }
 
             if (!finished) {
-                Thread.sleep(10L);
+                try { Thread.sleep(1L); } catch (InterruptedException ie) {}
             }
         }
-        */
 
-        for (int i=0; i<N_LOAD_THREADS; ++i) {
-            //_disruptors[i].halt();
-            _disruptors[i].shutdown();
+        if (suspend) {
+            _pauser.suspend();
         }
-
-        long now = System.currentTimeMillis();
-        double rate = nLines / (((double)(now-then)) / 1000.0d);
-        System.out.println(new Date() + ": Ending load: rate=" + rate + " per second, dummy=");
-
-        System.out.println(_rap.getStatistics());
-        System.out.println("Total time: " + (now-then) + "ms");
     }
+
 
 
     private void queueVertex(int worker, long globalId, long nodeId, long time) {
@@ -1382,9 +1419,12 @@ public class HalongBayLoader {
 
     private Disruptor<AddVertexEvent> buildDisruptor() {
         ThreadFactory threadFactory = DaemonThreadFactory.INSTANCE;
-        WaitStrategy waitStrategy = new YieldingWaitStrategy();
+        //WaitStrategy waitStrategy = new YieldingWaitStrategy();
         //WaitStrategy waitStrategy = new BusySpinWaitStrategy();
         //WaitStrategy waitStrategy = new BlockingWaitStrategy();
+        //WaitStrategy waitStrategy = new SleepingWaitStrategy(200, 10_000L);
+        //WaitStrategy waitStrategy = PhasedBackoffWaitStrategy.withLock(5000, 500, TimeUnit.NANOSECONDS);
+        WaitStrategy waitStrategy = _pauser.getWaitStrategy();
         Disruptor<AddVertexEvent> disruptor = new Disruptor<>(AddVertexEvent.EVENT_FACTORY, QUEUE_SIZE, threadFactory, ProducerType.SINGLE, waitStrategy);
         return disruptor;
     }
