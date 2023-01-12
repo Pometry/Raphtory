@@ -20,22 +20,9 @@ import com.raphtory.internals.storage.arrow.ArrowPartitionConfig
 import com.raphtory.internals.storage.arrow.ArrowSchema
 import com.raphtory.internals.storage.arrow.EdgeSchema
 import com.raphtory.internals.storage.arrow.VertexSchema
+import com.raphtory.internals.storage.pojograph.DisruptorQueue
 import com.raphtory.internals.storage.pojograph.PojoBasedPartition
-import com.raphtory.protocol.GraphAlterations
-import com.raphtory.protocol.NodeCount
-import com.raphtory.protocol.Operation
-import com.raphtory.protocol.OperationAndState
-import com.raphtory.protocol.OperationResult
-import com.raphtory.protocol.OperationWithStateResult
-import com.raphtory.protocol.PartitionResult
-import com.raphtory.protocol.PartitionService
-import com.raphtory.protocol.PerspectiveCommand
-import com.raphtory.protocol.Query
-import com.raphtory.protocol.QueryId
-import com.raphtory.protocol.Status
-import com.raphtory.protocol.VertexMessages
-import com.raphtory.protocol.failure
-import com.raphtory.protocol.success
+import com.raphtory.protocol._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
@@ -56,12 +43,22 @@ abstract class PartitionServiceImpl[F[_]](
         extends OrchestratorService(graphs)
         with PartitionService[F] {
 
-  protected def makeGraphStorage(graphId: String): F[GraphPartition]
+  protected def makeGraphStorage(graphId: String): Resource[F, GraphPartition]
+
+  override def flush(req: GraphId): F[Empty] =
+    for {
+      ps <- partitions.get
+      g  <- graphs.get
+              .map(graphs =>
+                graphs.get(req.graphID).map((g: Graph[F, Partition[F]]) => g.data.writer.flush).getOrElse(F.unit)
+              )
+              .flatten
+    } yield Empty()
 
   override protected def makeGraphData(graphId: String): Resource[F, Partition[F]] =
     for {
       id         <- Resource.eval(id.get)
-      storage    <- Resource.eval(makeGraphStorage(graphId))
+      storage    <- makeGraphStorage(graphId)
       partitions <- Resource.eval(partitions.get)
       writer     <- Writer[F](graphId, id, storage, partitions, config)
     } yield Partition(storage, writer, Map())
@@ -145,8 +142,15 @@ class PojoPartitionServerImpl[F[_]: Async](
     config: Config
 ) extends PartitionServiceImpl[F](id, partitions, graphs, dispatcher, config) {
 
-  override protected def makeGraphStorage(graphId: String): F[GraphPartition] =
-    id.get.map(id => new PojoBasedPartition(graphId, id, config))
+  override protected def makeGraphStorage(graphId: String): Resource[F, GraphPartition] =
+    for {
+      disruptor <- Resource.make {
+                     id.get.flatMap(id => Async[F].delay(DisruptorQueue(graphId, id)))
+                   }(x => Async[F].delay(x.stop()))
+      storage   <- Resource.make {
+                     id.get.flatMap(id => Async[F].delay(new PojoBasedPartition(graphId, id, config, disruptor)))
+                   }(_ => Async[F].unit)
+    } yield storage
 }
 
 class ArrowPartitionServerImpl[F[_]: Async, V: VertexSchema, E: EdgeSchema](
@@ -157,10 +161,9 @@ class ArrowPartitionServerImpl[F[_]: Async, V: VertexSchema, E: EdgeSchema](
     config: Config
 ) extends PartitionServiceImpl[F](id, partitions, graphs, dispatcher, config) {
 
-  override protected def makeGraphStorage(graphId: String): F[GraphPartition] =
-    for {
-      id      <- id.get
-      storage <-
+  override protected def makeGraphStorage(graphId: String): Resource[F, GraphPartition] =
+    Resource.make {
+      id.get.flatMap(id =>
         Async[F].blocking(
                 ArrowPartition(
                         graphId,
@@ -168,7 +171,8 @@ class ArrowPartitionServerImpl[F[_]: Async, V: VertexSchema, E: EdgeSchema](
                         config
                 )
         )
-    } yield storage
+      )
+    }(_ => Async[F].unit)
 }
 
 object PartitionServiceImpl {

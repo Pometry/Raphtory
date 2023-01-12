@@ -15,12 +15,8 @@ import com.raphtory.algorithms.temporal.dynamic.GenericTaint
 import com.raphtory.api.input._
 import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceOrFileSpout
-import com.test.raphtory.algorithms.GlobalState
-import com.test.raphtory.algorithms.GraphState
-
+import com.test.raphtory.algorithms.{GlobalState, GraphState}
 import java.net.URL
-import java.nio.file.Files
-import java.nio.file.Paths
 import scala.language.postfixOps
 
 class LotrTest extends BaseRaphtoryAlgoTest[String] {
