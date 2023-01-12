@@ -11,7 +11,7 @@ import com.raphtory.internals.management.Partitioner
 import com.raphtory.internals.management.telemetry.TelemetryReporter
 import com.raphtory.defaultConf
 import com.raphtory.protocol
-import com.raphtory.protocol.PartitionService
+import com.raphtory.protocol.{GraphId, PartitionService}
 import fs2.Chunk
 
 import scala.collection.mutable
@@ -30,26 +30,30 @@ class GraphBuilderF[F[_], T](
   private val partitioner       = Partitioner(defaultConf)
   private val totalSourceErrors = TelemetryReporter.totalSourceErrors.labels(s"$sourceId", graphId) // TODO
 
-  def buildGraphFromT(chunk: Chunk[T], index: Ref[F, Long]): F[Unit] =
+  def buildGraphFromT(chunk: Chunk[T], globalIndex: Ref[F, Long]): F[Unit] =
     for {
       b <- F.delay(new mutable.ArrayBuffer[GraphUpdate](chunk.size))
       cb = UnsafeGraphCallback(partitions.size, sourceId, -1, graphId, b)
-      _ <- index.getAndUpdate(_ + chunk.size).map { index =>
-             chunk.foldLeft(index) { (i, t) =>
-               builder(cb.copy(index = i), t)
-               i + 1
+      _ <- globalIndex.getAndUpdate(_ + chunk.size).map { index =>
+             // we reserved the chunk size in the global index
+             cb.index = index
+             chunk.foldLeft(cb) { (cb, t) =>
+               builder(cb, t)
+               cb.index += 1
+               cb
              }
            }
-
       _ <- prepareGraphUpdates(cb)(b.toSeq).sequence_
-
     } yield ()
+
+  def flush: F[Unit] =
+    F.parSequenceN(partitions.size)(partitions.values.map(_.flush(GraphId(graphId))).toVector).void
 
   private def prepareGraphUpdates(cb: Graph)(updates: Seq[GraphUpdate]): Vector[F[Unit]] =
     updates
       .flatMap {
-        case update: EdgeAdd => partitioner.getPartitionsForEdge(update.srcId, update.dstId).toSeq.map((_, update))
-        case update          => Seq((cb.getPartitionForId(update.srcId), update))
+        case update: EdgeAdd     => partitioner.getPartitionsForEdge(update.srcId, update.dstId).toSeq.map((_, update))
+        case update: GraphUpdate => Seq((cb.getPartitionForId(update.srcId), update))
       }
       .groupMap { case (partition, update) => partition } { case (partition, update) => update }
       .map {
@@ -79,7 +83,7 @@ class GraphBuilderF[F[_], T](
 case class UnsafeGraphCallback[F[_]: Functor](
     totalPartitions: Int,
     sourceID: Int,
-    index: Long,
+    var index: Long,
     graphID: String,
     b: mutable.ArrayBuffer[GraphUpdate]
 ) extends Graph {

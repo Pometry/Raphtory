@@ -127,9 +127,10 @@ lazy val arrowCore =
                     arrowDataset,
                     chronicleMap,
                     fastUtil,
+                    disruptor,
                     commonsLang,
                     junitInterface,
-                    netty classifier osDetectorClassifier.value,
+                    netty classifier osDetectorClassifier.value
             )
     )
 
@@ -196,6 +197,7 @@ lazy val core = (project in file("core"))
                   junit,
                   mockitoScala,
                   netty classifier osDetectorClassifier.value,
+                  fastUtil
           ),
           libraryDependencies ~= { _.map(_.exclude("org.slf4j", "slf4j-log4j12")) },
           // Needed to expand the @service macro annotation

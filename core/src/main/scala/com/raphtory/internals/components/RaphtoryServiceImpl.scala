@@ -19,6 +19,7 @@ import com.raphtory.internals.management.id.LocalIDManager
 import com.raphtory.internals.storage.arrow.EdgeSchema
 import com.raphtory.internals.storage.arrow.VertexSchema
 import com.raphtory.protocol
+import com.raphtory.protocol.GraphId
 import com.raphtory.protocol.GraphInfo
 import com.raphtory.protocol.IdPool
 import com.raphtory.protocol.IngestionService
@@ -97,17 +98,22 @@ class RaphtoryServiceImpl[F[_]](
       (updatedGraphs, status)
     }
 
-  override def submitQuery(req: protocol.Query): F[Stream[F, QueryUpdateMessage]] =
+  override def submitQuery(req: protocol.Query): F[Stream[F, QueryUpdateMessage]] = {
     req match {
       case protocol.Query(TryQuery(Success(query)), _) =>
         for {
           graphRunning <- runningGraphs.get.map(graphs => graphs.isDefinedAt(query.graphID))
-          responses    <- if (graphRunning) establishExecutors(req) *> queryService.submitQuery(req)
-                          else Stream[F, QueryUpdateMessage](graphNotRunningMessage(query.graphID)).pure[F]
+          responses    <-
+            if (graphRunning)
+              F.parSequenceN(partitions.size)(partitions.values.map(_.flush(GraphId(query.graphID))).toVector).void *>  // Wait for all data to be ingested from the disruptor queue before querying
+                establishExecutors(req) *>
+                queryService.submitQuery(req)
+            else Stream[F, QueryUpdateMessage](graphNotRunningMessage(query.graphID)).pure[F]
         } yield responses
       case protocol.Query(TryQuery(Failure(error)), _) =>
         Stream[F, QueryUpdateMessage](QueryFailed(error.getMessage).asMessage).pure[F]
     }
+  }
 
   private def graphNotRunningMessage(graphId: String) = QueryFailed(s"Graph $graphId is not running").asMessage
 

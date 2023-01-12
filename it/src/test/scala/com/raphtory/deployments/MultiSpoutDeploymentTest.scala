@@ -16,9 +16,14 @@ import munit.CatsEffectSuite
 
 import java.io.FileWriter
 import java.net.URL
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.sys.process._
 
 class MultiSpoutDeploymentTest extends CatsEffectSuite {
+
+  override def munitTimeout: Duration = new FiniteDuration(60, TimeUnit.SECONDS)
+
   val outputDirectory   = "/tmp/raphtoryTest"
   def defaultSink: Sink = FileSink(outputDirectory)
 

@@ -53,10 +53,9 @@ private[pojograph] trait PojoConcreteVertexBase[T] extends PojoVertexBase {
   val internalOutgoingEdges: mutable.Map[IDType, Edge]
 
   // queues
-  val multiQueue: VertexMultiQueue =
-    new VertexMultiQueue() //Map of queues for all ongoing processing
-  protected val incomingEdgeDeleteMultiQueue: VertexMultiQueue = new VertexMultiQueue()
-  protected val outgoingEdgeDeleteMultiQueue: VertexMultiQueue = new VertexMultiQueue()
+  lazy val multiQueue: VertexMultiQueue                             = new VertexMultiQueue() // Map of queues for all ongoing processing
+  protected lazy val incomingEdgeDeleteMultiQueue: VertexMultiQueue = new VertexMultiQueue()
+  protected lazy val outgoingEdgeDeleteMultiQueue: VertexMultiQueue = new VertexMultiQueue()
 
   def viewUndirected: PojoUndirectedVertexView[T]
 
