@@ -131,14 +131,43 @@ impl TGraphShard {
     }
 }
 
+async fn local_actor_single_threaded_temporal_graph(g: &TGraphShard, args: Vec<String>) {
+
+    let now = Instant::now();
+
+    if let Some(file_name) = args.get(1) {
+        let f = File::open(file_name).expect(&format!("Can't open file {file_name}"));
+        let mut csv_gz_reader = csv::Reader::from_reader(BufReader::new(GzDecoder::new(f)));
+
+        for rec_res in csv_gz_reader.records() {
+            if let Ok(rec) = rec_res {
+                if let Some((src, dst, t, amount)) = parse_record(&rec) {
+                    g.add_vertex(src, t).await;
+                    g.add_vertex(dst, t).await;
+                    g.add_edge(src, dst, vec![("amount".into(), Prop::U64(amount))], t).await;
+                }
+            }
+        }
+
+        // println!(
+        //     "Loaded {} vertices, took {} seconds",
+        //     g.len(),
+        //     now.elapsed().as_secs()
+        // ) ;
+
+    }
+}
+
 #[tokio::main]
 async fn main() {
+    // let handle = tokio::spawn(async move {
+    //     local_single_threaded_temporal_graph(args);
+    // });
+
+    // handle.await.unwrap();
     let args: Vec<String> = env::args().collect();
-    // local_single_threaded_temporal_graph(args);
 
-    let handle = tokio::spawn(async move {
-        local_single_threaded_temporal_graph(args);
-    });
+    let g = TGraphShard::new();
 
-    handle.await.unwrap();
+    local_actor_single_threaded_temporal_graph(&g, args).await
 }
