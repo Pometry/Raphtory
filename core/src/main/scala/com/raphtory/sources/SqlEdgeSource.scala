@@ -11,6 +11,21 @@ import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 
 import java.sql.ResultSet
 
+/** Source for ingesting edges from SQL Database queries
+  *
+  * This source ingest one edge from each of the rows returned when submitting the `query`
+  * to the database referred by `conn`.
+  * `source`, `target`, `time`, `edgeType`, and `properties` are used to set the names of the columns to use
+  * for the ids, the timestamp, the type, and the properties for every edge.
+  *
+  * @param conn the connection to a specific type of database, e.g. `PostgresConnection`
+  * @param query the query to be executed against the the database
+  * @param source the name of the column to use as the id of the source vertex
+  * @param target the name of the column to use as the id of the target vertex
+  * @param time the name of the column to use as the timestamp
+  * @param edgeType the name of the column to use as edge type
+  * @param properties the names of the columns to use as the properties for the edge
+  */
 case class SqlEdgeSource(
     conn: SqlConnection,
     query: String,

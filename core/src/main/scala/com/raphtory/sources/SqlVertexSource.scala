@@ -11,6 +11,20 @@ import com.raphtory.internals.graph.GraphAlteration.VertexAdd
 
 import java.sql.ResultSet
 
+/** Source for ingesting vertices from SQL Database queries
+  *
+  * This source ingest one vertex from each of the rows returned when submitting the `query`
+  * to the database referred by `conn`.
+  * `id`, `time`, `edgeType`, and `properties` are used to set the names of the columns to use
+  * for the id, the timestamp, the type, and the properties for every edge.
+  *
+  * @param conn the connection to a specific type of database, e.g. `PostgresConnection`
+  * @param query the query to be executed against the the database
+  * @param id the name of the column to use as the id of vertex
+  * @param time the name of the column to use as the timestamp
+  * @param vertexType the name of the column to use as vertex type
+  * @param properties the names of the columns to use as the properties for the vertex
+  */
 case class SqlVertexSource(
     conn: SqlConnection,
     query: String,
