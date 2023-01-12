@@ -15,8 +15,7 @@ import com.raphtory.algorithms.temporal.dynamic.GenericTaint
 import com.raphtory.api.input._
 import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceOrFileSpout
-import com.raphtory.algorithms.GlobalState
-import com.raphtory.algorithms.GraphState
+import com.test.raphtory.algorithms.{GlobalState, GraphState}
 import java.net.URL
 import scala.language.postfixOps
 

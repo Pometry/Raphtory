@@ -4,7 +4,7 @@ import com.raphtory.{BaseCorrectnessTest, TestQuery}
 import com.raphtory.algorithms.generic.centrality.{Degree, WeightedDegree}
 import com.raphtory.api.input.Source
 import com.raphtory.spouts.ResourceOrFileSpout
-import com.raphtory.algorithms.WeightedGraphBuilder
+import com.test.raphtory.WeightedGraphBuilder
 
 class DegreeTest extends BaseCorrectnessTest {
 
