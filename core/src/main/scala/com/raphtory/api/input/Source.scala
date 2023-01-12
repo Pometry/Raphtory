@@ -7,7 +7,10 @@ import cats.syntax.all._
 import com.raphtory.internals.graph.GraphBuilderF
 import com.raphtory.protocol.PartitionService
 import com.twitter.chill.ClosureCleaner
+import com.typesafe.scalalogging.Logger
 import io.prometheus.client.Counter
+import org.slf4j.LoggerFactory
+
 import scala.concurrent.duration._
 
 trait Source {
@@ -35,6 +38,7 @@ class ConcreteSource[T](override val spout: Spout[T], override val builder: Grap
 class StreamSource[F[_], T](id: Int, tuples: fs2.Stream[F, T], builderInstance: GraphBuilderF[F, T])(implicit
     F: Async[F]
 ) {
+  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
   def processTuples(counter: Counter.Child): F[Unit] = {
     val s = for {
@@ -45,7 +49,7 @@ class StreamSource[F[_], T](id: Int, tuples: fs2.Stream[F, T], builderInstance: 
                }.last
       _     <- fs2.Stream.eval(builderInstance.flush)
       end   <- fs2.Stream.eval(Clock[F].monotonic)
-      _     <- fs2.Stream.eval(F.delay(println(s"INNER INGESTION TOOK ${(end - start).toSeconds}s ")))
+      _     <- fs2.Stream.eval(F.delay(logger.info(s"INNER INGESTION TOOK ${(end - start).toSeconds}s ")))
     } yield ()
 
     s.compile.drain
