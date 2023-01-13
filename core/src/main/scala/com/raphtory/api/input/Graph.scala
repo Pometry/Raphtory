@@ -39,8 +39,6 @@ trait Graph {
   protected def handleGraphUpdate(update: GraphUpdate): Unit
   def index: Long
 
-  def getNEdgesAdded : Long = edgeAddCounter.get().toLong
-
   /** Adds a new vertex to the graph or updates an existing vertex
     *
     * @param updateTime timestamp for vertex update
