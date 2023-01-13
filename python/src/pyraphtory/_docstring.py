@@ -96,25 +96,66 @@ boolean = string_from('true', 'false').map(capitalise)
 string_expr = string("String").result("str")
 int_expr = string_from("Int", "Long", "Integer", "Short").result("int")
 float_expr = string_from("Float", "Double").result("float")
+dquoted_str = string('"') + ((line_end | string('"')).should_fail("not end of string") >> any_char).many().concat() + string('"')
+squoted_str = string("'") + ((line_end | string("'")).should_fail("not end of string") >> any_char).many().concat() + string("'")
 method_or_variable_name = (string("_").many().concat()
                            + regex(r"[a-z]")
                            + (letter | decimal_digit).many().concat()
                            + string("_").many().concat()
                            ).map(camel_to_snake)
+method_without_brackets = string(".") + method_or_variable_name + peek(whitespace).result("()")
 class_name = (string("_").many().concat()
               + regex(r"[A-Z]")
               + (letter | decimal_digit).many().concat()
               + string("_").many().concat()
               )
-code_expr = (boolean
+
+code_item = (boolean
              | string_expr
              | int_expr
              | float_expr
+             | squoted_str
+             | dquoted_str
+             | method_without_brackets
              | method_or_variable_name
              | class_name
-             | code_others
-             ).many().map(join_tokens)
+             )
+code_expr = (code_item | code_others).many().map(join_tokens)
 code = string("`") + code_expr + string("`")
+
+code_block_char = line_end.should_fail("not the end of line") >> any_char
+
+example = line_start >> non_newline_whitespace.many() >> string("@example") >> blank_remaining_line.result("")
+
+def codeblock_start(indent, output_indent):
+    @generate
+    def parser():
+        l = yield line_start
+        s = yield non_newline_whitespace.at_least(indent).result(" "*output_indent)
+        start = yield string("{{{").result(".. code-block::\n"+" "*(output_indent+3)+":dedent:\n")
+        end = yield blank_remaining_line
+        return s + start + end
+    return parser
+
+
+def codeblock_end(indent=0):
+    return line_start >> non_newline_whitespace.at_least(indent).concat() + string("}}}").result("\n") + blank_remaining_line
+
+def codeblock_line(output_indent):
+    return line_start.result(" "*output_indent) + (code_item | code_block_char).many().concat() + line_end
+
+def codeblock(indent, output_indent):
+    @generate("codeblock")
+    def codeblock_parser():
+        start = yield codeblock_start(indent, output_indent)
+        lines = yield codeblock_line(output_indent+3).until(codeblock_end(indent))
+        end = yield codeblock_end(indent)
+        return join_tokens([start] + lines + [end])
+
+    return codeblock_parser
+
+
+
 code_unparsed = (string("`") + any_char.until(string("`"), consume_other=True).concat()).map(report_unparsed)
 
 # find links (only extracts text for now)
@@ -203,15 +244,16 @@ def indented_block(leading_spaces, output_indent=None):
         first_indent = yield peek(line_start >> counted_spaces).optional(0)
         nonlocal output_indent
         if output_indent is None:
-            output_indent = first_indent
+            output_indent = first_indent-leading_spaces
         if first_indent > leading_spaces:
-            output = yield indented_line(first_indent, leading_spaces + output_indent).many().concat()
+            output = yield (indented_line(first_indent, leading_spaces + output_indent)
+                            | indented_blocks(first_indent, output_indent)).many().concat()
             result.append(output)
         return join_tokens(result)
     return indented_block_parser
 
 
-def directive(name, pythonname=None):
+def directive(name, indent, output_indent, pythonname=None):
     """Parse a directive-style tag
 
     :param name: name of scala tag is `@name`
@@ -223,18 +265,30 @@ def directive(name, pythonname=None):
     @generate(name)
     def directive_parser():
         result = []
-        leading_spaces = yield line_start >> counted_spaces
+
+        leading_spaces = yield line_start >> space.at_least(indent).map(len)
         directive_start = yield string("@" + name).result(" " * leading_spaces + f".. {pythonname}::") + remaining_line
         result.append(directive_start)  # this picks up any remaining text in the first line
-        block = yield indented_block(leading_spaces, 3)
+        block = yield indented_block(leading_spaces, output_indent+3)
         result.append(block)
         return join_tokens(result)
 
     return directive_parser
 
 
-doc_converter = alt(tparam, directive("note"), directive("see", "seealso"),
+def indented_blocks(indent=0, output_indent=None):
+    if output_indent is None:
+        output_indent = indent
+    return alt(directive("note", indent, output_indent),
+               directive("see", indent, output_indent, pythonname="seealso"),
+               codeblock(indent, output_indent)
+               )
+
+
+doc_converter = alt(tparam,
+                    example,
                     field_list,
+                    indented_blocks(),
                     end,
                     line,
                     ).until(eof).map(join_tokens)

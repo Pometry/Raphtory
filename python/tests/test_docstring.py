@@ -80,3 +80,29 @@ def test_param_list_from_accumulator():
             """Add new value to accumulator and return the accumulator object
 
 :param new_value: Value to add""")
+
+
+def test_codeblock():
+    assert (convert_docstring(
+"""* {{{
+* {
+*   "jobID" : "EdgeCount",
+*   "partitionID" : 0,
+*   "perspectives" : [ {
+*     "timestamp" : 10
+*     "rows" : [ [ "id1", 12 ], [ "id2", 13 ], [ "id3", 24 ] ]
+*   } ]
+* }
+* }}}"""
+    ) ==
+""".. code-block::
+   :dedent:
+
+   {
+     "jobID" : "EdgeCount",
+     "partitionID" : 0,
+     "perspectives" : [ {
+       "timestamp" : 10
+       "rows" : [ [ "id1", 12 ], [ "id2", 13 ], [ "id3", 24 ] ]
+     } ]
+   }""")
