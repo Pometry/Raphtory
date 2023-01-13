@@ -41,6 +41,7 @@ sbt-thin-build: version clean sbt-build
 
 options?=
 .PHONY: python-build-options
+python-build-options:
 
 
 .PHONY: python-build
@@ -181,13 +182,13 @@ setup-python: gh-sbt-build setup-python-env python-build
 
 
 .PHONY: setup-python-test
-setup-python-test:
-	python -m pip install ".[test]"
+setup-python-test: python-build-options
+	python -m pip install $(options) ".[test]"
 
 
 .PHONY: setup-python-docs
-setup-python-docs:
-	python -m pip install ".[docs]"
+setup-python-docs: python-build-options
+	python -m pip install $(options) ".[docs]"
 
 
 .PHONY: python-test

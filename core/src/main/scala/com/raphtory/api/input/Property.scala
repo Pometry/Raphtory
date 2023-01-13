@@ -1,5 +1,7 @@
 package com.raphtory.api.input
 
+import com.raphtory.internals.storage.pojograph.entities.internal.PojoEntity
+
 /** Properties are characteristic attributes like name, etc. assigned to Vertices and Edges by the
   * [[Graph]].
   *
@@ -50,6 +52,17 @@ case class MutableInteger(key: String, value: Int) extends Property
 
 /** Wrapper class for properties */
 case class Properties(properties: Property*) {
+
+  def addPropertiesToEntity(msgTime: Long, index: Long, entity: PojoEntity): Unit =
+    properties.foreach {
+      case MutableString(key, value) => entity + (msgTime, index, false, key, value)
+      case MutableLong(key, value) => entity + (msgTime, index, false, key, value)
+      case MutableDouble(key, value) => entity + (msgTime, index, false, key, value)
+      case MutableFloat(key, value) => entity + (msgTime, index, false, key, value)
+      case MutableBoolean(key, value) => entity + (msgTime, index, false, key, value)
+      case MutableInteger(key, value) => entity + (msgTime, index, false, key, value)
+      case ImmutableString(key, value) => entity + (msgTime, index, true, key, value)
+    }
 
   def apply(properties: List[Property]): Properties =
     Properties(properties: _*)

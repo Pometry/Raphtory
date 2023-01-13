@@ -12,6 +12,11 @@ import scala.concurrent.duration._
 
 trait Source {
   def getDynamicClasses: List[Class[_]] = List()
+
+  /** This returns F[Stream] instead of just Stream because that gives you a chance to execute
+    * some things in the context of the F to prepare the source (for instance checking that a file actually exists)
+    * so the exceptions bubble up to the client context reporting the problem
+    */
   def makeStream[F[_]: Async]: F[fs2.Stream[F, Seq[GraphUpdate]]]
 }
 
@@ -22,14 +27,10 @@ abstract class SpoutBuilderSource[T] extends Source {
 
   override def makeStream[F[_]: Async]: F[fs2.Stream[F, Seq[GraphUpdate]]] =
     for {
-      spoutInstance   <- Async[F].delay(spout.buildSpout())
       builderInstance <- builder.make
-      stream          <- Async[F].pure(for {
-                           index   <- fs2.Stream.eval(Ref.of[F, Long](1L))
-                           tuples   = fs2.Stream.fromBlockingIterator[F](spoutInstance, 512)
-                           // TODO: process chunks in parallel and increment the index consistently
-                           updates <- tuples.chunks.evalMap(chunk => builderInstance.parseUpdates(chunk, index))
-                         } yield updates)
+      index           <- Ref.of[F, Long](1L)
+      tuples           = spout.asStream
+      stream           = tuples.chunks.evalMap(chunk => builderInstance.parseUpdates(chunk, index))
     } yield stream
 }
 

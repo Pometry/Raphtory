@@ -15,14 +15,17 @@ import scala.collection.mutable.ArrayBuffer
 class GraphBuilderF[F[_], T](builder: GraphBuilder[T])(implicit F: Async[F]) {
   // private val totalSourceErrors = TelemetryReporter.totalSourceErrors.labels(s"$sourceId", graphId) // FIXME: update this variable
 
-  def parseUpdates(chunk: Chunk[T], index: Ref[F, Long]): F[Seq[GraphUpdate]] =
+  def parseUpdates(chunk: Chunk[T], globalIndex: Ref[F, Long]): F[Seq[GraphUpdate]] =
     for {
       b <- F.delay(new mutable.ArrayBuffer[GraphUpdate](chunk.size))
       cb = UnsafeGraphCallback(-1, b)
-      _ <- index.getAndUpdate(_ + chunk.size).map { index =>
-             chunk.foldLeft(index) { (i, t) =>
-               builder(cb.copy(index = i), t) // TODO: try to find a better way of updating the index
-               i + 1
+      _ <- globalIndex.getAndUpdate(_ + chunk.size).map { index =>
+             // we reserved the chunk size in the global index
+             cb.index = index
+             chunk.foldLeft(cb) { (cb, t) =>
+               builder(cb, t)
+               cb.index += 1
+               cb
              }
            }
     } yield b.toSeq
@@ -32,7 +35,7 @@ class GraphBuilderF[F[_], T](builder: GraphBuilder[T])(implicit F: Async[F]) {
   * so we can get updates out of it to be sent to the partitions
   */
 case class UnsafeGraphCallback[F[_]: Functor](
-    index: Long,
+    var index: Long,
     b: mutable.ArrayBuffer[GraphUpdate]
 ) extends Graph {
   override protected def handleGraphUpdate(update: GraphUpdate): Unit = b += update

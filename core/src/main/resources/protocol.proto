@@ -180,6 +180,7 @@ service PartitionService {
   rpc getResult(QueryId) returns (PartitionResult);
   rpc writePerspective(PerspectiveCommand) returns (google.protobuf.Empty);
   rpc endQuery(QueryId) returns (google.protobuf.Empty);
+  rpc flush(GraphId) returns (google.protobuf.Empty);
 }
 
 service QueryService {

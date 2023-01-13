@@ -1,6 +1,7 @@
 package com.raphtory.internals.components.ingestion
 
 import cats.effect.Async
+import cats.effect.Clock
 import cats.effect.Ref
 import cats.syntax.all._
 import com.raphtory.api.input.Source
@@ -36,6 +37,7 @@ private[raphtory] class IngestionExecutor[F[_], T](
     for {
       _           <- F.delay(logger.debug("Running ingestion executor"))
       globalStats <- Ref.of(SourceStats(Long.MaxValue, Long.MinValue, 0L))
+      start       <- Clock[F].monotonic
       _           <- stream
                        .parEvalMapUnordered(4)(updates => // Here we are setting the parallelism
                          for {
@@ -54,6 +56,9 @@ private[raphtory] class IngestionExecutor[F[_], T](
                        } yield ())
                        .compile
                        .drain
+      _           <- flush
+      end         <- Clock[F].monotonic
+      _           <- F.delay(logger.debug(s"INNER INGESTION TOOK ${(end - start).toSeconds}s "))
     } yield ()
 
   private def sendUpdates(updates: Seq[GraphUpdate]): F[Unit] =
@@ -74,6 +79,9 @@ private[raphtory] class IngestionExecutor[F[_], T](
                               .processUpdates(protocol.GraphAlterations(graphID, updates))
                         })
     } yield ()
+
+  private def flush: F[Unit] =
+    F.parSequenceN(partitions.size)(partitions.values.map(_.flush(GraphId(graphID))).toVector).void
 }
 
 object IngestionExecutor {
