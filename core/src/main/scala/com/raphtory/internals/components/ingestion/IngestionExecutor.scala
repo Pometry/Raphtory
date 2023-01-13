@@ -3,6 +3,7 @@ package com.raphtory.internals.components.ingestion
 import cats.effect.Async
 import cats.effect.Clock
 import cats.effect.Ref
+import cats.effect.kernel.Resource.ExitCase.Succeeded
 import cats.syntax.all._
 import com.raphtory.api.input.Source
 import com.raphtory.internals.graph.GraphAlteration.EdgeAdd
@@ -50,15 +51,22 @@ private[raphtory] class IngestionExecutor[F[_], T](
                                 }
                          } yield ()
                        )
-                       .onFinalize(for { // This runs even if there is an exception processing the stream
-                         stats <- globalStats.get
-                         _     <- queryService.endIngestion(EndIngestion(graphID, sourceID, stats.earliestTime, stats.highestSeen))
-                       } yield ())
+                       .onFinalizeCase {
+                         case Succeeded =>
+                           for {
+                             _   <- flush
+                             end <- Clock[F].monotonic
+                             _   <- F.delay(logger.debug(s"INNER INGESTION TOOK ${(end - start).toSeconds}s "))
+                             _   <- notifyQueryService(globalStats)
+                           } yield ()
+                         case _         =>
+                           for {
+                             _ <- F.delay(logger.error(s"Ingestion failed. Unblocking query service"))
+                             _ <- notifyQueryService(globalStats)
+                           } yield ()
+                       }
                        .compile
                        .drain
-      _           <- flush
-      end         <- Clock[F].monotonic
-      _           <- F.delay(logger.debug(s"INNER INGESTION TOOK ${(end - start).toSeconds}s "))
     } yield ()
 
   private def sendUpdates(updates: Seq[GraphUpdate]): F[Unit] =
@@ -82,6 +90,12 @@ private[raphtory] class IngestionExecutor[F[_], T](
 
   private def flush: F[Unit] =
     F.parSequenceN(partitions.size)(partitions.values.map(_.flush(GraphId(graphID))).toVector).void
+
+  private def notifyQueryService(globalStats: Ref[F, SourceStats]): F[Unit] =
+    for {
+      stats <- globalStats.get
+      _     <- queryService.endIngestion(EndIngestion(graphID, sourceID, stats.earliestTime, stats.highestSeen))
+    } yield ()
 }
 
 object IngestionExecutor {
