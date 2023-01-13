@@ -105,7 +105,7 @@ object IngestionExecutor {
     def add(graphUpdates: Seq[GraphUpdate]): SourceStats = {
       val minTime = graphUpdates.minBy(_.updateTime).updateTime
       val maxTime = graphUpdates.maxBy(_.updateTime).updateTime
-      SourceStats(minTime, maxTime, graphUpdates.size)
+      SourceStats(Math.min(earliestTime, minTime), Math.max(highestSeen, maxTime), sentUpdates + graphUpdates.size)
     }
   }
 
