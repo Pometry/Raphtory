@@ -95,6 +95,7 @@ pub mod bitset;
 pub mod db;
 pub mod graph;
 pub mod lsm;
+mod adj;
 mod misc;
 mod props;
 pub mod sortedvec;
