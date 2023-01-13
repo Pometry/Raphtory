@@ -32,12 +32,21 @@ pub(crate) enum Adj {
     Empty(u64),
     List {
         logical: u64,
-        out: TAdjSet<usize, u64>,
-        into: TAdjSet<usize, u64>,
+        out: TAdjSet<usize, u64>, // local
+        into: TAdjSet<usize, u64>, // local
+        // remote_out: TAdjSet<u64, u64>, // remote
+        // remote_into: TAdjSet<u64, u64> // remote
     },
 }
 
 impl Adj {
+
+    pub(crate) fn new_out(g_v_id:u64, v: usize, t: u64, e: AdjEdge) -> Self {
+
+
+        todo!()
+    }
+
     pub(crate) fn logical(&self) -> &u64 {
         match self {
             Adj::Empty(logical) => logical,
@@ -223,7 +232,9 @@ impl TemporalGraph {
         props: &Vec<(String, Prop)>,
     ) -> &mut Self {
         self.add_vertex(dst, t);
+
         let dst_pid = self.logical_to_physical[&dst];
+
         let dst_edge_meta_id =
             self.link_inbound_edge(dst, t, src.try_into().unwrap(), dst_pid, true);
 
@@ -275,7 +286,9 @@ impl TemporalGraph {
         let src_edge_meta_id = self.link_outbound_edge(src, t, src_pid, dst_pid, false);
         let dst_edge_meta_id = self.link_inbound_edge(dst, t, src_pid, dst_pid, false);
 
-        assert_eq!(src_edge_meta_id, dst_edge_meta_id);
+        if src_edge_meta_id != dst_edge_meta_id {
+            panic!("Failure on {src} -> {dst} at time: {t} {src_edge_meta_id} != {dst_edge_meta_id}");
+        }
 
         self.update_edge_props(src_edge_meta_id, t, props)
     }
@@ -341,7 +354,7 @@ impl TemporalGraph {
             out.push(t, dst, AdjEdge::new(edge_id, !remote_edge));
             edge_id
         } else {
-            self.edge_meta.len() // we really should not get here
+            panic!("HOW ARE YOU FAILING!?") // we really should not get here
         }
     }
 
@@ -501,6 +514,10 @@ impl TemporalGraph {
         )
     }
 }
+
+#[cfg(test)]
+extern crate quickcheck;
+
 
 #[cfg(test)]
 mod graph_test {
@@ -1148,7 +1165,6 @@ mod graph_test {
         .map(|(name, indeg, outdeg, deg)| (calculate_hash(&name), indeg, outdeg, deg))
         .collect_vec();
 
-
         let mut degrees_w2 = g
             .iter_vs_window(19001..20001)
             .map(|v| {
@@ -1161,10 +1177,52 @@ mod graph_test {
             })
             .collect_vec();
 
-
         expected_degrees_w2.sort();
         degrees_w2.sort();
 
         assert_eq!(degrees_w2, expected_degrees_w2);
+    }
+
+    fn shard_from_id<N:Into<usize>>(v_id: N, n_shards: usize) -> usize {
+        let v: usize = v_id.try_into().unwrap();
+        v % n_shards
+    }
+
+    #[quickcheck]
+    fn add_vertices_into_two_graph_partitions(vs: Vec<(u16, u16)>) {
+        let mut g1 = TemporalGraph::default();
+
+        let mut g2 = TemporalGraph::default();
+
+        let mut g3 = TemporalGraph::default();
+
+        let mut g4 = TemporalGraph::default();
+
+        let mut shards = vec![&mut g1, &mut g2, &mut g3, &mut g4];
+        let empty:Vec<(String, Prop)> = vec![];
+
+        let n_shards = shards.len();
+        for (t, (src, dst)) in vs.into_iter().enumerate() {
+            let src_shard = shard_from_id(src, n_shards);
+            let dst_shard = shard_from_id(src, n_shards);
+
+            shards[src_shard].add_vertex(src.into(), t.try_into().unwrap());
+            shards[dst_shard].add_vertex(dst.into(), t.try_into().unwrap());
+
+            if src_shard == dst_shard {
+                shards[src_shard].add_edge(src.into(), dst.into(), t.try_into().unwrap());
+            } else {
+                shards[src_shard].add_edge_remote_out(src.into(), dst.into(), t.try_into().unwrap(), &empty);
+                shards[dst_shard].add_edge_remote_into(src.into(), dst.into(), t.try_into().unwrap(), &empty);
+            }
+        }
+    }
+
+    #[test]
+    fn adding_remote_edge_does_not_break_local_indices() {
+        let mut g1 = TemporalGraph::default();
+
+        g1.add_edge_remote_out(11, 1, 1, &vec![("bla".to_string(), Prop::U32(1))]);
+        g1.add_edge_props(11, 0, 2, &vec![("bla".to_string(), Prop::U32(1))]);
     }
 }

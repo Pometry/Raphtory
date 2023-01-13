@@ -19,13 +19,15 @@ tokio = { version = "1", features = ["full"] }
 
 [dev-dependencies]
 criterion = "0.4"
+quickcheck = "1"
+quickcheck_macros = "1"
 
 [[bench]]
 name = "tgraph_benchmarks"
 harness = false
 
-[profile.release]
-debug = 1
+# [profile.release]
+# debug = 1
 
-[rust]
-debuginfo-level = 1
+# [rust]
+# debuginfo-level = 1
