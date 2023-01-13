@@ -2,8 +2,9 @@ use std::ops::Range;
 
 use crate::{tcell::TCell, Prop};
 
-#[derive(Debug, PartialEq)]
+#[derive( Debug, PartialEq)]
 pub enum TPropVec {
+    // #[default] Empty,
     One(usize, TProp),
     Props(Vec<TProp>),
 }
@@ -11,6 +12,7 @@ pub enum TPropVec {
 impl TPropVec {
     pub(crate) fn len(&self) -> usize {
         match self {
+            // TPropVec::Empty => 0,
             TPropVec::One(_, _) => 1,
             TPropVec::Props(props) => props.len(),
         }

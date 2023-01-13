@@ -88,6 +88,9 @@
 //!     ]
 //! )
 //! ```
+#[cfg(test)]
+#[macro_use(quickcheck)]
+extern crate quickcheck_macros;
 pub mod bitset;
 pub mod db;
 pub mod graph;

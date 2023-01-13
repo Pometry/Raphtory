@@ -79,6 +79,8 @@ enum Msg {
     AddEdge(u64, u64, Vec<(String, Prop)>, u64),
     AddOutEdge(u64, u64, Vec<(String, Prop)>, u64),
     AddIntoEdge(u64, u64, Vec<(String, Prop)>, u64),
+    Done,
+    Len(tokio::sync::oneshot::Sender<usize>),
 }
 
 struct TGraphShardActor {
@@ -94,19 +96,24 @@ impl TGraphShardActor {
         }
     }
 
-    fn handle_message(&mut self, msg: Msg) {
+    fn handle_message(&mut self, msg: Msg) -> (){
         match msg {
-            Msg::AddVertex(v, t) => self.tg.add_vertex(v, t),
-            Msg::AddEdge(src, dst, props, t) => self.tg.add_edge_props(src, dst, t, &props),
-            Msg::AddOutEdge(src, dst, props, t) => self.tg.add_edge_props(src, dst, t, &props),
-            Msg::AddIntoEdge(src, dst, props, t) => self.tg.add_edge_props(src, dst, t, &props),
+            Msg::AddVertex(v, t) => { self.tg.add_vertex(v, t); },
+            Msg::AddEdge(src, dst, props, t) => { self.tg.add_edge_props(src, dst, t, &props);},
+            Msg::AddOutEdge(src, dst, props, t) => { self.tg.add_edge_remote_out(src, dst, t, &props);},
+            Msg::AddIntoEdge(src, dst, props, t) => { self.tg.add_edge_remote_into(src, dst, t, &props);},
+            _ => {},
         };
     }
 }
 
 async fn run_tgraph_shard(mut actor: TGraphShardActor) {
-    while let Some(msg) = actor.queue.recv().await {
-        actor.handle_message(msg);
+    loop {
+        let msg = actor.queue.recv().await;
+        match msg {
+            Some(Msg::Done) | None => {return;}
+            Some(msg) => {actor.handle_message(msg);}
+        }
     }
 }
 
@@ -129,9 +136,33 @@ impl TGraphShard {
     pub async fn add_edge(&self, src: u64, dst: u64, props: Vec<(String, Prop)>, t: u64) {
         let _ = self.sender.send(Msg::AddEdge(src, dst, props,t)).await;
     }
+
+    pub async fn add_remote_out_edge(&self, src: u64, dst: u64, props: Vec<(String, Prop)>, t: u64) {
+        let _ = self.sender.send(Msg::AddOutEdge(src, dst, props,t)).await;
+    }
+
+    pub async fn add_remote_into_edge(&self, src: u64, dst: u64, props: Vec<(String, Prop)>, t: u64) {
+        let _ = self.sender.send(Msg::AddIntoEdge(src, dst, props,t)).await;
+    }
+
+    pub async fn done(self) { // done shutsdown the shard
+        let _ = self.sender.send(Msg::Done).await;
+    }
+
+    pub async fn len(&self) -> usize {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        let _ = self.sender.send(Msg::Len(tx)).await;
+        rx.await.unwrap()
+    }
+
 }
 
-async fn local_actor_single_threaded_temporal_graph(g: &TGraphShard, args: Vec<String>) {
+fn shard_from_id(v_id: u64, n_shards: usize) -> usize {
+   let v:usize = v_id.try_into().unwrap();
+    v % n_shards
+}
+
+async fn local_actor_single_threaded_temporal_graph(gs: Vec<&TGraphShard>, args: Vec<String>) {
 
     let now = Instant::now();
 
@@ -142,18 +173,35 @@ async fn local_actor_single_threaded_temporal_graph(g: &TGraphShard, args: Vec<S
         for rec_res in csv_gz_reader.records() {
             if let Ok(rec) = rec_res {
                 if let Some((src, dst, t, amount)) = parse_record(&rec) {
-                    g.add_vertex(src, t).await;
-                    g.add_vertex(dst, t).await;
-                    g.add_edge(src, dst, vec![("amount".into(), Prop::U64(amount))], t).await;
+
+                    let src_shard = shard_from_id(src, gs.len());
+                    let dst_shard = shard_from_id(dst, gs.len());
+
+                    gs[src_shard].add_vertex(src, t).await;
+                    gs[dst_shard].add_vertex(dst, t).await;
+
+                    if src_shard == dst_shard {
+                        gs[src_shard].add_edge(src, dst, vec![("amount".into(), Prop::U64(amount))], t).await;
+                    } else {
+                        gs[src_shard].add_remote_out_edge(src, dst, vec![("amount".into(), Prop::U64(amount))], t).await;
+                        gs[dst_shard].add_remote_into_edge(src, dst, vec![("amount".into(), Prop::U64(amount))], t).await;
+                    }
+
+                    // g.add_vertex(src, t).await;
+                    // g.add_vertex(dst, t).await;
+                    // g.add_edge(src, dst, vec![("amount".into(), Prop::U64(amount))], t).await;
                 }
             }
         }
 
-        // println!(
-        //     "Loaded {} vertices, took {} seconds",
-        //     g.len(),
-        //     now.elapsed().as_secs()
-        // ) ;
+        let mut len = 0;
+        for g in gs {
+            len += g.len().await;
+        }
+        println!(
+            "Loading {len} vertices, took {} seconds",
+            now.elapsed().as_secs()
+        ) ;
 
     }
 }
@@ -167,7 +215,12 @@ async fn main() {
     // handle.await.unwrap();
     let args: Vec<String> = env::args().collect();
 
-    let g = TGraphShard::new();
+    let g1 = TGraphShard::new();
+    let g2 = TGraphShard::new();
 
-    local_actor_single_threaded_temporal_graph(&g, args).await
+    local_actor_single_threaded_temporal_graph(vec![&g1, &g2], args).await;
+
+
+    g1.done().await; // g doesn't exist past done
+    g2.done().await; // g doesn't exist past done
 }
