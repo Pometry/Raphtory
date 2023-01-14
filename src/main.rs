@@ -89,7 +89,6 @@ enum Msg {
 struct TGraphShardActor {
     queue: Receiver<Msg>,
     tg: TemporalGraph,
-    buf: Vec<Msg>,
 }
 
 impl TGraphShardActor {
@@ -97,7 +96,6 @@ impl TGraphShardActor {
         TGraphShardActor {
             queue: receiver,
             tg: TemporalGraph::default(),
-            buf: vec![],
         }
     }
 

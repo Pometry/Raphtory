@@ -1,6 +1,6 @@
-use std::{fmt::Debug, ops::Range};
+use std::fmt::Debug;
 
-use itertools::{chain, Itertools};
+use itertools::Itertools;
 
 static MERGE_SORT_SIZE: usize = 64;
 
@@ -155,7 +155,6 @@ mod lsmset_tests {
         s.insert((1, 2));
         s.insert((4, 3));
 
-        println!("{s:?}");
         assert_eq!(s.find((4, 1)), Some(&(4, 1)));
         assert_eq!(s.find((1, 2)), Some(&(1, 2)));
         assert_eq!(s.find((1, 3)), Some(&(4, 1)));

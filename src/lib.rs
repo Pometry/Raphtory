@@ -91,18 +91,15 @@
 #[cfg(test)]
 #[macro_use(quickcheck)]
 extern crate quickcheck_macros;
-pub mod bitset;
+mod bitset;
 pub mod db;
 pub mod graph;
 pub mod lsm;
 mod adj;
 mod misc;
 mod props;
-pub mod sortedvec;
 mod tadjset;
 mod tcell;
-mod tset;
-mod tvec;
 
 use graph::TemporalGraph;
 use std::ops::Range;

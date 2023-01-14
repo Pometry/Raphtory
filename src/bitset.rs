@@ -1,7 +1,4 @@
-use std::{
-    borrow::{Borrow, BorrowMut},
-    collections::BinaryHeap,
-};
+use std::borrow::{Borrow, BorrowMut};
 
 use itertools::Itertools;
 use roaring::RoaringTreemap;

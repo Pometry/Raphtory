@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, fmt::Debug, ops::Range};
 
-use crate::sortedvec::SortedVec;
+use sorted_vector_map::SortedVectorMap;
 
 #[derive(Debug, PartialEq, Default, Clone)]
 /**
@@ -11,7 +11,7 @@ pub enum TCell<A: Clone + Default + Debug + PartialEq> {
     #[default]
     TCellEmpty,
     TCell1(u64, A),
-    TCellCap(SortedVec<u64, A>),
+    TCellCap(SortedVectorMap<u64, A>),
     TCellN(BTreeMap<u64, A>),
 }
 
@@ -22,22 +22,6 @@ impl<A: Clone + Default + Debug + PartialEq> TCell<A> {
         TCell::TCell1(t, a)
     }
 
-    pub fn is_empty(&self) -> bool {
-        match self {
-            TCell::TCellEmpty => true,
-            _ => false,
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        match self {
-            TCell::TCell1(_, _) => 1,
-            TCell::TCellCap(m) => m.len(),
-            TCell::TCellN(m) => m.len(),
-            _ => 0,
-        }
-    }
-
     pub fn set(&mut self, t: u64, a: A) {
         match self {
             TCell::TCellEmpty => {
@@ -45,7 +29,7 @@ impl<A: Clone + Default + Debug + PartialEq> TCell<A> {
             }
             TCell::TCell1(t0, a0) => {
                 if t != *t0 {
-                    let mut m = SortedVec::new();
+                    let mut m = SortedVectorMap::new();
                     m.insert(t, a);
                     m.insert(*t0, a0.clone());
                     *self = TCell::TCellCap(m)

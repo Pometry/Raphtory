@@ -10,13 +10,6 @@ pub enum TPropVec {
 }
 
 impl TPropVec {
-    pub(crate) fn len(&self) -> usize {
-        match self {
-            TPropVec::Empty => 0,
-            TPropVec::One(_, _) => 1,
-            TPropVec::Props(props) => props.len(),
-        }
-    }
 
     pub(crate) fn from(i: usize, t: u64, p: &Prop) -> Self {
         TPropVec::One(i, TProp::from(t, p))
