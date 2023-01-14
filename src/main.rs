@@ -4,15 +4,13 @@ use std::marker::PhantomData;
 use std::thread::JoinHandle;
 use std::{env, thread};
 
-use crossbeam::channel::{bounded, unbounded, Receiver, SendError, Sender};
 use csv::StringRecord;
 use docbrown::db::GraphDB;
 use docbrown::graph::TemporalGraph;
 use docbrown::Prop;
-// use flume::{unbounded, Receiver, Sender};
+use flume::{unbounded, Receiver, Sender};
 use itertools::Itertools;
 use replace_with::{replace_with, replace_with_or_abort, replace_with_or_abort_and_return};
-// use std::sync::mpsc;
 use std::time::Instant;
 
 use flate2; // 1.0
@@ -83,10 +81,9 @@ enum Msg {
     AddEdge(u64, u64, Vec<(String, Prop)>, u64),
     AddOutEdge(u64, u64, Vec<(String, Prop)>, u64),
     AddIntoEdge(u64, u64, Vec<(String, Prop)>, u64),
-    VertexChunk(Vec<Msg>),
-    Done,
-    Len(tokio::sync::oneshot::Sender<usize>),
+    Len(futures::channel::oneshot::Sender<usize>),
     Batch(Vec<Msg>),
+    Done,
 }
 
 struct TGraphShardActor {
@@ -104,20 +101,26 @@ impl TGraphShardActor {
         }
     }
 
+    #[inline]
     fn handle_message(&mut self, msg: Msg) -> () {
         match msg {
-            // Msg::AddVertex(v, t) => {
-            //     self.tg.add_vertex(v, t);
-            // }
-            // Msg::AddEdge(src, dst, props, t) => {
-            //     self.tg.add_edge_props(src, dst, t, &props);
-            // }
-            // Msg::AddOutEdge(src, dst, props, t) => {
-            //     self.tg.add_edge_remote_out(src, dst, t, &props);
-            // }
-            // Msg::AddIntoEdge(src, dst, props, t) => {
-            //     self.tg.add_edge_remote_into(src, dst, t, &props);
-            // }
+            Msg::Batch(msgs) => {
+                for m in msgs {
+                   self.handle_message(m);
+                }
+            }
+            Msg::AddVertex(v, t) => {
+                self.tg.add_vertex(v, t);
+            }
+            Msg::AddEdge(src, dst, props, t) => {
+                self.tg.add_edge_props(src, dst, t, &props);
+            }
+            Msg::AddOutEdge(src, dst, props, t) => {
+                self.tg.add_edge_remote_out(src, dst, t, &props);
+            }
+            Msg::AddIntoEdge(src, dst, props, t) => {
+                self.tg.add_edge_remote_into(src, dst, t, &props);
+            }
             Msg::Len(tx) => {
                 tx.send(self.tg.len())
                     .expect("Failed to send response to TemporalGraph::len()");
@@ -162,7 +165,7 @@ impl TGraphShard {
         //     s.spawn(|_| run_tgraph_shard(actor))
         // });
         // tokio::spawn(run_tgraph_shard(actor));
-        let capacity = 4 * 1024;
+        let capacity = 16 * 1024;
         Self {
             sender,
             handle,
@@ -222,10 +225,10 @@ impl TGraphShard {
         self.send_or_buffer_msg(Msg::Done, true)
     }
 
-    pub async fn len(&self) -> usize {
-        let (tx, rx) = tokio::sync::oneshot::channel();
+    pub fn len(&self) -> usize {
+        let (tx, rx) = futures::channel::oneshot::channel();
         let _ = self.sender.send(Msg::Len(tx));
-        rx.await.unwrap()
+        futures::executor::block_on(rx).unwrap()
     }
 }
 
@@ -281,9 +284,9 @@ fn local_actor_single_threaded_temporal_graph(gs: &mut Vec<TGraphShard>, args: V
             now.elapsed().as_secs()
         );
         let mut len = 0;
-        // for g in gs {
-        //     len += g.len().await;
-        // }
+        for g in gs {
+            len += g.len();
+        }
         println!(
             "Loading {len} vertices, took {} seconds",
             now.elapsed().as_secs()
@@ -291,7 +294,6 @@ fn local_actor_single_threaded_temporal_graph(gs: &mut Vec<TGraphShard>, args: V
     }
 }
 
-// #[tokio::main]
 fn main() {
     // let handle = tokio::spawn(async move {
     //     local_single_threaded_temporal_graph(args);
@@ -299,7 +301,7 @@ fn main() {
 
     // handle.await.unwrap();
     let args: Vec<String> = env::args().collect();
-    let threads = 8;
+    let threads = 2;
     let mut shards = vec![];
 
     for _ in 0..threads {
