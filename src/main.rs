@@ -1,14 +1,16 @@
 #![allow(unused_imports)]
 use std::collections::HashMap;
-use std::env;
+use std::marker::PhantomData;
+use std::thread::JoinHandle;
+use std::{env, thread};
 
-use crossbeam::channel::unbounded;
 use csv::StringRecord;
 use docbrown::db::GraphDB;
 use docbrown::graph::TemporalGraph;
 use docbrown::Prop;
+use flume::{unbounded, Receiver, Sender};
 use itertools::Itertools;
-use rayon::prelude::*;
+use replace_with::{replace_with, replace_with_or_abort, replace_with_or_abort_and_return};
 use std::time::Instant;
 
 use flate2; // 1.0
@@ -22,12 +24,6 @@ fn parse_record(rec: &StringRecord) -> Option<(u64, u64, u64, u64)> {
     let t = rec.get(5).and_then(|s| s.parse::<u64>().ok())?;
     let amount = rec.get(7).and_then(|s| s.parse::<u64>().ok())?;
     Some((src, dst, t, amount))
-}
-enum Msg {
-    AddVertex(u64, u64),
-    AddEdge(u64, u64, Vec<(String, Prop)>, u64),
-    AddOutEdge(u64, u64, Vec<(String, Prop)>, u64),
-    AddIntoEdge(u64, u64, Vec<(String, Prop)>, u64),
 }
 
 fn local_single_threaded_temporal_graph(args: Vec<String>) {
@@ -66,8 +62,7 @@ fn local_single_threaded_temporal_graph(args: Vec<String>) {
             format!("{id},{out_d},{in_d},{deg}\n")
         });
 
-        let file =
-            File::create("bay_deg.csv").expect("unable to create file bay_deg.csv");
+        let file = File::create("bay_deg.csv").expect("unable to create file bay_deg.csv");
         let mut file = LineWriter::new(file);
 
         for line in iter {
@@ -81,169 +76,241 @@ fn local_single_threaded_temporal_graph(args: Vec<String>) {
     }
 }
 
+enum Msg {
+    AddVertex(u64, u64),
+    AddEdge(u64, u64, Vec<(String, Prop)>, u64),
+    AddOutEdge(u64, u64, Vec<(String, Prop)>, u64),
+    AddIntoEdge(u64, u64, Vec<(String, Prop)>, u64),
+    Len(futures::channel::oneshot::Sender<usize>),
+    Batch(Vec<Msg>),
+    Done,
+}
+
+struct TGraphShardActor {
+    queue: Receiver<Msg>,
+    tg: TemporalGraph,
+    buf: Vec<Msg>,
+}
+
+impl TGraphShardActor {
+    fn new(receiver: Receiver<Msg>) -> Self {
+        TGraphShardActor {
+            queue: receiver,
+            tg: TemporalGraph::default(),
+            buf: vec![],
+        }
+    }
+
+    #[inline]
+    fn handle_message(&mut self, msg: Msg) -> () {
+        match msg {
+            Msg::Batch(msgs) => {
+                for m in msgs {
+                   self.handle_message(m);
+                }
+            }
+            Msg::AddVertex(v, t) => {
+                self.tg.add_vertex(v, t);
+            }
+            Msg::AddEdge(src, dst, props, t) => {
+                self.tg.add_edge_props(src, dst, t, &props);
+            }
+            Msg::AddOutEdge(src, dst, props, t) => {
+                self.tg.add_edge_remote_out(src, dst, t, &props);
+            }
+            Msg::AddIntoEdge(src, dst, props, t) => {
+                self.tg.add_edge_remote_into(src, dst, t, &props);
+            }
+            Msg::Len(tx) => {
+                tx.send(self.tg.len())
+                    .expect("Failed to send response to TemporalGraph::len()");
+            }
+            _ => {}
+        };
+    }
+}
+
+fn run_tgraph_shard(mut actor: TGraphShardActor) {
+    loop {
+        let msg = actor.queue.recv();
+        match msg {
+            Ok(Msg::Done) | Err(_) => {
+                return;
+            }
+            Ok(msg) => {
+                actor.handle_message(msg);
+            }
+        }
+    }
+}
+
+struct TGraphShard {
+    sender: Sender<Msg>,
+    handle: JoinHandle<()>,
+    vertex_buf: Vec<Msg>,
+    buf_send_size: usize,
+}
+
+impl TGraphShard {
+    pub fn new() -> Self {
+        let (sender, receiver) = unbounded::<Msg>();
+        let actor = TGraphShardActor::new(receiver);
+
+        let handle = thread::spawn(|| {
+            println!("STARTED THREAD");
+            run_tgraph_shard(actor);
+            println!("DONE THREAD");
+        });
+        // crossbeam_utils::thread::scope(|s|{
+        //     s.spawn(|_| run_tgraph_shard(actor))
+        // });
+        // tokio::spawn(run_tgraph_shard(actor));
+        let capacity = 16 * 1024;
+        Self {
+            sender,
+            handle,
+            vertex_buf: Vec::with_capacity(capacity),
+            buf_send_size: capacity,
+        }
+    }
+
+    fn send_or_buffer_msg(&mut self, m: Msg, force: bool) {
+        if self.vertex_buf.len() < self.buf_send_size && !force{
+            self.vertex_buf.push(m)
+        } else {
+            let send_me_buf = replace_with_or_abort_and_return(self, |_self| match _self {
+                TGraphShard {
+                    sender,
+                    handle,
+                    vertex_buf,
+                    buf_send_size,
+                } => (
+                    vertex_buf,
+                    TGraphShard {
+                        sender,
+                        handle,
+                        buf_send_size,
+                        vertex_buf: Vec::with_capacity(_self.buf_send_size),
+                    },
+                ),
+            });
+            self.sender
+                .send(Msg::Batch(send_me_buf))
+                .expect("Failed to send batch")
+        }
+    }
+
+    #[inline(always)]
+    pub fn add_vertex(&mut self, v: u64, t: u64) {
+        self.send_or_buffer_msg(Msg::AddVertex(v, t), false)
+    }
+
+    #[inline(always)]
+    pub fn add_edge(&mut self, src: u64, dst: u64, props: Vec<(String, Prop)>, t: u64) {
+        self.send_or_buffer_msg(Msg::AddEdge(src, dst, props, t), false)
+    }
+
+    #[inline(always)]
+    pub fn add_remote_out_edge(&mut self, src: u64, dst: u64, props: Vec<(String, Prop)>, t: u64) {
+        self.send_or_buffer_msg(Msg::AddOutEdge(src, dst, props, t), false)
+    }
+
+    #[inline(always)]
+    pub fn add_remote_into_edge(&mut self, src: u64, dst: u64, props: Vec<(String, Prop)>, t: u64) {
+        self.send_or_buffer_msg(Msg::AddIntoEdge(src, dst, props, t), false)
+    }
+
+    pub fn done(mut self) {
+        // done shutsdown the shard and flushes all messages
+        self.send_or_buffer_msg(Msg::Done, true)
+    }
+
+    pub fn len(&self) -> usize {
+        let (tx, rx) = futures::channel::oneshot::channel();
+        let _ = self.sender.send(Msg::Len(tx));
+        futures::executor::block_on(rx).unwrap()
+    }
+}
+
+fn shard_from_id(v_id: u64, n_shards: usize) -> usize {
+    let v: usize = v_id.try_into().unwrap();
+    v % n_shards
+}
+
+fn local_actor_single_threaded_temporal_graph(gs: &mut Vec<TGraphShard>, args: Vec<String>) {
+    let now = Instant::now();
+
+    if let Some(file_name) = args.get(1) {
+        let f = File::open(file_name).expect(&format!("Can't open file {file_name}"));
+        let mut csv_gz_reader = csv::Reader::from_reader(BufReader::new(GzDecoder::new(f)));
+
+        let mut rec = csv::StringRecord::new();
+        let mut count = 0;
+        let mut msg_count = 0;
+        while csv_gz_reader.read_record(&mut rec).unwrap() {
+            if let Some((src, dst, t, amount)) = parse_record(&rec) {
+                count += 1;
+
+                let src_shard = shard_from_id(src, gs.len());
+                let dst_shard = shard_from_id(dst, gs.len());
+
+                gs[src_shard].add_vertex(src, t);
+                gs[dst_shard].add_vertex(dst, t);
+
+                msg_count += 2;
+                if src_shard == dst_shard {
+                    gs[src_shard].add_edge(src, dst, vec![("amount".into(), Prop::U64(amount))], t);
+                    msg_count += 1;
+                } else {
+                    gs[src_shard].add_remote_out_edge(
+                        src,
+                        dst,
+                        vec![("amount".into(), Prop::U64(amount))],
+                        t,
+                    );
+                    gs[dst_shard].add_remote_into_edge(
+                        src,
+                        dst,
+                        vec![("amount".into(), Prop::U64(amount))],
+                        t,
+                    );
+                    msg_count += 2;
+                }
+            }
+        }
+
+        println!(
+            "Shipping {count} lines  and {msg_count} messages took {} seconds",
+            now.elapsed().as_secs()
+        );
+        let mut len = 0;
+        for g in gs {
+            len += g.len();
+        }
+        println!(
+            "Loading {len} vertices, took {} seconds",
+            now.elapsed().as_secs()
+        );
+    }
+}
+
 fn main() {
+    // let handle = tokio::spawn(async move {
+    //     local_single_threaded_temporal_graph(args);
+    // });
+
+    // handle.await.unwrap();
     let args: Vec<String> = env::args().collect();
-    local_single_threaded_temporal_graph(args);
+    let threads = 2;
+    let mut shards = vec![];
 
-    // // let g = GraphDB::new(32);
-    // //
-    // // let mut m: HashMap<u64, TCell<u64>> = HashMap::default();
+    for _ in 0..threads {
+        shards.push(TGraphShard::new())
+    }
 
-    // // let now = Instant::now();
+    local_actor_single_threaded_temporal_graph(&mut shards, args);
 
-    // use crossbeam::channel::unbounded;
-
-    // let n: usize = 32;
-
-    // let mut channels = vec![];
-
-    // for _ in 0..n {
-    //     channels.push(unbounded::<Msg>())
-    // }
-
-    // let senders = channels
-    //     .iter()
-    //     .map(|(sender, _)| sender.clone())
-    //     .collect_vec();
-    // let receivers = channels
-    //     .iter()
-    //     .map(|(_, receiver)| receiver.clone())
-    //     .collect_vec();
-
-    // drop(channels);
-
-    // if let Some(file_name) = args.get(1) {
-    //     rayon::scope(|s| {
-    //         s.spawn(move |_| {
-    //             if let Ok(mut reader) = csv::Reader::from_path(file_name) {
-    //                 // let senders: Vec<crossbeam::channel::Sender<Msg>> = senders;
-    //                 reader.records().for_each(|rec_res| {
-    //                     if let Ok(rec) = rec_res {
-    //                         if let Some((src, dst, t, amount)) = parse_record(&rec) {
-    //                             let src_u: usize = src.try_into().unwrap();
-    //                             let dst_u: usize = dst.try_into().unwrap();
-
-    //                             let src_shard: usize = src_u % n;
-    //                             let dst_shard: usize = dst_u % n;
-
-    //                             // add vertices
-    //                             senders[src_shard]
-    //                                 .send(Msg::AddVertex(src, t))
-    //                                 .expect("BOOM!");
-    //                             senders[dst_shard]
-    //                                 .send(Msg::AddVertex(dst, t))
-    //                                 .expect("BOOM!");
-
-    //                             if src_shard == dst_shard {
-    //                                 senders[src_shard]
-    //                                     .send(Msg::AddEdge(
-    //                                         src,
-    //                                         dst,
-    //                                         vec![("amount".into(), Prop::U64(amount))],
-    //                                         t,
-    //                                     ))
-    //                                     .expect("BOOM!");
-    //                             } else {
-    //                                 senders[src_shard]
-    //                                     .send(Msg::AddOutEdge(
-    //                                         src,
-    //                                         dst,
-    //                                         vec![("amount".into(), Prop::U64(amount))],
-    //                                         t,
-    //                                     ))
-    //                                     .expect("BOOM!");
-    //                                 senders[dst_shard]
-    //                                     .send(Msg::AddIntoEdge(
-    //                                         src,
-    //                                         dst,
-    //                                         vec![("amount".into(), Prop::U64(amount))],
-    //                                         t,
-    //                                     ))
-    //                                     .expect("BOOM!");
-    //                             }
-
-    //                             // g.add_vertex(src, t, vec![]).expect("can't add vertex");
-    //                             // g.add_vertex(dst, t, vec![]).expect("can't add vertex");
-    //                             // g.add_edge(src, dst, t, &vec![("amount".into(), Prop::U64(amount))]).expect("can't add edge");
-    //                         }
-    //                     }
-    //                 });
-    //             }
-    //         });
-
-    //         receivers.iter().enumerate().for_each(|(i, rec)| {
-    //             s.spawn(move |_| {
-    //                 let mut g = TemporalGraph::default();
-    //                 println!("Started thread {i}");
-
-    //                 let rcv = rec;
-
-    //                 let mut count: usize = 0;
-    //                 while let Ok(msg) = rcv.recv() {
-    //                     if count % 500000 == 0 {
-    //                         println!("GOT {count} {i}");
-    //                     }
-    //                     match msg {
-    //                         Msg::AddVertex(v, t) => {
-    //                             g.add_vertex(v, t);
-    //                         }
-    //                         Msg::AddEdge(src, dst, props, t) => {
-    //                             g.add_edge_props(src, dst, t, &props);
-    //                         }
-    //                         Msg::AddOutEdge(src, dst, props, t) => {
-    //                             g.add_edge_remote_out(src, dst, t, &props);
-    //                         }
-    //                         Msg::AddIntoEdge(src, dst, props, t) => {
-    //                             g.add_edge_remote_into(src, dst, t, &props);
-    //                         }
-    //                     }
-    //                     count += 1;
-    //                 }
-
-    //                 let now = Instant::now();
-    //                 let len = g.len();
-    //                 println!("Done {i} {now:?} vs: {len}")
-    //             });
-    //         });
-    //     });
-
-    //     // drop(channels);
-    //     // drop(senders);
-    //     drop(receivers);
-
-    //     // drop(s1);
-    //     // drop(s2);
-    //     // println!("SHOULD BE DONE NOW!")
-
-    //     // println!(
-    //     //     "Loaded {} vertices, took {} seconds",
-    //     //     g.len(),
-    //     //     now.elapsed().as_secs()
-    //     // );
-
-    //     // println!("VERTEX,DEGREE,OUT_DEGREE,IN_DEGREE");
-    //     // g.iter_vertices()
-    //     //     .map(|v| {
-    //     //         let id = v.global_id();
-    //     //         let out_d = v.outbound_degree();
-    //     //         let in_d = v.inbound_degree();
-    //     //         let d = out_d + in_d;
-    //     //         let out_sum: u64 = v
-    //     //             .outbound()
-    //     //             .flat_map(|e| {
-    //     //                 e.props("amount").flat_map(|(t, p)| match p {
-    //     //                     Prop::U64(amount) => Some(amount),
-    //     //                     _ => None,
-    //     //                 })
-    //     //             })
-    //     //             .sum();
-
-    //     //         (id, d, out_d, out_sum, in_d)
-    //     //     })
-    //     //     .sorted_by_cached_key(|(_, _, _, _, d)| *d)
-    //     //     .into_iter()
-    //     //     .for_each(|(v, d, outd, amount, ind)| println!("{},{},{},{},{}", v, ind, outd, d, amount));
-    // } else {
-    //     panic!("NO FILE ! NO GRAPH!")
-    // }
+    for g in shards {
+        g.done();
+    }
 }

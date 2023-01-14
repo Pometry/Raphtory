@@ -20,7 +20,7 @@ const SMALL_SET: usize = 1024;
  * and if the edge is remote or local
  *  */
 #[derive(Debug, Default)]
-pub(crate) enum TAdjSet<V: Ord + Into<usize>, Time: Copy + Ord> {
+pub(crate) enum TAdjSet<V: Ord + TryInto<usize>, Time: Copy + Ord> {
     #[default]
     Empty,
     One(Time, V, AdjEdge),
