@@ -2,8 +2,8 @@ use std::collections::BTreeSet;
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use docbrown::lsm::LSMSet;
-use docbrown::lsm::SortedVec;
 use rand::{distributions::Uniform, Rng};
+use sorted_vector_map::SortedVectorSet;
 
 fn btree_set_u64(c: &mut Criterion) {
 
@@ -15,9 +15,7 @@ fn btree_set_u64(c: &mut Criterion) {
         let range = Uniform::new(u64::MIN, u64::MAX);
 
         let init_vals: Vec<u64> = (&mut rng).sample_iter(&range).take(*size).collect();
-
         let range2 = Uniform::new(usize::MIN, usize::MAX);
-        let ids: Vec<usize> = (&mut rng).sample_iter(&range2).take(*size).collect();
 
         group.bench_with_input(
             BenchmarkId::new("BTreeSet with u64", size),
@@ -52,9 +50,9 @@ fn btree_set_u64(c: &mut Criterion) {
             &init_vals,
             |b, vals| {
                 b.iter(|| {
-                    let mut bs = SortedVec::new();
+                    let mut bs = SortedVectorSet::new();
                     for v in vals.iter() {
-                        bs.find(*v);
+                        bs.get(v);
                         bs.insert(*v);
                     }
                 });

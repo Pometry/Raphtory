@@ -566,7 +566,6 @@ mod graph_test {
         let expected: Vec<u64> = vec![];
         assert_eq!(actual, expected);
 
-        println!("{g:?}");
         // the outbound neighbours of 9 at time 0..4 are 1
         let actual: Vec<u64> = g.outbound_window(9, 0..4).map(|e| e.global_dst()).collect();
         assert_eq!(actual, vec![1]);
@@ -630,7 +629,6 @@ mod graph_test {
         let expected: Vec<u64> = vec![];
         assert_eq!(actual, expected);
 
-        println!("GRAPH {:?}", g);
         // the outbound_t neighbours of 9 at time 0..4 are 1
         let actual: Vec<u64> = g.outbound_window(9, 0..4).map(|e| e.global_dst()).collect();
         assert_eq!(actual, vec![1]);
@@ -762,7 +760,6 @@ mod graph_test {
             })
             .collect::<Vec<_>>();
 
-        println!("GRAPH {:?}", g);
         assert_eq!(edge_weights, vec![(&4, 12)])
     }
 
@@ -799,7 +796,6 @@ mod graph_test {
             })
             .collect::<Vec<_>>();
 
-        println!("GRAPH {:?}", g);
         assert_eq!(
             edge_weights,
             vec![
@@ -821,7 +817,6 @@ mod graph_test {
         g.add_edge_props(11, 22, 7, &vec![("amount".into(), Prop::U32(24))]);
         g.add_edge_props(11, 22, 19, &vec![("amount".into(), Prop::U32(48))]);
 
-        println!("GRAPH {:?}", g);
 
         let edge_weights = g
             .outbound_window(11, 4..8)
@@ -862,7 +857,6 @@ mod graph_test {
             g.add_edge_props(src, dst, t, &vec![("amount".into(), Prop::U64(12))]);
         }
 
-        println!("BROKEN GRAPH {g:?}")
     }
 
     #[test]
@@ -878,7 +872,6 @@ mod graph_test {
         g.add_edge_props(11, 33, 4, &vec![("weight".into(), Prop::F32(1133.0))]);
         g.add_edge_props(44, 11, 4, &vec![("weight".into(), Prop::F32(4411.0))]);
 
-        println!("GRAPH {:?}", g);
         let edge_weights_out_11 = g
             .outbound(11)
             .flat_map(|e| {
@@ -982,7 +975,6 @@ mod graph_test {
             })
             .collect::<Vec<_>>();
 
-        println!("GRAPH {:?}", g);
         assert_eq!(
             edge_weights,
             vec![(&2, Prop::F64(12.34)), (&2, Prop::Str("blerg".into()))]
@@ -1005,7 +997,6 @@ mod graph_test {
         for (src, dst, t, w) in triplets {
             g.add_edge_props(src, dst, t, &vec![("weight".to_string(), Prop::U32(w))]);
 
-            println!("GRAPH {g:?}");
         }
 
         for i in 1..4 {
