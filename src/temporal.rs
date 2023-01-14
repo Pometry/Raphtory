@@ -1,4 +1,0 @@
-
-trait Temporal<A> {
-
-}

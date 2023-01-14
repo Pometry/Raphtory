@@ -1,38 +1,7 @@
-[package]
-name = "docbrown"
+[workspace]
+members = [
+	"docbrown/core"
+]
+
+[workspace.package]
 version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-roaring="0.10"
-itertools="0.10"
-csv = "1.1.6"
-replace_with = "0.1"
-thiserror = "1"
-rand = "0.8.5"
-flate2 = "1.0"
-sorted_vector_map = "0.1"
-parking_lot = "0.12"
-flume = "0.10"
-futures = "0.3"
-
-# crossbeam = "0.8"
-# crossbeam-utils = "0.8"
-# tokio = { version = "1", features = ["full"] }
-
-[dev-dependencies]
-criterion = "0.4"
-quickcheck = "1"
-quickcheck_macros = "1"
-
-[[bench]]
-name = "tgraph_benchmarks"
-harness = false
-
-# [profile.release]
-# debug = 1
-
-# [rust]
-# debuginfo-level = 1

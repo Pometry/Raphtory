@@ -5,9 +5,7 @@ use std::thread::JoinHandle;
 use std::{env, thread};
 
 use csv::StringRecord;
-use docbrown::db::GraphDB;
-use docbrown::graph::TemporalGraph;
-use docbrown::Prop;
+use docbrown_core::{db::GraphDB, graph::TemporalGraph, Prop};
 use flume::{unbounded, Receiver, Sender};
 use itertools::Itertools;
 use replace_with::{replace_with, replace_with_or_abort, replace_with_or_abort_and_return};
@@ -104,7 +102,7 @@ impl TGraphShardActor {
         match msg {
             Msg::Batch(msgs) => {
                 for m in msgs {
-                   self.handle_message(m);
+                    self.handle_message(m);
                 }
             }
             Msg::AddVertex(v, t) => {
@@ -173,7 +171,7 @@ impl TGraphShard {
     }
 
     fn send_or_buffer_msg(&mut self, m: Msg, force: bool) {
-        if self.vertex_buf.len() < self.buf_send_size && !force{
+        if self.vertex_buf.len() < self.buf_send_size && !force {
             self.vertex_buf.push(m)
         } else {
             let send_me_buf = replace_with_or_abort_and_return(self, |_self| match _self {
