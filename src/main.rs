@@ -162,7 +162,7 @@ impl TGraphShard {
         //     s.spawn(|_| run_tgraph_shard(actor))
         // });
         // tokio::spawn(run_tgraph_shard(actor));
-        let capacity = 1024;
+        let capacity = 4 * 1024;
         Self {
             sender,
             handle,
