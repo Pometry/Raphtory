@@ -5,8 +5,8 @@
 //! # Add vertices and edges at different times and iterate over various windows
 //!
 //! ```
-//! use docbrown::graph::TemporalGraph;
-//! use docbrown::Prop;
+//! use docbrown_core::graph::TemporalGraph;
+//! use docbrown_core::Prop;
 //!
 //!
 //! let mut g = TemporalGraph::default();
