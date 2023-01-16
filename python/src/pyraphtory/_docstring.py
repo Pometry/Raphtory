@@ -79,9 +79,16 @@ line_start = start | (non_newline_whitespace.optional("") + string("*") + space.
 end = (whitespace.optional("") + string("*").at_least(1).concat() + string("/")).result("")
 line_end = newline | end
 
+
+
 # blank lines
 blank_remaining_line = non_newline_whitespace.until(line_end | eof).concat() + line_end.optional("")
 blank_line = line_start.optional("") + blank_remaining_line
+
+
+# block starts
+block_start = blank_line.optional("\n")
+block_end = (end | eof).result("") | blank_line.optional("\n")
 
 # separate by spaces
 token = non_whitespace_char.until(whitespace | line_end | eof, min=1).concat()  # consume non-whitespace characters
@@ -109,6 +116,7 @@ class_name = (string("_").many().concat()
               + (letter | decimal_digit).many().concat()
               + string("_").many().concat()
               )
+fun = string("=>").result("->")
 
 code_item = (boolean
              | string_expr
@@ -119,13 +127,26 @@ code_item = (boolean
              | method_without_brackets
              | method_or_variable_name
              | class_name
+             | fun
              )
 code_expr = (code_item | code_others).many().map(join_tokens)
 code = string("`") + code_expr + string("`")
 
 code_block_char = line_end.should_fail("not the end of line") >> any_char
 
-example = line_start >> non_newline_whitespace.many() >> string("@example") >> blank_remaining_line.result("")
+
+def example_tag(indent):
+    return line_start >> non_newline_whitespace.at_least(indent) >> string("@example") >> blank_remaining_line.result("")
+
+
+def example(indent, output_indent):
+    @generate("example")
+    def example():
+        tag = yield example_tag(indent)
+        block = yield codeblock(indent, output_indent)
+        return ""
+    return example
+
 
 def codeblock_start(indent, output_indent):
     @generate
@@ -134,6 +155,7 @@ def codeblock_start(indent, output_indent):
         s = yield non_newline_whitespace.at_least(indent).result(" "*output_indent)
         start = yield string("{{{").result(".. code-block::\n"+" "*(output_indent+3)+":dedent:\n")
         end = yield blank_remaining_line
+        blank_end = yield block_end
         return s + start + end
     return parser
 
@@ -141,19 +163,21 @@ def codeblock_start(indent, output_indent):
 def codeblock_end(indent=0):
     return line_start >> non_newline_whitespace.at_least(indent).concat() + string("}}}").result("\n") + blank_remaining_line
 
+
 def codeblock_line(output_indent):
     return line_start.result(" "*output_indent) + (code_item | code_block_char).many().concat() + line_end
 
 def codeblock(indent, output_indent):
     @generate("codeblock")
     def codeblock_parser():
+        blank = yield block_start
         start = yield codeblock_start(indent, output_indent)
-        lines = yield codeblock_line(output_indent+3).until(codeblock_end(indent))
+        lines = yield codeblock_line(output_indent+3).until(codeblock_end(indent)).concat()
         end = yield codeblock_end(indent)
-        return join_tokens([start] + lines + [end])
+        blank_end = yield block_end
+        return blank + start + lines + end + blank_end
 
     return codeblock_parser
-
 
 
 code_unparsed = (string("`") + any_char.until(string("`"), consume_other=True).concat()).map(report_unparsed)
@@ -265,12 +289,17 @@ def directive(name, indent, output_indent, pythonname=None):
     @generate(name)
     def directive_parser():
         result = []
-
+        blank = yield blank_line.optional("\n")
+        result.append(blank)
         leading_spaces = yield line_start >> space.at_least(indent).map(len)
-        directive_start = yield string("@" + name).result(" " * leading_spaces + f".. {pythonname}::") + remaining_line
-        result.append(directive_start)  # this picks up any remaining text in the first line
+        directive_start = yield string("@" + name).result(" " * output_indent + f".. {pythonname}::\n")
+        result.append(directive_start)
+        rest = yield non_newline_whitespace.many() >> remaining_line  # this picks up any remaining text in the first line
+        result.append(" "*(output_indent+3) + rest)
         block = yield indented_block(leading_spaces, output_indent+3)
         result.append(block)
+        blank_end = yield block_end
+        result.append(blank_end)
         return join_tokens(result)
 
     return directive_parser
@@ -281,12 +310,12 @@ def indented_blocks(indent=0, output_indent=None):
         output_indent = indent
     return alt(directive("note", indent, output_indent),
                directive("see", indent, output_indent, pythonname="seealso"),
+               example(indent, output_indent),
                codeblock(indent, output_indent)
                )
 
 
 doc_converter = alt(tparam,
-                    example,
                     field_list,
                     indented_blocks(),
                     end,
