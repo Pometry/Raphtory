@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use docbrown::lsm::LSMSet;
+use docbrown_core::lsm::LSMSet;
 use rand::{distributions::Uniform, Rng};
 use sorted_vector_map::SortedVectorSet;
 
