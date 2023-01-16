@@ -61,6 +61,7 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
             // set this node as the beginning state
             vertex.setState("taintStatus", true)
             vertex.setState("taintHistory", result)
+            vertex.setState("name", vertex.name())
             // tell all the other nodes that it interacts with, after starTime, that they are also infected
             // but also send the properties of when the infection happened
             vertex
@@ -141,13 +142,7 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
 
   override def tabularise(graph: ReducedGraphPerspective): Table =
     graph
-      .select(vertex =>
-        Row(
-                KeyPair("name", vertex.name()),
-                KeyPair("taintStatus", vertex.getStateOrElse("taintStatus", false)),
-                KeyPair("taintHistory", vertex.getStateOrElse[Any]("taintHistory", "false"))
-        )
-      )
+      .select("name","taintStatus","taintHistory")
       // filter for any that had been tainted and save to folder
       .filter(r => r.get(1) == true)
       .explode(row =>

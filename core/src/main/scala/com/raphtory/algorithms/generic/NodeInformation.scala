@@ -2,7 +2,9 @@ package com.raphtory.algorithms.generic
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
+import com.raphtory.api.analysis.table.KeyPair
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.internals.communication.SchemaProviderInstances._
 
 /**
@@ -65,13 +67,45 @@ class NodeInformation(initialID: Long, hopsAway: Int = 1) extends Generic {
     graph
       .step { vertex =>
         if (vertex.ID == initialID) {
+          vertex.setState("id", vertex.ID)
+          vertex.setState("name", vertex.name())
           vertex.setState("vertexInvolved", true)
+          val edgeInformation: Array[EdgeInfo] = vertex.edges.map { edge =>
+            EdgeInfo(
+                    edge.src.toString,
+                    edge.dst.toString,
+                    EdgeData(edge.weight(weightProperty = "Character Co-occurence", 0))
+            )
+          }.toArray
+          vertex.setState(
+                  "NodeInformation",
+                  Node(
+                          name,
+                          NodeData(vertex.ID.toString),
+                          edgeInformation
+                  )
+          )
           vertex.messageAllNeighbours(true)
         }
       }
       .iterate(
               { vertex =>
+                val edgeInformation: Array[EdgeInfo] = vertex.edges.map { edge =>
+                  EdgeInfo(
+                          edge.src.toString,
+                          edge.dst.toString,
+                          EdgeData(edge.weight(weightProperty = "Character Co-occurence", 0))
+                  )
+                }.toArray
                 vertex.setState("vertexInvolved", true)
+                vertex.setState(
+                        "NodeInformation",
+                        Node(
+                                name,
+                                NodeData(vertex.ID.toString),
+                                edgeInformation
+                        )
+                )
                 if (hopsAway > 1)
                   vertex.messageAllNeighbours(true)
               },
@@ -81,28 +115,7 @@ class NodeInformation(initialID: Long, hopsAway: Int = 1) extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .select { vertex =>
-        val vertexID                         = vertex.ID
-        val name                             = vertex.name()
-        val involved: Boolean                = vertex.getStateOrElse("vertexInvolved", false)
-        val edgeInformation: Array[EdgeInfo] = vertex.edges.map { edge =>
-          EdgeInfo(
-                  edge.src.toString,
-                  edge.dst.toString,
-                  EdgeData(edge.weight(weightProperty = "Character Co-occurence", 0))
-          )
-        }.toArray
-
-        if (involved)
-          Row(KeyPair("NodeInformation", Node(
-            name,
-            NodeData(vertexID.toString),
-            edgeInformation
-          ))
-          )
-        else
-          Row()
-      }
+      .select("NodeInformation")
       .filter(row => row.values().nonEmpty)
 }
 

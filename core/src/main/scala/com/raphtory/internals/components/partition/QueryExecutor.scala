@@ -127,7 +127,7 @@ class QueryExecutor[F[_]](
                 case DirectedView()                        => lens.viewDirected()(cb)
                 case ReversedView()                        => lens.viewReversed()(cb)
                 case ClearChain()                          => lens.clearMessages(); cb()
-                case op: Select[Vertex] @unchecked         => lens.executeSelect(op.f)(cb)
+                case op: Select @unchecked                 => lens.executeSelect(op.values: _*)(cb)
                 case op: ExplodeSelect[Vertex] @unchecked  => lens.explodeSelect(op.f)(cb)
                 case rv: ReduceView                        => lens.reduceView(rv.defaultMergeStrategy, rv.mergeStrategyMap, rv.aggregate)(cb)
                 case x                                     => throw new Exception(s"$x not handled")

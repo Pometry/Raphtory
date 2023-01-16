@@ -99,7 +99,7 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends Generi
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .select(vertex => Row(KeyPair("walks", vertex.getState[Array[ArrayBuffer[String]]]("walks"))))
+      .select("walks")
       .explode(row => row.getAs[Array[ArrayBuffer[String]]](0).map(r => Row(Seq(KeyPair("walks", r)):_*)).toList)
 }
 

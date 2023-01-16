@@ -2,6 +2,7 @@ package com.raphtory.internals.storage.pojograph
 
 import cats.effect.IO
 import com.raphtory.api.analysis.graphstate.GraphState
+import com.raphtory.api.analysis.table.KeyPair
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.RowImplementation
 import com.raphtory.api.analysis.visitor.InterlayerEdge
@@ -113,9 +114,12 @@ final private[raphtory] case class PojoGraphLens(
   def filterAtStep(superStep: Int): Unit =
     needsFiltering.set(superStep)
 
-  def executeSelect(f: Vertex => Row)(onComplete: () => Unit): Unit = {
+  def executeSelect(values: String*)(onComplete: () => Unit): Unit = {
     dataTable = vertexIterator.flatMap { vertex =>
-      f.asInstanceOf[PojoVertexBase => RowImplementation](vertex).yieldAndRelease
+      Row(values.map(value => KeyPair(value, vertex.getStateOrElse(value, "", includeProperties = true))): _*)
+        .asInstanceOf[RowImplementation]
+        .yieldAndRelease
+//      f.asInstanceOf[PojoVertexBase => RowImplementation](vertex).yieldAndRelease
     }
     onComplete()
   }

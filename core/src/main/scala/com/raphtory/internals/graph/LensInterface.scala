@@ -16,7 +16,7 @@ private[raphtory] trait LensInterface {
   def getFullGraphSize: Int
   def setFullGraphSize(size: Int): Unit
 
-  def executeSelect(f: Vertex => Row)(onComplete: () => Unit): Unit
+  def executeSelect(values: String*)(onComplete: () => Unit): Unit
 
   def executeSelect(
       f: (_, GraphState) => Row,

@@ -4,7 +4,9 @@ import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs._
 import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
-import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
+import com.raphtory.api.analysis.table.KeyPair
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.internals.communication.SchemaProviderInstances._
 
 import scala.collection.mutable
@@ -83,6 +85,7 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
         )
       }
       .step { (v, state) =>
+        v.setState("name", v.name())
         // Star Motifs
         val mc                  = new StarMotifCounter(v.ID, v.neighbours.filter(_ != v.ID))
         // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
@@ -213,6 +216,16 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
             state("triCounts") += mc.getCounts
           }
         }
+        v.setState("name", v.name())
+        v.setState("starCountsPretty", getStarCountsPretty(v.getState[Array[Int]]("starCounts")))
+        v.setState("twoNodeCounts", get2NodeCountsWithoutRepeats(v.getState[Array[Int]]("twoNodeCounts")))
+        v.setState("triCounts", getTriCountsPretty(v.getState[Array[Int]]("triCounts")))
+        v.setState(
+                "nonPrettyMotifResults",
+                (v.getState[Array[Int]]("starCounts") ++
+                  v.getState[Array[Int]]("twoNodeCounts") ++ v.getState[Array[Int]]("triCounts"))
+                  .mkString("(", ";", ")")
+        )
       }
   }
 
@@ -224,36 +237,29 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
   override def tabularise(graph: ReducedGraphPerspective): Table =
     if (!graphWide)
       if (prettyPrint)
-        graph.select(vertex =>
-          Row(
-                  KeyPair("name", vertex.name),
-                  KeyPair("starCounts", getStarCountsPretty(vertex.getState[Array[Int]]("starCounts"))),
-                  KeyPair("twoNodeCounts",get2NodeCountsWithoutRepeats(vertex.getState[Array[Int]]("twoNodeCounts"))),
-                  KeyPair("triCounts", getTriCountsPretty(vertex.getState[Array[Int]]("triCounts")))
-          )
-        )
+        graph.select("name", "starCounts", "twoNodeCounts", "triCounts")
       else
-        graph.select(vertex =>
-          Row(
-                  KeyPair("name", vertex.name),
-                  KeyPair("motifs", (vertex.getState[Array[Int]]("starCounts") ++ vertex.getState[Array[Int]]("twoNodeCounts") ++ vertex
-                    .getState[Array[Int]]("triCounts")).mkString("(", ";", ")")
-          )
-        ))
+        graph.select("name", "nonPrettyMotifResults")
     else if (prettyPrint)
       graph.globalSelect(state =>
         Row(
                 KeyPair("starCounts", getStarCountsPretty(state[Array[Long], Array[Long]]("starCounts").value)),
-                KeyPair("twoNodeCounts", get2NodeCountsWithoutRepeats(state[Array[Int], Array[Int]]("twoNodeCounts").value)),
+                KeyPair(
+                        "twoNodeCounts",
+                        get2NodeCountsWithoutRepeats(state[Array[Int], Array[Int]]("twoNodeCounts").value)
+                ),
                 KeyPair("triCounts", getTriCountsPretty(state[Array[Int], Array[Int]]("triCounts").value))
         )
       )
     else
       graph.globalSelect(state =>
         Row(
-                KeyPair("motifs", (state[Array[Long], Array[Long]]("starCounts").value ++ state[Array[Int], Array[Int]](
-                        "twoNodeCounts"
-                ).value ++ state[Array[Int], Array[Int]]("triCounts").value).mkString("(", ";", ")"))
+                KeyPair(
+                        "motifs",
+                        (state[Array[Long], Array[Long]]("starCounts").value ++ state[Array[Int], Array[Int]](
+                                "twoNodeCounts"
+                        ).value ++ state[Array[Int], Array[Int]]("triCounts").value).mkString("(", ";", ")")
+                )
         )
       )
 }

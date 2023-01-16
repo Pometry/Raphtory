@@ -78,15 +78,13 @@ class LPA[T: Numeric](
       .step { vertex =>
         val lab = rnd.nextLong()
         vertex.setState("community", lab)
+        vertex.setState("name", name)
         vertex.messageAllNeighbours((vertex.ID, lab))
       }
       .iterate(vertex => lpa(vertex, weight, tieBreaker, SP, rnd), maxIter, false)
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.select { vertex =>
-      Row(KeyPair("name", vertex.name()),KeyPair("community", vertex.getState("community"))
-      )
-    }
+    graph.select("name", "community")
   // TODO AGGREGATION STATS - See old code in old dir
 }
 

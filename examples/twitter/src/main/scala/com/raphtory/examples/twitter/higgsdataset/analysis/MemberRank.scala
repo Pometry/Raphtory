@@ -2,7 +2,9 @@ package com.raphtory.examples.twitter.higgsdataset.analysis
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
+import com.raphtory.api.analysis.table.KeyPair
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Edge
 import com.raphtory.internals.communication.SchemaProviderInstances._
 
@@ -84,6 +86,8 @@ class MemberRank() extends Generic {
         vertex.setState("negativeNewScore", negativeNewScore)
         vertex.setState("positiveRawScore", positiveRawScore)
         vertex.setState("positiveNewScore", positiveNewScore)
+        vertex.setState("name", vertex.ID)
+        vertex.setState("prlabel", vertex.getState("prlabel"))
       }
 
   /**
@@ -96,18 +100,7 @@ class MemberRank() extends Generic {
     *   6) New Positive Score
     */
   override def tabularise(graph: GraphPerspective): Table =
-    graph.select { vertex =>
-      Row(
-              KeyPair("name",vertex.getPropertyOrElse("name", vertex.ID)),
-              //a vertices page rank score
-              KeyPair("prlabel",vertex.getStateOrElse("prlabel", -1)),
-              //gets vertex states and tabularises
-              KeyPair("negativeRawScore",vertex.getStateOrElse("negativeRawScore", 0.0)),
-              KeyPair("positiveRawScore",vertex.getStateOrElse("positiveRawScore", 0.0)),
-              KeyPair("negativeNewScore",vertex.getStateOrElse("negativeNewScore", 0.0)),
-              KeyPair("positiveNewScore",vertex.getStateOrElse("positiveNewScore", 0.0))
-      )
-    }
+    graph.select("name","prlabel","negativeRawScore","negativeNewScore","positiveRawScore","positiveNewScore")
 }
 
 object MemberRank {

@@ -101,6 +101,7 @@ class MultilayerLPA(
         vertex.setState("mlpalabel", tlabels)
         val message = (vertex.ID, tlabels.map(x => (x._1, x._2)))
         vertex.messageAllNeighbours(message)
+        vertex.setState("name", vertex.name())
       }
       .iterate(
               { vertex =>
@@ -178,12 +179,7 @@ class MultilayerLPA(
 
   override def tabularise(graph: ReducedGraphPerspective): Table =
     graph
-      .select { vertex =>
-        Row(
-                KeyPair("vertexName",vertex.name()),
-                KeyPair("mlpalabel", vertex.getState("mlpalabel"))
-        )
-      }
+      .select("name","mlpalabel")
       .explode { row =>
         row
           .get(1)

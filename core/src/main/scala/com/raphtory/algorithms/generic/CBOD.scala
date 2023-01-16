@@ -61,15 +61,14 @@ class CBOD(
         val vlabel         = v.getState[Long](key = label, includeProperties = true)
         val neighborLabels = v.messageQueue[Long]
         val outlierScore   = 1 - (neighborLabels.count(_ == vlabel) / neighborLabels.length.toDouble)
+        v.setState("name", v.name())
         v.setState("outlierscore", outlierScore)
       }
 
   // extract vertex ID and outlier score for vertices with outlierscore >= threshold
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .select { vertex =>
-        Row(KeyPair("name", vertex.name()), KeyPair("outlierscore", vertex.getStateOrElse[Double]("outlierscore", 10.0)))
-      }
+      .select("name", "outlierscore")
       .filter(_.get(1).asInstanceOf[Double] >= cutoff)
 }
 

@@ -2,7 +2,9 @@ package com.raphtory.algorithms.generic.motif
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
+import com.raphtory.api.analysis.table.KeyPair
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 
 import scala.collection.mutable.ArrayBuffer
@@ -155,16 +157,17 @@ object ThreeNodeMotifs extends Generic {
           motifCounts(triangleMotifIndex(mType, eType)) += 1
         }
         vertex.setState("motifCounts", motifCounts)
+        vertex.setState("name", vertex.name())
+        vertex.setState(
+                "motifList",
+                vertex.name ++ motifCounts.zipWithIndex.map {
+                  case (motif, index) =>
+                    (index.toString, motif)
+                }.toSeq
+        )
       }
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.select { vertex =>
-      val name = KeyPair("name",vertex.name())
-      val motifList = vertex.getState[ArrayBuffer[Long]]("motifCounts").zipWithIndex.map { case (motif, index) =>
-        KeyPair(index.toString, motif)
-      }
-      val row = ArrayBuffer[KeyPair](name)++motifList
-      Row(row.toSeq: _*)
-      }
+    graph.select("name", "motifList")
 
 }

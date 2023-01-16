@@ -3,7 +3,9 @@ package com.raphtory.algorithms.generic.community
 import com.raphtory.algorithms.generic.community.SLPA.Rule
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
+import com.raphtory.api.analysis.table.KeyPair
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.internals.communication.SchemaProviderInstances._
 import scala.collection.mutable
 import scala.util.Random
@@ -66,9 +68,9 @@ class SLPA(iterNumber: Int = 50, speakerRule: Rule, listenerRule: Rule) extends 
         // Initialise vertex memory
         vertex =>
           import vertex._
-          val memory = mutable.Queue(vertex.ID)
+          val memory  = mutable.Queue(vertex.ID)
           vertex.setState("memory", memory)
-
+          vertex.setState("name", vertex.name())
           val message = speakerRule.chooseLabel(memory)
           vertex.messageAllNeighbours(message)
       }
@@ -88,10 +90,7 @@ class SLPA(iterNumber: Int = 50, speakerRule: Rule, listenerRule: Rule) extends 
       )
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.select { vertex =>
-      val memory = vertex.getState[mutable.Queue[Long]]("memory")
-      Row(KeyPair("name", vertex.name()), KeyPair("memory", "[" + memory.mkString(" ") + "]"))
-    }
+    graph.select("name", "memory")
 }
 
 object SLPA {

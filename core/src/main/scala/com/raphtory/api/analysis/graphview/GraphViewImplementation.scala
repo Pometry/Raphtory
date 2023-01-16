@@ -63,7 +63,7 @@ final private[raphtory] case class IterateWithGraph[V <: Vertex](
     executeMessagedOnly: Boolean
 ) extends GlobalGraphFunction
 
-final private[raphtory] case class Select[V <: Vertex](f: V => Row) extends TabularisingGraphFunction
+final private[raphtory] case class Select(values: String*) extends TabularisingGraphFunction
 
 final private[raphtory] case class SelectWithGraph(
     f: (_, GraphState) => Row
@@ -187,9 +187,10 @@ private[api] trait GraphViewImplementation[
       executeMessagedOnly: Boolean
   ): G = addFunction(IterateWithGraph(f, iterations, executeMessagedOnly))
 
-  override def select(f: V => Row): Table =
-    addSelect(Select(f))
+  override def select(values: String*): Table =
+    addSelect(Select(values: _*))
 
+//change this
   override def select(f: (V, GraphState) => Row): Table =
     addSelect(SelectWithGraph(f))
 

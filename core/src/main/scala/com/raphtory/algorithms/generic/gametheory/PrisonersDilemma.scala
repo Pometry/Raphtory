@@ -85,6 +85,7 @@ class PrisonersDilemma(
       vertex.setState("cooperationHistory", Queue(cooperationStatus))
       vertex.messageAllNeighbours(cooperationStatus)
       vertex.setState("step", PLAYSTEP)
+      vertex.setState("name", vertex.name())
     }
 
     graph.iterate(
@@ -133,10 +134,7 @@ class PrisonersDilemma(
   }
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.select { vertex =>
-      val history = vertex.getState[mutable.Queue[Int]]("cooperationHistory")
-      Row(KeyPair("name",vertex.name()), KeyPair("cooperationHistory", "[" + history.mkString(" ") + "]"))
-    }
+    graph.select("name","cooperationHistory")
 }
 
 object PrisonersDilemma {

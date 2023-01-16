@@ -161,8 +161,8 @@ abstract class AbstractGraphLens(
     onComplete()
   }
 
-  override def executeSelect(f: Vertex => Row)(onComplete: () => Unit): Unit =
-    explodeSelect(v => List(f(v)))(onComplete)
+//  override def executeSelect(values: String*)(onComplete: () => Unit): Unit =
+//    explodeSelect(v => List(f(v)))(onComplete)
 
   override def reduceView(
       defaultMergeStrategy: Option[PropertyMerge[_, _]],

@@ -137,12 +137,7 @@ class TaintTrackingWithHistory(startTime: Long, infectedNodes: Set[String], stop
 
   override def tabularise(graph: ReducedGraphPerspective): Table =
     graph
-      .select(vertex =>
-        Row(KeyPair("address",vertex.getPropertyOrElse("address", "")),
-          KeyPair("taintStatus", vertex.getStateOrElse("taintStatus", false)),
-          KeyPair("taintTransactions", vertex.getStateOrElse[Any]("taintTransactions", "false"))
-        )
-      )
+      .select("address","taintStatus","taintTransactions")
       // filter for any that had been tainted and save to folder
       .filter(r => r.get(1) == true)
       .explode(row =>

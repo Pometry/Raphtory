@@ -51,6 +51,7 @@ object AdjPlus extends Generic {
         .map(message => message._1)
         .toArray[vertex.IDType]
       vertex.setState("adjPlus", adj)
+      vertex.setState("vertexName", vertex.name())
     }
 
   override def tabularise(graph: GraphPerspective): Table =
@@ -62,6 +63,6 @@ object AdjPlus extends Generic {
         adj.foreach(a => vertex.messageVertex(a, vertex.ID))
       }
       .step(vertex => vertex.messageQueue[vertex.IDType].foreach(v => vertex.messageVertex(v, vertex.name())))
-      .select(vertex => Row(KeyPair("vertexName", vertex.name()), KeyPair("adjPlus", vertex.messageQueue[String])))
+      .select("vertexName", "adjPlus")
       .explode(row => row.getAs[Iterable[String]](1).map(v => Row(KeyPair("adjPlus", row.get(0)), KeyPair("v", v))))
 }

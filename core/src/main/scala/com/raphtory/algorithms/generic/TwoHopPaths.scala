@@ -6,7 +6,9 @@ import com.raphtory.algorithms.generic.TwoHopPaths.RequestSecondHop
 import com.raphtory.algorithms.generic.TwoHopPaths.Response
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
+import com.raphtory.api.analysis.table.KeyPair
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.internals.communication.SchemaProviderInstances._
 
 import scala.collection.mutable.ArrayBuffer
@@ -78,6 +80,7 @@ class TwoHopPaths(seeds: Set[String] = Set[String]()) extends Generic {
                                 "twoHopPaths",
                                 ArrayBuffer[Array[String]]()
                         )
+                        vertex.setState("name", vertex.name())
                         paths.append(Array[String](firstHop, secondHop))
                     }
                 }
@@ -88,16 +91,14 @@ class TwoHopPaths(seeds: Set[String] = Set[String]()) extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .select(vertex =>
-        Row(KeyPair("name", vertex.name()),
-            KeyPair("paths", vertex.getStateOrElse[ArrayBuffer[Array[String]]]("twoHopPaths", ArrayBuffer[Array[String]]()))
-        )
-      )
+      .select("name", "twoHopPaths")
       .explode(row =>
         row
           .getAs[ArrayBuffer[Array[String]]](1)
           .toList
-          .map(hops => Row(KeyPair("vertexOne", row.get(0)), KeyPair("vertexTwo", hops(0)), KeyPair("vertexThree", hops(1))))
+          .map(hops =>
+            Row(KeyPair("vertexOne", row.get(0)), KeyPair("vertexTwo", hops(0)), KeyPair("vertexThree", hops(1)))
+          )
       )
 }
 

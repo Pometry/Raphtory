@@ -5,7 +5,9 @@ import com.raphtory.algorithms.generic.dynamic.Node2VecWalk.StoreMessage
 import com.raphtory.algorithms.generic.dynamic.Node2VecWalk.WalkMessage
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
+import com.raphtory.api.analysis.table.KeyPair
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.internals.communication.SchemaProviderInstances._
 
 import scala.reflect.ClassTag
@@ -120,14 +122,12 @@ class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) exten
           case StoreMessage(node)   => vertex.getState[ArrayBuffer[String]]("walk").append(node)
           case WalkMessage(_, _, _) =>
         }
+        val rowSeq = Seq(vertex.getState[ArrayBuffer[String]]("walk")): _*
+        vertex.setState("walkSequence", rowSeq)
       }
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.select {
-       vertex =>
-        val rowSeq = Seq(KeyPair("walk", vertex.getState[ArrayBuffer[String]]("walk")))
-        Row(rowSeq: _*)
-    }
+    graph.select("walkSequence")
 
 }
 
