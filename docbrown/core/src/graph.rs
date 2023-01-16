@@ -42,7 +42,6 @@ impl TemporalGraph {
         vid: usize,
         d: Direction,
     ) -> Box<dyn Iterator<Item = (&usize, AdjEdge)> + '_> {
-
         match &self.index[vid] {
             Adj::List { out, into, .. } => {
                 match d {
@@ -118,11 +117,11 @@ impl TemporalGraph {
         self.logical_to_physical.len()
     }
 
-    pub fn add_vertex(&mut self, v: u64, t: u64) -> &mut Self {
-        self.add_vertex_props(v, t, vec![])
+    pub fn add_vertex(&mut self, v: u64, t: u64) {
+        self.add_vertex_props(v, t, &vec![])
     }
 
-    pub fn add_vertex_props(&mut self, v: u64, t: u64, props: Vec<Prop>) -> &mut Self {
+    pub fn add_vertex_props(&mut self, v: u64, t: u64, props: &Vec<Prop>) {
         match self.logical_to_physical.get(&v) {
             None => {
                 let physical_id: usize = self.index.len();
@@ -145,8 +144,6 @@ impl TemporalGraph {
                     .or_insert_with(|| BitSet::one(*pid));
             }
         }
-
-        self
     }
 
     pub fn iter_vertices(&self) -> Box<dyn Iterator<Item = VertexView<'_, Self>> + '_> {
@@ -185,7 +182,7 @@ impl TemporalGraph {
         Box::new(iter)
     }
 
-    pub fn add_edge(&mut self, src: u64, dst: u64, t: u64) -> &mut Self {
+    pub fn add_edge(&mut self, src: u64, dst: u64, t: u64) {
         self.add_edge_props(src, dst, t, &vec![])
     }
 
@@ -195,7 +192,7 @@ impl TemporalGraph {
         dst: u64,
         t: u64,
         props: &Vec<(String, Prop)>,
-    ) -> &mut Self {
+    ) {
         self.add_vertex(src, t);
         let src_pid = self.logical_to_physical[&src];
         let src_edge_meta_id =
@@ -210,7 +207,7 @@ impl TemporalGraph {
         dst: u64, // we are on the destination shard
         t: u64,
         props: &Vec<(String, Prop)>,
-    ) -> &mut Self {
+    ) {
         self.add_vertex(dst, t);
 
         let dst_pid = self.logical_to_physical[&dst];
@@ -221,12 +218,7 @@ impl TemporalGraph {
         self.update_edge_props(dst_edge_meta_id, t, props)
     }
 
-    fn update_edge_props(
-        &mut self,
-        src_edge_meta_id: usize,
-        t: u64,
-        props: &Vec<(String, Prop)>,
-    ) -> &mut Self {
+    fn update_edge_props(&mut self, src_edge_meta_id: usize, t: u64, props: &Vec<(String, Prop)>) {
         for (name, prop) in props {
             // find where do we slot this property in the temporal vec for each edge
             let property_id = if let Some(prop_id) = self.prop_ids.get(name) {
@@ -247,18 +239,12 @@ impl TemporalGraph {
                 self.edge_meta.insert(src_edge_meta_id, prop_cell)
             }
         }
-        self
     }
 
-    pub fn add_edge_props(
-        &mut self,
-        src: u64,
-        dst: u64,
-        t: u64,
-        props: &Vec<(String, Prop)>,
-    ) -> &mut Self {
+    pub fn add_edge_props(&mut self, src: u64, dst: u64, t: u64, props: &Vec<(String, Prop)>) {
         // mark the times of the vertices at t
-        self.add_vertex(src, t).add_vertex(dst, t);
+        self.add_vertex(src, t);
+        self.add_vertex(dst, t);
 
         let src_pid = self.logical_to_physical[&src];
         let dst_pid = self.logical_to_physical[&dst];
@@ -817,7 +803,6 @@ mod graph_test {
         g.add_edge_props(11, 22, 7, &vec![("amount".into(), Prop::U32(24))]);
         g.add_edge_props(11, 22, 19, &vec![("amount".into(), Prop::U32(48))]);
 
-
         let edge_weights = g
             .outbound_window(11, 4..8)
             .flat_map(|e| {
@@ -856,7 +841,6 @@ mod graph_test {
             g.add_vertex(dst, t);
             g.add_edge_props(src, dst, t, &vec![("amount".into(), Prop::U64(12))]);
         }
-
     }
 
     #[test]
@@ -996,7 +980,6 @@ mod graph_test {
 
         for (src, dst, t, w) in triplets {
             g.add_edge_props(src, dst, t, &vec![("weight".to_string(), Prop::U32(w))]);
-
         }
 
         for i in 1..4 {
