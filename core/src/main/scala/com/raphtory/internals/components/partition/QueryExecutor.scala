@@ -101,7 +101,7 @@ class QueryExecutor[F[_]](
   def writePerspective(perspective: Perspective): F[Empty] =
     timed(s"Writing results from table to sink ${query.sink.get.getClass.getSimpleName}") { // TODO unsafe call to get
       withLens { lens =>
-        F.bracket(F.delay(sinkExecutor.setupPerspective(perspective))) { _ =>
+        F.bracket(F.delay(sinkExecutor.setupPerspective(perspective, query.header))) { _ =>
           F.blocking(lens.writeDataTable(row => sinkExecutor.threadSafeWriteRow(row))(cb))
         }(_ => F.delay(sinkExecutor.closePerspective()))
           .map(_ => Empty())

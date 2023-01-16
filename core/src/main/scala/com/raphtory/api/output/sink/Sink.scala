@@ -45,7 +45,7 @@ trait SinkExecutor {
     * handle it if needed.
     * @param perspective the perspective to be written out
     */
-  def setupPerspective(perspective: Perspective): Unit
+  def setupPerspective(perspective: Perspective, header: List[String]): Unit
 
   /** Writes out one row.
     * The implementation of this method doesn't need to be thread-safe as it is wrapped by `threadSafeWriteRow` to

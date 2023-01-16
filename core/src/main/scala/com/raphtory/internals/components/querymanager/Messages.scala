@@ -24,6 +24,7 @@ private[raphtory] case class Query(
     windows: Array[Interval] = Array(),
     windowAlignment: Alignment.Value = Alignment.START,
     operations: List[Operation] = List(),
+    header: List[String],
     earliestSeen: Long = Long.MaxValue,
     latestSeen: Long = Long.MinValue,
     sink: Option[Sink] = None,

@@ -61,10 +61,11 @@ final private[raphtory] case class PojoGraphLens(
 ) extends LensInterface {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val voteCount         = new AtomicInteger(0)
-  private val vertexCount       = new AtomicInteger(0)
-  private var fullGraphSize     = 0
-  private var exploded: Boolean = false
+  private val voteCount            = new AtomicInteger(0)
+  private val vertexCount          = new AtomicInteger(0)
+  private var fullGraphSize        = 0
+  private var exploded: Boolean    = false
+  private var header: List[String] = List()
 
   val chunkSize = conf.getInt("raphtory.partitions.chunkSize")
 

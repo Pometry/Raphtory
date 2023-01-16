@@ -188,7 +188,10 @@ private[api] trait GraphViewImplementation[
   ): G = addFunction(IterateWithGraph(f, iterations, executeMessagedOnly))
 
   override def select(values: String*): Table =
-    addSelect(Select(values: _*))
+    new TableImplementation(
+            query.copy(header = values.toList, operations = query.operations :+ Select(values: _*)),
+            querySender
+    )
 
 //change this
   override def select(f: (V, GraphState) => Row): Table =

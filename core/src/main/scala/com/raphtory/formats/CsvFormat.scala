@@ -28,7 +28,7 @@ import com.typesafe.config.Config
   * 10,5,id3,24
   * }}}
   */
-case class CsvFormat(delimiter: String = ",") extends Format {
+case class CsvFormat(delimiter: String = ",", header: Boolean = false) extends Format {
   override def defaultDelimiter: String = "\n"
   override def defaultExtension: String = "csv"
 
@@ -39,8 +39,10 @@ case class CsvFormat(delimiter: String = ",") extends Format {
       config: Config
   ): SinkExecutor =
     new SinkExecutor {
-      var currentPerspective: Perspective = _
-      private val mapper                  = JsonMapper.builder().addModule(DefaultScalaModule).build()
+      private var currentHeader: List[String]     = _
+      private var currentPerspective: Perspective = _
+      private var firstRow                        = true
+      private val mapper                          = JsonMapper.builder().addModule(DefaultScalaModule).build()
 
       private def ensureQuoted(str: String): String =
         if (
@@ -59,10 +61,16 @@ case class CsvFormat(delimiter: String = ",") extends Format {
             ensureQuoted(mapper.writeValueAsString(v))
         }
 
-      override def setupPerspective(perspective: Perspective): Unit =
+      override def setupPerspective(perspective: Perspective, header: List[String]): Unit = {
+        currentHeader = header
         currentPerspective = perspective
+      }
 
       override protected def writeRow(row: Row): Unit = {
+        if (firstRow) {
+          connector.writeHeader(currentHeader.mkString(delimiter))
+          firstRow = false
+        }
         val value = currentPerspective.window match {
           case Some(w) =>
             s"${currentPerspective.timestampAsString}$delimiter$w$delimiter${row.values().map(csvValue).mkString(delimiter)}"
@@ -75,6 +83,6 @@ case class CsvFormat(delimiter: String = ",") extends Format {
 
       override def closePerspective(): Unit = {}
 
-      override def close(): Unit                                    = connector.close()
+      override def close(): Unit                 = connector.close()
     }
 }
