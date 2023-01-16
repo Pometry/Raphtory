@@ -33,7 +33,7 @@ impl GraphDB {
         let shard_id = self.shard_from_global_vid(v);
 
         if let Ok(mut shard) = self.shards[shard_id].lock() {
-            shard.add_vertex_props(v, t, props);
+            shard.add_vertex_props(v, t, &props);
             Ok(())
         } else {
             Err(GraphError::LockError())

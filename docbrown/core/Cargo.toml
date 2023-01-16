@@ -15,7 +15,6 @@ thiserror = "1"
 rand = "0.8.5"
 flate2 = "1.0"
 sorted_vector_map = "0.1"
-parking_lot = "0.12"
 flume = "0.10"
 futures = "0.3"
 
