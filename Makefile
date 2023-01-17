@@ -161,7 +161,7 @@ local-pulsar: version
 
 .PHONY: scala-test
 scala-test:
-	export RAPHTORY_CORE_LOG="INFO" && sbt test
+	export RAPHTORY_CORE_LOG="INFO" && sbt -J-verbose:gc test
 
 .PHONY: scala-remote-test
 scala-remote-test:
