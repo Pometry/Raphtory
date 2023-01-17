@@ -4,7 +4,6 @@ import cats.effect.IO
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.table.KeyPair
 import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.RowImplementation
 import com.raphtory.api.analysis.visitor.InterlayerEdge
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
@@ -61,11 +60,10 @@ final private[raphtory] case class PojoGraphLens(
 ) extends LensInterface {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
-  private val voteCount            = new AtomicInteger(0)
-  private val vertexCount          = new AtomicInteger(0)
-  private var fullGraphSize        = 0
-  private var exploded: Boolean    = false
-  private var header: List[String] = List()
+  private val voteCount         = new AtomicInteger(0)
+  private val vertexCount       = new AtomicInteger(0)
+  private var fullGraphSize     = 0
+  private var exploded: Boolean = false
 
   val chunkSize = conf.getInt("raphtory.partitions.chunkSize")
 
@@ -110,21 +108,18 @@ final private[raphtory] case class PojoGraphLens(
 
   def localNodeCount: Int = vertices.size
 
-  private var dataTable: Iterator[RowImplementation] = Iterator()
+  private var dataTable: Iterator[Row] = Iterator()
 
   def filterAtStep(superStep: Int): Unit =
     needsFiltering.set(superStep)
 
   def executeSelect(values: Seq[String], defaults: Map[String, Any])(onComplete: () => Unit): Unit = {
-    dataTable = vertexIterator.flatMap { vertex =>
+    dataTable = vertexIterator.map { vertex =>
       Row(
               values.map(value =>
                 KeyPair(value, vertex.getStateOrElse(value, defaults.getOrElse(value, ""), includeProperties = true))
               ): _*
       )
-        .asInstanceOf[RowImplementation]
-        .yieldAndRelease
-//      f.asInstanceOf[PojoVertexBase => RowImplementation](vertex).yieldAndRelease
     }
     onComplete()
   }
@@ -133,9 +128,7 @@ final private[raphtory] case class PojoGraphLens(
       f: (_, GraphState) => Row,
       graphState: GraphState
   )(onComplete: () => Unit): Unit = {
-    dataTable = vertexIterator.flatMap { vertex =>
-      f.asInstanceOf[(PojoVertexBase, GraphState) => RowImplementation](vertex, graphState).yieldAndRelease
-    }
+    dataTable = vertexIterator.map(vertex => f.asInstanceOf[(PojoVertexBase, GraphState) => Row](vertex, graphState))
     onComplete()
   }
 
@@ -144,25 +137,20 @@ final private[raphtory] case class PojoGraphLens(
       graphState: GraphState
   )(onComplete: () => Unit): Unit = {
     if (partitionID == 0)
-      dataTable = Iterator
-        .fill(1)(f(graphState).asInstanceOf[RowImplementation])
-        .flatMap(_.yieldAndRelease)
+      dataTable = Iterator.fill(1)(f(graphState))
     onComplete()
   }
 
   def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: () => Unit): Unit = {
-    dataTable = vertexIterator
-      .flatMap(f.asInstanceOf[PojoVertexBase => IterableOnce[RowImplementation]])
-      .flatMap(_.yieldAndRelease)
+    dataTable = vertexIterator.flatMap(f.asInstanceOf[PojoVertexBase => IterableOnce[Row]])
     onComplete()
   }
 
   def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row], graphState: GraphState)(
       onComplete: () => Unit
   ): Unit = {
-    dataTable = vertexIterator
-      .flatMap(v => f.asInstanceOf[(PojoVertexBase, GraphState) => IterableOnce[RowImplementation]](v, graphState))
-      .flatMap(_.yieldAndRelease)
+    dataTable =
+      vertexIterator.flatMap(v => f.asInstanceOf[(PojoVertexBase, GraphState) => IterableOnce[Row]](v, graphState))
     onComplete()
   }
 
@@ -172,7 +160,7 @@ final private[raphtory] case class PojoGraphLens(
   }
 
   def explodeTable(f: Row => IterableOnce[Row])(onComplete: () => Unit): Unit = {
-    dataTable = dataTable.flatMap(_.explode(f))
+    dataTable = dataTable.flatMap(f)
     onComplete()
   }
 

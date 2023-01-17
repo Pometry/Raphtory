@@ -2,7 +2,6 @@ package com.raphtory.internals.storage.arrow
 
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.RowImplementation
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.api.analysis.visitor.InterlayerEdge
 import com.raphtory.api.analysis.visitor.Vertex
@@ -37,7 +36,7 @@ abstract class AbstractGraphLens(
   protected val graphState: GraphExecutionState =
     GraphExecutionState(partitionID(), superStep, messageSender, storage.asGlobal, votingMachine, start, end)
 
-  private var dataTable: View[Row] = View.empty[RowImplementation]
+  private var dataTable: View[Row] = View.empty[Row]
 
   var t1: Long = System.currentTimeMillis()
 
@@ -137,9 +136,7 @@ abstract class AbstractGraphLens(
 
   override def executeSelect(f: GraphState => Row, graphState: GraphState)(onComplete: () => Unit): Unit = {
     if (partitionID == 0)
-      dataTable = View
-        .fromIteratorProvider(() => Iterator.fill(1)(f(graphState).asInstanceOf[RowImplementation]))
-        .flatMap(_.yieldAndRelease)
+      dataTable = View.fromIteratorProvider(() => Iterator.fill(1)(f(graphState)))
     onComplete()
   }
 
@@ -148,18 +145,11 @@ abstract class AbstractGraphLens(
     onComplete()
   }
 
-  override def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: () => Unit): Unit = {
-    dataTable = vertices.flatMap(f).flatMap(row => row.asInstanceOf[RowImplementation].yieldAndRelease)
-    onComplete()
-  }
+  override def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: () => Unit): Unit = ???
 
   override def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row], graphState: GraphState)(
       onComplete: () => Unit
-  ): Unit = {
-    dataTable =
-      vertices.flatMap(v => f(v, graphState)).flatMap(row => row.asInstanceOf[RowImplementation].yieldAndRelease)
-    onComplete()
-  }
+  ): Unit = ???
 
 //  override def executeSelect(values: String*)(onComplete: () => Unit): Unit =
 //    explodeSelect(v => List(f(v)))(onComplete)

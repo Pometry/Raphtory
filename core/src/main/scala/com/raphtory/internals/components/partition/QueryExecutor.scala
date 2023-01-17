@@ -91,8 +91,7 @@ class QueryExecutor[F[_]](
       withLens { lens =>
         for {
           buffer <- F.delay(ArrayBuffer[Row]())
-          // TODO Using kryo here is a hack so we get rows out of the row pool. Maybe we could consider if the pool mechanism is really necessary as it causes undesired behavior as in this case
-          _      <- F.blocking(lens.writeDataTable(row => buffer.addOne(kryo.deserialise[Row](kryo.serialise(row))))(cb))
+          _      <- F.blocking(lens.writeDataTable(row => buffer.addOne(row))(cb))
           result <- F.delay(PartitionResult(buffer.toSeq))
         } yield result
       }
