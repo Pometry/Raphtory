@@ -18,7 +18,7 @@ class GraphBuilderF[F[_], T](builder: GraphBuilder[T])(implicit F: Async[F]) {
   def parseUpdates(chunk: Chunk[T], globalIndex: Ref[F, Long]): F[Seq[GraphUpdate]] =
     for {
       b <- F.delay(new mutable.ArrayBuffer[GraphUpdate](chunk.size))
-      cb = UnsafeGraphCallback(-1, b)
+      cb = UnsafeGraphCallback(index = -1, b)
       _ <- globalIndex.getAndUpdate(_ + chunk.size).map { index =>
              // we reserved the chunk size in the global index
              cb.index = index
