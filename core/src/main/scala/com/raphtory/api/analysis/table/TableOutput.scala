@@ -9,9 +9,12 @@ import com.typesafe.config.Config
 case class TableOutput private (
     jobID: String,
     perspective: Perspective,
+    header: List[String],
     rows: Array[Row],
     private val conf: Config
 ) extends TableBase {
+
+  override def withDefaults(defaults: Map[String, Any]): TableOutput = ???
 
   /** Add a filter operation to table
     *
@@ -38,7 +41,7 @@ case class TableOutput private (
   override def writeTo(sink: Sink, jobName: String): WriteProgressTracker = {
     // TODO: Make this actually asynchronous
     val executor = sink.executor(jobName, -1, conf)
-    executor.setupPerspective(perspective)
+    executor.setupPerspective(perspective, header)
     rows.foreach(executor.threadSafeWriteRow)
     executor.closePerspective()
     executor.close()

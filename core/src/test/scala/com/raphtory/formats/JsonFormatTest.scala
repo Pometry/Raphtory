@@ -2,7 +2,8 @@ package com.raphtory.formats
 
 import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import com.raphtory.api.analysis.table.{KeyPair, Row}
+import com.raphtory.api.analysis.table.KeyPair
+import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.output.format.Format
 import com.raphtory.api.time.DiscreteInterval
 import com.raphtory.internals.graph.Perspective
@@ -15,7 +16,10 @@ class JsonFormatTest extends FunSuite {
   private val reader      = JsonMapper.builder().addModule(DefaultScalaModule).build().reader()
 
   private val sampleTable = List(
-          (Perspective(100, None, 0, 100, -1, formatAsDate = false), List(Row(KeyPair("id1", 34)), Row(KeyPair("id2", 24)))),
+          (
+                  Perspective(100, None, 0, 100, -1, formatAsDate = false),
+                  List(Row(KeyPair("id1", 34)), Row(KeyPair("id2", 24)))
+          ),
           (
                   Perspective(200, Some(DiscreteInterval(200)), 0, 200, -1, formatAsDate = false),
                   List(Row(KeyPair("id1", 56)), Row(KeyPair("id2", 67)))
@@ -86,10 +90,11 @@ class JsonFormatTest extends FunSuite {
             partitionID,
             config
     )
+    val header   = List("row")
 
     table foreach {
       case (perspective, rows) =>
-        executor.setupPerspective(perspective)
+        executor.setupPerspective(perspective, header)
         rows foreach (row => executor.threadSafeWriteRow(row))
         executor.closePerspective()
     }

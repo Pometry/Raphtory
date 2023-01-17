@@ -10,7 +10,8 @@ private[raphtory] case class TableOutputSink(graphID: String) extends Sink {
 
   override def executor(jobID: String, partitionID: Int, config: Config): SinkExecutor =
     new SinkExecutor { // We don't use the sink interface to return rows anymore, we do it directly
-      override def setupPerspective(perspective: Perspective): Unit = {}
+
+      override def setupPerspective(perspective: Perspective, header: List[String]): Unit = {}
       override protected def writeRow(row: Row): Unit = {}
       override def closePerspective(): Unit = {}
       override def close(): Unit = {}

@@ -94,7 +94,8 @@ case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
 
       private var currentPerspective: Perspective = _
 
-      override def setupPerspective(perspective: Perspective): Unit =
+      //TODO: add implementation for header
+      override def setupPerspective(perspective: Perspective, header: List[String]): Unit =
         currentPerspective = perspective
 
       override protected def writeRow(row: Row): Unit = {
@@ -110,7 +111,7 @@ case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
       }
 
       override def closePerspective(): Unit = {}
-      override def close(): Unit                                    = connector.close()
+      override def close(): Unit                                                          = connector.close()
     }
 
   private def globalLevelExecutor(
@@ -132,7 +133,8 @@ case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
       generator.writeArrayFieldStart("perspectives")
       flush(generator, stringWriter, connector)
 
-      override def setupPerspective(perspective: Perspective): Unit = {
+      //TODO: add implementation for header
+      override def setupPerspective(perspective: Perspective, header: List[String]): Unit = {
         generator.writeStartObject()
         printPerspectiveProperties(generator, perspective)
         generator.writeArrayFieldStart("rows")

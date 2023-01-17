@@ -42,17 +42,15 @@ class TemporalNodeList(
     defaults: Map[String, Any] = Map.empty[String, Any]
 ) extends Generic {
 
+  private val columns = List("baseName", "timestamp") ++ properties
   override def tabularise(graph: GraphPerspective): Table =
     graph.multilayerView
       .step { vertex =>
         vertex.setState("baseName", vertex.baseName)
         vertex.setState("timestamp", vertex.timestamp)
-        val row = properties
-          .map(key => vertex.getStateOrElse(key, defaults.getOrElse(key, None), includeProperties = true))
 
-        vertex.setState("row", row)
       }
-      .select("baseName", "timestamp")
+      .select(columns: _*)
 }
 
 object TemporalNodeList {

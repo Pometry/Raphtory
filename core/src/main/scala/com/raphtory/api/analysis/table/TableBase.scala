@@ -6,6 +6,8 @@ import com.raphtory.api.progresstracker.ProgressTracker
 import com.raphtory.sinks.FileSink
 
 trait TableBase {
+
+  def withDefaults(defaults: Map[String, Any]): TableBase
   def filter(f: Row => Boolean): TableBase
 
   /** Explode table rows

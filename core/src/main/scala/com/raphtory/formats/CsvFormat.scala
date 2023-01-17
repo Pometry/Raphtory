@@ -67,7 +67,7 @@ case class CsvFormat(delimiter: String = ",", header: Boolean = false) extends F
       }
 
       override protected def writeRow(row: Row): Unit = {
-        if (firstRow) {
+        if (header && firstRow) {
           connector.writeHeader(currentHeader.mkString(delimiter))
           firstRow = false
         }

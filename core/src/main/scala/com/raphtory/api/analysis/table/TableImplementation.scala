@@ -12,6 +12,12 @@ import scala.concurrent.duration.Duration
 
 private[api] class TableImplementation(val query: Query, private[raphtory] val querySender: QuerySender) extends Table {
 
+  override def withDefaults(defaults: Map[String, Any]): Table =
+    new TableImplementation(
+            query.copy(defaults = defaults),
+            querySender
+    )
+
   override def filter(f: Row => Boolean): Table = {
     def closurefunc(v: Row): Boolean = f(v)
     addFunction(TableFilter(closurefunc))
@@ -33,7 +39,7 @@ private[api] class TableImplementation(val query: Query, private[raphtory] val q
     submitQueryWithSink(
             TableOutputSink(querySender.graphID),
             jobName,
-            jobID => querySender.createTableOutputTracker(jobID, timeout)
+            jobID => querySender.createTableOutputTracker(jobID, timeout, query.header)
     )
       .asInstanceOf[QueryProgressTrackerWithIterator]
       .TableOutputIterator

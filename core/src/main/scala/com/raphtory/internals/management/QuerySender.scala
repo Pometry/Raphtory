@@ -114,8 +114,12 @@ private[raphtory] class QuerySender(
   def createQueryProgressTracker(jobID: String): QueryProgressTracker =
     QueryProgressTracker(graphID, jobID, config)
 
-  def createTableOutputTracker(jobID: String, timeout: Duration): QueryProgressTrackerWithIterator =
-    QueryProgressTrackerWithIterator(graphID, jobID, config, timeout)
+  def createTableOutputTracker(
+      jobID: String,
+      timeout: Duration,
+      header: List[String]
+  ): QueryProgressTrackerWithIterator =
+    QueryProgressTrackerWithIterator(graphID, jobID, config, timeout, header)
 
   def destroyGraph(force: Boolean): Unit =
     service.destroyGraph(protocol.DestroyGraph(clientID, graphID, force)).unsafeRunSync()

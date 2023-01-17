@@ -117,7 +117,11 @@ final private[raphtory] case class PojoGraphLens(
 
   def executeSelect(values: Seq[String], defaults: Map[String, Any])(onComplete: () => Unit): Unit = {
     dataTable = vertexIterator.flatMap { vertex =>
-      Row(values.map(value => KeyPair(value, vertex.getStateOrElse(value, defaults.getOrElse(value,""), includeProperties = true))): _*)
+      Row(
+              values.map(value =>
+                KeyPair(value, vertex.getStateOrElse(value, defaults.getOrElse(value, ""), includeProperties = true))
+              ): _*
+      )
         .asInstanceOf[RowImplementation]
         .yieldAndRelease
 //      f.asInstanceOf[PojoVertexBase => RowImplementation](vertex).yieldAndRelease
@@ -321,5 +325,4 @@ final private[raphtory] case class PojoGraphLens(
     vertexMap.foreach {
       case (key, vertex) => vertex.clearMessageQueue()
     }
-
 }

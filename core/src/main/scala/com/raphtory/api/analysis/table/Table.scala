@@ -16,6 +16,9 @@ final private[raphtory] case class Explode(f: Row => IterableOnce[Row]) extends 
   */
 trait Table extends TableBase {
 
+  //TODO
+  def withDefaults(defaults: Map[String, Any]): Table
+
   /** Add a filter operation to table
     * @param f function that runs once for each row (only rows for which `f ` returns `true` are kept)
     */

@@ -20,7 +20,8 @@ class QueryProgressTrackerWithIterator(
     graphID: String,
     jobID: String,
     conf: Config,
-    timeout: Duration
+    timeout: Duration,
+    header: List[String]
 ) extends QueryProgressTracker(graphID, jobID, conf) {
 
   private val logger: Logger                  = Logger(LoggerFactory.getLogger(this.getClass))
@@ -33,13 +34,13 @@ class QueryProgressTrackerWithIterator(
     msg match {
       case PerspectiveCompleted(perspective, rows, _) =>
         logger.debug(s"received message $msg")
-        completedResults.add(TableOutput(getJobId, perspective, rows.toArray, conf))
-      case _: QueryCompleted | _: QueryFailed        => // QueryCompleted or QueryFailed
+        completedResults.add(TableOutput(getJobId, perspective, header, rows.toArray, conf))
+      case _: QueryCompleted | _: QueryFailed         => // QueryCompleted or QueryFailed
         completedResults.add(msg)
-      case PerspectiveFailed(perspective, reason, _) =>
+      case PerspectiveFailed(perspective, reason, _)  =>
         logger.error(s"perspective $perspective failed: $reason")
-        completedResults.add(TableOutput(getJobId, perspective, Array.empty[Row], conf))
-      case _ =>
+        completedResults.add(TableOutput(getJobId, perspective, header, Array.empty[Row], conf))
+      case _                                          =>
         logger.error(s"unknown $msg")
     }
     super.handleQueryUpdate(msg)
@@ -111,7 +112,8 @@ object QueryProgressTrackerWithIterator {
       graphID: String,
       jobID: String,
       conf: Config,
-      timeout: Duration
+      timeout: Duration,
+      header: List[String]
   ): QueryProgressTrackerWithIterator =
-    new QueryProgressTrackerWithIterator(graphID, jobID, conf, timeout)
+    new QueryProgressTrackerWithIterator(graphID, jobID, conf, timeout, header)
 }
