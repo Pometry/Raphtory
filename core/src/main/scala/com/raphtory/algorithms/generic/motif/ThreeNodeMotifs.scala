@@ -156,15 +156,19 @@ object ThreeNodeMotifs extends Generic {
         }
         vertex.setState("motifCounts", motifCounts)
       }
-  private val columns                                      = Seq("name") ++ Seq("motifCounts")
+  private val columns                                      = Seq("name") ++ (0 until 13).map(motifCountColumn)
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
       .step { vertex =>
         val motifCounts = vertex.getState[ArrayBuffer[Long]]("motifCounts")
         vertex.setState("name", vertex.name())
-        vertex.setState("motifCounts", motifCounts)
+        motifCounts.zipWithIndex foreach {
+          case (motifCount, index) =>
+            vertex.setState(motifCountColumn(index), motifCount)
+        }
       }
       .select(columns: _*)
 
+  private def motifCountColumn(index: Int) = "mc" + index
 }
