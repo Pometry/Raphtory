@@ -8,6 +8,7 @@ import com.raphtory.api.input.Type
 import com.raphtory.internals.communication.SchemaProviderInstances._
 import com.raphtory.internals.graph.GraphAlteration.EdgeAdd
 import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
+import com.raphtory.internals.graph.GraphAlteration.VertexAdd
 
 import java.sql.ResultSet
 
@@ -39,7 +40,7 @@ case class SqlEdgeSource(
 
   private val typeCol = if (edgeType.nonEmpty) Some(edgeType.toUpperCase) else None
 
-  override protected def buildExtractor(columnTypes: Map[String, Int]): (ResultSet, Long) => GraphUpdate = {
+  override protected def buildExtractor(columnTypes: Map[String, Int]): (ResultSet, Long) => Seq[GraphUpdate] = {
     val sourceIsInteger                               = checkType(columnTypes, source, integerTypes)
     val targetIsInteger                               = checkType(columnTypes, target, integerTypes)
     val timeIsInteger                                 = checkType(columnTypes, time, integerTypes)
@@ -56,7 +57,14 @@ case class SqlEdgeSource(
       val epoch      = if (timeIsInteger) rs.getLong(3) else rs.getTimestamp(3).getTime
       val edgeType   = typeCol.map(_ => Type(rs.getString(4)))
       val properties = propertyBuilders map (_.apply(rs))
-      EdgeAdd(epoch, index, sourceId, targetId, Properties(properties: _*), edgeType)
+      val sourceAdd  =
+        if (sourceIsInteger) None
+        else Some(VertexAdd(epoch, index, sourceId, Properties(ImmutableString("name", rs.getString(1))), None))
+      val targetAdd  =
+        if (targetIsInteger) None
+        else Some(VertexAdd(epoch, index, targetId, Properties(ImmutableString("name", rs.getString(2))), None))
+      val edgeAdd    = EdgeAdd(epoch, index, sourceId, targetId, Properties(properties: _*), edgeType)
+      Seq(edgeAdd) ++ sourceAdd ++ targetAdd
     }
   }
 

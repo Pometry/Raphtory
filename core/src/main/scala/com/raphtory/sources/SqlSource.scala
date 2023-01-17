@@ -47,7 +47,7 @@ abstract class SqlSource(
                           .evalMap(index => F.delay(if (rs.next()) Some(extractor.apply(rs, index)) else None))
                           .collectWhile { case Some(updates) => updates }
                           .chunks
-                          .map(_.toVector)
+                          .map(_.toVector.flatten)
                           .onFinalize(releaseRs)
                           .pure[F]
     } yield stream
@@ -83,7 +83,7 @@ abstract class SqlSource(
 
   protected def expectedColumns: List[String]
   protected def expectedColumnTypes: Map[String, List[Int]]
-  protected def buildExtractor(columnTypes: Map[String, Int]): (ResultSet, Long) => GraphUpdate
+  protected def buildExtractor(columnTypes: Map[String, Int]): (ResultSet, Long) => Seq[GraphUpdate]
 }
 
 private[raphtory] object SqlSource {
