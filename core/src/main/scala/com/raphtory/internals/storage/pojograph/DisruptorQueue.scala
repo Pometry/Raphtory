@@ -37,7 +37,7 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
   private lazy val maybeTypes    = Array.ofDim[Option[Type]](BATCH_EDGES_SIZE)
   private lazy val edgeToCreates = Array.ofDim[EdgeToCreate](BATCH_EDGES_SIZE)
 
-  private val N_LOAD_THREADS = Runtime.getRuntime.availableProcessors
+  private val N_LOAD_THREADS: Int = 1
   private val QUEUE_SIZE     = 1024 * 32 * 2
 
   private val arrOfMapOfVertices = Array.fill(N_LOAD_THREADS)(new Long2ObjectOpenHashMap[PojoVertex]())
