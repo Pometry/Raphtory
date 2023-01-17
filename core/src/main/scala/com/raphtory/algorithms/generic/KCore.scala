@@ -70,7 +70,6 @@ class KCore(k: Int, resetStates: Boolean = true) extends Generic {
           val degree = vertex.degree
           if (degree < k)                  // the node dies, can't be in the k-core
             vertex.messageAllNeighbours(0) // here messaging 0 means the node has died
-          vertex.setState("name", vertex.name)
           vertex.setState(EFFDEGREE, degree)
         }
 
@@ -86,7 +85,6 @@ class KCore(k: Int, resetStates: Boolean = true) extends Generic {
 
                   if (newEffDegree == effDegree)
                     vertex.voteToHalt()
-                  vertex.setState("name", vertex.name)
                   vertex.setState(EFFDEGREE, newEffDegree)
                   if (newEffDegree < k) { // this vertex dies
                     vertex.messageAllNeighbours(0)
@@ -103,8 +101,11 @@ class KCore(k: Int, resetStates: Boolean = true) extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .select("name", EFFDEGREE)
-//        KeyPair(EFFDEGREE, vertex.getState[Int](EFFDEGREE) >= k)))))
+      .step { vertex =>
+        vertex.setState("vertexName", vertex.name)
+        vertex.setState("effdegree", vertex.getState[Int](EFFDEGREE) >= k)
+      }
+      .select("vertexName", "effdegree")
       .filter(r => r.getBool(1))
 }
 

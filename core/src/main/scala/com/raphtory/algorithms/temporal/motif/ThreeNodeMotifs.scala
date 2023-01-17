@@ -85,7 +85,6 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
         )
       }
       .step { (v, state) =>
-        v.setState("name", v.name())
         // Star Motifs
         val mc                  = new StarMotifCounter(v.ID, v.neighbours.filter(_ != v.ID))
         // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
@@ -216,16 +215,6 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
             state("triCounts") += mc.getCounts
           }
         }
-        v.setState("name", v.name())
-        v.setState("starCountsPretty", getStarCountsPretty(v.getState[Array[Int]]("starCounts")))
-        v.setState("twoNodeCounts", get2NodeCountsWithoutRepeats(v.getState[Array[Int]]("twoNodeCounts")))
-        v.setState("triCounts", getTriCountsPretty(v.getState[Array[Int]]("triCounts")))
-        v.setState(
-                "nonPrettyMotifResults",
-                (v.getState[Array[Int]]("starCounts") ++
-                  v.getState[Array[Int]]("twoNodeCounts") ++ v.getState[Array[Int]]("triCounts"))
-                  .mkString("(", ";", ")")
-        )
       }
   }
 
@@ -237,9 +226,29 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
   override def tabularise(graph: ReducedGraphPerspective): Table =
     if (!graphWide)
       if (prettyPrint)
-        graph.select("name", "starCounts", "twoNodeCounts", "triCounts")
+        graph
+          .step { v =>
+            v.setState("name", v.name())
+            v.setState("starCountsPretty", getStarCountsPretty(v.getState[Array[Int]]("starCounts")))
+            v.setState("twoNodeCounts", get2NodeCountsWithoutRepeats(v.getState[Array[Int]]("twoNodeCounts")))
+            v.setState("triCounts", getTriCountsPretty(v.getState[Array[Int]]("triCounts")))
+          }
+          .select("name", "starCountsPretty", "twoNodeCounts", "triCounts")
       else
-        graph.select("name", "nonPrettyMotifResults")
+        graph
+          .step { v =>
+            v.setState("name", v.name())
+            v.setState(
+                    "nonPrettyMotifResults",
+                    v.setState(
+                            "nonPrettyMotifResults",
+                            (v.getState[Array[Int]]("starCounts") ++
+                              v.getState[Array[Int]]("twoNodeCounts") ++ v.getState[Array[Int]]("triCounts"))
+                              .mkString("(", ";", ")")
+                    )
+            )
+          }
+          .select("name", "nonPrettyMotifResults")
     else if (prettyPrint)
       graph.globalSelect(state =>
         Row(

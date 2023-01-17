@@ -53,6 +53,7 @@ class LocalTriangleCount extends Generic {
       .clearMessages()
       // Filter step 1: tell neighbours you are in the filter
       .step { v =>
+        v.setState("name", v.name())
         v.setState("triangleCount", 0)
         if (v.getState[Int]("effectiveDegree") >= 2)
           v.messageAllNeighbours(v.ID)
@@ -82,7 +83,7 @@ class LocalTriangleCount extends Generic {
         v.clearState("effNeighbours")
       }
 
-  override def tabularise(graph: GraphPerspective): Table = graph.select("triangleCount")
+  override def tabularise(graph: GraphPerspective): Table = graph.select("name", "triangleCount")
 }
 
 // THIS IS USED FOR PYTHON

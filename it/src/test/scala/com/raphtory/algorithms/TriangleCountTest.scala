@@ -5,7 +5,8 @@ import com.raphtory.TestQuery
 import com.raphtory.algorithms.generic.motif.LocalTriangleCount
 import com.raphtory.api.input.Source
 import com.raphtory.sources.CSVEdgeListSource
-import com.raphtory.spouts.{ResourceOrFileSpout, ResourceSpout}
+import com.raphtory.spouts.ResourceOrFileSpout
+import com.raphtory.spouts.ResourceSpout
 
 class TriangleCountTest extends BaseCorrectnessTest {
   test("test triangle counting") {

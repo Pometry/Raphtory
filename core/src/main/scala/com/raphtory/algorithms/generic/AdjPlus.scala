@@ -39,6 +39,8 @@ import scala.math.Ordering.Implicits._
   */
 object AdjPlus extends Generic {
 
+  private val columns = List("vertexName") ++ Seq("adjPlusSet")
+
   override def apply(graph: GraphPerspective): graph.Graph =
     graph.step(vertex => vertex.messageAllNeighbours((vertex.ID, vertex.degree))).step { vertex =>
       import vertex._ // make ClassTag and Ordering for IDType available
@@ -63,6 +65,7 @@ object AdjPlus extends Generic {
         adj.foreach(a => vertex.messageVertex(a, vertex.ID))
       }
       .step(vertex => vertex.messageQueue[vertex.IDType].foreach(v => vertex.messageVertex(v, vertex.name())))
-      .select("vertexName", "adjPlus")
+      .step(vertex => vertex.setState("adjPlusSet", vertex.messageQueue[String]))
+      .select(columns: _*)
       .explode(row => row.getAs[Iterable[String]](1).map(v => Row(KeyPair("adjPlus", row.get(0)), KeyPair("v", v))))
 }

@@ -80,7 +80,6 @@ class TwoHopPaths(seeds: Set[String] = Set[String]()) extends Generic {
                                 "twoHopPaths",
                                 ArrayBuffer[Array[String]]()
                         )
-                        vertex.setState("name", vertex.name())
                         paths.append(Array[String](firstHop, secondHop))
                     }
                 }
@@ -91,7 +90,14 @@ class TwoHopPaths(seeds: Set[String] = Set[String]()) extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .select("name", "twoHopPaths")
+      .step { vertex =>
+        vertex.setState("vertexName", vertex.name)
+        vertex.setState(
+                "twohoppaths",
+                vertex.getStateOrElse[ArrayBuffer[Array[String]]]("twoHopPaths", ArrayBuffer[Array[String]]())
+        )
+      }
+      .select("vertexName", "twohoppaths")
       .explode(row =>
         row
           .getAs[ArrayBuffer[Array[String]]](1)

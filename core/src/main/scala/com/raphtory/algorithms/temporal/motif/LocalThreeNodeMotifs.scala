@@ -191,24 +191,32 @@ class LocalThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prett
         state("twoNodeCounts") += twoNodeCounts.map(_.toLong)
         v.setState("starCounts", counts)
         state("starCounts") += counts.map(_.toLong)
-        v.setState("name", v.name())
-        v.setState("starCounts", getStarCountsPretty(v.getState[Array[Long]]("starCounts")))
-        v.setState("twoNodeCounts", get2NodeCountsWithoutRepeats(v.getState[Array[Long]]("twoNodeCounts")))
-        v.setState("triCounts", getTriCountsPretty(v.getState[Array[Long]]("triCounts")))
-        v.setState(
-                "motifs",
-                (v.getState[Array[Long]]("starCounts") ++ v.getState[Array[Long]]("twoNodeCounts") ++ v
-                  .getState[Array[Long]]("triCounts")).mkString("(", ";", ")")
-        )
+
       }
   }
 
   override def tabularise(graph: ReducedGraphPerspective): Table =
     if (!graphWide)
       if (prettyPrint)
-        graph.select("name", "starCounts", "twoNodeCounts", "triCounts")
+        graph
+          .step { v =>
+            v.setState("name", v.name())
+            v.setState("starCounts", getStarCountsPretty(v.getState[Array[Long]]("starCounts")))
+            v.setState("twoNodeCounts", get2NodeCountsWithoutRepeats(v.getState[Array[Long]]("twoNodeCounts")))
+            v.setState("triCounts", getTriCountsPretty(v.getState[Array[Long]]("triCounts")))
+          }
+          .select("name", "starCounts", "twoNodeCounts", "triCounts")
       else
-        graph.select("name", "motifs")
+        graph
+          .step { v =>
+            v.setState("name", v.name())
+            v.setState(
+                    "motifs",
+                    (v.getState[Array[Long]]("starCounts") ++ v.getState[Array[Long]]("twoNodeCounts") ++ v
+                      .getState[Array[Long]]("triCounts")).mkString("(", ";", ")")
+            )
+          }
+          .select("name", "motifs")
     else if (prettyPrint)
       graph.globalSelect(state =>
         Row(
