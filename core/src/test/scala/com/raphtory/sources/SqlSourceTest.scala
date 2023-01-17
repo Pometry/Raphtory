@@ -146,25 +146,28 @@ class SqlSourceTest extends CatsEffectSuite {
     val properties = List("target_id", "target_name", "boolean", "float", "double")
     val source     = SqlEdgeSource(conn, s"select * from test", "source_name", "target_name", "time", "etype", properties)
     for {
-      stream  <- source.makeStream[IO]
-      updates <- stream.compile.toList.map(_.flatten.asInstanceOf[List[EdgeAdd]])
-      _       <- IO(assertEquals(updates.size, 3))
-      _       <- IO(rows zip updates foreach {
-                   case (row, update) =>
-                     val expectedProperties: Seq[Property] = Seq(
-                             MutableLong("target_id", row.targetId),
-                             MutableString("target_name", row.targetName),
-                             MutableBoolean("boolean", row.boolean),
-                             MutableFloat("float", row.float),
-                             MutableDouble("double", row.double)
-                     )
-                     val expectedSrcId                     = Graph.assignID(row.sourceName)
-                     val expectedDstId                     = Graph.assignID(row.targetName)
-                     val expected                          = (expectedSrcId, expectedDstId, row.time.getTime, Type(row.eType), expectedProperties)
-                     val actualProperties                  = update.properties.properties
-                     val actual                            = (update.srcId, update.dstId, update.updateTime, update.eType.get, actualProperties)
-                     assertEquals(actual, expected)
-                 })
+      stream     <- source.makeStream[IO]
+      updates    <- stream.compile.toList.map(_.flatten)
+      edgeUpdates = updates.collect {
+                      case update: EdgeAdd => update
+                    }
+      _          <- IO(assertEquals(edgeUpdates.size, 3))
+      _          <- IO(rows zip edgeUpdates foreach {
+                      case (row, update) =>
+                        val expectedProperties: Seq[Property] = Seq(
+                                MutableLong("target_id", row.targetId),
+                                MutableString("target_name", row.targetName),
+                                MutableBoolean("boolean", row.boolean),
+                                MutableFloat("float", row.float),
+                                MutableDouble("double", row.double)
+                        )
+                        val expectedSrcId                     = Graph.assignID(row.sourceName)
+                        val expectedDstId                     = Graph.assignID(row.targetName)
+                        val expected                          = (expectedSrcId, expectedDstId, row.time.getTime, Type(row.eType), expectedProperties)
+                        val actualProperties                  = update.properties.properties
+                        val actual                            = (update.srcId, update.dstId, update.updateTime, update.eType.get, actualProperties)
+                        assertEquals(actual, expected)
+                    })
     } yield ()
   }
 }
