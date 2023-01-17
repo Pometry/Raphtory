@@ -107,7 +107,7 @@ abstract class PartitionServiceImpl[F[_]](
 
   private def forwardToExecutor[T](graphId: String, jobId: String, f: QueryExecutor[F] => F[T]): F[T] =
     for {
-      executor <- graphs.get.map(graphs => graphs(graphId).data.executors(jobId))
+      executor <- graphs.get.map(graphs => graphs(graphId).data.executors(jobId)).onError(e => F.delay(logger.error(s"Forwarding failed with ${e.getMessage}")))
       result   <- f(executor)
     } yield result
 
