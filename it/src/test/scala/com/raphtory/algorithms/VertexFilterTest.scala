@@ -5,11 +5,14 @@ import com.raphtory.TestQuery
 import com.raphtory.algorithms.filters.VertexFilter
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
+import com.raphtory.api.analysis.table.KeyPair
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.input
 import com.raphtory.sources.CSVEdgeListSource
-import com.raphtory.spouts.{ResourceOrFileSpout, ResourceSpout}
+import com.raphtory.spouts.ResourceOrFileSpout
+import com.raphtory.spouts.ResourceSpout
 
 import scala.io.Source
 import scala.util.Using
@@ -18,7 +21,9 @@ object AllNeighbours extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
     graph.explodeSelect { vertex =>
-      vertex.edges.map(e => Row(KeyPair("vertexName",vertex.name()), KeyPair("sourceID", e.src), KeyPair("targetID", e.dst)))
+      vertex.edges.map(e =>
+        Row(KeyPair("vertexName", vertex.name()), KeyPair("sourceID", e.src), KeyPair("targetID", e.dst))
+      )
     }
 }
 

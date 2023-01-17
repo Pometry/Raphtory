@@ -36,13 +36,13 @@ private[pojograph] trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
 
   //put in pojo ex entity
   private val computationValues: mutable.Map[String, Any] =
-    mutable.Map[String,Any]() //Partial results kept between supersteps in calculation
+    mutable.Map[String, Any]() //Partial results kept between supersteps in calculation
 
-  override def setState(key: String, value: Any): Unit = {
+  override def setState(key: String, value: Any): Unit =
     computationValues += ((key, value))
-  }
 
   override def getStateSet(): List[String] = computationValues.keys.toList
+
   override def getState[T](key: String, includeProperties: Boolean): T =
     if (computationValues.contains(key))
       computationValues(key).asInstanceOf[T]

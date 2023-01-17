@@ -1,6 +1,8 @@
 package com.raphtory.algorithms.generic
 
+import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.internals.communication.SchemaProviderInstances.genericSchemaProvider
 
 /**
@@ -46,7 +48,7 @@ import com.raphtory.internals.communication.SchemaProviderInstances.genericSchem
   *
   * 5. This repeats until the scores stay approximately constant, in which case the scores are normalised one more time.
   */
-class HITS(iterateSteps: Int = 100, tol: Double = 1e-4) extends NodeList(Seq("hitshub", "hitsauth")) {
+class HITS(iterateSteps: Int = 100, tol: Double = 1e-4) extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph = {
     val initHub = 1.0
@@ -148,7 +150,11 @@ class HITS(iterateSteps: Int = 100, tol: Double = 1e-4) extends NodeList(Seq("hi
         vertex.setState("hitshub", newHub)
         vertex.setState("hitsauth", newAuth)
       }
+
   }
+
+  override def tabularise(graph: GraphPerspective): Table =
+    graph.select("name", "hitshub", "hitsauth")
 
   sealed trait Message {}
   case class HubMsg(value: Double)  extends Message

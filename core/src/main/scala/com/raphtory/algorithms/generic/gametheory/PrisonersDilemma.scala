@@ -1,10 +1,11 @@
 package com.raphtory.algorithms.generic.gametheory
 
-import com.raphtory.algorithms.generic.NodeList
+import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.internals.communication.SchemaProviderInstances._
+
 import scala.collection.mutable
 import scala.collection.mutable.Queue
 import scala.util.Random
@@ -66,7 +67,7 @@ class PrisonersDilemma(
     cost: Float = 1.0f,
     noGames: Int = 100,
     seed: Int = -1
-) extends NodeList(Seq("cooperationHistory")) {
+) extends Generic {
 
   private val rnd = if (seed == -1) new Random() else new Random(seed)
 

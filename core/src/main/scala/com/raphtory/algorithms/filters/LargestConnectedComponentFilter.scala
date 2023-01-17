@@ -2,9 +2,9 @@ package com.raphtory.algorithms.filters
 
 import com.raphtory.api.analysis.graphstate.Counter
 import com.raphtory.algorithms.generic.ConnectedComponents
-import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 
 /**
@@ -14,7 +14,7 @@ import com.raphtory.api.analysis.visitor.Vertex
   *   This runs the connected component algorithm, keeping a global count of component sizes. This then
   *   selects vertices of the largest component.
   */
-class LargestConnectedComponentFilter extends NodeList(Seq("name")) {
+class LargestConnectedComponentFilter extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     ConnectedComponents
@@ -27,6 +27,10 @@ class LargestConnectedComponentFilter extends NodeList(Seq("name")) {
         val vertexProperty = vertex.getState[Long]("cclabel").toFloat
         vertexProperty == state("components").value.asInstanceOf[Counter[Long]].largest._1
       }
+
+  override def tabularise(graph: GraphPerspective): Table =
+    graph.select("name")
+
 }
 
 object LargestConnectedComponentFilter {

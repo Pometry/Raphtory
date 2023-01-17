@@ -3,13 +3,14 @@ package com.test.raphtory.algorithms
 import com.raphtory.algorithms.filters.VertexFilter
 import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.ResourceOrFileSpout
-import com.raphtory.{BaseCorrectnessTest, TestQuery}
+import com.raphtory.BaseCorrectnessTest
+import com.raphtory.TestQuery
 import com.test.raphtory.AllNeighbours
 
 import scala.io.Source
 import scala.util.Using
 
-class VertexFilterTest extends BaseCorrectnessTest with Serializable{
+class VertexFilterTest extends BaseCorrectnessTest with Serializable {
 
   override def munitIgnore: Boolean = runningIntegrationTest
 

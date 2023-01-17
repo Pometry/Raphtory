@@ -2,7 +2,9 @@ package com.raphtory.algorithms.generic.dynamic
 
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.algorithms.generic.dynamic.WattsCascade.Threshold
+import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.table.Table
 
 import scala.util.Random
 import com.raphtory.internals.communication.SchemaProviderInstances._
@@ -62,7 +64,7 @@ class WattsCascade[T: Threshold](
     threshold: T = Threshold.UNIFORM_RANDOM,
     seed: Long = -1,
     maxGenerations: Int = 100
-) extends NodeList(Seq("infected")) {
+) extends Generic {
 
   private val randomiser = if (seed != -1) new Random(seed) else new Random()
 
@@ -109,6 +111,8 @@ class WattsCascade[T: Threshold](
               maxGenerations,
               true
       )
+
+  override def tabularise(graph: GraphPerspective): Table = graph.select("name", "infected")
 }
 
 object WattsCascade {

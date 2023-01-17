@@ -4,6 +4,7 @@ import com.raphtory.algorithms.generic.AdjPlus
 import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.table.Table
 
 import scala.collection.mutable
 import com.raphtory.internals.communication.SchemaProviderInstances._
@@ -148,8 +149,11 @@ object CountPQ extends Generic {
   *  | ----------------- | ---------------------- |
   *  | {s}`name: String` | {s}`squareCount: Long` |
   */
-object SquareCount extends NodeList(Seq("squareCount")) {
+object SquareCount extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     CountPQ(CountQR(CountPR(AdjPlus(graph))))
+
+  override def tabularise(graph: GraphPerspective): Table = graph.select("name", "squareCount")
+
 }

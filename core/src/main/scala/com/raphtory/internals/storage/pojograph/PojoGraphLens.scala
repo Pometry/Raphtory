@@ -115,9 +115,9 @@ final private[raphtory] case class PojoGraphLens(
   def filterAtStep(superStep: Int): Unit =
     needsFiltering.set(superStep)
 
-  def executeSelect(values: String*)(onComplete: () => Unit): Unit = {
+  def executeSelect(values: Seq[String], defaults: Map[String, Any])(onComplete: () => Unit): Unit = {
     dataTable = vertexIterator.flatMap { vertex =>
-      Row(values.map(value => KeyPair(value, vertex.getStateOrElse(value, "", includeProperties = true))): _*)
+      Row(values.map(value => KeyPair(value, vertex.getStateOrElse(value, defaults.getOrElse(value,""), includeProperties = true))): _*)
         .asInstanceOf[RowImplementation]
         .yieldAndRelease
 //      f.asInstanceOf[PojoVertexBase => RowImplementation](vertex).yieldAndRelease

@@ -1,7 +1,9 @@
 package com.raphtory.algorithms.generic.dynamic
 
 import com.raphtory.algorithms.generic.NodeList
+import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.table.Table
 
 import scala.util.Random
 
@@ -46,7 +48,7 @@ class DiscreteSI(
     infectionProbability: Double = 0.5,
     maxGenerations: Int = 50,
     seed: Long = -1
-) extends NodeList(Seq("infected")) {
+) extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph = {
     val randomiser = if (seed != -1) new Random(seed) else new Random()
@@ -81,6 +83,8 @@ class DiscreteSI(
               true
       )
   }
+
+  override def tabularise(graph: GraphPerspective): Table = graph.select("name", "infected")
 }
 
 object DiscreteSI {

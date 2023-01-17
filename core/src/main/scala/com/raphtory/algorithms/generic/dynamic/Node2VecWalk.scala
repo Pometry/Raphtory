@@ -122,7 +122,7 @@ class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) exten
           case StoreMessage(node)   => vertex.getState[ArrayBuffer[String]]("walk").append(node)
           case WalkMessage(_, _, _) =>
         }
-        val rowSeq = Seq(vertex.getState[ArrayBuffer[String]]("walk")): _*
+        val rowSeq = vertex.getState[ArrayBuffer[String]]("walk")
         vertex.setState("walkSequence", rowSeq)
       }
 

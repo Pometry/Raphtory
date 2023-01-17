@@ -1,7 +1,6 @@
 package com.raphtory.algorithms.generic
 
 import com.raphtory.api.analysis.algorithm.Generic
-import com.raphtory.api.analysis.algorithm.NodeListOutput
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
@@ -51,8 +50,7 @@ import com.raphtory.api.analysis.table.Table
 class NodeList(
     properties: Seq[String] = Seq.empty[String],
     defaults: Map[String, Any] = Map.empty[String, Any]
-) extends NodeListOutput(properties, defaults)
-        with Generic {}
+) extends Generic {}
 
 object NodeList {
 

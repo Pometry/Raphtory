@@ -1,7 +1,8 @@
 package com.raphtory.algorithms.generic.centrality
 
-import com.raphtory.algorithms.generic.NodeList
+import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.table.Table
 
 /**
   * {s}`Degree()`
@@ -32,14 +33,19 @@ import com.raphtory.api.analysis.graphview.GraphPerspective
   * [](com.raphtory.algorithms.generic.centrality.WeightedDegree)
   * ```
   */
-class Degree extends NodeList(Seq("inDegree", "outDegree", "degree")) {
+class Degree extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
-    graph.step { vertex =>
-      vertex.setState("inDegree", vertex.inDegree)
-      vertex.setState("outDegree", vertex.outDegree)
-      vertex.setState("degree", vertex.degree)
-    }
+    graph
+      .step { vertex =>
+        vertex.setState("inDegree", vertex.inDegree)
+        vertex.setState("outDegree", vertex.outDegree)
+        vertex.setState("degree", vertex.degree)
+      }
+
+  override def tabularise(graph: GraphPerspective): Table =
+    graph
+      .select("name", "inDegree", "outDegree", "degree")
 }
 
 // THIS IS USED FOR PYTHON

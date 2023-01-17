@@ -1,7 +1,8 @@
 package com.raphtory.algorithms.generic.centrality
 
-import com.raphtory.algorithms.generic.NodeList
+import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.internals.communication.SchemaProviderInstances._
 
 /**
@@ -53,7 +54,7 @@ class WeightedPageRank[T](
     iterateSteps: Int = 100,
     weightProperty: String = "weight"
 )(implicit numeric: Numeric[T])
-        extends NodeList(Seq("prlabel")) {
+        extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -93,6 +94,8 @@ class WeightedPageRank[T](
               iterateSteps,
               false
       )
+
+  override def tabularise(graph: GraphPerspective): Table = graph.select("name", "prlabel")
 }
 
 object WeightedPageRank {

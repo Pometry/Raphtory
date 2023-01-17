@@ -37,7 +37,7 @@ import com.raphtory.algorithms.generic.KCore.EFFDEGREE
   * It updates the CORENESS state for all the nodes still alive in that KCore run, so the CORENESS state contains the highest value of k run of which that vertex was in the k-cores.
   */
 
-class Coreness(start: Int, end: Int) extends NodeList(Seq("CORENESS"), Map("CORENESS" -> -1)) {
+class Coreness(start: Int, end: Int) extends Generic {
   final val CORENESS = "CORENESS"
 
   if (start > end | start < 0) // out of range
@@ -58,6 +58,8 @@ class Coreness(start: Int, end: Int) extends NodeList(Seq("CORENESS"), Map("CORE
       }
     g
   }
+
+  override def tabularise(graph: GraphPerspective): Table = graph.select("name", CORENESS)
 }
 
 object Coreness {

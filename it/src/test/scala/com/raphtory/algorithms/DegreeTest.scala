@@ -1,7 +1,9 @@
 package com.raphtory.algorithms
 
-import com.raphtory.{BaseCorrectnessTest, TestQuery}
-import com.raphtory.algorithms.generic.centrality.{Degree, WeightedDegree}
+import com.raphtory.BaseCorrectnessTest
+import com.raphtory.TestQuery
+import com.raphtory.algorithms.generic.centrality.Degree
+import com.raphtory.algorithms.generic.centrality.WeightedDegree
 import com.raphtory.api.input.Source
 import com.raphtory.spouts.ResourceOrFileSpout
 import com.test.raphtory.WeightedGraphBuilder

@@ -3,7 +3,9 @@ package com.test.raphtory.algorithms
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphstate
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
+import com.raphtory.api.analysis.table.KeyPair
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.internals.communication.SchemaProviderInstances._
 
 /**
@@ -41,10 +43,10 @@ class GlobalState extends Generic {
   override def tabularise(graph: GraphPerspective): Table =
     graph.globalSelect(graphState =>
       Row(
-        KeyPair("nameLengthMax", graphState("name length max").value),
-        KeyPair("nameLengthMin",graphState("name length min").value),
-        KeyPair("nameLengthTotal",graphState("name length total").value),
-        KeyPair("nameLengthMultiplier", graphState("name length multiplier").value)
+              KeyPair("nameLengthMax", graphState("name length max").value),
+              KeyPair("nameLengthMin", graphState("name length min").value),
+              KeyPair("nameLengthTotal", graphState("name length total").value),
+              KeyPair("nameLengthMultiplier", graphState("name length multiplier").value)
       )
     )
 }

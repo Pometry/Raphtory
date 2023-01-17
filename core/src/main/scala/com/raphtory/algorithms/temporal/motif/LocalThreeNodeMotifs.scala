@@ -1,10 +1,16 @@
 package com.raphtory.algorithms.temporal.motif
 
-import com.raphtory.algorithms.generic.{KCore, NodeList}
-import com.raphtory.api.analysis.algorithm.{Generic, GenericReduction}
-import com.raphtory.api.analysis.graphview.{GraphPerspective, ReducedGraphPerspective}
-import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
-import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs.{get2NodeCountsWithoutRepeats, getStarCountsPretty, getTriCountsPretty}
+import com.raphtory.algorithms.generic.KCore
+import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.api.analysis.algorithm.GenericReduction
+import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
+import com.raphtory.api.analysis.table.KeyPair
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
+import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs.get2NodeCountsWithoutRepeats
+import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs.getStarCountsPretty
+import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs.getTriCountsPretty
 import com.raphtory.internals.communication.SchemaProviderInstances._
 
 import scala.collection.mutable.ArrayBuffer
@@ -62,10 +68,10 @@ import scala.collection.mutable.ArrayBuffer
   *  | vertex name       | motifs                   |
   *  | ----------------- | ------------------------ |
   *  | {s}`name: String` | {s}`motifCounts: Array[Long]` |
-  *
   */
 
-class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint:Boolean=true) extends GenericReduction {
+class LocalThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrint: Boolean = true)
+        extends GenericReduction {
 
   override def apply(graph: GraphPerspective): graph.ReducedGraph = {
     // Here we apply a trick to make sure the triangles are only counted for nodes in the two-core.
@@ -73,127 +79,162 @@ class LocalThreeNodeMotifs(delta:Long=3600, graphWide:Boolean=false, prettyPrint
       .apply(graph)
       .clearMessages()
       .reducedView
-      .setGlobalState{
-        state =>
-          state.newAccumulator[Array[Long]]("twoNodeCounts",Array.fill(8)(0L), retainState = true, (ar1, ar2) => ar1.zip(ar2).map{case (x,y) => x + y})
-          state.newAccumulator[Array[Long]]("triCounts",Array.fill(8)(0L), retainState = true, (ar1, ar2) => ar1.zip(ar2).map{case (x,y) => x + y})
-          state.newAccumulator[Array[Long]]("starCounts",Array.fill(24)(0L), retainState = true, (ar1, ar2) => ar1.zip(ar2).map{case (x,y) => x + y})
+      .setGlobalState { state =>
+        state.newAccumulator[Array[Long]](
+                "twoNodeCounts",
+                Array.fill(8)(0L),
+                retainState = true,
+                (ar1, ar2) => ar1.zip(ar2).map { case (x, y) => x + y }
+        )
+        state.newAccumulator[Array[Long]](
+                "triCounts",
+                Array.fill(8)(0L),
+                retainState = true,
+                (ar1, ar2) => ar1.zip(ar2).map { case (x, y) => x + y }
+        )
+        state.newAccumulator[Array[Long]](
+                "starCounts",
+                Array.fill(24)(0L),
+                retainState = true,
+                (ar1, ar2) => ar1.zip(ar2).map { case (x, y) => x + y }
+        )
       }
       // Filter step 1: tell neighbours you are in the filter
-      .step{v =>
-        if (v.getState[Int]("effectiveDegree")>=2) {
+      .step { v =>
+        if (v.getState[Int]("effectiveDegree") >= 2)
           v.messageAllNeighbours(v.ID)
-        }
       }
       // Filter step 2: send neigbours in filter to other neighbours in filter
-      .step{v =>
-        if (v.getState[Int]("effectiveDegree")>=2) {
+      .step { v =>
+        if (v.getState[Int]("effectiveDegree") >= 2) {
           val neighbours = v.messageQueue[v.IDType].toSet
-          v.setState("effNeighbours",neighbours)
+          v.setState("effNeighbours", neighbours)
           neighbours.foreach(nb => v.messageVertex(nb, (v.ID, neighbours)))
         }
       }
       .step { v =>
-        v.setState("triCounts",Array.fill(8)(0L))
-        if( v.getState[Int]("effectiveDegree")>=2 ) {
+        v.setState("triCounts", Array.fill(8)(0L))
+        if (v.getState[Int]("effectiveDegree") >= 2) {
           val neighbours = v.getState[Set[v.IDType]]("effNeighbours")
           v.clearState("effNeighbours")
-          val queue = v.messageQueue[(v.IDType, Set[v.IDType])]
+          val queue      = v.messageQueue[(v.IDType, Set[v.IDType])]
           queue.foreach {
             // Pick a representative node who will hold all the exploded edge info.
             case (nb, friendsOfFriend) =>
               // Here we want to make sure only one node is computing each triangle count as the operation is expensive, pick this
               // to be the smallest id vertex which receives the exploded edge of the opposite triangle.
-              if (v.ID > nb) {
-                friendsOfFriend.intersect(neighbours).foreach {
-                  w =>
-                    if (nb > w)
-                      v.messageVertex(w, v.explodedEdge(nb).getOrElse(List()).map(e => (e.src, e.dst, e.timestamp)))
-                  // largest id node sends to the smallest id node the exploded edges.
+              if (v.ID > nb)
+                friendsOfFriend.intersect(neighbours).foreach { w =>
+                  if (nb > w)
+                    v.messageVertex(w, v.explodedEdge(nb).getOrElse(List()).map(e => (e.src, e.dst, e.timestamp)))
+                // largest id node sends to the smallest id node the exploded edges.
                 }
-              }
           }
         }
       }
-      .step{
-        (v, state) =>
-          if (v.getState[Int]("effectiveDegree")>=2) {
-            v.messageQueue[List[(Long, Long, Long)]].foreach {
-              edges =>
-                val (u, w, _) = edges.head
-                // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
-                // for motif edges with the same timestamp
-                val inputEdges = (v.explodedEdge(u).getOrElse(List()).map(e => (e.src, e.dst, e.timestamp)) ++
-                  v.explodedEdge(w).getOrElse(List()).map(e => (e.src, e.dst, e.timestamp)) ++
-                  edges)
-                  .sortBy(x => (x._3, x._1, x._2))
-                val ids = List(v.ID, u, w).sortWith(_ < _)
-                val mc = new TriadMotifCounter(ids(0), ids(1), List(ids(2)))
-                mc.execute(inputEdges, delta)
-                val curVal = v.getState[Array[Long]]("triCounts")
-                v.setState("triCounts", curVal.zip(mc.getCounts)
-                  .map { case (x, y) => x + y })
-                v.messageVertex(u, mc.getCounts)
-                v.messageVertex(w, mc.getCounts)
-                state("triCounts") += mc.getCounts.map(_.toLong)
-            }
+      .step { (v, state) =>
+        if (v.getState[Int]("effectiveDegree") >= 2)
+          v.messageQueue[List[(Long, Long, Long)]].foreach { edges =>
+            val (u, w, _)  = edges.head
+            // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
+            // for motif edges with the same timestamp
+            val inputEdges = (v.explodedEdge(u).getOrElse(List()).map(e => (e.src, e.dst, e.timestamp)) ++
+              v.explodedEdge(w).getOrElse(List()).map(e => (e.src, e.dst, e.timestamp)) ++
+              edges)
+              .sortBy(x => (x._3, x._1, x._2))
+            val ids        = List(v.ID, u, w).sortWith(_ < _)
+            val mc         = new TriadMotifCounter(ids(0), ids(1), List(ids(2)))
+            mc.execute(inputEdges, delta)
+            val curVal     = v.getState[Array[Long]]("triCounts")
+            v.setState(
+                    "triCounts",
+                    curVal
+                      .zip(mc.getCounts)
+                      .map { case (x, y) => x + y }
+            )
+            v.messageVertex(u, mc.getCounts)
+            v.messageVertex(w, mc.getCounts)
+            state("triCounts") += mc.getCounts.map(_.toLong)
           }
       }
-      .step{
-        v =>
-          v.messageQueue[Array[Long]].foreach{
-            toAdd =>
-              val curVal = v.getState[Array[Long]]("triCounts")
-              v.setState("triCounts",curVal.zip(toAdd).map{ case (x,y) => x+y})
-          }
+      .step { v =>
+        v.messageQueue[Array[Long]].foreach { toAdd =>
+          val curVal = v.getState[Array[Long]]("triCounts")
+          v.setState("triCounts", curVal.zip(toAdd).map { case (x, y) => x + y })
+        }
       }
-      .step({
-        (v, state) =>
-          val mc = new StarMotifCounter(v.ID, v.neighbours.filter(_!=v.ID))
+      .step { (v, state) =>
+        val mc                  = new StarMotifCounter(v.ID, v.neighbours.filter(_ != v.ID))
+        // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
+        // for motif edges with the same timestamp
+        mc.execute(v.explodeAllEdges().map(e => (e.src, e.dst, e.timestamp)).sortBy(x => (x._3, x._1, x._2)), delta)
+        val counts: Array[Long] = mc.getCounts
+        var twoNodeCounts       = Array.fill(8)(0L)
+        v.neighbours.foreach { vid =>
+          val mc2node = new TwoNodeMotifs(v.ID)
           // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
           // for motif edges with the same timestamp
-          mc.execute(v.explodeAllEdges().map(e=> (e.src,e.dst,e.timestamp)).sortBy(x => (x._3, x._1, x._2)),delta)
-          val counts : Array[Long] = mc.getCounts
-          var twoNodeCounts = Array.fill(8)(0L)
-          v.neighbours.foreach{
-            vid =>
-              val mc2node = new TwoNodeMotifs(v.ID)
-              // Here we sort the edges not only by a timestamp but an additional index meaning that we obtain consistent results
-              // for motif edges with the same timestamp
-              mc2node.execute(v.explodedEdge(vid).getOrElse(List()).map(e => (e.src,e.dst,e.timestamp)).sortBy(x => (x._3, x._1, x._2)).toArray,delta)
-              val twoNC = mc2node.getCounts
-              for (i <- counts.indices) {
-                counts.update(i, counts(i) - twoNC(i % 8))
-              }
-              twoNodeCounts = twoNodeCounts.zip(twoNC).map{ case (x,y) => x+y}
-          }
-          v.setState("twoNodeCounts",twoNodeCounts)
-          state("twoNodeCounts")+=twoNodeCounts.map(_.toLong)
-          v.setState("starCounts",counts)
-          state("starCounts")+=counts.map(_.toLong)
-          v.setState("name", v.name())
-          v.setState("starCounts",getStarCountsPretty(v.getState[Array[Long]]("starCounts")))
-          v.setState("twoNodeCounts",get2NodeCountsWithoutRepeats(v.getState[Array[Long]]("twoNodeCounts")))
-          v.setState("triCounts",getTriCountsPretty(v.getState[Array[Long]]("triCounts")))
-          v.setState("motifs",(v.getState[Array[Long]]("starCounts")++v.getState[Array[Long]]("twoNodeCounts")++v.getState[Array[Long]]("triCounts")).mkString("(", ";", ")"))
-      })
+          mc2node.execute(
+                  v.explodedEdge(vid)
+                    .getOrElse(List())
+                    .map(e => (e.src, e.dst, e.timestamp))
+                    .sortBy(x => (x._3, x._1, x._2))
+                    .toArray,
+                  delta
+          )
+          val twoNC   = mc2node.getCounts
+          for (i <- counts.indices)
+            counts.update(i, counts(i) - twoNC(i % 8))
+          twoNodeCounts = twoNodeCounts.zip(twoNC).map { case (x, y) => x + y }
+        }
+        v.setState("twoNodeCounts", twoNodeCounts)
+        state("twoNodeCounts") += twoNodeCounts.map(_.toLong)
+        v.setState("starCounts", counts)
+        state("starCounts") += counts.map(_.toLong)
+        v.setState("name", v.name())
+        v.setState("starCounts", getStarCountsPretty(v.getState[Array[Long]]("starCounts")))
+        v.setState("twoNodeCounts", get2NodeCountsWithoutRepeats(v.getState[Array[Long]]("twoNodeCounts")))
+        v.setState("triCounts", getTriCountsPretty(v.getState[Array[Long]]("triCounts")))
+        v.setState(
+                "motifs",
+                (v.getState[Array[Long]]("starCounts") ++ v.getState[Array[Long]]("twoNodeCounts") ++ v
+                  .getState[Array[Long]]("triCounts")).mkString("(", ";", ")")
+        )
+      }
   }
 
-  override def tabularise(graph: ReducedGraphPerspective): Table = {
-    if (!graphWide) {
+  override def tabularise(graph: ReducedGraphPerspective): Table =
+    if (!graphWide)
       if (prettyPrint)
         graph.select("name", "starCounts", "twoNodeCounts", "triCounts")
       else
-        graph.select("name","motifs")
-    } else {
-      if (prettyPrint)
-        graph.globalSelect(state => Row(KeyPair("starCounts", getStarCountsPretty(state[Array[Long],Array[Long]]("starCounts").value)), KeyPair("twoNodeCounts", get2NodeCountsWithoutRepeats(state[Array[Long],Array[Long]]("twoNodeCounts").value)), KeyPair("triCounts", getTriCountsPretty(state[Array[Long],Array[Long]]("triCounts").value))))
-      else
-        graph.globalSelect(state => Row(KeyPair("motifs", (state[Array[Long],Array[Long]]("starCounts").value++state[Array[Long],Array[Long]]("twoNodeCounts").value++state[Array[Long],Array[Long]]("triCounts").value).mkString("(", ";", ")"))))
-    }
-  }
+        graph.select("name", "motifs")
+    else if (prettyPrint)
+      graph.globalSelect(state =>
+        Row(
+                KeyPair("starCounts", getStarCountsPretty(state[Array[Long], Array[Long]]("starCounts").value)),
+                KeyPair(
+                        "twoNodeCounts",
+                        get2NodeCountsWithoutRepeats(state[Array[Long], Array[Long]]("twoNodeCounts").value)
+                ),
+                KeyPair("triCounts", getTriCountsPretty(state[Array[Long], Array[Long]]("triCounts").value))
+        )
+      )
+    else
+      graph.globalSelect(state =>
+        Row(
+                KeyPair(
+                        "motifs",
+                        (state[Array[Long], Array[Long]]("starCounts").value ++ state[Array[Long], Array[Long]](
+                                "twoNodeCounts"
+                        ).value ++ state[Array[Long], Array[Long]]("triCounts").value).mkString("(", ";", ")")
+                )
+        )
+      )
 }
 
 object LocalThreeNodeMotifs {
-  def apply(delta:Long=3600, graphWide:Boolean=false, prettyPrint:Boolean=true) = new LocalThreeNodeMotifs(delta,graphWide,prettyPrint)
+
+  def apply(delta: Long = 3600, graphWide: Boolean = false, prettyPrint: Boolean = true) =
+    new LocalThreeNodeMotifs(delta, graphWide, prettyPrint)
 }

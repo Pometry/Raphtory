@@ -1,9 +1,11 @@
 package com.raphtory.algorithms.generic.centrality
 
-import com.raphtory.algorithms.generic.NodeList
+import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.internals.communication.SchemaProviderInstances._
+
 import scala.math.log10
 import scala.math.pow
 import math.Numeric.Implicits._
@@ -42,7 +44,7 @@ import math.Numeric.Implicits._
   */
 class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")(implicit
     numeric: Numeric[T]
-) extends NodeList(Seq("D1", "D2", "D3", "D4", "D5")) {
+) extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -67,6 +69,8 @@ class Distinctiveness[T](alpha: Double = 1.0, weightProperty: String = "weight")
         vertex.setState("D4", D4(vertex)(messages, N, alpha))
         vertex.setState("D5", D5(vertex)(messages, N, alpha))
       }
+
+  override def tabularise(graph: GraphPerspective): Table = graph.select("name", "D1", "D2", "D3", "D4", "D5")
 
   def D1(vertex: Vertex)(
       messages: List[(vertex.IDType, Int, Double, Double)],

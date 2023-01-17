@@ -1,9 +1,9 @@
 package com.raphtory.algorithms.generic.community
 
-import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.algorithms.generic.community.LPA.MinTieBreak
 import com.raphtory.algorithms.generic.community.LPA.TieBreaker
 import com.raphtory.algorithms.generic.community.LPA.lpa
+import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
 import com.raphtory.api.analysis.visitor.Vertex
@@ -67,7 +67,7 @@ class LPA[T: Numeric](
     stickinessProb: Float = 0.2f,
     maxIter: Int = 50,
     seed: Long = -1
-) extends NodeList(Seq("community")) {
+) extends Generic {
 
   private val rnd: Random = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)
 

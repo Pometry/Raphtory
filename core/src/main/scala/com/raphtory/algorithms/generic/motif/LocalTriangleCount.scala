@@ -1,7 +1,10 @@
 package com.raphtory.algorithms.generic.motif
 
-import com.raphtory.algorithms.generic.{KCore, NodeList, motif}
+import com.raphtory.algorithms.generic.KCore
+import com.raphtory.algorithms.generic.motif
+import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.internals.communication.SchemaProviderInstances._
 
 /**
@@ -42,23 +45,23 @@ import com.raphtory.internals.communication.SchemaProviderInstances._
   * 'neighbours' refers to the union of in-neighbours and out-neighbours.
   * ``
   */
-class LocalTriangleCount extends NodeList(Seq("triangleCount")) {
+class LocalTriangleCount extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
-    KCore(2).apply(graph)
+    KCore(2)
+      .apply(graph)
       .clearMessages()
       // Filter step 1: tell neighbours you are in the filter
-      .step{v =>
+      .step { v =>
         v.setState("triangleCount", 0)
-        if (v.getState[Int]("effectiveDegree")>=2) {
+        if (v.getState[Int]("effectiveDegree") >= 2)
           v.messageAllNeighbours(v.ID)
-        }
       }
       // Filter step 2: send neigbours in filter to other neighbours in filter
-      .step{v =>
-        if (v.getState[Int]("effectiveDegree")>=2) {
+      .step { v =>
+        if (v.getState[Int]("effectiveDegree") >= 2) {
           val neighbours = v.messageQueue[v.IDType].toSet
-          v.setState("effNeighbours",neighbours)
+          v.setState("effNeighbours", neighbours)
           neighbours.foreach(nb => v.messageVertex(nb, neighbours))
         }
       }
@@ -68,16 +71,18 @@ class LocalTriangleCount extends NodeList(Seq("triangleCount")) {
 //        neighbours.foreach(nb => vertex.messageVertex(nb, neighbours))
 //      }
       .step { v =>
-        if (v.getState[Int]("effectiveDegree")>=2) {
+        if (v.getState[Int]("effectiveDegree") >= 2) {
           val neighbours = v.getState[Set[v.IDType]]("effNeighbours")
-          val queue = v.messageQueue[Set[v.IDType]]
-          var tri = 0
+          val queue      = v.messageQueue[Set[v.IDType]]
+          var tri        = 0
           queue.foreach(nbs => tri += nbs.intersect(neighbours).size)
           v.setState("triangleCount", tri / 2)
         }
         v.clearState("effectiveDegree")
         v.clearState("effNeighbours")
       }
+
+  override def tabularise(graph: GraphPerspective): Table = graph.select("triangleCount")
 }
 
 // THIS IS USED FOR PYTHON
