@@ -24,9 +24,7 @@ class RaphtoryGraphTest extends FunSuite {
                   service = null,
                   config = config,
                   clientID = ""
-          ) {
-    override def IDForUpdates(): Int = 1
-  }
+          ) {}
 
   private def createMockGraph(config: Config = ConfigBuilder.getDefaultConfig) =
     new TemporalGraph(Query(graphID = ""), new DummyQuerySender(config), config)

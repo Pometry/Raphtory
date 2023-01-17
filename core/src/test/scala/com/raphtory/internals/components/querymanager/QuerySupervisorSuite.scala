@@ -29,30 +29,34 @@ class QuerySupervisorSuite extends CatsEffectSuite {
     import supervisor._
 
     for {
-      et1  <- earliestTime.get
-      lt1  <- latestTime.get
-      ipr1 <- inprogressReqs.get
-      _    <- Async[IO].delay {
-                assert {
-                  ipr1.isEmpty &&
-                  pendingReqs.isEmpty &&
-                  et1 == Long.MaxValue &&
-                  lt1 == Long.MinValue
-                }
-              }
-      _    <- startIngestion(0)
-      et2  <- earliestTime.get
-      lt2  <- latestTime.get
-      ipr2 <- inprogressReqs.get
-      _    <- Async[IO].delay {
-                assert {
-                  ipr2.size == 1 &&
-                  ipr2.head.asInstanceOf[LoadRequest].sourceID == 0 &&
-                  pendingReqs.isEmpty &&
-                  et2 == Long.MaxValue &&
-                  lt2 == Long.MinValue
-                }
-              }
+      et1 <- earliestTime.get
+      lt1 <- latestTime.get
+      _   <- overwriteReq { r =>
+               Async[IO].delay {
+                 assert {
+                   r.isEmpty &&
+                   pendingReqs.isEmpty &&
+                   et1 == Long.MaxValue &&
+                   lt1 == Long.MinValue
+                 }
+                 r
+               }
+             }
+      _   <- startIngestion(0)
+      et2 <- earliestTime.get
+      lt2 <- latestTime.get
+      _   <- overwriteReq { r =>
+               Async[IO].delay {
+                 assert {
+                   r.size == 1 &&
+                   r.head.asInstanceOf[LoadRequest].sourceID == 0 &&
+                   pendingReqs.isEmpty &&
+                   et2 == Long.MaxValue &&
+                   lt2 == Long.MinValue
+                 }
+                 r
+               }
+             }
     } yield ()
   }
 
@@ -65,25 +69,31 @@ class QuerySupervisorSuite extends CatsEffectSuite {
       et1  <- earliestTime.get
       lt1  <- latestTime.get
       defr <- Deferred[IO, Unit]
-      _    <- inprogressReqs.update(_ + LoadRequest(0, defr))
-      _    <- Async[IO].delay {
-                assert {
-                  pendingReqs.isEmpty &&
-                  et1 == Long.MaxValue &&
-                  lt1 == Long.MinValue
-                }
+      _    <- overwriteReq { r =>
+                for {
+                  newReq <- Async[IO].delay(r + LoadRequest(0, defr))
+                  _      <- Async[IO].delay {
+                              assert {
+                                pendingReqs.isEmpty &&
+                                et1 == Long.MaxValue &&
+                                lt1 == Long.MinValue
+                              }
+                            }
+                } yield newReq
               }
       _    <- startIngestion(1)
       et2  <- earliestTime.get
       lt2  <- latestTime.get
-      ipr  <- inprogressReqs.get
-      _    <- Async[IO].delay {
-                assert {
-                  ipr.size == 2 &&
-                  ipr.last.asInstanceOf[LoadRequest].sourceID == 1 &&
-                  pendingReqs.isEmpty &&
-                  et2 == Long.MaxValue &&
-                  lt2 == Long.MinValue
+      _    <- overwriteReq { r =>
+                Async[IO].delay {
+                  assert {
+                    r.size == 2 &&
+                    r.last.asInstanceOf[LoadRequest].sourceID == 1 &&
+                    pendingReqs.isEmpty &&
+                    et2 == Long.MaxValue &&
+                    lt2 == Long.MinValue
+                  }
+                  r
                 }
               }
     } yield ()
@@ -99,28 +109,34 @@ class QuerySupervisorSuite extends CatsEffectSuite {
       lt1    <- latestTime.get
       lrDefr <- Deferred[IO, Unit]
       qrDefr <- Deferred[IO, Unit]
-      _      <- inprogressReqs.update(_ + LoadRequest(0, lrDefr))
-      _      <- Async[IO].delay(pendingReqs.add(QueryRequest("testQuery", qrDefr)))
-      _      <- Async[IO].delay {
-                  assert {
-                    et1 == Long.MaxValue &&
-                    lt1 == Long.MinValue
-                  }
+      _      <- overwriteReq { r =>
+                  for {
+                    newReq <- Async[IO].delay(r + LoadRequest(0, lrDefr))
+                    _      <- Async[IO].delay(pendingReqs.add(QueryRequest("testQuery", qrDefr)))
+                    _      <- Async[IO].delay {
+                                assert {
+                                  et1 == Long.MaxValue &&
+                                  lt1 == Long.MinValue
+                                }
+                              }
+                  } yield newReq
                 }
       fib    <- startIngestion(1).start
       _      <- IO.sleep(50.millis)
       _      <- pendingReqs.toArray.last.asInstanceOf[LoadRequest].release.complete(())
       et2    <- earliestTime.get
       lt2    <- latestTime.get
-      ipr    <- inprogressReqs.get
-      _      <- Async[IO].delay {
-                  assert {
-                    ipr.size == 1 &&
-                    ipr.last.asInstanceOf[LoadRequest].sourceID == 0 &&
-                    pendingReqs.size == 2 &&
-                    pendingReqs.toArray.last.asInstanceOf[LoadRequest].sourceID == 1 &&
-                    et2 == Long.MaxValue &&
-                    lt2 == Long.MinValue
+      _      <- overwriteReq { r =>
+                  Async[IO].delay {
+                    assert {
+                      r.size == 1 &&
+                      r.last.asInstanceOf[LoadRequest].sourceID == 0 &&
+                      pendingReqs.size == 2 &&
+                      pendingReqs.toArray.last.asInstanceOf[LoadRequest].sourceID == 1 &&
+                      et2 == Long.MaxValue &&
+                      lt2 == Long.MinValue
+                    }
+                    r
                   }
                 }
       _      <- fib.join
@@ -136,28 +152,34 @@ class QuerySupervisorSuite extends CatsEffectSuite {
       et1    <- earliestTime.get
       lt1    <- latestTime.get
       qrDefr <- Deferred[IO, Unit]
-      _      <- inprogressReqs.update(_ + QueryRequest("testQuery", qrDefr))
-      _      <- Async[IO].delay {
-                  assert {
-                    pendingReqs.isEmpty &&
-                    et1 == Long.MaxValue &&
-                    lt1 == Long.MinValue
-                  }
+      _      <- overwriteReq { r =>
+                  for {
+                    newReq <- Async[IO].delay(r + QueryRequest("testQuery", qrDefr))
+                    _      <- Async[IO].delay {
+                                assert {
+                                  pendingReqs.isEmpty &&
+                                  et1 == Long.MaxValue &&
+                                  lt1 == Long.MinValue
+                                }
+                              }
+                  } yield newReq
                 }
       fib    <- startIngestion(0).start
       _      <- IO.sleep(50.millis)
       _      <- pendingReqs.toArray.last.asInstanceOf[LoadRequest].release.complete(())
       et2    <- earliestTime.get
       lt2    <- latestTime.get
-      ipr    <- inprogressReqs.get
-      _      <- Async[IO].delay {
-                  assert {
-                    ipr.size == 1 &&
-                    ipr.last.asInstanceOf[QueryRequest].queryName == "testQuery" &&
-                    pendingReqs.size == 1 &&
-                    pendingReqs.toArray.last.asInstanceOf[LoadRequest].sourceID == 0 &&
-                    et2 == Long.MaxValue &&
-                    lt2 == Long.MinValue
+      _      <- overwriteReq { r =>
+                  Async[IO].delay {
+                    assert {
+                      r.size == 1 &&
+                      r.last.asInstanceOf[QueryRequest].queryName == "testQuery" &&
+                      pendingReqs.size == 1 &&
+                      pendingReqs.toArray.last.asInstanceOf[LoadRequest].sourceID == 0 &&
+                      et2 == Long.MaxValue &&
+                      lt2 == Long.MinValue
+                    }
+                    r
                   }
                 }
       _      <- fib.join
@@ -174,28 +196,34 @@ class QuerySupervisorSuite extends CatsEffectSuite {
       lt1    <- latestTime.get
       lrDefr <- Deferred[IO, Unit]
       qrDefr <- Deferred[IO, Unit]
-      _      <- inprogressReqs.update(_ + QueryRequest("testQuery", qrDefr))
-      _      <- Async[IO].delay(pendingReqs.add(LoadRequest(0, lrDefr)))
-      _      <- Async[IO].delay {
-                  assert {
-                    et1 == Long.MaxValue &&
-                    lt1 == Long.MinValue
-                  }
+      _      <- overwriteReq { r =>
+                  for {
+                    newReq <- Async[IO].delay(r + QueryRequest("testQuery", qrDefr))
+                    _      <- Async[IO].delay(pendingReqs.add(LoadRequest(0, lrDefr)))
+                    _      <- Async[IO].delay {
+                                assert {
+                                  et1 == Long.MaxValue &&
+                                  lt1 == Long.MinValue
+                                }
+                              }
+                  } yield newReq
                 }
       fib    <- startIngestion(1).start
       _      <- IO.sleep(50.millis)
       _      <- pendingReqs.toArray.last.asInstanceOf[LoadRequest].release.complete(())
       et2    <- earliestTime.get
       lt2    <- latestTime.get
-      ipr    <- inprogressReqs.get
-      _      <- Async[IO].delay {
-                  assert {
-                    ipr.size == 1 &&
-                    ipr.last.asInstanceOf[QueryRequest].queryName == "testQuery" &&
-                    pendingReqs.size == 2 &&
-                    pendingReqs.toArray.last.asInstanceOf[LoadRequest].sourceID == 1 &&
-                    et2 == Long.MaxValue &&
-                    lt2 == Long.MinValue
+      _      <- overwriteReq { r =>
+                  Async[IO].delay {
+                    assert {
+                      r.size == 1 &&
+                      r.last.asInstanceOf[QueryRequest].queryName == "testQuery" &&
+                      pendingReqs.size == 2 &&
+                      pendingReqs.toArray.last.asInstanceOf[LoadRequest].sourceID == 1 &&
+                      et2 == Long.MaxValue &&
+                      lt2 == Long.MinValue
+                    }
+                    r
                   }
                 }
       _      <- fib.join
@@ -212,27 +240,32 @@ class QuerySupervisorSuite extends CatsEffectSuite {
       lt1     <- latestTime.get
       lrDefr1 <- Deferred[IO, Unit]
       lrDefr2 <- Deferred[IO, Unit]
-      _       <- inprogressReqs.update(_ + LoadRequest(0, lrDefr1))
-      ipr0    <- inprogressReqs.updateAndGet(_ + LoadRequest(1, lrDefr2))
-      _       <- Async[IO].delay {
-                   assert {
-                     ipr0.size == 2 &&
-                     pendingReqs.isEmpty &&
-                     et1 == Long.MaxValue &&
-                     lt1 == Long.MinValue
-                   }
+      _       <- overwriteReq { r =>
+                   for {
+                     newReq <- Async[IO].delay(r ++ Set(LoadRequest(0, lrDefr1), LoadRequest(1, lrDefr2)))
+                     _      <- Async[IO].delay {
+                                 assert {
+                                   newReq.size == 2 &&
+                                   pendingReqs.isEmpty &&
+                                   et1 == Long.MaxValue &&
+                                   lt1 == Long.MinValue
+                                 }
+                               }
+                   } yield newReq
                  }
       _       <- endIngestion(sourceID = 0, 5, 10)
       _       <- endIngestion(sourceID = 1, 0, 6)
       et2     <- earliestTime.get
       lt2     <- latestTime.get
-      ipr     <- inprogressReqs.get
-      _       <- Async[IO].delay {
-                   assert {
-                     ipr.isEmpty &&
-                     pendingReqs.isEmpty &&
-                     et2 == 0 &&
-                     lt2 == 10
+      _       <- overwriteReq { r =>
+                   Async[IO].delay {
+                     assert {
+                       r.isEmpty &&
+                       pendingReqs.isEmpty &&
+                       et2 == 0 &&
+                       lt2 == 10
+                     }
+                     r
                    }
                  }
     } yield ()
@@ -248,25 +281,31 @@ class QuerySupervisorSuite extends CatsEffectSuite {
       lt1    <- latestTime.get
       lrDefr <- Deferred[IO, Unit]
       qrDefr <- Deferred[IO, Unit]
-      _      <- inprogressReqs.update(_ + LoadRequest(0, lrDefr))
-      _      <- Async[IO].delay(pendingReqs.add(QueryRequest("testQuery", qrDefr)))
-      _      <- Async[IO].delay {
-                  assert {
-                    et1 == Long.MaxValue &&
-                    lt1 == Long.MinValue
-                  }
+      _      <- overwriteReq { r =>
+                  for {
+                    newReq <- Async[IO].delay(r + LoadRequest(0, lrDefr))
+                    _      <- Async[IO].delay(pendingReqs.add(QueryRequest("testQuery", qrDefr)))
+                    _      <- Async[IO].delay {
+                                assert {
+                                  et1 == Long.MaxValue &&
+                                  lt1 == Long.MinValue
+                                }
+                              }
+                  } yield newReq
                 }
       _      <- endIngestion(sourceID = 0, 0, 10)
       et2    <- earliestTime.get
       lt2    <- latestTime.get
-      ipr    <- inprogressReqs.get
-      _      <- Async[IO].delay {
-                  assert {
-                    ipr.size == 1 &&
-                    ipr.head.asInstanceOf[QueryRequest].queryName == "testQuery" &&
-                    pendingReqs.isEmpty &&
-                    et2 == 0 &&
-                    lt2 == 10
+      _      <- overwriteReq { r =>
+                  Async[IO].delay {
+                    assert {
+                      r.size == 1 &&
+                      r.head.asInstanceOf[QueryRequest].queryName == "testQuery" &&
+                      pendingReqs.isEmpty &&
+                      et2 == 0 &&
+                      lt2 == 10
+                    }
+                    r
                   }
                 }
     } yield ()
@@ -278,30 +317,34 @@ class QuerySupervisorSuite extends CatsEffectSuite {
     import supervisor._
 
     for {
-      et1  <- earliestTime.get
-      lt1  <- latestTime.get
-      ipr1 <- inprogressReqs.get
-      _    <- Async[IO].delay {
-                assert {
-                  ipr1.isEmpty &&
-                  pendingReqs.isEmpty &&
-                  et1 == Long.MaxValue &&
-                  lt1 == Long.MinValue
-                }
-              }
-      _    <- processQueryRequest(Query(name = "testQuery", graphID = "1"))
-      et2  <- earliestTime.get
-      lt2  <- latestTime.get
-      ipr2 <- inprogressReqs.get
-      _    <- Async[IO].delay {
-                assert {
-                  ipr2.size == 1 &&
-                  ipr2.head.asInstanceOf[QueryRequest].queryName == "testQuery" &&
-                  pendingReqs.isEmpty &&
-                  et2 == Long.MaxValue &&
-                  lt2 == Long.MinValue
-                }
-              }
+      et1 <- earliestTime.get
+      lt1 <- latestTime.get
+      _   <- overwriteReq { r =>
+               Async[IO].delay {
+                 assert {
+                   r.isEmpty &&
+                   pendingReqs.isEmpty &&
+                   et1 == Long.MaxValue &&
+                   lt1 == Long.MinValue
+                 }
+                 r
+               }
+             }
+      _   <- processQueryRequest(Query(name = "testQuery", graphID = "1"))
+      et2 <- earliestTime.get
+      lt2 <- latestTime.get
+      _   <- overwriteReq { r =>
+               Async[IO].delay {
+                 assert {
+                   r.size == 1 &&
+                   r.head.asInstanceOf[QueryRequest].queryName == "testQuery" &&
+                   pendingReqs.isEmpty &&
+                   et2 == Long.MaxValue &&
+                   lt2 == Long.MinValue
+                 }
+                 r
+               }
+             }
     } yield ()
   }
 
@@ -314,25 +357,31 @@ class QuerySupervisorSuite extends CatsEffectSuite {
       et1    <- earliestTime.get
       lt1    <- latestTime.get
       qrDefr <- Deferred[IO, Unit]
-      _      <- inprogressReqs.update(_ + QueryRequest("testQuery", qrDefr))
-      _      <- Async[IO].delay {
-                  assert {
-                    pendingReqs.isEmpty &&
-                    et1 == Long.MaxValue &&
-                    lt1 == Long.MinValue
-                  }
+      _      <- overwriteReq { r =>
+                  for {
+                    newReq <- Async[IO].delay(r + QueryRequest("testQuery", qrDefr))
+                    _      <- Async[IO].delay {
+                                assert {
+                                  pendingReqs.isEmpty &&
+                                  et1 == Long.MaxValue &&
+                                  lt1 == Long.MinValue
+                                }
+                              }
+                  } yield newReq
                 }
       _      <- processQueryRequest(Query(name = "testQuery2", graphID = "2"))
       et2    <- earliestTime.get
       lt2    <- latestTime.get
-      ipr2   <- inprogressReqs.get
-      _      <- Async[IO].delay {
-                  assert {
-                    ipr2.size == 2 &&
-                    ipr2.last.asInstanceOf[QueryRequest].queryName == "testQuery2" &&
-                    pendingReqs.isEmpty &&
-                    et2 == Long.MaxValue &&
-                    lt2 == Long.MinValue
+      _      <- overwriteReq { r =>
+                  Async[IO].delay {
+                    assert {
+                      r.size == 2 &&
+                      r.last.asInstanceOf[QueryRequest].queryName == "testQuery2" &&
+                      pendingReqs.isEmpty &&
+                      et2 == Long.MaxValue &&
+                      lt2 == Long.MinValue
+                    }
+                    r
                   }
                 }
     } yield ()
@@ -348,28 +397,34 @@ class QuerySupervisorSuite extends CatsEffectSuite {
       lt1    <- latestTime.get
       lrDefr <- Deferred[IO, Unit]
       qrDefr <- Deferred[IO, Unit]
-      _      <- inprogressReqs.update(_ + QueryRequest("testQuery", qrDefr))
-      _      <- Async[IO].delay(pendingReqs.add(LoadRequest(sourceID = 0, lrDefr)))
-      _      <- Async[IO].delay {
-                  assert {
-                    et1 == Long.MaxValue &&
-                    lt1 == Long.MinValue
-                  }
+      _      <- overwriteReq { r =>
+                  for {
+                    newReq <- Async[IO].delay(r + QueryRequest("testQuery", qrDefr))
+                    _      <- Async[IO].delay(pendingReqs.add(LoadRequest(sourceID = 0, lrDefr)))
+                    _      <- Async[IO].delay {
+                                assert {
+                                  et1 == Long.MaxValue &&
+                                  lt1 == Long.MinValue
+                                }
+                              }
+                  } yield newReq
                 }
       fib    <- processQueryRequest(Query(name = "testQuery2", graphID = "2")).start
       _      <- IO.sleep(50.millis)
       _      <- pendingReqs.toArray.last.asInstanceOf[QueryRequest].release.complete(())
       et2    <- earliestTime.get
       lt2    <- latestTime.get
-      ipr2   <- inprogressReqs.get
-      _      <- Async[IO].delay {
-                  assert {
-                    ipr2.size == 1 &&
-                    ipr2.last.asInstanceOf[QueryRequest].queryName == "testQuery" &&
-                    pendingReqs.size() == 2 &&
-                    pendingReqs.toArray.last.asInstanceOf[QueryRequest].queryName == "testQuery2"
-                    et2 == Long.MaxValue &&
-                    lt2 == Long.MinValue
+      _      <- overwriteReq { r =>
+                  Async[IO].delay {
+                    assert {
+                      r.size == 1 &&
+                      r.last.asInstanceOf[QueryRequest].queryName == "testQuery" &&
+                      pendingReqs.size() == 2 &&
+                      pendingReqs.toArray.last.asInstanceOf[QueryRequest].queryName == "testQuery2"
+                      et2 == Long.MaxValue &&
+                      lt2 == Long.MinValue
+                    }
+                    r
                   }
                 }
       _      <- fib.join
@@ -385,28 +440,34 @@ class QuerySupervisorSuite extends CatsEffectSuite {
       et1    <- earliestTime.get
       lt1    <- latestTime.get
       lrDefr <- Deferred[IO, Unit]
-      _      <- inprogressReqs.update(_ + LoadRequest(sourceID = 0, lrDefr))
-      _      <- Async[IO].delay {
-                  assert {
-                    pendingReqs.isEmpty &&
-                    et1 == Long.MaxValue &&
-                    lt1 == Long.MinValue
-                  }
+      _      <- overwriteReq { r =>
+                  for {
+                    newReq <- Async[IO].delay(r + LoadRequest(sourceID = 0, lrDefr))
+                    _      <- Async[IO].delay {
+                                assert {
+                                  pendingReqs.isEmpty &&
+                                  et1 == Long.MaxValue &&
+                                  lt1 == Long.MinValue
+                                }
+                              }
+                  } yield newReq
                 }
       fib    <- processQueryRequest(Query(name = "testQuery", graphID = "1")).start
       _      <- IO.sleep(50.millis)
       _      <- pendingReqs.toArray.last.asInstanceOf[QueryRequest].release.complete(())
       et2    <- earliestTime.get
       lt2    <- latestTime.get
-      ipr    <- inprogressReqs.get
-      _      <- Async[IO].delay {
-                  assert {
-                    ipr.size == 1 &&
-                    ipr.last.asInstanceOf[LoadRequest].sourceID == 0 &&
-                    pendingReqs.size() == 1 &&
-                    pendingReqs.toArray.last.asInstanceOf[QueryRequest].queryName == "testQuery"
-                    et2 == Long.MaxValue &&
-                    lt2 == Long.MinValue
+      _      <- overwriteReq { r =>
+                  Async[IO].delay {
+                    assert {
+                      r.size == 1 &&
+                      r.last.asInstanceOf[LoadRequest].sourceID == 0 &&
+                      pendingReqs.size() == 1 &&
+                      pendingReqs.toArray.last.asInstanceOf[QueryRequest].queryName == "testQuery"
+                      et2 == Long.MaxValue &&
+                      lt2 == Long.MinValue
+                    }
+                    r
                   }
                 }
       _      <- fib.join
@@ -423,28 +484,34 @@ class QuerySupervisorSuite extends CatsEffectSuite {
       lt1    <- latestTime.get
       lrDefr <- Deferred[IO, Unit]
       qrDefr <- Deferred[IO, Unit]
-      _      <- inprogressReqs.update(_ + LoadRequest(sourceID = 0, lrDefr))
-      _      <- Async[IO].delay(pendingReqs.add(QueryRequest("testQuery", qrDefr)))
-      _      <- Async[IO].delay {
-                  assert {
-                    et1 == Long.MaxValue &&
-                    lt1 == Long.MinValue
-                  }
+      _      <- overwriteReq { r =>
+                  for {
+                    newReq <- Async[IO].delay(r + LoadRequest(sourceID = 0, lrDefr))
+                    _      <- Async[IO].delay(pendingReqs.add(QueryRequest("testQuery", qrDefr)))
+                    _      <- Async[IO].delay {
+                                assert {
+                                  et1 == Long.MaxValue &&
+                                  lt1 == Long.MinValue
+                                }
+                              }
+                  } yield newReq
                 }
       fib    <- processQueryRequest(Query(name = "testQuery2", graphID = "2")).start
       _      <- IO.sleep(50.millis)
       _      <- pendingReqs.toArray.last.asInstanceOf[QueryRequest].release.complete(())
       et2    <- earliestTime.get
       lt2    <- latestTime.get
-      ipr    <- inprogressReqs.get
-      _      <- Async[IO].delay {
-                  assert {
-                    ipr.size == 1 &&
-                    ipr.last.asInstanceOf[LoadRequest].sourceID == 0 &&
-                    pendingReqs.size() == 2 &&
-                    pendingReqs.toArray.last.asInstanceOf[QueryRequest].queryName == "testQuery2"
-                    et2 == Long.MaxValue &&
-                    lt2 == Long.MinValue
+      _      <- overwriteReq { r =>
+                  Async[IO].delay {
+                    assert {
+                      r.size == 1 &&
+                      r.last.asInstanceOf[LoadRequest].sourceID == 0 &&
+                      pendingReqs.size() == 2 &&
+                      pendingReqs.toArray.last.asInstanceOf[QueryRequest].queryName == "testQuery2"
+                      et2 == Long.MaxValue &&
+                      lt2 == Long.MinValue
+                    }
+                    r
                   }
                 }
       _      <- fib.join
@@ -462,27 +529,33 @@ class QuerySupervisorSuite extends CatsEffectSuite {
       lrDefr  <- Deferred[IO, Unit]
       qrDefr1 <- Deferred[IO, Unit]
       qrDefr2 <- Deferred[IO, Unit]
-      _       <- inprogressReqs.update(_ + QueryRequest("testQuery", qrDefr1))
-      _       <- inprogressReqs.update(_ + QueryRequest("testQuery2", qrDefr2))
-      _       <- Async[IO].delay(pendingReqs.add(LoadRequest(0, lrDefr)))
-      _       <- Async[IO].delay {
-                   assert {
-                     et1 == Long.MaxValue &&
-                     lt1 == Long.MinValue
-                   }
+      _       <- overwriteReq { r =>
+                   for {
+                     newReq <-
+                       Async[IO].delay(r ++ Set(QueryRequest("testQuery", qrDefr1), QueryRequest("testQuery2", qrDefr2)))
+                     _      <- Async[IO].delay(pendingReqs.add(LoadRequest(0, lrDefr)))
+                     _      <- Async[IO].delay {
+                                 assert {
+                                   et1 == Long.MaxValue &&
+                                   lt1 == Long.MinValue
+                                 }
+                               }
+                   } yield newReq
                  }
       _       <- endQuery(Query(name = "testQuery", graphID = "1"))
       _       <- endQuery(Query(name = "testQuery2", graphID = "2"))
       et2     <- earliestTime.get
       lt2     <- latestTime.get
-      ipr     <- inprogressReqs.get
-      _       <- Async[IO].delay {
-                   assert {
-                     ipr.size == 1 &&
-                     ipr.last.asInstanceOf[LoadRequest].sourceID == 0 &&
-                     pendingReqs.isEmpty &&
-                     et2 == Long.MaxValue &&
-                     lt2 == Long.MinValue
+      _       <- overwriteReq { r =>
+                   Async[IO].delay {
+                     assert {
+                       r.size == 1 &&
+                       r.last.asInstanceOf[LoadRequest].sourceID == 0 &&
+                       pendingReqs.isEmpty &&
+                       et2 == Long.MaxValue &&
+                       lt2 == Long.MinValue
+                     }
+                     r
                    }
                  }
     } yield ()

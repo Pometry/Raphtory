@@ -15,7 +15,6 @@ import scala.collection.mutable
 import scala.reflect.ClassTag
 
 case class VertexAddArrowFlightMessage(
-    sourceID: Long = 0L,
     updateTime: Long = 0L,
     index: Long = 0L,
     srcId: Long = 0L,
@@ -40,7 +39,6 @@ object VertexAddArrowFlightMessage {
 }
 
 case class VertexAddArrowFlightMessageVectors(
-    sourceIDs: BigIntVector,
     updateTimes: BigIntVector,
     indexes: BigIntVector,
     srcIds: BigIntVector,
@@ -112,7 +110,6 @@ case class VertexAddArrowFlightMessageSchema[
       ).flatten
 
       VertexAdd(
-              msg.sourceID,
               msg.updateTime,
               msg.index,
               msg.srcId,
@@ -163,7 +160,6 @@ case class VertexAddArrowFlightMessageSchema[
       }
 
       VertexAddArrowFlightMessage(
-              vadd.sourceID,
               vadd.updateTime,
               vadd.index,
               vadd.srcId,
@@ -192,7 +188,6 @@ class VertexAddArrowFlightMessageSchemaFactory extends ArrowFlightMessageSchemaF
           VertexAddArrowFlightMessageVectors,
           VertexAddArrowFlightMessage
   ] = {
-    val sourceIDs               = vectorSchemaRoot.getVector("sourceIDs").asInstanceOf[BigIntVector]
     val updateTimes             = vectorSchemaRoot.getVector("updateTimes").asInstanceOf[BigIntVector]
     val indexes                 = vectorSchemaRoot.getVector("indexes").asInstanceOf[BigIntVector]
     val srcIds                  = vectorSchemaRoot.getVector("srcIds").asInstanceOf[BigIntVector]
@@ -219,7 +214,6 @@ class VertexAddArrowFlightMessageSchemaFactory extends ArrowFlightMessageSchemaF
     VertexAddArrowFlightMessageSchema(
             vectorSchemaRoot,
             VertexAddArrowFlightMessageVectors(
-                    sourceIDs,
                     updateTimes,
                     indexes,
                     srcIds,
