@@ -13,6 +13,7 @@
 import os
 import sys
 from pathlib import Path
+from pyraphtory import __version__
 sys.path.insert(0, os.path.abspath('exts'))
 
 
@@ -23,7 +24,7 @@ copyright = '2022, Ben Steer'
 author = 'Ben Steer'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1.0'
+release = __version__
 
 
 # -- General configuration ---------------------------------------------------
@@ -97,3 +98,8 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static', 'images', '_scaladoc']
 nbsphinx_kernel_name = 'python3'
+
+rst_prolog = f"""
+.. |binder_link| replace:: Click here to launch the notebook
+.. _binder_link: https://mybinder.org/v2/gh/Raphtory/Raphtory/v{__version__}?labpath=examples%2Fbinder_python%2Findex.ipynb
+"""

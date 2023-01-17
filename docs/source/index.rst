@@ -13,9 +13,9 @@ Raphtory is an open-source platform for distributed real-time temporal graph ana
 If you would like a brief summary of what it's used for before fully diving into the getting start guide please check out our latest talks and blogs on the `Raphtory website <https://raphtory.com>`_.
 
 You can try PyRaphtory (the python library) right now in a Jupyter notebook within your browser, no install is required.  
-`Click here to launch the notebook <https://mybinder.org/v2/gh/Raphtory/Raphtory/v0.2.0a9?labpath=examples%2Fbinder_python%2Findex.ipynb>`_.
+|binder_link|_.
 
-Alternatively, hit next and lets get Raphtory :doc:`installed <Install/python/pyraphtory>`. If you want to dive headfirst into the API's you can visit the :doc:`PythonDocs <PythonDocs/index>` or :doc:`ScalaDocs <Scaladoc/index>`.
+Alternatively, hit next and lets get Raphtory :doc:`installed <Install/python/pyraphtory>`. If you want to dive headfirst into the API's you can visit the :doc:`PythonDocs <PythonDocs/index>` or :doc:`ScalaDocs <scala/apidocs>`.
 
 .. toctree::
    :maxdepth: 1
