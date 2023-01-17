@@ -185,14 +185,14 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   test("When an algo crashes and we try to iterate over the result we get an exception") {
     val res = runWithGraph(RemoteContext, source) { graph =>
-      Try(graph.select("").get().toList)
+      Try(graph.step(v => v).select().get().toList)
     }
     assert(res.isFailure)
   }
 
   test("When an algo crashes waitForJob returns and isJobDone is false") {
     val res = runWithGraph(RemoteContext, source) { graph =>
-      val query = graph.select("1").filter(row => false).writeTo(PrintSink())
+      val query = graph.step(v => v).select().filter(row => false).writeTo(PrintSink())
       intercept[java.lang.RuntimeException](query.waitForJob())
       !query.isJobDone
     }
