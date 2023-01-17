@@ -70,7 +70,6 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   private def emgr: EdgePartitionManager   = par.getEdgeMgr
 
   override def addVertex(
-      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -165,7 +164,6 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
 
   // This method should assume that both vertices are local and create them if they don't exist
   override def addLocalEdge(
-      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -186,7 +184,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       }
     } match {
       case Some(e) =>
-        updateExistingEdge(sourceID, msgTime, index, srcId, dstId, properties, dst, e)
+        updateExistingEdge(msgTime, index, srcId, dstId, properties, dst, e)
         addVertexInternal(dstId, msgTime, Properties())
       case None    =>
         val dstV = addVertexInternal(dstId, msgTime, Properties())
@@ -196,7 +194,6 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
 
   // This method should assume that the dstId belongs to another partition
   override def addOutgoingEdge(
-      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -216,13 +213,12 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
         case ExistsOnPartition(id) => id == e.getDstVertex && !e.isDstGlobal
       }
     } match {
-      case Some(e) => updateExistingEdge(sourceID, msgTime, index, srcId, dstId, properties, dst, e)
+      case Some(e) => updateExistingEdge(msgTime, index, srcId, dstId, properties, dst, e)
       case None    => addRemoteOutgoingEdge(src, dst.id, msgTime, properties)
     }
   }
 
   private def updateExistingEdge(
-      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -322,7 +318,6 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
 
   // This method should assume that the srcId belongs to another partition
   override def addIncomingEdge(
-      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,

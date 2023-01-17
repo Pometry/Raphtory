@@ -7,12 +7,14 @@ object Dependencies {
   private lazy val curatorVersion                  = "5.4.0"
   private lazy val declineVersion                  = "2.3.0"
   private lazy val fs2Version                      = "3.2.12"
+  private lazy val h2Version                       = "2.1.214"
   private lazy val jacksonVersion                  = "2.13.3"
   private lazy val jsonpathVersion                 = "0.5.5"
   private lazy val log4jVersion                    = "2.18.0"
   private lazy val muVersion                       = "0.29.1"
   private lazy val openhftVersion                  = "0.15"
   private lazy val pemjaVersion                    = "0.2.6"
+  private lazy val postgresVersion                 = "42.5.1"
   private lazy val prometheusVersion               = "0.15.0"
   private lazy val pulsarVersion                   = "2.9.1"
   private lazy val py4jVersion                     = "0.10.9.5"
@@ -23,6 +25,7 @@ object Dependencies {
   private lazy val scalatestVersion                = "3.2.11"
   private lazy val slf4jVersion                    = "1.7.36"
   private lazy val sprayJsonVersion                = "1.3.6"
+  private lazy val sqliteVersion                   = "3.40.0.0"
   private lazy val testContainersVersion           = "0.40.8"
   private lazy val timeSeriesVersion               = "1.7.0"
   private lazy val typesafeConfigVersion           = "1.4.2"
@@ -64,6 +67,7 @@ object Dependencies {
     "org.apache.curator" % "curator-recipes" % curatorVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val decline    = "com.monovore"             %% "decline-effect" % declineVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val fs2        = "co.fs2"                   %% "fs2-core"       % fs2Version
+  lazy val h2         = "com.h2database"            % "h2"             % h2Version % Test
   lazy val apacheHttp = "org.apache.httpcomponents" % "httpclient"     % "4.5.13"
 
   lazy val jackson =
@@ -96,7 +100,8 @@ object Dependencies {
   lazy val prometheusHotspot =
     "io.prometheus" % "simpleclient_hotspot" % prometheusVersion excludeAll (excludeLog4j, excludeSlf4j)
 
-  lazy val pemja = "com.alibaba" % "pemja" % pemjaVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val pemja    = "com.alibaba"    % "pemja"      % pemjaVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val postgres = "org.postgresql" % "postgresql" % postgresVersion
 
   lazy val py4j         = "net.sf.py4j"                 % "py4j"          % py4jVersion excludeAll (excludeLog4j, excludeSlf4j)
   lazy val scalaLogging = "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion
@@ -109,6 +114,7 @@ object Dependencies {
   lazy val shapeless        = "com.chuusai"          %% "shapeless"                  % shapelessVer
   lazy val slf4j            = "org.slf4j"             % "slf4j-api"                  % slf4jVersion
   lazy val sprayJson        = "io.spray"             %% "spray-json"                 % sprayJsonVersion excludeAll (excludeLog4j, excludeSlf4j)
+  lazy val sqlite           = "org.xerial"            % "sqlite-jdbc"                % sqliteVersion
   lazy val testContainers   = "com.dimafeng"         %% "testcontainers-scala-munit" % testContainersVersion % "it,test"
 
   lazy val twitterChill   = "com.twitter"         %% "chill"     % chillVersion excludeAll (excludeLog4j, excludeSlf4j)

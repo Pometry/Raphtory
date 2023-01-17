@@ -348,7 +348,6 @@ class ArrowStorageSuite extends munit.FunSuite {
     addVertex(7, timestamp, None, ImmutableString("name", "Alice"))(par)
     // add edge
     par.addLocalEdge(
-            3,
             timestamp,
             -1,
             3,
@@ -377,7 +376,6 @@ class ArrowStorageSuite extends munit.FunSuite {
 
     // add the edge again with a different time and different payload
     par.addLocalEdge(
-            3,
             timestamp + 1,
             -1,
             3,
@@ -406,7 +404,6 @@ class ArrowStorageSuite extends munit.FunSuite {
     // add edge
     for (i <- 0 until 3)
       par.addLocalEdge(
-              3,
               timestamp + i,
               -1,
               3,
@@ -448,7 +445,6 @@ class ArrowStorageSuite extends munit.FunSuite {
     addVertex(3, timestamp, None)(par)
     // add edge
     par.addLocalEdge(
-            3,
             timestamp,
             -1,
             3,
@@ -483,7 +479,6 @@ class ArrowStorageSuite extends munit.FunSuite {
     // add edge on par1
     par1
       .addOutgoingEdge(
-              3,
               timestamp,
               -1,
               2,
@@ -493,7 +488,7 @@ class ArrowStorageSuite extends munit.FunSuite {
       )
 
     //add the second edge onto partition2
-    par2.addIncomingEdge(3, timestamp, -1, 2, 7, properties, None)
+    par2.addIncomingEdge(timestamp, -1, 2, 7, properties, None)
 
     val (vs, names)   = partitionVertices(par1)
     assertEquals(vs.size, 1)
@@ -560,7 +555,6 @@ class ArrowStorageSuite extends munit.FunSuite {
       par: ArrowPartition
   ): Unit =
     par.addVertex(
-            sourceID = 3,
             msgTime = timestamp,
             -1,
             srcId = globalId,
