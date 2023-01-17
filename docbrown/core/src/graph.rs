@@ -37,6 +37,21 @@ impl Default for TemporalGraph {
 }
 
 impl TemporalGraph {
+
+
+    pub(crate) fn vertices_window(&self, r: Range<u64>) ->Box<dyn Iterator<Item = usize> + '_> {
+
+        let iter = self
+            .t_index
+            .range(r.clone())
+            .map(|(_, vs)| vs.iter())
+            .kmerge()
+            .dedup();
+        Box::new(iter)
+
+    }
+
+
     fn neighbours_iter(
         &self,
         vid: usize,
