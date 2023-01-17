@@ -5,6 +5,7 @@ use roaring::RoaringTreemap;
 
 use crate::lsm::LSMSet;
 
+// TODO: use enum_dispatch
 #[derive(Debug, Default)]
 pub enum BitSet {
     #[default]

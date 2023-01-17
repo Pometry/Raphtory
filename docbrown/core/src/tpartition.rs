@@ -1,4 +1,3 @@
-use futures::Future;
 use parking_lot::RwLock;
 use std::sync::Arc;
 
@@ -6,31 +5,78 @@ use genawaiter::rc::gen;
 use genawaiter::yield_;
 
 use crate::graph::TemporalGraph;
-use crate::Prop;
+use crate::tadjset::AdjEdge;
+use crate::{Prop, Direction};
+use itertools::*;
 
 #[derive(Clone, Debug, Default)]
 pub struct TemporalGraphPart(Arc<RwLock<TemporalGraph>>);
+
+pub struct TEdge{v: usize, edge_meta_id: AdjEdge, t: Option<u64>}
 
 impl TemporalGraphPart {
     pub fn add_vertex(&self, t: u64, v: u64, props: Vec<(String, Prop)>) {
         self.write_shard(|tg| tg.add_vertex(v, t))
     }
 
+    pub fn add_edge(
+        &self,
+        t: u64, src: u64, dst:u64, props: &Vec<(String, Prop)>
+    ) {
+        self.write_shard(|tg| tg.add_edge_props(src, dst, t, props))
+    }
+
+    pub fn add_edge_remote_out(
+        &self,
+        t: u64, src: u64, dst:u64, props: &Vec<(String, Prop)>
+    ) {
+        self.write_shard(|tg| tg.add_edge_remote_out(src, dst, t, props))
+    }
+
+    pub fn add_edge_remote_into(
+        &self,
+        t: u64, src: u64, dst:u64, props: &Vec<(String, Prop)>
+    ) {
+        self.write_shard(|tg| tg.add_edge_remote_into(src, dst, t, props))
+    }
+
+    // TODO: check if there is any value in returning Vec<usize> vs just usize, what is the cost of the generator
     pub fn vertices_window(
         &self,
         t_start: u64,
         t_end: u64,
-    ) -> genawaiter::rc::Gen<usize, (), impl Future<Output = ()>> {
+        chunk_size: usize
+    ) -> impl Iterator<Item = Vec<usize>>{
         let tg = self.clone();
         let vertices_iter = gen!({
             let g = tg.0.read();
-            for v_id in (*g).vertices_window(t_start..t_end) {
+            let chunks = (*g).vertices_window_iter(t_start..t_end).chunks(chunk_size);
+            let iter = chunks.into_iter().map(|chunk| chunk.collect::<Vec<_>>());
+            for v_id in iter {
                 yield_!(v_id)
             }
         });
 
-        vertices_iter
+        vertices_iter.into_iter()
     }
+
+    pub fn neighbours_window(&self, t_start: u64, t_end: u64, v: u64, d: Direction) -> impl Iterator<Item = TEdge>{
+
+        let tg = self.clone();
+        let vertices_iter = gen!({
+            let g = tg.0.read();
+            let chunks = (*g).neighbours_window((t_start .. t_end), v, d).map(|e| {
+                todo!()
+            });
+            let iter = chunks.into_iter();
+            for v_id in iter {
+                yield_!(v_id)
+            }
+        });
+
+        vertices_iter.into_iter()
+    }
+
 
     pub fn len(&self) -> usize {
         self.read_shard(|tg| tg.len())
@@ -99,8 +145,8 @@ mod temporal_graph_partition_test {
         }
 
        for (v, (t_start, t_end)) in intervals.0.iter().enumerate() {
-           let vertex_window = g.vertices_window(*t_start, *t_end);
-           let iter = &mut vertex_window.into_iter();
+           let vertex_window = g.vertices_window(*t_start, *t_end, 1);
+           let iter = &mut vertex_window.into_iter().flatten();
            let v_actual = iter.next();
            assert_eq!(Some(v), v_actual);
            assert_eq!(None, iter.next()); // one vertex per interval
