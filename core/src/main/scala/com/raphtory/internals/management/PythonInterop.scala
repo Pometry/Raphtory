@@ -86,8 +86,10 @@ object PythonInterop {
 
   /** Get scaladoc string from annotation for class
     */
-  def docstring_for_class(obj: Any): String =
-    Option(obj.getClass.getAnnotation(classOf[Scaladoc]).value()).getOrElse("")
+  def docstring_for_class(name: String): String = {
+    val obj = Class.forName(name)
+    Option(obj.getAnnotation(classOf[Scaladoc])).map(_.value()).getOrElse("")
+  }
 
   /** make assign_id accessible from python */
   def assign_id(s: String): Long =

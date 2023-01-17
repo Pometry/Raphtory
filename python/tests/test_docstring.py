@@ -43,7 +43,7 @@ def test_weird_link():
 def test_note_parser():
     assert (convert_docstring(
         "/** @note First line\n *     Second line\n *       Indented third line\n * \n * \n *     Normal fourth line\n * Other text */")
-            == ".. note:: First line\n   Second line\n     Indented third line\n\n\n   Normal fourth line\nOther text")
+            == ".. note::\n   First line\n   Second line\n     Indented third line\n\n\n   Normal fourth line\n\nOther text")
 
 
 def test_param_list_without_space():
@@ -80,3 +80,29 @@ def test_param_list_from_accumulator():
             """Add new value to accumulator and return the accumulator object
 
 :param new_value: Value to add""")
+
+
+def test_codeblock():
+    assert (convert_docstring(
+"""/** {{{
+* {
+*   "jobID" : "EdgeCount",
+*   "partitionID" : 0,
+*   "perspectives" : [ {
+*     "timestamp" : 10
+*     "rows" : [ [ "id1", 12 ], [ "id2", 13 ], [ "id3", 24 ] ]
+*   } ]
+* }
+* }}}"""
+    ) ==
+""".. code-block::
+   :dedent:
+
+   {
+     "jobID" : "EdgeCount",
+     "partitionID" : 0,
+     "perspectives" : [ {
+       "timestamp" : 10
+       "rows" : [ [ "id1", 12 ], [ "id2", 13 ], [ "id3", 24 ] ]
+     } ]
+   }""")
