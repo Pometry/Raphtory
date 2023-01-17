@@ -1,9 +1,11 @@
-use std::{sync::Arc, error::Error};
+#[cfg(test)]
+#[macro_use(quickcheck)]
+extern crate quickcheck_macros;
+
+use std::{sync::Arc, rc::Rc};
 
 use docbrown_core::{graph::TemporalGraph, Prop};
 use parking_lot::RwLock;
-use futures::executor::ThreadPool;
-use flume::{unbounded, Receiver, Sender};
 
 pub struct GraphDB {
     nr_shards: usize,
@@ -56,23 +58,6 @@ impl GraphDB {
         }
     }
 
-    pub fn load<SOURCE:Iterator<Item = Msg>>(&self, s: SOURCE) -> Result<(), Box<dyn Error>>{
-        let n_threads = 2;
-        let pool = ThreadPool::new()?;
-        let mut senders = vec![];
-
-        for _ in 0 .. n_threads {
-        let (sender, receiver) = unbounded::<Msg>();
-            senders.push(sender);
-            let future = async {
-
-            };
-            pool.spawn_ok(future)
-        }
-
-        Ok(())
-    }
-
     pub fn len(&self) -> usize {
         self.shards
             .iter()
@@ -109,9 +94,21 @@ impl GraphDB {
 }
 
 #[cfg(test)]
-mod tests {
+mod db_tests {
+    use itertools::Itertools;
+
     use super::*;
 
-    #[test]
-    fn it_works() {}
+    #[quickcheck]
+    fn add_vertex_to_graph_len_grows(vs: Vec<(u8, u8)>) {
+        let g = GraphDB::new(2);
+
+        let expected_len = vs.iter().map(|(v, _)| v).sorted().dedup().count();
+        for (v, t) in vs {
+            g.add_vertex(v.into(), t.into(), vec![]);
+        }
+
+        assert_eq!(g.len(), expected_len)
+
+    }
 }

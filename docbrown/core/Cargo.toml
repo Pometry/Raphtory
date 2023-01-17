@@ -17,6 +17,8 @@ flate2 = "1.0"
 sorted_vector_map = "0.1"
 flume = "0.10"
 futures = "0.3"
+genawaiter = "0.99"
+parking_lot = "0.12"
 
 # crossbeam = "0.8"
 # crossbeam-utils = "0.8"

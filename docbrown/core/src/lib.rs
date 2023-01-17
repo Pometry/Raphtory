@@ -100,6 +100,7 @@ mod misc;
 mod props;
 mod tadjset;
 mod tcell;
+mod tpartition;
 
 use graph::TemporalGraph;
 use std::ops::Range;
