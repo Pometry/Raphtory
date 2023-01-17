@@ -3,7 +3,7 @@ from pyraphtory.interop import GenericScalaProxy, ScalaClassProxy
 
 
 class ScalaAlgorithm(GenericScalaProxy):
-    _classname = "com.raphtory.api.algorithm.BaseAlgorithm"
+    _classname = "com.raphtory.api.analysis.algorithm.BaseAlgorithm"
 
 
 class Alignment(ScalaClassProxy):

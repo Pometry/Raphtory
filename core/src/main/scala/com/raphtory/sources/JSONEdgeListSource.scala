@@ -13,13 +13,13 @@ import com.raphtory.spouts.ResourceSpout
 /**
   * JSONEdgeListSource is for building graphs in Raphtory from JSON data with no nested classes in JSON objects.
   *
-  * @param spout : state where to ingest your data from (Mandatory field)
-  * @param sourceKey : state the key of the source ID in your JSON data (default = "source")
-  * @param sourceType : state what type of value the source is (default = None)
-  * @param targetKey : state the key of the target ID in your JSON data (default = "target")
-  * @param targetType : state what type of value the target is (default = None)
-  * @param edgeRelationship : state what the edge relationship is (default = None)
-  * @param timeKey : state the key of the timestamp in your JSON data, timestamp must be in datetime format (default = "time")
+  * @param spout state where to ingest your data from (Mandatory field)
+  * @param sourceKey state the key of the source ID in your JSON data (default = "source")
+  * @param sourceType state what type of value the source is (default = None)
+  * @param targetKey state the key of the target ID in your JSON data (default = "target")
+  * @param targetType state what type of value the target is (default = None)
+  * @param edgeRelationship state what the edge relationship is (default = None)
+  * @param timeKey state the key of the timestamp in your JSON data, timestamp must be in datetime format (default = "time")
   */
 
 class JSONEdgeListSource(

@@ -18,7 +18,7 @@ import com.raphtory.internals.communication.SchemaProviderInstances._
   *
   * ```{note}
   * The network is treated as undirected.
-  *
+  * ```
   *
   * ## Returns
   * | vertex name       | Assortativity              |

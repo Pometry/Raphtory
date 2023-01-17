@@ -13,8 +13,10 @@ from threading import Lock, RLock
 from copy import copy
 from textwrap import indent
 from pyraphtory import _codegen
-from pyraphtory._codegen import jpype_type_converter, type_converter
+from pyraphtory._codegen import jpype_type_converter, type_converter, LazyStr
 from jpype import JObject, JBoolean, JByte, JShort, JInt, JLong, JFloat, JDouble, JString
+
+from pyraphtory._docstring import convert_docstring
 
 
 @jpype_type_converter("Long")
@@ -441,6 +443,8 @@ class JVMBase(ScalaProxyBase):
                 for (name, method_array) in methods.items():
                     base._add_method(name, method_array)
                 cls.__bases__ = (*cls.__bases__[:jvm_base_index], base, *cls.__bases__[jvm_base_index + 1:])
+                if cls.__doc__ is None:
+                    cls.__doc__ = LazyStr(initial=lambda: convert_docstring(_scala.docstring_for_class(cls._classname)))
                 cls._initialised = True
             else:
                 logger.trace("_init_method called for initialised class {}", cls.__name__)

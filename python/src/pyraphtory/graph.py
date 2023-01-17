@@ -7,7 +7,7 @@ import json
 
 @register(name="ProgressTracker")
 class ProgressTracker(GenericScalaProxy):
-    _classname = "com.raphtory.api.querytracker.QueryProgressTracker"
+    _classname = "com.raphtory.api.progresstracker.ProgressTracker"
 
     def inner_tracker(self):
         logger.trace("Progress tracker inner tracker returned")
