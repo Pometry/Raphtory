@@ -7,7 +7,7 @@ import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.ResourceSpout
 
 /**
-  * * Specific format: NetworkX Node Link Data Format
+  * Specific format: NetworkX Node Link Data Format
   * https://networkx.org/documentation/stable/reference/readwrite/generated/networkx.readwrite.json_graph.node_link_data.html
   *
   * This is a generic source to ingest data and build a graph in Raphtory, assuming the data is in Network X JSON node link format,
@@ -16,13 +16,13 @@ import com.raphtory.spouts.ResourceSpout
   * You can also configure the key of your time value and edge type value if that exists in your data.
   * Properties and keys of properties in your NetworkX graph will need to be added manually.
   *
-  * @param spout : state where to ingest your data from (Mandatory field)
-  * @param sourceKey : state the key of the source ID in your JSON data (default = "source")
-  * @param sourceType : state what type of value the source is (default = None)
-  * @param targetKey : state the key of the target ID in your JSON data (default = "target")
-  * @param targetType : state what type of value the target is (default = None)
-  * @param edgeKey : state the key of the edge type/relationship in your JSON data (default = None)
-  * @param timeKey : state the key of the timestamp in your JSON data (default = 1)
+  * @param spout state where to ingest your data from (Mandatory field)
+  * @param sourceKey state the key of the source ID in your JSON data (default = "source")
+  * @param sourceType state what type of value the source is (default = None)
+  * @param targetKey state the key of the target ID in your JSON data (default = "target")
+  * @param targetType state what type of value the target is (default = None)
+  * @param edgeKey state the key of the edge type/relationship in your JSON data (default = None)
+  * @param timeKey state the key of the timestamp in your JSON data (default = 1)
   */
 
 class JSONSource(
