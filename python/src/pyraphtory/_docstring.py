@@ -87,7 +87,7 @@ blank_line = line_start.optional("") + blank_remaining_line
 
 
 # block starts
-block_start = blank_line.optional("\n")
+block_start = peek(start).result("") | blank_line.optional("\n")
 block_end = (end | eof).result("") | blank_line.optional("\n")
 
 # separate by spaces
@@ -242,7 +242,7 @@ def return_():
 field_list_item = param | tparam | throws | return_
 
 # rst field lists need blank lines before and after
-field_list = blank_line.optional("\n") + field_list_item.at_least(1).concat() + blank_line.optional("\n")
+field_list = block_start + field_list_item.at_least(1).concat() + block_end
 
 
 def indented_line(indent, output_indent):
@@ -289,7 +289,7 @@ def directive(name, indent, output_indent, pythonname=None):
     @generate(name)
     def directive_parser():
         result = []
-        blank = yield blank_line.optional("\n")
+        blank = yield block_start
         result.append(blank)
         leading_spaces = yield line_start >> space.at_least(indent).map(len)
         directive_start = yield string("@" + name).result(" " * output_indent + f".. {pythonname}::\n")
@@ -315,7 +315,7 @@ def indented_blocks(indent=0, output_indent=None):
                )
 
 
-doc_converter = blank_line.many() >> alt(tparam,
+doc_converter = alt(tparam,
                     field_list,
                     indented_blocks(),
                     end,

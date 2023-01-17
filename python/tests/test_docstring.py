@@ -43,7 +43,7 @@ def test_weird_link():
 def test_note_parser():
     assert (convert_docstring(
         "/** @note First line\n *     Second line\n *       Indented third line\n * \n * \n *     Normal fourth line\n * Other text */")
-            == ".. note:: First line\n   Second line\n     Indented third line\n\n\n   Normal fourth line\nOther text")
+            == ".. note::\n   First line\n   Second line\n     Indented third line\n\n\n   Normal fourth line\n\nOther text")
 
 
 def test_param_list_without_space():
@@ -84,7 +84,7 @@ def test_param_list_from_accumulator():
 
 def test_codeblock():
     assert (convert_docstring(
-"""* {{{
+"""/** {{{
 * {
 *   "jobID" : "EdgeCount",
 *   "partitionID" : 0,
