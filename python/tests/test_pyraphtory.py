@@ -173,4 +173,4 @@ class PyRaphtoryTest(unittest.TestCase):
         sqlite = SqliteConnection('/tmp/lotr.db')
         graph.load(SqlEdgeSource(sqlite, 'select * from lotr', 'source', 'target', 'line'))
         graph.load(SqlVertexSource(sqlite, 'select * from lotr', 'source', 'line'))
-        graph.execute(ctx.algorithms.generic.EdgeList()).to_df(['from', 'to'])
+        graph.destroy(force=True)
