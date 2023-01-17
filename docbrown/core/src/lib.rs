@@ -13,7 +13,7 @@ mod tcell;
 mod tpartition;
 
 /// Specify the direction of the neighbours
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum Direction {
     OUT,
     IN,
