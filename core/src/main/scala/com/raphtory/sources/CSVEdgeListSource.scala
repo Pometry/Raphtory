@@ -7,6 +7,7 @@ import com.raphtory.api.input.ImmutableString
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
+import com.raphtory.api.input.SpoutBuilderSource
 import com.raphtory.internals.time.DateTimeParser
 import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.ResourceSpout
@@ -31,9 +32,7 @@ class CSVEdgeListSource(
     targetIndex: Int = 1,
     delimiter: String = ",",
     header: Boolean = false
-) extends Source {
-  override type MessageType = String
-
+) extends SpoutBuilderSource[String] {
   private var typesSet: Boolean       = _
   private var dateTimeFormat: Boolean = _
   private var epochFormat: Boolean    = _

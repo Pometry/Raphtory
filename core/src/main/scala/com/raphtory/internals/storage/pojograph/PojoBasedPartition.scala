@@ -12,28 +12,26 @@ import scala.collection.mutable
 import DisruptorQueue._
 
 private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, conf: Config, q: DisruptorQueue)
-  extends GraphPartition(graphID, partitionID, conf) {
+        extends GraphPartition(graphID, partitionID, conf) {
 
   // If the add come with some properties add all passed properties into the entity
   override def addVertex(
-                          sourceID: Long,
-                          msgTime: Long,
-                          index: Long,
-                          srcId: Long,
-                          properties: Properties,
-                          maybeType: Option[Type]
-                        ): Unit =
+      msgTime: Long,
+      index: Long,
+      srcId: Long,
+      properties: Properties,
+      maybeType: Option[Type]
+  ): Unit =
     q.addAddVertexReqToQueue(msgTime, index, srcId, properties, maybeType)
 
   override def addLocalEdge(
-                             sourceID: Long,
-                             msgTime: Long,
-                             index: Long,
-                             srcId: Long,
-                             dstId: Long,
-                             properties: Properties,
-                             maybeType: Option[Type]
-                           ): Unit = {
+      msgTime: Long,
+      index: Long,
+      srcId: Long,
+      dstId: Long,
+      properties: Properties,
+      maybeType: Option[Type]
+  ): Unit = {
     // Create or revive the src vertex
     q.addAddVertexReqToQueue(msgTime, index, srcId, Properties(), None)
     logger.trace(s"Src ID: $srcId created and revived")
@@ -52,14 +50,13 @@ private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, co
   }
 
   override def addOutgoingEdge(
-                                sourceID: Long,
-                                msgTime: Long,
-                                index: Long,
-                                srcId: Long,
-                                dstId: Long,
-                                properties: Properties,
-                                edgeType: Option[Type]
-                              ): Unit = {
+      msgTime: Long,
+      index: Long,
+      srcId: Long,
+      dstId: Long,
+      properties: Properties,
+      edgeType: Option[Type]
+  ): Unit = {
     // Create or revive the src vertex
     q.addAddVertexReqToQueue(msgTime, index, srcId, Properties(), None)
     logger.trace(s"Src ID: $srcId created and revived")
@@ -68,14 +65,13 @@ private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, co
   }
 
   override def addIncomingEdge(
-                                sourceID: Long,
-                                msgTime: Long,
-                                index: Long,
-                                srcId: Long,
-                                dstId: Long,
-                                properties: Properties,
-                                edgeType: Option[Type]
-                              ): Unit = {
+      msgTime: Long,
+      index: Long,
+      srcId: Long,
+      dstId: Long,
+      properties: Properties,
+      edgeType: Option[Type]
+  ): Unit = {
     // Create or revive the src vertex
     q.addAddVertexReqToQueue(msgTime, index, dstId, Properties(), None)
     logger.trace(s"Dst ID: $srcId created and revived")
@@ -84,14 +80,14 @@ private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, co
   }
 
   override def getVertices(
-                            lens: LensInterface,
-                            start: Long,
-                            end: Long
-                          ): mutable.Map[Long, PojoExVertex] =
+      lens: LensInterface,
+      start: Long,
+      end: Long
+  ): mutable.Map[Long, PojoExVertex] =
     q.getVertices(
-      start,
-      end,
-      (id: Long, vertex: PojoVertex) => (id, vertex.viewBetween(start, end, lens.asInstanceOf[PojoGraphLens]))
+            start,
+            end,
+            (id: Long, vertex: PojoVertex) => (id, vertex.viewBetween(start, end, lens.asInstanceOf[PojoGraphLens]))
     )
 
   override def flush(): Unit = q.flush()

@@ -26,7 +26,6 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
 
   // Ingesting Vertices
   def addVertex(
-      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -37,7 +36,6 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
   // Ingesting Edges
   // This method should assume that both vertices are local and create them if they don't exist
   def addLocalEdge(
-      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -48,7 +46,6 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
 
   // This method should assume that the dstId belongs to another partition
   def addOutgoingEdge(
-      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,
@@ -59,7 +56,6 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
 
   // This method should assume that the srcId belongs to another partition
   def addIncomingEdge(
-      sourceID: Long,
       msgTime: Long,
       index: Long,
       srcId: Long,

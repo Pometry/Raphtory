@@ -36,18 +36,8 @@ import org.slf4j.LoggerFactory
   * @see [[Properties]] [[Spout]]
   */
 trait Graph {
-
-  def totalPartitions: Int
   protected def handleGraphUpdate(update: GraphUpdate): Unit
-  protected def sourceID: Int
   def index: Long
-  def graphID: String
-
-  private def vertexAddCounter = TelemetryReporter.vertexAddCounter.labels(s"$sourceID", graphID)
-
-  private def edgeAddCounter = TelemetryReporter.edgeAddCounter.labels(s"$sourceID", graphID)
-
-  def getNEdgesAdded : Long = edgeAddCounter.get().toLong
 
   /** Adds a new vertex to the graph or updates an existing vertex
     *
@@ -74,9 +64,8 @@ trait Graph {
       vertexType: MaybeType = NoType,
       secondaryIndex: Long = index
   ): Unit = {
-    val update = VertexAdd(sourceID, updateTime, secondaryIndex, srcId, properties, vertexType.toOption)
+    val update = VertexAdd(updateTime, secondaryIndex, srcId, properties, vertexType.toOption)
     handleGraphUpdate(update)
-    vertexAddCounter.inc()
   }
 
   /** Adds a new edge to the graph or updates an existing edge
@@ -97,9 +86,8 @@ trait Graph {
       edgeType: MaybeType = NoType,
       secondaryIndex: Long = index
   ): Unit = {
-    val update = EdgeAdd(sourceID, updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption)
+    val update = EdgeAdd(updateTime, secondaryIndex, srcId, dstId, properties, edgeType.toOption)
     handleGraphUpdate(update)
-    edgeAddCounter.inc()
   }
 
   /** Adds a new edge to the graph or updates an existing edge
@@ -121,9 +109,6 @@ trait Graph {
     */
   def assignID(uniqueChars: String): Long =
     Graph.assignID(uniqueChars)
-
-  private[raphtory] def getPartitionForId(id: Long): Int =
-    (id.abs % totalPartitions).toInt
 
   /** Convenience method for converting dates into epochs to be used internally by Raphtory. This is the same function
     * used by the `add vertex` and `add edge` functions, so can be called explicitly in a graph builder
@@ -148,5 +133,4 @@ object Graph {
     */
   def assignID(uniqueChars: String): Long =
     LongHashFunction.xx3().hashChars(uniqueChars)
-
 }
