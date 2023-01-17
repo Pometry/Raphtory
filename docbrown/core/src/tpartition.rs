@@ -12,7 +12,7 @@ use itertools::*;
 #[derive(Clone, Debug, Default)]
 pub struct TemporalGraphPart(Arc<RwLock<TemporalGraph>>);
 
-pub struct TEdge{v: usize, edge_meta_id: AdjEdge, t: Option<u64>}
+pub struct TEdge{v: usize, edge_meta_id: AdjEdge, t: Option<u64>, outbound: bool}
 
 impl TemporalGraphPart {
     pub fn add_vertex(&self, t: u64, v: u64, props: Vec<(String, Prop)>) {
@@ -66,8 +66,11 @@ impl TemporalGraphPart {
         let vertices_iter = gen!({
             let g = tg.0.read();
             let chunks = (*g).neighbours_window((t_start .. t_end), v, d).map(|e| {
+
+                let oposite_v = if (d == Direction::OUT) {e.global_dst()} else {e.global_src()};
                 todo!()
-            });
+            }
+);
             let iter = chunks.into_iter();
             for v_id in iter {
                 yield_!(v_id)
