@@ -315,7 +315,7 @@ def indented_blocks(indent=0, output_indent=None):
                )
 
 
-doc_converter = alt(tparam,
+doc_converter = blank_line.many() >> alt(tparam,
                     field_list,
                     indented_blocks(),
                     end,
