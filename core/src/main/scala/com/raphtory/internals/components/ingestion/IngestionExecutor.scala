@@ -39,6 +39,7 @@ private[raphtory] class IngestionExecutor[F[_], T](
       _           <- F.delay(logger.debug("Running ingestion executor"))
       globalStats <- Ref.of(SourceStats(Long.MaxValue, Long.MinValue, 0L))
       start       <- Clock[F].monotonic
+      _           <- poke
       _           <- stream
                        .parEvalMapUnordered(4)(updates => // Here we are setting the parallelism
                          for {
@@ -87,6 +88,9 @@ private[raphtory] class IngestionExecutor[F[_], T](
                               .processUpdates(protocol.GraphAlterations(graphID, updates))
                         })
     } yield ()
+
+  private def poke: F[Unit] =
+    F.parSequenceN(partitions.size)(partitions.values.map(_.poke(GraphId(graphID))).toVector).void
 
   private def flush: F[Unit] =
     F.parSequenceN(partitions.size)(partitions.values.map(_.flush(GraphId(graphID))).toVector).void

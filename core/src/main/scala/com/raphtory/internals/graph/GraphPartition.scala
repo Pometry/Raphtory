@@ -22,6 +22,8 @@ abstract private[raphtory] class GraphPartition(graphID: String, partitionID: In
 
   val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
+  def poke(): Unit = {}
+
   def flush(): Unit = {}
 
   // Ingesting Vertices

@@ -38,13 +38,17 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
   private lazy val edgeToCreates = Array.ofDim[EdgeToCreate](BATCH_EDGES_SIZE)
 
   private val N_LOAD_THREADS: Int = 1
-  private val QUEUE_SIZE     = 1024 * 32 * 2
+  private val QUEUE_SIZE          = 1024 * 32 * 2
 
   private val arrOfMapOfVertices = Array.fill(N_LOAD_THREADS)(new Long2ObjectOpenHashMap[PojoVertex]())
 
+  private val pauser = new DisruptorPauser
+
   def buildDisruptor(): Disruptor[DisruptorEvent] = {
     val threadFactory = DaemonThreadFactory.INSTANCE
-    val waitStrategy  = new YieldingWaitStrategy()
+//    val waitStrategy  = pauser.getWaitStrategy()
+    val waitStrategy  = new DisruptorPauserJava().getWaitStrategy
+//    val waitStrategy  = new YieldingWaitStrategy()
 
     new Disruptor[DisruptorEvent](
             DisruptorEvent.EVENT_FACTORY,
@@ -305,27 +309,40 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
       }
       .reduce(_ ++ _)
 
-  def flush(): Unit = synchronized {
-    if (BATCH_EDGES && batchCount != 0)
-      flushBatch()
+  def poke(): Unit = if (pauser.isSuspended()) pauser.resume()
 
-    var finished = false
-    while (!finished) {
-      finished = true
+  def flush(suspend: Boolean): Unit =
+    synchronized {
+      if (BATCH_EDGES && batchCount != 0)
+        flushBatch()
 
-      (0 until N_LOAD_THREADS).foreach { i =>
-        if (queues(i).remainingCapacity() != QUEUE_SIZE)
-          finished = false
+      var finished = false
+      while (!finished) {
+        finished = true
+
+        (0 until N_LOAD_THREADS).foreach { i =>
+          if (queues(i).remainingCapacity() != QUEUE_SIZE) {
+            finished = false
+            println(s"remainingCapacity = ${queues(i).remainingCapacity()}")
+          }
+        }
+
+        println(s"Finished = $finished")
+
+        if (!finished)
+          try Thread.sleep(10L)
+          catch {
+            case _: InterruptedException =>
+          }
       }
 
-      if (!finished) Thread.sleep(10L)
+      if (suspend) pauser.suspend()
+
+      // We don't need to halt disruptors here since we may expect graph updates from clients via QuerySender
+      // (0 until N_LOAD_THREADS).foreach(i => disruptors(i).halt())
+
+      logger.trace(s"Finished ingesting data for graphID = $graphID, partitionID = $partitionID")
     }
-
-    // We don't need to halt disruptors here since we may expect graph updates from clients via QuerySender
-    // (0 until N_LOAD_THREADS).foreach(i => disruptors(i).halt())
-
-    logger.trace(s"Finished ingesting data for graphID = $graphID, partitionID = $partitionID")
-  }
 
   def stop(): Unit =
     (0 until N_LOAD_THREADS).foreach(i => disruptors(i).halt())

@@ -90,5 +90,7 @@ private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, co
             (id: Long, vertex: PojoVertex) => (id, vertex.viewBetween(start, end, lens.asInstanceOf[PojoGraphLens]))
     )
 
-  override def flush(): Unit = q.flush()
+  override def poke(): Unit = q.poke()
+
+  override def flush(): Unit = q.flush(true)
 }

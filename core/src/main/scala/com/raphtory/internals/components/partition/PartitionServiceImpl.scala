@@ -45,6 +45,16 @@ abstract class PartitionServiceImpl[F[_]](
 
   protected def makeGraphStorage(graphId: String): Resource[F, GraphPartition]
 
+  override def poke(req: GraphId): F[Empty] =
+    for {
+      ps <- partitions.get
+      g  <- graphs.get
+              .map(graphs =>
+                graphs.get(req.graphID).map((g: Graph[F, Partition[F]]) => g.data.writer.poke).getOrElse(F.unit)
+              )
+              .flatten
+    } yield Empty()
+
   override def flush(req: GraphId): F[Empty] =
     for {
       ps <- partitions.get
