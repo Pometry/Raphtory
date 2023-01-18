@@ -225,14 +225,13 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
       vId: Long,
       properties: Properties,
       maybeType: Option[Type]
-  ): Unit =
-    synchronized {
-      val q          = queues(getIndex(vId))
-      val sequenceId = q.next()
-      val event      = q.get(sequenceId)
-      event.initAddVertex(msgTime, index, vId, properties, maybeType)
-      q.publish(sequenceId)
-    }
+  ): Unit = {
+    val q          = queues(getIndex(vId))
+    val sequenceId = q.next()
+    val event      = q.get(sequenceId)
+    event.initAddVertex(msgTime, index, vId, properties, maybeType)
+    q.publish(sequenceId)
+  }
 
   private def pushEdgeToQueue(
       msgTime: Long,
@@ -276,25 +275,23 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
       maybeType: Option[Type],
       edgeToCreate: EdgeToCreate
   ): Unit =
-    synchronized {
-      // The idea behind batching only edges is to allow vertices to be created first. The assumption is that
-      // since creation of edges waits for vertices to have already been created (see `waitUntilVertexIsAdded`),
-      // allowing vertices to be created first should reduce wait time.
-      if (BATCH_EDGES) {
-        msgTimes(batchCount) = msgTime
-        indexes(batchCount) = index
-        vIds(batchCount) = vId
-        srcIds(batchCount) = srcId
-        dstIds(batchCount) = dstId
-        propertiess(batchCount) = properties
-        maybeTypes(batchCount) = maybeType
-        edgeToCreates(batchCount) = edgeToCreate
-        batchCount += 1
-        if (batchCount == BATCH_EDGES_SIZE)
-          flushBatch()
-      }
-      else pushEdgeToQueue(msgTime, index, vId, srcId, dstId, properties, maybeType, edgeToCreate)
+    // The idea behind batching only edges is to allow vertices to be created first. The assumption is that
+    // since creation of edges waits for vertices to have already been created (see `waitUntilVertexIsAdded`),
+    // allowing vertices to be created first should reduce wait time.
+    if (BATCH_EDGES) {
+      msgTimes(batchCount) = msgTime
+      indexes(batchCount) = index
+      vIds(batchCount) = vId
+      srcIds(batchCount) = srcId
+      dstIds(batchCount) = dstId
+      propertiess(batchCount) = properties
+      maybeTypes(batchCount) = maybeType
+      edgeToCreates(batchCount) = edgeToCreate
+      batchCount += 1
+      if (batchCount == BATCH_EDGES_SIZE)
+        flushBatch()
     }
+    else pushEdgeToQueue(msgTime, index, vId, srcId, dstId, properties, maybeType, edgeToCreate)
 
   def getVertices(
       start: Long,
@@ -321,13 +318,9 @@ private[pojograph] class DisruptorQueue(graphID: String, partitionID: Int) {
         finished = true
 
         (0 until N_LOAD_THREADS).foreach { i =>
-          if (queues(i).remainingCapacity() != QUEUE_SIZE) {
+          if (queues(i).remainingCapacity() != QUEUE_SIZE)
             finished = false
-            println(s"remainingCapacity = ${queues(i).remainingCapacity()}")
-          }
         }
-
-        println(s"Finished = $finished")
 
         if (!finished)
           try Thread.sleep(10L)
