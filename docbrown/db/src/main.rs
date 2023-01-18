@@ -5,7 +5,8 @@ use std::thread::JoinHandle;
 use std::{env, thread};
 
 use csv::StringRecord;
-use docbrown_core::{db::GraphDB, graph::TemporalGraph, Prop};
+use docbrown_core::Prop;
+use docbrown_core::graph::TemporalGraph;
 use flume::{unbounded, Receiver, Sender};
 use itertools::Itertools;
 use replace_with::{replace_with, replace_with_or_abort, replace_with_or_abort_and_return};
