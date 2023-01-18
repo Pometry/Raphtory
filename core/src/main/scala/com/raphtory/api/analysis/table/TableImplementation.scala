@@ -28,6 +28,10 @@ private[api] class TableImplementation(val query: Query, private[raphtory] val q
     addFunction(Explode(closurefunc))
   }
 
+  override def explode(column: String): Table = {
+    addFunction(ExplodeColumn(column))
+  }
+
   override def writeTo(sink: Sink, jobName: String): QueryProgressTracker =
     submitQueryWithSink(sink, jobName, jobID => querySender.createQueryProgressTracker(jobID))
       .asInstanceOf[QueryProgressTracker]

@@ -164,6 +164,11 @@ final private[raphtory] case class PojoGraphLens(
     onComplete()
   }
 
+  override def explodeColumn(column: String)(onComplete: () => Unit): Unit = {
+    dataTable = dataTable.flatMap(row => row.)
+    onComplete()
+  }
+
   def writeDataTable(writer: Row => Unit)(onComplete: () => Unit): Unit = {
     dataTable.foreach(row => writer(row))
     onComplete()

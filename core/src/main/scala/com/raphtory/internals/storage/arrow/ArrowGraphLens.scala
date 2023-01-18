@@ -50,4 +50,6 @@ final case class ArrowGraphLens(
       .map(new ArrowExVertex(graphState, _))
 
   override def executeSelect(values: Seq[String], defaults: Map[String, Any])(onComplete: () => Unit): Unit = ???
+
+  override def explodeColumn(column: String)(onComplete: () => Unit): Unit = ???
 }

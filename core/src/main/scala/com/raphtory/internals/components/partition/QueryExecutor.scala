@@ -9,6 +9,7 @@ import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview._
 import com.raphtory.api.analysis.table.Explode
+import com.raphtory.api.analysis.table.ExplodeColumn
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.TableFilter
 import com.raphtory.api.analysis.table.TableFunction
@@ -183,8 +184,9 @@ class QueryExecutor[F[_]](
   private def executeTableFunction(function: TableFunction, lens: LensInterface): F[Unit] =
     F.blocking(
             function match {
-              case TableFilter(f) => lens.filteredTable(f)(cb)
-              case Explode(f)     => lens.explodeTable(f)(cb)
+              case TableFilter(f)        => lens.filteredTable(f)(cb)
+              case Explode(f)            => lens.explodeTable(f)(cb)
+              case ExplodeColumn(column) => lens.explodeColumn(column)(cb)
             }
     )
 
