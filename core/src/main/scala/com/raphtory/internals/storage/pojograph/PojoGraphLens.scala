@@ -116,9 +116,11 @@ final private[raphtory] case class PojoGraphLens(
   def executeSelect(values: Seq[String], defaults: Map[String, Any])(onComplete: () => Unit): Unit = {
     dataTable = vertexIterator.map { vertex =>
       Row(
-              values.map(value =>
-                KeyPair(value, vertex.getStateOrElse(value, defaults.getOrElse(value, ""), includeProperties = true))
-              ): _*
+              values
+                .map(value =>
+                  (value -> vertex.getStateOrElse(value, defaults.getOrElse(value, ""), includeProperties = true))
+                )
+                .toMap
       )
     }
     onComplete()

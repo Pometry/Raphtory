@@ -18,11 +18,11 @@ class JsonFormatTest extends FunSuite {
   private val sampleTable = List(
           (
                   Perspective(100, None, 0, 100, -1, formatAsDate = false),
-                  List(Row(KeyPair("id1", 34)), Row(KeyPair("id2", 24)))
+                  List(Row(Map("id1" -> 34)), Row(Map("id2" -> 24)))
           ),
           (
                   Perspective(200, Some(DiscreteInterval(200)), 0, 200, -1, formatAsDate = false),
-                  List(Row(KeyPair("id1", 56)), Row(KeyPair("id2", 67)))
+                  List(Row(Map("id1" -> 56)), Row(Map("id2" -> 67)))
           )
   )
 
@@ -71,7 +71,7 @@ class JsonFormatTest extends FunSuite {
   }
 
   test("Print json example on the docs") {
-    val docRows   = List(Row(KeyPair("id1", 12)), Row(KeyPair("id2", 13)), Row(KeyPair("id3", 24)))
+    val docRows   = List(Row(Map("id1" -> 12)), Row(Map("id2" -> 13)), Row(Map("id3" -> 24)))
     val docsTable = List((Perspective(10, None, 0, 10, -1, formatAsDate = false), docRows))
     val output    = formatTable(JsonFormat(JsonFormat.GLOBAL), docsTable, "EdgeCount", 0)
     reader.createParser(output).readValueAs(classOf[Any])
