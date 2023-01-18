@@ -165,7 +165,10 @@ final private[raphtory] case class PojoGraphLens(
   }
 
   override def explodeColumn(column: String)(onComplete: () => Unit): Unit = {
-    dataTable = dataTable.flatMap(row => row.)
+    dataTable = dataTable.flatMap { row =>
+      val explodedValues = row(column).asInstanceOf[IterableOnce[_]]
+      explodedValues.iterator.map(value => Row(row.columns.updated(column, value)))
+    }
     onComplete()
   }
 
