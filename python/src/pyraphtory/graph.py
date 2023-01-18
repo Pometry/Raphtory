@@ -4,6 +4,8 @@ from pyraphtory.input import Properties, ImmutableString, Type
 from pyraphtory.scala.implicits.bounded import Bounded
 import pandas as pd
 import json
+import datetime as dt
+
 
 @register(name="ProgressTracker")
 class ProgressTracker(GenericScalaProxy):
@@ -25,9 +27,11 @@ class Table(GenericScalaProxy):
     def to_df(self, cols):
         rows = []
         columns = ()
+        time_formatted=False
         for res in self.get():
             window = res.perspective().window()
             timestamp = res.perspective().formatted_time()
+            time_formatted = res.perspective().format_as_date()
             if window != None:
                 columns = ('timestamp', 'window', *cols)
                 for r in res.rows():
@@ -37,7 +41,15 @@ class Table(GenericScalaProxy):
                 columns = ('timestamp', *cols)
                 for r in res.rows():
                     rows.append((timestamp, *r.get_values()))
-        return pd.DataFrame.from_records(rows, columns=columns)
+
+        df = pd.DataFrame.from_records(rows, columns=columns)
+        if time_formatted:
+            df["timestamp"] = df["timestamp"].apply(lambda x: dt.datetime.strptime(x,"%Y-%m-%d %H:%M:%S.%f"))
+            return df
+        else:
+            return df
+
+
 
 
 class Row(ScalaClassProxy):
