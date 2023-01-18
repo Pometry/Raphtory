@@ -39,9 +39,7 @@ case class CsvFormat(delimiter: String = ",", header: Boolean = false) extends F
       config: Config
   ): SinkExecutor =
     new SinkExecutor {
-      private var currentHeader: List[String]     = _
       private var currentPerspective: Perspective = _
-      private var firstRow                        = true
       private val mapper                          = JsonMapper.builder().addModule(DefaultScalaModule).build()
 
       private def ensureQuoted(str: String): String =
@@ -54,23 +52,26 @@ case class CsvFormat(delimiter: String = ",", header: Boolean = false) extends F
         else
           "\"" + str + "\""
 
-      private def csvValue(obj: KeyPair): String =
-        obj.value match {
+      private def csvValue(value: Any): String =
+        value match {
           case v: String => ensureQuoted(v)
           case v         =>
             ensureQuoted(mapper.writeValueAsString(v))
         }
 
-      override def setupPerspective(perspective: Perspective, header: List[String]): Unit = {
-        currentHeader = header
+      override def setupPerspective(perspective: Perspective, columns: List[String]): Unit = {
         currentPerspective = perspective
+        if (header) {
+          val csvColumns = columns.mkString(delimiter)
+          val csvHeader  = currentPerspective.window match {
+            case Some(w) => "timestamp,window," + csvColumns
+            case None    => "timestamp," + csvColumns
+          }
+          connector.writeHeader(csvHeader)
+        }
       }
 
       override protected def writeRow(row: Row): Unit = {
-        if (header && firstRow) {
-          connector.writeHeader(currentHeader.mkString(delimiter))
-          firstRow = false
-        }
         val value = currentPerspective.window match {
           case Some(w) =>
             s"${currentPerspective.timestampAsString}$delimiter$w$delimiter${row.values().map(csvValue).mkString(delimiter)}"
@@ -82,7 +83,6 @@ case class CsvFormat(delimiter: String = ",", header: Boolean = false) extends F
       }
 
       override def closePerspective(): Unit = {}
-
-      override def close(): Unit                 = connector.close()
+      override def close(): Unit               = connector.close()
     }
 }
