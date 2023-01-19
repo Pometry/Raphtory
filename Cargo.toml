@@ -1,6 +1,7 @@
 [workspace]
 members = [
-	"docbrown/core"
+	"docbrown/core",
+	"docbrown/db"
 ]
 
 [workspace.package]
