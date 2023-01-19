@@ -187,18 +187,29 @@ private[api] trait GraphViewImplementation[
       executeMessagedOnly: Boolean
   ): G = addFunction(IterateWithGraph(f, iterations, executeMessagedOnly))
 
+  override def selectAll(): Table =
+    new TableImplementation(
+            query.copy(operations = query.operations :+ Select()),
+            querySender
+    )
+  // by default, the header of the query is an empty list, which means: 'get everything'
+
   override def select(values: String*): Table =
     new TableImplementation(
             query.copy(header = values.toList, operations = query.operations :+ Select(values: _*)),
             querySender
     )
 
-//change this
   override def select(f: (V, GraphState) => Row): Table =
     addSelect(SelectWithGraph(f))
 
   override def globalSelect(f: GraphState => Row): Table =
     addSelect(GlobalSelect(f))
+
+  override def globalSelect(values: String*): Table = {
+    def f(state: GraphState): Row = Row(values.map(key => (key, state.apply[_, Any](key).value)).toMap)
+    addSelect(GlobalSelect(f))
+  }
 
   override def explodeSelect(f: V => IterableOnce[Row]): Table =
     addSelect(ExplodeSelect(f))

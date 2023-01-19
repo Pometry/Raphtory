@@ -234,6 +234,9 @@ trait GraphPerspective {
       executeMessagedOnly: Boolean
   ): Graph
 
+  /** Write output to table with one row per vertex containing all state and properties */
+  def selectAll(): Table
+
   /** Write output to table with one row per vertex
     *
     * @param f function to extract data from vertex (run once for each vertex)
@@ -251,6 +254,8 @@ trait GraphPerspective {
     * @param f function to extract data from graph state (runs only once)
     */
   def globalSelect(f: GraphState => Row): Table
+
+  def globalSelect(values: String*): Table
 
   /** Write output to table with multiple rows per vertex
     *
@@ -341,9 +346,11 @@ private[api] trait ConcreteGraphPerspective[V <: visitor.Vertex, G <: ConcreteGr
       iterations: Int,
       executeMessagedOnly: Boolean
   ): Graph
+  def selectAll(): Table
   def select(values: String*): Table
   def select(f: (Vertex, GraphState) => Row): Table
   def globalSelect(f: GraphState => Row): Table
+  def globalSelect(values: String*): Table
   def explodeSelect(f: Vertex => IterableOnce[Row]): Table
   def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row]): Table
   def clearMessages(): Graph
