@@ -102,11 +102,11 @@ class CycleMania(moneyCycles: Boolean = true) extends Generic {
                     cycle = singleCycle
             )
             Row(
-                    KeyPair("nftID", nftID),
-                    KeyPair("nftCollection", nftCollection),
-                    KeyPair("nftCategory", nftCategory),
-                    KeyPair("cycleSaleLength", singleCycle.sales.length),
-                    KeyPair("cycleData", cycleData)
+                    ("nftID", nftID),
+                    ("nftCollection", nftCollection),
+                    ("nftCategory", nftCategory),
+                    ("cycleSaleLength", singleCycle.sales.length),
+                    ("cycleData", cycleData)
             )
           }
         }

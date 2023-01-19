@@ -46,7 +46,6 @@ class TemporalEdgeList(
           .explodeOutEdges()
           .map { edge =>
             val propertyMap =
-<<<<<<< HEAD
               ("name", vertex.name) +:
                 ("neighbourName", neighbourMap(edge.dst)) +:
                 ("neighbourTimestamp", edge.timestamp) +:
@@ -54,15 +53,6 @@ class TemporalEdgeList(
                   ("properties", edge.getPropertyOrElse(name, defaults.getOrElse(name, None)))
                 }
             Row(propertyMap.toMap)
-=======
-              KeyPair("name", vertex.name) +:
-                KeyPair("neighbourName", neighbourMap(edge.dst)) +:
-                KeyPair("neighbourTimestamp", edge.timestamp) +:
-                properties.map { name =>
-                  KeyPair("properties", edge.getPropertyOrElse(name, defaults.getOrElse(name, None)))
-                }
-            Row(propertyMap: _*)
->>>>>>> bb3bbad67 (fixing algos)
           }
       }
 }

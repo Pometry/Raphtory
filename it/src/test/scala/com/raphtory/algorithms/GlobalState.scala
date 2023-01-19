@@ -43,10 +43,10 @@ class GlobalState extends Generic {
   override def tabularise(graph: GraphPerspective): Table =
     graph.globalSelect(graphState =>
       Row(
-              KeyPair("nameLengthMax", graphState("name length max").value),
-              KeyPair("nameLengthMin", graphState("name length min").value),
-              KeyPair("nameLengthTotal", graphState("name length total").value),
-              KeyPair("nameLengthMultiplier", graphState("name length multiplier").value)
+              ("nameLengthMax", graphState("name length max").value),
+              ("nameLengthMin", graphState("name length min").value),
+              ("nameLengthTotal", graphState("name length total").value),
+              ("nameLengthMultiplier", graphState("name length multiplier").value)
       )
     )
 }

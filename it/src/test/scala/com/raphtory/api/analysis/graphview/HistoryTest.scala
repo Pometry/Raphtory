@@ -25,7 +25,7 @@ class WindowedOutEdgeHistory(after: Long, before: Long) extends GenericReduction
           edge.history().collect {
             case event if event.event =>
               val names: Map[vertex.IDType, String] = vertex.getState("neighbourNames")
-              Row(KeyPair("vertexName",vertex.name()), KeyPair("targetID",names(edge.dst)), KeyPair("time",event.time))
+              Row(("vertexName",vertex.name()), ("targetID",names(edge.dst)), ("time",event.time))
           }
         )
     }
@@ -44,7 +44,7 @@ class WindowedInEdgeHistory(after: Long, before: Long) extends GenericReduction 
           edge.history().collect {
             case event if event.event =>
               val names: Map[vertex.IDType, String] = vertex.getState("neighbourNames")
-              Row(KeyPair("neighbourID", names(edge.src)), KeyPair("vertexName", vertex.name()), KeyPair("time",event.time))
+              Row(("neighbourID", names(edge.src)), ("vertexName", vertex.name()), ("time",event.time))
           }
         )
     }

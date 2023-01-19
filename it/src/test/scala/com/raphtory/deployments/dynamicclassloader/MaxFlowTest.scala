@@ -3,7 +3,9 @@ package com.raphtory.deployments.dynamicclassloader
 // make this not part of com.raphtory to test automatic dependency loading
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
+import com.raphtory.api.analysis.table.KeyPair
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.internals.communication.SchemaProviderInstances._
 import com.raphtory.utils.ExtendedNumeric.numericFromInt
 
@@ -170,7 +172,7 @@ class MaxFlowTest[T](
   override def tabularise(graph: GraphPerspective): Table =
     graph.explodeSelect(vertex =>
       if (vertex.name() == source)
-        List(Row(KeyPair("", vertex.getState[mutable.Map[Long, T]]("flow").values.sum)))
+        List(Row(("flow", vertex.getState[mutable.Map[Long, T]]("flow").values.sum)))
       else List.empty[Row]
     )
 

@@ -22,7 +22,7 @@ object AllNeighbours extends Generic {
   override def tabularise(graph: GraphPerspective): Table =
     graph.explodeSelect { vertex =>
       vertex.edges.map(e =>
-        Row(KeyPair("vertexName", vertex.name()), KeyPair("sourceID", e.src), KeyPair("targetID", e.dst))
+        Row(("vertexName", vertex.name()), ("sourceID", e.src), ("targetID", e.dst))
       )
     }
 }

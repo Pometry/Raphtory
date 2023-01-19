@@ -30,7 +30,7 @@ class CountIterations(num_iters_before_vote: Int, num_iters: Int) extends Generi
       }
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.globalSelect(graphState => Row(KeyPair("maxIterations",graphState("maxIterations").value)))
+    graph.globalSelect(graphState => Row(("maxIterations",graphState("maxIterations").value)))
 }
 
 object CountIterations {

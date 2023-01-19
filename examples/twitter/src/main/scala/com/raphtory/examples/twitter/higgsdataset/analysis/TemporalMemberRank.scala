@@ -52,17 +52,17 @@ class TemporalMemberRank() extends GenericReduction {
     graph
       .select("vertexID", "time")
       .filter { row =>
-        val times = row.getAs[Seq[NeighbourAndTime[_]]](1)
+        val times = row.getAs[Seq[NeighbourAndTime[_]]]("time")
         times.nonEmpty
       }
       .explode { row =>
-        val rowId = row.getLong(0)
-        val times = row.getAs[Seq[NeighbourAndTime[_]]](1)
+        val rowId = row.getLong("vertexID")
+        val times = row.getAs[Seq[NeighbourAndTime[_]]]("time")
         times.map { neighbourAndTime =>
           Row(
-                  KeyPair("vertexID", rowId),
-                  KeyPair("neighbourID", neighbourAndTime.id),
-                  KeyPair("neighbourTime", neighbourAndTime.time)
+                  ("vertexID", rowId),
+                  ("neighbourID", neighbourAndTime.id),
+                  ("neighbourTime", neighbourAndTime.time)
           )
         }.toList
       }

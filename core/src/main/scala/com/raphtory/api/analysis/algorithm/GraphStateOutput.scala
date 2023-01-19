@@ -9,18 +9,16 @@ abstract class GraphStateOutput(
     defaults: Map[String, Any] = Map.empty[String, Any]
 ) extends BaseAlgorithm {
 
-  override def tabularise(graph: Out): Table = {
-    graph.globalSelect{
-      state =>
-        val getProps =
-          properties.map { name =>
-            state.get(name) match {
-              case Some(acc) => acc.value
-              case None => defaults.getOrElse(name, None)
-            }
-          }
-        val row = Map("properties" -> getProps)
+  override def tabularise(graph: Out): Table =
+    graph.globalSelect { state =>
+      val row = properties.map { key =>
+        val getProps = state.get(key) match {
+          case Some(acc) => acc.value
+          case None      => defaults.getOrElse(key, None)
+        }
+        key -> getProps
+      }
 
-        Row(row)
+      Row(row: _*)
     }
 }

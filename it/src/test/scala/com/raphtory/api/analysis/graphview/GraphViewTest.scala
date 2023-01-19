@@ -14,12 +14,12 @@ class GraphViewTest extends BaseCorrectnessTest {
     assertEquals(
             graph
               .setGlobalState(state => state.newConstant("test", 2))
-              .explodeSelect((vertex, state) => List(Row(KeyPair("vertexID",vertex.ID), KeyPair("test", state("test").value))))
+              .explodeSelect((vertex, state) => List(Row(("vertexID",vertex.ID), ("test", state("test").value))))
               .get()
               .next()
               .rows
               .toSeq,
-            Seq(Row(KeyPair("vertexID",1), KeyPair("test",2)))
+            Seq(Row(("vertexID",1), ("test",2)))
     )
   }
 }

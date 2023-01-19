@@ -42,7 +42,7 @@ class RaphtoryGraphTest extends FunSuite {
       .step(_.setState("new", 1))
       .transform(ConnectedComponents)
       .select("new")
-      .filter(_.getInt(0) == 1)
+      .filter(_.getInt("new") == 1)
     val query = table.asInstanceOf[TableImplementation].query
 
     assertEquals(query.timelineStart, 100L)
