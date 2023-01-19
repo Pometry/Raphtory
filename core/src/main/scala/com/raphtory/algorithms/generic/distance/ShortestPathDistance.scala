@@ -2,7 +2,9 @@ package com.raphtory.algorithms.generic.distance
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
+import com.raphtory.api.analysis.table.KeyPair
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.utils.Bounded
 import com.raphtory.utils.Bounded._
 
@@ -80,11 +82,25 @@ class ShortestPathDistance[T: Bounded: Numeric](src_name: String, tgt_name: Stri
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .explodeSelect { vertex =>
-        val name = vertex.name()
-        if (name == tgt_name)
-          List(Row(KeyPair("sourceVertex", src_name), KeyPair("targetVertex", name), KeyPair(DISTANCE, vertex.getState[T](DISTANCE))))
+      .step { vertex =>
+        vertex.setState("vertexname", vertex.name)
+        vertex.setState("sourceVertex", src_name)
+        vertex.setState("targetVertex", name)
+        vertex.setState(DISTANCE, vertex.getState[T](DISTANCE))
+      }
+      .select("sourceVertex", "targetVertex", DISTANCE)
+      .explode(row =>
+        if (row.get("vertexname") == tgt_name)
+          List(
+                  Row(
+                          Map(
+                                  "sourceVertex" -> row.get("sourceVertex"),
+                                  "targetVertex" -> row.get("targetVertex"),
+                                  DISTANCE       -> row.get(DISTANCE)
+                          )
+                  )
+          )
         else
           List.empty[Row]
-      }
+      )
 }
