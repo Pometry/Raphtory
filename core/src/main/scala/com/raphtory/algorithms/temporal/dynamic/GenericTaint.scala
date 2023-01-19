@@ -144,12 +144,12 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
     graph
       .select("name","taintStatus","taintHistory")
       // filter for any that had been tainted and save to folder
-      .filter(r => r.get(1) == true)
+      .filter(r => r.get("taintStatus") == true)
       .explode(row =>
         row
-          .get(2)
+          .get("taintHistory")
           .asInstanceOf[Vector[(String, Long, Long, String)]]
-          .map(tx => Row(KeyPair("vertexName", row(0)), KeyPair("propagatingEdge", tx._2), KeyPair("timeOfEvent", tx._3), KeyPair("sourceNode",tx._4)))
+          .map(tx => Row(Map("vertexName" -> row("name"),  "propagatingEdge" -> tx._2, "timeOfEvent" -> tx._3, "sourceNode" ->tx._4)))
       )
 }
 

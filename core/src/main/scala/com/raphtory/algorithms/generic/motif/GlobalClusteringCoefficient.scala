@@ -49,7 +49,7 @@ object GlobalClusteringCoefficient extends Generic {
       val totalWedges: Int     = state("wedges").value
       val avgCluster           = if (state.nodeCount > 0) totalCluster / state.nodeCount else 0.0
       val globalCluster        = if (totalWedges > 0) totalTriangles / totalWedges else 0.0
-      Row(KeyPair("averageCluster",avgCluster), KeyPair("transitivity", globalCluster))
+      Row(Map("averageCluster" -> avgCluster, "transitivity" -> globalCluster))
     }
 
 }

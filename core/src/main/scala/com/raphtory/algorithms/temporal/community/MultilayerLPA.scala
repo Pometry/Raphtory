@@ -4,7 +4,9 @@ import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
-import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
+import com.raphtory.api.analysis.table.KeyPair
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.ReducedVertex
 import com.raphtory.api.analysis.visitor.Vertex
 
@@ -179,12 +181,12 @@ class MultilayerLPA(
 
   override def tabularise(graph: ReducedGraphPerspective): Table =
     graph
-      .select("name","mlpalabel")
+      .select("name", "mlpalabel")
       .explode { row =>
         row
-          .get(1)
+          .get("mlpalabel")
           .asInstanceOf[List[(Long, Long)]]
-          .map(lts => Row(KeyPair("vertexName", lts._2),KeyPair("timestamp", s"${row.get(0)}_${lts._1}")))
+          .map(lts => Row(Map("vertexName" -> lts._2, "timestamp" -> s"${row.get("name")}_${lts._1}")))
       }
 
 }
