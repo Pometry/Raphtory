@@ -1,10 +1,14 @@
 package com.raphtory.algorithms.generic
 
 import com.raphtory.api.analysis.algorithm.GenericReduction
-import com.raphtory.api.analysis.graphview.{GraphPerspective, ReducedGraphPerspective}
-import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
+import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
+import com.raphtory.api.analysis.table.KeyPair
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 
-class TaintTrackingWithHistory(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set()) extends GenericReduction {
+class TaintTrackingWithHistory(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set())
+        extends GenericReduction {
 
   override def apply(graph: GraphPerspective): graph.ReducedGraph =
     graph.reducedView
@@ -137,14 +141,24 @@ class TaintTrackingWithHistory(startTime: Long, infectedNodes: Set[String], stop
 
   override def tabularise(graph: ReducedGraphPerspective): Table =
     graph
-      .select("address","taintStatus","taintTransactions")
+      .select("address", "taintStatus", "taintTransactions")
       // filter for any that had been tainted and save to folder
-      .filter(r => r.get(1) == true)
+      .filter(r => r.get("taintStatus") == true)
       .explode(row =>
         row
-          .get(2)
+          .get("taintTransactions")
           .asInstanceOf[List[(String, String, Long, String, String)]]
-          .map(tx => Row(KeyPair("taintTransactions", (row(0), tx._5, tx._3, tx._2, tx._4))))
+          .map(tx =>
+            Row(
+                    Map(
+                            "tainted" -> row.get("tainted"),
+                            "address" -> tx._5,
+                            "time"    -> tx._3,
+                            "hash"    -> tx._2,
+                            "value"   -> tx._4
+                    )
+            )
+          )
       )
 }
 

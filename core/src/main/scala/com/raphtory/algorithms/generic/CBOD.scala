@@ -71,7 +71,7 @@ class CBOD(
   override def tabularise(graph: GraphPerspective): Table =
     graph
       .select("name", "outlierscore")
-      .filter(_.get(1).asInstanceOf[Double] >= cutoff)
+      .filter(_.get("outlierscore").asInstanceOf[Double] >= cutoff)
 }
 
 object CBOD {

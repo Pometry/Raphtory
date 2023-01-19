@@ -106,7 +106,7 @@ class KCore(k: Int, resetStates: Boolean = true) extends Generic {
         vertex.setState("effdegree", vertex.getState[Int](EFFDEGREE) >= k)
       }
       .select("vertexName", "effdegree")
-      .filter(r => r.getBool(1))
+      .filter(r => r.getBool("effdegree"))
 }
 
 object KCore {

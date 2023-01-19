@@ -171,7 +171,7 @@ class MaxFlow[T](
   override def tabularise(graph: GraphPerspective): Table =
     graph.explodeSelect(vertex =>
       if (vertex.name() == source)
-        List(Row(KeyPair("maximumFlow", vertex.getState[mutable.Map[Long, T]]("flow").values.sum)))
+        List(Row(Map("maximumFlow" -> vertex.getState[mutable.Map[Long, T]]("flow").values.sum)))
       else List.empty[Row]
     )
 
