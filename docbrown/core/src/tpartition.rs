@@ -15,7 +15,7 @@ pub struct TemporalGraphPart(Arc<RwLock<TemporalGraph>>);
 pub struct TEdge{v: usize, edge_meta_id: AdjEdge, t: Option<u64>, outbound: bool}
 
 impl TemporalGraphPart {
-    pub fn add_vertex(&self, t: u64, v: u64, props: Vec<(String, Prop)>) {
+    pub fn add_vertex(&self, t: u64, v: u64, props: &Vec<(String, Prop)>) {
         self.write_shard(|tg| tg.add_vertex(v, t))
     }
 
@@ -129,7 +129,7 @@ mod temporal_graph_partition_test {
 
         let expected_len = vs.iter().map(|(v, _)| v).sorted().dedup().count();
         for (v, t) in vs {
-            g.add_vertex(t.into(), v.into(), vec![]);
+            g.add_vertex(t.into(), v.into(), &vec![]);
         }
 
         assert_eq!(g.len(), expected_len)
@@ -144,7 +144,7 @@ mod temporal_graph_partition_test {
         let g = TemporalGraphPart::default();
 
         for (v, (t_start, _)) in intervals.0.iter().enumerate() {
-            g.add_vertex(*t_start, v.try_into().unwrap(), vec![])
+            g.add_vertex(*t_start, v.try_into().unwrap(), &vec![])
         }
 
        for (v, (t_start, t_end)) in intervals.0.iter().enumerate() {
