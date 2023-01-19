@@ -2,15 +2,12 @@
 #[macro_use(quickcheck)]
 extern crate quickcheck_macros;
 
-use std::sync::Arc;
-
-use docbrown_core::{graph::TemporalGraph, Prop};
-use parking_lot::RwLock;
+use docbrown_core::{tpartition::TemporalGraphPart, Prop};
 
 #[derive(Debug, Clone)]
 pub struct GraphDB {
     nr_shards: usize,
-    shards: Vec<Arc<RwLock<TemporalGraph>>>,
+    shards: Vec<TemporalGraphPart>,
 }
 
 enum Msg {
@@ -26,7 +23,7 @@ impl GraphDB {
     pub fn new(nr_shards: usize) -> Self {
         let mut v = vec![];
         for _ in 0..nr_shards {
-            v.push(Arc::new(RwLock::new(TemporalGraph::default())))
+            v.push(TemporalGraphPart::default())
         }
         GraphDB {
             nr_shards,
@@ -34,10 +31,9 @@ impl GraphDB {
         }
     }
 
-    pub fn add_vertex(&self, v: u64, t: u64, props: Vec<Prop>) {
+    pub fn add_vertex(&self, v: u64, t: u64, props: Vec<(String, Prop)>) {
         let shard_id = self.shard_from_global_vid(v);
-
-        self.write_shard(shard_id, move |shard| shard.add_vertex_props(v, t, &props));
+        self.shards[shard_id].add_vertex(t, v, &props);
     }
 
     pub fn add_edge(&self, src: u64, dst: u64, t: u64, props: &Vec<(String, Prop)>) {
@@ -45,28 +41,17 @@ impl GraphDB {
         let dst_shard_id = self.shard_from_global_vid(dst);
 
         if src_shard_id == dst_shard_id {
-            self.write_shard(src_shard_id, |shard| {
-                shard.add_edge_props(src, dst, t, props);
-            })
+            self.shards[src_shard_id].add_edge(src, dst, t, props)
         } else {
-            self.write_shard(src_shard_id, |shard| {
-                shard.add_edge_remote_out(src, dst, t, props);
-            });
-
-            self.write_shard(dst_shard_id, |shard| {
-                shard.add_edge_remote_into(src, dst, t, props);
-            });
+            self.shards[src_shard_id].add_edge_remote_out(src, dst, t, props);
+            self.shards[dst_shard_id].add_edge_remote_into(src, dst, t, props);
         }
     }
 
+
+
     pub fn len(&self) -> usize {
-        self.shards
-            .iter()
-            .map(|lock_shard| {
-                let shard = lock_shard.read();
-                (*shard).len()
-            })
-            .sum()
+        self.shards.iter().map(|shard| shard.len()).sum()
     }
 
     #[inline(always)]
@@ -74,30 +59,12 @@ impl GraphDB {
         let a: usize = v_gid.try_into().unwrap();
         a % self.nr_shards
     }
-
-    #[inline(always)]
-    fn write_shard<A, F>(&self, shard_id: usize, f: F) -> A
-    where
-        F: Fn(&mut TemporalGraph) -> A,
-    {
-        let mut shard = self.shards[shard_id].write();
-        f(&mut shard)
-    }
-
-    #[inline(always)]
-    fn read_shard<A, F>(&self, shard_id: usize, f: F) -> A
-    where
-        F: Fn(&TemporalGraph) -> A,
-    {
-        let shard = self.shards[shard_id].read();
-        f(&shard)
-    }
 }
 
 #[cfg(test)]
 mod db_tests {
-    use itertools::Itertools;
     use csv::StringRecord;
+    use itertools::Itertools;
 
     use std::{
         collections::hash_map::DefaultHasher,
@@ -117,12 +84,10 @@ mod db_tests {
         }
 
         assert_eq!(g.len(), expected_len)
-
     }
 
     #[test]
     fn db_lotr() {
-
         let g = GraphDB::new(4);
 
         fn calculate_hash<T: Hash>(t: &T) -> u64 {
@@ -142,7 +107,7 @@ mod db_tests {
             .iter()
             .collect();
 
-        let empty:Vec<(String, Prop)> = vec![];
+        let empty: Vec<(String, Prop)> = vec![];
 
         if let Ok(mut reader) = csv::Reader::from_path(lotr_csv) {
             for rec_res in reader.records() {
@@ -159,5 +124,4 @@ mod db_tests {
             }
         }
     }
-
 }

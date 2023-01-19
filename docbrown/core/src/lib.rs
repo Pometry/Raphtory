@@ -9,7 +9,7 @@ mod misc;
 mod props;
 mod tadjset;
 mod tcell;
-mod tpartition;
+pub mod tpartition;
 
 /// Specify the direction of the neighbours
 #[derive(Clone, Copy, PartialEq)]
