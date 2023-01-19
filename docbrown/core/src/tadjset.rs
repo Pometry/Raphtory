@@ -223,6 +223,8 @@ impl<V: Ord + Into<usize> + From<usize> + Copy + Hash, Time: Copy + Ord> TAdjSet
 
 
 }
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct Edge<V : Clone + PartialEq + Eq + PartialOrd + Ord>{v: V, edge_meta: AdjEdge, t: Option<u64>}
 
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]

@@ -1,0 +1,21 @@
+[package]
+name = "docbrown-db"
+version.workspace = true
+edition = "2021"
+keywords = ["graph", "temporal-graph", "temporal"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+docbrown-core = {path = "../core"}
+parking_lot = "0.12"
+flume = "0.10"
+futures = {version = "0.3", features = ["thread-pool"] }
+replace_with = "0.1"
+itertools="0.10"
+csv = "1.1.6"
+flate2 = "1.0"
+
+[dev-dependencies]
+quickcheck = "1"
+quickcheck_macros = "1"

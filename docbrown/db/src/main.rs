@@ -5,7 +5,8 @@ use std::thread::JoinHandle;
 use std::{env, thread};
 
 use csv::StringRecord;
-use docbrown_core::{db::GraphDB, graph::TemporalGraph, Prop};
+use docbrown_core::Prop;
+use docbrown_core::graph::TemporalGraph;
 use flume::{unbounded, Receiver, Sender};
 use itertools::Itertools;
 use replace_with::{replace_with, replace_with_or_abort, replace_with_or_abort_and_return};
@@ -24,55 +25,55 @@ fn parse_record(rec: &StringRecord) -> Option<(u64, u64, u64, u64)> {
     Some((src, dst, t, amount))
 }
 
-fn local_single_threaded_temporal_graph(args: Vec<String>) {
-    let mut g = TemporalGraph::default();
+// fn local_single_threaded_temporal_graph(args: Vec<String>) {
+//     let mut g = TemporalGraph::default();
 
-    let now = Instant::now();
+//     let now = Instant::now();
 
-    if let Some(file_name) = args.get(1) {
-        let f = File::open(file_name).expect(&format!("Can't open file {file_name}"));
-        let mut csv_gz_reader = csv::Reader::from_reader(BufReader::new(GzDecoder::new(f)));
+//     if let Some(file_name) = args.get(1) {
+//         let f = File::open(file_name).expect(&format!("Can't open file {file_name}"));
+//         let mut csv_gz_reader = csv::Reader::from_reader(BufReader::new(GzDecoder::new(f)));
 
-        for rec_res in csv_gz_reader.records() {
-            if let Ok(rec) = rec_res {
-                if let Some((src, dst, t, amount)) = parse_record(&rec) {
-                    g.add_vertex(src, t);
-                    g.add_vertex(dst, t);
-                    g.add_edge_props(src, dst, t, &vec![("amount".into(), Prop::U64(amount))]);
-                }
-            }
-        }
+//         for rec_res in csv_gz_reader.records() {
+//             if let Ok(rec) = rec_res {
+//                 if let Some((src, dst, t, amount)) = parse_record(&rec) {
+//                     g.add_vertex(src, t);
+//                     g.add_vertex(dst, t);
+//                     g.add_edge_props(src, dst, t, &vec![("amount".into(), Prop::U64(amount))]);
+//                 }
+//             }
+//         }
 
-        println!(
-            "Loaded {} vertices, took {} seconds",
-            g.len(),
-            now.elapsed().as_secs()
-        );
+//         println!(
+//             "Loaded {} vertices, took {} seconds",
+//             g.len(),
+//             now.elapsed().as_secs()
+//         );
 
-        let now = Instant::now();
+//         let now = Instant::now();
 
-        let iter = g.iter_vertices().map(|v| {
-            let id = v.global_id();
-            let out_d = v.outbound_degree();
-            let in_d = v.inbound_degree();
-            let deg = v.degree();
+//         let iter = g.iter_vertices().map(|v| {
+//             let id = v.global_id();
+//             let out_d = v.outbound_degree();
+//             let in_d = v.inbound_degree();
+//             let deg = v.degree();
 
-            format!("{id},{out_d},{in_d},{deg}\n")
-        });
+//             format!("{id},{out_d},{in_d},{deg}\n")
+//         });
 
-        let file = File::create("bay_deg.csv").expect("unable to create file bay_deg.csv");
-        let mut file = LineWriter::new(file);
+//         let file = File::create("bay_deg.csv").expect("unable to create file bay_deg.csv");
+//         let mut file = LineWriter::new(file);
 
-        for line in iter {
-            file.write(line.as_bytes())
-                .expect("Unable to write to file");
-        }
-        println!(
-            "Degree output written in {} seconds",
-            now.elapsed().as_secs()
-        )
-    }
-}
+//         for line in iter {
+//             file.write(line.as_bytes())
+//                 .expect("Unable to write to file");
+//         }
+//         println!(
+//             "Degree output written in {} seconds",
+//             now.elapsed().as_secs()
+//         )
+//     }
+// }
 
 enum Msg {
     AddVertex(u64, u64),
