@@ -3,7 +3,9 @@ package com.raphtory.algorithms.temporal
 import com.raphtory.algorithms.generic.NeighbourNames
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
+import com.raphtory.api.analysis.table.KeyPair
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 
 /**
   *  {s}`TemporalEdgeList(properties: String*)`
@@ -44,14 +46,13 @@ class TemporalEdgeList(
           .explodeOutEdges()
           .map { edge =>
             val propertyMap =
-                  KeyPair("name", vertex.name) +:
-                  KeyPair("neighbourName", neighbourMap(edge.dst)) +:
-                  KeyPair("neighbourTimestamp", edge.timestamp) +:
-                   properties.map { name =>
-                     KeyPair("properties",
-                    edge.getPropertyOrElse(name, defaults.getOrElse(name, None)))
-                  }
-            Row(propertyMap: _*)
+              ("name", vertex.name) +:
+                ("neighbourName", neighbourMap(edge.dst)) +:
+                ("neighbourTimestamp", edge.timestamp) +:
+                properties.map { name =>
+                  ("properties", edge.getPropertyOrElse(name, defaults.getOrElse(name, None)))
+                }
+            Row(propertyMap.toMap)
           }
       }
 }
