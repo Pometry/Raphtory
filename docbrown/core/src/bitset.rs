@@ -73,7 +73,16 @@ impl BitSet {
             BitSet::Empty => Box::new(std::iter::empty()),
             BitSet::One(i) => Box::new(std::iter::once(*i)),
             BitSet::Seq(seq) => Box::new(seq.iter().sorted().map(|i| *i)), //FIXME sorted here is expensive, SEQ should probably be some simple form of LSM tree, or removed
-            BitSet::Roaring(m) => Box::new(m.iter().map(|i| {i as usize})),
+            BitSet::Roaring(m) => Box::new(m.iter().map(|i| i as usize)),
+        }
+    }
+
+    pub(crate) fn contains(&self, i: &usize) -> bool {
+        match self {
+            BitSet::Empty => false,
+            BitSet::One(j) => i == j,
+            BitSet::Seq(seq) => seq.find(*i).is_some(),
+            BitSet::Roaring(bs) => bs.contains((*i).try_into().unwrap()),
         }
     }
 }
@@ -91,8 +100,6 @@ mod bitset_test {
         assert_eq!(vec![3], bs.iter().collect::<Vec<_>>())
     }
 
-
-
     #[test]
     fn push_2() {
         let mut bs = BitSet::default();
@@ -103,17 +110,16 @@ mod bitset_test {
         assert_eq!(vec![3, 19], bs.iter().collect::<Vec<_>>())
     }
 
-
     #[test]
     fn push_66() {
         let mut bs = BitSet::default();
 
-        for i in 0 .. (SEQ_MAX_SIZE +2) {
+        for i in 0..(SEQ_MAX_SIZE + 2) {
             bs.push(i);
         }
 
         let mut actual = bs.iter().collect::<Vec<usize>>();
         actual.sort();
-        assert_eq!((0 .. SEQ_MAX_SIZE + 2).collect::<Vec<usize>>(), actual);
+        assert_eq!((0..SEQ_MAX_SIZE + 2).collect::<Vec<usize>>(), actual);
     }
 }
