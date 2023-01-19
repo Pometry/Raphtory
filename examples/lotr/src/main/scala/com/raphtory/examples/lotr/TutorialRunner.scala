@@ -45,14 +45,14 @@ trait LocalRunner { self: RaphtoryApp =>
       }
 
       //The ingestion of data into a graph (line 33-45) can also be pushed into Raphtory via a Source and load function:
-      //      val source = Source(FileSpout(path), LotrGraphBuilder)
-      //      graph.load(source)
+      val source = Source(FileSpout(path), LotrGraphBuilder)
+      graph.load(source)
 
       // Get simple metrics
-//      graph
-//        .execute(Degree())
-//        .writeTo(FileSink("/tmp/raphtory"))
-//        .waitForJob()
+      graph
+        .execute(Degree())
+        .writeTo(FileSink("/tmp/raphtory"))
+        .waitForJob()
 
       // PageRank
       graph
@@ -60,34 +60,35 @@ trait LocalRunner { self: RaphtoryApp =>
         .past()
         .transform(PageRank())
         .select("name", "prlabel")
-        .renameColumn(Map("name" -> "prname"))
         .writeTo(FileSink("/tmp/raphtory"))
         .waitForJob()
 
-//      graph.at(1)
-//      .past()
-//      .transform(PageRank())
-//      .select("name","prlabel").writeTo(FileSink("/tmp/raphtory"))
-//        .waitForJob()
-//
-//      // Connected Components
-//      graph
-//        .at(32674)
-//        .past()
-//        .execute(ConnectedComponents)
-//        .writeTo(FileSink("/tmp/raphtory"))
-//        .waitForJob()
-//
-//   //  Chained Example
-//      graph
-//        .at(32674)
-//        .past()
-//        .transform(PageRank())
-//        .transform(ConnectedComponents)
-//        .transform(Degree())
-//        .select("name", "prlabel", "cclabel", "inDegree", "outDegree", "degree")
-//        .writeTo(FileSink("/tmp/raphtory"))
-//        .waitForJob()
+      graph
+        .at(1)
+        .past()
+        .transform(PageRank())
+        .select("name", "prlabel")
+        .writeTo(FileSink("/tmp/raphtory"))
+        .waitForJob()
+
+      // Connected Components
+      graph
+        .at(32674)
+        .past()
+        .execute(ConnectedComponents)
+        .writeTo(FileSink("/tmp/raphtory"))
+        .waitForJob()
+
+      //  Chained Example
+      graph
+        .at(32674)
+        .past()
+        .transform(PageRank())
+        .transform(ConnectedComponents)
+        .transform(Degree())
+        .select("name", "prlabel", "cclabel", "inDegree", "outDegree", "degree")
+        .writeTo(FileSink("/tmp/raphtory"))
+        .waitForJob()
 
     }
 }

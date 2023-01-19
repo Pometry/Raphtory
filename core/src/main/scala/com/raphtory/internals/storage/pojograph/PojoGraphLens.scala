@@ -171,11 +171,12 @@ final private[raphtory] case class PojoGraphLens(
     onComplete()
   }
 
-  override def renameColumn(columns: Map[String, String])(onComplete: () => Unit): Unit = {
+  override def renameColumn(columns: Seq[(String, String)])(onComplete: () => Unit): Unit = {
+    val newColumnNameMap = columns.toMap
     dataTable = dataTable.map { row =>
       val newpairs = row.columns.map {
         case (key, value) =>
-          if (columns.contains(key)) columns(key) -> value
+          if (newColumnNameMap.contains(key)) newColumnNameMap(key) -> value
           else (key, value)
       }
       Row(newpairs)
