@@ -65,4 +65,5 @@ object Row extends ProtoField[Row] {
 
   /** Create a new Row object */
   def apply(values: Map[String, Any]): Row = new Row(values)
+  def apply(values: (String, Any)*): Row   = new Row(values.toMap)
 }
