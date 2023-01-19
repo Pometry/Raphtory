@@ -151,6 +151,19 @@ impl TemporalGraph {
 }
 
 impl TemporalGraph {
+
+    pub fn contains(&self, v: u64) -> bool {
+        self.logical_to_physical.contains_key(&v)
+    }
+
+    pub fn contains_vertex_w(&self, w:Range<u64>, v: u64) -> bool {
+        if let Some(v_id) = self.logical_to_physical.get(&v) {
+            self.t_index.range(w).any(|(_, bs)| bs.contains(v_id))
+        } else {
+            false
+        }
+    }
+
     pub fn len(&self) -> usize {
         self.logical_to_physical.len()
     }
@@ -616,6 +629,10 @@ impl<'a> EdgeView<'a, TemporalGraph> {
         self.t
     }
 
+    pub fn is_remote(&self) -> bool {
+        !self.e_meta.is_local()
+    }
+
     pub fn props(&self, name: &'a str) -> Box<dyn Iterator<Item = (&'a u64, Prop)> + 'a> {
         // find the id of the property
         let prop_id: usize = self.g.prop_ids[name]; // FIXME this can break
@@ -656,12 +673,28 @@ mod graph_test {
 
         g.add_vertex(9, 1);
 
+        assert!(g.contains(9));
+        assert!(g.contains_vertex_w(1..15, 9));
         assert_eq!(
             g.iter_vertices()
                 .map(|v| v.global_id())
                 .collect::<Vec<u64>>(),
             vec![9]
         )
+    }
+
+
+    #[test]
+    #[ignore = "Undecided on the semantics of the time window over vertices shoule be supported in Docbrown"]
+    fn add_vertex_at_time_t1_window() {
+        let mut g = TemporalGraph::default();
+
+        g.add_vertex(9, 1);
+
+        assert!(g.contains(9));
+        assert!(g.contains_vertex_w(1..15, 9));
+        assert!(g.contains_vertex_w(5..15, 9)); // FIXME: this is wrong and we might need a different kind of window here
+
     }
 
     #[test]
@@ -1341,5 +1374,19 @@ mod graph_test {
         let mut g1 = TemporalGraph::default();
         g1.add_edge_remote_out(11, 1, 1, &vec![("bla".to_string(), Prop::U32(1))]);
         g1.add_edge_props(11, 0, 2, &vec![("bla".to_string(), Prop::U32(1))]);
+    }
+
+    #[test]
+    fn check_edges_after_adding_remote() {
+        let mut g1 = TemporalGraph::default();
+        g1.add_vertex(11, 1);
+
+        g1.add_edge_remote_out(11, 22, 2, &vec![("bla".to_string(), Prop::U32(1))]);
+
+        let actual = g1.outbound_window(11, 1 .. 3).map(|e| e.global_dst()).collect_vec();
+        assert_eq!(actual, vec![22]);
+
+        let actual = g1.neighbours_iter_window(0, Direction::OUT, &(1..3)).map(|(id, edge)| (id, edge.is_local())).collect_vec();
+        assert_eq!(actual, vec![(22, false)])
     }
 }
