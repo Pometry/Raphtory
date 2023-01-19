@@ -67,5 +67,6 @@ object AdjPlus extends Generic {
       .step(vertex => vertex.messageQueue[vertex.IDType].foreach(v => vertex.messageVertex(v, vertex.name())))
       .step(vertex => vertex.setState("adjPlusSet", vertex.messageQueue[String]))
       .select(columns: _*)
-      .explode(row => row.getAs[Iterable[String]](1).map(v => Row(KeyPair("adjPlus", row.get(0)), KeyPair("v", v))))
+      .explode("adjPlusSet")
+  //.explode(row => row.getAs[Iterable[String]](1).map(v => Row(KeyPair("adjPlus", row.get(0)), KeyPair("v", v))))
 }

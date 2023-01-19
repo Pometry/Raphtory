@@ -8,7 +8,7 @@ import com.raphtory.internals.components.querymanager.ProtoField
 
 case class KeyPair(key: String, value: Any)
 
-class Row(val columns: Map[String, Any]) {
+class Row(val columns: Map[String, Any]) { // TODO: decide which Map implementation we are gonna use
 
   /** Return value at index
     * @param index index to obtain value from
