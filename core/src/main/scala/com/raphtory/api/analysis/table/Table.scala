@@ -9,7 +9,9 @@ import scala.concurrent.duration.Duration
 sealed private[raphtory] trait TableFunction                            extends Operation
 final private[raphtory] case class TableFilter(f: (Row) => Boolean)     extends TableFunction
 final private[raphtory] case class Explode(f: Row => IterableOnce[Row]) extends TableFunction
-final private[raphtory] case class ExplodeColumn(column: String) extends TableFunction
+final private[raphtory] case class ExplodeColumn(column: String)        extends TableFunction
+
+final private[raphtory] case class RenameColumn(columns: Map[String, String]) extends TableFunction
 
 /**  Interface for table operations
   *
@@ -35,6 +37,8 @@ trait Table extends TableBase {
   def explode(f: Row => IterableOnce[Row]): Table
 
   def explode(column: String): Table
+
+  def renameColumn(columns: Map[String, String]): Table
 
   /** Write out data and
     * return [[com.raphtory.api.progresstracker.QueryProgressTracker QueryProgressTracker]]

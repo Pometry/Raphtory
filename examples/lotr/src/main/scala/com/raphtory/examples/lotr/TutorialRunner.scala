@@ -49,44 +49,45 @@ trait LocalRunner { self: RaphtoryApp =>
       //      graph.load(source)
 
       // Get simple metrics
-      graph
-        .execute(Degree())
-        .writeTo(FileSink("/tmp/raphtory"))
-        .waitForJob()
+//      graph
+//        .execute(Degree())
+//        .writeTo(FileSink("/tmp/raphtory"))
+//        .waitForJob()
 
-    // PageRank
+      // PageRank
       graph
         .at(32674)
         .past()
         .transform(PageRank())
         .select("name", "prlabel")
+        .renameColumn(Map("name" -> "prname"))
         .writeTo(FileSink("/tmp/raphtory"))
         .waitForJob()
 
-      graph.at(1)
-      .past()
-      .transform(PageRank())
-      .select("name","prlabel").writeTo(FileSink("/tmp/raphtory"))
-        .waitForJob()
-
-      // Connected Components
-      graph
-        .at(32674)
-        .past()
-        .execute(ConnectedComponents)
-        .writeTo(FileSink("/tmp/raphtory"))
-        .waitForJob()
-
-   //  Chained Example
-      graph
-        .at(32674)
-        .past()
-        .transform(PageRank())
-        .transform(ConnectedComponents)
-        .transform(Degree())
-        .select("name", "prlabel", "cclabel", "inDegree", "outDegree", "degree")
-        .writeTo(FileSink("/tmp/raphtory"))
-        .waitForJob()
+//      graph.at(1)
+//      .past()
+//      .transform(PageRank())
+//      .select("name","prlabel").writeTo(FileSink("/tmp/raphtory"))
+//        .waitForJob()
+//
+//      // Connected Components
+//      graph
+//        .at(32674)
+//        .past()
+//        .execute(ConnectedComponents)
+//        .writeTo(FileSink("/tmp/raphtory"))
+//        .waitForJob()
+//
+//   //  Chained Example
+//      graph
+//        .at(32674)
+//        .past()
+//        .transform(PageRank())
+//        .transform(ConnectedComponents)
+//        .transform(Degree())
+//        .select("name", "prlabel", "cclabel", "inDegree", "outDegree", "degree")
+//        .writeTo(FileSink("/tmp/raphtory"))
+//        .waitForJob()
 
     }
 }
@@ -158,7 +159,7 @@ object RemoteRunner extends RaphtoryApp.Remote("localhost", 1736) {
         .transform(PageRank())
         .transform(ConnectedComponents)
         .transform(Degree())
-        .select("name","prlabel", "cclabel", "inDegree", "outDegree", "degree")
+        .select("name", "prlabel", "cclabel", "inDegree", "outDegree", "degree")
         .writeTo(FileSink("/tmp/raphtory"))
         .waitForJob()
 

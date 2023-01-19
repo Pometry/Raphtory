@@ -171,6 +171,18 @@ final private[raphtory] case class PojoGraphLens(
     onComplete()
   }
 
+  override def renameColumn(columns: Map[String, String])(onComplete: () => Unit): Unit = {
+    dataTable = dataTable.map { row =>
+      val newpairs = row.columns.map {
+        case (key, value) =>
+          if (columns.contains(key)) columns(key) -> value
+          else (key, value)
+      }
+      Row(newpairs)
+    }
+    onComplete()
+  }
+
   def writeDataTable(writer: Row => Unit)(onComplete: () => Unit): Unit = {
     dataTable.foreach(row => writer(row))
     onComplete()

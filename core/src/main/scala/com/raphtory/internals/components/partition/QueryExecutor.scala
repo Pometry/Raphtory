@@ -8,11 +8,7 @@ import com.google.protobuf.empty.Empty
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview._
-import com.raphtory.api.analysis.table.Explode
-import com.raphtory.api.analysis.table.ExplodeColumn
-import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.TableFilter
-import com.raphtory.api.analysis.table.TableFunction
+import com.raphtory.api.analysis.table.{Explode, ExplodeColumn, RenameColumn, Row, TableFilter, TableFunction}
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.output.sink.SinkExecutor
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
@@ -187,6 +183,7 @@ class QueryExecutor[F[_]](
               case TableFilter(f)        => lens.filteredTable(f)(cb)
               case Explode(f)            => lens.explodeTable(f)(cb)
               case ExplodeColumn(column) => lens.explodeColumn(column)(cb)
+              case RenameColumn(columns) => lens.renameColumn(columns)(cb)
             }
     )
 

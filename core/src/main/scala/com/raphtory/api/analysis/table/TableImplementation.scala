@@ -32,6 +32,10 @@ private[api] class TableImplementation(val query: Query, private[raphtory] val q
     addFunction(ExplodeColumn(column))
   }
 
+  override def renameColumn(columns: Map[String, String]): Table = {
+    addFunction(RenameColumn(columns))
+  }
+
   override def writeTo(sink: Sink, jobName: String): QueryProgressTracker =
     submitQueryWithSink(sink, jobName, jobID => querySender.createQueryProgressTracker(jobID))
       .asInstanceOf[QueryProgressTracker]

@@ -28,6 +28,7 @@ private[raphtory] trait LensInterface {
   def filteredTable(f: Row => Boolean)(onComplete: () => Unit): Unit
   def explodeTable(f: Row => IterableOnce[Row])(onComplete: () => Unit): Unit
   def explodeColumn(column: String)(onComplete: () => Unit): Unit
+  def renameColumn(columns: Map[String, String])(onComplete: () => Unit): Unit
   def writeDataTable(f: Row => Unit)(onComplete: () => Unit): Unit
 
   def explodeView(
