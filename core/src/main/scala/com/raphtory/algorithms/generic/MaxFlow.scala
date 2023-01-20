@@ -167,13 +167,11 @@ class MaxFlow[T](
               maxIterations,
               executeMessagedOnly = true
       )
+      .vertexFilter(vertex => vertex.name() == source)
+      .step(vertex => vertex.setState("maximumFlow", vertex.getState[mutable.Map[Long, T]]("flow").values.sum))
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.explodeSelect(vertex =>
-      if (vertex.name() == source)
-        List(Row("maximumFlow" -> vertex.getState[mutable.Map[Long, T]]("flow").values.sum))
-      else List.empty[Row]
-    )
+    graph.select("maximumFlow")
 
   sealed trait Message[VertexID] {}
   case class FlowAdded[VertexID](source: VertexID, value: T)  extends Message[VertexID]
