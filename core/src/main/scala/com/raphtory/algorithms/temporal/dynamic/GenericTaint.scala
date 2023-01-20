@@ -4,7 +4,9 @@ import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
-import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
+import com.raphtory.api.analysis.table.KeyPair
+import com.raphtory.api.analysis.table.Row
+import com.raphtory.api.analysis.table.Table
 
 /**
   * {s}`GenericTaint((startTime: Int, infectedNodes: Iterable[Long], stopNodes: Set[Long] = Set())`
@@ -101,7 +103,7 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
                     // otherwise set a brand new state, first get the old txs it was tainted by
                     val oldState: Vector[(String, Long, Long, Long)] = vertex.getState("taintHistory")
                     // add the new transactions and old ones together
-                    val newState                                   = Vector.concat(newMessages, oldState).distinct
+                    val newState                                     = Vector.concat(newMessages, oldState).distinct
                     // set this as the new state
                     vertex.setState("taintHistory", newState)
                   }
@@ -142,14 +144,16 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
 
   override def tabularise(graph: ReducedGraphPerspective): Table =
     graph
-      .select("name","taintStatus","taintHistory")
+      .select("name", "taintStatus", "taintHistory")
       // filter for any that had been tainted and save to folder
       .filter(r => r.get("taintStatus") == true)
       .explode(row =>
         row
           .get("taintHistory")
           .asInstanceOf[Vector[(String, Long, Long, String)]]
-          .map(tx => Row(Map("vertexName" -> row("name"),  "propagatingEdge" -> tx._2, "timeOfEvent" -> tx._3, "sourceNode" ->tx._4)))
+          .map(tx =>
+            Row("vertexName" -> row("name"), "propagatingEdge" -> tx._2, "timeOfEvent" -> tx._3, "sourceNode" -> tx._4)
+          )
       )
 }
 

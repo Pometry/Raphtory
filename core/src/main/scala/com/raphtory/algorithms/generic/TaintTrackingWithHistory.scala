@@ -150,13 +150,11 @@ class TaintTrackingWithHistory(startTime: Long, infectedNodes: Set[String], stop
           .asInstanceOf[List[(String, String, Long, String, String)]]
           .map(tx =>
             Row(
-                    Map(
-                            "tainted" -> row.get("tainted"),
-                            "address" -> tx._5,
-                            "time"    -> tx._3,
-                            "hash"    -> tx._2,
-                            "value"   -> tx._4
-                    )
+                    "tainted" -> row.get("tainted"),
+                    "address" -> tx._5,
+                    "time"    -> tx._3,
+                    "hash"    -> tx._2,
+                    "value"   -> tx._4
             )
           )
       )

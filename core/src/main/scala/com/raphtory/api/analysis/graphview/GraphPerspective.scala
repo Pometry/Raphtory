@@ -243,17 +243,11 @@ trait GraphPerspective {
     */
   def select(values: String*): Table
 
-  /** Write output to table with access to global graph state
-    *
-    * @param f function to extract data from vertex and graph state (run once for each vertex)
-    */
-  def select(f: (Vertex, GraphState) => Row): Table
-
   /** Write global graph state to table (this creates a table with a single row)
     *
     * @param f function to extract data from graph state (runs only once)
     */
-  def globalSelect(f: GraphState => Row): Table
+  def globalSelect(f: GraphState => Row): Table // TODO: remove this
 
   def globalSelect(values: String*): Table
 

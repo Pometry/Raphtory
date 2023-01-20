@@ -52,7 +52,7 @@ class TemporalEdgeList(
                 properties.map { name =>
                   ("properties", edge.getPropertyOrElse(name, defaults.getOrElse(name, None)))
                 }
-            Row(propertyMap.toMap)
+            Row(propertyMap: _*)
           }
       }
 }

@@ -2,7 +2,8 @@ package com.raphtory.api.analysis.table
 
 import com.raphtory.internals.components.querymanager.ProtoField
 
-import scala.collection.immutable.{SeqMap, SortedMap}
+import scala.collection.immutable.SeqMap
+import scala.collection.immutable.SortedMap
 
 /** Create a row of a data table
   * @see [[Table]]
@@ -67,6 +68,6 @@ object Row extends ProtoField[Row] {
 
   /** Create a new Row object */
   // todo: keys might be unsorted
-  def apply(values: Map[String, Any]): Row = new Row(SeqMap.from(values))
-  def apply(values: (String, Any)*): Row   = new Row(SeqMap.from(values))
+  //def apply(values: Map[String, Any]): Row = new Row(SeqMap.from(values)) // TODO: remove this
+  def apply(values: (String, Any)*): Row = new Row(SeqMap.from(values))
 }

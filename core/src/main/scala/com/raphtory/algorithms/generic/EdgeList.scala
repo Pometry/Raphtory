@@ -56,7 +56,7 @@ class EdgeList(
                             .getPropertyOrElse(key, defaults.getOrElse(key, None))
                   )
                 )
-            Row(row.toMap)
+            Row(row: _*)
           }
       }
 

@@ -102,9 +102,7 @@ class TwoHopPaths(seeds: Set[String] = Set[String]()) extends Generic {
         row
           .getAs[ArrayBuffer[Array[String]]]("twohoppaths")
           .toList
-          .map(hops =>
-            Row(Map("vertexName" -> row.get("vertexName"), "vertexTwo" -> hops(0), "vertexThree" -> hops(1)))
-          )
+          .map(hops => Row("vertexName" -> row.get("vertexName"), "vertexTwo" -> hops(0), "vertexThree" -> hops(1)))
       )
 }
 

@@ -220,19 +220,20 @@ class LocalThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prett
     else if (prettyPrint)
       graph.globalSelect(state =>
         Row(
-                Map("starCounts" -> getStarCountsPretty(state[Array[Long], Array[Long]]("starCounts").value),
-                "twoNodeCounts" -> get2NodeCountsWithoutRepeats(state[Array[Long], Array[Long]]("twoNodeCounts").value),
-                "triCounts" -> getTriCountsPretty(state[Array[Long], Array[Long]]("triCounts").value)))
+                "starCounts"    -> getStarCountsPretty(state[Array[Long], Array[Long]]("starCounts").value),
+                "twoNodeCounts" -> get2NodeCountsWithoutRepeats(
+                        state[Array[Long], Array[Long]]("twoNodeCounts").value
+                ),
+                "triCounts"     -> getTriCountsPretty(state[Array[Long], Array[Long]]("triCounts").value)
+        )
       )
     else
       graph.globalSelect(state =>
         Row(
-                Map(
-                        "motifs" ->
-                        (state[Array[Long], Array[Long]]("starCounts").value ++ state[Array[Long], Array[Long]](
-                                "twoNodeCounts"
-                        ).value ++ state[Array[Long], Array[Long]]("triCounts").value).mkString("(", ";", ")")
-                )
+                "motifs" ->
+                  (state[Array[Long], Array[Long]]("starCounts").value ++ state[Array[Long], Array[Long]](
+                          "twoNodeCounts"
+                  ).value ++ state[Array[Long], Array[Long]]("triCounts").value).mkString("(", ";", ")")
         )
       )
 }

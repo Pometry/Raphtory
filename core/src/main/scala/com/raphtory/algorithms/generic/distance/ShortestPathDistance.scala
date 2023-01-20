@@ -92,11 +92,9 @@ class ShortestPathDistance[T: Bounded: Numeric](src_name: String, tgt_name: Stri
         if (row.get("targetVertex") == tgt_name)
           List(
                   Row(
-                          Map(
-                                  "sourceVertex" -> row.get("sourceVertex"),
-                                  "targetVertex" -> row.get("targetVertex"),
-                                  DISTANCE       -> row.get(DISTANCE)
-                          )
+                          "sourceVertex" -> row.get("sourceVertex"),
+                          "targetVertex" -> row.get("targetVertex"),
+                          DISTANCE       -> row.get(DISTANCE)
                   )
           )
         else

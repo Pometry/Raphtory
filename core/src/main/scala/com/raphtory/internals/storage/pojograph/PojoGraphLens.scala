@@ -118,7 +118,7 @@ final private[raphtory] case class PojoGraphLens(
       val keys    = if (values.nonEmpty) values else vertex.getPropertySet() ++ vertex.getStateSet()
       val columns =
         keys.map(key => (key, vertex.getStateOrElse(key, defaults.getOrElse(key, ""), includeProperties = true)))
-      Row(columns.toMap)
+      Row(columns: _*)
     }
     onComplete()
   }
@@ -166,7 +166,7 @@ final private[raphtory] case class PojoGraphLens(
   override def explodeColumn(column: String)(onComplete: () => Unit): Unit = {
     dataTable = dataTable.flatMap { row =>
       val explodedValues = row(column).asInstanceOf[IterableOnce[_]]
-      explodedValues.iterator.map(value => Row(row.columns.updated(column, value)))
+      explodedValues.iterator.map(value => new Row(row.columns.updated(column, value)))
     }
     onComplete()
   }
@@ -179,7 +179,7 @@ final private[raphtory] case class PojoGraphLens(
           if (newColumnNameMap.contains(key)) newColumnNameMap(key) -> value
           else (key, value)
       }
-      Row(newpairs)
+      new Row(newpairs)
     }
     onComplete()
   }

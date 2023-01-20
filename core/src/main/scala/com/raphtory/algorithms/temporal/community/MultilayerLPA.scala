@@ -186,7 +186,7 @@ class MultilayerLPA(
         row
           .get("mlpalabel")
           .asInstanceOf[List[(Long, Long)]]
-          .map(lts => Row(Map("vertexName" -> lts._2, "timestamp" -> s"${row.get("name")}_${lts._1}")))
+          .map(lts => Row("vertexName" -> lts._2, "timestamp" -> s"${row.get("name")}_${lts._1}"))
       }
 
 }
