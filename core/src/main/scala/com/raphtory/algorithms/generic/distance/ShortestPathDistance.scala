@@ -83,14 +83,13 @@ class ShortestPathDistance[T: Bounded: Numeric](src_name: String, tgt_name: Stri
   override def tabularise(graph: GraphPerspective): Table =
     graph
       .step { vertex =>
-        vertex.setState("vertexname", vertex.name)
         vertex.setState("sourceVertex", src_name)
-        vertex.setState("targetVertex", name)
+        vertex.setState("targetVertex", vertex.name)
         vertex.setState(DISTANCE, vertex.getState[T](DISTANCE))
       }
       .select("sourceVertex", "targetVertex", DISTANCE)
       .explode(row =>
-        if (row.get("vertexname") == tgt_name)
+        if (row.get("targetVertex") == tgt_name)
           List(
                   Row(
                           Map(
