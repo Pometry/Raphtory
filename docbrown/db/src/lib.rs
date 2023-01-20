@@ -2,6 +2,8 @@
 #[macro_use(quickcheck)]
 extern crate quickcheck_macros;
 
+pub mod loaders;
+
 use docbrown_core::{tpartition::TemporalGraphPart, Prop};
 
 #[derive(Debug, Clone)]
