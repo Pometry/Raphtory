@@ -45,12 +45,12 @@ impl GraphDB {
         if src_shard_id == dst_shard_id {
             self.shards[src_shard_id].add_edge(src, dst, t, props)
         } else {
+            // FIXME these are sort of connected, we need to hold both locks for
+            // the src partition and dst partition to add a remote edge between both
             self.shards[src_shard_id].add_edge_remote_out(src, dst, t, props);
             self.shards[dst_shard_id].add_edge_remote_into(src, dst, t, props);
         }
     }
-
-
 
     pub fn len(&self) -> usize {
         self.shards.iter().map(|shard| shard.len()).sum()
@@ -109,7 +109,7 @@ mod db_tests {
             .iter()
             .collect();
 
-        let empty: Vec<(String, Prop)> = vec![];
+        let empty: Vec<(String, Prop)> = vec![]; // FIXME: add actual properties here
 
         if let Ok(mut reader) = csv::Reader::from_path(lotr_csv) {
             for rec_res in reader.records() {

@@ -1,6 +1,6 @@
 mod csv {
     use std::collections::VecDeque;
-    use std::fs;
+    use std::{fs, io};
     use std::path::{Path, PathBuf};
 
     use itertools::Itertools;
@@ -8,7 +8,8 @@ mod csv {
 
     use crate::GraphDB;
 
-    pub struct CsvErr(String);
+    #[derive(Debug)]
+    pub struct CsvErr(io::Error);
 
     #[derive(Debug)]
     pub struct CsvLoader {
@@ -40,7 +41,9 @@ mod csv {
                 let is_match = &p
                     .to_str()
                     .filter(|file_name| {
-                        pattern.is_match(file_name)
+                        let matches = pattern.is_match(file_name);
+                        println!("{file_name} {matches}");
+                        matches
                     })
                     .is_some();
                 if *is_match {
@@ -69,51 +72,29 @@ mod csv {
                             }
                         }
                     }
-                    Err(_) => {
+                    Err(err) => {
                         if !Self::is_dir(path) {
                             self.accept_file(path.to_path_buf(), &mut paths);
                         }
+                        return Err(CsvErr(err))
                     }
                 }
             }
 
-            Ok(queue.into_iter().collect_vec())
+            Ok(paths)
         }
 
-        pub fn load_into(&self, g: GraphDB) -> Result<GraphDB, CsvErr> {
-            let mut paths = vec![];
-            let mut queue = VecDeque::from([self.path.to_path_buf()]);
-
-            while let Some(ref path) = queue.pop_back() {
-                match fs::read_dir(path) {
-                    Ok(entries) => {
-                        for entry in entries {
-                            if let Ok(f_path) = entry {
-                                let p = f_path.path();
-                                if Self::is_dir(&p) {
-                                    queue.push_back(p.clone())
-                                } else {
-                                    self.accept_file(f_path.path(), &mut paths);
-                                    // paths.push(f_path.path())
-                                }
-                            }
-                        }
-                    }
-                    Err(_) => {
-                        if !Self::is_dir(path) {
-                            self.accept_file(path.to_path_buf(), &mut paths);
-                        }
-                    }
-                }
-            }
+        pub fn load_into(&self, g: &GraphDB) -> Result<(), CsvErr> {
+            let mut paths = self.files_vec();
 
             println!("PATHS {paths:?}");
-            Err(CsvErr("No implemented!".to_string()))
+            todo!()
         }
 
         pub fn load(&self) -> Result<GraphDB, CsvErr> {
             let g = GraphDB::new(2);
-            self.load_into(g)
+            self.load_into(&g)?;
+            Ok(g)
         }
     }
 }

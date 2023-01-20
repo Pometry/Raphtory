@@ -18,6 +18,7 @@ const SMALL_SET: usize = 1024;
  * does u exist already
  * and if it does what is the edge metadata
  * and if the edge is remote or local
+ *
  *  */
 #[derive(Debug, Default)]
 pub(crate) enum TAdjSet<V: Ord + TryInto<usize>, Time: Copy + Ord> {
@@ -25,12 +26,12 @@ pub(crate) enum TAdjSet<V: Ord + TryInto<usize>, Time: Copy + Ord> {
     Empty,
     One(Time, V, AdjEdge),
     Small {
-        vs: Vec<V>,
-        edges: Vec<AdjEdge>,
-        t_index: SortedVectorMap<Time, BitSet>,
+        vs: Vec<V>, // the neighbours
+        edges: Vec<AdjEdge>, // edge metadata
+        t_index: SortedVectorMap<Time, BitSet>, // index from t -> [v] where v is the value of vs and edges
     },
     Large {
-        vs: HashMap<V, AdjEdge>,
+        vs: HashMap<V, AdjEdge>, // this is equiv to vs and edges
         t_index: BTreeMap<Time, BitSet>,
     },
 }
