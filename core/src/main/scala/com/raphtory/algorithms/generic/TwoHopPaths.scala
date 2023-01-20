@@ -100,7 +100,7 @@ class TwoHopPaths(seeds: Set[String] = Set[String]()) extends Generic {
       .select("vertexName", "twohoppaths")
       .explode(row =>
         row
-          .getAs[ArrayBuffer[Array[String]]]("twoHopPaths")
+          .getAs[ArrayBuffer[Array[String]]]("twohoppaths")
           .toList
           .map(hops =>
             Row(Map("vertexName" -> row.get("vertexName"), "vertexTwo" -> hops(0), "vertexThree" -> hops(1)))
