@@ -39,10 +39,11 @@ class VertexHistogram[T: Numeric: Bounded: ClassTag](propertyString: String, noB
       val minSeq    = ("propertyMin", state[T, T]("propertyMin").value)
       val maxSeq    = ("propertyMax", state[T, T]("propertyMax").value)
       val minMaxSeq = Seq(minSeq, maxSeq)
-      val distlist  = state[T, Histogram[T]]("propertyDist").value.getBins.map { value =>
-        ("propertyDist", value)
+      val distlist  = state[T, Histogram[T]]("propertyDist").value.getBins.zipWithIndex.map {
+        case (value, index) =>
+          ("propertyDist" + index, value)
       }.toSeq
-      Row((minMaxSeq ++ distlist).toMap)
+      Row((minMaxSeq ++ distlist): _*)
     }
 }
 

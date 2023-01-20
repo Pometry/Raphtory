@@ -38,6 +38,7 @@ class Degree extends Generic {
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
+        vertex.setState("name", vertex.name())
         vertex.setState("inDegree", vertex.inDegree)
         vertex.setState("outDegree", vertex.outDegree)
         vertex.setState("degree", vertex.degree)

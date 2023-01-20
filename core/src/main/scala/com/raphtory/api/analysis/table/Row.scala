@@ -2,13 +2,15 @@ package com.raphtory.api.analysis.table
 
 import com.raphtory.internals.components.querymanager.ProtoField
 
+import scala.collection.immutable.{SeqMap, SortedMap}
+
 /** Create a row of a data table
   * @see [[Table]]
   */
 
 case class KeyPair(key: String, value: Any)
 
-class Row(val columns: Map[String, Any]) { // TODO: decide which Map implementation we are gonna use
+class Row(val columns: SeqMap[String, Any]) { // TODO: decide which Map implementation we are gonna use
 
   /** Return value at index
     * @param index index to obtain value from
@@ -64,6 +66,7 @@ class Row(val columns: Map[String, Any]) { // TODO: decide which Map implementat
 object Row extends ProtoField[Row] {
 
   /** Create a new Row object */
-  def apply(values: Map[String, Any]): Row = new Row(values)
-  def apply(values: (String, Any)*): Row   = new Row(values.toMap)
+  // todo: keys might be unsorted
+  def apply(values: Map[String, Any]): Row = new Row(SeqMap.from(values))
+  def apply(values: (String, Any)*): Row   = new Row(SeqMap.from(values))
 }

@@ -1,6 +1,7 @@
 package com.raphtory.algorithms
 
-import com.raphtory.{BaseCorrectnessTest, TestQuery}
+import com.raphtory.BaseCorrectnessTest
+import com.raphtory.TestQuery
 import com.raphtory.algorithms.generic.VertexHistogram
 import com.raphtory.algorithms.generic.centrality.Degree
 import com.raphtory.api.input.Source

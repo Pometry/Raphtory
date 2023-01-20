@@ -36,27 +36,29 @@ class EdgeList(
     properties: Seq[String] = Seq.empty[String],
     defaults: Map[String, Any] = Map.empty[String, Any]
 ) extends Generic {
-
+  private val columns                                      = Seq("name") ++ Seq("row")
   override def apply(graph: GraphPerspective): graph.Graph = NeighbourNames(graph)
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .step { vertex =>
+      .explodeSelect { vertex =>
         val neighbourMap = vertex.getState[Map[vertex.IDType, String]]("neighbourNames")
+        val name         = vertex.name()
         vertex.outEdges
           .map { edge =>
-            val propertyStateList = edge.getPropertySet() ++ edge.getStateSet()
-            vertex.setState("neighbourName", neighbourMap(edge.dst))
-            vertex.setState(
-                    "properties",
-                    propertyStateList.map { key =>
-                      edge.getStateOrElse(key, defaults.getOrElse(key, None), includeProperties = true)
-                    }
-            )
+            val row = ("name", name) +:
+              ("neighbourName", neighbourMap(edge.dst)) +: // get name of neighbour
+              properties // get property values
+                .map(key =>
+                  (
+                          key,
+                          edge
+                            .getPropertyOrElse(key, defaults.getOrElse(key, None))
+                  )
+                )
+            Row(row.toMap)
           }
       }
-      .select("name", "neighbourNames", "properties")
-      .explode("properties")
 
 }
 
