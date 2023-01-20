@@ -9,6 +9,7 @@ use crate::{Direction, Prop};
 use itertools::*;
 
 #[derive(Clone, Debug, Default)]
+#[repr(transparent)]
 pub struct TemporalGraphPart(Arc<RwLock<TemporalGraph>>);
 
 pub struct TEdge {

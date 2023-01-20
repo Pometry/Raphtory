@@ -19,7 +19,7 @@ pub struct TemporalGraph {
     t_index: BTreeMap<u64, BitSet>,
     // attributes for props
     pub(crate) prop_ids: HashMap<String, usize>,
-    pub(crate) edge_meta: Vec<TPropVec>,
+    pub(crate) edge_meta: Vec<TPropVec>, // table of edges
 }
 
 impl Default for TemporalGraph {
@@ -270,6 +270,7 @@ impl TemporalGraph {
     }
 
     fn update_edge_props(&mut self, src_edge_meta_id: usize, t: u64, props: &Vec<(String, Prop)>) {
+        //FIXME: ensure the self.edge_meta is updated even if the props vector is null
         for (name, prop) in props {
             // find where do we slot this property in the temporal vec for each edge
             let property_id = if let Some(prop_id) = self.prop_ids.get(name) {
@@ -320,28 +321,28 @@ impl TemporalGraph {
         dst_pid: usize,
         remote_edge: bool,
     ) -> usize {
-        if let entry @ Adj::Empty(_) = &mut self.index[dst_pid] {
-            let edge_id = self.edge_meta.len();
+        match &mut self.index[dst_pid] {
+            entry @ Adj::Empty(_) => {
+                let edge_id = self.edge_meta.len();
 
-            let edge = AdjEdge::new(edge_id, !remote_edge);
+                let edge = AdjEdge::new(edge_id, !remote_edge);
 
-            *entry = Adj::new_into(global_dst_id, src, t, edge);
+                *entry = Adj::new_into(global_dst_id, src, t, edge);
 
-            edge_id
-        } else if let Adj::List {
-            into, remote_into, ..
-        } = &mut self.index[dst_pid]
-        {
-            let list = if remote_edge { remote_into } else { into };
-            let edge_id: usize = list
-                .find(src)
-                .map(|e| e.edge_meta_id())
-                .unwrap_or(self.edge_meta.len());
+                edge_id
+            }
+            Adj::List {
+                    into, remote_into, ..
+                } => {
+                let list = if remote_edge { remote_into } else { into };
+                let edge_id: usize = list
+                    .find(src)
+                    .map(|e| e.edge_meta_id())
+                    .unwrap_or(self.edge_meta.len());
 
-            list.push(t, src, AdjEdge::new(edge_id, !remote_edge));
-            edge_id
-        } else {
-            panic!("we really should not get here, strange the compiler thinks we might");
+                list.push(t, src, AdjEdge::new(edge_id, !remote_edge)); // idempotent
+                edge_id
+            }
         }
     }
 
@@ -353,28 +354,28 @@ impl TemporalGraph {
         dst: usize, // may or may not pe physical id depending on remote_edge flag
         remote_edge: bool,
     ) -> usize {
-        if let entry @ Adj::Empty(_) = &mut self.index[src_pid] {
-            let edge_id = self.edge_meta.len();
+        match &mut self.index[src_pid] {
+            entry @ Adj::Empty(_) => {
+                let edge_id = self.edge_meta.len();
 
-            let edge = AdjEdge::new(edge_id, !remote_edge);
+                let edge = AdjEdge::new(edge_id, !remote_edge);
 
-            *entry = Adj::new_out(global_src_id, dst, t, edge);
+                *entry = Adj::new_out(global_src_id, dst, t, edge);
 
-            edge_id
-        } else if let Adj::List {
-            out, remote_out, ..
-        } = &mut self.index[src_pid]
-        {
-            let list = if remote_edge { remote_out } else { out };
-            let edge_id: usize = list
-                .find(dst)
-                .map(|e| e.edge_meta_id())
-                .unwrap_or(self.edge_meta.len());
+                edge_id
+            }
+            Adj::List {
+                    out, remote_out, ..
+                } => {
+                let list = if remote_edge { remote_out } else { out };
+                let edge_id: usize = list
+                    .find(dst)
+                    .map(|e| e.edge_meta_id())
+                    .unwrap_or(self.edge_meta.len());
 
-            list.push(t, dst, AdjEdge::new(edge_id, !remote_edge));
-            edge_id
-        } else {
-            panic!("HOW ARE YOU FAILING!?") // we really should not get here
+                list.push(t, dst, AdjEdge::new(edge_id, !remote_edge));
+                edge_id
+            }
         }
     }
 
