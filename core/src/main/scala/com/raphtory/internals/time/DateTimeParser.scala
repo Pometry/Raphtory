@@ -9,10 +9,13 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.time.format.ResolverStyle
 import scala.util.Try
 
 private[raphtory] class DateTimeParser(format: String) {
-  private val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern(format)
+
+  private val formatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern(format)
 
   def parse(datetime: String): Long =
     Try(LocalDateTime.parse(datetime, formatter))

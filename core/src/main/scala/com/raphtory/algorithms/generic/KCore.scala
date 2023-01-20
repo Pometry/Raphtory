@@ -90,9 +90,9 @@ class KCore(k: Int, resetStates: Boolean = true) extends Generic {
                     vertex.messageAllNeighbours(0)
                     vertex.voteToHalt()
                   }
-                } else {
-                  vertex.voteToHalt()
                 }
+                else
+                  vertex.voteToHalt()
 
               },
               iterations = 5000,
