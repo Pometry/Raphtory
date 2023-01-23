@@ -20,11 +20,14 @@ import scala.util.Using
 object AllNeighbours extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.explodeSelect { vertex =>
-      vertex.edges.map(e =>
-        Row(("vertexName", vertex.name()), ("sourceID", e.src), ("targetID", e.dst))
-      )
-    }
+    graph
+      .step { vertex =>
+        val edges = vertex.edges.toSeq
+        vertex.setState("sourceID", edges.map(_.src))
+        vertex.setState("targetID", edges.map(_.dst))
+      }
+      .select("name", "sourceID", "targetID")
+      .explode("sourceID", "targetID")
 }
 
 class VertexFilterTest extends BaseCorrectnessTest {

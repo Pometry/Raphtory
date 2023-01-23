@@ -40,21 +40,24 @@ class TemporalEdgeList(
 
   override def tabularise(graph: GraphPerspective): Table =
     NeighbourNames(graph.reducedView)
-      .explodeSelect { vertex =>
-        val neighbourMap = vertex.getState[Map[Long, String]]("neighbourNames")
-        vertex
+      .step { vertex =>
+        val neighbourMap                           = vertex.getState[Map[Long, String]]("neighbourNames")
+        vertex.setState("name", vertex.name())
+        val (neighbours, timestamps, propertyRows) = vertex
           .explodeOutEdges()
           .map { edge =>
-            val propertyMap =
-              ("name", vertex.name) +:
-                ("neighbourName", neighbourMap(edge.dst)) +:
-                ("neighbourTimestamp", edge.timestamp) +:
-                properties.map { name =>
-                  ("properties", edge.getPropertyOrElse(name, defaults.getOrElse(name, None)))
-                }
-            Row(propertyMap: _*)
+            val propertyValues = properties.map(name => edge.getPropertyOrElse(name, defaults.getOrElse(name, None)))
+            (neighbourMap(edge.dst), edge.timestamp, propertyValues)
           }
+          .unzip3
+        vertex.setState("neighbourName", neighbours)
+        vertex.setState("neighbourTimestamp", timestamps)
+        properties zip propertyRows.transpose foreach {
+          case (columnName, propertyColumn) => vertex.setState(columnName, propertyColumn)
+        }
       }
+      .select("name" +: "neighbourName" +: "neighbourTimestamp" +: properties: _*)
+      .explode("neighbourName" +: "neighbourTimestamp" +: properties: _*)
 }
 
 object TemporalEdgeList {

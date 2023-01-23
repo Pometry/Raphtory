@@ -87,33 +87,21 @@ class CycleMania(moneyCycles: Boolean = true) extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .explodeSelect { vertex =>
-        val vertexType         = vertex.Type
-        val has_cycle: Boolean = vertex.getStateOrElse(HAS_CYCLE, false)
-        if (vertexType == "NFT" & has_cycle) {
-          val nftID                    = vertex.getPropertyOrElse("id", "_UNKNOWN_")
-          val cyclesFound: List[Cycle] = vertex.getState(CYCLES_FOUND)
-          val nftCollection            = vertex.getPropertyOrElse("collection", "_UNKNOWN_")
-          val nftCategory              = vertex.getPropertyOrElse("category", "_UNKNOWN_")
-          cyclesFound.map { singleCycle =>
-            val cycleData: CycleData = CycleData(
-                    buyer = singleCycle.sales.head.buyer,
-                    profit_usd = singleCycle.sales.last.price_usd - singleCycle.sales.head.price_usd,
-                    cycle = singleCycle
-            )
-            Row(
-                    ("nftID", nftID),
-                    ("nftCollection", nftCollection),
-                    ("nftCategory", nftCategory),
-                    ("cycleSaleLength", singleCycle.sales.length),
-                    ("cycleData", cycleData)
-            )
-          }
-        }
-        else
-          List(Row())
+      .vertexFilter(vertex => vertex.Type == "NFT" && vertex.getStateOrElse(HAS_CYCLE, false))
+      .step { vertex =>
+        val cyclesFound: List[Cycle] = vertex.getState(CYCLES_FOUND)
+        vertex.setState("cycleSaleLength", cyclesFound.map(_.sales.length))
+        val cyclesData               = cyclesFound.map(singleCycle =>
+          CycleData(
+                  buyer = singleCycle.sales.head.buyer,
+                  profit_usd = singleCycle.sales.last.price_usd - singleCycle.sales.head.price_usd,
+                  cycle = singleCycle
+          )
+        )
+        vertex.setState("cycleData", cyclesData)
       }
-      .filter(row => row.values().nonEmpty)
+      .select("id", "collection", "category", "cycleSaleLength", "cycleData")
+      .explode("cycleSaleLength", "cycleData")
 
   case class Sale(buyer: String, price_usd: Double, time: Long, tx_hash: String, nft_id: String)
 

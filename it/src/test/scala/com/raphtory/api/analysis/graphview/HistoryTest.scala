@@ -18,17 +18,20 @@ class WindowedOutEdgeHistory(after: Long, before: Long) extends GenericReduction
     NeighbourNames(graph.reducedView)
 
   override def tabularise(graph: ReducedGraphPerspective): Table =
-    graph.explodeSelect { vertex =>
-      vertex
-        .getOutEdges(after, before)
-        .flatMap(edge =>
-          edge.history().collect {
-            case event if event.event =>
-              val names: Map[vertex.IDType, String] = vertex.getState("neighbourNames")
-              Row(("vertexName",vertex.name()), ("targetID",names(edge.dst)), ("time",event.time))
+    graph
+      .step { vertex =>
+        val names: Map[vertex.IDType, String] = vertex.getState("neighbourNames")
+        val (targets, times)                  = vertex
+          .getOutEdges(after, before)
+          .flatMap { edge =>
+            edge.history().collect { case event if event.event => (names(edge.dst), event.time) }
           }
-        )
-    }
+          .unzip
+        vertex.setState("targetID", targets)
+        vertex.setState("time", times)
+      }
+      .select("name", "targetID", "time")
+      .explode("targetID", "time")
 }
 
 class WindowedInEdgeHistory(after: Long, before: Long) extends GenericReduction {
@@ -37,17 +40,20 @@ class WindowedInEdgeHistory(after: Long, before: Long) extends GenericReduction 
     NeighbourNames(graph.reducedView)
 
   override def tabularise(graph: ReducedGraphPerspective): Table =
-    graph.explodeSelect { vertex =>
-      vertex
-        .getInEdges(after, before)
-        .flatMap(edge =>
-          edge.history().collect {
-            case event if event.event =>
-              val names: Map[vertex.IDType, String] = vertex.getState("neighbourNames")
-              Row(("neighbourID", names(edge.src)), ("vertexName", vertex.name()), ("time",event.time))
+    graph
+      .step { vertex =>
+        val names: Map[vertex.IDType, String] = vertex.getState("neighbourNames")
+        val (sources, times)                  = vertex
+          .getInEdges(after, before)
+          .flatMap { edge =>
+            edge.history().collect { case event if event.event => (names(edge.src), event.time) }
           }
-        )
-    }
+          .unzip
+        vertex.setState("sourceID", sources)
+        vertex.setState("time", times)
+      }
+      .select("sourceID", "name", "time")
+      .explode("sourceID", "time")
 }
 
 class HistoryTest extends BaseCorrectnessTest {

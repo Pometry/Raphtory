@@ -36,30 +36,26 @@ class EdgeList(
     properties: Seq[String] = Seq.empty[String],
     defaults: Map[String, Any] = Map.empty[String, Any]
 ) extends Generic {
-  private val columns                                      = Seq("name") ++ Seq("row")
+
   override def apply(graph: GraphPerspective): graph.Graph = NeighbourNames(graph)
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .explodeSelect { vertex =>
-        val neighbourMap = vertex.getState[Map[vertex.IDType, String]]("neighbourNames")
-        val name         = vertex.name()
-        vertex.outEdges
-          .map { edge =>
-            val row = ("name", name) +:
-              ("neighbourName", neighbourMap(edge.dst)) +: // get name of neighbour
-              properties // get property values
-                .map(key =>
-                  (
-                          key,
-                          edge
-                            .getPropertyOrElse(key, defaults.getOrElse(key, None))
-                  )
-                )
-            Row(row: _*)
-          }
+      .step { vertex =>
+        vertex.setState("name", vertex.name())
+        val neighbourMap               = vertex.getState[Map[vertex.IDType, String]]("neighbourNames")
+        val (neighbours, propertyRows) = vertex.outEdges.toSeq.map { edge =>
+          val propertyValues = properties.map(key => edge.getPropertyOrElse(key, defaults.getOrElse(key, None)))
+          (neighbourMap(edge.dst), propertyValues)
+        }.unzip
+        vertex.setState("neighbourName", neighbours)
+        properties zip propertyRows.transpose foreach {
+          case (columnName, propertyColumn) => vertex.setState(columnName, propertyColumn)
+        }
       }
-
+      .step(vertex => println("name", vertex.name))
+      .select("name" +: "neighbourName" +: properties: _*)
+      .explode("neighbourName" +: properties: _*)
 }
 
 object EdgeList {
