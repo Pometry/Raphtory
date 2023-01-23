@@ -336,10 +336,13 @@ fn calculate_hash<T: Hash>(t: &T) -> u64 {
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    if let Some(input_folder) = args.first() {
-        let g = GraphDB::new(2);
+    if let Some(input_folder) = args.get(1) {
+        let g = GraphDB::new(16);
+
+        let now = Instant::now();
+
         let _ = CsvLoader::new(input_folder)
-            .with_filter(Regex::new(r".+sent_.+1").unwrap())
+            .with_filter(Regex::new(r".+(sent|received)").unwrap())
             .load_into_graph(&g, |sent: Sent, g: &GraphDB| {
                 let src = calculate_hash(&sent.addr);
                 let dst = calculate_hash(&sent.txn);
@@ -353,6 +356,13 @@ fn main() {
                 )
             })
             .expect("Failed to load graph");
+
+        println!(
+            "Loaded {} vertices, {} edges, took {} seconds",
+            g.len(),
+            g.edges_len(),
+            now.elapsed().as_secs()
+        );
     }
 }
 

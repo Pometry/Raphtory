@@ -94,6 +94,10 @@ impl TemporalGraphPart {
         self.read_shard(|tg| tg.len())
     }
 
+    pub fn edges_len(&self) -> usize {
+        self.read_shard(|tg| tg.edges_len())
+    }
+
     pub fn contains(&self, v: u64) -> bool {
         self.read_shard(|tg| tg.contains(v))
     }
