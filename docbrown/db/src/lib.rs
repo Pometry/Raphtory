@@ -2,6 +2,11 @@
 #[macro_use(quickcheck)]
 extern crate quickcheck_macros;
 
+// use mimalloc::MiMalloc;
+
+// #[global_allocator]
+// static GLOBAL: MiMalloc = MiMalloc;
+
 pub mod loaders;
 
 use docbrown_core::{tpartition::TemporalGraphPart, Prop};
@@ -54,6 +59,11 @@ impl GraphDB {
 
     pub fn len(&self) -> usize {
         self.shards.iter().map(|shard| shard.len()).sum()
+    }
+
+
+    pub fn edges_len(&self) -> usize {
+        self.shards.iter().map(|shard| shard.edges_len()).sum()
     }
 
     #[inline(always)]

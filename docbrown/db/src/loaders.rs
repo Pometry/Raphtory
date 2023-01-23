@@ -47,9 +47,7 @@ pub mod csv {
                 let is_match = &p
                     .to_str()
                     .filter(|file_name| {
-                        let matches = pattern.is_match(file_name);
-                        println!("{file_name} {matches}");
-                        matches
+                        pattern.is_match(file_name)
                     })
                     .is_some();
                 if *is_match {
@@ -204,31 +202,42 @@ mod csv_loader_test {
         assert!(!r.is_match(&text));
     }
 
+    #[test]
+    fn regex_match_2() {
+        let r = Regex::new(r".+(sent|received)").unwrap();
+        let text = "/home/murariuf/Offline/bitcoin/sent_000000000001.csv.gz";
+        assert!(r.is_match(&text));
+        let text = "/home/murariuf/Offline/bitcoin/received_000000000001.csv.gz";
+        assert!(r.is_match(&text));
+        let text = "/home/murariuf/Offline/bitcoin/address_000000000001.csv.gz";
+        assert!(!r.is_match(&text));
+    }
+
     fn calculate_hash<T: Hash>(t: &T) -> u64 {
         let mut s = DefaultHasher::new();
         t.hash(&mut s);
         s.finish()
     }
 
-    #[test]
-    fn list_all_files() {
-        let g = GraphDB::new(2);
-        let graph = CsvLoader::new("/home/murariuf/Offline/bitcoin")
-            .with_filter(Regex::new(r".+sentx_.+1").unwrap())
-            .load_into_graph(&g, |sent: Sent, g: &GraphDB| {
-                let src = calculate_hash(&sent.addr);
-                let dst = calculate_hash(&sent.txn);
-                let t = sent.time.timestamp();
+    // #[test]
+    // fn list_all_files() {
+    //     let g = GraphDB::new(2);
+    //     let graph = CsvLoader::new("/home/murariuf/Offline/bitcoin")
+    //         .with_filter(Regex::new(r".+sentx_.+1").unwrap())
+    //         .load_into_graph(&g, |sent: Sent, g: &GraphDB| {
+    //             let src = calculate_hash(&sent.addr);
+    //             let dst = calculate_hash(&sent.txn);
+    //             let t = sent.time.timestamp();
 
-                g.add_edge(
-                    src,
-                    dst,
-                    t.try_into().unwrap(),
-                    &vec![("amount".to_string(), Prop::U64(sent.amount_btc))],
-                )
-            })
-            .expect("");
-    }
+    //             g.add_edge(
+    //                 src,
+    //                 dst,
+    //                 t.try_into().unwrap(),
+    //                 &vec![("amount".to_string(), Prop::U64(sent.amount_btc))],
+    //             )
+    //         })
+    //         .expect("");
+    // }
 
     mod custom_date_format {
         use chrono::{DateTime, TimeZone, Utc};

@@ -168,6 +168,10 @@ impl TemporalGraph {
         self.logical_to_physical.len()
     }
 
+    pub fn edges_len(&self) -> usize {
+        self.edge_meta.len()
+    }
+
     pub fn add_vertex(&mut self, v: u64, t: u64) {
         self.add_vertex_props(v, t, &vec![])
     }
