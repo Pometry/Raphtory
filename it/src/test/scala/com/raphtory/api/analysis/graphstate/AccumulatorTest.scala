@@ -6,8 +6,10 @@ import com.raphtory.api.analysis.table._
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.input.Source
 import com.raphtory.sources.CSVEdgeListSource
-import com.raphtory.spouts.{ResourceOrFileSpout, ResourceSpout}
-import com.raphtory.{BaseCorrectnessTest, TestQuery}
+import com.raphtory.spouts.ResourceOrFileSpout
+import com.raphtory.spouts.ResourceSpout
+import com.raphtory.BaseCorrectnessTest
+import com.raphtory.TestQuery
 
 object CountNodes extends Generic {
 
@@ -22,7 +24,7 @@ object CountNodes extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .globalSelect(graphState => Row(("nodeCount",graphState("nodeCount").value)))
+      .globalSelect("nodeCount")
 
 }
 
@@ -45,9 +47,7 @@ object CountNodesTwice extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .globalSelect { graphState: GraphState =>
-        Row(("nodeCount",graphState("nodeCount").value), ("nodeCountDoubled",graphState("nodeCountDoubled").value))
-      }
+      .globalSelect("nodeCount", "nodeCountDoubled")
 }
 
 object CheckNodeCount extends Generic {
@@ -56,10 +56,12 @@ object CheckNodeCount extends Generic {
     CountNodes(graph)
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.globalSelect { graphState =>
-      val n: Int = graphState("nodeCount").value
-      Row(("nodeCountIsCorrect", graphState.nodeCount == n))
-    }
+    graph
+      .setGlobalState { state =>
+        val n: Int = state("nodeCount").value
+        state.newConstant("nodeCountIsCorrect", n == state.nodeCount)
+      }
+      .globalSelect("nodeCountIsCorrect")
 }
 
 class AccumulatorTest extends BaseCorrectnessTest {

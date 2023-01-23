@@ -250,24 +250,34 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
           }
           .select("name", "nonPrettyMotifResults")
     else if (prettyPrint)
-      graph.globalSelect(state =>
-        Row(
-                "starCounts"    -> getStarCountsPretty(state[Array[Long], Array[Long]]("starCounts").value),
-                "twoNodeCounts" -> get2NodeCountsWithoutRepeats(
-                        state[Array[Int], Array[Int]]("twoNodeCounts").value
-                ),
-                "triCounts"     -> getTriCountsPretty(state[Array[Int], Array[Int]]("triCounts").value)
+      graph
+        .setGlobalState { state =>
+          state.newConstant[Map[String, Long]](
+                  "starCountsPretty",
+                  getStarCountsPretty(state[Array[Long], Array[Long]]("starCounts").value)
+          )
+          state.newConstant[Map[String, Int]](
+                  "twoNodeCountsPretty",
+                  get2NodeCountsWithoutRepeats(state[Array[Int], Array[Int]]("starCounts").value)
+          )
+          state.newConstant[Map[String, Int]]("triCountsPretty", getTriCountsPretty(state[Array[Int], Array[Int]]("starCounts").value))
+        }
+        .globalSelect(
+                "starCountsPretty",
+                "twoNodeCountsPretty",
+                "triCountsPretty"
         )
-      )
     else
-      graph.globalSelect(state =>
-        Row(
-                "motifs" ->
+      graph
+        .setGlobalState { state =>
+          state.newConstant[String](
+                  "motifs",
                   (state[Array[Long], Array[Long]]("starCounts").value ++ state[Array[Int], Array[Int]](
                           "twoNodeCounts"
                   ).value ++ state[Array[Int], Array[Int]]("triCounts").value).mkString("(", ";", ")")
-        )
-      )
+          )
+        }
+        .globalSelect("motifs")
 }
 
 abstract class MotifCounter {

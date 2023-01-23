@@ -7,7 +7,8 @@ import com.raphtory.api.input.Source
 import com.raphtory.deployments.CheckHistory.isSortedIncreasing
 import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.SequenceSpout
-import com.raphtory.{BaseCorrectnessTest, TestQuery}
+import com.raphtory.BaseCorrectnessTest
+import com.raphtory.TestQuery
 
 import scala.math.Ordering.Implicits._
 import scala.util.Random
@@ -32,9 +33,7 @@ class CheckHistory extends Generic {
       }
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.globalSelect(graphState =>
-      Row(("vertexHistoryOrdered", graphState("vertexHistoryOrdered").value), ("edgeHistoryOrdered", graphState("edgeHistoryOrdered").value))
-    )
+    graph.globalSelect("vertexHistoryOrdered", "edgeHistoryOrdered")
 }
 
 object CheckHistory {

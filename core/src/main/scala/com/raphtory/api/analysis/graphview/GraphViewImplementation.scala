@@ -203,9 +203,6 @@ private[api] trait GraphViewImplementation[
   override def select(f: (V, GraphState) => Row): Table =
     addSelect(SelectWithGraph(f))
 
-  override def globalSelect(f: GraphState => Row): Table =
-    addSelect(GlobalSelect(f))
-
   override def globalSelect(values: String*): Table = {
     def f(state: GraphState): Row = Row(values.map(key => (key, state.apply[Any, Any](key).value)): _*)
     addSelect(GlobalSelect(f))

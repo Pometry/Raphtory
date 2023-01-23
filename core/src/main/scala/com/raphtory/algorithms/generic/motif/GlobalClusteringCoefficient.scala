@@ -34,8 +34,6 @@ object GlobalClusteringCoefficient extends Generic {
       .setGlobalState { state =>
         state.newAdder[Int]("wedges", retainState = true)
         state.newAdder[Double]("totalClustering", 0.0, retainState = true)
-        state.newAdder[Double]("averageCluster", 0.0, retainState = true)
-        state.newAdder[Double]("transitivity", 0.0, retainState = true)
       }
       .step { (vertex, state) =>
         val k = vertex.degree
@@ -43,13 +41,14 @@ object GlobalClusteringCoefficient extends Generic {
                                      else 0.0)
         state("wedges") += k * (k - 1) / 2
       }
-      .step { (vertex, state) =>
-        val avgCluster    = if (state.nodeCount > 0) vertex.getState[Double]("totalClustering") / state.nodeCount else 0.0
+      .setGlobalState { state =>
+        val avgCluster    =
+          if (state.nodeCount > 0) state[Double, Double]("totalClustering").value / state.nodeCount else 0.0
         val globalCluster =
-          if (vertex.getState[Int]("wedges") > 0) vertex.getState[Int]("triangles") / vertex.getState[Int]("wedges")
+          if (state[Int, Int]("wedges").value > 0) state[Int, Int]("triangles").value / state[Int, Int]("wedges").value
           else 0.0
-        state("averageCluster") += avgCluster
-        state("globalCluster") += globalCluster
+        state.newConstant[Double]("averageCluster", avgCluster)
+        state.newConstant[Any]("globalCluster", globalCluster)
       }
 
   override def tabularise(graph: GraphPerspective): Table =

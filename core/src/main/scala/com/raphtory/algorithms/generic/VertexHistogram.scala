@@ -13,11 +13,14 @@ import scala.reflect.ClassTag
 
 class VertexHistogram[T: Numeric: Bounded: ClassTag](propertyString: String, noBins: Int = 1000) extends Generic {
 
+  private val columns = (0 until noBins).map(index => "propertyDist" + index)
+
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .setGlobalState { state =>
         state.newMin[T]("propertyMin", retainState = true)
         state.newMax[T]("propertyMax", retainState = true)
+
       }
       .step { (vertex, state) =>
         state("propertyMin") += vertex.getState(propertyString, includeProperties = true)
@@ -33,18 +36,17 @@ class VertexHistogram[T: Numeric: Bounded: ClassTag](propertyString: String, noB
         val histogram = state("propertyDist")
         histogram += vertex.getState[T](propertyString)
       }
+      .setGlobalState { state =>
+        state[T, Histogram[T]](
+                "propertyDist"
+        ).value.getBins.zip(columns).foreach {
+          case (value, column) =>
+            state.newConstant[Int](column, value)
+        }
+      }
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.globalSelect { state =>
-      val minSeq    = ("propertyMin", state[T, T]("propertyMin").value)
-      val maxSeq    = ("propertyMax", state[T, T]("propertyMax").value)
-      val minMaxSeq = Seq(minSeq, maxSeq)
-      val distlist  = state[T, Histogram[T]]("propertyDist").value.getBins.zipWithIndex.map {
-        case (value, index) =>
-          ("propertyDist" + index, value)
-      }.toSeq
-      Row((minMaxSeq ++ distlist): _*)
-    }
+    graph.globalSelect("propertyMin" +: "propertyMax" +: columns: _*)
 }
 
 object VertexHistogram {
