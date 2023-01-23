@@ -4,6 +4,7 @@ use std::{
 };
 
 use itertools::Itertools;
+use serde::{Serialize, Deserialize};
 
 use crate::adj::Adj;
 use crate::Prop;

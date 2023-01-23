@@ -327,6 +327,16 @@ pub struct Sent {
     time: DateTime<Utc>,
 }
 
+#[derive(Deserialize, std::fmt::Debug)]
+pub struct Received {
+    txn: String,
+    addr: String,
+    amount_btc: u64,
+    amount_usd: f64,
+    #[serde(with = "custom_date_format")]
+    time: DateTime<Utc>,
+}
+
 fn calculate_hash<T: Hash>(t: &T) -> u64 {
     let mut s = DefaultHasher::new();
     t.hash(&mut s);
@@ -363,6 +373,14 @@ fn main() {
             g.edges_len(),
             now.elapsed().as_secs()
         );
+
+        let test_v = calculate_hash(&"139eeGkMGR6F9EuJQ3qYoXebfkBbNAsLtV:btc");
+
+        assert!(g.contains(test_v));
+
+        // g.neighbours_window(test_v)
+
+
     }
 }
 
