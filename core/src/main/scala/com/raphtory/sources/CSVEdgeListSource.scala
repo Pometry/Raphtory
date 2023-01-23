@@ -7,6 +7,7 @@ import com.raphtory.api.input.ImmutableString
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
+import com.raphtory.api.input.SpoutBuilderSource
 import com.raphtory.internals.time.DateTimeParser
 import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.ResourceSpout
@@ -17,12 +18,12 @@ import scala.language.implicitConversions
   * CSVEdgeListSource is for building graphs in Raphtory from CSV data.
   * CSV data must conform to three columns: source, target and time. Any delimiter is allowed and headers are also handled for.
   *
-  * @param spout : state where to ingest your data from (Mandatory field)
-  * @param timeIndex : state which column of your data contains the time (default index = 2)
-  * @param sourceIndex : state which column of your data contains the source ID (default index = 0)
-  * @param targetIndex : state which column of your data contains the target ID (default index = 1)
-  * @param delimiter : state the delimiter of your CSV data (default delimiter = ",")
-  * @param header : state whether your CSV data contains a header or not (default = false)
+  * @param spout state where to ingest your data from (Mandatory field)
+  * @param timeIndex state which column of your data contains the time (default index = 2)
+  * @param sourceIndex state which column of your data contains the source ID (default index = 0)
+  * @param targetIndex state which column of your data contains the target ID (default index = 1)
+  * @param delimiter state the delimiter of your CSV data (default delimiter = ",")
+  * @param header state whether your CSV data contains a header or not (default = false)
   */
 class CSVEdgeListSource(
     override val spout: Spout[String],
@@ -31,9 +32,7 @@ class CSVEdgeListSource(
     targetIndex: Int = 1,
     delimiter: String = ",",
     header: Boolean = false
-) extends Source {
-  override type MessageType = String
-
+) extends SpoutBuilderSource[String] {
   private var typesSet: Boolean       = _
   private var dateTimeFormat: Boolean = _
   private var epochFormat: Boolean    = _

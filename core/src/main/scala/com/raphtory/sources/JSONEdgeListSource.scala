@@ -5,6 +5,7 @@ import com.raphtory.api.input.Graph
 import com.raphtory.api.input.GraphBuilder
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
+import com.raphtory.api.input.SpoutBuilderSource
 import com.raphtory.api.input.Type
 import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.ResourceSpout
@@ -12,13 +13,13 @@ import com.raphtory.spouts.ResourceSpout
 /**
   * JSONEdgeListSource is for building graphs in Raphtory from JSON data with no nested classes in JSON objects.
   *
-  * @param spout : state where to ingest your data from (Mandatory field)
-  * @param sourceKey : state the key of the source ID in your JSON data (default = "source")
-  * @param sourceType : state what type of value the source is (default = None)
-  * @param targetKey : state the key of the target ID in your JSON data (default = "target")
-  * @param targetType : state what type of value the target is (default = None)
-  * @param edgeRelationship : state what the edge relationship is (default = None)
-  * @param timeKey : state the key of the timestamp in your JSON data, timestamp must be in datetime format (default = "time")
+  * @param spout state where to ingest your data from (Mandatory field)
+  * @param sourceKey state the key of the source ID in your JSON data (default = "source")
+  * @param sourceType state what type of value the source is (default = None)
+  * @param targetKey state the key of the target ID in your JSON data (default = "target")
+  * @param targetType state what type of value the target is (default = None)
+  * @param edgeRelationship state what the edge relationship is (default = None)
+  * @param timeKey state the key of the timestamp in your JSON data, timestamp must be in datetime format (default = "time")
   */
 
 class JSONEdgeListSource(
@@ -29,8 +30,7 @@ class JSONEdgeListSource(
     targetType: String = "",
     edgeRelationship: String = "",
     timeKey: String = "time"
-) extends Source {
-  override type MessageType = String
+) extends SpoutBuilderSource[String] {
 
   override def builder: GraphBuilder[String] =
     (graph: Graph, jsonString: String) => {

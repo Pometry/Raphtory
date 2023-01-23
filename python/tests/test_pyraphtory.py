@@ -1,6 +1,9 @@
 from pyraphtory.context import PyRaphtory
 from pyraphtory.graph import Row
 from pyraphtory.graph import KeyPair
+from pyraphtory.sources import SqliteConnection
+from pyraphtory.sources import SqlEdgeSource
+from pyraphtory.sources import SqlVertexSource
 import pyraphtory
 from pyraphtory._config import get_java_home
 import unittest
@@ -8,6 +11,7 @@ from numpy import array_equal
 from pyraphtory.input import *
 from unittest import mock
 from pathlib import Path
+import urllib.request
 
 
 class PyRaphtoryTest(unittest.TestCase):
@@ -162,3 +166,12 @@ class PyRaphtoryTest(unittest.TestCase):
         i = pyraphtory.input.MutableInteger("test", 2)
         self.assertEqual(i.value(), 2)
         self.assertEqual(i.key(), "test")
+
+    def test_sql_source(self):
+        if not Path('/tmp/lotr.db').is_file():
+            urllib.request.urlretrieve('https://raw.githubusercontent.com/Raphtory/Data/main/lotr.db', '/tmp/lotr.db')
+        graph = self.ctx.new_graph()
+        sqlite = SqliteConnection('/tmp/lotr.db')
+        graph.load(SqlEdgeSource(sqlite, 'select * from lotr', 'source', 'target', 'line'))
+        graph.load(SqlVertexSource(sqlite, 'select * from lotr', 'source', 'line'))
+        graph.destroy(force=True)

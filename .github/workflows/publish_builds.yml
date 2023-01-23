@@ -52,6 +52,7 @@ jobs:
           python-version: 3.9
       - name: build dists
         run: |
+          export PATH=$(pwd)/sbt/bin:$PATH
           python -m pip install --upgrade pip
           make python-sdist
       - name: Building Fat Scala Jars (sbt assembly)

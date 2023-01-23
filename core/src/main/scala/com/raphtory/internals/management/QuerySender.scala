@@ -30,7 +30,7 @@ private[raphtory] class QuerySender(
     private val service: RaphtoryService[IO],
     private val config: Config,
     private val clientID: String
-) extends Graph {
+) {
 
   class NoIDException(message: String) extends Exception(message)
 
@@ -40,35 +40,16 @@ private[raphtory] class QuerySender(
   val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")
   val totalPartitions: Int     = partitionServers * partitionsPerServer
 
+  var totalUpdateIndex                 = 0    //used at the secondary index for the client
   private var earliestTimeSeen         = Long.MaxValue
   private var latestTimeSeen           = Long.MinValue
-  private var totalUpdateIndex         = 0    //used at the secondary index for the client
   private var updatesSinceLastIDChange = 0    //used to know how many messages to wait for when blocking in the Q manager
   private var newIDRequiredOnUpdate    = true // has a query been since the last update and do I need a new ID
-  private var currentSourceID          = -1   //this is initialised as soon as the client sends 1 update
   private var searchPath               = List.empty[String]
 
   def addToDynamicPath(name: String): Unit = searchPath = name :: searchPath
 
-  override protected def sourceID: Int = IDForUpdates()
-  override def index: Long             = totalUpdateIndex
-
-  def IDForUpdates(): Int = {
-    if (newIDRequiredOnUpdate)
-      service.getNextAvailableId(protocol.IdPool(graphID)).unsafeRunSync() match {
-        case protocol.OptionalId(Some(id), _) =>
-          currentSourceID = id
-          newIDRequiredOnUpdate = false
-        case protocol.OptionalId(None, _)     =>
-          throw new NoIDException(s"Client '$clientID' was not able to acquire a source ID")
-      } //updates the sourceID if we haven't had one yet or if the user has sent a query since the last update block
-    currentSourceID
-  }
-
-  def handleInternal(update: GraphUpdate): Unit =
-    handleGraphUpdate(update) // Required so the Temporal Graph obj can call the below func
-
-  override protected def handleGraphUpdate(update: GraphUpdate): Unit = {
+  def handleGraphUpdate(update: GraphUpdate): Unit = {
     earliestTimeSeen = earliestTimeSeen min update.updateTime
     latestTimeSeen = latestTimeSeen max update.updateTime
     service.processUpdate(protocol.GraphUpdate(graphID, update)).unsafeRunSync()
@@ -129,7 +110,7 @@ private[raphtory] class QuerySender(
   def establishGraph(): Unit = service.establishGraph(GraphInfo(clientID, graphID)).unsafeRunSync()
 
   def submitSources(sources: Seq[Source]): Unit = {
-    val clazzes      = sources.map(_.getBuilderClass).toList
+    val clazzes      = sources.flatMap(_.getDynamicClasses).toList
     val sourceWithId = sources.map { source =>
       service.getNextAvailableId(protocol.IdPool(graphID)).unsafeRunSync() match {
         case protocol.OptionalId(Some(id), _) =>

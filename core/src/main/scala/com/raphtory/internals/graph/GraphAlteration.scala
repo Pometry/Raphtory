@@ -5,9 +5,7 @@ import com.raphtory.api.input.Type
 import com.raphtory.internals.components.querymanager._
 import com.raphtory.protocol
 
-sealed private[raphtory] trait GraphAlteration {
-  val sourceID: Long
-}
+sealed private[raphtory] trait GraphAlteration
 
 private[raphtory] object GraphAlteration extends ProtoField[GraphAlteration] {
 
@@ -21,7 +19,6 @@ private[raphtory] object GraphAlteration extends ProtoField[GraphAlteration] {
 
   /** basic update types */
   case class VertexAdd(
-      sourceID: Long,         // the id of the ingestion source
       updateTime: Long,
       index: Long,            // the secondary index, automatically incremented for every update to avoid duplicates
       srcId: Long,            // the actual id of the vertex
@@ -31,11 +28,10 @@ private[raphtory] object GraphAlteration extends ProtoField[GraphAlteration] {
           extends GraphUpdate //add a vertex (or add/update a property to an existing vertex)
 
   case class EdgeAdd(
-      sourceID: Long, // the id of the ingestion source
       updateTime: Long,
-      index: Long,    // the secondary index, automatically incremented for every update to avoid duplicates
-      srcId: Long,    // the actual id of the source vertex
-      dstId: Long,    // the actual id of the destination vertex
+      index: Long, // the secondary index, automatically incremented for every update to avoid duplicates
+      srcId: Long, // the actual id of the source vertex
+      dstId: Long, // the actual id of the destination vertex
       properties: Properties,
       eType: Option[Type]
   )(implicit val provider: SchemaProvider[EdgeAdd])

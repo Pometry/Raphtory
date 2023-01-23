@@ -4,10 +4,12 @@ from pyraphtory.input import Properties, ImmutableString, Type
 from pyraphtory.scala.implicits.bounded import Bounded
 import pandas as pd
 import json
+import datetime as dt
+
 
 @register(name="ProgressTracker")
 class ProgressTracker(GenericScalaProxy):
-    _classname = "com.raphtory.api.querytracker.QueryProgressTracker"
+    _classname = "com.raphtory.api.progresstracker.ProgressTracker"
 
     def inner_tracker(self):
         logger.trace("Progress tracker inner tracker returned")
@@ -22,11 +24,12 @@ class Perspective(GenericScalaProxy):
 class Table(GenericScalaProxy):
     _classname = "com.raphtory.api.analysis.table.Table"
 
-    def to_df(query):
+    def to_df(self):
+        time_formatted=False
         def rows_generator():
-            for res in query.get():
+            for res in self.get():
                 window = res.perspective().window()
-                timestamp = res.perspective().formatted_time()
+                timestamp = res.perspective().formatted_time()time_formatted = res.perspective().format_as_date()
                 if window != None:
                     window_size = window.get().output()
                     perspective_columns = {'timestamp': timestamp, 'window': window_size}
@@ -34,7 +37,11 @@ class Table(GenericScalaProxy):
                     perspective_columns = {'timestamp': timestamp}
                 for r in res.rows():
                     yield perspective_columns | dict(r.columns())
-        return pd.DataFrame.from_records(rows_generator())
+
+        df = pd.DataFrame.from_records(rows_generator())
+        if time_formatted:
+            df["timestamp"] = df["timestamp"].apply(lambda x: dt.datetime.strptime(x,"%Y-%m-%d %H:%M:%S.%f"))
+        return df
 
 class Row(ScalaClassProxy):
     _classname = "com.raphtory.api.analysis.table.Row"
