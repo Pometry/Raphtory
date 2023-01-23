@@ -34,11 +34,9 @@ trait Table extends TableBase {
     *
     * @param columns names of the columns containing the lists to coordinately explode over
     */
-  def explode(columns: String*): Table // TODO test this in python
+  def explode(columns: String*): Table
 
-  def renameColumn(columns: (String, String)*): Table // TODO try this in python
-
-  //def renameColumn(oldNames: Array[String], newNames: Array[String]): Table // TODO try this if the above doesnt work
+  def renameColumn(columns: (String, String)*): Table
 
   /** Write out data and
     * return [[com.raphtory.api.progresstracker.QueryProgressTracker QueryProgressTracker]]

@@ -1,7 +1,8 @@
 package com.raphtory.api.analysis.graphview
 
 import com.raphtory.BaseCorrectnessTest
-import com.raphtory.api.analysis.table.{KeyPair, Row}
+import com.raphtory.api.analysis.table.KeyPair
+import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.input.Source
 import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.SequenceSpout
@@ -14,12 +15,12 @@ class GraphViewTest extends BaseCorrectnessTest {
     assertEquals(
             graph
               .setGlobalState(state => state.newConstant("test", 2))
-              .explodeSelect((vertex, state) => List(Row(("vertexID",vertex.ID), ("test", state("test").value))))
+              .explodeSelect((vertex, state) => List(Row(("vertexID", vertex.ID), ("test", state("test").value))))
               .get()
               .next()
               .rows
               .toSeq,
-            Seq(Row(("vertexID",1), ("test",2)))
+            Seq(Row(("vertexID", 1), ("test", 2)))
     )
   }
 }

@@ -200,19 +200,10 @@ private[api] trait GraphViewImplementation[
             querySender
     )
 
-  override def select(f: (V, GraphState) => Row): Table =
-    addSelect(SelectWithGraph(f))
-
   override def globalSelect(values: String*): Table = {
     def f(state: GraphState): Row = Row(values.map(key => (key, state.apply[Any, Any](key).value)): _*)
     addSelect(GlobalSelect(f))
   }
-
-  override def explodeSelect(f: V => IterableOnce[Row]): Table =
-    addSelect(ExplodeSelect(f))
-
-  override def explodeSelect(f: (V, GraphState) => IterableOnce[Row]): Table =
-    addSelect(ExplodeSelectWithGraph(f))
 
   override def clearMessages(): G =
     addFunction(ClearChain())
