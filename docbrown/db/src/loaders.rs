@@ -46,9 +46,7 @@ pub mod csv {
             if let Some(pattern) = &self.regex_filter {
                 let is_match = &p
                     .to_str()
-                    .filter(|file_name| {
-                        pattern.is_match(file_name)
-                    })
+                    .filter(|file_name| pattern.is_match(file_name))
                     .is_some();
                 if *is_match {
                     paths.push(p);
@@ -155,43 +153,7 @@ pub mod csv {
 
 #[cfg(test)]
 mod csv_loader_test {
-    use chrono::{DateTime, Utc};
-    use docbrown_core::Prop;
     use regex::Regex;
-    use serde::Deserialize;
-
-    use crate::GraphDB;
-
-    use super::csv::CsvLoader;
-    use std::{
-        collections::hash_map::DefaultHasher,
-        hash::{Hash, Hasher},
-    };
-
-    // #[derive(Deserialize, std::fmt::Debug)]
-    // pub struct Address {
-    //     addr: String,
-    // }
-
-    #[derive(Deserialize, std::fmt::Debug)]
-    pub struct Sent {
-        addr: String,
-        txn: String,
-        amount_btc: u64,
-        amount_usd: f64,
-        #[serde(with = "custom_date_format")]
-        time: DateTime<Utc>,
-    }
-
-    #[derive(Deserialize, std::fmt::Debug)]
-    pub struct Received {
-        txn: String,
-        addr: String,
-        amount_btc: u64,
-        amount_usd: f64,
-        #[serde(with = "custom_date_format")]
-        time: DateTime<Utc>,
-    }
 
     #[test]
     fn regex_match() {
@@ -211,69 +173,5 @@ mod csv_loader_test {
         assert!(r.is_match(&text));
         let text = "/home/murariuf/Offline/bitcoin/address_000000000001.csv.gz";
         assert!(!r.is_match(&text));
-    }
-
-    fn calculate_hash<T: Hash>(t: &T) -> u64 {
-        let mut s = DefaultHasher::new();
-        t.hash(&mut s);
-        s.finish()
-    }
-
-    // #[test]
-    // fn list_all_files() {
-    //     let g = GraphDB::new(2);
-    //     let graph = CsvLoader::new("/home/murariuf/Offline/bitcoin")
-    //         .with_filter(Regex::new(r".+sentx_.+1").unwrap())
-    //         .load_into_graph(&g, |sent: Sent, g: &GraphDB| {
-    //             let src = calculate_hash(&sent.addr);
-    //             let dst = calculate_hash(&sent.txn);
-    //             let t = sent.time.timestamp();
-
-    //             g.add_edge(
-    //                 src,
-    //                 dst,
-    //                 t.try_into().unwrap(),
-    //                 &vec![("amount".to_string(), Prop::U64(sent.amount_btc))],
-    //             )
-    //         })
-    //         .expect("");
-    // }
-
-    mod custom_date_format {
-        use chrono::{DateTime, TimeZone, Utc};
-        use serde::{self, Deserialize, Deserializer, Serializer};
-
-        const FORMAT: &'static str = "%Y-%m-%d %H:%M:%S";
-
-        // The signature of a serialize_with function must follow the pattern:
-        //
-        //    fn serialize<S>(&T, S) -> Result<S::Ok, S::Error>
-        //    where
-        //        S: Serializer
-        //
-        // although it may also be generic over the input types T.
-        pub fn serialize<S>(date: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-        {
-            let s = format!("{}", date.format(FORMAT));
-            serializer.serialize_str(&s)
-        }
-
-        // The signature of a deserialize_with function must follow the pattern:
-        //
-        //    fn deserialize<'de, D>(D) -> Result<T, D::Error>
-        //    where
-        //        D: Deserializer<'de>
-        //
-        // although it may also be generic over the output types T.
-        pub fn deserialize<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            let s = String::deserialize(deserializer)?;
-            Utc.datetime_from_str(&s, FORMAT)
-                .map_err(serde::de::Error::custom)
-        }
     }
 }

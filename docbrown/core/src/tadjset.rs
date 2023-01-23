@@ -7,6 +7,7 @@ use std::{
 
 use itertools::Itertools;
 use replace_with::replace_with_or_abort;
+use serde::{Serialize, Deserialize};
 use sorted_vector_map::SortedVectorMap;
 
 use crate::bitset::BitSet;
@@ -228,7 +229,7 @@ impl<V: Ord + Into<usize> + From<usize> + Copy + Hash, Time: Copy + Ord> TAdjSet
 pub(crate) struct Edge<V : Clone + PartialEq + Eq + PartialOrd + Ord>{v: V, edge_meta: AdjEdge, t: Option<u64>}
 
 #[repr(transparent)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct AdjEdge(pub(crate) i64);
 
 impl AdjEdge {

@@ -9,7 +9,12 @@ extern crate quickcheck_macros;
 
 pub mod loaders;
 
-use docbrown_core::{tpartition::TemporalGraphPart, Prop};
+use chrono::{DateTime, Utc};
+use docbrown_core::{
+    tpartition::{TEdge, TemporalGraphPart},
+    Direction, Prop,
+};
+use itertools::chain;
 
 #[derive(Debug, Clone)]
 pub struct GraphDB {
@@ -61,9 +66,28 @@ impl GraphDB {
         self.shards.iter().map(|shard| shard.len()).sum()
     }
 
-
     pub fn edges_len(&self) -> usize {
         self.shards.iter().map(|shard| shard.edges_len()).sum()
+    }
+
+    pub fn contains(&self, v: u64) -> bool {
+        self.shards.iter().any(|shard| shard.contains(v))
+    }
+
+    pub fn neighbours_window(
+        &self,
+        t_start: u64,
+        t_end: u64,
+        v: u64,
+        d: Direction,
+    ) -> Box<dyn Iterator<Item = TEdge>> {
+        let iter = self
+            .shards
+            .clone() //TODO: this should be a cheap clone of every shard in the graph
+            .into_iter()
+            .flat_map(move |shard| shard.neighbours_window(t_start, t_end, v, d));
+
+        Box::new(iter)
     }
 
     #[inline(always)]
@@ -82,9 +106,25 @@ mod db_tests {
         collections::hash_map::DefaultHasher,
         hash::{Hash, Hasher},
         path::PathBuf,
+        sync::Arc,
     };
 
     use super::*;
+
+    #[test]
+    fn cloning_vec() {
+        let mut vs = vec![];
+        for i in 0..10 {
+            vs.push(Arc::new(i))
+        }
+        let should_be_10: usize = vs.iter().map(|arc| Arc::strong_count(arc)).sum();
+        assert_eq!(should_be_10, 10);
+
+        let vs2 = vs.clone();
+
+        let should_be_10: usize = vs2.iter().map(|arc| Arc::strong_count(arc)).sum();
+        assert_eq!(should_be_10, 20)
+    }
 
     #[quickcheck]
     fn add_vertex_to_graph_len_grows(vs: Vec<(u8, u8)>) {
