@@ -37,7 +37,7 @@ private[raphtory] trait BaseAlgorithm extends Serializable {
     *
     * @param graph Graph that results from the call to `apply`
     */
-  def tabularise(graph: Out): Table = graph.selectAll()
+  def tabularise(graph: Out): Table = graph.select()
 
   private[raphtory] def run(graph: In): Table = tabularise(apply(graph))
 
