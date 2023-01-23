@@ -18,6 +18,7 @@ import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 import java.util.concurrent.atomic.AtomicInteger
+import scala.collection.LazyZip3
 import scala.collection.mutable
 
 private[raphtory] class SuperStepFlag {
@@ -59,6 +60,7 @@ final private[raphtory] case class PojoGraphLens(
     private val scheduler: Scheduler
 ) extends LensInterface {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val EMPTY_CELL     = ""
 
   private val voteCount         = new AtomicInteger(0)
   private val vertexCount       = new AtomicInteger(0)
@@ -117,7 +119,9 @@ final private[raphtory] case class PojoGraphLens(
     dataTable = vertexIterator.map { vertex =>
       val keys    = if (values.nonEmpty) values else vertex.getPropertySet() ++ vertex.getStateSet()
       val columns =
-        keys.map(key => (key, vertex.getStateOrElse(key, defaults.getOrElse(key, ""), includeProperties = true)))
+        keys.map(key =>
+          (key, vertex.getStateOrElse(key, defaults.getOrElse(key, EMPTY_CELL), includeProperties = true))
+        )
       Row(columns: _*)
     }
     onComplete()
@@ -163,10 +167,16 @@ final private[raphtory] case class PojoGraphLens(
     onComplete()
   }
 
-  override def explodeColumn(column: String)(onComplete: () => Unit): Unit = {
-    dataTable = dataTable.flatMap { row =>
-      val explodedValues = row(column).asInstanceOf[IterableOnce[_]]
-      explodedValues.iterator.map(value => new Row(row.columns.updated(column, value)))
+  override def explodeColumns(columns: Seq[String])(onComplete: () => Unit): Unit = {
+    try dataTable = dataTable.flatMap { row =>
+      val validColumns = columns.filter(col => row.get(col) != EMPTY_CELL)
+      validColumns.map(col => row.get(col).asInstanceOf[Iterable[Any]]).transpose.map { values =>
+        validColumns.zip(values).foldLeft(row) { case (row, (key, value)) => new Row(row.columns.updated(key, value)) }
+      }
+    }
+    catch {
+      case e: IllegalArgumentException =>
+        throw new IllegalArgumentException(s"All iterables inside a row to be exploded need to have the same size", e)
     }
     onComplete()
   }

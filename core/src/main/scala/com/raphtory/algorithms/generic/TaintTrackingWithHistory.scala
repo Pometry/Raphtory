@@ -80,7 +80,7 @@ class TaintTrackingWithHistory(startTime: Long, infectedNodes: Set[String], stop
                     vertex.setState("taintTransactions", newState)
                   }
                   // if we have no stop nodes set, then continue the taint spreading
-                  if (stopNodes.size == 0)
+                  if (stopNodes.isEmpty)
                     // repeat like we did in the step
                     vertex
                       .getOutEdges(after = infectionTime)
@@ -141,23 +141,18 @@ class TaintTrackingWithHistory(startTime: Long, infectedNodes: Set[String], stop
 
   override def tabularise(graph: ReducedGraphPerspective): Table =
     graph
-      .select("address", "taintStatus", "taintTransactions")
       // filter for any that had been tainted and save to folder
-      .filter(r => r.get("taintStatus") == true)
-      .explode(row =>
-        row
-          .get("taintTransactions")
-          .asInstanceOf[List[(String, String, Long, String, String)]]
-          .map(tx =>
-            Row(
-                    "tainted" -> row.get("tainted"),
-                    "address" -> tx._5,
-                    "time"    -> tx._3,
-                    "hash"    -> tx._2,
-                    "value"   -> tx._4
-            )
-          )
-      )
+      .vertexFilter(vertex => vertex.getStateOrElse("taintStatus", false))
+      .step { vertex =>
+        val taintTransactions: Seq[(String, String, Long, String, String)] =
+          vertex.getStateOrElse("taintTransactions", Seq())
+        vertex.setState("hash", taintTransactions.map(_._2))
+        vertex.setState("time", taintTransactions.map(_._3))
+        vertex.setState("value", taintTransactions.map(_._4))
+        vertex.setState("address", taintTransactions.map(_._5))
+      }
+      .select("tainted", "address", "time", "hash", "value")
+      .explode("address", "time", "hash", "value")
 }
 
 object TaintTrackingWithHistory {

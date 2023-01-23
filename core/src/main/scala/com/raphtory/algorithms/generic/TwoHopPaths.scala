@@ -76,11 +76,10 @@ class TwoHopPaths(seeds: Set[String] = Set[String]()) extends Generic {
                       case RequestSecondHop(source, firstHop) =>
                         vertex.messageVertex(source, Response(firstHop, vertex.name()))
                       case Response(firstHop, secondHop)      =>
-                        val paths = vertex.getOrSetState[ArrayBuffer[Array[String]]](
-                                "twoHopPaths",
-                                ArrayBuffer[Array[String]]()
-                        )
-                        paths.append(Array[String](firstHop, secondHop))
+                        val firstHops  = vertex.getOrSetState[ArrayBuffer[String]]("hop1", ArrayBuffer[String]())
+                        val secondHops = vertex.getOrSetState[ArrayBuffer[String]]("hop2", ArrayBuffer[String]())
+                        firstHops.append(firstHop)
+                        secondHops.append(secondHop)
                     }
                 }
               },
@@ -90,20 +89,8 @@ class TwoHopPaths(seeds: Set[String] = Set[String]()) extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .step { vertex =>
-        vertex.setState("vertexName", vertex.name)
-        vertex.setState(
-                "twohoppaths",
-                vertex.getStateOrElse[ArrayBuffer[Array[String]]]("twoHopPaths", ArrayBuffer[Array[String]]())
-        )
-      }
-      .select("vertexName", "twohoppaths")
-      .explode(row =>
-        row
-          .getAs[ArrayBuffer[Array[String]]]("twohoppaths")
-          .toList
-          .map(hops => Row("vertexName" -> row.get("vertexName"), "vertexTwo" -> hops(0), "vertexThree" -> hops(1)))
-      )
+      .select("name", "hop1", "hop2")
+      .explode("hop1", "hop2")
 }
 
 object TwoHopPaths {

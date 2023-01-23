@@ -51,7 +51,7 @@ final case class ArrowGraphLens(
 
   override def executeSelect(values: Seq[String], defaults: Map[String, Any])(onComplete: () => Unit): Unit = ???
 
-  override def explodeColumn(column: String)(onComplete: () => Unit): Unit = ???
+  override def explodeColumns(columns: Seq[String])(onComplete: () => Unit): Unit = ???
 
   override def renameColumn(columns: Seq[(String, String)])(onComplete: () => Unit): Unit = ???
 }

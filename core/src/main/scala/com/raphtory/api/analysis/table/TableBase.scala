@@ -17,7 +17,7 @@ trait TableBase {
     *
     * @param f function that runs once for each row of the table and maps it to new rows
     */
-  def explode(f: Row => IterableOnce[Row]): TableBase
+  def explode(columns: String*): TableBase
 
   /** Write out data and
     * return [[com.raphtory.api.progresstracker.QueryProgressTracker QueryProgressTracker]]

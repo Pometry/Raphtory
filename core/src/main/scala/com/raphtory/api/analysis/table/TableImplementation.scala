@@ -23,13 +23,8 @@ private[api] class TableImplementation(val query: Query, private[raphtory] val q
     addFunction(TableFilter(closurefunc))
   }
 
-  override def explode(f: Row => IterableOnce[Row]): Table = {
-    def closurefunc(v: Row): IterableOnce[Row] = f(v)
-    addFunction(Explode(closurefunc))
-  }
-
-  override def explode(column: String): Table =
-    addFunction(ExplodeColumn(column))
+  override def explode(columns: String*): Table =
+    addFunction(ExplodeColumn(columns))
 
   override def renameColumn(columns: (String, String)*): Table =
     addFunction(RenameColumn(columns))

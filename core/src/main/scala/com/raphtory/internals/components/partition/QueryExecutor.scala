@@ -187,7 +187,7 @@ class QueryExecutor[F[_]](
             function match {
               case TableFilter(f)        => lens.filteredTable(f)(cb)
               case Explode(f)            => lens.explodeTable(f)(cb)
-              case ExplodeColumn(column) => lens.explodeColumn(column)(cb)
+              case ExplodeColumn(column) => lens.explodeColumns(column)(cb)
               case RenameColumn(columns) => lens.renameColumn(columns)(cb)
             }
     )

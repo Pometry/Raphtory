@@ -50,23 +50,13 @@ class TemporalMemberRank() extends GenericReduction {
   // Tabularises results to Row(Raphtory Timestamp, suspected bot ID, ID of retweeted user, timestamp of retweet)
   override def tabularise(graph: ReducedGraphPerspective): Table =
     graph
-      .select("vertexID", "time")
-      .filter { row =>
-        val times = row.getAs[Seq[NeighbourAndTime[_]]]("time")
-        times.nonEmpty
+      .step { vertex =>
+        val neighboursAndTimes: Seq[NeighbourAndTime[_]] = vertex.getStateOrElse("time", Seq())
+        vertex.setState("neighbourID", neighboursAndTimes.map(_.id))
+        vertex.setState("neighbourTime", neighboursAndTimes.map(_.time))
       }
-      .explode { row =>
-        val rowId = row.getLong("vertexID")
-        val times = row.getAs[Seq[NeighbourAndTime[_]]]("time")
-        times.map { neighbourAndTime =>
-          Row(
-                  ("vertexID", rowId),
-                  ("neighbourID", neighbourAndTime.id),
-                  ("neighbourTime", neighbourAndTime.time)
-          )
-        }.toList
-      }
-
+      .select("vertexID", "neighbourID", "neighbourTime")
+      .explode("neighbourID", "neighbourTime")
 }
 
 object TemporalMemberRank {

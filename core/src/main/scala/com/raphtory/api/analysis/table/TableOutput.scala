@@ -29,7 +29,15 @@ case class TableOutput private (
     *
     * @param f function that runs once for each row of the table and maps it to new rows
     */
-  override def explode(f: Row => IterableOnce[Row]): TableOutput = copy(rows = rows.flatMap(f))
+  override def explode(columns: String*): TableOutput = {
+    val explodedRows = rows.flatMap { row =>
+      val validColumns = columns.filter(col => row.get(col) != "")
+      validColumns.map(col => row.get(col).asInstanceOf[Iterable[Any]]).transpose.map { values =>
+        validColumns.zip(values).foldLeft(row) { case (row, (key, value)) => new Row(row.columns.updated(key, value)) }
+      }
+    }
+    this.copy(rows = explodedRows)
+  }
 
   /** Write out data and
     * return [[com.raphtory.api.progresstracker.QueryProgressTracker QueryProgressTracker]]

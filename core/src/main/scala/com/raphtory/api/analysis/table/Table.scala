@@ -9,7 +9,7 @@ import scala.concurrent.duration.Duration
 sealed private[raphtory] trait TableFunction                            extends Operation
 final private[raphtory] case class TableFilter(f: (Row) => Boolean)     extends TableFunction
 final private[raphtory] case class Explode(f: Row => IterableOnce[Row]) extends TableFunction
-final private[raphtory] case class ExplodeColumn(column: String)        extends TableFunction
+final private[raphtory] case class ExplodeColumn(column: Seq[String])   extends TableFunction
 
 final private[raphtory] case class RenameColumn(columns: Seq[(String, String)]) extends TableFunction
 
@@ -32,11 +32,9 @@ trait Table extends TableBase {
     * This creates a new table where each row in the old table
     * is mapped to multiple rows in the new table.
     *
-    * @param f function that runs once for each row of the table and maps it to new rows
+    * @param columns names of the columns containing the lists to coordinately explode over
     */
-  def explode(f: Row => IterableOnce[Row]): Table // TODO: remove this
-
-  def explode(column: String): Table // TODO test this in python
+  def explode(columns: String*): Table // TODO test this in python
 
   def renameColumn(columns: (String, String)*): Table // TODO try this in python
 

@@ -88,16 +88,5 @@ class ShortestPathDistance[T: Bounded: Numeric](src_name: String, tgt_name: Stri
         vertex.setState(DISTANCE, vertex.getState[T](DISTANCE))
       }
       .select("sourceVertex", "targetVertex", DISTANCE)
-      .explode(row =>
-        if (row.get("targetVertex") == tgt_name)
-          List(
-                  Row(
-                          "sourceVertex" -> row.get("sourceVertex"),
-                          "targetVertex" -> row.get("targetVertex"),
-                          DISTANCE       -> row.get(DISTANCE)
-                  )
-          )
-        else
-          List.empty[Row]
-      )
+      .filter(row => row.get("targetVertex") == tgt_name)
 }
