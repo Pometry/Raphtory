@@ -2,6 +2,7 @@ from pyraphtory.context import PyRaphtory
 from pyraphtory.sources import SqliteConnection
 from pyraphtory.sources import SqlEdgeSource
 from pyraphtory.sources import SqlVertexSource
+from pyraphtory.vertex import Vertex
 import pyraphtory
 from pyraphtory._config import get_java_home
 import unittest
@@ -99,18 +100,26 @@ class PyRaphtoryTest(unittest.TestCase):
         self.assertEqual(df_time.to_csv(), expected_value_time)
         graph.destroy(force=True)
 
+
+
     def test_message_vertex(self):
+        
+        def iterateMessages(v: Vertex):
+            queue = v.message_queue()
+            for message in queue:
+                v.set_state("id",v.name())
+                v.set_state("message", message)
+
         with self.ctx.new_graph() as graph:
             graph.add_edge(1, 1, 2)
+            cols = ["id", "message"]
             df = (graph.step(lambda vertex: vertex.message_vertex(1, "message"))\
-                        .step(lambda vertex: vertex.set_state("id",vertex.name()))\
-                        .step(lambda vertex: vertex.set_state("messagelist", vertex.message_queue()))\
-                        .select("id","messagelist")\
-                        .explode("id")\
-                        .explode("messagelist"))\
+                        .step(lambda vertex: iterateMessages(vertex))\
+                        .select("id", "message"))\
                         .to_df()
+            print(df.to_csv)
             assert array_equal(df["id"], ["1", "1"])
-            assert array_equal(df["messagelist"], ["message", "message"])
+            assert array_equal(df["message"], ["message", "message"])
 
     def test_get_java_home_no_java(self):
         # Mock the os.getenv function to return None
