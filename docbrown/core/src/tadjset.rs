@@ -264,12 +264,12 @@ impl AdjEdge {
 
 #[cfg(test)]
 mod tadjset_tests {
-
+    use crate::adj::Adj;
     use super::*;
 
     #[test]
     fn insert() {
-        let mut ts: TAdjSet<usize, u64> = TAdjSet::default();
+        let mut ts: TAdjSet<usize, i64> = TAdjSet::default();
 
         ts.push(3, 7, AdjEdge::remote(5));
 
@@ -284,7 +284,7 @@ mod tadjset_tests {
 
     #[test]
     fn insert_large() {
-        let mut ts: TAdjSet<usize, u64> = TAdjSet::default();
+        let mut ts: TAdjSet<usize, i64> = TAdjSet::default();
 
         for i in 0..SMALL_SET + 2 {
             ts.push(i.try_into().unwrap(), i, AdjEdge::remote(i));
@@ -295,16 +295,16 @@ mod tadjset_tests {
         }
 
         for i in 0..SMALL_SET + 2 {
-            let start: u64 = i.try_into().unwrap();
+            let start: i64 = i.try_into().unwrap();
             let mut iter = ts.iter_window(&(start..start + 1));
             assert_eq!(iter.next(), Some((i, AdjEdge::remote(i))));
             assert_eq!(iter.next(), None);
         }
 
         for i in 0..SMALL_SET + 2 {
-            let start: u64 = i.try_into().unwrap();
+            let start: i64 = i.try_into().unwrap();
             let mut iter = ts.iter_window_t(&(start..start + 1));
-            let t: u64 = i.try_into().unwrap();
+            let t: i64 = i.try_into().unwrap();
             assert_eq!(iter.next(), Some((i, t, AdjEdge::remote(i))));
             assert_eq!(iter.next(), None);
         }
@@ -323,12 +323,12 @@ mod tadjset_tests {
 
         let actual = ts.iter_window(&(0..4)).collect::<Vec<_>>();
         let expected: Vec<(usize, AdjEdge)> = vec![(7, AdjEdge::local(9))];
-        assert_eq!(actual, expected)
+        assert_eq!(actual, expected);
     }
 
     #[test]
     fn insert_twice_different_time() {
-        let mut ts: TAdjSet<usize, u64> = TAdjSet::default();
+        let mut ts: TAdjSet<usize, i64> = TAdjSet::default();
 
         ts.push(3, 7, AdjEdge::remote(19));
         ts.push(9, 7, AdjEdge::remote(19));
@@ -348,7 +348,7 @@ mod tadjset_tests {
 
     #[test]
     fn insert_different_time() {
-        let mut ts: TAdjSet<usize, u64> = TAdjSet::default();
+        let mut ts: TAdjSet<usize, i64> = TAdjSet::default();
 
         ts.push(9, 1, AdjEdge::local(0));
         ts.push(3, 7, AdjEdge::remote(1));
@@ -372,7 +372,7 @@ mod tadjset_tests {
 
     #[test]
     fn insert_different_time_with_times() {
-        let mut ts: TAdjSet<usize, u64> = TAdjSet::default();
+        let mut ts: TAdjSet<usize, i64> = TAdjSet::default();
 
         ts.push(9, 1, AdjEdge::local(0));
         ts.push(3, 7, AdjEdge::remote(1));
@@ -382,15 +382,15 @@ mod tadjset_tests {
         assert_eq!(actual, expected);
 
         let actual = ts.iter_window_t(&(0..4)).collect::<Vec<_>>();
-        let expected: Vec<(usize, u64, AdjEdge)> = vec![(7, 3, AdjEdge::remote(1))];
+        let expected: Vec<(usize, i64, AdjEdge)> = vec![(7, 3, AdjEdge::remote(1))];
         assert_eq!(actual, expected);
 
         let actual = ts.iter_window_t(&(4..10)).collect::<Vec<_>>();
-        let expected: Vec<(usize, u64, AdjEdge)> = vec![(1, 9, AdjEdge::local(0))];
+        let expected: Vec<(usize, i64, AdjEdge)> = vec![(1, 9, AdjEdge::local(0))];
         assert_eq!(actual, expected);
 
         let actual = ts.iter_window_t(&(0..12)).collect::<Vec<_>>();
-        let expected: Vec<(usize, u64, AdjEdge)> =
+        let expected: Vec<(usize, i64, AdjEdge)> =
             vec![(7, 3, AdjEdge::remote(1)), (1, 9, AdjEdge::local(0))];
         assert_eq!(actual, expected);
     }
