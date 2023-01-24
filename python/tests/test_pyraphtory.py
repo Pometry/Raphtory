@@ -67,7 +67,7 @@ class PyRaphtoryTest(unittest.TestCase):
         df_pagerank = graph.at(1) \
             .past() \
             .transform(self.ctx.algorithms.generic.centrality.PageRank()) \
-            .step(lambda v: v.set_state("name"))\
+            .step(lambda v: v.set_state("name",v.name()))\
             .select("name", "prlabel")\
             .to_df()
         expected_result = ",timestamp,name,prlabel" \
@@ -104,12 +104,13 @@ class PyRaphtoryTest(unittest.TestCase):
             graph.add_edge(1, 1, 2)
             df = (graph.step(lambda vertex: vertex.message_vertex(1, "message"))\
                         .step(lambda vertex: vertex.set_state("id",vertex.name()))\
-                        .step(lambda vertex: vertex.set_state('messagelist', vertex.message_queue()))\
-                        .select('id', 'messagelist')\
-                        .explode('messagelist'))\
+                        .step(lambda vertex: vertex.set_state("messagelist", vertex.message_queue()))\
+                        .select("id","messagelist")\
+                        .explode("id")\
+                        .explode("messagelist"))\
                         .to_df()
             assert array_equal(df["id"], ["1", "1"])
-            assert array_equal(df["message"], ["message", "message"])
+            assert array_equal(df["messagelist"], ["message", "message"])
 
     def test_get_java_home_no_java(self):
         # Mock the os.getenv function to return None
