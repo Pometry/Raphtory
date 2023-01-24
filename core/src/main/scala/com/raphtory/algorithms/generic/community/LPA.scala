@@ -5,7 +5,7 @@ import com.raphtory.algorithms.generic.community.LPA.TieBreaker
 import com.raphtory.algorithms.generic.community.LPA.lpa
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.internals.communication.SchemaProviderInstances._
 

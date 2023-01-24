@@ -3,8 +3,6 @@ package com.raphtory.examples.nft.analysis
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.KeyPair
-import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 
 import scala.collection.mutable

@@ -6,8 +6,6 @@ import com.raphtory.TestUtils
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.algorithm._
 import com.raphtory.api.analysis.graphview.TemporalGraph
-import com.raphtory.api.analysis.table.KeyPair
-import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.input._
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.internals.context.RaphtoryIOContext

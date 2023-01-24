@@ -2,7 +2,6 @@ package com.raphtory.algorithms.generic
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.KeyPair
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.utils.ExtendedNumeric.numericFromInt
@@ -167,11 +166,12 @@ class MaxFlow[T](
               maxIterations,
               executeMessagedOnly = true
       )
-      .vertexFilter(vertex => vertex.name() == source)
-      .step(vertex => vertex.setState("maximumFlow", vertex.getState[mutable.Map[Long, T]]("flow").values.sum))
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.select("maximumFlow")
+    graph
+      .vertexFilter(vertex => vertex.name() == source)
+      .step(vertex => vertex.setState("maximumFlow", vertex.getState[mutable.Map[Long, T]]("flow").values.sum))
+      .select("maximumFlow")
 
   sealed trait Message[VertexID] {}
   case class FlowAdded[VertexID](source: VertexID, value: T)  extends Message[VertexID]

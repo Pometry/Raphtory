@@ -2,7 +2,7 @@ package com.raphtory.algorithms.generic.gametheory
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.{KeyPair, Row, Table}
+import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.internals.communication.SchemaProviderInstances._
 
@@ -135,7 +135,7 @@ class PrisonersDilemma(
   }
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.select("name","cooperationHistory")
+    graph.select("name", "cooperationHistory")
 }
 
 object PrisonersDilemma {

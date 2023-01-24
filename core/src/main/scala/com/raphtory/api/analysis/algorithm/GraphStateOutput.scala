@@ -1,7 +1,5 @@
 package com.raphtory.api.analysis.algorithm
 
-import com.raphtory.api.analysis.table.KeyPair
-import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 
 abstract class GraphStateOutput(

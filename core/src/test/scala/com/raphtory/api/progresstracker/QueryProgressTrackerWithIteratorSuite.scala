@@ -1,7 +1,6 @@
 package com.raphtory.api.progresstracker
 
 import cats.effect._
-import com.raphtory.api.analysis.table.KeyPair
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.TableOutput
 import com.raphtory.api.time.Interval

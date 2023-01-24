@@ -2,7 +2,6 @@ package com.raphtory.internals.storage.pojograph
 
 import cats.effect.IO
 import com.raphtory.api.analysis.graphstate.GraphState
-import com.raphtory.api.analysis.table.KeyPair
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.visitor.InterlayerEdge
 import com.raphtory.api.analysis.visitor.Vertex

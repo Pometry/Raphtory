@@ -2,8 +2,6 @@ package com.raphtory.examples.twitter.higgsdataset.analysis
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.KeyPair
-import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Edge
 import com.raphtory.internals.communication.SchemaProviderInstances._
@@ -100,7 +98,7 @@ class MemberRank() extends Generic {
     *   6) New Positive Score
     */
   override def tabularise(graph: GraphPerspective): Table =
-    graph.select("name","prlabel","negativeRawScore","negativeNewScore","positiveRawScore","positiveNewScore")
+    graph.select("name", "prlabel", "negativeRawScore", "negativeNewScore", "positiveRawScore", "positiveNewScore")
 }
 
 object MemberRank {

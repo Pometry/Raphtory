@@ -4,7 +4,6 @@ import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs._
 import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
-import com.raphtory.api.analysis.table.KeyPair
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.internals.communication.SchemaProviderInstances._
@@ -260,7 +259,10 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
                   "twoNodeCountsPretty",
                   get2NodeCountsWithoutRepeats(state[Array[Int], Array[Int]]("starCounts").value)
           )
-          state.newConstant[Map[String, Int]]("triCountsPretty", getTriCountsPretty(state[Array[Int], Array[Int]]("starCounts").value))
+          state.newConstant[Map[String, Int]](
+                  "triCountsPretty",
+                  getTriCountsPretty(state[Array[Int], Array[Int]]("starCounts").value)
+          )
         }
         .globalSelect(
                 "starCountsPretty",

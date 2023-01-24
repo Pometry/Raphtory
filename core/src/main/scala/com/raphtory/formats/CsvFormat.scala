@@ -2,7 +2,6 @@ package com.raphtory.formats
 
 import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import com.raphtory.api.analysis.table.KeyPair
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.output.format.Format
 import com.raphtory.api.output.sink.SinkConnector

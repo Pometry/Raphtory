@@ -3,8 +3,6 @@ package com.test.raphtory.algorithms
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphstate
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.KeyPair
-import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.internals.communication.SchemaProviderInstances._
 
@@ -41,6 +39,6 @@ class GlobalState extends Generic {
       }
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.globalSelect("name length max", "name length min","name length total","name length multiplier")
+    graph.globalSelect("name length max", "name length min", "name length total", "name length multiplier")
 
 }
