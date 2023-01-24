@@ -1,5 +1,5 @@
 from pyraphtory.algorithm import PyAlgorithm
-from pyraphtory.graph import TemporalGraph, Row, Table, KeyPair
+from pyraphtory.graph import TemporalGraph, Row, Table
 from pyraphtory.vertex import Vertex
 
 CC_LABEL = 'cclabel'
@@ -22,4 +22,6 @@ class ConnectedComponents(PyAlgorithm):
         return graph.step(step).iterate(iterate, 100, True)
 
     def tabularise(self, graph: TemporalGraph) -> Table:
-        return graph.select(lambda v: Row(KeyPair("name",v.name()), KeyPair(CC_LABEL, v[CC_LABEL])))
+        return graph.step(lambda v: v.set_state("name",v.name()))\
+                    .step(lambda v: v.set_state(CC_LABEL, v[CC_LABEL]))\
+                    .select("name", CC_LABEL)

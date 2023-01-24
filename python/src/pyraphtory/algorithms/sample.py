@@ -2,7 +2,6 @@
 sample python script.
 """
 
-from pyraphtory.graph import Row, KeyPair
 from pyraphtory.input import *
 from pyraphtory.sources import Source
 from pyraphtory.scala.implicits.numeric import Long
@@ -39,8 +38,10 @@ if __name__ == "__main__":
             graph.load(Source(lotr_spout, GraphBuilder(parse)))
 
             df = (graph
-                  .select(lambda vertex: Row(KeyPair("name",vertex.name()), KeyPair("degree",vertex.degree())))
-                  .to_df())
+                  .step(lambda vertex: vertex.set_state("name",vertex.name()))\
+                  .step(lambda vertex: vertex.set_state("degree",vertex.degree()))\
+                  .select("name", "degree"))\
+                  .to_df()
             print(df)
 
             df = (graph
@@ -67,7 +68,9 @@ if __name__ == "__main__":
             df = (graph.execute(Degree()).to_df())
             print(df)
 
-            graph.select(lambda vertex: Row(KeyPair("name",vertex.name()), KeyPair("degree",vertex.degree()))).write_to_file("/tmp/test").wait_for_job()
+            graph.step(lambda vertex: vertex.set_state("name",vertex.name()))\
+                 .step(lambda vertex: vertex.set_state("degree",vertex.degree()))\
+                 .select("name", "degree").write_to_file("/tmp/test").wait_for_job()
 
             def accum_step(v, s):
                 ac = s["max_time"]
@@ -78,7 +81,7 @@ if __name__ == "__main__":
             df2 = (graph
                    .set_global_state(lambda s: s.new_accumulator("max_time", 0, op=lambda a, b: max(a, b)))
                    .step(accum_step)
-                   .global_select(lambda s: Row(KeyPair("max_time",s["max_time"].value())))
+                   .global_select("max_time")
                    .to_df())
             print(df2)
 
@@ -91,12 +94,16 @@ if __name__ == "__main__":
             print(f"time taken to ingest: {perf_counter() - start}s")
 
             df = (graph2
-                  .select(lambda vertex: Row(KeyPair("name",vertex.name()), KeyPair("degree",vertex.degree())))
+                  .step(lambda vertex: vertex.set_state("name",vertex.name()))\
+                  .step(lambda vertex: vertex.set_state("degree",vertex.degree()))\
+                  .select("name", "degree")\
                   .to_df())
             print(df)
 
             df2 = (graph2
-                   .select(lambda v: Row(KeyPair("name",v.name()), KeyPair("latest_time",v.latest_activity().time())))
+                   .step(lambda v: v.set_state("name",v.name()))\
+                   .step(lambda v: v.set_state("latest_time",v.latest_activity().time()))\
+                   .select("name", "latest_time")
                    .to_df())
             print(df2)
 

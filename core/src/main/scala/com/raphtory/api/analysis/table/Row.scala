@@ -35,12 +35,6 @@ class Row(val columns: SeqMap[String, Any]) {
   /** Same as `getAs[Double](index)` */
   def getDouble(key: String): Double = getAs[Double](key)
 
-//  def insertDictintoKeypair(dictionary: Map[String, Any]): Array[KeyPair] =
-//    dictionary.map {
-//      case (key: String, value: Any) => KeyPair(key, value)
-//      case _                         => throw new IllegalArgumentException("Keypairs in Row should be of type (key: String, value: Any)")
-//    }.toArray
-
   /** Return Array of values */
   def values(): Array[Any] = columns.values.toArray
 
