@@ -26,20 +26,16 @@ class Table(GenericScalaProxy):
 
     def to_df(self):
         time_formatted=False
-        def rows_generator():
-            for res in self.get():
-                window = res.perspective().window()
-                timestamp = res.perspective().formatted_time()
-                time_formatted = res.perspective().format_as_date()
-                if window != None:
-                    window_size = window.get().output()
-                    perspective_columns = {'timestamp': timestamp, 'window': window_size}
-                else:
-                    perspective_columns = {'timestamp': timestamp}
-                for r in res.rows():
-                    yield perspective_columns | dict(r.columns())
+        df = pd.DataFrame()
+        for res in self.get():
+            time_formatted = res.perspective().format_as_date()
+            partial_df = pd.DataFrame(res.rows_as_arrays(), columns = res.header())
+            partial_df["timestamp"] = res.perspective().formatted_time()
+            window = res.perspective().window()
+            if window != None:
+                partial_df['window'] = window.get().output()
+            df = pd.concat([df, partial_df])
 
-        df = pd.DataFrame.from_records(rows_generator())
         if time_formatted:
             df["timestamp"] = df["timestamp"].apply(lambda x: dt.datetime.strptime(x,"%Y-%m-%d %H:%M:%S.%f"))
         return df

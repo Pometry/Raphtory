@@ -128,12 +128,6 @@ abstract class AbstractGraphLens(
     onComplete()
   }
 
-  def explodeTable(f: Row => IterableOnce[Row])(onComplete: () => Unit): Unit = {
-    //FIXME: this doesn't work -> row.asInstanceOf[RowImplementation].explode(f).toVector
-    dataTable = dataTable.flatMap(f)
-    onComplete()
-  }
-
   override def executeSelect(f: GraphState => Row, graphState: GraphState)(onComplete: () => Unit): Unit = {
     if (partitionID == 0)
       dataTable = View.fromIteratorProvider(() => Iterator.fill(1)(f(graphState)))
@@ -145,15 +139,6 @@ abstract class AbstractGraphLens(
     onComplete()
   }
 
-  override def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: () => Unit): Unit = ???
-
-  override def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row], graphState: GraphState)(
-      onComplete: () => Unit
-  ): Unit = ???
-
-//  override def executeSelect(values: String*)(onComplete: () => Unit): Unit =
-//    explodeSelect(v => List(f(v)))(onComplete)
-
   override def reduceView(
       defaultMergeStrategy: Option[PropertyMerge[_, _]],
       mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
@@ -162,8 +147,6 @@ abstract class AbstractGraphLens(
 
   override def explodeView(interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]])(onComplete: () => Unit): Unit =
     ???
-
-  override def executeSelect(f: (_, GraphState) => Row, graphState: GraphState)(onComplete: () => Unit): Unit = ???
 
   override def viewUndirected()(onComplete: () => Unit): Unit = ???
 

@@ -16,7 +16,9 @@ case class TableOutput private (
     private val conf: Config
 ) extends TableBase {
 
-  override def withDefaults(defaults: Map[String, Any]): TableOutput = ???
+  def rowsAsArrays(): Array[Array[Any]] = rows.map(row => row.columns.values.toArray)
+
+  override def withDefaults(defaults: Map[String, Any]): TableOutput = ??? // FIXME
 
   /** Add a filter operation to table
     *
