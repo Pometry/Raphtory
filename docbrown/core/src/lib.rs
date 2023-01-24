@@ -24,6 +24,8 @@ pub enum Direction {
 #[derive(Debug, PartialEq)]
 pub enum Prop {
     Str(String),
+    I32(i32),
+    I64(i64),
     U32(u32),
     U64(u64),
     F32(f32),

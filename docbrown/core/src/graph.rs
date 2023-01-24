@@ -17,7 +17,7 @@ pub struct TemporalGraph {
     // holds the adjacency lists
     pub(crate) index: Vec<Adj>,
     // time index pointing at the index with adjacency lists
-    t_index: BTreeMap<u64, BitSet>,
+    t_index: BTreeMap<i64, BitSet>,
     // attributes for props
     pub(crate) prop_ids: HashMap<String, usize>,
     pub(crate) edge_meta: Vec<TPropVec>, // table of edges
@@ -40,7 +40,7 @@ impl Default for TemporalGraph {
 impl TemporalGraph {
     pub(crate) fn vertices_window_iter(
         &self,
-        r: Range<u64>,
+        r: Range<i64>,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
         let iter = self
             .t_index
@@ -85,7 +85,7 @@ impl TemporalGraph {
         &self,
         vid: usize,
         d: Direction,
-        window: &Range<u64>,
+        window: &Range<i64>,
     ) -> Box<dyn Iterator<Item = (usize, AdjEdge)> + '_> {
         match &self.index[vid] {
             Adj::List {
@@ -135,7 +135,7 @@ impl TemporalGraph {
         }
     }
 
-    pub(crate) fn _degree_window(&self, vid: usize, d: Direction, window: &Range<u64>) -> usize {
+    pub(crate) fn _degree_window(&self, vid: usize, d: Direction, window: &Range<i64>) -> usize {
         match &self.index[vid] {
             Adj::List { out, into, .. } => match d {
                 Direction::OUT => out.len_window(window),
@@ -157,7 +157,7 @@ impl TemporalGraph {
         self.logical_to_physical.contains_key(&v)
     }
 
-    pub fn contains_vertex_w(&self, w:Range<u64>, v: u64) -> bool {
+    pub fn contains_vertex_w(&self, w:Range<i64>, v: u64) -> bool {
         if let Some(v_id) = self.logical_to_physical.get(&v) {
             self.t_index.range(w).any(|(_, bs)| bs.contains(v_id))
         } else {
@@ -173,11 +173,11 @@ impl TemporalGraph {
         self.edge_meta.len()
     }
 
-    pub fn add_vertex(&mut self, v: u64, t: u64) {
+    pub fn add_vertex(&mut self, v: u64, t: i64) {
         self.add_vertex_props(v, t, &vec![])
     }
 
-    pub fn add_vertex_props(&mut self, v: u64, t: u64, props: &Vec<Prop>) {
+    pub fn add_vertex_props(&mut self, v: u64, t: i64, props: &Vec<Prop>) {
         match self.logical_to_physical.get(&v) {
             None => {
                 let physical_id: usize = self.index.len();
@@ -213,7 +213,7 @@ impl TemporalGraph {
 
     pub(crate) fn iter_vs_window(
         &self,
-        r: Range<u64>,
+        r: Range<i64>,
     ) -> Box<dyn Iterator<Item = VertexView<'_, Self>> + '_> {
         let iter = self
             .t_index
@@ -238,7 +238,7 @@ impl TemporalGraph {
         Box::new(iter)
     }
 
-    pub fn add_edge(&mut self, src: u64, dst: u64, t: u64) {
+    pub fn add_edge(&mut self, src: u64, dst: u64, t: i64) {
         self.add_edge_props(src, dst, t, &vec![])
     }
 
@@ -246,7 +246,7 @@ impl TemporalGraph {
         &mut self,
         src: u64, // we are on the source shard
         dst: u64,
-        t: u64,
+        t: i64,
         props: &Vec<(String, Prop)>,
     ) {
         self.add_vertex(src, t);
@@ -261,7 +261,7 @@ impl TemporalGraph {
         &mut self,
         src: u64,
         dst: u64, // we are on the destination shard
-        t: u64,
+        t: i64,
         props: &Vec<(String, Prop)>,
     ) {
         self.add_vertex(dst, t);
@@ -274,7 +274,7 @@ impl TemporalGraph {
         self.update_edge_props(dst_edge_meta_id, t, props)
     }
 
-    fn update_edge_props(&mut self, src_edge_meta_id: usize, t: u64, props: &Vec<(String, Prop)>) {
+    fn update_edge_props(&mut self, src_edge_meta_id: usize, t: i64, props: &Vec<(String, Prop)>) {
         //FIXME: ensure the self.edge_meta is updated even if the props vector is null
         for (name, prop) in props {
             // find where do we slot this property in the temporal vec for each edge
@@ -298,7 +298,7 @@ impl TemporalGraph {
         }
     }
 
-    pub fn add_edge_props(&mut self, src: u64, dst: u64, t: u64, props: &Vec<(String, Prop)>) {
+    pub fn add_edge_props(&mut self, src: u64, dst: u64, t: i64, props: &Vec<(String, Prop)>) {
         // mark the times of the vertices at t
         self.add_vertex(src, t);
         self.add_vertex(dst, t);
@@ -321,7 +321,7 @@ impl TemporalGraph {
     fn link_inbound_edge(
         &mut self,
         global_dst_id: u64,
-        t: u64,
+        t: i64,
         src: usize, // may or may not be physical id depending on remote_edge flag
         dst_pid: usize,
         remote_edge: bool,
@@ -354,7 +354,7 @@ impl TemporalGraph {
     fn link_outbound_edge(
         &mut self,
         global_src_id: u64,
-        t: u64,
+        t: i64,
         src_pid: usize,
         dst: usize, // may or may not pe physical id depending on remote_edge flag
         remote_edge: bool,
@@ -386,7 +386,7 @@ impl TemporalGraph {
 
     pub(crate) fn neighbours_window(
         &self,
-        w: Range<u64>,
+        w: Range<i64>,
         v: u64,
         d: Direction,
     ) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
@@ -425,12 +425,12 @@ impl TemporalGraph {
         self._degree(dst_pid, Direction::IN)
     }
 
-    pub fn outbound_degree_t(&self, src: u64, r: Range<u64>) -> usize {
+    pub fn outbound_degree_t(&self, src: u64, r: Range<i64>) -> usize {
         let src_pid = self.logical_to_physical[&src];
         self._degree_window(src_pid, Direction::OUT, &r)
     }
 
-    pub fn inbound_degree_t(&self, dst: u64, r: Range<u64>) -> usize {
+    pub fn inbound_degree_t(&self, dst: u64, r: Range<i64>) -> usize {
         let dst_pid = self.logical_to_physical[&dst];
         self._degree_window(dst_pid, Direction::IN, &r)
     }
@@ -440,14 +440,14 @@ impl TemporalGraph {
         self._degree(v_pid, Direction::BOTH)
     }
 
-    pub fn degree_window(&self, v: u64, r: Range<u64>) -> usize {
+    pub fn degree_window(&self, v: u64, r: Range<i64>) -> usize {
         let v_pid = self.logical_to_physical[&v];
         self._degree_window(v_pid, Direction::BOTH, &r)
     }
 
     pub(crate) fn neighbours_window_t(
         &self,
-        r: Range<u64>,
+        r: Range<i64>,
         v: usize,
         d: Direction,
     ) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
@@ -498,7 +498,7 @@ impl TemporalGraph {
     pub(crate) fn outbound_window(
         &self,
         src: u64,
-        r: Range<u64>,
+        r: Range<i64>,
     ) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
         self.neighbours_window(r, src, Direction::OUT)
     }
@@ -506,7 +506,7 @@ impl TemporalGraph {
     pub(crate) fn inbound_window(
         &self,
         dst: u64,
-        r: Range<u64>,
+        r: Range<i64>,
     ) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
         self.neighbours_window(r, dst, Direction::IN)
     }
@@ -514,7 +514,7 @@ impl TemporalGraph {
     pub(crate) fn outbound_window_t(
         &self,
         src: u64,
-        r: Range<u64>,
+        r: Range<i64>,
     ) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
         let src_pid = self.logical_to_physical[&src];
         self.neighbours_window_t(r, src_pid, Direction::OUT)
@@ -523,7 +523,7 @@ impl TemporalGraph {
     pub(crate) fn inbound_window_t(
         &self,
         dst: u64,
-        r: Range<u64>,
+        r: Range<i64>,
     ) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
         let dst_pid = self.logical_to_physical[&dst];
         self.neighbours_window_t(r, dst_pid, Direction::IN)
@@ -556,7 +556,7 @@ pub(crate) struct VertexView<'a, G> {
     g_id: u64,
     pid: usize,
     g: &'a G,
-    w: Option<Range<u64>>,
+    w: Option<Range<i64>>,
 }
 
 impl<'a> VertexView<'a, TemporalGraph> {
@@ -610,7 +610,7 @@ pub(crate) struct EdgeView<'a, G: Sized> {
     src_id: usize,
     dst_id: usize,
     g: &'a G,
-    t: Option<u64>,
+    t: Option<i64>,
     e_meta: AdjEdge,
 }
 
@@ -631,7 +631,7 @@ impl<'a> EdgeView<'a, TemporalGraph> {
         }
     }
 
-    pub fn time(&self) -> Option<u64> {
+    pub fn time(&self) -> Option<i64> {
         self.t
     }
 
@@ -639,7 +639,7 @@ impl<'a> EdgeView<'a, TemporalGraph> {
         !self.e_meta.is_local()
     }
 
-    pub fn props(&self, name: &'a str) -> Box<dyn Iterator<Item = (&'a u64, Prop)> + 'a> {
+    pub fn props(&self, name: &'a str) -> Box<dyn Iterator<Item = (&'a i64, Prop)> + 'a> {
         // find the id of the property
         let prop_id: usize = self.g.prop_ids[name]; // FIXME this can break
         self.g.edge_meta[self.e_meta.edge_meta_id()].iter(prop_id)
@@ -648,8 +648,8 @@ impl<'a> EdgeView<'a, TemporalGraph> {
     pub fn props_window(
         &self,
         name: &'a str,
-        r: Range<u64>,
-    ) -> Box<dyn Iterator<Item = (&'a u64, Prop)> + 'a> {
+        r: Range<i64>,
+    ) -> Box<dyn Iterator<Item = (&'a i64, Prop)> + 'a> {
         // find the id of the property
         let prop_id: usize = self.g.prop_ids[name]; // FIXME this can break
 
@@ -819,13 +819,13 @@ mod graph_test {
         assert_eq!(actual, vec![1]);
 
         // when we look for time we see both variants
-        let actual: Vec<(u64, u64)> = g
+        let actual: Vec<(i64, u64)> = g
             .outbound_window_t(9, 0..13)
             .map(|e| (e.time().unwrap(), e.global_dst()))
             .collect();
         assert_eq!(actual, vec![(3, 1), (12, 1)]);
 
-        let actual: Vec<(u64, u64)> = g
+        let actual: Vec<(i64, u64)> = g
             .inbound_window_t(1, 0..13)
             .map(|e| (e.time().unwrap(), e.global_src()))
             .collect();
@@ -1023,7 +1023,7 @@ mod graph_test {
     fn edge_metadata_id_bug() {
         let mut g = TemporalGraph::default();
 
-        let edges: Vec<(u64, u64, u64)> = vec![(1, 2, 1), (3, 4, 2), (5, 4, 3), (1, 4, 4)];
+        let edges: Vec<(u64, u64, i64)> = vec![(1, 2, 1), (3, 4, 2), (5, 4, 3), (1, 4, 4)];
 
         for (src, dst, t) in edges {
             g.add_vertex(src, t);
@@ -1222,10 +1222,10 @@ mod graph_test {
             s.finish()
         }
 
-        fn parse_record(rec: &StringRecord) -> Option<(String, String, u64)> {
+        fn parse_record(rec: &StringRecord) -> Option<(String, String, i64)> {
             let src = rec.get(0).and_then(|s| s.parse::<String>().ok())?;
             let dst = rec.get(1).and_then(|s| s.parse::<String>().ok())?;
-            let t = rec.get(2).and_then(|s| s.parse::<u64>().ok())?;
+            let t = rec.get(2).and_then(|s| s.parse::<i64>().ok())?;
             Some((src, dst, t))
         }
 
