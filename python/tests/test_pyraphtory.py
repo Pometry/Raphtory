@@ -106,16 +106,17 @@ class PyRaphtoryTest(unittest.TestCase):
         
         def iterateMessages(v: Vertex):
             queue = v.message_queue()
-            for message in queue:
-                v.set_state("id",v.name())
-                v.set_state("message", message)
+            messages = [message for message in queue]
+            v.set_state("id",v.name())
+            v.set_state("message", messages)
 
         with self.ctx.new_graph() as graph:
             graph.add_edge(1, 1, 2)
             cols = ["id", "message"]
             df = (graph.step(lambda vertex: vertex.message_vertex(1, "message"))\
                         .step(lambda vertex: iterateMessages(vertex))\
-                        .select("id", "message"))\
+                        .select("id", "message")\
+                        .explode("message"))\
                         .to_df()
             print(df.to_csv)
             assert array_equal(df["id"], ["1", "1"])
