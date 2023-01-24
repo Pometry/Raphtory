@@ -9,7 +9,7 @@ import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview._
 import com.raphtory.api.analysis.table.Explode
-import com.raphtory.api.analysis.table.ExplodeColumn
+import com.raphtory.api.analysis.table.ExplodeColumns
 import com.raphtory.api.analysis.table.RenameColumn
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.TableFilter
@@ -46,7 +46,6 @@ class QueryExecutor[F[_]](
   private val graphId        = query.graphID
   private val jobId          = query.name
   private val loggingPrefix  = s"${jobId}_$partitionID:"
-  private val kryo           = KryoSerialiser()
   private val partitioner    = Partitioner(conf)
   private val cb: () => Unit = () => {}
 
@@ -102,7 +101,8 @@ class QueryExecutor[F[_]](
   def writePerspective(perspective: Perspective): F[Empty] =
     timed(s"Writing results from table to sink ${query.sink.get.getClass.getSimpleName}") { // TODO unsafe call to get
       withLens { lens =>
-        F.bracket(F.delay(sinkExecutor.setupPerspective(perspective, query.header))) { _ =>
+        val header = if (query.header.nonEmpty) query.header else lens.inferredHeader
+        F.bracket(F.delay(sinkExecutor.setupPerspective(perspective, header))) { _ =>
           F.blocking(lens.writeDataTable(row => sinkExecutor.threadSafeWriteRow(row))(cb))
         }(_ => F.delay(sinkExecutor.closePerspective()))
           .map(_ => Empty())
@@ -128,8 +128,8 @@ class QueryExecutor[F[_]](
                 case DirectedView()                        => lens.viewDirected()(cb)
                 case ReversedView()                        => lens.viewReversed()(cb)
                 case ClearChain()                          => lens.clearMessages(); cb()
+                case InferHeader                           => lens.inferHeader()
                 case op: Select @unchecked                 => lens.executeSelect(op.values, query.defaults)(cb)
-                case op: ExplodeSelect[Vertex] @unchecked  => lens.explodeSelect(op.f)(cb)
                 case rv: ReduceView                        => lens.reduceView(rv.defaultMergeStrategy, rv.mergeStrategyMap, rv.aggregate)(cb)
                 case x                                     => throw new Exception(s"$x not handled")
               }
@@ -161,9 +161,7 @@ class QueryExecutor[F[_]](
     def processNonMessaging =
       F.blocking(
               function match {
-                case SelectWithGraph(f)                             => lens.executeSelect(f, graphState)(cb)
-                case esf: ExplodeSelectWithGraph[Vertex] @unchecked => lens.explodeSelect(esf.f, graphState)(cb)
-                case GlobalSelect(f)                                => if (partitionID == 0) lens.executeSelect(f, graphState)(cb) else cb()
+                case GlobalSelect(f) => if (partitionID == 0) lens.executeSelect(f, graphState)(cb) else cb()
               }
       )
 
@@ -185,10 +183,9 @@ class QueryExecutor[F[_]](
   private def executeTableFunction(function: TableFunction, lens: LensInterface): F[Unit] =
     F.blocking(
             function match {
-              case TableFilter(f)        => lens.filteredTable(f)(cb)
-              case Explode(f)            => lens.explodeTable(f)(cb)
-              case ExplodeColumn(column) => lens.explodeColumns(column)(cb)
-              case RenameColumn(columns) => lens.renameColumn(columns)(cb)
+              case TableFilter(f)          => lens.filteredTable(f)(cb)
+              case ExplodeColumns(columns) => lens.explodeColumns(columns)(cb)
+              case RenameColumn(columns)   => lens.renameColumn(columns)(cb)
             }
     )
 

@@ -24,7 +24,7 @@ private[api] class TableImplementation(val query: Query, private[raphtory] val q
   }
 
   override def explode(columns: String*): Table =
-    addFunction(ExplodeColumn(columns))
+    addFunction(ExplodeColumns(columns))
 
   override def renameColumn(columns: (String, String)*): Table =
     addFunction(RenameColumn(columns))

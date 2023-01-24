@@ -44,6 +44,7 @@ trait SinkExecutor {
     * This method gets called every time a new graph perspective is going to be written out so this `SinkExecutor` can
     * handle it if needed.
     * @param perspective the perspective to be written out
+    * @param header the list of columns to be present in the output
     */
   def setupPerspective(perspective: Perspective, header: List[String]): Unit
 

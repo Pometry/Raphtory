@@ -51,7 +51,6 @@ class EdgeList(
           case (columnName, propertyColumn) => vertex.setState(columnName, propertyColumn)
         }
       }
-      .step(vertex => println("name", vertex.name))
       .select("name" +: "neighbourName" +: properties: _*)
       .explode("neighbourName" +: properties: _*)
 }

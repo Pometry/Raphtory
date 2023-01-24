@@ -11,6 +11,7 @@ import com.raphtory.internals.components.querymanager.GenericVertexMessage
   */
 private[raphtory] trait LensInterface {
 
+  def inferredHeader: List[String]
   def partitionID(): Int
   def localNodeCount: Int
   def getFullGraphSize: Int
@@ -64,6 +65,7 @@ private[raphtory] trait LensInterface {
   def nextStep(): Unit
   def receiveMessage(msg: GenericVertexMessage[_]): Unit
 
+  def inferHeader(): Unit
   def clearMessages(): Unit
 
   def start: Long

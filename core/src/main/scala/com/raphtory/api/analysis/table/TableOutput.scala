@@ -5,6 +5,8 @@ import com.raphtory.api.progresstracker._
 import com.raphtory.api.time.Perspective
 import com.typesafe.config.Config
 
+import scala.collection.immutable.SortedSet
+
 /** Concrete Table with computed results for a perspective */
 case class TableOutput private (
     jobID: String,
@@ -49,7 +51,10 @@ case class TableOutput private (
   override def writeTo(sink: Sink, jobName: String): WriteProgressTracker = {
     // TODO: Make this actually asynchronous
     val executor = sink.executor(jobName, -1, conf)
-    executor.setupPerspective(perspective, header)
+    val columns  =
+      if (header.nonEmpty) header
+      else rows.foldLeft(SortedSet.empty[String])((set, row) => set ++ row.columns.keys).toList
+    executor.setupPerspective(perspective, columns)
     rows.foreach(executor.threadSafeWriteRow)
     executor.closePerspective()
     executor.close()

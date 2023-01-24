@@ -170,4 +170,10 @@ abstract class AbstractGraphLens(
   override def viewDirected()(onComplete: () => Unit): Unit = ???
 
   override def viewReversed()(onComplete: () => Unit): Unit = ???
+
+  override def executeSelect(values: Seq[String], defaults: Map[String, Any])(onComplete: () => Unit): Unit = ???
+  override def explodeColumns(columns: Seq[String])(onComplete: () => Unit): Unit                           = ???
+  override def renameColumn(columns: Seq[(String, String)])(onComplete: () => Unit): Unit                   = ???
+  override def inferHeader(): Unit                                                                          = ???
+  override def inferredHeader: List[String]                                                                 = ???
 }

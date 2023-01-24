@@ -65,22 +65,12 @@ final private[raphtory] case class IterateWithGraph[V <: Vertex](
 
 final private[raphtory] case class Select(values: String*) extends TabularisingGraphFunction
 
-final private[raphtory] case class SelectWithGraph(
-    f: (_, GraphState) => Row
-) extends TabularisingGraphFunction
-        with GlobalGraphFunction
-
 final private[raphtory] case class GlobalSelect(
     f: GraphState => Row
 ) extends TabularisingGraphFunction
         with GlobalGraphFunction
 
-final private[raphtory] case class ExplodeSelect[V <: Vertex](f: V => IterableOnce[Row])
-        extends TabularisingGraphFunction
-
-final private[raphtory] case class ExplodeSelectWithGraph[V <: Vertex](f: (V, GraphState) => IterableOnce[Row])
-        extends TabularisingGraphFunction
-        with GlobalGraphFunction
+final private[raphtory] case object InferHeader      extends GraphFunction
 final private[raphtory] case class ClearChain()      extends GraphFunction
 final private[raphtory] case class PerspectiveDone() extends GraphFunction
 
@@ -188,21 +178,15 @@ private[api] trait GraphViewImplementation[
   ): G = addFunction(IterateWithGraph(f, iterations, executeMessagedOnly))
 
   override def selectAll(): Table =
-    new TableImplementation(
-            query.copy(operations = query.operations :+ Select()),
-            querySender
-    )
-  // by default, the header of the query is an empty list, which means: 'get everything'
+    addSelect(InferHeader +: Select() +: Nil, header = Seq())
+  // the header of the query being an empty list means: 'get everything'
 
   override def select(values: String*): Table =
-    new TableImplementation(
-            query.copy(header = values.toList, operations = query.operations :+ Select(values: _*)),
-            querySender
-    )
+    addSelect(Seq(Select(values: _*)), values)
 
   override def globalSelect(values: String*): Table = {
     def f(state: GraphState): Row = Row(values.map(key => (key, state.apply[Any, Any](key).value)): _*)
-    addSelect(GlobalSelect(f))
+    addSelect(Seq(GlobalSelect(f)), values)
   }
 
   override def clearMessages(): G =
@@ -243,8 +227,8 @@ private[api] trait GraphViewImplementation[
   private def addMFunction(function: GraphFunction) =
     newMGraph(query.copy(operations = query.operations :+ function), querySender)
 
-  private def addSelect(function: GraphFunction) =
-    new TableImplementation(query.copy(operations = query.operations :+ function), querySender)
+  private def addSelect(functions: Seq[GraphFunction], header: Seq[String]) =
+    new TableImplementation(query.copy(header = header.toList, operations = query.operations ++ functions), querySender)
 
   private[api] def withTransformedName(algorithm: BaseAlgorithm): G =
     withTransformedName(algorithm.name).addClass(algorithm.getClass)

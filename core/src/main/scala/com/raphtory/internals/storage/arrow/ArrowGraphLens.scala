@@ -48,10 +48,4 @@ final case class ArrowGraphLens(
       .windowVertices(start, end)
       .filter(v => graphState.isAlive(v.getGlobalId))
       .map(new ArrowExVertex(graphState, _))
-
-  override def executeSelect(values: Seq[String], defaults: Map[String, Any])(onComplete: () => Unit): Unit = ???
-
-  override def explodeColumns(columns: Seq[String])(onComplete: () => Unit): Unit = ???
-
-  override def renameColumn(columns: Seq[(String, String)])(onComplete: () => Unit): Unit = ???
 }

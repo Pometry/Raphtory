@@ -17,7 +17,7 @@ import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 import java.util.concurrent.atomic.AtomicInteger
-import scala.collection.LazyZip3
+import scala.collection.immutable.SortedSet
 import scala.collection.mutable
 
 private[raphtory] class SuperStepFlag {
@@ -65,6 +65,7 @@ final private[raphtory] case class PojoGraphLens(
   private val vertexCount       = new AtomicInteger(0)
   private var fullGraphSize     = 0
   private var exploded: Boolean = false
+  var inferredHeader            = List.empty[String] // This needs to be accessed by the QueryExecutor
 
   val chunkSize = conf.getInt("raphtory.partitions.chunkSize")
 
@@ -116,7 +117,7 @@ final private[raphtory] case class PojoGraphLens(
 
   def executeSelect(values: Seq[String], defaults: Map[String, Any])(onComplete: () => Unit): Unit = {
     dataTable = vertexIterator.map { vertex =>
-      val keys    = if (values.nonEmpty) values else vertex.getPropertySet() ++ vertex.getStateSet()
+      val keys    = if (values.nonEmpty) values else inferredHeader
       val columns =
         keys.map(key =>
           (key, vertex.getStateOrElse(key, defaults.getOrElse(key, EMPTY_CELL), includeProperties = true))
@@ -337,6 +338,11 @@ final private[raphtory] case class PojoGraphLens(
         throw e
     }
   }
+
+  override def inferHeader(): Unit =
+    inferredHeader = vertexIterator
+      .foldLeft(SortedSet.empty[String])((set, vertex) => set ++ vertex.getPropertySet() ++ vertex.getStateSet())
+      .toList
 
   def clearMessages(): Unit =
     vertexMap.foreach {

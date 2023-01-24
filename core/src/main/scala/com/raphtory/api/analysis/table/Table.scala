@@ -9,7 +9,7 @@ import scala.concurrent.duration.Duration
 sealed private[raphtory] trait TableFunction                            extends Operation
 final private[raphtory] case class TableFilter(f: (Row) => Boolean)     extends TableFunction
 final private[raphtory] case class Explode(f: Row => IterableOnce[Row]) extends TableFunction
-final private[raphtory] case class ExplodeColumn(column: Seq[String])   extends TableFunction
+final private[raphtory] case class ExplodeColumns(column: Seq[String])  extends TableFunction
 
 final private[raphtory] case class RenameColumn(columns: Seq[(String, String)]) extends TableFunction
 
