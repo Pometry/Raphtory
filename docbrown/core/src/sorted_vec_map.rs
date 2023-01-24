@@ -34,10 +34,7 @@ impl<K: Ord, V> SVM<K, V> {
     }
 
     pub(crate) fn entry(&mut self, k: K) -> Entry<K, V> {
-        match self.0.entry(k) {
-            Entry::Occupied(e) => Entry::Occupied(e),
-            Entry::Vacant(e) => Entry::Vacant(e),
-        }
+        self.0.entry(k) 
     }
 }
 
