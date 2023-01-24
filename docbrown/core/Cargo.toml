@@ -7,7 +7,7 @@ keywords = ["graph", "temporal-graph", "temporal"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-roaring="0.10"
+roaring={ version = "0.10", features = ["serde"] }
 itertools="0.10"
 # csv = "1.1.6"
 replace_with = "0.1"
@@ -28,7 +28,8 @@ serde = { version = "1", features = ["derive"] }
 criterion = "0.4"
 quickcheck = "1"
 quickcheck_macros = "1"
-csv = "1.1.6"
+csv = "1"
+bincode = "1"
 
 [[bench]]
 name = "tgraph_benchmarks"

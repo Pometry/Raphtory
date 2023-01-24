@@ -1,12 +1,13 @@
 use std::fmt::Debug;
 
 use itertools::Itertools;
+use serde::{Serialize, Deserialize};
 
 static MERGE_SORT_SIZE: usize = 64;
 
 
 #[repr(transparent)]
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SortedVec<K: Ord> {
     vs: Vec<K>,
 }
@@ -28,7 +29,7 @@ impl<K: Ord> SortedVec<K> {
 }
 
 //FIXME: naive LSM like implementation, add benches and more tests
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct LSMSet<K: Ord> {
     vs: Vec<K>,
 }

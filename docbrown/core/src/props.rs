@@ -1,9 +1,11 @@
 use std::ops::Range;
 
+use serde::{Serialize, Deserialize};
+
 use crate::{tcell::TCell, Prop};
 
-#[derive(Default, Debug, PartialEq)]
-pub enum TPropVec {
+#[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
+pub(crate) enum TPropVec {
     #[default] Empty,
     One(usize, TProp),
     Props(Vec<TProp>),
@@ -59,8 +61,8 @@ impl TPropVec {
         }
     }
 }
-#[derive(Debug, Default, PartialEq, Clone)]
-pub enum TProp {
+#[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
+pub(crate) enum TProp {
     #[default]
     Empty,
     Str(TCell<String>),

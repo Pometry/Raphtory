@@ -1,17 +1,19 @@
 use std::{collections::BTreeMap, fmt::Debug, ops::Range};
 
-use sorted_vector_map::SortedVectorMap;
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug, PartialEq, Default, Clone)]
+use crate::sorted_vec_map::SVM;
+
+#[derive(Debug, PartialEq, Default, Clone, Serialize, Deserialize)]
 /**
  * TCells represent a value in time that can
  * be set at multiple times and keeps a history
  **/
-pub enum TCell<A: Clone + Default + Debug + PartialEq> {
+pub(crate) enum TCell<A: Clone + Default + Debug + PartialEq> {
     #[default]
     TCellEmpty,
     TCell1(u64, A),
-    TCellCap(SortedVectorMap<u64, A>),
+    TCellCap(SVM<u64, A>),
     TCellN(BTreeMap<u64, A>),
 }
 
@@ -29,7 +31,7 @@ impl<A: Clone + Default + Debug + PartialEq> TCell<A> {
             }
             TCell::TCell1(t0, a0) => {
                 if t != *t0 {
-                    let mut m = SortedVectorMap::new();
+                    let mut m = SVM::new();
                     m.insert(t, a);
                     m.insert(*t0, a0.clone());
                     *self = TCell::TCellCap(m)
