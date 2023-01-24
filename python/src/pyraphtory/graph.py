@@ -29,7 +29,8 @@ class Table(GenericScalaProxy):
         def rows_generator():
             for res in self.get():
                 window = res.perspective().window()
-                timestamp = res.perspective().formatted_time()time_formatted = res.perspective().format_as_date()
+                timestamp = res.perspective().formatted_time()
+                time_formatted = res.perspective().format_as_date()
                 if window != None:
                     window_size = window.get().output()
                     perspective_columns = {'timestamp': timestamp, 'window': window_size}
