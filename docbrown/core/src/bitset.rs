@@ -2,11 +2,12 @@ use std::borrow::{Borrow, BorrowMut};
 
 use itertools::Itertools;
 use roaring::RoaringTreemap;
+use serde::{Serialize, Deserialize};
 
 use crate::lsm::LSMSet;
 
 // TODO: use enum_dispatch
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub enum BitSet {
     #[default]
     Empty,

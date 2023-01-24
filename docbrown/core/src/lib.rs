@@ -5,6 +5,7 @@ extern crate quickcheck_macros;
 mod bitset;
 pub mod graph;
 pub mod lsm;
+mod sorted_vec_map;
 mod adj;
 mod misc;
 mod props;
