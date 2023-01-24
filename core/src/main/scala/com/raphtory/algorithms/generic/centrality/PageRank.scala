@@ -42,8 +42,7 @@ import com.raphtory.internals.communication.SchemaProviderInstances._
   * [](com.raphtory.algorithms.generic.centrality.WeightedPageRank
   * ```
   */
-class PageRank(dampingFactor: Double = 0.85, iterateSteps: Int = 100, tol: Double = 0.00001)
-        extends Generic {
+class PageRank(dampingFactor: Double = 0.85, iterateSteps: Int = 100, tol: Double = 0.00001) extends Generic {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
