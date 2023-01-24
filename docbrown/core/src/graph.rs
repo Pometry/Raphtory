@@ -10,7 +10,7 @@ use crate::adj::Adj;
 use crate::Prop;
 use crate::{bitset::BitSet, props::TPropVec, tadjset::AdjEdge, Direction};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct TemporalGraph {
     // maps the global id to the local index id
     logical_to_physical: HashMap<u64, usize>,
@@ -1394,5 +1394,29 @@ mod graph_test {
 
         let actual = g1.neighbours_iter_window(0, Direction::OUT, &(1..3)).map(|(id, edge)| (id, edge.is_local())).collect_vec();
         assert_eq!(actual, vec![(22, false)])
+    }
+
+    // this test checks TemporalGraph can be serialized and deserialized
+    #[test]
+    fn serialize_and_deserialize_with_bincode(){
+        let mut g = TemporalGraph::default();
+
+        g.add_vertex(1, 1);
+        g.add_vertex(2, 2);
+
+        g.add_vertex(3, 3);
+        g.add_vertex(4, 1);
+
+        g.add_edge_props(1, 2, 3, &vec![("bla".to_string(), Prop::U32(1))]);
+        g.add_edge_props(3, 4, 4, &vec![("bla1".to_string(), Prop::U64(1))]);
+        g.add_edge_props(4, 1, 5, &vec![("bla2".to_string(), Prop::Str("blergo blargo".to_string()))]);
+
+        let mut buffer:Vec<u8> = Vec::new();
+        
+        bincode::serialize_into(&mut buffer, &g).unwrap();
+
+        let g2:TemporalGraph = bincode::deserialize_from(&mut buffer.as_slice()).unwrap();
+        assert_eq!(g, g2);
+
     }
 }

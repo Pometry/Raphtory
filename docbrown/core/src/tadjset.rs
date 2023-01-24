@@ -8,9 +8,8 @@ use std::{
 use itertools::Itertools;
 use replace_with::replace_with_or_abort;
 use serde::{Serialize, Deserialize};
-use sorted_vector_map::SortedVectorMap;
 
-use crate::bitset::BitSet;
+use crate::{bitset::BitSet, sorted_vec_map::SVM};
 
 const SMALL_SET: usize = 1024;
 
@@ -21,15 +20,15 @@ const SMALL_SET: usize = 1024;
  * and if the edge is remote or local
  *
  *  */
-#[derive(Debug, Default)]
-pub(crate) enum TAdjSet<V: Ord + TryInto<usize>, Time: Copy + Ord> {
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
+pub(crate) enum TAdjSet<V: Ord + TryInto<usize> + std::hash::Hash, Time: Copy + Ord> {
     #[default]
     Empty,
     One(Time, V, AdjEdge),
     Small {
         vs: Vec<V>, // the neighbours
         edges: Vec<AdjEdge>, // edge metadata
-        t_index: SortedVectorMap<Time, BitSet>, // index from t -> [v] where v is the value of vs and edges
+        t_index: SVM<Time, BitSet>, // index from t -> [v] where v is the value of vs and edges
     },
     Large {
         vs: HashMap<V, AdjEdge>, // this is equiv to vs and edges
@@ -63,7 +62,7 @@ impl<V: Ord + Into<usize> + From<usize> + Copy + Hash, Time: Copy + Ord> TAdjSet
             TAdjSet::One(t0, v0, e0) => {
                 let vs = vec![v];
                 let edges = vec![e];
-                let t_index = SortedVectorMap::from_iter(vec![(t, BitSet::one(v.into()))]);
+                let t_index = SVM::from_iter(vec![(t, BitSet::one(v.into()))]);
 
                 let mut new_set = TAdjSet::Small { vs, edges, t_index };
                 new_set.push(*t0, *v0, *e0);

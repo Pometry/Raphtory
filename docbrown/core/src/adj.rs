@@ -2,7 +2,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::tadjset::{AdjEdge, TAdjSet};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub(crate) enum Adj {
     Empty(u64),
     List {
