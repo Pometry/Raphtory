@@ -2,7 +2,19 @@
 #[macro_use(quickcheck)]
 extern crate quickcheck_macros;
 
-use docbrown_core::{tpartition::TemporalGraphPart, Prop};
+// use mimalloc::MiMalloc;
+
+// #[global_allocator]
+// static GLOBAL: MiMalloc = MiMalloc;
+
+pub mod loaders;
+
+use chrono::{DateTime, Utc};
+use docbrown_core::{
+    tpartition::{TEdge, TemporalGraphPart},
+    Direction, Prop,
+};
+use itertools::chain;
 
 #[derive(Debug, Clone)]
 pub struct GraphDB {
@@ -43,15 +55,39 @@ impl GraphDB {
         if src_shard_id == dst_shard_id {
             self.shards[src_shard_id].add_edge(src, dst, t, props)
         } else {
+            // FIXME these are sort of connected, we need to hold both locks for
+            // the src partition and dst partition to add a remote edge between both
             self.shards[src_shard_id].add_edge_remote_out(src, dst, t, props);
             self.shards[dst_shard_id].add_edge_remote_into(src, dst, t, props);
         }
     }
 
-
-
     pub fn len(&self) -> usize {
         self.shards.iter().map(|shard| shard.len()).sum()
+    }
+
+    pub fn edges_len(&self) -> usize {
+        self.shards.iter().map(|shard| shard.edges_len()).sum()
+    }
+
+    pub fn contains(&self, v: u64) -> bool {
+        self.shards.iter().any(|shard| shard.contains(v))
+    }
+
+    pub fn neighbours_window(
+        &self,
+        t_start: u64,
+        t_end: u64,
+        v: u64,
+        d: Direction,
+    ) -> Box<dyn Iterator<Item = TEdge>> {
+        let iter = self
+            .shards
+            .clone() //TODO: this should be a cheap clone of every shard in the graph
+            .into_iter()
+            .flat_map(move |shard| shard.neighbours_window(t_start, t_end, v, d));
+
+        Box::new(iter)
     }
 
     #[inline(always)]
@@ -70,9 +106,25 @@ mod db_tests {
         collections::hash_map::DefaultHasher,
         hash::{Hash, Hasher},
         path::PathBuf,
+        sync::Arc,
     };
 
     use super::*;
+
+    #[test]
+    fn cloning_vec() {
+        let mut vs = vec![];
+        for i in 0..10 {
+            vs.push(Arc::new(i))
+        }
+        let should_be_10: usize = vs.iter().map(|arc| Arc::strong_count(arc)).sum();
+        assert_eq!(should_be_10, 10);
+
+        let vs2 = vs.clone();
+
+        let should_be_10: usize = vs2.iter().map(|arc| Arc::strong_count(arc)).sum();
+        assert_eq!(should_be_10, 20)
+    }
 
     #[quickcheck]
     fn add_vertex_to_graph_len_grows(vs: Vec<(u8, u8)>) {
@@ -107,7 +159,7 @@ mod db_tests {
             .iter()
             .collect();
 
-        let empty: Vec<(String, Prop)> = vec![];
+        let empty: Vec<(String, Prop)> = vec![]; // FIXME: add actual properties here
 
         if let Ok(mut reader) = csv::Reader::from_path(lotr_csv) {
             for rec_res in reader.records() {

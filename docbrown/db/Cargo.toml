@@ -15,6 +15,12 @@ replace_with = "0.1"
 itertools="0.10"
 csv = "1.1.6"
 flate2 = "1.0"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+rayon = "1"
+chrono = "0.4"
+# mimalloc = "0.1"
+# mimalloc = { version = "0.1", default-features = false }
 
 [dev-dependencies]
 quickcheck = "1"

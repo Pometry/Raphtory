@@ -1,6 +1,7 @@
 #[cfg(test)]
 #[macro_use(quickcheck)]
 extern crate quickcheck_macros;
+
 mod bitset;
 pub mod graph;
 pub mod lsm;

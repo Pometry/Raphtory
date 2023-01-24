@@ -1,3 +1,5 @@
+use serde::{Serialize, Deserialize};
+
 use crate::tadjset::{AdjEdge, TAdjSet};
 
 #[derive(Debug)]
