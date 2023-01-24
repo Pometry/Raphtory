@@ -3,6 +3,8 @@ members = [
 	"docbrown/core",
 	"docbrown/db"
 ]
+default-members = [	"docbrown/core", "docbrown/db"]
+
 
 [workspace.package]
 version = "0.1.0"
