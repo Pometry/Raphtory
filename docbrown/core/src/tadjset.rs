@@ -7,6 +7,7 @@ use std::{
 
 use itertools::Itertools;
 use replace_with::replace_with_or_abort;
+use serde::{Serialize, Deserialize};
 use sorted_vector_map::SortedVectorMap;
 
 use crate::bitset::BitSet;
@@ -18,6 +19,7 @@ const SMALL_SET: usize = 1024;
  * does u exist already
  * and if it does what is the edge metadata
  * and if the edge is remote or local
+ *
  *  */
 #[derive(Debug, Default)]
 pub(crate) enum TAdjSet<V: Ord + TryInto<usize>, Time: Copy + Ord> {
@@ -25,12 +27,12 @@ pub(crate) enum TAdjSet<V: Ord + TryInto<usize>, Time: Copy + Ord> {
     Empty,
     One(Time, V, AdjEdge),
     Small {
-        vs: Vec<V>,
-        edges: Vec<AdjEdge>,
-        t_index: SortedVectorMap<Time, BitSet>,
+        vs: Vec<V>, // the neighbours
+        edges: Vec<AdjEdge>, // edge metadata
+        t_index: SortedVectorMap<Time, BitSet>, // index from t -> [v] where v is the value of vs and edges
     },
     Large {
-        vs: HashMap<V, AdjEdge>,
+        vs: HashMap<V, AdjEdge>, // this is equiv to vs and edges
         t_index: BTreeMap<Time, BitSet>,
     },
 }
@@ -227,7 +229,7 @@ impl<V: Ord + Into<usize> + From<usize> + Copy + Hash, Time: Copy + Ord> TAdjSet
 pub(crate) struct Edge<V : Clone + PartialEq + Eq + PartialOrd + Ord>{v: V, edge_meta: AdjEdge, t: Option<u64>}
 
 #[repr(transparent)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct AdjEdge(pub(crate) i64);
 
 impl AdjEdge {

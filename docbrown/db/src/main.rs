@@ -4,18 +4,28 @@ use std::marker::PhantomData;
 use std::thread::JoinHandle;
 use std::{env, thread};
 
+use chrono::{DateTime, Utc};
 use csv::StringRecord;
-use docbrown_core::Prop;
 use docbrown_core::graph::TemporalGraph;
+use docbrown_core::Prop;
+use docbrown_db::loaders::csv::CsvLoader;
+use docbrown_db::GraphDB;
 use flume::{unbounded, Receiver, Sender};
 use itertools::Itertools;
+use regex::Regex;
 use replace_with::{replace_with, replace_with_or_abort, replace_with_or_abort_and_return};
+use serde::Deserialize;
 use std::time::Instant;
 
 use flate2; // 1.0
 use flate2::read::GzDecoder;
 use std::fs::File;
 use std::io::{prelude::*, BufReader, LineWriter};
+
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+};
 
 fn parse_record(rec: &StringRecord) -> Option<(u64, u64, u64, u64)> {
     let src = rec.get(3).and_then(|s| s.parse::<u64>().ok())?;
@@ -291,12 +301,7 @@ fn local_actor_single_threaded_temporal_graph(gs: &mut Vec<TGraphShard>, args: V
     }
 }
 
-fn main() {
-    // let handle = tokio::spawn(async move {
-    //     local_single_threaded_temporal_graph(args);
-    // });
-
-    // handle.await.unwrap();
+fn load_multiple_threads() {
     let args: Vec<String> = env::args().collect();
     let threads = 2;
     let mut shards = vec![];
@@ -309,5 +314,110 @@ fn main() {
 
     for g in shards {
         g.done();
+    }
+}
+
+#[derive(Deserialize, std::fmt::Debug)]
+pub struct Sent {
+    addr: String,
+    txn: String,
+    amount_btc: u64,
+    amount_usd: f64,
+    #[serde(with = "custom_date_format")]
+    time: DateTime<Utc>,
+}
+
+#[derive(Deserialize, std::fmt::Debug)]
+pub struct Received {
+    txn: String,
+    addr: String,
+    amount_btc: u64,
+    amount_usd: f64,
+    #[serde(with = "custom_date_format")]
+    time: DateTime<Utc>,
+}
+
+fn calculate_hash<T: Hash>(t: &T) -> u64 {
+    let mut s = DefaultHasher::new();
+    t.hash(&mut s);
+    s.finish()
+}
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    if let Some(input_folder) = args.get(1) {
+        let g = GraphDB::new(16);
+
+        let now = Instant::now();
+
+        let _ = CsvLoader::new(input_folder)
+            .with_filter(Regex::new(r".+(sent|received)").unwrap())
+            .load_into_graph(&g, |sent: Sent, g: &GraphDB| {
+                let src = calculate_hash(&sent.addr);
+                let dst = calculate_hash(&sent.txn);
+                let t = sent.time.timestamp();
+
+                g.add_edge(
+                    src,
+                    dst,
+                    t.try_into().unwrap(),
+                    &vec![("amount".to_string(), Prop::U64(sent.amount_btc))],
+                )
+            })
+            .expect("Failed to load graph");
+
+        println!(
+            "Loaded {} vertices, {} edges, took {} seconds",
+            g.len(),
+            g.edges_len(),
+            now.elapsed().as_secs()
+        );
+
+        let test_v = calculate_hash(&"139eeGkMGR6F9EuJQ3qYoXebfkBbNAsLtV:btc");
+
+        assert!(g.contains(test_v));
+
+        // g.neighbours_window(test_v)
+
+
+    }
+}
+
+mod custom_date_format {
+    use chrono::{DateTime, TimeZone, Utc};
+    use serde::{self, Deserialize, Deserializer, Serializer};
+
+    const FORMAT: &'static str = "%Y-%m-%d %H:%M:%S";
+
+    // The signature of a serialize_with function must follow the pattern:
+    //
+    //    fn serialize<S>(&T, S) -> Result<S::Ok, S::Error>
+    //    where
+    //        S: Serializer
+    //
+    // although it may also be generic over the input types T.
+    pub fn serialize<S>(date: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = format!("{}", date.format(FORMAT));
+        serializer.serialize_str(&s)
+    }
+
+    // The signature of a deserialize_with function must follow the pattern:
+    //
+    //    fn deserialize<'de, D>(D) -> Result<T, D::Error>
+    //    where
+    //        D: Deserializer<'de>
+    //
+    // although it may also be generic over the output types T.
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Utc.datetime_from_str(&s, FORMAT)
+            .map_err(serde::de::Error::custom)
     }
 }
