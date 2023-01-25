@@ -151,26 +151,24 @@ This stage of the algorithm is implemented by overriding the {s}`tabularise()` m
 override def tabularise(graph: GraphPerspective): Table = {
 ```
 
-#### select()
+#### select() and explode()
 
 Typically, one calls {s}`select()` on the input graph as the first step of {s}`tabularise()` (though one can do further
 graph post-processing at this stage).
-`select()` maps a vertex to a {scaladoc}`com.raphtory.api.analysis.table.Row` object containing the results for that vertex.
+`select()` maps a vertex to a {scaladoc}`com.raphtory.api.analysis.table.Row` object by keys and results for that vertex are obtained.
 
-As an alternative, one can also use the {s}`explodeSelect()` method. Like select, {s}`explodeSelect()` also takes a
-function which is executed once per vertex. However, this function should return a list of rows rather than a single row.
+As an alternative, one can also use the {s}`select()`, following with an {s}`explode()` method. The {s}`explode()` method takes one key from your select function that you would like to return a list of rows rather than a single row.
 This can be used to return multiple rows per vertex (e.g. for edge-level outputs
 [{s}`EdgeList`](com.raphtory.algorithms.generic.EdgeList)) or as a way of filtering results by returning an empty list.
-Like the {s}`step()` and {s}`iterate()` methods, the {s}`select()` and {s}`explodeSelect()`
-step can also optionally take the global {scaladoc}`com.raphtory.api.analysis.graphstate.GraphState` as an additional input.
-The final method for tabularising results is the {s}`globalSelect()` method which maps the global
+Like the {s}`step()` and {s}`iterate()` methods.
+If you would like to tabularise all states, you can set the keys of your states in the {s}`globalSelect()` method, which maps the global
 {scaladoc}`com.raphtory.api.analysis.graphstate.GraphState` to
 a single {scaladoc}`com.raphtory.api.analysis.table.Row`. For example, we could use this to return the maximum degree
 computed above:
 
 ```scala
 graph
-  .globalSelect(graphState => Row(graphState[Int]("maxDegree")))
+  .globalSelect("maxDegree"))
 ```
 
 In the connected components instance, we are interested in extracting the ID of the vertex and the final component ID
@@ -178,7 +176,8 @@ that it saved in its state:
 
 ```scala
 graph
-  .select(vertex => Row(vertex.ID(),vertex.getState[Long]("cclabel")))
+  .step(vertex => vertex.set_state("id",vertex.ID())).step("cclabel",vertex.getState[Long]("cclabel"))
+  .select("id","cclabel")
 ```
 Once we have the data in Row form we may perform a different set of transformations.
 
@@ -194,7 +193,7 @@ table
 ```
 This can be important if you only want to return elements that have received a certain label.
 For example, if we are looking for nodes reachable from a given entity in the graph, we can store a flag in their state
-and then filter on this once in Row form. Alternatively, we could have implemented this using {s}`explodeSelect()`.
+and then filter on this once in Row form. Alternatively, we could have implemented this using {s}`explode()`.
 
 #### explode()
 
@@ -204,10 +203,7 @@ into individual items:
 
 ```scala
 table
-  .explode(row => row.get(2).asInstanceOf[List[(Long, String)]].map(
-    expl => Row(row(0), expl._1, expl._2)
-  )
-)
+  .explode("list")
 ```
 
 ### Writing out results
@@ -262,13 +258,16 @@ lineno-start: 1
 ---
   override def tabularise(graph: GraphPerspective): Table = {
   graph
-    .select({
+    .step({
       vertex =>
         val inDegree = vertex.getInNeighbours().size
         val outDegree = vertex.getOutNeighbours().size
         val totalDegree = vertex.getAllNeighbours().size
-        Row(vertex.name(), inDegree, outDegree, totalDegree)
-    })
+        vertex.setState("name", vertex.name())
+        vertex.setState("inDegree", inDegree)
+        vertex.setState("outDegree", outDegree)
+        vertex.setState("totalDegree", totalDegree) 
+    }).select("name", "inDegree", "outDegree", "totalDegree")
 }
 ```
 In here, the vertex's in/out/total degree is extracted in a straightforward way, with line 8 mapping these to a
@@ -277,7 +276,7 @@ processing pipeline as downstream algorithms do not have access to the computed 
 outputting node degrees, which other algorithms already trivially have access to, this may make sense.
 Generally, however, it is better practise to implement such algorithms using a single {s}`step()` during graph
 processing which does not send any messages and sets the computed values as state on the vertices.
-For the degree algorithm above, we would instead have (this is how the build-in
+For the degree algorithm above, we would instead have (this is how the built-in
 [{s}`Degree`](com.raphtory.algorithms.generic.centrality.Degree) works):
 
 ```scala
@@ -291,10 +290,7 @@ override def apply(graph: GraphPerspective): graph.Graph = {
 }
 
 override def tabularise(graph: GraphPerspective): Table = {
-  graph.select({
-    vertex => Row(vertex.getPropertyOrElse("name", vertex.ID()), 
-      vertex.getState("inDegree"), vertex.getState("outDegree"), vertex.getState("totalDegree"))
-  })
+  graph.select("name", "inDegree", "outDegree", "totalDegree")
 }
 ```
 Implemented in this way, the algorithm can participate usefully in algorithm chaining discussed below.
@@ -335,10 +331,10 @@ override def apply(graph: GraphPerspective): graph.Graph = {
     
 override def tabularise(graph: GraphPerspective): Table = {
   graph
-    .select({
-      vertex =>
-        Row(vertex.name(), vertex.getState[Int]("triangles"))
+    .step({ vertex => 
+      vertex.setState("name",vertex.name())
     })
+    .select("name","triangles")
 }
 ```
 
