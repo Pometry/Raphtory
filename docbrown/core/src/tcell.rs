@@ -12,19 +12,19 @@ use crate::sorted_vec_map::SVM;
 pub(crate) enum TCell<A: Clone + Default + Debug + PartialEq> {
     #[default]
     TCellEmpty,
-    TCell1(u64, A),
-    TCellCap(SVM<u64, A>),
-    TCellN(BTreeMap<u64, A>),
+    TCell1(i64, A),
+    TCellCap(SVM<i64, A>),
+    TCellN(BTreeMap<i64, A>),
 }
 
 const BTREE_CUTOFF: usize = 128;
 
 impl<A: Clone + Default + Debug + PartialEq> TCell<A> {
-    pub fn new(t: u64, a: A) -> Self {
+    pub fn new(t: i64, a: A) -> Self {
         TCell::TCell1(t, a)
     }
 
-    pub fn set(&mut self, t: u64, a: A) {
+    pub fn set(&mut self, t: i64, a: A) {
         match self {
             TCell::TCellEmpty => {
                 *self = TCell::TCell1(t, a);
@@ -41,7 +41,7 @@ impl<A: Clone + Default + Debug + PartialEq> TCell<A> {
                 if m.len() < BTREE_CUTOFF {
                     m.insert(t, a.clone());
                 } else {
-                    let mut new_m: BTreeMap<u64, A> = BTreeMap::new();
+                    let mut new_m: BTreeMap<i64, A> = BTreeMap::new();
                     for (k, v) in m.iter() {
                         new_m.insert(*k, v.clone());
                     }
@@ -55,7 +55,7 @@ impl<A: Clone + Default + Debug + PartialEq> TCell<A> {
         }
     }
 
-    pub fn iter_window_t(&self, r: Range<u64>) -> Box<dyn Iterator<Item = (&u64, &A)> + '_> {
+    pub fn iter_window_t(&self, r: Range<i64>) -> Box<dyn Iterator<Item = (&i64, &A)> + '_> {
         match self {
             TCell::TCellEmpty => Box::new(std::iter::empty()),
             TCell::TCell1(t, a) => {
@@ -70,7 +70,7 @@ impl<A: Clone + Default + Debug + PartialEq> TCell<A> {
         }
     }
 
-    pub fn iter_window(&self, r: Range<u64>) -> Box<dyn Iterator<Item = &A> + '_> {
+    pub fn iter_window(&self, r: Range<i64>) -> Box<dyn Iterator<Item = &A> + '_> {
         match self {
             TCell::TCellEmpty => Box::new(std::iter::empty()),
             TCell::TCell1(t, a) => {
@@ -94,7 +94,7 @@ impl<A: Clone + Default + Debug + PartialEq> TCell<A> {
         }
     }
 
-    pub fn iter_t(&self) -> Box<dyn Iterator<Item = (&u64, &A)> + '_> {
+    pub fn iter_t(&self) -> Box<dyn Iterator<Item = (&i64, &A)> + '_> {
         match self {
             TCell::TCellEmpty => Box::new(std::iter::empty()),
             TCell::TCell1(t, a) => Box::new(std::iter::once((t, a))),
@@ -138,23 +138,23 @@ mod tcell_tests {
         tcell.set(3, String::from("faster"));
 
         let actual = tcell
-            .iter_window(std::u64::MIN..std::u64::MAX)
+            .iter_window(std::i64::MIN..std::i64::MAX)
             .collect::<Vec<_>>();
         assert_eq!(actual, vec!["faster", "hamster", "lobster"]); // ordering is important by time
 
-        let actual = tcell.iter_window(4..std::u64::MAX).collect::<Vec<_>>();
+        let actual = tcell.iter_window(4..std::i64::MAX).collect::<Vec<_>>();
         assert_eq!(actual, vec!["hamster", "lobster"]); // ordering is important by time
 
         let actual = tcell.iter_window(3..8).collect::<Vec<_>>();
         assert_eq!(actual, vec!["faster", "hamster"]); // ordering is important by time
 
-        let actual = tcell.iter_window(6..std::u64::MAX).collect::<Vec<_>>();
+        let actual = tcell.iter_window(6..std::i64::MAX).collect::<Vec<_>>();
         assert_eq!(actual, vec!["hamster", "lobster"]); // ordering is important by time
 
-        let actual = tcell.iter_window(8..std::u64::MAX).collect::<Vec<_>>();
+        let actual = tcell.iter_window(8..std::i64::MAX).collect::<Vec<_>>();
         assert_eq!(actual, vec!["lobster"]); // ordering is important by time
 
-        let actual: Vec<&String> = tcell.iter_window(17..std::u64::MAX).collect::<Vec<_>>();
+        let actual: Vec<&String> = tcell.iter_window(17..std::i64::MAX).collect::<Vec<_>>();
         let expected: Vec<&String> = vec![];
         assert_eq!(actual, expected); // ordering is important by time
     }

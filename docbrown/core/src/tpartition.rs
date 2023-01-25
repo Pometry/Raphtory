@@ -16,7 +16,7 @@ pub struct TEdge {
     src: u64,
     dst: u64,
     // edge_meta_id: AdjEdge,
-    t: Option<u64>,
+    t: Option<i64>,
     is_remote: bool,
 }
 
@@ -32,27 +32,27 @@ impl<'a> From<EdgeView<'a, TemporalGraph>> for TEdge {
 }
 
 impl TemporalGraphPart {
-    pub fn add_vertex(&self, t: u64, v: u64, props: &Vec<(String, Prop)>) {
+    pub fn add_vertex(&self, t: i64, v: u64, props: &Vec<(String, Prop)>) {
         self.write_shard(|tg| tg.add_vertex(v, t))
     }
 
-    pub fn add_edge(&self, t: u64, src: u64, dst: u64, props: &Vec<(String, Prop)>) {
+    pub fn add_edge(&self, t: i64, src: u64, dst: u64, props: &Vec<(String, Prop)>) {
         self.write_shard(|tg| tg.add_edge_props(src, dst, t, props))
     }
 
-    pub fn add_edge_remote_out(&self, t: u64, src: u64, dst: u64, props: &Vec<(String, Prop)>) {
+    pub fn add_edge_remote_out(&self, t: i64, src: u64, dst: u64, props: &Vec<(String, Prop)>) {
         self.write_shard(|tg| tg.add_edge_remote_out(src, dst, t, props))
     }
 
-    pub fn add_edge_remote_into(&self, t: u64, src: u64, dst: u64, props: &Vec<(String, Prop)>) {
+    pub fn add_edge_remote_into(&self, t: i64, src: u64, dst: u64, props: &Vec<(String, Prop)>) {
         self.write_shard(|tg| tg.add_edge_remote_into(src, dst, t, props))
     }
 
     // TODO: check if there is any value in returning Vec<usize> vs just usize, what is the cost of the generator
     pub fn vertices_window(
         &self,
-        t_start: u64,
-        t_end: u64,
+        t_start: i64,
+        t_end: i64,
         chunk_size: usize,
     ) -> impl Iterator<Item = Vec<usize>> {
         let tg = self.clone();
@@ -70,8 +70,8 @@ impl TemporalGraphPart {
 
     pub fn neighbours_window(
         &self,
-        t_start: u64,
-        t_end: u64,
+        t_start: i64,
+        t_end: i64,
         v: u64,
         d: Direction,
     ) -> impl Iterator<Item = TEdge> {
@@ -102,7 +102,7 @@ impl TemporalGraphPart {
         self.read_shard(|tg| tg.contains(v))
     }
 
-    pub fn contains_t(&self, t_start: u64, t_end: u64, v: u64) -> bool {
+    pub fn contains_t(&self, t_start: i64, t_end: i64, v: u64) -> bool {
         self.read_shard(|tg| tg.contains_vertex_w(t_start..t_end, v))
     }
 
@@ -133,11 +133,11 @@ mod temporal_graph_partition_test {
 
     // non overlaping time intervals
     #[derive(Clone, Debug)]
-    struct Intervals(Vec<(u64, u64)>);
+    struct Intervals(Vec<(i64, i64)>);
 
     impl Arbitrary for Intervals {
         fn arbitrary(g: &mut quickcheck::Gen) -> Self {
-            let mut some_nums = Vec::<u64>::arbitrary(g);
+            let mut some_nums = Vec::<i64>::arbitrary(g);
             some_nums.sort();
             let intervals = some_nums
                 .into_iter()

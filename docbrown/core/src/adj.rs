@@ -7,15 +7,15 @@ pub(crate) enum Adj {
     Empty(u64),
     List {
         logical: u64,
-        out: TAdjSet<usize, u64>,         // local
-        into: TAdjSet<usize, u64>,        // local
-        remote_out: TAdjSet<usize, u64>,  // remote
-        remote_into: TAdjSet<usize, u64>, // remote
+        out: TAdjSet<usize, i64>,         // local
+        into: TAdjSet<usize, i64>,        // local
+        remote_out: TAdjSet<usize, i64>,  // remote
+        remote_into: TAdjSet<usize, i64>, // remote
     },
 }
 
 impl Adj {
-    pub(crate) fn new_out(g_v_id: u64, v: usize, t: u64, e: AdjEdge) -> Self {
+    pub(crate) fn new_out(g_v_id: u64, v: usize, t: i64, e: AdjEdge) -> Self {
         if e.is_local() {
             Adj::List {
                 logical: g_v_id,
@@ -35,7 +35,7 @@ impl Adj {
         }
     }
 
-    pub(crate) fn new_into(g_v_id: u64, v: usize, t: u64, e: AdjEdge) -> Self {
+    pub(crate) fn new_into(g_v_id: u64, v: usize, t: i64, e: AdjEdge) -> Self {
         if e.is_local() {
             Adj::List {
                 logical: g_v_id,

@@ -27,10 +27,10 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-fn parse_record(rec: &StringRecord) -> Option<(u64, u64, u64, u64)> {
+fn parse_record(rec: &StringRecord) -> Option<(u64, u64, i64, u64)> {
     let src = rec.get(3).and_then(|s| s.parse::<u64>().ok())?;
     let dst = rec.get(4).and_then(|s| s.parse::<u64>().ok())?;
-    let t = rec.get(5).and_then(|s| s.parse::<u64>().ok())?;
+    let t = rec.get(5).and_then(|s| s.parse::<i64>().ok())?;
     let amount = rec.get(7).and_then(|s| s.parse::<u64>().ok())?;
     Some((src, dst, t, amount))
 }
@@ -86,10 +86,10 @@ fn parse_record(rec: &StringRecord) -> Option<(u64, u64, u64, u64)> {
 // }
 
 enum Msg {
-    AddVertex(u64, u64),
-    AddEdge(u64, u64, Vec<(String, Prop)>, u64),
-    AddOutEdge(u64, u64, Vec<(String, Prop)>, u64),
-    AddIntoEdge(u64, u64, Vec<(String, Prop)>, u64),
+    AddVertex(u64, i64),
+    AddEdge(u64, u64, Vec<(String, Prop)>, i64),
+    AddOutEdge(u64, u64, Vec<(String, Prop)>, i64),
+    AddIntoEdge(u64, u64, Vec<(String, Prop)>, i64),
     Len(futures::channel::oneshot::Sender<usize>),
     Batch(Vec<Msg>),
     Done,
@@ -208,22 +208,22 @@ impl TGraphShard {
     }
 
     #[inline(always)]
-    pub fn add_vertex(&mut self, v: u64, t: u64) {
+    pub fn add_vertex(&mut self, v: u64, t: i64) {
         self.send_or_buffer_msg(Msg::AddVertex(v, t), false)
     }
 
     #[inline(always)]
-    pub fn add_edge(&mut self, src: u64, dst: u64, props: Vec<(String, Prop)>, t: u64) {
+    pub fn add_edge(&mut self, src: u64, dst: u64, props: Vec<(String, Prop)>, t: i64) {
         self.send_or_buffer_msg(Msg::AddEdge(src, dst, props, t), false)
     }
 
     #[inline(always)]
-    pub fn add_remote_out_edge(&mut self, src: u64, dst: u64, props: Vec<(String, Prop)>, t: u64) {
+    pub fn add_remote_out_edge(&mut self, src: u64, dst: u64, props: Vec<(String, Prop)>, t: i64) {
         self.send_or_buffer_msg(Msg::AddOutEdge(src, dst, props, t), false)
     }
 
     #[inline(always)]
-    pub fn add_remote_into_edge(&mut self, src: u64, dst: u64, props: Vec<(String, Prop)>, t: u64) {
+    pub fn add_remote_into_edge(&mut self, src: u64, dst: u64, props: Vec<(String, Prop)>, t: i64) {
         self.send_or_buffer_msg(Msg::AddIntoEdge(src, dst, props, t), false)
     }
 
