@@ -1,5 +1,5 @@
 from pyraphtory.algorithm import PyAlgorithm
-from pyraphtory.graph import TemporalGraph, Row, KeyPair
+from pyraphtory.graph import TemporalGraph
 from pyraphtory.vertex import Vertex
 from pyraphtory.scala.implicits.numeric import Long
 
@@ -22,14 +22,15 @@ class LocalTriangleCount(PyAlgorithm):
         return graph.step(step1).step(step2)
 
     def tabularise(self, graph: TemporalGraph):
-        return graph.select(lambda v: Row(KeyPair("name",v.name()), KeyPair("triangleCount",v['triangleCount'])))
+        return graph.step(lambda v: v.set_state("name",v.name())).step(lambda v: v.set_state("triangleCount",v['triangleCount'])).select("name", "triangleCount")
 
 
 class GlobalTriangleCount(LocalTriangleCount):
     def __call__(self, graph: TemporalGraph) -> TemporalGraph:
         return (super().__call__(graph)
                 .set_global_state(lambda s: s.new_adder[Long](name="triangles", initial_value=0, retain_state=True))
-                .step(lambda v, s: s["triangles"].add(v["triangleCount"])))
+                .step(lambda v, s: s["triangles"].add(v["triangleCount"]))
+                .set_global_state(lambda s: s.new_constant("triangleCountResult", s["triangles"].value() // 3)))
 
     def tabularise(self, graph: TemporalGraph):
-        return graph.global_select(lambda s: Row(KeyPair("triangles",s["triangles"].value() // 3)))
+        return graph.global_select("triangleCountResult")
