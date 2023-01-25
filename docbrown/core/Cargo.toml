@@ -19,6 +19,7 @@ futures = "0.3"
 genawaiter = "0.99"
 parking_lot = "0.12"
 serde = { version = "1", features = ["derive"] }
+bincode = "1"
 
 # crossbeam = "0.8"
 # crossbeam-utils = "0.8"
@@ -29,7 +30,6 @@ criterion = "0.4"
 quickcheck = "1"
 quickcheck_macros = "1"
 csv = "1"
-bincode = "1"
 
 [[bench]]
 name = "tgraph_benchmarks"

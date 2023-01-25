@@ -1,6 +1,7 @@
 #![allow(unused_imports)]
 use std::collections::HashMap;
 use std::marker::PhantomData;
+use std::path::{Path, PathBuf};
 use std::thread::JoinHandle;
 use std::{env, thread};
 
@@ -347,40 +348,59 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     if let Some(input_folder) = args.get(1) {
-        let g = GraphDB::new(16);
+        // if input_folder/graphdb.bincode exists, use bincode to load the graph
+        // otherwise, load the graph from the csv files
 
-        let now = Instant::now();
+        let path: PathBuf = [input_folder, "graphdb.bincode"].iter().collect();
+        if path.exists() {
+            let now = Instant::now();
+            let g = GraphDB::load_from_file(path.as_path()).expect("Failed to load graph");
 
-        let _ = CsvLoader::new(input_folder)
-            .with_filter(Regex::new(r".+(sent|received)").unwrap())
-            .load_into_graph(&g, |sent: Sent, g: &GraphDB| {
-                let src = calculate_hash(&sent.addr);
-                let dst = calculate_hash(&sent.txn);
-                let t = sent.time.timestamp();
+            println!(
+                "Loaded graph from path {} with {} vertices, {} edges, took {} seconds",
+                path.to_str().unwrap(),
+                g.len(),
+                g.edges_len(),
+                now.elapsed().as_secs()
+            );
+        } else {
+            let g = GraphDB::new(16);
 
-                g.add_edge(
-                    src,
-                    dst,
-                    t.try_into().unwrap(),
-                    &vec![("amount".to_string(), Prop::U64(sent.amount_btc))],
-                )
-            })
-            .expect("Failed to load graph");
+            let now = Instant::now();
 
-        println!(
-            "Loaded {} vertices, {} edges, took {} seconds",
-            g.len(),
-            g.edges_len(),
-            now.elapsed().as_secs()
-        );
+            let _ = CsvLoader::new(input_folder)
+                .with_filter(Regex::new(r".+(sent|received)").unwrap())
+                .load_into_graph(&g, |sent: Sent, g: &GraphDB| {
+                    let src = calculate_hash(&sent.addr);
+                    let dst = calculate_hash(&sent.txn);
+                    let t = sent.time.timestamp();
 
-        let test_v = calculate_hash(&"139eeGkMGR6F9EuJQ3qYoXebfkBbNAsLtV:btc");
+                    g.add_edge(
+                        src,
+                        dst,
+                        t.try_into().unwrap(),
+                        &vec![("amount".to_string(), Prop::U64(sent.amount_btc))],
+                    )
+                })
+                .expect("Failed to load graph");
 
-        assert!(g.contains(test_v));
+            println!(
+                "Loaded {} vertices, {} edges, took {} seconds",
+                g.len(),
+                g.edges_len(),
+                now.elapsed().as_secs()
+            );
 
-        // g.neighbours_window(test_v)
+            g.save_to_file(path).expect("Failed to save graph");
 
+            let test_v = calculate_hash(&"139eeGkMGR6F9EuJQ3qYoXebfkBbNAsLtV:btc");
 
+            assert!(g.contains(test_v));
+
+            // g.neighbours_window(t_start, t_end, v, d)
+
+            // g.neighbours_window(test_v)
+        }
     }
 }
 
