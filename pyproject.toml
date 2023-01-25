@@ -41,6 +41,10 @@ documentation = "https://docs.raphtory.com/"
 
 [project.scripts]
 raphtory-standalone = "pyraphtory.cli:standalone"
+raphtory-clustermanager = "pyraphtory.cli:clustermanager"
+raphtory-ingestion = "pyraphtory.cli:ingestion"
+raphtory-partition = "pyraphtory.cli:partition"
+raphtory-query = "pyraphtory.cli:query"
 raphtory-classpath = "pyraphtory.cli:classpath"
 raphtory-version = "pyraphtory.cli:version"
 
