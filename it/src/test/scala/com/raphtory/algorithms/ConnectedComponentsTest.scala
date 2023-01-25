@@ -1,7 +1,6 @@
 package com.raphtory.algorithms
 
-import com.raphtory.BaseCorrectnessTest
-import com.raphtory.TestQuery
+import com.raphtory.{BaseCorrectnessTest, TestQuery}
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.input.Source
 import com.raphtory.sources.CSVEdgeListSource

@@ -1,9 +1,9 @@
 package com.raphtory.algorithms.temporal.motif
 
+import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.analysis.algorithm.GenericReduction
+import com.raphtory.api.analysis.algorithm.NodeListOutput
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
-import com.raphtory.api.analysis.table.Table
 
 /**
   * {s}`MotifAlpha()`
@@ -34,7 +34,7 @@ import com.raphtory.api.analysis.table.Table
   *  | ----------------- | ----------------------- |
   *  | {s}`name: String` | {s}`motifAlpha: Int`    |
   */
-object MotifAlpha extends GenericReduction {
+object MotifAlpha extends NodeListOutput(Seq("motifAlpha")) with GenericReduction {
 
   override def apply(graph: GraphPerspective): graph.ReducedGraph =
     graph.reducedView.step { vertex =>
@@ -53,6 +53,4 @@ object MotifAlpha extends GenericReduction {
       else
         vertex.setState("motifAlpha", 0)
     }
-
-  override def tabularise(graph: ReducedGraphPerspective): Table = graph.select("name", "motifAlpha")
 }

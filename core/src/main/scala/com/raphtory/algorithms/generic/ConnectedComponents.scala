@@ -1,9 +1,6 @@
 package com.raphtory.algorithms.generic
 
-import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Table
-
 import scala.math.Ordering.Implicits._
 
 /**
@@ -43,7 +40,7 @@ import scala.math.Ordering.Implicits._
   *
   *  4. The algorithm iterates over steps 2 and 3 until no nodes change their label within an iteration.
   */
-object ConnectedComponents extends Generic {
+object ConnectedComponents extends NodeList(Seq("cclabel")) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -59,6 +56,8 @@ object ConnectedComponents extends Generic {
                 if (label < vertex.getState[vertex.IDType]("cclabel")) {
                   vertex.setState("cclabel", label)
                   vertex.messageAllNeighbours(label)
+                  // TODO REMOVE LINES BELOW, ITS DEBUG
+                  val name = vertex.name()
                 }
                 else
                   vertex.voteToHalt()
@@ -66,7 +65,5 @@ object ConnectedComponents extends Generic {
               iterations = 100,
               executeMessagedOnly = true
       )
-
-  override def tabularise(graph: GraphPerspective): Table = graph.select("name", "cclabel")
 
 }

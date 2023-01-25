@@ -50,7 +50,7 @@ class Descendants(
     delta: Long = Long.MaxValue,
     directed: Boolean = true,
     strict: Boolean = true
-) extends Generic {
+) extends NodeList(Seq("descendant"), Map("descendant" -> false)) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -84,11 +84,6 @@ class Descendants(
               executeMessagedOnly = true,
               iterations = 100
       )
-
-  override def tabularise(graph: GraphPerspective): Table =
-    graph
-      .step(vertex => vertex.getOrSetState("descendant", false))
-      .select("name", "descendant")
 }
 
 object Descendants {

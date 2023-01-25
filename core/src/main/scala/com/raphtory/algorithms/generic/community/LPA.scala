@@ -1,14 +1,14 @@
 package com.raphtory.algorithms.generic.community
 
+import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.algorithms.generic.community.LPA.MinTieBreak
 import com.raphtory.algorithms.generic.community.LPA.TieBreaker
 import com.raphtory.algorithms.generic.community.LPA.lpa
-import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.internals.communication.SchemaProviderInstances._
-
 import scala.util.Random
 
 /**
@@ -67,7 +67,7 @@ class LPA[T: Numeric](
     stickinessProb: Float = 0.2f,
     maxIter: Int = 50,
     seed: Long = -1
-) extends Generic {
+) extends NodeList(Seq("community")) {
 
   private val rnd: Random = if (seed == -1) new scala.util.Random else new scala.util.Random(seed)
 
@@ -78,14 +78,9 @@ class LPA[T: Numeric](
       .step { vertex =>
         val lab = rnd.nextLong()
         vertex.setState("community", lab)
-        vertex.setState("name", name)
         vertex.messageAllNeighbours((vertex.ID, lab))
       }
       .iterate(vertex => lpa(vertex, weight, tieBreaker, SP, rnd), maxIter, false)
-
-  override def tabularise(graph: GraphPerspective): Table =
-    graph.select("name", "community")
-  // TODO AGGREGATION STATS - See old code in old dir
 }
 
 object LPA {

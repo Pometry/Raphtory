@@ -1,8 +1,7 @@
 package com.raphtory.algorithms.generic.centrality
 
-import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Table
 
 import scala.math.Numeric.Implicits._
 
@@ -43,7 +42,8 @@ import scala.math.Numeric.Implicits._
   * [](com.raphtory.algorithms.generic.centrality.Degree)
   * ```
   */
-class WeightedDegree[T: Numeric](weightProperty: String = "weight") extends Generic {
+class WeightedDegree[T: Numeric](weightProperty: String = "weight")
+        extends NodeList(Seq("inStrength", "outStrength", "totStrength")) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph.step { vertex =>
@@ -54,9 +54,6 @@ class WeightedDegree[T: Numeric](weightProperty: String = "weight") extends Gene
       val totWeight: T = inWeight + outWeight
       vertex.setState("totStrength", vertex.weightedTotalDegree(weightProperty))
     }
-
-  override def tabularise(graph: GraphPerspective): Table =
-    graph.select("name", "inStrength", "outStrength", "totStrength")
 }
 
 object WeightedDegree {

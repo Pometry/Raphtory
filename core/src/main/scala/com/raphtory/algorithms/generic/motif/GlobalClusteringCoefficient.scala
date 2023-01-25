@@ -39,6 +39,9 @@ object GlobalClusteringCoefficient extends Generic {
                                      else 0.0)
         state("wedges") += k * (k - 1) / 2
       }
+
+  override def tabularise(graph: GraphPerspective): Table =
+    graph
       .setGlobalState { state =>
         val avgCluster    =
           if (state.nodeCount > 0) state[Double, Double]("totalClustering").value / state.nodeCount else 0.0
@@ -48,8 +51,6 @@ object GlobalClusteringCoefficient extends Generic {
         state.newConstant[Double]("averageCluster", avgCluster)
         state.newConstant[Any]("globalCluster", globalCluster)
       }
-
-  override def tabularise(graph: GraphPerspective): Table =
-    graph.globalSelect("averageCluster", "globalCluster")
+      .globalSelect("averageCluster", "globalCluster")
 
 }

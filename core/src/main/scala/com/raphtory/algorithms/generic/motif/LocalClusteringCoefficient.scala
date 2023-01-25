@@ -1,8 +1,7 @@
 package com.raphtory.algorithms.generic.motif
 
-import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Table
 
 /**
   * {s}`LocalClusteringCoefficient()`
@@ -28,7 +27,7 @@ import com.raphtory.api.analysis.table.Table
   * ``
   */
 
-object LocalClusteringCoefficient extends Generic {
+object LocalClusteringCoefficient extends NodeList(Seq("clustering")) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     LocalTriangleCount(graph)
@@ -37,8 +36,5 @@ object LocalClusteringCoefficient extends Generic {
         val k  = vertex.degree
         vertex.setState("clustering", if (k > 1) 2.0 * tC.toDouble / (k * (k - 1)) else 0.0)
       }
-
-  override def tabularise(graph: GraphPerspective): Table =
-    graph.select("name", "clustering")
 
 }

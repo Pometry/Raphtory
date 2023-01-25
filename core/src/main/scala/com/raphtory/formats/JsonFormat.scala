@@ -94,7 +94,6 @@ case class JsonFormat(level: JsonFormat.Level = JsonFormat.ROW) extends Format {
 
       private var currentPerspective: Perspective = _
 
-      //TODO: add implementation for header
       override def setupPerspective(perspective: Perspective, header: List[String]): Unit =
         currentPerspective = perspective
 

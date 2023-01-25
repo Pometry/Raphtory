@@ -1,9 +1,8 @@
 package com.raphtory.algorithms.filters
 
-import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.analysis.graphstate.Histogram
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Table
 import com.raphtory.utils.Bounded
 
 import scala.language.implicitConversions
@@ -53,7 +52,7 @@ class VertexQuantileFilter[T: Numeric: Bounded: ClassTag](
     lowerExclusive: Boolean = false,
     upperExclusive: Boolean = false,
     noBins: Int = 1000
-) extends Generic {
+) extends NodeList() {
 
   override def apply(graph: GraphPerspective): graph.Graph = {
     // Check inputs are sound
@@ -112,8 +111,6 @@ class VertexQuantileFilter[T: Numeric: Bounded: ClassTag](
         lowerExclusiveTest && upperExclusiveTest
       }
   }
-
-  override def tabularise(graph: GraphPerspective): Table = graph.select("name")
 }
 
 object VertexQuantileFilter {

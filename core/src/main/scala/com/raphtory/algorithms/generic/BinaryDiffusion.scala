@@ -1,8 +1,6 @@
 package com.raphtory.algorithms.generic
 
-import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 
 import scala.util.Random
@@ -10,7 +8,7 @@ import scala.util.Random
 class BinaryDiffusion(
     infectedNodes: Set[String] = Set[String](),
     seed: Long = -1
-) extends Generic {
+) extends NodeList(Seq("infected")) {
 
   private val infectedStatus     = "infected"
   private val randomiser: Random = if (seed != -1) new Random(seed) else new Random()
@@ -48,8 +46,6 @@ class BinaryDiffusion(
               iterations = 100,
               executeMessagedOnly = true
       )
-
-  override def tabularise(graph: GraphPerspective): Table = graph.select("name", infectedStatus)
 }
 
 object BinaryDiffusion {

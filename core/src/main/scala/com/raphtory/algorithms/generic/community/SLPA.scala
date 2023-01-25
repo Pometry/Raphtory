@@ -68,7 +68,6 @@ class SLPA(iterNumber: Int = 50, speakerRule: Rule, listenerRule: Rule) extends 
           import vertex._
           val memory  = mutable.Queue(vertex.ID)
           vertex.setState("memory", memory)
-          vertex.setState("name", vertex.name())
           val message = speakerRule.chooseLabel(memory)
           vertex.messageAllNeighbours(message)
       }
@@ -88,7 +87,7 @@ class SLPA(iterNumber: Int = 50, speakerRule: Rule, listenerRule: Rule) extends 
       )
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.select("name", "memory")
+    graph.step(vertex => vertex.setState("name", vertex.name())).select("name", "memory")
 }
 
 object SLPA {

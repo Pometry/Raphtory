@@ -5,8 +5,7 @@ import com.raphtory.TestQuery
 import com.raphtory.algorithms.generic.KCore
 import com.raphtory.api.input.Source
 import com.raphtory.sources.CSVEdgeListSource
-import com.raphtory.spouts.ResourceOrFileSpout
-import com.raphtory.spouts.ResourceSpout
+import com.raphtory.spouts.{ResourceOrFileSpout, ResourceSpout}
 
 class KCoreTest extends BaseCorrectnessTest {
   test("Test with K-Core = 3") {

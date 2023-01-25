@@ -1,9 +1,7 @@
 package com.raphtory.algorithms.filters
 
 import com.raphtory.algorithms.generic.NodeList
-import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Table
 
 import scala.util.Random
 
@@ -20,13 +18,10 @@ import scala.util.Random
   * ```
   */
 
-class UniformVertexSample(p: Float) extends Generic {
+class UniformVertexSample(p: Float) extends NodeList() {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph.vertexFilter(_ => Random.nextFloat() < p)
-
-  override def tabularise(graph: GraphPerspective): Table =
-    graph.select("name")
 
 }
 

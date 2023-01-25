@@ -1,8 +1,7 @@
 package com.raphtory.algorithms.generic.centrality
 
-import com.raphtory.api.analysis.algorithm.Generic
+import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Table
 import com.raphtory.internals.communication.SchemaProviderInstances._
 
 /**
@@ -42,7 +41,8 @@ import com.raphtory.internals.communication.SchemaProviderInstances._
   * [](com.raphtory.algorithms.generic.centrality.WeightedPageRank
   * ```
   */
-class PageRank(dampingFactor: Double = 0.85, iterateSteps: Int = 100, tol: Double = 0.00001) extends Generic {
+class PageRank(dampingFactor: Double = 0.85, iterateSteps: Int = 100, tol: Double = 0.00001)
+        extends NodeList(Seq("prlabel")) {
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
@@ -77,8 +77,6 @@ class PageRank(dampingFactor: Double = 0.85, iterateSteps: Int = 100, tol: Doubl
               iterateSteps,
               false
       ) // make iterate act on all vertices, not just messaged ones
-
-  override def tabularise(graph: GraphPerspective): Table = graph.select("name", "prlabel")
 }
 
 object PageRank {
