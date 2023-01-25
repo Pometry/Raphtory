@@ -43,22 +43,22 @@ impl GraphDB {
         }
     }
 
-    pub fn add_vertex(&self, v: u64, t: u64, props: Vec<(String, Prop)>) {
+    pub fn add_vertex(&self, v: u64, t: i64, props: Vec<(String, Prop)>) {
         let shard_id = self.shard_from_global_vid(v);
         self.shards[shard_id].add_vertex(t, v, &props);
     }
 
-    pub fn add_edge(&self, src: u64, dst: u64, t: u64, props: &Vec<(String, Prop)>) {
+    pub fn add_edge(&self, src: u64, dst: u64, t: i64, props: &Vec<(String, Prop)>) {
         let src_shard_id = self.shard_from_global_vid(src);
         let dst_shard_id = self.shard_from_global_vid(dst);
 
         if src_shard_id == dst_shard_id {
-            self.shards[src_shard_id].add_edge(src, dst, t, props)
+            self.shards[src_shard_id].add_edge(t, src, dst, props)
         } else {
             // FIXME these are sort of connected, we need to hold both locks for
             // the src partition and dst partition to add a remote edge between both
-            self.shards[src_shard_id].add_edge_remote_out(src, dst, t, props);
-            self.shards[dst_shard_id].add_edge_remote_into(src, dst, t, props);
+            self.shards[src_shard_id].add_edge_remote_out(t, src, dst, props);
+            self.shards[dst_shard_id].add_edge_remote_into(t, src, dst, props);
         }
     }
 
@@ -76,8 +76,8 @@ impl GraphDB {
 
     pub fn neighbours_window(
         &self,
-        t_start: u64,
-        t_end: u64,
+        t_start: i64,
+        t_end: i64,
         v: u64,
         d: Direction,
     ) -> Box<dyn Iterator<Item = TEdge>> {
@@ -148,10 +148,10 @@ mod db_tests {
             s.finish()
         }
 
-        fn parse_record(rec: &StringRecord) -> Option<(String, String, u64)> {
+        fn parse_record(rec: &StringRecord) -> Option<(String, String, i64)> {
             let src = rec.get(0).and_then(|s| s.parse::<String>().ok())?;
             let dst = rec.get(1).and_then(|s| s.parse::<String>().ok())?;
-            let t = rec.get(2).and_then(|s| s.parse::<u64>().ok())?;
+            let t = rec.get(2).and_then(|s| s.parse::<i64>().ok())?;
             Some((src, dst, t))
         }
 
