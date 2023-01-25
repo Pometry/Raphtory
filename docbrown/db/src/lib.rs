@@ -9,14 +9,21 @@ extern crate quickcheck_macros;
 
 pub mod loaders;
 
+use std::{
+    fs::File,
+    path::{Path, PathBuf},
+};
+
 use chrono::{DateTime, Utc};
 use docbrown_core::{
     tpartition::{TEdge, TemporalGraphPart},
     Direction, Prop,
 };
 use itertools::chain;
+use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GraphDB {
     nr_shards: usize,
     shards: Vec<TemporalGraphPart>,
@@ -41,6 +48,65 @@ impl GraphDB {
             nr_shards,
             shards: v,
         }
+    }
+
+    // load GraphDB from file using bincode
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
+        // use BufReader for better performance
+
+        println!("loading from {:?}", path.as_ref());
+        let mut p = PathBuf::from(path.as_ref());
+        p.push("graphdb_nr_shards");
+
+        let f = std::fs::File::open(p).unwrap();
+        let mut reader = std::io::BufReader::new(f);
+        let nr_shards = bincode::deserialize_from(&mut reader)?;
+
+        let mut shard_paths = vec![];
+        for i in 0..nr_shards {
+            let mut p = PathBuf::from(path.as_ref());
+            p.push(format!("shard_{}", i));
+            shard_paths.push((i, p));
+        }
+        let mut shards = shard_paths
+            .par_iter()
+            .map(|(i, path)| {
+                let shard = TemporalGraphPart::load_from_file(path)?;
+                Ok((*i, shard))
+            })
+            .collect::<Result<Vec<_>, Box<bincode::ErrorKind>>>()?;
+
+        shards.sort_by_cached_key(|(i, _)| *i);
+
+        let shards = shards.into_iter().map(|(_, shard)| shard).collect();
+
+        Ok(GraphDB { nr_shards, shards })
+    }
+
+    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<bincode::ErrorKind>> {
+        // write each shard to a different file
+
+        // crate directory path if it doesn't exist
+        std::fs::create_dir_all(path.as_ref())?;
+
+        let mut shard_paths = vec![];
+        for i in 0..self.nr_shards {
+            let mut p = PathBuf::from(path.as_ref());
+            p.push(format!("shard_{}", i));
+            println!("saving shard {} to {:?}", i, p);
+            shard_paths.push((i, p));
+        }
+        shard_paths.par_iter().try_for_each(|(i, path)| {
+            self.shards[*i].save_to_file(path)
+        })?;
+
+        let mut p = PathBuf::from(path.as_ref());
+        p.push("graphdb_nr_shards");
+
+        let f = std::fs::File::create(p)?;
+        let writer = std::io::BufWriter::new(f);
+        bincode::serialize_into(writer, &self.nr_shards)?;
+        Ok(())
     }
 
     pub fn add_vertex(&self, v: u64, t: i64, props: Vec<(String, Prop)>) {
@@ -80,12 +146,10 @@ impl GraphDB {
         t_end: i64,
         v: u64,
         d: Direction,
-    ) -> Box<dyn Iterator<Item = TEdge>> {
-        let iter = self
-            .shards
-            .clone() //TODO: this should be a cheap clone of every shard in the graph
-            .into_iter()
-            .flat_map(move |shard| shard.neighbours_window(t_start, t_end, v, d));
+    ) -> Box<dyn Iterator<Item=TEdge>> {
+        let shard_id = self.shard_from_global_vid(v);
+
+        let iter = self.shards[shard_id].neighbours_window(t_start, t_end, v, d);
 
         Box::new(iter)
     }
