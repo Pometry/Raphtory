@@ -8,7 +8,7 @@ keywords = ["graph", "temporal-graph", "temporal"]
 
 [dependencies]
 docbrown-core = {path = "../core"}
-parking_lot = "0.12"
+parking_lot = { version = "0.12" , features = ["serde"] }
 flume = "0.10"
 futures = {version = "0.3", features = ["thread-pool"] }
 replace_with = "0.1"
@@ -16,9 +16,10 @@ itertools="0.10"
 csv = "1.1.6"
 flate2 = "1.0"
 regex = "1"
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive", "rc"] }
 rayon = "1"
 chrono = "0.4"
+bincode = "1"
 # mimalloc = "0.1"
 # mimalloc = { version = "0.1", default-features = false }
 

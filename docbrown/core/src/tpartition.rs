@@ -1,4 +1,6 @@
 use parking_lot::RwLock;
+use serde::{Serialize, Deserialize};
+use std::path::Path;
 use std::sync::Arc;
 
 use genawaiter::rc::gen;
@@ -8,7 +10,7 @@ use crate::graph::{EdgeView, TemporalGraph};
 use crate::{Direction, Prop};
 use itertools::*;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct TemporalGraphPart(Arc<RwLock<TemporalGraph>>);
 
@@ -104,6 +106,22 @@ impl TemporalGraphPart {
 
     pub fn contains_t(&self, t_start: i64, t_end: i64, v: u64) -> bool {
         self.read_shard(|tg| tg.contains_vertex_w(t_start..t_end, v))
+    }
+
+
+    // load GraphDB from file using bincode
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
+    // use BufReader for better performance
+        let f = std::fs::File::open(path).unwrap();
+        let mut reader = std::io::BufReader::new(f);
+        bincode::deserialize_from(&mut reader)
+    }
+
+    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<bincode::ErrorKind>> {
+        // use BufWriter for better performance
+        let f = std::fs::File::create(path).unwrap();
+        let mut writer = std::io::BufWriter::new(f);
+        bincode::serialize_into(&mut writer, self)
     }
 
     #[inline(always)]
