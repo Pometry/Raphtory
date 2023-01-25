@@ -19,10 +19,7 @@ private[raphtory] trait LensInterface {
 
   def executeSelect(values: Seq[String])(onComplete: () => Unit): Unit
 
-  def executeSelect(
-      f: GraphState => Row,
-      graphState: GraphState
-  )(onComplete: () => Unit): Unit // TODO stop accepting a lambda here
+  def executeSelect(values: Seq[String], graphState: GraphState)(onComplete: () => Unit): Unit
   def filteredTable(f: Row => Boolean)(onComplete: () => Unit): Unit
   def explodeColumns(columns: Seq[String])(onComplete: () => Unit): Unit
   def renameColumns(columns: Seq[(String, String)])(onComplete: () => Unit): Unit

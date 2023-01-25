@@ -20,8 +20,17 @@ private[api] class TableImplementation(val query: Query, private[raphtory] val q
   override def explode(columns: String*): Table =
     addFunction(ExplodeColumns(columns))
 
-  override def renameColumns(columns: (String, String)*): Table =
-    addFunction(RenameColumn(columns))
+  override def renameColumns(columns: (String, String)*): Table = {
+    val newNames      = columns.toMap
+    val renamedHeader = query.header.collect {
+      case key if newNames contains key => newNames(key)
+      case key                          => key
+    }
+    new TableImplementation(
+            query.copy(operations = query.operations :+ RenameColumn(columns), header = renamedHeader),
+            querySender
+    )
+  }
 
   override def writeTo(sink: Sink, jobName: String): QueryProgressTracker =
     submitQueryWithSink(sink, jobName, jobID => querySender.createQueryProgressTracker(jobID))

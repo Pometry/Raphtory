@@ -8,7 +8,6 @@ import com.google.protobuf.empty.Empty
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview._
-import com.raphtory.api.analysis.table.Explode
 import com.raphtory.api.analysis.table.ExplodeColumns
 import com.raphtory.api.analysis.table.RenameColumn
 import com.raphtory.api.analysis.table.Row
@@ -161,7 +160,7 @@ class QueryExecutor[F[_]](
     def processNonMessaging =
       F.blocking(
               function match {
-                case GlobalSelect(f) => if (partitionID == 0) lens.executeSelect(f, graphState)(cb) else cb()
+                case GlobalSelect(values) => if (partitionID == 0) lens.executeSelect(values, graphState)(cb) else cb()
               }
       )
 

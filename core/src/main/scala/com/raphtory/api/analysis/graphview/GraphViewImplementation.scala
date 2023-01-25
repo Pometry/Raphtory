@@ -63,11 +63,10 @@ final private[raphtory] case class IterateWithGraph[V <: Vertex](
     executeMessagedOnly: Boolean
 ) extends GlobalGraphFunction
 
-final private[raphtory] case class Select(values: String*) extends TabularisingGraphFunction
+final private[raphtory] case class Select(values: Seq[String]) extends TabularisingGraphFunction
 
-final private[raphtory] case class GlobalSelect(
-    f: GraphState => Row
-) extends TabularisingGraphFunction
+final private[raphtory] case class GlobalSelect(values: Seq[String])
+        extends TabularisingGraphFunction
         with GlobalGraphFunction
 
 final private[raphtory] case object InferHeader      extends GraphFunction
@@ -178,16 +177,14 @@ private[api] trait GraphViewImplementation[
   ): G = addFunction(IterateWithGraph(f, iterations, executeMessagedOnly))
 
   override def selectAll(): Table =
-    addSelect(InferHeader +: Select() +: Nil, header = Seq())
+    addSelect(InferHeader +: Select(Seq()) +: Nil, header = Seq())
   // the header of the query being an empty list means: 'get everything'
 
   override def select(values: String*): Table =
-    addSelect(Seq(Select(values: _*)), values)
+    addSelect(Seq(Select(values)), values)
 
-  override def globalSelect(values: String*): Table = {
-    def f(state: GraphState): Row = Row(values.map(key => (key, state.apply[Any, Any](key).value)): _*)
-    addSelect(Seq(GlobalSelect(f)), values)
-  }
+  override def globalSelect(values: String*): Table =
+    addSelect(Seq(GlobalSelect(values)), values)
 
   override def clearMessages(): G =
     addFunction(ClearChain())

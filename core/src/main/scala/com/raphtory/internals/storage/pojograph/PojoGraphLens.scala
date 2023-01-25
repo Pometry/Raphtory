@@ -125,12 +125,9 @@ final private[raphtory] case class PojoGraphLens(
     onComplete()
   }
 
-  override def executeSelect(
-      f: GraphState => Row,
-      graphState: GraphState
-  )(onComplete: () => Unit): Unit = {
+  override def executeSelect(values: Seq[String], graphState: GraphState)(onComplete: () => Unit): Unit = {
     if (partitionID == 0)
-      dataTable = Iterator.fill(1)(f(graphState))
+      dataTable = Iterator(Row(values.map(key => (key, graphState.apply[Any, Any](key).value)): _*))
     onComplete()
   }
 

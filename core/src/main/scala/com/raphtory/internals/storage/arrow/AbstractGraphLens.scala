@@ -128,9 +128,9 @@ abstract class AbstractGraphLens(
     onComplete()
   }
 
-  override def executeSelect(f: GraphState => Row, graphState: GraphState)(onComplete: () => Unit): Unit = {
+  override def executeSelect(values: Seq[String], graphState: GraphState)(onComplete: () => Unit): Unit = {
     if (partitionID == 0)
-      dataTable = View.fromIteratorProvider(() => Iterator.fill(1)(f(graphState)))
+      dataTable = View(Row(values.map(key => (key, graphState.apply[Any, Any](key).value)): _*))
     onComplete()
   }
 
