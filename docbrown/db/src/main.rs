@@ -8,7 +8,7 @@ use std::{env, thread};
 use chrono::{DateTime, Utc};
 use csv::StringRecord;
 use docbrown_core::graph::TemporalGraph;
-use docbrown_core::Prop;
+use docbrown_core::{Direction, Prop};
 use docbrown_db::loaders::csv::CsvLoader;
 use docbrown_db::GraphDB;
 use flume::{unbounded, Receiver, Sender};
@@ -351,8 +351,10 @@ fn main() {
         // if input_folder/graphdb.bincode exists, use bincode to load the graph
         // otherwise, load the graph from the csv files
 
+        let test_v = calculate_hash(&"139eeGkMGR6F9EuJQ3qYoXebfkBbNAsLtV:btc");
+
         let path: PathBuf = [input_folder, "graphdb.bincode"].iter().collect();
-        if path.exists() {
+        let graph = if path.exists() {
             let now = Instant::now();
             let g = GraphDB::load_from_file(path.as_path()).expect("Failed to load graph");
 
@@ -363,6 +365,7 @@ fn main() {
                 g.edges_len(),
                 now.elapsed().as_secs()
             );
+            g
         } else {
             let g = GraphDB::new(16);
 
@@ -374,6 +377,10 @@ fn main() {
                     let src = calculate_hash(&sent.addr);
                     let dst = calculate_hash(&sent.txn);
                     let t = sent.time.timestamp();
+
+                    if src == test_v || dst == test_v {
+                        println!("{} sent {} to {}", sent.addr, sent.amount_btc, sent.txn);
+                    }
 
                     g.add_edge(
                         src,
@@ -393,14 +400,16 @@ fn main() {
 
             g.save_to_file(path).expect("Failed to save graph");
 
-            let test_v = calculate_hash(&"139eeGkMGR6F9EuJQ3qYoXebfkBbNAsLtV:btc");
+            g
+        };
 
-            assert!(g.contains(test_v));
 
-            // g.neighbours_window(t_start, t_end, v, d)
+        assert!(graph.contains(test_v));
+        let deg_out = graph.neighbours_window(0, i64::MAX, test_v, Direction::OUT).count();
+        let deg_in =  graph.neighbours_window(0, i64::MAX, test_v, Direction::IN).count();
 
-            // g.neighbours_window(test_v)
-        }
+        println!("{} has {} out degree and {} in degree", test_v, deg_out, deg_in);
+
     }
 }
 
