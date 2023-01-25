@@ -30,14 +30,14 @@ class Table(GenericScalaProxy):
         for res in self.get():
             time_formatted = res.perspective().format_as_date()
             partial_df = pd.DataFrame(res.rows_as_arrays(), columns = res.header())
-            partial_df["timestamp"] = res.perspective().formatted_time()
+            partial_df.insert(0, 'timestamp', res.perspective().formatted_time())
             window = res.perspective().window()
             if window != None:
-                partial_df['window'] = window.get().output()
+                partial_df,insert(1, 'window', window.get().output())
             df = pd.concat([df, partial_df])
 
         if time_formatted:
-            df["timestamp"] = df["timestamp"].apply(lambda x: dt.datetime.strptime(x,"%Y-%m-%d %H:%M:%S.%f"))
+            df['timestamp'] = df['timestamp'].apply(lambda x: dt.datetime.strptime(x,'%Y-%m-%d %H:%M:%S.%f'))
         return df
 
 class Row(ScalaClassProxy):
