@@ -86,7 +86,9 @@ class Descendants(
       )
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.select("name", "descendant").withDefaults(Map("descendant" -> false))
+    graph
+      .step(vertex => vertex.getOrSetState("descendant", false))
+      .select("name", "descendant")
 }
 
 object Descendants {

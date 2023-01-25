@@ -86,7 +86,9 @@ class Ancestors(
       )
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.select("name", "ancestor").withDefaults(Map("ancestor" -> false))
+    graph
+      .step(vertex => vertex.getOrSetState("ancestor", false))
+      .select("name", "ancestor")
 }
 
 object Ancestors {

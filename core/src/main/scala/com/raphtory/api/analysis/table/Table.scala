@@ -18,42 +18,10 @@ final private[raphtory] case class RenameColumn(columns: Seq[(String, String)]) 
   * @see [[Row]], [[com.raphtory.api.output.sink.Sink Sink]], [[com.raphtory.api.progresstracker.QueryProgressTracker QueryProgressTracker]]
   */
 trait Table extends TableBase {
-
-  //TODO
-  def withDefaults(defaults: Map[String, Any]): Table
-
-  /** Add a filter operation to table
-    * @param f function that runs once for each row (only rows for which `f ` returns `true` are kept)
-    */
-  def filter(f: Row => Boolean): Table
-
-  /** Explode table rows
-    *
-    * This creates a new table where each row in the old table
-    * is mapped to multiple rows in the new table.
-    *
-    * @param columns names of the columns containing the lists to coordinately explode over
-    */
-  def explode(columns: String*): Table
-
-  def renameColumn(columns: (String, String)*): Table
-
-  /** Write out data and
-    * return [[com.raphtory.api.progresstracker.QueryProgressTracker QueryProgressTracker]]
-    * with custom job name
-    *
-    * @param sink [[com.raphtory.api.output.sink.Sink Sink]] for writing results
-    * @param jobName Name for job
-    */
-  def writeTo(sink: Sink, jobName: String): QueryProgressTracker
-
-  /** Write out data and
-    * return [[com.raphtory.api.progresstracker.QueryProgressTracker QueryProgressTracker]]
-    * with default job name
-    *
-    * @param sink [[com.raphtory.api.output.sink.Sink Sink]] for writing results
-    */
-  def writeTo(sink: Sink): QueryProgressTracker
-
+  override def filter(f: Row => Boolean): Table
+  override def explode(columns: String*): Table
+  override def renameColumns(columns: (String, String)*): Table
+  override def writeTo(sink: Sink, jobName: String): QueryProgressTracker
+  override def writeTo(sink: Sink): QueryProgressTracker
   def get(jobName: String = "", timeout: Duration = Duration.Inf): Iterator[TableOutput]
 }

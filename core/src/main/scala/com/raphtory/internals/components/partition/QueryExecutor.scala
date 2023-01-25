@@ -129,7 +129,7 @@ class QueryExecutor[F[_]](
                 case ReversedView()                        => lens.viewReversed()(cb)
                 case ClearChain()                          => lens.clearMessages(); cb()
                 case InferHeader                           => lens.inferHeader()
-                case op: Select @unchecked                 => lens.executeSelect(op.values, query.defaults)(cb)
+                case op: Select @unchecked                 => lens.executeSelect(op.values)(cb)
                 case rv: ReduceView                        => lens.reduceView(rv.defaultMergeStrategy, rv.mergeStrategyMap, rv.aggregate)(cb)
                 case x                                     => throw new Exception(s"$x not handled")
               }
@@ -185,7 +185,7 @@ class QueryExecutor[F[_]](
             function match {
               case TableFilter(f)          => lens.filteredTable(f)(cb)
               case ExplodeColumns(columns) => lens.explodeColumns(columns)(cb)
-              case RenameColumn(columns)   => lens.renameColumn(columns)(cb)
+              case RenameColumn(columns)   => lens.renameColumns(columns)(cb)
             }
     )
 

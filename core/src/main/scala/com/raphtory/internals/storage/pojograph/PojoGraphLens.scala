@@ -115,13 +115,11 @@ final private[raphtory] case class PojoGraphLens(
   def filterAtStep(superStep: Int): Unit =
     needsFiltering.set(superStep)
 
-  override def executeSelect(values: Seq[String], defaults: Map[String, Any])(onComplete: () => Unit): Unit = {
+  override def executeSelect(values: Seq[String])(onComplete: () => Unit): Unit = {
     dataTable = vertexIterator.map { vertex =>
       val keys    = if (values.nonEmpty) values else inferredHeader
       val columns =
-        keys.map(key =>
-          (key, vertex.getStateOrElse(key, defaults.getOrElse(key, EMPTY_CELL), includeProperties = true))
-        )
+        keys.map(key => (key, vertex.getStateOrElse(key, EMPTY_CELL, includeProperties = true)))
       Row(columns: _*)
     }
     onComplete()
@@ -155,7 +153,7 @@ final private[raphtory] case class PojoGraphLens(
     onComplete()
   }
 
-  override def renameColumn(columns: Seq[(String, String)])(onComplete: () => Unit): Unit = {
+  override def renameColumns(columns: Seq[(String, String)])(onComplete: () => Unit): Unit = {
     val newColumnNameMap = columns.toMap
     dataTable = dataTable.map { row =>
       val newpairs = row.columns.map {

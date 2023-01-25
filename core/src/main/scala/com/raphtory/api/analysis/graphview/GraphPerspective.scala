@@ -234,18 +234,18 @@ trait GraphPerspective {
       executeMessagedOnly: Boolean
   ): Graph
 
-  /** Write output to table with one row per vertex containing all state and properties */
+  /** Returns a table with one row per vertex and one column for each of the vertex properties and states available */
   def selectAll(): Table
 
-  /** Write output to table with one row per vertex
+  /** Returns a table with one row per vertex and one column per key in `values`
     *
-    * @param f function to extract data from vertex (run once for each vertex)
+    * @param values the keys to be extracted from every vertex state and properties
     */
   def select(values: String*): Table
 
-  /** Write global graph state to table (this creates a table with a single row)
+  /** Returns a table with a single row from the global grah state and one column per key in `values`
     *
-    * @param f function to extract data from graph state (runs only once)
+    * @param values the keys to be extracted from the graph state
     */
   def globalSelect(values: String*): Table
 

@@ -17,7 +17,7 @@ private[raphtory] trait LensInterface {
   def getFullGraphSize: Int
   def setFullGraphSize(size: Int): Unit
 
-  def executeSelect(values: Seq[String], defaults: Map[String, Any])(onComplete: () => Unit): Unit
+  def executeSelect(values: Seq[String])(onComplete: () => Unit): Unit
 
   def executeSelect(
       f: GraphState => Row,
@@ -25,7 +25,7 @@ private[raphtory] trait LensInterface {
   )(onComplete: () => Unit): Unit // TODO stop accepting a lambda here
   def filteredTable(f: Row => Boolean)(onComplete: () => Unit): Unit
   def explodeColumns(columns: Seq[String])(onComplete: () => Unit): Unit
-  def renameColumn(columns: Seq[(String, String)])(onComplete: () => Unit): Unit
+  def renameColumns(columns: Seq[(String, String)])(onComplete: () => Unit): Unit
   def writeDataTable(f: Row => Unit)(onComplete: () => Unit): Unit
 
   def explodeView(
