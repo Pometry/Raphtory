@@ -146,12 +146,10 @@ impl GraphDB {
         t_end: i64,
         v: u64,
         d: Direction,
-    ) -> Box<dyn Iterator<Item = TEdge>> {
-        let iter = self
-            .shards
-            .clone() //TODO: this should be a cheap clone of every shard in the graph
-            .into_iter()
-            .flat_map(move |shard| shard.neighbours_window(t_start, t_end, v, d));
+    ) -> Box<dyn Iterator<Item=TEdge>> {
+        let shard_id = self.shard_from_global_vid(v);
+
+        let iter = self.shards[shard_id].neighbours_window(t_start, t_end, v, d);
 
         Box::new(iter)
     }
