@@ -65,3 +65,4 @@ Alternatively, hit next and lets get Raphtory :doc:`installed <Install/python/py
 
    Deployment/server.md
    Deployment/configuration.md
+   Deployment/distributed-ubuntu-servers.md
