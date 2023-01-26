@@ -718,11 +718,12 @@ mod graph_test {
                 .map(|v| v.global_id())
                 .collect::<Vec<u64>>(),
             vec![9]
-        )
+        );
+        assert_eq!(g.vertex_meta.get(2), None);
     }
 
     #[test]
-    fn add_vertex_with_1_property() {
+    fn add_vertices_with_1_property() {
         let mut g = TemporalGraph::default();
 
         let v_id = 1;
@@ -754,7 +755,7 @@ mod graph_test {
     }
 
     #[test]
-    fn add_vertex_with_multiple_properties() {
+    fn add_vertices_with_multiple_properties() {
         let mut g = TemporalGraph::default();
 
         g.add_vertex_props(
@@ -787,7 +788,7 @@ mod graph_test {
     }
 
     #[test]
-    fn add_vertex_with_1_property_different_times() {
+    fn add_vertices_with_1_property_different_times() {
         let mut g = TemporalGraph::default();
 
         g.add_vertex_props(
@@ -837,81 +838,62 @@ mod graph_test {
         );
     }
 
-    // #[test]
-    // fn add_edges_with_multiple_properties_at_different_times_window() {
-    //     let mut g = TemporalGraph::default();
-    //
-    //     g.add_vertex(11, 1);
-    //     g.add_vertex(22, 2);
-    //
-    //     g.add_edge_props(
-    //         11,
-    //         22,
-    //         2,
-    //         &vec![
-    //             ("amount".into(), Prop::F64(12.34)),
-    //             ("label".into(), Prop::Str("blerg".into())),
-    //         ],
-    //     );
-    //
-    //     g.add_edge_props(
-    //         11,
-    //         22,
-    //         3,
-    //         &vec![
-    //             ("weight".into(), Prop::U32(12)),
-    //             ("label".into(), Prop::Str("blerg".into())),
-    //         ],
-    //     );
-    //
-    //     g.add_edge_props(
-    //         11,
-    //         22,
-    //         4,
-    //         &vec![("label".into(), Prop::Str("blerg_again".into()))],
-    //     );
-    //
-    //     g.add_edge_props(
-    //         22,
-    //         11,
-    //         5,
-    //         &vec![
-    //             ("weight".into(), Prop::U32(12)),
-    //             ("amount".into(), Prop::F64(12.34)),
-    //         ],
-    //     );
-    //
-    //     let edge_weights = g
-    //         .outbound_window(11, 3..5)
-    //         .flat_map(|e| {
-    //             let mut props = vec![];
-    //             let weight = e.props_window("weight", 3..5).collect::<Vec<_>>();
-    //             let amount = e.props_window("amount", 3..5).collect::<Vec<_>>();
-    //             let label = e.props_window("label", 3..5).collect::<Vec<_>>();
-    //             props.extend_from_slice(&weight[..]);
-    //             props.extend_from_slice(&amount[..]);
-    //             props.extend_from_slice(&label[..]);
-    //             props
-    //         })
-    //         .collect::<Vec<_>>();
-    //
-    //     assert_eq!(
-    //         edge_weights,
-    //         vec![(&3, Prop::U32(12)), (&3, Prop::Str("blerg".into())), (&4, Prop::Str("blerg_again".into()))]
-    //     )
-    // }
-
     #[test]
-    fn add_vertex_with_props() {
+    fn add_vertices_with_multiple_properties_at_different_times_window() {
         let mut g = TemporalGraph::default();
 
-        g.add_vertex_props(1, 1, &vec![("type".into(), Prop::Str("wallet".into()))]);
-        g.add_vertex_props(2, 2, &vec![("type".into(), Prop::Str("wallet".into()))]);
-        g.add_vertex_props(3, 3, &vec![]);
+        g.add_vertex_props(
+            1,
+            1,
+            &vec![
+                ("type".into(), Prop::Str("wallet".into())),
+                ("active".into(), Prop::U32(0)),
+            ],
+        );
 
-        assert_eq!(g.vertex_meta.get(0), Some(&TPropVec::One(0, TProp::Str(TCell1(1, "wallet".to_string())))));
-        assert_eq!(g.vertex_meta.get(1), Some(&TPropVec::One(0, TProp::Str(TCell1(2, "wallet".to_string())))));
-        assert_eq!(g.vertex_meta.get(2), None);
+        g.add_vertex_props(
+            1,
+            2,
+            &vec![
+                ("label".into(), Prop::I32(12345)),
+            ],
+        );
+
+        g.add_vertex_props(
+            1,
+            3,
+            &vec![
+                ("origin".into(), Prop::F32(0.1)),
+                ("active".into(), Prop::U32(2)),
+            ],
+        );
+
+        let index = g.logical_to_physical.get(&1).unwrap();
+        let meta = g.vertex_meta.get(*index).unwrap();
+
+        let type_prop_index = g.v_prop_ids.get("type").unwrap();
+        let active_prop_index = g.v_prop_ids.get("active").unwrap();
+        let label_prop_index = g.v_prop_ids.get("label").unwrap();
+        let origin_prop_index = g.v_prop_ids.get("origin").unwrap();
+
+        let mut type_res = meta.iter_window(*type_prop_index, 1..2).collect::<Vec<_>>();
+        let active_res = meta.iter_window(*active_prop_index, 2..5).collect::<Vec<_>>();
+        let label_res = meta.iter_window(*label_prop_index, 2..5).collect::<Vec<_>>();
+        let origin_res = meta.iter_window(*origin_prop_index, 2..5).collect::<Vec<_>>();
+
+        type_res.extend(active_res);
+        type_res.extend(label_res);
+        type_res.extend(origin_res);
+
+        assert_eq!(
+            type_res,
+            vec![
+                (&1, Prop::Str("wallet".into())),
+                (&3, Prop::U32(2)),
+                (&2, Prop::I32(12345)),
+                (&3, Prop::F32(0.1)),
+            ]
+        );
     }
 
     #[test]
