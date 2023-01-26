@@ -1,4 +1,4 @@
-# Installing into distributed servers
+# Deploying Raphtory on distributed Ubuntu servers
 
 ## Information
 - Raphtory will run on port 1736 which is the port the client will need to connect on. You will need the security group/firewall pointing to the cluster manager to allow tcp connections to this server on port 1736
@@ -55,27 +55,27 @@ export RAPHTORY_PARTITIONS_CHUNKSIZE=128
 export RAPHTORY_CORE_LOG=DEBUG
 ```
 
-# Run Cluster Manager Service (Cluster Manager machines)
+##  Run Cluster Manager Service (Cluster Manager machines)
 ```
 raphtory-clustermanager &
 ```
 
-# Run Query Service (Query machines)
+##  Run Query Service (Query machines)
 ```
 raphtory-query &
 ```
 
-# Run Ingeestion Service (Injestion machines)
+##  Run Ingeestion Service (Injestion machines)
 ```
 raphtory-ingestion &
 ```
 
-# Run Partition Service (Partition machine)
+##  Run Partition Service (Partition machine)
 ```
 raphtory-partition &
 ```
 
-# Client machine
+##  Client machine
 From your client, invoke python (or Jupiter) and when in python terminal, you can create a context to a remote source
 ```
 from pyraphtory.context import PyRaphtory
