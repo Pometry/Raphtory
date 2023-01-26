@@ -5,9 +5,9 @@ import com.raphtory.algorithms.generic.dynamic.Node2VecWalk.StoreMessage
 import com.raphtory.algorithms.generic.dynamic.Node2VecWalk.WalkMessage
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.internals.communication.SchemaProviderInstances._
-
 import scala.reflect.ClassTag
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
@@ -120,13 +120,19 @@ class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) exten
           case StoreMessage(node)   => vertex.getState[ArrayBuffer[String]]("walk").append(node)
           case WalkMessage(_, _, _) =>
         }
-        val rowSeq = vertex.getState[ArrayBuffer[String]]("walk")
-        vertex.setState("walkSequence", rowSeq)
       }
 
-  override def tabularise(graph: GraphPerspective): Table =
-    graph.select("walkSequence")
-
+  override def tabularise(graph: GraphPerspective): Table = {
+    val steps = 1 to walkLength map ("vertex " + _)
+    graph
+      .step(vertex =>
+        steps zip vertex.getState[ArrayBuffer[String]]("walk") foreach {
+          case (step, node) =>
+            vertex.setState(step, node)
+        }
+      )
+      .select(steps: _*)
+  }
 }
 
 object Node2VecWalk {
