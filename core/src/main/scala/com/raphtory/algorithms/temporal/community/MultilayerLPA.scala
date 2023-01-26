@@ -158,10 +158,10 @@ class MultilayerLPA(
                 }.toList
 
                 // Update node label and broadcast
-                val (timestamps, vertexNames) = newLabel.unzip
-                vertex.setState("vertexName", vertexNames)
+                val (timestamps, multilayerNames) = newLabel.unzip
+                vertex.setState("multilayerName", multilayerNames)
                 vertex.setState("timestamp", timestamps.map(ts => s"${vertex.name}_$ts"))
-                val message                   = (vertex.ID, newLabel)
+                val message                       = (vertex.ID, newLabel)
                 vertex.messageAllNeighbours(message)
 
                 // Update vote status
@@ -181,8 +181,8 @@ class MultilayerLPA(
 
   override def tabularise(graph: ReducedGraphPerspective): Table =
     graph
-      .select("vertexName", "timestamp")
-      .explode("vertexName", "timestamp")
+      .select("multilayerName", "timestamp")
+      .explode("multilayerName", "timestamp")
 
 }
 

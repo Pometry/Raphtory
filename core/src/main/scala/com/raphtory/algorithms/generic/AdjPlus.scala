@@ -37,7 +37,7 @@ import scala.math.Ordering.Implicits._
   */
 object AdjPlus extends Generic {
 
-  private val columns = List("vertexName") ++ Seq("adjPlusSet")
+  private val columns = List("name") ++ Seq("adjPlusSet")
 
   override def apply(graph: GraphPerspective): graph.Graph =
     graph.step(vertex => vertex.messageAllNeighbours((vertex.ID, vertex.degree))).step { vertex =>
@@ -51,7 +51,7 @@ object AdjPlus extends Generic {
         .map(message => message._1)
         .toArray[vertex.IDType]
       vertex.setState("adjPlus", adj)
-      vertex.setState("vertexName", vertex.name())
+      vertex.setState("name", vertex.name())
     }
 
   override def tabularise(graph: GraphPerspective): Table =

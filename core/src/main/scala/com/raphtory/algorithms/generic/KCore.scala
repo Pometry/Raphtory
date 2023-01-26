@@ -100,10 +100,10 @@ class KCore(k: Int, resetStates: Boolean = true) extends Generic {
   override def tabularise(graph: GraphPerspective): Table =
     graph
       .step { vertex =>
-        vertex.setState("vertexName", vertex.name)
+        vertex.setState("name", vertex.name)
         vertex.setState("effdegree", vertex.getState[Int](EFFDEGREE) >= k)
       }
-      .select("vertexName", "effdegree")
+      .select("name", "effdegree")
       .filter(r => r.getBool("effdegree"))
 }
 

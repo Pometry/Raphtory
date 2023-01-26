@@ -16,7 +16,7 @@ case class WriteValue() extends GenericReduction {
   override def tabularise(graph: ReducedGraphPerspective): Table =
     graph
       .step { vertex =>
-        vertex.setState("vertexname", vertex.name())
+        vertex.setState("name", vertex.name())
       }
-      .select("vertexname", "testing")
+      .select("name", "testing")
 }
