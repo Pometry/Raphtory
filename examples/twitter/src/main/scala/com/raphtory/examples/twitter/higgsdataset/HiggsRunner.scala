@@ -31,16 +31,18 @@ object HiggsRunner extends RaphtoryApp.Local {
 
       graph.load(source)
       //get simple metrics
-//      graph
-//        .execute(Degree())
-//        .writeTo(output)
-//        .waitForJob()
+      graph
+        .execute(Degree())
+        .writeTo(output)
+        .waitForJob()
 
       //Chained Algorithm Example
       graph
         .at(1341705593)
         .past()
-        .execute(PageRank())
+        .transform(PageRank())
+        .transform(MemberRank())
+        .execute(TemporalMemberRank())
         .writeTo(output)
         .waitForJob()
     }
