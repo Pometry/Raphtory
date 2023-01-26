@@ -5,6 +5,7 @@ import com.raphtory.algorithms.generic.dynamic.RandomWalk.StoreMessage
 import com.raphtory.algorithms.generic.dynamic.RandomWalk.WalkMessage
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 
@@ -63,7 +64,7 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends Generi
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
-        val walks = Array.fill(numWalks)(ArrayBuffer.empty[String])
+        val walks = Vector.fill(numWalks)(ArrayBuffer.empty[String])
         vertex.setState("walks", walks)
         for (walkID <- 0 until numWalks)
 //          initialise walks
@@ -81,7 +82,7 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends Generi
                     )
                   //          store walks on source node
                   case StoreMessage(name, walkID)  =>
-                    val walks = vertex.getState[Array[ArrayBuffer[String]]]("walks")
+                    val walks = vertex.getState[Vector[ArrayBuffer[String]]]("walks")
                     walks(walkID).append(name)
                 },
               walkLength,
@@ -92,15 +93,23 @@ class RandomWalk(walkLength: Int, numWalks: Int, seed: Long = -1) extends Generi
         vertex.messageQueue[Message[vertex.IDType]].foreach {
           case WalkMessage(source, walkID) =>
           case StoreMessage(name, walkID)  =>
-            val walks = vertex.getState[Array[ArrayBuffer[String]]]("walks")
+            val walks = vertex.getState[Vector[ArrayBuffer[String]]]("walks")
             walks(walkID).append(name)
         }
       }
 
-  override def tabularise(graph: GraphPerspective): Table =
+  override def tabularise(graph: GraphPerspective): Table = {
+    val steps = 1 to walkLength map ("vertex " + _)
     graph
-      .select("walks")
-      .explode("walks")
+      .step(vertex =>
+        steps zip vertex.getState[Vector[ArrayBuffer[String]]]("walks").transpose foreach {
+          case (step, nodesForThatStep) =>
+            vertex.setState(step, nodesForThatStep)
+        }
+      )
+      .select(steps: _*)
+      .explode(steps: _*)
+  }
 }
 
 object RandomWalk {
