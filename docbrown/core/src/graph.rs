@@ -709,17 +709,210 @@ mod graph_test {
     fn add_vertex_at_time_t1() {
         let mut g = TemporalGraph::default();
 
-        g.add_vertex(9, 1);
+        let v_id = 1;
+        let ts = 1;
+        g.add_vertex_props(
+            v_id,
+            ts,
+            &vec![("type".into(), Prop::Str("wallet".into()))],
+        );
 
-        assert!(g.contains(9));
-        assert!(g.contains_vertex_w(1..15, 9));
+        assert!(g.contains(v_id));
+        assert!(g.contains_vertex_w(1..15, v_id));
         assert_eq!(
             g.iter_vertices()
                 .map(|v| v.global_id())
                 .collect::<Vec<u64>>(),
-            vec![9]
-        )
+            vec![v_id]
+        );
+
+        let index = g.logical_to_physical.get(&v_id).unwrap();
+        let meta = g.vertex_meta.get(*index).unwrap();
+        let prop_index = g.v_prop_ids.get("type").unwrap();
+        let res = meta.iter(*prop_index).collect::<Vec<_>>();
+
+        assert_eq!(
+            res,
+            vec![(&1, Prop::Str("wallet".into()))]
+        );
     }
+
+    // #[test]
+    // fn add_vertex_with_1_property() {
+    //     let mut g = TemporalGraph::default();
+    //
+    //     g.add_vertex(11, 1);
+    //     g.add_vertex(22, 2);
+    //
+    //     g.add_edge_props(11, 22, 4, &vec![("weight".into(), Prop::U32(12))]);
+    //
+    //     let edge_weights = g
+    //         .outbound(11)
+    //         .flat_map(|e| {
+    //             e.props("weight").flat_map(|(t, prop)| match prop {
+    //                 Prop::U32(weight) => Some((t, weight)),
+    //                 _ => None,
+    //             })
+    //         })
+    //         .collect::<Vec<_>>();
+    //
+    //     assert_eq!(edge_weights, vec![(&4, 12)])
+    // }
+    //
+    // #[test]
+    // fn add_edge_with_multiple_properties() {
+    //     let mut g = TemporalGraph::default();
+    //
+    //     g.add_vertex(11, 1);
+    //     g.add_vertex(22, 2);
+    //
+    //     // let mut g = TemporalGraph::default();
+    //     //
+    //     // g.add_vertex_props(1, 1, &vec![("type".into(), Prop::Str("wallet".into()))]);
+    //     // g.add_vertex_props(2, 2, &vec![("type".into(), Prop::Str("wallet".into()))]);
+    //     // g.add_vertex_props(3, 3, &vec![]);
+    //     //
+    //     // assert_eq!(g.vertex_meta.get(0), Some(&TPropVec::One(0, TProp::Str(TCell1(1, "wallet".to_string())))));
+    //     // assert_eq!(g.vertex_meta.get(1), Some(&TPropVec::One(0, TProp::Str(TCell1(2, "wallet".to_string())))));
+    //     // assert_eq!(g.vertex_meta.get(2), None);
+    //
+    //     g.add_edge_props(
+    //         11,
+    //         22,
+    //         4,
+    //         &vec![
+    //             ("weight".into(), Prop::U32(12)),
+    //             ("amount".into(), Prop::F64(12.34)),
+    //             ("label".into(), Prop::Str("blerg".into())),
+    //         ],
+    //     );
+    //
+    //     let edge_weights = g
+    //         .outbound(11)
+    //         .flat_map(|e| {
+    //             let mut weight = e.props("weight").collect::<Vec<_>>();
+    //
+    //             let mut amount = e.props("amount").collect::<Vec<_>>();
+    //
+    //             let mut label = e.props("label").collect::<Vec<_>>();
+    //
+    //             weight.append(&mut amount);
+    //             weight.append(&mut label);
+    //             weight
+    //         })
+    //         .collect::<Vec<_>>();
+    //
+    //     assert_eq!(
+    //         edge_weights,
+    //         vec![
+    //             (&4, Prop::U32(12)),
+    //             (&4, Prop::F64(12.34)),
+    //             (&4, Prop::Str("blerg".into())),
+    //         ]
+    //     )
+    // }
+    //
+    // #[test]
+    // fn add_edge_with_1_property_different_times() {
+    //     let mut g = TemporalGraph::default();
+    //
+    //     g.add_vertex(11, 1);
+    //     g.add_vertex(22, 2);
+    //
+    //     g.add_edge_props(11, 22, 4, &vec![("amount".into(), Prop::U32(12))]);
+    //     g.add_edge_props(11, 22, 7, &vec![("amount".into(), Prop::U32(24))]);
+    //     g.add_edge_props(11, 22, 19, &vec![("amount".into(), Prop::U32(48))]);
+    //
+    //     let edge_weights = g
+    //         .outbound_window(11, 4..8)
+    //         .flat_map(|e| {
+    //             e.props_window("amount", 4..8)
+    //                 .flat_map(|(t, prop)| match prop {
+    //                     Prop::U32(weight) => Some((t, weight)),
+    //                     _ => None,
+    //                 })
+    //         })
+    //         .collect::<Vec<_>>();
+    //
+    //     assert_eq!(edge_weights, vec![(&4, 12), (&7, 24)]);
+    //
+    //     let edge_weights = g
+    //         .inbound_window(22, 4..8)
+    //         .flat_map(|e| {
+    //             e.props_window("amount", 4..8)
+    //                 .flat_map(|(t, prop)| match prop {
+    //                     Prop::U32(weight) => Some((t, weight)),
+    //                     _ => None,
+    //                 })
+    //         })
+    //         .collect::<Vec<_>>();
+    //
+    //     assert_eq!(edge_weights, vec![(&4, 12), (&7, 24)])
+    // }
+    //
+    // #[test]
+    // fn add_edges_with_multiple_properties_at_different_times_window() {
+    //     let mut g = TemporalGraph::default();
+    //
+    //     g.add_vertex(11, 1);
+    //     g.add_vertex(22, 2);
+    //
+    //     g.add_edge_props(
+    //         11,
+    //         22,
+    //         2,
+    //         &vec![
+    //             ("amount".into(), Prop::F64(12.34)),
+    //             ("label".into(), Prop::Str("blerg".into())),
+    //         ],
+    //     );
+    //
+    //     g.add_edge_props(
+    //         11,
+    //         22,
+    //         3,
+    //         &vec![
+    //             ("weight".into(), Prop::U32(12)),
+    //             ("label".into(), Prop::Str("blerg".into())),
+    //         ],
+    //     );
+    //
+    //     g.add_edge_props(
+    //         11,
+    //         22,
+    //         4,
+    //         &vec![("label".into(), Prop::Str("blerg_again".into()))],
+    //     );
+    //
+    //     g.add_edge_props(
+    //         22,
+    //         11,
+    //         5,
+    //         &vec![
+    //             ("weight".into(), Prop::U32(12)),
+    //             ("amount".into(), Prop::F64(12.34)),
+    //         ],
+    //     );
+    //
+    //     let edge_weights = g
+    //         .outbound_window(11, 3..5)
+    //         .flat_map(|e| {
+    //             let mut props = vec![];
+    //             let weight = e.props_window("weight", 3..5).collect::<Vec<_>>();
+    //             let amount = e.props_window("amount", 3..5).collect::<Vec<_>>();
+    //             let label = e.props_window("label", 3..5).collect::<Vec<_>>();
+    //             props.extend_from_slice(&weight[..]);
+    //             props.extend_from_slice(&amount[..]);
+    //             props.extend_from_slice(&label[..]);
+    //             props
+    //         })
+    //         .collect::<Vec<_>>();
+    //
+    //     assert_eq!(
+    //         edge_weights,
+    //         vec![(&3, Prop::U32(12)), (&3, Prop::Str("blerg".into())), (&4, Prop::Str("blerg_again".into()))]
+    //     )
+    // }
 
     #[test]
     fn add_vertex_with_props() {
