@@ -709,6 +709,22 @@ mod graph_test {
     fn add_vertex_at_time_t1() {
         let mut g = TemporalGraph::default();
 
+        g.add_vertex(9, 1);
+
+        assert!(g.contains(9));
+        assert!(g.contains_vertex_w(1..15, 9));
+        assert_eq!(
+            g.iter_vertices()
+                .map(|v| v.global_id())
+                .collect::<Vec<u64>>(),
+            vec![9]
+        )
+    }
+
+    #[test]
+    fn add_vertex_with_1_property() {
+        let mut g = TemporalGraph::default();
+
         let v_id = 1;
         let ts = 1;
         g.add_vertex_props(
@@ -737,81 +753,39 @@ mod graph_test {
         );
     }
 
-    // #[test]
-    // fn add_vertex_with_1_property() {
-    //     let mut g = TemporalGraph::default();
-    //
-    //     g.add_vertex(11, 1);
-    //     g.add_vertex(22, 2);
-    //
-    //     g.add_edge_props(11, 22, 4, &vec![("weight".into(), Prop::U32(12))]);
-    //
-    //     let edge_weights = g
-    //         .outbound(11)
-    //         .flat_map(|e| {
-    //             e.props("weight").flat_map(|(t, prop)| match prop {
-    //                 Prop::U32(weight) => Some((t, weight)),
-    //                 _ => None,
-    //             })
-    //         })
-    //         .collect::<Vec<_>>();
-    //
-    //     assert_eq!(edge_weights, vec![(&4, 12)])
-    // }
-    //
-    // #[test]
-    // fn add_edge_with_multiple_properties() {
-    //     let mut g = TemporalGraph::default();
-    //
-    //     g.add_vertex(11, 1);
-    //     g.add_vertex(22, 2);
-    //
-    //     // let mut g = TemporalGraph::default();
-    //     //
-    //     // g.add_vertex_props(1, 1, &vec![("type".into(), Prop::Str("wallet".into()))]);
-    //     // g.add_vertex_props(2, 2, &vec![("type".into(), Prop::Str("wallet".into()))]);
-    //     // g.add_vertex_props(3, 3, &vec![]);
-    //     //
-    //     // assert_eq!(g.vertex_meta.get(0), Some(&TPropVec::One(0, TProp::Str(TCell1(1, "wallet".to_string())))));
-    //     // assert_eq!(g.vertex_meta.get(1), Some(&TPropVec::One(0, TProp::Str(TCell1(2, "wallet".to_string())))));
-    //     // assert_eq!(g.vertex_meta.get(2), None);
-    //
-    //     g.add_edge_props(
-    //         11,
-    //         22,
-    //         4,
-    //         &vec![
-    //             ("weight".into(), Prop::U32(12)),
-    //             ("amount".into(), Prop::F64(12.34)),
-    //             ("label".into(), Prop::Str("blerg".into())),
-    //         ],
-    //     );
-    //
-    //     let edge_weights = g
-    //         .outbound(11)
-    //         .flat_map(|e| {
-    //             let mut weight = e.props("weight").collect::<Vec<_>>();
-    //
-    //             let mut amount = e.props("amount").collect::<Vec<_>>();
-    //
-    //             let mut label = e.props("label").collect::<Vec<_>>();
-    //
-    //             weight.append(&mut amount);
-    //             weight.append(&mut label);
-    //             weight
-    //         })
-    //         .collect::<Vec<_>>();
-    //
-    //     assert_eq!(
-    //         edge_weights,
-    //         vec![
-    //             (&4, Prop::U32(12)),
-    //             (&4, Prop::F64(12.34)),
-    //             (&4, Prop::Str("blerg".into())),
-    //         ]
-    //     )
-    // }
-    //
+    #[test]
+    fn add_vertex_with_multiple_properties() {
+        let mut g = TemporalGraph::default();
+
+        g.add_vertex_props(
+            1,
+            1,
+            &vec![
+                ("type".into(), Prop::Str("wallet".into())),
+                ("active".into(), Prop::U32(0)),
+            ],
+        );
+
+        let index = g.logical_to_physical.get(&1).unwrap();
+        let meta = g.vertex_meta.get(*index).unwrap();
+
+        let type_prop_index = g.v_prop_ids.get("type").unwrap();
+        let active_prop_index = g.v_prop_ids.get("active").unwrap();
+
+        let mut type_res = meta.iter(*type_prop_index).collect::<Vec<_>>();
+        let active_res = meta.iter(*active_prop_index).collect::<Vec<_>>();
+
+        type_res.extend(active_res);
+
+        assert_eq!(
+            type_res,
+            vec![
+                (&1, Prop::Str("wallet".into())),
+                (&1, Prop::U32(0)),
+            ]
+        );
+    }
+
     // #[test]
     // fn add_edge_with_1_property_different_times() {
     //     let mut g = TemporalGraph::default();
