@@ -27,7 +27,7 @@ import com.typesafe.config.Config
   * 10,5,id3,24
   * }}}
   */
-case class CsvFormat(delimiter: String = ",", includeHeader: Boolean = false) extends Format {
+case class CsvFormat(delimiter: String = ",", includeHeader: Boolean = true) extends Format {
   override def defaultDelimiter: String = "\n"
   override def defaultExtension: String = "csv"
 
