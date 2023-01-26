@@ -181,7 +181,7 @@ impl TemporalGraph {
     }
 
     pub fn add_vertex_props(&mut self, v: u64, t: i64, props: &Vec<(String, Prop)>) {
-        match self.logical_to_physical.get(&v) {
+        let index = match self.logical_to_physical.get(&v) {
             None => {
                 let physical_id: usize = self.index.len();
                 self.index.push(Adj::Empty(v));
@@ -193,6 +193,7 @@ impl TemporalGraph {
                         set.push(physical_id);
                     })
                     .or_insert_with(|| BitSet::one(physical_id));
+                physical_id
             }
             Some(pid) => {
                 self.t_index
@@ -201,10 +202,10 @@ impl TemporalGraph {
                         set.push(*pid);
                     })
                     .or_insert_with(|| BitSet::one(*pid));
+                *pid
             }
         };
 
-        let index: usize = self.logical_to_physical.get(&v).copied().unwrap();
         self.update_vertex_props(index, t, props);
     }
 
@@ -726,7 +727,7 @@ mod graph_test {
 
         g.add_vertex_props(1, 1, &vec![("type".into(), Prop::Str("wallet".into()))]);
         g.add_vertex_props(2, 2, &vec![("type".into(), Prop::Str("wallet".into()))]);
-        g.add_vertex_props(2, 2, &vec![]);
+        g.add_vertex_props(3, 3, &vec![]);
 
         assert_eq!(g.vertex_meta.get(0), Some(&TPropVec::One(0, TProp::Str(TCell1(1, "wallet".to_string())))));
         assert_eq!(g.vertex_meta.get(1), Some(&TPropVec::One(0, TProp::Str(TCell1(2, "wallet".to_string())))));
