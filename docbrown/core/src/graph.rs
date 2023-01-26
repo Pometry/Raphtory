@@ -18,10 +18,9 @@ pub struct TemporalGraph {
     pub(crate) index: Vec<Adj>,
     // time index pointing at the index with adjacency lists
     t_index: BTreeMap<i64, BitSet>,
-    pub(crate) v_prop_ids: HashMap<String, usize>,
+    pub(crate) prop_ids: HashMap<String, usize>,
     pub(crate) vertex_meta: Vec<TPropVec>,
     // attributes for props
-    pub(crate) prop_ids: HashMap<String, usize>,
     pub(crate) edge_meta: Vec<TPropVec>, // table of edges
 }
 
@@ -31,9 +30,8 @@ impl Default for TemporalGraph {
             logical_to_physical: Default::default(),
             index: Default::default(),
             t_index: Default::default(),
-            v_prop_ids: Default::default(),
-            vertex_meta: vec![Default::default()],
             prop_ids: Default::default(),
+            vertex_meta: vec![Default::default()],
             // remote/local edges are encoded as i64 with negatives as remote and positives as local,
             // 0 breaks the symetry so we just ignore it
             edge_meta: vec![Default::default()],
@@ -211,13 +209,13 @@ impl TemporalGraph {
 
     fn update_vertex_props(&mut self, index: usize, t: i64, props: &Vec<(String, Prop)>) {
         for (name, prop) in props {
-            let property_id = match self.v_prop_ids.get(name) {
+            let property_id = match self.prop_ids.get(name) {
                 Some(prop_id) => {
                     *prop_id
                 }
                 None => {
-                    let id = self.v_prop_ids.len();
-                    self.v_prop_ids.insert(name.to_string(), id);
+                    let id = self.prop_ids.len();
+                    self.prop_ids.insert(name.to_string(), id);
                     id
                 }
             };
@@ -745,7 +743,7 @@ mod graph_test {
 
         let index = g.logical_to_physical.get(&v_id).unwrap();
         let meta = g.vertex_meta.get(*index).unwrap();
-        let prop_index = g.v_prop_ids.get("type").unwrap();
+        let prop_index = g.prop_ids.get("type").unwrap();
         let res = meta.iter(*prop_index).collect::<Vec<_>>();
 
         assert_eq!(
@@ -770,8 +768,8 @@ mod graph_test {
         let index = g.logical_to_physical.get(&1).unwrap();
         let meta = g.vertex_meta.get(*index).unwrap();
 
-        let type_prop_index = g.v_prop_ids.get("type").unwrap();
-        let active_prop_index = g.v_prop_ids.get("active").unwrap();
+        let type_prop_index = g.prop_ids.get("type").unwrap();
+        let active_prop_index = g.prop_ids.get("active").unwrap();
 
         let mut type_res = meta.iter(*type_prop_index).collect::<Vec<_>>();
         let active_res = meta.iter(*active_prop_index).collect::<Vec<_>>();
@@ -821,8 +819,8 @@ mod graph_test {
         let index = g.logical_to_physical.get(&1).unwrap();
         let meta = g.vertex_meta.get(*index).unwrap();
 
-        let type_prop_index = g.v_prop_ids.get("type").unwrap();
-        let active_prop_index = g.v_prop_ids.get("active").unwrap();
+        let type_prop_index = g.prop_ids.get("type").unwrap();
+        let active_prop_index = g.prop_ids.get("active").unwrap();
 
         let mut type_res = meta.iter_window(*type_prop_index, 2..3).collect::<Vec<_>>();
         let active_res = meta.iter_window(*active_prop_index, 2..3).collect::<Vec<_>>();
@@ -871,10 +869,10 @@ mod graph_test {
         let index = g.logical_to_physical.get(&1).unwrap();
         let meta = g.vertex_meta.get(*index).unwrap();
 
-        let type_prop_index = g.v_prop_ids.get("type").unwrap();
-        let active_prop_index = g.v_prop_ids.get("active").unwrap();
-        let label_prop_index = g.v_prop_ids.get("label").unwrap();
-        let origin_prop_index = g.v_prop_ids.get("origin").unwrap();
+        let type_prop_index = g.prop_ids.get("type").unwrap();
+        let active_prop_index = g.prop_ids.get("active").unwrap();
+        let label_prop_index = g.prop_ids.get("label").unwrap();
+        let origin_prop_index = g.prop_ids.get("origin").unwrap();
 
         let mut type_res = meta.iter_window(*type_prop_index, 1..2).collect::<Vec<_>>();
         let active_res = meta.iter_window(*active_prop_index, 2..5).collect::<Vec<_>>();
