@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.immutable.SortedSet
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 private[raphtory] class SuperStepFlag {
   @volatile var evenFlag: Boolean = false
@@ -137,9 +138,14 @@ final private[raphtory] case class PojoGraphLens(
   }
 
   override def explodeColumns(columns: Seq[String])(onComplete: () => Unit): Unit = {
+    def castToIterable(collection: Any): Iterable[Any] =
+      collection match {
+        case iterable: Iterable[Any] => iterable
+        case array: Array[Any]       => array.iterator.to(Iterable)
+      }
     try dataTable = dataTable.flatMap { row =>
       val validColumns = columns.filter(col => row.get(col) != EMPTY_CELL)
-      validColumns.map(col => row.get(col).asInstanceOf[Iterable[Any]]).transpose.map { values =>
+      validColumns.map(col => castToIterable(row.get(col))).transpose.map { values =>
         validColumns.zip(values).foldLeft(row) { case (row, (key, value)) => new Row(row.columns.updated(key, value)) }
       }
     }
