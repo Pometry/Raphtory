@@ -1063,6 +1063,70 @@ mod graph_test {
     }
 
     #[test]
+    fn add_edges_with_multiple_properties_at_different_times_window() {
+        let mut g = TemporalGraph::default();
+
+        g.add_vertex(11, 1);
+        g.add_vertex(22, 2);
+
+        g.add_edge_props(
+            11,
+            22,
+            2,
+            &vec![
+                ("amount".into(), Prop::F64(12.34)),
+                ("label".into(), Prop::Str("blerg".into())),
+            ],
+        );
+
+        g.add_edge_props(
+            11,
+            22,
+            3,
+            &vec![
+                ("weight".into(), Prop::U32(12)),
+                ("label".into(), Prop::Str("blerg".into())),
+            ],
+        );
+
+        g.add_edge_props(
+            11,
+            22,
+            4,
+            &vec![("label".into(), Prop::Str("blerg_again".into()))],
+        );
+
+        g.add_edge_props(
+            22,
+            11,
+            5,
+            &vec![
+                ("weight".into(), Prop::U32(12)),
+                ("amount".into(), Prop::F64(12.34)),
+            ],
+        );
+
+        let edge_weights = g
+            .outbound_window(11, 3..5)
+            .flat_map(|e| {
+                let mut props = vec![];
+                let weight = e.props_window("weight", 3..5).collect::<Vec<_>>();
+                let amount = e.props_window("amount", 3..5).collect::<Vec<_>>();
+                let label = e.props_window("label", 3..5).collect::<Vec<_>>();
+                props.extend_from_slice(&weight[..]);
+                props.extend_from_slice(&amount[..]);
+                props.extend_from_slice(&label[..]);
+                props
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            edge_weights,
+            vec![(&3, Prop::U32(12)), (&3, Prop::Str("blerg".into())), (&4, Prop::Str("blerg_again".into()))]
+        )
+    }
+
+    #[test]
     fn edge_metadata_id_bug() {
         let mut g = TemporalGraph::default();
 
