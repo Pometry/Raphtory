@@ -37,7 +37,7 @@ impl TemporalGraphPart {
     }
 
     pub fn add_edge(&self, t: i64, src: u64, dst: u64, props: &Vec<(String, Prop)>) {
-        self.write_shard(|tg| tg.add_edge_props(src, dst, t, props))
+        self.write_shard(|tg| tg.add_edge_with_props(src, dst, t, props))
     }
 
     pub fn add_edge_remote_out(&self, t: i64, src: u64, dst: u64, props: &Vec<(String, Prop)>) {
