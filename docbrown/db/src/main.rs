@@ -120,7 +120,7 @@ impl TGraphShardActor {
                 self.tg.add_vertex(v, t);
             }
             Msg::AddEdge(src, dst, props, t) => {
-                self.tg.add_edge_props(src, dst, t, &props);
+                self.tg.add_edge_with_props(src, dst, t, &props);
             }
             Msg::AddOutEdge(src, dst, props, t) => {
                 self.tg.add_edge_remote_out(src, dst, t, &props);
