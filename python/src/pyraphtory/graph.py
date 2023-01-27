@@ -25,23 +25,37 @@ class Table(GenericScalaProxy):
     _classname = "com.raphtory.api.analysis.table.Table"
 
     def to_df(self):
+        rows = []
+        columns = ()
         time_formatted=False
-        df = pd.DataFrame()
         for res in self.get():
-            time_formatted = res.perspective().format_as_date()
-            partial_df = pd.DataFrame(res.rows_as_arrays(), columns = res.actual_header())
-            partial_df.insert(0, 'timestamp', res.perspective().formatted_time())
+            columns = res.actual_header()
             window = res.perspective().window()
+            timestamp = res.perspective().formatted_time()
+            time_formatted = res.perspective().format_as_date()
             if window != None:
-                partial_df,insert(1, 'window', window.get().output())
-            df = pd.concat([df, partial_df])
+                columns = ('timestamp', 'window', *columns)
+                for r in res.rows():
+                    window_size = window.get().output()
+                    rows.append((timestamp, window_size, *r.columns().values()))
+            else:
+                columns = ('timestamp', *columns)
+                for r in res.rows():
+                    rows.append((timestamp, *r.columns().values()))
 
+        df = pd.DataFrame.from_records(rows, columns=columns)
         if time_formatted:
-            df['timestamp'] = df['timestamp'].apply(lambda x: dt.datetime.strptime(x,'%Y-%m-%d %H:%M:%S.%f'))
-        return df
+            df["timestamp"] = df["timestamp"].apply(lambda x: dt.datetime.strptime(x,"%Y-%m-%d %H:%M:%S.%f"))
+            return df
+        else:
+            return df
+
+
+
 
 class Row(ScalaClassProxy):
     _classname = "com.raphtory.api.analysis.table.Row"
+
 
 class PropertyMergeStrategy(ScalaClassProxy):
     _classname = "com.raphtory.api.analysis.visitor.PropertyMergeStrategy"
