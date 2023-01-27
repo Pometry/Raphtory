@@ -9,11 +9,13 @@ abstract class NodeListOutput(
 ) extends BaseAlgorithm {
 
   override def tabularise(graph: Out): Table =
-    graph.select { vertex =>
-      val row = vertex.name() +: properties.map(name =>
-        vertex.getStateOrElse(name, defaults.getOrElse(name, None), includeProperties = true)
-      )
-      Row(row: _*)
-    }
-
+    graph
+      .step { vertex =>
+        vertex.getOrSetState("name", vertex.name())
+        defaults.foreach {
+          case (key, value) =>
+            vertex.getOrSetState(key, value)
+        }
+      }
+      .select("name" +: properties: _*)
 }

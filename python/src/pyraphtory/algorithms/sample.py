@@ -2,7 +2,6 @@
 sample python script.
 """
 
-from pyraphtory.graph import Row
 from pyraphtory.input import *
 from pyraphtory.sources import Source
 from pyraphtory.scala.implicits.numeric import Long
@@ -39,35 +38,39 @@ if __name__ == "__main__":
             graph.load(Source(lotr_spout, GraphBuilder(parse)))
 
             df = (graph
-                  .select(lambda vertex: Row(vertex.name(), vertex.degree()))
-                  .to_df(["name", "degree"]))
+                  .step(lambda vertex: vertex.set_state("name",vertex.name()))\
+                  .step(lambda vertex: vertex.set_state("degree",vertex.degree()))\
+                  .select("name", "degree"))\
+                  .to_df()
             print(df)
 
             df = (graph
                   .execute(PyRaphtory.algorithms.generic.community.LPA[Long]())
-                  .to_df(["name", "lpa_label"])
+                  .to_df()
                   )
             print(df)
 
-            df = (graph.execute(PageRank()).to_df(["name", "pagerank"]))
+            df = (graph.execute(PageRank()).to_df())
             print(df)
 
-            df = (graph.execute(ConnectedComponents()).to_df(["name", "component"]))
+            df = (graph.execute(ConnectedComponents()).to_df())
             print(df)
 
-            #  df = (graph.execute(TwoHopPaths()).to_df(["start", "middle", "end"]))
+            #  df = (graph.execute(TwoHopPaths()).to_df())
             #  print(df)
 
-            df = (graph.execute(LocalTriangleCount()).to_df(["name", "triangles"]))
+            df = (graph.execute(LocalTriangleCount()).to_df())
             print(df)
 
-            df = (graph.execute(GlobalTriangleCount()).to_df(["triangles"]))
+            df = (graph.execute(GlobalTriangleCount()).to_df())
             print(df)
 
-            df = (graph.execute(Degree()).to_df(["name", "in-degree", "out-degree", "degree"]))
+            df = (graph.execute(Degree()).to_df())
             print(df)
 
-            graph.select(lambda vertex: Row(vertex.name(), vertex.degree())).write_to_file("/tmp/test").wait_for_job()
+            graph.step(lambda vertex: vertex.set_state("name",vertex.name()))\
+                 .step(lambda vertex: vertex.set_state("degree",vertex.degree()))\
+                 .select("name", "degree").write_to_file("/tmp/test").wait_for_job()
 
             def accum_step(v, s):
                 ac = s["max_time"]
@@ -78,8 +81,8 @@ if __name__ == "__main__":
             df2 = (graph
                    .set_global_state(lambda s: s.new_accumulator("max_time", 0, op=lambda a, b: max(a, b)))
                    .step(accum_step)
-                   .global_select(lambda s: Row(s["max_time"].value()))
-                   .to_df(["max_time"]))
+                   .global_select("max_time")
+                   .to_df())
             print(df2)
 
         with ctx.new_graph() as graph2:
@@ -91,13 +94,17 @@ if __name__ == "__main__":
             print(f"time taken to ingest: {perf_counter() - start}s")
 
             df = (graph2
-                  .select(lambda vertex: Row(vertex.name(), vertex.degree()))
-                  .to_df(["name", "degree"]))
+                  .step(lambda vertex: vertex.set_state("name",vertex.name()))\
+                  .step(lambda vertex: vertex.set_state("degree",vertex.degree()))\
+                  .select("name", "degree")\
+                  .to_df())
             print(df)
 
             df2 = (graph2
-                   .select(lambda v: Row(v.name(), v.latest_activity().time()))
-                   .to_df(["name", "latest_time"]))
+                   .step(lambda v: v.set_state("name",v.name()))\
+                   .step(lambda v: v.set_state("latest_time",v.latest_activity().time()))\
+                   .select("name", "latest_time")
+                   .to_df())
             print(df2)
 
 

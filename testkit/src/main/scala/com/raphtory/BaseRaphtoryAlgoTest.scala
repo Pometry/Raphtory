@@ -6,6 +6,7 @@ import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.analysis.graphview.DeployedTemporalGraph
 import com.raphtory.api.input._
 import com.raphtory.api.output.sink.Sink
+import com.raphtory.formats.CsvFormat
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.internals.context.RaphtoryIOContext
 import com.raphtory.sinks.FileSink
@@ -14,7 +15,8 @@ import munit.CatsEffectSuite
 import org.slf4j.LoggerFactory
 
 import java.net.URL
-import java.nio.file.{Files, Paths}
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.FileAttribute
 import java.nio.file.attribute.PosixFilePermissions
@@ -29,26 +31,23 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
 
   var jobId: String           = ""
   val outputDirectory: String = Option(System.getenv("RAPHTORY_ITEST_PATH")).getOrElse("/tmp/raphtoryTest")
-  def defaultSink: Sink       = FileSink("/tmp/raphtoryTest")
+  def defaultSink: Sink       = FileSink("/tmp/raphtoryTest", format = CsvFormat(includeHeader = false))
 
   lazy val raphtoryData =
     Option(System.getenv("RAPHTORY_ITEST_PATH")).getOrElse(
             Files
-              .createTempDirectory("tests" )
+              .createTempDirectory("tests")
               .toString
     )
-
 
   def resolveSpout(fileName: String): String =
     if (System.getenv("RAPHTORY_ITEST_PATH") != null)
       fileName
-    else {
+    else
       Paths.get(raphtoryData, fileName).toString
-    }
 
-  def tmpLocation(fileName: String): String = {
+  def tmpLocation(fileName: String): String =
     Paths.get(raphtoryData, fileName).toString
-  }
 
   //  def
   def liftFileIfNotPresent: Option[(String, URL)] = None
@@ -59,12 +58,13 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
           "context-and-graph",
           for {
             _     <- TestUtils.manageTestFile(liftFileIfNotPresent)
-            ctx   <- Option(System.getenv("RAPHTORY_ITEST_PATH")) // if RAPHTORY_ITEST_PATH is set then use the remote context
-                       .map { _ =>
-                         logger.warn("!! Running Integration Tests on Remote Raphtory !!")
-                         RaphtoryIOContext.remoteIO()
-                       }
-                       .getOrElse(RaphtoryIOContext.localIO())
+            ctx   <-
+              Option(System.getenv("RAPHTORY_ITEST_PATH")) // if RAPHTORY_ITEST_PATH is set then use the remote context
+                .map { _ =>
+                  logger.warn("!! Running Integration Tests on Remote Raphtory !!")
+                  RaphtoryIOContext.remoteIO()
+                }
+                .getOrElse(RaphtoryIOContext.localIO())
             graph <- ctx.newIOGraph(failOnNotFound = false, destroy = true)
             _     <- Resource.pure(graph.load(setSource()))
           } yield (ctx, graph)

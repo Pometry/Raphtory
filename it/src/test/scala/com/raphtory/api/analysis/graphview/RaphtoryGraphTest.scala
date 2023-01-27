@@ -39,8 +39,8 @@ class RaphtoryGraphTest extends FunSuite {
       .vertexFilter(_.getState[String]("name") == "some name")
       .step(_.setState("new", 1))
       .transform(ConnectedComponents)
-      .select(vertex => Row(vertex.getState("new")))
-      .filter(_.getInt(0) == 1)
+      .select("new")
+      .filter(_.getInt("new") == 1)
     val query = table.asInstanceOf[TableImplementation].query
 
     assertEquals(query.timelineStart, 100L)
@@ -54,7 +54,7 @@ class RaphtoryGraphTest extends FunSuite {
     assert(query.operations(2).isInstanceOf[Step[_]])
     assert(query.operations(3).isInstanceOf[Iterate[_]])
     assert(query.operations(4).isInstanceOf[ClearChain])
-    assert(query.operations(5).isInstanceOf[Select[_]])
+    assert(query.operations(5).isInstanceOf[Select])
     assert(query.operations(6).isInstanceOf[TableFilter])
   }
 

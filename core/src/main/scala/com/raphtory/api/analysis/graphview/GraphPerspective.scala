@@ -234,36 +234,19 @@ trait GraphPerspective {
       executeMessagedOnly: Boolean
   ): Graph
 
-  /** Write output to table with one row per vertex
+  /** Returns a table with one row per vertex and one column per key in `values`
     *
-    * @param f function to extract data from vertex (run once for each vertex)
+    * If no values are provided, all of the values from the properties and the state are extracted.
+    *
+    * @param values the keys to be extracted from every vertex state and properties
     */
-  def select(f: Vertex => Row): Table
+  def select(values: String*): Table
 
-  /** Write output to table with access to global graph state
+  /** Returns a table with a single row from the global grah state and one column per key in `values`
     *
-    * @param f function to extract data from vertex and graph state (run once for each vertex)
+    * @param values the keys to be extracted from the graph state
     */
-  def select(f: (Vertex, GraphState) => Row): Table
-
-  /** Write global graph state to table (this creates a table with a single row)
-    *
-    * @param f function to extract data from graph state (runs only once)
-    */
-  def globalSelect(f: GraphState => Row): Table
-
-  /** Write output to table with multiple rows per vertex
-    *
-    * @param f function to extract data from vertex
-    */
-  def explodeSelect(f: Vertex => IterableOnce[Row]): Table
-
-  /** Write output to table with multiple rows per vertex
-    * using global graph state
-    *
-    * @param f function to extract data from vertex and graph state
-    */
-  def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row]): Table
+  def globalSelect(values: String*): Table
 
   /** Clear messages from previous operations. This function is predominantly used internally and shouldn't be called by the user unless they know what they are doing. */
   def clearMessages(): Graph
@@ -341,11 +324,8 @@ private[api] trait ConcreteGraphPerspective[V <: visitor.Vertex, G <: ConcreteGr
       iterations: Int,
       executeMessagedOnly: Boolean
   ): Graph
-  def select(f: Vertex => Row): Table
-  def select(f: (Vertex, GraphState) => Row): Table
-  def globalSelect(f: GraphState => Row): Table
-  def explodeSelect(f: Vertex => IterableOnce[Row]): Table
-  def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row]): Table
+  def select(values: String*): Table
+  def globalSelect(values: String*): Table
   def clearMessages(): Graph
 }
 

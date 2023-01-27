@@ -6,16 +6,17 @@ import com.raphtory.TestUtils
 import com.raphtory.algorithms.generic.EdgeList
 import com.raphtory.api.analysis.algorithm._
 import com.raphtory.api.analysis.graphview.TemporalGraph
-import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.input._
-import com.raphtory.internals.context.{RaphtoryContext, RaphtoryIOContext}
+import com.raphtory.internals.context.RaphtoryContext
+import com.raphtory.internals.context.RaphtoryIOContext
 import com.raphtory.internals.management.GraphConfig.ConfigBuilder
 import com.raphtory.sinks.PrintSink
 import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.FileSpout
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.Logger
-import grpc.health.v1.health.{Health, HealthCheckRequest}
+import grpc.health.v1.health.Health
+import grpc.health.v1.health.HealthCheckRequest
 import higherkindness.mu.rpc.ChannelForAddress
 import munit.CatsEffectSuite
 import org.slf4j.LoggerFactory
@@ -164,7 +165,11 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   test("test algorithm locally") {
     val res = runWithGraph(LocalContext, source) { graph =>
-      graph.addDynamicPath("com.raphtory.deployments.dynamicclassloader").execute(MaxFlowTest[Int]("Gandalf", "Gandalf")).get().toList
+      graph
+        .addDynamicPath("com.raphtory.deployments.dynamicclassloader")
+        .execute(MaxFlowTest[Int]("Gandalf", "Gandalf"))
+        .get()
+        .toList
     }
     assert(res.nonEmpty)
   }
@@ -178,14 +183,14 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   test("When an algo crashes and we try to iterate over the result we get an exception") {
     val res = runWithGraph(RemoteContext, source) { graph =>
-      Try(graph.select(vertex => Row(1)).get().toList)
+      Try(graph.step(v => v).select().get().toList)
     }
     assert(res.isFailure)
   }
 
   test("When an algo crashes waitForJob returns and isJobDone is false") {
     val res = runWithGraph(RemoteContext, source) { graph =>
-      val query = graph.select(vertex => Row(1)).filter(row => false).writeTo(PrintSink())
+      val query = graph.step(v => v).select().filter(row => false).writeTo(PrintSink())
       intercept[java.lang.RuntimeException](query.waitForJob())
       !query.isJobDone
     }
@@ -201,7 +206,11 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   test("test manual dynamic path") {
     val res = runWithGraph(RemoteContext, source) { graph =>
-      graph.addDynamicPath("com.raphtory.deployments.dynamicclassloader").execute(TestAlgorithmWithExternalDependency).get().toList
+      graph
+        .addDynamicPath("com.raphtory.deployments.dynamicclassloader")
+        .execute(TestAlgorithmWithExternalDependency)
+        .get()
+        .toList
     }
     assert(res.nonEmpty)
   }
@@ -215,7 +224,11 @@ class DynamicClassLoaderTest extends CatsEffectSuite {
 
   test("test algorithm class injection with MaxFlow") {
     val res = runWithGraph(RemoteContext, source) { graph =>
-      graph.addDynamicPath("com.raphtory.deployments.dynamicclassloader").execute(MaxFlowTest[Int]("Gandalf", "Gandalf")).get().toList
+      graph
+        .addDynamicPath("com.raphtory.deployments.dynamicclassloader")
+        .execute(MaxFlowTest[Int]("Gandalf", "Gandalf"))
+        .get()
+        .toList
     }
     assert(res.nonEmpty)
   }

@@ -2,9 +2,9 @@ package com.raphtory.algorithms.generic
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.internals.communication.SchemaProviderInstances._
+
 import scala.math.Ordering.Implicits._
 
 /**
@@ -37,6 +37,8 @@ import scala.math.Ordering.Implicits._
   */
 object AdjPlus extends Generic {
 
+  private val columns = List("name") ++ Seq("adjPlusSet")
+
   override def apply(graph: GraphPerspective): graph.Graph =
     graph.step(vertex => vertex.messageAllNeighbours((vertex.ID, vertex.degree))).step { vertex =>
       import vertex._ // make ClassTag and Ordering for IDType available
@@ -49,6 +51,7 @@ object AdjPlus extends Generic {
         .map(message => message._1)
         .toArray[vertex.IDType]
       vertex.setState("adjPlus", adj)
+      vertex.setState("name", vertex.name())
     }
 
   override def tabularise(graph: GraphPerspective): Table =
@@ -60,6 +63,7 @@ object AdjPlus extends Generic {
         adj.foreach(a => vertex.messageVertex(a, vertex.ID))
       }
       .step(vertex => vertex.messageQueue[vertex.IDType].foreach(v => vertex.messageVertex(v, vertex.name())))
-      .select(vertex => Row(vertex.name(), vertex.messageQueue[String]))
-      .explode(row => row.getAs[Iterable[String]](1).map(v => Row(row.get(0), v)))
+      .step(vertex => vertex.setState("adjPlusSet", vertex.messageQueue[String]))
+      .select(columns: _*)
+      .explode("adjPlusSet")
 }

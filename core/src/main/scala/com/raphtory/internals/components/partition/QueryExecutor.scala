@@ -8,7 +8,8 @@ import com.google.protobuf.empty.Empty
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphstate.GraphStateImplementation
 import com.raphtory.api.analysis.graphview._
-import com.raphtory.api.analysis.table.Explode
+import com.raphtory.api.analysis.table.ExplodeColumns
+import com.raphtory.api.analysis.table.RenameColumn
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.TableFilter
 import com.raphtory.api.analysis.table.TableFunction
@@ -44,7 +45,6 @@ class QueryExecutor[F[_]](
   private val graphId        = query.graphID
   private val jobId          = query.name
   private val loggingPrefix  = s"${jobId}_$partitionID:"
-  private val kryo           = KryoSerialiser()
   private val partitioner    = Partitioner(conf)
   private val cb: () => Unit = () => {}
 
@@ -91,8 +91,7 @@ class QueryExecutor[F[_]](
       withLens { lens =>
         for {
           buffer <- F.delay(ArrayBuffer[Row]())
-          // TODO Using kryo here is a hack so we get rows out of the row pool. Maybe we could consider if the pool mechanism is really necessary as it causes undesired behavior as in this case
-          _      <- F.blocking(lens.writeDataTable(row => buffer.addOne(kryo.deserialise[Row](kryo.serialise(row))))(cb))
+          _      <- F.blocking(lens.writeDataTable(row => buffer.addOne(row))(cb))
           result <- F.delay(PartitionResult(buffer.toSeq))
         } yield result
       }
@@ -101,7 +100,8 @@ class QueryExecutor[F[_]](
   def writePerspective(perspective: Perspective): F[Empty] =
     timed(s"Writing results from table to sink ${query.sink.get.getClass.getSimpleName}") { // TODO unsafe call to get
       withLens { lens =>
-        F.bracket(F.delay(sinkExecutor.setupPerspective(perspective))) { _ =>
+        val header = if (query.header.nonEmpty) query.header else lens.inferredHeader
+        F.bracket(F.delay(sinkExecutor.setupPerspective(perspective, header))) { _ =>
           F.blocking(lens.writeDataTable(row => sinkExecutor.threadSafeWriteRow(row))(cb))
         }(_ => F.delay(sinkExecutor.closePerspective()))
           .map(_ => Empty())
@@ -127,8 +127,8 @@ class QueryExecutor[F[_]](
                 case DirectedView()                        => lens.viewDirected()(cb)
                 case ReversedView()                        => lens.viewReversed()(cb)
                 case ClearChain()                          => lens.clearMessages(); cb()
-                case op: Select[Vertex] @unchecked         => lens.executeSelect(op.f)(cb)
-                case op: ExplodeSelect[Vertex] @unchecked  => lens.explodeSelect(op.f)(cb)
+                case InferHeader                           => lens.inferHeader()
+                case op: Select @unchecked                 => lens.executeSelect(op.values)(cb)
                 case rv: ReduceView                        => lens.reduceView(rv.defaultMergeStrategy, rv.mergeStrategyMap, rv.aggregate)(cb)
                 case x                                     => throw new Exception(s"$x not handled")
               }
@@ -160,9 +160,7 @@ class QueryExecutor[F[_]](
     def processNonMessaging =
       F.blocking(
               function match {
-                case SelectWithGraph(f)                             => lens.executeSelect(f, graphState)(cb)
-                case esf: ExplodeSelectWithGraph[Vertex] @unchecked => lens.explodeSelect(esf.f, graphState)(cb)
-                case GlobalSelect(f)                                => if (partitionID == 0) lens.executeSelect(f, graphState)(cb) else cb()
+                case GlobalSelect(values) => if (partitionID == 0) lens.executeSelect(values, graphState)(cb) else cb()
               }
       )
 
@@ -184,8 +182,9 @@ class QueryExecutor[F[_]](
   private def executeTableFunction(function: TableFunction, lens: LensInterface): F[Unit] =
     F.blocking(
             function match {
-              case TableFilter(f) => lens.filteredTable(f)(cb)
-              case Explode(f)     => lens.explodeTable(f)(cb)
+              case TableFilter(f)          => lens.filteredTable(f)(cb)
+              case ExplodeColumns(columns) => lens.explodeColumns(columns)(cb)
+              case RenameColumn(columns)   => lens.renameColumns(columns)(cb)
             }
     )
 

@@ -4,7 +4,6 @@ import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
-import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.ReducedVertex
 import com.raphtory.api.analysis.visitor.Vertex
@@ -102,6 +101,7 @@ class MultilayerLPA(
         vertex.setState("mlpalabel", tlabels)
         val message = (vertex.ID, tlabels.map(x => (x._1, x._2)))
         vertex.messageAllNeighbours(message)
+        vertex.setState("name", vertex.name())
       }
       .iterate(
               { vertex =>
@@ -158,8 +158,10 @@ class MultilayerLPA(
                 }.toList
 
                 // Update node label and broadcast
-                vertex.setState("mlpalabel", newLabel)
-                val message = (vertex.ID, newLabel)
+                val (timestamps, multilayerNames) = newLabel.unzip
+                vertex.setState("multilayerName", multilayerNames)
+                vertex.setState("timestamp", timestamps.map(ts => s"${vertex.name}_$ts"))
+                val message                       = (vertex.ID, newLabel)
                 vertex.messageAllNeighbours(message)
 
                 // Update vote status
@@ -179,18 +181,8 @@ class MultilayerLPA(
 
   override def tabularise(graph: ReducedGraphPerspective): Table =
     graph
-      .select { vertex =>
-        Row(
-                vertex.name(),
-                vertex.getState("mlpalabel")
-        )
-      }
-      .explode { row =>
-        row
-          .get(1)
-          .asInstanceOf[List[(Long, Long)]]
-          .map(lts => Row(lts._2, s"${row.get(0)}_${lts._1}"))
-      }
+      .select("multilayerName", "timestamp")
+      .explode("multilayerName", "timestamp")
 
 }
 

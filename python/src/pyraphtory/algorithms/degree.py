@@ -17,4 +17,8 @@ class Degree(PyAlgorithm):
         return graph.step(step)
 
     def tabularise(self, graph: TemporalGraph):
-        return graph.select(lambda v: Row(v.name(), v[IN_DEGREE], v[OUT_DEGREE], v[DEGREE]))
+        return graph.step(lambda v: v.set_state("name",v.name()))\
+                    .step(lambda v: v.set_state(IN_DEGREE, v[IN_DEGREE]))\
+                    .step(lambda v: v.set_state(OUT_DEGREE,v[OUT_DEGREE]))\
+                    .step(lambda v: v.set_state(DEGREE, v[DEGREE]))\
+                    .select("name", IN_DEGREE, OUT_DEGREE, DEGREE)

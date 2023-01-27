@@ -2,7 +2,6 @@ package com.raphtory.algorithms.generic
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 
 /**
@@ -40,21 +39,20 @@ class EdgeList(
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .explodeSelect { vertex =>
-        val neighbourMap = vertex.getState[Map[vertex.IDType, String]]("neighbourNames")
-        val name         = vertex.name()
-        vertex.outEdges
-          .map { edge =>
-            val row = name +:
-              neighbourMap(edge.dst) +: // get name of neighbour
-              properties // get property values
-                .map(key =>
-                  edge
-                    .getPropertyOrElse(key, defaults.getOrElse(key, None))
-                )
-            Row(row: _*)
-          }
+      .step { vertex =>
+        vertex.setState("name", vertex.name())
+        val neighbourMap               = vertex.getState[Map[vertex.IDType, String]]("neighbourNames")
+        val (neighbours, propertyRows) = vertex.outEdges.toSeq.map { edge =>
+          val propertyValues = properties.map(key => edge.getPropertyOrElse(key, defaults.getOrElse(key, None)))
+          (neighbourMap(edge.dst), propertyValues)
+        }.unzip
+        vertex.setState("neighbourName", neighbours)
+        properties zip propertyRows.transpose foreach {
+          case (columnName, propertyColumn) => vertex.setState(columnName, propertyColumn)
+        }
       }
+      .select("name" +: "neighbourName" +: properties: _*)
+      .explode("neighbourName" +: properties: _*)
 }
 
 object EdgeList {

@@ -27,7 +27,7 @@ import com.typesafe.config.Config
   * 10,5,id3,24
   * }}}
   */
-case class CsvFormat(delimiter: String = ",") extends Format {
+case class CsvFormat(delimiter: String = ",", includeHeader: Boolean = true) extends Format {
   override def defaultDelimiter: String = "\n"
   override def defaultExtension: String = "csv"
 
@@ -38,8 +38,11 @@ case class CsvFormat(delimiter: String = ",") extends Format {
       config: Config
   ): SinkExecutor =
     new SinkExecutor {
-      var currentPerspective: Perspective = _
-      private val mapper                  = JsonMapper.builder().addModule(DefaultScalaModule).build()
+      private var firstPerspective                = true
+      private var currentPerspective: Perspective = _
+      private var currentHeader: List[String]     = _
+      private var currentLinePrefix: String       = _
+      private val mapper                          = JsonMapper.builder().addModule(DefaultScalaModule).build()
 
       private def ensureQuoted(str: String): String =
         if (
@@ -51,29 +54,50 @@ case class CsvFormat(delimiter: String = ",") extends Format {
         else
           "\"" + str + "\""
 
-      private def csvValue(obj: Any): String =
-        obj match {
+      private def csvValue(value: Any): String =
+        value match {
           case v: String => ensureQuoted(v)
           case v         =>
             ensureQuoted(mapper.writeValueAsString(v))
         }
 
-      override def setupPerspective(perspective: Perspective): Unit =
+      override def setupPerspective(perspective: Perspective, header: List[String]): Unit = {
         currentPerspective = perspective
 
-      override protected def writeRow(row: Row): Unit = {
-        val value = currentPerspective.window match {
-          case Some(w) =>
-            s"${currentPerspective.timestampAsString}$delimiter$w$delimiter${row.getValues().map(csvValue).mkString(delimiter)}"
-          case None    =>
-            s"${currentPerspective.timestampAsString}$delimiter${row.getValues().map(csvValue).mkString(delimiter)}"
+        // Set the prefix for all the lines in this perspective containing timestamp (and window)
+        perspective.window match {
+          case Some(w) => currentLinePrefix = s"${perspective.timestampAsString}$delimiter$w$delimiter"
+          case None    => currentLinePrefix = s"${perspective.timestampAsString}$delimiter"
         }
-        connector.write(value)
+
+        // Write the header if this is the first perspective and explode if the header changes
+        if (firstPerspective) {
+          currentHeader = header
+          if (includeHeader) {
+            val csvColumns = header.mkString(delimiter)
+            perspective.window match {
+              case Some(w) => connector.writeHeader("timestamp,window," + csvColumns)
+              case None    => connector.writeHeader("timestamp," + csvColumns)
+            }
+          }
+          firstPerspective = false
+        }
+        else if (header != currentHeader) {
+          val msg =
+            "The number of columns needs to be consistent between perspectives when using the CsvFormat. " +
+              s"Was previously '$currentHeader' and now is '$header'" +
+              "You can explicitly set them using graph.select()"
+          throw new IllegalStateException(msg)
+        }
+      }
+
+      override protected def writeRow(row: Row): Unit = {
+        connector.write(currentLinePrefix)
+        connector.write(row.columns.values.map(csvValue).mkString(delimiter))
         connector.closeItem()
       }
 
       override def closePerspective(): Unit = {}
-
-      override def close(): Unit                                    = connector.close()
+      override def close(): Unit               = connector.close()
     }
 }

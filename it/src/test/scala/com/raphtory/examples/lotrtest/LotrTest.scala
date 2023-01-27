@@ -215,7 +215,6 @@ class LotrTest extends BaseRaphtoryAlgoTest[String] {
 //    )
 //  }
 
-
   override def liftFileIfNotPresent: Option[(String, URL)] =
     Some(tmpLocation("/lotr.csv"), new URL("https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"))
 

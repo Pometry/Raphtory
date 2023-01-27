@@ -45,8 +45,8 @@ trait LocalRunner { self: RaphtoryApp =>
       }
 
       //The ingestion of data into a graph (line 33-45) can also be pushed into Raphtory via a Source and load function:
-      //      val source = Source(FileSpout(path), LotrGraphBuilder)
-      //      graph.load(source)
+      val source = Source(FileSpout(path), LotrGraphBuilder)
+      graph.load(source)
 
       // Get simple metrics
       graph
@@ -59,7 +59,15 @@ trait LocalRunner { self: RaphtoryApp =>
         .at(32674)
         .past()
         .transform(PageRank())
-        .execute(NodeList(Seq("prlabel")))
+        .select("name", "prlabel")
+        .writeTo(FileSink("/tmp/raphtory"))
+        .waitForJob()
+
+      graph
+        .at(1)
+        .past()
+        .transform(PageRank())
+        .select("name", "prlabel")
         .writeTo(FileSink("/tmp/raphtory"))
         .waitForJob()
 
@@ -71,14 +79,14 @@ trait LocalRunner { self: RaphtoryApp =>
         .writeTo(FileSink("/tmp/raphtory"))
         .waitForJob()
 
-      // Chained Example
+      //  Chained Example
       graph
         .at(32674)
         .past()
         .transform(PageRank())
         .transform(ConnectedComponents)
         .transform(Degree())
-        .execute(NodeList(Seq("prlabel", "cclabel", "inDegree", "outDegree", "degree")))
+        .select("name", "prlabel", "cclabel", "inDegree", "outDegree", "degree")
         .writeTo(FileSink("/tmp/raphtory"))
         .waitForJob()
 
@@ -133,7 +141,7 @@ object RemoteRunner extends RaphtoryApp.Remote("localhost", 1736) {
         .at(32674)
         .past()
         .transform(PageRank())
-        .execute(NodeList(Seq("prlabel")))
+        .select("name", "prlabel")
         .writeTo(FileSink("/tmp/raphtory"))
         .waitForJob()
 
@@ -152,7 +160,7 @@ object RemoteRunner extends RaphtoryApp.Remote("localhost", 1736) {
         .transform(PageRank())
         .transform(ConnectedComponents)
         .transform(Degree())
-        .execute(NodeList(Seq("prlabel", "cclabel", "inDegree", "outDegree", "degree")))
+        .select("name", "prlabel", "cclabel", "inDegree", "outDegree", "degree")
         .writeTo(FileSink("/tmp/raphtory"))
         .waitForJob()
 

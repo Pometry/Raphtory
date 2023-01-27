@@ -1,10 +1,12 @@
 package com.raphtory.algorithms.generic
 
 import com.raphtory.api.analysis.algorithm.GenericReduction
-import com.raphtory.api.analysis.graphview.{GraphPerspective, ReducedGraphPerspective}
-import com.raphtory.api.analysis.table.{Row, Table}
+import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
+import com.raphtory.api.analysis.table.Table
 
-class TaintTrackingWithHistory(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set()) extends GenericReduction {
+class TaintTrackingWithHistory(startTime: Long, infectedNodes: Set[String], stopNodes: Set[String] = Set())
+        extends GenericReduction {
 
   override def apply(graph: GraphPerspective): graph.ReducedGraph =
     graph.reducedView
@@ -76,7 +78,7 @@ class TaintTrackingWithHistory(startTime: Long, infectedNodes: Set[String], stop
                     vertex.setState("taintTransactions", newState)
                   }
                   // if we have no stop nodes set, then continue the taint spreading
-                  if (stopNodes.size == 0)
+                  if (stopNodes.isEmpty)
                     // repeat like we did in the step
                     vertex
                       .getOutEdges(after = infectionTime)
@@ -137,21 +139,18 @@ class TaintTrackingWithHistory(startTime: Long, infectedNodes: Set[String], stop
 
   override def tabularise(graph: ReducedGraphPerspective): Table =
     graph
-      .select(vertex =>
-        Row(
-                vertex.getPropertyOrElse("address", "").toString,
-                vertex.getStateOrElse("taintStatus", false),
-                vertex.getStateOrElse[Any]("taintTransactions", "false")
-        )
-      )
       // filter for any that had been tainted and save to folder
-      .filter(r => r.get(1) == true)
-      .explode(row =>
-        row
-          .get(2)
-          .asInstanceOf[List[(String, String, Long, String, String)]]
-          .map(tx => Row(row(0), tx._5, tx._3, tx._2, tx._4))
-      )
+      .vertexFilter(vertex => vertex.getStateOrElse("taintStatus", false))
+      .step { vertex =>
+        val taintTransactions: Seq[(String, String, Long, String, String)] =
+          vertex.getStateOrElse("taintTransactions", Seq())
+        vertex.setState("hash", taintTransactions.map(_._2))
+        vertex.setState("time", taintTransactions.map(_._3))
+        vertex.setState("value", taintTransactions.map(_._4))
+        vertex.setState("address", taintTransactions.map(_._5))
+      }
+      .select("tainted", "address", "time", "hash", "value")
+      .explode("address", "time", "hash", "value")
 }
 
 object TaintTrackingWithHistory {

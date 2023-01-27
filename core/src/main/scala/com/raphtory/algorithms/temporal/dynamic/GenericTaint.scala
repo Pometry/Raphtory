@@ -4,7 +4,6 @@ import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.algorithm.GenericReduction
 import com.raphtory.api.analysis.graphview.GraphPerspective
 import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
-import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 
 /**
@@ -62,6 +61,7 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
             // set this node as the beginning state
             vertex.setState("taintStatus", true)
             vertex.setState("taintHistory", result)
+            vertex.setState("name", vertex.name())
             // tell all the other nodes that it interacts with, after starTime, that they are also infected
             // but also send the properties of when the infection happened
             vertex
@@ -85,7 +85,7 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
                 // check if any node has received a message
                 // obtain the messages as a set
                 val newMessages   =
-                  vertex.messageQueue[(String, Long, Long, Long)].map(item => item).distinct
+                  vertex.messageQueue[(String, Long, Long, String)].map(item => item).distinct
                 // obtain the min time it was infected
                 val infectionTime = newMessages.map(item => item._3).min
                 val status        = newMessages.map(item => item._1).distinct
@@ -99,14 +99,14 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
                   }
                   else {
                     // otherwise set a brand new state, first get the old txs it was tainted by
-                    val oldState: Vector[(String, Long, Long, Long)] = vertex.getState("taintHistory")
+                    val oldState: Vector[(String, Long, Long, String)] = vertex.getState("taintHistory")
                     // add the new transactions and old ones together
-                    val newState                                   = Vector.concat(newMessages, oldState).distinct
+                    val newState                                       = Vector.concat(newMessages, oldState).distinct
                     // set this as the new state
                     vertex.setState("taintHistory", newState)
                   }
                   // if we have no stop nodes set, then continue the taint spreading
-                  if (stopNodes.size == 0)
+                  if (stopNodes.isEmpty)
                     // repeat like we did in the step
                     vertex
                       .getOutEdges(after = infectionTime)
@@ -142,21 +142,18 @@ class GenericTaint(startTime: Long, infectedNodes: Set[String], stopNodes: Set[S
 
   override def tabularise(graph: ReducedGraphPerspective): Table =
     graph
-      .select(vertex =>
-        Row(
-                vertex.name(),
-                vertex.getStateOrElse("taintStatus", false),
-                vertex.getStateOrElse[Any]("taintHistory", "false")
-        )
-      )
       // filter for any that had been tainted and save to folder
-      .filter(r => r.get(1) == true)
-      .explode(row =>
-        row
-          .get(2)
-          .asInstanceOf[Vector[(String, Long, Long, String)]]
-          .map(tx => Row(row(0), tx._2, tx._3, tx._4))
-      )
+      .vertexFilter(vertex => vertex.getStateOrElse("taintStatus", false))
+      .step { vertex =>
+        val taintHistory: Vector[(String, Long, Long, String)] =
+          vertex.getStateOrElse("taintHistory", Vector[(String, Long, Long, String)]())
+        val (propEdges, timeOfEvents, sourceNodes)             = taintHistory.map(t => (t._2, t._3, t._4)).unzip3
+        vertex.setState("propagatingEdge", propEdges)
+        vertex.setState("timeOfEvent", timeOfEvents)
+        vertex.setState("sourceNode", sourceNodes)
+      }
+      .select("name", "propagatingEdge", "timeOfEvent", "sourceNode")
+      .explode("propagatingEdge", "timeOfEvent", "sourceNode")
 }
 
 object GenericTaint {

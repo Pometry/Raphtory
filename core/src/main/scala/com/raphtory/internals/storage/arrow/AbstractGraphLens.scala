@@ -2,7 +2,6 @@ package com.raphtory.internals.storage.arrow
 
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.RowImplementation
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
 import com.raphtory.api.analysis.visitor.InterlayerEdge
 import com.raphtory.api.analysis.visitor.Vertex
@@ -37,7 +36,7 @@ abstract class AbstractGraphLens(
   protected val graphState: GraphExecutionState =
     GraphExecutionState(partitionID(), superStep, messageSender, storage.asGlobal, votingMachine, start, end)
 
-  private var dataTable: View[Row] = View.empty[RowImplementation]
+  private var dataTable: View[Row] = View.empty[Row]
 
   var t1: Long = System.currentTimeMillis()
 
@@ -129,17 +128,9 @@ abstract class AbstractGraphLens(
     onComplete()
   }
 
-  def explodeTable(f: Row => IterableOnce[Row])(onComplete: () => Unit): Unit = {
-    //FIXME: this doesn't work -> row.asInstanceOf[RowImplementation].explode(f).toVector
-    dataTable = dataTable.flatMap(f)
-    onComplete()
-  }
-
-  override def executeSelect(f: GraphState => Row, graphState: GraphState)(onComplete: () => Unit): Unit = {
+  override def executeSelect(values: Seq[String], graphState: GraphState)(onComplete: () => Unit): Unit = {
     if (partitionID == 0)
-      dataTable = View
-        .fromIteratorProvider(() => Iterator.fill(1)(f(graphState).asInstanceOf[RowImplementation]))
-        .flatMap(_.yieldAndRelease)
+      dataTable = View(Row(values.map(key => (key, graphState.apply[Any, Any](key).value)): _*))
     onComplete()
   }
 
@@ -147,22 +138,6 @@ abstract class AbstractGraphLens(
     dataTable = dataTable.filter(f)
     onComplete()
   }
-
-  override def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: () => Unit): Unit = {
-    dataTable = vertices.flatMap(f).flatMap(row => row.asInstanceOf[RowImplementation].yieldAndRelease)
-    onComplete()
-  }
-
-  override def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row], graphState: GraphState)(
-      onComplete: () => Unit
-  ): Unit = {
-    dataTable =
-      vertices.flatMap(v => f(v, graphState)).flatMap(row => row.asInstanceOf[RowImplementation].yieldAndRelease)
-    onComplete()
-  }
-
-  override def executeSelect(f: Vertex => Row)(onComplete: () => Unit): Unit =
-    explodeSelect(v => List(f(v)))(onComplete)
 
   override def reduceView(
       defaultMergeStrategy: Option[PropertyMerge[_, _]],
@@ -173,11 +148,15 @@ abstract class AbstractGraphLens(
   override def explodeView(interlayerEdgeBuilder: Option[Vertex => Seq[InterlayerEdge]])(onComplete: () => Unit): Unit =
     ???
 
-  override def executeSelect(f: (_, GraphState) => Row, graphState: GraphState)(onComplete: () => Unit): Unit = ???
-
   override def viewUndirected()(onComplete: () => Unit): Unit = ???
 
   override def viewDirected()(onComplete: () => Unit): Unit = ???
 
   override def viewReversed()(onComplete: () => Unit): Unit = ???
+
+  override def executeSelect(values: Seq[String])(onComplete: () => Unit): Unit            = ???
+  override def explodeColumns(columns: Seq[String])(onComplete: () => Unit): Unit          = ???
+  override def renameColumns(columns: Seq[(String, String)])(onComplete: () => Unit): Unit = ???
+  override def inferHeader(): Unit                                                         = ???
+  override def inferredHeader: List[String]                                                = ???
 }

@@ -7,6 +7,7 @@ import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.TestUtils
 import com.raphtory.defaultConf
 import com.raphtory.api.output.sink.Sink
+import com.raphtory.formats.CsvFormat
 import com.raphtory.internals.components.RaphtoryServiceBuilder
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.sinks.FileSink
@@ -17,7 +18,8 @@ import munit.CatsEffectSuite
 import java.io.FileWriter
 import java.net.URL
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.FiniteDuration
 import scala.sys.process._
 
 class MultiSpoutDeploymentTest extends CatsEffectSuite {
@@ -25,7 +27,7 @@ class MultiSpoutDeploymentTest extends CatsEffectSuite {
   override def munitTimeout: Duration = new FiniteDuration(60, TimeUnit.SECONDS)
 
   val outputDirectory   = "/tmp/raphtoryTest"
-  def defaultSink: Sink = FileSink(outputDirectory)
+  def defaultSink: Sink = FileSink(outputDirectory, format = CsvFormat(includeHeader = false))
 
   test("Deploy a graph from two spouts") {
     val url          = new URL("https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv")
