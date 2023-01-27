@@ -37,11 +37,11 @@ class Table(GenericScalaProxy):
                 columns = ('timestamp', 'window', *columns)
                 for r in res.rows():
                     window_size = window.get().output()
-                    rows.append((timestamp, window_size, *r.columns().values()))
+                    rows.append((timestamp, window_size, *r.values()))
             else:
                 columns = ('timestamp', *columns)
                 for r in res.rows():
-                    rows.append((timestamp, *r.columns().values()))
+                    rows.append((timestamp, *r.values()))
 
         df = pd.DataFrame.from_records(rows, columns=columns)
         if time_formatted:
