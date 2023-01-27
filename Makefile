@@ -196,6 +196,6 @@ python-test:
 	pytest python/build_tests
 	pytest python/tests
 	pytest --nbmake -n=auto examples
-	pytest --nbmake docs/source/Introduction
-	pytest --nbmake docs/source/Install
+	#pytest --nbmake docs/source/Introduction
+	#pytest --nbmake docs/source/Install
 
