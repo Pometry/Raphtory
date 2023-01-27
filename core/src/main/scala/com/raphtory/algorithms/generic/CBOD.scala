@@ -3,7 +3,6 @@ package com.raphtory.algorithms.generic
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.algorithm.Identity
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.internals.communication.SchemaProviderInstances._
 
@@ -68,13 +67,9 @@ class CBOD(
   // extract vertex ID and outlier score for vertices with outlierscore >= threshold
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .select { vertex =>
-        Row(
-                vertex.name(),
-                vertex.getStateOrElse[Double]("outlierscore", 10.0)
-        )
-      }
-      .filter(_.get(1).asInstanceOf[Double] >= cutoff)
+      .step(vertex => vertex.getStateOrElse("name", vertex.name()))
+      .select("name", "outlierscore")
+      .filter(_.get("outlierscore").asInstanceOf[Double] >= cutoff)
 }
 
 object CBOD {

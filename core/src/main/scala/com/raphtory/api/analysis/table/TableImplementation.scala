@@ -17,9 +17,19 @@ private[api] class TableImplementation(val query: Query, private[raphtory] val q
     addFunction(TableFilter(closurefunc))
   }
 
-  override def explode(f: Row => IterableOnce[Row]): Table = {
-    def closurefunc(v: Row): IterableOnce[Row] = f(v)
-    addFunction(Explode(closurefunc))
+  override def explode(columns: String*): Table =
+    addFunction(ExplodeColumns(columns))
+
+  override def renameColumns(columns: (String, String)*): Table = {
+    val newNames      = columns.toMap
+    val renamedHeader = query.header.collect {
+      case key if newNames contains key => newNames(key)
+      case key                          => key
+    }
+    new TableImplementation(
+            query.copy(operations = query.operations :+ RenameColumn(columns), header = renamedHeader),
+            querySender
+    )
   }
 
   override def writeTo(sink: Sink, jobName: String): QueryProgressTracker =
@@ -33,7 +43,7 @@ private[api] class TableImplementation(val query: Query, private[raphtory] val q
     submitQueryWithSink(
             TableOutputSink(querySender.graphID),
             jobName,
-            jobID => querySender.createTableOutputTracker(jobID, timeout)
+            jobID => querySender.createTableOutputTracker(jobID, timeout, query.header)
     )
       .asInstanceOf[QueryProgressTrackerWithIterator]
       .TableOutputIterator

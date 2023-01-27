@@ -41,9 +41,9 @@ case class TypeDBSpout(database: String) extends Spout[String] {
 class TypeDBSpoutInstance(database: String) extends SpoutInstance[String] {
 
   // 1. Connect to TypeDB server using client
-  private val client         = TypeDB.coreClient("localhost:1729")
+  private val client  = TypeDB.coreClient("localhost:1729")
   // 2. Connect to particular database via a session to carry out transactions
-  private val session        = client.session(database, TypeDBSession.Type.DATA)
+  private val session = client.session(database, TypeDBSession.Type.DATA)
 
   private var lines: stream.Stream[ConceptMap] = _
   private var item: String                     = _

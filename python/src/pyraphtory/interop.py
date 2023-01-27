@@ -388,7 +388,7 @@ class ScalaProxyBase(object):
         output = {}
         methods = []
         if len(method_array) > 1:
-            for i, method in enumerate(sorted(method_array, key=lambda m: m.n())):
+            for i, method in enumerate(sorted(method_array, key=lambda m: (m.varargs(), m.n()))):
                 try:
                     methods.append(_codegen.build_method(f"{name}{i}", method, _jpype, globals(), output))
                 except Exception as e:

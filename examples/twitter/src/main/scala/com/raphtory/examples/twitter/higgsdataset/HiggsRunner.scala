@@ -1,6 +1,7 @@
 package com.raphtory.examples.twitter.higgsdataset
 
 import com.raphtory.RaphtoryApp
+import com.raphtory.algorithms.generic.NodeList
 import com.raphtory.algorithms.generic.centrality.Degree
 import com.raphtory.algorithms.generic.centrality.PageRank
 import com.raphtory.api.input.Source

@@ -6,6 +6,7 @@ import com.raphtory.defaultConf
 import com.raphtory.algorithms.generic.ConnectedComponents
 import com.raphtory.api.analysis.graphview.Alignment
 import com.raphtory.api.output.sink.Sink
+import com.raphtory.formats.CsvFormat
 import com.raphtory.internals.components.RaphtoryServiceBuilder
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.sinks.FileSink
@@ -51,7 +52,7 @@ class MultiGraphDeploymentTest extends CatsEffectSuite {
   override val munitTimeout: Duration = 300.seconds
 
   val outputDirectory   = "/tmp/raphtoryTest"
-  def defaultSink: Sink = FileSink(outputDirectory)
+  def defaultSink: Sink = FileSink(outputDirectory, format = CsvFormat(includeHeader = false))
 
   test("Deploy two different graphs and queries work as normally") {
     val lotrPath = "/tmp/lotr.csv"

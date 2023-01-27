@@ -2,7 +2,6 @@ package com.raphtory.examples.lotr.analysis
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.internals.communication.SchemaProviderInstances._
 
@@ -16,9 +15,12 @@ class DegreesSeparation(name: String = "Gandalf") extends Generic {
         if (vertex.getPropertyOrElse("name", "") == name) {
           vertex.messageAllNeighbours(0)
           vertex.setState(SEPARATION, 0)
+          vertex.setState("name", name)
         }
-        else
+        else {
           vertex.setState(SEPARATION, -1)
+          vertex.setState("name", vertex.name())
+        }
       }
       .iterate(
               { vertex =>
@@ -35,9 +37,7 @@ class DegreesSeparation(name: String = "Gandalf") extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .select(vertex =>
-        Row(vertex.getPropertyOrElse("name", "unknown"), vertex.getStateOrElse[Int](SEPARATION, -1))
-      )
+      .select("name", SEPARATION)
   //.filter(row=> row.getInt(1) > -1)
 }
 

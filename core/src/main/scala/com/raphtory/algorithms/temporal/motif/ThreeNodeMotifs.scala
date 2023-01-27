@@ -7,6 +7,7 @@ import com.raphtory.api.analysis.graphview.ReducedGraphPerspective
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.internals.communication.SchemaProviderInstances._
+
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
@@ -224,38 +225,61 @@ class ThreeNodeMotifs(delta: Long = 3600, graphWide: Boolean = false, prettyPrin
   override def tabularise(graph: ReducedGraphPerspective): Table =
     if (!graphWide)
       if (prettyPrint)
-        graph.select(vertex =>
-          Row(
-                  vertex.name,
-                  getStarCountsPretty(vertex.getState[Array[Int]]("starCounts")),
-                  get2NodeCountsWithoutRepeats(vertex.getState[Array[Int]]("twoNodeCounts")),
-                  getTriCountsPretty(vertex.getState[Array[Int]]("triCounts"))
-          )
-        )
+        graph
+          .step { v =>
+            v.setState("name", v.name())
+            v.setState("starCountsPretty", getStarCountsPretty(v.getState[Array[Int]]("starCounts")))
+            v.setState("twoNodeCounts", get2NodeCountsWithoutRepeats(v.getState[Array[Int]]("twoNodeCounts")))
+            v.setState("triCounts", getTriCountsPretty(v.getState[Array[Int]]("triCounts")))
+          }
+          .select("name", "starCountsPretty", "twoNodeCounts", "triCounts")
       else
-        graph.select(vertex =>
-          Row(
-                  vertex.name,
-                  (vertex.getState[Array[Int]]("starCounts") ++ vertex.getState[Array[Int]]("twoNodeCounts") ++ vertex
-                    .getState[Array[Int]]("triCounts")).mkString("(", ";", ")")
-          )
-        )
+        graph
+          .step { v =>
+            v.setState("name", v.name())
+            v.setState(
+                    "nonPrettyMotifResults",
+                    v.setState(
+                            "nonPrettyMotifResults",
+                            (v.getState[Array[Int]]("starCounts") ++
+                              v.getState[Array[Int]]("twoNodeCounts") ++ v.getState[Array[Int]]("triCounts"))
+                              .mkString("(", ";", ")")
+                    )
+            )
+          }
+          .select("name", "nonPrettyMotifResults")
     else if (prettyPrint)
-      graph.globalSelect(state =>
-        Row(
-                getStarCountsPretty(state[Array[Long], Array[Long]]("starCounts").value),
-                get2NodeCountsWithoutRepeats(state[Array[Int], Array[Int]]("twoNodeCounts").value),
-                getTriCountsPretty(state[Array[Int], Array[Int]]("triCounts").value)
+      graph
+        .setGlobalState { state =>
+          state.newConstant[Map[String, Long]](
+                  "starCountsPretty",
+                  getStarCountsPretty(state[Array[Long], Array[Long]]("starCounts").value)
+          )
+          state.newConstant[Map[String, Int]](
+                  "twoNodeCountsPretty",
+                  get2NodeCountsWithoutRepeats(state[Array[Int], Array[Int]]("starCounts").value)
+          )
+          state.newConstant[Map[String, Int]](
+                  "triCountsPretty",
+                  getTriCountsPretty(state[Array[Int], Array[Int]]("starCounts").value)
+          )
+        }
+        .globalSelect(
+                "starCountsPretty",
+                "twoNodeCountsPretty",
+                "triCountsPretty"
         )
-      )
     else
-      graph.globalSelect(state =>
-        Row(
-                (state[Array[Long], Array[Long]]("starCounts").value ++ state[Array[Int], Array[Int]](
-                        "twoNodeCounts"
-                ).value ++ state[Array[Int], Array[Int]]("triCounts").value).mkString("(", ";", ")")
-        )
-      )
+      graph
+        .setGlobalState { state =>
+          state.newConstant[String](
+                  "motifs",
+                  (state[Array[Long], Array[Long]]("starCounts").value ++ state[Array[Int], Array[Int]](
+                          "twoNodeCounts"
+                  ).value ++ state[Array[Int], Array[Int]]("triCounts").value).mkString("(", ";", ")")
+          )
+        }
+        .globalSelect("motifs")
 }
 
 abstract class MotifCounter {

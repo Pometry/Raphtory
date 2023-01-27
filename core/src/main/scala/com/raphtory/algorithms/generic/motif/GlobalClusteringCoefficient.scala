@@ -2,7 +2,6 @@ package com.raphtory.algorithms.generic.motif
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 
 /**
@@ -42,15 +41,16 @@ object GlobalClusteringCoefficient extends Generic {
       }
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.globalSelect { state =>
-      val totalCluster: Double = state("totalClustering").value
-      // the below is thrice the actual number of triangles, hence none of the usual factor of 3 in the
-      // global clustering coefficient calc.
-      val totalTriangles: Int  = state("triangles").value
-      val totalWedges: Int     = state("wedges").value
-      val avgCluster           = if (state.nodeCount > 0) totalCluster / state.nodeCount else 0.0
-      val globalCluster        = if (totalWedges > 0) totalTriangles / totalWedges else 0.0
-      Row(avgCluster, globalCluster)
-    }
+    graph
+      .setGlobalState { state =>
+        val avgCluster    =
+          if (state.nodeCount > 0) state[Double, Double]("totalClustering").value / state.nodeCount else 0.0
+        val globalCluster =
+          if (state[Int, Int]("wedges").value > 0) state[Int, Int]("triangles").value / state[Int, Int]("wedges").value
+          else 0.0
+        state.newConstant[Double]("averageCluster", avgCluster)
+        state.newConstant[Any]("globalCluster", globalCluster)
+      }
+      .globalSelect("averageCluster", "globalCluster")
 
 }

@@ -57,7 +57,8 @@ private[pojograph] class PojoUndirectedVertexView[T](override val vertex: PojoCo
         }
     }
 
-  override implicit val provider: SchemaProvider[T] = com.raphtory.internals.communication.SchemaProviderInstances.genericSchemaProvider  // TODO
+  implicit override val provider: SchemaProvider[T] =
+    com.raphtory.internals.communication.SchemaProviderInstances.genericSchemaProvider // TODO
 }
 
 private[pojograph] class PojoReducedUndirectedVertexView(override val vertex: PojoExVertex)
@@ -97,6 +98,7 @@ private[pojograph] class PojoExplodedUndirectedVertexView(override val vertex: P
         with ExplodedVertex {
 
   override def timestamp: Long = vertex.timestamp
+
 }
 
 private[pojograph] object PojoExplodedUndirectedVertexView {

@@ -18,6 +18,7 @@ class QueryProgressTrackerWithIteratorSuite extends CatsEffectSuite {
   private val jobId           = "testJobId"
   private val config          = mock[com.typesafe.config.Config]
   private val totalPartitions = 1
+  private val header          = List("")
 
   private val perspective = Perspective(
           timestamp = 1L,
@@ -36,7 +37,8 @@ class QueryProgressTrackerWithIteratorSuite extends CatsEffectSuite {
                                   graphId,
                                   jobId,
                                   config,
-                                  Duration.Inf
+                                  Duration.Inf,
+                                  header
                           )
                   )
           )
@@ -50,7 +52,7 @@ class QueryProgressTrackerWithIteratorSuite extends CatsEffectSuite {
 
   test("QueryProgressTrackerWithIterator updates list of perspectives and iterator when received PerspectiveCompleted") {
     val tracker = queryProgressTrackerWithIterator()
-    val row     = Row(1, 2, 3)
+    val row     = Row(("perspectiveone", 1), ("perspectivetwo", 2), ("perspectivethree", 3))
 
     tracker.handleQueryUpdate(PerspectiveCompleted(perspective, Seq(row)))
     tracker.handleQueryUpdate(QueryCompleted())
@@ -61,7 +63,7 @@ class QueryProgressTrackerWithIteratorSuite extends CatsEffectSuite {
 
     val itr: Iterator[TableOutput] = tracker.TableOutputIterator
     while (itr.hasNext)
-      assertEquals(itr.next().toString, TableOutput(jobId, perspective, Array(row), config).toString)
+      assertEquals(itr.next().toString, TableOutput(jobId, perspective, header, Array(row), config).toString)
 
     assert(tracker.isJobDone)
   }

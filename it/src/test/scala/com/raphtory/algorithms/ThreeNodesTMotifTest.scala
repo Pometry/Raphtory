@@ -1,10 +1,12 @@
 package com.raphtory.algorithms
 
 import com.raphtory.api.input.Source
-import com.raphtory.spouts.{ResourceOrFileSpout, ResourceSpout}
+import com.raphtory.spouts.ResourceOrFileSpout
+import com.raphtory.spouts.ResourceSpout
 import com.raphtory.BaseCorrectnessTest
 import com.raphtory.TestQuery
-import com.raphtory.algorithms.temporal.motif.{LocalThreeNodeMotifs, ThreeNodeMotifs}
+import com.raphtory.algorithms.temporal.motif.LocalThreeNodeMotifs
+import com.raphtory.algorithms.temporal.motif.ThreeNodeMotifs
 import com.raphtory.sources.CSVEdgeListSource
 
 class ThreeNodesTMotifTest extends BaseCorrectnessTest {

@@ -52,6 +52,7 @@ case class FileSink(filePath: String, format: Format = CsvFormat()) extends Form
       private val file          = s"$workDirectory/partition-$partitionID.$fileExtension"
       private val fileWriter    = FileChannel.open(Path.of(file), StandardOpenOption.CREATE, StandardOpenOption.WRITE)
 
+      override def allowsHeader: Boolean      = true
       override def write(value: String): Unit = fileWriter.write(ByteBuffer.wrap(value.getBytes()))
       override def closeItem(): Unit          = fileWriter.write(ByteBuffer.wrap(itemDelimiter.getBytes()))
       override def close(): Unit              = fileWriter.close()

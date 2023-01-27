@@ -6,6 +6,7 @@ import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.utils.ExtendedNumeric.numericFromInt
 import com.raphtory.internals.communication.SchemaProviderInstances._
+
 import scala.collection.mutable
 import scala.language.existentials
 import scala.math.Numeric.Implicits._
@@ -167,11 +168,10 @@ class MaxFlow[T](
       )
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.explodeSelect(vertex =>
-      if (vertex.name() == source)
-        List(Row(vertex.getState[mutable.Map[Long, T]]("flow").values.sum))
-      else List.empty[Row]
-    )
+    graph
+      .vertexFilter(vertex => vertex.name() == source)
+      .step(vertex => vertex.setState("maximumFlow", vertex.getState[mutable.Map[Long, T]]("flow").values.sum))
+      .select("maximumFlow")
 
   sealed trait Message[VertexID] {}
   case class FlowAdded[VertexID](source: VertexID, value: T)  extends Message[VertexID]

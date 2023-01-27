@@ -122,8 +122,17 @@ class Node2VecWalk(walkLength: Int = 10, p: Double = 1.0, q: Double = 1.0) exten
         }
       }
 
-  override def tabularise(graph: GraphPerspective): Table =
-    graph.select(vertex => Row(vertex.getState[ArrayBuffer[String]]("walk").toSeq: _*))
+  override def tabularise(graph: GraphPerspective): Table = {
+    val steps = 1 to walkLength map ("vertex " + _)
+    graph
+      .step(vertex =>
+        steps zip vertex.getState[ArrayBuffer[String]]("walk") foreach {
+          case (step, node) =>
+            vertex.setState(step, node)
+        }
+      )
+      .select(steps: _*)
+  }
 }
 
 object Node2VecWalk {

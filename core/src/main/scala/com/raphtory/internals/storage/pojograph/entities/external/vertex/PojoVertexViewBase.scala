@@ -45,6 +45,8 @@ abstract private[pojograph] class PojoLocalVertexViewBase(val vertex: PojoVertex
 
   override def getState[T](key: String, includeProperties: Boolean): T = vertex.getState(key, includeProperties)
 
+  override def getStateSet(): List[String] = vertex.getStateSet()
+
   override def getStateOrElse[T](key: String, value: T, includeProperties: Boolean): T =
     vertex.getStateOrElse(key, value, includeProperties)
 

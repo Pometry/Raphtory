@@ -195,6 +195,8 @@ abstract class EntityVisitor {
     */
   def setState(key: String, value: Any): Unit
 
+  def getStateSet(): List[String]
+  
   def update(i: String, x: Any): Unit =
     setState(i, x)
 

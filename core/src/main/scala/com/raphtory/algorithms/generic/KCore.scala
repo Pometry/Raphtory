@@ -3,7 +3,6 @@ package com.raphtory.algorithms.generic
 import com.raphtory.algorithms.generic.KCore.EFFDEGREE
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.internals.communication.SchemaProviderInstances.intSchemaProvider
 
@@ -84,7 +83,6 @@ class KCore(k: Int, resetStates: Boolean = true) extends Generic {
 
                   if (newEffDegree == effDegree)
                     vertex.voteToHalt()
-
                   vertex.setState(EFFDEGREE, newEffDegree)
                   if (newEffDegree < k) { // this vertex dies
                     vertex.messageAllNeighbours(0)
@@ -101,8 +99,12 @@ class KCore(k: Int, resetStates: Boolean = true) extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .select(vertex => Row(vertex.name, vertex.getState[Int](EFFDEGREE) >= k))
-      .filter(r => r.getBool(1))
+      .step { vertex =>
+        vertex.setState("name", vertex.name)
+        vertex.setState("effdegree", vertex.getState[Int](EFFDEGREE) >= k)
+      }
+      .select("name", "effdegree")
+      .filter(r => r.getBool("effdegree"))
 }
 
 object KCore {

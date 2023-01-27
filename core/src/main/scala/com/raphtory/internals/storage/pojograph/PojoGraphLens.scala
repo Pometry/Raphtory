@@ -3,7 +3,6 @@ package com.raphtory.internals.storage.pojograph
 import cats.effect.IO
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.table.Row
-import com.raphtory.api.analysis.table.RowImplementation
 import com.raphtory.api.analysis.visitor.InterlayerEdge
 import com.raphtory.api.analysis.visitor.Vertex
 import com.raphtory.api.analysis.visitor.PropertyMergeStrategy.PropertyMerge
@@ -18,7 +17,9 @@ import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
 
 import java.util.concurrent.atomic.AtomicInteger
+import scala.collection.immutable.SortedSet
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 private[raphtory] class SuperStepFlag {
   @volatile var evenFlag: Boolean = false
@@ -59,11 +60,13 @@ final private[raphtory] case class PojoGraphLens(
     private val scheduler: Scheduler
 ) extends LensInterface {
   private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
+  private val EMPTY_CELL     = None
 
   private val voteCount         = new AtomicInteger(0)
   private val vertexCount       = new AtomicInteger(0)
   private var fullGraphSize     = 0
   private var exploded: Boolean = false
+  var inferredHeader            = List.empty[String] // This needs to be accessed by the QueryExecutor
 
   val chunkSize = conf.getInt("raphtory.partitions.chunkSize")
 
@@ -96,78 +99,77 @@ final private[raphtory] case class PojoGraphLens(
       it
   }
 
-  def getFullGraphSize: Int = {
+  override def getFullGraphSize: Int = {
     logger.trace(s"Current Graph size at '$fullGraphSize'.")
     fullGraphSize
   }
 
-  def setFullGraphSize(size: Int): Unit = {
+  override def setFullGraphSize(size: Int): Unit = {
     fullGraphSize = size
     logger.trace(s"Set Graph Size to '$fullGraphSize'.")
   }
 
-  def localNodeCount: Int = vertices.size
+  override def localNodeCount: Int = vertices.size
 
-  private var dataTable: Iterator[RowImplementation] = Iterator()
+  private var dataTable: Iterator[Row] = Iterator()
 
   def filterAtStep(superStep: Int): Unit =
     needsFiltering.set(superStep)
 
-  def executeSelect(f: Vertex => Row)(onComplete: () => Unit): Unit = {
-    dataTable = vertexIterator.flatMap { vertex =>
-      f.asInstanceOf[PojoVertexBase => RowImplementation](vertex).yieldAndRelease
+  override def executeSelect(values: Seq[String])(onComplete: () => Unit): Unit = {
+    dataTable = vertexIterator.map { vertex =>
+      val keys    = if (values.nonEmpty) values else inferredHeader
+      val columns =
+        keys.map(key => (key, vertex.getStateOrElse(key, EMPTY_CELL, includeProperties = true)))
+      Row(columns: _*)
     }
     onComplete()
   }
 
-  def executeSelect(
-      f: (_, GraphState) => Row,
-      graphState: GraphState
-  )(onComplete: () => Unit): Unit = {
-    dataTable = vertexIterator.flatMap { vertex =>
-      f.asInstanceOf[(PojoVertexBase, GraphState) => RowImplementation](vertex, graphState).yieldAndRelease
-    }
-    onComplete()
-  }
-
-  def executeSelect(
-      f: GraphState => Row,
-      graphState: GraphState
-  )(onComplete: () => Unit): Unit = {
+  override def executeSelect(values: Seq[String], graphState: GraphState)(onComplete: () => Unit): Unit = {
     if (partitionID == 0)
-      dataTable = Iterator
-        .fill(1)(f(graphState).asInstanceOf[RowImplementation])
-        .flatMap(_.yieldAndRelease)
+      dataTable = Iterator(Row(values.map(key => (key, graphState.apply[Any, Any](key).value)): _*))
     onComplete()
   }
 
-  def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: () => Unit): Unit = {
-    dataTable = vertexIterator
-      .flatMap(f.asInstanceOf[PojoVertexBase => IterableOnce[RowImplementation]])
-      .flatMap(_.yieldAndRelease)
-    onComplete()
-  }
-
-  def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row], graphState: GraphState)(
-      onComplete: () => Unit
-  ): Unit = {
-    dataTable = vertexIterator
-      .flatMap(v => f.asInstanceOf[(PojoVertexBase, GraphState) => IterableOnce[RowImplementation]](v, graphState))
-      .flatMap(_.yieldAndRelease)
-    onComplete()
-  }
-
-  def filteredTable(f: Row => Boolean)(onComplete: () => Unit): Unit = {
+  override def filteredTable(f: Row => Boolean)(onComplete: () => Unit): Unit = {
     dataTable = dataTable.filter(f)
     onComplete()
   }
 
-  def explodeTable(f: Row => IterableOnce[Row])(onComplete: () => Unit): Unit = {
-    dataTable = dataTable.flatMap(_.explode(f))
+  override def explodeColumns(columns: Seq[String])(onComplete: () => Unit): Unit = {
+    def castToIterable(collection: Any): Iterable[Any] =
+      collection match {
+        case iterable: Iterable[Any] => iterable
+        case array: Array[Any]       => array.iterator.to(Iterable)
+      }
+    try dataTable = dataTable.flatMap { row =>
+      val validColumns = columns.filter(col => row.get(col) != EMPTY_CELL)
+      validColumns.map(col => castToIterable(row.get(col))).transpose.map { values =>
+        validColumns.zip(values).foldLeft(row) { case (row, (key, value)) => new Row(row.columns.updated(key, value)) }
+      }
+    }
+    catch {
+      case e: IllegalArgumentException =>
+        throw new IllegalArgumentException(s"All iterables inside a row to be exploded need to have the same size", e)
+    }
     onComplete()
   }
 
-  def writeDataTable(writer: Row => Unit)(onComplete: () => Unit): Unit = {
+  override def renameColumns(columns: Seq[(String, String)])(onComplete: () => Unit): Unit = {
+    val newColumnNameMap = columns.toMap
+    dataTable = dataTable.map { row =>
+      val newpairs = row.columns.map {
+        case (key, value) =>
+          if (newColumnNameMap.contains(key)) newColumnNameMap(key) -> value
+          else (key, value)
+      }
+      new Row(newpairs)
+    }
+    onComplete()
+  }
+
+  override def writeDataTable(writer: Row => Unit)(onComplete: () => Unit): Unit = {
     dataTable.foreach(row => writer(row))
     onComplete()
   }
@@ -192,22 +194,22 @@ final private[raphtory] case class PojoGraphLens(
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
-  def viewUndirected()(onComplete: () => Unit): Unit = {
+  override def viewUndirected()(onComplete: () => Unit): Unit = {
     unDir = true
     onComplete()
   }
 
-  def viewDirected()(onComplete: () => Unit): Unit = {
+  override def viewDirected()(onComplete: () => Unit): Unit = {
     unDir = false
     onComplete()
   }
 
-  def viewReversed()(onComplete: () => Unit): Unit = {
+  override def viewReversed()(onComplete: () => Unit): Unit = {
     reversed = !reversed
     onComplete()
   }
 
-  def reduceView(
+  override def reduceView(
       defaultMergeStrategy: Option[PropertyMerge[_, _]],
       mergeStrategyMap: Option[Map[String, PropertyMerge[_, _]]],
       aggregate: Boolean
@@ -220,7 +222,7 @@ final private[raphtory] case class PojoGraphLens(
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
-  def runGraphFunction(f: Vertex => Unit)(onComplete: () => Unit): Unit = {
+  override def runGraphFunction(f: Vertex => Unit)(onComplete: () => Unit): Unit = {
     val (count, tasks) = prepareRun(vertexIterator, chunkSize, includeAllVs = true)(f)
     vertexCount.set(count)
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
@@ -237,7 +239,7 @@ final private[raphtory] case class PojoGraphLens(
     scheduler.executeInParallel(tasks, onComplete, errorHandler)
   }
 
-  def prepareRun[V <: Vertex](vs: Iterator[V], chunkSize: Int, includeAllVs: Boolean)(
+  private def prepareRun[V <: Vertex](vs: Iterator[V], chunkSize: Int, includeAllVs: Boolean)(
       f: V => Unit
   ): (Int, List[IO[Unit]]) =
     vs.filter(v => v.hasMessage || includeAllVs)
@@ -312,9 +314,13 @@ final private[raphtory] case class PojoGraphLens(
     }
   }
 
+  override def inferHeader(): Unit =
+    inferredHeader = vertexIterator
+      .foldLeft(SortedSet.empty[String])((set, vertex) => set ++ vertex.getPropertySet() ++ vertex.getStateSet())
+      .toList
+
   def clearMessages(): Unit =
     vertexMap.foreach {
       case (key, vertex) => vertex.clearMessageQueue()
     }
-
 }

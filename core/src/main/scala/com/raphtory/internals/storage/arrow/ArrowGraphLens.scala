@@ -48,5 +48,4 @@ final case class ArrowGraphLens(
       .windowVertices(start, end)
       .filter(v => graphState.isAlive(v.getGlobalId))
       .map(new ArrowExVertex(graphState, _))
-
 }

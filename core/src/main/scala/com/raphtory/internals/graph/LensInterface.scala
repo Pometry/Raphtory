@@ -11,22 +11,18 @@ import com.raphtory.internals.components.querymanager.GenericVertexMessage
   */
 private[raphtory] trait LensInterface {
 
+  def inferredHeader: List[String]
   def partitionID(): Int
   def localNodeCount: Int
   def getFullGraphSize: Int
   def setFullGraphSize(size: Int): Unit
 
-  def executeSelect(f: Vertex => Row)(onComplete: () => Unit): Unit
+  def executeSelect(values: Seq[String])(onComplete: () => Unit): Unit
 
-  def executeSelect(
-      f: (_, GraphState) => Row,
-      graphState: GraphState
-  )(onComplete: () => Unit): Unit
-  def executeSelect(f: GraphState => Row, graphState: GraphState)(onComplete: () => Unit): Unit
-  def explodeSelect(f: Vertex => IterableOnce[Row])(onComplete: () => Unit): Unit
-  def explodeSelect(f: (Vertex, GraphState) => IterableOnce[Row], graphState: GraphState)(onComplete: () => Unit): Unit
+  def executeSelect(values: Seq[String], graphState: GraphState)(onComplete: () => Unit): Unit
   def filteredTable(f: Row => Boolean)(onComplete: () => Unit): Unit
-  def explodeTable(f: Row => IterableOnce[Row])(onComplete: () => Unit): Unit
+  def explodeColumns(columns: Seq[String])(onComplete: () => Unit): Unit
+  def renameColumns(columns: Seq[(String, String)])(onComplete: () => Unit): Unit
   def writeDataTable(f: Row => Unit)(onComplete: () => Unit): Unit
 
   def explodeView(
@@ -62,6 +58,7 @@ private[raphtory] trait LensInterface {
   def nextStep(): Unit
   def receiveMessage(msg: GenericVertexMessage[_]): Unit
 
+  def inferHeader(): Unit
   def clearMessages(): Unit
 
   def start: Long

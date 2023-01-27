@@ -6,9 +6,9 @@ import com.raphtory.algorithms.generic.TwoHopPaths.RequestSecondHop
 import com.raphtory.algorithms.generic.TwoHopPaths.Response
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.internals.communication.SchemaProviderInstances._
+
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -74,11 +74,10 @@ class TwoHopPaths(seeds: Set[String] = Set[String]()) extends Generic {
                       case RequestSecondHop(source, firstHop) =>
                         vertex.messageVertex(source, Response(firstHop, vertex.name()))
                       case Response(firstHop, secondHop)      =>
-                        val paths = vertex.getOrSetState[ArrayBuffer[Array[String]]](
-                                "twoHopPaths",
-                                ArrayBuffer[Array[String]]()
-                        )
-                        paths.append(Array[String](firstHop, secondHop))
+                        val firstHops  = vertex.getOrSetState[ArrayBuffer[String]]("hop1", ArrayBuffer[String]())
+                        val secondHops = vertex.getOrSetState[ArrayBuffer[String]]("hop2", ArrayBuffer[String]())
+                        firstHops.append(firstHop)
+                        secondHops.append(secondHop)
                     }
                 }
               },
@@ -88,18 +87,8 @@ class TwoHopPaths(seeds: Set[String] = Set[String]()) extends Generic {
 
   override def tabularise(graph: GraphPerspective): Table =
     graph
-      .select(vertex =>
-        Row(
-                vertex.name(),
-                vertex.getStateOrElse[ArrayBuffer[Array[String]]]("twoHopPaths", ArrayBuffer[Array[String]]())
-        )
-      )
-      .explode(row =>
-        row
-          .getAs[ArrayBuffer[Array[String]]](1)
-          .toList
-          .map(hops => Row(row.get(0), hops(0), hops(1)))
-      )
+      .select("name", "hop1", "hop2")
+      .explode("hop1", "hop2")
 }
 
 object TwoHopPaths {

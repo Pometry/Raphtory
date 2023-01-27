@@ -139,7 +139,7 @@ class QuerySupervisor[F[_]] protected (
         ls     <- if (ipr.isEmpty) F.delay(loadReqsToRelease(Nil)) else F.pure(Nil)
         // Load requests removed from pending request list should be added to the inprogress request list
         newReq <- F.delay(ipr ++ ls)
-        _      <- ls.map(_.release.complete(()) >> F.delay(println(s"Unblocked load request"))).sequence
+        _      <- ls.map(_.release.complete(()) >> F.delay(logger.debug(s"Unblocked load request"))).sequence
       } yield newReq
     }
   }

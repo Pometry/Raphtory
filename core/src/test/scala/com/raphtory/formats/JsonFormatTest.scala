@@ -15,18 +15,21 @@ class JsonFormatTest extends FunSuite {
   private val reader      = JsonMapper.builder().addModule(DefaultScalaModule).build().reader()
 
   private val sampleTable = List(
-          (Perspective(100, None, 0, 100, -1, formatAsDate = false), List(Row("id1", 34), Row("id2", 24))),
+          (
+                  Perspective(100, None, 0, 100, -1, formatAsDate = false),
+                  List(Row("id1" -> 34), Row("id2" -> 24))
+          ),
           (
                   Perspective(200, Some(DiscreteInterval(200)), 0, 200, -1, formatAsDate = false),
-                  List(Row("id1", 56), Row("id2", 67))
+                  List(Row("id1" -> 56), Row("id2" -> 67))
           )
   )
 
   private val rowLevelOutput =
-    """{"timestamp":100,"row":["id1",34]}
-      |{"timestamp":100,"row":["id2",24]}
-      |{"timestamp":200,"window":200,"row":["id1",56]}
-      |{"timestamp":200,"window":200,"row":["id2",67]}
+    """{"timestamp":100,"row":{"id1":34}}
+      |{"timestamp":100,"row":{"id2":24}}
+      |{"timestamp":200,"window":200,"row":{"id1":56}}
+      |{"timestamp":200,"window":200,"row":{"id2":67}}
       |""".stripMargin
 
   private val globalLevelOutput =
@@ -35,11 +38,19 @@ class JsonFormatTest extends FunSuite {
       |  "partitionID" : 13,
       |  "perspectives" : [ {
       |    "timestamp" : 100,
-      |    "rows" : [ [ "id1", 34 ], [ "id2", 24 ] ]
+      |    "rows" : [ {
+      |      "id1" : 34
+      |    }, {
+      |      "id2" : 24
+      |    } ]
       |  }, {
       |    "timestamp" : 200,
       |    "window" : 200,
-      |    "rows" : [ [ "id1", 56 ], [ "id2", 67 ] ]
+      |    "rows" : [ {
+      |      "id1" : 56
+      |    }, {
+      |      "id2" : 67
+      |    } ]
       |  } ]
       |}
       |""".stripMargin
@@ -67,7 +78,7 @@ class JsonFormatTest extends FunSuite {
   }
 
   test("Print json example on the docs") {
-    val docRows   = List(Row("id1", 12), Row("id2", 13), Row("id3", 24))
+    val docRows   = List(Row("id1" -> 12), Row("id2" -> 13), Row("id3" -> 24))
     val docsTable = List((Perspective(10, None, 0, 10, -1, formatAsDate = false), docRows))
     val output    = formatTable(JsonFormat(JsonFormat.GLOBAL), docsTable, "EdgeCount", 0)
     reader.createParser(output).readValueAs(classOf[Any])
@@ -86,10 +97,11 @@ class JsonFormatTest extends FunSuite {
             partitionID,
             config
     )
+    val header   = List("row")
 
     table foreach {
       case (perspective, rows) =>
-        executor.setupPerspective(perspective)
+        executor.setupPerspective(perspective, header)
         rows foreach (row => executor.threadSafeWriteRow(row))
         executor.closePerspective()
     }

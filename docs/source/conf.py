@@ -12,9 +12,13 @@
 #
 import os
 import sys
+import subprocess
 from pathlib import Path
 from pyraphtory import __version__
 sys.path.insert(0, os.path.abspath('exts'))
+
+# This is needed by the own-algorithms notebook:
+subprocess.run(['curl', '-o', '/tmp/lotr.csv', 'https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv'])
 
 
 # -- Project information -----------------------------------------------------

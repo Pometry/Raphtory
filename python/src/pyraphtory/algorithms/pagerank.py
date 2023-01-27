@@ -28,11 +28,10 @@ class PageRank(PyAlgorithm):
 
             if out_degree > 0:
                 v.message_out_neighbours(new_label / out_degree)
-
             if abs(new_label - current_label) < 0.00001:
                 v.vote_to_halt()
 
         return graph.step(init).iterate(iterate, self.max_steps, False)
 
     def tabularise(self, graph: TemporalGraph) -> Table:
-        return graph.select(lambda v: Row(v.name(), v["prlabel"]))
+        return graph.select("name", "prlabel")

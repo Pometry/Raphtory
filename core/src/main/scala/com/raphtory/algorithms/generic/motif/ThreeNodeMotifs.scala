@@ -2,7 +2,6 @@ package com.raphtory.algorithms.generic.motif
 
 import com.raphtory.api.analysis.algorithm.Generic
 import com.raphtory.api.analysis.graphview.GraphPerspective
-import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
 
@@ -157,12 +156,19 @@ object ThreeNodeMotifs extends Generic {
         }
         vertex.setState("motifCounts", motifCounts)
       }
+  private val columns                                      = Seq("name") ++ (0 until 13).map(motifCountColumn)
 
   override def tabularise(graph: GraphPerspective): Table =
-    graph.select { vertex =>
-      val motifCounts = vertex.getState[ArrayBuffer[Long]]("motifCounts")
-      val row         = vertex.name() +: motifCounts
-      Row(row.toSeq: _*)
-    }
+    graph
+      .step { vertex =>
+        val motifCounts = vertex.getState[ArrayBuffer[Long]]("motifCounts")
+        vertex.setState("name", vertex.name())
+        motifCounts.zipWithIndex foreach {
+          case (motifCount, index) =>
+            vertex.setState(motifCountColumn(index), motifCount)
+        }
+      }
+      .select(columns: _*)
 
+  private def motifCountColumn(index: Int) = "mc" + index
 }
