@@ -176,12 +176,11 @@ private[api] trait GraphViewImplementation[
       executeMessagedOnly: Boolean
   ): G = addFunction(IterateWithGraph(f, iterations, executeMessagedOnly))
 
-  override def selectAll(): Table =
-    addSelect(InferHeader +: Select(Seq()) +: Nil, header = Seq())
+  override def select(values: String*): Table = {
+    val operations = if (values.isEmpty) Seq(InferHeader, Select(values)) else Seq(Select(values))
+    addSelect(operations, values)
+  }
   // the header of the query being an empty list means: 'get everything'
-
-  override def select(values: String*): Table =
-    addSelect(Seq(Select(values)), values)
 
   override def globalSelect(values: String*): Table =
     addSelect(Seq(GlobalSelect(values)), values)

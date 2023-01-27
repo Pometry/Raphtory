@@ -234,10 +234,9 @@ trait GraphPerspective {
       executeMessagedOnly: Boolean
   ): Graph
 
-  /** Returns a table with one row per vertex and one column for each of the vertex properties and states available */
-  def selectAll(): Table
-
   /** Returns a table with one row per vertex and one column per key in `values`
+    *
+    * If no values are provided, all of the values from the properties and the state are extracted.
     *
     * @param values the keys to be extracted from every vertex state and properties
     */
@@ -325,7 +324,6 @@ private[api] trait ConcreteGraphPerspective[V <: visitor.Vertex, G <: ConcreteGr
       iterations: Int,
       executeMessagedOnly: Boolean
   ): Graph
-  def selectAll(): Table
   def select(values: String*): Table
   def globalSelect(values: String*): Table
   def clearMessages(): Graph
