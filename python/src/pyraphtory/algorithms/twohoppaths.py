@@ -43,14 +43,5 @@ class TwoHopPaths(PyAlgorithm):
         return graph.step(step1).iterate(iterate1, 3, True)
 
     def tabularise(self, graph: TemporalGraph) -> Table:
-        # def explode(r: Row):
-        #     return_rows = []
-        #     if len(r.get_values()) > 1:
-        #         if r.get(1) is not None:
-        #             for hop_pair in r.get(1):
-        #                 return_rows.append(Row(KeyPair("vertexOne",r.get(0)), KeyPair("vertexTwoandThree",*hop_pair())))
-            # else:
-            #     return_rows = []
-            # return return_rows
          graph.step(lambda v: v.set_state("name",v.name()))\
                 .step(lambda v: v.set_state("two_hop_paths",v[TWO_HOP_PATHS])).explode("two_hop_paths")

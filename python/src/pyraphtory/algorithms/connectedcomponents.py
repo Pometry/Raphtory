@@ -22,6 +22,4 @@ class ConnectedComponents(PyAlgorithm):
         return graph.step(step).iterate(iterate, 100, True)
 
     def tabularise(self, graph: TemporalGraph) -> Table:
-        return graph.step(lambda v: v.set_state("name",v.name()))\
-                    .step(lambda v: v.set_state(CC_LABEL, v[CC_LABEL]))\
-                    .select("name", CC_LABEL)
+        return graph.select("name", CC_LABEL)

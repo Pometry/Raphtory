@@ -34,6 +34,4 @@ class PageRank(PyAlgorithm):
         return graph.step(init).iterate(iterate, self.max_steps, False)
 
     def tabularise(self, graph: TemporalGraph) -> Table:
-        return graph.step(lambda v: v.set_state("name",v.name()))\
-                    .step(lambda v: v.set_state("prlabel",v["prlabel"]))\
-                    .select("name", "prlabel")
+        return graph.select("name", "prlabel")
