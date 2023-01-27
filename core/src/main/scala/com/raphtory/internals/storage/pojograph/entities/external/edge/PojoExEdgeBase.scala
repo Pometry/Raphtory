@@ -34,7 +34,6 @@ private[pojograph] trait PojoExEdgeBase[T] extends ConcreteEdge[T] {
     view.sendMessage(FilteredInEdgeMessage(view.superStep + 1, dst, src))
   }
 
-  //put in pojo ex entity
   private val computationValues: mutable.Map[String, Any] =
     mutable.Map[String, Any]() //Partial results kept between supersteps in calculation
 
