@@ -67,9 +67,9 @@ class PyRaphtoryTest(unittest.TestCase):
         graph.add_edge(1, 4, 5)
         df_pagerank = graph.at(1) \
             .past() \
+            .step(lambda v: v.set_state("name",v.name())) \
             .transform(self.ctx.algorithms.generic.centrality.PageRank()) \
-            .step(lambda v: v.set_state("name",v.name()))\
-            .select("name", "prlabel")\
+            .select() \
             .to_df()
         expected_result = ",timestamp,name,prlabel" \
                           "\n0,1,1,0.559167686075918" \

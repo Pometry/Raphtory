@@ -101,6 +101,8 @@ class QueryExecutor[F[_]](
     timed(s"Writing results from table to sink ${query.sink.get.getClass.getSimpleName}") { // TODO unsafe call to get
       withLens { lens =>
         val header = if (query.header.nonEmpty) query.header else lens.inferredHeader
+        println("header", header)
+        println("inferred header", lens.inferredHeader)
         F.bracket(F.delay(sinkExecutor.setupPerspective(perspective, header))) { _ =>
           F.blocking(lens.writeDataTable(row => sinkExecutor.threadSafeWriteRow(row))(cb))
         }(_ => F.delay(sinkExecutor.closePerspective()))

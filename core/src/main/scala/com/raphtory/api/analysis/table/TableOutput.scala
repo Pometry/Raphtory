@@ -20,6 +20,10 @@ case class TableOutput private (
   /** Returns an array of rows represented as arrays of values */
   def rowsAsArrays(): Array[Array[Any]] = rows.map(row => row.columns.values.toArray)
 
+  def actualHeader: List[String] =
+    if (header.nonEmpty) header
+    else rows.foldLeft(SortedSet.empty[String])((set, row) => set ++ row.columns.keys).toList
+
   override def filter(f: Row => Boolean): TableOutput = copy(rows = rows.filter(f))
 
   override def explode(columns: String*): TableOutput = {
@@ -52,9 +56,7 @@ case class TableOutput private (
   override def writeTo(sink: Sink, jobName: String): WriteProgressTracker = {
     // TODO: Make this actually asynchronous
     val executor = sink.executor(jobName, -1, conf)
-    val columns  =
-      if (header.nonEmpty) header
-      else rows.foldLeft(SortedSet.empty[String])((set, row) => set ++ row.columns.keys).toList
+    val columns  = actualHeader
     executor.setupPerspective(perspective, columns)
     rows.foreach(executor.threadSafeWriteRow)
     executor.closePerspective()

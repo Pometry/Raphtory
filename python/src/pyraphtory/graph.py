@@ -29,7 +29,7 @@ class Table(GenericScalaProxy):
         df = pd.DataFrame()
         for res in self.get():
             time_formatted = res.perspective().format_as_date()
-            partial_df = pd.DataFrame(res.rows_as_arrays(), columns = res.header())
+            partial_df = pd.DataFrame(res.rows_as_arrays(), columns = res.actual_header())
             partial_df.insert(0, 'timestamp', res.perspective().formatted_time())
             window = res.perspective().window()
             if window != None:
