@@ -158,20 +158,20 @@ mod csv_loader_test {
     #[test]
     fn regex_match() {
         let r = Regex::new(r".+address").unwrap();
-        let text = "/home/murariuf/Offline/bitcoin/address_000000000001.csv.gz";
+        let text = "bitcoin/address_000000000001.csv.gz";
         assert!(r.is_match(&text));
-        let text = "/home/murariuf/Offline/bitcoin/received_000000000001.csv.gz";
+        let text = "bitcoin/received_000000000001.csv.gz";
         assert!(!r.is_match(&text));
     }
 
     #[test]
     fn regex_match_2() {
         let r = Regex::new(r".+(sent|received)").unwrap();
-        let text = "/home/murariuf/Offline/bitcoin/sent_000000000001.csv.gz";
+        let text = "bitcoin/sent_000000000001.csv.gz";
         assert!(r.is_match(&text));
-        let text = "/home/murariuf/Offline/bitcoin/received_000000000001.csv.gz";
+        let text = "bitcoin/received_000000000001.csv.gz";
         assert!(r.is_match(&text));
-        let text = "/home/murariuf/Offline/bitcoin/address_000000000001.csv.gz";
+        let text = "bitcoin/address_000000000001.csv.gz";
         assert!(!r.is_match(&text));
     }
 }
