@@ -2,6 +2,7 @@ use std::{
     collections::{BTreeMap, HashMap},
     ops::Range,
 };
+use std::iter::{FlatMap, Map};
 
 use itertools::Itertools;
 use serde::{Serialize, Deserialize};
@@ -580,11 +581,11 @@ impl<'a> VertexView<'a, TemporalGraph> {
         }
     }
 
-    pub fn props(&self, name: &'a str) -> Box<dyn Iterator<Item=(&'a i64, Prop)> + 'a> {
-        let index = self.g.logical_to_physical.get(&self.g_id).unwrap();
-        let meta = self.g.props.vertex_meta.get(*index).unwrap();
-        let prop_id = self.g.props.prop_ids.get(name).unwrap();
-        meta.iter(*prop_id)
+    pub fn props(&self, name: &'a str) -> Option<Box<dyn Iterator<Item=(&'a i64, Prop)> + 'a>> {
+        let index = self.g.logical_to_physical.get(&self.g_id)?;
+        let meta = self.g.props.vertex_meta.get(*index)?;
+        let prop_id = self.g.props.prop_ids.get(name)?;
+        Some(meta.iter(*prop_id))
     }
 
     pub fn props_window(
@@ -659,6 +660,7 @@ mod graph_test {
         hash::{Hash, Hasher},
         path::PathBuf,
     };
+    use std::iter::{FlatMap, Map};
 
     use csv::StringRecord;
 
@@ -702,9 +704,11 @@ mod graph_test {
             vec![v_id]
         );
 
-        let res = g.iter_vertices().flat_map(|v| {
-            v.props("type")
-        }).collect::<Vec<_>>();
+        let res =
+            g.iter_vertices()
+                .flat_map(|v| v.props("type"))
+                .flat_map(|v| v.collect::<Vec<_>>())
+                .collect::<Vec<_>>();
 
         assert_eq!(
             res,
@@ -725,12 +729,18 @@ mod graph_test {
             ],
         );
 
-        let res = g.iter_vertices().flat_map(|v| {
-            let mut type_ = v.props("type").collect::<Vec<_>>();
-            let mut active = v.props("active").collect::<Vec<_>>();
-            type_.append(&mut active);
-            type_
-        }).collect::<Vec<_>>();
+        let res =
+            g.iter_vertices()
+                .flat_map(|v| {
+                    let type_ = v.props("type").map(|x| x.collect::<Vec<_>>());
+                    let active = v.props("active").map(|x| x.collect::<Vec<_>>());
+                    type_.zip(active)
+                        .map(|(mut x, mut y)| {
+                            x.append(&mut y);
+                            x
+                        })
+                }).flatten()
+                .collect::<Vec<_>>();
 
         assert_eq!(
             res,
@@ -772,7 +782,8 @@ mod graph_test {
             ],
         );
 
-        let res = g.iter_vertices().flat_map(|v| {
+        let res: Vec<(&i64, Prop)> = g.iter_vertices().flat_map(|v| {
+            let x: Box<dyn Iterator<Item=(&i64, Prop)>> = v.props_window("type", 2..3);
             let mut type_ = v.props_window("type", 2..3).collect::<Vec<_>>();
             let mut active = v.props_window("active", 2..3).collect::<Vec<_>>();
             type_.append(&mut active);
