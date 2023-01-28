@@ -592,11 +592,11 @@ impl<'a> VertexView<'a, TemporalGraph> {
         &self,
         name: &'a str,
         r: Range<i64>,
-    ) -> Box<dyn Iterator<Item=(&'a i64, Prop)> + 'a> {
-        let index = self.g.logical_to_physical.get(&self.g_id).unwrap();
-        let meta = self.g.props.vertex_meta.get(*index).unwrap();
-        let prop_id = self.g.props.prop_ids.get(name).unwrap();
-        meta.iter_window(*prop_id, r)
+    ) -> Option<Box<dyn Iterator<Item=(&'a i64, Prop)> + 'a>> {
+        let index = self.g.logical_to_physical.get(&self.g_id)?;
+        let meta = self.g.props.vertex_meta.get(*index)?;
+        let prop_id = self.g.props.prop_ids.get(name)?;
+        Some(meta.iter_window(*prop_id, r))
     }
 }
 
@@ -782,13 +782,16 @@ mod graph_test {
             ],
         );
 
-        let res: Vec<(&i64, Prop)> = g.iter_vertices().flat_map(|v| {
-            let x: Box<dyn Iterator<Item=(&i64, Prop)>> = v.props_window("type", 2..3);
-            let mut type_ = v.props_window("type", 2..3).collect::<Vec<_>>();
-            let mut active = v.props_window("active", 2..3).collect::<Vec<_>>();
-            type_.append(&mut active);
-            type_
-        }).collect::<Vec<_>>();
+        let res: Vec<(&i64, Prop)> =
+            g.iter_vertices()
+                .flat_map(|v| {
+                    let type_ = v.props_window("type", 2..3).map(|x| x.collect::<Vec<_>>());
+                    let active = v.props_window("active", 2..3).map(|x| x.collect::<Vec<_>>());
+                    type_.zip(active).map(|(mut x, mut y)| {
+                        x.append(&mut y);
+                        x
+                    })
+                }).flatten().collect::<Vec<_>>();
 
         assert_eq!(
             res,
@@ -829,16 +832,27 @@ mod graph_test {
             ],
         );
 
-        let res = g.iter_vertices().flat_map(|v| {
-            let mut type_ = v.props_window("type", 1..2).collect::<Vec<_>>();
-            let mut active = v.props_window("active", 2..5).collect::<Vec<_>>();
-            let mut label = v.props_window("label", 2..5).collect::<Vec<_>>();
-            let mut origin = v.props_window("origin", 2..5).collect::<Vec<_>>();
-            type_.append(&mut active);
-            type_.append(&mut label);
-            type_.append(&mut origin);
-            type_
-        }).collect::<Vec<_>>();
+        let res =
+            g.iter_vertices()
+                .flat_map(|v| {
+                    let type_ = v.props_window("type", 1..2).map(|x| x.collect::<Vec<_>>());
+                    let active = v.props_window("active", 2..5).map(|x| x.collect::<Vec<_>>());
+                    let label = v.props_window("label", 2..5).map(|x| x.collect::<Vec<_>>());
+                    let origin = v.props_window("origin", 2..5).map(|x| x.collect::<Vec<_>>());
+                    type_
+                        .zip(active).map(|(mut x, mut y)| {
+                        x.append(&mut y);
+                        x
+                    })
+                        .zip(label).map(|(mut x, mut y)| {
+                        x.append(&mut y);
+                        x
+                    })
+                        .zip(origin).map(|(mut x, mut y)| {
+                        x.append(&mut y);
+                        x
+                    })
+                }).flatten().collect::<Vec<_>>();
 
         assert_eq!(
             res,
