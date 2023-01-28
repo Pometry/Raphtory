@@ -650,7 +650,7 @@ impl<'a> EdgeView<'a, TemporalGraph> {
         r: Range<i64>,
     ) -> Option<Box<dyn Iterator<Item=(&'a i64, Prop)> + 'a>> {
         // find the id of the property
-        let prop_id = self.g.props.prop_ids.get(name).unwrap();
+        let prop_id = self.g.props.prop_ids.get(name)?;
         Some(self.g.props.edge_meta[self.e_meta.edge_meta_id()].iter_window(*prop_id, r))
     }
 }
