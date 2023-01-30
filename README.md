@@ -66,8 +66,11 @@ graph.add_edge(4, 1, 3)
 df = graph
       .range(1,4,1)
       .window(1)
-      .select(lambda vertex: Row(vertex.name(), vertex.out_degree(), vertex.in_degree()))
-      .to_df(["name", "out_degree", "in_degree"])
+      .step(lambda vertex: vertex.set_state("name", vertex.name()))
+      .step(lambda vertex: vertex.set_state("out_degree", vertex.out_degree())) 
+      .step(lambda vertex: vertex.set_state("in_degree", vertex.in_degree()))
+      .select("name", "out_degree", "in_degree")
+      .to_df()
 
 # Preview DataFrame
 df
