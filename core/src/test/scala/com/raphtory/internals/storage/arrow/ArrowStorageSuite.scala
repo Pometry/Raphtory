@@ -152,7 +152,6 @@ class ArrowStorageSuite extends munit.FunSuite {
     addVertex(7, timestamp, None, ImmutableString("name", "Alice"))(par)
     // add edge
     par.addLocalEdge(
-            3,
             timestamp,
             -1,
             3,
