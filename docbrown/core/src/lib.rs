@@ -21,7 +21,7 @@ pub enum Direction {
     BOTH,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Prop {
     Str(String),
     I32(i32),
