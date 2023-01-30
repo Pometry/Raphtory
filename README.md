@@ -69,7 +69,7 @@ df = graph
       .step(lambda vertex: vertex.set_state("name", vertex.name()))
       .step(lambda vertex: vertex.set_state("out_degree", vertex.out_degree())) 
       .step(lambda vertex: vertex.set_state("in_degree", vertex.in_degree()))
-      ,select("name", "out_degree", "in_degree")
+      .select("name", "out_degree", "in_degree")
       .to_df()
 
 # Preview DataFrame
