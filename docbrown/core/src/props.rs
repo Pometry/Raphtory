@@ -1,8 +1,83 @@
+use std::collections::HashMap;
 use std::ops::Range;
 
 use serde::{Serialize, Deserialize};
 
 use crate::{tcell::TCell, Prop};
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub(crate) struct Props {
+    pub(crate) prop_ids: HashMap<String, usize>,
+    pub(crate) vertex_meta: Vec<TPropVec>,
+    // attributes for props
+    pub(crate) edge_meta: Vec<TPropVec>, // table of edges
+}
+
+impl Default for Props {
+    fn default() -> Self {
+        Self {
+            prop_ids: Default::default(),
+            vertex_meta: vec![Default::default()],
+            // remote/local edges are encoded as i64 with negatives as remote and positives as local,
+            // 0 breaks the symetry so we just ignore it
+            edge_meta: vec![Default::default()],
+        }
+    }
+}
+
+impl Props {
+    pub fn edges_len(&self) -> usize {
+        self.edge_meta.len()
+    }
+
+    pub fn update_vertex_props(&mut self, index: usize, t: i64, props: &Vec<(String, Prop)>) {
+        for (name, prop) in props {
+            let property_id = match self.prop_ids.get(name) {
+                Some(prop_id) => {
+                    *prop_id
+                }
+                None => {
+                    let id = self.prop_ids.len();
+                    self.prop_ids.insert(name.to_string(), id);
+                    id
+                }
+            };
+            match self.vertex_meta.get_mut(index) {
+                Some(vertex_props) => {
+                    vertex_props.set(property_id, t, prop)
+                }
+                None => {
+                    let prop_cell = TPropVec::from(property_id, t, prop);
+                    self.vertex_meta.insert(index, prop_cell)
+                }
+            }
+        }
+    }
+
+    pub fn update_edge_props(&mut self, src_edge_meta_id: usize, t: i64, props: &Vec<(String, Prop)>) {
+        //FIXME: ensure the self.edge_meta is updated even if the props vector is null
+        for (name, prop) in props {
+            // find where do we slot this property in the temporal vec for each edge
+            let property_id = if let Some(prop_id) = self.prop_ids.get(name) {
+                // there is an existing prop set here
+                *prop_id
+            } else {
+                // first time we see this prop
+                let id = self.prop_ids.len();
+                self.prop_ids.insert(name.to_string(), id);
+                id
+            };
+
+            if let Some(edge_props) = self.edge_meta.get_mut(src_edge_meta_id) {
+                edge_props.set(property_id, t, prop)
+            } else {
+                // we don't have metadata for this edge
+                let prop_cell = TPropVec::from(property_id, t, prop);
+                self.edge_meta.insert(src_edge_meta_id, prop_cell)
+            }
+        }
+    }
+}
 
 #[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
 pub(crate) enum TPropVec {
