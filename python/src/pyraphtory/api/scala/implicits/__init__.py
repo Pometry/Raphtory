@@ -1,2 +1,2 @@
-import pyraphtory.scala.implicits.numeric
-import pyraphtory.scala.implicits.bounded
+import pyraphtory.api.scala.implicits.numeric
+import pyraphtory.api.scala.implicits.bounded

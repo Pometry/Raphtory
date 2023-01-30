@@ -1,7 +1,7 @@
-from pyraphtory.algorithm import PyAlgorithm
-from pyraphtory.graph import TemporalGraph
-from pyraphtory.vertex import Vertex
-from pyraphtory.scala.implicits.numeric import Long
+from pyraphtory.api.algorithm import PyAlgorithm
+from pyraphtory.api.graph import TemporalGraph
+from pyraphtory.api.vertex import Vertex
+from pyraphtory.api.scala.implicits.numeric import Long
 
 
 class LocalTriangleCount(PyAlgorithm):

@@ -1,7 +1,7 @@
 from __future__ import annotations
-from pyraphtory.interop import register, logger, to_jvm, find_class, ScalaProxyBase, GenericScalaProxy, ScalaClassProxy
-from pyraphtory.input import Properties, ImmutableString, Type
-from pyraphtory.scala.implicits.bounded import Bounded
+from pyraphtory.api.interop import register, logger, to_jvm, find_class, ScalaProxyBase, GenericScalaProxy, ScalaClassProxy
+from pyraphtory.api.input import Properties, ImmutableString, Type
+from pyraphtory.api.scala.implicits.bounded import Bounded
 import pandas as pd
 import json
 import datetime as dt

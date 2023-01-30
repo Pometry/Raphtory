@@ -1,7 +1,7 @@
-from pyraphtory.interop import GenericScalaProxy, register, is_PyJObject
-from pyraphtory.scala.implicits.numeric import Long, Double, Float, Int
-from pyraphtory.scala.implicits.bounded import Bounded
-from pyraphtory.scala.implicits.schemas import SchemaProviders
+from pyraphtory.api.interop import GenericScalaProxy, register, is_PyJObject
+from pyraphtory.api.scala.implicits.numeric import Long, Double, Float, Int
+from pyraphtory.api.scala.implicits.bounded import Bounded
+from pyraphtory.api.scala.implicits.schemas import SchemaProviders
 
 
 @register(name="Vertex")

@@ -2,10 +2,10 @@
 sample python script.
 """
 
-from pyraphtory.input import *
-from pyraphtory.sources import Source
-from pyraphtory.scala.implicits.numeric import Long
-from pyraphtory.spouts import FileSpout
+from pyraphtory.api.input import *
+from pyraphtory.api.sources import Source
+from pyraphtory.api.scala.implicits.numeric import Long
+from pyraphtory.api.spouts import FileSpout
 from time import perf_counter
 from pyraphtory.algorithms.pagerank import PageRank
 from pyraphtory.algorithms.connectedcomponents import ConnectedComponents
@@ -14,7 +14,7 @@ from pyraphtory.algorithms.trianglecount import LocalTriangleCount, GlobalTriang
 from pyraphtory.algorithms.degree import Degree
 
 if __name__ == "__main__":
-    from pyraphtory.context import PyRaphtory
+    from pyraphtory.api.context import PyRaphtory
     import subprocess
 
     subprocess.run(["curl", "-o", "/tmp/lotr.csv", "https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv"])

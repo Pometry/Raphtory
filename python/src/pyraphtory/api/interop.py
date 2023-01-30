@@ -12,11 +12,11 @@ from functools import cached_property
 from threading import Lock, RLock
 from copy import copy
 from textwrap import indent
-from pyraphtory import _codegen
-from pyraphtory._codegen import jpype_type_converter, type_converter, LazyStr
+from pyraphtory._jvm_interop import _codegen
+from pyraphtory._jvm_interop._codegen import jpype_type_converter, type_converter, LazyStr
 from jpype import JObject, JBoolean, JByte, JShort, JInt, JLong, JFloat, JDouble, JString
 
-from pyraphtory._docstring import convert_docstring
+from pyraphtory._jvm_interop._docstring import convert_docstring
 
 
 @jpype_type_converter("Long")
@@ -101,7 +101,7 @@ except (ImportError, ModuleNotFoundError):
     check_raphtory_logging_env()
 
     jpype.startJVM(_config.java_args, classpath=_config.jars.split(":"))
-    from pyraphtory._jpypeinterpreter import JPypeInterpreter, _globals
+    from pyraphtory._jvm_interop._jpypeinterpreter import JPypeInterpreter, _globals
 
     _scala = getattr(JClass("com.raphtory.internals.management.PythonInterop$"), "MODULE$")
     _scala.set_interpreter(JPypeInterpreter())

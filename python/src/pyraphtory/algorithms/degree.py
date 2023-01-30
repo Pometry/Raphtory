@@ -1,6 +1,6 @@
-from pyraphtory.algorithm import PyAlgorithm
-from pyraphtory.graph import TemporalGraph, Row
-from pyraphtory.vertex import Vertex
+from pyraphtory.api.algorithm import PyAlgorithm
+from pyraphtory.api.graph import TemporalGraph, Row
+from pyraphtory.api.vertex import Vertex
 
 
 IN_DEGREE = 'inDegree'
@@ -17,7 +17,7 @@ class Degree(PyAlgorithm):
         return graph.step(step)
 
     def tabularise(self, graph: TemporalGraph):
-        return graph.step(lambda v: v.set_state("name",v.name()))\
+        return graph.step(lambda v: v.set_state("name", v.name()))\
                     .step(lambda v: v.set_state(IN_DEGREE, v[IN_DEGREE]))\
                     .step(lambda v: v.set_state(OUT_DEGREE,v[OUT_DEGREE]))\
                     .step(lambda v: v.set_state(DEGREE, v[DEGREE]))\

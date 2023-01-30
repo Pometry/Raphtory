@@ -1,4 +1,4 @@
-from pyraphtory.interop import ScalaClassProxy
+from pyraphtory.api.interop import ScalaClassProxy
 
 
 class Sink:

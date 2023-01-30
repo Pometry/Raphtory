@@ -1,2 +1,2 @@
-import pyraphtory.scala.collection
-import pyraphtory.scala.implicits
+import pyraphtory.api.scala.collection
+import pyraphtory.api.scala.implicits

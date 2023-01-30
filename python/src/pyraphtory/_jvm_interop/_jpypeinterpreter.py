@@ -1,6 +1,6 @@
 import jpype.imports
 from jpype import JImplements, JOverride, JString, JObject, JClass
-from pyraphtory.debug import enable_pydev_debug
+from pyraphtory._jvm_interop.debug import enable_pydev_debug
 from traceback import print_exc
 
 Interpreter = JClass("pemja.core.Interpreter")

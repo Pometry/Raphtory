@@ -1,6 +1,6 @@
-from pyraphtory.algorithm import PyAlgorithm
-from pyraphtory.graph import TemporalGraph, Row, Table
-from pyraphtory.vertex import Vertex
+from pyraphtory.api.algorithm import PyAlgorithm
+from pyraphtory.api.graph import TemporalGraph, Row, Table
+from pyraphtory.api.vertex import Vertex
 
 CC_LABEL = 'cclabel'
 

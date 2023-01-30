@@ -4,8 +4,8 @@ Entrypoints for local and remote Raphtory contexts.
 Contexts are used to create and manage different graphs.
 """
 
-import pyraphtory.interop
-from pyraphtory import interop
+
+from pyraphtory.api import interop
 
 
 class PyRaphtory(interop.ScalaClassProxy):

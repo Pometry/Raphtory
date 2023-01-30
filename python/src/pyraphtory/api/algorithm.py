@@ -1,5 +1,5 @@
-from pyraphtory.graph import TemporalGraph, Row, Table
-from pyraphtory.interop import GenericScalaProxy, ScalaClassProxy
+from pyraphtory.api.graph import TemporalGraph, Row, Table
+from pyraphtory.api.interop import GenericScalaProxy, ScalaClassProxy
 
 
 class ScalaAlgorithm(GenericScalaProxy):

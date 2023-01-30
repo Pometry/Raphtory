@@ -1,5 +1,5 @@
 from collections import abc
-from pyraphtory.interop import register, GenericScalaProxy, ScalaClassProxy, to_python, to_jvm
+from pyraphtory.api.interop import register, GenericScalaProxy, ScalaClassProxy, to_python, to_jvm
 import typing as t
 
 A = t.TypeVar("A", covariant=True)
@@ -74,7 +74,7 @@ class Mapping(ScalaClassProxy, abc.Mapping[K, V]):
     _classname = "scala.collection.Map"
 
     def __len__(self) -> int:
-        self.size()
+        return self.size()
 
     def __iter__(self) -> t.Iterator[K]:
         return self.keys_iterator()

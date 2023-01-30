@@ -1,6 +1,6 @@
-from pyraphtory.algorithm import PyAlgorithm
-from pyraphtory.graph import TemporalGraph, Row, Table
-from pyraphtory.vertex import Vertex
+from pyraphtory.api.algorithm import PyAlgorithm
+from pyraphtory.api.graph import TemporalGraph, Row, Table
+from pyraphtory.api.vertex import Vertex
 
 REQUEST_FIRST_HOP = 'request_first_hop'
 REQUEST_SECOND_HOP = 'request_second_hop'

@@ -1,6 +1,6 @@
 """Wrappers for providing implicit numeric value required by accumulators"""
 
-from pyraphtory.interop import ScalaClassProxy
+from pyraphtory.api.interop import ScalaClassProxy
 
 
 class Long(ScalaClassProxy):

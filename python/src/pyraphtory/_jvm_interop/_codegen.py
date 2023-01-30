@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from keyword import iskeyword
-from pyraphtory._docstring import convert_docstring
+from pyraphtory._jvm_interop._docstring import convert_docstring
 from collections import UserString, UserDict
 from functools import cached_property
 
@@ -80,7 +80,7 @@ def clean_identifier(name: str):
 
 
 def clean_type(scala_type):
-    from pyraphtory.interop import get_type_repr
+    from pyraphtory.api.interop import get_type_repr
     type_name = str(get_type_repr(scala_type))
     return type_name
 
