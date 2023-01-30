@@ -54,7 +54,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
 
   private val queues = Array.tabulate(nWorkers)(i => disruptors(i).start)
 
-  override def flush: Unit = {
+  override def flush(): Unit = {
     var finished = false
     while (!finished) {
       finished = true
@@ -106,7 +106,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       properties: Properties,
       vertexType: Option[Type]
   ): Unit =
-    addVertex(GraphAlteration.VertexAdd(sourceID, msgTime, index, srcId, properties, vertexType))
+    addVertex(GraphAlteration.VertexAdd(msgTime, index, srcId, properties, vertexType))
 
   // we scramble the vertexId to make sure the partitioning algo doesn't send the update to the same file on a partition
   // as long as the vertices are sharded per partition using mod and we hash them with a different function before
@@ -114,7 +114,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   private def scramble(id: Long): Long =
     LongHashFunction.xx3().hashLong(id)
 
-  override def addVertex(vAdd: GraphAlteration.VertexAdd): Unit = {
+  private def addVertex(vAdd: GraphAlteration.VertexAdd): Unit = {
     val worker = findWorker(vAdd.srcId)
     enqueueVertex(vAdd, worker)
   }
@@ -127,7 +127,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     queues(worker).publish(sequenceId)
   }
 
-  override def addLocalEdge(eAdd: GraphAlteration.EdgeAdd): Unit = {
+  def addLocalEdge(eAdd: GraphAlteration.EdgeAdd): Unit = {
     val srcWorker           = findWorker(eAdd.srcId)
     val sequenceId          = queues(srcWorker).next()
     val event: QueuePayload = queues(srcWorker).get(sequenceId)
@@ -139,7 +139,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   private def findWorker(vertexId: Long): Int =
     Math.abs((scramble(vertexId) % nWorkers).toInt)
 
-  override def addOutgoingEdge(eAdd: GraphAlteration.EdgeAdd): Unit = {
+  private def addOutgoingEdge(eAdd: GraphAlteration.EdgeAdd): Unit = {
     val srcWorker = findWorker(eAdd.srcId)
 
     val sequenceId          = queues(srcWorker).next()
@@ -149,7 +149,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
     queues(srcWorker).publish(sequenceId)
   }
 
-  override def addIncomingEdge(eAdd: GraphAlteration.EdgeAdd): Unit = {
+  private def addIncomingEdge(eAdd: GraphAlteration.EdgeAdd): Unit = {
     val dstWorker           = findWorker(eAdd.dstId)
     val sequenceId          = queues(dstWorker).next()
     val event: QueuePayload = queues(dstWorker).get(sequenceId)
@@ -167,7 +167,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       properties: Properties,
       edgeType: Option[Type]
   ): Unit =
-    addLocalEdge(GraphAlteration.EdgeAdd(sourceID, msgTime, index, srcId, dstId, properties, edgeType))
+    addLocalEdge(GraphAlteration.EdgeAdd(msgTime, index, srcId, dstId, properties, edgeType))
 
   // This method should assume that the dstId belongs to another partition
   override def addOutgoingEdge(
@@ -178,7 +178,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       properties: Properties,
       edgeType: Option[Type]
   ): Unit =
-    addOutgoingEdge(GraphAlteration.EdgeAdd(sourceID, msgTime, index, srcId, dstId, properties, edgeType))
+    addOutgoingEdge(GraphAlteration.EdgeAdd(msgTime, index, srcId, dstId, properties, edgeType))
 
   override def addIncomingEdge(
       msgTime: Long,
@@ -189,7 +189,7 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
       edgeType: Option[Type]
   ): Unit = {
 
-    addIncomingEdge(GraphAlteration.EdgeAdd(sourceID, msgTime, index, srcId, dstId, properties, edgeType))
+    addIncomingEdge(GraphAlteration.EdgeAdd(msgTime, index, srcId, dstId, properties, edgeType))
   }
 
   override def getVertices(graphPerspective: LensInterface, start: Long, end: Long): mutable.Map[Long, PojoExVertex] =

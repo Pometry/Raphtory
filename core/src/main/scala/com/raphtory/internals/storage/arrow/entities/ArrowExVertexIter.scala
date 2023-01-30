@@ -227,4 +227,6 @@ class ArrowExVertexIter(val repo: ArrowEntityStateRepository, val vertexIter: Ve
     val nonVersioned = schema.nonversionedVertexProperties().asScala.map(_.name())
     (versioned ++ nonVersioned).toList
   }
+
+  override def getStateSet(): List[String] = ???
 }
