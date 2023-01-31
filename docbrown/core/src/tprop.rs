@@ -1,7 +1,7 @@
-use crate::Prop;
 use crate::tcell::TCell;
-use std::ops::Range;
+use crate::Prop;
 use serde::{Deserialize, Serialize};
+use std::ops::Range;
 
 #[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
 pub(crate) enum TProp {
@@ -17,6 +17,63 @@ pub(crate) enum TProp {
 }
 
 impl TProp {
+    pub(crate) fn from(t: i64, prop: &Prop) -> Self {
+        match prop {
+            Prop::Str(value) => TProp::Str(TCell::new(t, value.to_string())),
+            Prop::I32(value) => TProp::I32(TCell::new(t, *value)),
+            Prop::I64(value) => TProp::I64(TCell::new(t, *value)),
+            Prop::U32(value) => TProp::U32(TCell::new(t, *value)),
+            Prop::U64(value) => TProp::U64(TCell::new(t, *value)),
+            Prop::F32(value) => TProp::F32(TCell::new(t, *value)),
+            Prop::F64(value) => TProp::F64(TCell::new(t, *value)),
+        }
+    }
+
+    pub(crate) fn set(&mut self, t: i64, prop: &Prop) {
+        if self.is_empty() {
+            *self = TProp::from(t, prop);
+        } else {
+            match self {
+                TProp::Empty => todo!(),
+                TProp::Str(cell) => {
+                    if let Prop::Str(a) = prop {
+                        cell.set(t, a.to_string());
+                    }
+                }
+                TProp::I32(cell) => {
+                    if let Prop::I32(a) = prop {
+                        cell.set(t, *a);
+                    }
+                }
+                TProp::I64(cell) => {
+                    if let Prop::I64(a) = prop {
+                        cell.set(t, *a);
+                    }
+                }
+                TProp::U32(cell) => {
+                    if let Prop::U32(a) = prop {
+                        cell.set(t, *a);
+                    }
+                }
+                TProp::U64(cell) => {
+                    if let Prop::U64(a) = prop {
+                        cell.set(t, *a);
+                    }
+                }
+                TProp::F32(cell) => {
+                    if let Prop::F32(a) = prop {
+                        cell.set(t, *a);
+                    }
+                }
+                TProp::F64(cell) => {
+                    if let Prop::F64(a) = prop {
+                        cell.set(t, *a);
+                    }
+                }
+            }
+        }
+    }
+
     pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
         match self {
             TProp::Str(cell) => Box::new(
@@ -67,67 +124,80 @@ impl TProp {
         }
     }
 
-    pub(crate) fn from(t: i64, prop: &Prop) -> Self {
-        match prop {
-            Prop::Str(value) => TProp::Str(TCell::new(t, value.to_string())),
-            Prop::I32(value) => TProp::I32(TCell::new(t, *value)),
-            Prop::I64(value) => TProp::I64(TCell::new(t, *value)),
-            Prop::U32(value) => TProp::U32(TCell::new(t, *value)),
-            Prop::U64(value) => TProp::U64(TCell::new(t, *value)),
-            Prop::F32(value) => TProp::F32(TCell::new(t, *value)),
-            Prop::F64(value) => TProp::F64(TCell::new(t, *value)),
-        }
-    }
-
     fn is_empty(&self) -> bool {
         match self {
             TProp::Empty => true,
             _ => false,
         }
     }
+}
 
-    pub(crate) fn set(&mut self, t: i64, prop: &Prop) {
-        if self.is_empty() {
-            *self = TProp::from(t, prop);
-        } else {
-            match self {
-                TProp::Empty => todo!(),
-                TProp::Str(cell) => {
-                    if let Prop::Str(a) = prop {
-                        cell.set(t, a.to_string());
-                    }
-                }
-                TProp::I32(cell) => {
-                    if let Prop::I32(a) = prop {
-                        cell.set(t, *a);
-                    }
-                }
-                TProp::I64(cell) => {
-                    if let Prop::I64(a) = prop {
-                        cell.set(t, *a);
-                    }
-                }
-                TProp::U32(cell) => {
-                    if let Prop::U32(a) = prop {
-                        cell.set(t, *a);
-                    }
-                }
-                TProp::U64(cell) => {
-                    if let Prop::U64(a) = prop {
-                        cell.set(t, *a);
-                    }
-                }
-                TProp::F32(cell) => {
-                    if let Prop::F32(a) = prop {
-                        cell.set(t, *a);
-                    }
-                }
-                TProp::F64(cell) => {
-                    if let Prop::F64(a) = prop {
-                        cell.set(t, *a);
-                    }
-                }
-            }
-        }
+#[cfg(test)]
+mod tprop_tests {
+    use super::*;
+
+    #[test]
+    fn set_new_value_for_tprop_initialized_as_empty() {
+        let mut tprop = TProp::Empty;
+        tprop.set(1, &Prop::I32(10));
+
+        assert_eq!(
+            tprop.iter().collect::<Vec<_>>(),
+            vec![(&1, Prop::I32(10))]
+        );
+    }
+
+    #[test]
+    fn every_new_update_to_the_same_prop_is_recorded_as_history() {
+        let mut tprop = TProp::from(1, &Prop::Str("Pometry".into()));
+        tprop.set(2, &Prop::Str("Pometry Inc.".into()));
+
+        assert_eq!(
+            tprop.iter().collect::<Vec<_>>(),
+            vec![
+                (&1, Prop::Str("Pometry".into())),
+                (&2, Prop::Str("Pometry Inc.".into()))
+            ]
+        );
+    }
+
+    #[test]
+    fn new_update_with_the_same_time_to_a_prop_is_ignored() {
+        let mut tprop = TProp::from(1, &Prop::Str("Pometry".into()));
+        tprop.set(1, &Prop::Str("Pometry Inc.".into()));
+
+        assert_eq!(
+            tprop.iter().collect::<Vec<_>>(),
+            vec![
+                (&1, Prop::Str("Pometry".into()))
+            ]
+        );
+    }
+
+    #[test]
+    fn updates_to_prop_can_be_iterated() {
+        let mut tprop = TProp::from(1, &Prop::Str("Pometry".into()));
+        tprop.set(2, &Prop::Str("Pometry Inc.".into()));
+
+        assert_eq!(
+            tprop.iter().collect::<Vec<_>>(),
+            vec![
+                (&1, Prop::Str("Pometry".into())),
+                (&2, Prop::Str("Pometry Inc.".into()))
+            ]
+        );
+    }
+
+    #[test]
+    fn updates_to_prop_can_be_window_iterated() {
+        let mut tprop = TProp::from(1, &Prop::Str("Pometry".into()));
+        tprop.set(2, &Prop::Str("Pometry Inc.".into()));
+
+        assert_eq!(
+            tprop.iter_window(2..3).collect::<Vec<_>>(),
+            vec![
+                (&2, Prop::Str("Pometry Inc.".into()))
+            ]
+        );
     }
 }
