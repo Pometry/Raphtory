@@ -1,7 +1,7 @@
+use crate::tpropvec::TPropVec;
 use crate::Prop;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::tpropvec::TPropVec;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub(crate) struct Props {
@@ -46,21 +46,20 @@ impl Props {
         }
     }
 
-    pub fn update_vertex_props(&mut self, index: usize, t: i64, props: &Vec<(String, Prop)>) {
+    pub fn upsert_vertex_props(&mut self, index: usize, t: i64, props: &Vec<(String, Prop)>) {
         for (name, prop) in props {
             let prop_id = self.get_prop_id(name);
 
             match self.vertex_meta.get_mut(index) {
                 Some(vertex_props) => vertex_props.set(prop_id, t, prop),
-                None => {
-                    let prop_cell = TPropVec::from(prop_id, t, prop);
-                    self.vertex_meta.insert(index, prop_cell)
-                }
+                None => self
+                    .vertex_meta
+                    .insert(index, TPropVec::from(prop_id, t, prop)),
             }
         }
     }
 
-    pub fn update_edge_props(
+    pub fn upsert_edge_props(
         &mut self,
         src_edge_meta_id: usize,
         t: i64,
@@ -84,5 +83,24 @@ impl Props {
                     .insert(src_edge_meta_id, TPropVec::from(prop_id, t, prop)),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod props_tests {
+    use super::*;
+
+    #[test]
+    fn initialize_props_with_default_values() {
+        let Props {
+            prop_ids,
+            vertex_meta,
+            edge_meta,
+        } = Props::default();
+
+        let default_prop_ids: HashMap<String, usize> = HashMap::new();
+        assert_eq!(prop_ids, default_prop_ids);
+        assert_eq!(vertex_meta, vec![]);
+        assert_eq!(edge_meta, vec![TPropVec::Empty]);
     }
 }

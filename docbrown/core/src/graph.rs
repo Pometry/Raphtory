@@ -203,7 +203,7 @@ impl TemporalGraph {
             }
         };
 
-        self.props.update_vertex_props(index, t, props);
+        self.props.upsert_vertex_props(index, t, props);
     }
 
     pub(crate) fn iter_vertices(&self) -> Box<dyn Iterator<Item = VertexView<'_, Self>> + '_> {
@@ -263,7 +263,7 @@ impl TemporalGraph {
         let src_edge_meta_id =
             self.link_outbound_edge(src, t, src_pid, dst.try_into().unwrap(), true);
 
-        self.props.update_edge_props(src_edge_meta_id, t, props)
+        self.props.upsert_edge_props(src_edge_meta_id, t, props)
     }
 
     pub fn add_edge_remote_into(
@@ -280,7 +280,7 @@ impl TemporalGraph {
         let dst_edge_meta_id =
             self.link_inbound_edge(dst, t, src.try_into().unwrap(), dst_pid, true);
 
-        self.props.update_edge_props(dst_edge_meta_id, t, props)
+        self.props.upsert_edge_props(dst_edge_meta_id, t, props)
     }
 
     pub fn add_edge_with_props(&mut self, src: u64, dst: u64, t: i64, props: &Vec<(String, Prop)>) {
@@ -300,7 +300,7 @@ impl TemporalGraph {
             );
         }
 
-        self.props.update_edge_props(src_edge_meta_id, t, props)
+        self.props.upsert_edge_props(src_edge_meta_id, t, props)
     }
 
     fn link_inbound_edge(
