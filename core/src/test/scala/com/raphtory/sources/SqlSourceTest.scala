@@ -90,7 +90,7 @@ class SqlSourceTest extends CatsEffectSuite {
   test("SqlVertexSource ingest vertices from SQL table") {
     val source = SqlVertexSource(conn, s"select * from test", "source_id", "epoch")
     for {
-      stream  <- source.makeStream[IO]
+      stream  <- source.makeStream[IO](0)
       updates <- stream.compile.toList.map(_.flatten.asInstanceOf[List[VertexAdd]])
       _       <- IO(assertEquals(updates.size, 3))
       _       <- IO(rows zip updates foreach {
@@ -106,7 +106,7 @@ class SqlSourceTest extends CatsEffectSuite {
     val properties = List("target_id", "target_name", "boolean", "float", "double")
     val source     = SqlVertexSource(conn, s"select * from test", "source_name", "time", "etype", properties)
     for {
-      stream  <- source.makeStream[IO]
+      stream  <- source.makeStream[IO](0)
       updates <- stream.compile.toList.map(_.flatten.asInstanceOf[List[VertexAdd]])
       _       <- IO(assertEquals(updates.size, 3))
       _       <- IO(rows zip updates foreach {
@@ -130,7 +130,7 @@ class SqlSourceTest extends CatsEffectSuite {
   test("SqlEdgeSource ingest edges from SQL table") {
     val source = SqlEdgeSource(conn, s"select * from test", "source_id", "target_id", "epoch")
     for {
-      stream  <- source.makeStream[IO]
+      stream  <- source.makeStream[IO](0)
       updates <- stream.compile.toList.map(_.flatten.asInstanceOf[List[EdgeAdd]])
       _       <- IO(assertEquals(updates.size, 3))
       _       <- IO(rows zip updates foreach {
@@ -146,7 +146,7 @@ class SqlSourceTest extends CatsEffectSuite {
     val properties = List("target_id", "target_name", "boolean", "float", "double")
     val source     = SqlEdgeSource(conn, s"select * from test", "source_name", "target_name", "time", "etype", properties)
     for {
-      stream     <- source.makeStream[IO]
+      stream     <- source.makeStream[IO](0)
       updates    <- stream.compile.toList.map(_.flatten)
       edgeUpdates = updates.collect {
                       case update: EdgeAdd => update
