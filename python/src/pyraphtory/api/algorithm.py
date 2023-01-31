@@ -1,5 +1,5 @@
-from __future__ import annotations
 """Base classes for writing algorithms"""
+from __future__ import annotations
 
 from pyraphtory.interop import GenericScalaProxy
 
@@ -12,7 +12,7 @@ class PyAlgorithm(object):
     """
     Base class for algorithms implemented in python
     """
-    def __call__(self, graph: api.graph.TemporalGraph) -> api.graph.TemporalGraph:
+    def __call__(self, graph: graph.TemporalGraph) -> graph.TemporalGraph:
         """
         Main algorithm step (default implementation leaves graph unchanged)
 
@@ -21,7 +21,7 @@ class PyAlgorithm(object):
         """
         return graph
 
-    def tabularise(self, graph: api.graph.TemporalGraph) -> api.table.Table:
+    def tabularise(self, graph: graph.TemporalGraph) -> table.Table:
         """
         Defines the default output of the algorithm
 

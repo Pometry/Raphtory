@@ -1,3 +1,5 @@
+"""Output formats for use with sinks"""
+
 from pyraphtory.interop import ScalaClassProxy, GenericScalaProxy
 
 

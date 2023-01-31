@@ -1,3 +1,5 @@
+"""Python wrappers for spouts (used for reading data with custom parse functions)"""
+
 from pyraphtory.interop import ScalaClassProxy
 
 

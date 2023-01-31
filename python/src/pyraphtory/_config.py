@@ -6,6 +6,9 @@ import logging
 import shutil
 
 
+extra_jars = []
+
+
 def get_java_home() -> Path:
     logging.info("Getting JAVA_HOME")
     home = os.getenv('JAVA_HOME')
@@ -57,3 +60,17 @@ def setup_raphtory_jars():
 jre = get_local_jre_loc()
 jars, java_args = setup_raphtory_jars()
 java = str(jre / "bin" / "java")
+
+
+def add_classpath(path: str):
+    """
+    Add custom jars or java classes.
+
+    Note that this function only has an effect before importing the `algorithms`,
+    `api`, or `interop` modules or calling the `local` or `remote` function to start a Raphtory context.
+
+    :param path: Path to add to the jvm classpath. This supports the wildcard '*' to add all files in a folder. Use ':'
+                 to separate multiple files/folders.
+    """
+    global jars
+    jars = join_jar_path(jars, path)

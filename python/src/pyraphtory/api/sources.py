@@ -1,3 +1,5 @@
+"""Python wrappers for sources (used to create graphs from files and databases)"""
+
 from pyraphtory.interop import ScalaClassProxy
 
 class Source(ScalaClassProxy):

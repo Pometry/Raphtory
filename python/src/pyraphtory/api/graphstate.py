@@ -1,3 +1,5 @@
+"""Python wrappers for global GraphState api"""
+
 from pyraphtory.interop import GenericScalaProxy, register
 from pyraphtory.api.scala.implicits.bounded import Bounded
 from pyraphtory.api.scala.implicits.numeric import Long, Double

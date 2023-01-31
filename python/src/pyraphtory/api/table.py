@@ -1,3 +1,5 @@
+"""Python wrappers for the table api"""
+
 from pyraphtory.interop import GenericScalaProxy, register, logger, to_jvm
 import pandas as pd
 import datetime as dt

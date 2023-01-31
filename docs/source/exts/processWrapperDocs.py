@@ -1,6 +1,6 @@
 from sphinx.application import Sphinx
-from pyraphtory.api.interop import ScalaClassProxy, InstanceOnlyMethod, ScalaObjectProxy, WithImplicits, OverloadedMethod
-import pyraphtory
+from pyraphtory.interop._interop import ScalaClassProxy, InstanceOnlyMethod, ScalaObjectProxy, WithImplicits, OverloadedMethod
+import pyraphtory.api
 from sphinx.util import logging, inspect
 from sphinx.ext.autodoc import MethodDocumenter, ClassDocumenter, safe_getattr, ObjectMembers, get_class_members, \
     ModuleDocumenter, AttributeDocumenter, ALL, Documenter
@@ -39,7 +39,7 @@ def fix_part(part: str):
 
 def before_process_signature(app, obj, bound_method):
     if hasattr(obj, "__globals__"):
-        obj.__globals__.update(vars(pyraphtory))  # inject definitions for resolving annotations
+        obj.__globals__.update(vars(pyraphtory.api))  # inject definitions for resolving annotations
 
 
 def process_signature(app, what, name, obj, options, signature, return_annotation):

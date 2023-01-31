@@ -1,5 +1,7 @@
+"""Python wrappers for graph api"""
+
 from __future__ import annotations
-from pyraphtory.interop import register, logger, to_jvm, GenericScalaProxy, ScalaClassProxy
+from pyraphtory.interop import register, logger, GenericScalaProxy, ScalaClassProxy
 from pyraphtory.api.input import Properties, ImmutableString, Type
 from pyraphtory.api.algorithm import ScalaAlgorithm
 

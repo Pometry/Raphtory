@@ -80,7 +80,7 @@ def clean_identifier(name: str):
 
 
 def clean_type(scala_type):
-    from pyraphtory.api.interop import get_type_repr
+    from pyraphtory.interop._interop import get_type_repr
     type_name = str(get_type_repr(scala_type))
     return type_name
 

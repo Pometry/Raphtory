@@ -1,3 +1,5 @@
+"""Python wrappers for the vertex api"""
+
 from pyraphtory.interop import GenericScalaProxy, register
 from pyraphtory.api.scala.implicits.schemas import SchemaProviders
 

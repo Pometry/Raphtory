@@ -1,3 +1,5 @@
+"""Python wrappers for input api"""
+
 from pyraphtory.interop import ScalaClassProxy, GenericScalaProxy
 
 

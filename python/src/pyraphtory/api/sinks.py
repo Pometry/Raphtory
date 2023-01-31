@@ -1,3 +1,5 @@
+"""Python wrappers for Sinks (used to output algorithm results to file)"""
+
 from pyraphtory.interop import ScalaClassProxy
 
 
