@@ -403,13 +403,18 @@ fn main() {
             g
         };
 
-
         assert!(graph.contains(test_v));
-        let deg_out = graph.neighbours_window(0, i64::MAX, test_v, Direction::OUT).count();
-        let deg_in =  graph.neighbours_window(0, i64::MAX, test_v, Direction::IN).count();
+        let deg_out = graph
+            .neighbours_window(0, i64::MAX, test_v, Direction::OUT)
+            .count();
+        let deg_in = graph
+            .neighbours_window(0, i64::MAX, test_v, Direction::IN)
+            .count();
 
-        println!("{} has {} out degree and {} in degree", test_v, deg_out, deg_in);
-
+        println!(
+            "{} has {} out degree and {} in degree",
+            test_v, deg_out, deg_in
+        );
     }
 }
 

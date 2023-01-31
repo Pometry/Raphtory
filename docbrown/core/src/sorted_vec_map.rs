@@ -8,7 +8,6 @@ use sorted_vector_map::{map::Entry, SortedVectorMap};
 pub(crate) struct SVM<K: Ord, V>(SortedVectorMap<K, V>);
 
 impl<K: Ord, V> SVM<K, V> {
-
     pub(crate) fn new() -> Self {
         Self(SortedVectorMap::new())
     }
@@ -34,7 +33,7 @@ impl<K: Ord, V> SVM<K, V> {
     }
 
     pub(crate) fn entry(&mut self, k: K) -> Entry<K, V> {
-        self.0.entry(k) 
+        self.0.entry(k)
     }
 }
 

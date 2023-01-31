@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, fmt::Debug, ops::Range};
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::sorted_vec_map::SVM;
 
