@@ -6,7 +6,6 @@ use rand::{distributions::Uniform, Rng};
 use sorted_vector_map::SortedVectorSet;
 
 fn btree_set_u64(c: &mut Criterion) {
-
     let mut group = c.benchmark_group("btree_set_u64_range_insert");
     for size in [10, 100, 300, 500, 1000].iter() {
         group.throughput(Throughput::Elements(*size as u64));
@@ -58,8 +57,6 @@ fn btree_set_u64(c: &mut Criterion) {
                 });
             },
         );
-
-
     }
     group.finish();
 }

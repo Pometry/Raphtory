@@ -1,4 +1,4 @@
-pub trait MinMax<A>{
+pub trait MinMax<A> {
     fn min() -> A;
     fn max() -> A;
     fn one() -> A;

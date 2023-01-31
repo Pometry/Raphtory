@@ -96,9 +96,9 @@ impl GraphDB {
             println!("saving shard {} to {:?}", i, p);
             shard_paths.push((i, p));
         }
-        shard_paths.par_iter().try_for_each(|(i, path)| {
-            self.shards[*i].save_to_file(path)
-        })?;
+        shard_paths
+            .par_iter()
+            .try_for_each(|(i, path)| self.shards[*i].save_to_file(path))?;
 
         let mut p = PathBuf::from(path.as_ref());
         p.push("graphdb_nr_shards");
@@ -146,7 +146,7 @@ impl GraphDB {
         t_end: i64,
         v: u64,
         d: Direction,
-    ) -> Box<dyn Iterator<Item=TEdge>> {
+    ) -> Box<dyn Iterator<Item = TEdge>> {
         let shard_id = self.shard_from_global_vid(v);
 
         let iter = self.shards[shard_id].neighbours_window(t_start, t_end, v, d);
