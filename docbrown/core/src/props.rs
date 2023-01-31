@@ -179,10 +179,10 @@ mod props_tests {
     }
 
     #[test]
-    fn overwrites_existing_vertex_prop_if_exactly_same() {
+    fn new_update_with_the_same_time_to_a_vertex_prop_is_ignored() {
         let mut props = Props::default();
         props.upsert_vertex_props(0, 1, &vec![("bla".to_string(), Prop::I32(10))]);
-        props.upsert_vertex_props(0, 1, &vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_vertex_props(0, 1, &vec![("bla".to_string(), Prop::I32(20))]);
 
         let prop_id = props.get_prop_id("bla");
         assert_eq!(
@@ -240,10 +240,10 @@ mod props_tests {
     }
 
     #[test]
-    fn overwrites_existing_edge_prop_if_exactly_same() {
+    fn new_update_with_the_same_time_to_a_edge_prop_is_ignored() {
         let mut props = Props::default();
         props.upsert_edge_props(0, 1, &vec![("bla".to_string(), Prop::I32(10))]);
-        props.upsert_edge_props(0, 1, &vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_edge_props(0, 1, &vec![("bla".to_string(), Prop::I32(20))]);
 
         let prop_id = props.get_prop_id("bla");
         assert_eq!(
