@@ -1,7 +1,7 @@
-use std::collections::HashMap;
-use std::ops::Range;
+use crate::Prop;
 use serde::{Deserialize, Serialize};
-use crate::{tcell::TCell, Prop};
+use std::collections::HashMap;
+use crate::tpropvec::TPropVec;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub(crate) struct Props {
@@ -66,207 +66,22 @@ impl Props {
         t: i64,
         props: &Vec<(String, Prop)>,
     ) {
-        // FIXME: ensure the self.edge_meta is updated even if the props vector is null
+        if props.is_empty() {
+            match self.edge_meta.get_mut(src_edge_meta_id) {
+                Some(_edge_props) => {}
+                None => self.edge_meta.insert(src_edge_meta_id, TPropVec::Empty),
+            }
+            return;
+        }
+
         for (name, prop) in props {
             let prop_id = self.get_prop_id(name);
 
             match self.edge_meta.get_mut(src_edge_meta_id) {
                 Some(edge_props) => edge_props.set(prop_id, t, prop),
-                None => {
-                    let prop_cell = TPropVec::from(prop_id, t, prop);
-                    self.edge_meta.insert(src_edge_meta_id, prop_cell)
-                }
-            }
-        }
-    }
-}
-
-#[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
-pub(crate) enum TPropVec {
-    #[default]
-    Empty,
-    // First tuple value in "SingleProp" and indices in "MultiPropVec" vector denote property id
-    // values from "Props::prop_ids" hashmap
-    TPropVec1(usize, TProp),
-    TPropVecN(Vec<TProp>),
-}
-
-impl TPropVec {
-    pub(crate) fn from(prop_id: usize, time: i64, prop: &Prop) -> Self {
-        TPropVec::TPropVec1(prop_id, TProp::from(time, prop))
-    }
-
-    pub(crate) fn set(&mut self, prop_id: usize, time: i64, prop: &Prop) {
-        match self {
-            TPropVec::Empty => {
-                *self = Self::from(prop_id, time, prop);
-            }
-            TPropVec::TPropVec1(prop_id0, prop0) => {
-                if *prop_id0 == prop_id {
-                    prop0.set(time, prop);
-                } else {
-                    let mut props = vec![TProp::Empty; usize::max(prop_id, *prop_id0) + 1];
-                    props[prop_id] = TProp::from(time, prop);
-                    props[*prop_id0] = prop0.clone();
-                    *self = TPropVec::TPropVecN(props);
-                }
-            }
-            TPropVec::TPropVecN(props) => {
-                if props.len() <= prop_id {
-                    props.resize(prop_id + 1, TProp::Empty)
-                }
-                props[prop_id].set(time, prop);
-            }
-        }
-    }
-
-    pub(crate) fn iter(&self, prop_id: usize) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
-        match self {
-            TPropVec::TPropVec1(prop_id0, prop0) if *prop_id0 == prop_id => prop0.iter(),
-            TPropVec::TPropVecN(props) if props.len() > prop_id => props[prop_id].iter(),
-            _ => Box::new(std::iter::empty()),
-        }
-    }
-
-    pub(crate) fn iter_window(
-        &self,
-        prop_id: usize,
-        r: Range<i64>,
-    ) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
-        match self {
-            TPropVec::TPropVec1(prop_id0, prop0) if *prop_id0 == prop_id => prop0.iter_window(r),
-            TPropVec::TPropVecN(props) if props.len() >= prop_id => {
-                props[prop_id].iter_window(r)
-            }
-            _ => Box::new(std::iter::empty()),
-        }
-    }
-}
-
-#[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
-pub(crate) enum TProp {
-    #[default]
-    Empty,
-    Str(TCell<String>),
-    I32(TCell<i32>),
-    I64(TCell<i64>),
-    U32(TCell<u32>),
-    U64(TCell<u64>),
-    F32(TCell<f32>),
-    F64(TCell<f64>),
-}
-
-impl TProp {
-    pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
-        match self {
-            TProp::Str(cell) => Box::new(
-                cell.iter_t()
-                    .map(|(t, value)| (t, Prop::Str(value.to_string()))),
-            ),
-            TProp::I32(cell) => Box::new(cell.iter_t().map(|(t, value)| (t, Prop::I32(*value)))),
-            TProp::I64(cell) => Box::new(cell.iter_t().map(|(t, value)| (t, Prop::I64(*value)))),
-            TProp::U32(cell) => Box::new(cell.iter_t().map(|(t, value)| (t, Prop::U32(*value)))),
-            TProp::U64(cell) => Box::new(cell.iter_t().map(|(t, value)| (t, Prop::U64(*value)))),
-            TProp::F32(cell) => Box::new(cell.iter_t().map(|(t, value)| (t, Prop::F32(*value)))),
-            TProp::F64(cell) => Box::new(cell.iter_t().map(|(t, value)| (t, Prop::F64(*value)))),
-            _ => todo!(),
-        }
-    }
-
-    pub(crate) fn iter_window(&self, r: Range<i64>) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
-        match self {
-            TProp::Str(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::Str(value.to_string()))),
-            ),
-            TProp::I32(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::I32(*value))),
-            ),
-            TProp::I64(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::I64(*value))),
-            ),
-            TProp::U32(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::U32(*value))),
-            ),
-            TProp::U64(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::U64(*value))),
-            ),
-            TProp::F32(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::F32(*value))),
-            ),
-            TProp::F64(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, value)| (t, Prop::F64(*value))),
-            ),
-            _ => todo!(),
-        }
-    }
-
-    pub(crate) fn from(t: i64, prop: &Prop) -> Self {
-        match prop {
-            Prop::Str(value) => TProp::Str(TCell::new(t, value.to_string())),
-            Prop::I32(value) => TProp::I32(TCell::new(t, *value)),
-            Prop::I64(value) => TProp::I64(TCell::new(t, *value)),
-            Prop::U32(value) => TProp::U32(TCell::new(t, *value)),
-            Prop::U64(value) => TProp::U64(TCell::new(t, *value)),
-            Prop::F32(value) => TProp::F32(TCell::new(t, *value)),
-            Prop::F64(value) => TProp::F64(TCell::new(t, *value)),
-        }
-    }
-
-    fn is_empty(&self) -> bool {
-        match self {
-            TProp::Empty => true,
-            _ => false,
-        }
-    }
-
-    pub(crate) fn set(&mut self, t: i64, prop: &Prop) {
-        if self.is_empty() {
-            *self = TProp::from(t, prop);
-        } else {
-            match self {
-                TProp::Empty => todo!(),
-                TProp::Str(cell) => {
-                    if let Prop::Str(a) = prop {
-                        cell.set(t, a.to_string());
-                    }
-                }
-                TProp::I32(cell) => {
-                    if let Prop::I32(a) = prop {
-                        cell.set(t, *a);
-                    }
-                }
-                TProp::I64(cell) => {
-                    if let Prop::I64(a) = prop {
-                        cell.set(t, *a);
-                    }
-                }
-                TProp::U32(cell) => {
-                    if let Prop::U32(a) = prop {
-                        cell.set(t, *a);
-                    }
-                }
-                TProp::U64(cell) => {
-                    if let Prop::U64(a) = prop {
-                        cell.set(t, *a);
-                    }
-                }
-                TProp::F32(cell) => {
-                    if let Prop::F32(a) = prop {
-                        cell.set(t, *a);
-                    }
-                }
-                TProp::F64(cell) => {
-                    if let Prop::F64(a) = prop {
-                        cell.set(t, *a);
-                    }
-                }
+                None => self
+                    .edge_meta
+                    .insert(src_edge_meta_id, TPropVec::from(prop_id, t, prop)),
             }
         }
     }

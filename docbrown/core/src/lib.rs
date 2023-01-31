@@ -12,6 +12,8 @@ mod sorted_vec_map;
 mod tadjset;
 mod tcell;
 pub mod tpartition;
+mod tprop;
+mod tpropvec;
 
 // Denotes edge direction
 #[derive(Clone, Copy, PartialEq)]
