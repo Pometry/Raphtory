@@ -20,7 +20,9 @@ abstract class SqlSource(
 ) extends Source {
   import SqlSource._
 
-  override def makeStream[F[_]](implicit F: Async[F]): F[fs2.Stream[F, Seq[GraphAlteration.GraphUpdate]]] = {
+  override def makeStream[F[_]](
+      initialIndex: Long
+  )(implicit F: Async[F]): F[fs2.Stream[F, Seq[GraphAlteration.GraphUpdate]]] = {
     val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
     val resultSetResource = for {
@@ -43,7 +45,7 @@ abstract class SqlSource(
       extractor      <- getExtractor(rs).onError { case NonFatal(_) => releaseRs }
       _              <- F.delay(logger.debug(s"Defining stream of updates from SQL query"))
       stream         <- fs2.Stream
-                          .iterate(0)(_ + 1)
+                          .iterate(initialIndex)(_ + 1)
                           .evalMap(index => F.delay(if (rs.next()) Some(extractor.apply(rs, index)) else None))
                           .collectWhile { case Some(updates) => updates }
                           .chunks

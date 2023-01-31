@@ -119,7 +119,7 @@ object IngestionExecutor {
   ): F[IngestionExecutor[F, _]] =
     for {
       _        <- queryService.startIngestion(StartIngestion(sourceID, graphID))
-      stream   <- source.makeStream
+      stream   <- source.makeStream(sourceID * Long.MaxValue / 1000)
       executor <- Async[F].delay(new IngestionExecutor(graphID, queryService, partitions, stream, sourceID, config))
     } yield executor
 }
