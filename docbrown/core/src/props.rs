@@ -111,4 +111,45 @@ mod props_tests {
         assert_eq!(vertex_meta, vec![]);
         assert_eq!(edge_meta, vec![TPropVec::Empty]);
     }
+
+    #[test]
+    fn return_valid_next_available_edge_id() {
+        let props = Props::default();
+
+        // 0th index is not a valid edge id because it can't be used to correctly denote
+        // both local as well as remote edge id. Hence edge ids must always start with 1.
+        assert_ne!(props.get_next_available_edge_id(), 0);
+        assert_eq!(props.get_next_available_edge_id(), 1);
+    }
+
+    #[test]
+    fn return_prop_id_if_prop_name_found() {
+        let mut props = Props::default();
+        props.prop_ids.insert(String::from("key1"), 0);
+        props.prop_ids.insert(String::from("key2"), 1);
+
+        assert_eq!(props.get_prop_id("key2"), 1);
+    }
+
+    #[test]
+    fn return_new_prop_id_if_prop_name_not_found() {
+        let mut props = Props::default();
+        assert_eq!(props.get_prop_id("key"), 0);
+    }
+
+    #[test]
+    fn insert_default_value_against_no_props_vertex_upsert() {
+        let mut props = Props::default();
+        props.upsert_vertex_props(0, 1, &vec![]);
+
+        assert_eq!(props.vertex_meta.get(0).unwrap(), &TPropVec::Empty)
+    }
+
+    #[test]
+    fn insert_default_value_against_no_props_edge_upsert() {
+        let mut props = Props::default();
+        props.upsert_edge_props(0, 1, &vec![]);
+
+        assert_eq!(props.edge_meta.get(0).unwrap(), &TPropVec::Empty)
+    }
 }
