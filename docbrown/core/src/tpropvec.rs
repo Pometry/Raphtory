@@ -1,7 +1,7 @@
-use std::ops::Range;
-use serde::{Deserialize, Serialize};
-use crate::Prop;
 use crate::tprop::TProp;
+use crate::Prop;
+use serde::{Deserialize, Serialize};
+use std::ops::Range;
 
 #[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
 pub(crate) enum TPropVec {
@@ -60,5 +60,116 @@ impl TPropVec {
             TPropVec::TPropVecN(props) if props.len() >= prop_id => props[prop_id].iter_window(r),
             _ => Box::new(std::iter::empty()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tpropvec_tests {
+    use super::*;
+
+    #[test]
+    fn set_new_prop_for_tpropvec_initialized_as_empty() {
+        let mut tpropvec = TPropVec::Empty;
+        let prop_id = 1;
+        tpropvec.set(prop_id, 1, &Prop::I32(10));
+
+        assert_eq!(
+            tpropvec.iter(prop_id).collect::<Vec<_>>(),
+            vec![(&1, Prop::I32(10))]
+        );
+    }
+
+    #[test]
+    fn set_multiple_props() {
+        let mut tpropvec = TPropVec::from(1, 1, &Prop::Str("Pometry".into()));
+        tpropvec.set(2, 2, &Prop::I32(2022));
+        tpropvec.set(3, 3, &Prop::Str("Graph".into()));
+
+        assert_eq!(
+            tpropvec.iter(1).collect::<Vec<_>>(),
+            vec![(&1, Prop::Str("Pometry".into()))]
+        );
+        assert_eq!(
+            tpropvec.iter(2).collect::<Vec<_>>(),
+            vec![(&2, Prop::I32(2022))]
+        );
+        assert_eq!(
+            tpropvec.iter(3).collect::<Vec<_>>(),
+            vec![(&3, Prop::Str("Graph".into()))]
+        );
+    }
+
+    #[test]
+    fn every_new_update_to_the_same_prop_is_recorded_as_history() {
+        let mut tpropvec = TPropVec::from(1, 1, &Prop::Str("Pometry".into()));
+        tpropvec.set(1, 2, &Prop::Str("Pometry Inc.".into()));
+
+        let prop1 = tpropvec.iter(1).collect::<Vec<_>>();
+        assert_eq!(
+            prop1,
+            vec![
+                (&1, Prop::Str("Pometry".into())),
+                (&2, Prop::Str("Pometry Inc.".into()))
+            ]
+        );
+    }
+
+    #[test]
+    fn new_update_with_the_same_time_to_a_prop_is_ignored() {
+        let mut tpropvec = TPropVec::from(1, 1, &Prop::Str("Pometry".into()));
+        tpropvec.set(1, 1, &Prop::Str("Pometry Inc.".into()));
+
+        let prop1 = tpropvec.iter(1).collect::<Vec<_>>();
+        assert_eq!(prop1, vec![(&1, Prop::Str("Pometry".into()))]);
+    }
+
+    #[test]
+    fn updates_to_every_prop_can_be_iterated() {
+        let mut tpropvec = TPropVec::from(1, 1, &Prop::Str("Pometry".into()));
+        tpropvec.set(1, 2, &Prop::Str("Pometry Inc.".into()));
+        tpropvec.set(2, 3, &Prop::I32(2022));
+        tpropvec.set(3, 4, &Prop::Str("Graph".into()));
+        tpropvec.set(3, 5, &Prop::Str("Graph Analytics".into()));
+
+        let prop1 = tpropvec.iter(1).collect::<Vec<_>>();
+        assert_eq!(
+            prop1,
+            vec![
+                (&1, Prop::Str("Pometry".into())),
+                (&2, Prop::Str("Pometry Inc.".into()))
+            ]
+        );
+
+        // Windowed iteration
+        let prop3 = tpropvec.iter(3).collect::<Vec<_>>();
+        assert_eq!(
+            prop3,
+            vec![
+                (&4, Prop::Str("Graph".into())),
+                (&5, Prop::Str("Graph Analytics".into()))
+            ]
+        );
+    }
+
+    #[test]
+    fn updates_to_every_prop_can_be_window_iterated() {
+        let mut tpropvec = TPropVec::from(1, 1, &Prop::Str("Pometry".into()));
+        tpropvec.set(1, 2, &Prop::Str("Pometry Inc.".into()));
+        tpropvec.set(2, 3, &Prop::I32(2022));
+        tpropvec.set(3, 4, &Prop::Str("Graph".into()));
+        tpropvec.set(3, 5, &Prop::Str("Graph Analytics".into()));
+
+        let prop1 = tpropvec.iter_window(1, 1..3).collect::<Vec<_>>();
+        assert_eq!(
+            prop1,
+            vec![
+                (&1, Prop::Str("Pometry".into())),
+                (&2, Prop::Str("Pometry Inc.".into()))
+            ]
+        );
+
+        // Windowed iteration
+        let prop3 = tpropvec.iter_window(3, 5..6).collect::<Vec<_>>();
+        assert_eq!(prop3, vec![(&5, Prop::Str("Graph Analytics".into()))]);
     }
 }
