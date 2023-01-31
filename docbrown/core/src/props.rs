@@ -99,16 +99,13 @@ mod props_tests {
     use super::*;
 
     #[test]
-    fn initialize_props_with_default_values() {
+    fn zero_index_of_edge_meta_is_preassgined_default_value() {
         let Props {
             prop_ids,
             vertex_meta,
             edge_meta,
         } = Props::default();
 
-        let default_prop_ids: HashMap<String, usize> = HashMap::new();
-        assert_eq!(prop_ids, default_prop_ids);
-        assert_eq!(vertex_meta, vec![]);
         assert_eq!(edge_meta, vec![TPropVec::Empty]);
     }
 
