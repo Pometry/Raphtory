@@ -5,13 +5,11 @@ use serde::{Deserialize, Serialize};
 use crate::sorted_vec_map::SVM;
 
 #[derive(Debug, PartialEq, Default, Clone, Serialize, Deserialize)]
-/**
- * TCells represent a value in time that can
- * be set at multiple times and keeps a history
- **/
+
+// TCells represent a value in time that can be set at multiple times and keeps a history
 pub(crate) enum TCell<A: Clone + Default + Debug + PartialEq> {
     #[default]
-    TCellEmpty,
+    Empty,
     TCell1(i64, A),
     TCellCap(SVM<i64, A>),
     TCellN(BTreeMap<i64, A>),
@@ -20,86 +18,86 @@ pub(crate) enum TCell<A: Clone + Default + Debug + PartialEq> {
 const BTREE_CUTOFF: usize = 128;
 
 impl<A: Clone + Default + Debug + PartialEq> TCell<A> {
-    pub fn new(t: i64, a: A) -> Self {
-        TCell::TCell1(t, a)
+    pub fn new(t: i64, value: A) -> Self {
+        TCell::TCell1(t, value)
     }
 
-    pub fn set(&mut self, t: i64, a: A) {
+    pub fn set(&mut self, t: i64, value: A) {
         match self {
-            TCell::TCellEmpty => {
-                *self = TCell::TCell1(t, a);
+            TCell::Empty => {
+                *self = TCell::TCell1(t, value);
             }
-            TCell::TCell1(t0, a0) => {
+            TCell::TCell1(t0, value0) => {
                 if t != *t0 {
-                    let mut m = SVM::new();
-                    m.insert(t, a);
-                    m.insert(*t0, a0.clone());
-                    *self = TCell::TCellCap(m)
+                    let mut svm = SVM::new();
+                    svm.insert(t, value);
+                    svm.insert(*t0, value0.clone());
+                    *self = TCell::TCellCap(svm)
                 }
             }
-            TCell::TCellCap(m) => {
-                if m.len() < BTREE_CUTOFF {
-                    m.insert(t, a.clone());
+            TCell::TCellCap(svm) => {
+                if svm.len() < BTREE_CUTOFF {
+                    svm.insert(t, value.clone());
                 } else {
-                    let mut new_m: BTreeMap<i64, A> = BTreeMap::new();
-                    for (k, v) in m.iter() {
-                        new_m.insert(*k, v.clone());
+                    let mut btm: BTreeMap<i64, A> = BTreeMap::new();
+                    for (k, v) in svm.iter() {
+                        btm.insert(*k, v.clone());
                     }
-                    new_m.insert(t, a.clone());
-                    *self = TCell::TCellN(new_m)
+                    btm.insert(t, value.clone());
+                    *self = TCell::TCellN(btm)
                 }
             }
-            TCell::TCellN(m) => {
-                m.insert(t, a);
+            TCell::TCellN(btm) => {
+                btm.insert(t, value);
             }
         }
     }
 
     pub fn iter_window_t(&self, r: Range<i64>) -> Box<dyn Iterator<Item = (&i64, &A)> + '_> {
         match self {
-            TCell::TCellEmpty => Box::new(std::iter::empty()),
-            TCell::TCell1(t, a) => {
+            TCell::Empty => Box::new(std::iter::empty()),
+            TCell::TCell1(t, value) => {
                 if r.contains(t) {
-                    Box::new(std::iter::once((t, a)))
+                    Box::new(std::iter::once((t, value)))
                 } else {
                     Box::new(std::iter::empty())
                 }
             }
-            TCell::TCellCap(m) => Box::new(m.range(r)),
-            TCell::TCellN(m) => Box::new(m.range(r)),
+            TCell::TCellCap(svm) => Box::new(svm.range(r)),
+            TCell::TCellN(btm) => Box::new(btm.range(r)),
         }
     }
 
     pub fn iter_window(&self, r: Range<i64>) -> Box<dyn Iterator<Item = &A> + '_> {
         match self {
-            TCell::TCellEmpty => Box::new(std::iter::empty()),
-            TCell::TCell1(t, a) => {
+            TCell::Empty => Box::new(std::iter::empty()),
+            TCell::TCell1(t, value) => {
                 if r.contains(t) {
-                    Box::new(std::iter::once(a))
+                    Box::new(std::iter::once(value))
                 } else {
                     Box::new(std::iter::empty())
                 }
             }
-            TCell::TCellCap(m) => Box::new(m.range(r).map(|(_, a)| a)),
-            TCell::TCellN(m) => Box::new(m.range(r).map(|(_, a)| a)),
+            TCell::TCellCap(svm) => Box::new(svm.range(r).map(|(_, value)| value)),
+            TCell::TCellN(btm) => Box::new(btm.range(r).map(|(_, value)| value)),
         }
     }
 
     pub fn iter(&self) -> Box<dyn Iterator<Item = &A> + '_> {
         match self {
-            TCell::TCellEmpty => Box::new(std::iter::empty()),
-            TCell::TCell1(_, a) => Box::new(std::iter::once(a)),
-            TCell::TCellCap(m) => Box::new(m.iter().map(|(_, v)| v)),
-            TCell::TCellN(v) => Box::new(v.values()),
+            TCell::Empty => Box::new(std::iter::empty()),
+            TCell::TCell1(_, value) => Box::new(std::iter::once(value)),
+            TCell::TCellCap(svm) => Box::new(svm.iter().map(|(_, value)| value)),
+            TCell::TCellN(btm) => Box::new(btm.values()),
         }
     }
 
     pub fn iter_t(&self) -> Box<dyn Iterator<Item = (&i64, &A)> + '_> {
         match self {
-            TCell::TCellEmpty => Box::new(std::iter::empty()),
-            TCell::TCell1(t, a) => Box::new(std::iter::once((t, a))),
-            TCell::TCellCap(v) => Box::new(v.iter()),
-            TCell::TCellN(v) => Box::new(v.iter()),
+            TCell::Empty => Box::new(std::iter::empty()),
+            TCell::TCell1(t, value) => Box::new(std::iter::once((t, value))),
+            TCell::TCellCap(svm) => Box::new(svm.iter()),
+            TCell::TCellN(btm) => Box::new(btm.iter()),
         }
     }
 }
@@ -138,23 +136,23 @@ mod tcell_tests {
         tcell.set(3, String::from("faster"));
 
         let actual = tcell
-            .iter_window(std::i64::MIN..std::i64::MAX)
+            .iter_window(i64::MIN..i64::MAX)
             .collect::<Vec<_>>();
         assert_eq!(actual, vec!["faster", "hamster", "lobster"]); // ordering is important by time
 
-        let actual = tcell.iter_window(4..std::i64::MAX).collect::<Vec<_>>();
+        let actual = tcell.iter_window(4..i64::MAX).collect::<Vec<_>>();
         assert_eq!(actual, vec!["hamster", "lobster"]); // ordering is important by time
 
         let actual = tcell.iter_window(3..8).collect::<Vec<_>>();
         assert_eq!(actual, vec!["faster", "hamster"]); // ordering is important by time
 
-        let actual = tcell.iter_window(6..std::i64::MAX).collect::<Vec<_>>();
+        let actual = tcell.iter_window(6..i64::MAX).collect::<Vec<_>>();
         assert_eq!(actual, vec!["hamster", "lobster"]); // ordering is important by time
 
-        let actual = tcell.iter_window(8..std::i64::MAX).collect::<Vec<_>>();
+        let actual = tcell.iter_window(8..i64::MAX).collect::<Vec<_>>();
         assert_eq!(actual, vec!["lobster"]); // ordering is important by time
 
-        let actual: Vec<&String> = tcell.iter_window(17..std::i64::MAX).collect::<Vec<_>>();
+        let actual: Vec<&String> = tcell.iter_window(17..i64::MAX).collect::<Vec<_>>();
         let expected: Vec<&String> = vec![];
         assert_eq!(actual, expected); // ordering is important by time
     }

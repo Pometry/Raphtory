@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 use std::ops::Range;
-
 use serde::{Deserialize, Serialize};
-
 use crate::{tcell::TCell, Prop};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -89,13 +87,13 @@ pub(crate) enum TPropVec {
     Empty,
     // First tuple value in "SingleProp" and indices in "MultiPropVec" vector denote property id
     // values from "Props::prop_ids" hashmap
-    SingleProp(usize, TProp),
-    MultiPropVec(Vec<TProp>),
+    TPropVec1(usize, TProp),
+    TPropVecN(Vec<TProp>),
 }
 
 impl TPropVec {
     pub(crate) fn from(prop_id: usize, time: i64, prop: &Prop) -> Self {
-        TPropVec::SingleProp(prop_id, TProp::from(time, prop))
+        TPropVec::TPropVec1(prop_id, TProp::from(time, prop))
     }
 
     pub(crate) fn set(&mut self, prop_id: usize, time: i64, prop: &Prop) {
@@ -103,17 +101,17 @@ impl TPropVec {
             TPropVec::Empty => {
                 *self = Self::from(prop_id, time, prop);
             }
-            TPropVec::SingleProp(prop_id0, prop0) => {
+            TPropVec::TPropVec1(prop_id0, prop0) => {
                 if *prop_id0 == prop_id {
                     prop0.set(time, prop);
                 } else {
                     let mut props = vec![TProp::Empty; usize::max(prop_id, *prop_id0) + 1];
                     props[prop_id] = TProp::from(time, prop);
                     props[*prop_id0] = prop0.clone();
-                    *self = TPropVec::MultiPropVec(props);
+                    *self = TPropVec::TPropVecN(props);
                 }
             }
-            TPropVec::MultiPropVec(props) => {
+            TPropVec::TPropVecN(props) => {
                 if props.len() <= prop_id {
                     props.resize(prop_id + 1, TProp::Empty)
                 }
@@ -124,8 +122,8 @@ impl TPropVec {
 
     pub(crate) fn iter(&self, prop_id: usize) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
         match self {
-            TPropVec::SingleProp(prop_id0, prop0) if *prop_id0 == prop_id => prop0.iter(),
-            TPropVec::MultiPropVec(props) if props.len() > prop_id => props[prop_id].iter(),
+            TPropVec::TPropVec1(prop_id0, prop0) if *prop_id0 == prop_id => prop0.iter(),
+            TPropVec::TPropVecN(props) if props.len() > prop_id => props[prop_id].iter(),
             _ => Box::new(std::iter::empty()),
         }
     }
@@ -136,8 +134,8 @@ impl TPropVec {
         r: Range<i64>,
     ) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
         match self {
-            TPropVec::SingleProp(prop_id0, prop0) if *prop_id0 == prop_id => prop0.iter_window(r),
-            TPropVec::MultiPropVec(props) if props.len() >= prop_id => {
+            TPropVec::TPropVec1(prop_id0, prop0) if *prop_id0 == prop_id => prop0.iter_window(r),
+            TPropVec::TPropVecN(props) if props.len() >= prop_id => {
                 props[prop_id].iter_window(r)
             }
             _ => Box::new(std::iter::empty()),
