@@ -140,7 +140,6 @@ mod tpropvec_tests {
             ]
         );
 
-        // Windowed iteration
         let prop3 = tpropvec.iter(3).collect::<Vec<_>>();
         assert_eq!(
             prop3,
@@ -168,7 +167,6 @@ mod tpropvec_tests {
             ]
         );
 
-        // Windowed iteration
         let prop3 = tpropvec.iter_window(3, 5..6).collect::<Vec<_>>();
         assert_eq!(prop3, vec![(&5, Prop::Str("Graph Analytics".into()))]);
     }
