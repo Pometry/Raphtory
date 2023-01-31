@@ -553,7 +553,7 @@ impl<'a> VertexView<'a, TemporalGraph> {
         }
     }
 
-    pub fn inbound_degree(&self) -> usize {
+    pub fn in_degree(&self) -> usize {
         if let Some(w) = &self.w {
             self.g._degree_window(self.pid, Direction::IN, w)
         } else {
@@ -561,7 +561,7 @@ impl<'a> VertexView<'a, TemporalGraph> {
         }
     }
 
-    pub fn degree(&self) -> usize {
+    pub fn out_degree(&self) -> usize {
         if let Some(w) = &self.w {
             self.g._degree_window(self.pid, Direction::BOTH, w)
         } else {
@@ -570,7 +570,7 @@ impl<'a> VertexView<'a, TemporalGraph> {
     }
 
     // FIXME: all the functions using global ID need to be changed to use the physical ID instead
-    pub fn outbound(&'a self) -> Box<dyn Iterator<Item=EdgeView<'a, TemporalGraph>> + 'a> {
+    pub fn out_edges(&'a self) -> Box<dyn Iterator<Item=EdgeView<'a, TemporalGraph>> + 'a> {
         if let Some(r) = &self.w {
             self.g.outbound_window(self.g_id, r.clone())
         } else {
@@ -578,7 +578,7 @@ impl<'a> VertexView<'a, TemporalGraph> {
         }
     }
 
-    pub fn inbound(&'a self) -> Box<dyn Iterator<Item=EdgeView<'a, TemporalGraph>> + 'a> {
+    pub fn in_edges(&'a self) -> Box<dyn Iterator<Item=EdgeView<'a, TemporalGraph>> + 'a> {
         if let Some(r) = &self.w {
             self.g.inbound_window(self.g_id, r.clone())
         } else {
@@ -1385,7 +1385,7 @@ mod graph_test {
         let vs = g
             .iter_vs_window(3..6)
             .flat_map(|v| {
-                v.outbound().map(|e| e.global_dst()).collect::<Vec<_>>() // FIXME: we can't just return v.outbound().map(|e| e.global_dst()) here we might need to do so check lifetimes
+                v.out_edges().map(|e| e.global_dst()).collect::<Vec<_>>() // FIXME: we can't just return v.outbound().map(|e| e.global_dst()) here we might need to do so check lifetimes
             })
             .collect::<Vec<_>>();
 
@@ -1449,9 +1449,9 @@ mod graph_test {
             .map(|v| {
                 (
                     v.global_id(),
-                    v.inbound_degree(),
+                    v.in_degree(),
                     v.outbound_degree(),
-                    v.degree(),
+                    v.out_degree(),
                 )
             })
             .collect_vec();
@@ -1460,9 +1460,9 @@ mod graph_test {
             .map(|v| {
                 (
                     v.global_id(),
-                    v.inbound_degree(),
+                    v.in_degree(),
                     v.outbound_degree(),
-                    v.degree(),
+                    v.out_degree(),
                 )
             })
             .collect_vec();
@@ -1518,9 +1518,9 @@ mod graph_test {
             .map(|v| {
                 (
                     v.global_id(),
-                    v.inbound_degree(),
+                    v.in_degree(),
                     v.outbound_degree(),
-                    v.degree(),
+                    v.out_degree(),
                 )
             })
             .collect_vec();
@@ -1577,9 +1577,9 @@ mod graph_test {
             .map(|v| {
                 (
                     v.global_id(),
-                    v.inbound_degree(),
+                    v.in_degree(),
                     v.outbound_degree(),
-                    v.degree(),
+                    v.out_degree(),
                 )
             })
             .collect_vec();

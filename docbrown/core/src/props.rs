@@ -7,19 +7,26 @@ use crate::{tcell::TCell, Prop};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub(crate) struct Props {
+    // Mapping between property name and property id
     pub(crate) prop_ids: HashMap<String, usize>,
+
+    // Vector of vertices properties. Each index represents vertex local (physical) id
     pub(crate) vertex_meta: Vec<TPropVec>,
-    // attributes for props
-    pub(crate) edge_meta: Vec<TPropVec>, // table of edges
+
+    // Vector of edge properties. Each "signed" index represents an edge id
+    pub(crate) edge_meta: Vec<TPropVec>,
 }
 
 impl Default for Props {
     fn default() -> Self {
         Self {
             prop_ids: Default::default(),
-            vertex_meta: vec![Default::default()],
-            // remote/local edges are encoded as i64 with negatives as remote and positives as local,
-            // 0 breaks the symetry so we just ignore it
+            vertex_meta: vec![],
+            // Signed indices of "edge_meta" vector are used to denote edge ids. In particular, negative
+            // and positive indices to denote remote and local edges, respectively. Here we have initialized
+            // "edge_meta" with default value of "TPropVec::Empty" occupying the 0th index. The reason
+            // being index "0" can be used to denote neither local nor remote edges. It simply breaks this
+            // symmetry, hence we ignore it in our representation.
             edge_meta: vec![Default::default()],
         }
     }
@@ -30,24 +37,29 @@ impl Props {
         self.edge_meta.len()
     }
 
+    fn get_prop_id(&mut self, name: &str) -> usize {
+        match self.prop_ids.get(name) {
+            Some(prop_id) => {
+                *prop_id
+            }
+            None => {
+                let id = self.prop_ids.len();
+                self.prop_ids.insert(name.to_string(), id);
+                id
+            }
+        }
+    }
+
     pub fn update_vertex_props(&mut self, index: usize, t: i64, props: &Vec<(String, Prop)>) {
         for (name, prop) in props {
-            let property_id = match self.prop_ids.get(name) {
-                Some(prop_id) => {
-                    *prop_id
-                }
-                None => {
-                    let id = self.prop_ids.len();
-                    self.prop_ids.insert(name.to_string(), id);
-                    id
-                }
-            };
+            let prop_id = self.get_prop_id(name);
+
             match self.vertex_meta.get_mut(index) {
                 Some(vertex_props) => {
-                    vertex_props.set(property_id, t, prop)
+                    vertex_props.set(prop_id, t, prop)
                 }
                 None => {
-                    let prop_cell = TPropVec::from(property_id, t, prop);
+                    let prop_cell = TPropVec::from(prop_id, t, prop);
                     self.vertex_meta.insert(index, prop_cell)
                 }
             }
@@ -55,25 +67,18 @@ impl Props {
     }
 
     pub fn update_edge_props(&mut self, src_edge_meta_id: usize, t: i64, props: &Vec<(String, Prop)>) {
-        //FIXME: ensure the self.edge_meta is updated even if the props vector is null
+        // FIXME: ensure the self.edge_meta is updated even if the props vector is null
         for (name, prop) in props {
-            // find where do we slot this property in the temporal vec for each edge
-            let property_id = if let Some(prop_id) = self.prop_ids.get(name) {
-                // there is an existing prop set here
-                *prop_id
-            } else {
-                // first time we see this prop
-                let id = self.prop_ids.len();
-                self.prop_ids.insert(name.to_string(), id);
-                id
-            };
+            let prop_id = self.get_prop_id(name);
 
-            if let Some(edge_props) = self.edge_meta.get_mut(src_edge_meta_id) {
-                edge_props.set(property_id, t, prop)
-            } else {
-                // we don't have metadata for this edge
-                let prop_cell = TPropVec::from(property_id, t, prop);
-                self.edge_meta.insert(src_edge_meta_id, prop_cell)
+            match self.edge_meta.get_mut(src_edge_meta_id) {
+                Some(edge_props) => {
+                    edge_props.set(prop_id, t, prop)
+                }
+                None => {
+                    let prop_cell = TPropVec::from(prop_id, t, prop);
+                    self.edge_meta.insert(src_edge_meta_id, prop_cell)
+                }
             }
         }
     }
@@ -87,7 +92,6 @@ pub(crate) enum TPropVec {
 }
 
 impl TPropVec {
-
     pub(crate) fn from(i: usize, t: i64, p: &Prop) -> Self {
         TPropVec::One(i, TProp::from(t, p))
     }
@@ -96,7 +100,7 @@ impl TPropVec {
         match self {
             TPropVec::Empty => {
                 *self = Self::from(i, t, p);
-            },
+            }
             TPropVec::One(i0, p0) => {
                 if i == *i0 {
                     p0.set(t, p);
@@ -116,7 +120,7 @@ impl TPropVec {
         }
     }
 
-    pub(crate) fn iter(&self, i: usize) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
+    pub(crate) fn iter(&self, i: usize) -> Box<dyn Iterator<Item=(&i64, Prop)> + '_> {
         match self {
             TPropVec::One(i0, p) if *i0 == i => p.iter(),
             TPropVec::Props(props) if props.len() > i => props[i].iter(),
@@ -128,7 +132,7 @@ impl TPropVec {
         &self,
         i: usize,
         r: Range<i64>,
-    ) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
+    ) -> Box<dyn Iterator<Item=(&i64, Prop)> + '_> {
         match self {
             TPropVec::One(i0, p) if *i0 == i => p.iter_window(r),
             TPropVec::Props(props) if props.len() >= i => props[i].iter_window(r),
@@ -136,6 +140,7 @@ impl TPropVec {
         }
     }
 }
+
 #[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
 pub(crate) enum TProp {
     #[default]
@@ -150,7 +155,7 @@ pub(crate) enum TProp {
 }
 
 impl TProp {
-    pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
+    pub(crate) fn iter(&self) -> Box<dyn Iterator<Item=(&i64, Prop)> + '_> {
         match self {
             TProp::Str(cell) => Box::new(cell.iter_t().map(|(t, s)| (t, Prop::Str(s.to_string())))),
             TProp::I32(cell) => Box::new(cell.iter_t().map(|(t, n)| (t, Prop::I32(*n)))),
@@ -163,7 +168,7 @@ impl TProp {
         }
     }
 
-    pub(crate) fn iter_window(&self, r: Range<i64>) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
+    pub(crate) fn iter_window(&self, r: Range<i64>) -> Box<dyn Iterator<Item=(&i64, Prop)> + '_> {
         match self {
             TProp::Str(cell) => Box::new(
                 cell.iter_window_t(r)
