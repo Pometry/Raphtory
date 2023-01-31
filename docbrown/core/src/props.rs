@@ -87,55 +87,57 @@ impl Props {
 #[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
 pub(crate) enum TPropVec {
     #[default] Empty,
-    One(usize, TProp),
-    Props(Vec<TProp>),
+    // First tuple value in "SingleProp" and indices in "MultiPropVec" vector denote property id
+    // values from "Props::prop_ids" hashmap
+    SingleProp(usize, TProp),
+    MultiPropVec(Vec<TProp>),
 }
 
 impl TPropVec {
-    pub(crate) fn from(i: usize, t: i64, p: &Prop) -> Self {
-        TPropVec::One(i, TProp::from(t, p))
+    pub(crate) fn from(prop_id: usize, time: i64, prop: &Prop) -> Self {
+        TPropVec::SingleProp(prop_id, TProp::from(time, prop))
     }
 
-    pub(crate) fn set(&mut self, i: usize, t: i64, p: &Prop) {
+    pub(crate) fn set(&mut self, prop_id: usize, time: i64, prop: &Prop) {
         match self {
             TPropVec::Empty => {
-                *self = Self::from(i, t, p);
+                *self = Self::from(prop_id, time, prop);
             }
-            TPropVec::One(i0, p0) => {
-                if i == *i0 {
-                    p0.set(t, p);
+            TPropVec::SingleProp(prop_id0, prop0) => {
+                if  *prop_id0 == prop_id {
+                    prop0.set(time, prop);
                 } else {
-                    let mut props = vec![TProp::Empty; usize::max(i, *i0) + 1];
-                    props[i] = TProp::from(t, p);
-                    props[*i0] = p0.clone();
-                    *self = TPropVec::Props(props);
+                    let mut props = vec![TProp::Empty; usize::max(prop_id, *prop_id0) + 1];
+                    props[prop_id] = TProp::from(time, prop);
+                    props[*prop_id0] = prop0.clone();
+                    *self = TPropVec::MultiPropVec(props);
                 }
             }
-            TPropVec::Props(props) => {
-                if props.len() <= i {
-                    props.resize(i + 1, TProp::Empty)
+            TPropVec::MultiPropVec(props) => {
+                if props.len() <= prop_id {
+                    props.resize(prop_id + 1, TProp::Empty)
                 }
-                props[i].set(t, p);
+                props[prop_id].set(time, prop);
             }
         }
     }
 
-    pub(crate) fn iter(&self, i: usize) -> Box<dyn Iterator<Item=(&i64, Prop)> + '_> {
+    pub(crate) fn iter(&self, prop_id: usize) -> Box<dyn Iterator<Item=(&i64, Prop)> + '_> {
         match self {
-            TPropVec::One(i0, p) if *i0 == i => p.iter(),
-            TPropVec::Props(props) if props.len() > i => props[i].iter(),
+            TPropVec::SingleProp(prop_id0, prop0) if *prop_id0 == prop_id => prop0.iter(),
+            TPropVec::MultiPropVec(props) if props.len() > prop_id => props[prop_id].iter(),
             _ => Box::new(std::iter::empty()),
         }
     }
 
     pub(crate) fn iter_window(
         &self,
-        i: usize,
+        prop_id: usize,
         r: Range<i64>,
     ) -> Box<dyn Iterator<Item=(&i64, Prop)> + '_> {
         match self {
-            TPropVec::One(i0, p) if *i0 == i => p.iter_window(r),
-            TPropVec::Props(props) if props.len() >= i => props[i].iter_window(r),
+            TPropVec::SingleProp(prop_id0, prop0) if *prop_id0 == prop_id => prop0.iter_window(r),
+            TPropVec::MultiPropVec(props) if props.len() >= prop_id => props[prop_id].iter_window(r),
             _ => Box::new(std::iter::empty()),
         }
     }
