@@ -31,7 +31,7 @@ impl Default for Props {
 }
 
 impl Props {
-    pub fn edges_len(&self) -> usize {
+    pub fn get_next_available_edge_id(&self) -> usize {
         self.edge_meta.len()
     }
 
@@ -47,6 +47,14 @@ impl Props {
     }
 
     pub fn upsert_vertex_props(&mut self, index: usize, t: i64, props: &Vec<(String, Prop)>) {
+        if props.is_empty() {
+            match self.vertex_meta.get_mut(index) {
+                Some(_) => {}
+                None => self.vertex_meta.insert(index, TPropVec::Empty),
+            }
+            return;
+        }
+
         for (name, prop) in props {
             let prop_id = self.get_prop_id(name);
 

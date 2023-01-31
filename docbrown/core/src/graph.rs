@@ -170,7 +170,7 @@ impl TemporalGraph {
     }
 
     pub fn edges_len(&self) -> usize {
-        self.props.edges_len()
+        self.props.get_next_available_edge_id()
     }
 
     pub fn add_vertex(&mut self, v: u64, t: i64) {
@@ -313,7 +313,7 @@ impl TemporalGraph {
     ) -> usize {
         match &mut self.adj_lists[dst_pid] {
             entry @ Adj::Solo(_) => {
-                let edge_id = self.props.edges_len();
+                let edge_id = self.props.get_next_available_edge_id();
 
                 let edge = AdjEdge::new(edge_id, !remote_edge);
 
@@ -328,7 +328,7 @@ impl TemporalGraph {
                 let edge_id: usize = list
                     .find(src)
                     .map(|e| e.edge_meta_id())
-                    .unwrap_or(self.props.edges_len());
+                    .unwrap_or(self.props.get_next_available_edge_id());
 
                 list.push(t, src, AdjEdge::new(edge_id, !remote_edge)); // idempotent
                 edge_id
@@ -346,7 +346,7 @@ impl TemporalGraph {
     ) -> usize {
         match &mut self.adj_lists[src_pid] {
             entry @ Adj::Solo(_) => {
-                let edge_id = self.props.edges_len();
+                let edge_id = self.props.get_next_available_edge_id();
 
                 let edge = AdjEdge::new(edge_id, !remote_edge);
 
@@ -361,7 +361,7 @@ impl TemporalGraph {
                 let edge_id: usize = list
                     .find(dst)
                     .map(|e| e.edge_meta_id())
-                    .unwrap_or(self.props.edges_len());
+                    .unwrap_or(self.props.get_next_available_edge_id());
 
                 list.push(t, dst, AdjEdge::new(edge_id, !remote_edge));
                 edge_id
