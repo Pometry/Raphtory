@@ -134,7 +134,8 @@ mod props_tests {
     #[test]
     fn return_new_prop_id_if_prop_name_not_found() {
         let mut props = Props::default();
-        assert_eq!(props.get_prop_id("key"), 0);
+        assert_eq!(props.get_prop_id("key1"), 0);
+        assert_eq!(props.get_prop_id("key2"), 1);
     }
 
     #[test]
@@ -146,10 +147,116 @@ mod props_tests {
     }
 
     #[test]
+    fn insert_new_vertex_prop() {
+        let mut props = Props::default();
+        props.upsert_vertex_props(0, 1, &vec![("bla".to_string(), Prop::I32(10))]);
+
+        let prop_id = props.get_prop_id("bla");
+        assert_eq!(
+            props
+                .vertex_meta
+                .get(0)
+                .unwrap()
+                .iter(prop_id)
+                .collect::<Vec<_>>(),
+            vec![(&1, Prop::I32(10))]
+        )
+    }
+
+    #[test]
+    fn update_existing_vertex_prop() {
+        let mut props = Props::default();
+        props.upsert_vertex_props(0, 1, &vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_vertex_props(0, 2, &vec![("bla".to_string(), Prop::I32(10))]);
+
+        let prop_id = props.get_prop_id("bla");
+        assert_eq!(
+            props
+                .vertex_meta
+                .get(0)
+                .unwrap()
+                .iter(prop_id)
+                .collect::<Vec<_>>(),
+            vec![(&1, Prop::I32(10)), (&2, Prop::I32(10))]
+        )
+    }
+
+    #[test]
+    fn overwrites_existing_vertex_prop_if_exactly_same() {
+        let mut props = Props::default();
+        props.upsert_vertex_props(0, 1, &vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_vertex_props(0, 1, &vec![("bla".to_string(), Prop::I32(10))]);
+
+        let prop_id = props.get_prop_id("bla");
+        assert_eq!(
+            props
+                .vertex_meta
+                .get(0)
+                .unwrap()
+                .iter(prop_id)
+                .collect::<Vec<_>>(),
+            vec![(&1, Prop::I32(10))]
+        )
+    }
+
+    #[test]
     fn insert_default_value_against_no_props_edge_upsert() {
         let mut props = Props::default();
         props.upsert_edge_props(0, 1, &vec![]);
 
         assert_eq!(props.edge_meta.get(0).unwrap(), &TPropVec::Empty)
+    }
+
+    #[test]
+    fn insert_new_edge_prop() {
+        let mut props = Props::default();
+        props.upsert_edge_props(1, 1, &vec![("bla".to_string(), Prop::I32(10))]);
+
+        let prop_id = props.get_prop_id("bla");
+        assert_eq!(
+            props
+                .edge_meta
+                .get(1)
+                .unwrap()
+                .iter(prop_id)
+                .collect::<Vec<_>>(),
+            vec![(&1, Prop::I32(10))]
+        )
+    }
+
+    #[test]
+    fn update_existing_edge_prop() {
+        let mut props = Props::default();
+        props.upsert_edge_props(0, 1, &vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_edge_props(0, 2, &vec![("bla".to_string(), Prop::I32(10))]);
+
+        let prop_id = props.get_prop_id("bla");
+        assert_eq!(
+            props
+                .edge_meta
+                .get(0)
+                .unwrap()
+                .iter(prop_id)
+                .collect::<Vec<_>>(),
+            vec![(&1, Prop::I32(10)), (&2, Prop::I32(10))]
+        )
+    }
+
+    #[test]
+    fn overwrites_existing_edge_prop_if_exactly_same() {
+        let mut props = Props::default();
+        props.upsert_edge_props(0, 1, &vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_edge_props(0, 1, &vec![("bla".to_string(), Prop::I32(10))]);
+
+        let prop_id = props.get_prop_id("bla");
+        assert_eq!(
+            props
+                .edge_meta
+                .get(0)
+                .unwrap()
+                .iter(prop_id)
+                .collect::<Vec<_>>(),
+            vec![(&1, Prop::I32(10))]
+        )
     }
 }
