@@ -668,6 +668,20 @@ class ScalaClassProxy(GenericScalaProxy, ABC, metaclass=ScalaObjectProxy):
             return self
 
 
+class ScalaClassProxyWithImplicits(ScalaClassProxy):
+    _implicits = ()
+
+    @classmethod
+    def _build_from_python(cls, *args, **kwargs):
+        """Override to control python-side constructor behaviours (e.g., using a builder for sequence construction)"""
+        return cls.apply[cls._implicits](*args, **kwargs)
+
+    def __class_getitem__(cls, item):
+        new_cls = copy(cls)
+        new_cls._implicits = item
+        return new_cls
+
+
 class Function1(ScalaClassProxy):
     """Proxy object for wrapping python functions with 1 argument"""
     _classname = "com.raphtory.internals.management.PythonFunction1"

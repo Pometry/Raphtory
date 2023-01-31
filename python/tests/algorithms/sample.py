@@ -7,11 +7,11 @@ from pyraphtory.api.sources import Source
 from pyraphtory.api.scala.implicits.numeric import Long
 from pyraphtory.api.spouts import FileSpout
 from time import perf_counter
-from pyraphtory.algorithms.pagerank import PageRank
-from pyraphtory.algorithms.connectedcomponents import ConnectedComponents
-from pyraphtory.algorithms.trianglecount import LocalTriangleCount, GlobalTriangleCount
+from python.tests.algorithms.pagerank import PageRank
+from python.tests.algorithms.connectedcomponents import ConnectedComponents
+from python.tests.algorithms.trianglecount import LocalTriangleCount, GlobalTriangleCount
 # from pyraphtory.algorithms.twohoppaths import TwoHopPaths
-from pyraphtory.algorithms.degree import Degree
+from python.tests.algorithms.degree import Degree
 
 if __name__ == "__main__":
     from pyraphtory.api.context import PyRaphtory
