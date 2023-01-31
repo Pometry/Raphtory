@@ -1,19 +1,18 @@
-from pyraphtory.api.graph import TemporalGraph, Row, Table
-from pyraphtory.api.interop import GenericScalaProxy, ScalaClassProxy
+from __future__ import annotations
+"""Base classes for writing algorithms"""
+
+from pyraphtory.interop import GenericScalaProxy
 
 
 class ScalaAlgorithm(GenericScalaProxy):
     _classname = "com.raphtory.api.analysis.algorithm.BaseAlgorithm"
 
 
-class Alignment(ScalaClassProxy):
-    _classname = "com.raphtory.api.analysis.graphview.Alignment"
-
 class PyAlgorithm(object):
     """
     Base class for algorithms implemented in python
     """
-    def __call__(self, graph: TemporalGraph) -> TemporalGraph:
+    def __call__(self, graph: api.graph.TemporalGraph) -> api.graph.TemporalGraph:
         """
         Main algorithm step (default implementation leaves graph unchanged)
 
@@ -22,13 +21,13 @@ class PyAlgorithm(object):
         """
         return graph
 
-    def tabularise(self, graph: TemporalGraph) -> Table:
+    def tabularise(self, graph: api.graph.TemporalGraph) -> api.table.Table:
         """
         Defines the default output of the algorithm
 
-        (default implementation creates an empty table)
+        (default implementation includes all vertex state in the table)
 
         :param graph: output graph after algorithm step was applied
         :return: Table with output from this algorithm
         """
-        return graph.global_select(lambda s: Row())
+        return graph.select()

@@ -1,4 +1,4 @@
-from pyraphtory._jvm_interop._docstring import convert_docstring, string_expr, code
+from pyraphtory.interop._docstring import convert_docstring, string_expr, code
 
 
 def test_class_name_conversion():

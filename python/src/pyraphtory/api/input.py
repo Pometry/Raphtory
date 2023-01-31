@@ -1,4 +1,4 @@
-from pyraphtory.api.interop import ScalaClassProxy, GenericScalaProxy
+from pyraphtory.interop import ScalaClassProxy, GenericScalaProxy
 
 
 class GraphBuilder(ScalaClassProxy):

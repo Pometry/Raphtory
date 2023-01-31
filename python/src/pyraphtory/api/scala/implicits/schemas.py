@@ -1,4 +1,6 @@
-from pyraphtory.api.interop import ScalaClassProxy
+"""Implicit schema providers used internally"""
+
+from pyraphtory.interop import ScalaClassProxy
 
 
 class SchemaProviders(ScalaClassProxy):

@@ -1,4 +1,4 @@
-from pyraphtory._jvm_interop._codegen import LazyStr
+from pyraphtory.interop._codegen import LazyStr
 
 
 def local():

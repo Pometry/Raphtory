@@ -1,12 +1,12 @@
-from parsy import string, whitespace, any_char, seq, peek, alt, eof, string_from, Parser, regex, letter, decimal_digit, \
+from parsy import string, whitespace, any_char, peek, alt, eof, string_from, Parser, regex, letter, decimal_digit, \
     generate, ParseError
 
 code_conversions = {}
 
 
 def camel_to_snake(name: str):
-    from pyraphtory.api.interop import camel_to_snake as convert
-    from pyraphtory._jvm_interop._codegen import clean_identifier
+    from pyraphtory.interop._interop import camel_to_snake as convert
+    from pyraphtory.interop._codegen import clean_identifier
     if name[0].islower():
         name = convert(name)
     return clean_identifier(name)

@@ -1,4 +1,4 @@
-from pyraphtory.api.interop import ScalaClassProxy, GenericScalaProxy
+from pyraphtory.interop import ScalaClassProxy, GenericScalaProxy
 
 
 class Format(GenericScalaProxy):
@@ -7,6 +7,7 @@ class Format(GenericScalaProxy):
 
 class JsonFormat(ScalaClassProxy, Format):
     _classname = "com.raphtory.formats.JsonFormat"
+
 
 class CsvFormat(ScalaClassProxy, Format):
     _classname = "com.raphtory.formats.CsvFormat"

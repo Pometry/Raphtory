@@ -1,5 +1,7 @@
+"""Python wrappers for scala collections"""
+
 from collections import abc
-from pyraphtory.api.interop import register, GenericScalaProxy, ScalaClassProxy, to_python, to_jvm
+from pyraphtory.interop import register, GenericScalaProxy, ScalaClassProxy, to_python, to_jvm
 import typing as t
 
 A = t.TypeVar("A", covariant=True)
@@ -71,6 +73,7 @@ K = t.TypeVar("K")
 V = t.TypeVar("V", covariant=True)
 @register(name="Mapping")
 class Mapping(ScalaClassProxy, abc.Mapping[K, V]):
+    """Proxy object that converts scala Map into python Mapping"""
     _classname = "scala.collection.Map"
 
     def __len__(self) -> int:
@@ -87,6 +90,7 @@ class Mapping(ScalaClassProxy, abc.Mapping[K, V]):
 
 
 class List(ScalaClassProxy, Sequence[A]):
+    """Proxy object that converts scala List into python Sequence"""
     _classname = "scala.collection.immutable.List"
 
     @classmethod
@@ -126,6 +130,7 @@ class ScalaNone(ScalaClassProxy):
 
 
 class ScalaSome(ScalaClassProxy, t.Generic[A]):
+    """Proxy for unwrapping scala Some() values"""
     _classname = "scala.Some"
 
     @classmethod

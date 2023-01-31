@@ -7,3 +7,4 @@ else:
     import importlib_metadata as metadata
 
 __version__ = metadata.version(__package__)
+__all__ = [local, remote]

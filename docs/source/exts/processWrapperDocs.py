@@ -1,5 +1,5 @@
 from sphinx.application import Sphinx
-from pyraphtory.interop import ScalaClassProxy, InstanceOnlyMethod, ScalaObjectProxy, WithImplicits, OverloadedMethod
+from pyraphtory.api.interop import ScalaClassProxy, InstanceOnlyMethod, ScalaObjectProxy, WithImplicits, OverloadedMethod
 import pyraphtory
 from sphinx.util import logging, inspect
 from sphinx.ext.autodoc import MethodDocumenter, ClassDocumenter, safe_getattr, ObjectMembers, get_class_members, \

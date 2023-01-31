@@ -1,4 +1,6 @@
-from pyraphtory.api.interop import ScalaClassProxy
+"""Bounds for different types"""
+
+from pyraphtory.interop import ScalaClassProxy
 
 
 class Bounded(ScalaClassProxy):

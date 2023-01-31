@@ -7,6 +7,7 @@ import java.lang.reflect.{Array => JArray}
 import com.raphtory.api.analysis.graphstate.Accumulator
 import com.raphtory.api.analysis.graphstate.GraphState
 import com.raphtory.api.analysis.graphview.GraphPerspective
+import com.raphtory.api.analysis.algorithm.BaseAlgorithm
 import com.raphtory.api.analysis.table.Row
 import com.raphtory.api.analysis.table.Table
 import com.raphtory.api.analysis.visitor.Vertex
@@ -134,6 +135,7 @@ object PythonInterop {
       case _: Accumulator[_, _]    => "Accumulator"
       case _: Vertex               => "Vertex"
       case _: GraphState           => "GraphState"
+      case _: BaseAlgorithm        => "com.raphtory.api.analysis.algorithm.BaseAlgorithm"
       case _                       => "None"
     }
 

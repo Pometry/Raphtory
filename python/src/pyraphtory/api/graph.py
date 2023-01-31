@@ -1,64 +1,21 @@
 from __future__ import annotations
-from pyraphtory.api.interop import register, logger, to_jvm, find_class, ScalaProxyBase, GenericScalaProxy, ScalaClassProxy
+from pyraphtory.interop import register, logger, to_jvm, GenericScalaProxy, ScalaClassProxy
 from pyraphtory.api.input import Properties, ImmutableString, Type
-from pyraphtory.api.scala.implicits.bounded import Bounded
-import pandas as pd
-import json
-import datetime as dt
+from pyraphtory.api.algorithm import ScalaAlgorithm
 
-
-@register(name="ProgressTracker")
-class ProgressTracker(GenericScalaProxy):
-    _classname = "com.raphtory.api.progresstracker.ProgressTracker"
-
-    def inner_tracker(self):
-        logger.trace("Progress tracker inner tracker returned")
-        return to_jvm(self)
 
 @register(name="Perspective")
 class Perspective(GenericScalaProxy):
     _classname = "com.raphtory.api.time.Perspective"
 
 
-@register(name="Table")
-class Table(GenericScalaProxy):
-    _classname = "com.raphtory.api.analysis.table.Table"
-
-    def to_df(self):
-        rows = []
-        columns = ()
-        time_formatted=False
-        for res in self.get():
-            columns = res.actual_header()
-            window = res.perspective().window()
-            timestamp = res.perspective().formatted_time()
-            time_formatted = res.perspective().format_as_date()
-            if window != None:
-                columns = ('timestamp', 'window', *columns)
-                for r in res.rows():
-                    window_size = window.get().output()
-                    rows.append((timestamp, window_size, *r.values()))
-            else:
-                columns = ('timestamp', *columns)
-                for r in res.rows():
-                    rows.append((timestamp, *r.values()))
-
-        df = pd.DataFrame.from_records(rows, columns=columns)
-        if time_formatted:
-            df["timestamp"] = df["timestamp"].apply(lambda x: dt.datetime.strptime(x,"%Y-%m-%d %H:%M:%S.%f"))
-            return df
-        else:
-            return df
-
-
-
-
-class Row(ScalaClassProxy):
-    _classname = "com.raphtory.api.analysis.table.Row"
+class Alignment(ScalaClassProxy):
+    _classname = "com.raphtory.api.analysis.graphview.Alignment"
 
 
 class PropertyMergeStrategy(ScalaClassProxy):
     _classname = "com.raphtory.api.analysis.visitor.PropertyMergeStrategy"
+
 
 @register(name="Graph")
 class Graph(GenericScalaProxy):
@@ -130,7 +87,7 @@ class TemporalGraph(Graph):
         .. note::
            `transform` keeps track of the name of the applied algorithm and clears the message queues at the end of the algorithm
         """
-        if isinstance(algorithm, ScalaProxyBase):
+        if isinstance(algorithm, ScalaAlgorithm):
             return super().transform(algorithm)
         else:
             return algorithm(self).with_transformed_name(algorithm.__class__.__name__)
@@ -145,7 +102,7 @@ class TemporalGraph(Graph):
 
            `execute` keeps track of the name of the applied algorithm
         """
-        if isinstance(algorithm, ScalaProxyBase):
+        if isinstance(algorithm, ScalaAlgorithm):
             return super().execute(algorithm)
         else:
             return algorithm.tabularise(self.transform(algorithm))
@@ -162,10 +119,4 @@ class DeployedTemporalGraph(TemporalGraph):
         self.close()
 
 
-@register(name="Accumulator")
-class Accumulator(GenericScalaProxy):
-    _classname = "com.raphtory.api.analysis.graphstate.Accumulator"
 
-    def __iadd__(self, other):
-        self._plus_eq(other)
-        return self

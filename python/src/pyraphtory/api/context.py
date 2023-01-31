@@ -5,10 +5,10 @@ Contexts are used to create and manage different graphs.
 """
 
 
-from pyraphtory.api import interop
+from pyraphtory.interop import ScalaClassProxy, logger, ScalaPackage
 
 
-class PyRaphtory(interop.ScalaClassProxy):
+class PyRaphtory(ScalaClassProxy):
     _classname = "com.raphtory.internals.context.PyRaphtoryContext"
 
     def __enter__(self):
@@ -16,6 +16,6 @@ class PyRaphtory(interop.ScalaClassProxy):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
-        interop.logger.debug("PyRaphtory context closed using context manager")
+        logger.debug("PyRaphtory context closed using context manager")
 
-    algorithms = interop.ScalaPackage("com.raphtory.algorithms")
+    algorithms = ScalaPackage("com.raphtory.algorithms")
