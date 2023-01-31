@@ -545,7 +545,7 @@ impl<'a> VertexView<'a, TemporalGraph> {
         self.g_id
     }
 
-    pub fn outbound_degree(&self) -> usize {
+    pub fn out_degree(&self) -> usize {
         if let Some(w) = &self.w {
             self.g._degree_window(self.pid, Direction::OUT, w)
         } else {
@@ -561,7 +561,7 @@ impl<'a> VertexView<'a, TemporalGraph> {
         }
     }
 
-    pub fn out_degree(&self) -> usize {
+    pub fn degree(&self) -> usize {
         if let Some(w) = &self.w {
             self.g._degree_window(self.pid, Direction::BOTH, w)
         } else {
@@ -1450,8 +1450,8 @@ mod graph_test {
                 (
                     v.global_id(),
                     v.in_degree(),
-                    v.outbound_degree(),
                     v.out_degree(),
+                    v.degree(),
                 )
             })
             .collect_vec();
@@ -1461,8 +1461,8 @@ mod graph_test {
                 (
                     v.global_id(),
                     v.in_degree(),
-                    v.outbound_degree(),
                     v.out_degree(),
+                    v.degree(),
                 )
             })
             .collect_vec();
@@ -1519,8 +1519,8 @@ mod graph_test {
                 (
                     v.global_id(),
                     v.in_degree(),
-                    v.outbound_degree(),
                     v.out_degree(),
+                    v.degree(),
                 )
             })
             .collect_vec();
@@ -1578,8 +1578,8 @@ mod graph_test {
                 (
                     v.global_id(),
                     v.in_degree(),
-                    v.outbound_degree(),
                     v.out_degree(),
+                    v.degree(),
                 )
             })
             .collect_vec();
