@@ -14,6 +14,7 @@ pub(crate) enum TProp {
     U64(TCell<u64>),
     F32(TCell<f32>),
     F64(TCell<f64>),
+    Bool(TCell<bool>)
 }
 
 impl TProp {
@@ -26,6 +27,7 @@ impl TProp {
             Prop::U64(value) => TProp::U64(TCell::new(t, *value)),
             Prop::F32(value) => TProp::F32(TCell::new(t, *value)),
             Prop::F64(value) => TProp::F64(TCell::new(t, *value)),
+            Prop::Bool(value) => TProp::Bool(TCell::new(t, *value))
         }
     }
 
@@ -69,6 +71,11 @@ impl TProp {
                     cell.set(t, *a);
                 }
             }
+            TProp::Bool(cell) => {
+                if let Prop::Bool(a) = prop {
+                    cell.set(t, *a);
+                }
+            }
         }
     }
 
@@ -85,7 +92,7 @@ impl TProp {
             TProp::U64(cell) => Box::new(cell.iter_t().map(|(t, value)| (t, Prop::U64(*value)))),
             TProp::F32(cell) => Box::new(cell.iter_t().map(|(t, value)| (t, Prop::F32(*value)))),
             TProp::F64(cell) => Box::new(cell.iter_t().map(|(t, value)| (t, Prop::F64(*value)))),
-            _ => todo!(),
+            TProp::Bool(cell) => Box::new(cell.iter_t().map(|(t, value)| (t, Prop::Bool(*value))))
         }
     }
 
@@ -120,7 +127,10 @@ impl TProp {
                 cell.iter_window_t(r)
                     .map(|(t, value)| (t, Prop::F64(*value))),
             ),
-            _ => todo!(),
+            TProp::Bool(cell) => Box::new(
+                cell.iter_window_t(r)
+                    .map(|(t, value)| (t, Prop::Bool(*value))),
+            ),
         }
     }
 }
@@ -242,6 +252,17 @@ mod tprop_tests {
             vec![
                 (&1, Prop::U64(1)),
                 (&2, Prop::U64(2))
+            ]
+        );
+
+        let mut tprop = TProp::from(1, &Prop::Bool(true));
+        tprop.set(2, &Prop::Bool(true));
+
+        assert_eq!(
+            tprop.iter().collect::<Vec<_>>(),
+            vec![
+                (&1, Prop::Bool(true)),
+                (&2, Prop::Bool(true))
             ]
         );
     }
@@ -366,6 +387,17 @@ mod tprop_tests {
             vec![
                 (&1, Prop::U64(1)),
                 (&2, Prop::U64(2))
+            ]
+        );
+
+        let mut tprop = TProp::from(1, &Prop::Bool(true));
+        tprop.set(2, &Prop::Bool(true));
+
+        assert_eq!(
+            tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
+            vec![
+                (&1, Prop::Bool(true)),
+                (&2, Prop::Bool(true))
             ]
         );
     }
