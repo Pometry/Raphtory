@@ -141,6 +141,20 @@ mod tcell_tests {
         let expected: Vec<&String> = vec![];
         assert_eq!(actual, expected);
 
+        assert_eq!(tcell.iter_t().collect::<Vec<_>>(), vec![]);
+
+        let tcell = TCell::new(3, "Pometry");
+
+        assert_eq!(
+            tcell.iter().collect::<Vec<_>>(),
+            vec![&"Pometry"]
+        );
+
+        assert_eq!(
+            tcell.iter_t().collect::<Vec<_>>(),
+            vec![(&3, &"Pometry")]
+        );
+
         let mut tcell = TCell::new(2, "Pometry");
         tcell.set(1, "Inc. Pometry");
 
@@ -155,15 +169,46 @@ mod tcell_tests {
             tcell.iter().collect::<Vec<_>>(),
             vec![&"Inc. Pometry", &"Pometry"]
         );
+
+        let mut tcell: TCell<i64> = TCell::default();
+        for n in 1..130 {
+            tcell.set(n, n)
+        }
+
+        assert_eq!(
+            tcell.iter_t().count(),
+            129
+        );
+
+        assert_eq!(
+            tcell.iter().count(),
+            129
+        )
     }
 
     #[test]
     fn updates_to_prop_can_be_window_iterated() {
         let tcell: TCell<String> = TCell::default();
 
+        let actual =  tcell.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>();
+        let expected: Vec<&String> = vec![];
+        assert_eq!(actual, expected);
+
         assert_eq!(
             tcell.iter_window_t(i64::MIN..i64::MAX).collect::<Vec<_>>(),
             vec![]
+        );
+
+        let tcell = TCell::new(3, "Pometry");
+
+        assert_eq!(
+            tcell.iter_window(3..4).collect::<Vec<_>>(),
+            vec![ &"Pometry"]
+        );
+
+        assert_eq!(
+            tcell.iter_window_t(3..4).collect::<Vec<_>>(),
+            vec![(&3, &"Pometry")]
         );
 
         let mut tcell = TCell::new(3, "Pometry");
@@ -203,5 +248,20 @@ mod tcell_tests {
 
         let expected: Vec<&String> = vec![];
         assert_eq!(tcell.iter_window(i64::MIN..1).collect::<Vec<_>>(), expected);
+
+        let mut tcell: TCell<i64> = TCell::default();
+        for n in 1..130 {
+            tcell.set(n, n)
+        }
+
+        assert_eq!(
+            tcell.iter_window_t(i64::MIN..i64::MAX).count(),
+            129
+        );
+
+        assert_eq!(
+            tcell.iter_window(i64::MIN..i64::MAX).count(),
+            129
+        )
     }
 }
