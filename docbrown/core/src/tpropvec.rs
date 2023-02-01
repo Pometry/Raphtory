@@ -125,6 +125,10 @@ mod tpropvec_tests {
 
     #[test]
     fn updates_to_every_prop_can_be_iterated() {
+        let tpropvec = TPropVec::default();
+
+        assert_eq!(tpropvec.iter(1).collect::<Vec<_>>(), vec![]);
+
         let mut tpropvec = TPropVec::from(1, 1, &Prop::Str("Pometry".into()));
         tpropvec.set(1, 2, &Prop::Str("Pometry Inc.".into()));
         tpropvec.set(2, 3, &Prop::I32(2022));
@@ -152,11 +156,22 @@ mod tpropvec_tests {
 
     #[test]
     fn updates_to_every_prop_can_be_window_iterated() {
+        let tpropvec = TPropVec::default();
+
+        assert_eq!(
+            tpropvec
+                .iter_window(1, i64::MIN..i64::MAX)
+                .collect::<Vec<_>>(),
+            vec![]
+        );
+
         let mut tpropvec = TPropVec::from(1, 1, &Prop::Str("Pometry".into()));
         tpropvec.set(1, 2, &Prop::Str("Pometry Inc.".into()));
         tpropvec.set(2, 3, &Prop::I32(2022));
         tpropvec.set(3, 4, &Prop::Str("Graph".into()));
         tpropvec.set(3, 5, &Prop::Str("Graph Analytics".into()));
+        tpropvec.set(2, 1, &Prop::I32(2021));
+        tpropvec.set(2, 4, &Prop::I32(2023));
 
         let prop1 = tpropvec.iter_window(1, 1..3).collect::<Vec<_>>();
         assert_eq!(
@@ -169,5 +184,47 @@ mod tpropvec_tests {
 
         let prop3 = tpropvec.iter_window(3, 5..6).collect::<Vec<_>>();
         assert_eq!(prop3, vec![(&5, Prop::Str("Graph Analytics".into()))]);
+
+        assert_eq!(tpropvec.iter_window(2, 5..6).collect::<Vec<_>>(), vec![]);
+
+        assert_eq!(
+            // Results are ordered by time
+            tpropvec.iter_window(2, 1..i64::MAX).collect::<Vec<_>>(),
+            vec![
+                (&1, Prop::I32(2021)),
+                (&3, Prop::I32(2022)),
+                (&4, Prop::I32(2023))
+            ]
+        );
+
+        assert_eq!(
+            tpropvec.iter_window(2, 4..i64::MAX).collect::<Vec<_>>(),
+            vec![(&4, Prop::I32(2023))]
+        );
+
+        assert_eq!(
+            tpropvec.iter_window(2, 2..i64::MAX).collect::<Vec<_>>(),
+            vec![(&3, Prop::I32(2022)), (&4, Prop::I32(2023))]
+        );
+
+        assert_eq!(
+            tpropvec.iter_window(2, 5..i64::MAX).collect::<Vec<_>>(),
+            vec![]
+        );
+
+        assert_eq!(
+            tpropvec.iter_window(2, i64::MIN..5).collect::<Vec<_>>(),
+            // Results are ordered by time
+            vec![
+                (&1, Prop::I32(2021)),
+                (&3, Prop::I32(2022)),
+                (&4, Prop::I32(2023))
+            ]
+        );
+
+        assert_eq!(
+            tpropvec.iter_window(2, i64::MIN..1).collect::<Vec<_>>(),
+            vec![]
+        );
     }
 }
