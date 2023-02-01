@@ -12,6 +12,6 @@ jobs:
         with:
           target-repo: raphtory/raphtory
           service-name: gh
-          target-state: ${{ github.event.release.tag_name }}
+          target-state: master
           use-default-build-servers: true
           debug: true
