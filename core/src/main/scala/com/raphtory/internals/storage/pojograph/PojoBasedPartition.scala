@@ -42,8 +42,10 @@ private[raphtory] class PojoBasedPartition(graphID: String, partitionID: Int, co
 
       val edge = new PojoEdge(msgTime, index, srcId, dstId, initialValue = true)
       edge.setType(maybeType.map(_.name))
-      q.addAddEdgeReqToQueue(msgTime, index, srcId, srcId, dstId, properties, maybeType, LocalOutgoingEdge(edge))
-      q.addAddEdgeReqToQueue(msgTime, index, dstId, srcId, dstId, properties, maybeType, LocalIncomingEdge(edge))
+      synchronized { // This is to avoid using different PojoEdge for each of the vertices when this is called in parallel
+        q.addAddEdgeReqToQueue(msgTime, index, srcId, srcId, dstId, properties, maybeType, LocalOutgoingEdge(edge))
+        q.addAddEdgeReqToQueue(msgTime, index, dstId, srcId, dstId, properties, maybeType, LocalIncomingEdge(edge))
+      }
     }
     else
       q.addAddEdgeReqToQueue(msgTime, index, srcId, srcId, dstId, properties, maybeType, SelfLoop)
