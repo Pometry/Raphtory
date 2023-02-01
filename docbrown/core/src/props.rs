@@ -46,11 +46,11 @@ impl Props {
         }
     }
 
-    pub fn upsert_vertex_props(&mut self, index: usize, t: i64, props: &Vec<(String, Prop)>) {
+    pub fn upsert_vertex_props(&mut self, vertex_id: usize, t: i64, props: &Vec<(String, Prop)>) {
         if props.is_empty() {
-            match self.vertex_meta.get_mut(index) {
+            match self.vertex_meta.get_mut(vertex_id) {
                 Some(_) => {}
-                None => self.vertex_meta.insert(index, TPropVec::Empty),
+                None => self.vertex_meta.insert(vertex_id, TPropVec::Empty),
             }
             return;
         }
@@ -58,25 +58,24 @@ impl Props {
         for (name, prop) in props {
             let prop_id = self.get_prop_id(name);
 
-            match self.vertex_meta.get_mut(index) {
+            match self.vertex_meta.get_mut(vertex_id) {
                 Some(vertex_props) => vertex_props.set(prop_id, t, prop),
                 None => self
                     .vertex_meta
-                    .insert(index, TPropVec::from(prop_id, t, prop)),
+                    .insert(vertex_id, TPropVec::from(prop_id, t, prop)),
             }
         }
     }
 
-    pub fn upsert_edge_props(
-        &mut self,
-        src_edge_meta_id: usize,
-        t: i64,
-        props: &Vec<(String, Prop)>,
-    ) {
+    pub fn upsert_edge_props(&mut self, edge_id: usize, t: i64, props: &Vec<(String, Prop)>) {
+        if edge_id == 0 {
+            panic!("Edge id (= 0) in invalid because it cannot be used to express both remote and local edges")
+        };
+
         if props.is_empty() {
-            match self.edge_meta.get_mut(src_edge_meta_id) {
+            match self.edge_meta.get_mut(edge_id) {
                 Some(_edge_props) => {}
-                None => self.edge_meta.insert(src_edge_meta_id, TPropVec::Empty),
+                None => self.edge_meta.insert(edge_id, TPropVec::Empty),
             }
             return;
         }
@@ -84,11 +83,11 @@ impl Props {
         for (name, prop) in props {
             let prop_id = self.get_prop_id(name);
 
-            match self.edge_meta.get_mut(src_edge_meta_id) {
+            match self.edge_meta.get_mut(edge_id) {
                 Some(edge_props) => edge_props.set(prop_id, t, prop),
                 None => self
                     .edge_meta
-                    .insert(src_edge_meta_id, TPropVec::from(prop_id, t, prop)),
+                    .insert(edge_id, TPropVec::from(prop_id, t, prop)),
             }
         }
     }
@@ -101,8 +100,8 @@ mod props_tests {
     #[test]
     fn zero_index_of_edge_meta_is_preassgined_default_value() {
         let Props {
-            prop_ids,
-            vertex_meta,
+            prop_ids: _,
+            vertex_meta: _,
             edge_meta,
         } = Props::default();
 
@@ -117,6 +116,13 @@ mod props_tests {
         // both local as well as remote edge id. Hence edge ids must always start with 1.
         assert_ne!(props.get_next_available_edge_id(), 0);
         assert_eq!(props.get_next_available_edge_id(), 1);
+    }
+
+    #[test]
+    #[should_panic]
+    fn assigning_edge_id_as_0_should_fail() {
+        let mut props = Props::default();
+        props.upsert_edge_props(0, 1, &vec![]);
     }
 
     #[test]
@@ -199,9 +205,9 @@ mod props_tests {
     #[test]
     fn insert_default_value_against_no_props_edge_upsert() {
         let mut props = Props::default();
-        props.upsert_edge_props(0, 1, &vec![]);
+        props.upsert_edge_props(1, 1, &vec![]);
 
-        assert_eq!(props.edge_meta.get(0).unwrap(), &TPropVec::Empty)
+        assert_eq!(props.edge_meta.get(1).unwrap(), &TPropVec::Empty)
     }
 
     #[test]
@@ -224,14 +230,14 @@ mod props_tests {
     #[test]
     fn update_existing_edge_prop() {
         let mut props = Props::default();
-        props.upsert_edge_props(0, 1, &vec![("bla".to_string(), Prop::I32(10))]);
-        props.upsert_edge_props(0, 2, &vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_edge_props(1, 1, &vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_edge_props(1, 2, &vec![("bla".to_string(), Prop::I32(10))]);
 
         let prop_id = props.get_prop_id("bla");
         assert_eq!(
             props
                 .edge_meta
-                .get(0)
+                .get(1)
                 .unwrap()
                 .iter(prop_id)
                 .collect::<Vec<_>>(),
@@ -242,14 +248,14 @@ mod props_tests {
     #[test]
     fn new_update_with_the_same_time_to_a_edge_prop_is_ignored() {
         let mut props = Props::default();
-        props.upsert_edge_props(0, 1, &vec![("bla".to_string(), Prop::I32(10))]);
-        props.upsert_edge_props(0, 1, &vec![("bla".to_string(), Prop::I32(20))]);
+        props.upsert_edge_props(1, 1, &vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_edge_props(1, 1, &vec![("bla".to_string(), Prop::I32(20))]);
 
         let prop_id = props.get_prop_id("bla");
         assert_eq!(
             props
                 .edge_meta
-                .get(0)
+                .get(1)
                 .unwrap()
                 .iter(prop_id)
                 .collect::<Vec<_>>(),
