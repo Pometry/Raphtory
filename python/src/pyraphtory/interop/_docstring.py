@@ -324,11 +324,16 @@ doc_converter = alt(tparam,
 
 
 md_code = string("{s}").optional("").result("") + code
-md_link_prefix = string("[](") + string("com.raphtory").result("pyraphtory")
+md_link_prefix = (string("[](").result("{py:class}`")
+                  + string("com.raphtory").result("pyraphtory")
+                  + any_char.until(string(")").should_fail(eof | line_end, "unexpected new line")).concat()
+                  + string(")").result("`")
+                  )
 md_inline = md_code | md_link_prefix | non_newline_whitespace | token
 md_line = line_start.optional("") + md_inline.until(line_end | eof).concat() + line_end.optional("")
 
 md_doc_converter = (end | md_line).until(eof).concat()
+
 
 def convert_docstring(docs):
     docs = str(docs)
