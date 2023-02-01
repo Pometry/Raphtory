@@ -1,17 +1,19 @@
 package com.raphtory.spouts
 
-import cats.effect.Async
-import com.raphtory.api.input.{Spout, SpoutInstance}
+import com.raphtory.api.input.Spout
+import com.raphtory.api.input.SpoutInstance
 import com.raphtory.utils.FileUtils
-import fs2.io.file.Flags
-import fs2.text
 
-import java.io.{File, FileInputStream}
-import java.nio.file.{Files, Path, Paths}
-import java.util.zip.{GZIPInputStream, ZipInputStream}
+import java.io.File
+import java.io.FileInputStream
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
+import java.util.zip.GZIPInputStream
+import java.util.zip.ZipInputStream
 import scala.collection.mutable
 import scala.io.Source
-import scala.jdk.CollectionConverters.IteratorHasAsScala
+import scala.reflect.runtime.universe._
 import scala.util.Random
 import scala.util.matching.Regex
 
@@ -51,68 +53,8 @@ case class FileSpout[T](
     lineConverter: Option[String => T] = None
 ) extends Spout[T] {
 
-  private val CHUNK_SIZE = 4 * 1024 * 1024
-
   override def buildSpout(): SpoutInstance[T] =
     new FileSpoutInstance[T](path, regexPattern, reReadFiles, recurse, lineConverter)
-
-  import fs2.compression.Compression
-  import fs2.io.file
-
-  override def asStream[F[_]: Async]: fs2.Stream[F, T] = {
-    def toLinesStream(path: Path) = {
-      val uncompressed =
-        if (path.toString.endsWith(".gz"))
-          readCompressedFile(path)
-        else
-          readUncompressedFile(path)
-
-      uncompressed
-        .through(text.utf8.decode)
-        .through(text.lines)
-    }
-
-    val rootPath = Paths.get(path)
-    val reg      = new Regex(regexPattern)
-    val s        = if (Files.isDirectory(rootPath)) {
-      readDirectory(toLinesStream _, rootPath, reg)
-    } else
-      toLinesStream(rootPath)
-
-    if (lineConverter.isDefined) {
-      val convert = lineConverter.get
-      s.map(convert)
-    }
-    else s.asInstanceOf[fs2.Stream[F, T]]
-  }
-
-  private def readDirectory[F[_] : Async](toLinesStream: Path => fs2.Stream[F, String], rootPath: Path, reg: Regex) = {
-    val streams = Files
-      .list(rootPath)
-      .iterator()
-      .asScala
-      .filter(p => reg.findFirstIn(p.toString).isDefined)
-      .toVector
-    assert(streams.nonEmpty, s"No files found with pattern $reg in path $rootPath")
-    fs2.Stream(streams.map(toLinesStream): _*).parJoinUnbounded
-  }
-
-
-  private def readUncompressedFile[F[_] : Async](path: Path) = {
-    file
-      .Files[F]
-      .readAll(file.Path.fromNioPath(path), CHUNK_SIZE, Flags.Read)
-      .prefetch
-  }
-
-  private def readCompressedFile[F[_] : Async](path: Path) = {
-    file
-      .Files[F]
-      .readAll(file.Path.fromNioPath(path), CHUNK_SIZE, Flags.Read)
-      .prefetch
-      .through(Compression[F].gunzip())
-      .flatMap(_.content)
-  }
 }
 
 object FileSpout {
