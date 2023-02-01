@@ -4,7 +4,7 @@
 from pyraphtory.interop import ScalaClassProxy
 
 
-_prefix = "package com.raphtory.algorithms.generic.motif."
+_prefix = "com.raphtory.algorithms.generic.motif."
 
 
 class GlobalClusteringCoefficient(ScalaClassProxy):

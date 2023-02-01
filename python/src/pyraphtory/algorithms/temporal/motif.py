@@ -4,7 +4,7 @@
 from pyraphtory.interop import ScalaClassProxy
 
 
-_prefix = "package com.raphtory.algorithms.temporal.motif."
+_prefix = "com.raphtory.algorithms.temporal.motif."
 
 
 class LocalThreeNodeMotifs(ScalaClassProxy):
