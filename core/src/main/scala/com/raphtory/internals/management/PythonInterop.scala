@@ -379,7 +379,7 @@ object PythonInterop {
 
   private def public_methods(clazz: Class[_]): Map[String, ArrayBuffer[Method]] = {
     val runtimeMirror      = universe.runtimeMirror(clazz.getClassLoader)
-    val ignoredJavaMethods = Set("notify", "notifyAll", "wait")
+    val ignoredJavaMethods = Set("notify", "notifyAll", "wait", "equals", "getClass", "toString", "hashCode")
     val objType            = runtimeMirror.classSymbol(clazz).toType.dealias
     val methods            = objType.members
       .collect {
