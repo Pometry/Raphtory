@@ -1,5 +1,8 @@
 package com.raphtory.sources
 
+import cats.effect.Async
+import cats.effect.kernel.Ref
+import cats.syntax.all._
 import com.raphtory.api.input.Graph.assignID
 import com.raphtory.api.input.Graph
 import com.raphtory.api.input.GraphBuilder
@@ -8,6 +11,8 @@ import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Source
 import com.raphtory.api.input.Spout
 import com.raphtory.api.input.SpoutBuilderSource
+import com.raphtory.internals.graph.GraphAlteration
+import com.raphtory.internals.graph.GraphAlteration.GraphUpdate
 import com.raphtory.internals.time.DateTimeParser
 import com.raphtory.spouts.FileSpout
 import com.raphtory.spouts.ResourceSpout
@@ -26,18 +31,25 @@ import scala.language.implicitConversions
   * @param header state whether your CSV data contains a header or not (default = false)
   */
 class CSVEdgeListSource(
-    override val spout: Spout[String],
+    val spout: Spout[String],
     timeIndex: Int = 2,
     sourceIndex: Int = 0,
     targetIndex: Int = 1,
     delimiter: String = ",",
     header: Boolean = false
-) extends SpoutBuilderSource[String] {
+) extends Source {
   private var typesSet: Boolean       = _
   private var dateTimeFormat: Boolean = _
   private var epochFormat: Boolean    = _
   private var longFormat: Boolean     = _
   private var stringFormat: Boolean   = _
+
+  override def makeStream[F[_]: Async](globalIndex: Ref[F, Long]): F[fs2.Stream[F, Seq[GraphUpdate]]] =
+    for {
+      builderInstance <- builder.make[F]
+      tuples           = if (header) spout.asStream.tail else spout.asStream
+      stream           = tuples.chunks.evalMap(chunk => builderInstance.parseUpdates(chunk, globalIndex))
+    } yield stream
 
   def buildCSVEdgeListGraph(graph: Graph, tuple: String, rawTime: String, source: String, target: String): Unit = {
     val timestamp = {
@@ -107,17 +119,13 @@ class CSVEdgeListSource(
     buildCSVEdgeListGraph(graph, tuple, rawTime, source, target)
   }
 
-  override def builder: GraphBuilder[String] =
+  def builder: GraphBuilder[String] =
     (graph: Graph, tuple: String) => {
-
       val fileLine = tuple.split(delimiter).map(_.trim)
       val source   = fileLine(sourceIndex)
       val target   = fileLine(targetIndex)
       val rawTime  = fileLine(timeIndex)
-      graph.index match {
-        case 1 => if (!header) checkTypesAndBuildGraph(graph, tuple, rawTime, source, target)
-        case _ => checkTypesAndBuildGraph(graph, tuple, rawTime, source, target)
-      }
+      checkTypesAndBuildGraph(graph, tuple, rawTime, source, target)
     }
 }
 
