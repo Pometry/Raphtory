@@ -97,10 +97,11 @@ token = non_whitespace_char.until(whitespace | line_end | eof, min=1).concat()  
 name = token.map(parse_name)
 
 # convert code expressions
-code_others = string("`").should_fail(
+code_others = (string("`") | line_end).should_fail(
     "not end of code") >> any_char  # match anything that is not end of code and return unchanged
 boolean = string_from('true', 'false').map(capitalise)
 string_expr = string("String").result("str")
+bool_expr = string("Boolean").result("bool")
 int_expr = string_from("Int", "Long", "Integer", "Short").result("int")
 float_expr = string_from("Float", "Double").result("float")
 dquoted_str = string('"') + ((line_end | string('"')).should_fail("not end of string") >> any_char).many().concat() + string('"')
@@ -122,6 +123,7 @@ code_item = (boolean
              | string_expr
              | int_expr
              | float_expr
+             | bool_expr
              | squoted_str
              | dquoted_str
              | method_without_brackets
@@ -180,8 +182,6 @@ def codeblock(indent, output_indent):
     return codeblock_parser
 
 
-code_unparsed = (string("`") + any_char.until(string("`"), consume_other=True).concat()).map(report_unparsed)
-
 # find links (only extracts text for now)
 link_string = string("[[") >> any_char.until(string("]]")).concat() << string("]]")
 
@@ -199,7 +199,7 @@ def link():
 
 
 # inline markup
-inline = link | code | code_unparsed | non_newline_whitespace | token
+inline = link | code | non_newline_whitespace | token
 
 # lines
 remaining_line = inline.until(line_end | eof).concat() + line_end.optional("")
@@ -323,12 +323,23 @@ doc_converter = alt(tparam,
                     ).until(eof).map(join_tokens)
 
 
+md_code = string("{s}").optional("").result("") + code
+md_link_prefix = string("[](") + string("com.raphtory").result("pyraphtory")
+md_inline = md_code | md_link_prefix | non_newline_whitespace | token
+md_line = line_start.optional("") + md_inline.until(line_end | eof).concat() + line_end.optional("")
+
+md_doc_converter = (end | md_line).until(eof).concat()
+
 def convert_docstring(docs):
     docs = str(docs)
     if docs:
         try:
-            cleaned = doc_converter.parse(docs)
-            return cleaned.rstrip("\n")
+            if "{s}`" in docs:
+                # this is a markdown docstring, use simplified parser
+                cleaned = md_doc_converter.parse(docs)
+            else:
+                cleaned = doc_converter.parse(docs)
+            return cleaned
         except ParseError as e:
             print(e)
             return docs

@@ -5,7 +5,7 @@ from sphinx.util import logging, inspect
 from sphinx.ext.autodoc import MethodDocumenter, ClassDocumenter, safe_getattr, ObjectMembers, get_class_members, \
     ModuleDocumenter, AttributeDocumenter, ALL, Documenter
 from typing import *
-
+from pathlib import Path
 from sphinx.util.docstrings import prepare_docstring
 
 logger = logging.getLogger(__name__)
@@ -15,6 +15,7 @@ def setup(app: Sphinx):
     app.add_autodocumenter(InstanceOnlyMethodDocumenter)
     app.add_autodocumenter(MetaclassMethodDocumenter)
     app.add_autodocumenter(ScalaClassProxyDocumenter)
+    app.add_autodocumenter(ScalaAlgorithmProxyDocumenter)
     # app.add_autodocumenter(ImplicitMethodDocumenter)  # This doesn't work properly
     app.add_autodocumenter(OverloadedMethodDocumenter)
     app.add_autodocumenter(OverloadedClassMethodDocumenter)
@@ -269,8 +270,6 @@ class InstanceOnlyMethodDocumenter(ImplicitsSignatureMixin, UnpackInstanceOnlyMi
                             ) -> bool:
         actual_method = unpack_class_method(unpack_implicits_method(member), membername)
         can_document = isinstance(actual_method, InstanceOnlyMethod)
-        if membername == "apply":
-            print(f"{can_document=}")
         return can_document
 
     def get_doc(self) -> Optional[List[List[str]]]:
@@ -363,3 +362,42 @@ class ScalaClassProxyDocumenter(ClassDocumenter):
         other_members = super().filter_members(other_members, want_all)
         return class_methods + other_members
 
+
+class ScalaAlgorithmProxyDocumenter(ScalaClassProxyDocumenter):
+    objtype = "algorithm"
+    directivetype = "class"
+    priority = ScalaClassProxyDocumenter.priority + 1
+    _docs = None
+
+    @classmethod
+    def can_document_member(cls, member: Any, membername: str, isattr: bool, parent: Any
+                            ) -> bool:
+        if isinstance(member, ScalaObjectProxy):
+            if hasattr(member, "_classname"):
+                name = member._classname
+                if name is not None and name.startswith("com.raphtory.algorithms."):
+                    return True
+        return False
+
+    def get_doc(self) -> Optional[List[List[str]]]:
+        if self._docs is None:
+            docs = super().get_doc()
+            if docs:
+                docs = docs[0]
+                docs_to_write = docs[2:]
+                if docs_to_write:
+                    header = docs[1].split(": ", 1)
+                    if len(header) > 1:
+                        header = header[1]
+                    else:
+                        header = header[0]
+                    src_dir = Path(self.env.srcdir)
+                    file = src_dir / f"{self.env.docname}.{self.object_name}.md"
+                    with open(file, "w") as f:
+                        f.write("\n".join(docs_to_write))
+                    self._docs = [[header, "", f".. include:: {file.name}", "   :parser: myst_parser.sphinx_"]]
+                else:
+                    self._docs = [docs]
+            else:
+                self._docs = docs
+        return self._docs
