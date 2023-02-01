@@ -114,7 +114,7 @@ def build_method(name: str, method, jpype: bool, globals: dict, locals: dict):
         varparam = params.pop()
         varparam_type = types.pop()
     defaults = method.defaults()
-    required = max(defaults.keys(), default=nargs)
+    required = min(defaults.keys(), default=nargs)
 
     args = ["self"]
     args.extend(f'{p} = DefaultValue("{defaults[i]}")' if i in defaults
