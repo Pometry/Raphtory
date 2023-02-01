@@ -15,13 +15,14 @@ def setup(app: Sphinx):
     app.add_autodocumenter(InstanceOnlyMethodDocumenter)
     app.add_autodocumenter(MetaclassMethodDocumenter)
     app.add_autodocumenter(ScalaClassProxyDocumenter)
-    app.add_autodocumenter(ImplicitMethodDocumenter)
+    # app.add_autodocumenter(ImplicitMethodDocumenter)  # This doesn't work properly
     app.add_autodocumenter(OverloadedMethodDocumenter)
     app.add_autodocumenter(OverloadedClassMethodDocumenter)
     app.add_autodocumenter(OverloadedMethodInstanceDocumenter)
     app.add_autodocumenter(OverloadedClassMethodInstanceDocumenter)
     app.connect('autodoc-process-signature', process_signature)
     app.connect('autodoc-before-process-signature', before_process_signature)
+    # app.connect('autodoc-skip-member', skip_algorithms)
 
 
 def fix_signature_link(signature: str):
@@ -29,12 +30,28 @@ def fix_signature_link(signature: str):
     parts[1:] = [fix_part(p) for p in parts[1:]]
     return ": ".join(parts)
 
+
 def fix_part(part: str):
     if part.startswith("~"):
         return part
     if part.startswith("pyraphtory"):
         return "~" + part
     return part
+
+
+def skip_algorithms(app, what, name, obj, skip, options):
+    try:
+        if what == "module":
+            if hasattr(obj, "__name__") and obj.__name__.startswith("pyraphtory.algorithms."):
+                return True
+        if hasattr(obj, "__module__"):
+            module = obj.__module__
+            if module is not None and module.startswith("pyraphtory.algorithms"):
+                return True
+    except Exception as e:
+        print(e)
+        raise e
+    return None
 
 
 def before_process_signature(app, obj, bound_method):
@@ -112,7 +129,6 @@ class ClassMethodMixin:
     member_order = MethodDocumenter.member_order - 1
 
     def add_directive_header(self, sig: str) -> None:
-        obj = super()
         super(MethodDocumenter, self).add_directive_header(sig)
         self.add_line('   :classmethod:', self.get_sourcename())
 
@@ -158,7 +174,7 @@ class OverloadedMethodInstanceDocumenterMixin(NoIndexMixin, UnpackImplicitsMixin
         return []
 
 
-class OverloadedMethodInstanceDocumenter(OverloadedMethodInstanceDocumenterMixin, UnpackInstanceOnlyMixin, MethodDocumenter):
+class OverloadedMethodInstanceDocumenter(OverloadedMethodInstanceDocumenterMixin, UnpackImplicitsMixin, UnpackInstanceOnlyMixin, MethodDocumenter):
     objtype = "overloadedmethodinstance"
     priority = AttributeDocumenter.priority + 1
 
@@ -242,7 +258,7 @@ class OverloadedMethodDocumenterMixin(ImplicitsSignatureMixin, UnpackImplicitsMi
         return [prepare_docstring(docstring, tab_width)]
 
 
-class InstanceOnlyMethodDocumenter(ImplicitsSignatureMixin, UnpackInstanceOnlyMixin, MethodDocumenter):  # type: ignore
+class InstanceOnlyMethodDocumenter(ImplicitsSignatureMixin, UnpackInstanceOnlyMixin, UnpackImplicitsMixin, MethodDocumenter):  # type: ignore
     """
     Specialized Documenter subclass for instance-only.
     """
@@ -251,8 +267,15 @@ class InstanceOnlyMethodDocumenter(ImplicitsSignatureMixin, UnpackInstanceOnlyMi
     @classmethod
     def can_document_member(cls, member: Any, membername: str, isattr: bool, parent: Any
                             ) -> bool:
-        actual_method = unpack_class_method(member, membername)
-        return isinstance(actual_method, InstanceOnlyMethod)
+        actual_method = unpack_class_method(unpack_implicits_method(member), membername)
+        can_document = isinstance(actual_method, InstanceOnlyMethod)
+        if membername == "apply":
+            print(f"{can_document=}")
+        return can_document
+
+    def get_doc(self) -> Optional[List[List[str]]]:
+        doc = super().get_doc()
+        return doc
 
 
 class OverloadedMethodDocumenter(OverloadedMethodDocumenterMixin, InstanceOnlyMethodDocumenter):
@@ -276,6 +299,13 @@ class MetaclassMethodDocumenter(NoIndexMixin, ImplicitsSignatureMixin, ClassMeth
 
     def __init__(self, directive: "DocumenterBridge", name: str, indent: str = '') -> None:
         super().__init__(directive, name, indent)
+
+    def get_doc(self) -> Optional[List[List[str]]]:
+        docstring = str(self.object.__doc__)
+        if docstring:
+            tab_width = self.directive.state.document.settings.tab_width
+            return [prepare_docstring(docstring, tab_width)]
+        return []
 
     @classmethod
     def can_document_member(cls, member: Any, membername: str, isattr: bool, parent: Any
