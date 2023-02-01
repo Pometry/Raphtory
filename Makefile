@@ -195,7 +195,7 @@ setup-python-docs: python-build-options
 python-test:
 	pytest python/build_tests
 	pytest python/tests
-	pytest --nbmake -n=auto examples
+	pytest --nbmake examples
 	#pytest --nbmake docs/source/Introduction
 	#pytest --nbmake docs/source/Install
 
