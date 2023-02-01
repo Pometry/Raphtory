@@ -30,45 +30,43 @@ impl TProp {
     }
 
     pub(crate) fn set(&mut self, t: i64, prop: &Prop) {
-        if self.is_empty() {
-            *self = TProp::from(t, prop);
-        } else {
-            match self {
-                TProp::Empty => todo!(),
-                TProp::Str(cell) => {
-                    if let Prop::Str(a) = prop {
-                        cell.set(t, a.to_string());
-                    }
+        match self {
+            TProp::Empty => {
+                *self = TProp::from(t, prop);
+            }
+            TProp::Str(cell) => {
+                if let Prop::Str(a) = prop {
+                    cell.set(t, a.to_string());
                 }
-                TProp::I32(cell) => {
-                    if let Prop::I32(a) = prop {
-                        cell.set(t, *a);
-                    }
+            }
+            TProp::I32(cell) => {
+                if let Prop::I32(a) = prop {
+                    cell.set(t, *a);
                 }
-                TProp::I64(cell) => {
-                    if let Prop::I64(a) = prop {
-                        cell.set(t, *a);
-                    }
+            }
+            TProp::I64(cell) => {
+                if let Prop::I64(a) = prop {
+                    cell.set(t, *a);
                 }
-                TProp::U32(cell) => {
-                    if let Prop::U32(a) = prop {
-                        cell.set(t, *a);
-                    }
+            }
+            TProp::U32(cell) => {
+                if let Prop::U32(a) = prop {
+                    cell.set(t, *a);
                 }
-                TProp::U64(cell) => {
-                    if let Prop::U64(a) = prop {
-                        cell.set(t, *a);
-                    }
+            }
+            TProp::U64(cell) => {
+                if let Prop::U64(a) = prop {
+                    cell.set(t, *a);
                 }
-                TProp::F32(cell) => {
-                    if let Prop::F32(a) = prop {
-                        cell.set(t, *a);
-                    }
+            }
+            TProp::F32(cell) => {
+                if let Prop::F32(a) = prop {
+                    cell.set(t, *a);
                 }
-                TProp::F64(cell) => {
-                    if let Prop::F64(a) = prop {
-                        cell.set(t, *a);
-                    }
+            }
+            TProp::F64(cell) => {
+                if let Prop::F64(a) = prop {
+                    cell.set(t, *a);
                 }
             }
         }
@@ -76,6 +74,7 @@ impl TProp {
 
     pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
         match self {
+            TProp::Empty => Box::new(std::iter::empty()),
             TProp::Str(cell) => Box::new(
                 cell.iter_t()
                     .map(|(t, value)| (t, Prop::Str(value.to_string()))),
@@ -92,6 +91,7 @@ impl TProp {
 
     pub(crate) fn iter_window(&self, r: Range<i64>) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
         match self {
+            TProp::Empty => Box::new(std::iter::empty()),
             TProp::Str(cell) => Box::new(
                 cell.iter_window_t(r)
                     .map(|(t, value)| (t, Prop::Str(value.to_string()))),
@@ -123,13 +123,6 @@ impl TProp {
             _ => todo!(),
         }
     }
-
-    fn is_empty(&self) -> bool {
-        match self {
-            TProp::Empty => true,
-            _ => false,
-        }
-    }
 }
 
 #[cfg(test)]
@@ -141,10 +134,7 @@ mod tprop_tests {
         let mut tprop = TProp::Empty;
         tprop.set(1, &Prop::I32(10));
 
-        assert_eq!(
-            tprop.iter().collect::<Vec<_>>(),
-            vec![(&1, Prop::I32(10))]
-        );
+        assert_eq!(tprop.iter().collect::<Vec<_>>(), vec![(&1, Prop::I32(10))]);
     }
 
     #[test]
@@ -168,14 +158,16 @@ mod tprop_tests {
 
         assert_eq!(
             tprop.iter().collect::<Vec<_>>(),
-            vec![
-                (&1, Prop::Str("Pometry".into()))
-            ]
+            vec![(&1, Prop::Str("Pometry".into()))]
         );
     }
 
     #[test]
     fn updates_to_prop_can_be_iterated() {
+        let tprop = TProp::default();
+
+        assert_eq!(tprop.iter().collect::<Vec<_>>(), vec![]);
+
         let mut tprop = TProp::from(1, &Prop::Str("Pometry".into()));
         tprop.set(2, &Prop::Str("Pometry Inc.".into()));
 
@@ -186,17 +178,194 @@ mod tprop_tests {
                 (&2, Prop::Str("Pometry Inc.".into()))
             ]
         );
+
+        let mut tprop = TProp::from(1, &Prop::I32(2022));
+        tprop.set(2, &Prop::I32(2023));
+
+        assert_eq!(
+            tprop.iter().collect::<Vec<_>>(),
+            vec![
+                (&1, Prop::I32(2022)),
+                (&2, Prop::I32(2023))
+            ]
+        );
+
+        let mut tprop = TProp::from(1, &Prop::I64(2022));
+        tprop.set(2, &Prop::I64(2023));
+
+        assert_eq!(
+            tprop.iter().collect::<Vec<_>>(),
+            vec![
+                (&1, Prop::I64(2022)),
+                (&2, Prop::I64(2023))
+            ]
+        );
+
+        let mut tprop = TProp::from(1, &Prop::F32(10.0));
+        tprop.set(2, &Prop::F32(11.0));
+
+        assert_eq!(
+            tprop.iter().collect::<Vec<_>>(),
+            vec![
+                (&1, Prop::F32(10.0)),
+                (&2, Prop::F32(11.0))
+            ]
+        );
+
+        let mut tprop = TProp::from(1, &Prop::F64(10.0));
+        tprop.set(2, &Prop::F64(11.0));
+
+        assert_eq!(
+            tprop.iter().collect::<Vec<_>>(),
+            vec![
+                (&1, Prop::F64(10.0)),
+                (&2, Prop::F64(11.0))
+            ]
+        );
+
+        let mut tprop = TProp::from(1, &Prop::U32(1));
+        tprop.set(2, &Prop::U32(2));
+
+        assert_eq!(
+            tprop.iter().collect::<Vec<_>>(),
+            vec![
+                (&1, Prop::U32(1)),
+                (&2, Prop::U32(2))
+            ]
+        );
+
+        let mut tprop = TProp::from(1, &Prop::U64(1));
+        tprop.set(2, &Prop::U64(2));
+
+        assert_eq!(
+            tprop.iter().collect::<Vec<_>>(),
+            vec![
+                (&1, Prop::U64(1)),
+                (&2, Prop::U64(2))
+            ]
+        );
     }
 
     #[test]
     fn updates_to_prop_can_be_window_iterated() {
-        let mut tprop = TProp::from(1, &Prop::Str("Pometry".into()));
-        tprop.set(2, &Prop::Str("Pometry Inc.".into()));
+        let tprop = TProp::default();
+
+        assert_eq!(
+            tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
+            vec![]
+        );
+
+        let mut tprop = TProp::from(3, &Prop::Str("Pometry".into()));
+        tprop.set(1, &Prop::Str("Pometry Inc.".into()));
+        tprop.set(2, &Prop::Str("Raphtory".into()));
 
         assert_eq!(
             tprop.iter_window(2..3).collect::<Vec<_>>(),
+            vec![(&2, Prop::Str("Raphtory".into()))]
+        );
+
+        assert_eq!(tprop.iter_window(4..5).collect::<Vec<_>>(), vec![]);
+
+        assert_eq!(
+            // Results are ordered by time
+            tprop.iter_window(1..i64::MAX).collect::<Vec<_>>(),
             vec![
-                (&2, Prop::Str("Pometry Inc.".into()))
+                (&1, Prop::Str("Pometry Inc.".into())),
+                (&2, Prop::Str("Raphtory".into())),
+                (&3, Prop::Str("Pometry".into()))
+            ]
+        );
+
+        assert_eq!(
+            tprop.iter_window(3..i64::MAX).collect::<Vec<_>>(),
+            vec![(&3, Prop::Str("Pometry".into()))]
+        );
+
+        assert_eq!(
+            tprop.iter_window(2..i64::MAX).collect::<Vec<_>>(),
+            vec![
+                (&2, Prop::Str("Raphtory".into())),
+                (&3, Prop::Str("Pometry".into()))
+            ]
+        );
+
+        assert_eq!(tprop.iter_window(5..i64::MAX).collect::<Vec<_>>(), vec![]);
+
+        assert_eq!(
+            tprop.iter_window(i64::MIN..4).collect::<Vec<_>>(),
+            // Results are ordered by time
+            vec![
+                (&1, Prop::Str("Pometry Inc.".into())),
+                (&2, Prop::Str("Raphtory".into())),
+                (&3, Prop::Str("Pometry".into()))
+            ]
+        );
+
+        assert_eq!(tprop.iter_window(i64::MIN..1).collect::<Vec<_>>(), vec![]);
+
+        let mut tprop = TProp::from(1, &Prop::I32(2022));
+        tprop.set(2, &Prop::I32(2023));
+
+        assert_eq!(
+            tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
+            vec![
+                (&1, Prop::I32(2022)),
+                (&2, Prop::I32(2023))
+            ]
+        );
+
+        let mut tprop = TProp::from(1, &Prop::I64(2022));
+        tprop.set(2, &Prop::I64(2023));
+
+        assert_eq!(
+            tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
+            vec![
+                (&1, Prop::I64(2022)),
+                (&2, Prop::I64(2023))
+            ]
+        );
+
+        let mut tprop = TProp::from(1, &Prop::F32(10.0));
+        tprop.set(2, &Prop::F32(11.0));
+
+        assert_eq!(
+            tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
+            vec![
+                (&1, Prop::F32(10.0)),
+                (&2, Prop::F32(11.0))
+            ]
+        );
+
+        let mut tprop = TProp::from(1, &Prop::F64(10.0));
+        tprop.set(2, &Prop::F64(11.0));
+
+        assert_eq!(
+            tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
+            vec![
+                (&1, Prop::F64(10.0)),
+                (&2, Prop::F64(11.0))
+            ]
+        );
+
+        let mut tprop = TProp::from(1, &Prop::U32(1));
+        tprop.set(2, &Prop::U32(2));
+
+        assert_eq!(
+            tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
+            vec![
+                (&1, Prop::U32(1)),
+                (&2, Prop::U32(2))
+            ]
+        );
+
+        let mut tprop = TProp::from(1, &Prop::U64(1));
+        tprop.set(2, &Prop::U64(2));
+
+        assert_eq!(
+            tprop.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>(),
+            vec![
+                (&1, Prop::U64(1)),
+                (&2, Prop::U64(2))
             ]
         );
     }
