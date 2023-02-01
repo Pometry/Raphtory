@@ -1,6 +1,7 @@
 package com.raphtory.sources
 
 import cats.effect.Async
+import cats.effect.Ref
 import cats.effect.Resource
 import cats.syntax.all._
 import com.raphtory.api.input._
@@ -21,7 +22,7 @@ abstract class SqlSource(
   import SqlSource._
 
   override def makeStream[F[_]](
-      initialIndex: Long
+      globalIndex: Ref[F, Long]
   )(implicit F: Async[F]): F[fs2.Stream[F, Seq[GraphAlteration.GraphUpdate]]] = {
     val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
 
@@ -45,7 +46,7 @@ abstract class SqlSource(
       extractor      <- getExtractor(rs).onError { case NonFatal(_) => releaseRs }
       _              <- F.delay(logger.debug(s"Defining stream of updates from SQL query"))
       stream         <- fs2.Stream
-                          .iterate(initialIndex)(_ + 1)
+                          .repeatEval(globalIndex.getAndUpdate(_ + 1))
                           .evalMap(index => F.delay(if (rs.next()) Some(extractor.apply(rs, index)) else None))
                           .collectWhile { case Some(updates) => updates }
                           .chunks

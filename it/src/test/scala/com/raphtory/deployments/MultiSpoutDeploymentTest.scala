@@ -13,6 +13,7 @@ import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.sinks.FileSink
 import com.raphtory.sources.CSVEdgeListSource
 import com.raphtory.spouts.FileSpout
+import com.test.raphtory.algorithms.GraphState
 import munit.CatsEffectSuite
 
 import java.io.FileWriter
@@ -68,7 +69,7 @@ class MultiSpoutDeploymentTest extends CatsEffectSuite {
               val tracker = graph
                 .range(1, 32674, 10000)
                 .window(Array[Long](500, 1000, 10000), Alignment.END)
-                .execute(ConnectedComponents)
+                .execute(GraphState())
                 .writeTo(defaultSink)
 
               tracker.waitForJob()
@@ -76,6 +77,6 @@ class MultiSpoutDeploymentTest extends CatsEffectSuite {
             }
           }
       }
-      .map(hash => assertEquals(hash, "c6c26df04212ac7c0ba352d3acd79fb2c38f2c2943079bbe48dde9ea2b399410"))
+      .map(hash => assertEquals(hash, "5386ab26d807ceebc3be32ac6284c74a9e5f509db8443816ee10c5d6fadda582"))
   }
 }

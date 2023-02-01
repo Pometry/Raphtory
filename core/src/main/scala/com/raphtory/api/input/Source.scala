@@ -17,7 +17,7 @@ trait Source {
     * some things in the context of the F to prepare the source (for instance checking that a file actually exists)
     * so the exceptions bubble up to the client context reporting the problem
     */
-  def makeStream[F[_]: Async](initialIndex: Long): F[fs2.Stream[F, Seq[GraphUpdate]]]
+  def makeStream[F[_]: Async](globalIndex: Ref[F, Long]): F[fs2.Stream[F, Seq[GraphUpdate]]]
 }
 
 abstract class SpoutBuilderSource[T] extends Source {
@@ -25,12 +25,11 @@ abstract class SpoutBuilderSource[T] extends Source {
   protected def builder: GraphBuilder[T]
   override def getDynamicClasses = List(builder.getClass)
 
-  override def makeStream[F[_]: Async](initialIndex: Long): F[fs2.Stream[F, Seq[GraphUpdate]]] =
+  override def makeStream[F[_]: Async](globalIndex: Ref[F, Long]): F[fs2.Stream[F, Seq[GraphUpdate]]] =
     for {
       builderInstance <- builder.make
-      index           <- Ref.of[F, Long](initialIndex)
       tuples           = spout.asStream
-      stream           = tuples.chunks.evalMap(chunk => builderInstance.parseUpdates(chunk, index))
+      stream           = tuples.chunks.evalMap(chunk => builderInstance.parseUpdates(chunk, globalIndex))
     } yield stream
 }
 
