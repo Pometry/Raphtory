@@ -6,7 +6,7 @@ code_conversions = {}
 
 def camel_to_snake(name: str):
     from pyraphtory.interop._interop import camel_to_snake as convert
-    from pyraphtory.interop._codegen import clean_identifier
+    from pyraphtory._codegen._codegen import clean_identifier
     if name[0].islower():
         name = convert(name)
     return clean_identifier(name)
