@@ -31,3 +31,6 @@ class PyAlgorithm(object):
         :return: Table with output from this algorithm
         """
         return graph.select()
+
+    def name(self):
+        return self.__class__.__name__
