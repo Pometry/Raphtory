@@ -94,7 +94,7 @@ sbt-build-clean:
 
 .PHONY: build-docs-notebooks
 build-docs-notebooks:
-	cd docs && pytest --nbmake --overwrite
+	cd docs && pytest --nbmake --nbmake-timeout=3000 --overwrite
 
 
 .PHONY: docs
