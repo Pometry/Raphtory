@@ -47,7 +47,8 @@ class EdgeList(
           (neighbourMap(edge.dst), propertyValues)
         }.unzip
         vertex.setState("neighbourName", neighbours)
-        properties zip propertyRows.transpose foreach {
+        val propertyColumns            = if (propertyRows.nonEmpty) propertyRows.transpose else properties.map(_ => Seq())
+        properties zip propertyColumns foreach {
           case (columnName, propertyColumn) => vertex.setState(columnName, propertyColumn)
         }
       }
