@@ -4,6 +4,7 @@ from __future__ import annotations
 from pyraphtory.interop import register, logger, GenericScalaProxy, ScalaClassProxy
 from pyraphtory.api.input import Properties, ImmutableString, Type
 from pyraphtory.api.algorithm import ScalaAlgorithm
+from pyraphtory.interop._interop import ScalaProxyBase
 
 
 @register(name="Perspective")
@@ -89,10 +90,10 @@ class TemporalGraph(Graph):
         .. note::
            `transform` keeps track of the name of the applied algorithm and clears the message queues at the end of the algorithm
         """
-        if isinstance(algorithm, ScalaAlgorithm):
+        if isinstance(algorithm, ScalaProxyBase):
             return super().transform(algorithm)
         else:
-            return algorithm(self).with_transformed_name(algorithm.__class__.__name__)
+            return algorithm(self).clear_messages().with_transformed_name(algorithm.name())
 
     def execute(self, algorithm):
         """Run an algorithm on the graph and return results using the `tabularise` method of the algorithm
@@ -104,7 +105,7 @@ class TemporalGraph(Graph):
 
            `execute` keeps track of the name of the applied algorithm
         """
-        if isinstance(algorithm, ScalaAlgorithm):
+        if isinstance(algorithm, ScalaProxyBase):
             return super().execute(algorithm)
         else:
             return algorithm.tabularise(self.transform(algorithm))
