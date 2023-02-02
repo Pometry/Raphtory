@@ -90,8 +90,8 @@ def set_java_args(args: str):
     :param args: New arguments to pass
 
     Note this function overrides any existing settings passed in via the environment. 
-    These arguements have no effect after the jvm is started (i.e., after importing the `algorithms`,
-    `api`, or `interop` modules or calling the `local` or `remote` function to start a Raphtory context.)
+    These arguments have no effect after the jvm is started (i.e., after importing the `algorithms`,
+    `api`, or `interop` modules or calling the `local` or `remote` function to start a Raphtory context).
     """
     global java_args
     java_args = args
