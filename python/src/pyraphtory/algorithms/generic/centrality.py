@@ -1,35 +1,35 @@
 """Algorithms for computing centralities"""
 
-
-from pyraphtory.interop import ScalaClassProxy, ScalaClassProxyWithImplicits
+from pyraphtory.api.algorithm import ScalaAlgorithm
+from pyraphtory.interop import ScalaClassProxyWithImplicits
 
 
 _prefix = "com.raphtory.algorithms.generic.centrality."
 
 
-class Assortativity(ScalaClassProxy):
+class Assortativity(ScalaAlgorithm):
     _classname = _prefix + "Assortativity"
 
 
-class AverageNeighbourDegree(ScalaClassProxy):
+class AverageNeighbourDegree(ScalaAlgorithm):
     _classname = _prefix + "AverageNeighbourDegree"
 
 
-class Degree(ScalaClassProxy):
+class Degree(ScalaAlgorithm):
     _classname = _prefix + "Degree"
 
 
-class Distinctiveness(ScalaClassProxyWithImplicits):
+class Distinctiveness(ScalaAlgorithm, ScalaClassProxyWithImplicits):
     _classname = _prefix + "Distinctiveness"
 
 
-class PageRank(ScalaClassProxy):
+class PageRank(ScalaAlgorithm):
     _classname = _prefix + "PageRank"
 
 
-class WeightedDegree(ScalaClassProxyWithImplicits):
+class WeightedDegree(ScalaAlgorithm, ScalaClassProxyWithImplicits):
     _classname = _prefix + "WeightedDegree"
 
 
-class WeightedPageRank(ScalaClassProxyWithImplicits):
+class WeightedPageRank(ScalaAlgorithm, ScalaClassProxyWithImplicits):
     _classname = _prefix + "WeightedPageRank"

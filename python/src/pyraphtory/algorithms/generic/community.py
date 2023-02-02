@@ -1,15 +1,15 @@
 """Algorithms for community detection"""
 
-
-from pyraphtory.interop import ScalaClassProxy, ScalaClassProxyWithImplicits
+from pyraphtory.api.algorithm import ScalaAlgorithm
+from pyraphtory.interop import ScalaClassProxyWithImplicits
 
 
 _prefix = "com.raphtory.algorithms.generic.community."
 
 
-class LPA(ScalaClassProxyWithImplicits):
+class LPA(ScalaAlgorithm, ScalaClassProxyWithImplicits):
     _classname = _prefix + "LPA"
 
 
-class SLPA(ScalaClassProxy):
+class SLPA(ScalaAlgorithm):
     _classname = _prefix + "SLPA"

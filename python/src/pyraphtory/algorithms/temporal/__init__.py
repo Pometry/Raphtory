@@ -1,25 +1,25 @@
 """Algorithms that explore temporal graphs"""
 
 
-from pyraphtory.interop import ScalaClassProxy, ScalaClassProxyWithImplicits
+from pyraphtory.api.algorithm import ScalaAlgorithm
 
 
 _prefix = "com.raphtory.algorithms.temporal."
 
 
-class Ancestors(ScalaClassProxy):
+class Ancestors(ScalaAlgorithm):
     _classname = _prefix + "Ancestors"
 
 
-class Descendants(ScalaClassProxy):
+class Descendants(ScalaAlgorithm):
     _classname = _prefix + "Descendants"
 
 
-class TemporalEdgeList(ScalaClassProxy):
+class TemporalEdgeList(ScalaAlgorithm):
     _classname = _prefix + "TemporalEdgeList"
 
 
-class TemporalNodeList(ScalaClassProxy):
+class TemporalNodeList(ScalaAlgorithm):
     _classname = _prefix + "TemporalNodeList"
 
 

@@ -1,27 +1,27 @@
 """Algorithms for dynamics on graphs"""
 
-
-from pyraphtory.interop import ScalaClassProxyWithImplicits, ScalaClassProxy
+from pyraphtory.api.algorithm import ScalaAlgorithm
+from pyraphtory.interop import ScalaClassProxyWithImplicits
 
 
 _prefix = "com.raphtory.algorithms.generic.dynamic."
 
 
-class DiscreteSI(ScalaClassProxy):
+class DiscreteSI(ScalaAlgorithm):
     _classname = _prefix + "DiscreteSI"
 
 
-class Node2VecWalk(ScalaClassProxy):
+class Node2VecWalk(ScalaAlgorithm):
     _classname = _prefix + "Node2VecWalk"
 
 
-class RandomWalk(ScalaClassProxy):
+class RandomWalk(ScalaAlgorithm):
     _classname = _prefix + "RandomWalk"
 
 
-class WattsCascade(ScalaClassProxyWithImplicits):
+class WattsCascade(ScalaAlgorithm, ScalaClassProxyWithImplicits):
     _classname = _prefix + "WattsCascade"
 
 
-class WeightedRandomWalk(ScalaClassProxyWithImplicits):
+class WeightedRandomWalk(ScalaAlgorithm, ScalaClassProxyWithImplicits):
     _classname = _prefix + "WeightedRandomWalk"

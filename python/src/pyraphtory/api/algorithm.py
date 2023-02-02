@@ -1,10 +1,10 @@
 """Base classes for writing algorithms"""
 from __future__ import annotations
 
-from pyraphtory.interop import GenericScalaProxy
+from pyraphtory.interop import ScalaClassProxy
 
 
-class ScalaAlgorithm(GenericScalaProxy):
+class ScalaAlgorithm(ScalaClassProxy):
     _classname = "com.raphtory.api.analysis.algorithm.BaseAlgorithm"
 
 

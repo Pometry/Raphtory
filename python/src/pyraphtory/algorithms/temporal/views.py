@@ -1,11 +1,11 @@
 """Multilayer views of the graph"""
 
 
-from pyraphtory.interop import ScalaClassProxy
+from pyraphtory.api.algorithm import ScalaAlgorithm
 
 
 _prefix = "com.raphtory.algorithms.temporal.views."
 
 
-class MultilayerView(ScalaClassProxy):
+class MultilayerView(ScalaAlgorithm):
     _classname = _prefix + "MultilayerView"

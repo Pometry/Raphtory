@@ -1,31 +1,31 @@
 """Algorithms for finding motif counts in graphs"""
 
 
-from pyraphtory.interop import ScalaClassProxy
+from pyraphtory.api.algorithm import ScalaAlgorithm
 
 
 _prefix = "com.raphtory.algorithms.generic.motif."
 
 
-class GlobalClusteringCoefficient(ScalaClassProxy):
+class GlobalClusteringCoefficient(ScalaAlgorithm):
     _classname = _prefix + "GlobalClusteringCoefficient"
 
 
-class GlobalTriangleCount(ScalaClassProxy):
+class GlobalTriangleCount(ScalaAlgorithm):
     _classname = _prefix + "GlobalTriangleCount"
 
 
-class LocalClusteringCoefficient(ScalaClassProxy):
+class LocalClusteringCoefficient(ScalaAlgorithm):
     _classname = _prefix + "LocalClusteringCoefficient"
 
 
-class LocalTriangleCount(ScalaClassProxy):
+class LocalTriangleCount(ScalaAlgorithm):
     _classname = _prefix + "LocalTriangleCount"
 
 
-class SquareCount(ScalaClassProxy):
+class SquareCount(ScalaAlgorithm):
     _classname = _prefix + "SquareCount"
 
 
-class ThreeNodeMotifs(ScalaClassProxy):
+class ThreeNodeMotifs(ScalaAlgorithm):
     _classname = _prefix + "ThreeNodeMotifs"

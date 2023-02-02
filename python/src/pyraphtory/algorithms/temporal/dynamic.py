@@ -1,13 +1,13 @@
 """Algorithms for dynamics on temporal graphs"""
 
 
-from pyraphtory.interop import ScalaClassProxyWithImplicits, ScalaClassProxy
+from pyraphtory.api.algorithm import ScalaAlgorithm
 
 
 _prefix = "com.raphtory.algorithms.temporal.dynamic."
 
 
-class GenericTaint(ScalaClassProxy):
+class GenericTaint(ScalaAlgorithm):
     _classname = _prefix + "GenericTaint"
 
 

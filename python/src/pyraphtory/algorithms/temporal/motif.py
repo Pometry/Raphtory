@@ -1,21 +1,21 @@
 """Algorithms for finding motif counts in temporal graphs"""
 
 
-from pyraphtory.interop import ScalaClassProxy
+from pyraphtory.api.algorithm import ScalaAlgorithm
 
 
 _prefix = "com.raphtory.algorithms.temporal.motif."
 
 
-class LocalThreeNodeMotifs(ScalaClassProxy):
+class LocalThreeNodeMotifs(ScalaAlgorithm):
     _classname = _prefix + "LocalThreeNodeMotifs"
 
 
-class MotifAlpha(ScalaClassProxy):
+class MotifAlpha(ScalaAlgorithm):
     _classname = _prefix + "MotifAlpha"
 
 
-class ThreeNodeMotifs(ScalaClassProxy):
+class ThreeNodeMotifs(ScalaAlgorithm):
     _classname = _prefix + "ThreeNodeMotifs"
 
 
