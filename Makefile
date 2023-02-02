@@ -194,7 +194,7 @@ setup-python-docs: python-build-options
 .PHONY: python-test
 python-test:
 	pytest python/build_tests
-	pytest python/tests
+	python -X faulthandler -m pytest python/tests
 	pytest --nbmake -n=auto examples
 	#pytest --nbmake docs/source/Introduction
 	#pytest --nbmake docs/source/Install
