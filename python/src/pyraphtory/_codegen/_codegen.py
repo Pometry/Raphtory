@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from keyword import iskeyword
-from pyraphtory.interop._docstring import convert_docstring
+from pyraphtory._codegen._docstring import convert_docstring
 from collections import UserString, UserDict
 from functools import cached_property
 

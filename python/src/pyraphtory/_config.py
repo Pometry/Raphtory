@@ -74,3 +74,24 @@ def add_classpath(path: str):
     """
     global jars
     jars = join_jar_path(jars, path)
+
+
+def get_java_args():
+    """
+    Return the arguments passed to the jvm at startup
+    """
+    return java_args
+
+
+def set_java_args(args: str):
+    """
+    Set the arguments passed to the jvm at startup. 
+
+    :param args: New arguments to pass
+
+    Note this function overrides any existing settings passed in via the environment. 
+    These arguements have no effect after the jvm is started (i.e., after importing the `algorithms`,
+    `api`, or `interop` modules or calling the `local` or `remote` function to start a Raphtory context.)
+    """
+    global java_args
+    java_args = args

@@ -12,11 +12,11 @@ from functools import cached_property
 from threading import Lock, RLock
 from copy import copy
 from textwrap import indent
-from pyraphtory.interop import _codegen
-from pyraphtory.interop._codegen import jpype_type_converter, LazyStr
+from pyraphtory._codegen import _codegen
+from pyraphtory._codegen._codegen import jpype_type_converter, LazyStr
 from jpype import JObject, JBoolean, JByte, JShort, JInt, JLong, JFloat, JDouble, JString
 
-from pyraphtory.interop._docstring import convert_docstring
+from pyraphtory._codegen._docstring import convert_docstring
 
 
 @jpype_type_converter("Long")
@@ -291,6 +291,14 @@ def _wrap_python_function(fun):
 
 class Logger(object):
     """Wrapper for the java logger"""
+    def _format_message(self, msg: str, *args, **kwargs):
+        try:
+            if args or kwargs:
+                msg = msg.format(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"failed to format {msg=} with {args=} and {kwargs=}, cause: {e}")
+        finally:
+            return msg
 
     @cached_property
     def logger(self):
@@ -313,19 +321,19 @@ class Logger(object):
         return _logger
 
     def error(self, msg: str, *args, **kwargs):
-        self.logger.error(msg.format(*args, **kwargs))
+        self.logger.error(self._format_message(msg, *args, **kwargs))
 
     def warn(self, msg, *args, **kwargs):
-        self.logger.warn(msg.format(*args, **kwargs))
+        self.logger.warn(self._format_message(msg, *args, **kwargs))
 
     def info(self, msg, *args, **kwargs):
-        self.logger.info(msg.format(*args, **kwargs))
+        self.logger.info(self._format_message(msg, *args, **kwargs))
 
     def debug(self, msg, *args, **kwargs):
-        self.logger.debug(msg.format(*args, **kwargs))
+        self.logger.debug(self._format_message(msg, *args, **kwargs))
 
     def trace(self, msg, *args, **kwargs):
-        self.logger.trace(msg.format(*args, **kwargs))
+        self.logger.trace(self._format_message(msg, *args, **kwargs))
 
     def no_op(self, msg, *args, **kwargs):
         pass
