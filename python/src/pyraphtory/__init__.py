@@ -9,4 +9,4 @@ else:
     import importlib_metadata as metadata
 
 __version__ = metadata.version(__package__)
-__all__ = ["local", "remote", "add_classpath"]
+__all__ = ["local", "remote", "add_classpath", "get_java_args", "set_java_args"]
