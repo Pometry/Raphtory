@@ -6,3 +6,4 @@ massif.*
 *.svg
 # this is for pyraphtory
 **/.env/
+*.html

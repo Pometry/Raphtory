@@ -1,245 +1,265 @@
+use crate::tpropvec::TPropVec;
+use crate::Prop;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::ops::Range;
-
-use serde::{Serialize, Deserialize};
-
-use crate::{tcell::TCell, Prop};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub(crate) struct Props {
+    // Mapping between property name and property id
     pub(crate) prop_ids: HashMap<String, usize>,
+
+    // Vector of vertices properties. Each index represents vertex local (physical) id
     pub(crate) vertex_meta: Vec<TPropVec>,
-    // attributes for props
-    pub(crate) edge_meta: Vec<TPropVec>, // table of edges
+
+    // Vector of edge properties. Each "signed" index represents an edge id
+    pub(crate) edge_meta: Vec<TPropVec>,
 }
 
 impl Default for Props {
     fn default() -> Self {
         Self {
             prop_ids: Default::default(),
-            vertex_meta: vec![Default::default()],
-            // remote/local edges are encoded as i64 with negatives as remote and positives as local,
-            // 0 breaks the symetry so we just ignore it
+            vertex_meta: vec![],
+            // Signed indices of "edge_meta" vector are used to denote edge ids. In particular, negative
+            // and positive indices to denote remote and local edges, respectively. Here we have initialized
+            // "edge_meta" with default value of "TPropVec::Empty" occupying the 0th index. The reason
+            // being index "0" can be used to denote neither local nor remote edges. It simply breaks this
+            // symmetry, hence we ignore it in our representation.
             edge_meta: vec![Default::default()],
         }
     }
 }
 
 impl Props {
-    pub fn edges_len(&self) -> usize {
+    pub fn get_next_available_edge_id(&self) -> usize {
         self.edge_meta.len()
     }
 
-    pub fn update_vertex_props(&mut self, index: usize, t: i64, props: &Vec<(String, Prop)>) {
-        for (name, prop) in props {
-            let property_id = match self.prop_ids.get(name) {
-                Some(prop_id) => {
-                    *prop_id
-                }
-                None => {
-                    let id = self.prop_ids.len();
-                    self.prop_ids.insert(name.to_string(), id);
-                    id
-                }
-            };
-            match self.vertex_meta.get_mut(index) {
-                Some(vertex_props) => {
-                    vertex_props.set(property_id, t, prop)
-                }
-                None => {
-                    let prop_cell = TPropVec::from(property_id, t, prop);
-                    self.vertex_meta.insert(index, prop_cell)
-                }
-            }
-        }
-    }
-
-    pub fn update_edge_props(&mut self, src_edge_meta_id: usize, t: i64, props: &Vec<(String, Prop)>) {
-        //FIXME: ensure the self.edge_meta is updated even if the props vector is null
-        for (name, prop) in props {
-            // find where do we slot this property in the temporal vec for each edge
-            let property_id = if let Some(prop_id) = self.prop_ids.get(name) {
-                // there is an existing prop set here
-                *prop_id
-            } else {
-                // first time we see this prop
+    fn get_prop_id(&mut self, name: &str) -> usize {
+        match self.prop_ids.get(name) {
+            Some(prop_id) => *prop_id,
+            None => {
                 let id = self.prop_ids.len();
                 self.prop_ids.insert(name.to_string(), id);
                 id
-            };
+            }
+        }
+    }
 
-            if let Some(edge_props) = self.edge_meta.get_mut(src_edge_meta_id) {
-                edge_props.set(property_id, t, prop)
-            } else {
-                // we don't have metadata for this edge
-                let prop_cell = TPropVec::from(property_id, t, prop);
-                self.edge_meta.insert(src_edge_meta_id, prop_cell)
+    pub fn upsert_vertex_props(&mut self, vertex_id: usize, t: i64, props: &Vec<(String, Prop)>) {
+        if props.is_empty() {
+            match self.vertex_meta.get_mut(vertex_id) {
+                Some(_) => {}
+                None => self.vertex_meta.insert(vertex_id, TPropVec::Empty),
+            }
+            return;
+        }
+
+        for (name, prop) in props {
+            let prop_id = self.get_prop_id(name);
+
+            match self.vertex_meta.get_mut(vertex_id) {
+                Some(vertex_props) => vertex_props.set(prop_id, t, prop),
+                None => self
+                    .vertex_meta
+                    .insert(vertex_id, TPropVec::from(prop_id, t, prop)),
+            }
+        }
+    }
+
+    pub fn upsert_edge_props(&mut self, edge_id: usize, t: i64, props: &Vec<(String, Prop)>) {
+        if edge_id == 0 {
+            panic!("Edge id (= 0) in invalid because it cannot be used to express both remote and local edges")
+        };
+
+        if props.is_empty() {
+            match self.edge_meta.get_mut(edge_id) {
+                Some(_edge_props) => {}
+                None => self.edge_meta.insert(edge_id, TPropVec::Empty),
+            }
+            return;
+        }
+
+        for (name, prop) in props {
+            let prop_id = self.get_prop_id(name);
+
+            match self.edge_meta.get_mut(edge_id) {
+                Some(edge_props) => edge_props.set(prop_id, t, prop),
+                None => self
+                    .edge_meta
+                    .insert(edge_id, TPropVec::from(prop_id, t, prop)),
             }
         }
     }
 }
 
-#[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
-pub(crate) enum TPropVec {
-    #[default] Empty,
-    One(usize, TProp),
-    Props(Vec<TProp>),
-}
+#[cfg(test)]
+mod props_tests {
+    use super::*;
 
-impl TPropVec {
+    #[test]
+    fn zero_index_of_edge_meta_is_preassgined_default_value() {
+        let Props {
+            prop_ids: _,
+            vertex_meta: _,
+            edge_meta,
+        } = Props::default();
 
-    pub(crate) fn from(i: usize, t: i64, p: &Prop) -> Self {
-        TPropVec::One(i, TProp::from(t, p))
+        assert_eq!(edge_meta, vec![TPropVec::Empty]);
     }
 
-    pub(crate) fn set(&mut self, i: usize, t: i64, p: &Prop) {
-        match self {
-            TPropVec::Empty => {
-                *self = Self::from(i, t, p);
-            },
-            TPropVec::One(i0, p0) => {
-                if i == *i0 {
-                    p0.set(t, p);
-                } else {
-                    let mut props = vec![TProp::Empty; usize::max(i, *i0) + 1];
-                    props[i] = TProp::from(t, p);
-                    props[*i0] = p0.clone();
-                    *self = TPropVec::Props(props);
-                }
-            }
-            TPropVec::Props(props) => {
-                if props.len() <= i {
-                    props.resize(i + 1, TProp::Empty)
-                }
-                props[i].set(t, p);
-            }
-        }
+    #[test]
+    fn return_valid_next_available_edge_id() {
+        let props = Props::default();
+
+        // 0th index is not a valid edge id because it can't be used to correctly denote
+        // both local as well as remote edge id. Hence edge ids must always start with 1.
+        assert_ne!(props.get_next_available_edge_id(), 0);
+        assert_eq!(props.get_next_available_edge_id(), 1);
     }
 
-    pub(crate) fn iter(&self, i: usize) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
-        match self {
-            TPropVec::One(i0, p) if *i0 == i => p.iter(),
-            TPropVec::Props(props) if props.len() > i => props[i].iter(),
-            _ => Box::new(std::iter::empty()),
-        }
+    #[test]
+    #[should_panic]
+    fn assigning_edge_id_as_0_should_fail() {
+        let mut props = Props::default();
+        props.upsert_edge_props(0, 1, &vec![]);
     }
 
-    pub(crate) fn iter_window(
-        &self,
-        i: usize,
-        r: Range<i64>,
-    ) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
-        match self {
-            TPropVec::One(i0, p) if *i0 == i => p.iter_window(r),
-            TPropVec::Props(props) if props.len() >= i => props[i].iter_window(r),
-            _ => Box::new(std::iter::empty()),
-        }
-    }
-}
-#[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
-pub(crate) enum TProp {
-    #[default]
-    Empty,
-    Str(TCell<String>),
-    I32(TCell<i32>),
-    I64(TCell<i64>),
-    U32(TCell<u32>),
-    U64(TCell<u64>),
-    F32(TCell<f32>),
-    F64(TCell<f64>),
-}
+    #[test]
+    fn return_prop_id_if_prop_name_found() {
+        let mut props = Props::default();
+        props.prop_ids.insert(String::from("key1"), 0);
+        props.prop_ids.insert(String::from("key2"), 1);
 
-impl TProp {
-    pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
-        match self {
-            TProp::Str(cell) => Box::new(cell.iter_t().map(|(t, s)| (t, Prop::Str(s.to_string())))),
-            TProp::I32(cell) => Box::new(cell.iter_t().map(|(t, n)| (t, Prop::I32(*n)))),
-            TProp::I64(cell) => Box::new(cell.iter_t().map(|(t, n)| (t, Prop::I64(*n)))),
-            TProp::U32(cell) => Box::new(cell.iter_t().map(|(t, n)| (t, Prop::U32(*n)))),
-            TProp::U64(cell) => Box::new(cell.iter_t().map(|(t, n)| (t, Prop::U64(*n)))),
-            TProp::F32(cell) => Box::new(cell.iter_t().map(|(t, n)| (t, Prop::F32(*n)))),
-            TProp::F64(cell) => Box::new(cell.iter_t().map(|(t, n)| (t, Prop::F64(*n)))),
-            _ => todo!(),
-        }
+        assert_eq!(props.get_prop_id("key2"), 1);
     }
 
-    pub(crate) fn iter_window(&self, r: Range<i64>) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
-        match self {
-            TProp::Str(cell) => Box::new(
-                cell.iter_window_t(r)
-                    .map(|(t, s)| (t, Prop::Str(s.to_string()))),
-            ),
-            TProp::I32(cell) => Box::new(cell.iter_window_t(r).map(|(t, n)| (t, Prop::I32(*n)))),
-            TProp::I64(cell) => Box::new(cell.iter_window_t(r).map(|(t, n)| (t, Prop::I64(*n)))),
-            TProp::U32(cell) => Box::new(cell.iter_window_t(r).map(|(t, n)| (t, Prop::U32(*n)))),
-            TProp::U64(cell) => Box::new(cell.iter_window_t(r).map(|(t, n)| (t, Prop::U64(*n)))),
-            TProp::F32(cell) => Box::new(cell.iter_window_t(r).map(|(t, n)| (t, Prop::F32(*n)))),
-            TProp::F64(cell) => Box::new(cell.iter_window_t(r).map(|(t, n)| (t, Prop::F64(*n)))),
-            _ => todo!(),
-        }
+    #[test]
+    fn return_new_prop_id_if_prop_name_not_found() {
+        let mut props = Props::default();
+        assert_eq!(props.get_prop_id("key1"), 0);
+        assert_eq!(props.get_prop_id("key2"), 1);
     }
 
-    pub(crate) fn from(t: i64, p: &Prop) -> Self {
-        match p {
-            Prop::Str(a) => TProp::Str(TCell::new(t, a.to_string())),
-            Prop::I32(a) => TProp::I32(TCell::new(t, *a)),
-            Prop::I64(a) => TProp::I64(TCell::new(t, *a)),
-            Prop::U32(a) => TProp::U32(TCell::new(t, *a)),
-            Prop::U64(a) => TProp::U64(TCell::new(t, *a)),
-            Prop::F32(a) => TProp::F32(TCell::new(t, *a)),
-            Prop::F64(a) => TProp::F64(TCell::new(t, *a)),
-        }
+    #[test]
+    fn insert_default_value_against_no_props_vertex_upsert() {
+        let mut props = Props::default();
+        props.upsert_vertex_props(0, 1, &vec![]);
+
+        assert_eq!(props.vertex_meta.get(0).unwrap(), &TPropVec::Empty)
     }
 
-    fn is_empty(&self) -> bool {
-        match self {
-            TProp::Empty => true,
-            _ => false,
-        }
+    #[test]
+    fn insert_new_vertex_prop() {
+        let mut props = Props::default();
+        props.upsert_vertex_props(0, 1, &vec![("bla".to_string(), Prop::I32(10))]);
+
+        let prop_id = props.get_prop_id("bla");
+        assert_eq!(
+            props
+                .vertex_meta
+                .get(0)
+                .unwrap()
+                .iter(prop_id)
+                .collect::<Vec<_>>(),
+            vec![(&1, Prop::I32(10))]
+        )
     }
 
-    pub(crate) fn set(&mut self, t: i64, p: &Prop) {
-        if self.is_empty() {
-            *self = TProp::from(t, p);
-        } else {
-            match self {
-                TProp::Empty => todo!(),
-                TProp::Str(cell) => {
-                    if let Prop::Str(a) = p {
-                        cell.set(t, a.to_string());
-                    }
-                }
-                TProp::I32(cell) => {
-                    if let Prop::I32(a) = p {
-                        cell.set(t, *a);
-                    }
-                }
-                TProp::I64(cell) => {
-                    if let Prop::I64(a) = p {
-                        cell.set(t, *a);
-                    }
-                }
-                TProp::U32(cell) => {
-                    if let Prop::U32(a) = p {
-                        cell.set(t, *a);
-                    }
-                }
-                TProp::U64(cell) => {
-                    if let Prop::U64(a) = p {
-                        cell.set(t, *a);
-                    }
-                }
-                TProp::F32(cell) => {
-                    if let Prop::F32(a) = p {
-                        cell.set(t, *a);
-                    }
-                }
-                TProp::F64(cell) => {
-                    if let Prop::F64(a) = p {
-                        cell.set(t, *a);
-                    }
-                }
-            }
-        }
+    #[test]
+    fn update_existing_vertex_prop() {
+        let mut props = Props::default();
+        props.upsert_vertex_props(0, 1, &vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_vertex_props(0, 2, &vec![("bla".to_string(), Prop::I32(10))]);
+
+        let prop_id = props.get_prop_id("bla");
+        assert_eq!(
+            props
+                .vertex_meta
+                .get(0)
+                .unwrap()
+                .iter(prop_id)
+                .collect::<Vec<_>>(),
+            vec![(&1, Prop::I32(10)), (&2, Prop::I32(10))]
+        )
+    }
+
+    #[test]
+    fn new_update_with_the_same_time_to_a_vertex_prop_is_ignored() {
+        let mut props = Props::default();
+        props.upsert_vertex_props(0, 1, &vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_vertex_props(0, 1, &vec![("bla".to_string(), Prop::I32(20))]);
+
+        let prop_id = props.get_prop_id("bla");
+        assert_eq!(
+            props
+                .vertex_meta
+                .get(0)
+                .unwrap()
+                .iter(prop_id)
+                .collect::<Vec<_>>(),
+            vec![(&1, Prop::I32(10))]
+        )
+    }
+
+    #[test]
+    fn insert_default_value_against_no_props_edge_upsert() {
+        let mut props = Props::default();
+        props.upsert_edge_props(1, 1, &vec![]);
+
+        assert_eq!(props.edge_meta.get(1).unwrap(), &TPropVec::Empty)
+    }
+
+    #[test]
+    fn insert_new_edge_prop() {
+        let mut props = Props::default();
+        props.upsert_edge_props(1, 1, &vec![("bla".to_string(), Prop::I32(10))]);
+
+        let prop_id = props.get_prop_id("bla");
+        assert_eq!(
+            props
+                .edge_meta
+                .get(1)
+                .unwrap()
+                .iter(prop_id)
+                .collect::<Vec<_>>(),
+            vec![(&1, Prop::I32(10))]
+        )
+    }
+
+    #[test]
+    fn update_existing_edge_prop() {
+        let mut props = Props::default();
+        props.upsert_edge_props(1, 1, &vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_edge_props(1, 2, &vec![("bla".to_string(), Prop::I32(10))]);
+
+        let prop_id = props.get_prop_id("bla");
+        assert_eq!(
+            props
+                .edge_meta
+                .get(1)
+                .unwrap()
+                .iter(prop_id)
+                .collect::<Vec<_>>(),
+            vec![(&1, Prop::I32(10)), (&2, Prop::I32(10))]
+        )
+    }
+
+    #[test]
+    fn new_update_with_the_same_time_to_a_edge_prop_is_ignored() {
+        let mut props = Props::default();
+        props.upsert_edge_props(1, 1, &vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_edge_props(1, 1, &vec![("bla".to_string(), Prop::I32(20))]);
+
+        let prop_id = props.get_prop_id("bla");
+        assert_eq!(
+            props
+                .edge_meta
+                .get(1)
+                .unwrap()
+                .iter(prop_id)
+                .collect::<Vec<_>>(),
+            vec![(&1, Prop::I32(10))]
+        )
     }
 }

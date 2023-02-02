@@ -1,5 +1,5 @@
 use parking_lot::RwLock;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -108,10 +108,9 @@ impl TemporalGraphPart {
         self.read_shard(|tg| tg.contains_vertex_w(t_start..t_end, v))
     }
 
-
     // load GraphDB from file using bincode
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
-    // use BufReader for better performance
+        // use BufReader for better performance
         let f = std::fs::File::open(path).unwrap();
         let mut reader = std::io::BufReader::new(f);
         bincode::deserialize_from(&mut reader)
