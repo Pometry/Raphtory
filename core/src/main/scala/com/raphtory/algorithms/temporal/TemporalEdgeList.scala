@@ -48,9 +48,11 @@ class TemporalEdgeList(
             (neighbourMap(edge.dst), edge.timestamp, propertyValues)
           }
           .unzip3
+
         vertex.setState("neighbourName", neighbours)
         vertex.setState("neighbourTimestamp", timestamps)
-        properties zip propertyRows.transpose foreach {
+        val propertyColumns = if (propertyRows.nonEmpty) propertyRows.transpose else properties.map(_ => Seq())
+        properties zip propertyColumns foreach {
           case (columnName, propertyColumn) => vertex.setState(columnName, propertyColumn)
         }
       }
