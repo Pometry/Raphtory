@@ -2,30 +2,31 @@
 
 
 from pyraphtory.api.algorithm import ScalaAlgorithm
+from pyraphtory.interop import ScalaClassProxy
 
 
 _prefix = "com.raphtory.algorithms.generic.motif."
 
 
-class GlobalClusteringCoefficient(ScalaAlgorithm):
+class GlobalClusteringCoefficient(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "GlobalClusteringCoefficient"
 
 
-class GlobalTriangleCount(ScalaAlgorithm):
+class GlobalTriangleCount(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "GlobalTriangleCount"
 
 
-class LocalClusteringCoefficient(ScalaAlgorithm):
+class LocalClusteringCoefficient(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "LocalClusteringCoefficient"
 
 
-class LocalTriangleCount(ScalaAlgorithm):
+class LocalTriangleCount(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "LocalTriangleCount"
 
 
-class SquareCount(ScalaAlgorithm):
+class SquareCount(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "SquareCount"
 
 
-class ThreeNodeMotifs(ScalaAlgorithm):
+class ThreeNodeMotifs(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "ThreeNodeMotifs"

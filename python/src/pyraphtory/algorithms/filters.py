@@ -1,20 +1,21 @@
 """Algorithms for filtering vertices and edges"""
 
 from pyraphtory.api.algorithm import ScalaAlgorithm
+from pyraphtory.interop import ScalaClassProxy
 from pyraphtory.interop import ScalaClassProxyWithImplicits
 
 
 _prefix = "com.raphtory.algorithms.filters."
 
-class DisparityFilter(ScalaAlgorithm):
+class DisparityFilter(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "DisparityFilter"
 
 
-class EdgeFilter(ScalaAlgorithm):
+class EdgeFilter(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "EdgeFilter"
 
 
-class EdgeFilterGraphState(ScalaAlgorithm):
+class EdgeFilterGraphState(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "EdgeFilterGraphState"
 
 
@@ -22,23 +23,23 @@ class EdgeQuantileFilter(ScalaAlgorithm, ScalaClassProxyWithImplicits):
     _classname = _prefix + "EdgeQuantileFilter"
 
 
-class LargestConnectedComponentFilter(ScalaAlgorithm):
+class LargestConnectedComponentFilter(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "LargestConnectedComponentFilter"
 
 
-class UniformEdgeSample(ScalaAlgorithm):
+class UniformEdgeSample(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "UniformEdgeSample"
 
 
-class UniformVertexSample(ScalaAlgorithm):
+class UniformVertexSample(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "UniformVertexSample"
 
 
-class VertexFilter(ScalaAlgorithm):
+class VertexFilter(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "VertexFilter"
 
 
-class VertexFilterGraphState(ScalaAlgorithm):
+class VertexFilterGraphState(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "VertexFilterGraphState"
 
 

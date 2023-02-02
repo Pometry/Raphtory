@@ -2,6 +2,7 @@
 
 
 from pyraphtory.api.algorithm import ScalaAlgorithm
+from pyraphtory.interop import ScalaClassProxy
 from pyraphtory.interop import ScalaClassProxyWithImplicits
 
 

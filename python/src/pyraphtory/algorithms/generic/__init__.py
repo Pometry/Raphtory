@@ -1,48 +1,49 @@
 """Generic algorithms that work for both multilayer and reduced views of the graph"""
 
 from pyraphtory.api.algorithm import ScalaAlgorithm
+from pyraphtory.interop import ScalaClassProxy
 from pyraphtory.interop import ScalaClassProxyWithImplicits
 
 _prefix = "com.raphtory.algorithms.generic."
 
 
-class AdjPlus(ScalaAlgorithm):
+class AdjPlus(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "AdjPlus"
 
 
-class BinaryDiffusion(ScalaAlgorithm):
+class BinaryDiffusion(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "BinaryDiffusion"
 
 
-class CBOD(ScalaAlgorithm):
+class CBOD(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "CBOD"
 
 
-class ConnectedComponents(ScalaAlgorithm):
+class ConnectedComponents(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "ConnectedComponents"
 
 
-class Coreness(ScalaAlgorithm):
+class Coreness(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "Coreness"
 
 
-class EdgeList(ScalaAlgorithm):
+class EdgeList(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "EdgeList"
 
 
-class GraphState(ScalaAlgorithm):
+class GraphState(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "GraphState"
 
 
-class HITS(ScalaAlgorithm):
+class HITS(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "HITS"
 
 
-class KCore(ScalaAlgorithm):
+class KCore(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "KCore"
 
 
-class LargestConnectedComponent(ScalaAlgorithm):
+class LargestConnectedComponent(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "LargestConnectedComponent"
 
 
@@ -50,27 +51,27 @@ class MaxFlow(ScalaAlgorithm, ScalaClassProxyWithImplicits):
     _classname = _prefix + "MaxFlow"
 
 
-class NeighbourNames(ScalaAlgorithm):
+class NeighbourNames(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "NeighbourNames"
 
 
-class NodeEdgeCount(ScalaAlgorithm):
+class NodeEdgeCount(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "NodeEdgeCount"
 
 
-class NodeInformation(ScalaAlgorithm):
+class NodeInformation(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "NodeInformation"
 
 
-class NodeList(ScalaAlgorithm):
+class NodeList(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "NodeList"
 
 
-class TaintTrackingWithHistory(ScalaAlgorithm):
+class TaintTrackingWithHistory(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "TaintTrackingWithHistory"
 
 
-class TwoHopPaths(ScalaAlgorithm):
+class TwoHopPaths(ScalaAlgorithm, ScalaClassProxy):
     _classname = _prefix + "TwoHopPaths"
 
 
