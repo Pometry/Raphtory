@@ -92,15 +92,15 @@ sbt-build-clean:
 	rm -rf $(PYRAPHTORY_IVYBIN)/
 
 
+.PHONY: build-docs-notebooks
+build-docs-notebooks:
+	cd docs && pytest --nbmake --overwrite
+
+
 .PHONY: docs
-docs: version python-build
-	pip install -q myst-parser sphinx-rtd-theme sphinx docutils sphinx-tabs nbsphinx
+docs: version
 	cd docs && make html
 
-
-.PHONY: pyraphtory-local
-pyraphtory-local: version
-	java -cp core/target/scala-2.13/*.jar com.raphtory.python.PyRaphtory --input=$(INPUT) --py=$(PYFILE) --builder=$(BUILDER) --mode=$(MODE)
 
 .PHONY: docker-build
 docker-build: version
@@ -128,7 +128,7 @@ run-local-cluster: version
 	cp python/pyraphtory/sample.py $(DOCKER_TMP)/builder/
 	VERSION=$$(cat version) docker-compose -f $(DOCKER_RAP)/docker-compose.yml up
 
-.PHONY: run-local-cluster
+.PHONY: clean-local-cluster
 clean-local-cluster:
 	docker-compose -f $(DOCKER_RAP)/docker-compose.yml down --remove-orphans
 	rm -Rf $(DOCKER_TMP)/*
