@@ -1,10 +1,9 @@
 use std::fmt::Debug;
 
 use itertools::Itertools;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 static MERGE_SORT_SIZE: usize = 64;
-
 
 #[repr(transparent)]
 #[derive(Debug, Serialize, Deserialize)]

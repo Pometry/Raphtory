@@ -2,7 +2,7 @@ use std::borrow::{Borrow, BorrowMut};
 
 use itertools::Itertools;
 use roaring::RoaringTreemap;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::lsm::LSMSet;
 

@@ -7,7 +7,7 @@ use std::{
 
 use itertools::Itertools;
 use replace_with::replace_with_or_abort;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::{bitset::BitSet, sorted_vec_map::SVM};
 
@@ -26,8 +26,8 @@ pub(crate) enum TAdjSet<V: Ord + TryInto<usize> + std::hash::Hash, Time: Copy + 
     Empty,
     One(Time, V, AdjEdge),
     Small {
-        vs: Vec<V>, // the neighbours
-        edges: Vec<AdjEdge>, // edge metadata
+        vs: Vec<V>,                 // the neighbours
+        edges: Vec<AdjEdge>,        // edge metadata
         t_index: SVM<Time, BitSet>, // index from t -> [v] where v is the value of vs and edges
     },
     Large {
@@ -221,11 +221,13 @@ impl<V: Ord + Into<usize> + From<usize> + Copy + Hash, Time: Copy + Ord> TAdjSet
             TAdjSet::Large { vs, .. } => vs.get(&v).map(|e| *e),
         }
     }
-
-
 }
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct Edge<V : Clone + PartialEq + Eq + PartialOrd + Ord>{v: V, edge_meta: AdjEdge, t: Option<u64>}
+pub(crate) struct Edge<V: Clone + PartialEq + Eq + PartialOrd + Ord> {
+    v: V,
+    edge_meta: AdjEdge,
+    t: Option<u64>,
+}
 
 #[repr(transparent)]
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -264,8 +266,8 @@ impl AdjEdge {
 
 #[cfg(test)]
 mod tadjset_tests {
-    use crate::adj::Adj;
     use super::*;
+    use crate::adj::Adj;
 
     #[test]
     fn insert() {
