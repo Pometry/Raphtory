@@ -344,7 +344,7 @@ def convert_docstring(docs):
                 cleaned = md_doc_converter.parse(docs)
             else:
                 cleaned = doc_converter.parse(docs)
-            return cleaned
+            return cleaned.rstrip("\n")
         except ParseError as e:
             print(e)
             return docs
