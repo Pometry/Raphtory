@@ -22,7 +22,7 @@ ThisBuild / scmInfo := Some(
 ThisBuild / developers := List(
         Developer(
                 id = "miratepuffin",
-                name = "Ben Steer",
+                name = "Ben Steeri ",
                 email = "ben.steer@raphtory.com",
                 url = url("https://twitter.com/miratepuffin")
         )
