@@ -100,6 +100,14 @@ except (ImportError, ModuleNotFoundError):
 
     check_raphtory_logging_env()
 
+    # see https://jpype.readthedocs.io/en/latest/userguide.html#errors-reported-by-python-fault-handler
+    try:
+        import faulthandler
+        faulthandler.enable()
+        faulthandler.disable()
+    except:
+        pass
+
     jpype.startJVM(_config.java_args, classpath=_config.jars.split(":"))
     from pyraphtory.interop._jpypeinterpreter import JPypeInterpreter, _globals
 
