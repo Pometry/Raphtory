@@ -403,7 +403,7 @@ lazy val assemblySettings = assembly / assemblyMergeStrategy := {
   case _                                                                                  => MergeStrategy.first
 }
 
-Test / parallelExecution := true
+Test / parallelExecution := false
 
 Global / concurrentRestrictions := Seq(
         Tags.limit(Tags.Test, 1)
