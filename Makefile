@@ -92,9 +92,14 @@ sbt-build-clean:
 	rm -rf $(PYRAPHTORY_IVYBIN)/
 
 
+.PHONY: download-lotr
+download-lotr:
+	curl -o /tmp/lotr.csv https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv
+
+
 .PHONY: build-docs-notebooks
-build-docs-notebooks:
-	cd docs && pytest --nbmake --nbmake-timeout=3000 --overwrite
+build-docs-notebooks: download-lotr
+	cd docs && pytest -n=auto --nbmake --nbmake-timeout=3000 --overwrite
 
 
 .PHONY: docs
@@ -191,11 +196,19 @@ setup-python-docs: python-build-options
 	python -m pip install $(options) ".[docs]"
 
 
-.PHONY: python-test
-python-test:
+.PHONY: pyraphtory-test
+pyraphtory-test:
 	pytest python/build_tests
-	python -X faulthandler -m pytest python/tests
-	pytest --nbmake -n=auto examples
-	pytest --nbmake --nbmake-timeout=3000 docs/source/Introduction
-	pytest --nbmake docs/source/Install
+	pytest python/tests
+
+
+.PHONY: notebook-test
+notebook-test: download-lotr
+	pytest --nbmake -n=auto --nbmake-timeout=1200 docs/source/Introduction docs/source/Install examples
+
+
+.PHONY: python-test
+python-test: pyraphtory-test notebook-test
+
+
 
