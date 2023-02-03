@@ -24,12 +24,10 @@ class ArrowPartitionConfig(
     cfg._arrowDir = arrowDir.toString
     cfg._raphtoryPartitionId = partitionId
     cfg._nRaphtoryPartitions = nPartitions
-    cfg._nLocalEntityIdMaps = 2
-    cfg._localEntityIdMapSize = 2
-//    vertexPartitionSize.foldLeft(cfg) { (cfg, n) => cfg._vertexPartitionSize = n; cfg }
-//    edgePartitionSize.foldLeft(cfg) { (cfg, n) => cfg._edgePartitionSize = n; cfg }
-    cfg._vertexPartitionSize = 32
-    cfg._edgePartitionSize = 32
+    cfg._nLocalEntityIdMaps = nLocalEntityIdMaps
+    cfg._localEntityIdMapSize = nLocalEntityIdMaps
+    vertexPartitionSize.foldLeft(cfg) { (cfg, n) => cfg._vertexPartitionSize = n; cfg }
+    edgePartitionSize.foldLeft(cfg) { (cfg, n) => cfg._edgePartitionSize = n; cfg }
     cfg._syncIDMap = true
 
     cfg
