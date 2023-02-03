@@ -95,6 +95,8 @@ try:
     _scala = findClass('com.raphtory.internals.management.PythonInterop')
 except (ImportError, ModuleNotFoundError):
     import jpype
+    import jpype.config
+    jpype.config.onexit = False
     from jpype import JClass
     from pyraphtory import _config
 
