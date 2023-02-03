@@ -192,7 +192,7 @@ class ArrowStorageSuite extends munit.FunSuite {
             None
     )
 
-    par.flush
+    par.flush()
     val vs         = par.vertices.toList
     assertEquals(vs.size, 2)
     val names      = par.vertices.flatMap(v => v.field[String]("name").get.map(name => v.getGlobalId -> name)).toSet
@@ -203,9 +203,10 @@ class ArrowStorageSuite extends munit.FunSuite {
         v.outgoingEdges.flatMap(e => e.field[String]("name").get.map(name => e.getDstVertex -> name)).toList
       case v if v.field[String]("name").get.contains("Alice") =>
         v.incomingEdges.flatMap(e => e.field[String]("name").get.map(name => e.getSrcVertex -> name)).toList
-    }
+    }.sortBy(_._1)
 
-    assertEquals(neighbours, List(32L -> "friends", 0L -> "friends")) // local ids are returned
+    val expected = par.vertices.map(v => v.getLocalId -> "friends").toList.sortBy(_._1)
+    assertEquals(neighbours, expected) // local ids are returned
 
     // add the edge again with a different time and different payload
     par.addLocalEdge(
@@ -219,7 +220,7 @@ class ArrowStorageSuite extends munit.FunSuite {
             ),
             None
     )
-    par.flush
+    par.flush()
     val edges = par.vertices.flatMap(v => v.outgoingEdges.flatMap(e => e.prop[Long]("weight").list.toList)).map(_._1).toSet
     assertEquals(edges, Set(7L, 9L))
 
