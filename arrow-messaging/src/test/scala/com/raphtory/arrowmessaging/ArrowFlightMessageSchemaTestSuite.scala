@@ -145,7 +145,7 @@ class ArrowFlightMessageSchemaTestSuite extends AnyFunSuite {
   test(
           "Get type derivative throws exception when encoded message is fetched for a row for which there is no values set"
   ) {
-    assertThrows[IllegalStateException] {
+    assertThrows[NegativeArraySizeException] {
       schema.getMessageAtRow(1)
     }
   }

@@ -42,8 +42,8 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   val partitionsPerServer: Int = conf.getInt("raphtory.partitions.countPerServer")
   val totalPartitions: Int     = partitionServers * partitionsPerServer
 
-  private val nWorkers               = Runtime.getRuntime.availableProcessors()
-  private val queueSize              = 8192
+  private val nWorkers               = Math.min(Runtime.getRuntime.availableProcessors(), 8) // TODO should be configurable
+  private val queueSize              = 8192 // TODO should be configurable
   private val workers: Array[Worker] = Array.tabulate(nWorkers)(i => new Worker(i, par, conf))
 
   private val disruptors: Array[Disruptor[QueuePayload]] = Array.tabulate(nWorkers) { i =>
