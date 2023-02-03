@@ -41,15 +41,12 @@ class EdgeList(
     graph
       .step { vertex =>
         vertex.setState("name", vertex.name())
-        val neighbourMap               = vertex.getState[Map[vertex.IDType, String]]("neighbourNames")
-        val (neighbours, propertyRows) = vertex.outEdges.toSeq.map { edge =>
-          val propertyValues = properties.map(key => edge.getPropertyOrElse(key, defaults.getOrElse(key, None)))
-          (neighbourMap(edge.dst), propertyValues)
-        }.unzip
-        vertex.setState("neighbourName", neighbours)
-        val propertyColumns            = if (propertyRows.nonEmpty) propertyRows.transpose else properties.map(_ => Seq())
-        properties zip propertyColumns foreach {
-          case (columnName, propertyColumn) => vertex.setState(columnName, propertyColumn)
+        val outEdges     = vertex.outEdges.toSeq
+        val neighbourMap = vertex.getState[Map[vertex.IDType, String]]("neighbourNames")
+        vertex.setState("neighbourName", outEdges.map(edge => neighbourMap(edge.dst)))
+        properties foreach { property =>
+          val values = outEdges.map(edge => edge.getPropertyOrElse(property, defaults.getOrElse(property, None)))
+          vertex.setState(property, values)
         }
       }
       .select("name" +: "neighbourName" +: properties: _*)
