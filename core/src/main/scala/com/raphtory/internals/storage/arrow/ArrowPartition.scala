@@ -1,30 +1,19 @@
 package com.raphtory.internals.storage.arrow
 
-import com.lmax.disruptor.BlockingWaitStrategy
 import com.lmax.disruptor.BusySpinWaitStrategy
-import com.lmax.disruptor.SleepingWaitStrategy
-import com.lmax.disruptor.YieldingWaitStrategy
-import com.lmax.disruptor.dsl.Disruptor
-import com.lmax.disruptor.dsl.ProducerType
+import com.lmax.disruptor.dsl.{Disruptor, ProducerType}
 import com.lmax.disruptor.util.DaemonThreadFactory
 import com.raphtory.api.analysis.visitor.HistoricEvent
 import com.raphtory.api.input._
 import com.raphtory.arrowcore.implementation._
-import com.raphtory.arrowcore.model.Edge
-import com.raphtory.arrowcore.model.Entity
-import com.raphtory.arrowcore.model.Vertex
+import com.raphtory.arrowcore.model.{Edge, Vertex}
 import com.raphtory.internals.communication.SchemaProviderInstances.genericSchemaProvider
-import com.raphtory.internals.graph.GraphAlteration
-import com.raphtory.internals.graph.GraphPartition
-import com.raphtory.internals.graph.LensInterface
+import com.raphtory.internals.graph.{GraphAlteration, GraphPartition, LensInterface}
 import com.raphtory.internals.storage.pojograph.entities.external.vertex.PojoExVertex
 import com.typesafe.config.Config
 import net.openhft.hashing.LongHashFunction
 
-import java.lang
-import scala.collection.AbstractView
-import scala.collection.View
-import scala.collection.mutable
+import scala.collection.{AbstractView, View, mutable}
 
 class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition: Int, conf: Config)
         extends GraphPartition(graphID, partition, conf)
