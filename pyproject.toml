@@ -49,8 +49,13 @@ raphtory-classpath = "pyraphtory._cli:classpath"
 raphtory-version = "pyraphtory._cli:version"
 
 [project.optional-dependencies]
-test = ["pytest>=7.1.3", "nbmake>=1.3.5,<2", "pytest-xdist>=3.1.0,<4"]
-distributed = ["pemja>=0.2.6,<0.3"]
+test = [
+    "pytest>=7.1.3",
+    "nbmake>=1.3.5,<2",
+    "pytest-xdist>=3.1.0,<4",
+    "matplotlib"
+]
+distributed = ["pemja>=0.2.6,<0.3",]
 docs = [
     "myst-parser",
     "sphinx-rtd-theme",
@@ -59,7 +64,8 @@ docs = [
     "docutils>=0.17.1",
     "sphinx-tabs",
     "nbsphinx",
-    "ipykernel"
+    "ipykernel",
+    "matplotlib"
 ]
 
 [tool.setuptools.dynamic]
