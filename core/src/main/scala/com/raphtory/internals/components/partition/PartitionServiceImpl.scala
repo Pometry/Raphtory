@@ -172,7 +172,7 @@ class ArrowPartitionServerImpl[F[_]: Async, V: VertexSchema, E: EdgeSchema](
                 )
         )
       )
-    }(_ => Async[F].unit)
+    }(part => Async[F].blocking(part.close()))
 }
 
 object PartitionServiceImpl {

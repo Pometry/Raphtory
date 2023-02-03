@@ -42,8 +42,8 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   val partitionsPerServer: Int = conf.getInt("raphtory.partitions.countPerServer")
   val totalPartitions: Int     = partitionServers * partitionsPerServer
 
-  private val nWorkers               = 8
-  private val queueSize              = 8192 * 16
+  private val nWorkers               = Runtime.getRuntime.availableProcessors()
+  private val queueSize              = 8192
   private val workers: Array[Worker] = Array.tabulate(nWorkers)(i => new Worker(i, par, conf))
 
   private val disruptors: Array[Disruptor[QueuePayload]] = Array.tabulate(nWorkers) { i =>
@@ -195,7 +195,12 @@ class ArrowPartition(graphID: String, val par: RaphtoryArrowPartition, partition
   override def getVertices(graphPerspective: LensInterface, start: Long, end: Long): mutable.Map[Long, PojoExVertex] =
     ???
 
-  override def close(): Unit = par.close()
+  override def close(): Unit = {
+    for (d <- disruptors) {
+        d.shutdown()
+    }
+    par.close()
+  }
 }
 
 object ArrowPartition {
