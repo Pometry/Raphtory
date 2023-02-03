@@ -99,7 +99,7 @@ download-lotr:
 
 .PHONY: build-docs-notebooks
 build-docs-notebooks: download-lotr
-	cd docs && pytest --nbmake --nbmake-timeout=3000 --overwrite
+	rm -f /tmp/stackex.csv && cd docs && pytest --nbmake --nbmake-timeout=3000 --overwrite
 
 
 .PHONY: docs
@@ -204,7 +204,7 @@ pyraphtory-test:
 
 .PHONY: notebook-test
 notebook-test: download-lotr
-	pytest --nbmake --nbmake-timeout=1200 docs/source/Introduction docs/source/Install examples
+	cp docs/source/Introduction/stackex_truncated.csv /tmp/stackex.csv && pytest --nbmake --nbmake-timeout=1200 docs/source/Introduction docs/source/Install examples
 
 
 .PHONY: python-test
