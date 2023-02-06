@@ -196,7 +196,7 @@ class ShapelessArrowTestSuite extends AnyFunSuite with BeforeAndAfterAll {
   test(
           "Get type derivative throws exception when encoded message is fetched for a row for which there is no values set"
   ) {
-    assertThrows[NegativeArraySizeException] {
+    assertThrows[IllegalStateException] {
       Get[MixArrowFlightMessageVectors, MixArrowFlightMessage].invokeGet(vectors, 2)
     }
   }
