@@ -61,4 +61,11 @@ impl Adj {
             Adj::List { logical, .. } => logical,
         }
     }
+
+    pub(crate) fn out_edges_len(&self) -> usize {
+        match self {
+            Adj::Solo(_) => 0,
+            Adj::List{ out, remote_out, .. } => out.len() + remote_out.len()
+        }
+    }
 }

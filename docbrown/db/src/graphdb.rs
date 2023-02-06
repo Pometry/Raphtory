@@ -27,13 +27,9 @@ enum Msg {
 
 impl GraphDB {
     pub fn new(nr_shards: usize) -> Self {
-        let mut v = vec![];
-        for _ in 0..nr_shards {
-            v.push(TemporalGraphPart::default())
-        }
         GraphDB {
             nr_shards,
-            shards: v,
+            shards: (0..nr_shards).map(|_| TemporalGraphPart::default()).collect()
         }
     }
 
@@ -120,7 +116,7 @@ impl GraphDB {
     }
 
     pub fn edges_len(&self) -> usize {
-        self.shards.iter().map(|shard| shard.edges_len()).sum()
+        self.shards.iter().map(|shard| shard.out_edges_len()).sum()
     }
 
     pub fn contains(&self, v: u64) -> bool {
@@ -175,6 +171,17 @@ mod db_tests {
 
         let should_be_10: usize = vs2.iter().map(|arc| Arc::strong_count(arc)).sum();
         assert_eq!(should_be_10, 20)
+    }
+
+    #[test]
+    fn basic_additions_to_graph_len() {
+        let graph = GraphDB::new(4);
+        assert_eq!(graph.len(), 0);
+        assert_eq!(graph.edges_len(), 0);
+        graph.add_edge(1, 2, 0, &Vec::new());
+        graph.add_edge(1, 3, 0, &Vec::new());
+        assert_eq!(graph.len(), 3);
+        assert_eq!(graph.edges_len(), 2);
     }
 
     #[quickcheck]
