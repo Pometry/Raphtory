@@ -24,7 +24,7 @@ public class VertexSnapshotStore {
     public static ArrayList<Field> createSnapshotFields() {
         ArrayList<Field> fields = new ArrayList<>();
 
-        fields.add(new Field("local_id", new FieldType(false, new ArrowType.Int(64, true), null), null));
+        fields.add(new Field("local_id", new FieldType(false, new ArrowType.Int(64, true), null), null)); // Make 32-bit?
         fields.add(new Field("initial_value", new FieldType(false, new ArrowType.Bool(), null), null));
         fields.add(new Field("time", new FieldType(false, new ArrowType.Int(64, true), null), null));
 

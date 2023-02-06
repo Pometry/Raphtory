@@ -6,6 +6,10 @@
  */
 package com.raphtory.arrowcore.implementation;
 
+/**
+ * Encapsulates basic stats for the Raphtory arrow partitions
+ * TODO The code that iterates over the partitions is wrong...doesn't handle out-of-order partIds.
+ */
 public class RaphtoryStatistics {
     private final RaphtoryArrowPartition _rap;
     private final VertexPartitionManager _vmgr;
@@ -19,6 +23,15 @@ public class RaphtoryStatistics {
     }
 
 
+    @Override
+    public String toString() {
+        return "nVertices: " + getNVertices() + ", nEdges: " + getNEdges() + ", nHistory: " + getNHistoryPoints();
+    }
+
+
+    /**
+     * @return the total number of vertices
+     */
     public long getNVertices() {
         int n = _vmgr.nPartitions();
         long nVertices = 0L;
@@ -32,6 +45,9 @@ public class RaphtoryStatistics {
     }
 
 
+    /**
+     * @return the total number of edges
+     */
     public long getNEdges() {
         int n = _emgr.nPartitions();
         long nEdges = 0L;
@@ -45,6 +61,9 @@ public class RaphtoryStatistics {
     }
 
 
+    /**
+     * @return the lowest vertex history time
+     */
     public long getMinHistoryTime() {
         int n = _vmgr.nPartitions();
         long minTime = Long.MAX_VALUE;
@@ -61,6 +80,9 @@ public class RaphtoryStatistics {
     }
 
 
+    /**
+     * @return the highest vertex history time
+     */
     public long getMaxHistoryTime() {
         int n = _vmgr.nPartitions();
         long maxTime = Long.MIN_VALUE;
@@ -77,6 +99,9 @@ public class RaphtoryStatistics {
     }
 
 
+    /**
+     * @return the total number of vertex history points
+     */
     public long getNHistoryPoints() {
         int n = _vmgr.nPartitions();
         long nTotal = 0;

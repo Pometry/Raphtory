@@ -28,7 +28,7 @@ class GraphBuilderF[F[_], T](builder: GraphBuilder[T])(implicit F: Async[F]) {
                cb
              }
            }
-    } yield b.toSeq
+    } yield b.toIndexedSeq
 }
 
 /** This class implements Graph interface by putting updates into a provided array buffer

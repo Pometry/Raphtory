@@ -55,6 +55,7 @@ public class VersionedProperty {
     static {
         _typeMap.put(int.class, () -> new ArrowType.Int(32, true));
         _typeMap.put(long.class, () -> new ArrowType.Int(64, true));
+        _typeMap.put(java.lang.Long.class, () -> new ArrowType.Int(64, true)); // For scala?
         _typeMap.put(float.class, () -> new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE));
         _typeMap.put(double.class, () -> new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE));
         _typeMap.put(boolean.class, ArrowType.Bool::new);
@@ -73,12 +74,14 @@ public class VersionedProperty {
         _entityAccessorMap.put(double.class,  VersionedEntityPropertyAccessor.DoublePropertyAccessor::new);
         _entityAccessorMap.put(boolean.class, VersionedEntityPropertyAccessor.BooleanPropertyAccessor::new);
         _entityAccessorMap.put(StringBuilder.class, VersionedEntityPropertyAccessor.StringPropertyAccessor::new);
+        _entityAccessorMap.put(java.lang.Long.class, VersionedEntityPropertyAccessor.LongPropertyAccessor::new); // For scala?
     }
 
 
 
     protected final String _name;
     protected final Class _class;
+    protected final Supplier<VersionedEntityPropertyAccessor> _accessor;
     protected int _prevPtrFieldIndexInEntitySchema;
 
 
@@ -91,6 +94,7 @@ public class VersionedProperty {
     public VersionedProperty(String name, Class c) {
         _name = name.toLowerCase();
         _class = c;
+        _accessor = _entityAccessorMap.get(_class);
     }
 
 
@@ -146,7 +150,7 @@ public class VersionedProperty {
      * @return a new entity accessor
      */
     public VersionedEntityPropertyAccessor getNewEntityFieldAccessor(int fieldId) {
-        VersionedEntityPropertyAccessor fa = _entityAccessorMap.get(_class).get();
+        VersionedEntityPropertyAccessor fa = _accessor.get();
         fa.setEntityPrevPtrFieldId(fieldId);
         return fa;
     }

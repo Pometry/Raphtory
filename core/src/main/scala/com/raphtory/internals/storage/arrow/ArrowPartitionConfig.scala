@@ -12,8 +12,8 @@ class ArrowPartitionConfig(
     propertySchema: PropertySchema,
     arrowDir: Path,
     nLocalEntityIdMaps: Int = Runtime.getRuntime.availableProcessors(),
-    vertexPartitionSize: Option[Int] = None,
-    edgePartitionSize: Option[Int] = None
+    vertexPartitionSize: Option[Int] = Some(256 * 1024),
+    edgePartitionSize: Option[Int] = Some(1024 * 1024)
 ) {
 
   def toRaphtoryPartitionConfig: RaphtoryArrowPartitionConfig = {
@@ -41,8 +41,8 @@ object ArrowPartitionConfig {
       partitionId: Int,
       propertySchema: PropertySchema,
       arrowDir: Path,
-      vertexPartitionSize: Option[Int] = None,
-      edgePartitionSize: Option[Int] = None
+      vertexPartitionSize: Option[Int] = Some(256 * 1024),
+      edgePartitionSize: Option[Int] = Some(1024 * 1024)
   ): ArrowPartitionConfig = {
     val partitionServers: Int    = config.getInt("raphtory.partitions.serverCount")
     val partitionsPerServer: Int = config.getInt("raphtory.partitions.countPerServer")

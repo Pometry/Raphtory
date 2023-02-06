@@ -100,11 +100,19 @@ public class EdgeHistoryStore {
     public int addHistory(int edgeRow, long time, boolean active, boolean updated, int prevPtr) {
         int row = _maxRow++;
 
-        _edgeRowIds.setSafe(row, edgeRow);
-        _times.setSafe(row, time);
-        _states.setSafe(row, active ? 1 : 0);
-        _updates.setSafe(row, updated ? 1 : 0);
-        _prevPtrs.setSafe(row, prevPtr);
+        while (!_edgeRowIds.isSafe(row)) {
+            _edgeRowIds.reAlloc();
+            _times.reAlloc();
+            _states.reAlloc();
+            _updates.reAlloc();
+            _prevPtrs.reAlloc();
+        }
+
+        _edgeRowIds.set(row, edgeRow);
+        _times.set(row, time);
+        _states.set(row, active ? 1 : 0);
+        _updates.set(row, updated ? 1 : 0);
+        _prevPtrs.set(row, prevPtr);
 
         return row;
     }

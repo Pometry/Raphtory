@@ -7,12 +7,63 @@ import com.raphtory.arrowcore.implementation.EntityFieldAccessor
 import com.raphtory.arrowcore.implementation.NonversionedEnumField
 import com.raphtory.arrowcore.implementation.VersionedEntityPropertyAccessor
 import com.raphtory.arrowcore.implementation.VertexHistoryIterator
+import com.raphtory.arrowcore.implementation.VertexIterator
 import com.raphtory.arrowcore.model.Edge
 import com.raphtory.arrowcore.model.Vertex
 import com.raphtory.internals.storage.arrow.ArrowPartition.PropertyIterator
 
 import scala.collection.View
 package object arrow {
+
+  implicit class RichVIter(val v: VertexIterator) extends AnyVal {
+
+    def field[P: Field](name: String): FieldAccess[P] =
+      new FieldAccess[P] {
+
+        override def set(p: P): Unit = {
+          val FIELD = v.getRaphtory.getVertexFieldId(name.toLowerCase())
+          implicitly[Field[P]].set(v.getField(FIELD), p)
+        }
+
+        override def get: Option[P] = {
+          val FIELD = v.getRaphtory.getVertexFieldId(name.toLowerCase())
+          implicitly[Field[P]].get(v.getField(FIELD))
+        }
+
+      }
+
+    def prop[P: Prop](name: String): PropAccess[P] =
+      new PropAccess[P] {
+
+        override def set(p: P, at: Long): Unit = {
+          val FIELD = v.getRaphtory.getVertexPropertyId(name.toLowerCase())
+          implicitly[Prop[P]].set(v.getProperty(FIELD), p, at)
+        }
+
+        override def get: Option[P] = {
+          val FIELD = v.getRaphtory.getVertexPropertyId(name.toLowerCase())
+          implicitly[Prop[P]].get(v.getProperty(FIELD))
+        }
+
+        override def list: View[(P, Long)] =
+          try {
+            val FIELD = v.getRaphtory.getVertexPropertyId(name.toLowerCase())
+            View.fromIteratorProvider(() => new PropertyIterator(v.getPropertyHistory(FIELD))).flatten
+          }
+          catch {
+            case _: IllegalArgumentException =>
+              View.empty
+          }
+      }
+
+    def history(start: Long, end: Long): View[HistoricEvent] =
+      View.fromIteratorProvider { () =>
+        val vhi: VertexHistoryIterator.WindowedVertexHistoryIterator =
+          v.getRaphtory.getNewVertexHistoryIterator(v.getVertexId, start, end)
+        new ArrowPartition.VertexHistoryIterator(vhi)
+      }
+
+  }
 
   implicit class RichVertex(val v: Vertex) extends AnyVal {
 
@@ -57,9 +108,7 @@ package object arrow {
 
     def history(start: Long, end: Long): View[HistoricEvent] =
       View.fromIteratorProvider { () =>
-        val vhi: VertexHistoryIterator.WindowedVertexHistoryIterator =
-          v.getRaphtory.getNewVertexHistoryIterator(v.getLocalId, start, end)
-        new ArrowPartition.VertexHistoryIterator(vhi)
+        new ArrowPartition.VertexHistoryIterator(v.getRaphtory.getNewVertexHistoryIterator(v.getLocalId, start, end))
       }
 
     def outgoingEdges: View[Edge] = {
@@ -67,36 +116,29 @@ package object arrow {
       View.from(new ArrowPartition.EdgesIterator(edgesIter))
     }
 
-    def outgoingEdges(start: Long, end: Long): View[Edge] = {
-      val b    = Vector.newBuilder[Edge]
+    def outgoingEdges(start: Long, end: Long): View[Edge] =
+      View.fromIteratorProvider { () =>
+        val iter: VertexIterator.WindowedVertexIterator = windowIter(start, end)
+        new ArrowPartition.EdgesIterator(iter.getOutgoingEdges)
+      }
+
+    def outDegree(start: Long, end: Long): Int = {
+      outgoingEdges(start, end).size
+    }
+
+    def inDegree(start: Long, end: Long): Int =
+      incomingEdges(start, end).size
+
+    private def windowIter(start: Long, end: Long) = {
       val iter = v.getRaphtory.getNewWindowedVertexIterator(start, end)
       iter.reset(v.getLocalId)
       iter.next()
-      iter.getVertex
-
-      val eIter = iter.getOutgoingEdges
-      while (eIter.hasNext) {
-        eIter.next()
-        val edge = eIter.getEdge
-        b += edge
-      }
-
-      b.result().view
-//      View.fromIteratorProvider { () =>
-//        val iter = v.getRaphtory.getNewWindowedVertexIterator(start, end)
-//        iter.reset(v.getLocalId)
-//        iter.next()
-//        val v0 = iter.getVertex
-//        new ArrowPartition.EdgesIterator(iter.getOutgoingEdges)
-//      }
+      iter
     }
 
     def incomingEdges(start: Long, end: Long): View[Edge] =
       View.fromIteratorProvider { () =>
-        val iter = v.getRaphtory.getNewWindowedVertexIterator(start, end)
-        iter.reset(v.getLocalId)
-        iter.next()
-        val v0   = iter.getVertex
+        val iter: VertexIterator.WindowedVertexIterator = windowIter(start, end)
         new ArrowPartition.EdgesIterator(iter.getIncomingEdges)
       }
 
@@ -144,9 +186,7 @@ package object arrow {
         override def list: View[(P, Long)] =
           try {
             val FIELD    = v.getRaphtory.getEdgePropertyId(name.toLowerCase())
-            val iterator = v.getPropertyHistory(FIELD)
-
-            View.fromIteratorProvider(() => new PropertyIterator(iterator)).flatten
+            View.fromIteratorProvider(() => new PropertyIterator(v.getPropertyHistory(FIELD))).flatten
           }
           catch {
             case _: IllegalArgumentException =>

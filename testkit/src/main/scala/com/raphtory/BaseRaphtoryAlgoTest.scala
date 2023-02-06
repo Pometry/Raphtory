@@ -9,6 +9,8 @@ import com.raphtory.api.output.sink.Sink
 import com.raphtory.formats.CsvFormat
 import com.raphtory.internals.context.RaphtoryContext
 import com.raphtory.internals.context.RaphtoryIOContext
+import com.raphtory.internals.context.{RaphtoryContext, RaphtoryIOContext}
+import com.raphtory.internals.storage.arrow.immutable
 import com.raphtory.sinks.FileSink
 import com.typesafe.scalalogging.Logger
 import munit.CatsEffectSuite
@@ -65,6 +67,7 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
                   RaphtoryIOContext.remoteIO()
                 }
                 .getOrElse(RaphtoryIOContext.localIO())
+//              .getOrElse(RaphtoryIOContext.localArrowIO[VertexProp, EdgeProp]()) // uncomment this line for arrow support
             graph <- ctx.newIOGraph(failOnNotFound = false, destroy = true)
             _     <- Resource.pure(graph.load(setSource()))
           } yield (ctx, graph)
@@ -122,3 +125,19 @@ abstract class BaseRaphtoryAlgoTest[T: ClassTag: TypeTag](deleteResultAfterFinis
       TestUtils.generateTestHash(outputDirectory, jobId)
     }
 }
+
+case class VertexProp(
+    age: Long,
+    @immutable name: String,
+    weight: Long,
+    @immutable address_chain: String,
+    @immutable transaction_hash: String
+)
+
+case class EdgeProp(
+    @immutable name: String,
+    friends: Boolean,
+    weight: Long,
+    @immutable msgId: String,
+    @immutable subject: String
+)

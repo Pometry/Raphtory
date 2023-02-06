@@ -169,9 +169,7 @@ public class VertexSnapshotPartition {
      */
     public void saveToFile() {
         try {
-            if (!_sorted) {
-                sortSnapshotTimes();
-            }
+            sortSnapshotTimes();
 
             if (_modified) {
                 _snapshotRO.syncSchema();
@@ -267,7 +265,11 @@ public class VertexSnapshotPartition {
      * instead, an index is created that points to the rows in the correct
      * sorted order. ie. an indirect sorted index is created.
      */
-    protected void sortSnapshotTimes() {
+    protected synchronized void sortSnapshotTimes() {
+        if (_sorted) {
+            return;
+        }
+
         int n = _store._maxRow;
 
         IntArrayList tmpList = _tmpListTL.get();
@@ -315,9 +317,7 @@ public class VertexSnapshotPartition {
             _snapshotRO.setRowCount(_store._maxRow);
         }
 
-        if (!_sorted) {
-            sortSnapshotTimes();
-        }
+        sortSnapshotTimes();
 
         VertexTimeWindowComparator wc = _timeVertexWindowComparatorTL.get();
         wc.init(targetVertexId, _store._localIds, _store._sortedVertexTimeIndices, _store._times, targetTime);

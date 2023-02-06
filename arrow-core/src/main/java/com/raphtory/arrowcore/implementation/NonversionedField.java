@@ -75,6 +75,7 @@ public class NonversionedField {
 
     protected final String _name;
     protected final Class _class;
+    protected final Supplier<EntityFieldAccessor> _faSupplier;
     protected int _parentSchemaFieldIndex;
 
 
@@ -87,6 +88,7 @@ public class NonversionedField {
     public NonversionedField(String name, Class c) {
         _name = name.toLowerCase();
         _class = c;
+        _faSupplier = _entityAccessorMap.get(_class);
     }
 
 
@@ -139,7 +141,7 @@ public class NonversionedField {
      * @return the new accessor
      */
     public EntityFieldAccessor getNewEntityFieldAccessor() {
-        EntityFieldAccessor fa = _entityAccessorMap.get(_class).get();
+        EntityFieldAccessor fa = _faSupplier.get();
         return fa;
     }
 }

@@ -9,6 +9,7 @@ import shapeless.Generic
 import shapeless.HList
 import shapeless.HNil
 
+import java.lang.IllegalStateException
 import scala.jdk.CollectionConverters._
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.ConcurrentHashMap
@@ -33,7 +34,11 @@ trait Get[T, R] {
       cache.get(name).asInstanceOf[A]
     }
 
-    get(vector, row, newDefault[R])
+    try {
+      get(vector, row, newDefault[R])
+    } catch {
+      case e: NegativeArraySizeException => throw new IllegalStateException(e)
+    }
   }
 }
 

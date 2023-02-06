@@ -85,6 +85,8 @@ abstract class AbstractGraphLens(
     */
   def vertices: View[Vertex]
 
+  def parAggregate[B](b: B)(mapper: Vertex => B)(acc: (B, B) => B): B = ???
+
   def currentVertices: View[Vertex] =
     graphState.currentStepVertices.map { id =>
       new ArrowExVertex(graphState, storage.getVertex(id))
@@ -92,7 +94,7 @@ abstract class AbstractGraphLens(
 
   override def runGraphFunction(f: Vertex => Unit)(onComplete: () => Unit): Unit = {
     vertexCount.set(0)
-    val count = vertices.foldLeft(0) { (c, v) => f(v); c + 1 }
+    val count = parAggregate(0) { v => f(v); 1 }(_ + _)
     vertexCount.set(count)
     onComplete()
   }
@@ -101,14 +103,19 @@ abstract class AbstractGraphLens(
       onComplete: () => Unit
   ): Unit = {
     vertexCount.set(0)
-    val count = vertices.foldLeft(0) { (c, v) => f.asInstanceOf[(Vertex, GraphState) => Unit](v, graphState); c + 1 }
+    val count = parAggregate(0) { v => f.asInstanceOf[(Vertex, GraphState) => Unit](v, graphState); 1 }(_ + _)
     vertexCount.set(count)
     onComplete()
   }
 
   override def runMessagedGraphFunction(f: Vertex => Unit)(onComplete: () => Unit): Unit = {
     vertexCount.set(0)
-    val count = vertices.filter(_.hasMessage).foldLeft(0) { (c, v) => f(v); c + 1 }
+    val count = parAggregate(0) { v =>
+      if (v.hasMessage) {
+        f(v); 1
+      }
+      else 0
+    }(_ + _)
     vertexCount.set(count)
     onComplete()
   }
@@ -116,9 +123,13 @@ abstract class AbstractGraphLens(
   override def runMessagedGraphFunction(f: (Vertex, GraphState) => Unit, graphState: GraphState)(
       onComplete: () => Unit
   ): Unit = {
-
     vertexCount.set(0)
-    val count = vertices.filter(_.hasMessage).foldLeft(0) { (c, v) => f(v, graphState); c + 1 }
+    val count = parAggregate(0) { v =>
+      if (v.hasMessage) {
+        f(v, graphState); 1
+      }
+      else 0
+    }(_ + _)
     vertexCount.set(count)
     onComplete()
   }

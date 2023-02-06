@@ -137,6 +137,25 @@ public class Edge extends Entity {
 
 
     /**
+     * Sets the basic edge data - used when adding edges
+     *
+     * @param srcId local or global src-vertex-id
+     * @param dstId local or global dst-vertex-id
+     * @param srcIsGlobal true, if the src-vertex-id is a global id, false otherwise
+     * @param dstIsGlobal true, if the dst-vertex-id is a global id, false otherwise
+     */
+    public void resetEdgeData(long srcId, long dstId, boolean srcIsGlobal, boolean dstIsGlobal) {
+        _src = srcId;
+        _dst = dstId;
+        this._srcIsGlobal = srcIsGlobal;
+        this._dstIsGlobal = dstIsGlobal;
+        this._prevIncomingPtr = -1L;
+        this._prevOutgoingPtr = -1L;
+    }
+
+
+
+    /**
      * Clones this edge into newOne
      * The usage and implementation of this needs to be verified!
      *

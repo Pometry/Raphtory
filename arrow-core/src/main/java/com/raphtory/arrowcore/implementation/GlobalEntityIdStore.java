@@ -32,6 +32,17 @@ public class GlobalEntityIdStore {
         return net.openhft.hashing.LongHashFunction.xx3().hashChars(nodeName);
     }
 
+    /**
+     * Returns the numeric global-id for this value
+     *
+     * @param nodeName the unique value to map
+     *
+     * @return the global-id (result of a hash function)
+     */
+    public long getGlobalNodeId(String nodeName) {
+        return net.openhft.hashing.LongHashFunction.xx3().hashChars(nodeName);
+    }
+
 
     public void close() {
         // NOP

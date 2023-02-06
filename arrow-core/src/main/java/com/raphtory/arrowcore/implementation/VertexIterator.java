@@ -69,6 +69,10 @@ public abstract class VertexIterator {
     protected VersionedEntityPropertyAccessor[] _propertyIteratorAccessors = null;
     protected EdgeIterator.MatchingEdgesIterator _matchingEdgesIterator = null;
     protected VertexHistoryIterator.WindowedVertexHistoryIterator _vertexHistoryIterator = null;
+    protected CachedMutatingEdgeMap.OutgoingMatchingEdgeCachedIterator _outgoingScanner = null;
+    protected CachedMutatingEdgeMap.IncomingMatchingEdgeCachedIterator _incomingScanner = null;
+    protected VertexHistoryPartition.BoundedVertexEdgeTimeWindowComparator _isAliveSearcher = null;
+
 
 
     /**
@@ -104,6 +108,9 @@ public abstract class VertexIterator {
     }
 
 
+    public RaphtoryArrowPartition getRaphtory() { return _avpm._raphtoryPartition; }
+
+
     public VertexPartition getPartition() {
         return _p;
     }
@@ -137,9 +144,6 @@ public abstract class VertexIterator {
         }
 
         int propertyRow = _p.getPropertyPrevPtrByRow(field, _vertexRowId);
-        if (propertyRow==-1) {
-            return null;
-        }
 
         return _p.getPropertyByPropertyRow(field, propertyRow, _vefa[field]);
     }
@@ -161,6 +165,12 @@ public abstract class VertexIterator {
 
         return _hasNext;
     }
+
+
+    /**
+     * @return the current vertex id
+     */
+    public long getVertexId() { return _vertexId; }
 
 
     /**
@@ -205,6 +215,23 @@ public abstract class VertexIterator {
      */
     public Vertex getVertex() {
         return _p.getVertex(_vertexId);
+    }
+
+
+    /**
+     * Returns whether the vertex is alive within the specified time window
+     *
+     * @param start the start time of the window (inclusive)
+     * @param end the end time of the window (inclusive)
+     *
+     * @return true if the vertex is alive at the end of the window
+     */
+    public boolean isAliveAt(long start, long end) {
+        if (_isAliveSearcher ==null) {
+            _isAliveSearcher = new VertexHistoryPartition.BoundedVertexEdgeTimeWindowComparator();
+        }
+
+        return _p.isAliveAt(_vertexId, start, end, _isAliveSearcher);
     }
 
 
@@ -284,16 +311,50 @@ public abstract class VertexIterator {
      *
      * @return an edge iterator configured to retrieve those edges
      * */
-    public EdgeIterator.MatchingEdgesIterator findAllOutgoingEdges(long dstVertexId, boolean isDstGlobal) {
-        if (_matchingEdgesIterator==null) {
-            _matchingEdgesIterator = new EdgeIterator.MatchingEdgesIterator();
+    public EdgeIterator findAllOutgoingEdges(long dstVertexId, boolean isDstGlobal) {
+        // TODO XXX Find a better or more universal approach for this
+        if (false) {
+            // Use the sorted edges in the vertex partition
+            // Seems to require sorting all the time as
+            // edges etc are added...so slow!
+            if (_matchingEdgesIterator == null) {
+                _matchingEdgesIterator = new EdgeIterator.MatchingEdgesIterator();
+            }
+
+            _matchingEdgesIterator.init(_avpm._aepm);
+            _matchingEdgesIterator.findEdgesViaVertex(_p, _vertexId, dstVertexId, isDstGlobal, getNOutgoingEdges());
+
+            return _matchingEdgesIterator;
+        }
+        else {
+            // Use a hash-map that's updated each time an edge is added
+            if (_outgoingScanner ==null) {
+                _outgoingScanner = new CachedMutatingEdgeMap.OutgoingMatchingEdgeCachedIterator();
+            }
+
+            return _p.findMatchingOutgoingEdges(_vertexId, dstVertexId, isDstGlobal, _outgoingScanner);
+        }
+    }
+
+
+    /**
+     * Retrieves all incoming edges from the specified source vertex id to
+     * this vertex.
+     *
+     * @param srcVertexId the source vertex id in question
+     * @param isSrcGlobal true if the src-vertex-id is global, false otherwise
+     *
+     * @return an edge iterator configured to retrieve those edges
+     * */
+    public EdgeIterator findAllIncomingEdges(long srcVertexId, boolean isSrcGlobal) {
+        // TODO XXX Find a better or more universal approach for this
+        if (_incomingScanner == null) {
+            _incomingScanner = new CachedMutatingEdgeMap.IncomingMatchingEdgeCachedIterator();
         }
 
-        _matchingEdgesIterator.init(_avpm._aepm);
-        _matchingEdgesIterator.findEdgesViaVertex(_p, _vertexId, dstVertexId, isDstGlobal, getNOutgoingEdges());
-
-        return _matchingEdgesIterator;
+        return _p.findMatchingIncomingEdges(srcVertexId, _vertexId, isSrcGlobal, _incomingScanner);
     }
+
 
 
     /**
@@ -343,7 +404,7 @@ public abstract class VertexIterator {
      * <p>TODO: substantially once we start using snapshots.
      * <p>TODO: Confirm performance is good.
      */
-    public static class WindowedVertexIterator extends VertexIterator {
+    public static class WindowedVertexHistoryIterator extends VertexIterator {
         protected LongOpenHashSet _processedVertices = new LongOpenHashSet(1024);
         protected long _minTime;
         protected long _maxTime;
@@ -355,12 +416,12 @@ public abstract class VertexIterator {
         protected boolean _getNextPartition = false;
         protected long _modifiedTime = -1L;
 
-        protected AllWindowedVertexEdgeIterator _allEdges = new AllWindowedVertexEdgeIterator();
-        protected IncomingWindowedVertexEdgeIterator _incomingEdges = new IncomingWindowedVertexEdgeIterator();
-        protected OutgoingWindowedVertexEdgeIterator _outgoingEdges = new OutgoingWindowedVertexEdgeIterator();
+        protected EdgeIterator.AllWindowedEdgeIteratorFromVertex _allEdges = new EdgeIterator.AllWindowedEdgeIteratorFromVertex();
+        protected EdgeIterator.WindowedEdgeIteratorFromVertex _incomingEdges = new EdgeIterator.WindowedEdgeIteratorFromVertex();
+        protected EdgeIterator.WindowedEdgeIteratorFromVertex _outgoingEdges = new EdgeIterator.WindowedEdgeIteratorFromVertex();
 
 
-        private WindowedVertexIterator() {}
+        private WindowedVertexHistoryIterator() {}
 
 
         /**
@@ -370,7 +431,7 @@ public abstract class VertexIterator {
          * @param minTime the start time (inclusive) used for finding vertices
          * @param maxTime the end time (inclusive) used for finding vertices
          */
-        protected WindowedVertexIterator(VertexPartitionManager avpm, long minTime, long maxTime) {
+        protected WindowedVertexHistoryIterator(VertexPartitionManager avpm, long minTime, long maxTime) {
             init(avpm, minTime, maxTime);
         }
 
@@ -513,7 +574,7 @@ public abstract class VertexIterator {
          */
         @Override
         public EdgeIterator getOutgoingEdges() {
-            _outgoingEdges.init(this);
+            _outgoingEdges.init(_avpm._aepm, _p._getOutgoingEdgePtrByRow(_vertexRowId), false, _minTime, _maxTime);
             return _outgoingEdges;
         }
 
@@ -524,7 +585,7 @@ public abstract class VertexIterator {
          */
         @Override
         public EdgeIterator getIncomingEdges() {
-            _incomingEdges.init(this);
+            _incomingEdges.init(_avpm._aepm, _p._getIncomingEdgePtrByRow(_vertexRowId), true, _minTime, _maxTime);
             return _incomingEdges;
         }
 
@@ -535,7 +596,7 @@ public abstract class VertexIterator {
          */
         @Override
         public EdgeIterator getAllEdges() {
-            _allEdges.init(this);
+            _allEdges.init(_avpm._aepm, _p._getIncomingEdgePtrByRow(_vertexRowId), _p._getOutgoingEdgePtrByRow(_vertexRowId), _minTime, _maxTime);
             return _allEdges;
         }
 
@@ -557,7 +618,7 @@ public abstract class VertexIterator {
 
 
     /**
-     * Base class for window-based edge iterators derived from a windowed vertex iterator.
+     * Base class for window-based edge-history iterators derived from a windowed vertex iterator.
      *<p>
      * It encapsulates common functions such as getting fields and properties etc.
      *<p>
@@ -572,7 +633,7 @@ public abstract class VertexIterator {
      * <p>TODO: Test this thoroughly, appears to be a bit confused re class hierarchy
      * <p>TODO: Build a multi-threaded implementation?
      */
-    public abstract static class WindowedVertexEdgeIterator extends EdgeIterator {
+    public abstract static class WindowedVertexEdgeHistoryIterator extends EdgeIterator {
         protected LongOpenHashSet _processedEdges = new LongOpenHashSet(1024);
 
         protected int _vertexRowId;
@@ -594,7 +655,7 @@ public abstract class VertexIterator {
          *
          * @param wvs the originating windowed-vertex-iterator
          */
-        protected void init(WindowedVertexIterator wvs) {
+        protected void init(WindowedVertexHistoryIterator wvs) {
             super.init(wvs._avpm._aepm);
 
             _vertexRowId = wvs._vertexRowId;
@@ -743,7 +804,7 @@ public abstract class VertexIterator {
     /**
      * Window-based edge iterator from a vertex - returning incoming edges
      */
-    public final static class IncomingWindowedVertexEdgeIterator extends WindowedVertexEdgeIterator {
+    public final static class IncomingWindowedVertexEdgeHistoryIterator extends WindowedVertexEdgeHistoryIterator {
         /**
          * Filters in incoming edges only.
          *
@@ -774,7 +835,7 @@ public abstract class VertexIterator {
     /**
      * Window-based edge iterator from a vertex - returning outgoing edges
      */
-    public final static class OutgoingWindowedVertexEdgeIterator extends WindowedVertexEdgeIterator {
+    public final static class OutgoingWindowedVertexEdgeHistoryIterator extends WindowedVertexEdgeHistoryIterator {
         /**
          * Filters in outgoing edges only.
          *
@@ -804,7 +865,7 @@ public abstract class VertexIterator {
     /**
      * Window-based edge iterator from a vertex - returning incoming and outgoing edges
      */
-    public final static class AllWindowedVertexEdgeIterator extends WindowedVertexEdgeIterator {
+    public final static class AllWindowedVertexEdgeHistoryIterator extends WindowedVertexEdgeHistoryIterator {
         /**
          * Filters in all edges.
          *
@@ -859,12 +920,12 @@ public abstract class VertexIterator {
 
 
             /**
-             * Task run method - gets hold of a WindowedVertexIterator and invokes the consumer,
+             * Task run method - gets hold of a WindowedVertexHistoryIterator and invokes the consumer,
              * allowing it to iterate over matching vertices in it's own thread
              */
             @Override
             public void run() {
-                WindowedVertexIterator iter = getNextAliveAtWithWindowVector(_avpm, _pp, _minTime, _maxTime);
+                WindowedVertexIterator iter = getCachedWindowedVertexIterator(_avpm, _pp, _minTime, _maxTime);
                 _consumer.accept(_pp.getPartitionId(), iter);
             }
         }
@@ -1023,7 +1084,7 @@ public abstract class VertexIterator {
              */
             @Override
             public void run() {
-                AllVerticesIterator iter = getAllVerticesIterator(_avpm, _pp);
+                AllVerticesIterator iter = getCachedAllVerticesIterator(_avpm, _pp);
                 _consumer.accept(_pp.getPartitionId(), iter);
             }
         }
@@ -1152,7 +1213,7 @@ public abstract class VertexIterator {
      *
      * @return the thread-local iterator
      */
-    protected static AllVerticesIterator getAllVerticesIterator(VertexPartitionManager avpm, VertexPartition p) {
+    protected static AllVerticesIterator getCachedAllVerticesIterator(VertexPartitionManager avpm, VertexPartition p) {
         AllVerticesIterator avi = _aviTL.get();
         avi.init(avpm, p);
         return avi;
@@ -1169,9 +1230,149 @@ public abstract class VertexIterator {
      *
      * @return the thread-local iterator
      */
-    private static WindowedVertexIterator getNextAliveAtWithWindowVector(VertexPartitionManager avpm, VertexPartition p, long minTime, long maxTime) {
+    private static WindowedVertexIterator getCachedWindowedVertexIterator(VertexPartitionManager avpm, VertexPartition p, long minTime, long maxTime) {
         WindowedVertexIterator wvs = _wvsTL.get();
         wvs.init(avpm, p, minTime, maxTime);
         return wvs;
+    }
+
+
+
+
+    /**
+     * Iterator that iterates over all vertices that are alive within a time window
+     *<p>
+     * <p>TODO: Should the edge-iterating functionality be part of VertexIterator?
+     */
+    public static class WindowedVertexIterator extends VertexIterator {
+        private boolean _doAll;
+        protected EdgeIterator.AllWindowedEdgeIteratorFromVertex _allEdges = new EdgeIterator.AllWindowedEdgeIteratorFromVertex();
+        protected EdgeIterator.WindowedEdgeIteratorFromVertex _incomingEdges = new EdgeIterator.WindowedEdgeIteratorFromVertex();
+        protected EdgeIterator.WindowedEdgeIteratorFromVertex _outgoingEdges = new EdgeIterator.WindowedEdgeIteratorFromVertex();
+        protected VertexHistoryPartition.BoundedVertexEdgeTimeWindowComparator _searcher = new VertexHistoryPartition.BoundedVertexEdgeTimeWindowComparator();
+        protected long _start;
+        protected long _end;
+
+
+        private WindowedVertexIterator() {}
+
+
+        /**
+         * Instantiates this iterator.
+         *
+         * @param avpm the vertex partition manager to use
+         */
+        protected WindowedVertexIterator(VertexPartitionManager avpm, long start, long end) {
+            init(avpm, start, end);
+        }
+
+
+        /**
+         * Initialises this instance
+         *
+         * @param avpm the vertex partition manager to use
+         */
+        protected void init(VertexPartitionManager avpm, long start, long end) {
+            super.init(avpm);
+            _doAll = true;
+            _start = start;
+            _end = end;
+        }
+
+
+        /**
+         * Initialises this instance
+         *
+         * @param avpm the vertex partition manager to use
+         */
+        protected void init(VertexPartitionManager avpm, VertexPartition p, long start, long end) {
+            super.init(avpm, p);
+            _doAll = false;
+            _start = start;
+            _end = end;
+        }
+
+
+
+        /**
+         * Initialises this instance
+         *
+         * @param avpm the vertex partition manager to use
+         * @param p the single partition we're iterating over
+         */
+        protected void init(VertexPartitionManager avpm, VertexPartition p) {
+            super.init(avpm, p);
+            _doAll = false;
+        }
+
+
+        /**
+         * @return true if this iterator has further matching vertices, false otherwise
+         */
+        @Override
+        protected boolean moveToNext() {
+            for (;;) {
+                if (_doAll && _p==null) {
+                    _p = _avpm.getPartition(++_partitionId);
+                    if (_p == null) {
+                        _vertexRowId = -1;
+                        _vertexId = -1L;
+                        return false;
+                    }
+                    _vertexRowId = -1;
+                    _vertexId = -1L;
+                }
+
+                if (_p==null) {
+                    _vertexRowId = -1;
+                    _vertexId = -1L;
+                    return false;
+                }
+
+                do {
+                    ++_vertexRowId;
+                }
+                while (_p.isValidRow(_vertexRowId) && !_p.isAliveAtByRow(_vertexRowId, _start, _end, _searcher));
+
+                if (_p.isValidRow(_vertexRowId)) {
+                    _vertexId = _p._getLocalVertexIdByRow(_vertexRowId);
+                    return true;
+                }
+
+                _p = null;
+                _vertexRowId = -1;
+                _vertexId = -1L;
+            }
+        }
+
+
+        /**
+         * @return an edge iterator, iterating over the current vertex's outgoing edges
+         */
+        @Override
+        public EdgeIterator getOutgoingEdges() {
+            _outgoingEdges.init(_avpm._aepm, _p._getOutgoingEdgePtrByRow(_vertexRowId), false, _start, _end);
+            return _outgoingEdges;
+        }
+
+
+        /**
+         * @return an edge iterator, iterating over the current vertex's incoming edges
+         */
+        @Override
+        public EdgeIterator getIncomingEdges() {
+            _incomingEdges.init(_avpm._aepm, _p._getIncomingEdgePtrByRow(_vertexRowId), true, _start, _end);
+            return _incomingEdges;
+        }
+
+
+        /**
+         * @return an edge iterator, iterating over all of the current vertex's edges
+         */
+        @Override
+        public EdgeIterator getAllEdges() {
+            _allEdges.init(_avpm._aepm, _p._getIncomingEdgePtrByRow(_vertexRowId), _p._getOutgoingEdgePtrByRow(_vertexRowId), _start, _end);
+            return _allEdges;
+        }
     }
 }
