@@ -10,7 +10,6 @@ use csv::StringRecord;
 use docbrown_core::graph::TemporalGraph;
 use docbrown_core::{Direction, Prop};
 use docbrown_db::loaders::csv::CsvLoader;
-use docbrown_db::GraphDB;
 use flume::{unbounded, Receiver, Sender};
 use itertools::Itertools;
 use regex::Regex;
@@ -27,6 +26,7 @@ use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
 };
+use docbrown_db::graphdb::GraphDB;
 
 fn parse_record(rec: &StringRecord) -> Option<(u64, u64, i64, u64)> {
     let src = rec.get(3).and_then(|s| s.parse::<u64>().ok())?;
