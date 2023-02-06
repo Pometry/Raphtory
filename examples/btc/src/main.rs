@@ -380,8 +380,8 @@ mod custom_date_format {
     //
     // although it may also be generic over the input types T.
     pub fn serialize<S>(date: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where
+            S: Serializer,
     {
         let s = format!("{}", date.format(FORMAT));
         serializer.serialize_str(&s)
@@ -395,8 +395,8 @@ mod custom_date_format {
     //
     // although it may also be generic over the output types T.
     pub fn deserialize<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
-    where
-        D: Deserializer<'de>,
+        where
+            D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
         Utc.datetime_from_str(&s, FORMAT)
