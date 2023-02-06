@@ -145,6 +145,7 @@ public class RaphtoryArrowPartition {
         _nRaphtoryPartitions = config._nRaphtoryPartitions;
 
         System.getProperties().setProperty("arrow.enable_unsafe_memory_access", config._disableBoundsCheck ? "true" : "false");
+        System.getProperties().setProperty("arrow.enable_null_check_for_get", config._disableBoundsCheck ? "false" : "true");
 
         _syncIDMap = config._syncIDMap;
         _globalEntityIdStore = new GlobalEntityIdStore();
@@ -770,6 +771,22 @@ public class RaphtoryArrowPartition {
 
 
     /**
+     * Returns a new Windowed Vertices Manager that manages multi-threaded iteration over windowed vertices.
+     *
+     * @param threadPool the thread pool to use
+     * @param startTime the window start time (inclusive)
+     * @param endTime the window end time (inclusive)
+     *
+     * @return a new Vertices Manager
+     */
+    public VertexIterator.MTWindowedVertexManager getNewMTWindowedVertexManager(RaphtoryThreadPool threadPool, long startTime, long endTime) {
+        VertexIterator.MTWindowedVertexManager it = new VertexIterator.MTWindowedVertexManager();
+        it.init(_vmgr, threadPool, startTime, endTime);
+        return it;
+    }
+
+
+    /**
      * Returns a new Edges Manager that manages multi-threaded iteration over all edges.
      *
      * @param threadPool the thread pool to use
@@ -803,8 +820,8 @@ public class RaphtoryArrowPartition {
     }
 
 
-    public EdgeHistoryIterator.WindowedEdgeHistoryIterator getNewEdgeHistoryIterator(long vertexId, long minTime, long maxTime) {
-        return new EdgeHistoryIterator.WindowedEdgeHistoryIterator(_emgr, vertexId, minTime, maxTime);
+    public EdgeHistoryIterator.WindowedEdgeHistoryIterator getNewEdgeHistoryIterator(long edgeId, long minTime, long maxTime) {
+        return new EdgeHistoryIterator.WindowedEdgeHistoryIterator(_emgr, edgeId, minTime, maxTime);
     }
 
 
@@ -826,7 +843,7 @@ public class RaphtoryArrowPartition {
 
         long then = System.currentTimeMillis();
         mgr.start((pid, iter) -> {
-            VertexIterator.WindowedVertexIterator wvi = (VertexIterator.WindowedVertexIterator)iter;
+            VertexIterator.WindowedVertexHistoryIterator wvi = (VertexIterator.WindowedVertexHistoryIterator)iter;
 
             LongArrayList vIds = vertexIds[pid];
             LongArrayList times = timestamps[pid];

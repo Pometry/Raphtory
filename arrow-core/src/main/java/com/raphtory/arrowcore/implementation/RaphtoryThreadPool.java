@@ -20,27 +20,36 @@ public class RaphtoryThreadPool {
 
     private final ThreadPoolExecutor _threadPool;
 
-
     public RaphtoryThreadPool(int nThreads, int qLength) {
+        ThreadFactory tf = r -> {
+            Thread t = new Thread(r);
+            t.setDaemon(true);
+            return t;
+        };
+
+        LinkedBlockingQueue queue;
         if (qLength==Integer.MAX_VALUE) {
-            _threadPool = new ThreadPoolExecutor(nThreads, nThreads, Long.MAX_VALUE, TimeUnit.SECONDS, new LinkedBlockingQueue<>(Integer.MAX_VALUE));
+            queue = new LinkedBlockingQueue<>(Integer.MAX_VALUE);
         }
         else {
             // TODO: Make this use a fixed-size circular queue
-            _threadPool = new ThreadPoolExecutor(nThreads, nThreads, Long.MAX_VALUE, TimeUnit.SECONDS, new LinkedBlockingQueue(qLength) {
+            queue = new LinkedBlockingQueue(qLength) {
                 @Override
                 public boolean offer(Object e) {
                     // turn offer() and add() into a blocking calls (unless interrupted)
                     try {
                         put(e);
                         return true;
-                    } catch(InterruptedException ie) {
+                    }
+                    catch(InterruptedException ie) {
                         Thread.currentThread().interrupt();
                     }
                     return false;
                 }
-            });
+            };
         }
+
+        _threadPool = new ThreadPoolExecutor(nThreads, nThreads, Long.MAX_VALUE, TimeUnit.SECONDS, queue, tf);
     }
 
 

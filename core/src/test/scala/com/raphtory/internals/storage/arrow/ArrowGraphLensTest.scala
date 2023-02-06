@@ -128,12 +128,15 @@ class MockCluster(parts: Vector[ArrowPartition]) extends AutoCloseable {
       srcPar.addOutgoingEdge(time, -1, src, dst, Properties(), None)
       dstPar.addIncomingEdge(time, -1, src, dst, Properties(), None)
     }
+    srcPar.flush()
+    dstPar.flush()
   }
 
   def addVertex(v: Long, time: Long): Unit = {
     val par: ArrowPartition = findPartition(v)
 
     par.addVertex(time, -1, v, Properties(), None)
+    par.flush()
   }
 
   private def findPartition(src: Long) =

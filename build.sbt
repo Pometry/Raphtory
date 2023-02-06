@@ -126,8 +126,8 @@ lazy val arrowCore =
                     arrowAlgorithm,
                     arrowDataset,
                     chronicleMap,
-                    fastUtil,
                     disruptor,
+                    fastUtil,
                     commonsLang,
                     junitInterface,
                     netty classifier osDetectorClassifier.value
@@ -155,9 +155,13 @@ lazy val core = (project in file("core"))
                   curatorRecipes,
                   decline,
                   fs2,
+                  fs2IO,
                   h2,
                   apacheHttp,
-                  jackson,
+                  jacksonCore,
+                  jacksonScala,
+                  jacksonAnnotations,
+                  jacksonDatabind,
                   jfr,
                   jsonpath,
                   log4jSlft4,
@@ -312,7 +316,13 @@ lazy val examplesNFT =
     .dependsOn(core)
     .settings(
             assemblySettings,
-            publishArtifact := false
+            publishArtifact := false,
+            libraryDependencies ++= Seq(
+                    jacksonCore,
+                    jacksonScala,
+                    jacksonAnnotations,
+                    jacksonDatabind
+            )
     )
 
 lazy val deploy =
@@ -393,7 +403,7 @@ lazy val assemblySettings = assembly / assemblyMergeStrategy := {
   case _                                                                                  => MergeStrategy.first
 }
 
-Test / parallelExecution := true
+Test / parallelExecution := false
 
 Global / concurrentRestrictions := Seq(
         Tags.limit(Tags.Test, 1)

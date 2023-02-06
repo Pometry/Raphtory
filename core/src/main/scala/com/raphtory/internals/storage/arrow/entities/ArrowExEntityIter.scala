@@ -1,26 +1,18 @@
 package com.raphtory.internals.storage.arrow.entities
 
-import com.raphtory.api.analysis.visitor.EntityVisitor
-import com.raphtory.api.analysis.visitor.HistoricEvent
-import com.raphtory.api.analysis.visitor.PropertyValue
-import com.raphtory.arrowcore.model.Entity
-import com.raphtory.arrowcore.model.{Edge => ArrEdge}
-import com.raphtory.arrowcore.model.{Vertex => ArrVertex}
-import com.raphtory.internals.storage.arrow.ArrowEntityStateRepository
-import com.raphtory.internals.storage.arrow.Field
-import com.raphtory.internals.storage.arrow.Prop
-import com.raphtory.internals.storage.arrow.PropAccess
-import com.raphtory.internals.storage.arrow.RichEdge
-import com.raphtory.internals.storage.arrow.RichVertex
+import com.raphtory.api.analysis.visitor.{EntityVisitor, HistoricEvent, PropertyValue}
+import com.raphtory.arrowcore.implementation.VertexIterator
+import com.raphtory.arrowcore.model.{Edge => ArrEdge, Vertex => ArrVertex}
+import com.raphtory.internals.storage.arrow.{ArrowEntityStateRepository, ArrowPartition, Field, Prop, PropAccess, RichEdge, RichVIter, RichVertex}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.reflect.ClassTag
 
-trait ArrowExEntity extends EntityVisitor {
+trait ArrowExEntityIter extends EntityVisitor {
 
   protected def repo: ArrowEntityStateRepository
 
-  protected def entity: Entity
+  protected def entity: Either[VertexIterator, ArrEdge]
 
   /** Return the type of the entity */
   override def Type: String = ???
@@ -66,7 +58,7 @@ trait ArrowExEntity extends EntityVisitor {
     * The exact behaviour depends on the type of the property:
     *
     * In case of a
-    * [[com.raphtory.api.input.ImmutableString]], the history
+    * [[com.raphtory.api.input.ImmutableProperty]], the history
     * depends only on the creation time of the property. If the property was created within the current view, the
     * history contains a single tuple with the value of the property and the timestamp given by the creation time
     * of the property. If the property creation time is before the start of the current view, the history contains
@@ -82,8 +74,27 @@ trait ArrowExEntity extends EntityVisitor {
     * @param after  Only consider addition events in the current view that happened no earlier than time `after`
     * @param before Only consider addition events in the current view that happened no later than time `before`
     */
-  override def getPropertyHistory[T](key: String, after: Long, before: Long): Option[Iterable[PropertyValue[T]]] =
+  override def getPropertyHistory[T](key: String, after: Long, before: Long): Option[Iterable[PropertyValue[T]]] = {
     this match {
+      case vIter: ArrowExVertexIter =>
+        if (!isField(key)) {
+          implicit val PROP: Prop[T] = Prop.runtime[T](null)
+          historyProps(vIter.vertexIter.prop[T](key), after, before)
+        } else {
+          implicit val FIELD: Field[T] = com.raphtory.internals.storage.arrow.Field.runtime[T]
+          vIter.vertexIter
+            .field[T](key)
+            .get
+            .map(value =>
+              List(
+                      PropertyValue(
+                              vIter.vertexIter.getCreationTime,
+                              vIter.vertexIter.getCreationTime,
+                              value
+                      )
+              )
+            )
+        }
       case vertex: ArrowExVertex =>
         if (!isField(key)) {
           implicit val PROP: Prop[T] = Prop.runtime[T](vertex.entity)
@@ -97,16 +108,16 @@ trait ArrowExEntity extends EntityVisitor {
             .get
             .map(value =>
               List(
-                PropertyValue(
-                  vertex.vertex.getCreationTime,
-                  vertex.vertex.getCreationTime,
-                  value
-                )
+                      PropertyValue(
+                              vertex.vertex.getCreationTime,
+                              vertex.vertex.getCreationTime,
+                              value
+                      )
               )
             )
 
         }
-      case edge: ArrowExEdge     =>
+      case edge: ArrowExEdge =>
         if (!isField(key)) {
           implicit val PROP: Prop[T] = Prop.runtime[T](edge.entity)
           val arrE                   = edge.entity.asInstanceOf[ArrEdge]
@@ -129,6 +140,7 @@ trait ArrowExEntity extends EntityVisitor {
 
         }
     }
+  }
 
   /**
     * check if the property is field or versioned property
@@ -137,10 +149,12 @@ trait ArrowExEntity extends EntityVisitor {
     */
   def isField(key: String): Boolean =
     this match {
-      case edge: ArrowExEdge     =>
-        entity.getRaphtory.getPropertySchema.nonversionedEdgeProperties().asScala.map(_.name()).exists(_ == key)
-      case vertex: ArrowExVertex =>
-        entity.getRaphtory.getPropertySchema.nonversionedVertexProperties().asScala.map(_.name()).exists(_ == key)
+      case vertex: ArrowExVertexIter =>
+        vertex.vertexIter.getRaphtory.getPropertySchema
+          .nonversionedVertexProperties()
+          .asScala
+          .map(_.name())
+          .exists(_ == key)
     }
 
   private def historyProps[T](addVertexProps: PropAccess[T], after: Long, before: Long) = {
@@ -151,6 +165,12 @@ trait ArrowExEntity extends EntityVisitor {
     Some(hist)
   }
 
+
+  def getLocalId = entity match {
+    case Left(value) => value.getVertexId
+    case Right(value) => value.getLocalId
+  }
+
   /** Set algorithmic state for this entity. Note that for edges, algorithmic state is stored locally to the vertex endpoint
     * which sets this state (default being the source node when set during an edge step).
     *
@@ -158,7 +178,7 @@ trait ArrowExEntity extends EntityVisitor {
     * @param value new value for state
     */
   override def setState(key: String, value: Any): Unit =
-    repo.setState(entity.getLocalId, key, value)
+    repo.setState(getLocalId, key, value)
 
   /** Retrieve value from algorithmic state. Note that for edges, algorithmic state is stored locally to the vertex endpoint
     * which sets this state (default being the source node when set during an edge step).
@@ -168,7 +188,7 @@ trait ArrowExEntity extends EntityVisitor {
     * @param includeProperties set this to `true` to fall-through to vertex properties if `key` is not found
     */
   override def getState[T](key: String, includeProperties: Boolean): T =
-    repo.getState(entity.getLocalId, key).get
+    repo.getState(getLocalId, key).get
 
   /** Retrieve value from algorithmic state if it exists or return a default value otherwise. Note that for edges,
     * algorithmic state is stored locally to the vertex endpoint which set this state (default being the source node
@@ -181,7 +201,7 @@ trait ArrowExEntity extends EntityVisitor {
     *                          if `key` is not found in algorithmic state
     */
   override def getStateOrElse[T](key: String, value: T, includeProperties: Boolean): T =
-    repo.getStateOrElse(entity.getLocalId, key, value) // TODO: implement include properties
+    repo.getStateOrElse(getLocalId, key, value) // TODO: implement include properties
 
   /** Checks if algorithmic state with key `key` exists. Note that for edges, algorithmic state is stored locally to
     * the vertex endpoint which set this state (default being the source node when set during an edge step).
@@ -192,7 +212,7 @@ trait ArrowExEntity extends EntityVisitor {
     *                          or entity properties
     */
   override def containsState(key: String, includeProperties: Boolean): Boolean =
-    repo.getState(entity.getLocalId, key).isDefined || (includeProperties && getProperty(key).isDefined)
+    repo.getState(getLocalId, key).isDefined || (includeProperties && getProperty(key).isDefined)
 
   /** Retrieve value from algorithmic state if it exists or set this state to a default value and return otherwise. Note that for edges,
     * algorithmic state is stored locally to the vertex endpoint which set this state (default being the source node
@@ -205,7 +225,7 @@ trait ArrowExEntity extends EntityVisitor {
     *                          if `key` is not found in algorithmic state. State is only set if this is also not found.
     */
   override def getOrSetState[T](key: String, value: T, includeProperties: Boolean): T =
-    repo.getOrSetState(entity.getLocalId, key, value)
+    repo.getOrSetState(getLocalId, key, value)
 
   /** Append new value to existing array or initialise new array if state does not exist. Note that for edges,
     * algorithmic state is stored locally to the vertex endpoint which set this state (default being the source node
@@ -218,13 +238,18 @@ trait ArrowExEntity extends EntityVisitor {
     */
   override def appendToState[T: ClassTag](key: String, value: T): Unit = ???
 
-  override def history(): List[HistoricEvent] =
+  override def history(): List[HistoricEvent] = {
+    this.entity match {
+      case Left(value) => new ArrowPartition.VertexHistoryIterator(value.getVertexHistory).toList
+      case Right(value) => value
+    }
     this.entity match {
       case edge: ArrEdge     =>
         edge.history(repo.start, repo.end).toList
       case vertex: ArrVertex =>
         vertex.history(repo.start, repo.end).toList
     }
+  }
 
   /** Return `true` if any event (addition or deletion) occurred during the time window starting at
     * `after` and ending at `before`. Otherwise returns `false`.
@@ -244,6 +269,13 @@ trait ArrowExEntity extends EntityVisitor {
   override def aliveAt(time: Long, window: Long): Boolean =
     aliveAtWithWindow(time - window + 1, time)
 
-  private def aliveAtWithWindow(after: Long, before: Long) =
-    entity.getCreationTime >= after && entity.getCreationTime <= before
+  private def aliveAtWithWindow(after: Long, before: Long) = {
+    val time = creationTime
+    time >= after && time <= before
+  }
+
+  def creationTime: Long = entity match {
+    case Left(value) => value.getCreationTime
+    case Right(value) => value.getCreationTime
+  }
 }

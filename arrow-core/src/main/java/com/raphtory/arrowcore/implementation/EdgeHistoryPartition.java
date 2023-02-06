@@ -35,6 +35,9 @@ public class EdgeHistoryPartition {
     private static final ThreadLocal<WindowComparator> _windowComparatorTL = ThreadLocal.withInitial(WindowComparator::new);
     private static final ThreadLocal<EdgeWindowComparator> _edgeWindowComparatorTL = ThreadLocal.withInitial(EdgeWindowComparator::new);
 
+    private static final ThreadLocal<EdgeHistoryBoundedBinarySearch> _edgeBoundWindowComparatorTL = ThreadLocal.withInitial(EdgeHistoryBoundedBinarySearch::new);
+
+
     /**
      *  Comparator to sort all history records by time
      */
@@ -124,12 +127,12 @@ public class EdgeHistoryPartition {
     private final int _partitionId;
     private final EdgePartition _aep;
     private final EdgePartitionManager _aepm;
-    private final EdgeHistoryStore _history;
+    protected final EdgeHistoryStore _history;
 
     private VectorSchemaRoot _historyRO;
     private ArrowFileReader _historyReader;
     private boolean _modified = false;
-    private boolean _sorted = false;
+    protected boolean _sorted = false;
 
 
     /**
@@ -226,9 +229,7 @@ public class EdgeHistoryPartition {
      */
     public void saveToFile() {
         try {
-            if (!_sorted) {
-                sortHistoryTimes();
-            }
+            sortHistoryTimes();
 
             if (_modified) {
                 _historyRO.syncSchema();
@@ -326,7 +327,15 @@ public class EdgeHistoryPartition {
      * instead, an index is created that points to the rows in the correct
      * sorted order. ie. an indirect sorted index is created.
      */
-    private void sortHistoryTimes() {
+    protected synchronized void sortHistoryTimes() {
+        if (_sorted) {
+            return;
+        }
+
+        if (_historyRO.getRowCount() != _history._maxRow) {
+            _historyRO.setRowCount(_history._maxRow);
+        }
+
         int n = _history._maxRow;
 
         IntArrayList tmpList = _tmpListTL.get();
@@ -379,13 +388,7 @@ public class EdgeHistoryPartition {
             return;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         WindowComparator wc = _windowComparatorTL.get();
         wc.init(_history._sortedTimeIndices, _history._times, state._minTime, state._maxTime);
@@ -602,19 +605,15 @@ public class EdgeHistoryPartition {
     }
 
 
-
+    /**
+     * @return the lowest history time in this partition
+     */
     public long getLowestTime() {
         if (_history._maxRow==0) {
             return Long.MAX_VALUE;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         int lowestRow = _history._sortedTimeIndices.get(0);
 
@@ -622,18 +621,15 @@ public class EdgeHistoryPartition {
     }
 
 
+    /**
+     * @return the highest history time in this partition
+     */
     public long getHighestTime() {
         if (_history._maxRow==0) {
             return Long.MIN_VALUE;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         int highestRow = _history._sortedTimeIndices.get(_history._maxRow-1);
 
@@ -641,24 +637,27 @@ public class EdgeHistoryPartition {
     }
 
 
+    /**
+     * @return the number of history records in this partition
+     */
     public long getNHistoryItems() {
-        int n = _history._maxRow;
-        return n+1;
+        return _history._maxRow;
     }
 
 
-    public long getEdgeMinHistoryTime(int edgeRowId) {
+    /**
+     * @param edgeRowId  the edge-row in question
+     *
+     * @return the lowest history time for the specified edge
+     *
+     * TODO: Re-implement using the bounded window comparator
+     */
+    protected long getEdgeMinHistoryTime(int edgeRowId) {
         if (_historyRO == null) {
             return Long.MIN_VALUE;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         EdgeWindowComparator wc = _edgeWindowComparatorTL.get();
         wc.init(edgeRowId, _history._edgeRowIds, _history._sortedEdgeTimeIndices, _history._times, Long.MIN_VALUE, Long.MAX_VALUE);
@@ -672,21 +671,22 @@ public class EdgeHistoryPartition {
     }
 
 
-    public long getEdgeMaxHistoryTime(int vertexRowId) {
+    /**
+     * @param edgeRowId  the edge-row in question
+     *
+     * @return the highest history time for the specified edge
+     *
+     * TODO: Re-implement using the bounded window comparator
+     */
+    protected long getEdgeMaxHistoryTime(int edgeRowId) {
         if (_historyRO == null) {
             return Long.MAX_VALUE;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         EdgeWindowComparator wc = _edgeWindowComparatorTL.get();
-        wc.init(vertexRowId, _history._edgeRowIds, _history._sortedEdgeTimeIndices, _history._times, Long.MIN_VALUE, Long.MAX_VALUE);
+        wc.init(edgeRowId, _history._edgeRowIds, _history._sortedEdgeTimeIndices, _history._times, Long.MIN_VALUE, Long.MAX_VALUE);
         int sortedRow = VectorRangeSearcher.getLastMatch(_history._sortedEdgeTimeIndices, wc, null, 0);
         if (sortedRow>=0) {
             int row = _history._sortedEdgeTimeIndices.get(sortedRow);
@@ -697,6 +697,11 @@ public class EdgeHistoryPartition {
     }
 
 
+    /**
+     * Initialises the windowed-edge-history iterator for the current search
+     *
+     * @param state the iterator state to initialise
+     */
     protected void findHistory(EdgeHistoryIterator.WindowedEdgeHistoryIterator state) {
         if (_historyRO == null) {
             state._firstIndex = -1;
@@ -704,13 +709,7 @@ public class EdgeHistoryPartition {
             return;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         if (state._edgeId==-1L) {
             WindowComparator wc = _windowComparatorTL.get();
@@ -742,7 +741,200 @@ public class EdgeHistoryPartition {
         }
     }
 
+
+    /**
+     * @return the history store for this partition
+     */
     public EdgeHistoryStore getHistoryStore() {
         return _history;
+    }
+
+
+    /**
+     * Returns whether or not this edge was alive by the end of this window
+     *
+     * @param edgeId the edge in question
+     * @param start the start time of the window (inclusive)
+     * @param end the end time of the window (inclusive)
+     *
+     * @return true iff the edge was alive, false otherwise
+     */
+    public boolean isAliveAt(long edgeId, long start, long end) {
+        return isAliveAt(edgeId, start, end, _edgeBoundWindowComparatorTL.get());
+    }
+
+
+    /**
+     * Returns whether or not this edge was alive by the end of this window
+     *
+     * @param edgeId the edge in question
+     * @param start the start time of the window (inclusive)
+     * @param end the end time of the window (inclusive)
+     * @param searcher the binary searcher to use
+     *
+     * @return true iff the edge was alive, false otherwise
+     */
+    public boolean isAliveAt(long edgeId, long start, long end, EdgeHistoryBoundedBinarySearch searcher) {
+        int targetRow = _aepm.getRowId(edgeId);
+        int nRows = _history._maxRow;
+        int low = _aep._store._sortedHStart.get(targetRow);
+        int high = _aep._store._sortedHEnd.get(targetRow);
+
+        searcher.init(targetRow, _history._edgeRowIds, _history._sortedEdgeTimeIndices, _history._times, end, low, high);
+
+        int row = searcher.find();
+
+        if (row < 0) {
+            row = -row;
+            row = row - 1;
+
+            if (row>=nRows) {
+                row = nRows-1;
+            }
+
+            if (row<low) {  // row<0
+                return false;
+            }
+
+            int actualRow = _history._sortedEdgeTimeIndices.get(row);
+            if ((_history._edgeRowIds.get(actualRow)!=targetRow || _history._times.get(actualRow)>end) && row>0) {
+                // We found the next vertex, so go back 1
+                --row;
+                actualRow = _history._sortedEdgeTimeIndices.get(row);
+            }
+            else {
+                // TODO: Find the last one with this timestamp?
+                // Not sure this is correct as the "last" is defined
+                // by the sort order...not insertion time etc.
+                // In any case, there may be 2 rows with this
+                // timestamp and inconsistent alive flags...
+                // what happens there?
+            }
+
+            return actualRow<nRows &&
+                    _history._states.get(actualRow)!=0 &&
+                    _history._edgeRowIds.get(actualRow)==targetRow &&
+                    _history._times.get(actualRow)>=start &&
+                    _history._times.get(actualRow)<=end;
+        }
+
+        int actualRow = _history._sortedEdgeTimeIndices.get(row);
+        return _history._states.get(actualRow)!=0;
+    }
+
+
+    /**
+     * Bounded binary search class for edge searching
+     */
+    protected static class EdgeHistoryBoundedBinarySearch {
+        private int _edgeRowId;
+        private long _maxTime;
+        private IntVector _rowIds;
+        private IntVector _sortedIndices;
+        private BigIntVector _creationTimes;
+        private int _low;
+        private int _high;
+
+        /**
+         * Initialises the searcher
+         *
+         * @param edgeRowId the edge row id to look for
+         * @param rowIds the vector of row-ids
+         * @param sortedIndices the sorted indices to use
+         * @param creationTimes the time vector use
+         * @param maxTime the time to look for
+         * @param lowBound the lower bound of the sorted indices to search within
+         * @param highBound the upper bound of the sorted indices to search within
+         */
+        public void init(int edgeRowId, IntVector rowIds, IntVector sortedIndices, BigIntVector creationTimes, long maxTime, int lowBound, int highBound) {
+            init(edgeRowId, rowIds, sortedIndices, creationTimes, maxTime);
+            setBounds(lowBound, highBound);
+        }
+
+
+        /**
+         * Initialises the searcher
+         *
+         * @param edgeRowId the edge row id to look for
+         * @param rowIds the vector of row-ids
+         * @param sortedIndices the sorted indices to use
+         * @param creationTimes the time vector use
+         * @param maxTime the time to look for
+         */
+        public void init(int edgeRowId, IntVector rowIds, IntVector sortedIndices, BigIntVector creationTimes, long maxTime) {
+            _edgeRowId = edgeRowId;
+            _rowIds = rowIds;
+            _sortedIndices = sortedIndices;
+            _creationTimes = creationTimes;
+            _maxTime = maxTime;
+
+            _low = 0;
+            _high = _sortedIndices.getValueCount() - 1;
+        }
+
+
+        /**
+         * Sets the bound of the search
+         *
+         * @param low the lower bound of the sorted indices to search within
+         * @param high the upper bound of the sorted indices to search within
+         */
+        public void setBounds(int low, int high) {
+            _low = low;
+            _high = high;
+        }
+
+
+        /**
+         * Searches for the appropriate edge and time.
+         *
+         * @return -(n+1) if not found, +n if found, where n is the index of the row where the
+         * item can/should be found
+         */
+        public int find() {
+            int low = _low;
+            int high = _high;
+
+            while (low <= high) {
+                int mid = low + (high - low) / 2;
+                int cmp = compare(mid);
+                if (cmp < 0) {          // mid > key
+                    high = mid - 1;
+                }
+                else if (cmp > 0) {     // mid < key
+                    low = mid + 1;
+                }
+                else {                  // mid == key
+                    return mid;
+                }
+            }
+
+            return -(low + 1);  // key not found
+        }
+
+
+        /**
+         * Compares a history record with the searched for item
+         *
+         * @param sortedIndexRow the sorted index to row to look at
+         *
+         * @return -1,0,+1 according to whether the searched-for item is
+         * less/equal/greater than the item stored at index.
+         */
+        private int compare(int sortedIndexRow) {
+            int row = _sortedIndices.get(sortedIndexRow);
+
+            int edgeRow = _rowIds.get(row);
+            if (_edgeRowId != edgeRow) {
+                return edgeRow<_edgeRowId ? 1 : -1;
+            }
+
+            long creationTime = _creationTimes.get(row);
+
+            if (creationTime<_maxTime) { return 1; }
+            if (creationTime>_maxTime) { return -1; }
+
+            return 0;
+        }
     }
 }
