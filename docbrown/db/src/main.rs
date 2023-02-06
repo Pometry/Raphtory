@@ -17,33 +17,25 @@ use replace_with::{replace_with, replace_with_or_abort, replace_with_or_abort_an
 use serde::Deserialize;
 use std::time::Instant;
 
-use flate2; // 1.0
+use flate2;
 use flate2::read::GzDecoder;
 use std::fs::File;
 use std::io::{prelude::*, BufReader, LineWriter};
 
+use docbrown_db::graphdb::GraphDB;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
 };
-use docbrown_db::graphdb::GraphDB;
-
-fn parse_record(rec: &StringRecord) -> Option<(u64, u64, i64, u64)> {
-    let src = rec.get(3).and_then(|s| s.parse::<u64>().ok())?;
-    let dst = rec.get(4).and_then(|s| s.parse::<u64>().ok())?;
-    let t = rec.get(5).and_then(|s| s.parse::<i64>().ok())?;
-    let amount = rec.get(7).and_then(|s| s.parse::<u64>().ok())?;
-    Some((src, dst, t, amount))
-}
 
 enum Msg {
     AddVertex(u64, i64),
     AddEdge(u64, u64, Vec<(String, Prop)>, i64),
     AddOutEdge(u64, u64, Vec<(String, Prop)>, i64),
     AddIntoEdge(u64, u64, Vec<(String, Prop)>, i64),
-    Len(futures::channel::oneshot::Sender<usize>),
-    Batch(Vec<Msg>),
-    Done,
+    GetGraphLength(futures::channel::oneshot::Sender<usize>),
+    MsgBatch(Vec<Msg>),
+    FlushMsgs,
 }
 
 struct TGraphShardActor {
@@ -62,7 +54,7 @@ impl TGraphShardActor {
     #[inline]
     fn handle_message(&mut self, msg: Msg) -> () {
         match msg {
-            Msg::Batch(msgs) => {
+            Msg::MsgBatch(msgs) => {
                 for m in msgs {
                     self.handle_message(m);
                 }
@@ -79,7 +71,7 @@ impl TGraphShardActor {
             Msg::AddIntoEdge(src, dst, props, t) => {
                 self.tg.add_edge_remote_into(src, dst, t, &props);
             }
-            Msg::Len(tx) => {
+            Msg::GetGraphLength(tx) => {
                 tx.send(self.tg.len())
                     .expect("Failed to send response to TemporalGraph::len()");
             }
@@ -88,72 +80,69 @@ impl TGraphShardActor {
     }
 }
 
-fn run_tgraph_shard(mut actor: TGraphShardActor) {
-    loop {
-        let msg = actor.queue.recv();
-        match msg {
-            Ok(Msg::Done) | Err(_) => {
-                return;
-            }
-            Ok(msg) => {
-                actor.handle_message(msg);
-            }
-        }
-    }
-}
-
 struct TGraphShard {
     sender: Sender<Msg>,
     handle: JoinHandle<()>,
-    vertex_buf: Vec<Msg>,
-    buf_send_size: usize,
+    msg_buffer: Vec<Msg>,
+    buffer_capacity: usize,
 }
 
 impl TGraphShard {
     pub fn new() -> Self {
+        fn run_tgraph_shard(mut actor: TGraphShardActor) {
+            loop {
+                let msg = actor.queue.recv();
+                match msg {
+                    Ok(Msg::FlushMsgs) | Err(_) => {
+                        return;
+                    }
+                    Ok(msg) => {
+                        actor.handle_message(msg);
+                    }
+                }
+            }
+        }
+
         let (sender, receiver) = unbounded::<Msg>();
         let actor = TGraphShardActor::new(receiver);
-
         let handle = thread::spawn(|| {
-            println!("STARTED THREAD");
+            println!("TGraphShardActor started");
             run_tgraph_shard(actor);
-            println!("DONE THREAD");
+            println!("TGraphShardActor finished");
         });
-        // crossbeam_utils::thread::scope(|s|{
-        //     s.spawn(|_| run_tgraph_shard(actor))
-        // });
-        // tokio::spawn(run_tgraph_shard(actor));
         let capacity = 16 * 1024;
+
         Self {
             sender,
             handle,
-            vertex_buf: Vec::with_capacity(capacity),
-            buf_send_size: capacity,
+            msg_buffer: Vec::with_capacity(capacity),
+            buffer_capacity: capacity,
         }
     }
 
     fn send_or_buffer_msg(&mut self, m: Msg, force: bool) {
-        if self.vertex_buf.len() < self.buf_send_size && !force {
-            self.vertex_buf.push(m)
+        if self.msg_buffer.len() < self.buffer_capacity && !force {
+            self.msg_buffer.push(m)
         } else {
-            let send_me_buf = replace_with_or_abort_and_return(self, |_self| match _self {
+            let buffered_msgs = replace_with_or_abort_and_return(self, |_self| match _self {
                 TGraphShard {
                     sender,
                     handle,
-                    vertex_buf,
-                    buf_send_size,
+                    msg_buffer,
+                    buffer_capacity,
                 } => (
-                    vertex_buf,
+                    msg_buffer,
                     TGraphShard {
                         sender,
                         handle,
-                        buf_send_size,
-                        vertex_buf: Vec::with_capacity(_self.buf_send_size),
+                        msg_buffer: Vec::with_capacity(_self.buffer_capacity),
+                        buffer_capacity,
                     },
                 ),
             });
+
             self.sender
-                .send(Msg::Batch(send_me_buf))
+                .send(Msg::MsgBatch(buffered_msgs))
                 .expect("Failed to send batch")
         }
     }
@@ -178,24 +167,33 @@ impl TGraphShard {
         self.send_or_buffer_msg(Msg::AddIntoEdge(src, dst, props, t), false)
     }
 
-    pub fn done(mut self) {
+    pub fn flush(mut self) {
         // done shutsdown the shard and flushes all messages
-        self.send_or_buffer_msg(Msg::Done, true)
+        self.send_or_buffer_msg(Msg::FlushMsgs, true)
     }
 
     pub fn len(&self) -> usize {
         let (tx, rx) = futures::channel::oneshot::channel();
-        let _ = self.sender.send(Msg::Len(tx));
+        let _ = self.sender.send(Msg::GetGraphLength(tx));
         futures::executor::block_on(rx).unwrap()
     }
 }
 
-fn shard_from_id(v_id: u64, n_shards: usize) -> usize {
-    let v: usize = v_id.try_into().unwrap();
-    v % n_shards
-}
-
 fn local_actor_single_threaded_temporal_graph(gs: &mut Vec<TGraphShard>, args: Vec<String>) {
+
+    fn get_shard_num_from_vertex_id(v_id: u64, n_shards: usize) -> usize {
+        let v: usize = v_id.try_into().unwrap();
+        v % n_shards
+    }
+
+    fn parse_record(rec: &StringRecord) -> Option<(u64, u64, i64, u64)> {
+        let src = rec.get(3).and_then(|s| s.parse::<u64>().ok())?;
+        let dst = rec.get(4).and_then(|s| s.parse::<u64>().ok())?;
+        let t = rec.get(5).and_then(|s| s.parse::<i64>().ok())?;
+        let amount = rec.get(7).and_then(|s| s.parse::<u64>().ok())?;
+        Some((src, dst, t, amount))
+    }
+
     let now = Instant::now();
 
     if let Some(file_name) = args.get(1) {
@@ -209,8 +207,8 @@ fn local_actor_single_threaded_temporal_graph(gs: &mut Vec<TGraphShard>, args: V
             if let Some((src, dst, t, amount)) = parse_record(&rec) {
                 count += 1;
 
-                let src_shard = shard_from_id(src, gs.len());
-                let dst_shard = shard_from_id(dst, gs.len());
+                let src_shard = get_shard_num_from_vertex_id(src, gs.len());
+                let dst_shard = get_shard_num_from_vertex_id(dst, gs.len());
 
                 gs[src_shard].add_vertex(src, t);
                 gs[dst_shard].add_vertex(dst, t);
@@ -264,7 +262,7 @@ fn load_multiple_threads() {
     local_actor_single_threaded_temporal_graph(&mut shards, args);
 
     for g in shards {
-        g.done();
+        g.flush();
     }
 }
 
