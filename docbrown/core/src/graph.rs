@@ -169,8 +169,8 @@ impl TemporalGraph {
         self.logical_to_physical.len()
     }
 
-    pub fn edges_len(&self) -> usize {
-        self.props.get_next_available_edge_id()
+    pub fn out_edges_len(&self) -> usize {
+        self.adj_lists.iter().map(|adj| adj.out_edges_len()).reduce(|s1, s2| s1 + s2).unwrap_or(0)
     }
 
     pub fn add_vertex(&mut self, v: u64, t: i64) {
