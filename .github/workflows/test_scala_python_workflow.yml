@@ -31,7 +31,7 @@ jobs:
       - name: create blank cred file
         run: mkdir -p $HOME/.sbt && touch $HOME/.sbt/sonatype_credentials
       - name: Get sbt package
-        run: apt-get update && apt-get install unzip make && curl -L "https://github.com/sbt/sbt/releases/download/v1.6.2/sbt-1.6.2.zip" -o sbt-1.6.2.zip && unzip sbt-1.6.2.zip
+        run: apt-get update && apt-get install unzip make && curl -L "https://github.com/sbt/sbt/releases/download/v1.8.2/sbt-1.8.2.zip" -o sbt-1.8.2.zip && unzip sbt-1.8.2.zip
       - name: Compile tests
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH
@@ -56,14 +56,14 @@ jobs:
         with:
           python-version: "3.9"
       - name: Get sbt package
-        run: apt-get update && apt-get install unzip make && curl -L "https://github.com/sbt/sbt/releases/download/v1.6.2/sbt-1.6.2.zip" -o sbt-1.6.2.zip && unzip sbt-1.6.2.zip
+        run: apt-get update && apt-get install unzip make && curl -L "https://github.com/sbt/sbt/releases/download/v1.8.2/sbt-1.8.2.zip" -o sbt-1.8.2.zip && unzip sbt-1.8.2.zip
       - name: Build Raphtory jars, Setup Python, Install pyraphtory
         run: |
           export PATH=$(pwd)/sbt/bin:$PATH
           make setup-python-test
       - name: Run all python tests
         run: make python-test
-        timeout-minutes: 10
+        timeout-minutes: 20
   doc-test:
     name: "Doc tests"
     strategy:
@@ -77,7 +77,7 @@ jobs:
       - name: create blank cred file
         run: mkdir -p $HOME/.sbt && touch $HOME/.sbt/sonatype_credentials
       - name: Get sbt package
-        run: apt-get update && apt-get install unzip make && curl -L "https://github.com/sbt/sbt/releases/download/v1.6.2/sbt-1.6.2.zip" -o sbt-1.6.2.zip && unzip sbt-1.6.2.zip
+        run: apt-get update && apt-get install unzip make && curl -L "https://github.com/sbt/sbt/releases/download/v1.8.2/sbt-1.8.2.zip" -o sbt-1.8.2.zip && unzip sbt-1.8.2.zip
       - name: Set up Python
         uses: actions/setup-python@v4
         with:

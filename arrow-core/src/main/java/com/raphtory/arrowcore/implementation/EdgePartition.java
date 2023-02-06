@@ -32,15 +32,17 @@ import java.util.ArrayList;
 public class EdgePartition implements LRUListItem<EdgePartition> {
     // Basic partition details:
     protected final int _partitionId;
+    protected final long _baseLocalEdgeIds;
     protected final EdgePartitionManager _aepm;
 
     // The actual arrow vertex stuff:
     private VectorSchemaRoot _rootRO;           // Arrow root
-    private EdgeArrowStore _store;              // Used to access the actual arrow data
+    protected EdgeArrowStore _store;            // Used to access the actual arrow data
     private ArrowFileReader _reader;            // File reader
     private boolean _modified = false;          // Whether or not this partition has been modified
     private boolean _loaded = false;            // Whether or not this partition has been loaded
     private int _currentSize = 0;               // Number of rows so far
+    private boolean _sorted = false;            // Whether or not this partition is sorted
 
     // History, Fields and Properties:
     protected EdgeHistoryPartition _history;   // The edge history partition
@@ -67,6 +69,7 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
     public EdgePartition(EdgePartitionManager aepm, int partitionId) {
         _aepm = aepm;
         _partitionId = partitionId;
+        _baseLocalEdgeIds = _partitionId * aepm.PARTITION_SIZE;
         _store = new EdgeArrowStore();
         _history = new EdgeHistoryPartition(_partitionId, this);
 
@@ -94,7 +97,7 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
         _rootRO.setRowCount(_aepm.PARTITION_SIZE);
         _fieldAccessors = _aepm._raphtoryPartition.createSchemaFieldAccessors(_rootRO, _aepm._raphtoryPartition._propertySchema.nonversionedEdgeProperties());
 
-        _store.init(_partitionId, _rootRO, _fieldAccessors);
+        _store.init(this, _rootRO, _fieldAccessors);
 
         _history.initialize();
 
@@ -147,6 +150,7 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
         int row = _aepm.getRowId(e.getLocalId());
         boolean isNew = _store.addEdge(row, e, prevIncomingPtr, prevOutgoingPtr);
         _modified = true;
+        _sorted = false;
 
         for (int i=0; i<_nProperties; ++i) {
             VersionedEntityPropertyAccessor a = e.getProperty(i);
@@ -221,8 +225,20 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
         }
 
         _modified = true;
+        _sorted = false;
 
         return historyRow;
+    }
+
+
+    /**
+     * Sets the outgoing edge pointer for an edge - maintaining the linked list.
+     *
+     * @param edgeId the edgeId to update
+     * @param ptr the new pointer value
+     */
+    public void setOutgoingEdgePtrByEdgeId(long edgeId, long ptr) {
+        setOutgoingEdgePtrByRow(_aepm.getRowId(edgeId), ptr);
     }
 
 
@@ -235,6 +251,7 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
     public synchronized void setOutgoingEdgePtrByRow(int row, long ptr) {
         _store._prevOutgoingEdgesPtr.set(row, ptr);
         _modified = true;
+        _sorted = false;
     }
 
 
@@ -247,6 +264,18 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
     public synchronized void setIncomingEdgePtrByRow(int row, long ptr) {
         _store._prevIncomingEdgesPtr.set(row, ptr);
         _modified = true;
+        _sorted = false;
+    }
+
+
+    /**
+     * Sets the incoming edge pointer for an edge - maintaining the linked list.
+     *
+     * @param edgeId the edge to update
+     * @param ptr the new pointer value
+     */
+    public void setIncomingEdgePtrByEdgeId(long edgeId, long ptr) {
+        setIncomingEdgePtrByRow(_aepm.getRowId(edgeId), ptr);
     }
 
 
@@ -376,8 +405,9 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
      */
     public synchronized void saveToFile() {
         try {
+            buildSortedEdgePointers();
+
             if (_modified) {
-                long then = System.currentTimeMillis();
                 _rootRO.syncSchema();
                 _rootRO.setRowCount(_currentSize);
 
@@ -388,9 +418,6 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
                 writer.end();
 
                 writer.close();
-
-                long now = System.currentTimeMillis();
-                //System.out.println("EDGE SAVE: PID=" + _partitionId + ", WRITE=" + (now-then) + "mS, size=" + (outFile.length()/(1024L*1024L)) + "MB");
             }
 
             _history.saveToFile();
@@ -402,6 +429,44 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
             System.out.println("Exception: " + e);
             e.printStackTrace(System.err);
         }
+    }
+
+
+    /**
+     * Synchronizes the sorted history store with this edge store
+     * by updating the sorted history edge start/end pointers
+     */
+    protected synchronized void buildSortedEdgePointers() {
+        if (_sorted) {
+            return;
+        }
+
+        _history.sortHistoryTimes();
+        int n = _history._history._maxRow;
+        IntVector sorted = _history._history._sortedEdgeTimeIndices;
+
+        int edgeRow = -1;
+        for (int i=0; i<n; ++i) {
+            int actualRow = sorted.get(i);
+
+            if (edgeRow==-1) {
+                edgeRow = _history._history._edgeRowIds.get(actualRow);
+                _store._sortedHStart.set(edgeRow, i);
+            }
+            else if (edgeRow != _history._history._edgeRowIds.get(actualRow)) {
+                _store._sortedHEnd.set(edgeRow, i-1);
+                edgeRow = _history._history._edgeRowIds.get(actualRow);
+                _store._sortedHStart.set(edgeRow, i);
+            }
+        }
+
+        _store._sortedHEnd.set(edgeRow, n-1);
+        _sorted = true;
+
+//        System.out.println("SORTED EDGE TIMES: " + sorted.toString());
+//        for (int i=0; i<_currentSize; ++i) {
+//            System.out.println("EDGE: " + i + " F: " + _store._sortedHStart.get(i) + " -> " + _store._sortedHEnd.get(i));
+//        }
     }
 
 
@@ -459,9 +524,10 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
             _rootRO.syncSchema();
 
             _fieldAccessors = _aepm._raphtoryPartition.createSchemaFieldAccessors(_rootRO, _aepm._raphtoryPartition._propertySchema.nonversionedEdgeProperties());
-            _store.init(_partitionId, _rootRO, _fieldAccessors);
+            _store.init(this, _rootRO, _fieldAccessors);
 
             _modified = false;
+            _sorted = true;
             _currentSize = _rootRO.getRowCount();
             _rootRO.setRowCount(_aepm.PARTITION_SIZE);
 
@@ -490,7 +556,7 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
             _loaded = false;
 
             if (_store !=null) {
-                _store.init(_partitionId, null, null);
+                _store.init(this, null, null);
             }
 
             if (_rootRO != null) {
@@ -583,7 +649,7 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
      *
      * @return true if valid, false otherwise
      */
-    protected boolean isValidRow(int row) { return row<_currentSize && _store._localIds.isSet(row)!=0; }
+    protected boolean isValidRow(int row) { return row>=0 && row<_currentSize && _store._srcVertexIds.isSet(row)!=0; }
 
 
     /**
@@ -632,6 +698,15 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
     protected boolean isSrcVertexLocal(int row) {
         return _store._srcIsGlobals.get(row) == 0;
     }
+    /**
+     * Returns true if the src vertex id is a local vertex id
+     *
+     * @param row the row in question
+     *
+     * @return true if the src-vertex-id is a local-id, false otherwise
+     */
+    protected boolean isSrcVertexGlobal(int row) { return _store._srcIsGlobals.get(row)!=0;
+}
 
 
     /**
@@ -644,6 +719,15 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
     protected boolean isDstVertexLocal(int row) {
         return _store._dstIsGlobals.get(row) == 0;
     }
+    /**
+     * Returns true if the dst vertex id is a local vertex id
+     *
+     * @param row the row in question
+     *
+     * @return true if the dst-vertex-id is a local-id, false otherwise
+     */
+    protected boolean isDstVertexGlobal(int row) { return _store._dstIsGlobals.get(row) != 0; }
+
 
 
     /**
@@ -665,7 +749,7 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
      *
      * @return the local edge-id
      */
-    protected long _getLocalEdgeIdByRow(int row) { return _store._localIds.get(row); }
+    protected long _getLocalEdgeIdByRow(int row) { return _baseLocalEdgeIds + row; }
 
 
     /**
@@ -677,20 +761,67 @@ public class EdgePartition implements LRUListItem<EdgePartition> {
      * @return the orevious-ptr at that row
      */
     protected int getPropertyPrevPtrByRow(int field, int row) {
-        int prevPtr = _propertyPrevPtrVector[field].get(row);
+        IntVector iv = _propertyPrevPtrVector[field];
 
-        return prevPtr;
+        if (iv.isSet(row)!=0) {
+            return iv.get(row);
+        }
+
+        return -1;
     }
 
 
+    /**
+     * Returns the max history time for the specified edge
+     *
+     * @param edgeId the edge in question
+     * @return the max history time
+     */
     public long getEdgeMaxHistoryTime(long edgeId) {
         int row = _aepm.getRowId(edgeId);
         return _history.getEdgeMaxHistoryTime(row);
     }
 
 
+    /**
+     * Returns the min history time for the specified edge
+     *
+     * @param edgeId the edge in question
+     * @return the min history time
+     */
     public long getEdgeMinHistoryTime(long edgeId) {
         int row = _aepm.getRowId(edgeId);
         return _history.getEdgeMinHistoryTime(row);
+    }
+
+
+    /**
+     * Identifies whether or not the specified edge is alive within the time window
+     *
+     * @param edgeId the edge-edgeId
+     * @param start the window start time (inclusive)
+     * @param end the window end time (inclusive)
+     * @param searcher the binary searcher to use
+     *
+     * @return true if the edge was alive in the window, false otherwise
+     */
+    public boolean isAliveAt(long edgeId, long start, long end, EdgeHistoryPartition.EdgeHistoryBoundedBinarySearch searcher) {
+        buildSortedEdgePointers();
+        return _history.isAliveAt(edgeId, start, end, searcher);
+    }
+
+
+    /**
+     * Identifies whether or not the specified edge is alive within the time window
+     *
+     * @param edgeId the edge-edgeId
+     * @param start the window start time (inclusive)
+     * @param end the window end time (inclusive)
+     *
+     * @return true if the edge was alive in the window, false otherwise
+     */
+    public boolean isAliveAt(long edgeId, long start, long end) {
+        buildSortedEdgePointers();
+        return _history.isAliveAt(edgeId, start, end);
     }
 }

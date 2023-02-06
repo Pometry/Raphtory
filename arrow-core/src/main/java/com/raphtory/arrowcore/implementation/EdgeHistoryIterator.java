@@ -84,7 +84,7 @@ public abstract class EdgeHistoryIterator {
         protected int _index;
         protected boolean _firstTime = true;
         protected boolean _getNextPartition = false;
-        protected boolean _vertexIdSupplied = false;
+        protected boolean _edgeIdSupplied = false;
 
         private WindowedEdgeHistoryIterator() {}
 
@@ -94,8 +94,8 @@ public abstract class EdgeHistoryIterator {
         }
 
 
-        protected WindowedEdgeHistoryIterator(EdgePartitionManager aepm, long vertexId, long minTime, long maxTime) {
-            init(aepm, vertexId, minTime, maxTime);
+        protected WindowedEdgeHistoryIterator(EdgePartitionManager aepm, long edgeId, long minTime, long maxTime) {
+            init(aepm, edgeId, minTime, maxTime);
         }
 
 
@@ -108,7 +108,7 @@ public abstract class EdgeHistoryIterator {
             _firstTime = true;
             _index = -1;
             _getNextPartition = true;
-            _vertexIdSupplied = false;
+            _edgeIdSupplied = false;
         }
 
 
@@ -124,7 +124,7 @@ public abstract class EdgeHistoryIterator {
             _index = -1;
             _historyRow = -1;
             _getNextPartition = false;
-            _vertexIdSupplied = true;
+            _edgeIdSupplied = true;
         }
 
 
@@ -150,7 +150,7 @@ public abstract class EdgeHistoryIterator {
                 if (_lastIndex!=-1) {
                     if (_index >= _firstIndex) {
                         //System.out.println("RET: " + _index);
-                        if (_vertexIdSupplied) {
+                        if (_edgeIdSupplied) {
                             _historyRow = _edgePartition._history.getHistoryRowIdBySortedEdgeIndex(_index);
                         }
                         else {

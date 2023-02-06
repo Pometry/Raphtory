@@ -7,8 +7,6 @@
 
 package com.raphtory.arrowcore.implementation;
 
-import com.raphtory.arrowcore.implementation.VertexIterator.WindowedVertexEdgeIterator;
-import com.raphtory.arrowcore.implementation.VertexIterator.WindowedVertexIterator;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntComparator;
 import org.apache.arrow.algorithm.search.VectorRangeSearcher;
@@ -44,6 +42,9 @@ public class VertexHistoryPartition {
     private static final ThreadLocal<TimeWindowComparator> _timeWindowComparatorTL = ThreadLocal.withInitial(TimeWindowComparator::new);
     private static final ThreadLocal<VertexEdgeTimeWindowComparator> _vertexTimeEdgeWindowComparatorTL = ThreadLocal.withInitial(VertexEdgeTimeWindowComparator::new);
     private static final ThreadLocal<VertexTimeWindowComparator> _timeVertexWindowComparatorTL = ThreadLocal.withInitial(VertexTimeWindowComparator::new);
+
+    private static final ThreadLocal<BoundedVertexEdgeTimeWindowComparator> _boundedVETWComparatorTL = ThreadLocal.withInitial(BoundedVertexEdgeTimeWindowComparator::new);
+
 
     /**
      * Comparator to sort all history records by time
@@ -140,16 +141,16 @@ public class VertexHistoryPartition {
 
 
 
-    private final int _partitionId;
-    private final VertexPartition _avp;
-    private final VertexPartitionManager _apm;
+    protected final int _partitionId;
+    protected final VertexPartition _avp;
+    protected final VertexPartitionManager _apm;
     //private final VertexSnapshotPartition _snapshot;
 
-    private VertexHistoryStore _history;
-    private VectorSchemaRoot _historyRO;
-    private ArrowFileReader _historyReader;
-    private boolean _modified = false;
-    private boolean _sorted = false;
+    protected VertexHistoryStore _history;
+    protected VectorSchemaRoot _historyRO;
+    protected ArrowFileReader _historyReader;
+    protected boolean _modified = false;
+    protected boolean _sorted = false;
 
 
     /**
@@ -312,9 +313,7 @@ public class VertexHistoryPartition {
      */
     public void saveToFile() {
         try {
-            if (!_sorted) {
-                sortHistoryTimes();
-            }
+            sortHistoryTimes();
 
             if (_modified) {
                 _historyRO.syncSchema();
@@ -330,7 +329,6 @@ public class VertexHistoryPartition {
             }
 
             _modified = false;
-            _sorted = true;
         }
         catch (Exception e) {
             System.out.println("Exception: " + e);
@@ -435,7 +433,15 @@ public class VertexHistoryPartition {
      * instead, an index is created that points to the rows in the correct
      * sorted order. ie. an indirect sorted index is created.
      */
-    protected void sortHistoryTimes() {
+    protected synchronized void sortHistoryTimes() {
+        if (_sorted) {
+            return;
+        }
+
+        if (_historyRO.getRowCount() != _history._maxRow) {
+            _historyRO.setRowCount(_history._maxRow);
+        }
+
         int n = _history._maxRow;
 
         IntArrayList tmpList = _tmpListTL.get();
@@ -472,29 +478,25 @@ public class VertexHistoryPartition {
         }
 
         _sorted = true;
+
+        //dump();
     }
 
 
     /**
-     * Initialises a WindowedVertexIterator in order to iterate over
+     * Initialises a WindowedVertexHistoryIterator in order to iterate over
      * active vertices within a time window.
      *
      * @param state the iterator to initialise
      */
-    protected void isAliveAtWithWindowVector(WindowedVertexIterator state) {
+    protected void isAliveAtWithWindowVector(VertexIterator.WindowedVertexHistoryIterator state) {
         if (_historyRO == null) {
             state._firstIndex = -1;
             state._lastIndex = -1;
             return;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         TimeWindowComparator wc = _timeWindowComparatorTL.get();
         wc.init(_history._sortedTimeIndices, _history._times, state._minTime, state._maxTime);
@@ -523,31 +525,25 @@ public class VertexHistoryPartition {
 
             tdiff = _history._times.get(row); // - tdiff;
 
-            System.out.println(i + ": " + row + ", v=" + _history._vertexRowIds.get(row) + ", e=" + _history._edgeIds.get(row) + ", t=" + tdiff);
+            System.out.println(i + ": " + row + ", v=" + _history._vertexRowIds.get(row) + ", t=" + tdiff + ", e=" + _history._edgeIds.get(row));
         }
     }
 
 
     /**
-     * Initialises a WindowedVertexEdgeIterator in order to iterate over
+     * Initialises a WindowedVertexEdgeHistoryIterator in order to iterate over
      * active vertices within a time window.
      *
      * @param state the iterator to initialise
      */
-    protected void isAliveAtWithWindowVector(WindowedVertexEdgeIterator state) {
+    protected void isAliveAtWithWindowVector(VertexIterator.WindowedVertexEdgeHistoryIterator state) {
         if (_historyRO == null) {
             state._firstIndex = -1;
             state._lastIndex = -1;
             return;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         VertexEdgeTimeWindowComparator wc = _vertexTimeEdgeWindowComparatorTL.get();
         wc.init(state._vertexRowId, _history._vertexRowIds, _history._sortedVertexTimeIndices, _history._times, state._minTime, state._maxTime);
@@ -564,6 +560,11 @@ public class VertexHistoryPartition {
     }
 
 
+    /**
+     * Intialises the history iterator to retrieve history records for the specified state
+     *
+     * @param state the state to use
+     */
     protected void findHistory(VertexHistoryIterator.WindowedVertexHistoryIterator state) {
         if (_historyRO == null) {
             state._firstIndex = -1;
@@ -571,13 +572,7 @@ public class VertexHistoryPartition {
             return;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         if (state._vertexId==-1L) {
             TimeWindowComparator wc = _timeWindowComparatorTL.get();
@@ -610,19 +605,15 @@ public class VertexHistoryPartition {
     }
 
 
+    /**
+     * @return the lowest history time in this partition
+     */
     public long getLowestTime() {
         if (_history._maxRow==0) {
             return Long.MAX_VALUE;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
-
+        sortHistoryTimes();
 
         int lowestRow = _history._sortedTimeIndices.get(0);
 
@@ -630,18 +621,15 @@ public class VertexHistoryPartition {
     }
 
 
+    /**
+     * @return the highest history time in this partition
+     */
     public long getHighestTime() {
         if (_history._maxRow==0) {
             return Long.MIN_VALUE;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         int highestRow = _history._sortedTimeIndices.get(_history._maxRow-1);
 
@@ -649,9 +637,11 @@ public class VertexHistoryPartition {
     }
 
 
+    /**
+     * @return the number of history items in this partition
+     */
     public long getNHistoryItems() {
-        int n = _history._maxRow;
-        return n+1;
+        return _history._maxRow;
     }
 
 
@@ -821,7 +811,9 @@ public class VertexHistoryPartition {
     }
 
 
-
+    /**
+     * This class is used to compare creation-times for vertices
+     */
     private static class VertexTimeWindowComparator extends VectorValueComparator<IntVector> {
         private int _vertexRowId;
         private IntVector _rowIds;
@@ -903,21 +895,25 @@ public class VertexHistoryPartition {
     }
 
 
+    /**
+     * @return the vertex history store
+     */
     protected VertexHistoryStore getHistoryStore() { return _history; }
 
 
+    /**
+     * Returns the lowest history time for a vertex-row
+     *
+     * @param vertexRowId the row in question
+     *
+     * @return the lowest history time
+     */
     public long getVertexMinHistoryTime(int vertexRowId) {
         if (_historyRO == null) {
             return Long.MIN_VALUE;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         VertexEdgeTimeWindowComparator wc = _vertexTimeEdgeWindowComparatorTL.get();
         wc.init(vertexRowId, _history._vertexRowIds, _history._sortedVertexTimeIndices, _history._times, Long.MIN_VALUE, Long.MAX_VALUE);
@@ -931,18 +927,19 @@ public class VertexHistoryPartition {
     }
 
 
-    public long getVertexMaxHistoryTime(int vertexRowId) {
+    /**
+     * Returns the highest history time for a vertex-row
+     *
+     * @param vertexRowId the row in question
+     *
+     * @return the max history time
+     */
+    protected long getVertexMaxHistoryTime(int vertexRowId) {
         if (_historyRO == null) {
             return Long.MAX_VALUE;
         }
 
-        if (_historyRO.getRowCount() != _history._maxRow) {
-            _historyRO.setRowCount(_history._maxRow);
-        }
-
-        if (!_sorted) {
-            sortHistoryTimes();
-        }
+        sortHistoryTimes();
 
         VertexEdgeTimeWindowComparator wc = _vertexTimeEdgeWindowComparatorTL.get();
         wc.init(vertexRowId, _history._vertexRowIds, _history._sortedVertexTimeIndices, _history._times, Long.MIN_VALUE, Long.MAX_VALUE);
@@ -953,5 +950,189 @@ public class VertexHistoryPartition {
         }
 
         return Long.MAX_VALUE;
+    }
+
+
+    /**
+     * Identifies whether or not the vertex is alive in the specified window
+     *
+     * @param vertexRow the vertex in question
+     * @param start the start of the window (inclusive)
+     * @param end the end of the window (inclusive)
+     *
+     * @return true if the vertex is alive in the window
+     */
+    protected boolean isAliveAt(int vertexRow, long start, long end) {
+        return isAliveAt(vertexRow, start, end, _boundedVETWComparatorTL.get());
+    }
+
+
+    /**
+     * Identifies whether or not the vertex is alive in the specified window
+     *
+     * @param vertexRow the vertex in question
+     * @param start the start of the window (inclusive)
+     * @param end the end of the window (inclusive)
+     * @param searcher the bounded searcher to use
+     *
+     * @return true if the vertex is alive in the window
+     */
+    protected boolean isAliveAt(int vertexRow, long start, long end, BoundedVertexEdgeTimeWindowComparator searcher) {
+        int low = _avp._store._sortedHStart.get(vertexRow);
+        int high = _avp._store._sortedHEnd.get(vertexRow);
+
+        if (low==-1 || high==-1) {
+            System.out.println("Looks like you're searching for history BUT haven't added any for this vertex!");
+            return false;
+        }
+
+        searcher.init(vertexRow, _history._vertexRowIds, _history._sortedVertexTimeIndices, _history._times, end);
+        searcher.setBounds(low, high);
+
+        int nRows = _history._maxRow;
+        int row = searcher.find();
+
+        if (row < 0) {
+            row = -row;
+            row = row - 1;
+
+            if (row>=nRows) {
+                row = nRows-1;
+            }
+
+            if (row<low) { // row<0
+                return false;
+            }
+
+            int actualRow = _history._sortedVertexTimeIndices.get(row);
+            if ((_history._vertexRowIds.get(actualRow)!=vertexRow || _history._times.get(actualRow)>end) && row>0) {
+                --row;
+                actualRow = _history._sortedVertexTimeIndices.get(row);
+            }
+
+            return actualRow<nRows &&
+                    _history._states.get(actualRow)!=0 &&
+                    _history._vertexRowIds.get(actualRow)==vertexRow &&
+                    _history._times.get(actualRow)>=start &&
+                    _history._times.get(actualRow)<=end;
+        }
+
+        int actualRow = _history._sortedVertexTimeIndices.get(row);
+        return _history._states.get(actualRow)!=0;
+    }
+
+
+    private void dumpBits(int start, int high) {
+        StringBuilder sb = new StringBuilder();
+        for (int i=start; i<=high; ++i) {
+            sb.append(i);
+            sb.append(": ");
+
+            int actualRow = _history._sortedVertexTimeIndices.get(i);
+
+            sb.append("r=").append(actualRow);
+            sb.append(", alive=").append(_history._states.get(actualRow));
+            sb.append(", vertex=").append(_history._vertexRowIds.get(actualRow));
+            sb.append(", time=").append(_history._times.get(actualRow));
+
+            System.out.println(sb);
+            sb.setLength(0);
+        }
+    }
+
+    /**
+     * Comparator for Arrow Vectors that compares vertex-ids and times only
+     * using a bounded history table and a binary search
+     */
+    public static class BoundedVertexEdgeTimeWindowComparator {
+        private int _vertexRowId;
+        private long _maxTime;
+        private IntVector _rowIds;
+        private IntVector _sortedIndices;
+        private BigIntVector _creationTimes;
+        private int _low;
+        private int _high;
+
+        /**
+         * Initialises this comparator.
+         *
+         * @param vertexRowId the vertex we're interested in
+         * @param rowIds the vector of vertex-ids
+         * @param sortedIndices the sorted-indices to search
+         * @param creationTimes the unsorted times
+         * @param maxTime the maximum time to search for (inclusive)
+         */
+        public void init(int vertexRowId, IntVector rowIds, IntVector sortedIndices, BigIntVector creationTimes, long maxTime) {
+            _vertexRowId = vertexRowId;
+            _rowIds = rowIds;
+            _sortedIndices = sortedIndices;
+            _creationTimes = creationTimes;
+            _maxTime = maxTime;
+
+            _low = 0;
+            _high = _sortedIndices.getValueCount() - 1;
+        }
+
+
+        /**
+         * Set the bounds of the search
+         *
+         * @param low the start index for the search
+         * @param high the end index for the search
+         */
+        public void setBounds(int low, int high) {
+            _low = low;
+            _high = high;
+        }
+
+
+
+        /**
+         * Searches for the appropriate vertex and time.
+         *
+         * @return -(n+1) if not found, +n if found, where n is the index of the row where the
+         * item can/should be found
+         */
+        public int find() {
+            int low = _low;
+            int high = _high;
+
+            while (low <= high) {
+                int mid = low + (high - low) / 2;
+                int cmp = compare(mid);
+                if (cmp < 0) {          // mid > key
+                    high = mid - 1;
+                }
+                else if (cmp > 0) {     // mid < key
+                    low = mid + 1;
+                }
+                else {                  // mid == key
+                    return mid;
+                }
+            }
+
+            return -(low + 1);  // key not found
+        }
+
+
+        /**
+         * Compares a history record with the searched for item
+         *
+         * @param sortedIndexRow the sorted index to row to look at
+         *
+         * @return -1,0,+1 according to whether the searched-for item is
+         * less/equal/greater than the item stored at index.
+         */
+        private int compare(int sortedIndexRow) {
+            int row = _sortedIndices.get(sortedIndexRow);
+
+            int vertexRow = _rowIds.get(row);
+            if (_vertexRowId!=vertexRow) {
+                return Integer.compare(_vertexRowId, vertexRow);
+            }
+
+            long creationTime = _creationTimes.get(row);
+            return Long.compare(_maxTime, creationTime);
+        }
     }
 }

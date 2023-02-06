@@ -69,8 +69,17 @@ object PyRaphtoryContext {
   private lazy val (standalone, shutdown): (RaphtoryService[IO], IO[Unit]) =
     RaphtoryServiceBuilder.standalone[IO](defaultConf).allocated.unsafeRunSync()
 
+  /** Create a local Raphtory context.
+    *
+    * A local context manages graphs on the local machine.
+    */
   def local(): PyRaphtoryContext = new PyRaphtoryContext(Resource.pure(standalone), defaultConf, shutdown)
 
+  /** Create a remote Raphtory context.
+    *
+    * A remote context connects to a different instance of Raphtory to manage graphs that are
+    * on a different machine/cluster or a standalone instance of Raphtory on the same machine.
+    */
   def remote(host: String = deployInterface, port: Int = deployPort): PyRaphtoryContext = {
     val config =
       ConfigBuilder()
@@ -134,6 +143,11 @@ object RaphtoryIOContext {
   def localIO(): Resource[IO, RaphtoryContext] =
     RaphtoryServiceBuilder
       .standalone[IO](defaultConf)
+      .evalMap(service => IO(new RaphtoryContext(Resource.pure(service), defaultConf)))
+
+  def localArrowIO[V:VertexSchema, E:EdgeSchema](): Resource[IO, RaphtoryContext] =
+    RaphtoryServiceBuilder
+      .arrowStandalone[V, E, IO](defaultConf)
       .evalMap(service => IO(new RaphtoryContext(Resource.pure(service), defaultConf)))
 
   def remoteIO(host: String = deployInterface, port: Int = deployPort): Resource[IO, RaphtoryContext] = {

@@ -29,7 +29,7 @@ public class PropertyStore {
         List<Field> propertyFields = new ArrayList<>();
 
         // local_id could be an int?
-        propertyFields.add(new Field("local_id", new FieldType(false, new ArrowType.Int(64, true), null), null));
+        propertyFields.add(new Field("local_id", new FieldType(false, new ArrowType.Int(64, true), null), null)); // Make 32-bit?
         propertyFields.add(new Field("initial_value", new FieldType(false, new ArrowType.Bool(), null), null));
         propertyFields.add(new Field("creation_time", new FieldType(false, new ArrowType.Int(64, true), null), null));
         propertyFields.add(new Field("prev_ptr", new FieldType(false, new ArrowType.Int(32, true), null), null));
@@ -96,6 +96,7 @@ public class PropertyStore {
         _initialValues.setSafe(row, initialValue ? 1 : 0);
         _creationTimes.setSafe(row, creationTime);
         _prevPtrs.setSafe(row, prevPtr);
+
         _accessor.store(ea, row);
 
         return row;

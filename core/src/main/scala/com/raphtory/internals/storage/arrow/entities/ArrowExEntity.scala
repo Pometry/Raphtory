@@ -97,11 +97,11 @@ trait ArrowExEntity extends EntityVisitor {
             .get
             .map(value =>
               List(
-                      PropertyValue(
-                              vertex.vertex.getCreationTime,
-                              vertex.vertex.getCreationTime,
-                              value
-                      )
+                PropertyValue(
+                  vertex.vertex.getCreationTime,
+                  vertex.vertex.getCreationTime,
+                  value
+                )
               )
             )
 
