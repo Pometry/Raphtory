@@ -50,7 +50,8 @@ public class VertexPartitionManager {
     private final ArrayList<PartitionWriter> _writers = new ArrayList<>(N_WRITERS);
     private final RaphtoryThreadPool _pool;
     private VertexPartition[] _partitionArray;
-    private int _lastFreePartitionId = 0;
+    private int _lastFreePartitionId = -1;
+    private int _maxPartitionId = -1;
 
     public final int PARTITION_SIZE;
     public final int PARTITION_SHIFT;
@@ -93,16 +94,24 @@ public class VertexPartitionManager {
 
 
     /**
+     * @return the maximum partition id so far loaded
+     */
+    public int getMaxPartitionId() { return _maxPartitionId; }
+
+
+    /**
      * @return the total number of vertices
      *
      * TODO: This is a bit slow
      */
     public long getTotalNumberOfVertices() {
-        long nVertices = 0;
-        int nPartitions = nPartitions();
+        long nVertices = 0L;
 
-        for (int i=0; i<nPartitions; ++i) {
-            nVertices += getPartition(i).getVerticesCount();
+        for (int i=0; i<=_maxPartitionId; ++i) {
+            VertexPartition p = getPartition(i);
+            if (p!=null) {
+                nVertices += p.getVerticesCount();
+            }
         }
 
         return nVertices;
@@ -121,22 +130,24 @@ public class VertexPartitionManager {
      * @return the next available free vertex-id
      */
     public long getNextFreeVertexId() {
-        int nPartitions = nPartitions();
-        if (nPartitions==0) {
+        if (_lastFreePartitionId==-1) {
+            getPartitionAndLoad(0);
             _lastFreePartitionId = 0;
-            return 0L;
         }
 
-        for (int i=_lastFreePartitionId; i<nPartitions; ++i) {
-            long freeId = getPartition(i).getNextFreeVertexId();
-            if (freeId!=-1L) {
-                _lastFreePartitionId = i;
-                return freeId;
+        for (int i=_lastFreePartitionId; i<=_maxPartitionId; ++i) {
+            VertexPartition p = getPartition(i);
+            if (p!=null) {
+                long freeId = p.getNextFreeVertexId();
+                if (freeId != -1L) {
+                    _lastFreePartitionId = i;
+                    return freeId;
+                }
             }
         }
 
-        _lastFreePartitionId = nPartitions;
-        return (long)nPartitions * (long)PARTITION_SIZE;
+        _lastFreePartitionId = ++_maxPartitionId;
+        return (long)_lastFreePartitionId * (long)PARTITION_SIZE;
     }
 
 
@@ -195,6 +206,7 @@ public class VertexPartitionManager {
             else {
                 p = new VertexPartition(this, partId);
                 _partitions.put(partId, p);
+                _maxPartitionId = Math.max(_maxPartitionId, partId);
             }
         }
 
@@ -287,13 +299,27 @@ public class VertexPartitionManager {
 
 
     /**
+     * Retrieves the vertex partition that contains the specified local vertex-id
+     *
+     * @param localVertexId the local vertex-id in question
+     *
+     * @return the partition, or null if it hasn't been loaded
+     */
+    public VertexPartition getPartitionForVertex(long localVertexId) {
+        int partId = getPartitionId(localVertexId);
+        VertexPartition p = getPartition(partId);
+        return p;
+    }
+
+
+    /**
      * Retrieves a vertex partition, loading it or creating it as required.
      *
      * @param partId the partition id in question
      *
      * @return the vertex partition
      */
-    protected VertexPartition getPartitionAndLoad(int partId) {
+    public VertexPartition getPartitionAndLoad(int partId) {
         VertexPartition p = _partitions.get(partId);
         if (p == null) {
             if (_partitions.size() >= N_ARROW_PARTITIONS) {
@@ -351,14 +377,15 @@ public class VertexPartitionManager {
      *
      * @param vertexId the vertex in question
      * @param edgeId the new edge to add
+     * @param srcVertexId the src vertex for this edge
      *
      * @return the previous head of the incoming list of edges
      */
-    public long addIncomingEdgeToList(long vertexId, long edgeId) {
+    public long addIncomingEdgeToList(long vertexId, long edgeId, long srcVertexId) {
         int partId = getPartitionId(vertexId);
         VertexPartition p = getPartitionAndLoad(partId);
 
-        return p.addIncomingEdgeToList(vertexId, edgeId);
+        return p.addIncomingEdgeToList(vertexId, edgeId, srcVertexId);
     }
 
 

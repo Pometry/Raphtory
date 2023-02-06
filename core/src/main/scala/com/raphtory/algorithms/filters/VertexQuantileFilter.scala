@@ -10,7 +10,7 @@ import scala.math.Numeric.Implicits.infixNumericOps
 import scala.reflect.ClassTag
 
 /**
-  * `VertexQuantileFilter()`
+  * {s}`VertexQuantileFilter()`
   * : Filtered view of the graph based on vertex state or property
   *
   *  This creates a filtered view of the graph where nodes are removed based on where their value of a given property/state lies in the global

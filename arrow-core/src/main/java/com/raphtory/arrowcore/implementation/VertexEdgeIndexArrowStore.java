@@ -95,11 +95,19 @@ public class VertexEdgeIndexArrowStore {
     public void addIndexRecord(int vertexRowId, long dstId, long edgeId, boolean dstIsGlobal) {
         int row = _maxRow++;
 
-        _vertexRowIds.setSafe(row, vertexRowId);
-        _dstVertexIds.setSafe(row, dstId);
-        _edgeIds.setSafe(row, edgeId);
-        _sortedIndex.setSafe(row, row);
-        _isGlobals.setSafe(row, dstIsGlobal ? 1 : 0);
+        while (!_vertexRowIds.isSafe(row)) {
+            _vertexRowIds.reAlloc();
+            _dstVertexIds.reAlloc();
+            _edgeIds.reAlloc();
+            _sortedIndex.reAlloc();
+            _isGlobals.reAlloc();
+        }
+
+        _vertexRowIds.set(row, vertexRowId);
+        _dstVertexIds.set(row, dstId);
+        _edgeIds.set(row, edgeId);
+        _sortedIndex.set(row, row);
+        _isGlobals.set(row, dstIsGlobal ? 1 : 0);
     }
 
 

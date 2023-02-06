@@ -112,3 +112,5 @@ fdoutput
 g+data
 testpfdoutput
 python/pyraphtory_jvm/pyraphtory_jvm/data/
+.tox
+

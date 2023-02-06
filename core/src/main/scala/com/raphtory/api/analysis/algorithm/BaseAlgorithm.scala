@@ -12,7 +12,7 @@ private[raphtory] trait BaseAlgorithm extends Serializable {
 
   private var internalLogger: Logger = _
 
-  def logger =
+  protected def logger =
     if (internalLogger == null) {
       internalLogger = Logger(LoggerFactory.getLogger(this.getClass))
       internalLogger

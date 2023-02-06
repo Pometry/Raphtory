@@ -34,7 +34,6 @@ object TestUtils {
     val results = getResults(outputDirectory, jobId)
     val hash = resultsHash(results)
     logger.info(s"Generated hash code: '$hash'.")
-
     hash
   }
 

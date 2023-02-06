@@ -1,14 +1,14 @@
-from pyraphtory.context import PyRaphtory
-from pyraphtory.input import MutableInteger
-from pyraphtory.sources import SqliteConnection
-from pyraphtory.sources import SqlEdgeSource
-from pyraphtory.sources import SqlVertexSource
-from pyraphtory.vertex import Vertex
+from pyraphtory.api.context import PyRaphtory
+from pyraphtory.api.input import MutableInteger
+from pyraphtory.api.sources import SqliteConnection
+from pyraphtory.api.sources import SqlEdgeSource
+from pyraphtory.api.sources import SqlVertexSource
+from pyraphtory.api.vertex import Vertex
 import pyraphtory
 from pyraphtory._config import get_java_home
 import unittest
 from numpy import array_equal
-from pyraphtory.input import *
+from pyraphtory.api.input import *
 from unittest import mock
 from pathlib import Path
 import urllib.request
@@ -131,11 +131,11 @@ class PyRaphtoryTest(unittest.TestCase):
         with self.ctx.new_graph() as graph:
             graph.add_edge(1, 1, 2)
             cols = ["id", "message"]
-            df = (graph.step(lambda vertex: vertex.message_vertex(1, "message"))\
-                        .step(lambda vertex: iterateMessages(vertex))\
-                        .select("id", "message")\
-                        .explode("message"))\
-                        .to_df()
+            df = (graph.step(lambda vertex: vertex.message_vertex(1, "message"))
+                  .step(lambda vertex: iterateMessages(vertex))
+                  .select("id", "message")
+                  .explode("message")
+                  .to_df())
             print(df.to_csv)
             assert array_equal(df["id"], ["1", "1"])
             assert array_equal(df["message"], ["message", "message"])
@@ -166,41 +166,41 @@ class PyRaphtoryTest(unittest.TestCase):
                 self.assertRaises(FileNotFoundError, get_java_home)
 
     def test_type(self):
-        t = pyraphtory.input.Type("test")
+        t = Type("test")
         self.assertEqual(t.name(), "test")
 
     def test_immutable_string(self):
-        s = pyraphtory.input.ImmutableString(key="key", value="value")
+        s = ImmutableString(key="key", value="value")
         self.assertEqual(s.key(), "key")
         self.assertEqual(s.value(), "value")
 
     def test_mutable_string(self):
-        s = pyraphtory.input.MutableString(key="key", value="value")
+        s = MutableString(key="key", value="value")
         self.assertEqual(s.key(), "key")
         self.assertEqual(s.value(), "value")
 
     def test_mutable_long(self):
-        long = pyraphtory.input.MutableLong("test", 1)
+        long = MutableLong("test", 1)
         self.assertEqual(long.value(), 1)
         self.assertEqual(long.key(), "test")
 
     def test_mutable_double(self):
-        d = pyraphtory.input.MutableDouble("test", 1.0)
+        d = MutableDouble("test", 1.0)
         self.assertEqual(d.value(), 1.0)
         self.assertEqual(d.key(), "test")
 
     def test_mutable_float(self):
-        d = pyraphtory.input.MutableFloat("test", 1.0)
+        d = MutableFloat("test", 1.0)
         self.assertEqual(d.value(), 1.0)
         self.assertEqual(d.key(), "test")
 
     def test_mutable_boolean(self):
-        b = pyraphtory.input.MutableBoolean("test", False)
+        b = MutableBoolean("test", False)
         self.assertEqual(b.value(), False)
         self.assertEqual(b.key(), "test")
 
     def test_mutable_integer(self):
-        i = pyraphtory.input.MutableInteger("test", 2)
+        i = MutableInteger("test", 2)
         self.assertEqual(i.value(), 2)
         self.assertEqual(i.key(), "test")
 
