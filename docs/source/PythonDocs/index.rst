@@ -14,17 +14,7 @@ and auto generating Scala docs, that have been inherited by Python.
    :toctree: _autosummary
    :recursive:
 
-   pyraphtory.algorithms
-   pyraphtory.algorithm
-   pyraphtory.context
-   pyraphtory.formats
-   pyraphtory.graph
-   pyraphtory.input
-   pyraphtory.scala
-   pyraphtory.sinks
-   pyraphtory.sources
-   pyraphtory.spouts
-   pyraphtory.vertex
+   pyraphtory
 
    
    
