@@ -120,14 +120,25 @@ public class VertexHistoryStore {
     public int addHistory(int vertexRow, long time, boolean active, boolean updated, int prevPtr, long localEdgeId, boolean outgoing, int snapshotRow) {
         int row = _maxRow++;
 
-        _vertexRowIds.setSafe(row, vertexRow);
-        _times.setSafe(row, time);
-        _states.setSafe(row, active ? 1 : 0);
-        _updates.setSafe(row, updated ? 1 : 0);
-        _prevPtrs.setSafe(row, prevPtr);
+        while (!_vertexRowIds.isSafe(row)) {
+            _vertexRowIds.reAlloc();
+            _times.reAlloc();
+            _states.reAlloc();
+            _updates.reAlloc();
+            _prevPtrs.reAlloc();
 
-        _edgeIds.setSafe(row, localEdgeId);
-        _isOutgoings.setSafe(row, outgoing ? 1: 0);
+            _edgeIds.reAlloc();
+            _isOutgoings.reAlloc();
+        }
+
+        _vertexRowIds.set(row, vertexRow);
+        _times.set(row, time);
+        _states.set(row, active ? 1 : 0);
+        _updates.set(row, updated ? 1 : 0);
+        _prevPtrs.set(row, prevPtr);
+
+        _edgeIds.set(row, localEdgeId);
+        _isOutgoings.set(row, outgoing ? 1: 0);
 
         //_snapshots.setSafe(row, snapshotRow);
 

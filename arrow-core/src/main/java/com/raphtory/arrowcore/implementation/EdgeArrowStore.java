@@ -28,7 +28,6 @@ public class EdgeArrowStore {
      */
     public static List<Field> createEdgeFields() {
         List<Field> edgeFields = new ArrayList<>();
-        edgeFields.add(new Field("local_id", new FieldType(false, new ArrowType.Int(64, true), null), null));
         edgeFields.add(new Field("src_vertex_id", new FieldType(false, new ArrowType.Int(64, true), null), null));
         edgeFields.add(new Field("dst_vertex_id", new FieldType(false, new ArrowType.Int(64, true), null), null));
         edgeFields.add(new Field("src_is_global", new FieldType(false, new ArrowType.Bool(), null), null));
@@ -40,15 +39,18 @@ public class EdgeArrowStore {
         edgeFields.add(new Field("prev_out_edge_ptr", new FieldType(false, new ArrowType.Int(64, true), null), null)); // Points to previous edge
         edgeFields.add(new Field("history_ptr", new FieldType(false, new ArrowType.Int(32, true), null), null)); // Points to end of list...
 
+        // Sorted edge history fields (here because we only need 1 entry per edge)
+        edgeFields.add(new Field("sortedhstart", new FieldType(false, new ArrowType.Int(32, true), null), null)); // Start of sorted history range
+        edgeFields.add(new Field("sortedhend", new FieldType(false, new ArrowType.Int(32, true), null), null));   // End of sorted history range
+
         return edgeFields;
     }
 
 
-    protected int _partitionId;             // Arrow partition-id for this instance
+    protected EdgePartition _partition;     // Arrow edge partition for this instance
     protected VectorSchemaRoot _edgeRoot;   // Arrow root for this instance
 
     // The individual vectors that make up this schema
-    protected BigIntVector _localIds;
     protected BigIntVector _srcVertexIds;
     protected BigIntVector _dstVertexIds;
     protected BitVector _srcIsGlobals;
@@ -59,6 +61,9 @@ public class EdgeArrowStore {
     protected BigIntVector _prevIncomingEdgesPtr;
     protected BigIntVector _prevOutgoingEdgesPtr;
     protected IntVector _historyPtr;
+    protected IntVector _sortedHStart;
+    protected IntVector _sortedHEnd;
+
 
     // Accessors which can retrieve user-defined fields from the schema
     protected SchemaFieldAccessor[] _accessors;
@@ -69,18 +74,17 @@ public class EdgeArrowStore {
     /**
      * Initialises this instance
      *
-     * @param partitionId the Arrow partition-id
+     * @param partition the Arrow edge partition
      * @param edgeRoot the Arrow schema-root containing the vectors
      * @param accessors the schema-field accessors for user-defined fields within this schema
      */
-    protected void init(int partitionId, VectorSchemaRoot edgeRoot, SchemaFieldAccessor[] accessors) {
-        _partitionId = partitionId;
+    protected void init(EdgePartition partition, VectorSchemaRoot edgeRoot, SchemaFieldAccessor[] accessors) {
+        _partition = partition;
         _edgeRoot = edgeRoot;
         _accessors = accessors;
         _nAccessors = _accessors==null ? 0 : _accessors.length;
 
         if (edgeRoot!=null) {
-            _localIds = (BigIntVector) _edgeRoot.getVector("local_id");
             _srcVertexIds = (BigIntVector) _edgeRoot.getVector("src_vertex_id");
             _dstVertexIds = (BigIntVector) _edgeRoot.getVector("dst_vertex_id");
             _srcIsGlobals = (BitVector)_edgeRoot.getVector("src_is_global");
@@ -91,9 +95,10 @@ public class EdgeArrowStore {
             _prevIncomingEdgesPtr = (BigIntVector) _edgeRoot.getVector("prev_inc_edge_ptr");
             _prevOutgoingEdgesPtr = (BigIntVector) _edgeRoot.getVector("prev_out_edge_ptr");
             _historyPtr = (IntVector)_edgeRoot.getVector("history_ptr");
+            _sortedHStart = (IntVector)_edgeRoot.getVector("sortedhstart");
+            _sortedHEnd = (IntVector)_edgeRoot.getVector("sortedhend");
         }
         else {
-            _localIds = null;
             _srcVertexIds = null;
             _dstVertexIds = null;
             _srcIsGlobals = null;
@@ -104,6 +109,8 @@ public class EdgeArrowStore {
             _prevIncomingEdgesPtr = null;
             _prevOutgoingEdgesPtr = null;
             _historyPtr = null;
+            _sortedHStart = null;
+            _sortedHEnd = null;
         }
     }
 
@@ -120,10 +127,9 @@ public class EdgeArrowStore {
      */
     protected boolean addEdge(int row, Edge e, long prevIncomingPtr, long prevOutgoingPtr) {
         //System.out.println("ADDING EDGE: " + row + " -> " + e);
-        boolean isNew = _localIds.isSet(row) == 0;
+        boolean isNew = _srcVertexIds.isSet(row) == 0;
 
         if (isNew) {
-            _localIds.set(row, e.getLocalId());
             _srcVertexIds.set(row, e.getSrcVertex());
             _dstVertexIds.set(row, e.getDstVertex());
             _srcIsGlobals.set(row, e.isSrcGlobal() ? 1 : 0);
@@ -156,7 +162,7 @@ public class EdgeArrowStore {
      */
     protected Edge retrieveEdge(int row, Edge retEdge) {
         // Set the abase details
-        long id = _localIds.get(row);
+        long id = _partition._getLocalEdgeIdByRow(row);
         retEdge.reset(id, id, _initialValues.get(row) != 0, _creationTimes.get(row));
 
         retEdge.resetEdgeData(_srcVertexIds.get(row), _dstVertexIds.get(row), _prevIncomingEdgesPtr.get(row), _prevOutgoingEdgesPtr.get(row),

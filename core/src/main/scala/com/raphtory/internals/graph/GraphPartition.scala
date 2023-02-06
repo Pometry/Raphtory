@@ -3,6 +3,7 @@ package com.raphtory.internals.graph
 import com.raphtory.api.input.Properties
 import com.raphtory.api.input.Type
 import com.raphtory.internals.components.querymanager.GenericVertexMessage
+import com.raphtory.internals.graph.GraphAlteration.{EdgeAdd, VertexAdd}
 import com.raphtory.internals.management.Partitioner
 import com.raphtory.internals.management.Scheduler
 import com.raphtory.internals.storage.arrow.ArrowGraphLens
