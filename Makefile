@@ -92,15 +92,20 @@ sbt-build-clean:
 	rm -rf $(PYRAPHTORY_IVYBIN)/
 
 
+.PHONY: download-lotr
+download-lotr:
+	curl -o /tmp/lotr.csv https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv
+
+
+.PHONY: build-docs-notebooks
+build-docs-notebooks: download-lotr
+	rm -f /tmp/stackex.csv && cd docs && pytest --nbmake --nbmake-timeout=3000 --overwrite
+
+
 .PHONY: docs
-docs: version python-build
-	pip install -q myst-parser sphinx-rtd-theme sphinx docutils sphinx-tabs nbsphinx
+docs: version
 	cd docs && make html
 
-
-.PHONY: pyraphtory-local
-pyraphtory-local: version
-	java -cp core/target/scala-2.13/*.jar com.raphtory.python.PyRaphtory --input=$(INPUT) --py=$(PYFILE) --builder=$(BUILDER) --mode=$(MODE)
 
 .PHONY: docker-build
 docker-build: version
@@ -128,7 +133,7 @@ run-local-cluster: version
 	cp python/pyraphtory/sample.py $(DOCKER_TMP)/builder/
 	VERSION=$$(cat version) docker-compose -f $(DOCKER_RAP)/docker-compose.yml up
 
-.PHONY: run-local-cluster
+.PHONY: clean-local-cluster
 clean-local-cluster:
 	docker-compose -f $(DOCKER_RAP)/docker-compose.yml down --remove-orphans
 	rm -Rf $(DOCKER_TMP)/*
@@ -191,11 +196,19 @@ setup-python-docs: python-build-options
 	python -m pip install $(options) ".[docs]"
 
 
-.PHONY: python-test
-python-test:
+.PHONY: pyraphtory-test
+pyraphtory-test:
 	pytest python/build_tests
 	pytest python/tests
-	pytest --nbmake -n=auto examples
-	#pytest --nbmake docs/source/Introduction
-	#pytest --nbmake docs/source/Install
+
+
+.PHONY: notebook-test
+notebook-test: download-lotr
+	cp docs/source/Introduction/stackex_truncated.csv /tmp/stackex.csv && pytest --nbmake --nbmake-timeout=1200 docs/source/Introduction docs/source/Install examples
+
+
+.PHONY: python-test
+python-test: pyraphtory-test notebook-test
+
+
 

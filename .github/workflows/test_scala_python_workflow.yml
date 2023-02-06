@@ -63,7 +63,7 @@ jobs:
           make setup-python-test
       - name: Run all python tests
         run: make python-test
-        timeout-minutes: 10
+        timeout-minutes: 20
   doc-test:
     name: "Doc tests"
     strategy:

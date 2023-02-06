@@ -47,13 +47,15 @@ extensions = [
     "nbsphinx"
 ]
 
+suppress_warnings = ['myst.header', 'myst.anchor']
+
 intersphinx_mapping = {'python': ('https://docs.python.org/3', None)}
 
 autodoc_default_options = {
     'members': True,
     'undoc-members': True,
     'inherited-members': True,
-    'special-members': "__call__",
+    'special-members': "__call__, __new__, __init__",
     'show-inheritance': True
 }
 
@@ -61,6 +63,7 @@ autodoc_member_order = 'groupwise'
 autodoc_typehints_format = "short"
 
 autosummary_generate = True
+autosummary_ignore_module_all = False
 # Extension options
 myst_enable_extensions = ["deflist", "dollarmath"]
 myst_heading_anchors = 3
@@ -74,8 +77,8 @@ autodoc_packages = [
 ]
 
 # Uncomment to turn of rebuilding of scala and algorithm docs (use when writing other docs to speed up compile)
-build_scaladocs = True
-build_algodocs = True
+build_scaladocs = False
+build_algodocs = False
 
 sphinx_tabs_valid_builders = ['linkcheck']
 
