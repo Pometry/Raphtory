@@ -1,5 +1,4 @@
 #!/bin/bash
-
 function usage {
   cat <<USAGE
 Usage: $0 [options]
@@ -16,18 +15,17 @@ Options:
   -k java docker image tag      Tag to use to get image for java
   -u run as user                RUN_USER to be used in docker image
   -z jars                       Quoted list of jars to copy into image, separated by space
+  -p platform                   String defining platform type
 
 Examples:
-./raphtory-docker-image -c build -t 1.0.0 -u root
+./raphtory-docker-image -c build -t 1.0.0 -u root -p linux/amd64
 ./raphtory-docker-image -c push -r repo.raphtory.com -t 1.0.0 -u root
-./raphtory-docker-image -c all -r repo.raphtory.com -t 1.0.0 -u root
-./raphtory-docker-image -c all -r repo.raphtory.com -t 1.0.0 -u root -j "eclipse-temurin" -k "11.0.12_7-jdk"
-./raphtory-docker-image -c all -r repo.raphtory.com -t 1.0.0 -u root -j "eclipse-temurin" -k "11.0.12_7-jdk" -z "/tmp/jar1.jar /tmp/jar2.jar"
+./raphtory-docker-image -c all -r repo.raphtory.com -t 1.0.0 -u root -j "eclipse-temurin" -k "11.0.12_7-jdk" -z "/tmp/jar1.jar /tmp/jar2.jar" -p linux/amd64
 USAGE
   exit 1
 }
 
-while getopts c:r:t:j:k:u:z: opt
+while getopts c:r:t:j:k:u:z:p: opt
 do
  case "${opt}" in
    c) COMMAND=${OPTARG};;
@@ -37,6 +35,7 @@ do
    k) JAVA_DOCKER_IMAGE_TAG=${OPTARG};;
    u) RUN_USER=${OPTARG};;
    z) JARS=${OPTARG};;
+   p) PLATFORM=${OPTARG};;
    *) usage;;
  esac
 done
@@ -44,7 +43,7 @@ done
 DOCKER_BUILD_ARGS=()
 DOCKERFILE="bin/docker/raphtory/Dockerfile"
 DOCKER_IMAGE_NAME="raphtory"
-JAR_PATH="tmp/raphtory/jars"
+JAR_PATH="bin/docker/raphtory/tmp/jars"
 
 [[ ! -d $JAR_PATH ]] && mkdir -p $JAR_PATH
 [[ ( -z "$COMMAND" || -z "$DOCKER_IMAGE_TAG" || -z "$DOCKER_REPO") ]] && usage
@@ -60,11 +59,11 @@ done
 
 case $COMMAND in
   build)
-    docker build "${DOCKER_BUILD_ARGS[@]}" -t "${DOCKER_REPO}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" -f ${DOCKERFILE} . ;;
+    docker build "${DOCKER_BUILD_ARGS[@]}" -t "${DOCKER_REPO}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" -f ${DOCKERFILE} --platform ${PLATFORM} . ;;
   push)
     docker push "${DOCKER_REPO}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" ;;
   all)
-    docker build "${DOCKER_BUILD_ARGS[@]}" -t "${DOCKER_REPO}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" -f ${DOCKERFILE} .
+    docker build "${DOCKER_BUILD_ARGS[@]}" -t "${DOCKER_REPO}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" -f ${DOCKERFILE} --platform ${PLATFORM} .
     docker push "${DOCKER_REPO}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" ;;
   *)
     usage ;;

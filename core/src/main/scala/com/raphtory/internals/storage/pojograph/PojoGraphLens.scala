@@ -59,8 +59,11 @@ final private[raphtory] case class PojoGraphLens(
     private val errorHandler: Throwable => Unit,
     private val scheduler: Scheduler
 ) extends LensInterface {
-  private val logger: Logger = Logger(LoggerFactory.getLogger(this.getClass))
-  private val EMPTY_CELL     = None
+  private val logger: Logger    = Logger(LoggerFactory.getLogger(this.getClass))
+
+  private val property_defaults =
+    Map("name" -> { (vertex: Vertex) => vertex.name() }, "id" -> { (vertex: Vertex) => vertex.ID })
+  private val EMPTY_CELL        = None
 
   private val voteCount         = new AtomicInteger(0)
   private val vertexCount       = new AtomicInteger(0)
@@ -116,11 +119,23 @@ final private[raphtory] case class PojoGraphLens(
   def filterAtStep(superStep: Int): Unit =
     needsFiltering.set(superStep)
 
+  private def getVertexPropertyOrState(key: String, vertex: Vertex): Any = {
+    val value = vertex.getStateOrElse[Any](
+            key,
+            property_defaults.get(key) match {
+              case Some(f) => f(vertex)
+              case None    => EMPTY_CELL
+            },
+            includeProperties = true
+    )
+    value
+  }
+
   override def executeSelect(values: Seq[String])(onComplete: () => Unit): Unit = {
     dataTable = vertexIterator.map { vertex =>
       val keys    = if (values.nonEmpty) values else inferredHeader
       val columns =
-        keys.map(key => (key, vertex.getStateOrElse(key, EMPTY_CELL, includeProperties = true)))
+        keys.map(key => (key, getVertexPropertyOrState(key, vertex)))
       Row(columns: _*)
     }
     onComplete()

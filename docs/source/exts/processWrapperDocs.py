@@ -1,11 +1,11 @@
 from sphinx.application import Sphinx
-from pyraphtory.interop import ScalaClassProxy, InstanceOnlyMethod, ScalaObjectProxy, WithImplicits, OverloadedMethod
-import pyraphtory
+from pyraphtory.interop._interop import ScalaClassProxy, InstanceOnlyMethod, ScalaObjectProxy, WithImplicits, OverloadedMethod
+import pyraphtory.api
 from sphinx.util import logging, inspect
 from sphinx.ext.autodoc import MethodDocumenter, ClassDocumenter, safe_getattr, ObjectMembers, get_class_members, \
     ModuleDocumenter, AttributeDocumenter, ALL, Documenter
 from typing import *
-
+from pathlib import Path
 from sphinx.util.docstrings import prepare_docstring
 
 logger = logging.getLogger(__name__)
@@ -15,19 +15,22 @@ def setup(app: Sphinx):
     app.add_autodocumenter(InstanceOnlyMethodDocumenter)
     app.add_autodocumenter(MetaclassMethodDocumenter)
     app.add_autodocumenter(ScalaClassProxyDocumenter)
-    app.add_autodocumenter(ImplicitMethodDocumenter)
+    app.add_autodocumenter(ScalaAlgorithmProxyDocumenter)
+    # app.add_autodocumenter(ImplicitMethodDocumenter)  # This doesn't work properly
     app.add_autodocumenter(OverloadedMethodDocumenter)
     app.add_autodocumenter(OverloadedClassMethodDocumenter)
     app.add_autodocumenter(OverloadedMethodInstanceDocumenter)
     app.add_autodocumenter(OverloadedClassMethodInstanceDocumenter)
     app.connect('autodoc-process-signature', process_signature)
     app.connect('autodoc-before-process-signature', before_process_signature)
+    # app.connect('autodoc-skip-member', skip_algorithms)
 
 
 def fix_signature_link(signature: str):
     parts = signature.split(": ")
     parts[1:] = [fix_part(p) for p in parts[1:]]
     return ": ".join(parts)
+
 
 def fix_part(part: str):
     if part.startswith("~"):
@@ -37,9 +40,24 @@ def fix_part(part: str):
     return part
 
 
+def skip_algorithms(app, what, name, obj, skip, options):
+    try:
+        if what == "module":
+            if hasattr(obj, "__name__") and obj.__name__.startswith("pyraphtory.algorithms."):
+                return True
+        if hasattr(obj, "__module__"):
+            module = obj.__module__
+            if module is not None and module.startswith("pyraphtory.algorithms"):
+                return True
+    except Exception as e:
+        print(e)
+        raise e
+    return None
+
+
 def before_process_signature(app, obj, bound_method):
     if hasattr(obj, "__globals__"):
-        obj.__globals__.update(vars(pyraphtory))  # inject definitions for resolving annotations
+        obj.__globals__.update(vars(pyraphtory.api))  # inject definitions for resolving annotations
 
 
 def process_signature(app, what, name, obj, options, signature, return_annotation):
@@ -112,7 +130,6 @@ class ClassMethodMixin:
     member_order = MethodDocumenter.member_order - 1
 
     def add_directive_header(self, sig: str) -> None:
-        obj = super()
         super(MethodDocumenter, self).add_directive_header(sig)
         self.add_line('   :classmethod:', self.get_sourcename())
 
@@ -158,7 +175,7 @@ class OverloadedMethodInstanceDocumenterMixin(NoIndexMixin, UnpackImplicitsMixin
         return []
 
 
-class OverloadedMethodInstanceDocumenter(OverloadedMethodInstanceDocumenterMixin, UnpackInstanceOnlyMixin, MethodDocumenter):
+class OverloadedMethodInstanceDocumenter(OverloadedMethodInstanceDocumenterMixin, UnpackImplicitsMixin, UnpackInstanceOnlyMixin, MethodDocumenter):
     objtype = "overloadedmethodinstance"
     priority = AttributeDocumenter.priority + 1
 
@@ -242,7 +259,7 @@ class OverloadedMethodDocumenterMixin(ImplicitsSignatureMixin, UnpackImplicitsMi
         return [prepare_docstring(docstring, tab_width)]
 
 
-class InstanceOnlyMethodDocumenter(ImplicitsSignatureMixin, UnpackInstanceOnlyMixin, MethodDocumenter):  # type: ignore
+class InstanceOnlyMethodDocumenter(ImplicitsSignatureMixin, UnpackInstanceOnlyMixin, UnpackImplicitsMixin, MethodDocumenter):  # type: ignore
     """
     Specialized Documenter subclass for instance-only.
     """
@@ -251,8 +268,13 @@ class InstanceOnlyMethodDocumenter(ImplicitsSignatureMixin, UnpackInstanceOnlyMi
     @classmethod
     def can_document_member(cls, member: Any, membername: str, isattr: bool, parent: Any
                             ) -> bool:
-        actual_method = unpack_class_method(member, membername)
-        return isinstance(actual_method, InstanceOnlyMethod)
+        actual_method = unpack_class_method(unpack_implicits_method(member), membername)
+        can_document = isinstance(actual_method, InstanceOnlyMethod)
+        return can_document
+
+    def get_doc(self) -> Optional[List[List[str]]]:
+        doc = super().get_doc()
+        return doc
 
 
 class OverloadedMethodDocumenter(OverloadedMethodDocumenterMixin, InstanceOnlyMethodDocumenter):
@@ -276,6 +298,13 @@ class MetaclassMethodDocumenter(NoIndexMixin, ImplicitsSignatureMixin, ClassMeth
 
     def __init__(self, directive: "DocumenterBridge", name: str, indent: str = '') -> None:
         super().__init__(directive, name, indent)
+
+    def get_doc(self) -> Optional[List[List[str]]]:
+        docstring = str(self.object.__doc__)
+        if docstring:
+            tab_width = self.directive.state.document.settings.tab_width
+            return [prepare_docstring(docstring, tab_width)]
+        return []
 
     @classmethod
     def can_document_member(cls, member: Any, membername: str, isattr: bool, parent: Any
@@ -333,3 +362,42 @@ class ScalaClassProxyDocumenter(ClassDocumenter):
         other_members = super().filter_members(other_members, want_all)
         return class_methods + other_members
 
+
+class ScalaAlgorithmProxyDocumenter(ScalaClassProxyDocumenter):
+    objtype = "algorithm"
+    directivetype = "class"
+    priority = ScalaClassProxyDocumenter.priority + 1
+    _docs = None
+
+    @classmethod
+    def can_document_member(cls, member: Any, membername: str, isattr: bool, parent: Any
+                            ) -> bool:
+        if isinstance(member, ScalaObjectProxy):
+            if hasattr(member, "_classname"):
+                name = member._classname
+                if name is not None and name.startswith("com.raphtory.algorithms."):
+                    return True
+        return False
+
+    def get_doc(self) -> Optional[List[List[str]]]:
+        if self._docs is None:
+            docs = super().get_doc()
+            if docs:
+                docs = docs[0]
+                docs_to_write = docs[2:]
+                if docs_to_write:
+                    header = docs[1].split(": ", 1)
+                    if len(header) > 1:
+                        header = header[1]
+                    else:
+                        header = header[0]
+                    src_dir = Path(self.env.srcdir)
+                    file = src_dir / f"{self.env.docname}.{self.object_name}.md"
+                    with open(file, "w") as f:
+                        f.write("\n".join(docs_to_write))
+                    self._docs = [[header, "", f".. include:: {file.name}", "   :parser: myst_parser.sphinx_"]]
+                else:
+                    self._docs = [docs]
+            else:
+                self._docs = docs
+        return self._docs
