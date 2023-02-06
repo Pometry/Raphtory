@@ -1,6 +1,7 @@
 package com.raphtory.internals.components.ingestion
 
 import cats.effect.Async
+import cats.effect.Ref
 import cats.effect.Resource
 import cats.syntax.all._
 import com.raphtory.internals.components.OrchestratorService.GraphList
@@ -20,6 +21,7 @@ class IngestionServiceImpl[F[_]: Async] private (
     graphs: GraphList[F, Unit],
     queryService: QueryService[F],
     partitions: Map[Int, PartitionService[F]],
+    globalIndex: Ref[F, Long],
     config: Config
 ) extends NoGraphDataOrchestratorService(graphs)
         with IngestionService[F] {
@@ -28,14 +30,15 @@ class IngestionServiceImpl[F[_]: Async] private (
     request match {
       case protocol.IngestData(TryIngestData(scala.util.Success(req)), _) =>
         for {
-          e <- IngestionExecutor(req.graphID, queryService, req.source, req.sourceId, config, partitions)
+          e <- IngestionExecutor(req.graphID, queryService, req.source, req.sourceId, globalIndex, config, partitions)
           _ <- attachExecutionToGraph(req.graphID, _ => runExecutor(req.graphID, e))
         } yield success
     }
 
   private def runExecutor(graphId: String, executor: IngestionExecutor[F, _]): F[Unit] = {
     def logError(e: Throwable): Unit = logger.error(s"Exception while executing source: $e")
-    executor.run()
+    executor
+      .run()
       .handleErrorWith(e => Async[F].delay(logError(e)))
   }
 }
@@ -51,7 +54,9 @@ object IngestionServiceImpl {
       _            <- Resource.eval(Async[F].delay(logger.info(s"Starting Ingestion Service")))
       queryService <- registry.query
       partitions   <- registry.partitions
-      service      <- Resource.eval(Async[F].delay(new IngestionServiceImpl[F](graphs, queryService, partitions, config)))
+      index        <- Resource.eval(Ref.of[F, Long](0))
+      service      <-
+        Resource.eval(Async[F].delay(new IngestionServiceImpl[F](graphs, queryService, partitions, index, config)))
       _            <- registry.registered(service, IngestionServiceImpl.descriptor)
     } yield ()
 
