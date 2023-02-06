@@ -114,12 +114,13 @@ object IngestionExecutor {
       queryService: QueryService[F],
       source: Source,
       sourceID: Int,
+      globalIndex: Ref[F, Long],
       config: Config,
       partitions: Map[Int, PartitionService[F]]
   ): F[IngestionExecutor[F, _]] =
     for {
       _        <- queryService.startIngestion(StartIngestion(sourceID, graphID))
-      stream   <- source.makeStream
+      stream   <- source.makeStream(globalIndex)
       executor <- Async[F].delay(new IngestionExecutor(graphID, queryService, partitions, stream, sourceID, config))
     } yield executor
 }
