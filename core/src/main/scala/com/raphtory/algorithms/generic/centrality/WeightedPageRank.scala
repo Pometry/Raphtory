@@ -49,7 +49,7 @@ import com.raphtory.internals.communication.SchemaProviderInstances._
   * ```
   */
 class WeightedPageRank[T](
-    dampingFactor: Float = 0.85f,
+    dampingFactor: Double = 0.85d,
     iterateSteps: Int = 100,
     weightProperty: String = "weight"
 )(implicit numeric: Numeric[T])
@@ -58,7 +58,7 @@ class WeightedPageRank[T](
   override def apply(graph: GraphPerspective): graph.Graph =
     graph
       .step { vertex =>
-        val initLabel         = 1.0f
+        val initLabel         = 1.0d
         vertex.setState("prlabel", initLabel)
         val outWeight: Double = numeric.toDouble(vertex.weightedOutDegree())
         vertex.outEdges.foreach { e =>
@@ -71,9 +71,9 @@ class WeightedPageRank[T](
       .iterate(
               { vertex =>
                 val vname        = vertex.name() // for logging purposes
-                val currentLabel = vertex.getState[Float]("prlabel")
+                val currentLabel = vertex.getState[Double]("prlabel")
 
-                val queue    = vertex.messageQueue[Float]
+                val queue    = vertex.messageQueue[Double]
                 val newLabel = (1 - dampingFactor) + dampingFactor * queue.sum
                 vertex.setState("prlabel", newLabel)
 
@@ -98,7 +98,7 @@ class WeightedPageRank[T](
 object WeightedPageRank {
 
   def apply[T: Numeric](
-      dampingFactor: Float = 0.85f,
+      dampingFactor: Double = 0.85d,
       iterateSteps: Int = 100,
       weightProperty: String = "weight"
   ) =
