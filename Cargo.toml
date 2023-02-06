@@ -1,9 +1,11 @@
 [workspace]
 members = [
 	"docbrown/core",
-	"docbrown/db"
+	"docbrown/db",
+	"examples/btc",
+	"examples/lotr"
 ]
-default-members = [	"docbrown/core", "docbrown/db"]
+default-members = ["docbrown/core", "docbrown/db"]
 
 
 [workspace.package]
