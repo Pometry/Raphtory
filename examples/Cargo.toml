@@ -1,13 +1,14 @@
 [package]
-name = "examples-lotr"
+name = "examples"
 version.workspace = true
 edition = "2021"
-keywords = ["graph", "temporal-graph", "temporal", "lotr"]
+keywords = ["graph", "temporal-graph", "temporal", "examples"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-docbrown-core = {path = "../../docbrown/core"}
+docbrown-core = {path = "../docbrown/core"}
+docbrown-db = {path = "../docbrown/db"}
 parking_lot = { version = "0.12" , features = ["serde"] }
 flume = "0.10"
 futures = {version = "0.3", features = ["thread-pool"] }
@@ -26,3 +27,10 @@ bincode = "1"
 [dev-dependencies]
 quickcheck = "1"
 quickcheck_macros = "1"
+
+
+[[bin]]
+name = "btc"
+
+[[bin]]
+name = "lotr"
