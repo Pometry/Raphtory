@@ -84,13 +84,13 @@ impl GraphDB {
     }
 
     pub fn add_vertex(&self, v: u64, t: i64, props: Vec<(String, Prop)>) {
-        let shard_id = self.shard_from_global_vid(v);
+        let shard_id = self.get_shard_id_from_global_vid(v);
         self.shards[shard_id].add_vertex(t, v, &props);
     }
 
     pub fn add_edge(&self, src: u64, dst: u64, t: i64, props: &Vec<(String, Prop)>) {
-        let src_shard_id = self.shard_from_global_vid(src);
-        let dst_shard_id = self.shard_from_global_vid(dst);
+        let src_shard_id = self.get_shard_id_from_global_vid(src);
+        let dst_shard_id = self.get_shard_id_from_global_vid(dst);
 
         if src_shard_id == dst_shard_id {
             self.shards[src_shard_id].add_edge(t, src, dst, props)
@@ -121,7 +121,7 @@ impl GraphDB {
         v: u64,
         d: Direction,
     ) -> Box<dyn Iterator<Item = TEdge>> {
-        let shard_id = self.shard_from_global_vid(v);
+        let shard_id = self.get_shard_id_from_global_vid(v);
 
         let iter = self.shards[shard_id].neighbours_window(t_start, t_end, v, d);
 
@@ -129,7 +129,7 @@ impl GraphDB {
     }
 
     #[inline(always)]
-    fn shard_from_global_vid(&self, v_gid: u64) -> usize {
+    fn get_shard_id_from_global_vid(&self, v_gid: u64) -> usize {
         let a: usize = v_gid.try_into().unwrap();
         a % self.nr_shards
     }
