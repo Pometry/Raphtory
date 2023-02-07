@@ -36,11 +36,15 @@ def get_local_jre_loc() -> Path:
         return jre
 
 
-def get_local_jar_path():
+def get_local_lib() -> Path:
     lib = files(pyraphtory) / "lib"
     if not isinstance(lib, Path):
         raise RuntimeError("Pyraphtory is not installed correctly, are you trying to import from a compressed file?")
+    return lib
 
+
+def get_local_jar_path():
+    lib = get_local_lib()
     return str(lib) + "/*"
 
 
