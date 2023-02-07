@@ -46,6 +46,7 @@ raphtory-ingestion = "pyraphtory._cli:ingestion"
 raphtory-partition = "pyraphtory._cli:partition"
 raphtory-query = "pyraphtory._cli:query"
 raphtory-classpath = "pyraphtory._cli:classpath"
+raphtory-include = "pyraphtory._cli:include"
 raphtory-version = "pyraphtory._cli:version"
 
 [project.optional-dependencies]

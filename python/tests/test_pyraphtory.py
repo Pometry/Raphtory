@@ -1,4 +1,5 @@
 from pyraphtory.api.context import PyRaphtory
+from pyraphtory.api.input import MutableInteger
 from pyraphtory.api.sources import SqliteConnection
 from pyraphtory.api.sources import SqlEdgeSource
 from pyraphtory.api.sources import SqlVertexSource
@@ -40,7 +41,7 @@ class PyRaphtoryTest(unittest.TestCase):
         graph.add_vertex(1, 999)
         df = graph.step(lambda vertex: vertex.set_state("name",vertex.name())).select("name").to_df()
         expected_result = ',timestamp,name\n0,1,999\n'
-        self.assertTrue(df.to_csv(), expected_result)
+        self.assertEqual(df.to_csv(), expected_result)
         graph.destroy(force=True)
 
     def test_add_edges(self):
@@ -53,7 +54,24 @@ class PyRaphtoryTest(unittest.TestCase):
                   .select("name", "degree", "in_edges", "out_edges") \
                   .to_df()
         expected_result = ',timestamp,name,degree,in_edges,out_edges\n0,1,1,1,0,1\n1,1,2,1,1,0\n'
-        self.assertTrue(df.to_csv(), expected_result)
+        self.assertEqual(df.to_csv(), expected_result)
+        graph.destroy(force=True)
+
+    def test_add_vertices_and_edges_with_properties(self):
+        graph = self.ctx.new_graph()
+        graph.add_vertex(0, 1, [MutableInteger("test", 1)])
+        graph.add_vertex(0, 2, [MutableInteger("test", 2)])
+        graph.add_edge(0, 1, 2, [MutableInteger("test", 3)])
+        # vertices and edges share the same property name to double-check that an old bug is fixed
+
+        edge_list = graph.execute(self.ctx.algorithms.generic.EdgeList("test")).to_df()
+        expected_edge_list = ',timestamp,name,neighbourName,test\n0,0,1,2,3\n'
+        self.assertEqual(edge_list.to_csv(), expected_edge_list)
+
+        temporal_edge_list = graph.execute(self.ctx.algorithms.temporal.TemporalEdgeList("test")).to_df()
+        expected_temporal_edge_list = ',timestamp,name,neighbourName,neighbourTimestamp,test\n0,0,1,2,0,3\n'
+        self.assertEqual(temporal_edge_list.to_csv(), expected_temporal_edge_list)
+
         graph.destroy(force=True)
 
     def test_run_page_rank_algo(self):
