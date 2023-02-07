@@ -59,7 +59,7 @@ fn main() {
         let path: PathBuf = [data_dir, "graphdb.bincode"].iter().collect();
         let graph = if path.exists() {
             let now = Instant::now();
-            let g = GraphDB::load_from_file(path.as_path()).expect("Failed to load graph");
+            let g = GraphDB::load_from_file(path.as_path()).expect("Failed to load graph from encoded data files");
 
             println!(
                 "Loaded graph from path {} with {} vertices, {} edges, took {} seconds",
@@ -92,7 +92,7 @@ fn main() {
                         &vec![("amount".to_string(), Prop::U64(sent.amount_btc))],
                     )
                 })
-                .expect("Failed to load graph");
+                .expect("Failed to load graph from CSV data files");
 
             println!(
                 "Loaded {} vertices, {} edges, took {} seconds",
