@@ -155,7 +155,7 @@ version-bump: version
 
 .PHONY: release
 release: version-bump
-	git checkout -b v$$(cat version)
+	git checkout -b $$(cat version)
 	git add version .bumpversion.cfg
 	git commit -m "bumped to v$$(cat version)"
 	git tag "v$$(cat version)" && git push origin --tags
