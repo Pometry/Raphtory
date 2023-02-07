@@ -111,6 +111,7 @@ except (ImportError, ModuleNotFoundError):
         pass
 
     jpype.startJVM(_config.java_args, classpath=_config.jars.split(":"))
+    _config._jpype_running = True
     from pyraphtory.interop._jpypeinterpreter import JPypeInterpreter, _globals
 
     _scala = getattr(JClass("com.raphtory.internals.management.PythonInterop$"), "MODULE$")
