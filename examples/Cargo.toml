@@ -9,16 +9,9 @@ keywords = ["graph", "temporal-graph", "temporal", "examples"]
 [dependencies]
 docbrown-core = {path = "../docbrown/core"}
 docbrown-db = {path = "../docbrown/db"}
-flume = "0.10"
 chrono = "0.4"
-csv = "1.1.6"
-itertools="0.10"
 regex = "1"
-futures = {version = "0.3", features = ["thread-pool"] }
-replace_with = "0.1"
-flate2 = "1.0"
 serde = { version = "1", features = ["derive", "rc"] }
-rayon = "1"
 
 [[bin]]
 name = "btc"
