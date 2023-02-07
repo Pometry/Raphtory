@@ -5,11 +5,7 @@ use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
 };
-use std::{
-    env,
-    path::Path,
-    time::Instant,
-};
+use std::{env, path::Path, time::Instant};
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Lotr {
@@ -60,31 +56,32 @@ fn main() {
         let now = Instant::now();
 
         let _ = CsvLoader::new(data_dir)
-        .load_into_graph(&g, |lotr: Lotr, g: &GraphDB| {
-            let src_id = calculate_hash(&lotr.src_id);
-            let dst_id = calculate_hash(&lotr.dst_id);
-            let time = lotr.time;
+            .load_into_graph(&g, |lotr: Lotr, g: &GraphDB| {
+                let src_id = calculate_hash(&lotr.src_id);
+                let dst_id = calculate_hash(&lotr.dst_id);
+                let time = lotr.time;
 
-            g.add_vertex(
-                src_id,
-                time,
-                &vec![("name".to_string(), Prop::Str("Character".to_string()))],
-            );
-            g.add_vertex(
-                src_id,
-                time,
-                &vec![("name".to_string(), Prop::Str("Character".to_string()))],
-            );
-            g.add_edge(
-                src_id,
-                dst_id,
-                time,
-                &vec![(
-                    "name".to_string(),
-                    Prop::Str("Character Co-occurrence".to_string()),
-                )],
-            );
-        }).expect("Failed to load graph from CSV data files");
+                g.add_vertex(
+                    src_id,
+                    time,
+                    &vec![("name".to_string(), Prop::Str("Character".to_string()))],
+                );
+                g.add_vertex(
+                    src_id,
+                    time,
+                    &vec![("name".to_string(), Prop::Str("Character".to_string()))],
+                );
+                g.add_edge(
+                    src_id,
+                    dst_id,
+                    time,
+                    &vec![(
+                        "name".to_string(),
+                        Prop::Str("Character Co-occurrence".to_string()),
+                    )],
+                );
+            })
+            .expect("Failed to load graph from CSV data files");
 
         println!(
             "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
@@ -94,9 +91,17 @@ fn main() {
             now.elapsed().as_secs()
         );
 
-        g.save_to_file(encoded_data_dir).expect("Failed to save graph");
+        g.save_to_file(encoded_data_dir)
+            .expect("Failed to save graph");
 
         g
     };
 
+    let gandalf = calculate_hash(&"Gandalf");
+    println!("src = {}", gandalf);
+
+    graph
+        .neighbours_window(0, i64::MAX, gandalf, Direction::OUT)
+        .for_each(|e| println!("{:?}", e));
+        
 }
