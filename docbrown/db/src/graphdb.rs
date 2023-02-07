@@ -16,15 +16,6 @@ pub struct GraphDB {
     shards: Vec<TemporalGraphPart>,
 }
 
-enum Msg {
-    AddVertex(u64, u64),
-    AddEdge(u64, u64, Vec<(String, Prop)>, u64),
-    AddOutEdge(u64, u64, Vec<(String, Prop)>, u64),
-    AddIntoEdge(u64, u64, Vec<(String, Prop)>, u64),
-    Batch(Vec<Msg>),
-    Done,
-}
-
 impl GraphDB {
     pub fn new(nr_shards: usize) -> Self {
         GraphDB {
