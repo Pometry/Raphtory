@@ -14,6 +14,7 @@ use itertools::*;
 #[repr(transparent)]
 pub struct TemporalGraphPart(Arc<RwLock<TemporalGraph>>);
 
+#[derive(Debug)]
 pub struct TEdge {
     src: u64,
     dst: u64,

@@ -9,11 +9,11 @@ use chrono::{DateTime, Utc};
 use docbrown_core::graph::TemporalGraph;
 use docbrown_core::{Direction, Prop};
 use docbrown_db::loaders::csv::CsvLoader;
-use serde::Deserialize;
-use std::time::Instant;
 use regex::Regex;
+use serde::Deserialize;
 use std::fs::File;
 use std::io::{prelude::*, BufReader, LineWriter};
+use std::time::Instant;
 
 use docbrown_db::graphdb::GraphDB;
 use std::{
@@ -50,75 +50,90 @@ fn calculate_hash<T: Hash>(t: &T) -> u64 {
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    // If data_dir/graphdb.bincode exists, use bincode to load the graph
-    // otherwise, load the graph from the csv files
-    if let Some(data_dir) = args.get(1) {
+    let default_data_dir = String::from("./examples/src/bin/btc/data");
 
-        let test_v = calculate_hash(&"139eeGkMGR6F9EuJQ3qYoXebfkBbNAsLtV:btc");
+    let data_dir = Path::new(if args.len() < 2 {
+        &default_data_dir
+    } else {
+        args.get(1).unwrap()
+    });
 
-        let path: PathBuf = [data_dir, "graphdb.bincode"].iter().collect();
-        let graph = if path.exists() {
-            let now = Instant::now();
-            let g = GraphDB::load_from_file(path.as_path()).expect("Failed to load graph from encoded data files");
+    if !data_dir.exists() {
+        panic!("Missing data dir = {}", data_dir.to_str().unwrap())
+    }
 
-            println!(
-                "Loaded graph from path {} with {} vertices, {} edges, took {} seconds",
-                path.to_str().unwrap(),
-                g.len(),
-                g.edges_len(),
-                now.elapsed().as_secs()
-            );
-            g
-        } else {
-            let g = GraphDB::new(16);
+    let test_v = calculate_hash(&"139eeGkMGR6F9EuJQ3qYoXebfkBbNAsLtV:btc");
 
-            let now = Instant::now();
+    // If data_dir/graphdb.bincode exists, use bincode to load the graph from binary encoded data files
+    // otherwise load the graph from csv data files
+    let encoded_data_dir = data_dir.join("graphdb.bincode");
 
-            let _ = CsvLoader::new(data_dir)
-                .with_filter(Regex::new(r".+(sent|received)").unwrap())
-                .load_into_graph(&g, |sent: Sent, g: &GraphDB| {
-                    let src = calculate_hash(&sent.addr);
-                    let dst = calculate_hash(&sent.txn);
-                    let time = sent.time.timestamp();
-
-                    if src == test_v || dst == test_v {
-                        println!("{} sent {} to {}", sent.addr, sent.amount_btc, sent.txn);
-                    }
-
-                    g.add_edge(
-                        src,
-                        dst,
-                        time.try_into().unwrap(),
-                        &vec![("amount".to_string(), Prop::U64(sent.amount_btc))],
-                    )
-                })
-                .expect("Failed to load graph from CSV data files");
-
-            println!(
-                "Loaded {} vertices, {} edges, took {} seconds",
-                g.len(),
-                g.edges_len(),
-                now.elapsed().as_secs()
-            );
-
-            g.save_to_file(path).expect("Failed to save graph");
-
-            g
-        };
-
-        assert!(graph.contains(test_v));
-        let deg_out = graph
-            .neighbours_window(0, i64::MAX, test_v, Direction::OUT)
-            .count();
-        let deg_in = graph
-            .neighbours_window(0, i64::MAX, test_v, Direction::IN)
-            .count();
+    let graph = if encoded_data_dir.exists() {
+        let now = Instant::now();
+        let g = GraphDB::load_from_file(encoded_data_dir.as_path())
+            .expect("Failed to load graph from encoded data files");
 
         println!(
-            "{} has {} out degree and {} in degree",
-            test_v, deg_out, deg_in
+            "Loaded graph from path {} with {} vertices, {} edges, took {} seconds",
+            encoded_data_dir.to_str().unwrap(),
+            g.len(),
+            g.edges_len(),
+            now.elapsed().as_secs()
         );
-    }
+
+        g
+    } else {
+        let g = GraphDB::new(16);
+
+        let now = Instant::now();
+
+        let _ = CsvLoader::new(data_dir)
+            .with_filter(Regex::new(r".+(sent|received)").unwrap())
+            .load_into_graph(&g, |sent: Sent, g: &GraphDB| {
+                let src = calculate_hash(&sent.addr);
+                let dst = calculate_hash(&sent.txn);
+                let time = sent.time.timestamp();
+
+                if src == test_v || dst == test_v {
+                    println!("{} sent {} to {}", sent.addr, sent.amount_btc, sent.txn);
+                }
+
+                g.add_edge(
+                    src,
+                    dst,
+                    time.try_into().unwrap(),
+                    &vec![("amount".to_string(), Prop::U64(sent.amount_btc))],
+                )
+            })
+            .expect("Failed to load graph from CSV data files");
+
+        println!(
+            "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
+            encoded_data_dir.to_str().unwrap(),
+            g.len(),
+            g.edges_len(),
+            now.elapsed().as_secs()
+        );
+
+        g.save_to_file(encoded_data_dir)
+            .expect("Failed to save graph");
+
+        g
+    };
+
+    assert!(graph.contains(test_v));
+    let deg_out = graph
+        .neighbours_window(0, i64::MAX, test_v, Direction::OUT)
+        .count();
+    let deg_in = graph
+        .neighbours_window(0, i64::MAX, test_v, Direction::IN)
+        .count();
+
+    println!(
+        "{} has {} out degree and {} in degree",
+        test_v, deg_out, deg_in
+    );
+
 }
 
 mod custom_date_format {
@@ -135,8 +150,8 @@ mod custom_date_format {
     //
     // although it may also be generic over the input types T.
     pub fn serialize<S>(date: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
+    where
+        S: Serializer,
     {
         let s = format!("{}", date.format(FORMAT));
         serializer.serialize_str(&s)
@@ -150,8 +165,8 @@ mod custom_date_format {
     //
     // although it may also be generic over the output types T.
     pub fn deserialize<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
-        where
-            D: Deserializer<'de>,
+    where
+        D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
         Utc.datetime_from_str(&s, FORMAT)

@@ -1,4 +1,4 @@
-use docbrown_core::Prop;
+use docbrown_core::{Direction, Prop};
 use docbrown_db::{graphdb::GraphDB, loaders::csv::CsvLoader};
 use serde::Deserialize;
 use std::{
@@ -26,9 +26,6 @@ fn calculate_hash<T: Hash>(t: &T) -> u64 {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-
-    // if not provided the data dir, pick from relative data directory
-    // if bincode found, good otherwise build again
 
     let default_data_dir = String::from("./examples/src/bin/lotr/data");
 
