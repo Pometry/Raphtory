@@ -11,8 +11,7 @@ pub mod csv {
 
     use rayon::prelude::*;
     use regex::Regex;
-
-    use crate::GraphDB;
+    use crate::graphdb::GraphDB;
 
     #[derive(Debug)]
     pub struct CsvErr(io::Error);
