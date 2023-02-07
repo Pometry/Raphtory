@@ -7,3 +7,4 @@ massif.*
 # this is for pyraphtory
 **/.env/
 *.html
+**/data/*
