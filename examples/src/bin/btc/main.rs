@@ -26,19 +26,19 @@ pub struct Sent {
     addr: String,
     txn: String,
     amount_btc: u64,
-    amount_usd: f64,
+    _amount_usd: f64,
     #[serde(with = "custom_date_format")]
     time: DateTime<Utc>,
 }
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Received {
-    txn: String,
-    addr: String,
-    amount_btc: u64,
-    amount_usd: f64,
+    _txn: String,
+    _addr: String,
+    _amount_btc: u64,
+    _amount_usd: f64,
     #[serde(with = "custom_date_format")]
-    time: DateTime<Utc>,
+    _time: DateTime<Utc>,
 }
 
 fn calculate_hash<T: Hash>(t: &T) -> u64 {
@@ -50,13 +50,13 @@ fn calculate_hash<T: Hash>(t: &T) -> u64 {
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    if let Some(input_folder) = args.get(1) {
-        // if input_folder/graphdb.bincode exists, use bincode to load the graph
-        // otherwise, load the graph from the csv files
+    // If data_dir/graphdb.bincode exists, use bincode to load the graph
+    // otherwise, load the graph from the csv files
+    if let Some(data_dir) = args.get(1) {
 
         let test_v = calculate_hash(&"139eeGkMGR6F9EuJQ3qYoXebfkBbNAsLtV:btc");
 
-        let path: PathBuf = [input_folder, "graphdb.bincode"].iter().collect();
+        let path: PathBuf = [data_dir, "graphdb.bincode"].iter().collect();
         let graph = if path.exists() {
             let now = Instant::now();
             let g = GraphDB::load_from_file(path.as_path()).expect("Failed to load graph");
@@ -74,12 +74,12 @@ fn main() {
 
             let now = Instant::now();
 
-            let _ = CsvLoader::new(input_folder)
+            let _ = CsvLoader::new(data_dir)
                 .with_filter(Regex::new(r".+(sent|received)").unwrap())
                 .load_into_graph(&g, |sent: Sent, g: &GraphDB| {
                     let src = calculate_hash(&sent.addr);
                     let dst = calculate_hash(&sent.txn);
-                    let t = sent.time.timestamp();
+                    let time = sent.time.timestamp();
 
                     if src == test_v || dst == test_v {
                         println!("{} sent {} to {}", sent.addr, sent.amount_btc, sent.txn);
@@ -88,7 +88,7 @@ fn main() {
                     g.add_edge(
                         src,
                         dst,
-                        t.try_into().unwrap(),
+                        time.try_into().unwrap(),
                         &vec![("amount".to_string(), Prop::U64(sent.amount_btc))],
                     )
                 })
