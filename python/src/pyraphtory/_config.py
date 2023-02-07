@@ -4,9 +4,67 @@ from importlib.resources import files
 import pyraphtory
 import logging
 import shutil
+import atexit
+import sys
+from jpype import JClass
 
 
 extra_jars = []
+_jpype_running = False
+
+
+class ExitHooks(object):
+    """Control python exit while preserving exit code.
+
+    see: https://stackoverflow.com/a/73277719
+    """
+    def __init__(self):
+        self.exit_code = None
+        self.exception = None
+
+    def hook(self):
+        """
+        hook into system exit to trap exit code and exceptions
+        """
+        self._orig_exit = sys.exit
+        self._orig_exc_handler = sys.excepthook
+        sys.exit = self.exit
+        sys.excepthook = self.exc_handler
+
+    def exit(self, code=0):
+        """
+        exit hook that traps the exit code and stores it
+        :param code: exit code
+        """
+        self.exit_code = code
+        self._orig_exit(code)
+
+    def exc_handler(self, exc_type, exc, *args):
+        """
+        excepthook that traps the exception and stores it
+        """
+        self.exception = exc
+        self._orig_exc_handler(exc_type, exc, *args)
+
+def exit_handler():
+    """Forwards exit code to java and calls java exit if jvm was started"""
+    try:
+        if _jpype_running:
+            System = JClass("java.lang.System")
+            if hooks.exit_code is not None:
+                System.exit(hooks.exit_code)
+            elif hooks.exception is not None:
+                System.exit(1)
+            else:
+                System.exit(0)
+    except Exception as e:
+        # Catch any error, otherwise we have an infinite recursion
+        print(f"Java exit handler raised exception {e!r} which cannot be thrown")
+
+
+hooks = ExitHooks()
+hooks.hook()
+atexit.register(exit_handler)
 
 
 def get_java_home() -> Path:
