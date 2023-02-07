@@ -1,4 +1,4 @@
-use docbrown_core::{Direction, Prop};
+use docbrown_core::Prop;
 use docbrown_db::{graphdb::GraphDB, loaders::csv::CsvLoader};
 use serde::Deserialize;
 use std::{
@@ -6,8 +6,7 @@ use std::{
     hash::{Hash, Hasher},
 };
 use std::{
-    env, fs,
-    io::{self, Error},
+    env,
     path::Path,
     time::Instant,
 };
