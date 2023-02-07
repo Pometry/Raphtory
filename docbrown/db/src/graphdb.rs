@@ -83,12 +83,13 @@ impl GraphDB {
         Ok(())
     }
 
-    pub fn add_vertex(&self, v: u64, t: i64, props: Vec<(String, Prop)>) {
+    // TODO: Probably add vector reference here like add
+    pub fn add_vertex(&self, v: u64, t: i64, props: &Vec<(String, Prop)>) {
         let shard_id = self.get_shard_id_from_global_vid(v);
         self.shards[shard_id].add_vertex(t, v, &props);
     }
 
-    pub fn add_edge(&self, src: u64, dst: u64, t: i64, props: &Vec<(String, Prop)>) {
+pub fn add_edge(&self, src: u64, dst: u64, t: i64, props: &Vec<(String, Prop)>) {
         let src_shard_id = self.get_shard_id_from_global_vid(src);
         let dst_shard_id = self.get_shard_id_from_global_vid(dst);
 
@@ -181,7 +182,7 @@ mod db_tests {
 
         let expected_len = vs.iter().map(|(v, _)| v).sorted().dedup().count();
         for (v, t) in vs {
-            g.add_vertex(v.into(), t.into(), vec![]);
+            g.add_vertex(v.into(), t.into(), &vec![]);
         }
 
         assert_eq!(g.len(), expected_len)
@@ -217,8 +218,8 @@ mod db_tests {
                         let src_id = calculate_hash(&src);
                         let dst_id = calculate_hash(&dst);
 
-                        g.add_vertex(src_id, t, vec![]);
-                        g.add_vertex(dst_id, t, vec![]);
+                        g.add_vertex(src_id, t, &vec![]);
+                        g.add_vertex(dst_id, t, &vec![]);
                         g.add_edge(src_id, dst_id, t, &empty);
                     }
                 }
