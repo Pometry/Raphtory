@@ -100,13 +100,21 @@ fn main() {
     let gandalf = calculate_hash(&"Gandalf");
     println!("src = {}", gandalf);
 
+    println!("Gandalf exists = {}", graph.contains(gandalf));
+
     graph
         .neighbours_window(0, i64::MAX, gandalf, Direction::OUT)
         .for_each(|e| println!("{:?}", e));
 
-    println!("{}", graph.contains(gandalf));
+    println!("-----");
 
     graph
         .neighbours(gandalf, Direction::OUT)
+        .for_each(|e| println!("{:?}", e));
+
+    println!("-----");
+
+    graph
+        .neighbours_window_t(0, i64::MAX, gandalf, Direction::OUT)
         .for_each(|e| println!("{:?}", e));
 }

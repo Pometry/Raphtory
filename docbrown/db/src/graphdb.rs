@@ -142,6 +142,20 @@ impl GraphDB {
         Box::new(iter)
     }
 
+    pub fn neighbours_window_t(
+        &self,
+        t_start: i64,
+        t_end: i64,
+        v: u64,
+        d: Direction,
+    ) -> Box<dyn Iterator<Item = TEdge>> {
+        let shard_id = self.get_shard_id_from_global_vid(v);
+
+        let iter = self.shards[shard_id].neighbours_window_t(t_start, t_end, v, d);
+
+        Box::new(iter)
+    }
+
     #[inline(always)]
     fn get_shard_id_from_global_vid(&self, v_gid: u64) -> usize {
         let a: usize = v_gid.try_into().unwrap();
