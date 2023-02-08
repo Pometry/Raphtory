@@ -38,121 +38,6 @@ impl Default for TemporalGraph {
 }
 
 impl TemporalGraph {
-    pub(crate) fn vertices_iter_window(
-        &self,
-        r: Range<i64>,
-    ) -> Box<dyn Iterator<Item = usize> + '_> {
-        let iter = self
-            .index
-            .range(r.clone())
-            .map(|(_, vs)| vs.iter())
-            .kmerge()
-            .dedup();
-
-        Box::new(iter)
-    }
-
-    fn neighbours_iter(
-        &self,
-        vid: usize,
-        d: Direction,
-    ) -> Box<dyn Iterator<Item = (&usize, AdjEdge)> + '_> {
-        match &self.adj_lists[vid] {
-            Adj::List {
-                out,
-                into,
-                remote_out,
-                remote_into,
-                ..
-            } => {
-                match d {
-                    Direction::OUT => Box::new(itertools::chain!(out.iter(), remote_out.iter())),
-                    Direction::IN => Box::new(itertools::chain!(into.iter(), remote_into.iter())),
-                    _ => {
-                        Box::new(itertools::chain!(
-                            out.iter(),
-                            into.iter(),
-                            remote_out.iter(),
-                            remote_into.iter()
-                        )) // probably awful but will have to do for now
-                    }
-                }
-            }
-            _ => Box::new(std::iter::empty()),
-        }
-    }
-
-    pub(crate) fn neighbours_iter_window(
-        &self,
-        vid: usize,
-        d: Direction,
-        window: &Range<i64>,
-    ) -> Box<dyn Iterator<Item = (usize, AdjEdge)> + '_> {
-        match &self.adj_lists[vid] {
-            Adj::List {
-                out,
-                into,
-                remote_out,
-                remote_into,
-                ..
-            } => {
-                match d {
-                    Direction::OUT => Box::new(itertools::chain!(
-                        out.iter_window(window),
-                        remote_out.iter_window(window)
-                    )),
-                    Direction::IN => Box::new(itertools::chain!(
-                        into.iter_window(window),
-                        remote_into.iter_window(window),
-                    )),
-                    _ => {
-                        Box::new(itertools::chain!(
-                            out.iter_window(window),
-                            into.iter_window(window),
-                            remote_out.iter_window(window),
-                            remote_into.iter_window(window)
-                        )) // probably awful but will have to do for now
-                    }
-                }
-            }
-            _ => Box::new(std::iter::empty()),
-        }
-    }
-
-    pub(crate) fn _degree(&self, vid: usize, d: Direction) -> usize {
-        match &self.adj_lists[vid] {
-            Adj::List { out, into, .. } => match d {
-                Direction::OUT => out.len(),
-                Direction::IN => into.len(),
-                _ => {
-                    vec![out.iter(), into.iter()] // FIXME: there are better ways of doing this, all adj lists are sorted except for the HashMap
-                        .into_iter()
-                        .flatten()
-                        .unique_by(|(v, _)| *v)
-                        .count()
-                }
-            },
-            _ => 0,
-        }
-    }
-
-    pub(crate) fn _degree_window(&self, vid: usize, d: Direction, window: &Range<i64>) -> usize {
-        match &self.adj_lists[vid] {
-            Adj::List { out, into, .. } => match d {
-                Direction::OUT => out.len_window(window),
-                Direction::IN => into.len_window(window),
-                _ => vec![out.iter_window(window), into.iter_window(window)]
-                    .into_iter()
-                    .flatten()
-                    .unique_by(|(v, _)| *v)
-                    .count(),
-            },
-            _ => 0,
-        }
-    }
-}
-
-impl TemporalGraph {
     pub fn len(&self) -> usize {
         self.logical_to_physical.len()
     }
@@ -208,47 +93,6 @@ impl TemporalGraph {
         };
 
         self.props.upsert_vertex_props(index, t, props);
-    }
-
-    pub(crate) fn iter_vertices(&self) -> Box<dyn Iterator<Item = VertexView<'_, Self>> + '_> {
-        Box::new(
-            self.adj_lists
-                .iter()
-                .enumerate()
-                .map(|(pid, v)| VertexView {
-                    g_id: *v.logical(),
-                    pid,
-                    g: self,
-                    w: None,
-                }),
-        )
-    }
-
-    pub(crate) fn iter_vertices_window(
-        &self,
-        r: Range<i64>,
-    ) -> Box<dyn Iterator<Item = VertexView<'_, Self>> + '_> {
-        let iter = self
-            .index
-            .range(r.clone())
-            .map(|(_, vs)| vs.iter())
-            .kmerge()
-            .dedup()
-            .map(move |pid| match self.adj_lists[pid] {
-                Adj::Solo(lid) => VertexView {
-                    g_id: lid,
-                    pid,
-                    g: self,
-                    w: Some(r.clone()),
-                },
-                Adj::List { logical, .. } => VertexView {
-                    g_id: logical,
-                    pid,
-                    g: self,
-                    w: Some(r.clone()),
-                },
-            });
-        Box::new(iter)
     }
 
     pub fn add_edge(&mut self, src: u64, dst: u64, t: i64) {
@@ -403,6 +247,89 @@ impl TemporalGraph {
         self._degree_window(v_pid, Direction::BOTH, &r)
     }
 
+    pub(crate) fn outbound(&self, src: u64) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
+        self.neighbours(src, Direction::OUT)
+    }
+
+    pub(crate) fn outbound_window(
+        &self,
+        src: u64,
+        r: Range<i64>,
+    ) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
+        self.neighbours_window(r, src, Direction::OUT)
+    }
+
+    pub(crate) fn outbound_window_t(
+        &self,
+        src: u64,
+        r: Range<i64>,
+    ) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
+        let src_pid = self.logical_to_physical[&src];
+        self.neighbours_window_t(r, src_pid, Direction::OUT)
+    }
+
+    pub(crate) fn inbound(&self, dst: u64) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
+        self.neighbours(dst, Direction::IN)
+    }
+
+    pub(crate) fn inbound_window(
+        &self,
+        dst: u64,
+        r: Range<i64>,
+    ) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
+        self.neighbours_window(r, dst, Direction::IN)
+    }
+
+    pub(crate) fn inbound_window_t(
+        &self,
+        dst: u64,
+        r: Range<i64>,
+    ) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
+        let dst_pid = self.logical_to_physical[&dst];
+        self.neighbours_window_t(r, dst_pid, Direction::IN)
+    }
+
+    pub(crate) fn iter_vertices(&self) -> Box<dyn Iterator<Item = VertexView<'_, Self>> + '_> {
+        Box::new(
+            self.adj_lists
+                .iter()
+                .enumerate()
+                .map(|(pid, v)| VertexView {
+                    g_id: *v.logical(),
+                    pid,
+                    g: self,
+                    w: None,
+                }),
+        )
+    }
+
+    pub(crate) fn iter_vertices_window(
+        &self,
+        r: Range<i64>,
+    ) -> Box<dyn Iterator<Item = VertexView<'_, Self>> + '_> {
+        let iter = self
+            .index
+            .range(r.clone())
+            .map(|(_, vs)| vs.iter())
+            .kmerge()
+            .dedup()
+            .map(move |pid| match self.adj_lists[pid] {
+                Adj::Solo(lid) => VertexView {
+                    g_id: lid,
+                    pid,
+                    g: self,
+                    w: Some(r.clone()),
+                },
+                Adj::List { logical, .. } => VertexView {
+                    g_id: logical,
+                    pid,
+                    g: self,
+                    w: Some(r.clone()),
+                },
+            });
+        Box::new(iter)
+    }
+
     pub(crate) fn neighbours(
         &self,
         v: u64,
@@ -497,47 +424,120 @@ impl TemporalGraph {
             }
         }
     }
+}
 
-    pub(crate) fn outbound(&self, src: u64) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
-        self.neighbours(src, Direction::OUT)
-    }
-
-    pub(crate) fn outbound_window(
+impl TemporalGraph {
+    pub(crate) fn vertices_iter_window(
         &self,
-        src: u64,
         r: Range<i64>,
-    ) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
-        self.neighbours_window(r, src, Direction::OUT)
+    ) -> Box<dyn Iterator<Item = usize> + '_> {
+        let iter = self
+            .index
+            .range(r.clone())
+            .map(|(_, vs)| vs.iter())
+            .kmerge()
+            .dedup();
+
+        Box::new(iter)
     }
 
-    pub(crate) fn outbound_window_t(
+    fn neighbours_iter(
         &self,
-        src: u64,
-        r: Range<i64>,
-    ) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
-        let src_pid = self.logical_to_physical[&src];
-        self.neighbours_window_t(r, src_pid, Direction::OUT)
+        vid: usize,
+        d: Direction,
+    ) -> Box<dyn Iterator<Item = (&usize, AdjEdge)> + '_> {
+        match &self.adj_lists[vid] {
+            Adj::List {
+                out,
+                into,
+                remote_out,
+                remote_into,
+                ..
+            } => {
+                match d {
+                    Direction::OUT => Box::new(itertools::chain!(out.iter(), remote_out.iter())),
+                    Direction::IN => Box::new(itertools::chain!(into.iter(), remote_into.iter())),
+                    _ => {
+                        Box::new(itertools::chain!(
+                            out.iter(),
+                            into.iter(),
+                            remote_out.iter(),
+                            remote_into.iter()
+                        )) // probably awful but will have to do for now
+                    }
+                }
+            }
+            _ => Box::new(std::iter::empty()),
+        }
     }
 
-    pub(crate) fn inbound(&self, dst: u64) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
-        self.neighbours(dst, Direction::IN)
-    }
-
-    pub(crate) fn inbound_window(
+    pub(crate) fn neighbours_iter_window(
         &self,
-        dst: u64,
-        r: Range<i64>,
-    ) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
-        self.neighbours_window(r, dst, Direction::IN)
+        vid: usize,
+        d: Direction,
+        window: &Range<i64>,
+    ) -> Box<dyn Iterator<Item = (usize, AdjEdge)> + '_> {
+        match &self.adj_lists[vid] {
+            Adj::List {
+                out,
+                into,
+                remote_out,
+                remote_into,
+                ..
+            } => {
+                match d {
+                    Direction::OUT => Box::new(itertools::chain!(
+                        out.iter_window(window),
+                        remote_out.iter_window(window)
+                    )),
+                    Direction::IN => Box::new(itertools::chain!(
+                        into.iter_window(window),
+                        remote_into.iter_window(window),
+                    )),
+                    _ => {
+                        Box::new(itertools::chain!(
+                            out.iter_window(window),
+                            into.iter_window(window),
+                            remote_out.iter_window(window),
+                            remote_into.iter_window(window)
+                        )) // probably awful but will have to do for now
+                    }
+                }
+            }
+            _ => Box::new(std::iter::empty()),
+        }
     }
 
-    pub(crate) fn inbound_window_t(
-        &self,
-        dst: u64,
-        r: Range<i64>,
-    ) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
-        let dst_pid = self.logical_to_physical[&dst];
-        self.neighbours_window_t(r, dst_pid, Direction::IN)
+    pub(crate) fn _degree(&self, vid: usize, d: Direction) -> usize {
+        match &self.adj_lists[vid] {
+            Adj::List { out, into, .. } => match d {
+                Direction::OUT => out.len(),
+                Direction::IN => into.len(),
+                _ => {
+                    vec![out.iter(), into.iter()] // FIXME: there are better ways of doing this, all adj lists are sorted except for the HashMap
+                        .into_iter()
+                        .flatten()
+                        .unique_by(|(v, _)| *v)
+                        .count()
+                }
+            },
+            _ => 0,
+        }
+    }
+
+    pub(crate) fn _degree_window(&self, vid: usize, d: Direction, window: &Range<i64>) -> usize {
+        match &self.adj_lists[vid] {
+            Adj::List { out, into, .. } => match d {
+                Direction::OUT => out.len_window(window),
+                Direction::IN => into.len_window(window),
+                _ => vec![out.iter_window(window), into.iter_window(window)]
+                    .into_iter()
+                    .flatten()
+                    .unique_by(|(v, _)| *v)
+                    .count(),
+            },
+            _ => 0,
+        }
     }
 }
 
