@@ -80,7 +80,7 @@ impl TemporalGraphPart {
     }
 
     pub fn contains_window(&self, t_start: i64, t_end: i64, v: u64) -> bool {
-        self.read_shard(|tg| tg.contains_vertex_window(t_start..t_end, v))
+        self.read_shard(|tg| tg.contains_vertex_window(&(t_start..t_end), v))
     }
 
     pub fn add_vertex(&self, t: i64, v: u64, props: &Vec<(String, Prop)>) {
@@ -144,7 +144,7 @@ impl TemporalGraphPart {
         let vertices_iter = gen!({
             let g = tg.0.read();
             let chunks = (*g)
-                .neighbours_window(v, (t_start..t_end), d)
+                .neighbours_window(v, &(t_start..t_end), d)
                 .map(|e| e.into());
             let iter = chunks.into_iter();
             for v_id in iter {
@@ -166,7 +166,7 @@ impl TemporalGraphPart {
         let vertices_iter = gen!({
             let g = tg.0.read();
             let chunks = (*g)
-                .neighbours_window_t(v, (t_start..t_end), d)
+                .neighbours_window_t(v, &(t_start..t_end), d)
                 .map(|e| e.into());
             let iter = chunks.into_iter();
             for v_id in iter {
