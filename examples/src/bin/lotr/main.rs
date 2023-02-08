@@ -98,23 +98,29 @@ fn main() {
     };
 
     let gandalf = calculate_hash(&"Gandalf");
-    println!("src = {}", gandalf);
-
     println!("Gandalf exists = {}", graph.contains(gandalf));
 
+    println!("Gandalf's windowed outbound neighbours");
     graph
         .neighbours_window(0, i64::MAX, gandalf, Direction::OUT)
         .for_each(|e| println!("{:?}", e));
 
-    println!("-----");
-
+    println!("Gandalf's outbound neighbours");
     graph
         .neighbours(gandalf, Direction::OUT)
         .for_each(|e| println!("{:?}", e));
 
-    println!("-----");
-
+    println!("Gandalf's windowed outbound neighbours with timestamp");
     graph
         .neighbours_window_t(0, i64::MAX, gandalf, Direction::OUT)
         .for_each(|e| println!("{:?}", e));
+
+    let in_degree = graph.degree_window(gandalf, 0, i64::MAX, Direction::IN);
+    let out_degree = graph.degree_window(gandalf, 0, i64::MAX, Direction::OUT);
+    let degree = graph.degree_window(gandalf, 0, i64::MAX, Direction::BOTH);
+
+    println!(
+        "{} has {} windowed in-degree, {} windowed out-degree and {} total degree",
+        gandalf, in_degree, out_degree, degree
+    );
 }
