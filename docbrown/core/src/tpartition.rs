@@ -109,7 +109,7 @@ impl TemporalGraphPart {
         let tg = self.clone();
         let vertices_iter = gen!({
             let g = tg.0.read();
-            let chunks = (*g).vertices_iter_window(t_start..t_end).chunks(chunk_size);
+            let chunks = (*g).vertices_window(t_start..t_end).chunks(chunk_size);
             let iter = chunks.into_iter().map(|chunk| chunk.collect::<Vec<_>>());
             for v_id in iter {
                 yield_!(v_id)
