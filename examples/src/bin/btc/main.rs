@@ -123,10 +123,11 @@ fn main() {
 
     assert!(graph.contains(test_v));
     let deg_out = graph
-        .neighbours_window(0, i64::MAX, test_v, Direction::OUT)
+        .neighbours_window(test_v, 0, i64::MAX, Direction::OUT)
         .count();
+        
     let deg_in = graph
-        .neighbours_window(0, i64::MAX, test_v, Direction::IN)
+        .neighbours_window(test_v, 0, i64::MAX, Direction::IN)
         .count();
 
     println!(
