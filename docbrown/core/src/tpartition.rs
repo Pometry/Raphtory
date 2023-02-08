@@ -91,6 +91,19 @@ impl TemporalGraphPart {
 
         vertices_iter.into_iter()
     }
+    
+
+    pub fn out_degree_window(&self, t_start: i64, t_end: i64, v: u64) -> usize {
+        self.read_shard(|tg| tg.outbound_degree_t(v, t_start..t_end))
+    }
+
+    pub fn in_degree_window(&self, t_start: i64, t_end: i64, v: u64) -> usize {
+        self.read_shard(|tg| tg.inbound_degree_t(v, t_start..t_end))
+    }
+
+    pub fn degree_window(&self, t_start: i64, t_end: i64, v: u64) -> usize {
+        self.read_shard(|tg: &TemporalGraph| tg.degree_window(v, t_start..t_end))
+    }
 
     pub fn len(&self) -> usize {
         self.read_shard(|tg| tg.len())
@@ -197,4 +210,99 @@ mod temporal_graph_partition_test {
             assert_eq!(None, iter.next()); // one vertex per interval
         }
     }
+
+    #[test]
+    fn get_in_degree_window() {
+        let mut g = TemporalGraphPart::default();
+
+        g.add_vertex(1, 100, &vec![]);
+        g.add_vertex(2, 101, &vec![]);
+        g.add_vertex(3, 102, &vec![]);
+        g.add_vertex(4, 103, &vec![]);
+        g.add_vertex(5, 104, &vec![]);
+        g.add_vertex(5, 105, &vec![]);
+
+        g.add_edge(6, 100, 101, &vec![]);
+        g.add_edge(7, 100, 102, &vec![]);
+        g.add_edge(8, 101, 103, &vec![]);
+        g.add_edge(9, 102, 104, &vec![]);
+        g.add_edge(9, 110, 104, &vec![]);
+
+        let actual = g.in_degree_window(0, i64::MAX, 101);
+        let actual2 = g.in_degree_window(0, i64::MAX, 100);
+        let actual3 = g.in_degree_window(0, 1, 101);
+        let actual4 = g.in_degree_window(10, 20, 101);
+        let actual5 = g.in_degree_window(0, i64::MAX, 105);
+        let actual6 = g.in_degree_window(0, i64::MAX, 104);
+        assert_eq!(actual, 1);
+        assert_eq!(actual2, 0);
+        assert_eq!(actual3, 0);
+        assert_eq!(actual4, 0);
+        assert_eq!(actual5, 0);
+        assert_eq!(actual6, 2)
+    }
+
+    #[test]
+    fn get_out_degree_window() {
+        let mut g = TemporalGraphPart::default();
+
+        g.add_vertex(1, 100, &vec![]);
+        g.add_vertex(2, 101, &vec![]);
+        g.add_vertex(3, 102, &vec![]);
+        g.add_vertex(4, 103, &vec![]);
+        g.add_vertex(5, 104, &vec![]);
+        g.add_vertex(5, 105, &vec![]);
+
+        g.add_edge(6, 100, 101, &vec![]);
+        g.add_edge(7, 100, 102, &vec![]);
+        g.add_edge(8, 101, 103, &vec![]);
+        g.add_edge(9, 102, 104, &vec![]);
+        g.add_edge(9, 110, 104, &vec![]);
+
+
+        let actual = g.out_degree_window(0, i64::MAX, 101);
+        let actual2 = g.out_degree_window(0, i64::MAX, 103);
+        let actual3 = g.out_degree_window(0, i64::MAX, 105);
+        let actual4 = g.out_degree_window(0, 1, 101);
+        let actual5 = g.out_degree_window(10, 20, 101);
+        let actual6 = g.out_degree_window(0, i64::MAX, 100);
+        assert_eq!(actual, 1);
+        assert_eq!(actual2, 0);
+        assert_eq!(actual3, 0);
+        assert_eq!(actual4, 0);
+        assert_eq!(actual5, 0);
+        assert_eq!(actual6, 2)
+    }
+
+    #[test]
+    fn get_degree_window() {
+        let mut g = TemporalGraphPart::default();
+
+        g.add_vertex(1, 100, &vec![]);
+        g.add_vertex(2, 101, &vec![]);
+        g.add_vertex(3, 102, &vec![]);
+        g.add_vertex(4, 103, &vec![]);
+        g.add_vertex(5, 104, &vec![]);
+        g.add_vertex(5, 105, &vec![]);
+
+        g.add_edge(6, 100, 101, &vec![]);
+        g.add_edge(7, 100, 102, &vec![]);
+        g.add_edge(8, 100, 102, &vec![]);
+        g.add_edge(8, 101, 103, &vec![]);
+        g.add_edge(9, 102, 104, &vec![]);
+        g.add_edge(9, 110, 104, &vec![]);
+
+        let actual = g.degree_window(0, i64::MAX, 101);
+        let actual2 = g.degree_window(0, i64::MAX, 100);
+        let actual3 = g.degree_window(0, 1, 100);
+        let actual4 = g.degree_window(10, 20, 100);
+        let actual5 = g.degree_window(0, i64::MAX, 105);
+        assert_eq!(actual, 2);
+        assert_eq!(actual2, 2);
+        assert_eq!(actual3, 0);
+        assert_eq!(actual4, 0);
+        assert_eq!(actual5, 0)
+    }
+
+
 }
