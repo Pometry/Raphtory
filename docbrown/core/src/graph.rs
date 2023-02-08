@@ -282,7 +282,7 @@ impl TemporalGraph {
         let v_pid = self.logical_to_physical[&v];
 
         match d {
-            Direction::OUT => Box::new(self.neighbours_iter_window(v_pid, d, w).map(
+            Direction::OUT => Box::new(self.neighbours_iter_window(v_pid, w, d).map(
                 move |(v, e_meta)| EdgeView {
                     src_id: v_pid,
                     dst_id: v,
@@ -291,7 +291,7 @@ impl TemporalGraph {
                     e_meta,
                 },
             )),
-            Direction::IN => Box::new(self.neighbours_iter_window(v_pid, d, w).map(
+            Direction::IN => Box::new(self.neighbours_iter_window(v_pid, w, d).map(
                 move |(v, e_meta)| EdgeView {
                     src_id: v,
                     dst_id: v_pid,
@@ -313,7 +313,7 @@ impl TemporalGraph {
         let v_pid = self.logical_to_physical[&v];
 
         match d {
-            Direction::OUT => Box::new(self.neighbours_iter_window_t(v_pid, d, r).map(
+            Direction::OUT => Box::new(self.neighbours_iter_window_t(v_pid, r, d).map(
                 move |(v, t, e_meta)| EdgeView {
                     src_id: v_pid,
                     dst_id: v,
@@ -322,7 +322,7 @@ impl TemporalGraph {
                     e_meta,
                 },
             )),
-            Direction::IN => Box::new(self.neighbours_iter_window_t(v_pid, d, r).map(
+            Direction::IN => Box::new(self.neighbours_iter_window_t(v_pid, r, d).map(
                 move |(v, t, e_meta)| EdgeView {
                     src_id: v,
                     dst_id: v_pid,
@@ -341,7 +341,7 @@ impl TemporalGraph {
 impl TemporalGraph {
     fn link_inbound_edge(
         &mut self,
-        global_dst_id: u64,
+        dst_gid: u64,
         t: i64,
         src: usize, // may or may not be physical id depending on remote_edge flag
         dst_pid: usize,
@@ -353,7 +353,7 @@ impl TemporalGraph {
 
                 let edge = AdjEdge::new(edge_id, !remote_edge);
 
-                *entry = Adj::new_into(global_dst_id, src, t, edge);
+                *entry = Adj::new_into(dst_gid, src, t, edge);
 
                 edge_id
             }
@@ -374,7 +374,7 @@ impl TemporalGraph {
 
     fn link_outbound_edge(
         &mut self,
-        global_src_id: u64,
+        src_gid: u64,
         t: i64,
         src_pid: usize,
         dst: usize, // may or may not pe physical id depending on remote_edge flag
@@ -386,7 +386,7 @@ impl TemporalGraph {
 
                 let edge = AdjEdge::new(edge_id, !remote_edge);
 
-                *entry = Adj::new_out(global_src_id, dst, t, edge);
+                *entry = Adj::new_out(src_gid, dst, t, edge);
 
                 edge_id
             }
@@ -438,8 +438,8 @@ impl TemporalGraph {
     fn neighbours_iter_window(
         &self,
         vid: usize,
-        d: Direction,
         window: &Range<i64>,
+        d: Direction,
     ) -> Box<dyn Iterator<Item = (usize, AdjEdge)> + '_> {
         match &self.adj_lists[vid] {
             Adj::List {
@@ -475,8 +475,8 @@ impl TemporalGraph {
     fn neighbours_iter_window_t(
         &self,
         vid: usize,
-        d: Direction,
         window: &Range<i64>,
+        d: Direction,
     ) -> Box<dyn Iterator<Item = (usize, i64, AdjEdge)> + '_> {
         match &self.adj_lists[vid] {
             Adj::List {
@@ -1667,7 +1667,7 @@ mod graph_test {
         assert_eq!(actual, vec![22]);
 
         let actual = g1
-            .neighbours_iter_window(0, Direction::OUT, &(1..3))
+            .neighbours_iter_window(0, &(1..3), Direction::OUT)
             .map(|(id, edge)| (id, edge.is_local()))
             .collect_vec();
         assert_eq!(actual, vec![(22, false)])

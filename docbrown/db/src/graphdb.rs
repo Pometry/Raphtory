@@ -94,16 +94,16 @@ impl GraphDB {
         self.shards.iter().any(|shard| shard.contains(v))
     }
 
-    pub fn contains_window(&self, t_start: i64, t_end: i64, v: u64) -> bool {
+    pub fn contains_window(&self, v: u64, t_start: i64, t_end: i64) -> bool {
         self.shards
             .iter()
-            .any(|shard| shard.contains_window(t_start, t_end, v))
+            .any(|shard| shard.contains_window(v, t_start, t_end))
     }
 
     // TODO: Probably add vector reference here like add
     pub fn add_vertex(&self, v: u64, t: i64, props: &Vec<(String, Prop)>) {
         let shard_id = self.get_shard_id_from_global_vid(v);
-        self.shards[shard_id].add_vertex(t, v, &props);
+        self.shards[shard_id].add_vertex(v, t, &props);
     }
 
     pub fn add_edge(&self, src: u64, dst: u64, t: i64, props: &Vec<(String, Prop)>) {
@@ -111,12 +111,12 @@ impl GraphDB {
         let dst_shard_id = self.get_shard_id_from_global_vid(dst);
 
         if src_shard_id == dst_shard_id {
-            self.shards[src_shard_id].add_edge(t, src, dst, props)
+            self.shards[src_shard_id].add_edge(src, dst, t, props)
         } else {
             // FIXME these are sort of connected, we need to hold both locks for
             // the src partition and dst partition to add a remote edge between both
-            self.shards[src_shard_id].add_edge_remote_out(t, src, dst, props);
-            self.shards[dst_shard_id].add_edge_remote_into(t, src, dst, props);
+            self.shards[src_shard_id].add_edge_remote_out(src, dst, t, props);
+            self.shards[dst_shard_id].add_edge_remote_into(src, dst, t, props);
         }
     }
 
@@ -136,28 +136,28 @@ impl GraphDB {
 
     pub fn neighbours_window(
         &self,
+        v: u64,
         t_start: i64,
         t_end: i64,
-        v: u64,
         d: Direction,
     ) -> Box<dyn Iterator<Item = TEdge>> {
         let shard_id = self.get_shard_id_from_global_vid(v);
 
-        let iter = self.shards[shard_id].neighbours_window(t_start, t_end, v, d);
+        let iter = self.shards[shard_id].neighbours_window(v, t_start, t_end, d);
 
         Box::new(iter)
     }
 
     pub fn neighbours_window_t(
         &self,
+        v: u64,
         t_start: i64,
         t_end: i64,
-        v: u64,
         d: Direction,
     ) -> Box<dyn Iterator<Item = TEdge>> {
         let shard_id = self.get_shard_id_from_global_vid(v);
 
-        let iter = self.shards[shard_id].neighbours_window_t(t_start, t_end, v, d);
+        let iter = self.shards[shard_id].neighbours_window_t(v, t_start, t_end, d);
 
         Box::new(iter)
     }

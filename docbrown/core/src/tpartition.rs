@@ -79,23 +79,23 @@ impl TemporalGraphPart {
         self.read_shard(|tg| tg.contains_vertex(v))
     }
 
-    pub fn contains_window(&self, t_start: i64, t_end: i64, v: u64) -> bool {
+    pub fn contains_window(&self, v: u64, t_start: i64, t_end: i64) -> bool {
         self.read_shard(|tg| tg.contains_vertex_window(&(t_start..t_end), v))
     }
 
-    pub fn add_vertex(&self, t: i64, v: u64, props: &Vec<(String, Prop)>) {
+    pub fn add_vertex(&self, v: u64, t: i64, props: &Vec<(String, Prop)>) {
         self.write_shard(|tg| tg.add_vertex(v, t))
     }
 
-    pub fn add_edge(&self, t: i64, src: u64, dst: u64, props: &Vec<(String, Prop)>) {
+    pub fn add_edge(&self, src: u64, dst: u64, t: i64, props: &Vec<(String, Prop)>) {
         self.write_shard(|tg| tg.add_edge_with_props(src, dst, t, props))
     }
 
-    pub fn add_edge_remote_out(&self, t: i64, src: u64, dst: u64, props: &Vec<(String, Prop)>) {
+    pub fn add_edge_remote_out(&self, src: u64, dst: u64, t: i64, props: &Vec<(String, Prop)>) {
         self.write_shard(|tg| tg.add_edge_remote_out(src, dst, t, props))
     }
 
-    pub fn add_edge_remote_into(&self, t: i64, src: u64, dst: u64, props: &Vec<(String, Prop)>) {
+    pub fn add_edge_remote_into(&self, src: u64, dst: u64, t: i64, props: &Vec<(String, Prop)>) {
         self.write_shard(|tg| tg.add_edge_remote_into(src, dst, t, props))
     }
 
@@ -139,9 +139,9 @@ impl TemporalGraphPart {
 
     pub fn neighbours_window(
         &self,
+        v: u64,
         t_start: i64,
         t_end: i64,
-        v: u64,
         d: Direction,
     ) -> impl Iterator<Item = TEdge> {
         let tg = self.clone();
@@ -161,9 +161,9 @@ impl TemporalGraphPart {
 
     pub fn neighbours_window_t(
         &self,
+        v: u64,
         t_start: i64,
         t_end: i64,
-        v: u64,
         d: Direction,
     ) -> impl Iterator<Item = TEdge> {
         let tg = self.clone();
@@ -228,7 +228,7 @@ mod temporal_graph_partition_test {
         let g = TemporalGraphPart::default();
 
         for (v, (t_start, _)) in intervals.0.iter().enumerate() {
-            g.add_vertex(*t_start, v.try_into().unwrap(), &vec![])
+            g.add_vertex(v.try_into().unwrap(), *t_start, &vec![])
         }
 
         for (v, (t_start, t_end)) in intervals.0.iter().enumerate() {

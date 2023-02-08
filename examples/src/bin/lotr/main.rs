@@ -102,7 +102,7 @@ fn main() {
 
     println!("Gandalf's windowed outbound neighbours");
     graph
-        .neighbours_window(0, i64::MAX, gandalf, Direction::OUT)
+        .neighbours_window(gandalf, 0, i64::MAX, Direction::OUT)
         .for_each(|e| println!("{:?}", e));
 
     println!("Gandalf's outbound neighbours");
@@ -112,7 +112,7 @@ fn main() {
 
     println!("Gandalf's windowed outbound neighbours with timestamp");
     graph
-        .neighbours_window_t(0, i64::MAX, gandalf, Direction::OUT)
+        .neighbours_window_t(gandalf, 0, i64::MAX, Direction::OUT)
         .for_each(|e| println!("{:?}", e));
 
     let in_degree = graph.degree_window(gandalf, 0, i64::MAX, Direction::IN);
