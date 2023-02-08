@@ -151,72 +151,6 @@ impl TemporalGraph {
         self.props.upsert_edge_props(dst_edge_meta_id, t, props)
     }
 
-    fn link_inbound_edge(
-        &mut self,
-        global_dst_id: u64,
-        t: i64,
-        src: usize, // may or may not be physical id depending on remote_edge flag
-        dst_pid: usize,
-        remote_edge: bool,
-    ) -> usize {
-        match &mut self.adj_lists[dst_pid] {
-            entry @ Adj::Solo(_) => {
-                let edge_id = self.props.get_next_available_edge_id();
-
-                let edge = AdjEdge::new(edge_id, !remote_edge);
-
-                *entry = Adj::new_into(global_dst_id, src, t, edge);
-
-                edge_id
-            }
-            Adj::List {
-                into, remote_into, ..
-            } => {
-                let list = if remote_edge { remote_into } else { into };
-                let edge_id: usize = list
-                    .find(src)
-                    .map(|e| e.edge_meta_id())
-                    .unwrap_or(self.props.get_next_available_edge_id());
-
-                list.push(t, src, AdjEdge::new(edge_id, !remote_edge)); // idempotent
-                edge_id
-            }
-        }
-    }
-
-    fn link_outbound_edge(
-        &mut self,
-        global_src_id: u64,
-        t: i64,
-        src_pid: usize,
-        dst: usize, // may or may not pe physical id depending on remote_edge flag
-        remote_edge: bool,
-    ) -> usize {
-        match &mut self.adj_lists[src_pid] {
-            entry @ Adj::Solo(_) => {
-                let edge_id = self.props.get_next_available_edge_id();
-
-                let edge = AdjEdge::new(edge_id, !remote_edge);
-
-                *entry = Adj::new_out(global_src_id, dst, t, edge);
-
-                edge_id
-            }
-            Adj::List {
-                out, remote_out, ..
-            } => {
-                let list = if remote_edge { remote_out } else { out };
-                let edge_id: usize = list
-                    .find(dst)
-                    .map(|e| e.edge_meta_id())
-                    .unwrap_or(self.props.get_next_available_edge_id());
-
-                list.push(t, dst, AdjEdge::new(edge_id, !remote_edge));
-                edge_id
-            }
-        }
-    }
-
     pub fn degree(&self, v: u64, d: Direction) -> usize {
         let v_pid = self.logical_to_physical[&v];
 
@@ -396,6 +330,72 @@ impl TemporalGraph {
 }
 
 impl TemporalGraph {
+    fn link_inbound_edge(
+        &mut self,
+        global_dst_id: u64,
+        t: i64,
+        src: usize, // may or may not be physical id depending on remote_edge flag
+        dst_pid: usize,
+        remote_edge: bool,
+    ) -> usize {
+        match &mut self.adj_lists[dst_pid] {
+            entry @ Adj::Solo(_) => {
+                let edge_id = self.props.get_next_available_edge_id();
+
+                let edge = AdjEdge::new(edge_id, !remote_edge);
+
+                *entry = Adj::new_into(global_dst_id, src, t, edge);
+
+                edge_id
+            }
+            Adj::List {
+                into, remote_into, ..
+            } => {
+                let list = if remote_edge { remote_into } else { into };
+                let edge_id: usize = list
+                    .find(src)
+                    .map(|e| e.edge_meta_id())
+                    .unwrap_or(self.props.get_next_available_edge_id());
+
+                list.push(t, src, AdjEdge::new(edge_id, !remote_edge)); // idempotent
+                edge_id
+            }
+        }
+    }
+
+    fn link_outbound_edge(
+        &mut self,
+        global_src_id: u64,
+        t: i64,
+        src_pid: usize,
+        dst: usize, // may or may not pe physical id depending on remote_edge flag
+        remote_edge: bool,
+    ) -> usize {
+        match &mut self.adj_lists[src_pid] {
+            entry @ Adj::Solo(_) => {
+                let edge_id = self.props.get_next_available_edge_id();
+
+                let edge = AdjEdge::new(edge_id, !remote_edge);
+
+                *entry = Adj::new_out(global_src_id, dst, t, edge);
+
+                edge_id
+            }
+            Adj::List {
+                out, remote_out, ..
+            } => {
+                let list = if remote_edge { remote_out } else { out };
+                let edge_id: usize = list
+                    .find(dst)
+                    .map(|e| e.edge_meta_id())
+                    .unwrap_or(self.props.get_next_available_edge_id());
+
+                list.push(t, dst, AdjEdge::new(edge_id, !remote_edge));
+                edge_id
+            }
+        }
+    }
+    
     fn neighbours_iter(
         &self,
         vid: usize,
