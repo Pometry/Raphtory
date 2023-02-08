@@ -217,7 +217,7 @@ mod temporal_graph_partition_test {
 
         let expected_len = vs.iter().map(|(v, _)| v).sorted().dedup().count();
         for (v, t) in vs {
-            g.add_vertex(t.into(), v.into(), &vec![]);
+            g.add_vertex(v.into(), t.into(), &vec![]);
         }
 
         assert_eq!(g.len(), expected_len)
@@ -248,18 +248,18 @@ mod temporal_graph_partition_test {
     fn get_in_degree_window() {
         let g = TemporalGraphPart::default();
 
-        g.add_vertex(1, 100, &vec![]);
-        g.add_vertex(2, 101, &vec![]);
-        g.add_vertex(3, 102, &vec![]);
-        g.add_vertex(4, 103, &vec![]);
-        g.add_vertex(5, 104, &vec![]);
-        g.add_vertex(5, 105, &vec![]);
+        g.add_vertex(100, 1, &vec![]);
+        g.add_vertex(101, 2, &vec![]);
+        g.add_vertex(102, 3, &vec![]);
+        g.add_vertex(103, 4, &vec![]);
+        g.add_vertex(104, 5, &vec![]);
+        g.add_vertex(105, 5, &vec![]);
 
-        g.add_edge(6, 100, 101, &vec![]);
-        g.add_edge(7, 100, 102, &vec![]);
-        g.add_edge(8, 101, 103, &vec![]);
-        g.add_edge(9, 102, 104, &vec![]);
-        g.add_edge(9, 110, 104, &vec![]);
+        g.add_edge(100, 101, 6, &vec![]);
+        g.add_edge(100, 102, 7, &vec![]);
+        g.add_edge(101, 103, 8, &vec![]);
+        g.add_edge(102, 104, 9, &vec![]);
+        g.add_edge(110, 104, 9, &vec![]);
 
         assert_eq!(g.degree_window(101, 0, i64::MAX, Direction::IN), 1);
         assert_eq!(g.degree_window(100, 0, i64::MAX, Direction::IN), 0);
@@ -273,18 +273,18 @@ mod temporal_graph_partition_test {
     fn get_out_degree_window() {
         let g = TemporalGraphPart::default();
 
-        g.add_vertex(1, 100, &vec![]);
-        g.add_vertex(2, 101, &vec![]);
-        g.add_vertex(3, 102, &vec![]);
-        g.add_vertex(4, 103, &vec![]);
-        g.add_vertex(5, 104, &vec![]);
-        g.add_vertex(5, 105, &vec![]);
+        g.add_vertex(100, 1, &vec![]);
+        g.add_vertex(101, 2, &vec![]);
+        g.add_vertex(102, 3, &vec![]);
+        g.add_vertex(103, 4, &vec![]);
+        g.add_vertex(104, 5, &vec![]);
+        g.add_vertex(105, 5, &vec![]);
 
-        g.add_edge(6, 100, 101, &vec![]);
-        g.add_edge(7, 100, 102, &vec![]);
-        g.add_edge(8, 101, 103, &vec![]);
-        g.add_edge(9, 102, 104, &vec![]);
-        g.add_edge(9, 110, 104, &vec![]);
+        g.add_edge(100, 101, 6, &vec![]);
+        g.add_edge(100, 102, 7, &vec![]);
+        g.add_edge(101, 103, 8, &vec![]);
+        g.add_edge(102, 104, 9, &vec![]);
+        g.add_edge(110, 104, 9, &vec![]);
 
         assert_eq!(g.degree_window(101, 0, i64::MAX, Direction::OUT), 1);
         assert_eq!(g.degree_window(103, 0, i64::MAX, Direction::OUT), 0);
@@ -298,19 +298,19 @@ mod temporal_graph_partition_test {
     fn get_degree_window() {
         let g = TemporalGraphPart::default();
 
-        g.add_vertex(1, 100, &vec![]);
-        g.add_vertex(2, 101, &vec![]);
-        g.add_vertex(3, 102, &vec![]);
-        g.add_vertex(4, 103, &vec![]);
-        g.add_vertex(5, 104, &vec![]);
-        g.add_vertex(5, 105, &vec![]);
+        g.add_vertex(100, 1, &vec![]);
+        g.add_vertex(101, 2, &vec![]);
+        g.add_vertex(102, 3, &vec![]);
+        g.add_vertex(103, 4, &vec![]);
+        g.add_vertex(104, 5, &vec![]);
+        g.add_vertex(105, 5, &vec![]);
 
-        g.add_edge(6, 100, 101, &vec![]);
-        g.add_edge(7, 100, 102, &vec![]);
-        g.add_edge(8, 100, 102, &vec![]);
-        g.add_edge(8, 101, 103, &vec![]);
-        g.add_edge(9, 102, 104, &vec![]);
-        g.add_edge(9, 110, 104, &vec![]);
+        g.add_edge(100, 101, 6, &vec![]);
+        g.add_edge(100, 102, 7, &vec![]);
+        g.add_edge(100, 102, 8, &vec![]);
+        g.add_edge(101, 103, 8, &vec![]);
+        g.add_edge(102, 104, 9, &vec![]);
+        g.add_edge(110, 104, 9, &vec![]);
 
         assert_eq!(g.degree_window(101, 0, i64::MAX, Direction::BOTH), 2);
         assert_eq!(g.degree_window(100, 0, i64::MAX, Direction::BOTH), 2);
