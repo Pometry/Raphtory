@@ -99,6 +99,10 @@ impl TemporalGraphPart {
         self.write_shard(|tg| tg.add_edge_remote_into(src, dst, t, props))
     }
 
+    pub fn degree_window(&self, v: u64, t_start: i64, t_end: i64, d: Direction) -> usize {
+        self.read_shard(|tg: &TemporalGraph| tg.degree_window(v, &(t_start..t_end), d))
+    }
+
     // TODO: check if there is any value in returning Vec<usize> vs just usize, what is the cost of the generator
     pub fn vertices_window(
         &self,
@@ -180,6 +184,8 @@ impl TemporalGraphPart {
 
 #[cfg(test)]
 mod temporal_graph_partition_test {
+    use crate::Direction;
+
     use super::TemporalGraphPart;
     use itertools::Itertools;
     use quickcheck::Arbitrary;
@@ -232,5 +238,80 @@ mod temporal_graph_partition_test {
             assert_eq!(Some(v), v_actual);
             assert_eq!(None, iter.next()); // one vertex per interval
         }
+    }
+
+    #[test]
+    fn get_in_degree_window() {
+        let g = TemporalGraphPart::default();
+
+        g.add_vertex(1, 100, &vec![]);
+        g.add_vertex(2, 101, &vec![]);
+        g.add_vertex(3, 102, &vec![]);
+        g.add_vertex(4, 103, &vec![]);
+        g.add_vertex(5, 104, &vec![]);
+        g.add_vertex(5, 105, &vec![]);
+
+        g.add_edge(6, 100, 101, &vec![]);
+        g.add_edge(7, 100, 102, &vec![]);
+        g.add_edge(8, 101, 103, &vec![]);
+        g.add_edge(9, 102, 104, &vec![]);
+        g.add_edge(9, 110, 104, &vec![]);
+
+        assert_eq!(g.degree_window(101, 0, i64::MAX, Direction::IN), 1);
+        assert_eq!(g.degree_window(100, 0, i64::MAX, Direction::IN), 0);
+        assert_eq!(g.degree_window(101, 0, 1, Direction::IN), 0);
+        assert_eq!(g.degree_window(101, 10, 20, Direction::IN), 0);
+        assert_eq!(g.degree_window(105, 0, i64::MAX, Direction::IN), 0);
+        assert_eq!(g.degree_window(104, 0, i64::MAX, Direction::IN), 2)
+    }
+
+    #[test]
+    fn get_out_degree_window() {
+        let g = TemporalGraphPart::default();
+
+        g.add_vertex(1, 100, &vec![]);
+        g.add_vertex(2, 101, &vec![]);
+        g.add_vertex(3, 102, &vec![]);
+        g.add_vertex(4, 103, &vec![]);
+        g.add_vertex(5, 104, &vec![]);
+        g.add_vertex(5, 105, &vec![]);
+
+        g.add_edge(6, 100, 101, &vec![]);
+        g.add_edge(7, 100, 102, &vec![]);
+        g.add_edge(8, 101, 103, &vec![]);
+        g.add_edge(9, 102, 104, &vec![]);
+        g.add_edge(9, 110, 104, &vec![]);
+
+        assert_eq!(g.degree_window(101, 0, i64::MAX, Direction::OUT), 1);
+        assert_eq!(g.degree_window(103, 0, i64::MAX, Direction::OUT), 0);
+        assert_eq!(g.degree_window(105, 0, i64::MAX, Direction::OUT), 0);
+        assert_eq!(g.degree_window(101, 0, 1, Direction::OUT), 0);
+        assert_eq!(g.degree_window(101, 10, 20, Direction::OUT), 0);
+        assert_eq!(g.degree_window(100, 0, i64::MAX, Direction::OUT), 2)
+    }
+
+    #[test]
+    fn get_degree_window() {
+        let g = TemporalGraphPart::default();
+
+        g.add_vertex(1, 100, &vec![]);
+        g.add_vertex(2, 101, &vec![]);
+        g.add_vertex(3, 102, &vec![]);
+        g.add_vertex(4, 103, &vec![]);
+        g.add_vertex(5, 104, &vec![]);
+        g.add_vertex(5, 105, &vec![]);
+
+        g.add_edge(6, 100, 101, &vec![]);
+        g.add_edge(7, 100, 102, &vec![]);
+        g.add_edge(8, 100, 102, &vec![]);
+        g.add_edge(8, 101, 103, &vec![]);
+        g.add_edge(9, 102, 104, &vec![]);
+        g.add_edge(9, 110, 104, &vec![]);
+
+        assert_eq!(g.degree_window(101, 0, i64::MAX, Direction::BOTH), 2);
+        assert_eq!(g.degree_window(100, 0, i64::MAX, Direction::BOTH), 2);
+        assert_eq!(g.degree_window(100, 0, 1, Direction::BOTH), 0);
+        assert_eq!(g.degree_window(100, 10, 20, Direction::BOTH), 0);
+        assert_eq!(g.degree_window(105, 0, i64::MAX, Direction::BOTH), 0)
     }
 }
