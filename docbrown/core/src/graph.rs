@@ -219,12 +219,52 @@ impl TemporalGraph {
 
     pub fn degree(&self, v: u64, d: Direction) -> usize {
         let v_pid = self.logical_to_physical[&v];
-        self._degree(v_pid, d)
+
+        match &self.adj_lists[v_pid] {
+            Adj::List { out, into, .. } => match d {
+                Direction::OUT => out.len(),
+                Direction::IN => into.len(),
+                _ => {
+                    vec![out.iter(), into.iter()] // FIXME: there are better ways of doing this, all adj lists are sorted except for the HashMap
+                        .into_iter()
+                        .flatten()
+                        .unique_by(|(v, _)| *v)
+                        .count()
+                }
+            },
+            _ => 0,
+        }
     }
 
-    pub fn degree_window(&self, v: u64, r: Range<i64>, d: Direction) -> usize {
+    pub fn degree_window(&self, v: u64, r: &Range<i64>, d: Direction) -> usize {
         let v_pid = self.logical_to_physical[&v];
-        self._degree_window(v_pid, &r, d)
+
+        match &self.adj_lists[v_pid] {
+            Adj::List { out, into, .. } => match d {
+                Direction::OUT => out.len_window(r),
+                Direction::IN => into.len_window(r),
+                _ => vec![out.iter_window(r), into.iter_window(r)]
+                    .into_iter()
+                    .flatten()
+                    .unique_by(|(v, _)| *v)
+                    .count(),
+            },
+            _ => 0,
+        }
+    }
+
+    pub(crate) fn vertices_iter_window(
+        &self,
+        r: Range<i64>,
+    ) -> Box<dyn Iterator<Item = usize> + '_> {
+        let iter = self
+            .index
+            .range(r.clone())
+            .map(|(_, vs)| vs.iter())
+            .kmerge()
+            .dedup();
+
+        Box::new(iter)
     }
 
     pub(crate) fn iter_vertices(&self) -> Box<dyn Iterator<Item = VertexView<'_, Self>> + '_> {
@@ -356,20 +396,6 @@ impl TemporalGraph {
 }
 
 impl TemporalGraph {
-    pub(crate) fn vertices_iter_window(
-        &self,
-        r: Range<i64>,
-    ) -> Box<dyn Iterator<Item = usize> + '_> {
-        let iter = self
-            .index
-            .range(r.clone())
-            .map(|(_, vs)| vs.iter())
-            .kmerge()
-            .dedup();
-
-        Box::new(iter)
-    }
-
     fn neighbours_iter(
         &self,
         vid: usize,
@@ -471,38 +497,6 @@ impl TemporalGraph {
             _ => Box::new(std::iter::empty()),
         }
     }
-
-    pub(crate) fn _degree(&self, vid: usize, d: Direction) -> usize {
-        match &self.adj_lists[vid] {
-            Adj::List { out, into, .. } => match d {
-                Direction::OUT => out.len(),
-                Direction::IN => into.len(),
-                _ => {
-                    vec![out.iter(), into.iter()] // FIXME: there are better ways of doing this, all adj lists are sorted except for the HashMap
-                        .into_iter()
-                        .flatten()
-                        .unique_by(|(v, _)| *v)
-                        .count()
-                }
-            },
-            _ => 0,
-        }
-    }
-
-    pub(crate) fn _degree_window(&self, vid: usize, window: &Range<i64>, d: Direction) -> usize {
-        match &self.adj_lists[vid] {
-            Adj::List { out, into, .. } => match d {
-                Direction::OUT => out.len_window(window),
-                Direction::IN => into.len_window(window),
-                _ => vec![out.iter_window(window), into.iter_window(window)]
-                    .into_iter()
-                    .flatten()
-                    .unique_by(|(v, _)| *v)
-                    .count(),
-            },
-            _ => 0,
-        }
-    }
 }
 
 pub(crate) struct VertexView<'a, G> {
@@ -519,9 +513,9 @@ impl<'a> VertexView<'a, TemporalGraph> {
 
     pub fn degree(&self, d: Direction) -> usize {
         if let Some(w) = &self.w {
-            self.g._degree_window(self.pid, w, d)
+            self.g.degree_window(self.g_id, w, d)
         } else {
-            self.g._degree(self.pid, d)
+            self.g.degree(self.g_id, d)
         }
     }
 
@@ -998,13 +992,13 @@ mod graph_test {
 
         // when we look for time we see both variants
         let actual: Vec<(i64, u64)> = g
-            .neighbours_window(9, 0..13, Direction::OUT)
+            .neighbours_window_t(9, 0..13, Direction::OUT)
             .map(|e| (e.time().unwrap(), e.global_dst()))
             .collect();
         assert_eq!(actual, vec![(3, 1), (12, 1)]);
 
         let actual: Vec<(i64, u64)> = g
-            .neighbours_window(1, 0..13, Direction::IN)
+            .neighbours_window_t(1, 0..13, Direction::IN)
             .map(|e| (e.time().unwrap(), e.global_src()))
             .collect();
         assert_eq!(actual, vec![(3, 9), (12, 9)]);
@@ -1044,13 +1038,13 @@ mod graph_test {
         assert_eq!(actual, vec![22]);
 
         let actual = g
-            .neighbours_window(11, 1..5, Direction::OUT)
+            .neighbours_window_t(11, 1..5, Direction::OUT)
             .map(|e| (e.time().unwrap(), e.global_dst()))
             .collect::<Vec<_>>();
         assert_eq!(actual, vec![(4, 22)]);
 
         let actual = g
-            .neighbours_window(44, 1..17, Direction::IN)
+            .neighbours_window_t(44, 1..17, Direction::IN)
             .map(|e| (e.time().unwrap(), e.global_src()))
             .collect::<Vec<_>>();
         assert_eq!(actual, vec![(6, 11)]);
@@ -1409,7 +1403,9 @@ mod graph_test {
         let vs = g
             .iter_vertices_window(3..6)
             .flat_map(|v| {
-                v.out_edges().map(|e| e.global_dst()).collect::<Vec<_>>() // FIXME: we can't just return v.outbound().map(|e| e.global_dst()) here we might need to do so check lifetimes
+                v.edges(Direction::OUT)
+                    .map(|e| e.global_dst())
+                    .collect::<Vec<_>>() // FIXME: we can't just return v.outbound().map(|e| e.global_dst()) here we might need to do so check lifetimes
             })
             .collect::<Vec<_>>();
 
@@ -1472,21 +1468,35 @@ mod graph_test {
 
             assert_eq!(
                 g.degree(i, Direction::OUT),
-                g.degree_window(i, 1..7, Direction::OUT)
+                g.degree_window(i, &(1..7), Direction::OUT)
             );
             assert_eq!(
                 g.degree(i, Direction::IN),
-                g.degree_window(i, 1..7, Direction::IN)
+                g.degree_window(i, &(1..7), Direction::IN)
             );
         }
 
         let degrees = g
             .iter_vertices()
-            .map(|v| (v.global_id(), v.in_degree(), v.out_degree(), v.degree()))
+            .map(|v| {
+                (
+                    v.global_id(),
+                    v.degree(Direction::IN),
+                    v.degree(Direction::OUT),
+                    v.degree(Direction::BOTH),
+                )
+            })
             .collect_vec();
         let degrees_window = g
             .iter_vertices_window(1..7)
-            .map(|v| (v.global_id(), v.in_degree(), v.out_degree(), v.degree()))
+            .map(|v| {
+                (
+                    v.global_id(),
+                    v.degree(Direction::IN),
+                    v.degree(Direction::OUT),
+                    v.degree(Direction::BOTH),
+                )
+            })
             .collect_vec();
 
         let expected = vec![(1, 1, 2, 2), (2, 1, 0, 1), (3, 1, 1, 1)];
@@ -1537,7 +1547,14 @@ mod graph_test {
 
         let mut degrees_w1 = g
             .iter_vertices_window(9501..10001)
-            .map(|v| (v.global_id(), v.in_degree(), v.out_degree(), v.degree()))
+            .map(|v| {
+                (
+                    v.global_id(),
+                    v.degree(Direction::IN),
+                    v.degree(Direction::OUT),
+                    v.degree(Direction::BOTH),
+                )
+            })
             .collect_vec();
 
         let mut expected_degrees_w1 = vec![
@@ -1589,7 +1606,14 @@ mod graph_test {
 
         let mut degrees_w2 = g
             .iter_vertices_window(19001..20001)
-            .map(|v| (v.global_id(), v.in_degree(), v.out_degree(), v.degree()))
+            .map(|v| {
+                (
+                    v.global_id(),
+                    v.degree(Direction::IN),
+                    v.degree(Direction::OUT),
+                    v.degree(Direction::BOTH),
+                )
+            })
             .collect_vec();
 
         expected_degrees_w2.sort();
