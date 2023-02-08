@@ -79,7 +79,7 @@ impl TemporalGraphPart {
         self.read_shard(|tg| tg.contains_vertex(v))
     }
 
-    pub fn contains_t(&self, t_start: i64, t_end: i64, v: u64) -> bool {
+    pub fn contains_window(&self, t_start: i64, t_end: i64, v: u64) -> bool {
         self.read_shard(|tg| tg.contains_vertex_window(t_start..t_end, v))
     }
 

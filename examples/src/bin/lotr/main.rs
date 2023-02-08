@@ -103,5 +103,7 @@ fn main() {
     graph
         .neighbours_window(0, i64::MAX, gandalf, Direction::OUT)
         .for_each(|e| println!("{:?}", e));
+
+    println!("{}", graph.contains(gandalf));
         
 }

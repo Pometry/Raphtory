@@ -94,6 +94,12 @@ impl GraphDB {
         self.shards.iter().any(|shard| shard.contains(v))
     }
 
+    pub fn contains_window(&self, t_start: i64, t_end: i64, v: u64) -> bool {
+        self.shards
+            .iter()
+            .any(|shard| shard.contains_window(t_start, t_end, v))
+    }
+
     // TODO: Probably add vector reference here like add
     pub fn add_vertex(&self, v: u64, t: i64, props: &Vec<(String, Prop)>) {
         let shard_id = self.get_shard_id_from_global_vid(v);
