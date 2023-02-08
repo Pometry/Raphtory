@@ -215,61 +215,93 @@ mod temporal_graph_partition_test {
     fn get_in_degree_window() {
         let mut g = TemporalGraphPart::default();
 
-        g.add_vertex(11, 1, &vec![]);
-        g.add_vertex(22, 2, &vec![]);
-        g.add_vertex(33, 3, &vec![]);
-        g.add_vertex(44, 4, &vec![]);
+        g.add_vertex(1, 100, &vec![]);
+        g.add_vertex(2, 101, &vec![]);
+        g.add_vertex(3, 102, &vec![]);
+        g.add_vertex(4, 103, &vec![]);
+        g.add_vertex(5, 104, &vec![]);
+        g.add_vertex(5, 105, &vec![]);
 
-        g.add_edge(11, 22, 4, &vec![]);
-        g.add_edge(22, 33, 5, &vec![]);
-        g.add_edge(11, 44, 6, &vec![]);
+        g.add_edge(6, 100, 101, &vec![]);
+        g.add_edge(7, 100, 102, &vec![]);
+        g.add_edge(8, 101, 103, &vec![]);
+        g.add_edge(9, 102, 104, &vec![]);
+        g.add_edge(9, 110, 104, &vec![]);
 
-        let actual = g.in_degree_window(0, i64::MAX, 4);
-        let actual2 = g.in_degree_window(0, i64::MAX, 44);
+        let actual = g.in_degree_window(0, i64::MAX, 101);
+        let actual2 = g.in_degree_window(0, i64::MAX, 100);
+        let actual3 = g.in_degree_window(0, 1, 101);
+        let actual4 = g.in_degree_window(10, 20, 101);
+        let actual5 = g.in_degree_window(0, i64::MAX, 105);
+        let actual6 = g.in_degree_window(0, i64::MAX, 104);
         assert_eq!(actual, 1);
-        assert_ne!(actual2, 1)
+        assert_eq!(actual2, 0);
+        assert_eq!(actual3, 0);
+        assert_eq!(actual4, 0);
+        assert_eq!(actual5, 0);
+        assert_eq!(actual6, 2)
     }
 
     #[test]
     fn get_out_degree_window() {
         let mut g = TemporalGraphPart::default();
 
-        g.add_vertex(11, 1, &vec![]);
-        g.add_vertex(22, 2, &vec![]);
-        g.add_vertex(33, 3, &vec![]);
-        g.add_vertex(44, 4, &vec![]);
+        g.add_vertex(1, 100, &vec![]);
+        g.add_vertex(2, 101, &vec![]);
+        g.add_vertex(3, 102, &vec![]);
+        g.add_vertex(4, 103, &vec![]);
+        g.add_vertex(5, 104, &vec![]);
+        g.add_vertex(5, 105, &vec![]);
 
-        g.add_edge(11, 22, 4, &vec![]);
-        g.add_edge(22, 33, 5, &vec![]);
-        g.add_edge(11, 44, 6, &vec![]);
+        g.add_edge(6, 100, 101, &vec![]);
+        g.add_edge(7, 100, 102, &vec![]);
+        g.add_edge(8, 101, 103, &vec![]);
+        g.add_edge(9, 102, 104, &vec![]);
+        g.add_edge(9, 110, 104, &vec![]);
 
-        let actual = g.out_degree_window(0, i64::MAX, 22);
-        let actual2 = g.out_degree_window(0, i64::MAX, 6);
+
+        let actual = g.out_degree_window(0, i64::MAX, 101);
+        let actual2 = g.out_degree_window(0, i64::MAX, 103);
+        let actual3 = g.out_degree_window(0, i64::MAX, 105);
+        let actual4 = g.out_degree_window(0, 1, 101);
+        let actual5 = g.out_degree_window(10, 20, 101);
+        let actual6 = g.out_degree_window(0, i64::MAX, 100);
         assert_eq!(actual, 1);
-        assert_ne!(actual2, 1)
+        assert_eq!(actual2, 0);
+        assert_eq!(actual3, 0);
+        assert_eq!(actual4, 0);
+        assert_eq!(actual5, 0);
+        assert_eq!(actual6, 2)
     }
 
     #[test]
     fn get_degree_window() {
         let mut g = TemporalGraphPart::default();
 
-        g.add_vertex(11, 1, &vec![]);
-        g.add_vertex(22, 2, &vec![]);
-        g.add_vertex(33, 3, &vec![]);
-        g.add_vertex(44, 4, &vec![]);
+        g.add_vertex(1, 100, &vec![]);
+        g.add_vertex(2, 101, &vec![]);
+        g.add_vertex(3, 102, &vec![]);
+        g.add_vertex(4, 103, &vec![]);
+        g.add_vertex(5, 104, &vec![]);
+        g.add_vertex(5, 105, &vec![]);
 
-        g.add_edge(11, 22, 4, &vec![]);
-        g.add_edge(22, 33, 5, &vec![]);
-        g.add_edge(11, 44, 6, &vec![]);
-        g.add_edge(11, 44, 5, &vec![]);
-        g.add_edge(11, 44, 6, &vec![]);
+        g.add_edge(6, 100, 101, &vec![]);
+        g.add_edge(7, 100, 102, &vec![]);
+        g.add_edge(8, 100, 102, &vec![]);
+        g.add_edge(8, 101, 103, &vec![]);
+        g.add_edge(9, 102, 104, &vec![]);
+        g.add_edge(9, 110, 104, &vec![]);
 
-        let actual = g.degree_window(0, i64::MAX, 5);
-        let actual2 = g.degree_window(0, i64::MAX, 4);
-        let actual3 = g.degree_window(0, i64::MAX, 6);
+        let actual = g.degree_window(0, i64::MAX, 101);
+        let actual2 = g.degree_window(0, i64::MAX, 100);
+        let actual3 = g.degree_window(0, 1, 100);
+        let actual4 = g.degree_window(10, 20, 100);
+        let actual5 = g.degree_window(0, i64::MAX, 105);
         assert_eq!(actual, 2);
-        assert_ne!(actual2, 2);
-        assert_eq!(actual3, 1)
+        assert_eq!(actual2, 2);
+        assert_eq!(actual3, 0);
+        assert_eq!(actual4, 0);
+        assert_eq!(actual5, 0)
     }
 
 
