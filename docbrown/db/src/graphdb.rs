@@ -120,6 +120,12 @@ impl GraphDB {
         }
     }
 
+    pub fn degree(&self, v: u64, d: Direction) -> usize {
+        let shard_id = self.get_shard_id_from_global_vid(v);
+        let iter = self.shards[shard_id].degree(v, d);
+        iter
+    }
+
     pub fn degree_window(&self, v: u64, t_start: i64, t_end: i64, d: Direction) -> usize {
         let shard_id = self.get_shard_id_from_global_vid(v);
         let iter = self.shards[shard_id].degree_window(v, t_start, t_end, d);
