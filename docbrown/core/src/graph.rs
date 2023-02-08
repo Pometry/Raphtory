@@ -193,21 +193,14 @@ impl TemporalGraph {
         }
     }
 
-    pub(crate) fn vertices_iter_window(
-        &self,
-        r: Range<i64>,
-    ) -> Box<dyn Iterator<Item = usize> + '_> {
-        let iter = self
-            .index
-            .range(r.clone())
-            .map(|(_, vs)| vs.iter())
-            .kmerge()
-            .dedup();
-
-        Box::new(iter)
+    pub(crate) fn vertices(&self) -> Box<dyn Iterator<Item = u64> + '_> {
+        Box::new(self.adj_lists.iter().map(|adj| match *adj {
+            Adj::Solo(lid) => lid,
+            Adj::List { logical, .. } => logical,
+        }))
     }
 
-    pub(crate) fn iter_vertices(&self) -> Box<dyn Iterator<Item = VertexView<'_, Self>> + '_> {
+    pub(crate) fn vertices_vv(&self) -> Box<dyn Iterator<Item = VertexView<'_, Self>> + '_> {
         Box::new(
             self.adj_lists
                 .iter()
@@ -221,7 +214,17 @@ impl TemporalGraph {
         )
     }
 
-    pub(crate) fn iter_vertices_window(
+    pub(crate) fn vertices_window(&self, r: Range<i64>) -> Box<dyn Iterator<Item = usize> + '_> {
+        Box::new(
+            self.index
+                .range(r.clone())
+                .map(|(_, vs)| vs.iter())
+                .kmerge()
+                .dedup(),
+        )
+    }
+
+    pub(crate) fn vertices_window_vv(
         &self,
         r: Range<i64>,
     ) -> Box<dyn Iterator<Item = VertexView<'_, Self>> + '_> {
@@ -631,9 +634,7 @@ mod graph_test {
         assert!(g.contains_vertex(9));
         assert!(g.contains_vertex_window(&(1..15), 9));
         assert_eq!(
-            g.iter_vertices()
-                .map(|v| v.global_id())
-                .collect::<Vec<u64>>(),
+            g.vertices_vv().map(|v| v.global_id()).collect::<Vec<u64>>(),
             vec![9]
         );
         assert_eq!(g.props.vertex_meta.get(2), None);
@@ -650,14 +651,12 @@ mod graph_test {
         assert!(g.contains_vertex(v_id));
         assert!(g.contains_vertex_window(&(1..15), v_id));
         assert_eq!(
-            g.iter_vertices()
-                .map(|v| v.global_id())
-                .collect::<Vec<u64>>(),
+            g.vertices_vv().map(|v| v.global_id()).collect::<Vec<u64>>(),
             vec![v_id]
         );
 
         let res = g
-            .iter_vertices()
+            .vertices_vv()
             .flat_map(|v| v.props("type"))
             .flat_map(|v| v.collect::<Vec<_>>())
             .collect::<Vec<_>>();
@@ -679,7 +678,7 @@ mod graph_test {
         );
 
         let res = g
-            .iter_vertices()
+            .vertices_vv()
             .flat_map(|v| {
                 let type_ = v.props("type").map(|x| x.collect::<Vec<_>>());
                 let active = v.props("active").map(|x| x.collect::<Vec<_>>());
@@ -729,7 +728,7 @@ mod graph_test {
         );
 
         let res: Vec<(&i64, Prop)> = g
-            .iter_vertices()
+            .vertices_vv()
             .flat_map(|v| {
                 let type_ = v.props_window("type", 2..3).map(|x| x.collect::<Vec<_>>());
                 let active = v
@@ -774,7 +773,7 @@ mod graph_test {
         );
 
         let res = g
-            .iter_vertices()
+            .vertices_vv()
             .flat_map(|v| {
                 let type_ = v.props_window("type", 1..2).map(|x| x.collect::<Vec<_>>());
                 let active = v
@@ -834,20 +833,11 @@ mod graph_test {
         g.add_vertex(9, 1);
         g.add_vertex(1, 2);
 
-        let actual: Vec<u64> = g
-            .iter_vertices_window(0..2)
-            .map(|v| v.global_id())
-            .collect();
+        let actual: Vec<u64> = g.vertices_window_vv(0..2).map(|v| v.global_id()).collect();
         assert_eq!(actual, vec![9]);
-        let actual: Vec<u64> = g
-            .iter_vertices_window(2..10)
-            .map(|v| v.global_id())
-            .collect();
+        let actual: Vec<u64> = g.vertices_window_vv(2..10).map(|v| v.global_id()).collect();
         assert_eq!(actual, vec![1]);
-        let actual: Vec<u64> = g
-            .iter_vertices_window(0..10)
-            .map(|v| v.global_id())
-            .collect();
+        let actual: Vec<u64> = g.vertices_window_vv(0..10).map(|v| v.global_id()).collect();
         assert_eq!(actual, vec![9, 1]);
     }
 
@@ -859,20 +849,14 @@ mod graph_test {
         g.add_vertex(1, 2);
 
         // 9 and 1 are not visible at time 3
-        let actual: Vec<u64> = g
-            .iter_vertices_window(3..10)
-            .map(|v| v.global_id())
-            .collect();
+        let actual: Vec<u64> = g.vertices_window_vv(3..10).map(|v| v.global_id()).collect();
         let expected: Vec<u64> = vec![];
         assert_eq!(actual, expected);
 
         g.add_edge(9, 1, 3);
 
         // 9 and 1 are now visible at time 3
-        let actual: Vec<u64> = g
-            .iter_vertices_window(3..10)
-            .map(|v| v.global_id())
-            .collect();
+        let actual: Vec<u64> = g.vertices_window_vv(3..10).map(|v| v.global_id()).collect();
         assert_eq!(actual, vec![9, 1]);
 
         // the outbound neighbours of 9 at time 0..2 is the empty set
@@ -906,19 +890,13 @@ mod graph_test {
         g.add_vertex(1, 2);
 
         // 9 and 1 are not visible at time 3
-        let actual: Vec<u64> = g
-            .iter_vertices_window(3..10)
-            .map(|v| v.global_id())
-            .collect();
+        let actual: Vec<u64> = g.vertices_window_vv(3..10).map(|v| v.global_id()).collect();
         assert_eq!(actual, vec![]);
 
         g.add_edge(9, 1, 3);
 
         // 9 and 1 are now visible at time 3
-        let actual: Vec<u64> = g
-            .iter_vertices_window(3..10)
-            .map(|v| v.global_id())
-            .collect();
+        let actual: Vec<u64> = g.vertices_window_vv(3..10).map(|v| v.global_id()).collect();
         assert_eq!(actual, vec![9, 1]);
 
         // the outbound neighbours of 9 at time 0..2 is the empty set
@@ -952,20 +930,14 @@ mod graph_test {
         g.add_vertex(1, 2);
 
         // 9 and 1 are not visible at time 3
-        let actual: Vec<u64> = g
-            .iter_vertices_window(3..10)
-            .map(|v| v.global_id())
-            .collect();
+        let actual: Vec<u64> = g.vertices_window_vv(3..10).map(|v| v.global_id()).collect();
         assert_eq!(actual, vec![]);
 
         g.add_edge(9, 1, 3);
         g.add_edge(9, 1, 12); // add the same edge again at different time
 
         // 9 and 1 are now visible at time 3
-        let actual: Vec<u64> = g
-            .iter_vertices_window(3..10)
-            .map(|v| v.global_id())
-            .collect();
+        let actual: Vec<u64> = g.vertices_window_vv(3..10).map(|v| v.global_id()).collect();
         assert_eq!(actual, vec![9, 1]);
 
         // the outbound neighbours of 9 at time 0..2 is the empty set
@@ -1024,14 +996,14 @@ mod graph_test {
         g.add_edge(11, 44, 6);
 
         let actual = g
-            .iter_vertices_window(1..4)
+            .vertices_window_vv(1..4)
             .map(|v| v.global_id())
             .collect::<Vec<_>>();
 
         assert_eq!(actual, vec![11, 22, 33]);
 
         let actual = g
-            .iter_vertices_window(1..6)
+            .vertices_window_vv(1..6)
             .map(|v| v.global_id())
             .collect::<Vec<_>>();
 
@@ -1399,7 +1371,7 @@ mod graph_test {
 
         // betwen t:2 and t:4 (excluded) only 11, 22 and 33 are visible, 11 is visible because it has an edge at time 2
         let vs = g
-            .iter_vertices_window(2..4)
+            .vertices_window_vv(2..4)
             .map(|v| v.global_id())
             .collect::<Vec<_>>();
 
@@ -1407,7 +1379,7 @@ mod graph_test {
 
         // between t: 3 and t:6 (excluded) show the visible outbound edges
         let vs = g
-            .iter_vertices_window(3..6)
+            .vertices_window_vv(3..6)
             .flat_map(|v| {
                 v.edges(Direction::OUT)
                     .map(|e| e.global_dst())
@@ -1483,7 +1455,7 @@ mod graph_test {
         }
 
         let degrees = g
-            .iter_vertices()
+            .vertices_vv()
             .map(|v| {
                 (
                     v.global_id(),
@@ -1494,7 +1466,7 @@ mod graph_test {
             })
             .collect_vec();
         let degrees_window = g
-            .iter_vertices_window(1..7)
+            .vertices_window_vv(1..7)
             .map(|v| {
                 (
                     v.global_id(),
@@ -1552,7 +1524,7 @@ mod graph_test {
         // 9501 .. 10001
 
         let mut degrees_w1 = g
-            .iter_vertices_window(9501..10001)
+            .vertices_window_vv(9501..10001)
             .map(|v| {
                 (
                     v.global_id(),
@@ -1611,7 +1583,7 @@ mod graph_test {
         .collect_vec();
 
         let mut degrees_w2 = g
-            .iter_vertices_window(19001..20001)
+            .vertices_window_vv(19001..20001)
             .map(|v| {
                 (
                     v.global_id(),
