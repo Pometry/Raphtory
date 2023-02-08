@@ -330,60 +330,24 @@ impl TemporalGraph {
         let v_pid = self.logical_to_physical[&v];
 
         match d {
-            Direction::OUT => {
-                if let Adj::List {
-                    out, remote_out, ..
-                } = &self.adj_lists[v_pid]
-                {
-                    Box::new(itertools::chain!(
-                        out.iter_window_t(&r).map(move |(v, t, e_meta)| EdgeView {
-                            src_id: v_pid,
-                            dst_id: v,
-                            t: Some(t),
-                            g: self,
-                            e_meta
-                        }),
-                        remote_out
-                            .iter_window_t(&r)
-                            .map(move |(v, t, e_meta)| EdgeView {
-                                src_id: v_pid,
-                                dst_id: v,
-                                t: Some(t),
-                                g: self,
-                                e_meta
-                            })
-                    ))
-                } else {
-                    Box::new(std::iter::empty())
+            Direction::OUT => Box::new(self.neighbours_iter_window_t(v_pid, d, &r).map(
+                move |(v, t, e_meta)| EdgeView {
+                    src_id: v_pid,
+                    dst_id: v,
+                    t: Some(t),
+                    g: self,
+                    e_meta,
                 }
-            }
-            Direction::IN => {
-                if let Adj::List {
-                    into, remote_into, ..
-                } = &self.adj_lists[v_pid]
-                {
-                    Box::new(itertools::chain!(
-                        into.iter_window_t(&r).map(move |(v, t, e_meta)| EdgeView {
-                            src_id: v,
-                            dst_id: v_pid,
-                            t: Some(t),
-                            g: self,
-                            e_meta,
-                        }),
-                        remote_into
-                            .iter_window_t(&r)
-                            .map(move |(v, t, e_meta)| EdgeView {
-                                src_id: v,
-                                dst_id: v_pid,
-                                t: Some(t),
-                                g: self,
-                                e_meta,
-                            })
-                    ))
-                } else {
-                    Box::new(std::iter::empty())
+            )),
+            Direction::IN => Box::new(self.neighbours_iter_window_t(v_pid, d, &r).map(
+                move |(v, t, e_meta)| EdgeView {
+                    src_id: v,
+                    dst_id: v_pid,
+                    t: Some(t),
+                    g: self,
+                    e_meta,
                 }
-            }
+            )),
             Direction::BOTH => {
                 panic!()
             }
@@ -436,7 +400,7 @@ impl TemporalGraph {
         }
     }
 
-    pub(crate) fn neighbours_iter_window(
+    fn neighbours_iter_window(
         &self,
         vid: usize,
         d: Direction,
@@ -467,6 +431,41 @@ impl TemporalGraph {
                             remote_into.iter_window(window)
                         )) // probably awful but will have to do for now
                     }
+                }
+            }
+            _ => Box::new(std::iter::empty()),
+        }
+    }
+
+    fn neighbours_iter_window_t(
+        &self,
+        vid: usize,
+        d: Direction,
+        window: &Range<i64>,
+    ) -> Box<dyn Iterator<Item = (usize, i64, AdjEdge)> + '_> {
+        match &self.adj_lists[vid] {
+            Adj::List {
+                out,
+                into,
+                remote_out,
+                remote_into,
+                ..
+            } => {
+                match d {
+                    Direction::OUT => Box::new(itertools::chain!(
+                        out.iter_window_t(window),
+                        remote_out.iter_window_t(window)
+                    )),
+                    Direction::IN => Box::new(itertools::chain!(
+                        into.iter_window_t(window),
+                        remote_into.iter_window_t(window),
+                    )),
+                    _ => Box::new(itertools::chain!(
+                        out.iter_window_t(window),
+                        into.iter_window_t(window),
+                        remote_out.iter_window_t(window),
+                        remote_into.iter_window_t(window)
+                    )), // probably awful but will have to do for now
                 }
             }
             _ => Box::new(std::iter::empty()),
