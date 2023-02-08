@@ -38,12 +38,12 @@ impl Default for TemporalGraph {
 }
 
 impl TemporalGraph {
-    pub(crate) fn vertices_window_iter(
+    pub(crate) fn vertices_window_iter( 
         &self,
         r: Range<i64>,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
         let iter = self
-            .index
+            .index 
             .range(r.clone())
             .map(|(_, vs)| vs.iter())
             .kmerge()
