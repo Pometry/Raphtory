@@ -99,6 +99,10 @@ impl TemporalGraphPart {
         self.write_shard(|tg| tg.add_edge_remote_into(src, dst, t, props))
     }
 
+    pub fn degree(&self, v: u64, d: Direction) -> usize {
+        self.read_shard(|tg: &TemporalGraph| tg.degree(v, d))
+    }
+
     pub fn degree_window(&self, v: u64, t_start: i64, t_end: i64, d: Direction) -> usize {
         self.read_shard(|tg: &TemporalGraph| tg.degree_window(v, &(t_start..t_end), d))
     }
