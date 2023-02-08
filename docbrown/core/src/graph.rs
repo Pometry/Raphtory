@@ -323,36 +323,63 @@ impl TemporalGraph {
 
     pub(crate) fn neighbours_window_t(
         &self,
-        v: usize,
+        v: u64,
         r: Range<i64>,
         d: Direction,
     ) -> Box<dyn Iterator<Item = EdgeView<'_, Self>> + '_> {
-        //TODO: this could use some improving but I'm bored now
+        let v_pid = self.logical_to_physical[&v];
+
         match d {
             Direction::OUT => {
-                let src_pid = v;
-                if let Adj::List { out, .. } = &self.adj_lists[src_pid] {
-                    Box::new(out.iter_window_t(&r).map(move |(v, t, e_meta)| EdgeView {
-                        src_id: src_pid,
-                        dst_id: v,
-                        t: Some(t),
-                        g: self,
-                        e_meta,
-                    }))
+                if let Adj::List {
+                    out, remote_out, ..
+                } = &self.adj_lists[v_pid]
+                {
+                    Box::new(itertools::chain!(
+                        out.iter_window_t(&r).map(move |(v, t, e_meta)| EdgeView {
+                            src_id: v_pid,
+                            dst_id: v,
+                            t: Some(t),
+                            g: self,
+                            e_meta
+                        }),
+                        remote_out
+                            .iter_window_t(&r)
+                            .map(move |(v, t, e_meta)| EdgeView {
+                                src_id: v_pid,
+                                dst_id: v,
+                                t: Some(t),
+                                g: self,
+                                e_meta
+                            })
+                    ))
                 } else {
                     Box::new(std::iter::empty())
                 }
             }
             Direction::IN => {
-                let dst_pid = v;
-                if let Adj::List { into, .. } = &self.adj_lists[dst_pid] {
-                    Box::new(into.iter_window_t(&r).map(move |(v, t, e_meta)| EdgeView {
-                        src_id: v,
-                        dst_id: dst_pid,
-                        t: Some(t),
-                        g: self,
-                        e_meta,
-                    }))
+                if let Adj::List {
+                    into, remote_into, ..
+                } = &self.adj_lists[v_pid]
+                {
+                    Box::new(itertools::chain!(
+                        into.iter_window_t(&r).map(move |(v, t, e_meta)| EdgeView {
+                            src_id: v,
+                            dst_id: v_pid,
+                            t: Some(t),
+                            g: self,
+                            e_meta,
+                        }),
+                        remote_into
+                            .iter_window_t(&r)
+                            .map(move |(v, t, e_meta)| EdgeView {
+                                src_id: v,
+                                dst_id: v_pid,
+                                t: Some(t),
+                                g: self,
+                                e_meta,
+                            })
+                    ))
                 } else {
                     Box::new(std::iter::empty())
                 }
