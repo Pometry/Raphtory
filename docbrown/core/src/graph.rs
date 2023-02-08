@@ -337,7 +337,7 @@ impl TemporalGraph {
                     t: Some(t),
                     g: self,
                     e_meta,
-                }
+                },
             )),
             Direction::IN => Box::new(self.neighbours_iter_window_t(v_pid, d, &r).map(
                 move |(v, t, e_meta)| EdgeView {
@@ -346,7 +346,7 @@ impl TemporalGraph {
                     t: Some(t),
                     g: self,
                     e_meta,
-                }
+                },
             )),
             Direction::BOTH => {
                 panic!()
@@ -517,46 +517,23 @@ impl<'a> VertexView<'a, TemporalGraph> {
         self.g_id
     }
 
-    pub fn out_degree(&self) -> usize {
+    pub fn degree(&self, d: Direction) -> usize {
         if let Some(w) = &self.w {
-            self.g._degree_window(self.pid, w, Direction::OUT)
+            self.g._degree_window(self.pid, w, d)
         } else {
-            self.g._degree(self.pid, Direction::OUT)
-        }
-    }
-
-    pub fn in_degree(&self) -> usize {
-        if let Some(w) = &self.w {
-            self.g._degree_window(self.pid, w, Direction::IN)
-        } else {
-            self.g._degree(self.pid, Direction::IN)
-        }
-    }
-
-    pub fn degree(&self) -> usize {
-        if let Some(w) = &self.w {
-            self.g._degree_window(self.pid, w, Direction::BOTH)
-        } else {
-            self.g._degree(self.pid, Direction::BOTH)
+            self.g._degree(self.pid, d)
         }
     }
 
     // FIXME: all the functions using global ID need to be changed to use the physical ID instead
-    pub fn out_edges(&'a self) -> Box<dyn Iterator<Item = EdgeView<'a, TemporalGraph>> + 'a> {
+    pub fn edges(
+        &'a self,
+        d: Direction,
+    ) -> Box<dyn Iterator<Item = EdgeView<'a, TemporalGraph>> + 'a> {
         if let Some(r) = &self.w {
-            self.g
-                .neighbours_window(self.g_id, r.clone(), Direction::OUT)
+            self.g.neighbours_window(self.g_id, r.clone(), d)
         } else {
-            self.g.neighbours(self.g_id, Direction::OUT)
-        }
-    }
-
-    pub fn in_edges(&'a self) -> Box<dyn Iterator<Item = EdgeView<'a, TemporalGraph>> + 'a> {
-        if let Some(r) = &self.w {
-            self.g
-                .neighbours_window(self.g_id, r.clone(), Direction::IN)
-        } else {
-            self.g.neighbours(self.g_id, Direction::IN)
+            self.g.neighbours(self.g_id, d)
         }
     }
 
