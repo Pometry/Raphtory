@@ -91,6 +91,19 @@ impl TemporalGraphPart {
 
         vertices_iter.into_iter()
     }
+    
+
+    pub fn out_degree_window(&self, t_start: i64, t_end: i64, v: u64) -> usize {
+        self.read_shard(|tg| tg.outbound_degree_t(v, t_start..t_end))
+    }
+
+    pub fn in_degree_window(&self, t_start: i64, t_end: i64, v: u64) -> usize {
+        self.read_shard(|tg| tg.inbound_degree_t(v, t_start..t_end))
+    }
+
+    pub fn degree_window(&self, t_start: i64, t_end: i64, v: u64) -> usize {
+        self.read_shard(|tg: &TemporalGraph| tg.degree_window(v, t_start..t_end))
+    }
 
     pub fn len(&self) -> usize {
         self.read_shard(|tg| tg.len())
@@ -197,4 +210,67 @@ mod temporal_graph_partition_test {
             assert_eq!(None, iter.next()); // one vertex per interval
         }
     }
+
+    #[test]
+    fn get_in_degree_window() {
+        let mut g = TemporalGraphPart::default();
+
+        g.add_vertex(11, 1, &vec![]);
+        g.add_vertex(22, 2, &vec![]);
+        g.add_vertex(33, 3, &vec![]);
+        g.add_vertex(44, 4, &vec![]);
+
+        g.add_edge(11, 22, 4, &vec![]);
+        g.add_edge(22, 33, 5, &vec![]);
+        g.add_edge(11, 44, 6, &vec![]);
+
+        let actual = g.in_degree_window(0, i64::MAX, 4);
+        let actual2 = g.in_degree_window(0, i64::MAX, 44);
+        assert_eq!(actual, 1);
+        assert_ne!(actual2, 1)
+    }
+
+    #[test]
+    fn get_out_degree_window() {
+        let mut g = TemporalGraphPart::default();
+
+        g.add_vertex(11, 1, &vec![]);
+        g.add_vertex(22, 2, &vec![]);
+        g.add_vertex(33, 3, &vec![]);
+        g.add_vertex(44, 4, &vec![]);
+
+        g.add_edge(11, 22, 4, &vec![]);
+        g.add_edge(22, 33, 5, &vec![]);
+        g.add_edge(11, 44, 6, &vec![]);
+
+        let actual = g.out_degree_window(0, i64::MAX, 22);
+        let actual2 = g.out_degree_window(0, i64::MAX, 6);
+        assert_eq!(actual, 1);
+        assert_ne!(actual2, 1)
+    }
+
+    #[test]
+    fn get_degree_window() {
+        let mut g = TemporalGraphPart::default();
+
+        g.add_vertex(11, 1, &vec![]);
+        g.add_vertex(22, 2, &vec![]);
+        g.add_vertex(33, 3, &vec![]);
+        g.add_vertex(44, 4, &vec![]);
+
+        g.add_edge(11, 22, 4, &vec![]);
+        g.add_edge(22, 33, 5, &vec![]);
+        g.add_edge(11, 44, 6, &vec![]);
+        g.add_edge(11, 44, 5, &vec![]);
+        g.add_edge(11, 44, 6, &vec![]);
+
+        let actual = g.degree_window(0, i64::MAX, 5);
+        let actual2 = g.degree_window(0, i64::MAX, 4);
+        let actual3 = g.degree_window(0, i64::MAX, 6);
+        assert_eq!(actual, 2);
+        assert_ne!(actual2, 2);
+        assert_eq!(actual3, 1)
+    }
+
+
 }

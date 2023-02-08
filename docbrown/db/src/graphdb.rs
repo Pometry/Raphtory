@@ -129,6 +129,39 @@ pub fn add_edge(&self, src: u64, dst: u64, t: i64, props: &Vec<(String, Prop)>) 
         Box::new(iter)
     }
 
+    pub fn degree_window(
+        &self,
+        t_start: i64,
+        t_end: i64,
+        v: u64, 
+    ) -> usize {
+        let shard_id = self.get_shard_id_from_global_vid(v);
+        let iter = self.shards[shard_id].degree_window(t_start, t_end, v);
+        iter
+    }
+
+    pub fn out_degree_window(
+        &self,
+        t_start: i64,
+        t_end: i64,
+        src: u64, 
+    ) -> usize {
+        let shard_id = self.get_shard_id_from_global_vid(src);
+        let iter = self.shards[shard_id].out_degree_window(t_start, t_end, src);
+        iter
+    }
+
+    pub fn in_degree_window(
+        &self,
+        t_start: i64,
+        t_end: i64,
+        dst: u64, 
+    ) -> usize {
+        let shard_id = self.get_shard_id_from_global_vid(dst);
+        let iter = self.shards[shard_id].in_degree_window(t_start, t_end, dst);
+        iter
+    }
+
     #[inline(always)]
     fn get_shard_id_from_global_vid(&self, v_gid: u64) -> usize {
         let a: usize = v_gid.try_into().unwrap();
