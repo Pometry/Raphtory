@@ -102,4 +102,15 @@ fn main() {
         g
     };
 
+    let gandalf = calculate_hash(&"Gandalf");
+
+    let in_degree = graph.in_degree_window(0, i64::MAX, gandalf);
+        
+    let out_degree = graph.out_degree_window(0, i64::MAX, gandalf);
+
+    let degree = graph.degree_window(0, i64::MAX, gandalf);
+
+    println!("{} has {} windowed in degree and {} windowed out degree and {} total degree", gandalf, in_degree, out_degree, degree);
+
+
 }
