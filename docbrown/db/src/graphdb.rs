@@ -1,6 +1,4 @@
-use std::{
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use docbrown_core::{
     tpartition::{TEdge, TemporalGraphPart},
@@ -20,11 +18,12 @@ impl GraphDB {
     pub fn new(nr_shards: usize) -> Self {
         GraphDB {
             nr_shards,
-            shards: (0..nr_shards).map(|_| TemporalGraphPart::default()).collect()
+            shards: (0..nr_shards)
+                .map(|_| TemporalGraphPart::default())
+                .collect(),
         }
     }
 
-    // load GraphDB from file using bincode
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
         // use BufReader for better performance
 
@@ -83,13 +82,25 @@ impl GraphDB {
         Ok(())
     }
 
+    pub fn len(&self) -> usize {
+        self.shards.iter().map(|shard| shard.len()).sum()
+    }
+
+    pub fn edges_len(&self) -> usize {
+        self.shards.iter().map(|shard| shard.out_edges_len()).sum()
+    }
+
+    pub fn contains(&self, v: u64) -> bool {
+        self.shards.iter().any(|shard| shard.contains(v))
+    }
+
     // TODO: Probably add vector reference here like add
     pub fn add_vertex(&self, v: u64, t: i64, props: &Vec<(String, Prop)>) {
         let shard_id = self.get_shard_id_from_global_vid(v);
         self.shards[shard_id].add_vertex(t, v, &props);
     }
 
-pub fn add_edge(&self, src: u64, dst: u64, t: i64, props: &Vec<(String, Prop)>) {
+    pub fn add_edge(&self, src: u64, dst: u64, t: i64, props: &Vec<(String, Prop)>) {
         let src_shard_id = self.get_shard_id_from_global_vid(src);
         let dst_shard_id = self.get_shard_id_from_global_vid(dst);
 
@@ -101,18 +112,6 @@ pub fn add_edge(&self, src: u64, dst: u64, t: i64, props: &Vec<(String, Prop)>) 
             self.shards[src_shard_id].add_edge_remote_out(t, src, dst, props);
             self.shards[dst_shard_id].add_edge_remote_into(t, src, dst, props);
         }
-    }
-
-    pub fn len(&self) -> usize {
-        self.shards.iter().map(|shard| shard.len()).sum()
-    }
-
-    pub fn edges_len(&self) -> usize {
-        self.shards.iter().map(|shard| shard.out_edges_len()).sum()
-    }
-
-    pub fn contains(&self, v: u64) -> bool {
-        self.shards.iter().any(|shard| shard.contains(v))
     }
 
     pub fn neighbours_window(
