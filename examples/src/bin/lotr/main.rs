@@ -105,5 +105,8 @@ fn main() {
         .for_each(|e| println!("{:?}", e));
 
     println!("{}", graph.contains(gandalf));
-        
+
+    graph
+        .neighbours(gandalf, Direction::OUT)
+        .for_each(|e| println!("{:?}", e));
 }

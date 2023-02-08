@@ -119,6 +119,20 @@ impl TemporalGraphPart {
         vertices_iter.into_iter()
     }
 
+    pub fn neighbours(&self, v: u64, d: Direction) -> impl Iterator<Item = TEdge> {
+        let tg = self.clone();
+        let vertices_iter = gen!({
+            let g = tg.0.read();
+            let chunks = (*g).neighbours(v, d).map(|e| e.into());
+            let iter = chunks.into_iter();
+            for v_id in iter {
+                yield_!(v_id)
+            }
+        });
+
+        vertices_iter.into_iter()
+    }
+
     pub fn neighbours_window(
         &self,
         t_start: i64,

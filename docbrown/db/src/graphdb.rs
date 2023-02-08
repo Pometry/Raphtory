@@ -120,6 +120,14 @@ impl GraphDB {
         }
     }
 
+    pub fn neighbours(&self, v: u64, d: Direction) -> Box<dyn Iterator<Item = TEdge>> {
+        let shard_id = self.get_shard_id_from_global_vid(v);
+
+        let iter = self.shards[shard_id].neighbours(v, d);
+
+        Box::new(iter)
+    }
+
     pub fn neighbours_window(
         &self,
         t_start: i64,
