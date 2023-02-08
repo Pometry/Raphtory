@@ -10,10 +10,6 @@ use crate::graph::{EdgeView, TemporalGraph};
 use crate::{Direction, Prop};
 use itertools::*;
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-#[repr(transparent)]
-pub struct TemporalGraphPart(Arc<RwLock<TemporalGraph>>);
-
 #[derive(Debug)]
 pub struct TEdge {
     src: u64,
@@ -34,82 +30,11 @@ impl<'a> From<EdgeView<'a, TemporalGraph>> for TEdge {
     }
 }
 
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[repr(transparent)]
+pub struct TemporalGraphPart(Arc<RwLock<TemporalGraph>>);
+
 impl TemporalGraphPart {
-    pub fn add_vertex(&self, t: i64, v: u64, props: &Vec<(String, Prop)>) {
-        self.write_shard(|tg| tg.add_vertex(v, t))
-    }
-
-    pub fn add_edge(&self, t: i64, src: u64, dst: u64, props: &Vec<(String, Prop)>) {
-        self.write_shard(|tg| tg.add_edge_with_props(src, dst, t, props))
-    }
-
-    pub fn add_edge_remote_out(&self, t: i64, src: u64, dst: u64, props: &Vec<(String, Prop)>) {
-        self.write_shard(|tg| tg.add_edge_remote_out(src, dst, t, props))
-    }
-
-    pub fn add_edge_remote_into(&self, t: i64, src: u64, dst: u64, props: &Vec<(String, Prop)>) {
-        self.write_shard(|tg| tg.add_edge_remote_into(src, dst, t, props))
-    }
-
-    // TODO: check if there is any value in returning Vec<usize> vs just usize, what is the cost of the generator
-    pub fn vertices_window(
-        &self,
-        t_start: i64,
-        t_end: i64,
-        chunk_size: usize,
-    ) -> impl Iterator<Item = Vec<usize>> {
-        let tg = self.clone();
-        let vertices_iter = gen!({
-            let g = tg.0.read();
-            let chunks = (*g).vertices_window_iter(t_start..t_end).chunks(chunk_size);
-            let iter = chunks.into_iter().map(|chunk| chunk.collect::<Vec<_>>());
-            for v_id in iter {
-                yield_!(v_id)
-            }
-        });
-
-        vertices_iter.into_iter()
-    }
-
-    pub fn neighbours_window(
-        &self,
-        t_start: i64,
-        t_end: i64,
-        v: u64,
-        d: Direction,
-    ) -> impl Iterator<Item = TEdge> {
-        let tg = self.clone();
-        let vertices_iter = gen!({
-            let g = tg.0.read();
-            let chunks = (*g)
-                .neighbours_window((t_start..t_end), v, d)
-                .map(|e| e.into());
-            let iter = chunks.into_iter();
-            for v_id in iter {
-                yield_!(v_id)
-            }
-        });
-
-        vertices_iter.into_iter()
-    }
-
-    pub fn len(&self) -> usize {
-        self.read_shard(|tg| tg.len())
-    }
-
-    pub fn out_edges_len(&self) -> usize {
-        self.read_shard(|tg| tg.out_edges_len())
-    }
-
-    pub fn contains(&self, v: u64) -> bool {
-        self.read_shard(|tg| tg.contains(v))
-    }
-
-    pub fn contains_t(&self, t_start: i64, t_end: i64, v: u64) -> bool {
-        self.read_shard(|tg| tg.contains_vertex_w(t_start..t_end, v))
-    }
-
-    // load GraphDB from file using bincode
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
         // use BufReader for better performance
         let f = std::fs::File::open(path).unwrap();
@@ -140,6 +65,80 @@ impl TemporalGraphPart {
     {
         let shard = self.0.read();
         f(&shard)
+    }
+
+    pub fn len(&self) -> usize {
+        self.read_shard(|tg| tg.len())
+    }
+
+    pub fn out_edges_len(&self) -> usize {
+        self.read_shard(|tg| tg.out_edges_len())
+    }
+
+    pub fn contains(&self, v: u64) -> bool {
+        self.read_shard(|tg| tg.contains_vertex(v))
+    }
+
+    pub fn contains_t(&self, t_start: i64, t_end: i64, v: u64) -> bool {
+        self.read_shard(|tg| tg.contains_vertex_window(t_start..t_end, v))
+    }
+
+    pub fn add_vertex(&self, t: i64, v: u64, props: &Vec<(String, Prop)>) {
+        self.write_shard(|tg| tg.add_vertex(v, t))
+    }
+
+    pub fn add_edge(&self, t: i64, src: u64, dst: u64, props: &Vec<(String, Prop)>) {
+        self.write_shard(|tg| tg.add_edge_with_props(src, dst, t, props))
+    }
+
+    pub fn add_edge_remote_out(&self, t: i64, src: u64, dst: u64, props: &Vec<(String, Prop)>) {
+        self.write_shard(|tg| tg.add_edge_remote_out(src, dst, t, props))
+    }
+
+    pub fn add_edge_remote_into(&self, t: i64, src: u64, dst: u64, props: &Vec<(String, Prop)>) {
+        self.write_shard(|tg| tg.add_edge_remote_into(src, dst, t, props))
+    }
+
+    // TODO: check if there is any value in returning Vec<usize> vs just usize, what is the cost of the generator
+    pub fn vertices_window(
+        &self,
+        t_start: i64,
+        t_end: i64,
+        chunk_size: usize,
+    ) -> impl Iterator<Item = Vec<usize>> {
+        let tg = self.clone();
+        let vertices_iter = gen!({
+            let g = tg.0.read();
+            let chunks = (*g).vertices_iter_window(t_start..t_end).chunks(chunk_size);
+            let iter = chunks.into_iter().map(|chunk| chunk.collect::<Vec<_>>());
+            for v_id in iter {
+                yield_!(v_id)
+            }
+        });
+
+        vertices_iter.into_iter()
+    }
+
+    pub fn neighbours_window(
+        &self,
+        t_start: i64,
+        t_end: i64,
+        v: u64,
+        d: Direction,
+    ) -> impl Iterator<Item = TEdge> {
+        let tg = self.clone();
+        let vertices_iter = gen!({
+            let g = tg.0.read();
+            let chunks = (*g)
+                .neighbours_window((t_start..t_end), v, d)
+                .map(|e| e.into());
+            let iter = chunks.into_iter();
+            for v_id in iter {
+                yield_!(v_id)
+            }
+        });
+
+        vertices_iter.into_iter()
     }
 }
 
