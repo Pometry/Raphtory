@@ -161,15 +161,26 @@ impl TemporalGraph {
         let v_pid = self.logical_to_physical[&v];
 
         match &self.adj_lists[v_pid] {
-            Adj::List { out, into, .. } => match d {
-                Direction::OUT => out.len(),
-                Direction::IN => into.len(),
+            Adj::List {
+                out,
+                into,
+                remote_out,
+                remote_into,
+                ..
+            } => match d {
+                Direction::OUT => out.len() + remote_out.len(),
+                Direction::IN => into.len() + remote_into.len(),
                 _ => {
-                    vec![out.iter(), into.iter()] // FIXME: there are better ways of doing this, all adj lists are sorted except for the HashMap
-                        .into_iter()
-                        .flatten()
-                        .unique_by(|(v, _)| *v)
-                        .count()
+                    vec![
+                        out.iter(),
+                        into.iter(),
+                        remote_out.iter(),
+                        remote_into.iter(),
+                    ] // FIXME: there are better ways of doing this, all adj lists are sorted except for the HashMap
+                    .into_iter()
+                    .flatten()
+                    .unique_by(|(v, _)| *v)
+                    .count()
                 }
             },
             _ => 0,
@@ -180,14 +191,25 @@ impl TemporalGraph {
         let v_pid = self.logical_to_physical[&v];
 
         match &self.adj_lists[v_pid] {
-            Adj::List { out, into, .. } => match d {
-                Direction::OUT => out.len_window(r),
-                Direction::IN => into.len_window(r),
-                _ => vec![out.iter_window(r), into.iter_window(r)]
-                    .into_iter()
-                    .flatten()
-                    .unique_by(|(v, _)| *v)
-                    .count(),
+            Adj::List {
+                out,
+                into,
+                remote_out,
+                remote_into,
+                ..
+            } => match d {
+                Direction::OUT => out.len_window(r) + remote_out.len_window(r),
+                Direction::IN => into.len_window(r) + remote_into.len_window(r),
+                _ => vec![
+                    out.iter_window(r),
+                    into.iter_window(r),
+                    remote_out.iter_window(r),
+                    remote_into.iter_window(r),
+                ]
+                .into_iter()
+                .flatten()
+                .unique_by(|(v, _)| *v)
+                .count(),
             },
             _ => 0,
         }
@@ -637,12 +659,7 @@ extern crate quickcheck;
 
 #[cfg(test)]
 mod graph_test {
-    use std::iter::{FlatMap, Map};
-    use std::{
-        collections::hash_map::DefaultHasher,
-        hash::{Hash, Hasher},
-        path::PathBuf,
-    };
+    use std::path::PathBuf;
 
     use csv::StringRecord;
 
@@ -1490,6 +1507,7 @@ mod graph_test {
                 )
             })
             .collect_vec();
+
         let degrees_window = g
             .vertices_window_vv(1..7)
             .map(|v| {
