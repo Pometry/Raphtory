@@ -261,16 +261,36 @@ impl TemporalGraph {
     {
         let v_pid = self.logical_to_physical[&v];
 
-        Box::new(
-            self.neighbours_iter(v_pid, d)
-                .map(move |(v, e_meta)| EdgeView {
-                    src_id: v_pid,
-                    dst_id: *v,
-                    t: None,
-                    g: self,
-                    e_meta,
-                }),
-        )
+        match d {
+            Direction::OUT => {
+                Box::new(
+                    self.neighbours_iter(v_pid, d)
+                        .map(move |(v, e_meta)| EdgeView {
+                            src_id: v_pid,
+                            dst_id: *v,
+                            t: None,
+                            g: self,
+                            e_meta,
+                        }),
+                )
+            }
+            Direction::IN => {
+                Box::new(
+                    self.neighbours_iter(v_pid, d)
+                        .map(move |(v, e_meta)| EdgeView {
+                            src_id: *v,
+                            dst_id: v_pid,
+                            t: None,
+                            g: self,
+                            e_meta,
+                        }),
+                )
+            }
+            Direction::BOTH => Box::new(itertools::chain!(
+                self.neighbours(v, Direction::IN),
+                self.neighbours(v, Direction::OUT)
+            )),
+        }
     }
 
     pub(crate) fn neighbours_window(
@@ -300,7 +320,10 @@ impl TemporalGraph {
                     e_meta,
                 },
             )),
-            Direction::BOTH => todo!(),
+            Direction::BOTH => Box::new(itertools::chain!(
+                self.neighbours_window(v, w, Direction::IN),
+                self.neighbours_window(v, w, Direction::OUT)
+            )),
         }
     }
 
@@ -331,9 +354,10 @@ impl TemporalGraph {
                     e_meta,
                 },
             )),
-            Direction::BOTH => {
-                panic!()
-            }
+            Direction::BOTH => Box::new(itertools::chain!(
+                self.neighbours_window_t(v, r, Direction::IN),
+                self.neighbours_window_t(v, r, Direction::OUT)
+            )),
         }
     }
 }
@@ -421,14 +445,13 @@ impl TemporalGraph {
                 match d {
                     Direction::OUT => Box::new(itertools::chain!(out.iter(), remote_out.iter())),
                     Direction::IN => Box::new(itertools::chain!(into.iter(), remote_into.iter())),
-                    _ => {
-                        Box::new(itertools::chain!(
-                            out.iter(),
-                            into.iter(),
-                            remote_out.iter(),
-                            remote_into.iter()
-                        )) // probably awful but will have to do for now
-                    }
+                    // This piece of code is only for the sake of symmetry. Not really used.
+                    _ => Box::new(itertools::chain!(
+                        out.iter(),
+                        into.iter(),
+                        remote_out.iter(),
+                        remote_into.iter()
+                    )),
                 }
             }
             _ => Box::new(std::iter::empty()),
@@ -458,14 +481,13 @@ impl TemporalGraph {
                         into.iter_window(window),
                         remote_into.iter_window(window),
                     )),
-                    _ => {
-                        Box::new(itertools::chain!(
-                            out.iter_window(window),
-                            into.iter_window(window),
-                            remote_out.iter_window(window),
-                            remote_into.iter_window(window)
-                        )) // probably awful but will have to do for now
-                    }
+                    // This piece of code is only for the sake of symmetry. Not really used.
+                    _ => Box::new(itertools::chain!(
+                        out.iter_window(window),
+                        into.iter_window(window),
+                        remote_out.iter_window(window),
+                        remote_into.iter_window(window)
+                    )),
                 }
             }
             _ => Box::new(std::iter::empty()),
@@ -495,12 +517,13 @@ impl TemporalGraph {
                         into.iter_window_t(window),
                         remote_into.iter_window_t(window),
                     )),
+                    // This piece of code is only for the sake of symmetry. Not really used.
                     _ => Box::new(itertools::chain!(
                         out.iter_window_t(window),
                         into.iter_window_t(window),
                         remote_out.iter_window_t(window),
                         remote_into.iter_window_t(window)
-                    )), // probably awful but will have to do for now
+                    )),
                 }
             }
             _ => Box::new(std::iter::empty()),
