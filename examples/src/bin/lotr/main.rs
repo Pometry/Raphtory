@@ -1,15 +1,11 @@
-use docbrown_core::Prop;
+use docbrown_core::{Direction, Prop};
 use docbrown_db::{graphdb::GraphDB, loaders::csv::CsvLoader};
 use serde::Deserialize;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
 };
-use std::{
-    env,
-    path::Path,
-    time::Instant,
-};
+use std::{env, path::Path, time::Instant};
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Lotr {
@@ -26,9 +22,6 @@ fn calculate_hash<T: Hash>(t: &T) -> u64 {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-
-    // if not provided the data dir, pick from relative data directory
-    // if bincode found, good otherwise build again
 
     let default_data_dir = String::from("./examples/src/bin/lotr/data");
 
@@ -63,31 +56,32 @@ fn main() {
         let now = Instant::now();
 
         let _ = CsvLoader::new(data_dir)
-        .load_into_graph(&g, |lotr: Lotr, g: &GraphDB| {
-            let src_id = calculate_hash(&lotr.src_id);
-            let dst_id = calculate_hash(&lotr.dst_id);
-            let time = lotr.time;
+            .load_into_graph(&g, |lotr: Lotr, g: &GraphDB| {
+                let src_id = calculate_hash(&lotr.src_id);
+                let dst_id = calculate_hash(&lotr.dst_id);
+                let time = lotr.time;
 
-            g.add_vertex(
-                src_id,
-                time,
-                &vec![("name".to_string(), Prop::Str("Character".to_string()))],
-            );
-            g.add_vertex(
-                src_id,
-                time,
-                &vec![("name".to_string(), Prop::Str("Character".to_string()))],
-            );
-            g.add_edge(
-                src_id,
-                dst_id,
-                time,
-                &vec![(
-                    "name".to_string(),
-                    Prop::Str("Character Co-occurrence".to_string()),
-                )],
-            );
-        }).expect("Failed to load graph from CSV data files");
+                g.add_vertex(
+                    src_id,
+                    time,
+                    &vec![("name".to_string(), Prop::Str("Character".to_string()))],
+                );
+                g.add_vertex(
+                    src_id,
+                    time,
+                    &vec![("name".to_string(), Prop::Str("Character".to_string()))],
+                );
+                g.add_edge(
+                    src_id,
+                    dst_id,
+                    time,
+                    &vec![(
+                        "name".to_string(),
+                        Prop::Str("Character Co-occurrence".to_string()),
+                    )],
+                );
+            })
+            .expect("Failed to load graph from CSV data files");
 
         println!(
             "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
@@ -97,20 +91,36 @@ fn main() {
             now.elapsed().as_secs()
         );
 
-        g.save_to_file(encoded_data_dir).expect("Failed to save graph");
+        g.save_to_file(encoded_data_dir)
+            .expect("Failed to save graph");
 
         g
     };
 
     let gandalf = calculate_hash(&"Gandalf");
+    println!("Gandalf exists = {}", graph.contains(gandalf));
 
-    let in_degree = graph.in_degree_window(0, i64::MAX, gandalf);
-        
-    let out_degree = graph.out_degree_window(0, i64::MAX, gandalf);
+    println!("Gandalf's windowed outbound neighbours");
+    graph
+        .neighbours_window(gandalf, 0, i64::MAX, Direction::OUT)
+        .for_each(|e| println!("{:?}", e));
 
-    let degree = graph.degree_window(0, i64::MAX, gandalf);
+    println!("Gandalf's outbound neighbours");
+    graph
+        .neighbours(gandalf, Direction::OUT)
+        .for_each(|e| println!("{:?}", e));
 
-    println!("{} has {} windowed in degree and {} windowed out degree and {} total degree", gandalf, in_degree, out_degree, degree);
+    println!("Gandalf's windowed outbound neighbours with timestamp");
+    graph
+        .neighbours_window_t(gandalf, 0, i64::MAX, Direction::OUT)
+        .for_each(|e| println!("{:?}", e));
 
+    let in_degree = graph.degree_window(gandalf, 0, i64::MAX, Direction::IN);
+    let out_degree = graph.degree_window(gandalf, 0, i64::MAX, Direction::OUT);
+    let degree = graph.degree_window(gandalf, 0, i64::MAX, Direction::BOTH);
 
+    println!(
+        "{} has {} windowed in-degree, {} windowed out-degree and {} total degree",
+        gandalf, in_degree, out_degree, degree
+    );
 }
