@@ -646,6 +646,8 @@ mod graph_test {
 
     use csv::StringRecord;
 
+    use crate::utils;
+
     use super::*;
 
     #[test]
@@ -1510,12 +1512,6 @@ mod graph_test {
     fn lotr_degree() {
         let mut g = TemporalGraph::default();
 
-        fn calculate_hash<T: Hash>(t: &T) -> u64 {
-            let mut s = DefaultHasher::new();
-            t.hash(&mut s);
-            s.finish()
-        }
-
         fn parse_record(rec: &StringRecord) -> Option<(String, String, i64)> {
             let src = rec.get(0).and_then(|s| s.parse::<String>().ok())?;
             let dst = rec.get(1).and_then(|s| s.parse::<String>().ok())?;
@@ -1531,9 +1527,9 @@ mod graph_test {
             for rec_res in reader.records() {
                 if let Ok(rec) = rec_res {
                     if let Some((src, dst, t)) = parse_record(&rec) {
-                        let src_id = calculate_hash(&src);
+                        let src_id = utils::calculate_hash(&src);
 
-                        let dst_id = calculate_hash(&dst);
+                        let dst_id = utils::calculate_hash(&dst);
 
                         g.add_vertex(src_id, t);
                         g.add_vertex(dst_id, t);
@@ -1576,7 +1572,7 @@ mod graph_test {
             ("Daeron", 1, 0, 1),
         ]
         .into_iter()
-        .map(|(name, indeg, outdeg, deg)| (calculate_hash(&name), indeg, outdeg, deg))
+        .map(|(name, indeg, outdeg, deg)| (utils::calculate_hash(&name), indeg, outdeg, deg))
         .collect_vec();
 
         expected_degrees_w1.sort();
@@ -1602,7 +1598,7 @@ mod graph_test {
             ("Elendil", 0, 1, 1),
         ]
         .into_iter()
-        .map(|(name, indeg, outdeg, deg)| (calculate_hash(&name), indeg, outdeg, deg))
+        .map(|(name, indeg, outdeg, deg)| (utils::calculate_hash(&name), indeg, outdeg, deg))
         .collect_vec();
 
         let mut degrees_w2 = g

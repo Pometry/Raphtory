@@ -14,6 +14,7 @@ mod tcell;
 pub mod tpartition;
 mod tprop;
 mod tpropvec;
+pub mod utils;
 
 // Denotes edge direction
 #[derive(Clone, Copy, PartialEq)]
