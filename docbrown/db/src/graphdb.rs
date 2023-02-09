@@ -1,6 +1,4 @@
-use std::{
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use docbrown_core::{
     tpartition::{TEdge, TemporalGraphPart},
@@ -20,11 +18,12 @@ impl GraphDB {
     pub fn new(nr_shards: usize) -> Self {
         GraphDB {
             nr_shards,
-            shards: (0..nr_shards).map(|_| TemporalGraphPart::default()).collect()
+            shards: (0..nr_shards)
+                .map(|_| TemporalGraphPart::default())
+                .collect(),
         }
     }
 
-    // load GraphDB from file using bincode
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
         // use BufReader for better performance
 
@@ -83,26 +82,6 @@ impl GraphDB {
         Ok(())
     }
 
-    // TODO: Probably add vector reference here like add
-    pub fn add_vertex(&self, v: u64, t: i64, props: &Vec<(String, Prop)>) {
-        let shard_id = self.get_shard_id_from_global_vid(v);
-        self.shards[shard_id].add_vertex(t, v, &props);
-    }
-
-pub fn add_edge(&self, src: u64, dst: u64, t: i64, props: &Vec<(String, Prop)>) {
-        let src_shard_id = self.get_shard_id_from_global_vid(src);
-        let dst_shard_id = self.get_shard_id_from_global_vid(dst);
-
-        if src_shard_id == dst_shard_id {
-            self.shards[src_shard_id].add_edge(t, src, dst, props)
-        } else {
-            // FIXME these are sort of connected, we need to hold both locks for
-            // the src partition and dst partition to add a remote edge between both
-            self.shards[src_shard_id].add_edge_remote_out(t, src, dst, props);
-            self.shards[dst_shard_id].add_edge_remote_into(t, src, dst, props);
-        }
-    }
-
     pub fn len(&self) -> usize {
         self.shards.iter().map(|shard| shard.len()).sum()
     }
@@ -115,51 +94,78 @@ pub fn add_edge(&self, src: u64, dst: u64, t: i64, props: &Vec<(String, Prop)>) 
         self.shards.iter().any(|shard| shard.contains(v))
     }
 
-    pub fn neighbours_window(
-        &self,
-        t_start: i64,
-        t_end: i64,
-        v: u64,
-        d: Direction,
-    ) -> Box<dyn Iterator<Item = TEdge>> {
+    pub fn contains_window(&self, v: u64, t_start: i64, t_end: i64) -> bool {
+        self.shards
+            .iter()
+            .any(|shard| shard.contains_window(v, t_start, t_end))
+    }
+
+    // TODO: Probably add vector reference here like add
+    pub fn add_vertex(&self, v: u64, t: i64, props: &Vec<(String, Prop)>) {
+        let shard_id = self.get_shard_id_from_global_vid(v);
+        self.shards[shard_id].add_vertex(v, t, &props);
+    }
+
+    pub fn add_edge(&self, src: u64, dst: u64, t: i64, props: &Vec<(String, Prop)>) {
+        let src_shard_id = self.get_shard_id_from_global_vid(src);
+        let dst_shard_id = self.get_shard_id_from_global_vid(dst);
+
+        if src_shard_id == dst_shard_id {
+            self.shards[src_shard_id].add_edge(src, dst, t, props)
+        } else {
+            // FIXME these are sort of connected, we need to hold both locks for
+            // the src partition and dst partition to add a remote edge between both
+            self.shards[src_shard_id].add_edge_remote_out(src, dst, t, props);
+            self.shards[dst_shard_id].add_edge_remote_into(src, dst, t, props);
+        }
+    }
+
+    pub fn degree(&self, v: u64, d: Direction) -> usize {
+        let shard_id = self.get_shard_id_from_global_vid(v);
+        let iter = self.shards[shard_id].degree(v, d);
+        iter
+    }
+
+    pub fn degree_window(&self, v: u64, t_start: i64, t_end: i64, d: Direction) -> usize {
+        let shard_id = self.get_shard_id_from_global_vid(v);
+        let iter = self.shards[shard_id].degree_window(v, t_start, t_end, d);
+        iter
+    }
+
+    pub fn neighbours(&self, v: u64, d: Direction) -> Box<dyn Iterator<Item = TEdge>> {
         let shard_id = self.get_shard_id_from_global_vid(v);
 
-        let iter = self.shards[shard_id].neighbours_window(t_start, t_end, v, d);
+        let iter = self.shards[shard_id].neighbours(v, d);
 
         Box::new(iter)
     }
 
-    pub fn degree_window(
+    pub fn neighbours_window(
         &self,
+        v: u64,
         t_start: i64,
         t_end: i64,
-        v: u64, 
-    ) -> usize {
+        d: Direction,
+    ) -> Box<dyn Iterator<Item = TEdge>> {
         let shard_id = self.get_shard_id_from_global_vid(v);
-        let iter = self.shards[shard_id].degree_window(t_start, t_end, v);
-        iter
+
+        let iter = self.shards[shard_id].neighbours_window(v, t_start, t_end, d);
+
+        Box::new(iter)
     }
 
-    pub fn out_degree_window(
+    pub fn neighbours_window_t(
         &self,
+        v: u64,
         t_start: i64,
         t_end: i64,
-        src: u64, 
-    ) -> usize {
-        let shard_id = self.get_shard_id_from_global_vid(src);
-        let iter = self.shards[shard_id].out_degree_window(t_start, t_end, src);
-        iter
-    }
+        d: Direction,
+    ) -> Box<dyn Iterator<Item = TEdge>> {
+        let shard_id = self.get_shard_id_from_global_vid(v);
 
-    pub fn in_degree_window(
-        &self,
-        t_start: i64,
-        t_end: i64,
-        dst: u64, 
-    ) -> usize {
-        let shard_id = self.get_shard_id_from_global_vid(dst);
-        let iter = self.shards[shard_id].in_degree_window(t_start, t_end, dst);
-        iter
+        let iter = self.shards[shard_id].neighbours_window_t(v, t_start, t_end, d);
+
+        Box::new(iter)
     }
 
     #[inline(always)]
