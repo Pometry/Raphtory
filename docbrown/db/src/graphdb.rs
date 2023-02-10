@@ -132,6 +132,10 @@ impl GraphDB {
         iter
     }
 
+    pub fn vertices(&self) -> Box<dyn Iterator<Item = u64> + '_> {
+        Box::new(self.shards.iter().flat_map(|shard| shard.vertices()))
+    }
+
     pub fn neighbours(&self, v: u64, d: Direction) -> Box<dyn Iterator<Item = TEdge>> {
         let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
 
