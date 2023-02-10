@@ -1637,13 +1637,8 @@ mod graph_test {
         assert_eq!(degrees_w2, expected_degrees_w2);
     }
 
-    fn shard_from_id<N: Into<usize>>(v_id: N, n_shards: usize) -> usize {
-        let v: usize = v_id.try_into().unwrap();
-        v % n_shards
-    }
-
     #[quickcheck]
-    fn add_vertices_into_two_graph_partitions(vs: Vec<(u16, u16)>) {
+    fn add_vertices_into_two_graph_partitions(vs: Vec<(u64, u64)>) {
         let mut g1 = TemporalGraph::default();
 
         let mut g2 = TemporalGraph::default();
@@ -1653,8 +1648,8 @@ mod graph_test {
 
         let n_shards = shards.len();
         for (t, (src, dst)) in vs.into_iter().enumerate() {
-            let src_shard = shard_from_id(src, n_shards);
-            let dst_shard = shard_from_id(src, n_shards);
+            let src_shard = utils::get_shard_id_from_global_vid(src, n_shards);
+            let dst_shard = utils::get_shard_id_from_global_vid(src, n_shards);
 
             shards[src_shard].add_vertex(src.into(), t.try_into().unwrap());
             shards[dst_shard].add_vertex(dst.into(), t.try_into().unwrap());
