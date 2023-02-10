@@ -178,6 +178,7 @@ mod db_tests {
     use csv::StringRecord;
     use docbrown_core::utils;
     use itertools::Itertools;
+    use rayon::vec;
 
     use std::{path::PathBuf, sync::Arc};
 
@@ -198,19 +199,8 @@ mod db_tests {
         assert_eq!(should_be_10, 20)
     }
 
-    #[test]
-    fn basic_additions_to_graph_len() {
-        let graph = GraphDB::new(4);
-        assert_eq!(graph.len(), 0);
-        assert_eq!(graph.edges_len(), 0);
-        graph.add_edge(1, 2, 0, &Vec::new());
-        graph.add_edge(1, 3, 0, &Vec::new());
-        assert_eq!(graph.len(), 3);
-        assert_eq!(graph.edges_len(), 2);
-    }
-
     #[quickcheck]
-    fn add_vertex_to_graph_len_grows(vs: Vec<(u8, u8)>) {
+    fn add_vertex_grows_graph_len(vs: Vec<(u8, u8)>) {
         let g = GraphDB::new(2);
 
         let expected_len = vs.iter().map(|(v, _)| v).sorted().dedup().count();
@@ -219,6 +209,34 @@ mod db_tests {
         }
 
         assert_eq!(g.len(), expected_len)
+    }
+
+    #[quickcheck]
+    fn add_edge_grows_graph_edge_len(edges: Vec<(u64, u64, i64)>) {
+        let nr_shards: usize = 2;
+
+        let g = GraphDB::new(nr_shards);
+
+        let unique_vertices_count = edges
+            .iter()
+            .map(|(src, dst, _)| vec![src, dst])
+            .flat_map(|v| v)
+            .sorted()
+            .dedup()
+            .count();
+
+        let unique_edge_count = edges
+            .iter()
+            .map(|(src, dst, _)| (src, dst))
+            .unique()
+            .count();
+
+        for (src, dst, t) in edges {
+            g.add_edge(src, dst, t, &vec![]);
+        }
+
+        assert_eq!(g.len(), unique_vertices_count);
+        assert_eq!(g.edges_len(), unique_edge_count);
     }
 
     #[test]
