@@ -107,6 +107,20 @@ impl TemporalGraphPart {
         self.read_shard(|tg: &TemporalGraph| tg.degree_window(v, &(t_start..t_end), d))
     }
 
+    pub fn vertices(&self) -> impl Iterator<Item = u64> {
+        let tg = self.clone();
+
+        let vertices_iter = gen!({
+            let g = tg.0.read();
+            let iter = (*g).vertices().into_iter();
+            for v_id in iter {
+                yield_!(v_id)
+            }
+        });
+
+        vertices_iter.into_iter()
+    }
+
     // TODO: check if there is any value in returning Vec<usize> vs just usize, what is the cost of the generator
     pub fn vertices_window(
         &self,

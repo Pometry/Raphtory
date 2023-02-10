@@ -114,4 +114,9 @@ fn main() {
         "{} has {} windowed in-degree, {} windowed out-degree and {} total degree",
         gandalf, in_degree, out_degree, degree
     );
+
+    println!("Print all vertices!");
+    for v in graph.vertices() {
+        println!("{v}")
+    }
 }
