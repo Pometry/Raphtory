@@ -243,18 +243,16 @@ mod db_tests {
     fn db_lotr() {
         let g = GraphDB::new(4);
 
+        let lotr_csv: PathBuf = [env!("CARGO_MANIFEST_DIR"), "resources/test/lotr.csv"]
+            .iter()
+            .collect();
+
         fn parse_record(rec: &StringRecord) -> Option<(String, String, i64)> {
             let src = rec.get(0).and_then(|s| s.parse::<String>().ok())?;
             let dst = rec.get(1).and_then(|s| s.parse::<String>().ok())?;
             let t = rec.get(2).and_then(|s| s.parse::<i64>().ok())?;
             Some((src, dst, t))
         }
-
-        let lotr_csv: PathBuf = [env!("CARGO_MANIFEST_DIR"), "resources/test/lotr.csv"]
-            .iter()
-            .collect();
-
-        let empty: Vec<(String, Prop)> = vec![]; // FIXME: add actual properties here
 
         if let Ok(mut reader) = csv::Reader::from_path(lotr_csv) {
             for rec_res in reader.records() {
@@ -263,9 +261,25 @@ mod db_tests {
                         let src_id = utils::calculate_hash(&src);
                         let dst_id = utils::calculate_hash(&dst);
 
-                        g.add_vertex(src_id, t, &vec![]);
-                        g.add_vertex(dst_id, t, &vec![]);
-                        g.add_edge(src_id, dst_id, t, &empty);
+                        g.add_vertex(
+                            src_id,
+                            t,
+                            &vec![("name".to_string(), Prop::Str("Character".to_string()))],
+                        );
+                        g.add_vertex(
+                            dst_id,
+                            t,
+                            &vec![("name".to_string(), Prop::Str("Character".to_string()))],
+                        );
+                        g.add_edge(
+                            src_id,
+                            dst_id,
+                            t,
+                            &vec![(
+                                "name".to_string(),
+                                Prop::Str("Character Co-occurrence".to_string()),
+                            )],
+                        );
                     }
                 }
             }
