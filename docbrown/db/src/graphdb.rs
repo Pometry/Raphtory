@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use docbrown_core::{
     tpartition::{TEdge, TemporalGraphPart},
-    Direction, Prop,
+    utils, Direction, Prop,
 };
 
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
@@ -102,13 +102,13 @@ impl GraphDB {
 
     // TODO: Probably add vector reference here like add
     pub fn add_vertex(&self, v: u64, t: i64, props: &Vec<(String, Prop)>) {
-        let shard_id = self.get_shard_id_from_global_vid(v);
+        let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
         self.shards[shard_id].add_vertex(v, t, &props);
     }
 
     pub fn add_edge(&self, src: u64, dst: u64, t: i64, props: &Vec<(String, Prop)>) {
-        let src_shard_id = self.get_shard_id_from_global_vid(src);
-        let dst_shard_id = self.get_shard_id_from_global_vid(dst);
+        let src_shard_id = utils::get_shard_id_from_global_vid(src, self.nr_shards);
+        let dst_shard_id = utils::get_shard_id_from_global_vid(dst, self.nr_shards);
 
         if src_shard_id == dst_shard_id {
             self.shards[src_shard_id].add_edge(src, dst, t, props)
@@ -121,19 +121,19 @@ impl GraphDB {
     }
 
     pub fn degree(&self, v: u64, d: Direction) -> usize {
-        let shard_id = self.get_shard_id_from_global_vid(v);
+        let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
         let iter = self.shards[shard_id].degree(v, d);
         iter
     }
 
     pub fn degree_window(&self, v: u64, t_start: i64, t_end: i64, d: Direction) -> usize {
-        let shard_id = self.get_shard_id_from_global_vid(v);
+        let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
         let iter = self.shards[shard_id].degree_window(v, t_start, t_end, d);
         iter
     }
 
     pub fn neighbours(&self, v: u64, d: Direction) -> Box<dyn Iterator<Item = TEdge>> {
-        let shard_id = self.get_shard_id_from_global_vid(v);
+        let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
 
         let iter = self.shards[shard_id].neighbours(v, d);
 
@@ -147,7 +147,7 @@ impl GraphDB {
         t_end: i64,
         d: Direction,
     ) -> Box<dyn Iterator<Item = TEdge>> {
-        let shard_id = self.get_shard_id_from_global_vid(v);
+        let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
 
         let iter = self.shards[shard_id].neighbours_window(v, t_start, t_end, d);
 
@@ -161,17 +161,11 @@ impl GraphDB {
         t_end: i64,
         d: Direction,
     ) -> Box<dyn Iterator<Item = TEdge>> {
-        let shard_id = self.get_shard_id_from_global_vid(v);
+        let shard_id = utils::get_shard_id_from_global_vid(v, self.nr_shards);
 
         let iter = self.shards[shard_id].neighbours_window_t(v, t_start, t_end, d);
 
         Box::new(iter)
-    }
-
-    #[inline(always)]
-    fn get_shard_id_from_global_vid(&self, v_gid: u64) -> usize {
-        let a: usize = v_gid.try_into().unwrap();
-        a % self.nr_shards
     }
 }
 
@@ -181,10 +175,7 @@ mod db_tests {
     use docbrown_core::utils;
     use itertools::Itertools;
 
-    use std::{
-        path::PathBuf,
-        sync::Arc,
-    };
+    use std::{path::PathBuf, sync::Arc};
 
     use super::*;
 
