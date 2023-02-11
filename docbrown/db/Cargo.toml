@@ -22,6 +22,7 @@ chrono = "0.4"
 bincode = "1"
 # mimalloc = "0.1"
 # mimalloc = { version = "0.1", default-features = false }
+rand = "0.8.5"
 
 [dev-dependencies]
 quickcheck = "1"
