@@ -5,6 +5,7 @@ use docbrown_core::{
     utils, Direction, Prop,
 };
 
+use rand::Rng;
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 
@@ -178,6 +179,8 @@ mod db_tests {
     use csv::StringRecord;
     use docbrown_core::utils;
     use itertools::Itertools;
+    use quickcheck::{quickcheck, TestResult};
+    use rayon::vec;
 
     use std::{path::PathBuf, sync::Arc};
 
@@ -239,6 +242,51 @@ mod db_tests {
     }
 
     #[test]
+    fn save_to_file() {}
+
+    #[test]
+    fn load_from_file() {}
+
+    #[quickcheck]
+    fn graph_contains_vertex(vs: Vec<(u64, i64)>) -> TestResult {
+        if vs.is_empty() {
+            return TestResult::discard();
+        }
+
+        let g = GraphDB::new(2);
+
+        let rand_index = rand::thread_rng().gen_range(0..vs.len());
+        let rand_vertex = vs.get(rand_index).unwrap().0;
+
+        for (v, t) in vs {
+            g.add_vertex(v.into(), t.into(), &vec![]);
+        }
+
+        TestResult::from_bool(g.contains(rand_vertex))
+    }
+
+    #[test]
+    fn graph_contains_vertex_window() {}
+
+    #[test]
+    fn graph_degree() {}
+
+    #[test]
+    fn graph_degree_window() {}
+
+    #[test]
+    fn graph_vertices() {}
+
+    #[test]
+    fn graph_neighbours() {}
+
+    #[test]
+    fn graph_neighbours_window() {}
+
+    #[test]
+    fn graph_neighbours_window_t() {}
+
+    #[test]
     fn db_lotr() {
         let g = GraphDB::new(4);
 
@@ -249,7 +297,7 @@ mod db_tests {
         if !data_dir.exists() {
             panic!("Missing data dir = {}", data_dir.to_str().unwrap())
         }
- 
+
         fn parse_record(rec: &StringRecord) -> Option<(String, String, i64)> {
             let src = rec.get(0).and_then(|s| s.parse::<String>().ok())?;
             let dst = rec.get(1).and_then(|s| s.parse::<String>().ok())?;
