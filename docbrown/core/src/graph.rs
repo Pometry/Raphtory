@@ -1537,11 +1537,15 @@ mod graph_test {
             Some((src, dst, t))
         }
 
-        let lotr_csv: PathBuf = [env!("CARGO_MANIFEST_DIR"), "resources/test/lotr.csv"]
+        let data_dir: PathBuf = [env!("CARGO_MANIFEST_DIR"), "resources/test/lotr.csv"]
             .iter()
             .collect();
 
-        if let Ok(mut reader) = csv::Reader::from_path(lotr_csv) {
+        if !data_dir.exists() {
+            panic!("Missing data dir = {}", data_dir.to_str().unwrap())
+        }
+
+        if let Ok(mut reader) = csv::Reader::from_path(data_dir) {
             for rec_res in reader.records() {
                 if let Ok(rec) = rec_res {
                     if let Some((src, dst, t)) = parse_record(&rec) {
