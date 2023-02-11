@@ -180,7 +180,6 @@ mod db_tests {
     use docbrown_core::utils;
     use itertools::Itertools;
     use quickcheck::{quickcheck, TestResult};
-    use rayon::vec;
 
     use std::{path::PathBuf, sync::Arc};
 
@@ -265,11 +264,71 @@ mod db_tests {
         TestResult::from_bool(g.contains(rand_vertex))
     }
 
-    #[test]
-    fn graph_contains_vertex_window() {}
+    #[quickcheck]
+    fn graph_contains_vertex_window(mut vs: Vec<(i64, u64)>) -> TestResult {
+        if vs.is_empty() {
+            return TestResult::discard();
+        }
+
+        let g = GraphDB::new(2);
+
+        for (t, v) in &vs {
+            g.add_vertex(*v, *t, &vec![]);
+        }
+
+        vs.sort(); // Sorted by time
+        vs.dedup();
+
+        let rand_start_index = rand::thread_rng().gen_range(0..vs.len());
+        let rand_end_index = rand::thread_rng().gen_range(0..vs.len());
+
+        if rand_end_index < rand_start_index {
+            return TestResult::discard();
+        }
+
+        let g = GraphDB::new(2);
+
+        for (t, v) in &vs {
+            g.add_vertex(*v, *t, &vec![]);
+        }
+
+        let start = vs.get(rand_start_index).unwrap().0;
+        let end = vs.get(rand_end_index).unwrap().0;
+
+        if start == end {
+            let v = vs.get(rand_start_index).unwrap().1;
+            return TestResult::from_bool(!g.contains_window(v, start, end));
+        }
+
+        if rand_start_index == rand_end_index {
+            let v = vs.get(rand_start_index).unwrap().1;
+            return TestResult::from_bool(!g.contains_window(v, start, end));
+        }
+
+        let rand_index_within_rand_start_end: usize =
+            rand::thread_rng().gen_range(rand_start_index..rand_end_index);
+
+        let (i, v) = vs.get(rand_index_within_rand_start_end).unwrap();
+
+        if *i == end {
+            return TestResult::from_bool(!g.contains_window(*v, start, end));
+        } else {
+            return TestResult::from_bool(g.contains_window(*v, start, end));
+        }
+    }
 
     #[test]
-    fn graph_degree() {}
+    fn graph_degree() {
+        let g = GraphDB::new(2);
+        // vec![(-1, 1), (0, 0), (0, 2)]
+        g.add_vertex(1, -1, &vec![]);
+        g.add_vertex(0, 0, &vec![]);
+        g.add_vertex(2, 0, &vec![]);
+
+        println!("1? = {}", g.contains_window(1, -1, 0));
+
+        assert!(true);
+    }
 
     #[test]
     fn graph_degree_window() {}
