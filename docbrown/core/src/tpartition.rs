@@ -202,11 +202,11 @@ impl TemporalGraphPart {
 
 #[cfg(test)]
 mod temporal_graph_partition_test {
-    use crate::Direction;
-
     use super::TemporalGraphPart;
+    use crate::Direction;
     use itertools::Itertools;
-    use quickcheck::Arbitrary;
+    use quickcheck::{Arbitrary, TestResult};
+    use rand::Rng;
 
     // non overlaping time intervals
     #[derive(Clone, Debug)]
@@ -226,7 +226,47 @@ mod temporal_graph_partition_test {
     }
 
     #[quickcheck]
-    fn add_vertex_to_graph_len_grows(vs: Vec<(u8, u8)>) {
+    fn shard_contains_vertex(vs: Vec<(u64, i64)>) -> TestResult {
+        if vs.is_empty() {
+            return TestResult::discard();
+        }
+
+        let g = TemporalGraphPart::default();
+
+        let rand_index = rand::thread_rng().gen_range(0..vs.len());
+        let rand_vertex = vs.get(rand_index).unwrap().0;
+
+        for (v, t) in vs {
+            g.add_vertex(v.into(), t.into(), &vec![]);
+        }
+
+        TestResult::from_bool(g.contains(rand_vertex))
+    }
+
+    #[test]
+    fn shard_contains_vertex_window() {
+        let vs = vec![
+            (1, 2, 1),
+            (1, 3, 2),
+            (2, 1, -1),
+            (1, 1, 0),
+            (3, 2, 7),
+            (1, 1, 1),
+        ];
+
+        let g = TemporalGraphPart::default();
+
+        for (src, dst, t) in &vs {
+            g.add_edge(*src, *dst, *t, &vec![]);
+        }
+
+        assert!(g.contains_window(1, -1, 7));
+        assert!(!g.contains_window(2, 0, 1));
+        assert!(g.contains_window(3, 0, 8));
+    }
+
+    #[quickcheck]
+    fn add_vertex_to_shard_len_grows(vs: Vec<(u8, u8)>) {
         let g = TemporalGraphPart::default();
 
         let expected_len = vs.iter().map(|(v, _)| v).sorted().dedup().count();
@@ -235,6 +275,27 @@ mod temporal_graph_partition_test {
         }
 
         assert_eq!(g.len(), expected_len)
+    }
+
+    #[test]
+    fn shard_vertices() {
+        let vs = vec![
+            (1, 2, 1),
+            (1, 3, 2),
+            (2, 1, -1),
+            (1, 1, 0),
+            (3, 2, 7),
+            (1, 1, 1),
+        ];
+
+        let g = TemporalGraphPart::default();
+
+        for (src, dst, t) in &vs {
+            g.add_edge(*src, *dst, *t, &vec![]);
+        }
+
+        let actual = g.vertices().collect::<Vec<_>>();
+        assert_eq!(actual, vec![1, 2, 3]);
     }
 
     // add one single vertex per interval
@@ -259,7 +320,38 @@ mod temporal_graph_partition_test {
     }
 
     #[test]
-    fn get_in_degree_window() {
+    fn get_shard_degree() {
+        let vs = vec![
+            (1, 2, 1),
+            (1, 3, 2),
+            (2, 1, -1),
+            (1, 1, 0),
+            (3, 2, 7),
+            (1, 1, 1),
+        ];
+
+        let g = TemporalGraphPart::default();
+
+        for (src, dst, t) in &vs {
+            g.add_edge(*src, *dst, *t, &vec![]);
+        }
+
+        let expected = vec![(2, 3, 3), (2, 1, 2), (1, 1, 2)];
+        let actual = (1..=3)
+            .map(|i| {
+                (
+                    g.degree(i, Direction::IN),
+                    g.degree(i, Direction::OUT),
+                    g.degree(i, Direction::BOTH),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn get_shard_degree_window() {
         let g = TemporalGraphPart::default();
 
         g.add_vertex(100, 1, &vec![]);
@@ -280,56 +372,132 @@ mod temporal_graph_partition_test {
         assert_eq!(g.degree_window(101, 0, 1, Direction::IN), 0);
         assert_eq!(g.degree_window(101, 10, 20, Direction::IN), 0);
         assert_eq!(g.degree_window(105, 0, i64::MAX, Direction::IN), 0);
-        assert_eq!(g.degree_window(104, 0, i64::MAX, Direction::IN), 2)
-    }
-
-    #[test]
-    fn get_out_degree_window() {
-        let g = TemporalGraphPart::default();
-
-        g.add_vertex(100, 1, &vec![]);
-        g.add_vertex(101, 2, &vec![]);
-        g.add_vertex(102, 3, &vec![]);
-        g.add_vertex(103, 4, &vec![]);
-        g.add_vertex(104, 5, &vec![]);
-        g.add_vertex(105, 5, &vec![]);
-
-        g.add_edge(100, 101, 6, &vec![]);
-        g.add_edge(100, 102, 7, &vec![]);
-        g.add_edge(101, 103, 8, &vec![]);
-        g.add_edge(102, 104, 9, &vec![]);
-        g.add_edge(110, 104, 9, &vec![]);
+        assert_eq!(g.degree_window(104, 0, i64::MAX, Direction::IN), 2);
 
         assert_eq!(g.degree_window(101, 0, i64::MAX, Direction::OUT), 1);
         assert_eq!(g.degree_window(103, 0, i64::MAX, Direction::OUT), 0);
         assert_eq!(g.degree_window(105, 0, i64::MAX, Direction::OUT), 0);
         assert_eq!(g.degree_window(101, 0, 1, Direction::OUT), 0);
         assert_eq!(g.degree_window(101, 10, 20, Direction::OUT), 0);
-        assert_eq!(g.degree_window(100, 0, i64::MAX, Direction::OUT), 2)
-    }
-
-    #[test]
-    fn get_degree_window() {
-        let g = TemporalGraphPart::default();
-
-        g.add_vertex(100, 1, &vec![]);
-        g.add_vertex(101, 2, &vec![]);
-        g.add_vertex(102, 3, &vec![]);
-        g.add_vertex(103, 4, &vec![]);
-        g.add_vertex(104, 5, &vec![]);
-        g.add_vertex(105, 5, &vec![]);
-
-        g.add_edge(100, 101, 6, &vec![]);
-        g.add_edge(100, 102, 7, &vec![]);
-        g.add_edge(100, 102, 8, &vec![]);
-        g.add_edge(101, 103, 8, &vec![]);
-        g.add_edge(102, 104, 9, &vec![]);
-        g.add_edge(110, 104, 9, &vec![]);
+        assert_eq!(g.degree_window(100, 0, i64::MAX, Direction::OUT), 2);
 
         assert_eq!(g.degree_window(101, 0, i64::MAX, Direction::BOTH), 2);
         assert_eq!(g.degree_window(100, 0, i64::MAX, Direction::BOTH), 2);
         assert_eq!(g.degree_window(100, 0, 1, Direction::BOTH), 0);
         assert_eq!(g.degree_window(100, 10, 20, Direction::BOTH), 0);
-        assert_eq!(g.degree_window(105, 0, i64::MAX, Direction::BOTH), 0)
+        assert_eq!(g.degree_window(105, 0, i64::MAX, Direction::BOTH), 0);
+    }
+
+    #[test]
+    fn get_shard_neighbours() {
+        let vs = vec![
+            (1, 2, 1),
+            (1, 3, 2),
+            (2, 1, -1),
+            (1, 1, 0),
+            (3, 2, 7),
+            (1, 1, 1),
+        ];
+
+        let g = TemporalGraphPart::default();
+
+        for (src, dst, t) in &vs {
+            g.add_edge(*src, *dst, *t, &vec![]);
+        }
+
+        let expected = vec![(2, 3, 5), (2, 1, 3), (1, 1, 2)];
+        let actual = (1..=3)
+            .map(|i| {
+                (
+                    g.neighbours(i, Direction::IN).collect::<Vec<_>>().len(),
+                    g.neighbours(i, Direction::OUT).collect::<Vec<_>>().len(),
+                    g.neighbours(i, Direction::BOTH).collect::<Vec<_>>().len(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn get_shard_neighbours_window() {
+        let vs = vec![
+            (1, 2, 1),
+            (1, 3, 2),
+            (2, 1, -1),
+            (1, 1, 0),
+            (3, 2, 7),
+            (1, 1, 1),
+        ];
+
+        let g = TemporalGraphPart::default();
+
+        for (src, dst, t) in &vs {
+            g.add_edge(*src, *dst, *t, &vec![]);
+        }
+
+        let expected = vec![(2, 3, 2), (1, 0, 0), (1, 0, 0)];
+        let actual = (1..=3)
+            .map(|i| {
+                (
+                    g.neighbours_window(i, -1, 7, Direction::IN)
+                        .collect::<Vec<_>>()
+                        .len(),
+                    g.neighbours_window(i, 1, 7, Direction::OUT)
+                        .collect::<Vec<_>>()
+                        .len(),
+                    g.neighbours_window(i, 0, 1, Direction::BOTH)
+                        .collect::<Vec<_>>()
+                        .len(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn get_shard_neighbours_window_t() {
+        let vs = vec![
+            (1, 2, 1),
+            (1, 3, 2),
+            (2, 1, -1),
+            (1, 1, 0),
+            (3, 2, 7),
+            (1, 1, 1),
+        ];
+
+        let g = TemporalGraphPart::default();
+
+        for (src, dst, t) in &vs {
+            g.add_edge(*src, *dst, *t, &vec![]);
+        }
+
+        let in_actual = (1..=3)
+            .map(|i| {
+                g.neighbours_window_t(i, -1, 7, Direction::IN)
+                    .map(|e| e.t.unwrap())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(vec![vec![-1, 0, 1], vec![1], vec![2]], in_actual);
+
+        let out_actual = (1..=3)
+            .map(|i| {
+                g.neighbours_window_t(i, 1, 7, Direction::OUT)
+                    .map(|e| e.t.unwrap())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(vec![vec![1, 1, 2], vec![], vec![]], out_actual);
+
+        let both_actual = (1..=3)
+            .map(|i| {
+                g.neighbours_window_t(i, 0, 1, Direction::BOTH)
+                    .map(|e| e.t.unwrap())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(vec![vec![0, 0], vec![], vec![]], both_actual);
     }
 }
