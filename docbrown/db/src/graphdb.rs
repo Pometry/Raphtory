@@ -329,12 +329,31 @@ mod db_tests {
 
         let g = GraphDB::new(2);
 
-        for (src, dst, t) in vs {
-            g.add_edge(src, dst, t, &vec![]);
+        for (src, dst, t) in &vs {
+            g.add_edge(*src, *dst, *t, &vec![]);
         }
 
         let expected = vec![(2, 3, 3), (2, 1, 2), (1, 1, 2)];
         let actual = (1..=3)
+            .map(|i| {
+                (
+                    g.degree(i, Direction::IN),
+                    g.degree(i, Direction::OUT),
+                    g.degree(i, Direction::BOTH),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, expected);
+
+        // Check results from multiple graphs with different number of shards
+        let g = GraphDB::new(1);
+
+        for (src, dst, t) in &vs {
+            g.add_edge(*src, *dst, *t, &vec![]);
+        }
+
+        let expected = (1..=3)
             .map(|i| {
                 (
                     g.degree(i, Direction::IN),
@@ -360,12 +379,31 @@ mod db_tests {
 
         let g = GraphDB::new(1);
 
-        for (src, dst, t) in vs {
-            g.add_edge(src, dst, t, &vec![]);
+        for (src, dst, t) in &vs {
+            g.add_edge(*src, *dst, *t, &vec![]);
         }
 
         let expected = vec![(2, 3, 1), (1, 0, 0), (1, 0, 0)];
         let actual = (1..=3)
+            .map(|i| {
+                (
+                    g.degree_window(i, -1, 7, Direction::IN),
+                    g.degree_window(i, 1, 7, Direction::OUT),
+                    g.degree_window(i, 0, 1, Direction::BOTH),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, expected);
+
+        // Check results from multiple graphs with different number of shards
+        let g = GraphDB::new(3);
+
+        for (src, dst, t) in &vs {
+            g.add_edge(*src, *dst, *t, &vec![]);
+        }
+
+        let expected = (1..=3)
             .map(|i| {
                 (
                     g.degree_window(i, -1, 7, Direction::IN),
@@ -391,11 +429,22 @@ mod db_tests {
 
         let g = GraphDB::new(1);
 
-        for (src, dst, t) in vs {
-            g.add_edge(src, dst, t, &vec![]);
+        for (src, dst, t) in &vs {
+            g.add_edge(*src, *dst, *t, &vec![]);
         }
 
-        assert_eq!(g.vertices().collect::<Vec<_>>(), vec![1, 2, 3]);
+        let actual = g.vertices().collect::<Vec<_>>();
+        assert_eq!(actual, vec![1, 2, 3]);
+
+        // Check results from multiple graphs with different number of shards
+        let g = GraphDB::new(10);
+
+        for (src, dst, t) in &vs {
+            g.add_edge(*src, *dst, *t, &vec![]);
+        }
+
+        let expected = g.vertices().collect::<Vec<_>>();
+        assert_eq!(actual, expected);
     }
 
     #[test]
@@ -411,12 +460,31 @@ mod db_tests {
 
         let g = GraphDB::new(12);
 
-        for (src, dst, t) in vs {
-            g.add_edge(src, dst, t, &vec![]);
+        for (src, dst, t) in &vs {
+            g.add_edge(*src, *dst, *t, &vec![]);
         }
 
         let expected = vec![(2, 3, 5), (2, 1, 3), (1, 1, 2)];
         let actual = (1..=3)
+            .map(|i| {
+                (
+                    g.neighbours(i, Direction::IN).collect::<Vec<_>>().len(),
+                    g.neighbours(i, Direction::OUT).collect::<Vec<_>>().len(),
+                    g.neighbours(i, Direction::BOTH).collect::<Vec<_>>().len(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, expected);
+
+        // Check results from multiple graphs with different number of shards
+        let g = GraphDB::new(1);
+
+        for (src, dst, t) in &vs {
+            g.add_edge(*src, *dst, *t, &vec![]);
+        }
+
+        let expected = (1..=3)
             .map(|i| {
                 (
                     g.neighbours(i, Direction::IN).collect::<Vec<_>>().len(),
@@ -442,12 +510,37 @@ mod db_tests {
 
         let g = GraphDB::new(1);
 
-        for (src, dst, t) in vs {
-            g.add_edge(src, dst, t, &vec![]);
+        for (src, dst, t) in &vs {
+            g.add_edge(*src, *dst, *t, &vec![]);
         }
 
         let expected = vec![(2, 3, 2), (1, 0, 0), (1, 0, 0)];
         let actual = (1..=3)
+            .map(|i| {
+                (
+                    g.neighbours_window(i, -1, 7, Direction::IN)
+                        .collect::<Vec<_>>()
+                        .len(),
+                    g.neighbours_window(i, 1, 7, Direction::OUT)
+                        .collect::<Vec<_>>()
+                        .len(),
+                    g.neighbours_window(i, 0, 1, Direction::BOTH)
+                        .collect::<Vec<_>>()
+                        .len(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, expected);
+
+        // Check results from multiple graphs with different number of shards
+        let g = GraphDB::new(10);
+
+        for (src, dst, t) in &vs {
+            g.add_edge(*src, *dst, *t, &vec![]);
+        }
+
+        let expected = (1..=3)
             .map(|i| {
                 (
                     g.neighbours_window(i, -1, 7, Direction::IN)
@@ -479,42 +572,79 @@ mod db_tests {
 
         let g = GraphDB::new(1);
 
-        for (src, dst, t) in vs {
-            g.add_edge(src, dst, t, &vec![]);
+        for (src, dst, t) in &vs {
+            g.add_edge(*src, *dst, *t, &vec![]);
         }
 
-        assert_eq!(
-            vec![vec![-1, 0, 1], vec![1], vec![2]],
-            (1..=3)
-                .map(|i| {
-                    g.neighbours_window_t(i, -1, 7, Direction::IN)
-                        .map(|e| e.t.unwrap())
-                        .collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>()
-        );
+        let in_actual = (1..=3)
+            .map(|i| {
+                g.neighbours_window_t(i, -1, 7, Direction::IN)
+                    .map(|e| e.t.unwrap())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(vec![vec![-1, 0, 1], vec![1], vec![2]], in_actual);
 
-        assert_eq!(
-            vec![vec![1, 1, 2], vec![], vec![]],
-            (1..=3)
-                .map(|i| {
-                    g.neighbours_window_t(i, 1, 7, Direction::OUT)
-                        .map(|e| e.t.unwrap())
-                        .collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>()
-        );
+        let out_actual = (1..=3)
+            .map(|i| {
+                g.neighbours_window_t(i, 1, 7, Direction::OUT)
+                    .map(|e| e.t.unwrap())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(vec![vec![1, 1, 2], vec![], vec![]], out_actual);
 
-        assert_eq!(
-            vec![vec![0, 0], vec![], vec![]],
-            (1..=3)
-                .map(|i| {
-                    g.neighbours_window_t(i, 0, 1, Direction::BOTH)
-                        .map(|e| e.t.unwrap())
-                        .collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>()
-        );
+        let both_actual = (1..=3)
+            .map(|i| {
+                g.neighbours_window_t(i, 0, 1, Direction::BOTH)
+                    .map(|e| e.t.unwrap())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(vec![vec![0, 0], vec![], vec![]], both_actual);
+
+        // Check results from multiple graphs with different number of shards
+        let g = GraphDB::new(4);
+
+        for (src, dst, t) in &vs {
+            g.add_edge(*src, *dst, *t, &vec![]);
+        }
+
+        let in_expected = (1..=3)
+            .map(|i| {
+                let mut e = g
+                    .neighbours_window_t(i, -1, 7, Direction::IN)
+                    .map(|e| e.t.unwrap())
+                    .collect::<Vec<_>>();
+                e.sort();
+                e
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(in_expected, in_actual);
+
+        let out_expected = (1..=3)
+            .map(|i| {
+                let mut e = g
+                    .neighbours_window_t(i, 1, 7, Direction::OUT)
+                    .map(|e| e.t.unwrap())
+                    .collect::<Vec<_>>();
+                e.sort();
+                e
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(out_expected, out_actual);
+
+        let both_expected = (1..=3)
+            .map(|i| {
+                let mut e = g
+                    .neighbours_window_t(i, 0, 1, Direction::BOTH)
+                    .map(|e| e.t.unwrap())
+                    .collect::<Vec<_>>();
+                e.sort();
+                e
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(both_expected, both_actual);
     }
 
     #[test]
