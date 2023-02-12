@@ -260,17 +260,18 @@ mod db_tests {
 
         let rand_dir = Uuid::new_v4();
         let tmp_docbrown_path = "/tmp/docbrown";
-        let path_to_save_shards = format!("{}/{}", tmp_docbrown_path, rand_dir);
+        let shards_path = format!("{}/{}", tmp_docbrown_path, rand_dir);
 
+        // Save to files
         let expected = vec![
-            format!("{}/shard_1", path_to_save_shards),
-            format!("{}/shard_0", path_to_save_shards),
-            format!("{}/graphdb_nr_shards", path_to_save_shards),
+            format!("{}/shard_1", shards_path),
+            format!("{}/shard_0", shards_path),
+            format!("{}/graphdb_nr_shards", shards_path),
         ];
 
-        match g.save_to_file(&path_to_save_shards) {
+        match g.save_to_file(&shards_path) {
             Ok(()) => {
-                let actual = fs::read_dir(&path_to_save_shards)
+                let actual = fs::read_dir(&shards_path)
                     .unwrap()
                     .map(|f| f.unwrap().path().display().to_string())
                     .collect::<Vec<_>>();
@@ -280,6 +281,16 @@ mod db_tests {
             Err(e) => panic!("{e}"),
         }
 
+        // Load from files
+        match GraphDB::load_from_file(Path::new(&shards_path)) {
+            Ok(g) => {
+                assert!(g.contains(1));
+                assert_eq!(g.nr_shards, 2);
+            }
+            Err(e) => panic!("{e}"),
+        }
+
+        // Delete all files
         fs::remove_dir_all(tmp_docbrown_path).unwrap();
     }
 
