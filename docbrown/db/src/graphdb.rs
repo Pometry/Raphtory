@@ -5,7 +5,6 @@ use docbrown_core::{
     utils, Direction, Prop,
 };
 
-use rand::Rng;
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 
@@ -180,7 +179,7 @@ mod db_tests {
     use docbrown_core::utils;
     use itertools::Itertools;
     use quickcheck::{quickcheck, TestResult};
-
+    use rand::Rng;
     use std::{path::PathBuf, sync::Arc};
 
     use super::*;
@@ -319,31 +318,204 @@ mod db_tests {
 
     #[test]
     fn graph_degree() {
+        let vs = vec![
+            (1, 2, 1),
+            (1, 3, 2),
+            (2, 1, -1),
+            (1, 1, 0),
+            (3, 2, 7),
+            (1, 1, 1),
+        ];
+
         let g = GraphDB::new(2);
-        // vec![(-1, 1), (0, 0), (0, 2)]
-        g.add_vertex(1, -1, &vec![]);
-        g.add_vertex(0, 0, &vec![]);
-        g.add_vertex(2, 0, &vec![]);
 
-        println!("1? = {}", g.contains_window(1, -1, 0));
+        for (src, dst, t) in vs {
+            g.add_edge(src, dst, t, &vec![]);
+        }
 
-        assert!(true);
+        let expected = vec![(2, 3, 3), (2, 1, 2), (1, 1, 2)];
+        let actual = (1..=3)
+            .map(|i| {
+                (
+                    g.degree(i, Direction::IN),
+                    g.degree(i, Direction::OUT),
+                    g.degree(i, Direction::BOTH),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, expected);
     }
 
     #[test]
-    fn graph_degree_window() {}
+    fn graph_degree_window() {
+        let vs = vec![
+            (1, 2, 1),
+            (1, 3, 2),
+            (2, 1, -1),
+            (1, 1, 0),
+            (3, 2, 7),
+            (1, 1, 1),
+        ];
+
+        let g = GraphDB::new(1);
+
+        for (src, dst, t) in vs {
+            g.add_edge(src, dst, t, &vec![]);
+        }
+
+        let expected = vec![(2, 3, 1), (1, 0, 0), (1, 0, 0)];
+        let actual = (1..=3)
+            .map(|i| {
+                (
+                    g.degree_window(i, -1, 7, Direction::IN),
+                    g.degree_window(i, 1, 7, Direction::OUT),
+                    g.degree_window(i, 0, 1, Direction::BOTH),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, expected);
+    }
 
     #[test]
-    fn graph_vertices() {}
+    fn graph_vertices() {
+        let vs = vec![
+            (1, 2, 1),
+            (1, 3, 2),
+            (2, 1, -1),
+            (1, 1, 0),
+            (3, 2, 7),
+            (1, 1, 1),
+        ];
+
+        let g = GraphDB::new(1);
+
+        for (src, dst, t) in vs {
+            g.add_edge(src, dst, t, &vec![]);
+        }
+
+        assert_eq!(g.vertices().collect::<Vec<_>>(), vec![1, 2, 3]);
+    }
 
     #[test]
-    fn graph_neighbours() {}
+    fn graph_neighbours() {
+        let vs = vec![
+            (1, 2, 1),
+            (1, 3, 2),
+            (2, 1, -1),
+            (1, 1, 0),
+            (3, 2, 7),
+            (1, 1, 1),
+        ];
+
+        let g = GraphDB::new(12);
+
+        for (src, dst, t) in vs {
+            g.add_edge(src, dst, t, &vec![]);
+        }
+
+        let expected = vec![(2, 3, 5), (2, 1, 3), (1, 1, 2)];
+        let actual = (1..=3)
+            .map(|i| {
+                (
+                    g.neighbours(i, Direction::IN).collect::<Vec<_>>().len(),
+                    g.neighbours(i, Direction::OUT).collect::<Vec<_>>().len(),
+                    g.neighbours(i, Direction::BOTH).collect::<Vec<_>>().len(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, expected);
+    }
 
     #[test]
-    fn graph_neighbours_window() {}
+    fn graph_neighbours_window() {
+        let vs = vec![
+            (1, 2, 1),
+            (1, 3, 2),
+            (2, 1, -1),
+            (1, 1, 0),
+            (3, 2, 7),
+            (1, 1, 1),
+        ];
+
+        let g = GraphDB::new(1);
+
+        for (src, dst, t) in vs {
+            g.add_edge(src, dst, t, &vec![]);
+        }
+
+        let expected = vec![(2, 3, 2), (1, 0, 0), (1, 0, 0)];
+        let actual = (1..=3)
+            .map(|i| {
+                (
+                    g.neighbours_window(i, -1, 7, Direction::IN)
+                        .collect::<Vec<_>>()
+                        .len(),
+                    g.neighbours_window(i, 1, 7, Direction::OUT)
+                        .collect::<Vec<_>>()
+                        .len(),
+                    g.neighbours_window(i, 0, 1, Direction::BOTH)
+                        .collect::<Vec<_>>()
+                        .len(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(actual, expected);
+    }
 
     #[test]
-    fn graph_neighbours_window_t() {}
+    fn graph_neighbours_window_t() {
+        let vs = vec![
+            (1, 2, 1),
+            (1, 3, 2),
+            (2, 1, -1),
+            (1, 1, 0),
+            (3, 2, 7),
+            (1, 1, 1),
+        ];
+
+        let g = GraphDB::new(1);
+
+        for (src, dst, t) in vs {
+            g.add_edge(src, dst, t, &vec![]);
+        }
+
+        assert_eq!(
+            vec![vec![-1, 0, 1], vec![1], vec![2]],
+            (1..=3)
+                .map(|i| {
+                    g.neighbours_window_t(i, -1, 7, Direction::IN)
+                        .map(|e| e.t.unwrap())
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>()
+        );
+
+        assert_eq!(
+            vec![vec![1, 1, 2], vec![], vec![]],
+            (1..=3)
+                .map(|i| {
+                    g.neighbours_window_t(i, 1, 7, Direction::OUT)
+                        .map(|e| e.t.unwrap())
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>()
+        );
+
+        assert_eq!(
+            vec![vec![0, 0], vec![], vec![]],
+            (1..=3)
+                .map(|i| {
+                    g.neighbours_window_t(i, 0, 1, Direction::BOTH)
+                        .map(|e| e.t.unwrap())
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>()
+        );
+    }
 
     #[test]
     fn db_lotr() {
