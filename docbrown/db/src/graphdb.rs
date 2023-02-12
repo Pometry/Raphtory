@@ -180,7 +180,9 @@ mod db_tests {
     use itertools::Itertools;
     use quickcheck::{quickcheck, TestResult};
     use rand::Rng;
+    use std::fs;
     use std::{path::PathBuf, sync::Arc};
+    use uuid::Uuid;
 
     use super::*;
 
@@ -240,10 +242,46 @@ mod db_tests {
     }
 
     #[test]
-    fn save_to_file() {}
+    fn graph_save_to_load_from_file() {
+        let vs = vec![
+            (1, 2, 1),
+            (1, 3, 2),
+            (2, 1, -1),
+            (1, 1, 0),
+            (3, 2, 7),
+            (1, 1, 1),
+        ];
 
-    #[test]
-    fn load_from_file() {}
+        let g = GraphDB::new(2);
+
+        for (src, dst, t) in &vs {
+            g.add_edge(*src, *dst, *t, &vec![]);
+        }
+
+        let rand_dir = Uuid::new_v4();
+        let tmp_docbrown_path = "/tmp/docbrown";
+        let path_to_save_shards = format!("{}/{}", tmp_docbrown_path, rand_dir);
+
+        let expected = vec![
+            format!("{}/shard_1", path_to_save_shards),
+            format!("{}/shard_0", path_to_save_shards),
+            format!("{}/graphdb_nr_shards", path_to_save_shards),
+        ];
+
+        match g.save_to_file(&path_to_save_shards) {
+            Ok(()) => {
+                let actual = fs::read_dir(&path_to_save_shards)
+                    .unwrap()
+                    .map(|f| f.unwrap().path().display().to_string())
+                    .collect::<Vec<_>>();
+
+                assert_eq!(actual, expected);
+            }
+            Err(e) => panic!("{e}"),
+        }
+
+        fs::remove_dir_all(tmp_docbrown_path).unwrap();
+    }
 
     #[quickcheck]
     fn graph_contains_vertex(vs: Vec<(u64, i64)>) -> TestResult {
