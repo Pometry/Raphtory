@@ -15,7 +15,7 @@ pub struct TEdge {
     src: u64,
     dst: u64,
     // edge_meta_id: AdjEdge,
-    t: Option<i64>,
+    pub t: Option<i64>,
     is_remote: bool,
 }
 
