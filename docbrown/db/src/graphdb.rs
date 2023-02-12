@@ -263,18 +263,22 @@ mod db_tests {
         let shards_path = format!("{}/{}", tmp_docbrown_path, rand_dir);
 
         // Save to files
-        let expected = vec![
+        let mut expected = vec![
             format!("{}/shard_1", shards_path),
             format!("{}/shard_0", shards_path),
             format!("{}/graphdb_nr_shards", shards_path),
         ];
 
+        expected.sort();
+
         match g.save_to_file(&shards_path) {
             Ok(()) => {
-                let actual = fs::read_dir(&shards_path)
+                let mut actual = fs::read_dir(&shards_path)
                     .unwrap()
                     .map(|f| f.unwrap().path().display().to_string())
                     .collect::<Vec<_>>();
+
+                actual.sort();
 
                 assert_eq!(actual, expected);
             }
