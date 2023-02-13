@@ -55,7 +55,7 @@ test = [
     "nbmake>=1.3.5,<2",
     "matplotlib"
 ]
-distributed = ["pemja>=0.2.6,<0.3",]
+distributed = ["pemja>=0.3,<0.4",]
 docs = [
     "myst-parser",
     "sphinx-rtd-theme",
