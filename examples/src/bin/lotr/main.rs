@@ -1,10 +1,7 @@
 use docbrown_core::{Direction, Prop};
 use docbrown_db::{graphdb::GraphDB, loaders::csv::CsvLoader};
+use docbrown_core::utils;
 use serde::Deserialize;
-use std::{
-    collections::hash_map::DefaultHasher,
-    hash::{Hash, Hasher},
-};
 use std::{env, path::Path, time::Instant};
 
 #[derive(Deserialize, std::fmt::Debug)]
@@ -12,12 +9,6 @@ pub struct Lotr {
     src_id: String,
     dst_id: String,
     time: i64,
-}
-
-fn calculate_hash<T: Hash>(t: &T) -> u64 {
-    let mut s = DefaultHasher::new();
-    t.hash(&mut s);
-    s.finish()
 }
 
 fn main() {
@@ -57,8 +48,8 @@ fn main() {
 
         let _ = CsvLoader::new(data_dir)
             .load_into_graph(&g, |lotr: Lotr, g: &GraphDB| {
-                let src_id = calculate_hash(&lotr.src_id);
-                let dst_id = calculate_hash(&lotr.dst_id);
+                let src_id = utils::calculate_hash(&lotr.src_id);
+                let dst_id = utils::calculate_hash(&lotr.dst_id);
                 let time = lotr.time;
 
                 g.add_vertex(
@@ -97,7 +88,7 @@ fn main() {
         g
     };
 
-    let gandalf = calculate_hash(&"Gandalf");
+    let gandalf = utils::calculate_hash(&"Gandalf");
     println!("Gandalf exists = {}", graph.contains(gandalf));
 
     println!("Gandalf's windowed outbound neighbours");
@@ -123,4 +114,9 @@ fn main() {
         "{} has {} windowed in-degree, {} windowed out-degree and {} total degree",
         gandalf, in_degree, out_degree, degree
     );
+
+    println!("Print all vertices!");
+    for v in graph.vertices() {
+        println!("{v}")
+    }
 }
