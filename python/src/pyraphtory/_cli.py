@@ -1,4 +1,6 @@
-from pyraphtory._config import jars, java, java_args, get_local_lib
+from pyraphtory._config import jars, java, java_args, get_local_lib, jre
+import os
+import sys
 from pyraphtory import __version__
 import subprocess
 import sys
@@ -37,6 +39,11 @@ def query():
         subprocess.run([java, java_args, "-cp", jars, "com.raphtory.service.Query"])
     else:
         subprocess.run([java, "-cp", jars, "com.raphtory.service.Query"])
+
+
+def install_distributed():
+    os.environ["JAVA_HOME"] = str(jre)
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'pemja'])
 
 
 def classpath():
