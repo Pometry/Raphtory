@@ -140,6 +140,21 @@ impl GraphDB {
         Box::new(iter)
     }
 
+    pub fn vertices_window(
+        &self, 
+        t_start: i64, 
+        t_end: i64,
+        chunk_size: usize,
+    ) -> Box<dyn Iterator<Item = Vec<usize>>+ '_> {
+
+        Box::new(
+            self.shards
+                .iter()
+                .flat_map(move |shard| shard.vertices_window(t_start, t_end, chunk_size))
+
+        )
+    }
+
     pub fn neighbours_window(
         &self,
         v: u64,
