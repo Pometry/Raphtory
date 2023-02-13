@@ -1,4 +1,6 @@
-from pyraphtory._config import jars, java, java_args, get_local_lib
+from pyraphtory._config import jars, java, java_args, get_local_lib, jre
+import os
+import sys
 from pyraphtory import __version__
 import subprocess
 import sys
