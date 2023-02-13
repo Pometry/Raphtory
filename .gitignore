@@ -8,3 +8,4 @@ massif.*
 **/.env/
 *.html
 **/data/*
+.vscode
