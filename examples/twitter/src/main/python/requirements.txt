@@ -29,7 +29,7 @@ ghp-import==2.0.2
 idna==3.3
 importlib-metadata==4.10.1
 ipykernel==6.7.0
-ipython==8.0.1
+ipython==8.10.0
 ipython-genutils==0.2.0
 ipywidgets==7.6.5
 jedi==0.18.1
