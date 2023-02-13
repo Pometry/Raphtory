@@ -45,7 +45,6 @@ raphtory-clustermanager = "pyraphtory._cli:clustermanager"
 raphtory-ingestion = "pyraphtory._cli:ingestion"
 raphtory-partition = "pyraphtory._cli:partition"
 raphtory-query = "pyraphtory._cli:query"
-raphtory-install-distributed = "pyraphtory._cli:install_distributed"
 raphtory-classpath = "pyraphtory._cli:classpath"
 raphtory-include = "pyraphtory._cli:include"
 raphtory-version = "pyraphtory._cli:version"
@@ -56,7 +55,7 @@ test = [
     "nbmake>=1.3.5,<2",
     "matplotlib"
 ]
-distributed = ["pemja>=0.2.6,<0.3",]
+distributed = ["pemja>=0.3,<0.4",]
 docs = [
     "myst-parser",
     "sphinx-rtd-theme",

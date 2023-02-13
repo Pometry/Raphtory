@@ -41,11 +41,6 @@ def query():
         subprocess.run([java, "-cp", jars, "com.raphtory.service.Query"])
 
 
-def install_distributed():
-    os.environ["JAVA_HOME"] = str(jre)
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'pemja'])
-
-
 def classpath():
     sys.stdout.write(jars)
 
