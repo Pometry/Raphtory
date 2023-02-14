@@ -749,16 +749,16 @@ mod db_tests {
             vec![vec![2, 3], vec![4, 5]],
         );       
 
-        let g = GraphDB::new(4);
+        let g = GraphDB::new(3);
 
         for (src, dst, t) in &vs {
             g.add_edge(*src, *dst, *t, &vec![]);
         }
         // Test 1: All of time 
-         assert_eq!(
+        assert_eq!(
             g.vertices_window(i64::MIN, 8, 8).collect::<Vec<Vec<usize>>>(),
             vec![vec![0, 1], vec![0, 1, 2], vec![0, 1]],
-         );
+        );
         // Test 2: Time 1, chunk_size 1
         assert_eq!(
             g.vertices_window(i64::MIN, 2, 1).collect::<Vec<Vec<usize>>>(),
@@ -772,7 +772,7 @@ mod db_tests {
         // Test 4: Time 3-5, chunk_size 2 
         assert_eq!(
             g.vertices_window(3, 6, 2).collect::<Vec<Vec<usize>>>(),
-            vec![vec![0,1 ], vec![1], vec![1]],
+            vec![vec![0, 1], vec![1], vec![1]],
         );        
     }
 
