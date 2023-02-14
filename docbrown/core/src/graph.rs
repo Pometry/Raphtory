@@ -15,6 +15,7 @@ use crate::{bitset::BitSet, tadjset::AdjEdge, Direction};
 pub struct TemporalGraph {
     // Maps global (logical) id to the local (physical) id which is an index to the adjacency list vector
     logical_to_physical: HashMap<u64, usize>,
+    physical_to_logical: HashMap<usize, u64>,
 
     // Vector of adjacency lists
     pub(crate) adj_lists: Vec<Adj>,
@@ -30,6 +31,7 @@ impl Default for TemporalGraph {
     fn default() -> Self {
         Self {
             logical_to_physical: Default::default(),
+            physical_to_logical: Default::default(),
             adj_lists: Default::default(),
             index: Default::default(),
             props: Default::default(),
@@ -73,6 +75,8 @@ impl TemporalGraph {
                 self.adj_lists.push(Adj::Solo(v));
 
                 self.logical_to_physical.insert(v, physical_id);
+                self.physical_to_logical.insert(physical_id, v);
+
                 self.index
                     .entry(t)
                     .and_modify(|set| {
@@ -236,13 +240,14 @@ impl TemporalGraph {
         )
     }
 
-    pub(crate) fn vertices_window(&self, r: Range<i64>) -> Box<dyn Iterator<Item = usize> + '_> {
+    pub(crate) fn vertices_window(&self, r: Range<i64>) -> Box<dyn Iterator<Item = u64> + '_> {
         Box::new(
             self.index
                 .range(r.clone())
                 .map(|(_, vs)| vs.iter())
                 .kmerge()
-                .dedup(),
+                .dedup()
+                .map(|f| *self.physical_to_logical.get(&f).unwrap()),
         )
     }
 
