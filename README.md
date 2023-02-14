@@ -82,8 +82,30 @@ To run tests in Doc Brown, go back into your root folder and run this command:
 cargo test
 ```
 
-## How to contribute
+# Community  
+Join the growing community of open-source enthusiasts using Raphtory to power their graph analysis projects!
+
+- Follow [![Slack](https://img.shields.io/twitter/follow/raphtory?label=@raphtory)](https://twitter.com/raphtory) for the latest Raphtory news and development
+
+- Join our [![Slack](https://img.shields.io/badge/community-Slack-red)](https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA) to chat with us and get answers to your questions!
+
+
+#### Articles and Talks about Raphtory
+- **[Raphtory on the Alan Turing Institute Blog](https://www.turing.ac.uk/blog/just-add-time-dizzying-potential-dynamic-graphs)**
+- **[Talk on Raphtory at AI UK 2022](https://www.youtube.com/watch?v=7S9Ymnih-YM&list=PLuD_SqLtxSdVEUsCYlb5XjWm9D6WuNKEz&index=9)**
+- **[Talk on Raphtory at KGC 2022](https://www.youtube.com/watch?v=37S4bSN5EaU)**
+- **[Talk on Raphtory at NetSciX 2022](https://www.youtube.com/watch?v=QxhrONca4FE)**
+
+
+# Contributors
+
+<a href="https://github.com/raphtory/docbrown/graphs/contributors"><img src="https://contrib.rocks/image?repo=raphtory/docbrown"/></a>
 
 Since Doc Brown is still a prototype, we are open to any contributions. If you find any issues or would like to work on some issues yourself, visit the [issues](https://github.com/Raphtory/docbrown/issues) page. Join our [Slack](https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA) if you're having any issues or would like to find out more about how you can get stuck in with Raphtory.
+
+# License  
+
+Raphtory is licensed under the terms of the Apache License (check out our LICENSE file).
+
 
 
