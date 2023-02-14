@@ -82,6 +82,40 @@ To run tests in Doc Brown, go back into your root folder and run this command:
 cargo test
 ```
 
+## Code Example
+```rust
+// Create your GraphDB object and state the number of shards you would like, here we have 2
+let graph = GraphDB::new(2);
+
+// Add vertex and edges to your graph with the respective properties
+graph.add_vertex(
+  src_id,
+  time,
+  &vec![("name".to_string(), Prop::Str("Character".to_string()))],
+);
+
+graph.add_vertex(
+  src_id,
+  time,
+  &vec![("name".to_string(), Prop::Str("Character".to_string()))],
+);
+
+graph.add_edge(
+  src_id,
+  dst_id,
+  time,
+  &vec![(
+      "name".to_string(),
+      Prop::Str("Character Co-occurrence".to_string()),
+  )],
+);
+
+// Get the in-degree, out-degree and degree of a particular vertex- here we have Gandalf
+let in_degree = graph.degree_window(gandalf, 0, i64::MAX, Direction::IN);
+let out_degree = graph.degree_window(gandalf, 0, i64::MAX, Direction::OUT);
+let degree = graph.degree_window(gandalf, 0, i64::MAX, Direction::BOTH);
+```
+
 # Community  
 Join the growing community of open-source enthusiasts using Raphtory to power their graph analysis projects!
 
