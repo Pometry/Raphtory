@@ -26,6 +26,8 @@ Below is a diagram of how Doc Brown works:
 <img src="https://user-images.githubusercontent.com/25484244/218711926-944092df-5015-4c7e-8162-34ee044999f4.svg" height=500 alt="Raphtory-DocBrown-Diagram"/>
 </p>
 
+GraphDB has 4 shards (or partitions) labelled as S1, S2, S3, S4. Shards contain a piece of a graph. Altogether they make up the entire temporal graph, hence the name "TemporalGraphPart" for each shard.
+
 # Running Doc Brown 👨🏼‍🔬
 The API's are currently in..._Flux_
 
