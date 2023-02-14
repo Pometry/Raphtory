@@ -3,6 +3,15 @@
 <img src="https://user-images.githubusercontent.com/25484244/218704919-2c725e79-86ee-408d-b1f8-1362d086f876.png" alt="Raphtory"/>
 </p>
 <br>
+
+<p align="center">
+<a href="https://github.com/Raphtory/docbrown/actions/workflows/build.yml/badge.svg">
+<img alt="Test and Build" src="https://github.com/Raphtory/docbrown/actions/workflows/build.yml/badge.svg" />
+</a>
+<a href="https://github.com/Raphtory/docbrown/issues">
+<img alt="Issues" src="https://img.shields.io/github/issues/Raphtory/Raphtory?color=brightgreen" />
+</a>
+</p>
 <p align="center">
 <a href="https://www.raphtory.com">🌍 Website </a>
 &nbsp 
