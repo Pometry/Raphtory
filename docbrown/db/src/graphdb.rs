@@ -713,7 +713,7 @@ mod db_tests {
         assert_eq!(both_expected, both_actual);
     }
 
-    #[quickcheck]
+    #[test]
     fn vertices_window_test()  {
         // make 4 graphs with different num of partitions
         let graph_one = GraphDB::new(1);
