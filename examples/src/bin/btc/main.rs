@@ -8,6 +8,7 @@ use std::{env, thread};
 use chrono::{DateTime, Utc};
 use docbrown_core::graph::TemporalGraph;
 use docbrown_core::{Direction, Prop};
+use docbrown_core::utils;
 use docbrown_db::loaders::csv::CsvLoader;
 use regex::Regex;
 use serde::Deserialize;
@@ -16,10 +17,6 @@ use std::io::{prelude::*, BufReader, LineWriter};
 use std::time::Instant;
 
 use docbrown_db::graphdb::GraphDB;
-use std::{
-    collections::hash_map::DefaultHasher,
-    hash::{Hash, Hasher},
-};
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Sent {
@@ -41,12 +38,6 @@ pub struct Received {
     _time: DateTime<Utc>,
 }
 
-fn calculate_hash<T: Hash>(t: &T) -> u64 {
-    let mut s = DefaultHasher::new();
-    t.hash(&mut s);
-    s.finish()
-}
-
 fn main() {
     let args: Vec<String> = env::args().collect();
 
@@ -62,7 +53,7 @@ fn main() {
         panic!("Missing data dir = {}", data_dir.to_str().unwrap())
     }
 
-    let test_v = calculate_hash(&"139eeGkMGR6F9EuJQ3qYoXebfkBbNAsLtV:btc");
+    let test_v = utils::calculate_hash(&"139eeGkMGR6F9EuJQ3qYoXebfkBbNAsLtV:btc");
 
     // If data_dir/graphdb.bincode exists, use bincode to load the graph from binary encoded data files
     // otherwise load the graph from csv data files
@@ -90,8 +81,8 @@ fn main() {
         let _ = CsvLoader::new(data_dir)
             .with_filter(Regex::new(r".+(sent|received)").unwrap())
             .load_into_graph(&g, |sent: Sent, g: &GraphDB| {
-                let src = calculate_hash(&sent.addr);
-                let dst = calculate_hash(&sent.txn);
+                let src = utils::calculate_hash(&sent.addr);
+                let dst = utils::calculate_hash(&sent.txn);
                 let time = sent.time.timestamp();
 
                 if src == test_v || dst == test_v {
