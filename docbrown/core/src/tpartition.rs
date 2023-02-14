@@ -127,7 +127,7 @@ impl TemporalGraphPart {
         t_start: i64,
         t_end: i64,
         chunk_size: usize,
-    ) -> impl Iterator<Item = Vec<usize>> {
+    ) -> impl Iterator<Item = Vec<u64>> {
         let tg = self.clone();
         let vertices_iter = gen!({
             let g = tg.0.read();
