@@ -41,8 +41,10 @@ Clone the Doc Brown Repository and find the examples directory where you can fin
 
 Run the main function in `main.rs` which creates a graph from the LOTR csv file, showing the different character interactions throughout the book. You should see output that looks something like this with information about the edges and vertices below: 
 
+```
 Loaded graph from encoded data files ./examples/src/bin/lotr/data/graphdb.bincode with 139 vertices, 701 edges which took 0 seconds
 Gandalf exists = true
+```
 
 You have run your first Raphtory graph in Rust!
 
