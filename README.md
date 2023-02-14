@@ -14,7 +14,7 @@
 </p>
 <br>
 
-# What is Doc Brown?
+# What is Doc Brown? 🥼
 
 Doc Brown is the Rust prototype for the next version of [Raphtory](https://github.com/Raphtory/Raphtory), rethinking several aspects of the underlying graph model and algorithm API. 
 
@@ -26,27 +26,50 @@ Below is a diagram of how Doc Brown works:
 <img src="https://user-images.githubusercontent.com/25484244/218711926-944092df-5015-4c7e-8162-34ee044999f4.svg" height=500 alt="Raphtory-DocBrown-Diagram"/>
 </p>
 
-# Running Doc Brown
+# Running Doc Brown 👨🏼‍🔬
 The API's are currently in..._Flux_
 
 ![image](https://user-images.githubusercontent.com/6665739/214092170-9bf7557c-4b2d-4ec8-baac-911b7ec9fab5.png)
 
-Here is a quick start guide if you would like to test out the Raphtory Rust prototype.
+However, here is a quick start guide if you would like to test out the Raphtory Rust prototype.
 
-## Running the Rust LOTR example
+## Running the LOTR example 🧙🏻‍♂️
 
-Make sure you have Rust installed on your OS. Here is a guide to install [Rust](https://doc.rust-lang.org/stable/book/ch01-01-installation.html).
+### Prerequisites
 
+Make sure you have Rust installed on your OS. Here is a guide to install [Rust](https://doc.rust-lang.org/stable/book/ch01-01-installation.html). 
+
+### 1. Set up Doc Brown 
 Clone the Doc Brown Repository and find the examples directory where you can find the Lord of the Rings Example. Create a folder named "Data" under `examples/lotr` and download the LOTR CSV data into this folder. You can download the raw csv [here](https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv).
 
-Run the main function in `main.rs` which creates a graph from the LOTR csv file, showing the different character interactions throughout the book. You should see output that looks something like this with information about the edges and vertices below: 
+### 2. Run Doc Brown
+
+Build Doc Brown by running this command to make sure it compiles and builds:
+```
+cargo build
+```
+Next run the main function in `main.rs` which creates a graph from the LOTR csv file, showing the different character interactions throughout the book. To do this, you will need to be in the `lotr` folder, the file path to this from root is `./examples/src/bin/lotr`. Once you are here run this command to run the LOTR example:
+
+```
+cargo run --bin lotr
+```
+
+You should see output that looks something like this with information about the edges and vertices below: 
 
 ```
 Loaded graph from encoded data files ./examples/src/bin/lotr/data/graphdb.bincode with 139 vertices, 701 edges which took 0 seconds
+
 Gandalf exists = true
 ```
 
-You have run your first Raphtory graph in Rust!
+Congratulations, you have run your first Raphtory graph in Rust!
+
+### 3. Running Tests
+
+To run tests in Doc Brown, go back into your root folder and run this command:
+```
+cargo test
+```
 
 ## How to contribute
 
