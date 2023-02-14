@@ -146,12 +146,10 @@ impl GraphDB {
         t_end: i64,
         chunk_size: usize,
     ) -> Box<dyn Iterator<Item = Vec<usize>>+ '_> {
-
         Box::new(
             self.shards
                 .iter()
                 .flat_map(move |shard| shard.vertices_window(t_start, t_end, chunk_size))
-
         )
     }
 
@@ -240,6 +238,56 @@ mod db_tests {
         }
 
         assert_eq!(g.len(), expected_len)
+    }
+
+    #[quickcheck]
+    fn vertices_window_test()  {
+        // make 4 graphs with different num of partitions
+        let graph_one = GraphDB::new(1);
+        let graph_three = GraphDB::new(3);
+        // add nodes to each graph
+        for gx in [&graph_one, &graph_three] {
+            gx.add_edge(1, 2, 1, &Vec::new());
+            gx.add_edge(3, 4, 3, &Vec::new());
+            gx.add_edge(5, 6, 5, &Vec::new());
+            gx.add_edge(7, 1, 7, &Vec::new());
+        }
+        // Test 1: All of time 
+         assert_eq!(
+            graph_one.vertices_window(i64::MIN, 8, 8).collect::<Vec<Vec<usize>>>(),
+            vec![vec![0, 1, 2, 3, 4, 5, 6]],
+         );
+         assert_eq!(
+            graph_three.vertices_window(i64::MIN, 8, 8).collect::<Vec<Vec<usize>>>(),
+            vec![vec![0, 1], vec![0, 1, 2], vec![0, 1]],
+         );
+        // Test 2: Time 1, chunk_size 1
+        assert_eq!(
+            graph_one.vertices_window(i64::MIN, 2, 1).collect::<Vec<Vec<usize>>>(),
+            vec![vec![0], vec![1]],
+        );
+        assert_eq!(
+            graph_three.vertices_window(i64::MIN, 2, 1).collect::<Vec<Vec<usize>>>(),
+            vec![vec![0], vec![0]],
+        );
+        // Test 3: Time 1-3, chunk_size 4
+        assert_eq!(
+            graph_one.vertices_window(i64::MIN, 4, 4).collect::<Vec<Vec<usize>>>(), 
+            vec![vec![0, 1, 2, 3]],
+        );
+        assert_eq!(
+            graph_three.vertices_window(i64::MIN, 4, 4).collect::<Vec<Vec<usize>>>(), 
+            vec![vec![0],vec![0, 1],vec![0]],
+        );
+        // Test 4: Time 3-5, chunk_size 2 
+        assert_eq!(
+            graph_one.vertices_window(3, 6, 2).collect::<Vec<Vec<usize>>>(),
+            vec![vec![2, 3], vec![4, 5]],
+        );        
+        assert_eq!(
+            graph_three.vertices_window(3, 6, 2).collect::<Vec<Vec<usize>>>(),
+            vec![vec![0,1 ], vec![1], vec![1]],
+        );        
     }
 
     #[test]
