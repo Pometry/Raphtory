@@ -1,10 +1,11 @@
 use std::path::{Path, PathBuf};
 
 use docbrown_core::{
-    tpartition::{TEdge, TemporalGraphPart},
+    tpartition::{TEdge, TVertex, TemporalGraphPart},
     utils, Direction, Prop,
 };
 
+use itertools::Itertools;
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 
@@ -142,6 +143,20 @@ impl GraphDB {
         let iter = self.shards[shard_id].neighbours(v, d);
 
         Box::new(iter)
+    }
+
+    pub fn vertices_window(
+        &self,
+        t_start: i64,
+        t_end: i64,
+    ) -> Box<dyn Iterator<Item = TVertex> + '_> {
+        Box::new(
+            self.shards
+                .iter()
+                .map(move |shard| shard.vertices_window(t_start, t_end))
+                .into_iter()
+                .flatten(),
+        )
     }
 
     pub fn neighbours_window(
@@ -698,6 +713,55 @@ mod db_tests {
             })
             .collect::<Vec<_>>();
         assert_eq!(both_expected, both_actual);
+    }
+
+    #[test]
+    fn vertices_window() {
+        let vs = vec![(1, 2, 1), (3, 4, 3), (5, 6, 5), (7, 1, 7)];
+
+        let args = vec![(i64::MIN, 8), (i64::MIN, 2), (i64::MIN, 4), (3, 6)];
+
+        let expected = vec![
+            vec![1, 2, 3, 4, 5, 6, 7],
+            vec![1, 2],
+            vec![1, 2, 3, 4],
+            vec![3, 4, 5, 6],
+        ];
+
+        let g = GraphDB::new(1);
+
+        for (src, dst, t) in &vs {
+            g.add_edge(*src, *dst, *t, &vec![]);
+        }
+
+        let res: Vec<_> = (0..=3)
+            .map(|i| {
+                let mut e = g
+                    .vertices_window(args[i].0, args[i].1)
+                    .map(move |v| v.g_id)
+                    .collect::<Vec<_>>();
+                e.sort();
+                e
+            })
+            .collect_vec();
+
+        assert_eq!(res, expected);
+
+        let g = GraphDB::new(3);
+        for (src, dst, t) in &vs {
+            g.add_edge(*src, *dst, *t, &vec![]);
+        }
+        let res: Vec<_> = (0..=3)
+            .map(|i| {
+                let mut e = g
+                    .vertices_window(args[i].0, args[i].1)
+                    .map(move |v| v.g_id)
+                    .collect::<Vec<_>>();
+                e.sort();
+                e
+            })
+            .collect_vec();
+        assert_eq!(res, expected);
     }
 
     #[test]
