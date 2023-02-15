@@ -5,6 +5,7 @@ use docbrown_core::{
     utils, Direction, Prop,
 };
 
+use itertools::Itertools;
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 
@@ -148,12 +149,12 @@ impl GraphDB {
         &self, 
         t_start: i64, 
         t_end: i64,
-        chunk_size: usize,
-    ) -> Box<dyn Iterator<Item = Vec<u64>> + '_> {
+    ) -> Box<dyn Iterator<Item = u64> + '_>{
         Box::new(self.shards
             .iter()
-            .map(move |shard| shard.vertices_window(t_start, t_end, chunk_size))
+            .map(move |shard| shard.vertices_window(t_start, t_end))
             .flatten()
+            .sorted()
         )
     }
 
@@ -730,20 +731,20 @@ mod db_tests {
         }
         // Test 1: All of time 
         assert_eq!(
-            g.vertices_window(i64::MIN, 8, 8).collect::<Vec<Vec<u64>>>(),
-            vec![vec![1, 2, 3, 4, 5, 6, 7]],
+            g.vertices_window(i64::MIN, 8, 8).collect::<Vec<u64>>(),
+            vec![1, 2, 3, 4, 5, 6, 7],
          );
          assert_eq!(
-            g.vertices_window(i64::MIN, 2, 1).collect::<Vec<Vec<u64>>>(),
-            vec![vec![1], vec![2]],
+            g.vertices_window(i64::MIN, 2, 1).collect::<Vec<u64>>(),
+            vec![1, 2],
         );
         assert_eq!(
-            g.vertices_window(i64::MIN, 4, 4).collect::<Vec<Vec<u64>>>(), 
-            vec![vec![1, 2, 3, 4]],
+            g.vertices_window(i64::MIN, 4, 4).collect::<Vec<u64>>(), 
+            vec![1, 2, 3, 4],
         );
         assert_eq!(
-            g.vertices_window(3, 6, 2).collect::<Vec<Vec<u64>>>(),
-            vec![vec![3, 4], vec![5, 6]],
+            g.vertices_window(3, 6, 2).collect::<Vec<u64>>(),
+            vec![3, 4, 5, 6],
         );       
 
         let g = GraphDB::new(3);
