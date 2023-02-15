@@ -1,12 +1,13 @@
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use std::ops::Range;
 use std::path::Path;
 use std::sync::Arc;
 
 use genawaiter::rc::gen;
 use genawaiter::yield_;
 
-use crate::graph::{EdgeView, TemporalGraph};
+use crate::graph::{EdgeView, TemporalGraph, VertexView};
 use crate::{Direction, Prop};
 use itertools::*;
 
@@ -26,6 +27,21 @@ impl<'a> From<EdgeView<'a, TemporalGraph>> for TEdge {
             dst: e.global_dst(),
             t: e.time(),
             is_remote: e.is_remote(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct TVertex {
+    pub g_id: u64,
+    pub w: Option<Range<i64>>,
+}
+
+impl<'a> From<VertexView<'a, TemporalGraph>> for TVertex {
+    fn from(v: VertexView<'a, TemporalGraph>) -> Self {
+        Self {
+            g_id: v.global_id(),
+            w: v.window(),
         }
     }
 }
@@ -122,22 +138,15 @@ impl TemporalGraphPart {
     }
 
     // TODO: check if there is any value in returning Vec<usize> vs just usize, what is the cost of the generator
-    pub fn vertices_window(
-        &self,
-        t_start: i64,
-        t_end: i64,
-        chunk_size: usize,
-    ) -> impl Iterator<Item = Vec<usize>> {
+    pub fn vertices_window(&self, t_start: i64, t_end: i64) -> impl Iterator<Item = TVertex> {
         let tg = self.clone();
         let vertices_iter = gen!({
             let g = tg.0.read();
-            let chunks = (*g).vertices_window(t_start..t_end).chunks(chunk_size);
-            let iter = chunks.into_iter().map(|chunk| chunk.collect::<Vec<_>>());
+            let iter = (*g).vertices_window(t_start..t_end).map(|v| v.into());
             for v_id in iter {
                 yield_!(v_id)
             }
         });
-
         vertices_iter.into_iter()
     }
 
@@ -311,10 +320,13 @@ mod temporal_graph_partition_test {
         }
 
         for (v, (t_start, t_end)) in intervals.0.iter().enumerate() {
-            let vertex_window = g.vertices_window(*t_start, *t_end, 1);
-            let iter = &mut vertex_window.into_iter().flatten();
+            let vertex_window = g
+                .vertices_window(*t_start, *t_end)
+                .map(move |v| v.g_id)
+                .collect::<Vec<_>>();
+            let iter = &mut vertex_window.iter();
             let v_actual = iter.next();
-            assert_eq!(Some(v), v_actual);
+            assert_eq!(Some(v as u64), Some(*v_actual.unwrap()));
             assert_eq!(None, iter.next()); // one vertex per interval
         }
     }
