@@ -326,10 +326,12 @@ mod temporal_graph_partition_test {
         }
 
         for (v, (t_start, t_end)) in intervals.0.iter().enumerate() {
-            let vertex_window = g.vertices_window(*t_start, *t_end);
-            let iter = &mut vertex_window.flatten();
+            let vertex_window = g.vertices_window(*t_start, *t_end)
+            .map(move |v| v.g_id)
+            .collect::<Vec<_>>();
+            let iter = &mut vertex_window.iter();
             let v_actual = iter.next();
-            assert_eq!(Some(v), v_actual);
+            assert_eq!(Some(v as u64), Some(*v_actual.unwrap()));
             assert_eq!(None, iter.next()); // one vertex per interval
         }
     }
