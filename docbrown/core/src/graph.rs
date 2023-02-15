@@ -571,7 +571,7 @@ impl TemporalGraph {
     }
 }
 
-pub(crate) struct VertexView<'a, G: Sized> {
+pub(crate) struct VertexView<'a, G> {
     g_id: u64,
     pid: usize,
     g: &'a G,
