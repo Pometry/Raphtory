@@ -149,11 +149,12 @@ impl GraphDB {
         &self, 
         t_start: i64, 
         t_end: i64,
-        t_end: i64,
-    ) -> Box<dyn Iterator<Item = TVertex>>{
+    ) -> Box<dyn Iterator<Item = TVertex>+ '_> {
         Box::new(self.shards
             .iter()
             .map(move |shard| shard.vertices_window(t_start, t_end))
+            .into_iter()
+            .flatten()
         )
     }
 
