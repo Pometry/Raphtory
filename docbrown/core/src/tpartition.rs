@@ -1,8 +1,8 @@
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use std::ops::Range;
 use std::path::Path;
 use std::sync::Arc;
-use std::ops::Range;
 
 use genawaiter::rc::gen;
 use genawaiter::yield_;
@@ -33,16 +33,14 @@ impl<'a> From<EdgeView<'a, TemporalGraph>> for TEdge {
 
 #[derive(Debug)]
 pub struct TVertex {
-    pub g_id: u64, 
-    pid: usize,
-    pub w: Option<Range<i64>>, 
+    pub g_id: u64,
+    pub w: Option<Range<i64>>,
 }
 
 impl<'a> From<VertexView<'a, TemporalGraph>> for TVertex {
     fn from(v: VertexView<'a, TemporalGraph>) -> Self {
         Self {
             g_id: v.global_id(),
-            pid: v.partition_id(),
             w: v.window(),
         }
     }
@@ -140,11 +138,7 @@ impl TemporalGraphPart {
     }
 
     // TODO: check if there is any value in returning Vec<usize> vs just usize, what is the cost of the generator
-    pub fn vertices_window(
-        &self,
-        t_start: i64,
-        t_end: i64,
-    ) -> impl Iterator<Item = TVertex> {
+    pub fn vertices_window(&self, t_start: i64, t_end: i64) -> impl Iterator<Item = TVertex> {
         let tg = self.clone();
         let vertices_iter = gen!({
             let g = tg.0.read();
@@ -326,9 +320,10 @@ mod temporal_graph_partition_test {
         }
 
         for (v, (t_start, t_end)) in intervals.0.iter().enumerate() {
-            let vertex_window = g.vertices_window(*t_start, *t_end)
-            .map(move |v| v.g_id)
-            .collect::<Vec<_>>();
+            let vertex_window = g
+                .vertices_window(*t_start, *t_end)
+                .map(move |v| v.g_id)
+                .collect::<Vec<_>>();
             let iter = &mut vertex_window.iter();
             let v_actual = iter.next();
             assert_eq!(Some(v as u64), Some(*v_actual.unwrap()));
