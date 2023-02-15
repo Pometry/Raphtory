@@ -743,103 +743,34 @@ mod db_tests {
             g.add_edge(*src, *dst, *t, &vec![]);
         }
 
-        // let actual: Vec<_> = args
-        //     .iter()
-        //     .map(|vec| 
-        //         {
-        //             g.vertices_window(vec.0, vec.1)
-        //             .map(move |v| v.g_id)
-        //             .collect::<Vec<_>>()
-        //         }
-        // ).collect_vec();
-
-        assert_eq!(
-            {
-            let mut e = g.vertices_window(args[0].0, args[0].1)
-                .map(move |v| v.g_id)
-                .collect::<Vec<_>>();
-            e.sort();
-            e
-            }, 
-            expected[0]);
-        
-        assert_eq!(
-            {
-                let mut e = g.vertices_window(args[1].0, args[1].1)
+        let res: Vec<_> = (0..=3)
+            .map(|i| 
+                {
+                    let mut e = g.vertices_window(args[i].0, args[i].1)
                     .map(move |v| v.g_id)
                     .collect::<Vec<_>>();
-                e.sort();
-                e
-                }, 
-            expected[1]);
+                    e.sort();
+                    e
+                }
+        ).collect_vec();
 
-        assert_eq!(
-            {
-                let mut e = g.vertices_window(args[2].0, args[2].1)
-                    .map(move |v| v.g_id)
-                    .collect::<Vec<_>>();
-                e.sort();
-                e
-                }, 
-            expected[2]);
-
-        assert_eq!(
-            {
-                let mut e = g.vertices_window(args[3].0, args[3].1)
-                    .map(move |v| v.g_id)
-                    .collect::<Vec<_>>();
-                e.sort();
-                e
-                }, 
-            expected[3]);
-        
+        assert_eq!(res, expected);
         
         let g = GraphDB::new(3);
-
         for (src, dst, t) in &vs {
             g.add_edge(*src, *dst, *t, &vec![]);
         }
-
-        assert_eq!(
-            {
-            let mut e = g.vertices_window(args[0].0, args[0].1)
-                .map(move |v| v.g_id)
-                .collect::<Vec<_>>();
-            e.sort();
-            e
-            }, 
-            expected[0]);
-        
-        assert_eq!(
-            {
-                let mut e = g.vertices_window(args[1].0, args[1].1)
+        let res: Vec<_> = (0..=3)
+            .map(|i| 
+                {
+                    let mut e = g.vertices_window(args[i].0, args[i].1)
                     .map(move |v| v.g_id)
                     .collect::<Vec<_>>();
-                e.sort();
-                e
-                }, 
-            expected[1]);
-
-        assert_eq!(
-            {
-                let mut e = g.vertices_window(args[2].0, args[2].1)
-                    .map(move |v| v.g_id)
-                    .collect::<Vec<_>>();
-                e.sort();
-                e
-                }, 
-            expected[2]);
-
-        assert_eq!(
-            {
-                let mut e = g.vertices_window(args[3].0, args[3].1)
-                    .map(move |v| v.g_id)
-                    .collect::<Vec<_>>();
-                e.sort();
-                e
-                }, 
-            expected[3]);
-        
+                    e.sort();
+                    e
+                }
+        ).collect_vec();
+        assert_eq!(res, expected);
     }
 
     #[test]
