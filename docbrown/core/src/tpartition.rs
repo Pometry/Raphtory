@@ -33,7 +33,7 @@ impl<'a> From<EdgeView<'a, TemporalGraph>> for TEdge {
 
 #[derive(Debug)]
 pub struct TVertex {
-    g_id: u64, 
+    pub g_id: u64, 
     pid: usize,
     pub w: Option<Range<i64>>, 
 }
