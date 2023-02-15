@@ -2,11 +2,12 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Arc;
+use std::ops::Range;
 
 use genawaiter::rc::gen;
 use genawaiter::yield_;
 
-use crate::graph::{EdgeView, TemporalGraph};
+use crate::graph::{EdgeView, TemporalGraph, VertexView};
 use crate::{Direction, Prop};
 use itertools::*;
 
@@ -26,6 +27,23 @@ impl<'a> From<EdgeView<'a, TemporalGraph>> for TEdge {
             dst: e.global_dst(),
             t: e.time(),
             is_remote: e.is_remote(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct TVertex {
+    g_id: u64, 
+    pid: usize,
+    pub w: Option<Range<i64>>, 
+}
+
+impl<'a> From<VertexView<'a, TemporalGraph>> for TVertex {
+    fn from(v: VertexView<'a, TemporalGraph>) -> Self {
+        Self {
+            g_id: v.global_id(),
+            pid: v.partition_id(),
+            w: v.window(),
         }
     }
 }
@@ -126,11 +144,11 @@ impl TemporalGraphPart {
         &self,
         t_start: i64,
         t_end: i64,
-    ) -> impl Iterator<Item = u64> {
+    ) -> impl Iterator<Item = TVertex> {
         let tg = self.clone();
         let vertices_iter = gen!({
             let g = tg.0.read();
-            let iter = (*g).vertices_window(t_start..t_end);
+            let iter = (*g).vertices_window(t_start..t_end).map(|v| v.into());
             for v_id in iter {
                 yield_!(v_id)
             }
