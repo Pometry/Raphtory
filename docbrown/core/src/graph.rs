@@ -237,7 +237,10 @@ impl TemporalGraph {
         )
     }
 
-    pub(crate) fn vertices_window(&self, r: Range<i64>) -> Box<dyn Iterator<Item = VertexView<'_, Self>> + '_> {
+    pub(crate) fn vertices_window(
+        &self,
+        r: Range<i64>,
+    ) -> Box<dyn Iterator<Item = VertexView<'_, Self>> + '_> {
         Box::new(
             self.index
                 .range(r.clone())
@@ -245,19 +248,19 @@ impl TemporalGraph {
                 .kmerge()
                 .dedup()
                 .map(move |pid| match self.adj_lists[pid] {
-                        Adj::Solo(lid) => VertexView {
-                            g_id: lid,
-                            pid,
-                            g: self,
-                            w: Some(r.clone()),
-                        },
-                        Adj::List { logical, .. } => VertexView {
-                            g_id: logical,
-                            pid,
-                            g: self,
-                            w: Some(r.clone()),
-                        }
-                    })
+                    Adj::Solo(lid) => VertexView {
+                        g_id: lid,
+                        pid,
+                        g: self,
+                        w: Some(r.clone()),
+                    },
+                    Adj::List { logical, .. } => VertexView {
+                        g_id: logical,
+                        pid,
+                        g: self,
+                        w: Some(r.clone()),
+                    },
+                }),
         )
     }
 
@@ -579,7 +582,7 @@ impl<'a> VertexView<'a, TemporalGraph> {
     pub fn global_id(&self) -> u64 {
         self.g_id
     }
-    
+
     pub fn partition_id(&self) -> usize {
         self.pid
     }
