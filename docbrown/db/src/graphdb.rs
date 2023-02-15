@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use docbrown_core::{
-    tpartition::{TEdge, TemporalGraphPart},
+    tpartition::{TVertex, TEdge, TemporalGraphPart},
     utils, Direction, Prop,
 };
 
@@ -149,12 +149,11 @@ impl GraphDB {
         &self, 
         t_start: i64, 
         t_end: i64,
-    ) -> Box<dyn Iterator<Item = u64> + '_>{
+        t_end: i64,
+    ) -> Box<dyn Iterator<Item = TVertex>>{
         Box::new(self.shards
             .iter()
             .map(move |shard| shard.vertices_window(t_start, t_end))
-            .flatten()
-            .sorted()
         )
     }
 
@@ -715,7 +714,7 @@ mod db_tests {
     }
 
     #[test]
-    fn vertices_window_test()  {
+    fn vertices_window()  {
         let vs = vec![
             (1, 2, 1),
             (3, 4, 3),
@@ -731,19 +730,19 @@ mod db_tests {
         }
         // Test 1: All of time 
         assert_eq!(
-            g.vertices_window(i64::MIN, 8, 8).collect::<Vec<u64>>(),
+            g.vertices_window(i64::MIN, 8).collect::<Vec<_>>(),
             vec![1, 2, 3, 4, 5, 6, 7],
          );
          assert_eq!(
-            g.vertices_window(i64::MIN, 2, 1).collect::<Vec<u64>>(),
+            g.vertices_window(i64::MIN, 2).collect::<Vec<u64>>(),
             vec![1, 2],
         );
         assert_eq!(
-            g.vertices_window(i64::MIN, 4, 4).collect::<Vec<u64>>(), 
+            g.vertices_window(i64::MIN, 4).collect::<Vec<u64>>(), 
             vec![1, 2, 3, 4],
         );
         assert_eq!(
-            g.vertices_window(3, 6, 2).collect::<Vec<u64>>(),
+            g.vertices_window(3, 6).collect::<Vec<u64>>(),
             vec![3, 4, 5, 6],
         );       
 
@@ -753,7 +752,7 @@ mod db_tests {
             g.add_edge(*src, *dst, *t, &vec![]);
         }
         assert_eq!(
-            g.vertices_window(i64::MIN, 8, 8).collect::<Vec<Vec<usize>>>(),
+            g.vertices_window(i64::MIN, 8).collect::<Vec<Vec<usize>>>(),
             vec![vec![0, 1], vec![0, 1, 2], vec![0, 1]],
         );
         // // Test 2: Time 1, chunk_size 1

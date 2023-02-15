@@ -237,16 +237,26 @@ impl TemporalGraph {
         )
     }
 
-    pub(crate) fn vertices_window(&self, r: Range<i64>) -> Box<dyn Iterator<Item = u64> + '_> {
+    pub(crate) fn vertices_window(&self, r: Range<i64>) -> Box<dyn Iterator<Item = VertexView<'_, Self>> + '_> {
         Box::new(
             self.index
                 .range(r.clone())
                 .map(|(_, vs)| vs.iter())
                 .kmerge()
                 .dedup()
-                .map(|f| match self.adj_lists[f] {
-                        Adj::Solo(lid) => lid,
-                        Adj::List { logical, .. } => logical,
+                .map(move |pid| match self.adj_lists[pid] {
+                        Adj::Solo(lid) => VertexView {
+                            g_id: lid,
+                            pid,
+                            g: self,
+                            w: Some(r.clone()),
+                        },
+                        Adj::List { logical, .. } => VertexView {
+                            g_id: logical,
+                            pid,
+                            g: self,
+                            w: Some(r.clone()),
+                        }
                     })
         )
     }
@@ -558,7 +568,7 @@ impl TemporalGraph {
     }
 }
 
-pub(crate) struct VertexView<'a, G> {
+pub(crate) struct VertexView<'a, G: Sized> {
     g_id: u64,
     pid: usize,
     g: &'a G,
@@ -568,6 +578,14 @@ pub(crate) struct VertexView<'a, G> {
 impl<'a> VertexView<'a, TemporalGraph> {
     pub fn global_id(&self) -> u64 {
         self.g_id
+    }
+    
+    pub fn partition_id(&self) -> usize {
+        self.pid
+    }
+
+    pub fn window(&self) -> Option<Range<i64>> {
+        self.w.clone()
     }
 
     pub fn degree(&self, d: Direction) -> usize {
