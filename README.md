@@ -97,7 +97,7 @@ graph.add_vertex(
 );
 
 graph.add_vertex(
-  src_id,
+  dst_id,
   time,
   &vec![("name".to_string(), Prop::Str("Character".to_string()))],
 );
