@@ -28,6 +28,11 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
+      - name: Build project quietly
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: -q
       - name: Run Tests
         uses: actions-rs/cargo@v1
         with:
