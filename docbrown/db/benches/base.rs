@@ -11,9 +11,9 @@ use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::ops::Range;
 use std::path::Path;
+use std::time::Duration;
 use docbrown_core::graphview::GraphView;
-
-use docbrown_it::data;
+use docbrown_db::data;
 
 fn hash<T: Hash>(t: &T) -> u64 {
     let mut s = DefaultHasher::new();
@@ -66,6 +66,8 @@ pub fn additions(c: &mut Criterion) {
 
     let mut g = c.benchmark_group("additions");
     g.throughput(Throughput::Elements(1));
+    g.warm_up_time(Duration::from_millis(10));
+    g.measurement_time(Duration::from_millis(10));
 
     let mut times: Range<i64> = 0..i64::MAX;
     let mut indexes: Range<u64> = 0..u64::MAX;
@@ -121,21 +123,24 @@ pub fn ingestion(c: &mut Criterion) {
         })
     });
 
-    g.throughput(Throughput::Elements(1400000));
-    g.sample_size(20);
-    let twitter = data::twitter().unwrap();
-    g.bench_function("twitter.csv", |b: &mut Bencher| {
-        b.iter(|| {
-            let mut graph = GraphDB::new(3);
-            load_csv(&mut graph, &twitter, 0, 1, None);
-        })
-    });
+    // TODO: uncomment or move to different bench
+    // g.throughput(Throughput::Elements(1400000));
+    // g.sample_size(20);
+    // let twitter = data::twitter().unwrap();
+    // g.bench_function("twitter.csv", |b: &mut Bencher| {
+    //     b.iter(|| {
+    //         let mut graph = GraphDB::new(3);
+    //         load_csv(&mut graph, &twitter, 0, 1, None);
+    //     })
+    // });
 
     g.finish();
 }
 
 pub fn analysis(c: &mut Criterion) {
     let mut g = c.benchmark_group("analysis");
+    g.warm_up_time(Duration::from_millis(100));
+    g.warm_up_time(Duration::from_millis(100));
     let lotr = data::lotr().unwrap();
     let mut graph = GraphDB::new(3);
     load_csv(&mut graph, &lotr, 0, 1, Some(2));
