@@ -2,9 +2,10 @@
 members = [
 	"docbrown/core",
 	"docbrown/db",
-	"examples"
+	"examples/rust",
+	"pyraphtory"
 ]
-default-members = ["docbrown/core", "docbrown/db"]
+default-members = ["docbrown/core", "docbrown/db", "pyraphtory"]
 
 [workspace.package]
 version = "0.1.0"
