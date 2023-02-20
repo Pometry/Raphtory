@@ -41,13 +41,15 @@ pub struct Received {
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    let default_data_dir = String::from("./examples/src/bin/btc/data");
+    let default_data_dir: PathBuf = [env!("CARGO_MANIFEST_DIR"), "src/bin/btc/data"]
+        .iter()
+        .collect();
 
-    let data_dir = Path::new(if args.len() < 2 {
+    let data_dir = if args.len() < 2 {
         &default_data_dir
     } else {
-        args.get(1).unwrap()
-    });
+        Path::new(args.get(1).unwrap())
+    };
 
     if !data_dir.exists() {
         panic!("Missing data dir = {}", data_dir.to_str().unwrap())

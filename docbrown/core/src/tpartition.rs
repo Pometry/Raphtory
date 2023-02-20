@@ -13,11 +13,11 @@ use itertools::*;
 
 #[derive(Debug)]
 pub struct TEdge {
-    src: u64,
-    dst: u64,
+    pub src: u64,
+    pub dst: u64,
     // edge_meta_id: AdjEdge,
     pub t: Option<i64>,
-    is_remote: bool,
+    pub is_remote: bool,
 }
 
 impl<'a> From<EdgeView<'a, TemporalGraph>> for TEdge {

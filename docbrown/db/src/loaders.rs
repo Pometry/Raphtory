@@ -14,7 +14,7 @@ pub mod csv {
     use crate::graphdb::GraphDB;
 
     #[derive(Debug)]
-    pub struct CsvErr(io::Error);
+    pub struct CsvErr(pub io::Error);
 
     #[derive(Debug)]
     pub struct CsvLoader {
