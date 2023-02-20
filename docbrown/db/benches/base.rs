@@ -1,9 +1,7 @@
-use criterion::{
-    black_box, criterion_group, criterion_main, BatchSize, Bencher, Criterion, Throughput,
-};
+use criterion::{criterion_group, criterion_main, BatchSize, Bencher, Criterion, Throughput};
 use csv::StringRecord;
 use csv_sniffer::Type;
-use docbrown_core::Direction;
+use docbrown_db::data;
 use docbrown_db::graphdb::GraphDB;
 use std::collections::hash_map::DefaultHasher;
 use std::error::Error;
@@ -12,8 +10,6 @@ use std::hash::{Hash, Hasher};
 use std::ops::Range;
 use std::path::Path;
 use std::time::Duration;
-use docbrown_core::graphview::GraphView;
-use docbrown_db::data;
 
 fn hash<T: Hash>(t: &T) -> u64 {
     let mut s = DefaultHasher::new();
@@ -144,7 +140,7 @@ pub fn analysis(c: &mut Criterion) {
     let lotr = data::lotr().unwrap();
     let mut graph = GraphDB::new(3);
     load_csv(&mut graph, &lotr, 0, 1, Some(2));
-    g.bench_function("n_edges", |b| b.iter(|| graph.n_edges()));
+    g.bench_function("n_edges", |b| b.iter(|| graph.edges_len()));
     g.finish();
 }
 
