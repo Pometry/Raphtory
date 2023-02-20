@@ -112,7 +112,10 @@ graph.add_edge(
   )],
 );
 
-// Get the in-degree, out-degree and degree of a particular vertex- here we have Gandalf
+// We calculate a hash for the string "Gandalf" to be used as a unique identifier for Gandalf
+let gandalf = utils::calculate_hash(&"Gandalf");
+
+// Get the in-degree, out-degree and degree of Gandalf
 let in_degree = graph.degree_window(gandalf, 0, i64::MAX, Direction::IN);
 let out_degree = graph.degree_window(gandalf, 0, i64::MAX, Direction::OUT);
 let degree = graph.degree_window(gandalf, 0, i64::MAX, Direction::BOTH);
