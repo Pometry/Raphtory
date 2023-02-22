@@ -31,18 +31,19 @@ fn fetch_file(name: &str, url: &str, hash: &str) -> Result<PathBuf, FetchDataErr
     Ok(file)
 }
 
-fn parse_record(rec: &StringRecord) -> Option<(String, String, i64)> {
-    let src = rec.get(0).and_then(|s| s.parse::<String>().ok())?;
-    let dst = rec.get(1).and_then(|s| s.parse::<String>().ok())?;
-    let t = rec.get(2).and_then(|s| s.parse::<i64>().ok())?;
-    Some((src, dst, t))
-}
 
 pub fn lotr_graph(shards: usize) -> GraphDB {
     let g = GraphDB::new(shards);
 
     let data_dir = lotr_file().expect("Failed to get lotr.csv file");
 
+    fn parse_record(rec: &StringRecord) -> Option<(String, String, i64)> {
+        let src = rec.get(0).and_then(|s| s.parse::<String>().ok())?;
+        let dst = rec.get(1).and_then(|s| s.parse::<String>().ok())?;
+        let t = rec.get(2).and_then(|s| s.parse::<i64>().ok())?;
+        Some((src, dst, t))
+    }
+    
     if let Ok(mut reader) = csv::Reader::from_path(data_dir) {
         for rec_res in reader.records() {
             if let Ok(rec) = rec_res {
