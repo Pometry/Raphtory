@@ -111,7 +111,7 @@ pub fn ingestion(c: &mut Criterion) {
     let mut g = c.benchmark_group("ingestion");
 
     g.throughput(Throughput::Elements(2649));
-    let lotr = data::lotr().unwrap();
+    let lotr = data::lotr_file().unwrap();
     g.bench_function("lotr.csv", |b: &mut Bencher| {
         b.iter(|| {
             let mut graph = GraphDB::new(3);
@@ -137,7 +137,7 @@ pub fn analysis(c: &mut Criterion) {
     let mut g = c.benchmark_group("analysis");
     g.warm_up_time(Duration::from_millis(100));
     g.warm_up_time(Duration::from_millis(100));
-    let lotr = data::lotr().unwrap();
+    let lotr = data::lotr_file().unwrap();
     let mut graph = GraphDB::new(3);
     load_csv(&mut graph, &lotr, 0, 1, Some(2));
     g.bench_function("n_edges", |b| b.iter(|| graph.edges_len()));
