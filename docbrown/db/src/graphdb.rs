@@ -816,13 +816,13 @@ mod db_tests {
     #[test]
     fn test_lotr_load_graph() {
         let g = data::lotr_graph(4);
-        g.edges_len();
+        assert_eq!(g.edges_len(), 701);
     }
 
     #[ignore]
     #[test]
     fn test_twitter_load_graph() {
         let g = data::twitter_graph(4);
-        g.edges_len();
+        assert_eq!(g.edges_len(), 1089147);
     }
 }

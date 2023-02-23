@@ -1,9 +1,13 @@
+use crate::data;
 use crate::{graphdb::GraphDB, loaders::csv::CsvLoader};
-use csv::StringRecord;
+use csv::Reader;
+use csv::{ReaderBuilder, StringRecord};
 use docbrown_core::utils;
 use docbrown_core::{Direction, Prop};
 use fetch_data::{fetch, FetchDataError};
+use regex::Regex;
 use serde::Deserialize;
+use std::fs::File;
 use std::path::PathBuf;
 use std::{env, path::Path, time::Instant};
 // In order to add new files to this module, obtain the hash using bin/hash_for_url.rs
@@ -31,7 +35,6 @@ fn fetch_file(name: &str, url: &str, hash: &str) -> Result<PathBuf, FetchDataErr
     Ok(file)
 }
 
-
 pub fn lotr_graph(shards: usize) -> GraphDB {
     let g = GraphDB::new(shards);
 
@@ -43,7 +46,7 @@ pub fn lotr_graph(shards: usize) -> GraphDB {
         let t = rec.get(2).and_then(|s| s.parse::<i64>().ok())?;
         Some((src, dst, t))
     }
-    
+
     if let Ok(mut reader) = csv::Reader::from_path(data_dir) {
         for rec_res in reader.records() {
             if let Ok(rec) = rec_res {
@@ -77,11 +80,12 @@ pub fn lotr_graph(shards: usize) -> GraphDB {
     g
 }
 
-pub fn twitter_graph(shards: usize) -> GraphDB {
-    let g = GraphDB::new(shards);
-
-    let data_dir = twitter_file().expect("Failed to get twitter.csv file");
-
+fn build_static_graph_from_path<P: AsRef<Path>>(
+    g: GraphDB,
+    path: P,
+    delimiter: u8,
+    header: bool,
+) -> GraphDB {
     fn parse_record(rec: &StringRecord) -> Option<(String, String, i64)> {
         let src = rec.get(0).and_then(|s| s.parse::<String>().ok())?;
         let dst = rec.get(1).and_then(|s| s.parse::<String>().ok())?;
@@ -89,7 +93,11 @@ pub fn twitter_graph(shards: usize) -> GraphDB {
         Some((src, dst, t))
     }
 
-    if let Ok(mut reader) = csv::Reader::from_path(data_dir) {
+    if let Ok(mut reader) = ReaderBuilder::new()
+        .delimiter(delimiter)
+        .has_headers(header)
+        .from_path(path)
+    {
         for rec_res in reader.records() {
             if let Ok(rec) = rec_res {
                 if let Some((src, dst, t)) = parse_record(&rec) {
@@ -117,4 +125,16 @@ pub fn twitter_graph(shards: usize) -> GraphDB {
         }
     }
     g
+}
+
+fn convert_to_bytes(delimiter: &str) -> u8 {
+    delimiter.as_bytes()[0]
+}
+
+pub fn twitter_graph(shards: usize) -> GraphDB {
+    let g = GraphDB::new(shards);
+    let data_dir = twitter_file().expect("Failed to get twitter.csv file");
+    let delimiter = convert_to_bytes(" ");
+    let has_headers = false;
+    build_static_graph_from_path(g, data_dir, delimiter, has_headers)
 }
