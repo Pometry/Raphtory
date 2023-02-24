@@ -819,10 +819,12 @@ mod db_tests {
         assert_eq!(g.edges_len(), 701);
     }
 
+    //TODO: move this to integration tests or speed it up
     #[ignore]
     #[test]
     fn test_twitter_load_graph() {
         let g = data::twitter_graph(4);
         assert_eq!(g.edges_len(), 1089147);
+        assert_eq!(g.len(), 49467);
     }
 }
