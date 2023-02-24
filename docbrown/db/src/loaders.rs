@@ -90,8 +90,9 @@ pub mod csv {
                     Err(err) => {
                         if !Self::is_dir(path) {
                             self.accept_file(path.to_path_buf(), &mut paths);
+                        } else {
+                            return Err(CsvErr(err));
                         }
-                        return Err(CsvErr(err));
                     }
                 }
             }
@@ -207,35 +208,35 @@ mod csv_loader_test {
 
     fn lotr_test(g: GraphDB, csv_loader: CsvLoader, has_header: bool, delimiter: &str, r: Regex) {
         csv_loader
-        .set_header(has_header)
-        .set_delimiter(delimiter)
-        .with_filter(r)
-        .load_into_graph(&g, |lotr: Lotr, g: &GraphDB| {
-            let src_id = calculate_hash(&lotr.src_id);
-            let dst_id = calculate_hash(&lotr.dst_id);
-            let time = lotr.time;
+            .set_header(has_header)
+            .set_delimiter(delimiter)
+            .with_filter(r)
+            .load_into_graph(&g, |lotr: Lotr, g: &GraphDB| {
+                let src_id = calculate_hash(&lotr.src_id);
+                let dst_id = calculate_hash(&lotr.dst_id);
+                let time = lotr.time;
 
-            g.add_vertex(
-                src_id,
-                time,
-                &vec![("name".to_string(), Prop::Str("Character".to_string()))],
-            );
-            g.add_vertex(
-                dst_id,
-                time,
-                &vec![("name".to_string(), Prop::Str("Character".to_string()))],
-            );
-            g.add_edge(
-                src_id,
-                dst_id,
-                time,
-                &vec![(
-                    "name".to_string(),
-                    Prop::Str("Character Co-occurrence".to_string()),
-                )],
-            );
-        })
-        .expect("Csv did not parse.");
+                g.add_vertex(
+                    src_id,
+                    time,
+                    &vec![("name".to_string(), Prop::Str("Character".to_string()))],
+                );
+                g.add_vertex(
+                    dst_id,
+                    time,
+                    &vec![("name".to_string(), Prop::Str("Character".to_string()))],
+                );
+                g.add_edge(
+                    src_id,
+                    dst_id,
+                    time,
+                    &vec![(
+                        "name".to_string(),
+                        Prop::Str("Character Co-occurrence".to_string()),
+                    )],
+                );
+            })
+            .expect("Csv did not parse.");
     }
 
     #[test]
@@ -252,7 +253,6 @@ mod csv_loader_test {
         let r = Regex::new(r".+(lotr.csv)").unwrap();
         let delimiter = ",";
         lotr_test(g, csv_loader, has_header, delimiter, r);
-       
     }
 
     #[test]
@@ -268,7 +268,6 @@ mod csv_loader_test {
         let r = Regex::new(r".+(lotr.csv)").unwrap();
         let delimiter = ",";
         lotr_test(g, csv_loader, has_header, delimiter, r);
-       
     }
 
     #[test]
@@ -284,7 +283,6 @@ mod csv_loader_test {
         let r = Regex::new(r".+(lotr-without-header.csv)").unwrap();
         let delimiter = ",";
         lotr_test(g, csv_loader, has_header, delimiter, r);
-       
     }
 
     #[test]
@@ -300,7 +298,6 @@ mod csv_loader_test {
         let has_header = true;
         let delimiter = ",";
         lotr_test(g, csv_loader, has_header, delimiter, r);
-       
     }
 
     #[test]
@@ -316,6 +313,5 @@ mod csv_loader_test {
         let has_header = true;
         let delimiter = ".";
         lotr_test(g, csv_loader, has_header, delimiter, r);
-       
     }
 }
