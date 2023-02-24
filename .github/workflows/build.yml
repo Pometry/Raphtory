@@ -25,7 +25,8 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/
+            target/debug
+            target/release
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
       - name: Build project quietly
@@ -38,4 +39,24 @@ jobs:
         with:
           command: test
       - name: Run benchmark
-        run: cargo bench --bench base | tee output.txt
+        run: cargo bench --bench base -- --output-format=bencher | tee benchmark-result.txt
+      - name: Download previous benchmark results
+        id: restore-benchmark-cache
+        uses: actions/cache/restore@v3
+        with:
+          path: ./benchmark-cache
+          key: ${{ runner.os }}-benchmark
+      - name: Compare benchmark results
+        uses: benchmark-action/github-action-benchmark@v1
+        if: github.ref != 'refs/heads/main'
+        with:
+          tool: 'cargo'
+          output-file-path: benchmark-result.txt
+          external-data-json-path: ./benchmark-cache/benchmark-result.json
+          fail-on-alert: true
+      - name: Save benchmark results from main branch
+        uses: actions/cache/save@v3
+        if: github.ref == 'refs/heads/main'
+        with:
+          path: ./benchmark-cache
+          key: ${{ steps.restore-benchmark-cache.outputs.cache-primary-key }}
