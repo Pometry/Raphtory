@@ -90,8 +90,9 @@ pub mod csv {
                     Err(err) => {
                         if !Self::is_dir(path) {
                             self.accept_file(path.to_path_buf(), &mut paths);
-                        }
+                        } else {
                         return Err(CsvErr(err));
+                        }
                     }
                 }
             }
