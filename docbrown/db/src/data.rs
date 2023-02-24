@@ -1,15 +1,10 @@
-use crate::{data, loaders};
 use crate::{graphdb::GraphDB, loaders::csv::CsvLoader};
-use csv::Reader;
-use csv::{ReaderBuilder, StringRecord};
 use docbrown_core::utils;
-use docbrown_core::{Direction, Prop};
+use docbrown_core::Prop;
 use fetch_data::{fetch, FetchDataError};
-use regex::Regex;
 use serde::Deserialize;
-use std::fs::File;
 use std::path::PathBuf;
-use std::{env, path::Path, time::Instant};
+use std::env;
 // In order to add new files to this module, obtain the hash using bin/hash_for_url.rs
 
 #[derive(Deserialize, std::fmt::Debug)]
