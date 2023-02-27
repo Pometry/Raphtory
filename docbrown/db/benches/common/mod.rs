@@ -116,7 +116,7 @@ pub fn run_large_ingestion_benchmarks<F>(
 {
     bench (
         group,
-        "100k benchmark",
+        "100k updates as new vertices",
         Option::None,
         |b: &mut Bencher| {
             b.iter_batched_ref(
@@ -124,6 +124,25 @@ pub fn run_large_ingestion_benchmarks<F>(
                 |(g, index_gen)|
                     for _ in times(100000) {
                         g.add_vertex(index_gen.next().unwrap(), 0, &vec![])
+                    },
+                BatchSize::SmallInput,
+            )
+        },
+    );
+
+    let mut times_gen = make_time_gen();
+    let mut time_sample = || times_gen.next().unwrap();
+
+    bench (
+        group,
+        "100k updates to a graph with 1m nodes",
+        Option::None,
+        |b: &mut Bencher| {
+            b.iter_batched_ref(
+                || (bootstrap_graph(4, 1000000), make_index_gen(), make_index_gen(), time_sample()),
+                |(g, src_gen, dst_gen, t)|
+                    for _ in times(100000) {
+                        g.add_edge(src_gen.next().unwrap(), dst_gen.next().unwrap(), *t, &vec![])
                     },
                 BatchSize::SmallInput,
             )
