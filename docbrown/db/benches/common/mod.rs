@@ -104,6 +104,33 @@ pub fn run_ingestion_benchmarks<F>(
     );
 }
 
+fn times(n: usize) -> impl Iterator {
+    std::iter::repeat(()).take(n)
+}
+
+pub fn run_large_ingestion_benchmarks<F>(
+    group: &mut BenchmarkGroup<WallTime>,
+    mut make_graph: F,
+) where
+    F: FnMut() -> GraphDB,
+{
+    bench (
+        group,
+        "100k benchmark",
+        Option::None,
+        |b: &mut Bencher| {
+            b.iter_batched_ref(
+                || (make_graph(), make_index_gen()),
+                |(g, index_gen)|
+                    for _ in times(100000) {
+                        g.add_vertex(index_gen.next().unwrap(), 0, &vec![])
+                    },
+                BatchSize::SmallInput,
+            )
+        },
+    );
+}
+
 pub fn run_analysis_benchmarks<F>(
     group: &mut BenchmarkGroup<WallTime>,
     mut make_graph: F,
