@@ -46,17 +46,24 @@ jobs:
         with:
           path: ./benchmark-cache
           key: ${{ runner.os }}-benchmark
-      - name: Compare benchmark results
-        uses: benchmark-action/github-action-benchmark@v1
+      - name: Check benchmark results
         if: github.ref != 'refs/heads/main'
+        uses: benchmark-action/github-action-benchmark@v1
         with:
           tool: 'cargo'
           output-file-path: benchmark-result.txt
           external-data-json-path: ./benchmark-cache/benchmark-result.json
           fail-on-alert: true
-      - name: Save benchmark results from main branch
-        uses: actions/cache/save@v3
+      - name: Generate benchmark results
         if: github.ref == 'refs/heads/main'
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'cargo'
+          output-file-path: benchmark-result.txt
+          external-data-json-path: ./benchmark-cache/benchmark-result.json
+      - name: Save benchmark results
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v3
         with:
           path: ./benchmark-cache
           key: ${{ steps.restore-benchmark-cache.outputs.cache-primary-key }}
