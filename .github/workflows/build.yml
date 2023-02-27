@@ -39,7 +39,9 @@ jobs:
         with:
           command: test
       - name: Run benchmark
-        run: cargo bench --bench base -- --output-format=bencher | tee benchmark-result.txt
+        run: |
+          set -o pipefail
+          cargo bench --bench base -- --output-format=bencher | tee benchmark-result.txt
       - name: Download previous benchmark results
         id: restore-benchmark-cache
         uses: actions/cache/restore@v3
