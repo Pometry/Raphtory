@@ -69,7 +69,7 @@ impl BitSet {
         }
     }
 
-    pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+    pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = usize> + Send + '_> {
         match self {
             BitSet::Empty => Box::new(std::iter::empty()),
             BitSet::One(i) => Box::new(std::iter::once(*i)),

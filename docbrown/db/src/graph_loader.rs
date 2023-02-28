@@ -1,7 +1,7 @@
-use crate::{graphdb::GraphDB, loaders::csv::CsvLoader};
+use crate::csv_loader::csv::CsvLoader;
 use fetch_data::{fetch, FetchDataError};
-use std::path::PathBuf;
 use std::env;
+use std::path::PathBuf;
 
 pub mod lotr_graph;
 pub mod twitter_graph;

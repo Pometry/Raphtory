@@ -4,16 +4,16 @@ extern crate quickcheck_macros;
 
 mod adj;
 mod bitset;
-pub mod graph;
+pub mod tgraph;
 pub mod lsm;
 mod misc;
 mod props;
 mod sorted_vec_map;
 mod tadjset;
 mod tcell;
-pub mod tpartition;
+pub mod tgraph_shard;
 mod tprop;
-mod tpropvec;
+mod tprop_vec;
 pub mod utils;
 
 // Denotes edge direction
