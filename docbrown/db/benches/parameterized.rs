@@ -8,7 +8,6 @@ mod common;
 
 pub fn parameterized(c: &mut Criterion) {
     let vertices_exponents = 1..6;
-    let shards = 1..10;
 
     let vertices = vertices_exponents.map(|exp| 10usize.pow(exp));
     let mut ingestion_group = c.benchmark_group("ingestion-num_vertices");
