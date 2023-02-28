@@ -104,6 +104,55 @@ pub fn run_ingestion_benchmarks<F>(
     );
 }
 
+fn times(n: usize) -> impl Iterator {
+    std::iter::repeat(()).take(n)
+}
+
+pub fn run_large_ingestion_benchmarks<F>(
+    group: &mut BenchmarkGroup<WallTime>,
+    mut make_graph: F,
+    parameter: Option<usize>,
+) where
+    F: FnMut() -> Graph,
+{
+    let mut times_gen = make_time_gen();
+    let mut time_sample = || times_gen.next().unwrap();
+
+    let updates = 1000;
+
+    bench (
+        group,
+        "1k fixed edge updates with varying time",
+        parameter,
+        |b: &mut Bencher| {
+            b.iter_batched_ref(
+                || (make_graph(), make_time_gen().take(updates).collect::<Vec<i64>>()),
+                |(g, times)|
+                    for t in times.iter() {
+                        g.add_edge(*t, 0, 0, &vec![])
+                    },
+                BatchSize::SmallInput,
+            )
+        },
+    );
+
+    bench (
+        group,
+        "1k random edge additions",
+        parameter,
+        |b: &mut Bencher| {
+            b.iter_batched_ref(
+                || (make_graph(), make_index_gen(), make_index_gen(), make_time_gen().take(updates).collect::<Vec<i64>>()),
+                |(g, src_gen, dst_gen, times)|
+                    for t in times.iter() {
+                        g.add_edge(*t, src_gen.next().unwrap(), dst_gen.next().unwrap(),  &vec![])
+                    },
+                BatchSize::SmallInput,
+            )
+        },
+    );
+}
+
 pub fn run_analysis_benchmarks<F>(
     group: &mut BenchmarkGroup<WallTime>,
     mut make_graph: F,
