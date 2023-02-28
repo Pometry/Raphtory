@@ -17,6 +17,7 @@ pub fn base(c: &mut Criterion) {
     let mut large_group = c.benchmark_group("large");
     large_group.warm_up_time(std::time::Duration::from_secs(1));
     large_group.sample_size(10);
+    large_group.measurement_time(std::time::Duration::from_secs(3));
     // Make an option of None
     run_large_ingestion_benchmarks(&mut large_group, || bootstrap_graph(4, 10000), None);
     large_group.finish();
