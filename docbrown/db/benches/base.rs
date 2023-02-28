@@ -1,7 +1,7 @@
 use crate::common::bootstrap_graph;
 use common::{run_analysis_benchmarks, run_ingestion_benchmarks};
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
-use docbrown_db::data;
+use docbrown_db::graph_loader::lotr_graph::{self, lotr_graph};
 
 mod common;
 
@@ -12,7 +12,7 @@ pub fn base(c: &mut Criterion) {
     ingestion_group.finish();
 
     let mut analysis_group = c.benchmark_group("analysis");
-    run_analysis_benchmarks(&mut analysis_group, || data::lotr_graph(4), None);
+    run_analysis_benchmarks(&mut analysis_group, || lotr_graph(4), None);
     analysis_group.finish();
 }
 

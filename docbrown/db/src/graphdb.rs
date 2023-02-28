@@ -5,7 +5,8 @@ use docbrown_core::{
     utils, Direction, Prop,
 };
 
-use crate::data;
+use crate::graph_loader::lotr_graph::{lotr_graph, lotr_file};
+use crate::graph_loader::twitter_graph::twitter_graph;
 
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
@@ -769,7 +770,7 @@ mod db_tests {
     fn db_lotr() {
         let g = GraphDB::new(4);
 
-        let data_dir = data::lotr_file().expect("Failed to get lotr.csv file");
+        let data_dir = lotr_file().expect("Failed to get lotr.csv file");
 
         fn parse_record(rec: &StringRecord) -> Option<(String, String, i64)> {
             let src = rec.get(0).and_then(|s| s.parse::<String>().ok())?;
@@ -815,7 +816,7 @@ mod db_tests {
 
     #[test]
     fn test_lotr_load_graph() {
-        let g = data::lotr_graph(4);
+        let g = lotr_graph(4);
         assert_eq!(g.edges_len(), 701);
     }
 
@@ -823,7 +824,7 @@ mod db_tests {
     #[ignore]
     #[test]
     fn test_twitter_load_graph() {
-        let g = data::twitter_graph(4);
+        let g = twitter_graph(4);
         assert_eq!(g.edges_len(), 1089147);
         assert_eq!(g.len(), 49467);
     }
