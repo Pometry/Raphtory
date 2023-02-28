@@ -112,37 +112,39 @@ pub fn run_large_ingestion_benchmarks<F>(
     group: &mut BenchmarkGroup<WallTime>,
     mut make_graph: F,
 ) where
-    F: FnMut() -> GraphDB,
+    F: FnMut() -> Graph,
 {
+    let mut times_gen = make_time_gen();
+    let mut time_sample = || times_gen.next().unwrap();
+
+    let updates = 1000;
+
     bench (
         group,
-        "100k updates as new vertices",
+        "1k fixed edge updates with varying time",
         Option::None,
         |b: &mut Bencher| {
             b.iter_batched_ref(
-                || (make_graph(), make_index_gen()),
-                |(g, index_gen)|
-                    for _ in times(100000) {
-                        g.add_vertex(index_gen.next().unwrap(), 0, &vec![])
+                || (make_graph(), time_sample()),
+                |(g, t)|
+                    for _ in times(updates) {
+                        g.add_edge(*t, 0, 0, &vec![])
                     },
                 BatchSize::SmallInput,
             )
         },
     );
 
-    let mut times_gen = make_time_gen();
-    let mut time_sample = || times_gen.next().unwrap();
-
     bench (
         group,
-        "100k updates to a graph with 1m nodes",
+        "1k random edge additions to a graph with 10k nodes",
         Option::None,
         |b: &mut Bencher| {
             b.iter_batched_ref(
-                || (bootstrap_graph(4, 1000000), make_index_gen(), make_index_gen(), time_sample()),
+                || (make_graph(), make_index_gen(), make_index_gen(), time_sample()),
                 |(g, src_gen, dst_gen, t)|
-                    for _ in times(100000) {
-                        g.add_edge(src_gen.next().unwrap(), dst_gen.next().unwrap(), *t, &vec![])
+                    for _ in times(updates) {
+                        g.add_edge(src_gen.next().unwrap() as i64, dst_gen.next().unwrap(), *t as u64, &vec![])
                     },
                 BatchSize::SmallInput,
             )
