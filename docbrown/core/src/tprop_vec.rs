@@ -57,7 +57,7 @@ impl TPropVec {
     ) -> Box<dyn Iterator<Item = (&i64, Prop)> + '_> {
         match self {
             TPropVec::TPropVec1(prop_id0, prop0) if *prop_id0 == prop_id => prop0.iter_window(r),
-            TPropVec::TPropVecN(props) if props.len() >= prop_id => props[prop_id].iter_window(r),
+            TPropVec::TPropVecN(props) if props.len() > prop_id => props[prop_id].iter_window(r),
             _ => Box::new(std::iter::empty()),
         }
     }

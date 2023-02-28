@@ -1,6 +1,6 @@
 use docbrown_core::utils;
 use docbrown_core::{Direction, Prop};
-use docbrown_db::{graphdb::GraphDB, loaders::csv::CsvLoader};
+use docbrown_db::{graph::Graph, csv_loader::csv::CsvLoader};
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::{env, path::Path, time::Instant};
@@ -33,7 +33,7 @@ fn main() {
 
     let graph = if encoded_data_dir.exists() {
         let now = Instant::now();
-        let g = GraphDB::load_from_file(encoded_data_dir.as_path())
+        let g = Graph::load_from_file(encoded_data_dir.as_path())
             .expect("Failed to load graph from encoded data files");
 
         println!(
@@ -46,29 +46,29 @@ fn main() {
 
         g
     } else {
-        let g = GraphDB::new(2);
+        let g = Graph::new(2);
         let now = Instant::now();
 
         let _ = CsvLoader::new(data_dir)
-            .load_into_graph(&g, |lotr: Lotr, g: &GraphDB| {
+            .load_into_graph(&g, |lotr: Lotr, g: &Graph| {
                 let src_id = utils::calculate_hash(&lotr.src_id);
                 let dst_id = utils::calculate_hash(&lotr.dst_id);
                 let time = lotr.time;
 
                 g.add_vertex(
-                    src_id,
                     time,
+                    src_id,
                     &vec![("name".to_string(), Prop::Str("Character".to_string()))],
                 );
                 g.add_vertex(
-                    src_id,
                     time,
+                    src_id,
                     &vec![("name".to_string(), Prop::Str("Character".to_string()))],
                 );
                 g.add_edge(
+                    time,
                     src_id,
                     dst_id,
-                    time,
                     &vec![(
                         "name".to_string(),
                         Prop::Str("Character Co-occurrence".to_string()),
@@ -91,54 +91,119 @@ fn main() {
         g
     };
 
-    println!("Graph length = {}", graph.len());
-    println!("Graph edge length = {}", graph.edges_len());
+    assert_eq!(graph.len(), 139);
+    assert_eq!(graph.edges_len(), 701);
 
     let gandalf = utils::calculate_hash(&"Gandalf");
-    println!("Gandalf Hash = {}", gandalf);
-    println!("Gandalf exists = {}", graph.contains(gandalf));
 
-    let in_degree = graph.degree(gandalf, Direction::IN);
-    let out_degree = graph.degree(gandalf, Direction::OUT);
-    let degree = graph.degree(gandalf, Direction::BOTH);
+    assert_eq!(gandalf, 13840129630991083248);
+    assert!(graph.contains(gandalf));
 
-    println!(
-        "Gandalf has {} in-degree, {} out-degree and {} total degree",
-        in_degree, out_degree, degree
+    assert_eq!(graph.degree(gandalf, Direction::IN), 24);
+    assert_eq!(graph.degree(gandalf, Direction::OUT), 35);
+    assert_eq!(graph.degree(gandalf, Direction::BOTH), 49);
+
+    assert_eq!(graph.degree_window(gandalf, 0, i64::MAX, Direction::IN), 24);
+    assert_eq!(
+        graph.degree_window(gandalf, 0, i64::MAX, Direction::OUT),
+        35
+    );
+    assert_eq!(
+        graph.degree_window(gandalf, 0, i64::MAX, Direction::BOTH),
+        49
     );
 
-    let in_degree_w = graph.degree_window(gandalf, 0, i64::MAX, Direction::IN);
-    let out_degree_w = graph.degree_window(gandalf, 0, i64::MAX, Direction::OUT);
-    let degree_w = graph.degree_window(gandalf, 0, i64::MAX, Direction::BOTH);
+    let actual = graph
+        .neighbours_window(gandalf, 100, 9000, Direction::OUT)
+        .map(|e| (e.src, e.dst, e.t, e.is_remote))
+        .collect::<Vec<_>>();
 
-    println!(
-        "Gandalf has {} windowed in-degree, {} windowed out-degree and {} total degree",
-        in_degree_w, out_degree_w, degree_w
-    );
+    let expected = vec![
+        (13840129630991083248, 6768237561757024290, None, false),
+        (13840129630991083248, 2582862946330553552, None, false),
+        (13840129630991083248, 13415634039873497660, None, false),
+        (13840129630991083248, 357812470600089148, None, false),
+        (13840129630991083248, 17764752901005380738, None, false),
+        (13840129630991083248, 6484040860173734298, None, false),
+        (0, 2914346725110218071, None, true),
+        (0, 5956895584314169235, None, true),
+        (0, 12936471037316398897, None, true),
+        (0, 13050559475682228465, None, true),
+        (0, 13789593425373656861, None, true),
+        (0, 14223985880962197705, None, true),
+    ];
 
-    println!("\nGandalf's windowed outbound neighbours");
-    graph
-        .neighbours_window(gandalf, 0, i64::MAX, Direction::OUT)
-        .for_each(|e| println!("{:?}", e));
+    assert_eq!(actual, expected);
 
-    println!("\nGandalf's outbound neighbours");
-    graph
+    let actual = graph
         .neighbours(gandalf, Direction::OUT)
-        .for_each(|e| println!("{:?}", e));
+        .take(10)
+        .map(|e| (e.src, e.dst, e.t, e.is_remote))
+        .collect::<Vec<_>>();
 
-    println!("\nGandalf's windowed outbound neighbours with timestamp");
-    graph
-        .neighbours_window_t(gandalf, 0, i64::MAX, Direction::OUT)
-        .for_each(|e| println!("{:?}", e));
+    let expected: Vec<(u64, u64, Option<i64>, bool)> = vec![
+        (13840129630991083248, 12772980705568717046, None, false),
+        (13840129630991083248, 6768237561757024290, None, false),
+        (13840129630991083248, 11214194356141027632, None, false),
+        (13840129630991083248, 2582862946330553552, None, false),
+        (13840129630991083248, 13415634039873497660, None, false),
+        (13840129630991083248, 6514938325906662882, None, false),
+        (13840129630991083248, 13854913496482509346, None, false),
+        (13840129630991083248, 357812470600089148, None, false),
+        (13840129630991083248, 17764752901005380738, None, false),
+        (13840129630991083248, 15044750458947305290, None, false),
+    ];
 
-    println!("\nAll Vertices!");
-    for v in graph.vertices() {
-        println!("{v}")
-    }
+    assert_eq!(actual, expected);
 
-    println!("Print windowed vertices!");
-    graph.vertices_window(0, 300).for_each(|v| {
-        println!("{:?}", v.g_id);
-    });
+    let actual = graph
+        .neighbours_window_t(gandalf, 3000, 5000, Direction::OUT)
+        .map(|e| (e.src, e.dst, e.t, e.is_remote))
+        .collect::<Vec<_>>();
 
+    let expected: Vec<(u64, u64, Option<i64>, bool)> = vec![
+        (13840129630991083248, 2582862946330553552, Some(3060), false),
+        (0, 5956895584314169235, Some(3703), true),
+        (0, 5956895584314169235, Some(3914), true),
+    ];
+
+    assert_eq!(actual, expected);
+
+    let actual = graph
+        .vertices()
+        .take(10)
+        .map(|tv| tv.g_id)
+        .collect::<Vec<u64>>();
+
+    let expected: Vec<u64> = vec![
+        13840129630991083248,
+        12772980705568717046,
+        8366058037510783370,
+        11638942476191275730,
+        6768237561757024290,
+        13652678879212650868,
+        10620258110842154986,
+        12687378031997996522,
+        11214194356141027632,
+        2582862946330553552,
+    ];
+
+    assert_eq!(actual, expected);
+
+    let actual = graph
+        .vertices_window(0, 300)
+        .map(|v| v.g_id)
+        .collect::<Vec<u64>>();
+
+    let expected = vec![
+        13840129630991083248,
+        12772980705568717046,
+        8366058037510783370,
+        11638942476191275730,
+        12936471037316398897,
+        5956895584314169235,
+        5402476312775412883,
+        7320164159843417887,
+    ];
+    assert_eq!(actual, expected);
 }

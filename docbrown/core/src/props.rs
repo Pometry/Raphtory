@@ -1,4 +1,4 @@
-use crate::tpropvec::TPropVec;
+use crate::tprop_vec::TPropVec;
 use crate::Prop;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -46,7 +46,7 @@ impl Props {
         }
     }
 
-    pub fn upsert_vertex_props(&mut self, vertex_id: usize, t: i64, props: &Vec<(String, Prop)>) {
+    pub fn upsert_vertex_props(&mut self, t: i64, vertex_id: usize, props: &Vec<(String, Prop)>) {
         if props.is_empty() {
             match self.vertex_meta.get_mut(vertex_id) {
                 Some(_) => {}
@@ -67,7 +67,7 @@ impl Props {
         }
     }
 
-    pub fn upsert_edge_props(&mut self, edge_id: usize, t: i64, props: &Vec<(String, Prop)>) {
+    pub fn upsert_edge_props(&mut self, t: i64, edge_id: usize, props: &Vec<(String, Prop)>) {
         if edge_id == 0 {
             panic!("Edge id (= 0) in invalid because it cannot be used to express both remote and local edges")
         };
@@ -122,7 +122,7 @@ mod props_tests {
     #[should_panic]
     fn assigning_edge_id_as_0_should_fail() {
         let mut props = Props::default();
-        props.upsert_edge_props(0, 1, &vec![]);
+        props.upsert_edge_props(1, 0, &vec![]);
     }
 
     #[test]
@@ -144,7 +144,7 @@ mod props_tests {
     #[test]
     fn insert_default_value_against_no_props_vertex_upsert() {
         let mut props = Props::default();
-        props.upsert_vertex_props(0, 1, &vec![]);
+        props.upsert_vertex_props(1, 0, &vec![]);
 
         assert_eq!(props.vertex_meta.get(0).unwrap(), &TPropVec::Empty)
     }
@@ -152,7 +152,7 @@ mod props_tests {
     #[test]
     fn insert_new_vertex_prop() {
         let mut props = Props::default();
-        props.upsert_vertex_props(0, 1, &vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_vertex_props(1, 0, &vec![("bla".to_string(), Prop::I32(10))]);
 
         let prop_id = props.get_prop_id("bla");
         assert_eq!(
@@ -169,8 +169,8 @@ mod props_tests {
     #[test]
     fn update_existing_vertex_prop() {
         let mut props = Props::default();
-        props.upsert_vertex_props(0, 1, &vec![("bla".to_string(), Prop::I32(10))]);
-        props.upsert_vertex_props(0, 2, &vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_vertex_props(1, 0, &vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_vertex_props(2, 0, &vec![("bla".to_string(), Prop::I32(10))]);
 
         let prop_id = props.get_prop_id("bla");
         assert_eq!(
@@ -187,8 +187,8 @@ mod props_tests {
     #[test]
     fn new_update_with_the_same_time_to_a_vertex_prop_is_ignored() {
         let mut props = Props::default();
-        props.upsert_vertex_props(0, 1, &vec![("bla".to_string(), Prop::I32(10))]);
-        props.upsert_vertex_props(0, 1, &vec![("bla".to_string(), Prop::I32(20))]);
+        props.upsert_vertex_props(1, 0, &vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_vertex_props(1, 0, &vec![("bla".to_string(), Prop::I32(20))]);
 
         let prop_id = props.get_prop_id("bla");
         assert_eq!(
@@ -231,7 +231,7 @@ mod props_tests {
     fn update_existing_edge_prop() {
         let mut props = Props::default();
         props.upsert_edge_props(1, 1, &vec![("bla".to_string(), Prop::I32(10))]);
-        props.upsert_edge_props(1, 2, &vec![("bla".to_string(), Prop::I32(10))]);
+        props.upsert_edge_props(2, 1, &vec![("bla".to_string(), Prop::I32(10))]);
 
         let prop_id = props.get_prop_id("bla");
         assert_eq!(

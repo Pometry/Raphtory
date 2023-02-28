@@ -9,7 +9,7 @@ pub mod csv {
     use std::path::{Path, PathBuf};
     use std::{fs, io};
 
-    use crate::graphdb::GraphDB;
+    use crate::graph::Graph;
     use rayon::prelude::*;
     use regex::Regex;
 
@@ -100,10 +100,10 @@ pub mod csv {
             Ok(paths)
         }
 
-        pub fn load_into_graph<F, REC>(&self, g: &GraphDB, loader: F) -> Result<(), CsvErr>
+        pub fn load_into_graph<F, REC>(&self, g: &Graph, loader: F) -> Result<(), CsvErr>
         where
             REC: DeserializeOwned + std::fmt::Debug,
-            F: Fn(REC, &GraphDB) -> () + Send + Sync,
+            F: Fn(REC, &Graph) -> () + Send + Sync,
         {
             let paths = self.files_vec()?;
 
@@ -118,12 +118,12 @@ pub mod csv {
         fn load_file_into_graph<F, REC, P: Into<PathBuf> + Debug>(
             &self,
             path: P,
-            g: &GraphDB,
+            g: &Graph,
             loader: &F,
         ) -> Result<(), CsvErr>
         where
             REC: DeserializeOwned + std::fmt::Debug,
-            F: Fn(REC, &GraphDB) -> (),
+            F: Fn(REC, &Graph) -> (),
         {
             let file_path: PathBuf = path.into();
 
@@ -159,8 +159,8 @@ pub mod csv {
             }
         }
 
-        pub fn load(&self) -> Result<GraphDB, CsvErr> {
-            let g = GraphDB::new(2);
+        pub fn load(&self) -> Result<Graph, CsvErr> {
+            let g = Graph::new(2);
             // self.load_into(&g)?;
             Ok(g)
         }
@@ -169,8 +169,8 @@ pub mod csv {
 
 #[cfg(test)]
 mod csv_loader_test {
-    use crate::graphdb::GraphDB;
-    use crate::loaders::csv::CsvLoader;
+    use crate::graph::Graph;
+    use crate::csv_loader::csv::CsvLoader;
     use docbrown_core::utils::calculate_hash;
     use docbrown_core::Prop;
     use regex::Regex;
@@ -206,30 +206,30 @@ mod csv_loader_test {
         time: i64,
     }
 
-    fn lotr_test(g: GraphDB, csv_loader: CsvLoader, has_header: bool, delimiter: &str, r: Regex) {
+    fn lotr_test(g: Graph, csv_loader: CsvLoader, has_header: bool, delimiter: &str, r: Regex) {
         csv_loader
             .set_header(has_header)
             .set_delimiter(delimiter)
             .with_filter(r)
-            .load_into_graph(&g, |lotr: Lotr, g: &GraphDB| {
+            .load_into_graph(&g, |lotr: Lotr, g: &Graph| {
                 let src_id = calculate_hash(&lotr.src_id);
                 let dst_id = calculate_hash(&lotr.dst_id);
                 let time = lotr.time;
 
                 g.add_vertex(
-                    src_id,
                     time,
+                    src_id,
                     &vec![("name".to_string(), Prop::Str("Character".to_string()))],
                 );
                 g.add_vertex(
-                    dst_id,
                     time,
+                    dst_id,
                     &vec![("name".to_string(), Prop::Str("Character".to_string()))],
                 );
                 g.add_edge(
+                    time,
                     src_id,
                     dst_id,
-                    time,
                     &vec![(
                         "name".to_string(),
                         Prop::Str("Character Co-occurrence".to_string()),
@@ -241,7 +241,7 @@ mod csv_loader_test {
 
     #[test]
     fn test_headers_flag_and_delimiter() {
-        let g = GraphDB::new(2);
+        let g = Graph::new(2);
         // todo: move file path to data module
         let csv_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "../../resource/"]
             .iter()
@@ -258,7 +258,7 @@ mod csv_loader_test {
     #[test]
     #[should_panic]
     fn test_wrong_header_flag_file_with_header() {
-        let g = GraphDB::new(2);
+        let g = Graph::new(2);
         // todo: move file path to data module
         let csv_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "../../resource/"]
             .iter()
@@ -273,7 +273,7 @@ mod csv_loader_test {
     #[test]
     #[should_panic]
     fn test_flag_has_header_but_file_has_no_header() {
-        let g = GraphDB::new(2);
+        let g = Graph::new(2);
         // todo: move file path to data module
         let csv_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "../../resource/"]
             .iter()
@@ -288,7 +288,7 @@ mod csv_loader_test {
     #[test]
     #[should_panic]
     fn test_wrong_header_names() {
-        let g = GraphDB::new(2);
+        let g = Graph::new(2);
         // todo: move file path to data module
         let csv_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "../../resource/"]
             .iter()
@@ -303,7 +303,7 @@ mod csv_loader_test {
     #[test]
     #[should_panic]
     fn test_wrong_delimiter() {
-        let g = GraphDB::new(2);
+        let g = Graph::new(2);
         // todo: move file path to data module
         let csv_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "../../resource/"]
             .iter()

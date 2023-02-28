@@ -1,7 +1,7 @@
 use fetch_data::FetchDataError;
 use serde::Deserialize;
 use std::path::PathBuf;
-use crate::graph_loader::{fetch_file, GraphDB, CsvLoader};
+use crate::{graph_loader::{fetch_file, CsvLoader}, graph::Graph};
 use docbrown_core::{Prop, utils};
 
 #[derive(Deserialize, std::fmt::Debug)]
@@ -19,30 +19,30 @@ pub fn lotr_file() -> Result<PathBuf, FetchDataError> {
     )
 }
 
-pub fn lotr_graph(shards: usize) -> GraphDB {
+pub fn lotr_graph(shards: usize) -> Graph {
     let graph = {
-        let g = GraphDB::new(shards);
+        let g = Graph::new(shards);
 
         CsvLoader::new(&lotr_file().unwrap())
-            .load_into_graph(&g, |lotr: Lotr, g: &GraphDB| {
+            .load_into_graph(&g, |lotr: Lotr, g: &Graph| {
                 let src_id = utils::calculate_hash(&lotr.src_id);
                 let dst_id = utils::calculate_hash(&lotr.dst_id);
                 let time = lotr.time; 
 
                 g.add_vertex(
-                    src_id,
                     time,
+                    src_id,
                     &vec![("name".to_string(), Prop::Str("Character".to_string()))],
                 );
                 g.add_vertex(
-                    src_id,
                     time,
+                    src_id,
                     &vec![("name".to_string(), Prop::Str("Character".to_string()))],
                 );
                 g.add_edge(
+                    time,
                     src_id,
                     dst_id,
-                    time,
                     &vec![(
                         "name".to_string(),
                         Prop::Str("Character Co-occurrence".to_string()),

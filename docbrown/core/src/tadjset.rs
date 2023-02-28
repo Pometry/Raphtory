@@ -36,7 +36,7 @@ pub(crate) enum TAdjSet<V: Ord + TryInto<usize> + std::hash::Hash, Time: Copy + 
     },
 }
 
-impl<V: Ord + Into<usize> + From<usize> + Copy + Hash, Time: Copy + Ord> TAdjSet<V, Time> {
+impl<V: Ord + Into<usize> + From<usize> + Copy + Hash + Send + Sync, Time: Copy + Ord + Send + Sync> TAdjSet<V, Time> {
     pub fn new(t: Time, v: V, e: AdjEdge) -> Self {
         Self::One(t, v, e)
     }
@@ -114,7 +114,7 @@ impl<V: Ord + Into<usize> + From<usize> + Copy + Hash, Time: Copy + Ord> TAdjSet
         }
     }
 
-    pub fn iter(&self) -> Box<dyn Iterator<Item = (&V, AdjEdge)> + '_> {
+    pub fn iter(&self) -> Box<dyn Iterator<Item = (&V, AdjEdge)> + Send + '_> {
         match self {
             TAdjSet::Empty => Box::new(std::iter::empty()),
             TAdjSet::One(_, v, e) => Box::new(std::iter::once((v, *e))),
@@ -125,7 +125,7 @@ impl<V: Ord + Into<usize> + From<usize> + Copy + Hash, Time: Copy + Ord> TAdjSet
         }
     }
 
-    pub fn iter_window(&self, r: &Range<Time>) -> Box<dyn Iterator<Item = (V, AdjEdge)> + '_> {
+    pub fn iter_window(&self, r: &Range<Time>) -> Box<dyn Iterator<Item = (V, AdjEdge)> + Send + '_> {
         match self {
             TAdjSet::Empty => Box::new(std::iter::empty()),
             TAdjSet::One(t, v, e) => {
@@ -167,7 +167,7 @@ impl<V: Ord + Into<usize> + From<usize> + Copy + Hash, Time: Copy + Ord> TAdjSet
     pub fn iter_window_t(
         &self,
         r: &Range<Time>,
-    ) -> Box<dyn Iterator<Item = (V, Time, AdjEdge)> + '_> {
+    ) -> Box<dyn Iterator<Item = (V, Time, AdjEdge)> + Send + '_> {
         match self {
             TAdjSet::Empty => Box::new(std::iter::empty()),
             TAdjSet::One(t, v, e) => {
@@ -268,7 +268,6 @@ impl AdjEdge {
 #[cfg(test)]
 mod tadjset_tests {
     use super::*;
-    use crate::adj::Adj;
 
     #[test]
     fn insert() {

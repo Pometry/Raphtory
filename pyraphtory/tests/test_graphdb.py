@@ -1,23 +1,26 @@
 import sys
-import pyraphtory
-from pyraphtory import GraphDB
+from pyraphtory import Graph
 from pyraphtory import Direction
 
 
 def create_graph(num_shards):
-    g = GraphDB(num_shards)
+    g = Graph(num_shards)
 
     edges = [
-        (1, 2, 1),
-        (1, 3, 2),
-        (2, 1, -1),
-        (1, 1, 0),
-        (3, 2, 7),
+        (1, 1, 2),
+        (2, 1, 3),
+        (-1, 2, 1),
+        (0, 1, 1),
+        (7, 3, 2),
         (1, 1, 1)
     ]
 
+    g.add_vertex(0, 1, {"type": "wallet", "cost": 99.5})
+    g.add_vertex(-1, 2, {"type": "wallet", "cost": 10.0})
+    g.add_vertex(6, 3, {"type": "wallet", "cost": 76})
+
     for e in edges:
-        g.add_edge(e[0], e[1], e[2], {})
+        g.add_edge(e[0], e[1], e[2], {"prop1": 1, "prop2": 9.8, "prop3": "test"})
 
     return g
 
@@ -38,9 +41,9 @@ def test_graph_contains():
 def test_graph_degree():
     g = create_graph(3)
 
-    indegree = g.degree(1, pyraphtory.Direction.IN)
-    outdegree = g.degree(2, pyraphtory.Direction.OUT)
-    degree = g.degree(3, pyraphtory.Direction.BOTH)
+    indegree = g.degree(1, Direction.IN)
+    outdegree = g.degree(2, Direction.OUT)
+    degree = g.degree(3, Direction.BOTH)
 
     assert indegree == 2
     assert outdegree == 1
@@ -50,12 +53,9 @@ def test_graph_degree():
 def test_graph_degree_window():
     g = create_graph(3)
 
-    indegree_w = g.degree_window(
-        1, 0, sys.maxsize, pyraphtory.Direction.IN)
-    outdegree_w = g.degree_window(
-        2, 0, sys.maxsize, pyraphtory.Direction.OUT)
-    degree_w = g.degree_window(
-        3, 0, sys.maxsize, pyraphtory.Direction.BOTH)
+    indegree_w = g.degree_window(1, 0, sys.maxsize, Direction.IN)
+    outdegree_w = g.degree_window(2, 0, sys.maxsize, Direction.OUT)
+    degree_w = g.degree_window(3, 0, sys.maxsize, Direction.BOTH)
 
     assert indegree_w == 1
     assert outdegree_w == 0
@@ -66,7 +66,7 @@ def test_graph_neighbours():
     g = create_graph(1)
 
     in_neighbours = []
-    for e in g.neighbours(1, pyraphtory.Direction.IN):
+    for e in g.neighbours(1, Direction.IN):
         in_neighbours.append([e.src, e.dst, e.t, e.is_remote])
     assert in_neighbours == [
         [1, 1, None, False],
@@ -74,14 +74,14 @@ def test_graph_neighbours():
     ]
 
     out_neighbours = []
-    for e in g.neighbours(2, pyraphtory.Direction.OUT):
+    for e in g.neighbours(2, Direction.OUT):
         out_neighbours.append([e.src, e.dst, e.t, e.is_remote])
     assert out_neighbours == [
         [2, 1, None, False]
     ]
 
     neighbours = []
-    for e in g.neighbours(3, pyraphtory.Direction.BOTH):
+    for e in g.neighbours(3, Direction.BOTH):
         neighbours.append([e.src, e.dst, e.t, e.is_remote])
     assert neighbours == [
         [1, 3, None, False],
@@ -135,10 +135,53 @@ def test_graph_neighbours_window_t():
     assert neighbours_w_t == [[1, 0, 2, True], [0, 2, 7, True]]
 
 
-def test_graph_vertices():
+def test_graph_vertex_ids():
     g = create_graph(3)
 
-    vs = [v for v in g.vertices()]
+    vs = [v for v in g.vertex_ids()]
     vs.sort()
 
     assert vs == [1, 2, 3]
+
+
+def test_windowed_graph_vertex_ids():
+    g = create_graph(3)
+
+    vs = [v for v in g.window(-1, 1).vertex_ids()]
+    vs.sort()
+
+    assert vs == [1, 2]
+
+
+def test_graph_vertex_ids():
+    g = create_graph(1)
+
+    vs = [v for v in g.vertex_ids()]
+    vs.sort()
+
+    assert vs == [1, 2, 3]
+
+
+def test_graph_vertices():
+    g = create_graph(1)
+
+    vertices = []
+    for v in g.vertices():
+        vertices.append([v.g_id, v.props])
+    assert vertices == [
+            [1, {"type": [(0, "wallet")], "cost": [(0, 99.5)]}], 
+            [2, {"type": [(-1, "wallet")], "cost": [(-1, 10.0)]}], 
+            [3, {"type": [(6, "wallet")], "cost": [(6, 76)]}]
+        ]
+
+
+def test_graph_vertices_window():
+    g = create_graph(1)
+
+    vertices = []
+    for v in g.vertices_window(-1, 0):
+        vertices.append([v.g_id, v.props])
+    assert vertices == [
+            [1, {}], 
+            [2, {"type": [(-1, "wallet")], "cost": [(-1, 10.0)]}], 
+        ]
