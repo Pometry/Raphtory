@@ -142,9 +142,9 @@ pub fn run_large_ingestion_benchmarks<F>(
         parameter,
         |b: &mut Bencher| {
             b.iter_batched_ref(
-                || (make_graph(), make_index_gen(), make_index_gen(), time_sample()),
-                |(g, src_gen, dst_gen, t)|
-                    for _ in times(updates) {
+                || (make_graph(), make_index_gen(), make_index_gen(), make_time_gen().take(updates).collect::<Vec<i64>>()),
+                |(g, src_gen, dst_gen, times)|
+                    for t in times.iter() {
                         g.add_edge(src_gen.next().unwrap() as i64, dst_gen.next().unwrap(), *t as u64, &vec![])
                     },
                 BatchSize::SmallInput,
