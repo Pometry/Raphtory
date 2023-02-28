@@ -1,21 +1,21 @@
 use criterion::{measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId};
-use docbrown_db::graphdb::GraphDB;
+use docbrown_db::graph::Graph;
 use rand::{distributions::Uniform, Rng};
 
 fn make_index_gen() -> Box<dyn Iterator<Item = u64>> {
-    let mut rng = rand::thread_rng();
+    let rng = rand::thread_rng();
     let range = Uniform::new(u64::MIN, u64::MAX);
     Box::new(rng.sample_iter(range))
 }
 
 fn make_time_gen() -> Box<dyn Iterator<Item = i64>> {
-    let mut rng = rand::thread_rng();
+    let rng = rand::thread_rng();
     let range = Uniform::new(i64::MIN, i64::MAX);
     Box::new(rng.sample_iter(range))
 }
 
-pub fn bootstrap_graph(num_shards: usize, num_vertices: usize) -> GraphDB {
-    let mut graph = GraphDB::new(4);
+pub fn bootstrap_graph(num_shards: usize, num_vertices: usize) -> Graph {
+    let graph = Graph::new(4);
     let mut indexes = make_index_gen();
     let mut times = make_time_gen();
     let num_edges = num_vertices / 2;
@@ -23,7 +23,7 @@ pub fn bootstrap_graph(num_shards: usize, num_vertices: usize) -> GraphDB {
         let source = indexes.next().unwrap();
         let target = indexes.next().unwrap();
         let time = times.next().unwrap();
-        graph.add_edge(source, target, time, &vec![]);
+        graph.add_edge(time, source, target, &vec![]);
     }
     graph
 }
@@ -47,7 +47,7 @@ pub fn run_ingestion_benchmarks<F>(
     mut make_graph: F,
     parameter: Option<usize>,
 ) where
-    F: FnMut() -> GraphDB,
+    F: FnMut() -> Graph,
 {
     let mut indexes = make_index_gen();
     let mut times = make_time_gen();
@@ -61,7 +61,7 @@ pub fn run_ingestion_benchmarks<F>(
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), time_sample()),
-                |(g, t): &mut (GraphDB, i64)| g.add_vertex(0, *t, &vec![]),
+                |(g, t): &mut (Graph, i64)| g.add_vertex(*t, 0, &vec![]),
                 BatchSize::SmallInput,
             )
         },
@@ -73,7 +73,7 @@ pub fn run_ingestion_benchmarks<F>(
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), index_sample()),
-                |(g, v): &mut (GraphDB, u64)| g.add_vertex(*v, 0, &vec![]),
+                |(g, v): &mut (Graph, u64)| g.add_vertex(0, *v, &vec![]),
                 BatchSize::SmallInput,
             )
         },
@@ -85,7 +85,7 @@ pub fn run_ingestion_benchmarks<F>(
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), time_sample()),
-                |(g, t)| g.add_edge(0, 0, *t, &vec![]),
+                |(g, t)| g.add_edge(*t, 0, 0, &vec![]),
                 BatchSize::SmallInput,
             )
         },
@@ -97,7 +97,7 @@ pub fn run_ingestion_benchmarks<F>(
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), index_sample(), index_sample()),
-                |(g, s, d)| g.add_edge(*s, *d, 0, &vec![]),
+                |(g, s, d)| g.add_edge(0, *s, *d, &vec![]),
                 BatchSize::SmallInput,
             )
         },
@@ -155,7 +155,7 @@ pub fn run_analysis_benchmarks<F>(
     mut make_graph: F,
     parameter: Option<usize>,
 ) where
-    F: FnMut() -> GraphDB,
+    F: FnMut() -> Graph,
 {
     let mut graph = make_graph();
     bench(group, "edges_len", parameter, |b: &mut Bencher| {

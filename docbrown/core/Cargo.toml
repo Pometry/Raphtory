@@ -17,13 +17,13 @@ sorted_vector_map = "0.1"
 # flume = "0.10"
 futures = "0.3"
 genawaiter = "0.99"
-parking_lot = { version = "0.12" , features = ["serde"] }
+parking_lot = { version = "0.12" , features = ["serde", "arc_lock"] }
 serde = { version = "1", features = ["derive","rc"] }
 bincode = "1"
 
 # crossbeam = "0.8"
 # crossbeam-utils = "0.8"
-# tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["sync"] }
 
 [dev-dependencies]
 criterion = "0.4"

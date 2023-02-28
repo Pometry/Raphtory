@@ -128,6 +128,15 @@ let degree = graph.degree_window(gandalf, 0, i64::MAX, Direction::BOTH);
 DocBrown has Documentation with tutorials, explanations and rust docs. 
 It can be found here on [ReadTheDocs](https://docbrown.readthedocs.io)
 
+# Contributing
+
+- Install Rust from [install guide](https://www.rust-lang.org/tools/install)
+- Install Python 3.10 (virtual/conda environment is recommended).
+- Install pip packages needed to build/test
+```
+pip install maturin pytest
+```
+
 # Community  
 Join the growing community of open-source enthusiasts using Raphtory to power their graph analysis projects!
 

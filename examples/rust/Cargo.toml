@@ -18,3 +18,7 @@ name = "btc"
 
 [[bin]]
 name = "lotr"
+
+
+[[bin]]
+name = "hulongbay"
