@@ -6,17 +6,17 @@ use std::thread::JoinHandle;
 use std::{env, thread};
 
 use chrono::{DateTime, Utc};
-use docbrown_core::graph::TemporalGraph;
-use docbrown_core::{Direction, Prop};
+use docbrown_core::tgraph::TemporalGraph;
 use docbrown_core::utils;
-use docbrown_db::loaders::csv::CsvLoader;
+use docbrown_core::{Direction, Prop};
+use docbrown_db::csv_loader::csv::CsvLoader;
 use regex::Regex;
 use serde::Deserialize;
 use std::fs::File;
 use std::io::{prelude::*, BufReader, LineWriter};
 use std::time::Instant;
 
-use docbrown_db::graphdb::GraphDB;
+use docbrown_db::graph::Graph;
 
 #[derive(Deserialize, std::fmt::Debug)]
 pub struct Sent {
@@ -63,7 +63,7 @@ fn main() {
 
     let graph = if encoded_data_dir.exists() {
         let now = Instant::now();
-        let g = GraphDB::load_from_file(encoded_data_dir.as_path())
+        let g = Graph::load_from_file(encoded_data_dir.as_path())
             .expect("Failed to load graph from encoded data files");
 
         println!(
@@ -76,13 +76,13 @@ fn main() {
 
         g
     } else {
-        let g = GraphDB::new(16);
+        let g = Graph::new(16);
 
         let now = Instant::now();
 
         let _ = CsvLoader::new(data_dir)
             .with_filter(Regex::new(r".+(sent|received)").unwrap())
-            .load_into_graph(&g, |sent: Sent, g: &GraphDB| {
+            .load_into_graph(&g, |sent: Sent, g: &Graph| {
                 let src = utils::calculate_hash(&sent.addr);
                 let dst = utils::calculate_hash(&sent.txn);
                 let time = sent.time.timestamp();
@@ -92,9 +92,9 @@ fn main() {
                 }
 
                 g.add_edge(
+                    time.try_into().unwrap(),
                     src,
                     dst,
-                    time.try_into().unwrap(),
                     &vec![("amount".to_string(), Prop::U64(sent.amount_btc))],
                 )
             })
@@ -114,20 +114,20 @@ fn main() {
         g
     };
 
+    assert_eq!(graph.len(), 9132396);
+    assert_eq!(graph.edges_len(), 5087223);
+
     assert!(graph.contains(test_v));
+
     let deg_out = graph
         .neighbours_window(test_v, 0, i64::MAX, Direction::OUT)
         .count();
-        
     let deg_in = graph
         .neighbours_window(test_v, 0, i64::MAX, Direction::IN)
         .count();
 
-    println!(
-        "{} has {} out degree and {} in degree",
-        test_v, deg_out, deg_in
-    );
-
+    assert_eq!(deg_out, 22);
+    assert_eq!(deg_in, 1);
 }
 
 mod custom_date_format {
