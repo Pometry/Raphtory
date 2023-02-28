@@ -126,9 +126,9 @@ pub fn run_large_ingestion_benchmarks<F>(
         parameter,
         |b: &mut Bencher| {
             b.iter_batched_ref(
-                || (make_graph(), time_sample()),
-                |(g, t)|
-                    for _ in times(updates) {
+                || (make_graph(), make_time_gen().take(updates).collect::<Vec<i64>>()),
+                |(g, times)|
+                    for t in times.iter() {
                         g.add_edge(*t, 0, 0, &vec![])
                     },
                 BatchSize::SmallInput,
