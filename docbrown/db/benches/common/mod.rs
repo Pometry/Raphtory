@@ -138,7 +138,7 @@ pub fn run_large_ingestion_benchmarks<F>(
 
     bench (
         group,
-        "1k random edge additions to a graph with 10k nodes",
+        "1k random edge additions",
         parameter,
         |b: &mut Bencher| {
             b.iter_batched_ref(
