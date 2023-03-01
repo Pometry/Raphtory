@@ -9,7 +9,7 @@ name = "pyraphtory"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.17.1" } #, features = ["extension-module"] }
+pyo3 =  "0.18.1"
 docbrown-db = {path = "../docbrown/db"}
 docbrown-core = {path = "../docbrown/core"}
 
@@ -25,3 +25,7 @@ serde = { version = "1", features = ["derive", "rc"] }
 rayon = "1"
 chrono = "0.4"
 bincode = "1"
+
+[features]
+extension-module = ["pyo3/extension-module"]
+default = ["extension-module"]
