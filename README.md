@@ -63,12 +63,6 @@ Build Doc Brown by running this command to make sure it compiles and builds:
 ```
 cargo build
 ```
-
-If you have any linker errors please build with the following command:
-```bash
-cargo build --no-default-features
-```
-
 Next run the main function in `main.rs` which creates a graph from the LOTR csv file, showing the different character interactions throughout the book. To do this, you will need to be in the `lotr` folder, the file path to this from root is `./examples/src/bin/lotr`. Once you are here run this command to run the LOTR example:
 
 ```
